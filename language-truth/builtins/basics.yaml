@@ -126,6 +126,62 @@ functions:
   description_en: Is file
   params: []
   lookup_table: MODULE_FUNCTION
+- cpp_id: REAL_PATH
+  canonical: المسار_الحقيقي
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 1.1.0
+  status: stable
+  description_ar: المسار الحقيقيّ المُحلَّل (يتبع الروابط الرمزيّة ويطبّع `..`)؛ يُرجع نصًّا فارغًا إن تعذّر الحلّ
+  description_en: Fully resolved real path (follows symlinks, normalises `..`); returns an empty string when resolution fails
+  params:
+    - name: مسار
+      type: نص
+  lookup_table: MODULE_FUNCTION
+  # (AR) المضيف: std::filesystem::canonical (المفسّر) / realpath و
+  #      GetFinalPathNameByHandleA (المصرّف). يلزم وجودُ المسار — الغياب يُرجع نصًّا
+  #      فارغًا لا خطأً، كي يميّز المستعمل «ملفٌّ جديد» من «هروبٌ برابطٍ رمزيّ» بضمّها
+  #      إلى هل_رابط_رمزي. والفارغُ لا لبسَ فيه: المسارُ المحلول لا يكون فارغًا أبدًا.
+  #      اختيرَ الفارغُ على «عدم» لتوحيد العقد بين المحرّكين: تمثيلُ العدم يختلف
+  #      بينهما فينتج انحرافَ تكافؤ — وهو ما ظهر فعلًا عند القياس.
+  #      أساسُ فرضِ احتواء المسارات (لا يكفي التطبيعُ النصّيّ: رابطٌ رمزيّ يخترقه).
+- cpp_id: ABS_PATH
+  canonical: المسار_المطلق
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 1.1.0
+  status: stable
+  description_ar: المسار المطلق بلا حلِّ الروابط الرمزيّة (يعمل على مسارٍ غير موجود)؛ نصٌّ فارغ عند الفشل
+  description_en: Absolute path without resolving symlinks (works for a non-existent path); empty string on failure
+  params:
+    - name: مسار
+      type: نص
+  lookup_table: MODULE_FUNCTION
+  # (AR) المضيف: std::filesystem::absolute. لا يتبع الروابط ⇒ لا يصلح وحده لفرض
+  #      الاحتواء الأمنيّ؛ استعمل المسار_الحقيقي لذلك.
+- cpp_id: IS_SYMLINK
+  canonical: هل_رابط_رمزي
+  namespace: Basics
+  category: MODULE_FUNCTION
+  require_import: true
+  module: BASICS
+  compiler_strategy: RUNTIME_CALL
+  since: 1.1.0
+  status: stable
+  description_ar: هل المدخل رابطٌ رمزيّ؟ (لا يتبع الرابط — يفحص المدخلَ نفسه)
+  description_en: Is the entry a symbolic link? (does not follow — inspects the entry itself)
+  params:
+    - name: مسار
+      type: نص
+  lookup_table: MODULE_FUNCTION
+  # (AR) المضيف: std::filesystem::is_symlink (نظير lstat لا stat). هل_ملف/هل_مجلد
+  #      يتبعان الرابطَ فيُرجعان صفةَ الهدف — فلا يكشفان الرابطَ نفسه.
 - cpp_id: IS_DIR
   canonical: هل_مجلد
   namespace: Basics

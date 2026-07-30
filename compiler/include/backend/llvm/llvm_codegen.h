@@ -1015,6 +1015,9 @@ namespace Sad
             llvm::Value *emitBuiltinFileCreateDir(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileCreateDir(inst); }
             llvm::Value *emitBuiltinFileListDir(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileListDir(inst); }
             llvm::Value *emitBuiltinFileIsDir(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileIsDir(inst); }
+            llvm::Value *emitBuiltinFileIsSymlink(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileIsSymlink(inst); }
+            llvm::Value *emitBuiltinFileRealPath(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileRealPath(inst); }
+            llvm::Value *emitBuiltinFileAbsPath(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileAbsPath(inst); }
 
             // Utility Functions (4)
             // (AR) Phase 7 Step 8: emitBuiltinRandom delegate إلى MathBuiltinsCodeGen

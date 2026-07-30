@@ -267,6 +267,62 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
+                // 10. هل_رابط_رمزي / is_symlink — يفحص المدخلَ نفسه بلا اتّباع الرابط.
+                //     (AR) هل_ملف/هل_مجلد يتبعان الرابطَ فيصفان الهدف ⇒ لا يكشفان الرابط.
+                if (funcName == Bn::Basics::IS_SYMLINK)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة هل_رابط_رمزي تتطلب معامل واحد (مسار)" << std::endl;
+                        return BuildResult("", SadTypeKind::Boolean);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_FILE_IS_SYMLINK);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
+                }
+
+                // 11. المسار_الحقيقي / real_path — يحلّ الروابط ويطبّع «..».
+                //     (AR) أساسُ فرضِ احتواء المسارات: التطبيعُ النصّيّ وحده يُخترَق برابطٍ
+                //     رمزيّ يشير خارج الجذر. يُرجع نصًّا، أو عدمًا إن تعذّر الحلّ.
+                if (funcName == Bn::Basics::REAL_PATH)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة المسار_الحقيقي تتطلب معامل واحد (مسار)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_FILE_REAL_PATH);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::String);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // 12. المسار_المطلق / abs_path — تطبيعٌ نصّيّ بلا حلِّ الروابط.
+                //     (AR) يعمل على مسارٍ غير موجود (خلافًا للحقيقيّ) ⇒ لا يصلح وحده
+                //     لفرض الاحتواء الأمنيّ: رابطٌ رمزيّ يخترق التطبيعَ النصّيّ.
+                if (funcName == Bn::Basics::ABS_PATH)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة المسار_المطلق تتطلب معامل واحد (مسار)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_FILE_ABS_PATH);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::String);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
                 // ========================================================================
                 // Utility Functions (4 functions)
                 // ========================================================================

@@ -55,6 +55,7 @@
 #else
 #include <pthread.h>
 #include <sys/stat.h>   /* stat/S_ISDIR — لدعم sad_file_is_dir على POSIX */
+#include <unistd.h>     /* getcwd — لدعم sad_file_abs_path على POSIX */
 #endif
 
 /* ============================================================================
@@ -79,6 +80,120 @@ int sad_file_is_dir(const char *path)
     if (stat(path, &st) != 0)
         return 0;
     return S_ISDIR(st.st_mode) ? 1 : 0;
+#endif
+}
+
+/* ============================================================================
+ * (AR) جسر «هل_رابط_رمزي» — يفحص المدخلَ نفسه بلا اتّباع الرابط (نظير lstat).
+ *      لا يكفي «هل_ملف»/«هل_مجلد» هنا: كلاهما يتبع الرابطَ فيصف الهدف، فلا
+ *      يكشف الرابطَ نفسه — وهو بالضبط ما يلزم لفرض احتواء المسارات.
+ * (EN) «هل_رابط_رمزي» bridge — inspects the entry itself without following the
+ *      link (an lstat equivalent). «هل_ملف»/«هل_مجلد» both follow the link and
+ *      describe its target, so neither detects the link — which is exactly what
+ *      path-containment enforcement needs.
+ * ============================================================================ */
+int sad_file_is_symlink(const char *path)
+{
+    if (!path)
+        return 0;
+#ifdef _WIN32
+    DWORD attrs = GetFileAttributesA(path);
+    if (attrs == INVALID_FILE_ATTRIBUTES)
+        return 0;
+    return (attrs & FILE_ATTRIBUTE_REPARSE_POINT) ? 1 : 0;
+#else
+    struct stat st;
+    if (lstat(path, &st) != 0)
+        return 0;
+    return S_ISLNK(st.st_mode) ? 1 : 0;
+#endif
+}
+
+/* ============================================================================
+ * (AR) جسر «المسار_الحقيقي» — يحلّ الروابط الرمزيّة ويطبّع «..».
+ *      يُرجع مؤشّرًا مخصَّصًا (على المستدعي تحريره) أو NULL إن تعذّر الحلّ —
+ *      والغيابُ حالةٌ متوقّعة (ملفٌّ يُنشَأ) لا خطأ، فيُترجَم في اللغة إلى «عدم».
+ * (EN) «المسار_الحقيقي» bridge — resolves symlinks and normalises "..".
+ *      Returns an allocated pointer (caller frees) or NULL when resolution
+ *      fails; a missing path is an expected case (a file about to be created),
+ *      surfaced in the language as null rather than an error.
+ * ============================================================================ */
+char *sad_file_real_path(const char *path)
+{
+    if (!path)
+        return NULL;
+#ifdef _WIN32
+    /* (AR) GetFullPathNameA يطبّع نصًّا فقط؛ الحلّ الفعليّ للروابط يحتاج فتحَ
+     *      المقبض ثمّ GetFinalPathNameByHandleA — وهو ما يوازي realpath. */
+    HANDLE h = CreateFileA(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                           NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if (h == INVALID_HANDLE_VALUE)
+        return NULL;
+    char buf[32768];
+    DWORD n = GetFinalPathNameByHandleA(h, buf, (DWORD)sizeof(buf), FILE_NAME_NORMALIZED);
+    CloseHandle(h);
+    if (n == 0 || n >= sizeof(buf))
+        return NULL;
+    /* (AR) أسقِط بادئة «\\?\» التي يضيفها ويندوز كي يطابق شكلُ المخرَج المفسّرَ. */
+    const char *start = buf;
+    if (n > 4 && buf[0] == '\\' && buf[1] == '\\' && buf[2] == '?' && buf[3] == '\\')
+        start = buf + 4;
+    size_t len = strlen(start);
+    char *out = (char *)malloc(len + 1);
+    if (!out)
+        return NULL;
+    memcpy(out, start, len + 1);
+    return out;
+#else
+    return realpath(path, NULL); /* يُخصِّص، ويُرجع NULL عند الفشل */
+#endif
+}
+
+/* ============================================================================
+ * (AR) جسر «المسار_المطلق» — تطبيعٌ نصّيّ بلا حلِّ الروابط، فيعمل على مسارٍ
+ *      غير موجود. لا يصلح وحده لفرض الاحتواء الأمنيّ (رابطٌ رمزيّ يخترقه) —
+ *      استعمل sad_file_real_path لذلك.
+ * (EN) «المسار_المطلق» bridge — textual normalisation without symlink resolution,
+ *      so it works on a missing path. Not sound alone for security containment
+ *      (a symlink defeats it) — use sad_file_real_path for that.
+ * ============================================================================ */
+char *sad_file_abs_path(const char *path)
+{
+    if (!path)
+        return NULL;
+#ifdef _WIN32
+    char buf[32768];
+    DWORD n = GetFullPathNameA(path, (DWORD)sizeof(buf), buf, NULL);
+    if (n == 0 || n >= sizeof(buf))
+        return NULL;
+    size_t len = strlen(buf);
+    char *out = (char *)malloc(len + 1);
+    if (!out)
+        return NULL;
+    memcpy(out, buf, len + 1);
+    return out;
+#else
+    /* (AR) POSIX بلا realpath (فهو يلزمه وجودُ المسار): ضمُّ مجلّدِ العمل يدويًّا. */
+    if (path[0] == '/')
+    {
+        size_t len = strlen(path);
+        char *out = (char *)malloc(len + 1);
+        if (!out)
+            return NULL;
+        memcpy(out, path, len + 1);
+        return out;
+    }
+    char cwd[4096];
+    if (!getcwd(cwd, sizeof(cwd)))
+        return NULL;
+    size_t cl = strlen(cwd), pl = strlen(path);
+    char *out = (char *)malloc(cl + pl + 2);
+    if (!out)
+        return NULL;
+    memcpy(out, cwd, cl);
+    out[cl] = '/';
+    memcpy(out + cl + 1, path, pl + 1);
+    return out;
 #endif
 }
 

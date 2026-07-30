@@ -614,6 +614,96 @@ namespace Sad
             return result;
         }
 
+        llvm::Value *FileCastsCodeGen::emitBuiltinFileIsSymlink(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *path = cg_.resolveOperand(inst->operands[0]);
+            if (!path)
+                return nullptr;
+
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+
+            // (AR) جسر وقت التشغيل: int sad_file_is_symlink(const char*) — نظير lstat.
+            //      لا يتبع الرابط، خلافًا لـsad_file_is_dir/is_file، فيكشف الرابطَ نفسه.
+            // (EN) Runtime bridge: int sad_file_is_symlink(const char*) — lstat equivalent.
+            //      Does not follow the link (unlike is_dir/is_file), so it detects the link.
+            auto *fnTy = llvm::FunctionType::get(i32Ty, {ptrTy}, false);
+            auto fn = cg_.module_->getOrInsertFunction("sad_file_is_symlink", fnTy);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {path}, "islink_result");
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *FileCastsCodeGen::emitBuiltinFileRealPath(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *path = cg_.resolveOperand(inst->operands[0]);
+            if (!path)
+                return nullptr;
+
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+
+            // (AR) جسر وقت التشغيل: char* sad_file_real_path(const char*) — يحلّ الروابط
+            //      ويطبّع «..». يُرجع NULL إن تعذّر الحلّ (مسارٌ غير موجود) — وهي حالةٌ
+            //      متوقّعة لا خطأ، فيَظهر NULL في اللغة قيمةً عدميّة.
+            // (EN) Runtime bridge: char* sad_file_real_path(const char*) — resolves symlinks
+            //      and normalises "..". Returns NULL when resolution fails (missing path),
+            //      an expected case rather than an error, surfacing as a null value.
+            auto *fnTy = llvm::FunctionType::get(ptrTy, {ptrTy}, false);
+            auto fn = cg_.module_->getOrInsertFunction("sad_file_real_path", fnTy);
+            llvm::Value *raw = cg_.builder_->CreateCall(fn, {path}, "realpath_raw");
+
+            // (AR) NULL ⇒ نصٌّ فارغ. بلا هذا يتسرّب مؤشّرٌ خامٌّ إلى مسار النصوص
+            //      فيقرأه المُصرَّف قمامةً — ويختلف عن المفسّر فيكسر التكافؤ.
+            // (EN) NULL ⇒ empty string. Without this a raw pointer leaks into the string
+            //      path and the compiled program reads garbage — diverging from the
+            //      interpreter and breaking parity.
+            llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
+                raw, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "realpath_failed");
+            llvm::Value *empty = cg_.builder_->CreateGlobalStringPtr("", "realpath_empty");
+            llvm::Value *result = cg_.builder_->CreateSelect(isNull, empty, raw, "realpath_result");
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *FileCastsCodeGen::emitBuiltinFileAbsPath(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *path = cg_.resolveOperand(inst->operands[0]);
+            if (!path)
+                return nullptr;
+
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+
+            // (AR) جسر وقت التشغيل: char* sad_file_abs_path(const char*) — تطبيعٌ نصّيّ
+            //      بلا حلِّ الروابط، فيعمل على مسارٍ غير موجود. NULL ⇒ نصٌّ فارغ،
+            //      كنظيره الحقيقيّ، حفظًا للتكافؤ مع المفسّر.
+            // (EN) Runtime bridge: char* sad_file_abs_path(const char*) — textual
+            //      normalisation without symlink resolution, so it works on a missing
+            //      path. NULL ⇒ empty string, as in its real-path sibling, preserving
+            //      parity with the interpreter.
+            auto *fnTy = llvm::FunctionType::get(ptrTy, {ptrTy}, false);
+            auto fn = cg_.module_->getOrInsertFunction("sad_file_abs_path", fnTy);
+            llvm::Value *raw = cg_.builder_->CreateCall(fn, {path}, "abspath_raw");
+
+            llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
+                raw, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "abspath_failed");
+            llvm::Value *empty = cg_.builder_->CreateGlobalStringPtr("", "abspath_empty");
+            llvm::Value *result = cg_.builder_->CreateSelect(isNull, empty, raw, "abspath_result");
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
         llvm::Value *FileCastsCodeGen::emitBuiltinFileListDir(std::shared_ptr<SIRInstruction> inst)
         {
             // List directory contents using runtime helper

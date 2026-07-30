@@ -278,6 +278,12 @@ namespace Sad
                 inline constexpr std::string_view FILE_EXISTS = "هل_موجود";
                 // (AR) هل ملف؟
                 inline constexpr std::string_view IS_FILE = "هل_ملف";
+                // (AR) المسار الحقيقيّ المُحلَّل (يتبع الروابط الرمزيّة ويطبّع `..`)؛ يُرجع نصًّا فارغًا إن تعذّر الحلّ
+                inline constexpr std::string_view REAL_PATH = "المسار_الحقيقي";
+                // (AR) المسار المطلق بلا حلِّ الروابط الرمزيّة (يعمل على مسارٍ غير موجود)؛ نصٌّ فارغ عند الفشل
+                inline constexpr std::string_view ABS_PATH = "المسار_المطلق";
+                // (AR) هل المدخل رابطٌ رمزيّ؟ (لا يتبع الرابط — يفحص المدخلَ نفسه)
+                inline constexpr std::string_view IS_SYMLINK = "هل_رابط_رمزي";
                 // (AR) هل المسار مجلد موجود؟ (يعيد منطقيًّا)
                 inline constexpr std::string_view IS_DIR = "هل_مجلد";
                 // (AR) إنشاء مجلد
@@ -2845,7 +2851,7 @@ namespace Sad
             {Names::TypeCtor::TO_BOOL, BuiltinCategory::TYPE_CONSTRUCTOR, ModuleId::NONE, CompilerStrategy::INLINE},
         }};
 
-        inline constexpr std::array<BuiltinEntry, 67> MODULE_FUNCTION_BUILTINS = {{
+        inline constexpr std::array<BuiltinEntry, 70> MODULE_FUNCTION_BUILTINS = {{
             // ─── وحدة MATH (33 دالة) ───
             {Names::Math::SQRT, BuiltinCategory::MODULE_FUNCTION, ModuleId::MATH, CompilerStrategy::LLVM_INTRINSIC},
             {Names::Math::POWER, BuiltinCategory::MODULE_FUNCTION, ModuleId::MATH, CompilerStrategy::LLVM_INTRINSIC},
@@ -2894,7 +2900,7 @@ namespace Sad
             {Names::Strings::STARTS_WITH, BuiltinCategory::MODULE_FUNCTION, ModuleId::STRINGS, CompilerStrategy::RUNTIME_CALL},
             {Names::Strings::ENDS_WITH, BuiltinCategory::MODULE_FUNCTION, ModuleId::STRINGS, CompilerStrategy::RUNTIME_CALL},
             {Names::Strings::CONTAINS, BuiltinCategory::MODULE_FUNCTION, ModuleId::STRINGS, CompilerStrategy::RUNTIME_CALL},
-            // ─── وحدة BASICS (12 دالة) ───
+            // ─── وحدة BASICS (15 دالة) ───
             {Names::Basics::RANGE, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::EXIT, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::ASSERT, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
@@ -2904,6 +2910,9 @@ namespace Sad
             {Names::Basics::READ_BYTES, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::FILE_EXISTS, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::IS_FILE, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
+            {Names::Basics::REAL_PATH, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
+            {Names::Basics::ABS_PATH, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
+            {Names::Basics::IS_SYMLINK, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::IS_DIR, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::MKDIR, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::DELETE_FILE, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
@@ -2973,7 +2982,7 @@ namespace Sad
         // ════════════════════════════════════════════════════════════
         static_assert(CORE_IO_BUILTINS.size() == 3, "CORE_IO count mismatch");
         static_assert(TYPE_CONSTRUCTOR_BUILTINS.size() == 4, "TYPE_CONSTRUCTOR count mismatch");
-        static_assert(MODULE_FUNCTION_BUILTINS.size() == 67, "MODULE_FUNCTION count mismatch");
+        static_assert(MODULE_FUNCTION_BUILTINS.size() == 70, "MODULE_FUNCTION count mismatch");
 
         // ════════════════════════════════════════════════════════════════════
         // (AR) دوال البحث في السجل
@@ -3036,7 +3045,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1115> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1118> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3125,7 +3134,7 @@ namespace Sad
             {Names::Arrays::FIRST, "Arrays", "MODULE_FUNCTION", "NONE", false, "أول عنصر", "", ""},
             {Names::Arrays::LAST, "Arrays", "MODULE_FUNCTION", "NONE", false, "آخر عنصر", "", ""},
             {Names::Arrays::SLICE, "Arrays", "MODULE_FUNCTION", "NONE", false, "شريحة", "", ""},
-            // ─── Basics (19) ───
+            // ─── Basics (22) ───
             {Names::Basics::RANGE, "Basics", "MODULE_FUNCTION", "BASICS", true, "نطاق أرقام", "", ""},
             {Names::Basics::EXIT, "Basics", "MODULE_FUNCTION", "BASICS", true, "إنهاء البرنامج", "", ""},
             {Names::Basics::ASSERT, "Basics", "MODULE_FUNCTION", "BASICS", true, "تأكيد شرط", "", ""},
@@ -3135,6 +3144,9 @@ namespace Sad
             {Names::Basics::READ_BYTES, "Basics", "MODULE_FUNCTION", "BASICS", true, "قراءة بايتات خام من ملف (تعيد مصفوفة أعداد ٠..٢٥٥)", "{'name': 'مسار', 'type': 'نص'}", ""},
             {Names::Basics::FILE_EXISTS, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل موجود؟", "", ""},
             {Names::Basics::IS_FILE, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل ملف؟", "", ""},
+            {Names::Basics::REAL_PATH, "Basics", "MODULE_FUNCTION", "BASICS", true, "المسار الحقيقيّ المُحلَّل (يتبع الروابط الرمزيّة ويطبّع `..`)؛ يُرجع نصًّا فارغًا إن تعذّر الحلّ", "{'name': 'مسار', 'type': 'نص'}", ""},
+            {Names::Basics::ABS_PATH, "Basics", "MODULE_FUNCTION", "BASICS", true, "المسار المطلق بلا حلِّ الروابط الرمزيّة (يعمل على مسارٍ غير موجود)؛ نصٌّ فارغ عند الفشل", "{'name': 'مسار', 'type': 'نص'}", ""},
+            {Names::Basics::IS_SYMLINK, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل المدخل رابطٌ رمزيّ؟ (لا يتبع الرابط — يفحص المدخلَ نفسه)", "{'name': 'مسار', 'type': 'نص'}", ""},
             {Names::Basics::IS_DIR, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل المسار مجلد موجود؟ (يعيد منطقيًّا)", "{'name': 'مسار', 'type': 'نص'}", ""},
             {Names::Basics::MKDIR, "Basics", "MODULE_FUNCTION", "BASICS", true, "إنشاء مجلد", "", ""},
             {Names::Basics::DELETE_FILE, "Basics", "MODULE_FUNCTION", "BASICS", true, "حذف ملف", "", ""},
@@ -3184,10 +3196,10 @@ namespace Sad
             {Names::Maps::JSON_PRETTY, "Maps", "MODULE_FUNCTION", "MAPS", true, "JSON منسَّق", "", ""},
             {Names::Maps::XML_PARSE, "Maps", "MODULE_FUNCTION", "MAPS", true, "تحليل XML", "", ""},
             {Names::Maps::XML_STRINGIFY, "Maps", "MODULE_FUNCTION", "MAPS", true, "تحويل لـ XML", "", ""},
-            {Names::Maps::REGEX, "Maps", "MODULE_FUNCTION", "MAPS", true, "مطابقة regex", "", ""},
-            {Names::Maps::REGEX_SEARCH, "Maps", "MODULE_FUNCTION", "MAPS", true, "بحث regex", "", ""},
-            {Names::Maps::REGEX_REPLACE, "Maps", "MODULE_FUNCTION", "MAPS", true, "استبدال regex", "", ""},
-            {Names::Maps::REGEX_FIND_ALL, "Maps", "MODULE_FUNCTION", "MAPS", true, "كل تطابقات regex", "", ""},
+            {Names::Maps::REGEX, "Maps", "MODULE_FUNCTION", "MAPS", true, "مطابقة regex", "{'name': 'نص', 'type': 'نص'}، {'name': 'نمط', 'type': 'نص'}، {'name': 'رايات', 'type': 'نص', 'optional': True}", ""},
+            {Names::Maps::REGEX_SEARCH, "Maps", "MODULE_FUNCTION", "MAPS", true, "بحث regex", "{'name': 'نص', 'type': 'نص'}، {'name': 'نمط', 'type': 'نص'}، {'name': 'رايات', 'type': 'نص', 'optional': True}", ""},
+            {Names::Maps::REGEX_REPLACE, "Maps", "MODULE_FUNCTION", "MAPS", true, "استبدال regex", "{'name': 'نص', 'type': 'نص'}، {'name': 'نمط', 'type': 'نص'}، {'name': 'بديل', 'type': 'نص'}، {'name': 'رايات', 'type': 'نص', 'optional': True}", ""},
+            {Names::Maps::REGEX_FIND_ALL, "Maps", "MODULE_FUNCTION", "MAPS", true, "كل تطابقات regex", "{'name': 'نص', 'type': 'نص'}، {'name': 'نمط', 'type': 'نص'}، {'name': 'رايات', 'type': 'نص', 'optional': True}", ""},
             {Names::Maps::NOW, "Maps", "MODULE_FUNCTION", "MAPS", true, "الوقت الحالي (طابع زمني يونكس بالثواني منذ 1970)", "", ""},
             {Names::Maps::NOW_MS, "Maps", "MODULE_FUNCTION", "MAPS", true, "الوقت بمللي ثانية", "", ""},
             {Names::Maps::DATE_FORMAT, "Maps", "MODULE_FUNCTION", "MAPS", true, "تنسيق تاريخ", "", ""},
@@ -4207,7 +4219,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", true, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1115, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1118, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

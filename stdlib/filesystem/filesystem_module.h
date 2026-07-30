@@ -229,6 +229,23 @@ std::string join_path(const std::vector<std::string>& components);
 std::string get_absolute_path(const std::string& path);
 
 /**
+ * @brief Get canonical (fully resolved) real path - المسار الحقيقيّ المُحلَّل
+ * @param path Path to resolve / مسار يُحلَّل
+ * @param ok Set to false when the path cannot be resolved / يُصفَّر إن تعذّر الحلّ
+ * @return Resolved path, or "" when ok == false / المسار المحلول، أو "" عند الفشل
+ *
+ * (AR) خلافًا لـget_absolute_path (التي تُطبّع نصًّا فقط)، هذه **تتبع الروابط
+ *      الرمزيّة** وتطبّع `..` — فهي الأساس الوحيد الصالح لفرض احتواء المسارات:
+ *      التطبيعُ النصّيّ وحده يُخترَق برابطٍ رمزيّ يشير خارج الجذر.
+ *      لا ترمي: المسارُ غير الموجود حالةٌ متوقّعة (ملفٌّ جديد) لا خطأ.
+ * (EN) Unlike get_absolute_path (textual normalisation only), this **follows
+ *      symlinks** and normalises `..` — the only sound basis for path containment:
+ *      textual normalisation alone is defeated by a symlink pointing outside the root.
+ *      Never throws: a missing path is an expected case (a new file), not an error.
+ */
+std::string get_real_path(const std::string& path, bool& ok);
+
+/**
  * @brief Get relative path - الحصول على المسار النسبي
  * @param path Path to convert / المسار للتحويل
  * @param base Base path / المسار الأساسي

@@ -344,6 +344,17 @@ std::string get_absolute_path(const std::string& path) {
     return absolute.string();
 }
 
+std::string get_real_path(const std::string& path, bool& ok) {
+    std::error_code ec;
+    auto resolved = fs::canonical(path, ec);
+    if (ec) {
+        ok = false;
+        return {};
+    }
+    ok = true;
+    return resolved.string();
+}
+
 std::string get_relative_path(const std::string& path, const std::string& base) {
     std::error_code ec;
     auto relative = fs::relative(path, base, ec);

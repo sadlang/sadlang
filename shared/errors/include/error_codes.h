@@ -262,6 +262,9 @@ namespace Sad
             RUN_EXTERN_NOT_SUPPORTED, ///< RUN059: (AR) دالة خارجية غير مدعومة في المفسّر / (EN) Extern function unsupported in interpreter
             RUN_FFI_CALL_UNSAFE,      ///< RUN060: (AR) استدعاء ربط خارجي بلا ترتيب وسائط / (EN) FFI call without argument marshalling
 
+            // (AR) التعابير النمطيّة / (EN) Regular expressions
+            RUN_REGEX_UNKNOWN_FLAG,   ///< RUN061: (AR) رايةُ تعبيرٍ نمطيّ مجهولة / (EN) Unknown regex flag
+
             // ════════════════════════════════════════════════════════════════
             // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.
             // (EN) Internal compiler errors (ICE) — compiler defects, catalog-based.

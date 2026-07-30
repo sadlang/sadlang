@@ -79,7 +79,14 @@ functions:
   status: stable
   description_ar: مطابقة regex
   description_en: Regex match
-  params: []
+  params:
+    - name: نص
+      type: نص
+    - name: نمط
+      type: نص
+    - name: رايات
+      type: نص
+      optional: true
   lookup_table: MODULE_FUNCTION
 - cpp_id: REGEX_SEARCH
   canonical: تعبير_بحث
@@ -92,7 +99,14 @@ functions:
   status: stable
   description_ar: بحث regex
   description_en: Regex search
-  params: []
+  params:
+    - name: نص
+      type: نص
+    - name: نمط
+      type: نص
+    - name: رايات
+      type: نص
+      optional: true
   lookup_table: name_only
 - cpp_id: REGEX_REPLACE
   canonical: تعبير_استبدال
@@ -105,7 +119,16 @@ functions:
   status: stable
   description_ar: استبدال regex
   description_en: Regex replace
-  params: []
+  params:
+    - name: نص
+      type: نص
+    - name: نمط
+      type: نص
+    - name: بديل
+      type: نص
+    - name: رايات
+      type: نص
+      optional: true
   lookup_table: name_only
 - cpp_id: REGEX_FIND_ALL
   canonical: تعبير_جد_الكل
@@ -118,7 +141,14 @@ functions:
   status: stable
   description_ar: كل تطابقات regex
   description_en: Regex find all
-  params: []
+  params:
+    - name: نص
+      type: نص
+    - name: نمط
+      type: نص
+    - name: رايات
+      type: نص
+      optional: true
   lookup_table: name_only
 - cpp_id: NOW
   canonical: الآن

@@ -38,7 +38,7 @@ categories_ar:
 types:
 
   # ─── بدائية / Primitive ───
-  - { id: type.void,    kind: Void,    word: فراغ,   name_en: void,    category: primitive, surface: true,  token_type: TYPE_VOID,    can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "نوع الإرجاع الفارغ — لا قيمة", description_en: "Empty return type — no value" }
+  - { id: type.void,    kind: Void,    word: فراغ,   name_en: void,    category: primitive, surface: true,  token_type: TYPE_VOID,    can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "نوع الإرجاع الفارغ — لا قيمة. متمايز عن «عدم» (type.null): «فراغ» ما لم يُرجَع أصلاً (مفتاح غائب، بحثٌ بلا مطابقة)، و«عدم» قيمةُ لاشيء الصريحة. فحصُ أحدهما وحده يمرّ ناقصًا", description_en: "Empty return type — no value. Distinct from «عدم» (type.null): «فراغ» is what was never returned (missing key, no regex match), «عدم» is the explicit null value. Checking only one of them passes incompletely" }
   - { id: type.integer, kind: Integer, word: رقم,    name_en: integer, category: primitive, surface: true,  token_type: TYPE_INTEGER, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "عدد صحيح (i64)", description_en: "64-bit integer" }
   - { id: type.float,   kind: Float,   word: عشري,   name_en: float,   category: primitive, surface: true,  token_type: TYPE_DOUBLE,  can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "عدد عشري (f64)", description_en: "64-bit float" }
   - { id: type.boolean, kind: Boolean, word: منطقي,  name_en: boolean, category: primitive, surface: true,  token_type: TYPE_BOOLEAN, can_be_identifier: true, since: "1.0.0", status: stable, description_ar: "قيمة منطقية (صحيح/خطأ)", description_en: "Boolean (true/false)" }

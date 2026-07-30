@@ -1026,3 +1026,21 @@ errors:
   detailed:
     ar: 'كانت دوالّ مكتبة_استدع تصبّ المؤشّر إلى توقيعٍ بلا وسائط ثمّ تقفز إليه، أيّاً كان توقيعُ الدالّة الحقيقيّ — سلوكٌ غير معرَّف وإفسادٌ محتملٌ للمكدّس. عُطّل الاستدعاء صراحةً حتى ينفَّذ ترتيب الوسائط (libffi).'
     en: 'The مكتبة_استدع functions cast the symbol pointer to a zero-argument signature and jumped to it regardless of the real signature — undefined behaviour and possible stack corruption. The call is now explicitly disabled until argument marshalling (libffi) lands.'
+- code: RUN_REGEX_UNKNOWN_FLAG
+  id: RUN061
+  category: runtime
+  title:
+    ar: رايةُ تعبيرٍ نمطيّ مجهولة
+    en: Unknown regular-expression flag
+  brief:
+    ar: 'الراية ''{flag}'' غير مدعومة في ''{function}'' — المدعوم: i (تجاهل الحالة)'
+    en: 'Flag ''{flag}'' is not supported in ''{function}'' — supported: i (ignore case)'
+  placeholders:
+  - flag
+  - function
+  fix_hint:
+    ar: استعمل رايةً مدعومة أو أزل وسيط الرايات. لا رايةَ عامّة (g) — دوالّ «الكل» تبحث في كلّ النصّ أصلاً.
+    en: Use a supported flag or drop the flags argument. There is no global (g) flag — the "find all" functions already scan the whole text.
+  detailed:
+    ar: 'كانت دوالّ التعابير النمطيّة تقبل وسيطاً ثالثاً وتُهمله صامتاً، فيظنّ المبرمج أنّه ضبط رايةً ولم يفعل — نجاحٌ كاذب. صارت الرايةُ المجهولة ترمي بدل أن تُبتلَع.'
+    en: 'The regex builtins used to accept a third argument and silently ignore it, so a programmer believed a flag was set when it was not — a false success. An unknown flag now throws instead of being swallowed.'

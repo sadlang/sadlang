@@ -161,6 +161,59 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::IS_FILE), fs_is_file_func);
     
+    // real_path - المسار الحقيقيّ المُحلَّل (يتبع الروابط الرمزيّة)
+    // (AR) يُرجع «عدم» (لاشيء) عند تعذّر الحلّ لا خطأً: المسارُ غير الموجود حالةٌ
+    //      متوقّعة (ملفٌّ يُنشَأ). وضمُّه إلى هل_رابط_رمزي يميّز «جديد» من «هروبٍ برابط».
+    // (EN) Returns null when resolution fails rather than erroring: a missing path is an
+    //      expected case (a file about to be created). Pair with هل_رابط_رمزي to tell a
+    //      genuinely new file apart from a dangling symlink escaping the root.
+    auto fs_real_path_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+        const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        bool ok = false;
+        std::string resolved = sad::stdlib::filesystem::get_real_path(args[0]->toString(), ok);
+        // (AR) نصٌّ فارغ لا «عدم»: العقدُ موحَّدٌ بين المفسّر والمصرّف. تمثيلُ العدم
+        //      يختلف بين المحرّكين (المصرّف يُرجع char* خامًّا لا قيمةً مُعلَّبة)، فأيُّ
+        //      عقدٍ عدميٍّ ينتج انحرافَ تكافؤ. و«» مميّزٌ بلا لبس: المسارُ المحلول لا
+        //      يكون فارغًا أبدًا. وهذا يتفادى فخَّ «عدم مقابل فراغ» من أصله.
+        // (EN) Empty string, not null: one contract across interpreter and compiler. Null
+        //      is represented differently by each engine (the compiler yields a raw char*,
+        //      not a boxed value), so a null contract creates a parity divergence. "" is
+        //      unambiguous: a resolved path is never empty. This also sidesteps the
+        //      null-vs-void trap entirely.
+        if (!ok) return std::make_shared<Data::Value>(std::string(""));
+        return std::make_shared<Data::Value>(resolved);
+    };
+
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::REAL_PATH), fs_real_path_func);
+
+    // absolute_path - المسار المطلق بلا حلِّ الروابط (يعمل على مسارٍ غير موجود)
+    auto fs_abs_path_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+        const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        try {
+            return std::make_shared<Data::Value>(
+                sad::stdlib::filesystem::get_absolute_path(args[0]->toString()));
+        } catch (const std::exception &) {
+            return std::make_shared<Data::Value>(std::string("")); // نفس عقد المسار_الحقيقي
+        }
+    };
+
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::ABS_PATH), fs_abs_path_func);
+
+    // is_symlink - هل المدخل رابطٌ رمزيّ (لا يتبع الرابط — نظير lstat)
+    // (AR) هل_ملف/هل_مجلد يتبعان الرابطَ فيصفان الهدف؛ فلا يكشفان الرابطَ نفسه.
+    // (EN) هل_ملف/هل_مجلد follow the link and describe its target, so neither detects
+    //      the link itself — this one does.
+    auto fs_is_symlink_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+        const auto &args = ctx.args(); (void)args;
+        if (args.empty()) ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        return std::make_shared<Data::Value>(
+            sad::stdlib::filesystem::is_symlink(args[0]->toString()));
+    };
+
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::IS_SYMLINK), fs_is_symlink_func);
+
     // is_directory - هل هو مجلد
     auto fs_is_dir_func = [](Sad::Interpreter::BuiltinContext &ctx) {
                 const auto &args = ctx.args(); (void)args;

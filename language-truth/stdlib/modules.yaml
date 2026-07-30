@@ -72,9 +72,13 @@ modules:
     status: stable
 
   - id: module.http
-    name_ar: شبكة_عالية
+    name_ar: شبكة
     name_en: http
-    aliases: [http, اتصالات]
+    # (AR) كان الاسم هنا «شبكة_عالية» وهو **غير مُسجَّل في المفسّر**؛ المُسجَّل «شبكة»
+    #      (module_definitions.h: MODULE_ALIASES). و`resolveAlias` صريحة: «لا أسماء
+    #      بديلة» — فاستيرادُ اسمٍ غير مُسجَّل يعني صفرَ دوالٍّ مُسجَّلة، ثمّ SEM004 عند
+    #      أوّل استدعاء. حقلُ aliases أدناه توثيقيٌّ للأدوات، لا يقبله `استورد`.
+    aliases: [http, اتصالات, شبكة_عالية]
     description_ar: "HTTP client/server، TCP عالي المستوى"
     description_en: "HTTP client/server, high-level TCP"
     since: "1.0.0"
@@ -86,5 +90,16 @@ modules:
     aliases: [sockets, tcp, udp]
     description_ar: "مقابس TCP/UDP منخفضة المستوى"
     description_en: "Low-level TCP/UDP sockets"
+    since: "1.0.0"
+    status: stable
+
+  # (AR) وحدةٌ كانت **مُسجَّلةً في المفسّر وغائبةً عن هذا الملفّ** — أُضيفت لسدّ
+  #      انحراف SoT: MODULE_ALIASES فيه عشرُ وحدات، وهذا الملفّ كان يوثّق تسعًا.
+  - id: module.crypto
+    name_ar: تشفير
+    name_en: crypto
+    aliases: [crypto, تعمية]
+    description_ar: "بدائيّات التشفير: بلايك3، أرجون2، التشفير الموثَّق، Ed25519، X25519"
+    description_en: "Crypto primitives: BLAKE3, Argon2, AEAD, Ed25519, X25519"
     since: "1.0.0"
     status: stable

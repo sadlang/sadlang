@@ -22,7 +22,8 @@
 // (AR) إلغاء ماكرو VOID الخاص بويندوز إن وُجد
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 #include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
-#include "builtin_error.h" // (AR) EM-CPP: حامل خطأ الطبقة الأدنى
+#include "builtin_error.h"  // (AR) EM-CPP: حامل خطأ الطبقة الأدنى
+#include "runtime_throw.h"  // (AR) رميُ RUN061 عند رايةٍ نمطيّةٍ مجهولة
 #ifdef VOID
 #undef VOID
 #endif
@@ -47,6 +48,49 @@ namespace Sad
         static std::shared_ptr<Data::Value> makeArrayVal(const Data::Value::ArrayType &a) { return std::make_shared<Data::Value>(a); }
         static std::shared_ptr<Data::Value> makeMapVal(const Data::Value::MapType &m) { return std::make_shared<Data::Value>(m); }
 
+        // ═══════════════════════════════════════════════════════════════════════
+        // (AR) رايات التعابير النمطيّة — وسيطٌ نصّيّ اختياريّ.
+        //      كانت الدوالّ تقبل وسيطاً زائداً **وتُهمله صامتاً**، فيظنّ المبرمج أنّه
+        //      ضبط رايةً ولم يفعل: نجاحٌ كاذب. الرايةُ المجهولة الآن ترمي RUN061.
+        //      المدعوم: i (تجاهل الحالة) وحدَها. ولا رايةَ عامّة (g) — «جد_الكل» تمسح
+        //      النصَّ كلَّه أصلاً. ولا m (متعدّد الأسطر): std::regex::multiline من C++17
+        //      **غيرُ متوفّرٍ في كلّ نسخ MSVC** (فشل بناءُ CI بـC2039 وهو ينجح محلّيًّا
+        //      على 19.50) — وميزةٌ تعمل على جهازٍ وتكسر آخرَ أسوأُ من غيابها.
+        // (EN) Regex flags — an optional string argument. The builtins used to accept a
+        //      surplus argument and silently ignore it, so a programmer believed a flag
+        //      was set when it was not: a false success. Unknown flags now throw RUN061.
+        // ═══════════════════════════════════════════════════════════════════════
+        static std::regex::flag_type parseRegexFlags(Sad::Interpreter::BuiltinContext &ctx,
+                                                     const std::string &flags,
+                                                     const char *fnName)
+        {
+            std::regex::flag_type out = std::regex::ECMAScript;
+            for (char c : flags)
+            {
+                switch (c)
+                {
+                case 'i': out |= std::regex::icase; break;
+                default:
+                    ::Sad::Errors::throwRuntime(::Sad::Errors::ErrorCode::RUN_REGEX_UNKNOWN_FLAG,
+                                                ctx.position(),
+                                                {{"flag", std::string(1, c)}, {"function", std::string(fnName)}});
+                }
+            }
+            return out;
+        }
+
+        /** (AR) يبني النمطَ مع الرايات إن مُرِّرت في الموضع flagsIdx. */
+        static std::regex makeRegex(Sad::Interpreter::BuiltinContext &ctx,
+                                    const std::string &pattern,
+                                    size_t flagsIdx,
+                                    const char *fnName)
+        {
+            const auto &args = ctx.args();
+            if (args.size() > flagsIdx)
+                return std::regex(pattern, parseRegexFlags(ctx, args[flagsIdx]->toString(), fnName));
+            return std::regex(pattern);
+        }
+
         void registerBuiltinsMapsText(Interpreter &interpreter)
         {
             auto &fm = interpreter.getFunctionManager();
@@ -65,7 +109,7 @@ namespace Sad
                 try
                 {
                     std::string text = args[0]->toString();
-                    std::regex pattern(args[1]->toString());
+                    std::regex pattern = makeRegex(ctx, args[1]->toString(), 2, "تعبير_مطابقة");
                     return makeVal(std::regex_match(text, pattern));
                 }
                 catch (const std::regex_error &)
@@ -84,7 +128,7 @@ namespace Sad
                 try
                 {
                     std::string text = args[0]->toString();
-                    std::regex pattern(args[1]->toString());
+                    std::regex pattern = makeRegex(ctx, args[1]->toString(), 2, "تعبير_بحث");
                     std::smatch match;
                     if (std::regex_search(text, match, pattern))
                     {
@@ -108,7 +152,7 @@ namespace Sad
                 try
                 {
                     std::string text = args[0]->toString();
-                    std::regex pattern(args[1]->toString());
+                    std::regex pattern = makeRegex(ctx, args[1]->toString(), 3, "تعبير_استبدال");
                     std::string replacement = args[2]->toString();
                     return makeVal(std::regex_replace(text, pattern, replacement));
                 }
@@ -128,7 +172,7 @@ namespace Sad
                 try
                 {
                     std::string text = args[0]->toString();
-                    std::regex pattern(args[1]->toString());
+                    std::regex pattern = makeRegex(ctx, args[1]->toString(), 2, "تعبير_جد_الكل");
                     Data::Value::ArrayType results;
                     auto begin = std::sregex_iterator(text.begin(), text.end(), pattern);
                     auto end = std::sregex_iterator();

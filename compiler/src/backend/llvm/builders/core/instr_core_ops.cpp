@@ -654,6 +654,12 @@ namespace Sad
                 return cg_.emitBuiltinFileListDir(inst);
             case SIROpcode::BUILTIN_FILE_IS_DIR:
                 return cg_.emitBuiltinFileIsDir(inst);
+            case SIROpcode::BUILTIN_FILE_IS_SYMLINK:
+                return cg_.emitBuiltinFileIsSymlink(inst);
+            case SIROpcode::BUILTIN_FILE_REAL_PATH:
+                return cg_.emitBuiltinFileRealPath(inst);
+            case SIROpcode::BUILTIN_FILE_ABS_PATH:
+                return cg_.emitBuiltinFileAbsPath(inst);
             case SIROpcode::BUILTIN_FILE_WRITE_BYTES:
                 return cg_.emitBuiltinFileWriteBytes(inst);
             case SIROpcode::BUILTIN_FILE_READ_BYTES:
