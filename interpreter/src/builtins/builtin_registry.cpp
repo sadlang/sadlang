@@ -191,6 +191,8 @@ namespace Sad
                 {std::string(Bb::RANGE), kModBasics},
                 {std::string(Bb::READ_FILE), kModBasics},
                 {std::string(Bb::WRITE_FILE), kModBasics},
+                {std::string(Bb::WRITE_BYTES), kModBasics},
+                {std::string(Bb::READ_BYTES), kModBasics},
                 {std::string(Bb::FILE_EXISTS), kModBasics},
 
                 // ─── رياضيات ───

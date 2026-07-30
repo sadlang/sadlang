@@ -270,6 +270,10 @@ namespace Sad
                 inline constexpr std::string_view READ_FILE = "اقرأ_ملف";
                 // (AR) كتابة ملف
                 inline constexpr std::string_view WRITE_FILE = "اكتب_ملف";
+                // (AR) كتابة بايتات خام إلى ملف (تكتب حتى البايتات الصفريّة، بخلاف اكتب_ملف النصّيّة)
+                inline constexpr std::string_view WRITE_BYTES = "اكتب_بايتات";
+                // (AR) قراءة بايتات خام من ملف (تعيد مصفوفة أعداد ٠..٢٥٥)
+                inline constexpr std::string_view READ_BYTES = "اقرأ_بايتات";
                 // (AR) هل موجود؟
                 inline constexpr std::string_view FILE_EXISTS = "هل_موجود";
                 // (AR) هل ملف؟
@@ -2841,7 +2845,7 @@ namespace Sad
             {Names::TypeCtor::TO_BOOL, BuiltinCategory::TYPE_CONSTRUCTOR, ModuleId::NONE, CompilerStrategy::INLINE},
         }};
 
-        inline constexpr std::array<BuiltinEntry, 65> MODULE_FUNCTION_BUILTINS = {{
+        inline constexpr std::array<BuiltinEntry, 67> MODULE_FUNCTION_BUILTINS = {{
             // ─── وحدة MATH (33 دالة) ───
             {Names::Math::SQRT, BuiltinCategory::MODULE_FUNCTION, ModuleId::MATH, CompilerStrategy::LLVM_INTRINSIC},
             {Names::Math::POWER, BuiltinCategory::MODULE_FUNCTION, ModuleId::MATH, CompilerStrategy::LLVM_INTRINSIC},
@@ -2890,12 +2894,14 @@ namespace Sad
             {Names::Strings::STARTS_WITH, BuiltinCategory::MODULE_FUNCTION, ModuleId::STRINGS, CompilerStrategy::RUNTIME_CALL},
             {Names::Strings::ENDS_WITH, BuiltinCategory::MODULE_FUNCTION, ModuleId::STRINGS, CompilerStrategy::RUNTIME_CALL},
             {Names::Strings::CONTAINS, BuiltinCategory::MODULE_FUNCTION, ModuleId::STRINGS, CompilerStrategy::RUNTIME_CALL},
-            // ─── وحدة BASICS (10 دالة) ───
+            // ─── وحدة BASICS (12 دالة) ───
             {Names::Basics::RANGE, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::EXIT, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::ASSERT, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::READ_FILE, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::WRITE_FILE, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
+            {Names::Basics::WRITE_BYTES, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
+            {Names::Basics::READ_BYTES, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::FILE_EXISTS, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::IS_FILE, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
             {Names::Basics::IS_DIR, BuiltinCategory::MODULE_FUNCTION, ModuleId::BASICS, CompilerStrategy::RUNTIME_CALL},
@@ -2967,7 +2973,7 @@ namespace Sad
         // ════════════════════════════════════════════════════════════
         static_assert(CORE_IO_BUILTINS.size() == 3, "CORE_IO count mismatch");
         static_assert(TYPE_CONSTRUCTOR_BUILTINS.size() == 4, "TYPE_CONSTRUCTOR count mismatch");
-        static_assert(MODULE_FUNCTION_BUILTINS.size() == 65, "MODULE_FUNCTION count mismatch");
+        static_assert(MODULE_FUNCTION_BUILTINS.size() == 67, "MODULE_FUNCTION count mismatch");
 
         // ════════════════════════════════════════════════════════════════════
         // (AR) دوال البحث في السجل
@@ -3030,7 +3036,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1113> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1115> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3119,12 +3125,14 @@ namespace Sad
             {Names::Arrays::FIRST, "Arrays", "MODULE_FUNCTION", "NONE", false, "أول عنصر", "", ""},
             {Names::Arrays::LAST, "Arrays", "MODULE_FUNCTION", "NONE", false, "آخر عنصر", "", ""},
             {Names::Arrays::SLICE, "Arrays", "MODULE_FUNCTION", "NONE", false, "شريحة", "", ""},
-            // ─── Basics (17) ───
+            // ─── Basics (19) ───
             {Names::Basics::RANGE, "Basics", "MODULE_FUNCTION", "BASICS", true, "نطاق أرقام", "", ""},
             {Names::Basics::EXIT, "Basics", "MODULE_FUNCTION", "BASICS", true, "إنهاء البرنامج", "", ""},
             {Names::Basics::ASSERT, "Basics", "MODULE_FUNCTION", "BASICS", true, "تأكيد شرط", "", ""},
             {Names::Basics::READ_FILE, "Basics", "MODULE_FUNCTION", "BASICS", true, "قراءة ملف", "", ""},
             {Names::Basics::WRITE_FILE, "Basics", "MODULE_FUNCTION", "BASICS", true, "كتابة ملف", "", ""},
+            {Names::Basics::WRITE_BYTES, "Basics", "MODULE_FUNCTION", "BASICS", true, "كتابة بايتات خام إلى ملف (تكتب حتى البايتات الصفريّة، بخلاف اكتب_ملف النصّيّة)", "{'name': 'مسار', 'type': 'نص'}، {'name': 'بايتات', 'type': 'مصفوفة'}", ""},
+            {Names::Basics::READ_BYTES, "Basics", "MODULE_FUNCTION", "BASICS", true, "قراءة بايتات خام من ملف (تعيد مصفوفة أعداد ٠..٢٥٥)", "{'name': 'مسار', 'type': 'نص'}", ""},
             {Names::Basics::FILE_EXISTS, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل موجود؟", "", ""},
             {Names::Basics::IS_FILE, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل ملف؟", "", ""},
             {Names::Basics::IS_DIR, "Basics", "MODULE_FUNCTION", "BASICS", true, "هل المسار مجلد موجود؟ (يعيد منطقيًّا)", "{'name': 'مسار', 'type': 'نص'}", ""},
@@ -4199,7 +4207,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", true, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1113, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1115, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

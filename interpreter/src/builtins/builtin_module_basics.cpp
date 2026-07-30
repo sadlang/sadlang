@@ -232,7 +232,72 @@ void registerBuiltinsBasics(Interpreter& interpreter) {
     };
     
     interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::WRITE_FILE), write_file_func);
-    
+
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) كتابة بايتات خام / (EN) Write raw bytes
+    //   بخلاف اكتب_ملف النصّيّة: يفتح بالوضع الثنائيّ ويكتب كلَّ عنصرٍ عددًا
+    //   (0..255) بايتًا واحدًا عبر put ⇒ يكتب حتّى البايتات الصفريّة (لازمٌ لـELF).
+    //   يجب أن يطابق باعثَ المترجم emitBuiltinFileWriteBytes بايتًا ببايت.
+    // (EN) Unlike text write_file: opens in binary mode and writes each numeric
+    //   element (0..255) as a single byte via put ⇒ writes embedded NUL bytes
+    //   (required for ELF). Must match the compiler's emitBuiltinFileWriteBytes byte-for-byte.
+    // ═══════════════════════════════════════════════════════════════
+    auto write_bytes_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+        const auto &args = ctx.args(); (void)args;
+        if (args.size() < 2 || !args[0] || !args[1]) {
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        }
+        std::string path = args[0]->toString();
+        std::vector<Data::Value> bytes = args[1]->toArray();
+
+        std::ofstream file(path, std::ios::binary);
+        if (!file.is_open()) {
+            ctx.error(::Sad::Errors::ErrorCode::RUN_FILE_ERROR, {{"path", path}, {"reason", "(AR) كتابة بايتات / (EN) write_bytes"}});
+        }
+
+        for (const auto &el : bytes) {
+            // (AR) تقنيع 0xFF يطابق اقتطاعَ الباعث؛ عددٌ خارج المدى يُلتقَط منخفضَ البايت.
+            unsigned char b = static_cast<unsigned char>(el.toInt64() & 0xFF);
+            file.put(static_cast<char>(b));
+        }
+        file.close();
+
+        return std::make_shared<Data::Value>();  // void
+    };
+
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::WRITE_BYTES), write_bytes_func);
+
+    // ═══════════════════════════════════════════════════════════════
+    // (AR) قراءة بايتات خام / (EN) Read raw bytes
+    //   يعيد مصفوفةَ أعدادٍ صحيحة (0..255)، عنصرًا لكلّ بايت. الوضع الثنائيّ
+    //   كي لا تُترجَم CRLF على ويندوز (يحفظ التطابقَ الثنائيّ مع المترجم).
+    // (EN) Returns an array of integers (0..255), one per byte. Binary mode so
+    //   CRLF is not translated on Windows (preserves byte-parity with the compiler).
+    // ═══════════════════════════════════════════════════════════════
+    auto read_bytes_func = [](Sad::Interpreter::BuiltinContext &ctx) {
+        const auto &args = ctx.args(); (void)args;
+        if (args.empty() || !args[0]) {
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+        }
+        std::string path = args[0]->toString();
+
+        std::ifstream file(path, std::ios::binary);
+        if (!file.is_open()) {
+            ctx.error(::Sad::Errors::ErrorCode::RUN_FILE_ERROR, {{"path", path}, {"reason", "(AR) قراءة بايتات / (EN) read_bytes"}});
+        }
+
+        std::vector<Data::Value> bytes;
+        char c;
+        while (file.get(c)) {
+            bytes.push_back(Data::Value(static_cast<int64_t>(static_cast<unsigned char>(c))));
+        }
+        file.close();
+
+        return std::make_shared<Data::Value>(std::move(bytes));
+    };
+
+    interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bb::READ_BYTES), read_bytes_func);
+
     // دالة إضافة لملف / Append to file function
     auto append_file_func = [](Sad::Interpreter::BuiltinContext &ctx) {
                 const auto &args = ctx.args(); (void)args;

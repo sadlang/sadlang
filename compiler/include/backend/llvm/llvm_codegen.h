@@ -1006,6 +1006,8 @@ namespace Sad
             // File I/O Functions (8)
             llvm::Value *emitBuiltinFileRead(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileRead(inst); }
             llvm::Value *emitBuiltinFileWrite(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileWrite(inst); }
+            llvm::Value *emitBuiltinFileWriteBytes(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileWriteBytes(inst); }
+            llvm::Value *emitBuiltinFileReadBytes(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileReadBytes(inst); }
             llvm::Value *emitBuiltinFileAppend(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileAppend(inst); }
             llvm::Value *emitBuiltinFileDelete(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileDelete(inst); }
             llvm::Value *emitBuiltinFileCopy(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileCopy(inst); }

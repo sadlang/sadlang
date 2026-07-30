@@ -74,6 +74,49 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
+                // 2ب. اكتب_بايتات / write_bytes — كتابة بايتات خام (fwrite، تكتب الصفريّة)
+                if (funcName == Bn::Basics::WRITE_BYTES)
+                {
+                    if (argResults.size() < 2)
+                    {
+                        std::cerr << "[Error] دالة اكتب_بايتات تتطلب معاملين (مسار, مصفوفة بايتات)" << std::endl;
+                        return BuildResult("", SadTypeKind::Boolean);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
+                    SIRInstruction inst(SIROpcode::BUILTIN_FILE_WRITE_BYTES);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]); // (AR) المسار (نصّ)
+                    inst.operands.push_back(argOperands[1]); // (AR) مصفوفة البايتات (SadArray*)
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
+                }
+
+                // 2ج. اقرأ_بايتات / read_bytes — قراءة بايتات خام إلى مصفوفة أعداد
+                if (funcName == Bn::Basics::READ_BYTES)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة اقرأ_بايتات تتطلب معامل واحد (مسار الملف)" << std::endl;
+                        return BuildResult("", SadTypeKind::Array);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Array);
+                    SIRInstruction inst(SIROpcode::BUILTIN_FILE_READ_BYTES);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+#ifndef NDEBUG
+                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+#endif
+                    return BuildResult(resultReg, SadTypeKind::Array);
+                }
+
                 // 3. أضف_إلى_ملف / append_to_file
                 if (funcName == Bn::Basics::APPEND_FILE)
                 {

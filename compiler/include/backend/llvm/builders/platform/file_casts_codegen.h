@@ -26,6 +26,8 @@ public:
 
     llvm::Value *emitBuiltinFileRead(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileWrite(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinFileWriteBytes(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinFileReadBytes(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileAppend(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileDelete(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileCopy(std::shared_ptr<SIRInstruction> inst);

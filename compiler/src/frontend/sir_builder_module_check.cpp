@@ -178,6 +178,8 @@ namespace Sad
                     {std::string(Bb::EXIT), "أساسيات"},
                     {std::string(Bb::READ_FILE), "أساسيات"},
                     {std::string(Bb::WRITE_FILE), "أساسيات"},
+                    {std::string(Bb::WRITE_BYTES), "أساسيات"},
+                    {std::string(Bb::READ_BYTES), "أساسيات"},
                     {"أضف_إلى_ملف", "أساسيات"},
                     {std::string(Bb::DELETE_FILE), "أساسيات"},
                     {"انسخ_ملف", "أساسيات"},
