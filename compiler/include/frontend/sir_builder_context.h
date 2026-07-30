@@ -176,6 +176,16 @@ namespace Sad
                 // (EN) Current function name during call site scanning
                 std::string currentScanFuncName_;
 
+                // (AR) خريطة اسم المتغيّر → نوع عنصر مصفوفته الحرفيّة أثناء المسح
+                //      المُسبَق. تُملأ عند تصريح متغيّرٍ بمُهيّئٍ مصفوفةٍ مختلطةٍ قياسيّةٍ
+                //      (⇒ Any)، وتُقرأ في استنتاج نوع المعامل حين يُمرَّر المتغيّرُ نفسُه
+                //      وسيطًا (GAP 3b: توسيع وسيط المتغيّر إلى Any).
+                // (EN) Variable name → its literal array element-type during the pre-pass
+                //      scan. Populated when a variable is declared with a scalar-heterogeneous
+                //      array initializer (⇒ Any); read in parameter-type inference when that
+                //      same variable is passed as an argument (GAP 3b: variable-arg widening).
+                std::unordered_map<std::string, SadTypeKind> scanVarElementType_;
+
                 // (AR) خريطة أسماء المتغيرات → أسماء الأصناف التي هي كائنات منها
                 // (EN) Variable names → class names they are instances of
                 std::unordered_map<std::string, std::string> classInstanceTypes_;

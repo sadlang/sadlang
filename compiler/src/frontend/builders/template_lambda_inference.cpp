@@ -113,9 +113,46 @@ namespace Sad
                                 SadTypeKind argType = inferExprType(call->arguments[i].get());
                                 SadTypeKind &paramType = funcInfo.parameters[i + paramOffset].type;
 
+                                // (AR) [GAP 3b] وسيطٌ متغيّرٌ يحمل مصفوفةً سُجِّل نوعُ عنصرها
+                                //      في المسح المُسبَق عند تصريحه (مختلطٌ قياسيّ ⇒ Any، أو
+                                //      متجانسٌ ⇒ نوعُه). نوّع المعاملَ إلى مصفوفةٍ ونضبط نوعَ
+                                //      عنصرها، فيُبنى جسمُ الدالّة عالمًا أنّ فهرسةَ المعامل
+                                //      تُقرأ موسومةً زمنَ التشغيل لا عدديًّا. «الموقعُ الأوّل
+                                //      يفوز»: لا نكتب فوق نوع عنصرٍ سبق ضبطُه (يطابق مسارَ
+                                //      الحرفيّة المباشرة). آمنٌ بعد الخيار ٢.
+                                // (EN) [GAP 3b] A variable arg holding an array whose element
+                                //      type was recorded in the pre-pass at its declaration
+                                //      (scalar-heterogeneous ⇒ Any, homogeneous ⇒ its type).
+                                //      Widen the param to Array and set its element type so the
+                                //      body is built knowing the param's index reads runtime-
+                                //      tagged, not as int. "First call site wins": never
+                                //      overwrite an element type already set (mirrors the
+                                //      direct-literal path). Safe after option 2.
+                                bool handledByVarWiden = false;
+                                if (auto *argVar = dynamic_cast<const Sad::AST::VariableExpr *>(call->arguments[i].get()))
+                                {
+                                    auto vit = b_.scanVarElementType_.find(b_.currentScanFuncName_ + "#" + argVar->name);
+                                    if (vit != b_.scanVarElementType_.end() &&
+                                        (paramType == SadTypeKind::Integer || paramType == SadTypeKind::Array))
+                                    {
+                                        paramType = SadTypeKind::Array;
+                                        SadTypeKind &pElem = funcInfo.parameters[i + paramOffset].elementType;
+                                        if (pElem == SadTypeKind::Void)
+                                            pElem = vit->second;
+                                        handledByVarWiden = true;
+                                    }
+                                }
+
                                 // (AR) إذا كان المعامل I64 (افتراضي من UNKNOWN) والوسيط ذو نوع أكثر تحديداً
                                 // (EN) If param is I64 (default from UNKNOWN) and arg is a more specific type
-                                if (paramType == SadTypeKind::Integer && argType == SadTypeKind::String)
+                                if (handledByVarWiden)
+                                {
+                                    // (AR) عُولج أعلاه (توسيعُ وسيط المتغيّر) ⇒ لا نُطبّق قواعدَ
+                                    //      النوع القياسيّ التالية على هذا الوسيط.
+                                    // (EN) Handled above (variable-arg widening) ⇒ skip the
+                                    //      scalar type rules below for this argument.
+                                }
+                                else if (paramType == SadTypeKind::Integer && argType == SadTypeKind::String)
                                 {
                                     paramType = SadTypeKind::String;
 #ifdef SIR_BUILDER_DEBUG
@@ -486,6 +523,73 @@ namespace Sad
                 {
                     if (varDecl->initializer)
                     {
+                        // (AR) [GAP 3b] سجِّل نوعَ عنصر المصفوفة الحرفيّة المُهيّئة لهذا
+                        //      المتغيّر، كي يُوسَّع أيُّ معاملٍ يُمرَّر إليه هذا المتغيّرُ
+                        //      لاحقًا: مختلطٌ قياسيّ ⇒ Any (فتُقرأ فهرستُه موسومةً زمنَ
+                        //      التشغيل لا عدديًّا)؛ متجانسٌ ⇒ نوعُه. نطابق تمامًا بوّابةَ
+                        //      استنتاج المعامل من حرفيّةٍ مباشرة (نفس lambda القياسيّة
+                        //      ونفس منطق التجانس). آمنٌ بعد الخيار ٢ (الحقل الخامس
+                        //      homogKind أغلق فخَّ Any-عند-tags=null).
+                        // (EN) [GAP 3b] Record the element type of this variable's literal
+                        //      array initializer, so any param it is later passed to is
+                        //      widened: scalar-heterogeneous ⇒ Any (its index reads
+                        //      runtime-tagged, not as int); homogeneous ⇒ its type. Mirrors
+                        //      the literal-arg param inference exactly (same scalar lambda,
+                        //      same homogeneity logic). Safe after option 2 (the 5th field
+                        //      homogKind closed the Any-at-tags==null hazard).
+                        if (auto *arrExpr = dynamic_cast<const Sad::AST::ArrayExpr *>(varDecl->initializer.get()))
+                        {
+                            if (!arrExpr->elements.empty())
+                            {
+                                auto isScalarKind = [](SadTypeKind t) {
+                                    return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
+                                           t == SadTypeKind::String || t == SadTypeKind::Boolean ||
+                                           t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
+                                           t == SadTypeKind::Null || t == SadTypeKind::Any;
+                                };
+                                SadTypeKind firstElemType = inferExprType(arrExpr->elements[0].get());
+                                bool homogeneous = true, allScalar = true, hasAny = false;
+                                for (const auto &el : arrExpr->elements)
+                                {
+                                    SadTypeKind et = inferExprType(el.get());
+                                    if (et != firstElemType)
+                                        homogeneous = false;
+                                    if (!isScalarKind(et))
+                                        allScalar = false;
+                                    if (et == SadTypeKind::Any)
+                                        hasAny = true;
+                                }
+                                // (AR) [عيب أميليا 11أ/ب] نُسجّل Any حصرًا، لا نوعًا محدَّدًا.
+                                //      تسجيلُ نوعٍ متجانسٍ محدَّد (نصّ/عشريّ) ثمّ تجميدُه
+                                //      «أوّلَ-موقعٍ» على معاملٍ مشترَكٍ يُصيّر قراءةَ مصفوفةٍ
+                                //      صحيحةٍ (متجانسة) في موقعٍ لاحقٍ عبر مسار النصّ/العشريّ
+                                //      ⇒ انهيار (فكُّ عدد كـ char*) أو قمامة. أمّا Any فآمنٌ
+                                //      للجميع بعد الخيار ٢: قراءةُ Any عند tags=null تقرأ
+                                //      homogKind فتُبوَّب كلُّ مصفوفةٍ متجانسةٍ صحيحةً.
+                                //      لذا نُوسِّع إلى Any عند: مختلطٍ قياسيّ، أو متجانسٍ
+                                //      قياسيٍّ غيرِ صحيحٍ (نصّ/عشريّ/منطقيّ/بايت/طبيعي64/عدم).
+                                //      المتجانسُ الصحيحُ لا يُسجَّل (مسارُه العدديُّ الافتراضيّ
+                                //      آمنٌ ومطابق)، وغيرُ القياسيّ (مصفوفةُ مصفوفات) يُترَك
+                                //      لمساره الافتراضيّ (لا تجميدَ نوعٍ محدَّدٍ خطِرٍ).
+                                // (EN) [Amelia 11a/b] Record ONLY Any, never a concrete type.
+                                //      Recording a concrete homogeneous type (String/Float)
+                                //      then freezing it first-site-wins onto a SHARED param
+                                //      makes a later call passing a (homogeneous) int array
+                                //      read via the string/float path ⇒ SIGSEGV (int deref as
+                                //      char*) or garbage. Any is safe for all after option 2:
+                                //      reading via Any at tags==null reads homogKind, so every
+                                //      homogeneous array reads correctly. So widen to Any when:
+                                //      scalar-mixed, or scalar-homogeneous-non-int. Homogeneous
+                                //      int is not recorded (its default numeric path is safe
+                                //      and matches); non-scalar (array of arrays) is left to
+                                //      its default path (no dangerous concrete-type freeze).
+                                bool recordAny = allScalar &&
+                                                 (((!homogeneous && arrExpr->elements.size() > 1) || hasAny) ||
+                                                  (homogeneous && firstElemType != SadTypeKind::Integer));
+                                if (recordAny)
+                                    b_.scanVarElementType_[b_.currentScanFuncName_ + "#" + varDecl->name] = SadTypeKind::Any;
+                            }
+                        }
                         scanCallSitesInExpr(varDecl->initializer.get());
                     }
                     return;
