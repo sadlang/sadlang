@@ -171,3 +171,6 @@ build/_*.json
 
 # (AR) إعدادات Claude Code المحلّيّة الشخصيّة / (EN) Personal local Claude Code settings
 .claude/settings.local.json
+
+# أثر اختبار الخلفيّة السياديّة م١ (ثنائيّ ELF مُنتَج)
+sad_m1_exit42
