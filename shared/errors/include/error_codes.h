@@ -279,7 +279,13 @@ namespace Sad
             INT_INTERP_NAMELESS_DEFINITION, ///< INT008: (AR) تعريف دالة بلا اسم / (EN) Nameless function definition
             INT_INTERP_SCOPE_STACK,         ///< INT009: (AR) خلل مكدّس النطاقات / (EN) Scope stack violation
             INT_INTERP_UNEXPECTED_TOKEN,    ///< INT010: (AR) نوع رمز حرفي غير متوقَّع / (EN) Unexpected literal token type
-            INT_MODULE_VERIFY               ///< INT011: (AR) فشل التحقّق من وحدة LLVM / (EN) LLVM module verification failed
+            INT_MODULE_VERIFY,              ///< INT011: (AR) فشل التحقّق من وحدة LLVM / (EN) LLVM module verification failed
+            INT_NATIVE_NO_ENTRY,            ///< INT012: (AR) لا دالّة دخول في التخفيض الأصليّ / (EN) No entry function in native lowering
+            INT_NATIVE_UNSUPPORTED,         ///< INT013: (AR) بنية غير مدعومة في التخفيض الأصليّ الأدنى / (EN) Unsupported construct in minimal native lowering
+            INT_NATIVE_REGALLOC_EXHAUSTED,  ///< INT014: (AR) نفاد سجلّات الحوض (بلا انسكاب) / (EN) Register pool exhausted (no spilling)
+            INT_NATIVE_IMM_RANGE,           ///< INT015: (AR) فوريّ خارج المدى في التخفيض الأصليّ / (EN) Immediate out of range in native lowering
+            INT_NATIVE_ENCODING_MISSING,    ///< INT016: (AR) لا صيغة ترميز أصليّة للتعليمة / (EN) No native encoding spec for instruction
+            INT_NATIVE_UNDEF_VREG           ///< INT017: (AR) سجلّ افتراضيّ غير معرَّف في التخفيض الأصليّ / (EN) Undefined virtual register in native lowering
         };
 
         /**

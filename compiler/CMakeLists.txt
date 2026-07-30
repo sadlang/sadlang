@@ -810,6 +810,37 @@ if(TARGET sad_tools)
  endif()
 endif()
 
+# (AR) جسر SIR→المحرّك السياديّ: يبني SIR من مصدر ص فعليّ (Lexer→Parser→SIRBuilder)
+#      ثمّ يخفّضه إلى x86-64 أصليّ عبر المحرّك الجدوليّ ⇒ أوّل ترجمة ص→أصليّ حقيقيّة.
+#      يربط sad_frontend (SIRBuilder) + sad_shared (Lexer/Parser/AST) + sad_type_system.
+if(TARGET sad_frontend AND TARGET sad_shared)
+ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_sir_bridge.cpp")
+ add_executable(test_native_sir_bridge tests/test_native_sir_bridge.cpp)
+ target_include_directories(test_native_sir_bridge PRIVATE
+ ${CMAKE_CURRENT_SOURCE_DIR}/include
+ ${CMAKE_CURRENT_SOURCE_DIR}/include/frontend
+ ${CMAKE_SOURCE_DIR}/shared/lexer/include
+ ${CMAKE_SOURCE_DIR}/shared/parser/include
+ ${CMAKE_SOURCE_DIR}/shared/ast/include
+ ${CMAKE_SOURCE_DIR}/shared/errors/include
+ ${CMAKE_SOURCE_DIR}/shared/errors/generated
+ ${CMAKE_SOURCE_DIR}/tests/framework
+ )
+ target_link_libraries(test_native_sir_bridge PRIVATE sad_frontend sad_shared)
+ if(TARGET sad_type_system)
+ target_link_libraries(test_native_sir_bridge PRIVATE sad_type_system)
+ endif()
+ target_compile_features(test_native_sir_bridge PRIVATE cxx_std_17)
+ if(MSVC)
+ target_compile_options(test_native_sir_bridge PRIVATE /utf-8 /wd4819 /FS)
+ endif()
+ set_target_properties(test_native_sir_bridge PROPERTIES
+ RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
+ add_test(NAME NativeSirBridge COMMAND test_native_sir_bridge)
+ message(STATUS "Configured test: test_native_sir_bridge")
+ endif()
+endif()
+
 # ============================================================================
 # (AR) ?????? ?? ????? ????? ?????: ????? sad_sir_extended ??? ???????
 #      (sir_validator, ast_to_sir, builtin_intrinsics, sir_optimizer,

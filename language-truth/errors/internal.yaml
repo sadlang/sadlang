@@ -214,3 +214,112 @@ errors:
     detailed:
       ar: حاول المفسر تحويل رمز ({detail}) إلى قيمة حرفية، لكن نوع الرمز ليس من الأنواع الحرفية المعروفة (عدد/نص/منطقي/فراغ). ثابت داخلي — المُحلِّل يُفترض ألّا يُنشئ عقدة تعبير حرفي إلا لرمز حرفي. لا علاقة له بصحّة كود ص.
       en: The interpreter tried to convert a token ({detail}) into a literal value, but the token type is not among the known literal types (number/string/boolean/null). An internal invariant — the parser should only build a literal-expression node for a literal token. Unrelated to your ص code.
+
+  # ── الخلفيّة السياديّة الأصليّة (بلا LLVM): حدودُ التخفيض الأدنى (MVP) ──
+  #    ليست عللًا تُبلَّغ، بل بنى لم يدعمها المخفّضُ الأدنى بعد؛ fix_hint يوجّه
+  #    مطوّرَ الخلفيّة لتوسيع الجدول/المخصِّص لا للإبلاغ. البيانات في {detail} فقط.
+  - code: INT_NATIVE_NO_ENTRY
+    id: INT012
+    category: internal
+    title:
+      ar: التخفيض الأصليّ — لا دالّة دخول
+      en: Native lowering — no entry function
+    brief:
+      ar: 'التخفيض الأصليّ (بلا LLVM): لم تُوجَد دالّةُ دخولٍ (رئيسية/main/__sad_main) لتخفيضها'
+      en: 'Native lowering (no LLVM): no entry function (رئيسية/main/__sad_main) found to lower'
+    fix_hint:
+      ar: 'لمطوّر الخلفيّة: يخفّض المخفّضُ الأصليّ دالّةَ الدخول وحدها؛ تأكّد أنّ الوحدة تحوي «رئيسية» أو أنّ جملَ المستوى الأعلى لُفّت في __sad_main. للمستخدم: عرّف «دالة رئيسية() … نهاية» تُرجع عددًا.'
+      en: 'Backend dev: the native lowering targets the entry function only; ensure the module defines رئيسية or that top-level statements were wrapped in __sad_main. User: define «دالة رئيسية() … نهاية» returning an integer.'
+    detailed:
+      ar: بحث المخفّضُ الأصليّ عن دالّة الدخول (رئيسية ثمّ main ثمّ __sad_main ثمّ أوّل دالّة) فلم يجد أيًّا منها في وحدة SIR. لا شيفرةَ تُولَّد بلا دالّة دخول.
+      en: The native lowerer looked for the entry function (رئيسية, then main, then __sad_main, then the first function) and found none in the SIR module. No code can be generated without an entry.
+
+  - code: INT_NATIVE_UNSUPPORTED
+    id: INT013
+    category: internal
+    title:
+      ar: التخفيض الأصليّ الأدنى — بنية غير مدعومة
+      en: Minimal native lowering — unsupported construct
+    brief:
+      ar: 'التخفيض الأصليّ الأدنى (بلا LLVM): بنيةٌ غير مدعومة بعد ({detail})'
+      en: 'Minimal native lowering (no LLVM): construct not yet supported ({detail})'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر الخلفيّة: المخفّضُ الأدنى يدعم كتلةً واحدةً وأوپكودات MOVE/ADD_I64/SUB_I64/RET بأعدادٍ صحيحة. لدعم ({detail}): أضِف حالةً في lowerInstruction أو صيغةً في جدول الترميز (instructions.yaml)، أو طبقةَ CFG/انسكاب. ليس عطلًا يُبلَّغ.'
+      en: 'Backend dev: the minimal lowerer supports one basic block and MOVE/ADD_I64/SUB_I64/RET over integers. To support ({detail}): add a case in lowerInstruction or a form in the encoding table (instructions.yaml), or a CFG/spill layer. Not a bug to report.'
+    detailed:
+      ar: بلغ المخفّضَ الأصليّ الأدنى بناءٌ خارج مجموعته المدعومة ({detail}) — كأوپكود غير مُخفَّض، أو ثابتٍ غير صحيح، أو نوع معاملٍ غير مدعوم، أو كتلةٍ لا تنتهي بـRET. هذا حدُّ MVP معلَن لا خلل؛ يُوسَّع بإضافة الدعم في الجدول/المخفّض.
+      en: A construct outside the minimal lowerer's supported set reached it ({detail}) — an unlowered opcode, a non-integer constant, an unsupported operand kind, or a block not ending in RET. This is a declared MVP boundary, not a defect; extend the table/lowerer to support it.
+
+  - code: INT_NATIVE_REGALLOC_EXHAUSTED
+    id: INT014
+    category: internal
+    title:
+      ar: التخفيض الأصليّ — نفاد سجلّات الحوض
+      en: Native lowering — register pool exhausted
+    brief:
+      ar: 'التخفيض الأصليّ الأدنى (بلا LLVM): نفدت سجلّاتُ الحوض — لا انسكابَ في هذا الحدّ ({detail})'
+      en: 'Minimal native lowering (no LLVM): register pool exhausted — no spilling at this boundary ({detail})'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر الخلفيّة: نموذج «كلٌّ في سجلّ» بلا انسكاب يكفي التعابيرَ الصغيرة فقط. لدعم تعابير أكبر أضِف طبقةَ انسكابٍ (تخزين/تحميل من المكدّس عبر ادفع/اسحب/mov [rbp±إزاحة]) أو مخصِّص خطّيّ. ليس عطلًا يُبلَّغ.'
+      en: 'Backend dev: the everything-in-registers model without spilling only fits small expressions. For larger ones add a spill layer (stack store/load via push/pop/mov [rbp±disp]) or a linear-scan allocator. Not a bug to report.'
+    detailed:
+      ar: تجاوز عددُ السجلّات الافتراضيّة الحيّة سعةَ حوض السجلّات الفيزيائيّة ({detail})، والمخفّضُ الأدنى لا يسكب إلى المكدّس. رفضٌ صريحٌ خيرٌ من دهسِ سجلٍّ حيٍّ صامتًا.
+      en: The number of live virtual registers exceeded the physical register pool ({detail}), and the minimal lowerer does not spill to the stack. Failing explicitly is better than silently clobbering a live register.
+
+  - code: INT_NATIVE_IMM_RANGE
+    id: INT015
+    category: internal
+    title:
+      ar: التخفيض الأصليّ — فوريّ خارج المدى
+      en: Native lowering — immediate out of range
+    brief:
+      ar: 'التخفيض الأصليّ الأدنى (بلا LLVM): قيمةٌ فوريّةٌ خارج مدى الترميز المتاح ({detail})'
+      en: 'Minimal native lowering (no LLVM): immediate value out of the available encoding range ({detail})'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر الخلفيّة: صيغُ الفوريّ الحاليّة mov r32,imm32 (‏[0, 2³²)) وadd/sub r64,imm32 (‏[−2³¹, 2³¹)). للمدى الأوسع أضِف mov r64,imm64 (‏movabs) أو mov r64,imm32 الممتدّ إشاريًّا إلى الجدول. ليس عطلًا يُبلَّغ.'
+      en: 'Backend dev: current immediate forms are mov r32,imm32 ([0, 2³²)) and add/sub r64,imm32 ([−2³¹, 2³¹)). For a wider range add mov r64,imm64 (movabs) or sign-extended mov r64,imm32 to the table. Not a bug to report.'
+    detailed:
+      ar: قيمةٌ فوريّةٌ ({detail}) لا تُمثَّل في الصيغة المختارة (mov r32,imm32 يمتدّ صفريًّا؛ add/sub r64,imm32 يمتدّ إشاريًّا). بترُها الصامت يُنتج قيمةً خاطئة، فنرفضها صراحةً حتّى تُضاف صيغةٌ أوسع.
+      en: An immediate ({detail}) is not representable in the chosen form (mov r32,imm32 zero-extends; add/sub r64,imm32 sign-extends). Silent truncation would produce a wrong value, so it is rejected until a wider form is added.
+
+  - code: INT_NATIVE_ENCODING_MISSING
+    id: INT016
+    category: internal
+    title:
+      ar: التخفيض الأصليّ — لا صيغة ترميز
+      en: Native lowering — no encoding spec
+    brief:
+      ar: 'التخفيض الأصليّ الأدنى (بلا LLVM): لا صيغة ترميزٍ أصليّة لهذه التعليمة في الجدول ({detail})'
+      en: 'Minimal native lowering (no LLVM): no native encoding spec for this instruction in the table ({detail})'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر الخلفيّة: جدولُ الترميز يربط كلَّ نمطِ تعليمةٍ (mnemonic + أنواع المعاملات) بمواصفة بايتات. غيابُ المدخل يعني أنّ النمط لم يُضَف بعد. أضِف مدخلًا في جدول صيغ الترميز الأصليّة. ليس عطلًا يُبلَّغ.'
+      en: 'Backend dev: the encoding table maps each instruction shape (mnemonic + operand types) to a byte spec. A missing entry means that shape has not been added yet. Add an entry to the native encoding-spec table. Not a bug to report.'
+    detailed:
+      ar: طلب المخفّضُ صيغةَ ترميزٍ لتعليمةٍ ({detail}) لا مدخلَ لها في جدول الصيغ الأصليّة، فتعذّر إصدارُ بايتاتها. رفضٌ صريحٌ خيرٌ من إصدارِ بايتاتٍ عشوائيّة.
+      en: The lowerer requested an encoding spec for an instruction ({detail}) that has no entry in the native spec table, so its bytes could not be emitted. Failing explicitly is better than emitting arbitrary bytes.
+
+  - code: INT_NATIVE_UNDEF_VREG
+    id: INT017
+    category: internal
+    title:
+      ar: التخفيض الأصليّ — سجلّ افتراضيّ غير معرَّف
+      en: Native lowering — undefined virtual register
+    brief:
+      ar: 'التخفيض الأصليّ الأدنى (بلا LLVM): سجلٌّ افتراضيٌّ مُستعمَل قبل تعريفه ({detail})'
+      en: 'Minimal native lowering (no LLVM): a virtual register is used before it is defined ({detail})'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'لمطوّر الخلفيّة: يجب أن يُنتِج كلُّ سجلٍّ افتراضيٍّ من تعليمةٍ سابقة قبل قراءته (كلُّ سجلٍّ يُعرَّف قبل قراءته). لو أنتجه بانِي SIR فتحقّق من ترتيب التعليمات؛ وإلّا فالمدخلُ ناقصٌ في خريطة تخصيص السجلّات. ليس عطلًا يُبلَّغ.'
+      en: 'Backend dev: every virtual register must be produced by an earlier instruction before it is read (each register defined before it is used). If the SIR builder produced it, check instruction ordering; otherwise the register-allocation map is missing an entry. Not a bug to report.'
+    detailed:
+      ar: قرأ المخفّضُ سجلًّا افتراضيًّا ({detail}) لا تعريفَ سابقًا له في خريطة السجلّات، فتعذّر ربطُه بسجلٍّ فيزيائيّ. رفضٌ صريحٌ خيرٌ من قراءةِ سجلٍّ عشوائيّ.
+      en: The lowerer read a virtual register ({detail}) that has no prior definition in the register map, so it could not be bound to a physical register. Failing explicitly is better than reading an arbitrary register.
