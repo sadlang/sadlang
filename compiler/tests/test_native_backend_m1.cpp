@@ -12,6 +12,7 @@
 #include "sad_test.h"
 #include "backend/native/x86_variable_encoder.h"
 #include "backend/native/elf64_writer.h"
+#include "backend/native/generated/x86_64_encoding_generated.h" // (AR) الجدول المولَّد من SoT
 
 #include <cstdio>
 #include <string>
@@ -36,6 +37,18 @@ namespace
     }
 
     std::vector<x86::Operand> ops2(x86::Operand a, x86::Operand b) { return {a, b}; }
+
+    // (AR) يرمّز تعليمةً عبر الجدول المولَّد من SoT (منمنمة عربيّة + صيغة) — يُثبت
+    //      أنّ المحرّك يقرأ بياناتِه من الـYAML لا من كودٍ مضمَّن (table-driven).
+    // (EN) encodes via the SoT-generated table (Arabic mnemonic + form) — proving
+    //      the encoder reads its data from YAML, not inline code.
+    std::vector<uint8_t> enc(const std::string &mnemonic, const std::string &form,
+                             const std::vector<x86::Operand> &ops)
+    {
+        const x86::EncSpec *spec = x86::lookupEncSpec(mnemonic, form);
+        ASSERT_TRUE(spec != nullptr);
+        return x86::encodeVariable(*spec, ops);
+    }
 } // namespace
 
 // ─── الترميز التفاضليّ (القيم = مخرَج llvm-mc-18 حرفيًّا) ───
@@ -43,7 +56,7 @@ namespace
 // movl $42, %edi  # encoding: [0xbf,0x2a,0x00,0x00,0x00]
 TEST(NativeX86, MovEdi42)
 {
-    auto b = x86::encodeVariable(x86::mov_r32_imm32(),
+    auto b = enc("انقل", "r32, imm32",
                                  ops2(x86::Operand::R(x86::RDI), x86::Operand::I(42, 32)));
     ASSERT_EQ(hex(b), std::string("bf2a000000"));
 }
@@ -51,7 +64,7 @@ TEST(NativeX86, MovEdi42)
 // movl $60, %eax  # encoding: [0xb8,0x3c,0x00,0x00,0x00]
 TEST(NativeX86, MovEax60)
 {
-    auto b = x86::encodeVariable(x86::mov_r32_imm32(),
+    auto b = enc("انقل", "r32, imm32",
                                  ops2(x86::Operand::R(x86::RAX), x86::Operand::I(60, 32)));
     ASSERT_EQ(hex(b), std::string("b83c000000"));
 }
@@ -59,14 +72,14 @@ TEST(NativeX86, MovEax60)
 // syscall  # encoding: [0x0f,0x05]
 TEST(NativeX86, Syscall)
 {
-    auto b = x86::encodeVariable(x86::syscall_(), {});
+    auto b = enc("نداء_نظام", "", {});
     ASSERT_EQ(hex(b), std::string("0f05"));
 }
 
 // movq %rbx, %rax  # encoding: [0x48,0x89,0xd8]   (REX.W + ModRM)
 TEST(NativeX86, MovRaxRbx)
 {
-    auto b = x86::encodeVariable(x86::mov_rm64_r64(),
+    auto b = enc("انقل", "r64, r64",
                                  ops2(x86::Operand::R(x86::RAX), x86::Operand::R(x86::RBX)));
     ASSERT_EQ(hex(b), std::string("4889d8"));
 }
@@ -74,7 +87,7 @@ TEST(NativeX86, MovRaxRbx)
 // addq %rbx, %rax  # encoding: [0x48,0x01,0xd8]
 TEST(NativeX86, AddRaxRbx)
 {
-    auto b = x86::encodeVariable(x86::add_rm64_r64(),
+    auto b = enc("اجمع", "r64, r64",
                                  ops2(x86::Operand::R(x86::RAX), x86::Operand::R(x86::RBX)));
     ASSERT_EQ(hex(b), std::string("4801d8"));
 }
@@ -82,7 +95,7 @@ TEST(NativeX86, AddRaxRbx)
 // movq %r9, %r8  # encoding: [0x4d,0x89,0xc8]   (REX.WRB — امتداد السجلّات)
 TEST(NativeX86, MovR8R9)
 {
-    auto b = x86::encodeVariable(x86::mov_rm64_r64(),
+    auto b = enc("انقل", "r64, r64",
                                  ops2(x86::Operand::R(x86::R8), x86::Operand::R(x86::R9)));
     ASSERT_EQ(hex(b), std::string("4d89c8"));
 }
@@ -90,7 +103,7 @@ TEST(NativeX86, MovR8R9)
 // retq  # encoding: [0xc3]
 TEST(NativeX86, Ret)
 {
-    auto b = x86::encodeVariable(x86::ret_(), {});
+    auto b = enc("ارجع", "", {});
     ASSERT_EQ(hex(b), std::string("c3"));
 }
 
@@ -99,11 +112,11 @@ TEST(NativeX86, Exit42Sequence)
 {
     std::vector<uint8_t> code;
     auto append = [&](const std::vector<uint8_t> &b) { code.insert(code.end(), b.begin(), b.end()); };
-    append(x86::encodeVariable(x86::mov_r32_imm32(),
+    append(enc("انقل", "r32, imm32",
                                ops2(x86::Operand::R(x86::RDI), x86::Operand::I(42, 32)))); // exit code
-    append(x86::encodeVariable(x86::mov_r32_imm32(),
+    append(enc("انقل", "r32, imm32",
                                ops2(x86::Operand::R(x86::RAX), x86::Operand::I(60, 32)))); // SYS_exit
-    append(x86::encodeVariable(x86::syscall_(), {}));
+    append(enc("نداء_نظام", "", {}));
     // (AR) bf2a000000 b83c000000 0f05
     ASSERT_EQ(hex(code), std::string("bf2a000000b83c0000000f05"));
 }
@@ -113,11 +126,11 @@ TEST(NativeElf, Exit42HeaderWellFormed)
 {
     std::vector<uint8_t> code;
     auto append = [&](const std::vector<uint8_t> &b) { code.insert(code.end(), b.begin(), b.end()); };
-    append(x86::encodeVariable(x86::mov_r32_imm32(),
+    append(enc("انقل", "r32, imm32",
                                ops2(x86::Operand::R(x86::RDI), x86::Operand::I(42, 32))));
-    append(x86::encodeVariable(x86::mov_r32_imm32(),
+    append(enc("انقل", "r32, imm32",
                                ops2(x86::Operand::R(x86::RAX), x86::Operand::I(60, 32))));
-    append(x86::encodeVariable(x86::syscall_(), {}));
+    append(enc("نداء_نظام", "", {}));
 
     auto bin = elf::writeStaticExec(code);
 
@@ -145,11 +158,11 @@ TEST(NativeElf, WritesFile)
 {
     std::vector<uint8_t> code;
     auto append = [&](const std::vector<uint8_t> &b) { code.insert(code.end(), b.begin(), b.end()); };
-    append(x86::encodeVariable(x86::mov_r32_imm32(),
+    append(enc("انقل", "r32, imm32",
                                ops2(x86::Operand::R(x86::RDI), x86::Operand::I(42, 32))));
-    append(x86::encodeVariable(x86::mov_r32_imm32(),
+    append(enc("انقل", "r32, imm32",
                                ops2(x86::Operand::R(x86::RAX), x86::Operand::I(60, 32))));
-    append(x86::encodeVariable(x86::syscall_(), {}));
+    append(enc("نداء_نظام", "", {}));
     auto bin = elf::writeStaticExec(code);
 
     std::FILE *fp = std::fopen("sad_m1_exit42", "wb");

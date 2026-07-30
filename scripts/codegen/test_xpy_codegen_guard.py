@@ -76,6 +76,11 @@ EXPECTED_OUTPUTS = {
     "docs/parser_rule/_generated/50_patterns.md",
     "docs/parser_rule/_generated/60_advanced.md",
     "docs/parser_rule/_generated/70_lexical.md",
+    # (AR) جدول ترميز الخلفيّة السياديّة x86-64 (عائلة variable) المولَّد من
+    #      language-truth/backend/x86_64/instructions.yaml — تحقيقُ «table-driven».
+    # (EN) Sovereign backend x86-64 (variable family) encoding table, generated
+    #      from the SoT instruction-encoding YAML — the table-driven principle.
+    "compiler/include/backend/native/generated/x86_64_encoding_generated.h",
 }
 
 

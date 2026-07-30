@@ -124,61 +124,14 @@ namespace sad
             }
 
             // ================================================================
-            // (AR) المجموعة الدنيا — تُرآي language-truth/backend/x86_64/instructions.yaml.
-            //      (لاحقًا تُقرأ هذه المواصفات من YAML مباشرةً؛ م١ يثبت المحرّك.)
+            // (AR) مواصفاتُ الترميز (EncSpec) لم تعُد مضمَّنةً هنا: تُولَّد من
+            //      language-truth/backend/x86_64/instructions.yaml إلى الهيدر
+            //      x86_64_encoding_generated.h (دالّة lookupEncSpec). هذا الملفّ
+            //      منطقٌ صرفٌ (encodeVariable) — تحقيقُ مبدأ «table-driven».
+            // (EN) EncSpec data is no longer inline here; it is generated from the
+            //      SoT YAML into x86_64_encoding_generated.h (lookupEncSpec). This
+            //      header is pure logic (encodeVariable) — the table-driven principle.
             // ================================================================
-
-            // mov r32, imm32  ⇒  B8+rd id   (بلا REX لسجلّات 0..7)
-            inline EncSpec mov_r32_imm32()
-            {
-                EncSpec s;
-                s.opcode = {0xB8};
-                s.opcode_reg_add = true;
-                s.opcode_reg_op = 0;
-                s.imm_op = 1;
-                s.imm_bits = 32;
-                return s;
-            }
-
-            // mov r/m64, r64  ⇒  REX.W 89 /r   (reg=المصدر op1، rm=الوجهة op0)
-            inline EncSpec mov_rm64_r64()
-            {
-                EncSpec s;
-                s.rex_w = true;
-                s.opcode = {0x89};
-                s.modrm.present = true;
-                s.modrm.reg_op = 1;
-                s.modrm.rm_op = 0;
-                return s;
-            }
-
-            // add r/m64, r64  ⇒  REX.W 01 /r
-            inline EncSpec add_rm64_r64()
-            {
-                EncSpec s;
-                s.rex_w = true;
-                s.opcode = {0x01};
-                s.modrm.present = true;
-                s.modrm.reg_op = 1;
-                s.modrm.rm_op = 0;
-                return s;
-            }
-
-            // syscall  ⇒  0F 05
-            inline EncSpec syscall_()
-            {
-                EncSpec s;
-                s.opcode = {0x0F, 0x05};
-                return s;
-            }
-
-            // ret  ⇒  C3
-            inline EncSpec ret_()
-            {
-                EncSpec s;
-                s.opcode = {0xC3};
-                return s;
-            }
 
             // (AR) أرقام سجلّات x86-64 (تُرآي registers.yaml) — لراحة الاستدعاء.
             enum Reg

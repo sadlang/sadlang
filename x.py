@@ -347,6 +347,24 @@ CODEGEN_DOMAINS = (
             "--quiet",
         ],
     },
+    {
+        # (AR) جدول ترميز الخلفيّة السياديّة (x86-64، variable) — مولَّد من SoT إلى
+        #      هيدر C++ يستهلكه المحرّك (lookupEncSpec). بضمّه نطاقًا يمسك
+        #      `gen --check` انحرافَه عن instructions.yaml (بوّابة فحص توليد الكود).
+        # (EN) Sovereign backend encoding table (x86-64 variable) generated from SoT
+        #      into a C++ header consumed by the encoder. As a domain, `gen --check`
+        #      guards it against drift from instructions.yaml.
+        "name": "backend_encoding_x86_64",
+        "script": "gen_backend_encoding.py",
+        "out_dir": "compiler/include/backend/native/generated",
+        "outputs": ("x86_64_encoding_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/backend/x86_64/instructions.yaml",
+            "--schema", "language-truth/_schemas/backend_encoding.schema.json",
+            "--header", f"{d}/x86_64_encoding_generated.h",
+            "--quiet",
+        ],
+    },
 )
 
 # (AR) حرّاس فحص خالصون (لا مخرجات مولَّدة) يعملون ضمن `x.py gen --check` فقط —

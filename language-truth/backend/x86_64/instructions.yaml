@@ -10,8 +10,19 @@ encoding_family: variable
 status: experimental
 
 instructions:
-  # mov r64, imm64  ⇒  REX.W + B8+rd io   (رقم السجلّ يُضاف إلى بايت الأوپكود)
+  # mov r32, imm32  ⇒  B8+rd id   (بلا REX لسجلّات 0..7؛ صيغة «خروج ٤٢» المُدمَجة)
   انقل:
+    - en: mov
+      form: "r32, imm32"
+      operands:
+        - { kind: reg, class: gpr, role: out, bits: 32 }
+        - { kind: imm, bits: 32 }
+      encode:
+        opcode: [0xB8]
+        opcode_reg_add: true
+        immediate: { operand: 1, bits: 32, encoding: le }
+      reads_dest: false
+    # mov r64, imm64  ⇒  REX.W + B8+rd io   (رقم السجلّ يُضاف إلى بايت الأوپكود)
     - en: mov
       form: "r64, imm64"
       operands:
