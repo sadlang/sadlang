@@ -180,10 +180,16 @@ class TestSchemaValidation:
 # أزواج (وصف, مسار_YAML_النسبي, مسار_Schema): كلّ جدول خلفيّة يُتحقَّق ضدّ مخطّطه.
 # تُوسَّع مع كلّ معماريّة/جدول جديد (arm64/riscv64/… ، وأنظمة abi إضافيّة).
 BACKEND_TABLE_PAIRS: list[tuple[str, str, str]] = [
+    # x86_64 (عائلة variable) — الهدف المرجعيّ (م٠)
     ("x86_64 تعليمات", "backend/x86_64/instructions.yaml", "backend_encoding.schema.json"),
     ("x86_64 سجلّات",  "backend/x86_64/registers.yaml",    "backend_register_file.schema.json"),
     ("x86_64 اختيار",  "backend/x86_64/isel.yaml",         "backend_isel.schema.json"),
     ("x86_64-linux ABI", "backend/abi/x86_64-linux.yaml",  "backend_abi.schema.json"),
+    # arm64 (عائلة fixed32) — الهدف الثاني: يُبرهِن عموميّة المخطّطات (RISC مقابل CISC)
+    ("arm64 تعليمات",  "backend/arm64/instructions.yaml",  "backend_encoding.schema.json"),
+    ("arm64 سجلّات",   "backend/arm64/registers.yaml",     "backend_register_file.schema.json"),
+    ("arm64 اختيار",   "backend/arm64/isel.yaml",          "backend_isel.schema.json"),
+    ("aarch64-linux ABI", "backend/abi/aarch64-linux.yaml", "backend_abi.schema.json"),
 ]
 
 
@@ -191,11 +197,19 @@ class TestBackendTables:
     """اختبارات T1 لطبقة الخلفيّة السياديّة — الجداول تُتحقَّق ضدّ مخطّطاتها."""
 
     def test_backend_dir_exists(self):
-        """language-truth/backend/ موجود بمجلّد المعماريّة المرجعيّة x86_64 وجذر abi."""
+        """language-truth/backend/ موجود بهدفَي العائلتين (x86_64=variable، arm64=fixed32) وجذر abi."""
         backend = TRUTH_DIR / "backend"
         assert backend.is_dir(), "language-truth/backend/ غير موجود"
         assert (backend / "x86_64").is_dir(), "backend/x86_64/ غير موجود"
+        assert (backend / "arm64").is_dir(), "backend/arm64/ غير موجود"
         assert (backend / "abi").is_dir(), "backend/abi/ غير موجود"
+
+    def test_both_encoding_families_present(self):
+        """الهدفان يغطّيان عائلتَي الترميز: x86_64=variable، arm64=fixed32 (إثبات عموميّة المخطّط)."""
+        x86 = load_yaml(TRUTH_DIR / "backend/x86_64/instructions.yaml")
+        arm = load_yaml(TRUTH_DIR / "backend/arm64/instructions.yaml")
+        assert x86["encoding_family"] == "variable", "x86_64 يجب أن يكون variable"
+        assert arm["encoding_family"] == "fixed32", "arm64 يجب أن يكون fixed32"
 
     @pytest.mark.parametrize("schema_name", [
         "backend_encoding.schema.json",

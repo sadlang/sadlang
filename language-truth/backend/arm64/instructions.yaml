@@ -1,0 +1,72 @@
+# جدول ترميز تعليمات AArch64 (عائلة fixed32) — توسيع م٠ (الهدف الثاني، RISC ثابت ٣٢-بت).
+# يُبرهِن عموميّة المخطّط: نفس backend_encoding.schema.json يستوعب x86 (variable) وARM64 (fixed32)
+# بلا تغيير. اللاتينيّة (en) توثيقُ تقابلٍ فقط. الترميزُ يُتحقَّق بايتًا ببايت ضدّ llvm-mc في م٣+.
+# المجموعة الدنيا لبرهان «خروج ٤٢» الحرّ: انقل (MOVZ)، اجمع (ADD)، نداء_نظام (SVC)، ارجع (RET).
+
+version: "1.0"
+architecture: arm64
+word_bits: 64
+encoding_family: fixed32
+status: experimental
+
+instructions:
+  # MOVZ Xd, #imm16   ⇒  sf(1) 10 100101 hw(00) imm16 Rd
+  انقل:
+    - en: movz
+      form: "x, imm16"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: imm, bits: 16 }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }          # ٦٤-بت
+          - { name: opc,   hi: 30, lo: 29, const: 2 }          # 0b10 (MOVZ)
+          - { name: fixed, hi: 28, lo: 23, const: 37 }         # 0b100101
+          - { name: hw,    hi: 22, lo: 21, const: 0 }          # إزاحة ٠
+          - { name: imm16, hi: 20, lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # ADD Xd, Xn, Xm   ⇒  sf 0 0 01011 00 0 Rm 000000 Rn Rd   (ثلاثة معاملات، لا تدمير الوجهة)
+  اجمع:
+    - en: add
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }          # ٦٤-بت
+          - { name: fixed, hi: 30, lo: 21, const: 88 }         # 0b0001011000 (op/S/opcode/shift/N)
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: imm6,  hi: 15, lo: 10, const: 0 }          # بلا إزاحة
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # SVC #0   ⇒  11010100 000 imm16(0) 00001
+  نداء_نظام:
+    - en: svc
+      form: ""
+      operands: []
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 21, const: 1696 }       # 0b11010100000
+          - { name: imm16, hi: 20, lo: 5,  const: 0 }          # SVC #0
+          - { name: op,    hi: 4,  lo: 0,  const: 1 }          # 0b00001
+
+  # RET {X30}   ⇒  1101011 0 0 10 11111 000000 Rn(30) 00000
+  ارجع:
+    - en: ret
+      form: ""
+      operands: []
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 10, const: 3512256 }    # 0b1101011001011111000000 (RET x30 = 0xD65F03C0)
+          - { name: Rn,    hi: 9,  lo: 5,  const: 30 }         # x30 (سجلّ الرابط)
+          - { name: op,    hi: 4,  lo: 0,  const: 0 }

@@ -1,0 +1,46 @@
+# جدول سجلّات AArch64 — توسيع م٠ (الهدف الثاني fixed32).
+# num = رقمُ ترميز السجلّ داخل حقول Rd/Rn/Rm. نفس مخطّط x86-64 يستوعبه بلا تغيير.
+# x0..x7 وسائط/عودة؛ x8 نتيجة غير مباشرة؛ x18 محجوز نظاميّ (platform)؛ x19..x28 محفوظة؛
+# x29 الإطار، x30 الرابط (LR)، وnum=31 مشترك بين xzr (الصفر) وsp (المكدّس) حسب السياق.
+
+version: "1.0"
+architecture: arm64
+status: experimental
+
+classes:
+  gpr:
+    width: 64
+    registers:
+      - { ar: س0,  en: x0,  num: 0,  role: caller_saved }
+      - { ar: س1,  en: x1,  num: 1,  role: caller_saved }
+      - { ar: س2,  en: x2,  num: 2,  role: caller_saved }
+      - { ar: س3,  en: x3,  num: 3,  role: caller_saved }
+      - { ar: س4,  en: x4,  num: 4,  role: caller_saved }
+      - { ar: س5,  en: x5,  num: 5,  role: caller_saved }
+      - { ar: س6,  en: x6,  num: 6,  role: caller_saved }
+      - { ar: س7,  en: x7,  num: 7,  role: caller_saved }
+      - { ar: س8,  en: x8,  num: 8,  role: caller_saved, note: "سجلّ النتيجة غير المباشرة / رقم النداء" }
+      - { ar: س9,  en: x9,  num: 9,  role: caller_saved }
+      - { ar: س10, en: x10, num: 10, role: caller_saved }
+      - { ar: س11, en: x11, num: 11, role: caller_saved }
+      - { ar: س12, en: x12, num: 12, role: caller_saved }
+      - { ar: س13, en: x13, num: 13, role: caller_saved }
+      - { ar: س14, en: x14, num: 14, role: caller_saved }
+      - { ar: س15, en: x15, num: 15, role: caller_saved }
+      - { ar: س16, en: x16, num: 16, role: caller_saved, note: "IP0 داخل النداء" }
+      - { ar: س17, en: x17, num: 17, role: caller_saved, note: "IP1 داخل النداء" }
+      - { ar: س18, en: x18, num: 18, role: platform, reserved: true, note: "سجلّ المنصّة (محجوز)" }
+      - { ar: س19, en: x19, num: 19, role: callee_saved }
+      - { ar: س20, en: x20, num: 20, role: callee_saved }
+      - { ar: س21, en: x21, num: 21, role: callee_saved }
+      - { ar: س22, en: x22, num: 22, role: callee_saved }
+      - { ar: س23, en: x23, num: 23, role: callee_saved }
+      - { ar: س24, en: x24, num: 24, role: callee_saved }
+      - { ar: س25, en: x25, num: 25, role: callee_saved }
+      - { ar: س26, en: x26, num: 26, role: callee_saved }
+      - { ar: س27, en: x27, num: 27, role: callee_saved }
+      - { ar: س28, en: x28, num: 28, role: callee_saved }
+      - { ar: الإطار, en: x29, num: 29, role: frame, reserved: true }
+      - { ar: الرابط, en: x30, num: 30, role: link,  reserved: true }
+      - { ar: الصفر,  en: xzr, num: 31, role: zero,  reserved: true }
+      - { ar: المكدّس, en: sp,  num: 31, role: stack, reserved: true }

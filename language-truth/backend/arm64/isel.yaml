@@ -1,0 +1,25 @@
+# جدول اختيار تعليمات AArch64 — توسيع م٠ (الهدف الثاني fixed32).
+# بنية النمط (sir → match → emit + cost) مطابقةٌ حرفيًّا لـx86-64؛ المحتوى مختلف:
+# ARM64 ثلاثيّةُ المعاملات (add d,a,b — لا تدمير الوجهة) بخلاف x86 (add dst,src).
+
+version: "1.0"
+architecture: arm64
+status: experimental
+
+patterns:
+  - sir: ADD_I64
+    match: "add(reg, reg)"
+    emit:
+      - { mn: اجمع, form: "x, x, x", ops: ["$dst", "$lhs", "$rhs"] }
+    cost: 1
+
+  - sir: CONST_I64
+    match: "const(imm)"
+    emit:
+      - { mn: انقل, form: "x, imm16", ops: ["$dst", "$imm"] }
+    cost: 1
+
+  - sir: RET
+    emit:
+      - { mn: ارجع, form: "", ops: [] }
+    cost: 1

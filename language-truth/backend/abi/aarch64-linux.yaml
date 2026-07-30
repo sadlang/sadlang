@@ -1,0 +1,26 @@
+# جدول ABI لـ AArch64 على لينكس (AAPCS64 + النداء العامّ asm-generic) — توسيع م٠.
+# نفس backend_abi.schema.json يستوعبه بلا تغيير (e_machine مختلف، تعليمة نداء svc، لا منطقة حمراء).
+
+version: "1.0"
+isa: arm64
+os: linux
+object_format: elf
+e_machine: 183         # EM_AARCH64
+status: experimental
+
+call:
+  int_args:   [x0, x1, x2, x3, x4, x5, x6, x7]
+  fp_args:    [v0, v1, v2, v3, v4, v5, v6, v7]
+  int_return: [x0, x1]
+  fp_return:  [v0, v1]
+  stack_align: 16       # AAPCS64 يُلزم محاذاة ١٦ عند نقطة call
+  red_zone: 0           # لا منطقة حمراء في AAPCS64
+
+syscall:
+  instruction: svc
+  number_reg: x8
+  arg_regs: [x0, x1, x2, x3, x4, x5]
+  nr:                   # أرقام النداء العامّة (asm-generic/unistd.h)
+    write: 64
+    exit: 93
+    exit_group: 94
