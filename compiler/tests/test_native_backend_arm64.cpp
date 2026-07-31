@@ -270,6 +270,18 @@ TEST(NativeArm64, LslvLsrv)
               std::string("0926d19a"));
 }
 
+// ─── المقارنةُ كقيمة (cset، حقلُ الشرط المقلوب) — القيم = llvm-mc حرفيًّا ───
+// cset x9,eq(field=1)=0x9A9F17E9 · ne(0)=..07 · lt(10)=..a7 · le(12)=..c7 · gt(13)=..d7 · ge(11)=..b7
+TEST(NativeArm64, CsetConditions)
+{
+    ASSERT_EQ(hex(enc("عيّن_إذا", "x, cond", {arm64::Operand::R(arm64::X9), arm64::Operand::I(1)})),  std::string("e9179f9a"));
+    ASSERT_EQ(hex(enc("عيّن_إذا", "x, cond", {arm64::Operand::R(arm64::X9), arm64::Operand::I(0)})),  std::string("e9079f9a"));
+    ASSERT_EQ(hex(enc("عيّن_إذا", "x, cond", {arm64::Operand::R(arm64::X9), arm64::Operand::I(10)})), std::string("e9a79f9a"));
+    ASSERT_EQ(hex(enc("عيّن_إذا", "x, cond", {arm64::Operand::R(arm64::X9), arm64::Operand::I(12)})), std::string("e9c79f9a"));
+    ASSERT_EQ(hex(enc("عيّن_إذا", "x, cond", {arm64::Operand::R(arm64::X9), arm64::Operand::I(13)})), std::string("e9d79f9a"));
+    ASSERT_EQ(hex(enc("عيّن_إذا", "x, cond", {arm64::Operand::R(arm64::X9), arm64::Operand::I(11)})), std::string("e9b79f9a"));
+}
+
 // ─── تسلسل «خروج ٤٢» الكامل ───
 TEST(NativeArm64, Exit42Sequence)
 {

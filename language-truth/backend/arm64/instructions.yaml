@@ -499,6 +499,27 @@ instructions:
           - { name: Rd,     hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
 
+  # CSET Xd, cond = CSINC Xd, XZR, XZR, invert(cond)   ⇒  sf 00 11010100 11111 cond 01 11111 Rd
+  #   يُنتِج ٠/١ حسب الشرط (المقارنةُ كقيمة). حقلُ cond المُرمَّز = المقلوبُ (cond XOR 1)، يحسبه المخفّض.
+  #   متحقَّق: cset x9,eq (المُرمَّز ne) = 0x9A9F17E9.
+  عيّن_إذا:
+    - en: cset
+      form: "x, cond"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: imm }                                       # حقلُ الشرط المقلوب (يُمرَّره المخفّض)
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 21, const: 212 }        # 0b0011010100 (CSINC)
+          - { name: Rm,    hi: 20, lo: 16, const: 31 }         # XZR
+          - { name: cond,  hi: 15, lo: 12, from: op1 }         # الشرطُ المقلوب
+          - { name: op,    hi: 11, lo: 10, const: 1 }          # 0b01 (CSINC)
+          - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # XZR
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
   # STRB Wt, [Xn]   ⇒  00 111 0 01 00 imm12(0) Rn Rt   (تخزينُ بايتٍ واحد؛ لأرقام itoa، متحقَّق: strb w14,[x12] = 0x3900018E)
   اخزن_بايت:
     - en: strb

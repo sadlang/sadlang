@@ -200,6 +200,30 @@ TEST(NativeX86, ShlShrImm)
               std::string("48c1ea05"));
 }
 
+// ─── المقارنةُ كقيمة (setcc + movzx) + الإزاحةُ المتغيّرة (CL) ───
+// sete/setne/setl/setle/setg/setge al  (القيم = llvm-mc حرفيًّا)
+TEST(NativeX86, SetccAl)
+{
+    ASSERT_EQ(hex(enc("عيّن_إذا_ساوى", "r8", {x86::Operand::R(x86::RAX)})), std::string("0f94c0"));
+    ASSERT_EQ(hex(enc("عيّن_إذا_لم_يساوِ", "r8", {x86::Operand::R(x86::RAX)})), std::string("0f95c0"));
+    ASSERT_EQ(hex(enc("عيّن_إذا_أصغر", "r8", {x86::Operand::R(x86::RAX)})), std::string("0f9cc0"));
+    ASSERT_EQ(hex(enc("عيّن_إذا_أصغر_أو_ساوى", "r8", {x86::Operand::R(x86::RAX)})), std::string("0f9ec0"));
+    ASSERT_EQ(hex(enc("عيّن_إذا_أكبر", "r8", {x86::Operand::R(x86::RAX)})), std::string("0f9fc0"));
+    ASSERT_EQ(hex(enc("عيّن_إذا_أكبر_أو_ساوى", "r8", {x86::Operand::R(x86::RAX)})), std::string("0f9dc0"));
+}
+// movzx rax,al  # [0x48,0x0f,0xb6,0xc0]
+TEST(NativeX86, MovzxRaxAl)
+{
+    ASSERT_EQ(hex(enc("مدد_بالصفر", "r64, r8", ops2(x86::Operand::R(x86::RAX), x86::Operand::R(x86::RAX)))),
+              std::string("480fb6c0"));
+}
+// shl %cl,%rdx  # [0x48,0xd3,0xe2]   ·   shr %cl,%rdx  # [0x48,0xd3,0xea]
+TEST(NativeX86, ShlShrCl)
+{
+    ASSERT_EQ(hex(enc("أزح_يسار", "r64, cl", {x86::Operand::R(x86::RDX)})), std::string("48d3e2"));
+    ASSERT_EQ(hex(enc("أزح_يمين", "r64, cl", {x86::Operand::R(x86::RDX)})), std::string("48d3ea"));
+}
+
 // cmp %rbx, %rax  # [0x48,0x39,0xd8]
 TEST(NativeX86, CmpRegReg)
 {

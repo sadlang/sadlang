@@ -585,6 +585,44 @@ namespace sad
                 }
             }
 
+            // (AR) المقارنةُ كقيمة (غيرُ مدموجةٍ في فرع): cmp ثمّ cset dst بالشرط. حقلُ الشرط
+            //      المُرمَّز في cset هو **المقلوب** (cond XOR 1) لأنّها CSINC بشرطٍ معكوس.
+            static bool csetInvertedField(sir::SIROpcode op, long long &field)
+            {
+                using OP = sir::SIROpcode;
+                switch (op) // (AR) القيمةُ = رمزُ الشرط XOR 1 (EQ0/NE1/LT11/LE13/GT12/GE10)
+                {
+                case OP::EQ: field = 1;  return true;  // invert(EQ)=NE
+                case OP::NE: field = 0;  return true;  // invert(NE)=EQ
+                case OP::LT: field = 10; return true;  // invert(LT)=GE
+                case OP::LE: field = 12; return true;  // invert(LE)=GT
+                case OP::GT: field = 13; return true;  // invert(GT)=LE
+                case OP::GE: field = 11; return true;  // invert(GE)=LT
+                default: return false;
+                }
+            }
+            bool lowerComparison(const sir::SIRInstruction &inst)
+            {
+                if (!inst.result || inst.operands.size() != 2)
+                    return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                // (AR) رفضُ المقارنةِ اللا-موقَّعة صراحةً (cset يحتاج شرطًا لا-موقَّعًا؛ توصية أميليا).
+                for (const auto &op : inst.operands)
+                    if (isUnsignedType(op.dataType))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                    "cmp-value-unsigned=" + std::to_string(static_cast<int>(op.dataType)));
+                long long field;
+                if (!csetInvertedField(inst.opcode, field))
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                int dst;
+                if (!allocReg(inst.result->name, dst))
+                    return false;
+                return materialize(a64reg::kScratch0, inst.operands[0]) &&
+                       materialize(a64reg::kScratch1, inst.operands[1]) &&
+                       cmp(a64reg::kScratch0, a64reg::kScratch1) &&
+                       emit(a64::mnem::kCset, "x, cond",
+                            {a64::Operand::R(dst), a64::Operand::I(field)});
+            }
+
             // (AR) %dst = ~a (نفيٌ بتّيّ أحاديّ): جهّز a في x16 ثمّ mvn dst,x16.
             bool lowerNot(const sir::SIRInstruction &inst)
             {
@@ -647,6 +685,13 @@ namespace sad
                     return lowerBinary(inst);
                 case OP::NOT:
                     return lowerNot(inst);
+                case OP::EQ:
+                case OP::NE:
+                case OP::LT:
+                case OP::LE:
+                case OP::GT:
+                case OP::GE:
+                    return lowerComparison(inst);
                 case OP::ALLOC:
                 {
                     // (AR) الخانةُ خُصِّصت في المسح المسبق؛ لا شيفرةَ (العنوان ضمنيٌّ [sp، #فهرس×٨]).

@@ -167,6 +167,7 @@ namespace sad
                 frameSize_ = 0;
                 spillBase_ = 0; // (AR) تأمينٌ دفاعيّ: لا يُستعمَل إلّا حين hasCall (يُضبَط في assignFrameSlots)
                 idivScratchDisp_ = 0; // (AR) يُضبَط في assignFrameSlots حين تحوي الدالّةُ قسمةً/باقيًا
+                shiftScratchDisp_ = 0; // (AR) يُضبَط حين تحوي الدالّةُ إزاحةً بمقدارٍ متغيّر
                 printBufTopDisp_ = 0; // (AR) يُضبَط في assignFrameSlots حين تطبع الدالّةُ عددًا
 
                 const auto &blocks = fn.getBasicBlocks();
@@ -239,6 +240,10 @@ namespace sad
             // (AR) إزاحةُ خانةِ خدشِ القسمة: نحفظ فيها rdx حولَ تسلسلِ cqo/idiv (idiv يدهس
             //      rdx بالباقي)، فلا يُفقَد مؤقّتٌ حيٌّ كان في rdx. صفرٌ إن لم تُنادِ الدالّةُ قسمةً.
             long long idivScratchDisp_ = 0;
+
+            // (AR) خانةُ خدشِ الإزاحة المتغيّرة: نحفظ فيها RCX حولَ إزاحةٍ بمقدارٍ متغيّر (تلزمها CL،
+            //      وRCX=pool[1] قد يحمل مؤقّتًا حيًّا). صفرٌ إن لم تحوِ الدالّةُ إزاحةً متغيّرة.
+            long long shiftScratchDisp_ = 0;
 
             // (AR) الطباعة الأصليّة: إزاحةُ قمّةِ مخزنِ itoa (العنوانُ الأعلى، حصريّ) في الإطار؛
             //      تُبنى الأرقامُ العشريّةُ تنازليًّا منها. صفرٌ إن لم تطبع الدالّةُ عددًا.
@@ -430,6 +435,11 @@ namespace sad
             bool notReg(int dst) { return emit(x86::mnem::kNot, "r64", {x86::Operand::R(dst)}); }
             bool shlImm(int dst, long long n) { return emit(x86::mnem::kShl, "r64, imm8", {x86::Operand::R(dst), x86::Operand::I(n, 8)}); }
             bool shrImm(int dst, long long n) { return emit(x86::mnem::kShr, "r64, imm8", {x86::Operand::R(dst), x86::Operand::I(n, 8)}); }
+            bool shlCl(int dst) { return emit(x86::mnem::kShl, "r64, cl", {x86::Operand::R(dst)}); } // (AR) dst <<= CL
+            bool shrCl(int dst) { return emit(x86::mnem::kShr, "r64, cl", {x86::Operand::R(dst)}); } // (AR) dst >>= CL (منطقيّ)
+            // ── المقارنة كقيمة: setcc r8 (٠/١ حسب الأعلام) ثمّ movzx r64,r8 (تمديدُ بالصفر) ──
+            bool setccReg(const std::string &mnem, int r8) { return emit(mnem, "r8", {x86::Operand::R(r8)}); }
+            bool movzxReg(int dst, int src8) { return emit(x86::mnem::kMovzx, "r64, r8", {x86::Operand::R(dst), x86::Operand::R(src8)}); }
 
             // ── الذاكرة: خانات الإطار [rbp+إزاحة] ──
             // (AR) mov r64, [rbp+disp] — تحميلٌ من خانة إطار.
@@ -593,6 +603,7 @@ namespace sad
                 }
                 bool hasCall = false;
                 bool hasIdiv = false;
+                bool hasVarShift = false;    // (AR) إزاحةٌ بمقدارٍ متغيّر (تلزمها خانةُ حفظِ RCX)
                 bool hasPrint = false;       // (AR) أيُّ BUILTIN_PRINT (يلزمه انسكابُ الحوض حولَه)
                 bool hasNumberPrint = false; // (AR) طباعةُ عددٍ (تلزمها خانةُ مخزنِ itoa)
                 for (const auto &blockPtr : blocks)
@@ -608,6 +619,11 @@ namespace sad
                         else if (inst.opcode == sir::SIROpcode::MOD_I64 ||
                                  inst.opcode == sir::SIROpcode::FLOOR_DIV_I64)
                             hasIdiv = true;
+                        else if ((inst.opcode == sir::SIROpcode::SHL ||
+                                  inst.opcode == sir::SIROpcode::SHR) &&
+                                 inst.operands.size() == 2 &&
+                                 inst.operands[1].type != sir::SIROperandType::CONSTANT)
+                            hasVarShift = true; // (AR) مقدارُ الإزاحة غيرُ ثابتٍ ⇒ يلزمه CL/حفظُ RCX
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_PRINT)
                         {
                             hasPrint = true;
@@ -622,6 +638,12 @@ namespace sad
                 {
                     used += 8;
                     idivScratchDisp_ = -used;
+                }
+                // (AR) الإزاحةُ المتغيّرة تلزمها CL ⇒ احجز خانةَ حفظِ RCX (قد يحمل مؤقّتًا حيًّا).
+                if (hasVarShift)
+                {
+                    used += 8;
+                    shiftScratchDisp_ = -used;
                 }
                 // (AR) طباعةُ عددٍ: احجز مخزنَ itoa (٢٤ بايتًا تكفي ٢٠ رقمًا لـi64 + هامش).
                 //      القمّةُ (العنوانُ الأعلى، حصريّ) = ‎-used‎ قبل الحجز؛ الأرقامُ تُبنى تنازليًّا.
@@ -745,22 +767,62 @@ namespace sad
                 case OP::SHL:
                 case OP::SHR:
                 {
-                    // (AR) %dst = a <<|>> n ⇒ حمّل a في dst ثمّ أزِح بمقدارٍ ثابت (imm8). المقدارُ
-                    //      المتغيّرُ (سجلّ) يلزمه CL ونسكُ RCX ⇒ غيرُ مدعومٍ بعد على x86 (دَينٌ موثَّق؛
-                    //      ARM64 يدعمه عبر lslv/lsrv). SHR منطقيّةٌ (مطابقةً لدلالة SIROpcode::SHR).
+                    // (AR) %dst = a <<|>> n. المقدارُ الثابتُ ⇒ shl/shr dst,imm8 مباشرة. المتغيّرُ
+                    //      (سجلّ/ذاكرة) يلزمه CL: نمرّر القيمةَ عبر RAX ونحفظ/نعيد RCX حولَ الإزاحة
+                    //      (خانةُ خدشٍ shiftScratchDisp_) ⇒ لا يُدهَس مؤقّتٌ حيٌّ في RCX. SHR منطقيّة.
                     if (!inst.result || inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     long long n;
-                    if (!common::isConstInt(inst.operands[1], n))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "shift-variable-count:" + detailOpcode(inst));
-                    if (n < 0 || n > 63)
-                        return fail(EC::INT_NATIVE_IMM_RANGE, "shift:" + std::to_string(n));
+                    if (common::isConstInt(inst.operands[1], n)) // (AR) مقدارٌ ثابت
+                    {
+                        if (n < 0 || n > 63)
+                            return fail(EC::INT_NATIVE_IMM_RANGE, "shift:" + std::to_string(n));
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return loadInto(dst, inst.operands[0]) &&
+                               (inst.opcode == OP::SHL ? shlImm(dst, n) : shrImm(dst, n));
+                    }
+                    // (AR) مقدارٌ متغيّر: الإزاحةُ تلزمها CL. نحمّل المعامِلَين في مُبدَّدَين (RAX=القيمة،
+                    //      RDI=العدّاد) **قبل** لمسِ RCX (فلو كان أحدُهما في RCX قرأناه صحيحًا أوّلًا)،
+                    //      نحفظ RCX (قد يحمل مؤقّتًا حيًّا) في خانةِ خدشٍ، CL=RDI، نُزيح RAX، نعيد RCX،
+                    //      ثمّ نخصّص dst وننقل النتيجةَ (يعمل حتّى لو dst==RCX إذ يُخصَّص بعد الاستعادة).
+                    if (!loadInto(x86::RAX, inst.operands[0]) || !loadInto(x86::RDI, inst.operands[1]))
+                        return false;
+                    if (!storeMem(shiftScratchDisp_, x86::RCX) || !movReg(x86::RCX, x86::RDI))
+                        return false;
+                    if (!(inst.opcode == OP::SHL ? shlCl(x86::RAX) : shrCl(x86::RAX)))
+                        return false;
+                    if (!loadMem(x86::RCX, shiftScratchDisp_))
+                        return false;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    if (!loadInto(dst, inst.operands[0]))
+                    return movReg(dst, x86::RAX);
+                }
+                case OP::EQ:
+                case OP::NE:
+                case OP::LT:
+                case OP::LE:
+                case OP::GT:
+                case OP::GE:
+                {
+                    // (AR) المقارنةُ كقيمة (غيرُ مدموجةٍ في فرع): cmp ثمّ setcc AL (٠/١) ثمّ movzx dst,AL.
+                    //      المدموجةُ في BR_COND تُتخطّى في lowerBlock فلا تصل هنا. RAX مُبدَّد.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!rejectUnsignedCmp(inst, "cmp-value")) // (AR) لا-موقَّع ⇒ فشلٌ صريح (اتّساقًا مع ARM64)
                         return false;
-                    return inst.opcode == OP::SHL ? shlImm(dst, n) : shrImm(dst, n);
+                    const std::string *setcc = setccForCmp(inst.opcode);
+                    if (!setcc)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadInto(x86::RAX, inst.operands[0]) && // (AR) الطرفُ الأيسر في RAX
+                           cmpAgainst(inst.operands[1]) &&         // (AR) قارنه بالأيمن (imm/سجلّ)
+                           setccReg(*setcc, x86::RAX) &&           // (AR) AL = ٠/١
+                           movzxReg(dst, x86::RAX);                // (AR) dst = تمديدُ AL بالصفر
                 }
                 case OP::MOD_I64:
                 case OP::FLOOR_DIV_I64:
@@ -979,6 +1041,42 @@ namespace sad
                 }
             }
 
+            // (AR) هل النوعُ صحيحٌ لا-موقَّع؟ (طبيعي8/16/32/64 أو بايت). المقارناتُ المرتَّبةُ
+            //      (setl/g/le/ge و jl/g/…) موقَّعةٌ، فمعاملٌ لا-موقَّعٌ يلزمه setb/seta/jb/ja؛
+            //      لا نظائرَ لا-موقَّعةٍ في opcodes المقارنة بعد ⇒ نرفضه صراحةً بدل ترميزٍ خاطئٍ
+            //      صامت (نظيرُ حارس ARM64، لحفظ التكافؤ عبر المسارين).
+            static bool isUnsignedType(types::SadTypeKind t)
+            {
+                using K = types::SadTypeKind;
+                return t == K::UInt8 || t == K::UInt16 || t == K::UInt32 ||
+                       t == K::UInt64 || t == K::Byte;
+            }
+            bool rejectUnsignedCmp(const sir::SIRInstruction &cmp, const char *where)
+            {
+                for (const auto &op : cmp.operands)
+                    if (isUnsignedType(op.dataType))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                    std::string(where) + "-unsigned=" +
+                                        std::to_string(static_cast<int>(op.dataType)));
+                return true;
+            }
+
+            // (AR) منمنمةُ setcc المطابقة للمقارنة (موقَّعة): تضبط بايتًا ٠/١ للمقارنةِ كقيمة.
+            static const std::string *setccForCmp(sir::SIROpcode op)
+            {
+                using OP = sir::SIROpcode;
+                switch (op)
+                {
+                case OP::EQ: return &x86::mnem::kSete;
+                case OP::NE: return &x86::mnem::kSetne;
+                case OP::LT: return &x86::mnem::kSetl;
+                case OP::LE: return &x86::mnem::kSetle;
+                case OP::GT: return &x86::mnem::kSetg;
+                case OP::GE: return &x86::mnem::kSetge;
+                default: return nullptr;
+                }
+            }
+
             // (AR) يُصدر قفزًا (مشروطًا أو غير مشروط) بإزاحةٍ نسبيّةٍ صفريّةٍ نائبة، ويسجّل
             //      ترقيعًا عند حقل الإزاحة. عرضُ الحقل وموضعُه يُشتقّان من مواصفة الترميز
             //      (imm_bits) لا من ثابتٍ مُرمَّز ⇒ يبقى سليمًا لو أُضيفت صيغةُ قفزٍ بعرضٍ آخر.
@@ -1060,6 +1158,8 @@ namespace sad
                 const sir::SIRInstruction *cmp = common::findFusedComparison(block, cond.name);
                 if (!cmp || cmp->operands.size() != 2)
                     return fail(EC::INT_NATIVE_UNSUPPORTED, "cond-not-fused-cmp:%" + cond.name);
+                if (!rejectUnsignedCmp(*cmp, "cmp-branch")) // (AR) لا-موقَّع ⇒ فشلٌ صريح (jl/g موقَّعة)
+                    return false;
                 // (AR) المعامل الأوّل في المُبدَّد RAX (يُحمَّل من الخانة إن متغيّرَ ذاكرة)، ثمّ
                 //      قارنه بالثاني (ثابتٌ imm أو سجلّ). كلا المعامِلَين في الذاكرة غيرُ مدعوم.
                 if (!loadInto(x86::RAX, cmp->operands[0]))

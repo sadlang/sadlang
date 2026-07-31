@@ -837,6 +837,85 @@ TEST(Arm64SirBridge, LowersBitwiseOps)
     }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// (AR) المقارنةُ كقيمة (setcc/cset) + الإزاحةُ المتغيّرة على x86 (CL). تعابيرُ المقارنةِ
+//      نتيجتُها ٠/١ ثمّ +٤١ ⇒ ٤٢ (تُثبت أنّ القيمةَ ١ لا مجرّدُ فرع). الإزاحةُ المتغيّرة:
+//      «متغير ن=1؛ ارجع 21 << ن» ⇒ ٤٢ (المقدارُ من الذاكرة لا ثابت).
+// ════════════════════════════════════════════════════════════════════════════
+namespace
+{
+    // (AR) تعابيرُ مقارنةٍ نتيجتُها true(1)+41=42، تمرّ بكلّ الشروط الستّة.
+    struct CmpCase { const char *expr; const char *x86File; const char *armFile; };
+    const CmpCase kCmpCases[] = {
+        {"(7 == 7) + 41", "sad_x86_eq42", "sad_arm64_eq42"},
+        {"(3 != 9) + 41", "sad_x86_ne42", "sad_arm64_ne42"},
+        {"(3 < 9) + 41", "sad_x86_lt42", "sad_arm64_lt42"},
+        {"(9 <= 9) + 41", "sad_x86_le42", "sad_arm64_le42"},
+        {"(9 > 3) + 41", "sad_x86_gt42", "sad_arm64_gt42"},
+        {"(9 >= 9) + 41", "sad_x86_ge42", "sad_arm64_ge42"},
+    };
+    // (AR) إزاحةٌ بمقدارٍ متغيّر: ن متغيّرٌ في الذاكرة ⇒ 21 << ن = 42.
+    const std::string kSrcVarShift =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9()\n"
+        "    \xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1 \xD9\x86 = 1\n"          // متغير ن = 1
+        "    \xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9 21 << \xD9\x86\n"               // ارجع 21 << ن
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\n";
+} // namespace
+
+// (AR) x86: المقارنةُ كقيمة (setcc+movzx) — ٦ شروط.
+TEST(NativeSirBridge, LowersComparisonAsValue)
+{
+    for (const auto &c : kCmpCases)
+    {
+        auto module = buildSir(mkReturn(c.expr));
+        ASSERT_TRUE(module != nullptr);
+        auto res = sad::native::lowerModuleToElf(*module);
+        if (!res.ok)
+            std::printf("x86 cmp «%s» error: %s\n", c.expr, res.message().c_str());
+        ASSERT_TRUE(res.ok);
+        std::FILE *fp = std::fopen(c.x86File, "wb");
+        ASSERT_TRUE(fp != nullptr);
+        std::fwrite(res.code.data(), 1, res.code.size(), fp);
+        std::fclose(fp);
+    }
+}
+
+// (AR) x86: الإزاحةُ بمقدارٍ متغيّر (CL + حفظُ RCX) ⇒ يُكمِل دَينَ الإزاحة، تكافؤًا مع ARM64.
+TEST(NativeSirBridge, LowersVariableShift)
+{
+    auto module = buildSir(kSrcVarShift);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 varshift error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    std::FILE *fp = std::fopen("sad_x86_varshift42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    std::fwrite(res.code.data(), 1, res.code.size(), fp);
+    std::fclose(fp);
+}
+
+// (AR) ARM64: المقارنةُ كقيمة (cset) — ٦ شروط.
+TEST(Arm64SirBridge, LowersComparisonAsValue)
+{
+    for (const auto &c : kCmpCases)
+    {
+        bool ok = false;
+        size_t sz = 0;
+        lowerArm64AndWrite(mkReturn(c.expr), c.armFile, &ok, &sz);
+        ASSERT_TRUE(ok);
+    }
+}
+
+// (AR) ARM64: الإزاحةُ بمقدارٍ متغيّر (lslv، المقدارُ من الذاكرة) ⇒ ٤٢.
+TEST(Arm64SirBridge, LowersVariableShift)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcVarShift, "sad_arm64_varshift42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
 int main(int argc, char **argv)
 {
     (void)argc;

@@ -45,7 +45,16 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "غاير", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x31}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "اعكس", "r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xF7}; s.modrm.present = true; s.modrm.reg_ext = 2; s.modrm.rm_op = 0; return s; }() },
     { "أزح_يسار", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xC1}; s.modrm.present = true; s.modrm.reg_ext = 4; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
+    { "أزح_يسار", "r64, cl", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xD3}; s.modrm.present = true; s.modrm.reg_ext = 4; s.modrm.rm_op = 0; return s; }() },
     { "أزح_يمين", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xC1}; s.modrm.present = true; s.modrm.reg_ext = 5; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
+    { "أزح_يمين", "r64, cl", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xD3}; s.modrm.present = true; s.modrm.reg_ext = 5; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x94}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_لم_يساوِ", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x95}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_أصغر", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9C}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_أصغر_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9E}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_أكبر", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9F}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_أكبر_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9D}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "مدد_بالصفر", "r64, r8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0xB6}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "قارن", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x39}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "قارن", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x83}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
     { "قارن", "r64, imm32", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x81}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 32; return s; }() },
@@ -82,6 +91,13 @@ inline const std::string kXor = "غاير";
 inline const std::string kNot = "اعكس";
 inline const std::string kShl = "أزح_يسار";
 inline const std::string kShr = "أزح_يمين";
+inline const std::string kSete = "عيّن_إذا_ساوى";
+inline const std::string kSetne = "عيّن_إذا_لم_يساوِ";
+inline const std::string kSetl = "عيّن_إذا_أصغر";
+inline const std::string kSetle = "عيّن_إذا_أصغر_أو_ساوى";
+inline const std::string kSetg = "عيّن_إذا_أكبر";
+inline const std::string kSetge = "عيّن_إذا_أكبر_أو_ساوى";
+inline const std::string kMovzx = "مدد_بالصفر";
 inline const std::string kCmp = "قارن";
 inline const std::string kJmp = "اقفز";
 inline const std::string kJe = "اقفز_إذا_ساوى";
