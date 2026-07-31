@@ -78,6 +78,17 @@ instructions:
         opcode: [0x89]
         modrm: { mod: mem, reg: op1, rm: op0 }
       reads_dest: false
+    # mov r/m8, r8  ⇒  88 /r   (تخزينُ بايتٍ واحد: reg=المصدر 8-بت، rm=الذاكرة؛ بلا REX.W)
+    #   يُستعمَل في itoa الطباعة الأصليّة لتخزين رقمٍ ASCII في مخزن الإطار (لا يمسّ 7 بايتاتٍ مجاورة).
+    - en: mov
+      form: "m8, r8"
+      operands:
+        - { kind: mem, class: gpr, role: out, bits: 8 }
+        - { kind: reg, class: gpr, role: in, bits: 8 }
+      encode:
+        opcode: [0x88]
+        modrm: { mod: mem, reg: op1, rm: op0 }
+      reads_dest: false
 
   # add r/m64, r64  ⇒  REX.W + 01 /r
   اجمع:

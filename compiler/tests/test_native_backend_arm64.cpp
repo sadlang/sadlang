@@ -94,6 +94,46 @@ TEST(NativeArm64, Ret)
     ASSERT_EQ(hex(b), std::string("c0035fd6"));
 }
 
+// sub x9, x16, x17  # encoding: [0x09,0x02,0x11,0xcb]   (طرحٌ ثلاثيّ)
+TEST(NativeArm64, SubX9X16X17)
+{
+    auto b = enc("اطرح", "x, x, x",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)));
+    ASSERT_EQ(hex(b), std::string("090211cb"));
+}
+
+// mul x9, x16, x17  # encoding: [0x09,0x7e,0x11,0x9b]   (MADD مع Ra=XZR)
+TEST(NativeArm64, MulX9X16X17)
+{
+    auto b = enc("اضرب", "x, x, x",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)));
+    ASSERT_EQ(hex(b), std::string("097e119b"));
+}
+
+// sdiv x9, x16, x17  # encoding: [0x09,0x0e,0xd1,0x9a]   (قسمةٌ صحيحةٌ موقَّعة)
+TEST(NativeArm64, SdivX9X16X17)
+{
+    auto b = enc("اقسم", "x, x, x",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)));
+    ASSERT_EQ(hex(b), std::string("090ed19a"));
+}
+
+// msub x9, x9, x17, x16  # encoding: [0x29,0xc1,0x11,0x9b]   (Ra − Xn×Xm ⇒ للباقي)
+TEST(NativeArm64, MsubX9X9X17X16)
+{
+    auto b = enc("اطرح_الضرب", "x, x, x, x",
+                 {arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X9),
+                  arm64::Operand::R(arm64::X17), arm64::Operand::R(arm64::X16)});
+    ASSERT_EQ(hex(b), std::string("29c1119b"));
+}
+
+// mov x0, x9 = orr x0, xzr, x9  # encoding: [0xe0,0x03,0x09,0xaa]   (نسخُ سجلّ)
+TEST(NativeArm64, MovX0X9)
+{
+    auto b = enc("انسخ", "x, x", {arm64::Operand::R(arm64::X0), arm64::Operand::R(arm64::X9)});
+    ASSERT_EQ(hex(b), std::string("e00309aa"));
+}
+
 // ─── تسلسل «خروج ٤٢» الكامل ───
 TEST(NativeArm64, Exit42Sequence)
 {

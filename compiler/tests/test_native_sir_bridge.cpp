@@ -17,6 +17,7 @@
 #include "frontend/sir_module.h"
 
 #include "backend/native/sir_native_lowering.h"
+#include "backend/native/arm64_sir_lowering.h"
 
 #include <cstdio>
 #include <memory>
@@ -146,6 +147,38 @@ namespace
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
         "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
         "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD9\x86\xD8\xA7\xD9\x82\xD8\xB5\x28\x35\x30\xD8\x8C\x20\x38\x29\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) طباعةُ سلسلةٍ حرفيّة: «اطبع_سطر("مرحبا")» ⇒ يطبع «مرحبا\n» ويخرج ٠. يُثبت: كتلةُ
+    //      بيانات rodata في المقطع R+X + mov rsi,عنوان مطلق (مُرقَّع) + write(stdout).
+    const std::string kSrcPrintStr =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\x22\xD9\x85\xD8\xB1\xD8\xAD\xD8\xA8\xD8\xA7\x22\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x30\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) طباعةُ ثابتٍ عدديّ: «اطبع_سطر(42)» ⇒ يطبع «42\n» ويخرج ٠. يُثبت: itoa (idiv/10 +
+    //      mov m8,r8) في مخزن الإطار + write. النتيجةُ نصّيّةٌ حقيقيّةٌ لا رمزُ خروجٍ فقط.
+    const std::string kSrcPrintNum =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\x34\x32\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x30\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) طباعةُ عددٍ محسوب: «اطبع_سطر(40 + 2)» ⇒ يطبع «42\n». يُثبت: الحسابُ ثمّ itoa معًا
+    //      (المؤقّتُ يُنسَك حولَ الطباعة ⇒ صحّةُ الانسكاب حولَ تسلسلٍ يُبدِّد سجلّاتِ الحوض).
+    const std::string kSrcPrintComputed =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\x34\x30\x20\x2B\x20\x32\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x30\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) قسمةٌ ونتيجتُها ليست RDX مع مؤقّتٍ حيٍّ في RDX: «(40 + 2) + (84 % 42)» ⇒ 42 + 0 = 42.
+    //      يُثبت فرعَ dst!=RDX في القسمة (حفظُ rdx الحاملِ لـ%t1=42 ثمّ استعادتُه) — كان مُحقَّقًا
+    //      تحليليًّا فقط؛ الآن برهانٌ حيّ (خروج ٤٢). لو انكسر الحفظُ/الاستعادةُ لخرج بقيمةٍ خاطئة.
+    const std::string kSrcModLiveRdx =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x28\x34\x30\x20\x2B\x20\x32\x29\x20\x2B\x20\x28\x38\x34\x20\x25\x20\x34\x32\x29\x0A"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 } // namespace
 
@@ -490,6 +523,170 @@ TEST(NativeSirBridge, LowersSubRegReg)
     size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
     std::fclose(fp);
     ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) طباعةُ سلسلةٍ حرفيّة تُخفَّض، والبايتاتُ تحوي mov r64,imm64 (48 B8) لعنوان السلسلة
+//      وsyscall (0F 05)، وتنتهي الشيفرةُ بكتلةِ بيانات تحوي «مرحبا». تُكتب للبرهان الحيّ.
+TEST(NativeSirBridge, PrintsStringLiteral)
+{
+    auto module = buildSir(kSrcPrintStr);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62);   // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x48, 0xBE})); // movabs rsi, imm64 (REX.W B8+6=BE) لعنوان السلسلة
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (write)
+    // (AR) بايتاتُ «مرحبا» (UTF-8) موجودةٌ في كتلة البيانات المُلحَقة.
+    ASSERT_TRUE(contains(bin, {0xD9, 0x85, 0xD8, 0xB1, 0xD8, 0xAD, 0xD8, 0xA8, 0xD8, 0xA7}));
+
+    std::FILE *fp = std::fopen("sad_sir_printstr", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) طباعةُ عددٍ ثابتٍ تُخفَّض، والبايتاتُ تحوي idiv (48 F7) وmov m8,r8 (88 /r ⇒ 41 88 12
+//      لـ[r10],dl) وsyscall — دليلُ itoa فعليّ. تُكتب للبرهان الحيّ (يطبع «42»).
+TEST(NativeSirBridge, PrintsNumberLiteral)
+{
+    auto module = buildSir(kSrcPrintNum);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62);   // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x48, 0xF7}));       // idiv r64 (قسمةُ itoa)
+    ASSERT_TRUE(contains(bin, {0x41, 0x88, 0x12})); // mov [r10], dl (تخزينُ رقمٍ ASCII)
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05}));       // syscall (write)
+
+    std::FILE *fp = std::fopen("sad_sir_printnum", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) طباعةُ عددٍ محسوب («40 + 2») تُخفَّض وتُكتب للبرهان الحيّ (يطبع «42»). يُثبت الانسكابَ
+//      حولَ الطباعة (المؤقّتُ الحسابيّ ينجو تسلسلَ itoa الذي يُبدِّد سجلّاتِ الحوض).
+TEST(NativeSirBridge, PrintsComputedNumber)
+{
+    auto module = buildSir(kSrcPrintComputed);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_TRUE(res.code.size() > sad::native::elf::kCodeOffset);
+    std::FILE *fp = std::fopen("sad_sir_printcomputed", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(res.code.size()));
+}
+
+// (AR) قسمةٌ بنتيجةٍ في سجلٍّ غيرِ RDX مع مؤقّتٍ حيٍّ في RDX تُخفَّض وتُكتب للبرهان الحيّ
+//      (خروج ٤٢). برهانُ فرعِ dst!=RDX (حفظ/استعادةُ rdx حولَ idiv) — كان تحليليًّا فقط.
+TEST(NativeSirBridge, ModWithLiveRdxTemp)
+{
+    auto module = buildSir(kSrcModLiveRdx);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_TRUE(contains(bin, {0x48, 0xF7})); // idiv r64
+    std::FILE *fp = std::fopen("sad_sir_modliverdx", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// (AR) جسر SIR→AArch64 (الهدف الثاني): نفسُ SIR الأماميّ يُخفَّض لـARM64 عبر محرّكٍ
+//      وكاتب ELF عامَّين. برهانُ عموميّة الخطّ عبر صنفَي ISA. تُكتب الثنائيّاتُ لبرهانٍ
+//      حيٍّ على qemu-aarch64. e_machine=EM_AARCH64=183.
+// ════════════════════════════════════════════════════════════════════════════
+
+// (AR) مُساعِدٌ: يبني SIR من مصدر ص، يخفّضه لـARM64، يؤكّد السلامةَ، ويكتب الثنائيَّ.
+namespace
+{
+    void lowerArm64AndWrite(const std::string &src, const char *file,
+                            bool *okOut, size_t *sizeOut)
+    {
+        *okOut = false;
+        *sizeOut = 0;
+        auto module = buildSir(src);
+        if (!module)
+            return;
+        auto res = sad::native::lowerModuleToElfArm64(*module);
+        if (!res.ok)
+        {
+            std::printf("arm64 lowering error: %s\n", res.message().c_str());
+            return;
+        }
+        const auto &bin = res.code;
+        if (bin.size() <= sad::native::elf::kCodeOffset)
+            return;
+        // (AR) e_machine=EM_AARCH64=183 (بايتا 18..19).
+        if ((int(bin[18]) | (int(bin[19]) << 8)) != 183)
+            return;
+        std::FILE *fp = std::fopen(file, "wb");
+        if (!fp)
+            return;
+        size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+        std::fclose(fp);
+        *okOut = (wrote == bin.size());
+        *sizeOut = bin.size();
+    }
+} // namespace
+
+// (AR) إرجاعُ ثابتٍ على ARM64: «ارجع 42» ⇒ movz + نسخ إلى x0 + svc(exit). يخرج ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersConstantReturn)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcConst, "sad_arm64_const42", &ok, &sz);
+    ASSERT_TRUE(ok);
+    ASSERT_TRUE(sz > sad::native::elf::kCodeOffset);
+}
+
+// (AR) ضربٌ وطرحٌ على ARM64: «40 * 2 - 38» ⇒ mul ثمّ sub ⇒ يخرج ٤٢. يُثبت MUL/SUB الجديدَين.
+TEST(Arm64SirBridge, LowersMultiplyAndSub)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcMul, "sad_arm64_mul42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) باقٍ على ARM64: «85 % 43» ⇒ sdiv ثمّ msub (الباقي = a − (a÷b)×b) ⇒ يخرج ٤٢.
+//      يُثبت SDIV + MSUB الجديدَين (لا تعليمةَ باقٍ مفردة في ARM64).
+TEST(Arm64SirBridge, LowersModulo)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcMod, "sad_arm64_mod42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) قسمةٌ صحيحةٌ على ARM64: «84 // 2» ⇒ sdiv ⇒ يخرج ٤٢.
+TEST(Arm64SirBridge, LowersFloorDiv)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcFloorDiv, "sad_arm64_floordiv42", &ok, &sz);
+    ASSERT_TRUE(ok);
 }
 
 int main(int argc, char **argv)

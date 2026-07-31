@@ -70,3 +70,100 @@ instructions:
           - { name: fixed, hi: 31, lo: 10, const: 3512256 }    # 0b1101011001011111000000 (RET x30 = 0xD65F03C0)
           - { name: Rn,    hi: 9,  lo: 5,  const: 30 }         # x30 (سجلّ الرابط)
           - { name: op,    hi: 4,  lo: 0,  const: 0 }
+
+  # SUB Xd, Xn, Xm   ⇒  sf 1 0 01011 00 0 Rm 000000 Rn Rd   (كـADD مع بتّ op=1، متحقَّق: 0xCB110209)
+  اطرح:
+    - en: sub
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 21, const: 600 }        # 0b1001011000 (op=1 ⇒ طرح)
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: imm6,  hi: 15, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # MUL Xd, Xn, Xm = MADD Xd, Xn, Xm, XZR   ⇒  sf 00 11011 000 Rm 0 11111 Rn Rd   (متحقَّق: 0x9B117E09)
+  اضرب:
+    - en: mul
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 21, const: 216 }        # 0b0011011000 (MADD)
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: o0,    hi: 15, lo: 15, const: 0 }          # 0 ⇒ MADD (جمع)؛ Ra=XZR ⇒ ضربٌ صرف
+          - { name: Ra,    hi: 14, lo: 10, const: 31 }         # XZR (لا مضافَ إليه)
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # SDIV Xd, Xn, Xm   ⇒  sf 00 11010110 Rm 000011 Rn Rd   (قسمةٌ صحيحةٌ موقَّعة، متحقَّق: 0x9AD10E09)
+  اقسم:
+    - en: sdiv
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,     hi: 31, lo: 31, const: 1 }
+          - { name: fixed,  hi: 30, lo: 21, const: 214 }       # 0b0011010110
+          - { name: Rm,     hi: 20, lo: 16, from: op2 }
+          - { name: fixed2, hi: 15, lo: 10, const: 3 }         # 0b000011 (SDIV)
+          - { name: Rn,     hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,     hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # MSUB Xd, Xn, Xm, Ra   ⇒  Ra − Xn×Xm   (للباقي: Rd = a − (a÷b)×b، متحقَّق: 0x9B11C129)
+  اطرح_الضرب:
+    - en: msub
+      form: "x, x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 21, const: 216 }        # 0b0011011000 (عائلة MADD/MSUB)
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: o0,    hi: 15, lo: 15, const: 1 }          # 1 ⇒ MSUB (طرح)
+          - { name: Ra,    hi: 14, lo: 10, from: op3 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # MOV Xd, Xm = ORR Xd, XZR, Xm   ⇒  sf 01 01010 00 0 Rm 000000 11111 Rd   (نسخُ سجلّ، متحقَّق: 0xAA0903E0)
+  انسخ:
+    - en: mov
+      form: "x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 21, const: 336 }        # 0b0101010000 (ORR shifted-reg)
+          - { name: Rm,    hi: 20, lo: 16, from: op1 }         # المصدر
+          - { name: imm6,  hi: 15, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # XZR
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false

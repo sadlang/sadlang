@@ -56,8 +56,13 @@ namespace sad
         namespace sir = ::Sad::Compiler::SIR;
         namespace types = ::Sad::Types;
 
-        // (AR) رقمُ نداء exit في SysV/x86-64 (من abi/x86_64-linux.yaml). ثابتٌ مسمّى لا رقمٌ سحريّ.
-        inline constexpr long long kSysExitX86 = 60;
+        // (AR) أرقامُ نداءات SysV/x86-64 وثوابتُ الطباعة (من abi/x86_64-linux.yaml). ثوابتُ
+        //      مسمّاةٌ لا أرقامٌ سحريّة (قاعدة: لا سلاسلَ/أرقامًا حرفيّةً ذاتَ معنًى منطقيّ خام).
+        inline constexpr long long kSysExitX86 = 60;   // (AR) exit
+        inline constexpr long long kSysWriteX86 = 1;   // (AR) write
+        inline constexpr long long kFdStdout = 1;      // (AR) واصفُ الخرج القياسيّ (stdout)
+        inline constexpr long long kAsciiZero = 0x30;  // (AR) رمزُ الصفر ASCII ('0') — أساسُ itoa
+        inline constexpr long long kItoaRadix = 10;    // (AR) أساسُ التحويل العشريّ
 
         // (AR) مخرَجُ التخفيض: بايتاتُ الشيفرة عند النجاح، أو رمزُ خطأٍ (ErrorCode من
         //      كتالوج SoT) + بياناتُ {detail} عند الفشل. الرسالةُ النصّيّة تُشتقّ من
@@ -126,6 +131,23 @@ namespace sad
                 if (!applyFixups())
                     return finishError(r, errorCode_, detail_);
 
+                // (AR) ألحِق كتلةَ البيانات (سلاسلُ الطباعة) بعد كلّ الشيفرة في نفس مقطع R+X،
+                //      ثمّ رقّع كلَّ mov r64,imm64 بالعنوان المطلق للسلسلة. العنوانُ المطلقُ =
+                //      vbase + إزاحةُ الشيفرة (الرأس) + قاعدةُ rodata داخل code_ + إزاحةُ السلسلة.
+                //      يعتمد ثباتَ vbase في ET_EXEC (يُمرَّر نفسُه إلى writeStaticExec).
+                if (!strFixups_.empty() || !rodata_.empty())
+                {
+                    const size_t rodataBase = code_.size();
+                    code_.insert(code_.end(), rodata_.begin(), rodata_.end());
+                    for (const StrFixup &sf : strFixups_)
+                    {
+                        const uint64_t vaddr = elf::kDefaultVBase + elf::kCodeOffset +
+                                               static_cast<uint64_t>(rodataBase + sf.rodataOff);
+                        for (int i = 0; i < 8; ++i)
+                            code_[sf.imm64Pos + i] = static_cast<uint8_t>((vaddr >> (8 * i)) & 0xFF);
+                    }
+                }
+
                 r.ok = true;
                 r.code = std::move(code_);
                 return r;
@@ -139,10 +161,12 @@ namespace sad
                 curIsEntry_ = (currentFn_ == entryName_);
                 memSlot_.clear();
                 regOf_.clear();
+                strReg_.clear();
                 next_ = 0;
                 frameSize_ = 0;
                 spillBase_ = 0; // (AR) تأمينٌ دفاعيّ: لا يُستعمَل إلّا حين hasCall (يُضبَط في assignFrameSlots)
                 idivScratchDisp_ = 0; // (AR) يُضبَط في assignFrameSlots حين تحوي الدالّةُ قسمةً/باقيًا
+                printBufTopDisp_ = 0; // (AR) يُضبَط في assignFrameSlots حين تطبع الدالّةُ عددًا
 
                 const auto &blocks = fn.getBasicBlocks();
                 if (blocks.empty())
@@ -215,6 +239,39 @@ namespace sad
             //      rdx بالباقي)، فلا يُفقَد مؤقّتٌ حيٌّ كان في rdx. صفرٌ إن لم تُنادِ الدالّةُ قسمةً.
             long long idivScratchDisp_ = 0;
 
+            // (AR) الطباعة الأصليّة: إزاحةُ قمّةِ مخزنِ itoa (العنوانُ الأعلى، حصريّ) في الإطار؛
+            //      تُبنى الأرقامُ العشريّةُ تنازليًّا منها. صفرٌ إن لم تطبع الدالّةُ عددًا.
+            long long printBufTopDisp_ = 0;
+
+            // (AR) كتلةُ البيانات (rodata): سلاسلُ الطباعة الحرفيّةُ تُلحَق بعد كلّ الشيفرة في
+            //      نفس مقطع R+X؛ عنوانُها المطلق (vbase+إزاحة) يُرقَّع في mov r64,imm64.
+            std::vector<uint8_t> rodata_;
+            std::map<std::string, size_t> internedStr_; // (AR) سلسلة ⇒ إزاحتُها في rodata (تفريدٌ)
+            struct StrFixup
+            {
+                size_t imm64Pos; // (AR) موضعُ الفوريّ ٦٤-بت في code_ (عنوانُ السلسلة المطلق)
+                size_t rodataOff; // (AR) إزاحةُ السلسلة داخل rodata_
+            };
+            std::vector<StrFixup> strFixups_;
+
+            // (AR) سجلٌّ افتراضيٌّ عُرِّف بـ«MOVE %r = سلسلةٌ حرفيّة» ⇒ محتواها. الأمامُ يُخرِج
+            //      حرفيَّ السلسلة كـMOVE إلى سجلّ ثمّ يطبعه؛ نموذجُنا لا يحمل السلاسلَ في سجلّات،
+            //      فنُسجّل المحتوى هنا (بلا شيفرةٍ للـMOVE) وتُرآيه الطباعةُ لتُصدِر السلسلةَ حرفيًّا.
+            //      استعمالُ السجلّ في غير الطباعة (لا سلاسلَ محسوبةً بعد) يفشل صراحةً لاحقًا.
+            std::map<std::string, std::string> strReg_;
+
+            // (AR) يُفرِّد سلسلةً في rodata (يُعيد إزاحتَها)؛ التكرارُ يُشارك الإزاحةَ نفسَها.
+            size_t internString(const std::string &s)
+            {
+                auto it = internedStr_.find(s);
+                if (it != internedStr_.end())
+                    return it->second;
+                size_t off = rodata_.size();
+                rodata_.insert(rodata_.end(), s.begin(), s.end());
+                internedStr_[s] = off;
+                return off;
+            }
+
             // (AR) إزاحةُ خانة انسكابِ سجلّ الحوض بموضعه i (0..pool_.size()-1).
             long long spillDisp(size_t poolIdx) const
             {
@@ -228,6 +285,47 @@ namespace sad
                     if (pool_[i] == physReg)
                         return static_cast<int>(i);
                 return -1;
+            }
+
+            // (AR) تحليلُ حياةٍ داخل الكتلة: هل يُقرأ السجلُّ الافتراضيّ vreg في تعليمةٍ لاحقةٍ
+            //      (فهرسٌ > from) في الكتلة نفسِها؟ النموذجُ ينظّف الحوضَ لكلّ كتلة، فما يعبر
+            //      الكتلَ يمرّ عبر الذاكرة؛ إذن الحياةُ ذاتُ الصلة بالانسكاب عبر النداء/الطبع
+            //      محصورةٌ داخل الكتلة. المؤقّتُ الميتُ (لا يُقرأ لاحقًا) لا يُنسَك ⇒ تقليمُ
+            //      الانسكاب التحفّظيّ (سدُّ دَينٍ موثَّق: كان يَنسِك كلَّ regOf_ بلا تمييز).
+            bool usedAfterInBlock(const sir::SIRBasicBlock &block, size_t from,
+                                  const std::string &vreg) const
+            {
+                for (size_t i = from + 1; i < block.instructions.size(); ++i)
+                    for (const auto &op : block.instructions[i].operands)
+                        if (op.type == sir::SIROperandType::REGISTER && op.name == vreg)
+                            return true;
+                return false;
+            }
+
+            // (AR) هل السجلُّ الافتراضيّ vreg وسيطٌ سجليٌّ مؤقّتٌ (لا متغيّرَ ذاكرة) لهذا النداء؟
+            //      وسائطُ المؤقّتات تُحمَّل من خانات الانسكاب (loadArgInto) ⇒ يجب نسكُها حتّى لو
+            //      ماتت بعد النداء (وإلّا قرأ loadArgInto خانةً غيرَ مكتوبة).
+            bool isPoolArgOfCall(const sir::SIRInstruction &call, const std::string &vreg) const
+            {
+                for (size_t i = 1; i < call.operands.size(); ++i)
+                {
+                    const auto &a = call.operands[i];
+                    if (a.type == sir::SIROperandType::REGISTER && a.name == vreg &&
+                        memSlot_.find(a.name) == memSlot_.end())
+                        return true;
+                }
+                return false;
+            }
+
+            // (AR) هل vreg مؤقّتٌ سجليٌّ (لا متغيّرَ ذاكرة) بين معاملات التعليمة (من الفهرس ٠)؟
+            //      للطباعة: المعاملُ المؤقّتُ يُقرأ من خانة انسكابه بعد النسك ⇒ يجب نسكُه.
+            bool isPoolOperandOf(const sir::SIRInstruction &inst, const std::string &vreg) const
+            {
+                for (const auto &a : inst.operands)
+                    if (a.type == sir::SIROperandType::REGISTER && a.name == vreg &&
+                        memSlot_.find(a.name) == memSlot_.end())
+                        return true;
+                return false;
             }
 
             // (AR) يؤهّل لصيقةَ كتلةٍ باسم الدالّة الحاليّة (يمنع تصادمَ «entry» بين الدوالّ).
@@ -372,6 +470,78 @@ namespace sad
             {
                 return emit(x86::mnem::kMov, "m64, r64", {x86::Operand::M(x86::RBP, disp), x86::Operand::R(src)});
             }
+            // (AR) mov [ptrReg], srcLow8 — تخزينُ بايتٍ واحد (88 /r) في العنوان الذي يشير إليه ptrReg.
+            bool storeByte(int ptrReg, int srcReg)
+            {
+                return emit(x86::mnem::kMov, "m8, r8", {x86::Operand::M(ptrReg, 0), x86::Operand::R(srcReg)});
+            }
+            // (AR) dst = rbp + disp (عنوانُ خانةٍ في الإطار): mov dst,rbp ثمّ add dst,disp.
+            bool leaFrame(int dst, long long disp)
+            {
+                return movReg(dst, x86::RBP) && addImm(dst, disp);
+            }
+            // (AR) cmp reg, 0 (83 /7 ib) — لفحص «هل الحاصلُ صفر؟» في لولب itoa.
+            bool cmpZero(int reg)
+            {
+                return emit(x86::mnem::kCmp, "r64, imm8", {x86::Operand::R(reg), x86::Operand::I(0, 8)});
+            }
+            // (AR) jne إلى إزاحةٍ خلفيّةٍ معلومةٍ (لولبٌ محلّيّ داخل تسلسلِ الطباعة، لا لصيقةَ كتلة):
+            //      نحسب rel32 مباشرةً (الهدفُ معلومٌ زمنَ الإصدار) فلا حاجةَ لطابور الترقيع.
+            bool emitLocalJneBack(size_t target)
+            {
+                const x86::EncSpec *spec = x86::lookupEncSpec(x86::mnem::kJne, "rel32");
+                if (!spec || spec->imm_bits <= 0)
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(x86::mnem::kJne) + " rel32");
+                const long long instrLen = static_cast<long long>(spec->opcode.size()) + spec->imm_bits / 8;
+                const long long disp = static_cast<long long>(target) -
+                                       (static_cast<long long>(code_.size()) + instrLen);
+                if (!checkImm32(disp))
+                    return false;
+                return emit(x86::mnem::kJne, "rel32", {x86::Operand::I(disp, 32)});
+            }
+
+            // (AR) يطبع سلسلةً حرفيّة: يُفرِّدها في rodata، يحمّل عنوانَها المطلق في rsi (mov r64,imm64
+            //      نائبٌ يُرقَّع لاحقًا حين يُعرَف موضعُ rodata)، ثمّ write(stdout, rsi, الطول).
+            bool emitPrintString(const std::string &s)
+            {
+                const size_t off = internString(s);
+                // (AR) mov rsi, <عنوانٌ نائب٦٤>؛ سجّل ترقيعَ العنوان المطلق.
+                if (!emit(x86::mnem::kMov, "r64, imm64", {x86::Operand::R(x86::RSI), x86::Operand::I(0, 64)}))
+                    return false;
+                strFixups_.push_back({code_.size() - 8, off});
+                // (AR) rdx=الطول، rax=write، rdi=stdout، ثمّ syscall.
+                return movImm(x86::RDX, static_cast<long long>(s.size())) &&
+                       movImm(x86::RAX, kSysWriteX86) &&
+                       movImm(x86::RDI, kFdStdout) &&
+                       emit(x86::mnem::kSyscall, "", {});
+            }
+
+            // (AR) يطبع عددًا صحيحًا غيرَ سالبٍ في RAX: itoa عبر idiv/10 يبني الأرقامَ العشريّةَ
+            //      تنازليًّا في مخزنِ الإطار، ثمّ write(stdout, المؤشّر، الطول). القيمةُ السالبةُ
+            //      غيرُ مدعومةٍ بعد (تُنتِج تمثيلًا خاطئًا) — دَينٌ موثَّق. R10 مؤشّرٌ، RCX=10.
+            bool emitPrintInt()
+            {
+                // (AR) R10 = قمّةُ المخزن (rbp+إزاحة، حصريّ)؛ RCX = الأساس ١٠.
+                if (!leaFrame(x86::R10, printBufTopDisp_) || !movImm(x86::RCX, kItoaRadix))
+                    return false;
+                const size_t loopStart = code_.size();
+                //   cqo؛ idiv rcx ⇒ rax=الحاصل، rdx=الباقي (٠..٩)
+                //   add rdx,'0'؛ sub r10,1؛ mov [r10],dl؛ cmp rax,0؛ jne (خلفيّ)
+                if (!cqo() || !idivReg(x86::RCX) ||
+                    !addImm(x86::RDX, kAsciiZero) ||
+                    !subImm(x86::R10, 1) ||
+                    !storeByte(x86::R10, x86::RDX) ||
+                    !cmpZero(x86::RAX) ||
+                    !emitLocalJneBack(loopStart))
+                    return false;
+                // (AR) rsi=المؤشّرُ إلى أوّل رقم؛ rdx=الطول=(القمّة − r10)؛ write(stdout).
+                return movReg(x86::RSI, x86::R10) &&
+                       leaFrame(x86::RDX, printBufTopDisp_) &&
+                       subReg(x86::RDX, x86::R10) &&
+                       movImm(x86::RAX, kSysWriteX86) &&
+                       movImm(x86::RDI, kFdStdout) &&
+                       emit(x86::mnem::kSyscall, "", {});
+            }
 
             // (AR) هل المعاملُ سجلٌّ يُشير إلى خانةِ متغيّرٍ مخصَّص (ALLOC)؟ يُعيد إزاحتَه.
             bool isMemVar(const sir::SIROperand &op, long long &disp) const
@@ -451,6 +621,8 @@ namespace sad
                 }
                 bool hasCall = false;
                 bool hasIdiv = false;
+                bool hasPrint = false;       // (AR) أيُّ BUILTIN_PRINT (يلزمه انسكابُ الحوض حولَه)
+                bool hasNumberPrint = false; // (AR) طباعةُ عددٍ (تلزمها خانةُ مخزنِ itoa)
                 for (const auto &blockPtr : blocks)
                     for (const auto &inst : blockPtr->instructions)
                     {
@@ -464,6 +636,13 @@ namespace sad
                         else if (inst.opcode == sir::SIROpcode::MOD_I64 ||
                                  inst.opcode == sir::SIROpcode::FLOOR_DIV_I64)
                             hasIdiv = true;
+                        else if (inst.opcode == sir::SIROpcode::BUILTIN_PRINT)
+                        {
+                            hasPrint = true;
+                            for (const auto &op : inst.operands)
+                                if (op.dataType != types::SadTypeKind::String)
+                                    hasNumberPrint = true; // (AR) معاملٌ غيرُ نصّيٍّ ⇒ يُطبَع عددًا (itoa)
+                        }
                     }
                 // (AR) القسمةُ الصحيحةُ (idiv) تدهس rdx (=أوّلُ سجلّ حوض، قد يحمل مؤقّتًا حيًّا)؛
                 //      احجز خانةَ خدشٍ نحفظ فيها rdx حولَ التسلسل cqo/idiv ونعيده بعده.
@@ -472,9 +651,17 @@ namespace sad
                     used += 8;
                     idivScratchDisp_ = -used;
                 }
-                // (AR) إن كانت الدالّةُ تُنادي، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض تُحفَظ
-                //      فيها المؤقّتاتُ الحيّةُ عبر النداء (وتُحمَّل منها وسائطُ المؤقّتات).
-                if (hasCall)
+                // (AR) طباعةُ عددٍ: احجز مخزنَ itoa (٢٤ بايتًا تكفي ٢٠ رقمًا لـi64 + هامش).
+                //      القمّةُ (العنوانُ الأعلى، حصريّ) = ‎-used‎ قبل الحجز؛ الأرقامُ تُبنى تنازليًّا.
+                if (hasNumberPrint)
+                {
+                    printBufTopDisp_ = -used;
+                    used += 24;
+                }
+                // (AR) إن نادت الدالّةُ أو طبعت، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض. النداءُ
+                //      يدهس كلَّ الحوض (caller-saved)، والطباعةُ تستعمل سجلّاتِ الحوض مُبدَّداتٍ ⇒
+                //      تُنسَك المؤقّتاتُ الحيّةُ حولَهما وتُعاد.
+                if (hasCall || hasPrint)
                 {
                     spillBase_ = -(used + 8);
                     used += static_cast<long long>(pool_.size()) * 8;
@@ -503,7 +690,8 @@ namespace sad
                 return true;
             }
 
-            bool lowerInstruction(const sir::SIRInstruction &inst)
+            bool lowerInstruction(const sir::SIRInstruction &inst,
+                                  const sir::SIRBasicBlock &block, size_t instIdx)
             {
                 using OP = sir::SIROpcode;
                 switch (inst.opcode)
@@ -512,6 +700,14 @@ namespace sad
                 {
                     if (!inst.result || inst.operands.size() != 1)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    // (AR) MOVE %r = سلسلةٌ حرفيّة: لا سجلَّ فيزيائيًّا (السلاسلُ بياناتٌ لا قيمُ
+                    //      سجلّات)؛ نسجّل المحتوى ليُطبَعَ حرفيًّا، ولا نُصدِر شيفرة.
+                    if (inst.operands[0].type == sir::SIROperandType::CONSTANT &&
+                        inst.operands[0].dataType == types::SadTypeKind::String)
+                    {
+                        strReg_[inst.result->name] = inst.operands[0].name;
+                        return true;
+                    }
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -636,21 +832,29 @@ namespace sad
                     if (argc > 6)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, "args>6:" + std::to_string(argc));
                     // (AR) النداءُ يدهس كلَّ سجلّات الحوض (caller-saved في SysV). لحفظِ المؤقّتات
-                    //      الحيّة عبره: (١) انسكِبْ كلَّ مؤقّتٍ مخصَّصٍ إلى خانة انسكابه؛ (٢) حمّل
-                    //      الوسائطَ في سجلّات SysV — المؤقّتُ من خانة انسكابه لا من سجلّه ⇒ صفر
-                    //      تصادمٍ (حلُّ النقل المتوازي)؛ (٣) نادِ؛ (٤) أعِد تحميلَ المؤقّتات؛
-                    //      (٥) النتيجةُ في rax ⇒ سجلّ النتيجة. الذاكرة (memSlot_) تنجو أصلًا.
+                    //      الحيّة عبره: (١) انسكِبْ ما يلزم إلى خانات الانسكاب؛ (٢) حمّل الوسائطَ
+                    //      في سجلّات SysV — المؤقّتُ من خانة انسكابه لا من سجلّه ⇒ صفر تصادمٍ (نقلٌ
+                    //      متوازٍ)؛ (٣) نادِ؛ (٤) أعِد تحميلَ المؤقّتات الحيّة؛ (٥) النتيجةُ في rax.
+                    //      🔑 تقليمُ الانسكاب (تحليلُ حياةٍ): نَنسِك مؤقّتًا فقط إن كان حيًّا بعد
+                    //      النداء (يُقرأ لاحقًا في الكتلة) أو وسيطًا سجليًّا لهذا النداء (يُقرأ من
+                    //      خانته). الميتُ غيرُ الوسيط لا يُنسَك — سدُّ دَينِ الانسكاب التحفّظيّ.
                     for (const auto &kv : regOf_)
-                        if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
-                            return false;
+                    {
+                        const bool live = usedAfterInBlock(block, instIdx, kv.first);
+                        if (live || isPoolArgOfCall(inst, kv.first))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    }
                     for (size_t i = 0; i < argc; ++i)
                         if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
                             return false;
                     if (!emitCall(inst.operands[0].name))
                         return false;
+                    // (AR) أعِد تحميلَ المؤقّتات الحيّة بعد النداء فقط (الميتُ/الوسيطُ الفاني لا يُعاد).
                     for (const auto &kv : regOf_)
-                        if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
-                            return false;
+                        if (usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
                     if (inst.result)
                     {
                         int dst;
@@ -658,6 +862,50 @@ namespace sad
                             return false;
                         return movReg(dst, x86::RAX); // (AR) قيمةُ الإرجاع من rax
                     }
+                    return true;
+                }
+                case OP::BUILTIN_PRINT:
+                {
+                    // (AR) اطبع(معاملات…): لكلّ معاملٍ سلسلةً حرفيّةً ⇒ write مباشر؛ وعددًا ⇒ itoa.
+                    //      الطباعةُ تُبدِّد سجلّاتِ الحوض (rsi/rdx/rcx/r10…)، فنَنسِك أوّلًا المؤقّتاتِ
+                    //      الحيّةَ بعدها + المؤقّتاتِ المعاملاتِ لهذه الطباعة (تُقرأ من خاناتها)،
+                    //      ونعيد الحيّةَ بعدها. تقليمُ الحياة يمنع نسكَ الميت.
+                    if (inst.operands.empty())
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (usedAfterInBlock(block, instIdx, kv.first) || isPoolOperandOf(inst, kv.first))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    for (const auto &op : inst.operands)
+                    {
+                        // (AR) سلسلةٌ حرفيّةٌ مباشرة (مثل «\n») ⇒ اطبعها.
+                        if (op.type == sir::SIROperandType::CONSTANT &&
+                            op.dataType == types::SadTypeKind::String)
+                        {
+                            if (!emitPrintString(op.name))
+                                return false;
+                        }
+                        // (AR) سجلٌّ عُرِّف بسلسلةٍ حرفيّة (النمطُ المعتاد: MOVE %r=نص ثمّ اطبع %r).
+                        else if (op.type == sir::SIROperandType::REGISTER &&
+                                 strReg_.find(op.name) != strReg_.end())
+                        {
+                            if (!emitPrintString(strReg_[op.name]))
+                                return false;
+                        }
+                        // (AR) سلسلةٌ محسوبةٌ في سجلٍّ (لا حرفيّة) غيرُ مدعومةٍ بعد ⇒ فشلٌ صريح.
+                        else if (op.dataType == types::SadTypeKind::String)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, "print-str-computed:%" + op.name);
+                        else
+                        {
+                            // (AR) عددٌ: حمّله في RAX (ثابت/ذاكرة/خانة انسكاب) ثمّ itoa+write.
+                            if (!loadArgInto(x86::RAX, op) || !emitPrintInt())
+                                return false;
+                        }
+                    }
+                    for (const auto &kv : regOf_)
+                        if (usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
                     return true;
                 }
                 default:
@@ -858,8 +1106,9 @@ namespace sad
                     is.back().operands[0].type == sir::SIROperandType::REGISTER)
                     fused = findFusedComparison(block, is.back().operands[0].name);
 
-                for (const sir::SIRInstruction &inst : is)
+                for (size_t idx = 0; idx < is.size(); ++idx)
                 {
+                    const sir::SIRInstruction &inst = is[idx];
                     if (&inst == fused)
                         continue; // (AR) مدموجة ⇒ يعالجها BR_COND
                     if (inst.opcode == sir::SIROpcode::BR)
@@ -872,7 +1121,7 @@ namespace sad
                         if (!lowerBranchCond(inst, block))
                             return false;
                     }
-                    else if (!lowerInstruction(inst))
+                    else if (!lowerInstruction(inst, block, idx))
                         return false;
                 }
                 return true;
