@@ -71,6 +71,17 @@ namespace
         "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF\x0A"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 
+    // (AR) نداءُ دالّةٍ بوسائط: «اجمع(أ، ب) = أ+ب»؛ «رئيسية = اجمع(40، 2)» ⇒ يخرج ٤٢.
+    //      يُثبت: دالّتان + تمرير الوسائط في rdi/rsi (SysV) + call/ret حقيقيّ (لا exit
+    //      للمُستدعاة) + الإرجاعُ في rax + خانةُ معاملٍ مُسكَنةٌ من سجلّ الوسيط الوارد.
+    const std::string kSrcCall =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\xD8\xB1\xD9\x82\xD9\x85\x20\xD8\xA3\xD8\x8C\x20\xD8\xB1\xD9\x82\xD9\x85\x20\xD8\xA8\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xA3\x20\x2B\x20\xD8\xA8\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\x34\x30\xD8\x8C\x20\x32\x29\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
     // (AR) تفرّعٌ كاذبُ الشرط (5 > 41) ⇒ فرعُ else ⇒ يُرجع 42؛ then يُرجع 99.
     //      يُثبت: القفزُ غيرُ المشروط للفرع الآخر (jmp else) صحيحٌ أيضًا.
     const std::string kSrcIfFalse =
@@ -270,6 +281,30 @@ TEST(NativeSirBridge, LowersWhileLoopWithMemory)
     ASSERT_TRUE(contains(bin, {0xFF, 0xFF, 0xFF})); // قفزٌ خلفيّ (لولب) بإزاحةٍ سالبة
 
     std::FILE *fp = std::fopen("sad_sir_while42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) نداءُ دالّةٍ بوسائط يُخفَّض، والـELF سليم، والبايتاتُ تحوي call (E8) وret (C3)
+//      وتخزينَ وسيطٍ واردٍ ([rbp-8],rdi = 48 89 7D F8). يُكتب للبرهان الحيّ (خروج ٤٢).
+TEST(NativeSirBridge, LowersFunctionCall)
+{
+    auto module = buildSir(kSrcCall);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0xE8}));             // call rel32 (نداءُ المُستدعاة)
+    ASSERT_TRUE(contains(bin, {0xC3}));             // ret (خاتمةُ المُستدعاة)
+    ASSERT_TRUE(contains(bin, {0x48, 0x89, 0x7D, 0xF8})); // mov [rbp-8],rdi (تخزينُ وسيطٍ وارد)
+
+    std::FILE *fp = std::fopen("sad_sir_call42", "wb");
     ASSERT_TRUE(fp != nullptr);
     size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
     std::fclose(fp);

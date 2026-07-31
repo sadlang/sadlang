@@ -85,52 +85,82 @@ namespace sad
             }
         };
 
-        // (AR) مخفّضٌ لدالّةٍ متعدّدة الكتل إلى x86-64: تفرّعٌ (مرور طبقتين + ترقيع rel32)
-        //      + متغيّراتٌ محلّيّةٌ في الذاكرة (إطارُ rbp + خانات [rbp−إزاحة] عبر ALLOC/
-        //      LOAD/STORE؛ قراءةُ متغيّرِ الذاكرة كقيمة = تحميلٌ ضمنيّ). نموذجُ التخصيص:
-        //      كلُّ سجلٍّ افتراضيّ (بالاسم) ⇒ سجلٌّ فيزيائيّ من حوضٍ لا يشمل rax (مُبدَّد +
-        //      رقم النداء) وla rdi (وسيط الخروج) ولا rsp/rbp — بلا انسكابٍ (الحوضُ يُنظَّف
-        //      لكلّ كتلة؛ ما يعبر الكتلَ فعبر الذاكرة). PHI غيرُ مدعومٍ (يفشل صراحةً).
+        // (AR) مخفّضٌ لوحدةٍ متعدّدة الدوالّ إلى x86-64: كلُّ دالّةٍ بإطارها الخاصّ (الداخلةُ
+        //      أوّلًا = نقطةُ دخول ELF). تفرّعٌ (مرور طبقتين + ترقيع rel32، لصائقُ مؤهَّلةٌ
+        //      بالدالّة) + متغيّراتٌ محلّيّةٌ ومعاملاتٌ في الذاكرة (إطارُ rbp + خانات
+        //      [rbp−إزاحة]؛ المعاملُ يُسكَن من سجلّ وسيطِ SysV الوارد؛ قراءةُ متغيّرِ الذاكرة
+        //      كقيمة = تحميلٌ ضمنيّ) + استدعاءٌ (call/ret، وسائطُ rdi/rsi/… وإرجاعُ rax).
+        //      نموذجُ التخصيص: كلُّ سجلٍّ افتراضيّ (بالاسم) ⇒ سجلٌّ فيزيائيّ من حوضٍ لا يشمل
+        //      rax (مُبدَّد + رقم النداء) وla rdi (وسيط أوّل) ولا rsp/rbp — بلا انسكابٍ (الحوضُ
+        //      يُنظَّف لكلّ كتلة؛ ما يعبر الكتلَ فعبر الذاكرة). PHI/سجلٌّ حيٌّ عبر نداءٍ ⇒ فشلٌ صريح.
         class X86SirLowering
         {
         public:
-            LoweringResult lowerEntry(const sir::SIRModule &module)
+            LoweringResult lowerModule(const sir::SIRModule &module)
             {
                 LoweringResult r;
-                const sir::SIRFunction *fn = findEntry(module);
-                if (!fn)
+                const sir::SIRFunction *entry = findEntry(module);
+                if (!entry)
                     return finishError(r, EC::INT_NATIVE_NO_ENTRY);
-                const auto &blocks = fn->getBasicBlocks();
-                if (blocks.empty())
-                    return finishError(r, EC::INT_NATIVE_UNSUPPORTED, detailBlocks());
+                entryName_ = entry->getName();
 
-                // (AR) مسحٌ مسبق: يخصّص خانةَ إطارٍ [rbp−إزاحة] لكلّ ALLOC (متغيّرٌ محلّيّ)،
-                //      ويحسب حجمَ الإطار المُحاذى ١٦. الخاناتُ عابرةٌ للكتل (بخلاف السجلّات
-                //      التي تُنظَّف لكلّ كتلة) ⇒ بها تعبر قيمُ الحلقاتِ حدودَ الكتل.
-                assignFrameSlots(blocks);
+                // (AR) ترتيبُ الإصدار: الدالّةُ الداخلة أوّلًا (نقطةُ دخول ELF = code_[0])،
+                //      ثمّ البقيّة. النداءاتُ للدوالّ اللاحقة مراجعُ أماميّةٌ تُرقَّع لاحقًا.
+                std::vector<const sir::SIRFunction *> ordered{entry};
+                for (const auto &f : module.getFunctions())
+                    if (f.get() != entry)
+                        ordered.push_back(f.get());
 
-                // (AR) المقدّمة (إن وُجدت خانات): push rbp؛ mov rbp,rsp؛ sub rsp,N. لا خانةَ
-                //      ⇒ لا مقدّمة (يحفظ سلوكَ البرامج السجليّة الخالصة بايتًا ببايت).
-                if (frameSize_ > 0 && !emitPrologue())
-                    return finishError(r, errorCode_, detail_);
-
-                // (AR) المرور ١: أصدِر بايتاتِ كلّ كتلةٍ بالترتيب، سجّل إزاحةَ لصيقتها،
-                //      وسجّل ترقيعَ كلّ قفز. كلُّ كتلةٍ يجب أن تنتهيَ بمُنهٍ (ret/br/brcond).
-                for (const auto &blockPtr : blocks)
+                // (AR) المرور ١: أصدِر كلَّ دالّةٍ (إطارُها الخاصّ + كتلُها)، سجّل إزاحةَ
+                //      لصيقتها (funcOffset_ للنداءات، labelOffset_ للفروع، كلاهما مؤهَّلٌ بالدالّة).
+                for (const sir::SIRFunction *fn : ordered)
                 {
-                    const sir::SIRBasicBlock &block = *blockPtr;
-                    labelOffset_[block.name] = code_.size();
-                    if (!lowerBlock(block))
+                    funcOffset_[fn->getName()] = code_.size();
+                    if (!lowerFunction(*fn))
                         return finishError(r, errorCode_, detail_);
                 }
 
-                // (AR) المرور ٢: رقّع كلَّ rel32 بالفرق (إزاحةُ الهدف − نهايةُ القفز).
+                // (AR) المرور ٢: رقّع كلَّ rel32 (فرعٌ داخل الدالّة، أو نداءٌ بين الدوالّ).
                 if (!applyFixups())
                     return finishError(r, errorCode_, detail_);
 
                 r.ok = true;
                 r.code = std::move(code_);
                 return r;
+            }
+
+            // (AR) يخفّض دالّةً واحدة: إطارٌ خاصّ (يُخصَّص لمعاملاتها ومحلّيّاتها)، مقدّمةٌ
+            //      تُسكِن سجلّاتِ ABI الواردة في خانات المعاملات، ثمّ كتلُها بالترتيب.
+            bool lowerFunction(const sir::SIRFunction &fn)
+            {
+                currentFn_ = fn.getName();
+                curIsEntry_ = (currentFn_ == entryName_);
+                memSlot_.clear();
+                regOf_.clear();
+                next_ = 0;
+                frameSize_ = 0;
+
+                const auto &blocks = fn.getBasicBlocks();
+                if (blocks.empty())
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, detailBlocks());
+
+                // (AR) خانات: المعاملاتُ أوّلًا (بترتيب ABI)، ثمّ ALLOCات المحلّيّات.
+                if (!assignFrameSlots(fn, blocks))
+                    return false;
+
+                // (AR) المقدّمة (إن وُجدت خانات): push rbp؛ mov rbp,rsp؛ sub rsp,N؛ ثمّ
+                //      خزّن سجلّاتِ الوسائط الواردة (rdi/rsi/…) في خانات المعاملات.
+                if (frameSize_ > 0 && !emitPrologue(fn))
+                    return false;
+
+                for (const auto &blockPtr : blocks)
+                {
+                    const sir::SIRBasicBlock &block = *blockPtr;
+                    labelOffset_[qualify(block.name)] = code_.size();
+                    if (!lowerBlock(block))
+                        return false;
+                }
+                return true;
             }
 
         private:
@@ -144,20 +174,38 @@ namespace sad
             EC errorCode_ = EC::INT_NATIVE_NO_ENTRY;
             std::string detail_;
 
-            // (AR) تدفّق التحكّم: خريطةُ لصيقة الكتلة ⇒ إزاحتها بالبايت، وطابورُ ترقيع rel32.
+            // (AR) تدفّق التحكّم: خريطةُ لصيقة الكتلة (مؤهَّلةٌ بالدالّة) ⇒ إزاحتها، وطابورُ
+            //      ترقيع rel32. الفرعُ يستهدف لصيقةً داخل الدالّة؛ النداءُ يستهدف دالّةً.
             std::map<std::string, size_t> labelOffset_;
+            std::map<std::string, size_t> funcOffset_; // (AR) اسمُ الدالّة ⇒ إزاحةُ شيفرتها (للنداءات)
             struct Fixup
             {
                 size_t rel32Pos;    // (AR) موضعُ بايتات الإزاحة النسبيّة في code_
-                std::string target; // (AR) لصيقةُ الكتلة الهدف
+                std::string target; // (AR) هدفٌ: لصيقةٌ مؤهَّلة (فرع) أو اسمُ دالّة (نداء)
                 int width;          // (AR) عرضُ حقل الإزاحة بالبايت (من مواصفة الترميز، لا ثابتًا)
+                bool isCall;        // (AR) نداءٌ (يُحلُّ من funcOffset_) أم فرعٌ (من labelOffset_)
             };
             std::vector<Fixup> fixups_;
 
-            // (AR) الذاكرة: اسمُ المتغيّر المخصَّص (ALLOC) ⇒ إزاحتُه عن rbp (سالبةٌ: تحت rbp)،
-            //      وحجمُ الإطار المُحاذى ١٦. تُملأ في المسح المسبق قبل التخفيض.
+            // (AR) الدوالّ: اسمُ الدالّة الداخلة، الدالّةُ الجاري تخفيضُها (لتأهيل اللصائق)،
+            //      وهل هي الداخلة (RET ⇒ exit) أم لا (RET ⇒ خاتمة + ret).
+            std::string entryName_;
+            std::string currentFn_;
+            bool curIsEntry_ = false;
+
+            // (AR) سجلّاتُ وسائط SysV/x86-64 بالترتيب (الوسائطُ الستّة الأولى الصحيحة).
+            const int abiArg_[6]{x86::RDI, x86::RSI, x86::RDX, x86::RCX, x86::R8, x86::R9};
+
+            // (AR) الذاكرة: اسمُ الخانة (معامل أو ALLOC) ⇒ إزاحتُه عن rbp (سالبةٌ)، وحجمُ
+            //      الإطار المُحاذى ١٦. تُملأ في المسح المسبق لكلّ دالّة.
             std::map<std::string, long long> memSlot_;
             long long frameSize_ = 0;
+
+            // (AR) يؤهّل لصيقةَ كتلةٍ باسم الدالّة الحاليّة (يمنع تصادمَ «entry» بين الدوالّ).
+            std::string qualify(const std::string &blockName) const
+            {
+                return currentFn_ + "\x1f" + blockName; // (AR) فاصلُ وحدةٍ لا يظهر في الأسماء
+            }
 
             // (AR) رموزُ {detail} كبياناتٍ محضة (لا نثر): وسمُ الحالة قصيرٌ يُميّز فرعَ الفشل.
             //      النثرُ كلُّه في كتالوج SoT؛ هذه القيمُ تملأ {detail} حصرًا.
@@ -238,6 +286,9 @@ namespace sad
             static const char *kSub;  // اطرح
             static const char *kSys;  // نداء_نظام
             static const char *kPush; // ادفع
+            static const char *kPop;  // اسحب
+            static const char *kRet;  // ارجع
+            static const char *kCall; // نادِ
             static const char *kCmp;  // قارن
             static const char *kJmp;  // اقفز
             static const char *kJe;   // اقفز_إذا_ساوى
@@ -305,6 +356,15 @@ namespace sad
                 return true;
             }
 
+            // (AR) هل المعاملُ سجلٌّ مؤقّتٌ مُخصَّصٌ في الحوض (لا ثابت ولا متغيّر ذاكرة)؟
+            //      مثلُ هذا الوسيط يُدهَس في نقلِ الوسائط المتوازي ⇒ غيرُ مدعومٍ بعد.
+            bool isPoolTemp(const sir::SIROperand &op) const
+            {
+                long long disp;
+                return op.type == sir::SIROperandType::REGISTER &&
+                       !isMemVar(op, disp) && regOf_.find(op.name) != regOf_.end();
+            }
+
             // (AR) يحمّل معاملًا (ثابتًا/سجلًّا فيزيائيًّا/متغيّرَ ذاكرة) في سجلٍّ وجهة. قراءةُ
             //      متغيّرِ الذاكرة = تحميلٌ من خانته (يُطابق auto-load في خلفيّة LLVM).
             bool loadInto(int dst, const sir::SIROperand &op)
@@ -330,26 +390,57 @@ namespace sad
                             "operand-kind=" + std::to_string(static_cast<int>(op.type)));
             }
 
-            // (AR) المسحُ المسبق: يخصّص خانةَ إطارٍ لكلّ ALLOC ويحسب حجمَ الإطار المُحاذى ١٦.
-            void assignFrameSlots(const std::vector<std::shared_ptr<sir::SIRBasicBlock>> &blocks)
+            // (AR) المسحُ المسبق: يخصّص خانةَ إطارٍ للمعاملات (بترتيب ABI) ثمّ لكلّ ALLOC،
+            //      ويحسب حجمَ الإطار المُحاذى ١٦. المعاملُ يُعامَل كمتغيّرِ ذاكرةٍ (قراءتُه =
+            //      تحميلٌ من خانته)، وتُسكَنُ خانتُه من سجلّ الوسيط الوارد في المقدّمة.
+            bool assignFrameSlots(const sir::SIRFunction &fn,
+                                  const std::vector<std::shared_ptr<sir::SIRBasicBlock>> &blocks)
             {
+                const auto &params = fn.getParameters();
+                if (params.size() > 6)
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, "params>6:" + std::to_string(params.size()));
                 long long used = 0;
+                for (const auto &p : params)
+                {
+                    used += 8;
+                    // (AR) المعاملُ يُشار إليه في التعابير بـ«%»+الاسم (sir_builder_functions.cpp:495)
+                    //      بينما اسمُ SIRParameter بلا «%» ⇒ نُفهرِس بالمرجع كي يطابقَه isMemVar.
+                    memSlot_["%" + p.name] = -used;
+                }
+                bool hasCall = false;
                 for (const auto &blockPtr : blocks)
                     for (const auto &inst : blockPtr->instructions)
+                    {
                         if (inst.opcode == sir::SIROpcode::ALLOC && inst.result)
                         {
                             used += 8;
                             memSlot_[inst.result->name] = -used; // [rbp−8]، [rbp−16]، …
                         }
-                frameSize_ = (used + 15) / 16 * 16; // (AR) محاذاةٌ ١٦
+                        else if (inst.opcode == sir::SIROpcode::CALL)
+                            hasCall = true;
+                    }
+                long long aligned = (used + 15) / 16 * 16; // (AR) محاذاةٌ ١٦
+                // (AR) عقدُ SysV: rsp مُحاذًى ١٦ قبل call. الدالّةُ غيرُ الداخلة تدخل عند
+                //      rsp%16==8 (النداءُ دفع عنوانَ العودة) فـpush rbp يُعيد المحاذاةَ لصفر.
+                //      أمّا الداخلةُ فتدخل عند rsp%16==0 (النواة)، فـpush rbp يتركها ٨؛ إن كانت
+                //      تُنادي وذاتَ إطارٍ فتلزمها ٨ إضافيّةٌ لتعيد المحاذاةَ قبل نداءاتها.
+                frameSize_ = (curIsEntry_ && hasCall && used > 0) ? aligned + 8 : aligned;
+                return true;
             }
 
-            // (AR) المقدّمة: push rbp؛ mov rbp,rsp؛ sub rsp,N (كلٌّ مفحوص).
-            bool emitPrologue()
+            // (AR) المقدّمة: push rbp؛ mov rbp,rsp؛ sub rsp,N؛ ثمّ خزّن سجلّاتِ الوسائط
+            //      الواردة (rdi/rsi/…) في خانات المعاملات (كلٌّ مفحوص).
+            bool emitPrologue(const sir::SIRFunction &fn)
             {
-                return emit(kPush, "r64", {x86::Operand::R(x86::RBP)}) &&
-                       movReg(x86::RBP, x86::RSP) &&
-                       subImm(x86::RSP, frameSize_);
+                if (!emit(kPush, "r64", {x86::Operand::R(x86::RBP)}) ||
+                    !movReg(x86::RBP, x86::RSP) ||
+                    !subImm(x86::RSP, frameSize_))
+                    return false;
+                const auto &params = fn.getParameters();
+                for (size_t i = 0; i < params.size(); ++i)
+                    if (!storeMem(memSlot_["%" + params[i].name], abiArg_[i]))
+                        return false;
+                return true;
             }
 
             bool lowerInstruction(const sir::SIRInstruction &inst)
@@ -420,17 +511,86 @@ namespace sad
                 {
                     if (inst.operands.size() != 1)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    // (AR) قيمةُ الإرجاع في rdi (وسيط exit) — تُحمَّل من الخانة إن متغيّرَ ذاكرة —
-                    //      ثمّ رقمُ exit في rax ثمّ النداء. كلٌّ مفحوص.
-                    if (!loadInto(x86::RDI, inst.operands[0]))
+                    // (AR) الدالّةُ الداخلة تُنهي البرنامجَ بـexit(rdi)؛ غيرُها تُعيد القيمةَ في
+                    //      rax (عقدُ SysV) ثمّ خاتمةٌ (استعادةُ الإطار) و ret. تُحمَّل من الخانة
+                    //      إن متغيّرَ ذاكرة. كلٌّ مفحوص.
+                    if (curIsEntry_)
+                    {
+                        if (!loadInto(x86::RDI, inst.operands[0]))
+                            return false;
+                        if (!movImm(x86::RAX, kSysExitX86))
+                            return false;
+                        return emit(kSys, "", {});
+                    }
+                    if (!loadInto(x86::RAX, inst.operands[0]))
                         return false;
-                    if (!movImm(x86::RAX, kSysExitX86))
+                    return emitEpilogue();
+                }
+                case OP::CALL:
+                {
+                    // (AR) call @دالّة, وسائط… ⇒ ضع الوسائطَ في سجلّات SysV (rdi/rsi/…) ثمّ
+                    //      نادِ (rel32 يُرقَّع لإزاحة الدالّة)؛ النتيجةُ في rax ⇒ سجلُّ النتيجة.
+                    if (inst.operands.empty() ||
+                        inst.operands[0].type != sir::SIROperandType::FUNCTION)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    const size_t argc = inst.operands.size() - 1;
+                    if (argc > 6)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "args>6:" + std::to_string(argc));
+                    // (AR) حوضُ التخصيص يتقاطع مع سجلّات الوسائط (rsi/rdx/rcx/r8/r9)، فنقلُ
+                    //      وسيطٍ مؤقّتٍ سجليٍّ قد يدهس مصدرَ وسيطٍ لاحق (نقلٌ متوازٍ). حتّى يُضاف
+                    //      حلُّ التبعيّة، نقصر الوسائطَ على ثوابتَ/متغيّراتِ ذاكرة (تحميلُها لا
+                    //      يقرأ سجلَّ حوضٍ) ونفشل صراحةً على وسيطٍ سجليٍّ مؤقّت (لا دهسٌ صامت).
+                    for (size_t i = 0; i < argc; ++i)
+                        if (isPoolTemp(inst.operands[i + 1]))
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, "reg-temp-call-arg:%" + inst.operands[i + 1].name);
+                    for (size_t i = 0; i < argc; ++i)
+                        if (!loadInto(abiArg_[i], inst.operands[i + 1]))
+                            return false;
+                    if (!emitCall(inst.operands[0].name))
                         return false;
-                    return emit(kSys, "", {});
+                    // (AR) النداءُ يدهس كلَّ سجلّات الحوض (caller-saved في SysV): أبطِل ربطَها
+                    //      كي تفشل قراءةُ أيّ مؤقّتٍ عُرِّف قبل النداء صراحةً (UNDEF_VREG) بدل
+                    //      قراءةِ قمامة. المتغيّراتُ في الذاكرة (memSlot_) تنجو (لا تُدهَس).
+                    regOf_.clear();
+                    next_ = 0;
+                    if (inst.result)
+                    {
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return movReg(dst, x86::RAX); // (AR) قيمةُ الإرجاع من rax (مخصَّصٌ بعد الإبطال)
+                    }
+                    return true;
                 }
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
+            }
+
+            // (AR) خاتمةُ الدالّة غير الداخلة: إن كان لها إطارٌ استعِده (mov rsp,rbp؛ pop rbp)،
+            //      ثمّ ret. بلا إطارٍ ⇒ ret مباشرةً (لم تُلمَس rbp/rsp).
+            bool emitEpilogue()
+            {
+                if (frameSize_ > 0)
+                {
+                    if (!movReg(x86::RSP, x86::RBP) ||
+                        !emit(kPop, "r64", {x86::Operand::R(x86::RBP)}))
+                        return false;
+                }
+                return emit(kRet, "", {});
+            }
+
+            // (AR) يُصدر نداءً (call rel32) بإزاحةٍ نائبة، ويسجّل ترقيعًا لإزاحة الدالّة.
+            bool emitCall(const std::string &funcName)
+            {
+                const x86::EncSpec *spec = x86::lookupEncSpec(kCall, "rel32");
+                if (!spec || spec->imm_op < 0 || spec->imm_bits <= 0)
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(kCall) + " rel32");
+                const int width = spec->imm_bits / 8;
+                if (!emit(kCall, "rel32", {x86::Operand::I(0, spec->imm_bits)}))
+                    return false;
+                fixups_.push_back({code_.size() - static_cast<size_t>(width), funcName, width, true});
+                return true;
             }
 
             // (AR) هل المعاملُ ثابتٌ صحيح؟ يُعيد قيمتَه (يُطابق شرطَ resolve للثوابت).
@@ -482,7 +642,8 @@ namespace sad
                 const int width = spec->imm_bits / 8;
                 if (!emit(mnemonic, "rel32", {x86::Operand::I(0, spec->imm_bits)}))
                     return false;
-                fixups_.push_back({code_.size() - static_cast<size_t>(width), targetLabel, width});
+                // (AR) الهدفُ لصيقةٌ مؤهَّلةٌ بالدالّة الحاليّة (فرعٌ داخليّ، لا نداء).
+                fixups_.push_back({code_.size() - static_cast<size_t>(width), qualify(targetLabel), width, false});
                 return true;
             }
 
@@ -626,8 +787,10 @@ namespace sad
             {
                 for (const Fixup &fx : fixups_)
                 {
-                    auto it = labelOffset_.find(fx.target);
-                    if (it == labelOffset_.end())
+                    // (AR) النداءُ يُحلُّ من funcOffset_، والفرعُ من labelOffset_ (لصيقةٌ مؤهَّلة).
+                    const auto &table = fx.isCall ? funcOffset_ : labelOffset_;
+                    auto it = table.find(fx.target);
+                    if (it == table.end())
                         return fail(EC::INT_NATIVE_LABEL_UNDEFINED, fx.target);
                     long long disp = static_cast<long long>(it->second) -
                                      static_cast<long long>(fx.rel32Pos + fx.width);
@@ -648,6 +811,9 @@ namespace sad
         inline const char *X86SirLowering::kSub = "\xD8\xA7\xD8\xB7\xD8\xB1\xD8\xAD";                 // اطرح
         inline const char *X86SirLowering::kSys = "\xD9\x86\xD8\xAF\xD8\xA7\xD8\xA1_\xD9\x86\xD8\xB8\xD8\xA7\xD9\x85"; // نداء_نظام
         inline const char *X86SirLowering::kPush = "\xD8\xA7\xD8\xAF\xD9\x81\xD8\xB9";                               // ادفع
+        inline const char *X86SirLowering::kPop = "\xD8\xA7\xD8\xB3\xD8\xAD\xD8\xA8";                                // اسحب
+        inline const char *X86SirLowering::kRet = "\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9";                                // ارجع
+        inline const char *X86SirLowering::kCall = "\xD9\x86\xD8\xA7\xD8\xAF\xD9\x90";                               // نادِ
         inline const char *X86SirLowering::kCmp = "\xD9\x82\xD8\xA7\xD8\xB1\xD9\x86";                                                                                                 // قارن
         inline const char *X86SirLowering::kJmp = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2";                                                                                                 // اقفز
         inline const char *X86SirLowering::kJe = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xB3\xD8\xA7\xD9\x88\xD9\x89";                                     // اقفز_إذا_ساوى
@@ -661,7 +827,7 @@ namespace sad
         inline LoweringResult lowerModuleToElf(const sir::SIRModule &module)
         {
             X86SirLowering low;
-            LoweringResult r = low.lowerEntry(module);
+            LoweringResult r = low.lowerModule(module);
             if (!r.ok)
                 return r;
             r.code = elf::writeStaticExec(r.code); // (AR) يلفّ الشيفرة في ELF ويعيدها مكانها

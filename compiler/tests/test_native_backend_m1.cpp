@@ -201,6 +201,17 @@ TEST(NativeX86, CallRel32)
 {
     ASSERT_EQ(hex(enc("نادِ", "rel32", {x86::Operand::I(0, 32)})), std::string("e800000000"));
 }
+// (AR) خاتمةُ الدالّة (SysV): pop rbp = 5D · pop r13 = 41 5D (REX.B) · ret = C3.
+//      القيمُ = مخرَج llvm-mc-18 حرفيًّا. تُستعمَل في emitEpilogue للدوالّ غير الداخلة.
+TEST(NativeX86, EpiloguePopRet)
+{
+    ASSERT_EQ(hex(enc("اسحب", "r64", {x86::Operand::R(x86::RBP)})), std::string("5d"));
+    ASSERT_EQ(hex(enc("اسحب", "r64", {x86::Operand::R(x86::R13)})), std::string("415d"));
+    ASSERT_EQ(hex(enc("ارجع", "", {})), std::string("c3"));
+    // (AR) mov [rbp-8], rdi = 48 89 7D F8 (تخزينُ وسيطٍ واردٍ في خانة معامل).
+    ASSERT_EQ(hex(enc("انقل", "m64, r64", {x86::Operand::M(x86::RBP, -8), x86::Operand::R(x86::RDI)})),
+              std::string("48897df8"));
+}
 // (AR) القفزاتُ الشرطيّةُ الموقَّعةُ القريبة (rel32): الأوپكود 0F 8C/8D/8E/8F مطابقٌ
 //      لقاعدة llvm-mc (القصير 7C/7D/7E/7F ⇒ القريب +0x10). rel32=200 (0xC8) LE.
 // jl  # [0f,8c,..]  ·  jge  # [0f,8d,..]  ·  jle  # [0f,8e,..]  ·  jg  # [0f,8f,..]
