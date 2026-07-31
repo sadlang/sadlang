@@ -45,6 +45,12 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اقفز", "rel26", sad::native::arm64::EncSpec{ 32, { { 31, 26, 5, true, -1 }, { 25, 0, 0, false, 0 } } } },
     { "اخزن", "x, sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 22, 996, true, -1 }, { 21, 10, 0, false, 1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
     { "احمل", "x, sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 22, 997, true, -1 }, { 21, 10, 0, false, 1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
+    { "وافق", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 80, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اضمم", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 336, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "غاير", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 592, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اعكس", "x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 22, 168, true, -1 }, { 21, 21, 1, true, -1 }, { 20, 16, 0, false, 1 }, { 15, 10, 0, true, -1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
+    { "أزح_يسار", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 214, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 8, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "أزح_يمين", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 214, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 9, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اخزن_بايت", "w, x", sad::native::arm64::EncSpec{ 32, { { 31, 22, 228, true, -1 }, { 21, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اقفز_إن_ليس_صفرًا", "x, rel19", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 24, 53, true, -1 }, { 23, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     };
@@ -77,6 +83,12 @@ inline const std::string kBge = "اقفز_إذا_أكبر_أو_ساوى";
 inline const std::string kB = "اقفز";
 inline const std::string kStr = "اخزن";
 inline const std::string kLdr = "احمل";
+inline const std::string kAnd = "وافق";
+inline const std::string kOrr = "اضمم";
+inline const std::string kEor = "غاير";
+inline const std::string kMvn = "اعكس";
+inline const std::string kLslv = "أزح_يسار";
+inline const std::string kLsrv = "أزح_يمين";
 inline const std::string kStrb = "اخزن_بايت";
 inline const std::string kCbnz = "اقفز_إن_ليس_صفرًا";
 } // namespace mnem

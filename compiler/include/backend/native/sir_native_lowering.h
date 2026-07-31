@@ -423,6 +423,13 @@ namespace sad
             {
                 return emit(x86::mnem::kIdiv, "r64", {x86::Operand::R(divisor)});
             }
+            // ── العمليّات البتّيّة ──
+            bool andReg(int dst, int src) { return emit(x86::mnem::kAnd, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)}); }
+            bool orReg(int dst, int src) { return emit(x86::mnem::kOr, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)}); }
+            bool xorReg(int dst, int src) { return emit(x86::mnem::kXor, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)}); }
+            bool notReg(int dst) { return emit(x86::mnem::kNot, "r64", {x86::Operand::R(dst)}); }
+            bool shlImm(int dst, long long n) { return emit(x86::mnem::kShl, "r64, imm8", {x86::Operand::R(dst), x86::Operand::I(n, 8)}); }
+            bool shrImm(int dst, long long n) { return emit(x86::mnem::kShr, "r64, imm8", {x86::Operand::R(dst), x86::Operand::I(n, 8)}); }
 
             // ── الذاكرة: خانات الإطار [rbp+إزاحة] ──
             // (AR) mov r64, [rbp+disp] — تحميلٌ من خانة إطار.
@@ -708,6 +715,52 @@ namespace sad
                     return loadInto(dst, inst.operands[0]) &&
                            loadInto(x86::RAX, inst.operands[1]) &&
                            imulReg(dst, x86::RAX);
+                }
+                case OP::AND:
+                case OP::OR:
+                case OP::XOR:
+                {
+                    // (AR) %dst = a <بتّيّ> b ⇒ حمّل a في dst وb في المُبدَّد RAX ثمّ العمليّة بالسجلّ.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (!loadInto(dst, inst.operands[0]) || !loadInto(x86::RAX, inst.operands[1]))
+                        return false;
+                    return inst.opcode == OP::AND ? andReg(dst, x86::RAX)
+                         : inst.opcode == OP::OR  ? orReg(dst, x86::RAX)
+                                                  : xorReg(dst, x86::RAX);
+                }
+                case OP::NOT:
+                {
+                    // (AR) %dst = ~a ⇒ حمّل a في dst ثمّ not dst (أحاديّ).
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadInto(dst, inst.operands[0]) && notReg(dst);
+                }
+                case OP::SHL:
+                case OP::SHR:
+                {
+                    // (AR) %dst = a <<|>> n ⇒ حمّل a في dst ثمّ أزِح بمقدارٍ ثابت (imm8). المقدارُ
+                    //      المتغيّرُ (سجلّ) يلزمه CL ونسكُ RCX ⇒ غيرُ مدعومٍ بعد على x86 (دَينٌ موثَّق؛
+                    //      ARM64 يدعمه عبر lslv/lsrv). SHR منطقيّةٌ (مطابقةً لدلالة SIROpcode::SHR).
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long n;
+                    if (!common::isConstInt(inst.operands[1], n))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "shift-variable-count:" + detailOpcode(inst));
+                    if (n < 0 || n > 63)
+                        return fail(EC::INT_NATIVE_IMM_RANGE, "shift:" + std::to_string(n));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (!loadInto(dst, inst.operands[0]))
+                        return false;
+                    return inst.opcode == OP::SHL ? shlImm(dst, n) : shrImm(dst, n);
                 }
                 case OP::MOD_I64:
                 case OP::FLOOR_DIV_I64:

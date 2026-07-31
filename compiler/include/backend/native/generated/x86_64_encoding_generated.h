@@ -40,6 +40,12 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اضرب", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0xAF}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "اقسم", "r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xF7}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; return s; }() },
     { "مدد_الإشارة", "", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x99}; return s; }() },
+    { "وافق", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x21}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
+    { "اضمم", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x09}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
+    { "غاير", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x31}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
+    { "اعكس", "r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xF7}; s.modrm.present = true; s.modrm.reg_ext = 2; s.modrm.rm_op = 0; return s; }() },
+    { "أزح_يسار", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xC1}; s.modrm.present = true; s.modrm.reg_ext = 4; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
+    { "أزح_يمين", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xC1}; s.modrm.present = true; s.modrm.reg_ext = 5; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
     { "قارن", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x39}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "قارن", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x83}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
     { "قارن", "r64, imm32", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x81}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 32; return s; }() },
@@ -70,6 +76,12 @@ inline const std::string kSub = "اطرح";
 inline const std::string kImul = "اضرب";
 inline const std::string kIdiv = "اقسم";
 inline const std::string kCqo = "مدد_الإشارة";
+inline const std::string kAnd = "وافق";
+inline const std::string kOr = "اضمم";
+inline const std::string kXor = "غاير";
+inline const std::string kNot = "اعكس";
+inline const std::string kShl = "أزح_يسار";
+inline const std::string kShr = "أزح_يمين";
 inline const std::string kCmp = "قارن";
 inline const std::string kJmp = "اقفز";
 inline const std::string kJe = "اقفز_إذا_ساوى";

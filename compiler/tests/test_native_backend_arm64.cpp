@@ -231,6 +231,45 @@ TEST(NativeArm64, CbnzX9Back)
     ASSERT_EQ(hex(b), std::string("c9ffffb5"));
 }
 
+// ─── العمليّات البتّيّة (القيم = مخرَج llvm-mc-18 حرفيًّا) ───
+// and x9, x16, x17  # [0x09,0x02,0x11,0x8a]
+TEST(NativeArm64, AndX9X16X17)
+{
+    auto b = enc("وافق", "x, x, x",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)));
+    ASSERT_EQ(hex(b), std::string("0902118a"));
+}
+// orr x9, x16, x17  # [0x09,0x02,0x11,0xaa]
+TEST(NativeArm64, OrrX9X16X17)
+{
+    auto b = enc("اضمم", "x, x, x",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)));
+    ASSERT_EQ(hex(b), std::string("090211aa"));
+}
+// eor x9, x16, x17  # [0x09,0x02,0x11,0xca]
+TEST(NativeArm64, EorX9X16X17)
+{
+    auto b = enc("غاير", "x, x, x",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)));
+    ASSERT_EQ(hex(b), std::string("090211ca"));
+}
+// mvn x9, x17  # [0xe9,0x03,0x31,0xaa]   (= orn x9,xzr,x17)
+TEST(NativeArm64, MvnX9X17)
+{
+    auto b = enc("اعكس", "x, x", {arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X17)});
+    ASSERT_EQ(hex(b), std::string("e90331aa"));
+}
+// lslv x9, x16, x17  # [0x09,0x22,0xd1,0x9a]   ·   lsrv x9, x16, x17  # [0x09,0x26,0xd1,0x9a]
+TEST(NativeArm64, LslvLsrv)
+{
+    ASSERT_EQ(hex(enc("أزح_يسار", "x, x, x",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)))),
+              std::string("0922d19a"));
+    ASSERT_EQ(hex(enc("أزح_يمين", "x, x, x",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)))),
+              std::string("0926d19a"));
+}
+
 // ─── تسلسل «خروج ٤٢» الكامل ───
 TEST(NativeArm64, Exit42Sequence)
 {

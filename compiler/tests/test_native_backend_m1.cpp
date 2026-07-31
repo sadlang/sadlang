@@ -167,6 +167,39 @@ TEST(NativeX86, AddImm)
               std::string("4881c100100000"));
 }
 
+// ─── العمليّات البتّيّة (القيم = مخرَج llvm-mc-18 حرفيًّا) ───
+// and %rcx, %rdx  # [0x48,0x21,0xca]
+TEST(NativeX86, AndRegReg)
+{
+    ASSERT_EQ(hex(enc("وافق", "r64, r64", ops2(x86::Operand::R(x86::RDX), x86::Operand::R(x86::RCX)))),
+              std::string("4821ca"));
+}
+// or %rcx, %rdx  # [0x48,0x09,0xca]
+TEST(NativeX86, OrRegReg)
+{
+    ASSERT_EQ(hex(enc("اضمم", "r64, r64", ops2(x86::Operand::R(x86::RDX), x86::Operand::R(x86::RCX)))),
+              std::string("4809ca"));
+}
+// xor %rcx, %rdx  # [0x48,0x31,0xca]
+TEST(NativeX86, XorRegReg)
+{
+    ASSERT_EQ(hex(enc("غاير", "r64, r64", ops2(x86::Operand::R(x86::RDX), x86::Operand::R(x86::RCX)))),
+              std::string("4831ca"));
+}
+// not %rdx  # [0x48,0xf7,0xd2]
+TEST(NativeX86, NotReg)
+{
+    ASSERT_EQ(hex(enc("اعكس", "r64", {x86::Operand::R(x86::RDX)})), std::string("48f7d2"));
+}
+// shl $5, %rdx  # [0x48,0xc1,0xe2,0x05]   ·   shr $5, %rdx  # [0x48,0xc1,0xea,0x05]
+TEST(NativeX86, ShlShrImm)
+{
+    ASSERT_EQ(hex(enc("أزح_يسار", "r64, imm8", ops2(x86::Operand::R(x86::RDX), x86::Operand::I(5, 8)))),
+              std::string("48c1e205"));
+    ASSERT_EQ(hex(enc("أزح_يمين", "r64, imm8", ops2(x86::Operand::R(x86::RDX), x86::Operand::I(5, 8)))),
+              std::string("48c1ea05"));
+}
+
 // cmp %rbx, %rax  # [0x48,0x39,0xd8]
 TEST(NativeX86, CmpRegReg)
 {

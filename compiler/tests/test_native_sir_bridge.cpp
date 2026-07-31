@@ -37,6 +37,14 @@ namespace
         return builder.buildModule(&ast);
     }
 
+    // (AR) يبني برنامجَ «دالة رئيسية() ارجع <تعبير> نهاية» — الأجزاءُ العربيّةُ ثابتةٌ والتعبيرُ ASCII.
+    std::string mkReturn(const std::string &expr)
+    {
+        return "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9()\n"
+               "    \xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9 " + expr + "\n"
+               "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\n";
+    }
+
     // دالة رئيسية()\n    ارجع 40 + 2\n نهاية
     const std::string kSrcAdd =
         "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9()\n"
@@ -778,6 +786,55 @@ TEST(Arm64SirBridge, PrintsComputedNumber)
     size_t sz = 0;
     lowerArm64AndWrite(kSrcPrintComputed, "sad_arm64_printcomputed", &ok, &sz);
     ASSERT_TRUE(ok);
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// (AR) العمليّات البتّيّة (توسيعُ الأوپكودات نحو الاستضافة الذاتيّة) — تُخفَّض على
+//      المسارين. التعابيرُ مُصمَّمةٌ لتخرج ٤٢: AND(106&47)، OR(40|2)، XOR(46^4)،
+//      NOT(~213 ⇒ البايتُ الأدنى 0x2A)، SHL(21<<1)، SHR(84>>1).
+// ════════════════════════════════════════════════════════════════════════════
+namespace
+{
+    // (AR) تعابيرُ بتّيّةٌ نتيجتُها ٤٢ (أو بايتُها الأدنى لـNOT). ثابتةٌ مشتركةٌ للمسارين.
+    struct BitCase { const char *expr; const char *x86File; const char *armFile; };
+    const BitCase kBitCases[] = {
+        {"106 & 47", "sad_x86_and42", "sad_arm64_and42"},
+        {"40 | 2", "sad_x86_or42", "sad_arm64_or42"},
+        {"46 ^ 4", "sad_x86_xor42", "sad_arm64_xor42"},
+        {"~213", "sad_x86_not42", "sad_arm64_not42"},
+        {"21 << 1", "sad_x86_shl42", "sad_arm64_shl42"},
+        {"84 >> 1", "sad_x86_shr42", "sad_arm64_shr42"},
+    };
+} // namespace
+
+// (AR) x86: كلُّ تعبيرٍ بتّيّ يُخفَّض ويُكتَب ثنائيًّا (يُنفَّذ نيتيفيًّا في برهانٍ منفصل).
+TEST(NativeSirBridge, LowersBitwiseOps)
+{
+    for (const auto &c : kBitCases)
+    {
+        auto module = buildSir(mkReturn(c.expr));
+        ASSERT_TRUE(module != nullptr);
+        auto res = sad::native::lowerModuleToElf(*module);
+        if (!res.ok)
+            std::printf("x86 bitwise «%s» error: %s\n", c.expr, res.message().c_str());
+        ASSERT_TRUE(res.ok);
+        std::FILE *fp = std::fopen(c.x86File, "wb");
+        ASSERT_TRUE(fp != nullptr);
+        std::fwrite(res.code.data(), 1, res.code.size(), fp);
+        std::fclose(fp);
+    }
+}
+
+// (AR) ARM64: نفسُ التعابير تُخفَّض لـAArch64 (and/orr/eor/mvn/lslv/lsrv) وتُكتَب ثنائيًّا.
+TEST(Arm64SirBridge, LowersBitwiseOps)
+{
+    for (const auto &c : kBitCases)
+    {
+        bool ok = false;
+        size_t sz = 0;
+        lowerArm64AndWrite(mkReturn(c.expr), c.armFile, &ok, &sz);
+        ASSERT_TRUE(ok);
+    }
 }
 
 int main(int argc, char **argv)

@@ -573,9 +573,29 @@ namespace sad
                     // (AR) الباقي = a − (a÷b)×b: sdiv dst=الحاصل، ثمّ msub dst = x16 − dst×x17.
                     return rrr(a64::mnem::kSdiv, dst, a64reg::kScratch0, a64reg::kScratch1) &&
                            msub(dst, dst, a64reg::kScratch1, a64reg::kScratch0);
+                // (AR) البتّيّات (نظير x86 reg-reg). SHL/SHR عبر lslv/lsrv بمقدارِ سجلّ (x17) ⇒
+                //      يدعمان الثابتَ **والمتغيّر** (بخلاف x86 المحدودِ بالثابت). SHR منطقيّة.
+                case OP::AND: return rrr(a64::mnem::kAnd, dst, a64reg::kScratch0, a64reg::kScratch1);
+                case OP::OR:  return rrr(a64::mnem::kOrr, dst, a64reg::kScratch0, a64reg::kScratch1);
+                case OP::XOR: return rrr(a64::mnem::kEor, dst, a64reg::kScratch0, a64reg::kScratch1);
+                case OP::SHL: return rrr(a64::mnem::kLslv, dst, a64reg::kScratch0, a64reg::kScratch1);
+                case OP::SHR: return rrr(a64::mnem::kLsrv, dst, a64reg::kScratch0, a64reg::kScratch1);
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
+            }
+
+            // (AR) %dst = ~a (نفيٌ بتّيّ أحاديّ): جهّز a في x16 ثمّ mvn dst,x16.
+            bool lowerNot(const sir::SIRInstruction &inst)
+            {
+                if (!inst.result || inst.operands.size() != 1)
+                    return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                int dst;
+                if (!allocReg(inst.result->name, dst))
+                    return false;
+                return materialize(a64reg::kScratch0, inst.operands[0]) &&
+                       emit(a64::mnem::kMvn, "x, x",
+                            {a64::Operand::R(dst), a64::Operand::R(a64reg::kScratch0)});
             }
 
             bool lowerInstruction(const sir::SIRInstruction &inst,
@@ -619,7 +639,14 @@ namespace sad
                 case OP::MUL_I64:
                 case OP::MOD_I64:
                 case OP::FLOOR_DIV_I64:
+                case OP::AND:
+                case OP::OR:
+                case OP::XOR:
+                case OP::SHL:
+                case OP::SHR:
                     return lowerBinary(inst);
+                case OP::NOT:
+                    return lowerNot(inst);
                 case OP::ALLOC:
                 {
                     // (AR) الخانةُ خُصِّصت في المسح المسبق؛ لا شيفرةَ (العنوان ضمنيٌّ [sp، #فهرس×٨]).

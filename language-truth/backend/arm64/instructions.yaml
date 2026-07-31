@@ -384,6 +384,121 @@ instructions:
           - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
 
+  # ─── العمليّات البتّيّة (توسيعُ الأوپكودات؛ نظيرُ x86 بايتًا ببايت عبر llvm-mc) ───
+  # AND Xd, Xn, Xm   ⇒  sf 00 01010 00 0 Rm 000000 Rn Rd   (متحقَّق: and x9,x16,x17 = 0x8A110209)
+  وافق:
+    - en: and
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 21, const: 80 }         # 0b0001010000 (AND shifted-reg)
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: imm6,  hi: 15, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # ORR Xd, Xn, Xm   ⇒  sf 01 01010 00 0 Rm 000000 Rn Rd   (Rn من معامل، لا XZR؛ متحقَّق: orr x9,x16,x17 = 0xAA110209)
+  اضمم:
+    - en: orr
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 21, const: 336 }        # 0b0101010000 (ORR shifted-reg)
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: imm6,  hi: 15, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # EOR Xd, Xn, Xm   ⇒  sf 10 01010 00 0 Rm 000000 Rn Rd   (متحقَّق: eor x9,x16,x17 = 0xCA110209)
+  غاير:
+    - en: eor
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 21, const: 592 }        # 0b1001010000 (EOR shifted-reg)
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: imm6,  hi: 15, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # MVN Xd, Xm = ORN Xd, XZR, Xm   ⇒  sf 01 01010 00 1 Rm 000000 11111 Rd   (نفيٌ بتّيّ؛ متحقَّق: mvn x9,x17 = 0xAA3103E9)
+  اعكس:
+    - en: mvn
+      form: "x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 22, const: 168 }        # 0b010101000 (ORR/ORN shifted-reg، بلا بتّ N)
+          - { name: N,     hi: 21, lo: 21, const: 1 }          # 1 ⇒ ORN (نفيُ المصدر)
+          - { name: Rm,    hi: 20, lo: 16, from: op1 }
+          - { name: imm6,  hi: 15, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # XZR
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # LSLV Xd, Xn, Xm   ⇒  sf 00 11010110 Rm 001000 Rn Rd   (إزاحةٌ يسارًا بمقدار سجلّ؛ متحقَّق: lslv x9,x16,x17 = 0x9AD12209)
+  أزح_يسار:
+    - en: lslv
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,     hi: 31, lo: 31, const: 1 }
+          - { name: fixed,  hi: 30, lo: 21, const: 214 }       # 0b0011010110 (عائلة data-processing ثنائية المصدر)
+          - { name: Rm,     hi: 20, lo: 16, from: op2 }
+          - { name: fixed2, hi: 15, lo: 10, const: 8 }         # 0b001000 (LSLV)
+          - { name: Rn,     hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,     hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # LSRV Xd, Xn, Xm   ⇒  sf 00 11010110 Rm 001001 Rn Rd   (إزاحةٌ منطقيّةٌ يمينًا بمقدار سجلّ؛ متحقَّق: lsrv x9,x16,x17 = 0x9AD12609)
+  أزح_يمين:
+    - en: lsrv
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,     hi: 31, lo: 31, const: 1 }
+          - { name: fixed,  hi: 30, lo: 21, const: 214 }       # 0b0011010110
+          - { name: Rm,     hi: 20, lo: 16, from: op2 }
+          - { name: fixed2, hi: 15, lo: 10, const: 9 }         # 0b001001 (LSRV)
+          - { name: Rn,     hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,     hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
   # STRB Wt, [Xn]   ⇒  00 111 0 01 00 imm12(0) Rn Rt   (تخزينُ بايتٍ واحد؛ لأرقام itoa، متحقَّق: strb w14,[x12] = 0x3900018E)
   اخزن_بايت:
     - en: strb
