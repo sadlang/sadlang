@@ -288,46 +288,10 @@ namespace sad
                 return -1;
             }
 
-            // (AR) تحليلُ حياةٍ داخل الكتلة: هل يُقرأ السجلُّ الافتراضيّ vreg في تعليمةٍ لاحقةٍ
-            //      (فهرسٌ > from) في الكتلة نفسِها؟ النموذجُ ينظّف الحوضَ لكلّ كتلة، فما يعبر
-            //      الكتلَ يمرّ عبر الذاكرة؛ إذن الحياةُ ذاتُ الصلة بالانسكاب عبر النداء/الطبع
-            //      محصورةٌ داخل الكتلة. المؤقّتُ الميتُ (لا يُقرأ لاحقًا) لا يُنسَك ⇒ تقليمُ
-            //      الانسكاب التحفّظيّ (سدُّ دَينٍ موثَّق: كان يَنسِك كلَّ regOf_ بلا تمييز).
-            bool usedAfterInBlock(const sir::SIRBasicBlock &block, size_t from,
-                                  const std::string &vreg) const
-            {
-                for (size_t i = from + 1; i < block.instructions.size(); ++i)
-                    for (const auto &op : block.instructions[i].operands)
-                        if (op.type == sir::SIROperandType::REGISTER && op.name == vreg)
-                            return true;
-                return false;
-            }
-
-            // (AR) هل السجلُّ الافتراضيّ vreg وسيطٌ سجليٌّ مؤقّتٌ (لا متغيّرَ ذاكرة) لهذا النداء؟
-            //      وسائطُ المؤقّتات تُحمَّل من خانات الانسكاب (loadArgInto) ⇒ يجب نسكُها حتّى لو
-            //      ماتت بعد النداء (وإلّا قرأ loadArgInto خانةً غيرَ مكتوبة).
-            bool isPoolArgOfCall(const sir::SIRInstruction &call, const std::string &vreg) const
-            {
-                for (size_t i = 1; i < call.operands.size(); ++i)
-                {
-                    const auto &a = call.operands[i];
-                    if (a.type == sir::SIROperandType::REGISTER && a.name == vreg &&
-                        memSlot_.find(a.name) == memSlot_.end())
-                        return true;
-                }
-                return false;
-            }
-
-            // (AR) هل vreg مؤقّتٌ سجليٌّ (لا متغيّرَ ذاكرة) بين معاملات التعليمة (من الفهرس ٠)؟
-            //      للطباعة: المعاملُ المؤقّتُ يُقرأ من خانة انسكابه بعد النسك ⇒ يجب نسكُه.
-            bool isPoolOperandOf(const sir::SIRInstruction &inst, const std::string &vreg) const
-            {
-                for (const auto &a : inst.operands)
-                    if (a.type == sir::SIROperandType::REGISTER && a.name == vreg &&
-                        memSlot_.find(a.name) == memSlot_.end())
-                        return true;
-                return false;
-            }
+            // (AR) تحليلُ الحياة/الانسكاب (usedAfterInBlock/isPoolArgOfCall/isPoolOperandOf)
+            //      نُقِل إلى common — محايدٌ للمعماريّة، مشتركٌ مع مخفّض ARM64 لمنع الانجراف.
+            //      يُمرَّر مُسنِدُ «هل متغيّرُ ذاكرة» (memSlot_) لأنّ تمييزَه خاصٌّ بكلّ مخفّض.
+            bool isMemName(const std::string &name) const { return memSlot_.find(name) != memSlot_.end(); }
 
             // (AR) يؤهّل لصيقةَ كتلةٍ باسم الدالّة الحاليّة (يمنع تصادمَ «entry» بين الدوالّ).
             std::string qualify(const std::string &blockName) const
@@ -841,8 +805,8 @@ namespace sad
                     //      خانته). الميتُ غيرُ الوسيط لا يُنسَك — سدُّ دَينِ الانسكاب التحفّظيّ.
                     for (const auto &kv : regOf_)
                     {
-                        const bool live = usedAfterInBlock(block, instIdx, kv.first);
-                        if (live || isPoolArgOfCall(inst, kv.first))
+                        const bool live = common::usedAfterInBlock(block, instIdx, kv.first);
+                        if (live || common::isPoolArgOfCall(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
                             if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
                                 return false;
                     }
@@ -853,7 +817,7 @@ namespace sad
                         return false;
                     // (AR) أعِد تحميلَ المؤقّتات الحيّة بعد النداء فقط (الميتُ/الوسيطُ الفاني لا يُعاد).
                     for (const auto &kv : regOf_)
-                        if (usedAfterInBlock(block, instIdx, kv.first))
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
                             if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
                                 return false;
                     if (inst.result)
@@ -874,7 +838,7 @@ namespace sad
                     if (inst.operands.empty())
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     for (const auto &kv : regOf_)
-                        if (usedAfterInBlock(block, instIdx, kv.first) || isPoolOperandOf(inst, kv.first))
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) || common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
                             if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
                                 return false;
                     for (const auto &op : inst.operands)
@@ -904,7 +868,7 @@ namespace sad
                         }
                     }
                     for (const auto &kv : regOf_)
-                        if (usedAfterInBlock(block, instIdx, kv.first))
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
                             if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
                                 return false;
                     return true;

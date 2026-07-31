@@ -18,6 +18,7 @@
 #include "frontend/sir_instruction.h"
 #include "frontend/sir_types.h"
 
+#include <cstddef>
 #include <string>
 
 namespace sad
@@ -62,6 +63,50 @@ namespace sad
                 if (isComparison(prev.opcode) && prev.result && prev.result->name == condName)
                     return &prev;
                 return nullptr;
+            }
+
+            // (AR) طبقةُ تحليل الحياة/الانسكاب — محايدةٌ للمعماريّة (لا سجلّاتٌ ولا بايتات، فقط
+            //      قراءةُ SIR). كانت مكرَّرةً حرفيًّا في مخفّضَي x86 وARM64 لتقرير أيَّ المؤقّتات
+            //      تُنسَك حولَ نداءٍ/طباعةٍ يدهسان سجلّاتِ الحوض (caller-saved). النموذجُ ينظّف
+            //      الحوضَ لكلّ كتلة ⇒ الحياةُ ذاتُ الصلة محصورةٌ داخل الكتلة. مُسنِدُ «هل متغيّرُ
+            //      ذاكرة» (isMem) يُمرَّر لأنّ تمييزَ المؤقّت السجليّ من متغيّر الذاكرة يعتمد على
+            //      خريطةِ الخانات الخاصّة بكلّ مخفّض (byte-disp لـx86، فهرسٌ لـARM64).
+
+            // (AR) هل يُقرأ vreg في تعليمةٍ لاحقةٍ (فهرسٌ > from) في الكتلة نفسِها؟ الميتُ لا يُنسَك.
+            inline bool usedAfterInBlock(const sir::SIRBasicBlock &block, std::size_t from,
+                                         const std::string &vreg)
+            {
+                for (std::size_t i = from + 1; i < block.instructions.size(); ++i)
+                    for (const auto &op : block.instructions[i].operands)
+                        if (op.type == sir::SIROperandType::REGISTER && op.name == vreg)
+                            return true;
+                return false;
+            }
+
+            // (AR) هل vreg وسيطٌ سجليٌّ مؤقّتٌ (لا متغيّرَ ذاكرة، بحسب isMem) لهذا النداء؟ وسائطُ
+            //      المؤقّتات تُحمَّل من خانات الانسكاب ⇒ يجب نسكُها حتّى لو ماتت بعد النداء.
+            template <typename IsMem>
+            inline bool isPoolArgOfCall(const sir::SIRInstruction &call, const std::string &vreg,
+                                        IsMem isMem)
+            {
+                for (std::size_t i = 1; i < call.operands.size(); ++i)
+                {
+                    const auto &a = call.operands[i];
+                    if (a.type == sir::SIROperandType::REGISTER && a.name == vreg && !isMem(a.name))
+                        return true;
+                }
+                return false;
+            }
+
+            // (AR) هل vreg مؤقّتٌ سجليٌّ (لا متغيّرَ ذاكرة، بحسب isMem) بين معاملات التعليمة؟ (للطباعة.)
+            template <typename IsMem>
+            inline bool isPoolOperandOf(const sir::SIRInstruction &inst, const std::string &vreg,
+                                        IsMem isMem)
+            {
+                for (const auto &a : inst.operands)
+                    if (a.type == sir::SIROperandType::REGISTER && a.name == vreg && !isMem(a.name))
+                        return true;
+                return false;
             }
         } // namespace common
     } // namespace native
