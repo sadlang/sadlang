@@ -129,30 +129,51 @@ namespace Sad
             llvm::Value *elemGep = cg_.builder_->CreateGEP(i64Ty, dataPtr, {idx}, "idxof.elem.gep");
             llvm::Value *elem = cg_.builder_->CreateLoad(i64Ty, elemGep, "idxof.elem");
             // ================================================================
-            // (AR) إصلاح: needle قد يكون ptr (نص) أو i64 (رقم/منطقي).
-            //      عند المقارنة يجب أن يكون الطرفان من نفس النوع.
-            //      إذا needle هو ptr → نُحوّل elem من i64 إلى ptr للمقارنة.
-            //      إذا needle هو i64 → نُقارن مباشرة.
-            // (EN) Fix: needle may be ptr (string) or i64 (integer/bool).
-            //      Both operands of icmp must have the same type.
-            //      If needle is ptr → cast elem from i64 to ptr for comparison.
-            //      If needle is i64 → compare directly.
+            // (AR) المقارنة: النصوص **بالمحتوى**، وما عداها بالقيمة.
+            //
+            //      العلّة المقيسة: كان الطرفان يُقارَنان بـ icmp دائمًا. وخانةُ
+            //      المصفوفة تحمل **مؤشّرًا** حين يكون العنصر نصًّا، فتصير المقارنةُ
+            //      مقارنةَ عناوين. والأثر خبيث: `يحتوي_عنصر(["rm"], "rm")` تنجح —
+            //      لأنّ المصرّف يجمع الحرفيّات المتطابقة في عنوانٍ واحد — بينما
+            //      `يحتوي_عنصر(["rm"], تقسيم("rm -rf"," ")[0])` تفشل، والنصّان
+            //      متطابقان حرفًا بحرف. فالمدمَجةُ تبدو عاملةً في كلّ مثالٍ مكتوبٍ
+            //      بحرفيّات، وتكذب على كلّ نصٍّ يُنتَج في زمن التشغيل — وهو الاستعمالُ
+            //      الحقيقيّ. والمفسّر يقارن بالمحتوى، فالتباعدُ بنيويّ لا هامشيّ.
+            //
+            //      الإصلاح هنا لا في «يحتوي_عنصر»: هي تفوّض إلى «موضع_عنصر»،
+            //      فتصحيحُ المقارنة مرّةً يُصلح المدمَجتين معًا ولا يترك إحداهما
+            //      تكذب. ولو صُحّحت «يحتوي_عنصر» وحدها لبقي «موضع_عنصر» يُرجع -1
+            //      لعنصرٍ موجود.
+            // (EN) Compare strings BY CONTENT, everything else by value. The slot
+            //      holds a pointer when the element is a string, so plain icmp
+            //      compared addresses: literal-vs-literal matched (constant pooling)
+            //      while any runtime-produced string never did, even when byte-equal.
+            //      Fixed in indexOf — contains delegates here, so one fix corrects
+            //      both rather than leaving indexOf lying.
             // ================================================================
-            llvm::Value *lhsForCmp = elem;
-            llvm::Value *rhsForCmp = needle;
-            if (needle->getType()->isPointerTy() && elem->getType() != needle->getType())
+            llvm::Value *isEq = nullptr;
+            if (needle->getType()->isPointerTy())
             {
-                // (AR) نحوّل elem (i64) إلى ptr لمطابقة النص
-                // (EN) Cast elem (i64) to ptr to match string pointer
-                lhsForCmp = cg_.builder_->CreateIntToPtr(elem, ptrTy, "idxof.elem.ptr");
+                // (AR) strcmp(elem, needle) == 0 — مقارنةُ محتوى، ونظيرُ المفسّر.
+                llvm::Value *elemPtr = elem->getType()->isPointerTy()
+                                           ? elem
+                                           : cg_.builder_->CreateIntToPtr(elem, ptrTy, "idxof.elem.ptr");
+                auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+                auto *strcmpTy = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
+                auto strcmpFn = cg_.module_->getOrInsertFunction("strcmp", strcmpTy);
+                llvm::Value *cmp = cg_.builder_->CreateCall(strcmpFn, {elemPtr, needle}, "idxof.strcmp");
+                isEq = cg_.builder_->CreateICmpEQ(cmp, llvm::ConstantInt::get(i32Ty, 0), "idxof.eq");
             }
-            else if (!needle->getType()->isPointerTy() && elem->getType() != needle->getType())
+            else
             {
-                // (AR) نحوّل needle إلى i64 للمقارنة الرقمية
-                // (EN) Cast needle to i64 for numeric comparison
-                rhsForCmp = cg_.builder_->CreatePtrToInt(needle, i64Ty, "idxof.needle.i64");
+                llvm::Value *rhsForCmp = needle;
+                if (elem->getType() != needle->getType())
+                {
+                    // (AR) نحوّل needle إلى i64 للمقارنة الرقمية
+                    rhsForCmp = cg_.builder_->CreatePtrToInt(needle, i64Ty, "idxof.needle.i64");
+                }
+                isEq = cg_.builder_->CreateICmpEQ(elem, rhsForCmp, "idxof.eq");
             }
-            llvm::Value *isEq = cg_.builder_->CreateICmpEQ(lhsForCmp, rhsForCmp, "idxof.eq");
             cg_.builder_->CreateCondBr(isEq, foundBB, contBB);
 
             // === كتلة الاستمرار (cont): زيادة العداد والعودة للحلقة ===

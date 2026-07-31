@@ -1920,6 +1920,20 @@ namespace Sad
                 }
 
                 /**
+                 * @brief (AR) تسجيل تواقيع دوالّ قائمةِ عباراتٍ مسبقًا (المرحلة الأولى)
+                 * @brief (EN) Pre-register a statement list's function signatures (Phase 1)
+                 * @param program قائمةُ العبارات / Statement list
+                 *
+                 * (AR) تمريرةٌ **واحدة** يشترك فيها ملفُّ الدخول (buildProgram) والوحداتُ
+                 *      المستوردة (buildImportStmt). حصرُها سابقًا في مسار الدخول جعل
+                 *      النداءَ الأماميّ داخل وحدةٍ مستوردة يفشل — انظر التعليل الكامل
+                 *      عند التعريف في sir_builder_module.cpp‏ (#333).
+                 * (EN) One pass shared by the entry file and by imported modules; see the
+                 *      full rationale at the definition in sir_builder_module.cpp (#333).
+                 */
+                void preRegisterFunctionSignatures(Sad::AST::StmtList *program);
+
+                /**
                  * @brief (AR) تسجيل تواقيع دوالّ الوحدات المستوردة مسبقًا قبل الطور 1.7
                  * @brief (EN) Pre-register imported module function signatures before Phase 1.7
                  * @param program البرنامج الكامل / Full program AST

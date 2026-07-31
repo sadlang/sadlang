@@ -670,6 +670,22 @@ namespace Sad
                 // (EN) Mark module as processed
                 b_.processedModules_.insert(fullModuleName);
 
+                // ════════════════════════════════════════════════════════════════
+                // (AR) المرحلة الأولى للوحدة: تسجيل تواقيع دوالّها **قبل** بناء أيّ
+                //      جسم. نفسُ التمريرة التي يمرّ بها ملفُّ الدخول، لا نسخةٌ منها —
+                //      فيستحيل أن يتباعد المساران ثانيةً.
+                //
+                //      بدونها كانت أجسامُ الوحدة تُبنى بترتيب السطور، فالنداءُ الأماميّ
+                //      («أ» تنادي «ب» المعرَّفةَ بعدها) يفشل بـ«استدعاء دالة غير معرّفة»
+                //      وتظهر رسالةٌ مضلِّلة عن الشرط لا عن سببه. والوحدةُ نفسُها تُصرَّف
+                //      بلا خطأٍ حين تكون ملفَّ الدخول (#333).
+                // (EN) The module's Phase 1: register its function signatures BEFORE
+                //      building any body — the same pass the entry file runs, not a copy,
+                //      so the two paths cannot diverge again. Without it, module bodies
+                //      were built in source order and a forward call failed (#333).
+                // ════════════════════════════════════════════════════════════════
+                b_.preRegisterFunctionSignatures(&module->ast);
+
                 // (AR) معالجة كل تصريح في الوحدة
                 // (EN) Process each declaration in module
                 for (const auto &stmt : module->ast)
@@ -808,11 +824,46 @@ namespace Sad
                         return;
                     for (const auto &stmt : *stmts)
                     {
+                        // ════════════════════════════════════════════════════════
+                        // (AR) صيغتا الاستيراد كلتاهما، لا «من م استورد» وحدَها.
+                        //
+                        //      كانت هذه التمريرة تتجاهل `استورد م` تجاهلًا تامًّا،
+                        //      فلا تُسجَّل تواقيعُ دوالّها قبل الطور 1.7 (استنتاج
+                        //      أنواع المعاملات من مواقع النداء). والأثر: معاملُ
+                        //      «مصفوفة» يبقى بلا نوعِ عنصر، فمتغيّرُ «لكل» عليه
+                        //      يُبنى عددًا لا نصًّا — فتطبع الحلقةُ **عنوانًا**
+                        //      مكان النصّ. ونفسُ الدالّة حرفًا بحرف تعمل صحيحةً
+                        //      حين تُوضَع في ملفّ الدخول.
+                        //
+                        //      وهو تباعدُ مسارَي بناءٍ لا عيبُ كودٍ مكتوب — كنظير
+                        //      #333 تمامًا، ولذلك يُعالَج بتعميم التمريرة لا
+                        //      بحالةٍ خاصّةٍ ثالثة.
+                        // (EN) Handle BOTH import forms. This pass ignored plain
+                        //      `استورد م` entirely, so its signatures were absent
+                        //      before Phase 1.7 param-type inference: an array
+                        //      parameter kept no element type, and a `لكل` over it
+                        //      built the loop variable as an integer — printing an
+                        //      ADDRESS instead of the string. The identical function
+                        //      works when placed in the entry file. Same build-path
+                        //      asymmetry as #333, cured by generalising the pass.
+                        // ════════════════════════════════════════════════════════
                         auto *fromImport = dynamic_cast<AST::FromImportStmt *>(stmt.get());
-                        if (!fromImport)
+                        auto *plainImport = dynamic_cast<AST::ImportStmt *>(stmt.get());
+                        if (!fromImport && !plainImport)
                             continue;
 
-                        std::string fullModuleName = fromImport->getFullModuleName();
+                        // (AR) `استورد م` يُتيح كلَّ رموز الوحدة — وهو ما يبنيه الطور 2
+                        //      فعلًا (buildImportStmt يبني الدوالَّ مُصدَّرةً وغيرَ مُصدَّرة).
+                        //      فبذرُها هنا لا يضيف سطحًا جديدًا؛ يجعل الاستنتاجَ يرى ما
+                        //      سيوجد على أيّ حال. أمّا `من م استورد س` فيبقى محصورًا
+                        //      بالمُصدَّر المطلوب للسبب الموثَّق أدناه.
+                        // (EN) Plain import exposes every symbol — exactly what Phase 2
+                        //      already builds — so seeding here adds no new surface; it
+                        //      only lets inference see what will exist regardless.
+                        const bool seedPrivate = (plainImport != nullptr);
+
+                        std::string fullModuleName =
+                            fromImport ? fromImport->getFullModuleName() : plainImport->getFullModuleName();
                         // (AR) الوحدات القياسية دوالُّها مضمَّنة في المترجم — لا تُسجَّل هنا
                         // (EN) Stdlib modules are compiler builtins — skip
                         if (isCompilerBuiltinStdlibModule(fullModuleName))
@@ -821,7 +872,7 @@ namespace Sad
                         // (AR) resolveModule يخبّئ النتائج ⇒ الطور 2 يعيد استخدام الشجرة ذاتها
                         // (EN) resolveModule caches ⇒ Phase 2 reuses the same AST
                         Modules::Module *module = b_.moduleResolver_->resolveModule(
-                            fromImport->modulePath,
+                            fromImport ? fromImport->modulePath : plainImport->modulePath,
                             basePath);
                         if (!module)
                             continue;
@@ -866,7 +917,7 @@ namespace Sad
                         //      (طول/حجم/جذر), hijacking it in the main module ⇒ undefined ref or
                         //      wrong semantics. So: only the exported, requested symbol.
                         std::unordered_set<std::string> requestedSymbols;
-                        bool isWildcard = fromImport->isWildcard;
+                        bool isWildcard = seedPrivate ? true : fromImport->isWildcard;
                         if (!isWildcard)
                         {
                             for (const auto &item : fromImport->items)
@@ -901,6 +952,14 @@ namespace Sad
                             {
                                 if (exportStmt->declaration)
                                     funcDecl = dynamic_cast<AST::FunctionDecl *>(exportStmt->declaration.get());
+                            }
+                            else if (seedPrivate)
+                            {
+                                // (AR) `استورد م`: الدالّة غير المُصدَّرة تُبنى في الطور 2
+                                //      على أيّ حال، فتُسجَّل هنا كي تُستنتَج أنواعُها.
+                                // (EN) Plain import: an unexported function is built in
+                                //      Phase 2 regardless, so register it for inference.
+                                funcDecl = dynamic_cast<AST::FunctionDecl *>(mstmt.get());
                             }
 
                             if (!funcDecl)

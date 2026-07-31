@@ -33,6 +33,13 @@ namespace Sad
             void emitConstants(std::shared_ptr<SIRModule> sirModule);
             void emitGlobalFunctions(std::shared_ptr<SIRModule> sirModule);
             void emitMainWrapper(std::shared_ptr<SIRModule> sirModule);
+
+            // (AR) تهيئةُ محليّةِ UTF-8 عند نقطة الإدراج الحاليّة — تُحقن في مقدّمة
+            //      نقطة الدخول كي تقبل دوالُّ CRT الضيّقة المساراتِ العربيّة.
+            //      التعليلُ الكامل عند التعريف في functions_ops.cpp.
+            // (EN) Emit setlocale(LC_ALL, ".UTF8") at the current insertion point so
+            //      narrow CRT APIs accept Arabic paths; full rationale at the definition.
+            void emitUtf8LocaleInit();
             const sad::OptimizationStats &getOptimizationStats() const;
             bool optimize();
             void printOptimizationStats() const;

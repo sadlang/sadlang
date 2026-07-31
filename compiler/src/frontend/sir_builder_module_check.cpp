@@ -29,6 +29,7 @@ namespace Bs = Sad::Builtins::Names::Strings;
 namespace Ba = Sad::Builtins::Names::Arrays;
 namespace Bb = Sad::Builtins::Names::Basics;
 namespace Bcc = Sad::Builtins::Names::Concurrency;
+namespace Bmp = Sad::Builtins::Names::Maps;
 
 namespace Sad
 {
@@ -186,6 +187,17 @@ namespace Sad
                     {"انقل_ملف", "أساسيات"},
                     {std::string(Bb::MKDIR), "أساسيات"},
                     {"اسرد_مجلد", "أساسيات"},
+
+                    // ═══════════════════════════════════════════════════════════
+                    // (AR) وحدة "خرائط" — تضمّ التعابيرَ النمطيّةَ ودوالَّ المسارات
+                    //      الإضافيّة، ومنها «حجم_ملف» (انظر builtins/maps.yaml).
+                    //      تُسجَّل هنا كي تكون رسالةُ الخطأ «تحتاج استيراد خرائط»
+                    //      لا «دالة غير معرّفة» — فالفرقُ بينهما دقيقتان وساعة.
+                    // (EN) The "خرائط" module also carries regex and extra path
+                    //      helpers such as file_size; registering it here turns
+                    //      "undefined function" into "needs `استورد خرائط`".
+                    // ═══════════════════════════════════════════════════════════
+                    {std::string(Bmp::FILE_SIZE), "خرائط"},
 
                     // ═══════════════════════════════════════════════════════════
                     // (AR) وحدة "رياضيات" — دوال متقدمة تحتاج استيراد

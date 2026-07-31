@@ -287,6 +287,39 @@ levels:
   # ══════════════════════════════════════════════════════
   # full: كل شيء بدون استثناء
   # ══════════════════════════════════════════════════════
+  # ══════════════════════════════════════════════════════
+  # (AR) الانحدار — حُرّاسُ عيوبٍ سبق أن ظهرت وأُصلحت.
+  #
+  #      مستوًى قائمٌ بذاته كي يُشغَّل وحده بسرعة عند الشكّ، **و**مضمومٌ إلى
+  #      «full» كي لا يُنسى. وكان مجلَّدُ `_regression` غيرَ مذكورٍ في هذا
+  #      الملفّ إطلاقًا: ثمانيةٌ وثمانون حارسًا مكتوبةً لا يُنفّذها أحد. وحارسٌ
+  #      لا يُنفَّذ أسوأُ من غيابه — يُقرأ وجودُه تغطيةً وهو صمت.
+  # (EN) Regression guards for defects that already occurred once. A level of
+  #      its own for a quick targeted run, AND folded into "full" so it cannot
+  #      be forgotten. `_regression` was absent from this file entirely: 88
+  #      written guards that nothing ran. An unrun guard is worse than none —
+  #      its presence reads as coverage while it is silence.
+  # ══════════════════════════════════════════════════════
+  انحدار:
+    dirs:
+      - "_regression"
+    description: "حُرّاس الانحدار — عيوبٌ ظهرت مرّةً ولا يجوز عودتها"
+
+  # (AR) لماذا `_regression` **ليست** في «full» بعدُ — بالأرقام لا بالانطباع:
+  #      شُغِّل المجلَّدُ أوّلَ مرّة (2026-07-31) فتبيّن أنّ **79 من 91** ملفًّا فيه
+  #      بلا `@expected` أصلًا: ملفّاتُ تشخيصٍ مؤقّتةٌ (`test_bug*`، `scan_bug*`)
+  #      أُلقيت في مجلَّدِ الحُرّاس، لا حُرّاس. و**26** منها يتباعد فيها المحرّكان.
+  #      فضمُّها إلى «full» اليوم يُضيف ستًّا وعشرين سقطةً قائمةً سلفًا فيصير
+  #      المقياسُ أحمرَ لأسبابٍ لا علاقةَ لها بالتغيير المُراجَع.
+  #      وضمُّها بعد الفرز **هو الهدف**: الحارسُ الذي لا يُنفَّذ صمتٌ يُقرأ تغطيةً.
+  #      يُرفع الفرزُ مسألةً مستقلّة، ويُضمّ المجلَّدُ هنا متى خلا من غير الحُرّاس.
+  # (EN) Why `_regression` is NOT in "full" yet — measured, not assumed: on its
+  #      first ever run (2026-07-31) 79 of 91 files had no `@expected` at all —
+  #      ad-hoc debugging scratch (`test_bug*`, `scan_bug*`) dumped into the guard
+  #      directory — and 26 of them diverge between the engines. Folding it into
+  #      "full" today would add 26 pre-existing failures and turn the gate red for
+  #      reasons unrelated to the change under review. Folding it in AFTER triage
+  #      is the goal: a guard that never runs is silence read as coverage.
   full:
     dirs:
       - "P0_smoke"

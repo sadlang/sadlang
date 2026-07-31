@@ -318,6 +318,36 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
+                // ────────────────────────────────────────────────────────────────
+                // 9-د. حجم_ملف / file_size — حجمُ الملفّ بالبايتات.
+                //
+                // (AR) كانت مُعلَنةً في مصدر الحقيقة (builtins/maps.yaml) ومُنفَّذةً في
+                //      المفسّر (builtin_module_maps_utils.cpp) وغائبةً عن المصرّف
+                //      وحده — فوحدةُ ص تستعملها تعمل مُفسَّرةً وتُرفَض مُصرَّفةً.
+                //      ونبراس يُشحن مصرَّفًا، فالغيابُ حاجزٌ لا نقص.
+                //      العقدُ مطابقٌ للمفسّر: عددٌ بالبايتات، و**سالبُ واحدٍ** إن تعذّر
+                //      الفتح — قيمةٌ يفحصها المستدعي بدل انهيارٍ أو صفرٍ ملتبسٍ بملفٍّ فارغ.
+                // (EN) Declared in the SoT and implemented in the interpreter but absent
+                //      from the compiler, so a unit using it ran interpreted and was
+                //      rejected compiled. Contract mirrors the interpreter: byte count,
+                //      or -1 when the file cannot be opened (distinct from an empty file).
+                // ────────────────────────────────────────────────────────────────
+                if (funcName == Bn::Maps::FILE_SIZE)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة حجم_ملف تتطلب معامل واحد (مسار)" << std::endl;
+                        return BuildResult("", SadTypeKind::Integer);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_FILE_SIZE);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Integer);
+                }
+
                 // تعبير_بحث / regex_search — يُرجِع النصَّ المطابق، أو «فراغ» عند عدم
                 // المطابقة (نظير المفسّر: match[0].str() أو قيمةُ فراغ).
                 if (funcName == Bn::Maps::REGEX_SEARCH)

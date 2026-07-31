@@ -868,20 +868,38 @@ def run_single_test(
 # ═══════════════════════════════════════════════════════════════════════════════════
 
 def collect_tests(tests_dir: Path, subdirs: Optional[list[str]] = None) -> list[Path]:
-    """(AR) جمع جميع ملفات .ص في المجلدات المحددة"""
+    """(AR) جمع جميع ملفات .ص في المجلدات المحددة — عدا الوحدات المساعدة.
+
+    (AR) اصطلاح: ملفٌّ اسمُه يبدأ بـ«_» **وحدةٌ مساعدة** تُستورَد ولا تُشغَّل بذاتها.
+
+         العلّة: بعضُ الاختبارات تلزمها وحدةٌ تُستورَد (اختبارُ ما يفعله المصرّف
+         بالوحدة المستوردة لا يُكتَب في ملفٍّ واحد). و«استورد» لا يقبل مسارًا
+         نسبيًّا فلا تُخبَّأ في مجلَّدٍ فرعيّ، فكانت الوحدةُ تُجمَع اختبارًا وتُشغَّل
+         وحدَها بلا «رئيسية» فتُحسَب فشلًا — فيُعاقَب الاختبارُ على أنّه احتاج
+         وحدةً. اصطلاحٌ واحدٌ في الجامع أوضحُ من حيلةٍ في كلّ اختبار.
+    (EN) Convention: a file whose name starts with "_" is a HELPER MODULE — it is
+         imported by a test, never run as one. Some tests need an imported module
+         (you cannot test what the compiler does to an imported module from a
+         single file), and «استورد» takes no relative path so helpers cannot hide
+         in a subdirectory. Without this they were collected, run without a main,
+         and counted as failures — penalising a test for needing a helper.
+    """
+    def is_test(p: Path) -> bool:
+        return not p.name.startswith("_")
+
     files = []
     if subdirs:
         for sd in subdirs:
             d = tests_dir / sd
             if d.is_dir():
-                files.extend(sorted(d.rglob("*.ص")))
+                files.extend(sorted(f for f in d.rglob("*.ص") if is_test(f)))
     else:
         # (AR) جمع من جميع المجلدات الفرعية
         for d in sorted(tests_dir.iterdir()):
             if d.is_dir():
-                files.extend(sorted(d.rglob("*.ص")))
+                files.extend(sorted(f for f in d.rglob("*.ص") if is_test(f)))
         # (AR) + ملفات في الجذر
-        files.extend(sorted(tests_dir.glob("*.ص")))
+        files.extend(sorted(f for f in tests_dir.glob("*.ص") if is_test(f)))
     return files
 
 

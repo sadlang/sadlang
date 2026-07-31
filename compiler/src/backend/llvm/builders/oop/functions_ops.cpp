@@ -149,6 +149,51 @@ namespace Sad
             emitMainWrapper(sirModule);
         }
 
+        // ====================================================================
+        // (AR) تهيئةُ محليّةِ UTF-8 في مقدّمة نقطة الدخول
+        //
+        // العلّة المقيسة: الشيفرةُ المولَّدة تنادي دوالَّ CRT الضيّقة مباشرةً
+        // (fopen · remove · rename · _mkdir · stat …)، وهذه تفسّر `char*` بترميز
+        // **صفحةِ نظامٍ محلّيّة** لا UTF-8. فاسمُ ملفٍّ عربيّ — وهو الحالُ الغالبُ في
+        // لغةٍ عربيّة — يصل إلى النواة مشوَّهًا فيفشل الفتحُ ويعود NULL. النتيجة:
+        // `اقرأ_ملف("موجود.txt")` يعمل في المفسّر ويموت في المصرَّف، أي تباعدٌ بين
+        // المحرّكين في أبسطِ عمليّةٍ في اللغة.
+        //
+        // لماذا هنا لا في كلّ مدمجةٍ على حدة: العيبُ ليس في `اكتب_ملف` بعينها بل في
+        // **تأويلِ زمنِ التشغيل للمسارات كلِّها**. فتغليفُ تسعَ عشرةَ مدمجةً واحدةً
+        // واحدةً يعالج ما اصطُدم به ويترك البقيّة، ويعيد إنتاجَ العيب مع كلّ مدمجةٍ
+        // جديدة. نداءٌ واحدٌ في المقدّمة يُصلح العائلةَ كلَّها — الحاضرَ منها والآتي.
+        //
+        // لماذا `.UTF8` تحديدًا: زمنُ التشغيل UCRT (مُقاسٌ في وارداتِ الثنائيّ:
+        // api-ms-win-crt-*) يدعم صفحةَ UTF-8 للدوالّ الضيّقة، فتصير `fopen` تقبل
+        // UTF-8 بلا تحويلٍ يدويّ إلى UTF-16 ولا نسخةٍ ثانية من كلّ نداء. وعلى غير
+        // وندوز هي المحليّةُ الصحيحة كذلك. وفشلُ النداء غيرُ قاتل: يعيد NULL
+        // فيبقى السلوكُ كما كان، فلا تُدخِل التهيئةُ انحدارًا حيث لا تنفع.
+        // (EN) Emit `setlocale(LC_ALL, ".UTF8")` in the entry prologue. Generated code
+        // calls narrow CRT APIs directly; without a UTF-8 locale they interpret char*
+        // in the local code page, so any Arabic path fails to open — working in the
+        // interpreter and dying in the compiled binary. Fixing it once in the prologue
+        // covers the whole narrow-CRT family instead of wrapping each builtin.
+        // ====================================================================
+        void FunctionsCodeGen::emitUtf8LocaleInit()
+        {
+            if (!cg_.module_ || !cg_.builder_)
+                return;
+
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+
+            // (AR) char *setlocale(int category, const char *locale)
+            auto *setlocaleTy = llvm::FunctionType::get(ptrTy, {i32Ty, ptrTy}, false);
+            auto setlocaleFn = cg_.module_->getOrInsertFunction("setlocale", setlocaleTy);
+
+            // (AR) LC_ALL == 0 في UCRT وفي glibc معًا.
+            // (EN) LC_ALL == 0 in both UCRT and glibc.
+            llvm::Value *category = llvm::ConstantInt::get(i32Ty, 0);
+            llvm::Value *locale = cg_.builder_->CreateGlobalStringPtr(".UTF8", "sad_locale_utf8");
+            cg_.builder_->CreateCall(setlocaleFn, {category, locale});
+        }
+
         /**
          * إضافة دالة main كـ wrapper
          * Emit main wrapper function
@@ -208,10 +253,20 @@ namespace Sad
             if (!mainFunc)
                 return;
 
-            // (AR) إذا كان اسم الدالة بالفعل "main" لا نحتاج wrapper
-            // (EN) If function is already named "main", no wrapper needed
+            // (AR) إذا كان اسم الدالة بالفعل "main" لا نحتاج wrapper — لكن تهيئةَ
+            //      المحليّة تلزم على كلّ حال، فتُحقن في مقدّمة الدالّة نفسها.
+            // (EN) Already named "main" ⇒ no wrapper — but the locale init is still
+            //      required, so inject it into that function's own prologue.
             if (mainName == "main")
+            {
+                if (!mainFunc->empty())
+                {
+                    llvm::BasicBlock &bb = mainFunc->getEntryBlock();
+                    cg_.builder_->SetInsertPoint(&bb, bb.getFirstInsertionPt());
+                    emitUtf8LocaleInit();
+                }
                 return;
+            }
 
             // (AR) إنشاء دالة main wrapper: int main() { call mainFunc(); return 0; }
             // (EN) Create main wrapper function
@@ -231,6 +286,10 @@ namespace Sad
             // (EN) Create entry basic block
             llvm::BasicBlock *entryBB = llvm::BasicBlock::Create(*cg_.context_, "entry", wrapper);
             cg_.builder_->SetInsertPoint(entryBB);
+
+            // (AR) تهيئةُ المحليّة قبل أيّ عمل — انظر التعليل في emitUtf8LocaleInit.
+            // (EN) Locale init before any work — see the rationale in emitUtf8LocaleInit.
+            emitUtf8LocaleInit();
 
             // (AR) استدعاء الدالة الرئيسية
             // (EN) Call the main function

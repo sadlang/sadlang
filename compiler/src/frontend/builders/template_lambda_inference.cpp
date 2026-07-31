@@ -384,6 +384,49 @@ namespace Sad
                                             }
                                         }
                                     }
+                                    // ════════════════════════════════════════════════
+                                    // (AR) [قفزةُ التمرير] وسيطٌ **متغيّرٌ** لا حرفيّة: مصفوفةٌ
+                                    //      وصلت معاملًا إلى الدالّة الحاضنة ثمّ مُرِّرت كما هي.
+                                    //
+                                    //      كان الاستنتاجُ يعرف الحرفيّةَ ونتيجةَ النداء فقط، فينقطع
+                                    //      عند أوّل تمريرٍ: `قرر(... ["src"])` يُكسِب معاملَ «قرر»
+                                    //      نوعَ عنصرٍ نصّيًّا، ثمّ يُمرَّر إلى «مسموح_بالكتابة»
+                                    //      فيصل بلا نوعِ عنصر ⇒ متغيّرُ «لكل» عليه عددٌ ⇒ يُبنى
+                                    //      مسارٌ من عنوانٍ ⇒ يُرفض مسارٌ مسموحٌ به. أي أنّ العيبَ
+                                    //      يظهر **قرارًا أمنيًّا خاطئًا** لا خطأَ نوع.
+                                    //
+                                    //      ننسخ نوعَ العنصر من معامل الدالّة الحاضنة. والتمريرات
+                                    //      المتعدّدة (أدناه) تجعله يعبر أيّ عددٍ من القفزات.
+                                    // (EN) [forwarding hop] The argument is a VARIABLE, not a
+                                    //      literal: an array that arrived as the enclosing
+                                    //      function's parameter and is passed straight through.
+                                    //      Inference knew literals and call results only, so it
+                                    //      stopped after one hop — and the symptom was a WRONG
+                                    //      SECURITY DECISION (an allowed path denied), not a type
+                                    //      error. Copy the element type from the enclosing
+                                    //      function's parameter; the existing multi-pass loop then
+                                    //      carries it across any number of hops.
+                                    // ════════════════════════════════════════════════
+                                    else if (auto *varArg = dynamic_cast<const Sad::AST::VariableExpr *>(call->arguments[i].get()))
+                                    {
+                                        SadTypeKind &pElem = funcInfo.parameters[i + paramOffset].elementType;
+                                        if (pElem == SadTypeKind::Void && !b_.currentScanFuncName_.empty())
+                                        {
+                                            auto encIt = b_.functionTable_.find(b_.currentScanFuncName_);
+                                            if (encIt != b_.functionTable_.end())
+                                            {
+                                                for (const auto &encParam : encIt->second.parameters)
+                                                {
+                                                    if (encParam.name == varArg->name &&
+                                                        encParam.elementType != SadTypeKind::Void)
+                                                    {
+                                                        pElem = encParam.elementType;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                     // (AR) [GAP 2] وسيطٌ نتيجةُ نداءٍ يُرجع مصفوفةً حرفيّة
                                     //      (خذ(يصنع())): ليس حرفيّةَ مصفوفةٍ مباشرةً بل CallExpr.
                                     //      نحلّ المُستدعى عبر functionTable_ ونمسح جملةَ الإرجاع في

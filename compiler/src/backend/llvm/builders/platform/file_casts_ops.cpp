@@ -36,6 +36,49 @@ namespace Sad
 // (EN) File I/O operations and type casting (bitcast, inttoptr, etc.)
 // (AR) تم فصله من llvm_codegen_array_file_coro.cpp وفق CW-05
 // ============================================================================
+        // ====================================================================
+        // (AR) فتحٌ محروس — التعليلُ الكامل في الترويسة (file_casts_codegen.h).
+        //      يُنشئ ثلاثَ كتل: fail (تُنتج القيمةَ البديلة) · ok (يكمل فيها
+        //      المستدعي) · merge (PHI). ويعيد مؤشّرَ الملفّ ونقطةُ الإدراج في «ok».
+        // (EN) Guarded open — full rationale in the header. Creates fail/ok/merge
+        //      blocks, returns the FILE* with the insert point set to «ok».
+        // ====================================================================
+        llvm::Value *FileCastsCodeGen::emitFopenGuarded(llvm::Value *path, const char *mode,
+                                                        const char *tag, llvm::Value *failValue,
+                                                        llvm::BasicBlock *&mergeBB,
+                                                        llvm::PHINode *&phi)
+        {
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            llvm::Function *fn = cg_.builder_->GetInsertBlock()->getParent();
+
+            auto *fopenType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
+            auto fopenFunc = cg_.module_->getOrInsertFunction("fopen", fopenType);
+            llvm::Value *modeStr = cg_.builder_->CreateGlobalStringPtr(
+                mode, std::string(tag) + ".mode");
+            llvm::Value *file = cg_.builder_->CreateCall(
+                fopenFunc, {path, modeStr}, std::string(tag) + ".file");
+
+            llvm::Value *isNull = cg_.builder_->CreateIsNull(file, std::string(tag) + ".isnull");
+
+            auto *failBB = llvm::BasicBlock::Create(*cg_.context_, std::string(tag) + ".fail", fn);
+            auto *okBB = llvm::BasicBlock::Create(*cg_.context_, std::string(tag) + ".ok", fn);
+            mergeBB = llvm::BasicBlock::Create(*cg_.context_, std::string(tag) + ".merge", fn);
+
+            cg_.builder_->CreateCondBr(isNull, failBB, okBB);
+
+            // (AR) مسارُ الفشل: القيمةُ البديلة ثمّ الالتقاء — بلا أيّ نداءِ CRT.
+            cg_.builder_->SetInsertPoint(failBB);
+            cg_.builder_->CreateBr(mergeBB);
+
+            // (AR) نُهيّئ PHI في كتلة الالتقاء الآن، ويضيف المستدعي طرفَ النجاح.
+            llvm::IRBuilder<> mergeBuilder(mergeBB);
+            phi = mergeBuilder.CreatePHI(failValue->getType(), 2, std::string(tag) + ".result");
+            phi->addIncoming(failValue, failBB);
+
+            cg_.builder_->SetInsertPoint(okBB);
+            return file;
+        }
+
         llvm::Value *FileCastsCodeGen::emitBuiltinFileRead(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
@@ -50,11 +93,12 @@ namespace Sad
             auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             auto i64Ty = cg_.getInt64Type();
 
-            // fopen(filename, "r")
-            auto *fopenType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
-            auto fopenFunc = cg_.module_->getOrInsertFunction("fopen", fopenType);
-            llvm::Value *mode = cg_.builder_->CreateGlobalStringPtr("r", "mode_r");
-            llvm::Value *file = cg_.builder_->CreateCall(fopenFunc, {filename, mode}, "file");
+            // (AR) الفشلُ يُنتج نصًّا فارغًا — نظيرُ «لا محتوى» في المفسّر، لا انهيارًا.
+            // (EN) Failure yields the empty string — mirrors the interpreter, not a crash.
+            llvm::Value *emptyStr = cg_.builder_->CreateGlobalStringPtr("", "read.empty");
+            llvm::BasicBlock *mergeBB = nullptr;
+            llvm::PHINode *phi = nullptr;
+            llvm::Value *file = emitFopenGuarded(filename, "r", "read", emptyStr, mergeBB, phi);
 
             // Allocate read buffer (4096 bytes)
             llvm::Value *buf = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 4096), "read_buf");
@@ -81,11 +125,16 @@ namespace Sad
             auto fcloseFunc = cg_.module_->getOrInsertFunction("fclose", fcloseType);
             cg_.builder_->CreateCall(fcloseFunc, {file});
 
+            // (AR) طرفُ النجاح ثمّ الالتقاء — القيمةُ الفعليّة هي PHI لا المخزَن.
+            phi->addIncoming(buf, cg_.builder_->GetInsertBlock());
+            cg_.builder_->CreateBr(mergeBB);
+            cg_.builder_->SetInsertPoint(mergeBB);
+
             if (inst->result.has_value())
             {
-                cg_.context_info_.namedValues[inst->result->name] = buf;
+                cg_.context_info_.namedValues[inst->result->name] = phi;
             }
-            return buf;
+            return phi;
         }
 
         llvm::Value *FileCastsCodeGen::emitBuiltinFileWrite(std::shared_ptr<SIRInstruction> inst)
@@ -103,11 +152,14 @@ namespace Sad
             auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
 
-            // fopen(filename, "w")
-            auto *fopenType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
-            auto fopenFunc = cg_.module_->getOrInsertFunction("fopen", fopenType);
-            llvm::Value *mode = cg_.builder_->CreateGlobalStringPtr("w", "mode_w");
-            llvm::Value *file = cg_.builder_->CreateCall(fopenFunc, {filename, mode}, "file");
+            // (AR) الفشلُ يُنتج EOF‏ (-1) — وهو ما تُنتجه fputs عند الإخفاق، فيبقى
+            //      العقدُ واحدًا سواءٌ أخفق الفتحُ أم أخفقت الكتابة.
+            // (EN) Failure yields EOF (-1) — the same value a failing fputs returns,
+            //      so the contract is identical whether the open or the write failed.
+            llvm::Value *eofVal = llvm::ConstantInt::get(i32Ty, -1);
+            llvm::BasicBlock *mergeBB = nullptr;
+            llvm::PHINode *phi = nullptr;
+            llvm::Value *file = emitFopenGuarded(filename, "w", "write", eofVal, mergeBB, phi);
 
             // fputs(content, file)
             auto *fputsType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
@@ -118,11 +170,15 @@ namespace Sad
             auto fcloseFunc = cg_.module_->getOrInsertFunction("fclose", fcloseType);
             cg_.builder_->CreateCall(fcloseFunc, {file});
 
+            phi->addIncoming(result, cg_.builder_->GetInsertBlock());
+            cg_.builder_->CreateBr(mergeBB);
+            cg_.builder_->SetInsertPoint(mergeBB);
+
             if (inst->result.has_value())
             {
-                cg_.context_info_.namedValues[inst->result->name] = result;
+                cg_.context_info_.namedValues[inst->result->name] = phi;
             }
-            return result;
+            return phi;
         }
 
         // ====================================================================
@@ -255,11 +311,11 @@ namespace Sad
 
             cg_.builder_->SetInsertPoint(doneBB);
 
-            // fopen(filename, "wb")
-            auto *fopenType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
-            auto fopenFunc = cg_.module_->getOrInsertFunction("fopen", fopenType);
-            llvm::Value *mode = cg_.builder_->CreateGlobalStringPtr("wb", "mode_wb");
-            llvm::Value *file = cg_.builder_->CreateCall(fopenFunc, {filename, mode}, "wb.file");
+            // (AR) الفشلُ يُنتج صفرَ بايتٍ مكتوب — القيمةُ التي يفحصها المستدعي أصلًا.
+            llvm::Value *zeroWritten = llvm::ConstantInt::get(i64Ty, 0);
+            llvm::BasicBlock *mergeBB = nullptr;
+            llvm::PHINode *phi = nullptr;
+            llvm::Value *file = emitFopenGuarded(filename, "wb", "wb", zeroWritten, mergeBB, phi);
 
             // fwrite(buf, 1, len, file) — العائد والوسائط size_t
             auto *fwriteType = llvm::FunctionType::get(szTy, {ptrTy, szTy, szTy, ptrTy}, false);
@@ -272,6 +328,11 @@ namespace Sad
             cg_.builder_->CreateCall(fcloseFunc, {file});
 
             llvm::Value *result = cg_.builder_->CreateZExtOrTrunc(written, i64Ty, "wb.result");
+            phi->addIncoming(result, cg_.builder_->GetInsertBlock());
+            cg_.builder_->CreateBr(mergeBB);
+            cg_.builder_->SetInsertPoint(mergeBB);
+            result = phi;
+
             if (inst->result.has_value())
             {
                 cg_.context_info_.namedValues[inst->result->name] = result;
@@ -317,11 +378,29 @@ namespace Sad
                              triple.find("win32") != std::string::npos;
             llvm::Type *longTy = isWindows ? i32Ty : i64Ty;
 
-            // fopen(filename, "rb")
-            auto *fopenType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
-            auto fopenFunc = cg_.module_->getOrInsertFunction("fopen", fopenType);
-            llvm::Value *mode = cg_.builder_->CreateGlobalStringPtr("rb", "mode_rb");
-            llvm::Value *file = cg_.builder_->CreateCall(fopenFunc, {filename, mode}, "rb.file");
+            // (AR) الفشلُ يُنتج **مصفوفةً فارغة** لا مؤشّرًا عدميًّا: المستدعي يقرأ
+            //      طولَها فيرى صفرًا، بدل أن ينهار عند أوّل قراءةِ حقل. تُبنى قبل
+            //      الفتح لأنّ مسارَ الفشل لا يحتمل تخصيصًا (كتلةُ قفزٍ محضة).
+            // (EN) Failure yields an EMPTY array, not a null pointer, so the caller
+            //      reads length 0 instead of faulting. Built before the open because
+            //      the fail block is a pure branch.
+            llvm::Value *emptyArr = cg_.emitMalloc(
+                cg_.builder_->CreateZExtOrTrunc(llvm::ConstantExpr::getSizeOf(arrTy), szTy, "rb.empty.sz"),
+                "rb.empty");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0),
+                                      cg_.builder_->CreateStructGEP(arrTy, emptyArr, 0, "rb.empty.len"));
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 0),
+                                      cg_.builder_->CreateStructGEP(arrTy, emptyArr, 1, "rb.empty.cap"));
+            cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrTy),
+                                      cg_.builder_->CreateStructGEP(arrTy, emptyArr, 2, "rb.empty.data"));
+            cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(ptrTy),
+                                      cg_.builder_->CreateStructGEP(arrTy, emptyArr, 3, "rb.empty.tags"));
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Int),
+                                      cg_.builder_->CreateStructGEP(arrTy, emptyArr, 4, "rb.empty.kind"));
+
+            llvm::BasicBlock *rbMergeBB = nullptr;
+            llvm::PHINode *rbPhi = nullptr;
+            llvm::Value *file = emitFopenGuarded(filename, "rb", "rb", emptyArr, rbMergeBB, rbPhi);
 
             // fseek(file, 0, SEEK_END=2) ; ftell(file) ; fseek(file, 0, SEEK_SET=0)
             auto *fseekType = llvm::FunctionType::get(i32Ty, {ptrTy, longTy, i32Ty}, false);
@@ -387,11 +466,76 @@ namespace Sad
 
             cg_.builder_->SetInsertPoint(doneBB);
 
+            rbPhi->addIncoming(arrStruct, doneBB);
+            cg_.builder_->CreateBr(rbMergeBB);
+            cg_.builder_->SetInsertPoint(rbMergeBB);
+
             if (inst->result.has_value())
             {
-                cg_.context_info_.namedValues[inst->result->name] = arrStruct;
+                cg_.context_info_.namedValues[inst->result->name] = rbPhi;
             }
-            return arrStruct;
+            return rbPhi;
+        }
+
+        // ====================================================================
+        // (AR) حجم_ملف(مسار) — عددُ البايتات، أو **سالبُ واحد** إن تعذّر الفتح.
+        //      يُقاس بـ fseek(SEEK_END)/ftell كما يقيسه المفسّر بـ ios::ate،
+        //      فالعقدُ واحدٌ في المحرّكين. وعرضُ C long يُختار من ثالوث الهدف
+        //      (i32 على وندوز LLP64، i64 غيره) — نظيرُ اقرأ_بايتات، ولو ثُبِّت
+        //      i64 لقُرئ العائدُ مزاحًا على وندوز.
+        // (EN) file_size(path) — byte count, or -1 if the file cannot be opened.
+        //      Measured with fseek(SEEK_END)/ftell, mirroring the interpreter's
+        //      ios::ate, so both engines share one contract. The C long width is
+        //      taken from the target triple (i32 on Windows LLP64, i64 elsewhere).
+        // ====================================================================
+        llvm::Value *FileCastsCodeGen::emitBuiltinFileSize(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "FILE_SIZE"}});
+                return nullptr;
+            }
+            llvm::Value *filename = cg_.resolveOperand(inst->operands[0]);
+            if (!filename)
+                return nullptr;
+
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto i64Ty = cg_.getInt64Type();
+            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+
+            const std::string &triple = cg_.module_->getTargetTriple();
+            bool isWindows = triple.find("windows") != std::string::npos ||
+                             triple.find("win32") != std::string::npos;
+            llvm::Type *longTy = isWindows ? i32Ty : i64Ty;
+
+            llvm::Value *minusOne = llvm::ConstantInt::get(i64Ty, -1);
+            llvm::BasicBlock *mergeBB = nullptr;
+            llvm::PHINode *phi = nullptr;
+            llvm::Value *file = emitFopenGuarded(filename, "rb", "fsize", minusOne, mergeBB, phi);
+
+            auto *fseekType = llvm::FunctionType::get(i32Ty, {ptrTy, longTy, i32Ty}, false);
+            auto fseekFunc = cg_.module_->getOrInsertFunction("fseek", fseekType);
+            auto *ftellType = llvm::FunctionType::get(longTy, {ptrTy}, false);
+            auto ftellFunc = cg_.module_->getOrInsertFunction("ftell", ftellType);
+            const int kSeekEnd = 2;
+            cg_.builder_->CreateCall(fseekFunc, {file, llvm::ConstantInt::get(longTy, 0),
+                                                 llvm::ConstantInt::get(i32Ty, kSeekEnd)});
+            llvm::Value *sizeLong = cg_.builder_->CreateCall(ftellFunc, {file}, "fsize.long");
+            llvm::Value *size = cg_.builder_->CreateSExtOrTrunc(sizeLong, i64Ty, "fsize.i64");
+
+            auto *fcloseType = llvm::FunctionType::get(i32Ty, {ptrTy}, false);
+            auto fcloseFunc = cg_.module_->getOrInsertFunction("fclose", fcloseType);
+            cg_.builder_->CreateCall(fcloseFunc, {file});
+
+            phi->addIncoming(size, cg_.builder_->GetInsertBlock());
+            cg_.builder_->CreateBr(mergeBB);
+            cg_.builder_->SetInsertPoint(mergeBB);
+
+            if (inst->result.has_value())
+            {
+                cg_.context_info_.namedValues[inst->result->name] = phi;
+            }
+            return phi;
         }
 
         llvm::Value *FileCastsCodeGen::emitBuiltinFileAppend(std::shared_ptr<SIRInstruction> inst)
@@ -409,10 +553,11 @@ namespace Sad
             auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
 
-            auto *fopenType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
-            auto fopenFunc = cg_.module_->getOrInsertFunction("fopen", fopenType);
-            llvm::Value *mode = cg_.builder_->CreateGlobalStringPtr("a", "mode_a");
-            llvm::Value *file = cg_.builder_->CreateCall(fopenFunc, {filename, mode}, "file");
+            // (AR) الفشلُ يُنتج EOF — نظيرُ «اكتب_ملف» تمامًا.
+            llvm::Value *eofVal = llvm::ConstantInt::get(i32Ty, -1);
+            llvm::BasicBlock *mergeBB = nullptr;
+            llvm::PHINode *phi = nullptr;
+            llvm::Value *file = emitFopenGuarded(filename, "a", "append", eofVal, mergeBB, phi);
 
             auto *fputsType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
             auto fputsFunc = cg_.module_->getOrInsertFunction("fputs", fputsType);
@@ -421,6 +566,11 @@ namespace Sad
             auto *fcloseType = llvm::FunctionType::get(i32Ty, {ptrTy}, false);
             auto fcloseFunc = cg_.module_->getOrInsertFunction("fclose", fcloseType);
             cg_.builder_->CreateCall(fcloseFunc, {file});
+
+            phi->addIncoming(result, cg_.builder_->GetInsertBlock());
+            cg_.builder_->CreateBr(mergeBB);
+            cg_.builder_->SetInsertPoint(mergeBB);
+            result = phi;
 
             if (inst->result.has_value())
             {

@@ -492,6 +492,80 @@ int sad_regex_match(const char *text, const char *pattern, const char *flags)
     return ok;
 }
 
+#ifdef _WIN32
+/* ============================================================================
+ * (AR) تحويلُ المسارات بين UTF-8 وUTF-16 على وندوز
+ *
+ * العلّة المقيسة: كانت جسورُ الملفّات كلُّها تنادي واجهاتِ وندوز بصيغة `*A`
+ * (GetFileAttributesA · CreateDirectoryA · GetFullPathNameA …). وهذه تفسّر
+ * `char*` بترميز **صفحةِ النظام** لا UTF-8، ومصادرُ ص محفوظةٌ بـUTF-8. فاسمُ
+ * مجلَّدٍ عربيّ يُنشَأ **مشوَّهًا** على القرص: `أنشئ_مجلد("تجربة")` تُرجع نجاحًا،
+ * و`هل_موجود` تُصدّق عليه (لأنّها تشوّهه بالتشويه نفسِه)، ثمّ يفشل كلُّ شيءٍ
+ * يمسّ المجلَّدَ من خارج البرنامج. نجاحٌ كاذبٌ متّسقٌ مع نفسِه — وهو أسوأُ من
+ * فشلٍ صريح لأنّه لا يُكتشَف إلّا متأخّرًا.
+ *
+ * لماذا `*W` لا بيانُ تطبيقٍ بصفحةِ UTF-8: البيانُ يعتمد على إصدار وندوز
+ * (1903+) ويصمت صمتًا كاملًا حين لا يُطبَّق، فيعود العيبُ على أجهزةٍ بعينها
+ * دون أن يظهر في CI. والتحويلُ الصريح لا يعتمد على شيء.
+ *
+ * والمحوّلان يُخصِّصان، وعلى المستدعي التحرير — لا مخزَنَ ساكنٌ كي تبقى الجسورُ
+ * صالحةً للاستدعاء من خيوطٍ متعدّدة.
+ * (EN) UTF-8 ⇄ UTF-16 path conversion for Windows. Every file bridge used the
+ * ANSI `*A` APIs, which read char* in the system code page while Sad sources
+ * are UTF-8 — so an Arabic directory was created under a mangled name that the
+ * program itself then "found" (mangling it identically), a self-consistent
+ * false success. Explicit `*W` conversion is used rather than a UTF-8 code-page
+ * manifest because the manifest depends on the Windows build and fails silently.
+ * Both helpers allocate; the caller frees (no static buffer ⇒ thread-safe).
+ * ============================================================================ */
+static wchar_t *sad_utf8_to_wide(const char *s)
+{
+    if (!s)
+        return NULL;
+    int n = MultiByteToWideChar(CP_UTF8, 0, s, -1, NULL, 0);
+    if (n <= 0)
+        return NULL;
+    wchar_t *w = (wchar_t *)malloc((size_t)n * sizeof(wchar_t));
+    if (!w)
+        return NULL;
+    if (MultiByteToWideChar(CP_UTF8, 0, s, -1, w, n) <= 0)
+    {
+        free(w);
+        return NULL;
+    }
+    return w;
+}
+
+static char *sad_wide_to_utf8(const wchar_t *w)
+{
+    if (!w)
+        return NULL;
+    int n = WideCharToMultiByte(CP_UTF8, 0, w, -1, NULL, 0, NULL, NULL);
+    if (n <= 0)
+        return NULL;
+    char *s = (char *)malloc((size_t)n);
+    if (!s)
+        return NULL;
+    if (WideCharToMultiByte(CP_UTF8, 0, w, -1, s, n, NULL, NULL) <= 0)
+    {
+        free(s);
+        return NULL;
+    }
+    return s;
+}
+
+/* (AR) سمات المسار بترميز UTF-8 — تُغني عن تكرار التحويل في أربعة جسور. */
+static DWORD sad_file_attrs_utf8(const char *path)
+{
+    wchar_t *w = sad_utf8_to_wide(path);
+    if (!w)
+        return INVALID_FILE_ATTRIBUTES;
+    DWORD attrs = GetFileAttributesW(w);
+    free(w);
+    return attrs;
+}
+#endif /* _WIN32 */
+
 /* ============================================================================
  * (AR) جسر نظام الملفّات — يُستدعى من مدمَج «هل_مجلد» في المترجم.
  *      يُرجع 1 إن كان المسار مجلدًا موجودًا، و0 خلاف ذلك (غير موجود/ملفّ).
@@ -505,7 +579,7 @@ int sad_file_is_dir(const char *path)
     if (!path)
         return 0;
 #ifdef _WIN32
-    DWORD attrs = GetFileAttributesA(path);
+    DWORD attrs = sad_file_attrs_utf8(path);
     if (attrs == INVALID_FILE_ATTRIBUTES)
         return 0;
     return (attrs & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
@@ -531,7 +605,14 @@ int sad_file_create_dir(const char *path)
     if (!path)
         return 0;
 #ifdef _WIN32
-    return CreateDirectoryA(path, NULL) ? 1 : 0;
+    {
+        wchar_t *w = sad_utf8_to_wide(path);
+        if (!w)
+            return 0;
+        int ok = CreateDirectoryW(w, NULL) ? 1 : 0;
+        free(w);
+        return ok;
+    }
 #else
     return mkdir(path, 0755) == 0 ? 1 : 0;
 #endif
@@ -549,7 +630,14 @@ int sad_file_remove_dir(const char *path)
     if (!path)
         return 0;
 #ifdef _WIN32
-    return RemoveDirectoryA(path) ? 1 : 0;
+    {
+        wchar_t *w = sad_utf8_to_wide(path);
+        if (!w)
+            return 0;
+        int ok = RemoveDirectoryW(w) ? 1 : 0;
+        free(w);
+        return ok;
+    }
 #else
     return rmdir(path) == 0 ? 1 : 0;
 #endif
@@ -568,7 +656,7 @@ int sad_file_exists(const char *path)
     if (!path)
         return 0;
 #ifdef _WIN32
-    return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES ? 1 : 0;
+    return sad_file_attrs_utf8(path) != INVALID_FILE_ATTRIBUTES ? 1 : 0;
 #else
     struct stat st;
     return stat(path, &st) == 0 ? 1 : 0;
@@ -588,7 +676,7 @@ int sad_file_is_file(const char *path)
     if (!path)
         return 0;
 #ifdef _WIN32
-    DWORD attrs = GetFileAttributesA(path);
+    DWORD attrs = sad_file_attrs_utf8(path);
     if (attrs == INVALID_FILE_ATTRIBUTES)
         return 0;
     return (attrs & FILE_ATTRIBUTE_DIRECTORY) ? 0 : 1;
@@ -614,7 +702,7 @@ int sad_file_is_symlink(const char *path)
     if (!path)
         return 0;
 #ifdef _WIN32
-    DWORD attrs = GetFileAttributesA(path);
+    DWORD attrs = sad_file_attrs_utf8(path);
     if (attrs == INVALID_FILE_ATTRIBUTES)
         return 0;
     return (attrs & FILE_ATTRIBUTE_REPARSE_POINT) ? 1 : 0;
@@ -640,27 +728,30 @@ char *sad_file_real_path(const char *path)
     if (!path)
         return NULL;
 #ifdef _WIN32
-    /* (AR) GetFullPathNameA يطبّع نصًّا فقط؛ الحلّ الفعليّ للروابط يحتاج فتحَ
-     *      المقبض ثمّ GetFinalPathNameByHandleA — وهو ما يوازي realpath. */
-    HANDLE h = CreateFileA(path, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                           NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
-    if (h == INVALID_HANDLE_VALUE)
-        return NULL;
-    char buf[32768];
-    DWORD n = GetFinalPathNameByHandleA(h, buf, (DWORD)sizeof(buf), FILE_NAME_NORMALIZED);
-    CloseHandle(h);
-    if (n == 0 || n >= sizeof(buf))
-        return NULL;
-    /* (AR) أسقِط بادئة «\\?\» التي يضيفها ويندوز كي يطابق شكلُ المخرَج المفسّرَ. */
-    const char *start = buf;
-    if (n > 4 && buf[0] == '\\' && buf[1] == '\\' && buf[2] == '?' && buf[3] == '\\')
-        start = buf + 4;
-    size_t len = strlen(start);
-    char *out = (char *)malloc(len + 1);
-    if (!out)
-        return NULL;
-    memcpy(out, start, len + 1);
-    return out;
+    /* (AR) GetFullPathName يطبّع نصًّا فقط؛ الحلّ الفعليّ للروابط يحتاج فتحَ
+     *      المقبض ثمّ GetFinalPathNameByHandle — وهو ما يوازي realpath.
+     *      بصيغة W كي لا يُشوَّه المسارُ العربيّ (انظر sad_utf8_to_wide). */
+    {
+        wchar_t *wpath = sad_utf8_to_wide(path);
+        if (!wpath)
+            return NULL;
+        HANDLE h = CreateFileW(wpath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                               NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
+        free(wpath);
+        if (h == INVALID_HANDLE_VALUE)
+            return NULL;
+        wchar_t wbuf[32768];
+        DWORD n = GetFinalPathNameByHandleW(h, wbuf, (DWORD)(sizeof(wbuf) / sizeof(wbuf[0])),
+                                            FILE_NAME_NORMALIZED);
+        CloseHandle(h);
+        if (n == 0 || n >= (DWORD)(sizeof(wbuf) / sizeof(wbuf[0])))
+            return NULL;
+        /* (AR) أسقِط بادئة «\\?\» التي يضيفها ويندوز كي يطابق شكلُ المخرَج المفسّرَ. */
+        const wchar_t *start = wbuf;
+        if (n > 4 && wbuf[0] == L'\\' && wbuf[1] == L'\\' && wbuf[2] == L'?' && wbuf[3] == L'\\')
+            start = wbuf + 4;
+        return sad_wide_to_utf8(start);
+    }
 #else
     return realpath(path, NULL); /* يُخصِّص، ويُرجع NULL عند الفشل */
 #endif
@@ -679,16 +770,17 @@ char *sad_file_abs_path(const char *path)
     if (!path)
         return NULL;
 #ifdef _WIN32
-    char buf[32768];
-    DWORD n = GetFullPathNameA(path, (DWORD)sizeof(buf), buf, NULL);
-    if (n == 0 || n >= sizeof(buf))
-        return NULL;
-    size_t len = strlen(buf);
-    char *out = (char *)malloc(len + 1);
-    if (!out)
-        return NULL;
-    memcpy(out, buf, len + 1);
-    return out;
+    {
+        wchar_t *wpath = sad_utf8_to_wide(path);
+        if (!wpath)
+            return NULL;
+        wchar_t wbuf[32768];
+        DWORD n = GetFullPathNameW(wpath, (DWORD)(sizeof(wbuf) / sizeof(wbuf[0])), wbuf, NULL);
+        free(wpath);
+        if (n == 0 || n >= (DWORD)(sizeof(wbuf) / sizeof(wbuf[0])))
+            return NULL;
+        return sad_wide_to_utf8(wbuf);
+    }
 #else
     /* (AR) POSIX بلا realpath (فهو يلزمه وجودُ المسار): ضمُّ مجلّدِ العمل يدويًّا. */
     if (path[0] == '/')

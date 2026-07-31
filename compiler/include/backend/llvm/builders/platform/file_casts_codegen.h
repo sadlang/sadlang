@@ -9,6 +9,8 @@
 #include <memory>
 #include <string>
 #include <llvm/IR/Value.h>
+#include <llvm/IR/BasicBlock.h>
+#include <llvm/IR/Instructions.h>
 #include "sir_instruction.h"
 
 namespace Sad { namespace LLVM {
@@ -24,10 +26,39 @@ public:
     FileCastsCodeGen(const FileCastsCodeGen &) = delete;
     FileCastsCodeGen &operator=(const FileCastsCodeGen &) = delete;
 
+    // ====================================================================
+    // (AR) فتحُ ملفٍّ محروس: يفتح، فإن أخفق يقفز إلى مسارِ فشلٍ يُنتج القيمةَ
+    //      البديلة، ولا يمرّ NULL إلى fread/fputs/fclose.
+    //
+    //      العلّة: كلُّ مواضع الفتح كانت تمرّر عائدَ fopen مباشرةً. وفشلُ الفتح
+    //      حالةٌ **عاديّة** (ملفٌّ غائب · مجلَّدٌ غائب · إذنٌ ناقص)، لكنّ تمريرَ
+    //      NULL إلى CRT يستدعي مُعالِجَ الوسيط الباطل فيُنهي العمليّةَ بـ
+    //      __fastfail (‏0xC0000409) بلا رسالةٍ ولا رمزِ خطأ — فيُقرأ الفشلُ
+    //      المتوقَّع انهيارًا غامضًا. الحارسُ يعيده قيمةَ فشلٍ يفحصها المستدعي.
+    //
+    //      دالّةٌ واحدةٌ لا فحصٌ منسوخٌ ستَّ مرّات: النسخُ هو ما يجعل الموضعَ
+    //      السابعَ يُكتَب بلا حارسٍ فيعود العيب.
+    // (EN) Guarded fopen: on failure, branch to a fail path yielding `failValue`
+    //      instead of passing NULL into CRT calls (which fast-fails with
+    //      0xC0000409 and no message). One helper, not six copied checks.
+    //
+    // @param path    مؤشّرُ المسار / path pointer
+    // @param mode    وضعُ الفتح ("r" · "w" · "rb" …) / fopen mode
+    // @param tag     بادئةُ تسميةِ السجلّات / register-name prefix
+    // @param failValue القيمةُ المُرجَعة عند الفشل / value produced on failure
+    // @param[out] mergeBB كتلةُ الالتقاء — يقفز إليها المستدعي بعد نجاحه
+    // @param[out] phi عقدةُ PHI التي يضيف إليها المستدعي قيمةَ النجاح
+    // @return مؤشّرُ الملفّ في مسار النجاح (نقطةُ الإدراج تصير كتلةَ النجاح)
+    // ====================================================================
+    llvm::Value *emitFopenGuarded(llvm::Value *path, const char *mode, const char *tag,
+                                  llvm::Value *failValue, llvm::BasicBlock *&mergeBB,
+                                  llvm::PHINode *&phi);
+
     llvm::Value *emitBuiltinFileRead(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileWrite(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileWriteBytes(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileReadBytes(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinFileSize(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileAppend(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileDelete(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileCopy(std::shared_ptr<SIRInstruction> inst);

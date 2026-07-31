@@ -372,6 +372,7 @@ namespace Sad
                 BUILTIN_FILE_ABS_PATH,    ///< المسار_المطلق / Absolute path (textual, no symlink resolution)
                 BUILTIN_FILE_WRITE_BYTES, ///< اكتب_بايتات / Write raw bytes (fwrite, embedded NUL)
                 BUILTIN_FILE_READ_BYTES,  ///< اقرأ_بايتات / Read raw bytes (fread → byte array)
+                BUILTIN_FILE_SIZE,        ///< حجم_ملف / File size in bytes (-1 if unopenable)
 
                 // Utility functions (6)
                 BUILTIN_RANDOM,  ///< عشوائي / Random

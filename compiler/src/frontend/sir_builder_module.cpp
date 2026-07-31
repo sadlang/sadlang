@@ -412,126 +412,7 @@ namespace Sad
                 // (AR) المرحلة الأولى: تسجيل توقيعات جميع الدوال مسبقاً
                 // (EN) Phase 1: Pre-register all function signatures for forward references
                 // ═══════════════════════════════════════════════════════════════════
-                for (const auto &stmt : *program)
-                {
-                    if (!stmt)
-                        continue;
-
-                    AST::FunctionDecl *funcDecl = nullptr;
-
-                    // (AR) دالة عادية
-                    if (auto fd = dynamic_cast<Sad::AST::FunctionDecl *>(stmt.get()))
-                    {
-                        funcDecl = fd;
-                    }
-                    // (AR) دالة مُصدَّرة (الإصدار الجديد)
-                    else if (auto exportDecl = dynamic_cast<Sad::AST::ExportDecl *>(stmt.get()))
-                    {
-                        if (exportDecl->declaration)
-                        {
-                            funcDecl = dynamic_cast<Sad::AST::FunctionDecl *>(exportDecl->declaration.get());
-                        }
-                    }
-                    // (AR) دالة مُصدَّرة (الإصدار القديم)
-                    else if (auto exportStmt = dynamic_cast<Sad::AST::ExportStmt *>(stmt.get()))
-                    {
-                        if (exportStmt->declaration)
-                        {
-                            funcDecl = dynamic_cast<Sad::AST::FunctionDecl *>(exportStmt->declaration.get());
-                        }
-                    }
-
-                    if (funcDecl)
-                    {
-                        // (AR) تسجيل توقيع الدالة في الجدول
-                        // (EN) Register function signature in function table
-                        FunctionInfo funcInfo;
-                        funcInfo.name = funcDecl->name;
-                        // (AR) §9 الجذر1: استنتج نوع الإرجاع من الجسم عند غياب نوعٍ صريح —
-                        //      نظير الدوال المتداخلة (statement_main.cpp:159-167) كي لا تبقى
-                        //      دوالُّ المستوى الأعلى Void فتُهمَل قيمتها عند تمريرها وسيطًا.
-                        if ((funcDecl->returnType == Types::SadTypeKind::Unknown ||
-                             funcDecl->returnType == Types::SadTypeKind::Void) &&
-                            funcDecl->body)
-                        {
-                            funcInfo.returnType =
-                                inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
-                        }
-                        else if (funcDecl->returnType == Types::SadTypeKind::Unknown &&
-                                 !funcDecl->body)
-                        {
-                            // (AR) دالّة بلا جسم (خارجي/FFI) بلا نوع إرجاع صريح ⇒ Void —
-                            //      كان astTypeToSIRType(Unknown) يعيد Integer فيتباعد
-                            //      functionTable_ ‏(i64) عن SIRFunction ‏(Void) ويُصدر
-                            //      موضعُ النداء call i64 على declare void ‏(UB إن
-                            //      استُهلكت القيمة). نوع الإرجاع الصريح يسلك else أدناه.
-                            // (EN) Bodyless (extern/FFI) function with no explicit
-                            //      return type ⇒ Void — astTypeToSIRType(Unknown)
-                            //      returned Integer, splitting functionTable_ (i64)
-                            //      from SIRFunction (Void) and emitting call i64 on a
-                            //      declare void (UB if the value is consumed).
-                            funcInfo.returnType = SadTypeKind::Void;
-                        }
-                        else
-                        {
-                            funcInfo.returnType = astTypeToSIRType(funcDecl->returnType);
-                        }
-                        for (const auto &param : funcDecl->parameters)
-                        {
-                            SadTypeKind paramType = astTypeToSIRType(param.type);
-                            funcInfo.parameters.push_back(SIRParameter(param.name, paramType));
-                        }
-                        // (AR) مؤشر الدالة سيُحدَّث لاحقاً في buildFunction
-                        // (EN) sirFunction pointer will be updated later in buildFunction
-                        funcInfo.sirFunction = nullptr;
-                        // (AR) حفظ مرجع AST لمعالجة القيم الافتراضية عند الاستدعاء
-                        // (EN) Save AST reference for default parameter values at call sites
-                        funcInfo.astDecl = funcDecl;
-                        functionTable_[funcDecl->name] = funcInfo;
-#ifdef SIR_BUILDER_DEBUG
-                        std::cerr << "[SIR-DBG] Phase1: registered func '" << funcDecl->name
-                                  << "' retType=" << static_cast<int>(funcInfo.returnType)
-                                  << " AST-retType=" << static_cast<int>(funcDecl->returnType) << std::endl;
-#endif
-                    }
-
-                    // ─────────────────────────────────────────────────────────────
-                    // (AR) تسجيل دوال الامتداد مسبقاً: امتداد نوع_هدف ... نهاية
-                    //      تُسجّل كـ "نوع_هدف.اسم_الدالة" في جدول الدوال
-                    //      هذا يضمن أن الدوال المُعرّفة قبل كتلة الامتداد يمكنها الوصول إليها
-                    // (EN) Pre-register extension methods: extension target_type ... end
-                    //      Registered as "target_type.method_name" in function table
-                    // ─────────────────────────────────────────────────────────────
-                    if (auto extensionDecl = dynamic_cast<Sad::AST::ExtensionDecl *>(stmt.get()))
-                    {
-                        for (auto &method : extensionDecl->methods)
-                        {
-                            if (!method)
-                                continue;
-                            auto extFunc = dynamic_cast<Sad::AST::FunctionDecl *>(method.get());
-                            if (!extFunc)
-                                continue;
-
-                            std::string fullName = extensionDecl->targetType + "." + extFunc->name;
-                            FunctionInfo extInfo;
-                            extInfo.name = fullName;
-                            extInfo.returnType = astTypeToSIRType(extFunc->returnType);
-                            // (AR) المعامل الأول هو self
-                            extInfo.parameters.push_back(SIRParameter(kSelfParamName, SadTypeKind::Integer));
-                            for (const auto &param : extFunc->parameters)
-                            {
-                                SadTypeKind paramType = astTypeToSIRType(param.type);
-                                extInfo.parameters.push_back(SIRParameter(param.name, paramType));
-                            }
-                            extInfo.sirFunction = nullptr;
-                            extInfo.astDecl = extFunc;
-                            functionTable_[fullName] = extInfo;
-#ifdef SIR_BUILDER_DEBUG
-                            std::cerr << "[SIR-DBG] Phase1: registered extension method '" << fullName << "'" << std::endl;
-#endif
-                        }
-                    }
-                }
+                preRegisterFunctionSignatures(program);
 
                 // ═══════════════════════════════════════════════════════════════════
                 // (AR) المرحلة 1.3: تسجيل توقيعات دوال الأصناف مسبقاً (خاصة الساكنة)
@@ -2078,6 +1959,174 @@ namespace Sad
                 exitScope();
 
                 return module_;
+            }
+
+
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) تسجيل تواقيع دوالّ قائمةِ عباراتٍ مسبقًا — تمريرةٌ واحدة يشترك فيها
+            //      ملفُّ الدخول والوحداتُ المستوردة.
+            //
+            //      لماذا دالّةٌ لا حلقةٌ مكرَّرة: كانت هذه التمريرةُ محصورةً في مسار ملفّ
+            //      الدخول، فبُنيت أجسامُ الوحدات المستوردة بترتيب السطور وحده. فنداءٌ
+            //      أماميّ داخل وحدةٍ مستوردة — «أ» تنادي «ب» المعرَّفةَ بعدها — يفشل
+            //      بـ«استدعاء دالة غير معرّفة»، بينما تُصرَّف الوحدةُ نفسُها بلا خطأٍ
+            //      حين تكون ملفَّ الدخول. تباعدٌ في **مسار البناء** لا في الكود المكتوب،
+            //      وهو ما جعل «الوحدة تُصرَّف وحدها ولا تُصرَّف حين تُستورَد»
+            //      (sadlang/s-programming-language#333). ولأنّ العلّة تكرارُ منطقٍ في
+            //      مسارَين، فالعلاجُ توحيدُ المنطق لا نسخُه ثالثةً.
+            // (EN) Pre-register the function signatures of a statement list — one pass
+            //      shared by the entry file and by imported modules. This pass used to
+            //      exist only on the entry path, so imported module bodies were built in
+            //      source order and a forward call inside an imported module failed with
+            //      "undefined function" — while the very same file compiled cleanly as an
+            //      entry file (#333). The cure is one shared pass, not a third copy.
+            // ════════════════════════════════════════════════════════════════════
+            void SIRBuilder::preRegisterFunctionSignatures(Sad::AST::StmtList *program)
+            {
+                if (!program)
+                    return;
+
+                for (const auto &stmt : *program)
+                {
+                    if (!stmt)
+                        continue;
+
+                    AST::FunctionDecl *funcDecl = nullptr;
+                    // (AR) دالة عادية
+                    if (auto fd = dynamic_cast<Sad::AST::FunctionDecl *>(stmt.get()))
+                    {
+                        funcDecl = fd;
+                    }
+                    // (AR) دالة مُصدَّرة (الإصدار الجديد)
+                    else if (auto exportDecl = dynamic_cast<Sad::AST::ExportDecl *>(stmt.get()))
+                    {
+                        if (exportDecl->declaration)
+                        {
+                            funcDecl = dynamic_cast<Sad::AST::FunctionDecl *>(exportDecl->declaration.get());
+                        }
+                    }
+                    // (AR) دالة مُصدَّرة (الإصدار القديم)
+                    else if (auto exportStmt = dynamic_cast<Sad::AST::ExportStmt *>(stmt.get()))
+                    {
+                        if (exportStmt->declaration)
+                        {
+                            funcDecl = dynamic_cast<Sad::AST::FunctionDecl *>(exportStmt->declaration.get());
+                        }
+                    }
+
+                    if (funcDecl)
+                    {
+                        // ────────────────────────────────────────────────────────
+                        // (AR) توقيعٌ مُسجَّلٌ سلفًا لا يُدهَس.
+                        //
+                        //      حين تُستدعى هذه التمريرةُ للوحدة المستوردة (الطور 2)
+                        //      يكون الطورُ 1.7 قد استنتج أنواعَ معاملاتها من مواقع
+                        //      النداء — ومنها **نوعُ عنصر المصفوفة**. وإعادةُ الكتابة
+                        //      بأنواعٍ خام تمحو ذلك الاستنتاج، فيعود متغيّرُ «لكل»
+                        //      عددًا. والتسجيلُ هنا غرضُه سدُّ الغياب لا التصحيح،
+                        //      فالموجودُ أدقُّ من الخام دائمًا.
+                        //
+                        //      ولا يضرّ التخطّي ملفَّ الدخول: جدولُه فارغٌ عند الطور 1.
+                        // (EN) Never clobber an existing signature: by the time this
+                        //      pass runs for an imported module (Phase 2), Phase 1.7 has
+                        //      already inferred its parameter types — including array
+                        //      ELEMENT types — from call sites. Overwriting with raw
+                        //      declared types erases that and the `لكل` variable reverts
+                        //      to an integer. This pass fills gaps; it never corrects.
+                        //      Harmless for the entry file, whose table is empty at Phase 1.
+                        // ────────────────────────────────────────────────────────
+                        if (functionTable_.find(funcDecl->name) != functionTable_.end())
+                            continue;
+
+                        // (AR) تسجيل توقيع الدالة في الجدول
+                        // (EN) Register function signature in function table
+                        FunctionInfo funcInfo;
+                        funcInfo.name = funcDecl->name;
+                        // (AR) §9 الجذر1: استنتج نوع الإرجاع من الجسم عند غياب نوعٍ صريح —
+                        //      نظير الدوال المتداخلة (statement_main.cpp:159-167) كي لا تبقى
+                        //      دوالُّ المستوى الأعلى Void فتُهمَل قيمتها عند تمريرها وسيطًا.
+                        if ((funcDecl->returnType == Types::SadTypeKind::Unknown ||
+                             funcDecl->returnType == Types::SadTypeKind::Void) &&
+                            funcDecl->body)
+                        {
+                            funcInfo.returnType =
+                                inferReturnTypeFromBody(funcDecl->body.get(), funcDecl);
+                        }
+                        else if (funcDecl->returnType == Types::SadTypeKind::Unknown &&
+                                 !funcDecl->body)
+                        {
+                            // (AR) دالّة بلا جسم (خارجي/FFI) بلا نوع إرجاع صريح ⇒ Void —
+                            //      كان astTypeToSIRType(Unknown) يعيد Integer فيتباعد
+                            //      functionTable_ ‏(i64) عن SIRFunction ‏(Void) ويُصدر
+                            //      موضعُ النداء call i64 على declare void ‏(UB إن
+                            //      استُهلكت القيمة). نوع الإرجاع الصريح يسلك else أدناه.
+                            // (EN) Bodyless (extern/FFI) function with no explicit
+                            //      return type ⇒ Void — astTypeToSIRType(Unknown)
+                            //      returned Integer, splitting functionTable_ (i64)
+                            //      from SIRFunction (Void) and emitting call i64 on a
+                            //      declare void (UB if the value is consumed).
+                            funcInfo.returnType = SadTypeKind::Void;
+                        }
+                        else
+                        {
+                            funcInfo.returnType = astTypeToSIRType(funcDecl->returnType);
+                        }
+                        for (const auto &param : funcDecl->parameters)
+                        {
+                            SadTypeKind paramType = astTypeToSIRType(param.type);
+                            funcInfo.parameters.push_back(SIRParameter(param.name, paramType));
+                        }
+                        // (AR) مؤشر الدالة سيُحدَّث لاحقاً في buildFunction
+                        // (EN) sirFunction pointer will be updated later in buildFunction
+                        funcInfo.sirFunction = nullptr;
+                        // (AR) حفظ مرجع AST لمعالجة القيم الافتراضية عند الاستدعاء
+                        // (EN) Save AST reference for default parameter values at call sites
+                        funcInfo.astDecl = funcDecl;
+                        functionTable_[funcDecl->name] = funcInfo;
+#ifdef SIR_BUILDER_DEBUG
+                        std::cerr << "[SIR-DBG] Phase1: registered func '" << funcDecl->name
+                                  << "' retType=" << static_cast<int>(funcInfo.returnType)
+                                  << " AST-retType=" << static_cast<int>(funcDecl->returnType) << std::endl;
+#endif
+                    }
+
+                    // ─────────────────────────────────────────────────────────────
+                    // (AR) تسجيل دوال الامتداد مسبقاً: امتداد نوع_هدف ... نهاية
+                    //      تُسجّل كـ "نوع_هدف.اسم_الدالة" في جدول الدوال
+                    //      هذا يضمن أن الدوال المُعرّفة قبل كتلة الامتداد يمكنها الوصول إليها
+                    // (EN) Pre-register extension methods: extension target_type ... end
+                    //      Registered as "target_type.method_name" in function table
+                    // ─────────────────────────────────────────────────────────────
+                    if (auto extensionDecl = dynamic_cast<Sad::AST::ExtensionDecl *>(stmt.get()))
+                    {
+                        for (auto &method : extensionDecl->methods)
+                        {
+                            if (!method)
+                                continue;
+                            auto extFunc = dynamic_cast<Sad::AST::FunctionDecl *>(method.get());
+                            if (!extFunc)
+                                continue;
+
+                            std::string fullName = extensionDecl->targetType + "." + extFunc->name;
+                            FunctionInfo extInfo;
+                            extInfo.name = fullName;
+                            extInfo.returnType = astTypeToSIRType(extFunc->returnType);
+                            // (AR) المعامل الأول هو self
+                            extInfo.parameters.push_back(SIRParameter(kSelfParamName, SadTypeKind::Integer));
+                            for (const auto &param : extFunc->parameters)
+                            {
+                                SadTypeKind paramType = astTypeToSIRType(param.type);
+                                extInfo.parameters.push_back(SIRParameter(param.name, paramType));
+                            }
+                            extInfo.sirFunction = nullptr;
+                            extInfo.astDecl = extFunc;
+                            functionTable_[fullName] = extInfo;
+#ifdef SIR_BUILDER_DEBUG
+                            std::cerr << "[SIR-DBG] Phase1: registered extension method '" << fullName << "'" << std::endl;
+#endif
+                        }
+                    }
+                }
             }
 
         } // namespace SIR
