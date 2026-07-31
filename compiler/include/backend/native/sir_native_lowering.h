@@ -190,6 +190,7 @@ namespace sad
                 idivScratchDisp_ = 0; // (AR) يُضبَط في assignFrameSlots حين تحوي الدالّةُ قسمةً/باقيًا
                 shiftScratchDisp_ = 0; // (AR) يُضبَط حين تحوي الدالّةُ إزاحةً بمقدارٍ متغيّر
                 printBufTopDisp_ = 0; // (AR) يُضبَط في assignFrameSlots حين تطبع الدالّةُ عددًا
+                appendPDisp_ = appendValDisp_ = appendLenDisp_ = appendNewDisp_ = appendCapDisp_ = 0;
 
                 const auto &blocks = fn.getBasicBlocks();
                 if (blocks.empty())
@@ -273,6 +274,15 @@ namespace sad
             // (AR) الطباعة الأصليّة: إزاحةُ قمّةِ مخزنِ itoa (العنوانُ الأعلى، حصريّ) في الإطار؛
             //      تُبنى الأرقامُ العشريّةُ تنازليًّا منها. صفرٌ إن لم تطبع الدالّةُ عددًا.
             long long printBufTopDisp_ = 0;
+
+            // (AR) الإلحاق (append): خمسُ خاناتِ خدشٍ تبقى حيّةً عبر mmap (الذي يدهس كلَّ الحوض):
+            //      مؤشّرُ البنية P، القيمةُ المُلحَقة، الطولُ L المحفوظ، المؤشّرُ الجديد newdata،
+            //      والسعةُ الجديدة newcap. تُحجَز حين تحوي الدالّةُ BUILTIN_ARRAY_APPEND.
+            long long appendPDisp_ = 0;
+            long long appendValDisp_ = 0;
+            long long appendLenDisp_ = 0;
+            long long appendNewDisp_ = 0;
+            long long appendCapDisp_ = 0;
 
             // (AR) كتلةُ البيانات (rodata): سلاسلُ الطباعة الحرفيّةُ تُلحَق بعد كلّ الشيفرة في
             //      نفس مقطع R+X؛ عنوانُها المطلق (vbase+إزاحة) يُرقَّع في mov r64,imm64.
@@ -612,6 +622,52 @@ namespace sad
                 return emit(x86::mnem::kJne, "rel32", {x86::Operand::I(disp, 32)});
             }
 
+            // (AR) يكتب قيمةً ٣٢-بت موقَّعةً (LE) في موضعٍ سابقٍ من code_ (لترقيعِ قفزةٍ أماميّة).
+            void patchLE32(size_t pos, long long val)
+            {
+                for (int i = 0; i < 4; ++i)
+                    code_[pos + i] = static_cast<uint8_t>((val >> (8 * i)) & 0xFF);
+            }
+            // (AR) قفزةٌ شرطيّةٌ/غيرُ مشروطةٍ أماميّةٌ بإزاحةٍ نائبةٍ (٠) تُرقَّع لاحقًا بـpatchFwd.
+            //      تُعيد عبر outRelPos موضعَ حقل rel32 (لترقيعه إلى الهدف حين يُعرَف). للولباتِ
+            //      الإلحاق المحلّيّة (لا لصائقَ كتلٍ ⇒ لا طابورَ Fixup العامّ).
+            bool emitJccFwd(const std::string &mnem, size_t &outRelPos)
+            {
+                if (!emit(mnem, "rel32", {x86::Operand::I(0, 32)}))
+                    return false;
+                outRelPos = code_.size() - 4; // (AR) حقلُ rel32 آخرُ ٤ بايتات
+                return true;
+            }
+            // (AR) يُرقّع قفزةً أماميّةً (حقلُها في relPos) إلى الموضع الحاليّ (نهايةِ الشيفرة).
+            void patchFwd(size_t relPos)
+            {
+                patchLE32(relPos, static_cast<long long>(code_.size()) - static_cast<long long>(relPos + 4));
+            }
+            // (AR) قفزةٌ شرطيّةٌ خلفيّةٌ إلى هدفٍ معلوم (لبدايةِ لولبِ النسخ).
+            bool emitJccBack(const std::string &mnem, size_t target)
+            {
+                const x86::EncSpec *spec = x86::lookupEncSpec(mnem, "rel32");
+                if (!spec || spec->imm_bits <= 0)
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnem + diag::kFormSep + "rel32");
+                const long long instrLen = static_cast<long long>(spec->opcode.size()) + spec->imm_bits / 8;
+                const long long disp = static_cast<long long>(target) - (static_cast<long long>(code_.size()) + instrLen);
+                if (!checkImm32(disp))
+                    return false;
+                return emit(mnem, "rel32", {x86::Operand::I(disp, 32)});
+            }
+            // (AR) mmap بحجمٍ مُهيّأٍ سلفًا في RSI (بخلاف emitMmap ذي الحجم الثابت) — لنموّ الإلحاق
+            //      حيث الحجمُ (newcap×٨) يُحسَب زمنَ التشغيل. يضبط بقيّةَ الوسائط ثمّ syscall.
+            bool emitMmapPresetSize()
+            {
+                return movImm(x86::RDI, 0) &&
+                       movImm(x86::RDX, kProtReadWrite) &&
+                       movImm(x86::R10, kMapPrivAnon) &&
+                       movImm64(x86::R8, kMmapNoFd) &&
+                       movImm(x86::R9, 0) &&
+                       movImm(x86::RAX, kSysMmapX86) &&
+                       emit(x86::mnem::kSyscall, "", {});
+            }
+
             // (AR) يطبع سلسلةً حرفيّة: يُفرِّدها في rodata، يحمّل عنوانَها المطلق في rsi (mov r64,imm64
             //      نائبٌ يُرقَّع لاحقًا حين يُعرَف موضعُ rodata)، ثمّ write(stdout, rsi, الطول).
             bool emitPrintString(const std::string &s)
@@ -735,6 +791,7 @@ namespace sad
                 bool hasIdiv = false;
                 bool hasVarShift = false;    // (AR) إزاحةٌ بمقدارٍ متغيّر (تلزمها خانةُ حفظِ RCX)
                 bool hasArrayNew = false;    // (AR) ARRAY_NEW ⇒ mmap يدهس الحوض (يلزمه انسكابٌ حولَه)
+                bool hasAppend = false;      // (AR) BUILTIN_ARRAY_APPEND ⇒ mmap (عند النموّ) + خانات خدش
                 bool hasPrint = false;       // (AR) أيُّ BUILTIN_PRINT (يلزمه انسكابُ الحوض حولَه)
                 bool hasNumberPrint = false; // (AR) طباعةُ عددٍ (تلزمها خانةُ مخزنِ itoa)
                 for (const auto &blockPtr : blocks)
@@ -757,6 +814,9 @@ namespace sad
                             hasVarShift = true; // (AR) مقدارُ الإزاحة غيرُ ثابتٍ ⇒ يلزمه CL/حفظُ RCX
                         else if (inst.opcode == sir::SIROpcode::ARRAY_NEW)
                             hasArrayNew = true; // (AR) mmap يدهس الحوض ⇒ انسكابٌ حولَه
+                        else if (inst.opcode == sir::SIROpcode::BUILTIN_ARRAY_APPEND ||
+                                 inst.opcode == sir::SIROpcode::ARRAY_APPEND)
+                            hasAppend = true;
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_PRINT)
                         {
                             hasPrint = true;
@@ -785,10 +845,19 @@ namespace sad
                     printBufTopDisp_ = -used;
                     used += 24;
                 }
+                // (AR) الإلحاق: خمسُ خاناتٍ تبقى حيّةً عبر mmap (P/القيمة/الطول/newdata/newcap).
+                if (hasAppend)
+                {
+                    used += 8; appendPDisp_ = -used;
+                    used += 8; appendValDisp_ = -used;
+                    used += 8; appendLenDisp_ = -used;
+                    used += 8; appendNewDisp_ = -used;
+                    used += 8; appendCapDisp_ = -used;
+                }
                 // (AR) إن نادت الدالّةُ أو طبعت، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض. النداءُ
                 //      يدهس كلَّ الحوض (caller-saved)، والطباعةُ تستعمل سجلّاتِ الحوض مُبدَّداتٍ ⇒
                 //      تُنسَك المؤقّتاتُ الحيّةُ حولَهما وتُعاد.
-                if (hasCall || hasPrint || hasArrayNew)
+                if (hasCall || hasPrint || hasArrayNew || hasAppend)
                 {
                     spillBase_ = -(used + 8);
                     used += static_cast<long long>(pool_.size()) * 8;
@@ -1202,6 +1271,99 @@ namespace sad
                     if (!allocReg(inst.result->name, dst))
                         return false;
                     return loadMemBase(dst, x86::RAX, kArrOffLen);
+                }
+                case OP::BUILTIN_ARRAY_APPEND:
+                case OP::ARRAY_APPEND:
+                {
+                    // (AR) الإلحاق: operands=[arr, value]، النتيجةُ Void. إن L<C خزّن مباشرةً؛ وإلّا
+                    //      نمِّ السعةَ (mmap سعةٍ مضاعفةٍ + نسخُ L خانة + تحديثُ data/cap) ثمّ خزّن.
+                    //      المعلَّب (elementType=Any) مؤجَّلٌ ⇒ فشلٌ صريح (يلزمه تعليبُ SadDyn).
+                    //      L/C عدّادان غيرُ سالبين ⇒ jl (موقَّع) ≡ jb (لا-موقَّع) ⇒ صفر ترميزٍ جديد.
+                    if (inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (inst.operands[0].elementType == types::SadTypeKind::Any)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayAppendBoxed);
+                    // (AR) انسكِبْ كلَّ مؤقّتٍ حيّ: الإلحاق يستعمل سجلّاتِ الحوض خدشًا، وmmap يدهسها.
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    // (AR) خزّن القيمةَ والمؤشّرَ P في الإطار (يبقيان عبر mmap)؛ RAX = P.
+                    if (!loadInto(x86::RAX, inst.operands[1]) || !storeMem(appendValDisp_, x86::RAX))
+                        return false;
+                    if (!loadInto(x86::RAX, inst.operands[0]) || !storeMem(appendPDisp_, x86::RAX))
+                        return false;
+                    // (AR) L = [P+len]؛ احفظه؛ ثمّ cmp L,[P+cap] وjl إلى التخزين (إن L<C).
+                    if (!loadMemBase(x86::RDI, x86::RAX, kArrOffLen) || !storeMem(appendLenDisp_, x86::RDI))
+                        return false;
+                    if (!cmpMemBase(x86::RDI, x86::RAX, kArrOffCap))
+                        return false;
+                    size_t jlToStore;
+                    if (!emitJccFwd(x86::mnem::kJl, jlToStore))
+                        return false;
+                    // ── مسارُ النموّ: newcap = (C==0) ? 1 : C×2 ──
+                    if (!loadMemBase(x86::RDI, x86::RAX, kArrOffCap) || !cmpZero(x86::RDI))
+                        return false;
+                    size_t jneDouble;
+                    if (!emitJccFwd(x86::mnem::kJne, jneDouble))
+                        return false;
+                    size_t jmpHaveCap;
+                    if (!movImm(x86::RDI, 1) || !emitJccFwd(x86::mnem::kJmp, jmpHaveCap)) // newcap = 1
+                        return false;
+                    patchFwd(jneDouble);
+                    if (!shlImm(x86::RDI, 1)) // newcap = C×2
+                        return false;
+                    patchFwd(jmpHaveCap);
+                    // (AR) احفظ newcap، احسب newsize=newcap×8 في RSI، mmap ⇒ RAX=newdata، احفظه.
+                    if (!storeMem(appendCapDisp_, x86::RDI))
+                        return false;
+                    if (!movReg(x86::RSI, x86::RDI) || !shlImm(x86::RSI, 3) || !emitMmapPresetSize())
+                        return false;
+                    if (!storeMem(appendNewDisp_, x86::RAX))
+                        return false;
+                    // (AR) نسخُ L خانةً: RSI=olddata=[P+data]، RDX=newdata، RCX=L (عدّاد)، R8=خدش.
+                    if (!loadMem(x86::RDI, appendPDisp_) || !loadMemBase(x86::RSI, x86::RDI, kArrOffData))
+                        return false;
+                    if (!movReg(x86::RDX, x86::RAX) || !loadMem(x86::RCX, appendLenDisp_))
+                        return false;
+                    const size_t copyTop = code_.size();
+                    if (!cmpZero(x86::RCX))
+                        return false;
+                    size_t jeCopyDone;
+                    if (!emitJccFwd(x86::mnem::kJe, jeCopyDone))
+                        return false;
+                    if (!loadMemBase(x86::R8, x86::RSI, 0) || !storeMemBase(x86::RDX, 0, x86::R8))
+                        return false;
+                    if (!addImm(x86::RSI, kArrSlotBytes) || !addImm(x86::RDX, kArrSlotBytes) ||
+                        !subImm(x86::RCX, 1))
+                        return false;
+                    if (!emitJccBack(x86::mnem::kJmp, copyTop))
+                        return false;
+                    patchFwd(jeCopyDone);
+                    // (AR) حدّث [P+data]=newdata؛ [P+cap]=newcap (P من الإطار، تُغيَّر حقولُه في مكانها).
+                    if (!loadMem(x86::RDI, appendPDisp_))
+                        return false;
+                    if (!loadMem(x86::RAX, appendNewDisp_) || !storeMemBase(x86::RDI, kArrOffData, x86::RAX))
+                        return false;
+                    if (!loadMem(x86::RAX, appendCapDisp_) || !storeMemBase(x86::RDI, kArrOffCap, x86::RAX))
+                        return false;
+                    // ── التخزينُ المشترك: data[L] = value؛ [P+len] = L+1 ──
+                    patchFwd(jlToStore);
+                    if (!loadMem(x86::RAX, appendPDisp_) || !loadMemBase(x86::RDX, x86::RAX, kArrOffData))
+                        return false;
+                    if (!loadMem(x86::RCX, appendLenDisp_) || !shlImm(x86::RCX, 3) || !addReg(x86::RDX, x86::RCX))
+                        return false;
+                    if (!loadMem(x86::RSI, appendValDisp_) || !storeMemBase(x86::RDX, 0, x86::RSI))
+                        return false;
+                    if (!loadMem(x86::RCX, appendLenDisp_) || !addImm(x86::RCX, 1) ||
+                        !storeMemBase(x86::RAX, kArrOffLen, x86::RCX))
+                        return false;
+                    // (AR) أعِد المؤقّتاتِ الحيّة.
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    return true;
                 }
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));

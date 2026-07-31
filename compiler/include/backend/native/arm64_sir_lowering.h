@@ -173,6 +173,14 @@ namespace sad
             int printBufTopSlot_ = -1;
             int spillBaseSlot_ = -1;
 
+            // (AR) الإلحاق (append): خمسُ خاناتِ إطارٍ (فهارس) تبقى حيّةً عبر mmap الذي يدهس كلَّ
+            //      الحوض: مؤشّرُ البنية P، القيمةُ المُلحَقة، الطولُ L، المؤشّرُ الجديد، والسعةُ الجديدة.
+            int appendPSlot_ = -1;
+            int appendValSlot_ = -1;
+            int appendLenSlot_ = -1;
+            int appendNewSlot_ = -1;
+            int appendCapSlot_ = -1;
+
             // (AR) كتلةُ البيانات (rodata): سلاسلُ الطباعة الحرفيّةُ تُلحَق بعد كلّ الشيفرة في نفس
             //      مقطع R+X؛ عنوانُها المطلق (vbase+إزاحة) يُرقَّع في تسلسلِ movz+movk×3.
             std::vector<uint8_t> rodata_;
@@ -499,6 +507,50 @@ namespace sad
                             {a64::Operand::R(reg), a64::Operand::I(imm)});
             }
 
+            // (AR) فرعٌ أماميّ بإزاحةٍ نائبةٍ (٠) يُرقَّع لاحقًا (للولباتِ الإلحاق المحلّيّة، لا لصائقَ
+            //      كتلٍ ⇒ لا طابورَ Fixup). يُعيد موضعَ الكلمة؛ patchBranchFwd يملأ حقلَ الإزاحة.
+            bool emitBranchFwd(const std::string &mnem, const std::string &form, size_t &outWord)
+            {
+                outWord = code_.size();
+                return emit(mnem, form, {a64::Operand::I(0)});
+            }
+            // (AR) يُرقّع فرعًا أماميًّا (كلمتُه في wordPos، حقلُ الإزاحة [immHi..immLo]) إلى الموضعِ
+            //      الحاليّ. الإزاحةُ = (الهدف − موضعُ الفرع) ÷ ٤ تعليمات؛ تُقنَّع وتُدخَل OR.
+            bool patchBranchFwd(size_t wordPos, int immHi, int immLo)
+            {
+                const long long imm = (static_cast<long long>(code_.size()) - static_cast<long long>(wordPos)) / 4;
+                const int width = immHi - immLo + 1;
+                const long long lim = 1LL << (width - 1);
+                if (imm < -lim || imm > lim - 1)
+                    return fail(EC::INT_NATIVE_IMM_RANGE, diag::kRel + std::to_string(imm));
+                const uint32_t mask = (width >= 32) ? 0xFFFFFFFFu : ((1u << width) - 1u);
+                const uint32_t field = (static_cast<uint32_t>(imm) & mask) << immLo;
+                uint32_t w = 0;
+                for (int i = 0; i < 4; ++i)
+                    w |= static_cast<uint32_t>(code_[wordPos + i]) << (8 * i);
+                w |= field;
+                for (int i = 0; i < 4; ++i)
+                    code_[wordPos + i] = static_cast<uint8_t>((w >> (8 * i)) & 0xFF);
+                return true;
+            }
+            // (AR) فرعٌ غيرُ مشروطٍ خلفيٌّ إلى هدفٍ معلوم (لبدايةِ لولبِ النسخ): imm26 موقَّع.
+            bool emitBBack(size_t target)
+            {
+                const long long imm = (static_cast<long long>(target) - static_cast<long long>(code_.size())) / 4;
+                return emit(a64::mnem::kB, "rel26", {a64::Operand::I(imm)});
+            }
+            // (AR) mmap بحجمٍ مُهيّأٍ سلفًا في x1 (لنموّ الإلحاق: الحجمُ newcap×٨ يُحسَب زمنَ التشغيل).
+            bool emitMmapArm64PresetSize()
+            {
+                return movz(a64reg::kX0, 0) &&
+                       movz(a64reg::kX2, kProtReadWrite) &&
+                       movz(3, kMapPrivAnon) &&
+                       movz(4, 0) && subImm(4, 4, 1) &&
+                       movz(5, 0) &&
+                       movz(a64reg::kX8, kSysMmapArm64) &&
+                       emit(a64::mnem::kSvc, "", {});
+            }
+
             bool allocReg(const std::string &vreg, int &out)
             {
                 auto it = regOf_.find(vreg);
@@ -599,6 +651,7 @@ namespace sad
                 bool hasPrint = false;
                 bool hasNumberPrint = false;
                 bool hasArrayNew = false; // (AR) ARRAY_NEW ⇒ mmap (نسكٌ تحفّظيّ حولَ svc)
+                bool hasAppend = false;   // (AR) BUILTIN_ARRAY_APPEND ⇒ mmap (عند النموّ) + خانات خدش
                 for (const auto &blockPtr : fn.getBasicBlocks())
                     for (const auto &inst : blockPtr->instructions)
                     {
@@ -608,6 +661,9 @@ namespace sad
                             hasCall = true;
                         else if (inst.opcode == sir::SIROpcode::ARRAY_NEW)
                             hasArrayNew = true;
+                        else if (inst.opcode == sir::SIROpcode::BUILTIN_ARRAY_APPEND ||
+                                 inst.opcode == sir::SIROpcode::ARRAY_APPEND)
+                            hasAppend = true;
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_PRINT)
                         {
                             hasPrint = true;
@@ -629,8 +685,17 @@ namespace sad
                     slot += 3;
                     printBufTopSlot_ = slot; // (AR) العنوانُ الأعلى الحصريّ = sp + slot*8
                 }
-                // (AR) إن نادت الدالّةُ أو طبعت أو خصّصت مصفوفة، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض.
-                if (hasCall || hasPrint || hasArrayNew)
+                // (AR) الإلحاق: خمسُ خاناتٍ تبقى حيّةً عبر mmap (P/القيمة/الطول/newdata/newcap).
+                if (hasAppend)
+                {
+                    appendPSlot_ = slot++;
+                    appendValSlot_ = slot++;
+                    appendLenSlot_ = slot++;
+                    appendNewSlot_ = slot++;
+                    appendCapSlot_ = slot++;
+                }
+                // (AR) إن نادت الدالّةُ أو طبعت أو خصّصت مصفوفة أو ألحقت، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض.
+                if (hasCall || hasPrint || hasArrayNew || hasAppend)
                 {
                     spillBaseSlot_ = slot;
                     slot += static_cast<int>(pool_.size());
@@ -1004,6 +1069,99 @@ namespace sad
                         return false;
                     return ldrBase(dst, a64reg::kScratch0, kArrOffLen / kArrSlotBytes);
                 }
+                case OP::BUILTIN_ARRAY_APPEND:
+                case OP::ARRAY_APPEND:
+                {
+                    // (AR) الإلحاق (نظيرُ x86): operands=[arr, value]، النتيجةُ Void. إن L<C خزّن؛
+                    //      وإلّا نمِّ (mmap سعةٍ مضاعفةٍ + نسخُ L خانة + تحديثُ data/cap) ثمّ خزّن.
+                    //      المعلَّب (Any) مؤجَّل. صفرُ ترميزٍ جديد: cmp cnt,xzr للولب؛ b.lt/b.eq/b/cbnz.
+                    //      سجلّاتُ العمل x16/x17 + الحوض المنسكِب x9-x12؛ ما يعبر mmap ⇒ خاناتُ إطار.
+                    if (inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (inst.operands[0].elementType == types::SadTypeKind::Any)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayAppendBoxed);
+                    constexpr int kX9 = 9, kX10 = 10, kX11 = 11, kX12 = 12;
+                    const int s0 = a64reg::kScratch0, s1 = a64reg::kScratch1; // x16, x17
+                    const long long capIdx = kArrOffCap / kArrSlotBytes, dataIdx = kArrOffData / kArrSlotBytes;
+                    // (AR) انسكِبْ كلَّ مؤقّتٍ حيّ (الإلحاق يستعمل الحوضَ خدشًا، وmmap يدهسه).
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!spillReg(kv.second))
+                                return false;
+                    // (AR) خزّن القيمةَ والمؤشّرَ P في الإطار (يبقيان عبر mmap)؛ s0 = P.
+                    if (!materialize(s0, inst.operands[1]) || !strSlot(s0, appendValSlot_))
+                        return false;
+                    if (!materialize(s0, inst.operands[0]) || !strSlot(s0, appendPSlot_))
+                        return false;
+                    // (AR) L = [P+len]؛ احفظه؛ C = [P+cap]؛ cmp L,C؛ b.lt إلى التخزين.
+                    if (!ldrBase(s1, s0, kArrOffLen / kArrSlotBytes) || !strSlot(s1, appendLenSlot_))
+                        return false;
+                    if (!ldrBase(kX9, s0, capIdx) || !cmp(s1, kX9))
+                        return false;
+                    size_t bltStore;
+                    if (!emitBranchFwd(a64::mnem::kBlt, "rel19", bltStore))
+                        return false;
+                    // ── النموّ: newcap = (C==0)?1:C×2 (x9=C) ──
+                    if (!rrr(a64::mnem::kAdd, kX10, kX9, kX9)) // x10 = 2C
+                        return false;
+                    // (AR) cbnz x10, +2 تعليمة (تخطّي movz 1) — عددٌ ثابتٌ (لا ترقيع).
+                    if (!emit(a64::mnem::kCbnz, "x, rel19", {a64::Operand::R(kX10), a64::Operand::I(2)}))
+                        return false;
+                    if (!movz(kX10, 1)) // newcap = 1 (حين C==0)
+                        return false;
+                    if (!strSlot(kX10, appendCapSlot_))
+                        return false;
+                    // (AR) newsize = newcap×8 في x1؛ mmap ⇒ x0=newdata؛ احفظه.
+                    if (!movz(kX11, 3) || !rrr(a64::mnem::kLslv, a64reg::kX1, kX10, kX11))
+                        return false;
+                    if (!emitMmapArm64PresetSize() || !strSlot(a64reg::kX0, appendNewSlot_))
+                        return false;
+                    // (AR) لولبُ النسخ: x9=olddata=[P+data]، x10=newdata، x11=L (عدّاد)، x12=خدش.
+                    if (!ldrSlot(s0, appendPSlot_) || !ldrBase(kX9, s0, dataIdx))
+                        return false;
+                    if (!ldrSlot(kX10, appendNewSlot_) || !ldrSlot(kX11, appendLenSlot_))
+                        return false;
+                    const size_t copyTop = code_.size();
+                    if (!cmp(kX11, 31)) // (AR) cmp cnt, xzr (سجلّ ٣١ = xzr في subs)
+                        return false;
+                    size_t beqDone;
+                    if (!emitBranchFwd(a64::mnem::kBeq, "rel19", beqDone))
+                        return false;
+                    if (!ldrBase(kX12, kX9, 0) || !strBase(kX12, kX10, 0)) // *new = *old
+                        return false;
+                    if (!addImm(kX9, kX9, kArrSlotBytes) || !addImm(kX10, kX10, kArrSlotBytes) ||
+                        !subImm(kX11, kX11, 1))
+                        return false;
+                    if (!emitBBack(copyTop))
+                        return false;
+                    if (!patchBranchFwd(beqDone, 23, 5)) // (AR) b.eq imm19@23-5
+                        return false;
+                    // (AR) حدّث [P+data]=newdata؛ [P+cap]=newcap.
+                    if (!ldrSlot(s0, appendPSlot_))
+                        return false;
+                    if (!ldrSlot(kX9, appendNewSlot_) || !strBase(kX9, s0, dataIdx))
+                        return false;
+                    if (!ldrSlot(kX9, appendCapSlot_) || !strBase(kX9, s0, capIdx))
+                        return false;
+                    // ── التخزينُ المشترك: data[L] = value؛ [P+len] = L+1 ──
+                    if (!patchBranchFwd(bltStore, 23, 5)) // (AR) b.lt imm19@23-5
+                        return false;
+                    if (!ldrSlot(s0, appendPSlot_) || !ldrBase(kX9, s0, dataIdx))
+                        return false;
+                    if (!ldrSlot(kX10, appendLenSlot_) || !addLsl3(kX9, kX9, kX10)) // x9 = data + L×8
+                        return false;
+                    if (!ldrSlot(kX11, appendValSlot_) || !strBase(kX11, kX9, 0)) // data[L] = value
+                        return false;
+                    if (!ldrSlot(kX10, appendLenSlot_) || !addImm(kX10, kX10, 1) ||
+                        !strBase(kX10, s0, kArrOffLen / kArrSlotBytes)) // [P+len] = L+1
+                        return false;
+                    // (AR) أعِد المؤقّتاتِ الحيّة.
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    return true;
+                }
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
@@ -1165,6 +1323,7 @@ namespace sad
                 frameSize_ = 0;
                 printBufTopSlot_ = -1;
                 spillBaseSlot_ = -1;
+                appendPSlot_ = appendValSlot_ = appendLenSlot_ = appendNewSlot_ = appendCapSlot_ = -1;
 
                 const auto &blocks = fn.getBasicBlocks();
                 if (blocks.empty())

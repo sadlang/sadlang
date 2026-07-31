@@ -29,6 +29,7 @@ pure:
   - { name: kMoveKind,            value: "move-kind",            ar: "نوعُ معامل MOVE غيرُ مدعوم" }
   - { name: kArrayGetBoxed,       value: "array-get-boxed",      ar: "ARRAY_GET لعنصرٍ معلَّب (elementType=Any) مؤجَّل" }
   - { name: kArraySetBoxed,       value: "array-set-boxed",      ar: "ARRAY_SET لعنصرٍ معلَّب (elementType=Any) مؤجَّل" }
+  - { name: kArrayAppendBoxed,    value: "array-append-boxed",   ar: "BUILTIN_ARRAY_APPEND لعنصرٍ معلَّب (elementType=Any) مؤجَّل — يلزمه تعليبُ SadDyn" }
   - { name: kArrayNewDynamicSize, value: "array-new-dynamic-size", ar: "ARRAY_NEW بحجمٍ غيرِ ثابتٍ مؤجَّل" }
   - { name: kArrayNewNegative,    value: "array-new-negative",   ar: "ARRAY_NEW بطولٍ/سعةٍ سالبة" }
   - { name: kCmpValue,            value: "cmp-value",            ar: "موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)" }

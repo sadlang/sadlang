@@ -19,6 +19,7 @@ namespace sad { namespace native { namespace diag {
     inline const std::string kMoveKind = "move-kind";  // نوعُ معامل MOVE غيرُ مدعوم
     inline const std::string kArrayGetBoxed = "array-get-boxed";  // ARRAY_GET لعنصرٍ معلَّب (elementType=Any) مؤجَّل
     inline const std::string kArraySetBoxed = "array-set-boxed";  // ARRAY_SET لعنصرٍ معلَّب (elementType=Any) مؤجَّل
+    inline const std::string kArrayAppendBoxed = "array-append-boxed";  // BUILTIN_ARRAY_APPEND لعنصرٍ معلَّب (elementType=Any) مؤجَّل — يلزمه تعليبُ SadDyn
     inline const std::string kArrayNewDynamicSize = "array-new-dynamic-size";  // ARRAY_NEW بحجمٍ غيرِ ثابتٍ مؤجَّل
     inline const std::string kArrayNewNegative = "array-new-negative";  // ARRAY_NEW بطولٍ/سعةٍ سالبة
     inline const std::string kCmpValue = "cmp-value";  // موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)

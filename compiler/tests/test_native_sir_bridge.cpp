@@ -681,6 +681,57 @@ TEST(NativeSirBridge, ArrayOutOfBoundsTraps)
     ASSERT_EQ(int(wrote), int(bin.size()));
 }
 
+// (AR) الإلحاق (مسارُ النموّ): «م=[40]؛ م.أضف(2)؛ ارجع م[0]+م[1]» ⇒ السعةُ ١→٢ عبر mmap
+//      جديدٍ + نسخِ خانةٍ، ثمّ تخزينُ ٢ ⇒ [40،2] ⇒ ٤٢. يُثبت نموَّ cap ولولبَ النسخ.
+static const char *kSrcAppendGrow =
+    "دالة رئيسية()\n"
+    "    متغير م = [40]\n"
+    "    م.أضف(2)\n"
+    "    ارجع م[0] + م[1]\n"
+    "نهاية\n";
+// (AR) الإلحاق (نموّ + بلا نموّ): «م=[6]؛ ثلاثُ إضافاتٍ» ⇒ [6](cap1)→نموّ(cap2)→نموّ(cap4،len3)
+//      →بلا نموّ(len4). يُثبت مسارَ jl (L<C ⇒ تخزينٌ بلا mmap). م[3]=6 ⇒ ٦×٧=٤٢.
+static const char *kSrcAppendNoGrow =
+    "دالة رئيسية()\n"
+    "    متغير م = [6]\n"
+    "    م.أضف(6)\n"
+    "    م.أضف(6)\n"
+    "    م.أضف(6)\n"
+    "    ارجع م[3] * 7\n"
+    "نهاية\n";
+
+TEST(NativeSirBridge, LowersArrayAppendGrow)
+{
+    auto module = buildSir(kSrcAppendGrow);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("append-grow lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap للنموّ)
+    std::FILE *fp = std::fopen("sad_sir_append42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+TEST(NativeSirBridge, LowersArrayAppendNoGrow)
+{
+    auto module = buildSir(kSrcAppendNoGrow);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("append-nogrow lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    std::FILE *fp = std::fopen("sad_sir_appendnogrow42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(res.code.size()));
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // (AR) جسر SIR→AArch64 (الهدف الثاني): نفسُ SIR الأماميّ يُخفَّض لـARM64 عبر محرّكٍ
 //      وكاتب ELF عامَّين. برهانُ عموميّة الخطّ عبر صنفَي ISA. تُكتب الثنائيّاتُ لبرهانٍ
@@ -875,6 +926,24 @@ TEST(Arm64SirBridge, ArrayOutOfBoundsTraps)
     bool ok = false;
     size_t sz = 0;
     lowerArm64AndWrite(mkReturn("[1\xD8\x8C 2\xD8\x8C 3][5]"), "sad_arm64_arrayoob", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) الإلحاق على ARM64 (مسارُ النموّ): «م=[40]؛ م.أضف(2)؛ ارجع م[0]+م[1]» ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersArrayAppendGrow)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcAppendGrow, "sad_arm64_append42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) الإلحاق على ARM64 (نموّ + بلا نموّ): «م=[6]؛ ثلاثُ إضافات؛ م[3]×7» ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersArrayAppendNoGrow)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcAppendNoGrow, "sad_arm64_appendnogrow42", &ok, &sz);
     ASSERT_TRUE(ok);
 }
 
