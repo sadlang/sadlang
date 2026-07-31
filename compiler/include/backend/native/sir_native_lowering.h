@@ -65,6 +65,23 @@ namespace sad
         inline constexpr long long kAsciiZero = 0x30;  // (AR) رمزُ الصفر ASCII ('0') — أساسُ itoa
         inline constexpr long long kItoaRadix = 10;    // (AR) أساسُ التحويل العشريّ
 
+        // (AR) تخصيصُ الكومة الحرّة: mmap مباشرةً عبر syscall (لا libc في الخلفيّة الساكنة).
+        //      addr=0 (النواةُ تختار)، prot=قراءة|كتابة، flags=خاصّ|مجهول (الذاكرةُ مُصفّرةٌ
+        //      سلفًا ⇒ tags/homogKind للمصفوفة يُصفّران مجّانًا)، fd=-1، offset=0.
+        inline constexpr long long kSysMmapX86 = 9;      // (AR) mmap
+        inline constexpr long long kProtReadWrite = 0x3; // (AR) PROT_READ|PROT_WRITE
+        inline constexpr long long kMapPrivAnon = 0x22;  // (AR) MAP_PRIVATE|MAP_ANONYMOUS
+        inline constexpr long long kMmapNoFd = -1;       // (AR) fd للتخصيص المجهول = ‎-1‎
+
+        // (AR) تخطيطُ SadArray الخماسيّ (يُطابق مسارَ LLVM array_ops.cpp:49): إزاحاتٌ ثابتة.
+        //      المتجانسةُ العدديّة: tags=null (المسارُ الساكن)، homogKind=Integer=0 (كلاهما صفرٌ
+        //      من mmap). خانةُ العنصر ٨ بايت (SAD_ARRAY_SLOT_BYTES) موحَّدةٌ لكلّ الأنواع.
+        inline constexpr long long kArrOffLen = 0;       // (AR) الطول (i64)
+        inline constexpr long long kArrOffCap = 8;       // (AR) السعة (i64)
+        inline constexpr long long kArrOffData = 16;     // (AR) مؤشّرُ البيانات (ptr)
+        inline constexpr long long kArrHeaderBytes = 40; // (AR) حجمُ رأس البنية (٥ حقول مع الحشو)
+        inline constexpr long long kArrSlotBytes = 8;    // (AR) بايتات خانةِ العنصر الواحد
+
         // (AR) مخرَجُ التخفيض: بايتاتُ الشيفرة عند النجاح، أو رمزُ خطأٍ (ErrorCode من
         //      كتالوج SoT) + بياناتُ {detail} عند الفشل. الرسالةُ النصّيّة تُشتقّ من
         //      الكتالوج عبر message() — لا تُخزَّن كنصٍّ مباشر.
@@ -200,6 +217,10 @@ namespace sad
             const std::vector<int> pool_{x86::RDX, x86::RCX, x86::RSI, x86::R8,    // (AR) حوضُ التخصيص
                                          x86::R9, x86::R10, x86::R11};
             size_t next_ = 0;
+            // (AR) سياقُ التخفيض الحاليّ (يُضبَط في lowerBlock): يمكّن allocReg من استرجاعِ
+            //      سجلِّ مؤقّتٍ ميّتٍ عند نفاد الحوض (لازمٌ للمصفوفات كثيرةِ المؤقّتات).
+            const sir::SIRBasicBlock *curBlock_ = nullptr;
+            size_t curInstIdx_ = 0;
             std::vector<uint8_t> code_;
             EC errorCode_ = EC::INT_NATIVE_NO_ENTRY;
             std::string detail_;
@@ -357,11 +378,39 @@ namespace sad
                     out = it->second;
                     return true;
                 }
-                if (next_ >= pool_.size())
-                    return fail(EC::INT_NATIVE_REGALLOC_EXHAUSTED, "pool=" + std::to_string(pool_.size()));
-                out = pool_[next_++];
-                regOf_[vreg] = out;
-                return true;
+                // (AR) المسارُ الأحاديّ (يحفظ بايتات البرامج القائمة تمامًا): خصّص التاليَ ما دام
+                //      في الحوض متّسع. لا استرجاعَ ما لم ينفد ⇒ صفر انحدارٍ بايتيّ لما كان يعمل.
+                if (next_ < pool_.size())
+                {
+                    out = pool_[next_++];
+                    regOf_[vreg] = out;
+                    return true;
+                }
+                // (AR) نفد الحوضُ الأحاديّ: استرجِعْ سجلَّ مؤقّتٍ ميّتٍ (لا يُقرأ بعد التعليمة
+                //      الحاليّة) — لازمٌ للمصفوفات (تُولّد مؤقّتاتٍ كثيرةً قصيرةَ العمر). الاسترجاعُ
+                //      بعد أن يُصبح المؤقّتُ ميّتًا ⇒ لا يدهس حيًّا (يحفظُ حَدسَ «الوجهةُ لا تحمل حيًّا»).
+                if (curBlock_ && curInstIdx_ < curBlock_->instructions.size())
+                {
+                    const auto &curOps = curBlock_->instructions[curInstIdx_].operands;
+                    auto usedNow = [&curOps](const std::string &n) {
+                        for (const auto &op : curOps)
+                            if (op.type == sir::SIROperandType::REGISTER && op.name == n)
+                                return true;
+                        return false;
+                    };
+                    for (auto rit = regOf_.begin(); rit != regOf_.end(); ++rit)
+                        // (AR) مرشّحٌ صالحٌ للاسترجاع: ليس معاملَ التعليمة الحاليّة (قد لا يكون
+                        //      استُهلِك بعد) وليس حيًّا بعدها ⇒ ميّتٌ يقينًا، سجلُّه قابلٌ للإعادة.
+                        if (!usedNow(rit->first) &&
+                            !common::usedAfterInBlock(*curBlock_, curInstIdx_, rit->first))
+                        {
+                            out = rit->second;
+                            regOf_.erase(rit);
+                            regOf_[vreg] = out;
+                            return true;
+                        }
+                }
+                return fail(EC::INT_NATIVE_REGALLOC_EXHAUSTED, "pool=" + std::to_string(pool_.size()));
             }
 
             // ── مُصدِرات التعليمات (كلٌّ يقرأ مواصفتَه من الجدول المولَّد من SoT) ──
@@ -456,6 +505,52 @@ namespace sad
             bool storeByte(int ptrReg, int srcReg)
             {
                 return emit(x86::mnem::kMov, "m8, r8", {x86::Operand::M(ptrReg, 0), x86::Operand::R(srcReg)});
+            }
+            // (AR) mov r64, imm64 (movabs) — لثابتٍ ٦٤-بت لا يُمثَّل بـimm32 (مثل fd=-1).
+            bool movImm64(int reg, long long imm)
+            {
+                return emit(x86::mnem::kMov, "r64, imm64", {x86::Operand::R(reg), x86::Operand::I(imm, 64)});
+            }
+            // (AR) mov r64, [base+disp] — تحميلٌ من عنوانٍ بقاعدةٍ عامّة (لا rbp حصرًا).
+            bool loadMemBase(int dst, int base, long long disp)
+            {
+                return emit(x86::mnem::kMov, "r64, m64", {x86::Operand::R(dst), x86::Operand::M(base, disp)});
+            }
+            // (AR) mov [base+disp], r64 — تخزينٌ في عنوانٍ بقاعدةٍ عامّة.
+            bool storeMemBase(int base, long long disp, int src)
+            {
+                return emit(x86::mnem::kMov, "m64, r64", {x86::Operand::M(base, disp), x86::Operand::R(src)});
+            }
+            // (AR) mmap(NULL, size, R|W, PRIVATE|ANON, -1, 0) عبر syscall ⇒ المؤشّرُ في RAX.
+            //      يدهس RAX/RCX/R11 وسجلّاتِ الوسائط (كلُّها في الحوض) ⇒ يُنسَك حولَه في المستدعي.
+            //      وسيطُ syscall الرابعُ في R10 لا RCX. الحجمُ ثابتٌ (سعةُ المصفوفة من الأمام).
+            bool emitMmap(long long sizeBytes)
+            {
+                return movImm(x86::RDI, 0) &&
+                       movImm(x86::RSI, sizeBytes) &&
+                       movImm(x86::RDX, kProtReadWrite) &&
+                       movImm(x86::R10, kMapPrivAnon) &&
+                       movImm64(x86::R8, kMmapNoFd) &&
+                       movImm(x86::R9, 0) &&
+                       movImm(x86::RAX, kSysMmapX86) &&
+                       emit(x86::mnem::kSyscall, "", {});
+            }
+            // (AR) يضع عنوانَ العنصر (data + index×8) في RAX (RDI خدشٌ للفهرس المتغيّر). يُخرِج
+            //      مؤشّرَ البيانات [arr+16] أوّلًا؛ الفهرسُ ثابتٌ⇒addImm، أو سجلٌّ⇒‏×٨ ثمّ add.
+            //      المشترَكُ بين ARRAY_GET/SET. السالبُ (فهرسٌ من الخلف) مؤجَّلٌ ⇒ فشلٌ صريح.
+            bool emitElemAddr(const sir::SIROperand &arrOp, const sir::SIROperand &idxOp)
+            {
+                if (!loadInto(x86::RAX, arrOp) || !loadMemBase(x86::RAX, x86::RAX, kArrOffData))
+                    return false;
+                long long idx;
+                if (common::isConstInt(idxOp, idx))
+                {
+                    if (idx < 0)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-neg-index");
+                    return idx == 0 ? true : addImm(x86::RAX, idx * kArrSlotBytes);
+                }
+                // (AR) فهرسٌ متغيّر: RDI = index؛ RDI <<= 3 (×٨)؛ RAX += RDI.
+                return loadInto(x86::RDI, idxOp) && shlImm(x86::RDI, 3) && addReg(x86::RAX, x86::RDI);
             }
             // (AR) dst = rbp + disp (عنوانُ خانةٍ في الإطار): mov dst,rbp ثمّ add dst,disp.
             bool leaFrame(int dst, long long disp)
@@ -604,6 +699,7 @@ namespace sad
                 bool hasCall = false;
                 bool hasIdiv = false;
                 bool hasVarShift = false;    // (AR) إزاحةٌ بمقدارٍ متغيّر (تلزمها خانةُ حفظِ RCX)
+                bool hasArrayNew = false;    // (AR) ARRAY_NEW ⇒ mmap يدهس الحوض (يلزمه انسكابٌ حولَه)
                 bool hasPrint = false;       // (AR) أيُّ BUILTIN_PRINT (يلزمه انسكابُ الحوض حولَه)
                 bool hasNumberPrint = false; // (AR) طباعةُ عددٍ (تلزمها خانةُ مخزنِ itoa)
                 for (const auto &blockPtr : blocks)
@@ -624,6 +720,8 @@ namespace sad
                                  inst.operands.size() == 2 &&
                                  inst.operands[1].type != sir::SIROperandType::CONSTANT)
                             hasVarShift = true; // (AR) مقدارُ الإزاحة غيرُ ثابتٍ ⇒ يلزمه CL/حفظُ RCX
+                        else if (inst.opcode == sir::SIROpcode::ARRAY_NEW)
+                            hasArrayNew = true; // (AR) mmap يدهس الحوض ⇒ انسكابٌ حولَه
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_PRINT)
                         {
                             hasPrint = true;
@@ -655,7 +753,7 @@ namespace sad
                 // (AR) إن نادت الدالّةُ أو طبعت، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض. النداءُ
                 //      يدهس كلَّ الحوض (caller-saved)، والطباعةُ تستعمل سجلّاتِ الحوض مُبدَّداتٍ ⇒
                 //      تُنسَك المؤقّتاتُ الحيّةُ حولَهما وتُعاد.
-                if (hasCall || hasPrint)
+                if (hasCall || hasPrint || hasArrayNew)
                 {
                     spillBase_ = -(used + 8);
                     used += static_cast<long long>(pool_.size()) * 8;
@@ -988,6 +1086,88 @@ namespace sad
                                 return false;
                     return true;
                 }
+                case OP::ARRAY_NEW:
+                {
+                    // (AR) result = مصفوفةٌ جديدة؛ operands=[len(const), cap(const)]. نخصّص عبر
+                    //      mmap كتلةً واحدة (رأسٌ ٤٠ + بياناتٌ cap×٨)، ونهيّئ len/cap/data؛
+                    //      tags/homogKind يُصفّرهما mmap (المتجانسةُ العدديّة). السعةُ ثابتةٌ
+                    //      من الأمام؛ الحجمُ الديناميّ مؤجَّلٌ ⇒ فشلٌ صريح.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long lenv, capv;
+                    if (!common::isConstInt(inst.operands[0], lenv) ||
+                        !common::isConstInt(inst.operands[1], capv))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-new-dynamic-size");
+                    if (lenv < 0 || capv < 0)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-new-negative");
+                    const long long total = kArrHeaderBytes + capv * kArrSlotBytes;
+                    // (AR) انسكِبْ المؤقّتاتِ الحيّةَ (mmap يدهس الحوض)، ثمّ mmap، ثمّ أعِدها.
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    if (!emitMmap(total))
+                        return false;
+                    // (AR) RAX = المؤشّر. RDI خدشٌ: len ثمّ cap ثمّ data=RAX+40.
+                    if (!movImm(x86::RDI, lenv) || !storeMemBase(x86::RAX, kArrOffLen, x86::RDI))
+                        return false;
+                    if (!movImm(x86::RDI, capv) || !storeMemBase(x86::RAX, kArrOffCap, x86::RDI))
+                        return false;
+                    if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, kArrHeaderBytes) ||
+                        !storeMemBase(x86::RAX, kArrOffData, x86::RDI))
+                        return false;
+                    // (AR) أعِد تحميلَ المؤقّتاتِ الحيّة (RAX لا يُعاد كتابتُه — يحمل المؤشّرَ).
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    // (AR) خصّص سجلَّ النتيجة الآن (بعد mmap ⇒ خارجَ ما يدهسه) وانقل إليه المؤشّر.
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, x86::RAX);
+                }
+                case OP::ARRAY_SET:
+                {
+                    // (AR) operands=[arr(reg,Array), index(const/reg), value(reg)]. نحسب عنوانَ
+                    //      العنصر في RAX ثمّ نخزّن القيمةَ فيه. المعلَّب (elementType=Any) مؤجَّل ⇒ فشلٌ صريح.
+                    if (inst.operands.size() != 3)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (inst.operands[0].elementType == types::SadTypeKind::Any)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-set-boxed");
+                    if (!emitElemAddr(inst.operands[0], inst.operands[1]))
+                        return false;
+                    // (AR) RDI = القيمة (بعد حساب العنوان ⇒ الفهرسُ في RDI لم يعد مطلوبًا)؛ [RAX]=RDI.
+                    if (!loadInto(x86::RDI, inst.operands[2]))
+                        return false;
+                    return storeMemBase(x86::RAX, 0, x86::RDI);
+                }
+                case OP::ARRAY_GET:
+                {
+                    // (AR) result = arr[index]. نحسب عنوانَ العنصر في RAX ثمّ نحمّله في الوجهة.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (inst.operands[0].elementType == types::SadTypeKind::Any)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-get-boxed");
+                    if (!emitElemAddr(inst.operands[0], inst.operands[1]))
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadMemBase(dst, x86::RAX, 0);
+                }
+                case OP::ARRAY_LEN:
+                {
+                    // (AR) result = طول(arr) ⇒ [arr+0].
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!loadInto(x86::RAX, inst.operands[0]))
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadMemBase(dst, x86::RAX, kArrOffLen);
+                }
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
@@ -1198,6 +1378,9 @@ namespace sad
                 for (size_t idx = 0; idx < is.size(); ++idx)
                 {
                     const sir::SIRInstruction &inst = is[idx];
+                    // (AR) سياقُ التخصيص: يمكّن allocReg من استرجاعِ سجلٍّ ميّتٍ عند نفاد الحوض.
+                    curBlock_ = &block;
+                    curInstIdx_ = idx;
                     if (&inst == fused)
                         continue; // (AR) مدموجة ⇒ يعالجها BR_COND
                     if (inst.opcode == sir::SIROpcode::BR)

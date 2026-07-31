@@ -51,6 +51,7 @@ namespace sad
         //      ثوابتُ مسمّاةٌ لا أرقامٌ سحريّة.
         inline constexpr long long kSysExitArm64 = 93;  // (AR) exit
         inline constexpr long long kSysWriteArm64 = 64; // (AR) write
+        inline constexpr long long kSysMmapArm64 = 222; // (AR) mmap (تخصيصُ كومةٍ للمصفوفات)
         inline constexpr long long kFdStdoutArm64 = 1;  // (AR) واصفُ الخرج القياسيّ (stdout)
         inline constexpr long long kItoaRadixArm64 = 10; // (AR) أساسُ التحويل العشريّ
         inline constexpr long long kAsciiZeroArm64 = 0x30; // (AR) رمزُ الصفر ASCII ('0') — أساسُ itoa
@@ -130,6 +131,10 @@ namespace sad
             std::map<std::string, int> regOf_;                       // (AR) سجلّ افتراضيّ ⇒ فيزيائيّ
             const std::vector<int> pool_{9, 10, 11, 12, 13, 14, 15}; // (AR) x9..x15 (caller-saved)
             size_t next_ = 0;
+            // (AR) سياقُ التخفيض الحاليّ (يُضبَط في lowerBlock): يمكّن allocReg من استرجاعِ سجلِّ
+            //      مؤقّتٍ ميّتٍ عند نفاد الحوض (لازمٌ للمصفوفات كثيرةِ المؤقّتات). نظيرُ x86.
+            const sir::SIRBasicBlock *curBlock_ = nullptr;
+            size_t curInstIdx_ = 0;
             std::vector<uint8_t> code_;
             EC errorCode_ = EC::INT_NATIVE_NO_ENTRY;
             std::string detail_;
@@ -293,6 +298,63 @@ namespace sad
             {
                 return emit(a64::mnem::kStrb, "w, x", {a64::Operand::R(wt), a64::Operand::R(xn)});
             }
+            // (AR) str/ldr بقاعدةِ سجلٍّ عامّة: [Xn, #idx×8] (idx = الإزاحةُ المقيسة). لحقولِ
+            //      SadArray وعناصرها. add Xd,Xn,Xm,LSL#3 لعنونةِ عنصرٍ بفهرسٍ متغيّر (data+idx×8).
+            bool strBase(int rt, int rn, long long idx)
+            {
+                return emit(a64::mnem::kStr, "x, x, imm12",
+                            {a64::Operand::R(rt), a64::Operand::R(rn), a64::Operand::I(idx)});
+            }
+            bool ldrBase(int rt, int rn, long long idx)
+            {
+                return emit(a64::mnem::kLdr, "x, x, imm12",
+                            {a64::Operand::R(rt), a64::Operand::R(rn), a64::Operand::I(idx)});
+            }
+            bool addLsl3(int d, int n, int m) // (AR) add Xd, Xn, Xm, LSL #3
+            {
+                return emit(a64::mnem::kAdd, "x, x, x, lsl3",
+                            {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)});
+            }
+            // (AR) mmap(NULL, size, R|W, PRIVATE|ANON, -1, 0) عبر svc ⇒ المؤشّرُ في x0. الحجمُ ثابتٌ
+            //      (≤٦٥٥٣٥ ⇒ movz؛ الأكبرُ مؤجَّل). fd=-1 عبر movz صفر ثمّ sub #1. x8=222.
+            bool emitMmapArm64(long long sizeBytes)
+            {
+                return movz(a64reg::kX0, 0) &&
+                       movz(a64reg::kX1, sizeBytes) &&
+                       movz(a64reg::kX2, kProtReadWrite) &&
+                       movz(3, kMapPrivAnon) &&
+                       movz(4, 0) && subImm(4, 4, 1) && // (AR) x4 = -1 (fd)
+                       movz(5, 0) &&
+                       movz(a64reg::kX8, kSysMmapArm64) &&
+                       emit(a64::mnem::kSvc, "", {});
+            }
+            // (AR) يضع عنوانَ عنصرِ المصفوفة في x16، ويُعيد عبر outIdx الإزاحةَ المقيسةَ لـldr/str.
+            //      x16 = data ([arr+16])؛ الفهرسُ ثابتٌ ⇒ يبقى إزاحةً (outIdx=idx)، أو سجلٌّ ⇒
+            //      x16 += idx×8 (add lsl#3) وoutIdx=0. x17 خدشٌ للفهرس المتغيّر.
+            bool emitElemAddrArm64(const sir::SIROperand &arrOp, const sir::SIROperand &idxOp,
+                                   long long &outIdx)
+            {
+                if (!materialize(a64reg::kScratch0, arrOp) ||
+                    !ldrBase(a64reg::kScratch0, a64reg::kScratch0, kArrOffData / kArrSlotBytes))
+                    return false;
+                long long idx;
+                if (common::isConstInt(idxOp, idx))
+                {
+                    if (idx < 0)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-neg-index");
+                    // (AR) الفهرسُ الثابتُ يمرّ كـimm12 لـldr/str (مقياسُه ٨) ⇒ حدُّه ٤٠٩٥؛ الأكبرُ
+                    //      يفشل صراحةً لا انهيارًا (اتّساقًا مع مسار x86؛ الفهرسُ المتغيّرُ بلا حدّ).
+                    if (idx > 4095)
+                        return fail(EC::INT_NATIVE_IMM_RANGE, "array-index-imm12:" + std::to_string(idx));
+                    outIdx = idx;
+                    return true;
+                }
+                if (!materialize(a64reg::kScratch1, idxOp) ||
+                    !addLsl3(a64reg::kScratch0, a64reg::kScratch0, a64reg::kScratch1))
+                    return false;
+                outIdx = 0;
+                return true;
+            }
             // (AR) الفهرسُ (=imm12) مضمونٌ في [0, 4095]: حارسُ emitPrologue يرفض الإطارَ > 4095.
             bool strSlot(int reg, int slot) // (AR) str Xreg, [sp, #slot*8]
             {
@@ -419,11 +481,36 @@ namespace sad
                     out = it->second;
                     return true;
                 }
-                if (next_ >= pool_.size())
-                    return fail(EC::INT_NATIVE_REGALLOC_EXHAUSTED, "pool=" + std::to_string(pool_.size()));
-                out = pool_[next_++];
-                regOf_[vreg] = out;
-                return true;
+                // (AR) المسارُ الأحاديّ (يحفظ بايتات البرامج القائمة تمامًا): خصّص التاليَ ما دام
+                //      في الحوض متّسع ⇒ صفر انحدارٍ بايتيّ لما كان يعمل.
+                if (next_ < pool_.size())
+                {
+                    out = pool_[next_++];
+                    regOf_[vreg] = out;
+                    return true;
+                }
+                // (AR) نفد الحوضُ الأحاديّ: استرجِعْ سجلَّ مؤقّتٍ ميّتٍ (ليس معاملَ التعليمة الحاليّة
+                //      وليس حيًّا بعدها) — لازمٌ للمصفوفات (مؤقّتاتٌ كثيرةٌ قصيرةُ العمر). نظيرُ x86.
+                if (curBlock_ && curInstIdx_ < curBlock_->instructions.size())
+                {
+                    const auto &curOps = curBlock_->instructions[curInstIdx_].operands;
+                    auto usedNow = [&curOps](const std::string &n) {
+                        for (const auto &op : curOps)
+                            if (op.type == sir::SIROperandType::REGISTER && op.name == n)
+                                return true;
+                        return false;
+                    };
+                    for (auto rit = regOf_.begin(); rit != regOf_.end(); ++rit)
+                        if (!usedNow(rit->first) &&
+                            !common::usedAfterInBlock(*curBlock_, curInstIdx_, rit->first))
+                        {
+                            out = rit->second;
+                            regOf_.erase(rit);
+                            regOf_[vreg] = out;
+                            return true;
+                        }
+                }
+                return fail(EC::INT_NATIVE_REGALLOC_EXHAUSTED, "pool=" + std::to_string(pool_.size()));
             }
 
             // (AR) يُجهّز معاملًا في سجلٍّ وجهة: ثابتٌ ⇒ movz؛ متغيّرُ ذاكرةٍ ⇒ ldr من خانته (قراءةُ
@@ -485,6 +572,7 @@ namespace sad
                 bool hasCall = false;
                 bool hasPrint = false;
                 bool hasNumberPrint = false;
+                bool hasArrayNew = false; // (AR) ARRAY_NEW ⇒ mmap (نسكٌ تحفّظيّ حولَ svc)
                 for (const auto &blockPtr : fn.getBasicBlocks())
                     for (const auto &inst : blockPtr->instructions)
                     {
@@ -492,6 +580,8 @@ namespace sad
                             memSlot_[inst.result->name] = slot++;
                         else if (inst.opcode == sir::SIROpcode::CALL)
                             hasCall = true;
+                        else if (inst.opcode == sir::SIROpcode::ARRAY_NEW)
+                            hasArrayNew = true;
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_PRINT)
                         {
                             hasPrint = true;
@@ -513,8 +603,8 @@ namespace sad
                     slot += 3;
                     printBufTopSlot_ = slot; // (AR) العنوانُ الأعلى الحصريّ = sp + slot*8
                 }
-                // (AR) إن نادت الدالّةُ أو طبعت، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض.
-                if (hasCall || hasPrint)
+                // (AR) إن نادت الدالّةُ أو طبعت أو خصّصت مصفوفة، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض.
+                if (hasCall || hasPrint || hasArrayNew)
                 {
                     spillBaseSlot_ = slot;
                     slot += static_cast<int>(pool_.size());
@@ -806,6 +896,88 @@ namespace sad
                                emit(a64::mnem::kSvc, "", {});
                     return materialize(a64reg::kX0, inst.operands[0]) && emitEpilogue();
                 }
+                case OP::ARRAY_NEW:
+                {
+                    // (AR) result = مصفوفةٌ جديدة؛ operands=[len(const), cap(const)]. mmap كتلةً
+                    //      واحدة (رأسٌ ٤٠ + بياناتٌ cap×٨)، تهيئةُ len/cap/data؛ tags/homogKind
+                    //      يُصفّرهما mmap. السعةُ ثابتةٌ؛ الحجمُ الديناميّ مؤجَّلٌ ⇒ فشلٌ صريح.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long lenv, capv;
+                    if (!common::isConstInt(inst.operands[0], lenv) ||
+                        !common::isConstInt(inst.operands[1], capv))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-new-dynamic-size");
+                    if (lenv < 0 || capv < 0)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-new-negative");
+                    const long long total = kArrHeaderBytes + capv * kArrSlotBytes;
+                    // (AR) انسكِبْ المؤقّتاتِ الحيّةَ (تحفّظًا حولَ svc)، ثمّ mmap، ثمّ أعِدها.
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!spillReg(kv.second))
+                                return false;
+                    if (!emitMmapArm64(total))
+                        return false;
+                    // (AR) x0 = المؤشّر. x16 خدشٌ: len ثمّ cap ثمّ data=x0+40.
+                    if (!movz(a64reg::kScratch0, lenv) ||
+                        !strBase(a64reg::kScratch0, a64reg::kX0, kArrOffLen / kArrSlotBytes))
+                        return false;
+                    if (!movz(a64reg::kScratch0, capv) ||
+                        !strBase(a64reg::kScratch0, a64reg::kX0, kArrOffCap / kArrSlotBytes))
+                        return false;
+                    if (!addImm(a64reg::kScratch0, a64reg::kX0, kArrHeaderBytes) ||
+                        !strBase(a64reg::kScratch0, a64reg::kX0, kArrOffData / kArrSlotBytes))
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, a64reg::kX0);
+                }
+                case OP::ARRAY_SET:
+                {
+                    // (AR) operands=[arr(reg,Array), index(const/reg), value(reg)]. نحسب عنوانَ
+                    //      العنصر ثمّ نخزّن القيمة. المعلَّب (elementType=Any) مؤجَّلٌ ⇒ فشلٌ صريح.
+                    if (inst.operands.size() != 3)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (inst.operands[0].elementType == types::SadTypeKind::Any)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-set-boxed");
+                    long long off;
+                    if (!emitElemAddrArm64(inst.operands[0], inst.operands[1], off))
+                        return false;
+                    // (AR) x17 = القيمة (بعد حساب العنوان ⇒ فهرسُه في x17 لم يعد مطلوبًا)؛ str.
+                    return materialize(a64reg::kScratch1, inst.operands[2]) &&
+                           strBase(a64reg::kScratch1, a64reg::kScratch0, off);
+                }
+                case OP::ARRAY_GET:
+                {
+                    // (AR) result = arr[index]. نحسب عنوانَ العنصر ثمّ نحمّله في الوجهة.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (inst.operands[0].elementType == types::SadTypeKind::Any)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-get-boxed");
+                    long long off;
+                    if (!emitElemAddrArm64(inst.operands[0], inst.operands[1], off))
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return ldrBase(dst, a64reg::kScratch0, off);
+                }
+                case OP::ARRAY_LEN:
+                {
+                    // (AR) result = طول(arr) ⇒ [arr+0].
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!materialize(a64reg::kScratch0, inst.operands[0]))
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return ldrBase(dst, a64reg::kScratch0, kArrOffLen / kArrSlotBytes);
+                }
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
@@ -934,6 +1106,9 @@ namespace sad
                 for (size_t idx = 0; idx < is.size(); ++idx)
                 {
                     const sir::SIRInstruction &inst = is[idx];
+                    // (AR) سياقُ التخصيص: يمكّن allocReg من استرجاعِ سجلٍّ ميّتٍ عند نفاد الحوض.
+                    curBlock_ = &block;
+                    curInstIdx_ = idx;
                     if (&inst == fused)
                         continue;
                     if (inst.opcode == sir::SIROpcode::BR)

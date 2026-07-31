@@ -620,6 +620,48 @@ TEST(NativeSirBridge, ModWithLiveRdxTemp)
     ASSERT_EQ(int(wrote), int(bin.size()));
 }
 
+// ── المصفوفات (كومةُ mmap + SadArray الخماسيّ): NEW/GET/SET/LEN على x86-64 ──
+
+// (AR) مصفوفةٌ حرفيّةٌ مفهرسةٌ مباشرةً: «ارجع [10، 20، 42][2]» ⇒ ARRAY_NEW (mmap كومة) +
+//      MOVE×3 + ARRAY_SET×3 + ARRAY_GET ⇒ يخرج ٤٢. أوّلُ برنامجِ ص ذي كومةِ mmap ومصفوفةٍ.
+TEST(NativeSirBridge, LowersArrayLiteralIndex)
+{
+    //  ارجع [10، 20، 42][2]   (، = D8 8C)
+    auto module = buildSir(mkReturn("[10\xD8\x8C 20\xD8\x8C 42][2]"));
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("array lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap)
+    std::FILE *fp = std::fopen("sad_sir_array42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) طولُ مصفوفةٍ: «ارجع طول([1، 2، 3]) * 14» ⇒ ARRAY_LEN (الحقل ٠) × ١٤ = ٤٢. يُثبت ARRAY_LEN.
+TEST(NativeSirBridge, LowersArrayLength)
+{
+    //  ارجع طول([1، 2، 3]) * 14      طول = D8 B7 D9 88 D9 84
+    auto module = buildSir(mkReturn("\xD8\xB7\xD9\x88\xD9\x84([1\xD8\x8C 2\xD8\x8C 3]) * 14"));
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("array-len lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    std::FILE *fp = std::fopen("sad_sir_arraylen42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // (AR) جسر SIR→AArch64 (الهدف الثاني): نفسُ SIR الأماميّ يُخفَّض لـARM64 عبر محرّكٍ
 //      وكاتب ELF عامَّين. برهانُ عموميّة الخطّ عبر صنفَي ISA. تُكتب الثنائيّاتُ لبرهانٍ
@@ -785,6 +827,26 @@ TEST(Arm64SirBridge, PrintsComputedNumber)
     bool ok = false;
     size_t sz = 0;
     lowerArm64AndWrite(kSrcPrintComputed, "sad_arm64_printcomputed", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) مصفوفةٌ حرفيّةٌ مفهرسةٌ على ARM64: «ارجع [10، 20، 42][2]» ⇒ ARRAY_NEW (mmap svc) +
+//      ARRAY_SET×3 + ARRAY_GET ⇒ يخرج ٤٢ على qemu. يُثبت كومةَ mmap + str/ldr بقاعدةِ سجلّ.
+TEST(Arm64SirBridge, LowersArrayLiteralIndex)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(mkReturn("[10\xD8\x8C 20\xD8\x8C 42][2]"), "sad_arm64_array42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) طولُ مصفوفةٍ على ARM64: «ارجع طول([1، 2، 3]) * 14» ⇒ ARRAY_LEN × ١٤ = ٤٢. يُثبت ARRAY_LEN.
+TEST(Arm64SirBridge, LowersArrayLength)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(mkReturn("\xD8\xB7\xD9\x88\xD9\x84([1\xD8\x8C 2\xD8\x8C 3]) * 14"),
+                       "sad_arm64_arraylen42", &ok, &sz);
     ASSERT_TRUE(ok);
 }
 

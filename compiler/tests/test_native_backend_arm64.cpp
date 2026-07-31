@@ -282,6 +282,31 @@ TEST(NativeArm64, CsetConditions)
     ASSERT_EQ(hex(enc("عيّن_إذا", "x, cond", {arm64::Operand::R(arm64::X9), arm64::Operand::I(11)})), std::string("e9b79f9a"));
 }
 
+// ─── المصفوفات: str/ldr بقاعدةِ سجلٍّ + add-shifted (index×8) — القيم = llvm-mc حرفيًّا ───
+// str x9, [x16, #16] (imm12=2 مقيسٌ بـ8، Rn=x16)  # encoding: [0x09,0x0a,0x00,0xf9]
+TEST(NativeArm64, StrBaseX9X16_16)
+{
+    auto b = enc("اخزن", "x, x, imm12",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::I(2)));
+    ASSERT_EQ(hex(b), std::string("090a00f9"));
+}
+
+// ldr x9, [x16, #16] (imm12=2، Rn=x16)  # encoding: [0x09,0x0a,0x40,0xf9]
+TEST(NativeArm64, LdrBaseX9X16_16)
+{
+    auto b = enc("احمل", "x, x, imm12",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::I(2)));
+    ASSERT_EQ(hex(b), std::string("090a40f9"));
+}
+
+// add x16, x16, x17, lsl #3 (عنونةُ عنصرٍ: data + index×8)  # encoding: [0x10,0x0e,0x11,0x8b]
+TEST(NativeArm64, AddLsl3X16X16X17)
+{
+    auto b = enc("اجمع", "x, x, x, lsl3",
+                 ops3(arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)));
+    ASSERT_EQ(hex(b), std::string("100e118b"));
+}
+
 // ─── تسلسل «خروج ٤٢» الكامل ───
 TEST(NativeArm64, Exit42Sequence)
 {

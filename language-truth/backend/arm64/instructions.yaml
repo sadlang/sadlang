@@ -46,6 +46,23 @@ instructions:
           - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
           - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
+    # ADD Xd, Xn, Xm, LSL #3   ⇒  كـADD مع imm6=3 (عنونةُ عنصرِ مصفوفةٍ: data + index×8، متحقَّق: add x16,x16,x17,lsl#3 = 0x8B110E10)
+    - en: add_lsl3
+      form: "x, x, x, lsl3"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 21, const: 88 }
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: imm6,  hi: 15, lo: 10, const: 3 }          # LSL #3 (×٨ لخانةِ العنصر)
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
     # ADD Xd, Xn, #imm12   ⇒  sf 0 0 100010 sh imm12 Rn Rd   (فوريّ؛ لعنوانِ خانةٍ [sp+off] وجمعِ ثابت، متحقَّق: add x12,sp,#8 = 0x910023EC)
     - en: add
       form: "x, x, imm12"
@@ -367,6 +384,21 @@ instructions:
           - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # SP
           - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
+    # STR Xt, [Xn, #imm12*8]   ⇒  قاعدةُ سجلٍّ عامّة (لكتابةِ حقولِ رأسِ SadArray وعناصرها، متحقَّق: str x9,[x16,#16] = 0xF9000A09)
+    - en: str_base
+      form: "x, x, imm12"
+      operands:
+        - { kind: reg, class: gpr, role: in }                 # Rt: القيمة المخزَّنة
+        - { kind: reg, class: gpr, role: in }                 # Rn: قاعدةُ العنوان
+        - { kind: imm }                                       # imm12: الإزاحةُ المقيسة (بايت÷٨)
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 22, const: 996 }
+          - { name: imm12, hi: 21, lo: 10, from: op2 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
 
   # LDR Xt, [SP, #imm12*8]   ⇒  11 111 0 01 01 imm12 Rn Rt   (متحقَّق: ldr x9,[sp,#8] = 0xF94007E9)
   احمل:
@@ -381,6 +413,21 @@ instructions:
           - { name: fixed, hi: 31, lo: 22, const: 997 }        # 0b1111100101 (LDR غير مفهرس، ٦٤-بت)
           - { name: imm12, hi: 21, lo: 10, from: op1 }
           - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # SP
+          - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+    # LDR Xt, [Xn, #imm12*8]   ⇒  قاعدةُ سجلٍّ عامّة (لقراءةِ حقولِ SadArray وعناصرها، متحقَّق: ldr x9,[x16,#16] = 0xF9400A09)
+    - en: ldr_base
+      form: "x, x, imm12"
+      operands:
+        - { kind: reg, class: gpr, role: out }                # Rt: وجهةُ التحميل
+        - { kind: reg, class: gpr, role: in }                 # Rn: قاعدةُ العنوان
+        - { kind: imm }                                       # imm12: الإزاحةُ المقيسة (بايت÷٨)
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 22, const: 997 }
+          - { name: imm12, hi: 21, lo: 10, from: op2 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
           - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
 
