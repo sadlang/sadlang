@@ -198,12 +198,37 @@ def generate(yaml_path: Path, header_path: Path, schema_path: Path | None) -> No
     yaml_rel = f"language-truth/backend/{arch}/instructions.yaml"
 
     rows: list[str] = []
+    # (AR) ثوابتُ أسماءِ التعليمات: مُعرِّفٌ لاتينيٌّ مستقرّ (من en) ⇒ المنمنمةُ العربيّة.
+    #      تُستهلَك في المُخفِّض (lowering) بدل تأليفِ السلسلةِ العربيّةِ يدويًّا ⇒ مصدرٌ
+    #      وحيدٌ للاسم؛ إعادةُ تسميةٍ في الـYAML تنتشر آليًّا (لا انجرافٌ صامت).
+    # (EN) Mnemonic name constants: stable latin identifier (from en) -> Arabic
+    #      mnemonic. Consumed by the lowering pass instead of hand-authoring the
+    #      Arabic string, so the name has a single source and renames propagate.
+    mnem_rows: list[str] = []
+    seen_idents: dict[str, str] = {}
     for mnemonic, forms in data["instructions"].items():
         for form in forms:
             spec = emit(form)
             rows.append(
                 f"    {{ {cpp_string_literal(mnemonic)}, "
                 f"{cpp_string_literal(form['form'])}, {spec} }},"
+            )
+        en = forms[0].get("en") if forms else None
+        if not en:
+            continue
+        ident = "k" + "".join(w[:1].upper() + w[1:] for w in str(en).split("_"))
+        prev = seen_idents.get(ident)
+        if prev is not None and prev != mnemonic:
+            print(
+                f"[gen_backend_encoding] FATAL: تصادمُ مُعرِّفِ منمنمة / mnemonic ident collision: "
+                f"{ident!r} ⇐ {prev!r} و/and {mnemonic!r}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if prev is None:
+            seen_idents[ident] = mnemonic
+            mnem_rows.append(
+                f"inline const std::string {ident} = {cpp_string_literal(mnemonic)};"
             )
 
     ns_open = " ".join(f"namespace {p} {{" for p in ns)
@@ -232,6 +257,15 @@ def generate(yaml_path: Path, header_path: Path, schema_path: Path | None) -> No
     lines.append("    return kTable;")
     lines.append("}")
     lines.append("")
+    if mnem_rows:
+        lines.append("// (AR) ثوابتُ أسماءِ التعليمات (منمنمات) المولَّدة من SoT — تُستهلَك في المُخفِّض")
+        lines.append("//      بدلَ تأليفِ السلسلةِ العربيّةِ يدويًّا (منعُ انجرافِ الاسم عن مصدر الحقيقة).")
+        lines.append("// (EN) Instruction-name constants generated from SoT — consumed by the lowering")
+        lines.append("//      pass instead of hand-authored Arabic strings (prevents name drift).")
+        lines.append("namespace mnem {")
+        lines.extend(mnem_rows)
+        lines.append("} // namespace mnem")
+        lines.append("")
     lines.append("// (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.")
     lines.append("// (EN) look up an encoding spec by mnemonic + form; nullptr if absent.")
     lines.append("inline const EncSpec *lookupEncSpec(const std::string &mnemonic, const std::string &form)")

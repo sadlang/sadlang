@@ -142,6 +142,7 @@ namespace sad
                 next_ = 0;
                 frameSize_ = 0;
                 spillBase_ = 0; // (AR) تأمينٌ دفاعيّ: لا يُستعمَل إلّا حين hasCall (يُضبَط في assignFrameSlots)
+                idivScratchDisp_ = 0; // (AR) يُضبَط في assignFrameSlots حين تحوي الدالّةُ قسمةً/باقيًا
 
                 const auto &blocks = fn.getBasicBlocks();
                 if (blocks.empty())
@@ -209,6 +210,10 @@ namespace sad
             //      المؤقّتاتُ الحيّةُ إليها قبله وتُعاد بعده؛ وتُحمَّل وسائطُ المؤقّتات منها
             //      (لا من السجلّات) ⇒ صفر تصادمٍ في نقل الوسائط (حلٌّ موحَّد للنقل المتوازي).
             long long spillBase_ = 0;
+
+            // (AR) إزاحةُ خانةِ خدشِ القسمة: نحفظ فيها rdx حولَ تسلسلِ cqo/idiv (idiv يدهس
+            //      rdx بالباقي)، فلا يُفقَد مؤقّتٌ حيٌّ كان في rdx. صفرٌ إن لم تُنادِ الدالّةُ قسمةً.
+            long long idivScratchDisp_ = 0;
 
             // (AR) إزاحةُ خانة انسكابِ سجلّ الحوض بموضعه i (0..pool_.size()-1).
             long long spillDisp(size_t poolIdx) const
@@ -305,22 +310,9 @@ namespace sad
                 return true;
             }
 
-            static const char *kMov;  // انقل
-            static const char *kAdd;  // اجمع
-            static const char *kSub;  // اطرح
-            static const char *kSys;  // نداء_نظام
-            static const char *kPush; // ادفع
-            static const char *kPop;  // اسحب
-            static const char *kRet;  // ارجع
-            static const char *kCall; // نادِ
-            static const char *kCmp;  // قارن
-            static const char *kJmp;  // اقفز
-            static const char *kJe;   // اقفز_إذا_ساوى
-            static const char *kJne;  // اقفز_إذا_لم_يساوِ
-            static const char *kJl;   // اقفز_إذا_أصغر
-            static const char *kJle;  // اقفز_إذا_أصغر_أو_ساوى
-            static const char *kJg;   // اقفز_إذا_أكبر
-            static const char *kJge;  // اقفز_إذا_أكبر_أو_ساوى
+            // (AR) أسماءُ التعليمات (منمنمات) لا تُؤلَّف هنا: مصدرُها الوحيد فضاءُ
+            //      x86::mnem في الهيدر المولَّد من SoT (instructions.yaml) ⇒ إعادةُ
+            //      تسميةٍ في الـYAML تنتشر آليًّا بلا انجرافٍ صامتٍ في المُخفِّض.
 
             // (AR) mov r32, imm32 يمتدّ صفريًّا إلى ٦٤؛ لا يمثّل إلّا [0, 2³²). خارجَه
             //      (سالبٌ أو ≥2³²) يُبتَر ⇒ نرفضه بوضوح (عيب أميليا رقم ٣).
@@ -328,13 +320,13 @@ namespace sad
             {
                 if (imm < 0 || imm > 0xFFFFFFFFLL)
                     return fail(EC::INT_NATIVE_IMM_RANGE, "u32:" + std::to_string(imm));
-                return emit(kMov, "r32, imm32", {x86::Operand::R(reg), x86::Operand::I(imm, 32)});
+                return emit(x86::mnem::kMov, "r32, imm32", {x86::Operand::R(reg), x86::Operand::I(imm, 32)});
             }
             bool movReg(int dst, int src)
             {
                 if (dst == src)
                     return true;
-                return emit(kMov, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)});
+                return emit(x86::mnem::kMov, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)});
             }
             // (AR) add/sub r64, imm32 يمتدّ إشاريًّا؛ نقصره على مدى imm32 الموقَّع.
             bool checkImm32(long long imm)
@@ -345,27 +337,40 @@ namespace sad
             }
             bool addImm(int reg, long long imm)
             {
-                return checkImm32(imm) && emit(kAdd, "r64, imm32", {x86::Operand::R(reg), x86::Operand::I(imm, 32)});
+                return checkImm32(imm) && emit(x86::mnem::kAdd, "r64, imm32", {x86::Operand::R(reg), x86::Operand::I(imm, 32)});
             }
             bool addReg(int dst, int src)
             {
-                return emit(kAdd, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)});
+                return emit(x86::mnem::kAdd, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)});
             }
             bool subImm(int reg, long long imm)
             {
-                return checkImm32(imm) && emit(kSub, "r64, imm32", {x86::Operand::R(reg), x86::Operand::I(imm, 32)});
+                return checkImm32(imm) && emit(x86::mnem::kSub, "r64, imm32", {x86::Operand::R(reg), x86::Operand::I(imm, 32)});
+            }
+            bool subReg(int dst, int src) // (AR) dst -= src (29 /r)
+            {
+                return emit(x86::mnem::kSub, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)});
+            }
+            bool imulReg(int dst, int src) // (AR) dst *= src (0F AF /r؛ reg=الوجهة)
+            {
+                return emit(x86::mnem::kImul, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)});
+            }
+            bool cqo() { return emit(x86::mnem::kCqo, "", {}); }        // (AR) يمدّ إشارةَ rax إلى rdx:rax
+            bool idivReg(int divisor)                        // (AR) rdx:rax ÷ divisor ⇒ rax=حاصل، rdx=باقٍ
+            {
+                return emit(x86::mnem::kIdiv, "r64", {x86::Operand::R(divisor)});
             }
 
             // ── الذاكرة: خانات الإطار [rbp+إزاحة] ──
             // (AR) mov r64, [rbp+disp] — تحميلٌ من خانة إطار.
             bool loadMem(int dst, long long disp)
             {
-                return emit(kMov, "r64, m64", {x86::Operand::R(dst), x86::Operand::M(x86::RBP, disp)});
+                return emit(x86::mnem::kMov, "r64, m64", {x86::Operand::R(dst), x86::Operand::M(x86::RBP, disp)});
             }
             // (AR) mov [rbp+disp], r64 — تخزينٌ في خانة إطار.
             bool storeMem(long long disp, int src)
             {
-                return emit(kMov, "m64, r64", {x86::Operand::M(x86::RBP, disp), x86::Operand::R(src)});
+                return emit(x86::mnem::kMov, "m64, r64", {x86::Operand::M(x86::RBP, disp), x86::Operand::R(src)});
             }
 
             // (AR) هل المعاملُ سجلٌّ يُشير إلى خانةِ متغيّرٍ مخصَّص (ALLOC)؟ يُعيد إزاحتَه.
@@ -445,6 +450,7 @@ namespace sad
                     memSlot_["%" + p.name] = -used;
                 }
                 bool hasCall = false;
+                bool hasIdiv = false;
                 for (const auto &blockPtr : blocks)
                     for (const auto &inst : blockPtr->instructions)
                     {
@@ -455,7 +461,17 @@ namespace sad
                         }
                         else if (inst.opcode == sir::SIROpcode::CALL)
                             hasCall = true;
+                        else if (inst.opcode == sir::SIROpcode::MOD_I64 ||
+                                 inst.opcode == sir::SIROpcode::FLOOR_DIV_I64)
+                            hasIdiv = true;
                     }
+                // (AR) القسمةُ الصحيحةُ (idiv) تدهس rdx (=أوّلُ سجلّ حوض، قد يحمل مؤقّتًا حيًّا)؛
+                //      احجز خانةَ خدشٍ نحفظ فيها rdx حولَ التسلسل cqo/idiv ونعيده بعده.
+                if (hasIdiv)
+                {
+                    used += 8;
+                    idivScratchDisp_ = -used;
+                }
                 // (AR) إن كانت الدالّةُ تُنادي، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض تُحفَظ
                 //      فيها المؤقّتاتُ الحيّةُ عبر النداء (وتُحمَّل منها وسائطُ المؤقّتات).
                 if (hasCall)
@@ -476,7 +492,7 @@ namespace sad
             //      الواردة (rdi/rsi/…) في خانات المعاملات (كلٌّ مفحوص).
             bool emitPrologue(const sir::SIRFunction &fn)
             {
-                if (!emit(kPush, "r64", {x86::Operand::R(x86::RBP)}) ||
+                if (!emit(x86::mnem::kPush, "r64", {x86::Operand::R(x86::RBP)}) ||
                     !movReg(x86::RBP, x86::RSP) ||
                     !subImm(x86::RSP, frameSize_))
                     return false;
@@ -515,11 +531,50 @@ namespace sad
                     long long bc;
                     if (isConstInt(b, bc)) // (AR) فوريّ ⇒ add/sub r64,imm32
                         return inst.opcode == OP::ADD_I64 ? addImm(dst, bc) : subImm(dst, bc);
-                    // (AR) معاملٌ ثانٍ سجليّ/ذاكرة: حمّله في المُبدَّد RAX ثمّ اجمع بالسجلّ.
-                    //      SUB سجلّ-سجلّ غير مدعومٍ بعد (لا صيغةَ 29 /r) ⇒ فشلٌ صريح.
-                    if (inst.opcode == OP::SUB_I64)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "sub-reg-reg:" + detailOpcode(inst));
-                    return loadInto(x86::RAX, b) && addReg(dst, x86::RAX);
+                    // (AR) معاملٌ ثانٍ سجليّ/ذاكرة: حمّله في المُبدَّد RAX ثمّ اجمع/اطرح بالسجلّ.
+                    if (!loadInto(x86::RAX, b))
+                        return false;
+                    return inst.opcode == OP::ADD_I64 ? addReg(dst, x86::RAX) : subReg(dst, x86::RAX);
+                }
+                case OP::MUL_I64:
+                {
+                    // (AR) %dst = a × b ⇒ حمّل a في dst وb في المُبدَّد RAX ثمّ imul dst,RAX.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadInto(dst, inst.operands[0]) &&
+                           loadInto(x86::RAX, inst.operands[1]) &&
+                           imulReg(dst, x86::RAX);
+                }
+                case OP::MOD_I64:
+                case OP::FLOOR_DIV_I64:
+                {
+                    // (AR) قسمةٌ صحيحةٌ موقَّعة: المقسومُ في rax، cqo يمدّ الإشارةَ إلى rdx:rax،
+                    //      idiv بمقسومٍ عليه في مُبدَّدٍ خارجَ الحوض (RDI) ⇒ rax=حاصل، rdx=باقٍ.
+                    //      rdx (=pool[0]) قد يحمل مؤقّتًا حيًّا لتعليماتٍ لاحقة، فنحفظه في خانةِ
+                    //      خدشِ القسمة ونعيده بعد نقلِ النتيجة ⇒ لا مؤقّتٌ يُدهَس. الحاصلُ للقسمة،
+                    //      الباقي للباقي.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (!loadInto(x86::RAX, inst.operands[0]) || !loadInto(x86::RDI, inst.operands[1]))
+                        return false;
+                    if (!storeMem(idivScratchDisp_, x86::RDX)) // (AR) احفظ rdx (مؤقّتٌ حيٌّ محتمَل)
+                        return false;
+                    if (!cqo() || !idivReg(x86::RDI))
+                        return false;
+                    const int resultReg = (inst.opcode == OP::MOD_I64) ? x86::RDX : x86::RAX;
+                    if (!movReg(dst, resultReg)) // (AR) الباقي/الحاصل إلى وجهته
+                        return false;
+                    // (AR) أعِد rdx فقط إن لم تكن هي وجهةَ النتيجة: حين dst==RDX تسكن النتيجةُ
+                    //      rdx (سجلٌّ خُصِّص للتوّ، لا مؤقّتَ حيًّا سابقًا فيه) فاستعادةُ rdx تدهسها.
+                    if (dst == x86::RDX)
+                        return true;
+                    return loadMem(x86::RDX, idivScratchDisp_); // (AR) أعِد rdx (مؤقّتٌ حيٌّ محتمَل)
                 }
                 case OP::ALLOC:
                 {
@@ -564,7 +619,7 @@ namespace sad
                             return false;
                         if (!movImm(x86::RAX, kSysExitX86))
                             return false;
-                        return emit(kSys, "", {});
+                        return emit(x86::mnem::kSyscall, "", {});
                     }
                     if (!loadInto(x86::RAX, inst.operands[0]))
                         return false;
@@ -617,20 +672,20 @@ namespace sad
                 if (frameSize_ > 0)
                 {
                     if (!movReg(x86::RSP, x86::RBP) ||
-                        !emit(kPop, "r64", {x86::Operand::R(x86::RBP)}))
+                        !emit(x86::mnem::kPop, "r64", {x86::Operand::R(x86::RBP)}))
                         return false;
                 }
-                return emit(kRet, "", {});
+                return emit(x86::mnem::kRet, "", {});
             }
 
             // (AR) يُصدر نداءً (call rel32) بإزاحةٍ نائبة، ويسجّل ترقيعًا لإزاحة الدالّة.
             bool emitCall(const std::string &funcName)
             {
-                const x86::EncSpec *spec = x86::lookupEncSpec(kCall, "rel32");
+                const x86::EncSpec *spec = x86::lookupEncSpec(x86::mnem::kCall, "rel32");
                 if (!spec || spec->imm_op < 0 || spec->imm_bits <= 0)
-                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(kCall) + " rel32");
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(x86::mnem::kCall) + " rel32");
                 const int width = spec->imm_bits / 8;
-                if (!emit(kCall, "rel32", {x86::Operand::I(0, spec->imm_bits)}))
+                if (!emit(x86::mnem::kCall, "rel32", {x86::Operand::I(0, spec->imm_bits)}))
                     return false;
                 fixups_.push_back({code_.size() - static_cast<size_t>(width), funcName, width, true});
                 return true;
@@ -659,17 +714,17 @@ namespace sad
             }
 
             // (AR) منمنمةُ القفز الشرطيّ المطابقة للمقارنة (موقَّعة): «إن صحّ الشرط اقفز لـthen».
-            static const char *jccForCmp(sir::SIROpcode op)
+            static const std::string *jccForCmp(sir::SIROpcode op)
             {
                 using OP = sir::SIROpcode;
                 switch (op)
                 {
-                case OP::EQ: return kJe;
-                case OP::NE: return kJne;
-                case OP::LT: return kJl;
-                case OP::LE: return kJle;
-                case OP::GT: return kJg;
-                case OP::GE: return kJge;
+                case OP::EQ: return &x86::mnem::kJe;
+                case OP::NE: return &x86::mnem::kJne;
+                case OP::LT: return &x86::mnem::kJl;
+                case OP::LE: return &x86::mnem::kJle;
+                case OP::GT: return &x86::mnem::kJg;
+                case OP::GE: return &x86::mnem::kJge;
                 default: return nullptr;
                 }
             }
@@ -677,11 +732,11 @@ namespace sad
             // (AR) يُصدر قفزًا (مشروطًا أو غير مشروط) بإزاحةٍ نسبيّةٍ صفريّةٍ نائبة، ويسجّل
             //      ترقيعًا عند حقل الإزاحة. عرضُ الحقل وموضعُه يُشتقّان من مواصفة الترميز
             //      (imm_bits) لا من ثابتٍ مُرمَّز ⇒ يبقى سليمًا لو أُضيفت صيغةُ قفزٍ بعرضٍ آخر.
-            bool emitJump(const char *mnemonic, const std::string &targetLabel)
+            bool emitJump(const std::string &mnemonic, const std::string &targetLabel)
             {
                 const x86::EncSpec *spec = x86::lookupEncSpec(mnemonic, "rel32");
                 if (!spec || spec->imm_op < 0 || spec->imm_bits <= 0)
-                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(mnemonic) + " rel32");
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + " rel32");
                 const int width = spec->imm_bits / 8;
                 if (!emit(mnemonic, "rel32", {x86::Operand::I(0, spec->imm_bits)}))
                     return false;
@@ -698,10 +753,10 @@ namespace sad
                 if (isConstInt(b, c))
                 {
                     if (c >= -128 && c <= 127)
-                        return emit(kCmp, "r64, imm8", {x86::Operand::R(x86::RAX), x86::Operand::I(c, 8)});
+                        return emit(x86::mnem::kCmp, "r64, imm8", {x86::Operand::R(x86::RAX), x86::Operand::I(c, 8)});
                     if (!checkImm32(c))
                         return false;
-                    return emit(kCmp, "r64, imm32", {x86::Operand::R(x86::RAX), x86::Operand::I(c, 32)});
+                    return emit(x86::mnem::kCmp, "r64, imm32", {x86::Operand::R(x86::RAX), x86::Operand::I(c, 32)});
                 }
                 if (b.type == sir::SIROperandType::REGISTER)
                 {
@@ -711,7 +766,7 @@ namespace sad
                     auto it = regOf_.find(b.name);
                     if (it == regOf_.end())
                         return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + b.name);
-                    return emit(kCmp, "r64, r64", {x86::Operand::R(x86::RAX), x86::Operand::R(it->second)});
+                    return emit(x86::mnem::kCmp, "r64, r64", {x86::Operand::R(x86::RAX), x86::Operand::R(it->second)});
                 }
                 return fail(EC::INT_NATIVE_UNSUPPORTED,
                             "cmp-b-kind=" + std::to_string(static_cast<int>(b.type)));
@@ -722,7 +777,7 @@ namespace sad
             {
                 if (inst.operands.size() != 1 || inst.operands[0].type != sir::SIROperandType::LABEL)
                     return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                return emitJump(kJmp, inst.operands[0].name);
+                return emitJump(x86::mnem::kJmp, inst.operands[0].name);
             }
 
             // (AR) القفزُ المشروط BR_COND: {condition, thenLabel, elseLabel}.
@@ -745,7 +800,7 @@ namespace sad
                     if (cond.dataType != types::SadTypeKind::Boolean)
                         return fail(EC::INT_NATIVE_UNSUPPORTED,
                                     "cond-const-type=" + std::to_string(static_cast<int>(cond.dataType)));
-                    return emitJump(kJmp, cond.boolValue ? thenLbl : elseLbl);
+                    return emitJump(x86::mnem::kJmp, cond.boolValue ? thenLbl : elseLbl);
                 }
                 if (cond.type != sir::SIROperandType::REGISTER)
                     return fail(EC::INT_NATIVE_UNSUPPORTED,
@@ -761,10 +816,10 @@ namespace sad
                     return false;
                 if (!cmpAgainst(cmp->operands[1]))
                     return false;
-                const char *jcc = jccForCmp(cmp->opcode);
+                const std::string *jcc = jccForCmp(cmp->opcode);
                 if (!jcc)
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(*cmp));
-                return emitJump(jcc, thenLbl) && emitJump(kJmp, elseLbl);
+                return emitJump(*jcc, thenLbl) && emitJump(x86::mnem::kJmp, elseLbl);
             }
 
             // (AR) يجد مقارنةً في الكتلة نتيجتُها cond تُغذّي BR_COND المُنهيَ لها. تُدمَج
@@ -847,24 +902,6 @@ namespace sad
                 return true;
             }
         };
-
-        // (AR) منمنمات SoT العربيّة (تُرآي backend/x86_64/instructions.yaml).
-        inline const char *X86SirLowering::kMov = "\xD8\xA7\xD9\x86\xD9\x82\xD9\x84";                 // انقل
-        inline const char *X86SirLowering::kAdd = "\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9";                 // اجمع
-        inline const char *X86SirLowering::kSub = "\xD8\xA7\xD8\xB7\xD8\xB1\xD8\xAD";                 // اطرح
-        inline const char *X86SirLowering::kSys = "\xD9\x86\xD8\xAF\xD8\xA7\xD8\xA1_\xD9\x86\xD8\xB8\xD8\xA7\xD9\x85"; // نداء_نظام
-        inline const char *X86SirLowering::kPush = "\xD8\xA7\xD8\xAF\xD9\x81\xD8\xB9";                               // ادفع
-        inline const char *X86SirLowering::kPop = "\xD8\xA7\xD8\xB3\xD8\xAD\xD8\xA8";                                // اسحب
-        inline const char *X86SirLowering::kRet = "\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9";                                // ارجع
-        inline const char *X86SirLowering::kCall = "\xD9\x86\xD8\xA7\xD8\xAF\xD9\x90";                               // نادِ
-        inline const char *X86SirLowering::kCmp = "\xD9\x82\xD8\xA7\xD8\xB1\xD9\x86";                                                                                                 // قارن
-        inline const char *X86SirLowering::kJmp = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2";                                                                                                 // اقفز
-        inline const char *X86SirLowering::kJe = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xB3\xD8\xA7\xD9\x88\xD9\x89";                                     // اقفز_إذا_ساوى
-        inline const char *X86SirLowering::kJne = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD9\x84\xD9\x85\x5F\xD9\x8A\xD8\xB3\xD8\xA7\xD9\x88\xD9\x90";        // اقفز_إذا_لم_يساوِ
-        inline const char *X86SirLowering::kJl = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xA3\xD8\xB5\xD8\xBA\xD8\xB1";                                     // اقفز_إذا_أصغر
-        inline const char *X86SirLowering::kJle = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xA3\xD8\xB5\xD8\xBA\xD8\xB1\x5F\xD8\xA3\xD9\x88\x5F\xD8\xB3\xD8\xA7\xD9\x88\xD9\x89"; // اقفز_إذا_أصغر_أو_ساوى
-        inline const char *X86SirLowering::kJg = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xA3\xD9\x83\xD8\xA8\xD8\xB1";                                     // اقفز_إذا_أكبر
-        inline const char *X86SirLowering::kJge = "\xD8\xA7\xD9\x82\xD9\x81\xD8\xB2\x5F\xD8\xA5\xD8\xB0\xD8\xA7\x5F\xD8\xA3\xD9\x83\xD8\xA8\xD8\xB1\x5F\xD8\xA3\xD9\x88\x5F\xD8\xB3\xD8\xA7\xD9\x88\xD9\x89"; // اقفز_إذا_أكبر_أو_ساوى
 
         // (AR) مُيسِّرٌ عالي المستوى: SIRModule ⇒ ثنائيُّ ELF64 ساكن (x86-64) قابل للتنفيذ.
         inline LoweringResult lowerModuleToElf(const sir::SIRModule &module)

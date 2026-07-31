@@ -114,6 +114,39 @@ namespace
         "\x20\x20\x20\x20\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x34\x32\x0A"
         "\x20\x20\x20\x20\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) ضربٌ ثمّ طرحُ ثابت: «ارجع 40 * 2 - 38» ⇒ 80−38 = 42. يُثبت MUL_I64 (imul
+    //      0F AF، الوجهةُ = reg عكسُ add/sub) + SUB بفوريّ (81 /5) في تعبيرٍ واحد.
+    const std::string kSrcMul =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x34\x30\x20\x2A\x20\x32\x20\x2D\x20\x33\x38\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) باقي القسمة: «ارجع 85 % 43» ⇒ 42. يُثبت MOD_I64 (idiv F7 /7 + cqo، الباقي
+    //      في rdx). النتيجةُ أوّلُ سجلٍّ يُخصَّص ⇒ dst==RDX ⇒ يُمارِس مسارَ «تخطّي استعادةِ
+    //      rdx» (إصلاحُ عائقِ دهسِ الباقي) مباشرةً: خروجٌ خاطئٌ إن انكسر الإصلاح.
+    const std::string kSrcMod =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x38\x35\x20\x25\x20\x34\x33\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) قسمةٌ صحيحة: «ارجع 84 // 2» ⇒ 42. يُثبت FLOOR_DIV_I64 (idiv F7 /7 + cqo،
+    //      الحاصلُ في rax). النتيجةُ أوّلُ تخصيصٍ ⇒ dst==RDX ⇒ يُمارِس نقلَ rax⇒rdx ثمّ
+    //      تخطّيَ الاستعادة (فرعُ FLOOR_DIV من الإصلاح): خروجٌ خاطئٌ إن انكسر.
+    const std::string kSrcFloorDiv =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x38\x34\x20\x2F\x2F\x20\x32\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) طرحُ سجلٍّ من سجلّ: «ناقص(أ، ب) = أ − ب»؛ «رئيسية = ناقص(50، 8)» ⇒ 42. يُثبت
+    //      SUB reg-reg (29 /r، reg=المصدر rm=الوجهة) بمعامِلَين كلاهما من الذاكرة (لا فوريّ).
+    const std::string kSrcSubReg =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD9\x86\xD8\xA7\xD9\x82\xD8\xB5\x28\xD8\xB1\xD9\x82\xD9\x85\x20\xD8\xA3\xD8\x8C\x20\xD8\xB1\xD9\x82\xD9\x85\x20\xD8\xA8\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xA3\x20\x2D\x20\xD8\xA8\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD9\x86\xD8\xA7\xD9\x82\xD8\xB5\x28\x35\x30\xD8\x8C\x20\x38\x29\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 } // namespace
 
 // (AR) المصدرُ الحسابيّ يُبنى ويُخفَّض بنجاح، والـELF سليمٌ (EM_X86_64).
@@ -365,6 +398,98 @@ TEST(NativeSirBridge, LowersLiveAcrossCall)
     size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
     std::fclose(fp);
     ASSERT_EQ(int(wrote), int(res.code.size()));
+}
+
+// (AR) ضربٌ ثمّ طرحُ فوريّ (40*2−38=42) يُخفَّض، والـELF سليم، والبايتاتُ تحوي imul
+//      (0F AF) وطرحَ الفوريّ (81 /5 ⇒ ModRM بامتداد reg=5). يُكتب للبرهان الحيّ (خروج ٤٢).
+TEST(NativeSirBridge, LowersMultiplyThenSubImm)
+{
+    auto module = buildSir(kSrcMul);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x0F, 0xAF})); // imul r64, r64
+
+    std::FILE *fp = std::fopen("sad_sir_mul42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) باقي القسمة (85%43=42) يُخفَّض، والبايتاتُ تحوي cqo (48 99) وidiv (48 F7 /7 ⇒
+//      ModRM D8..DF بامتداد reg=7) وحفظَ/استعادةَ خانةِ خدشِ rdx. يُكتب للبرهان الحيّ.
+//      يُمارِس مسارَ dst==RDX (تخطّي الاستعادة) — إصلاحُ عائقِ دهسِ الباقي.
+TEST(NativeSirBridge, LowersModuloReturn)
+{
+    auto module = buildSir(kSrcMod);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x48, 0x99}));       // cqo (امتدادُ إشارةِ rax إلى rdx:rax)
+    ASSERT_TRUE(contains(bin, {0x48, 0xF7}));       // idiv r64 (F7 /7)
+
+    std::FILE *fp = std::fopen("sad_sir_mod42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) القسمةُ الصحيحة (84//2=42) تُخفَّض، والبايتاتُ تحوي cqo (48 99) وidiv (48 F7).
+//      يُكتب للبرهان الحيّ. يُمارِس فرعَ FLOOR_DIV من إصلاح العائق (نقلُ rax⇒rdx ثمّ تخطّي).
+TEST(NativeSirBridge, LowersFloorDivReturn)
+{
+    auto module = buildSir(kSrcFloorDiv);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x48, 0x99})); // cqo
+    ASSERT_TRUE(contains(bin, {0x48, 0xF7})); // idiv r64
+
+    std::FILE *fp = std::fopen("sad_sir_floordiv42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) طرحُ سجلٍّ من سجلّ (ناقص(50،8)=42) يُخفَّض، والبايتاتُ تحوي sub r64,r64 (48 29 /r)
+//      وcall (E8) وret (C3). يُكتب للبرهان الحيّ (خروج ٤٢). أوّلُ SUB بمعامِلَين سجليَّين.
+TEST(NativeSirBridge, LowersSubRegReg)
+{
+    auto module = buildSir(kSrcSubReg);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x48, 0x29})); // sub r64, r64 (29 /r)
+    ASSERT_TRUE(contains(bin, {0xE8}));       // call rel32 (نداءُ ناقص)
+
+    std::FILE *fp = std::fopen("sad_sir_subreg42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
 }
 
 int main(int argc, char **argv)

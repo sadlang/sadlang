@@ -29,6 +29,17 @@ inline const std::vector<GenEncEntry> &encodingTable()
     return kTable;
 }
 
+// (AR) ثوابتُ أسماءِ التعليمات (منمنمات) المولَّدة من SoT — تُستهلَك في المُخفِّض
+//      بدلَ تأليفِ السلسلةِ العربيّةِ يدويًّا (منعُ انجرافِ الاسم عن مصدر الحقيقة).
+// (EN) Instruction-name constants generated from SoT — consumed by the lowering
+//      pass instead of hand-authored Arabic strings (prevents name drift).
+namespace mnem {
+inline const std::string kMovz = "انقل";
+inline const std::string kAdd = "اجمع";
+inline const std::string kSvc = "نداء_نظام";
+inline const std::string kRet = "ارجع";
+} // namespace mnem
+
 // (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.
 // (EN) look up an encoding spec by mnemonic + form; nullptr if absent.
 inline const EncSpec *lookupEncSpec(const std::string &mnemonic, const std::string &form)

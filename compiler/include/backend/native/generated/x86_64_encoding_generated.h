@@ -35,6 +35,10 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اسحب", "r64", []{ sad::native::x86::EncSpec s; s.opcode = {0x58}; s.opcode_reg_add = true; s.opcode_reg_op = 0; return s; }() },
     { "اطرح", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x83}; s.modrm.present = true; s.modrm.reg_ext = 5; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
     { "اطرح", "r64, imm32", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x81}; s.modrm.present = true; s.modrm.reg_ext = 5; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 32; return s; }() },
+    { "اطرح", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x29}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
+    { "اضرب", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0xAF}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "اقسم", "r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xF7}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; return s; }() },
+    { "مدد_الإشارة", "", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x99}; return s; }() },
     { "قارن", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x39}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "قارن", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x83}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
     { "قارن", "r64, imm32", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x81}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 32; return s; }() },
@@ -49,6 +53,32 @@ inline const std::vector<GenEncEntry> &encodingTable()
     };
     return kTable;
 }
+
+// (AR) ثوابتُ أسماءِ التعليمات (منمنمات) المولَّدة من SoT — تُستهلَك في المُخفِّض
+//      بدلَ تأليفِ السلسلةِ العربيّةِ يدويًّا (منعُ انجرافِ الاسم عن مصدر الحقيقة).
+// (EN) Instruction-name constants generated from SoT — consumed by the lowering
+//      pass instead of hand-authored Arabic strings (prevents name drift).
+namespace mnem {
+inline const std::string kMov = "انقل";
+inline const std::string kAdd = "اجمع";
+inline const std::string kSyscall = "نداء_نظام";
+inline const std::string kRet = "ارجع";
+inline const std::string kPush = "ادفع";
+inline const std::string kPop = "اسحب";
+inline const std::string kSub = "اطرح";
+inline const std::string kImul = "اضرب";
+inline const std::string kIdiv = "اقسم";
+inline const std::string kCqo = "مدد_الإشارة";
+inline const std::string kCmp = "قارن";
+inline const std::string kJmp = "اقفز";
+inline const std::string kJe = "اقفز_إذا_ساوى";
+inline const std::string kJne = "اقفز_إذا_لم_يساوِ";
+inline const std::string kJl = "اقفز_إذا_أصغر";
+inline const std::string kJge = "اقفز_إذا_أكبر_أو_ساوى";
+inline const std::string kJle = "اقفز_إذا_أصغر_أو_ساوى";
+inline const std::string kJg = "اقفز_إذا_أكبر";
+inline const std::string kCall = "نادِ";
+} // namespace mnem
 
 // (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.
 // (EN) look up an encoding spec by mnemonic + form; nullptr if absent.

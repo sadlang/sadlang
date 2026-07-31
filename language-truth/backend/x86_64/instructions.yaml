@@ -179,6 +179,52 @@ instructions:
         modrm: { mod: reg, reg: 5, rm: op0 }
         immediate: { operand: 1, bits: 32, encoding: le }
       reads_dest: true
+    # sub r/m64, r64  ⇒  REX.W + 29 /r   (ModRM: reg=المصدر، rm=الوجهة — كـadd)
+    - en: sub
+      form: "r64, r64"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x29]
+        modrm: { mod: reg, reg: op1, rm: op0 }
+      reads_dest: true
+
+  # ─── الضرب الصحيح ───
+  # imul r64, r/m64  ⇒  REX.W + 0F AF /r   (ModRM: reg=الوجهة، rm=المصدر — عكسُ add/sub)
+  اضرب:
+    - en: imul
+      form: "r64, r64"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x0F, 0xAF]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+      reads_dest: true
+
+  # ─── القسمة الصحيحة الموقَّعة (الحاصلُ في rax، الباقي في rdx؛ يسبقها cqo) ───
+  # idiv r/m64  ⇒  REX.W + F7 /7   (المقسومُ عليه rm؛ المقسومُ في rdx:rax)
+  اقسم:
+    - en: idiv
+      form: "r64"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0xF7]
+        modrm: { mod: reg, reg: 7, rm: op0 }
+
+  # cqo  ⇒  REX.W + 99   (يمدّ إشارةَ rax إلى rdx:rax قبل idiv)
+  مدد_الإشارة:
+    - en: cqo
+      form: ""
+      operands: []
+      encode:
+        rex_w: true
+        opcode: [0x99]
 
   # ─── المقارنة (تضبط الأعلام؛ لا تكتب وجهة) ───
   # cmp r/m64, r64  ⇒  REX.W + 39 /r   ·   cmp r/m64, imm8  ⇒  83 /7 ib   ·   imm32  ⇒  81 /7 id
