@@ -31,6 +31,7 @@
 
 #include "backend/native/x86_variable_encoder.h"
 #include "backend/native/generated/x86_64_encoding_generated.h"
+#include "backend/native/generated/native_diagnostics_generated.h"
 #include "backend/native/elf64_writer.h"
 #include "backend/native/sir_lowering_common.h"
 
@@ -81,6 +82,9 @@ namespace sad
         inline constexpr long long kArrOffData = 16;     // (AR) مؤشّرُ البيانات (ptr)
         inline constexpr long long kArrHeaderBytes = 40; // (AR) حجمُ رأس البنية (٥ حقول مع الحشو)
         inline constexpr long long kArrSlotBytes = 8;    // (AR) بايتات خانةِ العنصر الواحد
+        // (AR) رمزُ خروجِ الهلع عند تجاوز حدّ المصفوفة (فحصُ مدًى لا-موقَّع idx ≥ len ⇒ يشمل الفهرسَ
+        //      السالبَ الذي يلتفّ إلى قيمةٍ ضخمة). القيمةُ ١٣٤ = ‎128+SIGABRT‎ (عرفُ الإجهاض).
+        inline constexpr long long kArrayBoundsPanicCode = 134;
 
         // (AR) مخرَجُ التخفيض: بايتاتُ الشيفرة عند النجاح، أو رمزُ خطأٍ (ErrorCode من
         //      كتالوج SoT) + بياناتُ {detail} عند الفشل. الرسالةُ النصّيّة تُشتقّ من
@@ -327,11 +331,11 @@ namespace sad
 
             // (AR) رموزُ {detail} كبياناتٍ محضة (لا نثر): وسمُ الحالة قصيرٌ يُميّز فرعَ الفشل.
             //      النثرُ كلُّه في كتالوج SoT؛ هذه القيمُ تملأ {detail} حصرًا.
-            static std::string detailBlocks() { return "blocks=0"; }
-            static std::string detailNoRet() { return "no-ret-terminator"; }
+            static std::string detailBlocks() { return diag::kBlocksZero; }
+            static std::string detailNoRet() { return diag::kNoRetTerminator; }
             static std::string detailOpcode(const sir::SIRInstruction &i)
             {
-                return "opcode=" + std::to_string(static_cast<int>(i.opcode));
+                return diag::kOpcode + std::to_string(static_cast<int>(i.opcode));
             }
 
             LoweringResult &finishError(LoweringResult &r, EC code, const std::string &detail = "")
@@ -371,7 +375,7 @@ namespace sad
                 // (AR) اسمٌ يطابق خانةَ ALLOC لا يجوز أن يُخصَّص سجلَّ حوض: يقرؤه isMemVar من
                 //      الذاكرة بينما يخصّصه هذا سجلًّا ⇒ افتراقٌ صامتٌ لنصفَي الاسم. فشلٌ صريح.
                 if (memSlot_.find(vreg) != memSlot_.end())
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, "vreg-aliases-slot:%" + vreg);
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kVregAliasesSlot + diag::kVregSigil + vreg);
                 auto it = regOf_.find(vreg);
                 if (it != regOf_.end())
                 {
@@ -410,7 +414,7 @@ namespace sad
                             return true;
                         }
                 }
-                return fail(EC::INT_NATIVE_REGALLOC_EXHAUSTED, "pool=" + std::to_string(pool_.size()));
+                return fail(EC::INT_NATIVE_REGALLOC_EXHAUSTED, diag::kPool + std::to_string(pool_.size()));
             }
 
             // ── مُصدِرات التعليمات (كلٌّ يقرأ مواصفتَه من الجدول المولَّد من SoT) ──
@@ -421,7 +425,7 @@ namespace sad
             {
                 const x86::EncSpec *spec = x86::lookupEncSpec(mnemonic, form);
                 if (!spec)
-                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + " " + form);
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + diag::kFormSep + form);
                 auto bytes = x86::encodeVariable(*spec, ops);
                 code_.insert(code_.end(), bytes.begin(), bytes.end());
                 return true;
@@ -436,7 +440,7 @@ namespace sad
             bool movImm(int reg, long long imm)
             {
                 if (imm < 0 || imm > 0xFFFFFFFFLL)
-                    return fail(EC::INT_NATIVE_IMM_RANGE, "u32:" + std::to_string(imm));
+                    return fail(EC::INT_NATIVE_IMM_RANGE, diag::kU32 + std::to_string(imm));
                 return emit(x86::mnem::kMov, "r32, imm32", {x86::Operand::R(reg), x86::Operand::I(imm, 32)});
             }
             bool movReg(int dst, int src)
@@ -449,7 +453,7 @@ namespace sad
             bool checkImm32(long long imm)
             {
                 if (imm < -2147483648LL || imm > 2147483647LL)
-                    return fail(EC::INT_NATIVE_IMM_RANGE, "s32:" + std::to_string(imm));
+                    return fail(EC::INT_NATIVE_IMM_RANGE, diag::kS32 + std::to_string(imm));
                 return true;
             }
             bool addImm(int reg, long long imm)
@@ -521,6 +525,36 @@ namespace sad
             {
                 return emit(x86::mnem::kMov, "m64, r64", {x86::Operand::M(base, disp), x86::Operand::R(src)});
             }
+            // (AR) cmp r64, [base+disp] — يقارنُ سجلًّا بقيمةِ ذاكرةٍ (3B /r) لضبطِ الأعلام؛ لفحصِ
+            //      حدّ المصفوفة: cmp idx, [arr+len]. لا يكتبُ وجهةً ولا يمسّ القاعدة.
+            bool cmpMemBase(int reg, int base, long long disp)
+            {
+                return emit(x86::mnem::kCmp, "r64, m64", {x86::Operand::R(reg), x86::Operand::M(base, disp)});
+            }
+            // (AR) فحصُ حدّ المصفوفة: يفترضُ idx في RDI ومؤشّرَ البنية في RAX. يقارنُ idx بالطول
+            //      لا-موقَّعًا (cmp + jb): إن idx < len (لا-موقَّع) يتخطّى كتلةَ الهلع، وإلّا يخرجُ
+            //      بالرمز ١٣٤. الفهرسُ السالبُ يلتفّ إلى قيمةٍ ضخمةٍ لا-موقَّعة ⇒ يفشلُ الفحصَ أيضًا.
+            //      كتلةُ الهلع ثابتةُ الطول (١٢ بايتًا) ⇒ إزاحةُ jb القصيرة تُحسَب محلّيًّا وتُرقَّع.
+            bool emitBoundsCheck()
+            {
+                if (!cmpMemBase(x86::RDI, x86::RAX, kArrOffLen))
+                    return false;
+                const x86::EncSpec *spec = x86::lookupEncSpec(x86::mnem::kJb, "rel8");
+                if (!spec || spec->imm_bits <= 0)
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(x86::mnem::kJb) + diag::kFormSep + "rel8");
+                const size_t jbPos = code_.size();
+                if (!emit(x86::mnem::kJb, "rel8", {x86::Operand::I(0, 8)})) // (AR) نائبٌ يُرقَّع بعد كتلةِ الهلع
+                    return false;
+                // (AR) كتلةُ الهلع: mov edi,134؛ mov eax,60؛ syscall (خروجٌ فوريّ، لا عودة).
+                if (!movImm(x86::RDI, kArrayBoundsPanicCode) || !movImm(x86::RAX, kSysExitX86) ||
+                    !emit(x86::mnem::kSyscall, "", {}))
+                    return false;
+                const long long rel = static_cast<long long>(code_.size()) - static_cast<long long>(jbPos + 2);
+                if (rel < 0 || rel > 127) // (AR) كتلةُ الهلع قصيرةٌ دومًا ⇒ يجبُ أن تسعَ rel8
+                    return fail(EC::INT_NATIVE_IMM_RANGE, diag::kBoundsPanicRel8 + std::to_string(rel));
+                code_[jbPos + 1] = static_cast<uint8_t>(rel);
+                return true;
+            }
             // (AR) mmap(NULL, size, R|W, PRIVATE|ANON, -1, 0) عبر syscall ⇒ المؤشّرُ في RAX.
             //      يدهس RAX/RCX/R11 وسجلّاتِ الوسائط (كلُّها في الحوض) ⇒ يُنسَك حولَه في المستدعي.
             //      وسيطُ syscall الرابعُ في R10 لا RCX. الحجمُ ثابتٌ (سعةُ المصفوفة من الأمام).
@@ -535,22 +569,23 @@ namespace sad
                        movImm(x86::RAX, kSysMmapX86) &&
                        emit(x86::mnem::kSyscall, "", {});
             }
-            // (AR) يضع عنوانَ العنصر (data + index×8) في RAX (RDI خدشٌ للفهرس المتغيّر). يُخرِج
-            //      مؤشّرَ البيانات [arr+16] أوّلًا؛ الفهرسُ ثابتٌ⇒addImm، أو سجلٌّ⇒‏×٨ ثمّ add.
-            //      المشترَكُ بين ARRAY_GET/SET. السالبُ (فهرسٌ من الخلف) مؤجَّلٌ ⇒ فشلٌ صريح.
+            // (AR) يضع عنوانَ العنصر (data + index×8) في RAX مع فحصِ حدٍّ زمنَ التشغيل. مسارٌ موحَّدٌ
+            //      للفهرسِ الثابتِ والمتغيّر: RDI = idx (الثابتُ عبر movImm، المتغيّرُ عبر loadInto)،
+            //      RAX = مؤشّرُ البنية؛ ثمّ emitBoundsCheck (idx مقابل [arr+len] لا-موقَّعًا). بعد الفحص:
+            //      RAX = [arr+data]، ثمّ RAX += RDI×٨. المشترَكُ بين ARRAY_GET/SET. RAX يبقى مؤشّرَ
+            //      البنية عبر cmp (لا يُكتَب) حتّى تحميلِ data.
+            // (AR) الفهرسُ السالب: المتغيّرُ (سجلّ) يلتفّ إلى قيمةٍ ضخمةٍ لا-موقَّعة ⇒ يفشلُ الفحصَ
+            //      ⇒ هلعُ تشغيلٍ (١٣٤). أمّا الثابتُ السالب (`arr[-1]` حرفيًّا) فيرفضه movImm ⇒ فشلُ
+            //      ترجمةٍ صريح (INT_NATIVE_IMM_RANGE) — كلاهما آمنٌ (لا وصولَ خارج الحدّ).
             bool emitElemAddr(const sir::SIROperand &arrOp, const sir::SIROperand &idxOp)
             {
-                if (!loadInto(x86::RAX, arrOp) || !loadMemBase(x86::RAX, x86::RAX, kArrOffData))
+                if (!loadInto(x86::RDI, idxOp) || !loadInto(x86::RAX, arrOp))
                     return false;
-                long long idx;
-                if (common::isConstInt(idxOp, idx))
-                {
-                    if (idx < 0)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-neg-index");
-                    return idx == 0 ? true : addImm(x86::RAX, idx * kArrSlotBytes);
-                }
-                // (AR) فهرسٌ متغيّر: RDI = index؛ RDI <<= 3 (×٨)؛ RAX += RDI.
-                return loadInto(x86::RDI, idxOp) && shlImm(x86::RDI, 3) && addReg(x86::RAX, x86::RDI);
+                if (!emitBoundsCheck())
+                    return false;
+                if (!loadMemBase(x86::RAX, x86::RAX, kArrOffData)) // (AR) RAX = مؤشّرُ البيانات
+                    return false;
+                return shlImm(x86::RDI, 3) && addReg(x86::RAX, x86::RDI); // (AR) RAX += idx×٨
             }
             // (AR) dst = rbp + disp (عنوانُ خانةٍ في الإطار): mov dst,rbp ثمّ add dst,disp.
             bool leaFrame(int dst, long long disp)
@@ -568,7 +603,7 @@ namespace sad
             {
                 const x86::EncSpec *spec = x86::lookupEncSpec(x86::mnem::kJne, "rel32");
                 if (!spec || spec->imm_bits <= 0)
-                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(x86::mnem::kJne) + " rel32");
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(x86::mnem::kJne) + diag::kFormSep + "rel32");
                 const long long instrLen = static_cast<long long>(spec->opcode.size()) + spec->imm_bits / 8;
                 const long long disp = static_cast<long long>(target) -
                                        (static_cast<long long>(code_.size()) + instrLen);
@@ -647,11 +682,11 @@ namespace sad
                         return loadMem(dst, disp);
                     auto it = regOf_.find(op.name);
                     if (it == regOf_.end())
-                        return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + op.name);
+                        return fail(EC::INT_NATIVE_UNDEF_VREG, diag::kVregSigil + op.name);
                     return loadMem(dst, spillDisp(static_cast<size_t>(poolIndexOf(it->second))));
                 }
                 return fail(EC::INT_NATIVE_UNSUPPORTED,
-                            "arg-kind=" + std::to_string(static_cast<int>(op.type)));
+                            diag::kArgKind + std::to_string(static_cast<int>(op.type)));
             }
 
             // (AR) يحمّل معاملًا (ثابتًا/سجلًّا فيزيائيًّا/متغيّرَ ذاكرة) في سجلٍّ وجهة. قراءةُ
@@ -662,7 +697,7 @@ namespace sad
                 {
                     if (op.dataType != types::SadTypeKind::Integer)
                         return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                    "const-type=" + std::to_string(static_cast<int>(op.dataType)));
+                                    diag::kConstType + std::to_string(static_cast<int>(op.dataType)));
                     return movImm(dst, op.intValue);
                 }
                 if (op.type == sir::SIROperandType::REGISTER)
@@ -672,11 +707,11 @@ namespace sad
                         return loadMem(dst, disp);
                     auto it = regOf_.find(op.name);
                     if (it == regOf_.end())
-                        return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + op.name);
+                        return fail(EC::INT_NATIVE_UNDEF_VREG, diag::kVregSigil + op.name);
                     return movReg(dst, it->second);
                 }
                 return fail(EC::INT_NATIVE_UNSUPPORTED,
-                            "operand-kind=" + std::to_string(static_cast<int>(op.type)));
+                            diag::kOperandKind + std::to_string(static_cast<int>(op.type)));
             }
 
             // (AR) المسحُ المسبق: يخصّص خانةَ إطارٍ للمعاملات (بترتيب ABI) ثمّ لكلّ ALLOC،
@@ -687,14 +722,14 @@ namespace sad
             {
                 const auto &params = fn.getParameters();
                 if (params.size() > 6)
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, "params>6:" + std::to_string(params.size()));
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kParamsGt6 + std::to_string(params.size()));
                 long long used = 0;
                 for (const auto &p : params)
                 {
                     used += 8;
                     // (AR) المعاملُ يُشار إليه في التعابير بـ«%»+الاسم (sir_builder_functions.cpp:495)
                     //      بينما اسمُ SIRParameter بلا «%» ⇒ نُفهرِس بالمرجع كي يطابقَه isMemVar.
-                    memSlot_["%" + p.name] = -used;
+                    memSlot_[diag::kVregSigil + p.name] = -used;
                 }
                 bool hasCall = false;
                 bool hasIdiv = false;
@@ -777,7 +812,7 @@ namespace sad
                     return false;
                 const auto &params = fn.getParameters();
                 for (size_t i = 0; i < params.size(); ++i)
-                    if (!storeMem(memSlot_["%" + params[i].name], abiArg_[i]))
+                    if (!storeMem(memSlot_[diag::kVregSigil + params[i].name], abiArg_[i]))
                         return false;
                 return true;
             }
@@ -874,7 +909,7 @@ namespace sad
                     if (common::isConstInt(inst.operands[1], n)) // (AR) مقدارٌ ثابت
                     {
                         if (n < 0 || n > 63)
-                            return fail(EC::INT_NATIVE_IMM_RANGE, "shift:" + std::to_string(n));
+                            return fail(EC::INT_NATIVE_IMM_RANGE, diag::kShift + std::to_string(n));
                         int dst;
                         if (!allocReg(inst.result->name, dst))
                             return false;
@@ -909,7 +944,7 @@ namespace sad
                     //      المدموجةُ في BR_COND تُتخطّى في lowerBlock فلا تصل هنا. RAX مُبدَّد.
                     if (!inst.result || inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    if (!rejectUnsignedCmp(inst, "cmp-value")) // (AR) لا-موقَّع ⇒ فشلٌ صريح (اتّساقًا مع ARM64)
+                    if (!rejectUnsignedCmp(inst, diag::kCmpValue)) // (AR) لا-موقَّع ⇒ فشلٌ صريح (اتّساقًا مع ARM64)
                         return false;
                     const std::string *setcc = setccForCmp(inst.opcode);
                     if (!setcc)
@@ -954,7 +989,7 @@ namespace sad
                 {
                     // (AR) الخانةُ خُصِّصت في المسح المسبق؛ لا شيفرةَ تُصدَر (العنوان ضمنيٌّ [rbp−إزاحة]).
                     if (!inst.result || memSlot_.find(inst.result->name) == memSlot_.end())
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "alloc-unslotted:" + detailOpcode(inst));
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kAllocUnslotted + detailOpcode(inst));
                     return true;
                 }
                 case OP::LOAD:
@@ -964,7 +999,7 @@ namespace sad
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     long long disp;
                     if (!isMemVar(inst.operands[0], disp))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "load-nonslot:" + detailOpcode(inst));
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kLoadNonslot + detailOpcode(inst));
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -977,7 +1012,7 @@ namespace sad
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     long long disp;
                     if (!isMemVar(inst.operands[1], disp))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "store-nonslot:" + detailOpcode(inst));
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kStoreNonslot + detailOpcode(inst));
                     return loadInto(x86::RAX, inst.operands[0]) && storeMem(disp, x86::RAX);
                 }
                 case OP::RET:
@@ -1008,7 +1043,7 @@ namespace sad
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     const size_t argc = inst.operands.size() - 1;
                     if (argc > 6)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "args>6:" + std::to_string(argc));
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt6 + std::to_string(argc));
                     // (AR) النداءُ يدهس كلَّ سجلّات الحوض (caller-saved في SysV). لحفظِ المؤقّتات
                     //      الحيّة عبره: (١) انسكِبْ ما يلزم إلى خانات الانسكاب؛ (٢) حمّل الوسائطَ
                     //      في سجلّات SysV — المؤقّتُ من خانة انسكابه لا من سجلّه ⇒ صفر تصادمٍ (نقلٌ
@@ -1072,7 +1107,7 @@ namespace sad
                         }
                         // (AR) سلسلةٌ محسوبةٌ في سجلٍّ (لا حرفيّة) غيرُ مدعومةٍ بعد ⇒ فشلٌ صريح.
                         else if (op.dataType == types::SadTypeKind::String)
-                            return fail(EC::INT_NATIVE_UNSUPPORTED, "print-str-computed:%" + op.name);
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kPrintStrComputed + diag::kVregSigil + op.name);
                         else
                         {
                             // (AR) عددٌ: حمّله في RAX (ثابت/ذاكرة/خانة انسكاب) ثمّ itoa+write.
@@ -1097,9 +1132,9 @@ namespace sad
                     long long lenv, capv;
                     if (!common::isConstInt(inst.operands[0], lenv) ||
                         !common::isConstInt(inst.operands[1], capv))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-new-dynamic-size");
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayNewDynamicSize);
                     if (lenv < 0 || capv < 0)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-new-negative");
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayNewNegative);
                     const long long total = kArrHeaderBytes + capv * kArrSlotBytes;
                     // (AR) انسكِبْ المؤقّتاتِ الحيّةَ (mmap يدهس الحوض)، ثمّ mmap، ثمّ أعِدها.
                     for (const auto &kv : regOf_)
@@ -1134,7 +1169,7 @@ namespace sad
                     if (inst.operands.size() != 3)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     if (inst.operands[0].elementType == types::SadTypeKind::Any)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-set-boxed");
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArraySetBoxed);
                     if (!emitElemAddr(inst.operands[0], inst.operands[1]))
                         return false;
                     // (AR) RDI = القيمة (بعد حساب العنوان ⇒ الفهرسُ في RDI لم يعد مطلوبًا)؛ [RAX]=RDI.
@@ -1148,7 +1183,7 @@ namespace sad
                     if (!inst.result || inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     if (inst.operands[0].elementType == types::SadTypeKind::Any)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-get-boxed");
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayGetBoxed);
                     if (!emitElemAddr(inst.operands[0], inst.operands[1]))
                         return false;
                     int dst;
@@ -1191,7 +1226,7 @@ namespace sad
             {
                 const x86::EncSpec *spec = x86::lookupEncSpec(x86::mnem::kCall, "rel32");
                 if (!spec || spec->imm_op < 0 || spec->imm_bits <= 0)
-                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(x86::mnem::kCall) + " rel32");
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, std::string(x86::mnem::kCall) + diag::kFormSep + "rel32");
                 const int width = spec->imm_bits / 8;
                 if (!emit(x86::mnem::kCall, "rel32", {x86::Operand::I(0, spec->imm_bits)}))
                     return false;
@@ -1231,12 +1266,12 @@ namespace sad
                 return t == K::UInt8 || t == K::UInt16 || t == K::UInt32 ||
                        t == K::UInt64 || t == K::Byte;
             }
-            bool rejectUnsignedCmp(const sir::SIRInstruction &cmp, const char *where)
+            bool rejectUnsignedCmp(const sir::SIRInstruction &cmp, const std::string &where)
             {
                 for (const auto &op : cmp.operands)
                     if (isUnsignedType(op.dataType))
                         return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                    std::string(where) + "-unsigned=" +
+                                    where + diag::kUnsignedSuffix +
                                         std::to_string(static_cast<int>(op.dataType)));
                 return true;
             }
@@ -1264,7 +1299,7 @@ namespace sad
             {
                 const x86::EncSpec *spec = x86::lookupEncSpec(mnemonic, "rel32");
                 if (!spec || spec->imm_op < 0 || spec->imm_bits <= 0)
-                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + " rel32");
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + diag::kFormSep + "rel32");
                 const int width = spec->imm_bits / 8;
                 if (!emit(mnemonic, "rel32", {x86::Operand::I(0, spec->imm_bits)}))
                     return false;
@@ -1290,14 +1325,14 @@ namespace sad
                 {
                     long long disp;
                     if (isMemVar(b, disp))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "cmp-b-memvar:%" + b.name);
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kCmpBMemvar + diag::kVregSigil + b.name);
                     auto it = regOf_.find(b.name);
                     if (it == regOf_.end())
-                        return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + b.name);
+                        return fail(EC::INT_NATIVE_UNDEF_VREG, diag::kVregSigil + b.name);
                     return emit(x86::mnem::kCmp, "r64, r64", {x86::Operand::R(x86::RAX), x86::Operand::R(it->second)});
                 }
                 return fail(EC::INT_NATIVE_UNSUPPORTED,
-                            "cmp-b-kind=" + std::to_string(static_cast<int>(b.type)));
+                            diag::kCmpBKind + std::to_string(static_cast<int>(b.type)));
             }
 
             // (AR) القفزُ غير المشروط BR: operands[0] لصيقةُ الهدف.
@@ -1327,18 +1362,18 @@ namespace sad
                 {
                     if (cond.dataType != types::SadTypeKind::Boolean)
                         return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                    "cond-const-type=" + std::to_string(static_cast<int>(cond.dataType)));
+                                    diag::kCondConstType + std::to_string(static_cast<int>(cond.dataType)));
                     return emitJump(x86::mnem::kJmp, cond.boolValue ? thenLbl : elseLbl);
                 }
                 if (cond.type != sir::SIROperandType::REGISTER)
                     return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                "cond-kind=" + std::to_string(static_cast<int>(cond.type)));
+                                diag::kCondKind + std::to_string(static_cast<int>(cond.type)));
 
                 // (AR) شرطٌ سجليّ: يجب أن يكون نتيجةَ مقارنةٍ في هذه الكتلة (إدماج).
                 const sir::SIRInstruction *cmp = common::findFusedComparison(block, cond.name);
                 if (!cmp || cmp->operands.size() != 2)
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, "cond-not-fused-cmp:%" + cond.name);
-                if (!rejectUnsignedCmp(*cmp, "cmp-branch")) // (AR) لا-موقَّع ⇒ فشلٌ صريح (jl/g موقَّعة)
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kCondNotFusedCmp + diag::kVregSigil + cond.name);
+                if (!rejectUnsignedCmp(*cmp, diag::kCmpBranch)) // (AR) لا-موقَّع ⇒ فشلٌ صريح (jl/g موقَّعة)
                     return false;
                 // (AR) المعامل الأوّل في المُبدَّد RAX (يُحمَّل من الخانة إن متغيّرَ ذاكرة)، ثمّ
                 //      قارنه بالثاني (ثابتٌ imm أو سجلّ). كلا المعامِلَين في الذاكرة غيرُ مدعوم.
@@ -1415,7 +1450,7 @@ namespace sad
                                      static_cast<long long>(fx.rel32Pos + fx.width);
                     const long long lim = 1LL << (fx.width * 8 - 1); // (AR) نصفُ مدى الحقل الموقَّع
                     if (disp < -lim || disp > lim - 1)
-                        return fail(EC::INT_NATIVE_IMM_RANGE, "rel:" + std::to_string(disp));
+                        return fail(EC::INT_NATIVE_IMM_RANGE, diag::kRel + std::to_string(disp));
                     uint64_t u = static_cast<uint64_t>(disp); // (AR) متمّمُ الاثنين، LE بعرض الحقل
                     for (int i = 0; i < fx.width; ++i)
                         code_[fx.rel32Pos + i] = static_cast<uint8_t>((u >> (8 * i)) & 0xFF);

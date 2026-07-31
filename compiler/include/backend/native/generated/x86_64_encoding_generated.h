@@ -55,6 +55,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "عيّن_إذا_أكبر", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9F}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
     { "عيّن_إذا_أكبر_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9D}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
     { "مدد_بالصفر", "r64, r8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0xB6}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "قارن", "r64, m64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x3B}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "قارن", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x39}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "قارن", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x83}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
     { "قارن", "r64, imm32", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x81}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 32; return s; }() },
@@ -65,6 +66,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اقفز_إذا_أكبر_أو_ساوى", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x8D}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     { "اقفز_إذا_أصغر_أو_ساوى", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x8E}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     { "اقفز_إذا_أكبر", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x8F}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "اقفز_إذا_أدنى", "rel8", []{ sad::native::x86::EncSpec s; s.opcode = {0x72}; s.imm_op = 0; s.imm_bits = 8; return s; }() },
     { "نادِ", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0xE8}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     };
     return kTable;
@@ -106,6 +108,7 @@ inline const std::string kJl = "اقفز_إذا_أصغر";
 inline const std::string kJge = "اقفز_إذا_أكبر_أو_ساوى";
 inline const std::string kJle = "اقفز_إذا_أصغر_أو_ساوى";
 inline const std::string kJg = "اقفز_إذا_أكبر";
+inline const std::string kJb = "اقفز_إذا_أدنى";
 inline const std::string kCall = "نادِ";
 } // namespace mnem
 

@@ -84,6 +84,9 @@ EXPECTED_OUTPUTS = {
     # (AR) الهدف الثاني: جدول ترميز AArch64 (عائلة fixed32) من نفس المولّد.
     # (EN) Second target: AArch64 (fixed32) encoding table from the same generator.
     "compiler/include/backend/native/generated/arm64_encoding_generated.h",
+    # (AR) وسومُ تشخيصِ التخفيض الأصليّ (حمولاتُ {detail}) — ثوابتُ مسمّاةٌ من SoT.
+    # (EN) Native-lowering diagnostic tags ({detail} payloads) — SoT named constants.
+    "compiler/include/backend/native/generated/native_diagnostics_generated.h",
 }
 
 

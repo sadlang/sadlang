@@ -203,7 +203,7 @@ namespace sad
             }
             static std::string detailOpcode(const sir::SIRInstruction &i)
             {
-                return "opcode=" + std::to_string(static_cast<int>(i.opcode));
+                return diag::kOpcode + std::to_string(static_cast<int>(i.opcode));
             }
 
             const sir::SIRFunction *findEntry(const sir::SIRModule &m) const
@@ -244,7 +244,7 @@ namespace sad
             {
                 const a64::EncSpec *spec = a64::lookupEncSpec(mnemonic, form);
                 if (!spec)
-                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + " " + form);
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + diag::kFormSep + form);
                 auto bytes = a64::encodeFixed32(*spec, ops);
                 code_.insert(code_.end(), bytes.begin(), bytes.end());
                 return true;
@@ -252,7 +252,7 @@ namespace sad
             bool movz(int reg, long long imm)
             {
                 if (imm < 0 || imm > a64reg::kImm16Max) // (AR) MOVZ يحمّل ١٦ بتًّا فقط؛ الأكبر/السالب غيرُ مدعوم
-                    return fail(EC::INT_NATIVE_IMM_RANGE, "u16:" + std::to_string(imm));
+                    return fail(EC::INT_NATIVE_IMM_RANGE, diag::kU16 + std::to_string(imm));
                 return emit(a64::mnem::kMovz, "x, imm16", {a64::Operand::R(reg), a64::Operand::I(imm)});
             }
             bool movk(int reg, long long imm16, int hw) // (AR) movk reg, #imm16, lsl #(hw*16)
@@ -328,29 +328,55 @@ namespace sad
                        movz(a64reg::kX8, kSysMmapArm64) &&
                        emit(a64::mnem::kSvc, "", {});
             }
-            // (AR) يضع عنوانَ عنصرِ المصفوفة في x16، ويُعيد عبر outIdx الإزاحةَ المقيسةَ لـldr/str.
-            //      x16 = data ([arr+16])؛ الفهرسُ ثابتٌ ⇒ يبقى إزاحةً (outIdx=idx)، أو سجلٌّ ⇒
-            //      x16 += idx×8 (add lsl#3) وoutIdx=0. x17 خدشٌ للفهرس المتغيّر.
+            // (AR) b.lo #(عددُ تعليماتٍ×٤): قفزةٌ لا-موقَّعةٌ أماميّةٌ قصيرة (تخطّي كتلةِ الهلع).
+            //      imm19 = عددُ التعليمات (نسبيّ للفرع نفسِه). لا طابورَ ترقيعٍ (الهدفُ معلومٌ محلّيًّا).
+            bool bloSkip(long long instrCount)
+            {
+                return emit(a64::mnem::kBlo, "rel19", {a64::Operand::I(instrCount)});
+            }
+            // (AR) فحصُ حدّ المصفوفة (AArch64): x17=idx، x16=len؛ cmp ثمّ b.lo يتخطّى كتلةَ الهلع إن
+            //      idx < len لا-موقَّعًا (يشملُ الفهرسَ السالبَ). الهلع: movz x0,#134؛ movz x8,#93؛ svc.
+            //      كتلةُ الهلع ٣ تعليمات ⇒ b.lo يتخطّى ٤ (الفرعُ + الثلاث). لا عودةَ بعد svc.
+            bool emitBoundsCheckArm64()
+            {
+                constexpr long long kPanicInstrs = 3; // (AR) movz x0 + movz x8 + svc
+                if (!cmp(a64reg::kScratch1, a64reg::kScratch0) || !bloSkip(kPanicInstrs + 1))
+                    return false;
+                return movz(a64reg::kX0, kArrayBoundsPanicCode) &&
+                       movz(a64reg::kX8, kSysExitArm64) &&
+                       emit(a64::mnem::kSvc, "", {});
+            }
+            // (AR) يضع عنوانَ عنصرِ المصفوفة في x16 مع فحصِ حدٍّ زمنَ التشغيل، ويُعيد عبر outIdx الإزاحةَ
+            //      المقيسةَ لـldr/str. أوّلًا الفحص: x17=idx، x16=len=[arr+0]، cmp+b.lo. ثمّ يُعادُ
+            //      تحميلُ مؤشّرِ البنية (arch حِمل/خزن ⇒ لا cmp-بذاكرةٍ كـx86): x16=data=[arr+16]؛
+            //      الفهرسُ ثابتٌ ⇒ يبقى إزاحةً (outIdx=idx)، أو سجلٌّ ⇒ x16 += idx×8 (add lsl#3).
+            //      x17 يحملُ idx طوالَ المسار (لا يُدهَس بين الفحص وحسابِ العنوان).
+            // (AR) الفهرسُ السالب: المتغيّرُ (سجلّ) يلتفّ ضخمًا ⇒ يفشلُ الفحصَ ⇒ هلعُ تشغيلٍ (١٣٤).
+            //      أمّا الثابتُ السالب فيرفضه movz ⇒ فشلُ ترجمةٍ صريح — كلاهما آمن.
             bool emitElemAddrArm64(const sir::SIROperand &arrOp, const sir::SIROperand &idxOp,
                                    long long &outIdx)
             {
+                long long idx;
+                const bool isConst = common::isConstInt(idxOp, idx);
+                if (isConst && idx > 4095)
+                    // (AR) الفهرسُ الثابتُ يمرّ كـimm12 لـldr/str (مقياسُه ٨) ⇒ حدُّه ٤٠٩٥؛ الأكبرُ
+                    //      يفشل صراحةً لا انهيارًا. الفهرسُ المتغيّرُ بلا حدٍّ (يُقاسُ زمنَ التشغيل).
+                    return fail(EC::INT_NATIVE_IMM_RANGE, diag::kArrayIndexImm12 + std::to_string(idx));
+                // (AR) فحصُ الحدّ: x17 = idx (ثابتٌ ⇒ movz، متغيّرٌ ⇒ materialize)، x16 = len.
+                if (!materialize(a64reg::kScratch1, idxOp) || !materialize(a64reg::kScratch0, arrOp) ||
+                    !ldrBase(a64reg::kScratch0, a64reg::kScratch0, kArrOffLen / kArrSlotBytes) ||
+                    !emitBoundsCheckArm64())
+                    return false;
+                // (AR) حسابُ العنوان: أعِد تحميلَ المؤشّرِ (x16 صار len)، ثمّ data.
                 if (!materialize(a64reg::kScratch0, arrOp) ||
                     !ldrBase(a64reg::kScratch0, a64reg::kScratch0, kArrOffData / kArrSlotBytes))
                     return false;
-                long long idx;
-                if (common::isConstInt(idxOp, idx))
+                if (isConst)
                 {
-                    if (idx < 0)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-neg-index");
-                    // (AR) الفهرسُ الثابتُ يمرّ كـimm12 لـldr/str (مقياسُه ٨) ⇒ حدُّه ٤٠٩٥؛ الأكبرُ
-                    //      يفشل صراحةً لا انهيارًا (اتّساقًا مع مسار x86؛ الفهرسُ المتغيّرُ بلا حدّ).
-                    if (idx > 4095)
-                        return fail(EC::INT_NATIVE_IMM_RANGE, "array-index-imm12:" + std::to_string(idx));
                     outIdx = idx;
                     return true;
                 }
-                if (!materialize(a64reg::kScratch1, idxOp) ||
-                    !addLsl3(a64reg::kScratch0, a64reg::kScratch0, a64reg::kScratch1))
+                if (!addLsl3(a64reg::kScratch0, a64reg::kScratch0, a64reg::kScratch1))
                     return false;
                 outIdx = 0;
                 return true;
@@ -425,7 +451,7 @@ namespace sad
             bool emitPrintString(const std::string &s)
             {
                 if (s.size() > static_cast<size_t>(a64reg::kImm16Max)) // (AR) الطولُ يُحمَّل movz (≤٦٥٥٣٥)
-                    return fail(EC::INT_NATIVE_IMM_RANGE, "strlen:" + std::to_string(s.size()));
+                    return fail(EC::INT_NATIVE_IMM_RANGE, diag::kStrlen + std::to_string(s.size()));
                 const size_t off = internString(s);
                 return emitStringAddr(a64reg::kX1, off) &&
                        movz(a64reg::kX2, static_cast<long long>(s.size())) &&
@@ -510,7 +536,7 @@ namespace sad
                             return true;
                         }
                 }
-                return fail(EC::INT_NATIVE_REGALLOC_EXHAUSTED, "pool=" + std::to_string(pool_.size()));
+                return fail(EC::INT_NATIVE_REGALLOC_EXHAUSTED, diag::kPool + std::to_string(pool_.size()));
             }
 
             // (AR) يُجهّز معاملًا في سجلٍّ وجهة: ثابتٌ ⇒ movz؛ متغيّرُ ذاكرةٍ ⇒ ldr من خانته (قراءةُ
@@ -527,11 +553,11 @@ namespace sad
                         return ldrSlot(dst, slot);
                     auto it = regOf_.find(op.name);
                     if (it == regOf_.end())
-                        return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + op.name);
+                        return fail(EC::INT_NATIVE_UNDEF_VREG, diag::kVregSigil + op.name);
                     return movReg(dst, it->second);
                 }
                 return fail(EC::INT_NATIVE_UNSUPPORTED,
-                            "operand-kind=" + std::to_string(static_cast<int>(op.type)));
+                            diag::kOperandKind + std::to_string(static_cast<int>(op.type)));
             }
 
             // (AR) يحمّل وسيطَ نداءٍ/معاملَ طباعةٍ في سجلٍّ وجهة. يُستدعى بعد انسكابِ المؤقّتات،
@@ -548,11 +574,11 @@ namespace sad
                         return ldrSlot(dst, slot);
                     auto it = regOf_.find(op.name);
                     if (it == regOf_.end())
-                        return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + op.name);
+                        return fail(EC::INT_NATIVE_UNDEF_VREG, diag::kVregSigil + op.name);
                     return ldrSlot(dst, spillBaseSlot_ + poolIndexOf(it->second));
                 }
                 return fail(EC::INT_NATIVE_UNSUPPORTED,
-                            "arg-kind=" + std::to_string(static_cast<int>(op.type)));
+                            diag::kArgKind + std::to_string(static_cast<int>(op.type)));
             }
 
             // (AR) المسحُ المسبق: يخصّص فهرسَ خانةٍ للمعاملات (بترتيب ABI) ثمّ لكلّ ALLOC، ثمّ (إن
@@ -562,12 +588,12 @@ namespace sad
             {
                 const auto &params = fn.getParameters();
                 if (params.size() > 8)
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, "params>8:" + std::to_string(params.size()));
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kParamsGt8 + std::to_string(params.size()));
                 int slot = 0;
                 for (const auto &p : params)
                     // (AR) المعاملُ يُشار إليه بـ«%»+الاسم (sir_builder_functions) بينما اسمُ
                     //      SIRParameter بلا «%» ⇒ نُفهرِس بالمرجع كي يطابقَه isMemVar.
-                    memSlot_["%" + p.name] = slot++;
+                    memSlot_[diag::kVregSigil + p.name] = slot++;
 
                 bool hasCall = false;
                 bool hasPrint = false;
@@ -594,7 +620,7 @@ namespace sad
                 //      تعود، فلا يهمّها دهسُ x30). الدالّةُ غيرُ الداخلة إن نادت تدهسُ x30 قبل RET
                 //      (لا نحفظه بعد) ⇒ رفضٌ صريح. فالنداءُ مسموحٌ من الداخلة فقط (المنادَاةُ ورقة).
                 if (hasCall && !curIsEntry_)
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, "nested-call-in-nonentry:" + currentFn_);
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kNestedCallInNonentry + currentFn_);
 
                 // (AR) طباعةُ عددٍ: احجز مخزنَ itoa (٣ خاناتٍ = ٢٤ بايتًا تكفي ٢٠ رقمًا لـi64 + هامش).
                 //      القمّةُ (العنوانُ الأعلى، حصريّ) = فهرسُ ما بعد المخزن.
@@ -621,13 +647,13 @@ namespace sad
                 if (frameSize_ > 0)
                 {
                     if (frameSize_ > 4095)
-                        return fail(EC::INT_NATIVE_IMM_RANGE, "frame:" + std::to_string(frameSize_));
+                        return fail(EC::INT_NATIVE_IMM_RANGE, diag::kFrame + std::to_string(frameSize_));
                     if (!subSp(frameSize_))
                         return false;
                 }
                 const auto &params = fn.getParameters();
                 for (size_t i = 0; i < params.size(); ++i)
-                    if (!strSlot(abiArg_[i], memSlot_["%" + params[i].name]))
+                    if (!strSlot(abiArg_[i], memSlot_[diag::kVregSigil + params[i].name]))
                         return false;
                 return true;
             }
@@ -699,7 +725,7 @@ namespace sad
                 for (const auto &op : inst.operands)
                     if (isUnsignedType(op.dataType))
                         return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                    "cmp-value-unsigned=" + std::to_string(static_cast<int>(op.dataType)));
+                                    diag::kCmpValueUnsigned + std::to_string(static_cast<int>(op.dataType)));
                 long long field;
                 if (!csetInvertedField(inst.opcode, field))
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
@@ -757,10 +783,10 @@ namespace sad
                             return ldrSlot(dst, slot);
                         auto it = regOf_.find(inst.operands[0].name);
                         if (it == regOf_.end())
-                            return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + inst.operands[0].name);
+                            return fail(EC::INT_NATIVE_UNDEF_VREG, diag::kVregSigil + inst.operands[0].name);
                         return movReg(dst, it->second);
                     }
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, "move-kind");
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kMoveKind);
                 }
                 case OP::ADD_I64:
                 case OP::SUB_I64:
@@ -786,7 +812,7 @@ namespace sad
                 {
                     // (AR) الخانةُ خُصِّصت في المسح المسبق؛ لا شيفرةَ (العنوان ضمنيٌّ [sp، #فهرس×٨]).
                     if (!inst.result || memSlot_.find(inst.result->name) == memSlot_.end())
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "alloc-unslotted:" + detailOpcode(inst));
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kAllocUnslotted + detailOpcode(inst));
                     return true;
                 }
                 case OP::LOAD:
@@ -795,7 +821,7 @@ namespace sad
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     int slot;
                     if (!isMemVar(inst.operands[0], slot))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "load-nonslot:" + detailOpcode(inst));
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kLoadNonslot + detailOpcode(inst));
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -807,7 +833,7 @@ namespace sad
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     int slot;
                     if (!isMemVar(inst.operands[1], slot))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "store-nonslot:" + detailOpcode(inst));
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kStoreNonslot + detailOpcode(inst));
                     return materialize(a64reg::kScratch0, inst.operands[0]) &&
                            strSlot(a64reg::kScratch0, slot);
                 }
@@ -820,7 +846,7 @@ namespace sad
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     const size_t argc = inst.operands.size() - 1;
                     if (argc > 8)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "args>8:" + std::to_string(argc));
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt8 + std::to_string(argc));
                     // (AR) bl يدهس x9..x15/x0..x7 (caller-saved). انسكِبْ المؤقّتاتِ الحيّةَ بعد
                     //      النداء (أو وسائطَ سجليّةً له) إلى خانات الانسكاب، حمّل الوسائطَ منها (لا
                     //      من سجلّاتها ⇒ صفر تصادمِ نقلٍ متوازٍ)، bl، أعِد الحيّةَ، النتيجةُ من x0.
@@ -871,7 +897,7 @@ namespace sad
                                 return false;
                         }
                         else if (op.dataType == types::SadTypeKind::String)
-                            return fail(EC::INT_NATIVE_UNSUPPORTED, "print-str-computed:%" + op.name);
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kPrintStrComputed + diag::kVregSigil + op.name);
                         else
                         {
                             // (AR) عددٌ: حمّله في x9 (ثابت/ذاكرة/خانة انسكاب) ثمّ itoa+write.
@@ -906,9 +932,9 @@ namespace sad
                     long long lenv, capv;
                     if (!common::isConstInt(inst.operands[0], lenv) ||
                         !common::isConstInt(inst.operands[1], capv))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-new-dynamic-size");
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayNewDynamicSize);
                     if (lenv < 0 || capv < 0)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-new-negative");
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayNewNegative);
                     const long long total = kArrHeaderBytes + capv * kArrSlotBytes;
                     // (AR) انسكِبْ المؤقّتاتِ الحيّةَ (تحفّظًا حولَ svc)، ثمّ mmap، ثمّ أعِدها.
                     for (const auto &kv : regOf_)
@@ -943,7 +969,7 @@ namespace sad
                     if (inst.operands.size() != 3)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     if (inst.operands[0].elementType == types::SadTypeKind::Any)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-set-boxed");
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArraySetBoxed);
                     long long off;
                     if (!emitElemAddrArm64(inst.operands[0], inst.operands[1], off))
                         return false;
@@ -957,7 +983,7 @@ namespace sad
                     if (!inst.result || inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     if (inst.operands[0].elementType == types::SadTypeKind::Any)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, "array-get-boxed");
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayGetBoxed);
                     long long off;
                     if (!emitElemAddrArm64(inst.operands[0], inst.operands[1], off))
                         return false;
@@ -1016,7 +1042,7 @@ namespace sad
             {
                 const a64::EncSpec *spec = a64::lookupEncSpec(mnemonic, form);
                 if (!spec)
-                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + " " + form);
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + diag::kFormSep + form);
                 int immHi = -1, immLo = -1;
                 for (const auto &f : spec->fields)
                     if (!f.is_const && f.from_op == 0)
@@ -1025,7 +1051,7 @@ namespace sad
                         immLo = f.lo;
                     }
                 if (immHi < 0)
-                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + ":no-imm-field");
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + diag::kNoImmField);
                 const size_t wordPos = code_.size();
                 if (!emit(mnemonic, form, {a64::Operand::I(0)})) // (AR) إزاحةٌ نائبةٌ صفريّة
                     return false;
@@ -1063,22 +1089,22 @@ namespace sad
                 {
                     if (cond.dataType != types::SadTypeKind::Boolean)
                         return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                    "cond-const-type=" + std::to_string(static_cast<int>(cond.dataType)));
+                                    diag::kCondConstType + std::to_string(static_cast<int>(cond.dataType)));
                     return emitBranch(a64::mnem::kB, "rel26", cond.boolValue ? thenLbl : elseLbl);
                 }
                 if (cond.type != sir::SIROperandType::REGISTER)
                     return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                "cond-kind=" + std::to_string(static_cast<int>(cond.type)));
+                                diag::kCondKind + std::to_string(static_cast<int>(cond.type)));
 
                 const sir::SIRInstruction *cmpInst = common::findFusedComparison(block, cond.name);
                 if (!cmpInst || cmpInst->operands.size() != 2)
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, "cond-not-fused-cmp:%" + cond.name);
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kCondNotFusedCmp + diag::kVregSigil + cond.name);
                 // (AR) الفروعُ المُصدَرة موقَّعة؛ معاملٌ لا-موقَّعٌ يلزمه b.lo/ls/hi/hs (لا نظائرَ بعد)
                 //      ⇒ رفضٌ صريح بدل ترميزٍ موقَّعٍ خاطئٍ صامت (توصية أميليا).
                 for (const auto &cop : cmpInst->operands)
                     if (isUnsignedType(cop.dataType))
                         return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                    "cmp-unsigned-type=" + std::to_string(static_cast<int>(cop.dataType)));
+                                    diag::kCmpUnsignedType + std::to_string(static_cast<int>(cop.dataType)));
                 const std::string *bcc = bccForCmp(cmpInst->opcode);
                 if (!bcc)
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(*cmpInst));
@@ -1142,7 +1168,7 @@ namespace sad
 
                 const auto &blocks = fn.getBasicBlocks();
                 if (blocks.empty())
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, "no-blocks:" + currentFn_);
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kNoBlocks + currentFn_);
                 if (!assignFrameSlots(fn) || !emitPrologue(fn))
                     return false;
 
@@ -1169,12 +1195,12 @@ namespace sad
                     const long long dispBytes = static_cast<long long>(it->second) -
                                                 static_cast<long long>(fx.wordPos);
                     if (dispBytes % 4 != 0)
-                        return fail(EC::INT_NATIVE_IMM_RANGE, "unaligned:" + std::to_string(dispBytes));
+                        return fail(EC::INT_NATIVE_IMM_RANGE, diag::kUnaligned + std::to_string(dispBytes));
                     const long long imm = dispBytes / 4; // (AR) الإزاحةُ عددُ تعليماتٍ موقَّع
                     const int width = fx.immHi - fx.immLo + 1;
                     const long long lim = 1LL << (width - 1);
                     if (imm < -lim || imm > lim - 1)
-                        return fail(EC::INT_NATIVE_IMM_RANGE, "rel:" + std::to_string(imm));
+                        return fail(EC::INT_NATIVE_IMM_RANGE, diag::kRel + std::to_string(imm));
                     const uint32_t mask = (width >= 32) ? 0xFFFFFFFFu : ((1u << width) - 1u);
                     const uint32_t field = (static_cast<uint32_t>(imm) & mask) << fx.immLo;
                     uint32_t w = 0;

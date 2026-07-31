@@ -307,6 +307,13 @@ TEST(NativeArm64, AddLsl3X16X16X17)
     ASSERT_EQ(hex(b), std::string("100e118b"));
 }
 
+// b.lo #16 (تخطّي هلعِ حدّ المصفوفة: idx<len لا-موقَّعًا؛ imm19=4)  # encoding: [0x83,0x00,0x00,0x54]
+TEST(NativeArm64, BloSkipImm19_4)
+{
+    auto b = enc("اقفز_إذا_أدنى", "rel19", {arm64::Operand::I(4)});
+    ASSERT_EQ(hex(b), std::string("83000054"));
+}
+
 // ─── تسلسل «خروج ٤٢» الكامل ───
 TEST(NativeArm64, Exit42Sequence)
 {

@@ -662,6 +662,25 @@ TEST(NativeSirBridge, LowersArrayLength)
     ASSERT_EQ(int(wrote), int(bin.size()));
 }
 
+// (AR) فحصُ الحدّ: «ارجع [1، 2، 3][5]» ⇒ الفهرسُ ٥ ≥ الطولِ ٣ ⇒ يُخفَّضُ بنجاحٍ (فحصٌ زمنَ
+//      التشغيل لا خطأُ ترجمة) ويخرجُ الثنائيُّ بالرمز ١٣٤ (هلعُ الحدّ) لا ٤٢. برهانٌ حيٌّ في .sh.
+TEST(NativeSirBridge, ArrayOutOfBoundsTraps)
+{
+    auto module = buildSir(mkReturn("[1\xD8\x8C 2\xD8\x8C 3][5]"));
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("array-oob lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok); // (AR) يُخفَّضُ بنجاح؛ التجاوزُ يُمسَك زمنَ التشغيل لا ترجمةً
+    const auto &bin = res.code;
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap + exit-الهلع)
+    std::FILE *fp = std::fopen("sad_sir_arrayoob", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // (AR) جسر SIR→AArch64 (الهدف الثاني): نفسُ SIR الأماميّ يُخفَّض لـARM64 عبر محرّكٍ
 //      وكاتب ELF عامَّين. برهانُ عموميّة الخطّ عبر صنفَي ISA. تُكتب الثنائيّاتُ لبرهانٍ
@@ -847,6 +866,15 @@ TEST(Arm64SirBridge, LowersArrayLength)
     size_t sz = 0;
     lowerArm64AndWrite(mkReturn("\xD8\xB7\xD9\x88\xD9\x84([1\xD8\x8C 2\xD8\x8C 3]) * 14"),
                        "sad_arm64_arraylen42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) فحصُ الحدّ على ARM64: «ارجع [1، 2، 3][5]» ⇒ الفهرسُ خارجَ الحدّ ⇒ يخرجُ بالرمز ١٣٤ على qemu.
+TEST(Arm64SirBridge, ArrayOutOfBoundsTraps)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(mkReturn("[1\xD8\x8C 2\xD8\x8C 3][5]"), "sad_arm64_arrayoob", &ok, &sz);
     ASSERT_TRUE(ok);
 }
 

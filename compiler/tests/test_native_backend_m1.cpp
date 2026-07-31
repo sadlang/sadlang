@@ -295,6 +295,16 @@ TEST(NativeX86, MemoryOperandsRbpDisp)
     ASSERT_EQ(hex(enc("انقل", "r64, m64", {O::R(x86::RAX), O::M(x86::RBP, -129)})), std::string("488b857fffffff"));
 }
 
+// ─── فحصُ حدّ المصفوفة: cmp r64,[base] (3B /r) + jb rel8 (72) ───
+// (AR) cmp rdi,[rax] = 48 3B 38 · jb +12 = 72 0C. متحقَّقان بايتًا ببايت ضدّ llvm-mc-18.
+//      يقارنُ الفهرسَ بالطول [arr+0] لا-موقَّعًا، وjb يتخطّى كتلةَ الهلع إن كان ضمنَ الحدّ.
+TEST(NativeX86, ArrayBoundsCmpMemAndJb)
+{
+    using O = x86::Operand;
+    ASSERT_EQ(hex(enc("قارن", "r64, m64", {O::R(x86::RDI), O::M(x86::RAX, 0)})), std::string("483b38"));
+    ASSERT_EQ(hex(enc("اقفز_إذا_أدنى", "rel8", {O::I(12, 8)})), std::string("720c"));
+}
+
 // ─── برهانُ تدفّق التحكّم الحيّ: لولبٌ يعدّ حتّى ٤٢ ثمّ يخرج به ───
 // (AR) mov edi,0 ; loop: add rdi,1 ; cmp rdi,42 ; jne loop ; mov eax,60 ; syscall
 //      يُثبت أنّ الحساب الفوريّ والمقارنة والقفز النسبيّ الخلفيّ تُرمَّز وتُنفَّذ صحيحًا.

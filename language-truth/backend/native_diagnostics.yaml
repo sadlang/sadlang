@@ -1,0 +1,82 @@
+# ============================================================================
+# مصدرُ الحقيقة: وسومُ تشخيصِ التخفيض الأصليّ (الخلفيّة السياديّة بلا LLVM)
+# Source of truth: native-lowering diagnostic tags (sovereign backend, no LLVM)
+# ----------------------------------------------------------------------------
+# (AR) كلُّ فشلٍ في مخفّضَي SIR→x86-64 / SIR→AArch64 يحمل ErrorCode من كتالوج SoT
+#      (language-truth/errors/internal.yaml) + حمولةَ {detail} تملأ العنصرَ النائبَ
+#      في رسالةِ الكتالوج. حمولةُ {detail} = وسمُ سياقٍ (أيُّ فحصٍ فشل) + قيمةٌ تُحسَب
+#      زمنَ التشغيل. هذا الملفُّ يُوحّد وسومَ السياق ثوابتَ مسمّاة (بدل حرفيّاتٍ خام في
+#      المخفّضَين) — يولّده gen_native_diagnostics.py إلى هيدر C++ يستهلكه المخفّضان.
+#      الوسمُ ليس نصًّا يراه المستخدم (الرسالةُ من الكتالوج)؛ إنّه سياقٌ لمطوّر الخلفيّة.
+# (EN) Every failure in the SIR→x86-64 / SIR→AArch64 lowerers carries an ErrorCode
+#      from the SoT catalog + a {detail} payload = a context tag (which check failed)
+#      + a runtime-computed value. This file single-sources the context tags as named
+#      constants (no raw literals in the lowerers); gen_native_diagnostics.py emits a
+#      C++ header. The tag is not user-facing message text — it is backend-dev context.
+# ============================================================================
+namespace: "sad::native::diag"
+guard: SAD_NATIVE_DIAGNOSTICS_GENERATED_H
+
+# (AR) سِجِلٌّ/فواصلُ صياغةٍ مشترَكة (تُركَّب مع قيمٍ زمنَ التشغيل أو أسماءِ السجلّات الوهميّة).
+format:
+  - { name: kVregSigil,      value: "%",           ar: "سِجِلُّ السجلّ الوهميّ في SIR (يسبق اسمَ المعامل/المعامِل)" }
+  - { name: kFormSep,        value: " ",           ar: "فاصلٌ بين المنمنمة وصيغةِ الترميز في تشخيص «ترميزٌ مفقود»" }
+  - { name: kNoImmField,     value: ":no-imm-field", ar: "لا حقلَ فوريّ في صيغةِ الترميز المطلوبة (لاحقة)" }
+  - { name: kUnsignedSuffix, value: "-unsigned=",  ar: "لاحقةُ «معامِلٌ لا-موقَّع في مقارنةِ ترتيبٍ موقَّعة» (يسبقها موضعُ الفحص)" }
+
+# (AR) وسومٌ نقيّةٌ (بلا قيمةٍ لاحقة) — تصفُ نوعَ البنيةِ غيرِ المدعومة.
+pure:
+  - { name: kMoveKind,            value: "move-kind",            ar: "نوعُ معامل MOVE غيرُ مدعوم" }
+  - { name: kArrayGetBoxed,       value: "array-get-boxed",      ar: "ARRAY_GET لعنصرٍ معلَّب (elementType=Any) مؤجَّل" }
+  - { name: kArraySetBoxed,       value: "array-set-boxed",      ar: "ARRAY_SET لعنصرٍ معلَّب (elementType=Any) مؤجَّل" }
+  - { name: kArrayNewDynamicSize, value: "array-new-dynamic-size", ar: "ARRAY_NEW بحجمٍ غيرِ ثابتٍ مؤجَّل" }
+  - { name: kArrayNewNegative,    value: "array-new-negative",   ar: "ARRAY_NEW بطولٍ/سعةٍ سالبة" }
+  - { name: kCmpValue,            value: "cmp-value",            ar: "موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)" }
+  - { name: kCmpBranch,           value: "cmp-branch",           ar: "موضعُ فحصٍ: مقارنةٌ مدموجةٌ في فرع" }
+
+# (AR) وسومُ «النوع/الصنف» (تنتهي بـ=) — تتبعها قيمةٌ عدديّةٌ لنوعٍ/صنفِ معامل.
+kind:
+  - { name: kArgKind,          value: "arg-kind=",          ar: "صنفُ معامل الوسيط غيرُ مدعوم" }
+  - { name: kConstType,        value: "const-type=",        ar: "نوعُ الثابت غيرُ صحيحٍ (Integer فقط)" }
+  - { name: kOperandKind,      value: "operand-kind=",      ar: "صنفُ المعامل غيرُ مدعوم" }
+  - { name: kCmpBKind,         value: "cmp-b-kind=",        ar: "صنفُ المعامِل الثاني للمقارنة غيرُ مدعوم" }
+  - { name: kCondKind,         value: "cond-kind=",         ar: "صنفُ معامِل الشرط غيرُ مدعوم" }
+  - { name: kCondConstType,    value: "cond-const-type=",   ar: "نوعُ ثابتِ الشرط غيرُ صحيح" }
+  - { name: kCmpValueUnsigned, value: "cmp-value-unsigned=", ar: "مقارنةٌ كقيمةٍ بمعامِلٍ لا-موقَّع (مؤجَّل)" }
+  - { name: kCmpUnsignedType,  value: "cmp-unsigned-type=", ar: "مقارنةُ فرعٍ بمعامِلٍ لا-موقَّع (مؤجَّل)" }
+
+# (AR) وسومٌ ذاتُ لاحقةِ قيمة (تنتهي بـ: أو =) — يتبعها opcode/إزاحة/عدّاد.
+tag:
+  - { name: kAllocUnslotted,       value: "alloc-unslotted:",        ar: "ALLOC بلا خانةِ إطارٍ مخصَّصة" }
+  - { name: kArgsGt6,              value: "args>6:",                 ar: "وسائطُ نداءٍ تتجاوز ٦ (AAPCS64 x0-x7؛ الحدُّ الحاليّ ٦)" }
+  - { name: kArgsGt8,              value: "args>8:",                 ar: "وسائطُ نداءٍ تتجاوز ٨" }
+  - { name: kArrayIndexImm12,      value: "array-index-imm12:",      ar: "فهرسٌ ثابتٌ يتجاوز imm12 (٤٠٩٥) في عنونةِ عنصر" }
+  - { name: kBoundsPanicRel8,      value: "bounds-panic-rel8:",      ar: "إزاحةُ jb لكتلةِ هلعِ الحدّ خارج rel8" }
+  - { name: kFrame,                value: "frame:",                  ar: "حجمُ الإطار خارجَ مدى الترميز" }
+  - { name: kLoadNonslot,          value: "load-nonslot:",           ar: "LOAD من غيرِ خانةِ إطار" }
+  - { name: kNestedCallInNonentry, value: "nested-call-in-nonentry:", ar: "نداءٌ متداخلٌ في دالّةٍ غيرِ الداخلة (مؤجَّل)" }
+  - { name: kNoBlocks,             value: "no-blocks:",              ar: "دالّةٌ بلا كتلٍ أساسيّة" }
+  - { name: kParamsGt6,            value: "params>6:",               ar: "معاملاتٌ تتجاوز ٦ (AAPCS64)" }
+  - { name: kParamsGt8,            value: "params>8:",               ar: "معاملاتٌ تتجاوز ٨ (SysV)" }
+  - { name: kRel,                  value: "rel:",                    ar: "إزاحةٌ نسبيّةٌ خارجَ المدى" }
+  - { name: kS32,                  value: "s32:",                    ar: "فوريٌّ موقَّعٌ خارج [−2³¹, 2³¹)" }
+  - { name: kShift,                value: "shift:",                  ar: "مقدارُ إزاحةٍ خارجَ المدى المسموح" }
+  - { name: kStoreNonslot,         value: "store-nonslot:",          ar: "STORE إلى غيرِ خانةِ إطار" }
+  - { name: kStrlen,               value: "strlen:",                 ar: "طولُ سلسلةٍ يتجاوز حدَّ movz (٦٥٥٣٥)" }
+  - { name: kU16,                  value: "u16:",                    ar: "فوريٌّ لا-موقَّعٌ يتجاوز ١٦ بتًّا (movz)" }
+  - { name: kU32,                  value: "u32:",                    ar: "فوريٌّ لا-موقَّعٌ يتجاوز ٣٢ بتًّا" }
+  - { name: kUnaligned,            value: "unaligned:",              ar: "قيمةٌ غيرُ محاذاةٍ حيث تلزم المحاذاة" }
+  - { name: kPool,                 value: "pool=",                   ar: "نفادُ حوضِ السجلّات (يتبعه حجمُ الحوض)" }
+
+# (AR) وسومُ إشارةِ سجلٍّ وهميّ (تُركَّب: الوسم + kVregSigil + اسمُ السجلّ الوهميّ).
+vreg:
+  - { name: kCmpBMemvar,        value: "cmp-b-memvar:",        ar: "معامِلُ المقارنةِ الثاني متغيّرُ ذاكرةٍ (مؤجَّل)" }
+  - { name: kCondNotFusedCmp,   value: "cond-not-fused-cmp:",  ar: "شرطُ الفرعِ ليس مقارنةً مدموجة" }
+  - { name: kPrintStrComputed,  value: "print-str-computed:",  ar: "طباعةُ سلسلةٍ محسوبةٍ (لا حرفيّة) مؤجَّلة" }
+  - { name: kVregAliasesSlot,   value: "vreg-aliases-slot:",   ar: "سجلٌّ وهميٌّ يطابق اسمَ خانةِ إطار (تصادم)" }
+
+# (AR) وسومٌ يوحّدها مساعِدٌ ساكنٌ في المخفّض (detailOpcode/detailBlocks/detailNoRet).
+helper:
+  - { name: kOpcode,          value: "opcode=",           ar: "الأوپكود المتضمَّن (يتبعه رقمُ SIROpcode)" }
+  - { name: kBlocksZero,      value: "blocks=0",          ar: "الوحدةُ بلا أيّ كتلةٍ أساسيّة" }
+  - { name: kNoRetTerminator, value: "no-ret-terminator", ar: "الكتلةُ الأخيرةُ بلا مُنهٍ RET" }

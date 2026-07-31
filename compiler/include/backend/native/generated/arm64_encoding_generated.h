@@ -43,6 +43,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اقفز_إذا_أصغر_أو_ساوى", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 13, true, -1 } } } },
     { "اقفز_إذا_أكبر", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 12, true, -1 } } } },
     { "اقفز_إذا_أكبر_أو_ساوى", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 10, true, -1 } } } },
+    { "اقفز_إذا_أدنى", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 3, true, -1 } } } },
     { "اقفز", "rel26", sad::native::arm64::EncSpec{ 32, { { 31, 26, 5, true, -1 }, { 25, 0, 0, false, 0 } } } },
     { "اخزن", "x, sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 22, 996, true, -1 }, { 21, 10, 0, false, 1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
     { "اخزن", "x, x, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 22, 996, true, -1 }, { 21, 10, 0, false, 2 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
@@ -84,6 +85,7 @@ inline const std::string kBlt = "اقفز_إذا_أصغر";
 inline const std::string kBle = "اقفز_إذا_أصغر_أو_ساوى";
 inline const std::string kBgt = "اقفز_إذا_أكبر";
 inline const std::string kBge = "اقفز_إذا_أكبر_أو_ساوى";
+inline const std::string kBlo = "اقفز_إذا_أدنى";
 inline const std::string kB = "اقفز";
 inline const std::string kStr = "اخزن";
 inline const std::string kLdr = "احمل";

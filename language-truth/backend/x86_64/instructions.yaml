@@ -384,7 +384,17 @@ instructions:
 
   # ─── المقارنة (تضبط الأعلام؛ لا تكتب وجهة) ───
   # cmp r/m64, r64  ⇒  REX.W + 39 /r   ·   cmp r/m64, imm8  ⇒  83 /7 ib   ·   imm32  ⇒  81 /7 id
+  # cmp r64, m64   ⇒  REX.W + 3B /r   (المعامل الثاني ذاكرةٌ [base] — لفحصِ حدّ المصفوفة idx مقابل [arr+0])
   قارن:
+    - en: cmp
+      form: "r64, m64"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: mem, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x3B]
+        modrm: { mod: mem, reg: op0, rm: op1 }
     - en: cmp
       form: "r64, r64"
       operands:
@@ -486,6 +496,17 @@ instructions:
       encode:
         opcode: [0x0F, 0x8F]
         immediate: { operand: 0, bits: 32, encoding: le }
+
+  # ─── قفزةٌ شرطيّةٌ لا-موقَّعةٌ قصيرة (تقرأ CF؛ إزاحةٌ نسبيّة ٨-بت) ───
+  # jb rel8  ⇒  72 cb   (أدنى لا-موقَّع CF=1) — لتخطّي كتلةِ هلعِ حدّ المصفوفة داخلَ التعليمة
+  اقفز_إذا_أدنى:
+    - en: jb
+      form: "rel8"
+      operands:
+        - { kind: label, bits: 8 }
+      encode:
+        opcode: [0x72]
+        immediate: { operand: 0, bits: 8, encoding: le }
 
   # call rel32  ⇒  E8 cd
   نادِ:

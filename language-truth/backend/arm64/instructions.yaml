@@ -357,6 +357,20 @@ instructions:
           - { name: imm19, hi: 23, lo: 5,  from: op0 }
           - { name: cond,  hi: 4,  lo: 0,  const: 10 }         # 0b1010 = GE (موقَّع)
 
+  # B.lo label  ⇒  cond = 0b0011 = LO/CC (أدنى لا-موقَّع CF=0) — لتخطّي هلعِ حدّ المصفوفة (idx<len)
+  #   متحقَّق: b.lo #16 = 0x54000083
+  اقفز_إذا_أدنى:
+    - en: blo
+      form: "rel19"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 24, const: 84 }
+          - { name: imm19, hi: 23, lo: 5,  from: op0 }
+          - { name: cond,  hi: 4,  lo: 0,  const: 3 }           # 0b0011 = LO (لا-موقَّع)
+
   # B label   ⇒  000101 imm26   (قفزٌ غيرُ مشروط، الإزاحة ÷٤، متحقَّق: b #8 = 0x14000002)
   اقفز:
     - en: b

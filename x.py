@@ -381,6 +381,23 @@ CODEGEN_DOMAINS = (
             "--quiet",
         ],
     },
+    {
+        # (AR) وسومُ تشخيصِ التخفيض الأصليّ: حمولاتُ {detail} التي يمرّرها المخفّضان
+        #      (x86/ARM64) لـfail() — تُوحَّد ثوابتَ مسمّاةً مولَّدة من SoT بدل حرفيّاتٍ
+        #      خام، ويمسك `gen --check` انحرافَها عن native_diagnostics.yaml.
+        # (EN) Native-lowering diagnostic tags: the {detail} payloads both lowerers
+        #      pass to fail(), single-sourced as SoT-generated named constants
+        #      (no raw literals); `gen --check` guards drift from the YAML.
+        "name": "backend_native_diagnostics",
+        "script": "gen_native_diagnostics.py",
+        "out_dir": "compiler/include/backend/native/generated",
+        "outputs": ("native_diagnostics_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/backend/native_diagnostics.yaml",
+            "--header", f"{d}/native_diagnostics_generated.h",
+            "--quiet",
+        ],
+    },
 )
 
 # (AR) حرّاس فحص خالصون (لا مخرجات مولَّدة) يعملون ضمن `x.py gen --check` فقط —
