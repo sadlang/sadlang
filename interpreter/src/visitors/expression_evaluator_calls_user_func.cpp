@@ -477,10 +477,30 @@ namespace Sad
             auto bodyNode = func->getBody();
 
             // ═══════════════════════════════════════════════════════════════
-            // (AR) تعيين نوع الإرجاع الموحد للدالة الحالية
-            // (EN) Set unified return type for current function
+            // (AR) تعيين نوع الإرجاع الموحد للدالة الحالية — ويُستعاد نوعُ المُستدعي
+            //      عند الخروج (بأيّ مسار: عودةٌ عاديّة أو استثناء). بلا استعادةٍ كان
+            //      نوعُ المُنادَى يتسرّب إلى المُستدعي، فيُبلَّغ عن تحذيرٍ كاذب في كلّ
+            //      `ارجع` بعد نداءِ دالّةٍ ذاتِ نوعٍ مختلف.
+            // (EN) Set the callee's return type, restoring the caller's on every exit
+            //      path (normal or throwing). Without the restore the callee's type
+            //      leaked into the caller, producing a bogus mismatch warning on any
+            //      `return` that followed a call to a differently-typed function.
             // ═══════════════════════════════════════════════════════════════
-            if (astFuncDecl && astFuncDecl->sadReturnType)
+            struct SadReturnTypeGuard
+            {
+                StatementExecutor &exec;
+                Types::SadTypePtr previous;
+                bool engaged;
+                ~SadReturnTypeGuard()
+                {
+                    if (engaged)
+                        exec.setCurrentSadReturnType(previous);
+                }
+            } _sadReturnTypeGuard{statementExecutor_,
+                                  statementExecutor_.getCurrentSadReturnType(),
+                                  astFuncDecl && astFuncDecl->sadReturnType};
+
+            if (_sadReturnTypeGuard.engaged)
             {
                 statementExecutor_.setCurrentSadReturnType(astFuncDecl->sadReturnType);
             }
