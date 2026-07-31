@@ -689,6 +689,25 @@ TEST(Arm64SirBridge, LowersFloorDiv)
     ASSERT_TRUE(ok);
 }
 
+// (AR) تفرّعٌ صادقُ الشرط على ARM64: «إذا 42>41 ارجع 42 وإلا ارجع 99» ⇒ cmp؛ b.gt then؛
+//      b else ⇒ يخرج ٤٢ عبر فرع then. يُثبت المقارنةَ المدموجة + b.cond + الترقيع البتّيّ.
+TEST(Arm64SirBridge, LowersIfElseTrueBranch)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcIfTrue, "sad_arm64_iftrue42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) تفرّعٌ كاذبُ الشرط على ARM64: «إذا 5>41 … وإلا ارجع 42» ⇒ يخرج ٤٢ عبر فرع else (b).
+TEST(Arm64SirBridge, LowersIfElseFalseBranch)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcIfFalse, "sad_arm64_iffalse42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
 int main(int argc, char **argv)
 {
     (void)argc;

@@ -69,9 +69,17 @@ namespace sad
                     return finishError(r, EC::INT_NATIVE_NO_ENTRY);
 
                 // (AR) النطاقُ الحاليّ: الدالّةُ الداخلة وحدها (لا نداءات) — نقطةُ الدخول = code_[0].
+                //      مرورُ طبقتين: (١) أصدِر كتلَ الدالّة بالترتيب مسجّلًا إزاحةَ لصيقةِ كلٍّ،
+                //      وأصدِر الفروعَ بإزاحةٍ صفريّةٍ نائبة مسجّلًا ترقيعًا؛ (٢) رقّع كلَّ فرعٍ
+                //      بالفرق النسبيّ ÷٤ (عددُ تعليمات) في حقلِ imm19/imm26 (تعبئةٌ بتّيّة).
                 for (const auto &blockPtr : entry->getBasicBlocks())
+                {
+                    labelOffset_[blockPtr->name] = code_.size();
                     if (!lowerBlock(*blockPtr))
                         return finishError(r, errorCode_, detail_);
+                }
+                if (!applyFixups())
+                    return finishError(r, errorCode_, detail_);
 
                 r.ok = true;
                 r.code = std::move(code_);
@@ -87,6 +95,18 @@ namespace sad
             std::vector<uint8_t> code_;
             EC errorCode_ = EC::INT_NATIVE_NO_ENTRY;
             std::string detail_;
+
+            // (AR) تدفّق التحكّم: خريطةُ لصيقةِ الكتلة ⇒ إزاحتُها في code_، وطابورُ ترقيعِ الفروع.
+            //      كلُّ فرعٍ يحمل موضعَ كلمتِه وحقلَ إزاحته (imm19 لـb.cond، imm26 لـb) واللصيقةَ.
+            std::map<std::string, size_t> labelOffset_;
+            struct Arm64Fixup
+            {
+                size_t wordPos;     // (AR) موضعُ كلمةِ الفرع (٤ بايت) في code_
+                int immHi;          // (AR) أعلى بتّةٍ لحقل الإزاحة (٢٣ لـimm19، ٢٥ لـimm26)
+                int immLo;          // (AR) أدنى بتّة (٥ لـimm19، ٠ لـimm26)
+                std::string target; // (AR) لصيقةُ الكتلة الهدف
+            };
+            std::vector<Arm64Fixup> fixups_;
 
             LoweringResult &finishError(LoweringResult &r, EC code, const std::string &detail = "")
             {
@@ -151,6 +171,34 @@ namespace sad
             {
                 return emit(a64::mnem::kMsub, "x, x, x, x",
                             {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m), a64::Operand::R(a)});
+            }
+            bool cmp(int n, int m) // (AR) cmp Xn, Xm = subs xzr,Xn,Xm ⇒ يضبط الأعلام
+            {
+                return emit(a64::mnem::kCmp, "x, x", {a64::Operand::R(n), a64::Operand::R(m)});
+            }
+            // (AR) يُصدر فرعًا (b/b.cond) بإزاحةٍ صفريّةٍ نائبة، ويسجّل ترقيعًا بحقلِ إزاحته.
+            //      عرضُ الحقل وموضعُه من مواصفة الترميز (immHi/immLo) لا من ثابتٍ مُرمَّز.
+            bool emitBranch(const std::string &mnemonic, const std::string &form,
+                            const std::string &targetLabel)
+            {
+                const a64::EncSpec *spec = a64::lookupEncSpec(mnemonic, form);
+                if (!spec)
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + " " + form);
+                // (AR) اعثر على الحقل المأخوذ من المعامل (op0) = حقلُ الإزاحة (imm19/imm26).
+                int immHi = -1, immLo = -1;
+                for (const auto &f : spec->fields)
+                    if (!f.is_const && f.from_op == 0)
+                    {
+                        immHi = f.hi;
+                        immLo = f.lo;
+                    }
+                if (immHi < 0)
+                    return fail(EC::INT_NATIVE_ENCODING_MISSING, mnemonic + ":no-imm-field");
+                const size_t wordPos = code_.size();
+                if (!emit(mnemonic, form, {a64::Operand::I(0)})) // (AR) إزاحةٌ نائبةٌ صفريّة
+                    return false;
+                fixups_.push_back({wordPos, immHi, immLo, targetLabel});
+                return true;
             }
 
             bool allocReg(const std::string &vreg, int &out)
@@ -269,11 +317,168 @@ namespace sad
                 }
             }
 
+            // ── تدفّق التحكّم: المقارنة المدموجة + الفروع + الترقيع ──
+
+            // (AR) هل النوعُ صحيحٌ لا-موقَّع؟ (طبيعي8/16/32/64 أو بايت) — يلزمه فرعٌ لا-موقَّع.
+            static bool isUnsignedType(types::SadTypeKind t)
+            {
+                using K = types::SadTypeKind;
+                return t == K::UInt8 || t == K::UInt16 || t == K::UInt32 ||
+                       t == K::UInt64 || t == K::Byte;
+            }
+
+            static bool isComparison(sir::SIROpcode op)
+            {
+                using OP = sir::SIROpcode;
+                return op == OP::EQ || op == OP::NE || op == OP::LT ||
+                       op == OP::LE || op == OP::GT || op == OP::GE;
+            }
+
+            // (AR) منمنمةُ الفرع الشرطيّ المطابقة للمقارنة (موقَّعة): «إن صحّ الشرط اقفز لـthen».
+            static const std::string *bccForCmp(sir::SIROpcode op)
+            {
+                using OP = sir::SIROpcode;
+                switch (op)
+                {
+                case OP::EQ: return &a64::mnem::kBeq;
+                case OP::NE: return &a64::mnem::kBne;
+                case OP::LT: return &a64::mnem::kBlt;
+                case OP::LE: return &a64::mnem::kBle;
+                case OP::GT: return &a64::mnem::kBgt;
+                case OP::GE: return &a64::mnem::kBge;
+                default: return nullptr;
+                }
+            }
+
+            // (AR) يجد مقارنةً في الكتلة نتيجتُها cond تُغذّي BR_COND المُنهيَ لها (آخرَ تعليمةٍ قبله).
+            const sir::SIRInstruction *findFusedComparison(const sir::SIRBasicBlock &block,
+                                                           const std::string &condName) const
+            {
+                const auto &is = block.instructions;
+                if (is.size() < 2)
+                    return nullptr;
+                const sir::SIRInstruction &prev = is[is.size() - 2];
+                if (isComparison(prev.opcode) && prev.result && prev.result->name == condName)
+                    return &prev;
+                return nullptr;
+            }
+
+            // (AR) القفزُ غير المشروط BR: operands[0] لصيقةُ الهدف ⇒ b (rel26).
+            bool lowerBranch(const sir::SIRInstruction &inst)
+            {
+                if (inst.operands.size() != 1 || inst.operands[0].type != sir::SIROperandType::LABEL)
+                    return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                return emitBranch(a64::mnem::kB, "rel26", inst.operands[0].name);
+            }
+
+            // (AR) القفزُ المشروط BR_COND: {condition, thenLabel, elseLabel}. شرطٌ ثابتٌ منطقيّ
+            //      ⇒ b مباشر؛ أو نتيجةُ مقارنةٍ مدموجةٍ ⇒ cmp؛ b.cond then؛ b else.
+            bool lowerBranchCond(const sir::SIRInstruction &inst,
+                                 const sir::SIRBasicBlock &block)
+            {
+                if (inst.operands.size() != 3 ||
+                    inst.operands[1].type != sir::SIROperandType::LABEL ||
+                    inst.operands[2].type != sir::SIROperandType::LABEL)
+                    return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                const sir::SIROperand &cond = inst.operands[0];
+                const std::string &thenLbl = inst.operands[1].name;
+                const std::string &elseLbl = inst.operands[2].name;
+
+                if (cond.type == sir::SIROperandType::CONSTANT)
+                {
+                    if (cond.dataType != types::SadTypeKind::Boolean)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                    "cond-const-type=" + std::to_string(static_cast<int>(cond.dataType)));
+                    return emitBranch(a64::mnem::kB, "rel26", cond.boolValue ? thenLbl : elseLbl);
+                }
+                if (cond.type != sir::SIROperandType::REGISTER)
+                    return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                "cond-kind=" + std::to_string(static_cast<int>(cond.type)));
+
+                const sir::SIRInstruction *cmpInst = findFusedComparison(block, cond.name);
+                if (!cmpInst || cmpInst->operands.size() != 2)
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, "cond-not-fused-cmp:%" + cond.name);
+                // (AR) الفروعُ الشرطيّةُ المُصدَرة موقَّعةٌ (b.lt/le/gt/ge)؛ معاملٌ لا-موقَّعٌ (طبيعي64/
+                //      بايت) يلزمه b.lo/ls/hi/hs. لا نظائرَ لا-موقَّعةٍ في opcodes المقارنة بعد،
+                //      فنرفض المعاملَ اللا-موقَّعَ صراحةً بدل ترميزٍ موقَّعٍ خاطئٍ صامت (توصية أميليا).
+                for (const auto &cop : cmpInst->operands)
+                    if (isUnsignedType(cop.dataType))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                    "cmp-unsigned-type=" + std::to_string(static_cast<int>(cop.dataType)));
+                const std::string *bcc = bccForCmp(cmpInst->opcode);
+                if (!bcc)
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(*cmpInst));
+                // (AR) جهّز طرفَي المقارنة في x16/x17، cmp، ثمّ b.cond then؛ b else.
+                return materialize(a64reg::kScratch0, cmpInst->operands[0]) &&
+                       materialize(a64reg::kScratch1, cmpInst->operands[1]) &&
+                       cmp(a64reg::kScratch0, a64reg::kScratch1) &&
+                       emitBranch(*bcc, "rel19", thenLbl) &&
+                       emitBranch(a64::mnem::kB, "rel26", elseLbl);
+            }
+
             bool lowerBlock(const sir::SIRBasicBlock &block)
             {
-                for (const sir::SIRInstruction &inst : block.instructions)
-                    if (!lowerInstruction(inst))
+                const auto &is = block.instructions;
+                // (AR) نموذجُ «كلٌّ في سجلّ» لا يحمل حياةً عابرةً للكتل: كلُّ كتلةٍ تبدأ بحوضٍ نظيف؛
+                //      فقراءةُ سجلٍّ عُرِّف في كتلةٍ أخرى (PHI ضمنيّ) تفشل صراحةً UNDEF_VREG.
+                regOf_.clear();
+                next_ = 0;
+
+                // (AR) المقارنةُ المدموجة (تغذّي BR_COND المُنهي) لا تُخفَّض مستقلّةً.
+                const sir::SIRInstruction *fused = nullptr;
+                if (!is.empty() && is.back().opcode == sir::SIROpcode::BR_COND &&
+                    !is.back().operands.empty() &&
+                    is.back().operands[0].type == sir::SIROperandType::REGISTER)
+                    fused = findFusedComparison(block, is.back().operands[0].name);
+
+                for (const sir::SIRInstruction &inst : is)
+                {
+                    if (&inst == fused)
+                        continue;
+                    if (inst.opcode == sir::SIROpcode::BR)
+                    {
+                        if (!lowerBranch(inst))
+                            return false;
+                    }
+                    else if (inst.opcode == sir::SIROpcode::BR_COND)
+                    {
+                        if (!lowerBranchCond(inst, block))
+                            return false;
+                    }
+                    else if (!lowerInstruction(inst))
                         return false;
+                }
+                return true;
+            }
+
+            // (AR) المرور ٢: يرقّع كلَّ فرعٍ بالإزاحة النسبيّة ÷٤ (عددُ تعليمات) في حقلِ imm
+            //      داخلَ كلمتِه ٣٢-بت (تعبئةٌ بتّيّة: قناعٌ ثمّ OR؛ الحقلُ نائبُه صفر أصلًا).
+            bool applyFixups()
+            {
+                for (const Arm64Fixup &fx : fixups_)
+                {
+                    auto it = labelOffset_.find(fx.target);
+                    if (it == labelOffset_.end())
+                        return fail(EC::INT_NATIVE_LABEL_UNDEFINED, fx.target);
+                    const long long dispBytes = static_cast<long long>(it->second) -
+                                                static_cast<long long>(fx.wordPos);
+                    if (dispBytes % 4 != 0)
+                        return fail(EC::INT_NATIVE_IMM_RANGE, "unaligned:" + std::to_string(dispBytes));
+                    const long long imm = dispBytes / 4; // (AR) الإزاحةُ عددُ تعليماتٍ موقَّع
+                    const int width = fx.immHi - fx.immLo + 1;
+                    const long long lim = 1LL << (width - 1);
+                    if (imm < -lim || imm > lim - 1)
+                        return fail(EC::INT_NATIVE_IMM_RANGE, "rel:" + std::to_string(imm));
+                    const uint32_t mask = (width >= 32) ? 0xFFFFFFFFu : ((1u << width) - 1u);
+                    const uint32_t field = (static_cast<uint32_t>(imm) & mask) << fx.immLo;
+                    // (AR) اقرأ الكلمةَ LE، أدخِل حقلَ الإزاحة (نائبُه صفر) بـOR، ثمّ أعِدها LE.
+                    uint32_t w = 0;
+                    for (int i = 0; i < 4; ++i)
+                        w |= static_cast<uint32_t>(code_[fx.wordPos + i]) << (8 * i);
+                    w |= field;
+                    for (int i = 0; i < 4; ++i)
+                        code_[fx.wordPos + i] = static_cast<uint8_t>((w >> (8 * i)) & 0xFF);
+                }
                 return true;
             }
         };

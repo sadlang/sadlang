@@ -134,6 +134,34 @@ TEST(NativeArm64, MovX0X9)
     ASSERT_EQ(hex(b), std::string("e00309aa"));
 }
 
+// cmp x9, x10 = subs xzr,x9,x10  # encoding: [0x3f,0x01,0x0a,0xeb]
+TEST(NativeArm64, CmpX9X10)
+{
+    auto b = enc("قارن", "x, x", {arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X10)});
+    ASSERT_EQ(hex(b), std::string("3f010aeb"));
+}
+
+// b.eq #8 (imm19=2 تعليمتان)  # encoding: [0x40,0x00,0x00,0x54]
+TEST(NativeArm64, BeqForward2)
+{
+    auto b = enc("اقفز_إذا_ساوى", "rel19", {arm64::Operand::I(2)});
+    ASSERT_EQ(hex(b), std::string("40000054"));
+}
+
+// b.ne #-8 (imm19=-2)  # encoding: [0xc1,0xff,0xff,0x54]   (يُثبت الإزاحة السالبة/التقنيع)
+TEST(NativeArm64, BneBackward2)
+{
+    auto b = enc("اقفز_إذا_لم_يساوِ", "rel19", {arm64::Operand::I(-2)});
+    ASSERT_EQ(hex(b), std::string("c1ffff54"));
+}
+
+// b #8 (imm26=2)  # encoding: [0x02,0x00,0x00,0x14]
+TEST(NativeArm64, BForward2)
+{
+    auto b = enc("اقفز", "rel26", {arm64::Operand::I(2)});
+    ASSERT_EQ(hex(b), std::string("02000014"));
+}
+
 // ─── تسلسل «خروج ٤٢» الكامل ───
 TEST(NativeArm64, Exit42Sequence)
 {

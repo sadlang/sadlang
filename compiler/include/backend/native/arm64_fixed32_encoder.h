@@ -104,14 +104,22 @@ namespace sad
                                                      : ((1u << fw) - 1u);
                     const uint32_t val = static_cast<uint32_t>(static_cast<uint64_t>(raw));
 
-                    // (AR) حارسٌ ضدّ قيمةٍ تتجاوز عرضَ حقلها (ثابتٌ مغلوطٌ في SoT، أو فوريٌّ
-                    //      أكبرُ من سعة الحقل): بترُها الصامت يُنتج ترميزًا خاطئًا تمسكه
-                    //      البوّابةُ التفاضليّة، لكن كشفَه هنا أوضح. توصية أميليا (م٣).
-                    // (EN) guard against a value exceeding its field width (a mis-authored
-                    //      SoT constant or an over-wide immediate); silent truncation would
-                    //      produce a wrong encoding — fail loudly instead.
-                    if (fw < 32 && (val >> fw) != 0)
-                        throw std::out_of_range("قيمةُ حقلٍ تتجاوز عرضَه / field value exceeds its bit width");
+                    // (AR) حارسٌ ضدّ قيمةٍ تتجاوز عرضَ حقلها: تُقبَل إن وسِعها الحقلُ لا-موقَّعةً
+                    //      [0, 2^fw) أو موقَّعةً [−2^(fw−1), 2^(fw−1)) — الأخيرةُ لإزاحات الفروع
+                    //      السالبة (imm19/imm26) بمتمّم الاثنين؛ ما عداهما بترٌ صامتٌ يُنتج ترميزًا
+                    //      خاطئًا فنرفضه بوضوح. `val & mask` يُنتج المتمّمَ الصحيحَ للسالب.
+                    // (EN) accept a value that fits the field either unsigned [0,2^fw) or signed
+                    //      [-2^(fw-1),2^(fw-1)) — the latter for negative branch displacements
+                    //      (two's complement). Anything else would truncate silently; reject it.
+                    if (fw < 32)
+                    {
+                        const bool fitsUnsigned = (val >> fw) == 0;
+                        const long long sgnMin = -(1LL << (fw - 1));
+                        const long long sgnMax = (1LL << (fw - 1)) - 1;
+                        const bool fitsSigned = fld.is_const ? false : (raw >= sgnMin && raw <= sgnMax);
+                        if (!fitsUnsigned && !fitsSigned)
+                            throw std::out_of_range("قيمةُ حقلٍ تتجاوز عرضَه / field value exceeds its bit width");
+                    }
 
                     word |= (val & mask) << fld.lo;
                 }

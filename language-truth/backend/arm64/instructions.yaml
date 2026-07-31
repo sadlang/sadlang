@@ -167,3 +167,108 @@ instructions:
           - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # XZR
           - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
+
+  # CMP Xn, Xm = SUBS XZR, Xn, Xm   ⇒  sf 1 1 01011 00 0 Rm 000000 Rn 11111   (متحقَّق: 0xEB0A013F)
+  #   يضبط الأعلام (N/Z/C/V) لفرعٍ شرطيٍّ تالٍ؛ الوجهةُ XZR (تُهمَل النتيجة).
+  قارن:
+    - en: cmp
+      form: "x, x"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 21, const: 856 }        # 0b1101011000 (SUBS shifted-reg)
+          - { name: Rm,    hi: 20, lo: 16, from: op1 }
+          - { name: imm6,  hi: 15, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op0 }
+          - { name: Rd,    hi: 4,  lo: 0,  const: 31 }         # XZR (تُهمَل النتيجة، تبقى الأعلام)
+      reads_dest: false
+
+  # B.cond label   ⇒  0101 0100 imm19 0 cond   (الإزاحة نسبيّةٌ ÷٤، متحقَّق: b.eq #8 = 0x54000040)
+  #   المنمناتُ العربيّةُ تُطابق نظائرَ x86 (اتّساقُ التسمية عبر المعماريّات).
+  اقفز_إذا_ساوى:
+    - en: beq
+      form: "rel19"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 24, const: 84 }         # 0x54
+          - { name: imm19, hi: 23, lo: 5,  from: op0 }         # الإزاحة (عددُ تعليماتٍ موقَّع)
+          - { name: cond,  hi: 4,  lo: 0,  const: 0 }          # 0 = EQ (البتّ ٤ = ٠)
+
+  اقفز_إذا_لم_يساوِ:
+    - en: bne
+      form: "rel19"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 24, const: 84 }
+          - { name: imm19, hi: 23, lo: 5,  from: op0 }
+          - { name: cond,  hi: 4,  lo: 0,  const: 1 }          # 1 = NE
+
+  اقفز_إذا_أصغر:
+    - en: blt
+      form: "rel19"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 24, const: 84 }
+          - { name: imm19, hi: 23, lo: 5,  from: op0 }
+          - { name: cond,  hi: 4,  lo: 0,  const: 11 }         # 0b1011 = LT (موقَّع)
+
+  اقفز_إذا_أصغر_أو_ساوى:
+    - en: ble
+      form: "rel19"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 24, const: 84 }
+          - { name: imm19, hi: 23, lo: 5,  from: op0 }
+          - { name: cond,  hi: 4,  lo: 0,  const: 13 }         # 0b1101 = LE (موقَّع)
+
+  اقفز_إذا_أكبر:
+    - en: bgt
+      form: "rel19"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 24, const: 84 }
+          - { name: imm19, hi: 23, lo: 5,  from: op0 }
+          - { name: cond,  hi: 4,  lo: 0,  const: 12 }         # 0b1100 = GT (موقَّع)
+
+  اقفز_إذا_أكبر_أو_ساوى:
+    - en: bge
+      form: "rel19"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 24, const: 84 }
+          - { name: imm19, hi: 23, lo: 5,  from: op0 }
+          - { name: cond,  hi: 4,  lo: 0,  const: 10 }         # 0b1010 = GE (موقَّع)
+
+  # B label   ⇒  000101 imm26   (قفزٌ غيرُ مشروط، الإزاحة ÷٤، متحقَّق: b #8 = 0x14000002)
+  اقفز:
+    - en: b
+      form: "rel26"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 26, const: 5 }          # 0b000101
+          - { name: imm26, hi: 25, lo: 0,  from: op0 }
