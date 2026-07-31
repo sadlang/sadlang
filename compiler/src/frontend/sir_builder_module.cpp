@@ -1170,6 +1170,62 @@ namespace Sad
                 bool hasMainFunction = false; // (AR) هل توجد دالة "رئيسية" أو "main"؟
 
                 // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 2-قبل: تصريحاتُ المستوى الأعلى (`ثابت`/`متغير`) تصير
+                //      **متغيّراتٍ عامّة** حين توجد `رئيسية` صريحة.
+                //
+                //      العلّة: حين توجد `رئيسية`، كانت جملُ المستوى الأعلى تُجمَع في
+                //      `topLevelStatements` ثمّ **تُهمَل** — لأنّ `__sad_main` لا يُنشَأ
+                //      إلّا عند غيابها. فالثابتُ لا يُهيَّأ أبدًا: النصُّ يُطبَع «void»
+                //      (مخرَجٌ خاطئٌ صامت — أخطرُ من الانهيار) والمصفوفةُ تنهار بـsegfault.
+                //      والمفسّر سليمٌ في الحالتين ⇒ انحرافُ تكافؤ.
+                //
+                //      الإصلاح على مرحلتين: نُصرّح بها **هنا** — قبل بناء أيّ دالّة —
+                //      كي تُحَلّ مراجعُها داخل `رئيسية` وغيرِها إلى الرمز العامّ لا إلى
+                //      محلّيٍّ مفقود؛ ثمّ تُهيَّأ في `__sad_main` الذي يُنادى
+                //      في مستهلّ `رئيسية` (انظر المرحلة الثالثة أدناه).
+                //
+                //      حين لا توجد `رئيسية` يبقى المسارُ القديم كما هو: الجملُ كلُّها
+                //      داخل `__sad_main` بنطاقه الخاصّ — وهو يعمل، فلا نمسّه.
+                // (EN) Phase 2-pre: top-level `const`/`var` declarations become module
+                //      GLOBALS when an explicit main exists. Previously they were
+                //      collected and then dropped (the `__sad_main` wrapper is only
+                //      built when main is absent), so the constant was never
+                //      initialised: strings printed "void" (a silent wrong answer) and
+                //      arrays segfaulted. The interpreter is correct in both ⇒ parity
+                //      divergence. Declared here, before any function is built, so
+                //      references inside main resolve to the global symbol; initialised
+                //      by `__sad_main`, called at main's entry (Phase 3).
+                //      With no main the old path is untouched.
+                // ═══════════════════════════════════════════════════════════════════
+                for (const auto &stmt : *program)
+                {
+                    if (!stmt)
+                        continue;
+                    if (auto *fd = dynamic_cast<Sad::AST::FunctionDecl *>(stmt.get()))
+                    {
+                        if (fd->name == "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9" ||
+                            fd->name == "main")
+                        {
+                            hasMainFunction = true;
+                            break;
+                        }
+                    }
+                }
+                const bool globalsFromTopLevel = hasMainFunction && !moduleMode_;
+                if (globalsFromTopLevel)
+                {
+                    for (const auto &stmt : *program)
+                    {
+                        if (!stmt)
+                            continue;
+                        if (auto *varDecl = dynamic_cast<Sad::AST::VarDeclStmt *>(stmt.get()))
+                        {
+                            buildGlobalVariable(varDecl);
+                        }
+                    }
+                }
+
+                // ═══════════════════════════════════════════════════════════════════
                 // (AR) المرحلة 2أ: بناء الأصناف والتعدادات والسمات أولاً
                 //      هذا ضروري حتى تتوفر معلومات الحقول والبانيات
                 //      قبل بناء الدوال التي قد تحتاج inferReturnTypeFromBody
@@ -1851,6 +1907,91 @@ namespace Sad
                 //      وليس في وضع الوحدة (--module)
                 // (EN) If there are executable statements and no explicit main function
                 //      and not in module mode (--module)
+                // (AR) توجد `رئيسية` وجملٌ في المستوى الأعلى ⇒ ابنِ `__sad_main`
+                //      يحمل تهيئةَ العوامّ المُصرَّح بها في المرحلة 2-قبل، وانْدُهْ به في
+                //      مستهلّ `رئيسية` — قبل أوّل قراءةٍ لأيٍّ منها.
+                //      بلا نطاقٍ جديد (`enterScope`) عمدًا: التصريحاتُ تُحَلّ إلى النطاق
+                //      العامّ فتخزّن في الرمز العامّ بدل محلّيٍّ يُهمَل عند العودة.
+                // (EN) Main exists and there is top-level code ⇒ build
+                //      `__sad_main` holding the initialisation of the globals
+                //      declared in Phase 2-pre, and call it at main's entry, before any
+                //      of them can be read. Deliberately no new scope: the declarations
+                //      resolve to the global scope and store into the global symbol
+                //      instead of a local that dies on return.
+                if (!topLevelStatements.empty() && globalsFromTopLevel)
+                {
+                    auto initFunc = std::make_shared<SIRFunction>("__sad_main",
+                                                                  SadTypeKind::Void);
+                    auto prevFunction = currentFunction_;
+                    auto prevBlock = currentBlock_;
+                    currentFunction_ = initFunc;
+
+                    auto entryBlock = createBasicBlock(kEntryBlockName);
+                    initFunc->addBasicBlock(entryBlock);
+                    currentBlock_ = entryBlock;
+
+                    for (auto *stmtNode : topLevelStatements)
+                    {
+                        if (stmtNode)
+                        {
+                            buildStatement(stmtNode);
+                        }
+                    }
+
+                    if (currentBlock_)
+                    {
+                        bool hasTerminator = false;
+                        if (!currentBlock_->instructions.empty())
+                        {
+                            const auto &lastInst = currentBlock_->instructions.back();
+                            hasTerminator = (lastInst.opcode == SIROpcode::RET ||
+                                             lastInst.opcode == SIROpcode::RET_VOID);
+                        }
+                        if (!hasTerminator)
+                        {
+                            SIRInstruction retInst;
+                            retInst.opcode = SIROpcode::RET_VOID;
+                            currentBlock_->addInstruction(retInst);
+                        }
+                    }
+
+                    module_->addFunction(initFunc);
+                    {
+                        FunctionInfo funcInfo;
+                        funcInfo.name = "__sad_main";
+                        funcInfo.returnType = SadTypeKind::Void;
+                        funcInfo.sirFunction = initFunc;
+                        functionTable_["__sad_main"] = funcInfo;
+                    }
+
+                    currentFunction_ = prevFunction;
+                    currentBlock_ = prevBlock;
+
+                    // (AR) احقن النداء في **مقدّمة** كتلة دخول `رئيسية` — لا في مؤخّرتها:
+                    //      التهيئةُ يجب أن تسبق أوّل قراءة، وإلّا عاد العيبُ نفسه مؤجَّلًا.
+                    // (EN) Inject the call at the FRONT of main's entry block — not the
+                    //      back: initialisation must precede the first read.
+                    auto mainFn = module_->getFunction(
+                        "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9");
+                    if (!mainFn)
+                    {
+                        mainFn = module_->getFunction("main");
+                    }
+                    if (mainFn && !mainFn->basicBlocks.empty())
+                    {
+                        auto &mainEntry = mainFn->basicBlocks.front();
+                        if (mainEntry)
+                        {
+                            SIRInstruction callInst(SIROpcode::CALL);
+                            callInst.operands.push_back(
+                                SIROperand::Function("__sad_main"));
+                            callInst.comment = "تهيئة عوامّ المستوى الأعلى قبل جسم رئيسية";
+                            mainEntry->instructions.insert(mainEntry->instructions.begin(),
+                                                           callInst);
+                        }
+                    }
+                }
+
                 if (!topLevelStatements.empty() && !hasMainFunction && !moduleMode_)
                 {
 #ifndef NDEBUG
