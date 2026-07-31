@@ -318,6 +318,48 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
+                // تعبير_بحث / regex_search — يُرجِع النصَّ المطابق، أو «فراغ» عند عدم
+                // المطابقة (نظير المفسّر: match[0].str() أو قيمةُ فراغ).
+                if (funcName == Bn::Maps::REGEX_SEARCH)
+                {
+                    if (argResults.size() < 2)
+                    {
+                        std::cerr << "[Error] دالة تعبير_بحث تتطلب معاملين (نص، نمط)" << std::endl;
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_REGEX_SEARCH);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::String);
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    // الرايةُ اختياريّة؛ غيابُها = بلا رايات (حسّاسٌ للحالة).
+                    if (argOperands.size() > 2)
+                        inst.operands.push_back(argOperands[2]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
+                // تعبير_مطابقة / regex_match — مطابقةُ النصّ كاملًا ⇒ منطقيّ.
+                if (funcName == Bn::Maps::REGEX)
+                {
+                    if (argResults.size() < 2)
+                    {
+                        std::cerr << "[Error] دالة تعبير_مطابقة تتطلب معاملين (نص، نمط)" << std::endl;
+                        return BuildResult("", SadTypeKind::Boolean);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_REGEX_MATCH);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    if (argOperands.size() > 2)
+                        inst.operands.push_back(argOperands[2]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
+                }
+
                 // 10. هل_رابط_رمزي / is_symlink — يفحص المدخلَ نفسه بلا اتّباع الرابط.
                 //     (AR) هل_ملف/هل_مجلد يتبعان الرابطَ فيصفان الهدف ⇒ لا يكشفان الرابط.
                 if (funcName == Bn::Basics::IS_SYMLINK)

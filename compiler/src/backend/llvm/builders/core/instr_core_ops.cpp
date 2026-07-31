@@ -660,6 +660,10 @@ namespace Sad
                 return cg_.emitBuiltinFileExists(inst);
             case SIROpcode::BUILTIN_FILE_IS_FILE:
                 return cg_.emitBuiltinFileIsFile(inst);
+            case SIROpcode::BUILTIN_REGEX_SEARCH:
+                return cg_.emitBuiltinRegexSearch(inst);
+            case SIROpcode::BUILTIN_REGEX_MATCH:
+                return cg_.emitBuiltinRegexMatch(inst);
             case SIROpcode::BUILTIN_FILE_IS_SYMLINK:
                 return cg_.emitBuiltinFileIsSymlink(inst);
             case SIROpcode::BUILTIN_FILE_REAL_PATH:

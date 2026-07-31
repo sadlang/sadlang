@@ -1014,6 +1014,8 @@ namespace Sad
             llvm::Value *emitBuiltinFileMove(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileMove(inst); }
             llvm::Value *emitBuiltinFileCreateDir(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileCreateDir(inst); }
             llvm::Value *emitBuiltinFileListDir(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileListDir(inst); }
+            llvm::Value *emitBuiltinRegexSearch(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinRegexSearch(inst); }
+            llvm::Value *emitBuiltinRegexMatch(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinRegexMatch(inst); }
             llvm::Value *emitBuiltinFileIsDir(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileIsDir(inst); }
             llvm::Value *emitBuiltinFileRemoveDir(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileRemoveDir(inst); }
             llvm::Value *emitBuiltinFileExists(std::shared_ptr<SIRInstruction> inst) { return fc_->emitBuiltinFileExists(inst); }

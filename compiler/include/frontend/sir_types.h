@@ -365,6 +365,8 @@ namespace Sad
                 BUILTIN_FILE_IS_DIR,     ///< هل_مجلد / Is directory (stat-based)
                 BUILTIN_FILE_EXISTS,     ///< هل_موجود / Path exists (file or directory)
                 BUILTIN_FILE_IS_FILE,    ///< هل_ملف / Is a regular file (stat-based, follows links)
+                BUILTIN_REGEX_SEARCH,    ///< تعبير_بحث / Regex search → matched text or void
+                BUILTIN_REGEX_MATCH,     ///< تعبير_مطابقة / Regex full match → boolean
                 BUILTIN_FILE_IS_SYMLINK,  ///< هل_رابط_رمزي / Is symlink (lstat-based, does not follow)
                 BUILTIN_FILE_REAL_PATH,   ///< المسار_الحقيقي / Canonical real path (follows symlinks)
                 BUILTIN_FILE_ABS_PATH,    ///< المسار_المطلق / Absolute path (textual, no symlink resolution)

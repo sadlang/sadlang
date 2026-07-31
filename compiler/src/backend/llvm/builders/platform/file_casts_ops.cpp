@@ -588,6 +588,65 @@ namespace Sad
             return result;
         }
 
+        llvm::Value *FileCastsCodeGen::emitBuiltinRegexSearch(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+                return nullptr;
+            llvm::Value *text = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *pat = cg_.resolveOperand(inst->operands[1]);
+            if (!text || !pat)
+                return nullptr;
+
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            // (AR) الرايةُ غائبةٌ ⇒ مؤشّرٌ فارغ، لا نصٌّ فارغ: زمنُ التشغيل يميّز
+            //      «بلا رايات» عن «رايةٌ فارغة» بالمؤشّر لا بالمحتوى.
+            llvm::Value *flags = (inst->operands.size() > 2)
+                                     ? cg_.resolveOperand(inst->operands[2])
+                                     : llvm::ConstantPointerNull::get(ptrTy);
+            if (!flags)
+                flags = llvm::ConstantPointerNull::get(ptrTy);
+
+            // (AR) جسر: char* sad_regex_search(const char*, const char*, const char*)
+            //      يُرجِع NULL عند عدم المطابقة — والمُستدعي يفحص الفراغ.
+            auto *fnTy = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, ptrTy}, false);
+            auto fn = cg_.module_->getOrInsertFunction("sad_regex_search", fnTy);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {text, pat, flags}, "rxsearch");
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *FileCastsCodeGen::emitBuiltinRegexMatch(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+                return nullptr;
+            llvm::Value *text = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *pat = cg_.resolveOperand(inst->operands[1]);
+            if (!text || !pat)
+                return nullptr;
+
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+            llvm::Value *flags = (inst->operands.size() > 2)
+                                     ? cg_.resolveOperand(inst->operands[2])
+                                     : llvm::ConstantPointerNull::get(ptrTy);
+            if (!flags)
+                flags = llvm::ConstantPointerNull::get(ptrTy);
+
+            auto *fnTy = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy, ptrTy}, false);
+            auto fn = cg_.module_->getOrInsertFunction("sad_regex_match", fnTy);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {text, pat, flags}, "rxmatch");
+            // (AR) i32 ← i1: نظيرُ ما لزم في عائلة «هل_*» — بلا التضييق تسقط الوحدةُ
+            //      في verifyModule عند مقارنةٍ صريحة بـ«خطأ».
+            result = cg_.builder_->CreateICmpNE(
+                result, llvm::ConstantInt::get(i32Ty, 0), "rxmatch.bool");
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
         llvm::Value *FileCastsCodeGen::emitBuiltinFileIsDir(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())

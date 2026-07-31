@@ -59,6 +59,440 @@
 #endif
 
 /* ============================================================================
+ * (AR) محرّك تعابير نمطيّة مُصغَّر — جسرُ «تعبير_بحث» و«تعبير_مطابقة» في المُصرَّف.
+ *
+ *      لماذا مكتوبٌ هنا لا مُستعارٌ من المفسّر: المفسّر يستعمل std::regex (C++)،
+ *      وزمنُ التشغيل المُضمَّن **لغةُ C** يُترجَم بمترجمٍ يُعثَر عليه وقتَ الربط
+ *      ويُربَط بـLLD — فإدخالُ C++ يجرّ مكتبةً قياسيّةً وربطًا يختلف بين المنصّات.
+ *
+ *      **المجموعةُ المدعومة** (وما عداها يُرفَض صراحةً لا يُطابَق خطأً):
+ *        حرفٌ حرفيّ · `.` · `[...]` و`[^...]` بمدَياتٍ · `^` · `$` ·
+ *        `(...)` و`(?:...)` · `|` · `*` `+` `?` · الهروب `\d \D \s \S \w \W`
+ *        وهروبُ الرموز الخاصّة · والرايةُ `i`.
+ *
+ *      **غيرُ المدعوم**: `{n,m}` · الكسل `*?` · الإسنادُ الخلفيّ · الاستشراف
+ *      `(?=)` `(?!)` · فئاتُ POSIX. يُجهِض المحرّكُ برسالةٍ صريحة — **لا** يُعامِلها
+ *      كعدم مطابقة: نمطٌ يُهمَل صامتًا يُنتج فحصَ أمانٍ يمرّ دائمًا، وهو أخطرُ من
+ *      الرفض بمراحل (وهو العرَضُ نفسُه الذي عُولج في RUN061).
+ *
+ *      **التصميم: تمريرُ الاستمرار (continuation)** لا «طابِق المجموعةَ منتهيةً
+ *      عند t ثمّ أكمِل». جُرِّبت الصيغةُ الثانية فأنتجت عيبين مقيسين:
+ *        • تقييدُ نهاية النصّ بـt يجعل `$` يرى نهايةً كاذبة، فيطابق وسطَ النصّ
+ *          (`(^|[._-])(env)([._-]|$)` طابق «environment» خطأً).
+ *        • أخذُ نهاية **أوّل** بديلٍ ناجحٍ يحجب البدائلَ الأخرى، فيسقط
+ *          `(^|[._-])env` على «.env» رغم صحّته.
+ *      الاستمرارُ يحلّ الاثنين: النهايةُ الحقيقيّةُ لا تُزوَّر، وكلُّ بديلٍ يُجرَّب
+ *      مع بقيّة النمط كاملةً.
+ *
+ *      المطابقةُ **بايتيّة** لا محرفيّة، كنظيرها في المفسّر (std::regex على
+ *      std::string): النصُّ العربيّ الحرفيّ يُطابَق بايتًا ببايت فيصحّ، ومدياتُ
+ *      الفئات بايتيّةٌ في المحرّكين معًا — تطابقٌ في السلوك، وهو المطلوب هنا.
+ * ============================================================================ */
+
+#define SAD_RX_UNSUPPORTED (-1)
+#define SAD_RX_MAX_DEPTH 4000
+
+typedef struct
+{
+    const char *pat;
+    int plen;
+    int icase;
+    int bad; /* رُفع عند بنيةٍ غير مدعومة */
+} sad_rx;
+
+/* (AR) إطارُ استمرار: بقيّةُ النمط التي تُكمَل بعد الجزء الجاري. */
+typedef struct sad_rx_k
+{
+    int p, pend;
+    const struct sad_rx_k *next;
+} sad_rx_k;
+
+static int sad_rx_lower(int c)
+{
+    return (c >= 'A' && c <= 'Z') ? (c - 'A' + 'a') : c;
+}
+
+static int sad_rx_eq(const sad_rx *rx, char a, char b)
+{
+    unsigned char ua = (unsigned char)a, ub = (unsigned char)b;
+    if (rx->icase)
+        return sad_rx_lower(ua) == sad_rx_lower(ub);
+    return ua == ub;
+}
+
+/* (AR) عضويّةُ صنف الهروب؛ -1 يعني «ليس صنفًا» */
+static int sad_rx_class(char esc, unsigned char c)
+{
+    switch (esc)
+    {
+    case 'd': return c >= '0' && c <= '9';
+    case 'D': return !(c >= '0' && c <= '9');
+    case 's': return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
+    case 'S': return !(c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v');
+    case 'w': return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+    case 'W': return !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_');
+    default: return -1;
+    }
+}
+
+static int sad_rx_bracket_end(sad_rx *rx, int p)
+{
+    int i = p + 1;
+    if (i < rx->plen && rx->pat[i] == '^') i++;
+    if (i < rx->plen && rx->pat[i] == ']') i++;
+    while (i < rx->plen && rx->pat[i] != ']')
+    {
+        if (rx->pat[i] == '\\') i++;
+        i++;
+    }
+    if (i >= rx->plen) { rx->bad = 1; return rx->plen; }
+    return i + 1;
+}
+
+static int sad_rx_group_end(sad_rx *rx, int p)
+{
+    int depth = 0, i = p;
+    while (i < rx->plen)
+    {
+        char c = rx->pat[i];
+        if (c == '\\') { i += 2; continue; }
+        if (c == '[') { i = sad_rx_bracket_end(rx, i); if (rx->bad) return rx->plen; continue; }
+        if (c == '(') depth++;
+        if (c == ')') { depth--; if (depth == 0) return i + 1; }
+        i++;
+    }
+    rx->bad = 1;
+    return rx->plen;
+}
+
+static int sad_rx_atom_end(sad_rx *rx, int p)
+{
+    if (p >= rx->plen) return p;
+    char c = rx->pat[p];
+    if (c == '\\') return (p + 2 <= rx->plen) ? p + 2 : (rx->bad = 1, rx->plen);
+    if (c == '(') return sad_rx_group_end(rx, p);
+    if (c == '[') return sad_rx_bracket_end(rx, p);
+    return p + 1;
+}
+
+/* (AR) مطابقةُ محرفٍ واحدٍ بعنصرٍ ذرّيّ ليس مجموعة */
+static int sad_rx_atom_char(sad_rx *rx, int p, int pend, unsigned char c)
+{
+    char a = rx->pat[p];
+    if (a == '.') return 1;
+    if (a == '\\')
+    {
+        if (p + 1 >= rx->plen) return 0;
+        char e = rx->pat[p + 1];
+        int cls = sad_rx_class(e, c);
+        if (cls >= 0) return cls;
+        return sad_rx_eq(rx, (char)c, e);
+    }
+    if (a == '[')
+    {
+        int i = p + 1, neg = 0, hit = 0, last = pend - 1;
+        if (i < last && rx->pat[i] == '^') { neg = 1; i++; }
+        while (i < last)
+        {
+            if (rx->pat[i] == '\\' && i + 1 < last)
+            {
+                char e = rx->pat[i + 1];
+                int cls = sad_rx_class(e, c);
+                if (cls >= 0) { if (cls) hit = 1; }
+                else if (sad_rx_eq(rx, (char)c, e)) hit = 1;
+                i += 2;
+                continue;
+            }
+            /* مدى a-z؛ الشرطةُ في الطرف حرفيّةٌ لا مدى */
+            if (i + 2 < last && rx->pat[i + 1] == '-')
+            {
+                unsigned char lo = (unsigned char)rx->pat[i];
+                unsigned char hi = (unsigned char)rx->pat[i + 2];
+                unsigned char cc = rx->icase ? (unsigned char)sad_rx_lower(c) : c;
+                unsigned char l2 = rx->icase ? (unsigned char)sad_rx_lower(lo) : lo;
+                unsigned char h2 = rx->icase ? (unsigned char)sad_rx_lower(hi) : hi;
+                if (cc >= l2 && cc <= h2) hit = 1;
+                i += 3;
+                continue;
+            }
+            if (sad_rx_eq(rx, (char)c, rx->pat[i])) hit = 1;
+            i++;
+        }
+        return neg ? !hit : hit;
+    }
+    return sad_rx_eq(rx, (char)c, a);
+}
+
+static int sad_rx_seq(sad_rx *rx, int p, int pend, const char *s, const char *sbeg,
+                      const char *send, const sad_rx_k *k, const char **out_end, int depth);
+
+/* (AR) كلُّ بديلٍ يُجرَّب مع **بقيّة النمط كاملةً** عبر الاستمرار — لا نأخذ نهايةَ
+ *      أوّل بديلٍ ناجحٍ ونمضي، فذلك يحجب البدائلَ الباقية. */
+static int sad_rx_alt(sad_rx *rx, int p, int pend, const char *s, const char *sbeg,
+                      const char *send, const sad_rx_k *k, const char **out_end, int depth)
+{
+    int i = p, start = p, gdepth = 0;
+    while (i < pend)
+    {
+        char c = rx->pat[i];
+        if (c == '\\') { i += 2; continue; }
+        if (c == '[') { i = sad_rx_bracket_end(rx, i); if (rx->bad) return 0; continue; }
+        if (c == '(') { gdepth++; i++; continue; }
+        if (c == ')') { gdepth--; i++; continue; }
+        if (c == '|' && gdepth == 0)
+        {
+            if (sad_rx_seq(rx, start, i, s, sbeg, send, k, out_end, depth + 1)) return 1;
+            if (rx->bad) return 0;
+            start = i + 1;
+        }
+        i++;
+    }
+    return sad_rx_seq(rx, start, pend, s, sbeg, send, k, out_end, depth + 1);
+}
+
+/* (AR) تكرارُ مجموعةٍ جشعًا مع تراجع، عبر الاستمرار. */
+static int sad_rx_rep_group(sad_rx *rx, int gp, int gpend, int next, int pend,
+                            const char *s, const char *sbeg, const char *send,
+                            const sad_rx_k *k, const char **out_end, int depth,
+                            int remaining, const char *last_pos)
+{
+    if (depth > SAD_RX_MAX_DEPTH) { rx->bad = 1; return 0; }
+    /* جشعٌ: جرّب تكرارةً أخرى أوّلًا، ثمّ تراجعْ إلى إكمال البقيّة. */
+    if (remaining != 0 && s != last_pos)
+    {
+        sad_rx_k inner;
+        /* استمرارٌ يُعيد الدخولَ إلى التكرار — نمثّله بنمطٍ فارغٍ ثمّ نداءٍ عوديّ:
+           نكتفي هنا بمحاولةٍ عوديّةٍ مباشرةٍ عبر مطابقة المجموعة بلا استمرار،
+           ثمّ استئنافِ التكرار من نهايتها. */
+        const char *mid = 0;
+        (void)inner;
+        for (const char *t = send; t >= s; t--)
+        {
+            /* نُجرِّب نهاياتٍ مرشَّحةً للمجموعة؛ التحقّقُ بالمطابقة لا بتزوير النهاية */
+            const char *got = 0;
+            sad_rx_k stop = {0, 0, 0}; /* استمرارٌ فارغ: المجموعةُ وحدها */
+            if (sad_rx_alt(rx, gp, gpend, s, sbeg, send, &stop, &got, depth + 1) && got == t)
+            {
+                mid = got;
+                if (sad_rx_rep_group(rx, gp, gpend, next, pend, mid, sbeg, send, k, out_end,
+                                     depth + 1, remaining < 0 ? -1 : remaining - 1, s))
+                    return 1;
+            }
+            if (rx->bad) return 0;
+        }
+    }
+    return sad_rx_seq(rx, next, pend, s, sbeg, send, k, out_end, depth + 1);
+}
+
+static int sad_rx_seq(sad_rx *rx, int p, int pend, const char *s, const char *sbeg,
+                      const char *send, const sad_rx_k *k, const char **out_end, int depth)
+{
+    if (depth > SAD_RX_MAX_DEPTH) { rx->bad = 1; return 0; }
+    if (rx->bad) return 0;
+
+    if (p >= pend)
+    {
+        if (k && k->pend > 0)
+            return sad_rx_seq(rx, k->p, k->pend, s, sbeg, send, k->next, out_end, depth + 1);
+        if (out_end) *out_end = s;
+        return 1;
+    }
+
+    char c = rx->pat[p];
+
+    if (c == '^')
+    {
+        if (s != sbeg) return 0;
+        return sad_rx_seq(rx, p + 1, pend, s, sbeg, send, k, out_end, depth + 1);
+    }
+    /* «$» مرساةُ نهايةٍ **في أيّ موضع** من النمط، لا في آخره وحده: في ECMAScript
+       هي توكيدٌ صفريُّ العرض أينما وقعت. اشتراطُ `p+1==pend` جعلها حرفًا حرفيًّا
+       حين يتلوها شيء — فسقط `\.(key|pem)$.*` (نمطُ حجب الشهادات) في المُصرَّف
+       بينما يمرّ في المفسّر. وتُقارَن بنهاية النصّ الحقيقيّة لا بأيّ حدٍّ مصطنَع. */
+    if (c == '$')
+    {
+        if (s != send) return 0;
+        return sad_rx_seq(rx, p + 1, pend, s, sbeg, send, k, out_end, depth + 1);
+    }
+
+    /* بنًى غير مدعومة تُرفَض صراحةً */
+    if (c == '{') { rx->bad = 1; return 0; }
+    if (c == '(' && p + 2 < pend && rx->pat[p + 1] == '?' && rx->pat[p + 2] != ':')
+    {
+        rx->bad = 1;
+        return 0;
+    }
+
+    int aend = sad_rx_atom_end(rx, p);
+    if (rx->bad) return 0;
+
+    char q = (aend < pend) ? rx->pat[aend] : 0;
+    int has_q = (q == '*' || q == '+' || q == '?');
+    if (has_q && aend + 1 < pend && rx->pat[aend + 1] == '?') { rx->bad = 1; return 0; } /* كسل */
+    int next = has_q ? aend + 1 : aend;
+
+    int is_group = (c == '(');
+    int gp = 0, gpend = 0;
+    if (is_group)
+    {
+        gp = p + 1;
+        if (gp + 1 < aend - 1 && rx->pat[gp] == '?' && rx->pat[gp + 1] == ':') gp += 2;
+        gpend = aend - 1;
+    }
+
+    if (!has_q)
+    {
+        if (is_group)
+        {
+            /* المجموعةُ تُطابَق مع استمرارٍ هو بقيّةُ التسلسل ثمّ ما بعده. */
+            sad_rx_k cont;
+            cont.p = next;
+            cont.pend = pend;
+            cont.next = k;
+            return sad_rx_alt(rx, gp, gpend, s, sbeg, send, &cont, out_end, depth + 1);
+        }
+        if (s >= send) return 0;
+        if (!sad_rx_atom_char(rx, p, aend, (unsigned char)*s)) return 0;
+        return sad_rx_seq(rx, next, pend, s + 1, sbeg, send, k, out_end, depth + 1);
+    }
+
+    if (is_group)
+    {
+        int max_rep = (q == '?') ? 1 : -1;
+        int min_rep = (q == '+') ? 1 : 0;
+        if (min_rep == 1)
+        {
+            /* «+» = تكرارةٌ واحدةٌ إلزاميّة ثمّ «*» */
+            sad_rx_k cont;
+            cont.p = p;      /* نُعيد الدخول بنفس المجموعة لكن بمُكمِّم «*» */
+            cont.pend = 0;   /* غيرُ مستعمَل: نتعامل يدويًّا أدناه */
+            (void)cont;
+            const char *got = 0;
+            for (const char *t = send; t >= s; t--)
+            {
+                sad_rx_k stop = {0, 0, 0};
+                got = 0;
+                if (sad_rx_alt(rx, gp, gpend, s, sbeg, send, &stop, &got, depth + 1) && got == t)
+                {
+                    if (sad_rx_rep_group(rx, gp, gpend, next, pend, got, sbeg, send, k,
+                                         out_end, depth + 1, -1, s))
+                        return 1;
+                }
+                if (rx->bad) return 0;
+            }
+            return 0;
+        }
+        return sad_rx_rep_group(rx, gp, gpend, next, pend, s, sbeg, send, k, out_end,
+                                depth + 1, max_rep, 0);
+    }
+
+    /* مُكمِّمٌ جشعٌ على عنصرٍ ذرّيٍّ بسيط: عدُّ المطابقات ثمّ تراجعٌ من الأطول */
+    int min_rep = (q == '+') ? 1 : 0;
+    int max_rep = (q == '?') ? 1 : -1;
+    long count = 0;
+    const char *cur = s;
+    while ((max_rep < 0 || count < max_rep) && cur < send &&
+           sad_rx_atom_char(rx, p, aend, (unsigned char)*cur))
+    {
+        cur++;
+        count++;
+    }
+    for (long take = count; take >= min_rep; take--)
+    {
+        if (sad_rx_seq(rx, next, pend, s + take, sbeg, send, k, out_end, depth + 1))
+            return 1;
+        if (rx->bad) return 0;
+    }
+    return 0;
+}
+
+/* (AR) أوّلُ مطابقة: 1 مع المدى، أو 0، أو SAD_RX_UNSUPPORTED */
+static int sad_rx_search(const char *text, const char *pattern, int icase,
+                         int *out_begin, int *out_len)
+{
+    sad_rx rx;
+    rx.pat = pattern;
+    rx.plen = (int)strlen(pattern);
+    rx.icase = icase;
+    rx.bad = 0;
+
+    const char *sbeg = text;
+    const char *send = text + strlen(text);
+    for (const char *st = sbeg; st <= send; st++)
+    {
+        const char *end = 0;
+        rx.bad = 0;
+        if (sad_rx_alt(&rx, 0, rx.plen, st, sbeg, send, 0, &end, 0) && !rx.bad)
+        {
+            if (out_begin) *out_begin = (int)(st - sbeg);
+            if (out_len) *out_len = (int)(end - st);
+            return 1;
+        }
+        if (rx.bad) return SAD_RX_UNSUPPORTED;
+    }
+    return 0;
+}
+
+static int sad_rx_flags(const char *flags)
+{
+    int icase = 0;
+    if (!flags) return 0;
+    for (const char *f = flags; *f; f++)
+    {
+        if (*f == 'i') { icase = 1; continue; }
+        fprintf(stderr, "خطأ: رايةٌ غير مدعومة في التعبير النمطيّ: '%c' (المدعوم: i)\n", *f);
+        abort();
+    }
+    return icase;
+}
+
+static void sad_rx_die_unsupported(const char *pattern)
+{
+    fprintf(stderr, "خطأ: بنيةٌ غير مدعومة في التعبير النمطيّ المُصرَّف: %s\n", pattern);
+    fprintf(stderr, "المدعوم: حرفيّ . [] ^ $ () (?:) | * + ? \\d \\s \\w والرايةُ i\n");
+    abort();
+}
+
+/* ============================================================================
+ * (AR) جسر «تعبير_بحث» — يُرجِع النصَّ المطابقَ مُخصَّصًا، أو NULL عند عدم المطابقة.
+ * ============================================================================ */
+char *sad_regex_search(const char *text, const char *pattern, const char *flags)
+{
+    if (!text || !pattern) return 0;
+    int icase = sad_rx_flags(flags);
+    int b = 0, l = 0;
+    int r = sad_rx_search(text, pattern, icase, &b, &l);
+    if (r == SAD_RX_UNSUPPORTED) sad_rx_die_unsupported(pattern);
+    if (r != 1) return 0;
+    char *out = (char *)malloc((size_t)l + 1);
+    if (!out) return 0;
+    memcpy(out, text + b, (size_t)l);
+    out[l] = '\0';
+    return out;
+}
+
+/* (AR) جسر «تعبير_مطابقة» — مطابقةُ النصّ **كاملًا** (نظير std::regex_match). */
+int sad_regex_match(const char *text, const char *pattern, const char *flags)
+{
+    if (!text || !pattern) return 0;
+    int icase = sad_rx_flags(flags);
+    sad_rx rx;
+    rx.pat = pattern;
+    rx.plen = (int)strlen(pattern);
+    rx.icase = icase;
+    rx.bad = 0;
+    const char *sbeg = text;
+    const char *send = text + strlen(text);
+    const char *end = 0;
+    /* المطابقةُ الكاملة: نطلب استهلاكَ النصّ كلِّه — نجرّب حتّى نجد نهايةً = send */
+    int ok = 0;
+    if (sad_rx_alt(&rx, 0, rx.plen, sbeg, sbeg, send, 0, &end, 0) && end == send)
+        ok = 1;
+    if (rx.bad) sad_rx_die_unsupported(pattern);
+    return ok;
+}
+
+/* ============================================================================
  * (AR) جسر نظام الملفّات — يُستدعى من مدمَج «هل_مجلد» في المترجم.
  *      يُرجع 1 إن كان المسار مجلدًا موجودًا، و0 خلاف ذلك (غير موجود/ملفّ).
  *      يوحّد سلوك المفسّر (sad::stdlib::filesystem::is_directory) في المُصرَّف.
