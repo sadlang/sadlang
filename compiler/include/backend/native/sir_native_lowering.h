@@ -32,6 +32,7 @@
 #include "backend/native/x86_variable_encoder.h"
 #include "backend/native/generated/x86_64_encoding_generated.h"
 #include "backend/native/elf64_writer.h"
+#include "backend/native/sir_lowering_common.h"
 
 #include "frontend/sir_module.h"
 #include "frontend/sir_instruction.h"
@@ -561,7 +562,7 @@ namespace sad
             bool loadArgInto(int dst, const sir::SIROperand &op)
             {
                 long long c;
-                if (isConstInt(op, c))
+                if (common::isConstInt(op, c))
                     return movImm(dst, c);
                 if (op.type == sir::SIROperandType::REGISTER)
                 {
@@ -725,7 +726,7 @@ namespace sad
                         return false;
                     const sir::SIROperand &b = inst.operands[1];
                     long long bc;
-                    if (isConstInt(b, bc)) // (AR) فوريّ ⇒ add/sub r64,imm32
+                    if (common::isConstInt(b, bc)) // (AR) فوريّ ⇒ add/sub r64,imm32
                         return inst.opcode == OP::ADD_I64 ? addImm(dst, bc) : subImm(dst, bc);
                     // (AR) معاملٌ ثانٍ سجليّ/ذاكرة: حمّله في المُبدَّد RAX ثمّ اجمع/اطرح بالسجلّ.
                     if (!loadInto(x86::RAX, b))
@@ -939,27 +940,11 @@ namespace sad
                 return true;
             }
 
-            // (AR) هل المعاملُ ثابتٌ صحيح؟ يُعيد قيمتَه (يُطابق شرطَ resolve للثوابت).
-            static bool isConstInt(const sir::SIROperand &op, long long &out)
-            {
-                if (op.type == sir::SIROperandType::CONSTANT &&
-                    op.dataType == types::SadTypeKind::Integer)
-                {
-                    out = op.intValue;
-                    return true;
-                }
-                return false;
-            }
+            // (AR) isConstInt نُقِلت إلى common (backend/native/sir_lowering_common.h) — مشتركةٌ
+            //      مع مخفّض ARM64 لمنع الانجراف؛ تُستدعى بـcommon::isConstInt.
 
             // ── تدفّق التحكّم: تخفيضُ كتلةٍ كاملة + الفروع + الترقيع ──
-
-            // (AR) هل الأوپكود مقارنةٌ عدديّةٌ موقَّعة؟ (تُدمَج في BR_COND التالي.)
-            static bool isComparison(sir::SIROpcode op)
-            {
-                using OP = sir::SIROpcode;
-                return op == OP::EQ || op == OP::NE || op == OP::LT ||
-                       op == OP::LE || op == OP::GT || op == OP::GE;
-            }
+            // (AR) isComparison نُقِلت إلى common — تُستدعى بـcommon::isComparison.
 
             // (AR) منمنمةُ القفز الشرطيّ المطابقة للمقارنة (موقَّعة): «إن صحّ الشرط اقفز لـthen».
             static const std::string *jccForCmp(sir::SIROpcode op)
@@ -998,7 +983,7 @@ namespace sad
             bool cmpAgainst(const sir::SIROperand &b)
             {
                 long long c;
-                if (isConstInt(b, c))
+                if (common::isConstInt(b, c))
                 {
                     if (c >= -128 && c <= 127)
                         return emit(x86::mnem::kCmp, "r64, imm8", {x86::Operand::R(x86::RAX), x86::Operand::I(c, 8)});
@@ -1055,7 +1040,7 @@ namespace sad
                                 "cond-kind=" + std::to_string(static_cast<int>(cond.type)));
 
                 // (AR) شرطٌ سجليّ: يجب أن يكون نتيجةَ مقارنةٍ في هذه الكتلة (إدماج).
-                const sir::SIRInstruction *cmp = findFusedComparison(block, cond.name);
+                const sir::SIRInstruction *cmp = common::findFusedComparison(block, cond.name);
                 if (!cmp || cmp->operands.size() != 2)
                     return fail(EC::INT_NATIVE_UNSUPPORTED, "cond-not-fused-cmp:%" + cond.name);
                 // (AR) المعامل الأوّل في المُبدَّد RAX (يُحمَّل من الخانة إن متغيّرَ ذاكرة)، ثمّ
@@ -1070,20 +1055,7 @@ namespace sad
                 return emitJump(*jcc, thenLbl) && emitJump(x86::mnem::kJmp, elseLbl);
             }
 
-            // (AR) يجد مقارنةً في الكتلة نتيجتُها cond تُغذّي BR_COND المُنهيَ لها. تُدمَج
-            //      فقط إن كانت المقارنةُ آخرَ تعليمةٍ قبل المُنهي (نمطُ البانِي المعتاد) —
-            //      وإلّا لا إدماجَ (المقارنةُ غيرُ المدموجة تفشل صراحةً في lowerInstruction).
-            const sir::SIRInstruction *findFusedComparison(const sir::SIRBasicBlock &block,
-                                                           const std::string &condName) const
-            {
-                const auto &is = block.instructions;
-                if (is.size() < 2)
-                    return nullptr;
-                const sir::SIRInstruction &prev = is[is.size() - 2];
-                if (isComparison(prev.opcode) && prev.result && prev.result->name == condName)
-                    return &prev;
-                return nullptr;
-            }
+            // (AR) findFusedComparison نُقِلت إلى common — تُستدعى بـcommon::findFusedComparison.
 
             // (AR) يخفّض كتلةً كاملة: يتخطّى المقارنةَ المدموجة (يعالجها BR_COND)، ويوجّه
             //      المُنهياتِ لمعالِجاتها. الكتلةُ يجب أن تنتهيَ بمُنهٍ.
@@ -1104,7 +1076,7 @@ namespace sad
                 if (is.back().opcode == sir::SIROpcode::BR_COND &&
                     !is.back().operands.empty() &&
                     is.back().operands[0].type == sir::SIROperandType::REGISTER)
-                    fused = findFusedComparison(block, is.back().operands[0].name);
+                    fused = common::findFusedComparison(block, is.back().operands[0].name);
 
                 for (size_t idx = 0; idx < is.size(); ++idx)
                 {

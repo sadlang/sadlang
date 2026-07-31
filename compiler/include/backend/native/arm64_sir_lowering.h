@@ -21,6 +21,7 @@
 #include "backend/native/arm64_fixed32_encoder.h"
 #include "backend/native/generated/arm64_encoding_generated.h"
 #include "backend/native/elf64_writer.h"
+#include "backend/native/sir_lowering_common.h"
 
 #include "frontend/sir_module.h"
 #include "frontend/sir_instruction.h"
@@ -250,23 +251,15 @@ namespace sad
                 return true;
             }
 
-            static bool isConstInt(const sir::SIROperand &op, long long &out)
-            {
-                if (op.type == sir::SIROperandType::CONSTANT &&
-                    op.dataType == types::SadTypeKind::Integer)
-                {
-                    out = op.intValue;
-                    return true;
-                }
-                return false;
-            }
+            // (AR) isConstInt نُقِلت إلى common (backend/native/sir_lowering_common.h) — مشتركةٌ
+            //      مع مخفّض x86 لمنع الانجراف؛ تُستدعى بـcommon::isConstInt.
 
             // (AR) يُجهّز معاملًا في سجلٍّ مُبدَّد: ثابتٌ ⇒ movz؛ متغيّرُ ذاكرةٍ ⇒ ldr من خانته
             //      (قراءةُ اسمِ ALLOC كقيمة = تحميلٌ ضمنيّ)؛ سجلٌّ افتراضيٌّ ⇒ نسخٌ من موضعه.
             bool materialize(int scratch, const sir::SIROperand &op)
             {
                 long long c;
-                if (isConstInt(op, c))
+                if (common::isConstInt(op, c))
                     return movz(scratch, c);
                 if (op.type == sir::SIROperandType::REGISTER)
                 {
@@ -348,7 +341,7 @@ namespace sad
                     if (!allocReg(inst.result->name, dst))
                         return false;
                     long long c;
-                    if (isConstInt(inst.operands[0], c))
+                    if (common::isConstInt(inst.operands[0], c))
                         return movz(dst, c);
                     if (inst.operands[0].type == sir::SIROperandType::REGISTER)
                     {
@@ -420,12 +413,7 @@ namespace sad
                        t == K::UInt64 || t == K::Byte;
             }
 
-            static bool isComparison(sir::SIROpcode op)
-            {
-                using OP = sir::SIROpcode;
-                return op == OP::EQ || op == OP::NE || op == OP::LT ||
-                       op == OP::LE || op == OP::GT || op == OP::GE;
-            }
+            // (AR) isComparison نُقِلت إلى common — تُستدعى بـcommon::isComparison.
 
             // (AR) منمنمةُ الفرع الشرطيّ المطابقة للمقارنة (موقَّعة): «إن صحّ الشرط اقفز لـthen».
             static const std::string *bccForCmp(sir::SIROpcode op)
@@ -443,18 +431,7 @@ namespace sad
                 }
             }
 
-            // (AR) يجد مقارنةً في الكتلة نتيجتُها cond تُغذّي BR_COND المُنهيَ لها (آخرَ تعليمةٍ قبله).
-            const sir::SIRInstruction *findFusedComparison(const sir::SIRBasicBlock &block,
-                                                           const std::string &condName) const
-            {
-                const auto &is = block.instructions;
-                if (is.size() < 2)
-                    return nullptr;
-                const sir::SIRInstruction &prev = is[is.size() - 2];
-                if (isComparison(prev.opcode) && prev.result && prev.result->name == condName)
-                    return &prev;
-                return nullptr;
-            }
+            // (AR) findFusedComparison نُقِلت إلى common — تُستدعى بـcommon::findFusedComparison.
 
             // (AR) القفزُ غير المشروط BR: operands[0] لصيقةُ الهدف ⇒ b (rel26).
             bool lowerBranch(const sir::SIRInstruction &inst)
@@ -488,7 +465,7 @@ namespace sad
                     return fail(EC::INT_NATIVE_UNSUPPORTED,
                                 "cond-kind=" + std::to_string(static_cast<int>(cond.type)));
 
-                const sir::SIRInstruction *cmpInst = findFusedComparison(block, cond.name);
+                const sir::SIRInstruction *cmpInst = common::findFusedComparison(block, cond.name);
                 if (!cmpInst || cmpInst->operands.size() != 2)
                     return fail(EC::INT_NATIVE_UNSUPPORTED, "cond-not-fused-cmp:%" + cond.name);
                 // (AR) الفروعُ الشرطيّةُ المُصدَرة موقَّعةٌ (b.lt/le/gt/ge)؛ معاملٌ لا-موقَّعٌ (طبيعي64/
@@ -522,7 +499,7 @@ namespace sad
                 if (!is.empty() && is.back().opcode == sir::SIROpcode::BR_COND &&
                     !is.back().operands.empty() &&
                     is.back().operands[0].type == sir::SIROperandType::REGISTER)
-                    fused = findFusedComparison(block, is.back().operands[0].name);
+                    fused = common::findFusedComparison(block, is.back().operands[0].name);
 
                 for (const sir::SIRInstruction &inst : is)
                 {
