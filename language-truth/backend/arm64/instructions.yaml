@@ -46,6 +46,23 @@ instructions:
           - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
           - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
+    # ADD Xd, Xn, #imm12   ⇒  sf 0 0 100010 sh imm12 Rn Rd   (فوريّ؛ لعنوانِ خانةٍ [sp+off] وجمعِ ثابت، متحقَّق: add x12,sp,#8 = 0x910023EC)
+    - en: add
+      form: "x, x, imm12"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }                 # Rn (قد يكون SP=31)
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 23, const: 34 }         # 0b00100010 (ADD imm)
+          - { name: sh,    hi: 22, lo: 22, const: 0 }
+          - { name: imm12, hi: 21, lo: 10, from: op2 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
 
   # SVC #0   ⇒  11010100 000 imm16(0) 00001
   نداء_نظام:
@@ -70,6 +87,37 @@ instructions:
           - { name: fixed, hi: 31, lo: 10, const: 3512256 }    # 0b1101011001011111000000 (RET x30 = 0xD65F03C0)
           - { name: Rn,    hi: 9,  lo: 5,  const: 30 }         # x30 (سجلّ الرابط)
           - { name: op,    hi: 4,  lo: 0,  const: 0 }
+
+  # BL label   ⇒  100101 imm26   (نداءٌ دالّيّ يضبط x30=عنوانُ العودة؛ الإزاحةُ نسبيّةٌ ÷٤، متحقَّق: bl #4 = 0x94000001)
+  نادِ:
+    - en: bl
+      form: "rel26"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 26, const: 37 }         # 0b100101 (BL؛ يماثل B مع بتّ الرابط)
+          - { name: imm26, hi: 25, lo: 0,  from: op0 }         # الإزاحة (عددُ تعليماتٍ موقَّع)
+
+  # MOVK Xd, #imm16, LSL #(hw*16)   ⇒  sf 11 100101 hw imm16 Rd   (يُبقي البتّاتِ الأخرى؛ لبناء عنوانٍ ٦٤-بت، متحقَّق: movk x1,#0x1234,lsl#16 = 0xF2A24681)
+  ثبّت:
+    - en: movk
+      form: "x, imm16, lsl"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: imm, bits: 16 }
+        - { kind: imm }                                        # hw: الإزاحة÷١٦ (٠/١/٢/٣)
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: opc,   hi: 30, lo: 29, const: 3 }          # 0b11 (MOVK ⇒ إبقاءُ البتّاتِ الأخرى)
+          - { name: fixed, hi: 28, lo: 23, const: 37 }         # 0b100101
+          - { name: hw,    hi: 22, lo: 21, from: op2 }         # إزاحةُ ١٦-بت (٠..٣)
+          - { name: imm16, hi: 20, lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
 
   # SUB Xd, Xn, Xm   ⇒  sf 1 0 01011 00 0 Rm 000000 Rn Rd   (كـADD مع بتّ op=1، متحقَّق: 0xCB110209)
   اطرح:
@@ -102,6 +150,23 @@ instructions:
           - { name: imm12, hi: 21, lo: 10, from: op0 }
           - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # SP
           - { name: Rd,    hi: 4,  lo: 0,  const: 31 }         # SP
+      reads_dest: false
+    # SUB Xd, Xn, #imm12   ⇒  sf 1 0 100010 sh imm12 Rn Rd   (فوريّ عامّ Rd≠SP؛ لإنقاصِ مؤشّرِ itoa، متحقَّق: sub x12,x12,#1 = 0xD100058C)
+    - en: sub
+      form: "x, x, imm12"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 23, const: 162 }        # 0b10100010 (SUB imm)
+          - { name: sh,    hi: 22, lo: 22, const: 0 }
+          - { name: imm12, hi: 21, lo: 10, from: op2 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
 
   # MUL Xd, Xn, Xm = MADD Xd, Xn, Xm, XZR   ⇒  sf 00 11011 000 Rm 0 11111 Rn Rd   (متحقَّق: 0x9B117E09)
@@ -318,3 +383,34 @@ instructions:
           - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # SP
           - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
+
+  # STRB Wt, [Xn]   ⇒  00 111 0 01 00 imm12(0) Rn Rt   (تخزينُ بايتٍ واحد؛ لأرقام itoa، متحقَّق: strb w14,[x12] = 0x3900018E)
+  اخزن_بايت:
+    - en: strb
+      form: "w, x"
+      operands:
+        - { kind: reg, class: gpr, role: in }                 # Wt: البايتُ المخزَّن (٨ بتّات دنيا)
+        - { kind: reg, class: gpr, role: in }                 # Xn: عنوانُ القاعدة
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 22, const: 228 }        # 0b0011100100 (STRB غير مفهرس، إزاحة٠)
+          - { name: imm12, hi: 21, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # CBNZ Xt, label   ⇒  sf 011010 1 imm19 Rt   (اقفز إن لم يكن السجلُّ صفرًا؛ للولب itoa، متحقَّق: cbnz x9,#-8 = 0xB5FFFFC9)
+  اقفز_إن_ليس_صفرًا:
+    - en: cbnz
+      form: "x, rel19"
+      operands:
+        - { kind: reg, class: gpr, role: in }                 # Rt: السجلُّ المُختبَر
+        - { kind: imm }                                       # الإزاحة (عددُ تعليماتٍ موقَّع)
+      encode:
+        width: 32
+        fields:
+          - { name: sf,    hi: 31, lo: 31, const: 1 }
+          - { name: fixed, hi: 30, lo: 24, const: 53 }         # 0b0110101 (CBNZ ٦٤-بت)
+          - { name: imm19, hi: 23, lo: 5,  from: op1 }
+          - { name: Rt,    hi: 4,  lo: 0,  from: op0 }

@@ -23,10 +23,14 @@ inline const std::vector<GenEncEntry> &encodingTable()
     static const std::vector<GenEncEntry> kTable = {
     { "انقل", "x, imm16", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 29, 2, true, -1 }, { 28, 23, 37, true, -1 }, { 22, 21, 0, true, -1 }, { 20, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اجمع", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 88, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اجمع", "x, x, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 23, 34, true, -1 }, { 22, 22, 0, true, -1 }, { 21, 10, 0, false, 2 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "نداء_نظام", "", sad::native::arm64::EncSpec{ 32, { { 31, 21, 1696, true, -1 }, { 20, 5, 0, true, -1 }, { 4, 0, 1, true, -1 } } } },
     { "ارجع", "", sad::native::arm64::EncSpec{ 32, { { 31, 10, 3512256, true, -1 }, { 9, 5, 30, true, -1 }, { 4, 0, 0, true, -1 } } } },
+    { "نادِ", "rel26", sad::native::arm64::EncSpec{ 32, { { 31, 26, 37, true, -1 }, { 25, 0, 0, false, 0 } } } },
+    { "ثبّت", "x, imm16, lsl", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 29, 3, true, -1 }, { 28, 23, 37, true, -1 }, { 22, 21, 0, false, 2 }, { 20, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اطرح", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 600, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اطرح", "sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 23, 418, true, -1 }, { 22, 22, 0, true, -1 }, { 21, 10, 0, false, 0 }, { 9, 5, 31, true, -1 }, { 4, 0, 31, true, -1 } } } },
+    { "اطرح", "x, x, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 23, 162, true, -1 }, { 22, 22, 0, true, -1 }, { 21, 10, 0, false, 2 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اضرب", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 216, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 15, 0, true, -1 }, { 14, 10, 31, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اقسم", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 214, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 3, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اطرح_الضرب", "x, x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 216, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 15, 1, true, -1 }, { 14, 10, 0, false, 3 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
@@ -41,6 +45,8 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اقفز", "rel26", sad::native::arm64::EncSpec{ 32, { { 31, 26, 5, true, -1 }, { 25, 0, 0, false, 0 } } } },
     { "اخزن", "x, sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 22, 996, true, -1 }, { 21, 10, 0, false, 1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
     { "احمل", "x, sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 22, 997, true, -1 }, { 21, 10, 0, false, 1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
+    { "اخزن_بايت", "w, x", sad::native::arm64::EncSpec{ 32, { { 31, 22, 228, true, -1 }, { 21, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اقفز_إن_ليس_صفرًا", "x, rel19", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 24, 53, true, -1 }, { 23, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     };
     return kTable;
 }
@@ -54,6 +60,8 @@ inline const std::string kMovz = "انقل";
 inline const std::string kAdd = "اجمع";
 inline const std::string kSvc = "نداء_نظام";
 inline const std::string kRet = "ارجع";
+inline const std::string kBl = "نادِ";
+inline const std::string kMovk = "ثبّت";
 inline const std::string kSub = "اطرح";
 inline const std::string kMul = "اضرب";
 inline const std::string kSdiv = "اقسم";
@@ -69,6 +77,8 @@ inline const std::string kBge = "اقفز_إذا_أكبر_أو_ساوى";
 inline const std::string kB = "اقفز";
 inline const std::string kStr = "اخزن";
 inline const std::string kLdr = "احمل";
+inline const std::string kStrb = "اخزن_بايت";
+inline const std::string kCbnz = "اقفز_إن_ليس_صفرًا";
 } // namespace mnem
 
 // (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.

@@ -183,6 +183,54 @@ TEST(NativeArm64, LdrX9Sp8)
     ASSERT_EQ(hex(b), std::string("e90740f9"));
 }
 
+// ─── التعليمات الجديدة (نداء + طباعة): كلٌّ = مخرَج llvm-mc-18 حرفيًّا ───
+
+// bl #4 (imm26=1، إزاحةُ تعليمةٍ أمامًا)  # encoding: [0x01,0x00,0x00,0x94]
+TEST(NativeArm64, Bl4)
+{
+    auto b = enc("نادِ", "rel26", {arm64::Operand::I(1)});
+    ASSERT_EQ(hex(b), std::string("01000094"));
+}
+
+// movk x1, #0x1234, lsl #16 (hw=1)  # encoding: [0x81,0x46,0xa2,0xf2]
+TEST(NativeArm64, MovkX1Lsl16)
+{
+    auto b = enc("ثبّت", "x, imm16, lsl",
+                 ops3(arm64::Operand::R(arm64::X1), arm64::Operand::I(0x1234), arm64::Operand::I(1)));
+    ASSERT_EQ(hex(b), std::string("8146a2f2"));
+}
+
+// add x12, sp, #8 (فوريّ، Rn=sp=31)  # encoding: [0xec,0x23,0x00,0x91]
+TEST(NativeArm64, AddImmX12Sp8)
+{
+    auto b = enc("اجمع", "x, x, imm12",
+                 ops3(arm64::Operand::R(arm64::X12), arm64::Operand::R(arm64::XZR), arm64::Operand::I(8)));
+    ASSERT_EQ(hex(b), std::string("ec230091"));
+}
+
+// sub x12, x12, #1 (فوريّ عامّ)  # encoding: [0x8c,0x05,0x00,0xd1]
+TEST(NativeArm64, SubImmX12_1)
+{
+    auto b = enc("اطرح", "x, x, imm12",
+                 ops3(arm64::Operand::R(arm64::X12), arm64::Operand::R(arm64::X12), arm64::Operand::I(1)));
+    ASSERT_EQ(hex(b), std::string("8c0500d1"));
+}
+
+// strb w14, [x12]  # encoding: [0x8e,0x01,0x00,0x39]
+TEST(NativeArm64, StrbW14X12)
+{
+    auto b = enc("اخزن_بايت", "w, x", {arm64::Operand::R(arm64::X14), arm64::Operand::R(arm64::X12)});
+    ASSERT_EQ(hex(b), std::string("8e010039"));
+}
+
+// cbnz x9, #-8 (imm19=-2، قفزٌ خلفيّ للولب itoa)  # encoding: [0xc9,0xff,0xff,0xb5]
+TEST(NativeArm64, CbnzX9Back)
+{
+    auto b = enc("اقفز_إن_ليس_صفرًا", "x, rel19",
+                 {arm64::Operand::R(arm64::X9), arm64::Operand::I(-2)});
+    ASSERT_EQ(hex(b), std::string("c9ffffb5"));
+}
+
 // ─── تسلسل «خروج ٤٢» الكامل ───
 TEST(NativeArm64, Exit42Sequence)
 {

@@ -719,6 +719,67 @@ TEST(Arm64SirBridge, LowersWhileLoopWithMemory)
     ASSERT_TRUE(ok);
 }
 
+// (AR) نداءُ دالّةٍ على ARM64: «اجمع(أ،ب)=أ+ب؛ رئيسية=اجمع(40،2)» ⇒ يخرج ٤٢. يُثبت: BL
+//      (imm26 مُرقَّع لإزاحة الدالّة) + AAPCS64 (الوسائط x0/x1، النتيجة x0) + خاتمةُ الورقة
+//      (add sp؛ ret إلى x30 بلا حفظه) + مقدّمةٌ تُسكِن x0/x1 في خانات المعاملات.
+TEST(Arm64SirBridge, LowersFunctionCall)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcCall, "sad_arm64_call42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) نداءٌ متداخل: «اجمع(اجمع(40،0)،2)» ⇒ الوسيطُ الأوّلُ مؤقّتٌ (نتيجةُ نداءٍ) ⇒ يُنسَك
+//      ويُحمَّل من خانته ⇒ صفر تصادمِ نقلٍ متوازٍ. يخرج ٤٢.
+TEST(Arm64SirBridge, LowersNestedCallTempArg)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcNested, "sad_arm64_nested42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) مؤقّتٌ حيٌّ عبر نداء: «اجمع(40،0)+اجمع(1،1)» ⇒ نتيجةُ الأوّلِ حيّةٌ عبر الثاني ⇒ تُنسَك
+//      وتُعاد (bl يدهس الحوضَ caller-saved). يخرج ٤٢.
+TEST(Arm64SirBridge, LowersLiveAcrossCall)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcLiveAcross, "sad_arm64_liveacross42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) طباعةُ سلسلةٍ حرفيّة على ARM64: «اطبع_سطر("مرحبا")» ⇒ يطبع «مرحبا\n». يُثبت: عنوانُ
+//      السلسلة ٦٤-بت مبنيٌّ movz+movk×3 (مُرقَّع) + svc-write (x8=64، x0=1). أوّلُ مخرَجٍ نصّيّ ARM64.
+TEST(Arm64SirBridge, PrintsStringLiteral)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcPrintStr, "sad_arm64_printstr", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) طباعةُ ثابتٍ عدديّ على ARM64: «اطبع_سطر(42)» ⇒ يطبع «42\n». يُثبت: itoa عبر sdiv/msub
+//      + strb في مخزن الإطار + cbnz (لولب) + svc-write.
+TEST(Arm64SirBridge, PrintsNumberLiteral)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcPrintNum, "sad_arm64_printnum", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) طباعةُ عددٍ محسوب على ARM64: «اطبع_سطر(40 + 2)» ⇒ يطبع «42\n». يُثبت الحسابَ ثمّ itoa
+//      معًا (المؤقّتُ يُنسَك حولَ الطباعة ⇒ صحّةُ الانسكاب حولَ تسلسلٍ يُبدِّد الحوضَ).
+TEST(Arm64SirBridge, PrintsComputedNumber)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcPrintComputed, "sad_arm64_printcomputed", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
 int main(int argc, char **argv)
 {
     (void)argc;
