@@ -360,8 +360,11 @@ namespace Sad
                 BUILTIN_FILE_COPY,       ///< انسخ_ملف / Copy file
                 BUILTIN_FILE_MOVE,       ///< انقل_ملف / Move file
                 BUILTIN_FILE_CREATE_DIR, ///< أنشئ_مجلد / Create directory
+                BUILTIN_FILE_REMOVE_DIR, ///< احذف_مجلد / Remove an empty directory
                 BUILTIN_FILE_LIST_DIR,   ///< اسرد_مجلد / List directory
                 BUILTIN_FILE_IS_DIR,     ///< هل_مجلد / Is directory (stat-based)
+                BUILTIN_FILE_EXISTS,     ///< هل_موجود / Path exists (file or directory)
+                BUILTIN_FILE_IS_FILE,    ///< هل_ملف / Is a regular file (stat-based, follows links)
                 BUILTIN_FILE_IS_SYMLINK,  ///< هل_رابط_رمزي / Is symlink (lstat-based, does not follow)
                 BUILTIN_FILE_REAL_PATH,   ///< المسار_الحقيقي / Canonical real path (follows symlinks)
                 BUILTIN_FILE_ABS_PATH,    ///< المسار_المطلق / Absolute path (textual, no symlink resolution)

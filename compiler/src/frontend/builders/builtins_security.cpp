@@ -70,6 +70,67 @@ namespace Sad
                     return BuildResult("", SadTypeKind::Void);
                 }
 
+                // 1-ب. تأكد_صحيح · تأكد_خطأ · تأكد_يساوي · تأكد_لا_يساوي — الأسماءُ
+                //       **القانونيّة** في مصدر الحقيقة. آلةُ التأكيد كانت منفَّذةً سلفًا
+                //       لكنّها موصولةٌ بأسماءٍ أخرى (تأكد · تأكد_مساواة · تأكد_أكبر)،
+                //       فكان مصدرُ الحقيقة يعلن هذه `RUNTIME_CALL` والمصرّفُ يرفضها:
+                //       انحرافُ SoT↔تنفيذ لا غيابُ قدرة. هنا نصلها بما هو قائم.
+                if (funcName == Bn::Assertions::ASSERT_TRUE)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[خطأ] دالة تأكد_صحيح تتطلب معامل واحد (الشرط)" << std::endl;
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT);
+                    inst.operands.push_back(argOperands[0]);
+                    if (argOperands.size() > 1)
+                        inst.operands.push_back(argOperands[1]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+
+                // تأكد_خطأ: النفيُ يُبنى هنا (XOR بـ1) لا في الخلفيّة — فتبقى آلةُ
+                // التأكيد واحدةً، ولا يتباعد مسارا «صحيح» و«خطأ» عند أيّ تعديلٍ لاحق.
+                if (funcName == Bn::Assertions::ASSERT_FALSE)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[خطأ] دالة تأكد_خطأ تتطلب معامل واحد (الشرط)" << std::endl;
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    std::string negReg = b_.newTempRegister();
+                    SIRInstruction negInst(SIROpcode::NOT);
+                    negInst.result = SIROperand::Register(negReg, SadTypeKind::Boolean);
+                    negInst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(negInst);
+
+                    SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT);
+                    inst.operands.push_back(SIROperand::Register(negReg, SadTypeKind::Boolean));
+                    if (argOperands.size() > 1)
+                        inst.operands.push_back(argOperands[1]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+
+                if (funcName == Bn::Assertions::ASSERT_EQ)
+                {
+                    if (argResults.size() < 2)
+                    {
+                        std::cerr << "[خطأ] دالة تأكد_يساوي تتطلب معاملين" << std::endl;
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_EQUAL);
+                    inst.operands.push_back(argOperands[0]);
+                    inst.operands.push_back(argOperands[1]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
+
                 // 2. تحقق / verify - يعيد صحيح أو خطأ دون إيقاف البرنامج
                 if (funcName == Bn::CompilerSec::SEC_0)
                 {

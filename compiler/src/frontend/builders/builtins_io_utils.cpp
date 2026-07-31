@@ -267,6 +267,57 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
 
+                // 9-أ. احذف_مجلد / remove_dir — يحذف مجلّدًا فارغًا (نظير rmdir).
+                if (funcName == Bn::Basics::REMOVE_DIR)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة احذف_مجلد تتطلب معامل واحد (مسار)" << std::endl;
+                        return BuildResult("", SadTypeKind::Boolean);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_FILE_REMOVE_DIR);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
+                }
+
+                // 9-ب. هل_موجود / exists — أيُّ مدخلٍ موجود (ملفًّا كان أو مجلّدًا).
+                if (funcName == Bn::Basics::FILE_EXISTS)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة هل_موجود تتطلب معامل واحد (مسار)" << std::endl;
+                        return BuildResult("", SadTypeKind::Boolean);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_FILE_EXISTS);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
+                }
+
+                // 9-ج. هل_ملف / is_file — ملفٌّ عاديّ (يتبع الرابطَ فيصف هدفه، كنظيره في المفسّر).
+                if (funcName == Bn::Basics::IS_FILE)
+                {
+                    if (argResults.empty())
+                    {
+                        std::cerr << "[Error] دالة هل_ملف تتطلب معامل واحد (مسار)" << std::endl;
+                        return BuildResult("", SadTypeKind::Boolean);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIRInstruction inst(SIROpcode::BUILTIN_FILE_IS_FILE);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::Boolean);
+                }
+
                 // 10. هل_رابط_رمزي / is_symlink — يفحص المدخلَ نفسه بلا اتّباع الرابط.
                 //     (AR) هل_ملف/هل_مجلد يتبعان الرابطَ فيصفان الهدف ⇒ لا يكشفان الرابط.
                 if (funcName == Bn::Basics::IS_SYMLINK)

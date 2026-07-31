@@ -35,6 +35,9 @@ public:
     llvm::Value *emitBuiltinFileCreateDir(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileListDir(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileIsDir(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinFileRemoveDir(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinFileExists(std::shared_ptr<SIRInstruction> inst);
+    llvm::Value *emitBuiltinFileIsFile(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileIsSymlink(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileRealPath(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileAbsPath(std::shared_ptr<SIRInstruction> inst);

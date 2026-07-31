@@ -84,6 +84,89 @@ int sad_file_is_dir(const char *path)
 }
 
 /* ============================================================================
+ * (AR) جسر «أنشئ_مجلد» — كانت الواجهةُ الخلفيّة تُصدِر نداءً إلى `sad_file_create_dir`
+ *      بلا تعريفٍ له في زمن التشغيل المُضمَّن، فيفشل **الربطُ** لا التصريف: رسالةٌ
+ *      عن clang لا عن المدمَجة، فيظنّ المستعمل أنّ سلسلة أدواته معطوبة.
+ * (EN) «أنشئ_مجلد» bridge — the backend emitted a call to `sad_file_create_dir`
+ *      with no definition in the embedded runtime, so LINKING failed rather than
+ *      compilation: the error blamed clang, not the builtin, sending users to
+ *      debug a toolchain that was fine.
+ * ============================================================================ */
+int sad_file_create_dir(const char *path)
+{
+    if (!path)
+        return 0;
+#ifdef _WIN32
+    return CreateDirectoryA(path, NULL) ? 1 : 0;
+#else
+    return mkdir(path, 0755) == 0 ? 1 : 0;
+#endif
+}
+
+/* ============================================================================
+ * (AR) جسر «احذف_مجلد» — يحذف مجلّدًا **فارغًا** فقط (نظير rmdir). الحذفُ العَوديّ
+ *      عمليّةٌ مدمّرةٌ لا تُشتَقّ ضمنًا من «احذف مجلّدًا»؛ من أرادها يسردْ ويحذفْ صراحةً.
+ * (EN) «احذف_مجلد» bridge — removes an EMPTY directory only (rmdir). Recursive
+ *      deletion is a destructive operation and is not implied by "remove a
+ *      directory"; callers that want it must list and delete explicitly.
+ * ============================================================================ */
+int sad_file_remove_dir(const char *path)
+{
+    if (!path)
+        return 0;
+#ifdef _WIN32
+    return RemoveDirectoryA(path) ? 1 : 0;
+#else
+    return rmdir(path) == 0 ? 1 : 0;
+#endif
+}
+
+/* ============================================================================
+ * (AR) جسر «هل_موجود» — أيُّ مدخلٍ موجود (ملفًّا كان أو مجلّدًا)، كدلالة المفسّر.
+ *      لا يكفي «هل_ملف» هنا: المجلّد موجودٌ وليس ملفًّا، والخلطُ بينهما يجعل
+ *      فحصَ الوجود يكذب على المجلّدات.
+ * (EN) «هل_موجود» bridge — any existing entry, file or directory (interpreter
+ *      semantics). «هل_ملف» is not a substitute: a directory exists but is not a
+ *      file, and conflating them makes existence checks lie about directories.
+ * ============================================================================ */
+int sad_file_exists(const char *path)
+{
+    if (!path)
+        return 0;
+#ifdef _WIN32
+    return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES ? 1 : 0;
+#else
+    struct stat st;
+    return stat(path, &st) == 0 ? 1 : 0;
+#endif
+}
+
+/* ============================================================================
+ * (AR) جسر «هل_ملف» — ملفٌّ عاديٌّ موجود. يتبع الرابطَ الرمزيّ فيصف هدفه (stat لا
+ *      lstat)، مطابقةً لدلالة المفسّر. ولذلك لا يصلح لكشف الرابط نفسه — لذاك
+ *      «هل_رابط_رمزي» أدناه.
+ * (EN) «هل_ملف» bridge — an existing regular file. Follows symlinks and describes
+ *      the target (stat, not lstat), matching the interpreter. Hence it cannot
+ *      detect the link itself — «هل_رابط_رمزي» below does that.
+ * ============================================================================ */
+int sad_file_is_file(const char *path)
+{
+    if (!path)
+        return 0;
+#ifdef _WIN32
+    DWORD attrs = GetFileAttributesA(path);
+    if (attrs == INVALID_FILE_ATTRIBUTES)
+        return 0;
+    return (attrs & FILE_ATTRIBUTE_DIRECTORY) ? 0 : 1;
+#else
+    struct stat st;
+    if (stat(path, &st) != 0)
+        return 0;
+    return S_ISREG(st.st_mode) ? 1 : 0;
+#endif
+}
+
+/* ============================================================================
  * (AR) جسر «هل_رابط_رمزي» — يفحص المدخلَ نفسه بلا اتّباع الرابط (نظير lstat).
  *      لا يكفي «هل_ملف»/«هل_مجلد» هنا: كلاهما يتبع الرابطَ فيصف الهدف، فلا
  *      يكشف الرابطَ نفسه — وهو بالضبط ما يلزم لفرض احتواء المسارات.

@@ -607,10 +607,113 @@ namespace Sad
             auto isDirFunc = cg_.module_->getOrInsertFunction("sad_file_is_dir", isDirType);
             llvm::Value *result = cg_.builder_->CreateCall(isDirFunc, {path}, "isdir_result");
 
+            // (AR) جسرُ C يُرجِع int (i32) بينما نوعُ النتيجة في SIR منطقيّ (i1).
+            //      بلا هذا التحويل يُصدَر `icmp eq i32 %r, i1 false` عند مقارنةٍ مثل
+            //      `هل_ملف(س) == خطأ` فتسقط الوحدةُ في verifyModule. المقارنةُ بصفرٍ
+            //      تُطبّع أيَّ قيمةٍ غير صفريّة إلى «صحيح» (دلالةُ C).
+            // (EN) The C bridge returns int (i32) while the SIR result type is boolean
+            //      (i1). Without this narrowing, a comparison such as `is_file(x) == false`
+            //      emits `icmp eq i32 %r, i1 false` and the module fails verifyModule.
+            //      Comparing against zero normalises any non-zero to true (C semantics).
+            result = cg_.builder_->CreateICmpNE(
+                result, llvm::ConstantInt::get(i32Ty, 0), "isdir_result.bool");
+
             if (inst->result.has_value())
             {
                 cg_.context_info_.namedValues[inst->result->name] = result;
             }
+            return result;
+        }
+
+        llvm::Value *FileCastsCodeGen::emitBuiltinFileRemoveDir(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *path = cg_.resolveOperand(inst->operands[0]);
+            if (!path)
+                return nullptr;
+
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+
+            // (AR) جسر وقت التشغيل: int sad_file_remove_dir(const char*) — مجلّدٌ فارغ.
+            // (EN) Runtime bridge: int sad_file_remove_dir(const char*) — empty dir only.
+            auto *fnTy = llvm::FunctionType::get(i32Ty, {ptrTy}, false);
+            auto fn = cg_.module_->getOrInsertFunction("sad_file_remove_dir", fnTy);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {path}, "rmdir_result");
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *FileCastsCodeGen::emitBuiltinFileExists(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *path = cg_.resolveOperand(inst->operands[0]);
+            if (!path)
+                return nullptr;
+
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+
+            // (AR) جسر وقت التشغيل: int sad_file_exists(const char* path)
+            //      يوحّد دلالةَ المفسّر: أيُّ مدخلٍ موجود — ملفًّا كان أو مجلّدًا.
+            // (EN) Runtime bridge: int sad_file_exists(const char*) — mirrors the
+            //      interpreter: any existing entry, file or directory.
+            auto *fnTy = llvm::FunctionType::get(i32Ty, {ptrTy}, false);
+            auto fn = cg_.module_->getOrInsertFunction("sad_file_exists", fnTy);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {path}, "exists_result");
+
+            // (AR) جسرُ C يُرجِع int (i32) بينما نوعُ النتيجة في SIR منطقيّ (i1).
+            //      بلا هذا التحويل يُصدَر `icmp eq i32 %r, i1 false` عند مقارنةٍ مثل
+            //      `هل_ملف(س) == خطأ` فتسقط الوحدةُ في verifyModule. المقارنةُ بصفرٍ
+            //      تُطبّع أيَّ قيمةٍ غير صفريّة إلى «صحيح» (دلالةُ C).
+            // (EN) The C bridge returns int (i32) while the SIR result type is boolean
+            //      (i1). Without this narrowing, a comparison such as `is_file(x) == false`
+            //      emits `icmp eq i32 %r, i1 false` and the module fails verifyModule.
+            //      Comparing against zero normalises any non-zero to true (C semantics).
+            result = cg_.builder_->CreateICmpNE(
+                result, llvm::ConstantInt::get(i32Ty, 0), "exists_result.bool");
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            return result;
+        }
+
+        llvm::Value *FileCastsCodeGen::emitBuiltinFileIsFile(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+                return nullptr;
+            llvm::Value *path = cg_.resolveOperand(inst->operands[0]);
+            if (!path)
+                return nullptr;
+
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+
+            // (AR) جسر وقت التشغيل: int sad_file_is_file(const char*) — ملفٌّ عاديّ.
+            //      يتبع الرابطَ فيصف هدفه (نظيرُ stat لا lstat) — كدلالة المفسّر.
+            // (EN) Runtime bridge: int sad_file_is_file(const char*) — regular file.
+            //      Follows symlinks and describes the target (stat, not lstat).
+            auto *fnTy = llvm::FunctionType::get(i32Ty, {ptrTy}, false);
+            auto fn = cg_.module_->getOrInsertFunction("sad_file_is_file", fnTy);
+            llvm::Value *result = cg_.builder_->CreateCall(fn, {path}, "isfile_result");
+
+            // (AR) جسرُ C يُرجِع int (i32) بينما نوعُ النتيجة في SIR منطقيّ (i1).
+            //      بلا هذا التحويل يُصدَر `icmp eq i32 %r, i1 false` عند مقارنةٍ مثل
+            //      `هل_ملف(س) == خطأ` فتسقط الوحدةُ في verifyModule. المقارنةُ بصفرٍ
+            //      تُطبّع أيَّ قيمةٍ غير صفريّة إلى «صحيح» (دلالةُ C).
+            // (EN) The C bridge returns int (i32) while the SIR result type is boolean
+            //      (i1). Without this narrowing, a comparison such as `is_file(x) == false`
+            //      emits `icmp eq i32 %r, i1 false` and the module fails verifyModule.
+            //      Comparing against zero normalises any non-zero to true (C semantics).
+            result = cg_.builder_->CreateICmpNE(
+                result, llvm::ConstantInt::get(i32Ty, 0), "isfile_result.bool");
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = result;
             return result;
         }
 
@@ -632,6 +735,17 @@ namespace Sad
             auto *fnTy = llvm::FunctionType::get(i32Ty, {ptrTy}, false);
             auto fn = cg_.module_->getOrInsertFunction("sad_file_is_symlink", fnTy);
             llvm::Value *result = cg_.builder_->CreateCall(fn, {path}, "islink_result");
+
+            // (AR) جسرُ C يُرجِع int (i32) بينما نوعُ النتيجة في SIR منطقيّ (i1).
+            //      بلا هذا التحويل يُصدَر `icmp eq i32 %r, i1 false` عند مقارنةٍ مثل
+            //      `هل_ملف(س) == خطأ` فتسقط الوحدةُ في verifyModule. المقارنةُ بصفرٍ
+            //      تُطبّع أيَّ قيمةٍ غير صفريّة إلى «صحيح» (دلالةُ C).
+            // (EN) The C bridge returns int (i32) while the SIR result type is boolean
+            //      (i1). Without this narrowing, a comparison such as `is_file(x) == false`
+            //      emits `icmp eq i32 %r, i1 false` and the module fails verifyModule.
+            //      Comparing against zero normalises any non-zero to true (C semantics).
+            result = cg_.builder_->CreateICmpNE(
+                result, llvm::ConstantInt::get(i32Ty, 0), "islink_result.bool");
 
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
