@@ -91,8 +91,10 @@ namespace sad
         //      [rbp−إزاحة]؛ المعاملُ يُسكَن من سجلّ وسيطِ SysV الوارد؛ قراءةُ متغيّرِ الذاكرة
         //      كقيمة = تحميلٌ ضمنيّ) + استدعاءٌ (call/ret، وسائطُ rdi/rsi/… وإرجاعُ rax).
         //      نموذجُ التخصيص: كلُّ سجلٍّ افتراضيّ (بالاسم) ⇒ سجلٌّ فيزيائيّ من حوضٍ لا يشمل
-        //      rax (مُبدَّد + رقم النداء) وla rdi (وسيط أوّل) ولا rsp/rbp — بلا انسكابٍ (الحوضُ
-        //      يُنظَّف لكلّ كتلة؛ ما يعبر الكتلَ فعبر الذاكرة). PHI/سجلٌّ حيٌّ عبر نداءٍ ⇒ فشلٌ صريح.
+        //      rax (مُبدَّد + رقم النداء) وla rdi (وسيط أوّل) ولا rsp/rbp؛ الحوضُ يُنظَّف لكلّ
+        //      كتلة (ما يعبر الكتلَ فعبر الذاكرة). النداءُ يدهس كلَّ الحوض (caller-saved) ⇒
+        //      تُنسَك المؤقّتاتُ الحيّة إلى خانات إطارٍ قبله وتُعاد بعده، وتُحمَّل وسائطُ
+        //      المؤقّتات من خانات الانسكاب (صفر تصادمٍ = نقلٌ متوازٍ). PHI ⇒ فشلٌ صريح.
         class X86SirLowering
         {
         public:
@@ -139,6 +141,7 @@ namespace sad
                 regOf_.clear();
                 next_ = 0;
                 frameSize_ = 0;
+                spillBase_ = 0; // (AR) تأمينٌ دفاعيّ: لا يُستعمَل إلّا حين hasCall (يُضبَط في assignFrameSlots)
 
                 const auto &blocks = fn.getBasicBlocks();
                 if (blocks.empty())
@@ -200,6 +203,27 @@ namespace sad
             //      الإطار المُحاذى ١٦. تُملأ في المسح المسبق لكلّ دالّة.
             std::map<std::string, long long> memSlot_;
             long long frameSize_ = 0;
+
+            // (AR) الانسكابُ عبر النداء: إزاحةُ الخانة الأولى لمنطقة انسكابِ سجلّات الحوض
+            //      (خانةٌ لكلّ سجلٍّ من pool_). النداءُ يدهس كلَّ الحوض (caller-saved)، فتُنسَك
+            //      المؤقّتاتُ الحيّةُ إليها قبله وتُعاد بعده؛ وتُحمَّل وسائطُ المؤقّتات منها
+            //      (لا من السجلّات) ⇒ صفر تصادمٍ في نقل الوسائط (حلٌّ موحَّد للنقل المتوازي).
+            long long spillBase_ = 0;
+
+            // (AR) إزاحةُ خانة انسكابِ سجلّ الحوض بموضعه i (0..pool_.size()-1).
+            long long spillDisp(size_t poolIdx) const
+            {
+                return spillBase_ - static_cast<long long>(poolIdx) * 8;
+            }
+
+            // (AR) موضعُ سجلٍّ فيزيائيّ في حوض التخصيص (لفهرسة خانة انسكابه). ‎-1‎ إن ليس منه.
+            int poolIndexOf(int physReg) const
+            {
+                for (size_t i = 0; i < pool_.size(); ++i)
+                    if (pool_[i] == physReg)
+                        return static_cast<int>(i);
+                return -1;
+            }
 
             // (AR) يؤهّل لصيقةَ كتلةٍ باسم الدالّة الحاليّة (يمنع تصادمَ «entry» بين الدوالّ).
             std::string qualify(const std::string &blockName) const
@@ -356,13 +380,26 @@ namespace sad
                 return true;
             }
 
-            // (AR) هل المعاملُ سجلٌّ مؤقّتٌ مُخصَّصٌ في الحوض (لا ثابت ولا متغيّر ذاكرة)؟
-            //      مثلُ هذا الوسيط يُدهَس في نقلِ الوسائط المتوازي ⇒ غيرُ مدعومٍ بعد.
-            bool isPoolTemp(const sir::SIROperand &op) const
+            // (AR) يحمّل وسيطَ نداءٍ في سجلّ SysV. يُستدعى بعد انسكابِ كلّ المؤقّتات، فالمؤقّتُ
+            //      يُحمَّل من **خانة انسكابه** لا من سجلّه (قد يدهسه تحميلُ وسيطٍ سابقٍ لسجلٍّ
+            //      مشترك) ⇒ لا تصادمَ نقلٍ متوازٍ. الثابتُ فوريٌّ، ومتغيّرُ الذاكرة من خانته.
+            bool loadArgInto(int dst, const sir::SIROperand &op)
             {
-                long long disp;
-                return op.type == sir::SIROperandType::REGISTER &&
-                       !isMemVar(op, disp) && regOf_.find(op.name) != regOf_.end();
+                long long c;
+                if (isConstInt(op, c))
+                    return movImm(dst, c);
+                if (op.type == sir::SIROperandType::REGISTER)
+                {
+                    long long disp;
+                    if (isMemVar(op, disp))
+                        return loadMem(dst, disp);
+                    auto it = regOf_.find(op.name);
+                    if (it == regOf_.end())
+                        return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + op.name);
+                    return loadMem(dst, spillDisp(static_cast<size_t>(poolIndexOf(it->second))));
+                }
+                return fail(EC::INT_NATIVE_UNSUPPORTED,
+                            "arg-kind=" + std::to_string(static_cast<int>(op.type)));
             }
 
             // (AR) يحمّل معاملًا (ثابتًا/سجلًّا فيزيائيًّا/متغيّرَ ذاكرة) في سجلٍّ وجهة. قراءةُ
@@ -419,6 +456,13 @@ namespace sad
                         else if (inst.opcode == sir::SIROpcode::CALL)
                             hasCall = true;
                     }
+                // (AR) إن كانت الدالّةُ تُنادي، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض تُحفَظ
+                //      فيها المؤقّتاتُ الحيّةُ عبر النداء (وتُحمَّل منها وسائطُ المؤقّتات).
+                if (hasCall)
+                {
+                    spillBase_ = -(used + 8);
+                    used += static_cast<long long>(pool_.size()) * 8;
+                }
                 long long aligned = (used + 15) / 16 * 16; // (AR) محاذاةٌ ١٦
                 // (AR) عقدُ SysV: rsp مُحاذًى ١٦ قبل call. الدالّةُ غيرُ الداخلة تدخل عند
                 //      rsp%16==8 (النداءُ دفع عنوانَ العودة) فـpush rbp يُعيد المحاذاةَ لصفر.
@@ -536,29 +580,28 @@ namespace sad
                     const size_t argc = inst.operands.size() - 1;
                     if (argc > 6)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, "args>6:" + std::to_string(argc));
-                    // (AR) حوضُ التخصيص يتقاطع مع سجلّات الوسائط (rsi/rdx/rcx/r8/r9)، فنقلُ
-                    //      وسيطٍ مؤقّتٍ سجليٍّ قد يدهس مصدرَ وسيطٍ لاحق (نقلٌ متوازٍ). حتّى يُضاف
-                    //      حلُّ التبعيّة، نقصر الوسائطَ على ثوابتَ/متغيّراتِ ذاكرة (تحميلُها لا
-                    //      يقرأ سجلَّ حوضٍ) ونفشل صراحةً على وسيطٍ سجليٍّ مؤقّت (لا دهسٌ صامت).
+                    // (AR) النداءُ يدهس كلَّ سجلّات الحوض (caller-saved في SysV). لحفظِ المؤقّتات
+                    //      الحيّة عبره: (١) انسكِبْ كلَّ مؤقّتٍ مخصَّصٍ إلى خانة انسكابه؛ (٢) حمّل
+                    //      الوسائطَ في سجلّات SysV — المؤقّتُ من خانة انسكابه لا من سجلّه ⇒ صفر
+                    //      تصادمٍ (حلُّ النقل المتوازي)؛ (٣) نادِ؛ (٤) أعِد تحميلَ المؤقّتات؛
+                    //      (٥) النتيجةُ في rax ⇒ سجلّ النتيجة. الذاكرة (memSlot_) تنجو أصلًا.
+                    for (const auto &kv : regOf_)
+                        if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                            return false;
                     for (size_t i = 0; i < argc; ++i)
-                        if (isPoolTemp(inst.operands[i + 1]))
-                            return fail(EC::INT_NATIVE_UNSUPPORTED, "reg-temp-call-arg:%" + inst.operands[i + 1].name);
-                    for (size_t i = 0; i < argc; ++i)
-                        if (!loadInto(abiArg_[i], inst.operands[i + 1]))
+                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
                             return false;
                     if (!emitCall(inst.operands[0].name))
                         return false;
-                    // (AR) النداءُ يدهس كلَّ سجلّات الحوض (caller-saved في SysV): أبطِل ربطَها
-                    //      كي تفشل قراءةُ أيّ مؤقّتٍ عُرِّف قبل النداء صراحةً (UNDEF_VREG) بدل
-                    //      قراءةِ قمامة. المتغيّراتُ في الذاكرة (memSlot_) تنجو (لا تُدهَس).
-                    regOf_.clear();
-                    next_ = 0;
+                    for (const auto &kv : regOf_)
+                        if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                            return false;
                     if (inst.result)
                     {
                         int dst;
                         if (!allocReg(inst.result->name, dst))
                             return false;
-                        return movReg(dst, x86::RAX); // (AR) قيمةُ الإرجاع من rax (مخصَّصٌ بعد الإبطال)
+                        return movReg(dst, x86::RAX); // (AR) قيمةُ الإرجاع من rax
                     }
                     return true;
                 }

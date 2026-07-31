@@ -59,6 +59,28 @@ namespace
         "\x20\x20\x20\x20\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 
+    // (AR) نداءٌ متداخل: «رئيسية = اجمع(اجمع(40، 0)، 2)» ⇒ الوسيطُ الأوّلُ للنداء الخارجيّ
+    //      نتيجةُ نداءٍ داخليّ (مؤقّتٌ سجليّ) ⇒ يخرج ٤٢. يُثبت: النقلُ المتوازي (وسيطٌ مؤقّت
+    //      يُحمَّل من خانة انسكابه لا سجلّه) — كان يفشل صراحةً قبل هذه الطبقة.
+    const std::string kSrcNested =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\xD8\xB1\xD9\x82\xD9\x85\x20\xD8\xA3\xD8\x8C\x20\xD8\xB1\xD9\x82\xD9\x85\x20\xD8\xA8\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xA3\x20\x2B\x20\xD8\xA8\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\x34\x30\xD8\x8C\x20\x30\x29\xD8\x8C\x20\x32\x29\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) مؤقّتٌ حيٌّ عبر نداء: «رئيسية = اجمع(40، 0) + اجمع(1، 1)» ⇒ نتيجةُ النداء الأوّل
+    //      (%3) حيّةٌ عبر النداء الثاني ثمّ تُجمَع بنتيجته ⇒ يخرج ٤٢. يُثبت: الانسكابُ عبر
+    //      النداء (spill/reload) — كان يفشل صراحةً (regOf_ يُبطَل) قبل هذه الطبقة.
+    const std::string kSrcLiveAcross =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\xD8\xB1\xD9\x82\xD9\x85\x20\xD8\xA3\xD8\x8C\x20\xD8\xB1\xD9\x82\xD9\x85\x20\xD8\xA8\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xA3\x20\x2B\x20\xD8\xA8\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\x34\x30\xD8\x8C\x20\x30\x29\x20\x2B\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\x31\xD8\x8C\x20\x31\x29\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
     // (AR) حلقةُ «بينما» بعدّادٍ متغيّرٍ في الذاكرة: عداد=0؛ بينما عداد<42 { عداد=عداد+1 }؛
     //      ارجع عداد ⇒ يخرج ٤٢. يُثبت: ALLOC/LOAD/STORE + إطارُ دالّة + قفزٌ خلفيّ (لولب)
     //      + قراءةُ متغيّرِ الذاكرة كقيمة (تحميلٌ ضمنيّ). أوّلُ برنامجِ ص ذي حالةٍ متغيّرة.
@@ -309,6 +331,40 @@ TEST(NativeSirBridge, LowersFunctionCall)
     size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
     std::fclose(fp);
     ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) نداءٌ متداخل (وسيطٌ مؤقّت) يُخفَّض ويُكتَب للبرهان الحيّ (خروج ٤٢). لم يعد يفشل.
+TEST(NativeSirBridge, LowersNestedCallTempArg)
+{
+    auto module = buildSir(kSrcNested);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_TRUE(res.code.size() > sad::native::elf::kCodeOffset);
+    std::FILE *fp = std::fopen("sad_sir_nested42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(res.code.size()));
+}
+
+// (AR) مؤقّتٌ حيٌّ عبر نداء (spill/reload) يُخفَّض ويُكتَب للبرهان الحيّ (خروج ٤٢).
+TEST(NativeSirBridge, LowersLiveAcrossCall)
+{
+    auto module = buildSir(kSrcLiveAcross);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_TRUE(res.code.size() > sad::native::elf::kCodeOffset);
+    std::FILE *fp = std::fopen("sad_sir_liveacross42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(res.code.size()));
 }
 
 int main(int argc, char **argv)
