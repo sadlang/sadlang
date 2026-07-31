@@ -89,6 +89,20 @@ instructions:
           - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
           - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
+    # SUB SP, SP, #imm12  ⇒  110100010 0 imm12 11111 11111  (تخصيصُ إطارٍ، متحقَّق: sub sp,sp,#16 = 0xD10043FF)
+    - en: sub
+      form: "sp, imm12"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 23, const: 418 }        # 0b110100010 (SUB imm)
+          - { name: sh,    hi: 22, lo: 22, const: 0 }
+          - { name: imm12, hi: 21, lo: 10, from: op0 }
+          - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # SP
+          - { name: Rd,    hi: 4,  lo: 0,  const: 31 }         # SP
+      reads_dest: false
 
   # MUL Xd, Xn, Xm = MADD Xd, Xn, Xm, XZR   ⇒  sf 00 11011 000 Rm 0 11111 Rn Rd   (متحقَّق: 0x9B117E09)
   اضرب:
@@ -272,3 +286,35 @@ instructions:
         fields:
           - { name: fixed, hi: 31, lo: 26, const: 5 }          # 0b000101
           - { name: imm26, hi: 25, lo: 0,  from: op0 }
+
+  # STR Xt, [SP, #imm12*8]   ⇒  11 111 0 01 00 imm12 Rn Rt   (imm12 مقياسُه ٨، متحقَّق: str x9,[sp,#8] = 0xF90007E9)
+  اخزن:
+    - en: str
+      form: "x, sp, imm12"
+      operands:
+        - { kind: reg, class: gpr, role: in }                 # Rt: القيمة المخزَّنة
+        - { kind: imm }                                       # imm12: الإزاحةُ المقيسة (بايت÷٨)
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 22, const: 996 }        # 0b1111100100 (STR غير مفهرس، ٦٤-بت)
+          - { name: imm12, hi: 21, lo: 10, from: op1 }
+          - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # SP
+          - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
+  # LDR Xt, [SP, #imm12*8]   ⇒  11 111 0 01 01 imm12 Rn Rt   (متحقَّق: ldr x9,[sp,#8] = 0xF94007E9)
+  احمل:
+    - en: ldr
+      form: "x, sp, imm12"
+      operands:
+        - { kind: reg, class: gpr, role: out }                # Rt: وجهةُ التحميل
+        - { kind: imm }                                       # imm12: الإزاحةُ المقيسة (بايت÷٨)
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 22, const: 997 }        # 0b1111100101 (LDR غير مفهرس، ٦٤-بت)
+          - { name: imm12, hi: 21, lo: 10, from: op1 }
+          - { name: Rn,    hi: 9,  lo: 5,  const: 31 }         # SP
+          - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false

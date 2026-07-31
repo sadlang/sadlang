@@ -69,7 +69,11 @@ namespace sad
                     return finishError(r, EC::INT_NATIVE_NO_ENTRY);
 
                 // (AR) النطاقُ الحاليّ: الدالّةُ الداخلة وحدها (لا نداءات) — نقطةُ الدخول = code_[0].
-                //      مرورُ طبقتين: (١) أصدِر كتلَ الدالّة بالترتيب مسجّلًا إزاحةَ لصيقةِ كلٍّ،
+                //      المسحُ المسبق (خانات الإطار) ثمّ المقدّمة (sub sp) قبل الكتل.
+                if (!assignFrameSlots(*entry) || !emitPrologue())
+                    return finishError(r, errorCode_, detail_);
+
+                // (AR) مرورُ طبقتين: (١) أصدِر كتلَ الدالّة بالترتيب مسجّلًا إزاحةَ لصيقةِ كلٍّ،
                 //      وأصدِر الفروعَ بإزاحةٍ صفريّةٍ نائبة مسجّلًا ترقيعًا؛ (٢) رقّع كلَّ فرعٍ
                 //      بالفرق النسبيّ ÷٤ (عددُ تعليمات) في حقلِ imm19/imm26 (تعبئةٌ بتّيّة).
                 for (const auto &blockPtr : entry->getBasicBlocks())
@@ -107,6 +111,11 @@ namespace sad
                 std::string target; // (AR) لصيقةُ الكتلة الهدف
             };
             std::vector<Arm64Fixup> fixups_;
+
+            // (AR) الذاكرة: اسمُ خانةٍ (ALLOC) ⇒ فهرسُها (٠،١،…)؛ العنوانُ [sp, #فهرس×٨]. STR/LDR
+            //      تستعملان imm12 مقيسًا بـ٨ فالفهرسُ = imm12 مباشرةً. حجمُ الإطارِ مُحاذًى ١٦.
+            std::map<std::string, int> memSlot_;
+            long long frameSize_ = 0; // (AR) بايتات (مُحاذاةُ ١٦)
 
             LoweringResult &finishError(LoweringResult &r, EC code, const std::string &detail = "")
             {
@@ -176,6 +185,31 @@ namespace sad
             {
                 return emit(a64::mnem::kCmp, "x, x", {a64::Operand::R(n), a64::Operand::R(m)});
             }
+            bool subSp(long long imm12) // (AR) sub sp, sp, #imm12 — تخصيصُ إطار
+            {
+                return emit(a64::mnem::kSub, "sp, imm12", {a64::Operand::I(imm12)});
+            }
+            // (AR) الفهرسُ (=imm12) مضمونٌ في [0, 4095]: حارسُ emitPrologue يحدّ الإطارَ بـ≤4080
+            //      (≤510 خانة) فأقصى فهرسٍ 509 — فلا يرمي encodeFixed32 على تجاوز الحقل.
+            bool strSlot(int reg, int slot) // (AR) str Xreg, [sp, #slot*8]
+            {
+                return emit(a64::mnem::kStr, "x, sp, imm12", {a64::Operand::R(reg), a64::Operand::I(slot)});
+            }
+            bool ldrSlot(int reg, int slot) // (AR) ldr Xreg, [sp, #slot*8]
+            {
+                return emit(a64::mnem::kLdr, "x, sp, imm12", {a64::Operand::R(reg), a64::Operand::I(slot)});
+            }
+            // (AR) هل المعاملُ سجلٌّ يشير إلى خانةِ متغيّرٍ مخصَّص (ALLOC)؟ يُعيد فهرسَ خانته.
+            bool isMemVar(const sir::SIROperand &op, int &slot) const
+            {
+                if (op.type != sir::SIROperandType::REGISTER)
+                    return false;
+                auto it = memSlot_.find(op.name);
+                if (it == memSlot_.end())
+                    return false;
+                slot = it->second;
+                return true;
+            }
             // (AR) يُصدر فرعًا (b/b.cond) بإزاحةٍ صفريّةٍ نائبة، ويسجّل ترقيعًا بحقلِ إزاحته.
             //      عرضُ الحقل وموضعُه من مواصفة الترميز (immHi/immLo) لا من ثابتٍ مُرمَّز.
             bool emitBranch(const std::string &mnemonic, const std::string &form,
@@ -227,7 +261,8 @@ namespace sad
                 return false;
             }
 
-            // (AR) يُجهّز معاملًا في سجلٍّ مُبدَّد: ثابتٌ ⇒ movz؛ سجلٌّ افتراضيٌّ ⇒ نسخٌ من موضعه.
+            // (AR) يُجهّز معاملًا في سجلٍّ مُبدَّد: ثابتٌ ⇒ movz؛ متغيّرُ ذاكرةٍ ⇒ ldr من خانته
+            //      (قراءةُ اسمِ ALLOC كقيمة = تحميلٌ ضمنيّ)؛ سجلٌّ افتراضيٌّ ⇒ نسخٌ من موضعه.
             bool materialize(int scratch, const sir::SIROperand &op)
             {
                 long long c;
@@ -235,6 +270,9 @@ namespace sad
                     return movz(scratch, c);
                 if (op.type == sir::SIROperandType::REGISTER)
                 {
+                    int slot;
+                    if (isMemVar(op, slot))
+                        return ldrSlot(scratch, slot);
                     auto it = regOf_.find(op.name);
                     if (it == regOf_.end())
                         return fail(EC::INT_NATIVE_UNDEF_VREG, "%" + op.name);
@@ -242,6 +280,30 @@ namespace sad
                 }
                 return fail(EC::INT_NATIVE_UNSUPPORTED,
                             "operand-kind=" + std::to_string(static_cast<int>(op.type)));
+            }
+
+            // (AR) المسحُ المسبق: يخصّص فهرسَ خانةٍ لكلّ ALLOC، ويحسب حجمَ الإطارِ المُحاذى ١٦.
+            //      (النطاقُ الحاليّ بلا معاملاتٍ للدالّة الداخلة — المعاملاتُ تُضاف مع النداء.)
+            bool assignFrameSlots(const sir::SIRFunction &fn)
+            {
+                int slot = 0;
+                for (const auto &blockPtr : fn.getBasicBlocks())
+                    for (const auto &inst : blockPtr->instructions)
+                        if (inst.opcode == sir::SIROpcode::ALLOC && inst.result)
+                            memSlot_[inst.result->name] = slot++;
+                const long long bytes = static_cast<long long>(slot) * 8;
+                frameSize_ = (bytes + 15) / 16 * 16; // (AR) مُحاذاةُ ١٦ (عقدُ AAPCS64 لـSP)
+                return true;
+            }
+            // (AR) المقدّمة: sub sp, sp, #frameSize (إن وُجدت خانات). الدالّةُ الداخلة تخرج عبر
+            //      svc فلا خاتمةَ (لا حاجةَ لاستعادة sp). imm12 يسع حتّى ٤٠٩٥.
+            bool emitPrologue()
+            {
+                if (frameSize_ == 0)
+                    return true;
+                if (frameSize_ > 4095)
+                    return fail(EC::INT_NATIVE_IMM_RANGE, "frame:" + std::to_string(frameSize_));
+                return subSp(frameSize_);
             }
 
             bool lowerBinary(const sir::SIRInstruction &inst)
@@ -303,6 +365,37 @@ namespace sad
                 case OP::MOD_I64:
                 case OP::FLOOR_DIV_I64:
                     return lowerBinary(inst);
+                case OP::ALLOC:
+                {
+                    // (AR) الخانةُ خُصِّصت في المسح المسبق؛ لا شيفرةَ (العنوان ضمنيٌّ [sp، #فهرس×٨]).
+                    if (!inst.result || memSlot_.find(inst.result->name) == memSlot_.end())
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "alloc-unslotted:" + detailOpcode(inst));
+                    return true;
+                }
+                case OP::LOAD:
+                {
+                    // (AR) %dst = load %slot ⇒ ldr dst, [sp, #فهرس×٨].
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int slot;
+                    if (!isMemVar(inst.operands[0], slot))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "load-nonslot:" + detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return ldrSlot(dst, slot);
+                }
+                case OP::STORE:
+                {
+                    // (AR) store value, %slot ⇒ جهّز القيمةَ في x16 ثمّ str x16, [sp, #فهرس×٨].
+                    if (inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int slot;
+                    if (!isMemVar(inst.operands[1], slot))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, "store-nonslot:" + detailOpcode(inst));
+                    return materialize(a64reg::kScratch0, inst.operands[0]) &&
+                           strSlot(a64reg::kScratch0, slot);
+                }
                 case OP::RET:
                 {
                     if (inst.operands.size() != 1)

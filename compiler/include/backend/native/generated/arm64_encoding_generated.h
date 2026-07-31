@@ -26,6 +26,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "نداء_نظام", "", sad::native::arm64::EncSpec{ 32, { { 31, 21, 1696, true, -1 }, { 20, 5, 0, true, -1 }, { 4, 0, 1, true, -1 } } } },
     { "ارجع", "", sad::native::arm64::EncSpec{ 32, { { 31, 10, 3512256, true, -1 }, { 9, 5, 30, true, -1 }, { 4, 0, 0, true, -1 } } } },
     { "اطرح", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 600, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اطرح", "sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 23, 418, true, -1 }, { 22, 22, 0, true, -1 }, { 21, 10, 0, false, 0 }, { 9, 5, 31, true, -1 }, { 4, 0, 31, true, -1 } } } },
     { "اضرب", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 216, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 15, 0, true, -1 }, { 14, 10, 31, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اقسم", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 214, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 3, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اطرح_الضرب", "x, x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 216, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 15, 1, true, -1 }, { 14, 10, 0, false, 3 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
@@ -38,6 +39,8 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اقفز_إذا_أكبر", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 12, true, -1 } } } },
     { "اقفز_إذا_أكبر_أو_ساوى", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 10, true, -1 } } } },
     { "اقفز", "rel26", sad::native::arm64::EncSpec{ 32, { { 31, 26, 5, true, -1 }, { 25, 0, 0, false, 0 } } } },
+    { "اخزن", "x, sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 22, 996, true, -1 }, { 21, 10, 0, false, 1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
+    { "احمل", "x, sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 22, 997, true, -1 }, { 21, 10, 0, false, 1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
     };
     return kTable;
 }
@@ -64,6 +67,8 @@ inline const std::string kBle = "اقفز_إذا_أصغر_أو_ساوى";
 inline const std::string kBgt = "اقفز_إذا_أكبر";
 inline const std::string kBge = "اقفز_إذا_أكبر_أو_ساوى";
 inline const std::string kB = "اقفز";
+inline const std::string kStr = "اخزن";
+inline const std::string kLdr = "احمل";
 } // namespace mnem
 
 // (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.

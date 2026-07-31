@@ -162,6 +162,27 @@ TEST(NativeArm64, BForward2)
     ASSERT_EQ(hex(b), std::string("02000014"));
 }
 
+// sub sp, sp, #16  # encoding: [0xff,0x43,0x00,0xd1]
+TEST(NativeArm64, SubSp16)
+{
+    auto b = enc("اطرح", "sp, imm12", {arm64::Operand::I(16)});
+    ASSERT_EQ(hex(b), std::string("ff4300d1"));
+}
+
+// str x9, [sp, #8] (imm12=1 مقيسٌ بـ8)  # encoding: [0xe9,0x07,0x00,0xf9]
+TEST(NativeArm64, StrX9Sp8)
+{
+    auto b = enc("اخزن", "x, sp, imm12", {arm64::Operand::R(arm64::X9), arm64::Operand::I(1)});
+    ASSERT_EQ(hex(b), std::string("e90700f9"));
+}
+
+// ldr x9, [sp, #8] (imm12=1)  # encoding: [0xe9,0x07,0x40,0xf9]
+TEST(NativeArm64, LdrX9Sp8)
+{
+    auto b = enc("احمل", "x, sp, imm12", {arm64::Operand::R(arm64::X9), arm64::Operand::I(1)});
+    ASSERT_EQ(hex(b), std::string("e90740f9"));
+}
+
 // ─── تسلسل «خروج ٤٢» الكامل ───
 TEST(NativeArm64, Exit42Sequence)
 {

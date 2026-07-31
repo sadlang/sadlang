@@ -708,6 +708,17 @@ TEST(Arm64SirBridge, LowersIfElseFalseBranch)
     ASSERT_TRUE(ok);
 }
 
+// (AR) حلقةُ «بينما» بعدّادٍ في الذاكرة على ARM64: «عداد=0؛ بينما عداد<42 عداد=عداد+1؛ ارجع
+//      عداد» ⇒ يخرج ٤٢. يُثبت: إطارٌ (sub sp) + STR/LDR [sp,#off] + قفزٌ خلفيّ (لولب) + قراءةُ
+//      متغيّرِ الذاكرة كقيمة. أوّلُ برنامجِ ص ذي حالةٍ متغيّرة يُترجَم أصليًّا لـARM64.
+TEST(Arm64SirBridge, LowersWhileLoopWithMemory)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcWhile, "sad_arm64_while42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
 int main(int argc, char **argv)
 {
     (void)argc;
