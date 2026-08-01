@@ -285,6 +285,13 @@ TEST(NativeArm64, LslvLsrv)
                  ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)))),
               std::string("0926d19a"));
 }
+// asrv x9, x16, x17  # [0x09,0x2a,0xd1,0x9a]  (إزاحةٌ حسابيّةٌ يمينًا، تمدّ الإشارة)
+TEST(NativeArm64, Asrv)
+{
+    ASSERT_EQ(hex(enc("أزح_يمين_حسابي", "x, x, x",
+                 ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)))),
+              std::string("092ad19a"));
+}
 
 // ─── المقارنةُ كقيمة (cset، حقلُ الشرط المقلوب) — القيم = llvm-mc حرفيًّا ───
 // cset x9,eq(field=1)=0x9A9F17E9 · ne(0)=..07 · lt(10)=..a7 · le(12)=..c7 · gt(13)=..d7 · ge(11)=..b7

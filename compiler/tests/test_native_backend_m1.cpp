@@ -191,6 +191,14 @@ TEST(NativeX86, NotReg)
 {
     ASSERT_EQ(hex(enc("اعكس", "r64", {x86::Operand::R(x86::RDX)})), std::string("48f7d2"));
 }
+// neg %rax  # [0x48,0xf7,0xd8]  ·  sar $5,%rdx  # [0x48,0xc1,0xfa,0x05]  ·  sar %cl,%rdx  # [0x48,0xd3,0xfa]
+TEST(NativeX86, NegSarEncodings)
+{
+    ASSERT_EQ(hex(enc("انفِ", "r64", {x86::Operand::R(x86::RAX)})), std::string("48f7d8"));
+    ASSERT_EQ(hex(enc("أزح_يمين_حسابي", "r64, imm8", ops2(x86::Operand::R(x86::RDX), x86::Operand::I(5, 8)))),
+              std::string("48c1fa05"));
+    ASSERT_EQ(hex(enc("أزح_يمين_حسابي", "r64, cl", {x86::Operand::R(x86::RDX)})), std::string("48d3fa"));
+}
 // shl $5, %rdx  # [0x48,0xc1,0xe2,0x05]   ·   shr $5, %rdx  # [0x48,0xc1,0xea,0x05]
 TEST(NativeX86, ShlShrImm)
 {

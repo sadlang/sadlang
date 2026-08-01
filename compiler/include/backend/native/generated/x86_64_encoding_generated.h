@@ -44,6 +44,9 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اضمم", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x09}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "غاير", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x31}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "اعكس", "r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xF7}; s.modrm.present = true; s.modrm.reg_ext = 2; s.modrm.rm_op = 0; return s; }() },
+    { "انفِ", "r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xF7}; s.modrm.present = true; s.modrm.reg_ext = 3; s.modrm.rm_op = 0; return s; }() },
+    { "أزح_يمين_حسابي", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xC1}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
+    { "أزح_يمين_حسابي", "r64, cl", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xD3}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; return s; }() },
     { "أزح_يسار", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xC1}; s.modrm.present = true; s.modrm.reg_ext = 4; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
     { "أزح_يسار", "r64, cl", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xD3}; s.modrm.present = true; s.modrm.reg_ext = 4; s.modrm.rm_op = 0; return s; }() },
     { "أزح_يمين", "r64, imm8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xC1}; s.modrm.present = true; s.modrm.reg_ext = 5; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 8; return s; }() },
@@ -103,6 +106,8 @@ inline const std::string kAnd = "وافق";
 inline const std::string kOr = "اضمم";
 inline const std::string kXor = "غاير";
 inline const std::string kNot = "اعكس";
+inline const std::string kNeg = "انفِ";
+inline const std::string kSar = "أزح_يمين_حسابي";
 inline const std::string kShl = "أزح_يسار";
 inline const std::string kShr = "أزح_يمين";
 inline const std::string kSete = "عيّن_إذا_ساوى";

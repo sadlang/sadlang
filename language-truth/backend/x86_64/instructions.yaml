@@ -289,6 +289,42 @@ instructions:
         modrm: { mod: reg, reg: 2, rm: op0 }
       reads_dest: true
 
+  # NEG r/m64  ⇒  REX.W + F7 /3   (السالبُ الأحاديّ ثنائيُّ المتمّم؛ متحقَّق: neg rax = 48 f7 d8)
+  انفِ:
+    - en: neg
+      form: "r64"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+      encode:
+        rex_w: true
+        opcode: [0xF7]
+        modrm: { mod: reg, reg: 3, rm: op0 }
+      reads_dest: true
+
+  # SAR r/m64, imm8  ⇒  REX.W + C1 /7 ib   (إزاحةٌ حسابيّةٌ يمينًا بمقدارٍ ثابت؛ تمدّ الإشارة؛ متحقَّق: sar rdx,5 = 48 c1 fa 05)
+  أزح_يمين_حسابي:
+    - en: sar
+      form: "r64, imm8"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: imm, bits: 8 }
+      encode:
+        rex_w: true
+        opcode: [0xC1]
+        modrm: { mod: reg, reg: 7, rm: op0 }
+        immediate: { operand: 1, bits: 8, encoding: le }
+      reads_dest: true
+    # SAR r/m64, CL  ⇒  REX.W + D3 /7   (بمقدارٍ متغيّر في CL؛ متحقَّق: sar rdx,cl = 48 d3 fa)
+    - en: sar
+      form: "r64, cl"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+      encode:
+        rex_w: true
+        opcode: [0xD3]
+        modrm: { mod: reg, reg: 7, rm: op0 }
+      reads_dest: true
+
   # SHL r/m64, imm8  ⇒  REX.W + C1 /4 ib   (إزاحةٌ منطقيّةٌ يسارًا بمقدارٍ ثابت؛ متحقَّق: shl rdx,5 = 48 c1 e2 05)
   أزح_يسار:
     - en: shl

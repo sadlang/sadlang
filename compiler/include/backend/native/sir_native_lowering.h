@@ -65,6 +65,7 @@ namespace sad
         inline constexpr long long kSysWriteX86 = 1;   // (AR) write
         inline constexpr long long kFdStdout = 1;      // (AR) واصفُ الخرج القياسيّ (stdout)
         inline constexpr long long kAsciiZero = 0x30;  // (AR) رمزُ الصفر ASCII ('0') — أساسُ itoa
+        inline constexpr long long kAsciiMinus = 0x2D; // (AR) رمزُ السالب ASCII ('-') — بادئةُ العدد السالب
         inline constexpr long long kItoaRadix = 10;    // (AR) أساسُ التحويل العشريّ
 
         // (AR) تخصيصُ الكومة الحرّة: mmap مباشرةً عبر syscall (لا libc في الخلفيّة الساكنة).
@@ -596,6 +597,9 @@ namespace sad
             bool shrImm(int dst, long long n) { return emit(x86::mnem::kShr, "r64, imm8", {x86::Operand::R(dst), x86::Operand::I(n, 8)}); }
             bool shlCl(int dst) { return emit(x86::mnem::kShl, "r64, cl", {x86::Operand::R(dst)}); } // (AR) dst <<= CL
             bool shrCl(int dst) { return emit(x86::mnem::kShr, "r64, cl", {x86::Operand::R(dst)}); } // (AR) dst >>= CL (منطقيّ)
+            bool sarImm(int dst, long long n) { return emit(x86::mnem::kSar, "r64, imm8", {x86::Operand::R(dst), x86::Operand::I(n, 8)}); } // (AR) dst >>= n (حسابيّ)
+            bool sarCl(int dst) { return emit(x86::mnem::kSar, "r64, cl", {x86::Operand::R(dst)}); }    // (AR) dst >>= CL (حسابيّ، يمدّ الإشارة)
+            bool negReg(int dst) { return emit(x86::mnem::kNeg, "r64", {x86::Operand::R(dst)}); }        // (AR) dst = −dst (متمّمٌ ثنائيّ)
             // ── المقارنة كقيمة: setcc r8 (٠/١ حسب الأعلام) ثمّ movzx r64,r8 (تمديدُ بالصفر) ──
             bool setccReg(const std::string &mnem, int r8) { return emit(mnem, "r8", {x86::Operand::R(r8)}); }
             bool movzxReg(int dst, int src8) { return emit(x86::mnem::kMovzx, "r64, r8", {x86::Operand::R(dst), x86::Operand::R(src8)}); }
@@ -809,25 +813,45 @@ namespace sad
                        emit(x86::mnem::kSyscall, "", {});
             }
 
-            // (AR) يطبع عددًا صحيحًا غيرَ سالبٍ في RAX: itoa عبر idiv/10 يبني الأرقامَ العشريّةَ
-            //      تنازليًّا في مخزنِ الإطار، ثمّ write(stdout, المؤشّر، الطول). القيمةُ السالبةُ
-            //      غيرُ مدعومةٍ بعد (تُنتِج تمثيلًا خاطئًا) — دَينٌ موثَّق. R10 مؤشّرٌ، RCX=10.
+            // (AR) يطبع عددًا صحيحًا موقَّعًا في RAX: itoa عبر idiv/10 يبني الأرقامَ تنازليًّا في مخزنِ
+            //      الإطار، ثمّ write(stdout, المؤشّر، الطول). R10 مؤشّرٌ، RCX=10. السالبُ يُعالَج بحيلةِ
+            //      الباقي-السالب (‎'0' − rem‎ للرقم المطلق) بلا `neg RAX` ⇒ **آمنٌ لـINT64_MIN** (نفيُه
+            //      يطفح)؛ ثمّ نكتب '-' في المخزن نفسِه (لا syscall منفصل ⇒ لا دهسَ RAX). لا يمسّ R8/R11
+            //      (يستعملهما emitPrintFloat عبر ندائه؛ ip موجبٌ دومًا فلا يسلك فرعَ السالب).
             bool emitPrintInt()
             {
                 // (AR) R10 = قمّةُ المخزن (rbp+إزاحة، حصريّ)؛ RCX = الأساس ١٠.
                 if (!leaFrame(x86::R10, printBufTopDisp_) || !movImm(x86::RCX, kItoaRadix))
                     return false;
-                const size_t loopStart = code_.size();
-                //   cqo؛ idiv rcx ⇒ rax=الحاصل، rdx=الباقي (٠..٩)
-                //   add rdx,'0'؛ sub r10,1؛ mov [r10],dl؛ cmp rax,0؛ jne (خلفيّ)
+                // (AR) الإشارة: إن RAX ≥ ٠ اقفز للولبِ الموجب (لا نمسّ RAX). السالبُ يلي.
+                if (!cmpZero(x86::RAX))
+                    return false;
+                size_t toPositive;
+                if (!emitJccFwd(x86::mnem::kJge, toPositive))
+                    return false;
+                // (AR) لولبُ السالب: cqo؛ idiv ⇒ RAX=حاصل(≤٠)، RDX=باقٍ(≤٠)؛ الرقم = '0' − RDX (=|باقٍ|).
+                const size_t negLoop = code_.size();
+                if (!cqo() || !idivReg(x86::RCX) ||
+                    !movImm(x86::R9, kAsciiZero) || !subReg(x86::R9, x86::RDX) ||
+                    !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::R9) ||
+                    !cmpZero(x86::RAX) || !emitLocalJneBack(negLoop))
+                    return false;
+                // (AR) بادئةُ '-' في المخزن نفسِه (تسبق الأرقام).
+                if (!movImm(x86::R9, kAsciiMinus) || !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::R9))
+                    return false;
+                size_t toWrite;
+                if (!emitJccFwd(x86::mnem::kJmp, toWrite))
+                    return false;
+                // (AR) لولبُ الموجب: cqo؛ idiv ⇒ RDX=باقٍ(٠..٩)؛ الرقم = '0' + RDX.
+                patchFwd(toPositive);
+                const size_t posLoop = code_.size();
                 if (!cqo() || !idivReg(x86::RCX) ||
                     !addImm(x86::RDX, kAsciiZero) ||
-                    !subImm(x86::R10, 1) ||
-                    !storeByte(x86::R10, x86::RDX) ||
-                    !cmpZero(x86::RAX) ||
-                    !emitLocalJneBack(loopStart))
+                    !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                    !cmpZero(x86::RAX) || !emitLocalJneBack(posLoop))
                     return false;
-                // (AR) rsi=المؤشّرُ إلى أوّل رقم؛ rdx=الطول=(القمّة − r10)؛ write(stdout).
+                patchFwd(toWrite);
+                // (AR) rsi=المؤشّرُ إلى أوّل رمز؛ rdx=الطول=(القمّة − r10)؛ write(stdout).
                 return movReg(x86::RSI, x86::R10) &&
                        leaFrame(x86::RDX, printBufTopDisp_) &&
                        subReg(x86::RDX, x86::R10) &&
@@ -1348,23 +1372,35 @@ namespace sad
                                                   : xorReg(dst, x86::RAX);
                 }
                 case OP::NOT:
+                case OP::NEG:
                 {
-                    // (AR) %dst = ~a ⇒ حمّل a في dst ثمّ not dst (أحاديّ).
+                    // (AR) أحاديّ: %dst = ~a (NOT) أو −a (NEG) ⇒ حمّل a في dst ثمّ التعليمةُ الأحاديّة.
                     if (!inst.result || inst.operands.size() != 1)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    return loadInto(dst, inst.operands[0]) && notReg(dst);
+                    return loadInto(dst, inst.operands[0]) &&
+                           (inst.opcode == OP::NOT ? notReg(dst) : negReg(dst));
                 }
                 case OP::SHL:
                 case OP::SHR:
+                case OP::SAR:
                 {
-                    // (AR) %dst = a <<|>> n. المقدارُ الثابتُ ⇒ shl/shr dst,imm8 مباشرة. المتغيّرُ
-                    //      (سجلّ/ذاكرة) يلزمه CL: نمرّر القيمةَ عبر RAX ونحفظ/نعيد RCX حولَ الإزاحة
-                    //      (خانةُ خدشٍ shiftScratchDisp_) ⇒ لا يُدهَس مؤقّتٌ حيٌّ في RCX. SHR منطقيّة.
+                    // (AR) %dst = a <<|>>|>>حسابيّ n. المقدارُ الثابتُ ⇒ shl/shr/sar dst,imm8 مباشرة.
+                    //      المتغيّرُ (سجلّ/ذاكرة) يلزمه CL: نمرّر القيمةَ عبر RAX ونحفظ/نعيد RCX حولَ
+                    //      الإزاحة (خانةُ خدشٍ shiftScratchDisp_) ⇒ لا يُدهَس مؤقّتٌ حيٌّ في RCX. SHR
+                    //      منطقيّة (تحشو أصفارًا)، SAR حسابيّة (تمدّ الإشارة).
                     if (!inst.result || inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    // (AR) الإزاحةُ اليمنى الحسابيّة إن SAR صراحةً، أو SHR على معاملٍ **موقَّع** (Integer):
+                    //      `>>` عامٌّ إشارتُه من نوعِ المعامل الأيسر (طبيعي64/بايت⇒منطقيّة، غيرُها⇒حسابيّة)
+                    //      مطابقةً للمفسّر ومسارِ LLVM (arith_cmp.cpp) — `-16>>2=-4` لا قيمةً ضخمة.
+                    //      (LLVM يقصر المنطقيّةَ على طبيعي64 وحده، لكنّ الأنواعَ الفرعيّةَ اللا-موقَّعة
+                    //      <٦٤ ممدَّدةٌ بالصفر ⇒ بتُّ الإشارة ٠ ⇒ sar==shr لها؛ فالمحمولان متكافئان رصدًا.)
+                    const bool arithRight =
+                        inst.opcode == OP::SAR ||
+                        (inst.opcode == OP::SHR && !isUnsignedType(inst.operands[0].dataType));
                     long long n;
                     if (common::isConstInt(inst.operands[1], n)) // (AR) مقدارٌ ثابت
                     {
@@ -1374,7 +1410,9 @@ namespace sad
                         if (!allocReg(inst.result->name, dst))
                             return false;
                         return loadInto(dst, inst.operands[0]) &&
-                               (inst.opcode == OP::SHL ? shlImm(dst, n) : shrImm(dst, n));
+                               (inst.opcode == OP::SHL ? shlImm(dst, n)
+                                : arithRight           ? sarImm(dst, n)
+                                                       : shrImm(dst, n));
                     }
                     // (AR) مقدارٌ متغيّر: الإزاحةُ تلزمها CL. نحمّل المعامِلَين في مُبدَّدَين (RAX=القيمة،
                     //      RDI=العدّاد) **قبل** لمسِ RCX (فلو كان أحدُهما في RCX قرأناه صحيحًا أوّلًا)،
@@ -1384,7 +1422,9 @@ namespace sad
                         return false;
                     if (!storeMem(shiftScratchDisp_, x86::RCX) || !movReg(x86::RCX, x86::RDI))
                         return false;
-                    if (!(inst.opcode == OP::SHL ? shlCl(x86::RAX) : shrCl(x86::RAX)))
+                    if (!(inst.opcode == OP::SHL ? shlCl(x86::RAX)
+                          : arithRight           ? sarCl(x86::RAX)
+                                                 : shrCl(x86::RAX)))
                         return false;
                     if (!loadMem(x86::RCX, shiftScratchDisp_))
                         return false;
@@ -1492,6 +1532,15 @@ namespace sad
                     }
                     if (!loadInto(x86::RAX, inst.operands[0]))
                         return false;
+                    return emitEpilogue();
+                }
+                case OP::RET_VOID:
+                {
+                    // (AR) إرجاعٌ فارغ (دالّةٌ/إجراءٌ بلا قيمة): الداخلة تخرج بـexit(0)؛ غيرُها خاتمةٌ + ret
+                    //      بلا ضبطِ RAX (لا قيمةَ إرجاع). يفتح كلَّ الدوالّ العديمة الإرجاع (٢٢ باعثًا).
+                    if (curIsEntry_)
+                        return movImm(x86::RDI, 0) && movImm(x86::RAX, kSysExitX86) &&
+                               emit(x86::mnem::kSyscall, "", {});
                     return emitEpilogue();
                 }
                 case OP::CALL:

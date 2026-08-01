@@ -56,6 +56,7 @@ namespace sad
         inline constexpr long long kFdStdoutArm64 = 1;  // (AR) واصفُ الخرج القياسيّ (stdout)
         inline constexpr long long kItoaRadixArm64 = 10; // (AR) أساسُ التحويل العشريّ
         inline constexpr long long kAsciiZeroArm64 = 0x30; // (AR) رمزُ الصفر ASCII ('0') — أساسُ itoa
+        inline constexpr long long kAsciiMinusArm64 = 0x2D; // (AR) رمزُ السالب ASCII ('-') — بادئةُ العدد السالب
         namespace a64reg
         {
             inline constexpr int kX0 = 0;    // (AR) قيمةُ الإرجاع/الوسيط الأوّل (رمزُ الخروج)
@@ -533,25 +534,47 @@ namespace sad
                        emit(a64::mnem::kSvc, "", {});
             }
 
-            // (AR) يطبع عددًا صحيحًا غيرَ سالبٍ (في x9): itoa عبر sdiv/msub يبني الأرقامَ العشريّةَ
-            //      تنازليًّا في مخزنِ الإطار، ثمّ write. القيمةُ السالبةُ غيرُ مدعومةٍ بعد (دَينٌ موثَّق).
-            //      يستعمل سجلّاتِ الحوض x9..x14 مُبدَّداتٍ (مُنسَكةٌ حولَ الطبع فتُستعاد الحيّةُ).
+            // (AR) يطبع عددًا صحيحًا موقَّعًا (في x9): itoa عبر sdiv/msub يبني الأرقامَ تنازليًّا في
+            //      مخزنِ الإطار، ثمّ write. السالبُ يُعالَج بحيلةِ الباقي-السالب (النفيُ عبر xzr للرقم
+            //      المطلق) بلا نفيِ x9 ⇒ **آمنٌ لـINT64_MIN**؛ ثمّ '-' في المخزن نفسِه. يستعمل x9..x14
+            //      مُبدَّداتٍ (لا x15 الذي يحمل ip في نداءِ emitPrintFloat؛ ip موجبٌ فلا يسلك فرعَ السالب).
             bool emitPrintInt()
             {
-                //   x9=القيمة (مُحمَّلةٌ مسبقًا)، x10=١٠، x13=المؤشّر (قمّةُ المخزن، حصريّ)، x14=القمّة (للطول).
+                //   x9=القيمة، x10=١٠، x13=المؤشّر (قمّةُ المخزن، حصريّ)، x14=القمّة (للطول).
                 if (!addImm(13, 31, static_cast<long long>(printBufTopSlot_) * 8) || // ptr = sp + top*8
                     !movReg(14, 13) ||                                             // top = ptr (نسخةٌ للطول)
                     !movz(10, kItoaRadixArm64))
                     return false;
-                const size_t loopStart = code_.size();
-                //   x11=الحاصل=x9÷x10؛ x12=الباقي=x9−x11×x10؛ x12+='0'؛ ptr−−؛ strb w12,[ptr]؛ x9=الحاصل؛ cbnz x9
-                if (!rrr(a64::mnem::kSdiv, 11, 9, 10) ||
-                    !msub(12, 11, 10, 9) ||
+                // (AR) الإشارة: إن x9 ≥ ٠ اقفز للولبِ الموجب (لا نمسّ x9). السالبُ يلي.
+                if (!cmp(9, 31)) // cmp x9, xzr
+                    return false;
+                size_t toPositive;
+                if (!emitBranchFwd(a64::mnem::kBge, "rel19", toPositive))
+                    return false;
+                // (AR) لولبُ السالب: x11=حاصل، x12=باقٍ(≤٠)؛ الرقم = ‎-باقٍ‎ (‎sub x12,xzr,x12‎) + '0'.
+                const size_t negLoop = code_.size();
+                if (!rrr(a64::mnem::kSdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
+                    !rrr(a64::mnem::kSub, 12, 31, 12) ||                 // x12 = xzr − x12 = |باقٍ|
                     !addImm(12, 12, kAsciiZeroArm64) ||
-                    !subImm(13, 13, 1) ||
-                    !strb(12, 13) ||
-                    !movReg(9, 11) ||
-                    !emitCbnzBack(9, loopStart))
+                    !subImm(13, 13, 1) || !strb(12, 13) ||
+                    !movReg(9, 11) || !emitCbnzBack(9, negLoop))
+                    return false;
+                // (AR) بادئةُ '-' في المخزن نفسِه.
+                if (!movz(12, kAsciiMinusArm64) || !subImm(13, 13, 1) || !strb(12, 13))
+                    return false;
+                size_t toWrite;
+                if (!emitBranchFwd(a64::mnem::kB, "rel26", toWrite))
+                    return false;
+                // (AR) لولبُ الموجب: x11=حاصل، x12=باقٍ(٠..٩)؛ الرقم = باقٍ + '0'.
+                if (!patchBranchFwd(toPositive, 23, 5))
+                    return false;
+                const size_t posLoop = code_.size();
+                if (!rrr(a64::mnem::kSdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
+                    !addImm(12, 12, kAsciiZeroArm64) ||
+                    !subImm(13, 13, 1) || !strb(12, 13) ||
+                    !movReg(9, 11) || !emitCbnzBack(9, posLoop))
+                    return false;
+                if (!patchBranchFwd(toWrite, 25, 0)) // (AR) b غيرُ مشروط: imm26@25-0
                     return false;
                 //   x1=المؤشّر؛ x2=الطول=(القمّة−المؤشّر)؛ write(stdout).
                 return movReg(a64reg::kX1, 13) &&
@@ -1040,7 +1063,12 @@ namespace sad
                 case OP::OR:  return rrr(a64::mnem::kOrr, dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::XOR: return rrr(a64::mnem::kEor, dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::SHL: return rrr(a64::mnem::kLslv, dst, a64reg::kScratch0, a64reg::kScratch1);
-                case OP::SHR: return rrr(a64::mnem::kLsrv, dst, a64reg::kScratch0, a64reg::kScratch1);
+                case OP::SHR:
+                    // (AR) `>>` إشارتُه من نوعِ المعامل الأيسر (طبيعي64/بايت⇒منطقيّة lsrv، غيرُها⇒حسابيّة
+                    //      asrv) مطابقةً للمفسّر ومسارِ LLVM: `-16>>2=-4` لا قيمةً ضخمة.
+                    return rrr(isUnsignedType(inst.operands[0].dataType) ? a64::mnem::kLsrv : a64::mnem::kAsrv,
+                               dst, a64reg::kScratch0, a64reg::kScratch1);
+                case OP::SAR: return rrr(a64::mnem::kAsrv, dst, a64reg::kScratch0, a64reg::kScratch1); // (AR) حسابيّة (تمدّ الإشارة)
                 // (AR) حسابٌ عشريّ: العشريّ بتّاتُ i64 في x16/x17 ⇒ عبّئهما في d0/d1، نفّذ عمليّةَ
                 //      FP المزدوجة، ثمّ استخرج البتّات إلى dst (نظير x86 عبر xmm).
                 case OP::ADD_F64:
@@ -1113,7 +1141,7 @@ namespace sad
                             {a64::Operand::R(dst), a64::Operand::I(field)});
             }
 
-            // (AR) %dst = ~a (نفيٌ بتّيّ أحاديّ): جهّز a في x16 ثمّ mvn dst,x16.
+            // (AR) أحاديّ: %dst = ~a (NOT ⇒ mvn) أو −a (NEG ⇒ sub dst,xzr,a). جهّز a في x16.
             bool lowerNot(const sir::SIRInstruction &inst)
             {
                 if (!inst.result || inst.operands.size() != 1)
@@ -1121,8 +1149,11 @@ namespace sad
                 int dst;
                 if (!allocReg(inst.result->name, dst))
                     return false;
-                return materialize(a64reg::kScratch0, inst.operands[0]) &&
-                       emit(a64::mnem::kMvn, "x, x",
+                if (!materialize(a64reg::kScratch0, inst.operands[0]))
+                    return false;
+                if (inst.opcode == sir::SIROpcode::NEG) // (AR) −a = xzr − a (متمّمٌ ثنائيّ)
+                    return rrr(a64::mnem::kSub, dst, 31, a64reg::kScratch0);
+                return emit(a64::mnem::kMvn, "x, x",
                             {a64::Operand::R(dst), a64::Operand::R(a64reg::kScratch0)});
             }
 
@@ -1176,6 +1207,7 @@ namespace sad
                 case OP::XOR:
                 case OP::SHL:
                 case OP::SHR:
+                case OP::SAR:
                 case OP::ADD_F64:
                 case OP::SUB_F64:
                 case OP::MUL_F64:
@@ -1185,6 +1217,7 @@ namespace sad
                 case OP::F64_TO_I64:
                     return lowerFloatConv(inst);
                 case OP::NOT:
+                case OP::NEG:
                     return lowerNot(inst);
                 case OP::EQ:
                 case OP::NE:
@@ -1318,6 +1351,14 @@ namespace sad
                                movz(a64reg::kX8, kSysExitArm64) &&
                                emit(a64::mnem::kSvc, "", {});
                     return materialize(a64reg::kX0, inst.operands[0]) && emitEpilogue();
+                }
+                case OP::RET_VOID:
+                {
+                    // (AR) إرجاعٌ فارغ: الداخلةُ تخرج بـexit(0)؛ غيرُها خاتمةٌ + ret بلا ضبطِ x0.
+                    if (curIsEntry_)
+                        return movz(a64reg::kX0, 0) && movz(a64reg::kX8, kSysExitArm64) &&
+                               emit(a64::mnem::kSvc, "", {});
+                    return emitEpilogue();
                 }
                 case OP::ARRAY_NEW:
                 {

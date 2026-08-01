@@ -210,6 +210,11 @@ namespace
     // (AR) طفحانُ الكسر: «2.9999998» ⇒ «3.0» (ترحيلُ الحمل — إصلاحُ عائق أميليا).
     const std::string kSrcFloatCarry =
         "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\x32\x2E\x39\x39\x39\x39\x39\x39\x38\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x30\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) إتمامُ الحساب والتحكّم: دالّةٌ فارغة (RET_VOID)⇒«7»، سالبٌ أحاديّ (NEG)+طباعةُ السالب⇒«-42»،
+    //      إزاحةٌ حسابيّة (SAR: ‎-16>>2‎)⇒«-4». قيمٌ زمنَ تشغيلٍ (معاملات) لتجنّبِ الطيّ الثابت.
+    const std::string kSrcArithComplete =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD9\x86\xD9\x81(\xD8\xB1\xD9\x82\xD9\x85 \xD8\xB3)\x0A    \xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9 -\xD8\xB3\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD8\xB2\xD8\xAD(\xD8\xB1\xD9\x82\xD9\x85 \xD8\xB3)\x0A    \xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9 \xD8\xB3 >> 2\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9_\xD8\xB1\xD8\xB3\xD8\xA7\xD9\x84\xD8\xA9()\x0A    \xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9_\xD8\xB3\xD8\xB7\xD8\xB1(7)\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9()\x0A    \xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9_\xD8\xB1\xD8\xB3\xD8\xA7\xD9\x84\xD8\xA9()\x0A    \xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9_\xD8\xB3\xD8\xB7\xD8\xB1(\xD9\x86\xD9\x81(42))\x0A    \xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9_\xD8\xB3\xD8\xB7\xD8\xB1(\xD8\xB2\xD8\xAD(0 - 16))\x0A    \xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9 0\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 } // namespace
 
 // (AR) المصدرُ الحسابيّ يُبنى ويُخفَّض بنجاح، والـELF سليمٌ (EM_X86_64).
@@ -695,6 +700,24 @@ TEST(NativeSirBridge, BoxedStringArray)
     ASSERT_EQ(int(wrote), int(res.code.size()));
 }
 
+// (AR) إتمامُ الحساب والتحكّم: RET_VOID (دالّة فارغة) + NEG (سالب أحاديّ) + طباعةُ السالب + SAR.
+//      يُخفَّض ويُكتب للبرهان الحيّ (متوقَّع «7» ثمّ «-42» ثمّ «-4»).
+TEST(NativeSirBridge, ArithControlCompleteness)
+{
+    auto module = buildSir(kSrcArithComplete);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_TRUE(res.code.size() > sad::native::elf::kCodeOffset);
+    std::FILE *fp = std::fopen("sad_sir_arith", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(res.code.size()));
+}
+
 // (AR) طفحانُ الكسر (ترحيلُ الحمل): «2.9999998» ⇒ «3.0». إصلاحُ عائق أميليا.
 TEST(NativeSirBridge, FloatCarryRounding)
 {
@@ -1051,6 +1074,15 @@ TEST(Arm64SirBridge, BoxedStringArray)
     bool ok = false;
     size_t sz = 0;
     lowerArm64AndWrite(kSrcBoxedStr, "sad_arm64_boxed_str", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) إتمامُ الحساب والتحكّم على ARM64 ⇒ «7»/«-42»/«-4» على qemu. مرآةُ x86 (RET_VOID/NEG/SAR/سالب).
+TEST(Arm64SirBridge, ArithControlCompleteness)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcArithComplete, "sad_arm64_arith", &ok, &sz);
     ASSERT_TRUE(ok);
 }
 
