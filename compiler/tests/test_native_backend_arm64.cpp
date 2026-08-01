@@ -99,6 +99,8 @@ TEST(NativeArm64, FpDoubleOps)
     ASSERT_EQ(hex(enc("اطرح_عشري", "d, d, d", ops3(O::R(0), O::R(0), O::R(1)))), std::string("0038611e")); // fsub
     ASSERT_EQ(hex(enc("اضرب_عشري", "d, d, d", ops3(O::R(0), O::R(0), O::R(1)))), std::string("0008611e")); // fmul
     ASSERT_EQ(hex(enc("اقسم_عشري", "d, d, d", ops3(O::R(0), O::R(0), O::R(1)))), std::string("0018611e")); // fdiv
+    ASSERT_EQ(hex(enc("قرّب_عشري", "x, d", {O::R(9), O::R(0)})), std::string("0900609e")); // fcvtns x9,d0 (nearest-even)
+    ASSERT_EQ(hex(enc("قرّب_عشري", "x, d", {O::R(11), O::R(0)})), std::string("0b00609e")); // fcvtns x11,d0
 }
 
 // ret  # encoding: [0xc0,0x03,0x5f,0xd6]   (RET x30 ضمنيًّا)

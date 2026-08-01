@@ -79,6 +79,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "حوّل_إلى_عشري", "xmm, r64", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.rex_w = true; s.opcode = {0x0F, 0x2A}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "حوّل_من_عشري", "r64, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.rex_w = true; s.opcode = {0x0F, 0x2C}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "قارن_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0x66}; s.opcode = {0x0F, 0x2E}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "قرّب_عشري", "r64, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.rex_w = true; s.opcode = {0x0F, 0x2D}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     };
     return kTable;
 }
@@ -132,6 +133,7 @@ inline const std::string kDivsd = "اقسم_عشري";
 inline const std::string kCvtsi2sd = "حوّل_إلى_عشري";
 inline const std::string kCvttsd2si = "حوّل_من_عشري";
 inline const std::string kUcomisd = "قارن_عشري";
+inline const std::string kCvtsd2si = "قرّب_عشري";
 } // namespace mnem
 
 // (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.

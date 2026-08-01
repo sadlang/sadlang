@@ -660,3 +660,18 @@ instructions:
         prefix: [0x66]
         opcode: [0x0F, 0x2E]
         modrm: { mod: reg, reg: op0, rm: op1 }
+
+  # cvtsd2si r64, xmm  ⇒  F2 REX.W 0F 2D /r   (عشريّ ⇒ صحيح بتقريبِ MXCSR = nearest-even افتراضيًّا
+  #   المطابقُ لتقريبِ IEEE في المفسّر؛ يبقى ضمن SSE2 بلا رفعِ خطّ أساس، بخلاف roundsd من SSE4.1.
+  #   نظيرُ cvttsd2si لكن round-nearest لا truncate. reg=r64، rm=xmm. متحقَّق: cvtsd2si rax,xmm0 = f2 48 0f 2d c0)
+  قرّب_عشري:
+    - en: cvtsd2si
+      form: "r64, xmm"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0xF2]
+        rex_w: true
+        opcode: [0x0F, 0x2D]
+        modrm: { mod: reg, reg: op0, rm: op1 }

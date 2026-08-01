@@ -93,6 +93,7 @@ namespace sad
         inline constexpr long long kDynKindNull = 0;
         inline constexpr long long kDynKindInt = 1;
         inline constexpr long long kDynKindFloat = 2;
+        inline constexpr long long kDynKindStr = 3;
         inline constexpr long long kDynKindBool = 4;
 
         // (AR) نصوصُ طباعةِ القيمة المعلَّبة (تطابق المفسّر value.cpp:476/عدم) — ثوابتُ مسمّاةٌ لا حرفيّاتٌ خام.
@@ -100,9 +101,22 @@ namespace sad
         inline const std::string kDynBoolFalseText = "\xD8\xAE\xD8\xB7\xD8\xA3";          // خطأ
         inline const std::string kDynNullText = "\xD8\xB9\xD8\xAF\xD9\x85";               // عدم
 
+        // (AR) واصفُ النصّ المعلَّب (ذاتيُّ الوصف): طولٌ ٦٤-بت (LE) يليه البايتات. النصُّ المعلَّب
+        //      يُقرأ نوعُه زمنَ التشغيل من الوسم، فطولُه غيرُ معلومٍ عند الطباعة إلّا من الواصف. دالّةٌ
+        //      حرّةٌ يشترك فيها مخفّضا x86 وARM64 (كلاهما يُفرِّد الواصفَ في rodata كأيّ ثابت).
+        inline std::string makeStrDescriptor(const std::string &s)
+        {
+            std::string desc;
+            const unsigned long long len = static_cast<unsigned long long>(s.size());
+            for (int i = 0; i < 8; ++i)
+                desc.push_back(static_cast<char>((len >> (8 * i)) & 0xFF));
+            desc += s;
+            return desc;
+        }
+
         // (AR) الوسمُ (DynKind) من نوعِ العنصر المحدَّد زمنَ الترجمة (كلُّ ARRAY_SET له نوعُ قيمةٍ محدَّد).
         //      صحيح/بايت/طبيعي64 ⇒ Int، عشريّ ⇒ Float، منطقيّ ⇒ Bool، عدم ⇒ Null؛ غيرها ⇒ فشلٌ صريح.
-        //      دالّةٌ حرّةٌ (يشترك فيها مخفّضا x86 وARM64). النصّ/المصفوفة يلزمها دعمُ قيمةٍ/مؤشّرٍ لاحق.
+        //      دالّةٌ حرّةٌ (يشترك فيها مخفّضا x86 وARM64). النصُّ يُعالَج خصّيصًا (وسمُ Str + عنوانُ واصف).
         inline bool dynTagForType(types::SadTypeKind t, long long &tag)
         {
             switch (t)
@@ -364,6 +378,37 @@ namespace sad
                 return off;
             }
 
+            // (AR) يحمّل العنوانَ المطلق لواصفِ النصّ المعلَّب في سجلّ GPR (mov r64,imm64 نائبٌ يُرقَّع
+            //      كأيّ سلسلةِ rodata). يُستعمَل حمولةً في ARRAY_SET(Any) لعنصرٍ نصّيّ.
+            bool emitLoadStrDescAddr(int reg, const std::string &content)
+            {
+                const size_t off = internString(makeStrDescriptor(content));
+                if (!emit(x86::mnem::kMov, "r64, imm64", {x86::Operand::R(reg), x86::Operand::I(0, 64)}))
+                    return false;
+                strFixups_.push_back({code_.size() - 8, off});
+                return true;
+            }
+            // (AR) يستخرجُ محتوى نصٍّ حرفيّ من معاملٍ (نظير توزيعِ الطباعة): سجلٌّ مسجَّلٌ في strReg_،
+            //      أو ثابتُ سلسلةٍ مباشر. النصُّ المحسوب (لا حرفيّ) غيرُ مدعومٍ ⇒ يُعيد false.
+            bool resolveBoxedStringLiteral(const sir::SIROperand &op, std::string &out) const
+            {
+                if (op.type == sir::SIROperandType::REGISTER)
+                {
+                    auto it = strReg_.find(op.name);
+                    if (it == strReg_.end())
+                        return false;
+                    out = it->second;
+                    return true;
+                }
+                if (op.type == sir::SIROperandType::CONSTANT &&
+                    op.dataType == types::SadTypeKind::String)
+                {
+                    out = op.name;
+                    return true;
+                }
+                return false;
+            }
+
             // (AR) إزاحةُ خانة انسكابِ سجلّ الحوض بموضعه i (0..pool_.size()-1).
             long long spillDisp(size_t poolIdx) const
             {
@@ -568,6 +613,14 @@ namespace sad
             bool cvtsi2sd(int xmm, int gpr) { return emit(x86::mnem::kCvtsi2sd, "xmm, r64", {x86::Operand::R(xmm), x86::Operand::R(gpr)}); }
             bool cvttsd2si(int gpr, int xmm) { return emit(x86::mnem::kCvttsd2si, "r64, xmm", {x86::Operand::R(gpr), x86::Operand::R(xmm)}); }
             bool ucomisd(int a, int b) { return emit(x86::mnem::kUcomisd, "xmm, xmm", {x86::Operand::R(a), x86::Operand::R(b)}); }
+            // (AR) cvtsd2si r64, xmm (SSE2): عشريّ ⇒ صحيح بتقريبِ MXCSR (nearest-even افتراضيًّا،
+            //      لا نمسّ MXCSR فيبقى الافتراض) = تقريبُ IEEE المطابقُ للمفسّر. نظيرُ cvttsd2si لكن
+            //      round-nearest لا truncate. يبقى ضمن SSE2 بلا رفعِ خطّ أساسٍ (بخلاف roundsd).
+            //      ⚠️ حارسٌ دفاعيّ (أميليا): تقريبُ الطباعة يعتمد MXCSR.RC=nearest-even الافتراضيّ
+            //      (تضبطه النواةُ عند exec؛ لا CRT يبدّله، ولا الخلفيّةُ تبعث ldmxcsr). أيُّ إدخالٍ
+            //      مستقبليٍّ لـldmxcsr (مثلًا floor/ceil عبر تبديل وضعِ التقريب) يجب أن يحفظ/يستعيد
+            //      MXCSR وإلّا انكسر تقريبُ الطباعة صامتًا. (ARM64 fcvtns يُرمِّز الوضعَ في التعليمة ⇒ مصونٌ ذاتيًّا).
+            bool cvtsd2si(int gpr, int xmm) { return emit(x86::mnem::kCvtsd2si, "r64, xmm", {x86::Operand::R(gpr), x86::Operand::R(xmm)}); }
             // (AR) حمّل ثابتَ عشريّ (نمطُ بتّاته i64، إعادةُ تفسيرٍ زمنَ التصريف) في سجلّ GPR.
             bool loadFloatConst(int gpr, double v)
             {
@@ -822,15 +875,15 @@ namespace sad
                 // (٢) الجزءُ الصحيح ip = trunc(|x|) في R11 (يبقى عبر الطباعة؛ emitPrintInt لا يمسّه).
                 if (!movqToXmm(kXmm0, x86::RAX) || !cvttsd2si(x86::R11, kXmm0))
                     return false;
-                // (٣) الكسر: frac = |x| − ip ؛ scaled = trunc(frac×١٠^٦ + ٠٫٥) في R8.
+                // (٣) الكسر: frac = |x| − ip ؛ scaled = round_nearest_even(frac×١٠^٦) في R8.
+                //     cvtsd2si (تقريبُ MXCSR = nearest-even، لا half-up ‎+0.5‎) يطابق تقريبَ IEEE
+                //     الافتراضيّ في المفسّر (std::fixed) ⇒ يسدّ انحرافَ ULP في تعادلِ الخانة السابعة.
                 if (!movqToXmm(kXmm0, x86::RAX) || !cvtsi2sd(kXmm1, x86::R11) || !subsd(kXmm0, kXmm1))
                     return false;
                 if (!loadFloatConst(x86::RAX, static_cast<double>(kFloatPrecisionScale)) ||
                     !movqToXmm(kXmm1, x86::RAX) || !mulsd(kXmm0, kXmm1))
                     return false;
-                if (!loadFloatConst(x86::RAX, 0.5) || !movqToXmm(kXmm1, x86::RAX) || !addsd(kXmm0, kXmm1))
-                    return false;
-                if (!cvttsd2si(x86::R8, kXmm0)) // R8 = scaled ∈ [0, ١٠^٦]
+                if (!cvtsd2si(x86::R8, kXmm0)) // R8 = scaled ∈ [0, ١٠^٦] (تقريبُ أقربِ زوج)
                     return false;
                 // (٤) ترحيلُ الحمل: إن قرّب الكسرُ إلى ١٫٠ (scaled == ١٠^٦) زِد ip وصفّر scaled — قبل
                 //      طباعةِ ip (عائقُ أميليا: «1.0 − 4e−7» كان يطبع «0.0» بدل «1.0»).
@@ -941,6 +994,22 @@ namespace sad
                     endJmps.push_back(j);
                 }
                 patchFwd(notI);
+                // Str ⇒ نصٌّ: R9 = عنوانُ الواصف {len@0، bytes@8}. اكتب bytes بطولِ len (write).
+                size_t notS;
+                if (!cmpImm8(x86::R8, kDynKindStr) || !emitJccFwd(x86::mnem::kJne, notS))
+                    return false;
+                {
+                    if (!loadMemBase(x86::RDX, x86::R9, 0) ||          // RDX = الطول
+                        !movReg(x86::RSI, x86::R9) || !addImm(x86::RSI, 8) || // RSI = البايتات
+                        !movImm(x86::RAX, kSysWriteX86) || !movImm(x86::RDI, kFdStdout) ||
+                        !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+                    size_t j;
+                    if (!branchEnd(j))
+                        return false;
+                    endJmps.push_back(j);
+                }
+                patchFwd(notS);
                 // غيرها (Null) ⇒ «عدم»
                 if (!emitPrintString(kDynNullText))
                     return false;
@@ -1586,16 +1655,29 @@ namespace sad
                         //      الصحيح/المنطقيّ قيمتُه)، والوسمَ (DynKind) في tags[idx] (خانةٌ ٨-بت).
                         //      القراءةُ (ARRAY_GET Any) تُبوِّب زمنَ التشغيل من الوسم. الوسمُ ثابتٌ من
                         //      نوعِ القيمة. نستعمل الحوضَ خدشًا (RCX/RDX/RSI مُنسكَبةٌ حولَه).
+                        // (AR) النصُّ المعلَّب: الوسمُ Str، والحمولةُ عنوانُ واصفٍ في rodata (لا قيمةٌ
+                        //      خام) ⇒ يُعالَج خصّيصًا. غيرُه (صحيح/عشريّ/منطقيّ/عدم) حمولتُه i64 خام.
+                        const bool isStr = inst.operands[2].dataType == types::SadTypeKind::String;
+                        std::string strContent;
                         long long tag;
-                        if (!dynTagForType(inst.operands[2].dataType, tag))
+                        if (isStr)
+                        {
+                            if (!resolveBoxedStringLiteral(inst.operands[2], strContent))
+                                return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArraySetBoxed);
+                            tag = kDynKindStr;
+                        }
+                        else if (!dynTagForType(inst.operands[2].dataType, tag))
                             return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArraySetBoxed);
                         for (const auto &kv : regOf_)
                             if (common::usedAfterInBlock(block, instIdx, kv.first))
                                 if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
                                     return false;
-                        // RAX=arr، RDI=idx، فحصُ الحدّ، ثمّ RCX=الحمولة.
+                        // RAX=arr، RDI=idx، فحصُ الحدّ، ثمّ RCX=الحمولة (النصّ: عنوانُ الواصف؛ غيرُه: قيمةٌ خام).
                         if (!loadInto(x86::RAX, inst.operands[0]) || !loadInto(x86::RDI, inst.operands[1]) ||
-                            !emitBoundsCheck() || !loadInto(x86::RCX, inst.operands[2]))
+                            !emitBoundsCheck())
+                            return false;
+                        if (isStr ? !emitLoadStrDescAddr(x86::RCX, strContent)
+                                  : !loadInto(x86::RCX, inst.operands[2]))
                             return false;
                         // data[idx] = RCX: RDX=[arr+data]، RSI=idx×8، RDX+=RSI، [RDX]=RCX.
                         if (!loadMemBase(x86::RDX, x86::RAX, kArrOffData) || !movReg(x86::RSI, x86::RDI) ||

@@ -66,6 +66,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اطرح_عشري", "d, d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 14, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اضرب_عشري", "d, d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 2, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اقسم_عشري", "d, d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 6, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "قرّب_عشري", "x, d", sad::native::arm64::EncSpec{ 32, { { 31, 16, 40544, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     };
     return kTable;
 }
@@ -114,6 +115,7 @@ inline const std::string kFadd = "اجمع_عشري";
 inline const std::string kFsub = "اطرح_عشري";
 inline const std::string kFmul = "اضرب_عشري";
 inline const std::string kFdiv = "اقسم_عشري";
+inline const std::string kFcvtns = "قرّب_عشري";
 } // namespace mnem
 
 // (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.

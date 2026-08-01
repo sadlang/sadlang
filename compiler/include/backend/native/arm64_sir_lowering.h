@@ -342,6 +342,9 @@ namespace sad
             bool fsub(int d, int n, int m) { return emit(a64::mnem::kFsub, "d, d, d", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); }
             bool fmul(int d, int n, int m) { return emit(a64::mnem::kFmul, "d, d, d", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); }
             bool fdiv(int d, int n, int m) { return emit(a64::mnem::kFdiv, "d, d, d", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); }
+            // (AR) fcvtns x, d: عشريّ ⇒ صحيح بتقريبٍ لأقربِ زوجٍ (nearest-even) = تقريبُ IEEE
+            //      المطابقُ للمفسّر (نظيرُ cvtsd2si x86). أساسيٌّ في ARMv8؛ نظيرُ fcvtzs لكن round-nearest.
+            bool fcvtns(int x, int d) { return emit(a64::mnem::kFcvtns, "x, d", {a64::Operand::R(x), a64::Operand::R(d)}); }
             // (AR) يحمّل فوريًّا ٦٤-بت (نمطَ بتّات) في سجلّ GPR عبر movz + movk×٣ (كلُّ ١٦ بتًّا).
             bool movImm64Bits(int reg, unsigned long long bits)
             {
@@ -489,6 +492,34 @@ namespace sad
                 return off;
             }
 
+            // (AR) يحمّل العنوانَ المطلق لواصفِ النصّ المعلَّب في سجلّ (movz+movk×3 نائبٌ يُرقَّع كأيّ
+            //      سلسلةِ rodata). الواصفُ {len@0، bytes@8}. يُستعمَل حمولةً في ARRAY_SET(Any) النصّيّ.
+            bool emitLoadStrDescAddr(int reg, const std::string &content)
+            {
+                const size_t off = internString(makeStrDescriptor(content));
+                return emitStringAddr(reg, off);
+            }
+            // (AR) يستخرجُ محتوى نصٍّ حرفيّ من معاملٍ (نظير توزيعِ الطباعة): سجلٌّ مسجَّلٌ في strReg_،
+            //      أو ثابتُ سلسلةٍ مباشر. النصُّ المحسوب (لا حرفيّ) غيرُ مدعومٍ ⇒ يُعيد false.
+            bool resolveBoxedStringLiteral(const sir::SIROperand &op, std::string &out) const
+            {
+                if (op.type == sir::SIROperandType::REGISTER)
+                {
+                    auto it = strReg_.find(op.name);
+                    if (it == strReg_.end())
+                        return false;
+                    out = it->second;
+                    return true;
+                }
+                if (op.type == sir::SIROperandType::CONSTANT &&
+                    op.dataType == types::SadTypeKind::String)
+                {
+                    out = op.name;
+                    return true;
+                }
+                return false;
+            }
+
             // (AR) يطبع سلسلةً حرفيّة: يُفرِّدها، يبني عنوانَها في x1، ثمّ write(stdout, x1, الطول).
             bool emitPrintString(const std::string &s)
             {
@@ -562,15 +593,14 @@ namespace sad
                 // (٢) الجزءُ الصحيح ip = trunc(|x|) في x15 (يبقى عبر emitPrintInt الذي يمسّ x9-x14 فقط).
                 if (!ldrSlot(9, floatValSlot_) || !fmovToFp(kD0, 9) || !fcvtzs(15, kD0))
                     return false;
-                // (٣) الكسر: frac = |x| − ip ؛ scaled = trunc(frac×١٠^٦ + ٠٫٥) في x11.
+                // (٣) الكسر: frac = |x| − ip ؛ scaled = round_nearest_even(frac×١٠^٦) في x11.
+                //     fcvtns (nearest-even لا half-up ‎+0.5‎) يطابق تقريبَ IEEE الافتراضيّ للمفسّر.
                 if (!fmovToFp(kD0, 9) || !scvtf(kD1, 15) || !fsub(kD0, kD0, kD1)) // d0=frac
                     return false;
                 if (!loadFloatConst(kScratch0, static_cast<double>(kFloatPrecisionScale)) ||
                     !fmovToFp(kD1, kScratch0) || !fmul(kD0, kD0, kD1))
                     return false;
-                if (!loadFloatConst(kScratch0, 0.5) || !fmovToFp(kD1, kScratch0) || !fadd(kD0, kD0, kD1))
-                    return false;
-                if (!fcvtzs(11, kD0)) // x11 = scaled
+                if (!fcvtns(11, kD0)) // x11 = scaled (تحويلٌ بتقريبِ أقربِ زوج)
                     return false;
                 // (٤) ترحيلُ الحمل: إن قرّب الكسرُ إلى ١٫٠ (scaled == ١٠^٦) زِد ip وصفّر scaled — قبل
                 //      طباعةِ ip (عائقُ أميليا: «1.0 − 4e−7» كان يطبع «0.0»). ثمّ خزّن scaled (x11) في
@@ -688,6 +718,18 @@ namespace sad
                 if (!movReg(9, kScratch1) || !emitPrintInt() || !branchEnd())
                     return false;
                 if (!patchBranchFwd(notI, 23, 5))
+                    return false;
+                // Str (tag==3) ⇒ نصٌّ: x17 = عنوانُ الواصف {len@0، bytes@8}. write(stdout, bytes, len).
+                size_t notS;
+                if (!movz(10, kDynKindStr) || !cmp(kScratch0, 10) ||
+                    !emitBranchFwd(a64::mnem::kBne, "rel19", notS))
+                    return false;
+                if (!ldrBase(kX2, kScratch1, 0) ||          // x2 = الطول
+                    !addImm(kX1, kScratch1, 8) ||           // x1 = البايتات
+                    !movz(kX0, kFdStdoutArm64) || !movz(kX8, kSysWriteArm64) ||
+                    !emit(a64::mnem::kSvc, "", {}) || !branchEnd())
+                    return false;
+                if (!patchBranchFwd(notS, 23, 5))
                     return false;
                 // غيرها (Null) ⇒ «عدم»
                 if (!emitPrintString(kDynNullText))
@@ -1332,8 +1374,17 @@ namespace sad
                     {
                         // (AR) تخزينٌ معلَّب: الحمولةُ الخام في data[idx]، والوسمُ في tags[idx] (خانةٌ ٨-بت).
                         //      الوسمُ ثابتٌ من نوعِ القيمة. نستعمل الحوضَ خدشًا (x9-x12 مُنسكَبة).
+                        // (AR) النصُّ المعلَّب: الوسمُ Str، والحمولةُ عنوانُ واصفٍ في rodata (لا قيمةٌ خام).
+                        const bool isStr = inst.operands[2].dataType == types::SadTypeKind::String;
+                        std::string strContent;
                         long long tag;
-                        if (!dynTagForType(inst.operands[2].dataType, tag))
+                        if (isStr)
+                        {
+                            if (!resolveBoxedStringLiteral(inst.operands[2], strContent))
+                                return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArraySetBoxed);
+                            tag = kDynKindStr;
+                        }
+                        else if (!dynTagForType(inst.operands[2].dataType, tag))
                             return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArraySetBoxed);
                         // (AR) انسِك المؤقّتاتِ الحيّةَ **ومعاملاتِ هذه التعليمة** ⇒ نقرأ المعاملاتِ من
                         //      خانات الانسكاب (loadArgInto) لا سجلّاتها الفيزيائيّة ⇒ لا تصادمَ نقلٍ
@@ -1347,8 +1398,10 @@ namespace sad
                         if (!loadArgInto(9, inst.operands[0]) || !loadArgInto(a64reg::kScratch1, inst.operands[1]) ||
                             !ldrBase(a64reg::kScratch0, 9, kArrOffLen / kArrSlotBytes) || !emitBoundsCheckArm64())
                             return false;
-                        // data[idx] = x10 (الحمولة): x11 = [arr+data] + idx×8.
-                        if (!loadArgInto(10, inst.operands[2]) || !ldrBase(11, 9, kArrOffData / kArrSlotBytes) ||
+                        // data[idx] = x10 (الحمولة: النصّ⇒عنوانُ الواصف؛ غيرُه⇒قيمةٌ خام): x11 = [arr+data] + idx×8.
+                        if (isStr ? !emitLoadStrDescAddr(10, strContent) : !loadArgInto(10, inst.operands[2]))
+                            return false;
+                        if (!ldrBase(11, 9, kArrOffData / kArrSlotBytes) ||
                             !addLsl3(11, 11, a64reg::kScratch1) || !strBase(10, 11, 0))
                             return false;
                         // tags[idx] = tag: x11 = [arr+tags] + idx×8.

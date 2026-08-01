@@ -321,6 +321,8 @@ TEST(NativeX86, SseFloatOps)
     ASSERT_EQ(hex(enc("حوّل_إلى_عشري", "xmm, r64", {O::R(0), O::R(0)})), std::string("f2480f2ac0")); // cvtsi2sd xmm0,rax
     ASSERT_EQ(hex(enc("حوّل_من_عشري", "r64, xmm", {O::R(0), O::R(0)})), std::string("f2480f2cc0"));  // cvttsd2si rax,xmm0
     ASSERT_EQ(hex(enc("قارن_عشري", "xmm, xmm", {O::R(0), O::R(1)})), std::string("660f2ec1"));       // ucomisd
+    ASSERT_EQ(hex(enc("قرّب_عشري", "r64, xmm", {O::R(0), O::R(0)})), std::string("f2480f2dc0")); // cvtsd2si rax,xmm0 (nearest-even)
+    ASSERT_EQ(hex(enc("قرّب_عشري", "r64, xmm", {O::R(8), O::R(0)})), std::string("f24c0f2dc0")); // cvtsd2si r8,xmm0
 }
 
 // ─── برهانُ تدفّق التحكّم الحيّ: لولبٌ يعدّ حتّى ٤٢ ثمّ يخرج به ───

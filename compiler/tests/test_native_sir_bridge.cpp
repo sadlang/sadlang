@@ -202,6 +202,11 @@ namespace
     const std::string kSrcBoxedMixed =
         "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD9\x85\x20\x3D\x20\x5B\x31\xD8\x8C\x20\x33\x2E\x35\xD8\x8C\x20\x32\x5D\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\xD9\x85\x5B\x31\x5D\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\xD9\x85\x5B\x30\x5D\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x30\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 
+    // (AR) نصٌّ معلَّب في مصفوفةٍ مختلطة: «م = [1، "نص"، 2]؛ اطبع_سطر(م[1])» ⇒ «نص». الوسمُ Str
+    //      والحمولةُ عنوانُ واصفٍ {len،bytes} في rodata؛ الطباعةُ المبوَّبةُ تكتب البايتات زمنَ التشغيل.
+    const std::string kSrcBoxedStr =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9()\x0A    \xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1 \xD9\x85 = [1\xD8\x8C \x22\xD9\x86\xD8\xB5\x22\xD8\x8C 2]\x0A    \xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9_\xD8\xB3\xD8\xB7\xD8\xB1(\xD9\x85[1])\x0A    \xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9 0\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
     // (AR) طفحانُ الكسر: «2.9999998» ⇒ «3.0» (ترحيلُ الحمل — إصلاحُ عائق أميليا).
     const std::string kSrcFloatCarry =
         "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\x32\x2E\x39\x39\x39\x39\x39\x39\x38\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x30\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
@@ -673,6 +678,23 @@ TEST(NativeSirBridge, BoxedMixedArray)
     ASSERT_EQ(int(wrote), int(res.code.size()));
 }
 
+// (AR) نصٌّ معلَّب في مصفوفةٍ مختلطة ⇒ «نص». مسارُ التعليب النصّيّ (واصفُ rodata) بلا LLVM.
+TEST(NativeSirBridge, BoxedStringArray)
+{
+    auto module = buildSir(kSrcBoxedStr);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_TRUE(res.code.size() > sad::native::elf::kCodeOffset);
+    std::FILE *fp = std::fopen("sad_sir_boxed_str", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(res.code.size()));
+}
+
 // (AR) طفحانُ الكسر (ترحيلُ الحمل): «2.9999998» ⇒ «3.0». إصلاحُ عائق أميليا.
 TEST(NativeSirBridge, FloatCarryRounding)
 {
@@ -1020,6 +1042,15 @@ TEST(Arm64SirBridge, BoxedMixedArray)
     bool ok = false;
     size_t sz = 0;
     lowerArm64AndWrite(kSrcBoxedMixed, "sad_arm64_boxed", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) نصٌّ معلَّب على ARM64 ⇒ «نص» على qemu. مرآةُ x86 للتعليب النصّيّ (واصفُ rodata).
+TEST(Arm64SirBridge, BoxedStringArray)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcBoxedStr, "sad_arm64_boxed_str", &ok, &sz);
     ASSERT_TRUE(ok);
 }
 

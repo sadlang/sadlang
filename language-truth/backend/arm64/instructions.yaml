@@ -741,3 +741,19 @@ instructions:
           - { name: mid,   hi: 15, lo: 10, const: 6 }
           - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
           - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # FCVTNS Xd, Dn  ⇒  0x9E600000 | Rn<<5 | Rd   (عشريّ ⇒ صحيح بتقريبٍ لأقربِ زوجٍ = nearest-even
+  #   المطابقُ لتقريبِ IEEE في المفسّر؛ أساسيٌّ في ARMv8. نظيرُ fcvtzs لكن round-nearest لا truncate)
+  #   متحقَّق: fcvtns x9, d0 = 0x9E600009
+  قرّب_عشري:
+    - en: fcvtns
+      form: "x, d"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 16, const: 40544 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
