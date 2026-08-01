@@ -91,6 +91,18 @@ namespace Sad
         };
 
         /**
+         * @brief (AR) عدد قيم SadTypeKind — تستهلكه static_assert في جسور
+         *             الأنواع (مثل astTypeToSIRType) كي **يكسر البناءَ** عند
+         *             إضافة نوعٍ جديدٍ إلى types.yaml، فلا يسقط النوعُ الجديد
+         *             صامتًا في فرعٍ افتراضيٍّ يُخمّن تمثيلًا خاطئًا.
+         * @brief (EN) SadTypeKind cardinality — consumed by static_assert in the
+         *             type bridges (e.g. astTypeToSIRType) so that adding a kind
+         *             to types.yaml BREAKS THE BUILD instead of letting the new
+         *             kind fall silently into a guessing default branch.
+         */
+        inline constexpr int SAD_TYPE_KIND_COUNT = 52;
+
+        /**
          * @brief (AR) الاسم العربي الذي تُرجعه نوع() لنوعٍ ما — مُولَّد من types.yaml
          * @brief (EN) Arabic name returned by نوع()/typeof for a kind — generated
          */

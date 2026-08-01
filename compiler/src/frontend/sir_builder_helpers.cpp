@@ -104,60 +104,150 @@ namespace Sad
             }
 
             // ============================================================================
-            // astTypeToSIRType - تحويل DataType إلى SadTypeKind
+            // astTypeToSIRType — جسر النوع المُعلَن (AST) إلى نوع SIR
             // ============================================================================
-            // مصدر التعريف / Source: sir_builder.h:741
-            // التوقيع / Signature: SadTypeKind astTypeToSIRType(const Sad::Types::SadTypeKind& type);
+            // (AR) **دالّةٌ كلّيّة**: لكلّ قيمةٍ من SadTypeKind فرعٌ صريح، ولا فرعَ
+            //      افتراضيَّ يُخمّن. كان الفرعُ الافتراضيُّ يُرجِع Integer مع تحذيرٍ
+            //      على الخرج القياسيّ لأربعين نوعًا من اثنين وخمسين — فيُترجَم برنامجٌ
+            //      صحيحٌ إلى شيفرةٍ خاطئةٍ بدل أن يُرفَض. مثالُه المقيس: «خريطة» عابرةً
+            //      حدَّ النداء كانت تُخمَّن عددًا، فتسلك فهرسةُ `م["م"]` **مسارَ النصّ**
+            //      (اقتطاعَ سلسلة) فتُصدَر `add i64، ptr` وتسقط الوحدةُ كلُّها في
+            //      verifyModule. الخرائطُ المحلّيّة نجت لأنّ نوعها يُستنتَج من المُهيّئ
+            //      لا من تعليقٍ مُعلَن.
             //
-            // المعاملات / Parameters:
-            // - type: const Sad::Types::SadTypeKind& (parser/data.h)
+            //      ولأنّ SIR::SadTypeKind ليس تعدادًا آخر بل **هو نفسه**
+            //      Sad::Types::SadTypeKind (sir_types.h: `using`)، فالتحويلُ هويّةٌ
+            //      في الأصل، وكلُّ خروجٍ عنها **خفضُ تمثيلٍ مقصود** يُذكَر لا يُخمَّن.
             //
-            // الإرجاع / Returns:
-            // - SadTypeKind: sir_types.h:57 (enum class SadTypeKind)
+            //      وحارسُ التكرار: static_assert على SAD_TYPE_KIND_COUNT المُولَّد من
+            //      types.yaml — فإضافةُ نوعٍ جديدٍ إلى مصدر الحقيقة تكسر البناءَ هنا
+            //      وتُلزِم قرارًا صريحًا، بدل أن تسقط صامتةً كما سقطت «خريطة».
             //
-            // SadTypeKind Values (sir_types.h:57):
-            // - VOID, I64, F64, BOOL, PTR, ARRAY, STRING, STRUCT, FUNCTION
+            // (EN) **Total function**: every SadTypeKind value has an explicit arm and
+            //      there is no guessing default. The old default returned Integer (with
+            //      a warning on stderr) for 40 of 52 kinds, so a valid program compiled
+            //      to wrong code instead of being rejected. Measured instance: a «خريطة»
+            //      crossing a call boundary was guessed as a number, so `m["k"]` took the
+            //      STRING indexing path and emitted `add i64, ptr`, failing verifyModule.
+            //      Local maps survived because their type is inferred from the initialiser.
+            //
+            //      Since SIR::SadTypeKind IS Sad::Types::SadTypeKind (a `using` alias in
+            //      sir_types.h), this conversion is identity by nature; every departure
+            //      is a deliberate representation lowering, stated rather than guessed.
+            //
+            //      Recurrence guard: static_assert on the generated SAD_TYPE_KIND_COUNT —
+            //      adding a kind to types.yaml breaks the build here and forces a decision.
             // ============================================================================
             SadTypeKind SIRBuilder::astTypeToSIRType(const Sad::Types::SadTypeKind &type)
             {
-                // (AR) تحويل DataType إلى SadTypeKind
-                // (EN) Convert DataType to SadTypeKind
+                static_assert(Sad::Types::SAD_TYPE_KIND_COUNT == 52,
+                              "(AR) تغيّر عددُ أنواع types.yaml — راجع كلَّ فرعٍ أدناه وقرّر "
+                              "تمثيلَ النوع الجديد صراحةً. (EN) types.yaml kind count changed — "
+                              "revisit the arms below and decide the new kind's representation.");
+
                 switch (type)
                 {
+                // ─── هويّة: أنواعٌ لها تمثيلٌ أوّليٌّ في SIR وفي مُخطِّط أنواع LLVM ───
+                // ─── Identity: kinds with a first-class SIR / LLVM lowering ───
+                case Types::SadTypeKind::Void:
+                    return SadTypeKind::Void;
                 case Types::SadTypeKind::Integer:
                     return SadTypeKind::Integer;
-                case Types::SadTypeKind::Byte:
-                    return SadTypeKind::Byte;
-                case Types::SadTypeKind::UInt64:
-                    return SadTypeKind::UInt64;
                 case Types::SadTypeKind::Float:
                     return SadTypeKind::Float;
                 case Types::SadTypeKind::Boolean:
                     return SadTypeKind::Boolean;
                 case Types::SadTypeKind::String:
                     return SadTypeKind::String;
+                case Types::SadTypeKind::Byte:
+                    return SadTypeKind::Byte;
+                case Types::SadTypeKind::UInt64:
+                    return SadTypeKind::UInt64;
                 case Types::SadTypeKind::Array:
                     return SadTypeKind::Array;
                 case Types::SadTypeKind::Function:
                     return SadTypeKind::Function;
-                case Types::SadTypeKind::Class:
-                    // (AR) كائن - في الغالب معامل بدون نوع صريح
-                    // (EN) Object - usually a parameter without explicit type
-                    // في LLVM، نستخدم i64 لتمرير المؤشرات/القيم
+                // (AR) خريطة: مقبض الخريطة `ptr` في الخلفيّة (map_ops يُصدِر البنيةَ
+                //      مباشرةً ويعيد مؤشّرًا)، ومُخطِّطُ الأنواع يُرجِع مؤشّرًا كذلك —
+                //      فالهويّةُ هنا متّسقةٌ مع التمثيل الفعليّ، مقيسةً لا مفترضة.
+                // (EN) Map: the backend emits the map struct inline and yields a `ptr`,
+                //      and the type mapper lowers Map to a pointer — identity here matches
+                //      the actual representation (measured, not assumed).
+                case Types::SadTypeKind::Map:
+                    return SadTypeKind::Map;
+
+                // ─── توسيعٌ عدديٌّ مقصود: لا تمثيلَ أضيقَ في الخلفيّة بعدُ ───
+                // ─── Deliberate numeric widening: no narrower lowering exists yet ───
+                case Types::SadTypeKind::Int8:
+                case Types::SadTypeKind::Int16:
+                case Types::SadTypeKind::Int32:
+                case Types::SadTypeKind::Int64:
+                case Types::SadTypeKind::UInt8:
+                case Types::SadTypeKind::UInt16:
+                case Types::SadTypeKind::UInt32:
+                case Types::SadTypeKind::Char:
                     return SadTypeKind::Integer;
-                case Types::SadTypeKind::Void:
-                    return SadTypeKind::Void;
+                case Types::SadTypeKind::Float32:
+                case Types::SadTypeKind::Float64:
+                    return SadTypeKind::Float;
+
+                // ─── مقبضٌ معتِم (i64): أنواعٌ تُمرَّر قيمةً/مؤشّرًا بلا بنيةٍ في SIR ───
+                // (AR) هذه الأفرعُ تحفظ السلوكَ القائمَ **صراحةً** بعد إزالة الفرع
+                //      الافتراضيّ. رفعُ أيٍّ منها إلى الهويّة تغييرُ ABI يلزمه قياسٌ
+                //      مستقلٌّ على المحرّكين، فلا يُدسّ ضمن هذا الإصلاح.
+                // (EN) Opaque handle (i64): kinds passed as a value/pointer with no SIR
+                //      structure. These arms preserve existing behaviour EXPLICITLY now
+                //      that the default is gone. Promoting any of them to identity is an
+                //      ABI change requiring its own dual-engine measurement — not smuggled
+                //      into this fix.
+                case Types::SadTypeKind::Tuple:
+                case Types::SadTypeKind::Slice:
+                case Types::SadTypeKind::Class:
+                case Types::SadTypeKind::Struct:
+                case Types::SadTypeKind::Enum:
+                case Types::SadTypeKind::Trait:
+                case Types::SadTypeKind::Closure:
+                case Types::SadTypeKind::Union:
+                case Types::SadTypeKind::Intersection:
+                case Types::SadTypeKind::Optional:
+                case Types::SadTypeKind::Result:
+                case Types::SadTypeKind::Generic:
+                case Types::SadTypeKind::TypeParameter:
+                case Types::SadTypeKind::TypeAlias:
+                case Types::SadTypeKind::Pointer:
+                case Types::SadTypeKind::Reference:
+                case Types::SadTypeKind::MutableRef:
+                case Types::SadTypeKind::Error:
+                case Types::SadTypeKind::Future:
+                case Types::SadTypeKind::Generator:
+                case Types::SadTypeKind::Comprehension:
+                case Types::SadTypeKind::Color:
+                case Types::SadTypeKind::Widget:
+                case Types::SadTypeKind::Window:
+                case Types::SadTypeKind::Event:
+                case Types::SadTypeKind::Vector:
+                case Types::SadTypeKind::Null:
+                case Types::SadTypeKind::Point:
+                case Types::SadTypeKind::Rect:
+                case Types::SadTypeKind::Never:
+                // (AR) «أي»: يُخفَض هنا إلى i64 لا إلى Any، لأنّ Any في مُخطِّط أنواع
+                //      LLVM هو %SadDyn (ISSUE-076)؛ ورفعُ المُعلَن «أي» إليه تغييرُ ABI
+                //      يُقاس منفردًا. (EN) `أي` lowers to i64, not Any: the mapper lowers
+                //      Any to %SadDyn (ISSUE-076), and promoting the DECLARED `أي` to it
+                //      is an ABI change to be measured on its own.
+                case Types::SadTypeKind::Any:
+                // (AR) مجهول: نائبٌ يستبدله استنتاجُ الأنواع لاحقًا.
+                // (EN) Unknown: placeholder overwritten by type inference.
                 case Types::SadTypeKind::Unknown:
-                    // (AR) نوع غير معروف - سيتم استنتاجه من التعبير
-                    // (EN) Unknown type - will be inferred from expression
-                    return SadTypeKind::Integer; // Default, will be overwritten by type inference
-                default:
-                    // (AR) أنواع أخرى (MAP, TUPLE, ENUM, ERROR) — تحذير + fallback
-                    // (EN) Other types (MAP, TUPLE, ENUM, ERROR) — warn + fallback
-                    std::cerr << "[sadc تحذير] DataType غير معالج في astTypeToSIRType: "
-                              << static_cast<int>(type) << " — استخدام I64" << std::endl;
-                    return SadTypeKind::Integer; // Fallback
+                    return SadTypeKind::Integer;
                 }
+
+                // (AR) لا يُبلَغ إلّا بقيمةٍ خارج التعداد (تحويلٌ فاسد) — نُفشِل بصوتٍ
+                //      عالٍ لا نُخمّن تمثيلًا. (EN) Reachable only for an out-of-enum
+                //      value (corrupt cast) — fail loudly instead of guessing.
+                throw std::logic_error(
+                    "astTypeToSIRType: SadTypeKind خارج التعداد / out of enum range: " +
+                    std::to_string(static_cast<int>(type)));
             }
 
             // ============================================================================

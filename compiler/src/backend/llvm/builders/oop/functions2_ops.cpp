@@ -82,83 +82,79 @@ namespace Sad
             // Source: SIRFunction::returnType is PUBLIC member at sir_module.h:251
             SadTypeKind returnSIRType = sirFunc->returnType;
 
-            // تحويل نوع الإرجاع
-            // Convert return type
+            // ================================================================
+            // (AR) خفضُ نوع الإرجاع — **سلطةٌ واحدة**: `LLVMTypeMapper::mapSIRType`.
+            //
+            //      كان هنا جدولٌ يدويٌّ يكرّر عملَ المُخطِّط وينتهي بـ`default → void`.
+            //      وذلك الفرعُ الافتراضيُّ **يُخمّن**، وخطؤه صامتٌ ومُهلِك: تُعرَّف
+            //      الدالّةُ `void` بينما موقعُ النداء يتوقّع قيمة، فيُقرأ سجلٌّ غير
+            //      معرَّفٍ خردةً. وقد لُدغ الجدولُ بهذا مرّتين موثّقتين قبلُ
+            //      (UInt64/Byte، ثمّ Function للإغلاقات) — وعُولجت كلٌّ منهما
+            //      بإضافة حالةٍ مفردة، فبقي الجذرُ قائمًا حتّى لدغ ثالثةً في
+            //      «خريطة»: `دالة خريطة اصنع()` تُعرَّف `void`، فمقبضُ الخريطة لا
+            //      يُرجَع أصلًا، وتُقرأ خردةٌ مؤشّرًا ⇒ Segmentation fault.
+            //
+            //      فالعلاجُ الجذريُّ إلغاءُ التكرار: يُفوَّض الخفضُ إلى المُخطِّط —
+            //      مرجعِ التمثيل الوحيد — ولا يبقى هنا إلّا ما يخالفه **قصدًا**،
+            //      مُعلَّلًا. وبهذا يرث كلُّ نوعٍ جديدٍ تمثيلَه تلقائيًّا بدل أن
+            //      يسقط في `void` صامتًا.
+            //
+            // (EN) Return-type lowering — **one authority**: `LLVMTypeMapper::mapSIRType`.
+            //
+            //      This used to be a hand-written table duplicating the mapper and
+            //      ending in `default → void`. That default GUESSES, and its failure
+            //      is silent and fatal: the function is defined `void` while the call
+            //      site expects a value, so an undefined register is read as garbage.
+            //      The table was bitten twice before (UInt64/Byte, then Function for
+            //      closures) — each time patched by adding one more case, leaving the
+            //      root in place until it bit a third time on «خريطة»: `دالة خريطة
+            //      اصنع()` was defined `void`, the map handle was never returned, and
+            //      garbage was dereferenced ⇒ segfault.
+            //
+            //      The root fix is to remove the duplication: delegate to the mapper —
+            //      the single representation authority — and keep here only the
+            //      DELIBERATE deviations, each with its reason. New kinds then inherit
+            //      their representation instead of silently falling into `void`.
+            // ================================================================
             llvm::Type *returnType = nullptr;
             switch (returnSIRType)
             {
-            case SadTypeKind::Void:
-                returnType = cg_.getVoidType();
-                break;
-            case SadTypeKind::Integer:
-                returnType = cg_.getInt64Type();
-                break;
-            // (AR) [طبقة طبيعي64] النوعان السطحيّان UInt64/Byte يُخزَّنان int64 زمن التشغيل
-            //      (Option B: لا وسم قيمة)، فتوقيع الإرجاع i64 كـInteger تمامًا — يطابق
-            //      مسار المعاملات (baseParamType: default→i64). بدونهما يقعان في
-            //      default→void فتُعرَّف الدالّة void بينما موقع النداء يتوقّع i64 ⇒ سجلّ
-            //      غير معرَّف ⇒ خردة (UINT64_MAX/‎-1) وانفراج تكافؤ مع المفسّر.
-            // (EN) [طبيعي64 layer] UInt64/Byte are surface types stored as int64 at runtime
-            //      (Option B: no value tag), so the return signature is i64 exactly like
-            //      Integer — mirroring the param path (baseParamType: default→i64). Without
-            //      them they fall to default→void, defining the function void while the call
-            //      site expects i64 ⇒ undefined register ⇒ garbage (UINT64_MAX/-1) and a
-            //      parity divergence with the interpreter.
-            case SadTypeKind::UInt64:
+            // (AR) [طبقة طبيعي64] بايت يُخزَّن int64 زمن التشغيل (Option B: لا وسم قيمة)،
+            //      فتوقيعُ الإرجاع i64 كـInteger تمامًا — يطابق مسارَ المعاملات
+            //      (baseParamType: default→i64). والمُخطِّط يُرجِع i8 لأنّه يصف الخانة
+            //      لا سجلَّ الإرجاع، فهذه مخالفةٌ مقصودة. (UInt64 يوافق المُخطِّطَ أصلًا.)
+            // (EN) [طبيعي64 layer] Byte is stored as int64 at runtime (Option B: no value
+            //      tag), so its return signature is i64 exactly like Integer, mirroring
+            //      the param path. The mapper yields i8 because it describes storage, not
+            //      the return register — a deliberate deviation. (UInt64 already agrees.)
             case SadTypeKind::Byte:
                 returnType = cg_.getInt64Type();
                 break;
-            case SadTypeKind::Float:
-                returnType = cg_.getDoubleType();
-                break;
-            case SadTypeKind::Boolean:
-                returnType = cg_.getInt1Type();
-                break;
-            case SadTypeKind::Pointer:
-                returnType = cg_.getInt8PtrType();
-                break;
-            case SadTypeKind::String:
-                returnType = cg_.getInt8PtrType();
-                break;
-            // (AR) الكائنات والبنى تُرجع كمؤشرات — ptr في LLVM opaque pointer mode
-            // (EN) Objects and structs returned as pointers — ptr in LLVM opaque pointer mode
-            case SadTypeKind::Struct:
-                returnType = llvm::PointerType::getUnqual(*cg_.context_);
-                break;
-            case SadTypeKind::Array:
-                returnType = llvm::PointerType::getUnqual(*cg_.context_);
-                break;
-            // (AR) الصفوف تُرجع كمؤشرات — نفس بنية SadArray
-            // (EN) Tuples returned as pointers — same SadArray structure
+            // (AR) الصفوف تُرجع مؤشّرًا (بنية SadArray نفسها)؛ المُخطِّط لا يعرف Tuple بعد.
+            // (EN) Tuples return a pointer (same SadArray layout); the mapper has no Tuple yet.
             case SadTypeKind::Tuple:
                 returnType = llvm::PointerType::getUnqual(*cg_.context_);
                 break;
-            // ================================================================
-            // (AR) [إصلاح الإغلاقات المتداخلة] الدوال التي تُرجع إغلاقاً (closure)
-            //      نوعها في SIR هو Function. الإغلاقات تُخزَّن كـ i64 (مؤشر معبأ).
-            //      بدون هذه الحالة: يقع في default → void → الناتج لا يُخزَّن
-            //      مما يسبب خطأ "Undefined register" عند استدعاء الإغلاق المُرجَع.
-            // (EN) [Fix nested closures] Functions returning a closure (Function type).
-            //      Closures are stored as packed i64 (pointer-as-integer).
-            //      Without this case: falls to default → void → result not stored
-            //      causing "Undefined register" when using the returned closure.
-            // ================================================================
+            // (AR) الإغلاقات تُخزَّن i64 (مؤشّرٌ معبَّأ) لا مؤشّرَ دالّةٍ صريحًا، فيخالف
+            //      الإرجاعُ ما يُرجِعه المُخطِّط لـFunction. مخالفةٌ مقصودة.
+            // (EN) Closures are stored as a packed i64, not an explicit function pointer,
+            //      so the return deviates from the mapper's Function lowering. Deliberate.
             case SadTypeKind::Function:
                 returnType = cg_.getInt64Type();
                 break;
-            // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): نوع الإرجاع Any = قيمة ديناميّة واصفة لذاتها
-            //      تُرجَع عبر حدود الدوال. تمثيلها %SadDyn (بنية {i8 وسم، i64 حمولة}) لا i64 خام،
-            //      فلا يقدر المستهلك على معاملتها معاملة صحيحٍ ملتبِس؛ يفكّها عبر موزِّع نوعيّ.
-            //      تُمرَّر بالقيمة (ABI مُثبَت: سجلّان).
-            // (EN) ISSUE-076 (%SadDyn root fix): an Any return type = a self-describing dynamic value
-            //      returned across a function boundary. Its representation is %SadDyn ({i8 kind, i64
-            //      payload}), NOT a raw i64, so a consumer cannot treat it as an ambiguous integer;
-            //      it is decoded via a typed dispatcher. Returned by value (ABI proven: 2 registers).
-            case SadTypeKind::Any:
-                returnType = getSadDynType(*cg_.context_);
-                break;
+            // (AR) التفويض: Void/Integer/UInt64/Float/Boolean/String/Pointer/Struct/
+            //      Array/Map/Error/Null/Any… كلُّها تأخذ تمثيلَها من المُخطِّط، فلا
+            //      يتباعد توقيعُ الدالّة عن تمثيل القيمة في بقيّة الخلفيّة.
+            //      («أي» ⇒ %SadDyn، و«خريطة» ⇒ مؤشّر — من المُخطِّط لا من نسخةٍ هنا.)
+            // (EN) Delegation: Void/Integer/UInt64/Float/Boolean/String/Pointer/Struct/
+            //      Array/Map/Error/Null/Any… all take their representation from the mapper,
+            //      so a function signature can never drift from how the rest of the backend
+            //      represents that value. («أي» ⇒ %SadDyn, «خريطة» ⇒ pointer — from the
+            //      mapper, not from a copy kept here.)
             default:
-                returnType = cg_.getVoidType();
+                returnType = cg_.typeMapper_
+                                 ? cg_.typeMapper_->mapSIRType(returnSIRType)
+                                 : cg_.getInt64Type();
                 break;
             }
 

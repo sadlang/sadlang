@@ -129,6 +129,18 @@ def emit_header(types: list[dict[str, Any]]) -> str:
 
     lines.append("        };")
     lines.append("")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) عدد قيم SadTypeKind — تستهلكه static_assert في جسور")
+    lines.append("         *             الأنواع (مثل astTypeToSIRType) كي **يكسر البناءَ** عند")
+    lines.append("         *             إضافة نوعٍ جديدٍ إلى types.yaml، فلا يسقط النوعُ الجديد")
+    lines.append("         *             صامتًا في فرعٍ افتراضيٍّ يُخمّن تمثيلًا خاطئًا.")
+    lines.append("         * @brief (EN) SadTypeKind cardinality — consumed by static_assert in the")
+    lines.append("         *             type bridges (e.g. astTypeToSIRType) so that adding a kind")
+    lines.append("         *             to types.yaml BREAKS THE BUILD instead of letting the new")
+    lines.append("         *             kind fall silently into a guessing default branch.")
+    lines.append("         */")
+    lines.append(f"        inline constexpr int SAD_TYPE_KIND_COUNT = {len(types)};")
+    lines.append("")
 
     # ========================================================================
     # (AR) دالة الاسم العربي لـنوع() — مصدر حقيقة واحد للمحرّكين (مفسّر + مترجم).
