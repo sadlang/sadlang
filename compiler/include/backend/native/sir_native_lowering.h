@@ -73,9 +73,21 @@ namespace sad
         //      addr=0 (النواةُ تختار)، prot=قراءة|كتابة، flags=خاصّ|مجهول (الذاكرةُ مُصفّرةٌ
         //      سلفًا ⇒ tags/homogKind للمصفوفة يُصفّران مجّانًا)، fd=-1، offset=0.
         inline constexpr long long kSysMmapX86 = 9;      // (AR) mmap
+        inline constexpr long long kSysMunmapX86 = 11;   // (AR) munmap — لتحرير كتلةِ الكومة (FREE)
         inline constexpr long long kProtReadWrite = 0x3; // (AR) PROT_READ|PROT_WRITE
         inline constexpr long long kMapPrivAnon = 0x22;  // (AR) MAP_PRIVATE|MAP_ANONYMOUS
         inline constexpr long long kMmapNoFd = -1;       // (AR) fd للتخصيص المجهول = ‎-1‎
+
+        // (AR) نواةُ الكومة الأصليّة (حجز/حرر): mmap لكلّ تخصيصٍ برأسِ ١٦ بايتًا خفيّ قبل ما يراه
+        //      المستخدم [توقيعٌ سحريّ@0 | حجمُ mmap الكلّيّ@8]، والمؤشّرُ المُعاد = base+16 (محاذاةُ
+        //      ١٦ تكفي SadArray/SSE). حرر يقرأ الرأسَ: إن طابق التوقيعَ فـmunmap(base, الحجمُ الكلّيّ)
+        //      وإلّا **يتخطّى بأمان** (مؤشّرٌ أجنبيّ/مصفوفةٌ بلا رأس ⇒ لا يُفكّ منطقةً عشوائيّة).
+        //      🔑 نُخزّن الحجمَ الكلّيَّ (size+16) لا حجمَ المستخدم: munmap لحجمٍ ناقصٍ يُسرّب صفحةً
+        //      حين يعبر التخصيصُ حدَّ صفحة (قيدُ أميليا الإلزاميّ ١).
+        inline constexpr long long kHeapHdrBytes = 16;               // (AR) رأسٌ خفيّ (توقيع + حجم)
+        inline constexpr long long kHeapMagicOff = 0;                // (AR) إزاحةُ التوقيع في الرأس
+        inline constexpr long long kHeapSizeOff = 8;                 // (AR) إزاحةُ الحجم الكلّيّ في الرأس
+        inline constexpr long long kHeapMagic = 0x5341444845415001LL; // (AR) توقيعٌ مميّز "SADHEAP\x01"
 
         // (AR) تخطيطُ SadArray الخماسيّ (يُطابق مسارَ LLVM array_ops.cpp:49): إزاحاتٌ ثابتة.
         //      المتجانسةُ العدديّة: tags=null (المسارُ الساكن)، homogKind=Integer=0 (كلاهما صفرٌ
@@ -713,6 +725,12 @@ namespace sad
             {
                 return emit(x86::mnem::kMov, "m8, r8", {x86::Operand::M(ptrReg, 0), x86::Operand::R(srcReg)});
             }
+            // (AR) mov dstLow8, [ptrReg] — تحميلُ بايتٍ واحد (8A /r) إلى أدنى ٨ بتّاتٍ من dstReg
+            //      (لا يُصفّر الأعلى؛ لكنّ storeByte يكتب الأدنى فقط ⇒ لا يضرّ). لحلقةِ نسخِ الذاكرة.
+            bool loadByte(int dstReg, int ptrReg)
+            {
+                return emit(x86::mnem::kMov, "r8, m8", {x86::Operand::R(dstReg), x86::Operand::M(ptrReg, 0)});
+            }
             // (AR) mov r64, imm64 (movabs) — لثابتٍ ٦٤-بت لا يُمثَّل بـimm32 (مثل fd=-1).
             bool movImm64(int reg, long long imm)
             {
@@ -1198,6 +1216,7 @@ namespace sad
                 bool hasNumberPrint = false; // (AR) طباعةُ عددٍ (تلزمها خانةُ مخزنِ itoa)
                 bool hasFloatPrint = false;  // (AR) طباعةُ عشريّ (تلزمها خانةُ خدشِ البتّات + مُنسِّق fixed6)
                 bool hasBoxing = false;      // (AR) SET/GET معلَّبٌ (Any) ⇒ يستعمل الحوضَ خدشًا + خانات dyn
+                bool hasMemBlock = false;    // (AR) حجز/حرر/عبّئ/انسخ (نواةُ الكومة) ⇒ syscall/حلقةٌ تدهس الحوض
                 dynGetCount_ = 0;
                 for (const auto &blockPtr : blocks)
                     for (const auto &inst : blockPtr->instructions)
@@ -1244,6 +1263,17 @@ namespace sad
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_ARRAY_APPEND ||
                                  inst.opcode == sir::SIROpcode::ARRAY_APPEND)
                             hasAppend = true;
+                        else if (inst.opcode == sir::SIROpcode::ALLOC_HEAP ||
+                                 inst.opcode == sir::SIROpcode::FFI_MALLOC ||
+                                 inst.opcode == sir::SIROpcode::FREE ||
+                                 inst.opcode == sir::SIROpcode::FFI_FREE ||
+                                 inst.opcode == sir::SIROpcode::MEMSET ||
+                                 inst.opcode == sir::SIROpcode::FFI_MEMSET ||
+                                 inst.opcode == sir::SIROpcode::BUILTIN_MEM_SET ||
+                                 inst.opcode == sir::SIROpcode::MEMCPY ||
+                                 inst.opcode == sir::SIROpcode::FFI_MEMCPY ||
+                                 inst.opcode == sir::SIROpcode::BUILTIN_MEM_COPY)
+                            hasMemBlock = true; // (AR) syscall/حلقةُ بايتاتٍ تدهس الحوض ⇒ انسكابٌ حولَها
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_PRINT)
                         {
                             hasPrint = true;
@@ -1340,7 +1370,7 @@ namespace sad
                 // (AR) إن نادت الدالّةُ أو طبعت، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض. النداءُ
                 //      يدهس كلَّ الحوض (caller-saved)، والطباعةُ تستعمل سجلّاتِ الحوض مُبدَّداتٍ ⇒
                 //      تُنسَك المؤقّتاتُ الحيّةُ حولَهما وتُعاد.
-                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing)
+                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing || hasMemBlock)
                 {
                     spillBase_ = -(used + 8);
                     used += static_cast<long long>(pool_.size()) * 8;
@@ -1526,6 +1556,193 @@ namespace sad
                     if (!allocReg(inst.result->name, dst))
                         return false;
                     return loadInto(dst, inst.operands[0]) && rolImm(dst, n);
+                }
+                // ── نواة الكومة الأصليّة (الدفعة ٢): مؤشّرات + تخصيص/تحرير + نسخ/ملء الذاكرة ──
+                case OP::PTR_CAST:
+                {
+                    // (AR) تحويلُ مؤشّر (i64↔ptr): هويّةٌ في نموذجِ القيمة-في-سجلّ (لا تغييرَ تمثيل).
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!loadInto(x86::RAX, inst.operands[0]))
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, x86::RAX);
+                }
+                case OP::PTR_ADD:
+                {
+                    // (AR) حسابُ مؤشّرٍ ببايتات: result = ptr + offset (المُبدَّدان RAX/RDI خارجَ الحوض).
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!loadInto(x86::RAX, inst.operands[0]))
+                        return false;
+                    long long off;
+                    if (common::isConstInt(inst.operands[1], off))
+                    {
+                        if (!addImm(x86::RAX, off))
+                            return false;
+                    }
+                    else if (!loadInto(x86::RDI, inst.operands[1]) || !addReg(x86::RAX, x86::RDI))
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, x86::RAX);
+                }
+                case OP::ALLOC_HEAP:
+                case OP::FFI_MALLOC:
+                {
+                    // (AR) حجز(size): mmap(size+16)؛ اكتب [base]=توقيع، [base+8]=الحجمُ الكلّيّ؛ أرجِع
+                    //      base+16. نَنسِك المؤقّتاتِ الحيّةَ/المعاملاتِ (mmap يدهس caller-saved) ثمّ نعيدها.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    // (AR) RSI = الحجمُ الكلّيّ = size + 16 (من خانةِ الانسكاب/ثابت ⇒ لا تصادمَ نقلٍ متوازٍ).
+                    if (!loadArgInto(x86::RSI, inst.operands[0]) || !addImm(x86::RSI, kHeapHdrBytes))
+                        return false;
+                    if (!emitMmapPresetSize()) // (AR) RAX=base؛ RSI يبقى (لا mmap ولا النواةُ يدهسانه)
+                        return false;
+                    if (!movImm64(x86::RDI, kHeapMagic) || !storeMemBase(x86::RAX, kHeapMagicOff, x86::RDI))
+                        return false;
+                    if (!storeMemBase(x86::RAX, kHeapSizeOff, x86::RSI)) // (AR) خزّنِ الحجمَ الكلّيَّ
+                        return false;
+                    if (!addImm(x86::RAX, kHeapHdrBytes)) // (AR) المؤشّرُ المُعاد = base + 16
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, x86::RAX);
+                }
+                case OP::FREE:
+                case OP::FFI_FREE:
+                {
+                    // (AR) حرر(ptr): base=ptr-16؛ إن طابق [base] التوقيعَ فـmunmap(base, [base+8]) وإلّا
+                    //      يتخطّى دون فكِّ منطقةٍ عشوائيّة (قيدُ أميليا ٢: مصفوفةُ ARRAY_NEW الأجنبيّةُ ⇒
+                    //      base داخل منطقتها المخطَّطة ⇒ التوقيعُ لا يطابق ⇒ تخطٍّ). ⚠️ الحارسُ يقرأ
+                    //      [ptr−16]، فمؤشّرٌ حيث ptr−16 غيرُ مخطَّط (مكدّسٌ محاذٍ لحدّ صفحة/حرٌّ مزدوجٌ فُكّت
+                    //      منطقتُه) ⇒ SIGSEGV صريحٌ (فشلٌ حادّ لا إفسادٌ صامت) — متأصِّلٌ في كشفٍ بلا سجلٍّ حرّ.
+                    if (inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    if (!loadArgInto(x86::RDI, inst.operands[0]) || !subImm(x86::RDI, kHeapHdrBytes))
+                        return false; // (AR) RDI = base
+                    if (!loadMemBase(x86::RAX, x86::RDI, kHeapMagicOff) ||
+                        !movImm64(x86::RSI, kHeapMagic) || !cmpRegReg(x86::RAX, x86::RSI))
+                        return false;
+                    size_t skip;
+                    if (!emitJccFwd(x86::mnem::kJne, skip)) // (AR) لا يطابق ⇒ تخطَّ munmap
+                        return false;
+                    if (!loadMemBase(x86::RSI, x86::RDI, kHeapSizeOff) || // (AR) len = الحجمُ الكلّيّ
+                        !movImm(x86::RAX, kSysMunmapX86) || !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+                    patchFwd(skip);
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    if (inst.result) // (AR) FFI_FREE عديمةُ النتيجة عمومًا؛ حارسٌ دفاعيّ إن وُجِدت.
+                    {
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return movImm(dst, 0);
+                    }
+                    return true;
+                }
+                case OP::MEMSET:
+                case OP::FFI_MEMSET:
+                case OP::BUILTIN_MEM_SET:
+                {
+                    // (AR) عبّئ(dest, val, size): حلقةُ بايتاتٍ بفحصِ size=0 **في الرأس** (لا do-while ⇒
+                    //      لا التفافَ 2^64 عند size=0). dest→RDI، val→R8 (البايتُ الأدنى)، size→RCX.
+                    if (inst.operands.size() != 3)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    if (!loadArgInto(x86::RDI, inst.operands[0]) ||
+                        !loadArgInto(x86::R8, inst.operands[1]) ||
+                        !loadArgInto(x86::RCX, inst.operands[2]))
+                        return false;
+                    const size_t head = code_.size();
+                    if (!cmpZero(x86::RCX))
+                        return false;
+                    size_t done;
+                    if (!emitJccFwd(x86::mnem::kJe, done)) // (AR) size==0 ⇒ اخرج قبل الجسد
+                        return false;
+                    if (!storeByte(x86::RDI, x86::R8) || !addImm(x86::RDI, 1) ||
+                        !subImm(x86::RCX, 1) || !emitJmpBack(head))
+                        return false;
+                    patchFwd(done);
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    if (inst.result) // (AR) FFI_MEMSET تُرجع dest؛ BUILTIN/بارز بلا نتيجة.
+                    {
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return loadArgInto(dst, inst.operands[0]);
+                    }
+                    return true;
+                }
+                case OP::MEMCPY:
+                case OP::FFI_MEMCPY:
+                case OP::BUILTIN_MEM_COPY:
+                {
+                    // (AR) انسخ(dest, src, size): حلقةُ بايتاتٍ أماميّةٌ بفحصِ size=0 في الرأس. dest→RDI،
+                    //      src→RSI، size→RCX، البايتُ عبر R8 (loadByte الجديدة 8A). دلالةُ memcpy (تراكبٌ
+                    //      غيرُ معرَّف، ليست memmove).
+                    if (inst.operands.size() != 3)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    if (!loadArgInto(x86::RDI, inst.operands[0]) ||
+                        !loadArgInto(x86::RSI, inst.operands[1]) ||
+                        !loadArgInto(x86::RCX, inst.operands[2]))
+                        return false;
+                    const size_t head = code_.size();
+                    if (!cmpZero(x86::RCX))
+                        return false;
+                    size_t done;
+                    if (!emitJccFwd(x86::mnem::kJe, done))
+                        return false;
+                    if (!loadByte(x86::R8, x86::RSI) || !storeByte(x86::RDI, x86::R8) ||
+                        !addImm(x86::RDI, 1) || !addImm(x86::RSI, 1) ||
+                        !subImm(x86::RCX, 1) || !emitJmpBack(head))
+                        return false;
+                    patchFwd(done);
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    if (inst.result) // (AR) FFI_MEMCPY تُرجع dest.
+                    {
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return loadArgInto(dst, inst.operands[0]);
+                    }
+                    return true;
                 }
                 case OP::AND:
                 case OP::OR:

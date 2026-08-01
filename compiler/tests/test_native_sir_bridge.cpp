@@ -1385,6 +1385,95 @@ TEST(Arm64SirBridge, LowersDynamicRangePhi)
     ASSERT_TRUE(ok);
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// (AR) نواةُ الكومة الأصليّة (الدفعة ٢): ALLOC_HEAP/FREE/PTR_ADD/PTR_CAST/MEMSET/MEMCPY.
+//      SIR مبنيٌّ يدويًّا (كـBackwardJumpNegativeFixup) لأنّ الأوپكوداتِ العاريةَ لا يولّدها
+//      الأمامُ (الشقيقُ FFI حيّ، والعاري ميّت) ⇒ نُمارِسها مباشرةً. البرنامجُ يُثبت الصحّةَ حيًّا:
+//        va=خانة؛ خزّن 42→va؛ vb=خانة؛ vh=حجز(64)؛ pa=&va؛ pb=&vb؛ ph=(مؤشّر)vh؛
+//        عبّئ(ph,7,8) [كتابةٌ للكومة]؛ pc=(مؤشّر)pa؛ pd=pb+0؛ عبّئ(pd,0,8)؛ انسخ(pd,pc,1)؛
+//        حرّر(vh)؛ r=vb؛ ارجع r.
+//      المخرَجُ ٤٢ ⇒ النسخُ نقل البايتَ صحيحًا، والكومةُ خُصِّصت وكُتِبت وحُرِّرت بلا انهيار.
+// ════════════════════════════════════════════════════════════════════════════
+namespace
+{
+    std::shared_ptr<Sad::Compiler::SIR::SIRModule> buildHeapMemModule()
+    {
+        using namespace Sad::Compiler::SIR;
+        using Sad::Types::SadTypeKind;
+        auto mod = std::make_shared<SIRModule>("heapmem");
+        auto fn = std::make_shared<SIRFunction>(
+            "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9", SadTypeKind::Integer); // رئيسية
+        auto e = std::make_shared<SIRBasicBlock>("entry");
+        auto R = [](const char *n, SadTypeKind t) { return SIROperand::Register(n, t); };
+        auto I = [](int64_t v) { return SIROperand::ConstantI64(v); };
+        const SadTypeKind kInt = SadTypeKind::Integer;
+        const SadTypeKind kPtr = SadTypeKind::Pointer;
+        e->addInstruction(SIRInstruction::Alloc(R("va", kInt), kInt, I(8)));
+        e->addInstruction(SIRInstruction::Store(I(42), R("va", kInt)));
+        e->addInstruction(SIRInstruction::Alloc(R("vb", kInt), kInt, I(8)));
+        e->addInstruction(SIRInstruction(SIROpcode::ALLOC_HEAP, R("vh", kPtr), {I(64)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADDR, R("pa", kPtr), {R("va", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADDR, R("pb", kPtr), {R("vb", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::PTR_CAST, R("ph", kPtr), {R("vh", kPtr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::MEMSET, std::nullopt, {R("ph", kPtr), I(7), I(8)}));
+        e->addInstruction(SIRInstruction(SIROpcode::PTR_CAST, R("pc", kPtr), {R("pa", kPtr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::PTR_ADD, R("pd", kPtr), {R("pb", kPtr), I(0)}));
+        e->addInstruction(SIRInstruction(SIROpcode::MEMSET, std::nullopt, {R("pd", kPtr), I(0), I(8)}));
+        e->addInstruction(SIRInstruction(SIROpcode::MEMCPY, std::nullopt, {R("pd", kPtr), R("pc", kPtr), I(1)}));
+        e->addInstruction(SIRInstruction(SIROpcode::FREE, std::nullopt, {R("vh", kPtr)}));
+        e->addInstruction(SIRInstruction::Load(R("r", kInt), R("vb", kInt)));
+        e->addInstruction(SIRInstruction::Return(R("r", kInt)));
+        fn->addBasicBlock(e);
+        mod->addFunction(fn);
+        return mod;
+    }
+} // namespace
+
+// (AR) x86-64: نواةُ الكومة تُخفَّض، الـELF سليم، والبايتاتُ تحوي syscall (mmap/munmap = 0F 05)
+//      وتحميلَ بايتٍ (mov r8b,[rsi] = 8A) — الترميزُ الجديد. تُكتب لبرهانِ خروجِ ٤٢ حيًّا.
+TEST(NativeSirBridge, LowersHeapMemCore)
+{
+    auto module = buildHeapMemModule();
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap للحجز + munmap للتحرير)
+    ASSERT_TRUE(contains(bin, {0x8A}));       // mov r8b,[rsi] — حِملُ بايتٍ في حلقةِ النسخ (0x8A)
+
+    std::FILE *fp = std::fopen("sad_sir_heapmem42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) AArch64: نفسُ نواةِ الكومة تُخفَّض لـARM64 (svc للحجز/التحرير + ldrb لحلقةِ النسخ).
+//      e_machine=EM_AARCH64=183. تُكتب لبرهانِ خروجِ ٤٢ على qemu-aarch64.
+TEST(Arm64SirBridge, LowersHeapMemCore)
+{
+    auto module = buildHeapMemModule();
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    ASSERT_TRUE(contains(bin, {0x40, 0x39})); // ldrb Wt,[Xn] (0x394000xx ⇒ بايتا 0x40,0x39)
+
+    std::FILE *fp = std::fopen("sad_arm64_heapmem42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
 int main(int argc, char **argv)
 {
     (void)argc;

@@ -88,6 +88,16 @@ instructions:
       encode:
         opcode: [0x88]
         modrm: { mod: mem, reg: op1, rm: op0 }
+    # mov r8, r/m8  ⇒  8A /r   (تحميلُ بايتٍ واحد: reg=الوجهة ٨-بت، rm=الذاكرة؛ بلا REX.W)
+    #   يُستعمَل في حلقةِ نسخِ/تعبئةِ الذاكرة البايتيّة (MEMCPY/MEMSET). متحقَّق: mov al,[rbp-8] = 8a 45 f8
+    - en: mov
+      form: "r8, m8"
+      operands:
+        - { kind: reg, class: gpr, role: out, bits: 8 }
+        - { kind: mem, class: gpr, role: in, bits: 8 }
+      encode:
+        opcode: [0x8A]
+        modrm: { mod: mem, reg: op0, rm: op1 }
       reads_dest: false
 
   # add r/m64, r64  ⇒  REX.W + 01 /r

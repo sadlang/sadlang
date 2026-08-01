@@ -59,6 +59,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "لِفّ_يمين", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 214, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 11, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "عيّن_إذا", "x, cond", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 212, true, -1 }, { 20, 16, 31, true, -1 }, { 15, 12, 0, false, 1 }, { 11, 10, 1, true, -1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
     { "اخزن_بايت", "w, x", sad::native::arm64::EncSpec{ 32, { { 31, 22, 228, true, -1 }, { 21, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "احمل_بايت", "w, x", sad::native::arm64::EncSpec{ 32, { { 31, 22, 229, true, -1 }, { 21, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اقفز_إن_ليس_صفرًا", "x, rel19", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 24, 53, true, -1 }, { 23, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "عبّئ_عشري", "d, x", sad::native::arm64::EncSpec{ 32, { { 31, 16, 40551, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "استخرج_عشري", "x, d", sad::native::arm64::EncSpec{ 32, { { 31, 16, 40550, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
@@ -111,6 +112,7 @@ inline const std::string kAsrv = "أزح_يمين_حسابي";
 inline const std::string kRorv = "لِفّ_يمين";
 inline const std::string kCset = "عيّن_إذا";
 inline const std::string kStrb = "اخزن_بايت";
+inline const std::string kLdrb = "احمل_بايت";
 inline const std::string kCbnz = "اقفز_إن_ليس_صفرًا";
 inline const std::string kFmovDX = "عبّئ_عشري";
 inline const std::string kFmovXD = "استخرج_عشري";

@@ -636,6 +636,22 @@ instructions:
           - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
 
+  # LDRB Wt, [Xn]   ⇒  00 111 0 01 01 imm12(0) Rn Rt   (تحميلُ بايتٍ واحد؛ لحلقةِ نسخ الذاكرة، متحقَّق: ldrb w14,[x12] = 0x3940018E)
+  احمل_بايت:
+    - en: ldrb
+      form: "w, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }                # Wt: البايتُ المحمَّل (٨ بتّات دنيا، ممدَّدٌ بالصفر)
+        - { kind: reg, class: gpr, role: in }                 # Xn: عنوانُ القاعدة
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 22, const: 229 }        # 0b0011100101 (LDRB غير مفهرس، إزاحة٠)
+          - { name: imm12, hi: 21, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
   # CBNZ Xt, label   ⇒  sf 011010 1 imm19 Rt   (اقفز إن لم يكن السجلُّ صفرًا؛ للولب itoa، متحقَّق: cbnz x9,#-8 = 0xB5FFFFC9)
   اقفز_إن_ليس_صفرًا:
     - en: cbnz
