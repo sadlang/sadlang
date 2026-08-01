@@ -37,6 +37,9 @@ namespace sad { namespace native { namespace diag {
 
     // ── tag ──
     inline const std::string kAllocUnslotted = "alloc-unslotted:";  // ALLOC بلا خانةِ إطارٍ مخصَّصة
+    inline const std::string kPhiUnslotted = "phi-unslotted:";  // PHI بلا خانةِ إطارٍ مخصَّصة (المسحُ المسبق أخفق)
+    inline const std::string kAddrNonslot = "addr-nonslot:";  // ADDR لغيرِ متغيّرِ إطارٍ (عنوانُ مؤشّرِ حوضٍ غيرُ مدعوم)
+    inline const std::string kRolVar = "rol-var:";  // ROL بمقدارٍ متغيّرٍ (المدعومُ ثابتٌ فقط؛ يتيمٌ سطحيًّا)
     inline const std::string kArgsGt6 = "args>6:";  // وسائطُ نداءٍ تتجاوز ٦ (AAPCS64 x0-x7؛ الحدُّ الحاليّ ٦)
     inline const std::string kArgsGt8 = "args>8:";  // وسائطُ نداءٍ تتجاوز ٨
     inline const std::string kArrayIndexImm12 = "array-index-imm12:";  // فهرسٌ ثابتٌ يتجاوز imm12 (٤٠٩٥) في عنونةِ عنصر

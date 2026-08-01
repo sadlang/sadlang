@@ -579,6 +579,26 @@ instructions:
           - { name: Rd,     hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
 
+  # RORV Xd, Xn, Xm   ⇒  sf 00 11010110 Rm 001011 Rn Rd   (دورانٌ يمينًا بمقدار سجلّ؛ يبني ROL عبر Rm=64−n؛ متحقَّق: rorv x9,x16,x17 = 0x9AD12E09)
+  #   أوپكود ROL يتيمٌ سطحيًّا (لا باعثَ أماميًّا يُصدِره) ⇒ للاكتمال، مُتحقَّقٌ تفاضليًّا فقط.
+  لِفّ_يمين:
+    - en: rorv
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,     hi: 31, lo: 31, const: 1 }
+          - { name: fixed,  hi: 30, lo: 21, const: 214 }       # 0b0011010110
+          - { name: Rm,     hi: 20, lo: 16, from: op2 }
+          - { name: fixed2, hi: 15, lo: 10, const: 11 }        # 0b001011 (RORV)
+          - { name: Rn,     hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,     hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
   # CSET Xd, cond = CSINC Xd, XZR, XZR, invert(cond)   ⇒  sf 00 11010100 11111 cond 01 11111 Rd
   #   يُنتِج ٠/١ حسب الشرط (المقارنةُ كقيمة). حقلُ cond المُرمَّز = المقلوبُ (cond XOR 1)، يحسبه المخفّض.
   #   متحقَّق: cset x9,eq (المُرمَّز ne) = 0x9A9F17E9.

@@ -35,6 +35,7 @@
 #include <cstdint>
 #include <cstring>
 #include <map>
+#include <set>
 #include <memory>
 #include <string>
 #include <vector>
@@ -66,6 +67,7 @@ namespace sad
             inline constexpr int kScratch0 = 16; // (AR) x16 (IP0) مُبدَّدٌ لتجهيز المعامل الأوّل
             inline constexpr int kScratch1 = 17; // (AR) x17 (IP1) مُبدَّدٌ لتجهيز المعامل الثاني
             inline constexpr int kXzr = 31;      // (AR) السجلّ الصفريّ XZR في موضعِ Rm/Rn الحسابيّ (لا SP)
+            inline constexpr int kSp = 31;       // (AR) مؤشّرُ المكدّس SP — الرقمُ ٣١ في عنونةِ add/sub الفوريّة (لا XZR)
             inline constexpr long long kImm16Max = 0xFFFF; // (AR) أقصى فوريّ لـMOVZ (بلا MOVK)
         } // namespace a64reg
 
@@ -168,6 +170,12 @@ namespace sad
             // (AR) الذاكرة: اسمُ خانةٍ (معامل أو ALLOC) ⇒ فهرسُها (٠،١،…)؛ العنوانُ [sp, #فهرس×٨].
             //      STR/LDR تستعملان imm12 مقيسًا بـ٨ فالفهرسُ = imm12 مباشرةً. حجمُ الإطارِ مُحاذًى ١٦.
             std::map<std::string, int> memSlot_;
+            // (AR) حوافُ PHI: اسمُ الكتلةِ السَّلَف ⇒ (معاملُ القيمةِ الوارد، اسمُ ناتجِ PHI). الحوضُ
+            //      النظيفُ لكلّ كتلةٍ لا يحمل قيمةً عابرة ⇒ نحمِلها بخانةِ إطارٍ (السَّلَفُ يخزّن، الدامجُ يقرأ).
+            std::map<std::string, std::vector<std::pair<sir::SIROperand, std::string>>> phiEdges_;
+            // (AR) قيمٌ تُعرَّف في كتلةٍ وتُستعمَل في أخرى (عدا نتائجَ PHI): تُنسَك عند تعريفها في خانةِ إطارٍ
+            //      (strSlot) فتُقرأ memSlot_-أوّلًا عبر الحدّ ⇒ يُمكّن لولبَ المدى الديناميّ.
+            std::set<std::string> crossBlockSpill_;
             long long frameSize_ = 0; // (AR) بايتات (مُحاذاةُ ١٦)
 
             // (AR) الطباعة: فهرسُ قمّةِ مخزنِ itoa (العنوانُ الأعلى، حصريّ) في الإطار؛ الأرقامُ
@@ -356,6 +364,14 @@ namespace sad
                        movk(reg, static_cast<long long>((bits >> 16) & 0xFFFF), 1) &&
                        movk(reg, static_cast<long long>((bits >> 32) & 0xFFFF), 2) &&
                        movk(reg, static_cast<long long>((bits >> 48) & 0xFFFF), 3);
+            }
+            // (AR) يحمّل ثابتًا صحيحًا في سجلّ: [0, 2¹⁶) بـmovz واحدةٍ (مُوجَز)؛ السالبُ أو الأكبرُ
+            //      (كخطوةِ لولبٍ ديناميٍّ −1 = 0xFFFF…FFFF) عبر نمطِ البتّات الكامل movz+movk×3 ⇒ لا بترَ إشارة.
+            bool movConst(int reg, long long imm)
+            {
+                if (imm >= 0 && imm <= a64reg::kImm16Max)
+                    return movz(reg, imm);
+                return movImm64Bits(reg, static_cast<unsigned long long>(imm));
             }
             // (AR) يحمّل ثابتَ عشريّ (نمطُ بتّاته i64، إعادةُ تفسيرٍ زمنَ التصريف) في سجلّ GPR.
             bool loadFloatConst(int reg, double v)
@@ -867,7 +883,7 @@ namespace sad
             {
                 long long c;
                 if (common::isConstInt(op, c))
-                    return movz(dst, c);
+                    return movConst(dst, c);
                 // (AR) ثابتٌ عشريّ ⇒ حمّل نمطَ بتّاته i64 (العشريّ يعيش كبتّاتٍ في GPR).
                 if (op.type == sir::SIROperandType::CONSTANT &&
                     op.dataType == types::SadTypeKind::Float)
@@ -892,7 +908,7 @@ namespace sad
             {
                 long long c;
                 if (common::isConstInt(op, c))
-                    return movz(dst, c);
+                    return movConst(dst, c);
                 // (AR) ثابتٌ عشريّ ⇒ نمطُ بتّاته i64 (العشريّ يعيش كبتّاتٍ في GPR).
                 if (op.type == sir::SIROperandType::CONSTANT &&
                     op.dataType == types::SadTypeKind::Float)
@@ -936,6 +952,15 @@ namespace sad
                 for (const auto &blockPtr : fn.getBasicBlocks())
                     for (const auto &inst : blockPtr->instructions)
                     {
+                        // (AR) PHI: احجز خانةً لناتجِه (memSlot_ ⇒ قراءةٌ لاحقةٌ تُحلُّ تحميلًا)، وسجّل
+                        //      كلَّ حافّةٍ بأزواجِ [قيمة، لصيقةُ سَلَف].
+                        if (inst.opcode == sir::SIROpcode::PHI && inst.result)
+                        {
+                            memSlot_[inst.result->name] = slot++;
+                            for (size_t k = 0; k + 1 < inst.operands.size(); k += 2)
+                                phiEdges_[inst.operands[k + 1].name].push_back(
+                                    {inst.operands[k], inst.result->name});
+                        }
                         if (inst.opcode == sir::SIROpcode::ALLOC && inst.result)
                             memSlot_[inst.result->name] = slot++;
                         else if (inst.opcode == sir::SIROpcode::CALL)
@@ -969,6 +994,37 @@ namespace sad
                             ++dynGetCount_;
                         }
                     }
+                // (AR) القيمُ العابرةُ للكتل (تُعرَّف في كتلةٍ وتُقرأ في أخرى، عدا PHI/ALLOC/السلاسل):
+                //      تُنسَك عند تعريفها في خانةٍ. مُمرَّرٌ أوّلٌ يسجّل كتلةَ التعريف، وثانٍ يكتشف الاستعمالَ
+                //      المغاير (متجاهلًا معامِلاتِ PHI). كلٌّ يُخصَّص فهرسَ خانةٍ هنا (slot++).
+                {
+                    std::map<std::string, const sir::SIRBasicBlock *> defBlk;
+                    for (const auto &blockPtr : fn.getBasicBlocks())
+                        for (const auto &inst : blockPtr->instructions)
+                        {
+                            if (!inst.result || inst.opcode == sir::SIROpcode::ALLOC ||
+                                inst.opcode == sir::SIROpcode::PHI)
+                                continue;
+                            if (inst.opcode == sir::SIROpcode::MOVE && !inst.operands.empty() &&
+                                inst.operands[0].type == sir::SIROperandType::CONSTANT &&
+                                inst.operands[0].dataType == types::SadTypeKind::String)
+                                continue;
+                            defBlk[inst.result->name] = blockPtr.get();
+                        }
+                    for (const auto &blockPtr : fn.getBasicBlocks())
+                        for (const auto &inst : blockPtr->instructions)
+                            // (AR) نشمل معامِلاتِ PHI عمدًا (نسكُها عند التعريف يحصُنُ خزنَ الحافّة ضدّ الدهس).
+                            for (const auto &op : inst.operands)
+                                if (op.type == sir::SIROperandType::REGISTER)
+                                {
+                                    auto it = defBlk.find(op.name);
+                                    if (it != defBlk.end() && it->second != blockPtr.get())
+                                        crossBlockSpill_.insert(op.name);
+                                }
+                    for (const auto &name : crossBlockSpill_)
+                        if (memSlot_.find(name) == memSlot_.end())
+                            memSlot_[name] = slot++;
+                }
                 // (AR) 🔑 النطاق (نداءٌ ورقيّ بلا حفظ x30): الدالّةُ الداخلة تنادي وتخرج svc (لا
                 //      تعود، فلا يهمّها دهسُ x30). الدالّةُ غيرُ الداخلة إن نادت تدهسُ x30 قبل RET
                 //      (لا نحفظه بعد) ⇒ رفضٌ صريح. فالنداءُ مسموحٌ من الداخلة فقط (المنادَاةُ ورقة).
@@ -1054,6 +1110,7 @@ namespace sad
                 case OP::ADD_I64: return rrr(a64::mnem::kAdd, dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::SUB_I64: return rrr(a64::mnem::kSub, dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::MUL_I64: return rrr(a64::mnem::kMul, dst, a64reg::kScratch0, a64reg::kScratch1);
+                case OP::DIV_I64:       // (AR) قسمةٌ صحيحةٌ (حاصلُ sdiv)؛ يتيمةٌ سطحيًّا (`/`⇒FLOOR_DIV_I64).
                 case OP::FLOOR_DIV_I64:
                     return rrr(a64::mnem::kSdiv, dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::MOD_I64:
@@ -1220,7 +1277,7 @@ namespace sad
                         return false;
                     long long c;
                     if (common::isConstInt(inst.operands[0], c))
-                        return movz(dst, c);
+                        return movConst(dst, c);
                     // (AR) ثابتٌ عشريّ ⇒ حمّل نمطَ بتّاته i64 (العشريّ يعيش كبتّاتٍ في GPR).
                     if (inst.operands[0].type == sir::SIROperandType::CONSTANT &&
                         inst.operands[0].dataType == types::SadTypeKind::Float)
@@ -1241,6 +1298,7 @@ namespace sad
                 case OP::SUB_I64:
                 case OP::MUL_I64:
                 case OP::MOD_I64:
+                case OP::DIV_I64:
                 case OP::FLOOR_DIV_I64:
                 case OP::AND:
                 case OP::OR:
@@ -1256,6 +1314,67 @@ namespace sad
                 case OP::I64_TO_F64:
                 case OP::F64_TO_I64:
                     return lowerFloatConv(inst);
+                case OP::PHI:
+                {
+                    // (AR) PHI: لا شيفرة — القيمةُ تعيش في خانةِ الإطار (السَّلَفُ يخزّن، الدامجُ يقرأ).
+                    if (!inst.result || memSlot_.find(inst.result->name) == memSlot_.end())
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kPhiUnslotted + detailOpcode(inst));
+                    return true;
+                }
+                case OP::NULL_ASSERT: // (AR) تأكيدُ عدمٍ مؤكَّد T؟→T: هويّة (حارسُ العدمِ زمنَ التشغيل مستقلّ).
+                case OP::BOOL_TO_I64: // (AR) منطقيّ (٠/١) ⇒ صحيح: هويّة.
+                case OP::CAST:        // (AR) تحويلٌ بلا تغييرِ تمثيلٍ (i64→i64): هويّة.
+                {
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return materialize(dst, inst.operands[0]);
+                }
+                case OP::I64_TO_BOOL:
+                {
+                    // (AR) صحيح ⇒ منطقيّ (٠/١): cmp scratch,xzr؛ cset dst,ne (غيرُ صفرٍ ⇒ ١). الحقلُ ٠=ne.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return materialize(a64reg::kScratch0, inst.operands[0]) &&
+                           cmp(a64reg::kScratch0, a64reg::kXzr) &&
+                           emit(a64::mnem::kCset, "x, cond", {a64::Operand::R(dst), a64::Operand::I(0)});
+                }
+                case OP::ADDR:
+                {
+                    // (AR) عنوانُ متغيّرِ إطارٍ (ALLOC/معامل): add dst, sp, #(فهرس×٨). عنوانُ مؤشّرِ حوضٍ غيرُ مدعوم.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int slot;
+                    if (!isMemVar(inst.operands[0], slot))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kAddrNonslot + detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return addImm(dst, a64reg::kSp, static_cast<long long>(slot) * kArrSlotBytes);
+                }
+                case OP::ROL:
+                {
+                    // (AR) دورانٌ يسارًا (يتيمٌ سطحيًّا؛ صحيحٌ للاكتمال): ROL n = ROR (64−n). مقدارٌ ثابتٌ فقط.
+                    //      movz tmp,#(64−n)؛ rorv dst, src, tmp. n∈[0,63] (n=0 ⇒ 64 mod 64=0 = هويّة).
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long n;
+                    if (!common::isConstInt(inst.operands[1], n))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kRolVar + detailOpcode(inst));
+                    if (n < 0 || n > 63)
+                        return fail(EC::INT_NATIVE_IMM_RANGE, diag::kShift + std::to_string(n));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return materialize(a64reg::kScratch0, inst.operands[0]) &&
+                           movz(a64reg::kScratch1, 64 - n) &&
+                           rrr(a64::mnem::kRorv, dst, a64reg::kScratch0, a64reg::kScratch1);
+                }
                 case OP::NOT:
                 case OP::NEG:
                     return lowerNot(inst);
@@ -1748,6 +1867,9 @@ namespace sad
                                 diag::kCondKind + std::to_string(static_cast<int>(cond.type)));
 
                 const sir::SIRInstruction *cmpInst = common::findFusedComparison(block, cond.name);
+                // (AR) نتيجةٌ عابرةٌ للكتل ⇒ لا تُدمَج (تُقرأ من خانتها احتياطيًّا). يطابق lowerBlock.
+                if (cmpInst && cmpInst->result && crossBlockSpill_.count(cmpInst->result->name))
+                    cmpInst = nullptr;
                 if (!cmpInst || cmpInst->operands.size() != 2)
                 {
                     // (AR) قيمةٌ منطقيّةٌ حيّةٌ (٠/١) عُرِّفت في هذه الكتلة (نتيجةُ مقارنةِ عوائم أو
@@ -1773,6 +1895,20 @@ namespace sad
                        emitBranch(a64::mnem::kB, "rel26", elseLbl);
             }
 
+            // (AR) عند نهايةِ كتلةٍ سَلَفٍ (قبل قفزِها): خزّن كلَّ قيمةٍ واردةٍ لـPHI في خانةِ ناتجِه.
+            //      x16 مُبدَّد. الخانةُ تحمل القيمةَ عبر الحافّة إلى الكتلةِ الدامجة (تقرؤها memSlot_-أوّلًا).
+            bool emitPhiEdgeStores(const std::string &predName)
+            {
+                auto it = phiEdges_.find(predName);
+                if (it == phiEdges_.end())
+                    return true;
+                for (const auto &edge : it->second)
+                    if (!materialize(a64reg::kScratch0, edge.first) ||
+                        !strSlot(a64reg::kScratch0, memSlot_[edge.second]))
+                        return false;
+                return true;
+            }
+
             bool lowerBlock(const sir::SIRBasicBlock &block)
             {
                 const auto &is = block.instructions;
@@ -1786,6 +1922,9 @@ namespace sad
                     !is.back().operands.empty() &&
                     is.back().operands[0].type == sir::SIROperandType::REGISTER)
                     fused = common::findFusedComparison(block, is.back().operands[0].name);
+                // (AR) لا تُدمِج مقارنةً نتيجتُها عابرةٌ للكتل (تُنسَك؛ الفرعُ يقرؤها احتياطيًّا). سدُّ عائق أميليا ١.
+                if (fused && fused->result && crossBlockSpill_.count(fused->result->name))
+                    fused = nullptr;
 
                 for (size_t idx = 0; idx < is.size(); ++idx)
                 {
@@ -1795,6 +1934,9 @@ namespace sad
                     curInstIdx_ = idx;
                     if (&inst == fused)
                         continue;
+                    // (AR) قبل مُنهي هذه الكتلة: أفرِغ قيمَ PHI الواردةَ منها إلى خاناتها (إن كانت سَلَفًا).
+                    if (inst.isTerminatorInst() && !emitPhiEdgeStores(block.name))
+                        return false;
                     if (inst.opcode == sir::SIROpcode::BR)
                     {
                         if (!lowerBranch(inst))
@@ -1807,6 +1949,13 @@ namespace sad
                     }
                     else if (!lowerInstruction(inst, block, idx))
                         return false;
+                    // (AR) نسكُ قيمةٍ عابرةٍ للكتل عند تعريفها: خزّن ناتجَها في خانتِه (strSlot).
+                    if (inst.result && crossBlockSpill_.count(inst.result->name))
+                    {
+                        auto rit = regOf_.find(inst.result->name);
+                        if (rit != regOf_.end() && !strSlot(rit->second, memSlot_[inst.result->name]))
+                            return false;
+                    }
                 }
                 return true;
             }
@@ -1817,6 +1966,8 @@ namespace sad
                 currentFn_ = fn.getName();
                 curIsEntry_ = (currentFn_ == entryName_);
                 memSlot_.clear();
+                phiEdges_.clear();
+                crossBlockSpill_.clear();
                 regOf_.clear();
                 strReg_.clear();
                 next_ = 0;

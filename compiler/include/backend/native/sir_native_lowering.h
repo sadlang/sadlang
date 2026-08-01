@@ -48,6 +48,7 @@
 #include <cstdint>
 #include <cstring>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -232,6 +233,8 @@ namespace sad
                 currentFn_ = fn.getName();
                 curIsEntry_ = (currentFn_ == entryName_);
                 memSlot_.clear();
+                phiEdges_.clear();
+                crossBlockSpill_.clear();
                 regOf_.clear();
                 strReg_.clear();
                 next_ = 0;
@@ -309,6 +312,14 @@ namespace sad
             // (AR) الذاكرة: اسمُ الخانة (معامل أو ALLOC) ⇒ إزاحتُه عن rbp (سالبةٌ)، وحجمُ
             //      الإطار المُحاذى ١٦. تُملأ في المسح المسبق لكلّ دالّة.
             std::map<std::string, long long> memSlot_;
+            // (AR) حوافُ PHI: اسمُ الكتلةِ السَّلَف ⇒ قائمةُ (معاملِ القيمةِ الوارد، اسمُ ناتجِ PHI).
+            //      نموذجُ «الحوض النظيف لكلّ كتلة» لا يحمل قيمةً عابرةً بسجلّ ⇒ نحمِلها بخانةِ إطارٍ:
+            //      السَّلَفُ يخزّن قيمتَه الواردةَ في الخانة قبل قفزِه، والكتلةُ الدامجةُ تقرؤها لاحقًا.
+            std::map<std::string, std::vector<std::pair<sir::SIROperand, std::string>>> phiEdges_;
+            // (AR) قيمٌ تُعرَّف في كتلةٍ وتُستعمَل في أخرى (عدا نتائجَ PHI المُدارةَ بحوافّها): تُنسَك عند
+            //      تعريفها في خانةِ إطارٍ فتُقرأ memSlot_-أوّلًا عبر الحدّ. النموذجُ «حوضٌ نظيفٌ لكلّ كتلة»
+            //      لا يحمل قيمةً بسجلّ عبر الكتل ⇒ هذا الجسرُ يُمكّن لولبَ المدى الديناميّ (والتعابيرَ الشرطيّة).
+            std::set<std::string> crossBlockSpill_;
             long long frameSize_ = 0;
 
             // (AR) الانسكابُ عبر النداء: إزاحةُ الخانة الأولى لمنطقة انسكابِ سجلّات الحوض
@@ -481,7 +492,9 @@ namespace sad
             {
                 // (AR) اسمٌ يطابق خانةَ ALLOC لا يجوز أن يُخصَّص سجلَّ حوض: يقرؤه isMemVar من
                 //      الذاكرة بينما يخصّصه هذا سجلًّا ⇒ افتراقٌ صامتٌ لنصفَي الاسم. فشلٌ صريح.
-                if (memSlot_.find(vreg) != memSlot_.end())
+                //      **استثناءُ القيمة العابرة للكتل**: تُخصَّص سجلًّا (تُعرَّف فيه) ثمّ تُنسَك في خانتها
+                //      مباشرةً؛ القراءةُ اللاحقةُ من الخانة مقصودةٌ لا مُفترِقة (الخانةُ تُكتَب قبل أيّ قراءة).
+                if (memSlot_.find(vreg) != memSlot_.end() && !crossBlockSpill_.count(vreg))
                     return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kVregAliasesSlot + diag::kVregSigil + vreg);
                 auto it = regOf_.find(vreg);
                 if (it != regOf_.end())
@@ -542,13 +555,14 @@ namespace sad
             //      x86::mnem في الهيدر المولَّد من SoT (instructions.yaml) ⇒ إعادةُ
             //      تسميةٍ في الـYAML تنتشر آليًّا بلا انجرافٍ صامتٍ في المُخفِّض.
 
-            // (AR) mov r32, imm32 يمتدّ صفريًّا إلى ٦٤؛ لا يمثّل إلّا [0, 2³²). خارجَه
-            //      (سالبٌ أو ≥2³²) يُبتَر ⇒ نرفضه بوضوح (عيب أميليا رقم ٣).
+            // (AR) mov r32, imm32 يمتدّ صفريًّا إلى ٦٤؛ يمثّل [0, 2³²) بثلاثةِ بايتاتٍ زائدة. القيمةُ
+            //      السالبةُ أو ≥2³² (كخطوةِ لولبٍ ديناميٍّ −1) تُحمَّل بفوريّ ٦٤-بت كامل (mov r64,imm64)
+            //      ⇒ لا بترَ إشارة. (كان يُرفَض؛ الآن يُدعَم عبر المسار الكامل.)
             bool movImm(int reg, long long imm)
             {
-                if (imm < 0 || imm > 0xFFFFFFFFLL)
-                    return fail(EC::INT_NATIVE_IMM_RANGE, diag::kU32 + std::to_string(imm));
-                return emit(x86::mnem::kMov, "r32, imm32", {x86::Operand::R(reg), x86::Operand::I(imm, 32)});
+                if (imm >= 0 && imm <= 0xFFFFFFFFLL)
+                    return emit(x86::mnem::kMov, "r32, imm32", {x86::Operand::R(reg), x86::Operand::I(imm, 32)});
+                return movImm64(reg, imm);
             }
             bool movReg(int dst, int src)
             {
@@ -600,6 +614,8 @@ namespace sad
             bool sarImm(int dst, long long n) { return emit(x86::mnem::kSar, "r64, imm8", {x86::Operand::R(dst), x86::Operand::I(n, 8)}); } // (AR) dst >>= n (حسابيّ)
             bool sarCl(int dst) { return emit(x86::mnem::kSar, "r64, cl", {x86::Operand::R(dst)}); }    // (AR) dst >>= CL (حسابيّ، يمدّ الإشارة)
             bool negReg(int dst) { return emit(x86::mnem::kNeg, "r64", {x86::Operand::R(dst)}); }        // (AR) dst = −dst (متمّمٌ ثنائيّ)
+            bool rolImm(int dst, long long n) { return emit(x86::mnem::kRol, "r64, imm8", {x86::Operand::R(dst), x86::Operand::I(n, 8)}); } // (AR) dst = دورانٌ يسارًا n
+            bool leaMem(int dst, long long disp) { return emit(x86::mnem::kLea, "r64, m64", {x86::Operand::R(dst), x86::Operand::M(x86::RBP, disp)}); } // (AR) dst = &[rbp+disp]
             // ── المقارنة كقيمة: setcc r8 (٠/١ حسب الأعلام) ثمّ movzx r64,r8 (تمديدُ بالصفر) ──
             bool setccReg(const std::string &mnem, int r8) { return emit(mnem, "r8", {x86::Operand::R(r8)}); }
             // (AR) test r64,r64 — يضبط ZF إن كان السجلّ صفرًا (لاختبارِ منطقيٍّ حيٍّ في فرعٍ غيرِ مدموج).
@@ -1197,6 +1213,17 @@ namespace sad
                             hasBoxing = true;
                             ++dynGetCount_; // (AR) خانةُ dyn لكلّ قراءةٍ معلَّبة
                         }
+                        // (AR) PHI: احجز خانةَ إطارٍ لناتجِه (كـALLOC) — تسجيلُه في memSlot_ يجعل
+                        //      كلَّ قراءةٍ لاحقةٍ له تُحلُّ تحميلًا من الخانة تلقائيًّا (memSlot_ أوّلًا).
+                        //      وسجّل كلَّ حافّةٍ (القيمةُ الواردة، لصيقةُ السَّلَف) بأزواجِ [قيمة، لصيقة].
+                        if (inst.opcode == sir::SIROpcode::PHI && inst.result)
+                        {
+                            used += 8;
+                            memSlot_[inst.result->name] = -used;
+                            for (size_t k = 0; k + 1 < inst.operands.size(); k += 2)
+                                phiEdges_[inst.operands[k + 1].name].push_back(
+                                    {inst.operands[k], inst.result->name});
+                        }
                         if (inst.opcode == sir::SIROpcode::ALLOC && inst.result)
                         {
                             used += 8;
@@ -1231,6 +1258,43 @@ namespace sad
                             }
                         }
                     }
+                // (AR) القيمُ العابرةُ للكتل (تُعرَّف في كتلةٍ وتُقرأ في أخرى، عدا نتائجَ PHI ومتغيّراتِ
+                //      ALLOC والسلاسلِ الحرفيّة): تُنسَك عند تعريفها في خانةِ إطارٍ. مُمرَّرٌ أوّلٌ يسجّل
+                //      كتلةَ التعريفِ لكلّ ناتجٍ ذي قيمةٍ سجليّة، وثانٍ يكتشف الاستعمالَ في كتلةٍ مغايرة
+                //      (متجاهلًا معامِلاتِ PHI التي تديرها حوافُّها). كلٌّ يُخصَّص خانةً هنا (نفسُ مساحةِ used).
+                {
+                    std::map<std::string, const sir::SIRBasicBlock *> defBlk;
+                    for (const auto &blockPtr : blocks)
+                        for (const auto &inst : blockPtr->instructions)
+                        {
+                            if (!inst.result || inst.opcode == sir::SIROpcode::ALLOC ||
+                                inst.opcode == sir::SIROpcode::PHI)
+                                continue; // (AR) ALLOC/PHI مُدارتان بخاناتهما؛ لا نسكَ قيمةٍ لهما
+                            if (inst.opcode == sir::SIROpcode::MOVE && !inst.operands.empty() &&
+                                inst.operands[0].type == sir::SIROperandType::CONSTANT &&
+                                inst.operands[0].dataType == types::SadTypeKind::String)
+                                continue; // (AR) سلسلةٌ حرفيّةٌ (strReg_، لا قيمةَ سجلّ)
+                            defBlk[inst.result->name] = blockPtr.get();
+                        }
+                    for (const auto &blockPtr : blocks)
+                        for (const auto &inst : blockPtr->instructions)
+                            // (AR) نشمل معامِلاتِ PHI عمدًا: قيمتُها الواردةُ عابرةٌ (تُعرَّف في السَّلَف،
+                            //      تُقرأ في الدمج) ⇒ نسكُها عند التعريف يجعل خزنَ الحافّة يقرؤها memSlot_-أوّلًا،
+                            //      فيَحصُنُ ضدّ دهسِ نداءٍ/طباعةٍ لاحقٍ في السَّلَف (سدُّ عائق أميليا اللاتِن).
+                            for (const auto &op : inst.operands)
+                                if (op.type == sir::SIROperandType::REGISTER)
+                                {
+                                    auto it = defBlk.find(op.name);
+                                    if (it != defBlk.end() && it->second != blockPtr.get())
+                                        crossBlockSpill_.insert(op.name);
+                                }
+                    for (const auto &name : crossBlockSpill_)
+                        if (memSlot_.find(name) == memSlot_.end())
+                        {
+                            used += 8;
+                            memSlot_[name] = -used;
+                        }
+                }
                 // (AR) القسمةُ الصحيحةُ (idiv) تدهس rdx (=أوّلُ سجلّ حوض، قد يحمل مؤقّتًا حيًّا)؛
                 //      احجز خانةَ خدشٍ نحفظ فيها rdx حولَ التسلسل cqo/idiv ونعيده بعده.
                 if (hasIdiv)
@@ -1403,6 +1467,66 @@ namespace sad
                     return loadInto(dst, inst.operands[0]) && movqToXmm(kXmm0, dst) &&
                            cvttsd2si(dst, kXmm0);
                 }
+                case OP::PHI:
+                {
+                    // (AR) PHI: لا شيفرةَ تُصدَر — القيمةُ تعيش في خانةِ الإطار (حُجِزت في المسح المسبق).
+                    //      السَّلَفُ خزّنها عند حافّته (emitPhiEdgeStores)، والقارئُ يحمّلها memSlot_-أوّلًا.
+                    //      يفتح لولبَ المدى ذا الاتّجاه الديناميّ (أوّلُ باعثٍ أماميٍّ لـPHI).
+                    if (!inst.result || memSlot_.find(inst.result->name) == memSlot_.end())
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kPhiUnslotted + detailOpcode(inst));
+                    return true;
+                }
+                case OP::NULL_ASSERT: // (AR) تأكيدُ عدمٍ مؤكَّد T؟→T: هويّةٌ (حارسُ العدمِ زمنَ التشغيل مستقلّ).
+                case OP::BOOL_TO_I64: // (AR) منطقيّ (٠/١ في GPR أصلًا) ⇒ صحيح: هويّة.
+                case OP::CAST:        // (AR) تحويلٌ عامّ بلا تغييرِ تمثيلٍ (i64→i64): هويّة.
+                {
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadInto(dst, inst.operands[0]);
+                }
+                case OP::I64_TO_BOOL:
+                {
+                    // (AR) صحيح ⇒ منطقيّ (٠/١): test rax,rax؛ setne AL (غيرُ صفرٍ ⇒ ١)؛ movzx dst,AL.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadInto(x86::RAX, inst.operands[0]) && testReg(x86::RAX, x86::RAX) &&
+                           setccReg(x86::mnem::kSetne, x86::RAX) && movzxReg(dst, x86::RAX);
+                }
+                case OP::ADDR:
+                {
+                    // (AR) عنوانُ متغيّرِ إطارٍ (ALLOC/معامل): lea dst,[rbp+إزاحة]. عنوانُ مؤشّرِ حوضٍ غيرُ مدعوم.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long disp;
+                    if (!isMemVar(inst.operands[0], disp))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kAddrNonslot + detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return leaMem(dst, disp);
+                }
+                case OP::ROL:
+                {
+                    // (AR) دورانٌ يسارًا (يتيمٌ سطحيًّا؛ صحيحٌ للاكتمال): مقدارٌ ثابت ⇒ rol dst,imm8.
+                    //      المتغيّرُ غيرُ مدعوم (نادرٌ وميّت). n∈[0,63].
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long n;
+                    if (!common::isConstInt(inst.operands[1], n))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kRolVar + detailOpcode(inst));
+                    if (n < 0 || n > 63)
+                        return fail(EC::INT_NATIVE_IMM_RANGE, diag::kShift + std::to_string(n));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadInto(dst, inst.operands[0]) && rolImm(dst, n);
+                }
                 case OP::AND:
                 case OP::OR:
                 case OP::XOR:
@@ -1514,6 +1638,7 @@ namespace sad
                            movzxReg(dst, x86::RAX);                // (AR) dst = تمديدُ AL بالصفر
                 }
                 case OP::MOD_I64:
+                case OP::DIV_I64:       // (AR) قسمةٌ صحيحةٌ (حاصلُ idiv نحوَ الصفر)؛ يتيمةٌ سطحيًّا (`/`⇒FLOOR_DIV_I64).
                 case OP::FLOOR_DIV_I64:
                 {
                     // (AR) قسمةٌ صحيحةٌ موقَّعة: المقسومُ في rax، cqo يمدّ الإشارةَ إلى rdx:rax،
@@ -2083,8 +2208,11 @@ namespace sad
                 if (b.type == sir::SIROperandType::REGISTER)
                 {
                     long long disp;
+                    // (AR) معامِلٌ ثانٍ في خانةِ إطارٍ (متغيّرُ ALLOC أو قيمةٌ عابرةٌ للكتل مُنسَكة):
+                    //      حمّله في مُبدَّدٍ (RDI) ثمّ cmp RAX,RDI. (كان مرفوضًا؛ لزمَ لقيمِ الكتل العابرة.)
                     if (isMemVar(b, disp))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kCmpBMemvar + diag::kVregSigil + b.name);
+                        return loadMem(x86::RDI, disp) &&
+                               emit(x86::mnem::kCmp, "r64, r64", {x86::Operand::R(x86::RAX), x86::Operand::R(x86::RDI)});
                     auto it = regOf_.find(b.name);
                     if (it == regOf_.end())
                         return fail(EC::INT_NATIVE_UNDEF_VREG, diag::kVregSigil + b.name);
@@ -2132,6 +2260,9 @@ namespace sad
                 //      قيمةٌ منطقيّةٌ حيّةٌ (٠/١) عُرِّفت في هذه الكتلة (نتيجةُ مقارنةِ عوائم أو متغيّرٌ
                 //      منطقيّ) ⇒ اختبرها test؛ jnz then؛ jmp else. (مقارنةُ العوائم لا تُدمَج عمدًا.)
                 const sir::SIRInstruction *cmp = common::findFusedComparison(block, cond.name);
+                // (AR) نتيجةٌ عابرةٌ للكتل ⇒ لا تُدمَج (تُنسَك وتُقرأ من خانتها كمنطقيٍّ حيّ). يطابق lowerBlock.
+                if (cmp && cmp->result && crossBlockSpill_.count(cmp->result->name))
+                    cmp = nullptr;
                 if (!cmp || cmp->operands.size() != 2)
                 {
                     if (!loadInto(x86::RAX, cond)) // (AR) منطقيٌّ حيٌّ من الحوض/خانةِ الإطار
@@ -2156,6 +2287,20 @@ namespace sad
 
             // (AR) findFusedComparison نُقِلت إلى common — تُستدعى بـcommon::findFusedComparison.
 
+            // (AR) عند نهايةِ كتلةٍ سَلَفٍ (قبل قفزِها): خزّن كلَّ قيمةٍ واردةٍ لـPHI في خانةِ ناتجِه.
+            //      القيمةُ ما تزال حيّةً في هذه الكتلة (عُرِّفت فيها)، وRAX مُبدَّد. الخانةُ تحمل
+            //      القيمةَ عبر الحافّة إلى الكتلةِ الدامجة (تقرؤها memSlot_-أوّلًا بعد تنظيفِ الحوض).
+            bool emitPhiEdgeStores(const std::string &predName)
+            {
+                auto it = phiEdges_.find(predName);
+                if (it == phiEdges_.end())
+                    return true;
+                for (const auto &edge : it->second)
+                    if (!loadInto(x86::RAX, edge.first) || !storeMem(memSlot_[edge.second], x86::RAX))
+                        return false;
+                return true;
+            }
+
             // (AR) يخفّض كتلةً كاملة: يتخطّى المقارنةَ المدموجة (يعالجها BR_COND)، ويوجّه
             //      المُنهياتِ لمعالِجاتها. الكتلةُ يجب أن تنتهيَ بمُنهٍ.
             bool lowerBlock(const sir::SIRBasicBlock &block)
@@ -2176,6 +2321,11 @@ namespace sad
                     !is.back().operands.empty() &&
                     is.back().operands[0].type == sir::SIROperandType::REGISTER)
                     fused = common::findFusedComparison(block, is.back().operands[0].name);
+                // (AR) لا تُدمِج مقارنةً نتيجتُها عابرةٌ للكتل (تُقرأ في كتلةٍ أخرى): الدمجُ يتخطّى
+                //      تخفيضَها المستقلَّ فيُفوَّت نسكُها ⇒ خانةٌ غيرُ مكتوبة. أبقِها مستقلّةً (تُنسَك،
+                //      والفرعُ يقرؤها عبر المسار الاحتياطيّ). سدُّ عائق أميليا اللاتِن رقم ١.
+                if (fused && fused->result && crossBlockSpill_.count(fused->result->name))
+                    fused = nullptr;
 
                 for (size_t idx = 0; idx < is.size(); ++idx)
                 {
@@ -2185,6 +2335,9 @@ namespace sad
                     curInstIdx_ = idx;
                     if (&inst == fused)
                         continue; // (AR) مدموجة ⇒ يعالجها BR_COND
+                    // (AR) قبل مُنهي هذه الكتلة: أفرِغ قيمَ PHI الواردةَ منها إلى خاناتها (إن كانت سَلَفًا).
+                    if (inst.isTerminatorInst() && !emitPhiEdgeStores(block.name))
+                        return false;
                     if (inst.opcode == sir::SIROpcode::BR)
                     {
                         if (!lowerBranch(inst))
@@ -2197,6 +2350,14 @@ namespace sad
                     }
                     else if (!lowerInstruction(inst, block, idx))
                         return false;
+                    // (AR) نسكُ قيمةٍ عابرةٍ للكتل عند تعريفها: خزّن ناتجَها في خانتِه فتُقرأ لاحقًا
+                    //      (في كتلةٍ أخرى) memSlot_-أوّلًا. (نتائجُ PHI مُستثناةٌ — تديرها الحوافّ.)
+                    if (inst.result && crossBlockSpill_.count(inst.result->name))
+                    {
+                        auto rit = regOf_.find(inst.result->name);
+                        if (rit != regOf_.end() && !storeMem(memSlot_[inst.result->name], rit->second))
+                            return false;
+                    }
                 }
                 return true;
             }

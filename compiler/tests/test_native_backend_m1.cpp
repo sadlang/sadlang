@@ -210,6 +210,15 @@ TEST(NativeX86, FloatCompareEncodings)
     ASSERT_EQ(hex(enc("اختبر", "r64, r64", ops2(x86::Operand::R(x86::RAX), x86::Operand::R(x86::RAX)))),
               std::string("4885c0"));
 }
+// ─── الدفعة ١ (التحكّم + التحويلات): لِفّ (ROL) + عنوانٌ فعّال (ADDR/lea). متحقَّقٌ ضدّ llvm-mc-18. ───
+// rol rax,5=48c1c005 · rol rax,cl=48d3c0 · lea rax,[rbp-8]=488d45f8
+TEST(NativeX86, Batch1ControlConvEncodings)
+{
+    using O = x86::Operand;
+    ASSERT_EQ(hex(enc("لِفّ_يسار", "r64, imm8", ops2(O::R(x86::RAX), O::I(5, 8)))), std::string("48c1c005"));
+    ASSERT_EQ(hex(enc("لِفّ_يسار", "r64, cl", {O::R(x86::RAX)})), std::string("48d3c0"));
+    ASSERT_EQ(hex(enc("عنوان_فعّال", "r64, m64", {O::R(x86::RAX), O::M(x86::RBP, -8)})), std::string("488d45f8")); // lea
+}
 // shl $5, %rdx  # [0x48,0xc1,0xe2,0x05]   ·   shr $5, %rdx  # [0x48,0xc1,0xea,0x05]
 TEST(NativeX86, ShlShrImm)
 {

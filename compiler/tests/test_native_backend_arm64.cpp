@@ -301,6 +301,15 @@ TEST(NativeArm64, Fcmp)
     ASSERT_EQ(hex(enc("قارن_عشري", "d, d", {O::R(2), O::R(3)})), std::string("4020631e"));
 }
 
+// ─── الدفعة ١ (التحكّم + التحويلات): rorv (يبني ROL: ror = 64−n) + add x,sp,#imm (ADDR/عنوانُ خانةٍ) ───
+// rorv x9,x16,x17=0x9AD12E09(LE 092ed19a) · add x0,sp,#16=0x910043E0(LE e0430091)
+TEST(NativeArm64, Batch1ControlConvEncodings)
+{
+    using O = arm64::Operand;
+    ASSERT_EQ(hex(enc("لِفّ_يمين", "x, x, x", ops3(O::R(9), O::R(16), O::R(17)))), std::string("092ed19a"));
+    ASSERT_EQ(hex(enc("اجمع", "x, x, imm12", ops3(O::R(0), O::R(31), O::I(16)))), std::string("e0430091")); // add x0,sp,#16 (ADDR)
+}
+
 // ─── المقارنةُ كقيمة (cset، حقلُ الشرط المقلوب) — القيم = llvm-mc حرفيًّا ───
 // cset x9,eq(field=1)=0x9A9F17E9 · ne(0)=..07 · lt(10)=..a7 · le(12)=..c7 · gt(13)=..d7 · ge(11)=..b7
 TEST(NativeArm64, CsetConditions)

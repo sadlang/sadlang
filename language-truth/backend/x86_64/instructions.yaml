@@ -373,6 +373,31 @@ instructions:
         modrm: { mod: reg, reg: 5, rm: op0 }
       reads_dest: true
 
+  # ROL r/m64, imm8  ⇒  REX.W + C1 /0 ib   (دورانٌ يسارًا بمقدارٍ ثابت؛ متحقَّق: rol rax,5 = 48 c1 c0 05)
+  #   أوپكود ROL يتيمٌ سطحيًّا (لا باعثَ أماميًّا يُصدِره — `طابق`/العمليّات لا تولّده) ⇒ للاكتمال، مُتحقَّقٌ تفاضليًّا فقط.
+  لِفّ_يسار:
+    - en: rol
+      form: "r64, imm8"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: imm, bits: 8 }
+      encode:
+        rex_w: true
+        opcode: [0xC1]
+        modrm: { mod: reg, reg: 0, rm: op0 }
+        immediate: { operand: 1, bits: 8, encoding: le }
+      reads_dest: true
+    # ROL r/m64, CL  ⇒  REX.W + D3 /0   (بمقدارٍ متغيّر في CL؛ متحقَّق: rol rax,cl = 48 d3 c0)
+    - en: rol
+      form: "r64, cl"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+      encode:
+        rex_w: true
+        opcode: [0xD3]
+        modrm: { mod: reg, reg: 0, rm: op0 }
+      reads_dest: true
+
   # ─── المقارنةُ كقيمة (setcc + movzx): تُنتِج ٠/١ في سجلٍّ بدل الإدماج في فرع ───
   # SETcc r/m8  ⇒  0F 9x /0   (يضبط البايتَ الأدنى ٠/١ حسب الأعلام؛ متحقَّق: sete al = 0f 94 c0)
   عيّن_إذا_ساوى:
@@ -591,6 +616,19 @@ instructions:
       encode:
         opcode: [0xE8]
         immediate: { operand: 0, bits: 32, encoding: le }
+
+  # LEA r64, m64  ⇒  REX.W + 8D /r   (تحميلُ العنوانِ الفعّال [rbp+إزاحة] إلى سجلّ؛ يخدم ADDR/عنوان خانةِ إطار؛ متحقَّق: lea rax,[rbp-8] = 48 8d 45 f8)
+  عنوان_فعّال:
+    - en: lea
+      form: "r64, m64"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: mem, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x8D]
+        modrm: { mod: mem, reg: op0, rm: op1 }
+      reads_dest: false
 
   # ══════════════════════════════════════════════════════════════════════════
   # SSE عدديّ مزدوج (scalar double) — أساسُ العشريّ (float) للخلفيّة السياديّة.

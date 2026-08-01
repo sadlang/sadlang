@@ -228,6 +228,19 @@ namespace
     //      قيمة(3.5،2.0)⇒«1»، قيمة(2.0،3.5)⇒«0». (سدُّ ثغرةِ سياقِ القيمة التي رصدتها أميليا.)
     const std::string kSrcFloatCmpValue =
         "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD9\x82\xD9\x8A\xD9\x85\xD8\xA9(\xD8\xB9\xD8\xB4\xD8\xB1\xD9\x8A \xD8\xA3\xD8\x8C \xD8\xB9\xD8\xB4\xD8\xB1\xD9\x8A \xD8\xA8)\x0A    \xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1 \xD8\xB3 = \xD8\xA3 > \xD8\xA8\x0A    \xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9_\xD8\xB3\xD8\xB7\xD8\xB1(\xD8\xB3)\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9()\x0A    \xD9\x82\xD9\x8A\xD9\x85\xD8\xA9(3.5\xD8\x8C 2.0)\x0A    \xD9\x82\xD9\x8A\xD9\x85\xD8\xA9(2.0\xD8\x8C 3.5)\x0A    \xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9 0\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) لولبُ مدًى باتّجاهٍ **ديناميّ** (النهايةُ متغيّرٌ لا حرفيّ) ⇒ الأمامُ يُصدِر عقدةَ PHI
+    //      (statement_for_range.cpp:411 «range direction PHI»): الوحيدُ الذي يُمارِس PHI في اللغة.
+    //      «لكل ع من 0 الى نهاية» يجمع ١ لكلّ تكرار ⇒ يُرجع عدَّ التكرارات (برهانٌ حيٌّ للحاملِ العابر للكتل).
+    const std::string kSrcRangePhi =
+        "\xd8\xaf\xd8\xa7\xd9\x84\xd8\xa9\x20\xd8\xb1\xd8\xa6\xd9\x8a\xd8\xb3\xd9\x8a\xd8\xa9\x28\x29\x0a"
+        "\x20\x20\x20\x20\xd9\x85\xd8\xaa\xd8\xba\xd9\x8a\xd8\xb1\x20\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9\x20\x3d\x20\x35\x0a"
+        "\x20\x20\x20\x20\xd9\x85\xd8\xaa\xd8\xba\xd9\x8a\xd8\xb1\x20\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9\x20\x3d\x20\x30\x0a"
+        "\x20\x20\x20\x20\xd9\x84\xd9\x83\xd9\x84\x20\xd8\xb9\x20\xd9\x85\xd9\x86\x20\x30\x20\xd8\xa7\xd9\x84\xd9\x89\x20\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9\x0a"
+        "\x20\x20\x20\x20\x20\x20\x20\x20\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9\x20\x3d\x20\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9\x20\x2b\x20\x31\x0a"
+        "\x20\x20\x20\x20\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9\x0a"
+        "\x20\x20\x20\x20\xd8\xa7\xd8\xb1\xd8\xac\xd8\xb9\x20\xd9\x85\xd8\xac\xd9\x85\xd9\x88\xd8\xb9\x0a"
+        "\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9\x0a";
 } // namespace
 
 // (AR) المصدرُ الحسابيّ يُبنى ويُخفَّض بنجاح، والـELF سليمٌ (EM_X86_64).
@@ -763,6 +776,40 @@ TEST(NativeSirBridge, FloatComparisonValueContext)
     size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
     std::fclose(fp);
     ASSERT_EQ(int(wrote), int(res.code.size()));
+}
+
+// (AR) هل يحوي المُنتَجُ عقدةَ PHI؟ (لضمانِ أنّ الاختبارَ يُمارِس مسارَ PHI فعلًا لا يمرُّ صامتًا).
+static bool moduleHasPhi(const Sad::Compiler::SIR::SIRModule &m)
+{
+    for (const auto &fn : m.getFunctions())
+        for (const auto &bb : fn->getBasicBlocks())
+            for (const auto &inst : bb->instructions)
+                if (inst.opcode == Sad::Compiler::SIR::SIROpcode::PHI)
+                    return true;
+    return false;
+}
+
+// (AR) لولبُ مدًى ديناميّ الاتّجاه x86: يبني+يخفّض+يكتب sad_sir_rangephi. أوّلُ برهانٍ حيٍّ لـPHI:
+//      الأمامُ يُصدِر عقدةَ PHI (نؤكّده)، والخلفيّةُ تحملها بخانةِ إطارٍ (خزنُ السَّلَف + قراءةُ الدامج
+//      عبر مسارِ #360 الاحتياطيّ). لو انكسر الحاملُ لاختلَّ عدُّ اللولب.
+TEST(NativeSirBridge, LowersDynamicRangePhi)
+{
+    auto module = buildSir(kSrcRangePhi);
+    ASSERT_TRUE(module != nullptr);
+    ASSERT_TRUE(moduleHasPhi(*module)); // (AR) تأكيدٌ أنّ المصدرَ يُمارِس PHI فعلًا
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_TRUE(contains(bin, {0x89, 0x45})); // (AR) mov [rbp-x], reg — تخزينُ حاملِ PHI عند السَّلَف
+    ASSERT_TRUE(contains(bin, {0x48, 0x85})); // (AR) test r64,r64 — قراءةُ الحامل في فرعِ الدمج (#360)
+    std::FILE *fp = std::fopen("sad_sir_rangephi", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
 }
 
 // (AR) طفحانُ الكسر (ترحيلُ الحمل): «2.9999998» ⇒ «3.0». إصلاحُ عائق أميليا.
@@ -1322,6 +1369,19 @@ TEST(Arm64SirBridge, LowersVariableShift)
     bool ok = false;
     size_t sz = 0;
     lowerArm64AndWrite(kSrcVarShift, "sad_arm64_varshift42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) لولبُ مدًى ديناميّ الاتّجاه ARM64: يخفّض PHI عبر خانةِ إطارٍ (strSlot عند السَّلَف + قراءةٌ
+//      في فرعِ الدمج عبر مسارِ #360 الاحتياطيّ cmp-xzr/b.ne). برهانٌ حيّ qemu (عدُّ اللولب).
+TEST(Arm64SirBridge, LowersDynamicRangePhi)
+{
+    auto module = buildSir(kSrcRangePhi);
+    ASSERT_TRUE(module != nullptr);
+    ASSERT_TRUE(moduleHasPhi(*module)); // (AR) تأكيدٌ أنّ المصدرَ يُمارِس PHI فعلًا
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcRangePhi, "sad_arm64_rangephi", &ok, &sz);
     ASSERT_TRUE(ok);
 }
 

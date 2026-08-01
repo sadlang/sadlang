@@ -49,6 +49,9 @@ kind:
 # (AR) وسومٌ ذاتُ لاحقةِ قيمة (تنتهي بـ: أو =) — يتبعها opcode/إزاحة/عدّاد.
 tag:
   - { name: kAllocUnslotted,       value: "alloc-unslotted:",        ar: "ALLOC بلا خانةِ إطارٍ مخصَّصة" }
+  - { name: kPhiUnslotted,         value: "phi-unslotted:",          ar: "PHI بلا خانةِ إطارٍ مخصَّصة (المسحُ المسبق أخفق)" }
+  - { name: kAddrNonslot,          value: "addr-nonslot:",           ar: "ADDR لغيرِ متغيّرِ إطارٍ (عنوانُ مؤشّرِ حوضٍ غيرُ مدعوم)" }
+  - { name: kRolVar,               value: "rol-var:",                ar: "ROL بمقدارٍ متغيّرٍ (المدعومُ ثابتٌ فقط؛ يتيمٌ سطحيًّا)" }
   - { name: kArgsGt6,              value: "args>6:",                 ar: "وسائطُ نداءٍ تتجاوز ٦ (AAPCS64 x0-x7؛ الحدُّ الحاليّ ٦)" }
   - { name: kArgsGt8,              value: "args>8:",                 ar: "وسائطُ نداءٍ تتجاوز ٨" }
   - { name: kArrayIndexImm12,      value: "array-index-imm12:",      ar: "فهرسٌ ثابتٌ يتجاوز imm12 (٤٠٩٥) في عنونةِ عنصر" }
