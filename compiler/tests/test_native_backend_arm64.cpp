@@ -87,6 +87,20 @@ TEST(NativeArm64, AddX0X1X2)
     ASSERT_EQ(hex(b), std::string("2000028b"));
 }
 
+// ─── FP عدديّ مزدوج (float): متحقَّقٌ بايتًا ببايت ضدّ llvm-mc-18 (aarch64). d0/d1 = 0/1. ───
+TEST(NativeArm64, FpDoubleOps)
+{
+    using O = arm64::Operand;
+    ASSERT_EQ(hex(enc("عبّئ_عشري", "d, x", {O::R(0), O::R(9)})), std::string("2001679e"));   // fmov d0,x9
+    ASSERT_EQ(hex(enc("استخرج_عشري", "x, d", {O::R(9), O::R(0)})), std::string("0900669e"));  // fmov x9,d0
+    ASSERT_EQ(hex(enc("حوّل_إلى_عشري", "d, x", {O::R(0), O::R(9)})), std::string("2001629e")); // scvtf d0,x9
+    ASSERT_EQ(hex(enc("حوّل_من_عشري", "x, d", {O::R(9), O::R(0)})), std::string("0900789e"));  // fcvtzs x9,d0
+    ASSERT_EQ(hex(enc("اجمع_عشري", "d, d, d", ops3(O::R(0), O::R(0), O::R(1)))), std::string("0028611e")); // fadd
+    ASSERT_EQ(hex(enc("اطرح_عشري", "d, d, d", ops3(O::R(0), O::R(0), O::R(1)))), std::string("0038611e")); // fsub
+    ASSERT_EQ(hex(enc("اضرب_عشري", "d, d, d", ops3(O::R(0), O::R(0), O::R(1)))), std::string("0008611e")); // fmul
+    ASSERT_EQ(hex(enc("اقسم_عشري", "d, d, d", ops3(O::R(0), O::R(0), O::R(1)))), std::string("0018611e")); // fdiv
+}
+
 // ret  # encoding: [0xc0,0x03,0x5f,0xd6]   (RET x30 ضمنيًّا)
 TEST(NativeArm64, Ret)
 {

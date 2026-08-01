@@ -67,6 +67,7 @@ namespace sad
             // (AR) مواصفة ترميز صيغةٍ واحدة — تُرآي `encode` في instructions.yaml.
             struct EncSpec
             {
+                std::vector<uint8_t> prefix;       // (AR) بادئةٌ إلزاميّةٌ قبل REX (F2/F3/66 لـSSE)
                 bool rex_w = false;                // (AR) بادئة REX.W (عمليّة 64-بت)
                 std::vector<uint8_t> opcode;       // (AR) بايت/بايتات الأوپكود
                 bool opcode_reg_add = false;       // (AR) يُضاف رقمُ السجلّ لآخر بايت أوپكود
@@ -82,6 +83,10 @@ namespace sad
             inline std::vector<uint8_t> encodeVariable(const EncSpec &s, const std::vector<Operand> &ops)
             {
                 std::vector<uint8_t> out;
+
+                // (0) البادئةُ الإلزاميّة (SSE: F2/F3/66) — تسبق REX دائمًا.
+                for (uint8_t p : s.prefix)
+                    out.push_back(p);
 
                 // (1) بادئة REX
                 int W = s.rex_w ? 1 : 0;

@@ -611,3 +611,133 @@ instructions:
           - { name: fixed, hi: 30, lo: 24, const: 53 }         # 0b0110101 (CBNZ ٦٤-بت)
           - { name: imm19, hi: 23, lo: 5,  from: op1 }
           - { name: Rt,    hi: 4,  lo: 0,  from: op0 }
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # FP عدديّ مزدوج (scalar double) — أساسُ العشريّ (float) لجسر ARM64. العشريّ يعيش
+  # كنمطِ بتّاته i64 في حوض GPR (x9..x15)، وd0/d1 خدشٌ عابر (كـx16/x17). كلُّ ترميزٍ
+  # مُتحقَّقٌ بايتًا ببايت ضدّ llvm-mc-18. الأسماءُ فعلًا-أوّلًا (تطابق x86 عشري).
+  # ══════════════════════════════════════════════════════════════════════════
+
+  # FMOV Dd, Xn  ⇒  0x9E670000 | Rn<<5 | Rd   (بتّاتُ i64 ⇒ سجلّ عشريّ)
+  عبّئ_عشري:
+    - en: fmov_d_x
+      form: "d, x"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 16, const: 40551 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # FMOV Xd, Dn  ⇒  0x9E660000 | Rn<<5 | Rd   (بتّاتُ سجلٍّ عشريّ ⇒ i64)
+  استخرج_عشري:
+    - en: fmov_x_d
+      form: "x, d"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 16, const: 40550 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # SCVTF Dd, Xn  ⇒  0x9E620000 | Rn<<5 | Rd   (صحيح ⇒ عشريّ)
+  حوّل_إلى_عشري:
+    - en: scvtf
+      form: "d, x"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 16, const: 40546 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # FCVTZS Xd, Dn  ⇒  0x9E780000 | Rn<<5 | Rd   (عشريّ ⇒ صحيح باقتطاع)
+  حوّل_من_عشري:
+    - en: fcvtzs
+      form: "x, d"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 16, const: 40568 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # FADD Dd, Dn, Dm  ⇒  0x1E602800 | Rm<<16 | Rn<<5 | Rd
+  اجمع_عشري:
+    - en: fadd
+      form: "d, d, d"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: reg, class: fp, role: in }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixhi, hi: 31, lo: 21, const: 243 }
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: mid,   hi: 15, lo: 10, const: 10 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # FSUB Dd, Dn, Dm  ⇒  0x1E603800 | Rm<<16 | Rn<<5 | Rd
+  اطرح_عشري:
+    - en: fsub
+      form: "d, d, d"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: reg, class: fp, role: in }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixhi, hi: 31, lo: 21, const: 243 }
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: mid,   hi: 15, lo: 10, const: 14 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # FMUL Dd, Dn, Dm  ⇒  0x1E600800 | Rm<<16 | Rn<<5 | Rd
+  اضرب_عشري:
+    - en: fmul
+      form: "d, d, d"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: reg, class: fp, role: in }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixhi, hi: 31, lo: 21, const: 243 }
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: mid,   hi: 15, lo: 10, const: 2 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # FDIV Dd, Dn, Dm  ⇒  0x1E601800 | Rm<<16 | Rn<<5 | Rd
+  اقسم_عشري:
+    - en: fdiv
+      form: "d, d, d"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: reg, class: fp, role: in }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixhi, hi: 31, lo: 21, const: 243 }
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: mid,   hi: 15, lo: 10, const: 6 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }

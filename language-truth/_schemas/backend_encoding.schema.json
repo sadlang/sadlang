@@ -100,6 +100,12 @@
       "additionalProperties": false,
       "description": "وصفُ الترميز. حقولُ عائلة variable (rex_w/opcode/opcode_reg_add/modrm/immediate) وعائلة fixed32 (width/fields) مُعرَّفةٌ كلّها هنا؛ المحرّك يختار الفرعَ من encoding_family (لا يخلط الجدول العائلتين).",
       "properties": {
+        "prefix": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "integer", "minimum": 0, "maximum": 255 },
+          "description": "variable: بادئةٌ إلزاميّةٌ تسبق REX (F2/F3/66 لتعليمات SSE)."
+        },
         "rex_w": { "type": "boolean", "description": "variable: بادئة REX.W (عمليّة ٦٤-بت)." },
         "opcode": {
           "type": "array",
@@ -127,6 +133,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "prefix": true,
         "rex_w": true,
         "opcode": true,
         "opcode_reg_add": true,

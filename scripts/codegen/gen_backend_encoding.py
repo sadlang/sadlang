@@ -87,6 +87,11 @@ def _emit_encspec(form: dict[str, Any]) -> str:
     operands = form.get("operands", [])
     stmts: list[str] = []
 
+    prefix = enc.get("prefix")
+    if prefix:
+        prefix_lit = "{" + ", ".join(f"0x{b:02X}" for b in prefix) + "}"
+        stmts.append(f"s.prefix = {prefix_lit};")
+
     if enc.get("rex_w"):
         stmts.append("s.rex_w = true;")
 

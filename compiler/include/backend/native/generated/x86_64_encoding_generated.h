@@ -68,6 +68,17 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اقفز_إذا_أكبر", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x8F}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     { "اقفز_إذا_أدنى", "rel8", []{ sad::native::x86::EncSpec s; s.opcode = {0x72}; s.imm_op = 0; s.imm_bits = 8; return s; }() },
     { "نادِ", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0xE8}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "عبّئ_عشري", "xmm, r64", []{ sad::native::x86::EncSpec s; s.prefix = {0x66}; s.rex_w = true; s.opcode = {0x0F, 0x6E}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "استخرج_عشري", "r64, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0x66}; s.rex_w = true; s.opcode = {0x0F, 0x7E}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
+    { "حمّل_عشري", "xmm, m64", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x10}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "خزّن_عشري", "m64, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x11}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
+    { "اجمع_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x58}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "اطرح_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x5C}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "اضرب_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x59}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "اقسم_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x5E}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "حوّل_إلى_عشري", "xmm, r64", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.rex_w = true; s.opcode = {0x0F, 0x2A}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "حوّل_من_عشري", "r64, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.rex_w = true; s.opcode = {0x0F, 0x2C}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "قارن_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0x66}; s.opcode = {0x0F, 0x2E}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     };
     return kTable;
 }
@@ -110,6 +121,17 @@ inline const std::string kJle = "اقفز_إذا_أصغر_أو_ساوى";
 inline const std::string kJg = "اقفز_إذا_أكبر";
 inline const std::string kJb = "اقفز_إذا_أدنى";
 inline const std::string kCall = "نادِ";
+inline const std::string kMovqXmmR64 = "عبّئ_عشري";
+inline const std::string kMovqR64Xmm = "استخرج_عشري";
+inline const std::string kMovsdLoad = "حمّل_عشري";
+inline const std::string kMovsdStore = "خزّن_عشري";
+inline const std::string kAddsd = "اجمع_عشري";
+inline const std::string kSubsd = "اطرح_عشري";
+inline const std::string kMulsd = "اضرب_عشري";
+inline const std::string kDivsd = "اقسم_عشري";
+inline const std::string kCvtsi2sd = "حوّل_إلى_عشري";
+inline const std::string kCvttsd2si = "حوّل_من_عشري";
+inline const std::string kUcomisd = "قارن_عشري";
 } // namespace mnem
 
 // (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.

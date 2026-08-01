@@ -46,6 +46,7 @@
 #include "error_messages_generated.h"
 
 #include <cstdint>
+#include <cstring>
 #include <map>
 #include <string>
 #include <vector>
@@ -80,8 +81,42 @@ namespace sad
         inline constexpr long long kArrOffLen = 0;       // (AR) الطول (i64)
         inline constexpr long long kArrOffCap = 8;       // (AR) السعة (i64)
         inline constexpr long long kArrOffData = 16;     // (AR) مؤشّرُ البيانات (ptr)
+        inline constexpr long long kArrOffTags = 24;     // (AR) مؤشّرُ مخزنِ الوسوم (ptr) — للعناصر المعلَّبة
+        inline constexpr long long kArrOffHomog = 32;    // (AR) نوعُ المصفوفة المتجانسة (i8) — يُقرأ حين tags=null
         inline constexpr long long kArrHeaderBytes = 40; // (AR) حجمُ رأس البنية (٥ حقول مع الحشو)
         inline constexpr long long kArrSlotBytes = 8;    // (AR) بايتات خانةِ العنصر الواحد
+        inline constexpr long long kTagSlotBytes = 8;    // (AR) خانةُ وسمٍ ٨-بت لكلّ عنصر (i64؛ يتجنّب movzx m8 — الخلفيّةُ الأصليّة مستقلّةٌ عن تخطيط LLVM ذي البايت)
+
+        // (AR) وسومُ النوع زمنَ التشغيل (تعكس DynKind في sad_dyn_repr.h ⇒ تطابق مسارَ LLVM):
+        //      Null=0، Int=1، Float=2، Str=3، Bool=4. تُخزَّن بايتًا في مخزن الوسوم، وتُقرأ عند
+        //      القراءة المعلَّبة (ARRAY_GET Any) لتقرير نوعِ العنصر زمنَ التشغيل ثمّ توزيعِ الطباعة.
+        inline constexpr long long kDynKindNull = 0;
+        inline constexpr long long kDynKindInt = 1;
+        inline constexpr long long kDynKindFloat = 2;
+        inline constexpr long long kDynKindBool = 4;
+
+        // (AR) نصوصُ طباعةِ القيمة المعلَّبة (تطابق المفسّر value.cpp:476/عدم) — ثوابتُ مسمّاةٌ لا حرفيّاتٌ خام.
+        inline const std::string kDynBoolTrueText = "\xD8\xB5\xD8\xAD\xD9\x8A\xD8\xAD";  // صحيح
+        inline const std::string kDynBoolFalseText = "\xD8\xAE\xD8\xB7\xD8\xA3";          // خطأ
+        inline const std::string kDynNullText = "\xD8\xB9\xD8\xAF\xD9\x85";               // عدم
+
+        // (AR) الوسمُ (DynKind) من نوعِ العنصر المحدَّد زمنَ الترجمة (كلُّ ARRAY_SET له نوعُ قيمةٍ محدَّد).
+        //      صحيح/بايت/طبيعي64 ⇒ Int، عشريّ ⇒ Float، منطقيّ ⇒ Bool، عدم ⇒ Null؛ غيرها ⇒ فشلٌ صريح.
+        //      دالّةٌ حرّةٌ (يشترك فيها مخفّضا x86 وARM64). النصّ/المصفوفة يلزمها دعمُ قيمةٍ/مؤشّرٍ لاحق.
+        inline bool dynTagForType(types::SadTypeKind t, long long &tag)
+        {
+            switch (t)
+            {
+            case types::SadTypeKind::Integer:
+            case types::SadTypeKind::Byte:
+            case types::SadTypeKind::UInt64:
+                tag = kDynKindInt; return true;
+            case types::SadTypeKind::Float: tag = kDynKindFloat; return true;
+            case types::SadTypeKind::Boolean: tag = kDynKindBool; return true;
+            case types::SadTypeKind::Null: tag = kDynKindNull; return true;
+            default: return false;
+            }
+        }
         // (AR) رمزُ خروجِ الهلع عند تجاوز حدّ المصفوفة (فحصُ مدًى لا-موقَّع idx ≥ len ⇒ يشمل الفهرسَ
         //      السالبَ الذي يلتفّ إلى قيمةٍ ضخمة). القيمةُ ١٣٤ = ‎128+SIGABRT‎ (عرفُ الإجهاض).
         inline constexpr long long kArrayBoundsPanicCode = 134;
@@ -190,6 +225,10 @@ namespace sad
                 idivScratchDisp_ = 0; // (AR) يُضبَط في assignFrameSlots حين تحوي الدالّةُ قسمةً/باقيًا
                 shiftScratchDisp_ = 0; // (AR) يُضبَط حين تحوي الدالّةُ إزاحةً بمقدارٍ متغيّر
                 printBufTopDisp_ = 0; // (AR) يُضبَط في assignFrameSlots حين تطبع الدالّةُ عددًا
+                floatValDisp_ = 0;    // (AR) يُضبَط في assignFrameSlots حين تطبع الدالّةُ عشريًّا
+                dynSlotBaseDisp_ = 0;
+                dynGetCount_ = 0;
+                dynSlotNext_ = 0;     // (AR) فهرسُ خانةِ dyn الجاري (يُصفَّر لكلّ دالّة)
                 appendPDisp_ = appendValDisp_ = appendLenDisp_ = appendNewDisp_ = appendCapDisp_ = 0;
 
                 const auto &blocks = fn.getBasicBlocks();
@@ -274,6 +313,18 @@ namespace sad
             // (AR) الطباعة الأصليّة: إزاحةُ قمّةِ مخزنِ itoa (العنوانُ الأعلى، حصريّ) في الإطار؛
             //      تُبنى الأرقامُ العشريّةُ تنازليًّا منها. صفرٌ إن لم تطبع الدالّةُ عددًا.
             long long printBufTopDisp_ = 0;
+
+            // (AR) طباعةُ العشريّ: خانةُ خدشٍ تحفظ نمطَ بتّاتِ الـdouble (القيمةَ المطلقة) عبر
+            //      مراحل المُنسِّق (إشارة/جزء صحيح/كسر) — تُعاد قراءتُها بعد كلّ طباعةٍ جزئيّةٍ
+            //      تدهس السجلّات. صفرٌ إن لم تطبع الدالّةُ عشريًّا.
+            long long floatValDisp_ = 0;
+
+            // (AR) التعليب (المصفوفات المختلطة): كلُّ ARRAY_GET معلَّبٍ (Any) يُنتِج قيمةً ديناميّةً
+            //      نمثّلها **مؤشّرًا إلى خانةِ dyn** في الإطار: {tag@0 (i64)، payload@8 (i64)} = ١٦ بايت.
+            //      نحجز خانةً لكلّ ARRAY_GET(Any) (بلا تعارضِ أسماء) ونُسنِدها بفهرسٍ جارٍ زمنَ التخفيض.
+            long long dynSlotBaseDisp_ = 0; // (AR) قمّةُ منطقةِ خانات dyn (العنوانُ الأعلى، حصريّ)
+            int dynGetCount_ = 0;           // (AR) عددُ ARRAY_GET(Any) في الدالّة (لحجزِ الخانات)
+            int dynSlotNext_ = 0;           // (AR) الفهرسُ الجاري (يُصفَّر لكلّ دالّة)
 
             // (AR) الإلحاق (append): خمسُ خاناتِ خدشٍ تبقى حيّةً عبر mmap (الذي يدهس كلَّ الحوض):
             //      مؤشّرُ البنية P، القيمةُ المُلحَقة، الطولُ L المحفوظ، المؤشّرُ الجديد newdata،
@@ -504,6 +555,27 @@ namespace sad
             bool setccReg(const std::string &mnem, int r8) { return emit(mnem, "r8", {x86::Operand::R(r8)}); }
             bool movzxReg(int dst, int src8) { return emit(x86::mnem::kMovzx, "r64, r8", {x86::Operand::R(dst), x86::Operand::R(src8)}); }
 
+            // ── SSE عدديّ مزدوج: العشريّ يعيش كنمطِ بتّاتٍ i64 في حوض GPR؛ xmm0/xmm1 خدشٌ
+            //    عابرٌ للحساب فقط (كـRAX/RDI للصحيح) لا يُخصَّص لسجلٍّ افتراضيّ ⇒ لا حوضَ جديد. ──
+            static constexpr int kXmm0 = 0; // (AR) سجلّ عشريّ خدشٌ ٠
+            static constexpr int kXmm1 = 1; // (AR) سجلّ عشريّ خدشٌ ١
+            bool movqToXmm(int xmm, int gpr) { return emit(x86::mnem::kMovqXmmR64, "xmm, r64", {x86::Operand::R(xmm), x86::Operand::R(gpr)}); }
+            bool movqFromXmm(int gpr, int xmm) { return emit(x86::mnem::kMovqR64Xmm, "r64, xmm", {x86::Operand::R(gpr), x86::Operand::R(xmm)}); }
+            bool addsd(int d, int s) { return emit(x86::mnem::kAddsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); }
+            bool subsd(int d, int s) { return emit(x86::mnem::kSubsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); }
+            bool mulsd(int d, int s) { return emit(x86::mnem::kMulsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); }
+            bool divsd(int d, int s) { return emit(x86::mnem::kDivsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); }
+            bool cvtsi2sd(int xmm, int gpr) { return emit(x86::mnem::kCvtsi2sd, "xmm, r64", {x86::Operand::R(xmm), x86::Operand::R(gpr)}); }
+            bool cvttsd2si(int gpr, int xmm) { return emit(x86::mnem::kCvttsd2si, "r64, xmm", {x86::Operand::R(gpr), x86::Operand::R(xmm)}); }
+            bool ucomisd(int a, int b) { return emit(x86::mnem::kUcomisd, "xmm, xmm", {x86::Operand::R(a), x86::Operand::R(b)}); }
+            // (AR) حمّل ثابتَ عشريّ (نمطُ بتّاته i64، إعادةُ تفسيرٍ زمنَ التصريف) في سجلّ GPR.
+            bool loadFloatConst(int gpr, double v)
+            {
+                int64_t bits;
+                std::memcpy(&bits, &v, sizeof bits);
+                return movImm64(gpr, static_cast<long long>(bits));
+            }
+
             // ── الذاكرة: خانات الإطار [rbp+إزاحة] ──
             // (AR) mov r64, [rbp+disp] — تحميلٌ من خانة إطار.
             bool loadMem(int dst, long long disp)
@@ -711,6 +783,172 @@ namespace sad
                        emit(x86::mnem::kSyscall, "", {});
             }
 
+            // (AR) cmp reg, imm8 عامّ (لا صفرًا حصرًا) — لفحص «nd>1» في حذفِ الأصفار.
+            bool cmpImm8(int reg, long long imm) { return emit(x86::mnem::kCmp, "r64, imm8", {x86::Operand::R(reg), x86::Operand::I(imm, 8)}); }
+            // (AR) cmp reg, reg — لفحص «المؤشّر بلغ بدايةَ الحقل» في حشوِ الأصفار البادئة.
+            bool cmpRegReg(int a, int b) { return emit(x86::mnem::kCmp, "r64, r64", {x86::Operand::R(a), x86::Operand::R(b)}); }
+            // (AR) قفزةٌ غيرُ مشروطةٌ خلفيّةٌ إلى هدفٍ معلوم (لولباتُ المُنسِّق المحلّيّة).
+            bool emitJmpBack(size_t target) { return emitJccBack(x86::mnem::kJmp, target); }
+
+            // (AR) ثوابتُ نمطِ بتّاتٍ + رموزٌ للمُنسِّق العشريّ (لا حرفيّاتٍ خام).
+            static constexpr unsigned long long kF64SignMask = 0x8000000000000000ULL; // بتّ الإشارة
+            static constexpr unsigned long long kF64AbsMask = 0x7FFFFFFFFFFFFFFFULL;  // مسحُ الإشارة ⇒ |x|
+            static constexpr long long kFloatPrecisionScale = 1000000; // ١٠^٦ (setprecision(6))
+            static constexpr int kFloatDecimals = 6;                   // خاناتٌ عشريّة (يطابق المفسّر)
+
+            // (AR) يطبع عددًا عشريًّا (نمطُ بتّاته i64 في RAX) بصيغةِ المفسّر: fixed(6) ثمّ حذفُ
+            //      الأصفار الزائدة مع إبقاءِ رقمٍ ≥١ بعد النقطة (‎3.5‎ لا ‎3.500000‎، ‎42.0‎ لا ‎42‎).
+            //      العشريّ يُحسَب عبر xmm0/xmm1؛ السجلّاتُ (R8/R9/R10/RAX/RDX/RCX/RSI/RDI) خدشٌ
+            //      (الحوضُ مُنسكَبٌ حولَ الطباعة). النصفُ (‎+0.5‎) يقرّب الخانةَ السادسة.
+            bool emitPrintFloat()
+            {
+                // (١) خزّن البتّاتِ الأصليّة؛ إن كانت الإشارةُ سالبةً اطبع '-' واحسب |القيمة|.
+                if (!storeMem(floatValDisp_, x86::RAX))
+                    return false;
+                if (!movImm64(x86::R8, static_cast<long long>(kF64SignMask)) ||
+                    !andReg(x86::R8, x86::RAX) || !cmpZero(x86::R8))
+                    return false;
+                size_t skipNeg;
+                if (!emitJccFwd(x86::mnem::kJe, skipNeg))
+                    return false;
+                if (!emitPrintString("-")) // (AR) يدهس RAX/RSI/RDX/RDI — البتّاتُ محفوظةٌ في الخانة
+                    return false;
+                patchFwd(skipNeg);
+                // |القيمة| = البتّات & قناعُ مسحِ الإشارة ⇒ خزّنها (نُعيد قراءتَها في كلّ مرحلة).
+                if (!loadMem(x86::RAX, floatValDisp_) ||
+                    !movImm64(x86::R8, static_cast<long long>(kF64AbsMask)) ||
+                    !andReg(x86::RAX, x86::R8) || !storeMem(floatValDisp_, x86::RAX))
+                    return false;
+                // (٢) الجزءُ الصحيح ip = trunc(|x|) في R11 (يبقى عبر الطباعة؛ emitPrintInt لا يمسّه).
+                if (!movqToXmm(kXmm0, x86::RAX) || !cvttsd2si(x86::R11, kXmm0))
+                    return false;
+                // (٣) الكسر: frac = |x| − ip ؛ scaled = trunc(frac×١٠^٦ + ٠٫٥) في R8.
+                if (!movqToXmm(kXmm0, x86::RAX) || !cvtsi2sd(kXmm1, x86::R11) || !subsd(kXmm0, kXmm1))
+                    return false;
+                if (!loadFloatConst(x86::RAX, static_cast<double>(kFloatPrecisionScale)) ||
+                    !movqToXmm(kXmm1, x86::RAX) || !mulsd(kXmm0, kXmm1))
+                    return false;
+                if (!loadFloatConst(x86::RAX, 0.5) || !movqToXmm(kXmm1, x86::RAX) || !addsd(kXmm0, kXmm1))
+                    return false;
+                if (!cvttsd2si(x86::R8, kXmm0)) // R8 = scaled ∈ [0, ١٠^٦]
+                    return false;
+                // (٤) ترحيلُ الحمل: إن قرّب الكسرُ إلى ١٫٠ (scaled == ١٠^٦) زِد ip وصفّر scaled — قبل
+                //      طباعةِ ip (عائقُ أميليا: «1.0 − 4e−7» كان يطبع «0.0» بدل «1.0»).
+                if (!movImm(x86::RCX, kFloatPrecisionScale) || !cmpRegReg(x86::R8, x86::RCX))
+                    return false;
+                size_t jneNoCarry;
+                if (!emitJccFwd(x86::mnem::kJne, jneNoCarry))
+                    return false;
+                if (!addImm(x86::R11, 1) || !movImm(x86::R8, 0))
+                    return false;
+                patchFwd(jneNoCarry);
+                // (٥) اطبع ip (RAX = R11) ثمّ النقطة. R8 (scaled) يبقى (لا يمسّه itoa/الطباعة النصّيّة).
+                if (!movReg(x86::RAX, x86::R11) || !emitPrintInt() || !emitPrintString("."))
+                    return false;
+                // (٦) حذفُ الأصفار الزائدة: nd=٦؛ بينما (nd>1 && scaled%10==0) اقسم على ١٠ وأنقص nd.
+                if (!movImm(x86::R9, kFloatDecimals) || !movImm(x86::RCX, kItoaRadix))
+                    return false;
+                size_t stripTop = code_.size();
+                if (!cmpImm8(x86::R9, 1))
+                    return false;
+                size_t jleStripDone;
+                if (!emitJccFwd(x86::mnem::kJle, jleStripDone))
+                    return false;
+                if (!movReg(x86::RAX, x86::R8) || !cqo() || !idivReg(x86::RCX) || !cmpZero(x86::RDX))
+                    return false;
+                size_t jneStripDone;
+                if (!emitJccFwd(x86::mnem::kJne, jneStripDone))
+                    return false;
+                if (!movReg(x86::R8, x86::RAX) || !subImm(x86::R9, 1) || !emitJmpBack(stripTop))
+                    return false;
+                patchFwd(jleStripDone);
+                patchFwd(jneStripDone);
+                // (٦) ابنِ nd رقمًا تنازليًّا (الأصفارُ البادئةُ تُحشى) ثمّ write(stdout).
+                //     R10 مؤشّرُ الكتابة (يبدأ من القمّة)؛ RDI = القمّة − nd (بدايةُ الحقل).
+                if (!leaFrame(x86::RSI, printBufTopDisp_) || !movReg(x86::RDI, x86::RSI) ||
+                    !subReg(x86::RDI, x86::R9) || !movReg(x86::R10, x86::RSI))
+                    return false;
+                if (!movReg(x86::RAX, x86::R8)) // RAX = scaled
+                    return false;
+                size_t digitTop = code_.size();
+                if (!cqo() || !idivReg(x86::RCX) || !addImm(x86::RDX, kAsciiZero) ||
+                    !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                    !cmpZero(x86::RAX) || !emitJccBack(x86::mnem::kJne, digitTop))
+                    return false;
+                // حشوُ الأصفار البادئة: بينما R10 > RDI أدخِل '0'.
+                size_t padTop = code_.size();
+                if (!cmpRegReg(x86::R10, x86::RDI))
+                    return false;
+                size_t jlePadDone;
+                if (!emitJccFwd(x86::mnem::kJle, jlePadDone))
+                    return false;
+                if (!subImm(x86::R10, 1) || !movImm(x86::RAX, kAsciiZero) ||
+                    !storeByte(x86::R10, x86::RAX) || !emitJmpBack(padTop))
+                    return false;
+                patchFwd(jlePadDone);
+                return movReg(x86::RSI, x86::RDI) && movReg(x86::RDX, x86::R9) &&
+                       movImm(x86::RAX, kSysWriteX86) && movImm(x86::RDI, kFdStdout) &&
+                       emit(x86::mnem::kSyscall, "", {});
+            }
+
+            // (AR) طباعةُ قيمةٍ معلَّبة (Any): ptrReg يشير إلى خانةِ dyn {tag@0، payload@8}. نوزّع
+            //      على الوسم زمنَ التشغيل: Float⇒المُنسِّق، Bool⇒«صحيح»/«خطأ»، Int⇒itoa، غيرها⇒«عدم».
+            //      R8=الوسم، R9=الحمولة (يبقيان حتّى دخولِ الفرع؛ الفرعُ يقفز للنهاية بعد الطباعة).
+            bool emitPrintBoxed(int ptrReg)
+            {
+                if (!loadMemBase(x86::R8, ptrReg, 0) || !loadMemBase(x86::R9, ptrReg, 8))
+                    return false;
+                std::vector<size_t> endJmps;
+                auto branchEnd = [&](size_t &pos) { return emitJccFwd(x86::mnem::kJmp, pos); };
+                // Float ⇒ المُنسِّق
+                size_t notF;
+                if (!cmpImm8(x86::R8, kDynKindFloat) || !emitJccFwd(x86::mnem::kJne, notF))
+                    return false;
+                {
+                    size_t j;
+                    if (!movReg(x86::RAX, x86::R9) || !emitPrintFloat() || !branchEnd(j))
+                        return false;
+                    endJmps.push_back(j);
+                }
+                patchFwd(notF);
+                // Bool ⇒ «صحيح»/«خطأ» حسب الحمولة (٠/١)
+                size_t notB;
+                if (!cmpImm8(x86::R8, kDynKindBool) || !emitJccFwd(x86::mnem::kJne, notB))
+                    return false;
+                {
+                    size_t isFalse;
+                    if (!cmpZero(x86::R9) || !emitJccFwd(x86::mnem::kJe, isFalse))
+                        return false;
+                    size_t j1;
+                    if (!emitPrintString(kDynBoolTrueText) || !branchEnd(j1))
+                        return false;
+                    endJmps.push_back(j1);
+                    patchFwd(isFalse);
+                    size_t j2;
+                    if (!emitPrintString(kDynBoolFalseText) || !branchEnd(j2))
+                        return false;
+                    endJmps.push_back(j2);
+                }
+                patchFwd(notB);
+                // Int ⇒ itoa
+                size_t notI;
+                if (!cmpImm8(x86::R8, kDynKindInt) || !emitJccFwd(x86::mnem::kJne, notI))
+                    return false;
+                {
+                    size_t j;
+                    if (!movReg(x86::RAX, x86::R9) || !emitPrintInt() || !branchEnd(j))
+                        return false;
+                    endJmps.push_back(j);
+                }
+                patchFwd(notI);
+                // غيرها (Null) ⇒ «عدم»
+                if (!emitPrintString(kDynNullText))
+                    return false;
+                for (size_t j : endJmps)
+                    patchFwd(j);
+                return true;
+            }
+
             // (AR) هل المعاملُ سجلٌّ يُشير إلى خانةِ متغيّرٍ مخصَّص (ALLOC)؟ يُعيد إزاحتَه.
             bool isMemVar(const sir::SIROperand &op, long long &disp) const
             {
@@ -731,6 +969,10 @@ namespace sad
                 long long c;
                 if (common::isConstInt(op, c))
                     return movImm(dst, c);
+                // (AR) ثابتٌ عشريّ ⇒ نمطُ بتّاته i64 (العشريّ يعيش كبتّاتٍ في GPR).
+                if (op.type == sir::SIROperandType::CONSTANT &&
+                    op.dataType == types::SadTypeKind::Float)
+                    return loadFloatConst(dst, op.floatValue);
                 if (op.type == sir::SIROperandType::REGISTER)
                 {
                     long long disp;
@@ -751,6 +993,9 @@ namespace sad
             {
                 if (op.type == sir::SIROperandType::CONSTANT)
                 {
+                    // (AR) ثابتٌ عشريّ ⇒ حمّل نمطَ بتّاته i64 (العشريّ يعيش كبتّاتٍ في GPR).
+                    if (op.dataType == types::SadTypeKind::Float)
+                        return loadFloatConst(dst, op.floatValue);
                     if (op.dataType != types::SadTypeKind::Integer)
                         return fail(EC::INT_NATIVE_UNSUPPORTED,
                                     diag::kConstType + std::to_string(static_cast<int>(op.dataType)));
@@ -794,9 +1039,23 @@ namespace sad
                 bool hasAppend = false;      // (AR) BUILTIN_ARRAY_APPEND ⇒ mmap (عند النموّ) + خانات خدش
                 bool hasPrint = false;       // (AR) أيُّ BUILTIN_PRINT (يلزمه انسكابُ الحوض حولَه)
                 bool hasNumberPrint = false; // (AR) طباعةُ عددٍ (تلزمها خانةُ مخزنِ itoa)
+                bool hasFloatPrint = false;  // (AR) طباعةُ عشريّ (تلزمها خانةُ خدشِ البتّات + مُنسِّق fixed6)
+                bool hasBoxing = false;      // (AR) SET/GET معلَّبٌ (Any) ⇒ يستعمل الحوضَ خدشًا + خانات dyn
+                dynGetCount_ = 0;
                 for (const auto &blockPtr : blocks)
                     for (const auto &inst : blockPtr->instructions)
                     {
+                        // (AR) SET معلَّبٌ: الأمامُ يضع Any على **معامِل** المصفوفة. GET معلَّبٌ:
+                        //      الأمامُ يضع Any على **نتيجة** القراءة (لا المعامل) — كما يكشفه مسارُ LLVM.
+                        if (inst.opcode == sir::SIROpcode::ARRAY_SET && !inst.operands.empty() &&
+                            inst.operands[0].elementType == types::SadTypeKind::Any)
+                            hasBoxing = true;
+                        if (inst.opcode == sir::SIROpcode::ARRAY_GET && inst.result &&
+                            inst.result->dataType == types::SadTypeKind::Any)
+                        {
+                            hasBoxing = true;
+                            ++dynGetCount_; // (AR) خانةُ dyn لكلّ قراءةٍ معلَّبة
+                        }
                         if (inst.opcode == sir::SIROpcode::ALLOC && inst.result)
                         {
                             used += 8;
@@ -821,8 +1080,14 @@ namespace sad
                         {
                             hasPrint = true;
                             for (const auto &op : inst.operands)
+                            {
                                 if (op.dataType != types::SadTypeKind::String)
                                     hasNumberPrint = true; // (AR) معاملٌ غيرُ نصّيٍّ ⇒ يُطبَع عددًا (itoa)
+                                // (AR) العشريّ أو المعلَّب (Any، قد يُبوَّب عشريًّا) ⇒ يلزمه المُنسِّق + خانتُه.
+                                if (op.dataType == types::SadTypeKind::Float ||
+                                    op.dataType == types::SadTypeKind::Any)
+                                    hasFloatPrint = true;
+                            }
                         }
                     }
                 // (AR) القسمةُ الصحيحةُ (idiv) تدهس rdx (=أوّلُ سجلّ حوض، قد يحمل مؤقّتًا حيًّا)؛
@@ -845,6 +1110,12 @@ namespace sad
                     printBufTopDisp_ = -used;
                     used += 24;
                 }
+                // (AR) طباعةُ عشريّ: خانةُ خدشٍ (٨ بايت) لنمطِ بتّاتِ الـdouble عبر مراحل المُنسِّق.
+                if (hasFloatPrint)
+                {
+                    used += 8;
+                    floatValDisp_ = -used;
+                }
                 // (AR) الإلحاق: خمسُ خاناتٍ تبقى حيّةً عبر mmap (P/القيمة/الطول/newdata/newcap).
                 if (hasAppend)
                 {
@@ -854,10 +1125,17 @@ namespace sad
                     used += 8; appendNewDisp_ = -used;
                     used += 8; appendCapDisp_ = -used;
                 }
+                // (AR) التعليب: خانةُ dyn (١٦ بايت: tag@0، payload@8) لكلّ قراءةٍ معلَّبة. القمّةُ
+                //      (العنوانُ الأعلى، حصريّ) = ‎-used‎ قبل الحجز؛ الخانةُ i عند ‎base - i×16‎.
+                if (dynGetCount_ > 0)
+                {
+                    dynSlotBaseDisp_ = -used;
+                    used += static_cast<long long>(dynGetCount_) * 16;
+                }
                 // (AR) إن نادت الدالّةُ أو طبعت، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض. النداءُ
                 //      يدهس كلَّ الحوض (caller-saved)، والطباعةُ تستعمل سجلّاتِ الحوض مُبدَّداتٍ ⇒
                 //      تُنسَك المؤقّتاتُ الحيّةُ حولَهما وتُعاد.
-                if (hasCall || hasPrint || hasArrayNew || hasAppend)
+                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing)
                 {
                     spillBase_ = -(used + 8);
                     used += static_cast<long long>(pool_.size()) * 8;
@@ -939,6 +1217,50 @@ namespace sad
                     return loadInto(dst, inst.operands[0]) &&
                            loadInto(x86::RAX, inst.operands[1]) &&
                            imulReg(dst, x86::RAX);
+                }
+                case OP::ADD_F64:
+                case OP::SUB_F64:
+                case OP::MUL_F64:
+                case OP::DIV_F64:
+                {
+                    // (AR) حسابٌ عشريّ: العشريّ بتّاتُ i64 في GPR. حمّل a في dst وb في RAX، عبّئهما
+                    //      في xmm0/xmm1، نفّذ عمليّةَ SSE المزدوجة، ثمّ استخرج البتّات إلى dst.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (!loadInto(dst, inst.operands[0]) || !loadInto(x86::RAX, inst.operands[1]))
+                        return false;
+                    if (!movqToXmm(kXmm0, dst) || !movqToXmm(kXmm1, x86::RAX))
+                        return false;
+                    bool ok = inst.opcode == OP::ADD_F64   ? addsd(kXmm0, kXmm1)
+                              : inst.opcode == OP::SUB_F64 ? subsd(kXmm0, kXmm1)
+                              : inst.opcode == OP::MUL_F64 ? mulsd(kXmm0, kXmm1)
+                                                          : divsd(kXmm0, kXmm1);
+                    return ok && movqFromXmm(dst, kXmm0);
+                }
+                case OP::I64_TO_F64:
+                {
+                    // (AR) صحيح ⇒ عشريّ: cvtsi2sd xmm0, dst(=الصحيح) ثمّ استخرج بتّاتِ العشريّ إلى dst.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadInto(dst, inst.operands[0]) && cvtsi2sd(kXmm0, dst) &&
+                           movqFromXmm(dst, kXmm0);
+                }
+                case OP::F64_TO_I64:
+                {
+                    // (AR) عشريّ ⇒ صحيح باقتطاعٍ نحو الصفر: عبّئ بتّاتِ dst في xmm0 ثمّ cvttsd2si dst, xmm0.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadInto(dst, inst.operands[0]) && movqToXmm(kXmm0, dst) &&
+                           cvttsd2si(dst, kXmm0);
                 }
                 case OP::AND:
                 case OP::OR:
@@ -1177,9 +1499,21 @@ namespace sad
                         // (AR) سلسلةٌ محسوبةٌ في سجلٍّ (لا حرفيّة) غيرُ مدعومةٍ بعد ⇒ فشلٌ صريح.
                         else if (op.dataType == types::SadTypeKind::String)
                             return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kPrintStrComputed + diag::kVregSigil + op.name);
+                        else if (op.dataType == types::SadTypeKind::Any)
+                        {
+                            // (AR) معلَّب: المعاملُ مؤشّرٌ إلى خانةِ dyn ⇒ طباعةٌ مبوَّبةٌ زمنَ التشغيل.
+                            if (!loadArgInto(x86::RDI, op) || !emitPrintBoxed(x86::RDI))
+                                return false;
+                        }
+                        else if (op.dataType == types::SadTypeKind::Float)
+                        {
+                            // (AR) عشريّ: حمّل نمطَ بتّاته في RAX ثمّ المُنسِّق (fixed6 + حذفُ الأصفار).
+                            if (!loadArgInto(x86::RAX, op) || !emitPrintFloat())
+                                return false;
+                        }
                         else
                         {
-                            // (AR) عددٌ: حمّله في RAX (ثابت/ذاكرة/خانة انسكاب) ثمّ itoa+write.
+                            // (AR) عددٌ صحيح: حمّله في RAX (ثابت/ذاكرة/خانة انسكاب) ثمّ itoa+write.
                             if (!loadArgInto(x86::RAX, op) || !emitPrintInt())
                                 return false;
                         }
@@ -1204,7 +1538,11 @@ namespace sad
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayNewDynamicSize);
                     if (lenv < 0 || capv < 0)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayNewNegative);
-                    const long long total = kArrHeaderBytes + capv * kArrSlotBytes;
+                    // (AR) نُخصّص أيضًا مخزنَ الوسوم (cap بايت) بعد البيانات في نفس الكتلة، ونضبط
+                    //      arr[tags]=data_end. هذا يُغني عن التخصيصِ الكسول وسطَ ARRAY_SET (الذي يلزمه
+                    //      mmap يدهس الحوض). المسارُ غيرُ المعلَّب لا يقرأ arr[tags] فلا يتأثّر. MAP_ANONYMOUS
+                    //      يُصفّر مخزنَ الوسوم ⇒ الوسمُ الابتدائيّ Null=0 (يُكتَب فعليًّا عند SET المعلَّب).
+                    const long long total = kArrHeaderBytes + capv * kArrSlotBytes + capv * kTagSlotBytes;
                     // (AR) انسكِبْ المؤقّتاتِ الحيّةَ (mmap يدهس الحوض)، ثمّ mmap، ثمّ أعِدها.
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first))
@@ -1219,6 +1557,11 @@ namespace sad
                         return false;
                     if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, kArrHeaderBytes) ||
                         !storeMemBase(x86::RAX, kArrOffData, x86::RDI))
+                        return false;
+                    // (AR) tags = نهايةُ البيانات = base + 40 + cap×8 ⇒ arr[tags] = هذا العنوان.
+                    if (!movReg(x86::RDI, x86::RAX) ||
+                        !addImm(x86::RDI, kArrHeaderBytes + capv * kArrSlotBytes) ||
+                        !storeMemBase(x86::RAX, kArrOffTags, x86::RDI))
                         return false;
                     // (AR) أعِد تحميلَ المؤقّتاتِ الحيّة (RAX لا يُعاد كتابتُه — يحمل المؤشّرَ).
                     for (const auto &kv : regOf_)
@@ -1238,7 +1581,38 @@ namespace sad
                     if (inst.operands.size() != 3)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     if (inst.operands[0].elementType == types::SadTypeKind::Any)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArraySetBoxed);
+                    {
+                        // (AR) تخزينٌ معلَّب: نخزّن الحمولةَ الخام i64 في data[idx] (العشريّ بتّاتُه،
+                        //      الصحيح/المنطقيّ قيمتُه)، والوسمَ (DynKind) في tags[idx] (خانةٌ ٨-بت).
+                        //      القراءةُ (ARRAY_GET Any) تُبوِّب زمنَ التشغيل من الوسم. الوسمُ ثابتٌ من
+                        //      نوعِ القيمة. نستعمل الحوضَ خدشًا (RCX/RDX/RSI مُنسكَبةٌ حولَه).
+                        long long tag;
+                        if (!dynTagForType(inst.operands[2].dataType, tag))
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArraySetBoxed);
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                    return false;
+                        // RAX=arr، RDI=idx، فحصُ الحدّ، ثمّ RCX=الحمولة.
+                        if (!loadInto(x86::RAX, inst.operands[0]) || !loadInto(x86::RDI, inst.operands[1]) ||
+                            !emitBoundsCheck() || !loadInto(x86::RCX, inst.operands[2]))
+                            return false;
+                        // data[idx] = RCX: RDX=[arr+data]، RSI=idx×8، RDX+=RSI، [RDX]=RCX.
+                        if (!loadMemBase(x86::RDX, x86::RAX, kArrOffData) || !movReg(x86::RSI, x86::RDI) ||
+                            !shlImm(x86::RSI, 3) || !addReg(x86::RDX, x86::RSI) ||
+                            !storeMemBase(x86::RDX, 0, x86::RCX))
+                            return false;
+                        // tags[idx] = tag: RDX=[arr+tags]، RSI=idx×8، RDX+=RSI، RCX=tag، [RDX]=RCX.
+                        if (!loadMemBase(x86::RDX, x86::RAX, kArrOffTags) || !movReg(x86::RSI, x86::RDI) ||
+                            !shlImm(x86::RSI, 3) || !addReg(x86::RDX, x86::RSI) ||
+                            !movImm(x86::RCX, tag) || !storeMemBase(x86::RDX, 0, x86::RCX))
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                    return false;
+                        return true;
+                    }
                     if (!emitElemAddr(inst.operands[0], inst.operands[1]))
                         return false;
                     // (AR) RDI = القيمة (بعد حساب العنوان ⇒ الفهرسُ في RDI لم يعد مطلوبًا)؛ [RAX]=RDI.
@@ -1251,8 +1625,44 @@ namespace sad
                     // (AR) result = arr[index]. نحسب عنوانَ العنصر في RAX ثمّ نحمّله في الوجهة.
                     if (!inst.result || inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    if (inst.operands[0].elementType == types::SadTypeKind::Any)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayGetBoxed);
+                    // (AR) القراءةُ المعلَّبة تُكشَف بنوعِ **النتيجة** Any (الأمامُ يضعها هناك لا على
+                    //      المعامل — بخلاف SET) اتّساقًا مع مسارِ LLVM (array_ops.cpp).
+                    if (inst.result->dataType == types::SadTypeKind::Any)
+                    {
+                        // (AR) قراءةٌ معلَّبة: نقرأ الحمولةَ الخام (data[idx]) والوسمَ (tags[idx])، ثمّ
+                        //      نبني قيمةً ديناميّةً في خانةِ dyn ({tag@0، payload@8}) ونُعيد مؤشّرَها في
+                        //      سجلّ النتيجة (نوعُه Any ⇒ الطباعةُ تُبوِّب زمنَ التشغيل). خانةٌ لكلّ قراءة.
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                    return false;
+                        if (!loadInto(x86::RAX, inst.operands[0]) || !loadInto(x86::RDI, inst.operands[1]) ||
+                            !emitBoundsCheck())
+                            return false;
+                        // RCX = data[idx] (الحمولة)
+                        if (!loadMemBase(x86::RDX, x86::RAX, kArrOffData) || !movReg(x86::RSI, x86::RDI) ||
+                            !shlImm(x86::RSI, 3) || !addReg(x86::RDX, x86::RSI) ||
+                            !loadMemBase(x86::RCX, x86::RDX, 0))
+                            return false;
+                        // R8 = tags[idx] (الوسم)
+                        if (!loadMemBase(x86::RDX, x86::RAX, kArrOffTags) || !movReg(x86::RSI, x86::RDI) ||
+                            !shlImm(x86::RSI, 3) || !addReg(x86::RDX, x86::RSI) ||
+                            !loadMemBase(x86::R8, x86::RDX, 0))
+                            return false;
+                        // خانةُ dyn i: tag@0، payload@8.
+                        const long long sd = dynSlotBaseDisp_ - static_cast<long long>(dynSlotNext_ + 1) * 16;
+                        ++dynSlotNext_;
+                        if (!storeMem(sd, x86::R8) || !storeMem(sd + 8, x86::RCX))
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                    return false;
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return leaFrame(dst, sd); // (AR) النتيجة = مؤشّرُ خانةِ dyn
+                    }
                     if (!emitElemAddr(inst.operands[0], inst.operands[1]))
                         return false;
                     int dst;

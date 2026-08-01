@@ -58,6 +58,14 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "عيّن_إذا", "x, cond", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 212, true, -1 }, { 20, 16, 31, true, -1 }, { 15, 12, 0, false, 1 }, { 11, 10, 1, true, -1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
     { "اخزن_بايت", "w, x", sad::native::arm64::EncSpec{ 32, { { 31, 22, 228, true, -1 }, { 21, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اقفز_إن_ليس_صفرًا", "x, rel19", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 24, 53, true, -1 }, { 23, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "عبّئ_عشري", "d, x", sad::native::arm64::EncSpec{ 32, { { 31, 16, 40551, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "استخرج_عشري", "x, d", sad::native::arm64::EncSpec{ 32, { { 31, 16, 40550, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "حوّل_إلى_عشري", "d, x", sad::native::arm64::EncSpec{ 32, { { 31, 16, 40546, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "حوّل_من_عشري", "x, d", sad::native::arm64::EncSpec{ 32, { { 31, 16, 40568, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اجمع_عشري", "d, d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 10, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اطرح_عشري", "d, d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 14, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اضرب_عشري", "d, d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 2, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اقسم_عشري", "d, d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 6, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     };
     return kTable;
 }
@@ -98,6 +106,14 @@ inline const std::string kLsrv = "أزح_يمين";
 inline const std::string kCset = "عيّن_إذا";
 inline const std::string kStrb = "اخزن_بايت";
 inline const std::string kCbnz = "اقفز_إن_ليس_صفرًا";
+inline const std::string kFmovDX = "عبّئ_عشري";
+inline const std::string kFmovXD = "استخرج_عشري";
+inline const std::string kScvtf = "حوّل_إلى_عشري";
+inline const std::string kFcvtzs = "حوّل_من_عشري";
+inline const std::string kFadd = "اجمع_عشري";
+inline const std::string kFsub = "اطرح_عشري";
+inline const std::string kFmul = "اضرب_عشري";
+inline const std::string kFdiv = "اقسم_عشري";
 } // namespace mnem
 
 // (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.

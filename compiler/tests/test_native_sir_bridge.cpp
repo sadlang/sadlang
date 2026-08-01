@@ -188,6 +188,23 @@ namespace
         "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
         "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x28\x34\x30\x20\x2B\x20\x32\x29\x20\x2B\x20\x28\x38\x34\x20\x25\x20\x34\x32\x29\x0A"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) اقتطاعُ عشريٍّ لصحيح عبر معاملِ دالّةٍ عشريّ (يهزم طيَّ الثوابت + نوعُه Float صريحًا):
+    //      «حوّل(عشري س) ارجع رقم(س)؛ رئيسية ارجع حوّل(42.0)» ⇒ ٤٢. F64_TO_I64 (movq+cvttsd2si).
+    const std::string kSrcFloatArith =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xAD\xD9\x88\xD9\x91\xD9\x84\x28\xD8\xB9\xD8\xB4\xD8\xB1\xD9\x8A\x20\xD8\xB3\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xB1\xD9\x82\xD9\x85\x28\xD8\xB3\x29\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xAD\xD9\x88\xD9\x91\xD9\x84\x28\x34\x32\x2E\x30\x29\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) طباعةُ عشريّ: «ع = 40.5 + 1.0؛ اطبع_سطر(ع)» ⇒ «41.5». ADD_F64 (addsd) + المُنسِّق.
+    const std::string kSrcFloatPrint =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xB9\x20\x3D\x20\x34\x30\x2E\x35\x20\x2B\x20\x31\x2E\x30\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\xD8\xB9\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x30\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) مصفوفةٌ مختلطةٌ int/float معلَّبة ⇒ «3.5» ثمّ «1». ARRAY_SET/GET(Any) + طباعةٌ مبوَّبة.
+    const std::string kSrcBoxedMixed =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD9\x85\x20\x3D\x20\x5B\x31\xD8\x8C\x20\x33\x2E\x35\xD8\x8C\x20\x32\x5D\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\xD9\x85\x5B\x31\x5D\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\xD9\x85\x5B\x30\x5D\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x30\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) طفحانُ الكسر: «2.9999998» ⇒ «3.0» (ترحيلُ الحمل — إصلاحُ عائق أميليا).
+    const std::string kSrcFloatCarry =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\x32\x2E\x39\x39\x39\x39\x39\x39\x38\x29\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x30\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 } // namespace
 
 // (AR) المصدرُ الحسابيّ يُبنى ويُخفَّض بنجاح، والـELF سليمٌ (EM_X86_64).
@@ -600,6 +617,75 @@ TEST(NativeSirBridge, PrintsComputedNumber)
     ASSERT_EQ(int(wrote), int(res.code.size()));
 }
 
+// (AR) اقتطاعُ عشريّ→صحيح (F64_TO_I64 = movq+cvttsd2si) ⇒ خروج ٤٢. أوّلُ تحويلِ عشريّ أصليّ.
+TEST(NativeSirBridge, FloatArithToInt)
+{
+    auto module = buildSir(kSrcFloatArith);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_TRUE(contains(bin, {0xF2, 0x48, 0x0F, 0x2C})); // cvttsd2si r64,xmm
+    std::FILE *fp = std::fopen("sad_sir_float42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) طباعةُ عشريّ (addsd + المُنسِّق) ⇒ «41.5». أوّلُ مخرَجٍ عشريٍّ مرئيّ.
+TEST(NativeSirBridge, PrintsFloat)
+{
+    auto module = buildSir(kSrcFloatPrint);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_TRUE(contains(bin, {0xF2, 0x0F, 0x58})); // addsd xmm,xmm
+    ASSERT_TRUE(contains(bin, {0x0F, 0x2A}));       // cvtsi2sd (أوپكودُه، أيًّا كان REX)
+    std::FILE *fp = std::fopen("sad_sir_printfloat", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفةٌ مختلطةٌ معلَّبة (int/float) ⇒ «3.5» ثمّ «1». مسارُ التعليب الكامل بلا LLVM.
+TEST(NativeSirBridge, BoxedMixedArray)
+{
+    auto module = buildSir(kSrcBoxedMixed);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_TRUE(res.code.size() > sad::native::elf::kCodeOffset);
+    std::FILE *fp = std::fopen("sad_sir_boxed", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(res.code.size()));
+}
+
+// (AR) طفحانُ الكسر (ترحيلُ الحمل): «2.9999998» ⇒ «3.0». إصلاحُ عائق أميليا.
+TEST(NativeSirBridge, FloatCarryRounding)
+{
+    auto module = buildSir(kSrcFloatCarry);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    ASSERT_TRUE(res.ok);
+    std::FILE *fp = std::fopen("sad_sir_carry", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    std::fwrite(res.code.data(), 1, res.code.size(), fp);
+    std::fclose(fp);
+}
+
 // (AR) قسمةٌ بنتيجةٍ في سجلٍّ غيرِ RDX مع مؤقّتٍ حيٍّ في RDX تُخفَّض وتُكتب للبرهان الحيّ
 //      (خروج ٤٢). برهانُ فرعِ dst!=RDX (حفظ/استعادةُ rdx حولَ idiv) — كان تحليليًّا فقط.
 TEST(NativeSirBridge, ModWithLiveRdxTemp)
@@ -907,6 +993,42 @@ TEST(Arm64SirBridge, LowersArrayLiteralIndex)
     bool ok = false;
     size_t sz = 0;
     lowerArm64AndWrite(mkReturn("[10\xD8\x8C 20\xD8\x8C 42][2]"), "sad_arm64_array42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) اقتطاعُ عشريّ→صحيح على ARM64 (fmov+fcvtzs) ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, FloatArithToInt)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcFloatArith, "sad_arm64_float42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) طباعةُ عشريّ على ARM64 (fadd + المُنسِّق) ⇒ «41.5» على qemu.
+TEST(Arm64SirBridge, PrintsFloat)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcFloatPrint, "sad_arm64_printfloat", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) مصفوفةٌ مختلطةٌ معلَّبة على ARM64 ⇒ «3.5» ثمّ «1» على qemu. مرآةُ x86 للتعليب.
+TEST(Arm64SirBridge, BoxedMixedArray)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcBoxedMixed, "sad_arm64_boxed", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) طفحانُ الكسر على ARM64: «2.9999998» ⇒ «3.0». إصلاحُ عائق أميليا.
+TEST(Arm64SirBridge, FloatCarryRounding)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcFloatCarry, "sad_arm64_carry", &ok, &sz);
     ASSERT_TRUE(ok);
 }
 

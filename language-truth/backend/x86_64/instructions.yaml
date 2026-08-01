@@ -517,3 +517,146 @@ instructions:
       encode:
         opcode: [0xE8]
         immediate: { operand: 0, bits: 32, encoding: le }
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # SSE عدديّ مزدوج (scalar double) — أساسُ العشريّ (float) للخلفيّة السياديّة.
+  # البادئةُ الإلزاميّة (F2/66) تسبق REX. سجلّاتُ xmm تُرقَّم 0..15 كـgpr في ModRM
+  # (فحقلُ prefix وحده الجديد؛ لا منطقَ ModRM جديد). كلُّ ترميزٍ مُتحقَّقٌ بايتًا
+  # ببايت ضدّ llvm-mc-18. الأسماءُ فعلًا-أوّلًا (اتّساقُ التسمية العربيّة).
+  # ══════════════════════════════════════════════════════════════════════════
+
+  # movq xmm, r64  ⇒  66 REX.W 0F 6E /r   (بتّاتُ i64 ⇒ سجلّ عشريّ؛ reg=xmm، rm=r64)
+  عبّئ_عشري:
+    - en: movq_xmm_r64
+      form: "xmm, r64"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        prefix: [0x66]
+        rex_w: true
+        opcode: [0x0F, 0x6E]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+
+  # movq r64, xmm  ⇒  66 REX.W 0F 7E /r   (بتّاتُ سجلٍّ عشريّ ⇒ i64؛ reg=xmm، rm=r64)
+  استخرج_عشري:
+    - en: movq_r64_xmm
+      form: "r64, xmm"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0x66]
+        rex_w: true
+        opcode: [0x0F, 0x7E]
+        modrm: { mod: reg, reg: op1, rm: op0 }
+
+  # movsd xmm, [mem]  ⇒  F2 0F 10 /r   (تحميلُ عشريّ من خانةِ إطار؛ reg=xmm، rm=mem)
+  حمّل_عشري:
+    - en: movsd_load
+      form: "xmm, m64"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: mem, class: gpr }
+      encode:
+        prefix: [0xF2]
+        opcode: [0x0F, 0x10]
+        modrm: { mod: mem, reg: op0, rm: op1 }
+
+  # movsd [mem], xmm  ⇒  F2 0F 11 /r   (تخزينُ عشريّ إلى خانةِ إطار؛ reg=xmm، rm=mem)
+  خزّن_عشري:
+    - en: movsd_store
+      form: "m64, xmm"
+      operands:
+        - { kind: mem, class: gpr }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0xF2]
+        opcode: [0x0F, 0x11]
+        modrm: { mod: mem, reg: op1, rm: op0 }
+
+  # addsd xmm, xmm  ⇒  F2 0F 58 /r
+  اجمع_عشري:
+    - en: addsd
+      form: "xmm, xmm"
+      operands:
+        - { kind: reg, class: fp, role: inout }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0xF2]
+        opcode: [0x0F, 0x58]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+
+  # subsd xmm, xmm  ⇒  F2 0F 5C /r
+  اطرح_عشري:
+    - en: subsd
+      form: "xmm, xmm"
+      operands:
+        - { kind: reg, class: fp, role: inout }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0xF2]
+        opcode: [0x0F, 0x5C]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+
+  # mulsd xmm, xmm  ⇒  F2 0F 59 /r
+  اضرب_عشري:
+    - en: mulsd
+      form: "xmm, xmm"
+      operands:
+        - { kind: reg, class: fp, role: inout }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0xF2]
+        opcode: [0x0F, 0x59]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+
+  # divsd xmm, xmm  ⇒  F2 0F 5E /r
+  اقسم_عشري:
+    - en: divsd
+      form: "xmm, xmm"
+      operands:
+        - { kind: reg, class: fp, role: inout }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0xF2]
+        opcode: [0x0F, 0x5E]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+
+  # cvtsi2sd xmm, r64  ⇒  F2 REX.W 0F 2A /r   (صحيح i64 ⇒ عشريّ؛ reg=xmm، rm=r64)
+  حوّل_إلى_عشري:
+    - en: cvtsi2sd
+      form: "xmm, r64"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        prefix: [0xF2]
+        rex_w: true
+        opcode: [0x0F, 0x2A]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+
+  # cvttsd2si r64, xmm  ⇒  F2 REX.W 0F 2C /r   (عشريّ ⇒ صحيح باقتطاع؛ reg=r64، rm=xmm)
+  حوّل_من_عشري:
+    - en: cvttsd2si
+      form: "r64, xmm"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0xF2]
+        rex_w: true
+        opcode: [0x0F, 0x2C]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+
+  # ucomisd xmm, xmm  ⇒  66 0F 2E /r   (مقارنةُ ترتيبٍ عشريّة ⇒ رايات EFLAGS)
+  قارن_عشري:
+    - en: ucomisd
+      form: "xmm, xmm"
+      operands:
+        - { kind: reg, class: fp, role: in }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0x66]
+        opcode: [0x0F, 0x2E]
+        modrm: { mod: reg, reg: op0, rm: op1 }

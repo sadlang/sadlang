@@ -305,6 +305,24 @@ TEST(NativeX86, ArrayBoundsCmpMemAndJb)
     ASSERT_EQ(hex(enc("اقفز_إذا_أدنى", "rel8", {O::I(12, 8)})), std::string("720c"));
 }
 
+// ─── SSE عدديّ مزدوج (float): البادئةُ الإلزاميّة F2/66 تسبق REX. متحقَّقٌ ضدّ llvm-mc-18. ───
+TEST(NativeX86, SseFloatOps)
+{
+    using O = x86::Operand;
+    ASSERT_EQ(hex(enc("عبّئ_عشري", "xmm, r64", {O::R(0), O::R(0)})), std::string("66480f6ec0"));    // movq xmm0,rax
+    ASSERT_EQ(hex(enc("عبّئ_عشري", "xmm, r64", {O::R(9), O::R(10)})), std::string("664d0f6eca"));    // movq xmm9,r10
+    ASSERT_EQ(hex(enc("استخرج_عشري", "r64, xmm", {O::R(0), O::R(0)})), std::string("66480f7ec0"));   // movq rax,xmm0
+    ASSERT_EQ(hex(enc("حمّل_عشري", "xmm, m64", {O::R(0), O::M(x86::RBP, -8)})), std::string("f20f1045f8"));  // movsd xmm0,[rbp-8]
+    ASSERT_EQ(hex(enc("خزّن_عشري", "m64, xmm", {O::M(x86::RBP, -8), O::R(0)})), std::string("f20f1145f8"));  // movsd [rbp-8],xmm0
+    ASSERT_EQ(hex(enc("اجمع_عشري", "xmm, xmm", {O::R(0), O::R(1)})), std::string("f20f58c1"));       // addsd
+    ASSERT_EQ(hex(enc("اطرح_عشري", "xmm, xmm", {O::R(0), O::R(1)})), std::string("f20f5cc1"));       // subsd
+    ASSERT_EQ(hex(enc("اضرب_عشري", "xmm, xmm", {O::R(0), O::R(1)})), std::string("f20f59c1"));       // mulsd
+    ASSERT_EQ(hex(enc("اقسم_عشري", "xmm, xmm", {O::R(0), O::R(1)})), std::string("f20f5ec1"));       // divsd
+    ASSERT_EQ(hex(enc("حوّل_إلى_عشري", "xmm, r64", {O::R(0), O::R(0)})), std::string("f2480f2ac0")); // cvtsi2sd xmm0,rax
+    ASSERT_EQ(hex(enc("حوّل_من_عشري", "r64, xmm", {O::R(0), O::R(0)})), std::string("f2480f2cc0"));  // cvttsd2si rax,xmm0
+    ASSERT_EQ(hex(enc("قارن_عشري", "xmm, xmm", {O::R(0), O::R(1)})), std::string("660f2ec1"));       // ucomisd
+}
+
 // ─── برهانُ تدفّق التحكّم الحيّ: لولبٌ يعدّ حتّى ٤٢ ثمّ يخرج به ───
 // (AR) mov edi,0 ; loop: add rdi,1 ; cmp rdi,42 ; jne loop ; mov eax,60 ; syscall
 //      يُثبت أنّ الحساب الفوريّ والمقارنة والقفز النسبيّ الخلفيّ تُرمَّز وتُنفَّذ صحيحًا.
