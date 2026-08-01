@@ -602,6 +602,8 @@ namespace sad
             bool negReg(int dst) { return emit(x86::mnem::kNeg, "r64", {x86::Operand::R(dst)}); }        // (AR) dst = −dst (متمّمٌ ثنائيّ)
             // ── المقارنة كقيمة: setcc r8 (٠/١ حسب الأعلام) ثمّ movzx r64,r8 (تمديدُ بالصفر) ──
             bool setccReg(const std::string &mnem, int r8) { return emit(mnem, "r8", {x86::Operand::R(r8)}); }
+            // (AR) test r64,r64 — يضبط ZF إن كان السجلّ صفرًا (لاختبارِ منطقيٍّ حيٍّ في فرعٍ غيرِ مدموج).
+            bool testReg(int a, int b) { return emit(x86::mnem::kTest, "r64, r64", {x86::Operand::R(a), x86::Operand::R(b)}); }
             bool movzxReg(int dst, int src8) { return emit(x86::mnem::kMovzx, "r64, r8", {x86::Operand::R(dst), x86::Operand::R(src8)}); }
 
             // ── SSE عدديّ مزدوج: العشريّ يعيش كنمطِ بتّاتٍ i64 في حوض GPR؛ xmm0/xmm1 خدشٌ
@@ -631,6 +633,52 @@ namespace sad
                 int64_t bits;
                 std::memcpy(&bits, &v, sizeof bits);
                 return movImm64(gpr, static_cast<long long>(bits));
+            }
+
+            // (AR) مقارنةُ عوائم ⇒ %dst = ٠/١ بدلالة IEEE (النتيجةُ خطأٌ لأيّ NaN عدا !=). العشريّ
+            //      يعيش كبتّاتٍ في GPR فنحمّله لـxmm ثمّ ucomisd (يضبط CF/ZF/PF لا-موقَّعةً):
+            //      unordered(NaN) ⇒ CF=ZF=PF=1. للترتيب نستعمل seta/setae (تخيَّبان عند CF=1
+            //      ⇒ خطأٌ عند NaN تلقائيًّا) مع تبديلِ المعامِلَين للأصغر/الأصغر-أو-يساوي. وللمساواة
+            //      نضمّ الشرطَ المرتَّب: == ⇒ (ZF=1) و (PF=0)؛ != ⇒ (ZF=0) أو (PF=1). المُبدَّدات
+            //      RAX/RDI خارجَ الحوض (لا تدهسان مؤقّتًا حيًّا).
+            bool floatCompareToReg(int dst, const sir::SIROperand &lhs,
+                                   const sir::SIROperand &rhs, sir::SIROpcode op)
+            {
+                using OP = sir::SIROpcode;
+                // (AR) حمّل نمطَي البتّات ثمّ انقلهما لسجلَّي xmm الخدش.
+                if (!loadInto(x86::RAX, lhs) || !loadInto(x86::RDI, rhs))
+                    return false;
+                if (!movqToXmm(kXmm0, x86::RAX) || !movqToXmm(kXmm1, x86::RDI))
+                    return false;
+                switch (op)
+                {
+                case OP::GT: // a>b: ucomisd a,b ثمّ seta (CF=0&ZF=0)
+                    return ucomisd(kXmm0, kXmm1) && setccReg(x86::mnem::kSeta, x86::RAX) &&
+                           movzxReg(dst, x86::RAX);
+                case OP::GE: // a>=b: ucomisd a,b ثمّ setae (CF=0)
+                    return ucomisd(kXmm0, kXmm1) && setccReg(x86::mnem::kSetae, x86::RAX) &&
+                           movzxReg(dst, x86::RAX);
+                case OP::LT: // a<b ⟺ b>a: ucomisd b,a ثمّ seta
+                    return ucomisd(kXmm1, kXmm0) && setccReg(x86::mnem::kSeta, x86::RAX) &&
+                           movzxReg(dst, x86::RAX);
+                case OP::LE: // a<=b ⟺ b>=a: ucomisd b,a ثمّ setae
+                    return ucomisd(kXmm1, kXmm0) && setccReg(x86::mnem::kSetae, x86::RAX) &&
+                           movzxReg(dst, x86::RAX);
+                // (AR) EQ/NE: setcc يستهدفُ AL حصرًا (سجلٌّ منخفضٌ لا يلزمه REX)، ثمّ movzx ينقل
+                //      كلَّ نتيجةٍ إلى سجلٍّ ٦٤ (RDI ثمّ RAX، مُبدَّدان خارجَ الحوض) قبل إعادةِ استعمالِ AL.
+                case OP::EQ: // a==b: (ZF=1) و (PF=0) ⇒ sete∧setnp (NaN ⇒ PF=1 فيُخيَّب)
+                    return ucomisd(kXmm0, kXmm1) &&
+                           setccReg(x86::mnem::kSete, x86::RAX) && movzxReg(x86::RDI, x86::RAX) &&
+                           setccReg(x86::mnem::kSetnp, x86::RAX) && movzxReg(x86::RAX, x86::RAX) &&
+                           andReg(x86::RAX, x86::RDI) && movReg(dst, x86::RAX);
+                case OP::NE: // a!=b: (ZF=0) أو (PF=1) ⇒ setne∨setp (NaN ⇒ PF=1 فيَصدُق)
+                    return ucomisd(kXmm0, kXmm1) &&
+                           setccReg(x86::mnem::kSetne, x86::RAX) && movzxReg(x86::RDI, x86::RAX) &&
+                           setccReg(x86::mnem::kSetp, x86::RAX) && movzxReg(x86::RAX, x86::RAX) &&
+                           orReg(x86::RAX, x86::RDI) && movReg(dst, x86::RAX);
+                default:
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kVregSigil);
+                }
             }
 
             // ── الذاكرة: خانات الإطار [rbp+إزاحة] ──
@@ -1444,6 +1492,14 @@ namespace sad
                     //      المدموجةُ في BR_COND تُتخطّى في lowerBlock فلا تصل هنا. RAX مُبدَّد.
                     if (!inst.result || inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    // (AR) مقارنةُ عوائم (أحدُ المعامِلَين Float): ucomisd + setcc لا-موقَّع بدلالة IEEE.
+                    if (common::isFloatCompare(inst))
+                    {
+                        int fdst;
+                        if (!allocReg(inst.result->name, fdst))
+                            return false;
+                        return floatCompareToReg(fdst, inst.operands[0], inst.operands[1], inst.opcode);
+                    }
                     if (!rejectUnsignedCmp(inst, diag::kCmpValue)) // (AR) لا-موقَّع ⇒ فشلٌ صريح (اتّساقًا مع ARM64)
                         return false;
                     const std::string *setcc = setccForCmp(inst.opcode);
@@ -2072,10 +2128,18 @@ namespace sad
                     return fail(EC::INT_NATIVE_UNSUPPORTED,
                                 diag::kCondKind + std::to_string(static_cast<int>(cond.type)));
 
-                // (AR) شرطٌ سجليّ: يجب أن يكون نتيجةَ مقارنةٍ في هذه الكتلة (إدماج).
+                // (AR) شرطٌ سجليّ: مقارنةٌ صحيحةٌ مدموجةٌ في هذه الكتلة (cmp؛ jCC) — الأسرع. وإلّا
+                //      قيمةٌ منطقيّةٌ حيّةٌ (٠/١) عُرِّفت في هذه الكتلة (نتيجةُ مقارنةِ عوائم أو متغيّرٌ
+                //      منطقيّ) ⇒ اختبرها test؛ jnz then؛ jmp else. (مقارنةُ العوائم لا تُدمَج عمدًا.)
                 const sir::SIRInstruction *cmp = common::findFusedComparison(block, cond.name);
                 if (!cmp || cmp->operands.size() != 2)
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kCondNotFusedCmp + diag::kVregSigil + cond.name);
+                {
+                    if (!loadInto(x86::RAX, cond)) // (AR) منطقيٌّ حيٌّ من الحوض/خانةِ الإطار
+                        return false;
+                    return testReg(x86::RAX, x86::RAX) &&
+                           emitJump(x86::mnem::kJne, thenLbl) &&
+                           emitJump(x86::mnem::kJmp, elseLbl);
+                }
                 if (!rejectUnsignedCmp(*cmp, diag::kCmpBranch)) // (AR) لا-موقَّع ⇒ فشلٌ صريح (jl/g موقَّعة)
                     return false;
                 // (AR) المعامل الأوّل في المُبدَّد RAX (يُحمَّل من الخانة إن متغيّرَ ذاكرة)، ثمّ

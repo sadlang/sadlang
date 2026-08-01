@@ -199,6 +199,17 @@ TEST(NativeX86, NegSarEncodings)
               std::string("48c1fa05"));
     ASSERT_EQ(hex(enc("أزح_يمين_حسابي", "r64, cl", {x86::Operand::R(x86::RDX)})), std::string("48d3fa"));
 }
+// ─── setcc لا-موقَّعة + test (مقارنةُ العوائم عبر ucomisd) — القيم = llvm-mc حرفيًّا ───
+// seta al=0f97c0 · setae al=0f93c0 · setnp al=0f9bc0 · setp al=0f9ac0 · test rax,rax=4885c0
+TEST(NativeX86, FloatCompareEncodings)
+{
+    ASSERT_EQ(hex(enc("عيّن_إذا_فوق", "r8", {x86::Operand::R(x86::RAX)})), std::string("0f97c0"));
+    ASSERT_EQ(hex(enc("عيّن_إذا_فوق_أو_ساوى", "r8", {x86::Operand::R(x86::RAX)})), std::string("0f93c0"));
+    ASSERT_EQ(hex(enc("عيّن_إذا_لا_تكافؤ", "r8", {x86::Operand::R(x86::RAX)})), std::string("0f9bc0"));
+    ASSERT_EQ(hex(enc("عيّن_إذا_تكافؤ", "r8", {x86::Operand::R(x86::RAX)})), std::string("0f9ac0"));
+    ASSERT_EQ(hex(enc("اختبر", "r64, r64", ops2(x86::Operand::R(x86::RAX), x86::Operand::R(x86::RAX)))),
+              std::string("4885c0"));
+}
 // shl $5, %rdx  # [0x48,0xc1,0xe2,0x05]   ·   shr $5, %rdx  # [0x48,0xc1,0xea,0x05]
 TEST(NativeX86, ShlShrImm)
 {

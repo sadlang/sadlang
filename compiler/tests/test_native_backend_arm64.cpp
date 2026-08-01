@@ -292,6 +292,14 @@ TEST(NativeArm64, Asrv)
                  ops3(arm64::Operand::R(arm64::X9), arm64::Operand::R(arm64::X16), arm64::Operand::R(arm64::X17)))),
               std::string("092ad19a"));
 }
+// ─── مقارنةُ العوائم fcmp Dn,Dm — القيمة = llvm-mc حرفيًّا ───
+// fcmp d0,d1 = 0x1E612000 (LE 0020611e) · fcmp d2,d3 = 0x1E632040 (LE 40206 3 1e)
+TEST(NativeArm64, Fcmp)
+{
+    using O = arm64::Operand;
+    ASSERT_EQ(hex(enc("قارن_عشري", "d, d", {O::R(0), O::R(1)})), std::string("0020611e"));
+    ASSERT_EQ(hex(enc("قارن_عشري", "d, d", {O::R(2), O::R(3)})), std::string("4020631e"));
+}
 
 // ─── المقارنةُ كقيمة (cset، حقلُ الشرط المقلوب) — القيم = llvm-mc حرفيًّا ───
 // cset x9,eq(field=1)=0x9A9F17E9 · ne(0)=..07 · lt(10)=..a7 · le(12)=..c7 · gt(13)=..d7 · ge(11)=..b7

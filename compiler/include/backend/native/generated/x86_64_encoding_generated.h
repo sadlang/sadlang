@@ -57,6 +57,11 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "عيّن_إذا_أصغر_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9E}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
     { "عيّن_إذا_أكبر", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9F}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
     { "عيّن_إذا_أكبر_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9D}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_فوق", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x97}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_فوق_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x93}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_لا_تكافؤ", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9B}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_تكافؤ", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9A}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "اختبر", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x85}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "مدد_بالصفر", "r64, r8", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0xB6}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "قارن", "r64, m64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x3B}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "قارن", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x39}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
@@ -116,6 +121,11 @@ inline const std::string kSetl = "عيّن_إذا_أصغر";
 inline const std::string kSetle = "عيّن_إذا_أصغر_أو_ساوى";
 inline const std::string kSetg = "عيّن_إذا_أكبر";
 inline const std::string kSetge = "عيّن_إذا_أكبر_أو_ساوى";
+inline const std::string kSeta = "عيّن_إذا_فوق";
+inline const std::string kSetae = "عيّن_إذا_فوق_أو_ساوى";
+inline const std::string kSetnp = "عيّن_إذا_لا_تكافؤ";
+inline const std::string kSetp = "عيّن_إذا_تكافؤ";
+inline const std::string kTest = "اختبر";
 inline const std::string kMovzx = "مدد_بالصفر";
 inline const std::string kCmp = "قارن";
 inline const std::string kJmp = "اقفز";

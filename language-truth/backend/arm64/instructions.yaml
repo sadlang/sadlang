@@ -776,3 +776,21 @@ instructions:
           - { name: fixed, hi: 31, lo: 16, const: 40544 }
           - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
           - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # FCMP Dn, Dm  ⇒  0x1E602000 | Rm<<16 | Rn<<5   (يضبط NZCV لمقارنةِ عشريَّين؛ لا وجهةَ لها.
+  #   الشرطُ التالي في cset يختار الدلالةَ IEEE: NaN ⇒ غيرُ مرتَّبٍ (C=1,V=1) فتُخيَّب <,<=,==,>,>=
+  #   وتَصدُق != وحدها. يشاركُ fixhi=243 مع fadd/fsub. متحقَّق: fcmp d0,d1 = 0x1E612000)
+  قارن_عشري:
+    - en: fcmp
+      form: "d, d"
+      operands:
+        - { kind: reg, class: fp, role: in }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixhi, hi: 31, lo: 21, const: 243 }
+          - { name: Rm,    hi: 20, lo: 16, from: op1 }
+          - { name: mid,   hi: 15, lo: 10, const: 8 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op0 }
+          - { name: opc,   hi: 4,  lo: 0,  const: 0 }

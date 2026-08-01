@@ -65,6 +65,7 @@ namespace sad
             inline constexpr int kX8 = 8;    // (AR) رقمُ النداء (svc)
             inline constexpr int kScratch0 = 16; // (AR) x16 (IP0) مُبدَّدٌ لتجهيز المعامل الأوّل
             inline constexpr int kScratch1 = 17; // (AR) x17 (IP1) مُبدَّدٌ لتجهيز المعامل الثاني
+            inline constexpr int kXzr = 31;      // (AR) السجلّ الصفريّ XZR في موضعِ Rm/Rn الحسابيّ (لا SP)
             inline constexpr long long kImm16Max = 0xFFFF; // (AR) أقصى فوريّ لـMOVZ (بلا MOVK)
         } // namespace a64reg
 
@@ -340,6 +341,8 @@ namespace sad
             bool scvtf(int d, int x) { return emit(a64::mnem::kScvtf, "d, x", {a64::Operand::R(d), a64::Operand::R(x)}); }
             bool fcvtzs(int x, int d) { return emit(a64::mnem::kFcvtzs, "x, d", {a64::Operand::R(x), a64::Operand::R(d)}); }
             bool fadd(int d, int n, int m) { return emit(a64::mnem::kFadd, "d, d, d", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); }
+            // (AR) fcmp Dn, Dm — يضبط NZCV لمقارنةِ عشريَّين (لا وجهةَ لها)؛ NaN ⇒ غيرُ مرتَّبٍ (C=1,V=1).
+            bool fcmp(int n, int m) { return emit(a64::mnem::kFcmp, "d, d", {a64::Operand::R(n), a64::Operand::R(m)}); }
             bool fsub(int d, int n, int m) { return emit(a64::mnem::kFsub, "d, d, d", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); }
             bool fmul(int d, int n, int m) { return emit(a64::mnem::kFmul, "d, d, d", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); }
             bool fdiv(int d, int n, int m) { return emit(a64::mnem::kFdiv, "d, d, d", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); }
@@ -1119,10 +1122,47 @@ namespace sad
                 default: return false;
                 }
             }
+            // (AR) حقلُ الشرطِ المقلوب لمقارنةِ العوائم (IEEE عبر fcmp): يختلف عن الصحيح في <,<=
+            //      فقط. الأصغرُ يستعمل MI (N=1) لا LT (N≠V) — لأنّ NaN يضبط V=1 فتَصدُق LT خطأً؛
+            //      والأصغر-أو-يساوي يستعمل LS (C=0∨Z=1) لا LE. البقيّةُ (==,!=,>,>=) كالصحيح لأنّ
+            //      شروطَها (EQ/NE/GT/GE) تُخيَّب أصلًا عند غيرِ المرتَّب. الحقلُ = رمزُ الشرط XOR 1.
+            static bool csetFloatInvertedField(sir::SIROpcode op, long long &field)
+            {
+                using OP = sir::SIROpcode;
+                switch (op)
+                {
+                case OP::EQ: field = 1;  return true;  // invert(EQ)=NE
+                case OP::NE: field = 0;  return true;  // invert(NE)=EQ
+                case OP::LT: field = 5;  return true;  // invert(MI)=PL  (الأصغر IEEE عبر MI)
+                case OP::LE: field = 8;  return true;  // invert(LS)=HI  (الأصغر-أو-يساوي عبر LS)
+                case OP::GT: field = 13; return true;  // invert(GT)=LE
+                case OP::GE: field = 11; return true;  // invert(GE)=LT
+                default: return false;
+                }
+            }
+            // (AR) مقارنةُ عوائم ⇒ %dst = ٠/١ بدلالة IEEE: انقل نمطَي البتّات لسجلَّي d الخدش، fcmp،
+            //      ثمّ cset بحقلِ العائم المقلوب. النتيجةُ خطأٌ لأيّ NaN عدا !=.
+            bool lowerFloatComparison(const sir::SIRInstruction &inst)
+            {
+                long long field;
+                if (!csetFloatInvertedField(inst.opcode, field))
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                int dst;
+                if (!allocReg(inst.result->name, dst))
+                    return false;
+                return materialize(a64reg::kScratch0, inst.operands[0]) &&
+                       materialize(a64reg::kScratch1, inst.operands[1]) &&
+                       fmovToFp(kD0, a64reg::kScratch0) && fmovToFp(kD1, a64reg::kScratch1) &&
+                       fcmp(kD0, kD1) &&
+                       emit(a64::mnem::kCset, "x, cond", {a64::Operand::R(dst), a64::Operand::I(field)});
+            }
             bool lowerComparison(const sir::SIRInstruction &inst)
             {
                 if (!inst.result || inst.operands.size() != 2)
                     return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                // (AR) مقارنةُ عوائم (أحدُ المعامِلَين Float): fcmp + cset بدلالة IEEE.
+                if (common::isFloatCompare(inst))
+                    return lowerFloatComparison(inst);
                 // (AR) رفضُ المقارنةِ اللا-موقَّعة صراحةً (cset يحتاج شرطًا لا-موقَّعًا؛ توصية أميليا).
                 for (const auto &op : inst.operands)
                     if (isUnsignedType(op.dataType))
@@ -1709,7 +1749,14 @@ namespace sad
 
                 const sir::SIRInstruction *cmpInst = common::findFusedComparison(block, cond.name);
                 if (!cmpInst || cmpInst->operands.size() != 2)
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kCondNotFusedCmp + diag::kVregSigil + cond.name);
+                {
+                    // (AR) قيمةٌ منطقيّةٌ حيّةٌ (٠/١) عُرِّفت في هذه الكتلة (نتيجةُ مقارنةِ عوائم أو
+                    //      متغيّرٌ منطقيّ): cmp Xcond, xzr؛ b.ne then؛ b else. (العوائم لا تُدمَج عمدًا.)
+                    return materialize(a64reg::kScratch0, cond) &&
+                           cmp(a64reg::kScratch0, a64reg::kXzr) &&
+                           emitBranch(a64::mnem::kBne, "rel19", thenLbl) &&
+                           emitBranch(a64::mnem::kB, "rel26", elseLbl);
+                }
                 // (AR) الفروعُ المُصدَرة موقَّعة؛ معاملٌ لا-موقَّعٌ يلزمه b.lo/ls/hi/hs (لا نظائرَ بعد)
                 //      ⇒ رفضٌ صريح بدل ترميزٍ موقَّعٍ خاطئٍ صامت (توصية أميليا).
                 for (const auto &cop : cmpInst->operands)

@@ -406,6 +406,44 @@ instructions:
       operands: [ { kind: reg, class: gpr, role: out } ]
       encode: { opcode: [0x0F, 0x9D], modrm: { mod: reg, reg: 0, rm: op0 } }
 
+  # ─── setcc لا-موقَّعة + تكافؤ (لمقارنةِ العوائم عبر ucomisd: أعلامٌ لا-موقَّعة + PF للـNaN) ───
+  # SETA r/m8 ⇒ 0F 97 /0 (فوق: CF=0 و ZF=0؛ متحقَّق: seta al = 0f 97 c0)
+  عيّن_إذا_فوق:
+    - en: seta
+      form: "r8"
+      operands: [ { kind: reg, class: gpr, role: out } ]
+      encode: { opcode: [0x0F, 0x97], modrm: { mod: reg, reg: 0, rm: op0 } }
+  # SETAE r/m8 ⇒ 0F 93 /0 (فوق أو يساوي: CF=0؛ متحقَّق: setae al = 0f 93 c0)
+  عيّن_إذا_فوق_أو_ساوى:
+    - en: setae
+      form: "r8"
+      operands: [ { kind: reg, class: gpr, role: out } ]
+      encode: { opcode: [0x0F, 0x93], modrm: { mod: reg, reg: 0, rm: op0 } }
+  # SETNP r/m8 ⇒ 0F 9B /0 (لا تكافؤ PF=0 ⇒ مُرتَّبٌ لا NaN؛ متحقَّق: setnp al = 0f 9b c0)
+  عيّن_إذا_لا_تكافؤ:
+    - en: setnp
+      form: "r8"
+      operands: [ { kind: reg, class: gpr, role: out } ]
+      encode: { opcode: [0x0F, 0x9B], modrm: { mod: reg, reg: 0, rm: op0 } }
+  # SETP r/m8 ⇒ 0F 9A /0 (تكافؤ PF=1 ⇒ غيرُ مرتَّبٍ NaN؛ متحقَّق: setp al = 0f 9a c0)
+  عيّن_إذا_تكافؤ:
+    - en: setp
+      form: "r8"
+      operands: [ { kind: reg, class: gpr, role: out } ]
+      encode: { opcode: [0x0F, 0x9A], modrm: { mod: reg, reg: 0, rm: op0 } }
+
+  # TEST r/m64, r64 ⇒ REX.W + 85 /r (يضبط ZF=1 إن كان AND صفرًا؛ لاختبارِ منطقيٍّ حيٍّ في فرع؛ متحقَّق: test rax,rax = 48 85 c0)
+  اختبر:
+    - en: test
+      form: "r64, r64"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x85]
+        modrm: { mod: reg, reg: op1, rm: op0 }
+
   # MOVZX r64, r/m8  ⇒  REX.W + 0F B6 /r   (يمدّ بالصفر البايتَ الأدنى لـ٦٤ بت؛ متحقَّق: movzx rax,al = 48 0f b6 c0)
   مدد_بالصفر:
     - en: movzx

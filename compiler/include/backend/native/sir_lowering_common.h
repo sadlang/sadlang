@@ -38,6 +38,18 @@ namespace sad
                        op == OP::LE || op == OP::GT || op == OP::GE;
             }
 
+            // (AR) هل التعليمةُ مقارنةُ عوائم؟ (أحدُ المعامِلَين Float.) المقارنةُ موحَّدةٌ (EQ..GE)
+            //      والنوعُ في المعامِل. مقارنةُ العوائم تحتاج ucomisd/fcmp + أعلامًا لا-موقَّعةً
+            //      + معالجةَ NaN ⇒ **لا تُدمَج في الفرع**: تُخفَّض كقيمةٍ (٠/١) ويختبرها الفرعُ
+            //      الاحتياطيّ (test/cbnz). ⇒ findFusedComparison يستثنيها ليخفّضها مسارُ القيمة.
+            inline bool isFloatCompare(const sir::SIRInstruction &inst)
+            {
+                if (!isComparison(inst.opcode) || inst.operands.size() != 2)
+                    return false;
+                return inst.operands[0].dataType == types::SadTypeKind::Float ||
+                       inst.operands[1].dataType == types::SadTypeKind::Float;
+            }
+
             // (AR) هل المعاملُ ثابتٌ صحيح؟ يُعيد قيمتَه (الشرطُ نفسُه في كلّ الأهداف).
             inline bool isConstInt(const sir::SIROperand &op, long long &out)
             {
@@ -60,7 +72,9 @@ namespace sad
                 if (is.size() < 2)
                     return nullptr;
                 const sir::SIRInstruction &prev = is[is.size() - 2];
-                if (isComparison(prev.opcode) && prev.result && prev.result->name == condName)
+                // (AR) مقارنةُ العوائم لا تُدمَج (ucomisd/fcmp + NaN) ⇒ تُترَك لمسارِ القيمة.
+                if (isComparison(prev.opcode) && !isFloatCompare(prev) &&
+                    prev.result && prev.result->name == condName)
                     return &prev;
                 return nullptr;
             }
