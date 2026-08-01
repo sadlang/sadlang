@@ -1427,6 +1427,134 @@ namespace
         mod->addFunction(fn);
         return mod;
     }
+
+    // (AR) وحدةُ الدفعة ٣ (النصوصُ الديناميّة، الطبقتان ٠+١): تمارِس STRING_NEW/BOOL_TO_STRING/
+    //      STRING_LEN/STRING_CMP/STRING_TO_I64 بقراءةٍ عكسيّةٍ تُرجِع ٤٢:
+    //        n=TO_I64("40")=40 ؛ c1=CMP(NEW("k"),"k")=1 ؛ c0=CMP("a","b")=0 ؛
+    //        (LEN("abcd") − LEN("abc"))=1 ؛ (LEN("ص") − 1)=0 [UTF-8 مضاعفٌ ⇒ نقطةُ رمزٍ واحدة] ؛
+    //        (CMP(BOOL_TO_STRING(1),"صحيح") − 1)=0  ⇒  40+1+0+1+0+0 = 42.
+    std::shared_ptr<Sad::Compiler::SIR::SIRModule> buildStringModule()
+    {
+        using namespace Sad::Compiler::SIR;
+        using Sad::Types::SadTypeKind;
+        auto mod = std::make_shared<SIRModule>("dynstr");
+        auto fn = std::make_shared<SIRFunction>(
+            "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9", SadTypeKind::Integer); // رئيسية
+        auto e = std::make_shared<SIRBasicBlock>("entry");
+        auto R = [](const char *n, SadTypeKind t) { return SIROperand::Register(n, t); };
+        auto I = [](int64_t v) { return SIROperand::ConstantI64(v); };
+        auto S = [](const char *s) { return SIROperand::ConstantString(s); };
+        auto F = [](double v) { return SIROperand::ConstantF64(v); };
+        const SadTypeKind kInt = SadTypeKind::Integer;
+        const SadTypeKind kStr = SadTypeKind::String;
+        const SadTypeKind kFloat = SadTypeKind::Float;
+        // n = TO_I64("40") = 40
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_TO_I64, R("n", kInt), {S("40")}));
+        // c1 = CMP(NEW("k"), "k") = 1 ؛ t = n + c1 = 41
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_NEW, R("k1", kStr), {S("k")}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_CMP, R("c1", kInt), {R("k1", kStr), S("k")}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("n", kInt), R("c1", kInt)}));
+        // c0 = CMP("a","b") = 0 ؛ t += c0
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_CMP, R("c0", kInt), {S("a"), S("b")}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("c0", kInt)}));
+        // d = LEN("abcd") − LEN("abc") = 1 ؛ t += d
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_LEN, R("l4", kInt), {S("abcd")}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_LEN, R("l3", kInt), {S("abc")}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("d", kInt), {R("l4", kInt), R("l3", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("d", kInt)}));
+        // e2 = LEN("ص") − 1 = 0 (UTF-8: بايتان ⇒ نقطةُ رمزٍ واحدة) ؛ t += e2
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_LEN, R("ls", kInt), {S("\xD8\xB5")}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("e2", kInt), {R("ls", kInt), I(1)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("e2", kInt)}));
+        // f = CMP(BOOL_TO_STRING(1), "صحيح") − 1 = 0 ؛ t += f
+        e->addInstruction(SIRInstruction(SIROpcode::BOOL_TO_STRING, R("bt", kStr), {I(1)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_CMP, R("cb", kInt),
+                                         {R("bt", kStr), S("\xD8\xB5\xD8\xAD\xD9\x8A\xD8\xAD")})); // صحيح
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("f", kInt), {R("cb", kInt), I(1)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("f", kInt)}));
+        // I64_TO_STRING(-7)="-7" (المسارُ السالب) ⇒ round-trip TO_I64=-7 + LEN=2 ؛ net = -7+2+5 = 0
+        e->addInstruction(SIRInstruction(SIROpcode::I64_TO_STRING, R("sr", kStr), {I(-7)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_TO_I64, R("g", kInt), {R("sr", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_LEN, R("h", kInt), {R("sr", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("z", kInt), {R("g", kInt), R("h", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("z2", kInt), {R("z", kInt), I(5)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("z2", kInt)}));
+        // CONCAT(I64_TO_STRING(2), "5") = "25" (المعاملُ الأوّلُ نصٌّ محسوبٌ على الكومة) ⇒ TO_I64=25،
+        // LEN=2 ؛ net = 25 - 2 - 23 = 0 → يُبقي ٤٢
+        e->addInstruction(SIRInstruction(SIROpcode::I64_TO_STRING, R("two", kStr), {I(2)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_CONCAT, R("cc", kStr), {R("two", kStr), S("5")}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_TO_I64, R("cv", kInt), {R("cc", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_LEN, R("cl", kInt), {R("cc", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("cz", kInt), {R("cv", kInt), R("cl", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("cz2", kInt), {R("cz", kInt), I(23)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("cz2", kInt)}));
+        // SUBSTR("12345",1,3)="234" (ASCII) ⇒ TO_I64=234، LEN=3 ؛ net = 234-3-231 = 0
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_SUBSTR, R("ss", kStr), {S("12345"), I(1), I(3)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_TO_I64, R("sv", kInt), {R("ss", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_LEN, R("sl", kInt), {R("ss", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("sz", kInt), {R("sv", kInt), R("sl", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("sz2", kInt), {R("sz", kInt), I(231)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("sz2", kInt)}));
+        // SUBSTR("صاد",1,2)="اد" (UTF-8: تخطّي نقطةِ رمزٍ = بايتان، أخذُ نقطتين = ٤ بايت) ⇒ LEN=2 ؛ net=0
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_SUBSTR, R("us", kStr),
+                                         {S("\xD8\xB5\xD8\xA7\xD8\xAF"), I(1), I(2)})); // صاد
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_LEN, R("ul", kInt), {R("us", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("uz", kInt), {R("ul", kInt), I(2)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("uz", kInt)}));
+        // FIND("abcde","cd")=2 (فهرسُ نقطةِ رمز) ؛ FIND("abc","z")=-1 ؛ net = (2) + (-1) + (-1) = 0
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_FIND, R("fi", kInt), {S("abcde"), S("cd")}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_FIND, R("fn", kInt), {S("abc"), S("z")}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("fz", kInt), {R("fi", kInt), R("fn", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("fz2", kInt), {R("fz", kInt), R("fn", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("fz2", kInt)}));
+        // FIND UTF-8: FIND("صاد","اد")=1 (فهرسُ نقطةِ رمز، لا بايت) ؛ net = (1 - 1) = 0
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_FIND, R("uf", kInt),
+                                         {S("\xD8\xB5\xD8\xA7\xD8\xAF"), S("\xD8\xA7\xD8\xAF")})); // "صاد","اد"
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("ufz", kInt), {R("uf", kInt), I(1)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("ufz", kInt)}));
+        // REPLACE("1X3","X","2")="123" (وجود) ⇒ TO_I64=123 ؛ net = 123-123 = 0
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_REPLACE, R("rp", kStr), {S("1X3"), S("X"), S("2")}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_TO_I64, R("rv", kInt), {R("rp", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("rz", kInt), {R("rv", kInt), I(123)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("rz", kInt)}));
+        // REPLACE("abc","z","Q")="abc" (غياب ⇒ نسخةُ s) ⇒ LEN=3 ؛ net = 3-3 = 0
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_REPLACE, R("rn", kStr), {S("abc"), S("z"), S("Q")}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_LEN, R("rnl", kInt), {R("rn", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("rnz", kInt), {R("rnl", kInt), I(3)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("rnz", kInt)}));
+        // ── الطبقة ٥: الزوجُ العشريّ ──
+        // F64_TO_STRING(42.0)="42.0" (حذفُ صفرٍ زائد؛ '.' يليها) ⇒ STRING_TO_I64="42" (يقف عند النقطة) ؛ net = 42-42 = 0
+        e->addInstruction(SIRInstruction(SIROpcode::F64_TO_STRING, R("fs0", kStr), {F(42.0)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_TO_I64, R("fv0", kInt), {R("fs0", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("fz0", kInt), {R("fv0", kInt), I(42)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("fz0", kInt)}));
+        // ذهابٌ وإيابٌ موجب: F64_TO_STRING(2.5)="2.5" → STRING_TO_F64=2.5 → ×2.0=5.0 → F64_TO_I64=5 ؛ net = 5-5 = 0
+        // (يثبتُ نجاةَ الكسر «.5» في المسارَين معًا)
+        e->addInstruction(SIRInstruction(SIROpcode::F64_TO_STRING, R("s25", kStr), {F(2.5)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_TO_F64, R("f25", kFloat), {R("s25", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::MUL_F64, R("d25", kFloat), {R("f25", kFloat), F(2.0)}));
+        e->addInstruction(SIRInstruction(SIROpcode::F64_TO_I64, R("i25", kInt), {R("d25", kFloat)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("z25", kInt), {R("i25", kInt), I(5)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("z25", kInt)}));
+        // ذهابٌ وإيابٌ سالب: F64_TO_STRING(-1.5)="-1.5" → STRING_TO_F64=-1.5 → ×-2.0=3.0 → F64_TO_I64=3 ؛ net = 3-3 = 0
+        // (يثبتُ الإشارةَ السالبةَ في المُنسِّق والمحلِّل معًا)
+        e->addInstruction(SIRInstruction(SIROpcode::F64_TO_STRING, R("sn", kStr), {F(-1.5)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_TO_F64, R("fn2", kFloat), {R("sn", kStr)}));
+        e->addInstruction(SIRInstruction(SIROpcode::MUL_F64, R("dn", kFloat), {R("fn2", kFloat), F(-2.0)}));
+        e->addInstruction(SIRInstruction(SIROpcode::F64_TO_I64, R("in", kInt), {R("dn", kFloat)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("zn", kInt), {R("in", kInt), I(3)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("zn", kInt)}));
+        // محلِّلٌ مباشرٌ (حرفيٌّ لا من المُنسِّق): STRING_TO_F64("7.25")=7.25 → ×4.0=29.0 → F64_TO_I64=29 ؛ net = 29-29 = 0
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_TO_F64, R("fl", kFloat), {S("7.25")}));
+        e->addInstruction(SIRInstruction(SIROpcode::MUL_F64, R("dl", kFloat), {R("fl", kFloat), F(4.0)}));
+        e->addInstruction(SIRInstruction(SIROpcode::F64_TO_I64, R("il", kInt), {R("dl", kFloat)}));
+        e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("zl", kInt), {R("il", kInt), I(29)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("zl", kInt)}));
+        e->addInstruction(SIRInstruction::Return(R("t", kInt)));
+        fn->addBasicBlock(e);
+        mod->addFunction(fn);
+        return mod;
+    }
 } // namespace
 
 // (AR) x86-64: نواةُ الكومة تُخفَّض، الـELF سليم، والبايتاتُ تحوي syscall (mmap/munmap = 0F 05)
@@ -1468,6 +1596,55 @@ TEST(Arm64SirBridge, LowersHeapMemCore)
     ASSERT_TRUE(contains(bin, {0x40, 0x39})); // ldrb Wt,[Xn] (0x394000xx ⇒ بايتا 0x40,0x39)
 
     std::FILE *fp = std::fopen("sad_arm64_heapmem42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) x86-64: النصوصُ الديناميّة (الطبقتان ٠+١) تُخفَّض، الـELF سليم، والبايتاتُ تحوي imul
+//      (0F AF، من تطبيقِ الإشارة/الضربِ في STRING_TO_I64) وحِملَ بايتٍ (0x8A، مسحُ LEN/CMP).
+//      تُكتب لبرهانِ خروجِ ٤٢ حيًّا (يمارِس NEW/BOOL_TO_STRING/LEN/CMP/TO_I64 مجتمعةً).
+TEST(NativeSirBridge, LowersDynamicStrings)
+{
+    auto module = buildStringModule();
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x0F, 0xAF})); // imul r64,r64 (تطبيقُ الإشارة/الضربِ في TO_I64)
+    ASSERT_TRUE(contains(bin, {0x0F, 0xB6})); // movzx r64,m8 — حِملُ بايتٍ ممدَّدٍ بالصفر (مسحُ LEN/CMP/TO_I64)
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall — mmap لتخصيصِ مخزنِ I64_TO_STRING على الكومة
+    ASSERT_TRUE(contains(bin, {0xF2, 0x0F, 0x5E})); // divsd xmm,xmm — قسمةُ الكسر في STRING_TO_F64 (الطبقة ٥)
+
+    std::FILE *fp = std::fopen("sad_sir_dynstr42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) AArch64: نفسُ وحدةِ النصوص تُخفَّض لـARM64 (ldrb لمسحِ LEN/CMP + mul لتطبيق الإشارة).
+//      e_machine=EM_AARCH64=183. تُكتب لبرهانِ خروجِ ٤٢ على qemu-aarch64.
+TEST(Arm64SirBridge, LowersDynamicStrings)
+{
+    auto module = buildStringModule();
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    ASSERT_TRUE(contains(bin, {0x40, 0x39})); // ldrb Wt,[Xn] (مسحُ LEN/CMP)
+    ASSERT_TRUE(contains(bin, {0x62, 0x9E})); // scvtf Dd,Xn (نصفُ الكلمةِ الأعلى LE) — تراكمُ STRING_TO_F64 (الطبقة ٥)
+
+    std::FILE *fp = std::fopen("sad_arm64_dynstr42", "wb");
     ASSERT_TRUE(fp != nullptr);
     size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
     std::fclose(fp);

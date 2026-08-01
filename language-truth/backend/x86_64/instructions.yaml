@@ -490,6 +490,18 @@ instructions:
         rex_w: true
         opcode: [0x0F, 0xB6]
         modrm: { mod: reg, reg: op0, rm: op1 }
+    # MOVZX r64, m8  ⇒  REX.W + 0F B6 /r [base]   (تحميلُ بايتٍ من الذاكرة مع تمديدِ الصفر لـ٦٤ بت
+    #   في تعليمةٍ واحدة؛ REX.W يعالج أيَّ سجلِّ وجهةٍ [يشمل dil/sil] بلا فخِّ AH/BH؛ متحقَّق:
+    #   movzx rdi,byte ptr [rsi] = 48 0f b6 3e). لمسحِ النصّ الديناميّ (الدفعة ٣).
+    - en: movzx
+      form: "r64, m8"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: mem, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x0F, 0xB6]
+        modrm: { mod: mem, reg: op0, rm: op1 }
 
   # ─── المقارنة (تضبط الأعلام؛ لا تكتب وجهة) ───
   # cmp r/m64, r64  ⇒  REX.W + 39 /r   ·   cmp r/m64, imm8  ⇒  83 /7 ib   ·   imm32  ⇒  81 /7 id

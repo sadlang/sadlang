@@ -245,6 +245,13 @@ TEST(NativeX86, MovzxRaxAl)
     ASSERT_EQ(hex(enc("مدد_بالصفر", "r64, r8", ops2(x86::Operand::R(x86::RAX), x86::Operand::R(x86::RAX)))),
               std::string("480fb6c0"));
 }
+// movzbq (%rsi),%rdi  # [0x48,0x0f,0xb6,0x3e]  (تحميلُ بايتٍ من الذاكرة مع تمديدِ الصفر — الدفعة ٣؛
+//   REX.W يعنون rdi صحيحًا بلا فخِّ bh؛ متحقَّق llvm-mc-18: 48 0f b6 3e)
+TEST(NativeX86, MovzxRegMem8)
+{
+    ASSERT_EQ(hex(enc("مدد_بالصفر", "r64, m8", ops2(x86::Operand::R(x86::RDI), x86::Operand::M(x86::RSI, 0)))),
+              std::string("480fb63e"));
+}
 // shl %cl,%rdx  # [0x48,0xd3,0xe2]   ·   shr %cl,%rdx  # [0x48,0xd3,0xea]
 TEST(NativeX86, ShlShrCl)
 {
