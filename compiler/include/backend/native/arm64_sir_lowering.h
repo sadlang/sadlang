@@ -285,6 +285,9 @@ namespace sad
             int lrSlot_ = -1;
             // (AR) طباعةُ العشريّ: خانةُ خدشٍ لنمطِ بتّاتِ الـdouble (القيمةِ المطلقة) عبر مراحل المُنسِّق.
             int floatValSlot_ = -1;
+            // (AR) مصفوفةُ العشريّ→نصّ: قمّةُ مخزنِ خدشٍ (kFtoaBufPayload/8 خانات) لبناءِ نصِّ كلِّ عنصرٍ
+            //      عشريّ تنازليًّا قبل byteCopy — أوسعُ من مخزنِ itoa؛ لا mmap بين التفكيك والبناء.
+            int atsFtoaTopSlot_ = -1;
             // (AR) التعليب: خانتان (١٦ بايت: tag، payload) لكلّ ARRAY_GET معلَّب. المؤشّرُ = sp + الفهرس×٨.
             int dynBaseSlot_ = -1; // (AR) فهرسُ أوّلِ خانةِ dyn
             int dynGetCount_ = 0;  // (AR) عددُ القراءات المعلَّبة
@@ -1247,6 +1250,160 @@ namespace sad
                             diag::kOperandKind + std::to_string(static_cast<int>(op.type)));
             }
 
+            // (AR) مصفوفة→نصّ (Any): يقرأ وسمَ العنصرِ i (tagReg) من tags[i]، أو Int إن كان مخزنُ
+            //      الوسوم null. يستعمل x16 خدشًا؛ يُبقي iReg (يجب أن يخالف tagReg وx16).
+            bool emitAtsDynLoadTagArm64(int tagReg, int iReg)
+            {
+                if (!ldrSlot(a64reg::kScratch0, strHeapBaseSlot_ + 5) || !cmp(a64reg::kScratch0, a64reg::kXzr))
+                    return false;
+                size_t haveTags;
+                if (!emitBranchFwd(a64::mnem::kBne, "rel19", haveTags))
+                    return false;
+                if (!movz(tagReg, kDynKindInt)) // tags=null ⇒ Int
+                    return false;
+                size_t done;
+                if (!emitBranchFwd(a64::mnem::kB, "rel26", done))
+                    return false;
+                if (!patchBranchFwd(haveTags, 23, 5))
+                    return false;
+                if (!addLsl3(a64reg::kScratch0, a64reg::kScratch0, iReg) || !ldrBase(tagReg, a64reg::kScratch0, 0))
+                    return false;
+                if (!patchBranchFwd(done, 25, 0))
+                    return false;
+                return true;
+            }
+
+            // (AR) يبني نصَّ عددٍ صحيحٍ (x9) تنازليًّا في مخزنِ itoa (printBufTopSlot_)؛ x13 = المؤشّر،
+            //      x14 = القمّة (الطولُ = x14 − x13). itoa باقٍ-سالبٌ ⇒ آمنٌ لـINT64_MIN. x10=10.
+            bool emitAtsIntToScratchArm64()
+            {
+                if (!addImm(13, 31, static_cast<long long>(printBufTopSlot_) * 8) || !movReg(14, 13) ||
+                    !movz(10, kItoaRadixArm64) || !cmp(9, a64reg::kXzr))
+                    return false;
+                size_t pos;
+                if (!emitBranchFwd(a64::mnem::kBge, "rel19", pos))
+                    return false;
+                const size_t neg = code_.size();
+                if (!rrr(a64::mnem::kSdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
+                    !rrr(a64::mnem::kSub, 12, 31, 12) || !addImm(12, 12, kAsciiZeroArm64) ||
+                    !subImm(13, 13, 1) || !strb(12, 13) || !movReg(9, 11) || !emitCbnzBack(9, neg))
+                    return false;
+                if (!movz(12, kAsciiMinusArm64) || !subImm(13, 13, 1) || !strb(12, 13))
+                    return false;
+                size_t done;
+                if (!emitBranchFwd(a64::mnem::kB, "rel26", done))
+                    return false;
+                if (!patchBranchFwd(pos, 23, 5))
+                    return false;
+                const size_t p = code_.size();
+                if (!rrr(a64::mnem::kSdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
+                    !addImm(12, 12, kAsciiZeroArm64) || !subImm(13, 13, 1) || !strb(12, 13) ||
+                    !movReg(9, 11) || !emitCbnzBack(9, p))
+                    return false;
+                if (!patchBranchFwd(done, 25, 0))
+                    return false;
+                return true;
+            }
+
+            // (AR) يبني نصَّ عشريٍّ (نمطُ بتّاته في x9) fixed6 مع حذفِ الأصفار تنازليًّا في مخزنِ خدشٍ
+            //      (atsFtoaTopSlot_)؛ x13 = المؤشّر، x14 = القمّة. لا mmap ⇒ سجلّاتٌ خدشٌ (x17=sign, x15=ip،
+            //      x12=scaled, x11=nd, x10=10). مطابقٌ لـF64_TO_STRING.
+            bool emitAtsFloatToScratchArm64()
+            {
+                // sign ⇒ x17.
+                if (!movImm64Bits(a64reg::kScratch0, kF64SignMask) ||
+                    !rrr(a64::mnem::kAnd, 10, 9, a64reg::kScratch0) || !cmp(10, 31))
+                    return false;
+                size_t signZero;
+                if (!emitBranchFwd(a64::mnem::kBeq, "rel19", signZero))
+                    return false;
+                if (!movz(a64reg::kScratch1, 1))
+                    return false;
+                size_t signSet;
+                if (!emitBranchFwd(a64::mnem::kB, "rel26", signSet))
+                    return false;
+                if (!patchBranchFwd(signZero, 23, 5))
+                    return false;
+                if (!movz(a64reg::kScratch1, 0))
+                    return false;
+                if (!patchBranchFwd(signSet, 25, 0))
+                    return false;
+                // |x| ⇒ ip=x15.
+                if (!movImm64Bits(a64reg::kScratch0, kF64AbsMask) || !rrr(a64::mnem::kAnd, 9, 9, a64reg::kScratch0))
+                    return false;
+                if (!fmovToFp(kD0, 9) || !fcvtzs(15, kD0))
+                    return false;
+                if (!fmovToFp(kD0, 9) || !scvtf(kD1, 15) || !fsub(kD0, kD0, kD1))
+                    return false;
+                if (!loadFloatConst(a64reg::kScratch0, static_cast<double>(kFloatPrecisionScale)) ||
+                    !fmovToFp(kD1, a64reg::kScratch0) || !fmul(kD0, kD0, kD1) || !fcvtns(12, kD0))
+                    return false;
+                if (!movImm64Bits(a64reg::kScratch0, static_cast<unsigned long long>(kFloatPrecisionScale)) ||
+                    !cmp(12, a64reg::kScratch0))
+                    return false;
+                size_t noCarry;
+                if (!emitBranchFwd(a64::mnem::kBne, "rel19", noCarry))
+                    return false;
+                if (!addImm(15, 15, 1) || !movz(12, 0))
+                    return false;
+                if (!patchBranchFwd(noCarry, 23, 5))
+                    return false;
+                if (!movz(11, kFloatDecimals) || !movz(10, kItoaRadixArm64) || !movz(a64reg::kScratch0, 1))
+                    return false;
+                const size_t stripTop = code_.size();
+                if (!cmp(11, a64reg::kScratch0))
+                    return false;
+                size_t stripDone;
+                if (!emitBranchFwd(a64::mnem::kBle, "rel19", stripDone))
+                    return false;
+                if (!rrr(a64::mnem::kSdiv, 14, 12, 10) || !msub(9, 14, 10, 12) || !cmp(9, 31))
+                    return false;
+                size_t stripStop;
+                if (!emitBranchFwd(a64::mnem::kBne, "rel19", stripStop))
+                    return false;
+                if (!movReg(12, 14) || !subImm(11, 11, 1) || !emitBBack(stripTop))
+                    return false;
+                if (!patchBranchFwd(stripDone, 23, 5) || !patchBranchFwd(stripStop, 23, 5))
+                    return false;
+                // ابنِ تنازليًّا في المخزن؛ x13 = المؤشّر.
+                if (!addImm(13, 31, static_cast<long long>(atsFtoaTopSlot_) * 8) || !movReg(9, 12))
+                    return false;
+                const size_t fracTop = code_.size();
+                if (!cmp(11, 31))
+                    return false;
+                size_t fracDone;
+                if (!emitBranchFwd(a64::mnem::kBle, "rel19", fracDone))
+                    return false;
+                if (!rrr(a64::mnem::kSdiv, 14, 9, 10) || !msub(12, 14, 10, 9) ||
+                    !addImm(12, 12, kAsciiZeroArm64) || !subImm(13, 13, 1) || !strb(12, 13) ||
+                    !movReg(9, 14) || !subImm(11, 11, 1) || !emitBBack(fracTop))
+                    return false;
+                if (!patchBranchFwd(fracDone, 23, 5))
+                    return false;
+                if (!subImm(13, 13, 1) || !movz(12, kAsciiDotArm64) || !strb(12, 13))
+                    return false;
+                if (!movReg(9, 15))
+                    return false;
+                const size_t ipTop = code_.size();
+                if (!rrr(a64::mnem::kSdiv, 14, 9, 10) || !msub(12, 14, 10, 9) ||
+                    !addImm(12, 12, kAsciiZeroArm64) || !subImm(13, 13, 1) || !strb(12, 13) ||
+                    !movReg(9, 14) || !emitCbnzBack(9, ipTop))
+                    return false;
+                if (!cmp(a64reg::kScratch1, 31))
+                    return false;
+                size_t noSign;
+                if (!emitBranchFwd(a64::mnem::kBeq, "rel19", noSign))
+                    return false;
+                if (!subImm(13, 13, 1) || !movz(12, kAsciiMinusArm64) || !strb(12, 13))
+                    return false;
+                if (!patchBranchFwd(noSign, 23, 5))
+                    return false;
+                // x14 = القمّة (للطول).
+                if (!addImm(14, 31, static_cast<long long>(atsFtoaTopSlot_) * 8))
+                    return false;
+                return true;
+            }
+
             // (AR) يحمّل وسيطَ نداءٍ/معاملَ طباعةٍ في سجلٍّ وجهة. يُستدعى بعد انسكابِ المؤقّتات،
             //      فالمؤقّتُ يُحمَّل من **خانة انسكابه** لا من سجلّه ⇒ صفر تصادمِ نقلٍ متوازٍ.
             bool loadArgInto(int dst, const sir::SIROperand &op)
@@ -1297,6 +1454,7 @@ namespace sad
                 bool hasMemBlock = false; // (AR) حجز/حرر/عبّئ/انسخ (نواةُ الكومة) ⇒ svc/حلقةٌ تدهس الحوض
                 bool hasStrHeap = false;  // (AR) أوپكودُ نصٍّ يخصّص كومةً داخليًّا (I64_TO_STRING/CONCAT/…)
                 bool hasArrayExt = false; // (AR) CONCAT/ZIP ⇒ mmap (+حلقةٌ لـZIP) + خاناتُ خدشٍ عابرةٌ لـmmap
+                bool hasArrayToStr = false; // (AR) ARRAY_TO_STRING ⇒ مخزنُ خدشِ عشريّ للمسار العشريّ
                 dynGetCount_ = 0;
                 for (const auto &blockPtr : fn.getBasicBlocks())
                     for (const auto &inst : blockPtr->instructions)
@@ -1372,6 +1530,15 @@ namespace sad
                                  inst.opcode == sir::SIROpcode::STRING_REPLACE ||
                                  inst.opcode == sir::SIROpcode::BUILTIN_STRING_REPLACE)
                             hasStrHeap = true; // (AR) يخصّص مخزنَ نصٍّ/يستعمل خانةَ hayBase (mmap/الحوض)
+                        else if (inst.opcode == sir::SIROpcode::ARRAY_TO_STRING ||
+                                 inst.opcode == sir::SIROpcode::TUPLE_TO_STRING)
+                        {
+                            // (AR) مصفوفة→نصّ سياديّة (مرآةُ x86): mmap ⇒ خانات strHeap + انسكاب،
+                            //      وitoa تنازليًّا في مخزنِ الإطار (printBufTopSlot_).
+                            hasStrHeap = true;
+                            hasNumberPrint = true;
+                            hasArrayToStr = true; // (AR) + مخزنُ خدشٍ عشريّ للمسار العشريّ
+                        }
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_PRINT)
                         {
                             hasPrint = true;
@@ -1441,6 +1608,12 @@ namespace sad
                 {
                     slot += 3;
                     printBufTopSlot_ = slot; // (AR) العنوانُ الأعلى الحصريّ = sp + slot*8
+                }
+                // (AR) مصفوفةُ العشريّ→نصّ: مخزنُ خدشِ عنصرٍ عشريّ (kFtoaBufPayload/8 خانات، القمّةُ حصريّة).
+                if (hasArrayToStr)
+                {
+                    slot += static_cast<int>(kFtoaBufPayload / kArrSlotBytes);
+                    atsFtoaTopSlot_ = slot;
                 }
                 // (AR) طباعةُ عشريّ: خانةٌ لنمطِ بتّاتِ الـdouble (القيمةِ المطلقة) عبر مراحل المُنسِّق.
                 if (hasFloatPrint)
@@ -2549,6 +2722,628 @@ namespace sad
                         return false;
                     return movReg(dst, a64reg::kScratch0);
                 }
+                case OP::TUPLE_TO_STRING:
+                case OP::ARRAY_TO_STRING:
+                {
+                    // (AR) مصفوفة → نصّ سياديًّا (مرآةُ x86، بلا زمنِ تشغيل C): يبني «[ع0، ع1، ...]». المسارُ
+                    //      العدديّ (elementType عدديٌّ/مختلطٌ غيرُ-Any): buf = mmap(len*34 + 4 + 16)؛ اكتب '['؛
+                    //      لكلِّ عنصرٍ فاصلَ «، » (عدا الأوّل) ثمّ itoa (باقٍ-سالبٌ آمنٌ لـINT64_MIN) تنازليًّا
+                    //      في مخزنِ الإطار (printBufTopSlot_) ثمّ byteCopy إلى buf؛ اختم بـ']'+NUL. النصّيّ/
+                    //      العشريّ/Any تلي في هذه الدفعة. خانات strHeap: +0=len +1=data +2=buf +3=dst +4=i.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    const types::SadTypeKind atsElem = inst.operands[0].elementType;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!spillReg(kv.second))
+                                return false;
+                    if (atsElem == types::SadTypeKind::Any)
+                    {
+                        // (AR) المسارُ المختلط (Any، مرآةُ x86): حمولةٌ خام في data[i] ووسمٌ في tags[i]
+                        //      (null⇒Int). تمريرتان: (١) الحجم = 3 + Σ(طولُ العنصر + 2) [النصّ=طولُ واصفه،
+                        //      غيرُه ≤340]. (٢) mmap ثمّ '[' ثمّ فاصلَ «، » ثمّ توزيعٌ حسب الوسم وbyteCopy؛
+                        //      اختم بـ']'+NUL. خانات strHeap: +0=len +1=data +2=acc/buf +3=dst +4=i +5=tags +6=payload +7=tag.
+                        if (!loadArgInto(9, inst.operands[0]))
+                            return false;
+                        if (!ldrBase(10, 9, kArrOffLen / kArrSlotBytes) || !strSlot(10, strHeapBaseSlot_ + 0))
+                            return false;
+                        if (!ldrBase(11, 9, kArrOffData / kArrSlotBytes) || !strSlot(11, strHeapBaseSlot_ + 1))
+                            return false;
+                        if (!ldrBase(11, 9, kArrOffTags / kArrSlotBytes) || !strSlot(11, strHeapBaseSlot_ + 5))
+                            return false;
+                        // (AR) تمريرة ١: acc = 3؛ i = 0.
+                        if (!movz(9, kAtsStrBaseBytes) || !strSlot(9, strHeapBaseSlot_ + 2) ||
+                            !movz(9, 0) || !strSlot(9, strHeapBaseSlot_ + 4))
+                            return false;
+                        const size_t atsDSizeHead = code_.size();
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 4) || !ldrSlot(10, strHeapBaseSlot_ + 0) || !cmp(9, 10))
+                            return false;
+                        size_t atsDSizeDone;
+                        if (!emitBranchFwd(a64::mnem::kBge, "rel19", atsDSizeDone))
+                            return false;
+                        if (!emitAtsDynLoadTagArm64(11, 9)) // x11 = tag (x9 = i)
+                            return false;
+                        // (AR) النصّ: طولُ العنصرِ = طولُ واصفه.
+                        if (!movz(a64reg::kScratch0, kDynKindStr) || !cmp(11, a64reg::kScratch0))
+                            return false;
+                        size_t atsDSizeNotStr;
+                        if (!emitBranchFwd(a64::mnem::kBne, "rel19", atsDSizeNotStr))
+                            return false;
+                        if (!ldrSlot(10, strHeapBaseSlot_ + 1) || !ldrSlot(9, strHeapBaseSlot_ + 4) ||
+                            !addLsl3(10, 10, 9) || !ldrBase(12, 10, 0) || !ldrBase(10, 12, 0))
+                            return false; // x10 = طولُ الواصف
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 2) || !rrr(a64::mnem::kAdd, 9, 9, 10) ||
+                            !addImm(9, 9, kAtsStrPerElemExtra) || !strSlot(9, strHeapBaseSlot_ + 2))
+                            return false;
+                        size_t atsDSizeAdv;
+                        if (!emitBranchFwd(a64::mnem::kB, "rel26", atsDSizeAdv))
+                            return false;
+                        if (!patchBranchFwd(atsDSizeNotStr, 23, 5))
+                            return false;
+                        // (AR) غيرُ النصّ: تقديرٌ آمنٌ ثابت + فاصل.
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 2) ||
+                            !addImm(9, 9, kAtsFloatBytesPerElem + kAtsStrPerElemExtra) ||
+                            !strSlot(9, strHeapBaseSlot_ + 2))
+                            return false;
+                        if (!patchBranchFwd(atsDSizeAdv, 25, 0))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 4) || !addImm(9, 9, 1) ||
+                            !strSlot(9, strHeapBaseSlot_ + 4) || !emitBBack(atsDSizeHead))
+                            return false;
+                        if (!patchBranchFwd(atsDSizeDone, 23, 5))
+                            return false;
+                        // (AR) mmap(acc + 16)؛ x1 = الحجم.
+                        if (!ldrSlot(a64reg::kX1, strHeapBaseSlot_ + 2) ||
+                            !addImm(a64reg::kX1, a64reg::kX1, kHeapHdrBytes) || !emitMmapArm64PresetSize())
+                            return false; // x0 = base
+                        if (!movImm64Bits(a64reg::kScratch0, static_cast<unsigned long long>(kHeapMagic)) ||
+                            !strBase(a64reg::kScratch0, a64reg::kX0, kHeapMagicOff / kArrSlotBytes) ||
+                            !strBase(a64reg::kX1, a64reg::kX0, kHeapSizeOff / kArrSlotBytes))
+                            return false;
+                        if (!addImm(a64reg::kX0, a64reg::kX0, kHeapHdrBytes) ||
+                            !strSlot(a64reg::kX0, strHeapBaseSlot_ + 2)) // buf
+                            return false;
+                        if (!movz(9, kAsciiLBracket) || !strb(9, a64reg::kX0))
+                            return false;
+                        if (!addImm(12, a64reg::kX0, 1) || !strSlot(12, strHeapBaseSlot_ + 3)) // dst
+                            return false;
+                        if (!movz(9, 0) || !strSlot(9, strHeapBaseSlot_ + 4)) // i = 0
+                            return false;
+                        // (AR) تمريرة ٢: الملء.
+                        const size_t atsDFillHead = code_.size();
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 4) || !ldrSlot(10, strHeapBaseSlot_ + 0) || !cmp(9, 10))
+                            return false;
+                        size_t atsDFillDone;
+                        if (!emitBranchFwd(a64::mnem::kBge, "rel19", atsDFillDone))
+                            return false;
+                        // (AR) الفاصلُ «، » إن i>0.
+                        if (!cmp(9, a64reg::kXzr))
+                            return false;
+                        size_t atsDNoSep;
+                        if (!emitBranchFwd(a64::mnem::kBeq, "rel19", atsDNoSep))
+                            return false;
+                        if (!ldrSlot(12, strHeapBaseSlot_ + 3) ||
+                            !movz(9, kAsciiComma) || !strb(9, 12) || !addImm(12, 12, 1) ||
+                            !movz(9, kAsciiSpace) || !strb(9, 12) || !addImm(12, 12, 1) ||
+                            !strSlot(12, strHeapBaseSlot_ + 3))
+                            return false;
+                        if (!patchBranchFwd(atsDNoSep, 23, 5))
+                            return false;
+                        // (AR) payload = data[i] ⇒ +6؛ tag ⇒ +7.
+                        if (!ldrSlot(10, strHeapBaseSlot_ + 1) || !ldrSlot(9, strHeapBaseSlot_ + 4) ||
+                            !addLsl3(10, 10, 9) || !ldrBase(11, 10, 0) || !strSlot(11, strHeapBaseSlot_ + 6))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 4) || !emitAtsDynLoadTagArm64(11, 9) ||
+                            !strSlot(11, strHeapBaseSlot_ + 7))
+                            return false;
+                        // (AR) التوزيع ⇒ (x10=المصدر، x11=الطول)، ثمّ ذيلٌ موحَّدٌ يَنسخ.
+                        std::vector<size_t> atsDArmEnds;
+                        // Float.
+                        if (!ldrSlot(11, strHeapBaseSlot_ + 7) || !movz(a64reg::kScratch0, kDynKindFloat) ||
+                            !cmp(11, a64reg::kScratch0))
+                            return false;
+                        size_t atsDNotF;
+                        if (!emitBranchFwd(a64::mnem::kBne, "rel19", atsDNotF))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 6) || !emitAtsFloatToScratchArm64())
+                            return false; // x13=ptr, x14=top
+                        if (!movReg(10, 13) || !rrr(a64::mnem::kSub, 11, 14, 13))
+                            return false; // x10=src, x11=len
+                        {
+                            size_t j;
+                            if (!emitBranchFwd(a64::mnem::kB, "rel26", j))
+                                return false;
+                            atsDArmEnds.push_back(j);
+                        }
+                        if (!patchBranchFwd(atsDNotF, 23, 5))
+                            return false;
+                        // Int.
+                        if (!ldrSlot(11, strHeapBaseSlot_ + 7) || !movz(a64reg::kScratch0, kDynKindInt) ||
+                            !cmp(11, a64reg::kScratch0))
+                            return false;
+                        size_t atsDNotI;
+                        if (!emitBranchFwd(a64::mnem::kBne, "rel19", atsDNotI))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 6) || !emitAtsIntToScratchArm64())
+                            return false; // x13=ptr, x14=top
+                        if (!movReg(10, 13) || !rrr(a64::mnem::kSub, 11, 14, 13))
+                            return false;
+                        {
+                            size_t j;
+                            if (!emitBranchFwd(a64::mnem::kB, "rel26", j))
+                                return false;
+                            atsDArmEnds.push_back(j);
+                        }
+                        if (!patchBranchFwd(atsDNotI, 23, 5))
+                            return false;
+                        // Str: الواصف: x10 = payload+8، x11 = [payload].
+                        if (!ldrSlot(11, strHeapBaseSlot_ + 7) || !movz(a64reg::kScratch0, kDynKindStr) ||
+                            !cmp(11, a64reg::kScratch0))
+                            return false;
+                        size_t atsDNotS;
+                        if (!emitBranchFwd(a64::mnem::kBne, "rel19", atsDNotS))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 6) || !ldrBase(11, 9, 0) || !movReg(10, 9) ||
+                            !addImm(10, 10, 8))
+                            return false;
+                        {
+                            size_t j;
+                            if (!emitBranchFwd(a64::mnem::kB, "rel26", j))
+                                return false;
+                            atsDArmEnds.push_back(j);
+                        }
+                        if (!patchBranchFwd(atsDNotS, 23, 5))
+                            return false;
+                        // Bool ⇒ «صحيح»/«خطأ».
+                        if (!ldrSlot(11, strHeapBaseSlot_ + 7) || !movz(a64reg::kScratch0, kDynKindBool) ||
+                            !cmp(11, a64reg::kScratch0))
+                            return false;
+                        size_t atsDNotB;
+                        if (!emitBranchFwd(a64::mnem::kBne, "rel19", atsDNotB))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 6) || !cmp(9, a64reg::kXzr))
+                            return false;
+                        size_t atsDBoolFalse;
+                        if (!emitBranchFwd(a64::mnem::kBeq, "rel19", atsDBoolFalse))
+                            return false;
+                        if (!emitLoadCStrAddr(10, kDynBoolTrueText))
+                            return false;
+                        size_t atsDBoolDone;
+                        if (!emitBranchFwd(a64::mnem::kB, "rel26", atsDBoolDone))
+                            return false;
+                        if (!patchBranchFwd(atsDBoolFalse, 23, 5))
+                            return false;
+                        if (!emitLoadCStrAddr(10, kDynBoolFalseText))
+                            return false;
+                        if (!patchBranchFwd(atsDBoolDone, 25, 0))
+                            return false;
+                        if (!movReg(9, 10) || !byteStrlen(9, 11, 12))
+                            return false; // x10=start, x11=len
+                        {
+                            size_t j;
+                            if (!emitBranchFwd(a64::mnem::kB, "rel26", j))
+                                return false;
+                            atsDArmEnds.push_back(j);
+                        }
+                        if (!patchBranchFwd(atsDNotB, 23, 5))
+                            return false;
+                        // Null (وأيُّ وسمٍ آخر) ⇒ «عدم».
+                        if (!emitLoadCStrAddr(10, kDynNullText) || !movReg(9, 10) || !byteStrlen(9, 11, 12))
+                            return false;
+                        for (size_t j : atsDArmEnds)
+                            if (!patchBranchFwd(j, 25, 0))
+                                return false;
+                        // (AR) الذيلُ الموحَّد: byteCopy(dst, x10, x11)؛ dst يتقدّم ⇒ خزّنه.
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 3) || !byteCopy(9, 10, 11, 12) ||
+                            !strSlot(9, strHeapBaseSlot_ + 3))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 4) || !addImm(9, 9, 1) ||
+                            !strSlot(9, strHeapBaseSlot_ + 4) || !emitBBack(atsDFillHead))
+                            return false;
+                        if (!patchBranchFwd(atsDFillDone, 23, 5))
+                            return false;
+                        if (!ldrSlot(12, strHeapBaseSlot_ + 3) ||
+                            !movz(9, kAsciiRBracket) || !strb(9, 12) || !addImm(12, 12, 1) ||
+                            !movz(9, 0) || !strb(9, 12))
+                            return false;
+                        if (!ldrSlot(a64reg::kScratch0, strHeapBaseSlot_ + 2)) // النتيجة = buf
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!reloadReg(kv.second))
+                                    return false;
+                        int dstD;
+                        if (!allocReg(inst.result->name, dstD))
+                            return false;
+                        return movReg(dstD, a64reg::kScratch0);
+                    }
+                    if (atsElem == types::SadTypeKind::String)
+                    {
+                        // (AR) المسارُ النصّيّ (مرآةُ x86): كلُّ عنصرٍ مؤشّرُ char*. تمريرتان: (١) acc =
+                        //      3 + Σ(بايتات strlen + 2)؛ (٢) mmap ثمّ '[' ثمّ لكلِّ عنصرٍ فاصلَ «، »
+                        //      (عدا الأوّل) ثمّ byteCopy لسلسلته؛ اختم بـ']'+NUL. خانات strHeap:
+                        //      +0=len +1=data +2=acc +3=buf +4=dst +5=i.
+                        if (!loadArgInto(9, inst.operands[0]))
+                            return false;
+                        if (!ldrBase(10, 9, kArrOffLen / kArrSlotBytes) || !strSlot(10, strHeapBaseSlot_ + 0))
+                            return false;
+                        if (!ldrBase(11, 9, kArrOffData / kArrSlotBytes) || !strSlot(11, strHeapBaseSlot_ + 1))
+                            return false;
+                        // (AR) تمريرة ١: acc = 3؛ i = 0.
+                        if (!movz(9, kAtsStrBaseBytes) || !strSlot(9, strHeapBaseSlot_ + 2) ||
+                            !movz(9, 0) || !strSlot(9, strHeapBaseSlot_ + 5))
+                            return false;
+                        const size_t atsStrSizeHead = code_.size();
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 5) || !ldrSlot(10, strHeapBaseSlot_ + 0) || !cmp(9, 10))
+                            return false;
+                        size_t atsStrSizeDone;
+                        if (!emitBranchFwd(a64::mnem::kBge, "rel19", atsStrSizeDone))
+                            return false;
+                        // (AR) elem = data[i] (char*)؛ L = byteStrlen(elem)؛ acc += L + 2.
+                        if (!ldrSlot(11, strHeapBaseSlot_ + 1) || !addLsl3(11, 11, 9) || !ldrBase(12, 11, 0))
+                            return false;
+                        if (!byteStrlen(12, 10, 13)) // x10 = L
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 2) || !rrr(a64::mnem::kAdd, 9, 9, 10) ||
+                            !addImm(9, 9, kAtsStrPerElemExtra) || !strSlot(9, strHeapBaseSlot_ + 2))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 5) || !addImm(9, 9, 1) ||
+                            !strSlot(9, strHeapBaseSlot_ + 5) || !emitBBack(atsStrSizeHead))
+                            return false;
+                        if (!patchBranchFwd(atsStrSizeDone, 23, 5))
+                            return false;
+                        // (AR) mmap(acc + 16)؛ x1 = الحجم.
+                        if (!ldrSlot(a64reg::kX1, strHeapBaseSlot_ + 2) ||
+                            !addImm(a64reg::kX1, a64reg::kX1, kHeapHdrBytes) || !emitMmapArm64PresetSize())
+                            return false; // x0 = base
+                        if (!movImm64Bits(a64reg::kScratch0, static_cast<unsigned long long>(kHeapMagic)) ||
+                            !strBase(a64reg::kScratch0, a64reg::kX0, kHeapMagicOff / kArrSlotBytes) ||
+                            !strBase(a64reg::kX1, a64reg::kX0, kHeapSizeOff / kArrSlotBytes))
+                            return false;
+                        if (!addImm(a64reg::kX0, a64reg::kX0, kHeapHdrBytes) ||
+                            !strSlot(a64reg::kX0, strHeapBaseSlot_ + 3)) // buf
+                            return false;
+                        // (AR) '[' في buf[0]؛ dst = buf+1؛ i = 0.
+                        if (!movz(9, kAsciiLBracket) || !strb(9, a64reg::kX0))
+                            return false;
+                        if (!addImm(12, a64reg::kX0, 1) || !strSlot(12, strHeapBaseSlot_ + 4))
+                            return false;
+                        if (!movz(9, 0) || !strSlot(9, strHeapBaseSlot_ + 5))
+                            return false;
+                        // (AR) تمريرة ٢: الملء.
+                        const size_t atsStrFillHead = code_.size();
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 5) || !ldrSlot(10, strHeapBaseSlot_ + 0) || !cmp(9, 10))
+                            return false;
+                        size_t atsStrFillDone;
+                        if (!emitBranchFwd(a64::mnem::kBge, "rel19", atsStrFillDone))
+                            return false;
+                        if (!ldrSlot(12, strHeapBaseSlot_ + 4)) // (AR) dst الجاري (x12)
+                            return false;
+                        if (!cmp(9, a64reg::kXzr)) // i>0 ⇒ الفاصل «، »
+                            return false;
+                        size_t atsStrNoSep;
+                        if (!emitBranchFwd(a64::mnem::kBeq, "rel19", atsStrNoSep))
+                            return false;
+                        if (!movz(13, kAsciiComma) || !strb(13, 12) || !addImm(12, 12, 1) ||
+                            !movz(13, kAsciiSpace) || !strb(13, 12) || !addImm(12, 12, 1))
+                            return false;
+                        if (!patchBranchFwd(atsStrNoSep, 23, 5))
+                            return false;
+                        // (AR) elem = data[i] ⇒ x10 (يُحفَظ)؛ L = byteStrlen(نسخة x9)؛ byteCopy(dst, elem, L).
+                        if (!ldrSlot(11, strHeapBaseSlot_ + 1) || !ldrSlot(9, strHeapBaseSlot_ + 5) ||
+                            !addLsl3(11, 11, 9) || !ldrBase(10, 11, 0))
+                            return false;
+                        if (!movReg(9, 10) || !byteStrlen(9, 13, 14)) // x13 = L
+                            return false;
+                        if (!byteCopy(12, 10, 13, 14) || !strSlot(12, strHeapBaseSlot_ + 4))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 5) || !addImm(9, 9, 1) ||
+                            !strSlot(9, strHeapBaseSlot_ + 5) || !emitBBack(atsStrFillHead))
+                            return false;
+                        if (!patchBranchFwd(atsStrFillDone, 23, 5))
+                            return false;
+                        // (AR) الختام: ']' ثمّ NUL؛ النتيجة = buf.
+                        if (!ldrSlot(12, strHeapBaseSlot_ + 4) ||
+                            !movz(9, kAsciiRBracket) || !strb(9, 12) || !addImm(12, 12, 1) ||
+                            !movz(9, 0) || !strb(9, 12))
+                            return false;
+                        if (!ldrSlot(a64reg::kScratch0, strHeapBaseSlot_ + 3)) // النتيجة = buf
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!reloadReg(kv.second))
+                                    return false;
+                        int dstS;
+                        if (!allocReg(inst.result->name, dstS))
+                            return false;
+                        return movReg(dstS, a64reg::kScratch0);
+                    }
+                    if (atsElem == types::SadTypeKind::Float)
+                    {
+                        // (AR) المسارُ العشريّ (مرآةُ x86): كلُّ عنصرٍ نمطُ بتّاتِ double. لكلِّ عنصرٍ نفكّكه
+                        //      (إشارة/ip/scaled/nd كـF64_TO_STRING) ونبنيه تنازليًّا في مخزنِ خدشٍ على الإطار
+                        //      (atsFtoaTopSlot_؛ لا mmap لكلِّ عنصرٍ ⇒ sign=x17, ip=x15 تبقيان) ثمّ byteCopy.
+                        //      خانات strHeap: +0=len +1=data +2=buf +3=dst +4=i.
+                        if (!loadArgInto(9, inst.operands[0]))
+                            return false;
+                        if (!ldrBase(10, 9, kArrOffLen / kArrSlotBytes) || !strSlot(10, strHeapBaseSlot_ + 0))
+                            return false;
+                        if (!ldrBase(11, 9, kArrOffData / kArrSlotBytes) || !strSlot(11, strHeapBaseSlot_ + 1))
+                            return false;
+                        // (AR) mmap(len*340 + 4 + 16)؛ x1 = الحجم.
+                        if (!movz(12, kAtsFloatBytesPerElem) || !rrr(a64::mnem::kMul, a64reg::kX1, 10, 12) ||
+                            !addImm(a64reg::kX1, a64reg::kX1, kAtsFrameBytes + kHeapHdrBytes) ||
+                            !emitMmapArm64PresetSize())
+                            return false; // x0 = base
+                        if (!movImm64Bits(a64reg::kScratch0, static_cast<unsigned long long>(kHeapMagic)) ||
+                            !strBase(a64reg::kScratch0, a64reg::kX0, kHeapMagicOff / kArrSlotBytes) ||
+                            !strBase(a64reg::kX1, a64reg::kX0, kHeapSizeOff / kArrSlotBytes))
+                            return false;
+                        if (!addImm(a64reg::kX0, a64reg::kX0, kHeapHdrBytes) ||
+                            !strSlot(a64reg::kX0, strHeapBaseSlot_ + 2)) // buf
+                            return false;
+                        if (!movz(9, kAsciiLBracket) || !strb(9, a64reg::kX0))
+                            return false;
+                        if (!addImm(12, a64reg::kX0, 1) || !strSlot(12, strHeapBaseSlot_ + 3)) // dst
+                            return false;
+                        if (!movz(9, 0) || !strSlot(9, strHeapBaseSlot_ + 4)) // i = 0
+                            return false;
+                        const size_t atsFLoopHead = code_.size();
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 4) || !ldrSlot(10, strHeapBaseSlot_ + 0) || !cmp(9, 10))
+                            return false;
+                        size_t atsFLoopDone;
+                        if (!emitBranchFwd(a64::mnem::kBge, "rel19", atsFLoopDone))
+                            return false;
+                        // (AR) الفاصلُ «، » إن i>0.
+                        if (!cmp(9, a64reg::kXzr))
+                            return false;
+                        size_t atsFNoSep;
+                        if (!emitBranchFwd(a64::mnem::kBeq, "rel19", atsFNoSep))
+                            return false;
+                        if (!ldrSlot(12, strHeapBaseSlot_ + 3) ||
+                            !movz(9, kAsciiComma) || !strb(9, 12) || !addImm(12, 12, 1) ||
+                            !movz(9, kAsciiSpace) || !strb(9, 12) || !addImm(12, 12, 1) ||
+                            !strSlot(12, strHeapBaseSlot_ + 3))
+                            return false;
+                        if (!patchBranchFwd(atsFNoSep, 23, 5))
+                            return false;
+                        // (AR) العنصرُ = data[i] (بتّاتُ double) ⇒ x9.
+                        if (!ldrSlot(11, strHeapBaseSlot_ + 1) || !ldrSlot(12, strHeapBaseSlot_ + 4) ||
+                            !addLsl3(11, 11, 12) || !ldrBase(9, 11, 0))
+                            return false;
+                        // (AR) sign ⇒ x17 (يبقى عبر البناء).
+                        if (!movImm64Bits(a64reg::kScratch0, kF64SignMask) ||
+                            !rrr(a64::mnem::kAnd, 10, 9, a64reg::kScratch0) || !cmp(10, 31))
+                            return false;
+                        size_t atsFSignZero;
+                        if (!emitBranchFwd(a64::mnem::kBeq, "rel19", atsFSignZero))
+                            return false;
+                        if (!movz(a64reg::kScratch1, 1))
+                            return false;
+                        size_t atsFSignSet;
+                        if (!emitBranchFwd(a64::mnem::kB, "rel26", atsFSignSet))
+                            return false;
+                        if (!patchBranchFwd(atsFSignZero, 23, 5))
+                            return false;
+                        if (!movz(a64reg::kScratch1, 0))
+                            return false;
+                        if (!patchBranchFwd(atsFSignSet, 25, 0))
+                            return false;
+                        // (AR) |x| = bits & absmask ⇒ ip = trunc(|x|) في x15.
+                        if (!movImm64Bits(a64reg::kScratch0, kF64AbsMask) ||
+                            !rrr(a64::mnem::kAnd, 9, 9, a64reg::kScratch0))
+                            return false;
+                        if (!fmovToFp(kD0, 9) || !fcvtzs(15, kD0))
+                            return false;
+                        // (AR) scaled = round((|x| − ip)×١٠^٦) في x12.
+                        if (!fmovToFp(kD0, 9) || !scvtf(kD1, 15) || !fsub(kD0, kD0, kD1))
+                            return false;
+                        if (!loadFloatConst(a64reg::kScratch0, static_cast<double>(kFloatPrecisionScale)) ||
+                            !fmovToFp(kD1, a64reg::kScratch0) || !fmul(kD0, kD0, kD1) || !fcvtns(12, kD0))
+                            return false;
+                        // (AR) ترحيلُ الحمل: scaled == ١٠^٦ ⇒ ip++ وscaled=0.
+                        if (!movImm64Bits(a64reg::kScratch0, static_cast<unsigned long long>(kFloatPrecisionScale)) ||
+                            !cmp(12, a64reg::kScratch0))
+                            return false;
+                        size_t atsFNoCarry;
+                        if (!emitBranchFwd(a64::mnem::kBne, "rel19", atsFNoCarry))
+                            return false;
+                        if (!addImm(15, 15, 1) || !movz(12, 0))
+                            return false;
+                        if (!patchBranchFwd(atsFNoCarry, 23, 5))
+                            return false;
+                        // (AR) حذفُ الأصفار الزائدة: nd(x11)=٦؛ x10=١٠؛ x16=١ (ثابتُ المقارنة).
+                        if (!movz(11, kFloatDecimals) || !movz(10, kItoaRadixArm64) || !movz(a64reg::kScratch0, 1))
+                            return false;
+                        const size_t atsFStripTop = code_.size();
+                        if (!cmp(11, a64reg::kScratch0))
+                            return false;
+                        size_t atsFStripDone;
+                        if (!emitBranchFwd(a64::mnem::kBle, "rel19", atsFStripDone))
+                            return false;
+                        if (!rrr(a64::mnem::kSdiv, 14, 12, 10) || !msub(9, 14, 10, 12) || !cmp(9, 31))
+                            return false;
+                        size_t atsFStripStop;
+                        if (!emitBranchFwd(a64::mnem::kBne, "rel19", atsFStripStop))
+                            return false;
+                        if (!movReg(12, 14) || !subImm(11, 11, 1) || !emitBBack(atsFStripTop))
+                            return false;
+                        if (!patchBranchFwd(atsFStripDone, 23, 5) || !patchBranchFwd(atsFStripStop, 23, 5))
+                            return false;
+                        // (AR) ابنِ تنازليًّا: x13 = قمّةُ المخزن (حصريّ). x17=sign, x15=ip, x12=scaled, x11=nd, x10=١٠.
+                        if (!addImm(13, 31, static_cast<long long>(atsFtoaTopSlot_) * 8))
+                            return false;
+                        // (١) خاناتُ الكسر (nd خانةً).
+                        if (!movReg(9, 12)) // x9 = scaled
+                            return false;
+                        const size_t atsFFracTop = code_.size();
+                        if (!cmp(11, 31))
+                            return false;
+                        size_t atsFFracDone;
+                        if (!emitBranchFwd(a64::mnem::kBle, "rel19", atsFFracDone))
+                            return false;
+                        if (!rrr(a64::mnem::kSdiv, 14, 9, 10) || !msub(12, 14, 10, 9) ||
+                            !addImm(12, 12, kAsciiZeroArm64) || !subImm(13, 13, 1) || !strb(12, 13) ||
+                            !movReg(9, 14) || !subImm(11, 11, 1) || !emitBBack(atsFFracTop))
+                            return false;
+                        if (!patchBranchFwd(atsFFracDone, 23, 5))
+                            return false;
+                        // (٢) النقطة.
+                        if (!subImm(13, 13, 1) || !movz(12, kAsciiDotArm64) || !strb(12, 13))
+                            return false;
+                        // (٣) الجزءُ الصحيح ip تنازليًّا (رقمٌ واحدٌ على الأقلّ).
+                        if (!movReg(9, 15))
+                            return false;
+                        const size_t atsFIpTop = code_.size();
+                        if (!rrr(a64::mnem::kSdiv, 14, 9, 10) || !msub(12, 14, 10, 9) ||
+                            !addImm(12, 12, kAsciiZeroArm64) || !subImm(13, 13, 1) || !strb(12, 13) ||
+                            !movReg(9, 14) || !emitCbnzBack(9, atsFIpTop))
+                            return false;
+                        // (٤) بادئةُ السالب إن لزم (x17 = sign).
+                        if (!cmp(a64reg::kScratch1, 31))
+                            return false;
+                        size_t atsFNoSign;
+                        if (!emitBranchFwd(a64::mnem::kBeq, "rel19", atsFNoSign))
+                            return false;
+                        if (!subImm(13, 13, 1) || !movz(12, kAsciiMinusArm64) || !strb(12, 13))
+                            return false;
+                        if (!patchBranchFwd(atsFNoSign, 23, 5))
+                            return false;
+                        // (AR) L = القمّة − x13؛ byteCopy(dst, x13, L).
+                        if (!addImm(14, 31, static_cast<long long>(atsFtoaTopSlot_) * 8) ||
+                            !rrr(a64::mnem::kSub, 11, 14, 13))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 3) || !byteCopy(9, 13, 11, 12) ||
+                            !strSlot(9, strHeapBaseSlot_ + 3))
+                            return false;
+                        if (!ldrSlot(9, strHeapBaseSlot_ + 4) || !addImm(9, 9, 1) ||
+                            !strSlot(9, strHeapBaseSlot_ + 4) || !emitBBack(atsFLoopHead))
+                            return false;
+                        if (!patchBranchFwd(atsFLoopDone, 23, 5))
+                            return false;
+                        if (!ldrSlot(12, strHeapBaseSlot_ + 3) ||
+                            !movz(9, kAsciiRBracket) || !strb(9, 12) || !addImm(12, 12, 1) ||
+                            !movz(9, 0) || !strb(9, 12))
+                            return false;
+                        if (!ldrSlot(a64reg::kScratch0, strHeapBaseSlot_ + 2)) // النتيجة = buf
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!reloadReg(kv.second))
+                                    return false;
+                        int dstF;
+                        if (!allocReg(inst.result->name, dstF))
+                            return false;
+                        return movReg(dstF, a64reg::kScratch0);
+                    }
+                    // (AR) x9 = مؤشّرُ المصفوفة؛ len=[arr+0]، data=[arr+16] ⇒ خانات.
+                    if (!loadArgInto(9, inst.operands[0]))
+                        return false;
+                    if (!ldrBase(10, 9, kArrOffLen / kArrSlotBytes) || !strSlot(10, strHeapBaseSlot_ + 0))
+                        return false;
+                    if (!ldrBase(11, 9, kArrOffData / kArrSlotBytes) || !strSlot(11, strHeapBaseSlot_ + 1))
+                        return false;
+                    // (AR) mmap(len*34 + 4 + 16)؛ x1 = الحجمُ الكلّيّ.
+                    if (!movz(12, kAtsBytesPerElem) || !rrr(a64::mnem::kMul, a64reg::kX1, 10, 12) ||
+                        !addImm(a64reg::kX1, a64reg::kX1, kAtsFrameBytes + kHeapHdrBytes) ||
+                        !emitMmapArm64PresetSize())
+                        return false; // (AR) x0 = base
+                    if (!movImm64Bits(a64reg::kScratch0, static_cast<unsigned long long>(kHeapMagic)) ||
+                        !strBase(a64reg::kScratch0, a64reg::kX0, kHeapMagicOff / kArrSlotBytes) ||
+                        !strBase(a64reg::kX1, a64reg::kX0, kHeapSizeOff / kArrSlotBytes))
+                        return false;
+                    if (!addImm(a64reg::kX0, a64reg::kX0, kHeapHdrBytes) ||
+                        !strSlot(a64reg::kX0, strHeapBaseSlot_ + 2)) // buf
+                        return false;
+                    // (AR) '[' في buf[0]؛ dst = buf+1؛ i = 0.
+                    if (!movz(9, kAsciiLBracket) || !strb(9, a64reg::kX0))
+                        return false;
+                    if (!addImm(12, a64reg::kX0, 1) || !strSlot(12, strHeapBaseSlot_ + 3)) // dst
+                        return false;
+                    if (!movz(9, 0) || !strSlot(9, strHeapBaseSlot_ + 4)) // i = 0
+                        return false;
+                    // (AR) رأسُ الحلقة: if i >= len ⇒ الختام (x9 = i، x10 = len).
+                    const size_t atsLoopHead = code_.size();
+                    if (!ldrSlot(9, strHeapBaseSlot_ + 4) || !ldrSlot(10, strHeapBaseSlot_ + 0) || !cmp(9, 10))
+                        return false;
+                    size_t atsLoopDone;
+                    if (!emitBranchFwd(a64::mnem::kBge, "rel19", atsLoopDone))
+                        return false;
+                    // (AR) الفاصلُ «، »: إن i>0 اكتب ',' ثمّ ' ' وقدّمِ dst بـ٢ (x9 لا يزال = i).
+                    if (!cmp(9, a64reg::kXzr))
+                        return false;
+                    size_t atsNoSep;
+                    if (!emitBranchFwd(a64::mnem::kBeq, "rel19", atsNoSep))
+                        return false;
+                    if (!ldrSlot(12, strHeapBaseSlot_ + 3) ||
+                        !movz(9, kAsciiComma) || !strb(9, 12) || !addImm(12, 12, 1) ||
+                        !movz(9, kAsciiSpace) || !strb(9, 12) || !addImm(12, 12, 1) ||
+                        !strSlot(12, strHeapBaseSlot_ + 3))
+                        return false;
+                    if (!patchBranchFwd(atsNoSep, 23, 5))
+                        return false;
+                    // (AR) العنصرُ = data[i] (i64): elemPtr = data + i*8 ⇒ x9.
+                    if (!ldrSlot(11, strHeapBaseSlot_ + 1) || !ldrSlot(12, strHeapBaseSlot_ + 4) ||
+                        !addLsl3(11, 11, 12) || !ldrBase(9, 11, 0))
+                        return false;
+                    // (AR) itoa(x9) تنازليًّا في مخزنِ الإطار؛ x13 = المؤشّر، x14 = القمّة (للطول).
+                    if (!addImm(13, 31, static_cast<long long>(printBufTopSlot_) * 8) || !movReg(14, 13) ||
+                        !movz(10, kItoaRadixArm64))
+                        return false;
+                    if (!cmp(9, a64reg::kXzr)) // (AR) الإشارة: x9 ≥ ٠ ⇒ الموجب
+                        return false;
+                    size_t atsPositive;
+                    if (!emitBranchFwd(a64::mnem::kBge, "rel19", atsPositive))
+                        return false;
+                    const size_t atsNegLoop = code_.size();
+                    if (!rrr(a64::mnem::kSdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
+                        !rrr(a64::mnem::kSub, 12, 31, 12) || !addImm(12, 12, kAsciiZeroArm64) ||
+                        !subImm(13, 13, 1) || !strb(12, 13) ||
+                        !movReg(9, 11) || !emitCbnzBack(9, atsNegLoop))
+                        return false;
+                    if (!movz(12, kAsciiMinusArm64) || !subImm(13, 13, 1) || !strb(12, 13)) // '-'
+                        return false;
+                    size_t atsItoaDone;
+                    if (!emitBranchFwd(a64::mnem::kB, "rel26", atsItoaDone))
+                        return false;
+                    if (!patchBranchFwd(atsPositive, 23, 5))
+                        return false;
+                    const size_t atsPosLoop = code_.size();
+                    if (!rrr(a64::mnem::kSdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
+                        !addImm(12, 12, kAsciiZeroArm64) ||
+                        !subImm(13, 13, 1) || !strb(12, 13) ||
+                        !movReg(9, 11) || !emitCbnzBack(9, atsPosLoop))
+                        return false;
+                    if (!patchBranchFwd(atsItoaDone, 25, 0))
+                        return false;
+                    // (AR) L = x14 − x13؛ byteCopy(dst, x13, L). dst يتقدّم ⇒ خزّنه ثانيةً.
+                    if (!rrr(a64::mnem::kSub, 11, 14, 13) || !movReg(10, 13) ||
+                        !ldrSlot(9, strHeapBaseSlot_ + 3) || !byteCopy(9, 10, 11, 12) ||
+                        !strSlot(9, strHeapBaseSlot_ + 3))
+                        return false;
+                    // (AR) i++؛ عُدْ للرأس.
+                    if (!ldrSlot(9, strHeapBaseSlot_ + 4) || !addImm(9, 9, 1) ||
+                        !strSlot(9, strHeapBaseSlot_ + 4) || !emitBBack(atsLoopHead))
+                        return false;
+                    if (!patchBranchFwd(atsLoopDone, 23, 5))
+                        return false;
+                    // (AR) الختام: ']' ثمّ NUL في dst؛ النتيجة = buf.
+                    if (!ldrSlot(12, strHeapBaseSlot_ + 3) ||
+                        !movz(9, kAsciiRBracket) || !strb(9, 12) || !addImm(12, 12, 1) ||
+                        !movz(9, 0) || !strb(9, 12))
+                        return false;
+                    if (!ldrSlot(a64reg::kScratch0, strHeapBaseSlot_ + 2)) // (AR) النتيجة = buf (خارجَ الحوض)
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, a64reg::kScratch0);
+                }
                 case OP::F64_TO_STRING:
                 {
                     // (AR) عشريّ → نصّ (مرآةُ x86): يفكّك البتّاتِ (إشارة/جزءٌ صحيح/كسرٌ مقرَّبٌ ٦ خاناتٍ مع
@@ -3324,8 +4119,18 @@ namespace sad
                     if (!emitElemAddrArm64(inst.operands[0], inst.operands[1], off))
                         return false;
                     // (AR) x17 = القيمة (بعد حساب العنوان ⇒ فهرسُه في x17 لم يعد مطلوبًا)؛ str.
-                    return materialize(a64reg::kScratch1, inst.operands[2]) &&
-                           strBase(a64reg::kScratch1, a64reg::kScratch0, off);
+                    //      القيمةُ النصّيّةُ الحرفيّة (مصفوفةُ نصوصٍ متجانسة) تُجسَّد مؤشّرًا؛ materialize
+                    //      يرفض حرفيّةَ النصّ (شبحيّةٌ بلا سجلّ) ⇒ يفتح مصفوفةَ نصوصٍ لـARRAY_TO_STRING.
+                    if (inst.operands[2].dataType == types::SadTypeKind::String)
+                    {
+                        // (AR) fromSpill=false: ARRAY_SET لا يَنسِك الحوضَ ⇒ القيمةُ المحسوبةُ تُقرأ من
+                        //      سجلّها الحيّ (movReg) لا من خانةِ انسكابٍ باتّةٍ؛ الحرفيّةُ تمرّ بـemitLoadCStrAddr.
+                        if (!materializeString(inst.operands[2], a64reg::kScratch1, false))
+                            return false;
+                    }
+                    else if (!materialize(a64reg::kScratch1, inst.operands[2]))
+                        return false;
+                    return strBase(a64reg::kScratch1, a64reg::kScratch0, off);
                 }
                 case OP::TUPLE_GET: // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً ⇒ نفسُ خفضِ القراءة (بما فيه المسارُ المعلَّب)
                 case OP::ARRAY_GET:
@@ -4032,6 +4837,7 @@ namespace sad
                 next_ = 0;
                 frameSize_ = 0;
                 printBufTopSlot_ = -1;
+                atsFtoaTopSlot_ = -1;
                 spillBaseSlot_ = -1;
                 floatValSlot_ = -1;
                 dynBaseSlot_ = -1;

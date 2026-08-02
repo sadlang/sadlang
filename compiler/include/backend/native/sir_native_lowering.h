@@ -71,6 +71,15 @@ namespace sad
         inline constexpr long long kAsciiMinus = 0x2D; // (AR) رمزُ السالب ASCII ('-') — بادئةُ العدد السالب
         inline constexpr long long kAsciiNine = 0x39;  // (AR) رمزُ التسعة ASCII ('9') — حدُّ التحليل العشريّ الأعلى
         inline constexpr long long kAsciiDot = 0x2E;   // (AR) رمزُ النقطة ASCII ('.') — فاصلةُ العشريّ في عشريّ→نصّ
+        inline constexpr long long kAsciiLBracket = 0x5B; // (AR) رمزُ القوسِ المعقوفِ الفاتح ASCII ('[') — إطارُ مصفوفة→نصّ
+        inline constexpr long long kAsciiRBracket = 0x5D; // (AR) رمزُ القوسِ المعقوفِ المغلق ASCII (']') — إطارُ مصفوفة→نصّ
+        inline constexpr long long kAsciiComma = 0x2C;    // (AR) رمزُ الفاصلة ASCII (',') — فاصلُ عناصرِ مصفوفة→نصّ
+        inline constexpr long long kAsciiSpace = 0x20;    // (AR) رمزُ المسافة ASCII (' ') — يلي الفاصلةَ في «، »
+        inline constexpr long long kAtsBytesPerElem = 34; // (AR) حدُّ بايتاتِ العنصر في مصفوفة→نصّ (٢٠رقمًا+إشارة+«، »+هامش) — يطابق LLVM
+        inline constexpr long long kAtsFrameBytes = 4;    // (AR) بايتاتُ الإطار في مصفوفة→نصّ ('['+']'+NUL+هامش) — يطابق LLVM
+        inline constexpr long long kAtsStrBaseBytes = 3;  // (AR) أساسُ حجمِ مصفوفةِ النصوص→نصّ ('['+']'+NUL) — يطابق __sad_array_to_string_str
+        inline constexpr long long kAtsStrPerElemExtra = 2; // (AR) زيادةُ كلِّ عنصرٍ نصّيّ (فاصلُ «، ») — يطابق LLVM (يفرط قليلًا، مقبول)
+        inline constexpr long long kAtsFloatBytesPerElem = 340; // (AR) حدُّ بايتاتِ عنصرٍ عشريّ (DBL_MAX ‎%.6f‎ ~٣١٧ + «، ») — يطابق LLVM
         inline constexpr long long kUtf8ContMask = 0xC0; // (AR) قناعُ بتّي البدايةِ العليَين في UTF-8
         inline constexpr long long kUtf8ContTag = 0x80;  // (AR) وسمُ البايتِ التابع (10xxxxxx) في UTF-8
         inline constexpr long long kItoaRadix = 10;    // (AR) أساسُ التحويل العشريّ
@@ -133,7 +142,7 @@ namespace sad
         // (AR) نصوصُ طباعةِ القيمة المعلَّبة (تطابق المفسّر value.cpp:476/عدم) — ثوابتُ مسمّاةٌ لا حرفيّاتٌ خام.
         inline const std::string kDynBoolTrueText = "\xD8\xB5\xD8\xAD\xD9\x8A\xD8\xAD";  // صحيح
         inline const std::string kDynBoolFalseText = "\xD8\xAE\xD8\xB7\xD8\xA3";          // خطأ
-        inline const std::string kDynNullText = "\xD8\xB9\xD8\xAF\xD9\x85";               // عدم
+        inline const std::string kDynNullText = "\xD9\x84\xD8\xA7\xD8\xB4\xD9\x8A\xD8\xA1"; // لاشيء (عرضُ قيمةِ العدم/الفراغ — يطابق Value::toString والمفسّر وdynToString؛ «عدم»/«فراغ» أسماءُ أنواعٍ لا عرضُ قيمة، سدُّ تباعُد ISSUE-097)
 
         // (AR) واصفُ النصّ المعلَّب (ذاتيُّ الوصف): طولٌ ٦٤-بت (LE) يليه البايتات. النصُّ المعلَّب
         //      يُقرأ نوعُه زمنَ التشغيل من الوسم، فطولُه غيرُ معلومٍ عند الطباعة إلّا من الواصف. دالّةٌ
@@ -481,6 +490,11 @@ namespace sad
             //      مراحل المُنسِّق (إشارة/جزء صحيح/كسر) — تُعاد قراءتُها بعد كلّ طباعةٍ جزئيّةٍ
             //      تدهس السجلّات. صفرٌ إن لم تطبع الدالّةُ عشريًّا.
             long long floatValDisp_ = 0;
+
+            // (AR) مصفوفةُ العشريّ→نصّ: مخزنُ خدشٍ (kFtoaBufPayload بايتًا) يبني نصَّ كلِّ عنصرٍ عشريّ
+            //      تنازليًّا قبل byteCopy إلى المخزن الرئيس. أوسعُ من مخزنِ itoa (٢٤) ⇒ خانةٌ مستقلّة؛
+            //      لا mmap بين تفكيكِ العنصر وبنائه ⇒ ip/scaled/nd/sign تبقى في السجلّات (لا خانات).
+            long long atsFtoaTopDisp_ = 0;
 
             // (AR) التعليب (المصفوفات المختلطة): كلُّ ARRAY_GET معلَّبٍ (Any) يُنتِج قيمةً ديناميّةً
             //      نمثّلها **مؤشّرًا إلى خانةِ dyn** في الإطار: {tag@0 (i64)، payload@8 (i64)} = ١٦ بايت.
@@ -1501,6 +1515,146 @@ namespace sad
                 return true;
             }
 
+            // (AR) مصفوفة→نصّ (Any): يقرأ وسمَ العنصرِ i (tagReg) من tags[i]، أو Int إن كان مخزنُ
+            //      الوسوم null. يستعمل R11 خدشًا؛ يُبقي iReg (يجب أن يخالف tagReg وR11). i = قيمةُ الفهرس.
+            bool emitAtsDynLoadTag(int tagReg, int iReg)
+            {
+                if (!loadMem(x86::R11, strHeapSlot(5)) || !cmpZero(x86::R11))
+                    return false;
+                size_t haveTags;
+                if (!emitJccFwd(x86::mnem::kJne, haveTags))
+                    return false;
+                if (!movImm(tagReg, kDynKindInt)) // tags=null ⇒ Int
+                    return false;
+                size_t done;
+                if (!emitJccFwd(x86::mnem::kJmp, done))
+                    return false;
+                patchFwd(haveTags);
+                if (!movReg(tagReg, iReg) || !shlImm(tagReg, 3) || !addReg(x86::R11, tagReg) ||
+                    !loadMemBase(tagReg, x86::R11, 0))
+                    return false;
+                patchFwd(done);
+                return true;
+            }
+
+            // (AR) يبني نصَّ عددٍ صحيحٍ (RAX) تنازليًّا في مخزنِ itoa (printBufTopDisp_)؛ R10 = مؤشّرُ
+            //      أوّلِ رقم/إشارة (الطولُ = القمّة − R10). itoa باقٍ-سالبٌ ⇒ آمنٌ لـINT64_MIN. RCX=10.
+            bool emitAtsIntToScratch()
+            {
+                if (!leaFrame(x86::R10, printBufTopDisp_) || !movImm(x86::RCX, kItoaRadix) || !cmpZero(x86::RAX))
+                    return false;
+                size_t pos;
+                if (!emitJccFwd(x86::mnem::kJge, pos))
+                    return false;
+                const size_t neg = code_.size();
+                if (!cqo() || !idivReg(x86::RCX) || !movImm(x86::R9, kAsciiZero) || !subReg(x86::R9, x86::RDX) ||
+                    !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::R9) ||
+                    !cmpZero(x86::RAX) || !emitLocalJneBack(neg))
+                    return false;
+                if (!movImm(x86::R9, kAsciiMinus) || !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::R9))
+                    return false;
+                size_t done;
+                if (!emitJccFwd(x86::mnem::kJmp, done))
+                    return false;
+                patchFwd(pos);
+                const size_t p = code_.size();
+                if (!cqo() || !idivReg(x86::RCX) || !addImm(x86::RDX, kAsciiZero) ||
+                    !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                    !cmpZero(x86::RAX) || !emitLocalJneBack(p))
+                    return false;
+                patchFwd(done);
+                return true;
+            }
+
+            // (AR) يبني نصَّ عشريٍّ (نمطُ بتّاته في RAX) بصيغةِ fixed6 مع حذفِ الأصفار الزائدة تنازليًّا
+            //      في مخزنِ خدشٍ (atsFtoaTopDisp_)؛ R10 = مؤشّرُ أوّلِ رمز (الطولُ = القمّة − R10). لا mmap
+            //      ⇒ يستعمل السجلّاتِ خدشًا (RSI=sign, RDI=ip, R8=scaled, R9=nd, RCX=10). مطابقٌ لـF64_TO_STRING.
+            bool emitAtsFloatToScratch()
+            {
+                // (AR) sign = (bits & signmask) ? 1 : 0 في RSI.
+                if (!movImm64(x86::R9, static_cast<long long>(kF64SignMask)) || !movReg(x86::R8, x86::RAX) ||
+                    !andReg(x86::R8, x86::R9) || !cmpZero(x86::R8))
+                    return false;
+                size_t signPos;
+                if (!emitJccFwd(x86::mnem::kJe, signPos))
+                    return false;
+                if (!movImm(x86::RSI, 1))
+                    return false;
+                size_t signSet;
+                if (!emitJccFwd(x86::mnem::kJmp, signSet))
+                    return false;
+                patchFwd(signPos);
+                if (!movImm(x86::RSI, 0))
+                    return false;
+                patchFwd(signSet);
+                // (AR) |x| = bits & absmask ⇒ ip = trunc(|x|) في RDI.
+                if (!movImm64(x86::R9, static_cast<long long>(kF64AbsMask)) || !andReg(x86::RAX, x86::R9))
+                    return false;
+                if (!movqToXmm(kXmm0, x86::RAX) || !cvttsd2si(x86::RDI, kXmm0))
+                    return false;
+                if (!movqToXmm(kXmm0, x86::RAX) || !cvtsi2sd(kXmm1, x86::RDI) || !subsd(kXmm0, kXmm1))
+                    return false;
+                if (!loadFloatConst(x86::RAX, static_cast<double>(kFloatPrecisionScale)) ||
+                    !movqToXmm(kXmm1, x86::RAX) || !mulsd(kXmm0, kXmm1) || !cvtsd2si(x86::R8, kXmm0))
+                    return false;
+                if (!movImm(x86::RCX, kFloatPrecisionScale) || !cmpRegReg(x86::R8, x86::RCX))
+                    return false;
+                size_t noCarry;
+                if (!emitJccFwd(x86::mnem::kJne, noCarry))
+                    return false;
+                if (!addImm(x86::RDI, 1) || !movImm(x86::R8, 0))
+                    return false;
+                patchFwd(noCarry);
+                if (!movImm(x86::R9, kFloatDecimals) || !movImm(x86::RCX, kItoaRadix))
+                    return false;
+                const size_t stripTop = code_.size();
+                if (!cmpImm8(x86::R9, 1))
+                    return false;
+                size_t stripDone;
+                if (!emitJccFwd(x86::mnem::kJle, stripDone))
+                    return false;
+                if (!movReg(x86::RAX, x86::R8) || !cqo() || !idivReg(x86::RCX) || !cmpZero(x86::RDX))
+                    return false;
+                size_t stripStop;
+                if (!emitJccFwd(x86::mnem::kJne, stripStop))
+                    return false;
+                if (!movReg(x86::R8, x86::RAX) || !subImm(x86::R9, 1) || !emitJmpBack(stripTop))
+                    return false;
+                patchFwd(stripDone);
+                patchFwd(stripStop);
+                if (!leaFrame(x86::R10, atsFtoaTopDisp_) || !movReg(x86::RAX, x86::R8))
+                    return false;
+                const size_t fracTop = code_.size();
+                if (!cmpImm8(x86::R9, 0))
+                    return false;
+                size_t fracDone;
+                if (!emitJccFwd(x86::mnem::kJle, fracDone))
+                    return false;
+                if (!cqo() || !idivReg(x86::RCX) || !addImm(x86::RDX, kAsciiZero) ||
+                    !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                    !subImm(x86::R9, 1) || !emitJmpBack(fracTop))
+                    return false;
+                patchFwd(fracDone);
+                if (!subImm(x86::R10, 1) || !movImm(x86::R9, kAsciiDot) || !storeByte(x86::R10, x86::R9))
+                    return false;
+                if (!movReg(x86::RAX, x86::RDI))
+                    return false;
+                const size_t ipTop = code_.size();
+                if (!cqo() || !idivReg(x86::RCX) || !addImm(x86::RDX, kAsciiZero) ||
+                    !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                    !cmpZero(x86::RAX) || !emitJccBack(x86::mnem::kJne, ipTop))
+                    return false;
+                if (!cmpZero(x86::RSI))
+                    return false;
+                size_t noSign;
+                if (!emitJccFwd(x86::mnem::kJe, noSign))
+                    return false;
+                if (!subImm(x86::R10, 1) || !movImm(x86::R9, kAsciiMinus) || !storeByte(x86::R10, x86::R9))
+                    return false;
+                patchFwd(noSign);
+                return true;
+            }
+
             // (AR) هل المعاملُ سجلٌّ يُشير إلى خانةِ متغيّرٍ مخصَّص (ALLOC)؟ يُعيد إزاحتَه.
             bool isMemVar(const sir::SIROperand &op, long long &disp) const
             {
@@ -1598,6 +1752,7 @@ namespace sad
                 bool hasMemBlock = false;    // (AR) حجز/حرر/عبّئ/انسخ (نواةُ الكومة) ⇒ syscall/حلقةٌ تدهس الحوض
                 bool hasStrHeap = false;     // (AR) أوپكودُ نصٍّ يخصّص كومةً داخليًّا (I64_TO_STRING/CONCAT/…)
                 bool hasArrayExt = false;    // (AR) CONCAT/ZIP ⇒ mmap (+حلقةٌ لـZIP) يدهس الحوضَ + خاناتُ خدشٍ عابرةٌ لـmmap
+                bool hasArrayToStr = false;  // (AR) ARRAY_TO_STRING ⇒ يلزمه مخزنُ خدشِ عشريّ (kFtoaBufPayload) للمسار العشريّ
                 dynGetCount_ = 0;
                 for (const auto &blockPtr : blocks)
                     for (const auto &inst : blockPtr->instructions)
@@ -1703,6 +1858,16 @@ namespace sad
                                  inst.opcode == sir::SIROpcode::STRING_REPLACE ||
                                  inst.opcode == sir::SIROpcode::BUILTIN_STRING_REPLACE)
                             hasStrHeap = true; // (AR) يخصّص مخزنَ نصٍّ/يستعمل خانةَ hayBase (mmap/الحوض)
+                        else if (inst.opcode == sir::SIROpcode::ARRAY_TO_STRING ||
+                                 inst.opcode == sir::SIROpcode::TUPLE_TO_STRING)
+                        {
+                            // (AR) مصفوفة→نصّ سياديّة: تخصّص مخزنَ الكومة (mmap ⇒ خانات strHeap +
+                            //      منطقةُ انسكاب) وتبني كلَّ عنصرٍ عبر itoa تنازليًّا في مخزنِ الإطار
+                            //      (نفسُ خانةِ طباعةِ العدد printBufTopDisp_).
+                            hasStrHeap = true;
+                            hasNumberPrint = true;
+                            hasArrayToStr = true; // (AR) + مخزنُ خدشٍ عشريٌّ للمسار العشريّ
+                        }
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_PRINT)
                         {
                             hasPrint = true;
@@ -1773,6 +1938,12 @@ namespace sad
                 {
                     printBufTopDisp_ = -used;
                     used += 24;
+                }
+                // (AR) مصفوفةُ العشريّ→نصّ: مخزنُ خدشِ عنصرٍ عشريّ (kFtoaBufPayload، القمّةُ = ‎-used‎ قبل الحجز).
+                if (hasArrayToStr)
+                {
+                    atsFtoaTopDisp_ = -used;
+                    used += kFtoaBufPayload;
                 }
                 // (AR) طباعةُ عشريّ: خانةُ خدشٍ (٨ بايت) لنمطِ بتّاتِ الـdouble عبر مراحل المُنسِّق.
                 if (hasFloatPrint)
@@ -2783,6 +2954,609 @@ namespace sad
                         return false;
                     return movReg(dst, x86::RAX);
                 }
+                case OP::TUPLE_TO_STRING:
+                case OP::ARRAY_TO_STRING:
+                {
+                    // (AR) مصفوفة → نصّ سياديًّا (بلا زمنِ تشغيل C): يبني «[ع0، ع1، ...]» تمامًا كـ
+                    //      __sad_array_to_string (arith_type_conv.cpp). المسارُ العدديّ (elementType
+                    //      عدديٌّ أو مختلطٌ غيرُ-Any): buf = mmap(len*34 + 4 + 16)؛ اكتب '['؛ لكلِّ
+                    //      عنصرٍ فاصلَ «، » (عدا الأوّل) ثمّ itoa (باقٍ-سالبٌ ⇒ آمنٌ لـINT64_MIN)
+                    //      تنازليًّا في مخزنِ الإطار (printBufTopDisp_) ثمّ byteCopy إلى buf؛ اختم
+                    //      بـ']'+NUL. المساراتُ النصّيّة/العشريّة/Any تلي في هذه الدفعة.
+                    //      خانات strHeap: 0=len 1=data(الأساس) 2=buf 3=dst(الجاري) 4=i.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    const types::SadTypeKind atsElem = inst.operands[0].elementType;
+                    // (AR) انسكِبْ كلَّ مؤقّتٍ حيّ: mmap والحلقةُ البايتيّةُ تدهسان الحوضَ.
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    if (atsElem == types::SadTypeKind::Any)
+                    {
+                        // (AR) المسارُ المختلط (Any): كلُّ عنصرٍ حمولةٌ خام i64 في data[i] ووسمُ نوعِه
+                        //      (DynKind) في tags[i] (tags=null ⇒ Int احتياطيًّا) — يطابق __sad_array_to_string_dyn.
+                        //      تمريرتان: (١) الحجم = 3 + Σ(طولُ العنصر + 2) حيث طولُ العنصرِ النصّيّ = طولُ
+                        //      واصفه، وغيرُه محدودٌ بـ340 (تقديرٌ آمنٌ لأوسعِ عشريّ). (٢) mmap ثمّ '[' ثمّ لكلِّ
+                        //      عنصرٍ فاصلَ «، » ثمّ توزيعٌ حسب الوسم (عشريّ/منطقيّ/صحيح/نصّ/عدم) وbyteCopy؛
+                        //      اختم بـ']'+NUL. خانات strHeap: 0=len 1=data 2=acc/buf 3=dst 4=i 5=tags 6=payload 7=tag.
+                        if (!loadInto(x86::RAX, inst.operands[0]))
+                            return false;
+                        if (!loadMemBase(x86::R10, x86::RAX, kArrOffLen) || !storeMem(strHeapSlot(0), x86::R10))
+                            return false;
+                        if (!loadMemBase(x86::R11, x86::RAX, kArrOffData) || !storeMem(strHeapSlot(1), x86::R11))
+                            return false;
+                        if (!loadMemBase(x86::R11, x86::RAX, kArrOffTags) || !storeMem(strHeapSlot(5), x86::R11))
+                            return false;
+                        // (AR) تمريرة ١: acc = 3؛ i = 0.
+                        if (!movImm(x86::R9, kAtsStrBaseBytes) || !storeMem(strHeapSlot(2), x86::R9) ||
+                            !movImm(x86::R9, 0) || !storeMem(strHeapSlot(4), x86::R9))
+                            return false;
+                        const size_t atsDSizeHead = code_.size();
+                        if (!loadMem(x86::RAX, strHeapSlot(4)) || !loadMem(x86::R10, strHeapSlot(0)) ||
+                            !cmpRegReg(x86::RAX, x86::R10))
+                            return false;
+                        size_t atsDSizeDone;
+                        if (!emitJccFwd(x86::mnem::kJge, atsDSizeDone))
+                            return false;
+                        // (AR) tag = (tags==null ? Int : tags[i]).
+                        if (!emitAtsDynLoadTag(x86::R8, x86::RAX)) // R8 = tag (RAX = i)
+                            return false;
+                        // (AR) النصّ: طولُ العنصرِ = طولُ واصفه (payload=[data+i*8]، len=[payload]).
+                        if (!cmpImm8(x86::R8, kDynKindStr))
+                            return false;
+                        size_t atsDSizeNotStr;
+                        if (!emitJccFwd(x86::mnem::kJne, atsDSizeNotStr))
+                            return false;
+                        if (!loadMem(x86::R11, strHeapSlot(1)) || !loadMem(x86::RAX, strHeapSlot(4)) ||
+                            !shlImm(x86::RAX, 3) || !addReg(x86::R11, x86::RAX) ||
+                            !loadMemBase(x86::R9, x86::R11, 0) || !loadMemBase(x86::R10, x86::R9, 0))
+                            return false; // R10 = طولُ الواصف
+                        if (!loadMem(x86::RAX, strHeapSlot(2)) || !addReg(x86::RAX, x86::R10) ||
+                            !addImm(x86::RAX, kAtsStrPerElemExtra) || !storeMem(strHeapSlot(2), x86::RAX))
+                            return false;
+                        size_t atsDSizeAdv;
+                        if (!emitJccFwd(x86::mnem::kJmp, atsDSizeAdv))
+                            return false;
+                        patchFwd(atsDSizeNotStr);
+                        // (AR) غيرُ النصّ: تقديرٌ آمنٌ ثابتٌ (kAtsFloatBytesPerElem) + فاصل.
+                        if (!loadMem(x86::RAX, strHeapSlot(2)) ||
+                            !addImm(x86::RAX, kAtsFloatBytesPerElem + kAtsStrPerElemExtra) ||
+                            !storeMem(strHeapSlot(2), x86::RAX))
+                            return false;
+                        patchFwd(atsDSizeAdv);
+                        if (!loadMem(x86::RAX, strHeapSlot(4)) || !addImm(x86::RAX, 1) ||
+                            !storeMem(strHeapSlot(4), x86::RAX) || !emitJmpBack(atsDSizeHead))
+                            return false;
+                        patchFwd(atsDSizeDone);
+                        // (AR) mmap(acc + 16)؛ RSI = الحجم.
+                        if (!loadMem(x86::RSI, strHeapSlot(2)) || !addImm(x86::RSI, kHeapHdrBytes) ||
+                            !emitMmapPresetSize())
+                            return false; // RAX = base
+                        if (!movImm64(x86::RDI, kHeapMagic) || !storeMemBase(x86::RAX, kHeapMagicOff, x86::RDI) ||
+                            !storeMemBase(x86::RAX, kHeapSizeOff, x86::RSI))
+                            return false;
+                        if (!addImm(x86::RAX, kHeapHdrBytes) || !storeMem(strHeapSlot(2), x86::RAX)) // buf
+                            return false;
+                        if (!movImm(x86::R9, kAsciiLBracket) || !storeByte(x86::RAX, x86::R9))
+                            return false;
+                        if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, 1) || !storeMem(strHeapSlot(3), x86::RDI))
+                            return false;
+                        if (!movImm(x86::R9, 0) || !storeMem(strHeapSlot(4), x86::R9)) // i = 0
+                            return false;
+                        // (AR) تمريرة ٢: الملء.
+                        const size_t atsDFillHead = code_.size();
+                        if (!loadMem(x86::RAX, strHeapSlot(4)) || !loadMem(x86::R10, strHeapSlot(0)) ||
+                            !cmpRegReg(x86::RAX, x86::R10))
+                            return false;
+                        size_t atsDFillDone;
+                        if (!emitJccFwd(x86::mnem::kJge, atsDFillDone))
+                            return false;
+                        // (AR) الفاصلُ «، » إن i>0.
+                        if (!cmpZero(x86::RAX))
+                            return false;
+                        size_t atsDNoSep;
+                        if (!emitJccFwd(x86::mnem::kJe, atsDNoSep))
+                            return false;
+                        if (!loadMem(x86::RDI, strHeapSlot(3)) ||
+                            !movImm(x86::R9, kAsciiComma) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                            !movImm(x86::R9, kAsciiSpace) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                            !storeMem(strHeapSlot(3), x86::RDI))
+                            return false;
+                        patchFwd(atsDNoSep);
+                        // (AR) payload = data[i]؛ tag ⇒ خانتان.
+                        if (!loadMem(x86::R11, strHeapSlot(1)) || !loadMem(x86::RAX, strHeapSlot(4)) ||
+                            !shlImm(x86::RAX, 3) || !addReg(x86::R11, x86::RAX) ||
+                            !loadMemBase(x86::R9, x86::R11, 0) || !storeMem(strHeapSlot(6), x86::R9))
+                            return false;
+                        if (!loadMem(x86::RAX, strHeapSlot(4)) || !emitAtsDynLoadTag(x86::R8, x86::RAX) ||
+                            !storeMem(strHeapSlot(7), x86::R8))
+                            return false;
+                        // (AR) التوزيعُ حسب الوسم ⇒ (RSI = المصدر، RCX = الطول)، ثمّ ذيلٌ موحَّدٌ يَنسخ.
+                        std::vector<size_t> atsDArmEnds;
+                        // Float ⇒ منسِّقٌ في مخزنِ الخدش.
+                        if (!loadMem(x86::R8, strHeapSlot(7)) || !cmpImm8(x86::R8, kDynKindFloat))
+                            return false;
+                        size_t atsDNotF;
+                        if (!emitJccFwd(x86::mnem::kJne, atsDNotF))
+                            return false;
+                        if (!loadMem(x86::RAX, strHeapSlot(6)) || !emitAtsFloatToScratch())
+                            return false; // R10 = ptr
+                        if (!movReg(x86::RSI, x86::R10) || !leaFrame(x86::RCX, atsFtoaTopDisp_) || !subReg(x86::RCX, x86::R10))
+                            return false;
+                        {
+                            size_t j;
+                            if (!emitJccFwd(x86::mnem::kJmp, j))
+                                return false;
+                            atsDArmEnds.push_back(j);
+                        }
+                        patchFwd(atsDNotF);
+                        // Int ⇒ itoa في مخزنِ الخدش.
+                        if (!loadMem(x86::R8, strHeapSlot(7)) || !cmpImm8(x86::R8, kDynKindInt))
+                            return false;
+                        size_t atsDNotI;
+                        if (!emitJccFwd(x86::mnem::kJne, atsDNotI))
+                            return false;
+                        if (!loadMem(x86::RAX, strHeapSlot(6)) || !emitAtsIntToScratch())
+                            return false; // R10 = ptr
+                        if (!movReg(x86::RSI, x86::R10) || !leaFrame(x86::RCX, printBufTopDisp_) || !subReg(x86::RCX, x86::R10))
+                            return false;
+                        {
+                            size_t j;
+                            if (!emitJccFwd(x86::mnem::kJmp, j))
+                                return false;
+                            atsDArmEnds.push_back(j);
+                        }
+                        patchFwd(atsDNotI);
+                        // Str ⇒ الواصف: RSI = payload+8، RCX = [payload].
+                        if (!loadMem(x86::R8, strHeapSlot(7)) || !cmpImm8(x86::R8, kDynKindStr))
+                            return false;
+                        size_t atsDNotS;
+                        if (!emitJccFwd(x86::mnem::kJne, atsDNotS))
+                            return false;
+                        if (!loadMem(x86::R9, strHeapSlot(6)) || !loadMemBase(x86::RCX, x86::R9, 0) ||
+                            !movReg(x86::RSI, x86::R9) || !addImm(x86::RSI, 8))
+                            return false;
+                        {
+                            size_t j;
+                            if (!emitJccFwd(x86::mnem::kJmp, j))
+                                return false;
+                            atsDArmEnds.push_back(j);
+                        }
+                        patchFwd(atsDNotS);
+                        // Bool ⇒ «صحيح»/«خطأ» حسب الحمولة (٠/١).
+                        if (!loadMem(x86::R8, strHeapSlot(7)) || !cmpImm8(x86::R8, kDynKindBool))
+                            return false;
+                        size_t atsDNotB;
+                        if (!emitJccFwd(x86::mnem::kJne, atsDNotB))
+                            return false;
+                        if (!loadMem(x86::R9, strHeapSlot(6)) || !cmpZero(x86::R9))
+                            return false;
+                        size_t atsDBoolFalse;
+                        if (!emitJccFwd(x86::mnem::kJe, atsDBoolFalse))
+                            return false;
+                        if (!emitLoadCStrAddr(x86::R10, kDynBoolTrueText))
+                            return false;
+                        size_t atsDBoolDone;
+                        if (!emitJccFwd(x86::mnem::kJmp, atsDBoolDone))
+                            return false;
+                        patchFwd(atsDBoolFalse);
+                        if (!emitLoadCStrAddr(x86::R10, kDynBoolFalseText))
+                            return false;
+                        patchFwd(atsDBoolDone);
+                        if (!movReg(x86::RSI, x86::R10) || !byteStrlen(x86::R10, x86::RCX, x86::R8))
+                            return false; // RSI=start, RCX=len
+                        {
+                            size_t j;
+                            if (!emitJccFwd(x86::mnem::kJmp, j))
+                                return false;
+                            atsDArmEnds.push_back(j);
+                        }
+                        patchFwd(atsDNotB);
+                        // Null (وأيُّ وسمٍ آخر) ⇒ «عدم».
+                        if (!emitLoadCStrAddr(x86::R10, kDynNullText) || !movReg(x86::RSI, x86::R10) ||
+                            !byteStrlen(x86::R10, x86::RCX, x86::R8))
+                            return false;
+                        for (size_t j : atsDArmEnds)
+                            patchFwd(j);
+                        // (AR) الذيلُ الموحَّد: byteCopy(dst, RSI, RCX)؛ dst يتقدّم ⇒ خزّنه.
+                        if (!loadMem(x86::RDI, strHeapSlot(3)) || !byteCopy(x86::RDI, x86::RSI, x86::RCX, x86::R8) ||
+                            !storeMem(strHeapSlot(3), x86::RDI))
+                            return false;
+                        if (!loadMem(x86::RAX, strHeapSlot(4)) || !addImm(x86::RAX, 1) ||
+                            !storeMem(strHeapSlot(4), x86::RAX) || !emitJmpBack(atsDFillHead))
+                            return false;
+                        patchFwd(atsDFillDone);
+                        if (!loadMem(x86::RDI, strHeapSlot(3)) ||
+                            !movImm(x86::R9, kAsciiRBracket) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                            !movImm(x86::R9, 0) || !storeByte(x86::RDI, x86::R9))
+                            return false;
+                        if (!loadMem(x86::RAX, strHeapSlot(2))) // النتيجة = buf
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                    return false;
+                        int dstD;
+                        if (!allocReg(inst.result->name, dstD))
+                            return false;
+                        return movReg(dstD, x86::RAX);
+                    }
+                    if (atsElem == types::SadTypeKind::String)
+                    {
+                        // (AR) المسارُ النصّيّ: كلُّ عنصرٍ مؤشّرُ char*. تمريرتان (يطابق
+                        //      __sad_array_to_string_str): (١) acc = 3 + Σ(بايتات strlen + 2)؛
+                        //      (٢) mmap ثمّ '[' ثمّ لكلِّ عنصرٍ فاصلَ «، » (عدا الأوّل) ثمّ byteCopy
+                        //      لسلسلته بطولها؛ اختم بـ']'+NUL. خانات strHeap: 0=len 1=data 2=acc
+                        //      3=buf 4=dst 5=i.
+                        if (!loadInto(x86::RAX, inst.operands[0]))
+                            return false;
+                        if (!loadMemBase(x86::R10, x86::RAX, kArrOffLen) || !storeMem(strHeapSlot(0), x86::R10))
+                            return false;
+                        if (!loadMemBase(x86::R11, x86::RAX, kArrOffData) || !storeMem(strHeapSlot(1), x86::R11))
+                            return false;
+                        // (AR) تمريرة ١: acc = 3؛ i = 0.
+                        if (!movImm(x86::R9, kAtsStrBaseBytes) || !storeMem(strHeapSlot(2), x86::R9) ||
+                            !movImm(x86::R9, 0) || !storeMem(strHeapSlot(5), x86::R9))
+                            return false;
+                        const size_t atsStrSizeHead = code_.size();
+                        if (!loadMem(x86::RAX, strHeapSlot(5)) || !loadMem(x86::R10, strHeapSlot(0)) ||
+                            !cmpRegReg(x86::RAX, x86::R10))
+                            return false;
+                        size_t atsStrSizeDone;
+                        if (!emitJccFwd(x86::mnem::kJge, atsStrSizeDone))
+                            return false;
+                        // (AR) elem = data[i] (char*)؛ L = byteStrlen(elem)؛ acc += L + 2.
+                        if (!loadMem(x86::R11, strHeapSlot(1)) || !shlImm(x86::RAX, 3) ||
+                            !addReg(x86::R11, x86::RAX) || !loadMemBase(x86::RSI, x86::R11, 0))
+                            return false;
+                        if (!byteStrlen(x86::RSI, x86::R10, x86::RDI))
+                            return false; // R10 = L
+                        if (!loadMem(x86::RAX, strHeapSlot(2)) || !addReg(x86::RAX, x86::R10) ||
+                            !addImm(x86::RAX, kAtsStrPerElemExtra) || !storeMem(strHeapSlot(2), x86::RAX))
+                            return false;
+                        if (!loadMem(x86::RAX, strHeapSlot(5)) || !addImm(x86::RAX, 1) ||
+                            !storeMem(strHeapSlot(5), x86::RAX) || !emitJmpBack(atsStrSizeHead))
+                            return false;
+                        patchFwd(atsStrSizeDone);
+                        // (AR) mmap(acc + 16)؛ RSI = الحجم.
+                        if (!loadMem(x86::RSI, strHeapSlot(2)) || !addImm(x86::RSI, kHeapHdrBytes) ||
+                            !emitMmapPresetSize())
+                            return false; // RAX = base
+                        if (!movImm64(x86::RDI, kHeapMagic) || !storeMemBase(x86::RAX, kHeapMagicOff, x86::RDI) ||
+                            !storeMemBase(x86::RAX, kHeapSizeOff, x86::RSI))
+                            return false;
+                        if (!addImm(x86::RAX, kHeapHdrBytes) || !storeMem(strHeapSlot(3), x86::RAX)) // buf
+                            return false;
+                        // (AR) '[' في buf[0]؛ dst = buf+1؛ i = 0.
+                        if (!movImm(x86::R9, kAsciiLBracket) || !storeByte(x86::RAX, x86::R9))
+                            return false;
+                        if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, 1) ||
+                            !storeMem(strHeapSlot(4), x86::RDI))
+                            return false;
+                        if (!movImm(x86::R9, 0) || !storeMem(strHeapSlot(5), x86::R9)) // i = 0
+                            return false;
+                        // (AR) تمريرة ٢: الملء.
+                        const size_t atsStrFillHead = code_.size();
+                        if (!loadMem(x86::RAX, strHeapSlot(5)) || !loadMem(x86::R10, strHeapSlot(0)) ||
+                            !cmpRegReg(x86::RAX, x86::R10))
+                            return false;
+                        size_t atsStrFillDone;
+                        if (!emitJccFwd(x86::mnem::kJge, atsStrFillDone))
+                            return false;
+                        if (!loadMem(x86::RDI, strHeapSlot(4))) // (AR) dst الجاري
+                            return false;
+                        if (!cmpZero(x86::RAX)) // (AR) i>0 ⇒ الفاصل «، »
+                            return false;
+                        size_t atsStrNoSep;
+                        if (!emitJccFwd(x86::mnem::kJe, atsStrNoSep))
+                            return false;
+                        if (!movImm(x86::R9, kAsciiComma) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                            !movImm(x86::R9, kAsciiSpace) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1))
+                            return false;
+                        patchFwd(atsStrNoSep);
+                        // (AR) elem = data[i] ⇒ R10 (يُحفَظ للنسخ)؛ L = byteStrlen(نسخة)؛ byteCopy(dst, elem, L).
+                        if (!loadMem(x86::R11, strHeapSlot(1)) || !loadMem(x86::RAX, strHeapSlot(5)) ||
+                            !shlImm(x86::RAX, 3) || !addReg(x86::R11, x86::RAX) ||
+                            !loadMemBase(x86::R10, x86::R11, 0))
+                            return false;
+                        if (!movReg(x86::RSI, x86::R10) || !byteStrlen(x86::RSI, x86::RCX, x86::R8))
+                            return false; // RCX = L
+                        if (!byteCopy(x86::RDI, x86::R10, x86::RCX, x86::R8) || !storeMem(strHeapSlot(4), x86::RDI))
+                            return false;
+                        if (!loadMem(x86::RAX, strHeapSlot(5)) || !addImm(x86::RAX, 1) ||
+                            !storeMem(strHeapSlot(5), x86::RAX) || !emitJmpBack(atsStrFillHead))
+                            return false;
+                        patchFwd(atsStrFillDone);
+                        // (AR) الختام: ']' ثمّ NUL؛ النتيجة = buf.
+                        if (!loadMem(x86::RDI, strHeapSlot(4)) ||
+                            !movImm(x86::R9, kAsciiRBracket) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                            !movImm(x86::R9, 0) || !storeByte(x86::RDI, x86::R9))
+                            return false;
+                        if (!loadMem(x86::RAX, strHeapSlot(3))) // النتيجة = buf
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                    return false;
+                        int dstS;
+                        if (!allocReg(inst.result->name, dstS))
+                            return false;
+                        return movReg(dstS, x86::RAX);
+                    }
+                    if (atsElem == types::SadTypeKind::Float)
+                    {
+                        // (AR) المسارُ العشريّ: كلُّ عنصرٍ نمطُ بتّاتِ double (i64). لكلِّ عنصرٍ نفكّكه
+                        //      (إشارة/جزءٌ صحيح/كسرٌ مقرَّبٌ ٦ خاناتٍ مع حذفِ الأصفار الزائدة كـF64_TO_STRING)
+                        //      ونبنيه تنازليًّا في مخزنِ خدشٍ على الإطار (atsFtoaTopDisp_، بلا mmap لكلِّ
+                        //      عنصرٍ ⇒ ip/scaled/nd/sign تبقى في السجلّات) ثمّ byteCopy إلى buf مع فاصلِ «، »
+                        //      وإطارِ «[]». خانات strHeap: 0=len 1=data 2=buf 3=dst 4=i.
+                        if (!loadInto(x86::RAX, inst.operands[0]))
+                            return false;
+                        if (!loadMemBase(x86::R10, x86::RAX, kArrOffLen) || !storeMem(strHeapSlot(0), x86::R10))
+                            return false;
+                        if (!loadMemBase(x86::R11, x86::RAX, kArrOffData) || !storeMem(strHeapSlot(1), x86::R11))
+                            return false;
+                        // (AR) mmap(len*340 + 4 + 16)؛ RSI = الحجم.
+                        if (!movReg(x86::RSI, x86::R10) || !movImm(x86::R11, kAtsFloatBytesPerElem) ||
+                            !imulReg(x86::RSI, x86::R11) || !addImm(x86::RSI, kAtsFrameBytes + kHeapHdrBytes) ||
+                            !emitMmapPresetSize())
+                            return false; // RAX = base
+                        if (!movImm64(x86::RDI, kHeapMagic) || !storeMemBase(x86::RAX, kHeapMagicOff, x86::RDI) ||
+                            !storeMemBase(x86::RAX, kHeapSizeOff, x86::RSI))
+                            return false;
+                        if (!addImm(x86::RAX, kHeapHdrBytes) || !storeMem(strHeapSlot(2), x86::RAX)) // buf
+                            return false;
+                        if (!movImm(x86::R9, kAsciiLBracket) || !storeByte(x86::RAX, x86::R9))
+                            return false;
+                        if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, 1) || !storeMem(strHeapSlot(3), x86::RDI))
+                            return false;
+                        if (!movImm(x86::R9, 0) || !storeMem(strHeapSlot(4), x86::R9)) // i = 0
+                            return false;
+                        const size_t atsFLoopHead = code_.size();
+                        if (!loadMem(x86::RAX, strHeapSlot(4)) || !loadMem(x86::R10, strHeapSlot(0)) ||
+                            !cmpRegReg(x86::RAX, x86::R10))
+                            return false;
+                        size_t atsFLoopDone;
+                        if (!emitJccFwd(x86::mnem::kJge, atsFLoopDone))
+                            return false;
+                        // (AR) الفاصلُ «، » إن i>0.
+                        if (!cmpZero(x86::RAX))
+                            return false;
+                        size_t atsFNoSep;
+                        if (!emitJccFwd(x86::mnem::kJe, atsFNoSep))
+                            return false;
+                        if (!loadMem(x86::RDI, strHeapSlot(3)) ||
+                            !movImm(x86::R9, kAsciiComma) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                            !movImm(x86::R9, kAsciiSpace) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                            !storeMem(strHeapSlot(3), x86::RDI))
+                            return false;
+                        patchFwd(atsFNoSep);
+                        // (AR) العنصرُ = data[i] (بتّاتُ double) ⇒ RAX.
+                        if (!loadMem(x86::R11, strHeapSlot(1)) || !loadMem(x86::RAX, strHeapSlot(4)) ||
+                            !shlImm(x86::RAX, 3) || !addReg(x86::R11, x86::RAX) || !loadMemBase(x86::RAX, x86::R11, 0))
+                            return false;
+                        // (AR) sign (RSI = بتّ الإشارة ⇒ ٠/١).
+                        if (!movImm64(x86::R9, static_cast<long long>(kF64SignMask)) || !movReg(x86::R8, x86::RAX) ||
+                            !andReg(x86::R8, x86::R9) || !cmpZero(x86::R8))
+                            return false;
+                        size_t atsFSignPos;
+                        if (!emitJccFwd(x86::mnem::kJe, atsFSignPos))
+                            return false;
+                        if (!movImm(x86::RSI, 1))
+                            return false;
+                        size_t atsFSignSet;
+                        if (!emitJccFwd(x86::mnem::kJmp, atsFSignSet))
+                            return false;
+                        patchFwd(atsFSignPos);
+                        if (!movImm(x86::RSI, 0))
+                            return false;
+                        patchFwd(atsFSignSet);
+                        // (AR) |x| = bits & absmask ⇒ ip = trunc(|x|) في RDI.
+                        if (!movImm64(x86::R9, static_cast<long long>(kF64AbsMask)) || !andReg(x86::RAX, x86::R9))
+                            return false;
+                        if (!movqToXmm(kXmm0, x86::RAX) || !cvttsd2si(x86::RDI, kXmm0))
+                            return false;
+                        // (AR) scaled = round((|x| − ip)×١٠^٦) في R8.
+                        if (!movqToXmm(kXmm0, x86::RAX) || !cvtsi2sd(kXmm1, x86::RDI) || !subsd(kXmm0, kXmm1))
+                            return false;
+                        if (!loadFloatConst(x86::RAX, static_cast<double>(kFloatPrecisionScale)) ||
+                            !movqToXmm(kXmm1, x86::RAX) || !mulsd(kXmm0, kXmm1) || !cvtsd2si(x86::R8, kXmm0))
+                            return false;
+                        // (AR) ترحيلُ الحمل: scaled == ١٠^٦ ⇒ ip++ وscaled=0.
+                        if (!movImm(x86::RCX, kFloatPrecisionScale) || !cmpRegReg(x86::R8, x86::RCX))
+                            return false;
+                        size_t atsFNoCarry;
+                        if (!emitJccFwd(x86::mnem::kJne, atsFNoCarry))
+                            return false;
+                        if (!addImm(x86::RDI, 1) || !movImm(x86::R8, 0))
+                            return false;
+                        patchFwd(atsFNoCarry);
+                        // (AR) حذفُ الأصفار الزائدة: nd=٦ في R9؛ بينما (nd>1 && scaled%10==0) scaled/=10, nd--.
+                        if (!movImm(x86::R9, kFloatDecimals) || !movImm(x86::RCX, kItoaRadix))
+                            return false;
+                        const size_t atsFStripTop = code_.size();
+                        if (!cmpImm8(x86::R9, 1))
+                            return false;
+                        size_t atsFStripDone;
+                        if (!emitJccFwd(x86::mnem::kJle, atsFStripDone))
+                            return false;
+                        if (!movReg(x86::RAX, x86::R8) || !cqo() || !idivReg(x86::RCX) || !cmpZero(x86::RDX))
+                            return false;
+                        size_t atsFStripStop;
+                        if (!emitJccFwd(x86::mnem::kJne, atsFStripStop))
+                            return false;
+                        if (!movReg(x86::R8, x86::RAX) || !subImm(x86::R9, 1) || !emitJmpBack(atsFStripTop))
+                            return false;
+                        patchFwd(atsFStripDone);
+                        patchFwd(atsFStripStop);
+                        // (AR) ابنِ تنازليًّا: R10 = قمّةُ المخزن (حصريّ)؛ RSI=sign, RDI=ip, R8=scaled, R9=nd, RCX=10.
+                        if (!leaFrame(x86::R10, atsFtoaTopDisp_))
+                            return false;
+                        // (١) خاناتُ الكسر (nd خانةً؛ الأصفارُ البادئةُ تُحشى تلقائيًّا).
+                        if (!movReg(x86::RAX, x86::R8)) // RAX = scaled
+                            return false;
+                        const size_t atsFFracTop = code_.size();
+                        if (!cmpImm8(x86::R9, 0))
+                            return false;
+                        size_t atsFFracDone;
+                        if (!emitJccFwd(x86::mnem::kJle, atsFFracDone))
+                            return false;
+                        if (!cqo() || !idivReg(x86::RCX) || !addImm(x86::RDX, kAsciiZero) ||
+                            !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                            !subImm(x86::R9, 1) || !emitJmpBack(atsFFracTop))
+                            return false;
+                        patchFwd(atsFFracDone);
+                        // (٢) النقطة.
+                        if (!subImm(x86::R10, 1) || !movImm(x86::R9, kAsciiDot) || !storeByte(x86::R10, x86::R9))
+                            return false;
+                        // (٣) الجزءُ الصحيح ip تنازليًّا (رقمٌ واحدٌ على الأقلّ).
+                        if (!movReg(x86::RAX, x86::RDI))
+                            return false;
+                        const size_t atsFIpTop = code_.size();
+                        if (!cqo() || !idivReg(x86::RCX) || !addImm(x86::RDX, kAsciiZero) ||
+                            !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                            !cmpZero(x86::RAX) || !emitJccBack(x86::mnem::kJne, atsFIpTop))
+                            return false;
+                        // (٤) بادئةُ السالب إن لزم (RSI = sign).
+                        if (!cmpZero(x86::RSI))
+                            return false;
+                        size_t atsFNoSign;
+                        if (!emitJccFwd(x86::mnem::kJe, atsFNoSign))
+                            return false;
+                        if (!subImm(x86::R10, 1) || !movImm(x86::R9, kAsciiMinus) || !storeByte(x86::R10, x86::R9))
+                            return false;
+                        patchFwd(atsFNoSign);
+                        // (AR) L = القمّة − R10؛ byteCopy(dst, R10, L).
+                        if (!movReg(x86::RSI, x86::R10) || !leaFrame(x86::RCX, atsFtoaTopDisp_) ||
+                            !subReg(x86::RCX, x86::R10))
+                            return false;
+                        if (!loadMem(x86::RDI, strHeapSlot(3)) || !byteCopy(x86::RDI, x86::RSI, x86::RCX, x86::R8) ||
+                            !storeMem(strHeapSlot(3), x86::RDI))
+                            return false;
+                        if (!loadMem(x86::RAX, strHeapSlot(4)) || !addImm(x86::RAX, 1) ||
+                            !storeMem(strHeapSlot(4), x86::RAX) || !emitJmpBack(atsFLoopHead))
+                            return false;
+                        patchFwd(atsFLoopDone);
+                        if (!loadMem(x86::RDI, strHeapSlot(3)) ||
+                            !movImm(x86::R9, kAsciiRBracket) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                            !movImm(x86::R9, 0) || !storeByte(x86::RDI, x86::R9))
+                            return false;
+                        if (!loadMem(x86::RAX, strHeapSlot(2))) // النتيجة = buf
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                    return false;
+                        int dstF;
+                        if (!allocReg(inst.result->name, dstF))
+                            return false;
+                        return movReg(dstF, x86::RAX);
+                    }
+                    // (AR) RAX = مؤشّرُ المصفوفة؛ len=[arr+0]، data=[arr+16] ⇒ خانات.
+                    if (!loadInto(x86::RAX, inst.operands[0]))
+                        return false;
+                    if (!loadMemBase(x86::R10, x86::RAX, kArrOffLen) || !storeMem(strHeapSlot(0), x86::R10))
+                        return false;
+                    if (!loadMemBase(x86::R11, x86::RAX, kArrOffData) || !storeMem(strHeapSlot(1), x86::R11))
+                        return false;
+                    // (AR) mmap(len*34 + 4 + 16)؛ RSI = الحجمُ الكلّيّ.
+                    if (!movReg(x86::RSI, x86::R10) || !movImm(x86::R11, kAtsBytesPerElem) ||
+                        !imulReg(x86::RSI, x86::R11) || !addImm(x86::RSI, kAtsFrameBytes + kHeapHdrBytes) ||
+                        !emitMmapPresetSize())
+                        return false; // (AR) RAX = base
+                    if (!movImm64(x86::RDI, kHeapMagic) || !storeMemBase(x86::RAX, kHeapMagicOff, x86::RDI) ||
+                        !storeMemBase(x86::RAX, kHeapSizeOff, x86::RSI))
+                        return false;
+                    if (!addImm(x86::RAX, kHeapHdrBytes) || !storeMem(strHeapSlot(2), x86::RAX)) // buf
+                        return false;
+                    // (AR) اكتب '[' في buf[0]؛ dst = buf+1؛ i = 0.
+                    if (!movImm(x86::R9, kAsciiLBracket) || !storeByte(x86::RAX, x86::R9))
+                        return false;
+                    if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, 1) || !storeMem(strHeapSlot(3), x86::RDI))
+                        return false;
+                    if (!movImm(x86::R9, 0) || !storeMem(strHeapSlot(4), x86::R9)) // (AR) i = 0
+                        return false;
+                    // (AR) رأسُ الحلقة: if i >= len ⇒ الختام.
+                    const size_t atsLoopHead = code_.size();
+                    if (!loadMem(x86::RAX, strHeapSlot(4)) || !loadMem(x86::R10, strHeapSlot(0)) ||
+                        !cmpRegReg(x86::RAX, x86::R10))
+                        return false;
+                    size_t atsLoopDone;
+                    if (!emitJccFwd(x86::mnem::kJge, atsLoopDone))
+                        return false;
+                    // (AR) الفاصلُ «، »: إن i>0 اكتب ',' ثمّ ' ' وقدّمِ dst بـ٢ (RAX لا يزال = i).
+                    if (!cmpZero(x86::RAX))
+                        return false;
+                    size_t atsNoSep;
+                    if (!emitJccFwd(x86::mnem::kJe, atsNoSep))
+                        return false;
+                    if (!loadMem(x86::RDI, strHeapSlot(3)) ||
+                        !movImm(x86::R9, kAsciiComma) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                        !movImm(x86::R9, kAsciiSpace) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                        !storeMem(strHeapSlot(3), x86::RDI))
+                        return false;
+                    patchFwd(atsNoSep);
+                    // (AR) العنصرُ = data[i] (i64): elemPtr = data + i*8 ⇒ RAX.
+                    if (!loadMem(x86::R11, strHeapSlot(1)) || !loadMem(x86::RAX, strHeapSlot(4)) ||
+                        !shlImm(x86::RAX, 3) || !addReg(x86::R11, x86::RAX) || !loadMemBase(x86::RAX, x86::R11, 0))
+                        return false;
+                    // (AR) itoa(RAX) تنازليًّا في مخزنِ الإطار؛ R10 = مؤشّرُ أوّلِ رقم/إشارة.
+                    if (!leaFrame(x86::R10, printBufTopDisp_) || !movImm(x86::RCX, kItoaRadix))
+                        return false;
+                    if (!cmpZero(x86::RAX)) // (AR) الإشارة: RAX ≥ 0 ⇒ الموجب
+                        return false;
+                    size_t atsPositive;
+                    if (!emitJccFwd(x86::mnem::kJge, atsPositive))
+                        return false;
+                    const size_t atsNegLoop = code_.size();
+                    if (!cqo() || !idivReg(x86::RCX) ||
+                        !movImm(x86::R9, kAsciiZero) || !subReg(x86::R9, x86::RDX) ||
+                        !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::R9) ||
+                        !cmpZero(x86::RAX) || !emitLocalJneBack(atsNegLoop))
+                        return false;
+                    if (!movImm(x86::R9, kAsciiMinus) || !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::R9))
+                        return false;
+                    size_t atsItoaDone;
+                    if (!emitJccFwd(x86::mnem::kJmp, atsItoaDone))
+                        return false;
+                    patchFwd(atsPositive);
+                    const size_t atsPosLoop = code_.size();
+                    if (!cqo() || !idivReg(x86::RCX) ||
+                        !addImm(x86::RDX, kAsciiZero) ||
+                        !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                        !cmpZero(x86::RAX) || !emitLocalJneBack(atsPosLoop))
+                        return false;
+                    patchFwd(atsItoaDone);
+                    // (AR) L = القمّة − R10؛ byteCopy(dst, R10, L). dst يتقدّم ⇒ خزّنه ثانيةً.
+                    if (!movReg(x86::RSI, x86::R10) || !leaFrame(x86::RCX, printBufTopDisp_) ||
+                        !subReg(x86::RCX, x86::R10))
+                        return false;
+                    if (!loadMem(x86::RDI, strHeapSlot(3)) || !byteCopy(x86::RDI, x86::RSI, x86::RCX, x86::R8) ||
+                        !storeMem(strHeapSlot(3), x86::RDI))
+                        return false;
+                    // (AR) i++؛ عُدْ للرأس.
+                    if (!loadMem(x86::RAX, strHeapSlot(4)) || !addImm(x86::RAX, 1) ||
+                        !storeMem(strHeapSlot(4), x86::RAX) || !emitJmpBack(atsLoopHead))
+                        return false;
+                    patchFwd(atsLoopDone);
+                    // (AR) الختام: ']' ثمّ NUL في dst؛ النتيجة = buf.
+                    if (!loadMem(x86::RDI, strHeapSlot(3)) ||
+                        !movImm(x86::R9, kAsciiRBracket) || !storeByte(x86::RDI, x86::R9) || !addImm(x86::RDI, 1) ||
+                        !movImm(x86::R9, 0) || !storeByte(x86::RDI, x86::R9))
+                        return false;
+                    if (!loadMem(x86::RAX, strHeapSlot(2))) // (AR) النتيجة = buf (خارجَ الحوض)
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, x86::RAX);
+                }
                 case OP::F64_TO_STRING:
                 {
                     // (AR) عشريّ → نصّ: يفكّك البتّاتِ (إشارة/جزءٌ صحيح/كسرٌ مقرَّبٌ ٦ خاناتٍ مع حذفِ
@@ -3722,7 +4496,16 @@ namespace sad
                     if (!emitElemAddr(inst.operands[0], inst.operands[1]))
                         return false;
                     // (AR) RDI = القيمة (بعد حساب العنوان ⇒ الفهرسُ في RDI لم يعد مطلوبًا)؛ [RAX]=RDI.
-                    if (!loadInto(x86::RDI, inst.operands[2]))
+                    //      القيمةُ النصّيّةُ الحرفيّة (مصفوفةُ نصوصٍ متجانسة) تُجسَّد مؤشّرًا (materializeString)؛
+                    //      loadInto يرفض حرفيّةَ النصّ (شبحيّةٌ بلا سجلّ) ⇒ يفتح مصفوفةَ نصوصٍ لـARRAY_TO_STRING.
+                    if (inst.operands[2].dataType == types::SadTypeKind::String)
+                    {
+                        // (AR) fromSpill=false: ARRAY_SET لا يَنسِك الحوضَ ⇒ القيمةُ المحسوبةُ تُقرأ من
+                        //      سجلّها الحيّ (movReg) لا من خانةِ انسكابٍ باتّةٍ؛ الحرفيّةُ تمرّ بـemitLoadCStrAddr.
+                        if (!materializeString(inst.operands[2], x86::RDI, false))
+                            return false;
+                    }
+                    else if (!loadInto(x86::RDI, inst.operands[2]))
                         return false;
                     return storeMemBase(x86::RAX, 0, x86::RDI);
                 }

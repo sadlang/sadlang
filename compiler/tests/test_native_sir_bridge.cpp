@@ -1243,6 +1243,55 @@ static const char *kSrcEnumFloat =
     "    نهاية\n"
     "نهاية\n";
 
+// (AR) دفعةُ مصفوفة→نصّ (المسارُ العدديّ، سياديٌّ بلا زمنِ تشغيل C): «نص([1، 2، 3])» يبني
+//      «[1, 2, 3]» عبر ARRAY_TO_STRING الأصليّ (mmap + itoa تنازليًّا + byteCopy مع فاصلِ «، »
+//      وإطارِ «[]»)، ثمّ يُقارَن حرفيًّا بالنصِّ المتوقَّع (STRING_CMP) ⇒ يتحقّق كلُّ بايت (الفاصلُ
+//      والإطارُ والأرقام) ⇒ ٤٢. برهانٌ حيٌّ أنّ المصفوفةَ العدديّةَ تُنسَّق نصًّا عبر الخلفيّة الأصليّة.
+static const char *kSrcArrayToString =
+    "دالة رئيسية()\n"
+    "    نص س = نص([1، 2، 3])\n"
+    "    إذا س == \"[1, 2, 3]\"\n"
+    "        ارجع 42\n"
+    "    نهاية\n"
+    "    ارجع 0\n"
+    "نهاية\n";
+
+// (AR) دفعةُ مصفوفة→نصّ (المسارُ النصّيّ): «نص([\"ab\"، \"cd\"])» يبني «[ab, cd]» عبر المسار
+//      النصّيّ لـARRAY_TO_STRING (تمريرتان: حساب الحجم بـbyteStrlen ثمّ mmap + byteCopy لكلِّ
+//      سلسلةٍ مع فاصلِ «، » وإطارِ «[]»)، ثمّ يُقارَن حرفيًّا (STRING_CMP) ⇒ ٤٢. برهانٌ حيّ.
+static const char *kSrcArrayToStringStr =
+    "دالة رئيسية()\n"
+    "    نص س = نص([\"ab\"، \"cd\"])\n"
+    "    إذا س == \"[ab, cd]\"\n"
+    "        ارجع 42\n"
+    "    نهاية\n"
+    "    ارجع 0\n"
+    "نهاية\n";
+
+// (AR) مصفوفة→نصّ (نصوصٌ محسوبةٌ لا حرفيّة): «نص([نص(1)، نص(2)])» — كلُّ عنصرٍ نتيجةُ نداءٍ
+//      (سجلٌّ حيّ لا حرفيّةٌ شبحيّة) ⇒ يمارس ARRAY_SET النصّيَّ بـfromSpill=false (سدُّ عائق أميليا:
+//      كان يقرأ خانةَ انسكابٍ باتّةً). «[1, 2]» ⇒ ٤٢. برهانٌ حيّ.
+static const char *kSrcArrayToStringComputedStr =
+    "دالة رئيسية()\n"
+    "    نص س = نص([نص(1)، نص(2)])\n"
+    "    إذا س == \"[1, 2]\"\n"
+    "        ارجع 42\n"
+    "    نهاية\n"
+    "    ارجع 0\n"
+    "نهاية\n";
+
+// (AR) دفعةُ مصفوفة→نصّ (المسارُ العشريّ): «نص([1.5، 2.0])» يبني «[1.5, 2.0]» عبر المسار
+//      العشريّ (لكلِّ عنصرٍ تفكيكٌ fixed6 + حذفُ أصفارٍ زائدةٍ كـF64_TO_STRING ثمّ byteCopy مع
+//      فاصلِ «، »)، ثمّ يُقارَن حرفيًّا (STRING_CMP) ⇒ ٤٢. برهانٌ حيّ (يتحقّق النقطةَ والكسر).
+static const char *kSrcArrayToStringFloat =
+    "دالة رئيسية()\n"
+    "    نص س = نص([1.5، 2.0])\n"
+    "    إذا س == \"[1.5, 2.0]\"\n"
+    "        ارجع 42\n"
+    "    نهاية\n"
+    "    ارجع 0\n"
+    "نهاية\n";
+
 TEST(NativeSirBridge, LowersClassMethod)
 {
     auto module = buildSir(kSrcClass);
@@ -2288,6 +2337,214 @@ TEST(Arm64SirBridge, LowersEnumStringPayload)
     ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
     ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
     std::FILE *fp = std::fopen("sad_arm64_enumstr42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفة→نصّ (المسارُ العدديّ) — x86-64: «نص([1، 2، 3])» == «[1, 2, 3]» ⇒ ٤٢.
+TEST(NativeSirBridge, LowersArrayToStringInt)
+{
+    auto module = buildSir(kSrcArrayToString);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 array-to-string lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05}));          // syscall (mmap لمخزنِ النصّ)
+    std::FILE *fp = std::fopen("sad_sir_arraytostr42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفة→نصّ (المسارُ العدديّ) — AArch64: مرآةٌ ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersArrayToStringInt)
+{
+    auto module = buildSir(kSrcArrayToString);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 array-to-string lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    std::FILE *fp = std::fopen("sad_arm64_arraytostr42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفة→نصّ (المسارُ النصّيّ) — x86-64: «نص([\"ab\"، \"cd\"])» == «[ab, cd]» ⇒ ٤٢.
+TEST(NativeSirBridge, LowersArrayToStringStr)
+{
+    auto module = buildSir(kSrcArrayToStringStr);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 array-to-string(str) lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05}));          // syscall (mmap لمخزنِ النصّ)
+    std::FILE *fp = std::fopen("sad_sir_arraytostrstr42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفة→نصّ (المسارُ النصّيّ) — AArch64: مرآةٌ ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersArrayToStringStr)
+{
+    auto module = buildSir(kSrcArrayToStringStr);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 array-to-string(str) lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    std::FILE *fp = std::fopen("sad_arm64_arraytostrstr42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفة→نصّ (المسارُ المختلط Any): «نص([1، "ab"، 2.5، صحيح، لاشيء])» يبني
+//      «[1, ab, 2.5, صحيح, لاشيء]» عبر توزيعِ الوسم زمنَ التشغيل — **الأذرعُ الخمسةُ كلُّها حيّةً**:
+//      صحيح⇒itoa، نصّ⇒واصف، عشريّ⇒منسِّق، منطقيّ⇒«صحيح»/«خطأ»، عدم⇒«لاشيء».
+//      🔑 عرضُ قيمةِ العدم = «لاشيء» (يطابق Value::toString والمفسّر وdynToString — لا «عدم»؛
+//      «عدم»/«فراغ» أسماءُ أنواعٍ لا عرضُ قيمة). ثمّ يُقارَن حرفيًّا (STRING_CMP) ⇒ ٤٢.
+static const char *kSrcArrayToStringDyn =
+    "دالة رئيسية()\n"
+    "    نص س = نص([1، \"ab\"، 2.5، صحيح، لاشيء])\n"
+    "    إذا س == \"[1, ab, 2.5, صحيح, لاشيء]\"\n"
+    "        ارجع 42\n"
+    "    نهاية\n"
+    "    ارجع 0\n"
+    "نهاية\n";
+
+// (AR) مصفوفة→نصّ (المسارُ العشريّ) — x86-64: «نص([1.5، 2.0])» == «[1.5, 2.0]» ⇒ ٤٢.
+TEST(NativeSirBridge, LowersArrayToStringFloat)
+{
+    auto module = buildSir(kSrcArrayToStringFloat);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 array-to-string(float) lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05}));          // syscall (mmap لمخزنِ النصّ)
+    std::FILE *fp = std::fopen("sad_sir_arraytostrflt42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفة→نصّ (المسارُ العشريّ) — AArch64: مرآةٌ ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersArrayToStringFloat)
+{
+    auto module = buildSir(kSrcArrayToStringFloat);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 array-to-string(float) lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    std::FILE *fp = std::fopen("sad_arm64_arraytostrflt42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفة→نصّ (المسارُ المختلط Any) — x86-64: «نص([1، "ab"، 2.5])» == «[1, ab, 2.5]» ⇒ ٤٢.
+TEST(NativeSirBridge, LowersArrayToStringDyn)
+{
+    auto module = buildSir(kSrcArrayToStringDyn);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 array-to-string(dyn) lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05}));          // syscall (mmap لمخزنِ النصّ)
+    std::FILE *fp = std::fopen("sad_sir_arraytostrdyn42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفة→نصّ (المسارُ المختلط Any) — AArch64: مرآةٌ ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersArrayToStringDyn)
+{
+    auto module = buildSir(kSrcArrayToStringDyn);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 array-to-string(dyn) lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    std::FILE *fp = std::fopen("sad_arm64_arraytostrdyn42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفة→نصّ (نصوصٌ محسوبة) — x86-64: «نص([نص(1)، نص(2)])» == «[1, 2]» ⇒ ٤٢ (fromSpill=false).
+TEST(NativeSirBridge, LowersArrayToStringComputedStr)
+{
+    auto module = buildSir(kSrcArrayToStringComputedStr);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 array-to-string(computed-str) lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    std::FILE *fp = std::fopen("sad_sir_arraytostrcomp42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) مصفوفة→نصّ (نصوصٌ محسوبة) — AArch64: مرآةٌ ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersArrayToStringComputedStr)
+{
+    auto module = buildSir(kSrcArrayToStringComputedStr);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 array-to-string(computed-str) lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    std::FILE *fp = std::fopen("sad_arm64_arraytostrcomp42", "wb");
     ASSERT_TRUE(fp != nullptr);
     size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
     std::fclose(fp);
