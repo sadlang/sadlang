@@ -398,6 +398,23 @@ CODEGEN_DOMAINS = (
             "--quiet",
         ],
     },
+    {
+        # (AR) تمثيلُ القيمة زمنَ التشغيل: وسومُ SadDyn (DynKind) + نصوصُ عرضِ القيم
+        #      (لاشيء/صحيح/خطأ) — كانت مكتوبةً يدويًّا في المفسّر وLLVM والخلفيّة الأصليّة
+        #      فانجرفت (عرضُ العدم «عدم» أصليًّا مقابل «لاشيء» في المفسّر/LLVM). تُوحَّد هنا
+        #      مصدرًا واحدًا يستهلكه الثلاثةُ، ويحرس `gen --check` انجرافَها.
+        # (EN) Runtime value representation: SadDyn tags + value display texts,
+        #      single-sourced (were hand-copied across interpreter/LLVM/native and drifted).
+        "name": "backend_value_repr",
+        "script": "gen_value_repr.py",
+        "out_dir": "shared/types/generated",
+        "outputs": ("value_repr_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/backend/value_repr.yaml",
+            "--header", f"{d}/value_repr_generated.h",
+            "--quiet",
+        ],
+    },
 )
 
 # (AR) حرّاس فحص خالصون (لا مخرجات مولَّدة) يعملون ضمن `x.py gen --check` فقط —

@@ -87,6 +87,9 @@ EXPECTED_OUTPUTS = {
     # (AR) وسومُ تشخيصِ التخفيض الأصليّ (حمولاتُ {detail}) — ثوابتُ مسمّاةٌ من SoT.
     # (EN) Native-lowering diagnostic tags ({detail} payloads) — SoT named constants.
     "compiler/include/backend/native/generated/native_diagnostics_generated.h",
+    # (AR) تمثيلُ القيمة زمنَ التشغيل (وسومُ SadDyn + نصوصُ عرضِ لاشيء/صحيح/خطأ) — مصدرٌ واحدٌ للطبقات الثلاث.
+    # (EN) Runtime value representation (SadDyn tags + display texts) — single source for all three engines.
+    "shared/types/generated/value_repr_generated.h",
 }
 
 

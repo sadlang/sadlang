@@ -4,6 +4,7 @@
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Value.h>
 #include "sir_instruction.h"
+#include "sad_type_system.h" // (AR) لـSad::Types::repr (حارسُ انجرافِ DynKind من مصدرِ الحقيقة الموحَّد)
 
 // ============================================================================
 // (AR) التمثيل الديناميّ ذو النوع المميّز `%SadDyn` — حلّ ISSUE-076 الجذريّ.
@@ -51,6 +52,16 @@ namespace Sad
             inline constexpr uint8_t Obj = 7;   // (AR) كائن / (EN) object
             inline constexpr uint8_t Adt = 8;   // (AR) تعداد جبريّ / (EN) ADT
         } // namespace DynKind
+
+        // (AR) حارسُ انجرافٍ زمنَ الترجمة: الوسومُ المشترَكةُ (٠–٥) يجب أن تطابق مصدرَ الحقيقة
+        //      الموحَّد (Sad::Types::repr، مُولَّد من value_repr.yaml) الذي تشترك فيه الخلفيّةُ الأصليّة
+        //      والمفسّر — أيُّ انجرافٍ يصير خطأَ ترجمة. (Map/Obj/Adt خاصّةٌ بـLLVM فلا تُوحَّد بعد.)
+        static_assert(DynKind::Null == ::Sad::Types::repr::kDynKindNull, "DynKind drift: Null");
+        static_assert(DynKind::Int == ::Sad::Types::repr::kDynKindInt, "DynKind drift: Int");
+        static_assert(DynKind::Float == ::Sad::Types::repr::kDynKindFloat, "DynKind drift: Float");
+        static_assert(DynKind::Str == ::Sad::Types::repr::kDynKindStr, "DynKind drift: Str");
+        static_assert(DynKind::Bool == ::Sad::Types::repr::kDynKindBool, "DynKind drift: Bool");
+        static_assert(DynKind::Array == ::Sad::Types::repr::kDynKindArray, "DynKind drift: Array");
 
         /// (AR) نوع المقارنة لموزِّع dynCompare / (EN) comparison kind for dynCompare
         enum class DynCmp

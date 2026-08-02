@@ -1,0 +1,41 @@
+# ============================================================================
+# مصدرُ الحقيقة: تمثيلُ القيمة زمنَ التشغيل (وسومُ SadDyn + نصوصُ عرضِ القيم)
+# Source of truth: runtime value representation (SadDyn tags + value display texts)
+# ----------------------------------------------------------------------------
+# (AR) هذه ثوابتٌ كانت مكتوبةً يدويًّا في ثلاثةِ أماكنَ مستقلّةٍ فانجرفت (عيبٌ حقيقيّ:
+#      عرضُ العدمِ كان «عدم» في الخلفيّة الأصليّة بينما «لاشيء» في المفسّر وLLVM):
+#        • المفسّر     shared/types/src/value.cpp (Value::toString)
+#        • LLVM        compiler/src/backend/llvm/sad_dyn_repr.{h,cpp}
+#        • الأصليّ      compiler/include/backend/native/*_sir_lowering.h
+#      هذا الملفُّ يوحّدها مصدرًا واحدًا يولّده gen_value_repr.py إلى هيدرٍ يستهلكه
+#      الثلاثةُ ⇒ يصير الانجرافُ مستحيلًا بنيويًّا، ويحرسه `x.py gen --check`.
+#
+#      تمييزٌ لغويّ (grammar 60_advanced TypeCore): «عدم»/«فراغ» أسماءُ أنواعٍ (Null/Void)،
+#      و«لاشيء» حرفيّةُ القيمة (LITERAL_NULL). وعرضُ *قيمةِ* null/void نصًّا = «لاشيء»
+#      (Value::toString value.cpp:605-607، سدُّ تباعُد ISSUE-097) — لا «عدم».
+# (EN) Runtime value-representation constants, previously hand-copied in three
+#      places (interpreter / LLVM / native) and drifted (native rendered null as
+#      «عدم» while interpreter+LLVM render «لاشيء»). Single-sourced here; the
+#      generator emits one header consumed by all three; `gen --check` guards drift.
+# ============================================================================
+namespace: "Sad::Types::repr"
+guard: SAD_VALUE_REPR_GENERATED_H
+
+# (AR) وسمُ نوعِ قيمةٍ ديناميّة (SadDyn.tag / DynKind) — يُخزَّن في مخزنِ الوسوم للمصفوفات
+#      المختلطة وفي خانةِ dyn. يجب أن يطابق DynKind في sad_dyn_repr.h حرفيًّا.
+# (EN) SadDyn runtime type tag (DynKind). Must match sad_dyn_repr.h exactly.
+dyn_kinds:
+  - { name: kDynKindNull,  value: 0, ar: "عدم (Null) — قيمةٌ فارغةٌ متمايزةٌ عن الصفر" }
+  - { name: kDynKindInt,   value: 1, ar: "عددٌ صحيح (i64)" }
+  - { name: kDynKindFloat, value: 2, ar: "عشريّ (نمطُ بتّاتِ double في i64)" }
+  - { name: kDynKindStr,   value: 3, ar: "نصّ (مؤشّرٌ/واصفٌ حسب السياق)" }
+  - { name: kDynKindBool,  value: 4, ar: "منطقيّ (٠/١)" }
+  - { name: kDynKindArray, value: 5, ar: "مصفوفة (مؤشّرٌ مُدار) — homogKind لناتجِ ZIP" }
+
+# (AR) نصوصُ عرضِ القيم (ما تُنتجه «نص()»/الطباعة لقيمةٍ) — قيمٌ مرئيّةٌ للمستخدم.
+#      «عدم»/«فراغ» أسماءُ أنواعٍ لا عرضُ قيمة ⇒ لا تُدرَج هنا.
+# (EN) User-facing value display texts (what نص()/print emit for a value).
+display_texts:
+  - { name: kNullDisplay,      value: "لاشيء", ar: "عرضُ قيمةِ العدم/الفراغ (Null/Void) — يطابق Value::toString والمفسّر وdynToString" }
+  - { name: kBoolTrueDisplay,  value: "صحيح",  ar: "عرضُ القيمةِ المنطقيّةِ الصادقة" }
+  - { name: kBoolFalseDisplay, value: "خطأ",   ar: "عرضُ القيمةِ المنطقيّةِ الكاذبة" }

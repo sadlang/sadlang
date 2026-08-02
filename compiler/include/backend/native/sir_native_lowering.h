@@ -119,15 +119,16 @@ namespace sad
         inline constexpr long long kArrSlotBytes = 8;    // (AR) بايتات خانةِ العنصر الواحد
         inline constexpr long long kTagSlotBytes = 8;    // (AR) خانةُ وسمٍ ٨-بت لكلّ عنصر (i64؛ يتجنّب movzx m8 — الخلفيّةُ الأصليّة مستقلّةٌ عن تخطيط LLVM ذي البايت)
 
-        // (AR) وسومُ النوع زمنَ التشغيل (تعكس DynKind في sad_dyn_repr.h ⇒ تطابق مسارَ LLVM):
-        //      Null=0، Int=1، Float=2، Str=3، Bool=4. تُخزَّن بايتًا في مخزن الوسوم، وتُقرأ عند
-        //      القراءة المعلَّبة (ARRAY_GET Any) لتقرير نوعِ العنصر زمنَ التشغيل ثمّ توزيعِ الطباعة.
-        inline constexpr long long kDynKindNull = 0;
-        inline constexpr long long kDynKindInt = 1;
-        inline constexpr long long kDynKindFloat = 2;
-        inline constexpr long long kDynKindStr = 3;
-        inline constexpr long long kDynKindBool = 4;
-        inline constexpr long long kDynKindArray = 5; // (AR) مصفوفة (مؤشّرٌ مُدار) — homogKind لناتجِ ZIP (مصفوفةٌ من أزواج)
+        // (AR) وسومُ النوع زمنَ التشغيل (SadDyn.tag) — **مصدرٌ واحد**: مُولَّدةٌ من
+        //      language-truth/backend/value_repr.yaml (sad::types::repr) ومشترَكةٌ مع DynKind
+        //      في sad_dyn_repr.h والمفسّر ⇒ لا انجراف. تُخزَّن في مخزن الوسوم وتُقرأ عند
+        //      القراءة المعلَّبة (ARRAY_GET Any) لتوزيعِ الطباعة زمنَ التشغيل.
+        inline constexpr long long kDynKindNull = types::repr::kDynKindNull;
+        inline constexpr long long kDynKindInt = types::repr::kDynKindInt;
+        inline constexpr long long kDynKindFloat = types::repr::kDynKindFloat;
+        inline constexpr long long kDynKindStr = types::repr::kDynKindStr;
+        inline constexpr long long kDynKindBool = types::repr::kDynKindBool;
+        inline constexpr long long kDynKindArray = types::repr::kDynKindArray;
 
         // (AR) تخطيطُ التعداد الجبريّ (ADT، الدفعة ٥؛ يُطابق مسارَ LLVM enum_ops.cpp): قيمةُ التعداد =
         //      مؤشّرُ كومة [i64 tag@0 | SadDyn f0@8 | SadDyn f1@24 | …]. SadDyn = {i8 kind@0، i64 payload@8}
@@ -139,10 +140,12 @@ namespace sad
         inline constexpr long long kSadDynKindOff = 0;     // (AR) إزاحةُ الوسم داخلَ SadDyn
         inline constexpr long long kSadDynPayloadOff = 8;  // (AR) إزاحةُ الحمولة داخلَ SadDyn
 
-        // (AR) نصوصُ طباعةِ القيمة المعلَّبة (تطابق المفسّر value.cpp:476/عدم) — ثوابتُ مسمّاةٌ لا حرفيّاتٌ خام.
-        inline const std::string kDynBoolTrueText = "\xD8\xB5\xD8\xAD\xD9\x8A\xD8\xAD";  // صحيح
-        inline const std::string kDynBoolFalseText = "\xD8\xAE\xD8\xB7\xD8\xA3";          // خطأ
-        inline const std::string kDynNullText = "\xD9\x84\xD8\xA7\xD8\xB4\xD9\x8A\xD8\xA1"; // لاشيء (عرضُ قيمةِ العدم/الفراغ — يطابق Value::toString والمفسّر وdynToString؛ «عدم»/«فراغ» أسماءُ أنواعٍ لا عرضُ قيمة، سدُّ تباعُد ISSUE-097)
+        // (AR) نصوصُ عرضِ القيمة المعلَّبة — **مصدرٌ واحد**: مُولَّدةٌ من value_repr.yaml
+        //      (Sad::Types::repr) ومشترَكةٌ مع المفسّر (Value::toString) وLLVM (dynToString).
+        //      🔑 عرضُ العدم = «لاشيء» لا «عدم» (كان انجرافًا أصليًّا؛ «عدم»/«فراغ» أسماءُ أنواعٍ).
+        inline const std::string &kDynBoolTrueText = types::repr::kBoolTrueDisplay;   // صحيح
+        inline const std::string &kDynBoolFalseText = types::repr::kBoolFalseDisplay; // خطأ
+        inline const std::string &kDynNullText = types::repr::kNullDisplay;           // لاشيء
 
         // (AR) واصفُ النصّ المعلَّب (ذاتيُّ الوصف): طولٌ ٦٤-بت (LE) يليه البايتات. النصُّ المعلَّب
         //      يُقرأ نوعُه زمنَ التشغيل من الوسم، فطولُه غيرُ معلومٍ عند الطباعة إلّا من الواصف. دالّةٌ

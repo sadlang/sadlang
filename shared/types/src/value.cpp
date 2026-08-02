@@ -473,7 +473,9 @@ namespace Sad
                 return std::get<std::string>(data_);
 
             case ::Sad::Types::SadTypeKind::Boolean:
-                return std::get<bool>(data_) ? "صحيح" : "خطأ";
+                // (AR) عرضٌ من مصدرِ الحقيقة الموحَّد (value_repr.yaml) — لا حرفيّاتٌ خام.
+                return std::get<bool>(data_) ? ::Sad::Types::repr::kBoolTrueDisplay
+                                             : ::Sad::Types::repr::kBoolFalseDisplay;
 
             case ::Sad::Types::SadTypeKind::Array:
             {
@@ -604,7 +606,8 @@ namespace Sad
             //      \u0641\u064a\u0646\u062a\u062c \u062a\u0628\u0627\u0639\u064f\u062f 097 (\u0646\u0635 + \u0644\u0627\u0634\u064a\u0621 \u21d2 \u0641\u0631\u0627\u063a \u0628\u062f\u0644 \u00ab\u0644\u0627\u0634\u064a\u0621\u00bb).
             case ::Sad::Types::SadTypeKind::Void:
             case ::Sad::Types::SadTypeKind::Null:
-                return "\u0644\u0627\u0634\u064a\u0621"; // لاشيء
+                // (AR) عرضٌ من مصدرِ الحقيقة الموحَّد (value_repr.yaml) — «لاشيء» لـNull وVoid معًا (ISSUE-097).
+                return ::Sad::Types::repr::kNullDisplay;
             }
             return "";
         }

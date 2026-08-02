@@ -38,6 +38,7 @@
 // الاعتمادات / Dependencies
 // ═══════════════════════════════════════════════════════════════════════════════════
 #include "../generated/sad_type_kind_generated.h" // (AR) تعداد SadTypeKind — مُولَّد من language-truth/types.yaml (لا يُحرَّر يدويًّا)
+#include "../generated/value_repr_generated.h"    // (AR) وسومُ SadDyn + نصوصُ عرضِ القيم (لاشيء/صحيح/خطأ) — مُولَّدة من value_repr.yaml؛ مصدرٌ واحدٌ للمفسّر/LLVM/الأصليّ
 #include <memory>
 #include <string>
 #include <vector>

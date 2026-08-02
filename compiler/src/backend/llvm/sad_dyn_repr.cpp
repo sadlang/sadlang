@@ -1015,8 +1015,9 @@ namespace Sad
             // (AR) منطقيّ: صحيح/خطأ / (EN) bool: صحيح/خطأ
             b.SetInsertPoint(boolBB);
             llvm::Value *bcond = b.CreateICmpNE(payload, llvm::ConstantInt::get(i64, 0), "dyn.ts.bc");
-            llvm::Value *trueStr = b.CreateGlobalStringPtr("\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad", "dyn.ts.true");
-            llvm::Value *falseStr = b.CreateGlobalStringPtr("\xd8\xae\xd8\xb7\xd8\xa3", "dyn.ts.false");
+            // (AR) عرضٌ من مصدرِ الحقيقة الموحَّد (value_repr.yaml / Sad::Types::repr) — لا حرفيّاتٌ خام.
+            llvm::Value *trueStr = b.CreateGlobalStringPtr(::Sad::Types::repr::kBoolTrueDisplay, "dyn.ts.true");
+            llvm::Value *falseStr = b.CreateGlobalStringPtr(::Sad::Types::repr::kBoolFalseDisplay, "dyn.ts.false");
             llvm::Value *boolRes = b.CreateSelect(bcond, trueStr, falseStr, "dyn.ts.bstr");
             b.CreateBr(mergeBB);
             boolBB = b.GetInsertBlock();
@@ -1034,7 +1035,7 @@ namespace Sad
             // (AR) عدم/غيره: لاشيء / (EN) null/other: لاشيء
             b.SetInsertPoint(nullBB);
             llvm::Value *nullRes = b.CreateGlobalStringPtr(
-                "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1", "dyn.ts.nullstr"); // لاشيء
+                ::Sad::Types::repr::kNullDisplay, "dyn.ts.nullstr"); // لاشيء (مصدرٌ موحَّد)
             b.CreateBr(mergeBB);
             nullBB = b.GetInsertBlock();
 
