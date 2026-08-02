@@ -1095,6 +1095,44 @@ static const char *kSrcClass =
     "    ارجع ن.احصل()\n"
     "نهاية\n";
 
+// ════════════════════════════════════════════════════════════════════════════
+// (AR) الدفعة ٦ (الإرسالُ الافتراضيّ): «قط» يرث «حيوان» ويتجاوز «صوت». الدالّةُ «نطق»
+//      تأخذ «حيوان» وتنادي «ح.صوت()» ⇒ OBJECT_CALL. تُمرَّر «قط()» فيُرسِلُ زمنَ التشغيلِ
+//      إلى «قط.صوت» عبرَ vtable (٤٢)، لا «حيوان.صوت» (١). برهانٌ قاطعٌ للإرسالِ الافتراضيّ:
+//      لو كان الإرسالُ ساكنًا لأرجعَ ١. جدولُ دوالٍّ في rodata + ترقيعُ مؤشّرات + call/blr.
+// ════════════════════════════════════════════════════════════════════════════
+static const char *kSrcVirtual =
+    "صنف حيوان\n"
+    "    دالة صوت() ارجع 1 نهاية\n"
+    "نهاية\n"
+    "صنف قط يرث حيوان\n"
+    "    دالة صوت() ارجع 42 نهاية\n"
+    "نهاية\n"
+    "دالة نطق(حيوان ح)\n"
+    "    ارجع ح.صوت()\n"
+    "نهاية\n"
+    "دالة رئيسية()\n"
+    "    ارجع نطق(قط())\n"
+    "نهاية\n";
+
+// (AR) انحدارُ الدفعة ٦ (عائقُ أميليا): إرسالٌ افتراضيٌّ في دالّةٍ غيرِ داخلةٍ فيها مؤقّتٌ حيٌّ
+//      عبرَ النداء + وسيطٌ إضافيّ ⇒ يُمارِس منطقةَ الانسكاب (يجب أن تُحجَز لـOBJECT_CALL) وحفظَ
+//      x30 وترتيبَ الوسائط. «نطق(قط()، ١)»: ن=١+١=٢، ح.صوت()=قط.صوت=٤٠، +ن ⇒ ٤٢.
+static const char *kSrcVirtualLiveTemp =
+    "صنف حيوان\n"
+    "    دالة صوت() ارجع 1 نهاية\n"
+    "نهاية\n"
+    "صنف قط يرث حيوان\n"
+    "    دالة صوت() ارجع 40 نهاية\n"
+    "نهاية\n"
+    "دالة نطق(حيوان ح، رقم إضافة)\n"
+    "    رقم ن = إضافة + إضافة\n"
+    "    ارجع ح.صوت() + ن\n"
+    "نهاية\n"
+    "دالة رئيسية()\n"
+    "    ارجع نطق(قط()، 1)\n"
+    "نهاية\n";
+
 TEST(NativeSirBridge, LowersClassMethod)
 {
     auto module = buildSir(kSrcClass);
@@ -1123,6 +1161,40 @@ TEST(NativeSirBridge, LowersEnumMatch)
     const auto &bin = res.code;
     ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap لبناء التعداد)
     std::FILE *fp = std::fopen("sad_sir_enum42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+TEST(NativeSirBridge, LowersVirtualDispatch)
+{
+    auto module = buildSir(kSrcVirtual);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("virtual dispatch lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(contains(bin, {0xFF, 0xD0})); // call rax (نداءٌ غيرُ مباشرٍ عبر vtable)
+    std::FILE *fp = std::fopen("sad_sir_virtual42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+TEST(NativeSirBridge, LowersVirtualDispatchLiveTemp)
+{
+    auto module = buildSir(kSrcVirtualLiveTemp);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("virtual dispatch live-temp lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(contains(bin, {0xFF, 0xD0})); // call rax
+    std::FILE *fp = std::fopen("sad_sir_virtual_livetemp42", "wb");
     ASSERT_TRUE(fp != nullptr);
     size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
     std::fclose(fp);
@@ -1455,6 +1527,38 @@ TEST(Arm64SirBridge, LowersEnumMatch)
     bool ok = false;
     size_t sz = 0;
     lowerArm64AndWrite(kSrcEnum, "sad_arm64_enum42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+TEST(Arm64SirBridge, LowersVirtualDispatch)
+{
+    auto module = buildSir(kSrcVirtual);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 virtual dispatch lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    // (AR) blr x16 = 0xD63F0200 ⇒ البايتات LE: 00 02 3F D6 (نداءٌ غيرُ مباشرٍ عبر vtable).
+    ASSERT_TRUE(contains(bin, {0x00, 0x02, 0x3F, 0xD6}));
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcVirtual, "sad_arm64_virtual42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+TEST(Arm64SirBridge, LowersVirtualDispatchLiveTemp)
+{
+    auto module = buildSir(kSrcVirtualLiveTemp);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 virtual dispatch live-temp lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_TRUE(contains(res.code, {0x00, 0x02, 0x3F, 0xD6})); // blr x16
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcVirtualLiveTemp, "sad_arm64_virtual_livetemp42", &ok, &sz);
     ASSERT_TRUE(ok);
 }
 

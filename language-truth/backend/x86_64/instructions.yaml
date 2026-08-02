@@ -639,6 +639,16 @@ instructions:
         opcode: [0xE8]
         immediate: { operand: 0, bits: 32, encoding: le }
 
+  # call r64 (غيرُ مباشرٍ عبر سجلّ)  ⇒  FF /2   (نداءٌ افتراضيٌّ: مؤشّرُ الدالّةِ من vtable؛ لا rex_w — النداءُ ٦٤-بت ضمنًا في الوضع الطويل. متحقَّق: call rax = FF D0، call r11 = 41 FF D3)
+  نادِ_غيرَ_مباشر:
+    - en: call_indirect
+      form: "r64"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        opcode: [0xFF]
+        modrm: { mod: reg, reg: 2, rm: op0 }
+
   # LEA r64, m64  ⇒  REX.W + 8D /r   (تحميلُ العنوانِ الفعّال [rbp+إزاحة] إلى سجلّ؛ يخدم ADDR/عنوان خانةِ إطار؛ متحقَّق: lea rax,[rbp-8] = 48 8d 45 f8)
   عنوان_فعّال:
     - en: lea

@@ -27,6 +27,9 @@ namespace sad { namespace native { namespace diag {
     inline const std::string kEnumPayloadDyn = "enum-payload-dyn";  // ENUM_GET_PAYLOAD بنتيجةٍ ديناميّة (Any) مؤجَّل — يلزمه بناءُ قيمةٍ ديناميّةٍ موسومة
     inline const std::string kObjectUnknownClass = "object-unknown-class";  // وصولُ حقلِ كائنٍ لصنفٍ غيرِ معروفٍ زمنَ الترجمة (تعذّر استنتاجُ الصنف)
     inline const std::string kObjectFieldLayout = "object-field-layout";  // حقلُ كائنٍ بتخطيطٍ غيرِ منتظم (bool/Any) أو حقلٌ غيرُ موجود مؤجَّل — يُدعَم الحقلُ ٨-بت فقط
+    inline const std::string kObjectNoVtable = "object-no-vtable";  // نداءٌ افتراضيٌّ (OBJECT_CALL) لصنفٍ بلا جدولِ دوالّ (vtable) — الصنفُ @تمثيل_سي أو غيرُ مسجَّل
+    inline const std::string kObjectMethodNoSlot = "object-method-no-slot";  // نداءٌ افتراضيٌّ لطريقةٍ لا خانةَ لها في جدولِ الدوالّ (باني/هادم أو اسمٌ مجهول)
+    inline const std::string kVtableUnresolvedFn = "vtable-unresolved-fn";  // خانةُ جدولِ دوالٍّ تشيرُ لدالّةٍ غيرِ معرَّفةٍ زمنَ الترجمة — تعذّر ترقيعُ عنوانها
     inline const std::string kCmpValue = "cmp-value";  // موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)
     inline const std::string kCmpBranch = "cmp-branch";  // موضعُ فحصٍ: مقارنةٌ مدموجةٌ في فرع
 
@@ -51,7 +54,6 @@ namespace sad { namespace native { namespace diag {
     inline const std::string kBoundsPanicRel8 = "bounds-panic-rel8:";  // إزاحةُ jb لكتلةِ هلعِ الحدّ خارج rel8
     inline const std::string kFrame = "frame:";  // حجمُ الإطار خارجَ مدى الترميز
     inline const std::string kLoadNonslot = "load-nonslot:";  // LOAD من غيرِ خانةِ إطار
-    inline const std::string kNestedCallInNonentry = "nested-call-in-nonentry:";  // نداءٌ متداخلٌ في دالّةٍ غيرِ الداخلة (مؤجَّل)
     inline const std::string kNoBlocks = "no-blocks:";  // دالّةٌ بلا كتلٍ أساسيّة
     inline const std::string kParamsGt6 = "params>6:";  // معاملاتٌ تتجاوز ٦ (AAPCS64)
     inline const std::string kParamsGt8 = "params>8:";  // معاملاتٌ تتجاوز ٨ (SysV)

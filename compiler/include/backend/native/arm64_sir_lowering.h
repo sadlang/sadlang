@@ -32,12 +32,14 @@
 #include "error_codes.h"
 #include "error_messages_generated.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <map>
 #include <set>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 // (AR) يعيد استعمالَ LoweringResult من جسر x86 (نفسُ العقد: بايتاتٌ أو ErrorCode+detail).
@@ -73,6 +75,7 @@ namespace sad
             inline constexpr int kScratch1 = 17; // (AR) x17 (IP1) مُبدَّدٌ لتجهيز المعامل الثاني
             inline constexpr int kXzr = 31;      // (AR) السجلّ الصفريّ XZR في موضعِ Rm/Rn الحسابيّ (لا SP)
             inline constexpr int kSp = 31;       // (AR) مؤشّرُ المكدّس SP — الرقمُ ٣١ في عنونةِ add/sub الفوريّة (لا XZR)
+            inline constexpr int kLr = 30;       // (AR) سجلّ الرابط x30 (عنوانُ العودة) — يُحفَظ عبر النداء (الدفعة ٦)
             inline constexpr long long kImm16Max = 0xFFFF; // (AR) أقصى فوريّ لـMOVZ (بلا MOVK)
         } // namespace a64reg
 
@@ -112,6 +115,9 @@ namespace sad
                     classLayout_[c->name] = cl;
                 }
 
+                // (AR) ابنِ جداولَ الدوالّ (vtables) + احجزْ خاناتِها في مقدّمةِ rodata_. (الدفعة ٦)
+                buildVtableLayouts(module);
+
                 // (AR) ترتيبُ الإصدار: الدالّةُ الداخلة أوّلًا (نقطةُ دخول ELF = code_[0])،
                 //      ثمّ البقيّة. النداءاتُ للدوالّ اللاحقة مراجعُ أماميّةٌ تُرقَّع لاحقًا.
                 std::vector<const sir::SIRFunction *> ordered{entry};
@@ -135,7 +141,8 @@ namespace sad
                 // (AR) ألحِق كتلةَ البيانات (سلاسلُ الطباعة) بعد كلّ الشيفرة في مقطع R+X، ثمّ رقّع
                 //      عنوانَ كلّ سلسلةٍ (٦٤-بت) في تسلسلِ movz+movk×3. العنوانُ المطلقُ = vbase +
                 //      إزاحةُ الشيفرة + قاعدةُ rodata داخل code_ + إزاحةُ السلسلة (ثباتُ vbase في ET_EXEC).
-                if (!strFixups_.empty() || !rodata_.empty())
+                if (!strFixups_.empty() || !fnPtrFixups_.empty() ||
+                    !vtableAddrFixups_.empty() || !rodata_.empty())
                 {
                     const size_t rodataBase = code_.size();
                     code_.insert(code_.end(), rodata_.begin(), rodata_.end());
@@ -148,6 +155,30 @@ namespace sad
                         {
                             const uint32_t imm16 = static_cast<uint32_t>((vaddr >> (16 * chunk)) & 0xFFFF);
                             patchImm16At(sf.movStart + static_cast<size_t>(chunk) * 4, imm16);
+                        }
+                    }
+                    // (AR) خاناتُ جدولِ الدوالّ (بياناتٌ في rodata): عنوانُ الدالّةِ المطلق ٨-بت خامًّا.
+                    for (const FnPtrFixup &ff : fnPtrFixups_)
+                    {
+                        auto it = funcOffset_.find(ff.fnName);
+                        if (it == funcOffset_.end())
+                            return finishError(r, EC::INT_NATIVE_UNSUPPORTED,
+                                               diag::kVtableUnresolvedFn + ff.fnName);
+                        const uint64_t fnAddr = elf::kDefaultVBase + elf::kCodeOffset +
+                                                static_cast<uint64_t>(it->second);
+                        const size_t at = rodataBase + ff.rodataOff;
+                        for (int i = 0; i < 8; ++i)
+                            code_[at + i] = static_cast<uint8_t>((fnAddr >> (8 * i)) & 0xFF);
+                    }
+                    // (AR) عناوينُ الجداولِ في تسلسلِ movz+movk×3 داخلَ ALLOC-صنف (كـStrFixup).
+                    for (const VtableAddrFixup &vf : vtableAddrFixups_)
+                    {
+                        const uint64_t vtAddr = elf::kDefaultVBase + elf::kCodeOffset +
+                                                static_cast<uint64_t>(rodataBase + vtableBaseOff_[vf.className]);
+                        for (int chunk = 0; chunk < 4; ++chunk)
+                        {
+                            const uint32_t imm16 = static_cast<uint32_t>((vtAddr >> (16 * chunk)) & 0xFFFF);
+                            patchImm16At(vf.movStart + static_cast<size_t>(chunk) * 4, imm16);
                         }
                     }
                 }
@@ -231,6 +262,9 @@ namespace sad
             //      سجلّات الحوض (خانةٌ لكلّ سجلّ). النداء/الطبعُ يدهسان الحوضَ (caller-saved).
             int printBufTopSlot_ = -1;
             int spillBaseSlot_ = -1;
+            // (AR) خانةُ حفظِ سجلّ الرابط x30 (الدفعة ٦): الدالّةُ غيرُ الداخلةِ التي تنادي (bl/blr
+            //      يدهسان x30) تحفظه في المقدّمة وتستعيده قبل RET. صفرٌ سالبٌ ⇒ لا حفظ (ورقة/داخلة).
+            int lrSlot_ = -1;
             // (AR) طباعةُ العشريّ: خانةُ خدشٍ لنمطِ بتّاتِ الـdouble (القيمةِ المطلقة) عبر مراحل المُنسِّق.
             int floatValSlot_ = -1;
             // (AR) التعليب: خانتان (١٦ بايت: tag، payload) لكلّ ARRAY_GET معلَّب. المؤشّرُ = sp + الفهرس×٨.
@@ -266,6 +300,111 @@ namespace sad
                 size_t rodataOff; // (AR) إزاحةُ السلسلة داخل rodata_
             };
             std::vector<StrFixup> strFixups_;
+
+            // ── الإرسالُ الافتراضيّ (الدفعة ٦، مرآةُ x86): جداولُ الدوالّ (vtables) ──────────
+            std::map<std::string, std::vector<std::pair<std::string, std::string>>> classVtableLayout_;
+            std::map<std::string, size_t> vtableBaseOff_;
+            struct FnPtrFixup { size_t rodataOff; std::string fnName; };
+            std::vector<FnPtrFixup> fnPtrFixups_;
+            // (AR) عنوانُ الجدول يُرقَّع في تسلسلِ movz+movk×3 (نظيرُ StrFixup): موضعُ الكلمةِ الأولى + الصنف.
+            struct VtableAddrFixup { size_t movStart; std::string className; };
+            std::vector<VtableAddrFixup> vtableAddrFixups_;
+
+            // (AR) يبني تخطيطاتِ جداولِ الدوالّ (بترتيبٍ أبٌ-قبل-ابن: نسخُ الأب + تجاوزٌ في المكان
+            //      أو إلحاق) ثمّ يحجزُ خاناتِها في مقدّمةِ rodata_. مرآةٌ حرفيّةٌ لـx86. (الدفعة ٦)
+            void buildVtableLayouts(const sir::SIRModule &module)
+            {
+                classVtableLayout_.clear();
+                vtableBaseOff_.clear();
+                fnPtrFixups_.clear();
+                vtableAddrFixups_.clear();
+                std::map<std::string, const sir::SIRClass *> byName;
+                for (const auto &c : module.getClasses())
+                    if (c && !c->isCRepr)
+                        byName[c->name] = c.get();
+                std::set<std::string> done;
+                std::vector<const sir::SIRClass *> order;
+                bool progress = true;
+                while (progress)
+                {
+                    progress = false;
+                    for (const auto &kv : byName)
+                    {
+                        if (done.count(kv.first))
+                            continue;
+                        const sir::SIRClass *c = kv.second;
+                        const bool parentReady =
+                            c->parentClass.empty() || !byName.count(c->parentClass) ||
+                            done.count(c->parentClass);
+                        if (!parentReady)
+                            continue;
+                        order.push_back(c);
+                        done.insert(kv.first);
+                        progress = true;
+                    }
+                }
+                for (const sir::SIRClass *c : order)
+                {
+                    std::vector<std::pair<std::string, std::string>> layout;
+                    if (byName.count(c->parentClass) && classVtableLayout_.count(c->parentClass))
+                        layout = classVtableLayout_[c->parentClass];
+                    std::vector<std::string> qualNames;
+                    for (const auto &m : c->methods_)
+                        if (m.second)
+                            qualNames.push_back(m.first);
+                    std::sort(qualNames.begin(), qualNames.end());
+                    for (const std::string &qual : qualNames)
+                    {
+                        const std::string shortName = shortMethodName(qual);
+                        if (isCtorOrDtorName(shortName))
+                            continue;
+                        bool overridden = false;
+                        for (auto &slot : layout)
+                            if (slot.first == shortName) { slot.second = qual; overridden = true; break; }
+                        if (!overridden)
+                            layout.emplace_back(shortName, qual);
+                    }
+                    classVtableLayout_[c->name] = layout;
+                }
+                for (const sir::SIRClass *c : order)
+                {
+                    vtableBaseOff_[c->name] = rodata_.size();
+                    for (const auto &slot : classVtableLayout_[c->name])
+                    {
+                        fnPtrFixups_.push_back({rodata_.size(), slot.second});
+                        rodata_.insert(rodata_.end(), 8, 0);
+                    }
+                }
+            }
+            static std::string shortMethodName(const std::string &qualified)
+            {
+                const auto dot = qualified.rfind('.');
+                return dot == std::string::npos ? qualified : qualified.substr(dot + 1);
+            }
+            static bool isCtorOrDtorName(const std::string &n)
+            {
+                return n == "\xD8\xA8\xD8\xA7\xD9\x86\xD9\x8A" ||        // باني
+                       n == "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1" ||        // بناء
+                       n == "\xD9\x85\xD9\x86\xD8\xB4\xD8\xA6" ||        // منشئ
+                       n == "__init__" ||
+                       n == "\xD9\x87\xD8\xAF\xD9\x85" ||                // هدم
+                       n == "__del__";
+            }
+            // (AR) يبني عنوانَ جدولِ دوالِّ صنفٍ ٦٤-بت في سجلّ (movz+movk×3 نائبٌ) ويسجّل ترقيعًا.
+            bool emitVtableAddr(int reg, const std::string &className)
+            {
+                const size_t start = code_.size();
+                if (!emit(a64::mnem::kMovz, "x, imm16", {a64::Operand::R(reg), a64::Operand::I(0)}) ||
+                    !movk(reg, 0, 1) || !movk(reg, 0, 2) || !movk(reg, 0, 3))
+                    return false;
+                vtableAddrFixups_.push_back({start, className});
+                return true;
+            }
+            // (AR) نداءٌ غيرُ مباشرٍ عبر سجلّ (blr Xn) — للإرسالِ الافتراضيّ (مؤشّرُ الدالّةِ من vtable).
+            bool emitBlr(int reg)
+            {
+                return emit(a64::mnem::kBlr, "Xn", {a64::Operand::R(reg)});
+            }
 
             // (AR) سجلٌّ افتراضيٌّ عُرِّف بـ«MOVE %r = سلسلةٌ حرفيّة» ⇒ محتواها (لا شيفرةَ للـMOVE؛
             //      السلاسلُ بياناتٌ لا قيمُ سجلّات)؛ تُرآيه الطباعةُ لتُصدِر السلسلةَ حرفيًّا.
@@ -1101,6 +1240,7 @@ namespace sad
                 const auto &params = fn.getParameters();
                 if (params.size() > 8)
                     return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kParamsGt8 + std::to_string(params.size()));
+                lrSlot_ = -1; // (AR) يُصفَّر لكلّ دالّة؛ يُحجَز حين تنادي دالّةٌ غيرُ داخلة.
                 int slot = 0;
                 for (const auto &p : params)
                     // (AR) المعاملُ يُشار إليه بـ«%»+الاسم (sir_builder_functions) بينما اسمُ
@@ -1132,7 +1272,8 @@ namespace sad
                         }
                         if (inst.opcode == sir::SIROpcode::ALLOC && inst.result)
                             memSlot_[inst.result->name] = slot++;
-                        else if (inst.opcode == sir::SIROpcode::CALL)
+                        else if (inst.opcode == sir::SIROpcode::CALL ||
+                                 inst.opcode == sir::SIROpcode::OBJECT_CALL) // (AR) نداءٌ افتراضيّ (blr يدهس x30)
                             hasCall = true;
                         else if (inst.opcode == sir::SIROpcode::ARRAY_NEW ||
                                  inst.opcode == sir::SIROpcode::TUPLE_NEW || // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً
@@ -1236,11 +1377,12 @@ namespace sad
                         if (memSlot_.find(name) == memSlot_.end())
                             memSlot_[name] = slot++;
                 }
-                // (AR) 🔑 النطاق (نداءٌ ورقيّ بلا حفظ x30): الدالّةُ الداخلة تنادي وتخرج svc (لا
-                //      تعود، فلا يهمّها دهسُ x30). الدالّةُ غيرُ الداخلة إن نادت تدهسُ x30 قبل RET
-                //      (لا نحفظه بعد) ⇒ رفضٌ صريح. فالنداءُ مسموحٌ من الداخلة فقط (المنادَاةُ ورقة).
+                // (AR) 🔑 حفظُ سجلّ الرابط x30 (الدفعة ٦): bl/blr يدهسان x30. الدالّةُ الداخلة تنادي
+                //      وتخرج svc (لا تعود ⇒ لا حفظ). الدالّةُ غيرُ الداخلةِ التي تنادي تحفظ x30 في خانةِ
+                //      إطارٍ في المقدّمة وتستعيده قبل RET ⇒ يُمكِّن الطرائقَ من نداءِ الطرائق (حرِجٌ
+                //      للاستضافة الذاتيّة) والإرسالَ الافتراضيّ (blr) في دالّةٍ غيرِ داخلة.
                 if (hasCall && !curIsEntry_)
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kNestedCallInNonentry + currentFn_);
+                    lrSlot_ = slot++;
 
                 // (AR) طباعةُ عددٍ: احجز مخزنَ itoa (٣ خاناتٍ = ٢٤ بايتًا تكفي ٢٠ رقمًا لـi64 + هامش).
                 //      القمّةُ (العنوانُ الأعلى، حصريّ) = فهرسُ ما بعد المخزن.
@@ -1301,6 +1443,10 @@ namespace sad
                     if (!subSp(frameSize_))
                         return false;
                 }
+                // (AR) احفظْ سجلّ الرابط x30 (إن كانت الدالّةُ تنادي وليست داخلة) قبلَ أوّلِ نداءٍ
+                //      يدهسه ⇒ يُستعاد في الخاتمة. (الدفعة ٦)
+                if (lrSlot_ >= 0 && !strSlot(a64reg::kLr, lrSlot_))
+                    return false;
                 const auto &params = fn.getParameters();
                 for (size_t i = 0; i < params.size(); ++i)
                     if (!strSlot(abiArg_[i], memSlot_[diag::kVregSigil + params[i].name]))
@@ -1308,9 +1454,12 @@ namespace sad
                 return true;
             }
 
-            // (AR) خاتمةُ الدالّة غير الداخلة: استعِد المكدّسَ (add sp) ثمّ ارجع (RET إلى x30).
+            // (AR) خاتمةُ الدالّة غير الداخلة: استعِد سجلَّ الرابط x30 (إن حُفِظ) ثمّ المكدّسَ (add sp)
+            //      ثمّ ارجع (RET إلى x30).
             bool emitEpilogue()
             {
+                if (lrSlot_ >= 0 && !ldrSlot(a64reg::kLr, lrSlot_)) // (AR) استعِد x30 المحفوظ
+                    return false;
                 if (frameSize_ > 0 && !addImm(31, 31, frameSize_)) // add sp, sp, #frameSize
                     return false;
                 return emit(a64::mnem::kRet, "", {});
@@ -2617,6 +2766,14 @@ namespace sad
                                 if (!reloadReg(kv.second))
                                     return false;
                         objClassOf_[inst.result->name] = className;
+                        // (AR) الإرسالُ الافتراضيّ (الدفعة ٦): خزّنْ عنوانَ جدولِ الدوالّ في obj[0]
+                        //      (ترويسةُ vtable). العنوانُ يُرقَّع زمنَ الإنهاء. x0=المؤشّر، x16 خدشٌ.
+                        if (!ci->second.isCRepr && vtableBaseOff_.count(className))
+                        {
+                            if (!emitVtableAddr(a64reg::kScratch0, className) ||
+                                !strBase(a64reg::kScratch0, a64reg::kX0, 0)) // obj[0] = عنوانُ الجدول
+                                return false;
+                        }
                         return strSlot(a64reg::kX0, memSlot_[inst.result->name]);
                     }
                     return true;
@@ -2704,6 +2861,58 @@ namespace sad
                         if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
                             return false;
                     if (!emitBranchTo(a64::mnem::kBl, "rel26", inst.operands[0].name, /*isCall=*/true))
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    if (inst.result)
+                    {
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return movReg(dst, a64reg::kX0); // (AR) قيمةُ الإرجاع من x0
+                    }
+                    return true;
+                }
+                case OP::OBJECT_CALL:
+                {
+                    // (AR) الإرسالُ الافتراضيّ (الدفعة ٦، مرآةُ x86): operands=[obj, اسمُ الطريقة(نصّ), وسائط…].
+                    //      vtable=[obj+0]، مؤشّرُ الدالّة=[vtable+خانة×٨]، ثمّ blr (self=x0). الفهرسُ من
+                    //      الصنفِ الساكن؛ جدولُ الكائنِ زمنَ التشغيلِ يحملُ التجاوزَ في نفسِ الخانة ⇒ إرسالٌ صحيح.
+                    if (inst.operands.size() < 2 ||
+                        inst.operands[1].type != sir::SIROperandType::CONSTANT ||
+                        inst.operands[1].dataType != types::SadTypeKind::String)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    const std::string *cn = objClassForOperand(inst.operands[0]);
+                    if (!cn)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectUnknownClass + inst.operands[0].name);
+                    auto lit = classVtableLayout_.find(*cn);
+                    if (lit == classVtableLayout_.end())
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectNoVtable + *cn);
+                    int slot = -1;
+                    for (size_t i = 0; i < lit->second.size(); ++i)
+                        if (lit->second[i].first == inst.operands[1].name) { slot = static_cast<int>(i); break; }
+                    if (slot < 0)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectMethodNoSlot + inst.operands[1].name);
+                    const size_t argc = inst.operands.size() - 2; // (AR) الوسائطُ الإضافيّة (عدا self)
+                    if (argc + 1 > 8)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt8 + std::to_string(argc + 1));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) || common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!spillReg(kv.second))
+                                return false;
+                    // (AR) الوسائطُ الإضافيّة → x1.. (abiArg_[1..])، ثمّ self → x0.
+                    for (size_t i = 0; i < argc; ++i)
+                        if (!loadArgInto(abiArg_[i + 1], inst.operands[i + 2]))
+                            return false;
+                    if (!loadArgInto(a64reg::kX0, inst.operands[0]))
+                        return false;
+                    // (AR) x16 (خارجَ الحوض): vtable=[x0+0]، مؤشّرُ الدالّة=[x16+خانة] (فهرسٌ مقيسٌ ٨).
+                    if (!ldrBase(a64reg::kScratch0, a64reg::kX0, 0) ||
+                        !ldrBase(a64reg::kScratch0, a64reg::kScratch0, static_cast<long long>(slot)))
+                        return false;
+                    if (!emitBlr(a64reg::kScratch0)) // (AR) blr x16 (نداءٌ غيرُ مباشر)
                         return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first))
@@ -3575,6 +3784,10 @@ namespace sad
                     if (dot != std::string::npos)
                         objClassOf_[diag::kVregSigil + std::string("self")] = currentFn_.substr(0, dot);
                 }
+                // (AR) ابذرْ صنفَ كلِّ معاملٍ مصرَّحٍ بصنفٍ مسجَّل (للإرسالِ الافتراضيّ على معامل). (الدفعة ٦)
+                for (const auto &p : fn.getParameters())
+                    if (!p.className.empty())
+                        objClassOf_[diag::kVregSigil + p.name] = p.className;
                 phiEdges_.clear();
                 crossBlockSpill_.clear();
                 regOf_.clear();

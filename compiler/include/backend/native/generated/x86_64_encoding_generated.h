@@ -80,6 +80,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اقفز_إذا_أكبر", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x8F}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     { "اقفز_إذا_أدنى", "rel8", []{ sad::native::x86::EncSpec s; s.opcode = {0x72}; s.imm_op = 0; s.imm_bits = 8; return s; }() },
     { "نادِ", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0xE8}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "نادِ_غيرَ_مباشر", "r64", []{ sad::native::x86::EncSpec s; s.opcode = {0xFF}; s.modrm.present = true; s.modrm.reg_ext = 2; s.modrm.rm_op = 0; return s; }() },
     { "عنوان_فعّال", "r64, m64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x8D}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "عبّئ_عشري", "xmm, r64", []{ sad::native::x86::EncSpec s; s.prefix = {0x66}; s.rex_w = true; s.opcode = {0x0F, 0x6E}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "استخرج_عشري", "r64, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0x66}; s.rex_w = true; s.opcode = {0x0F, 0x7E}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
@@ -143,6 +144,7 @@ inline const std::string kJle = "اقفز_إذا_أصغر_أو_ساوى";
 inline const std::string kJg = "اقفز_إذا_أكبر";
 inline const std::string kJb = "اقفز_إذا_أدنى";
 inline const std::string kCall = "نادِ";
+inline const std::string kCallIndirect = "نادِ_غيرَ_مباشر";
 inline const std::string kLea = "عنوان_فعّال";
 inline const std::string kMovqXmmR64 = "عبّئ_عشري";
 inline const std::string kMovqR64Xmm = "استخرج_عشري";

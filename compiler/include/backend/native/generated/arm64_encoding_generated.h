@@ -28,6 +28,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "نداء_نظام", "", sad::native::arm64::EncSpec{ 32, { { 31, 21, 1696, true, -1 }, { 20, 5, 0, true, -1 }, { 4, 0, 1, true, -1 } } } },
     { "ارجع", "", sad::native::arm64::EncSpec{ 32, { { 31, 10, 3512256, true, -1 }, { 9, 5, 30, true, -1 }, { 4, 0, 0, true, -1 } } } },
     { "نادِ", "rel26", sad::native::arm64::EncSpec{ 32, { { 31, 26, 37, true, -1 }, { 25, 0, 0, false, 0 } } } },
+    { "نادِ_غيرَ_مباشر", "Xn", sad::native::arm64::EncSpec{ 32, { { 31, 23, 428, true, -1 }, { 22, 21, 1, true, -1 }, { 20, 16, 31, true, -1 }, { 15, 10, 0, true, -1 }, { 9, 5, 0, false, 0 }, { 4, 0, 0, true, -1 } } } },
     { "ثبّت", "x, imm16, lsl", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 29, 3, true, -1 }, { 28, 23, 37, true, -1 }, { 22, 21, 0, false, 2 }, { 20, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اطرح", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 600, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اطرح", "sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 23, 418, true, -1 }, { 22, 22, 0, true, -1 }, { 21, 10, 0, false, 0 }, { 9, 5, 31, true, -1 }, { 4, 0, 31, true, -1 } } } },
@@ -85,6 +86,7 @@ inline const std::string kAdd = "اجمع";
 inline const std::string kSvc = "نداء_نظام";
 inline const std::string kRet = "ارجع";
 inline const std::string kBl = "نادِ";
+inline const std::string kBlr = "نادِ_غيرَ_مباشر";
 inline const std::string kMovk = "ثبّت";
 inline const std::string kSub = "اطرح";
 inline const std::string kMul = "اضرب";

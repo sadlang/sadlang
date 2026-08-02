@@ -107,6 +107,16 @@ TEST(NativeX86, Ret)
     ASSERT_EQ(hex(b), std::string("c3"));
 }
 
+// callq *%rax  # encoding: [0xff,0xd0]   (نداءٌ غيرُ مباشرٍ عبر سجلّ — الإرسالُ الافتراضيّ، الدفعة ٦)
+// callq *%r11  # encoding: [0x41,0xff,0xd3]  (REX.B لامتدادِ السجلّ)
+TEST(NativeX86, CallIndirectReg)
+{
+    auto rax = enc("نادِ_غيرَ_مباشر", "r64", {x86::Operand::R(x86::RAX)});
+    ASSERT_EQ(hex(rax), std::string("ffd0"));
+    auto r11 = enc("نادِ_غيرَ_مباشر", "r64", {x86::Operand::R(x86::R11)});
+    ASSERT_EQ(hex(r11), std::string("41ffd3"));
+}
+
 // ─── تسلسل «خروج ٤٢» الكامل ───
 TEST(NativeX86, Exit42Sequence)
 {

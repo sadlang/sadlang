@@ -37,6 +37,9 @@ pure:
   - { name: kEnumPayloadDyn,      value: "enum-payload-dyn",     ar: "ENUM_GET_PAYLOAD بنتيجةٍ ديناميّة (Any) مؤجَّل — يلزمه بناءُ قيمةٍ ديناميّةٍ موسومة" }
   - { name: kObjectUnknownClass,  value: "object-unknown-class", ar: "وصولُ حقلِ كائنٍ لصنفٍ غيرِ معروفٍ زمنَ الترجمة (تعذّر استنتاجُ الصنف)" }
   - { name: kObjectFieldLayout,   value: "object-field-layout",  ar: "حقلُ كائنٍ بتخطيطٍ غيرِ منتظم (bool/Any) أو حقلٌ غيرُ موجود مؤجَّل — يُدعَم الحقلُ ٨-بت فقط" }
+  - { name: kObjectNoVtable,      value: "object-no-vtable",     ar: "نداءٌ افتراضيٌّ (OBJECT_CALL) لصنفٍ بلا جدولِ دوالّ (vtable) — الصنفُ @تمثيل_سي أو غيرُ مسجَّل" }
+  - { name: kObjectMethodNoSlot,  value: "object-method-no-slot",ar: "نداءٌ افتراضيٌّ لطريقةٍ لا خانةَ لها في جدولِ الدوالّ (باني/هادم أو اسمٌ مجهول)" }
+  - { name: kVtableUnresolvedFn,  value: "vtable-unresolved-fn", ar: "خانةُ جدولِ دوالٍّ تشيرُ لدالّةٍ غيرِ معرَّفةٍ زمنَ الترجمة — تعذّر ترقيعُ عنوانها" }
   - { name: kCmpValue,            value: "cmp-value",            ar: "موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)" }
   - { name: kCmpBranch,           value: "cmp-branch",           ar: "موضعُ فحصٍ: مقارنةٌ مدموجةٌ في فرع" }
 
@@ -63,7 +66,6 @@ tag:
   - { name: kBoundsPanicRel8,      value: "bounds-panic-rel8:",      ar: "إزاحةُ jb لكتلةِ هلعِ الحدّ خارج rel8" }
   - { name: kFrame,                value: "frame:",                  ar: "حجمُ الإطار خارجَ مدى الترميز" }
   - { name: kLoadNonslot,          value: "load-nonslot:",           ar: "LOAD من غيرِ خانةِ إطار" }
-  - { name: kNestedCallInNonentry, value: "nested-call-in-nonentry:", ar: "نداءٌ متداخلٌ في دالّةٍ غيرِ الداخلة (مؤجَّل)" }
   - { name: kNoBlocks,             value: "no-blocks:",              ar: "دالّةٌ بلا كتلٍ أساسيّة" }
   - { name: kParamsGt6,            value: "params>6:",               ar: "معاملاتٌ تتجاوز ٦ (AAPCS64)" }
   - { name: kParamsGt8,            value: "params>8:",               ar: "معاملاتٌ تتجاوز ٨ (SysV)" }

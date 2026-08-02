@@ -208,6 +208,16 @@ TEST(NativeArm64, Bl4)
     ASSERT_EQ(hex(b), std::string("01000094"));
 }
 
+// blr x16  # encoding: [0x00,0x02,0x3f,0xd6]  (نداءٌ غيرُ مباشرٍ عبر سجلّ — الإرسالُ الافتراضيّ، الدفعة ٦)
+// blr x9   # encoding: [0x20,0x01,0x3f,0xd6]
+TEST(NativeArm64, BlrReg)
+{
+    auto x16 = enc("نادِ_غيرَ_مباشر", "Xn", {arm64::Operand::R(16)});
+    ASSERT_EQ(hex(x16), std::string("00023fd6"));
+    auto x9 = enc("نادِ_غيرَ_مباشر", "Xn", {arm64::Operand::R(9)});
+    ASSERT_EQ(hex(x9), std::string("20013fd6"));
+}
+
 // movk x1, #0x1234, lsl #16 (hw=1)  # encoding: [0x81,0x46,0xa2,0xf2]
 TEST(NativeArm64, MovkX1Lsl16)
 {

@@ -117,6 +117,22 @@ instructions:
           - { name: fixed, hi: 31, lo: 26, const: 37 }         # 0b100101 (BL؛ يماثل B مع بتّ الرابط)
           - { name: imm26, hi: 25, lo: 0,  from: op0 }         # الإزاحة (عددُ تعليماتٍ موقَّع)
 
+  # BLR Xn   ⇒  1101011 0 0 01 11111 000000 Rn 00000   (نداءٌ غيرُ مباشرٍ عبر سجلّ يضبط x30؛ للإرسالِ الافتراضيّ: مؤشّرُ الدالّةِ من vtable. متحقَّق: blr x16 = 0xD63F0200، blr x9 = 0xD63F0120)
+  نادِ_غيرَ_مباشر:
+    - en: blr
+      form: "Xn"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed1, hi: 31, lo: 23, const: 428 }       # 0b110101100
+          - { name: opc,    hi: 22, lo: 21, const: 1 }         # 0b01 (BLR؛ RET=0b10)
+          - { name: op2,    hi: 20, lo: 16, const: 31 }        # 0b11111
+          - { name: op3,    hi: 15, lo: 10, const: 0 }
+          - { name: Rn,     hi: 9,  lo: 5,  from: op0 }
+          - { name: op4,    hi: 4,  lo: 0,  const: 0 }
+
   # MOVK Xd, #imm16, LSL #(hw*16)   ⇒  sf 11 100101 hw imm16 Rd   (يُبقي البتّاتِ الأخرى؛ لبناء عنوانٍ ٦٤-بت، متحقَّق: movk x1,#0x1234,lsl#16 = 0xF2A24681)
   ثبّت:
     - en: movk
