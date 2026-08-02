@@ -687,6 +687,7 @@ namespace Sad
                 case SIROpcode::STRING_LEN:
                 case SIROpcode::STRING_SUBSTR:
                 case SIROpcode::STRING_CMP:
+                case SIROpcode::STRING_ORD_CMP:
                 case SIROpcode::STRING_FIND:
                 case SIROpcode::STRING_REPLACE:
                 case SIROpcode::STRING_TO_I64:

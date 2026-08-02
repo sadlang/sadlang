@@ -1,0 +1,6 @@
+# @rule: gr.expr.comparison
+# @description: ترتيبُ حرفين عربيّين — «ا» (0627) قبل «ب» (0628)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر("ا" < "ب")

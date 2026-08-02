@@ -215,6 +215,19 @@ namespace Sad
                 // (EN) reverse — reverse array elements in-place
                 if (methodName == TM::Array::REVERSE)
                 {
+                    // (AR) «عكس» اسمٌ مشتركٌ بين مصفوفة.عكس ونص.عكس، وهذا الفرعُ لا يميّز
+                    //      النوعَ (بخلاف «يحتوي» أدناه). بلا الحارس يُبنى عكسُ مصفوفةٍ على
+                    //      مؤشّر نصٍّ ⇒ SIGSEGV صامت. الكائنُ النصّيُّ يُخدَم في بانِي النصّ
+                    //      (method_call_string_map.cpp) عبر sad_llvm_string_reverse؛ والحارسُ
+                    //      يبقى شبكةَ أمانٍ لو بلغ الكائنُ النصّيُّ هذا الفرعَ من مسارٍ آخر.
+                    // (EN) "عكس" is shared between array.reverse and string.reverse and this
+                    //      branch does not disambiguate (unlike "contains" below). Without the
+                    //      guard an array reverse is emitted over a string pointer ⇒ silent
+                    //      SIGSEGV. String objects are served by the string builder via
+                    //      sad_llvm_string_reverse; this guard remains a safety net.
+                    if (objResult.type == SadTypeKind::String)
+                        return std::nullopt;
+
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_ARRAY_REVERSE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Array);

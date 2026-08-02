@@ -169,6 +169,8 @@ namespace Sad
                     return "string.concat";
                 case SIROpcode::STRING_CMP:
                     return "string.cmp";
+                case SIROpcode::STRING_ORD_CMP:
+                    return "string.ord_cmp";
                 case SIROpcode::STRING_SUBSTR:
                     return "string.substr";
                 case SIROpcode::STRING_FIND:
@@ -783,6 +785,7 @@ namespace Sad
                 case SIROpcode::TUPLE_GET:
                 case SIROpcode::STRING_CONCAT:
                 case SIROpcode::STRING_CMP:
+                case SIROpcode::STRING_ORD_CMP:
                 case SIROpcode::OBJECT_GET:
                 case SIROpcode::BUILTIN_POW:
                 case SIROpcode::BUILTIN_MIN:

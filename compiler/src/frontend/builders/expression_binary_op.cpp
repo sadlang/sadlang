@@ -505,6 +505,34 @@ namespace Sad
                 SIROpcode opcode;
                 bool isComparison = false; // (AR) عمليات المقارنة تُرجع BOOL
 
+                // (AR) [ز.١٣] ترتيبُ نصّين بـ`< <= > >=`. القرارُ أماميٌّ عمدًا — كما `==`
+                //      و`!=` (يُوجَّهان إلى STRING_CMP هنا لا في الخلف) — لأنّ الأمامَ وحده
+                //      يملك المعلومةَ الكاملة؛ والخلفُ لو رأى مؤشّرَين متطابقَي النوع لتخطّى
+                //      التطبيعَ وبعث ICmpSLT **على العنوانَين** (وهذا هو العيبُ: `"5" > "0"`
+                //      صحيحٌ في المفسّر خطأٌ في المصرَّف). والقرارُ الأماميُّ يعني حالةً واحدةً
+                //      في كلِّ خلفيّةٍ سياديّة بدل أربع.
+                //      لا نُعيد استعمالَ `isStringOp` المحسوبِ للضمِّ `+`: ذاك يستثني المعامِلات
+                //      عمدًا (سطر ٤٢٣) لأنّها مؤشّراتٌ للحساب، ولا معنًى بديلًا هنا — استثناؤها
+                //      كان يُبقي `هو_رقم(الحرف)` داخلَ الدوالِّ مكسورةً بعد «الإصلاح».
+                // (EN) [ز.١٣] Ordering two strings with `< <= > >=`. The decision is deliberately
+                //      made in the frontend — like `==`/`!=`, routed to STRING_CMP here and not in
+                //      the backend — because only the frontend has the complete information; the
+                //      backend, seeing two same-typed pointers, skipped normalization and emitted
+                //      ICmpSLT **on the addresses** (that is the defect: `"5" > "0"` is true in
+                //      the interpreter, false compiled). A frontend decision also means one case
+                //      per sovereign backend instead of four.
+                //      We do not reuse the `isStringOp` predicate computed for `+`: it excludes
+                //      parameters on purpose (line 423) since those are pointers being arithmetic'd,
+                //      and there is no alternative meaning here — excluding them would have left
+                //      `هو_رقم(الحرف)` inside functions broken after the «fix».
+                const bool stringOrdering =
+                    (binOp->op == Lexer::TokenType::OP_LESS ||
+                     binOp->op == Lexer::TokenType::OP_LESS_EQUAL ||
+                     binOp->op == Lexer::TokenType::OP_GREATER ||
+                     binOp->op == Lexer::TokenType::OP_GREATER_EQUAL) &&
+                    leftResult.type == SadTypeKind::String &&
+                    rightResult.type == SadTypeKind::String;
+
                 // (AR) [طبقة طبيعي64 — الخطوة ٧] هيمنة السطح الضحل (أيّ معامل طبيعي64 صراحةً)
                 //      لقرار لا-موقَّعيّة //،%. مرآةُ wrapU64 بالمفسّر (resolveStaticType، `||`).
                 //      يُستهلَك في تثبيت نوع النتيجة أدناه: طبيعي64 //،% لا تفيض (udiv/urem)
@@ -1414,6 +1442,34 @@ namespace Sad
                         leftOp.elementType = leftResult.elementType;
                         rightOp.elementType = rightResult.elementType;
                     }
+                }
+
+                // (AR) [ز.١٣] ترتيبُ نصّين: نُقدِّم `string.ord_cmp` (‎-1/0/+1‎ بالترتيب
+                //      المعجميِّ لبايتاتِ UTF-8 غيرِ الموقَّعة) ثمّ نُبقي LT/LE/GT/GE كما هي
+                //      لكن على (النتيجة، ٠). فلا يُمَسُّ باعثُ المقارنةِ في أيِّ خلفيّة:
+                //      التعليمةُ الثانيةُ عدديّةٌ محضةٌ تعمل اليومَ على المسارات الثلاثة.
+                //      وبما أنّ الترميزَ UTF-8 حافظٌ للترتيب، فترتيبُ البايتاتِ هو عينُه
+                //      ترتيبُ نقاطِ الترميز — لا خيارَ بينهما. الترتيبُ اللغويُّ العربيُّ
+                //      (التسويةُ بين الهمزات، التشكيلُ وزنًا ثانويًّا) شيءٌ آخرُ مكانُه
+                //      دالّةٌ مكتبيّةٌ مستوردةٌ صراحةً، لا العامل.
+                // (EN) [ز.١٣] String ordering: emit `string.ord_cmp` first (-1/0/+1 by
+                //      lexicographic unsigned UTF-8 byte order) and keep LT/LE/GT/GE unchanged,
+                //      now applied to (result, 0). No comparison emitter in any backend is
+                //      touched: the second instruction is purely numeric and already works on all
+                //      three tracks. Since UTF-8 is order-preserving, byte order *is* code-point
+                //      order — they are not two options. Arabic linguistic collation (folding the
+                //      hamza forms, diacritics as a secondary weight) is a different thing that
+                //      belongs in an explicitly imported library function, not in the operator.
+                if (stringOrdering)
+                {
+                    const std::string ordReg = b_.newTempRegister();
+                    SIRInstruction ordInst = SIRInstruction::Binary(
+                        SIROpcode::STRING_ORD_CMP,
+                        SIROperand::Register(ordReg, SadTypeKind::Integer), leftOp, rightOp);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->addInstruction(ordInst);
+                    leftOp = SIROperand::Register(ordReg, SadTypeKind::Integer);
+                    rightOp = SIROperand::ConstantI64(0);
                 }
 
                 // (AR) إنشاء تعليمة SIR (sir_instruction.h:100-107 - SIRInstruction::Binary)

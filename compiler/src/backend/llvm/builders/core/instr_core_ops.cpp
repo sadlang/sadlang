@@ -105,6 +105,8 @@ namespace Sad
                 return cg_.emitStringConcat(inst);
             case SIROpcode::STRING_CMP:
                 return cg_.emitStringCmp(inst);
+            case SIROpcode::STRING_ORD_CMP:
+                return cg_.emitStringOrdCmp(inst);
             case SIROpcode::BUILTIN_STRING_LENGTH:
                 return cg_.emitFFIStrlen(inst);
             case SIROpcode::BUILTIN_STRING_CHAR_AT:

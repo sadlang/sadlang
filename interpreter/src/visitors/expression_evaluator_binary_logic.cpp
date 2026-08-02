@@ -218,6 +218,21 @@ namespace Sad
             //            هذا يعني أن نفس الحرف العربي مع تشكيل مختلف قد لا يتطابق.
             // NOTE(#20): (EN) Comparison is byte-level without Unicode normalization (NFC/NFD).
             //            This means the same Arabic character with different diacritics encoding may not match.
+            // (AR) [ز.١٣ — عقدٌ لغويّ] الترتيبُ (`<` `<=` `>` `>=`) **ترتيبيٌّ** لا لغويّ:
+            //      `std::string::operator<` يقارن عبر `char_traits::compare` بدلالةِ memcmp، أي
+            //      بايتاتٍ **غيرَ موقَّعة** — وهو شرطُ الصحّة: لو قُورنت موقَّعةً لصار كلُّ حرفٍ
+            //      عربيّ (D8../D9..) أصغرَ من كلّ محرفِ ASCII. ولأنّ UTF-8 حافظٌ للترتيب فهذا
+            //      عينُه ترتيبُ نقاطِ الترميز. **لا تُبدَّل هذه الدلالة**: المصرِّفُ أُلحِق بها
+            //      (أوپكود STRING_ORD_CMP)، لا العكس. الترتيبُ الهجائيُّ العربيُّ والتطبيعُ
+            //      NFC/NFD دالّتان مكتبيّتان مستقبلًا، لا عوامل.
+            // (EN) [ز.١٣ — language contract] Ordering (`< <= > >=`) is **ordinal**, not
+            //      linguistic: `std::string::operator<` compares via `char_traits::compare` with
+            //      memcmp semantics, i.e. **unsigned** bytes — which is the correctness condition:
+            //      signed bytes would sort every Arabic character (D8../D9..) below every ASCII
+            //      character. Since UTF-8 is order-preserving this is exactly code-point order.
+            //      **Do not change this**: the compiler was aligned to it (the STRING_ORD_CMP
+            //      opcode), not the other way round. Arabic collation and NFC/NFD normalization
+            //      are future library functions, not operators.
             if (left.isString() && right.isString())
             {
                 std::string l = left.toString();

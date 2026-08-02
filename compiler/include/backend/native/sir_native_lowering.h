@@ -1848,6 +1848,7 @@ namespace sad
                                  inst.opcode == sir::SIROpcode::STRING_LEN ||
                                  inst.opcode == sir::SIROpcode::BUILTIN_STRING_LENGTH ||
                                  inst.opcode == sir::SIROpcode::STRING_CMP ||
+                                 inst.opcode == sir::SIROpcode::STRING_ORD_CMP ||
                                  inst.opcode == sir::SIROpcode::STRING_TO_I64 ||
                                  inst.opcode == sir::SIROpcode::STRING_TO_F64)
                             hasMemBlock = true; // (AR) syscall/حلقةُ بايتاتٍ تدهس الحوض ⇒ انسكابٌ حولَها
@@ -2538,6 +2539,71 @@ namespace sad
                     patchFwd(neq);
                     if (!movImm(x86::RAX, 0))
                         return false;
+                    patchFwd(done);
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, x86::RAX);
+                }
+                case OP::STRING_ORD_CMP:
+                {
+                    // (AR) [ز.١٣] الترتيبُ المعجميُّ لنصّين ⇒ ‎-1/0/+1‎ (لا منطقيًّا كـSTRING_CMP).
+                    //      المقارنةُ ببايتاتٍ **غيرِ موقَّعة** (loadByteZX يوسّع بالأصفار) — وهو
+                    //      شرطُ الصحّةِ في لغةٍ عربيّة: لو قُورنت البايتاتُ موقَّعةً لصار كلُّ
+                    //      حرفٍ عربيّ (D8../D9..) أصغرَ من كلّ محرفِ ASCII ⇒ انقلابُ الترتيب.
+                    //      ولأنّ UTF-8 حافظٌ للترتيب فهذا عينُه ترتيبُ نقاطِ الترميز.
+                    //      البادئةُ أصغر: النصُّ الأقصرُ ينتهي بـNUL(٠) وهو أدنى بايت.
+                    //      تدهس الحوضَ (RSI/R8) ⇒ نسكٌ حولَها، مرآةُ STRING_CMP حرفًا بحرف.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    if (!materializeString(inst.operands[0], x86::RSI, true) ||
+                        !materializeString(inst.operands[1], x86::R8, true))
+                        return false;
+                    const size_t head = code_.size();
+                    if (!loadByteZX(x86::RAX, x86::RSI) || !loadByteZX(x86::RDI, x86::R8) ||
+                        !cmpRegReg(x86::RAX, x86::RDI))
+                        return false;
+                    size_t neq;
+                    if (!emitJccFwd(x86::mnem::kJne, neq)) // بايتان مختلفان ⇒ الإشارةُ من فرقِهما
+                        return false;
+                    if (!cmpZero(x86::RAX)) // متساويان وكلاهما NUL ⇒ انتهى النصّان معًا ⇒ ٠
+                        return false;
+                    size_t eq;
+                    if (!emitJccFwd(x86::mnem::kJe, eq))
+                        return false;
+                    if (!addImm(x86::RSI, 1) || !addImm(x86::R8, 1) || !emitJmpBack(head))
+                        return false;
+                    patchFwd(eq);
+                    if (!movImm(x86::RAX, 0))
+                        return false;
+                    size_t done;
+                    if (!emitJccFwd(x86::mnem::kJmp, done))
+                        return false;
+                    patchFwd(neq);
+                    // (AR) jb = «أدنى» لا-موقَّعة (البايتان مُوسَّعان بالأصفار فالمقارنةُ لا-موقَّعة).
+                    if (!cmpRegReg(x86::RAX, x86::RDI))
+                        return false;
+                    size_t less;
+                    if (!emitJccFwd(x86::mnem::kJb, less))
+                        return false;
+                    if (!movImm(x86::RAX, 1))
+                        return false;
+                    size_t doneGt;
+                    if (!emitJccFwd(x86::mnem::kJmp, doneGt))
+                        return false;
+                    patchFwd(less);
+                    if (!movImm(x86::RAX, -1))
+                        return false;
+                    patchFwd(doneGt);
                     patchFwd(done);
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first))

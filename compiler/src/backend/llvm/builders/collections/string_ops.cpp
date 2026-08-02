@@ -691,6 +691,23 @@ static llvm::Function *getOrCreateSplitHelper(
 
 
 
+        llvm::Value *StringOpsCodeGen::normalizeStringPtr(llvm::Value *str, const char *label)
+        {
+            if (!str)
+                return nullptr;
+            if (str->getType()->isIntegerTy())
+            {
+                llvm::Value *asI64 = str;
+                if (!str->getType()->isIntegerTy(64))
+                    asI64 = cg_.builder_->CreateIntCast(str, cg_.getInt64Type(), false,
+                                                        std::string(label) + ".i64");
+                return cg_.builder_->CreateIntToPtr(
+                    asI64, llvm::PointerType::getUnqual(*cg_.context_),
+                    std::string(label) + ".ptr");
+            }
+            return str;
+        }
+
         llvm::Value *StringOpsCodeGen::emitStringCharAt(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
@@ -847,6 +864,146 @@ static llvm::Function *getOrCreateSplitHelper(
 
 
 
+        // (AR) انظر التوثيق في string_ops_codegen.h — الترتيبُ المعجميُّ لنصّين.
+        // (EN) See string_ops_codegen.h — lexicographic ordering of two strings.
+        llvm::Value *StringOpsCodeGen::emitStringOrdCmp(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+            {
+                // (AR) اسمُ الأوپكودِ مشتقٌّ من جدولِ الأسماءِ الواحد، لا سلسلةً حرفيّةً
+                //      تنحرف عنه عند إعادةِ التسمية — نظيرُ detailOpcode في الخلفيّةِ السياديّة.
+                // (EN) The opcode name is derived from the single name table rather than a
+                //      literal that would drift on a rename — mirrors detailOpcode in the
+                //      sovereign backend.
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                {{"detail", sirOpcodeToString(SIROpcode::STRING_ORD_CMP)}});
+                return nullptr;
+            }
+
+            llvm::Value *left = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *right = cg_.resolveOperand(inst->operands[1]);
+            if (!left || !right)
+            {
+                // (AR) اسمُ الأوپكودِ مشتقٌّ من جدولِ الأسماءِ الواحد، لا سلسلةً حرفيّةً
+                //      تنحرف عنه عند إعادةِ التسمية — نظيرُ detailOpcode في الخلفيّةِ السياديّة.
+                // (EN) The opcode name is derived from the single name table rather than a
+                //      literal that would drift on a rename — mirrors detailOpcode in the
+                //      sovereign backend.
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                {{"detail", sirOpcodeToString(SIROpcode::STRING_ORD_CMP)}});
+                return nullptr;
+            }
+
+            auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+            auto *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+            auto *i8p = llvm::PointerType::getUnqual(*cg_.context_);
+            auto *zero64 = llvm::ConstantInt::get(i64Ty, 0);
+            auto *zero32 = llvm::ConstantInt::get(i32Ty, 0);
+            auto *bit63Mask = llvm::ConstantInt::get(i64Ty, 1ULL << 63);
+
+            // (AR) قيمةٌ موسومةٌ زمنَ التشغيل (%SadDyn): وسمُ Str في dynCompare يقارن المحتوى
+            //      بـstrcmp — عينُ الدلالةِ هنا — فنفوّض إليه بدل تكرارِ الموزِّع. نستخرج
+            //      الإشارةَ من نتيجتِه المنطقيّة: LT ⇒ ‎-1‎، وإلّا GT ⇒ ‎+1‎، وإلّا ٠.
+            // (EN) A runtime-tagged value (%SadDyn): dynCompare's Str tag compares content with
+            //      strcmp — the very semantics used here — so delegate instead of duplicating the
+            //      dispatcher. Derive the sign from its boolean results: LT ⇒ -1, else GT ⇒ +1,
+            //      else 0.
+            if (isSadDyn(left) || isSadDyn(right))
+            {
+                llvm::Value *dl = toDyn(cg_, left, inst->operands[0].dataType);
+                llvm::Value *dr = toDyn(cg_, right, inst->operands[1].dataType);
+                llvm::Value *isLt = dynCompare(cg_, DynCmp::LT, dl, dr);
+                llvm::Value *isGt = dynCompare(cg_, DynCmp::GT, dl, dr);
+                llvm::Value *dres = cg_.builder_->CreateSelect(
+                    isLt, llvm::ConstantInt::get(i64Ty, -1),
+                    cg_.builder_->CreateSelect(isGt, llvm::ConstantInt::get(i64Ty, 1), zero64,
+                                               "str.ord.dyn.gt"),
+                    "str.ord.dyn");
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = dres;
+                return dres;
+            }
+
+            // (AR) الحارسُ نفسُه المستعمَل في STRING_CMP: قيمةٌ واصلةٌ من قناةٍ قد تحمل حارسَ
+            //      العدمِ أو عددًا موسومًا (bit63=1) لا مؤشّرَ نصّ، وstrcmp عليها ⇒ انهيار.
+            //      في هذه الحالةِ المنحطّة نُرجِع ٠ (لا تمييزَ بين الطرفين) بدل مقارنةِ
+            //      عنوانَين لا معنى لها — والترتيبُ بين نصٍّ وغيرِ نصٍّ خطأٌ دلاليٌّ أصلًا
+            //      مكانُه الواجهةُ الأماميّة، لا اختراعُ جوابٍ هنا.
+            // (EN) The same guard STRING_CMP uses: a value arriving from a channel may carry the
+            //      null sentinel or a tagged integer (bit63=1) rather than a string pointer, and
+            //      strcmp on it crashes. In that degenerate case we return 0 (the two are
+            //      indistinguishable) rather than comparing two meaningless addresses — ordering a
+            //      string against a non-string is a semantic error that belongs in the frontend,
+            //      not an answer invented here.
+            llvm::Value *leftI64 = left->getType()->isPointerTy()
+                                       ? cg_.builder_->CreatePtrToInt(left, i64Ty, "str.ord.l.i64")
+                                       : left;
+            llvm::Value *rightI64 = right->getType()->isPointerTy()
+                                        ? cg_.builder_->CreatePtrToInt(right, i64Ty, "str.ord.r.i64")
+                                        : right;
+
+            llvm::Value *leftOk = cg_.builder_->CreateAnd(
+                cg_.builder_->CreateICmpEQ(
+                    cg_.builder_->CreateAnd(leftI64, bit63Mask, "str.ord.l.tag"), zero64,
+                    "str.ord.l.isstr"),
+                cg_.builder_->CreateICmpNE(leftI64, zero64, "str.ord.l.nn"), "str.ord.l.ok");
+            llvm::Value *rightOk = cg_.builder_->CreateAnd(
+                cg_.builder_->CreateICmpEQ(
+                    cg_.builder_->CreateAnd(rightI64, bit63Mask, "str.ord.r.tag"), zero64,
+                    "str.ord.r.isstr"),
+                cg_.builder_->CreateICmpNE(rightI64, zero64, "str.ord.r.nn"), "str.ord.r.ok");
+            llvm::Value *canStrcmp =
+                cg_.builder_->CreateAnd(leftOk, rightOk, "str.ord.can");
+
+            auto *entryBB = cg_.builder_->GetInsertBlock();
+            auto *parentFunc = entryBB->getParent();
+            auto *strcmpBB = llvm::BasicBlock::Create(*cg_.context_, "str.ord.do", parentFunc);
+            auto *doneBB = llvm::BasicBlock::Create(*cg_.context_, "str.ord.done", parentFunc);
+            cg_.builder_->CreateCondBr(canStrcmp, strcmpBB, doneBB);
+
+            cg_.builder_->SetInsertPoint(strcmpBB);
+            llvm::Value *leftPtr = left->getType()->isPointerTy()
+                                       ? left
+                                       : cg_.builder_->CreateIntToPtr(left, i8p, "str.ord.l");
+            llvm::Value *rightPtr = right->getType()->isPointerTy()
+                                        ? right
+                                        : cg_.builder_->CreateIntToPtr(right, i8p, "str.ord.r");
+
+            llvm::FunctionType *strcmpType = llvm::FunctionType::get(i32Ty, {i8p, i8p}, false);
+            llvm::FunctionCallee strcmpFn = cg_.module_->getOrInsertFunction("strcmp", strcmpType);
+            llvm::Value *raw =
+                cg_.builder_->CreateCall(strcmpFn, {leftPtr, rightPtr}, "str.ord.raw");
+
+            // (AR) تطبيعُ الإشارةِ إلى ‎-1/0/+1‎ بالضبط: المعيارُ C يضمن الإشارةَ لا المقدار،
+            //      وglibc تُرجع فرقَ البايتين بينما نسختُنا الحرّةُ تُرجعه أيضًا — فلولا
+            //      التطبيعُ لاختلفت القيمةُ بين المسارات، والحتميّةُ عبرَ المحرّكاتِ عقدٌ لغويّ.
+            // (EN) Normalize the sign to exactly -1/0/+1: the C standard guarantees the sign, not
+            //      the magnitude, and glibc returns the byte difference (as does our freestanding
+            //      copy) — without normalization the value would differ between tracks, and
+            //      determinism across engines is a language contract.
+            llvm::Value *sign = cg_.builder_->CreateSub(
+                cg_.builder_->CreateZExt(
+                    cg_.builder_->CreateICmpSGT(raw, zero32, "str.ord.pos"), i64Ty, "str.ord.pos64"),
+                cg_.builder_->CreateZExt(
+                    cg_.builder_->CreateICmpSLT(raw, zero32, "str.ord.neg"), i64Ty, "str.ord.neg64"),
+                "str.ord.sign");
+            // (AR) dynCompare/strcmp قد يتفرّعان ⇒ أعِد التقاط كتلةِ الخروجِ الفعليّة قبل PHI.
+            // (EN) The call path may branch ⇒ re-capture the real exit block before the PHI.
+            auto *strcmpExitBB = cg_.builder_->GetInsertBlock();
+            cg_.builder_->CreateBr(doneBB);
+
+            cg_.builder_->SetInsertPoint(doneBB);
+            auto *result = cg_.builder_->CreatePHI(i64Ty, 2, "str.ord.phi");
+            result->addIncoming(sign, strcmpExitBB);
+            result->addIncoming(zero64, entryBB);
+
+            if (inst->result.has_value())
+            {
+                cg_.context_info_.namedValues[inst->result->name] = result;
+            }
+            return result;
+        }
+
         // ============================================================================
         // Phase N: Builtin String Functions / دوال النصوص المضمنة
         // ============================================================================
@@ -895,7 +1052,7 @@ static llvm::Function *getOrCreateSplitHelper(
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_TO_F64"}});
                 return nullptr;
             }
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "upper.src");
             if (!str)
                 return nullptr;
 
@@ -929,7 +1086,7 @@ static llvm::Function *getOrCreateSplitHelper(
         {
             if (!inst || inst->operands.empty())
                 return nullptr;
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "lower.src");
             if (!str)
                 return nullptr;
 
@@ -972,7 +1129,7 @@ static llvm::Function *getOrCreateSplitHelper(
         {
             if (!inst || inst->operands.empty())
                 return nullptr;
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "find.src");
             if (!str)
                 return nullptr;
 
@@ -1010,8 +1167,8 @@ static llvm::Function *getOrCreateSplitHelper(
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_FIND"}});
                 return nullptr;
             }
-            llvm::Value *haystack = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *needle = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *haystack = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "contains.hay");
+            llvm::Value *needle = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "contains.needle");
             if (!haystack || !needle)
                 return nullptr;
 
@@ -1057,8 +1214,8 @@ static llvm::Function *getOrCreateSplitHelper(
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_REPLACE"}});
                 return nullptr;
             }
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *oldStr = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "replace.src");
+            llvm::Value *oldStr = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "replace.old");
             llvm::Value *newStr = cg_.resolveOperand(inst->operands[2]);
             if (!str || !oldStr || !newStr)
                 return nullptr;
@@ -1141,7 +1298,7 @@ static llvm::Function *getOrCreateSplitHelper(
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_SUBSTRING"}});
                 return nullptr;
             }
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "substr.src");
             llvm::Value *start = cg_.resolveOperand(inst->operands[1]);
             llvm::Value *len = cg_.resolveOperand(inst->operands[2]);
             if (!str || !start || !len)
@@ -1202,7 +1359,7 @@ static llvm::Function *getOrCreateSplitHelper(
             // Call C runtime: skip leading whitespace, then copy until trailing whitespace
             if (!inst || inst->operands.empty())
                 return nullptr;
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "trim.src");
             if (!str)
                 return nullptr;
 
@@ -1305,8 +1462,8 @@ static llvm::Function *getOrCreateSplitHelper(
             //      byte-wise strtok that shattered multibyte delimiters).
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *delim = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "split.src");
+            llvm::Value *delim = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "split.delim");
             if (!str || !delim)
                 return nullptr;
 
@@ -1647,7 +1804,7 @@ static llvm::Function *getOrCreateSplitHelper(
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
             llvm::Value *arrPtr = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *sep = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *sep = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "join.sep");
             if (!arrPtr || !sep)
                 return nullptr;
 
@@ -1738,8 +1895,8 @@ static llvm::Function *getOrCreateSplitHelper(
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *prefix = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "starts.src");
+            llvm::Value *prefix = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "starts.prefix");
             if (!str || !prefix)
                 return nullptr;
 
@@ -1773,8 +1930,8 @@ static llvm::Function *getOrCreateSplitHelper(
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *suffix = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "ends.src");
+            llvm::Value *suffix = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "ends.suffix");
             if (!str || !suffix)
                 return nullptr;
 
@@ -1810,8 +1967,8 @@ static llvm::Function *getOrCreateSplitHelper(
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *substr = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "contains2.src");
+            llvm::Value *substr = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "contains2.sub");
             if (!str || !substr)
                 return nullptr;
 

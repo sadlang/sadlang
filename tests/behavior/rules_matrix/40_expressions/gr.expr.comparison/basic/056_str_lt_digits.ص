@@ -1,0 +1,6 @@
+# @rule: gr.expr.comparison
+# @description: ترتيبُ نصّين رقميّين — الشاهدُ الأصليّ لِـز.١٣ (كان يقارن العناوين)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: صحيح
+اطبع_سطر("5" > "0")

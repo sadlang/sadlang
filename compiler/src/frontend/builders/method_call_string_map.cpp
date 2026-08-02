@@ -129,6 +129,128 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
+                // ════════════════════════════════════════════════════════════════════
+                // (AR) طرقُ نصٍّ كانت مُعلَنةً في SoT وغيرَ مبنيّةٍ هنا، فكان الموزّعُ
+                //      يمرّرها لبُناة المصفوفة (تصادمُ الأسماء) فتُبنى على مؤشّر النصّ
+                //      ⇒ انهيارٌ صامت. تُبنى الآن نداءً مباشرًا لدوالّ زمن التشغيل
+                //      المُضمَّن:
+                //        حرف_عند/عكس — واعيتان بـUTF-8 (لا تفتّتان الحرف العربيّ)
+                //        كرر — تكرارٌ بسيط؛ عددٌ غيرُ موجبٍ ⇒ نصٌّ فارغ (كالمفسّر)
+                //      ⚠ فارقٌ معروفٌ عن المفسّر: «حرف_عند» خارجَ المدى تُرجع نصًّا فارغًا
+                //        هنا، بينما يرمي المفسّر RUN_STRING_INDEX_OUT_OF_RANGE. وكذلك
+                //        الوسيطُ المفقود: المفسّر يرمي RUN_MISSING_REQUIRED_ARG، والمترجم
+                //        يرفض البناءَ أدناه. توحيدُ الرمي في المترجم بندٌ قائم.
+                //      ⚠ «تحويل_كبير»/«تحويل_صغير» ليستا هنا: لهما أوپكودان قائمان
+                //        (BUILTIN_STRING_TO_UPPER/TO_LOWER) يستعملان sad_llvm_str_upper/
+                //        lower في زمن التشغيل نفسِه. وكانت نسختان جديدتان قد كُتبتا فحُذفتا
+                //        تفاديًا لازدواج تنفيذٍ يفترق صامتًا. و«بحث» تركت للأوپكود القائم
+                //        لأنّه يُرجع فهرسَ محرفٍ لا بايت — انظر التنبيه أدناه.
+                // (EN) String methods declared in SoT but never built here, so the
+                //      dispatcher handed them to the array builders (name collision) ⇒
+                //      silent crash. Now emitted as direct calls to the embedded runtime.
+                //      Known divergences from the interpreter are flagged above; to_upper/
+                //      to_lower keep their existing opcodes rather than duplicating runtime
+                //      implementations that would silently drift apart.
+                // ════════════════════════════════════════════════════════════════════
+                {
+                    // (AR) أسماءُ رموز زمن التشغيل — ثوابتُ مسمّاةٌ لا سلاسلُ مباشرة
+                    // (EN) Runtime symbol names — named constants, not raw literals
+                    static constexpr const char *kRuntimeUtf8CharAt = "sad_llvm_string_utf8_char_at";
+                    static constexpr const char *kRuntimeStringReverse = "sad_llvm_string_reverse";
+                    static constexpr const char *kRuntimeStringRepeat = "sad_llvm_string_repeat";
+
+                    // (AR) طرقٌ لها أوپكودٌ قائمٌ في الخلفيّة — تُوجَّه إليه بدل كتابة نسخةٍ
+                    //      ثانيةٍ في زمن التشغيل تفترق عنه صامتًا. كانت غيرَ مبنيّةٍ هنا
+                    //      فيمرّرها الموزّعُ لبُناة المصفوفة (تصادمُ الأسماء).
+                    //      ⚠ «بحث» عبر هذا الأوپكود تُرجع فهرسَ **محرف** UTF-8، بينما
+                    //        المفسّرُ يُرجع فهرسَ **بايت** (std::string::find). فارقٌ يظهر
+                    //        في النصوص غيرِ اللاتينيّة فقط، مُسجَّلٌ للتوحيد في بندٍ مستقلّ.
+                    // (EN) Methods with an existing backend opcode are routed to it rather than
+                    //      duplicated in the runtime, where the two copies would silently drift.
+                    //      NOTE: find via this opcode returns a UTF-8 CHARACTER index while the
+                    //      interpreter returns a BYTE index; divergence tracked separately.
+                    std::optional<SIROpcode> stringOpcode;
+                    SadTypeKind opcodeResultKind = SadTypeKind::String;
+                    bool opcodeTakesArgument = false;
+
+                    if (methodName == TM::String::TO_UPPER)
+                    {
+                        stringOpcode = SIROpcode::BUILTIN_STRING_TO_UPPER;
+                    }
+                    else if (methodName == TM::String::TO_LOWER)
+                    {
+                        stringOpcode = SIROpcode::BUILTIN_STRING_TO_LOWER;
+                    }
+                    else if (methodName == TM::String::FIND)
+                    {
+                        stringOpcode = SIROpcode::BUILTIN_STRING_FIND;
+                        opcodeResultKind = SadTypeKind::Integer;
+                        opcodeTakesArgument = true;
+                    }
+
+                    if (stringOpcode.has_value())
+                    {
+                        if (opcodeTakesArgument && args.size() <= 1)
+                            return std::nullopt;
+
+                        std::string resultReg = b_.newTempRegister();
+                        SIRInstruction inst(*stringOpcode);
+                        inst.result = SIROperand::Register(resultReg, opcodeResultKind);
+                        inst.operands.push_back(
+                            SIROperand::Register(objResult.registerName, SadTypeKind::String));
+                        if (opcodeTakesArgument)
+                            inst.operands.push_back(args[1]);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(inst);
+                        return BuildResult(resultReg, opcodeResultKind);
+                    }
+
+                    const char *runtimeFn = nullptr;
+                    bool takesArgument = false;
+
+                    if (methodName == TM::String::CHAR_AT)
+                    {
+                        runtimeFn = kRuntimeUtf8CharAt;
+                        takesArgument = true;
+                    }
+                    else if (methodName == TM::String::REVERSE)
+                    {
+                        runtimeFn = kRuntimeStringReverse;
+                    }
+                    else if (methodName == TM::String::REPEAT)
+                    {
+                        runtimeFn = kRuntimeStringRepeat;
+                        takesArgument = true;
+                    }
+
+                    if (runtimeFn)
+                    {
+                        // (AR) وسيطٌ مفقودٌ ⇒ لا نبني نداءً ناقصَ الأرقام: emitCall يستنتج
+                        //      التوقيعَ من الوسائط الفعليّة **ويخبّئه**، فتصريحُ (ptr)->ptr
+                        //      لدالّةِ C ذاتِ معاملَين يُنتج قراءةَ سجلٍّ من قمامةٍ (سلوكٌ غيرُ
+                        //      معرَّف)، ويُفسد كلَّ نداءٍ لاحقٍ للرمز نفسِه.
+                        // (EN) Missing argument ⇒ do not emit an under-supplied call: emitCall
+                        //      infers the signature from the actual arguments AND caches it, so a
+                        //      (ptr)->ptr declaration for a two-parameter C function reads a
+                        //      garbage register (undefined behaviour) and poisons every later
+                        //      call to the same symbol.
+                        if (takesArgument && args.size() <= 1)
+                            return std::nullopt;
+
+                        std::string resultReg = b_.newTempRegister();
+                        SIRInstruction callInst(SIROpcode::CALL);
+                        callInst.result = SIROperand::Register(resultReg, SadTypeKind::String);
+                        callInst.operands.push_back(SIROperand::ConstantString(runtimeFn));
+                        callInst.operands.push_back(
+                            SIROperand::Register(objResult.registerName, SadTypeKind::String));
+                        if (takesArgument)
+                            callInst.operands.push_back(args[1]);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(callInst);
+                        return BuildResult(resultReg, SadTypeKind::String);
+                    }
+                }
+
                 return std::nullopt;
             }
 

@@ -1,6 +1,6 @@
 # @description تكامل خادم + عميل HTTP: خادم goroutine يعالج طلب GET حقيقي
 # @expected صحيح\nصحيح\nصحيح\nصحيح
-# @timeout 10000
+# @timeout 120
 # @priority P2
 # @skip_compiler
 

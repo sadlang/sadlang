@@ -55,10 +55,17 @@ operators:
   - { id: op.not_equal, symbol: "!=", name_ar: "لا يساوي",      name_en: not_equal, category: comparison, arity: binary, precedence: 8, associativity: left, since: "1.0.0", status: stable }
 
   # ── مقارنة ───────────────────────────────────────────────────────────
-  - { id: op.less,          symbol: "<",  name_ar: "أصغر من",          name_en: less_than,          category: comparison, arity: binary, precedence: 7, associativity: left, since: "1.0.0", status: stable }
-  - { id: op.less_equal,    symbol: "<=", name_ar: "أصغر من أو يساوي", name_en: less_equal,         category: comparison, arity: binary, precedence: 7, associativity: left, since: "1.0.0", status: stable }
-  - { id: op.greater,       symbol: ">",  name_ar: "أكبر من",          name_en: greater_than,       category: comparison, arity: binary, precedence: 7, associativity: left, since: "1.0.0", status: stable }
-  - { id: op.greater_equal, symbol: ">=", name_ar: "أكبر من أو يساوي", name_en: greater_equal,      category: comparison, arity: binary, precedence: 7, associativity: left, since: "1.0.0", status: stable }
+  # ملاحظة دلاليّة (ز.١٣): ترتيبُ النصوصِ بهذه العوامل الأربعةِ **ترتيبيٌّ (ordinal)** لا لغويّ:
+  #   مقارنةٌ معجميّةٌ لبايتاتِ UTF-8 **غيرِ الموقَّعة**، والتعادلُ يُفَضّ بالطولِ فالبادئةُ أصغر
+  #   ("سلام" < "سلامي"). ولأنّ ترميزَ UTF-8 حافظٌ للترتيب فهذا عينُه ترتيبُ نقاطِ الترميز —
+  #   ليسا خيارين. القاعدةُ بايتيّةٌ محضةٌ فهي معرَّفةٌ كليًّا حتّى لنصٍّ غيرِ صالحِ التشكيل،
+  #   ولا تتأثّر بالمحلّيّةِ ولا بنسخةِ جداولِ يونيكود ⇒ حتميّةٌ عبرَ المحرّكاتِ الثلاثة.
+  #   الترتيبُ الهجائيُّ العربيُّ (تسويةُ الهمزات، التشكيلُ وزنًا ثانويًّا) والتطبيعُ NFC/NFD
+  #   شيءٌ آخرُ مكانُه دالّةٌ مكتبيّةٌ مستوردةٌ صراحةً — لا هذه العوامل.
+  - { id: op.less,          symbol: "<",  name_ar: "أصغر من",          name_en: less_than,          category: comparison, arity: binary, precedence: 7, associativity: left, since: "1.0.0", status: stable, description_ar: "أصغر من — للنصوص: ترتيبٌ معجميٌّ لبايتاتِ UTF-8 غيرِ الموقَّعة (= ترتيبُ نقاطِ الترميز)، البادئةُ أصغر", description_en: "Less than — for strings: lexicographic order over unsigned UTF-8 bytes (= code-point order); a prefix sorts first" }
+  - { id: op.less_equal,    symbol: "<=", name_ar: "أصغر من أو يساوي", name_en: less_equal,         category: comparison, arity: binary, precedence: 7, associativity: left, since: "1.0.0", status: stable, description_ar: "أصغر من أو يساوي — للنصوص: ترتيبٌ معجميٌّ لبايتاتِ UTF-8 غيرِ الموقَّعة", description_en: "Less than or equal — for strings: lexicographic order over unsigned UTF-8 bytes" }
+  - { id: op.greater,       symbol: ">",  name_ar: "أكبر من",          name_en: greater_than,       category: comparison, arity: binary, precedence: 7, associativity: left, since: "1.0.0", status: stable, description_ar: "أكبر من — للنصوص: ترتيبٌ معجميٌّ لبايتاتِ UTF-8 غيرِ الموقَّعة", description_en: "Greater than — for strings: lexicographic order over unsigned UTF-8 bytes" }
+  - { id: op.greater_equal, symbol: ">=", name_ar: "أكبر من أو يساوي", name_en: greater_equal,      category: comparison, arity: binary, precedence: 7, associativity: left, since: "1.0.0", status: stable, description_ar: "أكبر من أو يساوي — للنصوص: ترتيبٌ معجميٌّ لبايتاتِ UTF-8 غيرِ الموقَّعة", description_en: "Greater than or equal — for strings: lexicographic order over unsigned UTF-8 bytes" }
 
   # ── عضوية ─────────────────────────────────────────────────────────────
   - { id: op.in, symbol: "في", name_ar: "عضوية", name_en: membership_in, category: membership, arity: binary, precedence: 7, associativity: left, since: "1.0.0", status: stable, example: "3 في [1،2،3]" }

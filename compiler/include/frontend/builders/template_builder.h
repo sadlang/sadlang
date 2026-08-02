@@ -88,6 +88,25 @@ namespace Sad
                 //      call sites (otherwise built with default Integer params → garbled).
                 void preRegisterImportedSignatures(Sad::AST::StmtList *program);
 
+                // ════════════════════════════════════════════════════════════════
+                // (AR) الإغلاقُ التعدّيُّ للتصريحات الخاصّة في وحدةٍ مستورَدة: أسماءُ
+                //      الدوالّ غيرِ المُصدَّرة التي تصلها الرموزُ المطلوبةُ مباشرةً أو
+                //      عبر وسائط. الوحدةُ وحدةُ ترجمة، فالمُصدَّرُ المطلوبُ يحتاج
+                //      مساعِديه الخاصّين؛ لكنّ بناءَ **كلِّ** خاصٍّ يُظلّل المدمَجات
+                //      (وحدةٌ فيها «طول» خاصّةٌ تختطف مدمَجَ «طول» في الملفّ المستورِد).
+                //      فيُبنى منها ما يُحتاج فقط.
+                // (EN) Transitive closure of a module's private declarations: the names of
+                //      non-exported functions reachable from the requested symbols. A module
+                //      is a compilation unit, so a requested export needs its private
+                //      helpers; but building EVERY private one shadows builtins (a module
+                //      with a private «طول» hijacks the builtin in the importing file).
+                //      Only what is actually reachable is built.
+                // ════════════════════════════════════════════════════════════════
+                std::set<std::string> computeImportedPrivateClosure(
+                    const std::vector<std::unique_ptr<Sad::AST::Statement>> &moduleAst,
+                    const std::set<std::string> &requestedSymbols,
+                    bool isWildcard);
+
                 void collectFreeVarsExpr(Sad::AST::Expression *expr, const std::set<std::string> &boundNames, std::set<std::string> &freeVars);
 
                 void collectFreeVarsStmt(Sad::AST::Statement *stmt, std::set<std::string> &boundNames, std::set<std::string> &freeVars);

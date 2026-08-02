@@ -1201,6 +1201,106 @@ void *sad_llvm_string_utf8_char_at(void *str, long long index)
 }
 
 /* ============================================================================
+ * (AR) طرقُ نصٍّ كانت مُعلَنةً بلا تنفيذٍ في هذا الزمن. كانت مكتوبةً في
+ *      compiler/src/backend/llvm/llvm_runtime.cpp بتمثيلٍ آخر للنصّ
+ *      (بنية SadString{data,length})، وهو زمنُ تشغيلٍ لا يُربَط ببرامج
+ *      المستخدم — فكان الرابطُ يشكو رمزًا مفقودًا ويُبلّغه «مكتبةُ CRT مفقودة».
+ *      تُنفَّذ هنا بتمثيل char* المُستعمَل فعليًّا، وبدلالاتٍ مطابقةٍ حرفيًّا
+ *      للمفسّر (expression_evaluator_oop_string_map_methods.cpp).
+ * (EN) String methods declared but unimplemented in this runtime. They existed in
+ *      llvm_runtime.cpp under a different string representation (SadString struct),
+ *      a runtime never linked into user programs, so the linker reported a missing
+ *      symbol as a missing CRT library. Implemented here over the char*
+ *      representation actually in use, with semantics identical to the interpreter.
+ * ============================================================================ */
+
+/* (AR) موضعُ نصٍّ فرعيّ — فهرسٌ بالبايتات، و-1 عند الغياب. مطابقٌ لـ
+ *      std::string::find في المفسّر (لا فهرسةَ محارف). */
+/* (EN) Substring position — byte index, -1 when absent; mirrors std::string::find. */
+long long sad_llvm_string_find(void *str, void *substr)
+{
+    if (!str || !substr)
+        return -1;
+    const char *s = (const char *)str;
+    const char *needle = (const char *)substr;
+    if (*needle == '\0')
+        return 0;
+    const char *hit = strstr(s, needle);
+    return hit ? (long long)(hit - s) : -1LL;
+}
+
+/* (AR) عكسُ النصّ بمحارف UTF-8 لا بالبايتات — كي لا يتفتّت الحرفُ العربيّ. */
+/* (EN) Reverse by UTF-8 codepoints, not bytes, so Arabic characters stay intact. */
+void *sad_llvm_string_reverse(void *str)
+{
+    if (!str)
+        return NULL;
+    const char *s = (const char *)str;
+    size_t len = strlen(s);
+    char *out = (char *)malloc(len + 1);
+    if (!out)
+    {
+        fprintf(stderr, "[sad] خطأ: فشل تخصيص %llu بايت في عكس\n",
+                (unsigned long long)(len + 1));
+        return NULL;
+    }
+
+    size_t writePos = len;
+    size_t i = 0;
+    while (i < len)
+    {
+        unsigned char c = (unsigned char)s[i];
+        size_t charLen = 1;
+        if (c >= 0xF0)
+            charLen = 4;
+        else if (c >= 0xE0)
+            charLen = 3;
+        else if (c >= 0xC0)
+            charLen = 2;
+        if (i + charLen > len)
+            charLen = 1;
+
+        writePos -= charLen;
+        memcpy(out + writePos, s + i, charLen);
+        i += charLen;
+    }
+    out[len] = '\0';
+    return out;
+}
+
+/* (AR) تكرارُ النصّ عددًا من المرّات؛ عددٌ غيرُ موجبٍ ⇒ نصٌّ فارغ (كالمفسّر). */
+/* (EN) Repeat the string count times; a non-positive count yields "" (interpreter parity). */
+void *sad_llvm_string_repeat(void *str, long long count)
+{
+    if (!str)
+        return NULL;
+    const char *s = (const char *)str;
+    size_t len = strlen(s);
+    if (count <= 0 || len == 0)
+        return sad_llvm_string_new("", 0);
+
+    /* (AR) حارسُ فيضٍ قبل الضرب — نفس سقف sad_llvm_string_new (1 جيجا) */
+    if ((unsigned long long)count > (1ULL << 30) / (unsigned long long)len)
+    {
+        fprintf(stderr, "[sad] خطأ: نص طويل جداً في كرر\n");
+        return NULL;
+    }
+
+    size_t total = len * (size_t)count;
+    char *out = (char *)malloc(total + 1);
+    if (!out)
+    {
+        fprintf(stderr, "[sad] خطأ: فشل تخصيص %llu بايت في كرر\n",
+                (unsigned long long)(total + 1));
+        return NULL;
+    }
+    for (long long k = 0; k < count; k++)
+        memcpy(out + (size_t)k * len, s, len);
+    out[total] = '\0';
+    return out;
+}
+
+/* ============================================================================
  * تنسيق الأعداد العشرية / Double Formatting
  * ============================================================================
  * (AR) تنسيق عدد عشري بنفس دقة المفسر: 6 خانات عشرية + حذف الأصفار الزائدة
@@ -1272,12 +1372,30 @@ void sad_security_panic(const char *msg)
     abort();
 }
 
-/* استثناء غير معالَج خارج حاول/امسك — طباعة ثم خروج نظيف (لا longjmp بلا معالج مسجَّل) */
-/* Unhandled exception outside try/catch — print then clean exit (no longjmp with no registered handler) */
-void sad_report_unhandled_exception(const char *type, const char *msg)
+/* استثناء غير معالَج خارج حاول/امسك — طباعة ثم خروج نظيف (لا longjmp بلا معالج مسجَّل).
+ *
+ * لا نصَّ عربيًّا هنا عمدًا: نصُّ التشخيص مملوكٌ لمصدر الحقيقة (RUN052 في
+ * language-truth/errors/runtime.yaml). المولِّدُ يقرأ صيغةَ الرسالة المولَّدة، يشطرها عند
+ * النائب {message}، ويمرّر شطرَيها هنا — فيبقى هذا الملفُّ مُنسِّقًا محضًا، ويقرأ
+ * المحرّكان من مصدرٍ واحد. (المفسّرُ لا يُظهِر نصَّ الكتالوج اليومَ خارجَ وضعِ التنقيح —
+ * عيبٌ مستقلٌّ ز.١٥؛ فالتطابقُ الحرفيُّ يتحقّق متى سُدّ، بلا تعديلٍ هنا.)
+ * الحمولةُ العدديّة تُطبَع حين تكون الرسالةُ NULL («ارمي 404» يُخزَّن عددًا لا نصًّا). */
+/* Unhandled exception outside try/catch — print then clean exit (no longjmp with no registered
+ * handler).
+ *
+ * Deliberately no Arabic text here: the diagnostic wording is owned by the source of truth
+ * (RUN052 in language-truth/errors/runtime.yaml). The backend reads the generated message
+ * format, splits it at the {message} placeholder and passes both halves in — so the compiled
+ * program and the interpreter share one wording that cannot drift, and this file stays a pure
+ * formatter. The numeric payload is printed when the message pointer is NULL («ارمي 404» is
+ * stored as a number, not a string). */
+void sad_report_unhandled_exception(const char *prefix, const char *suffix,
+                                    const char *msg, long long value)
 {
-    fprintf(stderr, "[sad] استثناء غير معالَج (%s): %s\n",
-            type ? type : "خطأ", msg ? msg : "");
+    if (msg)
+        fprintf(stderr, "%s%s%s\n", prefix ? prefix : "", msg, suffix ? suffix : "");
+    else
+        fprintf(stderr, "%s%lld%s\n", prefix ? prefix : "", value, suffix ? suffix : "");
     exit(1);
 }
 

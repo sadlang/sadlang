@@ -3056,10 +3056,10 @@ namespace Sad
             {Names::Core::EXPECT_FALSE, "Core", "CORE_IO", "NONE", false, "Branch hint: expect false", "شرط", ""},
             {Names::Core::INPUT, "Core", "CORE_IO", "NONE", false, "قراءة مدخل (اسم VM)", "قيمة", ""},
             // ─── TypeCtor (4) ───
-            {Names::TypeCtor::TO_INT, "TypeCtor", "TYPE_CONSTRUCTOR", "NONE", false, "تحويل إلى عدد صحيح", "قيمة", ""},
-            {Names::TypeCtor::TO_FLOAT, "TypeCtor", "TYPE_CONSTRUCTOR", "NONE", false, "تحويل إلى عدد عشري", "قيمة", ""},
-            {Names::TypeCtor::TO_STRING, "TypeCtor", "TYPE_CONSTRUCTOR", "NONE", false, "تحويل إلى نص", "قيمة", ""},
-            {Names::TypeCtor::TO_BOOL, "TypeCtor", "TYPE_CONSTRUCTOR", "NONE", false, "تحويل إلى منطقي", "قيمة", ""},
+            {Names::TypeCtor::TO_INT, "TypeCtor", "TYPE_CONSTRUCTOR", "NONE", false, "تحويل إلى عدد صحيح", "قيمة", "رقم"},
+            {Names::TypeCtor::TO_FLOAT, "TypeCtor", "TYPE_CONSTRUCTOR", "NONE", false, "تحويل إلى عدد عشري", "قيمة", "عشري"},
+            {Names::TypeCtor::TO_STRING, "TypeCtor", "TYPE_CONSTRUCTOR", "NONE", false, "تحويل إلى نص", "قيمة", "نص"},
+            {Names::TypeCtor::TO_BOOL, "TypeCtor", "TYPE_CONSTRUCTOR", "NONE", false, "تحويل إلى منطقي", "قيمة", "منطقي"},
             // ─── Concurrency (6) ───
             {Names::Concurrency::CHANNEL, "Concurrency", "CORE_IO", "NONE", false, "إنشاء قناة للتواصل بين الخيوط الخفيفة", "حجم", ""},
             {Names::Concurrency::WAIT_ALL, "Concurrency", "CORE_IO", "NONE", false, "انتظار انتهاء جميع الخيوط الخفيفة", "", ""},

@@ -1,6 +1,6 @@
 # @description بروتوكول TCP Echo كامل: خادم يُعيد ما يستقبله للعميل
 # @expected صحيح\nصحيح\nصحيح
-# @timeout 10000
+# @timeout 120
 # @priority P2
 # @skip_compiler
 

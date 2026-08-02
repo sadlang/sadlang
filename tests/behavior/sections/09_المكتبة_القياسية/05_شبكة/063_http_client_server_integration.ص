@@ -1,6 +1,6 @@
 # @description تكامل بسيط — عميل HTTP مع خادم HTTP في نفس العملية (منفذ مغلق)
 # @expected صحيح\nصحيح\nصحيح
-# @timeout 15000
+# @timeout 120
 # @skip_compiler
 
 استورد شبكة

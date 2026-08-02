@@ -207,6 +207,13 @@ if(LLVM_FOUND)
  # (② rfcs#46) تخطيط «حدث» المولَّد — يستهلكه ui_ops.cpp لبناء بنية الحدث في thunk
  #   المعالِج بتخطيطٍ مطابقٍ للجسر بايتيًّا (SAD_EVENT_FIELDS + POD).
  ${CMAKE_SOURCE_DIR}/shared/types/generated
+ # (AR) كتالوجُ رسائلِ الأخطاءِ المولَّد — يستهلكه exception_ops.cpp ليأخذ نصَّ RUN052
+ #   («استثناءٌ لم يُلتقَط») من مصدرِ الحقيقةِ بدل سلسلةٍ حرفيّةٍ في زمنِ التشغيل،
+ #   فيقرأ المحرّكان من مصدرٍ واحدٍ لا ينحرف.
+ # (EN) The generated error-message catalog — consumed by exception_ops.cpp to take the
+ #   RUN052 wording («uncaught exception») from the source of truth instead of a literal
+ #   in the runtime, so both engines read from one source that cannot drift.
+ ${CMAKE_SOURCE_DIR}/shared/errors/generated
  ${SAD_LLVM_INCLUDES}
  )
 

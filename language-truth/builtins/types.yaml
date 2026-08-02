@@ -16,6 +16,7 @@ functions:
   description_en: Convert to integer
   params:
   - قيمة
+  returns: رقم
   lookup_table: TYPE_CONSTRUCTOR
 - cpp_id: TO_FLOAT
   canonical: عشري
@@ -30,6 +31,7 @@ functions:
   description_en: Convert to float
   params:
   - قيمة
+  returns: عشري
   lookup_table: TYPE_CONSTRUCTOR
 - cpp_id: TO_STRING
   canonical: نص
@@ -44,6 +46,7 @@ functions:
   description_en: Convert to string
   params:
   - قيمة
+  returns: نص
   lookup_table: TYPE_CONSTRUCTOR
 - cpp_id: TO_BOOL
   canonical: منطقي
@@ -58,4 +61,5 @@ functions:
   description_en: Convert to boolean
   params:
   - قيمة
+  returns: منطقي
   lookup_table: TYPE_CONSTRUCTOR

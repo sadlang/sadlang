@@ -57,9 +57,32 @@ namespace Sad::Compiler
     //       مميَّز كي لا يُخلَط بانتهاك فحص بنيويّ (ليس تجاوز حدّ). حصريّ لعامل
     //       «مؤكَّد» اللاحق؛ مدمجات «تأكد»/«ذعر» تُصنَّف 1.
     inline constexpr int64_t kSadPanicNullAssert = 2;
-    // (AR) حارس زمن-ترجمة: القيمتان يجب أن تبقيا متمايزتين (يحمي العقد من
+    //   3 = طريقةٌ أُرسِلت على قيمةٍ موسومةٍ زمنَ التشغيل (نوعُها الساكنُ «أي»)
+    //       فخالف وسمُها النوعَ الذي تتطلّبه الطريقة — مثالُه: طريقةُ خريطةٍ على
+    //       قيمةٍ وسمُها نصّ. مميَّزٌ عن انتهاك الفحصِ البنيويّ لأنّه خطأُ نوعٍ
+    //       في برنامج المستخدم لا تجاوزُ حدٍّ، وعن تأكيد العدم لأنّ القيمة حاضرة.
+    // (EN) 3 = a method dispatched on a runtime-tagged value (static type «أي»)
+    //       whose tag contradicts the type the method requires — e.g. a map method
+    //       on a string-tagged value. Distinct from a structural check violation
+    //       (a user type error, not an out-of-bounds) and from the null assert
+    //       (the value is present).
+    inline constexpr int64_t kSadPanicDynTypeMismatch = 3;
+    //   4 = استثناءٌ رماه المستخدمُ بـ«ارمي» ولم يلتقطه «حاول/امسك» — مُناظِر
+    //       RUN052 في المفسّر. مميَّزٌ عن انتهاك الفحص لأنّه مسارُ تحكّمٍ قصدَه
+    //       المستخدم لا خللٌ بنيويّ، وعن تعارض الوسم لأنّ لا نوعَ خُولف.
+    // (EN) 4 = an exception the user raised with «ارمي» that no «حاول/امسك» caught —
+    //       the counterpart of the interpreter's RUN052. Distinct from a check
+    //       violation (this is deliberate control flow, not a structural fault)
+    //       and from a tag mismatch (no type was contradicted).
+    inline constexpr int64_t kSadPanicUncaughtThrow = 4;
+    // (AR) حارس زمن-ترجمة: القيم يجب أن تبقى متمايزة (يحمي العقد من
     //      تصادم قيم سهوًا عند إضافة رموز مستقبلًا). (EN) contract guard.
-    static_assert(kSadPanicCheckViolation != kSadPanicNullAssert,
+    static_assert(kSadPanicCheckViolation != kSadPanicNullAssert &&
+                      kSadPanicNullAssert != kSadPanicDynTypeMismatch &&
+                      kSadPanicCheckViolation != kSadPanicDynTypeMismatch &&
+                      kSadPanicUncaughtThrow != kSadPanicCheckViolation &&
+                      kSadPanicUncaughtThrow != kSadPanicNullAssert &&
+                      kSadPanicUncaughtThrow != kSadPanicDynTypeMismatch,
                   "panic reason codes must stay distinct");
 
     // ──────────────────────────────────────────────────────────────────
@@ -129,6 +152,27 @@ namespace Sad::Compiler
     //      active (> 0), else print the diagnostic and exit. It never touches the
     //      value throw/catch mechanism (keeps points 1+2 intact).
     inline constexpr const char *kRuntimeTryActive = "__sad_try_active";
+
+    // (AR) دالّةُ زمنِ التشغيل التي تُبلِّغ عن استثناءٍ لم يلتقطه أحدٌ ثمّ تخرج
+    //      برمز 1 (مُناظِر RUN052 في المفسّر). توقيعُها
+    //      (const char *type, const char *msg, long long value):
+    //      توقيعُها (const char *prefix, const char *suffix, const char *msg,
+    //      long long value): الشطران من صيغةِ RUN052 المولَّدة، والحمولةُ العدديّةُ
+    //      تُطبَع حين تكون الرسالةُ null (‹ارمي 404›).
+    // (EN) The runtime function that reports an uncaught exception then exits with 1
+    //      (the counterpart of the interpreter's RUN052). Signature is
+    //      (const char *prefix, const char *suffix, const char *msg, long long value): the
+    //      numeric payload is printed when the message pointer is null («ارمي 404»).
+    inline constexpr const char *kRuntimeReportUnhandledException =
+        "sad_report_unhandled_exception";
+
+    // (AR) النائبُ الذي تُشطَر عنده صيغةُ RUN052 المولَّدة إلى شطرَين يُمرَّران إلى زمن
+    //      التشغيل، فتُحشى القيمةُ المرميّةُ بينهما. اسمُه معرَّفٌ في مصدر الحقيقة
+    //      (language-truth/errors/runtime.yaml ⇒ placeholders: [message]).
+    // (EN) The placeholder at which the generated RUN052 format is split into the two
+    //      halves handed to the runtime, with the thrown value interpolated between them.
+    //      Its name is defined by the source of truth (placeholders: [message]).
+    inline constexpr const char *kUserThrownMessagePlaceholder = "{message}";
 
     // ──────────────────────────────────────────────────────────────────
     // (AR) أسماء وقت التشغيل لجمع مفاتيح/قيم الخريطة عند تكرارها (حلقة «لكل»
@@ -219,6 +263,33 @@ namespace Sad::Compiler
     //      (RUN056); freestanding replaces it with __sad_panic(kSadPanicNullAssert).
     inline constexpr const char *kNullAssertRun056Msg =
         "خطأ [RUN056]: عامل التأكيد (مؤكَّد) طُبِّق على قيمة عدم\n";
+
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) أوسامُ قيمةِ الخريطة — عقدٌ بين الأمامِ (يزرع الوسمَ في تعليمة
+    //      __sad_map_set_typed) والخلفِ (يقرؤه ويكتبه في مصفوفة types).
+    //      كانت القيمُ مكرّرةً حرفيًّا في الطرفَين: الأمامُ في
+    //      expression_collections.cpp والخلفُ في map_ops.cpp — عقدٌ مشترَكٌ
+    //      مكتوبٌ مرّتين، فبذرةُ انحرافٍ صامتٍ إن غُيّر أحدُهما وحدَه.
+    // (EN) Map value tags — a contract between the frontend (which plants the tag
+    //      in the __sad_map_set_typed instruction) and the backend (which reads it
+    //      and writes the types array). The values used to be duplicated verbatim
+    //      on both sides — a shared contract written twice, hence a silent-drift
+    //      hazard if either side changed alone.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr int64_t kMapValueTagString = 0;
+    inline constexpr int64_t kMapValueTagInteger = 1;
+    inline constexpr int64_t kMapValueTagFloat = 2;
+    inline constexpr int64_t kMapValueTagBoolean = 3;
+
+    // (AR) تشخيص المطوّر (مستضاف فقط) لإرسال طريقةٍ على قيمةٍ موسومةٍ زمنَ التشغيل
+    //      خالف وسمُها النوعَ المطلوب — مثالُه طريقةُ خريطةٍ على قيمةٍ وسمُها نصّ.
+    //      يقابله في الوضع الحرّ __sad_panic(kSadPanicDynTypeMismatch).
+    // (EN) Hosted-only developer diagnostic for a method dispatched on a
+    //      runtime-tagged value whose tag contradicts the required type — e.g. a
+    //      map method on a string-tagged value. Freestanding counterpart:
+    //      __sad_panic(kSadPanicDynTypeMismatch).
+    inline constexpr const char *kDynTypeMismatchMapMsg =
+        "خطأ: طريقةُ خريطةٍ طُبِّقت على قيمةٍ ليست خريطة (النوع الساكن: أي)\n";
 
     // (AR) تشخيص المطوّر (مستضاف فقط) للقسمة العشريّة على صفر (RUN001) — الحارس
     //      الزمنيّ المزروع قبل fdiv (نمط emitBoundsCheck/emitNullAssert): كان

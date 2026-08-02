@@ -5,6 +5,7 @@
 #include <string_view> // (AR) std::string_view في builtinReturnsToSIRKind
 #include "sir_builder.h"
 #include "builders/template_builder.h"
+#include "builders/type_method_return.h" // (AR) نوع عائد طرق الأنواع — مرجع واحد
 #include "builtin_registry.h" // (AR) §9: نوع إرجاع المدمجات من السجلّ المشترك (returns)
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -41,12 +42,33 @@ namespace Sad
                 // (EN) The single named binding for the SoT `returns: كائن` value —
                 //      compiler-owned constant (does not expand the language SoT).
                 constexpr std::string_view SOT_RETURNS_WIDGET_HANDLE = "\xd9\x83\xd8\xa7\xd8\xa6\xd9\x86";
+
+                // (AR) أسماءُ الأنواع القانونيّةُ من حقل `word:` في language-truth/types.yaml
+                //      (لا من typeof_ar، ولا من SimpleTypeNode::stringToKind: تلك تعيّن
+                //      «كائن» ⇒ Class بينما المترجمُ يريده Pointer، وتُصدِر «قاموس» للخريطة
+                //      خلافًا لـSoT). لذا يبقى الجدولُ مملوكًا للمترجم هنا وحدَه.
+                // (EN) Canonical type words from `word:` in language-truth/types.yaml — NOT
+                //      typeof_ar and NOT SimpleTypeNode::stringToKind (which maps «كائن» to
+                //      Class where the compiler needs Pointer, and emits «قاموس» for Map
+                //      against SoT). The table stays compiler-owned here.
+                constexpr std::string_view SOT_RETURNS_INTEGER = "\xd8\xb1\xd9\x82\xd9\x85";                     // رقم
+                constexpr std::string_view SOT_RETURNS_FLOAT = "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a";               // عشري
+                constexpr std::string_view SOT_RETURNS_STRING = "\xd9\x86\xd8\xb5";                             // نص
+                constexpr std::string_view SOT_RETURNS_BOOLEAN = "\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a";     // منطقي
             } // namespace
 
             SadTypeKind TemplateBuilder::builtinReturnsToSIRKind(std::string_view soTReturns)
             {
                 if (soTReturns == SOT_RETURNS_WIDGET_HANDLE) // كائن ⇒ مقبض عنصر
                     return SadTypeKind::Pointer;
+                if (soTReturns == SOT_RETURNS_STRING)
+                    return SadTypeKind::String;
+                if (soTReturns == SOT_RETURNS_INTEGER)
+                    return SadTypeKind::Integer;
+                if (soTReturns == SOT_RETURNS_FLOAT)
+                    return SadTypeKind::Float;
+                if (soTReturns == SOT_RETURNS_BOOLEAN)
+                    return SadTypeKind::Boolean;
                 return SadTypeKind::Unknown;
             }
 
@@ -128,6 +150,30 @@ namespace Sad
                         auto it = localVarTypes.find(var->name);
                         if (it != localVarTypes.end())
                             return it->second;
+
+                        // (AR) ليس محلّيًّا ⇒ قد يكون ثابتَ وحدةٍ أو متغيّرًا عامًّا. كان
+                        //      المسارُ يفترضه «رقمًا»، فدالّةٌ تُرجع «بادئة + النص» حيث
+                        //      «بادئة» ثابتُ وحدةٍ نصّيٌّ تُستنتَج رقمًا ⇒ يُطبع مؤشّرُ
+                        //      النصّ عددًا. نسأل جدولَ المتغيّرات ثمّ عوالمَ الوحدة.
+                        // (EN) Not local ⇒ may be a module constant or a global. This used
+                        //      to default to Integer, so a function returning
+                        //      "prefix + text" (prefix being a string module constant) was
+                        //      inferred Integer and printed the string pointer as a number.
+                        if (VariableInfo *known = b_.lookupVariable(var->name))
+                        {
+                            if (known->type != SadTypeKind::Void &&
+                                known->type != SadTypeKind::Unknown)
+                                return known->type;
+                        }
+                        if (b_.module_)
+                        {
+                            if (auto g = b_.module_->getGlobalVariable(var->name))
+                            {
+                                if (g->type != SadTypeKind::Void &&
+                                    g->type != SadTypeKind::Unknown)
+                                    return g->type;
+                            }
+                        }
                         return SadTypeKind::Integer;
                     }
 
@@ -201,8 +247,22 @@ namespace Sad
                     //        دوال UI العائدة بمقابض هي الغالب الساحق في هذا الاستنتاج.
                     if (auto mcall = dynamic_cast<const Sad::AST::MethodCallExpr *>(expr))
                     {
-                        if (inferExprType(mcall->object.get()) == SadTypeKind::Pointer)
+                        SadTypeKind objectKind = inferExprType(mcall->object.get());
+                        if (objectKind == SadTypeKind::Pointer)
                             return SadTypeKind::Pointer;
+
+                        // (AR) طريقةُ نوعٍ مدمجة (نصّ/مصفوفة/خريطة): نوعُ العائد من المرجع
+                        //      الواحد في type_method_return.cpp. بدونه كان العائدُ يسقط إلى
+                        //      الافتراضيّ «رقم»، فتُطوى المقارنةُ `نص == نص` إلى «خطأ» ثابتة
+                        //      (اختصارُ الخلط الصارم في expression_binary_op.cpp) — فشلَ بناءٍ
+                        //      داخلَ شرطِ «إذا»، ونتيجةً خاطئةً صامتةً خارجَه.
+                        // (EN) Built-in type method: take the return type from the single
+                        //      reference. Without it the result defaulted to Integer, making the
+                        //      strict mixed-type shortcut fold a string==string comparison to a
+                        //      constant false.
+                        TypeMethodReturn tmr = typeMethodReturnKind(objectKind, mcall->methodName);
+                        if (tmr.known)
+                            return tmr.kind;
                     }
 
                     if (auto call = dynamic_cast<const Sad::AST::CallExpr *>(expr))

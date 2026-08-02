@@ -1,6 +1,6 @@
 # @description UDP طلب/استجابة حقيقي بين خيطين
 # @expected صحيح\nصحيح\nصحيح
-# @timeout 15000
+# @timeout 120
 # @skip_compiler
 
 استورد مقابس

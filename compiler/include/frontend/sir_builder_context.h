@@ -452,6 +452,20 @@ namespace Sad
                 //      Cleared per module.
                 std::unordered_set<std::string> preRegisteredImportNames_;
 
+                // (AR) أنواعُ ثوابتِ/متغيّراتِ الوحدات المستوردة العُليا، مبذورةً قبل
+                //      الطور 1.7. عِلّتُها: عوالمُ الوحدة لا تُبعَث في module_ إلّا في
+                //      الطور 2، فيرى inferExprType اسمَ ثابتٍ نصّيٍّ في موقعِ نداءٍ
+                //      داخلَ الوحدة مجهولًا ⇒ Integer الافتراضيّ ⇒ يبقى المعاملُ عددًا
+                //      ⇒ تُطوى مقارنتُه بنصٍّ ثابتًا (اختصارُ المقارنة الصارمة) ⇒
+                //      «فشل بناء شرط إذا». تُمسح لكلّ وحدة.
+                // (EN) Types of imported modules' top-level consts/vars, seeded before
+                //      Phase 1.7. Module globals are only emitted into module_ in Phase 2,
+                //      so inferExprType sees a string const's name at an intra-module call
+                //      site as unknown ⇒ default Integer ⇒ the parameter stays numeric ⇒
+                //      its comparison against a string folds to a constant (strict-compare
+                //      shortcut) ⇒ "Failed to build if condition". Cleared per module.
+                std::unordered_map<std::string, SadTypeKind> pendingGlobalTypes_;
+
                 // (AR) مسار الملف الحالي / (EN) Current file path
                 std::string currentFilePath_;
 

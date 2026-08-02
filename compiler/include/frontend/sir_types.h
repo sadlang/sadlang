@@ -221,12 +221,24 @@ namespace Sad
                 TUPLE_LEN, ///< طول الصف / Tuple length
 
                 // ==========================================
-                // 7. النصوص / Strings (8)
+                // 7. النصوص / Strings (10)
                 // ==========================================
                 STRING_NEW,     ///< إنشاء نص / Create string
                 STRING_LEN,     ///< طول النص / String length
                 STRING_CONCAT,  ///< دمج نصوص / Concatenate strings
-                STRING_CMP,     ///< مقارنة نصوص / Compare strings
+                STRING_CMP,     ///< تساوي نصّين (منطقيّ ١/٠) / String equality (boolean 1/0)
+                // (AR) الترتيبُ المعجميُّ لبايتاتِ UTF-8 غيرِ الموقَّعة، نتيجتُه ‎-1/0/+1‎
+                //      (لا «أيّ سالب» — الحتميّةُ عبرَ المحرّكاتِ الثلاثةِ عقدٌ لغويّ).
+                //      منفصلٌ عن STRING_CMP لأنّ دلالةَ الأخيرِ منطقيّةٌ لا ترتيبيّة،
+                //      وتوسيعُه كان يكسر كلَّ مستهلكيه (== · != · أذرعُ المطابقة · «في»).
+                //      يُبعَث من `< <= > >=` بين نصّين، ثمّ تُقارَن نتيجتُه بالصفر.
+                // (EN) Lexicographic ordering of unsigned UTF-8 bytes, yielding -1/0/+1
+                //      (not «any negative» — determinism across the three engines is a
+                //      language contract). Separate from STRING_CMP because that one's
+                //      meaning is boolean, not ordinal, and widening it would break every
+                //      consumer (== · != · match arms · «في»). Emitted by `< <= > >=`
+                //      between two strings, whose result is then compared against zero.
+                STRING_ORD_CMP, ///< ترتيب نصّين ‎-1/0/+1‎ / Ordinal string compare -1/0/+1
                 STRING_SUBSTR,  ///< استخراج جزء / Substring
                 STRING_FIND,    ///< البحث / Find substring
                 STRING_REPLACE, ///< الاستبدال / Replace

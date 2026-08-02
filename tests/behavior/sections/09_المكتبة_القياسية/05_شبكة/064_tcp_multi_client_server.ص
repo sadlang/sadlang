@@ -1,6 +1,6 @@
 # @description خادم TCP يستقبل 3 عملاء متتاليين عبر goroutine
 # @expected صحيح\nعميل_1\nعميل_2\nعميل_3
-# @timeout 15000
+# @timeout 120
 # @skip_compiler
 
 استورد مقابس

@@ -1,6 +1,6 @@
 # @description UDP loopback: مُستقبل goroutine + مُرسل — ربط + إرسال + استقبال
 # @expected صحيح\nصحيح\nصحيح\nخطأ
-# @timeout 8000
+# @timeout 120
 # @priority P2
 # @skip_compiler
 

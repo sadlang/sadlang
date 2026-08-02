@@ -1,6 +1,6 @@
 # @description دورة حياة مقابس متزامنة: 4 goroutines تنشئ وتُغلق مقابس TCP+UDP
 # @expected صحيح
-# @timeout 8000
+# @timeout 120
 # @priority P2
 # @skip_compiler
 

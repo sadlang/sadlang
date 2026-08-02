@@ -1,5 +1,5 @@
 # @description ثلاثة عملاء HTTP بإعدادات مختلفة — goroutines متوازية + جمع النتائج
-# @timeout 5000
+# @timeout 120
 
 ##
 # اختبار إنشاء عدة عملاء HTTP بإعدادات مختلفة عبر goroutines:

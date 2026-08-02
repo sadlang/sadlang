@@ -31,6 +31,8 @@
 #include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (RUN_METHOD_NOT_FOUND)
 #include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
 #include "error_codes.h"   // (AR) ErrorCode::RUN_METHOD_NOT_FOUND
+#include "types/type.h"    // (AR) typeKindToArabic — اسمُ النوعِ بالعربيّة في التشخيص
+                           //      (‏sirTypeToString يُرجع اسمًا خلفيًّا إنجليزيًّا كـ«i64»)
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -572,6 +574,37 @@ namespace Sad
 
                 if (!isRegisteredClassMethod)
                 {
+                    // ════════════════════════════════════════════════════════════════
+                    // (AR) توجيهٌ بنوع الكائن قبل الترتيب التاريخيّ. أسماءُ طرقٍ تتصادم
+                    //      بين الأنواع المدمجة (عكس · يحتوي · احذف · نسخ · عد · فارغة)،
+                    //      وكان ترتيبُ المحاولات وحدَه يقرّر: تُجرَّب بُناةُ المصفوفة أوّلًا
+                    //      ولا تفحص نوعَ الكائن، فيُبنى «مصفوفة.عكس» على مؤشّر نصٍّ
+                    //      ⇒ انهيارٌ صامت (SIGSEGV) بدل تشخيص. نُقيّد كلَّ عائلةِ بُناةٍ
+                    //      بنوعها. لا نحجب عائلةَ المصفوفة بعد ذلك: فروعُها تميّز النوعَ
+                    //      داخليًّا لطرقٍ مشتركةٍ عمدًا (يحتوي على نصٍّ ⇒ BUILTIN_STRING_
+                    //      CONTAINS)، وحجبُها الشاملُ يُسقط مساراتٍ صحيحة. الحراسةُ الدقيقةُ
+                    //      للفروع التي تفتقر التمييزَ موضعُها الفرعُ نفسُه (انظر Array::REVERSE
+                    //      في method_call_array_basic.cpp).
+                    // (EN) Dispatch by object type before the historical ordering. Method
+                    //      names collide across builtin types and ordering alone decided.
+                    //      We do NOT block the array family afterwards: several of its
+                    //      branches deliberately disambiguate by type (contains on a string
+                    //      ⇒ BUILTIN_STRING_CONTAINS), and a blanket block drops valid paths.
+                    //      Branches lacking that disambiguation are guarded in place.
+                    // ════════════════════════════════════════════════════════════════
+                    if (objResult.type == SadTypeKind::String)
+                    {
+                        auto strOnly = b_.buildStringBuiltinMethodCall(objResult, methodName, args);
+                        if (strOnly)
+                            return *strOnly;
+                    }
+                    else if (objResult.type == SadTypeKind::Map)
+                    {
+                        auto mapOnly = b_.buildMapBuiltinMethodCall(objResult, methodName, args);
+                        if (mapOnly)
+                            return *mapOnly;
+                    }
+
                     // (AR) محاولة طرق المصفوفات الأساسية (أضف/حجم/أزل/فارغة/يحتوي/رتب/...)
                     // (EN) Try basic array methods (push/size/remove/empty/contains/sort/...)
                     auto arrBasicResult = b_.buildArrayBasicMethodCall(objResult, methodName, args);
@@ -655,7 +688,7 @@ namespace Sad
                         Sad::Errors::RenderContext ctx;
                         ctx.placeholders = {
                             {"method", methodName},
-                            {"class", std::string(sirTypeToString(objResult.type))},
+                            {"class", Sad::TypeSystem::typeKindToArabic(objResult.type)},
                             {"suggestion_clause", ""},
                             {"suggestion_clause_en", ""}};
                         b_.errors_.push_back(
@@ -1013,6 +1046,45 @@ namespace Sad
                 // (EN) Step 4: Check if function is an ADT constructor
                 //      If registered as شكل.دائرة but actual name is __adt_ctor_شكل_دائرة
                 //      use the real name and remove self from arguments
+                // ════════════════════════════════════════════════════════════════
+                // (AR) [ز.١٢ — الطبقةُ الأولى: المنبع] بوّابةُ رمزٍ قبل بناء النداء.
+                //      إن بقي `className` فارغًا هنا فاسمُ الهدفِ يبدأ بنقطةٍ («.احصل»)،
+                //      ولا مدخلَ له في جدولِ الدوالّ: نداءٌ لرمزٍ لا وجودَ له. كان
+                //      المصرِّفُ يبعثه فيُصنَّع تصريحٌ خارجيٌّ بلا تعريف، ولا يظهر إلّا
+                //      `lld-link: error: undefined symbol: .احصل` — رسالةٌ لا تدلّ على
+                //      سطرِ المصدرِ ولا على العلّة. نُفشِل البناءَ هنا برسالةٍ مفهومةٍ
+                //      بدلًا من ذلك؛ كلُّ ما يبلغُ هذا الموضعَ اليوم فاشلٌ عند الربطِ
+                //      حتمًا، فالبوّابةُ لا تُبطِل مسارًا عاملًا.
+                // (EN) [ز.١٢ — layer one: the source] a symbol gate before building the
+                //      call. If `className` is still empty here, the target name starts
+                //      with a dot («.احصل») and has no function-table entry: a call to a
+                //      symbol that does not exist. The compiler used to emit it, an
+                //      external declaration was synthesized with no definition, and the
+                //      only sign was `lld-link: error: undefined symbol: .احصل` — a
+                //      message pointing at neither the source line nor the cause. Fail
+                //      the build here with a comprehensible message instead; everything
+                //      reaching this point today fails at link time regardless, so the
+                //      gate invalidates no working path.
+                // ════════════════════════════════════════════════════════════════
+                if (className.empty() &&
+                    b_.functionTable_.find(fullMethodName) == b_.functionTable_.end())
+                {
+                    Sad::Errors::RenderContext ctx;
+                    ctx.placeholders = {
+                        {"method", methodCallExpr->methodName},
+                        {"class", Sad::TypeSystem::typeKindToArabic(objResult.type)},
+                        {"suggestion_clause", ""},
+                        {"suggestion_clause_en", ""}};
+                    b_.errors_.push_back(
+                        Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                            Sad::Errors::ErrorCode::RUN_METHOD_NOT_FOUND, ctx));
+                    // (AR) نتيجةٌ آمنةٌ بنوعٍ محدَّد — البناءُ يُلغى عبر hasErrors() فلا
+                    //      تُستهلك، لكنّها تمنع أيَّ انهيارٍ لاحقٍ في التوليد.
+                    // (EN) Safe concrete-typed result; the build aborts via hasErrors()
+                    //      so it is unused, but it prevents any later codegen crash.
+                    return BuildResult(b_.newTempRegister(), objResult.type);
+                }
+
                 std::string callTargetName = fullMethodName;
                 bool isADTCtor = false;
                 auto ftIt = b_.functionTable_.find(fullMethodName);

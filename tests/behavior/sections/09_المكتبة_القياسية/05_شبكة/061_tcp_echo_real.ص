@@ -1,6 +1,6 @@
 # @description TCP Echo حقيقي — خادم وعميل عبر goroutine
 # @expected صحيح\nصحيح\nصحيح
-# @timeout 15000
+# @timeout 120
 # @skip_compiler
 
 استورد مقابس

@@ -1,6 +1,6 @@
 # @description TCP loopback كامل: خادم goroutine + عميل — اتصال + إرسال + استقبال
 # @expected صحيح\nصحيح\nصحيح
-# @timeout 8000
+# @timeout 120
 # @priority P2
 # @skip_compiler
 

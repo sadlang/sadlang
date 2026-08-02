@@ -1,6 +1,6 @@
 ﻿# @description نهاية إلى نهاية — OOP echo بسيط عبر UDP
 # @expected صحيح\nصحيح\nصحيح
-# @timeout 15000
+# @timeout 120
 
 استورد شبكات
 

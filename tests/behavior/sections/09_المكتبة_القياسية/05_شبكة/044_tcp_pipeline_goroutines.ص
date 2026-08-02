@@ -1,6 +1,6 @@
 # @description خط أنابيب TCP: مُنتج → خادم وسيط → مستهلك عبر goroutines
 # @expected صحيح\nصحيح\nصحيح
-# @timeout 15000
+# @timeout 120
 # @priority P2
 # @skip_compiler
 

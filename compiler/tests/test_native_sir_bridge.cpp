@@ -2008,6 +2008,31 @@ namespace
         e->addInstruction(SIRInstruction(SIROpcode::STRING_LEN, R("rnl", kInt), {R("rn", kStr)}));
         e->addInstruction(SIRInstruction(SIROpcode::SUB_I64, R("rnz", kInt), {R("rnl", kInt), I(3)}));
         e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("rnz", kInt)}));
+        // ── [ز.١٣] الترتيبُ المعجميّ STRING_ORD_CMP ⇒ ‎-1/0/+1‎ ──
+        // ORD("b","a")=+1 ؛ ORD("a","b")=-1 ؛ ORD("a","a")=0 (ذراعُ «انتهيا معًا») ؛
+        // ORD("ا","ب")=-1 (عربيّ) ؛ ORD("Z","ا")=-1 ← **الحاسمة**: تفشل لو قُورنت البايتاتُ
+        // موقَّعةً (0x5A مقابل 0xD8) ؛ ORD("سلام","سلامي")=-1 (البادئةُ أصغر).
+        // المجموع = 1-1+0-1-1-1 = -3 ⇒ نُضيف 3 فيبقى الصافي صفرًا.
+        // (AR) يُتراكَم كلُّ ناتجٍ في t فورًا (سجلٌّ حيٌّ واحدٌ زائد لا أكثر): حوضُ هذا
+        //      الحدِّ سبعةُ سجلّاتٍ بلا انسكاب، فتجميعُ الستّةِ أوّلًا يُنفِدُه.
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_ORD_CMP, R("o1", kInt), {S("b"), S("a")}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("o1", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_ORD_CMP, R("o2", kInt), {S("a"), S("b")}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("o2", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_ORD_CMP, R("o3", kInt), {S("a"), S("a")}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("o3", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_ORD_CMP, R("o4", kInt),
+                                         {S("\xD8\xA7"), S("\xD8\xA8")})); // "ا" ، "ب"
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("o4", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_ORD_CMP, R("o5", kInt),
+                                         {S("Z"), S("\xD8\xA7")})); // "Z" ، "ا" — البايتُ اللا-موقَّع
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("o5", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::STRING_ORD_CMP, R("o6", kInt),
+                                         {S("\xD8\xB3\xD9\x84\xD8\xA7\xD9\x85"),
+                                          S("\xD8\xB3\xD9\x84\xD8\xA7\xD9\x85\xD9\x8A")})); // "سلام"، "سلامي"
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), R("o6", kInt)}));
+        e->addInstruction(SIRInstruction(SIROpcode::ADD_I64, R("t", kInt), {R("t", kInt), I(3)}));
+
         // ── الطبقة ٥: الزوجُ العشريّ ──
         // F64_TO_STRING(42.0)="42.0" (حذفُ صفرٍ زائد؛ '.' يليها) ⇒ STRING_TO_I64="42" (يقف عند النقطة) ؛ net = 42-42 = 0
         e->addInstruction(SIRInstruction(SIROpcode::F64_TO_STRING, R("fs0", kStr), {F(42.0)}));

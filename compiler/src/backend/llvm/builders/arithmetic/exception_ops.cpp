@@ -13,6 +13,8 @@
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
+#include "error_messages_generated.h" // (AR) نصُّ RUN052 من مصدر الحقيقة لا سلسلةً حرفيّة
+#include <cstring>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -46,6 +48,96 @@ namespace Sad
          * @return std::nullopt if funcName is not an exception function (keep looking)
          *         std::optional(value) if handled (value may be nullptr on error)
          */
+        // (AR) انظر التوثيق في exception_codegen.h — تشخيصُ الاستثناءِ غيرِ الملتقَط.
+        // (EN) See exception_codegen.h — the uncaught-exception diagnostic.
+        void ExceptionCodeGen::emitUnhandledExceptionReport(const char *label)
+        {
+            if (cg_.freestanding_)
+            {
+                // (AR) لا libc على المعدن العاري: نُسلِّم للنواةِ رمزَ سببٍ مميَّزًا
+                //      لتطبع لافتتَها. كان هذا المسارُ يبعث fprintf/exit فيفشل الربط.
+                // (EN) No libc on bare metal: hand the kernel a distinct reason code so it
+                //      prints its own banner. This path used to emit fprintf/exit ⇒ link error.
+                cg_.emitFreestandingPanicCall(Sad::Compiler::kSadPanicUncaughtThrow);
+                cg_.builder_->CreateUnreachable();
+                return;
+            }
+
+            auto *ptrType = llvm::PointerType::getUnqual(*cg_.context_);
+            auto *i64Type = cg_.getInt64Type();
+
+            // (AR) نصُّ التشخيصِ من مصدرِ الحقيقةِ لا من سلسلةٍ حرفيّةٍ هنا: نقرأ صيغةَ
+            //      RUN052 المولَّدةَ (`brief`) ونشطرها عند النائب {message}. إن غاب
+            //      الإدخالُ أو النائبُ (كتالوجٌ مبتور) نمرّر شطرَين فارغَين بدل اختلاق
+            //      نصّ — القيمةُ المرميّةُ وحدها تُطبَع.
+            //      ⚠️ ملاحظةٌ صادقة: هذا **ليس** تطابقًا حرفيًّا مع ما يطبعه المفسّرُ
+            //      اليوم. المفسّرُ يُسجّل RUN052 في ErrorManager لكنّه لا يُظهِر `brief`
+            //      خارج وضعِ التنقيح، فيطبع `UserThrown` (النوعَ) بدل نصِّ الكتالوج —
+            //      عيبٌ مستقلٌّ في المفسّر (ز.١٥) لا يُصلحه هذا الموضع. الغايةُ هنا
+            //      أنّ الطرفين يقرآن **من مصدرٍ واحد**، فمتى سُدّ ز.١٥ تطابقا بلا تعديلٍ
+            //      هنا.
+            // (EN) The diagnostic wording comes from the source of truth, not a literal here:
+            //      read the generated RUN052 format (`brief`) and split it at the {message}
+            //      placeholder. If the entry or the placeholder is missing (a truncated catalog)
+            //      we pass two empty halves rather than inventing text — only the thrown value
+            //      is printed.
+            //      ⚠️ Honest note: this is **not** verbatim parity with what the interpreter
+            //      prints today. The interpreter records RUN052 in the ErrorManager but does not
+            //      surface `brief` outside debug mode, so it prints `UserThrown` (the type)
+            //      instead of the catalog text — a separate interpreter defect (ز.١٥) that this
+            //      site cannot fix. The point here is that both sides read from **one source**,
+            //      so once ز.١٥ is closed they agree with no change here.
+            std::string messagePrefix;
+            std::string messageSuffix;
+            if (const auto *entry =
+                    ::Sad::Errors::Generated::findByCode(::Sad::Errors::ErrorCode::RUN_USER_THROWN))
+            {
+                const std::string format = entry->briefAr ? entry->briefAr : "";
+                const std::size_t at = format.find(kUserThrownMessagePlaceholder);
+                if (at != std::string::npos)
+                {
+                    messagePrefix = format.substr(0, at);
+                    messageSuffix = format.substr(at + std::strlen(kUserThrownMessagePlaceholder));
+                }
+            }
+            llvm::Value *prefixArg =
+                cg_.builder_->CreateGlobalStringPtr(messagePrefix, std::string(label) + ".exc.pre");
+            llvm::Value *suffixArg =
+                cg_.builder_->CreateGlobalStringPtr(messageSuffix, std::string(label) + ".exc.suf");
+
+            // (AR) نقرأ الوصفَ من العالميّاتِ لا من الوسائطِ المحلّيّة: الرميُ خزّنها
+            //      قبل الوصولِ إلى هنا، والمسارُ الثاني (إعادةُ الرمي بعد «أجّل») لا
+            //      يملك وسائطَ أصلًا. مصدرٌ واحدٌ للحقيقةِ يمنع انحرافَ المسارين.
+            // (EN) Read the description from the globals rather than local arguments: the
+            //      raise stored them before reaching here, and the second path (a re-throw
+            //      after defers) has no arguments at all. One source of truth keeps the two
+            //      paths from diverging.
+            auto *exceptionMsg = cg_.module_->getNamedGlobal(kRuntimeExceptionMsg);
+            auto *exceptionValue = cg_.module_->getNamedGlobal(kRuntimeExceptionValue);
+
+            llvm::Value *msgArg =
+                exceptionMsg
+                    ? static_cast<llvm::Value *>(cg_.builder_->CreateLoad(
+                          ptrType, exceptionMsg, std::string(label) + ".exc.msg"))
+                    : llvm::ConstantPointerNull::get(ptrType);
+            llvm::Value *valueArg =
+                exceptionValue
+                    ? static_cast<llvm::Value *>(cg_.builder_->CreateLoad(
+                          i64Type, exceptionValue, std::string(label) + ".exc.val"))
+                    : llvm::ConstantInt::get(i64Type, 0);
+
+            auto *reportFuncType = llvm::FunctionType::get(
+                llvm::Type::getVoidTy(*cg_.context_), {ptrType, ptrType, ptrType, i64Type}, false);
+            auto reportCallee =
+                cg_.module_->getOrInsertFunction(kRuntimeReportUnhandledException, reportFuncType);
+            if (auto *reportFunc = llvm::dyn_cast<llvm::Function>(reportCallee.getCallee()))
+            {
+                reportFunc->addFnAttr(llvm::Attribute::NoReturn);
+            }
+            cg_.builder_->CreateCall(reportCallee, {prefixArg, suffixArg, msgArg, valueArg});
+            cg_.builder_->CreateUnreachable();
+        }
+
         std::optional<llvm::Value *> ExceptionCodeGen::emitCallException(
             const std::string &funcName,
             std::vector<llvm::Value *> &args,
@@ -341,26 +433,17 @@ namespace Sad
                     count, cg_.builder_->getInt32(0), "has_handler");
                 cg_.builder_->CreateCondBr(hasHandler, hasHandlerBB, noHandlerBB);
 
-                cg_.builder_->SetInsertPoint(noHandlerBB);
-                auto *reportFuncType = llvm::FunctionType::get(
-                    llvm::Type::getVoidTy(*cg_.context_), {ptrType, ptrType}, false);
-                auto reportCallee = cg_.module_->getOrInsertFunction(
-                    "sad_report_unhandled_exception", reportFuncType);
-                // (AR) ارمِ يقبل أيّ قيمة (عدد/منطقي/كائن...) لا سلاسل فقط، فقد يصل type/msg
-                //      هنا بنوع LLVM غير ptr (مثلاً i64 لـ«ارمي 42»). استدعاء دالّة الطباعة
-                //      بتوقيع (ptr,ptr) يتطلّب مطابقة صارمة، فنستبدل القيمة غير-ptr بـ null
-                //      بدل توليد IR غير سليم (verifyModule) أو inttoptr قد يقرأ عنوانًا وهميًّا.
-                // (EN) ارمِ accepts any value (number/bool/object...), not only strings, so
+                // (AR) ارمِ يقبل أيّ قيمة (عدد/منطقي/كائن…) لا سلاسل فقط، وقد يصل type/msg
+                //      هنا بنوع LLVM غير ptr (مثلاً i64 لـ«ارمي 42»). الوصفُ كلُّه مقروءٌ من
+                //      العالميّاتِ المخزَّنةِ أعلاه (نوعٌ ورسالةٌ وحمولةٌ عدديّة)، فلا يُفقَد
+                //      المرميُّ العدديُّ ولا يُبعَث IR غير سليم.
+                // (EN) ارمِ accepts any value (number/bool/object…), not only strings, so
                 //      type/msg may arrive here with a non-ptr LLVM type (e.g. i64 for
-                //      "ارمي 42"). The (ptr,ptr) print call requires an exact match, so a
-                //      non-ptr value is replaced with null instead of emitting invalid IR
-                //      or inttoptr'ing into a bogus address.
-                llvm::Value *excTypeForReport =
-                    (excType && excType->getType() == ptrType) ? excType : llvm::ConstantPointerNull::get(ptrType);
-                llvm::Value *msgForReport =
-                    (msg && msg->getType() == ptrType) ? msg : llvm::ConstantPointerNull::get(ptrType);
-                cg_.builder_->CreateCall(reportCallee, {excTypeForReport, msgForReport});
-                cg_.builder_->CreateUnreachable();
+                //      «ارمي 42»). The whole description is read from the globals stored above
+                //      (type, message and numeric payload), so a numeric throw is not lost and
+                //      no invalid IR is emitted.
+                cg_.builder_->SetInsertPoint(noHandlerBB);
+                emitUnhandledExceptionReport("raise");
 
                 cg_.builder_->SetInsertPoint(hasHandlerBB);
                 llvm::Value *idx = cg_.builder_->CreateSub(count, cg_.builder_->getInt32(1), "handler_idx");
@@ -426,6 +509,37 @@ namespace Sad
                 }
 
                 llvm::Value *count = cg_.builder_->CreateLoad(i32Type, handlerCount, "handler_count");
+
+                // (AR) [ز.١٤] الحارسُ المفقود: كلُّ دالّةٍ تدفع معالِجَ تنظيفٍ (لتشغيل «أجّل»)،
+                //      فالاستثناءُ غيرُ الملتقَط يهبط سلسلةَ التنظيفِ إطارًا إطارًا حتّى يصفرَ
+                //      العدّاد، ثمّ يصل هنا. بلا حارسٍ كان الفهرسُ يصير ‎-1‎ فيُقرأ jmpbuf من
+                //      ثماني بايتاتٍ قبل المصفوفة ⇒ longjmp إلى قمامة ⇒ SIGSEGV (رمز ١٣٩)
+                //      بدل تشخيص. الآن نُبلِّغ كما يفعل المفسّر (RUN052) ونخرج برمز ١.
+                //      لاحظ: الحارسُ هنا لا في __sad_raise عمدًا — إبقاءُ الرميِ يهبط سلسلةَ
+                //      التنظيفِ هو ما يضمن تشغيلَ جملِ «أجّل» قبل الإبلاغ؛ لو حرسنا الرميَ
+                //      بـ__sad_try_active لقفزنا فوق التنظيفِ وأسقطنا دلالةَ «أجّل».
+                // (EN) [ز.١٤] The missing guard: every function pushes a cleanup handler (to run
+                //      «أجّل»), so an uncaught exception walks the cleanup chain frame by frame
+                //      until the counter hits zero and lands here. With no guard the index became
+                //      -1, so jmpbuf was loaded from eight bytes before the array ⇒ longjmp into
+                //      garbage ⇒ SIGSEGV (139) instead of a diagnostic. Now we report exactly as
+                //      the interpreter does (RUN052) and exit with 1. Note the guard lives here
+                //      and deliberately not in __sad_raise: letting the raise walk the cleanup
+                //      chain is what guarantees defers run before reporting; guarding the raise
+                //      on __sad_try_active instead would skip cleanup and drop «أجّل» semantics.
+                llvm::Function *rethrowFunc = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *rethrowNoHandlerBB =
+                    llvm::BasicBlock::Create(*cg_.context_, "rethrow.nohandler", rethrowFunc);
+                llvm::BasicBlock *rethrowHasHandlerBB =
+                    llvm::BasicBlock::Create(*cg_.context_, "rethrow.hashandler", rethrowFunc);
+                cg_.builder_->CreateCondBr(
+                    cg_.builder_->CreateICmpSGT(count, cg_.builder_->getInt32(0), "has_handler"),
+                    rethrowHasHandlerBB, rethrowNoHandlerBB);
+
+                cg_.builder_->SetInsertPoint(rethrowNoHandlerBB);
+                emitUnhandledExceptionReport("rethrow");
+
+                cg_.builder_->SetInsertPoint(rethrowHasHandlerBB);
                 llvm::Value *idx = cg_.builder_->CreateSub(count, cg_.builder_->getInt32(1), "handler_idx");
 
                 auto *arrType = llvm::ArrayType::get(ptrType, 64);

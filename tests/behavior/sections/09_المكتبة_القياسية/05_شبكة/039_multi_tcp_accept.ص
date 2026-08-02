@@ -1,6 +1,6 @@
 # @description خادم TCP يقبل 3 عملاء متتاليين عبر goroutines — قياس العدد الصحيح
 # @expected صحيح\nصحيح
-# @timeout 12000
+# @timeout 120
 # @priority P2
 # @skip_compiler
 

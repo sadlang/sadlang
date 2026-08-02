@@ -31,6 +31,22 @@ public:
                                                    std::vector<llvm::Value *> &args,
                                                    std::shared_ptr<SIRInstruction> inst);
     void markSetjmpGlobalsVolatile();
+
+private:
+    // (AR) يبعثُ كتلةَ «استثناءٌ لم يلتقطه أحد»: يقرأ النوعَ والرسالةَ والحمولةَ من
+    //      عالميّاتِ الاستثناء (المخزَّنةِ عند الرمي) ويُبلِّغ بها ثمّ يخرج نظيفًا —
+    //      مستضاف ⇒ sad_report_unhandled_exception؛ حرّ ⇒ __sad_panic برمزٍ مميَّز.
+    //      ينتهي دائمًا بـunreachable. مُستخرَجٌ كي يتشارك مسارا __sad_raise (لا
+    //      معالِجَ أصلًا) و__sad_raise_current (نفد المكدّسُ بعد تشغيل «أجّل») تشخيصًا
+    //      واحدًا؛ كان الثاني بلا حارسٍ ⇒ فهرسٌ ‎-1‎ ⇒ longjmp إلى قمامة ⇒ SIGSEGV.
+    // (EN) Emits the «nobody caught this exception» block: reads type/message/payload
+    //      from the exception globals (stored at raise time), reports them, then exits
+    //      cleanly — hosted ⇒ sad_report_unhandled_exception; freestanding ⇒ __sad_panic
+    //      with a distinct code. Always terminated by unreachable. Extracted so both
+    //      __sad_raise (no handler at all) and __sad_raise_current (the stack ran out
+    //      after running defers) share one diagnostic; the latter had no guard ⇒ index
+    //      -1 ⇒ longjmp to garbage ⇒ SIGSEGV.
+    void emitUnhandledExceptionReport(const char *label);
 };
 
 }} // namespace Sad::LLVM

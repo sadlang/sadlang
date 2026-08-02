@@ -507,6 +507,7 @@ namespace Sad
                 case SIR::SIROpcode::STRING_LEN:
                 case SIR::SIROpcode::STRING_CONCAT:
                 case SIR::SIROpcode::STRING_CMP:
+                case SIR::SIROpcode::STRING_ORD_CMP:
                 case SIR::SIROpcode::STRING_SUBSTR:
                 case SIR::SIROpcode::STRING_FIND:
                 case SIR::SIROpcode::STRING_REPLACE:

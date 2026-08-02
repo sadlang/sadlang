@@ -563,6 +563,15 @@ namespace Sad
                             return gv->type;
                         }
                     }
+                    // (AR) ثوابتُ الوحدات المستوردة العُليا (الطور 1.7): لم تُبعَث عوالمُها
+                    //      في module_ بعد (الطور 2 يفعل)، فنقرأ النوعَ من البذرة.
+                    // (EN) Imported modules' top-level consts (Phase 1.7): their globals are
+                    //      not emitted into module_ yet (Phase 2 does that) — read the seed.
+                    {
+                        auto pit = b_.pendingGlobalTypes_.find(var->name);
+                        if (pit != b_.pendingGlobalTypes_.end())
+                            return pit->second;
+                    }
                     // (AR) افحص DataType من AST
                     // (EN) Check AST DataType
                     auto dtype = var->getTypeKind();

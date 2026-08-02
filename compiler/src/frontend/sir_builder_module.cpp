@@ -226,6 +226,7 @@ namespace Sad
                 //      builder (LSP) would hold a prior module's possibly-stale pointers.
                 importedModuleBodies_.clear();
                 preRegisteredImportNames_.clear();
+                pendingGlobalTypes_.clear();
 
                 if (!program)
                 {

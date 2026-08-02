@@ -64,6 +64,22 @@ def configure_utf8_console() -> None:
 # Part ①: Status types
 # ═══════════════════════════════════════════════════════════════════════════════════
 
+# (AR) سقفُ المهلةِ لكلِّ اختبار (ثانية). الوسمُ `@timeout` بالثواني — يُمرَّر كما هو
+#      إلى subprocess.run — لكنّ عشرين اختبارَ شبكةٍ كُتبت بقيمِ مِلّي-ثانية (3000،
+#      15000) فصارت مهلتُها ٥٠ دقيقةً إلى ٤ ساعات. حين علّق انهيارُ LLVM عمليّةَ
+#      المصرِّف بقيت البوّابةُ معلَّقةً ٤٧ دقيقةً بلا مخرَجٍ ولا تشخيص. السقفُ يقصّ
+#      القيمةَ ويصيح باسمِ الملفّ بدل أن يبتلعَ الخلطَ صامتًا: مهلةٌ مصمَّمةٌ لتمنعَ
+#      التعليقَ لا يجوز أن تكون هي سببَه.
+# (EN) Per-test timeout ceiling (seconds). The `@timeout` tag is in seconds — passed
+#      straight to subprocess.run — but twenty network tests were written with
+#      millisecond-scale values (3000, 15000), making their timeout 50 minutes to 4
+#      hours. When an LLVM crash wedged the compiler process the gate hung for 47
+#      minutes with no output and no diagnostic. The ceiling clamps the value and says
+#      so, naming the file, rather than swallowing the unit confusion: a timeout meant
+#      to prevent a hang must not become its cause.
+MAX_TEST_TIMEOUT_SECONDS = 300
+
+
 class Status(Enum):
     """(AR) حالة نتيجة الاختبار"""
     PASS = "PASS"                    # (AR) نجح — المخرجات متطابقة
@@ -176,7 +192,17 @@ def parse_metadata(filepath: Path) -> TestMetadata:
                     continue
                 m = _RE_TIMEOUT.match(line)
                 if m:
-                    meta.timeout = int(m.group(1))
+                    declared = int(m.group(1))
+                    if declared > MAX_TEST_TIMEOUT_SECONDS:
+                        # (AR) صيحةٌ باسمِ الملفّ: القيمةُ على الأرجح مِلّي-ثانيةً كُتبت
+                        #      في وسمٍ بالثواني. نقصّ ولا نبتلع.
+                        # (EN) Shout with the file name: the value is most likely
+                        #      milliseconds written into a seconds tag. Clamp, do not swallow.
+                        print(f"[runner] ⚠️ @timeout {declared}s > "
+                              f"{MAX_TEST_TIMEOUT_SECONDS}s — قُصّ: {filepath.name} "
+                              f"(الوسمُ بالثواني؛ أهي مِلّي-ثانية؟)", file=sys.stderr)
+                        declared = MAX_TEST_TIMEOUT_SECONDS
+                    meta.timeout = declared
                     continue
                 if _RE_SKIP_COMPILER.match(line):
                     meta.skip_compiler = True
@@ -1383,7 +1409,16 @@ def main():
     #      migration to tests/behavior completed in TEST-003.
     tests_dir = project_root / config["paths"].get("tests_dir", "tests/behavior")
     temp_dir = project_root / config["execution"]["temp_dir"]
+    # (AR) السقفُ نفسُه يسري على `--timeout` وعلى `timeout_seconds` في الإعداد، لا على
+    #      الوسمِ وحدَه: سقفٌ يُلتفّ عليه من سطرِ الأوامر ليس سقفًا.
+    # (EN) The same ceiling applies to `--timeout` and to the config's `timeout_seconds`,
+    #      not only to the tag: a ceiling that can be bypassed from the command line is
+    #      not a ceiling.
     timeout = args.timeout if args.timeout > 0 else config["execution"]["timeout_seconds"]
+    if timeout > MAX_TEST_TIMEOUT_SECONDS:
+        print(f"[runner] ⚠️ المهلةُ الافتراضيّة {timeout}s > "
+              f"{MAX_TEST_TIMEOUT_SECONDS}s — قُصّت.", file=sys.stderr)
+        timeout = MAX_TEST_TIMEOUT_SECONDS
     use_colors = not args.no_color and config["output"].get("colors", True)
     verbose = args.verbose or config["output"].get("verbose", False)
 

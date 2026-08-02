@@ -1,6 +1,6 @@
 # @description مقبس_اتصال ثنائي الاتجاه — عميل وخادم في goroutines
 # @expected صحيح\nصحيح\nصحيح
-# @timeout 15000
+# @timeout 120
 # @skip_compiler
 
 استورد شبكات

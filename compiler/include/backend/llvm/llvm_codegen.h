@@ -869,6 +869,7 @@ namespace Sad
             void ensureMapToStringHelper() { strs_->ensureMapToStringHelper(); } // __sad_map_to_string / Map-to-string helper
             llvm::Value *emitStringCharAt(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCharAt(inst); }
             llvm::Value *emitStringCmp(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCmp(inst); }
+            llvm::Value *emitStringOrdCmp(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringOrdCmp(inst); }
 
             // (AR) دالة مساعدة: تحميل القيمة تلقائياً من alloca إذا لزم الأمر
             // (EN) Helper: Auto-load value from alloca pointer if needed

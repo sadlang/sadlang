@@ -1,5 +1,5 @@
 # @description فشل PUT و DELETE محلياً يجب أن يبقى متسقاً
-# @timeout 5000
+# @timeout 120
 # @expected خطأ\nخطأ\nصحيح\nخطأ\nصحيح\nصحيح
 
 استورد شبكة

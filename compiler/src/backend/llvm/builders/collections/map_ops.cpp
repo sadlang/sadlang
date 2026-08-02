@@ -48,6 +48,113 @@ namespace Sad
          * @return std::nullopt if funcName is not a map function (keep looking)
          *         std::optional(value) if handled (value may be nullptr on error)
          */
+        // (AR) انظر التوثيق في map_ops_codegen.h — كتلةُ فشلِ عدمِ تطابقِ الوسم.
+        // (EN) See map_ops_codegen.h — the dyn tag-mismatch failure block.
+        void MapOpsCodeGen::emitDynTypeMismatchFailure(const char *label)
+        {
+            if (cg_.freestanding_)
+            {
+                cg_.emitFreestandingPanicCall(Sad::Compiler::kSadPanicDynTypeMismatch);
+            }
+            else
+            {
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+                auto *printfType = llvm::FunctionType::get(i32Ty, {ptrTy}, true);
+                auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
+                llvm::Value *msg = cg_.builder_->CreateGlobalStringPtr(
+                    Sad::Compiler::kDynTypeMismatchMapMsg, std::string(label) + ".dyn.fmt");
+                cg_.builder_->CreateCall(printfFunc, {msg});
+                auto *exitType =
+                    llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i32Ty}, false);
+                auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+                cg_.builder_->CreateCall(exitFunc, {llvm::ConstantInt::get(i32Ty, 1)});
+            }
+            cg_.builder_->CreateUnreachable();
+        }
+
+        // (AR) انظر التوثيق في map_ops_codegen.h — تطبيعُ مفتاحِ الخريطة.
+        // (EN) See map_ops_codegen.h — map key normalization.
+        llvm::Value *MapOpsCodeGen::normalizeMapKey(llvm::Value *keyValue, const char *label)
+        {
+            if (!keyValue)
+                return nullptr;
+
+            auto *i64Ty = cg_.getInt64Type();
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+
+            if (Sad::LLVM::isSadDyn(keyValue))
+            {
+                llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, keyValue);
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                llvm::Value *isStr = cg_.builder_->CreateICmpEQ(
+                    kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Str),
+                    std::string(label) + ".is.str");
+
+                llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *failBB =
+                    llvm::BasicBlock::Create(*cg_.context_, std::string(label) + ".dyn.fail", curFunc);
+                llvm::BasicBlock *okBB =
+                    llvm::BasicBlock::Create(*cg_.context_, std::string(label) + ".dyn.ok", curFunc);
+                cg_.builder_->CreateCondBr(isStr, okBB, failBB);
+
+                cg_.builder_->SetInsertPoint(failBB);
+                emitDynTypeMismatchFailure(label);
+
+                cg_.builder_->SetInsertPoint(okBB);
+                return Sad::LLVM::unpackPtr(cg_, keyValue);
+            }
+
+            if (keyValue->getType() == i64Ty)
+                return cg_.builder_->CreateIntToPtr(keyValue, ptrTy, label);
+
+            return keyValue;
+        }
+
+        // (AR) انظر التوثيق في map_ops_codegen.h — التطبيعُ الموحَّدُ لمؤشّرِ الخريطة.
+        // (EN) See map_ops_codegen.h — the unified map-pointer normalization.
+        llvm::Value *MapOpsCodeGen::normalizeMapPtr(llvm::Value *mapValue, const char *label)
+        {
+            if (!mapValue)
+                return nullptr;
+
+            auto *i64Ty = cg_.getInt64Type();
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+
+            // (AR) الحالةُ الأولى: قيمةٌ موسومةٌ زمنَ التشغيل (%SadDyn) — نوعُ الكائنِ
+            //      الساكنُ «أي». نحرسُ الوسمَ ثمّ نفكّ الحمولةَ مؤشّرًا.
+            // (EN) Case one: a runtime-tagged value (%SadDyn) — static type «أي».
+            //      Guard the tag, then unpack the payload as a pointer.
+            if (Sad::LLVM::isSadDyn(mapValue))
+            {
+                llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, mapValue);
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                llvm::Value *isMap = cg_.builder_->CreateICmpEQ(
+                    kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Map),
+                    std::string(label) + ".is.map");
+
+                llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *failBB =
+                    llvm::BasicBlock::Create(*cg_.context_, std::string(label) + ".dyn.fail", curFunc);
+                llvm::BasicBlock *okBB =
+                    llvm::BasicBlock::Create(*cg_.context_, std::string(label) + ".dyn.ok", curFunc);
+                cg_.builder_->CreateCondBr(isMap, okBB, failBB);
+
+                cg_.builder_->SetInsertPoint(failBB);
+                emitDynTypeMismatchFailure(label);
+
+                cg_.builder_->SetInsertPoint(okBB);
+                return Sad::LLVM::unpackPtr(cg_, mapValue);
+            }
+
+            // (AR) الحالةُ الثانية: i64 خامٌ (مؤشّرٌ مُحوَّلٌ بـptrtoint).
+            // (EN) Case two: a raw i64 (a ptrtoint'd pointer).
+            if (mapValue->getType() == i64Ty)
+                return cg_.builder_->CreateIntToPtr(mapValue, ptrTy, label);
+
+            return mapValue;
+        }
+
         std::optional<llvm::Value *> MapOpsCodeGen::emitCallMap(
             const std::string &funcName,
             std::vector<llvm::Value *> &args,
@@ -135,10 +242,8 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr — المتغيرات تُخزَن كـ i64
-                llvm::Value *mapPtr = args[0];
-                if (mapPtr->getType() == i64Ty)
-                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "mset.map.ptr");
-                llvm::Value *key = args[1];
+                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mset.map.ptr");
+                llvm::Value *key = normalizeMapKey(args[1], "mset.key.ptr");
                 llvm::Value *value = args[2];
                 llvm::Value *typeTag = args[3];
 
@@ -188,8 +293,121 @@ namespace Sad
 
                 // (AR) تخزين القيمة بتحويل نوعها حسب typeTag
                 // (EN) Store value — for strings (type 0), store ptr as i64; for ints, store directly
-                llvm::Value *valAsI64;
-                if (value->getType()->isPointerTy())
+                llvm::Value *valAsI64 = nullptr;
+                llvm::Value *dynDerivedTag = nullptr;
+                // ════════════════════════════════════════════════════════════
+                // (AR) قيمةٌ موسومةٌ زمنَ التشغيل (%SadDyn): تصل من عنصرِ مصفوفةٍ
+                //      مختلطةٍ أو دالّةٍ مجهولةِ النوع سكونيًّا. كان الباعثُ يحاول
+                //      ZExt على بنيةٍ ⇒ انهيارُ التوليد. والأمامُ يعطيها الوسمَ 0
+                //      (نصّ) لأنّه لا يعرف نوعَها، فلو صدّقناه لخُزّن العددُ نصًّا
+                //      وعاد مقتبَسًا في التوليد. لذا نشتقّ الوسمَ من وسمِ القيمة
+                //      نفسِها زمنَ التشغيل، بلا فروع (select):
+                //        صحيح ⇒ 1 · منطقيّ ⇒ 3 · نصّ/عشريّ/غيرها ⇒ 0
+                //      والعشريُّ يُحوَّل نصًّا مطابقةً لمسار العشريّ الثابت في الأمام
+                //      (expression_collections.cpp: F64_TO_STRING بوسمٍ 0).
+                // (EN) A runtime-tagged value (%SadDyn): arrives from a mixed-array
+                //      element or a statically-unknown call result. The emitter tried
+                //      ZExt on a struct ⇒ codegen crash. The frontend hands it tag 0
+                //      (string) because it cannot know the type, so trusting that
+                //      would store a number as text and re-emit it quoted. Derive the
+                //      tag from the value's own runtime kind instead, branchlessly:
+                //        Int ⇒ 1 · Bool ⇒ 3 · Str/Float/other ⇒ 0
+                //      Float is stringified, mirroring the frontend's static float
+                //      path (F64_TO_STRING with tag 0).
+                // ════════════════════════════════════════════════════════════
+                if (Sad::LLVM::isSadDyn(value))
+                {
+                    llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, value);
+                    llvm::Value *payload = Sad::LLVM::dynPayloadI64(cg_, value);
+                    auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                    auto kindIs = [&](uint8_t k, const char *nm) {
+                        return cg_.builder_->CreateICmpEQ(
+                            kind, llvm::ConstantInt::get(i8Ty, k), nm);
+                    };
+                    llvm::Value *isInt = kindIs(Sad::LLVM::DynKind::Int, "mset.dyn.is.int");
+                    llvm::Value *isBool = kindIs(Sad::LLVM::DynKind::Bool, "mset.dyn.is.bool");
+                    llvm::Value *isFloat = kindIs(Sad::LLVM::DynKind::Float, "mset.dyn.is.float");
+                    llvm::Value *isStr = kindIs(Sad::LLVM::DynKind::Str, "mset.dyn.is.str");
+
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) حارسُ التمثيل: فضاءُ أوسامِ قيمةِ الخريطةِ أربعةٌ لا غير
+                    //      (نصّ/صحيح/عشريّ/منطقيّ). فقيمةٌ وسمُها عدمٌ أو مصفوفةٌ أو
+                    //      خريطةٌ أو كائنٌ **لا تمثيلَ لها** هنا؛ وكان الفرعُ يسقطها
+                    //      إلى وسمِ النصِّ بحمولةٍ مؤشّرًا خامًا، فأوّلُ قارئٍ يعاملها
+                    //      `char*` ⇒ قمامةٌ أو انهيارٌ صامت. نفشل صاخبًا بدلًا من ذلك.
+                    // (EN) Representation guard: the map value tag space has exactly
+                    //      four members (string/int/float/bool). A value tagged Null,
+                    //      Array, Map or Obj has **no representation** here; the old
+                    //      branch dropped it into the string tag with a raw pointer
+                    //      payload, so the first reader treated it as a `char*` ⇒
+                    //      garbage or a silent crash. Fail loudly instead.
+                    // ════════════════════════════════════════════════════════════
+                    llvm::Value *isRepresentable = cg_.builder_->CreateOr(
+                        cg_.builder_->CreateOr(isInt, isBool, "mset.dyn.int.bool"),
+                        cg_.builder_->CreateOr(isFloat, isStr, "mset.dyn.float.str"),
+                        "mset.dyn.representable");
+
+                    llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                    llvm::BasicBlock *tagFailBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "mset.dyn.tag.fail", curFunc);
+                    llvm::BasicBlock *floatBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "mset.dyn.float", curFunc);
+                    llvm::BasicBlock *plainBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "mset.dyn.plain", curFunc);
+                    llvm::BasicBlock *joinBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "mset.dyn.join", curFunc);
+
+                    llvm::BasicBlock *representableBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "mset.dyn.ok", curFunc);
+                    cg_.builder_->CreateCondBr(isRepresentable, representableBB, tagFailBB);
+
+                    cg_.builder_->SetInsertPoint(tagFailBB);
+                    emitDynTypeMismatchFailure("mset.dyn");
+
+                    // (AR) العشريُّ وحدَه يحتاج نصًّا — وهو تخصيصٌ (‏malloc)، فلا يجوز
+                    //      إعدادُه إلّا في فرعِه. كان يُبعَث بلا شرطٍ ثمّ يُهمَل غالبًا:
+                    //      تسريبٌ عند كلِّ إسنادٍ من قيمةٍ ديناميكيّة، وخرقٌ مباشرٌ
+                    //      لطرازِ الوضعِ الحرّ (بوّابةُ malloc لكلِّ دالّة).
+                    // (EN) Only Float needs a string — and that allocates (malloc), so
+                    //      it must be emitted inside its own branch. It used to be
+                    //      emitted unconditionally and then usually discarded: a leak on
+                    //      every assignment from a dynamic value, and a direct breach of
+                    //      the freestanding coding model (the per-function malloc gate).
+                    cg_.builder_->SetInsertPoint(representableBB);
+                    cg_.builder_->CreateCondBr(isFloat, floatBB, plainBB);
+
+                    cg_.builder_->SetInsertPoint(floatBB);
+                    llvm::Value *asStr = Sad::LLVM::dynToString(cg_, value);
+                    llvm::Value *asStrI64 =
+                        cg_.builder_->CreatePtrToInt(asStr, i64Ty, "mset.dyn.str.i64");
+                    llvm::BasicBlock *floatExitBB = cg_.builder_->GetInsertBlock();
+                    cg_.builder_->CreateBr(joinBB);
+
+                    cg_.builder_->SetInsertPoint(plainBB);
+                    llvm::BasicBlock *plainExitBB = cg_.builder_->GetInsertBlock();
+                    cg_.builder_->CreateBr(joinBB);
+
+                    cg_.builder_->SetInsertPoint(joinBB);
+                    llvm::PHINode *joined = cg_.builder_->CreatePHI(i64Ty, 2, "mset.dyn.val");
+                    joined->addIncoming(asStrI64, floatExitBB);
+                    joined->addIncoming(payload, plainExitBB);
+                    valAsI64 = joined;
+
+                    // (AR) الوسمُ يُشتقّ من وسمِ القيمة نفسِها: صحيح⇒١ · منطقيّ⇒٣ ·
+                    //      نصّ وعشريّ⇒٠ (العشريُّ صار نصًّا أعلاه، مطابقةً لمسارِ
+                    //      العشريِّ الثابتِ في الأمام).
+                    // (EN) The tag is derived from the value's own runtime kind:
+                    //      Int⇒1 · Bool⇒3 · Str and Float⇒0 (Float was stringified
+                    //      above, mirroring the frontend's static float path).
+                    llvm::Value *tagBool = cg_.builder_->CreateSelect(
+                        isBool, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kMapValueTagBoolean),
+                        llvm::ConstantInt::get(i64Ty, Sad::Compiler::kMapValueTagString),
+                        "mset.dyn.tag.bool");
+                    dynDerivedTag = cg_.builder_->CreateSelect(
+                        isInt, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kMapValueTagInteger),
+                        tagBool, "mset.dyn.tag");
+                }
+                else if (value->getType()->isPointerTy())
                     valAsI64 = cg_.builder_->CreatePtrToInt(value, i64Ty, "mset.val.i64");
                 else if (value->getType() == i64Ty)
                     valAsI64 = value;
@@ -204,7 +422,9 @@ namespace Sad
                 llvm::Value *typeSlotGep = cg_.builder_->CreateGEP(i64Ty, typesArr,
                                                                {slotIdx}, "mset.type.gep");
                 llvm::Value *typeAsI64;
-                if (typeTag->getType() == i64Ty)
+                if (dynDerivedTag)
+                    typeAsI64 = dynDerivedTag;
+                else if (typeTag->getType() == i64Ty)
                     typeAsI64 = typeTag;
                 else
                     typeAsI64 = cg_.builder_->CreateZExtOrTrunc(typeTag, i64Ty, "mset.type.ext");
@@ -234,10 +454,8 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr — المتغيرات تُخزَن كـ i64
-                llvm::Value *mapPtr = args[0];
-                if (mapPtr->getType() == i64Ty)
-                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "mget.map.ptr");
-                llvm::Value *key = args[1];
+                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mget.map.ptr");
+                llvm::Value *key = normalizeMapKey(args[1], "mget.key.ptr");
 
                 // (AR) تحميل capacity, keys, values, types من البنية
                 llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
@@ -345,12 +563,9 @@ namespace Sad
                     return nullptr;
 
                 auto *i64Ty = cg_.getInt64Type();
-                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr
-                llvm::Value *mapArg = args[0];
-                if (mapArg->getType() == i64Ty)
-                    mapArg = cg_.builder_->CreateIntToPtr(mapArg, ptrTy, "msize.map.ptr");
+                llvm::Value *mapArg = normalizeMapPtr(args[0], "msize.map.ptr");
                 llvm::Value *countGep = cg_.builder_->CreateGEP(i64Ty, mapArg,
                                                             {llvm::ConstantInt::get(i64Ty, 0)}, "msize.count.gep");
                 llvm::Value *result = cg_.builder_->CreateLoad(i64Ty, countGep, "msize.count");
@@ -371,10 +586,8 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr
-                llvm::Value *mapPtr = args[0];
-                if (mapPtr->getType() == i64Ty)
-                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "mhas.map.ptr");
-                llvm::Value *key = args[1];
+                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mhas.map.ptr");
+                llvm::Value *key = normalizeMapKey(args[1], "mhas.key.ptr");
 
                 llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                           {llvm::ConstantInt::get(i64Ty, 1)}, "mhas.cap.gep");
@@ -412,10 +625,8 @@ namespace Sad
                 auto *i64Ty = cg_.getInt64Type();
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
-                llvm::Value *mapPtr = args[0];
-                if (mapPtr->getType() == i64Ty)
-                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "mdel.map.ptr");
-                llvm::Value *key = args[1];
+                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mdel.map.ptr");
+                llvm::Value *key = normalizeMapKey(args[1], "mdel.key.ptr");
 
                 // (AR) تحميل capacity و keys array
                 llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
@@ -473,9 +684,7 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr
-                llvm::Value *mapPtr = args[0];
-                if (mapPtr->getType() == i64Ty)
-                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "mkvs.map.ptr");
+                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mkvs.map.ptr");
                 bool isKeys = (funcName == "__sad_map_keys");
 
                 // (AR) تحميل count, capacity, keys, values

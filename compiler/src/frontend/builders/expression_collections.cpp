@@ -5,6 +5,7 @@
 // ============================================================================
 #include "sir_builder.h"
 #include "builders/expression_builder.h"
+#include "sir_constants.h" // (AR) أوسامُ قيمةِ الخريطة — عقدٌ مشترَكٌ مع الخلفيّة
 
 #include <iostream>
 
@@ -427,11 +428,13 @@ namespace Sad
 
                     // (AR) تحويل القيمة إلى i64 حسب نوعها
                     // (EN) Convert value to i64 based on its type
-                    int typeTag = 0; // SVAL_STRING=0, SVAL_INT=1, SVAL_FLOAT=2, SVAL_BOOL=3
+                    // (AR) وسمُ قيمةِ الخريطة — عقدٌ مشترَكٌ مع الخلفيّة، مصدرُه sir_constants.h
+                    // (EN) Map value tag — a contract shared with the backend (sir_constants.h)
+                    int64_t typeTag = Sad::Compiler::kMapValueTagString;
                     if (valResult.type == SadTypeKind::Integer)
                     {
                         setInst.operands.push_back(valOp);
-                        typeTag = 1;
+                        typeTag = Sad::Compiler::kMapValueTagInteger;
                     }
                     else if (valResult.type == SadTypeKind::Float)
                     {
@@ -445,19 +448,19 @@ namespace Sad
                         if (b_.currentBlock_)
                             b_.currentBlock_->addInstruction(toStrInst);
                         setInst.operands.push_back(SIROperand::Register(strReg, SadTypeKind::String));
-                        typeTag = 0;
+                        typeTag = Sad::Compiler::kMapValueTagString;
                     }
                     else if (valResult.type == SadTypeKind::Boolean)
                     {
                         setInst.operands.push_back(valOp);
-                        typeTag = 3;
+                        typeTag = Sad::Compiler::kMapValueTagBoolean;
                     }
                     else
                     {
                         // (AR) نص أو أي نوع آخر — يُمرّر كمؤشر (ptr→i64)
                         // (EN) String or other — passed as pointer (ptr→i64)
                         setInst.operands.push_back(valOp);
-                        typeTag = 0;
+                        typeTag = Sad::Compiler::kMapValueTagString;
                     }
                     setInst.operands.push_back(SIROperand::ConstantI64(typeTag));
                     setInst.comment = "map set typed [" + std::to_string(i) + "]";

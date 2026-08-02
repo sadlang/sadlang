@@ -1,6 +1,6 @@
 # @description UDP — مرسل يُرسل 5 رسائل لنفس المستقبل
 # @expected صحيح\nصحيح
-# @timeout 15000
+# @timeout 120
 # @skip_compiler
 
 استورد مقابس

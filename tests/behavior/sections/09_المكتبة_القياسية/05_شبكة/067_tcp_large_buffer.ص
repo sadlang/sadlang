@@ -1,6 +1,6 @@
 # @description TCP — معالجة بيانات كبيرة نسبياً (1KB)
 # @expected صحيح\nصحيح\nصحيح
-# @timeout 15000
+# @timeout 120
 # @skip_compiler
 
 استورد مقابس

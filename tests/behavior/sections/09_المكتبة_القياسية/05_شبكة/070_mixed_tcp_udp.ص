@@ -1,6 +1,6 @@
 # @description TCP و UDP في نفس العملية
 # @expected صحيح\nصحيح
-# @timeout 15000
+# @timeout 120
 # @skip_compiler
 
 استورد مقابس

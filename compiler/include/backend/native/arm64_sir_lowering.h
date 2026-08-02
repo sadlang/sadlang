@@ -1517,6 +1517,7 @@ namespace sad
                                  inst.opcode == sir::SIROpcode::STRING_LEN ||
                                  inst.opcode == sir::SIROpcode::BUILTIN_STRING_LENGTH ||
                                  inst.opcode == sir::SIROpcode::STRING_CMP ||
+                                 inst.opcode == sir::SIROpcode::STRING_ORD_CMP ||
                                  inst.opcode == sir::SIROpcode::STRING_TO_I64 ||
                                  inst.opcode == sir::SIROpcode::STRING_TO_F64)
                             hasMemBlock = true; // (AR) svc/حلقةُ بايتاتٍ تدهس الحوض ⇒ انسكابٌ حولَها
@@ -2292,6 +2293,67 @@ namespace sad
                     if (!patchBranchFwd(neq, 23, 5) || !movz(11, 0))
                         return false;
                     if (!patchBranchFwd(doneW, 25, 0))
+                        return false;
+                    if (!movReg(a64reg::kScratch0, 11)) // (AR) احفظِ النتيجةَ خارجَ الحوض قبل إعادةِ التحميل
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, a64reg::kScratch0);
+                }
+                case OP::STRING_ORD_CMP:
+                {
+                    // (AR) [ز.١٣] الترتيبُ المعجميُّ لنصّين ⇒ ‎-1/0/+1‎ — مرآةُ x86 حرفًا بحرف.
+                    //      المقارنةُ ببايتاتٍ **غيرِ موقَّعة** (ldrb يوسّع بالأصفار، وblo «أدنى»
+                    //      لا-موقَّعة): لو قُورنت موقَّعةً لصار كلُّ حرفٍ عربيّ أصغرَ من ASCII.
+                    //      وUTF-8 حافظٌ للترتيب ⇒ ترتيبُ البايتاتِ هو ترتيبُ نقاطِ الترميز.
+                    //      تدهس الحوضَ (x9..x12) ⇒ نسكٌ حولَها.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!spillReg(kv.second))
+                                return false;
+                    if (!materializeString(inst.operands[0], 9, true) ||
+                        !materializeString(inst.operands[1], 10, true)) // x9، x10 مؤشّران
+                        return false;
+                    const size_t head = code_.size();
+                    if (!ldrb(11, 9) || !ldrb(12, 10) || !cmp(11, 12))
+                        return false;
+                    size_t neq;
+                    if (!emitBranchFwd(a64::mnem::kBne, "rel19", neq)) // بايتان مختلفان ⇒ الإشارةُ من فرقِهما
+                        return false;
+                    if (!cmp(11, a64reg::kXzr)) // متساويان وكلاهما NUL ⇒ انتهيا معًا ⇒ ٠
+                        return false;
+                    size_t eq;
+                    if (!emitBranchFwd(a64::mnem::kBeq, "rel19", eq))
+                        return false;
+                    if (!addImm(9, 9, 1) || !addImm(10, 10, 1) || !emitBBack(head))
+                        return false;
+                    if (!patchBranchFwd(eq, 23, 5) || !movz(11, 0))
+                        return false;
+                    size_t doneW;
+                    if (!emitBranchFwd(a64::mnem::kB, "rel26", doneW))
+                        return false;
+                    if (!patchBranchFwd(neq, 23, 5) || !cmp(11, 12))
+                        return false;
+                    size_t less;
+                    if (!emitBranchFwd(a64::mnem::kBlo, "rel19", less))
+                        return false;
+                    if (!movz(11, 1))
+                        return false;
+                    size_t doneGt;
+                    if (!emitBranchFwd(a64::mnem::kB, "rel26", doneGt))
+                        return false;
+                    // (AR) ‎-1‎: movz لا يقبل سالبًا (١٦ بتًّا لا-موقَّعة) ⇒ صفرٌ ثمّ نقصُ واحد.
+                    if (!patchBranchFwd(less, 23, 5) || !movz(11, 0) || !subImm(11, 11, 1))
+                        return false;
+                    if (!patchBranchFwd(doneGt, 25, 0) || !patchBranchFwd(doneW, 25, 0))
                         return false;
                     if (!movReg(a64reg::kScratch0, 11)) // (AR) احفظِ النتيجةَ خارجَ الحوض قبل إعادةِ التحميل
                         return false;
