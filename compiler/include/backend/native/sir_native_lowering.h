@@ -232,8 +232,12 @@ namespace sad
                         auto ft = c->fields_.find(fname);
                         const types::SadTypeKind t =
                             ft != c->fields_.end() ? ft->second : types::SadTypeKind::Integer;
-                        if (t == types::SadTypeKind::Boolean || t == types::SadTypeKind::Any)
-                            cl.allEightByte = false; // (AR) i1/SadDyn ≠ ٨ بايت ⇒ تخطيطٌ غيرُ منتظم
+                        // (AR) الدفعة ٨: حقلُ bool في صنفٍ غير-CRepr = ٠/١ في خانةِ ٨-بت (منتظمٌ
+                        //      تمامًا؛ BOOL_TO_I64 هويّة) ⇒ مسموح. يُرفَض فقط في CRepr (C يُلزم بايتًا
+                        //      واحدًا ⇒ يكسر ABI) أو حقلُ Any (SadDyn ١٦-بت ⇒ تخطيطٌ غيرُ منتظم).
+                        if (t == types::SadTypeKind::Any ||
+                            (t == types::SadTypeKind::Boolean && c->isCRepr))
+                            cl.allEightByte = false;
                     }
                     cl.numFields = idx;
                     classLayout_[c->name] = cl;
@@ -1322,8 +1326,9 @@ namespace sad
             bool emitJmpBack(size_t target) { return emitJccBack(x86::mnem::kJmp, target); }
 
             // (AR) ثوابتُ نمطِ بتّاتٍ + رموزٌ للمُنسِّق العشريّ (لا حرفيّاتٍ خام).
-            static constexpr unsigned long long kF64SignMask = 0x8000000000000000ULL; // بتّ الإشارة
-            static constexpr unsigned long long kF64AbsMask = 0x7FFFFFFFFFFFFFFFULL;  // مسحُ الإشارة ⇒ |x|
+            static constexpr unsigned long long kF64SignMask = 0x8000000000000000ULL; // بتّ الإشارة (= INT64_MIN نمطَ بتّات)
+            static constexpr unsigned long long kF64AbsMask = 0x7FFFFFFFFFFFFFFFULL;  // مسحُ الإشارة ⇒ |x| (= INT64_MAX نمطَ بتّات)
+            static constexpr unsigned long long kF64PosInfBits = 0x7FF0000000000000ULL; // بتّاتُ +لانهاية (الأُسّ كلُّه آحاد، البواقي صفر)
             static constexpr long long kFloatPrecisionScale = 1000000; // ١٠^٦ (setprecision(6))
             static constexpr int kFloatDecimals = 6;                   // خاناتٌ عشريّة (يطابق المفسّر)
 
@@ -1543,10 +1548,12 @@ namespace sad
                     // (AR) ثابتٌ عشريّ ⇒ حمّل نمطَ بتّاته i64 (العشريّ يعيش كبتّاتٍ في GPR).
                     if (op.dataType == types::SadTypeKind::Float)
                         return loadFloatConst(dst, op.floatValue);
-                    if (op.dataType != types::SadTypeKind::Integer)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                    diag::kConstType + std::to_string(static_cast<int>(op.dataType)));
-                    return movImm(dst, op.intValue);
+                    // (AR) الدفعة ٨: ثابتٌ منطقيّ ⇒ ٠/١ (يفتح الحرفيّاتِ المنطقيّة: MOVE/حقلُ bool).
+                    long long ci;
+                    if (common::isConstInt(op, ci))
+                        return movImm(dst, ci);
+                    return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                diag::kConstType + std::to_string(static_cast<int>(op.dataType)));
                 }
                 if (op.type == sir::SIROperandType::REGISTER)
                 {
@@ -1931,6 +1938,66 @@ namespace sad
                         return false;
                     return loadInto(dst, inst.operands[0]) && movqToXmm(kXmm0, dst) &&
                            cvttsd2si(dst, kXmm0);
+                }
+                case OP::F64_TO_I64_SAT:
+                {
+                    // (AR) عشريّ ⇒ صحيح **مُشبَّع** (llvm.fptosi.sat): NaN→٠، +طفح→INT64_MAX،
+                    //      −طفح→INT64_MIN، وإلّا اقتطاعٌ نحو الصفر. المعاملُ الصحيحُ (تمريرٌ) = هويّة.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    // (AR) معاملٌ صحيحٌ/منطقيّ ⇒ لا تحويلَ (هويّة).
+                    if (inst.operands[0].dataType == types::SadTypeKind::Integer ||
+                        inst.operands[0].dataType == types::SadTypeKind::Boolean)
+                        return loadInto(dst, inst.operands[0]);
+                    // (AR) RAX = بتّاتُ العشريّ (خارجَ الحوض، تبقى للإشارة)؛ xmm0 = العشريّ؛
+                    //      dst = cvttsd2si (يُرجِع INT64_MIN قيمةً «غيرَ صالحة» لأيِّ NaN/طفحٍ). RDI = خدشُ الثوابت.
+                    if (!loadInto(x86::RAX, inst.operands[0]) || !movqToXmm(kXmm0, x86::RAX) ||
+                        !cvttsd2si(dst, kXmm0))
+                        return false;
+                    // (AR) هل dst = القيمةُ الحارسة INT64_MIN؟ إن لا ⇒ اقتطاعٌ صالحٌ (شائعٌ) ⇒ انتهِ.
+                    if (!movImm64(x86::RDI, static_cast<long long>(kF64SignMask)) ||
+                        !cmpRegReg(dst, x86::RDI))
+                        return false;
+                    size_t done1;
+                    if (!emitJccFwd(x86::mnem::kJne, done1))
+                        return false;
+                    // (AR) المسارُ الحارس: dst الآن معلومٌ (INT64_MIN) ⇒ يُعادُ استعمالُه خدشًا لـ|البتّات|
+                    //      لكشفِ NaN؛ RAX يحتفظ بالبتّاتِ الأصليّةِ للإشارة.
+                    if (!movReg(dst, x86::RAX) ||
+                        !movImm64(x86::RDI, static_cast<long long>(kF64AbsMask)) || !andReg(dst, x86::RDI) ||
+                        !movImm64(x86::RDI, static_cast<long long>(kF64PosInfBits)) || !cmpRegReg(dst, x86::RDI))
+                        return false;
+                    size_t isNaN;
+                    if (!emitJccFwd(x86::mnem::kJg, isNaN)) // (AR) |البتّات| > +لانهاية ⇒ NaN (بواقٍ ≠ ٠)
+                        return false;
+                    // (AR) طفحٌ لا NaN: إشارةُ البتّاتِ الأصليّة (RAX) — سالبٌ ⇒ −طفح ⇒ INT64_MIN.
+                    if (!cmpImm8(x86::RAX, 0))
+                        return false;
+                    size_t negOvf;
+                    if (!emitJccFwd(x86::mnem::kJl, negOvf))
+                        return false;
+                    // (AR) +طفح ⇒ dst = INT64_MAX.
+                    if (!movImm64(dst, static_cast<long long>(kF64AbsMask)))
+                        return false;
+                    size_t done2;
+                    if (!emitJccFwd(x86::mnem::kJmp, done2))
+                        return false;
+                    patchFwd(negOvf); // (AR) −طفح ⇒ dst = INT64_MIN
+                    if (!movImm64(dst, static_cast<long long>(kF64SignMask)))
+                        return false;
+                    size_t done3;
+                    if (!emitJccFwd(x86::mnem::kJmp, done3))
+                        return false;
+                    patchFwd(isNaN); // (AR) NaN ⇒ dst = ٠
+                    if (!movImm(dst, 0))
+                        return false;
+                    patchFwd(done1);
+                    patchFwd(done2);
+                    patchFwd(done3);
+                    return true;
                 }
                 case OP::PHI:
                 {
@@ -3248,8 +3315,18 @@ namespace sad
                                 return false;
                     }
                     for (size_t i = 0; i < argc; ++i)
-                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                    {
+                        // (AR) الدفعة ٨: وسيطٌ نصّيّ ⇒ جسِّد مؤشّرَه (حرفيّةُ rodata أو مؤشّرُ كومةٍ من
+                        //      الانسكاب)؛ loadArgInto لا يعالج حرفيّةَ النصّ. يفتح تمريرَ النصّ للدوالّ
+                        //      (منها بانِيَ التعداد ذي الحمولة النصّيّة). غيرُه ⇒ i64 مباشرةً.
+                        if (inst.operands[i + 1].dataType == types::SadTypeKind::String)
+                        {
+                            if (!materializeString(inst.operands[i + 1], abiArg_[i], /*fromSpill=*/true))
+                                return false;
+                        }
+                        else if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
                             return false;
+                    }
                     if (!emitCall(inst.operands[0].name))
                         return false;
                     // (AR) أعِد تحميلَ المؤقّتات الحيّة بعد النداء فقط (الميتُ/الوسيطُ الفاني لا يُعاد).
@@ -4061,12 +4138,13 @@ namespace sad
                     {
                         const auto &po = inst.operands[static_cast<size_t>(2 + i)];
                         long long k;
-                        // (AR) حمولةٌ عشريّةٌ/نصّيّةٌ محدَّدة مؤجَّلة: GET_PAYLOAD يُرجِع i64 في GPR بلا سياق
-                        //      xmm/طول ⇒ استهلاكُها عشريًّا/نصًّا يتباين. الحمولةُ العدديّة (Any/Integer/Bool/عدم) آمنة.
-                        if (po.dataType == types::SadTypeKind::Float ||
-                            po.dataType == types::SadTypeKind::String)
-                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kEnumPayloadKind);
-                        if (po.dataType != types::SadTypeKind::Any && dynTagForType(po.dataType, k))
+                        // (AR) الدفعة ٨: حمولةٌ نصّيّة ⇒ kind=Str (مؤشّرُ char* بعرضِ i64)؛ عشريّة ⇒
+                        //      kind=Float (نمطُ البتّاتِ بعرضِ i64). كلاهما يُخزَّن i64 في خانةِ الحمولة
+                        //      (نصّ=مؤشّر، عشريّ=بتّات)؛ GET_PAYLOAD يعيدها i64 والنوعُ في SIR يقودُ
+                        //      الاستهلاكَ (movq لـxmm للعشريّ، تعاملُ مؤشّرٍ للنصّ).
+                        if (po.dataType == types::SadTypeKind::String)
+                            kinds[static_cast<size_t>(i)] = kDynKindStr;
+                        else if (po.dataType != types::SadTypeKind::Any && dynTagForType(po.dataType, k))
                             kinds[static_cast<size_t>(i)] = k;
                         else if (po.dataType != types::SadTypeKind::Any &&
                                  po.dataType != types::SadTypeKind::Integer)
@@ -4089,8 +4167,17 @@ namespace sad
                         if (!movImm(x86::RDI, kinds[static_cast<size_t>(i)]) ||
                             !storeMemBase(x86::RAX, slotOff + kSadDynKindOff, x86::RDI))
                             return false;
-                        if (!loadArgInto(x86::RDI, inst.operands[static_cast<size_t>(2 + i)]) ||
-                            !storeMemBase(x86::RAX, slotOff + kSadDynPayloadOff, x86::RDI))
+                        const auto &po = inst.operands[static_cast<size_t>(2 + i)];
+                        // (AR) نصّ ⇒ جسِّد المؤشّرَ (حرفيّةُ rodata أو مؤشّرُ كومةٍ من الانسكاب)؛
+                        //      غيرُه (عشريّ/صحيح/منطقيّ) ⇒ i64 مباشرةً (loadArgInto يقرأ من الانسكاب).
+                        if (po.dataType == types::SadTypeKind::String)
+                        {
+                            if (!materializeString(po, x86::RDI, /*fromSpill=*/true))
+                                return false;
+                        }
+                        else if (!loadArgInto(x86::RDI, po))
+                            return false;
+                        if (!storeMemBase(x86::RAX, slotOff + kSadDynPayloadOff, x86::RDI))
                             return false;
                     }
                     for (const auto &kv : regOf_)

@@ -101,6 +101,14 @@ namespace
         "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xB6\xD8\xB9\xD9\x81\x28\x32\x29\x0A"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 
+    // (AR) F64_TO_I64_SAT (الدفعة ٨): «وافق(42.9، 63)» — المعاملُ العشريّ 42.9 يُطبَّع عبر
+    //      F64_TO_I64_SAT (اقتطاعٌ مُشبَّع ⇒ 42) ثمّ AND بتّيّ مع 63 ⇒ 42. x86 يعالج الإشباعَ يدويًّا
+    //      (cvttsd2si + تمييزُ NaN/طفح من البتّات)؛ ARM64 عبر fcvtds المُشبِّعة أصلًا.
+    const std::string kSrcSatConv =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD9\x88\xD8\xA7\xD9\x81\xD9\x82\x28\x34\x32\x2E\x39\xD8\x8C\x20\x36\x33\x29\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
     // (AR) حلقةُ «بينما» بعدّادٍ متغيّرٍ في الذاكرة: عداد=0؛ بينما عداد<42 { عداد=عداد+1 }؛
     //      ارجع عداد ⇒ يخرج ٤٢. يُثبت: ALLOC/LOAD/STORE + إطارُ دالّة + قفزٌ خلفيّ (لولب)
     //      + قراءةُ متغيّرِ الذاكرة كقيمة (تحميلٌ ضمنيّ). أوّلُ برنامجِ ص ذي حالةٍ متغيّرة.
@@ -1184,6 +1192,57 @@ static const char *kSrcVirtualLiveTemp =
     "    ارجع نطق(قط()، 1)\n"
     "نهاية\n";
 
+// (AR) الدفعة ٨ (حقلُ bool): صنفٌ بحقلٍ منطقيّ. قبلَ الدفعة كان allEightByte يُطفأ لأيّ حقلِ
+//      bool ⇒ يُرفَض الكائنُ كلُّه (kObjectFieldLayout). الآن bool في صنفٍ غير-CRepr = ٠/١ في
+//      خانةِ ٨-بت (منتظم). «علم(صحيح).احصل()» ⇒ صحيح ⇒ إذا ⇒ ٤٢. برهانٌ حيّ لدورةِ حقلٍ منطقيّ.
+static const char *kSrcBoolField =
+    "صنف علم\n"
+    "    متغير عام نشط = خطأ\n"
+    "    باني(ق) هذا.نشط = ق نهاية\n"
+    "    دالة احصل() ارجع هذا.نشط نهاية\n"
+    "نهاية\n"
+    "دالة رئيسية()\n"
+    "    متغير ع = علم(صحيح)\n"
+    "    إذا ع.احصل()\n"
+    "        ارجع 42\n"
+    "    نهاية\n"
+    "    ارجع 0\n"
+    "نهاية\n";
+
+// (AR) الدفعة ٨ (حمولةُ تعدادٍ نصّيّة): متغيّرُ تعدادٍ يحمل نصًّا («abcdef») ⇒ ENUM_CONSTRUCT يخزّن
+//      مؤشّرَ char* بوسمِ Str في خانةِ SadDyn؛ المطابقةُ تستخرجه (GET_PAYLOAD يعيد المؤشّر) ثمّ
+//      «طول» تعدّ نقاطَ رمزِه (٦) × ٧ ⇒ ٤٢. يمارس أيضًا تمريرَ حرفيّةِ النصّ وسيطًا للبانِي
+//      (CALL يجسّد المؤشّر). برهانٌ حيٌّ لحمولةِ التعداد النصّيّة عبر الخلفيّة الأصليّة.
+static const char *kSrcEnumString =
+    "تعداد رسالة\n"
+    "    نصية(محتوى)\n"
+    "    فارغة(رمز)\n"
+    "نهاية\n"
+    "دالة رئيسية()\n"
+    "    متغير ر = رسالة.نصية(\"abcdef\")\n"
+    "    طابق ر\n"
+    "        عندما نصية(ن): ارجع طول(ن) * 7\n"
+    "        عندما فارغة(ك): ارجع ك\n"
+    "    نهاية\n"
+    "نهاية\n";
+
+// (AR) الدفعة ٨ (حمولةُ تعدادٍ عشريّة): متغيّرُ تعدادٍ يحمل عشريًّا (42.5) ⇒ ENUM_CONSTRUCT
+//      يخزّن نمطَ بتّاتِ العشريّ i64 بوسمِ Float في خانةِ SadDyn؛ المطابقةُ تستخرجه (GET_PAYLOAD
+//      يعيد البتّات i64) ثمّ «وافق» تحوّله عشريًّا→صحيحًا (F64_TO_I64_SAT) وتقنّعه (& 63) ⇒ ٤٢.
+//      برهانٌ حيٌّ أنّ حمولةَ التعداد العشريّة تدور عبرَ الخلفيّة الأصليّة (كانت مرفوضةً kEnumPayloadKind).
+static const char *kSrcEnumFloat =
+    "تعداد قياس\n"
+    "    مسافة(بعد)\n"
+    "    زاوية(درجة)\n"
+    "نهاية\n"
+    "دالة رئيسية()\n"
+    "    متغير ق = قياس.مسافة(42.5)\n"
+    "    طابق ق\n"
+    "        عندما مسافة(ع): ارجع وافق(ع، 63)\n"
+    "        عندما زاوية(د): ارجع د\n"
+    "    نهاية\n"
+    "نهاية\n";
+
 TEST(NativeSirBridge, LowersClassMethod)
 {
     auto module = buildSir(kSrcClass);
@@ -2109,6 +2168,164 @@ TEST(Arm64SirBridge, LowersCallIndirect)
     ASSERT_TRUE(contains(bin, {0x00, 0x02, 0x3F, 0xD6})); // blr x16 (نداءٌ غيرُ مباشر)
 
     std::FILE *fp = std::fopen("sad_arm64_callind42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) F64_TO_I64_SAT (الدفعة ٨) — x86-64: اقتطاعٌ مُشبَّعٌ يدويّ (cvttsd2si + تمييزُ الحارس).
+TEST(NativeSirBridge, LowersSaturatingConv)
+{
+    auto module = buildSir(kSrcSatConv);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 sat-conv lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0xF2, 0x48, 0x0F, 0x2C})); // cvttsd2si r64,xmm
+
+    std::FILE *fp = std::fopen("sad_sir_satconv42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) F64_TO_I64_SAT (الدفعة ٨) — AArch64: fcvtzs المُشبِّعةُ أصلًا (NaN→٠، طفح→الحدّ).
+TEST(Arm64SirBridge, LowersSaturatingConv)
+{
+    auto module = buildSir(kSrcSatConv);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 sat-conv lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+
+    std::FILE *fp = std::fopen("sad_arm64_satconv42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) حمولةُ تعدادٍ عشريّة (الدفعة ٨) — x86-64: تعدادٌ يحمل 42.5 ⇒ استخراجٌ + وافق ⇒ ٤٢.
+TEST(NativeSirBridge, LowersEnumFloatPayload)
+{
+    auto module = buildSir(kSrcEnumFloat);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 enum-float lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05}));           // syscall (mmap لبناء التعداد)
+    ASSERT_TRUE(contains(bin, {0xF2, 0x48, 0x0F, 0x2C})); // cvttsd2si (تحويلُ الحمولة العشريّة)
+    std::FILE *fp = std::fopen("sad_sir_enumfloat42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) حمولةُ تعدادٍ عشريّة (الدفعة ٨) — AArch64: مرآةٌ (fcvtzs) ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersEnumFloatPayload)
+{
+    auto module = buildSir(kSrcEnumFloat);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 enum-float lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    std::FILE *fp = std::fopen("sad_arm64_enumfloat42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) حمولةُ تعدادٍ نصّيّة (الدفعة ٨) — x86-64: تعدادٌ يحمل «abcdef» ⇒ استخراجٌ + طول×٧ ⇒ ٤٢.
+TEST(NativeSirBridge, LowersEnumStringPayload)
+{
+    auto module = buildSir(kSrcEnumString);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 enum-string lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05}));          // syscall (mmap لبناء التعداد)
+    std::FILE *fp = std::fopen("sad_sir_enumstr42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) حمولةُ تعدادٍ نصّيّة (الدفعة ٨) — AArch64: مرآةٌ ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersEnumStringPayload)
+{
+    auto module = buildSir(kSrcEnumString);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 enum-string lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    std::FILE *fp = std::fopen("sad_arm64_enumstr42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) حقلُ bool (الدفعة ٨) — x86-64: صنفٌ بحقلٍ منطقيّ يدور صحيحًا ⇒ ٤٢.
+TEST(NativeSirBridge, LowersBoolField)
+{
+    auto module = buildSir(kSrcBoolField);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 bool-field lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    std::FILE *fp = std::fopen("sad_sir_boolfield42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) حقلُ bool (الدفعة ٨) — AArch64: مرآةٌ ⇒ ٤٢.
+TEST(Arm64SirBridge, LowersBoolField)
+{
+    auto module = buildSir(kSrcBoolField);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 bool-field lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    std::FILE *fp = std::fopen("sad_arm64_boolfield42", "wb");
     ASSERT_TRUE(fp != nullptr);
     size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
     std::fclose(fp);

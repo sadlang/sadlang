@@ -59,6 +59,14 @@ namespace sad
                     out = op.intValue;
                     return true;
                 }
+                // (AR) الدفعة ٨: ثابتٌ منطقيّ ⇒ صحيحٌ ٠/١ (bool يعيش قيمةً ٠/١؛ boolValue لا intValue
+                //      لأنّهما في اتّحادٍ). يوحّد معالجةَ الحرفيّاتِ المنطقيّة عبر المعماريّتين.
+                if (op.type == sir::SIROperandType::CONSTANT &&
+                    op.dataType == types::SadTypeKind::Boolean)
+                {
+                    out = op.boolValue ? 1 : 0;
+                    return true;
+                }
                 return false;
             }
 

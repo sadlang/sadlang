@@ -108,7 +108,10 @@ namespace sad
                         auto ft = c->fields_.find(fname);
                         const types::SadTypeKind t =
                             ft != c->fields_.end() ? ft->second : types::SadTypeKind::Integer;
-                        if (t == types::SadTypeKind::Boolean || t == types::SadTypeKind::Any)
+                        // (AR) الدفعة ٨ (مرآةُ x86): حقلُ bool في صنفٍ غير-CRepr = ٠/١ في خانةِ ٨-بت
+                        //      ⇒ مسموح؛ يُرفَض في CRepr (ABI بايت) أو حقلُ Any (SadDyn ١٦-بت).
+                        if (t == types::SadTypeKind::Any ||
+                            (t == types::SadTypeKind::Boolean && c->isCRepr))
                             cl.allEightByte = false;
                     }
                     cl.numFields = idx;
@@ -1175,6 +1178,12 @@ namespace sad
 
             bool allocReg(const std::string &vreg, int &out)
             {
+                // (AR) توصيةُ أميليا (الدفعة ٨، تماثلٌ مع x86): اسمٌ يطابق خانةَ إطارٍ لا يجوز أن
+                //      يُخصَّص سجلَّ حوض — يقرؤه isMemVar/materialize من الذاكرة بينما يخصّصه هذا
+                //      سجلًّا ⇒ افتراقٌ صامتٌ لنصفَي الاسم (x86 يفشل صراحةً، وكان ARM64 يمرّره صامتًا).
+                //      استثناءُ القيمة العابرة للكتل (PHI/مقارنةٌ حيّة): تُعرَّف سجلًّا ثمّ تُنسَك في خانتها.
+                if (memSlot_.find(vreg) != memSlot_.end() && !crossBlockSpill_.count(vreg))
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kVregAliasesSlot + diag::kVregSigil + vreg);
                 auto it = regOf_.find(vreg);
                 if (it != regOf_.end())
                 {
@@ -1728,6 +1737,22 @@ namespace sad
                 case OP::I64_TO_F64:
                 case OP::F64_TO_I64:
                     return lowerFloatConv(inst);
+                case OP::F64_TO_I64_SAT:
+                {
+                    // (AR) عشريّ ⇒ صحيح **مُشبَّع** (llvm.fptosi.sat): على ARMv8 تعليمةُ fcvtzs نفسُها
+                    //      مُشبِّعةٌ بالتعريف (NaN→٠، +طفح→INT64_MAX، −طفح→INT64_MIN) ⇒ لا حاجةَ لمعالجةٍ
+                    //      يدويّةٍ كـx86. المعاملُ الصحيحُ/المنطقيّ (تمريرٌ) = هويّة.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (inst.operands[0].dataType == types::SadTypeKind::Integer ||
+                        inst.operands[0].dataType == types::SadTypeKind::Boolean)
+                        return materialize(dst, inst.operands[0]);
+                    return materialize(a64reg::kScratch0, inst.operands[0]) &&
+                           fmovToFp(kD0, a64reg::kScratch0) && fcvtzs(dst, kD0);
+                }
                 case OP::PHI:
                 {
                     // (AR) PHI: لا شيفرة — القيمةُ تعيش في خانةِ الإطار (السَّلَفُ يخزّن، الدامجُ يقرأ).
@@ -2900,8 +2925,17 @@ namespace sad
                             if (!spillReg(kv.second))
                                 return false;
                     for (size_t i = 0; i < argc; ++i)
-                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                    {
+                        // (AR) الدفعة ٨ (مرآةُ x86): وسيطٌ نصّيّ ⇒ جسِّد مؤشّرَه (loadArgInto لا يعالجُ
+                        //      حرفيّةَ النصّ)؛ يفتح تمريرَ النصّ للدوالّ (منها بانِيَ التعداد النصّيّ).
+                        if (inst.operands[i + 1].dataType == types::SadTypeKind::String)
+                        {
+                            if (!materializeString(inst.operands[i + 1], abiArg_[i], /*fromSpill=*/true))
+                                return false;
+                        }
+                        else if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
                             return false;
+                    }
                     if (!emitBranchTo(a64::mnem::kBl, "rel26", inst.operands[0].name, /*isCall=*/true))
                         return false;
                     for (const auto &kv : regOf_)
@@ -3696,11 +3730,12 @@ namespace sad
                     {
                         const auto &po = inst.operands[static_cast<size_t>(2 + i)];
                         long long k;
-                        // (AR) حمولةٌ عشريّةٌ/نصّيّةٌ محدَّدة مؤجَّلة (GET_PAYLOAD يُرجِع i64 في GPR فقط) — نظيرُ x86.
-                        if (po.dataType == types::SadTypeKind::Float ||
-                            po.dataType == types::SadTypeKind::String)
-                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kEnumPayloadKind);
-                        if (po.dataType != types::SadTypeKind::Any && dynTagForType(po.dataType, k))
+                        // (AR) الدفعة ٨ (نظيرُ x86): نصّ ⇒ kind=Str (مؤشّرُ char* i64)؛ عشريّ ⇒ kind=Float
+                        //      (بتّاتٌ i64). كلاهما i64 في خانةِ الحمولة؛ GET_PAYLOAD يعيدها والنوعُ في SIR
+                        //      يقودُ الاستهلاك (fmov لـFP للعشريّ، مؤشّرٌ للنصّ).
+                        if (po.dataType == types::SadTypeKind::String)
+                            kinds[static_cast<size_t>(i)] = kDynKindStr;
+                        else if (po.dataType != types::SadTypeKind::Any && dynTagForType(po.dataType, k))
                             kinds[static_cast<size_t>(i)] = k;
                         else if (po.dataType != types::SadTypeKind::Any &&
                                  po.dataType != types::SadTypeKind::Integer)
@@ -3723,8 +3758,17 @@ namespace sad
                         if (!movz(9, kinds[static_cast<size_t>(i)]) ||
                             !strBase(9, a64reg::kX0, (slotOff + kSadDynKindOff) / kArrSlotBytes))
                             return false;
-                        if (!loadArgInto(9, inst.operands[static_cast<size_t>(2 + i)]) ||
-                            !strBase(9, a64reg::kX0, (slotOff + kSadDynPayloadOff) / kArrSlotBytes))
+                        const auto &po = inst.operands[static_cast<size_t>(2 + i)];
+                        // (AR) نصّ ⇒ جسِّد المؤشّرَ في x9 (حرفيّةُ rodata أو مؤشّرُ كومةٍ من الانسكاب)؛
+                        //      غيرُه (عشريّ/صحيح/منطقيّ) ⇒ i64 مباشرةً (loadArgInto يقرأ من الانسكاب).
+                        if (po.dataType == types::SadTypeKind::String)
+                        {
+                            if (!materializeString(po, 9, /*fromSpill=*/true))
+                                return false;
+                        }
+                        else if (!loadArgInto(9, po))
+                            return false;
+                        if (!strBase(9, a64reg::kX0, (slotOff + kSadDynPayloadOff) / kArrSlotBytes))
                             return false;
                     }
                     for (const auto &kv : regOf_)
