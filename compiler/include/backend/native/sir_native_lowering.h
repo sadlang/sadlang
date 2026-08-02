@@ -477,6 +477,15 @@ namespace sad
             //      لا يحمل قيمةً بسجلّ عبر الكتل ⇒ هذا الجسرُ يُمكّن لولبَ المدى الديناميّ (والتعابيرَ الشرطيّة).
             std::set<std::string> crossBlockSpill_;
             long long frameSize_ = 0;
+            // (AR) انسكابُ وسائطِ النداء (سدُّ اختلال x86≠ARM64): SysV يمرّر أوّلَ ٦ وسائطَ في
+            //      سجلّاتٍ (rdi..r9)، والزائدُ على المكدّس. نحجز منطقةَ «وسائطٍ صادرةٍ» في أسفلِ
+            //      الإطار ([rsp+i×8])، فلا يتحرّك rsp وسطَ الجسمِ (تبقى المحاذاةُ ١٦). القيمةُ =
+            //      أقصى عددِ وسائطٍ زائدةٍ (>٦) عبر كلِّ نداءٍ في الدالّة. المُستدعى يقرأُ معاملاتِه
+            //      ٦+ من [rbp+16+…] (بعدَ عنوانِ العودة وrbp المحفوظ). مرآةٌ صارمةٌ لـARM64 (>٨).
+            int maxOutgoingStackArgs_ = 0;
+            // (AR) إزاحةُ خانةِ الوسيطِ الصادرِ i عن rbp = ‎-frameSize_ + i×8‎ = [rsp + i×8]
+            //      (rsp ثابتٌ بعدَ المقدّمة). أدنى منطقةٍ في الإطار ⇒ لا تتداخلُ مع خاناتِ المحلّيّات.
+            long long outArgDisp(size_t i) const { return -frameSize_ + static_cast<long long>(i) * 8; }
 
             // (AR) الانسكابُ عبر النداء: إزاحةُ الخانة الأولى لمنطقة انسكابِ سجلّات الحوض
             //      (خانةٌ لكلّ سجلٍّ من pool_). النداءُ يدهس كلَّ الحوض (caller-saved)، فتُنسَك
@@ -1703,6 +1712,27 @@ namespace sad
                             diag::kArgKind + std::to_string(static_cast<int>(op.type)));
             }
 
+            // (AR) يمرّر وسيطًا منطقيًّا إلى الفتحة `slot`: <٦ ⇒ سجلُّ ABI (rdi..r9)؛ ≥٦ ⇒ منطقةُ
+            //      الوسائطِ الصادرةِ على المكدّس ([rsp + (slot-6)×8]) عبر سجلِّ النقلِ `scratch`.
+            //      النصُّ يُجسَّد (حرفيّةُ rodata أو مؤشّرُ كومةٍ من الانسكاب). سدُّ اختلالِ x86≠ARM64.
+            bool passAbiArg(size_t slot, const sir::SIROperand &op, int scratch)
+            {
+                if (slot < 6)
+                {
+                    if (op.dataType == types::SadTypeKind::String)
+                        return materializeString(op, abiArg_[slot], /*fromSpill=*/true);
+                    return loadArgInto(abiArg_[slot], op);
+                }
+                if (op.dataType == types::SadTypeKind::String)
+                {
+                    if (!materializeString(op, scratch, /*fromSpill=*/true))
+                        return false;
+                }
+                else if (!loadArgInto(scratch, op))
+                    return false;
+                return storeMem(outArgDisp(slot - 6), scratch);
+            }
+
             // (AR) يحمّل معاملًا (ثابتًا/سجلًّا فيزيائيًّا/متغيّرَ ذاكرة) في سجلٍّ وجهة. قراءةُ
             //      متغيّرِ الذاكرة = تحميلٌ من خانته (يُطابق auto-load في خلفيّة LLVM).
             bool loadInto(int dst, const sir::SIROperand &op)
@@ -1740,15 +1770,24 @@ namespace sad
                                   const std::vector<std::shared_ptr<sir::SIRBasicBlock>> &blocks)
             {
                 const auto &params = fn.getParameters();
-                if (params.size() > 6)
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kParamsGt6 + std::to_string(params.size()));
                 long long used = 0;
-                for (const auto &p : params)
+                for (size_t i = 0; i < params.size(); ++i)
                 {
-                    used += 8;
                     // (AR) المعاملُ يُشار إليه في التعابير بـ«%»+الاسم (sir_builder_functions.cpp:495)
                     //      بينما اسمُ SIRParameter بلا «%» ⇒ نُفهرِس بالمرجع كي يطابقَه isMemVar.
-                    memSlot_[diag::kVregSigil + p.name] = -used;
+                    if (i < 6)
+                    {
+                        // (AR) المعاملاتُ ٠..٥ تصلُ في سجلّاتِ SysV ⇒ خانةٌ في الإطار (سالبة) تُسكَن بالمقدّمة.
+                        used += 8;
+                        memSlot_[diag::kVregSigil + params[i].name] = -used;
+                    }
+                    else
+                    {
+                        // (AR) المعاملاتُ ٦+ تصلُ على مكدّسِ المُنادي: [rbp+16] أوّلُها (بعدَ rbp المحفوظ
+                        //      وعنوانِ العودة)، ثمّ +8 لكلٍّ. تُقرأُ في مكانها ⇒ لا تخزينَ في المقدّمة.
+                        memSlot_[diag::kVregSigil + params[i].name] =
+                            16 + static_cast<long long>(i - 6) * 8;
+                    }
                 }
                 bool hasCall = false;
                 bool hasIdiv = false;
@@ -1764,6 +1803,7 @@ namespace sad
                 bool hasArrayExt = false;    // (AR) CONCAT/ZIP ⇒ mmap (+حلقةٌ لـZIP) يدهس الحوضَ + خاناتُ خدشٍ عابرةٌ لـmmap
                 bool hasArrayToStr = false;  // (AR) ARRAY_TO_STRING ⇒ يلزمه مخزنُ خدشِ عشريّ (kFtoaBufPayload) للمسار العشريّ
                 dynGetCount_ = 0;
+                maxOutgoingStackArgs_ = 0;
                 for (const auto &blockPtr : blocks)
                     for (const auto &inst : blockPtr->instructions)
                     {
@@ -1800,7 +1840,23 @@ namespace sad
                                  inst.opcode == sir::SIROpcode::OBJECT_CALL || // (AR) نداءٌ افتراضيّ ⇒ منطقةُ انسكابٍ (مرآةُ ARM64)
                                  inst.opcode == sir::SIROpcode::CLOSURE_CALL || // (AR) نداءُ إغلاقٍ (الدفعة ٧) ⇒ نداءٌ غيرُ مباشر
                                  inst.opcode == sir::SIROpcode::CALL_INDIRECT)  // (AR) نداءٌ عبر مؤشّرِ دالّة ⇒ نداءٌ غيرُ مباشر
+                        {
                             hasCall = true;
+                            // (AR) عددُ الوسائطِ المستهلِكةِ لسجلّاتِ ABI لهذا النداء: CALL/CALL_INDIRECT =
+                            //      عددُ الوسائطِ (عدا المؤشّر)؛ OBJECT_CALL = self + الإضافيّةُ؛ CLOSURE_CALL =
+                            //      الصريحةُ + البيئةُ. الزائدُ على ٦ يُنسَك ⇒ نوسّعُ منطقةَ الوسائطِ الصادرة.
+                            size_t regArgs = 0;
+                            if (inst.opcode == sir::SIROpcode::CALL ||
+                                inst.opcode == sir::SIROpcode::CALL_INDIRECT)
+                                regArgs = inst.operands.size() - 1;
+                            else if (inst.opcode == sir::SIROpcode::OBJECT_CALL)
+                                regArgs = inst.operands.size() >= 2 ? inst.operands.size() - 1 : 0;
+                            else // CLOSURE_CALL
+                                regArgs = inst.operands.size(); // (AR) الصريحةُ (size-1) + البيئة
+                            if (regArgs > 6 &&
+                                static_cast<int>(regArgs - 6) > maxOutgoingStackArgs_)
+                                maxOutgoingStackArgs_ = static_cast<int>(regArgs - 6);
+                        }
                         else if (inst.opcode == sir::SIROpcode::MOD_I64 ||
                                  inst.opcode == sir::SIROpcode::FLOOR_DIV_I64)
                             hasIdiv = true;
@@ -1999,6 +2055,10 @@ namespace sad
                     spillBase_ = -(used + 8);
                     used += static_cast<long long>(pool_.size()) * 8;
                 }
+                // (AR) احجز منطقةَ الوسائطِ الصادرةِ في أسفلِ الإطار (تُعنوَن عبر outArgDisp = -frameSize_+i×8،
+                //      فموقعُها في `used` لا يهمّ — يكفي أن يكبُر الإطارُ بما يسعُها بلا تداخُلٍ مع المحلّيّات).
+                if (maxOutgoingStackArgs_ > 0)
+                    used += static_cast<long long>(maxOutgoingStackArgs_) * 8;
                 long long aligned = (used + 15) / 16 * 16; // (AR) محاذاةٌ ١٦
                 // (AR) عقدُ SysV: rsp مُحاذًى ١٦ قبل call. الدالّةُ غيرُ الداخلة تدخل عند
                 //      rsp%16==8 (النداءُ دفع عنوانَ العودة) فـpush rbp يُعيد المحاذاةَ لصفر.
@@ -2017,7 +2077,9 @@ namespace sad
                     !subImm(x86::RSP, frameSize_))
                     return false;
                 const auto &params = fn.getParameters();
-                for (size_t i = 0; i < params.size(); ++i)
+                // (AR) خزّن سجلّاتِ الوسائطِ الواردةَ (٦ كحدٍّ أقصى) في خاناتها؛ المعاملاتُ ٦+
+                //      واردةٌ على المكدّس ([rbp+16+…]) وتُقرأُ في مكانها ⇒ لا تخزينَ لها.
+                for (size_t i = 0; i < params.size() && i < 6; ++i)
                     if (!storeMem(memSlot_[diag::kVregSigil + params[i].name], abiArg_[i]))
                         return false;
                 return true;
@@ -4180,8 +4242,6 @@ namespace sad
                         inst.operands[0].type != sir::SIROperandType::FUNCTION)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     const size_t argc = inst.operands.size() - 1;
-                    if (argc > 6)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt6 + std::to_string(argc));
                     // (AR) النداءُ يدهس كلَّ سجلّات الحوض (caller-saved في SysV). لحفظِ المؤقّتات
                     //      الحيّة عبره: (١) انسكِبْ ما يلزم إلى خانات الانسكاب؛ (٢) حمّل الوسائطَ
                     //      في سجلّات SysV — المؤقّتُ من خانة انسكابه لا من سجلّه ⇒ صفر تصادمٍ (نقلٌ
@@ -4196,19 +4256,11 @@ namespace sad
                             if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
                                 return false;
                     }
+                    // (AR) الوسائطُ ٠..٥ ⇒ سجلّاتٌ؛ ٦+ ⇒ منطقةُ الوسائطِ الصادرةِ على المكدّس (RAX سجلُّ
+                    //      النقلِ حرٌّ للنداءِ المباشر). النصُّ يُجسَّد (حرفيّةُ rodata/مؤشّرُ كومة).
                     for (size_t i = 0; i < argc; ++i)
-                    {
-                        // (AR) الدفعة ٨: وسيطٌ نصّيّ ⇒ جسِّد مؤشّرَه (حرفيّةُ rodata أو مؤشّرُ كومةٍ من
-                        //      الانسكاب)؛ loadArgInto لا يعالج حرفيّةَ النصّ. يفتح تمريرَ النصّ للدوالّ
-                        //      (منها بانِيَ التعداد ذي الحمولة النصّيّة). غيرُه ⇒ i64 مباشرةً.
-                        if (inst.operands[i + 1].dataType == types::SadTypeKind::String)
-                        {
-                            if (!materializeString(inst.operands[i + 1], abiArg_[i], /*fromSpill=*/true))
-                                return false;
-                        }
-                        else if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                        if (!passAbiArg(i, inst.operands[i + 1], x86::RAX))
                             return false;
-                    }
                     if (!emitCall(inst.operands[0].name))
                         return false;
                     // (AR) أعِد تحميلَ المؤقّتات الحيّة بعد النداء فقط (الميتُ/الوسيطُ الفاني لا يُعاد).
@@ -4247,8 +4299,6 @@ namespace sad
                     if (slot < 0)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectMethodNoSlot + inst.operands[1].name);
                     const size_t argc = inst.operands.size() - 2; // (AR) الوسائطُ الإضافيّة (عدا self)
-                    if (argc + 1 > 6)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt6 + std::to_string(argc + 1));
                     // (AR) انسكِبْ الحيَّ + المعاملاتِ السجليّة (تُقرأ من خاناتها بعدَ الانسكاب).
                     for (const auto &kv : regOf_)
                     {
@@ -4257,9 +4307,10 @@ namespace sad
                             if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
                                 return false;
                     }
-                    // (AR) الوسائطُ الإضافيّة → rsi/rdx/… (abiArg_[1..])؛ لا تمسّ RDI/RAX.
+                    // (AR) الوسائطُ الإضافيّة عند الفتحاتِ المنطقيّة ١..argc (self=٠): rsi/rdx/…
+                    //      للفتحاتِ <٦، والمكدّسُ للفتحاتِ ٦+ (RAX سجلُّ النقل، قبلَ ضبطِ self/الهدف).
                     for (size_t i = 0; i < argc; ++i)
-                        if (!loadArgInto(abiArg_[i + 1], inst.operands[i + 2]))
+                        if (!passAbiArg(i + 1, inst.operands[i + 2], x86::RAX))
                             return false;
                     // (AR) self → RDI (arg0). ثمّ مؤشّرُ vtable = [RDI+0]، ثمّ مؤشّرُ الدالّة =
                     //      [RAX+خانة×٨]. RAX/RDI خارجَ الحوض ⇒ لا يدهسان معاملًا حيًّا (درسُ الدفعة ٥).
@@ -4337,8 +4388,6 @@ namespace sad
                     if (inst.operands.empty())
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     const size_t argc = inst.operands.size() - 1; // (AR) الوسائطُ الصريحة (عدا البيئة)
-                    if (argc + 1 > 6)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt6 + std::to_string(argc + 1));
                     for (const auto &kv : regOf_)
                     {
                         const bool live = common::usedAfterInBlock(block, instIdx, kv.first);
@@ -4346,17 +4395,29 @@ namespace sad
                             if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
                                 return false;
                     }
-                    // (AR) الوسائطُ الصريحة → abiArg_[0..k-1] (تُقرأ من خاناتها ⇒ صفرُ تصادم).
-                    for (size_t i = 0; i < argc; ++i)
-                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                    // (AR) البيئةُ هي الوسيطُ المنطقيُّ الأخيرُ (الفتحةُ argc). الترتيبُ الآمن: (١) الوسائطُ
+                    //      الصريحةُ المكدّسةُ عبر RAX (سجلُّ نقلٍ حرٌّ الآن، تُقرأ من الانسكاب)؛ (٢) مؤشّرُ
+                    //      الإغلاق → RAX؛ (٣) البيئةُ من [RAX+8] إلى سجلٍّ (argc<6) أو المكدّس (RDI حرٌّ إذ
+                    //      لم تُحمَّل الوسائطُ السجليّةُ بعد)؛ (٤) الوسائطُ السجليّةُ (٠..٥)؛ (٥) أعِد تحميلَ
+                    //      مؤشّرِ الإغلاق (فقد تكونُ الوسائطُ السجليّةُ دهستْ RAX) ثمّ الدالّةَ = [الإغلاق+0].
+                    for (size_t i = 6; i < argc; ++i)
+                        if (!passAbiArg(i, inst.operands[i + 1], x86::RAX))
                             return false;
-                    // (AR) مؤشّرُ الإغلاق → RAX (خارجَ الحوض ⇒ لا يدهس وسيطًا). ثمّ البيئةُ = [RAX+8]
-                    //      → abiArg_[argc] (الوسيطُ الأخير)، ومؤشّرُ الدالّة = [RAX+0] → RAX ⇒ نداء.
                     if (!loadArgInto(x86::RAX, inst.operands[0]))
                         return false;
-                    if (!loadMemBase(abiArg_[argc], x86::RAX, 8)) // (AR) البيئةُ وسيطًا أخيرًا
+                    if (argc < 6)
+                    {
+                        if (!loadMemBase(abiArg_[argc], x86::RAX, 8)) // (AR) البيئةُ في سجلّ
+                            return false;
+                    }
+                    else if (!loadMemBase(x86::RDI, x86::RAX, 8) || // (AR) البيئةُ على المكدّس عبر RDI
+                             !storeMem(outArgDisp(argc - 6), x86::RDI))
                         return false;
-                    if (!loadMemBase(x86::RAX, x86::RAX, 0)) // (AR) مؤشّرُ الدالّة
+                    for (size_t i = 0; i < argc && i < 6; ++i)
+                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                            return false;
+                    if (!loadArgInto(x86::RAX, inst.operands[0]) || // (AR) أعِد مؤشّرَ الإغلاق (قد دُهس)
+                        !loadMemBase(x86::RAX, x86::RAX, 0))        // (AR) مؤشّرُ الدالّة = [الإغلاق+0]
                         return false;
                     if (!emitCallReg(x86::RAX))
                         return false;
@@ -4380,8 +4441,6 @@ namespace sad
                     if (inst.operands.empty())
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     const size_t argc = inst.operands.size() - 1;
-                    if (argc > 6)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt6 + std::to_string(argc));
                     for (const auto &kv : regOf_)
                     {
                         const bool live = common::usedAfterInBlock(block, instIdx, kv.first);
@@ -4389,8 +4448,9 @@ namespace sad
                             if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
                                 return false;
                     }
+                    // (AR) الوسائطُ ٠..٥ ⇒ سجلّاتٌ؛ ٦+ ⇒ المكدّس (RAX سجلُّ النقل؛ الهدفُ يُحمَّل بعده).
                     for (size_t i = 0; i < argc; ++i)
-                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                        if (!passAbiArg(i, inst.operands[i + 1], x86::RAX))
                             return false;
                     // (AR) مؤشّرُ الدالّة → RAX (خارجَ الحوض): معاملُ FUNCTION ⇒ عنوانٌ مُرقَّع؛ وإلّا سجلّ/خانة.
                     if (inst.operands[0].type == sir::SIROperandType::FUNCTION)

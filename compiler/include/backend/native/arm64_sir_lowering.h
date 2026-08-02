@@ -277,6 +277,11 @@ namespace sad
             //      (strSlot) فتُقرأ memSlot_-أوّلًا عبر الحدّ ⇒ يُمكّن لولبَ المدى الديناميّ.
             std::set<std::string> crossBlockSpill_;
             long long frameSize_ = 0; // (AR) بايتات (مُحاذاةُ ١٦)
+            // (AR) انسكابُ وسائطِ النداء (سدُّ اختلال x86≠ARM64): AAPCS64 يمرّر أوّلَ ٨ وسائطَ في
+            //      x0..x7، والزائدُ على المكدّس. نحجز منطقةَ «وسائطٍ صادرةٍ» في **أسفلِ** الإطار
+            //      (الخاناتُ 0..n-1 = [sp+i×8])، ونُزيح بقيّةَ الخانات فوقها؛ فلا يتحرّك sp وسطَ الجسم.
+            //      المُستدعى يقرأُ معاملاتِه ٨+ من [sp + frameSize_ + …] (BL لا يدفع للمكدّس). مرآةٌ لـx86.
+            int maxOutgoingStackArgs_ = 0;
 
             // (AR) الطباعة: فهرسُ قمّةِ مخزنِ itoa (العنوانُ الأعلى، حصريّ) في الإطار؛ الأرقامُ
             //      تُبنى تنازليًّا منه. الانسكابُ عبر النداء/الطبع: فهرسُ أوّلِ خانةٍ لمنطقةِ انسكابِ
@@ -1432,20 +1437,69 @@ namespace sad
                             diag::kArgKind + std::to_string(static_cast<int>(op.type)));
             }
 
+            // (AR) يمرّر وسيطًا منطقيًّا إلى الفتحة `slot`: <٨ ⇒ سجلُّ ABI (x0..x7)؛ ≥٨ ⇒ منطقةُ
+            //      الوسائطِ الصادرةِ في أسفلِ الإطار ([sp + (slot-8)×8]) عبر سجلِّ النقلِ `scratch`.
+            //      النصُّ يُجسَّد (حرفيّةُ rodata أو مؤشّرُ كومةٍ من الانسكاب). سدُّ اختلالِ x86≠ARM64.
+            bool passAbiArg(size_t slot, const sir::SIROperand &op, int scratch)
+            {
+                if (slot < 8)
+                {
+                    if (op.dataType == types::SadTypeKind::String)
+                        return materializeString(op, abiArg_[slot], /*fromSpill=*/true);
+                    return loadArgInto(abiArg_[slot], op);
+                }
+                if (op.dataType == types::SadTypeKind::String)
+                {
+                    if (!materializeString(op, scratch, /*fromSpill=*/true))
+                        return false;
+                }
+                else if (!loadArgInto(scratch, op))
+                    return false;
+                return strSlot(scratch, static_cast<int>(slot - 8));
+            }
+
             // (AR) المسحُ المسبق: يخصّص فهرسَ خانةٍ للمعاملات (بترتيب ABI) ثمّ لكلّ ALLOC، ثمّ (إن
             //      لزم) لمخزنِ itoa ولمنطقة الانسكاب؛ ويحسب حجمَ الإطارِ المُحاذى ١٦. المعاملُ يُعامَل
             //      كمتغيّرِ ذاكرةٍ (قراءتُه = تحميلٌ من خانته)، وتُسكَنُ خانتُه من سجلّ الوسيط في المقدّمة.
             bool assignFrameSlots(const sir::SIRFunction &fn)
             {
                 const auto &params = fn.getParameters();
-                if (params.size() > 8)
-                    return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kParamsGt8 + std::to_string(params.size()));
                 lrSlot_ = -1; // (AR) يُصفَّر لكلّ دالّة؛ يُحجَز حين تنادي دالّةٌ غيرُ داخلة.
-                int slot = 0;
-                for (const auto &p : params)
+                // (AR) امسحْ مسبقًا أقصى عددِ وسائطٍ صادرةٍ زائدةٍ (>٨) عبر كلِّ نداءٍ، لحجزِ منطقتها
+                //      في أسفلِ الإطار **قبلَ** ترقيمِ الخانات (بخلافِ x86، هنا الخاناتُ نسبيّةٌ لـsp
+                //      فالمنطقةُ يجب أن تبدأ من الخانةِ صفر ⇒ تُزاحُ بقيّةُ الخانات فوقها).
+                maxOutgoingStackArgs_ = 0;
+                for (const auto &blockPtr : fn.getBasicBlocks())
+                    for (const auto &inst : blockPtr->instructions)
+                        if (inst.opcode == sir::SIROpcode::CALL ||
+                            inst.opcode == sir::SIROpcode::CALL_INDIRECT ||
+                            inst.opcode == sir::SIROpcode::OBJECT_CALL ||
+                            inst.opcode == sir::SIROpcode::CLOSURE_CALL)
+                        {
+                            size_t regArgs = 0;
+                            if (inst.opcode == sir::SIROpcode::CALL ||
+                                inst.opcode == sir::SIROpcode::CALL_INDIRECT)
+                                regArgs = inst.operands.size() - 1;
+                            else if (inst.opcode == sir::SIROpcode::OBJECT_CALL)
+                                regArgs = inst.operands.size() >= 2 ? inst.operands.size() - 1 : 0;
+                            else // CLOSURE_CALL: الصريحةُ (size-1) + البيئة
+                                regArgs = inst.operands.size();
+                            if (regArgs > 8 &&
+                                static_cast<int>(regArgs - 8) > maxOutgoingStackArgs_)
+                                maxOutgoingStackArgs_ = static_cast<int>(regArgs - 8);
+                        }
+                // (AR) الخاناتُ 0..maxOutgoingStackArgs_-1 محجوزةٌ لمنطقةِ الوسائطِ الصادرة ⇒ ابدأْ فوقها.
+                int slot = maxOutgoingStackArgs_;
+                // (AR) المعاملاتُ ٨+ تصلُ على مكدّسِ المُنادي؛ فهرسُها = frameSize_/8 + (i-8) يُحسَب
+                //      بعدَ معرفةِ حجمِ الإطار (تُجمَع هنا وتُرقَّم في نهايةِ الدالّة).
+                std::vector<std::pair<std::string, size_t>> stackParams;
+                for (size_t i = 0; i < params.size(); ++i)
                     // (AR) المعاملُ يُشار إليه بـ«%»+الاسم (sir_builder_functions) بينما اسمُ
                     //      SIRParameter بلا «%» ⇒ نُفهرِس بالمرجع كي يطابقَه isMemVar.
-                    memSlot_[diag::kVregSigil + p.name] = slot++;
+                    if (i < 8)
+                        memSlot_[diag::kVregSigil + params[i].name] = slot++;
+                    else
+                        stackParams.push_back({diag::kVregSigil + params[i].name, i});
 
                 bool hasCall = false;
                 bool hasPrint = false;
@@ -1657,6 +1711,12 @@ namespace sad
                 }
                 const long long bytes = static_cast<long long>(slot) * 8;
                 frameSize_ = (bytes + 15) / 16 * 16; // (AR) مُحاذاةُ ١٦ (عقدُ AAPCS64 لـSP)
+                // (AR) المعاملاتُ ٨+: بعدَ sub sp,#frameSize تُصبح وسائطُ المُنادي الصادرةُ ([sp+j×8]
+                //      عنده) عندنا في [sp + frameSize_ + j×8] (BL لا يدفع عنوانَ عودةٍ للمكدّس) ⇒
+                //      فهرسُ الخانة = frameSize_/8 + (i-8). تُقرأُ في مكانها ⇒ لا تخزينَ في المقدّمة.
+                for (const auto &sp : stackParams)
+                    memSlot_[sp.first] =
+                        static_cast<int>(frameSize_ / 8) + static_cast<int>(sp.second - 8);
                 return true;
             }
 
@@ -1676,7 +1736,9 @@ namespace sad
                 if (lrSlot_ >= 0 && !strSlot(a64reg::kLr, lrSlot_))
                     return false;
                 const auto &params = fn.getParameters();
-                for (size_t i = 0; i < params.size(); ++i)
+                // (AR) خزّن سجلّاتِ الوسائطِ الواردةَ (٨ كحدٍّ أقصى) في خاناتها؛ المعاملاتُ ٨+
+                //      واردةٌ على مكدّسِ المُنادي وتُقرأُ في مكانها ⇒ لا تخزينَ لها.
+                for (size_t i = 0; i < params.size() && i < 8; ++i)
                     if (!strSlot(abiArg_[i], memSlot_[diag::kVregSigil + params[i].name]))
                         return false;
                 return true;
@@ -3808,8 +3870,6 @@ namespace sad
                         inst.operands[0].type != sir::SIROperandType::FUNCTION)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     const size_t argc = inst.operands.size() - 1;
-                    if (argc > 8)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt8 + std::to_string(argc));
                     // (AR) bl يدهس x9..x15/x0..x7 (caller-saved). انسكِبْ المؤقّتاتِ الحيّةَ بعد
                     //      النداء (أو وسائطَ سجليّةً له) إلى خانات الانسكاب، حمّل الوسائطَ منها (لا
                     //      من سجلّاتها ⇒ صفر تصادمِ نقلٍ متوازٍ)، bl، أعِد الحيّةَ، النتيجةُ من x0.
@@ -3817,18 +3877,11 @@ namespace sad
                         if (common::usedAfterInBlock(block, instIdx, kv.first) || common::isPoolArgOfCall(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
                             if (!spillReg(kv.second))
                                 return false;
+                    // (AR) الوسائطُ ٠..٧ ⇒ x0..x7؛ ٨+ ⇒ منطقةُ الوسائطِ الصادرةِ (x16 سجلُّ النقل؛ النداءُ
+                    //      المباشرُ bl لا يستعملُه). النصُّ يُجسَّد (حرفيّةُ rodata/مؤشّرُ كومة).
                     for (size_t i = 0; i < argc; ++i)
-                    {
-                        // (AR) الدفعة ٨ (مرآةُ x86): وسيطٌ نصّيّ ⇒ جسِّد مؤشّرَه (loadArgInto لا يعالجُ
-                        //      حرفيّةَ النصّ)؛ يفتح تمريرَ النصّ للدوالّ (منها بانِيَ التعداد النصّيّ).
-                        if (inst.operands[i + 1].dataType == types::SadTypeKind::String)
-                        {
-                            if (!materializeString(inst.operands[i + 1], abiArg_[i], /*fromSpill=*/true))
-                                return false;
-                        }
-                        else if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                        if (!passAbiArg(i, inst.operands[i + 1], a64reg::kScratch0))
                             return false;
-                    }
                     if (!emitBranchTo(a64::mnem::kBl, "rel26", inst.operands[0].name, /*isCall=*/true))
                         return false;
                     for (const auto &kv : regOf_)
@@ -3865,15 +3918,14 @@ namespace sad
                     if (slot < 0)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectMethodNoSlot + inst.operands[1].name);
                     const size_t argc = inst.operands.size() - 2; // (AR) الوسائطُ الإضافيّة (عدا self)
-                    if (argc + 1 > 8)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt8 + std::to_string(argc + 1));
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) || common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
                             if (!spillReg(kv.second))
                                 return false;
-                    // (AR) الوسائطُ الإضافيّة → x1.. (abiArg_[1..])، ثمّ self → x0.
+                    // (AR) الوسائطُ الإضافيّةُ عند الفتحاتِ المنطقيّة ١..argc (self=٠): x1..x7 للفتحاتِ
+                    //      <٨، والمكدّسُ للفتحاتِ ٨+ (x16 سجلُّ النقل، قبلَ ضبطِ self/الهدف). ثمّ self → x0.
                     for (size_t i = 0; i < argc; ++i)
-                        if (!loadArgInto(abiArg_[i + 1], inst.operands[i + 2]))
+                        if (!passAbiArg(i + 1, inst.operands[i + 2], a64reg::kScratch0))
                             return false;
                     if (!loadArgInto(a64reg::kX0, inst.operands[0]))
                         return false;
@@ -3948,22 +4000,33 @@ namespace sad
                     if (inst.operands.empty())
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     const size_t argc = inst.operands.size() - 1; // (AR) الوسائطُ الصريحة (عدا البيئة)
-                    if (argc + 1 > 8)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt8 + std::to_string(argc + 1));
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
                             if (!spillReg(kv.second))
                                 return false;
-                    for (size_t i = 0; i < argc; ++i)
-                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                    // (AR) البيئةُ هي الوسيطُ المنطقيُّ الأخيرُ (الفتحةُ argc). الترتيبُ الآمن (مرآةُ x86):
+                    //      (١) الوسائطُ الصريحةُ المكدّسةُ عبر x16 (نقلٌ حرٌّ الآن)؛ (٢) مؤشّرُ الإغلاق → x16؛
+                    //      (٣) البيئةُ من [الإغلاق+8] إلى سجلٍّ (argc<8) أو المكدّس عبر x17؛ (٤) الوسائطُ
+                    //      السجليّةُ (٠..٧)؛ (٥) أعِد مؤشّرَ الإغلاق (قد دهسته الوسائطُ السجليّة) ثمّ الدالّةَ.
+                    for (size_t i = 8; i < argc; ++i)
+                        if (!passAbiArg(i, inst.operands[i + 1], a64reg::kScratch0))
                             return false;
-                    // (AR) مؤشّرُ الإغلاق → x16. البيئةُ = [x16+8] (فهرسٌ ١) → x[argc]؛ الدالّةُ = [x16+0] → x16.
                     if (!loadArgInto(a64reg::kScratch0, inst.operands[0]))
                         return false;
-                    if (!ldrBase(abiArg_[argc], a64reg::kScratch0, 1)) // (AR) البيئةُ وسيطًا أخيرًا
+                    if (argc < 8)
+                    {
+                        if (!ldrBase(abiArg_[argc], a64reg::kScratch0, 1)) // (AR) البيئةُ في سجلّ
+                            return false;
+                    }
+                    else if (!ldrBase(a64reg::kScratch1, a64reg::kScratch0, 1) || // (AR) البيئةُ على المكدّس
+                             !strSlot(a64reg::kScratch1, static_cast<int>(argc - 8)))
                         return false;
-                    if (!ldrBase(a64reg::kScratch0, a64reg::kScratch0, 0)) // (AR) مؤشّرُ الدالّة
+                    for (size_t i = 0; i < argc && i < 8; ++i)
+                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                            return false;
+                    if (!loadArgInto(a64reg::kScratch0, inst.operands[0]) || // (AR) أعِد الإغلاق (قد دُهس)
+                        !ldrBase(a64reg::kScratch0, a64reg::kScratch0, 0))    // (AR) مؤشّرُ الدالّة = [الإغلاق+0]
                         return false;
                     if (!emitBlr(a64reg::kScratch0))
                         return false;
@@ -3986,15 +4049,14 @@ namespace sad
                     if (inst.operands.empty())
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     const size_t argc = inst.operands.size() - 1;
-                    if (argc > 8)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt8 + std::to_string(argc));
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
                             if (!spillReg(kv.second))
                                 return false;
+                    // (AR) الوسائطُ ٠..٧ ⇒ x0..x7؛ ٨+ ⇒ المكدّس (x16 سجلُّ النقل؛ الهدفُ يُحمَّل بعده).
                     for (size_t i = 0; i < argc; ++i)
-                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                        if (!passAbiArg(i, inst.operands[i + 1], a64reg::kScratch0))
                             return false;
                     // (AR) مؤشّرُ الدالّة → x16: معاملُ FUNCTION ⇒ عنوانٌ مُرقَّع؛ وإلّا سجلّ/خانة.
                     if (inst.operands[0].type == sir::SIROperandType::FUNCTION)
