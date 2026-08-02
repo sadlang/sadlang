@@ -22,6 +22,7 @@ namespace sad { namespace native { namespace diag {
     inline const std::string kArrayAppendBoxed = "array-append-boxed";  // BUILTIN_ARRAY_APPEND لعنصرٍ معلَّب (elementType=Any) مؤجَّل — يلزمه تعليبُ SadDyn
     inline const std::string kArrayNewDynamicSize = "array-new-dynamic-size";  // ARRAY_NEW بحجمٍ غيرِ ثابتٍ مؤجَّل
     inline const std::string kArrayNewNegative = "array-new-negative";  // ARRAY_NEW بطولٍ/سعةٍ سالبة
+    inline const std::string kArrayConcatBoxed = "array-concat-boxed";  // ARRAY_CONCAT لمصفوفةٍ معلَّبة (elementType=Any) أو مختلفةِ النوعين مؤجَّل — يلزمه دمجُ مخزنِ الوسوم
     inline const std::string kCmpValue = "cmp-value";  // موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)
     inline const std::string kCmpBranch = "cmp-branch";  // موضعُ فحصٍ: مقارنةٌ مدموجةٌ في فرع
 

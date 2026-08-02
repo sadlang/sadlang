@@ -116,6 +116,7 @@ namespace sad
         inline constexpr long long kDynKindFloat = 2;
         inline constexpr long long kDynKindStr = 3;
         inline constexpr long long kDynKindBool = 4;
+        inline constexpr long long kDynKindArray = 5; // (AR) مصفوفة (مؤشّرٌ مُدار) — homogKind لناتجِ ZIP (مصفوفةٌ من أزواج)
 
         // (AR) نصوصُ طباعةِ القيمة المعلَّبة (تطابق المفسّر value.cpp:476/عدم) — ثوابتُ مسمّاةٌ لا حرفيّاتٌ خام.
         inline const std::string kDynBoolTrueText = "\xD8\xB5\xD8\xAD\xD9\x8A\xD8\xAD";  // صحيح
@@ -385,6 +386,13 @@ namespace sad
             //      تُحجَز حين تحوي الدالّةُ أوپكودَ نصٍّ يخصّص. الخانةُ i عند strHeapBaseDisp_ + i×8.
             long long strHeapBaseDisp_ = 0;
             long long strHeapSlot(int i) const { return strHeapBaseDisp_ + static_cast<long long>(i) * 8; }
+
+            // (AR) خاناتُ خدشِ امتدادِ المصفوفة (CONCAT/ZIP): قيمٌ (أطوالٌ/مؤشّراتُ بياناتٍ/عدّادُ
+            //      لولبٍ/مؤشّرُ الناتج) تبقى حيّةً عبر mmap الداخليّ. ٦ خاناتٍ تكفي أعقدَها (ZIP).
+            //      تُحجَز حين تحوي الدالّةُ CONCAT/ZIP. الخانةُ i عند arrExtBaseDisp_ + i×8.
+            inline constexpr static int kArrExtSlots = 6;
+            long long arrExtBaseDisp_ = 0;
+            long long arrExtSlot(int i) const { return arrExtBaseDisp_ + static_cast<long long>(i) * 8; }
 
             // (AR) كتلةُ البيانات (rodata): سلاسلُ الطباعة الحرفيّةُ تُلحَق بعد كلّ الشيفرة في
             //      نفس مقطع R+X؛ عنوانُها المطلق (vbase+إزاحة) يُرقَّع في mov r64,imm64.
@@ -1354,6 +1362,7 @@ namespace sad
                 bool hasBoxing = false;      // (AR) SET/GET معلَّبٌ (Any) ⇒ يستعمل الحوضَ خدشًا + خانات dyn
                 bool hasMemBlock = false;    // (AR) حجز/حرر/عبّئ/انسخ (نواةُ الكومة) ⇒ syscall/حلقةٌ تدهس الحوض
                 bool hasStrHeap = false;     // (AR) أوپكودُ نصٍّ يخصّص كومةً داخليًّا (I64_TO_STRING/CONCAT/…)
+                bool hasArrayExt = false;    // (AR) CONCAT/ZIP ⇒ mmap (+حلقةٌ لـZIP) يدهس الحوضَ + خاناتُ خدشٍ عابرةٌ لـmmap
                 dynGetCount_ = 0;
                 for (const auto &blockPtr : blocks)
                     for (const auto &inst : blockPtr->instructions)
@@ -1363,7 +1372,9 @@ namespace sad
                         if (inst.opcode == sir::SIROpcode::ARRAY_SET && !inst.operands.empty() &&
                             inst.operands[0].elementType == types::SadTypeKind::Any)
                             hasBoxing = true;
-                        if (inst.opcode == sir::SIROpcode::ARRAY_GET && inst.result &&
+                        // (AR) TUPLE_GET يشاركُ ARRAY_GET بنيةً ⇒ قراءتُه المعلَّبة (نتيجةٌ Any) تلزمها خانةُ dyn أيضًا.
+                        if ((inst.opcode == sir::SIROpcode::ARRAY_GET ||
+                             inst.opcode == sir::SIROpcode::TUPLE_GET) && inst.result &&
                             inst.result->dataType == types::SadTypeKind::Any)
                         {
                             hasBoxing = true;
@@ -1395,11 +1406,18 @@ namespace sad
                                  inst.operands.size() == 2 &&
                                  inst.operands[1].type != sir::SIROperandType::CONSTANT)
                             hasVarShift = true; // (AR) مقدارُ الإزاحة غيرُ ثابتٍ ⇒ يلزمه CL/حفظُ RCX
-                        else if (inst.opcode == sir::SIROpcode::ARRAY_NEW)
+                        else if (inst.opcode == sir::SIROpcode::ARRAY_NEW ||
+                                 inst.opcode == sir::SIROpcode::TUPLE_NEW) // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً
                             hasArrayNew = true; // (AR) mmap يدهس الحوض ⇒ انسكابٌ حولَه
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_ARRAY_APPEND ||
                                  inst.opcode == sir::SIROpcode::ARRAY_APPEND)
                             hasAppend = true;
+                        else if (inst.opcode == sir::SIROpcode::ARRAY_CONCAT ||
+                                 inst.opcode == sir::SIROpcode::ARRAY_ZIP)
+                            hasArrayExt = true; // (AR) mmap (+حلقةٌ) + خاناتُ خدشٍ عابرةٌ لـmmap
+                        else if (inst.opcode == sir::SIROpcode::ARRAY_REMOVE ||
+                                 inst.opcode == sir::SIROpcode::BUILTIN_ARRAY_REMOVE)
+                            hasMemBlock = true; // (AR) حلقةُ إزاحةٍ في المكان تدهس الحوضَ ⇒ انسكابٌ حولَها
                         else if (inst.opcode == sir::SIROpcode::ALLOC_HEAP ||
                                  inst.opcode == sir::SIROpcode::FFI_MALLOC ||
                                  inst.opcode == sir::SIROpcode::FREE ||
@@ -1528,10 +1546,16 @@ namespace sad
                     used += kStrHeapSlots * 8;
                     strHeapBaseDisp_ = -used;
                 }
+                // (AR) امتدادُ المصفوفة (CONCAT/ZIP): ٦ خاناتِ خدشٍ تبقى حيّةً عبر mmap الداخليّ.
+                if (hasArrayExt)
+                {
+                    used += kArrExtSlots * 8;
+                    arrExtBaseDisp_ = -used;
+                }
                 // (AR) إن نادت الدالّةُ أو طبعت، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض. النداءُ
                 //      يدهس كلَّ الحوض (caller-saved)، والطباعةُ تستعمل سجلّاتِ الحوض مُبدَّداتٍ ⇒
                 //      تُنسَك المؤقّتاتُ الحيّةُ حولَهما وتُعاد.
-                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing || hasMemBlock || hasStrHeap)
+                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing || hasMemBlock || hasStrHeap || hasArrayExt)
                 {
                     spillBase_ = -(used + 8);
                     used += static_cast<long long>(pool_.size()) * 8;
@@ -2971,6 +2995,7 @@ namespace sad
                                 return false;
                     return true;
                 }
+                case OP::TUPLE_NEW: // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً وتخطيطًا ⇒ نفسُ الخفض (مطابقٌ لمسار LLVM instr_core_ops)
                 case OP::ARRAY_NEW:
                 {
                     // (AR) result = مصفوفةٌ جديدة؛ operands=[len(const), cap(const)]. نخصّص عبر
@@ -3080,6 +3105,7 @@ namespace sad
                         return false;
                     return storeMemBase(x86::RAX, 0, x86::RDI);
                 }
+                case OP::TUPLE_GET: // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً ⇒ نفسُ خفضِ القراءة (بما فيه المسارُ المعلَّب)
                 case OP::ARRAY_GET:
                 {
                     // (AR) result = arr[index]. نحسب عنوانَ العنصر في RAX ثمّ نحمّله في الوجهة.
@@ -3130,6 +3156,7 @@ namespace sad
                         return false;
                     return loadMemBase(dst, x86::RAX, 0);
                 }
+                case OP::TUPLE_LEN: // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً ⇒ الطولُ في [arr+0] كالمصفوفة
                 case OP::ARRAY_LEN:
                 {
                     // (AR) result = طول(arr) ⇒ [arr+0].
@@ -3234,6 +3261,243 @@ namespace sad
                             if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
                                 return false;
                     return true;
+                }
+                case OP::BUILTIN_ARRAY_REMOVE:
+                case OP::ARRAY_REMOVE:
+                {
+                    // (AR) حذفٌ في المكان: operands=[arr, index]. نطبّع الفهرسَ السالب (idx+=len)، نفحص
+                    //      الحدَّ، ثمّ نُزيح data[i]=data[i+1] لـi من removeIdx حتّى len-2، ونُنقِص الطولَ.
+                    //      لا mmap ⇒ لا خاناتِ خدشٍ عابرة؛ لكن نستعمل الحوضَ خدشًا في الحلقة ⇒ انسكابٌ حولَها.
+                    //      النتيجة (إن وُجدت) = مؤشّرُ المصفوفة نفسه (مطابقٌ لمسار LLVM).
+                    if (inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    // RAX=arr، RDI=idx، RSI=len=[arr+0]. تطبيعُ السالب: إن idx<0 (موقَّع) ⇒ idx+=len.
+                    if (!loadInto(x86::RAX, inst.operands[0]) || !loadInto(x86::RDI, inst.operands[1]) ||
+                        !loadMemBase(x86::RSI, x86::RAX, kArrOffLen))
+                        return false;
+                    if (!cmpZero(x86::RDI))
+                        return false;
+                    size_t jgeSkipNeg;
+                    if (!emitJccFwd(x86::mnem::kJge, jgeSkipNeg))
+                        return false;
+                    if (!addReg(x86::RDI, x86::RSI))
+                        return false;
+                    patchFwd(jgeSkipNeg);
+                    if (!emitBoundsCheck()) // (AR) idx مقابل [arr+len] لا-موقَّعًا (السالبُ الباقي يلتفّ ⇒ هلع)
+                        return false;
+                    // R8 = len-1 (= الطولُ الجديد وحدُّ الحلقة العلويّ)؛ RDX = data=[arr+16].
+                    if (!movReg(x86::R8, x86::RSI) || !subImm(x86::R8, 1) ||
+                        !loadMemBase(x86::RDX, x86::RAX, kArrOffData))
+                        return false;
+                    // ── حلقةُ الإزاحة: لكلّ i (RDI) من removeIdx حتّى R8-1: data[i]=data[i+1] ──
+                    const size_t remHead = code_.size();
+                    if (!movReg(x86::RSI, x86::RDI)) // (AR) RSI=i؛ cmp i, len-1
+                        return false;
+                    if (!cmpRegReg(x86::RSI, x86::R8))
+                        return false;
+                    size_t jgeRemDone;
+                    if (!emitJccFwd(x86::mnem::kJge, jgeRemDone))
+                        return false;
+                    // RCX = &data[i+1] = data + (i+1)×8 ⇒ R9 = [RCX]؛ ثمّ data[i] = R9.
+                    if (!movReg(x86::R9, x86::RDI) || !addImm(x86::R9, 1) || !shlImm(x86::R9, 3) ||
+                        !movReg(x86::RCX, x86::RDX) || !addReg(x86::RCX, x86::R9) ||
+                        !loadMemBase(x86::R9, x86::RCX, 0))
+                        return false;
+                    if (!movReg(x86::RCX, x86::RDI) || !shlImm(x86::RCX, 3) || !movReg(x86::RSI, x86::RDX) ||
+                        !addReg(x86::RSI, x86::RCX) || !storeMemBase(x86::RSI, 0, x86::R9))
+                        return false;
+                    if (!addImm(x86::RDI, 1) || !emitJccBack(x86::mnem::kJmp, remHead))
+                        return false;
+                    patchFwd(jgeRemDone);
+                    // (AR) الطولُ الجديد = R8 (len-1) ⇒ [arr+len] = R8.
+                    if (!storeMemBase(x86::RAX, kArrOffLen, x86::R8))
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    if (inst.result)
+                    {
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return movReg(dst, x86::RAX);
+                    }
+                    return true;
+                }
+                case OP::ARRAY_CONCAT:
+                {
+                    // (AR) دمجُ مصفوفتين: operands=[arr1, arr2]. نُخصّص كتلةً واحدةً [رأسٌ ٤٠ | بياناتٌ
+                    //      (len1+len2)×8]، ننسخ منطقتَي البيانات خامًا، ونضبط الطول/السعة/data/tags=null/homog.
+                    //      المسارُ الساكن (tags=null) فقط: نرفض المعلَّبَ (Any) والمختلطَ النوعين صراحةً
+                    //      (يلزمهما دمجُ مخزنِ الوسوم — مؤجَّلٌ). data=base+40 (مطابقٌ لـARRAY_NEW).
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    const types::SadTypeKind e0 = inst.operands[0].elementType;
+                    const types::SadTypeKind e1 = inst.operands[1].elementType;
+                    const bool bothKnown = e0 != types::SadTypeKind::Void && e1 != types::SadTypeKind::Void;
+                    if (e0 == types::SadTypeKind::Any || e1 == types::SadTypeKind::Any ||
+                        (bothKnown && e0 != e1))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayConcatBoxed);
+                    long long homogKind = kDynKindInt;
+                    if (bothKnown && e0 == e1)
+                        (void)dynTagForType(e0, homogKind); // (AR) نوعُ العنصر المتجانس (يُقرأ حين tags=null)
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    // (AR) اقرأ len/data للمصفوفتين إلى خانات الخدش (تبقى عبر mmap): 0=len1 1=data1 2=len2 3=data2.
+                    if (!loadInto(x86::RAX, inst.operands[0]) ||
+                        !loadMemBase(x86::RDI, x86::RAX, kArrOffLen) || !storeMem(arrExtSlot(0), x86::RDI) ||
+                        !loadMemBase(x86::RDI, x86::RAX, kArrOffData) || !storeMem(arrExtSlot(1), x86::RDI))
+                        return false;
+                    if (!loadInto(x86::RAX, inst.operands[1]) ||
+                        !loadMemBase(x86::RDI, x86::RAX, kArrOffLen) || !storeMem(arrExtSlot(2), x86::RDI) ||
+                        !loadMemBase(x86::RDI, x86::RAX, kArrOffData) || !storeMem(arrExtSlot(3), x86::RDI))
+                        return false;
+                    // totalLen = len1+len2 ⇒ خانة 4؛ size = 40 + totalLen×8 في RSI ⇒ mmap.
+                    if (!loadMem(x86::RDI, arrExtSlot(0)) || !loadMem(x86::RCX, arrExtSlot(2)) ||
+                        !addReg(x86::RDI, x86::RCX) || !storeMem(arrExtSlot(4), x86::RDI))
+                        return false;
+                    if (!movReg(x86::RSI, x86::RDI) || !shlImm(x86::RSI, 3) ||
+                        !addImm(x86::RSI, kArrHeaderBytes) || !emitMmapPresetSize())
+                        return false;
+                    // (AR) RAX=base. اضبط الحقول: len=cap=totalLen، data=base+40، tags=null، homog=النوع.
+                    if (!loadMem(x86::RDI, arrExtSlot(4)) || !storeMemBase(x86::RAX, kArrOffLen, x86::RDI) ||
+                        !storeMemBase(x86::RAX, kArrOffCap, x86::RDI))
+                        return false;
+                    if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, kArrHeaderBytes) ||
+                        !storeMemBase(x86::RAX, kArrOffData, x86::RDI))
+                        return false;
+                    if (!movImm(x86::RDI, 0) || !storeMemBase(x86::RAX, kArrOffTags, x86::RDI))
+                        return false;
+                    if (!movImm(x86::RDI, homogKind) || !storeMemBase(x86::RAX, kArrOffHomog, x86::RDI))
+                        return false;
+                    // ── نسخُ المنطقة ١: dst=base+40 (RDI)، src=data1، cnt=len1×8؛ RDI يتقدّم لنهايتها ──
+                    if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, kArrHeaderBytes) ||
+                        !loadMem(x86::RSI, arrExtSlot(1)) || !loadMem(x86::RCX, arrExtSlot(0)) ||
+                        !shlImm(x86::RCX, 3) || !byteCopy(x86::RDI, x86::RSI, x86::RCX, x86::R8))
+                        return false;
+                    // ── نسخُ المنطقة ٢: dst=RDI (يتابع)، src=data2، cnt=len2×8 ──
+                    if (!loadMem(x86::RSI, arrExtSlot(3)) || !loadMem(x86::RCX, arrExtSlot(2)) ||
+                        !shlImm(x86::RCX, 3) || !byteCopy(x86::RDI, x86::RSI, x86::RCX, x86::R8))
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, x86::RAX);
+                }
+                case OP::ARRAY_ZIP:
+                {
+                    // (AR) زاوج: operands=[arr1, arr2]. النتيجةُ مصفوفةٌ بطول min(len1,len2)، كلُّ خانةٍ
+                    //      مؤشّرٌ لمصفوفةِ زوجٍ {أ[i]، ب[i]} (الخاناتُ تُنسخ خامًا). حلقةٌ ذاتُ mmap داخليٍّ
+                    //      لكلّ زوج ⇒ القيمُ العابرةُ (outLen/i/data1/data2/outArr/outData) في خانات الخدش.
+                    //      homog للناتج = Array (مصفوفةٌ من مصفوفات، tags=null). خانات: 0=outLen 1=i 2=data1 3=data2 4=outArr 5=outData.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    // (AR) 🔑 اقرأ كِلا المعاملين إلى الخانات مستعملًا RAX/RDI (خارج الحوض) **فقط** قبل
+                    //      لمسِ أيّ سجلّ حوض: قراءةُ المعامل الثاني (loadInto) تقرأ سجلَّه الفيزيائيّ، فلو
+                    //      دهسنا سجلَّ حوضٍ يحمله لقرأنا قيمةً خاطئة (فخّ ترتيبٍ كامن أطاح ZIP على ARM64).
+                    //      خانات: 0=len1(مؤقّت) 2=data1؛ 1=len2(مؤقّت) 3=data2؛ ثمّ min ⇒ 0=outLen، وتُعادُ 1 لـi.
+                    if (!loadInto(x86::RAX, inst.operands[0]) ||
+                        !loadMemBase(x86::RDI, x86::RAX, kArrOffLen) || !storeMem(arrExtSlot(0), x86::RDI) ||
+                        !loadMemBase(x86::RDI, x86::RAX, kArrOffData) || !storeMem(arrExtSlot(2), x86::RDI))
+                        return false;
+                    if (!loadInto(x86::RAX, inst.operands[1]) ||
+                        !loadMemBase(x86::RDI, x86::RAX, kArrOffLen) || !storeMem(arrExtSlot(1), x86::RDI) ||
+                        !loadMemBase(x86::RDI, x86::RAX, kArrOffData) || !storeMem(arrExtSlot(3), x86::RDI))
+                        return false;
+                    // outLen = min(len1,len2) (الحوضُ حرٌّ الآن): إن len1<=len2 أبقِ RDI، وإلّا RDI=RCX.
+                    if (!loadMem(x86::RDI, arrExtSlot(0)) || !loadMem(x86::RCX, arrExtSlot(1)) ||
+                        !cmpRegReg(x86::RDI, x86::RCX))
+                        return false;
+                    size_t jleKeep;
+                    if (!emitJccFwd(x86::mnem::kJle, jleKeep))
+                        return false;
+                    if (!movReg(x86::RDI, x86::RCX))
+                        return false;
+                    patchFwd(jleKeep);
+                    if (!storeMem(arrExtSlot(0), x86::RDI)) // outLen
+                        return false;
+                    // خصّص كتلةَ الناتج: size = 40 + outLen×8 ⇒ RAX=outArr.
+                    if (!movReg(x86::RSI, x86::RDI) || !shlImm(x86::RSI, 3) ||
+                        !addImm(x86::RSI, kArrHeaderBytes) || !emitMmapPresetSize())
+                        return false;
+                    if (!storeMem(arrExtSlot(4), x86::RAX)) // outArr
+                        return false;
+                    if (!loadMem(x86::RDI, arrExtSlot(0)) || !storeMemBase(x86::RAX, kArrOffLen, x86::RDI) ||
+                        !storeMemBase(x86::RAX, kArrOffCap, x86::RDI))
+                        return false;
+                    if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, kArrHeaderBytes) ||
+                        !storeMemBase(x86::RAX, kArrOffData, x86::RDI) || !storeMem(arrExtSlot(5), x86::RDI))
+                        return false;
+                    if (!movImm(x86::RDI, 0) || !storeMemBase(x86::RAX, kArrOffTags, x86::RDI))
+                        return false;
+                    if (!movImm(x86::RDI, kDynKindArray) || !storeMemBase(x86::RAX, kArrOffHomog, x86::RDI))
+                        return false;
+                    if (!movImm(x86::RDI, 0) || !storeMem(arrExtSlot(1), x86::RDI)) // i=0
+                        return false;
+                    // ── الحلقة: بينما i<outLen ── / (AR) لكلّ i: أنشئ مصفوفةَ زوجٍ وخزّن مؤشّرها.
+                    const size_t zipHead = code_.size();
+                    if (!loadMem(x86::RDI, arrExtSlot(1)) || !cmpMemBase(x86::RDI, x86::RBP, arrExtSlot(0)))
+                        return false;
+                    size_t jgeZipDone;
+                    if (!emitJccFwd(x86::mnem::kJge, jgeZipDone))
+                        return false;
+                    // خصّص زوجًا: size = 40 + 16 ⇒ RAX=pairBase؛ len=cap=2، data=pairBase+40، tags=null (homog=0 من mmap).
+                    if (!movImm(x86::RSI, kArrHeaderBytes + 2 * kArrSlotBytes) || !emitMmapPresetSize())
+                        return false;
+                    if (!movImm(x86::RDI, 2) || !storeMemBase(x86::RAX, kArrOffLen, x86::RDI) ||
+                        !storeMemBase(x86::RAX, kArrOffCap, x86::RDI))
+                        return false;
+                    if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, kArrHeaderBytes) ||
+                        !storeMemBase(x86::RAX, kArrOffData, x86::RDI))
+                        return false;
+                    if (!movImm(x86::RDI, 0) || !storeMemBase(x86::RAX, kArrOffTags, x86::RDI))
+                        return false;
+                    // e1=data1[i]→R8، e2=data2[i]→R9 (i×8 في RCX).
+                    if (!loadMem(x86::RCX, arrExtSlot(1)) || !shlImm(x86::RCX, 3))
+                        return false;
+                    if (!loadMem(x86::RSI, arrExtSlot(2)) || !addReg(x86::RSI, x86::RCX) ||
+                        !loadMemBase(x86::R8, x86::RSI, 0))
+                        return false;
+                    if (!loadMem(x86::RSI, arrExtSlot(3)) || !addReg(x86::RSI, x86::RCX) ||
+                        !loadMemBase(x86::R9, x86::RSI, 0))
+                        return false;
+                    // pairData = pairBase+40 ⇒ [pairData+0]=e1، [pairData+8]=e2.
+                    if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, kArrHeaderBytes) ||
+                        !storeMemBase(x86::RDI, 0, x86::R8) || !storeMemBase(x86::RDI, kArrSlotBytes, x86::R9))
+                        return false;
+                    // outData[i] = pairBase (RAX).
+                    if (!loadMem(x86::RSI, arrExtSlot(5)) || !loadMem(x86::RCX, arrExtSlot(1)) ||
+                        !shlImm(x86::RCX, 3) || !addReg(x86::RSI, x86::RCX) ||
+                        !storeMemBase(x86::RSI, 0, x86::RAX))
+                        return false;
+                    // i++ ثمّ عُد للرأس.
+                    if (!loadMem(x86::RCX, arrExtSlot(1)) || !addImm(x86::RCX, 1) ||
+                        !storeMem(arrExtSlot(1), x86::RCX) || !emitJccBack(x86::mnem::kJmp, zipHead))
+                        return false;
+                    patchFwd(jgeZipDone);
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadMem(dst, arrExtSlot(4)); // (AR) النتيجة = outArr
                 }
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));

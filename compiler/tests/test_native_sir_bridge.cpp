@@ -958,6 +958,110 @@ TEST(NativeSirBridge, LowersArrayAppendNoGrow)
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// (AR) الدفعة ٤ (الصفوف + امتدادُ المصفوفات): TUPLE_NEW/GET/LEN (توجيهٌ لبنية المصفوفة)
+//      + ARRAY_REMOVE (حذفٌ في المكان) + ARRAY_CONCAT (دمجٌ ساكنٌ tags=null) + ARRAY_ZIP
+//      (حلقةٌ ذاتُ mmap داخليٍّ لكلّ زوج). كلُّها تُعيد استعمالَ ترميزاتٍ قائمةٍ (لا ترميزَ جديد).
+// ════════════════════════════════════════════════════════════════════════════
+
+// (AR) صفٌّ مفهرَس: «ص=(40، 2)؛ ارجع ص[0]+ص[1]» ⇒ TUPLE_NEW (mmap، يشاركُ بنيةَ المصفوفة) +
+//      قراءةٌ بالفهرس ⇒ ٤٢. TUPLE_GET/TUPLE_LEN موجَّهان لنفسِ شيفرة ARRAY_GET/ARRAY_LEN المُبرهَنة
+//      حيًّا (صحّةٌ بالبناء)؛ باعثُ TUPLE_GET الأماميُّ الوحيد (تفكيكُ الصفّ) فيه فجوةُ STORE-nonslot
+//      غيرُ متعلّقةٍ بهذه الدفعة، وTUPLE_LEN بلا باعثٍ أماميّ (ميّتٌ سطحيًّا).
+static const char *kSrcTuple =
+    "دالة رئيسية()\n"
+    "    متغير ص = (40، 2)\n"
+    "    ارجع ص[0] + ص[1]\n"
+    "نهاية\n";
+// (AR) حذفٌ بفهرسٍ في المكان: «م=[10، 99، 32]؛ إزالة_عنصر(م، 1)؛ ارجع م[0]+م[1]» ⇒ إزاحةُ 32 لمكان
+//      99 (حذفُ الفهرس ١) ⇒ 10+32=٤٢. الدالّةُ الحرّةُ إزالة_عنصر تبعث BUILTIN_ARRAY_REMOVE بمعاملَين.
+//      الفهرسُ محسوبٌ (٢-١) ⇒ مؤقّتٌ في سجلّ حوضٍ يمارس مسارَ قراءةِ الفهرس (لا مسارَ الثابت) —
+//      يمسك فخَّ ترتيبِ قراءةِ المعاملين على ARM64.
+static const char *kSrcArrayRemove =
+    "دالة رئيسية()\n"
+    "    متغير م = [10، 99، 32]\n"
+    "    متغير ف = 3\n"
+    "    إزالة_عنصر(م، ف - 2)\n"
+    "    ارجع م[0] + م[1]\n"
+    "نهاية\n";
+// (AR) دمجٌ: «م=[40]+[2]؛ ارجع م[0]+م[1]» ⇒ مصفوفةٌ [40،2] بـmmap واحد ⇒ ٤٢.
+static const char *kSrcArrayConcat =
+    "دالة رئيسية()\n"
+    "    متغير م = [40] + [2]\n"
+    "    ارجع م[0] + م[1]\n"
+    "نهاية\n";
+// (AR) زاوج + طول: «طول(زاوج([1،2،3]،[4،5]))*21» ⇒ الطول=min(3،2)=2 ⇒ 2×21=٤٢. يُثبت الحلقةَ+التخصيص.
+static const char *kSrcArrayZip =
+    "دالة رئيسية()\n"
+    "    ارجع طول(زاوج([1، 2، 3]، [4، 5])) * 21\n"
+    "نهاية\n";
+
+TEST(NativeSirBridge, LowersTupleConstruct)
+{
+    auto module = buildSir(kSrcTuple);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("tuple lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap للصفّ)
+    std::FILE *fp = std::fopen("sad_sir_tuple42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+TEST(NativeSirBridge, LowersArrayRemove)
+{
+    auto module = buildSir(kSrcArrayRemove);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("array-remove lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    std::FILE *fp = std::fopen("sad_sir_remove42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(res.code.data(), 1, res.code.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(res.code.size()));
+}
+
+TEST(NativeSirBridge, LowersArrayConcat)
+{
+    auto module = buildSir(kSrcArrayConcat);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("array-concat lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap للناتج)
+    std::FILE *fp = std::fopen("sad_sir_concat42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+TEST(NativeSirBridge, LowersArrayZipLength)
+{
+    auto module = buildSir(kSrcArrayZip);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("array-zip lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap الناتج + الأزواج)
+    std::FILE *fp = std::fopen("sad_sir_zip42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // (AR) جسر SIR→AArch64 (الهدف الثاني): نفسُ SIR الأماميّ يُخفَّض لـARM64 عبر محرّكٍ
 //      وكاتب ELF عامَّين. برهانُ عموميّة الخطّ عبر صنفَي ISA. تُكتب الثنائيّاتُ لبرهانٍ
 //      حيٍّ على qemu-aarch64. e_machine=EM_AARCH64=183.
@@ -1241,6 +1345,39 @@ TEST(Arm64SirBridge, LowersArrayAppendNoGrow)
     bool ok = false;
     size_t sz = 0;
     lowerArm64AndWrite(kSrcAppendNoGrow, "sad_arm64_appendnogrow42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) الدفعة ٤ على ARM64 (مرآةُ x86): صفٌّ + حذفٌ + دمجٌ + زاوج. تُبرهَن حيًّا على qemu بخروج ٤٢.
+TEST(Arm64SirBridge, LowersTupleConstruct)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcTuple, "sad_arm64_tuple42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+TEST(Arm64SirBridge, LowersArrayRemove)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcArrayRemove, "sad_arm64_remove42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+TEST(Arm64SirBridge, LowersArrayConcat)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcArrayConcat, "sad_arm64_concat42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+TEST(Arm64SirBridge, LowersArrayZipLength)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcArrayZip, "sad_arm64_zip42", &ok, &sz);
     ASSERT_TRUE(ok);
 }
 

@@ -207,6 +207,12 @@ namespace sad
             //      mmap الداخليّ (طول/مخزن/عدّاد). الخانةُ i عند sp + (strHeapBaseSlot_+i)×8.
             int strHeapBaseSlot_ = -1;
 
+            // (AR) امتدادُ المصفوفة (CONCAT/ZIP، الدفعة ٤): ٦ خاناتِ خدشٍ تبقى حيّةً عبر mmap الداخليّ
+            //      (أطوالٌ/مؤشّراتُ بياناتٍ/عدّادُ لولبٍ/مؤشّرُ الناتج). الخانةُ i عند sp + (arrExtBaseSlot_+i)×8.
+            static constexpr int kArrExtSlots = 6;
+            int arrExtBaseSlot_ = -1;
+            long long arrExtSlot(int i) const { return static_cast<long long>(arrExtBaseSlot_) + i; }
+
             // (AR) كتلةُ البيانات (rodata): سلاسلُ الطباعة الحرفيّةُ تُلحَق بعد كلّ الشيفرة في نفس
             //      مقطع R+X؛ عنوانُها المطلق (vbase+إزاحة) يُرقَّع في تسلسلِ movz+movk×3.
             std::vector<uint8_t> rodata_;
@@ -1067,6 +1073,7 @@ namespace sad
                 bool hasBoxing = false;   // (AR) SET/GET معلَّبٌ ⇒ يستعمل الحوضَ خدشًا + خانات dyn
                 bool hasMemBlock = false; // (AR) حجز/حرر/عبّئ/انسخ (نواةُ الكومة) ⇒ svc/حلقةٌ تدهس الحوض
                 bool hasStrHeap = false;  // (AR) أوپكودُ نصٍّ يخصّص كومةً داخليًّا (I64_TO_STRING/CONCAT/…)
+                bool hasArrayExt = false; // (AR) CONCAT/ZIP ⇒ mmap (+حلقةٌ لـZIP) + خاناتُ خدشٍ عابرةٌ لـmmap
                 dynGetCount_ = 0;
                 for (const auto &blockPtr : fn.getBasicBlocks())
                     for (const auto &inst : blockPtr->instructions)
@@ -1084,11 +1091,18 @@ namespace sad
                             memSlot_[inst.result->name] = slot++;
                         else if (inst.opcode == sir::SIROpcode::CALL)
                             hasCall = true;
-                        else if (inst.opcode == sir::SIROpcode::ARRAY_NEW)
+                        else if (inst.opcode == sir::SIROpcode::ARRAY_NEW ||
+                                 inst.opcode == sir::SIROpcode::TUPLE_NEW) // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً
                             hasArrayNew = true;
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_ARRAY_APPEND ||
                                  inst.opcode == sir::SIROpcode::ARRAY_APPEND)
                             hasAppend = true;
+                        else if (inst.opcode == sir::SIROpcode::ARRAY_CONCAT ||
+                                 inst.opcode == sir::SIROpcode::ARRAY_ZIP)
+                            hasArrayExt = true; // (AR) mmap (+حلقةٌ) + خاناتُ خدشٍ عابرةٌ لـmmap
+                        else if (inst.opcode == sir::SIROpcode::ARRAY_REMOVE ||
+                                 inst.opcode == sir::SIROpcode::BUILTIN_ARRAY_REMOVE)
+                            hasMemBlock = true; // (AR) حلقةُ إزاحةٍ في المكان تدهس الحوضَ ⇒ انسكابٌ حولَها
                         else if (inst.opcode == sir::SIROpcode::ALLOC_HEAP ||
                                  inst.opcode == sir::SIROpcode::FFI_MALLOC ||
                                  inst.opcode == sir::SIROpcode::FREE ||
@@ -1134,7 +1148,8 @@ namespace sad
                         if (inst.opcode == sir::SIROpcode::ARRAY_SET && !inst.operands.empty() &&
                             inst.operands[0].elementType == types::SadTypeKind::Any)
                             hasBoxing = true;
-                        if (inst.opcode == sir::SIROpcode::ARRAY_GET && inst.result &&
+                        if ((inst.opcode == sir::SIROpcode::ARRAY_GET ||
+                             inst.opcode == sir::SIROpcode::TUPLE_GET) && inst.result &&
                             inst.result->dataType == types::SadTypeKind::Any)
                         {
                             hasBoxing = true;
@@ -1209,8 +1224,14 @@ namespace sad
                     strHeapBaseSlot_ = slot;
                     slot += static_cast<int>(kStrHeapSlots);
                 }
+                // (AR) امتدادُ المصفوفة (CONCAT/ZIP): ٦ خاناتِ خدشٍ تبقى حيّةً عبر mmap الداخليّ.
+                if (hasArrayExt)
+                {
+                    arrExtBaseSlot_ = slot;
+                    slot += kArrExtSlots;
+                }
                 // (AR) إن نادت الدالّةُ أو طبعت أو خصّصت مصفوفة أو ألحقت أو علّبت، احجز منطقةَ انسكابٍ.
-                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing || hasMemBlock || hasStrHeap)
+                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing || hasMemBlock || hasStrHeap || hasArrayExt)
                 {
                     spillBaseSlot_ = slot;
                     slot += static_cast<int>(pool_.size());
@@ -2651,6 +2672,7 @@ namespace sad
                                emit(a64::mnem::kSvc, "", {});
                     return emitEpilogue();
                 }
+                case OP::TUPLE_NEW: // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً وتخطيطًا ⇒ نفسُ الخفض (مطابقٌ لمسار LLVM)
                 case OP::ARRAY_NEW:
                 {
                     // (AR) result = مصفوفةٌ جديدة؛ operands=[len(const), cap(const)]. mmap كتلةً
@@ -2753,6 +2775,7 @@ namespace sad
                     return materialize(a64reg::kScratch1, inst.operands[2]) &&
                            strBase(a64reg::kScratch1, a64reg::kScratch0, off);
                 }
+                case OP::TUPLE_GET: // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً ⇒ نفسُ خفضِ القراءة (بما فيه المسارُ المعلَّب)
                 case OP::ARRAY_GET:
                 {
                     // (AR) result = arr[index]. نحسب عنوانَ العنصر ثمّ نحمّله في الوجهة.
@@ -2801,6 +2824,7 @@ namespace sad
                         return false;
                     return ldrBase(dst, a64reg::kScratch0, off);
                 }
+                case OP::TUPLE_LEN: // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً ⇒ الطولُ في [arr+0] كالمصفوفة
                 case OP::ARRAY_LEN:
                 {
                     // (AR) result = طول(arr) ⇒ [arr+0].
@@ -2905,6 +2929,239 @@ namespace sad
                             if (!reloadReg(kv.second))
                                 return false;
                     return true;
+                }
+                case OP::BUILTIN_ARRAY_REMOVE:
+                case OP::ARRAY_REMOVE:
+                {
+                    // (AR) حذفٌ في المكان (نظيرُ x86): operands=[arr, index]. نطبّع السالب (idx+=len)،
+                    //      نفحص الحدَّ، ثمّ نُزيح data[i]=data[i+1] لـi من removeIdx حتّى len-2، ونُنقِص الطول.
+                    //      لا mmap؛ لكن الحلقةُ تستعمل الحوضَ خدشًا ⇒ انسكابٌ حولَها. النتيجة (إن وُجدت) = المصفوفة.
+                    if (inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!spillReg(kv.second))
+                                return false;
+                    // (AR) 🔑 اقرأ الفهرسَ أوّلًا في x17 (خارج الحوض) ثمّ المصفوفةَ في x9: materialize يقرأ
+                    //      سجلَّ المعامل الفيزيائيّ، فلو قرأنا arr→x9 أوّلًا لدهسنا x9 قبل قراءة فهرسٍ قد يشغلُه
+                    //      (فخّ ترتيبٍ كامن — نظيرُ فخّ CONCAT/ZIP). x16=len=[arr+0]. تطبيعُ السالب: إن idx<0 ⇒ idx+=len.
+                    if (!materialize(a64reg::kScratch1, inst.operands[1]) ||
+                        !materialize(9, inst.operands[0]) ||
+                        !ldrBase(a64reg::kScratch0, 9, kArrOffLen / kArrSlotBytes))
+                        return false;
+                    if (!cmp(a64reg::kScratch1, a64reg::kXzr))
+                        return false;
+                    size_t bgeSkipNeg;
+                    if (!emitBranchFwd(a64::mnem::kBge, "rel19", bgeSkipNeg))
+                        return false;
+                    if (!rrr(a64::mnem::kAdd, a64reg::kScratch1, a64reg::kScratch1, a64reg::kScratch0))
+                        return false;
+                    if (!patchBranchFwd(bgeSkipNeg, 23, 5))
+                        return false;
+                    if (!emitBoundsCheckArm64()) // (AR) x17=idx مقابل x16=len لا-موقَّعًا
+                        return false;
+                    // x10 = len-1 (= الطولُ الجديد وحدُّ الحلقة)؛ x11 = data=[arr+2]. ثمّ احفظ arr في x16
+                    //      (خارج الحوض ⇒ ينجو من الحلقة والاستعادة) للنتيجة — نظيرُ RAX في x86.
+                    if (!subImm(10, a64reg::kScratch0, 1) || !movReg(a64reg::kScratch0, 9) ||
+                        !ldrBase(11, 9, kArrOffData / kArrSlotBytes))
+                        return false;
+                    // x12 = i = removeIdx (x17).
+                    if (!movReg(12, a64reg::kScratch1))
+                        return false;
+                    const size_t remHead = code_.size();
+                    if (!cmp(12, 10))
+                        return false;
+                    size_t bgeRemDone;
+                    if (!emitBranchFwd(a64::mnem::kBge, "rel19", bgeRemDone))
+                        return false;
+                    // x15 = data[i+1] ⇒ data[i] = x15.
+                    if (!addImm(13, 12, 1) || !addLsl3(14, 11, 13) || !ldrBase(15, 14, 0))
+                        return false;
+                    if (!addLsl3(14, 11, 12) || !strBase(15, 14, 0))
+                        return false;
+                    if (!addImm(12, 12, 1) || !emitBBack(remHead))
+                        return false;
+                    if (!patchBranchFwd(bgeRemDone, 23, 5))
+                        return false;
+                    // (AR) الطولُ الجديد = x10 ⇒ [arr+len] = x10.
+                    if (!strBase(10, 9, kArrOffLen / kArrSlotBytes))
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    if (inst.result)
+                    {
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return movReg(dst, a64reg::kScratch0); // (AR) النتيجة = المصفوفة (x16 نجا من الحلقة والاستعادة)
+                    }
+                    return true;
+                }
+                case OP::ARRAY_CONCAT:
+                {
+                    // (AR) دمجُ مصفوفتين (نظيرُ x86): operands=[arr1, arr2]. كتلةٌ واحدة [رأسٌ ٤٠ | بياناتٌ
+                    //      (len1+len2)×8]، نسخُ المنطقتين خامًا، len/cap/data/tags=null/homog. المسارُ الساكن
+                    //      فقط (نرفض Any والمختلطَ النوعين). data=base+40 (كـARRAY_NEW).
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    const types::SadTypeKind e0 = inst.operands[0].elementType;
+                    const types::SadTypeKind e1 = inst.operands[1].elementType;
+                    const bool bothKnown = e0 != types::SadTypeKind::Void && e1 != types::SadTypeKind::Void;
+                    if (e0 == types::SadTypeKind::Any || e1 == types::SadTypeKind::Any ||
+                        (bothKnown && e0 != e1))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArrayConcatBoxed);
+                    long long homogKind = kDynKindInt;
+                    if (bothKnown && e0 == e1)
+                        (void)dynTagForType(e0, homogKind);
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!spillReg(kv.second))
+                                return false;
+                    // (AR) 🔑 اقرأ كِلا المعاملين إلى الخانات مستعملًا x16/x17 (خارج الحوض) **فقط** قبل
+                    //      لمسِ أيّ سجلّ حوض: materialize يقرأ سجلَّ المعامل الفيزيائيّ، فلو دهسنا سجلَّ
+                    //      حوضٍ يحمله لقرأنا قيمةً خاطئة (فخّ ترتيبٍ كامن). خانات: 0=len1 1=data1 2=len2 3=data2.
+                    if (!materialize(a64reg::kScratch0, inst.operands[0]) ||
+                        !ldrBase(a64reg::kScratch1, a64reg::kScratch0, kArrOffLen / kArrSlotBytes) || !strSlot(a64reg::kScratch1, arrExtSlot(0)) ||
+                        !ldrBase(a64reg::kScratch1, a64reg::kScratch0, kArrOffData / kArrSlotBytes) || !strSlot(a64reg::kScratch1, arrExtSlot(1)))
+                        return false;
+                    if (!materialize(a64reg::kScratch0, inst.operands[1]) ||
+                        !ldrBase(a64reg::kScratch1, a64reg::kScratch0, kArrOffLen / kArrSlotBytes) || !strSlot(a64reg::kScratch1, arrExtSlot(2)) ||
+                        !ldrBase(a64reg::kScratch1, a64reg::kScratch0, kArrOffData / kArrSlotBytes) || !strSlot(a64reg::kScratch1, arrExtSlot(3)))
+                        return false;
+                    // totalLen = len1+len2 ⇒ خانة 4؛ size = 40 + totalLen×8 في x1 ⇒ mmap.
+                    if (!ldrSlot(9, arrExtSlot(0)) || !ldrSlot(10, arrExtSlot(2)) ||
+                        !rrr(a64::mnem::kAdd, 9, 9, 10) || !strSlot(9, arrExtSlot(4)))
+                        return false;
+                    if (!movz(11, 3) || !rrr(a64::mnem::kLslv, a64reg::kX1, 9, 11) ||
+                        !addImm(a64reg::kX1, a64reg::kX1, kArrHeaderBytes) || !emitMmapArm64PresetSize())
+                        return false;
+                    // (AR) x0=base. الحقول: len=cap=totalLen، data=base+40، tags=null، homog=النوع.
+                    if (!ldrSlot(9, arrExtSlot(4)) || !strBase(9, a64reg::kX0, kArrOffLen / kArrSlotBytes) ||
+                        !strBase(9, a64reg::kX0, kArrOffCap / kArrSlotBytes))
+                        return false;
+                    if (!addImm(9, a64reg::kX0, kArrHeaderBytes) || !strBase(9, a64reg::kX0, kArrOffData / kArrSlotBytes))
+                        return false;
+                    if (!movz(10, 0) || !strBase(10, a64reg::kX0, kArrOffTags / kArrSlotBytes))
+                        return false;
+                    if (!movz(10, homogKind) || !strBase(10, a64reg::kX0, kArrOffHomog / kArrSlotBytes))
+                        return false;
+                    // ── نسخُ المنطقة ١: dst=base+40 (x9)، src=data1، cnt=len1×8؛ x9 يتقدّم ──
+                    if (!addImm(9, a64reg::kX0, kArrHeaderBytes) || !ldrSlot(10, arrExtSlot(1)) ||
+                        !ldrSlot(11, arrExtSlot(0)) || !movz(12, 3) || !rrr(a64::mnem::kLslv, 11, 11, 12) ||
+                        !byteCopy(9, 10, 11, 13))
+                        return false;
+                    // ── نسخُ المنطقة ٢: dst=x9 (يتابع)، src=data2، cnt=len2×8 ──
+                    if (!ldrSlot(10, arrExtSlot(3)) || !ldrSlot(11, arrExtSlot(2)) || !movz(12, 3) ||
+                        !rrr(a64::mnem::kLslv, 11, 11, 12) || !byteCopy(9, 10, 11, 13))
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, a64reg::kX0); // (AR) x0 (base) ليس من الحوض ⇒ نجا من الاستعادة
+                }
+                case OP::ARRAY_ZIP:
+                {
+                    // (AR) زاوج (نظيرُ x86): operands=[arr1, arr2]. طولُ الناتج min(len1,len2)، كلُّ خانةٍ
+                    //      مؤشّرُ مصفوفةِ زوجٍ {أ[i]، ب[i]} (خامًا). حلقةٌ ذاتُ mmap داخليٍّ لكلّ زوج ⇒ القيمُ
+                    //      العابرةُ في خانات الخدش. homog=Array. خانات: 0=outLen 1=i 2=data1 3=data2 4=outArr 5=outData.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!spillReg(kv.second))
+                                return false;
+                    // (AR) 🔑 اقرأ كِلا المعاملين إلى الخانات مستعملًا x16/x17 (خارج الحوض) **فقط** قبل
+                    //      لمسِ أيّ سجلّ حوض (فخّ ترتيبٍ كامن أطاح ZIP على ARM64). خانات: 0=len1(مؤقّت)
+                    //      2=data1؛ 1=len2(مؤقّت) 3=data2؛ ثمّ min ⇒ 0=outLen، وتُعادُ 1 لـi.
+                    if (!materialize(a64reg::kScratch0, inst.operands[0]) ||
+                        !ldrBase(a64reg::kScratch1, a64reg::kScratch0, kArrOffLen / kArrSlotBytes) || !strSlot(a64reg::kScratch1, arrExtSlot(0)) ||
+                        !ldrBase(a64reg::kScratch1, a64reg::kScratch0, kArrOffData / kArrSlotBytes) || !strSlot(a64reg::kScratch1, arrExtSlot(2)))
+                        return false;
+                    if (!materialize(a64reg::kScratch0, inst.operands[1]) ||
+                        !ldrBase(a64reg::kScratch1, a64reg::kScratch0, kArrOffLen / kArrSlotBytes) || !strSlot(a64reg::kScratch1, arrExtSlot(1)) ||
+                        !ldrBase(a64reg::kScratch1, a64reg::kScratch0, kArrOffData / kArrSlotBytes) || !strSlot(a64reg::kScratch1, arrExtSlot(3)))
+                        return false;
+                    // outLen = min(len1,len2) (الحوضُ حرٌّ الآن): x9=len1، x10=len2؛ إن x9<=x10 أبقِ x9 وإلّا x9=x10.
+                    if (!ldrSlot(9, arrExtSlot(0)) || !ldrSlot(10, arrExtSlot(1)) || !cmp(9, 10))
+                        return false;
+                    size_t bleKeep;
+                    if (!emitBranchFwd(a64::mnem::kBle, "rel19", bleKeep))
+                        return false;
+                    if (!movReg(9, 10))
+                        return false;
+                    if (!patchBranchFwd(bleKeep, 23, 5))
+                        return false;
+                    if (!strSlot(9, arrExtSlot(0))) // outLen (x9)
+                        return false;
+                    // خصّص كتلةَ الناتج: size = 40 + outLen×8 ⇒ x0=outArr (x9=outLen).
+                    if (!movz(11, 3) || !rrr(a64::mnem::kLslv, a64reg::kX1, 9, 11) ||
+                        !addImm(a64reg::kX1, a64reg::kX1, kArrHeaderBytes) || !emitMmapArm64PresetSize())
+                        return false;
+                    if (!strSlot(a64reg::kX0, arrExtSlot(4))) // outArr
+                        return false;
+                    if (!ldrSlot(9, arrExtSlot(0)) || !strBase(9, a64reg::kX0, kArrOffLen / kArrSlotBytes) ||
+                        !strBase(9, a64reg::kX0, kArrOffCap / kArrSlotBytes))
+                        return false;
+                    if (!addImm(9, a64reg::kX0, kArrHeaderBytes) ||
+                        !strBase(9, a64reg::kX0, kArrOffData / kArrSlotBytes) || !strSlot(9, arrExtSlot(5)))
+                        return false;
+                    if (!movz(9, 0) || !strBase(9, a64reg::kX0, kArrOffTags / kArrSlotBytes))
+                        return false;
+                    if (!movz(9, kDynKindArray) || !strBase(9, a64reg::kX0, kArrOffHomog / kArrSlotBytes))
+                        return false;
+                    if (!movz(9, 0) || !strSlot(9, arrExtSlot(1))) // i=0
+                        return false;
+                    // ── الحلقة: بينما i<outLen ──
+                    const size_t zipHead = code_.size();
+                    if (!ldrSlot(9, arrExtSlot(1)) || !ldrSlot(10, arrExtSlot(0)) || !cmp(9, 10))
+                        return false;
+                    size_t bgeZipDone;
+                    if (!emitBranchFwd(a64::mnem::kBge, "rel19", bgeZipDone))
+                        return false;
+                    // خصّص زوجًا: size = 40 + 16 ⇒ x0=pairBase؛ len=cap=2، data=pairBase+40، tags=null (homog=0 من mmap).
+                    if (!movz(a64reg::kX1, kArrHeaderBytes + 2 * kArrSlotBytes) || !emitMmapArm64PresetSize())
+                        return false;
+                    if (!movz(9, 2) || !strBase(9, a64reg::kX0, kArrOffLen / kArrSlotBytes) ||
+                        !strBase(9, a64reg::kX0, kArrOffCap / kArrSlotBytes))
+                        return false;
+                    if (!addImm(9, a64reg::kX0, kArrHeaderBytes) || !strBase(9, a64reg::kX0, kArrOffData / kArrSlotBytes))
+                        return false;
+                    if (!movz(9, 0) || !strBase(9, a64reg::kX0, kArrOffTags / kArrSlotBytes))
+                        return false;
+                    // e1=data1[i]→x13، e2=data2[i]→x14 (x12=i).
+                    if (!ldrSlot(12, arrExtSlot(1)))
+                        return false;
+                    if (!ldrSlot(10, arrExtSlot(2)) || !addLsl3(10, 10, 12) || !ldrBase(13, 10, 0))
+                        return false;
+                    if (!ldrSlot(10, arrExtSlot(3)) || !addLsl3(10, 10, 12) || !ldrBase(14, 10, 0))
+                        return false;
+                    // pairData = pairBase+40 ⇒ [pd+0]=e1، [pd+1]=e2.
+                    if (!addImm(9, a64reg::kX0, kArrHeaderBytes) || !strBase(13, 9, 0) || !strBase(14, 9, 1))
+                        return false;
+                    // outData[i] = pairBase (x0).
+                    if (!ldrSlot(10, arrExtSlot(5)) || !ldrSlot(12, arrExtSlot(1)) || !addLsl3(10, 10, 12) ||
+                        !strBase(a64reg::kX0, 10, 0))
+                        return false;
+                    // i++ ثمّ عُد للرأس.
+                    if (!ldrSlot(9, arrExtSlot(1)) || !addImm(9, 9, 1) || !strSlot(9, arrExtSlot(1)) ||
+                        !emitBBack(zipHead))
+                        return false;
+                    if (!patchBranchFwd(bgeZipDone, 23, 5))
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return ldrSlot(dst, arrExtSlot(4)); // (AR) النتيجة = outArr
                 }
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));

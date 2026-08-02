@@ -32,6 +32,7 @@ pure:
   - { name: kArrayAppendBoxed,    value: "array-append-boxed",   ar: "BUILTIN_ARRAY_APPEND لعنصرٍ معلَّب (elementType=Any) مؤجَّل — يلزمه تعليبُ SadDyn" }
   - { name: kArrayNewDynamicSize, value: "array-new-dynamic-size", ar: "ARRAY_NEW بحجمٍ غيرِ ثابتٍ مؤجَّل" }
   - { name: kArrayNewNegative,    value: "array-new-negative",   ar: "ARRAY_NEW بطولٍ/سعةٍ سالبة" }
+  - { name: kArrayConcatBoxed,    value: "array-concat-boxed",   ar: "ARRAY_CONCAT لمصفوفةٍ معلَّبة (elementType=Any) أو مختلفةِ النوعين مؤجَّل — يلزمه دمجُ مخزنِ الوسوم" }
   - { name: kCmpValue,            value: "cmp-value",            ar: "موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)" }
   - { name: kCmpBranch,           value: "cmp-branch",           ar: "موضعُ فحصٍ: مقارنةٌ مدموجةٌ في فرع" }
 
