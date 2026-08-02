@@ -40,6 +40,7 @@ pure:
   - { name: kObjectNoVtable,      value: "object-no-vtable",     ar: "نداءٌ افتراضيٌّ (OBJECT_CALL) لصنفٍ بلا جدولِ دوالّ (vtable) — الصنفُ @تمثيل_سي أو غيرُ مسجَّل" }
   - { name: kObjectMethodNoSlot,  value: "object-method-no-slot",ar: "نداءٌ افتراضيٌّ لطريقةٍ لا خانةَ لها في جدولِ الدوالّ (باني/هادم أو اسمٌ مجهول)" }
   - { name: kVtableUnresolvedFn,  value: "vtable-unresolved-fn", ar: "خانةُ جدولِ دوالٍّ تشيرُ لدالّةٍ غيرِ معرَّفةٍ زمنَ الترجمة — تعذّر ترقيعُ عنوانها" }
+  - { name: kFuncAddrUnresolved,  value: "func-addr-unresolved", ar: "عنوانُ دالّةٍ (إغلاقٌ/نداءٌ غيرُ مباشر) يشيرُ لدالّةٍ غيرِ معرَّفةٍ زمنَ الترجمة — تعذّر ترقيعُ عنوانها" }
   - { name: kCmpValue,            value: "cmp-value",            ar: "موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)" }
   - { name: kCmpBranch,           value: "cmp-branch",           ar: "موضعُ فحصٍ: مقارنةٌ مدموجةٌ في فرع" }
 

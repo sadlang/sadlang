@@ -90,6 +90,17 @@ namespace
         "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\x34\x30\xD8\x8C\x20\x30\x29\x20\x2B\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\x31\xD8\x8C\x20\x31\x29\x0A"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 
+    // (AR) إغلاقٌ مُلتقِط (الدفعة ٧): «س=40؛ ضعف=لامدا(ن) ارجع ن+س؛ ارجع ضعف(2)» ⇒ اللامدا
+    //      تلتقط س=40 وتُنادى بـ٢ ⇒ ٢+٤٠=٤٢. يُثبت: CLOSURE_CREATE (mmap {fn,env}+التقاط) +
+    //      ENV_LOAD (قراءةُ الملتقَط من البيئة) + CLOSURE_CALL (نداءٌ غيرُ مباشرٍ مع تمريرِ البيئة
+    //      وسيطًا أخيرًا). أوّلُ لامدا/دالّةٍ راقيةٍ تُخفَّض إلى شيفرةِ آلةٍ بلا LLVM.
+    const std::string kSrcClosure =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
+        "\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xB3\x20\x3D\x20\x34\x30\x0A"
+        "\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xB6\xD8\xB9\xD9\x81\x20\x3D\x20\xD9\x84\xD8\xA7\xD9\x85\xD8\xAF\xD8\xA7\x28\xD9\x86\x29\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD9\x86\x20\x2B\x20\xD8\xB3\x20\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
+        "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xB6\xD8\xB9\xD9\x81\x28\x32\x29\x0A"
+        "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
     // (AR) حلقةُ «بينما» بعدّادٍ متغيّرٍ في الذاكرة: عداد=0؛ بينما عداد<42 { عداد=عداد+1 }؛
     //      ارجع عداد ⇒ يخرج ٤٢. يُثبت: ALLOC/LOAD/STORE + إطارُ دالّة + قفزٌ خلفيّ (لولب)
     //      + قراءةُ متغيّرِ الذاكرة كقيمة (تحميلٌ ضمنيّ). أوّلُ برنامجِ ص ذي حالةٍ متغيّرة.
@@ -312,6 +323,46 @@ namespace
                 return true;
         }
         return false;
+    }
+
+    // (AR) يبني وحدةً يدويّةً تُثبت CALL_INDIRECT بمعاملِ FUNCTION (الدفعة ٧): دالّةٌ مساعِدةٌ
+    //      «مساعد_الجمع(أ، ب) = أ+ب»، ورئيسيّةٌ تناديها **غيرَ مباشرٍ** عبر عنوانِها (لا bl مباشر):
+    //      CALL_INDIRECT @مساعد_الجمع, 40, 2 ⇒ يخرج ٤٢. لا يُصدره الأمامُ حاليًّا ⇒ برهانٌ يدويّ.
+    std::shared_ptr<Sad::Compiler::SIR::SIRModule> buildCallIndirectModule()
+    {
+        using namespace Sad::Compiler::SIR;
+        using K = Sad::Types::SadTypeKind;
+        auto mod = std::make_shared<SIRModule>("callind");
+
+        auto helper = std::make_shared<SIRFunction>("add_helper", K::Integer);
+        helper->addParameter(SIRParameter("a", K::Integer));
+        helper->addParameter(SIRParameter("b", K::Integer));
+        auto hbb = std::make_shared<SIRBasicBlock>("entry");
+        SIRInstruction add;
+        add.opcode = SIROpcode::ADD_I64;
+        add.result = SIROperand::Register("%r", K::Integer);
+        add.operands.push_back(SIROperand::Register("%a", K::Integer));
+        add.operands.push_back(SIROperand::Register("%b", K::Integer));
+        hbb->addInstruction(add);
+        hbb->addInstruction(SIRInstruction::Return(SIROperand::Register("%r", K::Integer)));
+        helper->addBasicBlock(hbb);
+
+        auto main = std::make_shared<SIRFunction>(
+            "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9", K::Integer); // رئيسية
+        auto mbb = std::make_shared<SIRBasicBlock>("entry");
+        SIRInstruction ci;
+        ci.opcode = SIROpcode::CALL_INDIRECT;
+        ci.result = SIROperand::Register("%res", K::Integer);
+        ci.operands.push_back(SIROperand::Function("add_helper"));
+        ci.operands.push_back(SIROperand::ConstantI64(40));
+        ci.operands.push_back(SIROperand::ConstantI64(2));
+        mbb->addInstruction(ci);
+        mbb->addInstruction(SIRInstruction::Return(SIROperand::Register("%res", K::Integer)));
+        main->addBasicBlock(mbb);
+
+        mod->addFunction(main); // (AR) الداخلةُ أوّلًا (findEntry يجدها بالاسم على أيّ حال)
+        mod->addFunction(helper);
+        return mod;
     }
 } // namespace
 
@@ -1972,6 +2023,92 @@ TEST(Arm64SirBridge, LowersDynamicStrings)
     ASSERT_TRUE(contains(bin, {0x62, 0x9E})); // scvtf Dd,Xn (نصفُ الكلمةِ الأعلى LE) — تراكمُ STRING_TO_F64 (الطبقة ٥)
 
     std::FILE *fp = std::fopen("sad_arm64_dynstr42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) الإغلاقات (الدفعة ٧) — x86-64: لامدا تلتقط س=٤٠ وتُنادى بـ٢ ⇒ ٤٢. يؤكّد إصدارَ
+//      «call rax» (FF D0، نداءٌ غيرُ مباشر) لنداءِ الإغلاق. يُكتب الثنائيُّ لبرهانِ خروجِ ٤٢.
+TEST(NativeSirBridge, LowersClosureCapture)
+{
+    auto module = buildSir(kSrcClosure);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 closure lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0xFF, 0xD0})); // call rax (نداءُ الإغلاق غيرُ المباشر)
+
+    std::FILE *fp = std::fopen("sad_sir_closure42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) الإغلاقات (الدفعة ٧) — AArch64: نفسُ اللامدا المُلتقِطة تُخفَّض لـARM64. يؤكّد إصدارَ
+//      «blr x16» (00 02 3F D6، نداءُ الإغلاق غيرُ المباشر). يُكتب الثنائيُّ لبرهانِ خروجِ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersClosureCapture)
+{
+    auto module = buildSir(kSrcClosure);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 closure lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    ASSERT_TRUE(contains(bin, {0x00, 0x02, 0x3F, 0xD6})); // blr x16 (نداءُ الإغلاق غيرُ المباشر)
+
+    std::FILE *fp = std::fopen("sad_arm64_closure42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) CALL_INDIRECT (الدفعة ٧) — x86-64: نداءٌ غيرُ مباشرٍ عبر عنوانِ دالّةٍ (call rax) ⇒ ٤٢.
+TEST(NativeSirBridge, LowersCallIndirect)
+{
+    auto module = buildCallIndirectModule();
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 call_indirect lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    ASSERT_TRUE(contains(bin, {0xFF, 0xD0})); // call rax (نداءٌ غيرُ مباشر)
+
+    std::FILE *fp = std::fopen("sad_sir_callind42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) CALL_INDIRECT (الدفعة ٧) — AArch64: نداءٌ غيرُ مباشرٍ عبر عنوانِ دالّةٍ (blr x16) ⇒ ٤٢.
+TEST(Arm64SirBridge, LowersCallIndirect)
+{
+    auto module = buildCallIndirectModule();
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 call_indirect lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    ASSERT_TRUE(contains(bin, {0x00, 0x02, 0x3F, 0xD6})); // blr x16 (نداءٌ غيرُ مباشر)
+
+    std::FILE *fp = std::fopen("sad_arm64_callind42", "wb");
     ASSERT_TRUE(fp != nullptr);
     size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
     std::fclose(fp);

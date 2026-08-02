@@ -142,7 +142,7 @@ namespace sad
                 //      عنوانَ كلّ سلسلةٍ (٦٤-بت) في تسلسلِ movz+movk×3. العنوانُ المطلقُ = vbase +
                 //      إزاحةُ الشيفرة + قاعدةُ rodata داخل code_ + إزاحةُ السلسلة (ثباتُ vbase في ET_EXEC).
                 if (!strFixups_.empty() || !fnPtrFixups_.empty() ||
-                    !vtableAddrFixups_.empty() || !rodata_.empty())
+                    !vtableAddrFixups_.empty() || !funcAddrFixups_.empty() || !rodata_.empty())
                 {
                     const size_t rodataBase = code_.size();
                     code_.insert(code_.end(), rodata_.begin(), rodata_.end());
@@ -179,6 +179,21 @@ namespace sad
                         {
                             const uint32_t imm16 = static_cast<uint32_t>((vtAddr >> (16 * chunk)) & 0xFFFF);
                             patchImm16At(vf.movStart + static_cast<size_t>(chunk) * 4, imm16);
+                        }
+                    }
+                    // (AR) عناوينُ الدوالّ في تسلسلِ movz+movk×3 داخلَ CLOSURE_CREATE (الدفعة ٧).
+                    for (const FuncAddrFixup &af : funcAddrFixups_)
+                    {
+                        auto it = funcOffset_.find(af.fnName);
+                        if (it == funcOffset_.end())
+                            return finishError(r, EC::INT_NATIVE_UNSUPPORTED,
+                                               diag::kFuncAddrUnresolved + af.fnName);
+                        const uint64_t fnAddr = elf::kDefaultVBase + elf::kCodeOffset +
+                                                static_cast<uint64_t>(it->second);
+                        for (int chunk = 0; chunk < 4; ++chunk)
+                        {
+                            const uint32_t imm16 = static_cast<uint32_t>((fnAddr >> (16 * chunk)) & 0xFFFF);
+                            patchImm16At(af.movStart + static_cast<size_t>(chunk) * 4, imm16);
                         }
                     }
                 }
@@ -309,6 +324,10 @@ namespace sad
             // (AR) عنوانُ الجدول يُرقَّع في تسلسلِ movz+movk×3 (نظيرُ StrFixup): موضعُ الكلمةِ الأولى + الصنف.
             struct VtableAddrFixup { size_t movStart; std::string className; };
             std::vector<VtableAddrFixup> vtableAddrFixups_;
+            // (AR) الإغلاقات (الدفعة ٧، مرآةُ x86): عنوانُ دالّةٍ يُرقَّع في تسلسلِ movz+movk×3 داخلَ
+            //      CLOSURE_CREATE ⇒ يُملأ بعنوانِ الدالّةِ المطلق (يُحلُّ من funcOffset_).
+            struct FuncAddrFixup { size_t movStart; std::string fnName; };
+            std::vector<FuncAddrFixup> funcAddrFixups_;
 
             // (AR) يبني تخطيطاتِ جداولِ الدوالّ (بترتيبٍ أبٌ-قبل-ابن: نسخُ الأب + تجاوزٌ في المكان
             //      أو إلحاق) ثمّ يحجزُ خاناتِها في مقدّمةِ rodata_. مرآةٌ حرفيّةٌ لـx86. (الدفعة ٦)
@@ -318,6 +337,7 @@ namespace sad
                 vtableBaseOff_.clear();
                 fnPtrFixups_.clear();
                 vtableAddrFixups_.clear();
+                funcAddrFixups_.clear();
                 std::map<std::string, const sir::SIRClass *> byName;
                 for (const auto &c : module.getClasses())
                     if (c && !c->isCRepr)
@@ -404,6 +424,17 @@ namespace sad
             bool emitBlr(int reg)
             {
                 return emit(a64::mnem::kBlr, "Xn", {a64::Operand::R(reg)});
+            }
+            // (AR) الإغلاقات (الدفعة ٧): يبني عنوانَ دالّةٍ ٦٤-بت في سجلّ (movz+movk×3 نائبٌ) ويسجّل
+            //      ترقيعًا يُحلُّ من funcOffset_ زمنَ الإنهاء. مرآةُ emitVtableAddr.
+            bool emitFuncAddr(int reg, const std::string &fnName)
+            {
+                const size_t start = code_.size();
+                if (!emit(a64::mnem::kMovz, "x, imm16", {a64::Operand::R(reg), a64::Operand::I(0)}) ||
+                    !movk(reg, 0, 1) || !movk(reg, 0, 2) || !movk(reg, 0, 3))
+                    return false;
+                funcAddrFixups_.push_back({start, fnName});
+                return true;
             }
 
             // (AR) سجلٌّ افتراضيٌّ عُرِّف بـ«MOVE %r = سلسلةٌ حرفيّة» ⇒ محتواها (لا شيفرةَ للـMOVE؛
@@ -1273,7 +1304,9 @@ namespace sad
                         if (inst.opcode == sir::SIROpcode::ALLOC && inst.result)
                             memSlot_[inst.result->name] = slot++;
                         else if (inst.opcode == sir::SIROpcode::CALL ||
-                                 inst.opcode == sir::SIROpcode::OBJECT_CALL) // (AR) نداءٌ افتراضيّ (blr يدهس x30)
+                                 inst.opcode == sir::SIROpcode::OBJECT_CALL || // (AR) نداءٌ افتراضيّ (blr يدهس x30)
+                                 inst.opcode == sir::SIROpcode::CLOSURE_CALL || // (AR) نداءُ إغلاقٍ (الدفعة ٧)
+                                 inst.opcode == sir::SIROpcode::CALL_INDIRECT)  // (AR) نداءٌ عبر مؤشّرِ دالّة
                             hasCall = true;
                         else if (inst.opcode == sir::SIROpcode::ARRAY_NEW ||
                                  inst.opcode == sir::SIROpcode::TUPLE_NEW || // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً
@@ -1284,6 +1317,15 @@ namespace sad
                             inst.operands[0].type == sir::SIROperandType::CONSTANT &&
                             inst.operands[0].dataType == types::SadTypeKind::String)
                             hasArrayNew = true;
+                        // (AR) CLOSURE_CREATE (الدفعة ٧) = mmap لبنية {fn,env}+الملتقَطات ⇒ يدهس الحوض.
+                        if (inst.opcode == sir::SIROpcode::CLOSURE_CREATE)
+                            hasArrayNew = true;
+                        // (AR) محلّيٌّ ضمنيّ (الدفعة ٧، مرآةُ x86): STORE ثنائيٌّ إلى سجلٍّ بلا ALLOC
+                        //      (مثل %__cap_X في جسم اللامدا) ⇒ يلزمه فهرسُ خانةٍ كي يطابقَه isMemVar.
+                        if (inst.opcode == sir::SIROpcode::STORE && inst.operands.size() == 2 &&
+                            inst.operands[1].type == sir::SIROperandType::REGISTER &&
+                            memSlot_.find(inst.operands[1].name) == memSlot_.end())
+                            memSlot_[inst.operands[1].name] = slot++;
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_ARRAY_APPEND ||
                                  inst.opcode == sir::SIROpcode::ARRAY_APPEND)
                             hasAppend = true;
@@ -2926,6 +2968,157 @@ namespace sad
                         return movReg(dst, a64reg::kX0); // (AR) قيمةُ الإرجاع من x0
                     }
                     return true;
+                }
+                case OP::CLOSURE_CREATE:
+                {
+                    // (AR) الإغلاقات (الدفعة ٧، مرآةُ x86): operands=[@دالّة, ملتقَط٠، …]. تخصيصٌ واحدٌ
+                    //      مدموج mmap(16 + N×8): [base]=عنوانُ الدالّة، [base+8]=البيئة=base+16 (أو صفر)،
+                    //      [base+16+i×8]=الملتقَطُ i. النتيجةُ=base. عنوانُ الدالّةِ يُرقَّع (funcAddrFixups_).
+                    if (!inst.result || inst.operands.empty() ||
+                        inst.operands[0].type != sir::SIROperandType::FUNCTION)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    const long long numCaptures = static_cast<long long>(inst.operands.size()) - 1;
+                    const long long allocSize = 16 + numCaptures * 8;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!spillReg(kv.second))
+                                return false;
+                    if (!emitMmapArm64(allocSize)) // x0 = base (mmap يصفّر الكتلة)
+                        return false;
+                    // (AR) [base+0] = عنوانُ الدالّة (نائبٌ يُرقَّع). x16 خدشٌ خارجَ الحوض.
+                    if (!emitFuncAddr(a64reg::kScratch0, inst.operands[0].name) ||
+                        !strBase(a64reg::kScratch0, a64reg::kX0, 0))
+                        return false;
+                    if (numCaptures > 0)
+                    {
+                        // (AR) [base+8] = البيئة = base + 16 (الفهرسُ المقيسُ ١).
+                        if (!addImm(a64reg::kScratch0, a64reg::kX0, 16) ||
+                            !strBase(a64reg::kScratch0, a64reg::kX0, 1))
+                            return false;
+                        // (AR) [base+16+i×8] = الملتقَطُ i (الفهرسُ المقيسُ ٢+i؛ يُقرأ من خانةِ انسكابه).
+                        for (long long i = 0; i < numCaptures; ++i)
+                            if (!loadArgInto(a64reg::kScratch0, inst.operands[static_cast<size_t>(i + 1)]) ||
+                                !strBase(a64reg::kScratch0, a64reg::kX0, 2 + i))
+                                return false;
+                    }
+                    else if (!strBase(a64reg::kXzr, a64reg::kX0, 1))
+                        return false; // (AR) بلا التقاطٍ ⇒ البيئة = صفر
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, a64reg::kX0);
+                }
+                case OP::CLOSURE_CALL:
+                {
+                    // (AR) نداءُ إغلاق (الدفعة ٧): operands=[مؤشّرُ الإغلاق, وسيط٠، …]. البنيةُ {fn@0, env@8}.
+                    //      الوسائطُ الصريحةُ في x0..؛ البيئةُ وسيطًا أخيرًا (عقدُ اللامدا: __env أخيرًا)؛
+                    //      ثمّ blr [الإغلاق+0]. x16 خارجَ الحوضِ (لا يدهس وسيطًا).
+                    if (inst.operands.empty())
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    const size_t argc = inst.operands.size() - 1; // (AR) الوسائطُ الصريحة (عدا البيئة)
+                    if (argc + 1 > 8)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt8 + std::to_string(argc + 1));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!spillReg(kv.second))
+                                return false;
+                    for (size_t i = 0; i < argc; ++i)
+                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                            return false;
+                    // (AR) مؤشّرُ الإغلاق → x16. البيئةُ = [x16+8] (فهرسٌ ١) → x[argc]؛ الدالّةُ = [x16+0] → x16.
+                    if (!loadArgInto(a64reg::kScratch0, inst.operands[0]))
+                        return false;
+                    if (!ldrBase(abiArg_[argc], a64reg::kScratch0, 1)) // (AR) البيئةُ وسيطًا أخيرًا
+                        return false;
+                    if (!ldrBase(a64reg::kScratch0, a64reg::kScratch0, 0)) // (AR) مؤشّرُ الدالّة
+                        return false;
+                    if (!emitBlr(a64reg::kScratch0))
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    if (inst.result)
+                    {
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return movReg(dst, a64reg::kX0);
+                    }
+                    return true;
+                }
+                case OP::CALL_INDIRECT:
+                {
+                    // (AR) نداءٌ عبر مؤشّرِ دالّة (الدفعة ٧): operands=[مؤشّرُ الدالّة, وسيط٠، …]. لا بيئةَ.
+                    if (inst.operands.empty())
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    const size_t argc = inst.operands.size() - 1;
+                    if (argc > 8)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kArgsGt8 + std::to_string(argc));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!spillReg(kv.second))
+                                return false;
+                    for (size_t i = 0; i < argc; ++i)
+                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                            return false;
+                    // (AR) مؤشّرُ الدالّة → x16: معاملُ FUNCTION ⇒ عنوانٌ مُرقَّع؛ وإلّا سجلّ/خانة.
+                    if (inst.operands[0].type == sir::SIROperandType::FUNCTION)
+                    {
+                        if (!emitFuncAddr(a64reg::kScratch0, inst.operands[0].name))
+                            return false;
+                    }
+                    else if (!loadArgInto(a64reg::kScratch0, inst.operands[0]))
+                        return false;
+                    if (!emitBlr(a64reg::kScratch0))
+                        return false;
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    if (inst.result)
+                    {
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return movReg(dst, a64reg::kX0);
+                    }
+                    return true;
+                }
+                case OP::ENV_LOAD:
+                {
+                    // (AR) تحميلُ ملتقَطٍ من البيئة (الدفعة ٧): operands=[%__env, فهرس]. dst = [env + فهرس×8].
+                    //      الفهرسُ في ldrBase مقيسٌ (فهرسُ الملتقَط = الفهرسُ المقيسُ عينُه).
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long idx;
+                    if (!common::isConstInt(inst.operands[1], idx) || idx < 0)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!materialize(a64reg::kScratch0, inst.operands[0])) // x16 = مؤشّرُ البيئة
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return ldrBase(dst, a64reg::kScratch0, idx);
+                }
+                case OP::ENV_STORE:
+                {
+                    // (AR) تخزينُ ملتقَطٍ في البيئة (الدفعة ٧): operands=[قيمة, %__env, فهرس]. [env+فهرس×8]=قيمة.
+                    if (inst.operands.size() != 3)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long idx;
+                    if (!common::isConstInt(inst.operands[2], idx) || idx < 0)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    return materialize(a64reg::kScratch0, inst.operands[1]) && // x16 = مؤشّرُ البيئة
+                           materialize(a64reg::kScratch1, inst.operands[0]) && // x17 = القيمة
+                           strBase(a64reg::kScratch1, a64reg::kScratch0, idx);
                 }
                 case OP::BUILTIN_PRINT:
                 {

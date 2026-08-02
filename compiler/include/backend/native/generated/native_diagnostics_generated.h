@@ -30,6 +30,7 @@ namespace sad { namespace native { namespace diag {
     inline const std::string kObjectNoVtable = "object-no-vtable";  // نداءٌ افتراضيٌّ (OBJECT_CALL) لصنفٍ بلا جدولِ دوالّ (vtable) — الصنفُ @تمثيل_سي أو غيرُ مسجَّل
     inline const std::string kObjectMethodNoSlot = "object-method-no-slot";  // نداءٌ افتراضيٌّ لطريقةٍ لا خانةَ لها في جدولِ الدوالّ (باني/هادم أو اسمٌ مجهول)
     inline const std::string kVtableUnresolvedFn = "vtable-unresolved-fn";  // خانةُ جدولِ دوالٍّ تشيرُ لدالّةٍ غيرِ معرَّفةٍ زمنَ الترجمة — تعذّر ترقيعُ عنوانها
+    inline const std::string kFuncAddrUnresolved = "func-addr-unresolved";  // عنوانُ دالّةٍ (إغلاقٌ/نداءٌ غيرُ مباشر) يشيرُ لدالّةٍ غيرِ معرَّفةٍ زمنَ الترجمة — تعذّر ترقيعُ عنوانها
     inline const std::string kCmpValue = "cmp-value";  // موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)
     inline const std::string kCmpBranch = "cmp-branch";  // موضعُ فحصٍ: مقارنةٌ مدموجةٌ في فرع
 
