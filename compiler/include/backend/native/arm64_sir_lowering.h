@@ -113,6 +113,9 @@ namespace sad
                         if (t == types::SadTypeKind::Any ||
                             (t == types::SadTypeKind::Boolean && c->isCRepr))
                             cl.allEightByte = false;
+                        // (AR) حقلُ مصفوفةٍ (مُهيّأ بـ[]): سجّلْ إزاحتَه ليُخصَّص له SadArray فارغٌ عند ALLOC (مرآةُ x86).
+                        if (c->isArrayField(fname))
+                            cl.arrayFieldOffsets.push_back(8LL * ((idx - 1) + (c->isCRepr ? 0 : 1)));
                     }
                     cl.numFields = idx;
                     classLayout_[c->name] = cl;
@@ -248,7 +251,7 @@ namespace sad
             std::map<std::string, int> memSlot_;
             // (AR) تخطيطُ الأصناف + استنتاجُ صنفِ الكائن (الدفعة ٥، مرآةُ x86): إزاحةُ الحقل = 8×(الفهرس +
             //      (isCRepr؟0:1))؛ حقولٌ ٨-بت فقط. objClassOf_ يُصفَّر لكلّ دالّة. classLayout_ يُبنى مرّةً.
-            struct ClassLayout { bool isCRepr = false; std::map<std::string, int> fieldIndex; int numFields = 0; bool allEightByte = true; };
+            struct ClassLayout { bool isCRepr = false; std::map<std::string, int> fieldIndex; int numFields = 0; bool allEightByte = true; std::vector<long long> arrayFieldOffsets; };
             std::map<std::string, ClassLayout> classLayout_;
             std::map<std::string, std::string> objClassOf_;
             bool objFieldByteOffset(const std::string &className, const std::string &field, long long &off) const
@@ -3685,10 +3688,6 @@ namespace sad
                                     return false;
                         if (!emitMmapArm64(size)) // x0 = المؤشّر (mmap يصفّر الكتلة)
                             return false;
-                        for (const auto &kv : regOf_)
-                            if (common::usedAfterInBlock(block, instIdx, kv.first))
-                                if (!reloadReg(kv.second))
-                                    return false;
                         objClassOf_[inst.result->name] = className;
                         // (AR) الإرسالُ الافتراضيّ (الدفعة ٦): خزّنْ عنوانَ جدولِ الدوالّ في obj[0]
                         //      (ترويسةُ vtable). العنوانُ يُرقَّع زمنَ الإنهاء. x0=المؤشّر، x16 خدشٌ.
@@ -3698,7 +3697,44 @@ namespace sad
                                 !strBase(a64reg::kScratch0, a64reg::kX0, 0)) // obj[0] = عنوانُ الجدول
                                 return false;
                         }
-                        return strSlot(a64reg::kX0, memSlot_[inst.result->name]);
+                        // (AR) خزّنِ المؤشّرَ في خانةِ النتيجة الآن (يبقى الحوضُ منسكبًا) ⇒ يصمد عبرَ
+                        //      mmapاتِ حقولِ المصفوفةِ التالية، ونعيد تحميلَه منها. (مرآةُ x86).
+                        if (!strSlot(a64reg::kX0, memSlot_[inst.result->name]))
+                            return false;
+                        // (AR) تهيئةُ حقولِ المصفوفةِ (المُهيّأة بـ[]): مرآةُ mem_alloca في LLVM وx86 — لكلِّ
+                        //      حقلٍ خصّصْ SadArray فارغًا (نمطُ ARRAY_NEW: كتلةٌ واحدةٌ، cap=kArrFieldInitCap،
+                        //      len=0، homogKind=0 من mmap) وخزّنْ مؤشّرَه في obj[الإزاحة]. بدونها ⇒ مؤشّرٌ
+                        //      قمامةٌ (صفرٌ من mmap) ⇒ SIGSEGV عند «طول»/الإلحاق.
+                        for (const long long fieldOff : ci->second.arrayFieldOffsets)
+                        {
+                            const long long total = kArrHeaderBytes +
+                                                    kArrFieldInitCap * kArrSlotBytes +
+                                                    kArrFieldInitCap * kTagSlotBytes;
+                            if (!emitMmapArm64(total)) // x0 = قاعدةُ SadArray (mmap يصفّر)
+                                return false;
+                            if (!movz(a64reg::kScratch0, 0) ||
+                                !strBase(a64reg::kScratch0, a64reg::kX0, kArrOffLen / kArrSlotBytes))
+                                return false; // len = 0
+                            if (!movz(a64reg::kScratch0, kArrFieldInitCap) ||
+                                !strBase(a64reg::kScratch0, a64reg::kX0, kArrOffCap / kArrSlotBytes))
+                                return false; // cap = 8
+                            if (!addImm(a64reg::kScratch0, a64reg::kX0, kArrHeaderBytes) ||
+                                !strBase(a64reg::kScratch0, a64reg::kX0, kArrOffData / kArrSlotBytes))
+                                return false; // data = base + 40
+                            if (!addImm(a64reg::kScratch0, a64reg::kX0, kArrHeaderBytes + kArrFieldInitCap * kArrSlotBytes) ||
+                                !strBase(a64reg::kScratch0, a64reg::kX0, kArrOffTags / kArrSlotBytes))
+                                return false; // tags = نهايةُ البيانات (منطقةٌ مصفّرةٌ في الكتلة نفسها)
+                            // (AR) خزّنْ مؤشّرَ المصفوفة (x0) في obj[fieldOff]: أعِد تحميلَ obj في x17.
+                            if (!ldrSlot(a64reg::kScratch1, memSlot_[inst.result->name]))
+                                return false;
+                            if (!strBase(a64reg::kX0, a64reg::kScratch1, fieldOff / kArrSlotBytes))
+                                return false;
+                        }
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!reloadReg(kv.second))
+                                    return false;
+                        return true;
                     }
                     return true;
                 }

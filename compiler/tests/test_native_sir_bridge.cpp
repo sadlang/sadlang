@@ -2614,6 +2614,110 @@ TEST(Arm64SirBridge, LowersBoolField)
     ASSERT_EQ(int(wrote), int(bin.size()));
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// (AR) دفعةُ حقولِ الكائنيّة: حقلُ صنفٍ نصّيّ + حقلُ صنفٍ مصفوفيٌّ فارغٌ (المُهيّأ بـ[]).
+//      حقلُ النصّ: STORE/LOAD لمؤشّرِ واصفٍ في خانةِ الحقل ⇒ «طول(هذا.محتوى)»×٧=٤٢ (مدعومٌ سلفًا؛
+//      اختبارُ تثبيت). حقلُ المصفوفة: كان يُنشئ الكائنَ بلا تخصيصِ SadArray للحقل ⇒ مؤشّرٌ صفريٌّ
+//      (mmap) ⇒ «طول(هذا.عناصر)» تُفكّك قمامةً ⇒ SIGSEGV. الإصلاح: معالِجُ ALLOC يُهيّئ حقلَ
+//      المصفوفةِ بـSadArray فارغٍ فعليٍّ (مرآةُ mem_alloca في LLVM) ⇒ الطولُ ٠ ⇒ ٤٢. x86≡ARM64.
+// ════════════════════════════════════════════════════════════════════════════
+static const char *kSrcClassStrField =
+    "صنف رسالة\n"
+    "    متغير عام محتوى = \"\"\n"
+    "    باني(م) هذا.محتوى = م نهاية\n"
+    "    دالة احصل() ارجع طول(هذا.محتوى) نهاية\n"
+    "نهاية\n"
+    "دالة رئيسية()\n"
+    "    متغير ر = رسالة(\"abcdef\")\n"
+    "    ارجع ر.احصل() * 7\n"
+    "نهاية\n";
+
+static const char *kSrcClassArrField =
+    "صنف حاوية\n"
+    "    متغير عام عناصر = []\n"
+    "    دالة عدد() ارجع طول(هذا.عناصر) نهاية\n"
+    "نهاية\n"
+    "دالة رئيسية()\n"
+    "    متغير ح = حاوية()\n"
+    "    إذا ح.عدد() == 0\n"
+    "        ارجع 42\n"
+    "    نهاية\n"
+    "    ارجع 0\n"
+    "نهاية\n";
+
+TEST(NativeSirBridge, LowersClassStringField)
+{
+    auto module = buildSir(kSrcClassStrField);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 class-string-field lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    std::FILE *fp = std::fopen("sad_sir_classstrfield42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+TEST(Arm64SirBridge, LowersClassStringField)
+{
+    auto module = buildSir(kSrcClassStrField);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 class-string-field lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    std::FILE *fp = std::fopen("sad_arm64_classstrfield42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// (AR) الإصلاح الجوهريّ: حقلُ مصفوفةٍ فارغٌ في صنفٍ يُهيَّأ SadArray فعليًّا عند ALLOC ⇒ لا SIGSEGV.
+TEST(NativeSirBridge, LowersClassArrayFieldInit)
+{
+    auto module = buildSir(kSrcClassArrField);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("x86 class-array-field lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap للكائن + mmap لحقلِ المصفوفة)
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 62); // EM_X86_64
+    std::FILE *fp = std::fopen("sad_sir_classarrfield42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+TEST(Arm64SirBridge, LowersClassArrayFieldInit)
+{
+    auto module = buildSir(kSrcClassArrField);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 class-array-field lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), 183); // EM_AARCH64
+    std::FILE *fp = std::fopen("sad_arm64_classarrfield42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
 int main(int argc, char **argv)
 {
     (void)argc;

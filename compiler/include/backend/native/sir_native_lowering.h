@@ -118,6 +118,7 @@ namespace sad
         inline constexpr long long kArrHeaderBytes = 40; // (AR) حجمُ رأس البنية (٥ حقول مع الحشو)
         inline constexpr long long kArrSlotBytes = 8;    // (AR) بايتات خانةِ العنصر الواحد
         inline constexpr long long kTagSlotBytes = 8;    // (AR) خانةُ وسمٍ ٨-بت لكلّ عنصر (i64؛ يتجنّب movzx m8 — الخلفيّةُ الأصليّة مستقلّةٌ عن تخطيط LLVM ذي البايت)
+        inline constexpr long long kArrFieldInitCap = 8; // (AR) سعةُ حقلِ مصفوفةِ الصنفِ الفارغِ (المُهيّأ بـ[]) عند الإنشاء — تُطابق LLVM (mem_alloca) لتفادي مؤشّرٍ قمامةٍ عند القراءة/الإلحاق
 
         // (AR) وسومُ النوع زمنَ التشغيل (SadDyn.tag) — **مصدرٌ واحد**: مُولَّدةٌ من
         //      language-truth/backend/value_repr.yaml (sad::types::repr) ومشترَكةٌ مع DynKind
@@ -250,6 +251,10 @@ namespace sad
                         if (t == types::SadTypeKind::Any ||
                             (t == types::SadTypeKind::Boolean && c->isCRepr))
                             cl.allEightByte = false;
+                        // (AR) حقلُ مصفوفةٍ (مُهيّأ بـ[]): سجّلْ إزاحتَه ليُخصَّص له SadArray فارغٌ عند ALLOC.
+                        //      الإزاحة = 8×(الفهرس + (isCRepr؟0:1)) [ترويسةُ vtable@0 لغير-CRepr] — كـobjFieldByteOffset.
+                        if (c->isArrayField(fname))
+                            cl.arrayFieldOffsets.push_back(8LL * ((idx - 1) + (c->isCRepr ? 0 : 1)));
                     }
                     cl.numFields = idx;
                     classLayout_[c->name] = cl;
@@ -437,7 +442,9 @@ namespace sad
             // (AR) تخطيطُ الأصناف (الدفعة ٥، الكائنيّة): اسمُ الصنف ⇒ {isCRepr، اسمُ الحقل⇒فهرسُه، عددُ الحقول،
             //      allEightByte}. إزاحةُ الحقل = 8×(الفهرس + (isCRepr؟0:1)) [ترويسةُ vtable@0 لغير-CRepr].
             //      يُدعَم الحقلُ ٨-بت فقط (i64/f64/ptr/نصّ)؛ bool/Any مؤجَّلان (تخطيطٌ غيرُ منتظم). يُبنى مرّةً في lowerModule.
-            struct ClassLayout { bool isCRepr = false; std::map<std::string, int> fieldIndex; int numFields = 0; bool allEightByte = true; };
+            // (AR) arrayFieldOffsets: إزاحاتُ بايتِ حقولِ المصفوفةِ (المُهيّأة بـ[]) داخلَ الكائن —
+            //      تُهيَّأ بـSadArray فارغٍ فعليٍّ عند ALLOC (مرآةُ mem_alloca في LLVM) لتفادي مؤشّرٍ قمامة.
+            struct ClassLayout { bool isCRepr = false; std::map<std::string, int> fieldIndex; int numFields = 0; bool allEightByte = true; std::vector<long long> arrayFieldOffsets; };
             std::map<std::string, ClassLayout> classLayout_;
             // (AR) استنتاجُ صنفِ الكائن (سجلّ/خانة ⇒ اسمُ الصنف): يُعيد بناءَ objectClassMap الأماميّ.
             //      %self داخل «صنف.طريقة» صنفُه الصنف؛ ALLOC"C" نتيجتُه C؛ STORE/LOAD ينشران. يُصفَّر لكلّ دالّة.
@@ -4024,10 +4031,6 @@ namespace sad
                                     return false;
                         if (!emitMmap(size < 8 ? 8 : size)) // (AR) RAX=المؤشّر (mmap يصفّر الكتلة)
                             return false;
-                        for (const auto &kv : regOf_)
-                            if (common::usedAfterInBlock(block, instIdx, kv.first))
-                                if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
-                                    return false;
                         objClassOf_[inst.result->name] = className;
                         // (AR) الإرسالُ الافتراضيّ (الدفعة ٦): خزّنْ عنوانَ جدولِ دوالِّ الصنفِ في
                         //      obj[0] (ترويسةُ vtable). عنوانُ الجدولِ يُرقَّع زمنَ الإنهاء. RAX=المؤشّر.
@@ -4039,7 +4042,43 @@ namespace sad
                             if (!storeMemBase(x86::RAX, 0, x86::RDI)) // obj[0] = عنوانُ الجدول
                                 return false;
                         }
-                        return storeMem(memSlot_[inst.result->name], x86::RAX); // المؤشّرُ ⇒ خانةُ النتيجة
+                        // (AR) خزّنِ المؤشّرَ في خانةِ النتيجة الآن (يبقى الحوضُ منسكبًا) ⇒ يصمد عبرَ
+                        //      mmapاتِ حقولِ المصفوفةِ التالية (كلٌّ يدهس caller-saved)، ونعيد تحميلَه منها.
+                        if (!storeMem(memSlot_[inst.result->name], x86::RAX))
+                            return false;
+                        // (AR) تهيئةُ حقولِ المصفوفةِ (المُهيّأة بـ[]): مرآةُ mem_alloca في LLVM — لكلِّ
+                        //      حقلٍ خصّصْ SadArray فارغًا فعليًّا (نمطُ ARRAY_NEW: كتلةٌ واحدةٌ رأس+بيانات+وسوم،
+                        //      cap=kArrFieldInitCap، len=0، homogKind=0 من mmap) وخزّنْ مؤشّرَه في obj[الإزاحة].
+                        //      بدونها يبقى مؤشّرُ الحقلِ صفرًا (mmap) ⇒ قراءةُ «طول»/الإلحاقِ تُفكّك قمامةً ⇒ SIGSEGV.
+                        for (const long long fieldOff : ci->second.arrayFieldOffsets)
+                        {
+                            const long long total = kArrHeaderBytes +
+                                                    kArrFieldInitCap * kArrSlotBytes +
+                                                    kArrFieldInitCap * kTagSlotBytes;
+                            if (!emitMmap(total)) // (AR) RAX = قاعدةُ SadArray (mmap يصفّر ⇒ len/tags/homogKind=0)
+                                return false;
+                            if (!movImm(x86::RDI, 0) || !storeMemBase(x86::RAX, kArrOffLen, x86::RDI))
+                                return false; // len = 0 (صريحٌ ولو صفّره mmap)
+                            if (!movImm(x86::RDI, kArrFieldInitCap) || !storeMemBase(x86::RAX, kArrOffCap, x86::RDI))
+                                return false; // cap = 8
+                            if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, kArrHeaderBytes) ||
+                                !storeMemBase(x86::RAX, kArrOffData, x86::RDI))
+                                return false; // data = base + 40
+                            if (!movReg(x86::RDI, x86::RAX) ||
+                                !addImm(x86::RDI, kArrHeaderBytes + kArrFieldInitCap * kArrSlotBytes) ||
+                                !storeMemBase(x86::RAX, kArrOffTags, x86::RDI))
+                                return false; // tags = نهايةُ البيانات (منطقةٌ مصفّرةٌ في الكتلةِ نفسِها)
+                            // (AR) خزّنْ مؤشّرَ المصفوفة (RAX) في obj[fieldOff]: أعِد تحميلَ obj من خانةِ النتيجة.
+                            if (!loadMem(x86::RDI, memSlot_[inst.result->name]))
+                                return false;
+                            if (!storeMemBase(x86::RDI, fieldOff, x86::RAX))
+                                return false;
+                        }
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                    return false;
+                        return true;
                     }
                     return true;
                 }
