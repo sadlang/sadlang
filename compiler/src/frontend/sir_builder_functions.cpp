@@ -55,11 +55,21 @@ namespace Sad
                     return false;
                 if (dynamic_cast<const ::Sad::AST::DeferStmt *>(stmt))
                     return true;
-                // (AR) تحفّظ: المولّدات/الإطلاق/المطابقة تُبقي الآلة كما كانت
+                // (AR) تحفّظ: المولّدات/الإطلاق تُبقي الآلة (تستعمل زمنَ التشغيل فعلًا)
                 if (dynamic_cast<const ::Sad::AST::YieldStmt *>(stmt))
                     return true;
-                if (dynamic_cast<const ::Sad::AST::MatchStmt *>(stmt))
-                    return true;
+                // (AR) المطابقة لا تحتاج منظومةَ أجّل بذاتها؛ تحتاجها فقط إن استعمل أحدُ أذرعها
+                //      «أجّل»/إطلاقًا/محاولةً. نتعمّق في أجساد الأذرع بدل الإبقاء القسريّ — يفكّ
+                //      ارتباطَ التعداد المُطابَق عن _setjmp/malloc (الغائبَين عن المعدن والبثّ
+                //      السياديّ الأصليّ). يؤثّر في الوضع الحرّ فقط (المستضاف/المفسّر بلا مساس، سطر 577).
+                if (auto *ms = dynamic_cast<const ::Sad::AST::MatchStmt *>(stmt))
+                {
+                    for (const auto &cc : ms->cases)
+                        for (const auto &s : cc.body)
+                            if (stmtNeedsDeferMachinery(s.get()))
+                                return true;
+                    return false;
+                }
                 if (auto *goStmt = dynamic_cast<const ::Sad::AST::GoStmt *>(stmt))
                 {
                     (void)goStmt;

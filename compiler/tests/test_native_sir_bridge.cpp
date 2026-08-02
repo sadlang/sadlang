@@ -1062,6 +1062,74 @@ TEST(NativeSirBridge, LowersArrayZipLength)
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+// (AR) الدفعة ٥ (التعداد الجبريّ): بعد فكّ ارتباط المطابقة عن زمن التشغيل (إصلاح الأمام).
+//      «شكل.مربع(6،7)» ثمّ «طابق» ⇒ ENUM_CONSTRUCT (mmap+tag+SadDyn) + ENUM_IS_VARIANT
+//      (فحص الوسم) + ENUM_GET_PAYLOAD (استخراج i64) ⇒ 6×7=٤٢. حمولاتٌ عدديّة.
+// ════════════════════════════════════════════════════════════════════════════
+static const char *kSrcEnum =
+    "تعداد شكل\n"
+    "    مربع(عرض، طول)\n"
+    "    دائرة(نق)\n"
+    "نهاية\n"
+    "دالة رئيسية()\n"
+    "    متغير ش = شكل.مربع(6، 7)\n"
+    "    طابق ش\n"
+    "        عندما مربع(ع، ط): ارجع ع * ط\n"
+    "        عندما دائرة(ر): ارجع ر\n"
+    "    نهاية\n"
+    "نهاية\n";
+
+// ════════════════════════════════════════════════════════════════════════════
+// (AR) الدفعة ٥ (الكائنيّة): صنفٌ بسيطٌ غيرُ متعدّد الأشكال ⇒ ALLOC "صنف" (كائنُ كومة) +
+//      نداءُ بانٍ/طريقةٍ مباشرٌ (self=arg0) + OBJECT_SET (STORE ثلاثيّ) + OBJECT_GET (LOAD ثنائيّ).
+//      «نقطة(42).احصل()» ⇒ ٤٢. لا CALL_INDIRECT/vtable (نداءاتٌ مباشرة).
+// ════════════════════════════════════════════════════════════════════════════
+static const char *kSrcClass =
+    "صنف نقطة\n"
+    "    متغير عام س = 0\n"
+    "    باني(س) هذا.س = س نهاية\n"
+    "    دالة احصل() ارجع هذا.س نهاية\n"
+    "نهاية\n"
+    "دالة رئيسية()\n"
+    "    متغير ن = نقطة(42)\n"
+    "    ارجع ن.احصل()\n"
+    "نهاية\n";
+
+TEST(NativeSirBridge, LowersClassMethod)
+{
+    auto module = buildSir(kSrcClass);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("class lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap للكائن)
+    std::FILE *fp = std::fopen("sad_sir_class42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+TEST(NativeSirBridge, LowersEnumMatch)
+{
+    auto module = buildSir(kSrcEnum);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("enum lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    const auto &bin = res.code;
+    ASSERT_TRUE(contains(bin, {0x0F, 0x05})); // syscall (mmap لبناء التعداد)
+    std::FILE *fp = std::fopen("sad_sir_enum42", "wb");
+    ASSERT_TRUE(fp != nullptr);
+    size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
+    std::fclose(fp);
+    ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // (AR) جسر SIR→AArch64 (الهدف الثاني): نفسُ SIR الأماميّ يُخفَّض لـARM64 عبر محرّكٍ
 //      وكاتب ELF عامَّين. برهانُ عموميّة الخطّ عبر صنفَي ISA. تُكتب الثنائيّاتُ لبرهانٍ
 //      حيٍّ على qemu-aarch64. e_machine=EM_AARCH64=183.
@@ -1378,6 +1446,24 @@ TEST(Arm64SirBridge, LowersArrayZipLength)
     bool ok = false;
     size_t sz = 0;
     lowerArm64AndWrite(kSrcArrayZip, "sad_arm64_zip42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) الدفعة ٥ على ARM64 (مرآةُ x86): تعدادٌ جبريّ + مطابقة ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersEnumMatch)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcEnum, "sad_arm64_enum42", &ok, &sz);
+    ASSERT_TRUE(ok);
+}
+
+// (AR) الكائنيّة على ARM64 (مرآةُ x86): «نقطة(42).احصل()» ⇒ ٤٢ على qemu.
+TEST(Arm64SirBridge, LowersClassMethod)
+{
+    bool ok = false;
+    size_t sz = 0;
+    lowerArm64AndWrite(kSrcClass, "sad_arm64_class42", &ok, &sz);
     ASSERT_TRUE(ok);
 }
 
@@ -1794,3 +1880,4 @@ int main(int argc, char **argv)
     (void)argv;
     return SAD_RUN_TESTS();
 }
+

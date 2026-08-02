@@ -33,6 +33,10 @@ pure:
   - { name: kArrayNewDynamicSize, value: "array-new-dynamic-size", ar: "ARRAY_NEW بحجمٍ غيرِ ثابتٍ مؤجَّل" }
   - { name: kArrayNewNegative,    value: "array-new-negative",   ar: "ARRAY_NEW بطولٍ/سعةٍ سالبة" }
   - { name: kArrayConcatBoxed,    value: "array-concat-boxed",   ar: "ARRAY_CONCAT لمصفوفةٍ معلَّبة (elementType=Any) أو مختلفةِ النوعين مؤجَّل — يلزمه دمجُ مخزنِ الوسوم" }
+  - { name: kEnumPayloadKind,     value: "enum-payload-kind",    ar: "ENUM_CONSTRUCT بحمولةٍ غيرِ عدديّةٍ محدَّدة (عشريّ/نصّ) مؤجَّل — يلزمه تعليبُ SadDyn الكامل" }
+  - { name: kEnumPayloadDyn,      value: "enum-payload-dyn",     ar: "ENUM_GET_PAYLOAD بنتيجةٍ ديناميّة (Any) مؤجَّل — يلزمه بناءُ قيمةٍ ديناميّةٍ موسومة" }
+  - { name: kObjectUnknownClass,  value: "object-unknown-class", ar: "وصولُ حقلِ كائنٍ لصنفٍ غيرِ معروفٍ زمنَ الترجمة (تعذّر استنتاجُ الصنف)" }
+  - { name: kObjectFieldLayout,   value: "object-field-layout",  ar: "حقلُ كائنٍ بتخطيطٍ غيرِ منتظم (bool/Any) أو حقلٌ غيرُ موجود مؤجَّل — يُدعَم الحقلُ ٨-بت فقط" }
   - { name: kCmpValue,            value: "cmp-value",            ar: "موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)" }
   - { name: kCmpBranch,           value: "cmp-branch",           ar: "موضعُ فحصٍ: مقارنةٌ مدموجةٌ في فرع" }
 

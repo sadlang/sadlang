@@ -118,6 +118,16 @@ namespace sad
         inline constexpr long long kDynKindBool = 4;
         inline constexpr long long kDynKindArray = 5; // (AR) مصفوفة (مؤشّرٌ مُدار) — homogKind لناتجِ ZIP (مصفوفةٌ من أزواج)
 
+        // (AR) تخطيطُ التعداد الجبريّ (ADT، الدفعة ٥؛ يُطابق مسارَ LLVM enum_ops.cpp): قيمةُ التعداد =
+        //      مؤشّرُ كومة [i64 tag@0 | SadDyn f0@8 | SadDyn f1@24 | …]. SadDyn = {i8 kind@0، i64 payload@8}
+        //      = ١٦ بايت (يُمرَّر في سجلّين في LLVM؛ هنا خانةُ كومةٍ). حقلُ i: SadDyn slot @8+i×16، الحمولةُ
+        //      i64 @16+i×16 (جزءُ payload). الحمولاتُ العدديّةُ kind=Int؛ float/string مؤجَّلة.
+        inline constexpr long long kAdtTagOff = 0;         // (AR) إزاحةُ الوسم (i64)
+        inline constexpr long long kAdtPayloadBase = 8;    // (AR) إزاحةُ أوّلِ خانةِ SadDyn
+        inline constexpr long long kSadDynBytes = 16;      // (AR) حجمُ خانةِ SadDyn الواحدة
+        inline constexpr long long kSadDynKindOff = 0;     // (AR) إزاحةُ الوسم داخلَ SadDyn
+        inline constexpr long long kSadDynPayloadOff = 8;  // (AR) إزاحةُ الحمولة داخلَ SadDyn
+
         // (AR) نصوصُ طباعةِ القيمة المعلَّبة (تطابق المفسّر value.cpp:476/عدم) — ثوابتُ مسمّاةٌ لا حرفيّاتٌ خام.
         inline const std::string kDynBoolTrueText = "\xD8\xB5\xD8\xAD\xD9\x8A\xD8\xAD";  // صحيح
         inline const std::string kDynBoolFalseText = "\xD8\xAE\xD8\xB7\xD8\xA3";          // خطأ
@@ -204,6 +214,29 @@ namespace sad
                     return finishError(r, EC::INT_NATIVE_NO_ENTRY);
                 entryName_ = entry->getName();
 
+                // (AR) ابنِ سجلَّ تخطيطِ الأصناف مرّةً (الكائنيّة): فهرسُ كلّ حقلٍ بترتيب fieldOrder_،
+                //      وعلمُ allEightByte (يُطفأ عند bool/Any ⇒ تخطيطٌ غيرُ منتظم يُرفَض عند الوصول).
+                classLayout_.clear();
+                for (const auto &c : module.getClasses())
+                {
+                    if (!c)
+                        continue;
+                    ClassLayout cl;
+                    cl.isCRepr = c->isCRepr;
+                    int idx = 0;
+                    for (const auto &fname : c->fieldOrder_)
+                    {
+                        cl.fieldIndex[fname] = idx++;
+                        auto ft = c->fields_.find(fname);
+                        const types::SadTypeKind t =
+                            ft != c->fields_.end() ? ft->second : types::SadTypeKind::Integer;
+                        if (t == types::SadTypeKind::Boolean || t == types::SadTypeKind::Any)
+                            cl.allEightByte = false; // (AR) i1/SadDyn ≠ ٨ بايت ⇒ تخطيطٌ غيرُ منتظم
+                    }
+                    cl.numFields = idx;
+                    classLayout_[c->name] = cl;
+                }
+
                 // (AR) ترتيبُ الإصدار: الدالّةُ الداخلة أوّلًا (نقطةُ دخول ELF = code_[0])،
                 //      ثمّ البقيّة. النداءاتُ للدوالّ اللاحقة مراجعُ أماميّةٌ تُرقَّع لاحقًا.
                 std::vector<const sir::SIRFunction *> ordered{entry};
@@ -253,6 +286,13 @@ namespace sad
                 currentFn_ = fn.getName();
                 curIsEntry_ = (currentFn_ == entryName_);
                 memSlot_.clear();
+                // (AR) استنتاجُ صنفِ الكائن يُصفَّر لكلّ دالّة؛ %self داخل «صنف.طريقة» صنفُه الجزءُ قبل النقطة.
+                objClassOf_.clear();
+                {
+                    const auto dot = currentFn_.find('.');
+                    if (dot != std::string::npos)
+                        objClassOf_[diag::kVregSigil + std::string("self")] = currentFn_.substr(0, dot);
+                }
                 phiEdges_.clear();
                 crossBlockSpill_.clear();
                 regOf_.clear();
@@ -332,6 +372,33 @@ namespace sad
             // (AR) الذاكرة: اسمُ الخانة (معامل أو ALLOC) ⇒ إزاحتُه عن rbp (سالبةٌ)، وحجمُ
             //      الإطار المُحاذى ١٦. تُملأ في المسح المسبق لكلّ دالّة.
             std::map<std::string, long long> memSlot_;
+            // (AR) تخطيطُ الأصناف (الدفعة ٥، الكائنيّة): اسمُ الصنف ⇒ {isCRepr، اسمُ الحقل⇒فهرسُه، عددُ الحقول،
+            //      allEightByte}. إزاحةُ الحقل = 8×(الفهرس + (isCRepr؟0:1)) [ترويسةُ vtable@0 لغير-CRepr].
+            //      يُدعَم الحقلُ ٨-بت فقط (i64/f64/ptr/نصّ)؛ bool/Any مؤجَّلان (تخطيطٌ غيرُ منتظم). يُبنى مرّةً في lowerModule.
+            struct ClassLayout { bool isCRepr = false; std::map<std::string, int> fieldIndex; int numFields = 0; bool allEightByte = true; };
+            std::map<std::string, ClassLayout> classLayout_;
+            // (AR) استنتاجُ صنفِ الكائن (سجلّ/خانة ⇒ اسمُ الصنف): يُعيد بناءَ objectClassMap الأماميّ.
+            //      %self داخل «صنف.طريقة» صنفُه الصنف؛ ALLOC"C" نتيجتُه C؛ STORE/LOAD ينشران. يُصفَّر لكلّ دالّة.
+            std::map<std::string, std::string> objClassOf_;
+            // (AR) إزاحةُ حقلِ كائنٍ (بايت) من صنفه: 8×(الفهرس + (isCRepr؟0:1)). تفشل إن الصنفُ مجهولٌ
+            //      أو غيرُ منتظمِ التخطيط (bool/Any) أو الحقلُ غيرُ موجود.
+            bool objFieldByteOffset(const std::string &className, const std::string &field, long long &off) const
+            {
+                auto ci = classLayout_.find(className);
+                if (ci == classLayout_.end() || !ci->second.allEightByte)
+                    return false;
+                auto fi = ci->second.fieldIndex.find(field);
+                if (fi == ci->second.fieldIndex.end())
+                    return false;
+                off = 8LL * (fi->second + (ci->second.isCRepr ? 0 : 1));
+                return true;
+            }
+            // (AR) صنفُ الكائنِ الذي يشير إليه معاملٌ (سجلّ/خانة)، أو nullptr إن مجهولًا.
+            const std::string *objClassForOperand(const sir::SIROperand &op) const
+            {
+                auto it = objClassOf_.find(op.name);
+                return it != objClassOf_.end() ? &it->second : nullptr;
+            }
             // (AR) حوافُ PHI: اسمُ الكتلةِ السَّلَف ⇒ قائمةُ (معاملِ القيمةِ الوارد، اسمُ ناتجِ PHI).
             //      نموذجُ «الحوض النظيف لكلّ كتلة» لا يحمل قيمةً عابرةً بسجلّ ⇒ نحمِلها بخانةِ إطارٍ:
             //      السَّلَفُ يخزّن قيمتَه الواردةَ في الخانة قبل قفزِه، والكتلةُ الدامجةُ تقرؤها لاحقًا.
@@ -1407,8 +1474,14 @@ namespace sad
                                  inst.operands[1].type != sir::SIROperandType::CONSTANT)
                             hasVarShift = true; // (AR) مقدارُ الإزاحة غيرُ ثابتٍ ⇒ يلزمه CL/حفظُ RCX
                         else if (inst.opcode == sir::SIROpcode::ARRAY_NEW ||
-                                 inst.opcode == sir::SIROpcode::TUPLE_NEW) // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً
+                                 inst.opcode == sir::SIROpcode::TUPLE_NEW || // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً
+                                 inst.opcode == sir::SIROpcode::ENUM_CONSTRUCT) // (AR) بناءُ تعدادٍ = mmap للكومة
                             hasArrayNew = true; // (AR) mmap يدهس الحوض ⇒ انسكابٌ حولَه
+                        // (AR) ALLOC بمعامل نصّيّ (اسم صنف) = كائنُ كومة (OBJECT_NEW) ⇒ mmap يدهس الحوض.
+                        if (inst.opcode == sir::SIROpcode::ALLOC && !inst.operands.empty() &&
+                            inst.operands[0].type == sir::SIROperandType::CONSTANT &&
+                            inst.operands[0].dataType == types::SadTypeKind::String)
+                            hasArrayNew = true;
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_ARRAY_APPEND ||
                                  inst.opcode == sir::SIROpcode::ARRAY_APPEND)
                             hasAppend = true;
@@ -2843,16 +2916,66 @@ namespace sad
                     // (AR) الخانةُ خُصِّصت في المسح المسبق؛ لا شيفرةَ تُصدَر (العنوان ضمنيٌّ [rbp−إزاحة]).
                     if (!inst.result || memSlot_.find(inst.result->name) == memSlot_.end())
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kAllocUnslotted + detailOpcode(inst));
+                    // (AR) الكائنيّة: ALLOC بمعامل نصّيّ = اسمُ صنفٍ ⇒ كائنُ كومة. نخصّص عبر mmap
+                    //      (رأسُ vtable@0 لغير-CRepr + حقولٌ ٨-بت)، ونخزّن المؤشّرَ في خانة النتيجة،
+                    //      ونسجّل صنفَ الكائن (لحساب إزاحات OBJECT_GET/SET). حقولُ الصنفِ ٨-بت فقط.
+                    if (!inst.operands.empty() &&
+                        inst.operands[0].type == sir::SIROperandType::CONSTANT &&
+                        inst.operands[0].dataType == types::SadTypeKind::String)
+                    {
+                        const std::string &className = inst.operands[0].name;
+                        auto ci = classLayout_.find(className);
+                        if (ci == classLayout_.end())
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectUnknownClass + className);
+                        if (!ci->second.allEightByte)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectFieldLayout + className);
+                        const long long size =
+                            8LL * (ci->second.numFields + (ci->second.isCRepr ? 0 : 1));
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                    return false;
+                        if (!emitMmap(size < 8 ? 8 : size)) // (AR) RAX=المؤشّر (mmap يصفّر الكتلة)
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                    return false;
+                        objClassOf_[inst.result->name] = className;
+                        return storeMem(memSlot_[inst.result->name], x86::RAX); // المؤشّرُ ⇒ خانةُ النتيجة
+                    }
                     return true;
                 }
                 case OP::LOAD:
                 {
-                    // (AR) %dst = load %slot ⇒ mov dst, [rbp+إزاحة].
-                    if (!inst.result || inst.operands.size() != 1)
+                    if (!inst.result)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    // (AR) OBJECT_GET: LOAD بمعاملين [obj, اسمُ الحقل نصًّا] ⇒ mov dst, [obj+إزاحة].
+                    if (inst.operands.size() == 2 &&
+                        inst.operands[1].type == sir::SIROperandType::CONSTANT &&
+                        inst.operands[1].dataType == types::SadTypeKind::String)
+                    {
+                        const std::string *cn = objClassForOperand(inst.operands[0]);
+                        if (!cn)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectUnknownClass + inst.operands[0].name);
+                        long long off;
+                        if (!objFieldByteOffset(*cn, inst.operands[1].name, off))
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectFieldLayout + inst.operands[1].name);
+                        if (!loadInto(x86::RAX, inst.operands[0]))
+                            return false;
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return loadMemBase(dst, x86::RAX, off);
+                    }
+                    // (AR) %dst = load %slot ⇒ mov dst, [rbp+إزاحة]. ينشرُ صنفَ الكائن إن حمله المصدر.
+                    if (inst.operands.size() != 1)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     long long disp;
                     if (!isMemVar(inst.operands[0], disp))
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kLoadNonslot + detailOpcode(inst));
+                    if (const std::string *cn = objClassForOperand(inst.operands[0]))
+                        objClassOf_[inst.result->name] = *cn;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -2860,12 +2983,29 @@ namespace sad
                 }
                 case OP::STORE:
                 {
-                    // (AR) store value, %slot ⇒ حمّل القيمةَ في RAX ثمّ mov [rbp+إزاحة], RAX.
+                    // (AR) OBJECT_SET: STORE بثلاثة معاملات [value, obj, اسمُ الحقل نصًّا] ⇒ mov [obj+إزاحة], value.
+                    if (inst.operands.size() == 3 &&
+                        inst.operands[2].type == sir::SIROperandType::CONSTANT &&
+                        inst.operands[2].dataType == types::SadTypeKind::String)
+                    {
+                        const std::string *cn = objClassForOperand(inst.operands[1]);
+                        if (!cn)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectUnknownClass + inst.operands[1].name);
+                        long long off;
+                        if (!objFieldByteOffset(*cn, inst.operands[2].name, off))
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectFieldLayout + inst.operands[2].name);
+                        return loadInto(x86::RAX, inst.operands[1]) && // RAX=obj
+                               loadInto(x86::RDI, inst.operands[0]) && // RDI=value
+                               storeMemBase(x86::RAX, off, x86::RDI);
+                    }
+                    // (AR) store value, %slot ⇒ حمّل القيمةَ في RAX ثمّ mov [rbp+إزاحة], RAX. ينشرُ صنفَ الكائن.
                     if (inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     long long disp;
                     if (!isMemVar(inst.operands[1], disp))
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kStoreNonslot + detailOpcode(inst));
+                    if (const std::string *cn = objClassForOperand(inst.operands[0]))
+                        objClassOf_[inst.operands[1].name] = *cn;
                     return loadInto(x86::RAX, inst.operands[0]) && storeMem(disp, x86::RAX);
                 }
                 case OP::RET:
@@ -3498,6 +3638,106 @@ namespace sad
                     if (!allocReg(inst.result->name, dst))
                         return false;
                     return loadMem(dst, arrExtSlot(4)); // (AR) النتيجة = outArr
+                }
+                case OP::ENUM_CONSTRUCT:
+                {
+                    // (AR) بناءُ تعدادٍ جبريّ (الدفعة ٥): operands=[String(اسم التعداد), ConstI64(tag), payload…].
+                    //      قيمةُ التعداد = مؤشّرُ كومة [i64 tag@0 | SadDyn f0@8 | …]، SadDyn={kind@0،payload@8}.
+                    //      نخصّص عبر mmap، نخزّن الوسمَ، ثمّ لكلّ حمولة (kind من نوعها + i64 قيمتها).
+                    //      الحمولاتُ العدديّةُ kind=Int؛ float/string مؤجَّلةٌ (فشلٌ صريح). النتيجةُ = المؤشّر.
+                    if (!inst.result || inst.operands.size() < 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long tagv;
+                    if (!common::isConstInt(inst.operands[1], tagv))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    const long long nPayload = static_cast<long long>(inst.operands.size()) - 2;
+                    // (AR) وسمُ كلّ حمولة (من نوعها المحدَّد؛ Any⇒Int افتراضًا للحمولة العدديّة).
+                    std::vector<long long> kinds(static_cast<size_t>(nPayload), kDynKindInt);
+                    for (long long i = 0; i < nPayload; ++i)
+                    {
+                        const auto &po = inst.operands[static_cast<size_t>(2 + i)];
+                        long long k;
+                        // (AR) حمولةٌ عشريّةٌ/نصّيّةٌ محدَّدة مؤجَّلة: GET_PAYLOAD يُرجِع i64 في GPR بلا سياق
+                        //      xmm/طول ⇒ استهلاكُها عشريًّا/نصًّا يتباين. الحمولةُ العدديّة (Any/Integer/Bool/عدم) آمنة.
+                        if (po.dataType == types::SadTypeKind::Float ||
+                            po.dataType == types::SadTypeKind::String)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kEnumPayloadKind);
+                        if (po.dataType != types::SadTypeKind::Any && dynTagForType(po.dataType, k))
+                            kinds[static_cast<size_t>(i)] = k;
+                        else if (po.dataType != types::SadTypeKind::Any &&
+                                 po.dataType != types::SadTypeKind::Integer)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kEnumPayloadKind);
+                    }
+                    // (AR) انسكِبْ المؤقّتاتِ الحيّةَ ومعامِلاتِ الحمولة (mmap يدهس الحوض؛ نقرؤها بعده من الانسكاب).
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+                    const long long total = kAdtPayloadBase + nPayload * kSadDynBytes;
+                    if (!emitMmap(total)) // RAX = المؤشّر (خارجَ الحوض ⇒ ينجو)
+                        return false;
+                    if (!movImm(x86::RDI, tagv) || !storeMemBase(x86::RAX, kAdtTagOff, x86::RDI))
+                        return false;
+                    for (long long i = 0; i < nPayload; ++i)
+                    {
+                        const long long slotOff = kAdtPayloadBase + i * kSadDynBytes;
+                        if (!movImm(x86::RDI, kinds[static_cast<size_t>(i)]) ||
+                            !storeMemBase(x86::RAX, slotOff + kSadDynKindOff, x86::RDI))
+                            return false;
+                        if (!loadArgInto(x86::RDI, inst.operands[static_cast<size_t>(2 + i)]) ||
+                            !storeMemBase(x86::RAX, slotOff + kSadDynPayloadOff, x86::RDI))
+                            return false;
+                    }
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, x86::RAX);
+                }
+                case OP::ENUM_IS_VARIANT:
+                {
+                    // (AR) فحصُ حالةِ التعداد: operands=[obj, ConstI64(tag), String(اسم), ConstI64(isUnit)].
+                    //      isUnit=1 ⇒ القيمةُ الوسمُ مباشرةً؛ 0 ⇒ حمّل [obj+0]. النتيجةُ منطقيّة (tag==المتوقَّع).
+                    if (!inst.result || inst.operands.size() < 4)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long tagv, isUnit;
+                    if (!common::isConstInt(inst.operands[1], tagv) ||
+                        !common::isConstInt(inst.operands[3], isUnit))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    if (!loadInto(x86::RAX, inst.operands[0]))
+                        return false;
+                    if (isUnit == 0 && !loadMemBase(x86::RAX, x86::RAX, kAdtTagOff)) // RAX = الوسمُ من الكومة
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    // (AR) RDI = المتوقَّع؛ cmp RAX,RDI؛ sete al؛ movzx dst,al ⇒ منطقيّة ٠/١.
+                    return movImm(x86::RDI, tagv) && cmpRegReg(x86::RAX, x86::RDI) &&
+                           setccReg(x86::mnem::kSete, x86::RAX) && movzxReg(dst, x86::RAX);
+                }
+                case OP::ENUM_GET_PAYLOAD:
+                {
+                    // (AR) استخراجُ حمولةٍ: operands=[obj, ConstI64(fieldIdx), String(اسم)]. نحمّل الحمولةَ
+                    //      i64 من خانةِ SadDyn (جزءُ payload). للنتيجة العدديّة؛ Any (قيمةٌ ديناميّة) مؤجَّل.
+                    if (!inst.result || inst.operands.size() < 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long fieldIdx;
+                    if (!common::isConstInt(inst.operands[1], fieldIdx) || fieldIdx < 0)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    // (AR) نحمّل جزءَ payload الـi64 من خانةِ SadDyn مباشرةً (الوسمُ يُتجاهَل): صحيحٌ
+                    //      للحمولة العدديّة وللسياق المستهلِك لها i64 (mul.i64…). النتيجةُ Any تعني
+                    //      «ديناميّة» لكنّ الجزءَ الرقميَّ يحمل القيمةَ؛ float/string الحقيقيّان (بناءُ
+                    //      قيمةٍ موسومةٍ كاملة) مؤجَّلان — لا يُنتَجان في مسار الحمولة العدديّة الحاليّ.
+                    if (!loadInto(x86::RAX, inst.operands[0]))
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return loadMemBase(dst, x86::RAX, kAdtPayloadBase + fieldIdx * kSadDynBytes + kSadDynPayloadOff);
                 }
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));

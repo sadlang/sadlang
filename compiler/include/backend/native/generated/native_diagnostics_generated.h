@@ -23,6 +23,10 @@ namespace sad { namespace native { namespace diag {
     inline const std::string kArrayNewDynamicSize = "array-new-dynamic-size";  // ARRAY_NEW بحجمٍ غيرِ ثابتٍ مؤجَّل
     inline const std::string kArrayNewNegative = "array-new-negative";  // ARRAY_NEW بطولٍ/سعةٍ سالبة
     inline const std::string kArrayConcatBoxed = "array-concat-boxed";  // ARRAY_CONCAT لمصفوفةٍ معلَّبة (elementType=Any) أو مختلفةِ النوعين مؤجَّل — يلزمه دمجُ مخزنِ الوسوم
+    inline const std::string kEnumPayloadKind = "enum-payload-kind";  // ENUM_CONSTRUCT بحمولةٍ غيرِ عدديّةٍ محدَّدة (عشريّ/نصّ) مؤجَّل — يلزمه تعليبُ SadDyn الكامل
+    inline const std::string kEnumPayloadDyn = "enum-payload-dyn";  // ENUM_GET_PAYLOAD بنتيجةٍ ديناميّة (Any) مؤجَّل — يلزمه بناءُ قيمةٍ ديناميّةٍ موسومة
+    inline const std::string kObjectUnknownClass = "object-unknown-class";  // وصولُ حقلِ كائنٍ لصنفٍ غيرِ معروفٍ زمنَ الترجمة (تعذّر استنتاجُ الصنف)
+    inline const std::string kObjectFieldLayout = "object-field-layout";  // حقلُ كائنٍ بتخطيطٍ غيرِ منتظم (bool/Any) أو حقلٌ غيرُ موجود مؤجَّل — يُدعَم الحقلُ ٨-بت فقط
     inline const std::string kCmpValue = "cmp-value";  // موضعُ فحصٍ: مقارنةٌ مُستعمَلةٌ قيمةً (لا مدموجةً في فرع)
     inline const std::string kCmpBranch = "cmp-branch";  // موضعُ فحصٍ: مقارنةٌ مدموجةٌ في فرع
 

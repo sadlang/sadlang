@@ -90,6 +90,28 @@ namespace sad
                     return finishError(r, EC::INT_NATIVE_NO_ENTRY);
                 entryName_ = entry->getName();
 
+                // (AR) ابنِ سجلَّ تخطيطِ الأصناف مرّةً (الكائنيّة، مرآةُ x86).
+                classLayout_.clear();
+                for (const auto &c : module.getClasses())
+                {
+                    if (!c)
+                        continue;
+                    ClassLayout cl;
+                    cl.isCRepr = c->isCRepr;
+                    int idx = 0;
+                    for (const auto &fname : c->fieldOrder_)
+                    {
+                        cl.fieldIndex[fname] = idx++;
+                        auto ft = c->fields_.find(fname);
+                        const types::SadTypeKind t =
+                            ft != c->fields_.end() ? ft->second : types::SadTypeKind::Integer;
+                        if (t == types::SadTypeKind::Boolean || t == types::SadTypeKind::Any)
+                            cl.allEightByte = false;
+                    }
+                    cl.numFields = idx;
+                    classLayout_[c->name] = cl;
+                }
+
                 // (AR) ترتيبُ الإصدار: الدالّةُ الداخلة أوّلًا (نقطةُ دخول ELF = code_[0])،
                 //      ثمّ البقيّة. النداءاتُ للدوالّ اللاحقة مراجعُ أماميّةٌ تُرقَّع لاحقًا.
                 std::vector<const sir::SIRFunction *> ordered{entry};
@@ -175,6 +197,27 @@ namespace sad
             // (AR) الذاكرة: اسمُ خانةٍ (معامل أو ALLOC) ⇒ فهرسُها (٠،١،…)؛ العنوانُ [sp, #فهرس×٨].
             //      STR/LDR تستعملان imm12 مقيسًا بـ٨ فالفهرسُ = imm12 مباشرةً. حجمُ الإطارِ مُحاذًى ١٦.
             std::map<std::string, int> memSlot_;
+            // (AR) تخطيطُ الأصناف + استنتاجُ صنفِ الكائن (الدفعة ٥، مرآةُ x86): إزاحةُ الحقل = 8×(الفهرس +
+            //      (isCRepr؟0:1))؛ حقولٌ ٨-بت فقط. objClassOf_ يُصفَّر لكلّ دالّة. classLayout_ يُبنى مرّةً.
+            struct ClassLayout { bool isCRepr = false; std::map<std::string, int> fieldIndex; int numFields = 0; bool allEightByte = true; };
+            std::map<std::string, ClassLayout> classLayout_;
+            std::map<std::string, std::string> objClassOf_;
+            bool objFieldByteOffset(const std::string &className, const std::string &field, long long &off) const
+            {
+                auto ci = classLayout_.find(className);
+                if (ci == classLayout_.end() || !ci->second.allEightByte)
+                    return false;
+                auto fi = ci->second.fieldIndex.find(field);
+                if (fi == ci->second.fieldIndex.end())
+                    return false;
+                off = 8LL * (fi->second + (ci->second.isCRepr ? 0 : 1));
+                return true;
+            }
+            const std::string *objClassForOperand(const sir::SIROperand &op) const
+            {
+                auto it = objClassOf_.find(op.name);
+                return it != objClassOf_.end() ? &it->second : nullptr;
+            }
             // (AR) حوافُ PHI: اسمُ الكتلةِ السَّلَف ⇒ (معاملُ القيمةِ الوارد، اسمُ ناتجِ PHI). الحوضُ
             //      النظيفُ لكلّ كتلةٍ لا يحمل قيمةً عابرة ⇒ نحمِلها بخانةِ إطارٍ (السَّلَفُ يخزّن، الدامجُ يقرأ).
             std::map<std::string, std::vector<std::pair<sir::SIROperand, std::string>>> phiEdges_;
@@ -1092,7 +1135,13 @@ namespace sad
                         else if (inst.opcode == sir::SIROpcode::CALL)
                             hasCall = true;
                         else if (inst.opcode == sir::SIROpcode::ARRAY_NEW ||
-                                 inst.opcode == sir::SIROpcode::TUPLE_NEW) // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً
+                                 inst.opcode == sir::SIROpcode::TUPLE_NEW || // (AR) الصفُّ يشاركُ المصفوفةَ بنيةً
+                                 inst.opcode == sir::SIROpcode::ENUM_CONSTRUCT) // (AR) بناءُ تعدادٍ = mmap للكومة
+                            hasArrayNew = true;
+                        // (AR) ALLOC بمعامل نصّيّ (اسم صنف) = كائنُ كومة ⇒ mmap يدهس الحوض.
+                        if (inst.opcode == sir::SIROpcode::ALLOC && !inst.operands.empty() &&
+                            inst.operands[0].type == sir::SIROperandType::CONSTANT &&
+                            inst.operands[0].dataType == types::SadTypeKind::String)
                             hasArrayNew = true;
                         else if (inst.opcode == sir::SIROpcode::BUILTIN_ARRAY_APPEND ||
                                  inst.opcode == sir::SIROpcode::ARRAY_APPEND)
@@ -2543,15 +2592,65 @@ namespace sad
                     // (AR) الخانةُ خُصِّصت في المسح المسبق؛ لا شيفرةَ (العنوان ضمنيٌّ [sp، #فهرس×٨]).
                     if (!inst.result || memSlot_.find(inst.result->name) == memSlot_.end())
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kAllocUnslotted + detailOpcode(inst));
+                    // (AR) الكائنيّة: ALLOC بمعامل نصّيّ = اسمُ صنفٍ ⇒ كائنُ كومة (نظيرُ x86).
+                    if (!inst.operands.empty() &&
+                        inst.operands[0].type == sir::SIROperandType::CONSTANT &&
+                        inst.operands[0].dataType == types::SadTypeKind::String)
+                    {
+                        const std::string &className = inst.operands[0].name;
+                        auto ci = classLayout_.find(className);
+                        if (ci == classLayout_.end())
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectUnknownClass + className);
+                        if (!ci->second.allEightByte)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectFieldLayout + className);
+                        long long size = 8LL * (ci->second.numFields + (ci->second.isCRepr ? 0 : 1));
+                        if (size < 8)
+                            size = 8;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!spillReg(kv.second))
+                                    return false;
+                        if (!emitMmapArm64(size)) // x0 = المؤشّر (mmap يصفّر الكتلة)
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!reloadReg(kv.second))
+                                    return false;
+                        objClassOf_[inst.result->name] = className;
+                        return strSlot(a64reg::kX0, memSlot_[inst.result->name]);
+                    }
                     return true;
                 }
                 case OP::LOAD:
                 {
-                    if (!inst.result || inst.operands.size() != 1)
+                    if (!inst.result)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    // (AR) OBJECT_GET: LOAD بمعاملين [obj, اسمُ الحقل نصًّا] ⇒ ldr dst,[obj+إزاحة].
+                    //      المؤشّرُ في x16 (خارج الحوض) كي لا يدهس نتيجةً حوضيّةً سابقة (فخّ GET_PAYLOAD).
+                    if (inst.operands.size() == 2 &&
+                        inst.operands[1].type == sir::SIROperandType::CONSTANT &&
+                        inst.operands[1].dataType == types::SadTypeKind::String)
+                    {
+                        const std::string *cn = objClassForOperand(inst.operands[0]);
+                        if (!cn)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectUnknownClass + inst.operands[0].name);
+                        long long off;
+                        if (!objFieldByteOffset(*cn, inst.operands[1].name, off))
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectFieldLayout + inst.operands[1].name);
+                        if (!materialize(a64reg::kScratch0, inst.operands[0]))
+                            return false;
+                        int dst;
+                        if (!allocReg(inst.result->name, dst))
+                            return false;
+                        return ldrBase(dst, a64reg::kScratch0, off / kArrSlotBytes);
+                    }
+                    if (inst.operands.size() != 1)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     int slot;
                     if (!isMemVar(inst.operands[0], slot))
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kLoadNonslot + detailOpcode(inst));
+                    if (const std::string *cn = objClassForOperand(inst.operands[0]))
+                        objClassOf_[inst.result->name] = *cn;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -2559,11 +2658,28 @@ namespace sad
                 }
                 case OP::STORE:
                 {
+                    // (AR) OBJECT_SET: STORE بثلاثة معاملات [value, obj, اسمُ الحقل نصًّا] ⇒ str value,[obj+إزاحة].
+                    if (inst.operands.size() == 3 &&
+                        inst.operands[2].type == sir::SIROperandType::CONSTANT &&
+                        inst.operands[2].dataType == types::SadTypeKind::String)
+                    {
+                        const std::string *cn = objClassForOperand(inst.operands[1]);
+                        if (!cn)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectUnknownClass + inst.operands[1].name);
+                        long long off;
+                        if (!objFieldByteOffset(*cn, inst.operands[2].name, off))
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kObjectFieldLayout + inst.operands[2].name);
+                        return materialize(a64reg::kScratch0, inst.operands[1]) && // x16 = obj
+                               materialize(a64reg::kScratch1, inst.operands[0]) && // x17 = value
+                               strBase(a64reg::kScratch1, a64reg::kScratch0, off / kArrSlotBytes);
+                    }
                     if (inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     int slot;
                     if (!isMemVar(inst.operands[1], slot))
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kStoreNonslot + detailOpcode(inst));
+                    if (const std::string *cn = objClassForOperand(inst.operands[0]))
+                        objClassOf_[inst.operands[1].name] = *cn;
                     return materialize(a64reg::kScratch0, inst.operands[0]) &&
                            strSlot(a64reg::kScratch0, slot);
                 }
@@ -3163,6 +3279,103 @@ namespace sad
                         return false;
                     return ldrSlot(dst, arrExtSlot(4)); // (AR) النتيجة = outArr
                 }
+                case OP::ENUM_CONSTRUCT:
+                {
+                    // (AR) بناءُ تعدادٍ جبريّ (نظيرُ x86): operands=[String(اسم), ConstI64(tag), payload…].
+                    //      مؤشّرُ كومة [tag@0 | SadDyn slots]. mmap+tag+لكلّ حمولة(kind من نوعها Int + i64 قيمتها).
+                    if (!inst.result || inst.operands.size() < 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long tagv;
+                    if (!common::isConstInt(inst.operands[1], tagv))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    const long long nPayload = static_cast<long long>(inst.operands.size()) - 2;
+                    std::vector<long long> kinds(static_cast<size_t>(nPayload), kDynKindInt);
+                    for (long long i = 0; i < nPayload; ++i)
+                    {
+                        const auto &po = inst.operands[static_cast<size_t>(2 + i)];
+                        long long k;
+                        // (AR) حمولةٌ عشريّةٌ/نصّيّةٌ محدَّدة مؤجَّلة (GET_PAYLOAD يُرجِع i64 في GPR فقط) — نظيرُ x86.
+                        if (po.dataType == types::SadTypeKind::Float ||
+                            po.dataType == types::SadTypeKind::String)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kEnumPayloadKind);
+                        if (po.dataType != types::SadTypeKind::Any && dynTagForType(po.dataType, k))
+                            kinds[static_cast<size_t>(i)] = k;
+                        else if (po.dataType != types::SadTypeKind::Any &&
+                                 po.dataType != types::SadTypeKind::Integer)
+                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kEnumPayloadKind);
+                    }
+                    // (AR) انسكِبْ المؤقّتاتِ الحيّةَ ومعامِلاتِ الحمولة (mmap يدهس الحوض؛ نقرؤها بعده).
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!spillReg(kv.second))
+                                return false;
+                    const long long total = kAdtPayloadBase + nPayload * kSadDynBytes;
+                    if (!emitMmapArm64(total)) // x0 = المؤشّر (خارجَ الحوض ⇒ ينجو)
+                        return false;
+                    if (!movz(9, tagv) || !strBase(9, a64reg::kX0, kAdtTagOff / kArrSlotBytes))
+                        return false;
+                    for (long long i = 0; i < nPayload; ++i)
+                    {
+                        const long long slotOff = kAdtPayloadBase + i * kSadDynBytes;
+                        if (!movz(9, kinds[static_cast<size_t>(i)]) ||
+                            !strBase(9, a64reg::kX0, (slotOff + kSadDynKindOff) / kArrSlotBytes))
+                            return false;
+                        if (!loadArgInto(9, inst.operands[static_cast<size_t>(2 + i)]) ||
+                            !strBase(9, a64reg::kX0, (slotOff + kSadDynPayloadOff) / kArrSlotBytes))
+                            return false;
+                    }
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return movReg(dst, a64reg::kX0);
+                }
+                case OP::ENUM_IS_VARIANT:
+                {
+                    // (AR) فحصُ حالة (نظيرُ x86): operands=[obj, ConstI64(tag), String, ConstI64(isUnit)].
+                    //      isUnit=1⇒القيمةُ الوسمُ؛ 0⇒[obj+0]. النتيجةُ منطقيّة عبر cset EQ.
+                    if (!inst.result || inst.operands.size() < 4)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long tagv, isUnit;
+                    if (!common::isConstInt(inst.operands[1], tagv) ||
+                        !common::isConstInt(inst.operands[3], isUnit))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    // (AR) المؤشّر/الوسمُ في x17 والمتوقَّعُ في x16 (خارج الحوض) ⇒ لا يدهسان نتيجةً حوضيّةً حيّة.
+                    if (!materialize(a64reg::kScratch1, inst.operands[0]))
+                        return false;
+                    if (isUnit == 0 && !ldrBase(a64reg::kScratch1, a64reg::kScratch1, kAdtTagOff / kArrSlotBytes))
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    long long field;
+                    (void)csetInvertedField(sir::SIROpcode::EQ, field); // (AR) EQ ⇒ field=1
+                    return movz(a64reg::kScratch0, tagv) && cmp(a64reg::kScratch1, a64reg::kScratch0) &&
+                           emit(a64::mnem::kCset, "x, cond", {a64::Operand::R(dst), a64::Operand::I(field)});
+                }
+                case OP::ENUM_GET_PAYLOAD:
+                {
+                    // (AR) استخراجُ حمولة (نظيرُ x86): operands=[obj, ConstI64(fieldIdx), String]. نحمّل
+                    //      جزءَ payload الـi64 من خانةِ SadDyn (الوسمُ يُتجاهَل؛ للحمولة العدديّة/سياق i64).
+                    if (!inst.result || inst.operands.size() < 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    long long fieldIdx;
+                    if (!common::isConstInt(inst.operands[1], fieldIdx) || fieldIdx < 0)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    // (AR) 🔑 المؤشّرُ في x16 (خارج الحوض): استخراجٌ متتالٍ (حقل٠ ثمّ حقل١) — لو حمّلنا
+                    //      المؤشّرَ في x9 (حوض) لدهسنا نتيجةَ GET_PAYLOAD سابقةً محفوظةً في سجلّ حوضٍ
+                    //      (بُرهِن بفكّ الترميز: mul(ptr,field1)). نظيرُ RAX خارج الحوض في x86.
+                    if (!materialize(a64reg::kScratch0, inst.operands[0]))
+                        return false;
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    return ldrBase(dst, a64reg::kScratch0, (kAdtPayloadBase + fieldIdx * kSadDynBytes + kSadDynPayloadOff) / kArrSlotBytes);
+                }
                 default:
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
@@ -3355,6 +3568,13 @@ namespace sad
                 currentFn_ = fn.getName();
                 curIsEntry_ = (currentFn_ == entryName_);
                 memSlot_.clear();
+                // (AR) استنتاجُ صنفِ الكائن يُصفَّر لكلّ دالّة؛ %self داخل «صنف.طريقة» صنفُه الجزءُ قبل النقطة.
+                objClassOf_.clear();
+                {
+                    const auto dot = currentFn_.find('.');
+                    if (dot != std::string::npos)
+                        objClassOf_[diag::kVregSigil + std::string("self")] = currentFn_.substr(0, dot);
+                }
                 phiEdges_.clear();
                 crossBlockSpill_.clear();
                 regOf_.clear();
