@@ -66,53 +66,18 @@ if(TARGET sad-build)
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
-# تسجيل CTest
+# (AR) لا تسجيل CTest — قرار المالك
+#
+#      حُذف تسجيلا `DocGenDual_Fast` و`DocGenDual_Full` من ctest لأنّ
+#      استخراج التوثيق تتكفّل به أداةٌ مختصّة، ولأنّ مسار PDF يعتمد على
+#      محرّكٍ خارجيّ (Edge/Chrome headless) جعل الاختبار متذبذباً في CI:
+#      مهلةٌ على macOS وفشلُ توليدٍ على Linux، بينما بقيّة الـ١٧٩ اختباراً خضراء.
+#
+#      الأهداف اليدويّة أعلاه باقية للتشغيل عند الطلب:
+#        cmake --build build --target doc_gen_tests_fast
+#        cmake --build build --target doc_gen_tests_full
+#
+# (EN) No ctest registration by owner decision — doc extraction is covered by a
+#      dedicated tool, and the PDF path depended on an external headless browser
+#      that made the test flaky in CI. The manual targets above remain.
 # ──────────────────────────────────────────────────────────────────────
-if(BUILD_TESTS)
-    # (AR) الاختبار السريع — يدخل ضمن CI الافتراضي
-    add_test(
-        NAME DocGenDual_Fast
-        COMMAND ${CMAKE_COMMAND} -E env
-            "PYTHONIOENCODING=utf-8"
-            "PYTHONUTF8=1"
-            ${Python3_EXECUTABLE} "${DOC_GEN_RUNNER}" --skip-pdf
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    )
-    set_tests_properties(DocGenDual_Fast PROPERTIES
-        LABELS "doc_gen;fast"
-        TIMEOUT 120
-        # (AR) Fast وFull يتشاركان مجلّد _tmp بأسماء ملفّات متطابقة؛ القفل يمنع
-        #      تزامنهما تحت ctest -j (وإلّا سباق حذف/قراءة ⇒ FileNotFoundError).
-        # (EN) Fast & Full share _tmp with identical filenames; lock prevents
-        #      concurrent runs under ctest -j (else a delete/read race).
-        RESOURCE_LOCK "doc_gen_tmp"
-        # (AR) RUN_SERIAL: RESOURCE_LOCK يمنع فقط تزامن Fast/Full مع بعضهما،
-        #      لا تزامنهما مع أي اختبار آخر يضغط على I/O/CPU؛ شوهد عملياً
-        #      DocGenDual_Full يفشل بـFileNotFoundError عرضياً تحت ctest -j4
-        #      (محرك PDF خارجي — Edge/Chrome headless — حساس لضغط النظام عند
-        #      flush الكتابة النهائية)، بينما نجح بثقة 100% عند العزل الكامل.
-        # (EN) RUN_SERIAL: RESOURCE_LOCK only prevents Fast/Full overlap, not
-        #      contention with unrelated I/O/CPU-heavy tests; DocGenDual_Full
-        #      was observed failing with FileNotFoundError occasionally under
-        #      ctest -j4 (external PDF engine — Edge/Chrome headless — is
-        #      sensitive to system load during final write flush), while
-        #      passing reliably when run in isolation.
-        RUN_SERIAL TRUE
-    )
-
-    # (AR) الاختبار الكامل (PDF) — وسم Nightly
-    add_test(
-        NAME DocGenDual_Full
-        COMMAND ${CMAKE_COMMAND} -E env
-            "PYTHONIOENCODING=utf-8"
-            "PYTHONUTF8=1"
-            ${Python3_EXECUTABLE} "${DOC_GEN_RUNNER}"
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-    )
-    set_tests_properties(DocGenDual_Full PROPERTIES
-        LABELS "doc_gen;full;nightly;pdf"
-        TIMEOUT 600
-        RESOURCE_LOCK "doc_gen_tmp"
-        RUN_SERIAL TRUE
-    )
-endif()
