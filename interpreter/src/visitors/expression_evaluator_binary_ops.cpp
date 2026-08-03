@@ -23,6 +23,7 @@
 #include "runtime_throw.h"
 #include "async_runtime.h" // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "suggestions.h"   // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
+#include "builtin_registry.h" // (AR) لثوابت أسماء المدمَجات (أكبر/أصغر) / (EN) builtin name constants
 #include <atomic>
 #include <cmath>
 #include <climits>
@@ -626,6 +627,27 @@ namespace Sad
             {
                 if (auto *callee = dynamic_cast<const AST::VariableExpr *>(call->callee.get()))
                 {
+                    // (AR) أكبر/أصغر المدمَجتان: نوعُ النتيجة يطابق الخلفيّةَ الأصليّة
+                    //      (builtins_math.cpp): عائمٌ إن كان أحدُ الوسيطين عائمًا،
+                    //      وطبيعي64 إن كانا معًا طبيعي64، وإلّا Integer موقَّع. هكذا
+                    //      تُطبَع نتيجةُ أكبر(طبيعي64، طبيعي64) لا-موقَّعةً كما في
+                    //      المترجم — فيتّحد المساران. [[التوحيد الكامل]]
+                    // (EN) أكبر/أصغر builtins: result type mirrors the native backend
+                    //      (builtins_math.cpp): Float if either arg is Float, UInt64 if
+                    //      both args are UInt64, else signed Integer — so أكبر of two
+                    //      UInt64 prints unsigned exactly as the compiler does.
+                    if ((callee->name == Builtins::Names::Math::MAX ||
+                         callee->name == Builtins::Names::Math::MIN) &&
+                        call->arguments.size() == 2)
+                    {
+                        const Types::SadTypeKind a = resolveStaticType(call->arguments[0].get());
+                        const Types::SadTypeKind b = resolveStaticType(call->arguments[1].get());
+                        if (a == Types::SadTypeKind::Float || b == Types::SadTypeKind::Float)
+                            return Types::SadTypeKind::Float;
+                        if (a == Types::SadTypeKind::UInt64 && b == Types::SadTypeKind::UInt64)
+                            return Types::SadTypeKind::UInt64;
+                        return Types::SadTypeKind::Integer;
+                    }
                     if (auto fn = functionManager_.getFunction(callee->name, call->arguments.size()))
                     {
                         if (auto *decl = dynamic_cast<AST::FunctionDecl *>(fn->getFunctionDecl().get()))

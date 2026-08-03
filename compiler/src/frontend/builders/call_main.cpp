@@ -463,6 +463,32 @@ namespace Sad
                     }
                 }
 
+                // (AR) [طبقة طبيعي64 — أصغر/أكبر] بوّابةُ نوعٍ ضحلةٌ تُرآي بوّابةَ الطباعة أعلاه: تُعيدُ
+                //      كتابةَ نوعِ معامِلَي أصغر/أكبر العدديَّين إلى UInt64 حين يكونُ كلا النوعين السطحيَّين
+                //      (resolveSurfaceType) طبيعي64 صريحًا ⇒ مقارنةٌ لا-موقَّعةٌ في الخلفيّةِ الأصليّة (=
+                //      ctx.argType==UInt64 لكلا الوسيطين في المفسّر). غيرُ ذلك Integer (موقَّع). Float يُترَكُ
+                //      (يُعالَجُ بمسارِ minsd/fcmp). المُستنتَجُ (لا الصريح) يبقى موقَّعًا على المسارين — الضحلُ يمنعُ الانفراج.
+                // (EN) [طبيعي64 layer — min/max] Shallow type gate mirroring the print gate above: rewrite
+                //      the numeric operands of أصغر/أكبر to UInt64 iff both surface types (resolveSurfaceType)
+                //      are explicit طبيعي64 ⇒ unsigned compare in the native backend (= ctx.argType==UInt64 for
+                //      both args in the interpreter). Otherwise Integer (signed). Float is left untouched
+                //      (handled by the minsd/fcmp path). Inferred (not explicit) stays signed on both paths.
+                if ((funcName == Bn::Math::MAX || funcName == Bn::Math::MIN) && call &&
+                    call->arguments.size() == 2 && argOperands.size() == 2)
+                {
+                    const bool bothU64 =
+                        b_.resolveSurfaceType(call->arguments[0].get()) == SadTypeKind::UInt64 &&
+                        b_.resolveSurfaceType(call->arguments[1].get()) == SadTypeKind::UInt64;
+                    for (size_t i = 0; i < 2; ++i)
+                    {
+                        const SadTypeKind dt = argOperands[i].dataType;
+                        if (dt == SadTypeKind::UInt64 || dt == SadTypeKind::Byte ||
+                            dt == SadTypeKind::Integer)
+                            argOperands[i].dataType =
+                                bothU64 ? SadTypeKind::UInt64 : SadTypeKind::Integer;
+                    }
+                }
+
                 auto builtinResult = b_.buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands);
                 if (builtinResult.has_value())
                 {

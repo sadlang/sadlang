@@ -35,6 +35,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اطرح", "x, x, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 23, 162, true, -1 }, { 22, 22, 0, true, -1 }, { 21, 10, 0, false, 2 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اضرب", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 216, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 15, 0, true, -1 }, { 14, 10, 31, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اقسم", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 214, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 3, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اقسم_غير_موقع", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 214, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 2, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اطرح_الضرب", "x, x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 216, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 15, 1, true, -1 }, { 14, 10, 0, false, 3 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "انسخ", "x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 336, true, -1 }, { 20, 16, 0, false, 1 }, { 15, 10, 0, true, -1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
     { "قارن", "x, x", sad::native::arm64::EncSpec{ 32, { { 31, 31, 1, true, -1 }, { 30, 21, 856, true, -1 }, { 20, 16, 0, false, 1 }, { 15, 10, 0, true, -1 }, { 9, 5, 0, false, 0 }, { 4, 0, 31, true, -1 } } } },
@@ -45,6 +46,9 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اقفز_إذا_أكبر", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 12, true, -1 } } } },
     { "اقفز_إذا_أكبر_أو_ساوى", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 10, true, -1 } } } },
     { "اقفز_إذا_أدنى", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 3, true, -1 } } } },
+    { "اقفز_إذا_أعلى", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 8, true, -1 } } } },
+    { "اقفز_إذا_أدنى_أو_ساوى", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 9, true, -1 } } } },
+    { "اقفز_إذا_أعلى_أو_ساوى", "rel19", sad::native::arm64::EncSpec{ 32, { { 31, 24, 84, true, -1 }, { 23, 5, 0, false, 0 }, { 4, 0, 2, true, -1 } } } },
     { "اقفز", "rel26", sad::native::arm64::EncSpec{ 32, { { 31, 26, 5, true, -1 }, { 25, 0, 0, false, 0 } } } },
     { "اخزن", "x, sp, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 22, 996, true, -1 }, { 21, 10, 0, false, 1 }, { 9, 5, 31, true, -1 }, { 4, 0, 0, false, 0 } } } },
     { "اخزن", "x, x, imm12", sad::native::arm64::EncSpec{ 32, { { 31, 22, 996, true, -1 }, { 21, 10, 0, false, 2 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
@@ -75,6 +79,8 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "قارن_عشري", "d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 1 }, { 15, 10, 8, true, -1 }, { 9, 5, 0, false, 0 }, { 4, 0, 0, true, -1 } } } },
     { "اختر_إذا_أصغر", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 21, 1236, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 12, 11, true, -1 }, { 11, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اختر_إذا_أكبر", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 21, 1236, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 12, 12, true, -1 }, { 11, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اختر_إذا_أعلى", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 21, 1236, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 12, 8, true, -1 }, { 11, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اختر_إذا_أدنى", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 21, 1236, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 12, 3, true, -1 }, { 11, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     };
     return kTable;
 }
@@ -94,6 +100,7 @@ inline const std::string kMovk = "ثبّت";
 inline const std::string kSub = "اطرح";
 inline const std::string kMul = "اضرب";
 inline const std::string kSdiv = "اقسم";
+inline const std::string kUdiv = "اقسم_غير_موقع";
 inline const std::string kMsub = "اطرح_الضرب";
 inline const std::string kMov = "انسخ";
 inline const std::string kCmp = "قارن";
@@ -104,6 +111,9 @@ inline const std::string kBle = "اقفز_إذا_أصغر_أو_ساوى";
 inline const std::string kBgt = "اقفز_إذا_أكبر";
 inline const std::string kBge = "اقفز_إذا_أكبر_أو_ساوى";
 inline const std::string kBlo = "اقفز_إذا_أدنى";
+inline const std::string kBhi = "اقفز_إذا_أعلى";
+inline const std::string kBls = "اقفز_إذا_أدنى_أو_ساوى";
+inline const std::string kBhs = "اقفز_إذا_أعلى_أو_ساوى";
 inline const std::string kB = "اقفز";
 inline const std::string kStr = "اخزن";
 inline const std::string kLdr = "احمل";
@@ -132,6 +142,8 @@ inline const std::string kFcvtns = "قرّب_عشري";
 inline const std::string kFcmp = "قارن_عشري";
 inline const std::string kCselLt = "اختر_إذا_أصغر";
 inline const std::string kCselGt = "اختر_إذا_أكبر";
+inline const std::string kCselHi = "اختر_إذا_أعلى";
+inline const std::string kCselLo = "اختر_إذا_أدنى";
 } // namespace mnem
 
 // (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.

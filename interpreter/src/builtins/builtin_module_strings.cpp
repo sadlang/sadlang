@@ -35,9 +35,53 @@ namespace Sad
         namespace Ba = Builtins::Names::Arrays;
         namespace Bm = Builtins::Names::Math;
 
+        // (AR) [توحيد min/max — المسارُ الحيّ] يحسبُ أصغر/أكبر بوعيٍ بالإشارة: إن كانت كلُّ الوسائطِ
+        //      صحيحةً ووسمُها الساكنُ (ctx.argType، من resolveStaticType عند موقعِ النداء) طبيعي64 ⇒
+        //      مقارنةٌ لا-موقَّعةٌ (uint64) تطابقُ الخلفيّةَ الأصليّةَ (csel hi/lo · cmovb/cmova). وإلّا
+        //      نفوّضُ إلى MathFunctions (int64 موقَّعٌ دقيقٌ للصحيح، double للعشريّ) — يطابقُ الأصليَّ الموقَّعَ.
+        //      يُرآي بوّابةَ النوعِ السطحيِّ في الأمام (call_main: كلا المعامِلَين UInt64 صريحٌ ⇒ لا-موقَّع).
+        // (EN) [min/max unification — live path] Sign-aware أصغر/أكبر: if every argument is integer and
+        //      its static tag (ctx.argType, from resolveStaticType at the call site) is طبيعي64, compare
+        //      unsigned (uint64) to match the native backend (csel hi/lo · cmovb/cmova). Otherwise delegate
+        //      to MathFunctions (precise signed int64 for integers, double for floats) — matches native signed.
+        //      Mirrors the frontend surface-type gate (call_main: both operands explicit UInt64 ⇒ unsigned).
+        static std::shared_ptr<Data::Value>
+        mathMinMaxSignAware(Sad::Interpreter::BuiltinContext &ctx, bool isMax)
+        {
+            const auto &args = ctx.args();
+
+            bool allIntU64 = !args.empty();
+            for (std::size_t i = 0; i < args.size(); ++i)
+                if (!args[i] || !args[i]->isInteger() ||
+                    ctx.argType(i) != Sad::Types::SadTypeKind::UInt64)
+                {
+                    allIntU64 = false;
+                    break;
+                }
+
+            if (allIntU64)
+            {
+                uint64_t best = static_cast<uint64_t>(args[0]->toInt64());
+                for (std::size_t i = 1; i < args.size(); ++i)
+                {
+                    const uint64_t cur = static_cast<uint64_t>(args[i]->toInt64());
+                    if ((isMax && cur > best) || (!isMax && cur < best))
+                        best = cur;
+                }
+                return std::make_shared<Data::Value>(static_cast<int64_t>(best));
+            }
+
+            std::vector<Data::Value> plainArgs;
+            plainArgs.reserve(args.size());
+            for (const auto &arg : args)
+                plainArgs.push_back(*arg);
+            return std::make_shared<Data::Value>(
+                isMax ? StdLib::Math::MathFunctions::max(plainArgs)
+                      : StdLib::Math::MathFunctions::min(plainArgs));
+        }
+
         void registerBuiltinsStrings(Interpreter &interpreter)
         {
-
             // ═══════════════════════════════════════════════════════════════
             // (AR) دوال الإدخال والإخراج / (EN) I/O Functions
 
@@ -470,26 +514,18 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::ABS), math_abs_func);
 
-            // TODO 4: max / أكبر (Maximum) - Enhanced registration
+            // TODO 4: max / أكبر (Maximum) - Enhanced registration (sign-aware: طبيعي64 ⇒ لا-موقَّع)
             auto math_max_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
-                const auto &args = ctx.args(); (void)args;
-                std::vector<Data::Value> plainArgs;
-                for (const auto &arg : args)
-                    plainArgs.push_back(*arg);
-                return std::make_shared<Data::Value>(StdLib::Math::MathFunctions::max(plainArgs));
+                return mathMinMaxSignAware(ctx, /*isMax=*/true);
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::MAX), math_max_func);
 
-            // TODO 5: min / أصغر (Minimum) - Enhanced registration
+            // TODO 5: min / أصغر (Minimum) - Enhanced registration (sign-aware: طبيعي64 ⇒ لا-موقَّع)
             auto math_min_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
-                const auto &args = ctx.args(); (void)args;
-                std::vector<Data::Value> plainArgs;
-                for (const auto &arg : args)
-                    plainArgs.push_back(*arg);
-                return std::make_shared<Data::Value>(StdLib::Math::MathFunctions::min(plainArgs));
+                return mathMinMaxSignAware(ctx, /*isMax=*/false);
             };
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::MIN), math_min_func);

@@ -241,6 +241,26 @@ instructions:
           - { name: Rd,     hi: 4,  lo: 0,  from: op0 }
       reads_dest: false
 
+  # UDIV Xd, Xn, Xm   ⇒  sf 00 11010110 Rm 000010 Rn Rd   (قسمةٌ لا-موقَّعة؛ كـSDIV لكن fixed2=000010.
+  #   للطباعةِ اللا-موقَّعة لطبيعي64 عبر udiv+msub. متحقَّق: udiv x11,x9,x10 = 0x9ACA092B)
+  اقسم_غير_موقع:
+    - en: udiv
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: sf,     hi: 31, lo: 31, const: 1 }
+          - { name: fixed,  hi: 30, lo: 21, const: 214 }       # 0b0011010110
+          - { name: Rm,     hi: 20, lo: 16, from: op2 }
+          - { name: fixed2, hi: 15, lo: 10, const: 2 }         # 0b000010 (UDIV)
+          - { name: Rn,     hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,     hi: 4,  lo: 0,  from: op0 }
+      reads_dest: false
+
   # MSUB Xd, Xn, Xm, Ra   ⇒  Ra − Xn×Xm   (للباقي: Rd = a − (a÷b)×b، متحقَّق: 0x9B11C129)
   اطرح_الضرب:
     - en: msub
@@ -386,6 +406,48 @@ instructions:
           - { name: fixed, hi: 31, lo: 24, const: 84 }
           - { name: imm19, hi: 23, lo: 5,  from: op0 }
           - { name: cond,  hi: 4,  lo: 0,  const: 3 }           # 0b0011 = LO (لا-موقَّع)
+
+  # B.hi label  ⇒  cond = 0b1000 = HI (أعلى لا-موقَّع: C=1 و Z=0) — لفرعِ طبيعي64 >
+  #   متحقَّق: b.hi #8 = 0x54000048
+  اقفز_إذا_أعلى:
+    - en: bhi
+      form: "rel19"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 24, const: 84 }
+          - { name: imm19, hi: 23, lo: 5,  from: op0 }
+          - { name: cond,  hi: 4,  lo: 0,  const: 8 }           # 0b1000 = HI (لا-موقَّع)
+
+  # B.ls label  ⇒  cond = 0b1001 = LS (أدنى أو يساوي لا-موقَّع: C=0 أو Z=1) — لفرعِ طبيعي64 ≤
+  #   متحقَّق: b.ls #8 = 0x54000049
+  اقفز_إذا_أدنى_أو_ساوى:
+    - en: bls
+      form: "rel19"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 24, const: 84 }
+          - { name: imm19, hi: 23, lo: 5,  from: op0 }
+          - { name: cond,  hi: 4,  lo: 0,  const: 9 }           # 0b1001 = LS (لا-موقَّع)
+
+  # B.hs label  ⇒  cond = 0b0010 = HS/CS (أعلى أو يساوي لا-موقَّع: C=1) — لفرعِ طبيعي64 ≥
+  #   متحقَّق: b.hs #8 = 0x54000042
+  اقفز_إذا_أعلى_أو_ساوى:
+    - en: bhs
+      form: "rel19"
+      operands:
+        - { kind: imm }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 24, const: 84 }
+          - { name: imm19, hi: 23, lo: 5,  from: op0 }
+          - { name: cond,  hi: 4,  lo: 0,  const: 2 }           # 0b0010 = HS (لا-موقَّع)
 
   # B label   ⇒  000101 imm26   (قفزٌ غيرُ مشروط، الإزاحة ÷٤، متحقَّق: b #8 = 0x14000002)
   اقفز:
@@ -896,6 +958,44 @@ instructions:
           - { name: fixhi, hi: 31, lo: 21, const: 1236 }
           - { name: Rm,    hi: 20, lo: 16, from: op2 }
           - { name: cond,  hi: 15, lo: 12, const: 12 }
+          - { name: mid,   hi: 11, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # CSEL Xd, Xn, Xm, HI  ⇒  Xd = Xn إن HI [أعلى لا-موقَّع C=1 وZ=0] وإلا Xm؛ cond=HI=8. لأكبرَ لا-موقَّع.
+  #   الاسمُ «أعلى» متّسقٌ مع b.hi/ja/seta. متحقَّق بـllvm-mc: csel x0,x1,x2,hi = 0x9A828020 [0x20,0x80,0x82,0x9a].
+  اختر_إذا_أعلى:
+    - en: csel_hi
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixhi, hi: 31, lo: 21, const: 1236 }
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: cond,  hi: 15, lo: 12, const: 8 }
+          - { name: mid,   hi: 11, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # CSEL Xd, Xn, Xm, LO  ⇒  Xd = Xn إن LO [أدنى لا-موقَّع C=0] وإلا Xm؛ cond=CC/LO=3. لأصغرَ لا-موقَّع.
+  #   متحقَّق بـllvm-mc: csel x0,x1,x2,lo = 0x9A823020 [0x20,0x30,0x82,0x9a].
+  اختر_إذا_أدنى:
+    - en: csel_lo
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixhi, hi: 31, lo: 21, const: 1236 }
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: cond,  hi: 15, lo: 12, const: 3 }
           - { name: mid,   hi: 11, lo: 10, const: 0 }
           - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
           - { name: Rd,    hi: 4,  lo: 0,  from: op0 }

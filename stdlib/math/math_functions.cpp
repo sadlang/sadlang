@@ -152,29 +152,37 @@ namespace Sad
             {
                 validateArguments(args, 1, -1);
 
-                double maxValue = toDouble(args[0]);
-                bool allIntegers = (args[0].getKind() == Types::SadTypeKind::Integer);
-
-                for (size_t i = 1; i < args.size(); i++)
-                {
-                    double current = toDouble(args[i]);
-                    if (current > maxValue)
-                    {
-                        maxValue = current;
-                    }
-                    if (args[i].getKind() != Types::SadTypeKind::Integer)
+                // (AR) [توحيد min/max] إن كانت كلُّ المدخلاتِ صحيحةً نقارنُ ونُرجعُ int64 **دقيقًا** (لا عَوم
+                //      ولا قصَّ ٣٢-بت) ⇒ يطابقُ الخلفيّةَ الأصليّةَ الموقَّعةَ لكلِّ ٦٤-بت. المقارنةُ اللا-موقَّعةُ
+                //      (طبيعي64) تُعالَجُ في مسارِ المفسّرِ الحيِّ (builtin_module_strings) حيثُ يتوفّرُ ctx.argType؛
+                //      هنا (مسارٌ بلا سياقِ نوع) الموقَّعُ هو الافتراضُ الصحيح. العشريُّ يبقى مقارنةَ double.
+                bool allIntegers = true;
+                for (const auto &a : args)
+                    if (a.getKind() != Types::SadTypeKind::Integer)
                     {
                         allIntegers = false;
+                        break;
                     }
-                }
 
-                // (AR) إرجاع رقم صحيح إذا كانت كل المدخلات أرقام صحيحة
-                // (EN) Return integer if all inputs were integers
                 if (allIntegers)
                 {
-                    return Data::Value(static_cast<int>(maxValue));
+                    int64_t maxValue = args[0].toInt64();
+                    for (size_t i = 1; i < args.size(); i++)
+                    {
+                        const int64_t current = args[i].toInt64();
+                        if (current > maxValue)
+                            maxValue = current;
+                    }
+                    return Data::Value(maxValue);
                 }
 
+                double maxValue = toDouble(args[0]);
+                for (size_t i = 1; i < args.size(); i++)
+                {
+                    const double current = toDouble(args[i]);
+                    if (current > maxValue)
+                        maxValue = current;
+                }
                 return Data::Value(maxValue);
             }
 
@@ -186,29 +194,35 @@ namespace Sad
             {
                 validateArguments(args, 1, -1);
 
-                double minValue = toDouble(args[0]);
-                bool allIntegers = (args[0].getKind() == Types::SadTypeKind::Integer);
-
-                for (size_t i = 1; i < args.size(); i++)
-                {
-                    double current = toDouble(args[i]);
-                    if (current < minValue)
-                    {
-                        minValue = current;
-                    }
-                    if (args[i].getKind() != Types::SadTypeKind::Integer)
+                // (AR) [توحيد min/max] كنظيرِ max: int64 دقيقٌ للصحيح (لا عَوم/قصَّ ٣٢-بت)، double للعشريّ.
+                //      اللا-موقَّعُ (طبيعي64) في مسارِ المفسّرِ الحيِّ عبرَ ctx.argType.
+                bool allIntegers = true;
+                for (const auto &a : args)
+                    if (a.getKind() != Types::SadTypeKind::Integer)
                     {
                         allIntegers = false;
+                        break;
                     }
-                }
 
-                // (AR) إرجاع رقم صحيح إذا كانت كل المدخلات أرقام صحيحة
-                // (EN) Return integer if all inputs were integers
                 if (allIntegers)
                 {
-                    return Data::Value(static_cast<int>(minValue));
+                    int64_t minValue = args[0].toInt64();
+                    for (size_t i = 1; i < args.size(); i++)
+                    {
+                        const int64_t current = args[i].toInt64();
+                        if (current < minValue)
+                            minValue = current;
+                    }
+                    return Data::Value(minValue);
                 }
 
+                double minValue = toDouble(args[0]);
+                for (size_t i = 1; i < args.size(); i++)
+                {
+                    const double current = toDouble(args[i]);
+                    if (current < minValue)
+                        minValue = current;
+                }
                 return Data::Value(minValue);
             }
 

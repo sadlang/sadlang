@@ -939,6 +939,12 @@ namespace sad
             {
                 return emit(x86::mnem::kIdiv, "r64", {x86::Operand::R(divisor)});
             }
+            // (AR) قسمةٌ لا-موقَّعة: rdx:rax ÷ divisor ⇒ rax=حاصل، rdx=باقٍ. يجب تصفيرُ rdx قبلها
+            //   (لا cqo) — المستدعي مسؤولٌ عن xor rdx,rdx. للطباعةِ اللا-موقَّعة لطبيعي64.
+            bool divReg(int divisor)
+            {
+                return emit(x86::mnem::kDiv, "r64", {x86::Operand::R(divisor)});
+            }
             // ── العمليّات البتّيّة ──
             bool andReg(int dst, int src) { return emit(x86::mnem::kAnd, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)}); }
             bool orReg(int dst, int src) { return emit(x86::mnem::kOr, "r64, r64", {x86::Operand::R(dst), x86::Operand::R(src)}); }
@@ -976,6 +982,8 @@ namespace sad
             bool maxsd(int d, int s) { return emit(x86::mnem::kMaxsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = (d>s)?d:s (NaN/تعادل⇒s)
             bool cmovl(int d, int s) { return emit(x86::mnem::kCmovl, "r64, r64", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = s إن d<s موقَّعًا (بعدَ cmp d,s) — للأكبر
             bool cmovg(int d, int s) { return emit(x86::mnem::kCmovg, "r64, r64", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = s إن d>s موقَّعًا — للأصغر
+            bool cmovb(int d, int s) { return emit(x86::mnem::kCmovb, "r64, r64", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = s إن d<s لا-موقَّعًا (CF=1) — للأكبرِ اللا-موقَّع
+            bool cmova(int d, int s) { return emit(x86::mnem::kCmova, "r64, r64", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = s إن d>s لا-موقَّعًا (CF=0,ZF=0) — للأصغرِ اللا-موقَّع
             bool cvtsi2sd(int xmm, int gpr) { return emit(x86::mnem::kCvtsi2sd, "xmm, r64", {x86::Operand::R(xmm), x86::Operand::R(gpr)}); }
             bool cvttsd2si(int gpr, int xmm) { return emit(x86::mnem::kCvttsd2si, "r64, xmm", {x86::Operand::R(gpr), x86::Operand::R(xmm)}); }
             bool ucomisd(int a, int b) { return emit(x86::mnem::kUcomisd, "xmm, xmm", {x86::Operand::R(a), x86::Operand::R(b)}); }
@@ -1348,6 +1356,29 @@ namespace sad
                     return false;
                 patchFwd(toWrite);
                 // (AR) rsi=المؤشّرُ إلى أوّل رمز؛ rdx=الطول=(القمّة − r10)؛ write(stdout).
+                return movReg(x86::RSI, x86::R10) &&
+                       leaFrame(x86::RDX, printBufTopDisp_) &&
+                       subReg(x86::RDX, x86::R10) &&
+                       movImm(x86::RAX, kSysWriteX86) &&
+                       movImm(x86::RDI, kFdStdout) &&
+                       emit(x86::mnem::kSyscall, "", {});
+            }
+
+            // (AR) طباعةُ عددٍ **لا-موقَّع** (طبيعي64): itoa لا-موقَّعٌ (div لا idiv، بلا فحصِ
+            //   إشارةٍ ولا بادئةِ '-') فتُطبَعُ 2^64-1 = «18446744073709551615» لا «-1». يطابقُ
+            //   renderUnsignedArgs بالمفسّر (%llu). القيمةُ في RAX عند الدخول. R10=قمّةُ المخزن،
+            //   RCX=الأساس. لولبٌ واحدٌ: صفّرْ RDX ثمّ div ⇒ RDX=باقٍ(٠..٩)، الرقم='0'+RDX،
+            //   كرّرْ حتّى RAX=0 (يُنفَّذُ مرّةً على الأقلّ فتُطبَعُ '0' للصفر).
+            bool emitPrintUInt()
+            {
+                if (!leaFrame(x86::R10, printBufTopDisp_) || !movImm(x86::RCX, kItoaRadix))
+                    return false;
+                const size_t loop = code_.size();
+                if (!xorReg(x86::RDX, x86::RDX) || !divReg(x86::RCX) ||
+                    !addImm(x86::RDX, kAsciiZero) ||
+                    !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                    !cmpZero(x86::RAX) || !emitLocalJneBack(loop))
+                    return false;
                 return movReg(x86::RSI, x86::R10) &&
                        leaFrame(x86::RDX, printBufTopDisp_) &&
                        subReg(x86::RDX, x86::R10) &&
@@ -2242,9 +2273,17 @@ namespace sad
                         bool ok = inst.opcode == OP::BUILTIN_MAX ? maxsd(kXmm1, kXmm0) : minsd(kXmm1, kXmm0);
                         return ok && movqFromXmm(dst, kXmm1);
                     }
-                    // (AR) صحيحان موقَّعان: cmp + نقلٌ شرطيّ — أكبر: cmovl dst,RAX؛ أصغر: cmovg dst,RAX.
+                    // (AR) صحيحان: cmp + نقلٌ شرطيّ. كلاهما طبيعي64 (لا-موقَّع) ⇒ cmovb/cmova؛ وإلّا موقَّع
+                    //      ⇒ cmovl/cmovg. اللا-موقَّعُ يطابقُ المفسّرَ (ctx.argType==UInt64 للمعامِلَين).
+                    //      أكبر: dst=(dst<RAX)?RAX:dst؛ أصغر: dst=(dst>RAX)?RAX:dst. النوعُ من الأمامِ عبرَ
+                    //      بوّابةِ resolveSurfaceType (كلاهما UInt64 صريحٌ ⇒ لا-موقَّع؛ المُستنتَجُ موقَّع).
+                    const bool bothU64 =
+                        inst.operands[0].dataType == types::SadTypeKind::UInt64 &&
+                        inst.operands[1].dataType == types::SadTypeKind::UInt64;
                     if (!cmpRegReg(dst, x86::RAX))
                         return false;
+                    if (bothU64)
+                        return inst.opcode == OP::BUILTIN_MAX ? cmovb(dst, x86::RAX) : cmova(dst, x86::RAX);
                     return inst.opcode == OP::BUILTIN_MAX ? cmovl(dst, x86::RAX) : cmovg(dst, x86::RAX);
                 }
                 case OP::F64_TO_I64:
@@ -3130,32 +3169,46 @@ namespace sad
                         return false;
                     if (!loadMem(x86::RAX, strHeapSlot(0)) || !movImm(x86::RCX, kItoaRadix))
                         return false;
-                    if (!cmpZero(x86::RAX)) // (AR) الإشارة: RAX ≥ 0 ⇒ اقفز للموجب
-                        return false;
-                    size_t toPositive;
-                    if (!emitJccFwd(x86::mnem::kJge, toPositive))
-                        return false;
-                    // (AR) لولبُ السالب: cqo؛ idiv ⇒ RDX=باقٍ(≤٠)؛ الرقم = '0' − RDX = |باقٍ|.
-                    const size_t negLoop = code_.size();
-                    if (!cqo() || !idivReg(x86::RCX) ||
-                        !movImm(x86::R9, kAsciiZero) || !subReg(x86::R9, x86::RDX) ||
-                        !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::R9) ||
-                        !cmpZero(x86::RAX) || !emitLocalJneBack(negLoop))
-                        return false;
-                    if (!movImm(x86::R9, kAsciiMinus) || !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::R9))
-                        return false;
-                    size_t toDone;
-                    if (!emitJccFwd(x86::mnem::kJmp, toDone))
-                        return false;
-                    // (AR) لولبُ الموجب: cqo؛ idiv ⇒ RDX=باقٍ(٠..٩)؛ الرقم = '0' + RDX.
-                    patchFwd(toPositive);
-                    const size_t posLoop = code_.size();
-                    if (!cqo() || !idivReg(x86::RCX) ||
-                        !addImm(x86::RDX, kAsciiZero) ||
-                        !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
-                        !cmpZero(x86::RAX) || !emitLocalJneBack(posLoop))
-                        return false;
-                    patchFwd(toDone);
+                    if (inst.operands[0].dataType == types::SadTypeKind::UInt64)
+                    {
+                        // (AR) طبيعي64: itoa **لا-موقَّع** (div لا idiv، بلا فحصِ إشارةٍ ولا '-')
+                        //   فيُعطي «18446744073709551615» لا «-1». يطابقُ نصَّ المفسّرِ لـطبيعي64.
+                        const size_t uLoop = code_.size();
+                        if (!xorReg(x86::RDX, x86::RDX) || !divReg(x86::RCX) ||
+                            !addImm(x86::RDX, kAsciiZero) ||
+                            !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                            !cmpZero(x86::RAX) || !emitLocalJneBack(uLoop))
+                            return false;
+                    }
+                    else
+                    {
+                        if (!cmpZero(x86::RAX)) // (AR) الإشارة: RAX ≥ 0 ⇒ اقفز للموجب
+                            return false;
+                        size_t toPositive;
+                        if (!emitJccFwd(x86::mnem::kJge, toPositive))
+                            return false;
+                        // (AR) لولبُ السالب: cqo؛ idiv ⇒ RDX=باقٍ(≤٠)؛ الرقم = '0' − RDX = |باقٍ|.
+                        const size_t negLoop = code_.size();
+                        if (!cqo() || !idivReg(x86::RCX) ||
+                            !movImm(x86::R9, kAsciiZero) || !subReg(x86::R9, x86::RDX) ||
+                            !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::R9) ||
+                            !cmpZero(x86::RAX) || !emitLocalJneBack(negLoop))
+                            return false;
+                        if (!movImm(x86::R9, kAsciiMinus) || !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::R9))
+                            return false;
+                        size_t toDone;
+                        if (!emitJccFwd(x86::mnem::kJmp, toDone))
+                            return false;
+                        // (AR) لولبُ الموجب: cqo؛ idiv ⇒ RDX=باقٍ(٠..٩)؛ الرقم = '0' + RDX.
+                        patchFwd(toPositive);
+                        const size_t posLoop = code_.size();
+                        if (!cqo() || !idivReg(x86::RCX) ||
+                            !addImm(x86::RDX, kAsciiZero) ||
+                            !subImm(x86::R10, 1) || !storeByte(x86::R10, x86::RDX) ||
+                            !cmpZero(x86::RAX) || !emitLocalJneBack(posLoop))
+                            return false;
+                        patchFwd(toDone);
+                    }
                     if (!movReg(x86::RAX, x86::R10)) // (AR) النتيجة = R10 (أوّل رقم/إشارة) ⇒ خارجَ الحوض
                         return false;
                     for (const auto &kv : regOf_)
@@ -4100,9 +4153,12 @@ namespace sad
                             return false;
                         return floatCompareToReg(fdst, inst.operands[0], inst.operands[1], inst.opcode);
                     }
-                    if (!rejectUnsignedCmp(inst, diag::kCmpValue)) // (AR) لا-موقَّع ⇒ فشلٌ صريح (اتّساقًا مع ARM64)
+                    // (AR) كلا المعامِلَين طبيعي64 ⇒ setcc لا-موقَّع؛ وإلّا الموقَّع مع رفضِ المتبقّي.
+                    const bool unsignedCmp = bothUInt64(inst);
+                    if (!unsignedCmp && !rejectUnsignedCmp(inst, diag::kCmpValue))
                         return false;
-                    const std::string *setcc = setccForCmp(inst.opcode);
+                    const std::string *setcc = unsignedCmp ? setccForCmpUnsigned(inst.opcode)
+                                                           : setccForCmp(inst.opcode);
                     if (!setcc)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                     int dst;
@@ -4620,9 +4676,15 @@ namespace sad
                             if (!loadArgInto(x86::RAX, op) || !emitPrintFloat())
                                 return false;
                         }
+                        else if (op.dataType == types::SadTypeKind::UInt64)
+                        {
+                            // (AR) طبيعي64: حمّله في RAX ثمّ itoa **لا-موقَّع** (يطابقُ المفسّرَ %llu).
+                            if (!loadArgInto(x86::RAX, op) || !emitPrintUInt())
+                                return false;
+                        }
                         else
                         {
-                            // (AR) عددٌ صحيح: حمّله في RAX (ثابت/ذاكرة/خانة انسكاب) ثمّ itoa+write.
+                            // (AR) عددٌ صحيح موقَّع: حمّله في RAX (ثابت/ذاكرة/خانة انسكاب) ثمّ itoa+write.
                             if (!loadArgInto(x86::RAX, op) || !emitPrintInt())
                                 return false;
                         }
@@ -5325,6 +5387,34 @@ namespace sad
                 }
             }
 
+            // (AR) نظائرُ jcc **لا-موقَّعة** (jb/jbe/ja/jae) للمقارنةِ حين يكون كلا المعامِلَين
+            //      طبيعي64. المساواة/عدمها لا-حسّاستان للإشارة (نفسُ je/jne). يطابقُ المفسّرَ
+            //      (ULT/UGT حين يكون كلاهما UInt64) ومرآةَ csel-hi/lo في ARM64.
+            static const std::string *jccForCmpUnsigned(sir::SIROpcode op)
+            {
+                using OP = sir::SIROpcode;
+                switch (op)
+                {
+                case OP::EQ: return &x86::mnem::kJe;
+                case OP::NE: return &x86::mnem::kJne;
+                case OP::LT: return &x86::mnem::kJb;
+                case OP::LE: return &x86::mnem::kJbe;
+                case OP::GT: return &x86::mnem::kJa;
+                case OP::GE: return &x86::mnem::kJae;
+                default: return nullptr;
+                }
+            }
+
+            // (AR) هل كلا معامِلَي المقارنة طبيعي64 صريحٌ؟ ⇒ مقارنةٌ لا-موقَّعة (يطابقُ بوّابةَ
+            //      resolveSurfaceType ومقارنةَ المفسّر: كلاهما UInt64). الخلطُ/بايت يبقى على
+            //      المسار الموقَّع/المرفوض كما كان (لا توسيعَ نطاقٍ صامتًا).
+            static bool bothUInt64(const sir::SIRInstruction &cmp)
+            {
+                return cmp.operands.size() == 2 &&
+                       cmp.operands[0].dataType == types::SadTypeKind::UInt64 &&
+                       cmp.operands[1].dataType == types::SadTypeKind::UInt64;
+            }
+
             // (AR) هل النوعُ صحيحٌ لا-موقَّع؟ (طبيعي8/16/32/64 أو بايت). المقارناتُ المرتَّبةُ
             //      (setl/g/le/ge و jl/g/…) موقَّعةٌ، فمعاملٌ لا-موقَّعٌ يلزمه setb/seta/jb/ja؛
             //      لا نظائرَ لا-موقَّعةٍ في opcodes المقارنة بعد ⇒ نرفضه صراحةً بدل ترميزٍ خاطئٍ
@@ -5357,6 +5447,22 @@ namespace sad
                 case OP::LE: return &x86::mnem::kSetle;
                 case OP::GT: return &x86::mnem::kSetg;
                 case OP::GE: return &x86::mnem::kSetge;
+                default: return nullptr;
+                }
+            }
+
+            // (AR) نظائرُ setcc **لا-موقَّعة** (setb/setbe/seta/setae) لمقارنةِ طبيعي64 كقيمة.
+            static const std::string *setccForCmpUnsigned(sir::SIROpcode op)
+            {
+                using OP = sir::SIROpcode;
+                switch (op)
+                {
+                case OP::EQ: return &x86::mnem::kSete;
+                case OP::NE: return &x86::mnem::kSetne;
+                case OP::LT: return &x86::mnem::kSetb;
+                case OP::LE: return &x86::mnem::kSetbe;
+                case OP::GT: return &x86::mnem::kSeta;
+                case OP::GE: return &x86::mnem::kSetae;
                 default: return nullptr;
                 }
             }
@@ -5456,7 +5562,10 @@ namespace sad
                            emitJump(x86::mnem::kJne, thenLbl) &&
                            emitJump(x86::mnem::kJmp, elseLbl);
                 }
-                if (!rejectUnsignedCmp(*cmp, diag::kCmpBranch)) // (AR) لا-موقَّع ⇒ فشلٌ صريح (jl/g موقَّعة)
+                // (AR) كلا المعامِلَين طبيعي64 ⇒ فرعٌ لا-موقَّع (jb/ja/…)؛ وإلّا الموقَّع، مع
+                //      رفضِ أيِّ لا-موقَّعٍ متبقٍّ (خلط/بايت) صراحةً كما كان.
+                const bool unsignedCmp = bothUInt64(*cmp);
+                if (!unsignedCmp && !rejectUnsignedCmp(*cmp, diag::kCmpBranch))
                     return false;
                 // (AR) المعامل الأوّل في المُبدَّد RAX (يُحمَّل من الخانة إن متغيّرَ ذاكرة)، ثمّ
                 //      قارنه بالثاني (ثابتٌ imm أو سجلّ). كلا المعامِلَين في الذاكرة غيرُ مدعوم.
@@ -5464,7 +5573,8 @@ namespace sad
                     return false;
                 if (!cmpAgainst(cmp->operands[1]))
                     return false;
-                const std::string *jcc = jccForCmp(cmp->opcode);
+                const std::string *jcc = unsignedCmp ? jccForCmpUnsigned(cmp->opcode)
+                                                     : jccForCmp(cmp->opcode);
                 if (!jcc)
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(*cmp));
                 return emitJump(*jcc, thenLbl) && emitJump(x86::mnem::kJmp, elseLbl);

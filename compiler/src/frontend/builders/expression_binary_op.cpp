@@ -25,6 +25,7 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "builtin_registry.h" // (AR) لثوابت أسماء المدمَجات (أكبر/أصغر) / (EN) builtin name constants
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -1654,6 +1655,31 @@ namespace Sad
             {
                 if (auto *callee = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
                 {
+                    // (AR) أكبر/أصغر المدمَجتان: نوعُ النتيجة يطابق باعثَ SIR
+                    //      (builtins_math.cpp): عائمٌ إن كان أحدُ الوسيطين عائمًا،
+                    //      وطبيعي64 إن كانا معًا طبيعي64، وإلّا Integer موقَّع. **مرآةٌ
+                    //      حرفيّةٌ لفرع resolveStaticType بالمفسّر** — فتُقارَنُ وتُطبَعُ
+                    //      نتيجةُ أكبر(طبيعي64،طبيعي64) المتداخلةُ لا-موقَّعةً على
+                    //      المسارين معًا، ويبقى الثابت resolveSurfaceType≡resolveStaticType
+                    //      قائمًا. [[التوحيد الكامل]]
+                    // (EN) أكبر/أصغر builtins: result type mirrors the SIR emitter
+                    //      (builtins_math.cpp): Float if either arg is Float, UInt64 if
+                    //      both args are UInt64, else signed Integer. **Literal mirror of
+                    //      the interpreter's resolveStaticType branch** — so an inline
+                    //      أكبر/أصغر of two UInt64 compares/prints unsigned on BOTH tracks,
+                    //      preserving the resolveSurfaceType ≡ resolveStaticType invariant.
+                    if ((callee->name == Builtins::Names::Math::MAX ||
+                         callee->name == Builtins::Names::Math::MIN) &&
+                        call->arguments.size() == 2)
+                    {
+                        const SadTypeKind a = resolveSurfaceType(call->arguments[0].get());
+                        const SadTypeKind b = resolveSurfaceType(call->arguments[1].get());
+                        if (a == SadTypeKind::Float || b == SadTypeKind::Float)
+                            return SadTypeKind::Float;
+                        if (a == SadTypeKind::UInt64 && b == SadTypeKind::UInt64)
+                            return SadTypeKind::UInt64;
+                        return SadTypeKind::Integer;
+                    }
                     auto it = b_.functionTable_.find(callee->name);
                     if (it != b_.functionTable_.end() && it->second.astDecl)
                         return it->second.astDecl->returnType;

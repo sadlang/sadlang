@@ -254,6 +254,34 @@ instructions:
         modrm: { mod: reg, reg: op0, rm: op1 }
       reads_dest: true
 
+  # cmovb r64, r64  ⇒  REX.W + 0F 42 /r  (نقلٌ إذا أدنى لا-موقَّعًا CF=1؛ لأكبرَ لا-موقَّع: cmovb dst,src بعدَ cmp.
+  #   متحقَّق بـllvm-mc: cmovbq %rdi,%rax = 48 0f 42 c7). ModRM: reg=الوجهة، rm=المصدر — كـcmovl.
+  انقل_إذا_أدنى:
+    - en: cmovb
+      form: "r64, r64"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x0F, 0x42]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+      reads_dest: true
+
+  # cmova r64, r64  ⇒  REX.W + 0F 47 /r  (نقلٌ إذا أعلى لا-موقَّعًا CF=0 وZF=0؛ لأصغرَ لا-موقَّع: cmova dst,src.
+  #   الاسمُ «أعلى» متّسقٌ مع ja/seta/b.hi. متحقَّق بـllvm-mc: cmovaq %rdi,%rax = 48 0f 47 c7).
+  انقل_إذا_أعلى:
+    - en: cmova
+      form: "r64, r64"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x0F, 0x47]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+      reads_dest: true
+
   # ─── القسمة الصحيحة الموقَّعة (الحاصلُ في rax، الباقي في rdx؛ يسبقها cqo) ───
   # idiv r/m64  ⇒  REX.W + F7 /7   (المقسومُ عليه rm؛ المقسومُ في rdx:rax)
   اقسم:
@@ -265,6 +293,18 @@ instructions:
         rex_w: true
         opcode: [0xF7]
         modrm: { mod: reg, reg: 7, rm: op0 }
+
+  # div r/m64  ⇒  REX.W + F7 /6   (قسمةٌ لا-موقَّعة؛ المقسومُ عليه rm، المقسومُ في rdx:rax،
+  #   وrdx يُصفَّر قبلها لا يُمَدُّ بالإشارة. للطباعةِ اللا-موقَّعة لطبيعي64. متحقَّق: div rcx = 48 f7 f1)
+  اقسم_غير_موقع:
+    - en: div
+      form: "r64"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0xF7]
+        modrm: { mod: reg, reg: 6, rm: op0 }
 
   # cqo  ⇒  REX.W + 99   (يمدّ إشارةَ rax إلى rdx:rax قبل idiv)
   مدد_الإشارة:
@@ -470,18 +510,30 @@ instructions:
       encode: { opcode: [0x0F, 0x9D], modrm: { mod: reg, reg: 0, rm: op0 } }
 
   # ─── setcc لا-موقَّعة + تكافؤ (لمقارنةِ العوائم عبر ucomisd: أعلامٌ لا-موقَّعة + PF للـNaN) ───
-  # SETA r/m8 ⇒ 0F 97 /0 (فوق: CF=0 و ZF=0؛ متحقَّق: seta al = 0f 97 c0)
-  عيّن_إذا_فوق:
+  # SETA r/m8 ⇒ 0F 97 /0 (أعلى: CF=0 و ZF=0؛ متحقَّق: seta al = 0f 97 c0)
+  عيّن_إذا_أعلى:
     - en: seta
       form: "r8"
       operands: [ { kind: reg, class: gpr, role: out } ]
       encode: { opcode: [0x0F, 0x97], modrm: { mod: reg, reg: 0, rm: op0 } }
-  # SETAE r/m8 ⇒ 0F 93 /0 (فوق أو يساوي: CF=0؛ متحقَّق: setae al = 0f 93 c0)
-  عيّن_إذا_فوق_أو_ساوى:
+  # SETAE r/m8 ⇒ 0F 93 /0 (أعلى أو يساوي: CF=0؛ متحقَّق: setae al = 0f 93 c0)
+  عيّن_إذا_أعلى_أو_ساوى:
     - en: setae
       form: "r8"
       operands: [ { kind: reg, class: gpr, role: out } ]
       encode: { opcode: [0x0F, 0x93], modrm: { mod: reg, reg: 0, rm: op0 } }
+  # SETB r/m8 ⇒ 0F 92 /0 (أدنى لا-موقَّع: CF=1؛ للمقارنةِ اللا-موقَّعة كقيمة؛ متحقَّق: setb al = 0f 92 c0)
+  عيّن_إذا_أدنى:
+    - en: setb
+      form: "r8"
+      operands: [ { kind: reg, class: gpr, role: out } ]
+      encode: { opcode: [0x0F, 0x92], modrm: { mod: reg, reg: 0, rm: op0 } }
+  # SETBE r/m8 ⇒ 0F 96 /0 (أدنى أو يساوي لا-موقَّع: CF=1 أو ZF=1؛ متحقَّق: setbe al = 0f 96 c0)
+  عيّن_إذا_أدنى_أو_ساوى:
+    - en: setbe
+      form: "r8"
+      operands: [ { kind: reg, class: gpr, role: out } ]
+      encode: { opcode: [0x0F, 0x96], modrm: { mod: reg, reg: 0, rm: op0 } }
   # SETNP r/m8 ⇒ 0F 9B /0 (لا تكافؤ PF=0 ⇒ مُرتَّبٌ لا NaN؛ متحقَّق: setnp al = 0f 9b c0)
   عيّن_إذا_لا_تكافؤ:
     - en: setnp
@@ -667,6 +719,36 @@ instructions:
         - { kind: label, bits: 32 }
       encode:
         opcode: [0x0F, 0x82]
+        immediate: { operand: 0, bits: 32, encoding: le }
+
+  # ja rel32 ⇒ 0F 87 cd (أعلى لا-موقَّع: CF=0 و ZF=0) — لفرعِ المقارنةِ اللا-موقَّعة (طبيعي64 >)
+  اقفز_إذا_أعلى:
+    - en: ja
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0x0F, 0x87]
+        immediate: { operand: 0, bits: 32, encoding: le }
+
+  # jae rel32 ⇒ 0F 83 cd (أعلى أو يساوي لا-موقَّع: CF=0) — لفرعِ طبيعي64 ≥
+  اقفز_إذا_أعلى_أو_ساوى:
+    - en: jae
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0x0F, 0x83]
+        immediate: { operand: 0, bits: 32, encoding: le }
+
+  # jbe rel32 ⇒ 0F 86 cd (أدنى أو يساوي لا-موقَّع: CF=1 أو ZF=1) — لفرعِ طبيعي64 ≤
+  اقفز_إذا_أدنى_أو_ساوى:
+    - en: jbe
+      form: "rel32"
+      operands:
+        - { kind: label, bits: 32 }
+      encode:
+        opcode: [0x0F, 0x86]
         immediate: { operand: 0, bits: 32, encoding: le }
 
   # call rel32  ⇒  E8 cd

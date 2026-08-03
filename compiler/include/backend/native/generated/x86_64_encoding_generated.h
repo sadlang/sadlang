@@ -41,7 +41,10 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اضرب", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0xAF}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "انقل_إذا_أصغر", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0x4C}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "انقل_إذا_أكبر", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0x4F}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "انقل_إذا_أدنى", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0x42}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "انقل_إذا_أعلى", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0x47}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "اقسم", "r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xF7}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; return s; }() },
+    { "اقسم_غير_موقع", "r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xF7}; s.modrm.present = true; s.modrm.reg_ext = 6; s.modrm.rm_op = 0; return s; }() },
     { "مدد_الإشارة", "", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x99}; return s; }() },
     { "وافق", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x21}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "اضمم", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x09}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
@@ -62,8 +65,10 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "عيّن_إذا_أصغر_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9E}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
     { "عيّن_إذا_أكبر", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9F}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
     { "عيّن_إذا_أكبر_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9D}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
-    { "عيّن_إذا_فوق", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x97}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
-    { "عيّن_إذا_فوق_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x93}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_أعلى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x97}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_أعلى_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x93}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_أدنى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x92}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
+    { "عيّن_إذا_أدنى_أو_ساوى", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x96}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
     { "عيّن_إذا_لا_تكافؤ", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9B}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
     { "عيّن_إذا_تكافؤ", "r8", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x9A}; s.modrm.present = true; s.modrm.reg_ext = 0; s.modrm.rm_op = 0; return s; }() },
     { "اختبر", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x85}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
@@ -82,6 +87,9 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اقفز_إذا_أكبر", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x8F}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     { "اقفز_إذا_أدنى", "rel8", []{ sad::native::x86::EncSpec s; s.opcode = {0x72}; s.imm_op = 0; s.imm_bits = 8; return s; }() },
     { "اقفز_إذا_أدنى", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x82}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "اقفز_إذا_أعلى", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x87}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "اقفز_إذا_أعلى_أو_ساوى", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x83}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
+    { "اقفز_إذا_أدنى_أو_ساوى", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0x0F, 0x86}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     { "نادِ", "rel32", []{ sad::native::x86::EncSpec s; s.opcode = {0xE8}; s.imm_op = 0; s.imm_bits = 32; return s; }() },
     { "نادِ_غيرَ_مباشر", "r64", []{ sad::native::x86::EncSpec s; s.opcode = {0xFF}; s.modrm.present = true; s.modrm.reg_ext = 2; s.modrm.rm_op = 0; return s; }() },
     { "عنوان_فعّال", "r64, m64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x8D}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
@@ -119,7 +127,10 @@ inline const std::string kSub = "اطرح";
 inline const std::string kImul = "اضرب";
 inline const std::string kCmovl = "انقل_إذا_أصغر";
 inline const std::string kCmovg = "انقل_إذا_أكبر";
+inline const std::string kCmovb = "انقل_إذا_أدنى";
+inline const std::string kCmova = "انقل_إذا_أعلى";
 inline const std::string kIdiv = "اقسم";
+inline const std::string kDiv = "اقسم_غير_موقع";
 inline const std::string kCqo = "مدد_الإشارة";
 inline const std::string kAnd = "وافق";
 inline const std::string kOr = "اضمم";
@@ -136,8 +147,10 @@ inline const std::string kSetl = "عيّن_إذا_أصغر";
 inline const std::string kSetle = "عيّن_إذا_أصغر_أو_ساوى";
 inline const std::string kSetg = "عيّن_إذا_أكبر";
 inline const std::string kSetge = "عيّن_إذا_أكبر_أو_ساوى";
-inline const std::string kSeta = "عيّن_إذا_فوق";
-inline const std::string kSetae = "عيّن_إذا_فوق_أو_ساوى";
+inline const std::string kSeta = "عيّن_إذا_أعلى";
+inline const std::string kSetae = "عيّن_إذا_أعلى_أو_ساوى";
+inline const std::string kSetb = "عيّن_إذا_أدنى";
+inline const std::string kSetbe = "عيّن_إذا_أدنى_أو_ساوى";
 inline const std::string kSetnp = "عيّن_إذا_لا_تكافؤ";
 inline const std::string kSetp = "عيّن_إذا_تكافؤ";
 inline const std::string kTest = "اختبر";
@@ -151,6 +164,9 @@ inline const std::string kJge = "اقفز_إذا_أكبر_أو_ساوى";
 inline const std::string kJle = "اقفز_إذا_أصغر_أو_ساوى";
 inline const std::string kJg = "اقفز_إذا_أكبر";
 inline const std::string kJb = "اقفز_إذا_أدنى";
+inline const std::string kJa = "اقفز_إذا_أعلى";
+inline const std::string kJae = "اقفز_إذا_أعلى_أو_ساوى";
+inline const std::string kJbe = "اقفز_إذا_أدنى_أو_ساوى";
 inline const std::string kCall = "نادِ";
 inline const std::string kCallIndirect = "نادِ_غيرَ_مباشر";
 inline const std::string kLea = "عنوان_فعّال";

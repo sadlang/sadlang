@@ -674,6 +674,8 @@ namespace sad
             bool fsqrt(int d, int n) { return emit(a64::mnem::kFsqrt, "d, d", {a64::Operand::R(d), a64::Operand::R(n)}); } // (AR) d = √n (عشريّ مزدوج)
             bool cselLt(int d, int n, int m) { return emit(a64::mnem::kCselLt, "x, x, x", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); } // (AR) d = (n<m موقَّعًا بعدَ cmp)؟ n : m
             bool cselGt(int d, int n, int m) { return emit(a64::mnem::kCselGt, "x, x, x", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); } // (AR) d = (n>m)؟ n : m
+            bool cselHi(int d, int n, int m) { return emit(a64::mnem::kCselHi, "x, x, x", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); } // (AR) d = (n>m لا-موقَّعًا HI بعدَ cmp)؟ n : m
+            bool cselLo(int d, int n, int m) { return emit(a64::mnem::kCselLo, "x, x, x", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); } // (AR) d = (n<m لا-موقَّعًا LO بعدَ cmp)؟ n : m
             // (AR) fcvtns x, d: عشريّ ⇒ صحيح بتقريبٍ لأقربِ زوجٍ (nearest-even) = تقريبُ IEEE
             //      المطابقُ للمفسّر (نظيرُ cvtsd2si x86). أساسيٌّ في ARMv8؛ نظيرُ fcvtzs لكن round-nearest.
             bool fcvtns(int x, int d) { return emit(a64::mnem::kFcvtns, "x, d", {a64::Operand::R(x), a64::Operand::R(d)}); }
@@ -949,6 +951,29 @@ namespace sad
                 if (!patchBranchFwd(toWrite, 25, 0)) // (AR) b غيرُ مشروط: imm26@25-0
                     return false;
                 //   x1=المؤشّر؛ x2=الطول=(القمّة−المؤشّر)؛ write(stdout).
+                return movReg(a64reg::kX1, 13) &&
+                       rrr(a64::mnem::kSub, a64reg::kX2, 14, 13) &&
+                       movz(a64reg::kX0, kFdStdoutArm64) &&
+                       movz(a64reg::kX8, kSysWriteArm64) &&
+                       emit(a64::mnem::kSvc, "", {});
+            }
+
+            // (AR) يطبع عددًا **لا-موقَّعًا** (طبيعي64، في x9): itoa عبر udiv/msub بلا فحصِ إشارةٍ
+            //      ولا بادئةِ '-' فيُعطي «18446744073709551615» لا «-1». مرآةُ x86 emitPrintUInt
+            //      ويطابقُ نصَّ المفسّرِ لـطبيعي64. x9=القيمة، x10=١٠، x13=المؤشّر، x14=القمّة،
+            //      x11=الحاصل، x12=الباقي. لولبٌ واحدٌ (cbnz) يُنفَّذُ مرّةً على الأقلّ فيطبع '0' للصفر.
+            bool emitPrintUInt()
+            {
+                if (!addImm(13, 31, static_cast<long long>(printBufTopSlot_) * 8) || // ptr = sp + top*8
+                    !movReg(14, 13) ||                                             // top = ptr (للطول)
+                    !movz(10, kItoaRadixArm64))
+                    return false;
+                const size_t loop = code_.size();
+                if (!rrr(a64::mnem::kUdiv, 11, 9, 10) || !msub(12, 11, 10, 9) || // x11=x9/10، x12=x9−x11×10
+                    !addImm(12, 12, kAsciiZeroArm64) ||
+                    !subImm(13, 13, 1) || !strb(12, 13) ||
+                    !movReg(9, 11) || !emitCbnzBack(9, loop))
+                    return false;
                 return movReg(a64reg::kX1, 13) &&
                        rrr(a64::mnem::kSub, a64reg::kX2, 14, 13) &&
                        movz(a64reg::kX0, kFdStdoutArm64) &&
@@ -1844,6 +1869,31 @@ namespace sad
                 default: return false;
                 }
             }
+            // (AR) حقلُ الشرطِ المقلوب لمقارنةٍ **لا-موقَّعة** (كلا المعامِلَين طبيعي64): كـcset
+            //      الموقَّع لكنِ الترتيبُ لا-موقَّعٌ (LO/LS/HI/HS بدل LT/LE/GT/GE). الحقلُ=الشرط XOR 1:
+            //      LT⇒LO(3)⇒2(HS)، LE⇒LS(9)⇒8(HI)، GT⇒HI(8)⇒9(LS)، GE⇒HS(2)⇒3(LO). ==,!= كالموقَّع.
+            static bool csetInvertedFieldUnsigned(sir::SIROpcode op, long long &field)
+            {
+                using OP = sir::SIROpcode;
+                switch (op)
+                {
+                case OP::EQ: field = 1; return true;  // invert(EQ)=NE
+                case OP::NE: field = 0; return true;  // invert(NE)=EQ
+                case OP::LT: field = 2; return true;  // invert(LO)=HS
+                case OP::LE: field = 8; return true;  // invert(LS)=HI
+                case OP::GT: field = 9; return true;  // invert(HI)=LS
+                case OP::GE: field = 3; return true;  // invert(HS)=LO
+                default: return false;
+                }
+            }
+            // (AR) هل كلا معامِلَي المقارنة طبيعي64 صريحٌ؟ ⇒ ترتيبٌ لا-موقَّع (مرآةُ x86 bothUInt64
+            //      والمفسّر: كلاهما UInt64). الخلطُ/بايت يبقى مرفوضًا كما كان (لا توسيعَ صامتًا).
+            static bool bothUInt64(const sir::SIRInstruction &cmp)
+            {
+                return cmp.operands.size() == 2 &&
+                       cmp.operands[0].dataType == types::SadTypeKind::UInt64 &&
+                       cmp.operands[1].dataType == types::SadTypeKind::UInt64;
+            }
             // (AR) حقلُ الشرطِ المقلوب لمقارنةِ العوائم (IEEE عبر fcmp): يختلف عن الصحيح في <,<=
             //      فقط. الأصغرُ يستعمل MI (N=1) لا LT (N≠V) — لأنّ NaN يضبط V=1 فتَصدُق LT خطأً؛
             //      والأصغر-أو-يساوي يستعمل LS (C=0∨Z=1) لا LE. البقيّةُ (==,!=,>,>=) كالصحيح لأنّ
@@ -1885,13 +1935,16 @@ namespace sad
                 // (AR) مقارنةُ عوائم (أحدُ المعامِلَين Float): fcmp + cset بدلالة IEEE.
                 if (common::isFloatCompare(inst))
                     return lowerFloatComparison(inst);
-                // (AR) رفضُ المقارنةِ اللا-موقَّعة صراحةً (cset يحتاج شرطًا لا-موقَّعًا؛ توصية أميليا).
-                for (const auto &op : inst.operands)
-                    if (isUnsignedType(op.dataType))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                    diag::kCmpValueUnsigned + std::to_string(static_cast<int>(op.dataType)));
+                // (AR) كلا المعامِلَين طبيعي64 ⇒ cset بشرطٍ لا-موقَّع؛ وإلّا الموقَّع مع رفضِ المتبقّي.
+                const bool unsignedCmp = bothUInt64(inst);
+                if (!unsignedCmp)
+                    for (const auto &op : inst.operands)
+                        if (isUnsignedType(op.dataType))
+                            return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                        diag::kCmpValueUnsigned + std::to_string(static_cast<int>(op.dataType)));
                 long long field;
-                if (!csetInvertedField(inst.opcode, field))
+                if (!(unsignedCmp ? csetInvertedFieldUnsigned(inst.opcode, field)
+                                  : csetInvertedField(inst.opcode, field)))
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 int dst;
                 if (!allocReg(inst.result->name, dst))
@@ -2062,9 +2115,17 @@ namespace sad
                                                                 : fcmp(kD0, kD1); // (a, b)
                         return ok && cselGt(dst, a64reg::kScratch0, dst); // dst = GT ? b : a
                     }
-                    // (AR) صحيحان موقَّعان: cmp + اختيارٌ شرطيّ — أكبر: (dst>x16)؟dst:x16؛ أصغر: (dst<x16)؟dst:x16.
+                    // (AR) صحيحان: cmp + اختيارٌ شرطيّ. كلاهما طبيعي64 (لا-موقَّع) ⇒ csel hi/lo؛ وإلّا موقَّع
+                    //      ⇒ csel gt/lt. اللا-موقَّعُ يطابقُ المفسّرَ (ctx.argType==UInt64 للمعامِلَين) ومرآةُ x86.
+                    //      أكبر: (dst>x16)؟dst:x16؛ أصغر: (dst<x16)؟dst:x16. النوعُ من الأمامِ عبرَ resolveSurfaceType.
+                    const bool bothU64 =
+                        inst.operands[0].dataType == types::SadTypeKind::UInt64 &&
+                        inst.operands[1].dataType == types::SadTypeKind::UInt64;
                     if (!cmp(dst, a64reg::kScratch0))
                         return false;
+                    if (bothU64)
+                        return inst.opcode == OP::BUILTIN_MAX ? cselHi(dst, dst, a64reg::kScratch0)
+                                                             : cselLo(dst, dst, a64reg::kScratch0);
                     return inst.opcode == OP::BUILTIN_MAX ? cselGt(dst, dst, a64reg::kScratch0)
                                                          : cselLt(dst, dst, a64reg::kScratch0);
                 }
@@ -2886,34 +2947,48 @@ namespace sad
                         return false;
                     if (!ldrSlot(9, strHeapBaseSlot_) || !movz(10, kItoaRadixArm64)) // استرجعِ العددَ، x10=١٠
                         return false;
-                    if (!cmp(9, 31)) // (AR) الإشارة: x9 ≥ ٠ ⇒ اقفز للموجب
-                        return false;
-                    size_t toPositive;
-                    if (!emitBranchFwd(a64::mnem::kBge, "rel19", toPositive))
-                        return false;
-                    // (AR) لولبُ السالب: x11=حاصل، x12=باقٍ؛ الرقم = |باقٍ| + '0'.
-                    const size_t negLoop = code_.size();
-                    if (!rrr(a64::mnem::kSdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
-                        !rrr(a64::mnem::kSub, 12, 31, 12) || !addImm(12, 12, kAsciiZeroArm64) ||
-                        !subImm(13, 13, 1) || !strb(12, 13) ||
-                        !movReg(9, 11) || !emitCbnzBack(9, negLoop))
-                        return false;
-                    if (!movz(12, kAsciiMinusArm64) || !subImm(13, 13, 1) || !strb(12, 13)) // '-'
-                        return false;
-                    size_t toDone;
-                    if (!emitBranchFwd(a64::mnem::kB, "rel26", toDone))
-                        return false;
-                    if (!patchBranchFwd(toPositive, 23, 5))
-                        return false;
-                    // (AR) لولبُ الموجب: الرقم = باقٍ + '0'.
-                    const size_t posLoop = code_.size();
-                    if (!rrr(a64::mnem::kSdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
-                        !addImm(12, 12, kAsciiZeroArm64) ||
-                        !subImm(13, 13, 1) || !strb(12, 13) ||
-                        !movReg(9, 11) || !emitCbnzBack(9, posLoop))
-                        return false;
-                    if (!patchBranchFwd(toDone, 25, 0))
-                        return false;
+                    if (inst.operands[0].dataType == types::SadTypeKind::UInt64)
+                    {
+                        // (AR) طبيعي64: itoa **لا-موقَّع** (udiv/msub بلا فحصِ إشارةٍ ولا '-') ⇒
+                        //   «18446744073709551615» لا «-1». مرآةُ x86 ويطابقُ نصَّ المفسّر.
+                        const size_t uLoop = code_.size();
+                        if (!rrr(a64::mnem::kUdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
+                            !addImm(12, 12, kAsciiZeroArm64) ||
+                            !subImm(13, 13, 1) || !strb(12, 13) ||
+                            !movReg(9, 11) || !emitCbnzBack(9, uLoop))
+                            return false;
+                    }
+                    else
+                    {
+                        if (!cmp(9, 31)) // (AR) الإشارة: x9 ≥ ٠ ⇒ اقفز للموجب
+                            return false;
+                        size_t toPositive;
+                        if (!emitBranchFwd(a64::mnem::kBge, "rel19", toPositive))
+                            return false;
+                        // (AR) لولبُ السالب: x11=حاصل، x12=باقٍ؛ الرقم = |باقٍ| + '0'.
+                        const size_t negLoop = code_.size();
+                        if (!rrr(a64::mnem::kSdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
+                            !rrr(a64::mnem::kSub, 12, 31, 12) || !addImm(12, 12, kAsciiZeroArm64) ||
+                            !subImm(13, 13, 1) || !strb(12, 13) ||
+                            !movReg(9, 11) || !emitCbnzBack(9, negLoop))
+                            return false;
+                        if (!movz(12, kAsciiMinusArm64) || !subImm(13, 13, 1) || !strb(12, 13)) // '-'
+                            return false;
+                        size_t toDone;
+                        if (!emitBranchFwd(a64::mnem::kB, "rel26", toDone))
+                            return false;
+                        if (!patchBranchFwd(toPositive, 23, 5))
+                            return false;
+                        // (AR) لولبُ الموجب: الرقم = باقٍ + '0'.
+                        const size_t posLoop = code_.size();
+                        if (!rrr(a64::mnem::kSdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
+                            !addImm(12, 12, kAsciiZeroArm64) ||
+                            !subImm(13, 13, 1) || !strb(12, 13) ||
+                            !movReg(9, 11) || !emitCbnzBack(9, posLoop))
+                            return false;
+                        if (!patchBranchFwd(toDone, 25, 0))
+                            return false;
+                    }
                     if (!movReg(a64reg::kScratch0, 13)) // (AR) النتيجة = x13 ⇒ خارجَ الحوض
                         return false;
                     for (const auto &kv : regOf_)
@@ -4223,9 +4298,15 @@ namespace sad
                             if (!loadArgInto(9, op) || !emitPrintFloat())
                                 return false;
                         }
+                        else if (op.dataType == types::SadTypeKind::UInt64)
+                        {
+                            // (AR) طبيعي64: حمّله في x9 ثمّ itoa **لا-موقَّع** (يطابقُ المفسّرَ ومرآةَ x86).
+                            if (!loadArgInto(9, op) || !emitPrintUInt())
+                                return false;
+                        }
                         else
                         {
-                            // (AR) عددٌ صحيح: حمّله في x9 (ثابت/ذاكرة/خانة انسكاب) ثمّ itoa+write.
+                            // (AR) عددٌ صحيح موقَّع: حمّله في x9 (ثابت/ذاكرة/خانة انسكاب) ثمّ itoa+write.
                             if (!loadArgInto(9, op) || !emitPrintInt())
                                 return false;
                         }
@@ -4893,6 +4974,22 @@ namespace sad
                 default: return nullptr;
                 }
             }
+            // (AR) نظائرُ B.cond **لا-موقَّعة** (b.lo/ls/hi/hs) لفرعِ مقارنةِ طبيعي64. المساواة/عدمها
+            //      لا-حسّاستان للإشارة. مرآةُ x86 jccForCmpUnsigned ويطابقُ csel-hi/lo ومقارنةَ المفسّر.
+            static const std::string *bccForCmpUnsigned(sir::SIROpcode op)
+            {
+                using OP = sir::SIROpcode;
+                switch (op)
+                {
+                case OP::EQ: return &a64::mnem::kBeq;
+                case OP::NE: return &a64::mnem::kBne;
+                case OP::LT: return &a64::mnem::kBlo;
+                case OP::LE: return &a64::mnem::kBls;
+                case OP::GT: return &a64::mnem::kBhi;
+                case OP::GE: return &a64::mnem::kBhs;
+                default: return nullptr;
+                }
+            }
 
             // (AR) يُصدر فرعًا/نداءً بإزاحةٍ صفريّةٍ نائبة، ويسجّل ترقيعًا بحقلِ إزاحته (imm19/imm26).
             //      عرضُ الحقل وموضعُه من مواصفة الترميز (from_op==0) لا من ثابتٍ مُرمَّز.
@@ -4968,13 +5065,16 @@ namespace sad
                            emitBranch(a64::mnem::kBne, "rel19", thenLbl) &&
                            emitBranch(a64::mnem::kB, "rel26", elseLbl);
                 }
-                // (AR) الفروعُ المُصدَرة موقَّعة؛ معاملٌ لا-موقَّعٌ يلزمه b.lo/ls/hi/hs (لا نظائرَ بعد)
-                //      ⇒ رفضٌ صريح بدل ترميزٍ موقَّعٍ خاطئٍ صامت (توصية أميليا).
-                for (const auto &cop : cmpInst->operands)
-                    if (isUnsignedType(cop.dataType))
-                        return fail(EC::INT_NATIVE_UNSUPPORTED,
-                                    diag::kCmpUnsignedType + std::to_string(static_cast<int>(cop.dataType)));
-                const std::string *bcc = bccForCmp(cmpInst->opcode);
+                // (AR) كلا المعامِلَين طبيعي64 ⇒ فرعٌ لا-موقَّع (b.lo/ls/hi/hs)؛ وإلّا الموقَّع مع
+                //      رفضِ أيِّ لا-موقَّعٍ متبقٍّ (خلط/بايت) صراحةً كما كان (مرآةُ x86).
+                const bool unsignedCmp = bothUInt64(*cmpInst);
+                if (!unsignedCmp)
+                    for (const auto &cop : cmpInst->operands)
+                        if (isUnsignedType(cop.dataType))
+                            return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                        diag::kCmpUnsignedType + std::to_string(static_cast<int>(cop.dataType)));
+                const std::string *bcc = unsignedCmp ? bccForCmpUnsigned(cmpInst->opcode)
+                                                     : bccForCmp(cmpInst->opcode);
                 if (!bcc)
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(*cmpInst));
                 return materialize(a64reg::kScratch0, cmpInst->operands[0]) &&

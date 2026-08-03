@@ -508,12 +508,18 @@ namespace Sad
                         std::cerr << "[Error] دالة أكبر تتطلب معاملين" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    // (AR) نوعُ النتيجة = عشريّ إن كان أحدُ المعامِلَين عشريًّا، وإلّا صحيح (كنمطِ ABS:244).
-                    //      المفسّرُ يعيدُ نوعَ الفائزِ (يتجاهلُ نوعَ SIR)، وLLVM يشتقُّ من نوعِ القيمة؛ فهذا
-                    //      التغييرُ يخدمُ الخلفيّةَ الأصليّةَ (تعتمدُ result->dataType) بلا أثرٍ عليهما.
-                    SadTypeKind maxType = (argResults[0].type == SadTypeKind::Float ||
-                                           argResults[1].type == SadTypeKind::Float)
-                                              ? SadTypeKind::Float : SadTypeKind::Integer;
+                    // (AR) نوعُ النتيجة من نوعِ المعامِلَين بعدَ بوّابةِ النوعِ السطحيّ (call_main): عشريٌّ إن
+                    //      كان أحدُهما عشريًّا؛ طبيعي64 إن كان كلاهما طبيعي64 صريحًا (⇒ طباعةٌ لا-موقَّعةٌ للنتيجة
+                    //      + مقارنةٌ لا-موقَّعةٌ في الخلفيّة)؛ وإلّا صحيح. المفسّرُ يعيدُ نوعَ الفائزِ (يتجاهلُ SIR)،
+                    //      وLLVM يشتقُّ من نوعِ القيمة؛ فهذا يخدمُ الخلفيّةَ الأصليّةَ بلا أثرٍ عليهما.
+                    SadTypeKind maxType =
+                        (argOperands[0].dataType == SadTypeKind::Float ||
+                         argOperands[1].dataType == SadTypeKind::Float)
+                            ? SadTypeKind::Float
+                        : (argOperands[0].dataType == SadTypeKind::UInt64 &&
+                           argOperands[1].dataType == SadTypeKind::UInt64)
+                            ? SadTypeKind::UInt64
+                            : SadTypeKind::Integer;
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, maxType);
                     SIRInstruction inst(SIROpcode::BUILTIN_MAX);
@@ -533,9 +539,15 @@ namespace Sad
                         std::cerr << "[Error] دالة أصغر تتطلب معاملين" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
-                    SadTypeKind minType = (argResults[0].type == SadTypeKind::Float ||
-                                           argResults[1].type == SadTypeKind::Float)
-                                              ? SadTypeKind::Float : SadTypeKind::Integer;
+                    // (AR) نوعُ النتيجة: كنظيرِ أكبر — عشريّ/طبيعي64/صحيح من نوعِ المعامِلَين بعدَ البوّابة.
+                    SadTypeKind minType =
+                        (argOperands[0].dataType == SadTypeKind::Float ||
+                         argOperands[1].dataType == SadTypeKind::Float)
+                            ? SadTypeKind::Float
+                        : (argOperands[0].dataType == SadTypeKind::UInt64 &&
+                           argOperands[1].dataType == SadTypeKind::UInt64)
+                            ? SadTypeKind::UInt64
+                            : SadTypeKind::Integer;
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, minType);
                     SIRInstruction inst(SIROpcode::BUILTIN_MIN);
