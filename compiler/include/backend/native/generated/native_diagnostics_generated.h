@@ -54,7 +54,7 @@ namespace sad { namespace native { namespace diag {
     inline const std::string kArrayIndexImm12 = "array-index-imm12:";  // فهرسٌ ثابتٌ يتجاوز imm12 (٤٠٩٥) في عنونةِ عنصر
     inline const std::string kBoundsPanicRel8 = "bounds-panic-rel8:";  // إزاحةُ jb لكتلةِ هلعِ الحدّ خارج rel8
     inline const std::string kFrame = "frame:";  // حجمُ الإطار خارجَ مدى الترميز
-    inline const std::string kBuiltinFloatMinMax = "builtin-float-minmax:";  // أصغر/أكبر بمعاملٍ عشريٍّ (مقارنةُ بتّاتٍ صحيحةٌ خطأٌ للسالب؛ يلزمه minsd/maxsd·fmin/fmax — دفعةٌ لاحقة)
+    inline const std::string kBuiltinFloatMinMax = "builtin-mixed-minmax:";  // أصغر/أكبر بمعاملَين مختلفَي النوع (صحيحٌ×عشريّ) — المتماثلانِ (صحيحان أو عشريّان) مدعومان؛ المختلطُ يعيدُ نوعَ الفائزِ في المفسّرِ (تباعُدُ تنسيق) فيُرفَض
     inline const std::string kLoadNonslot = "load-nonslot:";  // LOAD من غيرِ خانةِ إطار
     inline const std::string kNoBlocks = "no-blocks:";  // دالّةٌ بلا كتلٍ أساسيّة
     inline const std::string kParamsGt6 = "params>6:";  // معاملاتٌ تتجاوز ٦ (AAPCS64)

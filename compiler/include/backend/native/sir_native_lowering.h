@@ -972,6 +972,8 @@ namespace sad
             bool mulsd(int d, int s) { return emit(x86::mnem::kMulsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); }
             bool divsd(int d, int s) { return emit(x86::mnem::kDivsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); }
             bool sqrtsd(int d, int s) { return emit(x86::mnem::kSqrtsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = √s (عشريّ مزدوج)
+            bool minsd(int d, int s) { return emit(x86::mnem::kMinsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = (d<s)?d:s (NaN/تعادل⇒s)
+            bool maxsd(int d, int s) { return emit(x86::mnem::kMaxsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = (d>s)?d:s (NaN/تعادل⇒s)
             bool cmovl(int d, int s) { return emit(x86::mnem::kCmovl, "r64, r64", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = s إن d<s موقَّعًا (بعدَ cmp d,s) — للأكبر
             bool cmovg(int d, int s) { return emit(x86::mnem::kCmovg, "r64, r64", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = s إن d>s موقَّعًا — للأصغر
             bool cvtsi2sd(int xmm, int gpr) { return emit(x86::mnem::kCvtsi2sd, "xmm, r64", {x86::Operand::R(xmm), x86::Operand::R(gpr)}); }
@@ -2219,18 +2221,29 @@ namespace sad
                     //      ثمّ نقلٌ شرطيّ — أكبر: cmovl dst,RAX (إن dst<RAX)؛ أصغر: cmovg dst,RAX.
                     if (!inst.result || inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    // (AR) 🔒 حارسٌ (عائقُ أميليا): المعامِلُ العشريُّ يُقارَنُ هنا كبتّاتٍ صحيحةٍ موقَّعةٍ
-                    //      (خطأٌ للسالب، وتباعُدٌ عن المرجع الذي يستعمل FCmp). المفسّرُ/LLVM يتفرّعان على
-                    //      النوع؛ الأصغر/الأكبرُ العشريُّ (minsd/maxsd·fmin/fmax) دفعةٌ لاحقة ⇒ ارفضْه
-                    //      صراحةً الآن لا صامتًا (تماثلٌ x86≡ARM64: كلاهما يرفض).
-                    if (inst.operands[0].dataType == types::SadTypeKind::Float ||
-                        inst.operands[1].dataType == types::SadTypeKind::Float)
+                    const bool aFloat = inst.operands[0].dataType == types::SadTypeKind::Float;
+                    const bool bFloat = inst.operands[1].dataType == types::SadTypeKind::Float;
+                    // (AR) المختلطُ (صحيحٌ×عشريّ): المفسّرُ يعيدُ نوعَ الفائزِ (قد يكونُ صحيحًا) ⇒ تباعُدُ
+                    //      تنسيقٍ محتمَل؛ يُرفَضُ صراحةً (دفعةٌ لاحقةٌ إن لزم). المتماثلانِ فقط مدعومان.
+                    if (aFloat != bFloat)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kBuiltinFloatMinMax + detailOpcode(inst));
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    if (!loadInto(dst, inst.operands[0]) || !loadInto(x86::RAX, inst.operands[1]) ||
-                        !cmpRegReg(dst, x86::RAX))
+                    if (!loadInto(dst, inst.operands[0]) || !loadInto(x86::RAX, inst.operands[1]))
+                        return false;
+                    if (aFloat)
+                    {
+                        // (AR) عشريّان: نطابقُ المفسّرَ [(b<a)?b:a للأصغر، (b>a)?b:a للأكبر] عبرَ minsd/maxsd
+                        //      بمعاملَين مقلوبَين (dst=xmm1=b، src=xmm0=a): minsd/maxsd(xmm1,xmm0). NaN/تعادلٌ
+                        //      ⇒ src=a (المعامل الأوّل) = دلالةُ المفسّرِ بالضبط. النتيجةُ من xmm1 إلى dst.
+                        if (!movqToXmm(kXmm0, dst) || !movqToXmm(kXmm1, x86::RAX))
+                            return false;
+                        bool ok = inst.opcode == OP::BUILTIN_MAX ? maxsd(kXmm1, kXmm0) : minsd(kXmm1, kXmm0);
+                        return ok && movqFromXmm(dst, kXmm1);
+                    }
+                    // (AR) صحيحان موقَّعان: cmp + نقلٌ شرطيّ — أكبر: cmovl dst,RAX؛ أصغر: cmovg dst,RAX.
+                    if (!cmpRegReg(dst, x86::RAX))
                         return false;
                     return inst.opcode == OP::BUILTIN_MAX ? cmovl(dst, x86::RAX) : cmovg(dst, x86::RAX);
                 }

@@ -2040,18 +2040,30 @@ namespace sad
                     //      ثمّ اختيارٌ شرطيّ — أكبر: csel dst=(dst>x16)؟dst:x16؛ أصغر: (dst<x16)؟dst:x16.
                     if (!inst.result || inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    // (AR) 🔒 حارسٌ (عائقُ أميليا، مرآةُ x86): المعاملُ العشريُّ يُقارَنُ كبتّاتٍ صحيحةٍ
-                    //      موقَّعةٍ (خطأٌ للسالب، تباعُدٌ عن المرجع) ⇒ ارفضْه صراحةً؛ الأصغر/الأكبرُ العشريُّ
-                    //      (fmin/fmax) دفعةٌ لاحقة. تماثلٌ صارم: x86 يرفضه أيضًا.
-                    if (inst.operands[0].dataType == types::SadTypeKind::Float ||
-                        inst.operands[1].dataType == types::SadTypeKind::Float)
+                    const bool aFloat = inst.operands[0].dataType == types::SadTypeKind::Float;
+                    const bool bFloat = inst.operands[1].dataType == types::SadTypeKind::Float;
+                    // (AR) المختلطُ (صحيحٌ×عشريّ) يُرفَضُ صراحةً (مرآةُ x86؛ دلالةُ نوعِ الفائزِ تتباعد).
+                    if (aFloat != bFloat)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kBuiltinFloatMinMax + detailOpcode(inst));
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    if (!materialize(dst, inst.operands[0]) ||
-                        !materialize(a64reg::kScratch0, inst.operands[1]) ||
-                        !cmp(dst, a64reg::kScratch0))
+                    if (!materialize(dst, inst.operands[0]) ||               // dst = a
+                        !materialize(a64reg::kScratch0, inst.operands[1]))   // x16 = b
+                        return false;
+                    if (aFloat)
+                    {
+                        // (AR) عشريّان: نطابقُ المفسّرَ عبرَ fcmp المرتَّب + cselGt (false على NaN/unordered ⇒
+                        //      يُبقي a المعامَلَ الأوّلَ = دلالةُ المفسّرِ للـNaN/التعادل). لا fmin/fmaxnm (دلالةُ
+                        //      NaN مختلفة). أكبر: fcmp(b,a) ⇒ (b>a)?b:a؛ أصغر: fcmp(a,b) ⇒ (a>b)?b:a=(b<a)?b:a.
+                        if (!fmovToFp(kD0, dst) || !fmovToFp(kD1, a64reg::kScratch0))
+                            return false;
+                        bool ok = inst.opcode == OP::BUILTIN_MAX ? fcmp(kD1, kD0)  // (b, a)
+                                                                : fcmp(kD0, kD1); // (a, b)
+                        return ok && cselGt(dst, a64reg::kScratch0, dst); // dst = GT ? b : a
+                    }
+                    // (AR) صحيحان موقَّعان: cmp + اختيارٌ شرطيّ — أكبر: (dst>x16)؟dst:x16؛ أصغر: (dst<x16)؟dst:x16.
+                    if (!cmp(dst, a64reg::kScratch0))
                         return false;
                     return inst.opcode == OP::BUILTIN_MAX ? cselGt(dst, dst, a64reg::kScratch0)
                                                          : cselLt(dst, dst, a64reg::kScratch0);

@@ -66,7 +66,7 @@ tag:
   - { name: kArrayIndexImm12,      value: "array-index-imm12:",      ar: "فهرسٌ ثابتٌ يتجاوز imm12 (٤٠٩٥) في عنونةِ عنصر" }
   - { name: kBoundsPanicRel8,      value: "bounds-panic-rel8:",      ar: "إزاحةُ jb لكتلةِ هلعِ الحدّ خارج rel8" }
   - { name: kFrame,                value: "frame:",                  ar: "حجمُ الإطار خارجَ مدى الترميز" }
-  - { name: kBuiltinFloatMinMax,   value: "builtin-float-minmax:",   ar: "أصغر/أكبر بمعاملٍ عشريٍّ (مقارنةُ بتّاتٍ صحيحةٌ خطأٌ للسالب؛ يلزمه minsd/maxsd·fmin/fmax — دفعةٌ لاحقة)" }
+  - { name: kBuiltinFloatMinMax,   value: "builtin-mixed-minmax:",   ar: "أصغر/أكبر بمعاملَين مختلفَي النوع (صحيحٌ×عشريّ) — المتماثلانِ (صحيحان أو عشريّان) مدعومان؛ المختلطُ يعيدُ نوعَ الفائزِ في المفسّرِ (تباعُدُ تنسيق) فيُرفَض" }
   - { name: kLoadNonslot,          value: "load-nonslot:",           ar: "LOAD من غيرِ خانةِ إطار" }
   - { name: kNoBlocks,             value: "no-blocks:",              ar: "دالّةٌ بلا كتلٍ أساسيّة" }
   - { name: kParamsGt6,            value: "params>6:",               ar: "معاملاتٌ تتجاوز ٦ (AAPCS64)" }

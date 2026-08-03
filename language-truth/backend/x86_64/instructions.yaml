@@ -819,6 +819,31 @@ instructions:
         opcode: [0x0F, 0x51]
         modrm: { mod: reg, reg: op0, rm: op1 }
 
+  # minsd xmm, xmm  ⇒  F2 0F 5D /r  (الأدنى: dst=(dst<src)?dst:src؛ أيُّ NaN أو تعادلٍ ⇒ src.
+  #   نطابقُ المفسّرَ [(b<a)?b:a] بعكسِ المعاملَين عند الاستدعاء. متحقَّق: minsd xmm0,xmm1 = f2 0f 5d c1)
+  أدنى_عشري:
+    - en: minsd
+      form: "xmm, xmm"
+      operands:
+        - { kind: reg, class: fp, role: inout }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0xF2]
+        opcode: [0x0F, 0x5D]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+
+  # maxsd xmm, xmm  ⇒  F2 0F 5F /r  (الأقصى: dst=(dst>src)?dst:src؛ NaN/تعادلٌ ⇒ src)
+  أقصى_عشري:
+    - en: maxsd
+      form: "xmm, xmm"
+      operands:
+        - { kind: reg, class: fp, role: inout }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0xF2]
+        opcode: [0x0F, 0x5F]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+
   # cvtsi2sd xmm, r64  ⇒  F2 REX.W 0F 2A /r   (صحيح i64 ⇒ عشريّ؛ reg=xmm، rm=r64)
   حوّل_إلى_عشري:
     - en: cvtsi2sd

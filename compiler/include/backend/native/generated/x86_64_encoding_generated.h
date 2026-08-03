@@ -94,6 +94,8 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اضرب_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x59}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "اقسم_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x5E}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "جذر_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x51}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "أدنى_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x5D}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "أقصى_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x5F}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "حوّل_إلى_عشري", "xmm, r64", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.rex_w = true; s.opcode = {0x0F, 0x2A}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "حوّل_من_عشري", "r64, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.rex_w = true; s.opcode = {0x0F, 0x2C}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "قارن_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0x66}; s.opcode = {0x0F, 0x2E}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
@@ -161,6 +163,8 @@ inline const std::string kSubsd = "اطرح_عشري";
 inline const std::string kMulsd = "اضرب_عشري";
 inline const std::string kDivsd = "اقسم_عشري";
 inline const std::string kSqrtsd = "جذر_عشري";
+inline const std::string kMinsd = "أدنى_عشري";
+inline const std::string kMaxsd = "أقصى_عشري";
 inline const std::string kCvtsi2sd = "حوّل_إلى_عشري";
 inline const std::string kCvttsd2si = "حوّل_من_عشري";
 inline const std::string kUcomisd = "قارن_عشري";

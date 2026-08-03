@@ -508,15 +508,21 @@ namespace Sad
                         std::cerr << "[Error] دالة أكبر تتطلب معاملين" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
+                    // (AR) نوعُ النتيجة = عشريّ إن كان أحدُ المعامِلَين عشريًّا، وإلّا صحيح (كنمطِ ABS:244).
+                    //      المفسّرُ يعيدُ نوعَ الفائزِ (يتجاهلُ نوعَ SIR)، وLLVM يشتقُّ من نوعِ القيمة؛ فهذا
+                    //      التغييرُ يخدمُ الخلفيّةَ الأصليّةَ (تعتمدُ result->dataType) بلا أثرٍ عليهما.
+                    SadTypeKind maxType = (argResults[0].type == SadTypeKind::Float ||
+                                           argResults[1].type == SadTypeKind::Float)
+                                              ? SadTypeKind::Float : SadTypeKind::Integer;
                     std::string resultReg = b_.newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    SIROperand resultOp = SIROperand::Register(resultReg, maxType);
                     SIRInstruction inst(SIROpcode::BUILTIN_MAX);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    return BuildResult(resultReg, maxType);
                 }
 
                 // أصغر / min - الأصغر من قيمتين
@@ -527,15 +533,18 @@ namespace Sad
                         std::cerr << "[Error] دالة أصغر تتطلب معاملين" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
+                    SadTypeKind minType = (argResults[0].type == SadTypeKind::Float ||
+                                           argResults[1].type == SadTypeKind::Float)
+                                              ? SadTypeKind::Float : SadTypeKind::Integer;
                     std::string resultReg = b_.newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    SIROperand resultOp = SIROperand::Register(resultReg, minType);
                     SIRInstruction inst(SIROpcode::BUILTIN_MIN);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    return BuildResult(resultReg, minType);
                 }
 
                 // جمع / sum - مجموع عناصر مصفوفة
