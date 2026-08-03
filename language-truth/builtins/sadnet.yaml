@@ -7,7 +7,7 @@ functions:
   canonical: عقدة_جديدة
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: معرف_العقدة
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: تشفير_sha256
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: بايتات_عشوائية
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: تخزين_ملف
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: استرجاع_ملف
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -85,7 +85,7 @@ functions:
   canonical: رسالة_مشفرة
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -98,7 +98,7 @@ functions:
   canonical: إثبات_عمل
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   canonical: سمعة_قرين
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -124,7 +124,7 @@ functions:
   canonical: حظر_قرين
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -137,7 +137,7 @@ functions:
   canonical: قرين_موثوق
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -150,7 +150,7 @@ functions:
   canonical: هوية_جديدة
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -163,7 +163,7 @@ functions:
   canonical: بث_جديد
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -176,7 +176,7 @@ functions:
   canonical: بث_إيقاف
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -189,7 +189,7 @@ functions:
   canonical: تدمير_عقدة
   namespace: SadNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0

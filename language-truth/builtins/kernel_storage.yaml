@@ -7,7 +7,7 @@ functions:
   canonical: تخزين_مسح
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: تخزين_عدد_الاقراص
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: تخزين_موديل_القرص
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: تخزين_رقم_القرص
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: تخزين_نوع_القرص
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: تخزين_حاله_القرص
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -85,7 +85,7 @@ functions:
   canonical: تخزين_تقرير
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -98,7 +98,7 @@ functions:
   canonical: تخزين_قراءة_قطاع
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   canonical: تخزين_كتابة_قطاع
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -124,7 +124,7 @@ functions:
   canonical: تخزين_قراءة_قطاعات
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -137,7 +137,7 @@ functions:
   canonical: تخزين_تصفير_قطاعات
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -150,7 +150,7 @@ functions:
   canonical: تخزين_صحة_القرص
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -163,7 +163,7 @@ functions:
   canonical: تخزين_حرارة_القرص
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -176,7 +176,7 @@ functions:
   canonical: تخزين_تقرير_صحة
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -189,7 +189,7 @@ functions:
   canonical: تخزين_ساعات_التشغيل
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -202,7 +202,7 @@ functions:
   canonical: تخزين_نسبة_الاستخدام
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -215,7 +215,7 @@ functions:
   canonical: تخزين_عدد_الاقسام
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -228,7 +228,7 @@ functions:
   canonical: تخزين_اسم_القسم
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -241,7 +241,7 @@ functions:
   canonical: تخزين_القسم_اقلاعي
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -254,7 +254,7 @@ functions:
   canonical: تخزين_نظام_الاقسام
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -267,7 +267,7 @@ functions:
   canonical: تخزين_السعة_ميغا
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -280,7 +280,7 @@ functions:
   canonical: تخزين_هل_nvme
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -293,7 +293,7 @@ functions:
   canonical: تخزين_هل_ahci
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -306,7 +306,7 @@ functions:
   canonical: تخزين_مزامنة
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -319,7 +319,7 @@ functions:
   canonical: تخزين_انشاء_قرص_ذاكرة
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -332,7 +332,7 @@ functions:
   canonical: تخزين_قراءة_الاقسام
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -345,7 +345,7 @@ functions:
   canonical: تخزين_البرنامج_الثابت
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -358,7 +358,7 @@ functions:
   canonical: تخزين_حجم_القطاع
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -371,7 +371,7 @@ functions:
   canonical: تخزين_اعادة_تعيين
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -384,7 +384,7 @@ functions:
   canonical: تخزين_الاحتياطي
   namespace: KernelStorage
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0

@@ -15,7 +15,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -31,7 +31,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -47,7 +47,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -63,7 +63,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -79,7 +79,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -95,7 +95,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -127,7 +127,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -143,7 +143,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -159,7 +159,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -175,7 +175,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -191,7 +191,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -206,7 +206,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -221,7 +221,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -236,7 +236,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -251,7 +251,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -266,7 +266,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -281,7 +281,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -296,7 +296,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -311,7 +311,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -326,7 +326,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -343,7 +343,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -357,7 +357,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -371,7 +371,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -386,7 +386,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -401,7 +401,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -416,7 +416,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -431,7 +431,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -446,7 +446,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -461,7 +461,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -477,7 +477,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -492,7 +492,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -508,7 +508,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -524,7 +524,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -540,7 +540,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -556,7 +556,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -571,7 +571,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -586,7 +586,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -601,7 +601,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -617,7 +617,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -632,7 +632,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -647,7 +647,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -662,7 +662,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -677,7 +677,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -692,7 +692,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -707,7 +707,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -722,7 +722,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -737,7 +737,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -752,7 +752,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -767,7 +767,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -782,7 +782,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -797,7 +797,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -812,7 +812,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -827,7 +827,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -842,7 +842,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -857,7 +857,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -872,7 +872,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -887,7 +887,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -902,7 +902,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -917,7 +917,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -932,7 +932,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -947,7 +947,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -962,7 +962,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -977,7 +977,7 @@ functions:
   returns: كائن
   namespace: UIWidgets
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -991,7 +991,7 @@ functions:
   canonical: _محرك_واجهات
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1005,7 +1005,7 @@ functions:
   canonical: تشغيل_تطبيق
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1019,7 +1019,7 @@ functions:
   canonical: طباعة_شجرة
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1033,7 +1033,7 @@ functions:
   canonical: انتقل
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1047,7 +1047,7 @@ functions:
   canonical: انتقل_بتحريك
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1063,7 +1063,7 @@ functions:
   canonical: انتقل_بتحريك_كامل
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1080,7 +1080,7 @@ functions:
   canonical: عودة
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1093,7 +1093,7 @@ functions:
   canonical: عودة_بتحريك
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1108,7 +1108,7 @@ functions:
   canonical: عودة_للبداية
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1121,7 +1121,7 @@ functions:
   canonical: استبدل
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1135,7 +1135,7 @@ functions:
   canonical: تبديل_الثيم
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1148,7 +1148,7 @@ functions:
   canonical: وضع_داكن
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1161,7 +1161,7 @@ functions:
   canonical: وضع_فاتح
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1174,7 +1174,7 @@ functions:
   canonical: هل_داكن
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1187,7 +1187,7 @@ functions:
   canonical: تحديث_حالة
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1200,7 +1200,7 @@ functions:
   canonical: التقط_مفتاح
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1213,7 +1213,7 @@ functions:
   canonical: أوقف_الانتشار
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1226,7 +1226,7 @@ functions:
   canonical: عنوان_النافذة
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1240,7 +1240,7 @@ functions:
   canonical: عدد_الصفحات
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1253,7 +1253,7 @@ functions:
   canonical: الصفحة_الحالية
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1266,7 +1266,7 @@ functions:
   canonical: أغلق_النافذة
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1279,7 +1279,7 @@ functions:
   canonical: عين_الحالة
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1293,7 +1293,7 @@ functions:
   canonical: توليد_ويب
   namespace: UICore
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0

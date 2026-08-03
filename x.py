@@ -478,6 +478,17 @@ SOT_CHECK_GUARDS = (
         "script": "check_applet_coverage.py",
         "args": (),
     },
+    {
+        # (AR) لا خريطةَ «مدمَجة ⇒ وحدة» يدويّةً في محرّك: كانت لكلٍّ خريطتُه فتباعدا
+        #      عن مصدر الحقيقة وعن بعضهما (جذر رياضيّةٌ تطلب «نصوص» في المصرّف،
+        #      وحرّةٌ في المفسّر) ⇒ ثلاثون مدمَجةً تعمل مفسَّرةً ولا تُصرَّف.
+        # (EN) No hand-written builtin⇒module map in an engine: each had its own,
+        #      drifting from the SoT and from each other ⇒ 30 builtins ran in the
+        #      interpreter and would not compile at all.
+        "name": "no_handwritten_import_gate",
+        "script": "check_no_handwritten_import_gate.py",
+        "args": (),
+    },
 )
 
 

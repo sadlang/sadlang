@@ -365,6 +365,19 @@ namespace Sad
             bool isMacroCall;   ///< (AR) هل هو استدعاء ماكرو name!() / (EN) Is this a macro call name!()
 
             /**
+             * @brief (AR) نداءٌ وَلَّدَته صياغةُ اللغةِ لا كتبه المستخدم (`|س|` ⇒ `مطلق(س)`).
+             *        بوّابةُ الاستيرادِ تتخطّاه: صياغةُ اللغةِ الأساسيّةُ لا تُحجَب خلف
+             *        وحدة، وإلّا احتاج `|-5|` إلى `استورد رياضيات` — وهو تناقضٌ بين
+             *        قاعدةِ القواعد `gr.expr.primary` وحقلِ `require_import`.
+             * @brief (EN) A call synthesized by the language's own syntax rather than
+             *        written by the user (`|x|` ⇒ `abs(x)`). The import gate skips it:
+             *        core syntax is never hidden behind a module, otherwise `|-5|`
+             *        would require importing Math — a contradiction between the
+             *        grammar rule and the builtin's require_import field.
+             */
+            bool isSyntaxDesugared = false;
+
+            /**
              * @brief Constructor / البناء
              * @param callee Function expression / تعبير الدالة
              * @param args Argument list / قائمة المعاملات

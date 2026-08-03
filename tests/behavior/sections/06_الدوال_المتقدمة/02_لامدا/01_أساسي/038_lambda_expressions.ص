@@ -3,6 +3,9 @@
 # @expected L01:PASS\nL02:PASS\nL03:PASS\nL04:PASS\nL05:PASS\nL06:PASS\nL07:PASS\nSUMMARY:7/7
 
 # ═══ L01: لامدا بسيطة — معامل واحد ═══
+
+استورد رياضيات
+
 متغير ضعف = لامدا(س) => س * 2
 إذا (ضعف(7) == 14)
     اطبع_سطر("L01:PASS")

@@ -61,11 +61,22 @@ namespace Sad
                 // (EN) [boxed elements — option A] are all elements scalar (number/float/
                 //      string/bool)? We box ONLY scalar-heterogeneous arrays, not ones with
                 //      nested arrays/maps, to avoid the nested-matcher/chained-index paths.
+                // (AR) المصفوفةُ عنصرًا: `DynKind::Array` موجودٌ في مصدرِ الحقيقة
+                //      (`kDynKindArray=5`) وتكتبه الخلفيّةُ وتقرؤه، لكنّ هذا المُسنَد كان
+                //      يستثنيه فتسقط `[[1، 2]، "س"]` إلى المسارِ الساكن (وسوم=null) ⇒
+                //      تُقرأ العناصرُ عدديًّا فتُطبع عناوين. والمصفوفةُ — كالنصّ — مؤشّرٌ
+                //      في خانةِ ثمانيةِ بايتات، فوسمُها كافٍ.
+                // (EN) An array as an element: DynKind::Array exists in the SoT
+                //      (kDynKindArray=5) and the backend both writes and reads it, but this
+                //      predicate excluded it, so `[[1,2], "s"]` fell to the static path
+                //      (tags=null) and its elements printed as addresses. An array — like a
+                //      string — is a pointer in the 8-byte slot, so tagging it suffices.
                 auto isBoxableScalar = [](SadTypeKind t) {
                     return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
                            t == SadTypeKind::String || t == SadTypeKind::Boolean ||
                            t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
-                           t == SadTypeKind::Null || t == SadTypeKind::Any;
+                           t == SadTypeKind::Null || t == SadTypeKind::Any ||
+                           t == SadTypeKind::Array;
                 };
                 bool allElementsScalar = true;
                 // (AR) عنصرٌ ديناميّ النوع (Any، كنتيجة قسمة /،//): يوجب التعليبَ حتّى في

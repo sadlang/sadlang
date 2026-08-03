@@ -52,7 +52,8 @@ namespace Sad
                 const std::string &funcName,
                 bool isUserDefinedFunction,
                 std::vector<BuildResult> &argResults,
-                std::vector<SIROperand> &argOperands)
+                std::vector<SIROperand> &argOperands,
+                bool isSyntaxDesugared)
             {
                 // (AR) إذا كانت الدالة معرّفة من المستخدم، لا تعامل كدالة مضمنة
                 // (EN) If function is user-defined, skip all builtins
@@ -483,7 +484,10 @@ namespace Sad
                 //      If function requires an unimported module, don't treat as builtin
                 //      Supports multi-module with "|" separator (any one is sufficient)
                 {
-                    std::string requiredModule = b_.getRequiredModuleForBuiltin(funcName);
+                    // (AR) نداءُ الصياغةِ المخفَّضةِ يتخطّى البوّابة (انظر الرأس).
+                    // (EN) A syntax-desugared call skips the gate (see the header).
+                    std::string requiredModule =
+                        isSyntaxDesugared ? std::string{} : b_.getRequiredModuleForBuiltin(funcName);
                     if (!requiredModule.empty())
                     {
                         bool moduleFound = false;

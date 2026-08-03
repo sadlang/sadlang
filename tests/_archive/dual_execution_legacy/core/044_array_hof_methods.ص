@@ -2,6 +2,8 @@
 # @description اختبار خريطة، رشح، اختزل، لكل — مع لامدا كتلة + string concat
 # @expected H01:PASS\nH02:PASS\nH03:PASS\nH04:PASS\nH05:PASS\nH06:PASS\nH07:PASS\nH08:PASS\nH09:PASS\nH10:PASS\nSUMMARY:10/10
 
+استورد خرائط
+
 متغير تمرير = 0
 متغير فشل = 0
 

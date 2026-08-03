@@ -572,6 +572,35 @@ namespace Sad
                         if (pit != b_.pendingGlobalTypes_.end())
                             return pit->second;
                     }
+                    // (AR) [ز.٢٠] متغيّرٌ محلّيٌّ في الدالّة الجاري مسحُها (الطور 1.7):
+                    //      نطاقاتُه لم تُبنَ بعد، فنقرأ نوعَ مُهيّئه المسجَّلَ في المسح.
+                    //      يسبق فحصَ DataType لأنّ الأخيرَ يسقط إلى Integer لكلّ متغيّرٍ
+                    //      بلا نوعٍ مصرَّح — وهو السقوطُ الذي كان يجمّد المعامِلَ عددًا.
+                    // (EN) [ز.٢٠] A local variable of the function being scanned (Phase 1.7):
+                    //      its scopes are not built yet, so read the initializer type recorded
+                    //      during the scan. Placed before the DataType check, which otherwise
+                    //      falls through to Integer for every untyped variable — the very
+                    //      fall-through that froze the callee's parameter as an integer.
+                    //
+                    //      🔴 **مُعطَّلٌ عمدًا — لا تُفعّله بلا سدِّ ز.٢١ أوّلًا.**
+                    //      تفعيلُه يصلح الشاهدَ (`هو_رقم(الحرف)` داخل الدوالّ) لكنّه يُسقط
+                    //      توليدَ LLVM على «نداءٌ بتوقيعٍ فاسد» في مكتبة جيسون: ترقيةُ
+                    //      المعامل إلى نصٍّ تلتصق (منطقُ التضارب في تحديث المعامل)، ومعامِلٌ
+                    //      متعدّدُ الأنواع (يتلقّى نصًّا ومصفوفةً وعددًا) لا مسارَ مصالحةٍ
+                    //      له إلّا التوسيعُ إلى Any — وهو غيرُ مُنفَّذ. فالسدُّ الصحيحُ ز.٢١
+                    //      (توسيعُ المعامل المشترَك إلى Any) ثمّ تفعيلُ هذا.
+                    // (EN) 🔴 DELIBERATELY DISABLED — do not enable before closing ز.٢١.
+                    //      Enabling it fixes the witness but crashes LLVM codegen with
+                    //      "Calling a function with a bad signature!" on the JSON library: the
+                    //      String promotion sticks, and a polymorphic parameter (receiving a
+                    //      string, an array and an integer) has no reconciliation path other
+                    //      than widening to Any, which is not implemented. Close ز.٢١ first.
+                    // {
+                    //     auto lit = b_.scanLocalVarType_.find(b_.currentScanFuncName_ + "#" + var->name);
+                    //     if (lit != b_.scanLocalVarType_.end())
+                    //         return lit->second;
+                    // }
+
                     // (AR) افحص DataType من AST
                     // (EN) Check AST DataType
                     auto dtype = var->getTypeKind();

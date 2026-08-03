@@ -31,23 +31,13 @@ namespace Sad
 {
     namespace LLVM
     {
-        // (AR) دالة مساعدة: نوع بنية المصفوفة SadArray
-        // (EN) Helper: SadArray struct type
+        // (AR) نوعُ بنيةِ SadArray — يُفوَّض إلى التعريفِ الوحيدِ في sad_dyn_repr (كان مكرَّرًا
+        //      في خمسةِ ملفّاتٍ فانفتح بابُ الانجراف؛ التخطيطُ عقدٌ بين مُنتِجِ المصفوفةِ ومستهلكِها).
+        // (EN) SadArray struct type — delegated to the single definition in sad_dyn_repr (it used
+        //      to be duplicated in five files, an open door to drift; the layout is a contract).
         static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         {
-            static llvm::StructType *arrTy = nullptr;
-            if (!arrTy)
-            {
-                arrTy = llvm::StructType::create(ctx, {
-                                                          llvm::Type::getInt64Ty(ctx),       // length
-                                                          llvm::Type::getInt64Ty(ctx),       // capacity
-                                                          llvm::PointerType::getUnqual(ctx), // data pointer
-                                                          llvm::PointerType::getUnqual(ctx), // tags (i8*) or null [option A]
-                                                          llvm::Type::getInt8Ty(ctx)         // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
-                                                      },
-                                                 "SadArray");
-            }
-            return arrTy;
+            return sadArrayStructType(ctx);
         }
 
         // ============================================================================

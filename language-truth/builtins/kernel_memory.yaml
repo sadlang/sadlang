@@ -7,7 +7,7 @@ functions:
   canonical: ذاكرة_خصص
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: ذاكرة_حرر
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: ذاكرة_إحصائيات
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: ذاكرة_حجم
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: ذاكرة_ذروة
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: ذاكرة_صفر
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -85,7 +85,7 @@ functions:
   canonical: انسخ_ذاكرة
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -98,7 +98,7 @@ functions:
   canonical: ذاكرة_أعد_حجم
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   canonical: ذاكرة_محاذاة
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -124,7 +124,7 @@ functions:
   canonical: ذاكرة_تسرب
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -137,7 +137,7 @@ functions:
   canonical: قمامة_اجمع
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -150,7 +150,7 @@ functions:
   canonical: قمامة_إحصائيات
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -163,7 +163,7 @@ functions:
   canonical: قمامة_فعل
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -176,7 +176,7 @@ functions:
   canonical: قمامة_عطل
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -189,7 +189,7 @@ functions:
   canonical: قمامة_عتبة
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -202,7 +202,7 @@ functions:
   canonical: قمامة_كائنات_حية
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -215,7 +215,7 @@ functions:
   canonical: قمامة_حجم_كومة
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -228,7 +228,7 @@ functions:
   canonical: قمامة_أقصى_توقف
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -241,7 +241,7 @@ functions:
   canonical: ذاكرة_عدد_تخصيصات
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -254,7 +254,7 @@ functions:
   canonical: ذاكرة_إجمالي
   namespace: KernelMemory
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0

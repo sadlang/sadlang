@@ -7,7 +7,7 @@ functions:
   canonical: عدد_أجهزة_ناقل
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: اقرأ_اعدادات_ناقل
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: اكتب_اعدادات_ناقل
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: عدد_الأجهزة
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: تقرير_ناقل
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: هيئ_نقل_مباشر
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -85,7 +85,7 @@ functions:
   canonical: ابدأ_نقل
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -98,7 +98,7 @@ functions:
   canonical: حالة_نقل
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   canonical: تقرير_نقل
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -124,7 +124,7 @@ functions:
   canonical: هيئ_شاشة
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -137,7 +137,7 @@ functions:
   canonical: ارسم_نقطة
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -150,7 +150,7 @@ functions:
   canonical: املأ_مستطيل
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -163,7 +163,7 @@ functions:
   canonical: ارسم_نص
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -176,7 +176,7 @@ functions:
   canonical: امسح_شاشة
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -189,7 +189,7 @@ functions:
   canonical: تقرير_شاشة
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -202,7 +202,7 @@ functions:
   canonical: هيئ_طاقة
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -215,7 +215,7 @@ functions:
   canonical: ابحث_جدول_طاقة
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -228,7 +228,7 @@ functions:
   canonical: اطفئ
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -241,7 +241,7 @@ functions:
   canonical: تقرير_طاقة
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -254,7 +254,7 @@ functions:
   canonical: هيئ_قفل_دوار
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -267,7 +267,7 @@ functions:
   canonical: اقفل_دوار
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -280,7 +280,7 @@ functions:
   canonical: افتح_قفل_دوار
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -293,7 +293,7 @@ functions:
   canonical: هيئ_كابح
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -306,7 +306,7 @@ functions:
   canonical: اقفل_كابح
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -319,7 +319,7 @@ functions:
   canonical: افتح_كابح
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -332,7 +332,7 @@ functions:
   canonical: هيئ_اشارة
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -345,7 +345,7 @@ functions:
   canonical: هيئ_حاجز
   namespace: CompilerHw
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0

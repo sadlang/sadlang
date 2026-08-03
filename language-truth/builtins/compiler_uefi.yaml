@@ -7,7 +7,7 @@ functions:
   canonical: uefi_تهيئة
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: uefi_إنهاء_خدمات_إقلاع
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: uefi_هل_مهيأ
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: uefi_خدمات_إقلاع_منتهية
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: uefi_إعادة_تشغيل
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: uefi_تخصيص_صفحات
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -85,7 +85,7 @@ functions:
   canonical: uefi_تحرير_صفحات
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -98,7 +98,7 @@ functions:
   canonical: uefi_تخصيص_كتلة
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   canonical: uefi_تحرير_كتلة
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -124,7 +124,7 @@ functions:
   canonical: uefi_خريطة_ذاكرة
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -137,7 +137,7 @@ functions:
   canonical: uefi_مفتاح_خريطة
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -150,7 +150,7 @@ functions:
   canonical: uefi_ذاكرة_متاحة
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -163,7 +163,7 @@ functions:
   canonical: uefi_تهيئة_رسوميات
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -176,7 +176,7 @@ functions:
   canonical: uefi_تعيين_وضع_رسوميات
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -189,7 +189,7 @@ functions:
   canonical: uefi_استعلام_وضع
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -202,7 +202,7 @@ functions:
   canonical: uefi_عدد_أوضاع_رسوميات
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -215,7 +215,7 @@ functions:
   canonical: uefi_وضع_رسوميات_حالي
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -228,7 +228,7 @@ functions:
   canonical: uefi_عنوان_إطار
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -241,7 +241,7 @@ functions:
   canonical: uefi_حجم_إطار
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -254,7 +254,7 @@ functions:
   canonical: uefi_ملء_شاشة
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -267,7 +267,7 @@ functions:
   canonical: uefi_رسم_مستطيل
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -280,7 +280,7 @@ functions:
   canonical: uefi_الوقت
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -293,7 +293,7 @@ functions:
   canonical: uefi_تعيين_وقت
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -306,7 +306,7 @@ functions:
   canonical: uefi_قراءة_متغير
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -319,7 +319,7 @@ functions:
   canonical: uefi_كتابة_متغير
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -332,7 +332,7 @@ functions:
   canonical: uefi_فتح_وحدة_تخزين
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -345,7 +345,7 @@ functions:
   canonical: uefi_فتح_ملف
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -358,7 +358,7 @@ functions:
   canonical: uefi_قراءة_ملف
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -371,7 +371,7 @@ functions:
   canonical: uefi_كتابة_ملف
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -384,7 +384,7 @@ functions:
   canonical: uefi_إغلاق_ملف
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -397,7 +397,7 @@ functions:
   canonical: uefi_معلومات_ملف
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -410,7 +410,7 @@ functions:
   canonical: uefi_بحث_بروتوكول
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -423,7 +423,7 @@ functions:
   canonical: uefi_إصدار
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -436,7 +436,7 @@ functions:
   canonical: uefi_بائع
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -449,7 +449,7 @@ functions:
   canonical: uefi_إصدار_بائع
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -462,7 +462,7 @@ functions:
   canonical: uefi_تقرير
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -475,7 +475,7 @@ functions:
   canonical: acpi_تهيئة
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -488,7 +488,7 @@ functions:
   canonical: acpi_تهيئة_من_rsdp
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -501,7 +501,7 @@ functions:
   canonical: acpi_تفعيل
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -514,7 +514,7 @@ functions:
   canonical: acpi_تعطيل
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -527,7 +527,7 @@ functions:
   canonical: acpi_هل_مهيأ
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -540,7 +540,7 @@ functions:
   canonical: acpi_إصدار
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -553,7 +553,7 @@ functions:
   canonical: acpi_إعادة_تشغيل
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -566,7 +566,7 @@ functions:
   canonical: acpi_نوم
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -579,7 +579,7 @@ functions:
   canonical: acpi_تأخير
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -592,7 +592,7 @@ functions:
   canonical: acpi_قراءة_مؤقت
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -605,7 +605,7 @@ functions:
   canonical: acpi_مؤقت_32بت
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -618,7 +618,7 @@ functions:
   canonical: acpi_عدد_معالجات
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -631,7 +631,7 @@ functions:
   canonical: acpi_عنوان_apic
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -644,7 +644,7 @@ functions:
   canonical: acpi_ecam_قاعدة
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -657,7 +657,7 @@ functions:
   canonical: apic_مدعوم
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -670,7 +670,7 @@ functions:
   canonical: apic_x2_مدعوم
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -683,7 +683,7 @@ functions:
   canonical: apic_معرّف
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -696,7 +696,7 @@ functions:
   canonical: apic_عدد_io
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -709,7 +709,7 @@ functions:
   canonical: apic_تهيئة_مؤقت
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -722,7 +722,7 @@ functions:
   canonical: apic_بدء_مؤقت
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -735,7 +735,7 @@ functions:
   canonical: apic_إيقاف_مؤقت
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -748,7 +748,7 @@ functions:
   canonical: apic_عداد_مؤقت
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -761,7 +761,7 @@ functions:
   canonical: apic_معايرة_مؤقت
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -774,7 +774,7 @@ functions:
   canonical: apic_أولوية_مهمة
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -787,7 +787,7 @@ functions:
   canonical: apic_عطّل_pic
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -800,7 +800,7 @@ functions:
   canonical: apic_قناع_irq
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -813,7 +813,7 @@ functions:
   canonical: apic_إلغاء_قناع_irq
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -826,7 +826,7 @@ functions:
   canonical: apic_وجّه_irq
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -839,7 +839,7 @@ functions:
   canonical: apic_أرسل_للكل
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -852,7 +852,7 @@ functions:
   canonical: apic_أرسل_init
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -865,7 +865,7 @@ functions:
   canonical: apic_أرسل_sipi
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -878,7 +878,7 @@ functions:
   canonical: apic_انتظر_تسليم
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -891,7 +891,7 @@ functions:
   canonical: apic_تهيئة_io
   namespace: CompilerUefi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0

@@ -7,7 +7,7 @@ functions:
   canonical: تسلسلي_هيئ
   namespace: CompilerEmbed
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: تسلسلي_ارسل
   namespace: CompilerEmbed
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: تسلسلي_استقبل
   namespace: CompilerEmbed
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: تسلسلي_جاهز
   namespace: CompilerEmbed
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: مؤقت_هيئ
   namespace: CompilerEmbed
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: نقل_مباشر_هيئ
   namespace: CompilerEmbed
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0

@@ -7,7 +7,7 @@ functions:
   canonical: شبكة_مسح
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: شبكة_عدد_البطاقات
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: شبكة_موديل_البطاقة
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: شبكة_تهيئة
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: شبكة_تقرير
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: شبكة_تعيين_ip
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -85,7 +85,7 @@ functions:
   canonical: شبكة_عنوان_ip
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -98,7 +98,7 @@ functions:
   canonical: شبكة_عنوان_mac
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   canonical: شبكة_تعيين_القناع
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -124,7 +124,7 @@ functions:
   canonical: شبكة_تعيين_البوابة
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -137,7 +137,7 @@ functions:
   canonical: شبكة_القناع
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -150,7 +150,7 @@ functions:
   canonical: شبكة_البوابة
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -163,7 +163,7 @@ functions:
   canonical: شبكة_طلب_arp
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -176,7 +176,7 @@ functions:
   canonical: شبكة_بحث_arp
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -189,7 +189,7 @@ functions:
   canonical: شبكة_حجم_جدول_arp
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -202,7 +202,7 @@ functions:
   canonical: شبكة_مسح_جدول_arp
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -215,7 +215,7 @@ functions:
   canonical: شبكة_بنج
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -228,7 +228,7 @@ functions:
   canonical: شبكة_اخر_بنج
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -241,7 +241,7 @@ functions:
   canonical: شبكة_ارسال_udp
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -254,7 +254,7 @@ functions:
   canonical: شبكة_استقبال_udp
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -267,7 +267,7 @@ functions:
   canonical: شبكة_ربط_udp
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -280,7 +280,7 @@ functions:
   canonical: شبكة_الارتباط_فعال
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -293,7 +293,7 @@ functions:
   canonical: شبكة_سرعة_الارتباط
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -306,7 +306,7 @@ functions:
   canonical: شبكة_ارسال_خام
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -319,7 +319,7 @@ functions:
   canonical: شبكة_الحزم_المرسلة
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -332,7 +332,7 @@ functions:
   canonical: شبكة_الحزم_المستقبلة
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -345,7 +345,7 @@ functions:
   canonical: شبكة_حاله_البطاقة
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -358,7 +358,7 @@ functions:
   canonical: شبكة_اعادة_تعيين
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -371,7 +371,7 @@ functions:
   canonical: شبكة_مصنع_البطاقة
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -384,7 +384,7 @@ functions:
   canonical: شبكة_فك_ربط_udp
   namespace: KernelNet
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0

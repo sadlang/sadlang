@@ -519,6 +519,112 @@ def emit_all_builtins(functions: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def emit_import_gate(functions: list[dict]) -> str:
+    """
+    @brief (AR) يُولِّد **بوّابة الاستيراد** الوحيدة التي يستهلكها المحرّكان.
+
+    قبله كانت لكلِّ محرّكٍ خريطةٌ مكتوبةٌ باليد تتجاوز مصدرَ الحقيقة:
+    `sir_builder_module_check.cpp` في المصرّف (بوّابةٌ تمنع النداء)،
+    و`builtin_registry.cpp` في المفسّر (اقتراحٌ في رسالة خطأ). فتباعدتا عن
+    مصدر الحقيقة وعن بعضهما: `جذر` مثلًا كانت تطلب استيرادَ «نصوص».
+
+    **قاعدةُ الاسم المكرَّر: الأقلُّ تقييدًا يفوز.** بعضُ الأسماءِ مسجَّلٌ في
+    فضاءين بقرارَين متضادَّين — `رقم` مُنشئُ نوعٍ حرٌّ في TypeCtor ومحجوبٌ في
+    Maps. فلو غلّبنا المحجوبَ لصار `رقم("5")` يحتاج `استورد خرائط`.
+
+    **ومحجوبٌ في وحدتين: يكفي استيرادُ إحداهما.** `أرسل` مثلًا في «شبكة»
+    و«تزامن_متقدم»، فاختيارُ واحدةٍ اعتباطًا يمنع استعمالَها الآخر. يُصدَر لها
+    مدخلٌ لكلِّ وحدة، ويُقبَل النداءُ متى استُوردت أيٌّ منها.
+
+    @brief (EN) Emit the single import gate consumed by BOTH engines, replacing
+                two hand-written maps that had drifted from the SoT and from
+                each other. Duplicate canonical names: least restrictive wins.
+    """
+    by_name: dict[str, list[dict]] = defaultdict(list)
+    for fn in functions:
+        by_name[fn["canonical"]].append(fn)
+
+    gated: list[tuple[str, str, str]] = []  # (canonical, ModuleId key, cpp_id path)
+    for name, entries in sorted(by_name.items()):
+        if any(not e.get("require_import", False) for e in entries):
+            continue
+        modules = {e.get("module", "NONE") for e in entries}
+        modules.discard("NONE")
+        if not modules:
+            # (AR) محجوبٌ بلا وحدةٍ = تناقضٌ يجعله غيرَ قابلٍ للنداء أبدًا.
+            # (EN) Gated with no module = uncallable forever. Refuse to emit it.
+            continue
+        first = entries[0]
+        # (AR) مدخلٌ لكلِّ وحدةٍ تحجب الاسم — لا اختيارَ اعتباطيّ.
+        # (EN) One entry per gating module — no arbitrary pick.
+        for module_key in sorted(modules):
+            gated.append((name, module_key, f'Names::{first["namespace"]}::{first["cpp_id"]}'))
+
+    lines: list[str] = []
+    lines.append("        // ════════════════════════════════════════════════════════════════════")
+    lines.append("        // (AR) بوّابةُ الاستيراد — المصدرُ الوحيدُ الذي يستهلكه المحرّكان.")
+    lines.append("        //      مولَّدةٌ من `require_import` + `module` في language-truth/builtins/.")
+    lines.append("        //      🔴 لا تكتب خريطةَ «اسم ⇒ وحدة» يدويًّا في أيّ محرّك: حارسُ")
+    lines.append("        //         scripts/codegen/check_no_handwritten_import_gate.py يرفضها.")
+    lines.append("        // (EN) The import gate — the single source both engines consume.")
+    lines.append("        //      Generated from `require_import` + `module` in the YAML SoT.")
+    lines.append("        //      🔴 Never hand-write a name⇒module map in an engine; a guard rejects it.")
+    lines.append("        // ════════════════════════════════════════════════════════════════════")
+    lines.append("        struct ImportGateEntry")
+    lines.append("        {")
+    lines.append("            std::string_view canonicalName; /// (AR) الاسم / (EN) Canonical name")
+    lines.append("            ModuleId         requiredModule; /// (AR) الوحدة اللازمة / (EN) Required module")
+    lines.append("        };")
+    lines.append("")
+    lines.append(f"        inline constexpr std::array<ImportGateEntry, {len(gated)}> IMPORT_GATE = {{{{")
+    for name, module_key, names_path in gated:
+        lines.append(f"            {{{names_path}, ModuleId::{module_key}}},")
+    lines.append("        }};")
+    lines.append("")
+    lines.append("        // (AR) أوّلُ وحدةٍ تحجب هذا الاسم، أو NONE إن كان أساسيًّا.")
+    lines.append("        //      الاسمُ قد يُحجَب في أكثرَ من وحدة، فاستعمل")
+    lines.append("        //      importGateUnsatisfiedModuleName للفحصِ الفعليّ.")
+    lines.append("        // (EN) The first module gating this name, or NONE if it is core.")
+    lines.append("        //      A name may be gated by several modules — use")
+    lines.append("        //      importGateUnsatisfiedModuleName for the actual check.")
+    lines.append("        inline ModuleId importGateModuleFor(std::string_view name)")
+    lines.append("        {")
+    lines.append("            for (const auto& entry : IMPORT_GATE)")
+    lines.append("                if (entry.canonicalName == name) return entry.requiredModule;")
+    lines.append("            return ModuleId::NONE;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        // (AR) فراغٌ إن كان الاسمُ أساسيًّا أو إن استُوردت إحدى وحداتِه؛ وإلّا")
+    lines.append("        //      اسمُ إحدى الوحداتِ اللازمةِ عربيًّا (للتشخيص).")
+    lines.append("        //      `isModuleImported` تُجيب: أهذه الوحدةُ مستورَدةٌ الآن؟")
+    lines.append("        // (EN) Empty if the name is core or ANY of its gating modules is")
+    lines.append("        //      imported; otherwise one required module's Arabic name (for")
+    lines.append("        //      diagnostics). `isModuleImported` answers: is it imported now?")
+    lines.append("        template <typename IsModuleImported>")
+    lines.append("        inline std::string_view importGateUnsatisfiedModuleName(")
+    lines.append("            std::string_view name, IsModuleImported isModuleImported)")
+    lines.append("        {")
+    lines.append("            std::string_view firstRequired{};")
+    lines.append("            for (const auto& entry : IMPORT_GATE)")
+    lines.append("            {")
+    lines.append("                if (entry.canonicalName != name) continue;")
+    lines.append("                const std::string_view moduleName = getCanonicalModuleName(entry.requiredModule);")
+    lines.append("                if (isModuleImported(moduleName)) return std::string_view{};")
+    lines.append("                if (firstRequired.empty()) firstRequired = moduleName;")
+    lines.append("            }")
+    lines.append("            return firstRequired;")
+    lines.append("        }")
+    lines.append("")
+    lines.append("        // (AR) اسمُ الوحدةِ اللازمةِ عربيًّا، أو فراغٌ إن كانت أساسيّة.")
+    lines.append("        // (EN) The required module's canonical Arabic name, or empty if core.")
+    lines.append("        inline std::string_view importGateModuleNameFor(std::string_view name)")
+    lines.append("        {")
+    lines.append("            const ModuleId id = importGateModuleFor(name);")
+    lines.append("            return id == ModuleId::NONE ? std::string_view{} : getCanonicalModuleName(id);")
+    lines.append("        }")
+    return "\n".join(lines)
+
+
 def emit_all_type_methods(all_methods: list[dict]) -> str:
     """
     @brief (AR) يُولِّد سجلاً شاملاً لطرق الأنواع المدمجة (ALL_TYPE_METHODS) للأدوات
@@ -761,6 +867,8 @@ def run(argv: list[str] | None = None) -> int:
         #      داخل namespace Builtins (كلاهما يُحقَن في {all_builtins_section}).
         all_builtins_section = (
             emit_all_builtins(functions)
+            + "\n\n"
+            + emit_import_gate(functions)
             + "\n\n"
             + emit_all_type_methods(all_type_methods)
         )

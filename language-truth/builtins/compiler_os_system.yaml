@@ -7,7 +7,7 @@ functions:
   canonical: هيئ_مجدول
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: انشئ_عملية
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: انشئ_خيط_نواة
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: تنازل
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: نوم_مجدول
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: تقرير_مجدول
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -85,7 +85,7 @@ functions:
   canonical: معلومات_اقلاع
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -98,7 +98,7 @@ functions:
   canonical: خريطة_ذاكرة_اقلاع
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   canonical: تقرير_اقلاع
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -124,7 +124,7 @@ functions:
   canonical: حمل_قرص
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -137,7 +137,7 @@ functions:
   canonical: افصل_قرص
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -150,7 +150,7 @@ functions:
   canonical: افتح_ملف_نواة
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -163,7 +163,7 @@ functions:
   canonical: اقرأ_ملف_نواة
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -176,7 +176,7 @@ functions:
   canonical: اكتب_ملف_نواة
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -189,7 +189,7 @@ functions:
   canonical: اغلق_ملف_نواة
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -202,7 +202,7 @@ functions:
   canonical: تقرير_ملفات
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -215,7 +215,7 @@ functions:
   canonical: هيئ_متحكم_مقاطعات
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -228,7 +228,7 @@ functions:
   canonical: ارسل_نهاية_مقاطعة
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -241,7 +241,7 @@ functions:
   canonical: ارسل_مقاطعة_معالج
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -254,7 +254,7 @@ functions:
   canonical: اضبط_مؤقت_متحكم
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -267,7 +267,7 @@ functions:
   canonical: تقرير_متحكم_مقاطعات
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -280,7 +280,7 @@ functions:
   canonical: هيئ_مؤقت_دقيق
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -293,7 +293,7 @@ functions:
   canonical: اقرأ_مؤقت_دقيق
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -306,7 +306,7 @@ functions:
   canonical: نوم_دقيق
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -319,7 +319,7 @@ functions:
   canonical: تقرير_مؤقت_دقيق
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -332,7 +332,7 @@ functions:
   canonical: هيئ_استدعاءات
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -345,7 +345,7 @@ functions:
   canonical: سجل_استدعاء
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -358,7 +358,7 @@ functions:
   canonical: نفذ_استدعاء
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -371,7 +371,7 @@ functions:
   canonical: تقرير_استدعاءات
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -384,7 +384,7 @@ functions:
   canonical: خصص_فيزيائي
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -397,7 +397,7 @@ functions:
   canonical: حرر_فيزيائي
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -410,7 +410,7 @@ functions:
   canonical: رحل_منطقة
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -423,7 +423,7 @@ functions:
   canonical: تقرير_ذاكرة_نواة
   namespace: CompilerSys
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0

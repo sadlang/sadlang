@@ -7,7 +7,7 @@ functions:
   canonical: مكدس
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: نص_عرض
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: نص_منسق
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: زر_نوع
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: زر_ايقونة
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: مربع_تحقق
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -85,7 +85,7 @@ functions:
   canonical: مبدل
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -98,7 +98,7 @@ functions:
   canonical: خط_فاصل
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   canonical: أضف_ابن
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -124,7 +124,7 @@ functions:
   canonical: أزل_ابن
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -137,7 +137,7 @@ functions:
   canonical: امسح_الأبناء
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -150,7 +150,7 @@ functions:
   canonical: عين_النص
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -163,7 +163,7 @@ functions:
   canonical: عين_الحجم
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -176,7 +176,7 @@ functions:
   canonical: عين_المرونة
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -189,7 +189,7 @@ functions:
   canonical: عين_الخلفية
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -202,7 +202,7 @@ functions:
   canonical: عين_اللون
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -215,7 +215,7 @@ functions:
   canonical: عين_التباعد
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -228,7 +228,7 @@ functions:
   canonical: عين_الحشوة
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -241,7 +241,7 @@ functions:
   canonical: عين_المحاذاة
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -254,7 +254,7 @@ functions:
   canonical: عين_الحدود
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -267,7 +267,7 @@ functions:
   canonical: عين_الارتفاع
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -280,7 +280,7 @@ functions:
   canonical: عين_الشفافية
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -293,7 +293,7 @@ functions:
   canonical: عين_الظهور
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -306,7 +306,7 @@ functions:
   canonical: انشئ_تطبيق
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -319,7 +319,7 @@ functions:
   canonical: عين_الجذر
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -332,7 +332,7 @@ functions:
   canonical: خطط
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -345,7 +345,7 @@ functions:
   canonical: ارسم
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -358,7 +358,7 @@ functions:
   canonical: دمر_تطبيق
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -371,7 +371,7 @@ functions:
   canonical: دمر_عنصر
   namespace: CompilerUi
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0

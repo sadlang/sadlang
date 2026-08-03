@@ -39,3 +39,18 @@ display_texts:
   - { name: kNullDisplay,      value: "لاشيء", ar: "عرضُ قيمةِ العدم/الفراغ (Null/Void) — يطابق Value::toString والمفسّر وdynToString" }
   - { name: kBoolTrueDisplay,  value: "صحيح",  ar: "عرضُ القيمةِ المنطقيّةِ الصادقة" }
   - { name: kBoolFalseDisplay, value: "خطأ",   ar: "عرضُ القيمةِ المنطقيّةِ الكاذبة" }
+
+# (AR) محدِّداتُ عرضِ المصفوفة — كانت حرفيّاتٍ خامّةً في مسارين مستقلَّين (المفسّر
+#      value.cpp:483-491، ومساعِدُ LLVM المولَّد __sad_array_to_string_dyn)، وهو
+#      نفسُ نمطِ الانجرافِ الذي وحّده هذا الملفُّ للعدمِ والمنطقيّ.
+#      ⚠️ الفاصلةُ لاتينيّةٌ `", "` لا عربيّةٌ عمدًا: هذا ما يطبعه المفسّرُ اليومَ،
+#         وأيُّ تعريبٍ لها قرارٌ لغويٌّ منفصلٌ يُطبَّق على المحرّكين معًا وإلّا انكسر
+#         التكافؤ. (عرضُ الصفِّ يستعمل فاصلةً عربيّةً — تباعُدٌ قائمٌ خارجَ نطاقِ هذا المدخل.)
+# (EN) Array display delimiters — previously raw literals in two independent paths
+#      (interpreter value.cpp and the generated LLVM helper), the same drift pattern
+#      this file already unified for null/bool. The separator is deliberately the
+#      Latin ", " because that is what the interpreter emits today; Arabising it is a
+#      separate language decision that must land in both engines at once.
+  - { name: kArrayOpen,    value: "[",  ar: "قوسُ فتحِ عرضِ المصفوفة" }
+  - { name: kArrayClose,   value: "]",  ar: "قوسُ إغلاقِ عرضِ المصفوفة" }
+  - { name: kArrayElemSep, value: ", ", ar: "فاصلُ عناصرِ عرضِ المصفوفة (لاتينيٌّ — يطابق المفسّر)" }

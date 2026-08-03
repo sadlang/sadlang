@@ -18,6 +18,8 @@
 
 #include <string>
 #include "sir_builder.h"
+// (AR) إغلاقُ صادراتِ الوحدة — مشتركٌ مع المفسّر / (EN) shared with the interpreter
+#include "module_export_closure.h"
 #include "builders/template_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -684,8 +686,6 @@ namespace Sad
                 //      so the two paths cannot diverge again. Without it, module bodies
                 //      were built in source order and a forward call failed (#333).
                 // ════════════════════════════════════════════════════════════════
-                b_.preRegisterFunctionSignatures(&module->ast);
-
                 // (AR) `استورد م` يستورد كلَّ المُصدَّر؛ فالإغلاقُ يُحسَب شاملًا (isWildcard)،
                 //      ولا يُبنى من الخاصّ إلّا ما تبلغه المُصدَّرات.
                 // (EN) Plain `import m` imports every export, so the closure is computed in
@@ -693,6 +693,61 @@ namespace Sad
                 //      actually reach them.
                 const std::set<std::string> plainImportPrivateClosure =
                     computeImportedPrivateClosure(module->ast, {}, /*isWildcard=*/true);
+
+                // (AR) لقطةُ الجدول قبل التسجيل: تميّز ما أضافته هذه التمريرةُ عمّا كان
+                //      موجودًا (محلّيًّا أو من وحدةٍ سابقة) كي لا يمسّ التشذيبُ إلّا بذورَها.
+                // (EN) Table snapshot before registration: distinguishes what THIS pass adds
+                //      from what already existed, so pruning touches only its own seeds.
+                std::unordered_set<std::string> tableBeforePreRegister;
+                tableBeforePreRegister.reserve(b_.functionTable_.size());
+                for (const auto &entry : b_.functionTable_)
+                    tableBeforePreRegister.insert(entry.first);
+
+                b_.preRegisterFunctionSignatures(&module->ast);
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) تشذيبُ الخاصِّ غيرِ المبلوغ — سدُّ فجوةٍ بين تمريرتين.
+                //
+                //      التمريرةُ أعلاه تسجّل تواقيعَ **كلِّ** دوالِّ الوحدة (وهو لازمٌ
+                //      للنداء الأماميّ داخلها، #333)، بينما حلقةُ البناء أدناه ترفض
+                //      بناءَ الخاصِّ الذي لا تبلغه المُصدَّرات. فالنتيجةُ كانت: الاسمُ
+                //      محلولٌ في جدول الدوالّ ⇒ يُبعَث نداءٌ مباشرٌ إليه من الملفّ
+                //      المستورِد، وجسمُه لا يُبعَث قطُّ ⇒ يسقط **الرابط** برمزٍ غيرِ
+                //      معرَّفٍ برسالةٍ إنجليزيّةٍ من lld بدل تشخيصٍ دلاليٍّ عربيّ.
+                //
+                //      المرجعُ الدلاليّ: «صدّر» تُتيح التصريحَ للاستيراد من وحدةٍ أخرى
+                //      (grammar/20_declarations.yaml:gr.decl.export) ⇒ غيرُ المُصدَّرِ
+                //      غيرُ مرئيٍّ للمستورِد. فحذفُ بذرتِه هو الدلالةُ الصحيحة، وأثرُه
+                //      أنّ النداءَ يُشخَّص «استدعاء دالة غير معرّفة» في موضعه.
+                // (EN) Prune unreachable private declarations — a gap between two passes.
+                //      The pass above registers EVERY module function signature (required for
+                //      intra-module forward calls, #333), while the build loop below refuses to
+                //      build private declarations the exports cannot reach. Net effect: the name
+                //      resolved in the function table ⇒ a direct call was emitted from the
+                //      importing file, its body never was ⇒ the LINKER failed with an English
+                //      undefined-symbol message instead of an Arabic semantic diagnostic.
+                //      Semantics per SoT: «صدّر» is what makes a declaration importable, so a
+                //      non-exported one is invisible to the importer — dropping the seed is the
+                //      correct meaning, and the call is now diagnosed at its own call site.
+                // ════════════════════════════════════════════════════════════════
+                for (const auto &pruneStmt : module->ast)
+                {
+                    if (!pruneStmt)
+                        continue;
+                    // (AR) الخاصُّ وحدَه: المُصدَّر (ExportDecl/ExportStmt) لا يُلتقط هنا أصلًا.
+                    // (EN) Private only: an exported declaration is not matched here at all.
+                    auto *privateFunc = dynamic_cast<AST::FunctionDecl *>(pruneStmt.get());
+                    if (!privateFunc)
+                        continue;
+                    if (plainImportPrivateClosure.find(privateFunc->name) !=
+                        plainImportPrivateClosure.end())
+                        continue;
+                    if (tableBeforePreRegister.find(privateFunc->name) !=
+                        tableBeforePreRegister.end())
+                        continue;
+                    b_.functionTable_.erase(privateFunc->name);
+                    b_.preRegisteredImportNames_.erase(privateFunc->name);
+                }
 
                 // (AR) معالجة كل تصريح في الوحدة
                 // (EN) Process each declaration in module
@@ -1139,311 +1194,22 @@ namespace Sad
              * @brief (AR) معالجة استيراد انتقائي: من وحدة استورد ...
              * @brief (EN) Process selective import: from module import ...
              */
-            namespace
-            {
-                // (AR) جامعُ أسماء الدوالّ المُستدعاة في شجرةٍ — نظيرُ collectFreeVars لكنّه
-                //      يجمع **المُستدعَى** لا المتغيّرات: ذاك يشترط lookupVariable فيُسقط
-                //      أسماءَ الدوالّ، فلا يصلح لحساب الإغلاق التعدّيّ للوحدة.
-                // (EN) Collects the names of functions called anywhere in a subtree. Sibling
-                //      of collectFreeVars, but gathers callees rather than variables: that one
-                //      requires lookupVariable and therefore drops function names, so it cannot
-                //      compute the module's transitive closure.
-                void collectCalledNamesExpr(const Sad::AST::Expression *expr,
-                                            std::set<std::string> &out);
-
-                void collectCalledNamesStmt(const Sad::AST::Statement *stmt,
-                                            std::set<std::string> &out)
-                {
-                    using namespace Sad::AST;
-                    if (!stmt)
-                        return;
-
-                    if (auto *block = dynamic_cast<const BlockStmt *>(stmt))
-                    {
-                        for (const auto &s : block->statements)
-                            collectCalledNamesStmt(s.get(), out);
-                        return;
-                    }
-                    if (auto *exprStmt = dynamic_cast<const ExprStmt *>(stmt))
-                    {
-                        collectCalledNamesExpr(exprStmt->expression.get(), out);
-                        return;
-                    }
-                    if (auto *varDecl = dynamic_cast<const VarDeclStmt *>(stmt))
-                    {
-                        collectCalledNamesExpr(varDecl->initializer.get(), out);
-                        return;
-                    }
-                    if (auto *ifStmt = dynamic_cast<const IfStmt *>(stmt))
-                    {
-                        collectCalledNamesExpr(ifStmt->condition.get(), out);
-                        collectCalledNamesStmt(ifStmt->thenBranch.get(), out);
-                        collectCalledNamesStmt(ifStmt->elseBranch.get(), out);
-                        return;
-                    }
-                    if (auto *whileStmt = dynamic_cast<const WhileStmt *>(stmt))
-                    {
-                        collectCalledNamesExpr(whileStmt->condition.get(), out);
-                        collectCalledNamesStmt(whileStmt->body.get(), out);
-                        return;
-                    }
-                    if (auto *forRange = dynamic_cast<const ForRangeStmt *>(stmt))
-                    {
-                        collectCalledNamesStmt(forRange->body.get(), out);
-                        return;
-                    }
-                    // (AR) `لكل س في مجموعة` — الشكلُ الأشيع في المكتبات؛ كان مفقودًا
-                    //      فالمساعِدُ المُنادى داخلَ الحلقة لا يُبلَغ ⇒ «دالّة غير معرّفة».
-                    // (EN) `for x in collection` — the commonest form in libraries; missing it
-                    //      meant a helper called inside the loop was never reached.
-                    if (auto *forStmt = dynamic_cast<const ForStmt *>(stmt))
-                    {
-                        collectCalledNamesStmt(forStmt->initializer.get(), out);
-                        collectCalledNamesExpr(forStmt->condition.get(), out);
-                        collectCalledNamesExpr(forStmt->increment.get(), out);
-                        collectCalledNamesStmt(forStmt->body.get(), out);
-                        return;
-                    }
-                    if (auto *ret = dynamic_cast<const ReturnStmt *>(stmt))
-                    {
-                        collectCalledNamesExpr(ret->value.get(), out);
-                        return;
-                    }
-                    if (auto *sw = dynamic_cast<const SwitchStmt *>(stmt))
-                    {
-                        for (const auto &c : sw->cases)
-                            collectCalledNamesStmt(c.body.get(), out);
-                        collectCalledNamesStmt(sw->defaultCase.get(), out);
-                        return;
-                    }
-                    if (auto *tryStmt = dynamic_cast<const TryStmt *>(stmt))
-                    {
-                        collectCalledNamesStmt(tryStmt->tryBlock.get(), out);
-                        for (const auto &c : tryStmt->catchClauses)
-                            collectCalledNamesStmt(c.body.get(), out);
-                        collectCalledNamesStmt(tryStmt->finallyBlock.get(), out);
-                        return;
-                    }
-                }
-
-                void collectCalledNamesExpr(const Sad::AST::Expression *expr,
-                                            std::set<std::string> &out)
-                {
-                    using namespace Sad::AST;
-                    if (!expr)
-                        return;
-
-                    // (AR) كلُّ معرّفٍ حرٍّ يُجمَع، لا المُستدعَى وحدَه: المساعِدُ قد يُمرَّر
-                    //      مرجعًا بلا نداء (مصفوفة.رشح(مساعد))، والثابتُ يُشار إليه اسمًا.
-                    // (EN) Every free identifier is collected, not just callees: a helper may
-                    //      be passed by reference without a call, and constants appear by name.
-                    if (auto *var = dynamic_cast<const VariableExpr *>(expr))
-                    {
-                        out.insert(var->name);
-                        return;
-                    }
-                    if (auto *call = dynamic_cast<const CallExpr *>(expr))
-                    {
-                        collectCalledNamesExpr(call->callee.get(), out);
-                        for (const auto &a : call->arguments)
-                            collectCalledNamesExpr(a.get(), out);
-                        return;
-                    }
-                    if (auto *mcall = dynamic_cast<const MethodCallExpr *>(expr))
-                    {
-                        collectCalledNamesExpr(mcall->object.get(), out);
-                        for (const auto &a : mcall->arguments)
-                            collectCalledNamesExpr(a.get(), out);
-                        return;
-                    }
-                    if (auto *bin = dynamic_cast<const BinaryExpr *>(expr))
-                    {
-                        collectCalledNamesExpr(bin->left.get(), out);
-                        collectCalledNamesExpr(bin->right.get(), out);
-                        return;
-                    }
-                    if (auto *un = dynamic_cast<const UnaryExpr *>(expr))
-                    {
-                        collectCalledNamesExpr(un->operand.get(), out);
-                        return;
-                    }
-                    if (auto *arr = dynamic_cast<const ArrayExpr *>(expr))
-                    {
-                        for (const auto &e : arr->elements)
-                            collectCalledNamesExpr(e.get(), out);
-                        return;
-                    }
-                    if (auto *idx = dynamic_cast<const IndexExpr *>(expr))
-                    {
-                        collectCalledNamesExpr(idx->object.get(), out);
-                        collectCalledNamesExpr(idx->index.get(), out);
-                        return;
-                    }
-                    if (auto *assign = dynamic_cast<const AssignExpr *>(expr))
-                    {
-                        collectCalledNamesExpr(assign->value.get(), out);
-                        return;
-                    }
-                    if (auto *ternary = dynamic_cast<const TernaryExpr *>(expr))
-                    {
-                        collectCalledNamesExpr(ternary->condition.get(), out);
-                        collectCalledNamesExpr(ternary->trueExpr.get(), out);
-                        collectCalledNamesExpr(ternary->falseExpr.get(), out);
-                        return;
-                    }
-                    if (auto *mapExpr = dynamic_cast<const MapExpr *>(expr))
-                    {
-                        for (const auto &pair : mapExpr->pairs)
-                        {
-                            collectCalledNamesExpr(pair.key.get(), out);
-                            collectCalledNamesExpr(pair.value.get(), out);
-                        }
-                        return;
-                    }
-                    // (AR) اللامدا بجسمٍ تعبيريٍّ أو كتليّ — المساعِدُ المُنادى داخلها يُبلَغ
-                    // (EN) Lambda with an expression or block body — a helper called inside is reached
-                    if (auto *lambda = dynamic_cast<const LambdaExpr *>(expr))
-                    {
-                        collectCalledNamesExpr(lambda->body.get(), out);
-                        collectCalledNamesStmt(lambda->blockBody.get(), out);
-                        return;
-                    }
-                    if (auto *comp = dynamic_cast<const ListComprehensionExpr *>(expr))
-                    {
-                        collectCalledNamesExpr(comp->element.get(), out);
-                        collectCalledNamesExpr(comp->iterable.get(), out);
-                        collectCalledNamesExpr(comp->condition.get(), out);
-                        return;
-                    }
-                }
-            } // namespace
-
+            // (AR) حسابُ الإغلاقِ رُفع إلى `shared/ast/module_export_closure` نسخةً
+            //      واحدةً يستهلكها المحرّكان — كانت هنا نسخةُ المصرِّفِ وحدَه، والمفسّرُ
+            //      يحتاج المنطقَ نفسَه لدلالةِ «صدّر»، فكانت ستصير الخريطةَ اليدويّةَ
+            //      الثالثة. والنسخةُ المشتركةُ تصلح كذلك عمى `ExportDecl` هنا: «صدّر»
+            //      يُفكَّ لفُّ `ExportDecl` هناك، وتُقرأ الرايةُ احتياطًا كذلك.
+            // (EN) The closure computation was lifted into
+            //      `shared/ast/module_export_closure` as a single copy for both engines.
+            //      It also fixes the ExportDecl blindness that lived here: «صدّر» is a
+            //      unwrapped there, and the isExported flag is read as a fallback too.
             std::set<std::string> TemplateBuilder::computeImportedPrivateClosure(
                 const std::vector<std::unique_ptr<Sad::AST::Statement>> &moduleAst,
                 const std::set<std::string> &requestedSymbols,
                 bool isWildcard)
             {
-                // (AR) فهرسةُ تصريحات الوحدة العلويّة: الاسم ⇒ (الجسمُ إن وُجد، أمُصدَّرٌ هو؟).
-                //      تشمل الدوالَّ والثوابتَ والأصنافَ والبنى — فالخاصُّ من أيِّ نوعٍ يجب
-                //      أن يخضع للتصفية نفسِها كي لا يُظلّل مدمَجًا أو صنفًا محلّيًّا.
-                //      الثابتُ/الصنفُ بلا جسمٍ يُمسَح، فيُسجَّل بجسمٍ صفريّ: بلوغُه يكفي.
-                // (EN) Index the module's top-level declarations: name ⇒ (body if any, exported?).
-                //      Functions, constants, classes and structs alike — a private declaration of
-                //      any kind must face the same filter so it cannot shadow a builtin or a
-                //      local class. Non-function declarations carry a null body: reachability is
-                //      all that matters for them.
-                std::unordered_map<std::string, const AST::Statement *> privateBodies;
-                std::unordered_map<std::string, const AST::Statement *> exportedBodies;
-
-                auto indexDecl = [&](const AST::Statement *decl, bool exported)
-                {
-                    std::string name;
-                    const AST::Statement *body = nullptr;
-
-                    if (auto *fn = dynamic_cast<const AST::FunctionDecl *>(decl))
-                    {
-                        name = fn->name;
-                        body = fn->body.get();
-                    }
-                    else if (auto *vd = dynamic_cast<const AST::VarDeclStmt *>(decl))
-                    {
-                        name = vd->name;
-                    }
-                    else if (auto *cd = dynamic_cast<const AST::ClassDecl *>(decl))
-                    {
-                        name = cd->name;
-                    }
-                    else if (auto *sd = dynamic_cast<const Sad::AST::StructDecl *>(decl))
-                    {
-                        name = sd->name;
-                    }
-                    else
-                    {
-                        return;
-                    }
-
-                    if (exported)
-                        exportedBodies[name] = body;
-                    else
-                        privateBodies[name] = body;
-                };
-
-                for (const auto &stmt : moduleAst)
-                {
-                    if (!stmt)
-                        continue;
-
-                    if (auto *ed = dynamic_cast<AST::ExportDecl *>(stmt.get()))
-                    {
-                        if (ed->declaration)
-                            indexDecl(ed->declaration.get(), true);
-                    }
-                    else if (auto *es = dynamic_cast<AST::ExportStmt *>(stmt.get()))
-                    {
-                        if (es->declaration)
-                            indexDecl(es->declaration.get(), true);
-                    }
-                    else
-                    {
-                        indexDecl(stmt.get(), false);
-                    }
-                }
-
-                // (AR) بذرةُ الانتشار: الرموزُ المطلوبة (أو كلُّ المُصدَّر عند الاستيراد الشامل)
-                // (EN) Propagation seed: requested symbols (or every export on a wildcard import)
-                std::vector<const AST::Statement *> worklist;
-                std::set<std::string> reachablePrivate;
-                std::set<std::string> visited;
-
-                auto enqueue = [&](const std::string &name)
-                {
-                    if (!visited.insert(name).second)
-                        return;
-                    auto expIt = exportedBodies.find(name);
-                    if (expIt != exportedBodies.end())
-                    {
-                        if (expIt->second)
-                            worklist.push_back(expIt->second);
-                        return;
-                    }
-                    auto privIt = privateBodies.find(name);
-                    if (privIt != privateBodies.end())
-                    {
-                        reachablePrivate.insert(name);
-                        if (privIt->second)
-                            worklist.push_back(privIt->second);
-                    }
-                };
-
-                if (isWildcard)
-                {
-                    for (const auto &entry : exportedBodies)
-                        enqueue(entry.first);
-                }
-                else
-                {
-                    for (const auto &name : requestedSymbols)
-                        enqueue(name);
-                }
-
-                // (AR) انتشارٌ حتى الثبات: كلُّ اسمٍ حرٍّ في جسمِ دالّةٍ مشمولةٍ يطابق
-                //      دالّةً خاصّةً في الوحدة يُضاف — والاسمُ المطابقُ لمُصدَّرٍ يُتابَع
-                //      كذلك كي تُبلَغ مساعِداتُه الخاصّة.
-                // (EN) Propagate to fixpoint: every free name in an included function's body
-                //      that matches a private module function is added; a name matching an
-                //      export is followed too so its own private helpers are reached.
-                while (!worklist.empty())
-                {
-                    const AST::Statement *body = worklist.back();
-                    worklist.pop_back();
-
-                    std::set<std::string> referencedNames;
-                    collectCalledNamesStmt(body, referencedNames);
-                    for (const auto &name : referencedNames)
-                        enqueue(name);
-                }
-
-                return reachablePrivate;
+                return Sad::AST::computeExportedPrivateClosure(
+                    moduleAst, requestedSymbols, isWildcard);
             }
 
             void TemplateBuilder::buildFromImportStmt(AST::FromImportStmt *fromImportStmt)

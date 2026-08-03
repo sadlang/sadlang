@@ -1,4 +1,4 @@
-/*
+﻿/*
  * ============================================================================
  * (AR) التمثيل الديناميّ المميّز `%SadDyn` — تنفيذ حلّ ISSUE-076 الجذريّ.
  * (EN) The distinct dynamic representation `%SadDyn` — ISSUE-076 root fix impl.
@@ -941,26 +941,94 @@ namespace Sad
             return phi;
         }
 
-        llvm::Value *dynToString(LLVMCodeGen &cg, llvm::Value *dyn)
+        llvm::StructType *sadArrayStructType(llvm::LLVMContext &ctx)
         {
-            auto &b = *cg.builder_;
+            // (AR) نوعٌ مسمّى: LLVM يوحّد الاسمَ داخل السياق، فالنداءُ المتكرّر يعيد النوعَ نفسَه
+            //      بلا حاجةٍ إلى مخبّأٍ ساكن (والمخبّأُ الساكنُ كان يحمل نوعًا من سياقٍ ميّتٍ لو
+            //      تعدّدت السياقات).
+            // (EN) A named type: LLVM uniques names within a context, so repeated calls return
+            //      the same type without a function-local static cache (which would hold a type
+            //      belonging to a dead context if several contexts ever existed).
+            if (llvm::StructType *existing = llvm::StructType::getTypeByName(ctx, "SadArray"))
+            {
+                // (AR) الاسمُ وحدَه ليس عقدًا: لو أنشأ مسارٌ آخرُ نوعًا بهذا الاسمِ وتخطيطٍ
+                //      مغاير (أو مبهمًا بلا جسم) لَتبنّيناه صامتين، فصارت `StructGEP(…،0)`
+                //      تقرأ حقلًا غيرَ الطول ⇒ إفسادُ ذاكرةٍ في ذراعِ المصفوفةِ نفسِها.
+                //      نُثبّت الحقولَ الخمسةَ صراحةً بدل الثقةِ بالاسم.
+                // (EN) The name alone is not the contract: if another path created a type of
+                //      the same name with a different (or opaque) layout we would silently
+                //      adopt it, making StructGEP(…,0) read a field that is not the length —
+                //      memory corruption inside the array arm itself. Assert the five fields.
+                assert(!existing->isOpaque() && existing->getNumElements() == 5 &&
+                       "SadArray: تخطيطٌ مغايرٌ بالاسمِ نفسِه / layout mismatch under the same name");
+                return existing;
+            }
+            return llvm::StructType::create(ctx,
+                                            {
+                                                llvm::Type::getInt64Ty(ctx),       // length
+                                                llvm::Type::getInt64Ty(ctx),       // capacity
+                                                llvm::PointerType::getUnqual(ctx), // data pointer
+                                                llvm::PointerType::getUnqual(ctx), // tags (i8*) or null [option A]
+                                                llvm::Type::getInt8Ty(ctx)         // homogKind [option A2]: read only when tags==null
+                                            },
+                                            "SadArray");
+        }
+
+        llvm::Function *ensureDynToStringFn(LLVMCodeGen &cg)
+        {
             auto &ctx = *cg.context_;
             auto *i64 = llvm::Type::getInt64Ty(ctx);
             auto *i8 = llvm::Type::getInt8Ty(ctx);
             auto *dbl = llvm::Type::getDoubleTy(ctx);
             auto *ptrTy = llvm::PointerType::getUnqual(ctx);
 
-            llvm::Value *kind = dynKindByte(cg, dyn);
-            llvm::Value *payload = dynPayloadI64(cg, dyn);
+            // (AR) الحارسُ نفسُه المستعمَلُ في ensureArrayToStringDynHelper: «موجودةٌ ولها جسم».
+            //      وهو طرفُ الحلقةِ الذي يوقف العَوْدَ المتبادلَ بين المولّدَين.
+            // (EN) The same guard ensureArrayToStringDynHelper uses. It is the end of the loop
+            //      that stops the mutual recursion between the two generators.
+            if (llvm::Function *existing = cg.module_->getFunction("__sad_dyn_to_string"))
+                if (!existing->empty())
+                    return existing;
 
-            // (AR) مخزّن مشترك للصحيح/العشريّ (512 لـ%.6f لـDBL_MAX) / (EN) shared buffer int/float
-            // (AR) بانٍ محلّيّ (b) ⇒ تصريح مباشر بنوع size_t الهدف.
+            auto *fnTy = llvm::FunctionType::get(ptrTy, {i8, i64}, false);
+            auto *fn = llvm::Function::Create(fnTy, llvm::Function::InternalLinkage,
+                                              "__sad_dyn_to_string", cg.module_.get());
+            fn->getArg(0)->setName("kind");
+            fn->getArg(1)->setName("payload");
+            llvm::Value *kind = fn->getArg(0);
+            llvm::Value *payload = fn->getArg(1);
+
+            llvm::BasicBlock *savedBB = cg.builder_->GetInsertBlock();
+            llvm::BasicBlock::iterator savedPoint = cg.builder_->GetInsertPoint();
+
+            // (AR) ⚠️ ترتيبٌ حَرِج: كتلةُ entry تُنشأ **الآن**، قبل أيِّ نداءٍ للمساعِدِ المصفوفيّ.
+            //      وإلّا رآنا ذاك المساعِدُ «فارغين» فأعاد توليدَنا ⇒ حلقةُ ترجمةٍ لا نهائيّة.
+            // (EN) ⚠️ Order is critical: the entry block is created NOW, before any call to the
+            //      array helper — otherwise that helper would see us "empty" and regenerate us,
+            //      an infinite compile-time loop.
+            auto *entryBB = llvm::BasicBlock::Create(ctx, "entry", fn);
+            auto &b = *cg.builder_;
+            b.SetInsertPoint(entryBB);
+
+            // (AR) مخزّنُ الصحيح/العشريّ (512 لـ%.6f لـDBL_MAX). يُخصَّص **داخلَ ذراعِه** لا في
+            //      المدخل: الأذرعُ الأخرى (منطقيّ/نصّ/مصفوفة/عدم) لا تلمسه، وتخصيصُه مقدَّمًا كان
+            //      يُهدر ٥١٢ بايتًا في كلِّ نداء. وقد تضاعف الأثرُ بذراعِ المصفوفة: المساعِدُ
+            //      المصفوفيُّ ينادينا **مرّتين لكلِّ عنصر** (تمريرتا القياسِ والملء) ⇒ الإهدارُ
+            //      يتناسب مع طولِ المصفوفةِ وعمقِ تعشيشِها. صار الفصلُ ممكنًا لأنّ الأذرعَ كتلٌ
+            //      مستقلّةٌ بعد تحويلِ الموسِّع إلى دالّة.
+            // (EN) The int/float buffer is now allocated INSIDE its own arm rather than in the
+            //      entry block: the other arms never touch it, so a prologue allocation wasted
+            //      512 bytes per call — amplified by the new array arm, whose helper calls us
+            //      twice per element (sizing + fill), scaling with array length and nesting
+            //      depth. Splitting it became possible once the expander became a function.
             llvm::Type *szTy = cg.getSizeType();
             auto *mallocTy = llvm::FunctionType::get(ptrTy, {szTy}, false);
             auto mallocFn = cg.module_->getOrInsertFunction("malloc", mallocTy);
-            llvm::Value *buf = b.CreateCall(mallocFn, {llvm::ConstantInt::get(szTy, 512)}, "dyn.ts.buf");
+            auto emitScratchBuffer = [&]() -> llvm::Value * {
+                return b.CreateCall(mallocFn, {llvm::ConstantInt::get(szTy, 512)}, "dyn.ts.buf");
+            };
 
-            auto *parent = b.GetInsertBlock()->getParent();
+            auto *parent = fn;
             auto *intBB = llvm::BasicBlock::Create(ctx, "dyn.ts.int", parent);
             auto *floatBB = llvm::BasicBlock::Create(ctx, "dyn.ts.float", parent);
             auto *boolBB = llvm::BasicBlock::Create(ctx, "dyn.ts.bool", parent);
@@ -968,14 +1036,27 @@ namespace Sad
             auto *nullBB = llvm::BasicBlock::Create(ctx, "dyn.ts.null", parent);
             auto *mergeBB = llvm::BasicBlock::Create(ctx, "dyn.ts.merge", parent);
 
-            llvm::SwitchInst *sw = b.CreateSwitch(kind, nullBB, 4);
+            // (AR) [ز.٢١-أ] ذراعُ المصفوفة يحتاج malloc/sprintf داخل __sad_array_to_string_dyn،
+            //      وهما غيرُ متاحين في الوضع الحرّ. فيُحذَف الذراعُ هناك ويبقى السقوطُ إلى
+            //      «لاشيء» كما كان — لا انحدار، لأنّ طباعةَ المصفوفةِ المختلطةِ معطّلةٌ حرًّا أصلًا.
+            // (EN) [ز.٢١-أ] The array arm needs malloc/sprintf inside __sad_array_to_string_dyn,
+            //      neither available freestanding. There the arm is omitted and the old fallback
+            //      to «لاشيء» stands — no regression, since heterogeneous-array printing is
+            //      already unavailable freestanding.
+            llvm::BasicBlock *arrayBB =
+                cg.freestanding_ ? nullptr : llvm::BasicBlock::Create(ctx, "dyn.ts.array", parent);
+
+            llvm::SwitchInst *sw = b.CreateSwitch(kind, nullBB, arrayBB ? 5 : 4);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Int), intBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Float), floatBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Bool), boolBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Str), strBB);
+            if (arrayBB)
+                sw->addCase(llvm::ConstantInt::get(i8, DynKind::Array), arrayBB);
 
             // (AR) صحيح: %lld / (EN) int: %lld
             b.SetInsertPoint(intBB);
+            llvm::Value *buf = emitScratchBuffer();
             if (cg.freestanding_)
             {
                 auto *itoaTy = llvm::FunctionType::get(llvm::Type::getInt32Ty(ctx), {ptrTy, i64}, false);
@@ -995,20 +1076,21 @@ namespace Sad
 
             // (AR) عشريّ: __sad_format_double(bitcast(payload)) / (EN) float
             b.SetInsertPoint(floatBB);
+            llvm::Value *fbuf = emitScratchBuffer();
             llvm::Value *fdbl = b.CreateBitCast(payload, dbl, "dyn.ts.fbc");
             if (cg.freestanding_)
             {
                 auto *ftoaTy = llvm::FunctionType::get(llvm::Type::getInt32Ty(ctx), {ptrTy, dbl}, false);
                 auto ftoaFn = cg.module_->getOrInsertFunction("__sad_ftoa", ftoaTy);
-                b.CreateCall(ftoaFn, {buf, fdbl});
+                b.CreateCall(ftoaFn, {fbuf, fdbl});
             }
             else
             {
                 auto *fmtDblTy = llvm::FunctionType::get(llvm::Type::getVoidTy(ctx), {ptrTy, dbl}, false);
                 auto fmtDblFn = cg.module_->getOrInsertFunction("__sad_format_double", fmtDblTy);
-                b.CreateCall(fmtDblFn, {buf, fdbl});
+                b.CreateCall(fmtDblFn, {fbuf, fdbl});
             }
-            llvm::Value *floatRes = buf;
+            llvm::Value *floatRes = fbuf;
             b.CreateBr(mergeBB);
             floatBB = b.GetInsertBlock();
 
@@ -1027,10 +1109,61 @@ namespace Sad
             llvm::Value *strPtr = b.CreateIntToPtr(payload, ptrTy, "dyn.ts.strp");
             llvm::Value *strNull = b.CreateICmpEQ(
                 strPtr, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "dyn.ts.strnull");
-            llvm::Value *voidStr = b.CreateGlobalStringPtr("void", "dyn.ts.void");
+            // (AR) عرضُ مؤشّرِ النصِّ الفارغ: من المصدرِ الموحَّد لا حرفيّةَ "void" الإنجليزيّة —
+            //      كانت تسرّب عرضًا إنجليزيًّا للمستخدم يخالف «لاشيء» في المفسّر.
+            // (EN) Display for a null string pointer: from the unified SoT, not the English
+            //      "void" literal, which leaked a user-visible display diverging from the
+            //      interpreter's «لاشيء».
+            llvm::Value *voidStr = b.CreateGlobalStringPtr(::Sad::Types::repr::kNullDisplay, "dyn.ts.void");
             llvm::Value *strRes = b.CreateSelect(strNull, voidStr, strPtr, "dyn.ts.safestr");
             b.CreateBr(mergeBB);
             strBB = b.GetInsertBlock();
+
+            // (AR) [ز.٢١-أ] مصفوفة: الحمولةُ مؤشّرُ SadArray. نقرأ (الطول، البيانات، الوسوم)
+            //      وننادي المساعِدَ المولَّدَ الذي يعود إلينا لكلِّ عنصر ⇒ تعشيشٌ لا محدود.
+            //      حارسُ null يطابق حارسَ النصِّ أعلاه (مصفوفةٌ غيرُ مُهيّأة).
+            // (EN) [ز.٢١-أ] Array: the payload is a SadArray pointer. Read (len, data, tags) and
+            //      call the generated helper, which recurses back here per element ⇒ unbounded
+            //      nesting. The null guard mirrors the string guard above (uninitialised array).
+            llvm::Value *arrayRes = nullptr;      // (AR) نتيجةُ المسارِ السليم / (EN) ok-path result
+            llvm::BasicBlock *arrayOkBB = nullptr; // (AR) كتلتُه عند الوصول للدمج
+            llvm::Value *arrayNullRes = nullptr;   // (AR) نتيجةُ مسارِ المؤشّرِ العدم
+            llvm::BasicBlock *arrayNullBB = nullptr;
+            if (arrayBB)
+            {
+                b.SetInsertPoint(arrayBB);
+                cg.ensureArrayToStringDynHelper();
+                auto *arrTy = sadArrayStructType(ctx);
+                llvm::Value *arrPtr = b.CreateIntToPtr(payload, ptrTy, "dyn.ts.arrp");
+                llvm::Value *arrNull = b.CreateICmpEQ(
+                    arrPtr, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)),
+                    "dyn.ts.arrnull");
+                auto *arrOkBB = llvm::BasicBlock::Create(ctx, "dyn.ts.array.ok", parent);
+                auto *arrNullBB = llvm::BasicBlock::Create(ctx, "dyn.ts.array.null", parent);
+                b.CreateCondBr(arrNull, arrNullBB, arrOkBB);
+
+                b.SetInsertPoint(arrOkBB);
+                llvm::Value *lenV = b.CreateLoad(i64, b.CreateStructGEP(arrTy, arrPtr, 0, "dyn.ts.arr.lenp"),
+                                                 "dyn.ts.arr.len");
+                llvm::Value *dataV = b.CreateLoad(ptrTy, b.CreateStructGEP(arrTy, arrPtr, 2, "dyn.ts.arr.datap"),
+                                                  "dyn.ts.arr.data");
+                llvm::Value *tagsV = b.CreateLoad(ptrTy, b.CreateStructGEP(arrTy, arrPtr, 3, "dyn.ts.arr.tagsp"),
+                                                  "dyn.ts.arr.tags");
+                auto helperFn = cg.module_->getOrInsertFunction(
+                    "__sad_array_to_string_dyn",
+                    llvm::FunctionType::get(ptrTy, {i64, ptrTy, ptrTy}, false));
+                arrayRes = b.CreateCall(helperFn, {lenV, dataV, tagsV}, "dyn.ts.arr.str");
+                arrayOkBB = b.GetInsertBlock();
+                b.CreateBr(mergeBB);
+
+                b.SetInsertPoint(arrNullBB);
+                arrayNullRes =
+                    b.CreateGlobalStringPtr(::Sad::Types::repr::kNullDisplay, "dyn.ts.arr.nullstr");
+                arrayNullBB = b.GetInsertBlock();
+                b.CreateBr(mergeBB);
+                // (AR) الذراعُ يصل إلى الدمج من كتلتين (سليمة/عدم)، فتُسجَّلان معًا في PHI أدناه.
+                // (EN) The arm reaches the merge from two blocks (ok/null); both feed the PHI below.
+            }
 
             // (AR) عدم/غيره: لاشيء / (EN) null/other: لاشيء
             b.SetInsertPoint(nullBB);
@@ -1040,13 +1173,35 @@ namespace Sad
             nullBB = b.GetInsertBlock();
 
             b.SetInsertPoint(mergeBB);
-            auto *phi = b.CreatePHI(ptrTy, 5, "dyn.ts.result");
+            auto *phi = b.CreatePHI(ptrTy, arrayRes ? 7 : 5, "dyn.ts.result");
             phi->addIncoming(intRes, intBB);
             phi->addIncoming(floatRes, floatBB);
             phi->addIncoming(boolRes, boolBB);
             phi->addIncoming(strRes, strBB);
             phi->addIncoming(nullRes, nullBB);
-            return phi;
+            if (arrayRes)
+            {
+                phi->addIncoming(arrayRes, arrayOkBB);
+                phi->addIncoming(arrayNullRes, arrayNullBB);
+            }
+            b.CreateRet(phi);
+
+            if (savedBB)
+                cg.builder_->SetInsertPoint(savedBB, savedPoint);
+            return fn;
+        }
+
+        llvm::Value *dynToString(LLVMCodeGen &cg, llvm::Value *dyn)
+        {
+            // (AR) نداءٌ لا توسيعٌ سطريّ: يمنع العَوْدَ اللانهائيَّ زمنَ الترجمة، وينكمش IR في
+            //      عشراتِ مواقعِ الاستدعاء، ويُلغي حاجةَ المستدعين إلى مراعاةِ شقِّ الكتلة.
+            // (EN) A call, not an inline expansion: prevents infinite compile-time recursion,
+            //      shrinks IR at dozens of call sites, and removes the callers' need to account
+            //      for a split basic block.
+            llvm::Function *fn = ensureDynToStringFn(cg);
+            llvm::Value *kind = dynKindByte(cg, dyn);
+            llvm::Value *payload = dynPayloadI64(cg, dyn);
+            return cg.builder_->CreateCall(fn, {kind, payload}, "dyn.ts.call");
         }
 
         llvm::Value *dynTypeName(LLVMCodeGen &cg, llvm::Value *dyn)

@@ -489,7 +489,7 @@ namespace Sad
                     }
                 }
 
-                auto builtinResult = b_.buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands);
+                auto builtinResult = b_.buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands, call->isSyntaxDesugared);
                 if (builtinResult.has_value())
                 {
 #ifdef SIR_BUILDER_DEBUG
@@ -917,11 +917,28 @@ namespace Sad
                         // (EN) Three remedies: define it; or «خارجي» at the call with
                         //      «صدّر» at the definition in another file; or --module
                         //      for late cross-module linking.
+                        // (AR) إن كان الاسمُ مدمَجةً محجوبةً بوحدةٍ لم تُستورَد فالسببُ
+                        //      الحقيقيُّ ليس «غيرُ معرّفة» بل «لم تُستورَد» — سمِّ الوحدةَ
+                        //      كما يفعل المفسّر، وإلّا تباعد التشخيصان على السبب نفسه.
+                        // (EN) If the name is a builtin gated behind an unimported module,
+                        //      the real cause is a missing import, not an undefined
+                        //      function. Name the module, as the interpreter does.
+                        const std::string gatedModule =
+                            call->isSyntaxDesugared
+                                ? std::string{}
+                                : std::string(Sad::Builtins::importGateUnsatisfiedModuleName(
+                                std::string_view(funcName),
+                                [this](std::string_view moduleName)
+                                { return b_.isStdlibModuleImported(std::string(moduleName)); }));
                         std::string undefMsg =
-                            "خطأ: استدعاء دالة غير معرّفة '" + funcName +
-                            "' — عرّفها، أو أعلنها «خارجي(...)» هنا مع «صدّر» عند تعريفها، "
-                            "أو استخدم --module للربط عبر الوحدات "
-                            "(undefined function call)";
+                            gatedModule.empty()
+                                ? ("خطأ: استدعاء دالة غير معرّفة '" + funcName +
+                                   "' — عرّفها، أو أعلنها «خارجي(...)» هنا مع «صدّر» عند تعريفها، "
+                                   "أو استخدم --module للربط عبر الوحدات "
+                                   "(undefined function call)")
+                                : ("خطأ: الدالة '" + funcName + "' تنتمي إلى وحدة '" +
+                                   gatedModule + "' ولم تُستورَد — 💡 جرّب: استورد " +
+                                   gatedModule + " (builtin requires module import)");
                         std::cerr << undefMsg << std::endl;
                         b_.errors_.push_back(undefMsg);
                         return BuildResult();

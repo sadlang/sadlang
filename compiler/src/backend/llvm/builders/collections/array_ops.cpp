@@ -46,21 +46,11 @@ namespace Sad
         //      the READ decides the element kind at RUNTIME from the tags — not the static
         //      type — surviving reassignment/capture/param/return (no stale-tag crash).
         //      Adding field 3 doesn't shift indices 0-2, and allocations grow via getSizeOf.
+        //      يُفوَّض إلى التعريفِ الوحيدِ في sad_dyn_repr.
+        // (EN) Delegated to the single definition in sad_dyn_repr.
         static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
         {
-            static llvm::StructType *arrTy = nullptr;
-            if (!arrTy)
-            {
-                arrTy = llvm::StructType::create(ctx, {
-                                                          llvm::Type::getInt64Ty(ctx),       // length
-                                                          llvm::Type::getInt64Ty(ctx),       // capacity
-                                                          llvm::PointerType::getUnqual(ctx), // data pointer
-                                                          llvm::PointerType::getUnqual(ctx), // tags (i8*) or null
-                                                          llvm::Type::getInt8Ty(ctx)         // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
-                                                      },
-                                                 "SadArray");
-            }
-            return arrTy;
+            return sadArrayStructType(ctx);
         }
 
         // ============================================================================

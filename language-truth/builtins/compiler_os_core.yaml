@@ -7,7 +7,7 @@ functions:
   canonical: معلومات_المعالج
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: ميزات_المعالج
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: اقرأ_سجل_نموذج
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: اكتب_سجل_نموذج
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: اقرأ_سجل_تحكم
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: اكتب_سجل_تحكم
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -85,7 +85,7 @@ functions:
   canonical: تقرير_المعالج
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -98,7 +98,7 @@ functions:
   canonical: هيئ_جدول_واصفات
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   canonical: حمل_جدول_واصفات
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -124,7 +124,7 @@ functions:
   canonical: تقرير_واصفات
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -137,7 +137,7 @@ functions:
   canonical: هيئ_ترحيل
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -150,7 +150,7 @@ functions:
   canonical: رحل_صفحة
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -163,7 +163,7 @@ functions:
   canonical: الغ_ترحيل
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -176,7 +176,7 @@ functions:
   canonical: افرغ_ذاكرة_ترجمة
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -189,7 +189,7 @@ functions:
   canonical: تقرير_ترحيل
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -202,7 +202,7 @@ functions:
   canonical: هيئ_جدول_مقاطعات
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -215,7 +215,7 @@ functions:
   canonical: حمل_جدول_مقاطعات
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -228,7 +228,7 @@ functions:
   canonical: سجل_معالج_مقاطعة
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -241,7 +241,7 @@ functions:
   canonical: فعل_طلب_مقاطعة
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -254,7 +254,7 @@ functions:
   canonical: تقرير_مقاطعات
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0
@@ -267,7 +267,7 @@ functions:
   canonical: عنوان_رمز
   namespace: CompilerCpuCtl
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: INLINE
   since: 0.1.0

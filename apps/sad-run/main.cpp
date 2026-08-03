@@ -954,6 +954,33 @@ int main(int argc, char *argv[])
             return 1;
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // (AR) خطأٌ مسجَّلٌ = تنفيذٌ فاشل، وإن أكمل البرنامجُ مساره.
+        //
+        //      كان عرضُ التشخيصات مشروطًا بـ(!result.success) وحدَه، والموزِّعُ
+        //      يسجّل SEM004 لدالّةٍ غير معرّفة ثمّ **يواصل** بقيمة «لاشيء»
+        //      (expression_evaluator_calls_dispatch.cpp) دون أن يُفشل التنفيذ.
+        //      فالنتيجة: نداءُ دالّةٍ لا وجودَ لها داخل «رئيسية» يطبع «لاشيء»
+        //      ويخرج بالرمز ٠ **بلا تشخيصٍ البتّة** — والتشخيصُ مسجَّلٌ فعلًا،
+        //      لكنّه يُطرَح مع المحرّك عند الخروج.
+        //
+        //      وهو أخطرُ أنواع الفشل: مخرَجٌ خاطئٌ يمرّ صامتًا. والمصرّفُ يرفض
+        //      النداءَ نفسَه بـ«استدعاء دالة غير معرّفة»، فالتباعدُ مضاعَف.
+        // (EN) A recorded error means a failed run, even if the program finished.
+        //      Diagnostics used to be printed only when (!result.success), yet the
+        //      dispatcher records SEM004 for an undefined function and then CONTINUES
+        //      with «لاشيء» without failing the run. Net effect: calling a function
+        //      that does not exist inside «رئيسية» printed «لاشيء» and exited 0 with
+        //      NO diagnostic at all — the diagnostic existed but died with the engine.
+        //      That is the worst failure mode: wrong output passing silently. The
+        //      compiler rejects the very same call, so the divergence is twofold.
+        // ═══════════════════════════════════════════════════════════════
+        if (Sad::Errors::ErrorManager::getInstance().hasErrors())
+        {
+            Sad::Errors::ErrorManager::getInstance().printAll();
+            return 1;
+        }
+
         return 0;
     }
     catch (const Sad::Interpreter::ExitException &exitEx)

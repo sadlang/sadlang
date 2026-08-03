@@ -1377,9 +1377,17 @@ namespace Sad
                 //      in the compiler (returns 0), whereas «مطلق» returns the correct value in both.
                 std::vector<ExprPtr> args;
                 args.push_back(std::move(innerExpr));
-                return std::make_unique<CallExpr>(
+                auto absCall = std::make_unique<CallExpr>(
                     std::make_unique<VariableExpr>("\xD9\x85\xD8\xB7\xD9\x84\xD9\x82", absPos),
                     std::move(args));
+                // (AR) نداءٌ وَلَّدَته الصياغةُ لا المستخدم ⇒ تتخطّاه بوّابةُ الاستيراد.
+                //      وإلّا لَطالبَ `|-5|` بـ«استورد رياضيات» — وهو حجبُ صياغةِ
+                //      اللغةِ الأساسيّةِ خلف وحدة.
+                // (EN) Synthesized by the syntax, not written by the user ⇒ the import
+                //      gate skips it. Otherwise `|-5|` would demand importing Math —
+                //      hiding core syntax behind a module.
+                absCall->isSyntaxDesugared = true;
+                return absCall;
             }
 
             // ═══════════════════════════════════════════════════════════════════

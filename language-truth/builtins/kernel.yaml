@@ -7,7 +7,7 @@ functions:
   canonical: مقاطعة
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -20,7 +20,7 @@ functions:
   canonical: أسبت_المعالج
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -33,7 +33,7 @@ functions:
   canonical: شاشة_اكتب
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -46,7 +46,7 @@ functions:
   canonical: شاشة_امسح
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -59,7 +59,7 @@ functions:
   canonical: انسخ_ذاكرة
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -72,7 +72,7 @@ functions:
   canonical: املأ_ذاكرة
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -85,7 +85,7 @@ functions:
   canonical: تسلسل_هئ
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -98,7 +98,7 @@ functions:
   canonical: تسلسل_ارسل
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -111,7 +111,7 @@ functions:
   canonical: تسلسل_استقبل
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -124,7 +124,7 @@ functions:
   canonical: تسلسل_جاهز
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -137,7 +137,7 @@ functions:
   canonical: منفذ_رقمي_اكتب
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -150,7 +150,7 @@ functions:
   canonical: منفذ_رقمي_اقرأ
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -163,7 +163,7 @@ functions:
   canonical: حدد_وضع_منفذ
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -176,7 +176,7 @@ functions:
   canonical: مؤقت_هئ
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -189,7 +189,7 @@ functions:
   canonical: مؤقت_قراءة
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -202,7 +202,7 @@ functions:
   canonical: مؤقت_انتظر
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -215,7 +215,7 @@ functions:
   canonical: اعد_تشغيل
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -228,7 +228,7 @@ functions:
   canonical: معرف_المعالج
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -241,7 +241,7 @@ functions:
   canonical: عداد_الدورات
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -254,7 +254,7 @@ functions:
   canonical: حاجز_ذاكرة
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -267,7 +267,7 @@ functions:
   canonical: حاجز_قراءة
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -280,7 +280,7 @@ functions:
   canonical: حاجز_كتابة
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -293,7 +293,7 @@ functions:
   canonical: نقل_مباشر_هئ
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -306,7 +306,7 @@ functions:
   canonical: نقل_مباشر_ابدأ
   namespace: Kernel
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -319,7 +319,7 @@ functions:
   canonical: مؤقت_تهيئة
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -332,7 +332,7 @@ functions:
   canonical: مؤقت_التردد
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -345,7 +345,7 @@ functions:
   canonical: مؤقت_العداد
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -358,7 +358,7 @@ functions:
   canonical: مؤقت_تعيين_تردد
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -371,7 +371,7 @@ functions:
   canonical: مؤقت_الثواني
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -384,7 +384,7 @@ functions:
   canonical: مؤقت_الدقائق
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -397,7 +397,7 @@ functions:
   canonical: مؤقت_الساعات
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -410,7 +410,7 @@ functions:
   canonical: مؤقت_اليوم
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -423,7 +423,7 @@ functions:
   canonical: مؤقت_الشهر
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -436,7 +436,7 @@ functions:
   canonical: مؤقت_السنة
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -449,7 +449,7 @@ functions:
   canonical: مؤقت_الوقت
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -462,7 +462,7 @@ functions:
   canonical: مؤقت_التاريخ
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -475,7 +475,7 @@ functions:
   canonical: مؤقت_منبه
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -488,7 +488,7 @@ functions:
   canonical: مؤقت_نبضات
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -501,7 +501,7 @@ functions:
   canonical: مؤقت_وقت_التشغيل
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -514,7 +514,7 @@ functions:
   canonical: مؤقت_ثواني_التشغيل
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -527,7 +527,7 @@ functions:
   canonical: مؤقت_انتظار
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -540,7 +540,7 @@ functions:
   canonical: مؤقت_معدل_النبضات
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -553,7 +553,7 @@ functions:
   canonical: مؤقت_تعيين_معدل
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -566,7 +566,7 @@ functions:
   canonical: مؤقت_نقرة
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -579,7 +579,7 @@ functions:
   canonical: مؤقت_ساعة_جديدة
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -592,7 +592,7 @@ functions:
   canonical: مؤقت_ساعة_بدء
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -605,7 +605,7 @@ functions:
   canonical: مؤقت_ساعة_ايقاف
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -618,7 +618,7 @@ functions:
   canonical: مؤقت_ساعة_صفر
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -631,7 +631,7 @@ functions:
   canonical: مؤقت_ساعة_ملي
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -644,7 +644,7 @@ functions:
   canonical: مؤقت_ساعة_تعمل
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -657,7 +657,7 @@ functions:
   canonical: مؤقت_تقرير
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -670,7 +670,7 @@ functions:
   canonical: مؤقت_اعادة_تعيين
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -683,7 +683,7 @@ functions:
   canonical: مؤقت_قراءة_rtc
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -696,7 +696,7 @@ functions:
   canonical: مؤقت_مفعل
   namespace: KernelTimers
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -709,7 +709,7 @@ functions:
   canonical: خيط_جديد
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -722,7 +722,7 @@ functions:
   canonical: خيط_ابدأ
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -735,7 +735,7 @@ functions:
   canonical: خيط_انتظر
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -748,7 +748,7 @@ functions:
   canonical: خيط_حالة
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -761,7 +761,7 @@ functions:
   canonical: خيط_نوم
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -774,7 +774,7 @@ functions:
   canonical: خيط_معرف
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -787,7 +787,7 @@ functions:
   canonical: خيط_عدد_معالجات
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -800,7 +800,7 @@ functions:
   canonical: خيط_قائمة
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -813,7 +813,7 @@ functions:
   canonical: خيط_احذف
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -826,7 +826,7 @@ functions:
   canonical: خيط_تنازل
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -839,7 +839,7 @@ functions:
   canonical: خيط_عدد
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -852,7 +852,7 @@ functions:
   canonical: قفل_جديد
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -865,7 +865,7 @@ functions:
   canonical: قفل_أقفل
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -878,7 +878,7 @@ functions:
   canonical: قفل_حرر
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -891,7 +891,7 @@ functions:
   canonical: قفل_حاول
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -904,7 +904,7 @@ functions:
   canonical: قفل_احذف
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -917,7 +917,7 @@ functions:
   canonical: إشارة_جديدة
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -930,7 +930,7 @@ functions:
   canonical: إشارة_انتظر
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -943,7 +943,7 @@ functions:
   canonical: إشارة_أطلق
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -956,7 +956,7 @@ functions:
   canonical: إشارة_حاول
   namespace: KernelThreads
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -969,7 +969,7 @@ functions:
   canonical: لوحة_تهيئة
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -982,7 +982,7 @@ functions:
   canonical: لوحة_استطلاع
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -995,7 +995,7 @@ functions:
   canonical: لوحة_مفتاح_مضغوط
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1008,7 +1008,7 @@ functions:
   canonical: لوحة_آخر_مفتاح
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1021,7 +1021,7 @@ functions:
   canonical: لوحة_آخر_فحص
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1034,7 +1034,7 @@ functions:
   canonical: لوحة_معدلات
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1047,7 +1047,7 @@ functions:
   canonical: لوحة_إلى_حرف
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1060,7 +1060,7 @@ functions:
   canonical: لوحة_متصلة
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1073,7 +1073,7 @@ functions:
   canonical: لوحة_ثابت
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1086,7 +1086,7 @@ functions:
   canonical: فأرة_تهيئة
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1099,7 +1099,7 @@ functions:
   canonical: فأرة_استطلاع
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1112,7 +1112,7 @@ functions:
   canonical: فأرة_س
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1125,7 +1125,7 @@ functions:
   canonical: فأرة_ص
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1138,7 +1138,7 @@ functions:
   canonical: فأرة_يسار
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1151,7 +1151,7 @@ functions:
   canonical: فأرة_يمين
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1164,7 +1164,7 @@ functions:
   canonical: فأرة_وسط
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1177,7 +1177,7 @@ functions:
   canonical: فأرة_عجلة
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1190,7 +1190,7 @@ functions:
   canonical: فأرة_متصلة
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
@@ -1203,7 +1203,7 @@ functions:
   canonical: فأرة_حدود
   namespace: KernelUSB
   category: MODULE_FUNCTION
-  require_import: true
+  require_import: false
   module: NONE
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0

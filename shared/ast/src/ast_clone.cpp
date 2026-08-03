@@ -86,8 +86,18 @@ ExprPtr cloneExpression(const Expression& expr) {
         return std::make_unique<AssignExpr>(p->name, cloneE(p->value), p->position);
     
     if (auto* p = dynamic_cast<const CallExpr*>(&expr))
-        return std::make_unique<CallExpr>(
-            cloneE(p->callee), cloneEList(p->arguments), p->position);
+    {
+        // (AR) الرايتان تُنقَلان: `isSyntaxDesugared` تُعفي `|س| ⇒ مطلق(س)` من بوّابةِ
+        //      الاستيراد، فضياعُها في النسخِ يُعيد الصياغةَ الأساسيّةَ إلى الحجب؛
+        //      و`isMacroCall` تميّز `اسم!()`. النسخُ يجب أن يكون أمينًا.
+        // (EN) Both flags carry over: isSyntaxDesugared exempts `|x| ⇒ abs(x)` from the
+        //      import gate, so losing it in a clone would re-gate core syntax; isMacroCall
+        //      marks `name!()`. A clone must be faithful.
+        auto cloned = std::make_unique<CallExpr>(
+            cloneE(p->callee), cloneEList(p->arguments), p->position, p->isMacroCall);
+        cloned->isSyntaxDesugared = p->isSyntaxDesugared;
+        return cloned;
+    }
     
     if (auto* p = dynamic_cast<const IndexExpr*>(&expr))
         return std::make_unique<IndexExpr>(

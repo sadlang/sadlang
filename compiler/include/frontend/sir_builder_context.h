@@ -202,6 +202,27 @@ namespace Sad
                 //      same variable is passed as an argument (GAP 3b: variable-arg widening).
                 std::unordered_map<std::string, SadTypeKind> scanVarElementType_;
 
+                // (AR) خريطة «اسمُ الدالّة#اسمُ المتغيّر» → نوعُ مُهيّئه القياسيّ أثناء
+                //      المسح المُسبَق (الطور 1.7). علّتُها: `inferExprType` لمتغيّرٍ محلّيٍّ
+                //      كان يسقط إلى `Integer` الافتراضيّ — فالنطاقاتُ لم تُبنَ بعد وليس
+                //      المتغيّرُ معامِلًا ولا عالميًّا. فدالّةٌ لا يُنادى معامِلُها إلّا
+                //      بمتغيّرٍ محلّيٍّ نصّيٍّ يُجمَّد معامِلُها عددًا، فتُقارَن نصوصُه
+                //      بالعناوين (`الحرف >= "0"` خطأٌ دائمًا) — وهي علّةُ فشلِ مكتبةِ
+                //      جيسون مصرَّفةً بعد إصلاح ز.١٣ نفسِه.
+                //      نُسجّل القياسيَّ وحدَه (نصّ/عشريّ/منطقيّ/بايت)؛ المصفوفاتُ لها
+                //      scanVarElementType_ بدلالتها الخاصّة، والصحيحُ هو الافتراضُ أصلًا.
+                // (EN) «funcName#varName» → its scalar initializer type during the Phase-1.7
+                //      pre-pass. Why: inferExprType for a local variable fell through to the
+                //      default `Integer` — scopes are not built yet, and the variable is
+                //      neither a parameter nor a global. A function whose parameter is only
+                //      ever called with a local string variable therefore froze that
+                //      parameter as an integer, so its string comparisons ran on addresses
+                //      (`الحرف >= "0"` always false) — the reason the JSON library still
+                //      failed compiled after the ز.١٣ fix itself was correct.
+                //      Only scalars are recorded (String/Float/Boolean/Byte); arrays have
+                //      scanVarElementType_ with its own meaning, and Integer is the default.
+                std::unordered_map<std::string, SadTypeKind> scanLocalVarType_;
+
                 // (AR) [GAP 4] خريطتا المسح المُسبَق للامدات:
                 //   (١) scanLambdaVar_: اسمُ المتغيّر (مُنطاقًا باسم الدالّة) → مؤشّرُ
                 //       عقدة اللامدا التي هو مربوطٌ بها. تُملأ عند تصريح متغيّرٍ بمُهيّئٍ

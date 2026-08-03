@@ -3,6 +3,10 @@
 # @expected T01:PASS\nT02:PASS\nT03:PASS\nT04:PASS\nT05:PASS\nT06:PASS\nT07:PASS\nT08:PASS\nT09:PASS\nT10:PASS\nSUMMARY:10/10
 
 # ═══ T01: بنية أساسية — إنشاء وقراءة حقول ═══
+
+استورد شبكة
+استورد رياضيات
+
 بنية نقطة
     متغير س = 0
     متغير ص = 0

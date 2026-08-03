@@ -39,6 +39,9 @@ add_library(sad_shared STATIC
     ast/src/type_nodes.cpp
     ast/src/class_nodes.cpp          # OOP AST nodes (ThisExpr, SuperExpr, NewExpr, etc.)
     ast/src/ast_clone.cpp            # Deep clone for AST nodes (templates, macros, traits)
+    # (AR) إغلاقُ صادراتِ الوحدة — نسخةٌ واحدةٌ يستهلكها المحرّكان (دلالةُ «صدّر»)
+    # (EN) Module export closure — one copy consumed by both engines («صدّر» semantics)
+    ast/src/module_export_closure.cpp
     
     # Types
     types/src/class_type.cpp

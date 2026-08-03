@@ -1,0 +1,8 @@
+# @rule: gr.expr.array_literal
+# @description: مصفوفةٌ متداخلةٌ داخل مختلطةٍ تُطبَع كاملةً — ذراعُ Array في dynToString (ز.٢١-أ)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: [1, نصّ, [1, 2]]
+متغير داخلي = [1، 2]
+متغير خارجي = [1، "نصّ"، داخلي]
+اطبع_سطر(خارجي)

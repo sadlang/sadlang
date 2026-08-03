@@ -479,16 +479,20 @@ namespace Sad
 
             case ::Sad::Types::SadTypeKind::Array:
             {
+                // (AR) محدِّداتٌ من مصدرِ الحقيقة الموحَّد — يشاركها ذراعُ المصفوفةِ في
+                //      dynToString بالخلفيّة LLVM، فلا يمكن أن ينجرف العرضان.
+                // (EN) Delimiters from the unified SoT — shared with the array arm of
+                //      dynToString in the LLVM backend, so the two cannot drift.
                 std::ostringstream oss;
-                oss << "[";
+                oss << ::Sad::Types::repr::kArrayOpen;
                 const auto &arr = *std::get<std::shared_ptr<ArrayType>>(data_);
                 for (size_t i = 0; i < arr.size(); ++i)
                 {
                     if (i > 0)
-                        oss << ", ";
+                        oss << ::Sad::Types::repr::kArrayElemSep;
                     oss << arr[i].toString();
                 }
-                oss << "]";
+                oss << ::Sad::Types::repr::kArrayClose;
                 return oss.str();
             }
 

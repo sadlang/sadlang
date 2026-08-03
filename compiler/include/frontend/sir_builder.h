@@ -1173,9 +1173,9 @@ namespace Sad
                  * @brief (AR) معالجة استدعاء دالة مدمجة أساسية
                  * @brief (EN) Handle core builtin function call (type conv, print, math, string, array, file)
                  */
-                std::optional<BuildResult> buildBuiltinCallCore(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                std::optional<BuildResult> buildBuiltinCallCore(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands, bool isSyntaxDesugared = false)
                 {
-                    return builtins_->buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands);
+                    return builtins_->buildBuiltinCallCore(funcName, isUserDefinedFunction, argResults, argOperands, isSyntaxDesugared);
                 }
 
                 /**

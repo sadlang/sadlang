@@ -634,7 +634,14 @@ namespace Sad
             llvm::PHINode *i1 = cg_.builder_->CreatePHI(i64Ty, 2, "i1");
             llvm::PHINode *total = cg_.builder_->CreatePHI(i64Ty, 2, "total");
             i1->addIncoming(llvm::ConstantInt::get(i64Ty, 0), entryBB);
-            total->addIncoming(llvm::ConstantInt::get(i64Ty, 3), entryBB);
+            // (AR) البذرة = طولُ القوسين + بايتُ الإنهاء، محسوبةً من ثوابتِ SoT لا مكتوبةً ٣.
+            // (EN) Seed = both brackets + the terminating byte, derived from the SoT constants
+            //      rather than a written 3.
+            const int64_t kArrayFixedBytes =
+                static_cast<int64_t>(::Sad::Types::repr::kArrayOpen.size() +
+                                     ::Sad::Types::repr::kArrayClose.size() + 1);
+            const int64_t kArraySepBytes = static_cast<int64_t>(::Sad::Types::repr::kArrayElemSep.size());
+            total->addIncoming(llvm::ConstantInt::get(i64Ty, kArrayFixedBytes), entryBB);
             llvm::Value *c1 = cg_.builder_->CreateICmpSLT(i1, lenArg, "p1.lt");
             cg_.builder_->CreateCondBr(c1, p1body, allocBB);
 
@@ -643,7 +650,7 @@ namespace Sad
             llvm::Value *n1 = cg_.emitStrlen(s1, "p1.len");
             llvm::Value *commaAdd = cg_.builder_->CreateSelect(
                 cg_.builder_->CreateICmpSGT(i1, llvm::ConstantInt::get(i64Ty, 0), "p1.gt0"),
-                llvm::ConstantInt::get(i64Ty, 2), llvm::ConstantInt::get(i64Ty, 0), "p1.comma");
+                llvm::ConstantInt::get(i64Ty, kArraySepBytes), llvm::ConstantInt::get(i64Ty, 0), "p1.comma");
             llvm::Value *newTotal = cg_.builder_->CreateAdd(
                 cg_.builder_->CreateAdd(total, n1, "p1.t1"), commaAdd, "p1.t2");
             llvm::Value *nextI1 = cg_.builder_->CreateAdd(i1, llvm::ConstantInt::get(i64Ty, 1), "p1.next");
@@ -659,7 +666,12 @@ namespace Sad
             // === alloc: buf = malloc(total)؛ buf[0]='[' ===
             cg_.builder_->SetInsertPoint(allocBB);
             llvm::Value *buf = cg_.emitMalloc(total, "d2s.buf");
-            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, '['), buf);
+            // (AR) المحدِّداتُ من مصدرِ الحقيقة (value_repr.yaml) لا حرفيّاتٍ خام — نفسُ الثوابتِ
+            //      التي يستعملها المفسّرُ في Value::toString، فيستحيل انجرافُ العرضين.
+            // (EN) Delimiters come from the SoT (value_repr.yaml), not raw literals — the same
+            //      constants the interpreter uses in Value::toString, so the two cannot drift.
+            cg_.builder_->CreateStore(
+                llvm::ConstantInt::get(i8Ty, static_cast<uint8_t>(::Sad::Types::repr::kArrayOpen[0])), buf);
             cg_.builder_->CreateBr(p2chk);
 
             // === PASS 2: الملء ===
@@ -676,10 +688,17 @@ namespace Sad
             cg_.builder_->CreateCondBr(needComma, p2comma, p2elem);
 
             cg_.builder_->SetInsertPoint(p2comma);
-            llvm::Value *commaFmt = cg_.builder_->CreateGlobalStringPtr(", ", "d2s.comma");
+            llvm::Value *commaFmt =
+                cg_.builder_->CreateGlobalStringPtr(::Sad::Types::repr::kArrayElemSep, "d2s.comma");
             llvm::Value *commaDst = cg_.builder_->CreateGEP(i8Ty, buf, pos, "d2s.comma.dst");
             cg_.builder_->CreateCall(sprintfFn, {commaDst, commaFmt});
-            llvm::Value *posAfterComma = cg_.builder_->CreateAdd(pos, llvm::ConstantInt::get(i64Ty, 2), "d2s.pos.comma");
+            // (AR) التقدّمُ بطولِ الفاصلِ نفسِه لا بثابتٍ مكتوب — لو غُيّر الفاصلُ في SoT تبعه الحساب.
+            // (EN) Advance by the separator's own length, not a written constant — changing the
+            //      separator in the SoT keeps the arithmetic correct.
+            llvm::Value *posAfterComma = cg_.builder_->CreateAdd(
+                pos,
+                llvm::ConstantInt::get(i64Ty, static_cast<int64_t>(::Sad::Types::repr::kArrayElemSep.size())),
+                "d2s.pos.comma");
             cg_.builder_->CreateBr(p2elem);
 
             cg_.builder_->SetInsertPoint(p2elem);
@@ -703,7 +722,8 @@ namespace Sad
             // === p2end: ']' ثمّ '\0' ===
             cg_.builder_->SetInsertPoint(p2end);
             llvm::Value *closePtr = cg_.builder_->CreateGEP(i8Ty, buf, pos, "d2s.close");
-            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, ']'), closePtr);
+            cg_.builder_->CreateStore(
+                llvm::ConstantInt::get(i8Ty, static_cast<uint8_t>(::Sad::Types::repr::kArrayClose[0])), closePtr);
             llvm::Value *nullPos = cg_.builder_->CreateAdd(pos, llvm::ConstantInt::get(i64Ty, 1), "d2s.nullpos");
             llvm::Value *nullP = cg_.builder_->CreateGEP(i8Ty, buf, nullPos, "d2s.nullptr");
             cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), nullP);

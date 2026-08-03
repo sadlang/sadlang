@@ -18,15 +18,13 @@
 
 namespace Sad { namespace LLVM {
 
+// (AR) نوعُ بنيةِ SadArray — يُفوَّض إلى التعريفِ الوحيدِ في sad_dyn_repr (كانت هذه النسخةُ
+//      بنيويّةً `StructType::get` والأخرى مسمّاةً `create`؛ التخطيطُ واحدٌ والاسمُ يُوحَّد الآن).
+// (EN) SadArray struct type — delegated to the single definition in sad_dyn_repr (this copy was
+//      structural `StructType::get` while another was a named `create`; same layout, now unified).
 static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
 {
-    return llvm::StructType::get(ctx, {
-        llvm::Type::getInt64Ty(ctx),
-        llvm::Type::getInt64Ty(ctx),
-        llvm::PointerType::getUnqual(ctx),
-        llvm::PointerType::getUnqual(ctx), // tags (option A)
-        llvm::Type::getInt8Ty(ctx)         // homogKind (option A2): DynKind of a homogeneous array; read only when tags==null
-    });
+    return sadArrayStructType(ctx);
 }
 
 

@@ -806,6 +806,44 @@ namespace Sad
                         //      a later call site.
                         if (auto *lam = dynamic_cast<const Sad::AST::LambdaExpr *>(varDecl->initializer.get()))
                             b_.scanLambdaVar_[b_.currentScanFuncName_ + "#" + varDecl->name] = lam;
+
+                        // (AR) [ز.٢٠] سجّل نوعَ المُهيّئ القياسيّ كي يحلَّ `inferExprType`
+                        //      المتغيّرَ المحلّيَّ بدل السقوط إلى `Integer` الافتراضيّ.
+                        //      النوعُ المصرَّح يسبق المستنتَجَ (`نص س = ...` قاطع).
+                        //
+                        //      🔑 **النصُّ وحدَه يُسجَّل.** جرّبتُ القياسيَّ كلَّه (عشريّ/منطقيّ/
+                        //      بايت) فسقط توليدُ LLVM على تأكيدِ «نداءٌ بتوقيعٍ فاسد»: منطقُ
+                        //      التضاربِ في تحديثِ المعامل (أعلاه) يدعم النصَّ حصرًا — النصُّ
+                        //      يلتصق ويُحوَّل الوسيطُ في موقعِ النداء (BOOL_TO_STRING/
+                        //      I64_TO_STRING) — ولا نظيرَ لذلك للعشريِّ والمنطقيّ، فترقيةُ
+                        //      معامِلٍ مشترَكٍ إليهما تخالف توقيعَ الجسم المبنيّ.
+                        //      وهو نفسُ درسِ «الموقع الأوّل يفوز» في GAP 3b: لا تُجمّد نوعًا
+                        //      محدَّدًا لا يملك مسارَ مصالحةٍ عند موقعٍ لاحقٍ مختلف.
+                        // (EN) [ز.٢٠] Record the initializer type so inferExprType can resolve
+                        //      the local variable instead of defaulting to Integer. A declared
+                        //      type wins over an inferred one.
+                        //      🔑 STRING ONLY. Recording every scalar (Float/Boolean/Byte) was
+                        //      tried and crashed LLVM codegen with "Calling a function with a
+                        //      bad signature!": the conflict logic in the parameter update above
+                        //      supports String exclusively — String sticks and the ARGUMENT is
+                        //      converted at the call site (BOOL_TO_STRING/I64_TO_STRING) — with
+                        //      no counterpart for Float/Boolean, so promoting a shared parameter
+                        //      to those contradicts the already-built body's signature.
+                        //      Same lesson as GAP 3b's first-site-wins: never freeze a concrete
+                        //      type that has no reconciliation path at a differing later site.
+                        {
+                            const SadTypeKind declared = b_.astTypeToSIRType(varDecl->type);
+                            const SadTypeKind initType =
+                                (declared == SadTypeKind::String)
+                                    ? declared
+                                    : inferExprType(varDecl->initializer.get());
+                            if (initType == SadTypeKind::String)
+                            {
+                                b_.scanLocalVarType_[b_.currentScanFuncName_ + "#" + varDecl->name] =
+                                    SadTypeKind::String;
+                            }
+                        }
+
                         scanCallSitesInExpr(varDecl->initializer.get());
                     }
                     return;
@@ -1334,6 +1372,74 @@ namespace Sad
                     }
                 };
 
+                // ════════════════════════════════════════════════════════════════════
+                // (AR) [ز.٣٥] إعادةُ استنتاجِ أنواعِ الإرجاعِ بين التمريرات.
+                //
+                //      نوعُ الإرجاعِ المُستنتَجُ يُحسَب **قبل** هذه المرحلة، أي حين تكون
+                //      معاملاتُ الدالّةِ ما تزال Integer الافتراضيّة. فدالّةٌ كـ
+                //          دالة حرف_عند(المصدر، الموضع)   ارجع المصدر.جزء(الموضع، 1)   نهاية
+                //      يُستنتَج إرجاعُها Integer لأنّ `المصدر` عددٌ وقتَ الحساب. ثمّ تُصحَّح
+                //      معاملاتُها هنا إلى نصّ — لكنّ نوعَ الإرجاعِ يبقى على خطئه، فيصير
+                //      كلُّ معاملٍ لا يُغذّيه إلّا نداءٌ لها عددًا أيضًا:
+                //          دالة هو_رقم(الحرف)   ارجع الحرف >= "0"   نهاية
+                //          هو_رقم(حرف_عند("42"، 0))   ⇒ **مقارنةُ مؤشّرين عدديًّا**
+                //      ونتيجتُها خطأٌ صامتٌ بلا تشخيص: المفسّرُ «صحيح» والمصرّفُ «خطأ».
+                //      وكان يُخفيه أيُّ موقعِ نداءٍ آخرَ بحرفيّةٍ نصّيّة، فيبدو العيبُ عشوائيًّا.
+                //
+                //      و`inferReturnTypeFromBody` تقرأ أنواعَ المعاملاتِ من `functionTable_`
+                //      (لا من الشجرة)، فإعادةُ تشغيلِها بعد كلِّ تمريرةٍ تلتقط التصحيحَ
+                //      وتجعل المرحلةَ نقطةً ثابتةً بحقٍّ لا تمريرتين مستقلّتين.
+                //
+                //      تقتصر إعادةُ الحسابِ على ما نوعُ إرجاعِه **غيرُ مصرَّحٍ في المصدر**؛
+                //      فالمصرَّحُ عقدُ الكاتبِ ولا يُخمَّن فوقه. ولا نكتب نوعًا فارغًا فوق
+                //      نوعٍ قائمٍ كي لا تُفقَد معلومةٌ صحّت في تمريرةٍ سابقة.
+                // (EN) [ز.٣٥] Re-infer return types between passes.
+                //      An inferred return type is computed BEFORE this phase, while the
+                //      function's parameters are still the default Integer — so a helper
+                //      returning `src.substr(i, 1)` infers Integer, and every parameter fed
+                //      only by a call to it stays Integer too, turning a string comparison
+                //      into a pointer comparison: a SILENT wrong answer (interpreter true,
+                //      compiler false) that any other string-literal call site would mask.
+                //      `inferReturnTypeFromBody` reads parameter types from `functionTable_`,
+                //      so re-running it per pass makes this phase a genuine fixed point.
+                //      Only source-undeclared return types are recomputed (a declared one is
+                //      the author's contract), and a Void result never overwrites a type
+                //      already established by an earlier pass.
+                // ════════════════════════════════════════════════════════════════════
+                //      ⚠️ تحديثٌ **متزامن**: تُحسَب الأنواعُ كلُّها أوّلًا ثمّ تُكتَب دفعةً.
+                //      لو كُتب كلُّ نوعٍ فورَ حسابه لَقرأت الدالّةُ التاليةُ نتيجةَ سابقتِها،
+                //      وترتيبُ `functionTable_` (unordered_map) غيرُ مضمونٍ بين البناءاتِ
+                //      والمنصّات ⇒ **مخرَجُ ترجمةٍ يتغيّر بلا تغيُّرِ مصدر**. والتحديثُ
+                //      الدفعيُّ يجعل كلَّ تمريرةٍ دالّةً من الحالةِ السابقةِ وحدَها.
+                //      وتُعاد التمريراتُ حتّى الثباتِ بسقفٍ صريح، فلا تنتهي على نتيجةٍ
+                //      وسيطةٍ لمجرّدِ نفادِ العدد.
+                // (EN) ⚠️ SYNCHRONOUS update: compute every type first, then write them as a
+                //      batch. Writing each result immediately would let the next function read
+                //      the previous one's, and `functionTable_` is an unordered_map whose
+                //      iteration order is not guaranteed across builds/platforms — compiler
+                //      output could change without a source change. Batching makes each pass a
+                //      function of the previous state alone, and passes repeat until a fixed
+                //      point (with an explicit cap) rather than stopping mid-convergence.
+                auto reinferReturnTypes = [&]() -> bool
+                {
+                    std::vector<std::pair<std::string, SadTypeKind>> pending;
+                    for (auto &entry : b_.functionTable_)
+                    {
+                        const Sad::AST::FunctionDecl *decl = entry.second.astDecl;
+                        if (!decl || !decl->body)
+                            continue;
+                        if (decl->returnType != Types::SadTypeKind::Unknown &&
+                            decl->returnType != Types::SadTypeKind::Void)
+                            continue;
+                        const SadTypeKind fresh = inferReturnTypeFromBody(decl->body.get(), decl);
+                        if (fresh != SadTypeKind::Void && fresh != entry.second.returnType)
+                            pending.emplace_back(entry.first, fresh);
+                    }
+                    for (const auto &upd : pending)
+                        b_.functionTable_[upd.first].returnType = upd.second;
+                    return !pending.empty();
+                };
+
                 // (AR) مسح كل الجمل — عدة تمريرات للاستنتاج المتعدي. نمسح البرنامج
                 //      الرئيس وأجسام الوحدات المستوردة في كلّ تمريرة كي ينتشر النوع
                 //      عبر حدود الوحدات (رسالة⇒تحية) تمامًا كانتشاره داخل وحدةٍ واحدة.
@@ -1341,11 +1447,21 @@ namespace Sad
                 //      scan the main program and the imported module bodies on every pass
                 //      so a type propagates across module boundaries (رسالة⇒تحية) exactly
                 //      as it does within a single module.
+                // (AR) السقفُ ثلاثُ تمريراتٍ كما كان، لكنّنا نخرج مبكّرًا متى استقرّت أنواعُ
+                //      الإرجاع — فالمشروعُ الكبيرُ لا يدفع ثمنَ مسحٍ كاملٍ لا يغيّر شيئًا.
+                //      (لا نخرج قبل تمريرتين: الأولى تُصحّح المعاملات، والثانية تلتقط أثرَها.)
+                // (EN) The cap stays at three passes, but we exit early once return types have
+                //      settled, so a large project does not pay for a full scan that changes
+                //      nothing. Never before two passes: the first fixes parameters, the second
+                //      picks up their effect.
                 for (int pass = 0; pass < 3; pass++)
                 {
                     scanStmtList(program);
                     for (Sad::AST::StmtList *body : b_.importedModuleBodies_)
                         scanStmtList(body);
+                    const bool changed = reinferReturnTypes();
+                    if (!changed && pass >= 1)
+                        break;
                 }
             }
 

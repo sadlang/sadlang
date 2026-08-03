@@ -41,6 +41,8 @@
 #include "statement_executor.h"
 #include "module_nodes.h"
 #include "declarations.h"
+// (AR) إغلاقُ صادراتِ الوحدة — مشتركٌ مع المصرِّف / (EN) shared with the compiler
+#include "module_export_closure.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
 #include "parser_core.h"
@@ -120,10 +122,101 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
         funcNamesBefore.insert(allFuncNames.begin(), allFuncNames.end());
     }
     
+    // ═════════════════════════════════════════════════════════════════════
+    // (AR) دوالُّ الوحدةِ الخاصّة: تصريحُ دالّةٍ في أعلى شجرتِها **غيرُ** ملفوفٍ
+    //      بـ«صدّر». وهي التمييزُ الذي كان ناقصًا: كتلةُ «إعادةِ التصديرِ
+    //      التلقائيّ» أدناه تعيد تصديرَ كلِّ دالّةٍ جديدةٍ لتُمرِّرَ ما استوردته
+    //      الوحدةُ بـ«*»، لكنّها لم تكن تفرّق بين ما **مرّ** عبر الوحدة وما
+    //      **عُرّف** فيها خاصًّا ⇒ فأبطلت «صدّر» رأسًا. المعرَّفُ هنا يُستثنى.
+    // (EN) The module's private functions: a top-level FunctionDecl NOT wrapped
+    //      in ExportDecl. This was the missing distinction — the auto re-export
+    //      block below re-exports every new function so wildcard-imported
+    //      symbols pass through, but it could not tell a symbol that PASSED
+    //      THROUGH from one DEFINED here privately, nullifying «صدّر».
+    // ═════════════════════════════════════════════════════════════════════
+    //      ويُحسَب «هل للوحدةِ تصديرٌ صريح؟» هنا قبل التنفيذ، لا أثناءه: الإغلاقُ
+    //      أدناه يحتاج الجوابَ مقدَّمًا، وكان يُضبَط داخلَ حلقةِ التنفيذِ فيصل
+    //      متأخّرًا عن موضعِ الحاجة.
+    // (EN) "Does this module export explicitly?" is answered here, before
+    //      execution rather than during it: the closure below needs the answer
+    //      up front, and it used to be set inside the execution loop — too late.
+    // ═════════════════════════════════════════════════════════════════════
+    bool hasExplicitExports = false;
+    std::set<std::string> privateFuncsDeclaredHere;
+    for (const auto& declStmt : module->ast) {
+        if (!declStmt) continue;
+        // (AR) «صدّر تصريح» تُلَفُّ بعقدةِ `ExportDecl`/`ExportStmt`، والرايةُ
+        //      `isExported` تُقرأ احتياطًا لمن يبنيها مباشرةً. المُصدَّرُ لا
+        //      يُفهرَس خاصًّا، والخاصُّ وحدَه يخضع للحجب.
+        // (EN) «صدّر <decl>» is wrapped in an ExportDecl/ExportStmt node; the
+        //      isExported flag is read as a fallback for directly-built nodes.
+        //      An export is never indexed as private; only privates are hidden.
+        const AST::Statement* inner = declStmt.get();
+        bool wrappedExport = false;
+        if (auto* ed = dynamic_cast<AST::ExportDecl*>(declStmt.get())) {
+            inner = ed->declaration.get();
+            wrappedExport = true;
+        } else if (auto* es = dynamic_cast<AST::ExportStmt*>(declStmt.get())) {
+            inner = es->declaration.get();
+            wrappedExport = true;
+        }
+        if (!inner) continue;
+
+        if (auto* fnDecl = dynamic_cast<const AST::FunctionDecl*>(inner)) {
+            if (wrappedExport || fnDecl->isExported) {
+                hasExplicitExports = true;
+                exportedSymbols_.insert(fnDecl->name);
+            } else {
+                privateFuncsDeclaredHere.insert(fnDecl->name);
+            }
+        } else if (auto* clsDecl = dynamic_cast<const AST::ClassDecl*>(inner)) {
+            if (wrappedExport || clsDecl->isExported) {
+                hasExplicitExports = true;
+                exportedSymbols_.insert(clsDecl->name);
+            }
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════
+    // (AR) لا يُحجَب كلُّ خاصّ: دالّةٌ مُصدَّرةٌ تنادي مساعدًا خاصًّا، فحجبُ
+    //      المساعِدِ يُعطِب المُصدَّرَ نفسَه — أيْ تستحيل على المكتبةِ بنيةٌ
+    //      داخليّة. المحجوبُ هو ما **لا يبلغه** المُصدَّرُ تعدّيًا. والحسابُ
+    //      مشتركٌ مع المصرِّف (`shared/ast`)، فلا تتباعد الإجابتان.
+    // (EN) Not every private symbol is hidden: an exported function calling a
+    //      private helper breaks if the helper is hidden — a library could then
+    //      have no internals at all. What is hidden is what the exports do NOT
+    //      transitively reach. The computation is shared with the compiler
+    //      (`shared/ast`), so the two answers cannot drift apart.
+    // ═════════════════════════════════════════════════════════════════════
+    // (AR) اسمٌ له تحميلٌ مُصدَّرٌ وآخرُ خاصّ ليس خاصًّا: الحذفُ يقع **بالاسم** فيمسح
+    //      التحميلاتِ كلَّها بما فيها المُصدَّر. (`صدّر دالة س(أ)` مع `دالة س(أ، ب)`
+    //      كان يُفقِد `س(41)` رأسًا.)
+    // (EN) A name with both an exported and a private overload is not private: removal is
+    //      BY NAME and would erase every overload including the exported one.
+    for (const auto& exportedName : exportedSymbols_)
+        privateFuncsDeclaredHere.erase(exportedName);
+
+    if (hasExplicitExports) {
+        const std::set<std::string> reachablePrivate =
+            AST::computeExportedPrivateClosure(module->ast, {}, /*isWildcard=*/true);
+        for (const auto& reached : reachablePrivate)
+            privateFuncsDeclaredHere.erase(reached);
+    }
+
+    // (AR) هل هذا الرمزُ خاصٌّ بهذه الوحدة؟ يشمل الاسمَ المصرَّحَ واسمَ الإغلاقِ
+    //      المشتقَّ منه (`س__closure_N`) الذي يولّده تنفيذُ التصريح.
+    // (EN) Is this symbol private to this module? Covers both the declared name
+    //      and the derived closure name (`f__closure_N`) execution generates.
+    auto isPrivateModuleSymbol = [&privateFuncsDeclaredHere](const std::string& symbol) {
+        if (privateFuncsDeclaredHere.count(symbol)) return true;
+        const size_t marker = symbol.find("__closure_");
+        return marker != std::string::npos &&
+               privateFuncsDeclaredHere.count(symbol.substr(0, marker)) > 0;
+    };
+
     // (AR) المرحلة 1: تنفيذ كل جمل الوحدة
     // (EN) Phase 1: Execute all module statements
-    bool hasExplicitExports = false;
-    
+
     for (auto& stmt : module->ast) {
         if (!stmt) continue;
         
@@ -190,6 +283,14 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
                 if (varName.find("__") == 0) continue;       // internal
                 if (varName.find("_") == 0) continue;        // private by convention
                 if (moduleExports.find(varName) != moduleExports.end()) continue;
+                // (AR) هنا مكمنُ التسريب: `دالة س(...)` تُسجَّل **متغيّرَ إغلاق**
+                //      باسمها لا دالّةً في مُدير الدوالّ، فكانت تمرّ من هذه
+                //      الحلقةِ إلى الصادرات فتُرى خارج وحدتها رغم غياب «صدّر».
+                // (EN) The actual leak: `دالة س(...)` registers as a CLOSURE
+                //      VARIABLE under its own name, not as a function in the
+                //      function manager, so it slipped through this loop into
+                //      the exports and stayed visible without «صدّر».
+                if (isPrivateModuleSymbol(varName)) continue;
                 const auto* val = variableManager_.tryGet(varName);
                 if (val) {
                     moduleExports[varName] = *val;
@@ -219,6 +320,9 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
                     if (funcName.find("__") == 0) continue;
                     if (funcName.find("_") == 0) continue;
                     if (moduleExports.find(funcName) != moduleExports.end()) continue;
+                    // (AR) عُرّفت هنا بلا «صدّر» ⇒ خاصّة، لا تُعاد تصديرًا
+                    // (EN) Declared here without «صدّر» ⇒ private, not re-exported
+                    if (isPrivateModuleSymbol(funcName)) continue;
                     auto overloads = functionManager_.getFunctionOverloads(funcName);
                     bool hasUserDefined = false;
                     for (const auto& funcDef : overloads) {
@@ -333,10 +437,56 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
         }
     }
     
+    // ═════════════════════════════════════════════════════════════════════
+    // (AR) دلالةُ «صدّر»: غيرُ المُصدَّرِ لا يُرى من خارجِ وحدته.
+    //
+    //      مصدرُ الحقيقةِ صريح (grammar/20_declarations.yaml، gr.decl.export):
+    //      «صدّر تسبق تصريحًا فتُتيحه للاستيراد من وحدات أخرى» ⇒ فما لم يُصدَّر
+    //      لا يُتاح. وكان المفسّرُ يخالف ذلك بحكم آليّته لا بقرار: تنفيذُ جملِ
+    //      الوحدةِ يسجّل **كلَّ** دوالّها في مُديرِ الدوالِّ العامّ، فتبقى منظورةً
+    //      بعد انتهاء الوحدة سواءٌ صُدّرت أم لا. فدالّةٌ خاصّةٌ في وحدةٍ تظهر في
+    //      الملفّ المستورِد — والمصرِّفُ يرفضها ⇒ تباعدٌ صريح.
+    //
+    //      نحذف هنا ما سجّلته الوحدةُ ولم تُصدِّره، حصرًا (funcNamesBefore يمنع
+    //      المساسَ بما كان مسجَّلًا قبلها: المدمَجاتُ ودوالُّ المستورِد).
+    // (EN) «صدّر» semantics: a non-exported declaration is invisible outside its
+    //      module. The SoT is explicit — export is what makes a declaration
+    //      importable. The interpreter violated this mechanically, not by design:
+    //      executing the module's statements registers EVERY function in the global
+    //      function manager, so private ones stayed visible while the compiler
+    //      rejected them. We drop exactly what this module added and did not export;
+    //      funcNamesBefore guarantees nothing pre-existing is touched.
+    // ═════════════════════════════════════════════════════════════════════
+    // (AR) الحجبُ مشروطٌ بأن تستعمل الوحدةُ «صدّر» أصلًا. فوحدةٌ لم تُصدِّر شيئًا
+    //      قطُّ تبقى تُتيح كلَّ دوالِّها (العُرفُ القائم، ويعتمد عليه
+    //      `_وحدة_تمرير_المصفوفات.ص`)؛ وبلا هذا الشرطِ كانت تُمسَح دوالُّها
+    //      كلُّها فيصير فرعُ «التصديرِ الضمنيِّ» أعلاه بناءً على ما حُذف لتوّه.
+    // (EN) Hiding applies only if the module uses «صدّر» at all. A module that never
+    //      exports keeps every function visible (the existing convention, relied on by
+    //      `_وحدة_تمرير_المصفوفات.ص`); without this guard all of them were erased and
+    //      the implicit-export branch above built exports from just-deleted functions.
+    if (hasExplicitExports)
+    {
+        // (AR) نحذف ما عرّفته هذه الوحدةُ **خاصًّا** حصرًا — لا كلَّ جديدٍ غيرِ
+        //      مُصدَّر. فالوحدةُ قد تستورد وحدةً مدمَجةً (`استورد شبكة`) فتُسجَّل
+        //      مدمَجاتُها جديدةً وغيرَ مُصدَّرة، وحذفُها يُفقِد المكتبةَ أدواتِها
+        //      بعد سطرٍ واحدٍ من استعمالها (انهارت `stdlib/شبكات.ص` هكذا).
+        // (EN) Drop only what this module declared PRIVATE, not everything new
+        //      and unexported: a module may `استورد` a builtin module, whose
+        //      functions are then new and unexported — deleting them stripped
+        //      the library of its own tools (this broke stdlib/شبكات.ص).
+        auto allFuncNamesNow = functionManager_.getFunctionNames();
+        for (const auto& funcName : allFuncNamesNow) {
+            if (funcNamesBefore.find(funcName) != funcNamesBefore.end()) continue;
+            if (!isPrivateModuleSymbol(funcName)) continue;
+            functionManager_.removeFunction(funcName);
+        }
+    }
+
     // (AR) الخروج من نطاق الوحدة
     // (EN) Exit module scope
     scopeManager_.popScope();
-    
+
     // (AR) استعادة الحالة السابقة
     // (EN) Restore previous state
     flowControl_ = savedFlowControl;

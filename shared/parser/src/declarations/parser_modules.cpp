@@ -238,8 +238,31 @@ StmtPtr ParserCore::parseImportStmt() {
     
     // (AR) التحقق: هل يلي المعرّف فاصلة (عدة عناصر) أو 'كـ' أو 'من'
     // (EN) Check: does comma (multiple items), 'as', or 'from' follow?
-    
-    if (checkComma() || check(TT::KEYWORD_FROM) || check(TT::KEYWORD_AS)) {
+
+    // (AR) [ز.٣٣] «من» في سطرٍ تالٍ **تبدأ جملةً جديدة** لا تُكمِل هذه. فبلا هذا
+    //      الحارس تُقرأ سطران متجاوران:
+    //          استورد رياضيات
+    //          من نصوص استورد قص
+    //      جملةً واحدةً `استورد رياضيات من نصوص` ⇒ «الرمز 'رياضيات' غير موجود في
+    //      الوحدة 'نصوص'»، وتبقى `استورد قص` جملةً ثانيةً ⇒ «لم يُعثر على الوحدة».
+    //      والسطرُ الفارغُ لا يفصل، لأنّ المُعجِميَّ لا يُصدِر رمزَ نهايةِ سطرٍ أصلًا؛
+    //      فالفصلُ يُستنبَط من `Position::line` وحدَه. و`previous_` هنا هو المعرّفُ
+    //      الأوّلُ المُستهلَكُ للتوّ، فالمقارنةُ به لا تحتاج حالةً إضافيّة.
+    //      الفاصلةُ **لا** تُحرَس: `استورد جمع،⏎ ضرب من حساب` قائمةٌ مشروعةٌ متعدّدةُ
+    //      الأسطر، والفاصلةُ ذاتُها علامةُ استمرارٍ صريحة بخلاف بدايةِ جملةٍ بـ«من».
+    // (EN) [ز.٣٣] A `من` on a LATER line starts a new statement rather than
+    //      continuing this one. Without this guard two adjacent lines merge into a
+    //      single `import X from Y`. A blank line does not separate them: the lexer
+    //      emits no newline token at all, so separation is derived from
+    //      `Position::line`. `previous_` is the identifier just consumed, so no
+    //      extra state is needed. The comma is deliberately NOT guarded — a
+    //      multi-line item list is legitimate and the comma itself marks
+    //      continuation explicitly, unlike a line that merely begins with `من`.
+    const bool fromOnSameLine =
+        check(TT::KEYWORD_FROM) &&
+        current_.getPosition().line == previous_.getPosition().line;
+
+    if (checkComma() || fromOnSameLine || check(TT::KEYWORD_AS)) {
         // (AR) جمع قائمة العناصر / (EN) Collect items list
         std::vector<ImportItem> items;
         
@@ -282,7 +305,25 @@ StmtPtr ParserCore::parseImportStmt() {
         }
         
         // (AR) الآن يجب أن تأتي 'من' / (EN) Now 'from' must follow
-        if (!match(TT::KEYWORD_FROM)) {
+        //      [ز.٣٣ — تتمّة] عنصرٌ واحدٌ بلا فاصلة (`استورد وحدة كـ اسم`) لا لبسَ فيه:
+        //      «من» في سطرٍ تالٍ تبدأ جملةً جديدة، تمامًا كالحارسِ عند مدخلِ الحالة ٣.
+        //      بلا هذا يبقى العيبُ نفسُه حيًّا في مسارِ الاسمِ المستعار:
+        //          استورد نصوص كـ ن
+        //          من رياضيات استورد إشارة   ⇒ «الرمز 'نصوص' غير موجود في 'رياضيات'»
+        //      أمّا القائمةُ متعدّدةُ العناصر فمُلتبِسةٌ حقًّا (`استورد جمع،⏎ ضرب⏎ من حساب`
+        //      مشروعةٌ و«من» فيها في سطرٍ تالٍ)، فلا تُحرَس — قيدٌ معلَنٌ لا سهوٌ.
+        // (EN) [ز.٣٣ — follow-up] A single item with no comma (`import module as name`) is
+        //      unambiguous: a `من` on a later line starts a new statement, exactly as at the
+        //      case-3 entry guard. Without this the same defect survives on the alias path.
+        //      A multi-item list IS genuinely ambiguous (a legitimate list may span lines with
+        //      `من` on a later one), so it is deliberately left unguarded — a declared limit.
+        const bool singleItemNoComma = items.size() == 1;
+        const bool fromContinuesThisImport =
+            check(TT::KEYWORD_FROM) &&
+            (!singleItemNoComma ||
+             current_.getPosition().line == previous_.getPosition().line);
+
+        if (!fromContinuesThisImport || !match(TT::KEYWORD_FROM)) {
             // (AR) ربما هي الصيغة القديمة: استورد وحدة كـ اسم (بدون 'من')
             // (EN) Maybe old syntax: import module as alias (without 'from')
             if (items.size() == 1 && items[0].alias.has_value()) {

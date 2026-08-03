@@ -29,6 +29,10 @@
 #include "user_thrown.h"
 #include "suggestions.h"
 #include "profiler_hooks.h"
+// (AR) بوّابةُ الاستيراد المولَّدة (IMPORT_GATE) + سجلُّ الوحدات المحمَّلة
+// (EN) The generated import gate + the loaded-module registry
+#include "builtin_registry.h"
+#include "builtin_module_registry.h"
 #include <iostream>
 #include <unordered_map>
 #include <algorithm>
@@ -285,7 +289,11 @@ namespace Sad
                             }
                             catch (...)
                             {
-                                throw Interpreter::UserThrownException(
+                                // (AR) مؤهَّلٌ كاملًا: `builtin_registry.h` يصرّح `class Interpreter`
+                                //      داخل `Sad::Interpreter`، فيحجب الاسمُ المصرَّحُ اسمَ الفضاء.
+                                // (EN) Fully qualified: builtin_registry.h declares class Interpreter
+                                //      inside Sad::Interpreter, shadowing the namespace name.
+                                throw Sad::Interpreter::UserThrownException(
                                     "(AR) خطأ غير معروف في باني الصنف الأساسي '" + baseClassName + "'. "
                                                                                                    "(EN) Unknown error in base class constructor '" +
                                         baseClassName + "'.",
@@ -457,6 +465,66 @@ namespace Sad
                 }
             }
 
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) بوّابةُ الاستيراد — نقطةُ الاختناقِ الوحيدة في المفسّر.
+            //
+            //      المفسّرُ يسجّل جزءًا من المكتبةِ القياسيّةِ **عند الإقلاع**
+            //      (StandardLibraryManager) وجزءًا **عند الاستيراد**، فما سُجّل
+            //      إقلاعًا كان يعمل بلا `استورد` مهما قال مصدرُ الحقيقة. والمصرِّفُ
+            //      يحجب بجدولٍ آخر. فبرنامجٌ واحدٌ يسلك مسلكين.
+            //
+            //      الحجبُ هنا — لا عند التسجيل — عمدًا: التسجيلُ موزَّعٌ على عشراتِ
+            //      الملفّات، والنداءُ نقطةٌ واحدة. فيبقى التسجيلُ كما هو ويُرفَض
+            //      النداءُ إن لم تُستورَد الوحدةُ التي يقول SoT إنّها تملكه.
+            //
+            //      ودالّةُ المستخدمِ لا تمرّ من هنا: الحجبُ مشروطٌ بـ
+            //      hasNativeImplementation، فمن عرّف `مربع` بنفسه لم يُحجَب.
+            // (EN) The import gate — the interpreter's single choke point.
+            //      Part of the stdlib registers at STARTUP and part on import, so
+            //      whatever registered at startup worked without «استورد» no matter
+            //      what the SoT said, while the compiler gated by a different table.
+            //      Gating at the CALL (not at registration) is deliberate:
+            //      registration is spread over dozens of files; the call is one spot.
+            //      A user-defined function never reaches this: the gate requires
+            //      hasNativeImplementation, so redefining «مربع» yourself is unaffected.
+            // ═══════════════════════════════════════════════════════════════
+            //      ونداءُ الصياغةِ المخفَّضةِ (`|س|` ⇒ `مطلق(س)`) يتخطّى البوّابة:
+            //      صياغةُ اللغةِ الأساسيّةُ لا تُحجَب خلف وحدة.
+            // (EN) A syntax-desugared call (`|x|` ⇒ `abs(x)`) skips the gate: core
+            //      language syntax is never hidden behind a module.
+            if (func && func->hasNativeImplementation() && !node.isSyntaxDesugared)
+            {
+                // (AR) الاسمُ قد يُحجَب في أكثرَ من وحدة (`أرسل` في «شبكة» و«تزامن_متقدم»)
+                //      فيكفي استيرادُ إحداها؛ واختيارُ واحدةٍ اعتباطًا كان يمنع الأخرى.
+                // (EN) A name may be gated by several modules (`أرسل` in both network and
+                //      async); importing any one suffices. Picking one arbitrarily blocked
+                //      the other legitimate use.
+                const std::string requiredModule =
+                    std::string(Sad::Builtins::importGateUnsatisfiedModuleName(
+                        std::string_view(funcName),
+                        [](std::string_view moduleName) {
+                            return BuiltinModuleRegistry::getInstance().isModuleLoaded(
+                                std::string(moduleName));
+                        }));
+                if (!requiredModule.empty())
+                {
+                    const std::string msgAr =
+                        "الدالة '" + funcName + "' تنتمي إلى وحدة '" + requiredModule +
+                        "' ولم تُستورَد\n    💡 جرّب: استورد " + requiredModule;
+                    const std::string msgEn =
+                        "Function '" + funcName + "' belongs to module '" + requiredModule +
+                        "' which was not imported\n    💡 Try: import " + requiredModule;
+                    Sad::Errors::ErrorManager::getInstance().reportError(
+                        Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
+                        Sad::Errors::SourceLocation(getDispatchSourceFilename(),
+                                                    static_cast<int>(node.position.line),
+                                                    static_cast<int>(node.position.column)),
+                        msgAr, msgEn);
+                    lastResult_ = Value();
+                    return;
+                }
+            }
+
             // (AR) إذا لم نجد دالة مناسبة
             // (EN) If no suitable function found
             if (!func)
@@ -469,8 +537,19 @@ namespace Sad
                 {
                     // (AR) دالة غير معرّفة — مع اقتراح "هل قصدت؟"
                     // (EN) Undefined function — with "Did you mean?" suggestion
-                    std::string msgAr = "الدالة '" + funcName + "' غير معرفة بعدد معاملات " + std::to_string(arguments.size());
-                    std::string msgEn = "Function '" + funcName + "' not defined with " + std::to_string(arguments.size()) + " parameters";
+                    //
+                    // (AR) الاسمُ المعروضُ اسمُ المستخدمِ لا اسمُ الإغلاقِ المشتقّ:
+                    //      تُسجَّل `دالة س(...)` داخليًّا `س__closure_N`، وكان هذا
+                    //      اللاحِقُ يظهر في وجه المستخدم فيحيله على رمزٍ لم يكتبه.
+                    // (EN) Show the user's name, not the derived closure name:
+                    //      `دالة س(...)` registers as `س__closure_N` internally, and
+                    //      that suffix leaked into the message, naming a symbol the
+                    //      user never wrote.
+                    const size_t closureMarker = funcName.find("__closure_");
+                    const std::string displayName =
+                        closureMarker == std::string::npos ? funcName : funcName.substr(0, closureMarker);
+                    std::string msgAr = "الدالة '" + displayName + "' غير معرفة بعدد معاملات " + std::to_string(arguments.size());
+                    std::string msgEn = "Function '" + displayName + "' not defined with " + std::to_string(arguments.size()) + " parameters";
 
                     // (AR) بحث عن أسماء دوال مشابهة / (EN) Search for similar function names
                     auto availableFuncs = functionManager_.getFunctionNames();

@@ -50,7 +50,11 @@ namespace Sad
 
                 std::optional<BuildResult> buildBuiltinSystem_Async(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
 
-                std::optional<BuildResult> buildBuiltinCallCore(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+                // (AR) isSyntaxDesugared: نداءٌ وَلَّدَته صياغةُ اللغةِ (`|س|` ⇒ `مطلق(س)`)
+                //      فتتخطّاه بوّابةُ الاستيراد — صياغةُ اللغةِ لا تُحجَب خلف وحدة.
+                // (EN) isSyntaxDesugared: a call synthesized by the syntax; the import
+                //      gate skips it — core syntax is never hidden behind a module.
+                std::optional<BuildResult> buildBuiltinCallCore(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands, bool isSyntaxDesugared = false);
 
                 std::optional<BuildResult> buildBuiltinSystem_Embedded(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
 

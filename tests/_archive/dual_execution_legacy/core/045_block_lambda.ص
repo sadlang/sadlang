@@ -2,6 +2,8 @@
 # @description اختبار الصيغتين: لامدا(م) كتلة نهاية + لامدا(م) => كتلة نهاية — مع متغيرات محلية، حلقات، إذا متعددة
 # @expected B01:PASS\nB02:PASS\nB03:PASS\nB04:PASS\nB05:PASS\nB06:PASS\nB07:PASS\nB08:PASS\nSUMMARY:8/8
 
+استورد خرائط
+
 متغير تمرير = 0
 متغير فشل = 0
 

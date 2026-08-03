@@ -21,6 +21,9 @@ namespace Sad { namespace Types { namespace repr {
     inline const std::string kNullDisplay = "لاشيء";  // عرضُ قيمةِ العدم/الفراغ (Null/Void) — يطابق Value::toString والمفسّر وdynToString
     inline const std::string kBoolTrueDisplay = "صحيح";  // عرضُ القيمةِ المنطقيّةِ الصادقة
     inline const std::string kBoolFalseDisplay = "خطأ";  // عرضُ القيمةِ المنطقيّةِ الكاذبة
+    inline const std::string kArrayOpen = "[";  // قوسُ فتحِ عرضِ المصفوفة
+    inline const std::string kArrayClose = "]";  // قوسُ إغلاقِ عرضِ المصفوفة
+    inline const std::string kArrayElemSep = ", ";  // فاصلُ عناصرِ عرضِ المصفوفة (لاتينيٌّ — يطابق المفسّر)
 } } }  // Sad::Types::repr
 
 #endif  // SAD_VALUE_REPR_GENERATED_H

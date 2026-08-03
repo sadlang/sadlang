@@ -145,10 +145,33 @@ namespace Sad
         /// (EN) dynamic compare (== != < <= > >=): if either side is Float ⇒ fcmp on double; else
         ///      signed icmp. Structurally closes "< > between two boxes". Returns i1.
         llvm::Value *dynCompare(LLVMCodeGen &cg, DynCmp cmp, llvm::Value *l, llvm::Value *r);
-        /// (AR) نص(ديناميّ): يوزّع على الوسم (صحيح/عشريّ/منطقيّ/نصّ/عدم) ويطابق المفسّر. مؤشّر char*.
-        /// (EN) toString(dynamic): dispatches on the kind (int/float/bool/str/null), matches the
-        ///      interpreter. Returns a char*.
+        /// (AR) نوعُ بنيةِ SadArray — التعريفُ **الوحيد**: {i64 طول، i64 سعة، ptr بيانات،
+        ///      ptr وسوم (أو null)، i8 نوعٌ متجانس}. كان مكرَّرًا في خمسةِ ملفّاتٍ بصيغتين
+        ///      (StructType::create مسمّاةً وStructType::get بنيويّةً) — وهو نفسُ داءِ التكرار
+        ///      الذي وحّده value_repr.yaml للثوابت. مكانُه هنا لأنّه تمثيلُ قيمةٍ زمنَ التشغيل.
+        /// (EN) The SadArray struct type — the SINGLE definition. It used to be duplicated in
+        ///      five files in two spellings; it lives here because it is a runtime value
+        ///      representation, exactly like the DynKind tags above.
+        llvm::StructType *sadArrayStructType(llvm::LLVMContext &ctx);
+
+        /// (AR) نص(ديناميّ): يوزّع على الوسم (صحيح/عشريّ/منطقيّ/نصّ/مصفوفة/عدم) ويطابق المفسّر.
+        ///      مؤشّر char*. يُبعَث **نداءً** لدالّةٍ مولَّدةٍ واحدةٍ لا توسيعًا سطريًّا (انظر
+        ///      ensureDynToStringFn) — بلا ذلك يستحيل ذراعُ المصفوفة (عَوْدٌ لا نهائيٌّ زمنَ الترجمة).
+        /// (EN) toString(dynamic): dispatches on the kind (int/float/bool/str/array/null),
+        ///      matching the interpreter. Emitted as a CALL to one generated function rather
+        ///      than expanded inline (see ensureDynToStringFn) — without that the array arm is
+        ///      impossible (infinite expansion at compile time).
         llvm::Value *dynToString(LLVMCodeGen &cg, llvm::Value *dyn);
+
+        /// (AR) يبعث (مرّةً واحدة) `i8* __sad_dyn_to_string(i8 وسم، i64 حمولة)` ويعيدها.
+        ///      ذاتيّةُ العَوْدِ عبر __sad_array_to_string_dyn لمصفوفةٍ متداخلة. تُنشئ كتلةَ
+        ///      «entry» **قبل** أيِّ نداءٍ للمساعِدِ المصفوفيّ، وبذلك يوقف حارسُ `!empty()`
+        ///      العَوْدَ المتبادلَ زمنَ التوليد.
+        /// (EN) Emits (once) `i8* __sad_dyn_to_string(i8 kind, i64 payload)` and returns it.
+        ///      Mutually recursive with __sad_array_to_string_dyn for nested arrays. It creates
+        ///      its «entry» block BEFORE calling the array helper, so the `!empty()` guard stops
+        ///      the mutual recursion at generation time.
+        llvm::Function *ensureDynToStringFn(LLVMCodeGen &cg);
         /// (AR) نوع(ديناميّ): يوزّع على الوسم ويعيد اسم النوع من نفس مصدر sadTypeKindArabicName
         ///      (رقم/عشري/منطقي/نص/…) ⇒ يطابق نوع() المفسّر بايتيًّا. مؤشّر char*.
         /// (EN) typeof(dynamic): dispatches on the kind and returns the type name from the same
