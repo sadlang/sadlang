@@ -188,6 +188,19 @@ namespace sad
         //      ⇒ تماثلٌ صارمٌ بين المعماريّتين. القيمةُ ١٣٦ = ‎128+SIGFPE‎ (عرفُ استثناءِ القسمة).
         inline constexpr long long kDivZeroPanicCode = 136;
 
+        // (AR) 2^63 عائمًا ولاحقةُ ".0": المُنسِّقُ العشريّ يعالجُ |x|≥2^63 (نتيجةُ INT64_MIN//‑1 المُرقّاة)
+        //      بطرحِ 2^63 ثمّ تحويلٍ موقَّعٍ ثمّ OR 2^63 (نفسُ الخوارزميّة على المعماريّتين) ⇒ رسمٌ لا-موقَّعٌ
+        //      نظيفٌ بدل فيضِ cvttsd2si(x86)/fcvtzs(ARM64). مشتركٌ بين مُنسِّقَي x86/ARM64. النطاقُ المُعالَجُ
+        //      [2^63, 2^64) (يكفي حافّةَ 2^63)؛ |x|≥2^64 يفيضُ الاقتطاعَ ثانيةً لكن **متماثلًا** x86≡ARM64
+        //      (دَينٌ قائمٌ لا انحدار — كان قمامةً قبلَ الإصلاح).
+        inline constexpr double kTwoPow63 = 9223372036854775808.0;
+        inline const std::string kFloatDotZero = ".0";
+
+        // (AR) دَينٌ موثَّق (ترقيةُ الحافّة): القسمةُ الأرضيّةُ الموقَّعةُ INT64_MIN//‑1 تفيضُ الصحيحَ،
+        //      والمرجعُ (المفسّر/LLVM) يُرقّيها إلى double 2^63. الخلفيّةُ الأصليّةُ تُبقيها INT64_MIN
+        //      (وسمُ Int) حاليًّا لأنّ رسمَ |x|≥2^63 يتباعدُ بين cvttsd2si (x86) وfcvtzs (ARM64) ⇒
+        //      يكسرُ التماثلَ الصارم؛ الترقيةُ تنتظرُ إصلاحَ emitPrintFloat (≥2^63) على المعماريّتين.
+
         // (AR) مخرَجُ التخفيض: بايتاتُ الشيفرة عند النجاح، أو رمزُ خطأٍ (ErrorCode من
         //      كتالوج SoT) + بياناتُ {detail} عند الفشل. الرسالةُ النصّيّة تُشتقّ من
         //      الكتالوج عبر message() — لا تُخزَّن كنصٍّ مباشر.
@@ -1232,6 +1245,26 @@ namespace sad
                 placeLocalLabel(ok);
                 return true;
             }
+            // (AR) يُعلِّب قيمةً قياسيّة في خانةِ dyn ({tag@0, payload@8} = ١٦ بايت) ويُعيد مؤشّرَها في
+            //      dst (مرآةُ تعليبِ ARRAY_GET(Any)). الوسمُ في tagReg، والحمولةُ (i64 خام أو بتّاتُ
+            //      double) في payloadReg. يُستهلَك بـemitPrintBoxed زمنَ التشغيل. الخانةُ محجوزةٌ سلفًا
+            //      في assignFrameSlots (dynGetCount_). tagReg/payloadReg تُخزَّنان قبلَ leaFrame فلا
+            //      يضرّ تراكبُهما مع dst.
+            bool boxScalarInto(int dst, int tagReg, int payloadReg)
+            {
+                const long long sd = dynSlotBaseDisp_ - static_cast<long long>(dynSlotNext_ + 1) * 16;
+                ++dynSlotNext_;
+                return storeMem(sd, tagReg) && storeMem(sd + 8, payloadReg) && leaFrame(dst, sd);
+            }
+            // (AR) يُعيد تعليبَ نتيجةٍ حسابيّةٍ خامٍّ (في dst) إن كان نوعُها Any (سلسلةُ Any): وسمُ Int
+            //      (العمليّاتُ الصحيحةُ تُنتِج صحيحًا)، والحمولةُ = dst الخام. يستعمل RDI للوسم (مُبدَّد).
+            //      غيرُ Any ⇒ لا شيء (يبقى dst خامًا). مرآةُ عقدِ Any (كلُّ منتِجٍ يُعلِّب، كلُّ مستهلِكٍ يفكّ).
+            bool boxIfAny(const sir::SIRInstruction &inst, int dst)
+            {
+                if (!inst.result || inst.result->dataType != types::SadTypeKind::Any)
+                    return true;
+                return movImm(x86::RDI, kDynKindInt) && boxScalarInto(dst, x86::RDI, dst);
+            }
             // (AR) mmap(NULL, size, R|W, PRIVATE|ANON, -1, 0) عبر syscall ⇒ المؤشّرُ في RAX.
             //      يدهس RAX/RCX/R11 وسجلّاتِ الوسائط (كلُّها في الحوض) ⇒ يُنسَك حولَه في المستدعي.
             //      وسيطُ syscall الرابعُ في R10 لا RCX. الحجمُ ثابتٌ (سعةُ المصفوفة من الأمام).
@@ -1458,6 +1491,26 @@ namespace sad
                     !movImm64(x86::R8, static_cast<long long>(kF64AbsMask)) ||
                     !andReg(x86::RAX, x86::R8) || !storeMem(floatValDisp_, x86::RAX))
                     return false;
+                // (١·٥) [عائمٌ ≥2^63] cvttsd2si يفيضُ (x86⇒INT64_MIN) وfcvtzs يُشبِع (ARM64⇒INT64_MAX)
+                //       عند |x|≥2^63 ⇒ يكسرُ الرسمَ والتماثل (نتيجةُ INT64_MIN//‑1 = 2^63). القيمُ ≥2^63
+                //       أعدادٌ صحيحةٌ حتمًا (مانتيسا الـdouble ٥٢ بتًّا) ⇒ نطبعُ الجزءَ الصحيحَ لا-موقَّعًا:
+                //       2^63 + (i64)(|x|−2^63) [يسعُ التحويلَ الموقَّع] ثمّ OR 2^63 — نفسُ الخوارزميّة على
+                //       المعماريّتين (بلا fcvtzu) ⇒ تماثلٌ صارم. الكسرُ صفرٌ فنُلحِقُ ".0". '‑' طُبِع سلفًا.
+                if (!loadFloatConst(x86::RAX, kTwoPow63) || !movqToXmm(kXmm2, x86::RAX)) // xmm2 = 2^63.0
+                    return false;
+                if (!loadMem(x86::RAX, floatValDisp_) || !movqToXmm(kXmm0, x86::RAX)) // xmm0 = |x|
+                    return false;
+                size_t below2p63;
+                if (!ucomisd(kXmm0, kXmm2) || !emitJccFwd(x86::mnem::kJb, below2p63)) // |x|<2^63 ⇒ المعتاد
+                    return false;
+                if (!subsd(kXmm0, kXmm2) || !cvttsd2si(x86::RAX, kXmm0) || // RAX = (i64)(|x|−2^63) ∈ [0,2^63)
+                    !movImm64(x86::RDI, static_cast<long long>(kF64SignMask)) || !orReg(x86::RAX, x86::RDI))
+                    return false;                                          // RAX |= 2^63 ⇒ الجزءُ الصحيحُ اللا-موقَّع
+                size_t bigDone;
+                if (!emitPrintUInt() || !emitPrintString(kFloatDotZero) ||
+                    !emitJccFwd(x86::mnem::kJmp, bigDone))
+                    return false;
+                patchFwd(below2p63);
                 // (٢) الجزءُ الصحيح ip = trunc(|x|) في R11 (يبقى عبر الطباعة؛ emitPrintInt لا يمسّه).
                 if (!movqToXmm(kXmm0, x86::RAX) || !cvttsd2si(x86::R11, kXmm0))
                     return false;
@@ -1525,9 +1578,12 @@ namespace sad
                     !storeByte(x86::R10, x86::RAX) || !emitJmpBack(padTop))
                     return false;
                 patchFwd(jlePadDone);
-                return movReg(x86::RSI, x86::RDI) && movReg(x86::RDX, x86::R9) &&
-                       movImm(x86::RAX, kSysWriteX86) && movImm(x86::RDI, kFdStdout) &&
-                       emit(x86::mnem::kSyscall, "", {});
+                if (!(movReg(x86::RSI, x86::RDI) && movReg(x86::RDX, x86::R9) &&
+                      movImm(x86::RAX, kSysWriteX86) && movImm(x86::RDI, kFdStdout) &&
+                      emit(x86::mnem::kSyscall, "", {})))
+                    return false;
+                patchFwd(bigDone); // (AR) مقصدُ قفزةِ فرعِ ≥2^63 (بعد كتابةِ المسارِ المعتاد)
+                return true;
             }
 
             // (AR) طباعةُ قيمةٍ معلَّبة (Any): ptrReg يشير إلى خانةِ dyn {tag@0، payload@8}. نوزّع
@@ -1833,6 +1889,20 @@ namespace sad
                             diag::kOperandKind + std::to_string(static_cast<int>(op.type)));
             }
 
+            // (AR) يحمّل معاملًا **قياسيًّا** للحساب: إن كان نوعُه Any (مؤشّرُ خانةِ dyn معلَّب، عقدُ Any
+            //      في الخلفيّة الأصليّة) فُكَّ الحمولةَ ([ptr+payloadOff]) — الحسابُ يريد القيمةَ الخام لا
+            //      المؤشّر. غيرُ Any ⇒ loadInto المعتاد. **حصرًا في مواقعِ الحساب/المقارنة** (لا MOVE/STORE/
+            //      الطباعة التي تُبقي المؤشّر عبر loadInto/loadArgInto). بعد توحيدِ التعليب صار كلُّ سجلِّ
+            //      Any معلَّبًا (ARRAY_GET/FLOOR_DIV) فالفكُّ حتميُّ الصحّة. (وسمُ Float بعد INT64_MIN//‑1
+            //      المُغذَّى لحسابٍ صحيحٍ: حمولتُه بتّاتُ double — حالةٌ نادرةٌ تُفكَّك كـi64، خارجَ العيبَين.)
+            bool loadScalarInto(int dst, const sir::SIROperand &op)
+            {
+                if (op.type == sir::SIROperandType::REGISTER &&
+                    op.dataType == types::SadTypeKind::Any)
+                    return loadInto(dst, op) && loadMemBase(dst, dst, kSadDynPayloadOff);
+                return loadInto(dst, op);
+            }
+
             // (AR) المسحُ المسبق: يخصّص خانةَ إطارٍ للمعاملات (بترتيب ABI) ثمّ لكلّ ALLOC،
             //      ويحسب حجمَ الإطار المُحاذى ١٦. المعاملُ يُعامَل كمتغيّرِ ذاكرةٍ (قراءتُه =
             //      تحميلٌ من خانته)، وتُسكَنُ خانتُه من سجلّ الوسيط الوارد في المقدّمة.
@@ -1889,6 +1959,20 @@ namespace sad
                         {
                             hasBoxing = true;
                             ++dynGetCount_; // (AR) خانةُ dyn لكلّ قراءةٍ معلَّبة
+                        }
+                        // (AR) [عقدُ Any] عمليّةٌ حسابيّةٌ نتيجتُها Any (سلسلةُ Any) ⇒ تُعلَّب في خانةِ dyn
+                        //      (مرآةُ ARRAY_GET(Any)/emitDynamicNumericBinOp): FLOOR_DIV/DIV (وحافّةُ
+                        //      INT64_MIN//‑1 بوسمِ Float=double 2^63) وADD/SUB/MUL في السلسلة. خانةٌ لكلّ تعليب.
+                        if ((inst.opcode == sir::SIROpcode::FLOOR_DIV_I64 ||
+                             inst.opcode == sir::SIROpcode::DIV_I64 ||
+                             inst.opcode == sir::SIROpcode::MOD_I64 ||
+                             inst.opcode == sir::SIROpcode::ADD_I64 ||
+                             inst.opcode == sir::SIROpcode::SUB_I64 ||
+                             inst.opcode == sir::SIROpcode::MUL_I64) && inst.result &&
+                            inst.result->dataType == types::SadTypeKind::Any)
+                        {
+                            hasBoxing = true;
+                            ++dynGetCount_;
                         }
                         // (AR) PHI: احجز خانةَ إطارٍ لناتجِه (كـALLOC) — تسجيلُه في memSlot_ يجعل
                         //      كلَّ قراءةٍ لاحقةٍ له تُحلُّ تحميلًا من الخانة تلقائيًّا (memSlot_ أوّلًا).
@@ -2189,16 +2273,22 @@ namespace sad
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    if (!loadInto(dst, inst.operands[0])) // (AR) المعامل الأوّل في الوجهة (يحمّل من الخانة إن متغيّرَ ذاكرة)
+                    if (!loadScalarInto(dst, inst.operands[0])) // (AR) المعامل الأوّل (يفكّ Any المعلَّب)
                         return false;
                     const sir::SIROperand &b = inst.operands[1];
                     long long bc;
                     if (common::isConstInt(b, bc)) // (AR) فوريّ ⇒ add/sub r64,imm32
-                        return inst.opcode == OP::ADD_I64 ? addImm(dst, bc) : subImm(dst, bc);
-                    // (AR) معاملٌ ثانٍ سجليّ/ذاكرة: حمّله في المُبدَّد RAX ثمّ اجمع/اطرح بالسجلّ.
-                    if (!loadInto(x86::RAX, b))
+                    {
+                        if (!(inst.opcode == OP::ADD_I64 ? addImm(dst, bc) : subImm(dst, bc)))
+                            return false;
+                    }
+                    // (AR) معاملٌ ثانٍ سجليّ/ذاكرة: حمّله في المُبدَّد RAX (فكَّ Any) ثمّ اجمع/اطرح بالسجلّ.
+                    else if (!loadScalarInto(x86::RAX, b) ||
+                             !(inst.opcode == OP::ADD_I64 ? addReg(dst, x86::RAX) : subReg(dst, x86::RAX)))
                         return false;
-                    return inst.opcode == OP::ADD_I64 ? addReg(dst, x86::RAX) : subReg(dst, x86::RAX);
+                    // (AR) نتيجةٌ Any (معاملٌ Any في السلسلة) ⇒ أعِد تعليبَ الحاصلِ الخام (وسمُ Int)
+                    //      اتّساقًا مع عقدِ Any (RET/الطباعةُ تفكّان). مرآةُ emitDynamicNumericBinOp في LLVM.
+                    return boxIfAny(inst, dst);
                 }
                 case OP::MUL_I64:
                 {
@@ -2208,9 +2298,11 @@ namespace sad
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    return loadInto(dst, inst.operands[0]) &&
-                           loadInto(x86::RAX, inst.operands[1]) &&
-                           imulReg(dst, x86::RAX);
+                    if (!loadScalarInto(dst, inst.operands[0]) || // (AR) يفكّ Any المعلَّب
+                        !loadScalarInto(x86::RAX, inst.operands[1]) ||
+                        !imulReg(dst, x86::RAX))
+                        return false;
+                    return boxIfAny(inst, dst); // (AR) نتيجةٌ Any ⇒ أعِد التعليب (وسمُ Int)
                 }
                 case OP::ADD_F64:
                 case OP::SUB_F64:
@@ -4103,8 +4195,8 @@ namespace sad
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    if (!loadInto(dst, inst.operands[0]) || !loadInto(x86::RAX, inst.operands[1]))
-                        return false;
+                    if (!loadScalarInto(dst, inst.operands[0]) || !loadScalarInto(x86::RAX, inst.operands[1]))
+                        return false; // (AR) يفكّ معاملَ Any المعلَّب (تماثلُ عقدِ Any مع ARM64)
                     return inst.opcode == OP::AND ? andReg(dst, x86::RAX)
                          : inst.opcode == OP::OR  ? orReg(dst, x86::RAX)
                                                   : xorReg(dst, x86::RAX);
@@ -4147,7 +4239,7 @@ namespace sad
                         int dst;
                         if (!allocReg(inst.result->name, dst))
                             return false;
-                        return loadInto(dst, inst.operands[0]) &&
+                        return loadScalarInto(dst, inst.operands[0]) && // (AR) يفكّ Any المعلَّب
                                (inst.opcode == OP::SHL ? shlImm(dst, n)
                                 : arithRight           ? sarImm(dst, n)
                                                        : shrImm(dst, n));
@@ -4156,8 +4248,8 @@ namespace sad
                     //      RDI=العدّاد) **قبل** لمسِ RCX (فلو كان أحدُهما في RCX قرأناه صحيحًا أوّلًا)،
                     //      نحفظ RCX (قد يحمل مؤقّتًا حيًّا) في خانةِ خدشٍ، CL=RDI، نُزيح RAX، نعيد RCX،
                     //      ثمّ نخصّص dst وننقل النتيجةَ (يعمل حتّى لو dst==RCX إذ يُخصَّص بعد الاستعادة).
-                    if (!loadInto(x86::RAX, inst.operands[0]) || !loadInto(x86::RDI, inst.operands[1]))
-                        return false;
+                    if (!loadScalarInto(x86::RAX, inst.operands[0]) || !loadScalarInto(x86::RDI, inst.operands[1]))
+                        return false; // (AR) يفكّ Any المعلَّب (تماثلُ عقدِ Any)
                     if (!storeMem(shiftScratchDisp_, x86::RCX) || !movReg(x86::RCX, x86::RDI))
                         return false;
                     if (!(inst.opcode == OP::SHL ? shlCl(x86::RAX)
@@ -4201,8 +4293,8 @@ namespace sad
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    return loadInto(x86::RAX, inst.operands[0]) && // (AR) الطرفُ الأيسر في RAX
-                           cmpAgainst(inst.operands[1]) &&         // (AR) قارنه بالأيمن (imm/سجلّ)
+                    return loadScalarInto(x86::RAX, inst.operands[0]) && // (AR) الأيسر في RAX (يفكّ Any)
+                           cmpAgainst(inst.operands[1]) &&         // (AR) قارنه بالأيمن (imm/سجلّ، يفكّ Any)
                            setccReg(*setcc, x86::RAX) &&           // (AR) AL = ٠/١
                            movzxReg(dst, x86::RAX);                // (AR) dst = تمديدُ AL بالصفر
                 }
@@ -4223,8 +4315,8 @@ namespace sad
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
-                    if (!loadInto(x86::RAX, inst.operands[0]) || !loadInto(x86::RDI, inst.operands[1]))
-                        return false;
+                    if (!loadScalarInto(x86::RAX, inst.operands[0]) || !loadScalarInto(x86::RDI, inst.operands[1]))
+                        return false; // (AR) يفكّ معاملَ Any المعلَّب (قسمةٌ متداخلة) — مرآةُ ARM64
                     if (!storeMem(idivScratchDisp_, x86::RDX)) // (AR) احفظ rdx (مؤقّتٌ حيٌّ محتمَل)
                         return false;
                     if (!emitDivZeroGuard()) // (AR) المقسومُ عليه=0 ⇒ إجهاضٌ exit(136) (موقَّعًا ولا-موقَّعًا)
@@ -4232,9 +4324,14 @@ namespace sad
                     const bool unsignedDiv = eitherUInt64(inst);
                     const bool isMod = (inst.opcode == OP::MOD_I64);
                     const bool isFloor = (inst.opcode == OP::FLOOR_DIV_I64);
+                    // (AR) نتيجةٌ Any (قسمةٌ أرضيّةٌ/صحيحةٌ موقَّعةٌ غيرُ طبيعي64) ⇒ تُعلَّب في خانةِ dyn
+                    //      (مؤشّرٌ لا i64 خام) اتّساقًا مع عقدِ Any (ARRAY_GET(Any)/emitPrintBoxed). MOD
+                    //      نوعُه Integer فلا يُعلَّب. الوسمُ في RDI (يُضبَط في كلّ فرع)، الحمولةُ في RAX.
+                    const bool boxResult = (inst.result->dataType == types::SadTypeKind::Any);
                     if (unsignedDiv)
                     {
                         // (AR) لا-موقَّعة: xor rdx,rdx ثمّ div (النطاقُ الكامل ٢^٦٤، بلا تمديدِ إشارة).
+                        //      اللا-موقَّعُ نوعُه UInt64 لا Any ⇒ لا تعليب (boxResult=false حتمًا).
                         if (!xorReg(x86::RDX, x86::RDX) || !divReg(x86::RDI))
                             return false;
                         const int resultReg = isMod ? x86::RDX : x86::RAX;
@@ -4251,8 +4348,31 @@ namespace sad
                     const std::string lblAfter = freshLocalLabel("divafter");
                     if (!cmpImm8(x86::RDI, -1) || !emitJump(x86::mnem::kJne, lblNormal))
                         return false;
-                    if (isMod ? !xorReg(x86::RAX, x86::RAX) // (AR) a % ‑1 = 0
-                              : !negReg(x86::RAX))          // (AR) a // ‑1 = ‑a (RAX لا يزال = a)
+                    if (isMod)
+                    {
+                        if (!xorReg(x86::RAX, x86::RAX)) // (AR) a % ‑1 = 0
+                            return false;
+                        if (boxResult && !movImm(x86::RDI, kDynKindInt)) // (AR) وسمُ Int
+                            return false;
+                    }
+                    else if (boxResult)
+                    {
+                        // (AR) a // ‑1 معلَّبةً: إن a=INT64_MIN فالنتيجةُ الرياضيّة 2^63 تفيضُ الصحيحَ ⇒
+                        //      وسمُ Float وحمولةُ بتّاتِ 2^63 (كالمفسّر/LLVM؛ المنسِّقُ ≥2^63 يرسمُها الآن)؛
+                        //      وإلّا ‑a (وسمُ Int). kF64SignMask = 0x8000…0 = INT64_MIN نمطَ بتّات.
+                        const std::string lblNotMin = freshLocalLabel("divnotmin");
+                        if (!movImm64(x86::RDI, static_cast<long long>(kF64SignMask)) ||
+                            !cmpRegReg(x86::RAX, x86::RDI) || !emitJump(x86::mnem::kJne, lblNotMin))
+                            return false;
+                        if (!loadFloatConst(x86::RAX, kTwoPow63) || !movImm(x86::RDI, kDynKindFloat))
+                            return false;
+                        if (!emitJump(x86::mnem::kJmp, lblAfter))
+                            return false;
+                        placeLocalLabel(lblNotMin);
+                        if (!negReg(x86::RAX) || !movImm(x86::RDI, kDynKindInt)) // (AR) ‑a، وسمُ Int
+                            return false;
+                    }
+                    else if (!negReg(x86::RAX)) // (AR) a // ‑1 = ‑a (غيرُ معلَّب)
                         return false;
                     if (!emitJump(x86::mnem::kJmp, lblAfter))
                         return false;
@@ -4283,8 +4403,14 @@ namespace sad
                     // (AR) وحِّد نتيجةَ الموقَّع في RAX لكلِّ الفروع (باقي المعتادِ في RDX).
                     if (isMod && !movReg(x86::RAX, x86::RDX))
                         return false;
+                    // (AR) المسارُ المعتادُ للنتيجةِ المعلَّبة: وسمُ Int (الحاصلُ المقتطَعُ المُصحَّح صحيحٌ دومًا؛
+                    //      الحافّةُ INT64_MIN//‑1 تُعالَج في فرعِ b==‑1 بوسمِ Float). فرعُ b==‑1 يضبطُ RDI وقفز.
+                    if (boxResult && !movImm(x86::RDI, kDynKindInt))
+                        return false;
                     placeLocalLabel(lblAfter);
-                    if (!movReg(dst, x86::RAX))
+                    // (AR) النتيجة: معلَّبةٌ Any (مؤشّرُ خانةِ dyn {RDI=وسم، RAX=حمولة}) أو i64 خامٌ في RAX.
+                    if (boxResult ? !boxScalarInto(dst, x86::RDI, x86::RAX)
+                                  : !movReg(dst, x86::RAX))
                         return false;
                     // (AR) أعِد rdx فقط إن لم تكن وجهةَ النتيجة (dst==RDX ⇒ لا مؤقّتَ حيًّا فيه).
                     if (dst == x86::RDX)
@@ -4437,15 +4563,17 @@ namespace sad
                     // (AR) الدالّةُ الداخلة تُنهي البرنامجَ بـexit(rdi)؛ غيرُها تُعيد القيمةَ في
                     //      rax (عقدُ SysV) ثمّ خاتمةٌ (استعادةُ الإطار) و ret. تُحمَّل من الخانة
                     //      إن متغيّرَ ذاكرة. كلٌّ مفحوص.
+                    // (AR) قيمةُ الإرجاع قد تكون Any معلَّبةً (مؤشّرُ dyn) ⇒ فُكَّ الحمولةَ القياسيّة
+                    //      (loadScalarInto) كي يكونَ رمزُ الخروج/عائدُ SysV القيمةَ الخام لا المؤشّر.
                     if (curIsEntry_)
                     {
-                        if (!loadInto(x86::RDI, inst.operands[0]))
+                        if (!loadScalarInto(x86::RDI, inst.operands[0]))
                             return false;
                         if (!movImm(x86::RAX, kSysExitX86))
                             return false;
                         return emit(x86::mnem::kSyscall, "", {});
                     }
-                    if (!loadInto(x86::RAX, inst.operands[0]))
+                    if (!loadScalarInto(x86::RAX, inst.operands[0]))
                         return false;
                     return emitEpilogue();
                 }
@@ -5604,6 +5732,11 @@ namespace sad
                 }
                 if (b.type == sir::SIROperandType::REGISTER)
                 {
+                    // (AR) [عقدُ Any] معامِلُ Any معلَّبٌ (مؤشّرُ dyn) ⇒ حمّله في RDI وفُكَّ الحمولةَ
+                    //      ([RDI+payloadOff]) ثمّ cmp — المقارنةُ تريد القيمةَ الخام (تماثلُ ARM64).
+                    if (b.dataType == types::SadTypeKind::Any)
+                        return loadScalarInto(x86::RDI, b) &&
+                               emit(x86::mnem::kCmp, "r64, r64", {x86::Operand::R(x86::RAX), x86::Operand::R(x86::RDI)});
                     long long disp;
                     // (AR) معامِلٌ ثانٍ في خانةِ إطارٍ (متغيّرُ ALLOC أو قيمةٌ عابرةٌ للكتل مُنسَكة):
                     //      حمّله في مُبدَّدٍ (RDI) ثمّ cmp RAX,RDI. (كان مرفوضًا؛ لزمَ لقيمِ الكتل العابرة.)

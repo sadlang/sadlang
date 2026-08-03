@@ -751,6 +751,35 @@ namespace sad
                     return false;
                 return patchBranchFwd(skip, 23, 5);
             }
+            // (AR) [عقدُ Any] يُعلِّب قيمةً قياسيّة في خانتَي dyn ({tag، payload}) ويُعيد مؤشّرَها
+            //      (sp + الفهرس×٨) في dst — مرآةُ تعليبِ ARRAY_GET(Any)/x86 boxScalarInto. الخانةُ
+            //      محجوزةٌ سلفًا في assignFrameSlots (dynGetCount_). payloadReg يُخزَّن قبل addImm.
+            bool boxScalarIntoArm64(int dst, int tagReg, int payloadReg)
+            {
+                const int ts = dynBaseSlot_ + dynSlotNext_ * 2;
+                ++dynSlotNext_;
+                return strSlot(tagReg, ts) && strSlot(payloadReg, ts + 1) &&
+                       addImm(dst, 31, static_cast<long long>(ts) * 8); // dst = sp + ts×8
+            }
+            // (AR) يُعيد تعليبَ نتيجةٍ حسابيّةٍ خامٍّ في dst إن كان نوعُها Any (سلسلةُ Any): وسمُ Int،
+            //      الحمولةُ = dst. يستعمل kScratch0 للوسم. غيرُ Any ⇒ لا شيء (يبقى dst خامًا).
+            bool boxIfAnyArm64(const sir::SIRInstruction &inst, int dst)
+            {
+                if (!inst.result || inst.result->dataType != types::SadTypeKind::Any)
+                    return true;
+                return movz(a64reg::kScratch0, kDynKindInt) &&
+                       boxScalarIntoArm64(dst, a64reg::kScratch0, dst);
+            }
+            // (AR) يحمّل معاملًا **قياسيًّا** للحساب: Any (مؤشّرُ خانةِ dyn معلَّب) ⇒ فُكَّ الحمولةَ
+            //      ([ptr+payloadOff]) — الحسابُ يريد القيمةَ الخام. غيرُه ⇒ materialize المعتاد.
+            //      حصرًا في مسارِ العمليّة الثنائيّة (لا MOVE/STORE/الطباعة التي تُبقي المؤشّر).
+            bool loadScalarInto(int dst, const sir::SIROperand &op)
+            {
+                if (op.type == sir::SIROperandType::REGISTER &&
+                    op.dataType == types::SadTypeKind::Any)
+                    return materialize(dst, op) && ldrBase(dst, dst, kSadDynPayloadOff / kArrSlotBytes);
+                return materialize(dst, op);
+            }
             // (AR) يضع عنوانَ عنصرِ المصفوفة في x16 مع فحصِ حدٍّ زمنَ التشغيل، ويُعيد عبر outIdx الإزاحةَ
             //      المقيسةَ لـldr/str. أوّلًا الفحص: x17=idx، x16=len=[arr+0]، cmp+b.lo. ثمّ يُعادُ
             //      تحميلُ مؤشّرِ البنية (arch حِمل/خزن ⇒ لا cmp-بذاكرةٍ كـx86): x16=data=[arr+16]؛
@@ -1028,6 +1057,26 @@ namespace sad
                 if (!ldrSlot(9, floatValSlot_) || !movImm64Bits(kScratch0, kF64AbsMask) ||
                     !rrr(a64::mnem::kAnd, 9, 9, kScratch0) || !strSlot(9, floatValSlot_))
                     return false;
+                // (١·٥) [عائمٌ ≥2^63] fcvtzs يُشبِعُ عند |x|≥2^63 (⇒INT64_MAX) ⇒ يكسرُ رسمَ 2^63 (نتيجةُ
+                //       INT64_MIN//‑1) والتماثلَ مع x86 (cvttsd2si يفيض⇒INT64_MIN). القيمُ ≥2^63 صحيحةٌ
+                //       حتمًا (مانتيسا ٥٢ بتًّا) ⇒ الجزءُ الصحيحُ لا-موقَّعًا: 2^63 + (i64)(|x|−2^63) ثمّ OR
+                //       2^63 (نفسُ خوارزميّةِ x86، بلا fcvtzu) + ".0"؛ الكسرُ صفر. '‑' طُبِع سلفًا.
+                if (!loadFloatConst(kScratch0, kTwoPow63) || !fmovToFp(kD1, kScratch0)) // d1 = 2^63.0
+                    return false;
+                if (!ldrSlot(9, floatValSlot_) || !fmovToFp(kD0, 9) || !fcmp(kD0, kD1)) // |x| vs 2^63
+                    return false;
+                size_t below2p63;
+                if (!emitBranchFwd(a64::mnem::kBlt, "rel19", below2p63)) // |x| < 2^63 ⇒ المعتاد
+                    return false;
+                if (!fsub(kD0, kD0, kD1) || !fcvtzs(9, kD0) ||                       // x9 = (i64)(|x|−2^63)
+                    !movImm64Bits(kScratch0, kF64SignMask) || !rrr(a64::mnem::kOrr, 9, 9, kScratch0)) // x9 |= 2^63
+                    return false;
+                size_t bigDone;
+                if (!emitPrintUInt() || !emitPrintString(kFloatDotZero) ||
+                    !emitBranchFwd(a64::mnem::kB, "rel26", bigDone))
+                    return false;
+                if (!patchBranchFwd(below2p63, 23, 5))
+                    return false;
                 // (٢) الجزءُ الصحيح ip = trunc(|x|) في x15 (يبقى عبر emitPrintInt الذي يمسّ x9-x14 فقط).
                 if (!ldrSlot(9, floatValSlot_) || !fmovToFp(kD0, 9) || !fcvtzs(15, kD0))
                     return false;
@@ -1101,8 +1150,12 @@ namespace sad
                 if (!patchBranchFwd(jlePadDone, 23, 5))
                     return false;
                 // write(stdout, x1=البداية، x2=nd)
-                return movReg(kX2, 12) && movz(kX0, kFdStdoutArm64) &&
-                       movz(kX8, kSysWriteArm64) && emit(a64::mnem::kSvc, "", {});
+                if (!(movReg(kX2, 12) && movz(kX0, kFdStdoutArm64) &&
+                      movz(kX8, kSysWriteArm64) && emit(a64::mnem::kSvc, "", {})))
+                    return false;
+                if (!patchBranchFwd(bigDone, 25, 0)) // (AR) مقصدُ قفزةِ فرعِ ≥2^63 (بعد الكتابة)
+                    return false;
+                return true;
             }
 
             // (AR) طباعةُ قيمةٍ معلَّبة (Any): ptrReg يشير إلى خانةِ dyn {tag@0، payload@8}. توزيعٌ
@@ -1670,6 +1723,19 @@ namespace sad
                             hasBoxing = true;
                             ++dynGetCount_;
                         }
+                        // (AR) [عقدُ Any] عمليّةٌ حسابيّةٌ نتيجتُها Any (سلسلةُ Any) ⇒ خانةُ dyn لتعليبها
+                        //      (مرآةُ x86): FLOOR_DIV/DIV (وحافّةُ INT64_MIN//‑1 بوسمِ Float) وADD/SUB/MUL.
+                        if ((inst.opcode == sir::SIROpcode::FLOOR_DIV_I64 ||
+                             inst.opcode == sir::SIROpcode::DIV_I64 ||
+                             inst.opcode == sir::SIROpcode::MOD_I64 ||
+                             inst.opcode == sir::SIROpcode::ADD_I64 ||
+                             inst.opcode == sir::SIROpcode::SUB_I64 ||
+                             inst.opcode == sir::SIROpcode::MUL_I64) && inst.result &&
+                            inst.result->dataType == types::SadTypeKind::Any)
+                        {
+                            hasBoxing = true;
+                            ++dynGetCount_;
+                        }
                     }
                 // (AR) القيمُ العابرةُ للكتل (تُعرَّف في كتلةٍ وتُقرأ في أخرى، عدا PHI/ALLOC/السلاسل):
                 //      تُنسَك عند تعريفها في خانةٍ. مُمرَّرٌ أوّلٌ يسجّل كتلةَ التعريف، وثانٍ يكتشف الاستعمالَ
@@ -1816,20 +1882,23 @@ namespace sad
                 if (!allocReg(inst.result->name, dst))
                     return false;
                 // (AR) جهّز المعامِلَين في x16/x17 (مُبدَّدان خارجَ الحوض) ثمّ أصدِر العمليّةَ الثلاثيّة.
-                if (!materialize(a64reg::kScratch0, inst.operands[0]) ||
-                    !materialize(a64reg::kScratch1, inst.operands[1]))
+                //      loadScalarInto يفكّ معاملَ Any المعلَّب (عقدُ Any) — الحسابُ يريد القيمةَ الخام.
+                if (!loadScalarInto(a64reg::kScratch0, inst.operands[0]) ||
+                    !loadScalarInto(a64reg::kScratch1, inst.operands[1]))
                     return false;
                 switch (inst.opcode)
                 {
-                case OP::ADD_I64: return rrr(a64::mnem::kAdd, dst, a64reg::kScratch0, a64reg::kScratch1);
-                case OP::SUB_I64: return rrr(a64::mnem::kSub, dst, a64reg::kScratch0, a64reg::kScratch1);
-                case OP::MUL_I64: return rrr(a64::mnem::kMul, dst, a64reg::kScratch0, a64reg::kScratch1);
+                // (AR) نتيجةٌ Any (سلسلةُ Any) ⇒ أعِد تعليبَ الحاصلِ الخام (وسمُ Int) — RET/الطباعةُ تفكّان.
+                case OP::ADD_I64: return rrr(a64::mnem::kAdd, dst, a64reg::kScratch0, a64reg::kScratch1) && boxIfAnyArm64(inst, dst);
+                case OP::SUB_I64: return rrr(a64::mnem::kSub, dst, a64reg::kScratch0, a64reg::kScratch1) && boxIfAnyArm64(inst, dst);
+                case OP::MUL_I64: return rrr(a64::mnem::kMul, dst, a64reg::kScratch0, a64reg::kScratch1) && boxIfAnyArm64(inst, dst);
                 case OP::DIV_I64:       // (AR) قسمةٌ صحيحةٌ مقتطَعة (`/`⇒FLOOR_DIV_I64 سطحيًّا)؛ udiv للا-موقَّع.
                     // (AR) لا-موقَّعة (هيمنةً) ⇒ udiv؛ وإلّا sdiv (اقتطاعٌ نحوَ الصفر، بلا تصحيحِ أرضيّة).
                     if (!emitDivZeroGuardArm64()) // (AR) المقسومُ عليه=0 ⇒ إجهاضٌ exit(136) (تماثلٌ مع x86)
                         return false;
                     return rrr(eitherUInt64(inst) ? a64::mnem::kUdiv : a64::mnem::kSdiv,
-                               dst, a64reg::kScratch0, a64reg::kScratch1);
+                               dst, a64reg::kScratch0, a64reg::kScratch1) &&
+                           boxIfAnyArm64(inst, dst); // (AR) نتيجةٌ Any ⇒ تعليب (وسمُ Int)؛ لا-موقَّع⇒UInt64 لا Any ⇒ no-op
                 case OP::FLOOR_DIV_I64:
                 {
                     // (AR) لا-موقَّعة (هيمنةً كـLLVM/x86) ⇒ udiv (الأرضيّة=الاقتطاع، بلا سالب): MAX//2=INT64_MAX.
@@ -1865,16 +1934,51 @@ namespace sad
                         return false;
                     if (!subImm(dst, dst, 1)) // dst ‑= 1 (أرضيّة)
                         return false;
-                    return patchBranchFwd(skipSign, 23, 5) && patchBranchFwd(skipRem, 23, 5);
+                    if (!patchBranchFwd(skipSign, 23, 5) || !patchBranchFwd(skipRem, 23, 5))
+                        return false;
+                    // (AR) [عقدُ Any] dst = حاصلُ الأرضيّةِ الموقَّع؛ نوعُ FLOOR الموقَّع دومًا Any ⇒ تعليب.
+                    //      حافّةُ INT64_MIN//‑1 (dst==INT64_MIN وb==‑1) تفيضُ الصحيحَ ⇒ وسمُ Float بحمولةِ
+                    //      2^63 (كالمفسّر؛ المنسِّقُ ≥2^63 يرسمُها الآن)؛ وإلّا وسمُ Int بحمولةِ الحاصل.
+                    //      x17=b سليمٌ، x16 خدش. نفسُ خوارزميّةِ x86 (تماثلٌ صارم).
+                    if (!inst.result || inst.result->dataType != types::SadTypeKind::Any)
+                        return true;
+                    if (!movImm64Bits(a64reg::kScratch0, kF64SignMask) || // x16 = INT64_MIN نمطَ بتّات
+                        !cmp(dst, a64reg::kScratch0))                     // dst == INT64_MIN؟
+                        return false;
+                    size_t skipFloat1;
+                    if (!emitBranchFwd(a64::mnem::kBne, "rel19", skipFloat1))
+                        return false;
+                    if (!movImm64Bits(a64reg::kScratch0, ~0ULL) ||        // x16 = ‑1
+                        !cmp(a64reg::kScratch1, a64reg::kScratch0))       // b == ‑1؟
+                        return false;
+                    size_t skipFloat2;
+                    if (!emitBranchFwd(a64::mnem::kBne, "rel19", skipFloat2))
+                        return false;
+                    if (!loadFloatConst(a64reg::kScratch0, kTwoPow63) ||  // x16 = بتّاتُ 2^63
+                        !movz(a64reg::kScratch1, kDynKindFloat))          // x17 = وسمُ Float
+                        return false;
+                    size_t skipToBox;
+                    if (!emitBranchFwd(a64::mnem::kB, "rel26", skipToBox))
+                        return false;
+                    if (!patchBranchFwd(skipFloat1, 23, 5) || !patchBranchFwd(skipFloat2, 23, 5))
+                        return false;
+                    if (!movReg(a64reg::kScratch0, dst) ||                // x16 = الحاصل (حمولة)
+                        !movz(a64reg::kScratch1, kDynKindInt))            // x17 = وسمُ Int
+                        return false;
+                    if (!patchBranchFwd(skipToBox, 25, 0))
+                        return false;
+                    return boxScalarIntoArm64(dst, a64reg::kScratch1, a64reg::kScratch0); // tag=x17، payload=x16
                 }
                 case OP::MOD_I64:
                     // (AR) الباقي = a − (a÷b)×b: s/udiv dst=الحاصل، ثمّ msub dst = x16 − dst×x17.
                     //      الهيمنةُ تختارُ udiv للا-موقَّع (MAX%2=1) مطابقةً للمفسّر ومسارِ LLVM.
+                    //      نتيجةٌ Any (معاملٌ Any في السلسلة، كـ`(//)%ك`) ⇒ تعليب (وسمُ Int) — مرآةُ x86.
                     if (!emitDivZeroGuardArm64()) // (AR) المقسومُ عليه=0 ⇒ إجهاضٌ exit(136)
                         return false;
                     return rrr(eitherUInt64(inst) ? a64::mnem::kUdiv : a64::mnem::kSdiv,
                                dst, a64reg::kScratch0, a64reg::kScratch1) &&
-                           msub(dst, dst, a64reg::kScratch1, a64reg::kScratch0);
+                           msub(dst, dst, a64reg::kScratch1, a64reg::kScratch0) &&
+                           boxIfAnyArm64(inst, dst);
                 // (AR) البتّيّات (نظير x86 reg-reg). SHL/SHR عبر lslv/lsrv بمقدارِ سجلّ (x17) ⇒
                 //      يدعمان الثابتَ **والمتغيّر** (بخلاف x86 المحدودِ بالثابت). SHR منطقيّة.
                 case OP::AND: return rrr(a64::mnem::kAnd, dst, a64reg::kScratch0, a64reg::kScratch1);
@@ -4399,11 +4503,12 @@ namespace sad
                     if (inst.operands.size() != 1)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     // (AR) الداخلةُ تُنهي البرنامج: x0=القيمة، x8=exit، svc. غيرُها ترجع: x0=القيمة، خاتمة+ret.
+                    //      loadScalarInto يفكّ Any المعلَّب ⇒ رمزُ الخروج/العائدُ القيمةَ الخام لا المؤشّر.
                     if (curIsEntry_)
-                        return materialize(a64reg::kX0, inst.operands[0]) &&
+                        return loadScalarInto(a64reg::kX0, inst.operands[0]) &&
                                movz(a64reg::kX8, kSysExitArm64) &&
                                emit(a64::mnem::kSvc, "", {});
-                    return materialize(a64reg::kX0, inst.operands[0]) && emitEpilogue();
+                    return loadScalarInto(a64reg::kX0, inst.operands[0]) && emitEpilogue();
                 }
                 case OP::RET_VOID:
                 {
