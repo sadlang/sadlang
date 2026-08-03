@@ -17,6 +17,7 @@
 
 #include "builtin_common.h"
 #include "builtin_registry.h"
+#include "builtins/math_min_max_sign_aware.h"
 #include <algorithm>
 #include <cmath>
 #include <condition_variable>
@@ -35,50 +36,11 @@ namespace Sad
         namespace Ba = Builtins::Names::Arrays;
         namespace Bm = Builtins::Names::Math;
 
-        // (AR) [توحيد min/max — المسارُ الحيّ] يحسبُ أصغر/أكبر بوعيٍ بالإشارة: إن كانت كلُّ الوسائطِ
-        //      صحيحةً ووسمُها الساكنُ (ctx.argType، من resolveStaticType عند موقعِ النداء) طبيعي64 ⇒
-        //      مقارنةٌ لا-موقَّعةٌ (uint64) تطابقُ الخلفيّةَ الأصليّةَ (csel hi/lo · cmovb/cmova). وإلّا
-        //      نفوّضُ إلى MathFunctions (int64 موقَّعٌ دقيقٌ للصحيح، double للعشريّ) — يطابقُ الأصليَّ الموقَّعَ.
-        //      يُرآي بوّابةَ النوعِ السطحيِّ في الأمام (call_main: كلا المعامِلَين UInt64 صريحٌ ⇒ لا-موقَّع).
-        // (EN) [min/max unification — live path] Sign-aware أصغر/أكبر: if every argument is integer and
-        //      its static tag (ctx.argType, from resolveStaticType at the call site) is طبيعي64, compare
-        //      unsigned (uint64) to match the native backend (csel hi/lo · cmovb/cmova). Otherwise delegate
-        //      to MathFunctions (precise signed int64 for integers, double for floats) — matches native signed.
-        //      Mirrors the frontend surface-type gate (call_main: both operands explicit UInt64 ⇒ unsigned).
-        static std::shared_ptr<Data::Value>
-        mathMinMaxSignAware(Sad::Interpreter::BuiltinContext &ctx, bool isMax)
-        {
-            const auto &args = ctx.args();
-
-            bool allIntU64 = !args.empty();
-            for (std::size_t i = 0; i < args.size(); ++i)
-                if (!args[i] || !args[i]->isInteger() ||
-                    ctx.argType(i) != Sad::Types::SadTypeKind::UInt64)
-                {
-                    allIntU64 = false;
-                    break;
-                }
-
-            if (allIntU64)
-            {
-                uint64_t best = static_cast<uint64_t>(args[0]->toInt64());
-                for (std::size_t i = 1; i < args.size(); ++i)
-                {
-                    const uint64_t cur = static_cast<uint64_t>(args[i]->toInt64());
-                    if ((isMax && cur > best) || (!isMax && cur < best))
-                        best = cur;
-                }
-                return std::make_shared<Data::Value>(static_cast<int64_t>(best));
-            }
-
-            std::vector<Data::Value> plainArgs;
-            plainArgs.reserve(args.size());
-            for (const auto &arg : args)
-                plainArgs.push_back(*arg);
-            return std::make_shared<Data::Value>(
-                isMax ? StdLib::Math::MathFunctions::max(plainArgs)
-                      : StdLib::Math::MathFunctions::min(plainArgs));
-        }
+        // (AR) أصغر/أكبر بوعي الإشارة: وُحِّد في رأسٍ مشترك (مصدرٌ واحد؛ كان مكرَّرًا هنا وفي
+        //      stdlib_manager المسارِ الحيّ). يُستدعى أدناه في تسجيلِ أكبر/أصغر.
+        // (EN) Sign-aware min/max: unified into a shared header (single source; was duplicated here
+        //      and in stdlib_manager, the live path). Used below when registering أكبر/أصغر.
+        using Sad::Interpreter::mathMinMaxSignAware;
 
         void registerBuiltinsStrings(Interpreter &interpreter)
         {

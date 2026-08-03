@@ -20,6 +20,7 @@
 #include "math/math_functions.h"
 #include "type_functions.h"
 #include "builtins/builtin_context.h"
+#include "builtins/math_min_max_sign_aware.h"
 #include <iostream>
 #include <algorithm>
 #include <stdexcept>
@@ -40,62 +41,11 @@ namespace Sad
         namespace Ba = Builtins::Names::Arrays;
         namespace Bm = Builtins::Names::Math;
 
-        // ====================================================================
-        // (AR) أصغر/أكبر بوعي الإشارة (توحيدُ دلالةِ الطبقتين)
-        // (EN) Sign-aware min/max — unify interpreter with the native backend
-        // --------------------------------------------------------------------
-        //   عندما تكون كلُّ الوسائطِ أعدادًا صحيحةً ونوعُها السطحيُّ «طبيعي64»
-        //   (UInt64) تُقارَنُ بلا إشارةٍ (uint64)، مطابقةً للخلفيّةِ الأصليّة
-        //   (cmovb/cmova في x86 · csel-hi/lo في ARM64). خلافَ ذلك — عشريّ،
-        //   أو موقَّع، أو أيُّ خلطٍ — نُفوِّضُ إلى MathFunctions التي تعالجُ
-        //   العشريَّ وعددًا كيفيًّا من الوسائط بدلالةٍ موقَّعة.
-        //   النوعُ السطحيُّ يأتي من ctx.argType (resolveStaticType عند الاستدعاء)
-        //   تمامًا كما في طباعةِ طبيعي64 (builtin_core_io.cpp).
-        // ====================================================================
-        static std::shared_ptr<Data::Value>
-        mathMinMaxSignAware(Sad::Interpreter::BuiltinContext &ctx, bool isMax)
-        {
-            const auto &ptrArgs = ctx.args();
-            bool allUnsigned = !ptrArgs.empty();
-            for (std::size_t i = 0; i < ptrArgs.size(); ++i)
-            {
-                const auto &p = ptrArgs[i];
-                if (!p || !p->isInteger() ||
-                    ctx.argType(i) != Sad::Types::SadTypeKind::UInt64)
-                {
-                    allUnsigned = false;
-                    break;
-                }
-            }
-
-            if (allUnsigned)
-            {
-                uint64_t best = static_cast<uint64_t>(ptrArgs[0]->toInt64());
-                for (std::size_t i = 1; i < ptrArgs.size(); ++i)
-                {
-                    const uint64_t v = static_cast<uint64_t>(ptrArgs[i]->toInt64());
-                    if (isMax ? (v > best) : (v < best))
-                    {
-                        best = v;
-                    }
-                }
-                return std::make_shared<Data::Value>(static_cast<int64_t>(best));
-            }
-
-            // (AR) المسار العامّ: عشريّ/موقَّع/خليط ⇒ فوِّض إلى MathFunctions
-            std::vector<Data::Value> plain;
-            plain.reserve(ptrArgs.size());
-            for (const auto &p : ptrArgs)
-            {
-                if (p)
-                {
-                    plain.push_back(*p);
-                }
-            }
-            Data::Value result = isMax ? StdLib::Math::MathFunctions::max(plain)
-                                       : StdLib::Math::MathFunctions::min(plain);
-            return std::make_shared<Data::Value>(result);
-        }
+        // (AR) أصغر/أكبر بوعي الإشارة: وُحِّد في رأسٍ مشترك (مصدرٌ واحد؛ كان مكرَّرًا في
+        //      builtin_module_strings مسارِ REPL). يُستدعى أدناه في التسجيل الواعي بالسياق.
+        // (EN) Sign-aware min/max: unified into a shared header (single source; was duplicated
+        //      in builtin_module_strings, the REPL path). Used in the context-aware registration below.
+        using Sad::Interpreter::mathMinMaxSignAware;
 
         // ====================================================================
         // Constructor and Destructor

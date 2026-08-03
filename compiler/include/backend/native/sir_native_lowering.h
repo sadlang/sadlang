@@ -182,6 +182,12 @@ namespace sad
         //      السالبَ الذي يلتفّ إلى قيمةٍ ضخمة). القيمةُ ١٣٤ = ‎128+SIGABRT‎ (عرفُ الإجهاض).
         inline constexpr long long kArrayBoundsPanicCode = 134;
 
+        // (AR) رمزُ خروجِ الهلع عند القسمةِ/الباقي على صفر (المقسومُ عليه = 0). المرجعُ (المفسّر)
+        //      يرمي RUN_DIVISION_BY_ZERO؛ والخلفيّةُ الأصليّةُ (بلا استثناءاتٍ ملتقَطة، كحدِّ
+        //      المصفوفة) تُجهِضُ فورًا بدلًا من #DE عتاديٍّ (x86) أو نتيجةٍ صامتةٍ خاطئة (ARM64 sdiv=0)
+        //      ⇒ تماثلٌ صارمٌ بين المعماريّتين. القيمةُ ١٣٦ = ‎128+SIGFPE‎ (عرفُ استثناءِ القسمة).
+        inline constexpr long long kDivZeroPanicCode = 136;
+
         // (AR) مخرَجُ التخفيض: بايتاتُ الشيفرة عند النجاح، أو رمزُ خطأٍ (ErrorCode من
         //      كتالوج SoT) + بياناتُ {detail} عند الفشل. الرسالةُ النصّيّة تُشتقّ من
         //      الكتالوج عبر message() — لا تُخزَّن كنصٍّ مباشر.
@@ -496,6 +502,19 @@ namespace sad
             // (AR) إزاحةُ خانةِ خدشِ القسمة: نحفظ فيها rdx حولَ تسلسلِ cqo/idiv (idiv يدهس
             //      rdx بالباقي)، فلا يُفقَد مؤقّتٌ حيٌّ كان في rdx. صفرٌ إن لم تُنادِ الدالّةُ قسمةً.
             long long idivScratchDisp_ = 0;
+
+            // (AR) خانةُ حفظِ المقسوم a لتصحيحِ **أرضيّةِ** القسمةِ الموقَّعةِ السالبة: idiv يقتطعُ
+            //      نحوَ الصفر (‑7/2=‑3)، والمرجعُ (المفسّر/LLVM) يُصحّح للأرضيّة (‑4). نعيد تحميلَ a
+            //      بعد idiv (الذي دهس RAX) لحساب إشارةِ a^b. تُحجَز مع خانةِ القسمة (hasIdiv).
+            long long floorDivDividendDisp_ = 0;
+            // (AR) عدّادُ وسومٍ محلّيّةٍ فريدةٍ داخلَ خفضِ تعليمةٍ واحدة (فروعُ الحارس/التصحيح). مونوتونيٌّ
+            //      عبر الوِحدة؛ مع qualify (بادئةُ اسمِ الدالّة) يضمنُ التفرّدَ بلا تصادم.
+            std::size_t localLabelSeq_ = 0;
+            std::string freshLocalLabel(const char *prefix)
+            {
+                return std::string("__") + prefix + std::to_string(localLabelSeq_++);
+            }
+            void placeLocalLabel(const std::string &name) { labelOffset_[qualify(name)] = code_.size(); }
 
             // (AR) خانةُ خدشِ الإزاحة المتغيّرة: نحفظ فيها RCX حولَ إزاحةٍ بمقدارٍ متغيّر (تلزمها CL،
             //      وRCX=pool[1] قد يحمل مؤقّتًا حيًّا). صفرٌ إن لم تحوِ الدالّةُ إزاحةً متغيّرة.
@@ -1198,6 +1217,21 @@ namespace sad
                 code_[jbPos + 1] = static_cast<uint8_t>(rel);
                 return true;
             }
+            // (AR) حارسُ القسمةِ على صفر: المقسومُ عليه في RDI. إن كان صفرًا ⇒ إجهاضٌ فوريّ
+            //      exit(136) (مرآةُ كتلةِ هلعِ الحدّ)؛ وإلّا نتخطّى الكتلةَ ونكمل. يُستدعى قبل idiv/div
+            //      (كلاهما يفخّ #DE على القسمة على صفر) ⇒ رسالةٌ نظيفةٌ لا انهيارُ إشارةٍ خام، وتماثلٌ
+            //      مع ARM64 (الذي كان sdiv يُرجع فيه صفرًا صامتًا).
+            bool emitDivZeroGuard()
+            {
+                const std::string ok = freshLocalLabel("divnz");
+                if (!cmpImm8(x86::RDI, 0) || !emitJump(x86::mnem::kJne, ok))
+                    return false;
+                if (!movImm(x86::RDI, kDivZeroPanicCode) || !movImm(x86::RAX, kSysExitX86) ||
+                    !emit(x86::mnem::kSyscall, "", {})) // (AR) exit(136) — لا عودة
+                    return false;
+                placeLocalLabel(ok);
+                return true;
+            }
             // (AR) mmap(NULL, size, R|W, PRIVATE|ANON, -1, 0) عبر syscall ⇒ المؤشّرُ في RAX.
             //      يدهس RAX/RCX/R11 وسجلّاتِ الوسائط (كلُّها في الحوض) ⇒ يُنسَك حولَه في المستدعي.
             //      وسيطُ syscall الرابعُ في R10 لا RCX. الحجمُ ثابتٌ (سعةُ المصفوفة من الأمام).
@@ -1894,7 +1928,8 @@ namespace sad
                                 maxOutgoingStackArgs_ = static_cast<int>(regArgs - 6);
                         }
                         else if (inst.opcode == sir::SIROpcode::MOD_I64 ||
-                                 inst.opcode == sir::SIROpcode::FLOOR_DIV_I64)
+                                 inst.opcode == sir::SIROpcode::FLOOR_DIV_I64 ||
+                                 inst.opcode == sir::SIROpcode::DIV_I64) // (AR) DIV_I64 يتيمٌ لكنّه يدهس rdx أيضًا ⇒ يلزمه خانةُ الخدش (سدُّ فجوةٍ كامنة)
                             hasIdiv = true;
                         else if ((inst.opcode == sir::SIROpcode::SHL ||
                                   inst.opcode == sir::SIROpcode::SHR) &&
@@ -2028,6 +2063,8 @@ namespace sad
                 {
                     used += 8;
                     idivScratchDisp_ = -used;
+                    used += 8;
+                    floorDivDividendDisp_ = -used; // (AR) حفظُ a لتصحيحِ أرضيّةِ القسمةِ الموقَّعةِ السالبة
                 }
                 // (AR) الإزاحةُ المتغيّرة تلزمها CL ⇒ احجز خانةَ حفظِ RCX (قد يحمل مؤقّتًا حيًّا).
                 if (hasVarShift)
@@ -4190,18 +4227,69 @@ namespace sad
                         return false;
                     if (!storeMem(idivScratchDisp_, x86::RDX)) // (AR) احفظ rdx (مؤقّتٌ حيٌّ محتمَل)
                         return false;
+                    if (!emitDivZeroGuard()) // (AR) المقسومُ عليه=0 ⇒ إجهاضٌ exit(136) (موقَّعًا ولا-موقَّعًا)
+                        return false;
                     const bool unsignedDiv = eitherUInt64(inst);
-                    if (unsignedDiv ? (!xorReg(x86::RDX, x86::RDX) || !divReg(x86::RDI))
-                                    : (!cqo() || !idivReg(x86::RDI)))
+                    const bool isMod = (inst.opcode == OP::MOD_I64);
+                    const bool isFloor = (inst.opcode == OP::FLOOR_DIV_I64);
+                    if (unsignedDiv)
+                    {
+                        // (AR) لا-موقَّعة: xor rdx,rdx ثمّ div (النطاقُ الكامل ٢^٦٤، بلا تمديدِ إشارة).
+                        if (!xorReg(x86::RDX, x86::RDX) || !divReg(x86::RDI))
+                            return false;
+                        const int resultReg = isMod ? x86::RDX : x86::RAX;
+                        if (!movReg(dst, resultReg))
+                            return false;
+                        if (dst == x86::RDX)
+                            return true;
+                        return loadMem(x86::RDX, idivScratchDisp_);
+                    }
+                    // (AR) ── المسارُ الموقَّع (صحّةٌ: أرضيّةُ السالب + حارسُ المقسوم‑عليه ‑1) ──
+                    //      حارسُ b==-1: idiv على INT64_MIN/‑1 يفيضُ عتاديًّا (#DE)؛ والرياضيُّ a//‑1=‑a
+                    //      وa%‑1=0. نعالجُ ‑1 قبلَ idiv فلا فيض. (ARM64 لا يلزمه: sdiv لا يفخّ.)
+                    const std::string lblNormal = freshLocalLabel("divnorm");
+                    const std::string lblAfter = freshLocalLabel("divafter");
+                    if (!cmpImm8(x86::RDI, -1) || !emitJump(x86::mnem::kJne, lblNormal))
                         return false;
-                    const int resultReg = (inst.opcode == OP::MOD_I64) ? x86::RDX : x86::RAX;
-                    if (!movReg(dst, resultReg)) // (AR) الباقي/الحاصل إلى وجهته
+                    if (isMod ? !xorReg(x86::RAX, x86::RAX) // (AR) a % ‑1 = 0
+                              : !negReg(x86::RAX))          // (AR) a // ‑1 = ‑a (RAX لا يزال = a)
                         return false;
-                    // (AR) أعِد rdx فقط إن لم تكن هي وجهةَ النتيجة: حين dst==RDX تسكن النتيجةُ
-                    //      rdx (سجلٌّ خُصِّص للتوّ، لا مؤقّتَ حيًّا سابقًا فيه) فاستعادةُ rdx تدهسها.
+                    if (!emitJump(x86::mnem::kJmp, lblAfter))
+                        return false;
+                    // (AR) المسارُ المعتاد (b ≠ ‑1):
+                    placeLocalLabel(lblNormal);
+                    if (isFloor && !storeMem(floorDivDividendDisp_, x86::RAX)) // (AR) احفظ a لتصحيحِ الأرضيّة
+                        return false;
+                    if (!cqo() || !idivReg(x86::RDI)) // (AR) RAX=حاصلٌ مقتطَع، RDX=باقٍ
+                        return false;
+                    if (isFloor)
+                    {
+                        // (AR) تصحيحُ الأرضيّة: إن (باقٍ≠0) و(إشارتا a وb مختلفتان) ⇒ الحاصل ‑= 1.
+                        //      (a^b)<0 ⇒ نُنزِل الحاصلَ نحوَ ‑∞. لا jns في SoT ⇒ sar 63 يحوّلُ
+                        //      إشارةَ a^b إلى 0/‑1 ثمّ je على الصفر (أدواتٌ قائمةٌ، بلا أوپكودٍ جديد).
+                        const std::string lblNoAdj = freshLocalLabel("divnoadj");
+                        if (!cmpZero(x86::RDX) || !emitJump(x86::mnem::kJe, lblNoAdj)) // (AR) باقٍ=0 ⇒ مضبوط
+                            return false;
+                        if (!loadMem(x86::RDX, floorDivDividendDisp_)) // (AR) RDX = a
+                            return false;
+                        if (!xorReg(x86::RDX, x86::RDI) || !sarImm(x86::RDX, 63)) // (AR) RDX = (a^b)>>63 = ‑1/0
+                            return false;
+                        if (!testReg(x86::RDX, x86::RDX) || !emitJump(x86::mnem::kJe, lblNoAdj)) // (AR) إشارتان متساويتان ⇒ تخطٍّ
+                            return false;
+                        if (!subImm(x86::RAX, 1)) // (AR) الحاصل ‑= 1 (أرضيّة)
+                            return false;
+                        placeLocalLabel(lblNoAdj);
+                    }
+                    // (AR) وحِّد نتيجةَ الموقَّع في RAX لكلِّ الفروع (باقي المعتادِ في RDX).
+                    if (isMod && !movReg(x86::RAX, x86::RDX))
+                        return false;
+                    placeLocalLabel(lblAfter);
+                    if (!movReg(dst, x86::RAX))
+                        return false;
+                    // (AR) أعِد rdx فقط إن لم تكن وجهةَ النتيجة (dst==RDX ⇒ لا مؤقّتَ حيًّا فيه).
                     if (dst == x86::RDX)
                         return true;
-                    return loadMem(x86::RDX, idivScratchDisp_); // (AR) أعِد rdx (مؤقّتٌ حيٌّ محتمَل)
+                    return loadMem(x86::RDX, idivScratchDisp_);
                 }
                 case OP::ALLOC:
                 {

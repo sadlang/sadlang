@@ -291,6 +291,9 @@ namespace sad
             // (AR) خانةُ حفظِ سجلّ الرابط x30 (الدفعة ٦): الدالّةُ غيرُ الداخلةِ التي تنادي (bl/blr
             //      يدهسان x30) تحفظه في المقدّمة وتستعيده قبل RET. صفرٌ سالبٌ ⇒ لا حفظ (ورقة/داخلة).
             int lrSlot_ = -1;
+            // (AR) خانةُ حفظِ المقسوم a لتصحيحِ **أرضيّةِ** القسمةِ الموقَّعةِ السالبة (sdiv يقتطع؛
+            //      المرجعُ يُصحّح ‑7//2=‑4). لا يلزمُ حارسُ b==-1 هنا: sdiv لا يفخّ على INT64_MIN/‑1.
+            int floorDivDividendSlot_ = -1;
             // (AR) طباعةُ العشريّ: خانةُ خدشٍ لنمطِ بتّاتِ الـdouble (القيمةِ المطلقة) عبر مراحل المُنسِّق.
             int floatValSlot_ = -1;
             // (AR) مصفوفةُ العشريّ→نصّ: قمّةُ مخزنِ خدشٍ (kFtoaBufPayload/8 خانات) لبناءِ نصِّ كلِّ عنصرٍ
@@ -732,6 +735,21 @@ namespace sad
                 return movz(a64reg::kX0, kArrayBoundsPanicCode) &&
                        movz(a64reg::kX8, kSysExitArm64) &&
                        emit(a64::mnem::kSvc, "", {});
+            }
+            // (AR) حارسُ القسمةِ على صفر: المقسومُ عليه في kScratch1 (x17). إن كان صفرًا ⇒ إجهاضٌ
+            //      exit(136). sdiv/udiv لا يفخّان (يُرجعان صفرًا) ⇒ بلا الحارسِ تكونُ النتيجةُ صامتةً
+            //      خاطئة تخالفُ المرجعَ (يرمي خطأً) وتخالفُ x86 (يُجهِض) ⇒ الحارسُ يُحقّقُ التماثلَ.
+            bool emitDivZeroGuardArm64()
+            {
+                if (!cmp(a64reg::kScratch1, a64reg::kXzr)) // divisor vs 0
+                    return false;
+                size_t skip;
+                if (!emitBranchFwd(a64::mnem::kBne, "rel19", skip)) // ≠0 ⇒ تخطّي كتلةِ الهلع
+                    return false;
+                if (!movz(a64reg::kX0, kDivZeroPanicCode) || !movz(a64reg::kX8, kSysExitArm64) ||
+                    !emit(a64::mnem::kSvc, "", {})) // (AR) exit(136) — لا عودة
+                    return false;
+                return patchBranchFwd(skip, 23, 5);
             }
             // (AR) يضع عنوانَ عنصرِ المصفوفة في x16 مع فحصِ حدٍّ زمنَ التشغيل، ويُعيد عبر outIdx الإزاحةَ
             //      المقيسةَ لـldr/str. أوّلًا الفحص: x17=idx، x16=len=[arr+0]، cmp+b.lo. ثمّ يُعادُ
@@ -1540,10 +1558,13 @@ namespace sad
                 bool hasStrHeap = false;  // (AR) أوپكودُ نصٍّ يخصّص كومةً داخليًّا (I64_TO_STRING/CONCAT/…)
                 bool hasArrayExt = false; // (AR) CONCAT/ZIP ⇒ mmap (+حلقةٌ لـZIP) + خاناتُ خدشٍ عابرةٌ لـmmap
                 bool hasArrayToStr = false; // (AR) ARRAY_TO_STRING ⇒ مخزنُ خدشِ عشريّ للمسار العشريّ
+                bool hasFloorDiv = false;   // (AR) FLOOR_DIV_I64 ⇒ خانةُ حفظِ a لتصحيحِ أرضيّةِ السالب
                 dynGetCount_ = 0;
                 for (const auto &blockPtr : fn.getBasicBlocks())
                     for (const auto &inst : blockPtr->instructions)
                     {
+                        if (inst.opcode == sir::SIROpcode::FLOOR_DIV_I64)
+                            hasFloorDiv = true; // (AR) يلزمه خانةُ حفظِ المقسوم لتصحيحِ الأرضيّة
                         // (AR) PHI: احجز خانةً لناتجِه (memSlot_ ⇒ قراءةٌ لاحقةٌ تُحلُّ تحميلًا)، وسجّل
                         //      كلَّ حافّةٍ بأزواجِ [قيمة، لصيقةُ سَلَف].
                         if (inst.opcode == sir::SIROpcode::PHI && inst.result)
@@ -1704,6 +1725,9 @@ namespace sad
                 // (AR) طباعةُ عشريّ: خانةٌ لنمطِ بتّاتِ الـdouble (القيمةِ المطلقة) عبر مراحل المُنسِّق.
                 if (hasFloatPrint)
                     floatValSlot_ = slot++;
+                // (AR) قسمةٌ أرضيّةٌ موقَّعة: خانةٌ لحفظِ المقسوم a (يُعادُ تحميلُه بعد msub لحسابِ إشارةِ a^b).
+                if (hasFloorDiv)
+                    floorDivDividendSlot_ = slot++;
                 // (AR) الإلحاق: خمسُ خاناتٍ تبقى حيّةً عبر mmap (P/القيمة/الطول/newdata/newcap).
                 if (hasAppend)
                 {
@@ -1800,15 +1824,54 @@ namespace sad
                 case OP::ADD_I64: return rrr(a64::mnem::kAdd, dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::SUB_I64: return rrr(a64::mnem::kSub, dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::MUL_I64: return rrr(a64::mnem::kMul, dst, a64reg::kScratch0, a64reg::kScratch1);
-                case OP::DIV_I64:       // (AR) قسمةٌ صحيحة (`/`⇒FLOOR_DIV_I64 سطحيًّا)؛ udiv للا-موقَّع.
-                case OP::FLOOR_DIV_I64:
-                    // (AR) لا-موقَّعة (أيُّ معاملٍ طبيعي64، هيمنةً كـLLVM/x86) ⇒ udiv؛ وإلّا sdiv.
-                    //      لا-موقَّعٌ بلا سالبٍ ⇒ الأرضيّةُ = الاقتطاعُ (MAX//2=INT64_MAX) كالمفسّر.
+                case OP::DIV_I64:       // (AR) قسمةٌ صحيحةٌ مقتطَعة (`/`⇒FLOOR_DIV_I64 سطحيًّا)؛ udiv للا-موقَّع.
+                    // (AR) لا-موقَّعة (هيمنةً) ⇒ udiv؛ وإلّا sdiv (اقتطاعٌ نحوَ الصفر، بلا تصحيحِ أرضيّة).
+                    if (!emitDivZeroGuardArm64()) // (AR) المقسومُ عليه=0 ⇒ إجهاضٌ exit(136) (تماثلٌ مع x86)
+                        return false;
                     return rrr(eitherUInt64(inst) ? a64::mnem::kUdiv : a64::mnem::kSdiv,
                                dst, a64reg::kScratch0, a64reg::kScratch1);
+                case OP::FLOOR_DIV_I64:
+                {
+                    // (AR) لا-موقَّعة (هيمنةً كـLLVM/x86) ⇒ udiv (الأرضيّة=الاقتطاع، بلا سالب): MAX//2=INT64_MAX.
+                    if (!emitDivZeroGuardArm64()) // (AR) المقسومُ عليه=0 ⇒ إجهاضٌ exit(136)
+                        return false;
+                    const bool uns = eitherUInt64(inst);
+                    if (!rrr(uns ? a64::mnem::kUdiv : a64::mnem::kSdiv, dst,
+                             a64reg::kScratch0, a64reg::kScratch1)) // dst = حاصلٌ مقتطَع
+                        return false;
+                    if (uns)
+                        return true;
+                    // (AR) تصحيحُ أرضيّةِ الموقَّع السالب: sdiv يقتطعُ نحوَ الصفر (‑7//2=‑3)، والمرجعُ
+                    //      (المفسّر/LLVM) يُنزِلُ نحوَ ‑∞ (‑4). إن (باقٍ≠0) و(إشارتا a,b مختلفتان) ⇒ dst‑=1.
+                    //      a=x16, b=x17. sdiv لا يفخّ على INT64_MIN/‑1 (بخلاف idiv x86) ⇒ لا حارسَ b==-1.
+                    if (!strSlot(a64reg::kScratch0, floorDivDividendSlot_)) // احفظ a (x16 سيُعادُ استعمالُه)
+                        return false;
+                    // باقٍ = a − q·b: msub x16 = x16(a) − dst(q)·x17(b).
+                    if (!msub(a64reg::kScratch0, dst, a64reg::kScratch1, a64reg::kScratch0))
+                        return false;
+                    if (!cmp(a64reg::kScratch0, a64reg::kXzr)) // باقٍ vs 0
+                        return false;
+                    size_t skipRem;
+                    if (!emitBranchFwd(a64::mnem::kBeq, "rel19", skipRem)) // باقٍ=0 ⇒ مضبوطٌ ⇒ تخطٍّ
+                        return false;
+                    if (!ldrSlot(a64reg::kScratch0, floorDivDividendSlot_)) // x16 = a
+                        return false;
+                    if (!rrr(a64::mnem::kEor, a64reg::kScratch0, a64reg::kScratch0, a64reg::kScratch1)) // x16 = a^b
+                        return false;
+                    if (!cmp(a64reg::kScratch0, a64reg::kXzr)) // (a^b) vs 0
+                        return false;
+                    size_t skipSign;
+                    if (!emitBranchFwd(a64::mnem::kBge, "rel19", skipSign)) // (a^b)≥0 ⇒ إشارتان متساويتان ⇒ تخطٍّ
+                        return false;
+                    if (!subImm(dst, dst, 1)) // dst ‑= 1 (أرضيّة)
+                        return false;
+                    return patchBranchFwd(skipSign, 23, 5) && patchBranchFwd(skipRem, 23, 5);
+                }
                 case OP::MOD_I64:
                     // (AR) الباقي = a − (a÷b)×b: s/udiv dst=الحاصل، ثمّ msub dst = x16 − dst×x17.
                     //      الهيمنةُ تختارُ udiv للا-موقَّع (MAX%2=1) مطابقةً للمفسّر ومسارِ LLVM.
+                    if (!emitDivZeroGuardArm64()) // (AR) المقسومُ عليه=0 ⇒ إجهاضٌ exit(136)
+                        return false;
                     return rrr(eitherUInt64(inst) ? a64::mnem::kUdiv : a64::mnem::kSdiv,
                                dst, a64reg::kScratch0, a64reg::kScratch1) &&
                            msub(dst, dst, a64reg::kScratch1, a64reg::kScratch0);
@@ -5190,6 +5253,7 @@ namespace sad
                 atsFtoaTopSlot_ = -1;
                 spillBaseSlot_ = -1;
                 floatValSlot_ = -1;
+                floorDivDividendSlot_ = -1;
                 dynBaseSlot_ = -1;
                 dynGetCount_ = 0;
                 dynSlotNext_ = 0;
