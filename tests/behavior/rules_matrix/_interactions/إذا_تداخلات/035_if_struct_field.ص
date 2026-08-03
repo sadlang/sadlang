@@ -1,0 +1,14 @@
+# @rule: gr.stmt.if, gr.oop.struct, gr.oop.field
+# @description: إذا + حقل بنية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+بنية نقطة
+    رقم س = 7
+    رقم ص = 3
+نهاية
+متغير ن = نقطة()
+إذا (ن.س > ن.ص)
+    اطبع_سطر(ن.س)
+نهاية

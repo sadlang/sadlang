@@ -1,0 +1,18 @@
+# @rule: gr.stmt.while, gr.stmt.throw, gr.stmt.try, gr.stmt.if
+# @description: بينما + رمي يكسر الحلقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0\n1\nخرج
+
+متغير ع=0
+حاول
+    بينما (ع < 10)
+        إذا (ع == 2)
+            ارمي "ق"
+        نهاية
+        اطبع_سطر(ع)
+        ع = ع + 1
+    نهاية
+امسك خطأ
+    اطبع_سطر("خرج")
+نهاية

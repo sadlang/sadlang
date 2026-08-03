@@ -55,8 +55,7 @@ bool ParserCore::parseModulePath(std::vector<std::string>& modulePath) {
         modulePath.push_back(relativePrefix);
         
         if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
-            error("(AR) متوقع اسم وحدة بعد '" + relativePrefix + "'. الصيغة: استورد X من .وحدة_محلية\n"
-                  "(EN) Expected module name after '" + relativePrefix + "'. Syntax: import X from .local_module");
+            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "وحدة"}, {"what_en", "module"}, {"ctx_ar", "بعد '" + relativePrefix + "'"}, {"ctx_en", "after '" + relativePrefix + "'"}});
             return false;
         }
         modulePath.push_back(current_.getValue());
@@ -64,7 +63,7 @@ bool ParserCore::parseModulePath(std::vector<std::string>& modulePath) {
         
         while (match(TT::DOT)) {
             if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
-                error("(AR) متوقع اسم وحدة بعد '.'. (EN) Expected module name after '.'.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "وحدة"}, {"what_en", "module"}, {"ctx_ar", "بعد '.'"}, {"ctx_en", "after '.'"}});
                 return false;
             }
             modulePath.push_back(current_.getValue());
@@ -74,7 +73,7 @@ bool ParserCore::parseModulePath(std::vector<std::string>& modulePath) {
     }
     
     if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
-        error("(AR) متوقع اسم وحدة. (EN) Expected module name.");
+        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "وحدة"}, {"what_en", "module"}, {"ctx_ar", ""}, {"ctx_en", ""}});
         return false;
     }
     
@@ -83,7 +82,7 @@ bool ParserCore::parseModulePath(std::vector<std::string>& modulePath) {
     
     while (match(TT::DOT)) {
         if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
-            error("(AR) متوقع اسم وحدة بعد '.'. (EN) Expected module name after '.'.");
+            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "وحدة"}, {"what_en", "module"}, {"ctx_ar", "بعد '.'"}, {"ctx_en", "after '.'"}});
             return false;
         }
         modulePath.push_back(current_.getValue());
@@ -120,8 +119,7 @@ StmtPtr ParserCore::parseImportStmt() {
     // ═══════════════════════════════════════════════════════════════════
     if (match(TT::OP_MULTIPLY)) {
         if (!match(TT::KEYWORD_FROM)) {
-            error("(AR) متوقع 'من' بعد 'استورد *'. الصيغة: استورد * من وحدة\n"
-                  "(EN) Expected 'from' after 'import *'. Syntax: import * from module");
+            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_FROM)}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_IMPORT) + " *'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_IMPORT) + " *'"}});
             return nullptr;
         }
         
@@ -176,7 +174,7 @@ StmtPtr ParserCore::parseImportStmt() {
         std::optional<std::string> alias = std::nullopt;
         if (match(TT::KEYWORD_AS)) {
             if (!check(TT::IDENTIFIER)) {
-                error("(AR) متوقع اسم مستعار بعد 'كـ'. (EN) Expected alias name after 'as'.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "مستعار"}, {"what_en", "alias"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_AS) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_AS) + "'"}});
                 return nullptr;
             }
             alias = current_.getValue();
@@ -186,13 +184,7 @@ StmtPtr ParserCore::parseImportStmt() {
     }
     
     if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
-        error("(AR) متوقع اسم وحدة أو عنصر بعد 'استورد'.\n"
-              "    الصيغ المدعومة:\n"
-              "    • استورد * من وحدة           (استيراد شامل)\n"
-              "    • استورد عنصر من وحدة         (استيراد انتقائي)\n"
-              "    • استورد عنصر1، عنصر2 من وحدة (استيراد متعدد)\n"
-              "    • استورد وحدة                  (استيراد بسيط)\n"
-              "(EN) Expected module or item name after 'import'.");
+        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "وحدة أو عنصر"}, {"what_en", "module or item"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_IMPORT) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_IMPORT) + "'"}});
         return nullptr;
     }
     
@@ -211,7 +203,7 @@ StmtPtr ParserCore::parseImportStmt() {
         
         while (match(TT::DOT)) {
             if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
-                error("(AR) متوقع اسم وحدة بعد '.'. (EN) Expected module name after '.'.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "وحدة"}, {"what_en", "module"}, {"ctx_ar", "بعد '.'"}, {"ctx_en", "after '.'"}});
                 return nullptr;
             }
             modulePath.push_back(current_.getValue());
@@ -221,7 +213,7 @@ StmtPtr ParserCore::parseImportStmt() {
         std::optional<std::string> alias = std::nullopt;
         if (match(TT::KEYWORD_AS)) {
             if (!check(TT::IDENTIFIER)) {
-                error("(AR) متوقع اسم مستعار بعد 'كـ'. (EN) Expected alias name after 'as'.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "مستعار"}, {"what_en", "alias"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_AS) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_AS) + "'"}});
                 return nullptr;
             }
             alias = current_.getValue();
@@ -273,7 +265,7 @@ StmtPtr ParserCore::parseImportStmt() {
         // (AR) فحص 'كـ' للعنصر الأول / (EN) Check 'as' for first item
         if (match(TT::KEYWORD_AS)) {
             if (!check(TT::IDENTIFIER)) {
-                error("(AR) متوقع اسم مستعار بعد 'كـ'. (EN) Expected alias.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "مستعار"}, {"what_en", "alias"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_AS) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_AS) + "'"}});
                 return nullptr;
             }
             firstItem.alias = current_.getValue();
@@ -284,7 +276,7 @@ StmtPtr ParserCore::parseImportStmt() {
         // (AR) قراءة بقية العناصر / (EN) Read remaining items
         while (matchComma()) {
             if (!check(TT::IDENTIFIER) && !isTokenUsableAsName(current_.getType())) {
-                error("(AR) متوقع اسم عنصر بعد الفاصلة. (EN) Expected item name after comma.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "عنصر"}, {"what_en", "item"}, {"ctx_ar", "بعد الفاصلة"}, {"ctx_en", "after the comma"}});
                 return nullptr;
             }
             
@@ -295,7 +287,7 @@ StmtPtr ParserCore::parseImportStmt() {
             
             if (match(TT::KEYWORD_AS)) {
                 if (!check(TT::IDENTIFIER)) {
-                    error("(AR) متوقع اسم مستعار. (EN) Expected alias.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "مستعار"}, {"what_en", "alias"}, {"ctx_ar", ""}, {"ctx_en", ""}});
                     return nullptr;
                 }
                 item.alias = current_.getValue();
@@ -333,10 +325,7 @@ StmtPtr ParserCore::parseImportStmt() {
                 return std::make_unique<ImportStmt>(
                     std::move(modulePath), std::move(alias), startPos);
             }
-            error("(AR) متوقع 'من' بعد قائمة العناصر.\n"
-                  "    مثال: استورد عنصر1، عنصر2 من وحدة.فرعية\n"
-                  "(EN) Expected 'from' after items list.\n"
-                  "    Example: import item1, item2 from module.sub");
+            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_FROM)}, {"ctx_ar", "بعد قائمة العناصر"}, {"ctx_en", "after the items list"}});
             return nullptr;
         }
         
@@ -388,7 +377,7 @@ StmtPtr ParserCore::parseFromImportStmt() {
     
     // (AR) يجب أن تتبعها كلمة 'استورد' / (EN) Must be followed by 'import'
     if (!match(TT::KEYWORD_IMPORT)) {
-        error("(AR) متوقع 'استورد' بعد اسم الوحدة. (EN) Expected 'import' after module name.");
+        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_IMPORT)}, {"ctx_ar", "بعد اسم الوحدة"}, {"ctx_en", "after the module name"}});
         return nullptr;
     }
     
@@ -407,7 +396,7 @@ StmtPtr ParserCore::parseFromImportStmt() {
     
     do {
         if (!check(TT::IDENTIFIER)) {
-            error("(AR) متوقع اسم رمز بعد 'استورد'. (EN) Expected symbol name after 'import'.");
+            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "رمز"}, {"what_en", "symbol"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_IMPORT) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_IMPORT) + "'"}});
             return nullptr;
         }
         
@@ -419,7 +408,7 @@ StmtPtr ParserCore::parseFromImportStmt() {
         // (AR) فحص الاسم المستعار / (EN) Check for alias
         if (match(TT::KEYWORD_AS)) {
             if (!check(TT::IDENTIFIER)) {
-                error("(AR) متوقع اسم مستعار بعد 'كـ'. (EN) Expected alias name after 'as'.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "مستعار"}, {"what_en", "alias"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_AS) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_AS) + "'"}});
                 return nullptr;
             }
             item.alias = current_.getValue();
@@ -430,7 +419,7 @@ StmtPtr ParserCore::parseFromImportStmt() {
     } while (matchComma());
     
     if (items.empty()) {
-        error("(AR) يجب استيراد عنصر واحد على الأقل. (EN) Must import at least one item.");
+        errorCatalog(Errors::ErrorCode::SYN_EMPTY_CONSTRUCT, {{"construct_ar", "قائمة الاستيراد"}, {"construct_en", "import list"}, {"required_ar", "عنصر واحد"}, {"required_en", "one item"}});
         return nullptr;
     }
     
@@ -492,7 +481,7 @@ StmtPtr ParserCore::parseExportDecl() {
         advance(); // (AR) استهلاك 'من' / (EN) consume 'من'
         std::vector<std::string> modulePath;
         if (!parseModulePath(modulePath)) {
-            error("(AR) متوقع مسار الوحدة بعد 'من'.\n(EN) Expected module path after 'من'.");
+            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "مسار الوحدة"}, {"what_en", "module path"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_FROM) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_FROM) + "'"}});
             return nullptr;
         }
         return std::make_unique<AST::ReExportStmt>(
@@ -525,7 +514,7 @@ StmtPtr ParserCore::parseExportDecl() {
             // (AR) دعم الأسماء المستعارة: صدّر عنصر كـ اسم_جديد من وحدة
             if (match(TT::KEYWORD_AS)) {
                 if (!check(TT::IDENTIFIER)) {
-                    error("(AR) متوقع اسم مستعار بعد 'كـ'.\n(EN) Expected alias after 'كـ'.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "مستعار"}, {"what_en", "alias"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_AS) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_AS) + "'"}});
                     return nullptr;
                 }
                 firstItem.alias = current_.getValue();
@@ -552,15 +541,13 @@ StmtPtr ParserCore::parseExportDecl() {
             
             // (AR) يجب أن يتبع 'من'
             if (!match(TT::KEYWORD_FROM)) {
-                error("(AR) متوقع 'من' بعد قائمة العناصر في إعادة التصدير.\n"
-                      "(EN) Expected 'من' (from) after item list in re-export.\n"
-                      "مثال: صدّر عنصر1، عنصر2 من وحدة");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_FROM)}, {"ctx_ar", "بعد قائمة العناصر في إعادة التصدير"}, {"ctx_en", "after the items list in a re-export"}});
                 return nullptr;
             }
             
             std::vector<std::string> modulePath;
             if (!parseModulePath(modulePath)) {
-                error("(AR) متوقع مسار الوحدة بعد 'من'.\n(EN) Expected module path after 'من'.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "مسار الوحدة"}, {"what_en", "module path"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_FROM) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_FROM) + "'"}});
                 return nullptr;
             }
             return std::make_unique<AST::ReExportStmt>(
@@ -661,7 +648,7 @@ StmtPtr ParserCore::parseExportDecl() {
             // (EN) Parse the RHS expression
             ExprPtr value = parseExpression();
             if (!value) {
-                error("(AR) متوقع قيمة بعد '=' في تصدير الإسناد. (EN) Expected value after '=' in export assignment.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد '=' في تصدير الإسناد"}, {"ctx_en", "after '=' in an assignment export"}});
                 return nullptr;
             }
             
@@ -688,16 +675,13 @@ StmtPtr ParserCore::parseExportDecl() {
         }
     }
     else {
-        error(
-            "(AR) متوقع تصريح بعد 'صدّر' (دالة، صنف، تعداد، بنية، أو متغير).\n"
-            "(EN) Expected declaration after 'export' (function, class, enum, struct, or variable)."
-        );
+        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "تصريح"}, {"what_en", "declaration"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_EXPORT) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_EXPORT) + "'"}});
         return nullptr;
     }
     
     // (AR) التحقق من نجاح التحليل / (EN) Verify parsing succeeded
     if (!declaration) {
-        error("(AR) فشل تحليل التصريح المُصدَّر. (EN) Failed to parse exported declaration.");
+        errorCatalog(Errors::ErrorCode::SYN_PARSE_UNKNOWN_ERROR);
         return nullptr;
     }
     

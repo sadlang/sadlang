@@ -1,0 +1,16 @@
+# @rule: gr.stmt.if, gr.stmt.try, gr.stmt.for, gr.stmt.throw
+# @description: إذا + حاول داخل حلقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: سليم\nعطل\nسليم
+
+لكل ن في [1، 2، 3]
+    حاول
+        إذا (ن == 2)
+            ارمي "خ"
+        نهاية
+        اطبع_سطر("سليم")
+    امسك خطأ
+        اطبع_سطر("عطل")
+    نهاية
+نهاية

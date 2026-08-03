@@ -1,8 +1,8 @@
 # @rule: gr.stmt.switch
-# @description: جملة حالة — صيغة الأقواس «حالة (تعبير)» مرفوضة
+# @description: جملة حالة — صيغة الأقواس «حالة (تعبير)» مرفوضة بـSYN014 تحديدًا (م-٣)
 # @priority: P1
 # @requires: اطبع_سطر
-# @expect_error
+# @expect_error: SYN014
 
 متغير ن = 1
 حالة (ن)

@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط بأقواس متداخلة عميقة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ق
+
+إذا ((((1 > 0))))
+    اطبع_سطر("ق")
+نهاية

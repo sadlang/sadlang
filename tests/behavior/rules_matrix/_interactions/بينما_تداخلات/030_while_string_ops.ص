@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while, gr.expr.term, gr.expr.postfix
+# @description: بينما + دمجٌ نصّيٌّ حتّى بلوغِ طولٍ محدَّد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أبأبأب
+
+متغير نص=""
+بينما (طول(نص) < 6)
+    نص = نص + "أب"
+نهاية
+اطبع_سطر(نص)

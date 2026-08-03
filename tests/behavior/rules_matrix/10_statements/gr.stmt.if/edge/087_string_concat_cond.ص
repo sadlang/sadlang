@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: دمج نصّين داخل الشرط
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: دمج
+
+إذا ("أ" + "ب" == "أب")
+    اطبع_سطر("دمج")
+نهاية

@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if
+# @description: شرط على عدد سالب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: سالب
+
+متغير س=-5
+إذا (س < 0)
+    اطبع_سطر("سالب")
+نهاية

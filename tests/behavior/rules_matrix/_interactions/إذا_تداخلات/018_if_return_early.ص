@@ -1,0 +1,13 @@
+# @rule: gr.stmt.if, gr.stmt.return, gr.decl.function
+# @description: إذا + إرجاع مبكّر من دالّة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: -1
+
+دالة صنّف(س)
+    إذا (س < 0)
+        ارجع -1
+    نهاية
+    ارجع 1
+نهاية
+اطبع_سطر(صنّف(-8))

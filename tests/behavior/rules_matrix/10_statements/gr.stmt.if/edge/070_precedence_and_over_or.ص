@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: أسبقيّة «و» على «أو»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أ
+
+إذا (خطأ و خطأ أو صحيح)
+    اطبع_سطر("أ")
+نهاية

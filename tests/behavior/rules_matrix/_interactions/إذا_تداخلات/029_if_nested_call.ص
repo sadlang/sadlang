@@ -1,0 +1,11 @@
+# @rule: gr.stmt.if, gr.expr.postfix, gr.decl.function
+# @description: إذا + نداء متداخل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 9
+
+دالة ضاعف(س) ارجع س * 2 نهاية
+دالة زد(س) ارجع س + 1 نهاية
+إذا (زد(ضاعف(4)) == 9)
+    اطبع_سطر(زد(ضاعف(4)))
+نهاية

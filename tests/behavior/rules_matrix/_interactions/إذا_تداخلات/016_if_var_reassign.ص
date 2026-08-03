@@ -1,0 +1,12 @@
+# @rule: gr.stmt.if, gr.decl.variable, gr.expr.assignment
+# @description: إذا + تصريح متغيّر + إعادة إسناد
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 12
+
+متغير أ=5
+متغير ب=7
+إذا (أ < ب)
+    أ = أ + ب
+نهاية
+اطبع_سطر(أ)

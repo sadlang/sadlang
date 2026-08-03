@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if, gr.expr.postfix
+# @description: إذا + نداءُ «طول» على نصّ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير نص="أبج"
+إذا (طول(نص) == 3)
+    اطبع_سطر(طول(نص))
+نهاية

@@ -1,0 +1,13 @@
+# @rule: gr.stmt.while, gr.decl.variable
+# @description: بينما + نطاق متغيّر خارجيّ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 6
+
+متغير خ=1
+متغير ع=0
+بينما (ع < 3)
+    خ = خ * 2
+    ع = ع + 1
+نهاية
+اطبع_سطر(خ - 2)

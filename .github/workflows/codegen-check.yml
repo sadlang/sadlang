@@ -33,6 +33,10 @@ on:
       - "shared/builtins/generated/**"
       - "shared/errors/generated/**"
       - "shared/errors/include/error_codes.h"
+      # (AR) بلا هذا السطر كان حارس «لا نصّ تشخيص خامّ» مربوطًا شكليًّا لا فعليًّا:
+      #      PR يضيف error("نصّ خامّ") في المحلّل ولا يمسّ شيئًا آخر لا يستثير
+      #      سير العمل أصلًا، فيُدمَج الخرق وسير العمل أخضر.
+      - "shared/parser/**"
       - "features/graphics/core/include/sad_ui/**"
       - "docs/parser_rule/_generated/**"
       - "tests/behavior/rules_matrix/**"
@@ -50,6 +54,10 @@ on:
       - "shared/builtins/generated/**"
       - "shared/errors/generated/**"
       - "shared/errors/include/error_codes.h"
+      # (AR) بلا هذا السطر كان حارس «لا نصّ تشخيص خامّ» مربوطًا شكليًّا لا فعليًّا:
+      #      PR يضيف error("نصّ خامّ") في المحلّل ولا يمسّ شيئًا آخر لا يستثير
+      #      سير العمل أصلًا، فيُدمَج الخرق وسير العمل أخضر.
+      - "shared/parser/**"
       - "features/graphics/core/include/sad_ui/**"
       - "docs/parser_rule/_generated/**"
       - "tests/behavior/rules_matrix/**"

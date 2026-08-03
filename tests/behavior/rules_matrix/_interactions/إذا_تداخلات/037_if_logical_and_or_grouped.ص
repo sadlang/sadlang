@@ -1,0 +1,11 @@
+# @rule: gr.stmt.if, gr.expr.logical_and, gr.expr.logical_or
+# @description: إذا + تجميعُ «و» داخلَ «أو» بالأقواس
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: م
+
+متغير أ=3
+متغير ب=0
+إذا ((أ > 0 و ب == 0) أو أ > 100)
+    اطبع_سطر("م")
+نهاية

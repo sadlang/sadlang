@@ -264,7 +264,7 @@ namespace Sad
                     pairs.emplace_back(std::move(key), std::move(value));
                 }
 
-                consume(TT::BRACE_RIGHT, "(AR) توقعت '}' (EN) Expected '}'");
+                consume(TT::BRACE_RIGHT, "");
                 return std::make_unique<MapExpr>(std::move(pairs), previous().getPosition());
             }
 
@@ -1755,8 +1755,7 @@ namespace Sad
                             {
                                 // (AR) النوع هو معامل قالب — نعامله كـ OBJECT (نوع عام)
                                 advance(); // (AR) استهلاك اسم معامل النوع
-                                Token nameToken = consume(TT::IDENTIFIER,
-                                                          "(AR) توقع اسم الحقل بعد نوع القالب. (EN) Expected field name after template type.");
+                                Token nameToken = consume(TT::IDENTIFIER, "");
                                 ExprPtr initializer = nullptr;
                                 if (match(TT::OP_ASSIGN))
                                 {
@@ -1799,7 +1798,7 @@ namespace Sad
                         }
 
                         // (AR) لا شيء معروف بعد 'خاصية'
-                        error("(AR) توقع نوع أو اسم بعد 'خاصية'. (EN) Expected type or name after 'خاصية'.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "نوع أو اسم"}, {"what_en", "type or name"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_PROPERTY) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_PROPERTY) + "'"}});
                         advance();
                         return nullptr;
                     }
@@ -1876,8 +1875,7 @@ namespace Sad
                         advance(); // (AR) استهلاك 'متغير'
                         // (AR) قراءة المعدلات بعد 'متغير' (الصفة بعد الموصوف)
                         access = parseModifiers(isStatic, isVirtual, isAbstract);
-                        Token nameToken = consume(TT::IDENTIFIER,
-                                                  "(AR) توقع اسم الحقل. (EN) Expected field name.");
+                        Token nameToken = consume(TT::IDENTIFIER, "");
                         ExprPtr initializer = nullptr;
                         if (match(TT::OP_ASSIGN))
                         {
@@ -1911,8 +1909,7 @@ namespace Sad
                         {
                             // (AR) هذا معامل نوع قالب - نعامله كنوع حقل OBJECT (عام)
                             advance(); // (AR) استهلاك اسم معامل النوع
-                            Token nameToken = consume(TT::IDENTIFIER,
-                                                      "(AR) توقع اسم الحقل. (EN) Expected field name.");
+                            Token nameToken = consume(TT::IDENTIFIER, "");
                             ExprPtr initializer = nullptr;
                             if (match(TT::OP_ASSIGN))
                             {
@@ -1936,7 +1933,7 @@ namespace Sad
                         return parseFieldDeclaration(access, isStatic);
                     }
 
-                    error("(AR) عضو صنف غير معروف. (EN) Unknown class member.");
+                    errorCatalog(Errors::ErrorCode::SYN_UNKNOWN_ELEMENT, {{"what_ar", "عضو الصنف"}, {"what_en", "class member"}, {"found", current_.getValue()}, {"allowed", kw(TT::KEYWORD_FUNCTION) + "، " + kw(TT::KEYWORD_VAR) + "، " + kw(TT::KEYWORD_CONST) + "، " + kw(TT::KEYWORD_PROPERTY) + "، " + kw(TT::KEYWORD_CONSTRUCTOR)}});
                     advance();
                     return nullptr;
                 };

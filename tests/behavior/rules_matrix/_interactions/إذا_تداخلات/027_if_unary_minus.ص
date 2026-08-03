@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if, gr.expr.unary
+# @description: إذا + عامل أحاديّ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: أحادي
+
+متغير س=4
+إذا (-س < 0)
+    اطبع_سطر("أحادي")
+نهاية

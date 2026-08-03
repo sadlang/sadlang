@@ -470,6 +470,15 @@ SOT_CHECK_GUARDS = (
         "args": (),
     },
     {
+        # (AR) لا نصَّ تشخيصٍ مكتوبًا يدويًّا في المحلّل النحويّ — كلّ رسالة تُركَّب
+        #      من كتالوج الأخطاء المولَّد. حارسٌ بنيويّ (لا نصّيّ) بخطّ أساسٍ ينحدر.
+        # (EN) No hand-written diagnostic text in the parser — every message renders
+        #      from the generated error catalog. Structural guard, shrinking baseline.
+        "name": "no_raw_parser_text",
+        "script": "check_no_raw_parser_text.py",
+        "args": (),
+    },
+    {
         # (AR) تغطية معجم آبلتات sad-repl مقابل مقام busybox defconfig المثبَّت: لا
         #      exec ميّت (ليس آبلتًا حقيقيًّا) ولا فجوة (آبلت defconfig بلا اسم عربيّ).
         # (EN) sad-repl applet lexicon coverage vs the pinned busybox defconfig

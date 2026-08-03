@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while
+# @description: توقّف في أوّل دورة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: دخل
+
+متغير ع=0
+بينما (ع < 100)
+    اطبع_سطر("دخل")
+    توقف
+نهاية

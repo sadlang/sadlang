@@ -120,7 +120,7 @@ namespace Sad
                     }
                     if (!decorators.empty())
                     {
-                        error("(AR) المُزخرِفات لا تُستخدم مع الدوال الخارجية. (EN) Decorators cannot be used with extern functions.");
+                        errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "الدوال الخارجية"}, {"target_en", "external functions"}});
                     }
 
                     // (AR) اسم الربط الاختياريّ: دالة خارجية("رمز") ...
@@ -129,11 +129,7 @@ namespace Sad
                     if (check(TT::PAREN_LEFT))
                     {
                         advance(); // (AR) استهلاك '(' / (EN) consume '('
-                        Token linkNameToken = consume(TT::STRING_LITERAL,
-                                                      "(AR) خطأ نحوي: توقع نص حرفي لاسم الربط بين الأقواس.\n"
-                                                      "مثال: دالة خارجية(\"c_function_name\") ...\n"
-                                                      "(EN) Syntax error: expected string literal for link name inside parentheses.\n"
-                                                      "Example: function extern(\"c_function_name\") ...");
+                        Token linkNameToken = consume(TT::STRING_LITERAL, "");
                         ffiLinkName = linkNameToken.getValue();
                         // (AR) نصّ فارغ ("") يُكافئ غياب اسم الربط فيربط بالاسم العربيّ صامتًا
                         //      — التباس خطر، نرفضه صراحةً.
@@ -143,9 +139,7 @@ namespace Sad
                         {
                             errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "اسم الربط الخارجيّ (لا يكون نصًّا فارغًا \"\" — احذف القوسين أو ضع رمزًا فعليًّا)"}, {"construct_en", "extern link name (cannot be an empty string \"\" — drop the parentheses or provide a real symbol)"}, {"form", kw(TT::KEYWORD_FUNCTION) + " " + kwAlias(TT::KEYWORD_EXTERN) + "(\"cos\") " + kw(TT::TYPE_DOUBLE) + " جيب_التمام(" + kw(TT::TYPE_DOUBLE) + ")"}});
                         }
-                        consume(TT::PAREN_RIGHT,
-                                "(AR) خطأ نحوي: توقع ')' بعد اسم الربط.\n"
-                                "(EN) Syntax error: expected ')' after link name.");
+                        consume(TT::PAREN_RIGHT, "");
                     }
 
                     auto externDecl = parseExternFunctionDecl(ffiLinkName);
@@ -248,11 +242,7 @@ namespace Sad
             {
                 // Expect function name (for regular functions)
                 // (AR) توقع اسم الدالة (للدوال العادية)
-                name = consume(TT::IDENTIFIER,
-                               "(AR) خطأ نحوي: بعد كلمة 'دالة' (أو بعد نوع الإرجاع) يجب أن يأتي اسم الدالة.\n"
-                               "مثال: دالة جمع(...) أو دالة رقم مربع(...)\n"
-                               "(EN) Syntax error: After 'function' keyword (or return type) expected function name.\n"
-                               "Example: function sum(...) or function int square(...)");
+                name = consume(TT::IDENTIFIER, "");
             }
 
             // (AR) التحقق من نمط وجود مسافة في اسم الدالة: دالة عدد طلاب()
@@ -282,23 +272,9 @@ namespace Sad
 
             // Parse parameter list (now with type annotations)
             // (AR) تحليل قائمة المعاملات (الآن مع تصريحات الأنواع)
-            consume(TT::PAREN_LEFT,
-                    "(AR) خطأ نحوي: بعد اسم الدالة يجب أن يأتي قوس مفتوح '('.\n"
-                    "مثال: دالة " +
-                        name.getValue() + "(...) \n"
-                                          "(EN) Syntax error: After function name expected '('.\n"
-                                          "Example: function " +
-                        name.getValue() + "(...)");
+            consume(TT::PAREN_LEFT, "");
             auto paramObjs = parseTypedParameterList();
-            consume(TT::PAREN_RIGHT,
-                    "(AR) خطأ نحوي: بعد قائمة المعاملات يجب أن يأتي قوس مغلق ')'.\n"
-                    "مثال: دالة " +
-                        name.getValue() + "(معامل١، معامل٢) \n"
-                                          "تأكد من أن قائمة المعاملات مكتملة ومفصولة بفواصل صحيحة.\n"
-                                          "(EN) Syntax error: After parameter list expected ')'.\n"
-                                          "Example: function " +
-                        name.getValue() + "(param1, param2)\n"
-                                          "Make sure parameter list is complete and properly separated.");
+            consume(TT::PAREN_RIGHT, "");
 
             // (AR) نوع الإرجاع يُحدد فقط قبل اسم الدالة: دالة رقم جمع()
             // (EN) Return type is specified only before function name: function int sum()
@@ -317,39 +293,19 @@ namespace Sad
                 // (EN) Check return type - must be INTEGER
                 if (returnType != Types::SadTypeKind::Integer && returnType != Types::SadTypeKind::Unknown)
                 {
-                    std::cerr << "\n";
-                    std::cerr << "⚠️ ========================================\n";
-                    std::cerr << "  ⛔ (AR) تحذير: نوع إرجاع الدالة الرئيسية يجب أن يكون 'صحيح'\n";
-                    std::cerr << "  ⛔ (EN) Warning: Main function return type must be 'int'\n";
-                    std::cerr << "========================================\n";
-                    std::cerr << "📍 (AR) السطر: " << name.getPosition().line << "\n";
-                    std::cerr << "📍 (EN) Line: " << name.getPosition().line << "\n";
-                    std::cerr << "💬 (AR) نوع الإرجاع الحالي غير صحيح\n";
-                    std::cerr << "💬 (EN) Current return type is invalid\n";
-                    std::cerr << "✓ (AR) التوقيع الصحيح: دالة صحيح رئيسية() أو دالة صحيح رئيسية(نص[] الوسائط)\n";
-                    std::cerr << "✓ (EN) Correct signature: function int main() or function int main(string[] args)\n";
-                    std::cerr << "========================================\n\n";
+                    // (AR) تحذيرٌ لا خطأ — HEAD كان يطبع لافتةَ «تحذير» فقط، فيبقى رمزُ الخروج كما كان.
+                    // (EN) Warning, not error — HEAD only printed a «warning» banner here; keeping severity.
+                    warnCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "الدالة الرئيسية"}, {"construct_en", "main function"}, {"form", kw(TT::TYPE_INTEGER) + " " + kw(TT::KEYWORD_FUNCTION) + " رئيسية() أو رئيسية(" + kw(TT::TYPE_STRING) + "[] الوسائط)"}});
                 }
 
                 // (AR) التحقق من المعاملات - يجب أن تكون () أو (نص[] الوسائط)
                 // (EN) Check parameters - must be () or (string[] args)
                 if (paramObjs.size() > 1)
                 {
-                    std::cerr << "\n";
-                    std::cerr << "⚠️ ========================================\n";
-                    std::cerr << "  ⛔ (AR) خطأ: الدالة الرئيسية تقبل معامل واحد فقط أو لا شيء\n";
-                    std::cerr << "  ⛔ (EN) Error: Main function accepts zero or one parameter only\n";
-                    std::cerr << "========================================\n";
-                    std::cerr << "📍 (AR) السطر: " << name.getPosition().line << "\n";
-                    std::cerr << "📍 (EN) Line: " << name.getPosition().line << "\n";
-                    std::cerr << "💬 (AR) عدد المعاملات الحالي: " << paramObjs.size() << "\n";
-                    std::cerr << "💬 (EN) Current parameter count: " << paramObjs.size() << "\n";
-                    std::cerr << "✓ (AR) التوقيع الصحيح: دالة صحيح رئيسية() أو دالة صحيح رئيسية(نص[] الوسائط)\n";
-                    std::cerr << "✓ (EN) Correct signature: function int main() or function int main(string[] args)\n";
-                    std::cerr << "========================================\n\n";
+                    // (AR) لا لافتةَ يدويّةً ولا نصَّ — التشخيصُ من كتالوج SoT.
+                    // (EN) No hand-rolled banner, no prose — diagnostic from the SoT catalog.
 
-                    error("(AR) الدالة الرئيسية تقبل معامل واحد فقط (نص[] الوسائط) أو لا شيء. "
-                          "(EN) Main function accepts zero or one parameter (string[] args) only.");
+                    errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "الدالة الرئيسية"}, {"construct_en", "main function"}, {"form", kw(TT::KEYWORD_FUNCTION) + " رئيسية() أو " + kw(TT::KEYWORD_FUNCTION) + " رئيسية(وسائط)"}});
                 }
                 else if (paramObjs.size() == 1)
                 {
@@ -357,18 +313,9 @@ namespace Sad
                     // (EN) Check that parameter is of type string[] (string array)
                     if (paramObjs[0].type != Types::SadTypeKind::Array)
                     {
-                        std::cerr << "\n";
-                        std::cerr << "⚠️ ========================================\n";
-                        std::cerr << "  ⛔ (AR) تحذير: معامل الدالة الرئيسية يجب أن يكون من نوع نص[]\n";
-                        std::cerr << "  ⛔ (EN) Warning: Main function parameter must be of type string[]\n";
-                        std::cerr << "========================================\n";
-                        std::cerr << "📍 (AR) السطر: " << name.getPosition().line << "\n";
-                        std::cerr << "📍 (EN) Line: " << name.getPosition().line << "\n";
-                        std::cerr << "💬 (AR) نوع المعامل الحالي غير صحيح\n";
-                        std::cerr << "💬 (EN) Current parameter type is invalid\n";
-                        std::cerr << "✓ (AR) التوقيع الصحيح: دالة صحيح رئيسية(نص[] الوسائط)\n";
-                        std::cerr << "✓ (EN) Correct signature: function int main(string[] args)\n";
-                        std::cerr << "========================================\n\n";
+                        // (AR) تحذيرٌ لا خطأ — HEAD كان يطبع لافتةَ «تحذير» فقط، فيبقى رمزُ الخروج كما كان.
+                        // (EN) Warning, not error — HEAD only printed a «warning» banner here; keeping severity.
+                        warnCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "الدالة الرئيسية"}, {"construct_en", "main function"}, {"form", kw(TT::TYPE_INTEGER) + " " + kw(TT::KEYWORD_FUNCTION) + " رئيسية() أو رئيسية(" + kw(TT::TYPE_STRING) + "[] الوسائط)"}});
                     }
                 }
             }
@@ -575,21 +522,13 @@ namespace Sad
 
             // (AR) توقع اسم الدالة
             // (EN) Expect function name
-            Token name = consume(TT::IDENTIFIER,
-                                 "(AR) خطأ نحوي: بعد 'دالة خارجية' (أو بعد نوع الإرجاع) يجب أن يأتي اسم الدالة.\n"
-                                 "مثال: دالة خارجية رقم clear_screen()\n"
-                                 "(EN) Syntax error: After 'function extern' (or return type) expected function name.\n"
-                                 "Example: دالة خارجية رقم clear_screen()");
+            Token name = consume(TT::IDENTIFIER, "");
 
             // (AR) تحليل قائمة المعاملات
             // (EN) Parse parameter list
-            consume(TT::PAREN_LEFT,
-                    "(AR) خطأ نحوي: بعد اسم الدالة الخارجية يجب أن يأتي قوس مفتوح '('.\n"
-                    "(EN) Syntax error: After extern function name expected '('.");
+            consume(TT::PAREN_LEFT, "");
             auto paramObjs = parseTypedParameterList();
-            consume(TT::PAREN_RIGHT,
-                    "(AR) خطأ نحوي: بعد قائمة المعاملات يجب أن يأتي قوس مغلق ')'.\n"
-                    "(EN) Syntax error: After parameter list expected ')'.");
+            consume(TT::PAREN_RIGHT, "");
 
             // (AR) نوع الإرجاع يُحدد فقط قبل اسم الدالة الخارجية: دالة خارجية رقم clear_screen()
             // (EN) Return type specified only before extern function name
@@ -704,8 +643,7 @@ namespace Sad
                 // Spec: docs\language_spec\rules\03_oop.md §1 - base_class_list ::= IDENTIFIER ((',' | '،') IDENTIFIER)*
                 do
                 {
-                    Token baseToken = consume(TT::IDENTIFIER,
-                                              "(AR) توقع اسم الصنف الأساسي. (EN) Expected base class name.");
+                    Token baseToken = consume(TT::IDENTIFIER, "");
                     baseClassNames.push_back(baseToken.getValue());
 #ifdef DEBUG_OOP
                     std::cout << "[OOP] يرث من: " << baseToken.getValue() << "\n";
@@ -723,8 +661,7 @@ namespace Sad
                 advance(); // consume نفّذ/نفذ
                 do
                 {
-                    Token traitToken = consume(TT::IDENTIFIER,
-                                               "(AR) توقع اسم السمة بعد 'نفّذ'. (EN) Expected trait name after 'implements'.");
+                    Token traitToken = consume(TT::IDENTIFIER, "");
                     // (AR) لا نضيف للـ superclasses — السمات ليست أصناف أساسية
                     // (EN) Don't add to superclasses — traits are not base classes
 #ifdef DEBUG_OOP
@@ -848,7 +785,7 @@ namespace Sad
                     }
                     else
                     {
-                        error("(AR) توقع نوع أو اسم بعد 'خاصية'. (EN) Expected type or name after 'خاصية'.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "نوع أو اسم"}, {"what_en", "type or name"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_PROPERTY) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_PROPERTY) + "'"}});
                         advance();
                     }
                     continue;
@@ -881,7 +818,7 @@ namespace Sad
                         }
                         continue;
                     }
-                    error("(AR) توقع 'دالة' بعد 'غير_متزامن'. (EN) Expected 'function' after 'async'.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_FUNCTION)}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_ASYNC) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_ASYNC) + "'"}});
                     continue;
                 }
 
@@ -988,7 +925,7 @@ namespace Sad
                     }
                     else
                     {
-                        error("(AR) توقعت اسم حقل بعد 'ثابت'. (EN) Expected field name after 'const'.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "حقل"}, {"what_en", "field"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_CONST) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_CONST) + "'"}});
                         advance();
                         continue;
                     }
@@ -1028,7 +965,7 @@ namespace Sad
                         }
                         else
                         {
-                            error("(AR) توقعت اسم حقل بعد الفاصلة. (EN) Expected field name after comma.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "حقل"}, {"what_en", "field"}, {"ctx_ar", "بعد الفاصلة"}, {"ctx_en", "after the comma"}});
                             break;
                         }
 
@@ -1078,7 +1015,7 @@ namespace Sad
                     }
                     else
                     {
-                        error("(AR) توقعت اسم حقل بعد 'متغير'. (EN) Expected field name after 'var'.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "حقل"}, {"what_en", "field"}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_VAR) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_VAR) + "'"}});
                         advance();
                         continue;
                     }
@@ -1112,7 +1049,7 @@ namespace Sad
                         }
                         else
                         {
-                            error("(AR) توقعت نوع الحقل بعد ':'. (EN) Expected field type after ':'.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "نوع الحقل"}, {"what_en", "field type"}, {"ctx_ar", "بعد ':'"}, {"ctx_en", "after ':'"}});
                         }
                     }
 
@@ -1150,7 +1087,7 @@ namespace Sad
                         }
                         else
                         {
-                            error("(AR) توقعت اسم حقل بعد الفاصلة. (EN) Expected field name after comma.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "حقل"}, {"what_en", "field"}, {"ctx_ar", "بعد الفاصلة"}, {"ctx_en", "after the comma"}});
                             break;
                         }
 
@@ -1226,7 +1163,7 @@ namespace Sad
                 else
                 {
                     // Unknown member, skip to avoid infinite loop
-                    error("(AR) عضو صنف غير معروف. (EN) Unknown class member.");
+                    errorCatalog(Errors::ErrorCode::SYN_UNKNOWN_ELEMENT, {{"what_ar", "عضو الصنف"}, {"what_en", "class member"}, {"found", current_.getValue()}, {"allowed", kw(TT::KEYWORD_FUNCTION) + "، " + kw(TT::KEYWORD_VAR) + "، " + kw(TT::KEYWORD_CONST) + "، " + kw(TT::KEYWORD_PROPERTY) + "، " + kw(TT::KEYWORD_CONSTRUCTOR)}});
                     advance(); // Skip token
                 }
             }
@@ -1234,8 +1171,7 @@ namespace Sad
             // (AR) توقع 'نهاية' في نهاية تعريف الصنف
             // (EN) Expect 'نهاية' at end of class definition
             // Spec: docs\language_spec\rules\03_oop.md §1 - class_decl ends with 'نهاية'
-            consume(TT::KEYWORD_END,
-                    "(AR) توقع 'نهاية' بعد جسم الصنف. (EN) Expected 'نهاية' after class body.");
+            consume(TT::KEYWORD_END, "");
 
 #ifdef DEBUG_OOP
             std::cout << "[OOP] انتهى تحليل صنف '" << className << "' - "
@@ -1318,13 +1254,9 @@ namespace Sad
                 else
                     errorCatalog(Errors::ErrorCode::SEM_STATIC_ARRAY_SIZE,
                                  {{"detail", "توقّع «مصفوفة» بعد اسم المخزن الساكن: متغير ساكن اسم مصفوفة[N]"}});
-                consume(TT::BRACKET_LEFT,
-                        "(AR) توقّع '[' لحجم المصفوفة الساكنة / (EN) expected '[' for static array size");
-                Token saSizeTok = consume(TT::NUMBER_INTEGER,
-                        "(AR) توقّع عددًا صحيحًا حرفيًّا لحجم المصفوفة الساكنة\n"
-                        "(EN) expected an integer literal for the static array size");
-                consume(TT::BRACKET_RIGHT,
-                        "(AR) توقّع ']' بعد حجم المصفوفة الساكنة / (EN) expected ']' after size");
+                consume(TT::BRACKET_LEFT, "");
+                Token saSizeTok = consume(TT::NUMBER_INTEGER, "");
+                consume(TT::BRACKET_RIGHT, "");
                 uint64_t saCount = 0;
                 try { saCount = std::stoull(saSizeTok.getValue()); }
                 catch (...) { saCount = 0; }
@@ -2207,10 +2139,7 @@ namespace Sad
 
             if (!match(TT::PAREN_LEFT))
             {
-                error("(AR) خطأ نحوي: توقع '(' بعد 'اختبر'.\n"
-                      "💡 مثال: اختبر(\"اسم الاختبار\")\n"
-                      "(EN) Syntax error: expected '(' after 'test'.\n"
-                      "💡 Example: test(\"test name\")");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", "("}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_TEST) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_TEST) + "'"}});
                 // (AR) محاولة استرداد: إذا وجدنا نصاً مباشرة نحلله
                 if (check(TT::STRING_LITERAL))
                 {
@@ -2255,7 +2184,7 @@ namespace Sad
 
                         if (!match(TT::PAREN_RIGHT))
                         {
-                            error("(AR) خطأ نحوي: توقع ')' بعد وسائط الدالة. (EN) Expected ')' after function arguments.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "بعد وسائط الدالة"}, {"ctx_en", "after the function arguments"}});
                         }
 
                         // (AR) بناء CallExpr مع اسم الدالة "اختبر"
@@ -2269,13 +2198,13 @@ namespace Sad
                 }
                 else
                 {
-                    error("(AR) خطأ نحوي: توقع اسم الاختبار (نص). (EN) Syntax error: expected test name (string).");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "الاختبار (نصًّا)"}, {"what_en", "test (as a string)"}, {"ctx_ar", ""}, {"ctx_en", ""}});
                     return nullptr;
                 }
 
                 if (!match(TT::PAREN_RIGHT))
                 {
-                    error("(AR) خطأ نحوي: توقع ')' بعد اسم الاختبار. (EN) Syntax error: expected ')' after test name.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ")"}, {"ctx_ar", "بعد اسم الاختبار"}, {"ctx_en", "after the test name"}});
                 }
             }
 
@@ -2305,7 +2234,7 @@ namespace Sad
                     }
                     else
                     {
-                        error("(AR) توقعت عدداً بعد 'تكرارات'. (EN) Expected number after 'iterations'.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(عددًا) بعد 'تكرارات'"}, {"ctx_en", "(a number) after 'iterations'"}});
                     }
                 }
                 // بذرة
@@ -2319,7 +2248,7 @@ namespace Sad
                     }
                     else
                     {
-                        error("(AR) توقعت عدداً بعد 'بذرة'. (EN) Expected number after 'seed'.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(عددًا) بعد 'بذرة'"}, {"ctx_en", "(a number) after 'seed'"}});
                     }
                 }
                 // حد_أقصى
@@ -2333,7 +2262,7 @@ namespace Sad
                     }
                     else
                     {
-                        error("(AR) توقعت عدداً بعد 'حد_أقصى'. (EN) Expected number after 'max_size'.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "(عددًا) بعد 'حد_أقصى'"}, {"ctx_en", "(a number) after 'max_size'"}});
                     }
                 }
                 else
@@ -2354,7 +2283,7 @@ namespace Sad
 
             if (!match(TT::KEYWORD_END))
             {
-                error("(AR) خطأ نحوي: توقع 'نهاية' لإنهاء الاختبار. (EN) Syntax error: expected 'end' to close test.");
+                errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "كتلة '" + kw(TT::KEYWORD_TEST) + "'"}, {"construct_en", "'" + kw(TT::KEYWORD_TEST) + "' block"}, {"closer", kw(TT::KEYWORD_END)}});
             }
 
             auto body = std::make_unique<AST::BlockStmt>(std::move(bodyStmts), startPos);
@@ -2411,8 +2340,7 @@ namespace Sad
             std::string docComment = consumePendingDocComment();
 
             // (AR) اسم الواجهة
-            Token nameToken = consume(TT::IDENTIFIER,
-                                      "(AR) توقع اسم الواجهة/السمة بعد 'سمة'. (EN) Expected trait name after 'trait'.");
+            Token nameToken = consume(TT::IDENTIFIER, "");
             std::string traitName = nameToken.getValue();
 
             // (AR) وراثة واجهات أخرى (اختياري) — 'يرث' فقط
@@ -2421,8 +2349,7 @@ namespace Sad
             {
                 do
                 {
-                    Token superToken = consume(TT::IDENTIFIER,
-                                               "(AR) توقع اسم الواجهة الأساسية. (EN) Expected parent trait name.");
+                    Token superToken = consume(TT::IDENTIFIER, "");
                     superTraits.push_back(superToken.getValue());
                 } while (matchComma());
             }
@@ -2468,14 +2395,13 @@ namespace Sad
                     }
 
                     // (AR) اسم الدالة
-                    Token methodName = consume(TT::IDENTIFIER,
-                                               "(AR) توقع اسم الدالة في السمة. (EN) Expected method name in trait.");
+                    Token methodName = consume(TT::IDENTIFIER, "");
 
                     // (AR) المعاملات — نستخدم parseTypedParameterList() لدعم الأنواع المدمجة كمُعرّفات
                     // (EN) Parameters — use parseTypedParameterList() to support built-in type identifiers
-                    consume(TT::PAREN_LEFT, "(AR) توقع '('. (EN) Expected '('.");
+                    consume(TT::PAREN_LEFT, "");
                     auto params = parseTypedParameterList();
-                    consume(TT::PAREN_RIGHT, "(AR) توقع ')'. (EN) Expected ')'.");
+                    consume(TT::PAREN_RIGHT, "");
 
                     // (AR) جسم افتراضي (اختياري) — إذا السطر التالي ليس 'دالة' أو 'نهاية'
                     // (EN) Optional default body — if next line isn't 'دالة' or 'نهاية'
@@ -2492,8 +2418,7 @@ namespace Sad
                             if (stmt)
                                 bodyStmts.push_back(std::move(stmt));
                         }
-                        consume(TT::KEYWORD_END,
-                                "(AR) توقع 'نهاية' بعد جسم الدالة الافتراضية في السمة. (EN) Expected 'end' after default method body in trait.");
+                        consume(TT::KEYWORD_END, "");
                         if (!bodyStmts.empty())
                         {
                             auto block = std::make_unique<AST::BlockStmt>(std::move(bodyStmts), Position());
@@ -2511,8 +2436,7 @@ namespace Sad
                 }
             }
 
-            consume(TT::KEYWORD_END,
-                    "(AR) توقع 'نهاية' بعد جسم السمة. (EN) Expected 'end' after trait body.");
+            consume(TT::KEYWORD_END, "");
 
             auto traitDecl = std::make_unique<AST::TraitDecl>(traitName, std::move(methods),
                                                               std::vector<AST::TypeParameter>{}, std::move(superTraits), false, nameToken.getPosition());
@@ -2536,8 +2460,7 @@ namespace Sad
             std::string docComment = consumePendingDocComment();
 
             // (AR) يمكن أن يكون: نفّذ سمة لـ صنف  أو  نفّذ صنف
-            Token firstToken = consume(TT::IDENTIFIER,
-                                       "(AR) توقع اسم السمة أو الصنف بعد 'نفّذ'. (EN) Expected trait/class name after 'impl'.");
+            Token firstToken = consume(TT::IDENTIFIER, "");
 
             std::string traitName;
             std::string targetType;
@@ -2552,8 +2475,7 @@ namespace Sad
                 {
                     traitName = firstToken.getValue();
                     advance(); // skip لـ/ل/for
-                    Token target = consume(TT::IDENTIFIER,
-                                           "(AR) توقع اسم الصنف بعد 'لـ'. (EN) Expected class name after 'for'.");
+                    Token target = consume(TT::IDENTIFIER, "");
                     targetType = target.getValue();
                 }
                 else
@@ -2602,8 +2524,7 @@ namespace Sad
                 }
             }
 
-            consume(TT::KEYWORD_END,
-                    "(AR) توقع 'نهاية' بعد كتلة التنفيذ. (EN) Expected 'end' after impl block.");
+            consume(TT::KEYWORD_END, "");
 
             auto implDecl = std::make_unique<AST::ImplDecl>(traitName, targetType, std::move(methods),
                                                             std::vector<AST::TypeParameter>{}, firstToken.getPosition());
@@ -2645,11 +2566,7 @@ namespace Sad
 
             // (AR) تحليل اسم النوع المستهدف
             // (EN) Parse target type name
-            Token targetToken = consume(TT::IDENTIFIER,
-                                        "(AR) توقع اسم النوع بعد 'امتداد'.\n"
-                                        "مثال: امتداد نص ... نهاية\n"
-                                        "(EN) Expected type name after 'extension'.\n"
-                                        "Example: extension String ... end");
+            Token targetToken = consume(TT::IDENTIFIER, "");
 
             std::string targetType = targetToken.getValue();
 
@@ -2683,15 +2600,12 @@ namespace Sad
                 {
                     // (AR) تخطي الرموز غير المتوقعة مع رسالة خطأ
                     // (EN) Skip unexpected tokens with error message
-                    error("(AR) توقع 'دالة' داخل كتلة الامتداد. (EN) Expected 'function' inside extension block.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_FUNCTION)}, {"ctx_ar", "داخل كتلة '" + kw(TT::KEYWORD_EXTENSION) + "'"}, {"ctx_en", "inside an '" + kw(TT::KEYWORD_EXTENSION) + "' block"}});
                     advance();
                 }
             }
 
-            consume(TT::KEYWORD_END,
-                    "(AR) توقع 'نهاية' بعد كتلة الامتداد.\n"
-                    "مثال:\n    امتداد نص\n        دالة حروف_كبيرة(هذا) ...\n        نهاية\n    نهاية\n"
-                    "(EN) Expected 'end' after extension block.");
+            consume(TT::KEYWORD_END, "");
 
             auto extensionDecl = std::make_unique<AST::ExtensionDecl>(
                 targetType, std::move(methods),
@@ -2730,11 +2644,7 @@ namespace Sad
 
             // (AR) تحليل اسم الماكرو
             // (EN) Parse macro name
-            Token nameToken = consume(TT::IDENTIFIER,
-                                      "(AR) توقع اسم الماكرو بعد 'ماكرو'.\n"
-                                      "مثال: ماكرو تبديل(أ، ب) ... نهاية\n"
-                                      "(EN) Expected macro name after 'macro'.\n"
-                                      "Example: macro swap(a, b) ... end");
+            Token nameToken = consume(TT::IDENTIFIER, "");
 
             std::string macroName = nameToken.getValue();
 
@@ -2744,9 +2654,7 @@ namespace Sad
             // (EN) Parse parameter list
             //      Variadic support: macro name(a, b, ...rest)
             //      `...` before last param name collects extra args into array
-            consume(TT::PAREN_LEFT,
-                    "(AR) توقع '(' بعد اسم الماكرو.\n"
-                    "(EN) Expected '(' after macro name.");
+            consume(TT::PAREN_LEFT, "");
 
             std::vector<std::string> params;
             bool isVariadic = false;
@@ -2758,35 +2666,23 @@ namespace Sad
                     // (EN) Check for `...` for variadic parameter
                     if (match(TT::ELLIPSIS))
                     {
-                        Token paramToken = consume(TT::IDENTIFIER,
-                                                   "(AR) توقع اسم المعامل المتغير بعد '...'.\n"
-                                                   "مثال: ماكرو سجّل(...رسائل)\n"
-                                                   "(EN) Expected variadic parameter name after '...'.\n"
-                                                   "Example: macro log(...messages)");
+                        Token paramToken = consume(TT::IDENTIFIER, "");
                         params.push_back(paramToken.getValue());
                         isVariadic = true;
                         // (AR) المعامل المتغير يجب أن يكون الأخير
                         // (EN) Variadic parameter must be last
                         if (!check(TT::PAREN_RIGHT))
                         {
-                            error("(AR) المعامل المتغير '..." + paramToken.getValue() +
-                                  "' يجب أن يكون آخر معامل.\n"
-                                  "(EN) Variadic parameter '..." +
-                                  paramToken.getValue() +
-                                  "' must be the last parameter.");
+                            errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "المعامل المتغيّر '..." + paramToken.getValue() + "'"}, {"construct_en", "variadic parameter '..." + paramToken.getValue() + "'"}, {"form", "يجب أن يكون آخر معامل"}});
                         }
                         break;
                     }
-                    Token paramToken = consume(TT::IDENTIFIER,
-                                               "(AR) توقع اسم معامل في تعريف الماكرو.\n"
-                                               "(EN) Expected parameter name in macro definition.");
+                    Token paramToken = consume(TT::IDENTIFIER, "");
                     params.push_back(paramToken.getValue());
                 } while (matchComma());
             }
 
-            consume(TT::PAREN_RIGHT,
-                    "(AR) توقع ')' بعد معاملات الماكرو.\n"
-                    "(EN) Expected ')' after macro parameters.");
+            consume(TT::PAREN_RIGHT, "");
 
             // (AR) تحليل جسم الماكرو (كتلة من الجمل حتى 'نهاية')
             // (EN) Parse macro body (block of statements until 'end')
@@ -2803,10 +2699,7 @@ namespace Sad
                 }
             }
 
-            consume(TT::KEYWORD_END,
-                    "(AR) توقع 'نهاية' بعد جسم الماكرو.\n"
-                    "مثال:\n    ماكرو تبديل(أ، ب)\n        متغير _م = أ\n        أ = ب\n        ب = _م\n    نهاية\n"
-                    "(EN) Expected 'end' after macro body.");
+            consume(TT::KEYWORD_END, "");
 
             auto body = std::make_unique<AST::BlockStmt>(std::move(bodyStmts), pos);
 
@@ -2849,19 +2742,14 @@ namespace Sad
             {
                 if (!check(TT::LIFETIME))
                 {
-                    error("(AR) توقع تعليق عمر بعد '<' أو ','.\n"
-                          "مثال: دالة أطول<'أ, 'ب>(...)\n"
-                          "(EN) Expected lifetime annotation after '<' or ','.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "تعليق عمر"}, {"what_en", "lifetime annotation"}, {"ctx_ar", "بعد '<' أو ','"}, {"ctx_en", "after '<' or ','"}});
                     break;
                 }
                 lifetimes.push_back(current_.getValue());
                 advance(); // (AR) استهلك LIFETIME / consume LIFETIME
             } while (matchComma());
 
-            consume(TT::OP_GREATER,
-                    "(AR) توقع '>' بعد معاملات العمر.\n"
-                    "مثال: دالة اسم<'أ>(...)\n"
-                    "(EN) Expected '>' after lifetime parameters.");
+            consume(TT::OP_GREATER, "");
 
             return lifetimes;
         }

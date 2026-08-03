@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: ثلاثة نفي متتابعة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ن3
+
+إذا (ليس ليس ليس خطأ)
+    اطبع_سطر("ن3")
+نهاية

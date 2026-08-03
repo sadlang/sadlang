@@ -40,17 +40,13 @@ namespace Sad
         {
             // Parse condition
             // (AR) تحليل الشرط
-            consume(TT::PAREN_LEFT,
-                    "(AR) خطأ نحوي: بعد 'إذا' يجب أن يأتي قوس مفتوح '(' للشرط.\n"
-                    "مثال: إذا (شرط) ... نهاية\n"
-                    "(EN) Syntax error: After 'if' expected '(' for condition.\n"
-                    "Example: if (condition) ... end");
+            // (AR) لا نصّ تشخيصيّ هنا: الرسالة تُرَكَّب مركزياً في consume() من كتالوج
+            //      الأخطاء (language-truth/errors/) وتهجئة المعجم عبر kw() — لا سلاسل خام.
+            // (EN) No diagnostic prose here: consume() renders the message centrally from
+            //      the SoT error catalog + kw() lexicon spellings — never raw literals.
+            consume(TT::PAREN_LEFT, "");
             auto condition = parseExpression();
-            consume(TT::PAREN_RIGHT,
-                    "(AR) خطأ نحوي: بعد شرط 'إذا' يجب أن يأتي قوس مغلق ')'.\n"
-                    "مثال: إذا (x > 5) ... نهاية\n"
-                    "(EN) Syntax error: After 'if' condition expected ')'.\n"
-                    "Example: if (x > 5) ... end");
+            consume(TT::PAREN_RIGHT, "");
 
             // Parse then branch - directly as block (spec 04_syntax.md)
             // (AR) تحليل فرع then - مباشرة ككتلة
@@ -109,17 +105,11 @@ namespace Sad
         {
             // Parse condition
             // (AR) تحليل الشرط
-            consume(TT::PAREN_LEFT,
-                    "(AR) خطأ نحوي: بعد 'بينما' يجب أن يأتي قوس مفتوح '(' للشرط.\n"
-                    "مثال: بينما (شرط) ... نهاية\n"
-                    "(EN) Syntax error: After 'while' expected '(' for condition.\n"
-                    "Example: while (condition) ... end");
+            // (AR) لا نصّ تشخيصيّ هنا — الرسالة مركزية من كتالوج الأخطاء + kw().
+            // (EN) No diagnostic prose here — message rendered centrally (catalog + kw()).
+            consume(TT::PAREN_LEFT, "");
             auto condition = parseExpression();
-            consume(TT::PAREN_RIGHT,
-                    "(AR) خطأ نحوي: بعد شرط 'بينما' يجب أن يأتي قوس مغلق ')'.\n"
-                    "مثال: بينما (i < 10) ... نهاية\n"
-                    "(EN) Syntax error: After 'while' condition expected ')'.\n"
-                    "Example: while (i < 10) ... end");
+            consume(TT::PAREN_RIGHT, "");
 
             // Parse body - directly as block (spec 04_syntax.md)
             // (AR) تحليل الجسم - مباشرة ككتلة
@@ -163,8 +153,7 @@ namespace Sad
             }
             else
             {
-                var = consume(TT::IDENTIFIER,
-                              "(AR) توقع اسم متغير الحلقة. (EN) Expected loop variable name.");
+                var = consume(TT::IDENTIFIER, "");
             }
 
             // (AR) دعم تفكيك المتغيرات: لكل فهرس، عنصر في مجموعة
@@ -185,8 +174,7 @@ namespace Sad
                 }
                 else
                 {
-                    valVar = consume(TT::IDENTIFIER,
-                                     "(AR) توقع اسم المتغير الثاني. (EN) Expected second variable name.");
+                    valVar = consume(TT::IDENTIFIER, "");
                 }
                 valueVariable = valVar.getValue();
             }
@@ -257,10 +245,26 @@ namespace Sad
             // Parse return value if present (not semicolon, end keyword, or newline)
             // (AR) تحليل قيمة الإرجاع إذا كانت موجودة (ليست فاصلة منقوطة أو نهاية أو سطر جديد)
             // (AR) إصلاح المشكلة 10: السماح بـ "ارجع" بدون قيمة قبل "نهاية" أو "وإلا"
+            // (AR) م-٦: و«عندما»/«افتراضي» كذلك — فبدونهما تبتلع «ارجع» الفارغةُ آخرَ
+            //      ذراعٍ في «طابق» الذراعَ التالية، ويشير التشخيص إلى نقطتَيها لا إليها.
+            //      وكلتاهما **محجوزة** (KW-RES-020/021 في language-truth/keywords.yaml)
+            //      فالمعجم يُصدر KEYWORD_WHEN/KEYWORD_DEFAULT حتمًا، ولا تصلح واحدةٌ
+            //      منهما بدايةَ تعبير؛ فوجودُ الرمز وحدَه فاصلٌ قاطع بلا نظرٍ مسبق.
+            //      ⚠ دَينٌ سابقٌ موثَّق: المحلّل يقبل الكلمةَ المحجوزةَ اسمَ متغيّرٍ
+            //      («متغير عندما = 9» يعمل) — عيبٌ في تحليل التصريح لا هنا، ومتى
+            //      سُدَّ زال آخرُ لبسٍ متصوَّرٍ حول هذَين الرمزَين.
+            // (EN) م-٦: also 'عندما'/'افتراضي' — otherwise a bare 'ارجع' ending a match
+            //      arm swallows the next arm. Both are RESERVED (KW-RES-020/021), so the
+            //      lexer always emits the keyword token and neither can begin an
+            //      expression: the token alone is a decisive stop, no lookahead needed.
+            //      ⚠ Pre-existing debt: the declaration parser wrongly accepts a reserved
+            //      word as a variable name ('متغير عندما = 9' runs) — a defect there.
             if (!checkSemicolon() &&
                 !check(TT::KEYWORD_END) && !check(TT::KEYWORD_ELSE) &&
                 !check(TT::KEYWORD_ELSE_IF) && !check(TT::KEYWORD_CATCH) &&
-                !check(TT::KEYWORD_FINALLY) && !isAtEnd())
+                !check(TT::KEYWORD_FINALLY) &&
+                !check(TT::KEYWORD_WHEN) && !check(TT::KEYWORD_DEFAULT) &&
+                !isAtEnd())
             {
                 value = parseExpression();
             }
@@ -354,7 +358,7 @@ namespace Sad
             ExprPtr resource = parseExpression();
             if (!resource)
             {
-                error("(AR) توقع تعبير بعد 'باستخدام'. (EN) Expected expression after 'with'.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION, {{"ctx_ar", "بعد '" + kw(TT::KEYWORD_WITH) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_WITH) + "'"}});
                 return nullptr;
             }
 
@@ -363,8 +367,7 @@ namespace Sad
             std::string alias;
             if (match(TT::KEYWORD_AS))
             {
-                Token aliasToken = consume(TT::IDENTIFIER,
-                                           "(AR) توقع اسم متغير بعد 'كـ'. (EN) Expected variable name after 'as'.");
+                Token aliasToken = consume(TT::IDENTIFIER, "");
                 alias = aliasToken.getValue();
             }
 
@@ -393,8 +396,7 @@ namespace Sad
             // (EN) Consume 'end'
             if (!match(TT::KEYWORD_END) && !match(TT::KEYWORD_END_WITH))
             {
-                error("(AR) توقع 'نهاية' لإنهاء كتلة الاستخدام. "
-                      "(EN) Expected 'نهاية' to close with block.");
+                errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "كتلة '" + kw(TT::KEYWORD_WITH) + "'"}, {"construct_en", "'" + kw(TT::KEYWORD_WITH) + "' block"}, {"closer", kw(TT::KEYWORD_END)}});
                 return nullptr;
             }
 
@@ -795,26 +797,12 @@ namespace Sad
 
             if (isAtEnd() && !check(TT::KEYWORD_END))
             {
-                error(
-                    "(AR) خطأ نحوي: الكتلة غير مغلقة!\n"
-                    "لم يتم العثور على كلمة 'نهاية' لإغلاق الكتلة.\n"
-                    "في لغة ص، كل كتلة (دالة، إذا، بينما، لكل، ...) يجب أن تنتهي بـ 'نهاية'.\n\n"
-                    "مثال صحيح:\n"
-                    "  دالة مثال() \n"
-                    "    # هنا جسم الدالة\n"
-                    "  نهاية  # <-- لا تنسى هذه!\n\n"
-                    "(EN) Syntax error: Unclosed block!\n"
-                    "Missing 'نهاية' (end) keyword to close the block.\n"
-                    "In Sad language, every block (function, if, while, for, ...) must end with 'نهاية'.\n\n"
-                    "Correct example:\n"
-                    "  function example()\n"
-                    "    # function body here\n"
-                    "  نهاية  # <-- Don't forget this!\n");
+                // (AR) الشرح المطوَّل والمثال يعيشان في كتالوج SoT (SYN013)، لا هنا.
+                // (EN) The detailed explanation and example live in the SoT catalog (SYN013).
+                errorCatalog(Errors::ErrorCode::SYN_UNCLOSED_CONSTRUCT, {{"construct_ar", "الكتلة"}, {"construct_en", "block"}, {"closer", kw(TT::KEYWORD_END)}});
             }
 
-            consume(TT::KEYWORD_END,
-                    "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق الكتلة.\n"
-                    "(EN) Syntax error: Expected 'نهاية' (end) to close block.");
+            consume(TT::KEYWORD_END, "");
 
             // Create block statement node
             // (AR) إنشاء عقدة كتلة الجمل
@@ -846,9 +834,7 @@ namespace Sad
                 bool hasCatchParen = false;
                 if (check(TT::PAREN_LEFT))
                 {
-                    error(
-                        "(AR) ❌ `امسك (خطأ)` بأقواس لم تعد مدعومة. استخدم `امسك خطأ` بدون أقواس.\n"
-                        "(EN) `امسك (error)` with parentheses is no longer supported. Use `امسك error` without parens.");
+                    errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_CATCH) + " (...)"}, {"new", kw(TT::KEYWORD_CATCH) + " ... (بلا أقواس)"}, {"example", kw(TT::KEYWORD_CATCH) + " خطأ"}});
                     hasCatchParen = true;
                     advance(); // skip '(' for recovery
                 }
@@ -878,8 +864,7 @@ namespace Sad
                 }
                 else
                 {
-                    firstToken = consume(TT::IDENTIFIER,
-                                         "(AR) توقع اسم متغير الاستثناء. (EN) Expected exception variable name.");
+                    firstToken = consume(TT::IDENTIFIER, "");
                 }
 
                 // (AR) إذا كان هناك معرّف آخر قبل ')' فالأول هو النوع والثاني هو المتغير
@@ -907,8 +892,7 @@ namespace Sad
 
                 if (hasCatchParen)
                 {
-                    consume(TT::PAREN_RIGHT,
-                            "(AR) توقع ')' بعد متغير الاستثناء. (EN) Expected ')' after exception variable.");
+                    consume(TT::PAREN_RIGHT, "");
                 }
 
                 // Parse catch body using Arabic syntax
@@ -1005,9 +989,7 @@ namespace Sad
             // ─────────────────────────────────────────────────────────────────────
             if (check(TT::PAREN_LEFT))
             {
-                error(
-                    "(AR) ❌ `حالة (تعبير)` بأقواس لم تعد مدعومة. استخدم `حالة تعبير` بدون أقواس.\n"
-                    "(EN) `حالة (expr)` with parentheses is no longer supported. Use `حالة expr` without parens.");
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_CASE) + " (...)"}, {"new", kw(TT::KEYWORD_CASE) + " ... (بلا أقواس)"}, {"example", kw(TT::KEYWORD_CASE) + " تعبير"}});
                 advance(); // skip '(' for recovery
             }
 
@@ -1121,8 +1103,7 @@ namespace Sad
 
             // Consume end keyword
             // (AR) استهلك كلمة نهاية
-            consume(TT::KEYWORD_END,
-                    "(AR) توقع 'نهاية' لإنهاء جملة حالة. (EN) Expected 'end' to close switch statement.");
+            consume(TT::KEYWORD_END, "");
 
             // Create switch statement node
             // (AR) إنشاء عقدة جملة Switch

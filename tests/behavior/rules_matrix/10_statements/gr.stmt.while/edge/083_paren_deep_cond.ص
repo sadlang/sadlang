@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while
+# @description: شرط بأقواس متداخلة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+
+متغير ع=0
+بينما ((((ع < 2))))
+    ع = ع + 1
+نهاية
+اطبع_سطر(ع)

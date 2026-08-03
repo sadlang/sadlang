@@ -381,8 +381,7 @@ namespace Sad
 
                 // Expect colon
                 // (AR) توقع نقطتان
-                consume(TT::COLON,
-                        "(AR) توقع ':' في التعبير الثلاثي. (EN) Expected ':' in ternary expression.");
+                consume(TT::COLON, "");
 
                 // Parse false branch (recursive for right-associativity)
                 // (AR) تحليل الفرع الخاطئ (تكراري لتحقيق الربط الأيمن)
@@ -769,8 +768,7 @@ namespace Sad
                         advance();             // (AR) استهلاك '!' / (EN) consume '!'
                         match(TT::PAREN_LEFT); // (AR) استهلاك '(' / (EN) consume '('
                         auto args = parseArgumentList();
-                        consume(TT::PAREN_RIGHT,
-                                "(AR) توقع ')' بعد وسائط الماكرو. (EN) Expected ')' after macro arguments.");
+                        consume(TT::PAREN_RIGHT, "");
                         expr = std::make_unique<CallExpr>(
                             std::move(expr),
                             std::move(args),
@@ -786,8 +784,7 @@ namespace Sad
                     // Function call
                     // (AR) استدعاء دالة
                     auto args = parseArgumentList();
-                    consume(TT::PAREN_RIGHT,
-                            "(AR) توقع ')' بعد الوسائط. (EN) Expected ')' after arguments.");
+                    consume(TT::PAREN_RIGHT, "");
 
                     // ═══════════════════════════════════════════════════════════════
                     // (AR) دعم postfix جديد: اسم_صنف(معاملات) جديد
@@ -813,8 +810,7 @@ namespace Sad
                         }
                         else
                         {
-                            error("(AR) توقع اسم صنف قبل '(معاملات) جديد'. "
-                                  "(EN) Expected class name before '(args) جديد'.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "صنف"}, {"what_en", "class"}, {"ctx_ar", "قبل '(معاملات) " + kw(TT::KEYWORD_NEW) + "'"}, {"ctx_en", "before '(args) " + kw(TT::KEYWORD_NEW) + "'"}});
                             className = "?";
                         }
                         auto newExpr = std::make_unique<NewExpr>(className);
@@ -923,8 +919,7 @@ namespace Sad
                     }
                     else
                     {
-                        member = consume(TT::IDENTIFIER,
-                                         "(AR) توقع اسم عضو بعد '.'. (EN) Expected member name after '.'.");
+                        member = consume(TT::IDENTIFIER, "");
                     }
 
                     // Check if this is a method call: obj.method()
@@ -932,8 +927,7 @@ namespace Sad
                     {
                         match(TT::PAREN_LEFT);
                         auto args = parseArgumentList();
-                        consume(TT::PAREN_RIGHT,
-                                "(AR) توقع ')' بعد وسائط الطريقة. (EN) Expected ')' after method arguments.");
+                        consume(TT::PAREN_RIGHT, "");
                         expr = std::make_unique<MethodCallExpr>(
                             std::move(expr),
                             member.getValue());
@@ -966,8 +960,7 @@ namespace Sad
                     }
                     else
                     {
-                        member = consume(TT::IDENTIFIER,
-                                         "(AR) توقع اسم عضو بعد '?.'. (EN) Expected member name after '?.'.");
+                        member = consume(TT::IDENTIFIER, "");
                     }
 
                     expr = std::make_unique<OptionalChainExpr>(
@@ -998,8 +991,7 @@ namespace Sad
                         {
                             sliceStep = parseExpression();
                         }
-                        consume(TT::BRACKET_RIGHT,
-                                "(AR) توقع ']' بعد الشريحة. (EN) Expected ']' after slice.");
+                        consume(TT::BRACKET_RIGHT, "");
                         expr = std::make_unique<SliceExpr>(
                             std::move(expr), nullptr, std::move(sliceEnd), std::move(sliceStep), pos);
                     }
@@ -1023,8 +1015,7 @@ namespace Sad
                             {
                                 sliceStep = parseExpression();
                             }
-                            consume(TT::BRACKET_RIGHT,
-                                    "(AR) توقع ']' بعد الشريحة. (EN) Expected ']' after slice.");
+                            consume(TT::BRACKET_RIGHT, "");
                             expr = std::make_unique<SliceExpr>(
                                 std::move(expr), std::move(first), std::move(sliceEnd), std::move(sliceStep), pos);
                         }
@@ -1038,8 +1029,7 @@ namespace Sad
                             {
                                 sliceEnd = parseExpression();
                             }
-                            consume(TT::BRACKET_RIGHT,
-                                    "(AR) توقع ']' بعد الشريحة. (EN) Expected ']' after slice.");
+                            consume(TT::BRACKET_RIGHT, "");
                             expr = std::make_unique<SliceExpr>(
                                 std::move(expr), std::move(first), std::move(sliceEnd), nullptr, pos);
                         }
@@ -1056,8 +1046,7 @@ namespace Sad
                                 // (EN) Convert RangeExpr to SliceExpr
                                 ExprPtr sliceStart = std::move(rangeExpr->start);
                                 ExprPtr sliceEnd = std::move(rangeExpr->end);
-                                consume(TT::BRACKET_RIGHT,
-                                        "(AR) توقع ']' بعد الشريحة. (EN) Expected ']' after slice.");
+                                consume(TT::BRACKET_RIGHT, "");
                                 expr = std::make_unique<SliceExpr>(
                                     std::move(expr), std::move(sliceStart), std::move(sliceEnd), nullptr, pos);
                             }
@@ -1065,8 +1054,7 @@ namespace Sad
                             {
                                 // (AR) فهرس عادي: [index]
                                 // (EN) Regular index: [index]
-                                consume(TT::BRACKET_RIGHT,
-                                        "(AR) توقع ']' بعد الفهرس. (EN) Expected ']' after index.");
+                                consume(TT::BRACKET_RIGHT, "");
                                 expr = std::make_unique<IndexExpr>(
                                     std::move(expr),
                                     std::move(first),
@@ -1117,8 +1105,7 @@ namespace Sad
                     advance(); // consume '['
                     auto pos = previous().getPosition();
                     auto indexExpr = parseExpression();
-                    consume(TT::BRACKET_RIGHT,
-                            "(AR) توقع ']' بعد الفهرس. (EN) Expected ']' after index.");
+                    consume(TT::BRACKET_RIGHT, "");
                     // (AR) نحوّله إلى: (كائن != لاشيء) ? كائن[فهرس] : لاشيء
                     // (EN) Convert to: (obj != null) ? obj[index] : null
                     // (AR) للبساطة نستخدم IndexExpr عادي — المفسر يتعامل مع null
@@ -1160,7 +1147,7 @@ namespace Sad
                 if (match(TT::PAREN_LEFT))
                 {
                     condition = parseExpression();
-                    consume(TT::PAREN_RIGHT, "(AR) توقع ')' بعد شرط إذا. (EN) Expected ')' after if condition.");
+                    consume(TT::PAREN_RIGHT, "");
                 }
                 else
                 {
@@ -1512,16 +1499,14 @@ namespace Sad
                         elements.push_back(std::move(elem));
                     }
 
-                    consume(TT::PAREN_RIGHT,
-                            "(AR) توقع ')' لإغلاق الصف. (EN) Expected ')' to close tuple.");
+                    consume(TT::PAREN_RIGHT, "");
 
                     ExprPtr tupleMulti;
                     tupleMulti.reset(new TupleExpr(std::move(elements), leftPos));
                     return tupleMulti;
                 }
 
-                consume(TT::PAREN_RIGHT,
-                        "(AR) توقع ')' بعد التعبير. تأكد من إغلاق جميع الأقواس بشكل صحيح. (EN) Expected ')' after expression. Make sure all parentheses are properly closed.");
+                consume(TT::PAREN_RIGHT, "");
 
                 // (AR) التحقق من (x) => جسم — دالة سهمية بمعامل واحد بين أقواس
                 // (EN) Check for (x) => body — single-param arrow function with parens
@@ -1681,8 +1666,7 @@ namespace Sad
 
             advance(); // consume '('
             paramNames = parseParameterList();
-            consume(TT::PAREN_RIGHT,
-                    "(AR) توقع ')' بعد معاملات لامدا. (EN) Expected ')' after lambda parameters.");
+            consume(TT::PAREN_RIGHT, "");
 
             // (AR) تحويل أسماء المعاملات إلى كائنات Parameter
             // (EN) Convert param names to Parameter objects

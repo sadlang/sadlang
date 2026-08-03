@@ -64,7 +64,7 @@ productions:
       أُغلقت كتلة «إذا» بـ«نهاية» صريحة فلا يُلتمَس «وإلا» تالٍ (يُنسَب لسلسلة if خارجية).
     since: "1.0.0"
     status: stable
-    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
+    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 74, negative: 10, interaction: 45 } }
     example: |
       # (أ) مفرد
       إذا (س > 0)
@@ -112,7 +112,7 @@ productions:
       إعادة تقييم الشرط). لا صيغة do-while.
     since: "1.0.0"
     status: stable
-    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }
+    conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 74, negative: 10, interaction: 45 } }
     example: |
       # عدّاد بسيط
       متغير ع = 0
@@ -361,6 +361,13 @@ productions:
       كقيمة إرجاع (لأنّ المعجم يتخطّى الأسطر فلا يُنهي «ارجع»)؛ يُقيَّم التعبير **مرّة
       واحدة** ثمّ تُنهى الدالة، **متطابقاً بين المفسّر والمترجم** (كان المترجم يُنفّذه
       مرّتين قبل الإصلاح). للإرجاع الفارغ الصريح ضعها آخر الكتلة قبل «نهاية»/«وإلا».
+      **المواضع الآمنة كاملةً (م-٦):** «ارجع» الفارغة تتوقّف عند «نهاية» و«وإلا» و«وإلا إذا»
+      و«امسك» و«أخيراً» ونهاية الملفّ، وكذلك عند **«عندما» و«افتراضي»** (ذراعا «طابق»).
+      أُضيفت الحالتان لأنّ «ارجع» الفارغة آخر ذراع «طابق» كانت تبتلع الذراع التالية
+      فيُبلَّغ SYN001 عند نقطتَي الذراع لا عند «ارجع». والكلمتان **محجوزتان**
+      (KW-RES-020/021) فلا تصلح واحدة منهما بداية تعبير، ووجود الرمز وحده فاصل قاطع.
+      **دَين سابق موثَّق:** المحلّل يقبل الكلمة المحجوزة اسمَ متغيّر («متغير عندما = 9»
+      يعمل ويطبع 9) — عيب في تحليل التصريح لا في «ارجع»، ومتى سُدَّ زال آخر لبس.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 5, edge: 3, negative: 2, interaction: 2 } }

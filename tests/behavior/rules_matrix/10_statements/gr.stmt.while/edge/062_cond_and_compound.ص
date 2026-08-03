@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while
+# @description: شرط مركّب بـ«و»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير ع=0
+بينما (ع < 10 و ع < 3)
+    ع = ع + 1
+نهاية
+اطبع_سطر(ع)

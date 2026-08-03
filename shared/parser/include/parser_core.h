@@ -1719,6 +1719,16 @@ namespace Sad
 
             /// (AR) تحذير «توثيق في ذيل سطر» عبر الكتالوج (SYN025). (EN) Trailing-doc catalog warning.
             void warnDocTrailing(const Lexer::Token &tok);
+
+            /**
+             * @brief (AR) تحذيرٌ عامٌّ من الكتالوج المركزيّ بمستوى Warning — لفحوصٍ
+             *        تُبلِّغ ولا تُفشِل (مثل توقيع «رئيسية»). يقابل errorCatalog لكنّه
+             *        لا يسجّل خطأً ولا يغيّر رمزَ الخروج.
+             *        (EN) Generic catalog warning at Warning severity — for checks that
+             *        report without failing (e.g. the «رئيسية» signature). Mirrors
+             *        errorCatalog but registers no error and leaves the exit code alone.
+             */
+            void warnCatalog(Errors::ErrorCode code, CatalogArgs placeholders = {});
         };
 
     } // namespace Parser

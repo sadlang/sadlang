@@ -453,3 +453,21 @@ errors:
   detailed:
     ar: تعليق التوثيق «##» الواقع بعد كود على السطر نفسه لا ينتمي إلى أي تصريح لاحق، ولو التُقط لالتصق خطأً بالتصريح التالي. لذلك يُعامَل تعليقًا عاديًا ويصدر هذا التحذير.
     en: A «##» doc comment appearing after code on the same line belongs to no later declaration; if captured it would wrongly attach to the next one. It is therefore treated as a plain comment, and this warning is emitted.
+- code: SYN_DECORATOR_NOT_ALLOWED
+  id: SYN026
+  category: syntactic
+  title:
+    ar: مُزخرِف في موضع لا يقبله
+    en: Decorator in a position that rejects it
+  brief:
+    ar: المُزخرِف لا يُستخدم مع {target_ar}
+    en: A decorator cannot be applied to {target_en}
+  placeholders:
+  - target_ar
+  - target_en
+  fix_hint:
+    ar: 'المُزخرِفات تسبق تصريح دالة حصرًا. احذف المُزخرِف من هنا، أو انقله فوق تصريح دالة.'
+    en: 'Decorators may only precede a function declaration. Remove it here, or move it above a function declaration.'
+  detailed:
+    ar: المُزخرِف «@اسم» يلتصق بتصريح الدالة الذي يليه مباشرة ليغلّف سلوكها. وضعه فوق {target_ar} لا معنى له لأنّ المُزخرِف يحتاج دالّةً يغلّفها، فيرفضه المحلّل بدل أن يُهمله صامتًا.
+    en: A decorator «@name» attaches to the function declaration immediately following it in order to wrap its behavior. Placing it above {target_en} is meaningless because a decorator needs a function to wrap, so the parser rejects it rather than dropping it silently.

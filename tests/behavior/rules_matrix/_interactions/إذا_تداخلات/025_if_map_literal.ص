@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if, gr.expr.map_literal
+# @description: إذا + حرفيّة خريطة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير خ = {"أ": 5}
+إذا (خ["أ"] == 5)
+    اطبع_سطر(خ["أ"])
+نهاية

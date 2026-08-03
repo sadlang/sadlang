@@ -1,0 +1,14 @@
+# @rule: gr.stmt.if, gr.stmt.break, gr.stmt.while
+# @description: إذا + توقّف داخل بينما
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0\n1\n2
+
+متغير ع=0
+بينما (ع < 10)
+    إذا (ع == 3)
+        توقف
+    نهاية
+    اطبع_سطر(ع)
+    ع = ع + 1
+نهاية

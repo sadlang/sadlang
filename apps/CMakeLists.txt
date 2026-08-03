@@ -90,6 +90,31 @@ set_target_properties(sad-run PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 )
 
+# (AR) م-٧: حجز 128م للمكدّس — مطابقةً لـsad-build. المفسّر يستهلك المكدّس أعمق من
+#      المترجم لا أقلّ: كلّ نداءٍ في لغة ص يُترجَم إلى سلسلة أُطُر C++ متداخلة في
+#      زوّار الشجرة، فالتعاود العاديّ (عاملي، اجتياز شجرة) كان يفجّر مكدّس ويندوز
+#      الافتراضيّ (1م) عند عمق ~32 في بناء Debug — بانهيار صامت (0xC00000FD) لا
+#      تشخيصَ فيه، بينما حارس maxCallDepth_=1000 لا تبلغه التنفيذة أصلًا.
+#      بغير هذا الحجز كان الحارس المنطقيّ حبرًا على ورق.
+# (EN) م-٧: reserve a 128MB stack, mirroring sad-build. Each Sad-level call expands
+#      into a chain of nested C++ visitor frames, so ordinary recursion blew the
+#      default 1MB Windows stack at depth ~32 in Debug — a silent 0xC00000FD crash,
+#      with the maxCallDepth_=1000 guard never reached.
+if(MSVC)
+    target_link_options(sad-run PRIVATE /STACK:134217728)
+elseif(APPLE)
+    # (AR) رابط macOS (ld64) يستخدم -stack_size لا -z stacksize (خاص بـ GNU ld).
+    # (EN) macOS ld64 uses -stack_size, not the GNU ld -z stacksize option.
+    target_link_options(sad-run PRIVATE -Wl,-stack_size,0x8000000)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # (AR) ⚠ ‏«‎-z stack-size» تهجئة binutils ld/lld (‏«stacksize» بلا شرطة تهجئة
+    #      Solaris فتُتجاهَل صامتة). وحتّى بالتهجئة الصحيحة لا يحكم PT_GNU_STACK
+    #      مكدّسَ الخيط الرئيسيّ على لينكس — يشتقّه النواة من RLIMIT_STACK (٨م
+    #      عادةً) — فيبقى الأثر على الخيوط المُنشأة وعلى الأنظمة التي تقرؤه.
+    #      عدّاءٌ بـulimit -s 4096 يفشل رغم هذا السطر: دَينٌ مُعلَن لا مسدود.
+    target_link_options(sad-run PRIVATE -Wl,-z,stack-size=134217728)
+endif()
+
 message(STATUS "✓ المفسر / Interpreter: sad-run (apps/sad-run)")
 
 # ──────────────────────────────────────────────────────────────────────
@@ -243,7 +268,7 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         # (EN) macOS ld64 uses -stack_size, not the GNU ld -z stacksize option.
         target_link_options(sad-build PRIVATE -Wl,-stack_size,0x8000000)
     elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        target_link_options(sad-build PRIVATE -Wl,-z,stacksize=134217728)
+        target_link_options(sad-build PRIVATE -Wl,-z,stack-size=134217728)
     endif()
 
     message(STATUS "✓ المترجم / Compiler: sad-build (LLVM ${LLVM_PACKAGE_VERSION})")

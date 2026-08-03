@@ -1,0 +1,14 @@
+# @rule: gr.stmt.while, gr.oop.struct, gr.oop.field
+# @description: بينما + تحديث حقل بنية
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+بنية عداد
+    رقم قيمة = 0
+نهاية
+متغير د = عداد()
+بينما (د.قيمة < 10)
+    د.قيمة = د.قيمة + 2
+نهاية
+اطبع_سطر(د.قيمة)

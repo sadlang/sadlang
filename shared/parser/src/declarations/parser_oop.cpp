@@ -149,14 +149,13 @@ namespace Sad
             }
             else
             {
-                error("(AR) توقع نوع الحقل (رقم، نص، منطقي، أو اسم صنف مخصص). (EN) Expected field type (number, string, boolean, or custom class name).");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "نوع الحقل"}, {"what_en", "field type"}, {"ctx_ar", "في جسم البنية/الصنف"}, {"ctx_en", "in the struct/class body"}});
                 synchronize();
                 return nullptr;
             }
 
             // (AR) الاسم / (EN) Name
-            Token nameToken = consume(TT::IDENTIFIER,
-                                      "(AR) توقع اسم الحقل. (EN) Expected field name.");
+            Token nameToken = consume(TT::IDENTIFIER, "");
             std::string fieldName = nameToken.getValue();
 
 #ifdef DEBUG_OOP
@@ -303,8 +302,7 @@ namespace Sad
                 }
                 else
                 {
-                    nameToken = consume(TT::IDENTIFIER,
-                                        "(AR) توقع اسم الطريقة بعد نوع الإرجاع. (EN) Expected method name after return type.");
+                    nameToken = consume(TT::IDENTIFIER, "");
                 }
             }
             else if (isTypeToken(current_.getType()) && peekNext().getType() == TT::PAREN_LEFT)
@@ -328,8 +326,7 @@ namespace Sad
                 }
                 else
                 {
-                    nameToken = consume(TT::IDENTIFIER,
-                                        "(AR) توقع اسم الطريقة بعد نوع الإرجاع. (EN) Expected method name after return type.");
+                    nameToken = consume(TT::IDENTIFIER, "");
                 }
             }
             else if (isTokenUsableAsName(current_.getType()) ||
@@ -344,8 +341,7 @@ namespace Sad
             else
             {
                 // No return type (void method): احصل_الرصيد()
-                nameToken = consume(TT::IDENTIFIER,
-                                    "(AR) توقع اسم الطريقة. (EN) Expected method name.");
+                nameToken = consume(TT::IDENTIFIER, "");
             }
 
             std::string methodName = nameToken.getValue();
@@ -355,8 +351,7 @@ namespace Sad
 #endif
 
             // (AR) المعاملات / (EN) Parameters
-            consume(TT::PAREN_LEFT,
-                    "(AR) توقع '(' بعد اسم الطريقة. (EN) Expected '(' after method name.");
+            consume(TT::PAREN_LEFT, "");
 
             std::vector<Parameter> parameters;
             if (!check(TT::PAREN_RIGHT))
@@ -389,8 +384,7 @@ namespace Sad
                     {
                         // (AR) نوع صريح مدمج (رقم، نص، منطقي، إلخ) متبوع باسم المعامل
                         paramType = parseType();
-                        Token paramToken = consume(TT::IDENTIFIER,
-                                                   "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
+                        Token paramToken = consume(TT::IDENTIFIER, "");
                         // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                         ExprPtr defaultValue = nullptr;
                         if (match(TT::OP_ASSIGN))
@@ -448,8 +442,7 @@ namespace Sad
                         paramType = parseType();
 
                         // (AR) اسم المعامل / (EN) Parameter name
-                        Token paramToken = consume(TT::IDENTIFIER,
-                                                   "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
+                        Token paramToken = consume(TT::IDENTIFIER, "");
 
                         // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                         ExprPtr defaultValue = nullptr;
@@ -464,8 +457,7 @@ namespace Sad
                 } while (matchComma());
             }
 
-            consume(TT::PAREN_RIGHT,
-                    "(AR) توقع ')' بعد معاملات الطريقة. (EN) Expected ')' after method parameters.");
+            consume(TT::PAREN_RIGHT, "");
 
             // (AR) التحقق من عدم استخدام { } في تعريف الطريقة
             // (EN) Check for incorrect { } usage in method definition
@@ -579,8 +571,7 @@ namespace Sad
 
             // Constructor name should match class name
             // (AR) المعاملات / (EN) Parameters
-            consume(TT::PAREN_LEFT,
-                    "(AR) توقع '(' بعد اسم الباني. (EN) Expected '(' after constructor name.");
+            consume(TT::PAREN_LEFT, "");
 
             std::vector<Parameter> parameters;
             std::vector<std::string> thisParams; // (AR) معاملات هذا. للتعيين التلقائي / (EN) this-params for auto-assignment
@@ -600,8 +591,7 @@ namespace Sad
                         // (EN) Shorthand: constructor(this.name) — auto-assign to field
                         advance(); // consume 'هذا'
                         advance(); // consume '.'
-                        Token paramToken = consume(TT::IDENTIFIER,
-                                                   "(AR) توقع اسم الخاصية بعد 'هذا.'. (EN) Expected field name after 'this.'.");
+                        Token paramToken = consume(TT::IDENTIFIER, "");
                         // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                         if (match(TT::OP_ASSIGN))
                         {
@@ -615,8 +605,7 @@ namespace Sad
                     {
                         // (AR) نوع صريح موجود متبوع باسم معامل / (EN) Explicit type present followed by param name
                         paramType = parseType();
-                        Token paramToken = consume(TT::IDENTIFIER,
-                                                   "(AR) توقع اسم المعامل. (EN) Expected parameter name.");
+                        Token paramToken = consume(TT::IDENTIFIER, "");
                         // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                         if (match(TT::OP_ASSIGN))
                         {
@@ -675,15 +664,14 @@ namespace Sad
                     }
                     else
                     {
-                        error("(AR) توقع نوع أو اسم المعامل. (EN) Expected parameter type or name.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "نوع أو اسم المعامل"}, {"what_en", "parameter type or name"}, {"ctx_ar", ""}, {"ctx_en", ""}});
                         break;
                     }
 
                 } while (matchComma());
             }
 
-            consume(TT::PAREN_RIGHT,
-                    "(AR) توقع ')' بعد معاملات الباني. (EN) Expected ')' after constructor parameters.");
+            consume(TT::PAREN_RIGHT, "");
 
             // (AR) التحقق من عدم استخدام { } في تعريف الباني
             // (EN) Check for incorrect { } usage in constructor definition
@@ -737,14 +725,11 @@ namespace Sad
                 // (EN) Parse super constructor arguments: (arg1, arg2, ...)
                 // (AR) نستخدم parseArgumentList لدعم الوسائط المسماة مثل: الأساس(تسمية: قيمة)
                 // (EN) Use parseArgumentList to support named arguments like: super(label: value)
-                consume(TT::PAREN_LEFT,
-                        "(AR) توقع '(' بعد 'الأساس'. (EN) Expected '(' after 'super'.");
+                consume(TT::PAREN_LEFT, "");
 
                 superArgs = parseArgumentList();
 
-                consume(TT::PAREN_RIGHT,
-                        "(AR) توقع ')' بعد معاملات الباني الأساسي. "
-                        "(EN) Expected ')' after super constructor arguments.");
+                consume(TT::PAREN_RIGHT, "");
             }
 
             // (AR) التحقق من استدعاء الأساس() في بداية جسم الباني (بدون نقطتين)
@@ -763,9 +748,7 @@ namespace Sad
                     advance(); // consume 'الأساس'
                     advance(); // consume '('
                     superArgs = parseArgumentList();
-                    consume(TT::PAREN_RIGHT,
-                            "(AR) توقع ')' بعد معاملات الأساس(). "
-                            "(EN) Expected ')' after super() arguments.");
+                    consume(TT::PAREN_RIGHT, "");
                 }
                 else if (nextType == TT::DOT)
                 {
@@ -778,12 +761,9 @@ namespace Sad
                     if (check(TT::KEYWORD_CONSTRUCTOR))
                     {
                         advance(); // consume 'باني'
-                        consume(TT::PAREN_LEFT,
-                                "(AR) توقع '(' بعد 'الأساس.باني'. (EN) Expected '(' after 'super.constructor'.");
+                        consume(TT::PAREN_LEFT, "");
                         superArgs = parseArgumentList();
-                        consume(TT::PAREN_RIGHT,
-                                "(AR) توقع ')' بعد معاملات الأساس.باني(). "
-                                "(EN) Expected ')' after super.constructor() arguments.");
+                        consume(TT::PAREN_RIGHT, "");
                     }
                     else
                     {
@@ -848,10 +828,8 @@ namespace Sad
 #endif
 
             // (AR) لا يوجد معاملات / (EN) No parameters
-            consume(TT::PAREN_LEFT,
-                    "(AR) توقع '()' بعد 'هادم'. (EN) Expected '()' after 'destructor'.");
-            consume(TT::PAREN_RIGHT,
-                    "(AR) توقع ')' بعد '('. (EN) Expected ')' after '('.");
+            consume(TT::PAREN_LEFT, "");
+            consume(TT::PAREN_RIGHT, "");
 
             // (AR) جسم الهدام / (EN) Destructor body
             StmtPtr body = parseBlockStmt();
@@ -876,8 +854,7 @@ namespace Sad
 #endif
 
             // (AR) اسم الصنف / (EN) Class name
-            Token classToken = consume(TT::IDENTIFIER,
-                                       "(AR) توقع اسم الصنف بعد 'جديد'. (EN) Expected class name after 'new'.");
+            Token classToken = consume(TT::IDENTIFIER, "");
 
             std::string className = classToken.getValue();
 
@@ -906,14 +883,14 @@ namespace Sad
                     }
                     else
                     {
-                        error("(AR) توقع نوع في معاملات القالب. (EN) Expected type in template arguments.");
+                        errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "نوع"}, {"what_en", "type"}, {"ctx_ar", "في معاملات القالب"}, {"ctx_en", "in the template parameters"}});
                         break;
                     }
                 } while (matchComma());
 
                 if (!match(TT::OP_GREATER))
                 {
-                    error("(AR) توقع '>' لإنهاء معاملات القالب. (EN) Expected '>' to close template arguments.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_SYMBOL, {{"symbol", ">"}, {"ctx_ar", "لإنهاء معاملات القالب"}, {"ctx_en", "to close the template parameters"}});
                 }
             }
 
@@ -926,8 +903,7 @@ namespace Sad
 
             // (AR) معاملات الباني (يدعم الوسائط المسماة مثل: جديد صنف(مفتاح: قيمة))
             // (EN) Constructor arguments (supports named args like: new Class(key: value))
-            consume(TT::PAREN_LEFT,
-                    "(AR) توقع '(' بعد اسم الصنف. (EN) Expected '(' after class name.");
+            consume(TT::PAREN_LEFT, "");
 
             ExprList arguments = parseArgumentList();
 
@@ -935,8 +911,7 @@ namespace Sad
             std::cout << "[OOP] عدد معاملات الباني: " << arguments.size() << "\n";
 #endif
 
-            consume(TT::PAREN_RIGHT,
-                    "(AR) توقع ')' بعد معاملات الباني. (EN) Expected ')' after constructor arguments.");
+            consume(TT::PAREN_RIGHT, "");
 
             // إنشاء عقدة NewExpr / Create NewExpr node
             auto newExpr = std::make_unique<NewExpr>(className);
@@ -1046,8 +1021,7 @@ namespace Sad
             }
 
             // (AR) اسم الخاصية / (EN) Property name
-            Token nameToken = consume(TT::IDENTIFIER,
-                                      "(AR) توقع اسم الخاصية. (EN) Expected property name.");
+            Token nameToken = consume(TT::IDENTIFIER, "");
             std::string propertyName = nameToken.getValue();
 
 #ifdef DEBUG_OOP
@@ -1059,7 +1033,7 @@ namespace Sad
             std::unique_ptr<GetterBlock> getter = nullptr;
             if (!matchAny({TT::KEYWORD_GET}) && !matchContextual(TT::KEYWORD_GET))
             {
-                error("(AR) توقع 'احصل' (get) بعد اسم الخاصية. (EN) Expected 'احصل' (get) after property name.");
+                errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_GET)}, {"ctx_ar", "بعد اسم الخاصية"}, {"ctx_en", "after the property name"}});
                 synchronize();
                 return nullptr;
             }
@@ -1074,8 +1048,7 @@ namespace Sad
                     getterStatements.push_back(std::move(stmt));
                 }
             }
-            consume(TT::KEYWORD_END,
-                    "(AR) توقع 'نهاية' في نهاية كتلة getter. (EN) Expected 'نهاية' at end of getter block.");
+            consume(TT::KEYWORD_END, "");
 
             auto getterBody = std::make_unique<BlockStmt>(
                 std::move(getterStatements),
@@ -1087,15 +1060,12 @@ namespace Sad
             if (matchAny({TT::KEYWORD_SET}) || matchContextual(TT::KEYWORD_SET))
             {
                 // (AR) معامل setter / (EN) Setter parameter
-                consume(TT::PAREN_LEFT,
-                        "(AR) توقع '(' بعد 'عيّن'. (EN) Expected '(' after 'set'.");
+                consume(TT::PAREN_LEFT, "");
 
-                Token paramToken = consume(TT::IDENTIFIER,
-                                           "(AR) توقع اسم معامل setter. (EN) Expected setter parameter name.");
+                Token paramToken = consume(TT::IDENTIFIER, "");
                 std::string paramName = paramToken.getValue();
 
-                consume(TT::PAREN_RIGHT,
-                        "(AR) توقع ')' بعد معامل setter. (EN) Expected ')' after setter parameter.");
+                consume(TT::PAREN_RIGHT, "");
 
                 // Parse setter body - statements until 'نهاية'
                 StmtList setterStatements;
@@ -1107,8 +1077,7 @@ namespace Sad
                         setterStatements.push_back(std::move(stmt));
                     }
                 }
-                consume(TT::KEYWORD_END,
-                        "(AR) توقع 'نهاية' في نهاية كتلة setter. (EN) Expected 'نهاية' at end of setter block.");
+                consume(TT::KEYWORD_END, "");
 
                 auto setterBody = std::make_unique<BlockStmt>(
                     std::move(setterStatements),
@@ -1120,8 +1089,7 @@ namespace Sad
             }
 
             // (AR) نهاية الخاصية / (EN) End of property
-            consume(TT::KEYWORD_END,
-                    "(AR) توقع 'نهاية' في نهاية تصريح الخاصية. (EN) Expected 'نهاية' at end of property declaration.");
+            consume(TT::KEYWORD_END, "");
 
 #ifdef DEBUG_OOP
             std::cout << "[OOP] انتهى تحليل خاصية '" << propertyName << "'\n";

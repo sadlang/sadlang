@@ -1,0 +1,16 @@
+# @rule: gr.stmt.while, gr.stmt.continue, gr.stmt.if
+# @description: بينما + استمرار محروس
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 12
+
+متغير ع=0
+متغير م=0
+بينما (ع < 6)
+    ع = ع + 1
+    إذا (ع % 2 == 1)
+        استمر
+    نهاية
+    م = م + ع
+نهاية
+اطبع_سطر(م)

@@ -1,0 +1,13 @@
+# @rule: gr.stmt.if, gr.expr.array_literal, gr.stmt.for
+# @description: إذا + حرفيّة مصفوفة ومسح
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 2
+
+متغير ك=0
+لكل ن في [1، -2، 3، -4]
+    إذا (ن < 0)
+        ك = ك + 1
+    نهاية
+نهاية
+اطبع_سطر(ك)

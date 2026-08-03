@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: شرط على عددين كبيرين
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: كبير
+
+إذا (1000000 > 999999)
+    اطبع_سطر("كبير")
+نهاية

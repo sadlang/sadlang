@@ -1,0 +1,13 @@
+# @rule: gr.stmt.while
+# @description: تراكم ضربيّ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 16
+
+متغير ق=1
+متغير ع=0
+بينما (ع < 4)
+    ق = ق * 2
+    ع = ع + 1
+نهاية
+اطبع_سطر(ق)

@@ -113,16 +113,17 @@ namespace Sad
 
             // (AR) إضافة نقاط مزامنة إضافية لنظام التعافي
             // (EN) Add additional sync points for recovery system
-            recoverySystem_.addSyncPoint("بينما"); // while
-            recoverySystem_.addSyncPoint("حاول");  // try
-            recoverySystem_.addSyncPoint("امسك");  // catch
-            recoverySystem_.addSyncPoint("ارمي");  // throw
-            recoverySystem_.addSyncPoint("بنية");  // struct
-            recoverySystem_.addSyncPoint("تعداد"); // enum
-            recoverySystem_.addSyncPoint("صدّر");   // export
-            recoverySystem_.addSyncPoint("عام");   // public
-            recoverySystem_.addSyncPoint("خاص");   // private
-            recoverySystem_.addSyncPoint("محمي");  // protected
+            // (AR) التهجئة من معجم SoT عبر kw() — لا سلاسل خام: نصٌّ مكتوبٌ هنا يصمتُ
+            //      بلا خطأٍ إن تغيّرت التهجئة في keywords.yaml (نقطةُ مزامنةٍ ميتة).
+            // (EN) Spellings via kw() from the SoT lexicon — a raw literal here would
+            //      silently rot into a dead sync point if keywords.yaml changed.
+            for (const TT syncKeyword : {TT::KEYWORD_WHILE, TT::KEYWORD_TRY, TT::KEYWORD_CATCH,
+                                         TT::KEYWORD_THROW, TT::KEYWORD_STRUCT, TT::KEYWORD_ENUM,
+                                         TT::KEYWORD_EXPORT, TT::KEYWORD_PUBLIC, TT::KEYWORD_PRIVATE,
+                                         TT::KEYWORD_PROTECTED})
+            {
+                recoverySystem_.addSyncPoint(kw(syncKeyword));
+            }
         }
 
         // ======================================================================
@@ -174,20 +175,11 @@ namespace Sad
                     stuck_count++;
                     if (stuck_count >= MAX_STUCK_ITERATIONS)
                     {
-                        std::cerr << "\n";
-                        std::cerr << "❌❌❌ ========================================\n";
-                        std::cerr << "  🚨 (AR) اكتشاف حلقة لا نهائية!\n";
-                        std::cerr << "  🚨 (EN) Infinite Loop Detected!\n";
-                        std::cerr << "========================================\n";
-                        std::cerr << "📍 (AR) عالق في السطر " << current_.getPosition().line
-                                  << ", العمود " << current_.getPosition().column << "\n";
-                        std::cerr << "📍 (EN) Stuck at line " << current_.getPosition().line
-                                  << ", column " << current_.getPosition().column << "\n";
-                        std::cerr << "🔎 (AR) الرمز: '" << current_.getValue() << "'\n";
-                        std::cerr << "🔎 (EN) Token: '" << current_.getValue() << "'\n";
-                        std::cerr << "⚠ (AR) القفز للرمز التالي لكسر الحلقة...\n";
-                        std::cerr << "⚠ (EN) Forcing advance to break the loop...\n";
-                        std::cerr << "========================================\n\n";
+                        // (AR) حارسُ الحلقةِ اللانهائيّة: لا لافتةَ يدويّةً ولا نصَّ هنا —
+                        //      التشخيصُ من الكتالوج، والمقرِّرُ يطبعُ الموقعَ والرمزَ وحدَه.
+                        // (EN) Infinite-loop guard: no hand-rolled banner, no prose — the
+                        //      diagnostic comes from the catalog; the reporter prints it.
+                        errorCatalog(Errors::ErrorCode::SYN_PARSE_UNKNOWN_ERROR);
 
                         // Force advance to break infinite loop
                         advance();
@@ -223,19 +215,13 @@ namespace Sad
                                 // (EN) Check for duplicate main function
                                 if (mainFunctionCount > 1)
                                 {
-                                    std::cerr << "\n";
-                                    std::cerr << "❌ ========================================\n";
-                                    std::cerr << "  ⛔ (AR) خطأ: تم تعريف الدالة الرئيسية أكثر من مرة!\n";
-                                    std::cerr << "  ⛔ (EN) Error: Main function defined more than once!\n";
-                                    std::cerr << "========================================\n";
-                                    std::cerr << "📍 (AR) السطر: " << current_.getPosition().line << "\n";
-                                    std::cerr << "📍 (EN) Line: " << current_.getPosition().line << "\n";
-                                    std::cerr << "💬 (AR) يجب أن يكون هناك دالة رئيسية واحدة فقط في البرنامج\n";
-                                    std::cerr << "💬 (EN) There can only be one main function in a program\n";
-                                    std::cerr << "========================================\n\n";
-
-                                    error("(AR) تم تعريف الدالة الرئيسية أكثر من مرة. "
-                                          "(EN) Main function defined more than once.");
+                                    // (AR) لا طباعةَ يدويّةً على cerr ولا نصَّ هنا — التشخيصُ
+                                    //      مركزيٌّ من الكتالوج، والمقرِّرُ يطبعُ الموقعَ والسطرَ
+                                    //      وحدَه (الكتلةُ اليدويّةُ السابقةُ كانت تُكرِّرُ ذلك).
+                                    // (EN) No hand-rolled cerr banner and no prose here — the
+                                    //      diagnostic comes from the catalog and the reporter
+                                    //      prints location/line itself (the old block duplicated it).
+                                    errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "الدالة الرئيسية"}, {"construct_en", "main function"}, {"form", kw(TT::KEYWORD_FUNCTION) + " رئيسية() ... " + kw(TT::KEYWORD_END) + " — مرّةً واحدةً في البرنامج"}});
                                 }
                             }
                         }
@@ -253,20 +239,8 @@ namespace Sad
 
                     // (AR) عرض معلومات تفصيلية عن الخطأ
                     // (EN) Display detailed error information
-                    std::cerr << "\n";
-                    std::cerr << "❗❗❗ ========================================\n";
-                    std::cerr << "  ⛔ (AR) خطأ في التحليل النحوي\n";
-                    std::cerr << "  ⛔ (EN) Parsing Error\n";
-                    std::cerr << "========================================\n";
-                    std::cerr << "📄 (AR) الملف: " << (filename_.empty() ? "<source>" : filename_) << "\n";
-                    std::cerr << "📄 (EN) File: " << (filename_.empty() ? "<source>" : filename_) << "\n";
-                    std::cerr << "📍 (AR) السطر: " << current_.getPosition().line
-                              << ", العمود: " << current_.getPosition().column << "\n";
-                    std::cerr << "📍 (EN) Line: " << current_.getPosition().line
-                              << ", Column: " << current_.getPosition().column << "\n";
-                    std::cerr << "💬 (AR) الرسالة: " << e.what() << "\n";
-                    std::cerr << "💬 (EN) Message: " << e.what() << "\n";
-                    std::cerr << "========================================\n\n";
+                    // (AR) لا لافتةَ يدويّةً — error() أدناه يطبعُ الملفَّ والسطرَ والرسالةَ.
+                    // (EN) No hand-rolled banner — error() below prints file/line/message.
 
                     error(e.what());
                     synchronize();
@@ -277,18 +251,8 @@ namespace Sad
 
                     // (AR) معالجة أي استثناء غير معروف
                     // (EN) Handle any unknown exception
-                    std::cerr << "\n";
-                    std::cerr << "❗❗❗ ========================================\n";
-                    std::cerr << "  ⛔ (AR) خطأ غير معروف في التحليل النحوي\n";
-                    std::cerr << "  ⛔ (EN) Unknown Parsing Error\n";
-                    std::cerr << "========================================\n";
-                    std::cerr << "📄 (AR) الملف: " << (filename_.empty() ? "<source>" : filename_) << "\n";
-                    std::cerr << "📄 (EN) File: " << (filename_.empty() ? "<source>" : filename_) << "\n";
-                    std::cerr << "📍 (AR) السطر: " << current_.getPosition().line
-                              << ", العمود: " << current_.getPosition().column << "\n";
-                    std::cerr << "📍 (EN) Line: " << current_.getPosition().line
-                              << ", Column: " << current_.getPosition().column << "\n";
-                    std::cerr << "========================================\n\n";
+                    // (AR) لا لافتةَ يدويّةً — errorCatalog أدناه هو التشخيصُ الوحيد.
+                    // (EN) No hand-rolled banner — errorCatalog below is the sole diagnostic.
 
                     errorCatalog(Errors::ErrorCode::SYN_PARSE_UNKNOWN_ERROR);
                     synchronize();
@@ -487,7 +451,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع الاستيراد. (EN) Decorators cannot be used with imports.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "الاستيراد"}, {"target_en", "an import"}});
                 }
                 return parseImportStmt();
             }
@@ -497,7 +461,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع الاستيراد. (EN) Decorators cannot be used with imports.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "الاستيراد"}, {"target_en", "an import"}});
                 }
                 return parseFromImportStmt();
             }
@@ -507,7 +471,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مباشرة مع التصدير. (EN) Decorators cannot be used directly with export.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "التصدير"}, {"target_en", "an export"}});
                 }
                 return parseExportDecl();
             }
@@ -556,7 +520,7 @@ namespace Sad
 
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع الدوال الخارجية. (EN) Decorators cannot be used with extern functions.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "الدوال الخارجية"}, {"target_en", "external functions"}});
                 }
                 // (AR) [ISSUE-041] كتلة ربط أجنبيّ بلغة بلا أقواس: خارجي "C" <تصاريح> نهاية
                 //      نُحوّلها لكتلة من تصاريح دوال خارجيّة (كلٌّ بلغة الربط نفسها). كان
@@ -605,16 +569,14 @@ namespace Sad
                             // (EN) Stray non-'function' token inside the block — report and return
                             //      immediately (mirroring the single-decl path below) to avoid a
                             //      cascading second error from the consume('end') call.
-                            error("(AR) خطأ نحوي: توقع 'دالة' داخل كتلة 'خارجي'. (EN) Syntax error: expected 'function' inside extern block.");
+                            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_FUNCTION)}, {"ctx_ar", "داخل كتلة '" + kw(TT::KEYWORD_EXTERN) + "'"}, {"ctx_en", "inside an '" + kw(TT::KEYWORD_EXTERN) + "' block"}});
                             return nullptr;
                         }
                         auto externFn = parseExternFunctionDecl(ffiLinkName);
                         if (externFn)
                             externBody.push_back(std::move(externFn));
                     }
-                    consume(TT::KEYWORD_END,
-                            "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق كتلة 'خارجي'.\n"
-                            "(EN) Syntax error: expected 'نهاية' to close extern block.");
+                    consume(TT::KEYWORD_END, "");
                     return std::make_unique<BlockStmt>(std::move(externBody), blockPos);
                 }
                 // (AR) RFC 0034: الصيغتان المفردتان القديمتان 'خارجي دالة' و'خارجي("رمز") دالة'
@@ -717,7 +679,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات للقوالب غير مدعومة بعد. (EN) Template decorators not yet supported.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "القوالب"}, {"target_en", "templates"}});
                 }
                 return parseTemplateDecl();
             }
@@ -729,7 +691,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لفضاء الأسماء غير مدعومة. (EN) Namespace decorators not supported.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "فضاء الأسماء"}, {"target_en", "a namespace"}});
                 }
                 return parseNamespaceDecl();
             }
@@ -750,7 +712,7 @@ namespace Sad
                 }
                 if (!match(TT::KEYWORD_CLASS))
                 {
-                    error("(AR) توقع 'صنف' بعد 'مجرد'. (EN) Expected 'class' after 'abstract'.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_CLASS)}, {"ctx_ar", "بعد '" + kw(TT::KEYWORD_ABSTRACT) + "'"}, {"ctx_en", "after '" + kw(TT::KEYWORD_ABSTRACT) + "'"}});
                 }
                 auto classDecl = parseClassDecl();
                 if (auto *cd = dynamic_cast<AST::ClassDecl *>(classDecl.get()))
@@ -969,7 +931,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "المتغيرات"}, {"target_en", "variables"}});
                 }
                 return parseVarDecl();
             }
@@ -979,7 +941,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "المتغيرات"}, {"target_en", "variables"}});
                 }
                 pendingConst_ = true;
                 auto result = parseVarDecl();
@@ -1002,7 +964,7 @@ namespace Sad
                     // Valid variable declaration: TYPE IDENTIFIER
                     if (!decorators.empty())
                     {
-                        error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
+                        errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "المتغيرات"}, {"target_en", "variables"}});
                     }
                     return parseVarDecl();
                 }
@@ -1059,7 +1021,7 @@ namespace Sad
                     // (AR) نستخدم قاعدة: إذا وجدنا معرّف متبوع بمعرّف، نعتبره تصريح متغير
                     if (!decorators.empty())
                     {
-                        error("(AR) المُزخرِفات لا تُستخدم مع المتغيرات. (EN) Decorators cannot be used with variables.");
+                        errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "المتغيرات"}, {"target_en", "variables"}});
                     }
                     return parseVarDecl();
                 }
@@ -1074,7 +1036,7 @@ namespace Sad
                 advance(); // consume contextual keyword
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع الاختبارات. (EN) Decorators cannot be used with tests.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "الاختبارات"}, {"target_en", "tests"}});
                 }
                 return parseTestDecl();
             }
@@ -1154,7 +1116,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع التعدادات. (EN) Decorators cannot be used with enums.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "التعدادات"}, {"target_en", "enums"}});
                 }
                 return parseEnumDecl();
             }
@@ -1163,7 +1125,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع البنى. (EN) Decorators cannot be used with structs.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "البنى"}, {"target_en", "structs"}});
                 }
                 return parseStructDecl();
             }
@@ -1172,7 +1134,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع الاختبارات. (EN) Decorators cannot be used with tests.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "الاختبارات"}, {"target_en", "tests"}});
                 }
                 return parseTestDecl();
             }
@@ -1181,7 +1143,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع الاستيراد. (EN) Decorators cannot be used with import.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "الاستيراد"}, {"target_en", "an import"}});
                 }
                 return parseImportStmt();
             }
@@ -1190,7 +1152,7 @@ namespace Sad
             {
                 if (!decorators.empty())
                 {
-                    error("(AR) المُزخرِفات لا تُستخدم مع التصدير. (EN) Decorators cannot be used with export.");
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "التصدير"}, {"target_en", "an export"}});
                 }
                 return parseExportStmt();
             }
@@ -1199,7 +1161,7 @@ namespace Sad
             // (AR) إذا وُجدت مُزخرِفات بدون هدف صالح
             if (!decorators.empty())
             {
-                error("(AR) المُزخرِفات يجب أن تسبق تصريح دالة. (EN) Decorators must precede a function declaration.");
+                errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "ما ليس تصريحَ دالّة"}, {"target_en", "anything other than a function declaration"}});
                 synchronize();
                 return nullptr;
             }
@@ -1303,6 +1265,36 @@ namespace Sad
                 {
                     advance(); // consume "حالة"
                     return parseSwitchStmt();
+                }
+
+                // (AR) م-٣: `حالة (تعبير)` — الصيغةُ المُزالة تُشبه نداءَ دالّةٍ اسمُها
+                //      «حالة» شبهًا تامًّا، والمحلّلُ ذو رمزٍ واحدٍ للنظر المسبق لا يفصلُ
+                //      بينهما قبل القراءة. فنقرأ الجملةَ التعبيريّةَ ثمّ نسأل: أتلاها
+                //      ذراعُ «طابق» بشكلِها؟ عندئذٍ نرفع SYN014 المقصود بدل أن يتعثّر
+                //      المحلّل لاحقًا بـSYN001 عند نقطتَي الذراع.
+                //      وبغير هذا الفحص كان فرعُ SYN014 في parseSwitchStmt كودًا ميّتًا
+                //      لأنّ المعجم لا يُنتج KEYWORD_CASE أصلًا (KW-CTX-009 سياقيّة).
+                // (EN) م-٣: `حالة (expr)` is indistinguishable from a call to a function
+                //      named «حالة» with one token of lookahead. Parse the expression
+                //      statement, then ask whether «عندما» follows — that settles it,
+                //      and we raise the intended SYN014 instead of stumbling into
+                //      SYN001 at the arm's colon. Without this the SYN014 branch in
+                //      parseSwitchStmt is dead code (the lexer never emits KEYWORD_CASE).
+                //      و«عندما»/«افتراضي» **محجوزتان** (KW-RES-020/021) فلا تصلحان
+                //      بدايةَ تعبيرٍ ولا اسمَ دالّة، فوجودُ الرمزِ وحدَه قاطع.
+                // (EN) 'عندما'/'افتراضي' are RESERVED (KW-RES-020/021): neither can begin
+                //      an expression, so the token's presence alone settles it.
+                if (nextTT2 == TT::PAREN_LEFT)
+                {
+                    auto exprStmt = parseExpressionStmt();
+                    if (check(TT::KEYWORD_WHEN) || check(TT::KEYWORD_DEFAULT))
+                    {
+                        errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX,
+                                     {{"old", kw(TT::KEYWORD_CASE) + " (...)"},
+                                      {"new", kw(TT::KEYWORD_CASE) + " ... (بلا أقواس)"},
+                                      {"example", kw(TT::KEYWORD_CASE) + " تعبير"}});
+                    }
+                    return exprStmt;
                 }
                 // (AR) سقوط: `حالة` كمُعرّف عادي — يُعالَج بمعالجة الجمل التعبيرية أدناه
             }
@@ -1412,7 +1404,7 @@ namespace Sad
                 // Check for empty map
                 if (check(TT::BRACE_RIGHT))
                 {
-                    consume(TT::BRACE_RIGHT, "Expected }");
+                    consume(TT::BRACE_RIGHT, "");
                     auto mapExpr = std::make_unique<MapExpr>(std::vector<MapPair>{}, brace.getPosition());
                     return std::make_unique<ExprStmt>(std::move(mapExpr));
                 }
@@ -1426,7 +1418,8 @@ namespace Sad
                     // (AR) أثر تشخيصيّ إلى stderr لا stdout: stdout قد يكون قناة آليّة نظيفة
                     //      (مثل sad-check --json) فتلويثه يُفسد التحليل. (EN) diagnostic trace to
                     //      stderr, never stdout — stdout may be a clean machine channel (JSON).
-                    std::cerr << "Failed to parse key, treating as block\n";
+                    if (std::getenv(Errors::kDiagStatsEnvVar) != nullptr)
+                        std::cerr << "Failed to parse key, treating as block\n";
                     auto block = parseBlockStmt();
                     return block;
                 }
@@ -1450,8 +1443,8 @@ namespace Sad
                     {
                         advance(); // consume 'for'
 
-                        Token loopVar = consume(TT::IDENTIFIER, "Expected loop variable");
-                        consume(TT::KEYWORD_IN, "Expected 'in'");
+                        Token loopVar = consume(TT::IDENTIFIER, "");
+                        consume(TT::KEYWORD_IN, "");
                         auto iterable = parseExpression();
 
                         ExprPtr condition = nullptr;
@@ -1460,7 +1453,7 @@ namespace Sad
                             condition = parseExpression();
                         }
 
-                        consume(TT::BRACE_RIGHT, "Expected }");
+                        consume(TT::BRACE_RIGHT, "");
 
                         // Create dict comprehension
                         auto dictComp = std::make_unique<DictComprehensionExpr>(
@@ -1477,7 +1470,8 @@ namespace Sad
                     // Regular map literal
                     // (AR) أثر تشخيصيّ إلى stderr لا stdout (يمنع تلويث قناة JSON الآليّة).
                     // (EN) diagnostic trace to stderr, not stdout (keeps machine JSON clean).
-                    std::cerr << "Regular map literal\n";
+                    if (std::getenv(Errors::kDiagStatsEnvVar) != nullptr)
+                        std::cerr << "Regular map literal\n";
                     std::vector<MapPair> pairs;
                     pairs.emplace_back(std::move(firstKey), std::move(firstValue));
 
@@ -1498,7 +1492,7 @@ namespace Sad
                         pairs.emplace_back(std::move(key), std::move(value));
                     }
 
-                    consume(TT::BRACE_RIGHT, "Expected }");
+                    consume(TT::BRACE_RIGHT, "");
 
                     auto mapExpr = std::make_unique<MapExpr>(std::move(pairs), brace.getPosition());
                     return std::make_unique<ExprStmt>(std::move(mapExpr));
@@ -1509,7 +1503,8 @@ namespace Sad
                 // This is problematic - we need to handle this as expression statement in block
                 // (AR) أثر تشخيصيّ إلى stderr لا stdout (انظر أعلاه) — يمنع تلويث قناة JSON.
                 // (EN) diagnostic trace to stderr, not stdout (see above) — keeps JSON clean.
-                std::cerr << "No colon found, treating as block with expression statement\n";
+                if (std::getenv(Errors::kDiagStatsEnvVar) != nullptr)
+                    std::cerr << "No colon found, treating as block with expression statement\n";
 
                 // We have an expression, make it an expression statement
                 auto exprStmt = std::make_unique<ExprStmt>(std::move(firstKey));
@@ -1528,7 +1523,7 @@ namespace Sad
                     }
                 }
 
-                consume(TT::BRACE_RIGHT, "Expected }");
+                consume(TT::BRACE_RIGHT, "");
 
                 return std::make_unique<BlockStmt>(std::move(statements), brace.getPosition());
             }
@@ -1603,9 +1598,7 @@ namespace Sad
                     if (stmt)
                         body.push_back(std::move(stmt));
                 }
-                consume(TT::KEYWORD_END,
-                        "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق كتلة @غير_آمن.\n"
-                        "(EN) Syntax error: expected 'نهاية' to close @غير_آمن block.");
+                consume(TT::KEYWORD_END, "");
 
                 return std::make_unique<UnsafeBlockStmt>(std::move(body), pos);
             }
@@ -1624,9 +1617,7 @@ namespace Sad
                     if (stmt)
                         body.push_back(std::move(stmt));
                 }
-                consume(TT::KEYWORD_END,
-                        "(AR) خطأ نحوي: توقع 'نهاية' لإغلاق كتلة @وقت_الترجمة.\n"
-                        "(EN) Syntax error: expected 'نهاية' to close @وقت_الترجمة block.");
+                consume(TT::KEYWORD_END, "");
 
                 return std::make_unique<ComptimeBlockStmt>(std::move(body), pos);
             }
@@ -1642,15 +1633,9 @@ namespace Sad
                 advance(); // consume @
                 advance(); // consume رمز
 
-                consume(TT::PAREN_LEFT,
-                        "(AR) خطأ نحوي: توقع '(' بعد @رمز.\n"
-                        "(EN) Syntax error: expected '(' after @رمز.");
-                Token symTok = consume(TT::STRING_LITERAL,
-                                       "(AR) خطأ نحوي: توقع اسم الرمز كنص حرفي بعد @رمز.\n"
-                                       "(EN) Syntax error: expected symbol name as string literal after @رمز.");
-                consume(TT::PAREN_RIGHT,
-                        "(AR) خطأ نحوي: توقع ')' بعد اسم الرمز في @رمز.\n"
-                        "(EN) Syntax error: expected ')' after symbol name in @رمز.");
+                consume(TT::PAREN_LEFT, "");
+                Token symTok = consume(TT::STRING_LITERAL, "");
+                consume(TT::PAREN_RIGHT, "");
 
                 // (AR) التالي تصريح متغيّر/ثابت (قد يسبقه @متطاير — يلتقطه parseDeclaration)
                 auto decl = parseDeclaration();
@@ -1670,8 +1655,7 @@ namespace Sad
                     //      __sad_panic بتعريف ص مكافئ (getLinkName يُرجِع linkName).
                     fd->linkName = symTok.getValue();
                 else
-                    error("(AR) خطأ نحوي: @رمز يتطلّب تصريح 'متغير' أو 'ثابت' أو 'دالة'.\n"
-                          "(EN) Syntax error: @رمز requires a 'متغير', 'ثابت', or 'دالة' declaration.");
+                    errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "التوجيه @رمز"}, {"construct_en", "the @رمز directive"}, {"form", "@رمز يسبق تصريح " + kw(TT::KEYWORD_VAR) + " أو " + kw(TT::KEYWORD_CONST) + " أو " + kw(TT::KEYWORD_FUNCTION)}});
                 return decl;
             }
 
@@ -1693,8 +1677,7 @@ namespace Sad
                 if (auto *sd = dynamic_cast<StructDecl *>(decl.get()))
                     sd->isCRepr = true;
                 else
-                    error("(AR) خطأ نحوي: @تمثيل_سي يتطلّب تصريح 'بنية'.\n"
-                          "(EN) Syntax error: @تمثيل_سي requires a 'بنية' declaration.");
+                    errorCatalog(Errors::ErrorCode::SYN_INVALID_CONSTRUCT_FORM, {{"construct_ar", "التوجيه @تمثيل_سي"}, {"construct_en", "the @تمثيل_سي directive"}, {"form", "@تمثيل_سي يسبق تصريح " + kw(TT::KEYWORD_STRUCT)}});
                 return decl;
             }
 
@@ -1705,13 +1688,9 @@ namespace Sad
                 advance(); // consume @
                 advance(); // consume تجميع
 
-                consume(TT::PAREN_LEFT,
-                        "(AR) خطأ نحوي: توقع '(' بعد @تجميع.\n"
-                        "(EN) Syntax error: expected '(' after @تجميع.");
+                consume(TT::PAREN_LEFT, "");
 
-                Token asmCode = consume(TT::STRING_LITERAL,
-                                        "(AR) خطأ نحوي: توقع نص التجميع كنص حرفي.\n"
-                                        "(EN) Syntax error: expected assembly code as string literal.");
+                Token asmCode = consume(TT::STRING_LITERAL, "");
 
                 // (AR) تحليل اختياري: المخرجات والمدخلات والقيود
                 // (EN) Optional: output constraints, input constraints, clobbers
@@ -1749,9 +1728,7 @@ namespace Sad
                     }
                 }
 
-                consume(TT::PAREN_RIGHT,
-                        "(AR) خطأ نحوي: توقع ')' لإغلاق @تجميع.\n"
-                        "(EN) Syntax error: expected ')' to close @تجميع.");
+                consume(TT::PAREN_RIGHT, "");
 
                 auto asmExpr = std::make_unique<InlineAsmExpr>(
                     asmCode.getValue(), output, input, clobbers, isVolatile, pos);
@@ -1799,9 +1776,7 @@ namespace Sad
                 advance(); // consume @
                 advance(); // consume حجم
 
-                consume(TT::PAREN_LEFT,
-                        "(AR) خطأ نحوي: توقع '(' بعد @حجم.\n"
-                        "(EN) Syntax error: expected '(' after @حجم.");
+                consume(TT::PAREN_LEFT, "");
 
                 // (AR) اسم النوع: معرّف أو كلمة نوع
                 std::string typeName;
@@ -1817,9 +1792,7 @@ namespace Sad
                     advance();
                 }
 
-                consume(TT::PAREN_RIGHT,
-                        "(AR) خطأ نحوي: توقع ')' بعد اسم النوع في @حجم.\n"
-                        "(EN) Syntax error: expected ')' after type name in @حجم.");
+                consume(TT::PAREN_RIGHT, "");
 
                 return std::make_unique<SizeofExpr>(typeName, pos);
             }
@@ -1834,9 +1807,7 @@ namespace Sad
                 advance(); // consume @
                 advance(); // consume ذري
 
-                consume(TT::PAREN_LEFT,
-                        "(AR) خطأ نحوي: توقع '(' بعد @ذري.\n"
-                        "(EN) Syntax error: expected '(' after @ذري.");
+                consume(TT::PAREN_LEFT, "");
 
                 // (AR) أول وسيط: اسم العملية (معرّف)
                 // (EN) First arg: operation name (identifier)
@@ -1848,8 +1819,7 @@ namespace Sad
                 }
                 else
                 {
-                    error("(AR) خطأ نحوي: توقع اسم العملية بعد @ذري(.\n"
-                          "(EN) Syntax error: expected operation name after @ذري(.");
+                    errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "العملية"}, {"what_en", "operation"}, {"ctx_ar", "بعد '@ذري('"}, {"ctx_en", "after '@ذري('"}});
                     return nullptr;
                 }
 
@@ -1861,9 +1831,7 @@ namespace Sad
                     operands.push_back(parseExpression());
                 }
 
-                consume(TT::PAREN_RIGHT,
-                        "(AR) خطأ نحوي: توقع ')' لإغلاق @ذري.\n"
-                        "(EN) Syntax error: expected ')' to close @ذري.");
+                consume(TT::PAREN_RIGHT, "");
 
                 return std::make_unique<AtomicExpr>(opName, std::move(operands), pos);
             }
@@ -2012,7 +1980,7 @@ namespace Sad
                     advance();
                 else
                     errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_SYMBOL,
-                                         {{"symbol", "}"}});
+                                         {{"symbol", "}"}, {"ctx_ar", "لإغلاق معامل التجميع"}, {"ctx_en", "to close the assembly operand"}});
                 return op;
             }
 
@@ -2080,7 +2048,7 @@ namespace Sad
                     else
                     {
                         errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_SYMBOL,
-                                             {{"symbol", "]"}});
+                                             {{"symbol", "]"}, {"ctx_ar", "لإغلاق صيغة الذاكرة في التجميع"}, {"ctx_en", "to close the assembly memory form"}});
                         break;
                     }
                     op.pieces.push_back(std::move(piece));
@@ -2210,7 +2178,7 @@ namespace Sad
                     if (!check(TT::PAREN_LEFT))
                     {
                         errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_SYMBOL,
-                                             {{"symbol", "("}});
+                                             {{"symbol", "("}, {"ctx_ar", "بعد قيد المعامل في التجميع"}, {"ctx_en", "after the assembly operand constraint"}});
                         break;
                     }
                     advance(); // (
@@ -2248,7 +2216,7 @@ namespace Sad
                         advance();
                     else
                         errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_SYMBOL,
-                                             {{"symbol", ")"}});
+                                             {{"symbol", ")"}, {"ctx_ar", "لإغلاق معامل التجميع"}, {"ctx_en", "to close the assembly operand"}});
                     continue;
                 }
 

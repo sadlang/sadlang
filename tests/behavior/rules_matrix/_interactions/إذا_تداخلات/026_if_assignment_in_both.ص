@@ -1,0 +1,13 @@
+# @rule: gr.stmt.if, gr.expr.assignment
+# @description: إذا + إسناد في الفرعين
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 20
+
+متغير ن=0
+إذا (1 > 2)
+    ن = 10
+وإلا
+    ن = 20
+نهاية
+اطبع_سطر(ن)

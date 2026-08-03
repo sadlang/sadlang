@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while, gr.expr.unary
+# @description: بينما + عامل أحاديّ في الشرط
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 3
+
+متغير ع=-3
+بينما (-ع > 0)
+    ع = ع + 1
+نهاية
+اطبع_سطر(ع + 3)

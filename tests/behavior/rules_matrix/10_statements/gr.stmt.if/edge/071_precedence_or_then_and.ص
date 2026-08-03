@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: «أو» يسبقه صحيح فلا يُقيَّم «و»
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ب
+
+إذا (صحيح أو خطأ و خطأ)
+    اطبع_سطر("ب")
+نهاية

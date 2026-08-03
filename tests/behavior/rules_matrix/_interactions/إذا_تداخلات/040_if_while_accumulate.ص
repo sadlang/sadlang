@@ -1,0 +1,17 @@
+# @rule: gr.stmt.if, gr.stmt.while, gr.expr.assignment
+# @description: إذا + بينما + تراكم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 7
+
+متغير ع=0
+متغير م=0
+بينما (ع < 5)
+    إذا (ع % 2 == 1)
+        م = م + ع
+    وإلا
+        م = م + 1
+    نهاية
+    ع = ع + 1
+نهاية
+اطبع_سطر(م)

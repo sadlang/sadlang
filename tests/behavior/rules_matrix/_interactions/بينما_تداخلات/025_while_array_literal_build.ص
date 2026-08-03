@@ -1,0 +1,14 @@
+# @rule: gr.stmt.while, gr.expr.array_literal, gr.expr.postfix
+# @description: بينما + بناء نتيجة من مصفوفة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 30
+
+متغير م=[10، 20]
+متغير ع=0
+متغير ن=0
+بينما (ع < طول(م))
+    ن = ن + م[ع]
+    ع = ع + 1
+نهاية
+اطبع_سطر(ن)

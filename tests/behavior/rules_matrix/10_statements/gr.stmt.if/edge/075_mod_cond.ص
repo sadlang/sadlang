@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: باقي القسمة في الشرط
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: باق
+
+إذا (10 % 3 == 1)
+    اطبع_سطر("باق")
+نهاية

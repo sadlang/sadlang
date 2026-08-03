@@ -1,0 +1,17 @@
+# @rule: gr.stmt.while, gr.stmt.if, gr.stmt.break, gr.stmt.continue
+# @description: بينما + خليط توقّف واستمرار
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 1\n3\n5
+
+متغير ع=0
+بينما (صحيح)
+    ع = ع + 1
+    إذا (ع > 6)
+        توقف
+    نهاية
+    إذا (ع % 2 == 0)
+        استمر
+    نهاية
+    اطبع_سطر(ع)
+نهاية

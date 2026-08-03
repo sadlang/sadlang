@@ -102,6 +102,7 @@ namespace Sad
             SYN_DECL_NOT_ALLOWED_HERE,    ///< SYN023: (AR) تصريح غير مسموح في هذا السياق / (EN) Declaration not allowed in this context
             SYN_DOC_ORPHAN,               ///< SYN024: (AR) توثيق يتيم لا يلتصق بتصريح / (EN) Orphan doc comment not attached to a declaration
             SYN_DOC_TRAILING,             ///< SYN025: (AR) توثيق في ذيل سطر كود / (EN) Doc comment trailing a code line
+            SYN_DECORATOR_NOT_ALLOWED,    ///< SYN026: (AR) مُزخرِف في موضع لا يقبله / (EN) Decorator in a position that rejects it
 
             // ====================================================================
             // (AR) أخطاء دلالية / (EN) Semantic Errors

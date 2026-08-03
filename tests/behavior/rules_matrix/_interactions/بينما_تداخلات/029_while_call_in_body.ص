@@ -1,0 +1,12 @@
+# @rule: gr.stmt.while, gr.expr.postfix, gr.decl.function
+# @description: بينما + نداء دالّة في الجسم
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0\n2\n4
+
+دالة ضاعف(س) ارجع س * 2 نهاية
+متغير ع=0
+بينما (ع < 3)
+    اطبع_سطر(ضاعف(ع))
+    ع = ع + 1
+نهاية

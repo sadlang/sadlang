@@ -55,32 +55,30 @@ namespace Sad
                 return ":";
             case TT::COMMA:
                 return ",";
-            case TT::KEYWORD_END:
-                return "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9"; // نهاية
-            case TT::KEYWORD_FUNCTION:
-                return "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9"; // دالة
-            case TT::KEYWORD_CLASS:
-                return "\xD8\xB5\xD9\x86\xD9\x81"; // صنف
-            case TT::KEYWORD_IF:
-                return "\xD8\xA5\xD8\xB0\xD8\xA7"; // إذا
-            case TT::KEYWORD_WHILE:
-                return "\xD8\xA8\xD9\x8A\xD9\x86\xD9\x85\xD8\xA7"; // بينما
-            case TT::KEYWORD_FOR:
-                return "\xD9\x84\xD9\x83\xD9\x84"; // لكل
-            case TT::KEYWORD_RETURN:
-                return "\xD8\xA3\xD8\xB1\xD8\xAC\xD8\xB9"; // أرجع
-            case TT::KEYWORD_VAR:
-                return "\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1"; // متغير
-            case TT::KEYWORD_CONST:
-                return "\xD8\xAB\xD8\xA7\xD8\xA8\xD8\xAA"; // ثابت
             case TT::IDENTIFIER:
                 return "identifier";
             case TT::OP_ASSIGN:
                 return "=";
+            case TT::OP_LESS:
+                return "<";
+            case TT::OP_GREATER:
+                return ">";
             case TT::ARROW:
                 return "->";
             default:
-                return "";
+            {
+                // (AR) الكلماتُ المفتاحيةُ كلُّها من معجم SoT — لا جدولَ ظلٍّ مكتوباً هنا.
+                //      كان الجدولُ السابقُ قد انحرف فعلاً: كتب «أرجع» بهمزةٍ بينما SoT
+                //      يقول «ارجع» (KW-RES-002)، وهذا النصُّ يصير قيمةَ الرمزِ المُصطنَعِ
+                //      عند استرداد INSERT_TOKEN — فالانحرافُ يتسرّبُ إلى الشجرة.
+                // (EN) All keywords come from the SoT lexicon — no shadow table here.
+                //      The previous table had actually drifted: it spelled the return
+                //      keyword with a hamza while SoT spells it without (KW-RES-002),
+                //      and this text becomes the synthesized token's value on
+                //      INSERT_TOKEN recovery — so the drift leaked into the AST.
+                const auto *entry = Lexer::KeywordTable::getEntry(type);
+                return entry ? entry->primaryWord : std::string("");
+            }
             }
         }
 
@@ -167,37 +165,20 @@ namespace Sad
          */
         static std::string findClosestKeyword(const std::string &text)
         {
-            // (AR) الكلمات المفتاحية العربية المحجوزة مع بدائل شائعة
-            // (EN) Arabic keywords with common variants
-            static const std::vector<std::pair<std::string, std::string>> keywords = {
-                {"\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9", "KEYWORD_FUNCTION"},               // دالة
-                {"\xD8\xB5\xD9\x86\xD9\x81", "KEYWORD_CLASS"},                          // صنف
-                {"\xD8\xA5\xD8\xB0\xD8\xA7", "KEYWORD_IF"},                             // إذا
-                {"\xD8\xA7\xD8\xB0\xD8\xA7", "KEYWORD_IF"},                             // اذا (بدون همزة)
-                {"\xD9\x88\xD8\xA5\xD9\x84\xD8\xA7", "KEYWORD_ELSE"},                   // وإلا
-                {"\xD9\x88\xD8\xA7\xD9\x84\xD8\xA7", "KEYWORD_ELSE"},                   // والا (بدون همزة)
-                {"\xD8\xA8\xD9\x8A\xD9\x86\xD9\x85\xD8\xA7", "KEYWORD_WHILE"},          // بينما
-                {"\xD9\x84\xD9\x83\xD9\x84", "KEYWORD_FOR"},                            // لكل
-                {"\xD8\xA3\xD8\xB1\xD8\xAC\xD8\xB9", "KEYWORD_RETURN"},                 // أرجع
-                {"\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9", "KEYWORD_RETURN"},                 // ارجع (بدون همزة)
-                {"\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1", "KEYWORD_VAR"},            // متغير
-                {"\xD8\xAB\xD8\xA7\xD8\xA8\xD8\xAA", "KEYWORD_CONST"},                  // ثابت
-                {"\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9", "KEYWORD_END"},            // نهاية
-                {"\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x88\xD8\xB1\xD8\xAF", "KEYWORD_IMPORT"}, // استورد
-                {"\xD8\xAD\xD8\xA7\xD9\x88\xD9\x84", "KEYWORD_TRY"},                    // حاول
-                {"\xD8\xA7\xD9\x85\xD8\xB3\xD9\x83", "KEYWORD_CATCH"},                  // امسك
-                {"\xD8\xA7\xD8\xB1\xD9\x85\xD9\x8A", "KEYWORD_THROW"},                  // ارمي
-                {"\xD8\xA8\xD9\x86\xD9\x8A\xD8\xA9", "KEYWORD_STRUCT"},                 // بنية
-                {"\xD8\xAA\xD8\xB9\xD8\xAF\xD8\xA7\xD8\xAF", "KEYWORD_ENUM"},           // تعداد
-                {"\xD8\xB7\xD8\xA7\xD8\xA8\xD9\x82", "KEYWORD_MATCH"},                  // طابق
-                {"\xD8\xB9\xD9\x86\xD8\xAF\xD9\x85\xD8\xA7", "KEYWORD_WHEN"},           // عندما
-            };
+            // (AR) المعجمُ كلُّه من SoT — لا جدولَ ظلٍّ مكتوباً هنا. الجدولُ السابقُ كان
+            //      ناقصاً (٢١ مدخلةً من أصل معجمٍ أكبر) ومنحرفاً («أرجع» بهمزةٍ بينما SoT
+            //      يقول «ارجع» — KW-RES-002)، فكان يقترحُ على المستخدمِ إملاءً خاطئاً.
+            // (EN) The whole lexicon comes from SoT — no shadow table here. The previous
+            //      table was both incomplete (21 of a much larger lexicon) and drifted
+            //      (return keyword spelled with a hamza against KW-RES-002), so it
+            //      suggested a misspelling to the user.
+            static const std::vector<std::string> keywords = Lexer::KeywordTable::getAllKeywords();
 
             size_t bestDist = 999;
             std::string bestKeyword;
             size_t textLen = utf8CharCount(text);
 
-            for (const auto &[kw, _] : keywords)
+            for (const auto &kw : keywords)
             {
                 size_t kwLen = utf8CharCount(kw);
                 // (AR) لا نقارن إذا الفرق في الطول كبير جداً
@@ -205,7 +186,18 @@ namespace Sad
                     continue;
 
                 size_t dist = levenshteinDistance(text, kw);
-                if (dist < bestDist && dist <= 2 && dist > 0)
+                // (AR) عتبةٌ نسبيّةٌ لا مطلقة: المسافةُ يجب أن تقلَّ عن نصفِ أقصرِ
+                //      الكلمتين. المعجمُ الكاملُ يحوي كلماتٍ من حرفٍ أو حرفين («و»،
+                //      «أو»، «في») وعتبةُ «dist <= 2» وحدَها كانت تجعلُ أيَّ معرّفٍ
+                //      قصيرٍ «قريبًا» منها، فيُقترحُ على المستخدمِ 'و' بدلَ 'س'.
+                //      (الجدولُ اليدويُّ القديمُ لم يُظهر هذا لأنّ أقصرَ مدخلةٍ فيه
+                //       كانت ثلاثةَ أحرف.)
+                // (EN) Relative, not absolute, threshold: the edit distance must be
+                //      under half the shorter word. The full SoT lexicon contains
+                //      one/two-letter keywords, and a bare "dist <= 2" made every
+                //      short identifier "close" to them — suggesting 'و' for 'س'.
+                if (dist < bestDist && dist <= 2 && dist > 0 &&
+                    dist * 2 < std::min(textLen, kwLen))
                 {
                     bestDist = dist;
                     bestKeyword = kw;
@@ -590,6 +582,40 @@ namespace Sad
          * @brief (AR) تحذير «توثيق يتيم» عبر الكتالوج المركزي (SYN024، مستوى Warning).
          *        (EN) Orphan-doc warning via the central catalog (SYN024, Warning severity).
          */
+        /**
+         * @brief (AR) طباعةٌ فوريّةٌ لتحذيرِ كتالوجٍ — مماثلةٌ لما يفعله errorCatalog.
+         *        بدونها يُبتلع التحذيرُ صامتًا: المستودعُ يجمعه، لكنّ مشغّلَ المترجِم
+         *        لا يُصدِر التقريرَ إلّا عند hasErrors()، فتحذيرُ تحليلٍ ناجحٍ لا يراه أحد.
+         *        الشارةُ «⚠» لا «⛔» كي يبقى التمييزُ بين التحذيرِ والخطأِ بيّنًا.
+         *        (EN) Immediate print for a catalog warning, mirroring errorCatalog.
+         *        Without it the warning is swallowed: the sink collects it, but the
+         *        compiler driver emits its report only under hasErrors(), so a warning
+         *        on a successful parse is never seen. Uses «⚠», never «⛔».
+         */
+        static void emitCatalogWarning(Errors::ErrorCode code,
+                                       const Errors::SourceLocation &loc,
+                                       const Errors::RenderContext &rctx)
+        {
+            auto &em = Errors::ErrorManager::getInstance();
+            em.reportWarningFromCatalog(code, loc, rctx);
+
+            const auto rendered = Errors::ErrorCatalog::instance().render(
+                code, em.getExplanationLevel(), Errors::Language::BOTH, rctx);
+            const std::string codeStr = Errors::getErrorCodeString(code);
+            std::string warn_ar = "⚠ [" + codeStr + "] " + rendered.messageAr;
+            std::string warn_en = "⚠ [" + codeStr + "] " + rendered.messageEn;
+            if (rendered.fixHintAr && !rendered.fixHintAr->empty())
+                warn_ar += "\n   💡 " + *rendered.fixHintAr;
+            if (rendered.fixHintEn && !rendered.fixHintEn->empty())
+                warn_en += "\n   💡 " + *rendered.fixHintEn;
+            warn_ar += "\n   📍 الموقع: السطر " + std::to_string(loc.line) +
+                       "، العمود " + std::to_string(loc.column);
+            warn_en += "\n   📍 Location: line " + std::to_string(loc.line) +
+                       ", column " + std::to_string(loc.column);
+
+            std::cerr << "\n" << warn_ar << "\n" << warn_en << "\n" << std::endl;
+        }
+
         void ParserCore::warnDocOrphan(const DocBuffer &buf)
         {
             Errors::SourceLocation loc(
@@ -599,8 +625,7 @@ namespace Sad
                 buf.startPos.offset,
                 buf.startPos.length);
             Errors::RenderContext rctx(loc);
-            Errors::ErrorManager::getInstance().reportWarningFromCatalog(
-                Errors::ErrorCode::SYN_DOC_ORPHAN, loc, rctx);
+            emitCatalogWarning(Errors::ErrorCode::SYN_DOC_ORPHAN, loc, rctx);
         }
 
         /**
@@ -616,8 +641,29 @@ namespace Sad
                 tok.getPosition().offset,
                 tok.getPosition().length);
             Errors::RenderContext rctx(loc);
-            Errors::ErrorManager::getInstance().reportWarningFromCatalog(
-                Errors::ErrorCode::SYN_DOC_TRAILING, loc, rctx);
+            emitCatalogWarning(Errors::ErrorCode::SYN_DOC_TRAILING, loc, rctx);
+        }
+
+        /**
+         * @brief (AR) تحذيرٌ عامٌّ من الكتالوج بمستوى Warning عند الموضع الحاليّ.
+         *        يُستعمل حيث كان الكودُ يطبع لافتةَ «تحذير» يدويّةً على cerr: النصُّ
+         *        يصير من SoT، والسلوكُ يبقى تحذيرًا لا خطأً (لا يتغيّر رمزُ الخروج).
+         *        (EN) Generic catalog warning at the current position. Used where the
+         *        code hand-printed a «warning» banner to cerr: the prose now comes from
+         *        SoT while the behaviour stays a warning (exit code unchanged).
+         */
+        void ParserCore::warnCatalog(Errors::ErrorCode code, CatalogArgs placeholders)
+        {
+            Errors::SourceLocation loc(
+                filename_.empty() ? "<source>" : filename_,
+                current_.getPosition().line,
+                current_.getPosition().column,
+                current_.getPosition().offset,
+                current_.getPosition().length);
+            Errors::RenderContext rctx(loc);
+            rctx.placeholders = std::move(placeholders);
+
+            emitCatalogWarning(code, loc, rctx);
         }
 
         /**
@@ -893,10 +939,46 @@ namespace Sad
                 expected_ar = "سهم '->'";
                 expected_en = "arrow '->'";
                 break;
-            default:
-                expected_ar = "رمز من نوع " + std::to_string(static_cast<int>(type));
-                expected_en = "token of type " + std::to_string(static_cast<int>(type));
+            case TT::STRING_LITERAL:
+                // (AR) اسمُ النوعِ من معجم SoT لا نصًّا مكتوبًا هنا
+                // (EN) Type noun from the SoT lexicon, not a literal spelled here
+                expected_ar = "قيمة " + kw(TT::TYPE_STRING) + " حرفيّة";
+                expected_en = "a string literal";
                 break;
+            case TT::NUMBER_INTEGER:
+                expected_ar = "قيمة " + kw(TT::TYPE_INTEGER) + " صحيحة حرفيّة";
+                expected_en = "an integer literal";
+                break;
+            default:
+            {
+                // (AR) بقيّةُ الأنواع: النصُّ المتوقَّعُ يُشتقُّ من مصدر الحقيقة عبر
+                //      tokenTypeToExpectedText (معجمُ الكلمات + جدولُ المحدِّدات). كان
+                //      الفرعُ الافتراضيُّ يطبعُ رقمَ التعداد الخامَّ («رمز من نوع 42»)،
+                //      وهو تسريبُ تفصيلٍ داخليٍّ لا يفهمُه المستخدم — ولا يظهرُ إلّا
+                //      حين تُترَكُ رسالةُ consume فارغةً، أي في كلِّ نداءٍ مكنوسٍ لنوعٍ
+                //      خارجَ الحالاتِ أعلاه (OP_LESS/OP_GREATER/KEYWORD_IN…).
+                // (EN) Everything else derives its expected text from the SoT via
+                //      tokenTypeToExpectedText (keyword lexicon + delimiter table).
+                //      The old default printed the raw enum number ("token of type 42"),
+                //      an internal detail leaking to the user — reachable whenever a
+                //      consume() message is left empty for a type not cased above.
+                const std::string expectedText = tokenTypeToExpectedText(type);
+                if (!expectedText.empty())
+                {
+                    expected_ar = "'" + expectedText + "'";
+                    expected_en = "'" + expectedText + "'";
+                    fixText = expectedText;
+                    fixDesc_ar = "أضف '" + expectedText + "' هنا";
+                    fixDesc_en = "Add '" + expectedText + "' here";
+                    addFixIt = true;
+                }
+                else
+                {
+                    expected_ar = "رمز من نوع " + std::to_string(static_cast<int>(type));
+                    expected_en = "token of type " + std::to_string(static_cast<int>(type));
+                }
+                break;
+            }
             }
 
             // (AR) إذا كانت رسالة مخصصة موجودة، استخدمها
@@ -1411,8 +1493,7 @@ namespace Sad
                     }
                     else
                     {
-                        param = consume(TT::IDENTIFIER,
-                                        "(AR) توقع اسم معامل. (EN) Expected parameter name.");
+                        param = consume(TT::IDENTIFIER, "");
                     }
                     parameters.push_back(param.getValue());
                 } while (matchComma()); // (AR) دعم الفاصلة العربية (،)
@@ -1465,8 +1546,7 @@ namespace Sad
                         }
                         else
                         {
-                            paramName = consume(TT::IDENTIFIER,
-                                                "(AR) توقع اسم معامل بعد النوع. (EN) Expected parameter name after type.");
+                            paramName = consume(TT::IDENTIFIER, "");
                         }
 
                         // Optional default value: type name = value
@@ -1522,8 +1602,7 @@ namespace Sad
                         }
                         else
                         {
-                            paramName = consume(TT::IDENTIFIER,
-                                                "(AR) توقع اسم معامل بعد اسم الصنف. (EN) Expected parameter name after class type.");
+                            paramName = consume(TT::IDENTIFIER, "");
                         }
 
                         // (AR) القيمة الافتراضية الاختيارية
@@ -1559,8 +1638,7 @@ namespace Sad
                         }
                         else
                         {
-                            paramName = consume(TT::IDENTIFIER,
-                                                "(AR) توقع اسم معامل. (EN) Expected parameter name.");
+                            paramName = consume(TT::IDENTIFIER, "");
                         }
 
                         // Optional type annotation: name : type
@@ -1749,8 +1827,7 @@ namespace Sad
                 else if (name == "مضاعف")
                 {
                     // (AR) ❌ كلمة `مضاعف` أُزيلت — استخدم `عشري`
-                    error("(AR) ❌ `مضاعف` لم تعد مدعومة. استخدم `عشري` بدلاً منها.\n"
-                          "(EN) `مضاعف` is no longer supported. Use `عشري` instead.");
+                    errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", "مضاعف"}, {"new", kw(TT::TYPE_DOUBLE)}, {"example", kw(TT::KEYWORD_VAR) + " س: " + kw(TT::TYPE_DOUBLE)}});
                     resolved = Types::SadTypeKind::Float; // recover
                 }
                 else if (name == "نص")
@@ -1784,8 +1861,7 @@ namespace Sad
             }
 
             // ========== Type not found ==========
-            error("(AR) توقع نوع بيانات صحيح (رقم، نص، منطقي، إلخ). "
-                  "(EN) Expected valid data type (int, string, bool, etc).");
+            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "نوع بيانات"}, {"what_en", "data type"}, {"ctx_ar", ""}, {"ctx_en", ""}});
             return Types::SadTypeKind::Unknown;
         }
 
@@ -1811,9 +1887,7 @@ namespace Sad
         Types::SadTypeKind ParserCore::parseGenericType(Types::SadTypeKind baseType)
         {
             // Consume '<'
-            consume(TT::OP_LESS,
-                    "(AR) توقع '<' بعد اسم النوع العام. "
-                    "(EN) Expected '<' after generic type name.");
+            consume(TT::OP_LESS, "");
 
             // Parse first type parameter
             // (AR) تحليل معامل النوع الأول
@@ -1824,18 +1898,14 @@ namespace Sad
             // (AR) للنوع Map، تحليل المعامل الثاني
             if (baseType == Types::SadTypeKind::Map)
             {
-                consume(TT::COMMA,
-                        "(AR) توقع ',' بين معاملات Map. "
-                        "(EN) Expected ',' between Map parameters.");
+                consume(TT::COMMA, "");
 
                 Types::SadTypeKind param2 = parseType();
                 (void)param2; // Suppress unused variable warning
             }
 
             // Consume '>'
-            consume(TT::OP_GREATER,
-                    "(AR) توقع '>' بعد معاملات النوع العام. "
-                    "(EN) Expected '>' after generic type parameters.");
+            consume(TT::OP_GREATER, "");
 
             // TODO: Store generic parameters in AST for type checking
             // (AR) مستقبلاً: حفظ المعاملات العامة في AST للتحقق من الأنواع
@@ -1887,9 +1957,7 @@ namespace Sad
                     // (AR) تحليل المعامل العام: مصفوفة<T>
                     advance(); // consume '<'
                     auto elemType = parseSadType();
-                    consume(TT::OP_GREATER,
-                            "(AR) توقع '>' بعد نوع عنصر المصفوفة. "
-                            "(EN) Expected '>' after array element type.");
+                    consume(TT::OP_GREATER, "");
                     return reg.makeArray(elemType);
                 }
                 return reg.makeArray();
@@ -1901,13 +1969,9 @@ namespace Sad
                     // (AR) تحليل المعاملين: خريطة<K, V>
                     advance(); // consume '<'
                     auto keyType = parseSadType();
-                    consume(TT::COMMA,
-                            "(AR) توقع ',' بين معاملات الخريطة. "
-                            "(EN) Expected ',' between Map parameters.");
+                    consume(TT::COMMA, "");
                     auto valType = parseSadType();
-                    consume(TT::OP_GREATER,
-                            "(AR) توقع '>' بعد معاملات الخريطة. "
-                            "(EN) Expected '>' after Map parameters.");
+                    consume(TT::OP_GREATER, "");
                     return reg.makeMap(keyType, valType);
                 }
                 return reg.makeMap();
@@ -1925,8 +1989,7 @@ namespace Sad
                     resolved = reg.getFloat();
                 else if (name == "مضاعف")
                 {
-                    error("(AR) ❌ `مضاعف` لم تعد مدعومة. استخدم `عشري` بدلاً منها.\n"
-                          "(EN) `مضاعف` is no longer supported. Use `عشري` instead.");
+                    errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", "مضاعف"}, {"new", kw(TT::TYPE_DOUBLE)}, {"example", kw(TT::KEYWORD_VAR) + " س: " + kw(TT::TYPE_DOUBLE)}});
                     resolved = reg.getFloat();
                 }
                 else if (name == "نص")
@@ -1950,9 +2013,7 @@ namespace Sad
                     {
                         advance(); // consume '<'
                         auto elemType = parseSadType();
-                        consume(TT::OP_GREATER,
-                                "(AR) توقع '>' بعد نوع عنصر المصفوفة. "
-                                "(EN) Expected '>' after array element type.");
+                        consume(TT::OP_GREATER, "");
                         return reg.makeArray(elemType);
                     }
                     return reg.makeArray();
@@ -1964,13 +2025,9 @@ namespace Sad
                     {
                         advance(); // consume '<'
                         auto keyType = parseSadType();
-                        consume(TT::COMMA,
-                                "(AR) توقع ',' بين معاملات الخريطة. "
-                                "(EN) Expected ',' between Map parameters.");
+                        consume(TT::COMMA, "");
                         auto valType = parseSadType();
-                        consume(TT::OP_GREATER,
-                                "(AR) توقع '>' بعد معاملات الخريطة. "
-                                "(EN) Expected '>' after Map parameters.");
+                        consume(TT::OP_GREATER, "");
                         return reg.makeMap(keyType, valType);
                     }
                     return reg.makeMap();
@@ -1989,8 +2046,7 @@ namespace Sad
             }
 
             // (AR) فشل التحليل
-            error("(AR) توقع نوع بيانات صحيح (رقم، نص، منطقي، إلخ). "
-                  "(EN) Expected valid data type (int, string, bool, etc).");
+            errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "نوع بيانات"}, {"what_en", "data type"}, {"ctx_ar", ""}, {"ctx_en", ""}});
             return reg.getUnknown();
         }
 

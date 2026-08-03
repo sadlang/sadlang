@@ -1,0 +1,13 @@
+# @rule: gr.stmt.if, gr.decl.function, gr.stmt.return
+# @description: إذا + استدعاء ذاتيّ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 120
+
+دالة عاملي(ن)
+    إذا (ن <= 1)
+        ارجع 1
+    نهاية
+    ارجع ن * عاملي(ن - 1)
+نهاية
+اطبع_سطر(عاملي(5))

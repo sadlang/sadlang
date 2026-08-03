@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if
+# @description: عدم تساوي نصّين
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: مختلف
+
+إذا ("أ" != "ب")
+    اطبع_سطر("مختلف")
+نهاية

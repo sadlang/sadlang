@@ -1,0 +1,16 @@
+# @rule: gr.stmt.while, gr.decl.function, gr.decl.variable
+# @description: بينما + عزل نطاق الدالّة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5\n0
+
+متغير ع=0
+دالة عد()
+    متغير ع=0
+    بينما (ع < 5)
+        ع = ع + 1
+    نهاية
+    ارجع ع
+نهاية
+اطبع_سطر(عد())
+اطبع_سطر(ع)

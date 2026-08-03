@@ -1,0 +1,10 @@
+# @rule: gr.stmt.if, gr.expr.array_literal, gr.expr.postfix
+# @description: إذا + بلوغُ آخرِ عنصرٍ عبر طول−١
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: آخر
+
+متغير مصفوفة=[10، 20، 30]
+إذا (طول(مصفوفة) > 2 و مصفوفة[طول(مصفوفة) - 1] == 30)
+    اطبع_سطر("آخر")
+نهاية

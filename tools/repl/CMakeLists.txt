@@ -112,6 +112,30 @@ if(SAD_STATIC_REPL AND NOT MSVC)
     target_link_options(sad-repl PRIVATE -static-libgcc -static-libstdc++)
 endif()
 
+# (AR) م-٧: حجز 128م للمكدّس — مطابقةً لـsad-run وsad-build. الصدَفة تُنفّذ كودَ
+#      المستخدم بالمفسّر نفسه، فكلّ نداءٍ في لغة ص يتمدّد إلى سلسلة أُطُر C++ في
+#      زوّار الشجرة؛ ومكدّس ويندوز الافتراضيّ (1م) ينفجر عند عمق ~32 في بناء Debug
+#      بانهيار صامت (0xC00000FD) لا يبلغه حارس maxCallDepth_ أصلًا. لولا هذا
+#      السطر لبقي نصف العلاج: المفسّر مُصلَحًا والصدَفة تنهار على البرنامج نفسه.
+# (EN) م-٧: reserve a 128MB stack, mirroring sad-run/sad-build. The REPL executes
+#      user code through the same interpreter, so ordinary recursion would blow the
+#      default 1MB Windows stack at depth ~32 in Debug — a silent 0xC00000FD crash
+#      the maxCallDepth_ guard never sees.
+if(MSVC)
+    target_link_options(sad-repl PRIVATE /STACK:134217728)
+elseif(APPLE)
+    # (AR) رابط macOS (ld64) يستخدم -stack_size لا -z stacksize (خاص بـ GNU ld).
+    # (EN) macOS ld64 uses -stack_size, not the GNU ld -z stacksize option.
+    target_link_options(sad-repl PRIVATE -Wl,-stack_size,0x8000000)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    # (AR) ⚠ ‏«‎-z stack-size» تهجئة binutils ld/lld (‏«stacksize» بلا شرطة تهجئة
+    #      Solaris فتُتجاهَل صامتة). وحتّى بالتهجئة الصحيحة لا يحكم PT_GNU_STACK
+    #      مكدّسَ الخيط الرئيسيّ على لينكس — يشتقّه النواة من RLIMIT_STACK (٨م
+    #      عادةً) — فيبقى الأثر على الخيوط المُنشأة وعلى الأنظمة التي تقرؤه.
+    #      عدّاءٌ بـulimit -s 4096 يفشل رغم هذا السطر: دَينٌ مُعلَن لا مسدود.
+    target_link_options(sad-repl PRIVATE -Wl,-z,stack-size=134217728)
+endif()
+
 # ========================================
 # Installation / التثبيت
 # ========================================

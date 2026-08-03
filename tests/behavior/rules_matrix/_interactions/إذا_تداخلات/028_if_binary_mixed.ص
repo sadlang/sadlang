@@ -1,0 +1,9 @@
+# @rule: gr.stmt.if, gr.expr.term, gr.expr.factor, gr.expr.equality
+# @description: إذا + تعبير ثنائيّ مركّب
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ثنائي
+
+إذا ((2 * 3 + 4) % 5 == 0)
+    اطبع_سطر("ثنائي")
+نهاية

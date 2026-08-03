@@ -1,0 +1,11 @@
+# @rule: gr.stmt.while
+# @description: خطوة ثلاثة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 0\n3\n6\n9
+
+متغير ع=0
+بينما (ع < 10)
+    اطبع_سطر(ع)
+    ع = ع + 3
+نهاية
