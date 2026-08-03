@@ -59,6 +59,17 @@ namespace sad
                     out = op.intValue;
                     return true;
                 }
+                // (AR) [توسيع اللا-موقَّع] ثابتٌ طبيعي64: نمطُ بتّاته يعيش في intValue (نفسُ اتّحادِ
+                //      Integer، لا حقلَ منفصل) ⇒ نُرجعه كـi64. آمنٌ في كلِّ مواضعِ الاستدعاء: العرضُ
+                //      الكامل ٦٤-بت يُحمَّل عبر movImm64/movConst، والمقارناتُ اللا-موقَّعةُ محروسةٌ
+                //      ببوّابتِها المستقلّة (bothUInt64/eitherUInt64). بدونه يفشلُ أيُّ معامِلٍ ثابتٍ
+                //      طبيعي64 صراحةً (const-type=13 · operand-kind=CONSTANT) في القسمة/الإزاحة/غيرِها.
+                if (op.type == sir::SIROperandType::CONSTANT &&
+                    op.dataType == types::SadTypeKind::UInt64)
+                {
+                    out = op.intValue;
+                    return true;
+                }
                 // (AR) الدفعة ٨: ثابتٌ منطقيّ ⇒ صحيحٌ ٠/١ (bool يعيش قيمةً ٠/١؛ boolValue لا intValue
                 //      لأنّهما في اتّحادٍ). يوحّد معالجةَ الحرفيّاتِ المنطقيّة عبر المعماريّتين.
                 if (op.type == sir::SIROperandType::CONSTANT &&

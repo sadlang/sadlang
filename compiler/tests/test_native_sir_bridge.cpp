@@ -441,6 +441,22 @@ namespace
         "\x20\x20\x20\x20\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\x37\x0A"
         "\x20\x20\x20\x20\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) قسمةٌ أرضيّةٌ لا-موقَّعة: كبير=2^64-1 طبيعي64، قسمة=كبير/2. لا-موقَّعًا (udiv):
+    //      (2^64-1)/2 = 9223372036854775807 (=INT64_MAX). موقَّعًا (idiv/sdiv): -1/2 = 0.
+    //      نوعُ النتيجة UInt64 (هيمنة) ⇒ طباعةٌ لا-موقَّعة. stdout = "9223372036854775807"
+    //      يُثبِتُ udiv؛ لو انحدرَ لـidiv لطبعَ "0". برهانُ قيمةٍ كامل (يُشغَّل حيًّا، stdout
+    //      خارجَ المِطواة). يمارس FLOOR_DIV_I64 اللا-موقَّع (x86 xor rdx,rdx+div · ARM64 udiv).
+    const std::string kSrcUFloorDivPrint =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A\x20\x20\x20\x20\xD8\xB7\xD8\xA8\xD9\x8A\xD8\xB9\xD9\x8A\x36\x34\x20\xD9\x83\xD8\xA8\xD9\x8A\xD8\xB1\x20\x3D\x20\x31\x38\x34\x34\x36\x37\x34\x34\x30\x37\x33\x37\x30\x39\x35\x35\x31\x36\x31\x35\x0A\x20\x20\x20\x20\xD8\xB7\xD8\xA8\xD9\x8A\xD8\xB9\xD9\x8A\x36\x34\x20\xD9\x82\xD8\xB3\xD9\x85\xD8\xA9\x20\x3D\x20\xD9\x83\xD8\xA8\xD9\x8A\xD8\xB1\x20\x2F\x2F\x20\x32\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\xD9\x82\xD8\xB3\xD9\x85\xD8\xA9\x29\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) باقٍ لا-موقَّع ⇒ رمزُ خروج: كبير=2^63+42، حد=2^63 (كلاهما طبيعي64، بتُّ الإشارة ضبط).
+    //      لا-موقَّعًا (udiv+msub): (2^63+42) % 2^63 = 42 ⇒ خروج 42. موقَّعًا (sdiv+msub):
+    //      قيمتان سالبتان، |كبير|<|حد| ⇒ الباقي=كبير الموقَّع=-9223372036854775766، بايتُه
+    //      الأدنى = 106 ⇒ خروج 106. فالنجاحُ بـ42 (لا 106) يُثبِتُ MOD_I64 اللا-موقَّع (udiv) على
+    //      المعماريّتين. الهيمنةُ (أيُّ معاملٍ UInt64) تُطابقُ بوّابةَ LLVM (modUnsignedU64).
+    const std::string kSrcUModExit =
+        "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A\x20\x20\x20\x20\xD8\xB7\xD8\xA8\xD9\x8A\xD8\xB9\xD9\x8A\x36\x34\x20\xD9\x83\xD8\xA8\xD9\x8A\xD8\xB1\x20\x3D\x20\x39\x32\x32\x33\x33\x37\x32\x30\x33\x36\x38\x35\x34\x37\x37\x35\x38\x35\x30\x0A\x20\x20\x20\x20\xD8\xB7\xD8\xA8\xD9\x8A\xD8\xB9\xD9\x8A\x36\x34\x20\xD8\xAD\xD8\xAF\x20\x3D\x20\x39\x32\x32\x33\x33\x37\x32\x30\x33\x36\x38\x35\x34\x37\x37\x35\x38\x30\x38\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD9\x83\xD8\xA8\xD9\x8A\xD8\xB1\x20\x25\x20\xD8\xAD\xD8\xAF\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 } // namespace
 
 // (AR) المصدرُ الحسابيّ يُبنى ويُخفَّض بنجاح، والـELF سليمٌ (EM_X86_64).
@@ -3079,6 +3095,13 @@ TEST(NativeSirBridge, LowersUnsignedCmpBranch) { lowerAndWriteX86(kSrcUCmpBranch
 TEST(Arm64SirBridge, LowersUnsignedCmpBranch) { lowerAndWriteArm64(kSrcUCmpBranch, "sad_arm64_ucmpbr42"); }
 TEST(NativeSirBridge, LowersNestedUMaxCmp) { lowerAndWriteX86(kSrcNestedUMaxCmp, "sad_sir_nestedumax42"); }
 TEST(Arm64SirBridge, LowersNestedUMaxCmp) { lowerAndWriteArm64(kSrcNestedUMaxCmp, "sad_arm64_nestedumax42"); }
+
+// (AR) [توسيع اللا-موقَّع — القسمة/الباقي] قسمةٌ أرضيّةٌ لا-موقَّعة (stdout=INT64_MAX لا 0) وباقٍ
+//      لا-موقَّع (EXIT=42 لا 106). الهيمنةُ (أيُّ معاملٍ UInt64) تُطابقُ بوّابةَ LLVM (u/sdiv).
+TEST(NativeSirBridge, LowersUnsignedFloorDivPrint) { lowerAndWriteX86(kSrcUFloorDivPrint, "sad_sir_udivprint"); }
+TEST(Arm64SirBridge, LowersUnsignedFloorDivPrint) { lowerAndWriteArm64(kSrcUFloorDivPrint, "sad_arm64_udivprint"); }
+TEST(NativeSirBridge, LowersUnsignedModExit) { lowerAndWriteX86(kSrcUModExit, "sad_sir_umod42"); }
+TEST(Arm64SirBridge, LowersUnsignedModExit) { lowerAndWriteArm64(kSrcUModExit, "sad_arm64_umod42"); }
 
 // (AR) المختلطُ (صحيح×عشري) يُرفَضُ صراحةً على المعماريّتين (تماثل).
 TEST(NativeSirBridge, RejectsMixedMinMax)

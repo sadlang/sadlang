@@ -4173,11 +4173,14 @@ namespace sad
                 case OP::DIV_I64:       // (AR) قسمةٌ صحيحةٌ (حاصلُ idiv نحوَ الصفر)؛ يتيمةٌ سطحيًّا (`/`⇒FLOOR_DIV_I64).
                 case OP::FLOOR_DIV_I64:
                 {
-                    // (AR) قسمةٌ صحيحةٌ موقَّعة: المقسومُ في rax، cqo يمدّ الإشارةَ إلى rdx:rax،
-                    //      idiv بمقسومٍ عليه في مُبدَّدٍ خارجَ الحوض (RDI) ⇒ rax=حاصل، rdx=باقٍ.
-                    //      rdx (=pool[0]) قد يحمل مؤقّتًا حيًّا لتعليماتٍ لاحقة، فنحفظه في خانةِ
-                    //      خدشِ القسمة ونعيده بعد نقلِ النتيجة ⇒ لا مؤقّتٌ يُدهَس. الحاصلُ للقسمة،
-                    //      الباقي للباقي.
+                    // (AR) قسمةٌ صحيحة: المقسومُ في rax، والمقسومُ عليه في مُبدَّدٍ خارجَ الحوض
+                    //      (RDI) ⇒ rax=حاصل، rdx=باقٍ. rdx (=pool[0]) قد يحمل مؤقّتًا حيًّا
+                    //      لتعليماتٍ لاحقة، فنحفظه في خانةِ خدشِ القسمة ونعيده بعد نقلِ النتيجة ⇒
+                    //      لا مؤقّتٌ يُدهَس. الحاصلُ للقسمة، الباقي للباقي.
+                    //      • موقَّعة (المسارُ الافتراضيّ): cqo يمدّ الإشارةَ إلى rdx:rax ثمّ idiv.
+                    //      • لا-موقَّعة (أيُّ معاملٍ طبيعي64، هيمنةً كـLLVM): xor rdx,rdx (تصفيرُ
+                    //        النصفِ العالي) ثمّ div — بلا تمديدِ إشارة ⇒ النطاقُ الكامل ٢^٦٤
+                    //        (MAX//2=INT64_MAX، MAX%2=1) مطابقةً للمفسّر ومسارِ LLVM.
                     if (!inst.result || inst.operands.size() != 2)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     int dst;
@@ -4187,7 +4190,9 @@ namespace sad
                         return false;
                     if (!storeMem(idivScratchDisp_, x86::RDX)) // (AR) احفظ rdx (مؤقّتٌ حيٌّ محتمَل)
                         return false;
-                    if (!cqo() || !idivReg(x86::RDI))
+                    const bool unsignedDiv = eitherUInt64(inst);
+                    if (unsignedDiv ? (!xorReg(x86::RDX, x86::RDX) || !divReg(x86::RDI))
+                                    : (!cqo() || !idivReg(x86::RDI)))
                         return false;
                     const int resultReg = (inst.opcode == OP::MOD_I64) ? x86::RDX : x86::RAX;
                     if (!movReg(dst, resultReg)) // (AR) الباقي/الحاصل إلى وجهته
@@ -5413,6 +5418,19 @@ namespace sad
                 return cmp.operands.size() == 2 &&
                        cmp.operands[0].dataType == types::SadTypeKind::UInt64 &&
                        cmp.operands[1].dataType == types::SadTypeKind::UInt64;
+            }
+
+            // (AR) هل **أيُّ** معامِلٍ طبيعي64؟ ⇒ قسمة/باقٍ لا-موقَّعان (div لا idiv). بوّابةُ
+            //      الهيمنة (either) لا التطابق (both) — مرآةٌ حرفيّةٌ لبوّابةِ LLVM
+            //      (arith_main.cpp: fdivUnsignedU64/modUnsignedU64 = أيُّ معاملٍ UInt64، مرآةُ
+            //      wrapU64 في المفسّر). تختلفُ عن bothUInt64 قصدًا: القسمةُ دلالتُها هيمنةٌ
+            //      (MAX//2=INT64_MAX) بينما المقارنةُ تطابُقٌ (Option A). الأنواعُ الفرعيّةُ اللا-موقَّعةُ
+            //      <٦٤ ممدَّدةٌ بالصفر (لا-سالبة) ⇒ idiv==div لها فلا تلزمُها معالجة.
+            static bool eitherUInt64(const sir::SIRInstruction &inst)
+            {
+                return inst.operands.size() == 2 &&
+                       (inst.operands[0].dataType == types::SadTypeKind::UInt64 ||
+                        inst.operands[1].dataType == types::SadTypeKind::UInt64);
             }
 
             // (AR) هل النوعُ صحيحٌ لا-موقَّع؟ (طبيعي8/16/32/64 أو بايت). المقارناتُ المرتَّبةُ

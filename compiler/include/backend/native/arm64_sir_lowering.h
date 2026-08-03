@@ -1800,12 +1800,17 @@ namespace sad
                 case OP::ADD_I64: return rrr(a64::mnem::kAdd, dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::SUB_I64: return rrr(a64::mnem::kSub, dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::MUL_I64: return rrr(a64::mnem::kMul, dst, a64reg::kScratch0, a64reg::kScratch1);
-                case OP::DIV_I64:       // (AR) قسمةٌ صحيحةٌ (حاصلُ sdiv)؛ يتيمةٌ سطحيًّا (`/`⇒FLOOR_DIV_I64).
+                case OP::DIV_I64:       // (AR) قسمةٌ صحيحة (`/`⇒FLOOR_DIV_I64 سطحيًّا)؛ udiv للا-موقَّع.
                 case OP::FLOOR_DIV_I64:
-                    return rrr(a64::mnem::kSdiv, dst, a64reg::kScratch0, a64reg::kScratch1);
+                    // (AR) لا-موقَّعة (أيُّ معاملٍ طبيعي64، هيمنةً كـLLVM/x86) ⇒ udiv؛ وإلّا sdiv.
+                    //      لا-موقَّعٌ بلا سالبٍ ⇒ الأرضيّةُ = الاقتطاعُ (MAX//2=INT64_MAX) كالمفسّر.
+                    return rrr(eitherUInt64(inst) ? a64::mnem::kUdiv : a64::mnem::kSdiv,
+                               dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::MOD_I64:
-                    // (AR) الباقي = a − (a÷b)×b: sdiv dst=الحاصل، ثمّ msub dst = x16 − dst×x17.
-                    return rrr(a64::mnem::kSdiv, dst, a64reg::kScratch0, a64reg::kScratch1) &&
+                    // (AR) الباقي = a − (a÷b)×b: s/udiv dst=الحاصل، ثمّ msub dst = x16 − dst×x17.
+                    //      الهيمنةُ تختارُ udiv للا-موقَّع (MAX%2=1) مطابقةً للمفسّر ومسارِ LLVM.
+                    return rrr(eitherUInt64(inst) ? a64::mnem::kUdiv : a64::mnem::kSdiv,
+                               dst, a64reg::kScratch0, a64reg::kScratch1) &&
                            msub(dst, dst, a64reg::kScratch1, a64reg::kScratch0);
                 // (AR) البتّيّات (نظير x86 reg-reg). SHL/SHR عبر lslv/lsrv بمقدارِ سجلّ (x17) ⇒
                 //      يدعمان الثابتَ **والمتغيّر** (بخلاف x86 المحدودِ بالثابت). SHR منطقيّة.
@@ -1893,6 +1898,15 @@ namespace sad
                 return cmp.operands.size() == 2 &&
                        cmp.operands[0].dataType == types::SadTypeKind::UInt64 &&
                        cmp.operands[1].dataType == types::SadTypeKind::UInt64;
+            }
+            // (AR) هل **أيُّ** معامِلٍ طبيعي64؟ ⇒ قسمة/باقٍ لا-موقَّعان (udiv لا sdiv). بوّابةُ
+            //      الهيمنة (either) لا التطابق (both) — مرآةٌ حرفيّةٌ لبوّابةِ LLVM وx86 eitherUInt64.
+            //      تختلفُ عن bothUInt64 قصدًا: القسمةُ دلالتُها هيمنةٌ بينما المقارنةُ تطابُق.
+            static bool eitherUInt64(const sir::SIRInstruction &inst)
+            {
+                return inst.operands.size() == 2 &&
+                       (inst.operands[0].dataType == types::SadTypeKind::UInt64 ||
+                        inst.operands[1].dataType == types::SadTypeKind::UInt64);
             }
             // (AR) حقلُ الشرطِ المقلوب لمقارنةِ العوائم (IEEE عبر fcmp): يختلف عن الصحيح في <,<=
             //      فقط. الأصغرُ يستعمل MI (N=1) لا LT (N≠V) — لأنّ NaN يضبط V=1 فتَصدُق LT خطأً؛
