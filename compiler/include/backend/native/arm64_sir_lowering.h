@@ -671,6 +671,9 @@ namespace sad
             bool fsub(int d, int n, int m) { return emit(a64::mnem::kFsub, "d, d, d", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); }
             bool fmul(int d, int n, int m) { return emit(a64::mnem::kFmul, "d, d, d", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); }
             bool fdiv(int d, int n, int m) { return emit(a64::mnem::kFdiv, "d, d, d", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); }
+            bool fsqrt(int d, int n) { return emit(a64::mnem::kFsqrt, "d, d", {a64::Operand::R(d), a64::Operand::R(n)}); } // (AR) d = √n (عشريّ مزدوج)
+            bool cselLt(int d, int n, int m) { return emit(a64::mnem::kCselLt, "x, x, x", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); } // (AR) d = (n<m موقَّعًا بعدَ cmp)؟ n : m
+            bool cselGt(int d, int n, int m) { return emit(a64::mnem::kCselGt, "x, x, x", {a64::Operand::R(d), a64::Operand::R(n), a64::Operand::R(m)}); } // (AR) d = (n>m)؟ n : m
             // (AR) fcvtns x, d: عشريّ ⇒ صحيح بتقريبٍ لأقربِ زوجٍ (nearest-even) = تقريبُ IEEE
             //      المطابقُ للمفسّر (نظيرُ cvtsd2si x86). أساسيٌّ في ARMv8؛ نظيرُ fcvtzs لكن round-nearest.
             bool fcvtns(int x, int d) { return emit(a64::mnem::kFcvtns, "x, d", {a64::Operand::R(x), a64::Operand::R(d)}); }
@@ -1991,6 +1994,67 @@ namespace sad
                         return materialize(dst, inst.operands[0]);
                     return materialize(a64reg::kScratch0, inst.operands[0]) &&
                            fmovToFp(kD0, a64reg::kScratch0) && fcvtzs(dst, kD0);
+                }
+                case OP::BUILTIN_SQRT:
+                {
+                    // (AR) جذر(س) ⇒ عشريّ. المعاملُ عشريٌّ ⇒ بتّاته double (fmov إلى FP)؛ صحيحٌ ⇒ حوّله
+                    //      double (scvtf). ثمّ fsqrt (أساسيٌّ ARMv8) ⇒ أعِد البتّاتِ إلى GPR.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (!materialize(dst, inst.operands[0]))
+                        return false;
+                    if (inst.operands[0].dataType == types::SadTypeKind::Float)
+                    {
+                        if (!fmovToFp(kD0, dst))
+                            return false;
+                    }
+                    else if (!scvtf(kD0, dst)) // (AR) صحيح ⇒ double قبلَ الجذر
+                        return false;
+                    return fsqrt(kD0, kD0) && fmovFromFp(dst, kD0);
+                }
+                case OP::BUILTIN_ABS:
+                {
+                    // (AR) مطلق(س): نوعُ النتيجة = نوعُ المعامل. العشريُّ = مسحُ بتِّ الإشارة (AND بقناع
+                    //      0x7FFF…FFFF؛ العشريُّ بتّاتٌ في GPR). الصحيحُ = نفيٌ شرطيّ لا فرعيّ: t=−x؛
+                    //      cmp x,0؛ csel x = (x<0)؟ t : x = |x| (آمنٌ لـINT64_MIN لأنّ csel لا يطفح).
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (!materialize(dst, inst.operands[0]))
+                        return false;
+                    if (inst.result->dataType == types::SadTypeKind::Float)
+                        return movImm64Bits(a64reg::kScratch0, kF64AbsMask) &&
+                               rrr(a64::mnem::kAnd, dst, dst, a64reg::kScratch0);
+                    return rrr(a64::mnem::kSub, a64reg::kScratch0, a64reg::kXzr, dst) && // scratch = −dst
+                           cmp(dst, a64reg::kXzr) && cselLt(dst, a64reg::kScratch0, dst);
+                }
+                case OP::BUILTIN_MIN:
+                case OP::BUILTIN_MAX:
+                {
+                    // (AR) أصغر/أكبر (صحيحان موقَّعان، نتيجةٌ Integer): حمّل a في dst وb في x16، قارِنْ،
+                    //      ثمّ اختيارٌ شرطيّ — أكبر: csel dst=(dst>x16)؟dst:x16؛ أصغر: (dst<x16)؟dst:x16.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    // (AR) 🔒 حارسٌ (عائقُ أميليا، مرآةُ x86): المعاملُ العشريُّ يُقارَنُ كبتّاتٍ صحيحةٍ
+                    //      موقَّعةٍ (خطأٌ للسالب، تباعُدٌ عن المرجع) ⇒ ارفضْه صراحةً؛ الأصغر/الأكبرُ العشريُّ
+                    //      (fmin/fmax) دفعةٌ لاحقة. تماثلٌ صارم: x86 يرفضه أيضًا.
+                    if (inst.operands[0].dataType == types::SadTypeKind::Float ||
+                        inst.operands[1].dataType == types::SadTypeKind::Float)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kBuiltinFloatMinMax + detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (!materialize(dst, inst.operands[0]) ||
+                        !materialize(a64reg::kScratch0, inst.operands[1]) ||
+                        !cmp(dst, a64reg::kScratch0))
+                        return false;
+                    return inst.opcode == OP::BUILTIN_MAX ? cselGt(dst, dst, a64reg::kScratch0)
+                                                         : cselLt(dst, dst, a64reg::kScratch0);
                 }
                 case OP::PHI:
                 {

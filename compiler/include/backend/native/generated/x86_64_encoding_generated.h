@@ -39,6 +39,8 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اطرح", "r64, imm32", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x81}; s.modrm.present = true; s.modrm.reg_ext = 5; s.modrm.rm_op = 0; s.imm_op = 1; s.imm_bits = 32; return s; }() },
     { "اطرح", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x29}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
     { "اضرب", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0xAF}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "انقل_إذا_أصغر", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0x4C}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "انقل_إذا_أكبر", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x0F, 0x4F}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "اقسم", "r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0xF7}; s.modrm.present = true; s.modrm.reg_ext = 7; s.modrm.rm_op = 0; return s; }() },
     { "مدد_الإشارة", "", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x99}; return s; }() },
     { "وافق", "r64, r64", []{ sad::native::x86::EncSpec s; s.rex_w = true; s.opcode = {0x21}; s.modrm.present = true; s.modrm.reg_op = 1; s.modrm.rm_op = 0; return s; }() },
@@ -91,6 +93,7 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اطرح_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x5C}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "اضرب_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x59}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "اقسم_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x5E}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
+    { "جذر_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.opcode = {0x0F, 0x51}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "حوّل_إلى_عشري", "xmm, r64", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.rex_w = true; s.opcode = {0x0F, 0x2A}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "حوّل_من_عشري", "r64, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0xF2}; s.rex_w = true; s.opcode = {0x0F, 0x2C}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
     { "قارن_عشري", "xmm, xmm", []{ sad::native::x86::EncSpec s; s.prefix = {0x66}; s.opcode = {0x0F, 0x2E}; s.modrm.present = true; s.modrm.reg_op = 0; s.modrm.rm_op = 1; return s; }() },
@@ -112,6 +115,8 @@ inline const std::string kPush = "ادفع";
 inline const std::string kPop = "اسحب";
 inline const std::string kSub = "اطرح";
 inline const std::string kImul = "اضرب";
+inline const std::string kCmovl = "انقل_إذا_أصغر";
+inline const std::string kCmovg = "انقل_إذا_أكبر";
 inline const std::string kIdiv = "اقسم";
 inline const std::string kCqo = "مدد_الإشارة";
 inline const std::string kAnd = "وافق";
@@ -155,6 +160,7 @@ inline const std::string kAddsd = "اجمع_عشري";
 inline const std::string kSubsd = "اطرح_عشري";
 inline const std::string kMulsd = "اضرب_عشري";
 inline const std::string kDivsd = "اقسم_عشري";
+inline const std::string kSqrtsd = "جذر_عشري";
 inline const std::string kCvtsi2sd = "حوّل_إلى_عشري";
 inline const std::string kCvttsd2si = "حوّل_من_عشري";
 inline const std::string kUcomisd = "قارن_عشري";

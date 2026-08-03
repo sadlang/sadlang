@@ -70,8 +70,11 @@ inline const std::vector<GenEncEntry> &encodingTable()
     { "اطرح_عشري", "d, d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 14, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اضرب_عشري", "d, d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 2, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "اقسم_عشري", "d, d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 10, 6, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "جذر_عشري", "d, d", sad::native::arm64::EncSpec{ 32, { { 31, 10, 497776, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "قرّب_عشري", "x, d", sad::native::arm64::EncSpec{ 32, { { 31, 16, 40544, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     { "قارن_عشري", "d, d", sad::native::arm64::EncSpec{ 32, { { 31, 21, 243, true, -1 }, { 20, 16, 0, false, 1 }, { 15, 10, 8, true, -1 }, { 9, 5, 0, false, 0 }, { 4, 0, 0, true, -1 } } } },
+    { "اختر_إذا_أصغر", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 21, 1236, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 12, 11, true, -1 }, { 11, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
+    { "اختر_إذا_أكبر", "x, x, x", sad::native::arm64::EncSpec{ 32, { { 31, 21, 1236, true, -1 }, { 20, 16, 0, false, 2 }, { 15, 12, 12, true, -1 }, { 11, 10, 0, true, -1 }, { 9, 5, 0, false, 1 }, { 4, 0, 0, false, 0 } } } },
     };
     return kTable;
 }
@@ -124,8 +127,11 @@ inline const std::string kFadd = "اجمع_عشري";
 inline const std::string kFsub = "اطرح_عشري";
 inline const std::string kFmul = "اضرب_عشري";
 inline const std::string kFdiv = "اقسم_عشري";
+inline const std::string kFsqrt = "جذر_عشري";
 inline const std::string kFcvtns = "قرّب_عشري";
 inline const std::string kFcmp = "قارن_عشري";
+inline const std::string kCselLt = "اختر_إذا_أصغر";
+inline const std::string kCselGt = "اختر_إذا_أكبر";
 } // namespace mnem
 
 // (AR) بحثٌ عن مواصفة الترميز بالمنمنمة والصيغة؛ يعيد nullptr إن لم تُوجد.

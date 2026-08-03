@@ -226,6 +226,34 @@ instructions:
         modrm: { mod: reg, reg: op0, rm: op1 }
       reads_dest: true
 
+  # cmovl r64, r64  ⇒  REX.W + 0F 4C /r  (نقلٌ إذا أصغرُ موقَّعًا SF≠OF؛ لأكبر: cmovl dst,src بعدَ cmp.
+  #   متحقَّق: cmovl rax,rdi = 48 0f 4c c7). ModRM: reg=الوجهة، rm=المصدر — كـimul.
+  انقل_إذا_أصغر:
+    - en: cmovl
+      form: "r64, r64"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x0F, 0x4C]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+      reads_dest: true
+
+  # cmovg r64, r64  ⇒  REX.W + 0F 4F /r  (نقلٌ إذا أكبرُ موقَّعًا ZF=0 وSF=OF؛ لأصغر: cmovg dst,src.
+  #   متحقَّق: cmovg rax,rdi = 48 0f 4f c7).
+  انقل_إذا_أكبر:
+    - en: cmovg
+      form: "r64, r64"
+      operands:
+        - { kind: reg, class: gpr, role: inout }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        rex_w: true
+        opcode: [0x0F, 0x4F]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+      reads_dest: true
+
   # ─── القسمة الصحيحة الموقَّعة (الحاصلُ في rax، الباقي في rdx؛ يسبقها cqo) ───
   # idiv r/m64  ⇒  REX.W + F7 /7   (المقسومُ عليه rm؛ المقسومُ في rdx:rax)
   اقسم:
@@ -777,6 +805,18 @@ instructions:
       encode:
         prefix: [0xF2]
         opcode: [0x0F, 0x5E]
+        modrm: { mod: reg, reg: op0, rm: op1 }
+
+  # sqrtsd xmm, xmm  ⇒  F2 0F 51 /r  (جذرُ عشريٍّ مزدوج؛ SSE2 بلا رفعِ خطّ أساس. متحقَّق: sqrtsd xmm0,xmm0 = f2 0f 51 c0)
+  جذر_عشري:
+    - en: sqrtsd
+      form: "xmm, xmm"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        prefix: [0xF2]
+        opcode: [0x0F, 0x51]
         modrm: { mod: reg, reg: op0, rm: op1 }
 
   # cvtsi2sd xmm, r64  ⇒  F2 REX.W 0F 2A /r   (صحيح i64 ⇒ عشريّ؛ reg=xmm، rm=r64)

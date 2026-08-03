@@ -813,6 +813,21 @@ instructions:
           - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
           - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
 
+  # FSQRT Dd, Dn  ⇒  0x1E61C000 | Rn<<5 | Rd   (جذرُ عشريٍّ مزدوج؛ أساسيٌّ في ARMv8.
+  #   بتّات 31..10 = 0x1E61C000 >> 10 = 0x79870 (497776). متحقَّق بايتيًّا: fsqrt d0, d0 = 0x1E61C000)
+  جذر_عشري:
+    - en: fsqrt
+      form: "d, d"
+      operands:
+        - { kind: reg, class: fp, role: out }
+        - { kind: reg, class: fp, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed, hi: 31, lo: 10, const: 497776 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
   # FCVTNS Xd, Dn  ⇒  0x9E600000 | Rn<<5 | Rd   (عشريّ ⇒ صحيح بتقريبٍ لأقربِ زوجٍ = nearest-even
   #   المطابقُ لتقريبِ IEEE في المفسّر؛ أساسيٌّ في ARMv8. نظيرُ fcvtzs لكن round-nearest لا truncate)
   #   متحقَّق: fcvtns x9, d0 = 0x9E600009
@@ -846,3 +861,41 @@ instructions:
           - { name: mid,   hi: 15, lo: 10, const: 8 }
           - { name: Rn,    hi: 9,  lo: 5,  from: op0 }
           - { name: opc,   hi: 4,  lo: 0,  const: 0 }
+
+  # CSEL Xd, Xn, Xm, LT  ⇒  0x9A80B000 | Rm<<16 | Rn<<5 | Rd   (Xd = Xn إن LT [موقَّع] وإلا Xm؛
+  #   بتّات 31..21 = 1236، cond=LT=11 في 15..12، بتّان 11..10 = 0. للأصغر/أبس. متحقَّق: csel x0,x1,x2,lt = 0x9A82B020)
+  اختر_إذا_أصغر:
+    - en: csel_lt
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixhi, hi: 31, lo: 21, const: 1236 }
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: cond,  hi: 15, lo: 12, const: 11 }
+          - { name: mid,   hi: 11, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }
+
+  # CSEL Xd, Xn, Xm, GT  ⇒  0x9A80C000 | Rm<<16 | Rn<<5 | Rd   (Xd = Xn إن GT [موقَّع] وإلا Xm؛
+  #   cond=GT=12. للأكبر. متحقَّق: csel x0,x1,x2,gt = 0x9A82C020)
+  اختر_إذا_أكبر:
+    - en: csel_gt
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: fixhi, hi: 31, lo: 21, const: 1236 }
+          - { name: Rm,    hi: 20, lo: 16, from: op2 }
+          - { name: cond,  hi: 15, lo: 12, const: 12 }
+          - { name: mid,   hi: 11, lo: 10, const: 0 }
+          - { name: Rn,    hi: 9,  lo: 5,  from: op1 }
+          - { name: Rd,    hi: 4,  lo: 0,  from: op0 }

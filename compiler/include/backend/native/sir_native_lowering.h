@@ -971,6 +971,9 @@ namespace sad
             bool subsd(int d, int s) { return emit(x86::mnem::kSubsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); }
             bool mulsd(int d, int s) { return emit(x86::mnem::kMulsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); }
             bool divsd(int d, int s) { return emit(x86::mnem::kDivsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); }
+            bool sqrtsd(int d, int s) { return emit(x86::mnem::kSqrtsd, "xmm, xmm", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = √s (عشريّ مزدوج)
+            bool cmovl(int d, int s) { return emit(x86::mnem::kCmovl, "r64, r64", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = s إن d<s موقَّعًا (بعدَ cmp d,s) — للأكبر
+            bool cmovg(int d, int s) { return emit(x86::mnem::kCmovg, "r64, r64", {x86::Operand::R(d), x86::Operand::R(s)}); } // (AR) d = s إن d>s موقَّعًا — للأصغر
             bool cvtsi2sd(int xmm, int gpr) { return emit(x86::mnem::kCvtsi2sd, "xmm, r64", {x86::Operand::R(xmm), x86::Operand::R(gpr)}); }
             bool cvttsd2si(int gpr, int xmm) { return emit(x86::mnem::kCvttsd2si, "r64, xmm", {x86::Operand::R(gpr), x86::Operand::R(xmm)}); }
             bool ucomisd(int a, int b) { return emit(x86::mnem::kUcomisd, "xmm, xmm", {x86::Operand::R(a), x86::Operand::R(b)}); }
@@ -2171,6 +2174,65 @@ namespace sad
                         return false;
                     return loadInto(dst, inst.operands[0]) && cvtsi2sd(kXmm0, dst) &&
                            movqFromXmm(dst, kXmm0);
+                }
+                case OP::BUILTIN_SQRT:
+                {
+                    // (AR) جذر(س) ⇒ عشريّ. المعاملُ صحيحٌ ⇒ حوّله double (cvtsi2sd)؛ عشريٌّ ⇒ بتّاته
+                    //      double فعلًا (movq). ثمّ sqrtsd (SSE2 بلا رفعِ خطّ أساس) ⇒ استخرج البتّاتِ.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (!loadInto(dst, inst.operands[0]))
+                        return false;
+                    if (inst.operands[0].dataType == types::SadTypeKind::Float)
+                    {
+                        if (!movqToXmm(kXmm0, dst))
+                            return false;
+                    }
+                    else if (!cvtsi2sd(kXmm0, dst)) // (AR) صحيح ⇒ double قبلَ الجذر
+                        return false;
+                    return sqrtsd(kXmm0, kXmm0) && movqFromXmm(dst, kXmm0);
+                }
+                case OP::BUILTIN_ABS:
+                {
+                    // (AR) مطلق(س): نوعُ النتيجة = نوعُ المعامل (I64/F64). العشريُّ = مسحُ بتِّ الإشارة
+                    //      (AND بقناع 0x7FFF…FFFF — العشريُّ بتّاتٌ في GPR ⇒ بلا SSE). الصحيحُ = خدعةُ
+                    //      قناعِ الإشارةِ اللافرعيّة: t=x>>63 (حسابيّ)؛ x = (x^t) − t = |x| (آمنٌ لـINT64_MIN).
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (!loadInto(dst, inst.operands[0]))
+                        return false;
+                    if (inst.result->dataType == types::SadTypeKind::Float)
+                        return movImm64(x86::RAX, static_cast<long long>(kF64AbsMask)) && andReg(dst, x86::RAX);
+                    return movReg(x86::RAX, dst) && sarImm(x86::RAX, 63) &&
+                           xorReg(dst, x86::RAX) && subReg(dst, x86::RAX);
+                }
+                case OP::BUILTIN_MIN:
+                case OP::BUILTIN_MAX:
+                {
+                    // (AR) أصغر/أكبر (صحيحان موقَّعان، نتيجةٌ Integer): حمّل a في dst وb في RAX، قارِنْ،
+                    //      ثمّ نقلٌ شرطيّ — أكبر: cmovl dst,RAX (إن dst<RAX)؛ أصغر: cmovg dst,RAX.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    // (AR) 🔒 حارسٌ (عائقُ أميليا): المعامِلُ العشريُّ يُقارَنُ هنا كبتّاتٍ صحيحةٍ موقَّعةٍ
+                    //      (خطأٌ للسالب، وتباعُدٌ عن المرجع الذي يستعمل FCmp). المفسّرُ/LLVM يتفرّعان على
+                    //      النوع؛ الأصغر/الأكبرُ العشريُّ (minsd/maxsd·fmin/fmax) دفعةٌ لاحقة ⇒ ارفضْه
+                    //      صراحةً الآن لا صامتًا (تماثلٌ x86≡ARM64: كلاهما يرفض).
+                    if (inst.operands[0].dataType == types::SadTypeKind::Float ||
+                        inst.operands[1].dataType == types::SadTypeKind::Float)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kBuiltinFloatMinMax + detailOpcode(inst));
+                    int dst;
+                    if (!allocReg(inst.result->name, dst))
+                        return false;
+                    if (!loadInto(dst, inst.operands[0]) || !loadInto(x86::RAX, inst.operands[1]) ||
+                        !cmpRegReg(dst, x86::RAX))
+                        return false;
+                    return inst.opcode == OP::BUILTIN_MAX ? cmovl(dst, x86::RAX) : cmovg(dst, x86::RAX);
                 }
                 case OP::F64_TO_I64:
                 {
