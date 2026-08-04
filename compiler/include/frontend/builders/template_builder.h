@@ -88,6 +88,30 @@ namespace Sad
                 //      call sites (otherwise built with default Integer params → garbled).
                 void preRegisterImportedSignatures(Sad::AST::StmtList *program);
 
+                /**
+                 * @brief (AR) جمعُ الأسماء المستعارة «كـ» من عبارات ملفٍّ واحدٍ عُليا
+                 * @brief (EN) Collect «as» aliases from ONE file's top-level statements
+                 *
+                 * (AR) تمسح العباراتِ العُليا للملفّ المُمرَّر — «من م استورد س كـ ص»
+                 *      و«استورد س كـ ص من م» و«صدّر س كـ ص من م» — فتُقيّد ص ⇐ س في
+                 *      الخريطة المُمرَّرة. لا تنحدر إلى الوحدات المستوردة عمدًا:
+                 *      الاستعارةُ ربطُ اسمٍ **خاصٌّ بالملفّ الذي كتبه**. ولذلك تُستدعى
+                 *      مرّةً لملفّ الجذر ومرّةً لكلّ وحدةٍ تُبنى أجسامُها، والخريطةُ
+                 *      النشطةُ تُبدَّل بينهما بـImportAliasScope؛ فلو شُورِكت خريطةٌ
+                 *      واحدةٌ لتسرّبت استعارةُ الوحدة إلى مستعمِلها فاختطفت أسماءً لم
+                 *      يستوردها (مدمَجاتٍ مثلًا) بلا أيّ تشخيص.
+                 * (EN) Scans the given file's top-level statements only and records
+                 *      alias ⇒ original into the supplied map. It deliberately does not
+                 *      descend into imported modules: an alias is a binding private to the
+                 *      file that wrote it. It is therefore called once for the root file and
+                 *      once per module whose bodies are built, with the active map swapped by
+                 *      ImportAliasScope; sharing a single map would leak a module's alias
+                 *      into its consumer and hijack names it never imported (builtins
+                 *      among them) with no diagnostic at all.
+                 */
+                void collectFileImportAliases(const Sad::AST::StmtList &fileStatements,
+                                              std::unordered_map<std::string, std::string> &aliases);
+
                 // ════════════════════════════════════════════════════════════════
                 // (AR) الإغلاقُ التعدّيُّ للتصريحات الخاصّة في وحدةٍ مستورَدة: أسماءُ
                 //      الدوالّ غيرِ المُصدَّرة التي تصلها الرموزُ المطلوبةُ مباشرةً أو

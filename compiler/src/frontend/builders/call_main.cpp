@@ -384,6 +384,38 @@ namespace Sad
                 //      inttoptr of a bogus address ⇒ SIGSEGV. Fix: treat a bare ADT constructor
                 //      (present in adtEnumTable_) as user-defined so the builtin checks are skipped
                 //      and the unqualified ADT-constructor path (phase 3.45 below) handles it.
+                // ════════════════════════════════════════════════════════════════
+                // (AR) حلُّ الاسم المستعار «كـ»: «من م استورد جمع كـ اجمع» يبني الدالّة
+                //      باسمها الأصليّ، فيُحَلُّ المستعارُ إليه قبل تصنيف النداء.
+                //      شرطان يضبطان الحلّ حصرًا فيما قصده كاتبُ الملفّ:
+                //      ① أن يكون الاسمُ المنادى مستعارًا سُجّله **الملفُّ الجاري بناؤه** نفسُه
+                //         (الخريطةُ مُنطَّقةٌ بـImportAliasScope فلا تحمل استعارةَ غيره)،
+                //      ② وأن يكون هدفُه دالّةً معروفةً فعلًا في functionTable_.
+                //      فلا يُحوَّل نداءٌ إلى اسمٍ لا وجود له، ولا يُختطف مدمَجٌ إلّا حين
+                //      يكتب المستعمِلُ استعارتَه بيده — وهو ما يفعله المفسّرُ حرفًا بحرف.
+                //      ويسبق هذا فحصَ المدمَجات عمدًا: الاستعارةُ الصريحةُ تُظلّل المدمَجَ
+                //      في المحرّكَين معًا.
+                // (EN) Resolve the «كـ» alias: the function is built under its original
+                //      name, so the alias is mapped to it before the call is classified.
+                //      Two conditions confine this to what the file's author asked for:
+                //      ① the callee is an alias recorded by the file being built (the map is
+                //         scoped by ImportAliasScope, so it never holds another file's), and
+                //      ② its target is a function that actually exists in functionTable_.
+                //      So no call is redirected to a nonexistent name, and a builtin is
+                //      shadowed only when the user writes the alias — matching the
+                //      interpreter exactly. This precedes the builtin check on purpose.
+                // ════════════════════════════════════════════════════════════════
+                if (!b_.importAliases_.empty() &&
+                    b_.functionTable_.find(funcName) == b_.functionTable_.end())
+                {
+                    auto importAliasIt = b_.importAliases_.find(funcName);
+                    if (importAliasIt != b_.importAliases_.end() &&
+                        b_.functionTable_.find(importAliasIt->second) != b_.functionTable_.end())
+                    {
+                        funcName = importAliasIt->second;
+                    }
+                }
+
                 bool isADTVariantCtor = false;
                 for (const auto &adtEntry : b_.adtEnumTable_)
                 {

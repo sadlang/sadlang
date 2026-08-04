@@ -183,8 +183,15 @@ productions:
   - id: gr.decl.import
     lhs: { nonterminal: ImportDeclaration, name_ar: "تصريح استيراد", name_en: import_declaration }
     ebnf: >
-      ImportDeclaration = 'استورد' ModulePath [ 'كـ' Identifier ]
-                        | 'من' ModulePath 'استورد' (Identifier { ',' Identifier } | '*') ;
+      ModuleRef         = Identifier { '.' Identifier }
+                        | StringLiteral ;
+      SourcePath        = ModuleRef
+                        | ( '.' | '..' ) Identifier { '.' Identifier } ;
+      ImportItem        = Identifier [ 'كـ' Identifier ] ;
+      ImportItems       = '*' | ImportItem { ( '،' | ',' ) ImportItem } ;
+      ImportDeclaration = 'استورد' ModuleRef [ 'كـ' Identifier ]
+                        | 'استورد' ImportItems 'من' SourcePath
+                        | 'من' SourcePath 'استورد' ImportItems ;
     alternatives:
       - label: "استيراد وحدة"
         symbols:
@@ -210,6 +217,12 @@ productions:
       تُحلَّلان نحوياً بنجاح** — فشل «من … استورد» في ISSUE-024 خطأُ **تنفيذٍ** (الرمز غير
       موجود في الوحدة/تحليل الوحدة) لا خطأ نحو؛ فالبناء سليم والعائق دلاليّ (توفّر الرمز
       في الوحدة المضمَّنة). بعض المدمجات تتطلّب «استورد أساسيات» أوّلاً.
+      **⚠️ تباعُدٌ تامٌّ متعاكسٌ في الصيغة (أ) — ISSUE-090 (مقيسٌ حيًّا 2026-08-03):**
+      اسمُ الوحدة (ومستعارُها «كـ ر») يُنشئ **فضاءَ أسماءٍ في المفسّر حصرًا**: `ر.جمع(1، 2)`
+      تُرجع 3 بينما `جمع(1، 2)` المسطَّحةُ تُخطئ SEM004. والمصرّفُ **يُسطّح حصرًا**:
+      `جمع(1، 2)` تُرجع 3 بينما `ر.جمع(1، 2)` تفشل بـ«Undefined variable 'ر'». فلا
+      برنامجَ يستوردُ وحدةً كاملةً بالصيغة (أ) يعملُ في المحرّكَين معًا. الصيغةُ (ب)
+      («من وحدة استورد اسم») سليمةٌ مزدوجًا وهي الصيغةُ الموصى بها حتى يُحسَم التباعُد.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 12, edge: 8, negative: 4, interaction: 6 } }
@@ -228,13 +241,17 @@ productions:
           - { kind: nonterminal, ref: gr.program.declaration }
     references: { keywords: ["KW-RES-033"] }
     maps_to:
-      - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseExportStmt" }
-    ast_node: "ExportStmt"
+      - { file: shared/parser/src/declarations/parser_modules.cpp, function: "ParserCore::parseExportDecl" }
+    ast_node: "ExportDecl"
     description_ar: >
       «صدّر» تسبق تصريحاً (دالة/صنف/متغير/بنية) فتُتيحه للاستيراد من وحدات أخرى. تلتفّ
       حول تصريحٍ كامل لا حول قيمة؛ فـ«صدّر متغير ص = 42» و«صدّر دالة …» و«صدّر بنية …»
-      صحيحة. «صدّر بنية» تُترجَم الآن عبر الوحدات (ISSUE-026 مُغلَق). **قيد
-      مترجم:** «صدّر *» مرفوض بالمحرّكين.
+      صحيحة. «صدّر بنية» تُترجَم الآن عبر الوحدات (ISSUE-026 مُغلَق).
+      **مسارا التحليل:** «صدّر» في موضع التصريح (المستوى الأعلى) يمرّ بـparseExportDecl
+      فيُنتج ExportDecl؛ وفي موضع الجملة (داخل كتلة) يمرّ بـparseExportStmt فيُنتج
+      ExportStmt. القاعدةُ هذه تصف الأوّل، وهو ما يبنيه البرنامجُ فعلًا.
+      **وشكلُ «صدّر *» ليس من هذه القاعدة** بل من gr.decl.reexport، ويُقبل في
+      المحرّكَين معًا لا يُرفَض.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 3 } }
@@ -243,6 +260,61 @@ productions:
       صدّر دالة جمع(أ، ب)
           ارجع أ + ب
       نهاية
+
+  # ── إعادة التصدير ──────────────────────────────────────────────────────
+  - id: gr.decl.reexport
+    lhs: { nonterminal: ReExportDeclaration, name_ar: "تصريح إعادة تصدير", name_en: reexport_declaration }
+    ebnf: >
+      ReExportDeclaration = 'صدّر' '*'
+                          | 'صدّر' '*' 'من' SourcePath
+                          | 'صدّر' ImportItem { ( '،' | ',' ) ImportItem } 'من' SourcePath ;
+      (* ImportItem و SourcePath معرَّفتان في gr.decl.import *)
+    alternatives:
+      - label: "تصدير شامل مجرد"
+        symbols:
+          - { kind: terminal, ref: KEYWORD_EXPORT, value: "صدّر" }
+          - { kind: terminal, ref: OP_MULTIPLY, value: "*" }
+      - label: "إعادة تصدير شاملة من وحدة"
+        symbols:
+          - { kind: terminal, ref: KEYWORD_EXPORT, value: "صدّر" }
+          - { kind: terminal, ref: OP_MULTIPLY, value: "*" }
+          - { kind: terminal, ref: KEYWORD_FROM, value: "من" }
+          - { kind: terminal, ref: IDENTIFIER, value: "<مسار_وحدة>" }
+      - label: "إعادة تصدير انتقائية من وحدة"
+        symbols:
+          - { kind: terminal, ref: KEYWORD_EXPORT, value: "صدّر" }
+          - { kind: terminal, ref: IDENTIFIER, value: "<عنصر>" }
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_AS, value: "كـ" }, { kind: terminal, ref: IDENTIFIER } ] }
+          - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: IDENTIFIER, value: "<عنصر>" }, { kind: optional, children: [ { kind: terminal, ref: KEYWORD_AS, value: "كـ" }, { kind: terminal, ref: IDENTIFIER } ] } ] }
+          - { kind: terminal, ref: KEYWORD_FROM, value: "من" }
+          - { kind: terminal, ref: IDENTIFIER, value: "<مسار_وحدة>" }
+    references: { keywords: ["KW-RES-033", "KW-RES-031", "KW-RES-032"] }
+    maps_to:
+      - { file: shared/parser/src/declarations/parser_modules.cpp, function: "ParserCore::parseExportDecl" }
+    ast_node: "ReExportStmt"
+    description_ar: >
+      إعادةُ التصدير تجعل وحدةً واجهةً لوحداتٍ أخرى، فيستورد المستعمِلُ منها رمزًا
+      معرَّفًا في غيرها. ثلاثةُ أشكال: «صدّر *» المجرَّدة (بلا «من») ومعناها «صدّر كلَّ
+      رموز هذه الوحدة العلنيّة» — وهي **لا-عمليّة** في المحرّكَين لأنّ رموزَ الوحدة متاحةٌ
+      أصلًا، وتُستعمل توثيقًا للنيّة في وحدات المكتبة؛ و«صدّر * من وحدة» التي تُحمّل
+      الوحدةَ المصدر؛ و«صدّر عنصر [كـ اسم] [، عنصر…] من وحدة» الانتقائيّة.
+      **تباعُدُ محرِّكَين مقيسٌ حيًّا (ISSUE-089):** شكلا «من وحدة» يعملان في المحرّكَين
+      معًا ما دام الاستعمالُ في الملفّ المُعيدِ للتصدير نفسِه — تُحمَّل الوحدةُ المصدر
+      ويصير الرمزُ (أو اسمُه المستعار) قابلًا للنداء هناك. أمّا **العبورُ** — أي أن
+      يستوردَ ملفٌّ ثالثٌ من الوحدةِ الواجهةِ رمزًا معرَّفًا في الوحدة المصدر — فيعمل في
+      المفسّر وحدَه؛ والمصرّفُ يرفضه بـ«استدعاء دالة غير معرّفة» لأنّه لا يُعيد بثَّ
+      الرمز عبر الوحدة الوسيطة. والاستيرادُ المباشرُ من الوحدة المصدر يُصرَّف سليمًا،
+      فالعطبُ محصورٌ في العبور لا في مسار الوحدات.
+      **فضُّ الالتباس مع gr.decl.export:** الشكلُ الانتقائيُّ يبدأ كما تبدأ «صدّر اسم»
+      من قاعدة التصدير؛ يفضّهما المحلّلُ بنظرةِ رمزٍ واحدٍ بعد الاسم: إن كان «من» أو
+      فاصلةً (عربيّةً أو إنجليزيّة) أو «كـ» فهي إعادةُ تصدير، وإلّا فهي تصديرُ تصريحٍ.
+    since: "1.0.0"
+    status: stable
+    conformance: { compiler_optional: false, test_budget: { basic: 3, edge: 1, negative: 1, interaction: 0 } }
+    example: |
+      صدّر *
+      صدّر * من أدوات
+      صدّر جمع كـ اجمع، طرح من حساب
 
   # ── الربط الخارجي (FFI) ────────────────────────────────────────────────
   - id: gr.decl.extern

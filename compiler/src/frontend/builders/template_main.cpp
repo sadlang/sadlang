@@ -43,6 +43,61 @@ namespace Sad
             namespace
             {
                 // ====================================================================
+                // (AR) حارسُ نطاقِ الأسماء المستعارة: الاستعارةُ «كـ» ربطُ اسمٍ **خاصٌّ
+                //      بالملفّ الذي كتبه**، فخريطةٌ واحدةٌ للبرنامج كلِّه تُسرّب استعارةَ
+                //      وحدةٍ إلى مستعمِلها فتختطف أسماءً لم يستوردها (مدمَجًا مثلًا)
+                //      بلا تشخيص. فتُبدَّل الخريطةُ بخريطةِ الوحدة قبل بناء أجسامها
+                //      وتُستعاد بعده حتمًا — حتّى مع خروجٍ مبكّرٍ أو استثناء.
+                // (EN) Import-alias scope guard: «as» is a binding private to the file that
+                //      wrote it, so one program-wide map leaks a module's alias into its
+                //      consumer and silently hijacks names it never imported. The map is
+                //      swapped for the module's own before its bodies are built and restored
+                //      unconditionally afterwards — early return or exception included.
+                // ====================================================================
+                //      وحراسةُ الخريطةِ وحدَها لا تكفي: احتياطيُّ القيمة يُخبّئ ما يحلُّه
+                //      في النطاق العامّ **الدائم**، فيعبُر الربطُ حدَّ الوحدة من هناك.
+                //      فيُستعاد أثرُ التخبئةِ أيضًا — ما بذَره الاحتياطيُّ في هذا النطاق
+                //      وحدَه يُمحى، فلا يُمَسّ عامٌّ مشروعٌ يصادف الاسمَ.
+                // (EN) Guarding the map alone is not enough: the value fallback caches what
+                //      it resolves in the PERMANENT global scope, from where the binding
+                //      crosses the module boundary anyway. The cache's effect is therefore
+                //      undone too — only what the fallback seeded within this scope is
+                //      erased, never a legitimate global that happens to share the name.
+                // ====================================================================
+                class ImportAliasScope
+                {
+                public:
+                    ImportAliasScope(SIRBuilder &builder,
+                                     std::unordered_map<std::string, std::string> replacement)
+                        : builder_(builder),
+                          savedAliases_(std::move(builder.importAliases_)),
+                          savedSeeded_(std::move(builder.aliasSeededGlobals_))
+                    {
+                        builder_.importAliases_ = std::move(replacement);
+                        builder_.aliasSeededGlobals_.clear();
+                    }
+
+                    ImportAliasScope(const ImportAliasScope &) = delete;
+                    ImportAliasScope &operator=(const ImportAliasScope &) = delete;
+
+                    ~ImportAliasScope()
+                    {
+                        if (!builder_.scopeStack_.empty())
+                        {
+                            for (const auto &seededName : builder_.aliasSeededGlobals_)
+                                builder_.scopeStack_.front().erase(seededName);
+                        }
+                        builder_.aliasSeededGlobals_ = std::move(savedSeeded_);
+                        builder_.importAliases_ = std::move(savedAliases_);
+                    }
+
+                private:
+                    SIRBuilder &builder_;
+                    std::unordered_map<std::string, std::string> savedAliases_;
+                    std::unordered_set<std::string> savedSeeded_;
+                };
+
+                // ====================================================================
                 // (AR) قائمة موحّدة لوحدات المكتبة القياسية التي يعترضها المترجم
                 //      مباشرةً ويعامل دوالها كـ builtins بدون تحليل ملف .ص الخارجي.
                 //      السبب الجذري لهذا الاستخراج هو منع انجراف قائمتين منفصلتين بين
@@ -749,6 +804,12 @@ namespace Sad
                     b_.preRegisteredImportNames_.erase(privateFunc->name);
                 }
 
+                // (AR) أجسامُ الوحدة تُبنى باستعاراتِ الوحدة وحدَها لا باستعاراتِ مستورِدها.
+                // (EN) The module's bodies are built with the module's own aliases only.
+                std::unordered_map<std::string, std::string> moduleImportAliases;
+                collectFileImportAliases(module->ast, moduleImportAliases);
+                ImportAliasScope moduleAliasScope(b_, std::move(moduleImportAliases));
+
                 // (AR) معالجة كل تصريح في الوحدة
                 // (EN) Process each declaration in module
                 for (const auto &stmt : module->ast)
@@ -879,6 +940,45 @@ namespace Sad
              *      the compiler infers their param types from the main module, then Phase 2
              *      builds them with the corrected type (skip-guard builds if not yet built).
              */
+            void TemplateBuilder::collectFileImportAliases(
+                const Sad::AST::StmtList &fileStatements,
+                std::unordered_map<std::string, std::string> &aliases)
+            {
+                for (const auto &stmt : fileStatements)
+                {
+                    if (!stmt)
+                        continue;
+
+                    // (AR) الصيغتان تُنتجان FromImportStmt نفسَها؛ وإعادةُ التصدير تحمل
+                    //      ImportItem بعينه، فتمرّ بالتقييد نفسِه (ISSUE-088).
+                    // (EN) Both import orders produce FromImportStmt; re-export carries the
+                    //      very same ImportItem, so it goes through the same recording.
+                    const std::vector<Sad::AST::ImportItem> *items = nullptr;
+                    // (AR) 🔑 التأهيلُ الكاملُ لازم: داخل Sad::Compiler::SIR يُحَلّ `AST::`
+                    //      إلى مساحةِ الأسماء المتداخلةِ للأسماءِ المستعارةِ القديمة، وليس
+                    //      فيها ReExportStmt ⇒ C2061 (والأسوأُ لو صادفتها لكانت نوعًا آخر).
+                    // (EN) 🔑 Full qualification is required: inside Sad::Compiler::SIR the
+                    //      bare `AST::` resolves to the nested legacy-alias namespace.
+                    if (auto *fromImport = dynamic_cast<Sad::AST::FromImportStmt *>(stmt.get()))
+                        items = &fromImport->items;
+                    else if (auto *reExport = dynamic_cast<Sad::AST::ReExportStmt *>(stmt.get()))
+                        items = &reExport->items;
+
+                    if (!items)
+                        continue;
+
+                    for (const auto &item : *items)
+                    {
+                        if (!item.alias.has_value())
+                            continue;
+                        const std::string &aliasName = item.alias.value();
+                        if (aliasName.empty() || aliasName == item.name)
+                            continue;
+                        aliases[aliasName] = item.name;
+                    }
+                }
+            }
+
             void TemplateBuilder::preRegisterImportedSignatures(Sad::AST::StmtList *program)
             {
                 if (!program)
@@ -1188,6 +1288,14 @@ namespace Sad
                 };
 
                 processImportsIn(program, b_.currentFilePath_);
+
+                // (AR) الاستعاراتُ تُقيَّد بعد المسح التعاوديّ ومن **هذا الملفّ** وحدَه؛
+                //      ولكلّ وحدةٍ تُبنى أجسامُها خريطتُها عبر ImportAliasScope.
+                // (EN) Aliases are recorded after the recursive scan, from THIS file only;
+                //      each module whose bodies are built gets its own map via
+                //      ImportAliasScope.
+                if (program)
+                    collectFileImportAliases(*program, b_.importAliases_);
             }
 
             /**
@@ -1316,6 +1424,12 @@ namespace Sad
                                                        requestedSymbols.end());
                 std::set<std::string> privateClosure =
                     computeImportedPrivateClosure(module->ast, requestedOrdered, isWildcard);
+
+                // (AR) أجسامُ الوحدة تُبنى باستعاراتِ الوحدة وحدَها لا باستعاراتِ مستورِدها.
+                // (EN) The module's bodies are built with the module's own aliases only.
+                std::unordered_map<std::string, std::string> moduleImportAliases;
+                collectFileImportAliases(module->ast, moduleImportAliases);
+                ImportAliasScope moduleAliasScope(b_, std::move(moduleImportAliases));
 
                 // (AR) معالجة تصريحات الوحدة
                 // (EN) Process module declarations

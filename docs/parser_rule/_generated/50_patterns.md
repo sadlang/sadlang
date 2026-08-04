@@ -36,7 +36,7 @@ flowchart TD
 <a id="gr.pattern.pattern"></a>
 ### gr.pattern.pattern — نمط <span dir="ltr">(Pattern)</span>
 
-- **الرقم التسلسليّ:** `ق-065` · **المعرّف الموحَّد:** `gr.pattern.pattern` · **الحالة:** stable · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-066` · **المعرّف الموحَّد:** `gr.pattern.pattern` · **الحالة:** stable · **منذ:** 1.0.0
 - **الوصف:** موزّع النمط: شامل «_»، بنية «{}»، قائمة «[]»، أوّليّ، ربط «@»، بدائل «|»
 
 #### 📐 BNF
@@ -124,7 +124,7 @@ flowchart LR
 <a id="gr.pattern.primary"></a>
 ### gr.pattern.primary — نمط أوّليّ <span dir="ltr">(PrimaryPattern)</span>
 
-- **الرقم التسلسليّ:** `ق-066` · **المعرّف الموحَّد:** `gr.pattern.primary` · **الحالة:** stable · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-067` · **المعرّف الموحَّد:** `gr.pattern.primary` · **الحالة:** stable · **منذ:** 1.0.0
 - **الوصف:** حرفيّ (يدعم السالب)؛ نطاق حصريّ «1..10» أو شامل «1..=10» ⇒ RangePattern؛ مُعرّف ⇒ VariablePattern (يربط القيمة)؛ «تعداد.قيمة» أو «شكل.دائرة(نق)» ⇒ EnumVariantPattern (unit/ADT مؤهَّل)؛ «عدد(ق)» أو «جمع(ي، ن)» ⇒ ConstructorPattern (باني بحمولة غير مؤهَّل، تجريبيّ)
 
 #### 📐 BNF
@@ -298,7 +298,7 @@ flowchart LR
 <a id="gr.pattern.list"></a>
 ### gr.pattern.list — نمط قائمة <span dir="ltr">(ListPattern)</span>
 
-- **الرقم التسلسليّ:** `ق-067` · **المعرّف الموحَّد:** `gr.pattern.list` · **الحالة:** stable · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-068` · **المعرّف الموحَّد:** `gr.pattern.list` · **الحالة:** stable · **منذ:** 1.0.0
 - **الوصف:** تفكيك المصفوفة «[أ، ب]»؛ قائمة فارغة «[]»؛ نمط الباقي الطرفيّ «*اسم» (OP_MULTIPLY) يربط ذيل العناصر (has_rest) ويجب أن يكون آخِر عنصر
 
 #### 📐 BNF
@@ -377,7 +377,7 @@ flowchart LR
 <a id="gr.pattern.struct"></a>
 ### gr.pattern.struct — نمط بنية <span dir="ltr">(StructPattern)</span>
 
-- **الرقم التسلسليّ:** `ق-068` · **المعرّف الموحَّد:** `gr.pattern.struct` · **الحالة:** stable · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-069` · **المعرّف الموحَّد:** `gr.pattern.struct` · **الحالة:** stable · **منذ:** 1.0.0
 - **الوصف:** تفكيك الكائن «{س: نمط}»؛ بنية فارغة «{}»؛ اختصار «{حقل}» بلا نقطتين ⇒ يربط الحقل باسمه (VariablePattern)
 
 #### 📐 BNF
@@ -457,7 +457,7 @@ flowchart LR
 <a id="gr.pattern.binding"></a>
 ### gr.pattern.binding — نمط ربط <span dir="ltr">(BindingPattern)</span>
 
-- **الرقم التسلسليّ:** `ق-069` · **المعرّف الموحَّد:** `gr.pattern.binding` · **الحالة:** stable · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-070` · **المعرّف الموحَّد:** `gr.pattern.binding` · **الحالة:** stable · **منذ:** 1.0.0
 - **الوصف:** «ن @ 1..10» يربط «ن» ويطابق النطاق
 
 #### 📐 BNF
@@ -500,7 +500,7 @@ flowchart LR
 <a id="gr.pattern.or"></a>
 ### gr.pattern.or — نمط بدائل <span dir="ltr">(OrPattern)</span>
 
-- **الرقم التسلسليّ:** `ق-070` · **المعرّف الموحَّد:** `gr.pattern.or` · **الحالة:** stable · **منذ:** 1.0.0
+- **الرقم التسلسليّ:** `ق-071` · **المعرّف الموحَّد:** `gr.pattern.or` · **الحالة:** stable · **منذ:** 1.0.0
 - **الوصف:** بدائل «1 | 2» — الرمز المعياريّ «|» (OP_BITWISE_OR)؛ ويُقبل «||» (OP_OR) تساهلًا (ISSUE-033)
 
 #### 📐 BNF

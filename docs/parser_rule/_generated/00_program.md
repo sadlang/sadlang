@@ -104,8 +104,8 @@ Declaration = FunctionDecl | ClassDecl | StructDecl | EnumDecl
 **دالة (دوال) الدخول:**
 1. [`ParserCore::parseDeclaration`](../../../shared/parser/src/core/parser_main.cpp) — `shared/parser/src/core/parser_main.cpp`
 - **عقدة AST المُنتَجة:** `—`
-- **يستدعي دوال:** [`parseFunctionDecl`](20_declarations.md#gr.decl.function)، [`parseClassDecl`](30_oop.md#gr.oop.class)، [`parseStructDecl`](30_oop.md#gr.oop.struct)، [`parseEnumDecl`](30_oop.md#gr.oop.enum)، [`parseTraitDecl`](30_oop.md#gr.oop.trait)، [`parseImplDecl`](30_oop.md#gr.oop.impl)، [`parseImportStmt`](20_declarations.md#gr.decl.import)، [`parseExportStmt`](20_declarations.md#gr.decl.export)، [`parseVarDecl`](20_declarations.md#gr.decl.variable)، [`parseStatement`](00_program.md#gr.program.statement)
-- **مُستدعى من:** [`parseProgram`](00_program.md#gr.program.program)، [`parseExportStmt`](20_declarations.md#gr.decl.export)، [`parseGoStmt`](60_advanced.md#gr.adv.go)
+- **يستدعي دوال:** [`parseFunctionDecl`](20_declarations.md#gr.decl.function)، [`parseClassDecl`](30_oop.md#gr.oop.class)، [`parseStructDecl`](30_oop.md#gr.oop.struct)، [`parseEnumDecl`](30_oop.md#gr.oop.enum)، [`parseTraitDecl`](30_oop.md#gr.oop.trait)، [`parseImplDecl`](30_oop.md#gr.oop.impl)، [`parseImportStmt`](20_declarations.md#gr.decl.import)، [`parseExportDecl`](20_declarations.md#gr.decl.export)، [`parseVarDecl`](20_declarations.md#gr.decl.variable)، [`parseStatement`](00_program.md#gr.program.statement)
+- **مُستدعى من:** [`parseProgram`](00_program.md#gr.program.program)، [`parseExportDecl`](20_declarations.md#gr.decl.export)، [`parseGoStmt`](60_advanced.md#gr.adv.go)
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -125,7 +125,7 @@ flowchart TD
   f1 -- "كتلة تنفيذ" --> f7
   f8["parseImportStmt()"]
   f1 -- "تصريح استيراد" --> f8
-  f9["parseExportStmt()"]
+  f9["parseExportDecl()"]
   f1 -- "تصريح تصدير" --> f9
   f10["parseVarDecl()"]
   f1 -- "تصريح متغير" --> f10

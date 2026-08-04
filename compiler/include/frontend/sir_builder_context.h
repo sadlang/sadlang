@@ -473,6 +473,41 @@ namespace Sad
                 //      Cleared per module.
                 std::unordered_set<std::string> preRegisteredImportNames_;
 
+                // (AR) الأسماء المستعارة «كـ» ⇐ الاسم الأصليّ. المفسّر ينفّذ «كـ» بربط
+                //      الرمز باسمه الجديد؛ وكان المصرّف يبني الرمزَ باسمه الأصليّ ويُسقط
+                //      المستعارَ صامتًا ⇒ «استدعاء دالة غير معرّفة» (ISSUE-085/088).
+                //      🔑 مُنطَّقةٌ بالملفّ المُسجِّل: تُملأ من عبارات ملفٍّ واحدٍ عُليا
+                //      (collectFileImportAliases)، ويُبدّلها ImportAliasScope بخريطةِ
+                //      الوحدةِ قبل بناء أجسامها ويستعيدها بعده. «كـ» ربطُ اسمٍ محلّيٌّ
+                //      للملفّ الذي كتبه، فلو شُورِكت خريطةٌ واحدةٌ للبرنامج لتسرّبت
+                //      استعارةُ الوحدة إلى مستعمِلها فاختطفت مدمَجًا يصادف الاسمَ
+                //      (اطبع_سطر مثلًا) ⇒ كودٌ خاطئٌ صامت.
+                // (EN) Alias («as») ⇒ original name. The interpreter implements it by
+                //      binding the symbol to its new name; the compiler used to build the
+                //      symbol under its original name and drop the alias silently.
+                //      🔑 Scoped to the recording file: filled from ONE file's top-level
+                //      statements (collectFileImportAliases) and swapped for the module's
+                //      own map by ImportAliasScope while its bodies are built. Sharing one
+                //      program-wide map leaked a module's alias into its consumer and
+                //      hijacked a builtin sharing the name ⇒ silent miscompile.
+                std::unordered_map<std::string, std::string> importAliases_;
+
+                // (AR) مفاتيحُ النطاق العامّ التي بذَرها احتياطيُّ الاستعارة في
+                //      scopeStack_.front(). الخريطةُ وحدَها لا تكفي للتنطيق: التخبئةُ
+                //      تُبقي الربطَ في النطاق العامّ **الدائم** فيعبُر حدَّ الوحدة كما
+                //      كانت الخريطةُ تعبُره — فيَقبل المصرّفُ اسمًا لم يُستورَد، وأخطرُ
+                //      منه أن تقرأ وحدةٌ شقيقةٌ قيمةَ أختِها بالاسم نفسِه صامتةً.
+                //      فيُمسَك ما بُذر ليُمحى عند مغادرة نطاقه — ما بذَره الاحتياطيُّ
+                //      وحدَه، لا كلُّ مفتاحٍ يصادف الاسمَ (وإلّا مُحي عامٌّ مشروع).
+                // (EN) Global-scope keys seeded by the alias fallback into
+                //      scopeStack_.front(). Scoping the map alone is not enough: the cache
+                //      keeps the binding in the PERMANENT global scope, so it crosses the
+                //      module boundary just as the map used to — the compiler then accepts
+                //      a never-imported name, and worse, a sibling module silently reads
+                //      its sibling's value under the same name. Only what the fallback
+                //      itself seeded is erased on scope exit, never a legitimate global.
+                std::unordered_set<std::string> aliasSeededGlobals_;
+
                 // (AR) أنواعُ ثوابتِ/متغيّراتِ الوحدات المستوردة العُليا، مبذورةً قبل
                 //      الطور 1.7. عِلّتُها: عوالمُ الوحدة لا تُبعَث في module_ إلّا في
                 //      الطور 2، فيرى inferExprType اسمَ ثابتٍ نصّيٍّ في موقعِ نداءٍ

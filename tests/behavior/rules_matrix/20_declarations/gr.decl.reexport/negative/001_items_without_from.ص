@@ -1,0 +1,6 @@
+# @rule: gr.decl.reexport
+# @description: قائمة عناصر لإعادة التصدير بلا «من» — خطأٌ نحويّ («متوقع 'من' بعد قائمة العناصر»)
+# @priority: P1
+# @expect_error
+
+صدّر جمع، طرح

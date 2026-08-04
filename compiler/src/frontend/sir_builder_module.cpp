@@ -227,6 +227,17 @@ namespace Sad
                 importedModuleBodies_.clear();
                 preRegisteredImportNames_.clear();
                 pendingGlobalTypes_.clear();
+                // (AR) وخريطةُ الأسماء المستعارة وأثرُها في النطاق العامّ: «كـ» ربطُ اسمٍ
+                //      خاصٌّ بالملفّ الذي كتبه، وهي تُملأ بالإضافة لا بالإسناد؛ فبانٍ
+                //      مُعاد استخدامه يصرّف ملفَّين كان يحمل استعارةَ الأوّل إلى الثاني
+                //      — تسرّبُ ISSUE-088 نفسُه على مستوى الملفّ لا الوحدة.
+                // (EN) …and the alias map with its global-scope residue: «as» is a binding
+                //      private to the file that wrote it, and the map is appended to rather
+                //      than assigned; a reused builder compiling two files would carry the
+                //      first file's alias into the second — the very ISSUE-088 leak, at
+                //      file level rather than module level.
+                importAliases_.clear();
+                aliasSeededGlobals_.clear();
 
                 if (!program)
                 {

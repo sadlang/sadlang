@@ -146,6 +146,54 @@ namespace Sad
                     }
                 }
 
+                // =====================================================================
+                // (AR) احتياطيُّ الأسماء المستعارة: «من م استورد قيمة كـ ق» يبني العامَّ
+                //      باسمه الأصليّ، فيُحَلُّ المستعارُ إليه هنا. الحلُّ محصورٌ في عوامّ
+                //      الوحدة عمدًا — الرمزُ المستورَدُ عامٌّ دائمًا — فلا يمسح النطاقاتِ
+                //      المحلّيّة كي لا يُختطف متغيّرٌ محلّيٌّ يصادف الاسمَ الأصليَّ فتُقرأ
+                //      قيمةٌ خاطئةٌ صامتةً بدل خطأٍ صريح.
+                //      وسقفُ القفزات وحدَه هو ما يقطع الدورةَ (ق⇒ك⇒ق): لا حارسَ زيارةٍ هنا.
+                // (EN) Alias fallback: «from m import قيمة as ق» builds the global under its
+                //      original name, so the alias resolves to it here. Deliberately limited
+                //      to module globals — an imported symbol is always global — so it never
+                //      scans local scopes and cannot capture an unrelated local sharing the
+                //      original name (which would yield a silently wrong value instead of a
+                //      clear error). The hop cap alone breaks cycles (ق⇒ك⇒ق).
+                // =====================================================================
+                if (!importAliases_.empty())
+                {
+                    constexpr int kMaxAliasHops = 8;
+                    std::string resolved = name;
+                    for (int hop = 0; hop < kMaxAliasHops; ++hop)
+                    {
+                        auto aliasIt = importAliases_.find(resolved);
+                        if (aliasIt == importAliases_.end() || aliasIt->second == resolved)
+                            break;
+                        resolved = aliasIt->second;
+
+                        if (!module_)
+                            break;
+                        auto globalVar = module_->getGlobalVariable(resolved);
+                        if (globalVar && !scopeStack_.empty())
+                        {
+                            VariableInfo aliasInfo;
+                            aliasInfo.name = name;
+                            aliasInfo.type = globalVar->getType();
+                            aliasInfo.registerName = resolved;
+                            aliasInfo.isGlobal = true;
+                            aliasInfo.isMutable = !globalVar->getIsConstant();
+                            aliasInfo.scopeLevel = 0;
+                            // (AR) التخبئةُ في النطاق العامّ **الدائم**، فتُمسَك لتُمحى
+                            //      عند مغادرة نطاقِ الوحدة — وإلّا عبَر الربطُ حدَّها.
+                            // (EN) Cached in the PERMANENT global scope, so the key is
+                            //      tracked for erasure when the module's scope exits.
+                            scopeStack_.front()[name] = aliasInfo;
+                            aliasSeededGlobals_.insert(name);
+                            return &scopeStack_.front()[name];
+                        }
+                    }
+                }
+
                 // (AR) لم يُعثر على المتغير
                 // (EN) Variable not found
                 return nullptr;

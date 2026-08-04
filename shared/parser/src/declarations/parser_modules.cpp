@@ -501,8 +501,10 @@ StmtPtr ParserCore::parseExportDecl() {
         
         auto nextType = peekNext().getType();
         
-        // (AR) IDENTIFIER ثم FROM أو COMMA أو AS → إعادة تصدير
-        if (nextType == TT::KEYWORD_FROM || nextType == TT::COMMA || nextType == TT::KEYWORD_AS) {
+        // (AR) IDENTIFIER ثم FROM أو فاصلة (عربيّة أو إنجليزيّة) أو AS → إعادة تصدير
+        // (EN) IDENTIFIER then FROM / comma (Arabic or ASCII) / AS → re-export
+        if (nextType == TT::KEYWORD_FROM || nextType == TT::COMMA || nextType == TT::ARABIC_COMMA
+            || nextType == TT::KEYWORD_AS) {
             std::vector<AST::ImportItem> items;
             
             // (AR) قراءة العنصر الأول
@@ -522,8 +524,8 @@ StmtPtr ParserCore::parseExportDecl() {
             }
             items.push_back(firstItem);
             
-            // (AR) قراءة عناصر إضافية مفصولة بفاصلة
-            while (match(TT::COMMA)) {
+            // (AR) قراءة عناصر إضافية مفصولة بفاصلة (عربيّة أو إنجليزيّة كسائر اللغة)
+            while (matchComma()) {
                 if (!check(TT::IDENTIFIER)) break;
                 AST::ImportItem item;
                 item.name = current_.getValue();
