@@ -238,6 +238,9 @@ namespace Sad
                 //      file level rather than module level.
                 importAliases_.clear();
                 aliasSeededGlobals_.clear();
+                // (AR) وفضاءاتُ الوحدات معها للسبب عينِه (ISSUE-090).
+                // (EN) …and the module namespaces with them, for the same reason (ISSUE-090).
+                moduleNamespaces_.clear();
 
                 if (!program)
                 {

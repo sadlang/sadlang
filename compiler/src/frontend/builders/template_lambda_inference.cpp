@@ -627,6 +627,27 @@ namespace Sad
                     if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(methodCall->object.get()))
                     {
                         funcName = varExpr->name + "." + methodCall->methodName;
+
+                        // (AR) نداءٌ مؤهَّلٌ بفضاءِ وحدة («ح.تحية("سالم")»): الرمزُ مسطَّحٌ
+                        //      في الجدول باسمه العاري لا بالمؤهَّل، فالمفتاحُ المؤهَّلُ
+                        //      يغيب ⇒ يبقى المعاملُ Integer الافتراضيَّ ⇒ يُقرأ النصُّ
+                        //      عنوانًا فيُطبع رقمٌ مكانه — ثمنُ قبولِ صيغةٍ جديدةٍ دون
+                        //      إعلامِ الاستنتاجِ بها (ISSUE-090).
+                        // (EN) A module-qualified call (`ح.تحية("سالم")`): the symbol lives in
+                        //      the table under its bare, flattened name, so the qualified key
+                        //      misses ⇒ the parameter stays the default Integer ⇒ the string is
+                        //      read as an address and a number is printed in its place — the
+                        //      price of accepting a new form without telling inference about it
+                        //      (ISSUE-090).
+                        // (AR) التشخيصُ يُهمَل هنا عمدًا — انظر النظيرَ في استنتاج النوع.
+                        // (EN) The diagnostic is deliberately dropped — see the type-inference twin.
+                        std::string ignoredAmbiguityDiagnostic;
+                        if (b_.functionTable_.find(funcName) == b_.functionTable_.end() &&
+                            b_.isModuleQualifiedSymbol(varExpr->name, methodCall->methodName,
+                                                       ignoredAmbiguityDiagnostic))
+                        {
+                            funcName = methodCall->methodName;
+                        }
                     }
 
                     if (!funcName.empty())

@@ -42,6 +42,95 @@ namespace Sad
 
             namespace
             {
+                // (AR) وصلُ مسارِ الوحدةِ باسمٍ كاملٍ منقوطٍ — نفسُ ما تفعله
+                //      getFullModuleName في عُقَد AST، مكرَّرًا هنا لأنّ الجسمَ المشترك
+                //      يستقبل الحقولَ لا العقدة.
+                // (EN) Join a module path into a dotted full name — the same thing the AST
+                //      nodes' getFullModuleName does, needed here because the shared body
+                //      receives the fields rather than the node.
+                std::string joinModulePath(const std::vector<std::string> &modulePath)
+                {
+                    std::string fullName;
+                    for (size_t segment = 0; segment < modulePath.size(); ++segment)
+                    {
+                        if (segment > 0)
+                            fullName += ".";
+                        fullName += modulePath[segment];
+                    }
+                    return fullName;
+                }
+
+                // (AR) أسماءُ ما تُتيحه الوحدةُ للاستيراد: هي وحدَها ما يجوز تأهيلُه بها.
+                //      تشمل ما صدّرته بنفسها **وما أعادت تصديرَه** — فوحدةُ الواجهةِ
+                //      التي لا تُعرّف شيئًا بل تُعيد بثَّ غيرها (نمطُ `وحدة_واجهة`)
+                //      تُتيح رموزَ مصدرِها فعلًا، والمفسّرُ يقبل تأهيلَها بها. ولو
+                //      اقتُصر على عقدتَي التصدير لصار شرطُ الانتماءِ كاذبًا عبرها
+                //      فيُرفض ما هو مشروع.
+                //      تعاودٌ محروسٌ بـvisitedModulePaths لأنّ إعادةَ التصديرِ قد تدور.
+                // (EN) The names a module makes importable — the only ones qualifiable
+                //      through it. Includes both its own exports AND what it re-exports: an
+                //      interface module that defines nothing and merely re-broadcasts another
+                //      (the `وحدة_واجهة` pattern) really does expose its source's symbols, and
+                //      the interpreter accepts qualifying them through it. Reading only the
+                //      export nodes would make the membership test lie about it and reject
+                //      what is legitimate. Recursion is guarded by visitedModulePaths because
+                //      re-exports may form cycles.
+                void collectExportedNamesFromStatements(const Sad::AST::StmtList &moduleStatements,
+                                                        std::set<std::string> &exportedNames)
+                {
+                    for (const auto &stmt : moduleStatements)
+                    {
+                        if (!stmt)
+                            continue;
+
+                        // (AR) إعادةُ تصديرٍ انتقائيّة: الأسماءُ الفعّالةُ («كـ» إن وُجدت).
+                        // (EN) Selective re-export: the effective names (alias when present).
+                        if (auto *reExport = dynamic_cast<Sad::AST::ReExportStmt *>(stmt.get()))
+                        {
+                            if (!reExport->isWildcard)
+                                for (const auto &item : reExport->items)
+                                    exportedNames.insert(item.getEffectiveName());
+                            continue;
+                        }
+
+                        const Sad::AST::Statement *declaration = nullptr;
+                        if (auto *exportDecl = dynamic_cast<Sad::AST::ExportDecl *>(stmt.get()))
+                            declaration = exportDecl->declaration.get();
+                        else if (auto *exportStmt = dynamic_cast<Sad::AST::ExportStmt *>(stmt.get()))
+                            declaration = exportStmt->declaration.get();
+                        if (!declaration)
+                            continue;
+
+                        if (auto *funcDecl = dynamic_cast<const Sad::AST::FunctionDecl *>(declaration))
+                            exportedNames.insert(funcDecl->name);
+                        else if (auto *varDecl = dynamic_cast<const Sad::AST::VarDeclStmt *>(declaration))
+                            exportedNames.insert(varDecl->name);
+                        else if (auto *classDecl = dynamic_cast<const Sad::AST::ClassDecl *>(declaration))
+                            exportedNames.insert(classDecl->name);
+                        else if (auto *structDecl = dynamic_cast<const Sad::AST::StructDecl *>(declaration))
+                            exportedNames.insert(structDecl->name);
+                    }
+                }
+
+                // (AR) حارسُ نطاقِ دورةِ إعادةِ التصدير — يحذف مفتاحَه حتمًا.
+                // (EN) Re-export cycle scope guard — unconditionally erases its key.
+                class ReExportCycleScope
+                {
+                public:
+                    ReExportCycleScope(std::unordered_set<std::string> &inFlight,
+                                       std::string key)
+                        : inFlight_(inFlight), key_(std::move(key)) {}
+
+                    ReExportCycleScope(const ReExportCycleScope &) = delete;
+                    ReExportCycleScope &operator=(const ReExportCycleScope &) = delete;
+
+                    ~ReExportCycleScope() { inFlight_.erase(key_); }
+
+                private:
+                    std::unordered_set<std::string> &inFlight_;
+                    std::string key_;
+                };
+
                 // ====================================================================
                 // (AR) حارسُ نطاقِ الأسماء المستعارة: الاستعارةُ «كـ» ربطُ اسمٍ **خاصٌّ
                 //      بالملفّ الذي كتبه**، فخريطةٌ واحدةٌ للبرنامج كلِّه تُسرّب استعارةَ
@@ -67,13 +156,21 @@ namespace Sad
                 class ImportAliasScope
                 {
                 public:
+                    // (AR) فضاءاتُ الوحدةِ تُنطَّق مع استعاراتها: كلتاهما ربطُ اسمٍ خاصٌّ
+                    //      بالملفّ الذي كتبه، فحارسٌ واحدٌ لهما يمنع افتراقَ عمرَيهما.
+                    // (EN) Module namespaces are scoped alongside the aliases: both are
+                    //      bindings private to the file that wrote them, so one guard for
+                    //      the two keeps their lifetimes from drifting apart.
                     ImportAliasScope(SIRBuilder &builder,
-                                     std::unordered_map<std::string, std::string> replacement)
+                                     std::unordered_map<std::string, std::string> replacement,
+                                     std::unordered_map<std::string, std::string> namespaceReplacement)
                         : builder_(builder),
                           savedAliases_(std::move(builder.importAliases_)),
-                          savedSeeded_(std::move(builder.aliasSeededGlobals_))
+                          savedSeeded_(std::move(builder.aliasSeededGlobals_)),
+                          savedNamespaces_(std::move(builder.moduleNamespaces_))
                     {
                         builder_.importAliases_ = std::move(replacement);
+                        builder_.moduleNamespaces_ = std::move(namespaceReplacement);
                         builder_.aliasSeededGlobals_.clear();
                     }
 
@@ -89,12 +186,14 @@ namespace Sad
                         }
                         builder_.aliasSeededGlobals_ = std::move(savedSeeded_);
                         builder_.importAliases_ = std::move(savedAliases_);
+                        builder_.moduleNamespaces_ = std::move(savedNamespaces_);
                     }
 
                 private:
                     SIRBuilder &builder_;
                     std::unordered_map<std::string, std::string> savedAliases_;
                     std::unordered_set<std::string> savedSeeded_;
+                    std::unordered_map<std::string, std::string> savedNamespaces_;
                 };
 
                 // ====================================================================
@@ -807,8 +906,10 @@ namespace Sad
                 // (AR) أجسامُ الوحدة تُبنى باستعاراتِ الوحدة وحدَها لا باستعاراتِ مستورِدها.
                 // (EN) The module's bodies are built with the module's own aliases only.
                 std::unordered_map<std::string, std::string> moduleImportAliases;
-                collectFileImportAliases(module->ast, moduleImportAliases);
-                ImportAliasScope moduleAliasScope(b_, std::move(moduleImportAliases));
+                std::unordered_map<std::string, std::string> moduleOwnNamespaces;
+                collectFileImportBindings(module->ast, moduleImportAliases, moduleOwnNamespaces);
+                ImportAliasScope moduleAliasScope(b_, std::move(moduleImportAliases),
+                                                  std::move(moduleOwnNamespaces));
 
                 // (AR) معالجة كل تصريح في الوحدة
                 // (EN) Process each declaration in module
@@ -827,6 +928,13 @@ namespace Sad
                     if (auto innerImport = dynamic_cast<AST::ImportStmt *>(stmt.get()))
                     {
                         buildImportStmt(innerImport);
+                        continue;
+                    }
+                    // (AR) إعادةُ تصديرٍ داخلَ الوحدة تُتبَع إلى مصدرِها — ISSUE-089.
+                    // (EN) A re-export inside the module is followed to its source — ISSUE-089.
+                    if (auto innerReExport = dynamic_cast<Sad::AST::ReExportStmt *>(stmt.get()))
+                    {
+                        buildReExportStmt(innerReExport);
                         continue;
                     }
 
@@ -940,14 +1048,27 @@ namespace Sad
              *      the compiler infers their param types from the main module, then Phase 2
              *      builds them with the corrected type (skip-guard builds if not yet built).
              */
-            void TemplateBuilder::collectFileImportAliases(
+            void TemplateBuilder::collectFileImportBindings(
                 const Sad::AST::StmtList &fileStatements,
-                std::unordered_map<std::string, std::string> &aliases)
+                std::unordered_map<std::string, std::string> &aliases,
+                std::unordered_map<std::string, std::string> &moduleNamespaces)
             {
                 for (const auto &stmt : fileStatements)
                 {
                     if (!stmt)
                         continue;
+
+                    // (AR) «استورد م [كـ ر]» يفتح فضاءَ أسماءٍ باسمِه الفعّال — المستعارِ
+                    //      إن وُجد وإلّا آخرِ مقطعٍ من المسار (getEffectiveName). ISSUE-090.
+                    // (EN) `استورد م [كـ ر]` opens a namespace under its effective name — the
+                    //      alias if present, otherwise the path's last segment. ISSUE-090.
+                    if (auto *plainImport = dynamic_cast<Sad::AST::ImportStmt *>(stmt.get()))
+                    {
+                        if (!plainImport->modulePath.empty())
+                            moduleNamespaces[plainImport->getEffectiveName()] =
+                                plainImport->getFullModuleName();
+                        continue;
+                    }
 
                     // (AR) الصيغتان تُنتجان FromImportStmt نفسَها؛ وإعادةُ التصدير تحمل
                     //      ImportItem بعينه، فتمرّ بالتقييد نفسِه (ISSUE-088).
@@ -1034,7 +1155,20 @@ namespace Sad
                         // ════════════════════════════════════════════════════════
                         auto *fromImport = dynamic_cast<AST::FromImportStmt *>(stmt.get());
                         auto *plainImport = dynamic_cast<AST::ImportStmt *>(stmt.get());
-                        if (!fromImport && !plainImport)
+                        // (AR) وإعادةُ التصديرِ كذلك: الطوران يجب أن يتّفقا، والطورُ 2
+                        //      صار يُتبعها إلى مصدرِها (ISSUE-089) فلو بقيت مجهولةً هنا
+                        //      لبُنيت أجسامُها بلا توقيعٍ مُسجَّلٍ سلفًا — وهو الاختلالُ
+                        //      الموثَّقُ نفسُه في #333. والمسارُ الفارغُ («صدّر *» المجرّدة)
+                        //      لا وحدةَ له فيُتخطّى.
+                        // (EN) Re-exports too: the two phases must agree, and Phase 2 now
+                        //      follows them to their source (ISSUE-089); leaving them unknown
+                        //      here would build bodies with no pre-registered signature — the
+                        //      very asymmetry documented in #333. An empty path (bare
+                        //      «صدّر *») has no module and is skipped.
+                        auto *reExport = dynamic_cast<Sad::AST::ReExportStmt *>(stmt.get());
+                        if (reExport && reExport->modulePath.empty())
+                            continue;
+                        if (!fromImport && !plainImport && !reExport)
                             continue;
 
                         // (AR) `استورد م` يُتيح كلَّ رموز الوحدة — وهو ما يبنيه الطور 2
@@ -1047,8 +1181,19 @@ namespace Sad
                         //      only lets inference see what will exist regardless.
                         const bool seedPrivate = (plainImport != nullptr);
 
-                        std::string fullModuleName =
-                            fromImport ? fromImport->getFullModuleName() : plainImport->getFullModuleName();
+                        // (AR) الحقولُ الثلاثةُ موحَّدةً: `من م استورد …` و`صدّر … من م`
+                        //      يشتركان في الشكل، و`استورد م` مسارُه وحدَه.
+                        // (EN) The three fields unified: `من م استورد …` and `صدّر … من م`
+                        //      share a shape; plain `استورد م` contributes its path only.
+                        const std::vector<std::string> &importedModulePath =
+                            plainImport ? plainImport->modulePath
+                                        : (fromImport ? fromImport->modulePath : reExport->modulePath);
+                        const std::vector<Sad::AST::ImportItem> *selectiveItems =
+                            fromImport ? &fromImport->items : (reExport ? &reExport->items : nullptr);
+                        const bool selectiveIsWildcard =
+                            fromImport ? fromImport->isWildcard : (reExport && reExport->isWildcard);
+
+                        std::string fullModuleName = joinModulePath(importedModulePath);
                         // (AR) الوحدات القياسية دوالُّها مضمَّنة في المترجم — لا تُسجَّل هنا
                         // (EN) Stdlib modules are compiler builtins — skip
                         if (isCompilerBuiltinStdlibModule(fullModuleName))
@@ -1057,7 +1202,7 @@ namespace Sad
                         // (AR) resolveModule يخبّئ النتائج ⇒ الطور 2 يعيد استخدام الشجرة ذاتها
                         // (EN) resolveModule caches ⇒ Phase 2 reuses the same AST
                         Modules::Module *module = b_.moduleResolver_->resolveModule(
-                            fromImport ? fromImport->modulePath : plainImport->modulePath,
+                            importedModulePath,
                             basePath);
                         if (!module)
                             continue;
@@ -1081,6 +1226,18 @@ namespace Sad
 #endif
                         bool firstVisit = visitedPaths.insert(modulePathKey).second;
 
+                        // (AR) رموزُ الوحدةِ المُصدَّرة — تُقيَّد في الطور 1 لأنّ فكَّ
+                        //      التأهيلِ يقع في الاستنتاج (1.7) قبلَ بناءِ الأجسام.
+                        // (EN) The module's exported symbols — recorded in Phase 1 because
+                        //      un-qualification happens during inference (1.7), before bodies.
+                        if (firstVisit)
+                        {
+                            std::set<std::string> visitedReExportPaths{modulePathKey};
+                            collectModuleExportedNames(module->ast, modulePathKey,
+                                                       b_.moduleExportedSymbols_[fullModuleName],
+                                                       visitedReExportPaths);
+                        }
+
                         // (AR) اجمع شجرة الوحدة مرّةً كي يمسحها inferParamTypesFromCallSites
                         //      (انتشارٌ متعدٍّ: نداءُ رسالة لتحية داخل أشكال يُرقّي تحية)
                         // (EN) Collect the module AST once so inferParamTypesFromCallSites
@@ -1102,10 +1259,10 @@ namespace Sad
                         //      (طول/حجم/جذر), hijacking it in the main module ⇒ undefined ref or
                         //      wrong semantics. So: only the exported, requested symbol.
                         std::unordered_set<std::string> requestedSymbols;
-                        bool isWildcard = seedPrivate ? true : fromImport->isWildcard;
-                        if (!isWildcard)
+                        bool isWildcard = seedPrivate ? true : selectiveIsWildcard;
+                        if (!isWildcard && selectiveItems)
                         {
-                            for (const auto &item : fromImport->items)
+                            for (const auto &item : *selectiveItems)
                                 requestedSymbols.insert(item.name);
                         }
 
@@ -1295,7 +1452,7 @@ namespace Sad
                 //      each module whose bodies are built gets its own map via
                 //      ImportAliasScope.
                 if (program)
-                    collectFileImportAliases(*program, b_.importAliases_);
+                    collectFileImportBindings(*program, b_.importAliases_, b_.moduleNamespaces_);
             }
 
             /**
@@ -1325,12 +1482,110 @@ namespace Sad
                 if (!fromImportStmt)
                     return;
 
+                buildSelectiveImportFrom(fromImportStmt->modulePath,
+                                         fromImportStmt->items,
+                                         fromImportStmt->isWildcard);
+            }
+
+            // (AR) 🔑 التأهيلُ الكاملُ `Sad::AST::` لازم: `AST::` المجرّدةُ تُحَلّ داخلَ
+            //      Sad::Compiler::SIR إلى مساحةِ الأسماء المستعارةِ القديمة (sir_builder.h)
+            //      وليس فيها ReExportStmt.
+            // (EN) 🔑 Full `Sad::AST::` qualification required: bare `AST::` resolves inside
+            //      Sad::Compiler::SIR to the legacy-alias namespace, which lacks ReExportStmt.
+            void TemplateBuilder::collectModuleExportedNames(
+                const Sad::AST::StmtList &moduleStatements,
+                const std::string &moduleFilePath,
+                std::set<std::string> &exportedNames,
+                std::set<std::string> &visitedModulePaths)
+            {
+                collectExportedNamesFromStatements(moduleStatements, exportedNames);
+
+                if (!b_.moduleResolver_)
+                    return;
+
+                for (const auto &stmt : moduleStatements)
+                {
+                    auto *reExport = stmt ? dynamic_cast<Sad::AST::ReExportStmt *>(stmt.get())
+                                          : nullptr;
+                    if (!reExport || !reExport->isWildcard || reExport->modulePath.empty())
+                        continue;
+
+                    Modules::Module *sourceModule =
+                        b_.moduleResolver_->resolveModule(reExport->modulePath, moduleFilePath);
+                    if (!sourceModule)
+                        continue;
+
+#ifdef _WIN32
+                    // (AR) 🔑 المفتاحُ من wstring: path::string() على اسمٍ عربيّ يتعطّل
+                    //      خارجَ ترميز ANSI — نظيرُ ما يفعله module_resolver عمدًا.
+                    // (EN) 🔑 Key via wstring: path::string() on an Arabic name breaks outside
+                    //      the ANSI codepage — mirroring what module_resolver deliberately does.
+                    std::string sourceKey = sad::utf8::from_wstring(sourceModule->filePath.wstring());
+#else
+                    std::string sourceKey = sourceModule->filePath.string();
+#endif
+                    if (!visitedModulePaths.insert(sourceKey).second)
+                        continue;
+
+                    collectModuleExportedNames(sourceModule->ast, sourceKey, exportedNames,
+                                               visitedModulePaths);
+                }
+            }
+
+            void TemplateBuilder::buildReExportStmt(Sad::AST::ReExportStmt *reExportStmt)
+            {
+                if (!reExportStmt)
+                    return;
+
+                // (AR) «صدّر *» المجرّدة: لا وحدةَ مصدرٍ ⇒ لا-عمليّة (module_nodes.h).
+                // (EN) Bare «صدّر *»: no source module ⇒ no-op (module_nodes.h).
+                if (reExportStmt->modulePath.empty())
+                    return;
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) حارسُ الدورة. جسمُ الاستيرادِ الانتقائيِّ لا يتوقّف عند وحدةٍ
+                //      سبق تحميلُها عمدًا (قد تُطلَب منها رموزٌ جديدة)، وهو صوابٌ
+                //      للاستيراد لأنّ عبارتَه لا تعاود. أمّا إعادةُ التصديرِ فتعاود:
+                //      وحدتان تُعيد كلٌّ تصديرَ الأخرى تُنتجان تعاودًا بلا قاع ⇒
+                //      انهيارُ مكدّسٍ (0xC00000FD) بلا أيِّ تشخيص. فيُمسَك ما هو
+                //      قيدَ الإتْباعِ الآن ويُقطع الدورُ عنده — والتشخيصُ يقع طبيعيًّا
+                //      عند موضعِ النداءِ إن نقص رمز.
+                // (EN) Cycle guard. The selective-import body deliberately does not stop at an
+                //      already-loaded module (new symbols may be requested from it), which is
+                //      right for imports since their statements do not recurse. Re-exports do:
+                //      two modules re-exporting each other recurse without a floor ⇒ a stack
+                //      overflow (0xC00000FD) with no diagnostic at all. So what is currently
+                //      being followed is tracked and the cycle cut there; a genuinely missing
+                //      symbol still gets diagnosed at its own call site.
+                // ════════════════════════════════════════════════════════════════
+                //      🔑 بحارسِ نطاقٍ لا بسطرَين متتاليَين: الحذفُ الذي يعتمد على بلوغِ
+                //      السطرِ التالي يسقط مع أوّلِ خروجٍ مبكّرٍ أو استثناءٍ يُستحدَث في
+                //      الجسم، فيبقى المفتاحُ عالقًا وتُصمَت إعادةُ تصديرٍ مشروعةٌ بعده.
+                //      🔑 A scope guard, not two consecutive lines: an erase that depends on
+                //      reaching the next statement dies with the first early return or
+                //      exception later introduced into the body, leaving the key stuck and
+                //      silently muting a subsequent legitimate re-export.
+                const std::string reExportKey = joinModulePath(reExportStmt->modulePath);
+                if (!b_.reExportsInFlight_.insert(reExportKey).second)
+                    return;
+                ReExportCycleScope reExportScope(b_.reExportsInFlight_, reExportKey);
+
+                buildSelectiveImportFrom(reExportStmt->modulePath,
+                                         reExportStmt->items,
+                                         reExportStmt->isWildcard);
+            }
+
+            void TemplateBuilder::buildSelectiveImportFrom(
+                const std::vector<std::string> &modulePath,
+                const std::vector<Sad::AST::ImportItem> &items,
+                bool isWildcardImport)
+            {
                 if (!b_.moduleResolver_)
                 {
                     b_.moduleResolver_ = std::make_unique<Modules::ModuleResolver>();
                 }
 
-                std::string fullModuleName = fromImportStmt->getFullModuleName();
+                std::string fullModuleName = joinModulePath(modulePath);
 
                 // (AR) تحسين جذري: إذا كانت الوحدة من المكتبة القياسية المعروفة للمترجم،
                 //      فلا حاجة لتحليل ملف الوحدة أو تحميله. جميع الدوال مضمنة في المترجم.
@@ -1370,9 +1625,9 @@ namespace Sad
 
                     // (AR) إصدار MODULE_SYMBOL لكل رمز مطلوب
                     // (EN) Emit MODULE_SYMBOL for each requested symbol
-                    if (!fromImportStmt->isWildcard)
+                    if (!isWildcardImport)
                     {
-                        for (const auto &item : fromImportStmt->items)
+                        for (const auto &item : items)
                         {
                             std::string symReg = b_.newTempRegister();
                             SIRInstruction symInst(SIROpcode::MODULE_SYMBOL);
@@ -1388,7 +1643,7 @@ namespace Sad
                 // (AR) تحميل الوحدة (ModuleResolver يخبئ النتائج)
                 // (EN) Load module (ModuleResolver caches results)
                 Modules::Module *module = b_.moduleResolver_->resolveModule(
-                    fromImportStmt->modulePath,
+                    modulePath,
                     b_.currentFilePath_);
 
                 if (!module)
@@ -1408,11 +1663,11 @@ namespace Sad
                 // (AR) جمع أسماء الرموز المطلوبة (للاستيراد الانتقائي)
                 // (EN) Collect requested symbol names (for selective import)
                 std::unordered_set<std::string> requestedSymbols;
-                bool isWildcard = fromImportStmt->isWildcard;
+                bool isWildcard = isWildcardImport;
 
                 if (!isWildcard)
                 {
-                    for (const auto &item : fromImportStmt->items)
+                    for (const auto &item : items)
                     {
                         requestedSymbols.insert(item.name);
                     }
@@ -1428,8 +1683,10 @@ namespace Sad
                 // (AR) أجسامُ الوحدة تُبنى باستعاراتِ الوحدة وحدَها لا باستعاراتِ مستورِدها.
                 // (EN) The module's bodies are built with the module's own aliases only.
                 std::unordered_map<std::string, std::string> moduleImportAliases;
-                collectFileImportAliases(module->ast, moduleImportAliases);
-                ImportAliasScope moduleAliasScope(b_, std::move(moduleImportAliases));
+                std::unordered_map<std::string, std::string> moduleOwnNamespaces;
+                collectFileImportBindings(module->ast, moduleImportAliases, moduleOwnNamespaces);
+                ImportAliasScope moduleAliasScope(b_, std::move(moduleImportAliases),
+                                                  std::move(moduleOwnNamespaces));
 
                 // (AR) معالجة تصريحات الوحدة
                 // (EN) Process module declarations
@@ -1448,6 +1705,13 @@ namespace Sad
                     if (auto innerImport = dynamic_cast<AST::ImportStmt *>(stmt.get()))
                     {
                         buildImportStmt(innerImport);
+                        continue;
+                    }
+                    // (AR) إعادةُ تصديرٍ داخلَ الوحدة تُتبَع إلى مصدرِها — ISSUE-089.
+                    // (EN) A re-export inside the module is followed to its source — ISSUE-089.
+                    if (auto innerReExport = dynamic_cast<Sad::AST::ReExportStmt *>(stmt.get()))
+                    {
+                        buildReExportStmt(innerReExport);
                         continue;
                     }
 

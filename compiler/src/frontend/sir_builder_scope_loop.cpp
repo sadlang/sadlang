@@ -199,6 +199,61 @@ namespace Sad
                 return nullptr;
             }
 
+            bool SIRBuilder::isModuleQualifiedSymbol(const std::string &namespaceName,
+                                                     const std::string &symbolName,
+                                                     std::string &ambiguityDiagnostic)
+            {
+                ambiguityDiagnostic.clear();
+
+                if (moduleNamespaces_.empty())
+                    return false;
+
+                auto namespaceIt = moduleNamespaces_.find(namespaceName);
+                if (namespaceIt == moduleNamespaces_.end())
+                    return false;
+
+                // (AR) الشرط ٢: المتغيّرُ الحقيقيُّ يفوز على فضاءِ الوحدة.
+                // (EN) Condition 2: a real variable wins over the module namespace.
+                if (lookupVariable(namespaceName) != nullptr)
+                    return false;
+
+                // (AR) الشرط ٣: الرمزُ من هذه الوحدةِ بعينِها.
+                // (EN) Condition 3: the symbol belongs to this very module.
+                const std::string &qualifyingModule = namespaceIt->second;
+                auto symbolsIt = moduleExportedSymbols_.find(qualifyingModule);
+                if (symbolsIt == moduleExportedSymbols_.end() ||
+                    symbolsIt->second.find(symbolName) == symbolsIt->second.end())
+                    return false;
+
+                // (AR) الإبهام: وحدةٌ أخرى مستوردةٌ في هذا الملفّ تُصدّر الاسمَ نفسَه.
+                //      التسطيحُ يجعل الرمزَين واحدًا فيفوز آخِرُ ما بُني — فنرفض
+                //      ونُشخّص بدل أن نُرجع قيمةَ الوحدةِ الخطأ بلا أثر.
+                // (EN) Ambiguity: another module imported in this file exports the same name.
+                //      Flattening makes them one symbol and the last built wins, so we refuse
+                //      and diagnose rather than return the wrong module's value silently.
+                for (const auto &otherNamespace : moduleNamespaces_)
+                {
+                    if (otherNamespace.second == qualifyingModule)
+                        continue;
+                    auto otherSymbolsIt = moduleExportedSymbols_.find(otherNamespace.second);
+                    if (otherSymbolsIt == moduleExportedSymbols_.end())
+                        continue;
+                    if (otherSymbolsIt->second.find(symbolName) == otherSymbolsIt->second.end())
+                        continue;
+
+                    ambiguityDiagnostic =
+                        "خطأ: الرمز '" + symbolName + "' مُصدَّرٌ من وحدتين مستوردتين معًا ('" +
+                        qualifyingModule + "' و'" + otherNamespace.second +
+                        "') فالتأهيل مُبهَم — 💡 جرّب: من " + qualifyingModule + " استورد " +
+                        symbolName + " كـ اسم_آخر / Error: symbol '" + symbolName +
+                        "' is exported by two imported modules ('" + qualifyingModule + "', '" +
+                        otherNamespace.second + "'); the qualification is ambiguous";
+                    return false;
+                }
+
+                return true;
+            }
+
             // ============================================================================
             // enterLoop - دخول سياق حلقة
             // ============================================================================

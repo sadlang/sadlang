@@ -70,6 +70,42 @@ namespace Sad
                         }
                     }
 
+                    // ================================================================
+                    // (AR) عضوُ فضاءِ وحدةٍ مستوردة: «ر.السقف» حيث «ر» وحدةٌ لا كائن —
+                    //      ISSUE-090. المصرّفُ يُسطّح عوامَّ الوحدة، فالمؤهَّلُ يُحَلّ إلى
+                    //      العامِّ المسطَّح عينِه. ويُشترط ألّا يكون «ر» متغيّرًا حقيقيًّا
+                    //      كي لا يُختطَف حقلُ كائنٍ يصادف اسمُه اسمَ وحدة.
+                    // (EN) Imported-module namespace member: `ر.السقف` where `ر` is a module,
+                    //      not an object — ISSUE-090. The compiler flattens module globals, so
+                    //      the qualified form resolves to that very flat global. Requires that
+                    //      `ر` is not a real variable, so a field of an object whose name
+                    //      happens to match a module is never hijacked.
+                    // ================================================================
+                    std::string moduleAmbiguityDiagnostic;
+                    bool isQualifiedModuleMember = b_.isModuleQualifiedSymbol(
+                        varExpr->name, memberExpr->member, moduleAmbiguityDiagnostic);
+                    if (!moduleAmbiguityDiagnostic.empty())
+                    {
+                        b_.errors_.push_back(moduleAmbiguityDiagnostic);
+                        return BuildResult();
+                    }
+                    if (isQualifiedModuleMember)
+                    {
+                        auto *moduleGlobal = b_.lookupVariable(memberExpr->member);
+                        if (moduleGlobal && moduleGlobal->isGlobal && b_.currentBlock_)
+                        {
+                            std::string loadReg = b_.newTempRegister();
+                            SIRInstruction loadInst(SIROpcode::LOAD);
+                            loadInst.result = SIROperand::Register(loadReg, moduleGlobal->type);
+                            loadInst.operands.push_back(
+                                SIROperand::Global(moduleGlobal->registerName, moduleGlobal->type));
+                            loadInst.comment = "Load module member: " + varExpr->name +
+                                               "." + memberExpr->member;
+                            b_.currentBlock_->addInstruction(loadInst);
+                            return BuildResult(loadReg, moduleGlobal->type);
+                        }
+                    }
+
                     // (AR) عضو تعداد بقيمة نصّيّة صريحة (مثل «ألوان.أحمر») — فحصٌ
                     //   مبكّر **قبل** بناء الكائن، لأنّ اسم التعداد ليس متغيّرًا وبناؤه
                     //   يدفع «Undefined variable» زائفًا إلى errors_ (نظير فحص فضاء

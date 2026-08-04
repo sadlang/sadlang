@@ -672,6 +672,40 @@ namespace Sad
                 //      ⚠ Known limit: a user-class instance (Pointer) with a non-Pointer
                 //        returning method is mis-inferred as Pointer here; rare, accepted.
                 // ================================================================
+                // (AR) نداءٌ مؤهَّلٌ بفضاءِ وحدة («ح.تحية(…)»): نوعُه نوعُ عائدِ الرمزِ
+                //      المسطَّح، إذ المصرّفُ يُسطّح رموزَ الوحدة (ISSUE-090). يسبق فحصَ
+                //      المؤشّر أدناه كي لا يُخلَط فضاءُ وحدةٍ بعنصرِ واجهةٍ انسيابيّ.
+                // (EN) Module-qualified call (`ح.تحية(…)`): its type is the flattened symbol's
+                //      return type, since the compiler flattens module symbols (ISSUE-090).
+                //      Placed before the pointer check below so a module namespace is never
+                //      confused with a fluent widget.
+                if (auto *qualifiedCall = dynamic_cast<const Sad::AST::MethodCallExpr *>(expr))
+                {
+                    if (auto *moduleVar =
+                            dynamic_cast<const Sad::AST::VariableExpr *>(qualifiedCall->object.get()))
+                    {
+                        // (AR) الحاسمُ الواحدُ نفسُه لا شرطٌ مُعادٌ هنا: كان هذا الموضعُ
+                        //      يفتقد حارسَ المتغيّرِ الحقيقيّ فيصف كائنًا يصادف اسمُه
+                        //      اسمَ وحدةٍ بنوعِ عائدِ رمزٍ لا يخصّه.
+                        // (EN) The same single decider rather than a re-stated condition: this
+                        //      site was missing the real-variable guard, typing an object whose
+                        //      name merely matched a module with an unrelated return type.
+                        // (AR) التشخيصُ يُهمَل هنا عمدًا: الاستنتاجُ يصف نوعًا ولا
+                        //      يُبلّغ أخطاءً؛ ومسارُ البناءِ يُشخّص الإبهامَ في موضعه.
+                        // (EN) The diagnostic is deliberately dropped here: inference describes
+                        //      a type, it does not report errors; the build path diagnoses the
+                        //      ambiguity at its own site.
+                        std::string ignoredAmbiguityDiagnostic;
+                        if (b_.isModuleQualifiedSymbol(moduleVar->name, qualifiedCall->methodName,
+                                                       ignoredAmbiguityDiagnostic))
+                        {
+                            auto flatIt = b_.functionTable_.find(qualifiedCall->methodName);
+                            if (flatIt != b_.functionTable_.end())
+                                return flatIt->second.returnType;
+                        }
+                    }
+                }
+
                 if (auto *mcall = dynamic_cast<const Sad::AST::MethodCallExpr *>(expr))
                     if (inferExprType(mcall->object.get()) == SadTypeKind::Pointer)
                         return SadTypeKind::Pointer;

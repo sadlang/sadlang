@@ -66,6 +66,26 @@ namespace Sad
 
                 void buildFromImportStmt(Sad::AST::FromImportStmt *fromImportStmt);
 
+                /**
+                 * @brief (AR) إتْباعُ إعادةِ تصديرٍ إلى وحدةِ مصدرِها
+                 * @brief (EN) Follow a re-export through to its source module
+                 *
+                 * (AR) «صدّر * من م» في وحدةٍ وسيطةٍ يُتيح رموزَ م لمستورِدِ الوسيطة.
+                 *      وكان الطوران يمرّان على `ReExportStmt` دون التقاطها، فيقف
+                 *      المصرّفُ عند الوسيطةِ فلا يجد الرمزَ ويقع على مدمَجٍ يصادف
+                 *      الاسمَ (ISSUE-089). ولمّا كان المصرّفُ يُسطّح، فإتْباعُها
+                 *      **مطابقٌ دلاليًّا** لاستيرادٍ انتقائيٍّ من م — فتُمرَّر إليه.
+                 *      و«صدّر *» المجرّدةُ (مسارٌ فارغ) لا وحدةَ مصدرٍ لها فهي لا-عمليّة.
+                 * (EN) `صدّر * من م` in an intermediate module exposes m's symbols to the
+                 *      intermediate's importer. Both passes walked past `ReExportStmt`, so the
+                 *      compiler stopped at the intermediate, missed the symbol and fell onto a
+                 *      builtin of the same name (ISSUE-089). Since the compiler flattens,
+                 *      following it is semantically identical to a selective import from m, so
+                 *      it is delegated there. Bare `صدّر *` (empty path) has no source module
+                 *      and is a no-op.
+                 */
+                void buildReExportStmt(Sad::AST::ReExportStmt *reExportStmt);
+
                 SadTypeKind inferReturnTypeFromBody(const Sad::AST::Statement *body, const Sad::AST::FunctionDecl *funcDecl);
 
                 void scanCallSitesInExpr(const Sad::AST::Expression *expr);
@@ -89,8 +109,15 @@ namespace Sad
                 void preRegisterImportedSignatures(Sad::AST::StmtList *program);
 
                 /**
-                 * @brief (AR) جمعُ الأسماء المستعارة «كـ» من عبارات ملفٍّ واحدٍ عُليا
-                 * @brief (EN) Collect «as» aliases from ONE file's top-level statements
+                 * @brief (AR) جمعُ رُبُطِ الاستيرادِ المحلّيّة من عبارات ملفٍّ واحدٍ عُليا
+                 * @brief (EN) Collect ONE file's local import bindings from its top level
+                 *
+                 * (AR) رَبطان لا رَبطٌ واحد: الأسماءُ المستعارةُ «كـ» للرموز، وفضاءاتُ
+                 *      أسماءِ الوحدات لـ«استورد م [كـ ر]» (ISSUE-090). كلاهما محلّيٌّ
+                 *      للملفّ فيُجمعان معًا ويُنطَّقان معًا.
+                 * (EN) Two bindings, not one: symbol «as» aliases, and module namespaces for
+                 *      `استورد م [كـ ر]` (ISSUE-090). Both are file-local, so they are
+                 *      collected together and scoped together.
                  *
                  * (AR) تمسح العباراتِ العُليا للملفّ المُمرَّر — «من م استورد س كـ ص»
                  *      و«استورد س كـ ص من م» و«صدّر س كـ ص من م» — فتُقيّد ص ⇐ س في
@@ -109,8 +136,10 @@ namespace Sad
                  *      into its consumer and hijack names it never imported (builtins
                  *      among them) with no diagnostic at all.
                  */
-                void collectFileImportAliases(const Sad::AST::StmtList &fileStatements,
-                                              std::unordered_map<std::string, std::string> &aliases);
+                void collectFileImportBindings(
+                    const Sad::AST::StmtList &fileStatements,
+                    std::unordered_map<std::string, std::string> &aliases,
+                    std::unordered_map<std::string, std::string> &moduleNamespaces);
 
                 // ════════════════════════════════════════════════════════════════
                 // (AR) الإغلاقُ التعدّيُّ للتصريحات الخاصّة في وحدةٍ مستورَدة: أسماءُ
@@ -149,6 +178,29 @@ namespace Sad
                 std::string instantiateTemplate(const std::string &templateName, const std::vector<SadTypeKind> &typeArguments, const std::vector<SIROperand> &constArguments);
 
             private:
+                // (AR) جسمُ الاستيرادِ الانتقائيِّ الواحد: يستهلكه `من م استورد …`
+                //      و`صدّر … من م` معًا. استُخرج بالحقولِ الثلاثةِ لا بالعقدة كي
+                //      لا يُصطنَع `FromImportStmt` مؤقّتٌ لإعادةِ التصدير — فعمرُه
+                //      يصير قيدًا خفيًّا على ما يجوز للجسم أن يحتفظ به.
+                // (EN) The single selective-import body, shared by `من م استورد …` and
+                //      `صدّر … من م`. Extracted over the three fields rather than the node
+                //      so no temporary FromImportStmt is fabricated for a re-export — its
+                //      lifetime would become a hidden constraint on what the body may retain.
+                void buildSelectiveImportFrom(const std::vector<std::string> &modulePath,
+                                              const std::vector<Sad::AST::ImportItem> &items,
+                                              bool isWildcard);
+
+                // (AR) ما تُتيحه الوحدةُ للاستيراد، متعدّيًا عبر «صدّر * من …». يلزم
+                //      حلُّ وحدةِ المصدرِ فلذلك هو طريقةٌ لا دالّةٌ حرّة. `visited`
+                //      يقطع الدورَ ويمنع العملَ المكرّر.
+                // (EN) What a module makes importable, transitively through `صدّر * من …`.
+                //      Resolving the source module is required, hence a method rather than a
+                //      free function. `visited` cuts cycles and avoids repeated work.
+                void collectModuleExportedNames(const Sad::AST::StmtList &moduleStatements,
+                                                const std::string &moduleFilePath,
+                                                std::set<std::string> &exportedNames,
+                                                std::set<std::string> &visitedModulePaths);
+
                 SIRBuilder &b_;
             };
 

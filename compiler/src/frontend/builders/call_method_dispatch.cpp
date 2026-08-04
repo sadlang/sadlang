@@ -55,12 +55,108 @@ namespace Sad
             // - methodName: std::string (line 248)
             // - arguments: std::vector<std::unique_ptr<Expr>> (line 249)
             // ============================================================================
+            namespace
+            {
+                // ================================================================
+                // (AR) غِمدُ النداءِ المؤهَّل: يُعير وسائطَ عقدةِ نداءِ الطريقة إلى عقدةِ
+                //      نداءٍ عاديّةٍ مؤقّتةٍ ثمّ يعيدها حتمًا. لا يُنسَخ شيء: تُنقَل
+                //      **مِلكيّةُ** المؤشّرات لا الكائنات، فعناوينُ التعابير لا تتغيّر
+                //      ويبقى كلُّ مؤشّرٍ خبّأه البانِي صالحًا. والإعادةُ في الهادم فتقع
+                //      حتّى مع خروجٍ مبكّرٍ أو استثناء — وإلّا فقدَت الشجرةُ وسائطَها.
+                // (EN) Qualified-call shim: lends a method-call node's arguments to a
+                //      temporary plain call node and unconditionally gives them back. Nothing
+                //      is copied — pointer OWNERSHIP moves, not the objects, so expression
+                //      addresses never change and any pointer the builder cached stays valid.
+                //      The give-back lives in the destructor so it happens on early return or
+                //      exception too; otherwise the tree would lose its arguments.
+                // ================================================================
+                class QualifiedCallShim
+                {
+                public:
+                    QualifiedCallShim(Sad::AST::MethodCallExpr &methodCall,
+                                      const std::string &functionName)
+                        : methodCall_(methodCall),
+                          call_(std::make_unique<Sad::AST::VariableExpr>(functionName,
+                                                                         methodCall.position),
+                                Sad::AST::ExprList{},
+                                methodCall.position)
+                    {
+                        call_.arguments = std::move(methodCall_.arguments);
+                    }
+
+                    QualifiedCallShim(const QualifiedCallShim &) = delete;
+                    QualifiedCallShim &operator=(const QualifiedCallShim &) = delete;
+
+                    ~QualifiedCallShim()
+                    {
+                        methodCall_.arguments = std::move(call_.arguments);
+                    }
+
+                    Sad::AST::CallExpr *call() { return &call_; }
+
+                private:
+                    Sad::AST::MethodCallExpr &methodCall_;
+                    Sad::AST::CallExpr call_;
+                };
+            } // namespace
+
+            std::optional<BuildResult> CallBuilder::buildModuleQualifiedCall(
+                AST::MethodCallExpr *methodCallExpr)
+            {
+                if (!methodCallExpr || b_.moduleNamespaces_.empty())
+                    return std::nullopt;
+
+                auto *moduleVarExpr =
+                    dynamic_cast<Sad::AST::VariableExpr *>(methodCallExpr->object.get());
+                if (!moduleVarExpr)
+                    return std::nullopt;
+
+                std::string ambiguityDiagnostic;
+                if (!b_.isModuleQualifiedSymbol(moduleVarExpr->name, methodCallExpr->methodName,
+                                                ambiguityDiagnostic))
+                {
+                    // (AR) الإبهامُ يُشخَّص هنا صراحةً: لو تُرك للمسارِ العاديِّ لبنى
+                    //      نداءً لأحدِ الرمزَين المتصادمَين بلا أثرٍ يدلُّ على الالتباس.
+                    // (EN) Ambiguity is diagnosed here explicitly: left to the normal path it
+                    //      would build a call to one of the colliding symbols with nothing to
+                    //      show the confusion.
+                    if (!ambiguityDiagnostic.empty())
+                    {
+                        b_.errors_.push_back(ambiguityDiagnostic);
+                        return BuildResult();
+                    }
+                    return std::nullopt;
+                }
+
+                // (AR) والرمزُ المؤهَّلُ يجب أن يكون موجودًا مسطَّحًا؛ وإلّا فليمضِ المسارُ
+                //      العاديُّ ليُشخّص الغيابَ في موضعه بدل تشخيصٍ مُصطنَعٍ من هنا.
+                // (EN) The qualified symbol must exist flattened; otherwise let the normal
+                //      path diagnose its absence in place rather than inventing one here.
+                if (b_.functionTable_.find(methodCallExpr->methodName) == b_.functionTable_.end())
+                    return std::nullopt;
+
+                QualifiedCallShim shim(*methodCallExpr, methodCallExpr->methodName);
+                return buildFunctionCall(shim.call());
+            }
+
             BuildResult CallBuilder::buildMethodCall(AST::MethodCallExpr *methodCallExpr)
             {
                 if (!methodCallExpr)
                 {
                     return BuildResult();
                 }
+
+                // ================================================================
+                // (AR) اعتراضٌ مبكّر: «ر.جمع(…)» حيث «ر» فضاءُ وحدةٍ لا كائن — ISSUE-090.
+                //      يسبق كلَّ اعتراضٍ آخرَ لأنّ بناءَ الكائنِ يفشل بـ«Undefined
+                //      variable 'ر'» فيُسقط الترجمةَ (نظير اعتراضَي الصنفِ الساكنِ والتعداد).
+                // (EN) Early intercept: `ر.جمع(…)` where `ر` is a module namespace, not an
+                //      object — ISSUE-090. It precedes every other intercept because building
+                //      the object fails with "Undefined variable 'ر'" and aborts the build
+                //      (mirroring the static-class and enum intercepts).
+                // ================================================================
+                if (auto qualifiedResult = buildModuleQualifiedCall(methodCallExpr))
+                    return *qualifiedResult;
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildMethodCall: calling method '"
                           << methodCallExpr->methodName << "'" << std::endl;

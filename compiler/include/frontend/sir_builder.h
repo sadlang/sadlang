@@ -1678,6 +1678,36 @@ namespace Sad
                  */
                 VariableInfo *lookupVariable(const std::string &name);
 
+                /**
+                 * @brief (AR) هل «اسم_فضاء.رمز» تأهيلٌ صحيحٌ لوحدةٍ مستوردة؟
+                 * @brief (EN) Is `namespaceName.symbolName` a valid module qualification?
+                 *
+                 * (AR) حاسمٌ **واحدٌ** يستعمله كلُّ من يفكّ التأهيل (النداء، العضو،
+                 *      الاستنتاج) فلا تتباعد شروطُهم — وقد تباعدت فعلًا ففات الحارسُ
+                 *      موضعًا من ثلاثة. يشترط ثلاثةً معًا:
+                 *      ١. أن يكون الاسمُ فضاءَ وحدةٍ في **هذا الملفّ** (moduleNamespaces_).
+                 *      ٢. ألّا يكون متغيّرًا حقيقيًّا — المتغيّرُ يفوز دائمًا فلا يُختطف
+                 *         نداءُ كائنٍ يصادف اسمُه اسمَ وحدة.
+                 *      ٣. أن يكون الرمزُ **مِن تلك الوحدة** لا من الجدولِ العامّ.
+                 *      وإن صدَقت الثلاثةُ وكان الرمزُ نفسُه مُصدَّرًا من وحدةٍ أخرى
+                 *      مستوردةٍ كذلك، فالتأهيلُ **مُبهَم**: المصرّفُ يُسطّح فينهار
+                 *      الرمزان إلى واحدٍ ويفوز آخِرُهما، فيُملأ `ambiguityDiagnostic`
+                 *      ويُرفض الحلُّ — تشخيصٌ صريحٌ خيرٌ من قيمةٍ خاطئةٍ صامتة.
+                 * (EN) ONE decider used by every un-qualifier (call, member, inference) so
+                 *      their conditions cannot drift — they already had, and the guard was
+                 *      missing in one of three places. Requires all of: (1) the name is a
+                 *      module namespace in THIS file; (2) it is not a real variable — a
+                 *      variable always wins; (3) the symbol belongs to THAT module, not merely
+                 *      to the global table. If it does, but the same symbol is also exported by
+                 *      another imported module, the qualification is AMBIGUOUS: flattening
+                 *      collapses both into one symbol and the last wins, so
+                 *      `ambiguityDiagnostic` is filled and resolution refused — an explicit
+                 *      diagnostic beats a silently wrong value.
+                 */
+                bool isModuleQualifiedSymbol(const std::string &namespaceName,
+                                             const std::string &symbolName,
+                                             std::string &ambiguityDiagnostic);
+
                 // ==================================================================
                 // إدارة الحلقات / Loop Management
                 // ==================================================================

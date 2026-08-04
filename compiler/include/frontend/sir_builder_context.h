@@ -33,6 +33,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <set>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -507,6 +508,54 @@ namespace Sad
                 //      its sibling's value under the same name. Only what the fallback
                 //      itself seeded is erased on scope exit, never a legitimate global.
                 std::unordered_set<std::string> aliasSeededGlobals_;
+
+                // (AR) فضاءاتُ أسماءِ الوحدات: الاسمُ الفعّالُ لـ«استورد م [كـ ر]» ⇐ اسمُ
+                //      الوحدة الكامل. المفسّرُ يجعل هذه الصيغةَ **فضاءَ أسماءٍ حصرًا**
+                //      (`ر.جمع(…)` تعمل والمسطَّحةُ `جمع(…)` تُخطئ SEM004)، والمصرّفُ كان
+                //      **يُسطّح حصرًا** فيفشل المؤهَّلُ بـ«Undefined variable 'ر'» —
+                //      تباعُدٌ متعاكسٌ تامٌّ لا يعمل معه أيُّ برنامجٍ في المحرّكَين
+                //      (ISSUE-090). فتُقيَّد هنا ليقبل المصرّفُ الصيغةَ المؤهَّلةَ كذلك،
+                //      حالًّا إيّاها إلى الرمز المسطَّح الذي يبنيه أصلًا.
+                //      🔑 مُنطَّقةٌ بالملفّ كـ importAliases_ وللسبب نفسِه: «استورد م»
+                //      في وحدةٍ لا يُتيح فضاءَها لمستعمِلها.
+                // (EN) Module namespaces: the effective name of `استورد م [كـ ر]` ⇒ the full
+                //      module name. The interpreter makes this form a namespace EXCLUSIVELY
+                //      (`ر.جمع(…)` works, flat `جمع(…)` raises SEM004) while the compiler
+                //      flattened EXCLUSIVELY, failing the qualified form with "Undefined
+                //      variable 'ر'" — a fully inverted divergence under which no program
+                //      using this form ran on both engines (ISSUE-090). Recorded here so the
+                //      compiler also accepts the qualified form, resolving it to the flat
+                //      symbol it already builds.
+                //      🔑 File-scoped like importAliases_ and for the same reason: an
+                //      `استورد م` inside a module does not expose m's namespace to its user.
+                std::unordered_map<std::string, std::string> moduleNamespaces_;
+
+                // (AR) رموزُ كلِّ وحدةٍ المُصدَّرة، بمفتاحِ اسمِ الوحدةِ الكامل. لازمةٌ
+                //      لأنّ الخريطةَ أعلاه تقول «ر وحدةٌ» ولا تقول «أيُّ رمزٍ فيها»:
+                //      فبدونها كان النداءُ المؤهَّلُ يُحَلّ من جدولِ الدوالِّ **العامّ**
+                //      فيقبل رمزًا من وحدةٍ أخرى لم تُؤهَّل به، وأخطرُ منه أنّ وحدتَين
+                //      تُصدّران الاسمَ نفسَه تنهاران إلى رمزٍ مسطَّحٍ واحدٍ فيفوز آخِرُهما
+                //      صامتًا (`فضاء_أول.أعط()` و`فضاء_ثان.أعط()` تُرجعان القيمةَ عينَها).
+                //      وهو ما كشفته مراجعةُ أميليا: انحدارٌ من فشلٍ صريحٍ إلى **قيمةٍ
+                //      خاطئةٍ صامتة** في عينِ الحالةِ التي وُجد فضاءُ الأسماءِ من أجلها.
+                //      غيرُ مُنطَّقةٍ بالملفّ عمدًا: «ما تُصدّره الوحدةُ م» حقيقةٌ عنها
+                //      لا ربطٌ محلّيٌّ لمن استوردها.
+                // (EN) Each module's exported symbols, keyed by full module name. Required
+                //      because the map above says "ر is a module" but not "which symbols it
+                //      holds": without it a qualified call resolved against the GLOBAL function
+                //      table, accepting a symbol from a different module, and — worse — two
+                //      modules exporting the same name collapse to one flat symbol so the last
+                //      one silently wins. Deliberately NOT file-scoped: "what module m exports"
+                //      is a fact about m, not a local binding of whoever imported it.
+                std::unordered_map<std::string, std::set<std::string>> moduleExportedSymbols_;
+
+                // (AR) الوحداتُ التي يجري إتْباعُ إعادةِ تصديرٍ إليها الآن — قاطعُ الدور.
+                //      انظر buildReExportStmt: بدونه تنهار وحدتان تُعيد كلٌّ تصديرَ
+                //      الأخرى بانهيارِ مكدّسٍ بلا تشخيص.
+                // (EN) Modules whose re-export is currently being followed — the cycle
+                //      breaker. See buildReExportStmt: without it two mutually re-exporting
+                //      modules die by stack overflow with no diagnostic.
+                std::unordered_set<std::string> reExportsInFlight_;
 
                 // (AR) أنواعُ ثوابتِ/متغيّراتِ الوحدات المستوردة العُليا، مبذورةً قبل
                 //      الطور 1.7. عِلّتُها: عوالمُ الوحدة لا تُبعَث في module_ إلّا في

@@ -59,6 +59,27 @@ namespace Sad
 
                 BuildResult buildMethodCall(Sad::AST::MethodCallExpr *methodCallExpr);
 
+                /**
+                 * @brief (AR) نداءٌ مؤهَّلٌ بفضاءِ وحدة: «ر.جمع(١، ٢)» ⇐ «جمع(١، ٢)»
+                 * @brief (EN) Module-qualified call: `ر.جمع(1, 2)` ⇒ `جمع(1, 2)`
+                 *
+                 * (AR) المصرّفُ يُسطّح رموزَ الوحدةِ في الفضاء العامّ، فالمؤهَّلُ **نفسُ**
+                 *      النداءِ المسطَّح دلالةً. ولذلك يُمرَّر إلى buildFunctionCall عينِها
+                 *      لا إلى نسخةٍ منها: مسارُ النداءِ فيه المدمَجاتُ والإغلاقاتُ
+                 *      والوسائطُ الافتراضيّةُ وقسرُ الأنواع، ونسخُه يُنتج تباعُدًا بين
+                 *      «جمع(٥)» و«ر.جمع(٥)» — وهو الصنفُ نفسُه من العيوب الذي نغلقه.
+                 *      يُرجع std::nullopt إن لم يكن الكائنُ فضاءَ وحدةٍ فيمضي المسارُ العاديّ.
+                 * (EN) The compiler flattens module symbols into the global namespace, so the
+                 *      qualified form IS the flat call semantically. It is therefore routed
+                 *      through the very same buildFunctionCall rather than a copy of it: that
+                 *      path carries builtins, closures, default arguments and type coercion,
+                 *      and duplicating it would make `جمع(5)` and `ر.جمع(5)` diverge — the
+                 *      exact class of defect being closed here. Returns std::nullopt when the
+                 *      object is not a module namespace, leaving the normal path untouched.
+                 */
+                std::optional<BuildResult> buildModuleQualifiedCall(
+                    Sad::AST::MethodCallExpr *methodCallExpr);
+
             private:
                 SIRBuilder &b_;
 
