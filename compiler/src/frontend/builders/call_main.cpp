@@ -665,7 +665,27 @@ namespace Sad
                         SadTypeKind argType = argResults[i].type;
                         SadTypeKind &paramType = funcInfo.parameters[i].type;
 
-                        if (paramType == SadTypeKind::Integer && argType == SadTypeKind::String)
+                        // (AR) ز.٣٦: لا تُعِد كتابةَ توقيعِ دالّةٍ بُنيت أصلًا. موقعُ
+                        //      استدعاءٍ لاحقٌ بوسيطٍ نصّيٍّ كان يقلب نوعَ المعامل بعد
+                        //      بناءِ الجسم، فيصير التوقيعُ مخالفًا للكود المُولَّد.
+                        //      «بُنيت» = لها كتلةٌ أساسيّةٌ واحدةٌ على الأقلّ؛ لا مجرّدُ
+                        //      `sirFunction != nullptr`، فبناةُ الأصناف والامتدادات
+                        //      يُسنِدونها **قبل** بناءِ الجسم، فيصير المؤشّرُ وحدَه
+                        //      مانعًا لاستنتاجٍ مشروع.
+                        // (EN) ز.٣٦: never rewrite the signature of an ALREADY-BUILT
+                        //      function. A later string-arg call site used to flip the
+                        //      param type after the body was built, leaving the
+                        //      signature inconsistent with the emitted code.
+                        //      "Built" means it has at least one basic block — NOT merely
+                        //      `sirFunction != nullptr`: the class/extension builders
+                        //      assign it BEFORE building the body, so the bare pointer
+                        //      would block legitimate inference.
+                        const bool calleeAlreadyBuilt =
+                            (funcInfo.sirFunction != nullptr &&
+                             !funcInfo.sirFunction->basicBlocks.empty());
+
+                        if (paramType == SadTypeKind::Integer && argType == SadTypeKind::String &&
+                            !calleeAlreadyBuilt)
                         {
                             // (AR) تحديث إلى STRING — المعامل يستقبل نصوصاً
                             // (EN) Update to STRING — parameter receives strings

@@ -232,9 +232,18 @@ namespace Sad
                 case Types::SadTypeKind::Never:
                 // (AR) «أي»: يُخفَض هنا إلى i64 لا إلى Any، لأنّ Any في مُخطِّط أنواع
                 //      LLVM هو %SadDyn (ISSUE-076)؛ ورفعُ المُعلَن «أي» إليه تغييرُ ABI
-                //      يُقاس منفردًا. (EN) `أي` lowers to i64, not Any: the mapper lowers
-                //      Any to %SadDyn (ISSUE-076), and promoting the DECLARED `أي` to it
-                //      is an ABI change to be measured on its own.
+                //      يُقاس منفردًا. جُرِّب الرفعُ فعلًا وأُعيد: الخلفيّةُ ليست جاهزةً —
+                //      `normalizeArrayPtr` لا حالةَ %SadDyn فيها (بخلاف شقيقتِها
+                //      `normalizeArrayIndex`) فتنهار `م[٠]` بـSIGSEGV صامت، ويُمرَّر
+                //      %SadDyn بالقيمة عبر حدِّ C فتفسد `دالة خارجية`. الحالتان مسجَّلتان
+                //      شرطَي قبولٍ لأيِّ محاولةٍ لاحقة.
+                //      (EN) `أي` lowers to i64, not Any: the mapper lowers Any to %SadDyn
+                //      (ISSUE-076), and promoting the DECLARED `أي` to it is an ABI change
+                //      measured on its own. It WAS tried and reverted: the backend is not
+                //      ready — `normalizeArrayPtr` has no %SadDyn case (unlike its sibling
+                //      `normalizeArrayIndex`), so `a[0]` SIGSEGVs silently, and %SadDyn is
+                //      passed by value across the C boundary, breaking `extern`. Both are
+                //      recorded as acceptance criteria for any future attempt.
                 case Types::SadTypeKind::Any:
                 // (AR) مجهول: نائبٌ يستبدله استنتاجُ الأنواع لاحقًا.
                 // (EN) Unknown: placeholder overwritten by type inference.

@@ -1799,6 +1799,11 @@ namespace Sad
                 return Types::SadTypeKind::UInt64;
             if (match(TT::TYPE_U8))
                 return Types::SadTypeKind::Byte;
+            // (AR) «أي» يصله المُعجَمُ رمزًا مخصَّصًا (TYPE_ANY في keywords.yaml)، وكان
+            //      المحلّلُ يتجاهله فيسقط إلى مسارِ المُعرّفات. (EN) The lexer emits a
+            //      dedicated TYPE_ANY token; the parser ignored it and fell through.
+            if (match(TT::TYPE_ANY))
+                return Types::SadTypeKind::Any;
 
             if (match(TT::TYPE_ARRAY))
             {
@@ -1842,8 +1847,12 @@ namespace Sad
                     resolved = Types::SadTypeKind::Array;
                 else if (name == "خريطة")
                     resolved = Types::SadTypeKind::Map;
+                // (AR) «أي» نوعٌ ديناميٌّ لا صنف؛ ربطُه بـClass كان سهوًا يُخفيه
+                //      أنّ المسارَ الشقيقَ في هذا الملفِّ نفسِه يُرجع Any.
+                // (EN) `أي` is the dynamic type, not a class; mapping it to Class was
+                //      an oversight — the sibling path in this same file returns Any.
                 else if (name == "أي")
-                    resolved = Types::SadTypeKind::Class;
+                    resolved = Types::SadTypeKind::Any;
                 else if (name == "طبيعي64")
                     resolved = Types::SadTypeKind::UInt64;
                 else if (name == "بايت")
@@ -1949,6 +1958,8 @@ namespace Sad
                 return reg.getUInt64();
             if (match(TT::TYPE_U8))
                 return reg.getByte();
+            if (match(TT::TYPE_ANY))
+                return reg.getAny();
 
             if (match(TT::TYPE_ARRAY))
             {
@@ -2071,7 +2082,8 @@ namespace Sad
                 tokenType == TT::TYPE_STRING || tokenType == TT::TYPE_BOOLEAN ||
                 tokenType == TT::TYPE_VOID || tokenType == TT::TYPE_NULL ||
                 tokenType == TT::TYPE_ARRAY || tokenType == TT::TYPE_MAP ||
-                tokenType == TT::TYPE_U64 || tokenType == TT::TYPE_U8)
+                tokenType == TT::TYPE_U64 || tokenType == TT::TYPE_U8 ||
+                tokenType == TT::TYPE_ANY)
             {
                 return true;
             }
@@ -2263,6 +2275,8 @@ namespace Sad
                 return Types::SadTypeKind::UInt64;
             case TT::TYPE_U8:
                 return Types::SadTypeKind::Byte;
+            case TT::TYPE_ANY:
+                return Types::SadTypeKind::Any;
             default:
                 return Types::SadTypeKind::Unknown;
             }

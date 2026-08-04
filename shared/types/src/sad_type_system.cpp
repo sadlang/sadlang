@@ -62,6 +62,13 @@ namespace Sad
             case SadTypeKind::Enum:
             case SadTypeKind::Trait:
                 return VT::Class;
+            // (AR) «أي» تُقابل نفسَها؛ إسقاطُها إلى فراغٍ عبر الافتراضِ هو نظيرُ العيبِ
+            //      المُصلَحِ في `fromValueType` — يُسدّ هنا كي لا يبقى الاتّجاهان متباعدَين.
+            // (EN) Any maps to itself; letting it fall to Void through the default is the
+            //      mirror of the bug fixed in `fromValueType` — sealed so the two
+            //      directions do not drift apart.
+            case SadTypeKind::Any:
+                return VT::Any;
             default:
                 return VT::Void;
             }
@@ -107,6 +114,14 @@ namespace Sad
             case VT::Result:
             case VT::Future:
             case VT::Generator:
+                return reg.getAny();
+            // (AR) «أي» صراحةً: كان يسقط إلى فراغ عبر الافتراضِ أدناه، فيُطلِق المفسّرُ
+            //      تحذيرَ «تعيينُ رقمٍ لمتغيّرٍ من نوع فراغ» على `أي س = ٤٢` السليمة.
+            //      لم يظهر قبلًا إلّا لأنّ المحلّلَ كان يربط «أي» بـClass خطأً.
+            // (EN) Explicit Any: it used to fall to the default below and become Void,
+            //      making the interpreter warn on a perfectly valid `أي x = 42`. It was
+            //      masked only because the parser wrongly mapped `أي` to Class.
+            case VT::Any:
                 return reg.getAny();
             }
             return reg.getVoid();
