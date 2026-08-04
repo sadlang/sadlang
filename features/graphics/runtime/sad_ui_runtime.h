@@ -313,6 +313,15 @@ void sad_close_window(void);
  *  مخصّصًا في الكومة يملكه المستدعي (نظير sad_readline). عنوانٌ فارغ/null ⇒ العنوان الافتراضيّ
  *  من HtmlCodegenOptions (مطابقٌ للمفسّر). */
 char* sad_generate_web(SadWidget root, const char* title);
+/** توليد_أندرويد(عنصر, اسم؟) — كود Kotlin/Compose. الاسمُ يُسمّي دالّةَ Composable المولَّدة
+ *  لا حزمةَ كوتلن (الحزمةُ إعدادُ بناءٍ ثابتٌ في ComposeCodegenOptions). فارغ/null ⇒ الافتراضيّ. */
+char* sad_generate_android(SadWidget root, const char* generatedName);
+/** توليد_آي_أو_إس(عنصر, اسم؟) — كود Swift/SwiftUI. الاسمُ يُسمّي بنيةَ View المولَّدة.
+ *  فارغ/null ⇒ الافتراضيّ. */
+char* sad_generate_ios(SadWidget root, const char* generatedName);
+/** توليد_ماك(عنصر, اسم؟) — كود Swift/AppKit. الاسمُ يُسمّي متحكّمَ العرضِ المولَّد.
+ *  فارغ/null ⇒ الافتراضيّ. */
+char* sad_generate_macos(SadWidget root, const char* generatedName);
 
 /** دمّر_تطبيق(تطبيق) */
 void sad_app_destroy(SadApp app);

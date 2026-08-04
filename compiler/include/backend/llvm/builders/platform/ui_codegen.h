@@ -52,7 +52,10 @@ public:
     llvm::Value *emitUiSetState(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSetTitle(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiCloseWindow(std::shared_ptr<SIRInstruction> inst);
-    llvm::Value *emitUiGenWeb(std::shared_ptr<SIRInstruction> inst);
+    // (AR) أبوابُ توليدِ كودِ المنصّة الأربعة — جسمٌ واحدٌ يتغيّر فيه اسمُ
+    //      دالّةِ وقتِ التشغيل وحدَه (توليد_ويب/أندرويد/آي_أو_إس/ماك).
+    llvm::Value *emitUiGenPlatform(std::shared_ptr<SIRInstruction> inst,
+                                   const char *runtimeName);
     llvm::Value *emitUiAppSetRoot(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiButton(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiButtonVariant(std::shared_ptr<SIRInstruction> inst);

@@ -1137,10 +1137,14 @@ llvm::Value* UICodeGen::emitUiCloseWindow(std::shared_ptr<SIRInstruction> /*inst
     return emitUIRuntimeCall(cg_, "sad_close_window", voidTy, {}, {});
 }
 
-// (إكمال) توليد_ويب(عنصر, عنوان؟) ⇒ sad_generate_web(root, title) → char* (String).
+// (إكمال) أبوابُ توليدِ كودِ المنصّة: توليد_ويب/أندرويد/آي_أو_إس/ماك(عنصر, اسم؟)
+//   ⇒ sad_generate_*(root, name) → char* (String). أربعتُها جسمٌ واحدٌ لا يفترق إلّا
+//   في اسمِ دالّةِ وقتِ التشغيل، وكلُّها تنتهي إلى مولّدِ المكتبةِ نفسِه الذي يستدعيه
+//   المفسّر ⇒ تكافؤٌ بايتيّ.
 //   بانٍ (دالّة تُرجع عنصرًا) ⇒ نبنيه أوّلًا لعنصرٍ عبر ثانك البانِي (نظير buildCurrent)
 //   ثمّ نولّد؛ عنصر (لقطة) ⇒ يُمرَّر مباشرة ⇒ يقبل توليد_ويب(دالّة) كالمفسّر. النتيجة نصّ.
-llvm::Value* UICodeGen::emitUiGenWeb(std::shared_ptr<SIRInstruction> inst) {
+llvm::Value* UICodeGen::emitUiGenPlatform(std::shared_ptr<SIRInstruction> inst,
+                                          const char* runtimeName) {
     auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
     llvm::Value* root = inst->operands.empty() ? llvm::ConstantPointerNull::get(ptrTy)
                                                : cg_.resolveOperand(inst->operands[0]);
@@ -1154,7 +1158,7 @@ llvm::Value* UICodeGen::emitUiGenWeb(std::shared_ptr<SIRInstruction> inst) {
     llvm::Value* title = inst->operands.size() > 1 ? cg_.resolveOperand(inst->operands[1])
                                                    : llvm::ConstantPointerNull::get(ptrTy);
     if (!title->getType()->isPointerTy()) title = llvm::ConstantPointerNull::get(ptrTy);
-    auto* result = emitUIRuntimeCall(cg_, "sad_generate_web", ptrTy, {ptrTy, ptrTy}, {root, title});
+    auto* result = emitUIRuntimeCall(cg_, runtimeName, ptrTy, {ptrTy, ptrTy}, {root, title});
     if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
     return result;
 }

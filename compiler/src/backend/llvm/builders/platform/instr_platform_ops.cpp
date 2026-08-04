@@ -397,7 +397,13 @@ namespace Sad
             case SIROpcode::BUILTIN_UI_CLOSE_WINDOW:
                 return cg_.emitUiCloseWindow(inst);
             case SIROpcode::BUILTIN_UI_GEN_WEB:
-                return cg_.emitUiGenWeb(inst);
+                return cg_.emitUiGenPlatform(inst, "sad_generate_web");
+            case SIROpcode::BUILTIN_UI_GEN_ANDROID:
+                return cg_.emitUiGenPlatform(inst, "sad_generate_android");
+            case SIROpcode::BUILTIN_UI_GEN_IOS:
+                return cg_.emitUiGenPlatform(inst, "sad_generate_ios");
+            case SIROpcode::BUILTIN_UI_GEN_MACOS:
+                return cg_.emitUiGenPlatform(inst, "sad_generate_macos");
 
             // ====================================================================
             // القسم 21: التوجيهات / Directives (@حجم, @ذري)

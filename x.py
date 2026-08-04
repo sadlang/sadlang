@@ -63,8 +63,52 @@ ENGINES = {
     "sad-build": "المترجم / compiler",
 }
 
-EXE = ".exe" if platform.system() == "Windows" else ""
+_WINDOWS = platform.system() == "Windows"
+EXE = ".exe" if _WINDOWS else ""
 VALID_CONFIGS = ("Debug", "Release", "RelWithDebInfo", "MinSizeRel")
+
+# (AR) أنماط اسم المكتبة الساكنة — نجرّبها كلَّها لأنّ اللاحقة تحدّدها **سلسلة
+#      الأدوات** لا نظام التشغيل: MinGW/Clang-GNU على ويندوز يُنتج
+#      `libfoo.a`، وMSVC يُنتج `foo.lib`. تثبيتُ نمطٍ واحد يعني تخطّيًا صامتًا
+#      لكلّ المكتبات على سلسلةٍ مغايرة ودِست يبدو سليمًا. الأنماط هنا هي نفسها
+#      التي يقبلها سائق المترجم
+#      (compiler_driver_build_utils.cpp::has_library_file_in_dir) فلا تتباعد
+#      الطبقتان في ما تَعُدّه «مكتبةً موجودة».
+# (EN) Static-library name patterns: the suffix is decided by the TOOLCHAIN, not
+#      the OS. Mirrors has_library_file_in_dir on the driver side so both layers
+#      agree on what counts as a present library.
+LIB_PATTERNS = ("{name}.lib", "lib{name}.a", "{name}.a")
+# (AR) كلُّ لاحقةٍ نعدّها مكتبةً حين ننظّف dist من البائت (انظر _stage).
+LIB_SUFFIXES = (".lib", ".a")
+
+# (AR) مكتبات وقت التشغيل التي **يربطها المترجَم في برامج المستخدم** — لا
+#      يستعملها المحرّكان أنفسُهما. سائق المترجم يبحث عنها بجوار ثنائيّه
+#      (`get_executable_dir()` وما فوقه؛ انظر
+#      tools/compiler/compiler_driver_build_utils.cpp::append_bundled_network_libraries)،
+#      فإن لم تُنسَخ إلى dist/ لم يجدها الثنائيّ المُثبَّت: تُترجَم برامج
+#      الواجهة والشبكة ثمّ **يفشل ربطها** برموزٍ غير معرَّفة (sad_text،
+#      sad_generate_web…).
+#      حدُّ الادّعاء صراحةً: هذا يجعل dist/ مكتفيًا **داخل شجرة المستودع**
+#      لا على جهازٍ آخر — فـsad_graphics تجرّ SDL2/SDL2_ttf المُورَّدتين
+#      ولا تُنضَّدان هنا؛ الربطُ ينجح لأنّ سائق المترجم يصعد آباءَ ثنائيّه
+#      فيجد features/graphics/third_party. حزمةٌ منقولةٌ تحتاج شحنَ الموردات
+#      بجوار الثنائيّ (دَينٌ موثَّق).
+#      اختياريّة كلُّها: ما لم يُبنَ في هذه التهيئة يُتخطّى بلا فشل (الوضع
+#      الحرّ مثلًا هدفٌ منفصل لا تبنيه بوّابة المحرّكين) — والمتخطَّى يُسجَّل
+#      في مخرَج البناء كي لا يكون الغيابُ صامتًا.
+# (EN) Runtime libraries the COMPILER links into user programs (not used by the
+#      engines themselves). The driver looks for them next to its own binary, so
+#      a dist/ without them compiles UI/network programs that then fail to link.
+#      All optional: whatever this config did not build is skipped.
+RUNTIME_LIBRARIES = (
+    "sad_graphics_runtime",
+    "sad_graphics",
+    "sad_graphics_runtime_freestanding",
+    "sad_graphics_freestanding",
+    "sad_http",
+    "sad_network",
+    "sad_websocket",
+)
 
 # ──────────────────────────────────────────────────────────────────────
 # (AR) نطاقات التوليد من مصدر الحقيقة — المرحلة 1 من sadlang-rfcs#10
@@ -482,6 +526,15 @@ SOT_CHECK_GUARDS = (
         "args": (),
     },
     {
+        # (AR) اكتمال التصيير: كلّ عقدة UINodeType لها حالة في كلّ هدف تصيير،
+        #      أو استثناءٌ مُعلَنٌ بسببٍ مكتوب في ui_nodes.yaml (ث٤+ث٨).
+        # (EN) Render completeness: every UINodeType has a case in every render
+        #      target, or a declared+justified exemption in ui_nodes.yaml.
+        "name": "ui_render_completeness",
+        "script": "check_ui_render_completeness.py",
+        "args": (),
+    },
+    {
         # (AR) لا مفاتيح خصائص خام في features/graphics — استعمل ثوابت props:: المولَّدة.
         # (EN) No raw property-key literals in graphics — use generated props:: constants.
         "name": "no_raw_props",
@@ -620,6 +673,24 @@ def _find_binary(name: str, config: str) -> Path | None:
     return None
 
 
+def _find_library(name: str, config: str) -> Path | None:
+    """(AR) يحدّد موقع مكتبة وقت تشغيل بعد البناء (نظير _find_binary).
+    (EN) Locate a produced runtime library (mirror of _find_binary)."""
+    # (AR) التهيئةُ أولى من النمط: لو صُدِّرت الأنماطُ خارجًا لهزم احتياطُ
+    #      أحاديِّ التهيئة (build/lib/foo.lib) المسارَ الصحيحَ لهذه التهيئة
+    #      (build/lib/<config>/libfoo.a) فنُنضِّد مكتبةَ تهيئةٍ أخرى.
+    # (EN) Config outranks pattern: otherwise the single-config fallback would
+    #      beat the correct per-config path and stage another config's library.
+    for directory in (BUILD_DIR / "lib" / config,   # multi-config (VS)
+                      BUILD_DIR / "lib",            # single-config
+                      BUILD_DIR / config / "lib"):
+        for pattern in LIB_PATTERNS:
+            candidate = directory / pattern.format(name=name)
+            if candidate.exists():
+                return candidate
+    return None
+
+
 # ──────────────────────────────────────────────────────────────────────
 # الأوامر / Commands
 # ──────────────────────────────────────────────────────────────────────
@@ -645,6 +716,7 @@ def _stage(config: str) -> dict:
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "generator": _generator(),
         "binaries": {},
+        "libraries": {},
     }
     for name in ENGINES:
         src = _find_binary(name, config)
@@ -659,6 +731,48 @@ def _stage(config: str) -> dict:
             "size": out.stat().st_size,
             "source": str(src.relative_to(ROOT)).replace("\\", "/"),
         }
+    # (AR) مكتبات وقت التشغيل: يحتاجها **الرابط** حين يبني المترجَمُ برنامجَ
+    #      مستخدمٍ يستورد رسوماتٍ أو شبكة. غيابها لا يمنع تشغيل المحرّكين، لذا
+    #      لا نفشل على المفقود — نسجّل الموجود ونمضي.
+    #      (Amelia مراجعة٣) نمسح البائتَ أوّلًا: النسخُ فوق الموجود يُبقي مكتبةً
+    #      لهدفٍ لم تعد التهيئةُ تبنيه، وسائقُ المترجم يكشف الواجهةَ بوجود
+    #      **الملفّ** لا بالـmanifest (has_library_file_in_dir) ⇒ يُربَط منطقُ
+    #      واجهةٍ ميّتٌ ببرنامج المستخدم و`verify` صامت. بعد المسح يصير dist/
+    #      مرآةً لِما بُني فعلًا في هذه الجولة لا تراكمًا تاريخيًّا.
+    #      (مراجعة٣ب) المسحُ **مقصورٌ على ما نملكه** — أسماءُ RUNTIME_LIBRARIES
+    #      بأنماطها — فمن يشحن SDL2.lib بجوار الثنائيّ لا نحذف مورده. ونحذف
+    #      بعد النسخ لا قبله: لو أخفق الاكتشافُ ونجح البناءُ لَمَحونا سليمًا
+    #      بلا بديل، فيفقد dist دعمَ الواجهات على تحسينٍ لا على عطب.
+    # (EN) Wipe stale libs — but only files WE own (RUNTIME_LIBRARIES × patterns),
+    #      and only after the copies succeeded, so a discovery miss never destroys
+    #      a working dist. The driver detects UI by FILE presence, not the manifest.
+    owned = {
+        pattern.format(name=name)
+        for name in RUNTIME_LIBRARIES
+        for pattern in LIB_PATTERNS
+    }
+    skipped: list[str] = []
+    staged_files: set[str] = set()
+    for name in RUNTIME_LIBRARIES:
+        src = _find_library(name, config)
+        if src is None:
+            skipped.append(name)
+            continue
+        out = dest / src.name
+        shutil.copy2(src, out)
+        staged_files.add(out.name)
+        manifest["libraries"][name] = {
+            "file": out.name,
+            "sha256": _sha256(out),
+            "size": out.stat().st_size,
+            "source": str(src.relative_to(ROOT)).replace("\\", "/"),
+        }
+    for old in dest.iterdir():
+        if old.is_file() and old.name in owned and old.name not in staged_files:
+            old.unlink()
+    # (AR) المتخطَّى جزءٌ من الحقيقة: يقرؤه cmd_build فيُعلنه، ويقرؤه cmd_verify
+    #      فيُميّز في رسالة اليتيم «بقيّةَ بناءٍ سابق» عن «دخيلٍ مجهول».
+    manifest["libraries_skipped"] = skipped
     (dest / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
@@ -693,6 +807,16 @@ def cmd_build(args: argparse.Namespace) -> None:
         _log(f"✓ {config}: ثُبّت المحرّكان في / staged engines to dist/{config}/")
         for name, info in manifest["binaries"].items():
             _log(f"    {name:<10} sha256={info['sha256'][:16]}…  ({info['size']} bytes)")
+        staged_libs = manifest.get("libraries", {})
+        if staged_libs:
+            _log(f"    + {len(staged_libs)} مكتبة وقت تشغيل للرابط / runtime libs "
+                 f"for the linker: {', '.join(sorted(staged_libs))}")
+        # (AR) الغيابُ يُعلَن ولا يُسكَت عنه: مكتبةٌ متوقَّعةٌ لم تُبنَ تعني برنامجَ
+        #      مستخدمٍ يفشل ربطُه لاحقًا برموزٍ غير معرَّفة، والسببُ هنا لا هناك.
+        skipped_libs = manifest.get("libraries_skipped", [])
+        if skipped_libs:
+            _log(f"    − لم تُبنَ في هذه التهيئة (تُخطّيت) / not built here: "
+                 f"{', '.join(sorted(skipped_libs))}")
 
     _log("✓ اكتمل البناء الذرّيّ / atomic build complete.")
 
@@ -734,6 +858,49 @@ def cmd_verify(args: argparse.Namespace) -> None:
             if actual != info["sha256"]:
                 _fail(f"بصمة بائتة / stale fingerprint: {name} ({config}) — "
                       f"الملف على القرص لا يطابق manifest. أعد البناء.")
+
+        # (AR) مكتبات وقت التشغيل تخضع لنفس كشف البيات: مكتبةٌ بائتةٌ في dist/
+        #      تعني برنامجَ مستخدمٍ يُربَط بمنطقٍ قديمٍ صامتًا — أخطرُ من فشل ربط.
+        for name, info in manifest.get("libraries", {}).items():
+            out = DIST_DIR / config / info["file"]
+            if not out.exists():
+                _fail(f"مكتبة وقت تشغيل مفقودة / missing runtime library: {out}")
+            if _sha256(out) != info["sha256"]:
+                _fail(f"بصمة بائتة / stale fingerprint: {name} ({config}) — "
+                      f"الملف على القرص لا يطابق manifest. أعد البناء.")
+
+        # (AR) (Amelia مراجعة٣) الاتّجاه المعاكس: ملفُّ مكتبةٍ في dist/ لا يذكره
+        #      الـmanifest. البصماتُ تكشف تبدُّلَ المذكور، وهذا يكشف الدخيل —
+        #      وهو الأخطر: سائقُ المترجم يكشف الواجهةَ بوجود الملفّ فيربط منطقًا
+        #      لا يعرف أحدٌ من أيّ التزامٍ جاء.
+        # (EN) The other direction: a library file in dist/ the manifest does not
+        #      list. The driver detects UI by file presence, so an orphan silently
+        #      links logic from an unknown commit.
+        #      النطاقُ مقصورٌ على أسماءِ RUNTIME_LIBRARIES: موردٌ يشحنه المستخدم
+        #      بجوار الثنائيّ (SDL2.lib مثلًا) ليس دخيلًا فلا يُفشِل البوّابة.
+        listed = {info["file"] for info in manifest.get("libraries", {}).values()}
+        owned = {
+            pattern.format(name=name)
+            for name in RUNTIME_LIBRARIES
+            for pattern in LIB_PATTERNS
+        }
+        skipped_files = {
+            pattern.format(name=name)
+            for name in manifest.get("libraries_skipped", [])
+            for pattern in LIB_PATTERNS
+        }
+        orphans = sorted(
+            p.name for p in (DIST_DIR / config).iterdir()
+            if p.is_file() and p.name in owned and p.name not in listed
+        )
+        if orphans:
+            # (AR) نُميّز بقيّةَ بناءٍ سابقٍ لهدفٍ لم يُبنَ الآن عن الدخيل المجهول.
+            stale = [n for n in orphans if n in skipped_files]
+            hint = (f" (بقيّةُ بناءٍ سابق لأهدافٍ لم تُبنَ في هذه التهيئة: "
+                    f"{', '.join(stale)})" if stale else "")
+            _fail(f"مكتبات يتيمة في / orphan libraries in dist/{config}: "
+                  f"{', '.join(orphans)}{hint} — أعد البناء (x.py build) لتنظيفها.")
+
         _log(f"✓ {config}: زوج متطابق التهيئة، بصمات سليمة / consistent pair, fingerprints OK.")
 
     _log("✓ التحقّق نجح / verification passed.")

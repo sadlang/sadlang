@@ -113,34 +113,31 @@ namespace sad
                 // body
                 out << ind(1) << "var body: some View {\n";
 
-                if (module.root)
-                {
-                    out << generateNode(*module.root, 2);
-                }
+                // (AR) نلتقط جسمَ العرضِ نصًّا قبلَ كتابتِه كي نفحصَ **محتواه**
+                //      لا اسمَ الوحدةِ وحدَه. (Amelia مراجعة١، متوسطة) كان
+                //      الاتّجاهُ يُشتقّ من `module.name` وأسماءِ الحالةِ فقط، فمتى
+                //      استُدعي البابُ بلا اسمٍ (والافتراضيُّ لاتينيّ) خرجت واجهةٌ
+                //      عربيّةُ النصِّ بتخطيطٍ يسارًا-إلى-يمين.
+                const std::string body = module.root ? generateNode(*module.root, 2)
+                                                     : std::string();
+                out << body;
 
                 // RTL للعربية — شرطي: فقط إذا كان المحتوى يحتوي على أحرف عربية
-                bool isArabicContent = false;
-                for (unsigned char c : module.name)
-                {
-                    if (c >= 0xD8 && c <= 0xDF)
-                    {
-                        isArabicContent = true;
-                        break;
-                    }
-                }
+                auto hasArabicBytes = [](const std::string &text) {
+                    for (unsigned char c : text)
+                        if (c >= 0xD8 && c <= 0xDF)
+                            return true;
+                    return false;
+                };
+                bool isArabicContent = hasArabicBytes(module.name) || hasArabicBytes(body);
                 if (!isArabicContent)
                 {
                     for (const auto &[sName, _] : module.stateDefinitions)
-                    {
-                        for (unsigned char c : sName)
-                            if (c >= 0xD8 && c <= 0xDF)
-                            {
-                                isArabicContent = true;
-                                break;
-                            }
-                        if (isArabicContent)
+                        if (hasArabicBytes(sName))
+                        {
+                            isArabicContent = true;
                             break;
-                    }
+                        }
                 }
                 if (isArabicContent)
                 {

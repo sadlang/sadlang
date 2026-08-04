@@ -1304,3 +1304,56 @@ functions:
   - "جذر: عنصر الجذر"
   - "عنوان: عنوان صفحة الويب (اختياريّ)"
   lookup_table: name_only
+# (AR) أبوابُ مولّدات المنصّات — نظائرُ توليد_ويب. قبلَها كانت مولّدات
+#      Compose/SwiftUI/AppKit تُبنى في كلّ ثنائيّ ولا يبلغها مستخدمُ لغةِ ص
+#      إلّا من C++ (ث٦ من تحقيق دعم المنصّات): آلافُ الأسطرِ بلا بابٍ في اللغة.
+#      كلٌّ يأخذ جذرًا (عنصرًا أو بانيًا) ووسيطًا ثانيًا اختياريًّا يُسمّي
+#      **المخرَجَ نفسَه** — لا الحزمةَ ولا الوحدة: دالّةَ Composable في كوتلن،
+#      وبنيةَ View في سويفت، ومتحكّمَ العرضِ في AppKit — ويُعيد نصَّ الكودِ
+#      المولَّد كتوليد_ويب تمامًا. أمّا اسمُ حزمةِ كوتلن (com.sad.app) فإعدادُ
+#      بناءٍ لا وسيطُ استدعاءٍ، ولا يُضبَط من لغةِ ص اليومَ (دَينٌ موثَّق).
+- cpp_id: GEN_ANDROID
+  canonical: توليد_أندرويد
+  namespace: UICore
+  category: MODULE_FUNCTION
+  require_import: false
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 1.0.0
+  status: stable
+  description_ar: توليد_أندرويد
+  description_en: توليد_أندرويد
+  params:
+  - "جذر: عنصر الجذر"
+  - "اسم: اسم دالّة Composable المولَّدة (اختياريّ)"
+  lookup_table: name_only
+- cpp_id: GEN_IOS
+  canonical: توليد_آي_أو_إس
+  namespace: UICore
+  category: MODULE_FUNCTION
+  require_import: false
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 1.0.0
+  status: stable
+  description_ar: توليد_آي_أو_إس
+  description_en: توليد_آي_أو_إس
+  params:
+  - "جذر: عنصر الجذر"
+  - "اسم: اسم بنية View المولَّدة (اختياريّ)"
+  lookup_table: name_only
+- cpp_id: GEN_MACOS
+  canonical: توليد_ماك
+  namespace: UICore
+  category: MODULE_FUNCTION
+  require_import: false
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 1.0.0
+  status: stable
+  description_ar: توليد_ماك
+  description_en: توليد_ماك
+  params:
+  - "جذر: عنصر الجذر"
+  - "اسم: اسم متحكّم العرض المولَّد (اختياريّ)"
+  lookup_table: name_only

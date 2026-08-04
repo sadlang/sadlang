@@ -31,7 +31,7 @@
 #include <sad_ui/node.h>
 #include <sad_ui/nav.h> // (AR) م-تحكّم: مكدّس التنقّل المشترك (مصدر الحقيقة)
 #include <sad_ui/window_control.h> // (م-تحكّم) عنوان/إغلاق النافذة عبر المتحكّم المشترك
-#include <sad_ui/web/html_codegen.h> // (م-تحكّم) توليد_ويب عبر مولّد HTML المكتبيّ
+#include <sad_ui/platform_codegen.h> // (م-تحكّم) أبوابُ توليدِ كودِ المنصّة — مصدرٌ واحدٌ للمحرّكَين
 #include <sad_ui/types.h>
 // (AR) SoT مفاتيح الخصائص (props::PADDING…) — هيدر مولَّد ذاتيّ الاكتفاء بلا اعتماد
 //      خلفيّة، يُضمَّن دون قيد كي تراه كتّاب المفاتيح المستضافون (sad_set_padding)
@@ -1264,33 +1264,42 @@ void sad_set_window_title(const char* title) {
 }
 void sad_close_window(void) { sad::ui::windowController().requestClose(); }
 
-/* (توليد_ويب) يولّد HTML من شجرة العنصر عبر HtmlCodegen المكتبيّ (المنطق كلّه في المكتبة).
- * يعتمد المخرَج على شجرة IR + خيارات (اتّجاه/لغة/عنوان)؛ الخيارات الافتراضيّة في
- * HtmlCodegenOptions (rtl/ar/عنوان افتراضيّ) تطابق ما يضبطه المفسّر ⇒ مخرَجٌ بايتيٌّ مطابق.
- * (module.name لا يظهر في المخرَج فلا يؤثّر على التكافؤ.) النصّ المُعاد مخصّصٌ في الكومة
- * يملكه المستدعي (نظير sad_readline؛ لا مُحرِّر بعدُ في وقت تشغيل المترجم). */
-char* sad_generate_web(SadWidget root, const char* title) {
+/* (AR) جسمُ أبوابِ التوليدِ الأربعة: يفكّ العنصرَ إلى جذرِ IR ويسلّمه لمولّدِ
+ *      المكتبةِ نفسِه الذي يستدعيه المفسّر (generatePlatformCode) ⇒ التكافؤُ
+ *      البايتيُّ بالبناء لا بتكرارِ الخياراتِ في المحرّكَين.
+ * ⚠ حدٌّ موثَّق (Amelia M1، تباعد ضيّق مقبول = سوء استخدام): على جذرٍ فارغ
+ *   (root=null، أو بانٍ يُرجع لاشيء) يُرجع المترجم نصًّا فارغًا بصمت، بينما المفسّر
+ *   يُطلق خطأ الكتالوج (RUN_BUILTIN_REQUIRES_ARG). الاستعمال الصحيح (عنصر أو بانٍ
+ *   يُرجع عنصرًا) مطابقٌ بايتيًّا. لا نُدخِل بنية أخطاء في runtime المترجم لحالة
+ *   المدخل الباطل هذه (نظير حدّ بانِي التنقّل الذي يُرجع لاشيء). */
+static char* generatePlatformCodeToHeap(sad::ui::PlatformCodegenTarget target,
+                                        SadWidget root, const char* name) {
     auto* impl = toWidget(root);
-    std::string html;
-    // ⚠ حدٌّ موثَّق (Amelia M1، تباعد ضيّق مقبول = سوء استخدام): على جذرٍ فارغ
-    //   (root=null، أو بانٍ يُرجع لاشيء) يُرجع المترجم نصًّا فارغًا بصمت، بينما المفسّر
-    //   يُطلق خطأ الكتالوج (RUN_BUILTIN_REQUIRES_ARG). الاستعمال الصحيح (عنصر أو بانٍ
-    //   يُرجع عنصرًا) مطابقٌ بايتيًّا. لا نُدخِل بنية أخطاء في runtime المترجم لحالة
-    //   المدخل الباطل هذه (نظير حدّ بانِي التنقّل الذي يُرجع لاشيء).
-    if (impl && impl->irNode) {
-        sad::ui::IRModule module;
-        module.root = impl->irNode;
-        sad::ui::web::HtmlCodegenOptions opts; // افتراضات المكتبة: rtl/ar/عنوان افتراضيّ (كالمفسّر)
-        if (title && *title)
-            opts.title = title; // تجاوز العنوان إن مُرِّر نصٌّ غير فارغ (نظير المفسّر: args[1])
-        sad::ui::web::HtmlCodegen codegen(opts);
-        html = codegen.generate(module);
-    }
+    std::string code;
+    if (impl && impl->irNode)
+        code = sad::ui::generatePlatformCode(target, impl->irNode,
+                                             name && *name ? std::string(name) : std::string());
     // (AR) نسخةٌ في الكومة مملوكة للمستدعي (نظير strdup في sad_readline).
-    char* out = static_cast<char*>(std::malloc(html.size() + 1));
+    char* out = static_cast<char*>(std::malloc(code.size() + 1));
     if (out)
-        std::memcpy(out, html.c_str(), html.size() + 1);
+        std::memcpy(out, code.c_str(), code.size() + 1);
     return out;
+}
+
+char* sad_generate_web(SadWidget root, const char* title) {
+    return generatePlatformCodeToHeap(sad::ui::PlatformCodegenTarget::Web, root, title);
+}
+
+char* sad_generate_android(SadWidget root, const char* generatedName) {
+    return generatePlatformCodeToHeap(sad::ui::PlatformCodegenTarget::Android, root, generatedName);
+}
+
+char* sad_generate_ios(SadWidget root, const char* generatedName) {
+    return generatePlatformCodeToHeap(sad::ui::PlatformCodegenTarget::IOS, root, generatedName);
+}
+
+char* sad_generate_macos(SadWidget root, const char* generatedName) {
+    return generatePlatformCodeToHeap(sad::ui::PlatformCodegenTarget::MacOS, root, generatedName);
 }
 
 /* ─── تشغيل_تطبيق(عنصر|دالّة) — حلقة سطح المكتب (م-أ3ر/الإرسال) ───

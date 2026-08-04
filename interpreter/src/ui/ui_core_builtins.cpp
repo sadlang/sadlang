@@ -17,7 +17,7 @@
 #include "sad_ui/types.h"
 #include "sad_ui/print_tree.h" // (AR) مصدر الحقيقة الوحيد لطباعة شجرة IR (مشترك)
 #include "sad_ui/nav.h"        // (AR) مكدّس التنقّل المشترك (مصدر الحقيقة: عمق + بنية + رسم حيّ)
-#include "sad_ui/web/html_codegen.h"
+#include "sad_ui/platform_codegen.h" // (AR) بابُ توليدِ كودِ المنصّة (مصدرٌ واحدٌ للمحرّكَين)
 #include <memory>
 #include <string>
 #include <vector>
@@ -662,73 +662,69 @@ namespace Sad
             };
             fm.registerBuiltinFunction(std::string(Bc::SET_STATE), set_state_v2_fn); // عيّن_الحالة
 
-            // ─── توليد_ويب(عنصر_أو_دالة) — توليد HTML من شجرة عناصر ───
-            // (AR) يحوّل شجرة عناصر ص إلى صفحة HTML كاملة
-            // (EN) Converts Sad widget tree to complete HTML page
-            auto gen_web_fn = [&interpreter](Sad::Interpreter::BuiltinContext &ctx)
-                -> std::shared_ptr<Data::Value>
+            // ─── توليد_ويب/أندرويد/آي_أو_إس/ماك(عنصر_أو_دالة, اسم؟) ───
+            // (AR) أربعةُ أبوابٍ متطابقةِ الشكل: الجذرُ عنصرٌ أو بانٍ يُرجع عنصرًا،
+            //      والوسيطُ الثاني (نصٌّ اختياريّ) يُسمّي المخرَج. كلُّ الاختلافِ
+            //      بينها هدفٌ يُمرَّر إلى مولّدِ المكتبة، وهو المولّدُ نفسُه الذي
+            //      يستدعيه وقتُ تشغيلِ المترجم ⇒ تكافؤٌ بايتيٌّ بالبناء.
+            // (EN) Four identically-shaped doors differing only in the target
+            //      handed to the library's single platform-codegen entry point.
+            auto make_gen_fn = [&interpreter](sad::ui::PlatformCodegenTarget target)
             {
-                const auto &args = ctx.args(); (void)args;
-                if (args.empty())
+                return [&interpreter, target](Sad::Interpreter::BuiltinContext &ctx)
+                    -> std::shared_ptr<Data::Value>
                 {
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
-                    // "توليد_ويب() يحتاج عنصر واجهة"
-                }
-
-                const auto &rootWidget = *args[0];
-                Data::Value actualWidget = rootWidget;
-
-                // (AR) إذا كان دالة بنّاء (وليس كائن واجهة)، استدعها للحصول على الشجرة
-                // (EN) If builder function (not widget object), invoke to get the tree
-                if (rootWidget.isFunction())
-                {
-                    try
-                    {
-                        auto funcRef = rootWidget.toFunction();
-                        if (funcRef)
-                        {
-                            actualWidget = interpreter.callUserFunction(funcRef->registeredName, {});
-                        }
-                    }
-                    catch (const std::exception &e)
+                    const auto &args = ctx.args();
+                    if (args.empty())
                     {
                         ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
-                        // "فشل استدعاء دالة البنّاء: ..."
                     }
-                }
 
-                // تحويل إلى IR
-                UIBridge bridge;
-                auto irRoot = bridge.convertToIR(actualWidget);
-                if (!irRoot)
-                {
-                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
-                    // "فشل تحويل الشجرة إلى IR"
-                }
+                    const auto &rootWidget = *args[0];
+                    Data::Value actualWidget = rootWidget;
 
-                // توليد HTML
-                sad::ui::IRModule module;
-                module.name = "web_output";
-                module.root = irRoot;
+                    // (AR) إذا كان دالة بنّاء (وليس كائن واجهة)، استدعها للحصول على الشجرة
+                    // (EN) If builder function (not widget object), invoke to get the tree
+                    if (rootWidget.isFunction())
+                    {
+                        try
+                        {
+                            auto funcRef = rootWidget.toFunction();
+                            if (funcRef)
+                            {
+                                actualWidget = interpreter.callUserFunction(funcRef->registeredName, {});
+                            }
+                        }
+                        catch (const std::exception &)
+                        {
+                            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                        }
+                    }
 
-                // إعداد الخيارات
-                sad::ui::web::HtmlCodegenOptions opts;
-                opts.dir = "rtl";
-                opts.lang = "ar";
-                opts.title = "\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82 \xd8\xb5"; // "تطبيق ص"
+                    UIBridge bridge;
+                    auto irRoot = bridge.convertToIR(actualWidget);
+                    if (!irRoot)
+                    {
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                    }
 
-                // قراءة العنوان من الوسيط الثاني إذا وُجد
-                if (args.size() > 1 && args[1]->isString())
-                {
-                    opts.title = args[1]->toString();
-                }
+                    // (AR) الاسمُ من الوسيطِ الثاني إن وُجِد؛ وإلّا فافتراضيُّ المكتبة.
+                    std::string name;
+                    if (args.size() > 1 && args[1]->isString())
+                        name = args[1]->toString();
 
-                sad::ui::web::HtmlCodegen codegen(opts);
-                std::string html = codegen.generate(module);
-
-                return std::make_shared<Data::Value>(html);
+                    return std::make_shared<Data::Value>(
+                        sad::ui::generatePlatformCode(target, irRoot, name));
+                };
             };
-            fm.registerBuiltinFunction(std::string(Bc::GEN_WEB), gen_web_fn); // توليد_ويب
+            fm.registerBuiltinFunction(std::string(Bc::GEN_WEB),
+                                       make_gen_fn(sad::ui::PlatformCodegenTarget::Web));
+            fm.registerBuiltinFunction(std::string(Bc::GEN_ANDROID),
+                                       make_gen_fn(sad::ui::PlatformCodegenTarget::Android));
+            fm.registerBuiltinFunction(std::string(Bc::GEN_IOS),
+                                       make_gen_fn(sad::ui::PlatformCodegenTarget::IOS));
+            fm.registerBuiltinFunction(std::string(Bc::GEN_MACOS),
+                                       make_gen_fn(sad::ui::PlatformCodegenTarget::MacOS));
         }
 
     } // namespace Interpreter

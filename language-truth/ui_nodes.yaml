@@ -40,7 +40,87 @@ description_en: SadUI node types
 #                   shared/parser/src/ui/parser_ui.cpp بلا اسمٍ حرفيّ.
 #   parser_container — أوّليٌّ يقبل أبناءً (يلزمه `نهاية`) ⇒
 #                   SAD_UI_PARSER_CONTAINER_LIST. يستلزم parser_primitive.
+#   render_exempt — معرّفاتُ مجموعاتِ الاستثناءِ في `render_exemptions` أدناه:
+#                   فجوةُ تصييرٍ مُعلَنةٌ ومُبرَّرةٌ في أهدافٍ بعينِها. غيابُ
+#                   الحقلِ يعني «تُصيَّر في كلِّ هدف» — وهو ما يفرضه الحارس.
 #   description_ar/en
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) أهدافُ التصيير — مواضعُ **إخراجِ البكسلِ أو الكودِ** التي توزّع على
+#      `UINodeType` بـ`switch`. يقرؤها
+#      scripts/codegen/check_ui_render_completeness.py فيقارن مجموعةَ حالاتِ
+#      `case` في مصادرِ كلِّ هدفٍ بجردِ العُقَدِ أعلاه، ويفشل على أيِّ فجوةٍ
+#      **غيرِ مُعلَنة** في `render_exemptions` أدناه — وعلى أيِّ استثناءٍ صارت
+#      العقدةُ فيه مُصيَّرةً فعلًا (كي لا تتعفّن قائمةُ الاستثناءات).
+#
+#      حدودُ الادّعاءِ صراحةً (لا يقولُ الحارسُ أكثرَ ممّا يفرض):
+#        • ليس كلُّ توزيعٍ على `UINodeType` هدفًا هنا — `core/src/layout.cpp`
+#          يوزّع أيضًا (تخطيطٌ لا تصيير) وهو خارجَ الجرد اليومَ (دَينٌ مفتوح:
+#          عقدةٌ بلا حالةِ تخطيطٍ تسقط للافتراضيِّ صامتةً).
+#        • الحارسُ لا يرى إلّا صيغةَ `case UINodeType::X`؛ التوزيعُ بمقارنةٍ
+#          (`nodeType == UINodeType::X`، كما في مُصيِّرِ الوضعِ الحرّ) غيرُ
+#          محسوب، فلا يُعلَن هدفًا قبلَ توسيعِ الالتقاط.
+# (EN) Render targets: pixel/code-emitting switches over UINodeType. The guard
+#      diffs each target's `case` set against the node inventory. It sees only
+#      `case UINodeType::X`; layout.cpp and comparison-style dispatch are out
+#      of scope today (documented debt).
+# ════════════════════════════════════════════════════════════════════════════
+render_targets:
+  - id: core
+    label_ar: المُرسِّم المشترك
+    sources:
+      - features/graphics/core/src/platform_renderer.cpp
+  - id: desktop
+    label_ar: مُرسِّم سطح المكتب (SDL2)
+    sources:
+      - features/graphics/backends/desktop/src/renderer.cpp
+      - features/graphics/backends/desktop/src/renderer_draw.cpp
+      - features/graphics/backends/desktop/src/renderer_canvas.cpp
+  - id: web
+    label_ar: مولّد الويب (HTML/CSS)
+    sources:
+      - features/graphics/backends/web/src/html_codegen.cpp
+      - features/graphics/backends/web/src/html_css_codegen.cpp
+      - features/graphics/backends/web/src/html_element_advanced_codegen.cpp
+      - features/graphics/backends/web/src/html_element_codegen.cpp
+      - features/graphics/backends/web/src/html_script_codegen.cpp
+      - features/graphics/backends/web/src/html_style_codegen.cpp
+      # (AR) system_bridge.cpp وweb_renderer.cpp **ليسا** هنا عمدًا: مُصيِّرُ
+      #      المتصفّحِ مخرَجٌ آخرُ غيرُ مولّدِ HTML، ولا حالةَ فيهما اليوم. لو
+      #      ضُمّا لهذا الهدفِ لصارت حالةٌ تُكتَب في المُصيِّرِ **تغطيةً كاذبةً**
+      #      للمولّد. متى صار للمُصيِّرِ توزيعٌ فعليٌّ فليُعلَن هدفًا مستقلًّا.
+  - id: android
+    label_ar: مولّد أندرويد (Jetpack Compose)
+    sources:
+      - features/graphics/backends/android/src/compose_codegen.cpp
+  - id: ios
+    label_ar: مولّد آي_أو_إس (SwiftUI)
+    sources:
+      - features/graphics/backends/ios/src/swiftui_codegen.cpp
+  - id: macos
+    label_ar: مولّد ماك (AppKit)
+    sources:
+      - features/graphics/backends/macos/src/appkit_codegen.cpp
+
+# (AR) الاستثناءاتُ المُعلَنة: فجوةُ تصييرٍ معروفةٌ ومقبولةٌ **بسببٍ مكتوب**.
+#      الحقلُ `render_exempt` في العقدةِ يشير إلى معرّفاتِ المجموعاتِ هنا.
+#      كلُّ مجموعةٍ = دَينٌ صريحٌ مرصود، لا سهوٌ صامت.
+render_exemptions:
+  - id: desktop_shell
+    targets: [desktop, web, android, ios, macos]
+    reason_ar: >-
+      عناصرُ قشرةِ سطحِ المكتب تُرسَم في المسارِ المشتركِ (core) وحدَه؛ مُرسِّمُ
+      SDL2 لا حالةَ له فيها (ث٤)، ولا نظيرَ لها في مخرَجِ الويب/المحمول.
+  - id: portable_layout
+    targets: [web, android, ios, macos]
+    reason_ar: >-
+      عناصرُ تخطيطٍ (الجيل الرابع) تسقط في مولّداتِ المنصّاتِ إلى الحاويةِ
+      العامّةِ فتُفقَد دلالةُ التخطيط (ث٨)؛ الرسمُ المباشرُ يحترمها.
+  - id: advanced_display
+    targets: [core]
+    reason_ar: >-
+      عُقَدُ عرضٍ متقدّمةٌ لا يرسمها المسارُ المشتركُ الفوريّ؛ لها حالاتٌ في
+      مُرسِّمِ سطحِ المكتبِ وفي مولّداتِ المنصّاتِ الأربعة.
+
 nodes:
 
   - id: Text
@@ -124,6 +204,7 @@ nodes:
     canonical: منتقي_لون
     category: "مكونات الإدخال"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "اختيار لون من لوحة ألوان"
     description_en: "اختيار لون من لوحة ألوان"
 
@@ -277,6 +358,7 @@ nodes:
     canonical: عرض_أقسام
     category: "مكونات التنقل"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "واجهة تبويبات (Tabs)"
     description_en: "واجهة تبويبات (Tabs)"
 
@@ -319,6 +401,7 @@ nodes:
     canonical: ورقة
     category: "مكونات الحوارات"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "ورقة تنزلق من الأسفل (BottomSheet)"
     description_en: "ورقة تنزلق من الأسفل (BottomSheet)"
 
@@ -340,6 +423,7 @@ nodes:
     canonical: لوحة
     category: "مكونات متقدمة"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "لوحة رسم حر (2D drawing)"
     description_en: "لوحة رسم حر (2D drawing)"
 
@@ -354,6 +438,7 @@ nodes:
     canonical: عرض_ويب
     category: "مكونات متقدمة"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "عرض محتوى ويب مضمّن"
     description_en: "عرض محتوى ويب مضمّن"
 
@@ -433,6 +518,7 @@ nodes:
     canonical: ورقة_سفلية
     category: "مكونات جديدة"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "لوحة تنزلق من الأسفل"
     description_en: "لوحة تنزلق من الأسفل"
 
@@ -517,6 +603,7 @@ nodes:
     canonical: نص_منسق
     category: "مكونات الوسائط"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "نص بتنسيقات متعددة (Bold, Italic, Color)"
     description_en: "نص بتنسيقات متعددة (Bold, Italic, Color)"
 
@@ -524,6 +611,7 @@ nodes:
     canonical: ماركداون
     category: "مكونات الوسائط"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "عرض محتوى Markdown مُنسّق"
     description_en: "عرض محتوى Markdown مُنسّق"
 
@@ -531,6 +619,7 @@ nodes:
     canonical: كتلة_كود
     category: "مكونات الوسائط"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "عرض كود مصدري مع تلوين نحوي"
     description_en: "عرض كود مصدري مع تلوين نحوي"
 
@@ -538,6 +627,7 @@ nodes:
     canonical: مشغل_صوت
     category: "مكونات الوسائط"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "مشغل ملفات صوتية مع تحكمات"
     description_en: "مشغل ملفات صوتية مع تحكمات"
 
@@ -545,6 +635,7 @@ nodes:
     canonical: معرض_صور
     category: "مكونات الوسائط"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "معرض صور بصفوف مع تكبير"
     description_en: "معرض صور بصفوف مع تكبير"
 
@@ -573,6 +664,7 @@ nodes:
     canonical: قابل_للتوسع
     category: "مكونات الحركة"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "محتوى قابل للطي/التوسع"
     description_en: "محتوى قابل للطي/التوسع"
 
@@ -580,6 +672,7 @@ nodes:
     canonical: قابل_للطي
     category: "مكونات الحركة"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "لوحة قابلة للطي مع عنوان"
     description_en: "لوحة قابلة للطي مع عنوان"
 
@@ -615,6 +708,7 @@ nodes:
     canonical: منتقي_وقت
     category: "مكونات التحكم المتقدمة"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "اختيار ساعة ودقيقة"
     description_en: "اختيار ساعة ودقيقة"
 
@@ -622,6 +716,7 @@ nodes:
     canonical: تقويم
     category: "مكونات التحكم المتقدمة"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "عرض تقويم شهري تفاعلي"
     description_en: "عرض تقويم شهري تفاعلي"
 
@@ -629,6 +724,7 @@ nodes:
     canonical: عجلة_ألوان
     category: "مكونات التحكم المتقدمة"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "منتقي ألوان دائري HSV"
     description_en: "منتقي ألوان دائري HSV"
 
@@ -643,6 +739,7 @@ nodes:
     canonical: تنقل_جانبي
     category: "مكونات التنقل المتقدمة"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "قائمة تنقل جانبية (NavigationRail)"
     description_en: "قائمة تنقل جانبية (NavigationRail)"
 
@@ -671,6 +768,7 @@ nodes:
     canonical: قائمة_ضخمة
     category: "مكونات التنقل المتقدمة"
     builtins: []
+    render_exempt: [advanced_display]
     description_ar: "قائمة متعددة الأعمدة والمستويات"
     description_en: "قائمة متعددة الأعمدة والمستويات"
 
@@ -678,6 +776,7 @@ nodes:
     canonical: وسط
     category: "مكونات التخطيط الأساسية"
     builtins: [CENTER]
+    render_exempt: [portable_layout]
     description_ar: "يضع الابن في المنتصف (مثل Flutter Center)"
     description_en: "يضع الابن في المنتصف (مثل Flutter Center)"
 
@@ -685,6 +784,7 @@ nodes:
     canonical: حشوة
     category: "مكونات التخطيط الأساسية"
     builtins: [PADDING]
+    render_exempt: [portable_layout]
     description_ar: "يضيف حشوة حول الابن (مثل Flutter Padding)"
     description_en: "يضيف حشوة حول الابن (مثل Flutter Padding)"
 
@@ -692,6 +792,7 @@ nodes:
     canonical: مقاس
     category: "مكونات التخطيط الأساسية"
     builtins: [SIZED_BOX]
+    render_exempt: [portable_layout]
     description_ar: "صندوق بأبعاد ثابتة (مثل Flutter SizedBox)"
     description_en: "صندوق بأبعاد ثابتة (مثل Flutter SizedBox)"
 
@@ -699,6 +800,7 @@ nodes:
     canonical: موسع
     category: "مكونات التخطيط الأساسية"
     builtins: [EXPANDED]
+    render_exempt: [portable_layout]
     description_ar: "يملأ المساحة المتاحة في Row/Column (مثل Flutter Expanded)"
     description_en: "يملأ المساحة المتاحة في Row/Column (مثل Flutter Expanded)"
 
@@ -706,6 +808,7 @@ nodes:
     canonical: مرن
     category: "مكونات التخطيط الأساسية"
     builtins: [FLEXIBLE]
+    render_exempt: [portable_layout]
     description_ar: "حجم مرن داخل Row/Column (مثل Flutter Flexible)"
     description_en: "حجم مرن داخل Row/Column (مثل Flutter Flexible)"
 
@@ -713,6 +816,7 @@ nodes:
     canonical: محاذاة
     category: "مكونات التخطيط الأساسية"
     builtins: [ALIGN]
+    render_exempt: [portable_layout]
     description_ar: "يضع الابن في موضع محدد (مثل Flutter Align)"
     description_en: "يضع الابن في موضع محدد (مثل Flutter Align)"
 
@@ -720,6 +824,7 @@ nodes:
     canonical: منطقة_آمنة
     category: "مكونات التخطيط الأساسية"
     builtins: [SAFE_AREA]
+    render_exempt: [portable_layout]
     description_ar: "يتجنب مناطق النظام (مثل Flutter SafeArea)"
     description_en: "يتجنب مناطق النظام (مثل Flutter SafeArea)"
 
@@ -727,6 +832,7 @@ nodes:
     canonical: كاشف_إيماءات
     category: "مكونات التخطيط الأساسية"
     builtins: []
+    render_exempt: [portable_layout]
     description_ar: "يكشف اللمس والإيماءات (مثل Flutter GestureDetector)"
     description_en: "يكشف اللمس والإيماءات (مثل Flutter GestureDetector)"
 
@@ -734,6 +840,7 @@ nodes:
     canonical: حبر
     category: "مكونات التخطيط الأساسية"
     builtins: []
+    render_exempt: [portable_layout]
     description_ar: "منطقة قابلة للنقر مع تأثير تموج (مثل Flutter InkWell)"
     description_en: "منطقة قابلة للنقر مع تأثير تموج (مثل Flutter InkWell)"
 
@@ -741,6 +848,7 @@ nodes:
     canonical: قائمة_عرض
     category: "مكونات التخطيط الأساسية"
     builtins: []
+    render_exempt: [portable_layout]
     description_ar: "قائمة قابلة للتمرير (مثل Flutter ListView)"
     description_en: "قائمة قابلة للتمرير (مثل Flutter ListView)"
 
@@ -748,6 +856,7 @@ nodes:
     canonical: صندوق_نسبي
     category: "مكونات التخطيط الأساسية"
     builtins: []
+    render_exempt: [portable_layout]
     description_ar: "صندوق بنسبة من الأب"
     description_en: "صندوق بنسبة من الأب"
 
@@ -755,6 +864,7 @@ nodes:
     canonical: صندوق_مقيد
     category: "مكونات التخطيط الأساسية"
     builtins: []
+    render_exempt: [portable_layout]
     description_ar: "صندوق بقيود أبعاد"
     description_en: "صندوق بقيود أبعاد"
 
@@ -762,6 +872,7 @@ nodes:
     canonical: نسبة_عرض
     category: "مكونات التخطيط الأساسية"
     builtins: []
+    render_exempt: [portable_layout]
     description_ar: "يفرض نسبة عرض إلى ارتفاع"
     description_en: "يفرض نسبة عرض إلى ارتفاع"
 
@@ -769,6 +880,7 @@ nodes:
     canonical: نافذة
     category: "قشرة سطح المكتب"
     builtins: [WINDOW]
+    render_exempt: [desktop_shell]
     description_ar: "نافذة متراكبة (لوح مرتفع بحدود + شريط عنوان + جسم)"
     description_en: "نافذة متراكبة (لوح مرتفع بحدود + شريط عنوان + جسم)"
 
@@ -776,6 +888,7 @@ nodes:
     canonical: شريط_عنوان
     category: "قشرة سطح المكتب"
     builtins: [TITLE_BAR]
+    render_exempt: [desktop_shell]
     description_ar: "شريط عنوان بعنوان وأزرار (تصغير/تكبير/إغلاق)"
     description_en: "شريط عنوان بعنوان وأزرار (تصغير/تكبير/إغلاق)"
 
@@ -783,6 +896,7 @@ nodes:
     canonical: شريط_تمرير
     category: "قشرة سطح المكتب"
     builtins: [SCROLL_BAR]
+    render_exempt: [desktop_shell]
     description_ar: "شريط تمرير صريح (مسار + إبهام قابل للسحب)"
     description_en: "شريط تمرير صريح (مسار + إبهام قابل للسحب)"
 
@@ -790,6 +904,7 @@ nodes:
     canonical: شريط_مهام
     category: "قشرة سطح المكتب — الصدَفة"
     builtins: [TASKBAR]
+    render_exempt: [desktop_shell]
     description_ar: "شريط سفليّ (زرّ ابدأ + نوافذ مفتوحة + لوحة نظام)"
     description_en: "شريط سفليّ (زرّ ابدأ + نوافذ مفتوحة + لوحة نظام)"
 
@@ -797,6 +912,7 @@ nodes:
     canonical: قائمة_ابدأ
     category: "قشرة سطح المكتب — الصدَفة"
     builtins: [START_MENU]
+    render_exempt: [desktop_shell]
     description_ar: "لوحة منبثقة لإطلاق التطبيقات"
     description_en: "لوحة منبثقة لإطلاق التطبيقات"
 
@@ -804,6 +920,7 @@ nodes:
     canonical: لوحة_نظام
     category: "قشرة سطح المكتب — الصدَفة"
     builtins: [SYSTEM_TRAY]
+    render_exempt: [desktop_shell]
     description_ar: "ساعة حيّة وأيقونات حالة"
     description_en: "ساعة حيّة وأيقونات حالة"
 
@@ -811,6 +928,7 @@ nodes:
     canonical: مربع_دوار
     category: "تحكّم متقدّم + تغذية راجعة"
     builtins: [SPIN_BOX]
+    render_exempt: [desktop_shell]
     description_ar: "حقل رقميّ بأزرار زيادة/نقصان رأسيّة (▲▼)"
     description_en: "حقل رقميّ بأزرار زيادة/نقصان رأسيّة (▲▼)"
 
@@ -818,6 +936,7 @@ nodes:
     canonical: صندوق_تجميع
     category: "تحكّم متقدّم + تغذية راجعة"
     builtins: [GROUP_BOX]
+    render_exempt: [desktop_shell]
     description_ar: "حاوية بحدود وعنوان علويّ (إطار مجموعة)"
     description_en: "حاوية بحدود وعنوان علويّ (إطار مجموعة)"
 
@@ -825,6 +944,7 @@ nodes:
     canonical: مؤشر_انشغال
     category: "تحكّم متقدّم + تغذية راجعة"
     builtins: [SPINNER]
+    render_exempt: [desktop_shell]
     description_ar: "حلقة تحميل دائريّة (نشاط غير محدَّد المدّة)"
     description_en: "حلقة تحميل دائريّة (نشاط غير محدَّد المدّة)"
 
@@ -832,5 +952,6 @@ nodes:
     canonical: شريط_حالة
     category: "تحكّم متقدّم + تغذية راجعة"
     builtins: [STATUS_BAR]
+    render_exempt: [desktop_shell]
     description_ar: "شريط معلومات سفليّ للنوافذ (نصّ حالة + أقسام)"
     description_en: "شريط معلومات سفليّ للنوافذ (نصّ حالة + أقسام)"

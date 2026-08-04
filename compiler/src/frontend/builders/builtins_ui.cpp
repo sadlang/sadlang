@@ -71,6 +71,35 @@ namespace Sad
                 return false;
             }
 
+            // (AR) هل النوعُ مؤشِّريٌّ ومعروفٌ **قطعًا** أنّه ليس نصًّا؟ يُستعمَل في
+            //      أبوابِ توليدِ كودِ المنصّة حيث يُمرَّر الوسيطُ الثاني إلى
+            //      const char*: عنصرُ واجهةٍ (Pointer) أو كائنٌ في موضعِ الاسمِ
+            //      يعني قراءةَ ذاكرةٍ عشوائيّةٍ ⇒ انهيار، بينما المفسّرُ يتجاهله.
+            //      نُسقِطه هنا لنُطابق المفسّرَ؛ والمجهولُ/أيّ **لا** يُسقَط كي لا
+            //      نبتلعَ نصًّا مشروعًا لم يُستنتَج نوعُه. — إصلاح مراجعة Amelia.
+            [[nodiscard]] static bool isNonStringPointerLikeType(SadTypeKind t)
+            {
+                switch (t)
+                {
+                case SadTypeKind::Pointer:
+                case SadTypeKind::Reference:
+                case SadTypeKind::MutableRef:
+                case SadTypeKind::Class:
+                case SadTypeKind::Struct:
+                case SadTypeKind::Array:
+                case SadTypeKind::Map:
+                case SadTypeKind::Tuple:
+                case SadTypeKind::Function:
+                case SadTypeKind::Closure:
+                case SadTypeKind::Widget:
+                case SadTypeKind::Window:
+                case SadTypeKind::Event:
+                    return true;
+                default:
+                    return false;
+                }
+            }
+
             // (AR) حارس نوع عنوان النافذة (إصلاح Amelia M2، تكافؤ مع المفسّر الذي يرفض
             //      !isString): نرفض الأنواع العدديّة/المنطقيّة القطعيّة **فقط** (النصّ لا
             //      يُستنتَج أبدًا عددًا/منطقيًّا ⇒ لا رفضٌ زائف على نصّ صحيح)؛ ما عداها
@@ -1303,29 +1332,52 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
-                // (إكمال) توليد_ويب(عنصر, عنوان؟) — يولّد HTML؛ يُرجع نصًّا (String).
-                if (funcName == Bn::UICore::GEN_WEB)
+                // (إكمال) أبوابُ توليدِ كودِ المنصّة: توليد_ويب/أندرويد/آي_أو_إس/ماك
+                //   (عنصر, اسم؟) ⇒ نصٌّ (String). أربعتُها متطابقةُ الشكلِ والحراسة،
+                //   ولا تفترق إلّا في الأوپكود ⇒ جدولٌ واحدٌ بدل أربعِ نسخٍ متباعدة.
                 {
-                    if (argResults.empty())
+                    static const std::pair<std::string_view, SIROpcode> kPlatformCodegens[] = {
+                        {Bn::UICore::GEN_WEB, SIROpcode::BUILTIN_UI_GEN_WEB},
+                        {Bn::UICore::GEN_ANDROID, SIROpcode::BUILTIN_UI_GEN_ANDROID},
+                        {Bn::UICore::GEN_IOS, SIROpcode::BUILTIN_UI_GEN_IOS},
+                        {Bn::UICore::GEN_MACOS, SIROpcode::BUILTIN_UI_GEN_MACOS},
+                    };
+                    for (const auto &[name, opcode] : kPlatformCodegens)
                     {
-                        reportUiWrongArgCount(std::string(Bn::UICore::GEN_WEB), 1, argResults.size());
-                        return BuildResult("", SadTypeKind::Void);
+                        if (funcName != name)
+                            continue;
+                        if (argResults.empty())
+                        {
+                            reportUiWrongArgCount(std::string(name), 1, argResults.size());
+                            return BuildResult("", SadTypeKind::Void);
+                        }
+                        // (Amelia مراجعة2، MEDIUM) حارس نوع الوسيط: عنصر (Pointer) أو دالّة بناء
+                        //   (Function) فقط. بدونه يُصنّف bridgeUiPageBuilder أيّ i64 (عدد) بانيًا
+                        //   ⇒ inttoptr لقيمةٍ عدديّة ثمّ قراءة {fn,env} من عنوانٍ باطل ⇒ انهيار
+                        //   (بينما المفسّر يرفضه بأمان). نظير حرّاس انتقل/انتقل_بتحريك.
+                        if (!checkUiNavArgType(std::string(name), argResults[0].type))
+                            return BuildResult("", SadTypeKind::Void);
+                        std::string r = b_.newTempRegister();
+                        SIRInstruction inst(opcode);
+                        inst.operands.push_back(argOperands[0]); // العنصر (أو بانٍ)
+                        // (Amelia مراجعة١، متوسطة) الوسيطُ الثاني يُمرَّر إلى
+                        //   const char*. بدونَ حارسٍ يمرُّ **أيُّ** مؤشّرٍ (عنصرُ
+                        //   واجهةٍ مثلًا) في موضعِ النصّ ⇒ قراءةُ ذاكرةٍ عشوائيّةٍ
+                        //   وانهيار، بينما المفسّرُ يتجاهله بأمان
+                        //   (args[1]->isString()). نُسقِط هنا الأنواعَ المؤشِّريّةَ
+                        //   المعروفةَ **قطعًا** أنّها ليست نصًّا فنُطابق المفسّر؛
+                        //   ونُبقي المجهولَ/أيّ فلا نُسقِط نصًّا مشروعًا لم يُستنتَج
+                        //   نوعُه (وهو ما يُحدِث تباعُدًا في الاتّجاهِ المضادّ).
+                        //   القيمُ غيرُ المؤشِّريّة (عددٌ مثلًا) يُصفّرها فحصُ
+                        //   isPointerTy في باعثِ LLVM أصلًا.
+                        if (argResults.size() > 1
+                            && !isNonStringPointerLikeType(argResults[1].type))
+                            inst.operands.push_back(argOperands[1]); // الاسم (اختياريّ)
+                        inst.result = SIROperand::Register(r, SadTypeKind::String);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(inst);
+                        return BuildResult(r, SadTypeKind::String);
                     }
-                    // (Amelia مراجعة2، MEDIUM) حارس نوع الوسيط: عنصر (Pointer) أو دالّة بناء
-                    //   (Function) فقط. بدونه يُصنّف bridgeUiPageBuilder أيّ i64 (عدد) بانيًا
-                    //   ⇒ inttoptr لقيمةٍ عدديّة ثمّ قراءة {fn,env} من عنوانٍ باطل ⇒ انهيار
-                    //   (بينما المفسّر يرفضه بأمان). نظير حرّاس انتقل/انتقل_بتحريك.
-                    if (!checkUiNavArgType(std::string(Bn::UICore::GEN_WEB), argResults[0].type))
-                        return BuildResult("", SadTypeKind::Void);
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_GEN_WEB);
-                    inst.operands.push_back(argOperands[0]); // العنصر (أو بانٍ)
-                    if (argResults.size() > 1)
-                        inst.operands.push_back(argOperands[1]); // العنوان (اختياريّ)
-                    inst.result = SIROperand::Register(r, SadTypeKind::String);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::String);
                 }
 
                 // ─── دمر_تطبيق(تطبيق) / sad_app_destroy(app) ───

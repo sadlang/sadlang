@@ -680,6 +680,12 @@ namespace Sad
                     return "ui.close_window";
                 case SIROpcode::BUILTIN_UI_GEN_WEB:
                     return "ui.gen_web";
+                case SIROpcode::BUILTIN_UI_GEN_ANDROID:
+                    return "ui.gen_android";
+                case SIROpcode::BUILTIN_UI_GEN_IOS:
+                    return "ui.gen_ios";
+                case SIROpcode::BUILTIN_UI_GEN_MACOS:
+                    return "ui.gen_macos";
 
                 // Module System
                 case SIROpcode::MODULE_LOAD:

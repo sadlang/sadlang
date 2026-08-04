@@ -673,26 +673,19 @@ namespace sad
                 }
 
 #ifdef _WIN32
-                // (AR) قراءة متغير البيئة LIB (يضبطه vcvars64.bat) وإضافة كل مسار
-                //      كـ -L لـ clang. بدون هذا، clang لا يجد msvcrt.lib وبقية مكتبات MSVC.
-                // (EN) Read LIB env var (set by vcvars64.bat) and add each path as -L for clang.
-                //      Without this, clang cannot find msvcrt.lib and other MSVC libs.
-                if (const char *lib_env = std::getenv("LIB"))
+                // (AR) مسارات مكتبات MSVC/SDK. كان هذا الموضع يقرأ `LIB` وحدَه، فإن
+                //      شُغّل المترجم من صدَفةٍ عاديّة (لا «موجِّه أوامر المطوّر») بقي
+                //      بلا مسارٍ واحد ⇒ فشل ربطِ كلّ برنامجِ واجهة. نستعمل هنا
+                //      find_msvc_lib_paths() — وهي التي يستعملها مسارُ lld أصلًا —
+                //      فتقرأ `LIB` ثمّ تكتشف المسارات بـvswhere وWindows Kits عند غيابه
+                //      ⇒ مصدرُ اكتشافٍ واحدٌ للمسارَين لا نسختان تنحرفان.
+                // (EN) MSVC/SDK library paths. This site used to read `LIB` only, so
+                //      outside a Developer Command Prompt it produced no -L at all and
+                //      every UI link failed. Reuse find_msvc_lib_paths() (already used by
+                //      the lld path): `LIB` first, then vswhere + Windows Kits discovery.
+                for (const auto &p : find_msvc_lib_paths())
                 {
-                    std::string lib_paths(lib_env);
-                    size_t start = 0;
-                    while (start < lib_paths.size())
-                    {
-                        size_t end = lib_paths.find(';', start);
-                        if (end == std::string::npos)
-                            end = lib_paths.size();
-                        std::string p = lib_paths.substr(start, end - start);
-                        if (!p.empty())
-                        {
-                            command += " -L\"" + p + "\"";
-                        }
-                        start = end + 1;
-                    }
+                    command += " -L\"" + p + "\"";
                 }
 #endif
 
@@ -705,20 +698,27 @@ namespace sad
 
                 // (AR) إضافة المكتبات المحددة من المستخدم
                 // (EN) Add user-specified libraries
+                // (AR) (Amelia مراجعة٣) الحلقتان تمرّان بـclang_library_flag مثلَ
+                //      حلقةِ CRT أدناه: مستخدمٌ يمرّر `--library sad_http.lib` كان
+                //      يحصل على `-lsad_http.lib` ⇒ فشلُ ربطٍ مُربِك.
+                // (EN) Route user/auto libs through the same normaliser as the CRT
+                //      loop below; `foo.lib` must become `-lfoo`, not `-lfoo.lib`.
                 for (const auto &lib : options_.libraries)
                 {
-                    command += " -l" + lib;
+                    command += " " + clang_library_flag(lib);
                 }
 
                 for (const auto &lib : auto_libraries)
                 {
-                    command += " -l" + lib;
+                    command += " " + clang_library_flag(lib);
                 }
 
 #ifdef _WIN32
                 for (const auto &lib : windows_runtime_libraries)
                 {
-                    command += " " + lib;
+                    // (AR) بصيغة `-l` لا موضعيًّا — انظر clang_library_flag: الموضعيُّ
+                    //      لا يُبحَث عنه في مسارات -L فيفشل دائمًا مهما ضُبِط LIB.
+                    command += " " + clang_library_flag(lib);
                 }
 #else
                 // (AR) على POSIX (Linux/macOS) دوال الرياضيّات (pow, sqrt, ...) في libm

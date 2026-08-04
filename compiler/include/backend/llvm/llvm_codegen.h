@@ -2108,7 +2108,7 @@ namespace Sad
             llvm::Value *emitUiSetState(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetState(inst); }
             llvm::Value *emitUiSetTitle(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetTitle(inst); }
             llvm::Value *emitUiCloseWindow(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiCloseWindow(inst); }
-            llvm::Value *emitUiGenWeb(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiGenWeb(inst); }
+            llvm::Value *emitUiGenPlatform(std::shared_ptr<SIRInstruction> inst, const char *runtimeName) { return ui_->emitUiGenPlatform(inst, runtimeName); }
             llvm::Value *emitUiAppDestroy(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAppDestroy(inst); }
             llvm::Value *emitUiWidgetDestroy(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiWidgetDestroy(inst); }
 

@@ -1225,6 +1225,12 @@ namespace Sad
                 inline constexpr std::string_view SET_STATE = "عين_الحالة";
                 // (AR) توليد_ويب
                 inline constexpr std::string_view GEN_WEB = "توليد_ويب";
+                // (AR) توليد_أندرويد
+                inline constexpr std::string_view GEN_ANDROID = "توليد_أندرويد";
+                // (AR) توليد_آي_أو_إس
+                inline constexpr std::string_view GEN_IOS = "توليد_آي_أو_إس";
+                // (AR) توليد_ماك
+                inline constexpr std::string_view GEN_MACOS = "توليد_ماك";
             }
 
             // ─────────── UIAudio ───────────
@@ -3045,7 +3051,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1118> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1121> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3568,7 +3574,7 @@ namespace Sad
             {Names::UIWidgets::STATUS_BAR, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "شريط_حالة", "الأبناء: محتوى العنصر", "كائن"},
             {Names::UIWidgets::SAFE_AREA, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "منطقة_آمنة", "ابن: عنصر يتجنّب مناطق النظام", "كائن"},
             {Names::UIWidgets::SURFACE, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "سطح", "الأبناء: عناصر على السطح", "كائن"},
-            // ─── UICore (23) ───
+            // ─── UICore (26) ───
             {Names::UICore::ENGINE, "UICore", "MODULE_FUNCTION", "NONE", false, "_محرك_واجهات", "جذر: عنصر الجذر (داخليّ)", ""},
             {Names::UICore::RUN_APP, "UICore", "MODULE_FUNCTION", "NONE", false, "تشغيل_تطبيق", "جذر: عنصر الجذر للتطبيق (لقطة ثابتة)، أو دالّة بانية تُستدعى كلّ رسم فتُحدَّث المشاهد الزمنيّة حيًّا (م1-ب، نظير انتقل)", ""},
             {Names::UICore::PRINT_TREE, "UICore", "MODULE_FUNCTION", "NONE", false, "طباعة_شجرة", "عنصر: عنصر الواجهة لطباعة شجرته", ""},
@@ -3592,6 +3598,9 @@ namespace Sad
             {Names::UICore::CLOSE_WINDOW, "UICore", "MODULE_FUNCTION", "NONE", false, "أغلق_النافذة", "", ""},
             {Names::UICore::SET_STATE, "UICore", "MODULE_FUNCTION", "NONE", false, "عين_الحالة", "دالّة: دالّة إغلاق تُنشئ حالة الصفحة", ""},
             {Names::UICore::GEN_WEB, "UICore", "MODULE_FUNCTION", "NONE", false, "توليد_ويب", "جذر: عنصر الجذر، عنوان: عنوان صفحة الويب (اختياريّ)", ""},
+            {Names::UICore::GEN_ANDROID, "UICore", "MODULE_FUNCTION", "NONE", false, "توليد_أندرويد", "جذر: عنصر الجذر، اسم: اسم دالّة Composable المولَّدة (اختياريّ)", ""},
+            {Names::UICore::GEN_IOS, "UICore", "MODULE_FUNCTION", "NONE", false, "توليد_آي_أو_إس", "جذر: عنصر الجذر، اسم: اسم بنية View المولَّدة (اختياريّ)", ""},
+            {Names::UICore::GEN_MACOS, "UICore", "MODULE_FUNCTION", "NONE", false, "توليد_ماك", "جذر: عنصر الجذر، اسم: اسم متحكّم العرض المولَّد (اختياريّ)", ""},
             // ─── UIAudio (5) ───
             {Names::UIAudio::PLAY_SOUND, "UIAudio", "MODULE_FUNCTION", "NONE", false, "شغل_صوت", "", ""},
             {Names::UIAudio::STOP_SOUND, "UIAudio", "MODULE_FUNCTION", "NONE", false, "أوقف_صوت", "", ""},
@@ -4219,7 +4228,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", false, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1118, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1121, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

@@ -726,6 +726,12 @@ namespace sad
             void append_windows_hosted_runtime_libraries(std::vector<std::string> &libraries,
                                                          bool include_cpp_runtime) const;
 
+            /**
+             * @brief (AR) اسم المكتبة كما يقبله سائق clang (`-lmsvcrt` لا `msvcrt.lib`).
+             * @brief (EN) Library name in clang-driver form (`-lmsvcrt`, not `msvcrt.lib`).
+             */
+            static std::string clang_library_flag(const std::string &library);
+
         private:
             // ========== Member Variables ==========
             CompilerOptions options_;

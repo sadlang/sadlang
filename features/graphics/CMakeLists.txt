@@ -122,6 +122,18 @@ if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     # list(APPEND SAD_UI_MACOS_SOURCES backends/macos/src/macos_renderer.mm)
 endif()
 
+# (AR) مولّدات كود المنصّات — توليدٌ نصّيٌّ محضٌ (لا عتاد ولا SDL2)، فتدخل
+#      مكتبةَ الوضع الحرّ أيضًا: جسرُ وقتِ التشغيل يصدّر توليد_ويب/أندرويد/
+#      آي_أو_إس/ماك في الـABI، فيلزم وجودُها في الفرعَين معًا وإلّا فشل الربط.
+# (EN) Pure text generators — no hardware, no SDL2 — so the freestanding lib
+#      needs them too: the runtime bridge exports all four generator symbols.
+set(SAD_UI_PLATFORM_CODEGEN_SOURCES
+    backends/android/src/compose_codegen.cpp
+    backends/ios/src/swiftui_codegen.cpp
+    backends/macos/src/appkit_codegen.cpp
+    pipeline/src/platform_codegen.cpp
+)
+
 # الوضع المستقل (Freestanding — بدون SDL2/libc)
 # مُصيّر يعمل مباشرة على framebuffer — لأنظمة التشغيل والـ bare-metal
 option(SAD_UI_ENABLE_FREESTANDING "تفعيل خلفية الوضع المستقل / Enable freestanding renderer" ON)
@@ -159,6 +171,7 @@ set(SAD_UI_WIDGETS_SOURCES
 # خط الأنابيب
 set(SAD_UI_PIPELINE_SOURCES
     pipeline/src/pipeline.cpp
+    pipeline/src/platform_codegen.cpp
 )
 
 # ── تجميع جميع المصادر ────────────────────────────────────────────
@@ -373,12 +386,14 @@ if(SAD_UI_ENABLE_FREESTANDING_LIB)
         backends/freestanding/src/app_runner.cpp
     )
 
-    # (AR) خلفيّة الويب مطلوبة لأنّ جسر وقت التشغيل (sad_ui_runtime) يصدّر
-    #      «توليد_ويب» (HtmlCodegen) في الـABI — توليد نصّيّ backend-agnostic.
+    # (AR) خلفيّة الويب ومولّدات المنصّات مطلوبة لأنّ جسر وقت التشغيل
+    #      (sad_ui_runtime) يصدّر «توليد_ويب/أندرويد/آي_أو_إس/ماك» في الـABI
+    #      — توليدٌ نصّيٌّ backend-agnostic لا يمسّ SDL2 ولا العتاد.
     add_library(sad_graphics_freestanding STATIC
         ${SAD_UI_CORE_SOURCES}
         ${SAD_UI_WIDGETS_SOURCES}
         ${SAD_UI_WEB_SOURCES}
+        ${SAD_UI_PLATFORM_CODEGEN_SOURCES}
         ${SAD_UI_FREESTANDING_FULL_SOURCES}
     )
 
@@ -387,6 +402,10 @@ if(SAD_UI_ENABLE_FREESTANDING_LIB)
             ${CMAKE_CURRENT_SOURCE_DIR}/core/include
             ${CMAKE_CURRENT_SOURCE_DIR}/backends/freestanding/include
             ${CMAKE_CURRENT_SOURCE_DIR}/backends/web/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/backends/android/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/backends/ios/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/backends/macos/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/pipeline/include
             ${CMAKE_CURRENT_SOURCE_DIR}/widgets/include
             ${CMAKE_CURRENT_SOURCE_DIR}/widgets/data/include
             ${CMAKE_CURRENT_SOURCE_DIR}/widgets/media/include

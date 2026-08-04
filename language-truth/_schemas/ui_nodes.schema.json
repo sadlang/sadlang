@@ -35,6 +35,13 @@
       "type": "boolean",
       "description": "(AR) أوّليٌّ يقبل أبناءً ويُنهى بـ`نهاية`؛ يستلزم parser_primitive."
     },
+    "render_exempt": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+      "description": "(AR) معرّفاتُ مجموعاتِ الاستثناء في render_exemptions: فجوةُ تصييرٍ مُعلَنةٌ ومُبرَّرة. يفرضها scripts/codegen/check_ui_render_completeness.py."
+    },
     "description_ar": { "type": "string", "minLength": 1 },
     "description_en": { "type": "string", "minLength": 1 }
   }

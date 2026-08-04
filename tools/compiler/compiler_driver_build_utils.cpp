@@ -24,6 +24,8 @@
 #include <cstdio>
 #include <filesystem>
 #include <algorithm>
+#include <cctype>
+#include <string_view>
 
 namespace sad
 {
@@ -52,6 +54,35 @@ namespace sad
                 return std::filesystem::exists(directory / (library_name + ".lib")) ||
                        std::filesystem::exists(directory / (library_name + ".a")) ||
                        std::filesystem::exists(directory / ("lib" + library_name + ".a"));
+            }
+
+            // (AR) يصعد آباء «start» بحثًا عن مجلّد الموردات المُورَّدة
+            //      (features/graphics/third_party). كان الجذر يُفترض على بُعد
+            //      ثلاثة مستوياتٍ بالضبط (build/bin/<Config>/) فينكسر لأيّ تخطيطٍ
+            //      آخر — ومنه dist/<Config>/ حيث كان الثنائيّ المُثبَّت يفشل
+            //      بـSDL_* غير معرّفة. نبدأ بمجلّد الثنائيّ نفسه كي تكفيَ حزمةٌ
+            //      تشحن الموارد بجواره. يُعيد مسارًا فارغًا إن لم يوجد.
+            // (EN) Walk «start»'s ancestors for features/graphics/third_party. The
+            //      root used to be assumed exactly three levels up, which breaks for
+            //      any other layout (dist/<Config>/ among them). Empty if not found.
+            std::filesystem::path find_vendored_third_party_dir(const std::filesystem::path &start)
+            {
+                static const std::filesystem::path kVendorRelative =
+                    std::filesystem::path("features") / "graphics" / "third_party";
+
+                for (auto dir = start; !dir.empty(); dir = dir.parent_path())
+                {
+                    std::error_code ec;
+                    if (std::filesystem::is_directory(dir / kVendorRelative, ec))
+                    {
+                        return dir / kVendorRelative;
+                    }
+                    if (dir == dir.parent_path()) // (AR) بلغنا جذر القرص
+                    {
+                        break;
+                    }
+                }
+                return {};
             }
 
             // (AR) يبحث تنازليًّا تحت «base» عن مجلّد x64 يحوي «<lib>.lib»، ويُعيد مجلّده.
@@ -218,10 +249,32 @@ namespace sad
                 // (EN) sad_graphics is built with SDL2, and the bridge TU references the
                 //      renderer, so SDL_*/TTF_* are pulled transitively even headless.
                 //      Link the vendored SDL2 + SDL2_ttf import libs.
-                const auto repo_root =
-                    std::filesystem::absolute(get_executable_dir() / ".." / ".." / "..")
-                        .lexically_normal();
-                const auto third_party = repo_root / "features" / "graphics" / "third_party";
+                std::error_code exe_dir_ec;
+                const auto exe_dir =
+                    std::filesystem::absolute(get_executable_dir(), exe_dir_ec).lexically_normal();
+                const auto third_party = find_vendored_third_party_dir(exe_dir);
+
+                // (AR) (Amelia مراجعة٣) غيابُ المجلّد يعني فشلَ ربطٍ **يقينيًّا**
+                //      بـSDL_* غير معرّفة؛ فالتحذيرُ هنا غيرُ مشروطٍ بـverbose،
+                //      ويذكر أين بحثنا كي لا يواجه المستخدمُ رسالةَ رابطٍ خامّة.
+                // (EN) A missing dir means a certain link failure, so warn
+                //      unconditionally and say where we looked.
+                if (exe_dir_ec)
+                {
+                    std::cerr << "  تحذير: تعذّر تحديد مسار ثنائيّ المترجم ("
+                              << exe_dir_ec.message()
+                              << ") فلم نبحث عن موردات الرسوميّات؛ قد يفشل الربط بـSDL_*.\n";
+                    std::cerr << "  Warning: could not resolve the compiler binary path ("
+                              << exe_dir_ec.message() << "); vendored graphics libs not searched.\n";
+                }
+                else if (third_party.empty())
+                {
+                    std::cerr << "  تحذير: لم يُعثر على موردات الرسوميّات المُورَّدة "
+                                 "(features/graphics/third_party) بدءًا من "
+                              << exe_dir.string() << " وصعودًا؛ قد يفشل الربط بـSDL_* غير معرّفة.\n";
+                    std::cerr << "  Warning: vendored graphics third_party not found walking up from "
+                              << exe_dir.string() << "; link may fail with undefined SDL_*.\n";
+                }
 
                 const auto sdl2_dir = find_vendored_x64_lib_dir(third_party, "SDL2");
                 if (!sdl2_dir.empty())
@@ -229,9 +282,10 @@ namespace sad
                     append_unique_value(library_paths, sdl2_dir.string());
                     append_unique_value(libraries, "SDL2");
                 }
-                else if (options_.verbose)
+                else if (options_.verbose && !third_party.empty())
                 {
                     // (AR) لم نجد SDL2.lib المُورَّدة؛ قد يفشل الربط بـSDL_* غير معرّفة.
+                    //      (المجلّد المفقود كلّيًّا حُذّر عنه أعلاه بلا شرط.)
                     // (EN) Vendored SDL2.lib not found; link may fail with undefined SDL_*.
                     std::cerr << "  تحذير: لم يُعثر على SDL2.lib (x64) تحت " << third_party.string() << "\n";
                     std::cerr << "  Warning: SDL2.lib (x64) not found under " << third_party.string() << "\n";
@@ -304,6 +358,32 @@ namespace sad
             (void)libraries;
             (void)include_cpp_runtime;
 #endif
+        }
+
+        std::string CompilerDriver::clang_library_flag(const std::string &library)
+        {
+            // (AR) سائقُ clang (لا clang-cl) يعامل `msvcrt.lib` **وسيطًا موضعيًّا** أي
+            //      ملفَّ دخلٍ يُقاس في مجلّد العمل وحدَه، ولا يبحث عنه في مسارات `-L`
+            //      إطلاقًا ⇒ «no such file or directory: 'msvcrt.lib'» مهما ضُبِط LIB.
+            //      الصيغةُ `-lmsvcrt` هي وحدَها التي تمرّ على مسارات البحث.
+            //      (مسارُ link.exe بخلافه: الوسيطُ الموضعيُّ صحيحٌ له ويُحَلّ بـ/LIBPATH.)
+            // (EN) The clang driver treats `foo.lib` as a positional input file (CWD
+            //      only) and never searches -L for it; only `-lfoo` honours -L.
+            //      (Amelia مراجعة٣) المقارنةُ غيرُ حسّاسةٍ للحالة: ويندوز يقبل
+            //      `FOO.LIB` فلولا ذلك لخرج `-lFOO.LIB`.
+            constexpr std::string_view kLibSuffix = ".lib";
+            std::string stem = library;
+            if (stem.size() > kLibSuffix.size())
+            {
+                std::string tail = stem.substr(stem.size() - kLibSuffix.size());
+                std::transform(tail.begin(), tail.end(), tail.begin(),
+                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+                if (tail == kLibSuffix)
+                {
+                    stem.resize(stem.size() - kLibSuffix.size());
+                }
+            }
+            return "-l" + stem;
         }
 
         // ============================================================================

@@ -1036,6 +1036,9 @@ namespace Sad
                 BUILTIN_UI_SET_TITLE,                ///< عنوان_النافذة(نص) / sad_set_window_title
                 BUILTIN_UI_CLOSE_WINDOW,             ///< أغلق_النافذة() / sad_close_window
                 BUILTIN_UI_GEN_WEB,                  ///< توليد_ويب(عنصر,عنوان؟) / sad_generate_web → String
+                BUILTIN_UI_GEN_ANDROID,              ///< توليد_أندرويد(عنصر,حزمة؟) / sad_generate_android → String
+                BUILTIN_UI_GEN_IOS,                  ///< توليد_آي_أو_إس(عنصر,وحدة؟) / sad_generate_ios → String
+                BUILTIN_UI_GEN_MACOS,                ///< توليد_ماك(عنصر,وحدة؟) / sad_generate_macos → String
 
                 // --- 20e. أثر المعدّلات الانسيابيّة (م-أ3ر) — خاصّيّة عامّة بالاسم
                 //          نظير setIRProperty في المفسّر. اسم الطريقة = اسم الخاصيّة. ---

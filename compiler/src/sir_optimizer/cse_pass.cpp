@@ -498,6 +498,9 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_SET_TITLE:
                 case SIR::SIROpcode::BUILTIN_UI_CLOSE_WINDOW:
                 case SIR::SIROpcode::BUILTIN_UI_GEN_WEB:
+                case SIR::SIROpcode::BUILTIN_UI_GEN_ANDROID:
+                case SIR::SIROpcode::BUILTIN_UI_GEN_IOS:
+                case SIR::SIROpcode::BUILTIN_UI_GEN_MACOS:
                     return true;
 
                 default:
