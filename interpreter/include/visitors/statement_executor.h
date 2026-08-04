@@ -677,6 +677,49 @@ namespace Sad
             // key: مسار الملف الكامل, value: Map الصادرات
             std::unordered_map<std::string, Data::Value> executedModuleExports_;
 
+            // ═════════════════════════════════════════════════════════════
+            // (AR) الوحداتُ الجاري تنفيذُها الآن — قاطعُ دورٍ لا خبيئة.
+            //      الخبيئةُ أعلاه لا تُقيَّد إلّا **بعد** اكتمالِ التنفيذ، فوحدتان
+            //      تُعيد كلٌّ تصديرَ الأخرى (`صدّر * من …` متبادلة) كانتا تُعاودان
+            //      بلا نهايةٍ حتّى ينهارَ المكدّس (0xC00000FD) بلا أيِّ تشخيص.
+            //      وهو العيبُ عينُه المُصلَحُ في المصرّف بـ`reExportsInFlight_`.
+            // (EN) Modules currently being executed — a cycle breaker, not a cache.
+            //      The cache above is only populated AFTER execution completes, so
+            //      two modules re-exporting each other recursed until the stack
+            //      overflowed (0xC00000FD) with no diagnostic — the same defect
+            //      fixed in the compiler via `reExportsInFlight_`.
+            // ═════════════════════════════════════════════════════════════
+            std::unordered_set<std::string> modulesInExecution_;
+
+            // ═════════════════════════════════════════════════════════════
+            // (AR) سجلُّ **أهدافِ** قطعِ الدور. قطعُ الدورِ يمنع الانهيار، لكنّ الوحدةَ
+            //      التي أخذت من الطرفِ المقطوعِ خريطةً فارغةً تخرج بصادراتٍ **ناقصة**
+            //      — فتخبئتُها تُثبِّت النقصَ إلى الأبد، ويصير الناتجُ رهينَ **ترتيبِ**
+            //      سطورِ الاستيراد.
+            //
+            //      🔑 والهدفُ يُسجَّل لا العدد: القطعُ يقع دائمًا على وحدةٍ **قيدَ
+            //      التنفيذِ** أعلانا، وهي التي تُكمِل صادراتِها بعد عودتنا — فهي
+            //      **كاملةٌ** وتُخبَّأ، والناقصُ ما بينها وبين موضعِ القطع. ولو مُنعت
+            //      التخبئةُ عن كلِّ سلفٍ فوق الدورةِ لصارت إعادةُ التنفيذِ `2^عمق`
+            //      لا مرّتَين — قِيس حيًّا: ماسٌ بعمقِ ثلاثةٍ فوق دورةٍ ⇒ ١٦ تنفيذًا.
+            //      فيُمنَع الحفظُ عن الوحدةِ وحدَها إن كان بين القطوعِ تحتَها قطعٌ
+            //      هدفُه **غيرُها** (أيْ سلفٌ لها ⇒ فهي داخلَ الدورةِ لا جذرَها).
+            // (EN) Log of cycle-cut TARGETS. Cutting prevents the crash, but the module that
+            //      received an empty map finishes with INCOMPLETE exports; caching those
+            //      freezes the loss and makes results order-dependent.
+            //
+            //      🔑 The target is logged, not a count: a cut always lands on a module IN
+            //      FLIGHT above us, and that module completes its exports after we return —
+            //      so IT is complete and may be cached; what is incomplete lies between it
+            //      and the cut point. Barring every ancestor above the cycle from caching
+            //      would make re-execution `2^depth`, not twice — measured: a depth-3 diamond
+            //      above a cycle ⇒ 16 executions. So caching is withheld from a module only
+            //      when a cut beneath it targeted a DIFFERENT module (an ancestor of it),
+            //      meaning it sits inside the cycle rather than at its root.
+            //      ⚠️ Cost: the cycle's own modules re-execute once on the next request.
+            // ═════════════════════════════════════════════════════════════
+            std::vector<std::string> cycleCutTargets_;
+
             /**
              * @brief (AR) تنفيذ AST وحدة مُحمَّلة واستخراج رموزها
              * @brief (EN) Execute a loaded module's AST and extract its symbols

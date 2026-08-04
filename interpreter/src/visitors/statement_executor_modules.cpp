@@ -76,7 +76,38 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
     if (cacheIt != executedModuleExports_.end()) {
         return cacheIt->second;
     }
-    
+
+    // ═════════════════════════════════════════════════════════════════════
+    // (AR) قاطعُ الدور: الخبيئةُ أعلاه تُقيَّد **بعد** اكتمالِ التنفيذ وحدَه، فهي
+    //      لا تحرس التعاود. وحدتان تُعيد كلٌّ تصديرَ الأخرى تعودان إلى هنا وهما
+    //      قيدَ التنفيذ ⇒ تعاودٌ بلا نهايةٍ ينتهي بانهيارِ مكدّسٍ بلا تشخيص.
+    //      والعودةُ بخريطةٍ فارغةٍ — لا برفعِ خطأ — لأنّ الدورةَ ليست خطأً في
+    //      ذاتها: الوحدةُ الجاريةُ ستُكمِل صادراتِها بعد عودتنا، فتلتقطها
+    //      إعادةُ التصديرِ من الطرفِ الآخر. (نظيرُ `reExportsInFlight_` في المصرّف.)
+    // (EN) Cycle breaker: the cache above is only populated AFTER execution
+    //      completes, so it does not guard recursion. Two mutually re-exporting
+    //      modules re-enter here while still in flight ⇒ unbounded recursion and
+    //      a silent stack overflow. We return an EMPTY map rather than raising,
+    //      because a cycle is not itself an error: the in-flight module finishes
+    //      its own exports after we return, and the other side picks them up.
+    //      (Mirror of the compiler's `reExportsInFlight_`.)
+    // ═════════════════════════════════════════════════════════════════════
+    if (!modulesInExecution_.insert(moduleKey).second) {
+        cycleCutTargets_.push_back(moduleKey);
+        return Data::Value(Data::Value::MapType());
+    }
+    // (AR) لقطةُ السجلّ: ما بعدَها هو القطوعُ الواقعةُ **تحتَ** هذا التنفيذ
+    // (EN) Log snapshot: everything after it are the cuts that happened BENEATH this one
+    const size_t cycleCutsBeforeExecution = cycleCutTargets_.size();
+    // (AR) حارسٌ يُخرِج المفتاحَ حتمًا — حتّى إن رُفع خطأٌ من داخلِ تنفيذِ الوحدة
+    // (EN) RAII guard: removes the key even if module execution throws
+    struct ModuleExecutionScope {
+        std::unordered_set<std::string>& inFlight;
+        const std::string& key;
+        ~ModuleExecutionScope() { inFlight.erase(key); }
+    } moduleExecutionScope{modulesInExecution_, moduleKey};
+
+
     // (AR) حفظ الحالة الحالية لمنفذ العبارات
     // (EN) Save current state of statement executor
     auto savedFlowControl = flowControl_;
@@ -495,10 +526,23 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
     currentFilePath_ = savedCurrentFilePath;
     currentNamespace_ = savedCurrentNamespace;
     
-    // (AR) تخزين النتيجة في الذاكرة المخبئية
-    // (EN) Store result in cache
+    // (AR) تخزين النتيجة في الذاكرة المخبئية — **إلّا** إن قُطع دورٌ تحت هذا
+    //      التنفيذ، فصادراتُنا حينئذٍ ناقصةٌ بحكمِ القطعِ لا بحكمِ الوحدة، وتخبئتُها
+    //      تُثبّت النقصَ فيصير الناتجُ رهينَ ترتيبِ سطورِ الاستيراد.
+    // (EN) Cache the result — UNLESS a cycle was cut beneath this execution, in which
+    //      case our exports are incomplete by virtue of the cut, not of the module;
+    //      caching them freezes the loss and makes the result order-dependent.
     Data::Value result(moduleExports);
-    executedModuleExports_[moduleKey] = result;
+    bool cutTargetedAnAncestor = false;
+    for (size_t cut = cycleCutsBeforeExecution; cut < cycleCutTargets_.size(); ++cut) {
+        if (cycleCutTargets_[cut] != moduleKey) {
+            cutTargetedAnAncestor = true;
+            break;
+        }
+    }
+    if (!cutTargetedAnAncestor) {
+        executedModuleExports_[moduleKey] = result;
+    }
     
     return result;
 }
@@ -933,11 +977,9 @@ void StatementExecutor::visitReExportStmt(AST::ReExportStmt& node) {
     }
     
     // (AR) بناء الاسم الكامل للوحدة
-    std::string fullModuleName;
-    for (size_t i = 0; i < node.modulePath.size(); ++i) {
-        if (i > 0) fullModuleName += ".";
-        fullModuleName += node.modulePath[i];
-    }
+    // (AR) الوصلُ الموحَّدُ في `shared/ast` — يحرس البادئةَ النسبيّة (ISSUE-089-ب)
+    // (EN) The unified join in `shared/ast` — guards the relative prefix
+    std::string fullModuleName = AST::joinModulePathToFullName(node.modulePath);
     
     // (AR) التحقق من الوحدات المُضمّنة
     auto& builtinRegistry = BuiltinModuleRegistry::getInstance();

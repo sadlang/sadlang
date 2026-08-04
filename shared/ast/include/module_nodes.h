@@ -78,6 +78,48 @@ class Statement;
 // (AR) هياكل مساعدة / (EN) Helper Structures
 // =========================================================================
 
+// (AR) بادئتا المسارِ النسبيّ: مقطعٌ **رابطٌ** لا اسمَ جزءٍ من الوحدة.
+// (EN) The relative-path prefixes: a CONNECTIVE segment, not a name component.
+inline constexpr const char *kRelativePathPrefixCurrent = ".";
+inline constexpr const char *kRelativePathPrefixParent = "..";
+inline constexpr const char *kModulePathSeparator = ".";
+
+/**
+ * @brief (AR) وصلُ مسارِ الوحدةِ باسمِها الكامل المنقوط
+ * @brief (EN) Join a module path into its dotted full name
+ *
+ * @details
+ * (AR) كان هذا الوصلُ مكرَّرًا في سبعةِ مواضعَ (عُقَدُ AST والمصرّفُ والمفسّرُ
+ *      ومحلّلُ الوحدات)، وكلُّها تضع فاصلًا بين كلِّ مقطعَين بلا استثناء —
+ *      فالمسارُ النسبيُّ `.وحدة` مقاطعُه {".", "وحدة"} فيصير اسمُه `..وحدة`
+ *      **مشوَّهًا**، وهو ما كانت الرسالةُ تعرضه: «لم يُعثر على الوحدة '..وحدة'».
+ *      والبادئةُ النسبيّةُ رابطٌ لا اسمٌ، فلا فاصلَ بعدها: `.وحدة` و`..وحدة`.
+ *      وتوحيدُ الوصلِ هنا يمنع أن يُصلَح موضعٌ ويبقى ستّةٌ متباعدة. — ISSUE-089-ب
+ * (EN) This join was duplicated in seven places (AST nodes, compiler, interpreter,
+ *      module resolver), each inserting a separator between every pair of segments
+ *      unconditionally — so the relative path `.وحدة`, whose segments are
+ *      {".", "وحدة"}, was MANGLED into `..وحدة`, exactly as the diagnostic showed.
+ *      A relative prefix is a connective, not a name: no separator follows it.
+ *      Unifying the join here prevents fixing one site and leaving six adrift.
+ *
+ * @param modulePath (AR) مقاطعُ المسار / (EN) The path segments
+ * @return (AR) الاسمُ الكامل / (EN) The full name
+ */
+inline std::string joinModulePathToFullName(const std::vector<std::string> &modulePath) {
+    std::string result;
+    for (size_t segment = 0; segment < modulePath.size(); ++segment) {
+        const bool previousIsRelativePrefix =
+            segment > 0 && segment == 1 &&
+            (modulePath[0] == kRelativePathPrefixCurrent ||
+             modulePath[0] == kRelativePathPrefixParent);
+        if (segment > 0 && !previousIsRelativePrefix) {
+            result += kModulePathSeparator;
+        }
+        result += modulePath[segment];
+    }
+    return result;
+}
+
 /**
  * @struct ImportItem
  * @brief (AR) عنصر مستورد واحد (مع اسم مستعار اختياري)
@@ -227,10 +269,7 @@ public:
         std::string result = "استورد ";
         
         // Join module path with dots / دمج مسار الوحدة بنقاط
-        for (size_t i = 0; i < modulePath.size(); ++i) {
-            if (i > 0) result += ".";
-            result += modulePath[i];
-        }
+        result += joinModulePathToFullName(modulePath);
         
         // Add alias if present / إضافة الاسم المستعار إن وُجد
         if (alias.has_value()) {
@@ -248,12 +287,7 @@ public:
      * ["mylib", "utils", "math"] → "mylib.utils.math"
      */
     std::string getFullModuleName() const {
-        std::string result;
-        for (size_t i = 0; i < modulePath.size(); ++i) {
-            if (i > 0) result += ".";
-            result += modulePath[i];
-        }
-        return result;
+        return joinModulePathToFullName(modulePath);
     }
     
     /**
@@ -357,10 +391,7 @@ public:
         std::string result = "من ";
         
         // Join module path / دمج مسار الوحدة
-        for (size_t i = 0; i < modulePath.size(); ++i) {
-            if (i > 0) result += ".";
-            result += modulePath[i];
-        }
+        result += joinModulePathToFullName(modulePath);
         
         result += " استورد ";
         
@@ -383,12 +414,7 @@ public:
      * @return (AR) اسم الوحدة الكامل / (EN) Full module name
      */
     std::string getFullModuleName() const {
-        std::string result;
-        for (size_t i = 0; i < modulePath.size(); ++i) {
-            if (i > 0) result += ".";
-            result += modulePath[i];
-        }
-        return result;
+        return joinModulePathToFullName(modulePath);
     }
 };
 
@@ -537,10 +563,7 @@ public:
         // (EN) Empty path = bare export * (all current-module symbols) — no 'from'
         if (!modulePath.empty()) {
             result += " من ";
-            for (size_t i = 0; i < modulePath.size(); ++i) {
-                if (i > 0) result += ".";
-                result += modulePath[i];
-            }
+            result += joinModulePathToFullName(modulePath);
         }
         return result;
     }

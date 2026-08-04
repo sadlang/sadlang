@@ -50,14 +50,7 @@ namespace Sad
                 //      receives the fields rather than the node.
                 std::string joinModulePath(const std::vector<std::string> &modulePath)
                 {
-                    std::string fullName;
-                    for (size_t segment = 0; segment < modulePath.size(); ++segment)
-                    {
-                        if (segment > 0)
-                            fullName += ".";
-                        fullName += modulePath[segment];
-                    }
-                    return fullName;
+                    return Sad::AST::joinModulePathToFullName(modulePath);
                 }
 
                 // (AR) أسماءُ ما تُتيحه الوحدةُ للاستيراد: هي وحدَها ما يجوز تأهيلُه بها.
@@ -195,6 +188,77 @@ namespace Sad
                     std::unordered_set<std::string> savedSeeded_;
                     std::unordered_map<std::string, std::string> savedNamespaces_;
                 };
+
+                // ====================================================================
+                // (AR) حارسُ الملفِّ الجاري بناؤه. المسارُ النسبيُّ يُحَلُّ **بالنسبةِ إلى
+                //      الملفِّ الذي كتبه**، وكان الطورُ 2 يُمرِّر `currentFilePath_` — ملفَّ
+                //      الجذرِ دائمًا — فوحدةٌ في مجلَّدٍ آخرَ تكتب `.أختها` كان يُبحَث عنها
+                //      في مجلَّدِ الجذرِ فلا تُوجَد. والطورُ 1 يفعل الصوابَ أصلًا (ينحدر
+                //      بمسارِ الوحدةِ قاعدةً)، فهذا الحارسُ يُلحِق الطورَ 2 به فيتّفقان.
+                //      — ISSUE-089-ب، ونظيرُ ما يفعله المفسّرُ في executeModuleAndExtractExports
+                // (EN) Guard for the file currently being built. A relative path resolves
+                //      RELATIVE TO THE FILE THAT WROTE IT, but Phase 2 passed
+                //      `currentFilePath_` — always the root file — so a module in another
+                //      directory writing `.sibling` was searched for in the root's directory
+                //      and never found. Phase 1 already does the right thing (it descends
+                //      with the module's own path as base); this guard brings Phase 2 into
+                //      agreement. Mirrors the interpreter's executeModuleAndExtractExports.
+                // ====================================================================
+                class ModuleFilePathScope
+                {
+                public:
+                    ModuleFilePathScope(SIRBuilder &builder, std::string moduleFilePath)
+                        : builder_(builder), savedFilePath_(std::move(builder.currentFilePath_))
+                    {
+                        builder_.currentFilePath_ = std::move(moduleFilePath);
+                    }
+
+                    ModuleFilePathScope(const ModuleFilePathScope &) = delete;
+                    ModuleFilePathScope &operator=(const ModuleFilePathScope &) = delete;
+
+                    ~ModuleFilePathScope() { builder_.currentFilePath_ = std::move(savedFilePath_); }
+
+                private:
+                    SIRBuilder &builder_;
+                    std::string savedFilePath_;
+                };
+
+                // ====================================================================
+                // (AR) هُويّةُ الوحدةِ بوصفها **موضعًا** لا اسمًا. الاسمُ المطلقُ يُعرّف
+                //      وحدتَه وحدَها، أمّا المسارُ النسبيُّ فيعني وحدةً مختلفةً بحسبِ
+                //      الملفِّ الذي كتبه — فمفتاحٌ بالاسمِ وحدَه يخلط `.مصدر` في مجلَّدٍ
+                //      بـ`.مصدر` في آخر. تُستعمل حيث يلزم **التمييزُ** لا العرض.
+                // (EN) The module's identity as a LOCATION, not a name. An absolute name
+                //      identifies exactly one module; a relative path means a different
+                //      module depending on which file wrote it, so a name-only key conflates
+                //      `.src` in one directory with `.src` in another. Used wherever
+                //      DISCRIMINATION is needed — never for display.
+                // ====================================================================
+                std::string moduleIdentityKey(const std::string &writingFilePath,
+                                              const std::vector<std::string> &modulePath)
+                {
+                    const std::string fullName = Sad::AST::joinModulePathToFullName(modulePath);
+                    const bool isRelative =
+                        !modulePath.empty() &&
+                        (modulePath[0] == Sad::AST::kRelativePathPrefixCurrent ||
+                         modulePath[0] == Sad::AST::kRelativePathPrefixParent);
+                    if (!isRelative)
+                        return fullName;
+                    return writingFilePath + "::" + fullName;
+                }
+
+                // (AR) مسارُ ملفِّ الوحدةِ نصًّا. على ويندوز عبر from_wstring: استدعاءُ
+                //      path::string() على اسمٍ عربيٍّ يتعطّل/يرمي خارجَ ترميزِ ANSI.
+                // (EN) The module's file path as text. On Windows via from_wstring:
+                //      path::string() on an Arabic name hangs/throws outside ANSI.
+                std::string moduleFilePathAsText(const Modules::Module *module)
+                {
+#ifdef _WIN32
+                    return sad::utf8::from_wstring(module->filePath.wstring());
+#else
+                    return module->filePath.string();
+#endif
+                }
 
                 // ====================================================================
                 // (AR) قائمة موحّدة لوحدات المكتبة القياسية التي يعترضها المترجم
@@ -911,6 +975,10 @@ namespace Sad
                 ImportAliasScope moduleAliasScope(b_, std::move(moduleImportAliases),
                                                   std::move(moduleOwnNamespaces));
 
+                // (AR) واستيراداتُها النسبيّةُ تُحَلُّ من مجلَّدِها هي — ISSUE-089-ب
+                // (EN) And its relative imports resolve from its own directory
+                ModuleFilePathScope moduleFileScope(b_, moduleFilePathAsText(module));
+
                 // (AR) معالجة كل تصريح في الوحدة
                 // (EN) Process each declaration in module
                 for (const auto &stmt : module->ast)
@@ -1565,7 +1633,20 @@ namespace Sad
                 //      reaching the next statement dies with the first early return or
                 //      exception later introduced into the body, leaving the key stuck and
                 //      silently muting a subsequent legitimate re-export.
-                const std::string reExportKey = joinModulePath(reExportStmt->modulePath);
+                // (AR) 🔑 والمفتاحُ مؤهَّلٌ بالملفِّ الذي كتبه متى كان المسارُ نسبيًّا:
+                //      `.مصدر` **ليست اسمًا مطلقًا** — مجلَّدان فيهما `مصدر.ص` وكلٌّ
+                //      يُعيد تصديرَه بالصيغةِ عينِها يتصادمان على مفتاحٍ واحدٍ، فيُقطَع
+                //      الثاني وهو **مشروعٌ** ⇒ رمزٌ لا يُبنى ثمّ خطأُ رابطٍ مبهم. وهذه
+                //      مرآةُ ما يفعله `ModuleResolver::resolveModule` أصلًا في مفتاحِ
+                //      خبيئته (`currentFile + "::" + fullName`) — فيتّفق الحارسُ معه.
+                // (EN) 🔑 The key is qualified by the file that wrote it whenever the path is
+                //      relative: `.مصدر` is NOT an absolute name — two directories each
+                //      holding `مصدر.ص` and re-exporting it identically collide on one key,
+                //      so the second, LEGITIMATE re-export is cut ⇒ a symbol is never built
+                //      and an opaque link error follows. Mirrors what
+                //      `ModuleResolver::resolveModule` already does for its own cache key.
+                const std::string reExportKey =
+                    moduleIdentityKey(b_.currentFilePath_, reExportStmt->modulePath);
                 if (!b_.reExportsInFlight_.insert(reExportKey).second)
                     return;
                 ReExportCycleScope reExportScope(b_.reExportsInFlight_, reExportKey);
@@ -1687,6 +1768,10 @@ namespace Sad
                 collectFileImportBindings(module->ast, moduleImportAliases, moduleOwnNamespaces);
                 ImportAliasScope moduleAliasScope(b_, std::move(moduleImportAliases),
                                                   std::move(moduleOwnNamespaces));
+
+                // (AR) واستيراداتُها النسبيّةُ تُحَلُّ من مجلَّدِها هي — ISSUE-089-ب
+                // (EN) And its relative imports resolve from its own directory
+                ModuleFilePathScope moduleFileScope(b_, moduleFilePathAsText(module));
 
                 // (AR) معالجة تصريحات الوحدة
                 // (EN) Process module declarations

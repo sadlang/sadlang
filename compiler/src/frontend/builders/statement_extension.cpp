@@ -322,13 +322,10 @@ namespace Sad
 
                     // (AR) بناء اسم الوحدة الكامل
                     // (EN) Build full module name
-                    std::string fullModuleName;
-                    for (size_t i = 0; i < reExportStmt->modulePath.size(); ++i)
-                    {
-                        if (i > 0)
-                            fullModuleName += ".";
-                        fullModuleName += reExportStmt->modulePath[i];
-                    }
+                    // (AR) الوصلُ الموحَّدُ في `shared/ast` — يحرس البادئةَ النسبيّة
+                    // (EN) The unified join in `shared/ast` — guards the relative prefix
+                    std::string fullModuleName =
+                        Sad::AST::joinModulePathToFullName(reExportStmt->modulePath);
 
                     // (AR) تحميل الوحدة عبر محلل الوحدات (نفس منطق b_.buildImportStmt)
                     // (EN) Load module via module resolver (same logic as b_.buildImportStmt)

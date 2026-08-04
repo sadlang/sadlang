@@ -307,13 +307,9 @@ namespace Sad
                               (modulePath[0] == "." || modulePath[0] == "..");
 
             // (AR) بناء الاسم الكامل / (EN) Build full name
-            std::string fullName;
-            for (size_t i = 0; i < modulePath.size(); ++i)
-            {
-                if (i > 0)
-                    fullName += ".";
-                fullName += modulePath[i];
-            }
+            // (AR) الوصلُ الموحَّدُ في `shared/ast` — يحرس البادئةَ النسبيّة
+            // (EN) The unified join in `shared/ast` — guards the relative prefix
+            std::string fullName = Sad::AST::joinModulePathToFullName(modulePath);
 
             // (AR) للاستيراد النسبي، نبني مفتاح cache فريداً بناءً على الملف الحالي
             // (EN) For relative import, build unique cache key based on current file
