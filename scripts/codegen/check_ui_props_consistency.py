@@ -29,7 +29,15 @@ import re
 import sys
 from pathlib import Path
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+# (AR) الرسائلُ عربيّةٌ وصفحةُ ترميزِ الطرفيّةِ على ويندوز ليست UTF-8. نُعيد ضبطَ
+#      المجرى بدل استبدالِه: الاستبدالُ يلفّ `.buffer` فيُبطِل التقاطَ pytest
+#      (يُغلَق المجرى الأصليّ تحت اللفافة) فلا يعود الحارسُ قابلًا للاختبار.
+# (EN) Reconfigure, don't replace: wrapping .buffer breaks pytest's capture.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+except (AttributeError, ValueError):  # pragma: no cover — مجرى لا يقبل الضبط
+    if hasattr(sys.stdout, "buffer"):
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 try:
     import yaml
@@ -70,6 +78,36 @@ _VOCABS = (
 _NODES = _ROOT / "language-truth" / "ui_nodes.yaml"
 _NODE_HEADER = _GEN_DIR / "node_types_generated.h"
 _TYPES_H = _ROOT / "features" / "graphics" / "core" / "include" / "sad_ui" / "types.h"
+# (AR) المسارُ التصريحيُّ في المحلّل (`واجهة … نهاية`): قائمةُ العناصرِ الأوّليّةِ
+#      الـ١٥ (ADR-UI-02) وخريطةُ المُهمَل. سياسةُ التقليصِ قرارٌ معماريٌّ يخصُّ
+#      المحلّل، لكنّ **الأسماءَ** نفسَها يجب أن تكون أسماءَ عُقَدٍ قانونيّةً في SoT
+#      وإلّا رفض المحلّلُ ما يعرفه المحرّكان أو قبِل ما لا وجودَ له.
+_PARSER_UI = _ROOT / "shared" / "parser" / "src" / "ui" / "parser_ui.cpp"
+_PARSER_HEADER = (
+    _ROOT / "shared" / "parser" / "include" / "generated" / "ui_parser_nodes_generated.h"
+)
+_EVENTS_YAML = _ROOT / "language-truth" / "ui_events.yaml"
+# (AR) بادئةُ اسمِ الحدث — المدخلةُ الاحتياطيّةُ «مخصص» لا تحملها ولا تُبعَث.
+_EVENT_PREFIX = "عند_"
+# (AR) كلُّ مَن يقرّر شكلَ العقدةِ في المسارِ التصريحيّ — محلّلًا كان أو مفسّرًا.
+#      قصرُ الفحصِ على parser_ui.cpp ترك اسمًا حرفيًّا في مُقيِّمِ المفسّر يقارن
+#      بـ«نص» بينما الاسمُ القانونيُّ «نص_عنصر»، فسقط وسيطُ العنصرِ في مفتاحٍ
+#      احتياطيٍّ لا قارئَ له ⇒ نصٌّ فارغٌ على الشاشةِ بلا خطأ.
+# (EN) Everyone who decides node shape — parser AND interpreter. Narrowing this
+#      to parser_ui.cpp let a literal name survive in the interpreter evaluator.
+_PARSER_CONSUMERS = (
+    _ROOT / "shared" / "parser" / "src" / "ui" / "parser_ui.cpp",
+    _ROOT / "shared" / "parser" / "src" / "core" / "parser_main.cpp",
+    _ROOT / "shared" / "parser" / "src" / "core" / "parser_expressions.cpp",
+    _ROOT / "interpreter" / "src" / "visitors" / "expression_evaluator_ui.cpp",
+    _ROOT / "interpreter" / "src" / "ui" / "ui_bridge.cpp",
+)
+# (AR) ADR-UI-02: المسارُ التصريحيُّ يقبل ١٥ عنصرًا أوّليًّا، سبعةٌ منها حاويات.
+#      الرقمان قرارٌ معماريٌّ لا اشتقاقٌ من المولّد، فيُحرَسان هنا صراحةً: تأكيدٌ
+#      يقارن المولَّدَ بالمولَّدِ حشوٌ لا يفشل أبدًا. تغييرُهما يستلزم تعديلَ ADR.
+# (EN) ADR-UI-02's 15/7 is a decision, not a derivation — assert it explicitly.
+_ADR_UI_02_PRIMITIVES = 15
+_ADR_UI_02_CONTAINERS = 7
 
 _COLORS = _ROOT / "language-truth" / "ui_colors.yaml"
 _COLOR_TABLE = _GEN_DIR / "color_table_generated.h"
@@ -77,6 +115,162 @@ _COLOR_PRELUDE = _GEN_DIR / "color_prelude_generated.h"
 _COLOR_UTILS = _ROOT / "features" / "graphics" / "core" / "include" / "sad_ui" / "color_utils.h"
 _INTERP_CORE = _ROOT / "interpreter" / "src" / "core" / "interpreter_core.cpp"
 _COMPILER_MODULE = _ROOT / "compiler" / "src" / "frontend" / "sir_builder_module.cpp"
+
+
+def _cpp_block(src: str, name: str) -> str:
+    """(AR) جسمُ قائمةِ تهيئةٍ في C++ باسمِ متغيّرٍ معلوم. / Initializer-list body."""
+    start = src.find(f"{name} = {{")
+    if start < 0:
+        return ""
+    end = src.find("};", start)
+    return src[start:end] if end > start else ""
+
+
+_ARABIC_RE = re.compile(r"[؀-ۿݐ-ݿﭐ-﷿ﹰ-﻿]")
+# (AR) بادئاتُ السلسلةِ الخامّة ومُحدِّدُها (حدُّ C++ ١٦ محرفًا).
+_RAW_STRING_RE = re.compile(r'(?:u8|[LuU])?R"([^("\\\s]{0,16})\(')
+_HEX_DIGITS = "0123456789abcdefABCDEF"
+_OCTAL_DIGITS = "01234567"
+
+
+def _cpp_strings(src: str) -> list[str]:
+    """
+    (AR) كلُّ سلسلةٍ حرفيّةٍ في كودِ C++ **بقيمتها بعد فكِّ الهروب** (خارجَ التعليقات).
+
+    ماسحٌ لا تعبيرٌ نمطيّ، لأنّ الأخيرَ يُخدَع بطرقٍ برهنتها المراجعة:
+      • `"\\xd8\\xb2\\xd8\\xb1"` — البايتاتُ المُرمَّزةُ تخفي الاسمَ (وهي صيغةُ مولّدنا نفسِه)
+      • `"\\u0632\\u0631"` و`"\\330\\262"` — الهروبُ الشامل والثمانيّ
+      • `R"(زر)"` — السلسلةُ الخامّةُ تلتقط قوسَيها فلا تطابق
+      • `"ز" "ر"` و`"ز" /*ف*/ "ر"` — التجاورُ (ولو بتعليقٍ بينهما) يشطر الاسم
+      • `//` داخلَ سلسلةٍ — كنسُ التعليقاتِ بالنمطِ يبتر بقيّةَ السطرِ الحيّ
+    (EN) A scanner, not a regex: decodes every escape form, joins adjacent
+         literals (even across comments), handles raw strings, and never
+         mistakes `//` inside a string for a comment.
+    """
+    out: list[str] = []
+    i, n = 0, len(src)
+    pending: list[str] | None = None  # (AR) تسلسلُ سلاسلَ متجاورة
+
+    def flush() -> None:
+        nonlocal pending
+        if pending is not None:
+            out.append("".join(pending))
+            pending = None
+
+    while i < n:
+        ch = src[i]
+        # (AR) التعليقُ لا يقطع التجاور: `"ز" /*ف*/ "ر"` سلسلةٌ واحدةٌ في C++،
+        #      فلا نُفرِغ `pending` عنده وإلّا انشطر الاسمُ حرفين ومرّ.
+        # (EN) A comment does not break concatenation — do not flush here.
+        if ch == "/" and i + 1 < n and src[i + 1] == "/":
+            nl = src.find("\n", i)
+            if nl < 0:
+                break
+            i = nl
+            continue
+        if ch == "/" and i + 1 < n and src[i + 1] == "*":
+            end = src.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+            continue
+        if ch == "'":
+            # (AR) حرفٌ مفردٌ — نتخطّاه إلى إغلاقِه الحقيقيّ. القفزُ بعددٍ ثابتٍ
+            #      يخطئ في `'\\\\'` (أربعةُ محارف) فيقع على علامةِ الإغلاقِ ويُعيد
+            #      فتحَ حرفٍ وهميّ، فيفقد الماسحُ تزامنَه ويبتلعَ بقيّةَ الملفّ صامتًا.
+            #      وإن لم يكن حرفًا (فاصلُ أرقامٍ مثل 1'000) نتقدّم محرفًا واحدًا.
+            # (EN) Advance to the real closing quote; a fixed skip desyncs on '\\\\'.
+            j = i + 1
+            while j < n and src[j] != "'" and src[j] != "\n":
+                j += 2 if src[j] == "\\" else 1
+            i = j + 1 if (j < n and src[j] == "'" and j - i <= 5) else i + 1
+            continue
+        # (AR) سلسلةٌ خامّة R"delim( … )delim" — بادئاتُ L/u8/u/U مقبولة.
+        #      نُطابق في مكانِه (`match(src, i)`) لا على `src[i:]`: التقطيعُ عند
+        #      كلِّ محرفٍ يجعل المسحَ تربيعيًّا (ثوانٍ للملفّ الواحد) فيمنع
+        #      توسيعَ نطاقِ الحارسِ إلى بقيّةِ الطبقات.
+        # (EN) Match in place; slicing per char makes the scan quadratic.
+        raw = _RAW_STRING_RE.match(src, i)
+        if raw:
+            close = f'){raw.group(1)}"'
+            end = src.find(close, raw.end())
+            body = src[raw.end() : end if end >= 0 else n]
+            (pending := pending if pending is not None else []).append(body)
+            i = n if end < 0 else end + len(close)
+            continue
+        if ch == '"':
+            # (AR) سلسلةٌ عاديّةٌ لا تعبر سطرًا في C++؛ التوقّفُ عند `\n` يمنع أن
+            #      يبتلعَ اقتباسٌ يتيمٌ بقيّةَ الملفّ فيعمى الحارسُ عمّا بعده.
+            j, buf = i + 1, []
+            while j < n and src[j] != '"' and src[j] != "\n":
+                if src[j] == "\\":
+                    esc = src[j + 1 : j + 2]
+                    if esc == "x":  # (AR) هروبٌ سُدسيٌّ عشريٌّ جشِعُ الخانات
+                        k = j + 2
+                        while k < n and src[k] in _HEX_DIGITS:
+                            k += 1
+                        buf.append(bytes([int(src[j + 2 : k], 16) & 0xFF]))
+                        j = k
+                        continue
+                    if esc in ("u", "U"):
+                        # (AR) هروبٌ شامل: \\uXXXX أو \\UXXXXXXXX — عددُ خاناتِه ثابت.
+                        width = 4 if esc == "u" else 8
+                        digits = src[j + 2 : j + 2 + width]
+                        if len(digits) == width and all(c in _HEX_DIGITS for c in digits):
+                            buf.append(chr(int(digits, 16)).encode("utf-8"))
+                            j += 2 + width
+                            continue
+                    if esc in _OCTAL_DIGITS:
+                        # (AR) هروبٌ ثمانيّ: حتّى ثلاثِ خاناتٍ (\\330\\262 = «ز»).
+                        k = j + 1
+                        while k < n and k < j + 4 and src[k] in _OCTAL_DIGITS:
+                            k += 1
+                        buf.append(bytes([int(src[j + 1 : k], 8) & 0xFF]))
+                        j = k
+                        continue
+                    buf.append(_CPP_ESCAPES.get(esc, esc).encode("utf-8"))
+                    j += 2
+                    continue
+                buf.append(src[j].encode("utf-8"))
+                j += 1
+            (pending := pending if pending is not None else []).append(
+                b"".join(buf).decode("utf-8", errors="replace")
+            )
+            i = j + 1
+            continue
+        if not ch.isspace():
+            flush()
+        i += 1
+    flush()
+    return out
+
+
+# (AR) هروباتُ C++ البسيطة (ما عدا \\xHH المعالَجَ أعلاه بجشعِه المقصود).
+_CPP_ESCAPES = {"n": "\n", "t": "\t", "r": "\r", "0": "\0", "\\": "\\",
+                '"': '"', "'": "'", "a": "\a", "b": "\b", "f": "\f", "v": "\v"}
+
+
+def _arabic_literals(src: str) -> list[str]:
+    """(AR) السلاسلُ الحرفيّةُ التي تحوي حرفًا عربيًّا، بقيمتِها المفكوكة."""
+    return [s for s in _cpp_strings(src) if _ARABIC_RE.search(s)]
+
+
+def _macro_names(header: str, macro: str) -> set[str]:
+    """(AR) أسماءُ مدخلاتِ قائمةِ X-macro مولَّدةٍ، مفكوكةَ الهروب. / X-macro entries."""
+    start = header.find(f"#define {macro}(X)")
+    if start < 0:
+        return set()
+    end = start
+    while True:  # (AR) القائمةُ تمتدّ ما دام السطرُ ينتهي بشرطةٍ مائلةٍ خلفيّة
+        nl = header.find("\n", end)
+        if nl < 0:
+            end = len(header)
+            break
+        if not header[end:nl].rstrip().endswith("\\"):
+            end = nl
+            break
+        end = nl + 1
+    return {
+        m for m in _cpp_strings(header[start:end]) if _ARABIC_RE.search(m)
+    }
 
 
 def _factory_node_map(src: str) -> dict[str, str]:
@@ -315,11 +509,11 @@ def main() -> int:
                 errors.append(
                     f"العقدة «{nid}»: مصنعُها الوحيد «{own[0]}» فاسمُها القانونيّ يجب أن يطابقه لا «{canon}»"
                 )
-        # أسماءُ القراءة الإضافيّة لا تصطدم باسمٍ قانونيّ ولا ببعضها.
-        # وهي صنفان يبعثهما المولِّدُ معًا في SAD_UI_NODE_ALT_NAME_LIST: الأسماءُ
-        # الانتقاليّةُ (legacy_names) وأسماءُ مصانعِ العقدةِ عدا اسمِها القانونيّ.
-        # يجب فحصُ الصنفين معًا وإلّا مرّ تصادمُ اسمِ مصنعٍ جديدٍ صامتًا فتُسقِطَ
-        # قائمةُ تهيئةِ unordered_map المدخلةَ الثانيةَ ويُحَلَّ الودجت إلى عقدةٍ خاطئة.
+        # أسماءُ القراءة الإضافيّة لا تصطدم باسمٍ قانونيّ ولا ببعضها. ولم يبقَ
+        # منها إلّا صنفٌ واحد — أسماءُ مصانعِ العقدةِ عدا اسمِها القانونيّ — بعد
+        # حذفِ legacy_names من مصدرِ الحقيقة (قرار مالك: لا توافقَ خلفيًّا).
+        # تصادمُ اسمِ مصنعٍ جديدٍ يمرُّ صامتًا لولا هذا الفحص، فتُسقِطَ قائمةُ تهيئةِ
+        # unordered_map المدخلةَ الثانيةَ ويُحَلَّ الودجت إلى عقدةٍ خاطئة.
         seen_alt: dict[str, str] = {}
         for node in node_list:
             derived = [
@@ -327,7 +521,7 @@ def main() -> int:
                 for c in node.get("builtins", []) or []
                 if c in widget_canon and widget_canon[c] != node["canonical"]
             ]
-            for alt in list(node.get("legacy_names", []) or []) + derived:
+            for alt in derived:
                 if alt in seen_alt and seen_alt[alt] != node["id"]:
                     errors.append(
                         f"أنواع العُقَد: اسمُ القراءةِ الإضافيّ «{alt}» مشتركٌ بين "
@@ -371,6 +565,93 @@ def main() -> int:
                 for macro in ("SAD_UI_NODE_TYPE_LIST", "SAD_UI_NODE_ALT_NAME_LIST"):
                     if macro not in tc:
                         errors.append(f"أنواع العُقَد: types.cpp لا يستهلك {macro} (جدولٌ يدويّ؟)")
+        # المسارُ التصريحيُّ في المحلّل: يبني مجموعاتِه من القوائمِ المولَّدةِ ولا
+        #   يحمل اسمًا عربيًّا حرفيًّا (سياسة: لا نصَّ في الكود، لا توافقَ خلفيًّا).
+        #   الكتلةُ خارجَ `else` رأسِ الرسومات عمدًا: غيابُ ذاك الرأسِ يجب ألّا
+        #   يُسكِت فحصَ المحلّل — حارسٌ يخرَس عند عطبٍ آخرَ ليس حارسًا.
+        event_names = set()
+        if _EVENTS_YAML.exists():
+            ev = yaml.safe_load(_EVENTS_YAML.read_text(encoding="utf-8"))
+            event_names = {e["canonical"] for e in ev.get("entries", [])}
+        if not _PARSER_HEADER.exists():
+            errors.append(
+                f"المحلّل التصريحيّ: الرأس المولَّد مفقود ({_PARSER_HEADER.name}) — شغّل x.py gen"
+            )
+        else:
+            # (AR) مطابقةُ الرأسِ للـSoT بمجموعاتٍ **دقيقةٍ** لا باحتواءِ نصّ: الأسماءُ
+            #      مُرمَّزةٌ \\xHH ورمزُ اسمٍ قصيرٍ يقع داخلَ أطولَ منه («قائمة» داخلَ
+            #      «عند_القائمة_السياقية»)، فالاحتواءُ يكذب في الاتّجاهين.
+            # (EN) Exact set comparison, not substring: a short name's hex is a
+            #      substring of a longer one's, so `in` lies both ways.
+            ph = _PARSER_HEADER.read_text(encoding="utf-8")
+            got_prims = _macro_names(ph, "SAD_UI_PARSER_PRIMITIVE_LIST")
+            got_conts = _macro_names(ph, "SAD_UI_PARSER_CONTAINER_LIST")
+            got_events = _macro_names(ph, "SAD_UI_PARSER_EVENT_LIST")
+            want_prims = {n["canonical"] for n in node_list if n.get("parser_primitive")}
+            want_conts = {n["canonical"] for n in node_list if n.get("parser_container")}
+            want_events = {n for n in event_names if n.startswith(_EVENT_PREFIX)}
+            for label, got_n, want_n in (
+                ("العناصر الأوّليّة", len(want_prims), _ADR_UI_02_PRIMITIVES),
+                ("الحاويات", len(want_conts), _ADR_UI_02_CONTAINERS),
+            ):
+                if got_n != want_n:
+                    errors.append(
+                        f"ADR-UI-02 [{label}]: مصدرُ الحقيقةِ يعلن {got_n} والقرارُ "
+                        f"المعماريُّ {want_n} — عدّلِ الـADR قبلَ تغييرِ العدد"
+                    )
+            if not want_conts <= want_prims:
+                errors.append(
+                    "ADR-UI-02: كلُّ حاويةٍ يجب أن تكون عنصرًا أوّليًّا — "
+                    f"خارجٌ عن الأوّليّات: {sorted(want_conts - want_prims)}"
+                )
+            for label, want, got in (
+                ("العناصر الأوّليّة", want_prims, got_prims),
+                ("الحاويات", want_conts, got_conts),
+                ("الأحداث", want_events, got_events),
+            ):
+                for missing in sorted(want - got):
+                    errors.append(
+                        f"المحلّل التصريحيّ [{label}]: «{missing}» في مصدر الحقيقة وغائبٌ "
+                        f"عن الرأس المولَّد (انجراف — شغّل x.py gen)"
+                    )
+                for extra in sorted(got - want):
+                    errors.append(
+                        f"المحلّل التصريحيّ [{label}]: «{extra}» في الرأس المولَّد وليس في "
+                        f"مصدر الحقيقة (رأسٌ بائت — شغّل x.py gen)"
+                    )
+            # (AR) كلُّ مستهلِكي المسارِ التصريحيّ، لا parser_ui.cpp وحدَه: أيُّ
+            #      «استثناءٍ سريعٍ» باسمٍ حرفيٍّ يوضَع طبيعيًّا في الملفَّين الآخرَين.
+            #      نقيسُ على ما **يبوّبُ به المحلّلُ فعلًا** (أوّليّات/حاويات/أحداث)
+            #      لا على الـ١١٠ عقدةً كلِّها: كثيرٌ من أسمائها متجانساتٌ لفظيّةٌ مع
+            #      أسماءِ أنواعٍ في اللغة («خريطة»، «قائمة») فتكذبُ المطابقة.
+            gated_names = want_prims | want_conts | want_events
+            for consumer in _PARSER_CONSUMERS:
+                if not consumer.exists():
+                    errors.append(f"المحلّل التصريحيّ: ملفٌّ مستهلِكٌ مفقود ({consumer.name})")
+                    continue
+                src_c = consumer.read_text(encoding="utf-8")
+                for literal in sorted(set(_arabic_literals(src_c)) & gated_names):
+                    errors.append(
+                        f"المحلّل التصريحيّ: اسمٌ عربيٌّ حرفيٌّ «{literal}» في {consumer.name} "
+                        f"— يجب أن يأتي من القائمة المولَّدة"
+                    )
+        if _PARSER_UI.exists():
+            pu = _PARSER_UI.read_text(encoding="utf-8")
+            for macro in (
+                "SAD_UI_PARSER_PRIMITIVE_LIST",
+                "SAD_UI_PARSER_CONTAINER_LIST",
+                "SAD_UI_PARSER_EVENT_LIST",
+            ):
+                if macro not in pu:
+                    errors.append(
+                        f"المحلّل التصريحيّ: parser_ui.cpp لا يستهلك {macro} (جدولٌ يدويّ؟)"
+                    )
+            for banned in ("deprecatedWidgets", "knownWidgetsLiteral"):
+                if banned in pu:
+                    errors.append(
+                        f"المحلّل التصريحيّ: «{banned}» عاد إلى parser_ui.cpp — "
+                        f"لا توافقَ خلفيًّا ولا جدولَ أسماءٍ يدويًّا"
+                    )
 
     if errors:
         print("✗ فشل حارس اتّساق مفاتيح/معدّلات/مفردات/ألوان/عُقَد الواجهة:")

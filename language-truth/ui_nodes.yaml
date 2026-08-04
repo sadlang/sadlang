@@ -11,9 +11,9 @@
 #      فيراهما **المحرّكان معًا** (المفسّر والمترجم) عبر المكتبة نفسها، فلا
 #      اسمَ نوعِ عقدةٍ حرفيّ في أيٍّ منهما ولا نسخةَ تعدادٍ ثانية.
 #
-#      سياسة: **الأسماء القانونيّة فقط**. حقل legacy_names دَينُ هجرةٍ موثَّق
-#      (أسماءٌ كانت تُقبَل قبل توحيد المصدر) لا توسعةَ لغةٍ جديدة؛ يُفرَّغ في
-#      دفعةٍ لاحقة بقرار مالك.
+#      سياسة (قرار مالك): **لا توافقَ خلفيًّا**. الاسمُ القانونيُّ وحدَه يُقبَل،
+#      ولا اسمَ انتقاليًّا ولا مُهمَلًا في المنظومة كلِّها. وكلُّ اسمٍ يراه الكودُ
+#      يأتي من هنا مولَّدًا — يُمنَع أيُّ اسمِ عقدةٍ حرفيٍّ في C++.
 #
 # (EN) Central SoT for SadUI node types. Generates the X-macro header consumed
 #      by the graphics library itself — hence by both engines (interpreter and
@@ -34,7 +34,12 @@ description_en: SadUI node types
 #   builtins      — cpp_id المصانع في language-truth/builtins/ui_widgets.yaml
 #                   التي تُنتج هذه العقدة (قد تكون فارغة: عقدةٌ تُصيَّر ولا
 #                   تُنشَأ من لغة ص، أو متعدّدة: زر/زر_نصي/زر_أيقونة ⇒ Button)
-#   legacy_names  — أسماءٌ انتقاليّةٌ تُقبَل قراءةً ولا تُطبَع (دَين — انظر أعلاه)
+#   parser_primitive — العقدةُ من العناصرِ الأوّليّةِ التي يقبلها المسارُ
+#                   التصريحيُّ في المحلّل (`واجهة … نهاية`) بقرار ADR-UI-02.
+#                   منها تُولَّد قائمةُ SAD_UI_PARSER_PRIMITIVE_LIST فيبنيها
+#                   shared/parser/src/ui/parser_ui.cpp بلا اسمٍ حرفيّ.
+#   parser_container — أوّليٌّ يقبل أبناءً (يلزمه `نهاية`) ⇒
+#                   SAD_UI_PARSER_CONTAINER_LIST. يستلزم parser_primitive.
 #   description_ar/en
 nodes:
 
@@ -42,7 +47,7 @@ nodes:
     canonical: نص_عنصر
     category: "مكونات العرض الأساسية"
     builtins: [TEXT_WIDGET]
-    legacy_names: [نص, عنوان, تسمية, فقرة, رابط, اقتباس]
+    parser_primitive: true
     description_ar: "عنصر نصي بسيط يعرض سلسلة حروف"
     description_en: "عنصر نصي بسيط يعرض سلسلة حروف"
 
@@ -50,6 +55,7 @@ nodes:
     canonical: صورة
     category: "مكونات العرض الأساسية"
     builtins: [IMAGE]
+    parser_primitive: true
     description_ar: "يعرض صورة من ملف أو رابط أو ذاكرة"
     description_en: "يعرض صورة من ملف أو رابط أو ذاكرة"
 
@@ -57,7 +63,7 @@ nodes:
     canonical: أيقونة
     category: "مكونات العرض الأساسية"
     builtins: [ICON]
-    legacy_names: [ايقونة]
+    parser_primitive: true
     description_ar: "أيقونة متجهة (Material Icons أو مخصصة)"
     description_en: "أيقونة متجهة (Material Icons أو مخصصة)"
 
@@ -65,7 +71,7 @@ nodes:
     canonical: زر
     category: "مكونات الإدخال"
     builtins: [BUTTON, ICON_BUTTON, TEXT_BUTTON]
-    legacy_names: [زر_محيط, زر_ايقونة, زر_مرتفع, زر_معبأ, زر_معبأ_باهت, زر_محدد, زر_نصي_مادة, زر_أيقونة_مادة]
+    parser_primitive: true
     description_ar: "زر قابل للنقر مع نص أو محتوى مخصص"
     description_en: "زر قابل للنقر مع نص أو محتوى مخصص"
 
@@ -73,7 +79,7 @@ nodes:
     canonical: حقل_نص
     category: "مكونات الإدخال"
     builtins: [TEXT_FIELD]
-    legacy_names: [حقل, حقل_سر]
+    parser_primitive: true
     description_ar: "حقل إدخال نص في سطر واحد"
     description_en: "حقل إدخال نص في سطر واحد"
 
@@ -88,7 +94,7 @@ nodes:
     canonical: مفتاح
     category: "مكونات الإدخال"
     builtins: [TOGGLE]
-    legacy_names: [زر_تبديل]
+    parser_primitive: true
     description_ar: "مفتاح تشغيل/إيقاف (Switch)"
     description_en: "مفتاح تشغيل/إيقاف (Switch)"
 
@@ -96,6 +102,7 @@ nodes:
     canonical: منزلق
     category: "مكونات الإدخال"
     builtins: [SLIDER]
+    parser_primitive: true
     description_ar: "شريط قيمة رقمية قابل للسحب"
     description_en: "شريط قيمة رقمية قابل للسحب"
 
@@ -103,7 +110,6 @@ nodes:
     canonical: قائمة_منسدلة
     category: "مكونات الإدخال"
     builtins: [PICKER]
-    legacy_names: [قائمة_اختيار]
     description_ar: "قائمة منسدلة للاختيار من خيارات"
     description_en: "قائمة منسدلة للاختيار من خيارات"
 
@@ -111,7 +117,6 @@ nodes:
     canonical: منتقي_تاريخ
     category: "مكونات الإدخال"
     builtins: [DATE_PICKER]
-    legacy_names: [قائمة_تاريخ]
     description_ar: "اختيار تاريخ من تقويم"
     description_en: "اختيار تاريخ من تقويم"
 
@@ -119,7 +124,6 @@ nodes:
     canonical: منتقي_لون
     category: "مكونات الإدخال"
     builtins: []
-    legacy_names: [قائمة_لون]
     description_ar: "اختيار لون من لوحة ألوان"
     description_en: "اختيار لون من لوحة ألوان"
 
@@ -127,7 +131,6 @@ nodes:
     canonical: خانة_اختيار
     category: "مكونات الإدخال"
     builtins: [CHECKBOX]
-    legacy_names: [مربع_اختيار]
     description_ar: "مربع تحديد صح/خطأ"
     description_en: "مربع تحديد صح/خطأ"
 
@@ -142,6 +145,8 @@ nodes:
     canonical: عمود
     category: "مكونات التخطيط"
     builtins: [COLUMN]
+    parser_primitive: true
+    parser_container: true
     description_ar: "يرتب الأبناء عمودياً (من أعلى لأسفل)"
     description_en: "يرتب الأبناء عمودياً (من أعلى لأسفل)"
 
@@ -149,6 +154,8 @@ nodes:
     canonical: صف
     category: "مكونات التخطيط"
     builtins: [ROW]
+    parser_primitive: true
+    parser_container: true
     description_ar: "يرتب الأبناء أفقياً (من يمين لشمال في RTL)"
     description_en: "يرتب الأبناء أفقياً (من يمين لشمال في RTL)"
 
@@ -156,7 +163,8 @@ nodes:
     canonical: رصة
     category: "مكونات التخطيط"
     builtins: [STACK]
-    legacy_names: [تكديس, طبقات]
+    parser_primitive: true
+    parser_container: true
     description_ar: "يكدّس الأبناء فوق بعضهم (ZStack)"
     description_en: "يكدّس الأبناء فوق بعضهم (ZStack)"
 
@@ -164,6 +172,8 @@ nodes:
     canonical: شبكة
     category: "مكونات التخطيط"
     builtins: [GRID]
+    parser_primitive: true
+    parser_container: true
     description_ar: "تخطيط شبكي بصفوف وأعمدة"
     description_en: "تخطيط شبكي بصفوف وأعمدة"
 
@@ -171,6 +181,8 @@ nodes:
     canonical: عمود_كسول
     category: "مكونات التخطيط"
     builtins: [LAZY_COLUMN]
+    parser_primitive: true
+    parser_container: true
     description_ar: "قائمة عمودية تُحمّل عند الحاجة فقط"
     description_en: "قائمة عمودية تُحمّل عند الحاجة فقط"
 
@@ -185,7 +197,6 @@ nodes:
     canonical: شبكة_كسولة
     category: "مكونات التخطيط"
     builtins: []
-    legacy_names: [قائمة_شبكية]
     description_ar: "شبكة تُحمّل عند الحاجة فقط"
     description_en: "شبكة تُحمّل عند الحاجة فقط"
 
@@ -193,6 +204,7 @@ nodes:
     canonical: فاصل
     category: "مكونات التخطيط"
     builtins: [SPACER]
+    parser_primitive: true
     description_ar: "مساحة فارغة مرنة لتوزيع المسافات"
     description_en: "مساحة فارغة مرنة لتوزيع المسافات"
 
@@ -200,7 +212,6 @@ nodes:
     canonical: فاصل_خط
     category: "مكونات التخطيط"
     builtins: [DIVIDER]
-    legacy_names: [خط_فاصل, فاصل_مادة]
     description_ar: "خط أفقي أو عمودي فاصل"
     description_en: "خط أفقي أو عمودي فاصل"
 
@@ -215,7 +226,8 @@ nodes:
     canonical: حاوية
     category: "مكونات الحاويات"
     builtins: [CONTAINER]
-    legacy_names: [تطبيق_مادة]
+    parser_primitive: true
+    parser_container: true
     description_ar: "حاوية عامة بخلفية وحدود"
     description_en: "حاوية عامة بخلفية وحدود"
 
@@ -223,7 +235,6 @@ nodes:
     canonical: بطاقة
     category: "مكونات الحاويات"
     builtins: [CARD]
-    legacy_names: [بطاقة_مادة]
     description_ar: "بطاقة مرتفعة مع ظل (Material Card)"
     description_en: "بطاقة مرتفعة مع ظل (Material Card)"
 
@@ -238,7 +249,6 @@ nodes:
     canonical: هيكل
     category: "مكونات الحاويات"
     builtins: [SCAFFOLD]
-    legacy_names: [هيكل_مادة]
     description_ar: "هيكل شاشة كاملة (شريط علوي + محتوى + سفلي)"
     description_en: "هيكل شاشة كاملة (شريط علوي + محتوى + سفلي)"
 
@@ -267,7 +277,6 @@ nodes:
     canonical: عرض_أقسام
     category: "مكونات التنقل"
     builtins: []
-    legacy_names: [عرض_علامات, محتوى_تبويب]
     description_ar: "واجهة تبويبات (Tabs)"
     description_en: "واجهة تبويبات (Tabs)"
 
@@ -275,7 +284,6 @@ nodes:
     canonical: قسم
     category: "مكونات التنقل"
     builtins: []
-    legacy_names: [علامة, تبويب, عنصر_تنقل]
     description_ar: "عنصر تبويب واحد مع أيقونة وعنوان"
     description_en: "عنصر تبويب واحد مع أيقونة وعنوان"
 
@@ -283,7 +291,6 @@ nodes:
     canonical: قائمة
     category: "مكونات القوائم"
     builtins: [LIST_VIEW]
-    legacy_names: [عنصر_قائمة, عنصر_درج]
     description_ar: "قائمة عناصر قابلة للتمرير"
     description_en: "قائمة عناصر قابلة للتمرير"
 
@@ -319,7 +326,6 @@ nodes:
     canonical: حوار
     category: "مكونات الحوارات"
     builtins: [DIALOG]
-    legacy_names: [حوار_تأكيد]
     description_ar: "نافذة حوار مخصصة"
     description_en: "نافذة حوار مخصصة"
 
@@ -327,7 +333,6 @@ nodes:
     canonical: قائمة_خيارات
     category: "مكونات الحوارات"
     builtins: [MENU]
-    legacy_names: [قائمة_منبثقة]
     description_ar: "قائمة خيارات سياقية"
     description_en: "قائمة خيارات سياقية"
 
@@ -363,7 +368,8 @@ nodes:
     canonical: عرض_تمرير
     category: "مكونات متقدمة"
     builtins: [SCROLL_VIEW]
-    legacy_names: [قائمة_تمرير]
+    parser_primitive: true
+    parser_container: true
     description_ar: "حاوية قابلة للتمرير"
     description_en: "حاوية قابلة للتمرير"
 
@@ -392,7 +398,6 @@ nodes:
     canonical: شريط_تقدم
     category: "مكونات جديدة"
     builtins: [PROGRESS]
-    legacy_names: [تقدم_دائري]
     description_ar: "شريط تقدم خطي أو دائري"
     description_en: "شريط تقدم خطي أو دائري"
 
@@ -407,7 +412,6 @@ nodes:
     canonical: رقاقة
     category: "مكونات جديدة"
     builtins: []
-    legacy_names: [وسم]
     description_ar: "رقاقة اختيار (Material Chip)"
     description_en: "رقاقة اختيار (Material Chip)"
 
@@ -422,7 +426,6 @@ nodes:
     canonical: شريط_بحث
     category: "مكونات جديدة"
     builtins: []
-    legacy_names: [حقل_بحث]
     description_ar: "حقل بحث مع أيقونة"
     description_en: "حقل بحث مع أيقونة"
 
@@ -430,7 +433,6 @@ nodes:
     canonical: ورقة_سفلية
     category: "مكونات جديدة"
     builtins: []
-    legacy_names: [لوحة_سفلية]
     description_ar: "لوحة تنزلق من الأسفل"
     description_en: "لوحة تنزلق من الأسفل"
 
@@ -438,7 +440,6 @@ nodes:
     canonical: زر_عائم
     category: "مكونات جديدة"
     builtins: [FAB]
-    legacy_names: [زر_عائم_مادة]
     description_ar: "زر عائم دائري (Floating Action Button)"
     description_en: "زر عائم دائري (Floating Action Button)"
 
@@ -446,7 +447,6 @@ nodes:
     canonical: شريط_إشعار
     category: "مكونات جديدة"
     builtins: [SNACKBAR]
-    legacy_names: [رسالة_منبثقة]
     description_ar: "رسالة مؤقتة أسفل الشاشة"
     description_en: "رسالة مؤقتة أسفل الشاشة"
 
@@ -461,7 +461,6 @@ nodes:
     canonical: شريط_تطبيق
     category: "مكونات جديدة"
     builtins: [APP_BAR]
-    legacy_names: [شريط_تطبيق_مادة]
     description_ar: "شريط علوي مع عنوان وأزرار"
     description_en: "شريط علوي مع عنوان وأزرار"
 
@@ -532,7 +531,6 @@ nodes:
     canonical: كتلة_كود
     category: "مكونات الوسائط"
     builtins: []
-    legacy_names: [كود]
     description_ar: "عرض كود مصدري مع تلوين نحوي"
     description_en: "عرض كود مصدري مع تلوين نحوي"
 
@@ -554,7 +552,6 @@ nodes:
     canonical: هيكل_تحميل
     category: "مكونات الحركة"
     builtins: []
-    legacy_names: [هيكل_عظمي, تحميل]
     description_ar: "عنصر تحميل رمادي نابض (Placeholder)"
     description_en: "عنصر تحميل رمادي نابض (Placeholder)"
 
@@ -576,7 +573,6 @@ nodes:
     canonical: قابل_للتوسع
     category: "مكونات الحركة"
     builtins: []
-    legacy_names: [أكورديون]
     description_ar: "محتوى قابل للطي/التوسع"
     description_en: "محتوى قابل للطي/التوسع"
 
@@ -612,7 +608,6 @@ nodes:
     canonical: تقييم
     category: "مكونات التحكم المتقدمة"
     builtins: [RATING_BAR]
-    legacy_names: [شريط_تقييم]
     description_ar: "تقييم بنجوم (1-5 نجوم)"
     description_en: "تقييم بنجوم (1-5 نجوم)"
 
@@ -641,7 +636,6 @@ nodes:
     canonical: تنقل_سفلي
     category: "مكونات التنقل المتقدمة"
     builtins: [BOTTOM_NAV]
-    legacy_names: [شريط_سفلي, شريط_تنقل_مادة]
     description_ar: "شريط تنقل سفلي (BottomNavigationBar)"
     description_en: "شريط تنقل سفلي (BottomNavigationBar)"
 
@@ -663,7 +657,6 @@ nodes:
     canonical: لوح_مقسم
     category: "مكونات التنقل المتقدمة"
     builtins: [SPLIT_VIEW]
-    legacy_names: [عرض_مقسم]
     description_ar: "تقسيم الشاشة لقسمين (Master-Detail)"
     description_en: "تقسيم الشاشة لقسمين (Master-Detail)"
 
@@ -671,7 +664,6 @@ nodes:
     canonical: ألسنة
     category: "مكونات التنقل المتقدمة"
     builtins: []
-    legacy_names: [شريط_تبويب]
     description_ar: "ألسنة تبويب أفقية (Material Tabs)"
     description_en: "ألسنة تبويب أفقية (Material Tabs)"
 
@@ -686,7 +678,6 @@ nodes:
     canonical: وسط
     category: "مكونات التخطيط الأساسية"
     builtins: [CENTER]
-    legacy_names: [توسيط]
     description_ar: "يضع الابن في المنتصف (مثل Flutter Center)"
     description_en: "يضع الابن في المنتصف (مثل Flutter Center)"
 
@@ -694,7 +685,6 @@ nodes:
     canonical: حشوة
     category: "مكونات التخطيط الأساسية"
     builtins: [PADDING]
-    legacy_names: [حشو]
     description_ar: "يضيف حشوة حول الابن (مثل Flutter Padding)"
     description_en: "يضيف حشوة حول الابن (مثل Flutter Padding)"
 
@@ -702,7 +692,6 @@ nodes:
     canonical: مقاس
     category: "مكونات التخطيط الأساسية"
     builtins: [SIZED_BOX]
-    legacy_names: [مقاس_محدد]
     description_ar: "صندوق بأبعاد ثابتة (مثل Flutter SizedBox)"
     description_en: "صندوق بأبعاد ثابتة (مثل Flutter SizedBox)"
 
@@ -710,7 +699,6 @@ nodes:
     canonical: موسع
     category: "مكونات التخطيط الأساسية"
     builtins: [EXPANDED]
-    legacy_names: [موسّع]
     description_ar: "يملأ المساحة المتاحة في Row/Column (مثل Flutter Expanded)"
     description_en: "يملأ المساحة المتاحة في Row/Column (مثل Flutter Expanded)"
 
@@ -725,7 +713,6 @@ nodes:
     canonical: محاذاة
     category: "مكونات التخطيط الأساسية"
     builtins: [ALIGN]
-    legacy_names: [محاذي]
     description_ar: "يضع الابن في موضع محدد (مثل Flutter Align)"
     description_en: "يضع الابن في موضع محدد (مثل Flutter Align)"
 
@@ -747,7 +734,6 @@ nodes:
     canonical: حبر
     category: "مكونات التخطيط الأساسية"
     builtins: []
-    legacy_names: [قابل_للنقر]
     description_ar: "منطقة قابلة للنقر مع تأثير تموج (مثل Flutter InkWell)"
     description_en: "منطقة قابلة للنقر مع تأثير تموج (مثل Flutter InkWell)"
 
@@ -804,7 +790,6 @@ nodes:
     canonical: شريط_مهام
     category: "قشرة سطح المكتب — الصدَفة"
     builtins: [TASKBAR]
-    legacy_names: [شريط_مهامّ]
     description_ar: "شريط سفليّ (زرّ ابدأ + نوافذ مفتوحة + لوحة نظام)"
     description_en: "شريط سفليّ (زرّ ابدأ + نوافذ مفتوحة + لوحة نظام)"
 

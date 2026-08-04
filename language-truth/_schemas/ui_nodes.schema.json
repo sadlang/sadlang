@@ -27,12 +27,13 @@
       "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
       "description": "(AR) cpp_id المصانع في builtins/ui_widgets.yaml التي تُنتج هذه العقدة."
     },
-    "legacy_names": {
-      "type": "array",
-      "uniqueItems": true,
-      "minItems": 1,
-      "items": { "type": "string", "minLength": 1 },
-      "description": "(AR) أسماءٌ انتقاليّةٌ تُقبَل قراءةً ولا تُطبَع — دَينُ هجرةٍ موثَّق، لا توسعةَ لغة."
+    "parser_primitive": {
+      "type": "boolean",
+      "description": "(AR) عنصرٌ أوّليٌّ يقبله المسارُ التصريحيُّ في المحلّل (ADR-UI-02)."
+    },
+    "parser_container": {
+      "type": "boolean",
+      "description": "(AR) أوّليٌّ يقبل أبناءً ويُنهى بـ`نهاية`؛ يستلزم parser_primitive."
     },
     "description_ar": { "type": "string", "minLength": 1 },
     "description_en": { "type": "string", "minLength": 1 }

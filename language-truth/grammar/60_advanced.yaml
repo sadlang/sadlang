@@ -7,7 +7,9 @@
 #      (العمر/الماكرو/الاختبار/الدوال الخارجيّة)، parser_statements.cpp
 #      (yield/with/defer/go/select)، patterns/*، ui/parser_ui.cpp.
 #      ملاحظة: شجرة specs/ القديمة (معماريّة «صنف لكلّ ميزة» مهجورة لا تُترجم)
-#      حُذفت 2026-07-04 عدا ui/parser_ui_maps.cpp؛ لا تُشتقّ أيّ قاعدة من specs.
+#      حُذفت 2026-07-04، وآخرُ ناجٍ منها (ui/parser_ui_maps.cpp) حُذف بعدَه لأنّه
+#      كان يحمل تعدادَ UINodeType ثانيًا منحرفًا بلا مستهلك؛ لم تعد شجرةُ specs/
+#      موجودةً بتاتًا، ولا تُشتقّ أيّ قاعدة منها.
 # ============================================================================
 
 schema_version: "5.0"
@@ -639,13 +641,13 @@ productions:
       - { file: shared/parser/src/ui/parser_ui.cpp, function: "ParserCore::parseWidgetExpression" }
     ast_node: "UIWidgetExprNode"
     description_ar: >
-      عنصر واجهة «نص("مرحبا").حجم(32)»؛ يدعم وسائط مسمّاة وغير مسمّاة، سلسلة معدّلات،
+      عنصر واجهة «نص_عنصر("مرحبا").حجم(32)»؛ يدعم وسائط مسمّاة وغير مسمّاة، سلسلة معدّلات،
       وكتلة أبناء للحاويات تُغلَق بـ«نهاية». يُحلَّل بعد «اعرض» أو في موضع تعبير.
     since: "1.0.0"
     status: experimental
     conformance: { compiler_optional: true, test_budget: { basic: 5, edge: 4, negative: 2, interaction: 3 } }
     example: |
-      اعرض نص("مرحبا").حجم(32)
+      اعرض نص_عنصر("مرحبا").حجم(32)
 
   - id: gr.adv.ui_modifier_chain
     lhs: { nonterminal: ModifierChain, name_ar: "سلسلة معدّلات", name_en: modifier_chain }

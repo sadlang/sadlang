@@ -140,74 +140,43 @@
 #define SAD_UI_NODE_TYPE_COUNT 110
 
 // ────────────────────────────────────────────────────────────────────────────
-// (AR) X(Id, "اسمٌ إضافيّ") — يُقرَأ ولا يُطبَع: أسماءُ المصانع المدمَجة
-//      (مشتقّةٌ آليًّا من builtins/ui_widgets.yaml) + دَينُ الهجرة legacy_names.
-// (EN) X(Id, "alt name") — read-only aliases: builtin factory names (derived)
-//      plus documented legacy migration debt.
+// (AR) X(Id, "اسمُ مصنع") — يُقرَأ ولا يُطبَع: أسماءُ المصانع المدمَجةِ التي
+//      تُنتج العقدةَ ولا تحمل اسمَها القانونيّ (مشتقّةٌ آليًّا من
+//      builtins/ui_widgets.yaml). لا اسمَ انتقاليَّ هنا: لا توافقَ خلفيًّا.
+// (EN) X(Id, "factory name") — read-only: builtin factory names that differ
+//      from the node's canonical name. No legacy aliases — no back-compat.
 // ────────────────────────────────────────────────────────────────────────────
 #define SAD_UI_NODE_ALT_NAME_LIST(X) \
-    X(Text, "\xd9\x86\xd8\xb5")                                                /* نص */ \
-    X(Text, "\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86")                        /* عنوان */ \
-    X(Text, "\xd8\xaa\xd8\xb3\xd9\x85\xd9\x8a\xd8\xa9")                        /* تسمية */ \
-    X(Text, "\xd9\x81\xd9\x82\xd8\xb1\xd8\xa9")                                /* فقرة */ \
-    X(Text, "\xd8\xb1\xd8\xa7\xd8\xa8\xd8\xb7")                                /* رابط */ \
-    X(Text, "\xd8\xa7\xd9\x82\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb3")                /* اقتباس */ \
-    X(Icon, "\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9")                /* ايقونة */ \
     X(Button, "\xd8\xb2\xd8\xb1_\xd8\xa3\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9") /* زر_أيقونة */ \
-    X(Button, "\xd8\xb2\xd8\xb1_\xd9\x86\xd8\xb5\xd9\x8a")                     /* زر_نصي */ \
-    X(Button, "\xd8\xb2\xd8\xb1_\xd9\x85\xd8\xad\xd9\x8a\xd8\xb7")             /* زر_محيط */ \
-    X(Button, "\xd8\xb2\xd8\xb1_\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9") /* زر_ايقونة */ \
-    X(Button, "\xd8\xb2\xd8\xb1_\xd9\x85\xd8\xb1\xd8\xaa\xd9\x81\xd8\xb9")     /* زر_مرتفع */ \
-    X(Button, "\xd8\xb2\xd8\xb1_\xd9\x85\xd8\xb9\xd8\xa8\xd8\xa3")             /* زر_معبأ */ \
-    X(Button, "\xd8\xb2\xd8\xb1_\xd9\x85\xd8\xb9\xd8\xa8\xd8\xa3_\xd8\xa8\xd8\xa7\xd9\x87\xd8\xaa") /* زر_معبأ_باهت */ \
-    X(Button, "\xd8\xb2\xd8\xb1_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf")             /* زر_محدد */ \
-    X(Button, "\xd8\xb2\xd8\xb1_\xd9\x86\xd8\xb5\xd9\x8a_\xd9\x85\xd8\xa7\xd8\xaf\xd8\xa9") /* زر_نصي_مادة */ \
-    X(Button, "\xd8\xb2\xd8\xb1_\xd8\xa3\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9_\xd9\x85\xd8\xa7\xd8\xaf\xd8\xa9") /* زر_أيقونة_مادة */ \
-    X(TextField, "\xd8\xad\xd9\x82\xd9\x84")                                   /* حقل */ \
-    X(TextField, "\xd8\xad\xd9\x82\xd9\x84_\xd8\xb3\xd8\xb1")                  /* حقل_سر */ \
-    X(Toggle, "\xd8\xb2\xd8\xb1_\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x8a\xd9\x84")     /* زر_تبديل */ \
-    X(Picker, "\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd8\xa7\xd8\xae\xd8\xaa\xd9\x8a\xd8\xa7\xd8\xb1") /* قائمة_اختيار */ \
-    X(DatePicker, "\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd8\xaa\xd8\xa7\xd8\xb1\xd9\x8a\xd8\xae") /* قائمة_تاريخ */ \
-    X(ColorPicker, "\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd9\x84\xd9\x88\xd9\x86") /* قائمة_لون */ \
-    X(Checkbox, "\xd9\x85\xd8\xb1\xd8\xa8\xd8\xb9_\xd8\xa7\xd8\xae\xd8\xaa\xd9\x8a\xd8\xa7\xd8\xb1") /* مربع_اختيار */ \
-    X(Stack, "\xd8\xaa\xd9\x83\xd8\xaf\xd9\x8a\xd8\xb3")                       /* تكديس */ \
-    X(Stack, "\xd8\xb7\xd8\xa8\xd9\x82\xd8\xa7\xd8\xaa")                       /* طبقات */ \
-    X(LazyGrid, "\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd8\xb4\xd8\xa8\xd9\x83\xd9\x8a\xd8\xa9") /* قائمة_شبكية */ \
-    X(Divider, "\xd8\xae\xd8\xb7_\xd9\x81\xd8\xa7\xd8\xb5\xd9\x84")            /* خط_فاصل */ \
-    X(Divider, "\xd9\x81\xd8\xa7\xd8\xb5\xd9\x84_\xd9\x85\xd8\xa7\xd8\xaf\xd8\xa9") /* فاصل_مادة */ \
-    X(Container, "\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82_\xd9\x85\xd8\xa7\xd8\xaf\xd8\xa9") /* تطبيق_مادة */ \
-    X(Card, "\xd8\xa8\xd8\xb7\xd8\xa7\xd9\x82\xd8\xa9_\xd9\x85\xd8\xa7\xd8\xaf\xd8\xa9") /* بطاقة_مادة */ \
-    X(Scaffold, "\xd9\x87\xd9\x8a\xd9\x83\xd9\x84_\xd9\x85\xd8\xa7\xd8\xaf\xd8\xa9") /* هيكل_مادة */ \
-    X(TabView, "\xd8\xb9\xd8\xb1\xd8\xb6_\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85\xd8\xa7\xd8\xaa") /* عرض_علامات */ \
-    X(TabView, "\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89_\xd8\xaa\xd8\xa8\xd9\x88\xd9\x8a\xd8\xa8") /* محتوى_تبويب */ \
-    X(TabItem, "\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85\xd8\xa9")                     /* علامة */ \
-    X(TabItem, "\xd8\xaa\xd8\xa8\xd9\x88\xd9\x8a\xd8\xa8")                     /* تبويب */ \
-    X(TabItem, "\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1_\xd8\xaa\xd9\x86\xd9\x82\xd9\x84") /* عنصر_تنقل */ \
-    X(List, "\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1_\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9") /* عنصر_قائمة */ \
-    X(List, "\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1_\xd8\xaf\xd8\xb1\xd8\xac")       /* عنصر_درج */ \
-    X(Dialog, "\xd8\xad\xd9\x88\xd8\xa7\xd8\xb1_\xd8\xaa\xd8\xa3\xd9\x83\xd9\x8a\xd8\xaf") /* حوار_تأكيد */ \
-    X(Menu, "\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd9\x85\xd9\x86\xd8\xa8\xd8\xab\xd9\x82\xd8\xa9") /* قائمة_منبثقة */ \
-    X(ScrollView, "\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd8\xaa\xd9\x85\xd8\xb1\xd9\x8a\xd8\xb1") /* قائمة_تمرير */ \
-    X(ProgressBar, "\xd8\xaa\xd9\x82\xd8\xaf\xd9\x85_\xd8\xaf\xd8\xa7\xd8\xa6\xd8\xb1\xd9\x8a") /* تقدم_دائري */ \
-    X(Chip, "\xd9\x88\xd8\xb3\xd9\x85")                                        /* وسم */ \
-    X(SearchBar, "\xd8\xad\xd9\x82\xd9\x84_\xd8\xa8\xd8\xad\xd8\xab")          /* حقل_بحث */ \
-    X(BottomSheet, "\xd9\x84\xd9\x88\xd8\xad\xd8\xa9_\xd8\xb3\xd9\x81\xd9\x84\xd9\x8a\xd8\xa9") /* لوحة_سفلية */ \
-    X(FAB, "\xd8\xb2\xd8\xb1_\xd8\xb9\xd8\xa7\xd8\xa6\xd9\x85_\xd9\x85\xd8\xa7\xd8\xaf\xd8\xa9") /* زر_عائم_مادة */ \
-    X(SnackBar, "\xd8\xb1\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa9_\xd9\x85\xd9\x86\xd8\xa8\xd8\xab\xd9\x82\xd8\xa9") /* رسالة_منبثقة */ \
-    X(AppBar, "\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd8\xaa\xd8\xb7\xd8\xa8\xd9\x8a\xd9\x82_\xd9\x85\xd8\xa7\xd8\xaf\xd8\xa9") /* شريط_تطبيق_مادة */ \
-    X(CodeBlock, "\xd9\x83\xd9\x88\xd8\xaf")                                   /* كود */ \
-    X(Skeleton, "\xd9\x87\xd9\x8a\xd9\x83\xd9\x84_\xd8\xb9\xd8\xb8\xd9\x85\xd9\x8a") /* هيكل_عظمي */ \
-    X(Skeleton, "\xd8\xaa\xd8\xad\xd9\x85\xd9\x8a\xd9\x84")                    /* تحميل */ \
-    X(Expandable, "\xd8\xa3\xd9\x83\xd9\x88\xd8\xb1\xd8\xaf\xd9\x8a\xd9\x88\xd9\x86") /* أكورديون */ \
-    X(RatingBar, "\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd8\xaa\xd9\x82\xd9\x8a\xd9\x8a\xd9\x85") /* شريط_تقييم */ \
-    X(BottomNav, "\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd8\xb3\xd9\x81\xd9\x84\xd9\x8a") /* شريط_سفلي */ \
-    X(BottomNav, "\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd8\xaa\xd9\x86\xd9\x82\xd9\x84_\xd9\x85\xd8\xa7\xd8\xaf\xd8\xa9") /* شريط_تنقل_مادة */ \
-    X(SplitView, "\xd8\xb9\xd8\xb1\xd8\xb6_\xd9\x85\xd9\x82\xd8\xb3\xd9\x85")  /* عرض_مقسم */ \
-    X(Tabs, "\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd8\xaa\xd8\xa8\xd9\x88\xd9\x8a\xd8\xa8") /* شريط_تبويب */ \
-    X(Center, "\xd8\xaa\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7")                      /* توسيط */ \
-    X(Padding, "\xd8\xad\xd8\xb4\xd9\x88")                                     /* حشو */ \
-    X(SizedBox, "\xd9\x85\xd9\x82\xd8\xa7\xd8\xb3_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf") /* مقاس_محدد */ \
-    X(Expanded, "\xd9\x85\xd9\x88\xd8\xb3\xd9\x91\xd8\xb9")                    /* موسّع */ \
-    X(Align, "\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd9\x8a")                       /* محاذي */ \
-    X(InkWell, "\xd9\x82\xd8\xa7\xd8\xa8\xd9\x84_\xd9\x84\xd9\x84\xd9\x86\xd9\x82\xd8\xb1") /* قابل_للنقر */ \
-    X(Taskbar, "\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd9\x85\xd9\x87\xd8\xa7\xd9\x85\xd9\x91") /* شريط_مهامّ */
+    X(Button, "\xd8\xb2\xd8\xb1_\xd9\x86\xd8\xb5\xd9\x8a")                     /* زر_نصي */
+
+// ────────────────────────────────────────────────────────────────────────────
+// (AR) X(Id, PropKey) — الخاصّيّةُ التي يُكتَب فيها **الوسيطُ الموضعيُّ الأوّل**
+//      لعقدةٍ ما (`نص_عنصر("مرحبا")` ⇒ props::CONTENT). مشتقّةٌ من
+//      builtins/ui_widgets.yaml:primary_prop، و`PropKey` معرّفٌ في
+//      sad_ui/prop_keys.h المولَّدِ من ui_props.yaml.
+//      يستهلكها المفسّرُ بـ**نوعِ العقدة** لا باسمِها، فإعادةُ تسميةِ عقدةٍ في
+//      مصدرِ الحقيقةِ لا تُسقِط وسيطَها صامتةً في مفتاحٍ لا قارئَ له.
+// (EN) X(Id, PropKey) — where a node's first positional argument is stored.
+//      Keyed by node TYPE, not by name, so a rename cannot silently orphan it.
+// ────────────────────────────────────────────────────────────────────────────
+#define SAD_UI_NODE_PRIMARY_PROP_LIST(X) \
+    X(Text, CONTENT)                                                           /* نص_عنصر */ \
+    X(Image, SOURCE)                                                           /* صورة */ \
+    X(Icon, NAME)                                                              /* أيقونة */ \
+    X(Button, TITLE)                                                           /* زر */ \
+    X(TextField, HINT)                                                         /* حقل_نص */ \
+    X(TextArea, HINT)                                                          /* منطقة_نص */ \
+    X(Toggle, VALUE)                                                           /* مفتاح */ \
+    X(Slider, VALUE)                                                           /* منزلق */ \
+    X(Checkbox, VALUE)                                                         /* خانة_اختيار */ \
+    X(Dialog, TITLE)                                                           /* حوار */ \
+    X(ProgressBar, VALUE)                                                      /* شريط_تقدم */ \
+    X(FAB, ICON)                                                               /* زر_عائم */ \
+    X(SnackBar, MESSAGE)                                                       /* شريط_إشعار */ \
+    X(AppBar, TITLE)                                                           /* شريط_تطبيق */ \
+    X(Tooltip, TEXT)                                                           /* تلميح */ \
+    X(SizedBox, WIDTH)                                                         /* مقاس */
+
+#define SAD_UI_NODE_PRIMARY_PROP_COUNT 16
+

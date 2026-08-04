@@ -171,6 +171,25 @@ CODEGEN_DOMAINS = (
             "--widgets", "language-truth/builtins/ui_widgets.yaml",
             "--schema", "language-truth/_schemas/ui_nodes.schema.json",
             "--header", f"{d}/node_types_generated.h",
+            "--only", "graphics",
+            "--quiet",
+        ],
+    },
+    {
+        # (AR) ما يعرفه المسارُ التصريحيُّ في المحلّل من أسماء (أوّليّات/حاويات/
+        #      أحداث). المحلّل في الطبقة الأساس فلا يضمّ رأسًا من مكتبة الرسومات:
+        #      المصدرُ واحدٌ والمخرَجان اثنان، فلا اسمَ عربيٌّ حرفيٌّ في أيِّ طرف.
+        "name": "ui_parser_nodes",
+        "script": "gen_ui_nodes.py",
+        "out_dir": "shared/parser/include/generated",
+        "outputs": ("ui_parser_nodes_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/ui_nodes.yaml",
+            "--widgets", "language-truth/builtins/ui_widgets.yaml",
+            "--schema", "language-truth/_schemas/ui_nodes.schema.json",
+            "--events", "language-truth/ui_events.yaml",
+            "--parser-header", f"{d}/ui_parser_nodes_generated.h",
+            "--only", "parser",
             "--quiet",
         ],
     },

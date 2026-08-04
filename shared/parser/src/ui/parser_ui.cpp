@@ -34,11 +34,10 @@
 #include "declarations.h"
 #include "expressions.h"
 #include "statements.h"
+#include "generated/ui_parser_nodes_generated.h"
 
 #include <unordered_set>
-#include <unordered_map>
 #include <string>
-#include <iostream>
 
 namespace Sad
 {
@@ -55,158 +54,67 @@ namespace Sad
         //
         // (AR) القرار المعماري ADR-UI-02:
         //      تقليص العناصر من 70+ إلى 15 عنصر أولي فقط.
-        //      باقي العناصر (55+) ستُبنى كـ `واجهة` مُركّبة من الأولية.
-        //      العناصر القديمة تبقى مؤقتاً في deprecatedWidgets مع تحذير.
+        //      باقي العناصر (55+) تُبنى كـ `واجهة` مُركّبة من الأولية.
+        //      لا توافقَ خلفيًّا: لا خريطةَ عناصرَ مُهمَلةٍ ولا تحذيرَ إهمال.
         //
         // (EN) Architecture Decision ADR-UI-02:
         //      Reduce widgets from 70+ to 15 primitives only.
-        //      Remaining 55+ widgets will be composed as user `واجهة` components.
-        //      Old widgets stay temporarily in deprecatedWidgets with warning.
+        //      Remaining 55+ widgets are composed as user `واجهة` components.
+        //      No back-compat: no deprecated-widget map, no deprecation warning.
         // =====================================================================
+
+        // (AR) لا اسمَ عربيًّا حرفيًّا هنا: المجموعاتُ الثلاثُ تُبنى من قوائمِ
+        //      X-macro المولَّدةِ من language-truth/ui_nodes.yaml وui_events.yaml.
+        //      فكان الجدولُ اليدويُّ منحرفًا: «نص» بدل «نص_عنصر» القانونيّ،
+        //      و«قائمة_كسولة» التي لا وجودَ لها في أيِّ محرّك بدل «عمود_كسول» —
+        //      أي إنّ المسارَ التصريحيَّ كان يرفضُ ما يعرفه المحرّكان ويقبلُ ما
+        //      لا يعرفانه. الآن يستحيل الانحرافُ: المصدرُ واحد.
+        // (EN) No literal Arabic here — the three sets are built from generated
+        //      X-macro lists, so parser and engines cannot drift apart.
+#define SAD_UI_PARSER_NAME_ENTRY(Id, Name) Name,
 
         static const std::unordered_set<std::string> knownWidgets = {
-            // ── (AR) تخطيط — 4 حاويات أساسية / (EN) Layout — 4 basic containers ──
-            "عمود", "صف", "رصة", "شبكة",
+            SAD_UI_PARSER_PRIMITIVE_LIST(SAD_UI_PARSER_NAME_ENTRY)};
+        // (AR) قائمةٌ فارغةٌ تُترجَم بلا خطأ فتفشلُ صامتةً: بلا أوّليّاتٍ يُرفَض كلُّ
+        //      عنصر، وبلا حاوياتٍ تصيرُ كلُّ حاويةٍ عنصرًا ورقيًّا فتُرفَض `نهاية`،
+        //      وبلا أحداثٍ يصيرُ كلُّ `.عند_…` معدِّلَ قيمةٍ لا حدثًا. نُفشِل الترجمة.
+        // (EN) An empty generated list compiles fine and fails silently — assert.
+        static_assert(SAD_UI_PARSER_PRIMITIVE_COUNT > 0,
+                      "قائمةُ العناصرِ الأوّليّةِ المولَّدةُ فارغة");
 
-            // ── (AR) عرض — 3 عناصر عرض / (EN) Display — 3 display elements ──
-            "نص", "صورة", "أيقونة",
-
-            // ── (AR) تفاعل — 4 عناصر إدخال / (EN) Interaction — 4 input elements ──
-            "زر", "حقل_نص", "مفتاح", "منزلق",
-
-            // ── (AR) هيكل — 3 حاويات متقدمة / (EN) Structure — 3 advanced containers ──
-            "حاوية", "عرض_تمرير", "قائمة_كسولة",
-
-            // ── (AR) فراغ — عنصر واحد / (EN) Spacer — 1 element ──
-            "فاصل"};
-
-        // =====================================================================
-        // (AR) خريطة العناصر المُهملة — المرحلة الأولى من خطة الهجرة (ADR-UI-02)
-        // (EN) Deprecated widgets map — Phase 1 of migration plan (ADR-UI-02)
-        //
-        // (AR) كل عنصر قديم يُربط بالعنصر الأولي البديل.
-        //      عند استخدام عنصر مُهمل، يُصدر البارسر تحذيراً ويُعامله كبديله.
-        //      المرحلة 1 (v1.2): تحذير + عمل عادي
-        //      المرحلة 2 (v1.3): ترجمة داخلية تلقائية
-        //      المرحلة 3 (v2.0): إزالة مع رسالة خطأ
-        //
-        // (EN) Each deprecated widget maps to its primitive replacement.
-        //      Parser emits a warning when a deprecated widget is used, and treats it as its replacement.
-        //      Phase 1 (v1.2): warning + works normally
-        //      Phase 2 (v1.3): automatic internal translation
-        //      Phase 3 (v2.0): removal with error message
-        // =====================================================================
-
-        static const std::unordered_map<std::string, std::string> deprecatedWidgets = {
-            // ── (AR) عرض مُهمل → بديل / (EN) Deprecated display → replacement ──
-            {"نص_منسق", "نص"},
-
-            // ── (AR) أزرار مُهملة → زر / (EN) Deprecated buttons → زر ──
-            {"زر_نصي", "زر"},
-            {"زر_محدد", "زر"},
-            {"زر_أيقونة", "زر"},
-            {"زر_عائم", "زر"},
-
-            // ── (AR) إدخال مُهمل → حقل_نص أو معادل / (EN) Deprecated input → حقل_نص or equivalent ──
-            {"منطقة_نص", "حقل_نص"},
-            {"خانة_اختيار", "مفتاح"},
-            {"زر_راديو", "مفتاح"},
-            {"منتقي", "حقل_نص"},
-            {"منتقي_تاريخ", "حقل_نص"},
-            {"منتقي_وقت", "حقل_نص"},
-            {"منتقي_لون", "حقل_نص"},
-
-            // ── (AR) تخطيط مُهمل → حاوية أو معادل / (EN) Deprecated layout → container or equivalent ──
-            {"التفاف", "صف"},
-            {"وسط", "حاوية"},
-            {"حشوة", "حاوية"},
-            {"محاذاة", "حاوية"},
-            {"موسع", "حاوية"},
-            {"مرن", "حاوية"},
-            {"مقاس", "حاوية"},
-            {"فاصل_خط", "فاصل"},
-            {"نسبة_عرض", "حاوية"},
-
-            // ── (AR) حاويات مُهملة → حاوية / (EN) Deprecated containers → حاوية ──
-            {"بطاقة", "حاوية"},
-            {"سطح", "حاوية"},
-            {"صندوق", "حاوية"},
-            {"هيكل", "حاوية"},
-            {"قائمة_عرض", "قائمة_كسولة"},
-            {"عمود_كسول", "قائمة_كسولة"},
-
-            // ── (AR) تنقل مُهمل → حاوية أو معادل / (EN) Deprecated nav → container or equivalent ──
-            {"شريط_تطبيق", "حاوية"},
-            {"درج", "حاوية"},
-            {"تنقل_سفلي", "صف"},
-            {"تبويبات", "صف"},
-            {"ملاح", "رصة"},
-
-            // ── (AR) حوارات مُهملة → رصة / (EN) Deprecated dialogs → رصة ──
-            {"حوار", "رصة"},
-            {"ورقة_سفلية", "حاوية"},
-            {"شريط_إشعار", "حاوية"},
-            {"تلميح", "حاوية"},
-            {"قائمة_خيارات", "عمود"},
-
-            // ── (AR) بيانات مُهملة → معادل / (EN) Deprecated data → equivalent ──
-            {"جدول_بيانات", "شبكة"},
-            {"شريط_تقدم", "حاوية"},
-            {"تقدم_دائري", "حاوية"},
-            {"شارة", "حاوية"},
-            {"رقاقة", "حاوية"},
-            {"شريط_تقييم", "صف"},
-            {"شريط_بحث", "حقل_نص"},
-        };
-
-        // (AR) العناصر التي تقبل أبناء (حاويات) — 4 أساسية + 3 متقدمة (ADR-UI-02)
-        // (EN) Container widgets — 4 basic + 3 advanced (ADR-UI-02)
+        // (AR) العناصر التي تقبل أبناء (حاويات) — مولَّدة من parser_container
+        // (EN) Container widgets — generated from the parser_container flag
         static const std::unordered_set<std::string> containerWidgets = {
-            // (AR) حاويات تخطيط أساسية
-            "عمود", "صف", "رصة", "شبكة",
-            // (AR) حاويات متقدمة
-            "حاوية", "عرض_تمرير", "قائمة_كسولة"};
+            SAD_UI_PARSER_CONTAINER_LIST(SAD_UI_PARSER_NAME_ENTRY)};
+        static_assert(SAD_UI_PARSER_CONTAINER_COUNT > 0,
+                      "قائمةُ الحاوياتِ المولَّدةُ فارغة");
+        static_assert(SAD_UI_PARSER_CONTAINER_COUNT <= SAD_UI_PARSER_PRIMITIVE_COUNT,
+                      "الحاوياتُ يجب أن تكون مجموعةً جزئيّةً من الأوّليّات");
 
-        // (AR) أسماء الأحداث المعروفة — تُستخدم لتمييز المعدّل-الحدث من المعدّل-القيمة
-        // (EN) Known event names — used to distinguish event modifiers from value modifiers
+        // (AR) أسماء الأحداث المعروفة — تُميّز المعدّل-الحدث من المعدّل-القيمة.
+        //      مولَّدة كاملةً من language-truth/ui_events.yaml (لا مجموعةً جزئيّة).
+        // (EN) Known event names — generated in full from ui_events.yaml.
         static const std::unordered_set<std::string> knownEvents = {
-            "عند_النقر", "عند_الضغط_المطول", "عند_السحب",
-            "عند_التحويم", "عند_التغيير", "عند_الظهور",
-            "عند_الإرسال"};
+            SAD_UI_PARSER_EVENT_LIST(SAD_UI_PARSER_NAME_ENTRY)};
+        static_assert(SAD_UI_PARSER_EVENT_COUNT > 0,
+                      "قائمةُ الأحداثِ المولَّدةُ فارغة");
+
+#undef SAD_UI_PARSER_NAME_ENTRY
 
         // =====================================================================
         // isKnownWidget — التحقق إذا كان الاسم عنصر واجهة مسجل
         // =====================================================================
         //
-        // (AR) يتحقق من العناصر الأولية (15) + العناصر المُهملة (55+)
-        //      إذا كان العنصر مُهملاً، يُصدر تحذيراً ويعيد true (ADR-UI-02 مرحلة 1)
-        // (EN) Checks primitives (15) + deprecated (55+)
-        //      If deprecated, emits warning and returns true (ADR-UI-02 phase 1)
+        // (AR) يتحقّق من العناصر الأوّليّة المولَّدة وحدَها (ADR-UI-02)
+        // (EN) Checks the generated primitives only (ADR-UI-02)
         // =====================================================================
 
         bool ParserCore::isKnownWidget(const std::string &name) const
         {
-            // (AR) أولاً: هل هو عنصر أولي؟ / (EN) First: is it a primitive?
-            if (knownWidgets.count(name) > 0)
-                return true;
-
-            // (AR) ثانياً: هل هو عنصر مُهمل؟ (ADR-UI-02 مرحلة 1: تحذير + عمل عادي)
-            // (EN) Second: is it deprecated? (ADR-UI-02 phase 1: warning + works normally)
-            auto it = deprecatedWidgets.find(name);
-            if (it != deprecatedWidgets.end())
-            {
-                // (AR) تحذير إهمال: العنصر القديم لا يزال يعمل لكن يجب استبداله
-                // (EN) Deprecation warning: old widget still works but should be replaced
-                std::cerr << "[تحذير/Warning] " << current_.getPosition().line << ":"
-                          << current_.getPosition().column << ": "
-                          << "العنصر \"" << name << "\" مُهمل — استخدم \""
-                          << it->second << "\" بدلاً منه / "
-                          << "Widget \"" << name << "\" is deprecated — use \""
-                          << it->second << "\" instead." << std::endl;
-                return true;
-            }
-
-            return false;
+            // (AR) لا توافقَ خلفيًّا: الاسمُ الأوّليُّ القانونيُّ وحدَه يُقبَل، ولا
+            //      خريطةَ مُهمَلٍ ولا تحذيرَ إهمال (قرار مالك).
+            // (EN) No back-compat: canonical primitives only.
+            return knownWidgets.count(name) > 0;
         }
 
         // =====================================================================

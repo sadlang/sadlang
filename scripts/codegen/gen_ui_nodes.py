@@ -9,7 +9,7 @@
          أن ينحرف أحدُهما عن الآخر أو عن مصدر الحقيقة.
        - SAD_UI_NODE_ALT_NAME_LIST(X) ⇒ X(Id, "اسمٌ إضافيّ")
          أسماءُ القراءة الإضافيّة: أسماءُ المصانع المدمَجة (تُشتقّ آليًّا من
-         builtins/ui_widgets.yaml) + دَينُ الهجرة legacy_names. منها يُكمَّل
+         builtins/ui_widgets.yaml) وحدَها — لا اسمَ انتقاليًّا. منها يُكمَّل
          جدولُ (اسم ⇒ نوع) وحدَه — فلا تُطبَع هذه الأسماء أبدًا.
      كلّ سلسلة عربيّة تُصدَّر \\xHH (لا حرفيًّا) لتفادي صفحة ترميز MSVC.
      يستهلكه types.h/types.cpp داخلَ مكتبة الرسومات — فيراه **المحرّكان معًا**
@@ -17,8 +17,8 @@
 
 (EN) Emits two X-macro lists: the canonical node types (which build both the
      UINodeType enum and the type⇒name table, so they cannot drift) and the
-     extra read-only names (builtin factory names, derived automatically, plus
-     documented legacy migration debt) which complete the name⇒type table only.
+     extra read-only names (builtin factory names, derived automatically — no
+     legacy aliases) which complete the name⇒type table only.
      Arabic strings are hex-escaped. Consumed inside the graphics library, hence
      by BOTH engines through it.
 ============================================================================
@@ -54,16 +54,36 @@ _DEFAULT_HEADER = (
     _REPO_ROOT / "features" / "graphics" / "core" / "include" / "sad_ui" / "generated"
     / "node_types_generated.h"
 )
+_DEFAULT_EVENTS = _REPO_ROOT / "language-truth" / "ui_events.yaml"
+_DEFAULT_PARSER_HEADER = (
+    _REPO_ROOT / "shared" / "parser" / "include" / "generated"
+    / "ui_parser_nodes_generated.h"
+)
+# (AR) بادئةُ اسمِ الحدث في لغة ص — تُميّز مدخلاتِ الأحداثِ عن الاحتياطيّ Custom.
+_EVENT_PREFIX = "عند_"  # «عند_»
 
 
 def _hex(s: str) -> str:
-    """(AR) ترميز \\xHH بايتيّ (UTF-8)؛ يُبقي ASCII الطباعيّ حرفيًّا. / byte-wise \\xHH."""
-    out = []
+    """(AR) ترميز \\xHH بايتيّ (UTF-8)؛ يُبقي ASCII الطباعيّ حرفيًّا. / byte-wise \\xHH.
+
+    (AR) فخٌّ مسدود: هروبُ `\\x` في C++ **جشعٌ بلا حدٍّ لعددِ الخانات**، فاسمٌ فيه
+         رقمٌ أو حرفُ a–f بعد بايتٍ مُرمَّزٍ (مثل «زر2») كان يُنتج `\\xd8\\xb12`
+         فيُقرأ رمزًا واحدًا خاطئًا أو يفشل الترجمة. نفصلُ بسلسلةٍ فارغةٍ مجاورةٍ
+         `"" ` — تسلسلُ السلاسلِ المتجاورةِ في C++ لا يغيّر القيمة ويقطعُ الهروب.
+    (EN) C++ `\\x` escapes are unbounded; a hex-digit ASCII char right after an
+         escaped byte would be swallowed. Break it with adjacent-string `"" `.
+    """
+    out: list[str] = []
+    prev_escaped = False
     for b in str(s).encode("utf-8"):
         if 0x20 <= b < 0x7F and chr(b) not in ('"', "\\"):
+            if prev_escaped and chr(b) in "0123456789abcdefABCDEF":
+                out.append('""')
             out.append(chr(b))
+            prev_escaped = False
         else:
             out.append(f"\\x{b:02x}")
+            prev_escaped = True
     return "".join(out)
 
 
@@ -101,13 +121,80 @@ HEADER_TEMPLATE = """\
 #define SAD_UI_NODE_TYPE_COUNT {count}
 
 // ────────────────────────────────────────────────────────────────────────────
-// (AR) X(Id, "اسمٌ إضافيّ") — يُقرَأ ولا يُطبَع: أسماءُ المصانع المدمَجة
-//      (مشتقّةٌ آليًّا من builtins/ui_widgets.yaml) + دَينُ الهجرة legacy_names.
-// (EN) X(Id, "alt name") — read-only aliases: builtin factory names (derived)
-//      plus documented legacy migration debt.
+// (AR) X(Id, "اسمُ مصنع") — يُقرَأ ولا يُطبَع: أسماءُ المصانع المدمَجةِ التي
+//      تُنتج العقدةَ ولا تحمل اسمَها القانونيّ (مشتقّةٌ آليًّا من
+//      builtins/ui_widgets.yaml). لا اسمَ انتقاليَّ هنا: لا توافقَ خلفيًّا.
+// (EN) X(Id, "factory name") — read-only: builtin factory names that differ
+//      from the node's canonical name. No legacy aliases — no back-compat.
 // ────────────────────────────────────────────────────────────────────────────
 #define SAD_UI_NODE_ALT_NAME_LIST(X) \\
 {alts}
+
+// ────────────────────────────────────────────────────────────────────────────
+// (AR) X(Id, PropKey) — الخاصّيّةُ التي يُكتَب فيها **الوسيطُ الموضعيُّ الأوّل**
+//      لعقدةٍ ما (`نص_عنصر("مرحبا")` ⇒ props::CONTENT). مشتقّةٌ من
+//      builtins/ui_widgets.yaml:primary_prop، و`PropKey` معرّفٌ في
+//      sad_ui/prop_keys.h المولَّدِ من ui_props.yaml.
+//      يستهلكها المفسّرُ بـ**نوعِ العقدة** لا باسمِها، فإعادةُ تسميةِ عقدةٍ في
+//      مصدرِ الحقيقةِ لا تُسقِط وسيطَها صامتةً في مفتاحٍ لا قارئَ له.
+// (EN) X(Id, PropKey) — where a node's first positional argument is stored.
+//      Keyed by node TYPE, not by name, so a rename cannot silently orphan it.
+// ────────────────────────────────────────────────────────────────────────────
+#define SAD_UI_NODE_PRIMARY_PROP_LIST(X) \\
+{primary}
+
+#define SAD_UI_NODE_PRIMARY_PROP_COUNT {primary_count}
+
+"""
+
+# (AR) رأسٌ ثانٍ **للمحلّل** لا للمكتبة: المحلّل في الطبقة الأساس (sad_shared) فلا
+#      يجوز أن يضمّ رأسًا من مكتبة الرسومات. المصدرُ واحدٌ (ui_nodes.yaml +
+#      ui_events.yaml) والمخرَجان اثنان، فلا اسمَ عربيٌّ حرفيٌّ في أيِّ الطرفين.
+# (EN) A second header for the PARSER (foundation layer must not include a
+#      graphics header). One SoT, two generated outputs, zero literals.
+PARSER_TEMPLATE = """\
+// ============================================================================
+// (AR) ⚠️ ملفّ مولَّد آليًّا — لا تعدّله يدويًّا.
+// (EN) ⚠️ AUTO-GENERATED — do not edit by hand.
+//
+// المصدر / Source: language-truth/ui_nodes.yaml · language-truth/ui_events.yaml
+// المولّد / Generator: scripts/codegen/gen_ui_nodes.py
+//
+// To modify: edit the YAML then rebuild (x.py gen).
+// ============================================================================
+//
+// (AR) ما يعرفه المسارُ التصريحيُّ في المحلّل (`واجهة … نهاية`) من أسماء:
+//     • SAD_UI_PARSER_PRIMITIVE_LIST — العناصرُ الأوّليّة (ADR-UI-02)
+//     • SAD_UI_PARSER_CONTAINER_LIST — منها ما يقبل أبناءً ويُنهى بـ`نهاية`
+//     • SAD_UI_PARSER_EVENT_LIST     — أسماءُ الأحداث الكاملة
+//   لا توافقَ خلفيًّا: الاسمُ القانونيُّ وحدَه، ولا اسمَ مُهمَلًا ولا انتقاليًّا.
+// (EN) Names the declarative parser path knows; canonical only, no back-compat.
+// ============================================================================
+
+#pragma once
+
+#define SAD_UI_PARSER_PRIMITIVE_LIST(X) \\
+{prims}
+
+#define SAD_UI_PARSER_PRIMITIVE_COUNT {prim_count}
+
+// (AR) الأوّليّاتُ التي تقبل أبناءً وتُنهى بـ`نهاية`.
+#define SAD_UI_PARSER_CONTAINER_LIST(X) \\
+{conts}
+
+#define SAD_UI_PARSER_CONTAINER_COUNT {cont_count}
+
+// (AR) أسماءُ الأحداث الكاملة من language-truth/ui_events.yaml — يميّز بها
+//      المحلّلُ المعدِّلَ-الحدثَ من المعدِّل-القيمة.
+#define SAD_UI_PARSER_EVENT_LIST(X) \\
+{events}
+
+#define SAD_UI_PARSER_EVENT_COUNT {event_count}
+
+// (AR) اسمُ كلِّ عنصرٍ أوّليٍّ منفردًا — لِمَن يحتاج عقدةً بعينها (كالاختبارات)
+//      دون أن يكتبَ اسمًا حرفيًّا يبيت عند إعادةِ التسمية.
+// (EN) Per-node name macros, so a single node can be referenced without a literal.
+{prim_defs}
 """
 
 
@@ -115,6 +202,49 @@ def _widget_canonicals(path: Path) -> dict[str, str]:
     """(AR) cpp_id ⇒ الاسم القانونيّ، من language-truth/builtins/ui_widgets.yaml."""
     data = yaml.safe_load(open(path, encoding="utf-8"))
     return {f["cpp_id"]: f["canonical"] for f in data.get("functions", [])}
+
+
+def _widget_primary_props(path: Path) -> dict[str, str]:
+    """(AR) cpp_id ⇒ معرّفُ مفتاحِ الخاصّيّةِ الأولى (primary_prop) إن وُجد."""
+    data = yaml.safe_load(open(path, encoding="utf-8"))
+    return {
+        f["cpp_id"]: f["primary_prop"]
+        for f in data.get("functions", [])
+        if f.get("primary_prop")
+    }
+
+
+def emit_primary_props(
+    nodes: list[dict[str, Any]],
+    primary: dict[str, str],
+    canon: dict[str, str],
+) -> tuple[str, int]:
+    """(AR) X(Id, PropKey) — مفتاحُ الوسيطِ الأوّلِ في **المسارِ التصريحيّ**.
+
+    (AR) الخاصّيّةُ الأولى صفةُ **مصنعٍ** لا صفةُ نوعِ عقدة: عقدةُ Button مثلًا
+         يُنتجها `زر` (عنوان) و`زر_أيقونة` (أيقونة) معًا. والمسارُ التصريحيُّ
+         يكتب الاسمَ القانونيَّ للعقدة، فالمصنعُ المقصودُ هو ما طابق اسمُه اسمَها
+         القانونيّ وحدَه — لا «أيُّ مصنعٍ لها».
+    (EN) primary_prop is a factory property, not a node property; the
+         declarative path names the node, so pick the same-named factory.
+    """
+    lines: list[str] = []
+    for n in nodes:
+        own = [
+            c for c in n.get("builtins", []) or []
+            if canon.get(c) == n["canonical"] and c in primary
+        ]
+        if not own:
+            continue
+        keys = {primary[c] for c in own}
+        if len(keys) > 1:
+            raise SystemExit(
+                f"ui_nodes: العقدة «{n['id']}» لها مصنعان باسمِها القانونيّ "
+                f"يختلفان في primary_prop ({sorted(keys)})"
+            )
+        entry = f'    X({n["id"]}, {keys.pop()})'
+        lines.append(f'{entry:<78} /* {n["canonical"]} */ \\')
+    return "\n".join(lines).rstrip(" \\"), len(lines)
 
 
 def emit_types(nodes: list[dict[str, Any]]) -> str:
@@ -125,8 +255,43 @@ def emit_types(nodes: list[dict[str, Any]]) -> str:
     return "\n".join(lines).rstrip(" \\")
 
 
+def emit_events(path: Path) -> tuple[str, int]:
+    """(AR) أسماءُ الأحداث الكاملة من ui_events.yaml (عدا Custom الاحتياطيّ)."""
+    data = yaml.safe_load(open(path, encoding="utf-8"))
+    lines = []
+    for e in data.get("entries", []):
+        name = e["canonical"]
+        if not name.startswith(_EVENT_PREFIX):
+            continue
+        entry = f'    X({e["id"]}, "{_hex(name)}")'
+        lines.append(f"{entry:<78} /* {name} */ \\")
+    return "\n".join(lines).rstrip(" \\"), len(lines)
+
+
+def emit_flagged(nodes: list[dict[str, Any]], flag: str) -> tuple[str, int]:
+    """(AR) قائمةُ X للعُقَد الحاملةِ رايةً بولية (parser_primitive/parser_container)."""
+    lines = []
+    for n in nodes:
+        if not n.get(flag):
+            continue
+        entry = f'    X({n["id"]}, "{_hex(n["canonical"])}")'
+        lines.append(f'{entry:<78} /* {n["canonical"]} */ \\')
+    return "\n".join(lines).rstrip(" \\"), len(lines)
+
+
+def emit_node_defines(nodes: list[dict[str, Any]], flag: str) -> str:
+    """(AR) `#define SAD_UI_PARSER_NODE_<Id> "الاسم"` لكلِّ عقدةٍ حاملةٍ للراية."""
+    lines = []
+    for n in nodes:
+        if not n.get(flag):
+            continue
+        entry = f'#define SAD_UI_PARSER_NODE_{n["id"]} "{_hex(n["canonical"])}"'
+        lines.append(f'{entry:<86} /* {n["canonical"]} */')
+    return "\n".join(lines)
+
+
 def emit_alts(nodes: list[dict[str, Any]], canon: dict[str, str]) -> tuple[str, int]:
-    """(AR) أسماءُ القراءة الإضافيّة: مصانعُ العقدة (عدا اسمِها القانونيّ) + الدَّين."""
+    """(AR) أسماءُ القراءة: مصانعُ العقدةِ عدا اسمِها القانونيّ (لا دَينَ توافقيًّا)."""
     lines, total = [], 0
     # (AR) مالكُ كلِّ اسمٍ يُقرأ (قانونيًّا كان أو إضافيًّا): قائمةُ تهيئةِ
     #   unordered_map تُسقِط المكرَّرَ صامتًا، فيُحَلُّ الاسمُ إلى العقدةِ الأولى
@@ -137,9 +302,6 @@ def emit_alts(nodes: list[dict[str, Any]], canon: dict[str, str]) -> tuple[str, 
         for cpp_id in n.get("builtins", []):
             name = canon.get(cpp_id)
             if name and name != n["canonical"] and name not in names:
-                names.append(name)
-        for name in n.get("legacy_names", []) or []:
-            if name != n["canonical"] and name not in names:
                 names.append(name)
         for name in names:
             if owner.setdefault(name, n["id"]) != n["id"]:
@@ -161,6 +323,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--schema", type=Path, default=_DEFAULT_SCHEMA,
                    help="Path to ui_nodes.schema.json (validated if jsonschema present)")
     p.add_argument("--header", type=Path, default=_DEFAULT_HEADER)
+    p.add_argument("--events", type=Path, default=_DEFAULT_EVENTS,
+                   help="language-truth/ui_events.yaml — لأسماء أحداث المحلّل")
+    p.add_argument("--parser-header", type=Path, default=_DEFAULT_PARSER_HEADER,
+                   help="رأسُ المحلّل المولَّد (الطبقة الأساس لا تضمّ رؤوس الرسومات)")
+    # (AR) المخرَجان يسكنان مجلّدَين مختلفَين، وسجلُّ x.py يربط كلَّ نطاقٍ بمجلّدٍ
+    #      واحد، فيُستدعى المولّدُ مرّتين — كلٌّ بمخرَجه. الافتراضُ both للتشغيل اليدويّ.
+    p.add_argument("--only", choices=("both", "graphics", "parser"), default="both",
+                   help="أيَّ الرأسَين يُكتَب (سجلّ x.py يستدعي كلًّا على حدة)")
     p.add_argument("--quiet", action="store_true")
     return p.parse_args(argv)
 
@@ -203,12 +373,45 @@ def run(argv: list[str] | None = None) -> int:
         _validate(nodes, args.schema, args.quiet)
         canon = _widget_canonicals(args.widgets) if args.widgets.exists() else {}
         alts, alt_count = emit_alts(nodes, canon)
-        content = HEADER_TEMPLATE.format(
-            types=emit_types(nodes), count=len(nodes), alts=alts
+        prims, prim_count = emit_flagged(nodes, "parser_primitive")
+        conts, cont_count = emit_flagged(nodes, "parser_container")
+        for node in nodes:
+            if node.get("parser_container") and not node.get("parser_primitive"):
+                raise SystemExit(
+                    f"ui_nodes: العقدة «{node['id']}» parser_container بلا parser_primitive"
+                )
+        events, event_count = emit_events(args.events)
+        primary_map = (
+            _widget_primary_props(args.widgets) if args.widgets.exists() else {}
         )
-        write_if_changed(args.header, content, args.quiet)
-        if not args.quiet:
-            print(f"[gen_ui_nodes] {len(nodes)} nodes + {alt_count} alt names → {args.header}")
+        primary, primary_count = emit_primary_props(nodes, primary_map, canon)
+        content = HEADER_TEMPLATE.format(
+            types=emit_types(nodes), count=len(nodes), alts=alts,
+            primary=primary, primary_count=primary_count,
+        )
+        if args.only in ("both", "graphics"):
+            write_if_changed(args.header, content, args.quiet)
+            if not args.quiet:
+                print(
+                    f"[gen_ui_nodes] {len(nodes)} nodes + {alt_count} alt names "
+                    f"-> {args.header}"
+                )
+        if args.only in ("both", "parser"):
+            write_if_changed(
+                args.parser_header,
+                PARSER_TEMPLATE.format(
+                    prims=prims, prim_count=prim_count,
+                    conts=conts, cont_count=cont_count,
+                    events=events, event_count=event_count,
+                    prim_defs=emit_node_defines(nodes, "parser_primitive"),
+                ),
+                args.quiet,
+            )
+            if not args.quiet:
+                print(
+                    f"[gen_ui_nodes] {prim_count} primitives ({cont_count} containers) + "
+                    f"{event_count} events -> {args.parser_header}"
+                )
         return 0
     except Exception as exc:
         print(f"[gen_ui_nodes] FATAL: {exc}", file=sys.stderr)

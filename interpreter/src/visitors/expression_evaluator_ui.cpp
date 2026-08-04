@@ -23,8 +23,12 @@
 #include "ui_bridge.h"
 #include "widget_builder.h"
 #include "ui_eval_bridge_impl.h" // (AR) بذرة عكس الاعتماد (م2-أ) / (EN) inversion seam
+#include "sad_ui/prop_keys.h"
+#include "sad_ui/generated/node_types_generated.h"
 #include <atomic>
 #include <iostream>
+#include <string>
+#include <unordered_map>
 
 namespace Sad
 {
@@ -33,6 +37,26 @@ namespace Sad
 
         using namespace Data;
         using namespace AST;
+
+        namespace
+        {
+            // (AR) نوعُ العقدة ⇒ مفتاحُ الخاصّيّةِ التي يُكتَب فيها وسيطُها الموضعيُّ
+            //      الأوّل. مولَّدٌ من language-truth (ui_nodes.yaml × ui_widgets.yaml:
+            //      primary_prop)، فلا سلسلةَ اسمٍ حرفيّةٍ تنحرف عند إعادةِ التسمية.
+            // (EN) Node type ⇒ primary-property key, generated from the SoT.
+#define SAD_UI_PRIMARY_PROP_ENTRY(Id, Key) \
+    {sad::ui::UINodeType::Id, sad::ui::props::Key},
+            const std::unordered_map<sad::ui::UINodeType, const char *> kPrimaryPropByType = {
+                SAD_UI_NODE_PRIMARY_PROP_LIST(SAD_UI_PRIMARY_PROP_ENTRY)};
+#undef SAD_UI_PRIMARY_PROP_ENTRY
+            static_assert(SAD_UI_NODE_PRIMARY_PROP_COUNT > 0,
+                          "جدولُ الخاصّيّةِ الأولى المولَّدُ فارغ");
+
+            // (AR) بادئةُ المفتاحِ الاحتياطيِّ للوسيطِ الموضعيِّ بلا خاصّيّةٍ مسمّاة — «_وسيط_».
+            // (EN) Fallback key prefix for positional args without a named property.
+            const std::string kPositionalArgPrefix =
+                "_\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7_";
+        } // namespace
 
         // =====================================================================
         // visitUIWidgetExpr — تقييم تعبير عنصر واجهة
@@ -88,32 +112,23 @@ namespace Sad
 
                     if (i == 0)
                     {
-                        // (AR) الوسيط الأول → خاصية حسب نوع العنصر
-                        // (EN) First arg → property based on widget type
-                        if (node.widgetName == "\xd9\x86\xd8\xb5" || node.widgetName == "Text")
-                        {
-                            builder->setIRPropertyFromValue("\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89", argVal); // محتوى
-                        }
-                        else if (node.widgetName == "\xd8\xb2\xd8\xb1" || node.widgetName == "Button")
-                        {
-                            builder->setIRPropertyFromValue("\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86", argVal); // عنوان
-                        }
-                        else if (node.widgetName == "\xd8\xb5\xd9\x88\xd8\xb1\xd8\xa9" || node.widgetName == "Image")
-                        {
-                            builder->setIRPropertyFromValue("\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1", argVal); // مصدر
-                        }
-                        else if (node.widgetName == "\xd8\xad\xd9\x82\xd9\x84_\xd9\x86\xd8\xb5" || node.widgetName == "TextField")
-                        {
-                            builder->setIRPropertyFromValue("\xd8\xaa\xd9\x84\xd9\x85\xd9\x8a\xd8\xad", argVal); // تلميح
-                        }
-                        else
-                        {
-                            builder->setIRPropertyFromValue("_\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7_0", argVal); // _وسيط_0
-                        }
+                        // (AR) الوسيط الأول → مفتاحُ الخاصّيّةِ الأولى **بنوعِ العقدة**
+                        //      من مصدرِ الحقيقة، لا بسلسلةِ اسمٍ حرفيّة. الشرطُ
+                        //      الحرفيُّ السابق كان يقارن بـ«نص» بينما الاسمُ
+                        //      القانونيُّ «نص_عنصر»، فيسقط الوسيطُ في مفتاحٍ
+                        //      احتياطيٍّ لا قارئَ له ⇒ نصٌّ فارغٌ بلا خطأ.
+                        // (EN) Key the primary property by node TYPE from the SoT,
+                        //      not by a literal name that a rename silently breaks.
+                        auto it = kPrimaryPropByType.find(nodeType);
+                        builder->setIRPropertyFromValue(
+                            it != kPrimaryPropByType.end() ? it->second
+                                                           : kPositionalArgPrefix + "0",
+                            argVal);
                     }
                     else
                     {
-                        builder->setIRPropertyFromValue("_\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7_" + std::to_string(i), argVal);
+                        builder->setIRPropertyFromValue(
+                            kPositionalArgPrefix + std::to_string(i), argVal);
                     }
                 }
             }

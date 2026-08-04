@@ -57,6 +57,11 @@ EXPECTED_OUTPUTS = {
     # (EN) UI node types — X-macro lists from ui_nodes.yaml; build the UINodeType
     #      enum and both name tables inside the graphics library.
     "features/graphics/core/include/sad_ui/generated/node_types_generated.h",
+    # (AR) نظيرُه للمحلّل: الأوّليّات/الحاويات/الأحداث — الطبقةُ الأساسُ لا تضمّ
+    #      رأسًا من مكتبة الرسومات، فمصدرٌ واحدٌ ومخرَجان.
+    # (EN) Parser-side twin (primitives/containers/events) — foundation layer
+    #      must not include a graphics header.
+    "shared/parser/include/generated/ui_parser_nodes_generated.h",
     # (AR) نظام «مصدر حقيقة الأدوات» — أوّل أداة sad-repl (كتالوج أخطاء/رسائل/أوامر).
     # (EN) Tools' Source-of-Truth — first tool sad-repl (errors/messages/commands catalog).
     "tools/repl/generated/repl_sot_generated.h",

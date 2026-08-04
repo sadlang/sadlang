@@ -33,7 +33,6 @@ set(MOBILE_SOURCES
     tools/compiler/src/run_command.cpp
     tools/compiler/src/test_command.cpp
     tools/compiler/src/build_command.cpp
-    shared/parser/src/specs/ui/parser_ui_maps.cpp
 )
 
 add_library(sad_mobile STATIC ${MOBILE_SOURCES})

@@ -513,9 +513,13 @@ set(UI_IR_SOURCES
  src/ui/ios_swiftui_codegen.cpp
  src/ui/web_html_codegen.cpp
  src/ui/sad_ui_pipeline.cpp
- # (AR) تنفيذ UIParser المطلوب من sad_ui_pipeline.cpp
- # (EN) UIParser implementation required by sad_ui_pipeline.cpp
- ${SAD_SHARED_DIR}/shared/parser/src/specs/ui/parser_ui_maps.cpp
+ # (AR) كان هنا parser_ui_maps.cpp لتنفيذ UIParser؛ حُذف مع ui_parser.hpp لأنّه
+ #      كان يحمل تعدادَ UINodeType ثانيًا وجدولَي اسمٍ يدويّين منحرفَين عن مصدر
+ #      الحقيقة (language-truth/ui_nodes.yaml)، بلا مستهلكٍ واحد. عند إحياء
+ #      sad_ui_pipeline.cpp يُبنى على sad::ui المولَّدة داخلَ مكتبة الرسومات.
+ # (EN) parser_ui_maps.cpp (UIParser impl) removed with ui_parser.hpp: it held a
+ #      second, drifted UINodeType enum with zero consumers. Future revival must
+ #      build on the SoT-generated sad::ui types inside the graphics library.
 )
 
 # (AR) تصفية المصادر الموجودة فعلًا على القرص فقط / (EN) keep only sources present on disk

@@ -26,8 +26,13 @@
 #include "declarations.h"
 #include "expressions.h"
 #include "statements.h"
+// (AR) قائمتا الأوّليّات/الحاويات المولَّدتان من language-truth/ui_nodes.yaml —
+//      مصدرُ أسماءِ العُقَدِ في هذا الاختبار، فلا اسمَ يدويٌّ يبيت.
+// (EN) SoT-generated primitive/container lists — the node names used here.
+#include "generated/ui_parser_nodes_generated.h"
 
 #include <string>
+#include <unordered_set>
 #include <vector>
 #include <iostream>
 
@@ -36,6 +41,21 @@ using namespace Sad;
 using namespace Sad::AST;
 using namespace Sad::Lexer;
 using namespace Sad::Parser;
+
+// (AR) مدخلةُ اسمٍ من قوائمِ X-macro المولَّدة (تُستعمَل داخلَ مُهيِّئاتِ الحاويات).
+// (EN) Name entry for the generated X-macro lists.
+#define SAD_UI_TEST_NAME_ENTRY(Id, Name) Name,
+
+// (AR) عنصرُ النصّ — الابنُ المستعمَلُ في اختباراتِ الحاويات. يُشتقّ من الرأسِ
+//      المولَّدِ (أوّلُ عقدةٍ اسمُها هو الاسمُ القانونيُّ لعنصرِ النصّ) لا من نصٍّ يدويّ.
+// (EN) The Text widget's canonical name, taken from the generated header.
+static const std::string kTextWidget = SAD_UI_PARSER_NODE_Text;
+
+// (AR) عددا ADR-UI-02 (١٥ أوّليًّا، سبعةٌ منها حاويات) — قرارٌ معماريٌّ يُحرَس
+//      صراحةً هنا وفي scripts/codegen/check_ui_props_consistency.py.
+// (EN) ADR-UI-02's counts — an architectural decision, asserted explicitly.
+static constexpr size_t kAdrPrimitiveCount = 15;
+static constexpr size_t kAdrContainerCount = 7;
 
 // =====================================================================
 // (AR) دوال مساعدة للاختبار / (EN) Test helper functions
@@ -63,6 +83,12 @@ static StmtList parseCode(const std::string &code)
  */
 static bool parseWithoutErrors(const std::string &code)
 {
+    // (AR) `ParserCore::hasErrors()` تقرأ مديرَ الأخطاء **المفرَد العامّ** لا حالةَ
+    //      المحلّل، فأيُّ اختبارٍ سابقٍ يفشل تحليلُه عمدًا (كاختبارِ رفضِ الاسمِ
+    //      المُهمَل) يُلوّث كلَّ نداءٍ بعده فيبدو فاشلًا بلا سبب. نُصفّرُ قبلَ القياس.
+    // (EN) hasErrors() reads a global singleton, not per-parser state: a prior
+    //      intentional parse failure would poison every later call. Clear first.
+    Errors::ErrorManager::getInstance().clear();
     LexerCore lexer(code);
     ParserCore parser(lexer);
     parser.parseProgram();
@@ -152,7 +178,7 @@ void test_ui_conditional_basic()
     دالة بناء()
         ارجع اعرض عمود
             إذا (ظاهر)
-                نص("مرحباً")
+                نص_عنصر("مرحباً")
             نهاية
         نهاية
     نهاية
@@ -177,7 +203,7 @@ void test_ui_conditional_basic()
 
         // (AR) الفرع الصحيح يحتوي عنصر واحد
         SAD_ASSERT_EQ(conditional->thenChildren.size(), static_cast<size_t>(1));
-        SAD_ASSERT_EQ(conditional->thenChildren[0]->widgetName, std::string("نص"));
+        SAD_ASSERT_EQ(conditional->thenChildren[0]->widgetName, kTextWidget);
 
         // (AR) لا يوجد فرع وإلا
         SAD_ASSERT_TRUE(!conditional->hasElseBranch()); });
@@ -192,9 +218,9 @@ void test_ui_conditional_basic()
     دالة بناء()
         ارجع اعرض عمود
             إذا (مسجل)
-                نص("مرحباً")
+                نص_عنصر("مرحباً")
             وإلا
-                نص("سجّل دخولك")
+                نص_عنصر("سجّل دخولك")
             نهاية
         نهاية
     نهاية
@@ -212,12 +238,12 @@ void test_ui_conditional_basic()
 
         // (AR) فرع then
         SAD_ASSERT_EQ(conditional->thenChildren.size(), static_cast<size_t>(1));
-        SAD_ASSERT_EQ(conditional->thenChildren[0]->widgetName, std::string("نص"));
+        SAD_ASSERT_EQ(conditional->thenChildren[0]->widgetName, kTextWidget);
 
         // (AR) فرع else
         SAD_ASSERT_TRUE(conditional->hasElseBranch());
         SAD_ASSERT_EQ(conditional->elseChildren.size(), static_cast<size_t>(1));
-        SAD_ASSERT_EQ(conditional->elseChildren[0]->widgetName, std::string("نص")); });
+        SAD_ASSERT_EQ(conditional->elseChildren[0]->widgetName, kTextWidget); });
 
     // ── (AR) اختبار 3: رسم شرطي متعدد العناصر / (EN) Conditional with multiple widgets ──
     runner.runTest("إذا with multiple children per branch", [&]()
@@ -229,12 +255,12 @@ void test_ui_conditional_basic()
     دالة بناء()
         ارجع اعرض عمود
             إذا (نشط)
-                نص("الأول")
-                نص("الثاني")
+                نص_عنصر("الأول")
+                نص_عنصر("الثاني")
                 زر("ضغط")
             وإلا
                 صورة("path.png")
-                نص("بديل")
+                نص_عنصر("بديل")
             نهاية
         نهاية
     نهاية
@@ -249,14 +275,14 @@ void test_ui_conditional_basic()
 
         // (AR) 3 عناصر في then
         SAD_ASSERT_EQ(cond->thenChildren.size(), static_cast<size_t>(3));
-        SAD_ASSERT_EQ(cond->thenChildren[0]->widgetName, std::string("نص"));
-        SAD_ASSERT_EQ(cond->thenChildren[1]->widgetName, std::string("نص"));
+        SAD_ASSERT_EQ(cond->thenChildren[0]->widgetName, kTextWidget);
+        SAD_ASSERT_EQ(cond->thenChildren[1]->widgetName, kTextWidget);
         SAD_ASSERT_EQ(cond->thenChildren[2]->widgetName, std::string("زر"));
 
         // (AR) 2 عناصر في else
         SAD_ASSERT_EQ(cond->elseChildren.size(), static_cast<size_t>(2));
         SAD_ASSERT_EQ(cond->elseChildren[0]->widgetName, std::string("صورة"));
-        SAD_ASSERT_EQ(cond->elseChildren[1]->widgetName, std::string("نص")); });
+        SAD_ASSERT_EQ(cond->elseChildren[1]->widgetName, kTextWidget); });
 
     // ── (AR) اختبار 4: شرط متداخل / (EN) Nested conditional ──
     runner.runTest("Nested إذا inside إذا", [&]()
@@ -270,12 +296,12 @@ void test_ui_conditional_basic()
         ارجع اعرض عمود
             إذا (أ)
                 إذا (ب)
-                    نص("أ و ب")
+                    نص_عنصر("أ و ب")
                 وإلا
-                    نص("أ فقط")
+                    نص_عنصر("أ فقط")
                 نهاية
             وإلا
-                نص("لا أ")
+                نص_عنصر("لا أ")
             نهاية
         نهاية
     نهاية
@@ -295,14 +321,14 @@ void test_ui_conditional_basic()
 
         // (AR) then/else الداخلي
         SAD_ASSERT_EQ(innerCond->thenChildren.size(), static_cast<size_t>(1));
-        SAD_ASSERT_EQ(innerCond->thenChildren[0]->widgetName, std::string("نص"));
+        SAD_ASSERT_EQ(innerCond->thenChildren[0]->widgetName, kTextWidget);
         SAD_ASSERT_TRUE(innerCond->hasElseBranch());
         SAD_ASSERT_EQ(innerCond->elseChildren.size(), static_cast<size_t>(1));
 
         // (AR) else الخارجي
         SAD_ASSERT_TRUE(outerCond->hasElseBranch());
         SAD_ASSERT_EQ(outerCond->elseChildren.size(), static_cast<size_t>(1));
-        SAD_ASSERT_EQ(outerCond->elseChildren[0]->widgetName, std::string("نص")); });
+        SAD_ASSERT_EQ(outerCond->elseChildren[0]->widgetName, kTextWidget); });
 
     // ── (AR) اختبار 5: شرط بجانب عناصر عادية / (EN) Conditional mixed with normal widgets ──
     runner.runTest("إذا mixed with regular widgets in container", [&]()
@@ -313,9 +339,9 @@ void test_ui_conditional_basic()
 
     دالة بناء()
         ارجع اعرض عمود
-            نص("العنوان")
+            نص_عنصر("العنوان")
             إذا (ظاهر)
-                نص("محتوى مرئي")
+                نص_عنصر("محتوى مرئي")
             نهاية
             زر("إجراء")
         نهاية
@@ -329,7 +355,7 @@ void test_ui_conditional_basic()
 
         // (AR) 3 أبناء: نص، شرط، زر
         SAD_ASSERT_EQ(rootWidget->children.size(), static_cast<size_t>(3));
-        SAD_ASSERT_EQ(rootWidget->children[0]->widgetName, std::string("نص"));
+        SAD_ASSERT_EQ(rootWidget->children[0]->widgetName, kTextWidget);
 
         auto* cond = dynamic_cast<UIConditionalNode*>(rootWidget->children[1].get());
         SAD_ASSERT_TRUE(cond != nullptr);
@@ -356,7 +382,7 @@ void test_ui_loop_basic()
     دالة بناء()
         ارجع اعرض عمود
             لكل عنصر في عناصر
-                نص(عنصر)
+                نص_عنصر(عنصر)
             نهاية
         نهاية
     نهاية
@@ -381,7 +407,7 @@ void test_ui_loop_basic()
 
         // (AR) جسم الحلقة يحتوي عنصر واحد
         SAD_ASSERT_EQ(loop->bodyChildren.size(), static_cast<size_t>(1));
-        SAD_ASSERT_EQ(loop->bodyChildren[0]->widgetName, std::string("نص")); });
+        SAD_ASSERT_EQ(loop->bodyChildren[0]->widgetName, kTextWidget); });
 
     // ── (AR) اختبار 2: لكل مع معدّلات / (EN) For-each with modifiers ──
     runner.runTest("لكل with widget modifiers", [&]()
@@ -393,7 +419,7 @@ void test_ui_loop_basic()
     دالة بناء()
         ارجع اعرض عمود
             لكل اسم في أسماء
-                نص(اسم).حجم(16)
+                نص_عنصر(اسم).حجم(16)
             نهاية
         نهاية
     نهاية
@@ -422,7 +448,7 @@ void test_ui_loop_basic()
     دالة بناء()
         ارجع اعرض عمود
             لكل ع في قائمة
-                نص("رقم")
+                نص_عنصر("رقم")
                 زر("حذف")
             نهاية
         نهاية
@@ -436,7 +462,7 @@ void test_ui_loop_basic()
         auto* loop = dynamic_cast<UILoopNode*>(rootWidget->children[0].get());
         SAD_ASSERT_TRUE(loop != nullptr);
         SAD_ASSERT_EQ(loop->bodyChildren.size(), static_cast<size_t>(2));
-        SAD_ASSERT_EQ(loop->bodyChildren[0]->widgetName, std::string("نص"));
+        SAD_ASSERT_EQ(loop->bodyChildren[0]->widgetName, kTextWidget);
         SAD_ASSERT_EQ(loop->bodyChildren[1]->widgetName, std::string("زر")); });
 
     // ── (AR) اختبار 4: لكل متداخل / (EN) Nested for-each ──
@@ -451,7 +477,7 @@ void test_ui_loop_basic()
             لكل صف في مصفوفة
                 صف
                     لكل عنصر في صف
-                        نص("قيمة")
+                        نص_عنصر("قيمة")
                     نهاية
                 نهاية
             نهاية
@@ -491,10 +517,10 @@ void test_ui_loop_basic()
         ارجع اعرض عمود
             إذا (تصفية)
                 لكل ع في عناصر
-                    نص(ع)
+                    نص_عنصر(ع)
                 نهاية
             وإلا
-                نص("لا تصفية")
+                نص_عنصر("لا تصفية")
             نهاية
         نهاية
     نهاية
@@ -516,7 +542,7 @@ void test_ui_loop_basic()
 
         // (AR) else يحتوي نص
         SAD_ASSERT_TRUE(cond->hasElseBranch());
-        SAD_ASSERT_EQ(cond->elseChildren[0]->widgetName, std::string("نص")); });
+        SAD_ASSERT_EQ(cond->elseChildren[0]->widgetName, kTextWidget); });
 
     // ── (AR) اختبار 6: لكل مع حاويات متعددة / (EN) For-each mixed with regular widgets ──
     runner.runTest("لكل mixed with regular widgets", [&]()
@@ -527,9 +553,9 @@ void test_ui_loop_basic()
 
     دالة بناء()
         ارجع اعرض عمود
-            نص("عنوان")
+            نص_عنصر("عنوان")
             لكل ع في قائمة
-                نص("عنصر")
+                نص_عنصر("عنصر")
             نهاية
             زر("المزيد")
         نهاية
@@ -542,7 +568,7 @@ void test_ui_loop_basic()
 
         // (AR) 3 أبناء: نص، حلقة، زر
         SAD_ASSERT_EQ(rootWidget->children.size(), static_cast<size_t>(3));
-        SAD_ASSERT_EQ(rootWidget->children[0]->widgetName, std::string("نص"));
+        SAD_ASSERT_EQ(rootWidget->children[0]->widgetName, kTextWidget);
 
         auto* loop = dynamic_cast<UILoopNode*>(rootWidget->children[1].get());
         SAD_ASSERT_TRUE(loop != nullptr);
@@ -559,18 +585,22 @@ void test_ui_widget_registry()
     auto &runner = TestRunner::instance();
     runner.beginGroup("UI-1.3: knownWidgets & containerWidgets");
 
-    // ── (AR) اختبار 1: العناصر الأولية الـ 15 تعمل / (EN) All 15 primitives parse ──
-    runner.runTest("All 15 primitive widgets parse correctly", [&]()
+    // ── (AR) اختبار 1: كلُّ عنصرٍ أوّليٍّ في مصدرِ الحقيقةِ يُحلَّل / (EN) Every SoT primitive parses ──
+    //      القائمتان تُقرآن من الرأسِ المولَّدِ لا من نصٍّ يدويّ، فلا تبيتُ الاختباراتُ
+    //      إن أُضيفت عقدةٌ أو أُعيدت تسميتُها في language-truth/ui_nodes.yaml.
+    // (EN) Both lists come from the generated header, never a hand-written literal.
+    runner.runTest("All SoT primitive widgets parse correctly", [&]()
                    {
-        // (AR) جميع العناصر الأولية الـ 15 يجب أن تُحلل بنجاح
-        std::vector<std::string> primitives = {
-            "عمود", "صف", "رصة", "شبكة",      // تخطيط
-            "نص", "صورة", "أيقونة",             // عرض
-            "زر", "حقل_نص", "مفتاح", "منزلق",  // تفاعل
-            "حاوية", "عرض_تمرير", "قائمة_كسولة", // هيكل
-            "فاصل"                               // فراغ
-        };
-        SAD_ASSERT_EQ(primitives.size(), static_cast<size_t>(15));
+        const std::vector<std::string> primitives = {
+            SAD_UI_PARSER_PRIMITIVE_LIST(SAD_UI_TEST_NAME_ENTRY)};
+        const std::unordered_set<std::string> containerSet = {
+            SAD_UI_PARSER_CONTAINER_LIST(SAD_UI_TEST_NAME_ENTRY)};
+        // (AR) الرقمُ قرارُ ADR-UI-02 لا اشتقاقٌ من المولّد: مقارنةُ المولَّدِ
+        //      بالمولَّدِ حشوٌ لا يفشل أبدًا، فلن تكشف عقدةً سادسةَ عشرةَ تُرفَع
+        //      إلى الأوّليّاتِ سهوًا.
+        // (EN) ADR-UI-02's count is a decision — comparing the generated list to
+        //      itself is a tautology that can never fail.
+        SAD_ASSERT_EQ(primitives.size(), static_cast<size_t>(kAdrPrimitiveCount));
 
         for (const auto& widget : primitives) {
             // (AR) نختبر كل عنصر كعنصر ورقي داخل حاوية
@@ -578,11 +608,7 @@ void test_ui_widget_registry()
                 + widget;
 
             // (AR) الحاويات تحتاج نهاية إضافية
-            bool isContainer = (widget == "عمود" || widget == "صف" || widget == "رصة" ||
-                                widget == "شبكة" || widget == "حاوية" ||
-                                widget == "عرض_تمرير" || widget == "قائمة_كسولة");
-
-            if (isContainer) {
+            if (containerSet.count(widget) > 0) {
                 code += "\n            نهاية";
             }
             code += "\n        نهاية\n    نهاية\nنهاية";
@@ -591,18 +617,17 @@ void test_ui_widget_registry()
             SAD_ASSERT_TRUE(ok);
         } });
 
-    // ── (AR) اختبار 2: الحاويات الـ 7 تقبل أبناء / (EN) 7 containers accept children ──
-    runner.runTest("7 containers accept children", [&]()
+    // ── (AR) اختبار 2: كلُّ حاويةٍ في مصدرِ الحقيقةِ تقبل أبناء / (EN) Every SoT container accepts children ──
+    runner.runTest("SoT containers accept children", [&]()
                    {
-        std::vector<std::string> containers = {
-            "عمود", "صف", "رصة", "شبكة",
-            "حاوية", "عرض_تمرير", "قائمة_كسولة"
-        };
-        SAD_ASSERT_EQ(containers.size(), static_cast<size_t>(7));
+        const std::vector<std::string> containers = {
+            SAD_UI_PARSER_CONTAINER_LIST(SAD_UI_TEST_NAME_ENTRY)};
+        SAD_ASSERT_EQ(containers.size(), static_cast<size_t>(kAdrContainerCount));
 
         for (const auto& container : containers) {
             std::string code = "واجهة ت\n    دالة بناء()\n        ارجع اعرض "
-                + container + "\n            نص(\"ابن\")\n        نهاية\n    نهاية\nنهاية";
+                + container + "\n            " + kTextWidget
+                + "(\"ابن\")\n        نهاية\n    نهاية\nنهاية";
 
             auto stmts = parseCode(code);
             auto* uiDecl = findUIDecl(stmts);
@@ -615,10 +640,12 @@ void test_ui_widget_registry()
             SAD_ASSERT_TRUE(rootWidget->children.size() >= 1);
         } });
 
-    // ── (AR) اختبار 3: العناصر المهملة تصدر تحذير / (EN) Deprecated widgets emit warning ──
-    runner.runTest("Deprecated widget emits warning but parses", [&]()
+    // ── (AR) اختبار 3: لا توافقَ خلفيًّا — الاسمُ المُهمَلُ يُرفَض / (EN) No back-compat: legacy name rejected ──
+    //      «بطاقة» كان يُحلَّل حاويةً عبر جدولِ الإهمالِ المحذوف. القرارُ المالكيُّ:
+    //      الاسمُ القانونيُّ وحدَه يُقبَل ⇒ يجب أن يفشلَ التحليلُ الآن لا أن يحذّر.
+    // (EN) The deprecated alias must now fail to parse, not warn.
+    runner.runTest("Legacy widget name is rejected (no back-compat)", [&]()
                    {
-        // (AR) "بطاقة" مُهمل → يُحلل كـ "حاوية"
         std::string code = R"(
 واجهة ت
     دالة بناء()
@@ -629,9 +656,8 @@ void test_ui_widget_registry()
     نهاية
 نهاية
 )";
-        // (AR) يجب أن يُحلل بنجاح (مع تحذير في stderr)
         bool ok = parseWithoutErrors(code);
-        SAD_ASSERT_TRUE(ok); });
+        SAD_ASSERT_TRUE(!ok); });
 
     // ── (AR) اختبار 4: parseWidgetExpressionTyped يُرجع النوع الصحيح / (EN) Typed parse returns correct type ──
     runner.runTest("parseWidgetExpressionTyped returns UIWidgetExprNode", [&]()
@@ -640,7 +666,7 @@ void test_ui_widget_registry()
 واجهة ت
     دالة بناء()
         ارجع اعرض عمود
-            نص("مرحبا")
+            نص_عنصر("مرحبا")
             زر("ضغط")
         نهاية
     نهاية
@@ -677,7 +703,7 @@ void test_ui_while_loop()
     دالة بناء()
         ارجع اعرض عمود
             بينما (عدد < 5)
-                نص("صف")
+                نص_عنصر("صف")
             نهاية
         نهاية
     نهاية
@@ -713,15 +739,15 @@ void test_ui_phase0_integration()
 
     دالة بناء()
         ارجع اعرض عمود
-            نص("التطبيق").حجم(32)
+            نص_عنصر("التطبيق").حجم(32)
             إذا (مسجل)
                 صف
                     لكل ع في عناصر
-                        نص(ع).حجم(16)
+                        نص_عنصر(ع).حجم(16)
                     نهاية
                 نهاية
             وإلا
-                نص("سجّل أولاً")
+                نص_عنصر("سجّل أولاً")
                 زر("تسجيل")
             نهاية
             فاصل
@@ -745,7 +771,7 @@ void test_ui_phase0_integration()
         SAD_ASSERT_EQ(rootWidget->children.size(), static_cast<size_t>(3));
 
         // (AR) الأول: نص مع معدّل
-        SAD_ASSERT_EQ(rootWidget->children[0]->widgetName, std::string("نص"));
+        SAD_ASSERT_EQ(rootWidget->children[0]->widgetName, kTextWidget);
         SAD_ASSERT_TRUE(rootWidget->children[0]->hasModifiers());
 
         // (AR) الثاني: شرط
@@ -776,9 +802,9 @@ void test_ui_phase0_integration()
     دالة بناء()
         ارجع اعرض عمود
             إذا (مسجل)
-                نص("مرحباً")
+                نص_عنصر("مرحباً")
             وإلا
-                نص("سجّل دخولك")
+                نص_عنصر("سجّل دخولك")
             نهاية
         نهاية
     نهاية
@@ -794,7 +820,7 @@ void test_ui_phase0_integration()
     دالة بناء()
         ارجع اعرض عمود
             لكل عنصر في عناصر
-                نص(عنصر).حجم(16)
+                نص_عنصر(عنصر).حجم(16)
             نهاية
         نهاية
     نهاية

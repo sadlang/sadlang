@@ -35,7 +35,7 @@ flowchart TB
     subgraph COMPILE["③ نظام المترجم — sad-build فقط"]
         COMP["sad_compiler <i>(INTERFACE مظلّة)</i>"]
         FRONT["sad_frontend · sad_optimizer · sad_llvm_backend"]
-        CTOOLS["sad_tools · sad_ui_ir · sad_abstraction · sad_security"]
+        CTOOLS["sad_tools · sad_abstraction · sad_security"]
     end
 
     RUN(["sad-run.exe<br/>المفسّر الشجريّ"])
@@ -75,7 +75,9 @@ flowchart TB
 | `sad_network` · `sad_http` · `sad_websocket` | STATIC | ✅ | ❌ | مفسّر فقط |
 | **`sad_compiler`** | INTERFACE | ❌ | ✅ | **مترجم فقط** |
 | `sad_frontend` · `sad_optimizer` · `sad_llvm_backend` | STATIC | ❌ | ✅ | مترجم فقط |
-| `sad_tools` · `sad_ui_ir` · `sad_abstraction` · `sad_security` | STATIC | ❌ | ✅ | مترجم فقط |
+| `sad_tools` · `sad_abstraction` · `sad_security` | STATIC | ❌ | ✅ | مترجم فقط |
+
+> **ملاحظة:** الهدف `sad_ui_ir` لم يعد يتكوّن في أيِّ توليفة: كلُّ مصادر `compiler/src/ui/` غائبةٌ عن القرص، وآخرُ مصدرٍ ناجٍ (`parser_ui_maps.cpp`) حُذف. سطرا `target_link_libraries` الخاصّان به محروسانِ بـ`if(TARGET sad_ui_ir)` فيُتخطَّيان بأمان، ومعه تزول مساراتُ التضمينِ العابرةُ التي كان يُصدِّرها.
 
 **المصادر:** روابط التنفيذيّين في [apps/CMakeLists.txt](../../apps/CMakeLists.txt#L27) (sad-run) و[apps/CMakeLists.txt](../../apps/CMakeLists.txt#L145) (sad-build) — نُقلا من `cmake/executables.cmake` في المرحلة 3؛ روابط `sad_core` في [cmake/libraries.cmake](../../cmake/libraries.cmake)؛ مظلّة `sad_compiler` في [compiler/CMakeLists.txt](../../compiler/CMakeLists.txt#L607).
 

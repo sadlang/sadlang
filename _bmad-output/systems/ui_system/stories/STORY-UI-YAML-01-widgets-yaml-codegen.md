@@ -9,6 +9,13 @@ author: Amelia (bmad-agent-dev)
 estimate: "6 ساعات"
 ---
 
+> **تحديثُ حالة (لاحقٌ لهذه الوثيقة):** المقصدُ تحقّق بمسارٍ مختلف. مصدرُ حقيقةِ
+> أسماءِ العُقَد هو `language-truth/ui_nodes.yaml` (لا `widgets.yaml` مستقلّ)، ومنه
+> يُولَّد `shared/parser/include/generated/ui_parser_nodes_generated.h` فتُبنى منه
+> `knownWidgets`/`containerWidgets`/`knownEvents` بلا اسمٍ حرفيٍّ في `parser_ui.cpp`.
+> و`deprecatedWidgets` **حُذفت ولا تُولَّد**: قرارُ مالكٍ لاحقٌ ألغى التوافقَ الخلفيَّ
+> كلَّه، فأيُّ ذكرٍ لها أدناه تاريخيٌّ لا مطلوب.
+
 # STORY-UI-YAML-01 — إنشاء widgets.yaml + codegen
 
 ## القصة
