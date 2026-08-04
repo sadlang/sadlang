@@ -52,6 +52,11 @@ EXPECTED_OUTPUTS = {
     "features/graphics/core/include/sad_ui/generated/propagation_vocab_generated.h",
     "features/graphics/core/include/sad_ui/generated/color_prelude_generated.h",
     "features/graphics/core/include/sad_ui/generated/color_table_generated.h",
+    # (AR) أنواعُ عُقَدِ الواجهة — قائمتا X-macro من language-truth/ui_nodes.yaml
+    #      يُبنى منهما تعدادُ UINodeType وجدولا الاسم داخلَ مكتبةِ الرسومات.
+    # (EN) UI node types — X-macro lists from ui_nodes.yaml; build the UINodeType
+    #      enum and both name tables inside the graphics library.
+    "features/graphics/core/include/sad_ui/generated/node_types_generated.h",
     # (AR) نظام «مصدر حقيقة الأدوات» — أوّل أداة sad-repl (كتالوج أخطاء/رسائل/أوامر).
     # (EN) Tools' Source-of-Truth — first tool sad-repl (errors/messages/commands catalog).
     "tools/repl/generated/repl_sot_generated.h",

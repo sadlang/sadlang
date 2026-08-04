@@ -159,6 +159,22 @@ CODEGEN_DOMAINS = (
         ],
     },
     {
+        # (AR) أنواع عُقَد واجهة SadUI (نص_عنصر/زر/عمود/نافذة/…) — مصدر الحقيقة الوحيد.
+        #      X-macro مولَّد يبني تعدادَ UINodeType نفسَه وجدولَي الاسم في المكتبة
+        #      الطرفيّة، فيراه **المحرّكان معًا** عبرها (لا تعدادَ ثانٍ في أيٍّ منهما).
+        "name": "ui_nodes",
+        "script": "gen_ui_nodes.py",
+        "out_dir": "features/graphics/core/include/sad_ui/generated",
+        "outputs": ("node_types_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/ui_nodes.yaml",
+            "--widgets", "language-truth/builtins/ui_widgets.yaml",
+            "--schema", "language-truth/_schemas/ui_nodes.schema.json",
+            "--header", f"{d}/node_types_generated.h",
+            "--quiet",
+        ],
+    },
+    {
         # (AR) مفردات حركة SadUI النصّيّة (ظهور/انزلاق_يمين/…) — قانونيّ بلا تشكيل.
         #      X-macro مولَّد يستهلكه ir.h في المكتبة الطرفيّة (لا اعتماد ربط جديد).
         "name": "ui_animations",

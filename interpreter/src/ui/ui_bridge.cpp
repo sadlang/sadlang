@@ -624,132 +624,17 @@ namespace Sad
 
         sad::ui::UINodeType UIBridge::stringToNodeType(const std::string &typeName)
         {
-            // استخدام الدالة الموجودة في types.h
+            // (AR) البحثُ من مصدر الحقيقة وحدَه: arabicNameToNodeType مبنيّةٌ على
+            //   جدولٍ مولَّدٍ من language-truth/ui_nodes.yaml (الاسمُ القانونيّ +
+            //   أسماءُ المصانع + دَينُ الهجرة). كانت هنا خريطةُ «تخمين» يدويّةٌ
+            //   بنحو ٩٩ اسمًا حرفيًّا فانحرفت: `توسيط` و`مرن` كانتا تُحلّان إلى
+            //   Container بدل Center/Flexible لأنّ مدخلةً سابقةً تحجُب اللاحقة.
+            // (EN) Single SoT-generated lookup; the hand-written fallback map is
+            //   gone (it silently shadowed correct entries).
             auto result = sad::ui::arabicNameToNodeType(typeName);
             if (result.has_value())
             {
                 return result.value();
-            }
-
-            // محاولة تخمين النوع من الاسم
-            static const std::unordered_map<std::string, sad::ui::UINodeType> fallbackMap = {
-                // ─── عناصر أساسية ───
-                {"\xd9\x86\xd8\xb5", sad::ui::UINodeType::Text},
-                {"\xd8\xb2\xd8\xb1", sad::ui::UINodeType::Button},
-                {"\xd8\xb5\xd9\x88\xd8\xb1\xd8\xa9", sad::ui::UINodeType::Image},
-                {"\xd8\xb9\xd9\x85\xd9\x88\xd8\xaf", sad::ui::UINodeType::Column},
-                {"\xd8\xb5\xd9\x81", sad::ui::UINodeType::Row},
-                {"\xd8\xad\xd8\xa7\xd9\x88\xd9\x8a\xd8\xa9", sad::ui::UINodeType::Container},
-                {"\xd9\x87\xd9\x8a\xd9\x83\xd9\x84", sad::ui::UINodeType::Scaffold},
-                {"\xd8\xa8\xd8\xb7\xd8\xa7\xd9\x82\xd8\xa9", sad::ui::UINodeType::Card},
-                {"\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9", sad::ui::UINodeType::List},
-                {"أيقونة", sad::ui::UINodeType::Icon},
-                {"ايقونة", sad::ui::UINodeType::Icon},
-                {"منزلق", sad::ui::UINodeType::Slider},
-                {"مفتاح", sad::ui::UINodeType::Toggle},
-                {"تكديس", sad::ui::UINodeType::Stack},
-                // ─── إدخال ───
-                {"حقل", sad::ui::UINodeType::TextField},
-                {"حقل_نص", sad::ui::UINodeType::TextField},
-                {"حقل_سر", sad::ui::UINodeType::TextField},
-                {"حقل_بحث", sad::ui::UINodeType::SearchBar},
-                {"منطقة_نص", sad::ui::UINodeType::TextArea},
-                {"مربع_اختيار", sad::ui::UINodeType::Checkbox},
-                {"قائمة_منسدلة", sad::ui::UINodeType::Picker},
-                {"تقييم", sad::ui::UINodeType::RatingBar},
-                // ─── أزرار ───
-                {"زر_محيط", sad::ui::UINodeType::Button},
-                {"زر_نصي", sad::ui::UINodeType::Button},
-                {"زر_ايقونة", sad::ui::UINodeType::Button},
-                {"زر_عائم", sad::ui::UINodeType::FAB},
-                {"زر_تبديل", sad::ui::UINodeType::Toggle},
-                // ─── تنقل ───
-                {"شريط_تطبيق", sad::ui::UINodeType::AppBar},
-                {"شريط_سفلي", sad::ui::UINodeType::BottomNav},
-                // ─── أنواع المواد (Material Design) ───
-                {"تطبيق_مادة", sad::ui::UINodeType::Container},
-                {"هيكل_مادة", sad::ui::UINodeType::Scaffold},
-                {"شريط_تطبيق_مادة", sad::ui::UINodeType::AppBar},
-                {"شريط_تنقل_مادة", sad::ui::UINodeType::BottomNav},
-                {"بطاقة_مادة", sad::ui::UINodeType::Card},
-                {"زر_مرتفع", sad::ui::UINodeType::Button},
-                {"زر_معبأ", sad::ui::UINodeType::Button},
-                {"زر_معبأ_باهت", sad::ui::UINodeType::Button},
-                {"زر_محدد", sad::ui::UINodeType::Button},
-                {"زر_نصي_مادة", sad::ui::UINodeType::Button},
-                {"زر_أيقونة_مادة", sad::ui::UINodeType::Button},
-                {"زر_عائم_مادة", sad::ui::UINodeType::FAB},
-                {"فاصل_مادة", sad::ui::UINodeType::Divider},
-                {"درج", sad::ui::UINodeType::Drawer},
-                {"شريط_تبويب", sad::ui::UINodeType::Tabs},
-                {"تبويب", sad::ui::UINodeType::TabItem},
-                // ─── تخطيط ───
-                {"شبكة", sad::ui::UINodeType::Grid},
-                {"فاصل", sad::ui::UINodeType::Spacer},
-                {"خط_فاصل", sad::ui::UINodeType::Divider},
-                {"توسيط", sad::ui::UINodeType::Container},
-                {"مرن", sad::ui::UINodeType::Container},
-                {"صندوق", sad::ui::UINodeType::Box},
-                // ─── حوارات ───
-                {"حوار", sad::ui::UINodeType::Dialog},
-                {"حوار_تأكيد", sad::ui::UINodeType::Dialog},
-                {"لوحة_سفلية", sad::ui::UINodeType::BottomSheet},
-                {"رسالة_منبثقة", sad::ui::UINodeType::SnackBar},
-                {"تلميح", sad::ui::UINodeType::Tooltip},
-                // ─── تقدم ───
-                {"شريط_تقدم", sad::ui::UINodeType::ProgressBar},
-                {"تقدم_دائري", sad::ui::UINodeType::ProgressBar},
-                {"تحميل", sad::ui::UINodeType::Skeleton},
-                {"هيكل_تحميل", sad::ui::UINodeType::Skeleton},
-                {"هيكل_عظمي", sad::ui::UINodeType::Skeleton},
-                // ─── صور ───
-                {"صورة_رمزية", sad::ui::UINodeType::Avatar},
-                {"شارة", sad::ui::UINodeType::Badge},
-                {"رقاقة", sad::ui::UINodeType::Chip},
-                // ─── نصوص ───
-                {"عنوان", sad::ui::UINodeType::Text},
-                {"تسمية", sad::ui::UINodeType::Text},
-                {"فقرة", sad::ui::UINodeType::Text},
-                {"رابط", sad::ui::UINodeType::Text},
-                {"كود", sad::ui::UINodeType::CodeBlock},
-                {"اقتباس", sad::ui::UINodeType::Text},
-                // ─── قوائم ───
-                {"أكورديون", sad::ui::UINodeType::Expandable},
-                {"قائمة_شبكية", sad::ui::UINodeType::LazyGrid},
-                {"قائمة_تمرير", sad::ui::UINodeType::ScrollView},
-                // ─── متقدمة ───
-                {"زر_راديو", sad::ui::UINodeType::Radio},
-                {"منتقي_تاريخ", sad::ui::UINodeType::DatePicker},
-                {"منتقي_لون", sad::ui::UINodeType::ColorPicker},
-                {"منتقي_وقت", sad::ui::UINodeType::TimePicker},
-                {"تقويم", sad::ui::UINodeType::Calendar},
-                {"جدول_بيانات", sad::ui::UINodeType::DataTable},
-                {"عرض_شجري", sad::ui::UINodeType::TreeView},
-                {"خط_زمني", sad::ui::UINodeType::Timeline},
-                {"عرض_دوار", sad::ui::UINodeType::Carousel}, // ─── تخطيط Flutter الأساسي (v4) ───
-                {"\xd9\x88\xd8\xb3\xd8\xb7", sad::ui::UINodeType::Center},
-                {"\xd8\xaa\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7", sad::ui::UINodeType::Center},
-                {"\xd8\xad\xd8\xb4\xd9\x88\xd8\xa9", sad::ui::UINodeType::Padding},
-                {"\xd8\xad\xd8\xb4\xd9\x88", sad::ui::UINodeType::Padding},
-                {"\xd9\x85\xd9\x82\xd8\xa7\xd8\xb3_\xd9\x85\xd8\xad\xd8\xaf\xd8\xaf", sad::ui::UINodeType::SizedBox},
-                {"\xd9\x85\xd9\x88\xd8\xb3\xd8\xb9", sad::ui::UINodeType::Expanded},
-                {"\xd9\x85\xd9\x88\xd8\xb3\xd9\x91\xd8\xb9", sad::ui::UINodeType::Expanded},
-                {"\xd9\x85\xd8\xb1\xd9\x86", sad::ui::UINodeType::Flexible},
-                {"\xd9\x85\xd8\xad\xd8\xa7\xd8\xb0\xd9\x8a", sad::ui::UINodeType::Align},
-                {"\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd8\xa9_\xd8\xa2\xd9\x85\xd9\x86\xd8\xa9", sad::ui::UINodeType::SafeArea},
-                {"\xd9\x83\xd8\xa7\xd8\xb4\xd9\x81_\xd8\xa5\xd9\x8a\xd9\x85\xd8\xa7\xd8\xa1\xd8\xa7\xd8\xaa", sad::ui::UINodeType::GestureDetector},
-                {"\xd8\xad\xd8\xa8\xd8\xb1", sad::ui::UINodeType::InkWell},
-                {"\xd9\x82\xd8\xa7\xd8\xa8\xd9\x84_\xd9\x84\xd9\x84\xd9\x86\xd9\x82\xd8\xb1", sad::ui::UINodeType::InkWell},
-                {"\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd8\xb9\xd8\xb1\xd8\xb6", sad::ui::UINodeType::ListView},
-                {"\xd8\xb5\xd9\x86\xd8\xaf\xd9\x88\xd9\x82_\xd9\x86\xd8\xb3\xd8\xa8\xd9\x8a", sad::ui::UINodeType::FractionallySizedBox},
-                {"\xd8\xb5\xd9\x86\xd8\xaf\xd9\x88\xd9\x82_\xd9\x85\xd9\x82\xd9\x8a\xd8\xaf", sad::ui::UINodeType::ConstrainedBox},
-                {"\xd9\x86\xd8\xb3\xd8\xa8\xd8\xa9_\xd8\xb9\xd8\xb1\xd8\xb6", sad::ui::UINodeType::AspectRatio},
-            };
-
-            auto it = fallbackMap.find(typeName);
-            if (it != fallbackMap.end())
-            {
-                return it->second;
             }
 
             // افتراضي: حاوية

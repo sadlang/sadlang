@@ -1,0 +1,851 @@
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) مصدر الحقيقة المركزيّ لأنواع عُقَد واجهة SadUI — الجرد الكامل لأنواع
+#      العناصر التي يعرفها محرّك الرسومات (نص_عنصر/زر/عمود/نافذة/…).
+#      يُعرَّف كلٌّ هنا حصرًا فيُولَّد منه X-macro:
+#        features/graphics/core/include/sad_ui/generated/node_types_generated.h
+#      عبر scripts/codegen/gen_ui_nodes.py.
+#
+#      يستهلكه — **من داخل المكتبة الطرفيّة** — كلٌّ من:
+#        • تعداد `UINodeType` في features/graphics/core/include/sad_ui/types.h
+#        • جدولا الاسم في features/graphics/core/src/types.cpp
+#      فيراهما **المحرّكان معًا** (المفسّر والمترجم) عبر المكتبة نفسها، فلا
+#      اسمَ نوعِ عقدةٍ حرفيّ في أيٍّ منهما ولا نسخةَ تعدادٍ ثانية.
+#
+#      سياسة: **الأسماء القانونيّة فقط**. حقل legacy_names دَينُ هجرةٍ موثَّق
+#      (أسماءٌ كانت تُقبَل قبل توحيد المصدر) لا توسعةَ لغةٍ جديدة؛ يُفرَّغ في
+#      دفعةٍ لاحقة بقرار مالك.
+#
+# (EN) Central SoT for SadUI node types. Generates the X-macro header consumed
+#      by the graphics library itself — hence by both engines (interpreter and
+#      compiler) through it. No literal node-type name in either engine.
+# ════════════════════════════════════════════════════════════════════════════
+version: 1
+description_ar: أنواع عُقَد واجهة SadUI
+description_en: SadUI node types
+
+# (AR) الحقول:
+#   id            — عضو التعداد C++ (UINodeType::<id>) — PascalCase، والترتيب
+#                   هنا **هو** ترتيب التعداد فلا تُزحزَح القيم القائمة: الإضافة
+#                   في نهاية الملفّ حصرًا.
+#   canonical     — الاسم العربيّ القانونيّ (يُطبَع بـ`طباعة_شجرة` ويُقرَأ في
+#                   الصيغة التصريحيّة). لعقدةٍ ذاتِ مصنعٍ مدمَجٍ وحيد = اسمُ
+#                   المصنع نفسُه (يفرضه scripts/codegen/check_ui_nodes_consistency.py).
+#   category      — تصنيفٌ دلاليّ للتوثيق فقط
+#   builtins      — cpp_id المصانع في language-truth/builtins/ui_widgets.yaml
+#                   التي تُنتج هذه العقدة (قد تكون فارغة: عقدةٌ تُصيَّر ولا
+#                   تُنشَأ من لغة ص، أو متعدّدة: زر/زر_نصي/زر_أيقونة ⇒ Button)
+#   legacy_names  — أسماءٌ انتقاليّةٌ تُقبَل قراءةً ولا تُطبَع (دَين — انظر أعلاه)
+#   description_ar/en
+nodes:
+
+  - id: Text
+    canonical: نص_عنصر
+    category: "مكونات العرض الأساسية"
+    builtins: [TEXT_WIDGET]
+    legacy_names: [نص, عنوان, تسمية, فقرة, رابط, اقتباس]
+    description_ar: "عنصر نصي بسيط يعرض سلسلة حروف"
+    description_en: "عنصر نصي بسيط يعرض سلسلة حروف"
+
+  - id: Image
+    canonical: صورة
+    category: "مكونات العرض الأساسية"
+    builtins: [IMAGE]
+    description_ar: "يعرض صورة من ملف أو رابط أو ذاكرة"
+    description_en: "يعرض صورة من ملف أو رابط أو ذاكرة"
+
+  - id: Icon
+    canonical: أيقونة
+    category: "مكونات العرض الأساسية"
+    builtins: [ICON]
+    legacy_names: [ايقونة]
+    description_ar: "أيقونة متجهة (Material Icons أو مخصصة)"
+    description_en: "أيقونة متجهة (Material Icons أو مخصصة)"
+
+  - id: Button
+    canonical: زر
+    category: "مكونات الإدخال"
+    builtins: [BUTTON, ICON_BUTTON, TEXT_BUTTON]
+    legacy_names: [زر_محيط, زر_ايقونة, زر_مرتفع, زر_معبأ, زر_معبأ_باهت, زر_محدد, زر_نصي_مادة, زر_أيقونة_مادة]
+    description_ar: "زر قابل للنقر مع نص أو محتوى مخصص"
+    description_en: "زر قابل للنقر مع نص أو محتوى مخصص"
+
+  - id: TextField
+    canonical: حقل_نص
+    category: "مكونات الإدخال"
+    builtins: [TEXT_FIELD]
+    legacy_names: [حقل, حقل_سر]
+    description_ar: "حقل إدخال نص في سطر واحد"
+    description_en: "حقل إدخال نص في سطر واحد"
+
+  - id: TextArea
+    canonical: منطقة_نص
+    category: "مكونات الإدخال"
+    builtins: [TEXT_AREA]
+    description_ar: "حقل إدخال نص متعدد الأسطر"
+    description_en: "حقل إدخال نص متعدد الأسطر"
+
+  - id: Toggle
+    canonical: مفتاح
+    category: "مكونات الإدخال"
+    builtins: [TOGGLE]
+    legacy_names: [زر_تبديل]
+    description_ar: "مفتاح تشغيل/إيقاف (Switch)"
+    description_en: "مفتاح تشغيل/إيقاف (Switch)"
+
+  - id: Slider
+    canonical: منزلق
+    category: "مكونات الإدخال"
+    builtins: [SLIDER]
+    description_ar: "شريط قيمة رقمية قابل للسحب"
+    description_en: "شريط قيمة رقمية قابل للسحب"
+
+  - id: Picker
+    canonical: قائمة_منسدلة
+    category: "مكونات الإدخال"
+    builtins: [PICKER]
+    legacy_names: [قائمة_اختيار]
+    description_ar: "قائمة منسدلة للاختيار من خيارات"
+    description_en: "قائمة منسدلة للاختيار من خيارات"
+
+  - id: DatePicker
+    canonical: منتقي_تاريخ
+    category: "مكونات الإدخال"
+    builtins: [DATE_PICKER]
+    legacy_names: [قائمة_تاريخ]
+    description_ar: "اختيار تاريخ من تقويم"
+    description_en: "اختيار تاريخ من تقويم"
+
+  - id: ColorPicker
+    canonical: منتقي_لون
+    category: "مكونات الإدخال"
+    builtins: []
+    legacy_names: [قائمة_لون]
+    description_ar: "اختيار لون من لوحة ألوان"
+    description_en: "اختيار لون من لوحة ألوان"
+
+  - id: Checkbox
+    canonical: خانة_اختيار
+    category: "مكونات الإدخال"
+    builtins: [CHECKBOX]
+    legacy_names: [مربع_اختيار]
+    description_ar: "مربع تحديد صح/خطأ"
+    description_en: "مربع تحديد صح/خطأ"
+
+  - id: Radio
+    canonical: زر_راديو
+    category: "مكونات الإدخال"
+    builtins: []
+    description_ar: "اختيار واحد من مجموعة"
+    description_en: "اختيار واحد من مجموعة"
+
+  - id: Column
+    canonical: عمود
+    category: "مكونات التخطيط"
+    builtins: [COLUMN]
+    description_ar: "يرتب الأبناء عمودياً (من أعلى لأسفل)"
+    description_en: "يرتب الأبناء عمودياً (من أعلى لأسفل)"
+
+  - id: Row
+    canonical: صف
+    category: "مكونات التخطيط"
+    builtins: [ROW]
+    description_ar: "يرتب الأبناء أفقياً (من يمين لشمال في RTL)"
+    description_en: "يرتب الأبناء أفقياً (من يمين لشمال في RTL)"
+
+  - id: Stack
+    canonical: رصة
+    category: "مكونات التخطيط"
+    builtins: [STACK]
+    legacy_names: [تكديس, طبقات]
+    description_ar: "يكدّس الأبناء فوق بعضهم (ZStack)"
+    description_en: "يكدّس الأبناء فوق بعضهم (ZStack)"
+
+  - id: Grid
+    canonical: شبكة
+    category: "مكونات التخطيط"
+    builtins: [GRID]
+    description_ar: "تخطيط شبكي بصفوف وأعمدة"
+    description_en: "تخطيط شبكي بصفوف وأعمدة"
+
+  - id: LazyColumn
+    canonical: عمود_كسول
+    category: "مكونات التخطيط"
+    builtins: [LAZY_COLUMN]
+    description_ar: "قائمة عمودية تُحمّل عند الحاجة فقط"
+    description_en: "قائمة عمودية تُحمّل عند الحاجة فقط"
+
+  - id: LazyRow
+    canonical: صف_كسول
+    category: "مكونات التخطيط"
+    builtins: [LAZY_ROW]
+    description_ar: "قائمة أفقية تُحمّل عند الحاجة فقط"
+    description_en: "قائمة أفقية تُحمّل عند الحاجة فقط"
+
+  - id: LazyGrid
+    canonical: شبكة_كسولة
+    category: "مكونات التخطيط"
+    builtins: []
+    legacy_names: [قائمة_شبكية]
+    description_ar: "شبكة تُحمّل عند الحاجة فقط"
+    description_en: "شبكة تُحمّل عند الحاجة فقط"
+
+  - id: Spacer
+    canonical: فاصل
+    category: "مكونات التخطيط"
+    builtins: [SPACER]
+    description_ar: "مساحة فارغة مرنة لتوزيع المسافات"
+    description_en: "مساحة فارغة مرنة لتوزيع المسافات"
+
+  - id: Divider
+    canonical: فاصل_خط
+    category: "مكونات التخطيط"
+    builtins: [DIVIDER]
+    legacy_names: [خط_فاصل, فاصل_مادة]
+    description_ar: "خط أفقي أو عمودي فاصل"
+    description_en: "خط أفقي أو عمودي فاصل"
+
+  - id: Wrap
+    canonical: التفاف
+    category: "مكونات التخطيط"
+    builtins: [WRAP]
+    description_ar: "يلتف للسطر التالي عند عدم وجود مساحة"
+    description_en: "يلتف للسطر التالي عند عدم وجود مساحة"
+
+  - id: Container
+    canonical: حاوية
+    category: "مكونات الحاويات"
+    builtins: [CONTAINER]
+    legacy_names: [تطبيق_مادة]
+    description_ar: "حاوية عامة بخلفية وحدود"
+    description_en: "حاوية عامة بخلفية وحدود"
+
+  - id: Card
+    canonical: بطاقة
+    category: "مكونات الحاويات"
+    builtins: [CARD]
+    legacy_names: [بطاقة_مادة]
+    description_ar: "بطاقة مرتفعة مع ظل (Material Card)"
+    description_en: "بطاقة مرتفعة مع ظل (Material Card)"
+
+  - id: Surface
+    canonical: سطح
+    category: "مكونات الحاويات"
+    builtins: [SURFACE]
+    description_ar: "سطح Material مع ارتفاع"
+    description_en: "سطح Material مع ارتفاع"
+
+  - id: Scaffold
+    canonical: هيكل
+    category: "مكونات الحاويات"
+    builtins: [SCAFFOLD]
+    legacy_names: [هيكل_مادة]
+    description_ar: "هيكل شاشة كاملة (شريط علوي + محتوى + سفلي)"
+    description_en: "هيكل شاشة كاملة (شريط علوي + محتوى + سفلي)"
+
+  - id: Box
+    canonical: صندوق
+    category: "مكونات الحاويات"
+    builtins: [BOX]
+    description_ar: "صندوق عام بدون زخرفة"
+    description_en: "صندوق عام بدون زخرفة"
+
+  - id: NavigationView
+    canonical: عرض_تنقل
+    category: "مكونات التنقل"
+    builtins: []
+    description_ar: "حاوية التنقل الرئيسية"
+    description_en: "حاوية التنقل الرئيسية"
+
+  - id: NavigationLink
+    canonical: رابط_تنقل
+    category: "مكونات التنقل"
+    builtins: []
+    description_ar: "رابط ينقل إلى شاشة أخرى"
+    description_en: "رابط ينقل إلى شاشة أخرى"
+
+  - id: TabView
+    canonical: عرض_أقسام
+    category: "مكونات التنقل"
+    builtins: []
+    legacy_names: [عرض_علامات, محتوى_تبويب]
+    description_ar: "واجهة تبويبات (Tabs)"
+    description_en: "واجهة تبويبات (Tabs)"
+
+  - id: TabItem
+    canonical: قسم
+    category: "مكونات التنقل"
+    builtins: []
+    legacy_names: [علامة, تبويب, عنصر_تنقل]
+    description_ar: "عنصر تبويب واحد مع أيقونة وعنوان"
+    description_en: "عنصر تبويب واحد مع أيقونة وعنوان"
+
+  - id: List
+    canonical: قائمة
+    category: "مكونات القوائم"
+    builtins: [LIST_VIEW]
+    legacy_names: [عنصر_قائمة, عنصر_درج]
+    description_ar: "قائمة عناصر قابلة للتمرير"
+    description_en: "قائمة عناصر قابلة للتمرير"
+
+  - id: Section
+    canonical: قسم_قائمة
+    category: "مكونات القوائم"
+    builtins: []
+    description_ar: "قسم داخل قائمة مع عنوان"
+    description_en: "قسم داخل قائمة مع عنوان"
+
+  - id: ForEach
+    canonical: لكل
+    category: "مكونات القوائم"
+    builtins: []
+    description_ar: "تكرار تصريحي على مجموعة بيانات"
+    description_en: "تكرار تصريحي على مجموعة بيانات"
+
+  - id: Alert
+    canonical: تنبيه
+    category: "مكونات الحوارات"
+    builtins: [ALERT]
+    description_ar: "نافذة تنبيه مع أزرار"
+    description_en: "نافذة تنبيه مع أزرار"
+
+  - id: Sheet
+    canonical: ورقة
+    category: "مكونات الحوارات"
+    builtins: []
+    description_ar: "ورقة تنزلق من الأسفل (BottomSheet)"
+    description_en: "ورقة تنزلق من الأسفل (BottomSheet)"
+
+  - id: Dialog
+    canonical: حوار
+    category: "مكونات الحوارات"
+    builtins: [DIALOG]
+    legacy_names: [حوار_تأكيد]
+    description_ar: "نافذة حوار مخصصة"
+    description_en: "نافذة حوار مخصصة"
+
+  - id: Menu
+    canonical: قائمة_خيارات
+    category: "مكونات الحوارات"
+    builtins: [MENU]
+    legacy_names: [قائمة_منبثقة]
+    description_ar: "قائمة خيارات سياقية"
+    description_en: "قائمة خيارات سياقية"
+
+  - id: Canvas
+    canonical: لوحة
+    category: "مكونات متقدمة"
+    builtins: []
+    description_ar: "لوحة رسم حر (2D drawing)"
+    description_en: "لوحة رسم حر (2D drawing)"
+
+  - id: MapView
+    canonical: خريطة
+    category: "مكونات متقدمة"
+    builtins: []
+    description_ar: "عرض خرائط تفاعلية"
+    description_en: "عرض خرائط تفاعلية"
+
+  - id: WebView
+    canonical: عرض_ويب
+    category: "مكونات متقدمة"
+    builtins: []
+    description_ar: "عرض محتوى ويب مضمّن"
+    description_en: "عرض محتوى ويب مضمّن"
+
+  - id: VideoPlayer
+    canonical: مشغل_فيديو
+    category: "مكونات متقدمة"
+    builtins: []
+    description_ar: "مشغل فيديو مضمّن"
+    description_en: "مشغل فيديو مضمّن"
+
+  - id: ScrollView
+    canonical: عرض_تمرير
+    category: "مكونات متقدمة"
+    builtins: [SCROLL_VIEW]
+    legacy_names: [قائمة_تمرير]
+    description_ar: "حاوية قابلة للتمرير"
+    description_en: "حاوية قابلة للتمرير"
+
+  - id: CustomWidget
+    canonical: عنصر_مخصص
+    category: "عناصر خاصة"
+    builtins: []
+    description_ar: "واجهة مستخدم مكتوبة بلغة ص"
+    description_en: "واجهة مستخدم مكتوبة بلغة ص"
+
+  - id: Conditional
+    canonical: شرطي
+    category: "عناصر خاصة"
+    builtins: []
+    description_ar: "عرض مشروط (if/else في الواجهة)"
+    description_en: "عرض مشروط (if/else في الواجهة)"
+
+  - id: Group
+    canonical: مجموعة
+    category: "عناصر خاصة"
+    builtins: []
+    description_ar: "تجميع عناصر بدون حاوية بصرية"
+    description_en: "تجميع عناصر بدون حاوية بصرية"
+
+  - id: ProgressBar
+    canonical: شريط_تقدم
+    category: "مكونات جديدة"
+    builtins: [PROGRESS]
+    legacy_names: [تقدم_دائري]
+    description_ar: "شريط تقدم خطي أو دائري"
+    description_en: "شريط تقدم خطي أو دائري"
+
+  - id: Badge
+    canonical: شارة
+    category: "مكونات جديدة"
+    builtins: []
+    description_ar: "شارة إشعار صغيرة (عدد أو نقطة)"
+    description_en: "شارة إشعار صغيرة (عدد أو نقطة)"
+
+  - id: Chip
+    canonical: رقاقة
+    category: "مكونات جديدة"
+    builtins: []
+    legacy_names: [وسم]
+    description_ar: "رقاقة اختيار (Material Chip)"
+    description_en: "رقاقة اختيار (Material Chip)"
+
+  - id: Avatar
+    canonical: صورة_رمزية
+    category: "مكونات جديدة"
+    builtins: []
+    description_ar: "صورة رمزية دائرية"
+    description_en: "صورة رمزية دائرية"
+
+  - id: SearchBar
+    canonical: شريط_بحث
+    category: "مكونات جديدة"
+    builtins: []
+    legacy_names: [حقل_بحث]
+    description_ar: "حقل بحث مع أيقونة"
+    description_en: "حقل بحث مع أيقونة"
+
+  - id: BottomSheet
+    canonical: ورقة_سفلية
+    category: "مكونات جديدة"
+    builtins: []
+    legacy_names: [لوحة_سفلية]
+    description_ar: "لوحة تنزلق من الأسفل"
+    description_en: "لوحة تنزلق من الأسفل"
+
+  - id: FAB
+    canonical: زر_عائم
+    category: "مكونات جديدة"
+    builtins: [FAB]
+    legacy_names: [زر_عائم_مادة]
+    description_ar: "زر عائم دائري (Floating Action Button)"
+    description_en: "زر عائم دائري (Floating Action Button)"
+
+  - id: SnackBar
+    canonical: شريط_إشعار
+    category: "مكونات جديدة"
+    builtins: [SNACKBAR]
+    legacy_names: [رسالة_منبثقة]
+    description_ar: "رسالة مؤقتة أسفل الشاشة"
+    description_en: "رسالة مؤقتة أسفل الشاشة"
+
+  - id: Drawer
+    canonical: درج
+    category: "مكونات جديدة"
+    builtins: [DRAWER]
+    description_ar: "لوحة جانبية قابلة للسحب"
+    description_en: "لوحة جانبية قابلة للسحب"
+
+  - id: AppBar
+    canonical: شريط_تطبيق
+    category: "مكونات جديدة"
+    builtins: [APP_BAR]
+    legacy_names: [شريط_تطبيق_مادة]
+    description_ar: "شريط علوي مع عنوان وأزرار"
+    description_en: "شريط علوي مع عنوان وأزرار"
+
+  - id: Tooltip
+    canonical: تلميح
+    category: "مكونات البيانات"
+    builtins: [TOOLTIP]
+    description_ar: "نافذة تلميح عند التمرير أو الضغط المطول"
+    description_en: "نافذة تلميح عند التمرير أو الضغط المطول"
+
+  - id: DataTable
+    canonical: جدول_بيانات
+    category: "مكونات البيانات"
+    builtins: [DATA_TABLE]
+    description_ar: "جدول بيانات تفاعلي بصفوف وأعمدة"
+    description_en: "جدول بيانات تفاعلي بصفوف وأعمدة"
+
+  - id: TreeView
+    canonical: عرض_شجري
+    category: "مكونات البيانات"
+    builtins: [TREE_VIEW]
+    description_ar: "شجرة قابلة للطي (ملفات، تصنيفات)"
+    description_en: "شجرة قابلة للطي (ملفات، تصنيفات)"
+
+  - id: Breadcrumb
+    canonical: مسار_تنقل
+    category: "مكونات البيانات"
+    builtins: [BREADCRUMB]
+    description_ar: "مسار تنقل هرمي (Home > Page > Sub)"
+    description_en: "مسار تنقل هرمي (Home > Page > Sub)"
+
+  - id: Pagination
+    canonical: ترقيم_صفحات
+    category: "مكونات البيانات"
+    builtins: []
+    description_ar: "أزرار تنقل بين صفحات البيانات"
+    description_en: "أزرار تنقل بين صفحات البيانات"
+
+  - id: Timeline
+    canonical: خط_زمني
+    category: "مكونات البيانات"
+    builtins: []
+    description_ar: "عرض أحداث مرتبة زمنياً"
+    description_en: "عرض أحداث مرتبة زمنياً"
+
+  - id: Carousel
+    canonical: عرض_دوار
+    category: "مكونات الوسائط"
+    builtins: []
+    description_ar: "عرض صور/محتوى بتمرير أفقي دوّار"
+    description_en: "عرض صور/محتوى بتمرير أفقي دوّار"
+
+  - id: RichText
+    canonical: نص_منسق
+    category: "مكونات الوسائط"
+    builtins: []
+    description_ar: "نص بتنسيقات متعددة (Bold, Italic, Color)"
+    description_en: "نص بتنسيقات متعددة (Bold, Italic, Color)"
+
+  - id: Markdown
+    canonical: ماركداون
+    category: "مكونات الوسائط"
+    builtins: []
+    description_ar: "عرض محتوى Markdown مُنسّق"
+    description_en: "عرض محتوى Markdown مُنسّق"
+
+  - id: CodeBlock
+    canonical: كتلة_كود
+    category: "مكونات الوسائط"
+    builtins: []
+    legacy_names: [كود]
+    description_ar: "عرض كود مصدري مع تلوين نحوي"
+    description_en: "عرض كود مصدري مع تلوين نحوي"
+
+  - id: AudioPlayer
+    canonical: مشغل_صوت
+    category: "مكونات الوسائط"
+    builtins: []
+    description_ar: "مشغل ملفات صوتية مع تحكمات"
+    description_en: "مشغل ملفات صوتية مع تحكمات"
+
+  - id: ImageGallery
+    canonical: معرض_صور
+    category: "مكونات الوسائط"
+    builtins: []
+    description_ar: "معرض صور بصفوف مع تكبير"
+    description_en: "معرض صور بصفوف مع تكبير"
+
+  - id: Skeleton
+    canonical: هيكل_تحميل
+    category: "مكونات الحركة"
+    builtins: []
+    legacy_names: [هيكل_عظمي, تحميل]
+    description_ar: "عنصر تحميل رمادي نابض (Placeholder)"
+    description_en: "عنصر تحميل رمادي نابض (Placeholder)"
+
+  - id: Shimmer
+    canonical: وميض
+    category: "مكونات الحركة"
+    builtins: []
+    description_ar: "تأثير وميض لامع أثناء التحميل"
+    description_en: "تأثير وميض لامع أثناء التحميل"
+
+  - id: AnimatedList
+    canonical: قائمة_متحركة
+    category: "مكونات الحركة"
+    builtins: []
+    description_ar: "قائمة بحركات إضافة/حذف"
+    description_en: "قائمة بحركات إضافة/حذف"
+
+  - id: Expandable
+    canonical: قابل_للتوسع
+    category: "مكونات الحركة"
+    builtins: []
+    legacy_names: [أكورديون]
+    description_ar: "محتوى قابل للطي/التوسع"
+    description_en: "محتوى قابل للطي/التوسع"
+
+  - id: Collapsible
+    canonical: قابل_للطي
+    category: "مكونات الحركة"
+    builtins: []
+    description_ar: "لوحة قابلة للطي مع عنوان"
+    description_en: "لوحة قابلة للطي مع عنوان"
+
+  - id: Swipeable
+    canonical: قابل_للسحب
+    category: "مكونات الحركة"
+    builtins: []
+    description_ar: "عنصر بإجراءات عند السحب يمين/يسار"
+    description_en: "عنصر بإجراءات عند السحب يمين/يسار"
+
+  - id: Stepper
+    canonical: خطوات
+    category: "مكونات التحكم المتقدمة"
+    builtins: [STEPPER]
+    description_ar: "عنصر زيادة/نقصان بأزرار +/-"
+    description_en: "عنصر زيادة/نقصان بأزرار +/-"
+
+  - id: SegmentedControl
+    canonical: تحكم_مقسم
+    category: "مكونات التحكم المتقدمة"
+    builtins: [SEGMENTED_CONTROL]
+    description_ar: "مجموعة أزرار مقسمة (iOS style)"
+    description_en: "مجموعة أزرار مقسمة (iOS style)"
+
+  - id: RatingBar
+    canonical: تقييم
+    category: "مكونات التحكم المتقدمة"
+    builtins: [RATING_BAR]
+    legacy_names: [شريط_تقييم]
+    description_ar: "تقييم بنجوم (1-5 نجوم)"
+    description_en: "تقييم بنجوم (1-5 نجوم)"
+
+  - id: TimePicker
+    canonical: منتقي_وقت
+    category: "مكونات التحكم المتقدمة"
+    builtins: []
+    description_ar: "اختيار ساعة ودقيقة"
+    description_en: "اختيار ساعة ودقيقة"
+
+  - id: Calendar
+    canonical: تقويم
+    category: "مكونات التحكم المتقدمة"
+    builtins: []
+    description_ar: "عرض تقويم شهري تفاعلي"
+    description_en: "عرض تقويم شهري تفاعلي"
+
+  - id: ColorWheel
+    canonical: عجلة_ألوان
+    category: "مكونات التحكم المتقدمة"
+    builtins: []
+    description_ar: "منتقي ألوان دائري HSV"
+    description_en: "منتقي ألوان دائري HSV"
+
+  - id: BottomNav
+    canonical: تنقل_سفلي
+    category: "مكونات التنقل المتقدمة"
+    builtins: [BOTTOM_NAV]
+    legacy_names: [شريط_سفلي, شريط_تنقل_مادة]
+    description_ar: "شريط تنقل سفلي (BottomNavigationBar)"
+    description_en: "شريط تنقل سفلي (BottomNavigationBar)"
+
+  - id: SideNav
+    canonical: تنقل_جانبي
+    category: "مكونات التنقل المتقدمة"
+    builtins: []
+    description_ar: "قائمة تنقل جانبية (NavigationRail)"
+    description_en: "قائمة تنقل جانبية (NavigationRail)"
+
+  - id: Toolbar
+    canonical: شريط_أدوات
+    category: "مكونات التنقل المتقدمة"
+    builtins: [TOOLBAR]
+    description_ar: "شريط أدوات مع أزرار إجراءات"
+    description_en: "شريط أدوات مع أزرار إجراءات"
+
+  - id: SplitView
+    canonical: لوح_مقسم
+    category: "مكونات التنقل المتقدمة"
+    builtins: [SPLIT_VIEW]
+    legacy_names: [عرض_مقسم]
+    description_ar: "تقسيم الشاشة لقسمين (Master-Detail)"
+    description_en: "تقسيم الشاشة لقسمين (Master-Detail)"
+
+  - id: Tabs
+    canonical: ألسنة
+    category: "مكونات التنقل المتقدمة"
+    builtins: []
+    legacy_names: [شريط_تبويب]
+    description_ar: "ألسنة تبويب أفقية (Material Tabs)"
+    description_en: "ألسنة تبويب أفقية (Material Tabs)"
+
+  - id: MegaMenu
+    canonical: قائمة_ضخمة
+    category: "مكونات التنقل المتقدمة"
+    builtins: []
+    description_ar: "قائمة متعددة الأعمدة والمستويات"
+    description_en: "قائمة متعددة الأعمدة والمستويات"
+
+  - id: Center
+    canonical: وسط
+    category: "مكونات التخطيط الأساسية"
+    builtins: [CENTER]
+    legacy_names: [توسيط]
+    description_ar: "يضع الابن في المنتصف (مثل Flutter Center)"
+    description_en: "يضع الابن في المنتصف (مثل Flutter Center)"
+
+  - id: Padding
+    canonical: حشوة
+    category: "مكونات التخطيط الأساسية"
+    builtins: [PADDING]
+    legacy_names: [حشو]
+    description_ar: "يضيف حشوة حول الابن (مثل Flutter Padding)"
+    description_en: "يضيف حشوة حول الابن (مثل Flutter Padding)"
+
+  - id: SizedBox
+    canonical: مقاس
+    category: "مكونات التخطيط الأساسية"
+    builtins: [SIZED_BOX]
+    legacy_names: [مقاس_محدد]
+    description_ar: "صندوق بأبعاد ثابتة (مثل Flutter SizedBox)"
+    description_en: "صندوق بأبعاد ثابتة (مثل Flutter SizedBox)"
+
+  - id: Expanded
+    canonical: موسع
+    category: "مكونات التخطيط الأساسية"
+    builtins: [EXPANDED]
+    legacy_names: [موسّع]
+    description_ar: "يملأ المساحة المتاحة في Row/Column (مثل Flutter Expanded)"
+    description_en: "يملأ المساحة المتاحة في Row/Column (مثل Flutter Expanded)"
+
+  - id: Flexible
+    canonical: مرن
+    category: "مكونات التخطيط الأساسية"
+    builtins: [FLEXIBLE]
+    description_ar: "حجم مرن داخل Row/Column (مثل Flutter Flexible)"
+    description_en: "حجم مرن داخل Row/Column (مثل Flutter Flexible)"
+
+  - id: Align
+    canonical: محاذاة
+    category: "مكونات التخطيط الأساسية"
+    builtins: [ALIGN]
+    legacy_names: [محاذي]
+    description_ar: "يضع الابن في موضع محدد (مثل Flutter Align)"
+    description_en: "يضع الابن في موضع محدد (مثل Flutter Align)"
+
+  - id: SafeArea
+    canonical: منطقة_آمنة
+    category: "مكونات التخطيط الأساسية"
+    builtins: [SAFE_AREA]
+    description_ar: "يتجنب مناطق النظام (مثل Flutter SafeArea)"
+    description_en: "يتجنب مناطق النظام (مثل Flutter SafeArea)"
+
+  - id: GestureDetector
+    canonical: كاشف_إيماءات
+    category: "مكونات التخطيط الأساسية"
+    builtins: []
+    description_ar: "يكشف اللمس والإيماءات (مثل Flutter GestureDetector)"
+    description_en: "يكشف اللمس والإيماءات (مثل Flutter GestureDetector)"
+
+  - id: InkWell
+    canonical: حبر
+    category: "مكونات التخطيط الأساسية"
+    builtins: []
+    legacy_names: [قابل_للنقر]
+    description_ar: "منطقة قابلة للنقر مع تأثير تموج (مثل Flutter InkWell)"
+    description_en: "منطقة قابلة للنقر مع تأثير تموج (مثل Flutter InkWell)"
+
+  - id: ListView
+    canonical: قائمة_عرض
+    category: "مكونات التخطيط الأساسية"
+    builtins: []
+    description_ar: "قائمة قابلة للتمرير (مثل Flutter ListView)"
+    description_en: "قائمة قابلة للتمرير (مثل Flutter ListView)"
+
+  - id: FractionallySizedBox
+    canonical: صندوق_نسبي
+    category: "مكونات التخطيط الأساسية"
+    builtins: []
+    description_ar: "صندوق بنسبة من الأب"
+    description_en: "صندوق بنسبة من الأب"
+
+  - id: ConstrainedBox
+    canonical: صندوق_مقيد
+    category: "مكونات التخطيط الأساسية"
+    builtins: []
+    description_ar: "صندوق بقيود أبعاد"
+    description_en: "صندوق بقيود أبعاد"
+
+  - id: AspectRatio
+    canonical: نسبة_عرض
+    category: "مكونات التخطيط الأساسية"
+    builtins: []
+    description_ar: "يفرض نسبة عرض إلى ارتفاع"
+    description_en: "يفرض نسبة عرض إلى ارتفاع"
+
+  - id: Window
+    canonical: نافذة
+    category: "قشرة سطح المكتب"
+    builtins: [WINDOW]
+    description_ar: "نافذة متراكبة (لوح مرتفع بحدود + شريط عنوان + جسم)"
+    description_en: "نافذة متراكبة (لوح مرتفع بحدود + شريط عنوان + جسم)"
+
+  - id: TitleBar
+    canonical: شريط_عنوان
+    category: "قشرة سطح المكتب"
+    builtins: [TITLE_BAR]
+    description_ar: "شريط عنوان بعنوان وأزرار (تصغير/تكبير/إغلاق)"
+    description_en: "شريط عنوان بعنوان وأزرار (تصغير/تكبير/إغلاق)"
+
+  - id: ScrollBar
+    canonical: شريط_تمرير
+    category: "قشرة سطح المكتب"
+    builtins: [SCROLL_BAR]
+    description_ar: "شريط تمرير صريح (مسار + إبهام قابل للسحب)"
+    description_en: "شريط تمرير صريح (مسار + إبهام قابل للسحب)"
+
+  - id: Taskbar
+    canonical: شريط_مهام
+    category: "قشرة سطح المكتب — الصدَفة"
+    builtins: [TASKBAR]
+    legacy_names: [شريط_مهامّ]
+    description_ar: "شريط سفليّ (زرّ ابدأ + نوافذ مفتوحة + لوحة نظام)"
+    description_en: "شريط سفليّ (زرّ ابدأ + نوافذ مفتوحة + لوحة نظام)"
+
+  - id: StartMenu
+    canonical: قائمة_ابدأ
+    category: "قشرة سطح المكتب — الصدَفة"
+    builtins: [START_MENU]
+    description_ar: "لوحة منبثقة لإطلاق التطبيقات"
+    description_en: "لوحة منبثقة لإطلاق التطبيقات"
+
+  - id: SystemTray
+    canonical: لوحة_نظام
+    category: "قشرة سطح المكتب — الصدَفة"
+    builtins: [SYSTEM_TRAY]
+    description_ar: "ساعة حيّة وأيقونات حالة"
+    description_en: "ساعة حيّة وأيقونات حالة"
+
+  - id: SpinBox
+    canonical: مربع_دوار
+    category: "تحكّم متقدّم + تغذية راجعة"
+    builtins: [SPIN_BOX]
+    description_ar: "حقل رقميّ بأزرار زيادة/نقصان رأسيّة (▲▼)"
+    description_en: "حقل رقميّ بأزرار زيادة/نقصان رأسيّة (▲▼)"
+
+  - id: GroupBox
+    canonical: صندوق_تجميع
+    category: "تحكّم متقدّم + تغذية راجعة"
+    builtins: [GROUP_BOX]
+    description_ar: "حاوية بحدود وعنوان علويّ (إطار مجموعة)"
+    description_en: "حاوية بحدود وعنوان علويّ (إطار مجموعة)"
+
+  - id: Spinner
+    canonical: مؤشر_انشغال
+    category: "تحكّم متقدّم + تغذية راجعة"
+    builtins: [SPINNER]
+    description_ar: "حلقة تحميل دائريّة (نشاط غير محدَّد المدّة)"
+    description_en: "حلقة تحميل دائريّة (نشاط غير محدَّد المدّة)"
+
+  - id: StatusBar
+    canonical: شريط_حالة
+    category: "تحكّم متقدّم + تغذية راجعة"
+    builtins: [STATUS_BAR]
+    description_ar: "شريط معلومات سفليّ للنوافذ (نصّ حالة + أقسام)"
+    description_en: "شريط معلومات سفليّ للنوافذ (نصّ حالة + أقسام)"

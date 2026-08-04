@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SadUI node type entry",
+  "description": "(AR) مدخلةُ نوعِ عقدةِ واجهة SadUI في language-truth/ui_nodes.yaml. (EN) A SadUI node-type entry.",
+  "type": "object",
+  "required": ["id", "canonical", "category", "builtins", "description_ar", "description_en"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "description": "(AR) عضو التعداد C++ (UINodeType::<id>) — PascalCase."
+    },
+    "canonical": {
+      "type": "string",
+      "minLength": 1,
+      "description": "(AR) الاسم العربيّ القانونيّ — يُطبَع ويُقرَأ. لعقدةٍ ذاتِ مصنعٍ وحيد = اسمُ المصنع."
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1,
+      "description": "(AR) تصنيفٌ دلاليّ للتوثيق فقط."
+    },
+    "builtins": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+      "description": "(AR) cpp_id المصانع في builtins/ui_widgets.yaml التي تُنتج هذه العقدة."
+    },
+    "legacy_names": {
+      "type": "array",
+      "uniqueItems": true,
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "(AR) أسماءٌ انتقاليّةٌ تُقبَل قراءةً ولا تُطبَع — دَينُ هجرةٍ موثَّق، لا توسعةَ لغة."
+    },
+    "description_ar": { "type": "string", "minLength": 1 },
+    "description_en": { "type": "string", "minLength": 1 }
+  }
+}

@@ -33,204 +33,31 @@ namespace sad
         // جداول التحويل — أنواع العناصر
         // ═══════════════════════════════════════════════════════════════════════════════
 
-        /// جدول: UINodeType → اسم عربي
+        /// جدول: UINodeType → الاسم العربيّ القانونيّ
+        /// (AR) مولَّدٌ كلُّه من language-truth/ui_nodes.yaml عبر X-macro — لا اسمَ
+        ///   عقدةٍ حرفيّ هنا، فيستحيل انحرافُ الجدول عن التعداد أو عن مصدر الحقيقة.
         static const std::unordered_map<UINodeType, std::string> &getNodeTypeNames()
         {
             static const std::unordered_map<UINodeType, std::string> table = {
-                // ─── عناصر العرض ──────────
-                {UINodeType::Text, "نص"},
-                {UINodeType::Image, "صورة"},
-                {UINodeType::Icon, "أيقونة"},
-                // ─── عناصر الإدخال ─────────
-                {UINodeType::Button, "زر"},
-                {UINodeType::TextField, "حقل"},
-                {UINodeType::TextArea, "منطقة_نص"},
-                {UINodeType::Toggle, "مفتاح"},
-                {UINodeType::Slider, "منزلق"},
-                {UINodeType::Picker, "قائمة_اختيار"},
-                {UINodeType::DatePicker, "قائمة_تاريخ"},
-                {UINodeType::ColorPicker, "قائمة_لون"},
-                {UINodeType::Checkbox, "مربع_اختيار"},
-                {UINodeType::Radio, "زر_راديو"},
-                // ─── حاويات التخطيط ───────
-                {UINodeType::Column, "عمود"},
-                {UINodeType::Row, "صف"},
-                {UINodeType::Stack, "تكديس"},
-                {UINodeType::Grid, "شبكة"},
-                {UINodeType::LazyColumn, "عمود_كسول"},
-                {UINodeType::LazyRow, "صف_كسول"},
-                {UINodeType::LazyGrid, "شبكة_كسولة"},
-                {UINodeType::Spacer, "فاصل"},
-                {UINodeType::Divider, "خط_فاصل"},
-                {UINodeType::Wrap, "التفاف"},
-                // ─── حاويات مركبة ─────────
-                {UINodeType::Container, "حاوية"},
-                {UINodeType::Card, "بطاقة"},
-                {UINodeType::Surface, "سطح"},
-                {UINodeType::Scaffold, "هيكل"},
-                {UINodeType::Box, "صندوق"},
-                // ─── التنقل ───────────────
-                {UINodeType::NavigationView, "عرض_تنقل"},
-                {UINodeType::NavigationLink, "رابط_تنقل"},
-                {UINodeType::TabView, "عرض_علامات"},
-                {UINodeType::TabItem, "علامة"},
-                // ─── القوائم ──────────────
-                {UINodeType::List, "قائمة"},
-                {UINodeType::Section, "قسم"},
-                {UINodeType::ForEach, "لكل"},
-                // ─── النوافذ المنبثقة ─────
-                {UINodeType::Alert, "تنبيه"},
-                {UINodeType::Sheet, "ورقة"},
-                {UINodeType::Dialog, "حوار"},
-                {UINodeType::Menu, "قائمة_خيارات"},
-                // ─── عناصر خاصة ──────────
-                {UINodeType::Canvas, "لوحة"},
-                {UINodeType::MapView, "خريطة"},
-                {UINodeType::WebView, "عرض_ويب"},
-                {UINodeType::VideoPlayer, "مشغل_فيديو"},
-                {UINodeType::ScrollView, "عرض_تمرير"},
-                {UINodeType::CustomWidget, "عنصر_مخصص"},
-                // ─── بنيوية ──────────────
-                {UINodeType::Conditional, "شرطي"},
-                {UINodeType::Group, "مجموعة"},
-                // ─── مكونات جديدة (v2) ────
-                {UINodeType::ProgressBar, "شريط_تقدم"},
-                {UINodeType::Badge, "شارة"},
-                {UINodeType::Chip, "رقاقة"},
-                {UINodeType::Avatar, "صورة_رمزية"},
-                {UINodeType::SearchBar, "حقل_بحث"},
-                {UINodeType::BottomSheet, "لوحة_سفلية"},
-                {UINodeType::FAB, "زر_عائم"},
-                {UINodeType::SnackBar, "رسالة_منبثقة"},
-                {UINodeType::Drawer, "درج"},
-                {UINodeType::AppBar, "شريط_تطبيق"},
-                // ─── بيانات (v3) ─────────
-                {UINodeType::Tooltip, "تلميح"},
-                {UINodeType::DataTable, "جدول_بيانات"},
-                {UINodeType::TreeView, "عرض_شجري"},
-                {UINodeType::Breadcrumb, "مسار_تنقل"},
-                {UINodeType::Pagination, "ترقيم_صفحات"},
-                {UINodeType::Timeline, "خط_زمني"},
-                // ─── وسائط (v3) ──────────
-                {UINodeType::Carousel, "عرض_دوار"},
-                {UINodeType::RichText, "نص_منسق"},
-                {UINodeType::Markdown, "ماركداون"},
-                {UINodeType::CodeBlock, "كتلة_كود"},
-                {UINodeType::AudioPlayer, "مشغل_صوت"},
-                {UINodeType::ImageGallery, "معرض_صور"},
-                // ─── حركة (v3) ───────────
-                {UINodeType::Skeleton, "هيكل_تحميل"},
-                {UINodeType::Shimmer, "وميض"},
-                {UINodeType::AnimatedList, "قائمة_متحركة"},
-                {UINodeType::Expandable, "أكورديون"},
-                {UINodeType::Collapsible, "قابل_للطي"},
-                {UINodeType::Swipeable, "قابل_للسحب"},
-                // ─── تحكم متقدم (v3) ────
-                {UINodeType::Stepper, "خطوات"},
-                {UINodeType::SegmentedControl, "تحكم_مقسم"},
-                {UINodeType::RatingBar, "تقييم"},
-                {UINodeType::TimePicker, "منتقي_وقت"},
-                {UINodeType::Calendar, "تقويم"},
-                {UINodeType::ColorWheel, "عجلة_ألوان"},
-                // ─── تنقل متقدم (v3) ────
-                {UINodeType::BottomNav, "تنقل_سفلي"},
-                {UINodeType::SideNav, "تنقل_جانبي"},
-                {UINodeType::Toolbar, "شريط_أدوات"},
-                {UINodeType::SplitView, "عرض_مقسم"},
-                {UINodeType::Tabs, "ألسنة"},
-                {UINodeType::MegaMenu, "قائمة_ضخمة"},
-                // ─── تخطيط أساسي Flutter (v4) ────
-                {UINodeType::Center, "وسط"},
-                {UINodeType::Padding, "حشوة"},
-                {UINodeType::SizedBox, "مقاس_محدد"},
-                {UINodeType::Expanded, "موسع"},
-                {UINodeType::Flexible, "مرن"},
-                {UINodeType::Align, "محاذي"},
-                {UINodeType::SafeArea, "منطقة_آمنة"},
-                {UINodeType::GestureDetector, "كاشف_إيماءات"},
-                {UINodeType::InkWell, "حبر"},
-                {UINodeType::ListView, "قائمة_عرض"},
-                {UINodeType::FractionallySizedBox, "صندوق_نسبي"},
-                {UINodeType::ConstrainedBox, "صندوق_مقيد"},
-                {UINodeType::AspectRatio, "نسبة_عرض"},
-                // ─── قشرة سطح المكتب (م١) ────
-                {UINodeType::Window, "نافذة"},
-                {UINodeType::TitleBar, "شريط_عنوان"},
-                {UINodeType::ScrollBar, "شريط_تمرير"},
-                // ─── صدَفة سطح المكتب (م٢) ────
-                {UINodeType::Taskbar, "شريط_مهامّ"},
-                {UINodeType::StartMenu, "قائمة_ابدأ"},
-                {UINodeType::SystemTray, "لوحة_نظام"},
-                // ─── تحكّم متقدّم + تغذية راجعة (م٥-ب/م٦-ب) ────
-                {UINodeType::SpinBox, "مربع_دوار"},
-                {UINodeType::GroupBox, "صندوق_تجميع"},
-                {UINodeType::Spinner, "مؤشر_انشغال"},
-                {UINodeType::StatusBar, "شريط_حالة"},
+#define SAD_UI_NODE_NAME_ENTRY(Id, CanonicalName) {UINodeType::Id, CanonicalName},
+                SAD_UI_NODE_TYPE_LIST(SAD_UI_NODE_NAME_ENTRY)
+#undef SAD_UI_NODE_NAME_ENTRY
             };
             return table;
         }
 
-        /// جدول معكوس: اسم عربي → UINodeType
+        /// جدول: الاسم العربيّ → UINodeType
+        /// (AR) يقبل الاسمَ القانونيّ **وأسماءَ القراءة الإضافيّة** (أسماءُ المصانع
+        ///   المدمَجة المشتقّة آليًّا + دَينُ الهجرة legacy_names) — كلُّها من مصدر
+        ///   الحقيقة. الاسمُ القانونيّ وحدَه هو ما يُطبَع (getNodeTypeNames).
         static const std::unordered_map<std::string, UINodeType> &getNodeTypeByName()
         {
-            static std::unordered_map<std::string, UINodeType> table;
-            static bool initialized = false;
-            if (!initialized)
-            {
-                for (const auto &[type, name] : getNodeTypeNames())
-                {
-                    table[name] = type;
-                }
-                table["\xd8\xaa\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7"] = UINodeType::Center;                                   // توسيط → وسط
-                table["\xd9\x85\xd8\xb1\xd9\x86"] = UINodeType::Flexible;                                                 // مرن → مرن
-                table["\xd9\x85\xd9\x88\xd8\xb3\xd9\x91\xd8\xb9"] = UINodeType::Expanded;                                 // موسّع → موسع
-                table["\xd8\xad\xd8\xb4\xd9\x88"] = UINodeType::Padding;                                                  // حشو → حشوة
-                table["\xd9\x82\xd8\xa7\xd8\xa8\xd9\x84_\xd9\x84\xd9\x84\xd9\x86\xd9\x82\xd8\xb1"] = UINodeType::InkWell; // قابل_للنقر → حبر
-                // ─── أسماء بديلة للتوافق ───
-                table["\xd8\xb7\xd8\xa8\xd9\x82\xd8\xa7\xd8\xaa"] = UINodeType::Stack;                                               // طبقات (قديم)
-                table["\xd8\xad\xd9\x82\xd9\x84_\xd9\x86\xd8\xb5"] = UINodeType::TextField;                                          // حقل_نص (قديم)
-                table["\xd8\xae\xd8\xa7\xd9\x86\xd8\xa9_\xd8\xa7\xd8\xae\xd8\xaa\xd9\x8a\xd8\xa7\xd8\xb1"] = UINodeType::Checkbox;   // خانة_اختيار (قديم)
-                table["\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd8\xa8\xd8\xad\xd8\xab"] = UINodeType::SearchBar;                          // شريط_بحث (قديم)
-                table["\xd9\x88\xd8\xb1\xd9\x82\xd8\xa9_\xd8\xb3\xd9\x81\xd9\x84\xd9\x8a\xd8\xa9"] = UINodeType::BottomSheet;        // ورقة_سفلية (قديم)
-                table["\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd8\xa5\xd8\xb4\xd8\xb9\xd8\xa7\xd8\xb1"] = UINodeType::SnackBar;           // شريط_إشعار (قديم)
-                table["\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd8\xaa\xd9\x82\xd9\x8a\xd9\x8a\xd9\x85"] = UINodeType::RatingBar;          // شريط_تقييم (قديم)
-                table["\xd9\x82\xd8\xa7\xd8\xa8\xd9\x84_\xd9\x84\xd9\x84\xd8\xaa\xd9\x88\xd8\xb3\xd8\xb9"] = UINodeType::Expandable; // قابل_للتوسع (قديم)
-                table["\xd9\x87\xd9\x8a\xd9\x83\xd9\x84_\xd8\xb9\xd8\xb8\xd9\x85\xd9\x8a"] = UINodeType::Skeleton;                   // هيكل_عظمي (بديل)
-                // ─── أسماء إضافية من ملفات ص ───
-                table["\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86"] = UINodeType::Text;                                                    // عنوان → نص
-                table["\xd8\xaa\xd8\xb3\xd9\x85\xd9\x8a\xd8\xa9"] = UINodeType::Text;                                                    // تسمية → نص
-                table["\xd9\x81\xd9\x82\xd8\xb1\xd8\xa9"] = UINodeType::Text;                                                            // فقرة → نص
-                table["\xd8\xb1\xd8\xa7\xd8\xa8\xd8\xb7"] = UINodeType::Text;                                                            // رابط → نص
-                table["\xd9\x83\xd9\x88\xd8\xaf"] = UINodeType::CodeBlock;                                                               // كود → كتلة_كود
-                table["\xd8\xa7\xd9\x82\xd8\xaa\xd8\xa8\xd8\xa7\xd8\xb3"] = UINodeType::Text;                                            // اقتباس → نص
-                table["\xd8\xb2\xd8\xb1_\xd9\x85\xd8\xad\xd9\x8a\xd8\xb7"] = UINodeType::Button;                                         // زر_محيط → زر
-                table["\xd8\xb2\xd8\xb1_\xd9\x86\xd8\xb5\xd9\x8a"] = UINodeType::Button;                                                 // زر_نصي → زر
-                table["\xd8\xb2\xd8\xb1_\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9"] = UINodeType::Button;                         // زر_ايقونة → زر
-                table["\xd8\xb2\xd8\xb1_\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x8a\xd9\x84"] = UINodeType::Toggle;                                 // زر_تبديل → تبديل
-                table["\xd8\xad\xd9\x82\xd9\x84_\xd8\xb3\xd8\xb1"] = UINodeType::TextField;                                              // حقل_سر → حقل
-                table["\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd8\xa9_\xd9\x86\xd8\xb5"] = UINodeType::TextArea;                               // منطقة_نص → منطقة_نص
-                table["\xd8\xaa\xd9\x82\xd8\xaf\xd9\x85_\xd8\xaf\xd8\xa7\xd8\xa6\xd8\xb1\xd9\x8a"] = UINodeType::ProgressBar;            // تقدم_دائري → شريط_تقدم
-                table["\xd8\xaa\xd8\xad\xd9\x85\xd9\x8a\xd9\x84"] = UINodeType::Skeleton;                                                // تحميل → هيكل_تحميل
-                table["\xd9\x88\xd8\xb3\xd9\x85"] = UINodeType::Chip;                                                                    // وسم → رقاقة
-                table["\xd8\xaa\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7"] = UINodeType::Center;                                                  // توسيط → وسط (مُحدَّث)
-                table["\xd9\x85\xd8\xb1\xd9\x86"] = UINodeType::Flexible;                                                                // مرن → مرن (مُحدَّث)
-                table["\xd9\x85\xd9\x88\xd8\xb3\xd9\x91\xd8\xb9"] = UINodeType::Expanded;                                                // موسّع → موسع (مُحدَّث)
-                table["\xd8\xae\xd8\xb7_\xd9\x81\xd8\xa7\xd8\xb5\xd9\x84"] = UINodeType::Divider;                                        // خط_فاصل → فاصل_خط
-                table["\xd8\xad\xd9\x88\xd8\xa7\xd8\xb1_\xd8\xaa\xd8\xa3\xd9\x83\xd9\x8a\xd8\xaf"] = UINodeType::Dialog;                 // حوار_تأكيد → حوار
-                table["\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd9\x85\xd9\x86\xd8\xb3\xd8\xaf\xd9\x84\xd8\xa9"] = UINodeType::Picker; // قائمة_منسدلة → منتقي
-                table["\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd9\x85\xd9\x86\xd8\xa8\xd8\xab\xd9\x82\xd8\xa9"] = UINodeType::Menu;   // قائمة_منبثقة → قائمة_خيارات
-                table["\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1_\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9"] = UINodeType::List;                   // عنصر_قائمة → قائمة
-                table["\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd8\xb4\xd8\xa8\xd9\x83\xd9\x8a\xd8\xa9"] = UINodeType::LazyGrid;       // قائمة_شبكية
-                table["\xd9\x82\xd8\xa7\xd8\xa6\xd9\x85\xd8\xa9_\xd8\xaa\xd9\x85\xd8\xb1\xd9\x8a\xd8\xb1"] = UINodeType::ScrollView;     // قائمة_تمرير
-                table["\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd8\xaa\xd8\xa8\xd9\x88\xd9\x8a\xd8\xa8"] = UINodeType::Tabs;                   // شريط_تبويب → ألسنة
-                table["\xd8\xaa\xd8\xa8\xd9\x88\xd9\x8a\xd8\xa8"] = UINodeType::TabItem;                                                 // تبويب → علامة
-                table["\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89_\xd8\xaa\xd8\xa8\xd9\x88\xd9\x8a\xd8\xa8"] = UINodeType::TabView;        // محتوى_تبويب
-                table["\xd8\xb4\xd8\xb1\xd9\x8a\xd8\xb7_\xd8\xb3\xd9\x81\xd9\x84\xd9\x8a"] = UINodeType::BottomNav;                      // شريط_سفلي
-                table["\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1_\xd8\xaa\xd9\x86\xd9\x82\xd9\x84"] = UINodeType::TabItem;                        // عنصر_تنقل
-                table["\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1_\xd8\xaf\xd8\xb1\xd8\xac"] = UINodeType::List;                                   // عنصر_درج
-                table["\xd8\xa7\xd9\x8a\xd9\x82\xd9\x88\xd9\x86\xd8\xa9"] = UINodeType::Icon;                                            // ايقونة (بدون أ)
-                initialized = true;
-            }
+            static const std::unordered_map<std::string, UINodeType> table = {
+#define SAD_UI_NODE_BY_NAME_ENTRY(Id, Name) {Name, UINodeType::Id},
+                SAD_UI_NODE_TYPE_LIST(SAD_UI_NODE_BY_NAME_ENTRY)
+                SAD_UI_NODE_ALT_NAME_LIST(SAD_UI_NODE_BY_NAME_ENTRY)
+#undef SAD_UI_NODE_BY_NAME_ENTRY
+            };
             return table;
         }
 

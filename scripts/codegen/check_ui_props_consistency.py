@@ -66,12 +66,43 @@ _VOCABS = (
 )
 
 # (AR) ألوان SadUI: SoT + الهيدرات المولَّدة + مستهلكوها في المكتبة والمحرّكين.
+# (AR) أنواع عُقَد الواجهة — مصدر الحقيقة + الهيدر المولَّد + مستهلكاه في المكتبة.
+_NODES = _ROOT / "language-truth" / "ui_nodes.yaml"
+_NODE_HEADER = _GEN_DIR / "node_types_generated.h"
+_TYPES_H = _ROOT / "features" / "graphics" / "core" / "include" / "sad_ui" / "types.h"
+
 _COLORS = _ROOT / "language-truth" / "ui_colors.yaml"
 _COLOR_TABLE = _GEN_DIR / "color_table_generated.h"
 _COLOR_PRELUDE = _GEN_DIR / "color_prelude_generated.h"
 _COLOR_UTILS = _ROOT / "features" / "graphics" / "core" / "include" / "sad_ui" / "color_utils.h"
 _INTERP_CORE = _ROOT / "interpreter" / "src" / "core" / "interpreter_core.cpp"
 _COMPILER_MODULE = _ROOT / "compiler" / "src" / "frontend" / "sir_builder_module.cpp"
+
+
+def _factory_node_map(src: str) -> dict[str, str]:
+    """
+    (AR) يستخرج خريطة cpp_id → نوعِ العقدة من مصنع المفسّر: يربط متغيّر الدالّة
+         بنوع العقدة في MAKE_*_FN(<Node>, …) أو UINodeType::<Node> ثمّ بتسجيله
+         registerBuiltinFunction(std::string(Bw::<CPP_ID>), <var>).
+    """
+    var_to_node: dict[str, str] = {}
+    for m in re.finditer(
+        r"auto\s+(\w+)\s*=\s*MAKE_(?:SIMPLE_)?WIDGET(?:_WITH_PROP)?_FN\((\w+)", src
+    ):
+        var_to_node[m.group(1)] = m.group(2)
+    # (AR) مصانعُ لامدا صريحة (مثل صندوق المقاس) تُنشئ WidgetBuilder بنوعٍ مباشر.
+    for m in re.finditer(
+        r"auto\s+(\w+)\s*=\s*\[[\s\S]{0,600}?UINodeType::(\w+)", src, re.S
+    ):
+        var_to_node.setdefault(m.group(1), m.group(2))
+    cpp_to_node: dict[str, str] = {}
+    for m in re.finditer(
+        r"registerBuiltinFunction\(std::string\(Bw::(\w+)\),\s*(\w+)\)", src
+    ):
+        cpp_id, var = m.group(1), m.group(2)
+        if var in var_to_node:
+            cpp_to_node[cpp_id] = var_to_node[var]
+    return cpp_to_node
 
 
 def _factory_prop_map(src: str) -> dict[str, str]:
@@ -246,8 +277,103 @@ def main() -> int:
             if "SAD_UI_COLOR_MEMBERS" not in cm:
                 errors.append("الألوان: المترجم (sir_builder_module.cpp) لا يستهلك SAD_UI_COLOR_MEMBERS")
 
+    # ═════════════════════════════════════════════════════════════════════════
+    # (AR) ٦. أنواع عُقَد الواجهة — ui_nodes.yaml هو المصدرُ الوحيد للتعداد
+    #      وللاسمَين (طباعةً وقراءةً). يفشل إن:
+    #        • عقدةٌ تُشير إلى cpp_id مصنعٍ غيرِ موجودٍ في ui_widgets.yaml.
+    #        • مصنعٌ في widget_builtins.cpp يُنتج عقدةً لم تُسجَّل في builtins لها.
+    #        • عقدةٌ ذاتُ مصنعٍ وحيدٍ اسمُها القانونيّ ≠ اسمُ ذلك المصنع.
+    #        • اسمٌ قانونيّ مكرَّر، أو اسمُ قراءةٍ إضافيّ يصطدم باسمٍ قانونيّ.
+    #        • المكتبة لم تعد تستهلك الماكرو المولَّد (جدولٌ يدويّ عاد).
+    # ═════════════════════════════════════════════════════════════════════════
+    nodes_data = yaml.safe_load(_NODES.read_text(encoding="utf-8")) if _NODES.exists() else None
+    n_nodes = 0
+    if nodes_data is None:
+        errors.append(f"أنواع العُقَد: مصدر الحقيقة مفقود ({_NODES.name})")
+    else:
+        node_list = nodes_data.get("nodes", [])
+        n_nodes = len(node_list)
+        widget_canon = {f["cpp_id"]: f["canonical"] for f in widgets.get("functions", [])}
+
+        seen_canon: dict[str, str] = {}
+        declared: dict[str, str] = {}  # cpp_id ⇒ node id
+        for node in node_list:
+            nid, canon = node["id"], node["canonical"]
+            if canon in seen_canon:
+                errors.append(
+                    f"أنواع العُقَد: الاسم القانونيّ «{canon}» مكرَّر بين {seen_canon[canon]} و{nid}"
+                )
+            seen_canon[canon] = nid
+            for cpp_id in node.get("builtins", []) or []:
+                if cpp_id not in widget_canon:
+                    errors.append(
+                        f"العقدة «{nid}»: المصنع {cpp_id} غير معرَّفٍ في builtins/ui_widgets.yaml"
+                    )
+                declared[cpp_id] = nid
+            own = [widget_canon[c] for c in node.get("builtins", []) or [] if c in widget_canon]
+            if len(own) == 1 and own[0] != canon:
+                errors.append(
+                    f"العقدة «{nid}»: مصنعُها الوحيد «{own[0]}» فاسمُها القانونيّ يجب أن يطابقه لا «{canon}»"
+                )
+        # أسماءُ القراءة الإضافيّة لا تصطدم باسمٍ قانونيّ ولا ببعضها.
+        # وهي صنفان يبعثهما المولِّدُ معًا في SAD_UI_NODE_ALT_NAME_LIST: الأسماءُ
+        # الانتقاليّةُ (legacy_names) وأسماءُ مصانعِ العقدةِ عدا اسمِها القانونيّ.
+        # يجب فحصُ الصنفين معًا وإلّا مرّ تصادمُ اسمِ مصنعٍ جديدٍ صامتًا فتُسقِطَ
+        # قائمةُ تهيئةِ unordered_map المدخلةَ الثانيةَ ويُحَلَّ الودجت إلى عقدةٍ خاطئة.
+        seen_alt: dict[str, str] = {}
+        for node in node_list:
+            derived = [
+                widget_canon[c]
+                for c in node.get("builtins", []) or []
+                if c in widget_canon and widget_canon[c] != node["canonical"]
+            ]
+            for alt in list(node.get("legacy_names", []) or []) + derived:
+                if alt in seen_alt and seen_alt[alt] != node["id"]:
+                    errors.append(
+                        f"أنواع العُقَد: اسمُ القراءةِ الإضافيّ «{alt}» مشتركٌ بين "
+                        f"{seen_alt[alt]} و{node['id']} — الجدولُ العكسيّ يحجُب أحدَهما صامتًا"
+                    )
+                seen_alt[alt] = node["id"]
+                if alt in seen_canon and seen_canon[alt] != node["id"]:
+                    errors.append(
+                        f"العقدة «{node['id']}»: اسمُ القراءةِ الإضافيّ «{alt}» هو الاسمُ القانونيّ "
+                        f"للعقدة {seen_canon[alt]} — تضاربٌ صامت"
+                    )
+        # كلُّ مصنعٍ يُنتج عقدةً في المفسّر مسجَّلٌ في builtins لتلك العقدة
+        for cpp_id, node_id in _factory_node_map(factory_src).items():
+            if cpp_id not in declared:
+                errors.append(
+                    f"المصنع {cpp_id} يُنتج {node_id} في widget_builtins.cpp ولم يُسجَّل في "
+                    f"builtins للعقدة في ui_nodes.yaml (انجراف)"
+                )
+            elif declared[cpp_id] != node_id:
+                errors.append(
+                    f"المصنع {cpp_id}: ui_nodes.yaml ينسبه إلى {declared[cpp_id]} "
+                    f"بينما widget_builtins.cpp يُنتج {node_id}"
+                )
+        # المكتبة تستهلك الماكرو المولَّد (لا عودةَ لجدولٍ يدويّ)
+        if not _NODE_HEADER.exists():
+            errors.append(f"أنواع العُقَد: الهيدر المولَّد مفقود ({_NODE_HEADER.name}) — شغّل x.py gen")
+        else:
+            gen = _NODE_HEADER.read_text(encoding="utf-8")
+            for node in node_list:
+                if _hex(node["canonical"]) not in gen:
+                    errors.append(
+                        f"أنواع العُقَد: «{node['canonical']}» غائبٌ عن الهيدر المولَّد "
+                        f"(انجراف — شغّل x.py gen)"
+                    )
+            if _TYPES_H.exists():
+                th = _TYPES_H.read_text(encoding="utf-8")
+                if "SAD_UI_NODE_TYPE_LIST" not in th:
+                    errors.append("أنواع العُقَد: types.h لا يبني UINodeType من SAD_UI_NODE_TYPE_LIST (تعدادٌ يدويّ؟)")
+            if _TYPES_CPP.exists():
+                tc = _TYPES_CPP.read_text(encoding="utf-8")
+                for macro in ("SAD_UI_NODE_TYPE_LIST", "SAD_UI_NODE_ALT_NAME_LIST"):
+                    if macro not in tc:
+                        errors.append(f"أنواع العُقَد: types.cpp لا يستهلك {macro} (جدولٌ يدويّ؟)")
+
     if errors:
-        print("✗ فشل حارس اتّساق مفاتيح/معدّلات/مفردات/ألوان الواجهة:")
+        print("✗ فشل حارس اتّساق مفاتيح/معدّلات/مفردات/ألوان/عُقَد الواجهة:")
         for e in errors:
             print(f"  - {e}")
         return 1
@@ -258,7 +384,8 @@ def main() -> int:
         f"✓ اتّساق الواجهة سليم: {len(id_to_ar)} مفتاحًا، {n_pp} عنصرًا بـprimary_prop "
         f"(مطابقٌ للمصنع)، {n_mod} معدّلًا (مطابقٌ لموزّعَي المحرّكين)، "
         f"{n_vocab_entries} مفردةً نصّيّةً (حركة/منحنيات/أحداث)، "
-        f"{n_colors} لونًا (تعداد `ألوان` + جدول موحَّد، مطابقةٌ للهيدرات المولَّدة)."
+        f"{n_colors} لونًا (تعداد `ألوان` + جدول موحَّد، مطابقةٌ للهيدرات المولَّدة)، "
+        f"{n_nodes} نوعَ عقدةٍ (التعدادُ وجدولا الاسم مولَّدةٌ من ui_nodes.yaml)."
     )
     return 0
 
