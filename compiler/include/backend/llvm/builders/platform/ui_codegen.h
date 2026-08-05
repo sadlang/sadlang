@@ -119,6 +119,8 @@ public:
     llvm::Value *emitUiListView(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiTextArea(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiDrawer(std::shared_ptr<SIRInstruction> inst);
+    // (AR) الباعثُ العامُّ: ينشئ أيَّ عنصرٍ من رقمِ نوعِ عقدتِه (عاملُه الأوّل).
+    llvm::Value *emitUiWidgetByType(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSpinBox(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiGroupBox(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSpinner(std::shared_ptr<SIRInstruction> inst);

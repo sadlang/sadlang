@@ -46,6 +46,7 @@ set(SAD_UI_CORE_SOURCES
     core/src/state.cpp
     core/src/animation.cpp
     core/src/platform_renderer.cpp
+    core/src/syntax_highlighter.cpp
     core/src/theme.cpp
     core/src/gesture.cpp
     core/src/scroll_physics.cpp
@@ -117,8 +118,25 @@ set(SAD_UI_MACOS_SOURCES
 )
 if(APPLE AND NOT CMAKE_SYSTEM_NAME STREQUAL "iOS")
     enable_language(OBJCXX)
-    # macos_renderer.mm excluded: incomplete native renderer (undeclared
-    # members hitTest/fireEvent/focusedNode_ ...). Not needed by interpreter.
+    # ════════════════════════════════════════════════════════════════════════
+    # (AR) مُصيِّرُ ماك الأصليّ (AppKit) — **مؤجَّلٌ بإعلان**، لا مُهمَلٌ سهوًا.
+    #
+    #   الحالة: backends/macos/src/macos_renderer.mm ينفّذ أوّليّاتِ الرسمِ
+    #   كاملةً، لكنّه يستدعي طبقةَ تفاعلٍ لا تصرّحُ بها ترويستُه:
+    #   hitTest / fireEvent / focusedNode_. فهو لا يترجم كما هو.
+    #
+    #   القرار: ماك يستعمل مسارَ SDL2 (المُرسِّم المشترَك في المكتبة) وهو مسارٌ
+    #   عاملٌ ومختبَر. إتمامُ المُصيِّرِ الأصليِّ معلمٌ قائمٌ بذاته: يلزمه إمّا
+    #   رفعُ طبقةِ التفاعلِ إلى PlatformRenderer (فتستفيد منها كلُّ منصّة) وإمّا
+    #   قصرُها على ماك. وكلاهما يحتاج بناءً وتشغيلًا على ماك للتحقّق.
+    #
+    #   ما تغيّر هنا: كان السطرُ معلَّقًا بلا عقدٍ مكتوبٍ فيبدو سهوًا؛ صار
+    #   القرارُ مُعلَنًا في مصدرِ الحقيقة (ui_nodes.yaml:platform_renderers)
+    #   ويفحصه حارسٌ، فلا يمرُّ التأجيلُ صامتًا ولا يتعفّن.
+    # (EN) Native AppKit renderer deliberately deferred (see SoT); macOS uses the
+    #   SDL2 path. The .mm calls hitTest/fireEvent/focusedNode_ which its header
+    #   never declares, so it cannot compile as-is.
+    # ════════════════════════════════════════════════════════════════════════
     # list(APPEND SAD_UI_MACOS_SOURCES backends/macos/src/macos_renderer.mm)
 endif()
 
@@ -247,13 +265,69 @@ if(SAD_UI_ENABLE_SDL2)
         message(STATUS "  [sad_graphics] ✓ SDL2 موجود على النظام / Found on system")
         target_link_libraries(sad_graphics PUBLIC SDL2::SDL2)
         target_compile_definitions(sad_graphics PUBLIC SAD_UI_USE_SDL2)
-        
+
+        # ══════════════════════════════════════════════════════════════════════
+        # (AR) نقلُ حقيقةِ SDL2 إلى **سائقِ المترجم** (sad-build).
+        #      وحدةُ الترجمةِ sad_ui_runtime.cpp تشيرُ إلى DesktopRenderer/
+        #      DesktopWindow تحتَ SAD_UI_USE_SDL2، فأيُّ برنامجِ واجهةٍ يُربَط
+        #      بـsad_graphics_runtime يسحبُ رموزَ SDL_*/TTF_* معه. ويندوزُ يربطُ
+        #      SDL2 المُورَّدةَ باكتشافٍ في وقتِ التشغيل، أمّا على POSIX فالمكتبةُ
+        #      نظاميّةٌ ومسارُها يُعرَفُ وقتَ التهيئةِ وحدَها — فنُثبّتُه هنا في
+        #      المتغيّرِ الداخليّ ويقرؤه apps/CMakeLists.txt.
+        #      (تجريبيًّا: بدونَ ذلك يفشلُ الربطُ على لينكس بـundefined SDL_*.)
+        # (EN) Carry the SDL2 fact over to the compiler driver (sad-build). The
+        #      runtime TU references the SDL-backed desktop classes, so every UI
+        #      program linking sad_graphics_runtime needs SDL_*/TTF_*. On POSIX the
+        #      library is a system one whose directory is known only at configure
+        #      time; pin it here and let apps/CMakeLists.txt hand it to the driver.
+        # ══════════════════════════════════════════════════════════════════════
+        if(NOT WIN32)
+            # (AR) الاسمُ المستعارُ (ALIAS) يُرفَضُ في get_target_property على إصداراتٍ
+            #      أقدم، فنحلُّه إلى هدفِه أوّلًا.
+            # (EN) ALIAS targets are rejected by get_target_property on older CMake;
+            #      resolve to the real target first.
+            set(_sad_ui_sdl2_target SDL2::SDL2)
+            get_target_property(_sad_ui_sdl2_aliased SDL2::SDL2 ALIASED_TARGET)
+            if(_sad_ui_sdl2_aliased)
+                set(_sad_ui_sdl2_target ${_sad_ui_sdl2_aliased})
+            endif()
+
+            set(_sad_ui_sdl2_location "")
+            foreach(_sad_ui_sdl2_prop
+                    IMPORTED_LOCATION IMPORTED_LOCATION_RELEASE
+                    IMPORTED_LOCATION_NOCONFIG IMPORTED_LOCATION_DEBUG)
+                get_target_property(_sad_ui_sdl2_candidate ${_sad_ui_sdl2_target} ${_sad_ui_sdl2_prop})
+                if(_sad_ui_sdl2_candidate AND NOT _sad_ui_sdl2_location)
+                    set(_sad_ui_sdl2_location "${_sad_ui_sdl2_candidate}")
+                endif()
+            endforeach()
+            if(_sad_ui_sdl2_location)
+                get_filename_component(_sad_ui_sdl2_dir "${_sad_ui_sdl2_location}" DIRECTORY)
+                set(SAD_UI_HOST_SDL2_LIB_DIR "${_sad_ui_sdl2_dir}" CACHE INTERNAL
+                    "(AR) مجلّدُ SDL2 النظاميّة كما يراه سائقُ المترجم على POSIX")
+                message(STATUS "  [sad_graphics] ↳ مجلّدُ SDL2 للسائق / driver SDL2 dir: ${_sad_ui_sdl2_dir}")
+            else()
+                # (AR) هدفٌ مستوردٌ بلا موقعٍ ملموس (INTERFACE محض): نكتفي بالاسمِ
+                #      المجرَّدِ فيبحثُ الرابطُ في مساراتِه الافتراضيّة.
+                # (EN) Imported target with no concrete location: fall back to the bare
+                #      name and let the linker use its default search paths.
+                set(SAD_UI_HOST_SDL2_LIB_DIR "" CACHE INTERNAL
+                    "(AR) لا مسارَ ملموسًا لـSDL2 — الاسمُ المجرَّدُ يكفي")
+            endif()
+            set(SAD_UI_HOST_SDL2 ON CACHE INTERNAL
+                "(AR) بُنيت مكتبةُ الرسوماتِ بـSDL2 ⇒ على السائقِ ربطُها")
+        endif()
+
         # محاولة إيجاد SDL2_ttf
         find_package(SDL2_ttf CONFIG QUIET)
         if(SDL2_ttf_FOUND)
             message(STATUS "  [sad_graphics] ✓ SDL2_ttf موجود / Found")
             target_link_libraries(sad_graphics PUBLIC SDL2_ttf::SDL2_ttf)
             target_compile_definitions(sad_graphics PUBLIC SAD_UI_HAS_SDL_TTF)
+            if(NOT WIN32)
+                set(SAD_UI_HOST_SDL2_TTF ON CACHE INTERNAL
+                    "(AR) SDL2_ttf متاحةٌ ⇒ على السائقِ ربطُها كذلك")
+            endif()
         else()
             message(STATUS "  [sad_graphics] ⚠ SDL2_ttf غير موجود — عرض النصوص معطّل / Not found — text rendering disabled")
         endif()

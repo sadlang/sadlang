@@ -147,6 +147,47 @@ void HtmlCodegen::generateBaseCSS(std::ostringstream& out) {
         << ind(2) << ".sad-wrap { display: flex; flex-wrap: wrap; gap: 8px; }\n"
         << ind(2) << ".sad-group { display: contents; }\n";
 
+    // ═══ (AR) عناصرُ التخطيطِ المحمولة (ث٨) — لكلٍّ نمطُه، والقيمُ المتغيّرةُ
+    //     (حشوةٌ ومقاسٌ ونسبة) تُكتَب سطريًّا لأنّها تختلف من عقدةٍ لأخرى. ═══
+    out << ind(2) << ".sad-center { display: flex; align-items: center; justify-content: center; }\n"
+        << ind(2) << ".sad-padding { display: flex; flex-direction: column; }\n"
+        << ind(2) << ".sad-sized-box { display: flex; flex-direction: column; flex: none; }\n"
+        << ind(2) << ".sad-expanded { display: flex; flex-direction: column; min-width: 0; min-height: 0; }\n"
+        << ind(2) << ".sad-flexible { display: flex; flex-direction: column; min-width: 0; min-height: 0; }\n"
+        << ind(2) << ".sad-align { display: flex; align-items: center; }\n"
+        << ind(2) << ".sad-safe-area { padding: env(safe-area-inset-top) env(safe-area-inset-right) "
+        << "env(safe-area-inset-bottom) env(safe-area-inset-left); }\n"
+        << ind(2) << ".sad-gesture-detector { display: flex; flex-direction: column; cursor: pointer; }\n"
+        << ind(2) << ".sad-ink-well { display: flex; flex-direction: column; cursor: pointer; "
+        << "position: relative; overflow: hidden; transition: background 120ms; }\n"
+        << ind(2) << ".sad-ink-well:active { background: rgba(0, 0, 0, 0.08); }\n"
+        << ind(2) << ".sad-list-view { list-style: none; margin: 0; padding: 0; overflow-y: auto; }\n"
+        << ind(2) << ".sad-list-view-item { padding: 8px 0; }\n"
+        << ind(2) << ".sad-fractional-box { display: flex; flex-direction: column; }\n"
+        << ind(2) << ".sad-constrained-box { display: flex; flex-direction: column; }\n"
+        << ind(2) << ".sad-aspect-ratio { display: flex; flex-direction: column; }\n";
+
+    // ═══ (AR) قشرةُ سطحِ المكتب في الويب — عناصرُ دلاليّةٌ لا div صمّاء. ═══
+    out << ind(2) << ".sad-window { display: flex; flex-direction: column; border: 1px solid #D0D0D0; "
+        << "border-radius: 8px; overflow: hidden; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }\n"
+        << ind(2) << ".sad-title-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; "
+        << "background: var(--sad-surface); border-bottom: 1px solid #E0E0E0; font-weight: 600; }\n"
+        << ind(2) << ".sad-scroll-bar { width: 4px; border-radius: 2px; background: rgba(0, 0, 0, 0.25); }\n"
+        << ind(2) << ".sad-taskbar { display: flex; align-items: center; gap: 8px; padding: 4px 8px; "
+        << "background: var(--sad-surface); border-top: 1px solid #E0E0E0; }\n"
+        << ind(2) << ".sad-start-menu { list-style: none; margin: 0; padding: 8px; min-width: 200px; "
+        << "background: var(--sad-surface); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }\n"
+        << ind(2) << ".sad-system-tray { display: flex; align-items: center; gap: 6px; }\n"
+        << ind(2) << ".sad-spin-box { width: 96px; padding: 6px 8px; border: 1px solid #ccc; "
+        << "border-radius: 6px; font-family: inherit; }\n"
+        << ind(2) << ".sad-group-box { border: 1px solid #D0D0D0; border-radius: 8px; padding: 12px; }\n"
+        << ind(2) << ".sad-group-box legend { padding: 0 6px; font-weight: 600; }\n"
+        << ind(2) << ".sad-spinner { width: 24px; height: 24px; border: 3px solid rgba(0, 0, 0, 0.15); "
+        << "border-top-color: var(--sad-primary); border-radius: 50%; animation: sad-spin 900ms linear infinite; }\n"
+        << ind(2) << "@keyframes sad-spin { to { transform: rotate(360deg); } }\n"
+        << ind(2) << ".sad-status-bar { display: flex; align-items: center; gap: 8px; padding: 4px 12px; "
+        << "font-size: 13px; color: #616161; border-top: 1px solid #E0E0E0; }\n";
+
     // ═══ v3 Data Components ═══
     out << ind(2) << ".sad-data-table { width: 100%; border-collapse: collapse; }\n"
         << ind(2) << ".sad-data-table th, .sad-data-table td { padding: 12px 16px; "

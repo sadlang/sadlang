@@ -198,6 +198,22 @@ namespace sad
             inline constexpr const char *SCROLL_X_LATIN = "scroll_x";
             // (AR) إزاحة تمرير رأسيّة (مفتاح لاتينيّ داخليّ للمُرسِّم) — «scroll_y».
             inline constexpr const char *SCROLL_Y_LATIN = "scroll_y";
+            // (AR) نصيبُ العنصرِ من المساحةِ الفائضةِ في صفٍّ أو عمود (موسع/مرن) — «مرونة».
+            inline constexpr const char *FLEX = "\xd9\x85\xd8\xb1\xd9\x88\xd9\x86\xd8\xa9";
+            // (AR) نسبةُ العرضِ إلى الارتفاعِ لعنصرِ «نسبة_عرض» — «نسبة».
+            inline constexpr const char *RATIO = "\xd9\x86\xd8\xb3\xd8\xa8\xd8\xa9";
+            // (AR) كسرٌ من عرضِ الأبِ (٠–١) لعنصرِ «صندوق_نسبي» — «عامل_العرض».
+            inline constexpr const char *WIDTH_FACTOR = "\xd8\xb9\xd8\xa7\xd9\x85\xd9\x84_\xd8\xa7\xd9\x84\xd8\xb9\xd8\xb1\xd8\xb6";
+            // (AR) كسرٌ من ارتفاعِ الأبِ (٠–١) لعنصرِ «صندوق_نسبي» — «عامل_الارتفاع».
+            inline constexpr const char *HEIGHT_FACTOR = "\xd8\xb9\xd8\xa7\xd9\x85\xd9\x84_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9";
+            // (AR) الحدُّ الأدنى للعرضِ في عنصرِ «صندوق_مقيد» — «أدنى_عرض».
+            inline constexpr const char *MIN_WIDTH = "\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89_\xd8\xb9\xd8\xb1\xd8\xb6";
+            // (AR) الحدُّ الأقصى للعرضِ في عنصرِ «صندوق_مقيد» — «أقصى_عرض».
+            inline constexpr const char *MAX_WIDTH = "\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89_\xd8\xb9\xd8\xb1\xd8\xb6";
+            // (AR) الحدُّ الأدنى للارتفاعِ في عنصرِ «صندوق_مقيد» — «أدنى_ارتفاع».
+            inline constexpr const char *MIN_HEIGHT = "\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89_\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9";
+            // (AR) الحدُّ الأقصى للارتفاعِ في عنصرِ «صندوق_مقيد» — «أقصى_ارتفاع».
+            inline constexpr const char *MAX_HEIGHT = "\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89_\xd8\xa7\xd8\xb1\xd8\xaa\xd9\x81\xd8\xa7\xd8\xb9";
             // (AR) بديل احتياطيّ لاتينيّ (مسار UINode) — يقرؤه المُرسِّم فقط — «text».
             inline constexpr const char *TEXT_LATIN = "text";
 
@@ -260,6 +276,14 @@ namespace sad
                     LNG_LATIN,  // lng
                     SCROLL_X_LATIN,  // scroll_x
                     SCROLL_Y_LATIN,  // scroll_y
+                    FLEX,  // مرونة
+                    RATIO,  // نسبة
+                    WIDTH_FACTOR,  // عامل_العرض
+                    HEIGHT_FACTOR,  // عامل_الارتفاع
+                    MIN_WIDTH,  // أدنى_عرض
+                    MAX_WIDTH,  // أقصى_عرض
+                    MIN_HEIGHT,  // أدنى_ارتفاع
+                    MAX_HEIGHT,  // أقصى_ارتفاع
                 };
                 for (const char *k : NUMERIC_KEYS)
                 {
@@ -275,6 +299,146 @@ namespace sad
                 }
                 return false;
             }
+            // ================================================================
+            // (AR) X(ID) — جردُ **كلِّ** مفاتيحِ الخصائصِ القانونيّة.
+            //   يستهلكه المفسّرُ للتحقّقِ من اسمِ المعدّلِ قبلَ كتابتِه: كان فضاءُ
+            //   المعدّلاتِ مفتوحًا بلا تحقّق، فخطأٌ إملائيٌّ («نصف_قطرر») يُكتَب
+            //   خاصّيّةً لا قارئَ لها ويُبتلَع صامتًا — يظهر أثرُه بكسلًا مفقودًا
+            //   لا رسالةَ خطأ. الجردُ من مصدرِ الحقيقةِ فلا قائمةَ ثانيةٌ تنحرف.
+            // (EN) X(ID) — inventory of every canonical property key; the
+            //   interpreter validates modifier names against it, so a typo warns
+            //   instead of being silently written as an unread property.
+            // ================================================================
+#define SAD_UI_PROP_KEY_LIST(X) \
+    X(TITLE) /* عنوان */ \
+    X(CONTENT) /* محتوى */ \
+    X(TEXT) /* نص */ \
+    X(ICON) /* أيقونة */ \
+    X(SOURCE) /* مصدر */ \
+    X(NAME) /* اسم */ \
+    X(HINT) /* تلميح */ \
+    X(VALUE) /* قيمة */ \
+    X(MESSAGE) /* رسالة */ \
+    X(WIDTH) /* عرض */ \
+    X(HEIGHT) /* ارتفاع */ \
+    X(ALIGN) /* محاذاة */ \
+    X(PADDING) /* حشوة */ \
+    X(PADDING_TOP) /* حشوة_أعلى */ \
+    X(PADDING_BOTTOM) /* حشوة_أسفل */ \
+    X(PADDING_START) /* حشوة_بداية */ \
+    X(PADDING_END) /* حشوة_نهاية */ \
+    X(MARGIN) /* هامش */ \
+    X(SPACING) /* تباعد */ \
+    X(WEIGHT) /* وزن */ \
+    X(COLUMNS) /* أعمدة */ \
+    X(FONT_SIZE) /* حجم_خط */ \
+    X(FONT_SIZE_ALT) /* حجم_الخط */ \
+    X(SIZE) /* حجم */ \
+    X(FLEX_LATIN) /* flex */ \
+    X(COLUMNS_LATIN) /* columns */ \
+    X(WIDTH_LATIN) /* width */ \
+    X(HEIGHT_LATIN) /* height */ \
+    X(COLOR) /* لون */ \
+    X(TEXT_COLOR) /* لون_النص */ \
+    X(TEXT_COLOR_ALT) /* لون_نص */ \
+    X(BG) /* خلفية */ \
+    X(BG_COLOR) /* لون_خلفية */ \
+    X(ACTIVE_COLOR) /* لون_نشط */ \
+    X(BORDER_COLOR) /* حد_لون */ \
+    X(CORNER_RADIUS) /* زوايا */ \
+    X(RADIUS) /* نصف_قطر */ \
+    X(THICKNESS) /* سماكة */ \
+    X(OPACITY) /* شفافية */ \
+    X(SHADOW) /* ظل */ \
+    X(GRADIENT) /* تدرج */ \
+    X(GRADIENT_END) /* تدرج_نهاية */ \
+    X(ELEVATION) /* رفع */ \
+    X(ENABLED) /* مفعل */ \
+    X(TOTAL) /* المجموع */ \
+    X(CURRENT) /* الحالي */ \
+    X(OFFSET_X) /* إزاحة_س */ \
+    X(OFFSET_Y) /* إزاحة_ص */ \
+    X(ICON_ALT) /* ايقونة */ \
+    X(SYMBOL) /* رمز */ \
+    X(CHAR) /* حرف */ \
+    X(PATH) /* مسار */ \
+    X(GROUP) /* مجموعة */ \
+    X(MIN) /* أدنى */ \
+    X(MAX) /* أقصى */ \
+    X(TOTAL_SUM) /* إجمالي */ \
+    X(LINE_NUMBERS) /* أرقام_أسطر */ \
+    X(CELL_SIZE) /* حجم_خلية */ \
+    X(BOUNDS) /* حدود */ \
+    X(CIRCLE) /* دائرة */ \
+    X(DARK) /* داكن */ \
+    X(THICKNESS_ALT) /* سمك */ \
+    X(PAGE) /* صفحة */ \
+    X(CODE) /* كود */ \
+    X(LANGUAGE) /* لغة */ \
+    X(ICON_COLOR) /* لون_الايقونة */ \
+    X(HANDLE_COLOR) /* لون_المقبض */ \
+    X(SELECTED) /* محدد */ \
+    X(ALT_TEXT) /* نص_بديل */ \
+    X(TYPE) /* نوع */ \
+    X(DESCRIPTION) /* وصف */ \
+    X(CONTENT_LATIN) /* content */ \
+    X(TITLE_LATIN) /* title */ \
+    X(SOURCE_LATIN) /* source */ \
+    X(LANGUAGE_LATIN) /* language */ \
+    X(ALT_LATIN) /* alt */ \
+    X(MAX_LATIN) /* max */ \
+    X(MIN_LATIN) /* min */ \
+    X(LAT_LATIN) /* lat */ \
+    X(LNG_LATIN) /* lng */ \
+    X(SRC_LATIN) /* src */ \
+    X(VALUE_LATIN) /* value */ \
+    X(PLACEHOLDER_LATIN) /* placeholder */ \
+    X(SCROLL_X_LATIN) /* scroll_x */ \
+    X(SCROLL_Y_LATIN) /* scroll_y */ \
+    X(FLEX) /* مرونة */ \
+    X(RATIO) /* نسبة */ \
+    X(WIDTH_FACTOR) /* عامل_العرض */ \
+    X(HEIGHT_FACTOR) /* عامل_الارتفاع */ \
+    X(MIN_WIDTH) /* أدنى_عرض */ \
+    X(MAX_WIDTH) /* أقصى_عرض */ \
+    X(MIN_HEIGHT) /* أدنى_ارتفاع */ \
+    X(MAX_HEIGHT) /* أقصى_ارتفاع */ \
+    X(TEXT_LATIN) /* text */
+
+#define SAD_UI_PROP_KEY_COUNT 94
         } // namespace props
+
+        // ====================================================================
+        // (AR) **قِيَم** الخصائص القانونيّة (لا أسماؤها): «وسط»، «يمين»، «صحيح»…
+        //   كانت مكتوبةً حرفيًّا في كلّ مُرسِّمٍ ومولّدٍ على حِدة، فاختلفت القوائم
+        //   بينها صامتةً (مُرسِّمُ سطحِ المكتبِ كان يقارن بـ"يمين" الحرفيّةِ بينما
+        //   المشترَكُ يقارن بثابتٍ مسمًّى). رفعُها إلى مصدرِ الحقيقةِ يجعل
+        //   المقارنةَ واحدةً في كلِّ مسار.
+        // (EN) Canonical property *values* (not key names), generated from SoT so
+        //   every renderer and code generator compares against one list.
+        // ====================================================================
+        namespace propval
+        {
+            // (AR) محاذاةٌ إلى الوسط — «وسط».
+            inline constexpr const char *ALIGN_CENTER_AR = "\xd9\x88\xd8\xb3\xd8\xb7";
+            // (AR) محاذاةُ الوسطِ — بديلٌ لاتينيّ — «center».
+            inline constexpr const char *ALIGN_CENTER_EN = "center";
+            // (AR) محاذاةٌ إلى اليمين — «يمين».
+            inline constexpr const char *ALIGN_RIGHT_AR = "\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86";
+            // (AR) محاذاةُ اليمينِ — بديلٌ لاتينيّ — «right».
+            inline constexpr const char *ALIGN_RIGHT_EN = "right";
+            // (AR) محاذاةٌ إلى اليسار — «يسار».
+            inline constexpr const char *ALIGN_LEFT_AR = "\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1";
+            // (AR) محاذاةُ اليسارِ — بديلٌ لاتينيّ — «left».
+            inline constexpr const char *ALIGN_LEFT_EN = "left";
+            // (AR) قيمةٌ منطقيّةٌ صادقة — «صحيح».
+            inline constexpr const char *BOOL_TRUE_AR = "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad";
+            // (AR) صادقٌ — بديلٌ لاتينيّ — «true».
+            inline constexpr const char *BOOL_TRUE_EN = "true";
+            // (AR) صادقٌ مكتوبًا رقمًا — «1».
+            inline constexpr const char *BOOL_TRUE_ONE = "1";
+            // (AR) مُفعَّلٌ — مرادفُ الصادقِ في مفاتيحِ التفعيل — «مفعل».
+            inline constexpr const char *BOOL_ENABLED_AR = "\xd9\x85\xd9\x81\xd8\xb9\xd9\x84";
+        } // namespace propval
     } // namespace ui
 } // namespace sad

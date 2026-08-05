@@ -55,6 +55,7 @@ _DEFAULT_HEADER = (
     / "node_types_generated.h"
 )
 _DEFAULT_EVENTS = _REPO_ROOT / "language-truth" / "ui_events.yaml"
+_DEFAULT_PROPS = _REPO_ROOT / "language-truth" / "ui_props.yaml"
 _DEFAULT_PARSER_HEADER = (
     _REPO_ROOT / "shared" / "parser" / "include" / "generated"
     / "ui_parser_nodes_generated.h"
@@ -145,6 +146,21 @@ HEADER_TEMPLATE = """\
 
 #define SAD_UI_NODE_PRIMARY_PROP_COUNT {primary_count}
 
+// ────────────────────────────────────────────────────────────────────────────
+// (AR) X(Id, "اسمُ المصنع") — كلُّ مصانعِ العناصرِ في مصدرِ الحقيقةِ مع عقدتِها.
+//      يستهلكها المفسّرُ فيسجّلها **بحلقةٍ واحدة** بدلَ سطرَي تسجيلٍ لكلِّ عنصر:
+//      عنصرٌ جديدٌ في مصدرِ الحقيقةِ يصير قابلًا للاستدعاءِ من لغةِ ص دونَ لمسِ
+//      كودِ المفسّر. قبلَ ذلك كانت ٤٨ عقدةً تُصيَّر في خمسةِ مساراتٍ ولا يمكن
+//      إنشاؤها من اللغةِ أصلًا (كودُ تصييرٍ مدفوعُ الثمنِ وغيرُ قابلٍ للوصول).
+// (EN) X(Id, "factory name") — every widget factory with its node, so the
+//      interpreter registers them in ONE loop; a new SoT widget becomes callable
+//      from Sad without touching interpreter code.
+// ────────────────────────────────────────────────────────────────────────────
+#define SAD_UI_NODE_FACTORY_LIST(X) \\
+{node_factories}
+
+#define SAD_UI_NODE_FACTORY_COUNT {node_factory_count}
+
 """
 
 # (AR) رأسٌ ثانٍ **للمحلّل** لا للمكتبة: المحلّل في الطبقة الأساس (sad_shared) فلا
@@ -195,6 +211,28 @@ PARSER_TEMPLATE = """\
 //      دون أن يكتبَ اسمًا حرفيًّا يبيت عند إعادةِ التسمية.
 // (EN) Per-node name macros, so a single node can be referenced without a literal.
 {prim_defs}
+
+// ────────────────────────────────────────────────────────────────────────────
+// (AR) X("اسمُ المصنع", nodeTypeIndex) — جدولُ المصانعِ العامّ الذي يستهلكه
+//      **المصرِّف**: أيُّ مصنعِ عنصرٍ في مصدرِ الحقيقةِ ليس له أوپكودٌ مخصَّصٌ
+//      يُخفَّض إلى الأوپكودِ العامِّ BUILTIN_UI_WIDGET_BY_TYPE حاملًا هذا الرقم.
+//
+//      لماذا رقمٌ لا اسمُ تعدادٍ: المصرِّفُ في الطبقةِ الأساسِ ولا يجوز أن يضمَّ
+//      رأسَ مكتبةِ الرسومات؛ والرقمُ **هو** ترتيبُ العقدةِ في مصدرِ الحقيقة —
+//      وهو نفسُه ترتيبُ التعدادِ الذي يولَّد منه، فلا انحرافَ ممكن.
+//
+//      قبلَ هذا الجدولِ كان كلُّ عنصرٍ يتطلّب أوپكودًا خاصًّا في SIR وتخفيضًا في
+//      LLVM ودالّةَ ABI مستقلّة، فبقيت ٤٨ عقدةً تُرسَم ولا يُنشئها برنامجُ ص.
+// (EN) X("factory name", nodeTypeIndex) — generic factory table for the COMPILER.
+//      Any widget factory without a dedicated opcode lowers to the generic
+//      BUILTIN_UI_WIDGET_BY_TYPE carrying this index. An index (not an enum name)
+//      keeps the foundation layer free of any graphics-library header; the index
+//      IS the SoT order, which IS the generated enum order.
+// ────────────────────────────────────────────────────────────────────────────
+#define SAD_UI_WIDGET_FACTORY_LIST(X) \\
+{factories}
+
+#define SAD_UI_WIDGET_FACTORY_COUNT {factory_count}
 """
 
 
@@ -315,6 +353,55 @@ def emit_alts(nodes: list[dict[str, Any]], canon: dict[str, str]) -> tuple[str, 
     return "\n".join(lines).rstrip(" \\"), total
 
 
+def _prop_canonicals(path: Path) -> dict[str, str]:
+    """(AR) معرّفُ المفتاح ⇒ اسمُه العربيُّ القانونيّ (من ui_props.yaml).
+
+    (AR) المصرِّفُ في الطبقةِ الأساسِ فلا يضمّ prop_keys.h؛ يحتاج **السلسلةَ**
+         نفسَها. مصدرُها هنا واحدٌ فلا تُكتَب حرفيّةً في أيِّ موضع.
+    """
+    if not path.exists():
+        return {}
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return {k["id"]: str(k["canonical"]) for k in data.get("keys", [])}
+
+
+def emit_factories(nodes: list[dict[str, Any]],
+                   canon: dict[str, str],
+                   primary: dict[str, str] | None = None) -> tuple[str, int, str]:
+    """
+    @brief (AR) جدولا المصانع: «اسم ⇒ ترتيبُ العقدة» للمصرِّف، و«عقدة ⇒ اسم» للمكتبة.
+    @brief (EN) Two factory tables: «name ⇒ node index» (compiler) and
+                «node ⇒ name» (library/interpreter).
+
+    (AR) الترتيبُ هنا ترتيبُ العقدةِ في مصدرِ الحقيقةِ نفسِه — وهو ترتيبُ التعدادِ
+         المولَّد. لا يُكتَب رقمٌ يدويًّا في أيِّ موضع.
+    """
+    lines: list[str] = []
+    node_lines: list[str] = []
+    count = 0
+    for index, node in enumerate(nodes):
+        for cpp_id in node.get("builtins", []) or []:
+            name = canon.get(cpp_id)
+            if not name:
+                continue
+            # (AR) هروب \xHH كبقيّة القوائم — صفحةُ ترميز MSVC تكسر العربيّةَ الحرفيّة.
+            #      الحقلُ الثالث: **مفتاحُ الخاصّيّةِ الأولى** لهذا المصنعِ بعينِه
+            #      (لا لنوعِ العقدة: `زر`⇒«عنوان» و`زر_أيقونة`⇒«أيقونة» لعقدةٍ
+            #      واحدة). سلسلةٌ فارغةٌ = لا خاصّيّةَ أولى. بدونه كان المصرِّفُ
+            #      يُسقِط الوسيطَ الأوّلَ صامتًا بينما يكتبه المفسّر ⇒ تباعُدٌ.
+            prop_key = (primary or {}).get(cpp_id, "")
+            lines.append('    X("' + _hex(name) + '", ' + str(index) + ', "'
+                         + (_hex(prop_key) if prop_key else '') + '")'
+                         + ' /* ' + name + ' */ \\')
+            node_lines.append('    X(' + node["id"] + ', "' + _hex(name) + '")'
+                              + ' /* ' + name + ' */ \\')
+            count += 1
+    if lines:
+        lines[-1] = lines[-1].rstrip(" \\")
+        node_lines[-1] = node_lines[-1].rstrip(" \\")
+    return "\n".join(lines), count, "\n".join(node_lines)
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Generate node_types_generated.h from ui_nodes.yaml")
     p.add_argument("--yaml", type=Path, default=_DEFAULT_YAML)
@@ -384,10 +471,18 @@ def run(argv: list[str] | None = None) -> int:
         primary_map = (
             _widget_primary_props(args.widgets) if args.widgets.exists() else {}
         )
+        prop_canon = _prop_canonicals(_DEFAULT_PROPS)
+        primary_by_factory = {
+            cpp_id: prop_canon.get(pid, "")
+            for cpp_id, pid in primary_map.items()
+        }
+        factories, factory_count, node_factories = emit_factories(
+            nodes, canon, primary_by_factory)
         primary, primary_count = emit_primary_props(nodes, primary_map, canon)
         content = HEADER_TEMPLATE.format(
             types=emit_types(nodes), count=len(nodes), alts=alts,
             primary=primary, primary_count=primary_count,
+            node_factories=node_factories, node_factory_count=factory_count,
         )
         if args.only in ("both", "graphics"):
             write_if_changed(args.header, content, args.quiet)
@@ -404,13 +499,15 @@ def run(argv: list[str] | None = None) -> int:
                     conts=conts, cont_count=cont_count,
                     events=events, event_count=event_count,
                     prim_defs=emit_node_defines(nodes, "parser_primitive"),
+                    factories=factories, factory_count=factory_count,
                 ),
                 args.quiet,
             )
             if not args.quiet:
                 print(
                     f"[gen_ui_nodes] {prim_count} primitives ({cont_count} containers) + "
-                    f"{event_count} events -> {args.parser_header}"
+                    f"{event_count} events + {factory_count} factories "
+                    f"-> {args.parser_header}"
                 )
         return 0
     except Exception as exc:

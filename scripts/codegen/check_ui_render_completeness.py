@@ -162,9 +162,32 @@ def main(sot_path: Path = _SOT, header: Path = _NODE_HEADER, root: Path = ROOT) 
             )
             status = _FAIL
 
+    # ════════════════════════════════════════════════════════════════════════
+    # (AR) مُصيِّراتُ المنصّات: كلُّ مُصيِّرٍ مؤجَّلٍ يلزمه سببٌ مكتوبٌ وملفٌّ موجود،
+    #      وكلُّ مُصيِّرٍ مُفعَّلٍ يلزمه ملفٌّ موجودٌ فعلًا. بهذا لا يتحوّل التأجيلُ
+    #      إلى سطرٍ معلَّقٍ في CMake يبدو سهوًا، ولا يبقى ادّعاءُ تفعيلٍ بلا ملفّ.
+    # ════════════════════════════════════════════════════════════════════════
+    for renderer in sot.get("platform_renderers", []) or []:
+        rid = renderer.get("id", "?")
+        path = root / str(renderer.get("path", ""))
+        if not path.exists():
+            _fail(f"مُصيِّرُ «{rid}»: الملفُّ المُعلَنُ غيرُ موجود — {renderer.get('path')}")
+            status = _FAIL
+            continue
+        if not renderer.get("enabled", False) and not str(renderer.get("reason_ar", "")).strip():
+            _fail(
+                f"مُصيِّرُ «{rid}» مؤجَّلٌ بلا سببٍ مكتوب — "
+                "التأجيلُ قرارٌ يُعلَن، لا سطرٌ معلَّقٌ يبدو سهوًا"
+            )
+            status = _FAIL
+
     if status == _OK:
         total = len(enum_ids)
+        deferred = [r["id"] for r in (sot.get("platform_renderers") or [])
+                    if not r.get("enabled", False)]
         print(f"✅ اكتمالُ التصيير: {total} عقدةً × {len(target_ids)} أهداف")
+        if deferred:
+            print(f"   • مُصيِّراتٌ مؤجَّلةٌ بإعلانٍ ومُعلَّلة: {', '.join(deferred)}")
         for target in targets:
             tid = target["id"]
             print(

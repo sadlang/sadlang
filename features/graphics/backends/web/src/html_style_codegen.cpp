@@ -242,12 +242,12 @@ std::string HtmlCodegen::generateInlineStyle(const IRNode& node) const {
                 if (!hasStyle) { style << " style=\""; hasStyle = true; }
                 style << "transition: " << *v << "; ";
             }
-        } else if (prop.key == "\xd8\xa3\xd9\x82\xd8\xb5\xd9\x89_\xd8\xb9\xd8\xb1\xd8\xb6" || prop.key == "max-width") { // أقصى_عرض
+        } else if (prop.key == props::MAX_WIDTH || prop.key == "max-width") { // أقصى_عرض — من مصدر الحقيقة
             if (auto v = getNumericValue(prop)) {
                 if (!hasStyle) { style << " style=\""; hasStyle = true; }
                 style << "max-width: " << *v << "px; ";
             }
-        } else if (prop.key == "\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89_\xd8\xb9\xd8\xb1\xd8\xb6" || prop.key == "min-width") { // أدنى_عرض
+        } else if (prop.key == props::MIN_WIDTH || prop.key == "min-width") { // أدنى_عرض — من مصدر الحقيقة
             if (auto v = getNumericValue(prop)) {
                 if (!hasStyle) { style << " style=\""; hasStyle = true; }
                 style << "min-width: " << *v << "px; ";

@@ -231,6 +231,8 @@ namespace Sad
                 return cg_.emitUiSafeArea(inst);
             case SIROpcode::BUILTIN_UI_SURFACE:
                 return cg_.emitUiSurface(inst);
+            case SIROpcode::BUILTIN_UI_WIDGET_BY_TYPE:
+                return cg_.emitUiWidgetByType(inst);
             case SIROpcode::BUILTIN_UI_SPIN_BOX:
                 return cg_.emitUiSpinBox(inst);
             case SIROpcode::BUILTIN_UI_GROUP_BOX:

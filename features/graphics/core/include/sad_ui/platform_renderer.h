@@ -267,6 +267,71 @@ namespace sad
             /// رسم عقدة واحدة مع أبنائها (مشترك — يدعم التحريكات والشفافية)
             void renderNode(const IRNode &node, const LayoutResult &layout);
 
+            // ════════════════════════════════════════════════════════════════════════
+            // (AR) تحميلاتٌ تأخذ LayoutRect — راحةٌ نصّيّةٌ فوقَ الأوّليّاتِ نفسِها،
+            //      لا واجهةٌ جديدةٌ تُطبّقها المنصّات. وُجِدت نسخةٌ منها في مُرسِّم
+            //      سطحِ المكتبِ وحدَه فكانت شوكةُ الرسمِ تُكتَب هناك؛ رفعُها هنا
+            //      شرطُ توحيدِ المسار.
+            // ════════════════════════════════════════════════════════════════════════
+
+            void drawFilledRect(const LayoutRect &r, const Color &color)
+            {
+                drawFilledRect(r.x, r.y, r.width, r.height, color);
+            }
+
+            void drawRoundedRect(const LayoutRect &r, const Color &color, float radius)
+            {
+                drawRoundedRect(r.x, r.y, r.width, r.height, color, radius);
+            }
+
+            void drawRectOutline(const LayoutRect &r, const Color &color, float thickness = 1.0f)
+            {
+                drawRectOutline(r.x, r.y, r.width, r.height, color, thickness);
+            }
+
+            void drawLinearGradient(const LayoutRect &r, const Color &startColor,
+                                    const Color &endColor, bool vertical = true,
+                                    float radius = 0.0f)
+            {
+                drawLinearGradient(r.x, r.y, r.width, r.height, startColor, endColor,
+                                   vertical, radius);
+            }
+
+            void drawImage(const std::string &path, const LayoutRect &r)
+            {
+                drawImage(path, r.x, r.y, r.width, r.height);
+            }
+
+            void setClipRect(const LayoutRect *r)
+            {
+                if (r)
+                    setClipRect(r->x, r->y, r->width, r->height);
+                else
+                    clearClipRect();
+            }
+
+            /**
+             * @brief (AR) ظلٌّ ناعمٌ متعدّد الطبقات حولَ مستطيل
+             * @brief (EN) Multi-layer soft shadow around a rect
+             *
+             * مبنيٌّ على `drawRoundedRect` وحدَها ⇒ يعمل على كلِّ منصّةٍ بلا تخصيص.
+             */
+            void drawSoftShadow(const LayoutRect &rect, float radius, float blur,
+                                float offsetX, float offsetY, const Color &color);
+
+            /**
+             * @brief (AR) إزاحةُ تمريرٍ تملكها المنصّةُ للعقدة (عجلةُ الفأرة مثلًا)
+             * @brief (EN) Platform-owned scroll offset for a node (e.g. mouse wheel)
+             *
+             * الافتراضيُّ صفر: منصّةٌ بلا تمريرٍ تفاعليٍّ لا تحتاج تخصيصًا. القيمةُ
+             * موجبةٌ نزولًا كإزاحةِ رسمٍ تُضاف إلى مستطيلاتِ الأبناء.
+             */
+            virtual float platformScrollOffset(const IRNode &node) const
+            {
+                (void)node;
+                return 0.0f;
+            }
+
             /// تهيئة تحريكات عقدة فردية
             void initNodeAnimations(const IRNode &node, uint32_t startMs);
 
@@ -321,6 +386,12 @@ namespace sad
             /// أبعاد Viewport للقص (Culling) — 0 يعني بدون قص
             int viewportWidth_ = 0;
             int viewportHeight_ = 0;
+
+            /// (AR) إزاحةُ التمريرِ المتراكمةُ عبرَ الحاوياتِ المتداخلة — تُطبَّق على
+            ///      مستطيلِ العقدةِ في مطلعِ renderNode فتَسري على الأحفادِ أيضًا.
+            ///      (تعديلُ مستطيلِ الابنِ وحدَه كان يترك الأحفادَ بلا إزاحة.)
+            float scrollTranslateX_ = 0.0f;
+            float scrollTranslateY_ = 0.0f;
 
             /// محرك التحريكات (مشترك — تملكه النافذة، المُصيّر يشير إليه)
             AnimationEngine *animationEngine_ = nullptr;

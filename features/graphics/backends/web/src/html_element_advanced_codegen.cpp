@@ -15,10 +15,94 @@
 #include "sad_ui/prop_keys.h" // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
 #include "sad_ui/color_utils.h"
 #include <optional>
+#include <locale>  // (AR) std::locale::classic — لا تعتمد على تضمينٍ عبوريّ
 
 namespace sad {
 namespace ui {
 namespace web {
+
+namespace {
+
+// (AR) قيمةٌ عدديّةٌ من خاصّيّةٍ ببديلٍ عند غيابها، مضروبةً بمعامِلٍ اختياريّ
+//   (الكسرُ ⇒ نسبةٌ مئويّة)، بصيغةٍ لا تتأثّر بالمحلّيّةِ كي لا ينقلب الفاصلُ
+//   العشريُّ فاصلةً فيكسر قيمةَ CSS.
+std::string htmlNumber(const IRNode &node, const char *key, double fallback,
+                       double scale = 1.0) {
+    double value = fallback;
+    if (const auto *p = node.findProperty(key)) {
+        if (auto *d = std::get_if<double>(&p->value)) value = *d;
+        else if (auto *iv = std::get_if<int64_t>(&p->value)) value = static_cast<double>(*iv);
+    }
+    std::ostringstream ss;
+    ss.imbue(std::locale::classic());
+    ss << (value * scale);
+    return ss.str();
+}
+
+// (AR) نصُّ العنصرِ بالترتيبِ القانونيِّ («عنوان» أوّلًا) مع هروبِ محارفِ HTML.
+std::string htmlLabel(const IRNode &node) {
+    static const char *keys[] = {props::TITLE, props::TEXT_LATIN, props::TEXT, props::CONTENT};
+    std::string raw;
+    for (const char *k : keys) {
+        const auto *p = node.findProperty(k);
+        if (!p) continue;
+        if (auto *s = std::get_if<std::string>(&p->value)) { raw = *s; break; }
+        if (auto *iv = std::get_if<int64_t>(&p->value)) { raw = std::to_string(*iv); break; }
+        if (auto *dv = std::get_if<double>(&p->value)) { raw = std::to_string(*dv); break; }
+    }
+    std::string out;
+    for (char c : raw) {
+        if (c == '&') out += "&amp;";
+        else if (c == '"') out += "&quot;";
+        else if (c == '<') out += "&lt;";
+        else if (c == '>') out += "&gt;";
+        else out += c;
+    }
+    return out;
+}
+
+// (AR) يدمج تصريحاتِ CSS إضافيّةً في سمةِ النمطِ **نفسِها**.
+//   `generateInlineStyle` تُعيد سمةً كاملةً (` style="…"`)، فكتابةُ سمةٍ ثانيةٍ
+//   بجوارها يجعل المتصفّحَ يُبقي الأولى ويُسقِط الثانيةَ صامتًا — أي تضيع
+//   خصائصُ المستخدم (خلفيّة/حجم خطّ) أو تضيع أبعادُ العنصر، بحسب الترتيب.
+//   الدمجُ يمنع ذلك: تصريحٌ واحدٌ في سمةٍ واحدة.
+std::string mergeInlineStyle(const std::string &attribute, const std::string &declarations) {
+    if (declarations.empty()) return attribute;
+    if (attribute.empty()) return " style=\"" + declarations + "\"";
+    const auto lastQuote = attribute.find_last_of('"');
+    if (lastQuote == std::string::npos) return attribute;  // شكلٌ غيرُ متوقَّع — لا نُفسِده
+    return attribute.substr(0, lastQuote) + declarations + attribute.substr(lastQuote);
+}
+
+// (AR) بُعدٌ يُكتَب **فقط إن صُرِّح به**. تثبيتُ صفرٍ لبُعدٍ غائبٍ كان يُخفي
+//   العنصرَ كلَّه: `مقاس(عرض: 120)` بلا ارتفاعٍ يصير `height:0px`.
+std::string cssLength(const char *property, const IRNode &node, const char *key) {
+    if (!node.findProperty(key)) return "";
+    return std::string(property) + ":" + htmlNumber(node, key, 0.0) + "px;";
+}
+
+// (AR) حدٌّ **غائبٌ** = بلا حدّ. يُكتَب `none` للغائبِ وحدَه، أمّا الموجودُ
+//   فتكتبه بانيةُ النمطِ العامّةُ فلا يُكرَّر هنا. بدونه كان
+//   `صندوق_مقيد(أدنى_عرض: 100)` يرث `max-width:0px` فيختفي.
+std::string cssUnbounded(const char *property, const IRNode &node, const char *key) {
+    if (node.findProperty(key)) return "";
+    return std::string(property) + ":none;";
+}
+
+// (AR) قيمةُ justify-content المقابلةُ لـ«محاذاة». البدايةُ منطقيّةٌ (flex-start)
+//   فتنقلب مع dir="rtl" تلقائيًّا — لا تُثبَّت يمينًا صلبًا.
+std::string htmlAlignment(const IRNode &node) {
+    std::string value;
+    if (const auto *p = node.findProperty(props::ALIGN)) {
+        if (auto *s = std::get_if<std::string>(&p->value)) value = *s;
+    }
+    if (value == propval::ALIGN_CENTER_AR || value == propval::ALIGN_CENTER_EN) return "center";
+    if (value == propval::ALIGN_RIGHT_AR || value == propval::ALIGN_RIGHT_EN) return "flex-end";
+    if (value == propval::ALIGN_LEFT_AR || value == propval::ALIGN_LEFT_EN) return "flex-start";
+    return "flex-start";
+}
+
+} // namespace
 
 // ═══ عناصر البيانات والوسائط والحركة والتحكم المتقدم ═══
 
@@ -595,7 +679,240 @@ void HtmlCodegen::generateNavElement(
             break;
         }
 
+        // ══════════════════════════════════════════════════════════════════════
+        // (AR) عناصرُ التخطيطِ المحمولة (ث٨) — كانت تسقط إلى `sad-column` أدناه
+        //      فيُفقَد معناها كلُّه في HTML. لكلٍّ منها نمطُ CSS مقابل، والقيمُ
+        //      العدديّةُ تُكتَب في النمطِ السطريِّ لأنّها تختلف من عقدةٍ لأخرى
+        //      (لا يمكن أن يحملها صفٌّ ثابت).
+        // ══════════════════════════════════════════════════════════════════════
+
+        case UINodeType::Center: {
+            out << i << "<div class=\"sad-center\"" << style << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        case UINodeType::Padding: {
+            out << i << "<div class=\"sad-padding\""
+                << mergeInlineStyle(style, "padding:" + htmlNumber(node, props::PADDING, 8.0) + "px;")
+                << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        case UINodeType::SizedBox: {
+            out << i << "<div class=\"sad-sized-box\""
+                // (AR) العرضُ والارتفاعُ تكتبهما بانيةُ النمطِ العامّةُ من المفتاحَين
+                //   نفسِهما؛ صنفُ CSS يكفي هنا فلا تكرار.
+                << style
+                << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        case UINodeType::Expanded:
+        case UINodeType::Flexible: {
+            const bool fills = (node.getType() == UINodeType::Expanded);
+            out << i << "<div class=\"" << (fills ? "sad-expanded" : "sad-flexible") << "\""
+                << mergeInlineStyle(style, "flex:" + htmlNumber(node, props::FLEX, 1.0) +
+                                               (fills ? " 1 0;" : " 1 auto;"))
+                << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        case UINodeType::Align: {
+            out << i << "<div class=\"sad-align\""
+                << mergeInlineStyle(style, "justify-content:" + htmlAlignment(node) + ";")
+                << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        case UINodeType::SafeArea: {
+            out << i << "<div class=\"sad-safe-area\"" << style << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        case UINodeType::GestureDetector:
+        case UINodeType::InkWell: {
+            const bool withRipple = (node.getType() == UINodeType::InkWell);
+            out << i << "<div class=\"" << (withRipple ? "sad-ink-well" : "sad-gesture-detector")
+                << "\" role=\"button\" tabindex=\"0\"" << style << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        case UINodeType::ListView: {
+            out << i << "<ul class=\"sad-list-view\"" << style << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << i << "  <li class=\"sad-list-view-item\">\n";
+                out << generateNode(*child, indentLevel + 2);
+                out << i << "  </li>\n";
+            }
+            out << i << "</ul>\n";
+            break;
+        }
+
+        case UINodeType::FractionallySizedBox: {
+            out << i << "<div class=\"sad-fractional-box\""
+                << mergeInlineStyle(style,
+                       "width:" + htmlNumber(node, props::WIDTH_FACTOR, 1.0, 100.0) + "%;" +
+                       "height:" + htmlNumber(node, props::HEIGHT_FACTOR, 1.0, 100.0) + "%;")
+                << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        case UINodeType::ConstrainedBox: {
+            out << i << "<div class=\"sad-constrained-box\""
+                // (AR) البانيةُ (generateInlineStyle) تكتب الحدودَ الموجودةَ أصلًا؛
+                //   لا نكرّرها هنا. نضيف «بلا حدّ» للغائبِ فقط كي لا يرثَ العنصرُ
+                //   قيدًا لم يطلبه المستخدم.
+                << mergeInlineStyle(style,
+                       cssUnbounded("max-width", node, props::MAX_WIDTH) +
+                       cssUnbounded("max-height", node, props::MAX_HEIGHT))
+                << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        case UINodeType::AspectRatio: {
+            out << i << "<div class=\"sad-aspect-ratio\""
+                << mergeInlineStyle(style, "aspect-ratio:" + htmlNumber(node, props::RATIO, 1.0) + ";")
+                << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // (AR) قشرةُ سطحِ المكتب في الويب — لا نافذةَ نظامٍ في المتصفّح، فتُبنى
+        //      من عناصرَ دلاليّةٍ صحيحةٍ (header/nav/menu/output) بأصنافِ CSS
+        //      خاصّةٍ بها، لا `div` صمّاءَ تُفقِد المعنى وقارئَ الشاشةِ معًا.
+        // ══════════════════════════════════════════════════════════════════════
+
+        case UINodeType::Window: {
+            out << i << "<div class=\"sad-window\" role=\"dialog\"" << style << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</div>\n";
+            break;
+        }
+
+        case UINodeType::TitleBar: {
+            out << i << "<header class=\"sad-title-bar\"" << style << ">"
+                << htmlLabel(node);
+            for (const auto& child : node.getChildren()) {
+                out << "\n" << generateNode(*child, indentLevel + 1) << i;
+            }
+            out << "</header>\n";
+            break;
+        }
+
+        case UINodeType::ScrollBar: {
+            out << i << "<div class=\"sad-scroll-bar\" role=\"scrollbar\" aria-hidden=\"true\""
+                << style << "></div>\n";
+            break;
+        }
+
+        case UINodeType::Taskbar: {
+            out << i << "<nav class=\"sad-taskbar\"" << style << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</nav>\n";
+            break;
+        }
+
+        case UINodeType::StartMenu: {
+            out << i << "<menu class=\"sad-start-menu\"" << style << ">\n";
+            for (const auto& child : node.getChildren()) {
+                out << i << "  <li>\n";
+                out << generateNode(*child, indentLevel + 2);
+                out << i << "  </li>\n";
+            }
+            out << i << "</menu>\n";
+            break;
+        }
+
+        case UINodeType::SystemTray: {
+            out << i << "<div class=\"sad-system-tray\"" << style << ">"
+                << htmlLabel(node);
+            for (const auto& child : node.getChildren()) {
+                out << "\n" << generateNode(*child, indentLevel + 1) << i;
+            }
+            out << "</div>\n";
+            break;
+        }
+
+        case UINodeType::SpinBox: {
+            out << i << "<input type=\"number\" class=\"sad-spin-box\" value=\""
+                << htmlNumber(node, props::VALUE, 0.0) << "\"" << style << ">\n";
+            break;
+        }
+
+        case UINodeType::GroupBox: {
+            out << i << "<fieldset class=\"sad-group-box\"" << style << ">\n"
+                << i << "  <legend>" << htmlLabel(node) << "</legend>\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel + 1);
+            }
+            out << i << "</fieldset>\n";
+            break;
+        }
+
+        case UINodeType::Spinner: {
+            out << i << "<div class=\"sad-spinner\" role=\"progressbar\" aria-busy=\"true\""
+                << style << "></div>\n";
+            break;
+        }
+
+        case UINodeType::StatusBar: {
+            out << i << "<output class=\"sad-status-bar\"" << style << ">"
+                << htmlLabel(node);
+            for (const auto& child : node.getChildren()) {
+                out << "\n" << generateNode(*child, indentLevel + 1) << i;
+            }
+            out << "</output>\n";
+            break;
+        }
+
         // ═══ الحاويات الأساسية والافتراضي ═══
+        // (AR) «عمود» يسكن هنا مع أخواته — لا في رأسِ الملفّ: كان أعلى الكتلةِ
+        //   الجديدةِ فسقط فيها، فصار كلُّ عمودٍ في HTML صفًّا موسَّطًا. سلسلةُ
+        //   السقوطِ لا تُقطَع بتعليقٍ، فلا يُدرَج شيءٌ بينها وبين جسمها.
         case UINodeType::Column:
         case UINodeType::Row:
         case UINodeType::Stack:

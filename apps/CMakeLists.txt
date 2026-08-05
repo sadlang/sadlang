@@ -214,6 +214,27 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     # (EN) Ensure runtime header is generated before building sad-build
     add_dependencies(sad-build generate_runtime_header)
 
+    # ═══════════════════════════════════════════════════════════════════════════
+    # (AR) حقيقةُ SDL2 على POSIX ⇒ سائقُ الربط. المتغيّراتُ تُضبَط في
+    #      features/graphics/CMakeLists.txt عند العثورِ على SDL2 نظاميّة. برامجُ
+    #      الواجهةِ المُترجَمةُ تسحبُ رموزَ SDL_*/TTF_* عبورًا من sad_ui_runtime.cpp،
+    #      وويندوزُ وحدَه كان يربطُ SDL2 (المُورَّدة) — فبقيَ لينكس/ماك يفشلُ ربطًا.
+    #      نمرّرُ المسارَ نصًّا لأنّه لا يُعرَفُ إلّا وقتَ التهيئة.
+    # (EN) Hand the POSIX SDL2 fact to the link driver: compiled UI programs pull
+    #      SDL_*/TTF_* transitively, and only Windows ever linked SDL2, so Linux and
+    #      macOS failed to link. The path is configure-time knowledge, so pass it in.
+    # ═══════════════════════════════════════════════════════════════════════════
+    if(SAD_UI_HOST_SDL2)
+        target_compile_definitions(sad-build PRIVATE SAD_UI_HOST_SDL2)
+        if(SAD_UI_HOST_SDL2_LIB_DIR)
+            target_compile_definitions(sad-build PRIVATE
+                SAD_UI_HOST_SDL2_LIB_DIR="${SAD_UI_HOST_SDL2_LIB_DIR}")
+        endif()
+        if(SAD_UI_HOST_SDL2_TTF)
+            target_compile_definitions(sad-build PRIVATE SAD_UI_HOST_SDL2_TTF)
+        endif()
+    endif()
+
     target_link_libraries(sad-build PRIVATE
         sad_shared sad_compiler sad_mobile sad_null_safety sad_program_rules ${LLVM_LIBS}
     )

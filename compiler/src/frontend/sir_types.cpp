@@ -514,6 +514,8 @@ namespace Sad
                     return "ui.text_area";
                 case SIROpcode::BUILTIN_UI_DRAWER:
                     return "ui.drawer";
+                case SIROpcode::BUILTIN_UI_WIDGET_BY_TYPE:
+                    return "ui.widget_by_type";
                 case SIROpcode::BUILTIN_UI_SPIN_BOX:
                     return "ui.spin_box";
                 case SIROpcode::BUILTIN_UI_GROUP_BOX:

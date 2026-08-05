@@ -30,6 +30,23 @@ namespace sad
             namespace sir = ::Sad::Compiler::SIR;
             namespace types = ::Sad::Types;
 
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) هل الأوپكودُ من نظامِ الواجهة؟ يُقاس بحدَّي الكتلةِ المُعلَنَين في
+            //   التعدادِ نفسِه (_UiOpcodeFirst/_UiOpcodeLast) لا بقائمةٍ يدويّةٍ
+            //   تتعفّن: أوپكودٌ واجهيٌّ جديدٌ يدخل المدى تلقائيًّا.
+            //
+            //   لماذا يعنينا هنا: الخلفيّةُ السياديّةُ (بلا LLVM) لا تخفّض الواجهةَ
+            //   — قرارٌ معماريٌّ مُعلَنٌ لا نقصٌ عابر (ث١). ومعرفتُه تجعل الفشلَ
+            //   **مُشخَّصًا** بسببِه لا فشلًا عامًّا مبهمًا.
+            // ═══════════════════════════════════════════════════════════════
+            inline bool isUiOpcode(sir::SIROpcode op)
+            {
+                using OP = sir::SIROpcode;
+                const auto value = static_cast<int>(op);
+                return value >= static_cast<int>(OP::_UiOpcodeFirst) &&
+                       value <= static_cast<int>(OP::_UiOpcodeLast);
+            }
+
             // (AR) هل الأوپكود مقارنةٌ عدديّةٌ موقَّعة؟ (تُدمَج في BR_COND التالي عبر المعماريّات.)
             inline bool isComparison(sir::SIROpcode op)
             {

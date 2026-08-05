@@ -476,6 +476,12 @@ namespace sad
                 return diag::kOpcode + std::to_string(static_cast<int>(i.opcode));
             }
 
+            // (AR) تشخيصُ أوپكودِ واجهةٍ في المسار الأصليّ — مرآةُ x86-64.
+            static std::string detailUiOpcode(const sir::SIRInstruction &i)
+            {
+                return diag::kUiRequiresLlvm + std::to_string(static_cast<int>(i.opcode));
+            }
+
             const sir::SIRFunction *findEntry(const sir::SIRModule &m) const
             {
                 static const std::string kMain = "\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9"; // رئيسية
@@ -5127,6 +5133,9 @@ namespace sad
                     return ldrBase(dst, a64reg::kScratch0, (kAdtPayloadBase + fieldIdx * kSadDynBytes + kSadDynPayloadOff) / kArrSlotBytes);
                 }
                 default:
+                    // (AR) أوپكوداتُ الواجهةِ لها تشخيصٌ خاصٌّ — قرارٌ معماريٌّ مُعلَن (ث١).
+                    if (common::isUiOpcode(inst.opcode))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailUiOpcode(inst));
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
             }

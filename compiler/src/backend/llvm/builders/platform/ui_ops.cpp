@@ -1333,6 +1333,23 @@ llvm::Value* UICodeGen::emitUiListView(std::shared_ptr<SIRInstruction> inst) {
 llvm::Value* UICodeGen::emitUiDrawer(std::shared_ptr<SIRInstruction> inst) {
     return emitSimpleUiFactory(inst, "sad_drawer");
 }
+// (AR) المصنعُ العامّ: العاملُ الأوّلُ ثابتٌ صحيحٌ = ترتيبُ العقدةِ في مصدرِ
+//   الحقيقة، فيُمرَّر إلى sad_widget_create. أوپكودٌ واحدٌ يكفي فهرسَ العناصرِ كلَّه
+//   بدلَ دالّةِ ABI وأوپكودٍ لكلِّ عنصر.
+llvm::Value* UICodeGen::emitUiWidgetByType(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+    llvm::Value* nodeType = inst->operands.empty()
+        ? llvm::ConstantInt::get(i32Ty, 0)
+        : cg_.resolveOperand(inst->operands[0]);
+    if (nodeType->getType() != i32Ty) {
+        nodeType = cg_.builder_->CreateIntCast(nodeType, i32Ty, /*isSigned=*/true);
+    }
+    auto* result = emitUIRuntimeCall(cg_, "sad_widget_create", ptrTy, {i32Ty}, {nodeType});
+    if (inst->result) cg_.context_info_.namedValues[inst->result->name] = result;
+    return result;
+}
+
 llvm::Value* UICodeGen::emitUiSpinBox(std::shared_ptr<SIRInstruction> inst) {
     return emitSimpleUiFactory(inst, "sad_spin_box");
 }

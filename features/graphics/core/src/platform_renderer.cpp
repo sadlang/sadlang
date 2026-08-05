@@ -20,7 +20,10 @@
 #include "sad_ui/platform_renderer.h"
 #include "sad_ui/types.h"
 #include "sad_ui/node.h"
-#include "sad_ui/prop_keys.h" // مفاتيح الخصائص القانونيّة (SoT) — لا literals خام
+#include "sad_ui/prop_keys.h"          // مفاتيح الخصائص القانونيّة (SoT) — لا سلاسلَ حرفيّةً خامّة
+#include "sad_ui/syntax_highlighter.h" // تلوين «كتلة_كود» — منطقُ مكتبةٍ لا خلفيّة
+
+#include <vector>
 
 #include <cmath>
 #include <string>
@@ -50,21 +53,23 @@ namespace sad
     namespace ui
     {
 
-        // ═══════════════════════════════════════════════════════════════════════════════
-        // قيَم نصّيّة قانونيّة (لا literals خام — قاعدة المشروع): صواب منطقيّ ومحاذاة النصّ.
-        // (هروب hex كنمط المشروع، آمن ترميزًا عبر المصرّفات.)
-        // ═══════════════════════════════════════════════════════════════════════════════
-        namespace propval
+        // (AR) قِيَمُ الخصائصِ القانونيّةُ (namespace propval) تأتي **مولَّدةً** من
+        //      مصدرِ الحقيقةِ ضمنَ prop_keys.h. كانت تُكتَب هنا يدويًّا ونظيرتُها
+        //      تُكتَب حرفيّةً في مُرسِّمِ سطحِ المكتبِ والمولّدات، فتباعدت القوائمُ
+        //      صامتةً. لا تُعِد تعريفَها هنا — أضِفها إلى language-truth/ui_props.yaml.
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // نصوصٌ ورموزٌ معروضةٌ افتراضيّةٌ (لا سلاسلَ حرفيّةً خامّةً في مواضع الرسم)
+        // ═══════════════════════════════════════════════════════════════════════════
+        namespace uitext
         {
-            constexpr const char *BOOL_TRUE_AR = "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad";  // صحيح
-            constexpr const char *BOOL_TRUE_EN = "true";
-            constexpr const char *BOOL_TRUE_ONE = "1";
-            constexpr const char *BOOL_ENABLED_AR = "\xd9\x85\xd9\x81\xd8\xb9\xd9\x84"; // مفعل
-            constexpr const char *ALIGN_RIGHT_AR = "\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86";  // يمين
-            constexpr const char *ALIGN_RIGHT_EN = "right";
-            constexpr const char *ALIGN_CENTER_AR = "\xd9\x88\xd8\xb3\xd8\xb7";         // وسط
-            constexpr const char *ALIGN_CENTER_EN = "center";
-        } // namespace propval
+            constexpr const char *PLAY_GLYPH = "\xe2\x96\xb6";                              // ▶
+            constexpr const char *CALENDAR_GLYPH = "\xf0\x9f\x93\x85";                      // 📅
+            constexpr const char *GLOBE_GLYPH = "\xf0\x9f\x8c\x90";                         // 🌐
+            constexpr const char *ZERO_DURATION = "00:00";                                  // مؤقّت صفريّ
+            constexpr const char *TAB_LABEL_PREFIX_AR = "\xd9\x82\xd8\xb3\xd9\x85 ";          // «قسم »
+            constexpr const char *ITEM_AR = "\xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1";             // «عنصر»
+        } // namespace uitext
 
         // ═══════════════════════════════════════════════════════════════════════════════
         // دوال مساعدة مشتركة
@@ -129,6 +134,49 @@ namespace sad
             return defaultVal;
         }
 
+        // ═══════════════════════════════════════════════════════════════════════════
+        // (AR) بحثٌ موحَّدٌ عن نصّ العنصر عبر قائمةِ مفاتيحَ مرتَّبةٍ بالأولويّة.
+        //   يزيل تكرارَ سلسلةِ الاحتياطِ المبعثرةِ في فروعِ العناصر (كان تكرارُها
+        //   يُدخِل انحرافَ مفاتيحَ صامتًا: زرٌّ فارغٌ لعدمِ قراءةِ «عنوان»). يحوّل
+        //   القيمَ العدديّةَ نصًّا كي يَعرضَ زر(5) نصَّه. يعيد true عند أوّلِ مفتاحٍ
+        //   موجود (ولو كان نصُّه فارغًا).
+        // ═══════════════════════════════════════════════════════════════════════════
+        static bool findTextProp(const IRNode &node,
+                                 std::initializer_list<const char *> keys,
+                                 std::string &out)
+        {
+            for (const char *key : keys)
+            {
+                const IRProperty *prop = node.findProperty(key);
+                if (!prop)
+                    continue;
+                if (auto *s = std::get_if<std::string>(&prop->value))
+                {
+                    out = *s;
+                    return true;
+                }
+                if (auto *i = std::get_if<int64_t>(&prop->value))
+                {
+                    out = std::to_string(*i);
+                    return true;
+                }
+                if (auto *d = std::get_if<double>(&prop->value))
+                {
+                    std::string s = std::to_string(*d);
+                    // (AR) إزالة الأصفار الزائدة: «12.500000»⇒«12.5»، «12.000000»⇒«12».
+                    if (s.find('.') != std::string::npos)
+                    {
+                        s.erase(s.find_last_not_of('0') + 1);
+                        if (!s.empty() && s.back() == '.')
+                            s.pop_back();
+                    }
+                    out = s;
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // الحصول على الوقت الحالي بالمللي ثانية (بديل محمول لـ SDL_GetTicks)
         static uint32_t getCurrentTimeMs()
         {
@@ -191,6 +239,35 @@ namespace sad
         }
 
         // ═══════════════════════════════════════════════════════════════════════════════
+        // drawSoftShadow() — ظلٌّ ناعمٌ متعدّد الطبقات (مشترك: أوّليّاتٌ فقط)
+        // ═══════════════════════════════════════════════════════════════════════════════
+
+        void PlatformRenderer::drawSoftShadow(const LayoutRect &rect, float radius, float blur,
+                                              float offsetX, float offsetY, const Color &color)
+        {
+            if (blur <= 0)
+                return;
+
+            int layers = static_cast<int>(blur / 2.0f);
+            if (layers < 3)
+                layers = 3;
+            if (layers > 12)
+                layers = 12;
+
+            for (int i = layers; i >= 1; --i)
+            {
+                float spread = blur * static_cast<float>(i) / static_cast<float>(layers);
+                float alpha = color.a * (1.0f - static_cast<float>(i) / static_cast<float>(layers + 1));
+                alpha *= 0.5f;
+
+                Color layerColor = {color.r, color.g, color.b, alpha};
+                drawRoundedRect(rect.x + offsetX - spread, rect.y + offsetY - spread,
+                                rect.width + spread * 2, rect.height + spread * 2,
+                                layerColor, radius + spread * 0.5f);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════════
         // render() — نقطة الدخول: رسم شجرة كاملة
         // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -199,6 +276,13 @@ namespace sad
         {
             if (!root || !layout)
                 return;
+
+            // (AR) صفِّر إزاحةَ التمريرِ المتراكمةَ في مطلعِ كلِّ إطار: هي حالةٌ
+            //      تُستعاد بعدَ كلِّ حاويةٍ في المسارِ الطبيعيّ، لكنّ تصفيرَها هنا
+            //      يمنع تسرُّبَ قيمةٍ بائتةٍ إلى إطارٍ تالٍ مهما انتهى السابق.
+            scrollTranslateX_ = 0.0f;
+            scrollTranslateY_ = 0.0f;
+
             renderNode(*root, *layout);
         }
 
@@ -234,7 +318,11 @@ namespace sad
             }
 
             // حساب المستطيل النهائي بعد تطبيق التحويلات
+            // (AR) إزاحةُ التمريرِ المتراكمةُ تُطبَّق هنا لا على مستطيلِ الابنِ وحدَه،
+            //      كي تَسريَ على الأحفادِ أيضًا وعلى القصِّ خارجَ منفذِ العرض.
             LayoutRect rect = origRect;
+            rect.x += scrollTranslateX_;
+            rect.y += scrollTranslateY_;
             rect.x += animTranslateX;
             rect.y += animTranslateY;
 
@@ -443,9 +531,8 @@ namespace sad
                     elevation = std::max(0.5f, elevation - 1.0f);
                 if (elevation > 0)
                 {
-                    Color shadowC = {0, 0, 0, 0.2f};
-                    drawFilledRect(rect.x + 1, rect.y + elevation * 0.6f,
-                                   rect.width, rect.height, shadowC);
+                    drawSoftShadow(rect, radius, elevation * 2.0f,
+                                   0.0f, elevation * 0.6f, {0, 0, 0, 0.2f});
                 }
 
                 // خلفية الزر
@@ -481,30 +568,39 @@ namespace sad
                     drawRoundedRect(rect.x, rect.y, rect.width, rect.height, btnColor, radius);
                 }
 
-                // نص الزر: احتياطيّ text ← نص ← عنوان (مصنع الزرّ يخزّن «عنوان»
-                // في كلا المحرّكين ⇒ لا بدّ من قراءته هنا كي يُرسَم النصّ).
-                const auto *textProp = node.findProperty(props::TEXT_LATIN);
-                if (!textProp)
-                    textProp = node.findProperty(props::TEXT); // نص
-                if (!textProp)
-                    textProp = node.findProperty(props::TITLE); // عنوان
-                if (textProp)
+                // تأثيرُ التموّج (ripple) عند الضغط
+                if (isPressed)
                 {
-                    if (auto *text = std::get_if<std::string>(&textProp->value))
-                    {
-                        const auto *textColorProp = node.findProperty(props::TEXT_COLOR_ALT); // لون_نص
-                        if (!textColorProp)
-                            textColorProp = node.findProperty(props::TEXT_COLOR); // لون_النص
-                        Color textColor = parseColorProp(textColorProp, Color::fromNamed(NamedColor::White));
-                        float btnFontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 16.0f); // حجم_الخط
-                        if (btnFontSize <= 1.0f)
-                            btnFontSize = getNumericProp(node.findProperty(props::FONT_SIZE), 16.0f); // حجم_خط
+                    drawRoundedRect(rect.x, rect.y, rect.width, rect.height,
+                                    {1.0f, 1.0f, 1.0f, 0.15f}, radius);
+                }
 
-                        auto sz = measureText(*text, btnFontSize);
-                        float textX = rect.x + (rect.width - sz.first) / 2.0f;
-                        float textY = rect.y + (rect.height - sz.second) / 2.0f;
-                        drawText(*text, textX, textY, textColor, btnFontSize);
-                    }
+                // نصُّ الزرّ — «عنوان» أوّلًا فهو ما يكتبه مصنعُ زر() (SoT)، ثمّ
+                // «أيقونة» (زرّ الأيقونة)، ثمّ البدائل. findTextProp يوحّد الترتيب
+                // ويحوّل العددَ نصًّا (زر(5)) ويمنع انحرافَ المفاتيح.
+                std::string btnText;
+                if (findTextProp(node,
+                                 {props::TITLE, props::ICON, props::TEXT_LATIN,
+                                  props::TEXT, props::CONTENT},
+                                 btnText) &&
+                    !btnText.empty())
+                {
+                    // لونُ نصِّ الزرّ — لون_نص/لون_النص ثمّ «لون» الصريح، وإلّا
+                    // OnPrimary من الثيم (لا أبيضَ ثابتًا غيرَ مقروءٍ على الفاتح).
+                    const auto *textColorProp = node.findProperty(props::TEXT_COLOR_ALT); // لون_نص
+                    if (!textColorProp)
+                        textColorProp = node.findProperty(props::TEXT_COLOR); // لون_النص
+                    if (!textColorProp)
+                        textColorProp = node.findProperty(props::COLOR); // لون
+                    Color textColor = parseColorProp(textColorProp, Color::fromNamed(NamedColor::OnPrimary));
+                    float btnFontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 16.0f); // حجم_الخط
+                    if (btnFontSize <= 1.0f)
+                        btnFontSize = getNumericProp(node.findProperty(props::FONT_SIZE), 16.0f); // حجم_خط
+
+                    auto sz = measureText(btnText, btnFontSize);
+                    float textX = rect.x + (rect.width - sz.first) / 2.0f;
+                    float textY = rect.y + (rect.height - sz.second) / 2.0f;
+                    drawText(btnText, textX, textY, textColor, btnFontSize);
                 }
                 break;
             }
@@ -538,8 +634,13 @@ namespace sad
                 }
                 if (!loaded)
                 {
-                    drawFilledRect(rect.x, rect.y, rect.width, rect.height,
-                                   Color::fromNamed(NamedColor::LightGray));
+                    float imgRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 0.0f); // زوايا
+                    if (imgRadius > 0)
+                        drawRoundedRect(rect.x, rect.y, rect.width, rect.height,
+                                        Color::fromNamed(NamedColor::LightGray), imgRadius);
+                    else
+                        drawFilledRect(rect.x, rect.y, rect.width, rect.height,
+                                       Color::fromNamed(NamedColor::LightGray));
                     drawText("\xf0\x9f\x96\xbc", rect.x + rect.width / 2 - 8,
                              rect.y + rect.height / 2 - 8,
                              Color::fromNamed(NamedColor::Gray), 16.0f);
@@ -559,11 +660,25 @@ namespace sad
                 float fontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 14.0f); // حجم_الخط
 
                 if (isFocused)
+                {
                     borderColor = Color::fromNamed(NamedColor::Primary);
+                    // هالةٌ خفيفةٌ حولَ الحقلِ المُركَّزِ عليه
+                    drawSoftShadow(rect, radius, 4.0f, 0.0f, 0.0f,
+                                   {borderColor.r, borderColor.g, borderColor.b, 0.2f});
+                }
+                else if (isHovered)
+                {
+                    borderColor.r = std::max(0.0f, borderColor.r - 0.15f);
+                    borderColor.g = std::max(0.0f, borderColor.g - 0.15f);
+                    borderColor.b = std::max(0.0f, borderColor.b - 0.15f);
+                }
 
-                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, bgColor, radius);
+                // حدٌّ مستديرُ الزوايا (لا drawRectOutline المربَّع) — إطارٌ ثمّ ملء
                 float borderW = isFocused ? 2.0f : 1.0f;
-                drawRectOutline(rect.x, rect.y, rect.width, rect.height, borderColor, borderW);
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, borderColor, radius);
+                drawRoundedRect(rect.x + borderW, rect.y + borderW,
+                                rect.width - borderW * 2, rect.height - borderW * 2,
+                                bgColor, std::max(0.0f, radius - borderW));
 
                 const auto *valueProp = node.findProperty(props::VALUE); // قيمة
                 if (!valueProp)
@@ -589,6 +704,34 @@ namespace sad
                         auto sz = measureText(inputText, fontSize);
                         textX = rect.x + rect.width - sz.first - textPad;
                     }
+
+                    // إبرازُ التحديد (قبلَ النصِّ كي لا يحجبه)
+                    if (isFocused &&
+                        textEditInteraction_.selectionStart != textEditInteraction_.selectionEnd)
+                    {
+                        size_t selStart = std::min(textEditInteraction_.selectionStart,
+                                                   textEditInteraction_.selectionEnd);
+                        size_t selEnd = std::max(textEditInteraction_.selectionStart,
+                                                 textEditInteraction_.selectionEnd);
+                        if (selStart < inputText.size() && selEnd <= inputText.size())
+                        {
+                            auto beforeSize = measureText(inputText.substr(0, selStart), fontSize);
+                            auto selSize = measureText(inputText.substr(selStart, selEnd - selStart),
+                                                       fontSize);
+                            // (AR) نظيرُ المؤشّر: في النصِّ العربيِّ يُقاس المُحدَّدُ
+                            //   من **يمينِ** النصِّ لا من يسارِه، وإلّا وقع الإبرازُ
+                            //   على مقطعٍ آخر تمامًا.
+                            const float selectionX =
+                                isArabicText(inputText)
+                                    ? textX + measureText(inputText, fontSize).first -
+                                          beforeSize.first - selSize.first
+                                    : textX + beforeSize.first;
+                            drawFilledRect(selectionX, rect.y + 3,
+                                           selSize.first, rect.height - 6,
+                                           {0.26f, 0.52f, 0.96f, 0.35f}); // أزرق شفّاف
+                        }
+                    }
+
                     drawText(inputText, textX, textY, textColor, fontSize);
                 }
                 else
@@ -612,20 +755,36 @@ namespace sad
                     }
                 }
 
-                // المؤشر الوامض
+                // المؤشرُ الوامضُ عندَ موضعِ cursorPos لا في آخرِ النصِّ دائمًا
                 if (isFocused)
                 {
                     uint32_t ticks = getCurrentTimeMs();
                     if ((ticks / 500) % 2 == 0)
                     {
-                        float cursorX = rect.x + textPad;
-                        if (!inputText.empty())
+                        // (AR) موضعُ المؤشّرِ يتبع اتّجاهَ النصّ. في العربيّةِ يبدأ
+                        //   النصُّ من **يمينِ** الشريطِ فيسير المؤشّرُ يسارًا كلّما
+                        //   طال ما قبلَه؛ وفي اللاتينيّةِ العكس. جمعُ الطولِ إلى
+                        //   الحافّةِ اليسرى في الحالتَين كان يثبّت المؤشّرَ عند
+                        //   الطرفِ المقابلِ لموضعِ الكتابةِ في النصِّ العربيّ.
+                        const bool rtlText = !inputText.empty() && isArabicText(inputText);
+                        const float prefixWidth =
+                            inputText.empty()
+                                ? 0.0f
+                                : measureText(inputText.substr(0, std::min(textEditInteraction_.cursorPos,
+                                                                           inputText.size())),
+                                              fontSize)
+                                      .first;
+
+                        float cursorX;
+                        if (rtlText)
                         {
-                            auto sz = measureText(inputText, fontSize);
-                            if (isArabicText(inputText))
-                                cursorX = rect.x + rect.width - sz.first - textPad - 2;
-                            else
-                                cursorX = rect.x + textPad + sz.first + 1;
+                            cursorX = rect.x + rect.width - textPad - prefixWidth;
+                            if (cursorX < rect.x + textPad)
+                                cursorX = rect.x + textPad;
+                        }
+                        else
+                        {
+                            cursorX = rect.x + textPad + prefixWidth;
                         }
                         drawFilledRect(cursorX, rect.y + 4, 2, rect.height - 8, borderColor);
                     }
@@ -642,6 +801,12 @@ namespace sad
                 Color inactiveColor = parseColorProp(node.findProperty(props::COLOR), // لون
                                                      Color::fromNamed(NamedColor::LightGray));
                 Color trackColor = isOn ? activeColor : inactiveColor;
+                if (isHovered && !isPressed)
+                {
+                    trackColor.r = std::min(1.0f, trackColor.r + 0.06f);
+                    trackColor.g = std::min(1.0f, trackColor.g + 0.06f);
+                    trackColor.b = std::min(1.0f, trackColor.b + 0.06f);
+                }
 
                 drawRoundedRect(rect.x, rect.y + rect.height / 4, rect.width, rect.height / 2,
                                 trackColor, rect.height / 4);
@@ -654,6 +819,16 @@ namespace sad
                                 {0, 0, 0, 0.15f}, (knobSize + 2) / 2);
                 drawRoundedRect(knobX, rect.y + 2, knobSize, knobSize,
                                 knobColor, knobSize / 2);
+
+                // نصُّ التسمية — «عنوان» أوّلًا اتّساقًا مع بقيّة العناصر
+                std::string toggleLabel;
+                if (findTextProp(node, {props::TITLE, props::TEXT, props::CONTENT}, toggleLabel) &&
+                    !toggleLabel.empty())
+                {
+                    float labelSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 14.0f); // حجم_الخط
+                    drawText(toggleLabel, rect.x + rect.width + 8,
+                             rect.y + rect.height / 2 - labelSize / 2, {0, 0, 0, 1}, labelSize);
+                }
                 break;
             }
 
@@ -672,11 +847,12 @@ namespace sad
                 if (filledW > 0)
                     drawRoundedRect(rect.x, trackY, filledW, 4, trackFill, 2.0f);
                 // مقبض
+                Color thumbColor = parseColorProp(node.findProperty(props::HANDLE_COLOR), trackFill); // لون_المقبض
                 float thumbX = rect.x + filledW;
                 drawRoundedRect(thumbX - 9, rect.y + rect.height / 2 - 7, 18, 18,
                                 {0, 0, 0, 0.15f}, 9.0f);
                 drawRoundedRect(thumbX - 8, rect.y + rect.height / 2 - 8, 16, 16,
-                                trackFill, 8.0f);
+                                thumbColor, 8.0f);
                 break;
             }
 
@@ -687,6 +863,12 @@ namespace sad
                 Color activeColor = parseColorProp(node.findProperty(props::COLOR),         // لون
                                                    Color::fromNamed(NamedColor::Primary));
                 Color borderColor = checked ? activeColor : Color::fromNamed(NamedColor::Gray);
+                if (isHovered && !checked)
+                {
+                    borderColor.r = std::max(0.0f, borderColor.r - 0.15f);
+                    borderColor.g = std::max(0.0f, borderColor.g - 0.15f);
+                    borderColor.b = std::max(0.0f, borderColor.b - 0.15f);
+                }
                 drawRoundedRect(rect.x, rect.y, 20, 20, borderColor, 3.0f);
                 if (checked)
                 {
@@ -703,6 +885,8 @@ namespace sad
                 const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
                     textProp = node.findProperty(props::TEXT); // نص
+                if (!textProp)
+                    textProp = node.findProperty(props::CONTENT); // محتوى
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
@@ -728,6 +912,12 @@ namespace sad
                 Color activeColor = parseColorProp(node.findProperty(props::COLOR),   // لون
                                                    Color::fromNamed(NamedColor::Primary));
                 Color borderColor = selected ? activeColor : Color::fromNamed(NamedColor::Gray);
+                if (isHovered && !selected)
+                {
+                    borderColor.r *= 0.7f;
+                    borderColor.g *= 0.7f;
+                    borderColor.b *= 0.7f;
+                }
                 drawRoundedRect(rect.x, rect.y, 20, 20, borderColor, 10.0f);
                 drawRoundedRect(rect.x + 1, rect.y + 1, 18, 18,
                                 Color::fromNamed(NamedColor::White), 9.0f);
@@ -742,7 +932,9 @@ namespace sad
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
-                        drawText(*text, rect.x + 28, rect.y + 2, {0, 0, 0, 1}, 14.0f);
+                        Color radioTextColor = parseColorProp(node.findProperty(props::TEXT_COLOR), // لون_النص
+                                                              {0, 0, 0, 1});
+                        drawText(*text, rect.x + 28, rect.y + 2, radioTextColor, 14.0f);
                     }
                 }
                 break;
@@ -752,17 +944,73 @@ namespace sad
             case UINodeType::Card:
             {
                 float cardRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 12.0f); // زوايا
-                float cardElevation = getNumericProp(node.findProperty(props::ELEVATION), 4.0f);               // رفع
+                float cardElevation = getNumericProp(node.findProperty(props::ELEVATION), 4.0f);   // رفع
+
+                // تأثيرات التفاعل على الارتفاع
+                if (isPressed)
+                    cardElevation = std::max(1.0f, cardElevation - 2.0f);
+                else if (isHovered)
+                    cardElevation += 4.0f;
+
+                // ظلٌّ ثلاثيُّ الطبقات (محاكاة ارتفاع Material)
                 if (cardElevation > 0)
                 {
-                    drawFilledRect(rect.x + 2, rect.y + cardElevation,
-                                   rect.width, rect.height, {0, 0, 0, 0.15f});
+                    drawSoftShadow(rect, cardRadius, cardElevation * 3.5f,
+                                   0.0f, cardElevation * 0.5f, {0, 0, 0, 0.10f}); // محيطيّ
+                    drawSoftShadow(rect, cardRadius, cardElevation * 2.0f,
+                                   0.0f, cardElevation * 1.0f, {0, 0, 0, 0.18f}); // متوسّط
+                    drawSoftShadow(rect, cardRadius, cardElevation * 1.0f,
+                                   0.0f, cardElevation * 0.4f, {0, 0, 0, 0.12f}); // حادّ
                 }
+
                 const auto *cardColorProp = node.findProperty(props::COLOR); // لون
                 if (!cardColorProp)
                     cardColorProp = node.findProperty(props::BG); // خلفية
                 Color cardBg = parseColorProp(cardColorProp, Color::fromNamed(NamedColor::White));
-                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, cardBg, cardRadius);
+
+                if (isHovered && !isPressed)
+                {
+                    cardBg.r = std::min(1.0f, cardBg.r + 0.03f);
+                    cardBg.g = std::min(1.0f, cardBg.g + 0.03f);
+                    cardBg.b = std::min(1.0f, cardBg.b + 0.03f);
+                }
+                if (isPressed)
+                {
+                    cardBg.r *= 0.95f;
+                    cardBg.g *= 0.95f;
+                    cardBg.b *= 0.95f;
+                }
+                // (AR) لا تُضرَب الشفافيّةُ هنا: الخطوةُ العامّةُ قبلَ الـswitch
+                //      ضبطت currentNodeOpacity_ فتُطبّقها أوّليّاتُ كلِّ منصّة.
+
+                // (AR) الحدُّ **قبلَ** الملء: كان يُرسَم بعدَه فيُعيد ملءَ الداخلِ
+                //   بلونٍ مسطَّحٍ ⇒ بطاقةٌ لها تدرّجٌ وحدٌّ معًا تفقد تدرّجَها كلَّه.
+                //   الترتيبُ الآن: إطارٌ خارجيٌّ ثمّ الملءُ (تدرّجًا أو لونًا) داخلَه.
+                const auto *cardBorderProp = node.findProperty(props::BORDER_COLOR); // لون_الحد
+                LayoutRect cardFill = rect;
+                float cardFillRadius = cardRadius;
+                if (cardBorderProp)
+                {
+                    Color borderColor = parseColorProp(cardBorderProp, Color::fromNamed(NamedColor::Gray));
+                    drawRoundedRect(rect.x, rect.y, rect.width, rect.height, borderColor, cardRadius);
+                    cardFill = {rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2};
+                    cardFillRadius = std::max(0.0f, cardRadius - 1);
+                }
+
+                const auto *cardGradProp = node.findProperty(props::GRADIENT);        // تدرج
+                const auto *cardGradEndProp = node.findProperty(props::GRADIENT_END); // تدرج_نهاية
+                if (cardGradProp && cardGradEndProp)
+                {
+                    Color gradStart = parseColorProp(cardGradProp, cardBg);
+                    Color gradEnd = parseColorProp(cardGradEndProp, cardBg);
+                    drawLinearGradient(cardFill.x, cardFill.y, cardFill.width, cardFill.height,
+                                       gradStart, gradEnd, true, cardFillRadius);
+                }
+                else
+                {
+                    drawRoundedRect(cardFill.x, cardFill.y, cardFill.width, cardFill.height,
+                                    cardBg, cardFillRadius);
+                }
                 break;
             }
 
@@ -772,7 +1020,9 @@ namespace sad
                 float barRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), rect.height / 2.0f);     // زوايا
                 Color trackColor = parseColorProp(node.findProperty(props::BG), {0.9f, 0.9f, 0.9f, 1}); // خلفية
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, trackColor, barRadius);
-                float progressValue = getNumericProp(node.findProperty(props::VALUE), 50.0f) / 100.0f; // قيمة
+                float progressValue = getNumericProp(node.findProperty(props::VALUE), // قيمة
+                                                     getNumericProp(node.findProperty(props::VALUE_LATIN), 50.0f));
+                progressValue /= 100.0f;
                 progressValue = std::max(0.0f, std::min(1.0f, progressValue));
                 Color fillColor = parseColorProp(node.findProperty(props::COLOR), // لون
                                                  Color::fromNamed(NamedColor::Primary));
@@ -795,8 +1045,10 @@ namespace sad
                                                Color::fromNamed(NamedColor::LightGray));
                 float radius = getNumericProp(node.findProperty(props::CORNER_RADIUS), rect.height / 2); // زوايا
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, bgColor, radius);
+                Color searchIconColor = parseColorProp(node.findProperty(props::ICON_COLOR), // لون_الأيقونة
+                                                       Color::fromNamed(NamedColor::Gray));
                 drawText("\xf0\x9f\x94\x8d", rect.x + 8, rect.y + rect.height / 2 - 8,
-                         Color::fromNamed(NamedColor::Gray), 14.0f);                                  // 🔍
+                         searchIconColor, 14.0f); // 🔍
                 const auto *hintProp = node.findProperty(props::HINT); // تلميح
                 if (!hintProp)
                     hintProp = node.findProperty(props::PLACEHOLDER_LATIN);
@@ -817,23 +1069,33 @@ namespace sad
                 if (!node.findProperty(props::BG_COLOR))
                     fabColor = parseColorProp(node.findProperty(props::COLOR), fabColor); // لون
                 float radius = std::min(rect.width, rect.height) / 2;
-                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, fabColor, radius);
-                const auto *textProp = node.findProperty(props::TEXT_LATIN);
-                if (!textProp)
-                    textProp = node.findProperty(props::TEXT); // نص
-                if (!textProp)
-                    textProp = node.findProperty(props::ICON_ALT); // ايقونة
-                if (textProp)
+
+                // ظلٌّ ناعمٌ تحتَ الزرِّ العائم
+                float fabElevation = getNumericProp(node.findProperty(props::SHADOW), 6.0f); // ظل
+                if (fabElevation > 0)
                 {
-                    if (auto *text = std::get_if<std::string>(&textProp->value))
-                    {
-                        Color textColor = parseColorProp(node.findProperty(props::TEXT_COLOR), // لون_النص
-                                                         Color::fromNamed(NamedColor::White));
-                        float fontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 20.0f); // حجم_الخط
-                        auto sz = measureText(*text, fontSize);
-                        drawText(*text, rect.x + (rect.width - sz.first) / 2,
-                                 rect.y + (rect.height - sz.second) / 2, textColor, fontSize);
-                    }
+                    drawSoftShadow(rect, radius, fabElevation * 2.0f,
+                                   0.0f, fabElevation * 0.7f, {0, 0, 0, 0.3f});
+                }
+
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, fabColor, radius);
+
+                // نصُّ الزرِّ العائم: «أيقونة» أوّلًا (ما يكتبه مصنعُ زر_عائم،
+                // بهمزةٍ على الألف) ثمّ البدائل. كان المفتاحُ يُقرأ بألفٍ مجرَّدةٍ
+                // فلا تُرسَم الأيقونةُ أبدًا — findTextProp يوحّده ويصحّحه.
+                std::string fabText;
+                if (findTextProp(node,
+                                 {props::ICON, props::TEXT_LATIN, props::TEXT,
+                                  props::ICON_ALT, props::CONTENT},
+                                 fabText) &&
+                    !fabText.empty())
+                {
+                    Color textColor = parseColorProp(node.findProperty(props::TEXT_COLOR), // لون_النص
+                                                     Color::fromNamed(NamedColor::OnPrimary));
+                    float fontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 20.0f); // حجم_الخط
+                    auto sz = measureText(fabText, fontSize);
+                    drawText(fabText, rect.x + (rect.width - sz.first) / 2,
+                             rect.y + (rect.height - sz.second) / 2, textColor, fontSize);
                 }
                 break;
             }
@@ -845,14 +1107,23 @@ namespace sad
                                                 Color::fromNamed(NamedColor::Primary));
                 if (!node.findProperty(props::BG_COLOR))
                     barColor = parseColorProp(node.findProperty(props::COLOR), barColor); // لون
+                // ظلٌّ ناعمٌ أسفلَ الشريط
+                float appBarElevation = getNumericProp(node.findProperty(props::SHADOW), 3.0f); // ظل
+                if (appBarElevation > 0)
+                {
+                    drawSoftShadow(rect, 0.0f, appBarElevation * 2.0f,
+                                   0.0f, appBarElevation, {0, 0, 0, 0.15f});
+                }
+
                 Color barLighter = {std::min(1.0f, barColor.r * 1.15f),
                                     std::min(1.0f, barColor.g * 1.15f),
                                     std::min(1.0f, barColor.b * 1.15f), barColor.a};
                 drawLinearGradient(rect.x, rect.y, rect.width, rect.height,
                                    barLighter, barColor, true);
-                const auto *textProp = node.findProperty(props::TEXT_LATIN);
+                // «عنوان» أوّلًا — الترتيبُ القانونيُّ الموحَّد عبرَ العناصر
+                const auto *textProp = node.findProperty(props::TITLE); // عنوان
                 if (!textProp)
-                    textProp = node.findProperty(props::TITLE); // عنوان
+                    textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
                     textProp = node.findProperty(props::TEXT); // نص
                 if (textProp)
@@ -889,6 +1160,8 @@ namespace sad
                 const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
                     textProp = node.findProperty(props::TEXT); // نص
+                if (!textProp)
+                    textProp = node.findProperty(props::CONTENT); // محتوى
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
@@ -961,17 +1234,30 @@ namespace sad
             case UINodeType::SnackBar:
             {
                 Color snackBg = parseColorProp(node.findProperty(props::BG), {0.2f, 0.2f, 0.2f, 0.9f});
-                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, snackBg, 4.0f);
+                float snackRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 4.0f); // زوايا
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, snackBg, snackRadius);
                 const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
                     textProp = node.findProperty(props::TEXT);
+                if (!textProp)
+                    textProp = node.findProperty(props::CONTENT); // محتوى
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
+                        Color snackTextColor = parseColorProp(node.findProperty(props::TEXT_COLOR), // لون_النص
+                                                              Color::fromNamed(NamedColor::White));
                         float fontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 14.0f);
-                        drawText(*text, rect.x + 16, rect.y + rect.height / 2 - fontSize / 2,
-                                 Color::fromNamed(NamedColor::White), fontSize);
+                        float textX = rect.x + 16;
+                        if (isArabicText(*text))
+                        {
+                            auto sz = measureText(*text, fontSize);
+                            textX = rect.x + rect.width - sz.first - 16;
+                            if (textX < rect.x)
+                                textX = rect.x;
+                        }
+                        drawText(*text, textX, rect.y + rect.height / 2 - fontSize / 2,
+                                 snackTextColor, fontSize);
                     }
                 }
                 break;
@@ -980,17 +1266,35 @@ namespace sad
             case UINodeType::Chip:
             {
                 Color chipBg = parseColorProp(node.findProperty(props::BG), Color::fromNamed(NamedColor::LightGray));
-                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, chipBg, 16.0f);
+                if (!node.findProperty(props::BG))
+                    chipBg = parseColorProp(node.findProperty(props::COLOR), chipBg); // لون
+                float chipRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 16.0f); // زوايا
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, chipBg, chipRadius);
+
+                // حدُّ الرقاقة (إن وُجد) — إطارٌ خارجيٌّ ثمّ ملءٌ داخليّ
+                const auto *chipBorderProp = node.findProperty(props::BORDER_COLOR); // لون_الحد
+                if (chipBorderProp)
+                {
+                    Color borderColor = parseColorProp(chipBorderProp, Color::fromNamed(NamedColor::Gray));
+                    drawRoundedRect(rect.x, rect.y, rect.width, rect.height, borderColor, chipRadius);
+                    drawRoundedRect(rect.x + 1, rect.y + 1, rect.width - 2, rect.height - 2,
+                                    chipBg, std::max(0.0f, chipRadius - 1));
+                }
+
                 const auto *textProp = node.findProperty(props::TEXT_LATIN);
                 if (!textProp)
                     textProp = node.findProperty(props::TEXT);
+                if (!textProp)
+                    textProp = node.findProperty(props::CONTENT); // محتوى
                 if (textProp)
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
-                        auto sz = measureText(*text, 13.0f);
+                        Color chipTextColor = parseColorProp(node.findProperty(props::TEXT_COLOR), {0, 0, 0, 1}); // لون_النص
+                        float chipFontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 13.0f);      // حجم_الخط
+                        auto sz = measureText(*text, chipFontSize);
                         drawText(*text, rect.x + (rect.width - sz.first) / 2,
-                                 rect.y + (rect.height - sz.second) / 2, {0, 0, 0, 1}, 13.0f);
+                                 rect.y + (rect.height - sz.second) / 2, chipTextColor, chipFontSize);
                     }
                 }
                 break;
@@ -999,6 +1303,8 @@ namespace sad
             case UINodeType::Avatar:
             {
                 Color avatarBg = parseColorProp(node.findProperty(props::BG), Color::fromNamed(NamedColor::Primary));
+                if (!node.findProperty(props::BG))
+                    avatarBg = parseColorProp(node.findProperty(props::COLOR), avatarBg); // لون
                 float r = std::min(rect.width, rect.height) / 2;
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, avatarBg, r);
                 const auto *textProp = node.findProperty(props::TEXT_LATIN);
@@ -1010,10 +1316,13 @@ namespace sad
                 {
                     if (auto *text = std::get_if<std::string>(&textProp->value))
                     {
-                        auto sz = measureText(*text, 18.0f);
+                        Color avatarTextColor = parseColorProp(node.findProperty(props::TEXT_COLOR), // لون_النص
+                                                               Color::fromNamed(NamedColor::White));
+                        float avatarFontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 18.0f); // حجم_الخط
+                        auto sz = measureText(*text, avatarFontSize);
                         drawText(*text, rect.x + (rect.width - sz.first) / 2,
                                  rect.y + (rect.height - sz.second) / 2,
-                                 Color::fromNamed(NamedColor::White), 18.0f);
+                                 avatarTextColor, avatarFontSize);
                     }
                 }
                 break;
@@ -1047,24 +1356,35 @@ namespace sad
                 break;
             case UINodeType::Tooltip:
             {
-                // رسم tooltip كمستطيل داكن مع نص
-                Color tooltipBg = {0.15f, 0.15f, 0.15f, 0.88f};
-                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, tooltipBg, 4.0f);
-                const auto *tipText = node.findProperty(props::TEXT_LATIN);
-                if (!tipText)
-                    tipText = node.findProperty(props::TEXT); // نص
-                if (!tipText)
-                    tipText = node.findProperty(props::HINT); // تلميح
-                if (tipText)
+                // (AR) التلميحُ لا يظهر إلّا عندَ التحويم — هذا تعريفُه. كان
+                //      المسارُ المشتركُ يرسمه دائمًا، ومُرسِّمُ سطحِ المكتبِ يقصره
+                //      على التحويم؛ التوحيدُ يأخذ الدلالةَ الصحيحة.
+                if (isHovered)
                 {
-                    if (auto *t = std::get_if<std::string>(&tipText->value))
+                    const auto *tipText = node.findProperty(props::TEXT_LATIN);
+                    if (!tipText)
+                        tipText = node.findProperty(props::TEXT); // نص
+                    if (!tipText)
+                        tipText = node.findProperty(props::HINT); // تلميح
+                    if (!tipText)
+                        tipText = node.findProperty(props::CONTENT); // محتوى
+                    if (tipText)
                     {
-                        float fs = 12.0f;
-                        auto sz = measureText(*t, fs);
-                        drawText(*t,
-                                 rect.x + (rect.width - sz.first) * 0.5f,
-                                 rect.y + (rect.height - sz.second) * 0.5f,
-                                 Color::fromNamed(NamedColor::White), fs);
+                        if (auto *t = std::get_if<std::string>(&tipText->value))
+                        {
+                            const float tipFontSize = 12.0f;
+                            const float tipPadX = 8.0f;
+                            const float tipPadY = 4.0f;
+                            auto sz = measureText(*t, tipFontSize);
+                            float tipW = sz.first + tipPadX * 2;
+                            float tipH = sz.second + tipPadY * 2;
+                            LayoutRect tipRect = {rect.x, rect.y - tipH - 4, tipW, tipH};
+                            drawSoftShadow(tipRect, 4.0f, 4.0f, 0.0f, 2.0f, {0, 0, 0, 0.15f});
+                            drawRoundedRect(tipRect.x, tipRect.y, tipRect.width, tipRect.height,
+                                            {0.15f, 0.15f, 0.15f, 0.9f}, 4.0f);
+                            drawText(*t, tipRect.x + tipPadX, tipRect.y + tipPadY,
+                                     Color::fromNamed(NamedColor::White), tipFontSize);
+                        }
                     }
                 }
                 break;
@@ -1244,30 +1564,69 @@ namespace sad
             case UINodeType::Dialog:
             {
                 float dlgRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 12.0f); // زوايا
-                // ظلّ خفيف تحت اللوح لإيحاء الارتفاع النمطيّ
-                drawFilledRect(rect.x + 2, rect.y + 6, rect.width, rect.height, {0, 0, 0, 0.18f});
-                Color dlgBg = parseColorProp(node.findProperty(props::BG),          // خلفية
+
+                // (AR) الحوارُ طبقةٌ فوقَ الشاشةِ لا عنصرٌ في التدفّق: حجابٌ معتمٌ
+                //      ثمّ لوحٌ في الوسط. متى جُهِل منفذُ العرضِ رُسِم في مستطيلِ
+                //      التخطيطِ كما كان.
+                // (AR) الحجابُ يغطّي منفذَ العرضِ كلَّه، أمّا **اللوحُ فيُرسَم في
+                //   مستطيلِ التخطيط**: أبناءُ العقدةِ تُرسَم بمستطيلاتِ التخطيطِ
+                //   في الخطوةِ التالية، فلو نُقِل اللوحُ إلى وسطِ الشاشةِ وحدَه
+                //   لانفصلت الكِسوةُ عن محتواها — لوحٌ فارغٌ وأزرارٌ خارجَه.
+                //   دَينٌ معلَن: توسيطُ اللوحِ الحقيقيُّ يلزمه أن يُعطيَ محرّكُ
+                //   التخطيطِ العقدةَ الطافيةَ مستطيلَها، لا أن يزيحها المُرسِّم.
+                LayoutRect dlgPanel = rect;
+                if (viewportWidth_ > 0 && viewportHeight_ > 0)
+                {
+                    drawFilledRect(0, 0, static_cast<float>(viewportWidth_),
+                                   static_cast<float>(viewportHeight_), {0, 0, 0, 0.5f}); // حجاب
+                }
+
+                drawSoftShadow(dlgPanel, dlgRadius, 24.0f, 0.0f, 8.0f, {0, 0, 0, 0.3f});
+                Color dlgBg = parseColorProp(node.findProperty(props::BG), // خلفية
                                              Color::fromNamed(NamedColor::White));
-                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, dlgBg, dlgRadius);
+                drawRoundedRect(dlgPanel.x, dlgPanel.y, dlgPanel.width, dlgPanel.height,
+                                dlgBg, dlgRadius);
                 // العنوان (إن وُجد فقط — لا نصّ افتراضيّ مباشر)
                 const auto *titleProp = node.findProperty(props::TITLE); // عنوان
                 if (!titleProp)
                     titleProp = node.findProperty(props::TITLE_LATIN);
+                float dlgTextY = dlgPanel.y + 14;
                 if (titleProp)
                 {
                     if (auto *title = std::get_if<std::string>(&titleProp->value))
                     {
                         Color titleColor = parseColorProp(node.findProperty(props::TEXT_COLOR), {0, 0, 0, 1}); // لون_النص
                         float fs = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 18.0f);             // حجم_الخط
-                        float tx = rect.x + 20;
+                        float tx = dlgPanel.x + 20;
                         if (isArabicText(*title))
                         {
                             auto sz = measureText(*title, fs);
-                            tx = rect.x + rect.width - sz.first - 20;
-                            if (tx < rect.x)
-                                tx = rect.x; // مطابقة حارس AppBar — منع القصّ يسارًا
+                            tx = dlgPanel.x + dlgPanel.width - sz.first - 20;
+                            if (tx < dlgPanel.x)
+                                tx = dlgPanel.x; // مطابقة حارس AppBar — منع القصّ يسارًا
                         }
-                        drawText(*title, tx, rect.y + 14, titleColor, fs);
+                        drawText(*title, tx, dlgTextY, titleColor, fs);
+                        dlgTextY += fs + 14;
+                    }
+                }
+                // المحتوى (إن وُجد) أسفلَ العنوان
+                const auto *dlgContentProp = node.findProperty(props::CONTENT); // محتوى
+                if (!dlgContentProp)
+                    dlgContentProp = node.findProperty(props::CONTENT_LATIN);
+                if (dlgContentProp)
+                {
+                    if (auto *c = std::get_if<std::string>(&dlgContentProp->value))
+                    {
+                        float cfs = getNumericProp(node.findProperty(props::FONT_SIZE), 14.0f); // حجم_خط
+                        float cx = dlgPanel.x + 20;
+                        if (isArabicText(*c))
+                        {
+                            auto sz = measureText(*c, cfs);
+                            cx = dlgPanel.x + dlgPanel.width - sz.first - 20;
+                            if (cx < dlgPanel.x)
+                                cx = dlgPanel.x;
+                        }
+                        drawText(*c, cx, dlgTextY, {0.4f, 0.4f, 0.4f, 1.0f}, cfs);
                     }
                 }
                 break;
@@ -1279,9 +1638,16 @@ namespace sad
                 float taRadius = getNumericProp(node.findProperty(props::CORNER_RADIUS), 6.0f); // زوايا
                 Color taBg = parseColorProp(node.findProperty(props::BG),           // خلفية
                                             Color::fromNamed(NamedColor::White));
-                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, taBg, taRadius);
-                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
-                                Color::fromNamed(NamedColor::Gray));
+                // (AR) الحدُّ يتبع التركيزَ كحقلِ النصّ. دَينٌ معلَن: مؤشّرُ الكتابةِ
+                //      في منطقةِ نصٍّ متعدّدةِ الأسطرِ يحتاج موضعًا واعيًا بالسطر،
+                //      ولا يملكه أيٌّ من المسارَين اليوم فلم يُنقَل.
+                Color taBorder = (focusedNode_ == &node) ? Color::fromNamed(NamedColor::Primary)
+                                                         : Color::fromNamed(NamedColor::Gray);
+                float taBorderW = (focusedNode_ == &node) ? 2.0f : 1.0f;
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, taBorder, taRadius);
+                drawRoundedRect(rect.x + taBorderW, rect.y + taBorderW,
+                                rect.width - taBorderW * 2, rect.height - taBorderW * 2,
+                                taBg, std::max(0.0f, taRadius - taBorderW));
                 // القيمة إن وُجدت وإلا التلميح (بلون باهت)
                 const auto *valProp = node.findProperty(props::VALUE); // قيمة
                 if (!valProp)
@@ -1316,8 +1682,21 @@ namespace sad
             // ── الدرج الجانبيّ (Drawer) — لوح تنقّل بخطّ فاصل (كان في الويب فقط) ──
             case UINodeType::Drawer:
             {
-                Color drawerBg = parseColorProp(node.findProperty(props::BG),       // خلفية
+                Color drawerBg = parseColorProp(node.findProperty(props::BG), // خلفية
                                                 Color::fromNamed(NamedColor::White));
+
+                // (AR) الدرجُ الجانبيُّ طبقةٌ فوقَ الشاشة: حجابٌ معتمٌ يغطّي منفذَ
+                //      العرضِ كلَّه ثمّ اللوحُ نفسُه بظلٍّ. إن كان منفذُ العرضِ
+                //      مجهولًا (منصّةٌ لا تُبلِّغه) يُرسَم في مستطيلِ التخطيطِ فقط.
+                // (AR) الحجابُ يغطّي الشاشة، واللوحُ في مستطيلِ التخطيط (لا في
+                //   يسارِ الشاشةِ صلبًا: الدرجُ في العربيّةِ يمينٌ، وموضعُه قرارُ
+                //   محرّكِ التخطيطِ لا المُرسِّم). الأبناءُ يتبعون المستطيلَ نفسَه.
+                if (viewportWidth_ > 0 && viewportHeight_ > 0)
+                {
+                    drawFilledRect(0, 0, static_cast<float>(viewportWidth_),
+                                   static_cast<float>(viewportHeight_), {0, 0, 0, 0.4f}); // حجاب
+                }
+                drawSoftShadow(rect, 0.0f, 20.0f, 4.0f, 0.0f, {0, 0, 0, 0.3f});
                 drawFilledRect(rect.x, rect.y, rect.width, rect.height, drawerBg);
                 // خطّ فاصل على الحافّة الداخليّة (RTL ⇒ الحافّة اليسرى)
                 drawLine(rect.x, rect.y, rect.x, rect.y + rect.height,
@@ -1515,6 +1894,9 @@ namespace sad
                 drawRoundedRect(rect.x, rect.y, rect.width, rect.height, splitBg, 6.0f);
                 drawRectOutline(rect.x, rect.y, rect.width, rect.height,
                                 Color::fromNamed(NamedColor::LightGray));
+                // مقبضُ الفصلِ في المنتصف
+                drawFilledRect(rect.x + rect.width / 2.0f - 1, rect.y, 2.0f, rect.height,
+                               Color::fromNamed(NamedColor::Gray));
                 break;
             }
 
@@ -1885,6 +2267,339 @@ namespace sad
                 break;
             }
 
+            // ═══════════════════════════════════════════════════════════════════════
+            // (AR) عُقَدُ العرضِ المتقدّمة — كانت محبوسةً في شوكةِ مُرسِّمِ سطحِ
+            //      المكتبِ وحدَها، فلا يراها الويبُ ولا المحمولُ ولا الوضعُ الحرّ.
+            //      نُقِلت هنا كما هي دلالةً، وصُحّحت مواضعُ استُعمِل فيها الملءُ
+            //      المستديرُ في موضعِ إطارٍ (كانت ترسم مستطيلًا رماديًّا فوقَ
+            //      المحتوى بدلَ حدٍّ رفيع).
+            // ═══════════════════════════════════════════════════════════════════════
+
+            case UINodeType::AudioPlayer:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, {0.95f, 0.95f, 0.95f, 1});
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                drawText(uitext::PLAY_GLYPH, rect.x + 8, rect.y + 6,
+                         Color::fromNamed(NamedColor::Blue), 18.0f);
+                // شريط التقدّم
+                drawFilledRect(rect.x + 40, rect.y + rect.height / 2 - 2, rect.width - 90, 4.0f,
+                               Color::fromNamed(NamedColor::Gray));
+                drawText(uitext::ZERO_DURATION, rect.x + rect.width - 45, rect.y + 6,
+                         Color::fromNamed(NamedColor::Gray), 12.0f);
+                break;
+            }
+
+            case UINodeType::BottomSheet:
+            {
+                Color sheetBg = parseColorProp(node.findProperty(props::BG), // خلفية
+                                               Color::fromNamed(NamedColor::White));
+                // (AR) كالحوارِ والدرج: حجابٌ يغطّي الشاشةَ ولوحٌ في مستطيلِ
+                //   التخطيطِ كي لا تنفصلَ الكِسوةُ عن أبنائها.
+                LayoutRect sheetRect = rect;
+                if (viewportWidth_ > 0 && viewportHeight_ > 0)
+                {
+                    drawFilledRect(0, 0, static_cast<float>(viewportWidth_),
+                                   static_cast<float>(viewportHeight_), {0, 0, 0, 0.35f}); // حجاب
+                }
+
+                drawSoftShadow(sheetRect, 20.0f, 16.0f, 0.0f, -4.0f, {0, 0, 0, 0.25f});
+                drawRoundedRect(sheetRect.x, sheetRect.y, sheetRect.width, 24.0f, sheetBg, 20.0f);
+                drawFilledRect(sheetRect.x, sheetRect.y + 12, sheetRect.width,
+                               sheetRect.height - 12, sheetBg);
+
+                // مقبضُ السحب
+                const float sheetHandleW = 40.0f;
+                drawRoundedRect(sheetRect.x + sheetRect.width / 2 - sheetHandleW / 2,
+                                sheetRect.y + 10, sheetHandleW, 4.0f,
+                                {0.7f, 0.7f, 0.7f, 1.0f}, 2.0f);
+                break;
+            }
+
+            case UINodeType::TimePicker:
+            case UINodeType::Calendar:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height,
+                               Color::fromNamed(NamedColor::White));
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                drawText(uitext::CALENDAR_GLYPH, rect.x + 4, rect.y + 4,
+                         Color::fromNamed(NamedColor::Black), 14.0f);
+                break;
+            }
+
+            case UINodeType::Canvas:
+            {
+                // منطقةُ رسمٍ مخصّصة — خلفيّةٌ وإطار؛ أوامرُ الرسمِ أبناءٌ تُرسَم بالتكرار
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height,
+                               Color::fromNamed(NamedColor::White));
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                break;
+            }
+
+            case UINodeType::CodeBlock:
+            {
+                bool codeDarkTheme = getBoolProp(node.findProperty(props::DARK), true);              // داكن
+                float codeFontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 13.0f); // حجم_الخط
+                bool showLineNumbers = getBoolProp(node.findProperty(props::LINE_NUMBERS), true);    // أرقام_أسطر
+
+                Color codeBg = codeDarkTheme ? Color{0.12f, 0.12f, 0.14f, 1.0f}
+                                            : Color{0.96f, 0.96f, 0.96f, 1.0f};
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, codeBg, 6.0f);
+
+                const auto *codeProp = node.findProperty(props::TEXT); // نص
+                if (!codeProp)
+                    codeProp = node.findProperty(props::TEXT_LATIN);
+                if (!codeProp)
+                    codeProp = node.findProperty(props::CODE); // كود
+                if (codeProp)
+                {
+                    if (auto *codeText = std::get_if<std::string>(&codeProp->value))
+                    {
+                        const float lineHeight = codeFontSize + 4.0f;
+                        const float codePadX = 8.0f;
+                        const float codePadY = 8.0f;
+                        float gutterWidth = 0.0f;
+
+                        std::vector<std::string> codeLines;
+                        {
+                            std::string line;
+                            for (char ch : *codeText)
+                            {
+                                if (ch == '\n')
+                                {
+                                    codeLines.push_back(line);
+                                    line.clear();
+                                }
+                                else
+                                {
+                                    line += ch;
+                                }
+                            }
+                            codeLines.push_back(line);
+                        }
+
+                        if (showLineNumbers)
+                        {
+                            int digits = 1;
+                            for (int remaining = static_cast<int>(codeLines.size()); remaining >= 10;
+                                 remaining /= 10)
+                            {
+                                ++digits;
+                            }
+                            gutterWidth = static_cast<float>(digits) * codeFontSize * 0.6f + 16.0f;
+
+                            Color gutterBg = codeDarkTheme ? Color{0.10f, 0.10f, 0.12f, 1.0f}
+                                                           : Color{0.92f, 0.92f, 0.92f, 1.0f};
+                            drawRoundedRect(rect.x, rect.y, gutterWidth, rect.height, gutterBg, 6.0f);
+
+                            Color lineNumColor = codeDarkTheme ? Color{0.45f, 0.45f, 0.50f, 1.0f}
+                                                               : Color{0.55f, 0.55f, 0.55f, 1.0f};
+                            for (size_t li = 0; li < codeLines.size(); ++li)
+                            {
+                                float ly = rect.y + codePadY + static_cast<float>(li) * lineHeight;
+                                if (ly > rect.y + rect.height)
+                                    break;
+                                drawText(std::to_string(li + 1), rect.x + gutterWidth - codePadX - 4.0f,
+                                         ly, lineNumColor, codeFontSize);
+                            }
+                        }
+
+                        // تلوينٌ نحويٌّ — المُلوِّنُ في المكتبةِ فيعمل على كلِّ منصّة
+                        SadSyntaxHighlighter highlighter;
+                        const float codeStartX = rect.x + gutterWidth + codePadX;
+
+                        for (size_t li = 0; li < codeLines.size(); ++li)
+                        {
+                            float ly = rect.y + codePadY + static_cast<float>(li) * lineHeight;
+                            if (ly > rect.y + rect.height)
+                                break;
+
+                            auto lineTokens = highlighter.tokenize(codeLines[li]);
+                            if (lineTokens.empty())
+                                continue;
+
+                            float cx = codeStartX;
+                            size_t lastEnd = 0;
+                            for (const auto &tok : lineTokens)
+                            {
+                                if (tok.start > lastEnd)
+                                {
+                                    auto gapSize = measureText(
+                                        codeLines[li].substr(lastEnd, tok.start - lastEnd), codeFontSize);
+                                    cx += gapSize.first;
+                                }
+
+                                std::string tokenText = codeLines[li].substr(tok.start, tok.length);
+                                auto tokenColor = SadSyntaxHighlighter::getColor(tok.type, codeDarkTheme);
+                                drawText(tokenText, cx, ly,
+                                         {tokenColor.r, tokenColor.g, tokenColor.b, tokenColor.a},
+                                         codeFontSize);
+                                cx += measureText(tokenText, codeFontSize).first;
+                                lastEnd = tok.start + tok.length;
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+
+            case UINodeType::Expandable:
+            case UINodeType::Collapsible:
+            {
+                std::string expandableTitle;
+                if (!findTextProp(node,
+                                  {props::TITLE, props::TEXT_LATIN, props::TEXT, props::CONTENT},
+                                  expandableTitle) ||
+                    expandableTitle.empty())
+                {
+                    expandableTitle = std::string(uitext::PLAY_GLYPH) + " " + uitext::ITEM_AR;
+                }
+                drawText(expandableTitle, rect.x + 4, rect.y + 4,
+                         Color::fromNamed(NamedColor::Black), 14.0f);
+                break;
+            }
+
+            case UINodeType::ColorPicker:
+            case UINodeType::ColorWheel:
+            {
+                // طيفٌ لونيٌّ بالتدرّج (أحمر ⇐ أخضر ⇐ أزرق ⇐ أرجوانيّ)
+                const float bandWidth = rect.width / 3.0f;
+                drawLinearGradient(rect.x, rect.y, bandWidth + 1, rect.height,
+                                   Color::fromNamed(NamedColor::Red),
+                                   Color::fromNamed(NamedColor::Green), false);
+                drawLinearGradient(rect.x + bandWidth, rect.y, bandWidth + 1, rect.height,
+                                   Color::fromNamed(NamedColor::Green),
+                                   Color::fromNamed(NamedColor::Blue), false);
+                drawLinearGradient(rect.x + 2 * bandWidth, rect.y, bandWidth, rect.height,
+                                   Color::fromNamed(NamedColor::Blue),
+                                   {1.0f, 0.0f, 1.0f, 1.0f}, false);
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                break;
+            }
+
+            case UINodeType::ImageGallery:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, {0.97f, 0.97f, 0.97f, 1});
+                break;
+            }
+
+            case UINodeType::RichText:
+            case UINodeType::Markdown:
+            {
+                const auto *richProp = node.findProperty(props::TEXT_LATIN);
+                if (!richProp)
+                    richProp = node.findProperty(props::TEXT); // نص
+                if (!richProp)
+                    richProp = node.findProperty(props::CONTENT); // محتوى
+                if (richProp)
+                {
+                    if (auto *text = std::get_if<std::string>(&richProp->value))
+                    {
+                        Color richColor = parseColorProp(node.findProperty(props::COLOR), // لون
+                                                         Color::fromNamed(NamedColor::Black));
+                        float richFontSize = getNumericProp(node.findProperty(props::FONT_SIZE_ALT), 14.0f);
+                        float richX = rect.x;
+                        if (isArabicText(*text))
+                        {
+                            auto sz = measureText(*text, richFontSize);
+                            richX = rect.x + rect.width - sz.first;
+                            if (richX < rect.x)
+                                richX = rect.x;
+                        }
+                        drawText(*text, richX, rect.y, richColor, richFontSize);
+                    }
+                }
+                break;
+            }
+
+            case UINodeType::MegaMenu:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height,
+                               Color::fromNamed(NamedColor::White));
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                break;
+            }
+
+            case UINodeType::Sheet:
+            {
+                drawSoftShadow(rect, 12.0f, 16.0f, 0.0f, -4.0f, {0, 0, 0, 0.2f});
+                Color popupBg = parseColorProp(node.findProperty(props::BG), // خلفية
+                                               Color::fromNamed(NamedColor::White));
+                drawRoundedRect(rect.x, rect.y, rect.width, rect.height, popupBg, 12.0f);
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                // مقبضُ الورقة
+                const float popupHandleW = 40.0f;
+                drawRoundedRect(rect.x + rect.width / 2 - popupHandleW / 2, rect.y + 8,
+                                popupHandleW, 4.0f, Color::fromNamed(NamedColor::Gray), 2.0f);
+                break;
+            }
+
+            case UINodeType::SideNav:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height, {0.95f, 0.95f, 0.97f, 1});
+                // خطٌّ جانبيٌّ على الحافّة
+                drawFilledRect(rect.x + rect.width - 1, rect.y, 1.0f, rect.height,
+                               Color::fromNamed(NamedColor::Gray));
+                break;
+            }
+
+            case UINodeType::TabView:
+            {
+                Color tabBarBg = parseColorProp(node.findProperty(props::BG), // خلفية
+                                                Color::fromNamed(NamedColor::Primary));
+                const float tabBarHeight = 48.0f;
+                drawFilledRect(rect.x, rect.y, rect.width, tabBarHeight, tabBarBg);
+
+                const size_t tabCount = node.childCount();
+                const int selectedTab =
+                    static_cast<int>(getNumericProp(node.findProperty(props::SELECTED), 0.0f)); // محدد
+                if (tabCount > 0)
+                {
+                    const float tabWidth = rect.width / static_cast<float>(tabCount);
+                    for (size_t t = 0; t < tabCount; ++t)
+                    {
+                        const float tabX = rect.x + static_cast<float>(t) * tabWidth;
+                        const auto &tabChild = node.getChildren()[t];
+                        std::string label;
+                        if (!findTextProp(*tabChild, {props::TITLE, props::TEXT, props::TITLE_LATIN},
+                                          label) ||
+                            label.empty())
+                        {
+                            label = std::string(uitext::TAB_LABEL_PREFIX_AR) + std::to_string(t + 1);
+                        }
+
+                        const bool isSelectedTab = (static_cast<int>(t) == selectedTab);
+                        Color tabTextColor = isSelectedTab ? Color{1, 1, 1, 1} : Color{1, 1, 1, 0.6f};
+                        auto labelSize = measureText(label, 14.0f);
+                        drawText(label, tabX + (tabWidth - labelSize.first) / 2.0f, rect.y + 14,
+                                 tabTextColor, 14.0f);
+
+                        if (isSelectedTab)
+                        {
+                            drawFilledRect(tabX + 8, rect.y + tabBarHeight - 3, tabWidth - 16, 3.0f,
+                                           {1, 1, 1, 1});
+                        }
+                    }
+                }
+                break;
+            }
+
+            case UINodeType::WebView:
+            {
+                drawFilledRect(rect.x, rect.y, rect.width, rect.height,
+                               Color::fromNamed(NamedColor::White));
+                drawRectOutline(rect.x, rect.y, rect.width, rect.height,
+                                Color::fromNamed(NamedColor::Gray));
+                drawText(uitext::GLOBE_GLYPH, rect.x + 4, rect.y + 4,
+                         Color::fromNamed(NamedColor::Blue), 16.0f);
+                break;
+            }
+
             default:
                 break;
             }
@@ -1906,19 +2621,47 @@ namespace sad
                                                     getNumericProp(node.findProperty(props::SCROLL_X_LATIN), 0.0f))
                                    : 0.0f;
 
+            // (AR) إزاحةُ المنصّة (عجلةُ الفأرة في سطحِ المكتب) تُضاف إلى إزاحةِ
+            //      الخاصّيّة. الإشارة: الخاصّيّةُ موجبةٌ صعودًا (تُطرَح)، وإزاحةُ
+            //      المنصّةِ إزاحةُ رسمٍ موجبةٌ نزولًا (تُجمَع).
+            const float platformScroll =
+                isScrollableContainer ? platformScrollOffset(node) : 0.0f;
+
+            const float prevTranslateX = scrollTranslateX_;
+            const float prevTranslateY = scrollTranslateY_;
+            if (isScrollableContainer)
+            {
+                scrollTranslateX_ -= scrollOffX;
+                scrollTranslateY_ -= scrollOffY;
+                scrollTranslateY_ += platformScroll;
+            }
+
             for (size_t i = 0; i < layout.children.size() && i < node.childCount(); ++i)
             {
-                if (isScrollableContainer && (scrollOffX != 0.0f || scrollOffY != 0.0f))
+                renderNode(*node.getChildren()[i], *layout.children[i]);
+            }
+
+            if (isScrollableContainer)
+            {
+                scrollTranslateX_ = prevTranslateX;
+                scrollTranslateY_ = prevTranslateY;
+            }
+
+            // 4.5 شريطُ التمرير — يُرسَم بعدَ الأبناءِ فوقَهم، ولا يُزاح معهم.
+            if (isScrollableContainer)
+            {
+                const float contentHeight = layout.contentHeight;
+                const float viewHeight = rect.height;
+                if (contentHeight > viewHeight && viewHeight > 0)
                 {
-                    // طبّق إزاحة التمرير على موضع الابن مباشرة
-                    LayoutResult adjusted = *layout.children[i];
-                    adjusted.rect.x -= scrollOffX;
-                    adjusted.rect.y -= scrollOffY;
-                    renderNode(*node.getChildren()[i], adjusted);
-                }
-                else
-                {
-                    renderNode(*node.getChildren()[i], *layout.children[i]);
+                    const float scrollRatio = viewHeight / contentHeight;
+                    const float barHeight = std::max(20.0f, viewHeight * scrollRatio);
+                    const float maxScroll = contentHeight - viewHeight;
+                    const float travelled = (scrollOffY - platformScroll) / maxScroll;
+                    float barY = rect.y + travelled * (viewHeight - barHeight);
+                    barY = std::max(rect.y, std::min(barY, rect.y + viewHeight - barHeight));
+                    drawRoundedRect(rect.x + rect.width - 6.0f, barY, 4.0f, barHeight,
+                                    {0.6f, 0.6f, 0.6f, 0.4f}, 2.0f);
                 }
             }
 

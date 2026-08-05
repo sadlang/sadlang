@@ -1174,6 +1174,102 @@ namespace Sad
                 inline constexpr std::string_view SAFE_AREA = "منطقة_آمنة";
                 // (AR) سطح
                 inline constexpr std::string_view SURFACE = "سطح";
+                // (AR) منتقي لون من طيف
+                inline constexpr std::string_view COLOR_PICKER = "منتقي_لون";
+                // (AR) زرّ اختيار واحد من مجموعة
+                inline constexpr std::string_view RADIO = "زر_راديو";
+                // (AR) شبكة كسولة تبني أبناءها عند الحاجة
+                inline constexpr std::string_view LAZY_GRID = "شبكة_كسولة";
+                // (AR) حاوية تنقّل بين الصفحات
+                inline constexpr std::string_view NAVIGATION_VIEW = "عرض_تنقل";
+                // (AR) رابط ينتقل إلى صفحة
+                inline constexpr std::string_view NAVIGATION_LINK = "رابط_تنقل";
+                // (AR) عرض أقسام بألسنة
+                inline constexpr std::string_view TAB_VIEW = "عرض_أقسام";
+                // (AR) قسم واحد داخل عرض الأقسام
+                inline constexpr std::string_view TAB_ITEM = "قسم";
+                // (AR) قسم بترويسة داخل قائمة
+                inline constexpr std::string_view SECTION = "قسم_قائمة";
+                // (AR) يكرّر بناء الأبناء على مجموعة
+                inline constexpr std::string_view FOR_EACH = "لكل";
+                // (AR) ورقة منبثقة فوق المحتوى
+                inline constexpr std::string_view SHEET = "ورقة";
+                // (AR) لوحة رسم حرّ بأوامر رسم
+                inline constexpr std::string_view CANVAS = "لوحة";
+                // (AR) عرض خريطة
+                inline constexpr std::string_view MAP_VIEW = "عرض_خريطة";
+                // (AR) عرض صفحة ويب
+                inline constexpr std::string_view WEB_VIEW = "عرض_ويب";
+                // (AR) مشغّل فيديو
+                inline constexpr std::string_view VIDEO_PLAYER = "مشغل_فيديو";
+                // (AR) عنصر مخصّص يجمع أبناءه بلا كِسوة
+                inline constexpr std::string_view CUSTOM_WIDGET = "عنصر_مخصص";
+                // (AR) يعرض أبناءه بحسب شرط
+                inline constexpr std::string_view CONDITIONAL = "شرطي";
+                // (AR) مجموعة منطقيّة بلا كِسوة
+                inline constexpr std::string_view GROUP = "مجموعة";
+                // (AR) شارة إشعار صغيرة
+                inline constexpr std::string_view BADGE = "شارة";
+                // (AR) رقاقة قصيرة قابلة للاختيار
+                inline constexpr std::string_view CHIP = "رقاقة";
+                // (AR) صورة رمزيّة دائريّة
+                inline constexpr std::string_view AVATAR = "صورة_رمزية";
+                // (AR) شريط بحث
+                inline constexpr std::string_view SEARCH_BAR = "شريط_بحث";
+                // (AR) ورقة تنزلق من أسفل الشاشة
+                inline constexpr std::string_view BOTTOM_SHEET = "ورقة_سفلية";
+                // (AR) ترقيم صفحات
+                inline constexpr std::string_view PAGINATION = "ترقيم_صفحات";
+                // (AR) خطّ زمنيّ للأحداث
+                inline constexpr std::string_view TIMELINE = "خط_زمني";
+                // (AR) عرض دوّار للعناصر
+                inline constexpr std::string_view CAROUSEL = "عرض_دوار";
+                // (AR) نصّ منسَّق
+                inline constexpr std::string_view RICH_TEXT = "نص_غني";
+                // (AR) عرض نصّ ماركداون
+                inline constexpr std::string_view MARKDOWN = "ماركداون";
+                // (AR) كتلة كود ملوَّنة نحويًّا
+                inline constexpr std::string_view CODE_BLOCK = "كتلة_كود";
+                // (AR) مشغّل صوت
+                inline constexpr std::string_view AUDIO_PLAYER = "مشغل_صوت";
+                // (AR) معرض صور
+                inline constexpr std::string_view IMAGE_GALLERY = "معرض_صور";
+                // (AR) هيكل تحميل مؤقّت
+                inline constexpr std::string_view SKELETON = "هيكل_تحميل";
+                // (AR) وميض تحميل متحرّك
+                inline constexpr std::string_view SHIMMER = "وميض";
+                // (AR) قائمة بحركة عند التغيّر
+                inline constexpr std::string_view ANIMATED_LIST = "قائمة_متحركة";
+                // (AR) قسم قابل للتوسّع
+                inline constexpr std::string_view EXPANDABLE = "قابل_للتوسع";
+                // (AR) قسم قابل للطيّ
+                inline constexpr std::string_view COLLAPSIBLE = "قابل_للطي";
+                // (AR) عنصر قابل للسحب جانبًا
+                inline constexpr std::string_view SWIPEABLE = "قابل_للسحب";
+                // (AR) منتقي وقت
+                inline constexpr std::string_view TIME_PICKER = "منتقي_وقت";
+                // (AR) تقويم
+                inline constexpr std::string_view CALENDAR = "تقويم";
+                // (AR) عجلة ألوان
+                inline constexpr std::string_view COLOR_WHEEL = "عجلة_ألوان";
+                // (AR) تنقّل جانبيّ
+                inline constexpr std::string_view SIDE_NAV = "تنقل_جانبي";
+                // (AR) شريط ألسنة
+                inline constexpr std::string_view TABS = "ألسنة";
+                // (AR) قائمة ضخمة متعدّدة الأقسام
+                inline constexpr std::string_view MEGA_MENU = "قائمة_ضخمة";
+                // (AR) يلتقط الإيماءات دون كِسوة
+                inline constexpr std::string_view GESTURE_DETECTOR = "كاشف_إيماءات";
+                // (AR) منطقة نقر بتأثير تموّج
+                inline constexpr std::string_view INK_WELL = "حبر";
+                // (AR) قائمة عرض قابلة للتمرير
+                inline constexpr std::string_view LIST_VIEW_WIDGET = "قائمة_عرض";
+                // (AR) صندوق بمقاس كسريّ من الأب
+                inline constexpr std::string_view FRACTIONALLY_SIZED_BOX = "صندوق_نسبي";
+                // (AR) صندوق بحدود دنيا وقصوى
+                inline constexpr std::string_view CONSTRAINED_BOX = "صندوق_مقيد";
+                // (AR) صندوق يحفظ نسبة العرض إلى الارتفاع
+                inline constexpr std::string_view ASPECT_RATIO = "نسبة_عرض";
             }
 
             // ─────────── UICore ───────────
@@ -3051,7 +3147,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1121> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1169> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3509,7 +3605,7 @@ namespace Sad
             {Names::SadNet::BROADCAST_NEW, "SadNet", "MODULE_FUNCTION", "NONE", false, "بث_جديد", "", ""},
             {Names::SadNet::BROADCAST_STOP, "SadNet", "MODULE_FUNCTION", "NONE", false, "بث_إيقاف", "", ""},
             {Names::SadNet::NODE_DESTROY, "SadNet", "MODULE_FUNCTION", "NONE", false, "تدمير_عقدة", "", ""},
-            // ─── UIWidgets (64) ───
+            // ─── UIWidgets (112) ───
             {Names::UIWidgets::TEXT_WIDGET, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "نص_عنصر", "محتوى: نصّ العنصر المعروض", "كائن"},
             {Names::UIWidgets::IMAGE, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "صورة", "مصدر: مسار الصورة أو رابطها", "كائن"},
             {Names::UIWidgets::ICON, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "أيقونة", "اسم: اسم الأيقونة المتجهة", "كائن"},
@@ -3574,6 +3670,54 @@ namespace Sad
             {Names::UIWidgets::STATUS_BAR, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "شريط_حالة", "الأبناء: محتوى العنصر", "كائن"},
             {Names::UIWidgets::SAFE_AREA, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "منطقة_آمنة", "ابن: عنصر يتجنّب مناطق النظام", "كائن"},
             {Names::UIWidgets::SURFACE, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "سطح", "الأبناء: عناصر على السطح", "كائن"},
+            {Names::UIWidgets::COLOR_PICKER, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "منتقي لون من طيف", "قيمة: اللون المختار", "كائن"},
+            {Names::UIWidgets::RADIO, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "زرّ اختيار واحد من مجموعة", "قيمة: هل الخيار محدَّد", "كائن"},
+            {Names::UIWidgets::LAZY_GRID, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "شبكة كسولة تبني أبناءها عند الحاجة", "", "كائن"},
+            {Names::UIWidgets::NAVIGATION_VIEW, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "حاوية تنقّل بين الصفحات", "", "كائن"},
+            {Names::UIWidgets::NAVIGATION_LINK, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "رابط ينتقل إلى صفحة", "عنوان: نصّ الرابط", "كائن"},
+            {Names::UIWidgets::TAB_VIEW, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "عرض أقسام بألسنة", "", "كائن"},
+            {Names::UIWidgets::TAB_ITEM, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "قسم واحد داخل عرض الأقسام", "عنوان: عنوان القسم", "كائن"},
+            {Names::UIWidgets::SECTION, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "قسم بترويسة داخل قائمة", "عنوان: ترويسة القسم", "كائن"},
+            {Names::UIWidgets::FOR_EACH, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "يكرّر بناء الأبناء على مجموعة", "", "كائن"},
+            {Names::UIWidgets::SHEET, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "ورقة منبثقة فوق المحتوى", "عنوان: عنوان الورقة", "كائن"},
+            {Names::UIWidgets::CANVAS, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "لوحة رسم حرّ بأوامر رسم", "", "كائن"},
+            {Names::UIWidgets::MAP_VIEW, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "عرض خريطة", "مصدر: مرجع الخريطة", "كائن"},
+            {Names::UIWidgets::WEB_VIEW, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "عرض صفحة ويب", "مصدر: رابط الصفحة", "كائن"},
+            {Names::UIWidgets::VIDEO_PLAYER, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "مشغّل فيديو", "مصدر: مسار الفيديو أو رابطه", "كائن"},
+            {Names::UIWidgets::CUSTOM_WIDGET, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "عنصر مخصّص يجمع أبناءه بلا كِسوة", "", "كائن"},
+            {Names::UIWidgets::CONDITIONAL, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "يعرض أبناءه بحسب شرط", "", "كائن"},
+            {Names::UIWidgets::GROUP, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "مجموعة منطقيّة بلا كِسوة", "", "كائن"},
+            {Names::UIWidgets::BADGE, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "شارة إشعار صغيرة", "نص: محتوى الشارة", "كائن"},
+            {Names::UIWidgets::CHIP, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "رقاقة قصيرة قابلة للاختيار", "نص: نصّ الرقاقة", "كائن"},
+            {Names::UIWidgets::AVATAR, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "صورة رمزيّة دائريّة", "نص: الحرف أو الرمز المعروض", "كائن"},
+            {Names::UIWidgets::SEARCH_BAR, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "شريط بحث", "تلميح: النصّ الافتراضيّ لحقل البحث", "كائن"},
+            {Names::UIWidgets::BOTTOM_SHEET, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "ورقة تنزلق من أسفل الشاشة", "عنوان: عنوان الورقة السفليّة", "كائن"},
+            {Names::UIWidgets::PAGINATION, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "ترقيم صفحات", "قيمة: رقم الصفحة الحاليّة", "كائن"},
+            {Names::UIWidgets::TIMELINE, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "خطّ زمنيّ للأحداث", "", "كائن"},
+            {Names::UIWidgets::CAROUSEL, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "عرض دوّار للعناصر", "", "كائن"},
+            {Names::UIWidgets::RICH_TEXT, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "نصّ منسَّق", "نص: النصّ المنسَّق", "كائن"},
+            {Names::UIWidgets::MARKDOWN, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "عرض نصّ ماركداون", "نص: مصدر ماركداون", "كائن"},
+            {Names::UIWidgets::CODE_BLOCK, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "كتلة كود ملوَّنة نحويًّا", "نص: الكود المعروض", "كائن"},
+            {Names::UIWidgets::AUDIO_PLAYER, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "مشغّل صوت", "مصدر: مسار الصوت أو رابطه", "كائن"},
+            {Names::UIWidgets::IMAGE_GALLERY, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "معرض صور", "", "كائن"},
+            {Names::UIWidgets::SKELETON, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "هيكل تحميل مؤقّت", "", "كائن"},
+            {Names::UIWidgets::SHIMMER, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "وميض تحميل متحرّك", "", "كائن"},
+            {Names::UIWidgets::ANIMATED_LIST, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "قائمة بحركة عند التغيّر", "", "كائن"},
+            {Names::UIWidgets::EXPANDABLE, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "قسم قابل للتوسّع", "عنوان: عنوان القسم القابل للتوسّع", "كائن"},
+            {Names::UIWidgets::COLLAPSIBLE, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "قسم قابل للطيّ", "عنوان: عنوان القسم القابل للطيّ", "كائن"},
+            {Names::UIWidgets::SWIPEABLE, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "عنصر قابل للسحب جانبًا", "", "كائن"},
+            {Names::UIWidgets::TIME_PICKER, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "منتقي وقت", "قيمة: الوقت المختار", "كائن"},
+            {Names::UIWidgets::CALENDAR, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "تقويم", "قيمة: التاريخ المختار", "كائن"},
+            {Names::UIWidgets::COLOR_WHEEL, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "عجلة ألوان", "قيمة: اللون المختار", "كائن"},
+            {Names::UIWidgets::SIDE_NAV, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "تنقّل جانبيّ", "", "كائن"},
+            {Names::UIWidgets::TABS, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "شريط ألسنة", "", "كائن"},
+            {Names::UIWidgets::MEGA_MENU, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "قائمة ضخمة متعدّدة الأقسام", "عنوان: عنوان القائمة", "كائن"},
+            {Names::UIWidgets::GESTURE_DETECTOR, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "يلتقط الإيماءات دون كِسوة", "", "كائن"},
+            {Names::UIWidgets::INK_WELL, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "منطقة نقر بتأثير تموّج", "", "كائن"},
+            {Names::UIWidgets::LIST_VIEW_WIDGET, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "قائمة عرض قابلة للتمرير", "", "كائن"},
+            {Names::UIWidgets::FRACTIONALLY_SIZED_BOX, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "صندوق بمقاس كسريّ من الأب", "عامل_العرض: كسر من عرض الأب (٠–١)", "كائن"},
+            {Names::UIWidgets::CONSTRAINED_BOX, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "صندوق بحدود دنيا وقصوى", "أدنى_عرض: الحدّ الأدنى للعرض", "كائن"},
+            {Names::UIWidgets::ASPECT_RATIO, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "صندوق يحفظ نسبة العرض إلى الارتفاع", "نسبة: نسبة العرض إلى الارتفاع", "كائن"},
             // ─── UICore (26) ───
             {Names::UICore::ENGINE, "UICore", "MODULE_FUNCTION", "NONE", false, "_محرك_واجهات", "جذر: عنصر الجذر (داخليّ)", ""},
             {Names::UICore::RUN_APP, "UICore", "MODULE_FUNCTION", "NONE", false, "تشغيل_تطبيق", "جذر: عنصر الجذر للتطبيق (لقطة ثابتة)، أو دالّة بانية تُستدعى كلّ رسم فتُحدَّث المشاهد الزمنيّة حيًّا (م1-ب، نظير انتقل)", ""},
@@ -4228,7 +4372,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", false, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1121, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1169, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

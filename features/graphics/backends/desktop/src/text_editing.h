@@ -27,6 +27,9 @@
 #include <functional>
 #include <cstdint>
 
+// التلوين النحوي — انتقل إلى المكتبة (sad::ui)
+#include "sad_ui/syntax_highlighter.h"
+
 // Forward declaration of IRNode in its actual namespace
 namespace sad { namespace ui { class IRNode; } }
 
@@ -133,64 +136,9 @@ private:
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 3. تلوين نحوي للغة ص (SadSyntaxHighlighter)
+// 3. تلوين نحوي للغة ص — انتقل إلى المكتبة: sad_ui/syntax_highlighter.h
+//    (الأسماء متاحةٌ هنا عبر sad::ui لأنّ desktop فضاءٌ متداخلٌ فيه.)
 // ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * @brief نوع الرمز في التلوين النحوي
- */
-enum class SyntaxTokenType : uint8_t {
-    Normal,         ///< نص عادي
-    Keyword,        ///< كلمة محجوزة (دالة، صنف، إذا...)
-    ContextKeyword, ///< كلمة سياقية (غير_متزامن، لامدا...)
-    TypeName,       ///< اسم نوع مدمج (رقم، نص، عشري...)
-    String,         ///< نص حرفي "..."
-    Number,         ///< رقم حرفي
-    Comment,        ///< تعليق # أو #* *#
-    Operator,       ///< عامل (+ - * / = == ...)
-    Bracket,        ///< قوس ( ) [ ] 
-    Builtin,        ///< دالة مدمجة (اطبع، اطبع_سطر...)
-    Boolean,        ///< صحيح / خطأ
-    NullLiteral     ///< لاشيء
-};
-
-/**
- * @brief رمز ملوّن
- */
-struct SyntaxToken {
-    size_t start;           ///< بداية الرمز (byte offset)
-    size_t length;          ///< طول الرمز (bytes)
-    SyntaxTokenType type;   ///< نوع الرمز
-};
-
-/**
- * @brief ملوّن نحوي خفيف للغة ص
- *
- * يعمل على سطر واحد أو نص كامل ويُنتج قائمة رموز ملوّنة.
- */
-class SadSyntaxHighlighter {
-public:
-    /// تحليل النص وإنتاج رموز ملوّنة
-    std::vector<SyntaxToken> tokenize(const std::string& text) const;
-
-    /// الحصول على لون لنوع رمز (RGBA 0-1)
-    struct TokenColor { float r, g, b, a; };
-    static TokenColor getColor(SyntaxTokenType type, bool darkTheme = true);
-
-private:
-    /// هل الحرف بداية مُعرّف عربي أو لاتيني؟
-    static bool isIdentStart(unsigned char c, const std::string& text, size_t pos);
-
-    /// هل الحرف جزء من مُعرّف؟
-    static bool isIdentPart(unsigned char c, const std::string& text, size_t pos);
-
-    /// استخراج مُعرّف كامل بدءاً من موقع
-    static std::string extractIdent(const std::string& text, size_t& pos);
-
-    /// تصنيف مُعرّف
-    static SyntaxTokenType classifyIdent(const std::string& ident);
-};
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // 4. خريطة حالات التحرير (TextEditStateMap)
 // ═══════════════════════════════════════════════════════════════════════════════

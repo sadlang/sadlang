@@ -678,6 +678,17 @@ SadWidget sad_stepper(void) { return createWidget(UINodeType::Stepper); }
 SadWidget sad_rating_bar(void) { return createWidget(UINodeType::RatingBar); }
 SadWidget sad_alert(void) { return createWidget(UINodeType::Alert); }
 
+/* ─── (AR) المصنعُ العامُّ بنوعِ العقدة ───
+ * الرقمُ هو ترتيبُ العقدةِ في مصدرِ الحقيقةِ نفسِه، وهو ترتيبُ التعدادِ المولَّدِ
+ * منه، فلا جدولَ ترجمةٍ ثالثٌ ينحرف. رقمٌ خارجَ المدى يُعامَل حاويةً عامّةً
+ * بدل تعطُّلٍ: مخرَجٌ خاطئٌ مرئيٌّ خيرٌ من سقوطٍ صامت. */
+SadWidget sad_widget_create(int32_t nodeType) {
+    if (nodeType < 0 || nodeType >= static_cast<int32_t>(UINodeType::_Count)) {
+        return createWidget(UINodeType::Container);
+    }
+    return createWidget(static_cast<UINodeType>(nodeType));
+}
+
 /* ─── أثر المعدّلات الانسيابيّة (م-أ3ر، L1): خاصّيّة عامّة بالاسم ───
  * (AR) نظير setIRProperty في المفسّر: اسم الطريقة = مفتاح الخاصيّة على IRNode
  *      المشترك نفسه، فالأثر في شجرة العناصر مطابق للمحرّكين. */

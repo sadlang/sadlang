@@ -324,6 +324,16 @@ def _factory_prop_map(src: str) -> dict[str, str]:
     return cpp_to_id
 
 
+def _registers_from_sot(src: str) -> bool:
+    """
+    (AR) هل يسجّل المفسّرُ العناصرَ من الجدولَين المولَّدَين من مصدر الحقيقة؟
+         يشترط الاثنين معًا: قائمةَ المصانع (اسمٌ ⇒ عقدة) وجدولَ الخاصّيّةِ
+         الأولى (عقدةٌ ⇒ مفتاح). وجودُ أحدِهما وحدَه لا يُنشئ مصنعًا صحيحًا.
+    """
+    return ("SAD_UI_NODE_FACTORY_LIST" in src
+            and "SAD_UI_NODE_PRIMARY_PROP_LIST" in src)
+
+
 def main() -> int:
     errors: list[str] = []
 
@@ -359,12 +369,20 @@ def main() -> int:
                     f"العنصر «{canon}»: params[0] «{first}» لا يبدأ بالاسم القانونيّ «{ar}» (primary_prop={pp})"
                 )
         # 3) primary_prop يطابق مفتاح المصنع الفعليّ في widget_builtins.cpp
+        #
+        # (AR) مساران مشروعان للتسجيل، ولكلٍّ فحصُه:
+        #   • مصنعٌ يدويٌّ بالماكرو ⇒ المفتاحُ مكتوبٌ فيه ويجب أن يطابق primary_prop.
+        #   • تسجيلٌ مولَّدٌ من مصدرِ الحقيقة ⇒ المفتاحُ يأتي من الجدولِ المولَّدِ
+        #     (نوعُ العقدة ⇒ مفتاح) المشتقِّ من primary_prop نفسِه، فالمطابقةُ
+        #     بنيويّةٌ لا نصّيّة. لا نُسكِت الفحصَ هنا: نشترط أن يستهلك المفسّرُ
+        #     الجدولَينِ المولَّدَين فعلًا — فحذفُ الحلقةِ يُفشِل الحارسَ كما يجب.
         factory_id = cpp_to_factory_id.get(cpp_id)
-        if factory_id is None:
+        if factory_id is None and not _registers_from_sot(factory_src):
             errors.append(
-                f"العنصر «{canon}» (cpp_id={cpp_id}): له primary_prop لكن لم يُعثَر على مفتاح المصنع في widget_builtins.cpp"
+                f"العنصر «{canon}» (cpp_id={cpp_id}): له primary_prop ولا مصنعَ يدويًّا "
+                "ولا تسجيلًا مولَّدًا من مصدر الحقيقة في widget_builtins.cpp"
             )
-        elif factory_id != pp:
+        elif factory_id is not None and factory_id != pp:
             errors.append(
                 f"العنصر «{canon}»: primary_prop «{pp}» يخالف مفتاح المصنع الفعليّ «props::{factory_id}»"
             )

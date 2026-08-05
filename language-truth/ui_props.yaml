@@ -586,6 +586,61 @@ keys:
     description_ar: إزاحة تمرير رأسيّة (مفتاح لاتينيّ داخليّ للمُرسِّم)
     description_en: Vertical scroll offset (renderer-internal latin key)
 
+  # ══════════════════════════════════════════════════════════════════════════
+  # (AR) خصائصُ عناصرِ التخطيطِ المحمولة (موسع/مرن/نسبة_عرض/صندوق_مقيد/صندوق_نسبي).
+  #      كانت هذه العناصرُ تُنشَأ بلا خاصّيّةٍ تصفُ سلوكَها، فتسقط في مولّداتِ
+  #      المنصّاتِ إلى حاويةٍ عامّةٍ ولو كُتِبت حالةٌ لها (ث٨): الحالةُ وحدَها
+  #      لا تكفي ما لم يكن للعنصرِ ما يقوله. المفاتيحُ هنا هي ما يقوله.
+  # ══════════════════════════════════════════════════════════════════════════
+
+  - id: FLEX
+    canonical: مرونة
+    value_type: عدد
+    description_ar: نصيبُ العنصرِ من المساحةِ الفائضةِ في صفٍّ أو عمود (موسع/مرن)
+    description_en: Share of the free space along a row/column axis (Expanded/Flexible)
+
+  - id: RATIO
+    canonical: نسبة
+    value_type: عدد
+    description_ar: نسبةُ العرضِ إلى الارتفاعِ لعنصرِ «نسبة_عرض»
+    description_en: Width-to-height ratio for the AspectRatio widget
+
+  - id: WIDTH_FACTOR
+    canonical: عامل_العرض
+    value_type: عدد
+    description_ar: كسرٌ من عرضِ الأبِ (٠–١) لعنصرِ «صندوق_نسبي»
+    description_en: Fraction of the parent width (0–1) for FractionallySizedBox
+
+  - id: HEIGHT_FACTOR
+    canonical: عامل_الارتفاع
+    value_type: عدد
+    description_ar: كسرٌ من ارتفاعِ الأبِ (٠–١) لعنصرِ «صندوق_نسبي»
+    description_en: Fraction of the parent height (0–1) for FractionallySizedBox
+
+  - id: MIN_WIDTH
+    canonical: أدنى_عرض
+    value_type: عدد
+    description_ar: الحدُّ الأدنى للعرضِ في عنصرِ «صندوق_مقيد»
+    description_en: Minimum width for the ConstrainedBox widget
+
+  - id: MAX_WIDTH
+    canonical: أقصى_عرض
+    value_type: عدد
+    description_ar: الحدُّ الأقصى للعرضِ في عنصرِ «صندوق_مقيد»
+    description_en: Maximum width for the ConstrainedBox widget
+
+  - id: MIN_HEIGHT
+    canonical: أدنى_ارتفاع
+    value_type: عدد
+    description_ar: الحدُّ الأدنى للارتفاعِ في عنصرِ «صندوق_مقيد»
+    description_en: Minimum height for the ConstrainedBox widget
+
+  - id: MAX_HEIGHT
+    canonical: أقصى_ارتفاع
+    value_type: عدد
+    description_ar: الحدُّ الأقصى للارتفاعِ في عنصرِ «صندوق_مقيد»
+    description_en: Maximum height for the ConstrainedBox widget
+
   # (AR) مفتاح احتياطيّ لاتينيّ يُنتجه مسار UINode (ir_builder: primaryArg ⇒ "text").
   #      يقرؤه المُرسِّم كبديل فقط؛ ليس مفتاحًا قانونيًّا يكتبه مطوّر ص.
   - id: TEXT_LATIN
@@ -594,3 +649,52 @@ keys:
     latin_alias: true
     description_ar: بديل احتياطيّ لاتينيّ (مسار UINode) — يقرؤه المُرسِّم فقط
     description_en: Latin fallback (UINode path) — renderer-read only
+
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) قِيَمُ الخصائصِ القانونيّة — لا أسماؤها. كانت مكتوبةً حرفيًّا في كلِّ
+#      مُرسِّمٍ ومولّدٍ على حِدة فاختلفت القوائمُ صامتةً؛ يولَّد منها
+#      namespace sad::ui::propval فتصير المقارنةُ واحدةً في كلِّ مسار.
+#      الحقول: id (ثابت C++) · value (السلسلة القانونيّة) · description_ar/en
+# (EN) Canonical property *values*; generates namespace sad::ui::propval.
+# ════════════════════════════════════════════════════════════════════════════
+values:
+  - id: ALIGN_CENTER_AR
+    value: وسط
+    description_ar: محاذاةٌ إلى الوسط
+    description_en: Center alignment
+  - id: ALIGN_CENTER_EN
+    value: center
+    description_ar: محاذاةُ الوسطِ — بديلٌ لاتينيّ
+    description_en: Center alignment (latin alias)
+  - id: ALIGN_RIGHT_AR
+    value: يمين
+    description_ar: محاذاةٌ إلى اليمين
+    description_en: Right alignment
+  - id: ALIGN_RIGHT_EN
+    value: right
+    description_ar: محاذاةُ اليمينِ — بديلٌ لاتينيّ
+    description_en: Right alignment (latin alias)
+  - id: ALIGN_LEFT_AR
+    value: يسار
+    description_ar: محاذاةٌ إلى اليسار
+    description_en: Left alignment
+  - id: ALIGN_LEFT_EN
+    value: left
+    description_ar: محاذاةُ اليسارِ — بديلٌ لاتينيّ
+    description_en: Left alignment (latin alias)
+  - id: BOOL_TRUE_AR
+    value: صحيح
+    description_ar: قيمةٌ منطقيّةٌ صادقة
+    description_en: Boolean true
+  - id: BOOL_TRUE_EN
+    value: "true"
+    description_ar: صادقٌ — بديلٌ لاتينيّ
+    description_en: Boolean true (latin alias)
+  - id: BOOL_TRUE_ONE
+    value: "1"
+    description_ar: صادقٌ مكتوبًا رقمًا
+    description_en: Boolean true written as 1
+  - id: BOOL_ENABLED_AR
+    value: مفعل
+    description_ar: مُفعَّلٌ — مرادفُ الصادقِ في مفاتيحِ التفعيل
+    description_en: Enabled — true synonym for enablement keys

@@ -13,6 +13,7 @@
 #include "sad_ui/ios/swiftui_codegen.h"
 #include "sad_ui/color_utils.h" // أدوات الألوان
 #include "sad_ui/prop_keys.h"   // مصدر الحقيقة لمفاتيح الخصائص (لا سلاسل حرفيّة)
+#include <locale>  // (AR) std::locale::classic — لا تعتمد على تضمينٍ عبوريّ
 
 namespace sad
 {
@@ -46,6 +47,63 @@ namespace sad
                         out += c;
                     }
                     return out;
+                }
+
+                // (AR) قيمةٌ عدديّةٌ من خاصّيّةٍ ببديلٍ عند غيابها، بصيغةٍ لا تتأثّر
+                //   بالمحلّيّةِ كي لا ينقلب الفاصلُ العشريُّ فاصلةً فيكسر كودَ Swift.
+                std::string swiftNumber(const IRNode &node, const char *key, double fallback)
+                {
+                    double value = fallback;
+                    if (const auto *p = node.findProperty(key))
+                    {
+                        if (auto *d = std::get_if<double>(&p->value))
+                            value = *d;
+                        else if (auto *iv = std::get_if<int64_t>(&p->value))
+                            value = static_cast<double>(*iv);
+                    }
+                    std::ostringstream ss;
+                    ss.imbue(std::locale::classic());
+                    ss << value;
+                    return ss.str();
+                }
+
+                // (AR) حدٌّ أقصى للمقاس: غيابُ المفتاحِ يعني «بلا حدّ» ⇒ ‎.infinity‎.
+                std::string swiftBound(const IRNode &node, const char *key)
+                {
+                    if (!node.findProperty(key))
+                        return ".infinity";
+                    return swiftNumber(node, key, 0.0);
+                }
+
+                // (AR) محاذاةُ «محاذاة» إلى ثابتِ Alignment في SwiftUI. البدايةُ في
+                //   لغةٍ عربيّةٍ يمينُ الشاشة، وSwiftUI يعبّر عنها بـ .leading
+                //   المُدرِكةِ للاتّجاه (تنقلب مع layoutDirection) لا بـ .trailing.
+                std::string swiftAlignment(const IRNode &node)
+                {
+                    std::string value;
+                    if (const auto *p = node.findProperty(props::ALIGN))
+                    {
+                        if (auto *s = std::get_if<std::string>(&p->value))
+                            value = *s;
+                    }
+                    if (value == propval::ALIGN_CENTER_AR || value == propval::ALIGN_CENTER_EN)
+                        return ".center";
+                    if (value == propval::ALIGN_RIGHT_AR || value == propval::ALIGN_RIGHT_EN)
+                        return ".trailing";
+                    if (value == propval::ALIGN_LEFT_AR || value == propval::ALIGN_LEFT_EN)
+                        return ".leading";
+                    return ".leading";
+                }
+
+                // (AR) تعبيرُ حدثِ اللمسِ المربوطِ بالعقدةِ إن وُجد، وإلّا فارغٌ.
+                std::string swiftCallback(const IRNode &node)
+                {
+                    for (const auto &evt : node.getEvents())
+                    {
+                        if (evt.type == sad::ui::IREventType::OnTap)
+                            return evt.expression;
+                    }
+                    return "";
                 }
             } // namespace
 
@@ -1341,6 +1399,257 @@ namespace sad
                         out << generateNode(*child, indentLevel + 1);
                     }
                     out << i << "}\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                // ══════════════════════════════════════════════════════════════
+                // (AR) عناصرُ التخطيطِ المحمولة (ث٨) — كانت تسقط إلى VStack العامّةِ
+                //      أدناه فتضيع دلالتُها كلُّها. لكلٍّ منها مقابلٌ مباشرٌ في
+                //      SwiftUI، فالفجوةُ كانت غيابَ حالةٍ لا غيابَ قدرة.
+                // ══════════════════════════════════════════════════════════════
+
+                case UINodeType::Center:
+                {
+                    out << i << "VStack {\n"
+                        << i << "    Spacer()\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "    Spacer()\n"
+                        << i << "}\n"
+                        << i << ".frame(maxWidth: .infinity, maxHeight: .infinity)\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::Padding:
+                {
+                    out << i << "VStack {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    // (AR) generateViewModifiers تكتب padding من props::PADDING نفسِه.
+                    out << i << "}\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::SizedBox:
+                {
+                    out << i << "VStack {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    // (AR) العرضُ والارتفاعُ يكتبهما generateViewModifiers؛ وتثبيتُ صفرٍ
+                    //   لبُعدٍ غائبٍ كان يُخفي العنصر.
+                    out << i << "}\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::Expanded:
+                case UINodeType::Flexible:
+                {
+                    // (AR) SwiftUI لا يملك «وزنًا» صريحًا؛ التمدُّدُ يُعبَّر عنه
+                    //      بإطارٍ لا نهائيّ، و«مرن» بأقصى لا بإلزام.
+                    const bool fills = (node.getType() == UINodeType::Expanded);
+                    out << i << "VStack {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n"
+                        << i << (fills ? ".frame(maxWidth: .infinity, maxHeight: .infinity)\n"
+                                       : ".frame(maxWidth: .infinity)\n");
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::Align:
+                {
+                    out << i << "VStack {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n"
+                        << i << ".frame(maxWidth: .infinity, maxHeight: .infinity, alignment: "
+                        << swiftAlignment(node) << ")\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::SafeArea:
+                {
+                    out << i << "VStack {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n"
+                        << i << ".edgesIgnoringSafeArea([])\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::GestureDetector:
+                case UINodeType::InkWell:
+                {
+                    out << i << "VStack {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n"
+                        << i << ".onTapGesture { " << swiftCallback(node) << " }\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::ListView:
+                {
+                    out << i << "List {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::FractionallySizedBox:
+                {
+                    // (AR) الكسرُ من مقاسِ الأبِ يحتاج GeometryReader في SwiftUI.
+                    out << i << "GeometryReader { proxy in\n"
+                        << i << "    VStack {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 2);
+                    out << i << "    }\n"
+                        << i << "    .frame(width: proxy.size.width * "
+                        << swiftNumber(node, props::WIDTH_FACTOR, 1.0)
+                        << ", height: proxy.size.height * "
+                        << swiftNumber(node, props::HEIGHT_FACTOR, 1.0) << ")\n"
+                        << i << "}\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::ConstrainedBox:
+                {
+                    out << i << "VStack {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    // (AR) حدٌّ أقصى غائبٌ = ‎.infinity‎ لا صفر (وإلّا اختفى العنصر).
+                    out << i << "}\n"
+                        << i << ".frame(minWidth: " << swiftNumber(node, props::MIN_WIDTH, 0.0)
+                        << ", maxWidth: " << swiftBound(node, props::MAX_WIDTH)
+                        << ", minHeight: " << swiftNumber(node, props::MIN_HEIGHT, 0.0)
+                        << ", maxHeight: " << swiftBound(node, props::MAX_HEIGHT) << ")\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::AspectRatio:
+                {
+                    out << i << "VStack {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n"
+                        << i << ".aspectRatio(" << swiftNumber(node, props::RATIO, 1.0)
+                        << ", contentMode: .fit)\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                // ══════════════════════════════════════════════════════════════
+                // (AR) قشرةُ سطحِ المكتب على iOS — أقربُ مقابلٍ دلاليٍّ لا حاويةٌ
+                //      صمّاء: شريطُ العنوان ⇒ عنوانُ التنقّل، وقائمةُ ابدأ ⇒ قائمةٌ
+                //      منسدلة، ومؤشّرُ الانشغالِ ⇒ ProgressView الدوّار.
+                // ══════════════════════════════════════════════════════════════
+
+                case UINodeType::Window:
+                {
+                    out << i << "VStack {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::TitleBar:
+                {
+                    out << i << "Text(\"" << swiftLabel(node) << "\")\n"
+                        << i << "    .font(.headline)\n"
+                        << i << "    .frame(maxWidth: .infinity)\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::ScrollBar:
+                {
+                    out << i << "Rectangle()\n"
+                        << i << "    .fill(Color.secondary.opacity(0.4))\n"
+                        << i << "    .frame(width: 4)\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::Taskbar:
+                case UINodeType::StatusBar:
+                {
+                    out << i << "HStack {\n";
+                    {
+                        const std::string barText = swiftLabel(node);
+                        if (!barText.empty())
+                            out << i << "    Text(\"" << barText << "\")\n";
+                    }
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n"
+                        << i << ".frame(maxWidth: .infinity)\n"
+                        << i << ".background(Color(.secondarySystemBackground))\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::StartMenu:
+                {
+                    // (AR) «قائمة_ضخمة» لها فرعُها الخاصُّ أعلاه؛ لا تُضَمَّ هنا.
+                    out << i << "Menu(\"" << swiftLabel(node) << "\") {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::SystemTray:
+                {
+                    out << i << "HStack {\n";
+                    {
+                        const std::string trayText = swiftLabel(node);
+                        if (!trayText.empty())
+                            out << i << "    Text(\"" << trayText << "\")\n";
+                    }
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::SpinBox:
+                {
+                    out << i << "Stepper(\"" << swiftLabel(node) << "\", value: .constant("
+                        << swiftNumber(node, props::VALUE, 0.0) << "))\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::GroupBox:
+                {
+                    out << i << "GroupBox(\"" << swiftLabel(node) << "\") {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << i << "}\n";
+                    generateViewModifiers(out, node, indentLevel);
+                    break;
+                }
+
+                case UINodeType::Spinner:
+                {
+                    out << i << "ProgressView()\n"
+                        << i << "    .progressViewStyle(.circular)\n";
                     generateViewModifiers(out, node, indentLevel);
                     break;
                 }

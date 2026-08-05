@@ -307,6 +307,39 @@ namespace sad
                 }
                 } // if (!freestanding)
 #endif
+
+#if !defined(_WIN32) && defined(SAD_UI_HOST_SDL2)
+                // (AR) نظيرُ الكتلةِ أعلاه على POSIX. مكتبةُ الرسوماتِ بُنيت بـSDL2
+                //      (SAD_UI_HOST_SDL2 يُعرَّفُ وقتَ تهيئةِ CMake حين تُعثَرُ عليها)،
+                //      ووحدةُ sad_ui_runtime.cpp تشيرُ إلى DesktopRenderer وDesktopWindow
+                //      تحتَ SAD_UI_USE_SDL2 — وهي وحدةُ ترجمةٍ واحدةٌ لا تتجزّأ، فأيُّ
+                //      برنامجٍ يستدعي `زر` أو `طباعة_شجرة` يسحبُها كاملةً ومعها رموزُ
+                //      SDL_*. بدونَ هذه الكتلةِ يفشلُ الربطُ بـundefined SDL_CreateWindow.
+                //      الوضعُ الحرُّ مستثنًى كما على ويندوز: خلفيّةُ fb0/evdev لا SDL2.
+                // (EN) POSIX counterpart of the block above. The graphics library was
+                //      built against SDL2, and the runtime TU is monolithic, so every UI
+                //      program drags SDL_* in. Freestanding is excluded (fb0/evdev).
+                if (!freestanding)
+                {
+                    constexpr const char *kSdl2Library = "SDL2";
+                    constexpr const char *kSdl2TtfLibrary = "SDL2_ttf";
+#ifdef SAD_UI_HOST_SDL2_LIB_DIR
+                    // (AR) مسارٌ ملموسٌ حين لا يكونُ ضمنَ مساراتِ البحثِ الافتراضيّة
+                    //      (هومبرو على ماك مثلًا: ‎/opt/homebrew/lib‎).
+                    const std::string sdl2_dir = SAD_UI_HOST_SDL2_LIB_DIR;
+                    if (!sdl2_dir.empty())
+                    {
+                        append_unique_value(library_paths, sdl2_dir);
+                    }
+#endif
+                    append_unique_value(libraries, kSdl2Library);
+#ifdef SAD_UI_HOST_SDL2_TTF
+                    append_unique_value(libraries, kSdl2TtfLibrary);
+#else
+                    (void)kSdl2TtfLibrary;
+#endif
+                }
+#endif
             }
 
 #ifdef _WIN32
@@ -354,6 +387,58 @@ namespace sad
             append_unique_value(libraries, "oldnames.lib");
             append_unique_value(libraries, "legacy_stdio_definitions.lib");
             append_unique_value(libraries, "kernel32.lib");
+#else
+            (void)libraries;
+            (void)include_cpp_runtime;
+#endif
+        }
+
+        void CompilerDriver::append_posix_hosted_runtime_libraries(std::vector<std::string> &libraries,
+                                                                    bool include_cpp_runtime) const
+        {
+#ifndef _WIN32
+            // (AR) دوالُّ الرياضيّاتِ في libm والخيوطُ في libpthread — وكلاهما خارجَ
+            //      libc الافتراضيّةِ بخلافِ CRT ويندوز.
+            // (EN) Math lives in libm and threads in libpthread — outside default libc.
+            constexpr const char *kMathLibrary = "m";
+            constexpr const char *kThreadLibrary = "pthread";
+
+            // (AR) مكتبةُ C++ القياسيّة: المكتباتُ المضمَّنةُ التي نربطُها
+            //      (sad_graphics_runtime وsad_graphics وsad_http…) وحداتُ ترجمةٍ
+            //      بـC++، فتشيرُ إلى `std::basic_ostringstream` و`std::exception`
+            //      وغيرِها. ويندوزُ يربطُها منذُ البداية (msvcprt/libcpmt في
+            //      append_windows_hosted_runtime_libraries) بينما بقيَ POSIX بلا
+            //      نظير ⇒ كلُّ برنامجٍ يستوردُ «رسومات» يفشلُ ربطُه على لينكس/ماك
+            //      بـundefined reference إلى رموزِ `std::`. سائقُ الربطِ هنا هو
+            //      `clang`/`cc` (سائقُ C) فلا يضمُّها تلقائيًّا كما يفعلُ `clang++`.
+            // (EN) C++ standard library: the bundled archives we link are C++ TUs
+            //      referencing std:: symbols. Windows has linked its C++ runtime all
+            //      along; POSIX had no counterpart, so every UI program failed to link
+            //      there. Our link driver is the C driver (`clang`/`cc`), which does
+            //      not pull the C++ runtime in the way `clang++` would.
+#ifdef __APPLE__
+            // (AR) ماك: libc++ (LLVM) هي القياسيّةُ الافتراضيّة.
+            constexpr const char *kCppStandardLibrary = "c++";
+#else
+            // (AR) لينكس: libstdc++ (GNU) — وهي ما بُنيت به الأرشيفاتُ نفسُها
+            //      (رموزُ `std::__cxx11::` في سجلِّ الإخفاقِ تدلُّ عليها).
+            constexpr const char *kCppStandardLibrary = "stdc++";
+#endif
+
+            // (AR) الترتيبُ مقصود: مكتبةُ C++ **قبلَ** libm/libpthread. رابطُ ELF
+            //      أحاديُّ المرورِ على الأرشيفاتِ الساكنة، وأعضاءُ libstdc++ نفسِها
+            //      تستدعي pow/sqrt — فلو جاءت بعدَ `-lm` انتهى مسحُ libm.a قبلَ أن
+            //      تُطلَبَ رموزُه ⇒ undefined reference to 'pow' تحتَ `--static`.
+            //      (Amelia مراجعة: العكسُ يمرُّ ديناميًّا بـDT_NEEDED ويسقطُ ساكنًا.)
+            // (EN) Order matters: the C++ runtime precedes libm/libpthread. libstdc++
+            //      members themselves call pow/sqrt; with `-lm` first, its archive scan
+            //      is over before those references appear ⇒ static links break.
+            if (include_cpp_runtime)
+            {
+                append_unique_value(libraries, kCppStandardLibrary);
+            }
+            append_unique_value(libraries, kMathLibrary);
+            append_unique_value(libraries, kThreadLibrary);
 #else
             (void)libraries;
             (void)include_cpp_runtime;

@@ -233,6 +233,18 @@ namespace sad
             {
                 arg_storage.push_back("-l" + lib);
             }
+            // (AR) دَينٌ مُعلَن: هذا الفرعُ لا يمرّر auto_library_paths/auto_libraries
+            //      (sad_graphics_runtime وsad_http وأخواتِها) ولا مكتبةَ C++ القياسيّة،
+            //      فكلُّ برنامجٍ يحتاجُها يفشلُ هنا ويسقطُ إلى مسارِ clang أدناه — وهو
+            //      المسارُ المُختبَرُ فعليًّا على لينكس/ماك. الفشلُ آمنٌ (لا ينتجُ ثنائيًّا
+            //      ناقصًا) لكنّه محاولةُ ربطٍ مُهدَرة. وصلُ الأرشيفاتِ هنا يستلزمُ أيضًا
+            //      crtbegin/crtend وlibgcc_s لتهيئةِ الكائناتِ الساكنة، فيُؤجَّل قصدًا.
+            // (EN) Declared debt: this branch passes neither the bundled archives nor
+            //      the C++ runtime, so any program needing them fails here and falls
+            //      back to the clang path below — the path actually exercised on
+            //      Linux/macOS. The failure is safe (no truncated binary), just a wasted
+            //      attempt; wiring the archives here would also need crtbegin/crtend and
+            //      libgcc_s for static-init, hence deliberately deferred.
 #endif
 
             // (AR) بناء مصفوفة المؤشرات لـ LLD

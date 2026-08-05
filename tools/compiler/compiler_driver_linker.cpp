@@ -721,13 +721,27 @@ namespace sad
                     command += " " + clang_library_flag(lib);
                 }
 #else
-                // (AR) على POSIX (Linux/macOS) دوال الرياضيّات (pow, sqrt, ...) في libm
-                //      والخيوط في libpthread — وكلاهما ليس ضمن libc الافتراضيّة كما في
-                //      CRT ويندوز. بدونهما يفشل الربط بـundefined reference to 'pow'.
-                // (EN) On POSIX, math (pow, sqrt, …) lives in libm and threads in
-                //      libpthread — unlike the Windows CRT. Without them the link fails
-                //      with undefined reference to 'pow' etc.
-                command += " -lm -lpthread";
+                // (AR) نظيرُ ويندوزَ على POSIX — libm/libpthread ومكتبةُ C++ القياسيّة.
+                //      يُلحَقُ **بعدَ** الأرشيفاتِ المضمَّنةِ لأنّ رابطَ ELF أحاديُّ المرور:
+                //      المكتبةُ التي تُشبعُ رموزًا يجبُ أن تلي مَن يطلبُها.
+                // (EN) POSIX counterpart of the Windows CRT block. Appended *after* the
+                //      bundled archives: the ELF linker is single-pass, so a library that
+                //      satisfies symbols must follow the objects that reference them.
+                //      ولا نطلبُ مكتبةَ C++ إلّا حين رُبِط أرشيفٌ مضمَّنٌ فعلًا: هي
+                //      وحدَها وحداتُ الترجمةِ بـC++ هنا (كودُنا المولَّدُ ومكتبةُ وقتِ
+                //      التشغيلِ المؤقّتةُ كلاهما C خالص)، فبرنامجُ «مرحبا» على صورةٍ
+                //      فيها clang بلا libstdc++-dev يبقى قابلًا للربطِ كما كان.
+                // (EN) Request the C++ runtime only when a bundled archive was actually
+                //      linked — those are the only C++ TUs here (our generated code and
+                //      the temp runtime are pure C), so a hello-world on an image with
+                //      clang but no libstdc++-dev keeps linking as before.
+                std::vector<std::string> posix_runtime_libraries;
+                append_posix_hosted_runtime_libraries(posix_runtime_libraries,
+                                                      !auto_libraries.empty());
+                for (const auto &lib : posix_runtime_libraries)
+                {
+                    command += " " + clang_library_flag(lib);
+                }
 #endif
 
                 // (AR) إضافة علم الربط الثابت إذا طُلب

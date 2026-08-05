@@ -161,10 +161,12 @@ namespace sad
                 void clearClipRect() override;
 
                 /**
-                 * @brief رسم شجرة واجهة كاملة (يستخدم renderNode الخاص بسطح المكتب)
+                 * @brief (AR) إزاحةُ التمريرِ التي تملكها المنصّة (عجلةُ الفأرة)
+                 *
+                 * تخصيصُ خُطّافِ المكتبة: المُرسِّمُ المشترَك يسألُ عنها لكلِّ حاويةٍ
+                 * قابلةٍ للتمرير فتَسري على أبنائها وأحفادِها.
                  */
-                void render(const std::shared_ptr<IRNode> &root,
-                            const std::shared_ptr<LayoutResult> &layout);
+                float platformScrollOffset(const IRNode &node) const override;
 
                 // ─── دعم التمرير (Scroll Support) ─────────
 
@@ -179,8 +181,24 @@ namespace sad
 
                 // ─── تحديث الخيارات ───────────────────────
 
-                /// تحديث خيارات العرض الأصلية (SDL2-specific)
-                void setOptions(const RenderOptions &options) { desktopOptions_ = options; }
+                /**
+                 * @brief تحديث خيارات العرض الأصلية (SDL2-specific)
+                 *
+                 * (AR) تُعكَس في `options_` الخاصّة بالأساس أيضًا: المُرسِّمُ
+                 *      المشترَك يقرأ منها (حدودُ التصحيح مثلًا)، وRenderOptions
+                 *      هنا نسخةٌ حقلًا بحقلٍ من PlatformRenderOptions — بقيّةُ
+                 *      الشوكةِ نفسِها. دَينٌ معلَن: توحيدُ البنيتَين يمسُّ واجهةَ
+                 *      النافذةِ العامّةَ فأُفرِد عن هذا التغيير.
+                 */
+                void setOptions(const RenderOptions &options)
+                {
+                    desktopOptions_ = options;
+                    options_.antialiasing = options.antialiasing;
+                    options_.vsync = options.vsync;
+                    options_.scaleFactor = options.scaleFactor;
+                    options_.debugBounds = options.debugBounds;
+                    options_.debugLayout = options.debugLayout;
+                }
 
                 /// الحصول على خيارات العرض (SDL2-specific)
                 const RenderOptions &getDesktopOptions() const { return desktopOptions_; }
@@ -190,9 +208,6 @@ namespace sad
 
             private:
                 // ─── رسم العناصر الفردية ─────────────────
-
-                /// رسم عقدة واحدة مع أبنائها (تكرار)
-                void renderNode(const IRNode &node, const LayoutResult &layout);
 
                 /// رسم مستطيل مملوء (API داخلي بـ LayoutRect)
                 void drawFilledRect(const LayoutRect &rect, const Color &color);
@@ -242,10 +257,6 @@ namespace sad
                 void drawLinearGradient(const LayoutRect &rect, const Color &startColor,
                                         const Color &endColor, bool vertical = true, float radius = 0.0f);
 
-                /// رسم ظل ناعم
-                void drawSoftShadow(const LayoutRect &rect, float radius, float blur,
-                                    float offsetX, float offsetY, const Color &color);
-
                 /// تعيين وضع المزج
                 void setBlendMode(int mode);
 
@@ -266,12 +277,15 @@ namespace sad
                 float defaultFontSize_ = 16.0f;       ///< حجم الخط الافتراضي
                 RenderOptions desktopOptions_;        ///< خيارات العرض (SDL2-specific)
                 bool initialized_ = false;            ///< هل تمت التهيئة
-                int viewportWidth_ = 0;               ///< عرض منفذ العرض (لقص العناصر خارج الشاشة)
-                int viewportHeight_ = 0;              ///< ارتفاع منفذ العرض
+                // (AR) viewportWidth_/viewportHeight_ يسكنان PlatformRenderer. كانا
+                //      مُعادَي التصريحِ هنا فيُظلِّلان عضوَي الأساس: يكتب سطحُ المكتبِ
+                //      في نسخته ويقرأ المُرسِّمُ المشترَك نسخةَ الأساسِ الصفريّة ⇒
+                //      قصُّ ما خرج عن الشاشةِ لا يعمل أصلًا في هذا المسار.
 
                 // ─── دعم التمرير ─────────────────────────
                 std::unordered_map<const IRNode *, float> scrollOffsets_; ///< إزاحة التمرير لكل عنصر قابل للتمرير
-                float scrollTranslateY_ = 0.0f;                           ///< إزاحة الرسم المتراكمة (للتمرير المتداخل)
+                // (AR) scrollTranslateY_ حُذِف: صار التراكمُ في المُرسِّمِ المشترَك
+                //      ويُطبَّق على مستطيلِ العقدةِ فيَسري على الأحفادِ والقصِّ معًا.
 
                 /// ذاكرة التخزين المؤقت للخطوط بأحجام مختلفة
                 std::unordered_map<int, TTF_Font *> fontSizeCache_;

@@ -955,6 +955,15 @@ namespace Sad
                 BUILTIN_UI_DRAWER,         ///< درج() / sad_drawer()
                 BUILTIN_UI_SAFE_AREA,      ///< منطقة_آمنة() / sad_safe_area()
                 BUILTIN_UI_SURFACE,        ///< سطح() / sad_surface()
+                // ── (AR) الأوپكودُ العامُّ لإنشاءِ عنصرٍ بنوعِ عقدتِه ──
+                //   يحمل عاملًا أوّلَ ثابتًا صحيحًا = ترتيبُ العقدةِ في مصدرِ الحقيقة،
+                //   ثمّ الأبناءَ إن وُجدوا. به يصير **كلُّ** عنصرٍ في مصدرِ الحقيقةِ
+                //   قابلًا للإنشاءِ من لغةِ ص بلا أوپكودٍ خاصٍّ لكلِّ واحد — وكانت
+                //   ٤٨ عقدةً تُصيَّر ولا يُنشئها المصرِّفُ لهذا السبب بالذات.
+                //   وله أثرٌ ثانٍ مقصود: الخلفيّةُ السياديّةُ (بلا LLVM) تحتاج
+                //   معالجةَ أوپكودٍ واحدٍ لفهرسِ العناصرِ كلِّه لا ١١٠.
+                // ── (EN) Generic widget-creation opcode carrying the SoT node index.
+                BUILTIN_UI_WIDGET_BY_TYPE,    ///< أيّ عنصر / sad_widget_create(nodeType)
                 // ── تحكّم متقدّم + تغذية راجعة (م٥-ب/م٦-ب) ──
                 BUILTIN_UI_SPIN_BOX,          ///< مربع_دوار() / sad_spin_box()
                 BUILTIN_UI_GROUP_BOX,         ///< صندوق_تجميع() / sad_group_box()
@@ -1059,6 +1068,14 @@ namespace Sad
                 // --- 20g. خاصّيّة متعدّدة الوسائط (م-أ3ر) — قيمٌ مفصولة بفواصل ---
                 BUILTIN_UI_PROP_JOIN_ADD,     ///< وسيطٌ يُنسَّق ويُضاف لمجمِّع العنصر (sad_prop_join_add_*)
                 BUILTIN_UI_PROP_JOIN_COMMIT,  ///< يدمج المجمِّع بفواصل ⇒ خاصّيّة نصّيّة (sad_prop_join_commit)
+
+                // (AR) حدّا كتلةِ أوپكوداتِ الواجهة — **أسماءٌ مرادفةٌ** لا قيمًا
+                //   جديدة (لا تُزحزِح شيئًا). بهما يعرف المخفّضُ الأصليُّ أنّ
+                //   أوپكودًا واجهيًّا فيُشخّصه صراحةً (ث١)، بلا قائمةٍ يدويّةٍ
+                //   تتعفّن عند إضافةِ أوپكودٍ واجهيٍّ جديد.
+                // (EN) UI opcode block bounds — aliases, not new values.
+                _UiOpcodeFirst = BUILTIN_UI_COLUMN,
+                _UiOpcodeLast = BUILTIN_UI_PROP_JOIN_COMMIT,
 
                 // ==========================================
                 // التوجيهات / Directives (@حجم, @ذري, etc.)

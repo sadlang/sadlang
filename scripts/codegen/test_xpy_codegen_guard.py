@@ -57,6 +57,12 @@ EXPECTED_OUTPUTS = {
     # (EN) UI node types — X-macro lists from ui_nodes.yaml; build the UINodeType
     #      enum and both name tables inside the graphics library.
     "features/graphics/core/include/sad_ui/generated/node_types_generated.h",
+    # (AR) مفرداتُ لغةِ ص كما يراها المُلوِّنُ النحويُّ في «كتلة_كود» — من
+    #      keywords.yaml وbuiltins/core.yaml. رأسٌ **ذاتيُّ الاكتفاء** عمدًا:
+    #      مكتبةُ الرسوماتِ طرفيّةٌ فلا تستهلك رأسَ المعجم (يضمّ token.h).
+    # (EN) Highlighter vocabulary — self-contained by design: the graphics leaf
+    #      library must not depend on the lexer layer. Same pattern as prop_keys.h.
+    "features/graphics/core/include/sad_ui/generated/syntax_keywords_generated.h",
     # (AR) نظيرُه للمحلّل: الأوّليّات/الحاويات/الأحداث — الطبقةُ الأساسُ لا تضمّ
     #      رأسًا من مكتبة الرسومات، فمصدرٌ واحدٌ ومخرَجان.
     # (EN) Parser-side twin (primitives/containers/events) — foundation layer

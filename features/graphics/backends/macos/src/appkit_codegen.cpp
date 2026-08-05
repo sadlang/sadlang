@@ -22,6 +22,7 @@
 #include "sad_ui/macos/appkit_codegen.h"
 #include "sad_ui/color_utils.h"  // أدوات تحويل الألوان
 #include "sad_ui/prop_keys.h"    // مصدر الحقيقة لمفاتيح الخصائص (لا سلاسل حرفيّة)
+#include <locale>  // (AR) std::locale::classic — لا تعتمد على تضمينٍ عبوريّ
 
 namespace sad {
 namespace ui {
@@ -47,6 +48,44 @@ inline std::string appkitLabel(const IRNode &node) {
         out += c;
     }
     return out;
+}
+
+// (AR) قيمةٌ عدديّةٌ من خاصّيّةٍ ببديلٍ عند غيابها، بصيغةٍ لا تتأثّر بالمحلّيّةِ
+//   كي لا ينقلب الفاصلُ العشريُّ فاصلةً فيكسر كودَ Swift المولَّد.
+inline std::string appkitNumber(const IRNode &node, const char *key, double fallback) {
+    double value = fallback;
+    if (const auto *p = node.findProperty(key)) {
+        if (auto *d = std::get_if<double>(&p->value)) value = *d;
+        else if (auto *iv = std::get_if<int64_t>(&p->value)) value = static_cast<double>(*iv);
+    }
+    std::ostringstream ss;
+    ss.imbue(std::locale::classic());
+    ss << value;
+    return ss.str();
+}
+
+// (AR) قيدُ حدٍّ أقصى: غيابُ المفتاحِ يعني «بلا حدّ» فلا يُصدَر قيدٌ أصلًا.
+//   قيدُ ‎<= 0‎ مع قيدِ ‎>= min‎ غيرُ قابلٍ للإرضاءِ فيكسر تخطيطَ AppKit كلَّه.
+inline std::string appkitBound(const char *dimension, const IRNode &node,
+                               const char *key, const std::string &ind) {
+    if (!node.findProperty(key)) return "";
+    return ind + "container." + dimension +
+           "Anchor.constraint(lessThanOrEqualToConstant: " +
+           appkitNumber(node, key, 0.0) + ").isActive = true\n";
+}
+
+// (AR) قيدُ المحاذاةِ المقابلُ لقيمةِ «محاذاة». البدايةُ في لغةٍ عربيّةٍ يمينُ
+//   الشاشة، وAppKit يعبّر عنها بـ leadingAnchor المُدرِكةِ للاتّجاه.
+inline std::string appkitAlignmentConstraint(const IRNode &node) {
+    std::string value;
+    if (const auto *p = node.findProperty(props::ALIGN)) {
+        if (auto *s = std::get_if<std::string>(&p->value)) value = *s;
+    }
+    if (value == propval::ALIGN_CENTER_AR || value == propval::ALIGN_CENTER_EN)
+        return "view_.centerXAnchor.constraint(equalTo: container.centerXAnchor).isActive = true";
+    if (value == propval::ALIGN_RIGHT_AR || value == propval::ALIGN_RIGHT_EN)
+        return "view_.trailingAnchor.constraint(equalTo: container.trailingAnchor).isActive = true";
+    return "view_.leadingAnchor.constraint(equalTo: container.leadingAnchor).isActive = true";
 }
 } // namespace
 
@@ -1087,6 +1126,266 @@ void AppKitCodegen::generateNativeWidget(
                 << ind << "let scrollView = NSScrollView()\n"
                 << ind << "scrollView.documentView = collectionView\n"
                 << ind << "let view_ = scrollView\n";
+            break;
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // (AR) عناصرُ التخطيطِ المحمولة (ث٨) — كانت تسقط إلى NSView العارية أدناه
+        //      فتضيع دلالةُ التخطيطِ كلُّها. AppKit يعبّر عنها بقيودِ التخطيطِ
+        //      التلقائيّ (Auto Layout)، فالفجوةُ كانت غيابَ حالةٍ لا غيابَ قدرة.
+        // ══════════════════════════════════════════════════════════════════════
+
+        case UINodeType::Center: {
+            out << ind << "let container = NSView()\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n"
+                    << ind << "view_.translatesAutoresizingMaskIntoConstraints = false\n"
+                    << ind << "view_.centerXAnchor.constraint(equalTo: container.centerXAnchor).isActive = true\n"
+                    << ind << "view_.centerYAnchor.constraint(equalTo: container.centerYAnchor).isActive = true\n";
+            }
+            out << ind << "let view_ = container\n";
+            break;
+        }
+
+        case UINodeType::Padding: {
+            const std::string pad = appkitNumber(node, props::PADDING, 8.0);
+            out << ind << "let container = NSView()\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n"
+                    << ind << "view_.translatesAutoresizingMaskIntoConstraints = false\n"
+                    << ind << "view_.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: " << pad << ").isActive = true\n"
+                    << ind << "view_.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -" << pad << ").isActive = true\n"
+                    << ind << "view_.topAnchor.constraint(equalTo: container.topAnchor, constant: " << pad << ").isActive = true\n"
+                    << ind << "view_.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -" << pad << ").isActive = true\n";
+            }
+            out << ind << "let view_ = container\n";
+            break;
+        }
+
+        case UINodeType::SizedBox: {
+            out << ind << "let container = NSView()\n"
+                << ind << "container.translatesAutoresizingMaskIntoConstraints = false\n"
+                << ind << "container.widthAnchor.constraint(equalToConstant: "
+                << appkitNumber(node, props::WIDTH, 0.0) << ").isActive = true\n"
+                << ind << "container.heightAnchor.constraint(equalToConstant: "
+                << appkitNumber(node, props::HEIGHT, 0.0) << ").isActive = true\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n";
+            }
+            out << ind << "let view_ = container\n";
+            break;
+        }
+
+        case UINodeType::Expanded:
+        case UINodeType::Flexible: {
+            // (AR) «الوزن» في AppKit أولويّةُ ضغطٍ/شدٍّ لا معامِلٌ عدديّ: الموسَّعُ
+            //      يقاوم الانكماشَ بأدنى أولويّةٍ فيلتهم الفائض.
+            out << ind << "let container = NSView()\n"
+                << ind << "container.setContentHuggingPriority(.defaultLow, for: .horizontal)\n"
+                << ind << "container.setContentHuggingPriority(.defaultLow, for: .vertical)\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n";
+            }
+            out << ind << "let view_ = container\n";
+            break;
+        }
+
+        case UINodeType::Align: {
+            out << ind << "let container = NSView()\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n"
+                    << ind << "view_.translatesAutoresizingMaskIntoConstraints = false\n"
+                    << ind << appkitAlignmentConstraint(node) << "\n";
+            }
+            out << ind << "let view_ = container\n";
+            break;
+        }
+
+        case UINodeType::SafeArea: {
+            out << ind << "let container = NSView()\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n"
+                    << ind << "view_.translatesAutoresizingMaskIntoConstraints = false\n"
+                    << ind << "view_.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor).isActive = true\n"
+                    << ind << "view_.bottomAnchor.constraint(equalTo: container.safeAreaLayoutGuide.bottomAnchor).isActive = true\n";
+            }
+            out << ind << "let view_ = container\n";
+            break;
+        }
+
+        case UINodeType::GestureDetector:
+        case UINodeType::InkWell: {
+            out << ind << "let container = NSView()\n"
+                << ind << "let clickRecognizer = NSClickGestureRecognizer()\n"
+                << ind << "container.addGestureRecognizer(clickRecognizer)\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n";
+            }
+            out << ind << "let view_ = container\n";
+            break;
+        }
+
+        case UINodeType::ListView: {
+            out << ind << "let tableView = NSTableView()\n"
+                << ind << "let scrollView = NSScrollView()\n"
+                << ind << "scrollView.documentView = tableView\n"
+                << ind << "let view_ = scrollView\n";
+            break;
+        }
+
+        case UINodeType::FractionallySizedBox: {
+            out << ind << "let container = NSView()\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n"
+                    << ind << "view_.translatesAutoresizingMaskIntoConstraints = false\n"
+                    << ind << "view_.widthAnchor.constraint(equalTo: container.widthAnchor, multiplier: "
+                    << appkitNumber(node, props::WIDTH_FACTOR, 1.0) << ").isActive = true\n"
+                    << ind << "view_.heightAnchor.constraint(equalTo: container.heightAnchor, multiplier: "
+                    << appkitNumber(node, props::HEIGHT_FACTOR, 1.0) << ").isActive = true\n";
+            }
+            out << ind << "let view_ = container\n";
+            break;
+        }
+
+        case UINodeType::ConstrainedBox: {
+            out << ind << "let container = NSView()\n"
+                << ind << "container.translatesAutoresizingMaskIntoConstraints = false\n"
+                << ind << "container.widthAnchor.constraint(greaterThanOrEqualToConstant: "
+                << appkitNumber(node, props::MIN_WIDTH, 0.0) << ").isActive = true\n"
+                << appkitBound("width", node, props::MAX_WIDTH, ind)
+                << ind << "container.heightAnchor.constraint(greaterThanOrEqualToConstant: "
+                << appkitNumber(node, props::MIN_HEIGHT, 0.0) << ").isActive = true\n"
+                << appkitBound("height", node, props::MAX_HEIGHT, ind);
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n";
+            }
+            out << ind << "let view_ = container\n";
+            break;
+        }
+
+        case UINodeType::AspectRatio: {
+            out << ind << "let container = NSView()\n"
+                << ind << "container.translatesAutoresizingMaskIntoConstraints = false\n"
+                << ind << "container.widthAnchor.constraint(equalTo: container.heightAnchor, multiplier: "
+                << appkitNumber(node, props::RATIO, 1.0) << ").isActive = true\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n";
+            }
+            out << ind << "let view_ = container\n";
+            break;
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // (AR) قشرةُ سطحِ المكتب — هنا وحدَها لها نظائرُ أصليّةٌ تامّة: ماك نظامُ
+        //      سطحِ مكتب. NSWindow وNSTitlebar وNSScroller وNSStatusBar…
+        // ══════════════════════════════════════════════════════════════════════
+
+        case UINodeType::Window: {
+            out << ind << "let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 600),\n"
+                << ind << "                     styleMask: [.titled, .closable, .resizable],\n"
+                << ind << "                     backing: .buffered, defer: false)\n"
+                << ind << "window.title = \"" << appkitLabel(node) << "\"\n"
+                << ind << "let container = NSView()\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "container.addSubview(view_)\n";
+            }
+            out << ind << "window.contentView = container\n"
+                << ind << "let view_ = container\n";
+            break;
+        }
+
+        case UINodeType::TitleBar: {
+            out << ind << "let titleLabel = NSTextField(labelWithString: \"" << appkitLabel(node) << "\")\n"
+                << ind << "titleLabel.font = NSFont.titleBarFont(ofSize: NSFont.systemFontSize)\n"
+                << ind << "titleLabel.alignment = .center\n"
+                << ind << "let view_ = titleLabel\n";
+            break;
+        }
+
+        case UINodeType::ScrollBar: {
+            out << ind << "let scroller = NSScroller()\n"
+                << ind << "scroller.scrollerStyle = .overlay\n"
+                << ind << "let view_ = scroller\n";
+            break;
+        }
+
+        case UINodeType::Taskbar:
+        case UINodeType::StatusBar: {
+            out << ind << "let bar = NSStackView()\n"
+                << ind << "bar.orientation = .horizontal\n";
+            {
+                const std::string barText = appkitLabel(node);
+                if (!barText.empty())
+                    out << ind << "bar.addArrangedSubview(NSTextField(labelWithString: \"" << barText << "\"))\n";
+            }
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "bar.addArrangedSubview(view_)\n";
+            }
+            out << ind << "let view_ = bar\n";
+            break;
+        }
+
+        case UINodeType::StartMenu: {
+            out << ind << "let menu = NSMenu(title: \"" << appkitLabel(node) << "\")\n"
+                << ind << "let menuButton = NSPopUpButton()\n"
+                << ind << "menuButton.menu = menu\n"
+                << ind << "let view_ = menuButton\n";
+            break;
+        }
+
+        case UINodeType::SystemTray: {
+            out << ind << "let tray = NSStackView()\n"
+                << ind << "tray.orientation = .horizontal\n";
+            {
+                const std::string trayText = appkitLabel(node);
+                if (!trayText.empty())
+                    out << ind << "tray.addArrangedSubview(NSTextField(labelWithString: \"" << trayText << "\"))\n";
+            }
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "tray.addArrangedSubview(view_)\n";
+            }
+            out << ind << "let view_ = tray\n";
+            break;
+        }
+
+        case UINodeType::SpinBox: {
+            out << ind << "let stepper = NSStepper()\n"
+                << ind << "stepper.doubleValue = " << appkitNumber(node, props::VALUE, 0.0) << "\n"
+                << ind << "let view_ = stepper\n";
+            break;
+        }
+
+        case UINodeType::GroupBox: {
+            out << ind << "let groupBox = NSBox()\n"
+                << ind << "groupBox.title = \"" << appkitLabel(node) << "\"\n"
+                << ind << "let groupContent = NSView()\n";
+            for (const auto& child : node.getChildren()) {
+                out << generateNode(*child, indentLevel);
+                out << ind << "groupContent.addSubview(view_)\n";
+            }
+            out << ind << "groupBox.contentView = groupContent\n"
+                << ind << "let view_ = groupBox\n";
+            break;
+        }
+
+        case UINodeType::Spinner: {
+            out << ind << "let spinner = NSProgressIndicator()\n"
+                << ind << "spinner.style = .spinning\n"
+                << ind << "spinner.startAnimation(nil)\n"
+                << ind << "let view_ = spinner\n";
             break;
         }
 

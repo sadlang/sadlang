@@ -166,6 +166,15 @@ SadWidget sad_sized_box(float width, float height);
 /** تقييم() */ SadWidget sad_rating_bar(void);
 /** تنبيه() */ SadWidget sad_alert(void);
 
+/**
+ * (AR) مصنعٌ عامٌّ: ينشئ عنصرًا من **رقمِ نوعِ عقدتِه** في مصدرِ الحقيقة.
+ *      به يصير كلُّ عنصرٍ في الفهرسِ قابلًا للإنشاءِ من كودٍ مُترجَمٍ بلا
+ *      دالّةِ ABI خاصّةٍ لكلِّ واحد. رقمٌ خارجَ المدى ⇒ عنصرُ حاويةٍ عامّ (لا
+ *      تعطُّل): الكودُ المولَّدُ لا يُسقِط البرنامجَ على قيمةٍ لا يعرفها.
+ * (EN) Generic factory: creates a widget from its SoT node-type index.
+ */
+SadWidget sad_widget_create(int32_t nodeType);
+
 /* ─── أثر المعدّلات الانسيابيّة (م-أ3ر، L1): خاصّيّة عامّة بالاسم ───
  * Generic named-property setters (mirror interpreter setIRProperty). */
 /** .م(نص) → خاصّيّة نصّيّة */     void sad_set_prop_str(SadWidget w, const char* name, const char* value);

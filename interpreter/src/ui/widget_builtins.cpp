@@ -42,6 +42,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "builtins/builtin_context.h"
 
@@ -62,6 +63,17 @@ namespace Sad
 //      the compiler (builtins_ui.cpp::lowerContainer). Spread is ONE LEVEL only (no
 //      recursive flattening), matching the compiler; non-widgets (including nested
 //      arrays) are safely skipped — parallels isWidgetBuilder/isRegisteredWidget.
+// (AR) هل القيمةُ عنصرُ واجهةٍ (أو مصفوفةُ عناصر)؟ يميّز الوسيطَ الموضعيَّ الأوّلَ
+//   بين «قيمةُ الخاصّيّةِ الأولى» و«أوّلُ ابن»: `ورقة("عنوان", زر(...))` تكتب
+//   العنوانَ خاصّيّةً، بينما `ورقة(زر(...))` تجعل الزرَّ ابنًا لا عنوانًا نصّيًّا
+//   لا معنى له. الفحصُ ببنيةِ القيمةِ لا بعددِ الوسائط.
+static inline bool isWidgetLike(const Data::Value &value)
+{
+    if (value.getKind() == Types::SadTypeKind::Class)
+        return isWidgetBuilder(value.toObject());
+    return value.getKind() == Types::SadTypeKind::Array;
+}
+
 static inline void addChildOrSpread(WidgetBuilder *builder,
                                     const std::shared_ptr<Data::Value> &arg)
 {
@@ -393,6 +405,59 @@ static inline void addChildOrSpread(WidgetBuilder *builder,
             // سطح — سطح Material
             auto surface_fn = MAKE_SIMPLE_WIDGET_FN(Surface);
             fm.registerBuiltinFunction(std::string(Bw::SURFACE), surface_fn); // سطح
+
+            // ═════════════════════════════════════════════════════════════════
+            // (AR) الجردُ الشامل: كلُّ مصنعٍ في مصدرِ الحقيقةِ لم يُسجَّل أعلاه.
+            //
+            //   كانت ٤٨ عقدةً تُصيَّر في خمسةِ مساراتٍ (المشترَك + أربعةُ مولّدات)
+            //   ولا يستطيع برنامجُ ص إنشاءَها أصلًا: كودُ تصييرٍ مدفوعُ الثمنِ
+            //   وغيرُ قابلٍ للوصول. الحلقةُ هنا تسجّلها من الجدولِ المولَّدِ من
+            //   language-truth، فعنصرٌ جديدٌ في مصدرِ الحقيقةِ يصير قابلًا
+            //   للاستدعاءِ دونَ لمسِ هذا الملفّ.
+            //
+            //   لا تُزاحِم التسجيلَ اليدويَّ أعلاه: `hasFunction` تحمي كلَّ اسمٍ
+            //   له مصنعٌ خاصٌّ بوسائطَ مخصَّصة (زر بردِّ نداءٍ مثلًا)، فالحلقةُ
+            //   تُكمِل ولا تستبدل.
+            //
+            //   الخاصّيّةُ الأولى تأتي من الجدولِ المولَّدِ نفسِه (نوعُ العقدةِ ⇒
+            //   مفتاح) فلا يُكتَب مفتاحٌ يدويًّا هنا ولا يُخمَّن.
+            // ═════════════════════════════════════════════════════════════════
+#define SAD_UI_PRIMARY_PROP_ENTRY(Id, Key) \
+    {sad::ui::UINodeType::Id, sad::ui::props::Key},
+            static const std::unordered_map<sad::ui::UINodeType, const char *>
+                kPrimaryPropByType = {SAD_UI_NODE_PRIMARY_PROP_LIST(SAD_UI_PRIMARY_PROP_ENTRY)};
+#undef SAD_UI_PRIMARY_PROP_ENTRY
+
+            auto registerFromSoT = [&fm](const char *name, sad::ui::UINodeType type) {
+                if (fm.hasFunction(name))
+                    return; // له مصنعٌ خاصٌّ أعلاه — لا تستبدله
+                const auto it = kPrimaryPropByType.find(type);
+                const char *primaryProp = (it != kPrimaryPropByType.end()) ? it->second : nullptr;
+                fm.registerBuiltinFunction(
+                    std::string(name),
+                    [type, primaryProp](Sad::Interpreter::BuiltinContext &ctx)
+                        -> std::shared_ptr<Data::Value> {
+                        const auto &args = ctx.args();
+                        auto *builder = new WidgetBuilder(type);
+                        size_t firstChild = 0;
+                        if (primaryProp && !args.empty() && args[0] &&
+                            !isWidgetLike(*args[0]))
+                        {
+                            builder->setIRPropertyFromValue(primaryProp, *args[0]);
+                            firstChild = 1;
+                        }
+                        for (size_t i = firstChild; i < args.size(); ++i)
+                            addChildOrSpread(builder, args[i]);
+                        return std::make_shared<Data::Value>(
+                            static_cast<Data::ObjectInstance *>(builder));
+                    });
+            };
+
+#define SAD_UI_REGISTER_FACTORY(Id, Name) registerFromSoT(Name, sad::ui::UINodeType::Id);
+            SAD_UI_NODE_FACTORY_LIST(SAD_UI_REGISTER_FACTORY)
+#undef SAD_UI_REGISTER_FACTORY
+            static_assert(SAD_UI_NODE_FACTORY_COUNT > 0,
+                          "جدولُ مصانعِ العناصرِ المولَّدُ فارغ");
         }
 
 #undef MAKE_SIMPLE_WIDGET_FN

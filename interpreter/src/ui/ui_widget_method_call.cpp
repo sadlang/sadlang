@@ -18,6 +18,10 @@
 #include "widget_builder.h" // (AR) WidgetBuilder + sad_ui/ir.h (IRAnimation/easing) عبوريًّا
 #include "sad_ui/ui_modifiers.h" // (AR) مصدر الحقيقة لأسماء المعدّلات (مُولَّد من language-truth)
 #include "ui_eval_bridge_impl.h"
+#include "sad_ui/prop_keys.h" // (AR) جردُ المفاتيحِ المولَّدُ من مصدر الحقيقة
+
+#include <iostream>
+#include <unordered_set>
 
 namespace Sad
 {
@@ -28,6 +32,34 @@ namespace Sad
 
         namespace
         {
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) جردُ المفاتيحِ القانونيّة — مولَّدٌ من language-truth/ui_props.yaml.
+            //   يُبنى مرّةً واحدةً ويُستعمَل للتحقّقِ من اسمِ المعدّل. الأحداثُ
+            //   («عند_…») ليست خصائصَ فتُستثنى، فلا يُحذَّر منها خطأً.
+            // ═══════════════════════════════════════════════════════════════
+            bool isKnownPropertyKey(const std::string &name)
+            {
+#define SAD_UI_PROP_KEY_ENTRY(Id) sad::ui::props::Id,
+                static const std::unordered_set<std::string> kKnownKeys = {
+                    SAD_UI_PROP_KEY_LIST(SAD_UI_PROP_KEY_ENTRY)};
+#undef SAD_UI_PROP_KEY_ENTRY
+                static_assert(SAD_UI_PROP_KEY_COUNT > 0, "جردُ مفاتيحِ الخصائصِ فارغ");
+                return kKnownKeys.count(name) != 0;
+            }
+
+            // (AR) تحذيرٌ مرّةً واحدةً لكلِّ اسمٍ مجهول: برنامجٌ يبني شجرةً في لولبٍ
+            //   كان سيغرق المخرَجَ بآلافِ الأسطرِ المتطابقة فيُفقِد التحذيرَ قيمتَه.
+            void warnUnknownModifier(const std::string &name)
+            {
+                static std::unordered_set<std::string> warned;
+                if (!warned.insert(name).second)
+                    return;
+                std::cerr << "\xe2\x9a\xa0 " // ⚠
+                          << "\xd9\x85\xd8\xb9\xd8\xaf\xd9\x91\xd9\x84\xd9\x8c "
+                             "\xd9\x85\xd8\xac\xd9\x87\xd9\x88\xd9\x84\xd8\xa7\xd9\x8b: " // «معدّلٌ مجهولٌ: »
+                          << name << '\n';
+            }
+
             // (AR) يضيف قيمةً كابنٍ إن كانت عنصر واجهة (WidgetBuilder)، عبر
             //   addChildBuilder كي تُسجَّل أحداث الأبناء المتداخلين. يوحّد منطق
             //   .ابن()/.أبناء() فلا يتكرّر، ويجعل .ابن(أ، ب) يضيف الاثنين بدل
@@ -233,6 +265,24 @@ namespace Sad
                         if (wb->isInAnimationChain())
                         {
                             wb->commitAnimation();
+                        }
+
+                        // ═════════════════════════════════════════════════════
+                        // (AR) تحقّقُ اسمِ المعدّل قبلَ كتابتِه (ث٥).
+                        //
+                        //   كان فضاءُ المعدّلاتِ مفتوحًا بلا تحقّقٍ البتّة: أيُّ اسمٍ
+                        //   يُكتَب خاصّيّةً على العقدة. فخطأٌ إملائيٌّ («نصف_قطرر»)
+                        //   يُبتلَع صامتًا، وأثرُه بكسلٌ مفقودٌ لا رسالةُ خطأ —
+                        //   وهو أسوأُ أصنافِ العطبِ في هذه المكتبة.
+                        //
+                        //   تحذيرٌ لا رفضٌ في هذه المرحلة (توصيةُ التقرير): المنعُ
+                        //   قد يكسر برنامجًا يكتب خاصّيّةً يقرؤها مُصيِّرٌ مستقبليّ،
+                        //   والتحذيرُ يكشف الخطأَ دونَ أن يُسقِطَ عملًا قائمًا.
+                        //   الجردُ مولَّدٌ من مصدرِ الحقيقة، فلا قائمةَ ثانيةٌ تتعفّن.
+                        // ═════════════════════════════════════════════════════
+                        if (!isKnownPropertyKey(m))
+                        {
+                            warnUnknownModifier(m);
                         }
 
                         // (AR) أي طريقة أخرى → معدّل خاصية بصرية

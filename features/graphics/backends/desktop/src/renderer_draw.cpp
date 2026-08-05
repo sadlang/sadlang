@@ -74,7 +74,7 @@ namespace sad
 
                 SDL_Rect sdlRect = {
                     static_cast<int>(rect.x),
-                    static_cast<int>(rect.y + scrollTranslateY_),
+                    static_cast<int>(rect.y),
                     static_cast<int>(rect.width),
                     static_cast<int>(rect.height)};
                 SDL_RenderFillRect(sdlRenderer_, &sdlRect);
@@ -96,7 +96,7 @@ namespace sad
                                        static_cast<uint8_t>(effectiveAlpha * 255));
 
                 int x = static_cast<int>(rect.x);
-                int y = static_cast<int>(rect.y + scrollTranslateY_);
+                int y = static_cast<int>(rect.y);
                 int w = static_cast<int>(rect.width);
                 int h = static_cast<int>(rect.height);
                 int r = static_cast<int>(std::min(radius, std::min(rect.width, rect.height) / 2.0f));
@@ -286,7 +286,7 @@ namespace sad
                             }
                             SDL_Rect dstRect = {
                                 static_cast<int>(curX),
-                                static_cast<int>(y + scrollTranslateY_),
+                                static_cast<int>(y),
                                 surface->w,
                                 surface->h};
                             if (currentNodeRotation_ != 0.0f)
@@ -332,7 +332,7 @@ namespace sad
                     }
                     SDL_Rect dstRect = {
                         static_cast<int>(x),
-                        static_cast<int>(y + scrollTranslateY_),
+                        static_cast<int>(y),
                         it->second.width,
                         it->second.height};
                     if (currentNodeRotation_ != 0.0f)
@@ -407,7 +407,7 @@ namespace sad
                 }
                 SDL_Rect dstRect = {
                     static_cast<int>(x),
-                    static_cast<int>(y + scrollTranslateY_),
+                    static_cast<int>(y),
                     surface->w,
                     surface->h};
                 // تطبيق الدوران على النص الجديد (غير المخزّن)
@@ -429,7 +429,7 @@ namespace sad
                 float approxHeight = fontSize;
                 SDL_Rect rect = {
                     static_cast<int>(x),
-                    static_cast<int>(y + scrollTranslateY_),
+                    static_cast<int>(y),
                     static_cast<int>(approxWidth),
                     static_cast<int>(approxHeight)};
                 SDL_SetRenderDrawColor(sdlRenderer_,
@@ -469,7 +469,7 @@ namespace sad
                         SDL_SetTextureAlphaMod(tex, 255);
                     }
                     SDL_Rect dst = {
-                        static_cast<int>(rect.x), static_cast<int>(rect.y + scrollTranslateY_),
+                        static_cast<int>(rect.x), static_cast<int>(rect.y),
                         static_cast<int>(rect.width), static_cast<int>(rect.height)};
                     // تطبيق الدوران على الصورة المخزّنة
                     if (currentNodeRotation_ != 0.0f)
@@ -507,7 +507,7 @@ namespace sad
                             }
                             imageCache_[path] = {texture, w, h};
                             SDL_Rect dst = {
-                                static_cast<int>(rect.x), static_cast<int>(rect.y + scrollTranslateY_),
+                                static_cast<int>(rect.x), static_cast<int>(rect.y),
                                 static_cast<int>(rect.width), static_cast<int>(rect.height)};
                             // تطبيق الدوران على الصورة الجديدة
                             if (currentNodeRotation_ != 0.0f)
@@ -554,7 +554,7 @@ namespace sad
 
                 SDL_Rect sdlRect = {
                     static_cast<int>(rect.x),
-                    static_cast<int>(rect.y + scrollTranslateY_),
+                    static_cast<int>(rect.y),
                     static_cast<int>(rect.width),
                     static_cast<int>(rect.height)};
 
@@ -586,7 +586,7 @@ namespace sad
 
                     SDL_Rect shadowRect = {
                         static_cast<int>(rect.x + shadow.offsetX - i),
-                        static_cast<int>(rect.y + shadow.offsetY - i + scrollTranslateY_),
+                        static_cast<int>(rect.y + shadow.offsetY - i),
                         static_cast<int>(rect.width + 2 * i),
                         static_cast<int>(rect.height + 2 * i)};
                     SDL_RenderFillRect(sdlRenderer_, &shadowRect);
@@ -608,7 +608,7 @@ namespace sad
                 SDL_Color c0 = {static_cast<Uint8>(startColor.r * 255), static_cast<Uint8>(startColor.g * 255), static_cast<Uint8>(startColor.b * 255), static_cast<Uint8>(startColor.a * currentNodeOpacity_ * 255)};
                 SDL_Color c1 = {static_cast<Uint8>(endColor.r * 255), static_cast<Uint8>(endColor.g * 255), static_cast<Uint8>(endColor.b * 255), static_cast<Uint8>(endColor.a * currentNodeOpacity_ * 255)};
 
-                float x = rect.x, y = rect.y + scrollTranslateY_, w = rect.width, h = rect.height;
+                float x = rect.x, y = rect.y, w = rect.width, h = rect.height;
 
                 if (vertical)
                 {
@@ -655,43 +655,8 @@ namespace sad
 #endif
             }
 
-            void DesktopRenderer::drawSoftShadow(const LayoutRect &rect, float radius,
-                                                 float blur, float offsetX, float offsetY, const Color &color)
-            {
-#ifdef SAD_UI_USE_SDL2
-                if (!sdlRenderer_ || blur <= 0)
-                    return;
-                SDL_SetRenderDrawBlendMode(sdlRenderer_, SDL_BLENDMODE_BLEND);
-
-                int layers = static_cast<int>(blur / 2.0f);
-                if (layers < 3)
-                    layers = 3;
-                if (layers > 12)
-                    layers = 12;
-
-                for (int i = layers; i >= 1; --i)
-                {
-                    float spread = blur * static_cast<float>(i) / static_cast<float>(layers);
-                    float alpha = color.a * (1.0f - static_cast<float>(i) / static_cast<float>(layers + 1));
-                    alpha *= 0.5f;
-
-                    Color layerColor = {color.r, color.g, color.b, alpha};
-                    LayoutRect shadowRect = {
-                        rect.x + offsetX - spread,
-                        rect.y + offsetY - spread,
-                        rect.width + spread * 2,
-                        rect.height + spread * 2};
-                    drawRoundedRect(shadowRect, layerColor, radius + spread * 0.5f);
-                }
-#else
-                (void)rect;
-                (void)radius;
-                (void)blur;
-                (void)offsetX;
-                (void)offsetY;
-                (void)color;
-#endif
-            }
+            // (AR) drawSoftShadow انتقل إلى PlatformRenderer: مبنيٌّ على
+            //      drawRoundedRect وحدَها فلا يخصُّ SDL في شيء.
 
             void DesktopRenderer::clearTextCache()
             {

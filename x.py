@@ -190,6 +190,24 @@ CODEGEN_DOMAINS = (
         ],
     },
     {
+        # (AR) مفرداتُ لغةِ ص كما يراها المُلوِّنُ النحويُّ في «كتلة_كود».
+        #      كانت جداولَ مكتوبةً بيدٍ في مكتبة الرسومات فانحرفت عن المعجم
+        #      بـ٣١ كلمةً محجوزةً مقيسة (تلوينٌ ناقصٌ صامت). رأسٌ ذاتيُّ الاكتفاء
+        #      عمدًا: المكتبةُ طرفيّةٌ فلا تعتمد طبقةَ المحلّل — نظيرُ prop_keys.h.
+        "name": "ui_syntax_keywords",
+        "script": "gen_ui_syntax_keywords.py",
+        "out_dir": "features/graphics/core/include/sad_ui/generated",
+        "outputs": ("syntax_keywords_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/keywords.yaml",
+            # (AR) مدخلٌ ثانٍ: الدوالُّ المدمجةُ العامّة. يُمرَّر صراحةً لا اتّكالًا
+            #      على الافتراضيِّ المشتقِّ من موضعِ السكربت — فالوصلُ هنا مرئيّ.
+            "--builtins", "language-truth/builtins/core.yaml",
+            "--header", f"{d}/syntax_keywords_generated.h",
+            "--quiet",
+        ],
+    },
+    {
         # (AR) طرق (معدّلات) عناصر واجهة SadUI (ابن/عند_*/حرّك/…) — مصدر الحقيقة الوحيد.
         "name": "ui_modifiers",
         "script": "gen_ui_modifiers.py",

@@ -727,6 +727,16 @@ namespace sad
                                                          bool include_cpp_runtime) const;
 
             /**
+             * @brief (AR) نظيرُها على POSIX: libm/libpthread ومكتبةُ C++ القياسيّة.
+             *        مكتباتُ وقتِ التشغيلِ المضمّنةُ (sad_graphics_runtime وأخواتُها)
+             *        مُصرَّفةٌ بـC++، فبدونِ الأخيرةِ يفشلُ الربطُ برموزِ `std::`.
+             * @brief (EN) POSIX counterpart: libm/libpthread plus the C++ standard
+             *        library — the bundled runtimes are C++ translation units.
+             */
+            void append_posix_hosted_runtime_libraries(std::vector<std::string> &libraries,
+                                                       bool include_cpp_runtime) const;
+
+            /**
              * @brief (AR) اسم المكتبة كما يقبله سائق clang (`-lmsvcrt` لا `msvcrt.lib`).
              * @brief (EN) Library name in clang-driver form (`-lmsvcrt`, not `msvcrt.lib`).
              */

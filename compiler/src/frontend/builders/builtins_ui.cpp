@@ -23,6 +23,11 @@
 #include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (مصدر الحقيقة)
 #include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
 #include "error_codes.h"   // (AR) ErrorCode::SEM_WRONG_ARG_COUNT
+// (AR) جدولُ مصانعِ العناصرِ المولَّدُ من language-truth — رأسٌ في الطبقةِ الأساسِ
+//      (المحلّل) لا في مكتبةِ الرسومات، فلا يكسر طبقيّةَ المصرِّف.
+#include "generated/ui_parser_nodes_generated.h"
+
+#include <unordered_map>
 namespace Bn = Sad::Builtins::Names;
 
 namespace Sad
@@ -160,13 +165,66 @@ namespace Sad
                 //      مفسّر↔مترجم)؛ هذا يوحّدهما بإصدار sad_add_child(الحاوية، الابن)
                 //      لكلّ وسيطٍ نوعه Pointer (حارس النوع نظير isWidgetBuilder). نفس
                 //      الرموز — لا توسيع SoT. المسار المُستضاف يستهلك sad_add_child نفسه.
-                auto lowerContainer = [&](SIROpcode factoryOp) -> BuildResult {
+                // (AR) الوسيطُ «شبيهُ عنصر»: مؤشّرٌ صريحٌ، أو نوعٌ يتقرّر زمنَ التشغيل
+                //   (Any/Unknown/Integer — مقبضُ عنصرٍ عابرٌ حدَّ وحدةٍ أو معامِلًا بلا
+                //   تصريح)، أو مصفوفةٌ تُنشَر. مَن كان كذلك فهو **ابنٌ** لا قيمةُ
+                //   خاصّيّةٍ أولى — وهو نظيرُ isWidgetLike في المفسّر تمامًا.
+                //   بدونِ هذا التوحيدِ كان المسارُ العامُّ يكتب مصفوفةً في خاصّيّةٍ
+                //   نصّيّةٍ (قراءةٌ خارجَ الحدّ) ويُسقِط ابنًا ديناميَّ النوعِ صامتًا.
+                auto isWidgetLikeArg = [](SadTypeKind kind) {
+                    return kind == SadTypeKind::Pointer || kind == SadTypeKind::Any ||
+                           kind == SadTypeKind::Unknown || kind == SadTypeKind::Integer ||
+                           kind == SadTypeKind::Array;
+                };
+
+                // (AR) `extraOperand` لأوپكودِ الإنشاءِ العامّ (رقمُ نوعِ العقدة)؛
+                //   و`primaryProp` مفتاحُ الخاصّيّةِ الأولى إن كان للمصنعِ واحدة.
+                auto lowerContainer = [&](SIROpcode factoryOp,
+                                          const SIROperand *extraOperand = nullptr,
+                                          const char *primaryProp = nullptr) -> BuildResult {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(factoryOp);
+                    if (extraOperand)
+                        inst.operands.push_back(*extraOperand);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    for (size_t i = 0; i < argResults.size(); ++i)
+
+                    // (AR) الوسيطُ الأوّلُ غيرُ شبيهِ العنصرِ = قيمةُ الخاصّيّةِ الأولى
+                    //   (`رقاقة("مسوّدة")`)، ويُستثنى من حلقةِ الأبناءِ أدناه.
+                    //
+                    //   والصحيحُ (Integer) **قيمةُ خاصّيّةٍ هنا وابنٌ في الحلقةِ أدناه**،
+                    //   وليس في هذا تناقض: المفسّرُ يفحص بنيةَ القيمةِ لا نوعَها
+                    //   الساكن، و`isWidgetLike` عندَه لا تعدُّ الصحيحَ عنصرًا أبدًا
+                    //   (widget_builtins.cpp: Class-ودجت أو Array فقط) ⇒
+                    //   `ترقيم_صفحات(3)` يكتب «قيمة=3». فلو عددناه شبيهَ عنصرٍ هنا
+                    //   لأصدرنا `ADD_CHILD(w, 3)` ولأسقطه `sad_ui_runtime` صامتًا
+                    //   (`isRegisteredWidget(3)` كاذب) ⇒ الخاصّيّةُ لا تُضبَط والعنصرُ
+                    //   يُرسَم بالافتراضيّ: تباعُدٌ صامتٌ بين المحرّكَين.
+                    //   وحُجّةُ «مقبضِ العنصرِ في خانةِ i64» تخصّ **الحاويات** (لا
+                    //   خاصّيّةَ أولى لها فلا تبلغ هذا الفرعَ أصلًا)، فتبقى سليمةً في
+                    //   حلقةِ الأبناء.
+                    const bool firstArgIsPropValue =
+                        !argResults.empty() && (!isWidgetLikeArg(argResults[0].type) ||
+                                                argResults[0].type == SadTypeKind::Integer);
+                    size_t firstChild = 0;
+                    if (primaryProp && primaryProp[0] != '\0' && firstArgIsPropValue)
+                    {
+                        const SIROpcode setOp =
+                            argResults[0].type == SadTypeKind::Integer ? SIROpcode::BUILTIN_UI_SET_PROP_INT
+                          : argResults[0].type == SadTypeKind::Float   ? SIROpcode::BUILTIN_UI_SET_PROP_NUM
+                          : argResults[0].type == SadTypeKind::Boolean ? SIROpcode::BUILTIN_UI_SET_PROP_BOOL
+                                                                      : SIROpcode::BUILTIN_UI_SET_PROP_STR;
+                        SIRInstruction setProp(setOp);
+                        setProp.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer));
+                        setProp.operands.push_back(SIROperand::ConstantString(primaryProp));
+                        setProp.operands.push_back(argOperands[0]);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(setProp);
+                        firstChild = 1;
+                    }
+
+                    for (size_t i = firstChild; i < argResults.size(); ++i)
                     {
                         if (argResults[i].type == SadTypeKind::Pointer ||
                             argResults[i].type == SadTypeKind::Any ||
@@ -1410,6 +1468,47 @@ namespace Sad
                     return BuildResult("", SadTypeKind::Void);
                 }
 
+
+                // ═════════════════════════════════════════════════════════════
+                // (AR) الاحتياطيُّ الشامل: أيُّ مصنعِ عنصرٍ في مصدرِ الحقيقةِ لم
+                //   يُطابِقه أوپكودٌ مخصَّصٌ أعلاه يُخفَّض إلى الأوپكودِ العامِّ
+                //   حاملًا **رقمَ نوعِ عقدتِه** من الجدولِ المولَّد.
+                //
+                //   قبلَ ذلك كانت ٤٨ عقدةً تُصيَّر في خمسةِ مساراتٍ ولا يُنشئها
+                //   المصرِّفُ أصلًا؛ وكان سدُّ ذلك يعني ٤٨ أوپكودًا و٤٨ دالّةَ ABI
+                //   — أي مضاعفةَ ما على الخلفيّةِ السياديّةِ أن تعالجه لا سدَّه.
+                //
+                //   الجدولُ مولَّدٌ من language-truth: لا اسمَ عنصرٍ حرفيٌّ هنا،
+                //   ولا رقمَ عقدةٍ مكتوبٌ بيد. عنصرٌ جديدٌ في مصدرِ الحقيقةِ يصير
+                //   قابلًا للترجمةِ دونَ لمسِ هذا الملفّ.
+                // ═════════════════════════════════════════════════════════════
+                {
+                    struct UiFactoryInfo
+                    {
+                        int nodeIndex;
+                        const char *primaryProp; // فارغةٌ = لا خاصّيّةَ أولى
+                    };
+#define SAD_UI_FACTORY_ENTRY(Name, NodeIndex, PropKey) {Name, UiFactoryInfo{NodeIndex, PropKey}},
+                    static const std::unordered_map<std::string, UiFactoryInfo> kUiFactories = {
+                        SAD_UI_WIDGET_FACTORY_LIST(SAD_UI_FACTORY_ENTRY)};
+#undef SAD_UI_FACTORY_ENTRY
+                    static_assert(SAD_UI_WIDGET_FACTORY_COUNT > 0,
+                                  "جدولُ مصانعِ العناصرِ المولَّدُ فارغ");
+
+                    const auto factory = kUiFactories.find(funcName);
+                    if (factory != kUiFactories.end())
+                    {
+                        // (AR) نُعيد استعمالَ lowerContainer نفسِها لا نسخةً منها:
+                        //   نشرُ المصفوفةِ وقبولُ الابنِ ديناميِّ النوعِ منطقٌ مقيسٌ
+                        //   بالبكسل، وأيُّ نسخةٍ ثانيةٍ منه تتباعد عنه صامتةً — وهو
+                        //   عينُ الداءِ الذي تعالجه هذه الحملة.
+                        const auto nodeIndexOperand =
+                            SIROperand::ConstantI64(factory->second.nodeIndex);
+                        return lowerContainer(SIROpcode::BUILTIN_UI_WIDGET_BY_TYPE,
+                                              &nodeIndexOperand,
+                                              factory->second.primaryProp);
+                    }
+                }
 
                 return std::nullopt;
             }

@@ -137,7 +137,35 @@ namespace sad
                 }}
                 return false;
             }}
+            // ================================================================
+            // (AR) X(ID) — جردُ **كلِّ** مفاتيحِ الخصائصِ القانونيّة.
+            //   يستهلكه المفسّرُ للتحقّقِ من اسمِ المعدّلِ قبلَ كتابتِه: كان فضاءُ
+            //   المعدّلاتِ مفتوحًا بلا تحقّق، فخطأٌ إملائيٌّ («نصف_قطرر») يُكتَب
+            //   خاصّيّةً لا قارئَ لها ويُبتلَع صامتًا — يظهر أثرُه بكسلًا مفقودًا
+            //   لا رسالةَ خطأ. الجردُ من مصدرِ الحقيقةِ فلا قائمةَ ثانيةٌ تنحرف.
+            // (EN) X(ID) — inventory of every canonical property key; the
+            //   interpreter validates modifier names against it, so a typo warns
+            //   instead of being silently written as an unread property.
+            // ================================================================
+#define SAD_UI_PROP_KEY_LIST(X) \\
+{key_list}
+
+#define SAD_UI_PROP_KEY_COUNT {key_count}
         }} // namespace props
+
+        // ====================================================================
+        // (AR) **قِيَم** الخصائص القانونيّة (لا أسماؤها): «وسط»، «يمين»، «صحيح»…
+        //   كانت مكتوبةً حرفيًّا في كلّ مُرسِّمٍ ومولّدٍ على حِدة، فاختلفت القوائم
+        //   بينها صامتةً (مُرسِّمُ سطحِ المكتبِ كان يقارن بـ"يمين" الحرفيّةِ بينما
+        //   المشترَكُ يقارن بثابتٍ مسمًّى). رفعُها إلى مصدرِ الحقيقةِ يجعل
+        //   المقارنةَ واحدةً في كلِّ مسار.
+        // (EN) Canonical property *values* (not key names), generated from SoT so
+        //   every renderer and code generator compares against one list.
+        // ====================================================================
+        namespace propval
+        {{
+{values_section}
+        }} // namespace propval
     }} // namespace ui
 }} // namespace sad
 """
@@ -173,6 +201,31 @@ def emit_numeric_keys(keys: list[dict[str, Any]]) -> str:
         if str(k.get("value_type", "")).strip() != _NUMERIC_VALUE_TYPE:
             continue
         lines.append(f'                    {k["id"]},  // {k["canonical"]}')
+    return "\n".join(lines)
+
+
+def emit_key_list(keys: list[dict[str, Any]]) -> str:
+    """@brief (AR) جردُ كلِّ معرّفاتِ المفاتيح لقائمةِ X-macro."""
+    lines = []
+    for k in keys:
+        lines.append('    X(' + k["id"] + ') /* ' + str(k["canonical"]) + ' */ \\')
+    if lines:
+        lines[-1] = lines[-1].rstrip(' \\')
+    return chr(10).join(lines)
+
+
+def emit_values(values: list[dict[str, Any]]) -> str:
+    """
+    @brief (AR) يُولِّد ثوابت **قِيَم** الخصائص القانونيّة (namespace propval).
+    @brief (EN) Emit canonical property-value constants (namespace propval).
+    """
+    lines: list[str] = []
+    for v in values:
+        vid = v["id"]
+        literal = str(v["value"])
+        desc_ar = v.get("description_ar", literal)
+        lines.append(f'            // (AR) {desc_ar} — «{literal}».')
+        lines.append(f'            inline constexpr const char *{vid} = "{_hex_escape(literal)}";')
     return "\n".join(lines)
 
 
@@ -229,11 +282,16 @@ def run(argv: list[str] | None = None) -> int:
             print("[gen_ui_props] ERROR: no keys found", file=sys.stderr)
             return 1
         _validate(keys, args.schema, args.quiet)
+        values = data.get("values", [])
         content = HEADER_TEMPLATE.format(keys_section=emit_keys(keys),
-                                         numeric_keys_section=emit_numeric_keys(keys))
+                                         numeric_keys_section=emit_numeric_keys(keys),
+                                         values_section=emit_values(values),
+                                         key_list=emit_key_list(keys),
+                                         key_count=len(keys))
         write_if_changed(args.header, content, args.quiet)
         if not args.quiet:
-            print(f"[gen_ui_props] {len(keys)} property keys -> {args.header}")
+            print(f"[gen_ui_props] {len(keys)} property keys, "
+                  f"{len(values)} property values -> {args.header}")
         return 0
     except Exception as exc:
         print(f"[gen_ui_props] FATAL: {exc}", file=sys.stderr)

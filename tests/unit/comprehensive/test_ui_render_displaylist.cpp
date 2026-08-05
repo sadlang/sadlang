@@ -139,7 +139,9 @@ int main()
         auto btn = mk(UINodeType::Button);
         withStr(btn, K_TITLE, "OK");
         goldenCheck("button_ok", btn,
-                    "rect (1.00,1.20) 120.00x48.00 #00000033\n"
+                    "rrect (-4.00,-2.80) 128.00x56.00 r=10.00 #00000006\n"
+                    "rrect (-2.67,-1.47) 125.33x53.33 r=9.33 #0000000C\n"
+                    "rrect (-1.33,-0.13) 122.67x50.67 r=8.67 #00000013\n"
                     "rrect (0.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
                     "text \"OK\" (52.00,14.40) size=16.00 #FFFFFF\n");
     });
@@ -177,7 +179,9 @@ int main()
         col->addChild(txt);
         goldenCheck("column_children", col,
                     "rect (0.00,0.00) 120.00x72.00 #EEEEEE\n"
-                    "rect (1.00,1.20) 120.00x48.00 #00000033\n"
+                    "rrect (-4.00,-2.80) 128.00x56.00 r=10.00 #00000006\n"
+                    "rrect (-2.67,-1.47) 125.33x53.33 r=9.33 #0000000C\n"
+                    "rrect (-1.33,-0.13) 122.67x50.67 r=8.67 #00000013\n"
                     "rrect (0.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
                     "text \"Go\" (52.00,14.40) size=16.00 #FFFFFF\n"
                     "text \"Hi\" (100.00,48.00) size=16.00 #000000\n");
@@ -188,7 +192,20 @@ int main()
         auto card = mk(UINodeType::Card);
         withStr(card, K_COLOR, "#ffffff");
         goldenCheck("card", card,
-                    "rect (2.00,4.00) 50.00x50.00 #00000026\n"
+                    "rrect (-14.00,-12.00) 78.00x78.00 r=19.00 #00000001\n"
+                    "rrect (-12.00,-10.00) 74.00x74.00 r=18.00 #00000003\n"
+                    "rrect (-10.00,-8.00) 70.00x70.00 r=17.00 #00000004\n"
+                    "rrect (-8.00,-6.00) 66.00x66.00 r=16.00 #00000006\n"
+                    "rrect (-6.00,-4.00) 62.00x62.00 r=15.00 #00000007\n"
+                    "rrect (-4.00,-2.00) 58.00x58.00 r=14.00 #00000009\n"
+                    "rrect (-2.00,0.00) 54.00x54.00 r=13.00 #0000000B\n"
+                    "rrect (-8.00,-4.00) 66.00x66.00 r=16.00 #00000004\n"
+                    "rrect (-6.00,-2.00) 62.00x62.00 r=15.00 #00000009\n"
+                    "rrect (-4.00,0.00) 58.00x58.00 r=14.00 #0000000D\n"
+                    "rrect (-2.00,2.00) 54.00x54.00 r=13.00 #00000012\n"
+                    "rrect (-4.00,-2.40) 58.00x58.00 r=14.00 #00000003\n"
+                    "rrect (-2.67,-1.07) 55.33x55.33 r=13.33 #00000007\n"
+                    "rrect (-1.33,0.27) 52.67x52.67 r=12.67 #0000000B\n"
                     "rrect (0.00,0.00) 50.00x50.00 r=12.00 #FFFFFF\n");
     });
 
@@ -217,7 +234,9 @@ int main()
         withStr(btn, K_GRAD, "#ff0000");
         withStr(btn, K_GRAD_END, "#0000ff");
         goldenCheck("button_gradient", btn,
-                    "rect (1.00,1.20) 120.00x48.00 #00000033\n"
+                    "rrect (-4.00,-2.80) 128.00x56.00 r=10.00 #00000006\n"
+                    "rrect (-2.67,-1.47) 125.33x53.33 r=9.33 #0000000C\n"
+                    "rrect (-1.33,-0.13) 122.67x50.67 r=8.67 #00000013\n"
                     "gradient (0.00,0.00) 120.00x48.00 #FF0000->#0000FF vertical r=8.00\n"
                     "text \"G\" (56.00,14.40) size=16.00 #FFFFFF\n");
     });
@@ -227,8 +246,8 @@ int main()
         auto tf = mk(UINodeType::TextField);
         withStr(tf, K_VALUE, "abc");
         goldenCheck("textfield_unfocused", tf,
-                    "rrect (0.00,0.00) 50.00x50.00 r=4.00 #FFFFFF\n"
-                    "routline (0.00,0.00) 50.00x50.00 t=1.00 #9E9E9E\n"
+                    "rrect (0.00,0.00) 50.00x50.00 r=4.00 #9E9E9E\n"
+                    "rrect (1.00,1.00) 48.00x48.00 r=3.00 #FFFFFF\n"
                     "text \"abc\" (8.00,18.00) size=14.00 #000000\n");
     });
 
@@ -243,12 +262,16 @@ int main()
         row->addChild(b);
         // RTL: الابن الأوّل (A) يمينًا (x=120)، الثاني (B) يسارًا (x=0).
         goldenCheckDir("row_rtl", row, LayoutDirection::RTL,
-                       "rect (121.00,1.20) 120.00x48.00 #00000033\n"
-                       "rrect (120.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
-                       "text \"A\" (176.00,14.40) size=16.00 #FFFFFF\n"
-                       "rect (1.00,1.20) 120.00x48.00 #00000033\n"
-                       "rrect (0.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
-                       "text \"B\" (56.00,14.40) size=16.00 #FFFFFF\n");
+                       "rrect (116.00,-2.80) 128.00x56.00 r=10.00 #00000006\n"
+                    "rrect (117.33,-1.47) 125.33x53.33 r=9.33 #0000000C\n"
+                    "rrect (118.67,-0.13) 122.67x50.67 r=8.67 #00000013\n"
+                    "rrect (120.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
+                    "text \"A\" (176.00,14.40) size=16.00 #FFFFFF\n"
+                    "rrect (-4.00,-2.80) 128.00x56.00 r=10.00 #00000006\n"
+                    "rrect (-2.67,-1.47) 125.33x53.33 r=9.33 #0000000C\n"
+                    "rrect (-1.33,-0.13) 122.67x50.67 r=8.67 #00000013\n"
+                    "rrect (0.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
+                    "text \"B\" (56.00,14.40) size=16.00 #FFFFFF\n");
     });
 
     // 10و) محاذاة الصفّ المتقاطعة (عموديّة): وسط/نهاية/تمدّد. صفّ بارتفاع 100.
@@ -292,12 +315,16 @@ int main()
         // LTR: معكوس — A يسارًا (x=0)، B يمينًا (x=120). يثبت اعتماد التخطيط
         // على الاتّجاه (نفس الشجرة، مواضع أفقيّة معكوسة).
         goldenCheckDir("row_ltr", row, LayoutDirection::LTR,
-                       "rect (1.00,1.20) 120.00x48.00 #00000033\n"
-                       "rrect (0.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
-                       "text \"A\" (56.00,14.40) size=16.00 #FFFFFF\n"
-                       "rect (121.00,1.20) 120.00x48.00 #00000033\n"
-                       "rrect (120.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
-                       "text \"B\" (176.00,14.40) size=16.00 #FFFFFF\n");
+                       "rrect (-4.00,-2.80) 128.00x56.00 r=10.00 #00000006\n"
+                    "rrect (-2.67,-1.47) 125.33x53.33 r=9.33 #0000000C\n"
+                    "rrect (-1.33,-0.13) 122.67x50.67 r=8.67 #00000013\n"
+                    "rrect (0.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
+                    "text \"A\" (56.00,14.40) size=16.00 #FFFFFF\n"
+                    "rrect (116.00,-2.80) 128.00x56.00 r=10.00 #00000006\n"
+                    "rrect (117.33,-1.47) 125.33x53.33 r=9.33 #0000000C\n"
+                    "rrect (118.67,-0.13) 122.67x50.67 r=8.67 #00000013\n"
+                    "rrect (120.00,0.00) 120.00x48.00 r=8.00 #1E88E5\n"
+                    "text \"B\" (176.00,14.40) size=16.00 #FFFFFF\n");
     });
 
     // 10ب) محاذاة عمود متقاطعة — نصّ ضيّق داخل عمود عريض: RTL يمينًا، LTR يسارًا.
@@ -563,6 +590,105 @@ int main()
                 std::cout << "\n[MISMATCH primitives_direct] actual:\n" << actual << "----\n";
             SAD_ASSERT_EQ(actual, expected);
         }
+    });
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 18) توحيدُ مسارِ الرسم — عُقَدٌ كانت محبوسةً في شوكةِ مُرسِّمٍ واحد.
+    //
+    //     قبلَ التوحيد: عُقَدُ قشرةِ سطحِ المكتب (نافذة/شريط_مهام/…) لا حالةَ
+    //     لها في مُرسِّمِ SDL2 فتسقط للافتراضيِّ صامتةً (ث٤)، وعُقَدُ العرضِ
+    //     المتقدّمِ (كتلة_كود/ورقة/…) لا حالةَ لها في المسارِ المشترَك فلا
+    //     يراها الويبُ ولا المحمولُ ولا الوضعُ الحرّ.
+    //
+    //     الاختبارُ يُثبِت أنّ كلتا العائلتَينِ تُنتجان نداءاتِ رسمٍ فعليّةً
+    //     من المسارِ المشترَكِ وحدَه — وهو ما يستهلكه كلُّ مُرسِّمٍ اليوم.
+    //     البرهانُ سلوكيٌّ (قائمةُ رسمٍ غيرُ فارغة) لا شكليّ.
+    // ══════════════════════════════════════════════════════════════════════
+    SAD_TEST("عُقَد سطح المكتب تُرسَم على المسار المشترَك", {
+        const UINodeType shellNodes[] = {
+            UINodeType::Window, UINodeType::TitleBar, UINodeType::ScrollBar,
+            UINodeType::Taskbar, UINodeType::StartMenu, UINodeType::SystemTray,
+            UINodeType::SpinBox, UINodeType::GroupBox, UINodeType::Spinner,
+            UINodeType::StatusBar};
+
+        for (UINodeType type : shellNodes)
+        {
+            auto node = mk(type);
+            // (AR) لا نضع خلفيّةً: الخطوةُ العامّةُ قبلَ الـswitch كانت سترسمها
+            //      فيمرُّ الاختبارُ بلا تنفيذِ جسمِ الحالةِ أصلًا — برهانٌ كاذب.
+            //      يُستثنى صندوقُ النظام: فارغًا لا يرسم شيئًا بحقّ (حاويةُ
+            //      أيقوناتٍ)، فنمنحه نصًّا كي يسلك جسمَ حالتِه.
+            if (type == UINodeType::SystemTray)
+                withStr(node, K_TEXT, "10:30");
+            std::string list = renderTreeDir(node, LayoutDirection::RTL);
+            if (list.empty())
+                std::cout << "\n[EMPTY] عقدةُ قشرةٍ لم تُنتج نداءَ رسم: "
+                          << static_cast<int>(type) << "\n";
+            SAD_ASSERT_TRUE(!list.empty());
+        }
+    });
+
+    SAD_TEST("عُقَد العرض المتقدّم تُرسَم على المسار المشترَك", {
+        const UINodeType advancedNodes[] = {
+            UINodeType::ColorPicker, UINodeType::TabView, UINodeType::Sheet,
+            UINodeType::Canvas, UINodeType::WebView, UINodeType::BottomSheet,
+            UINodeType::Calendar, UINodeType::TimePicker, UINodeType::SideNav,
+            UINodeType::MegaMenu, UINodeType::AudioPlayer, UINodeType::ImageGallery,
+            UINodeType::ColorWheel, UINodeType::Expandable, UINodeType::Collapsible};
+
+        for (UINodeType type : advancedNodes)
+        {
+            auto node = mk(type);
+            std::string list = renderTreeDir(node, LayoutDirection::RTL);
+            if (list.empty())
+                std::cout << "\n[EMPTY] عقدةُ عرضٍ متقدّمٍ لم تُنتج نداءَ رسم: "
+                          << static_cast<int>(type) << "\n";
+            SAD_ASSERT_TRUE(!list.empty());
+        }
+    });
+
+    // 19) «كتلة_كود» — العقدةُ الوحيدةُ التي كانت تعتمد على مُلوِّنٍ نحويٍّ
+    //     يسكن خلفيّةَ سطحِ المكتب. نُقِل المُلوِّنُ إلى المكتبة، فصار الرسمُ
+    //     مُلوَّنًا في كلِّ مُرسِّم. الذهبيّةُ تُثبِت التلوينَ لا مجرّدَ الخلفيّة.
+    SAD_TEST("كتلة كود مُلوَّنة نحويًّا", {
+        auto code = mk(UINodeType::CodeBlock);
+        withStr(code, K_TEXT, "س = 1");
+        goldenCheck("codeblock_highlighted", code,
+                    "rrect (0.00,0.00) 50.00x50.00 r=6.00 #1E1E23\n"
+                    "rrect (0.00,0.00) 23.80x50.00 r=6.00 #19191E\n"
+                    "text \"1\" (11.80,8.00) size=13.00 #72727F\n"
+                    "text \"س\" (31.80,8.00) size=13.00 #DBDBDB\n"
+                    "text \"=\" (44.80,8.00) size=13.00 #DBDBDB\n"
+                    "text \"1\" (57.80,8.00) size=13.00 #B5D66D\n");
+    });
+
+    // 20) أصنافُ الرموزِ الأربعةُ التي تأتي من جداولَ **مولَّدةٍ منفصلة**:
+    //     كلمةٌ محجوزة (متغير)، وقيمةٌ منطقيّة (صحيح)، وعدمٌ (لاشيء)، ومدمجةٌ
+    //     عامّة (اطبع). ولكلٍّ لونُه. والاختبارُ ضروريٌّ لا تجميليّ: «صحيح» و«خطأ»
+    //     و«لاشيء» تسكن تصنيفَ `reserved` في مصدرِ الحقيقة، وفحصُ `classifyIdent`
+    //     يبدأ بالكلماتِ المحجوزة — فلو وُلِّدت ضمنَها لعادت جميعًا بلونِ الكلمةِ
+    //     المحجوزةِ ولَما بلغ الفحصُ `Boolean`/`NullLiteral` أبدًا. انحرافٌ في
+    //     اللونِ وحدَه: لا خطأَ بناءٍ ولا تشغيل. هذه الذهبيّةُ تُثبِّت الفصل.
+    SAD_TEST("كتلة كود — محجوزة ومنطقيّة وعدم ومدمجة", {
+        auto code = mk(UINodeType::CodeBlock);
+        withStr(code, K_TEXT, "متغير س = صحيح\nاطبع(لاشيء)");
+        goldenCheck("codeblock_token_classes", code,
+                    "rrect (0.00,0.00) 50.00x50.00 r=6.00 #1E1E23\n"
+                    "rrect (0.00,0.00) 23.80x50.00 r=6.00 #19191E\n"
+                    "text \"1\" (11.80,8.00) size=13.00 #72727F\n"
+                    "text \"2\" (11.80,25.00) size=13.00 #72727F\n"
+                    // متغير — كلمةٌ محجوزة
+                    "text \"\xd9\x85\xd8\xaa\xd8\xba\xd9\x8a\xd8\xb1\" (31.80,8.00) size=13.00 #C677FC\n"
+                    "text \"\xd8\xb3\" (70.80,8.00) size=13.00 #DBDBDB\n"
+                    "text \"=\" (83.80,8.00) size=13.00 #DBDBDB\n"
+                    // صحيح — قيمةٌ منطقيّة: لونٌ مغايرٌ للمحجوزةِ وهو بيتُ القصيد
+                    "text \"\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad\" (96.80,8.00) size=13.00 #56B5E8\n"
+                    // اطبع — مدمجةٌ عامّة
+                    "text \"\xd8\xa7\xd8\xb7\xd8\xa8\xd8\xb9\" (31.80,25.00) size=13.00 #60ADEF\n"
+                    "text \"(\" (57.80,25.00) size=13.00 #FFD666\n"
+                    // لاشيء — قيمةُ العدم
+                    "text \"\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1\" (64.30,25.00) size=13.00 #56B5E8\n"
+                    "text \")\" (96.80,25.00) size=13.00 #FFD666\n");
     });
 
     SAD_SUMMARY();

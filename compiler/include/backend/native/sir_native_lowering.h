@@ -825,6 +825,12 @@ namespace sad
                 return diag::kOpcode + std::to_string(static_cast<int>(i.opcode));
             }
 
+            // (AR) تشخيصُ أوپكودِ واجهةٍ في المسار الأصليّ — وسمٌ صريحٌ يقول السبب.
+            static std::string detailUiOpcode(const sir::SIRInstruction &i)
+            {
+                return diag::kUiRequiresLlvm + std::to_string(static_cast<int>(i.opcode));
+            }
+
             LoweringResult &finishError(LoweringResult &r, EC code, const std::string &detail = "")
             {
                 r.ok = false;
@@ -5540,6 +5546,11 @@ namespace sad
                     return loadMemBase(dst, x86::RAX, kAdtPayloadBase + fieldIdx * kSadDynBytes + kSadDynPayloadOff);
                 }
                 default:
+                    // (AR) أوپكوداتُ الواجهةِ لها تشخيصٌ خاصٌّ: قرارٌ معماريٌّ مُعلَن
+                    //   (ث١) لا نقصٌ عابر. راجع language-truth/backend/
+                    //   native_diagnostics.yaml:kUiRequiresLlvm.
+                    if (common::isUiOpcode(inst.opcode))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailUiOpcode(inst));
                     return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
             }

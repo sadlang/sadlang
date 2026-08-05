@@ -1,0 +1,171 @@
+# ════════════════════════════════════════════════════════════════════════════
+# (AR) بوّابةُ الرسومات عبرَ المنصّات — سدُّ ث١٠.
+#
+#   ما كان: `build-all-platforms.yml` يبني **تطبيقاتٍ نموذجيّةً** (مشروعَ Xcode،
+#   وحزمةَ APK) بـ`continue-on-error: true`، ووظيفةُ ويندوز معلَّقةٌ بالكامل.
+#   فلا شيءَ يفشل حين تنحدر مكتبةُ الرسوماتِ نفسُها أو أحدُ مولّداتِ المنصّات.
+#
+#   ما هنا: بوّابةٌ تفشل فعلًا، وتقيس ما يهمّ — **المكتبةَ ومولّداتِها** لا
+#   تطبيقًا نموذجيًّا:
+#     ١. حرّاسُ مصدرِ الحقيقة (اكتمالُ التصيير + اتّساقُ المفاتيحِ والعُقَد).
+#     ٢. بناءُ مكتبةِ الرسوماتِ والمحرّكِ على الأنظمةِ الثلاثة.
+#     ٣. الاختبارُ الذهبيُّ لقائمةِ الرسم — يقارن مخرَجَ المُرسِّمِ المشترَكِ
+#        بقائمةٍ مثبَّتةٍ (هندسةً وألوانًا وترتيبَ نداءات).
+#     ٤. بابُ توليدِ كودِ المنصّاتِ الأربع — برنامجُ ص يُخرِج HTML وCompose
+#        وSwiftUI وAppKit فعلًا.
+#
+#   بلا `continue-on-error`: بوّابةٌ لا تفشل ليست بوّابة.
+# (EN) Cross-platform graphics gate (ث١٠): guards + library build + golden
+#   display-list test + the four platform-codegen doors. No continue-on-error.
+# ════════════════════════════════════════════════════════════════════════════
+name: "🎨 بوّابة الرسومات للمنصّات / Graphics Platform Gate"
+
+on:
+  push:
+    branches: [dev, sadlang]
+    paths:
+      - 'features/graphics/**'
+      - 'language-truth/ui_*.yaml'
+      - 'language-truth/builtins/ui_widgets.yaml'
+      - 'scripts/codegen/check_ui_*.py'
+      - 'scripts/codegen/gen_ui_*.py'
+      # (AR) مدخلا المُلوِّنِ النحويّ: تغييرُ كلمةٍ محجوزةٍ أو مدمجةٍ يغيّر
+      #      الرأسَ المولَّدَ والقائمةَ الذهبيّة، فيجب أن يوقظ البوّابة.
+      - 'language-truth/keywords.yaml'
+      - 'language-truth/builtins/core.yaml'
+      - '.github/workflows/graphics-platform-gate.yml'
+  pull_request:
+    branches: [dev, sadlang]
+    paths:
+      - 'features/graphics/**'
+      - 'language-truth/ui_*.yaml'
+      - 'language-truth/builtins/ui_widgets.yaml'
+      - 'scripts/codegen/check_ui_*.py'
+      - 'scripts/codegen/gen_ui_*.py'
+      # (AR) مدخلا المُلوِّنِ النحويّ: تغييرُ كلمةٍ محجوزةٍ أو مدمجةٍ يغيّر
+      #      الرأسَ المولَّدَ والقائمةَ الذهبيّة، فيجب أن يوقظ البوّابة.
+      - 'language-truth/keywords.yaml'
+      - 'language-truth/builtins/core.yaml'
+      - '.github/workflows/graphics-platform-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: graphics-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── (AR) حرّاسُ مصدرِ الحقيقة: لا يحتاجون مصرِّفًا فيسبقون البناء ──
+  sot-guards:
+    name: 🔑 حرّاس مصدر الحقيقة / SoT guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 📥 تحميل الكود / Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 تهيئة پايثون / Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # (AR) `jsonschema` ليست ترفًا: هدفُ `sad_check_codegen_env` في CMake
+      #      يتحقّق منها قبلَ أيِّ بناء، فبدونِها يسقط البناءُ قبل أن يبدأ.
+      - name: 📦 تنصيب أدواتِ التوليد / Install codegen deps
+        run: python -m pip install --quiet pyyaml jsonschema
+
+      - name: 🎯 اكتمالُ التصيير / Render completeness
+        run: python scripts/codegen/check_ui_render_completeness.py
+
+      - name: 🔗 اتّساقُ المفاتيح والعُقَد / Props & node consistency
+        run: python scripts/codegen/check_ui_props_consistency.py
+
+  # ── (AR) المكتبةُ ومولّداتُها على الأنظمةِ الثلاثة ──
+  graphics-build:
+    name: 🎨 ${{ matrix.label }}
+    needs: sot-guards
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,  label: '🐧 Linux' }
+          - { os: macos-14,       label: '🍎 macOS' }
+          - { os: windows-latest, label: '🪟 Windows' }
+    steps:
+      - name: 📥 تحميل الكود / Checkout
+        uses: actions/checkout@v4
+
+      - name: 🐍 تهيئة پايثون / Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # (AR) `jsonschema` ليست ترفًا: هدفُ `sad_check_codegen_env` في CMake
+      #      يتحقّق منها قبلَ أيِّ بناء، فبدونِها يسقط البناءُ قبل أن يبدأ.
+      - name: 📦 تنصيب أدواتِ التوليد / Install codegen deps
+        run: python -m pip install --quiet pyyaml jsonschema
+
+      # (AR) SDL2 مطلوبةٌ لمُرسِّمِ سطحِ المكتب؛ لينكس وحدَه يحتاج تنصيبَها
+      #      (ماك عبرَ brew، وويندوز تُورَّد داخلَ الشجرة).
+      - name: 📦 SDL2 على لينكس / SDL2 (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev
+
+      - name: 📦 SDL2 على ماك / SDL2 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install sdl2 sdl2_ttf
+
+      - name: 🔧 تهيئة البناء / Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DENABLE_LLVM_BACKEND=OFF
+
+      - name: 🔨 بناءُ مكتبةِ الرسومات / Build graphics library
+        run: cmake --build build --config Debug --target sad_graphics
+
+      - name: 🔨 بناءُ المحرّك / Build interpreter
+        run: cmake --build build --config Debug --target sad-run
+
+      - name: 🔨 بناءُ الاختبارِ الذهبيّ / Build golden test
+        run: cmake --build build --config Debug --target test_ui_render_displaylist
+
+      # (AR) مسارُ الثنائيّاتِ يختلف: مولِّدُ Visual Studio متعدّدُ التهيئة
+      #      فيضع المخرَجَ في مجلّدٍ فرعيٍّ باسمِ التهيئة، وMakefiles لا تفعل.
+      - name: ✅ الاختبارُ الذهبيُّ لقائمة الرسم / Golden display-list test
+        shell: bash
+        run: |
+          if [ -x build/bin/Debug/test_ui_render_displaylist.exe ]; then
+            build/bin/Debug/test_ui_render_displaylist.exe
+          elif [ -x build/bin/Debug/test_ui_render_displaylist ]; then
+            build/bin/Debug/test_ui_render_displaylist
+          else
+            build/bin/test_ui_render_displaylist
+          fi
+
+      # (AR) الحكمُ هنا لا في ملفِّ ص. الملفُّ اختبارُ سلوكٍ يملكه عدّاءُ
+      #      الاختبارات، وهو يقارن مخرَجَه بـ`@expected` فيكشفُ الفشل؛ أمّا هنا
+      #      فنُشغّله **مباشرةً** بلا مقارنة. ولو اكتفينا بالتشغيلِ لكانت الخطوةُ
+      #      خضراءَ ولو انكسر بابٌ: البرنامجُ يطبع «❌ باب أو أكثر معطوب» ثمّ
+      #      **يخرجُ بصفر** (`خروج` في مصدرِ الحقيقةِ بلا معاملاتٍ فلا تحمل رمزًا).
+      #      وهذا عينُ العيبِ الذي أُنشئت البوّابةُ لسدِّه، إلّا أنّه يبدو محكَمًا
+      #      لخلوِّه من `continue-on-error`. فنَعقِدُ الحكمَ على سطرِ النجاحِ نفسِه.
+      # (EN) The .ص file exits 0 even when a door breaks (the `خروج` builtin takes
+      #      no arguments), so running it is not a gate. We assert on its output.
+      - name: ✅ أبوابُ توليدِ كودِ المنصّاتِ الأربع / Four platform doors
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -x build/bin/Debug/sad-run.exe ]; then
+            RUNNER=build/bin/Debug/sad-run.exe
+          elif [ -x build/bin/Debug/sad-run ]; then
+            RUNNER=build/bin/Debug/sad-run
+          else
+            RUNNER=build/bin/sad-run
+          fi
+          OUT="$("$RUNNER" "tests/behavior/sections/12_تكامل/03_برامج_كاملة/132_ui_platform_codegen_doors.ص")"
+          printf '%s\n' "$OUT"
+          # (AR) عقدٌ مزدوج: سطرُ النجاحِ حاضرٌ **وصفرُ فشل** — فلا يكفي أحدُهما.
+          printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
+          printf '%s' "$OUT" | grep -q 'فشل: 0'

@@ -20,6 +20,7 @@
 #include "sad_ui/color_utils.h" // أدوات الألوان
 #include "sad_ui/types.h"
 #include "sad_ui/prop_keys.h" // مصدر الحقيقة لمفاتيح الخصائص (لا سلاسل حرفيّة)
+#include <locale>  // (AR) std::locale::classic — لا تعتمد على تضمينٍ عبوريّ
 
 namespace sad
 {
@@ -55,6 +56,68 @@ namespace sad
                         else out += c;
                     }
                     return out;
+                }
+
+                // (AR) قيمةٌ عدديّةٌ من خاصّيّةٍ مع بديلٍ عند غيابها — تُخرَج بصيغةٍ
+                //   ثابتةٍ لا تعتمد على المحلّيّةِ (locale) كي لا ينقلب الفاصلُ
+                //   العشريُّ فاصلةً في بيئةٍ فتكسر كودَ Kotlin المولَّد.
+                std::string numericProp(const IRNode &node, const char *key, double fallback)
+                {
+                    double value = fallback;
+                    if (const auto *p = node.findProperty(key))
+                    {
+                        if (auto *d = std::get_if<double>(&p->value))
+                            value = *d;
+                        else if (auto *i = std::get_if<int64_t>(&p->value))
+                            value = static_cast<double>(*i);
+                    }
+                    std::ostringstream ss;
+                    ss.imbue(std::locale::classic());
+                    ss << value;
+                    return ss.str();
+                }
+
+                // (AR) حدٌّ أقصى للمقاس: غيابُ المفتاحِ يعني «بلا حدّ»، وCompose
+                //   يعبّر عنه بـDp.Unspecified. تثبيتُ صفرٍ يجعل العنصرَ غيرَ مرئيّ.
+                std::string composeBound(const IRNode &node, const char *key)
+                {
+                    if (!node.findProperty(key))
+                        return "Dp.Unspecified";
+                    return numericProp(node, key, 0.0) + ".dp";
+                }
+
+                // (AR) محاذاةُ «محاذاة» إلى ثابتِ Alignment في Compose. الافتراضيُّ
+                //   في لغةٍ عربيّةٍ هو البدايةُ = يمينُ الشاشة، وCompose يعبّر عنها
+                //   بـ CenterStart المُدرِكةِ للاتّجاه لا بـ CenterRight الصلبة.
+                std::string composeAlignment(const IRNode &node)
+                {
+                    std::string value;
+                    if (const auto *p = node.findProperty(props::ALIGN))
+                    {
+                        if (auto *s = std::get_if<std::string>(&p->value))
+                            value = *s;
+                    }
+                    if (value == propval::ALIGN_CENTER_AR || value == propval::ALIGN_CENTER_EN)
+                        return "Alignment.Center";
+                    if (value == propval::ALIGN_RIGHT_AR || value == propval::ALIGN_RIGHT_EN)
+                        return "Alignment.CenterEnd";
+                    if (value == propval::ALIGN_LEFT_AR || value == propval::ALIGN_LEFT_EN)
+                        return "Alignment.CenterStart";
+                    return "Alignment.CenterStart";
+                }
+
+                // (AR) جسمُ ردِّ النداءِ للنقر — تعبيرُ حدثِ اللمسِ المربوطِ بالعقدة
+                //   إن وُجد، وإلّا فارغٌ: كودٌ مولَّدٌ يُترجَم ولا يفعل شيئًا خيرٌ
+                //   من كودٍ يشير إلى دالّةٍ غيرِ موجودة. المصدرُ getEvents() لا
+                //   خاصّيّةٌ نصّيّة — هو ما تكتبه بقيّةُ فروعِ هذا المولّد.
+                std::string composeCallback(const IRNode &node)
+                {
+                    for (const auto &evt : node.getEvents())
+                    {
+                        if (evt.type == sad::ui::IREventType::OnTap)
+                            return evt.expression;
+                    }
+                    return "";
                 }
             } // namespace
 
@@ -1477,6 +1540,261 @@ namespace sad
                         out << generateNode(*child, indentLevel + 1);
                     }
                     out << ind << "}\n";
+                    break;
+                }
+
+                // ══════════════════════════════════════════════════════════════
+                // (AR) عناصرُ التخطيطِ المحمولة — كانت تسقط إلى الحاويةِ العامّةِ
+                //      أدناه فتُفقَد دلالةُ التخطيطِ كلُّها (ث٨): «وسط» لا يوسّط،
+                //      و«حشوة» لا تحشو، و«موسع» لا يأخذ نصيبَه من المساحة.
+                //      لكلٍّ منها مُعدِّلٌ مقابلٌ في Compose، فالفجوةُ كانت غيابَ
+                //      حالةٍ لا غيابَ قدرة.
+                // ══════════════════════════════════════════════════════════════
+
+                case UINodeType::Center:
+                {
+                    out << ind << "Box(\n"
+                        << ind << "    " << modifiers << ",\n"
+                        << ind << "    contentAlignment = Alignment.Center\n"
+                        << ind << ") {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::Padding:
+                {
+                    // (AR) لا نكتب padding هنا: generateModifiers تكتبها من
+                    //   props::PADDING نفسِه، وتكرارُها يُضاعف الحشوةَ فعليًّا.
+                    out << ind << "Box(" << modifiers << ") {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::SizedBox:
+                {
+                    // (AR) العرضُ والارتفاعُ يكتبهما generateModifiers من المفتاحَين
+                    //   نفسِهما؛ وتثبيتُ صفرٍ لبُعدٍ غائبٍ كان يُخفي العنصرَ كلَّه.
+                    out << ind << "Box(" << modifiers << ") {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::Expanded:
+                case UINodeType::Flexible:
+                {
+                    // (AR) `weight` صالحٌ داخلَ RowScope/ColumnScope وحدَهما — وهو
+                    //      موضعُ استعمالِ «موسع»/«مرن» أصلًا. fill=false لـ«مرن».
+                    const bool fills = (node.getType() == UINodeType::Expanded);
+                    out << ind << "Box(" << modifiers << ".weight("
+                        << numericProp(node, props::FLEX, 1.0) << "f"
+                        << (fills ? "" : ", fill = false") << ")) {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::Align:
+                {
+                    out << ind << "Box(\n"
+                        << ind << "    " << modifiers << ",\n"
+                        << ind << "    contentAlignment = " << composeAlignment(node) << "\n"
+                        << ind << ") {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::SafeArea:
+                {
+                    out << ind << "Box(" << modifiers
+                        << ".windowInsetsPadding(WindowInsets.safeDrawing)) {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::GestureDetector:
+                case UINodeType::InkWell:
+                {
+                    // (AR) `clickable` يحمل تأثيرَ التموّجِ افتراضيًّا فيغطّي «حبر»؛
+                    //      و«كاشف_إيماءات» يُعطَّل عنه التموّجُ كي يبقى شفّافًا.
+                    const bool withRipple = (node.getType() == UINodeType::InkWell);
+                    out << ind << "Box(" << modifiers << ".clickable(";
+                    if (!withRipple)
+                        out << "indication = null, "
+                            << "interactionSource = remember { MutableInteractionSource() }";
+                    out << ") { " << composeCallback(node) << " }) {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::ListView:
+                {
+                    out << ind << "LazyColumn(" << modifiers << ") {\n";
+                    for (const auto &child : node.getChildren())
+                    {
+                        out << ind << "    item {\n"
+                            << generateNode(*child, indentLevel + 2)
+                            << ind << "    }\n";
+                    }
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::FractionallySizedBox:
+                {
+                    out << ind << "Box(" << modifiers << ".fillMaxWidth("
+                        << numericProp(node, props::WIDTH_FACTOR, 1.0) << "f).fillMaxHeight("
+                        << numericProp(node, props::HEIGHT_FACTOR, 1.0) << "f)) {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::ConstrainedBox:
+                {
+                    // (AR) حدٌّ أقصى غائبٌ = **بلا حدّ** (Dp.Unspecified) لا صفر:
+                    //   `صندوق_مقيد(أدنى_عرض: 100)` كان يصير `max = 0.dp` فيختفي.
+                    out << ind << "Box(" << modifiers << ".widthIn(min = "
+                        << numericProp(node, props::MIN_WIDTH, 0.0) << ".dp, max = "
+                        << composeBound(node, props::MAX_WIDTH) << ").heightIn(min = "
+                        << numericProp(node, props::MIN_HEIGHT, 0.0) << ".dp, max = "
+                        << composeBound(node, props::MAX_HEIGHT) << ")) {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::AspectRatio:
+                {
+                    out << ind << "Box(" << modifiers << ".aspectRatio("
+                        << numericProp(node, props::RATIO, 1.0) << "f)) {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                // ══════════════════════════════════════════════════════════════
+                // (AR) قشرةُ سطحِ المكتب على أندرويد — لا نظيرَ حرفيًّا لها، فلكلٍّ
+                //      **أقربُ مقابلٍ دلاليٍّ** في Material 3 لا حاويةٌ صمّاء:
+                //      شريطُ العنوان ⇒ TopAppBar، وشريطُ المهامّ ⇒ BottomAppBar،
+                //      وقائمةُ ابدأ ⇒ DropdownMenu… كي يبقى المخرَجُ مفهومًا.
+                // ══════════════════════════════════════════════════════════════
+
+                case UINodeType::Window:
+                {
+                    out << ind << "Surface(" << modifiers << ") {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::TitleBar:
+                {
+                    out << ind << "TopAppBar(title = { Text(\"" << composeLabel(node) << "\") })\n";
+                    break;
+                }
+
+                case UINodeType::ScrollBar:
+                {
+                    // (AR) Compose لا يعرض شريطَ تمريرٍ مستقلًّا؛ التمريرُ مُعدِّلٌ
+                    //      على الحاوية. نُخرِج شريطًا رفيعًا كي يبقى الشكلُ مطابقًا.
+                    out << ind << "Box(" << modifiers
+                        << ".width(4.dp).background(MaterialTheme.colorScheme.outlineVariant))\n";
+                    break;
+                }
+
+                case UINodeType::Taskbar:
+                {
+                    out << ind << "BottomAppBar(" << modifiers << ") {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::StartMenu:
+                {
+                    out << ind << "DropdownMenu(expanded = true, onDismissRequest = { }) {\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::SystemTray:
+                {
+                    out << ind << "Row(\n"
+                        << ind << "    " << modifiers << ",\n"
+                        << ind << "    verticalAlignment = Alignment.CenterVertically\n"
+                        << ind << ") {\n";
+                    const std::string trayText = composeLabel(node);
+                    if (!trayText.empty())
+                        out << ind << "    Text(\"" << trayText << "\")\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 1);
+                    out << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::SpinBox:
+                {
+                    out << ind << "Row(\n"
+                        << ind << "    " << modifiers << ",\n"
+                        << ind << "    verticalAlignment = Alignment.CenterVertically\n"
+                        << ind << ") {\n"
+                        << ind << "    IconButton(onClick = { }) { Text(\"−\") }\n"
+                        << ind << "    Text(\"" << numericProp(node, props::VALUE, 0.0) << "\")\n"
+                        << ind << "    IconButton(onClick = { }) { Text(\"+\") }\n"
+                        << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::GroupBox:
+                {
+                    out << ind << "Card(" << modifiers << ") {\n"
+                        << ind << "    Column {\n"
+                        << ind << "        Text(\"" << composeLabel(node)
+                        << "\", style = MaterialTheme.typography.titleSmall)\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 2);
+                    out << ind << "    }\n"
+                        << ind << "}\n";
+                    break;
+                }
+
+                case UINodeType::Spinner:
+                {
+                    out << ind << "CircularProgressIndicator(" << modifiers << ")\n";
+                    break;
+                }
+
+                case UINodeType::StatusBar:
+                {
+                    out << ind << "Surface(" << modifiers << ", tonalElevation = 2.dp) {\n"
+                        << ind << "    Row(verticalAlignment = Alignment.CenterVertically) {\n";
+                    const std::string statusText = composeLabel(node);
+                    if (!statusText.empty())
+                        out << ind << "        Text(\"" << statusText << "\")\n";
+                    for (const auto &child : node.getChildren())
+                        out << generateNode(*child, indentLevel + 2);
+                    out << ind << "    }\n"
+                        << ind << "}\n";
                     break;
                 }
 
