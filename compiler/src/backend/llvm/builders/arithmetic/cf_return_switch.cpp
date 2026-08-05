@@ -131,7 +131,15 @@ namespace Sad
                             retValue = cg_.builder_->CreateTrunc(
                                 dynPayloadI64(cg_, retValue), llvm::Type::getInt1Ty(*cg_.context_), "ret_dyn_i1");
                         else
-                            retValue = dynPayloadI64(cg_, retValue);
+                            // (AR) [م-٠٠١] `unpackI64` لا `dynPayloadI64`: الأخيرةُ تُعيدُ
+                            //      الحمولةَ خامًّا، فقيمةٌ وسمُها عشريٌّ تُرجَعُ بتّاتِ الـdouble
+                            //      عددًا صحيحًا. و`unpackI64` تحترمُ الوسمَ (عشريّ⇒fptosi،
+                            //      غيرُه⇒الحمولةُ كما هي) بلا فروع.
+                            // (EN) [card م-٠٠١] `unpackI64`, not `dynPayloadI64`: the latter
+                            //      returns the raw payload, so a Float-tagged value comes back
+                            //      as the double's bit pattern read as an integer. `unpackI64`
+                            //      honours the tag (Float⇒fptosi, else⇒raw payload), branchless.
+                            retValue = unpackI64(cg_, retValue);
                     }
                     else if (retType->isDoubleTy() && retValue->getType()->isIntegerTy())
                     {

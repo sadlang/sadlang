@@ -64,6 +64,10 @@ namespace Sad
 
                 std::optional<BuildResult> buildBuiltinMathCall(const std::string &funcName, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
 
+                // (AR) الواجهةُ المسمّاةُ لوحدةِ «خرائط» (م-٠٠١ ق١+ق٢) — builtins_maps.cpp
+                // (EN) The Maps module's named interface (card م-٠٠١, ق١+ق٢)
+                std::optional<BuildResult> buildBuiltinMapsCall(const std::string &funcName, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+
                 BuildResult buildNetworkBuiltinInstruction(SIROpcode opcode, std::vector<SIROperand> &argOperands, SadTypeKind returnType, const char *comment);
 
                 std::optional<BuildResult> buildBuiltinCallNetwork(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);

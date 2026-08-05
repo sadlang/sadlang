@@ -9,6 +9,7 @@
 #include <optional>
 #include "sir_builder.h"
 #include "builders/method_call_builder.h"
+#include "sir_constants.h" // (AR) أسماءُ زمنِ تشغيلِ الخريطة — عقدٌ مشترَكٌ مع الخلفيّة
 // (AR) ثوابت أسماء طرق الأنواع المُولَّدة
 #include "builtin_registry.h"
 
@@ -263,34 +264,48 @@ namespace Sad
                     return std::nullopt;
 
                 // ================================================================
-                // (AR) احصل / get — قراءة قيمة من الخريطة بالمفتاح
-                //      يُرجع التمثيل النصي دائماً عبر __sad_map_get (ذكي: يحوّل الأرقام لنص)
-                //      args: [0]=self(map), [1]=key(string)
-                // (EN) get — read value from map by key
-                //      Always returns string representation via __sad_map_get (smart: converts ints to string)
+                // (AR) [م-٠٠١] احصل / get — قراءة قيمة من الخريطة بالمفتاح.
+                //      كانت تُرجعُ التمثيلَ النصّيَّ دائمًا عبر `__sad_map_get`، فاسمان
+                //      في مصدرِ الحقيقةِ للعمليّةِ نفسِها بسلوكَين مختلفَين:
+                //      `خريطة_احصل` تُرجعُ «صحيح» و`.احصل()` تُرجعُ «1»؛ والمفتاحُ
+                //      الغائبُ نصٌّ فارغٌ هنا و«لاشيء» هناك. وُحّدا على القراءةِ
+                //      الموسومةِ زمنَ التشغيل — الاسمان واجهتان لعقدٍ واحد.
+                // (EN) [card م-٠٠١] get — read a value from the map by key. It used to always
+                //      return the string form via `__sad_map_get`, so two names in the SoT for
+                //      the same operation behaved differently: `خريطة_احصل` answered «صحيح»
+                //      where `.احصل()` answered «1», and an absent key was an empty string here
+                //      but «لاشيء» there. Both now take the runtime-tagged read — two spellings
+                //      of one contract.
                 // ================================================================
                 if (methodName == TM::Map::GET)
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst;
                     inst.opcode = SIROpcode::CALL;
-                    inst.result = SIROperand::Register(resultReg, SadTypeKind::String);
-                    inst.operands.push_back(SIROperand::ConstantString("__sad_map_get"));
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Any);
+                    inst.operands.push_back(SIROperand::ConstantString(kRuntimeMapGetDyn));
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (args.size() > 1)
                         inst.operands.push_back(args[1]);
-                    inst.comment = "map get";
+                    inst.comment = "map get (tagged)";
                     if (b_.currentBlock_)
                         b_.currentBlock_->addInstruction(inst);
-                    return BuildResult(resultReg, SadTypeKind::String);
+                    BuildResult result(resultReg, SadTypeKind::Any);
+                    result.isDirectValue = true;
+                    return result;
                 }
 
                 // ================================================================
                 // (AR) عيّن / set — تعيين قيمة في الخريطة
-                //      يستخدم __sad_map_set_typed مع نوع القيمة (0=نص, 1=رقم, 2=عشري, 3=منطقي)
-                //      args: [0]=self(map), [1]=key(string), [2]=value
-                // (EN) set — set value in map by key
-                //      Uses __sad_map_set_typed with type tag
+                //      [م-٠٠١] كان هذا الموضعُ يكتبُ سُلَّمَ الأوسامِ يدويًّا بأرقامٍ عاريةٍ
+                //      واسمَ زمنِ التشغيلِ سلسلةً خامّة، فلمّا أُضيف وسمُ العدمِ أُغفِلَ هنا
+                //      وحدَه: `خ.عين("ك"، لاشيء)` تُخزّنُ مؤشّرَ عدمٍ بوسمِ النصّ فيُقرأُ
+                //      `char*` ⇒ SIGSEGV. صار الاشتقاقُ واحدًا مشترَكًا لا يُنسى طرفٌ منه.
+                // (EN) set — [card م-٠٠١] this site open-coded the tag ladder with bare numbers
+                //      and the runtime name as a raw literal, so when the null tag was added it
+                //      was missed here alone: `خ.عين("ك"، لاشيء)` stored a null pointer under
+                //      the string tag and it was read as `char*` ⇒ SIGSEGV. The derivation is now
+                //      shared, so no writer can be left behind.
                 // ================================================================
                 if (methodName == TM::Map::SET)
                 {
@@ -301,21 +316,12 @@ namespace Sad
                     inst.opcode = SIROpcode::CALL;
                     std::string resultReg = b_.newTempRegister();
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
-                    inst.operands.push_back(SIROperand::ConstantString("__sad_map_set_typed"));
+                    inst.operands.push_back(SIROperand::ConstantString(kRuntimeMapSetTyped));
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     inst.operands.push_back(args[1]); // (AR) المفتاح / key
                     inst.operands.push_back(args[2]); // (AR) القيمة / value
-
-                    // (AR) تحديد نوع القيمة: 0=نص, 1=رقم, 2=عشري, 3=منطقي
-                    // (EN) Determine value type tag
-                    int typeTag = 0; // (AR) افتراضي: نص
-                    if (args[2].dataType == SadTypeKind::Integer)
-                        typeTag = 1;
-                    else if (args[2].dataType == SadTypeKind::Float)
-                        typeTag = 2;
-                    else if (args[2].dataType == SadTypeKind::Boolean)
-                        typeTag = 3;
-                    inst.operands.push_back(SIROperand::ConstantI64(typeTag));
+                    inst.operands.push_back(
+                        SIROperand::ConstantI64(mapValueTagFor(args[2].dataType)));
                     inst.comment = "map set typed";
                     if (b_.currentBlock_)
                         b_.currentBlock_->addInstruction(inst);

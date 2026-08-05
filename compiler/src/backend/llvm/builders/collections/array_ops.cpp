@@ -74,6 +74,31 @@ namespace Sad
         //      3. Raw i64 value (from register) → inttoptr directly
         //      4. Ready pointer (ptr) → returned as-is
         // ============================================================================
+        // (AR) انظر التوثيق في array_ops_codegen.h.
+        // (EN) See array_ops_codegen.h.
+        void ArrayOpsCodeGen::emitDynNotArrayFailure(const char *label)
+        {
+            if (cg_.freestanding_)
+            {
+                cg_.emitFreestandingPanicCall(Sad::Compiler::kSadPanicDynTypeMismatch);
+            }
+            else
+            {
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+                auto *printfType = llvm::FunctionType::get(i32Ty, {ptrTy}, true);
+                auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
+                llvm::Value *msg = cg_.builder_->CreateGlobalStringPtr(
+                    Sad::Compiler::kDynTypeMismatchArrayMsg, std::string(label) + ".dyn.fmt");
+                cg_.builder_->CreateCall(printfFunc, {msg});
+                auto *exitType =
+                    llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i32Ty}, false);
+                auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+                cg_.builder_->CreateCall(exitFunc, {llvm::ConstantInt::get(i32Ty, 1)});
+            }
+            cg_.builder_->CreateUnreachable();
+        }
+
         llvm::Value *ArrayOpsCodeGen::normalizeArrayPtr(llvm::Value *arrPtr, const char *label)
         {
             if (!arrPtr)
@@ -115,6 +140,48 @@ namespace Sad
                     llvm::Value *ptrAsInt = cg_.builder_->CreateLoad(cg_.getInt64Type(), gvInst, loadName);
                     arrPtr = cg_.builder_->CreateIntToPtr(ptrAsInt, llvm::PointerType::getUnqual(*cg_.context_), ptrName);
                 }
+            }
+            // ════════════════════════════════════════════════════════════════
+            // (AR) [م-٠٠١] الحالة ٢ب: قيمةٌ موسومةٌ زمنَ التشغيل (%SadDyn) — تصلُ حين
+            //      يكون نوعُ الكائنِ الساكنُ «أي»: عنصرُ مصفوفةٍ مختلطةٍ، أو قيمةُ خريطةٍ
+            //      مقروءةٌ موسومةً (`م["ج"][0]`). كان هذا الفرعُ غائبًا — بخلافِ نظيرِه في
+            //      `normalizeMapPtr` — فكانت البنيةُ تُمرَّرُ إلى GEP بلا فكٍّ فيقرأُ
+            //      الباعثُ قمامةً أو يُجهِضُ التوليد. وهو **شرطُ القبولِ الأوّلُ** المسجَّلُ
+            //      لعيبِ ز.٤٢ في `template_infer_return.cpp`.
+            //
+            //      الوسمُ يُحرَسُ زمنَ التشغيل: إن لم يكن مصفوفةً فَشَلٌ **صاخبٌ** برمزٍ
+            //      مميَّزٍ بدل فكِّ مرجعِ ما ليس مصفوفة (SIGSEGV صامت).
+            // (EN) [card م-٠٠١] Case 2b: a runtime-tagged value (%SadDyn) — it arrives when the
+            //      object's static type is «أي»: an element of a heterogeneous array, or a map
+            //      value read tagged (`م["ج"][0]`). This branch was missing — unlike its twin in
+            //      `normalizeMapPtr` — so the struct reached a GEP unpacked and the emitter read
+            //      garbage or aborted codegen. This is the **first acceptance condition** recorded
+            //      for defect ز.٤٢ in `template_infer_return.cpp`.
+            //
+            //      The tag is guarded at runtime: anything that is not an array fails **loudly**
+            //      with a distinct code instead of dereferencing a non-array (a silent SIGSEGV).
+            // ════════════════════════════════════════════════════════════════
+            else if (Sad::LLVM::isSadDyn(arrPtr))
+            {
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, arrPtr);
+                llvm::Value *payload = Sad::LLVM::dynPayloadI64(cg_, arrPtr);
+                llvm::Value *isArray = cg_.builder_->CreateICmpEQ(
+                    kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Array),
+                    std::string(label) + ".dyn.is.array");
+
+                llvm::Function *parentFn = cg_.builder_->GetInsertBlock()->getParent();
+                auto *okBB = llvm::BasicBlock::Create(*cg_.context_, "arr.dyn.ok", parentFn);
+                auto *failBB = llvm::BasicBlock::Create(*cg_.context_, "arr.dyn.fail", parentFn);
+                cg_.builder_->CreateCondBr(isArray, okBB, failBB);
+
+                cg_.builder_->SetInsertPoint(failBB);
+                emitDynNotArrayFailure(label);
+
+                cg_.builder_->SetInsertPoint(okBB);
+                arrPtr = cg_.builder_->CreateIntToPtr(payload, ptrTy,
+                                                      std::string(label) + ".dyn.ptr");
             }
             // (AR) الحالة 3: قيمة i64 خام — نتيجة من تسجيل SIR أو عملية سابقة
             // (EN) Case 3: raw i64 value — result from SIR register or previous operation

@@ -51,6 +51,16 @@ namespace Sad
             inline constexpr uint8_t Map = 6;   // (AR) خريطة / (EN) map
             inline constexpr uint8_t Obj = 7;   // (AR) كائن / (EN) object
             inline constexpr uint8_t Adt = 8;   // (AR) تعداد جبريّ / (EN) ADT
+            // (AR) [م-٠٠١] فراغ — «لا قيمةَ هنا» تمييزًا عن «عدم» التي قيمةٌ صريحة.
+            //      الفرقُ مقيسٌ لا نظريّ: قراءةُ مفتاحٍ غائبٍ من خريطةٍ تُرجع في المفسّرِ
+            //      قيمةَ Void فـ`نوع()` تقولُ «فراغ»، بينما `نوع(لاشيء)` تقولُ «عدم».
+            //      وكلتاهما تُطبَعان «لاشيء». وسمٌ خاصٌّ بـLLVM كـMap/Obj/Adt.
+            // (EN) [card م-٠٠١] Void — "no value here", as distinct from Null which is an
+            //      explicit value. The difference is measured, not theoretical: reading an
+            //      absent map key yields a Void value in the interpreter, so نوع() says
+            //      «فراغ», whereas نوع(لاشيء) says «عدم». Both print «لاشيء».
+            //      An LLVM-only tag, like Map/Obj/Adt.
+            inline constexpr uint8_t Void = 9;
         } // namespace DynKind
 
         // (AR) حارسُ انجرافٍ زمنَ الترجمة: الوسومُ المشترَكةُ (٠–٥) يجب أن تطابق مصدرَ الحقيقة

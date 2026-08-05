@@ -65,14 +65,19 @@ namespace Sad
                         b_.currentBlock_->addInstruction(c);
 
                     // (AR) نوع القيمة يُشتقّ من تمثيلها المخزَّن الفعليّ (كما في حلقة «لكل»):
-                    //      صحيح/منطقيّ ⇒ i64؛ نصّ/عشريّ ⇒ مؤشّر نصّ ⇒ String؛ مختلط ⇒ Integer.
-                    // (EN) Value type derived from its actual stored representation (as in the «for» loop):
-                    //      int/bool ⇒ i64; string/float ⇒ string pointer ⇒ String; mixed ⇒ Integer.
+                    //      صحيح/منطقيّ/عشريّ ⇒ بتّاتُه i64 ⇒ النوعُ نفسُه؛ نصّ ⇒ مؤشّر ⇒ String؛
+                    //      مختلط ⇒ Integer. ⚠️ مرآةٌ لتمثيلِ التخزين — يجبُ أن يبقى موافقًا
+                    //      لنظيرِه في `statement_for_range.cpp` (انظرِ التحذيرَ هناك).
+                    // (EN) Value type derived from its actual stored representation (as in the «for»
+                    //      loop): int/bool/float ⇒ raw i64 bits ⇒ same type; string ⇒ pointer ⇒
+                    //      String; mixed ⇒ Integer. ⚠️ Mirrors the storage representation — must stay
+                    //      in step with its twin in `statement_for_range.cpp` (see the warning there).
                     outValueType = (mapValueType == SadTypeKind::Integer ||
-                                    mapValueType == SadTypeKind::Boolean)
+                                    mapValueType == SadTypeKind::Boolean ||
+                                    mapValueType == SadTypeKind::Float ||
+                                    mapValueType == SadTypeKind::Any)
                                        ? mapValueType
-                                   : (mapValueType == SadTypeKind::String ||
-                                      mapValueType == SadTypeKind::Float)
+                                   : (mapValueType == SadTypeKind::String)
                                        ? SadTypeKind::String
                                        : SadTypeKind::Integer;
                 }

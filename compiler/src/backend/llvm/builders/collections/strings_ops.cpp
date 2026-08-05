@@ -778,6 +778,20 @@ namespace Sad
             llvm::BasicBlock *szAdd = llvm::BasicBlock::Create(*cg_.context_, "sz.add", fn);
             llvm::BasicBlock *szStr = llvm::BasicBlock::Create(*cg_.context_, "sz.str", fn);
             llvm::BasicBlock *szFixed = llvm::BasicBlock::Create(*cg_.context_, "sz.fixed", fn);
+            // (AR) [م-٠٠١] الحاويةُ لا يحدُّها رقمٌ ثابت: يُنسَّقُ المتداخلُ في تمريرةِ
+            //      الحجمِ نفسِها ويُضافُ طولُه الحقيقيّ. حجزٌ ثابتٌ هنا كان يعني تجاوزَ
+            //      مخزنٍ عندَ أوّلِ خريطةٍ متداخلةٍ كبيرة.
+            // (EN) [card م-٠٠١] A container has no fixed bound: the nested value is formatted in
+            //      the size pass itself and its real length added. A fixed reservation here would
+            //      mean a buffer overrun on the first large nested map.
+            llvm::BasicBlock *szContainerChk =
+                llvm::BasicBlock::Create(*cg_.context_, "sz.cont.chk", fn);
+            llvm::BasicBlock *szContainerMap =
+                llvm::BasicBlock::Create(*cg_.context_, "sz.cont.map", fn);
+            llvm::BasicBlock *szContainerArrChk =
+                llvm::BasicBlock::Create(*cg_.context_, "sz.cont.arr.chk", fn);
+            llvm::BasicBlock *szContainerArr =
+                llvm::BasicBlock::Create(*cg_.context_, "sz.cont.arr", fn);
             llvm::BasicBlock *szNext = llvm::BasicBlock::Create(*cg_.context_, "sz.next", fn);
             llvm::BasicBlock *doAlloc = llvm::BasicBlock::Create(*cg_.context_, "do.alloc", fn);
             llvm::BasicBlock *flChk = llvm::BasicBlock::Create(*cg_.context_, "fl.check", fn);
@@ -789,6 +803,20 @@ namespace Sad
             llvm::BasicBlock *flBoolChk = llvm::BasicBlock::Create(*cg_.context_, "fl.bool.chk", fn);
             llvm::BasicBlock *flBool = llvm::BasicBlock::Create(*cg_.context_, "fl.bool", fn);
             llvm::BasicBlock *flStrChk = llvm::BasicBlock::Create(*cg_.context_, "fl.str.chk", fn);
+            // (AR) [م-٠٠١] ذراعا الوسمَين الجديدَين: العشريُّ (٢) والعدمُ (٤/فراغ ٥).
+            //      كانا يسقطانِ في ذراعِ الصحيحِ فتُطبَعُ بتّاتُ الـdouble ومؤشّرُ العدمِ
+            //      أعدادًا فلكيّة: `{"س": 4609434218613702656}` بدل `{"س": 1.5}`.
+            // (EN) [card م-٠٠١] Arms for the two new tags: float (2) and null (4 / void 5). They
+            //      used to fall into the integer arm, printing the double's bits and the null
+            //      payload as astronomical integers: `{"س": 4609434218613702656}` for `1.5`.
+            llvm::BasicBlock *flFloatChk = llvm::BasicBlock::Create(*cg_.context_, "fl.float.chk", fn);
+            llvm::BasicBlock *flFloat = llvm::BasicBlock::Create(*cg_.context_, "fl.float", fn);
+            llvm::BasicBlock *flNullChk = llvm::BasicBlock::Create(*cg_.context_, "fl.null.chk", fn);
+            llvm::BasicBlock *flNull = llvm::BasicBlock::Create(*cg_.context_, "fl.null", fn);
+            llvm::BasicBlock *flContainerChk = llvm::BasicBlock::Create(*cg_.context_, "fl.cont.chk", fn);
+            llvm::BasicBlock *flMap = llvm::BasicBlock::Create(*cg_.context_, "fl.map", fn);
+            llvm::BasicBlock *flArrayChk = llvm::BasicBlock::Create(*cg_.context_, "fl.arr.chk", fn);
+            llvm::BasicBlock *flArray = llvm::BasicBlock::Create(*cg_.context_, "fl.array", fn);
             llvm::BasicBlock *flStr = llvm::BasicBlock::Create(*cg_.context_, "fl.str", fn);
             llvm::BasicBlock *flNext = llvm::BasicBlock::Create(*cg_.context_, "fl.next", fn);
             llvm::BasicBlock *flEnd = llvm::BasicBlock::Create(*cg_.context_, "fl.end", fn);
@@ -828,6 +856,28 @@ namespace Sad
             };
             llvm::Value *nullP = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy));
 
+            // (AR) نداءُ `__sad_array_to_string_dyn` يأخذ (طول، بيانات، أوسام) لا مؤشّرَ
+            //      البنية، فنستخرجُ الحقولَ الثلاثةَ من ترويسةِ SadArray.
+            // (EN) `__sad_array_to_string_dyn` takes (len, data, tags), not the struct pointer,
+            //      so the three fields are extracted from the SadArray header.
+            auto callArrayToString = [&](llvm::Value *arrValPtr, const char *nm) -> llvm::Value * {
+                cg_.ensureArrayToStringDynHelper();
+                llvm::Value *lenV = B.CreateLoad(
+                    i64Ty, B.CreateGEP(i64Ty, arrValPtr, C0(0), "a2s.len.gep"), "a2s.len");
+                llvm::Value *dataV = B.CreateIntToPtr(
+                    B.CreateLoad(i64Ty, B.CreateGEP(i64Ty, arrValPtr, C0(2), "a2s.data.gep"),
+                                 "a2s.data.i64"),
+                    ptrTy, "a2s.data");
+                llvm::Value *tagsV = B.CreateIntToPtr(
+                    B.CreateLoad(i64Ty, B.CreateGEP(i64Ty, arrValPtr, C0(3), "a2s.tags.gep"),
+                                 "a2s.tags.i64"),
+                    ptrTy, "a2s.tags");
+                auto helperFn = cg_.module_->getOrInsertFunction(
+                    "__sad_array_to_string_dyn",
+                    llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy, ptrTy}, false));
+                return B.CreateCall(helperFn, {lenV, dataV, tagsV}, nm);
+            };
+
             // ── تمريرة 1: الحجم ──
             B.SetInsertPoint(szChk);
             llvm::Value *si = B.CreateLoad(i64Ty, siA, "si.v");
@@ -844,7 +894,9 @@ namespace Sad
                                             B.CreateAdd(szKeyLen, C0(6)), "acc.k");
             B.CreateStore(acc1, accA);
             llvm::Value *szType = loadI64Elem(typesArr, si, "sz.type");
-            B.CreateCondBr(B.CreateICmpEQ(szType, C0(0), "sz.is.str"), szStr, szFixed);
+            B.CreateCondBr(B.CreateICmpEQ(szType, C0(Sad::Compiler::kMapValueTagString),
+                                          "sz.is.str"),
+                           szStr, szContainerChk);
 
             B.SetInsertPoint(szStr);
             llvm::Value *szVal = loadPtrElem(valsArr, si, "sz.val");
@@ -852,9 +904,48 @@ namespace Sad
             B.CreateStore(B.CreateAdd(B.CreateLoad(i64Ty, accA, "acc.v2"), szVLen, "acc.s"), accA);
             B.CreateBr(szNext);
 
+            B.SetInsertPoint(szContainerChk);
+            B.CreateCondBr(B.CreateICmpEQ(szType, C0(Sad::Compiler::kMapValueTagMap), "sz.is.map"),
+                           szContainerMap, szContainerArrChk);
+
+            B.SetInsertPoint(szContainerMap);
+            {
+                llvm::Value *nested = B.CreateCall(fn, {loadPtrElem(valsArr, si, "sz.map.val")},
+                                                   "sz.map.str");
+                B.CreateStore(B.CreateAdd(B.CreateLoad(i64Ty, accA, "acc.vm"),
+                                          cg_.emitStrlen(nested, "sz.map.len"), "acc.m"),
+                              accA);
+            }
+            B.CreateBr(szNext);
+
+            B.SetInsertPoint(szContainerArrChk);
+            B.CreateCondBr(B.CreateICmpEQ(szType, C0(Sad::Compiler::kMapValueTagArray),
+                                          "sz.is.array"),
+                           szContainerArr, szFixed);
+
+            B.SetInsertPoint(szContainerArr);
+            {
+                llvm::Value *nested =
+                    callArrayToString(loadPtrElem(valsArr, si, "sz.arr.val"), "sz.arr.str");
+                B.CreateStore(B.CreateAdd(B.CreateLoad(i64Ty, accA, "acc.va"),
+                                          cg_.emitStrlen(nested, "sz.arr.len"), "acc.a"),
+                              accA);
+            }
+            B.CreateBr(szNext);
+
             B.SetInsertPoint(szFixed);
-            // رقم/منطقيّ: احجز 24 بايت (يكفي i64 وأطول اسم منطقيّ) / int/bool: reserve 24
-            B.CreateStore(B.CreateAdd(B.CreateLoad(i64Ty, accA, "acc.v3"), C0(24), "acc.f"), accA);
+            // (AR) [م-٠٠١] غيرُ النصِّ: كانت ٢٤ بايتًا تكفي i64 وأطولَ اسمٍ منطقيّ. ومنذ
+            //      صار العشريُّ يُنسَّقُ هنا بـ`__sad_format_double` (‏%.6f‏) صار DBL_MAX
+            //      يبلغُ نحوَ ٣١٦ محرفًا ⇒ ٥١٢ حدًّا آمنًا موحَّدًا لكلِّ الأوسامِ غيرِ
+            //      النصّيّة (ثابتٌ مسمًّى لا رقمٌ عارٍ).
+            // (EN) [card م-٠٠١] Non-string: 24 bytes used to cover an i64 and the longest boolean
+            //      name. Now that floats are formatted here with `__sad_format_double` (%.6f),
+            //      DBL_MAX reaches about 316 characters ⇒ 512 is the safe unified bound for every
+            //      non-string tag (a named constant, not a bare number).
+            constexpr int64_t kNonStringValueReserveBytes = 512;
+            B.CreateStore(B.CreateAdd(B.CreateLoad(i64Ty, accA, "acc.v3"),
+                                      C0(kNonStringValueReserveBytes), "acc.f"),
+                          accA);
             B.CreateBr(szNext);
 
             B.SetInsertPoint(szNext);
@@ -923,7 +1014,9 @@ namespace Sad
             B.CreateBr(flNext);
 
             B.SetInsertPoint(flBoolChk);
-            B.CreateCondBr(B.CreateICmpEQ(flType, C0(3), "fl.is.bool"), flBool, flStrChk);
+            B.CreateCondBr(B.CreateICmpEQ(flType, C0(Sad::Compiler::kMapValueTagBoolean),
+                                          "fl.is.bool"),
+                           flBool, flFloatChk);
 
             B.SetInsertPoint(flBool);
             llvm::Value *bv = B.CreateICmpNE(loadI64Elem(valsArr, fi, "fl.bool.val"), C0(0), "fl.bool.nz");
@@ -936,8 +1029,75 @@ namespace Sad
             // (EN) String path **only** when tag==0 (a valid char*); any other tag (2 float/≥4) is
             //      formatted numerically via %lld — matching the size pass (non-0 ⇒ 24 bytes). Avoids
             //      dereferencing a non-pointer i64 as char* (crash/overflow — Amelia CRITICAL note).
+            // (AR) العشريّ: `__sad_format_double` تكتبُ في مكانِها فيُقدَّمُ الموضعُ بطولِ
+            //      ما كُتب. الدالّةُ نفسُها التي يستعملُها F64_TO_STRING ⇒ تنسيقٌ واحدٌ
+            //      في المصرّفِ كلِّه.
+            // (EN) Float: `__sad_format_double` writes in place, so the cursor advances by what
+            //      it wrote. The same function F64_TO_STRING uses ⇒ one formatting across the
+            //      whole compiler.
+            B.SetInsertPoint(flFloatChk);
+            B.CreateCondBr(B.CreateICmpEQ(flType, C0(Sad::Compiler::kMapValueTagFloat),
+                                          "fl.is.float"),
+                           flFloat, flNullChk);
+
+            B.SetInsertPoint(flFloat);
+            {
+                auto *formatDoubleType = llvm::FunctionType::get(
+                    llvm::Type::getVoidTy(*cg_.context_),
+                    {ptrTy, llvm::Type::getDoubleTy(*cg_.context_)}, false);
+                auto formatDoubleFn =
+                    cg_.module_->getOrInsertFunction("__sad_format_double", formatDoubleType);
+                llvm::Value *pos = B.CreateLoad(i64Ty, posA, "fl.f.pos");
+                llvm::Value *dst = B.CreateGEP(i8Ty, buf, pos, "fl.f.dst");
+                llvm::Value *asDouble = B.CreateBitCast(
+                    loadI64Elem(valsArr, fi, "fl.f.bits"),
+                    llvm::Type::getDoubleTy(*cg_.context_), "fl.f.val");
+                B.CreateCall(formatDoubleFn, {dst, asDouble});
+                B.CreateStore(B.CreateAdd(pos, cg_.emitStrlen(dst, "fl.f.len"), "fl.f.adv"), posA);
+            }
+            B.CreateBr(flNext);
+
+            // (AR) العدمُ والفراغُ يُعرَضانِ «لاشيء» من مصدرِ الحقيقةِ نفسِه الذي يستعملُه
+            //      المفسّرُ وdynToString.
+            // (EN) Null and Void both render «لاشيء» from the same source of truth the
+            //      interpreter and dynToString use.
+            B.SetInsertPoint(flNullChk);
+            B.CreateCondBr(
+                B.CreateOr(B.CreateICmpEQ(flType, C0(Sad::Compiler::kMapValueTagNull), "fl.is.null"),
+                           B.CreateICmpEQ(flType, C0(Sad::Compiler::kMapValueTagVoid), "fl.is.void"),
+                           "fl.is.nullish"),
+                flNull, flContainerChk);
+
+            B.SetInsertPoint(flNull);
+            writeFmt(fmtS, B.CreateGlobalStringPtr(::Sad::Types::repr::kNullDisplay, "m2s.nulltext"));
+            B.CreateBr(flNext);
+
+            // (AR) [م-٠٠١] الحاويات: خريطةٌ متداخلةٌ تُنسَّقُ بهذه الدالّةِ نفسِها
+            //      استدعاءً ذاتيًّا، ومصفوفةٌ بـ`__sad_array_to_string_dyn`. كانتا
+            //      تُخزَّنانِ بوسمِ النصِّ فتُقرأُ ترويسةُ الخريطةِ `char*`.
+            // (EN) [card م-٠٠١] Containers: a nested map is formatted by this very function
+            //      recursively, and an array by `__sad_array_to_string_dyn`. Both used to be
+            //      stored under the string tag, so a map header was read as a `char*`.
+            B.SetInsertPoint(flContainerChk);
+            B.CreateCondBr(B.CreateICmpEQ(flType, C0(Sad::Compiler::kMapValueTagMap), "fl.is.map"),
+                           flMap, flArrayChk);
+
+            B.SetInsertPoint(flMap);
+            writeFmt(fmtS, B.CreateCall(fn, {loadPtrElem(valsArr, fi, "fl.map.val")}, "fl.map.str"));
+            B.CreateBr(flNext);
+
+            B.SetInsertPoint(flArrayChk);
+            B.CreateCondBr(B.CreateICmpEQ(flType, C0(Sad::Compiler::kMapValueTagArray), "fl.is.array"),
+                           flArray, flStrChk);
+
+            B.SetInsertPoint(flArray);
+            writeFmt(fmtS, callArrayToString(loadPtrElem(valsArr, fi, "fl.arr.val"), "fl.arr.str"));
+            B.CreateBr(flNext);
+
             B.SetInsertPoint(flStrChk);
-            B.CreateCondBr(B.CreateICmpEQ(flType, C0(0), "fl.is.str"), flStr, flInt);
+            B.CreateCondBr(B.CreateICmpEQ(flType, C0(Sad::Compiler::kMapValueTagString),
+                                          "fl.is.str"),
+                           flStr, flInt);
 
             B.SetInsertPoint(flStr);
             writeFmt(fmtS, loadPtrElem(valsArr, fi, "fl.str.val"));

@@ -187,6 +187,48 @@ namespace Sad::Compiler
     inline constexpr const char *kRuntimeMapValues = "__sad_map_values";
 
     // ──────────────────────────────────────────────────────────────────
+    // (AR) بقيّةُ أسماءِ زمنِ التشغيلِ للخريطة — العقدُ نفسُه مع map_ops.cpp.
+    //      كانت مكرَّرةً سلاسلَ خامًّا في خمسةِ ملفّاتٍ أماميّة (الفهرسة،
+    //      الطرائق، الاستيعابات، حلقةُ لكل، الثنائيّات)؛ وُحّدت هنا كي لا
+    //      يتباعدَ طرفا العقدِ صامتَين.
+    // (EN) The remaining map runtime symbol names — the same contract with
+    //      map_ops.cpp. They were duplicated as raw literals across five
+    //      frontend files (indexing, methods, comprehensions, for-loop,
+    //      binary ops); unified here so the two ends cannot drift silently.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr const char *kRuntimeMapCreate = "__sad_map_create";
+    inline constexpr const char *kRuntimeMapGet = "__sad_map_get";
+    inline constexpr const char *kRuntimeMapGetI64 = "__sad_map_get_i64";
+    inline constexpr const char *kRuntimeMapSetTyped = "__sad_map_set_typed";
+    inline constexpr const char *kRuntimeMapSize = "__sad_map_size";
+    inline constexpr const char *kRuntimeMapHas = "__sad_map_has";
+    inline constexpr const char *kRuntimeMapDelete = "__sad_map_delete";
+
+    // (AR) نسخٌ سطحيٌّ للخريطة. تحتاجُه الواجهةُ المسمّاةُ وحدَها: `خريطة_عين`
+    //      و`خريطة_احذف` **نقيّتان** في المفسّرِ — تُرجعان خريطةً جديدةً ولا تمسّان
+    //      الأصل، بخلافِ الصيغةِ بالأقواسِ `م[ك] = ق` التي تُعدّلُ في مكانِها.
+    //      فالفرقُ في العقدِ لا في التنفيذ، والمفسّرُ هو الحَكَم.
+    // (EN) Shallow map copy. Needed only by the named interface: `خريطة_عين` and
+    //      `خريطة_احذف` are **pure** in the interpreter — they return a new map and
+    //      leave the original untouched, unlike the bracket form `م[ك] = ق` which
+    //      mutates in place. The difference is in the contract, not the
+    //      implementation, and the interpreter is the judge.
+    inline constexpr const char *kRuntimeMapCopy = "__sad_map_copy";
+
+    // (AR) قراءةٌ موسومةٌ زمنَ التشغيل: تُرجع %SadDyn بوسمِ القيمةِ الحقيقيِّ
+    //      المخزَّنِ في مصفوفةِ types بدل تسويةِ كلِّ شيءٍ نصًّا. عقدٌ جديدٌ مع
+    //      map_ops.cpp يغلقُ ق٣ من البطاقة م-٠٠١.
+    // (EN) Runtime-tagged read: returns %SadDyn carrying the value's real tag
+    //      from the types array instead of flattening everything to a string.
+    //      A new contract with map_ops.cpp closing card م-٠٠١ criterion ق٣.
+    inline constexpr const char *kRuntimeMapGetDyn = "__sad_map_get_dyn";
+
+    // (AR) إزالةُ التشكيلِ العربيِّ من نصّ — نظيرُ `ازل_تشكيل` في المفسّر.
+    // (EN) Strip Arabic diacritics from a string — the compiler counterpart of
+    //      the interpreter's `ازل_تشكيل`.
+    inline constexpr const char *kRuntimeStripDiacritics = "__sad_strip_diacritics";
+
+    // ──────────────────────────────────────────────────────────────────
     // (AR) بادئة أسماء دوال بانِي متغيّرات التعداد الجبريّ (ADT). البانِي
     //      المُولَّد `__adt_ctor_<تعداد>_<متغيّر>` (statement_types.cpp) يُنشئ
     //      بنية {tag، حقول...} عبر ENUM_CONSTRUCT؛ يُستدعى عند `شكل.دائرة(..)`
@@ -280,6 +322,78 @@ namespace Sad::Compiler
     inline constexpr int64_t kMapValueTagInteger = 1;
     inline constexpr int64_t kMapValueTagFloat = 2;
     inline constexpr int64_t kMapValueTagBoolean = 3;
+    // (AR) [م-٠٠١] عدم — قيمةُ `لاشيء` الصريحة. كانت تسقطُ في وسمِ النصِّ صامتةً
+    //      فتقولُ `نوع(خ["ك"])` «نصّ» والمفسّرُ «عدم»، بينما يفشلُ مسارُ القيمةِ
+    //      الموسومةِ زمنَ التشغيل **صاخبًا** للوسمِ نفسِه — حارسٌ مزدوجُ المعيار.
+    //      والقيمةُ يقابلُها `SVAL_NULL = 4` في زمنِ التشغيلِ المُضمَّن.
+    // (EN) [card م-٠٠١] Null — the explicit `لاشيء` value. It used to fall silently into the
+    //      string tag, so `نوع(خ["k"])` said «نصّ» where the interpreter said «عدم», while the
+    //      runtime-tagged path failed **loudly** on the very same tag — a double-standard
+    //      guard. The value matches `SVAL_NULL = 4` in the embedded runtime.
+    inline constexpr int64_t kMapValueTagNull = 4;
+    // (AR) [م-٠٠١] فراغ — «لا قيمةَ هنا»، تمييزًا عن «عدم» الصريحة. تنشأُ حين تُخزَّنُ
+    //      نتيجةُ قراءةِ مفتاحٍ غائبٍ في خريطةٍ أخرى: `ج["س"] = م["غائب"]`؛ فالمفسّرُ
+    //      يقولُ `نوع(ج["س"])` «فراغ» لا «عدم». تقابلُ `DynKind::Void`.
+    // (EN) [card م-٠٠١] Void — "no value here", as distinct from an explicit Null. It arises
+    //      when the result of reading an absent key is stored into another map:
+    //      `ج["س"] = م["غائب"]`; the interpreter then says `نوع(ج["س"])` is «فراغ», not «عدم».
+    //      Mirrors `DynKind::Void`.
+    inline constexpr int64_t kMapValueTagVoid = 5;
+    // (AR) [م-٠٠١] الحاويات. كان فضاءُ الأوسامِ يخلو منهما، فقيمةٌ خريطةٌ أو مصفوفةٌ
+    //      تُخزَّنُ بوسمِ النصّ: ترويسةُ الخريطةِ تُقرأُ `char*` عندَ الطباعة، وفهرسةُ
+    //      `م["أ"]["ب"]` بعدَ توسيمِ القراءةِ كانت تُجهِضُ المصرّفَ بتوكيدِ LLVM.
+    //      يقابلانِ `DynKind::Map` و`DynKind::Array`.
+    // (EN) [card م-٠٠١] Containers. The tag space had neither, so a map or array value was
+    //      stored under the string tag: the map header was read as a `char*` when printed, and
+    //      indexing `م["أ"]["ب"]` after the read became tagged aborted the compiler on an LLVM
+    //      assertion. These mirror `DynKind::Map` and `DynKind::Array`.
+    inline constexpr int64_t kMapValueTagMap = 6;
+    inline constexpr int64_t kMapValueTagArray = 7;
+
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) [م-٠٠١] الاشتقاقُ الوحيدُ لوسمِ قيمةِ الخريطةِ من نوعِها الساكن.
+    //
+    //      كان لهذا العقدِ **أربعةُ كتّابٍ** يكتبون السُّلَّمَ نفسَه يدويًّا: الفهرسةُ،
+    //      والخريطةُ الحرفيّةُ، و`خريطة_عين`، و`.عين()`. فلمّا أُضيف وسمُ العدمِ زُرِعَ
+    //      في اثنَين وأُغفِلَ في اثنَين، فسقطَ العدمُ في وسمِ النصِّ ⇒ مؤشّرُ عدمٍ
+    //      يُقرأُ `char*` ⇒ SIGSEGV. الدواءُ اشتقاقٌ واحدٌ يستدعيه الجميع — لا رقعةٌ
+    //      في موضعِ ظهورِ العَرَض.
+    // (EN) [card م-٠٠١] The single derivation of a map value's tag from its static type.
+    //
+    //      This contract had **four writers** open-coding the same ladder: indexing, the map
+    //      literal, `خريطة_عين`, and `.عين()`. When the null tag was added it was planted in
+    //      two and missed in two, so null fell into the string tag ⇒ a null pointer read as
+    //      `char*` ⇒ SIGSEGV. The cure is one derivation every writer calls — not a patch
+    //      where the symptom surfaced.
+    // ──────────────────────────────────────────────────────────────────
+    template <typename TypeKind>
+    inline int64_t mapValueTagFor(TypeKind valueType)
+    {
+        switch (valueType)
+        {
+        case TypeKind::Integer:
+        case TypeKind::Byte:
+        case TypeKind::UInt64:
+            return kMapValueTagInteger;
+        case TypeKind::Float:
+            return kMapValueTagFloat;
+        case TypeKind::Boolean:
+            return kMapValueTagBoolean;
+        case TypeKind::Null:
+            return kMapValueTagNull;
+        case TypeKind::Void:
+            return kMapValueTagVoid;
+        case TypeKind::Map:
+        case TypeKind::Struct:
+            return kMapValueTagMap;
+        case TypeKind::Array:
+            return kMapValueTagArray;
+        default:
+            // (AR) نصٌّ وكلُّ ما يُمرَّرُ مؤشّرًا.
+            // (EN) String and anything else passed as a pointer.
+            return kMapValueTagString;
+        }
+    }
 
     // (AR) تشخيص المطوّر (مستضاف فقط) لإرسال طريقةٍ على قيمةٍ موسومةٍ زمنَ التشغيل
     //      خالف وسمُها النوعَ المطلوب — مثالُه طريقةُ خريطةٍ على قيمةٍ وسمُها نصّ.
@@ -290,6 +404,15 @@ namespace Sad::Compiler
     //      __sad_panic(kSadPanicDynTypeMismatch).
     inline constexpr const char *kDynTypeMismatchMapMsg =
         "خطأ: طريقةُ خريطةٍ طُبِّقت على قيمةٍ ليست خريطة (النوع الساكن: أي)\n";
+
+    // (AR) [م-٠٠١] نظيرُها للمصفوفات: فهرسةٌ بعددٍ على قيمةٍ موسومةٍ زمنَ التشغيلِ
+    //      ليس وسمُها مصفوفةً. رسالةٌ مفصولةٌ لا مشترَكةٌ مع رسالةِ الخريطة: تشخيصٌ
+    //      يصفُ ما لم يحدثْ أسوأُ من لا تشخيص.
+    // (EN) [card م-٠٠١] The array counterpart: an integer index on a runtime-tagged value whose
+    //      tag is not Array. A separate message rather than sharing the map one — a diagnostic
+    //      that describes what did not happen is worse than none.
+    inline constexpr const char *kDynTypeMismatchArrayMsg =
+        "خطأ: فهرسةٌ بعددٍ طُبِّقت على قيمةٍ ليست مصفوفة (النوع الساكن: أي)\n";
 
     // (AR) تشخيص المطوّر (مستضاف فقط) للقسمة العشريّة على صفر (RUN001) — الحارس
     //      الزمنيّ المزروع قبل fdiv (نمط emitBoundsCheck/emitNullAssert): كان

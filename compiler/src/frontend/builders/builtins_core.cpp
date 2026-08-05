@@ -609,6 +609,14 @@ namespace Sad
                 if (ioResult)
                     return *ioResult;
 
+                // (AR) الواجهةُ المسمّاةُ للخرائطِ ونصِّها (م-٠٠١) — قبلَ بانِي `خريطة()`
+                //      أدناه كي لا يبتلعَ `خريطة_*` أيُّ مسارٍ آخر.
+                // (EN) The Maps named interface (card م-٠٠١) — before the `خريطة()`
+                //      constructor below so no other path swallows the `خريطة_*` names.
+                auto mapsResult = buildBuiltinMapsCall(funcName, argResults, argOperands);
+                if (mapsResult)
+                    return *mapsResult;
+
                 // ================================================================
                 // (AR) خريطة() — إنشاء خريطة فارغة عبر __sad_map_create
                 //      معالجة خريطة() كدالة مضمنة (type constructor) بدلاً من external call

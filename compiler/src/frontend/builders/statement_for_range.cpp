@@ -972,19 +972,30 @@ namespace Sad
                     // (AR) نوع القيمة يُشتقّ من تمثيلها المخزَّن الفعليّ في الخريطة (buildExprMap):
                     //      • صحيح/منطقيّ ⇒ يُخزَّن i64 مباشرة ⇒ النوع نفسه.
                     //      • نصّ ⇒ يُخزَّن مؤشّرًا ⇒ String.
-                    //      • عشريّ ⇒ يُخزَّن **نصًّا** (F64_TO_STRING، typeTag=0) ⇒ String (لا Integer،
-                    //        وإلّا فُسِّرت بتّات المؤشّر رقمًا بلا معنى — ملاحظة Amelia #F1).
+                    //      • عشريّ ⇒ يُخزَّن **ببتّاتِه** بوسمِ العشريِّ (م-٠٠١) ⇒ Float.
                     //      • مختلط (Void)/غيرها ⇒ تراجع إلى Integer (قيد موثَّق).
                     // (EN) The value type is derived from its actual stored representation in the map
                     //      (buildExprMap): int/bool are stored as i64 ⇒ same type; string is stored as
-                    //      a pointer ⇒ String; float is stored as **text** (F64_TO_STRING, typeTag=0)
-                    //      ⇒ String (not Integer, else the pointer bits print as a meaningless number —
-                    //      Amelia note #F1); mixed (Void)/other ⇒ fall back to Integer (documented).
+                    //      a pointer ⇒ String; float is stored as **raw bits** under the float tag
+                    //      (card م-٠٠١) ⇒ Float; mixed (Void)/other ⇒ fall back to Integer (documented).
+                    //
+                    // (AR) ⚠️ هذا الاشتقاقُ **مرآةٌ لتمثيلِ التخزين**، فأيُّ تغييرٍ في وسمِ
+                    //      قيمةٍ يجبُ أن يُقابَلَ هنا وفي `expression_comprehensions.cpp`.
+                    //      كان العشريُّ هنا String لأنّه كان يُنصَّصُ عندَ التخزين؛ فلمّا صار
+                    //      يُخزَّنُ بتّاتٍ ولم يُحدَّثْ هذا الموضعُ طُبِعت بتّاتُ الـdouble
+                    //      بـ`%s` ⇒ SIGSEGV. الوسمُ ليس عقدًا خلفيًّا وحدَه.
+                    // (EN) ⚠️ This derivation **mirrors the storage representation**, so any change
+                    //      to a value's tag must be matched here and in
+                    //      `expression_comprehensions.cpp`. Float was String here because it used to
+                    //      be stringified on store; when storage moved to raw bits and this site was
+                    //      not updated, the double's bits were printed with `%s` ⇒ SIGSEGV. The tag
+                    //      is not a backend-only contract.
                     valueVarType = (mapValueType == SadTypeKind::Integer ||
-                                    mapValueType == SadTypeKind::Boolean)
+                                    mapValueType == SadTypeKind::Boolean ||
+                                    mapValueType == SadTypeKind::Float ||
+                                    mapValueType == SadTypeKind::Any)
                                        ? mapValueType
-                                   : (mapValueType == SadTypeKind::String ||
-                                      mapValueType == SadTypeKind::Float)
+                                   : (mapValueType == SadTypeKind::String)
                                        ? SadTypeKind::String
                                        : SadTypeKind::Integer;
 

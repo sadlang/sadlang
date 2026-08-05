@@ -1294,9 +1294,15 @@ namespace Sad
             // (EN) ز.٤٣: a map is now tagged as an element of a heterogeneous array; without
             //      this arm نوع() would answer «مجهول» while the interpreter answers «خريطة».
             auto *mapBB = llvm::BasicBlock::Create(ctx, "dyn.tn.map", parent);
+            // (AR) [م-٠٠١] والفراغُ يُميَّزُ عن العدم: مفتاحٌ غائبٌ من خريطةٍ يُرجعُ
+            //      في المفسّرِ قيمةَ Void فـ`نوع()` «فراغ»، لا «عدم».
+            // (EN) [card م-٠٠١] Void is distinguished from Null: an absent map key yields a
+            //      Void value in the interpreter, so نوع() answers «فراغ», not «عدم».
+            auto *voidBB = llvm::BasicBlock::Create(ctx, "dyn.tn.void", parent);
             auto *mergeBB = llvm::BasicBlock::Create(ctx, "dyn.tn.merge", parent);
 
-            llvm::SwitchInst *sw = b.CreateSwitch(kind, defBB, 7);
+            llvm::SwitchInst *sw = b.CreateSwitch(kind, defBB, 8);
+            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Void), voidBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Int), intBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Float), floatBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Bool), boolBB);
@@ -1337,9 +1343,14 @@ namespace Sad
             llvm::Value *rmap = nameFor(SadTypeKind::Map);
             b.CreateBr(mergeBB);
             mapBB = b.GetInsertBlock();
+            b.SetInsertPoint(voidBB);
+            llvm::Value *rvoid = nameFor(SadTypeKind::Void);
+            b.CreateBr(mergeBB);
+            voidBB = b.GetInsertBlock();
 
             b.SetInsertPoint(mergeBB);
-            auto *phi = b.CreatePHI(ptrTy, 8, "dyn.tn.result");
+            auto *phi = b.CreatePHI(ptrTy, 9, "dyn.tn.result");
+            phi->addIncoming(rvoid, voidBB);
             phi->addIncoming(ri, intBB);
             phi->addIncoming(rf, floatBB);
             phi->addIncoming(rb, boolBB);

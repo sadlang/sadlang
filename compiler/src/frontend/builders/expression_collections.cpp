@@ -458,38 +458,20 @@ namespace Sad
                     // (EN) Convert value to i64 based on its type
                     // (AR) وسمُ قيمةِ الخريطة — عقدٌ مشترَكٌ مع الخلفيّة، مصدرُه sir_constants.h
                     // (EN) Map value tag — a contract shared with the backend (sir_constants.h)
-                    int64_t typeTag = Sad::Compiler::kMapValueTagString;
-                    if (valResult.type == SadTypeKind::Integer)
-                    {
-                        setInst.operands.push_back(valOp);
-                        typeTag = Sad::Compiler::kMapValueTagInteger;
-                    }
-                    else if (valResult.type == SadTypeKind::Float)
-                    {
-                        // (AR) عشري — نحوّل لنص ثم نستخدم __sad_map_set العادي بنوع 0
-                        //      لتجنب bitcast غير المدعوم في SIR حالياً
-                        // (EN) Float — convert to string, use __sad_map_set via typed with type 0
-                        std::string strReg = b_.newTempRegister();
-                        SIRInstruction toStrInst(SIROpcode::F64_TO_STRING);
-                        toStrInst.result = SIROperand::Register(strReg, SadTypeKind::String);
-                        toStrInst.operands.push_back(valOp);
-                        if (b_.currentBlock_)
-                            b_.currentBlock_->addInstruction(toStrInst);
-                        setInst.operands.push_back(SIROperand::Register(strReg, SadTypeKind::String));
-                        typeTag = Sad::Compiler::kMapValueTagString;
-                    }
-                    else if (valResult.type == SadTypeKind::Boolean)
-                    {
-                        setInst.operands.push_back(valOp);
-                        typeTag = Sad::Compiler::kMapValueTagBoolean;
-                    }
-                    else
-                    {
-                        // (AR) نص أو أي نوع آخر — يُمرّر كمؤشر (ptr→i64)
-                        // (EN) String or other — passed as pointer (ptr→i64)
-                        setInst.operands.push_back(valOp);
-                        typeTag = Sad::Compiler::kMapValueTagString;
-                    }
+                    // (AR) [م-٠٠١] العشريُّ كان يُنصَّصُ هنا ويُخزَّنُ بوسمِ النصّ «تجنّبًا
+                    //      لـbitcast غيرِ المدعومِ في SIR» — والحاجةُ إليه زالت: القيمةُ
+                    //      تُمرَّرُ double والخلفيّةُ تُحوّلُ بتّاتِها عندَ التخزين. فبقيَ
+                    //      النوعُ محفوظًا بدل أن يُقرأَ «نصًّا» عندَ أوّلِ حدّ.
+                    // (EN) [card م-٠٠١] Floats used to be stringified here and stored under
+                    //      the string tag "to avoid a bitcast SIR does not support" — that
+                    //      need is gone: the value is passed as a double and the backend
+                    //      bitcasts its bits on store. The type survives instead of being
+                    //      read back as «نصّ» at the first boundary.
+                    setInst.operands.push_back(valOp);
+                    const int64_t typeTag = Sad::Compiler::mapValueTagFor(valResult.type);
+                    // (AR) وما عداها نصٌّ أو مؤشّرٌ — يُمرَّرُ كما هو بوسمِ النصّ.
+                    // (EN) Anything else is a string or a pointer — passed as-is under the
+                    //      string tag.
                     setInst.operands.push_back(SIROperand::ConstantI64(typeTag));
                     setInst.comment = "map set typed [" + std::to_string(i) + "]";
                     if (b_.currentBlock_)

@@ -46,6 +46,13 @@ namespace Sad
 
             // (AR) دوال مساعدة داخلية
             llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr");
+
+            // (AR) [م-٠٠١] كتلةُ فشلٍ لقيمةٍ موسومةٍ زمنَ التشغيلِ ليس وسمُها
+            //      مصفوفةً، تنتهي بـunreachable: مستضافٌ ⇒ تشخيصٌ عربيٌّ + exit(1)؛
+            //      حرٌّ ⇒ __sad_panic برمزٍ مميَّز. نظيرُ emitDynTypeMismatchFailure للخرائط.
+            // (EN) [card م-٠٠١] The failure block for a runtime-tagged value whose tag is not
+            //      Array, terminated by unreachable. Mirrors the maps' emitDynTypeMismatchFailure.
+            void emitDynNotArrayFailure(const char *label);
             llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx");
             void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc");
 

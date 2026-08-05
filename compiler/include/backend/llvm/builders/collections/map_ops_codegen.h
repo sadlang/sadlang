@@ -59,6 +59,20 @@ public:
     llvm::Function *getOrCreateMapFindSlot();
     llvm::Function *getOrCreateMapCollect();
 
+    // (AR) [م-٠٠١ ق٢] يبني `__sad_strip_diacritics` — إزالةُ التشكيلِ العربيِّ من
+    //      نصٍّ بترميزِ UTF-8. مصدرُ الحقيقةِ يضعُ `ازل_تشكيل` في مساحةِ «خرائط»
+    //      فمكانُها هنا. تُرجعُ نصًّا جديدًا مخصَّصًا بالكومة.
+    // (EN) [card م-٠٠١, ق٢] Builds `__sad_strip_diacritics` — strips Arabic
+    //      diacritics from a UTF-8 string. The SoT places `ازل_تشكيل` in the Maps
+    //      namespace, hence its home here. Returns a fresh heap-allocated string.
+    //
+    // (AR) عقدُ الملكيّة: تُرجعُ نصًّا جديدًا مخصَّصًا بالكومة، **إلّا** أن يكونَ المصدرُ
+    //      عدمًا فيُعادُ كما هو. فلا يجوزُ للمتصلِ أن يفترضَ ملكيّةً غيرَ مشروطة.
+    // (EN) Ownership contract: returns a fresh heap-allocated string, **except** when the
+    //      source is null, which is returned unchanged. Callers must not assume
+    //      unconditional ownership.
+    llvm::Function *getOrCreateStripDiacritics();
+
 private:
     // (AR) يبعثُ كتلةَ فشلٍ لعدمِ تطابقِ وسمِ قيمةٍ ديناميكيّةٍ مع المتوقَّع، وينتهي
     //      بـunreachable: مستضاف ⇒ تشخيصٌ عربيٌّ + exit(1)؛ حرّ ⇒ __sad_panic برمزٍ
@@ -68,6 +82,26 @@ private:
     //      freestanding ⇒ __sad_panic with a distinct code. Extracted so it is not
     //      duplicated in every tag guard.
     void emitDynTypeMismatchFailure(const char *label);
+
+    // (AR) [م-٠٠١] يوسّعُ الخريطةَ إن أوشكت أن تمتلئ، حافظًا الثابتَ **«خانةٌ فارغةٌ
+    //      واحدةٌ على الأقلّ»**. لم تكن الخريطةُ تنمو قطُّ: بلغت العددُ السعةَ فصار
+    //      `__sad_map_find_slot` — وهو بحثٌ خطّيٌّ يُرجعُ صفرًا حين لا يجدُ — يُرجعُ
+    //      الخانةَ صفرًا لكلِّ مفتاحٍ غائب. فمفتاحٌ جديدٌ يدهسُ الخانةَ الأولى بلا
+    //      زيادةِ العدد، و«يحتوي» تقولُ صحيحًا لمفتاحٍ غيرِ موجود، والقيمةُ
+    //      الافتراضيّةُ تُهمَل — كلُّه صامتٌ برمزِ خروجٍ صفريّ.
+    //
+    //      والتوسيعُ هنا **بلا إعادةِ تجزئة**: البحثُ خطّيٌّ على كلِّ الخانات، فلا
+    //      يرتبطُ موضعُ المفتاحِ بالسعة، فيكفي نسخُ المصفوفاتِ الثلاثِ كما هي.
+    // (EN) [card م-٠٠١] Grows the map when it is about to fill, maintaining the **"at
+    //      least one empty slot"** invariant. The map never grew: once count reached
+    //      capacity, `__sad_map_find_slot` — a linear scan returning 0 when it finds
+    //      nothing — returned slot 0 for every absent key. A new key then overwrote the
+    //      first entry without raising the count, «contains» answered true for a key that
+    //      is not there, and the default value was ignored — all silently, exit code 0.
+    //
+    //      Growth needs **no rehash**: the search is a linear scan over every slot, so a
+    //      key's position is unrelated to capacity and copying the three arrays suffices.
+    void emitMapGrowIfFull(llvm::Value *mapPtr);
 };
 
 }} // namespace Sad::LLVM
