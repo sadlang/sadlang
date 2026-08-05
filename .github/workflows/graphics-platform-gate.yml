@@ -13,10 +13,14 @@
 #        بقائمةٍ مثبَّتةٍ (هندسةً وألوانًا وترتيبَ نداءات).
 #     ٤. بابُ توليدِ كودِ المنصّاتِ الأربع — برنامجُ ص يُخرِج HTML وCompose
 #        وSwiftUI وAppKit فعلًا.
+#     ٥. بوّابةُ البرهانِ البصريّ — لقطاتُ **بكسلٍ** ذهبيّةٌ عبرَ المُصيِّرِ الحرّ.
+#        الثالثةُ تقيسُ نداءَ الرسم؛ هذه تقيسُ ما يصلُ الشاشةَ فعلًا: مُنقِّطٌ
+#        يكتبُ في الإحداثيِّ الخطأ أو غليفٌ لا يُرسَم يمرّانِ خضراوَينِ هناك.
 #
 #   بلا `continue-on-error`: بوّابةٌ لا تفشل ليست بوّابة.
 # (EN) Cross-platform graphics gate (ث١٠): guards + library build + golden
-#   display-list test + the four platform-codegen doors. No continue-on-error.
+#   display-list test + pixel golden gate + the four platform-codegen doors.
+#   No continue-on-error.
 # ════════════════════════════════════════════════════════════════════════════
 name: "🎨 بوّابة الرسومات للمنصّات / Graphics Platform Gate"
 
@@ -33,6 +37,18 @@ on:
       #      الرأسَ المولَّدَ والقائمةَ الذهبيّة، فيجب أن يوقظ البوّابة.
       - 'language-truth/keywords.yaml'
       - 'language-truth/builtins/core.yaml'
+      # (AR) اختبارا الذهبيّاتِ ولقطاتُ البكسلِ ووصلُهما في CMake: تغييرُهما
+      #      يغيّر حكمَ البوّابةِ نفسِه، فلا يجوز أن يمرَّ بلا تشغيلٍ لها.
+      - 'tests/unit/comprehensive/test_ui_render_*.cpp'
+      - 'tests/unit/comprehensive/recording_renderer.h'
+      - 'tests/unit/comprehensive/sad_test_framework.h'
+      # (AR) الرأسُ المشترَكُ يحملُ مفاتيحَ الخصائصِ التي يقرؤها renderNode:
+      #      تغييرُ مفتاحٍ واحدٍ فيه يُبطِلُ رسمَ خاصّيّةٍ في كلِّ اللقطاتِ،
+      #      فإغفالُه هنا يعني انحدارًا يُدمَجُ ثمّ يُتَّهَمُ به أوّلُ طلبِ
+      #      دمجٍ لاحقٍ يمسُّ الرسومات.
+      - 'tests/unit/comprehensive/ui_tests_shared.h'
+      - 'tests/unit/comprehensive/golden/pixels/**'
+      - 'cmake/tests_comprehensive.cmake'
       - '.github/workflows/graphics-platform-gate.yml'
   pull_request:
     branches: [dev, sadlang]
@@ -46,6 +62,18 @@ on:
       #      الرأسَ المولَّدَ والقائمةَ الذهبيّة، فيجب أن يوقظ البوّابة.
       - 'language-truth/keywords.yaml'
       - 'language-truth/builtins/core.yaml'
+      # (AR) اختبارا الذهبيّاتِ ولقطاتُ البكسلِ ووصلُهما في CMake: تغييرُهما
+      #      يغيّر حكمَ البوّابةِ نفسِه، فلا يجوز أن يمرَّ بلا تشغيلٍ لها.
+      - 'tests/unit/comprehensive/test_ui_render_*.cpp'
+      - 'tests/unit/comprehensive/recording_renderer.h'
+      - 'tests/unit/comprehensive/sad_test_framework.h'
+      # (AR) الرأسُ المشترَكُ يحملُ مفاتيحَ الخصائصِ التي يقرؤها renderNode:
+      #      تغييرُ مفتاحٍ واحدٍ فيه يُبطِلُ رسمَ خاصّيّةٍ في كلِّ اللقطاتِ،
+      #      فإغفالُه هنا يعني انحدارًا يُدمَجُ ثمّ يُتَّهَمُ به أوّلُ طلبِ
+      #      دمجٍ لاحقٍ يمسُّ الرسومات.
+      - 'tests/unit/comprehensive/ui_tests_shared.h'
+      - 'tests/unit/comprehensive/golden/pixels/**'
+      - 'cmake/tests_comprehensive.cmake'
       - '.github/workflows/graphics-platform-gate.yml'
   workflow_dispatch:
 
@@ -143,6 +171,36 @@ jobs:
           else
             build/bin/test_ui_render_displaylist
           fi
+
+      - name: 🔨 بناءُ بوّابةِ البكسل / Build pixel golden gate
+        run: cmake --build build --config Debug --target test_ui_render_pixels
+
+      # (AR) هذه البوّابةُ تُقارن **بكسلاتٍ فعليّةً** لا نداءاتِ رسم. تربطُ
+      #      SDL2 عبرَ sad_graphics لكنّها **لا تفتحُ نافذةً ولا سياقَ عرضٍ ولا
+      #      خطَّ نظام**، فلا تلزمُها xvfb: المُصيِّرُ الحرُّ رسّامٌ برمجيٌّ صرفٌ
+      #      بخطٍّ نقطيٍّ مورَّدٍ في المستودع — وتشغيلُها على الأنظمةِ الثلاثةِ
+      #      هو ما يُثبِتُ الحتميّةَ عبرَ المنصّات، لا مجرّدُ اجتيازِها على واحد.
+      - name: ✅ بوّابةُ البرهانِ البصريّ / Pixel golden gate
+        shell: bash
+        run: |
+          if [ -x build/bin/Debug/test_ui_render_pixels.exe ]; then
+            build/bin/Debug/test_ui_render_pixels.exe
+          elif [ -x build/bin/Debug/test_ui_render_pixels ]; then
+            build/bin/Debug/test_ui_render_pixels
+          else
+            build/bin/test_ui_render_pixels
+          fi
+
+      # (AR) اللقطةُ الفعليّةُ تُكتَبُ بجوارِ الذهبيّةِ عند الفشل — وهي الأداةُ
+      #      الوحيدةُ التي تُشخِّصُ فرقًا ثنائيًّا بالعين. بلا رفعِها تُلقى مع
+      #      العدّاءِ فتضيعُ حيث تلزمُ أكثرَ ما تلزم.
+      - name: 📤 رفعُ اللقطاتِ الفعليّةِ عند الفشل / Upload actual snapshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pixel-actual-${{ matrix.os }}
+          path: tests/unit/comprehensive/golden/pixels/*.actual.ppm
+          if-no-files-found: ignore
 
       # (AR) الحكمُ هنا لا في ملفِّ ص. الملفُّ اختبارُ سلوكٍ يملكه عدّاءُ
       #      الاختبارات، وهو يقارن مخرَجَه بـ`@expected` فيكشفُ الفشل؛ أمّا هنا

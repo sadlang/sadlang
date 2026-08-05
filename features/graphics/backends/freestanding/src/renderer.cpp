@@ -750,11 +750,21 @@ namespace sad
                     // حرف غير موجود — ارسم مربع استبدال
                     int cw = static_cast<int>(currentFont_->charWidth * scale);
                     int ch = static_cast<int>(currentFont_->charHeight * scale);
+                    // (AR) مكوّناتُ Color عقدُها ٠٫٠–١٫٠ لا ٠–٢٥٥: إسنادُ البايتِ
+                    //      خامًّا كان يُقَصُّ إلى ١٫٠ فيصيرُ **كلُّ** مربّعِ استبدالٍ
+                    //      أبيضَ معتِمًا مهما كان لونُ النصّ — وضياعُ الشفافيّةِ
+                    //      يُخفي أنّه بديلٌ لا محرف. القسمةُ تُعيدُ لونَ النصِّ ونصفَ
+                    //      العتامةِ المقصودَين.
+                    // (EN) Color components are 0.0–1.0, not 0–255: assigning the
+                    //      raw byte clamped every replacement box to opaque white
+                    //      regardless of the text colour.
+                    constexpr float kByteToUnit = 1.0f / 255.0f;
+                    constexpr float kReplacementBoxAlpha = 0.5f;
                     Color replColor;
-                    replColor.r = (color >> 16) & 0xFF;
-                    replColor.g = (color >> 8) & 0xFF;
-                    replColor.b = color & 0xFF;
-                    replColor.a = 128;
+                    replColor.r = static_cast<float>((color >> 16) & 0xFF) * kByteToUnit;
+                    replColor.g = static_cast<float>((color >> 8) & 0xFF) * kByteToUnit;
+                    replColor.b = static_cast<float>(color & 0xFF) * kByteToUnit;
+                    replColor.a = kReplacementBoxAlpha;
                     drawRectOutline(static_cast<float>(x), static_cast<float>(y),
                                     static_cast<float>(cw), static_cast<float>(ch),
                                     replColor, 1.0f);
@@ -955,19 +965,29 @@ namespace sad
             {
                 // في الوضع المستقل، لا يمكن تحميل صور من ملفات بدون نظام ملفات
                 // نرسم مستطيل رمادي كبديل
+                // (AR) مكوّناتُ Color عقدُها ٠٫٠–١٫٠ لا ٠–٢٥٥ — وهو العيبُ نفسُه
+                //      الذي كان في مربّعِ استبدالِ المحرف: إسنادُ ١٢٨ خامًّا يُقَصُّ
+                //      إلى ١٫٠ فيصيرُ «الرماديُّ» أبيضَ معتِمًا، ويكذّبُ التعليقَ
+                //      أعلاه. ثاني نسخةٍ من الخطأ في الملفِّ نفسِه — أُصلحتا معًا.
+                // (EN) Color is 0.0–1.0, not 0–255: the raw 128 clamped to 1.0, so
+                //      the "grey" placeholder rendered opaque white.
+                constexpr float kByteToUnit = 1.0f / 255.0f;
+                constexpr float kPlaceholderFill = 128.0f * kByteToUnit;
+                constexpr float kPlaceholderAlpha = 200.0f * kByteToUnit;
+                constexpr float kCrossShade = 200.0f * kByteToUnit;
                 Color placeholder;
-                placeholder.r = 128;
-                placeholder.g = 128;
-                placeholder.b = 128;
-                placeholder.a = 200;
+                placeholder.r = kPlaceholderFill;
+                placeholder.g = kPlaceholderFill;
+                placeholder.b = kPlaceholderFill;
+                placeholder.a = kPlaceholderAlpha;
                 drawFilledRect(x, y, w, h, placeholder);
 
                 // رسم علامة × عليه
                 Color cross;
-                cross.r = 200;
-                cross.g = 200;
-                cross.b = 200;
-                cross.a = 255;
+                cross.r = kCrossShade;
+                cross.g = kCrossShade;
+                cross.b = kCrossShade;
+                cross.a = 1.0f;
                 drawLine(x, y, x + w, y + h, cross, 1.0f);
                 drawLine(x + w, y, x, y + h, cross, 1.0f);
             }

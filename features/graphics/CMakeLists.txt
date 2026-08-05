@@ -250,6 +250,14 @@ if(MSVC)
     target_compile_options(sad_graphics PRIVATE /utf-8 /wd4819 /FS)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(sad_graphics PRIVATE -finput-charset=UTF-8)
+    # (AR) حسابُ التخطيطِ عائمٌ ثمّ يُقتطَعُ إلى بكسلٍ صحيح، وclang يدمجُ
+    #      الضربَ والجمعَ في FMA افتراضًا بنتيجةٍ تختلفُ بأدنى وحدة. عند حدٍّ
+    #      تامٍّ يُزيحُ ذلك حافّةً كاملة، فتُخفِقُ بوّابةُ البكسلِ على آرم وتنجحُ
+    #      على x86 بلا تغييرِ سطرٍ واحد. المنعُ يجعلُ اتّفاقَ المنصّاتِ مضمونًا
+    #      بالبناءِ لا مرجوًّا منه. (MSVC لا يدمجُ افتراضًا فلا يحتاجُ نظيرًا.)
+    # (EN) Layout math is float truncated to int pixels; clang's default FMA
+    #      contraction can shift a whole edge at an exact boundary.
+    target_compile_options(sad_graphics PRIVATE -ffp-contract=off)
 endif()
 
 # ══════════════════════════════════════════════════════════════════════════════

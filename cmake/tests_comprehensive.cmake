@@ -280,6 +280,38 @@ target_link_libraries(test_ui_render_displaylist PRIVATE sad_graphics)
 target_include_directories(test_ui_render_displaylist PRIVATE
     ${CMAKE_SOURCE_DIR}/features/graphics/core/include)
 
+# 14e-1. بوّابة البرهان البصريّ — لقطات بكسل ذهبيّة (headless حتميّ)
+# (AR) الاختبار أعلاه يقيس **نداءات الرسم** ويُعلن حدّه: لا بكسل يُقاس. هذا
+#      ينقّط الأشجار نفسها إلى بكسلات فعليّة عبر المُصيّر الحرّ — رسّام برمجيّ
+#      صرف بخطّ نقطيّ **مورَّد في المستودع** وتشكيل عربيّ لنا، بلا تنعيم حواف.
+#      الهدف يربط sad_graphics (ومعها SDL2 بوصفها PUBLIC)، لكنّه **لا يفتح
+#      نافذة ولا سياق عرض ولا خطّ نظام** — فلا يلزمه xvfb ولا عتاد رسوميّ،
+#      والتنقيط كلّه حساب محلّيّ. (لقطة SDL2 نفسها مستحيلة حتميًّا: خطّ النظام
+#      يختلف بين المنصّات، والرسّام مسرَّع عتاديًّا، والنافذة مفروضة الظهور.)
+# (EN) Pixel-level golden gate via the freestanding software rasterizer: vendored
+#      bitmap font, no antialiasing, no GPU, no system font. It links SDL2
+#      transitively but never opens a window or a render context, so no xvfb.
+add_comprehensive_test(test_ui_render_pixels test_ui_render_pixels.cpp)
+target_link_libraries(test_ui_render_pixels PRIVATE sad_graphics)
+target_include_directories(test_ui_render_pixels PRIVATE
+    ${CMAKE_SOURCE_DIR}/features/graphics/core/include
+    ${CMAKE_SOURCE_DIR}/features/graphics/backends/freestanding/include)
+# (AR) مجلّد اللقطات يُحقَن مسارًا مطلقًا: الاختبار يُشغَّل من مجلّدات عملٍ
+#      مختلفة (ctest، البوّابة، اليد) فمسارٌ نسبيّ يعني إخفاقًا رهين المكان.
+target_compile_definitions(test_ui_render_pixels PRIVATE
+    SAD_UI_PIXEL_GOLDEN_DIR="${CMAKE_SOURCE_DIR}/tests/unit/comprehensive/golden/pixels")
+# (AR) دمجُ الضربِ والجمعِ (FMA) مُفعَّلٌ افتراضًا في clang، ويعطي نتيجةً تختلفُ
+#      بأدنى وحدةٍ عن الحسابِ غيرِ المدموج. حسابُ التخطيطِ عائمٌ ثمّ يُقتطَعُ إلى
+#      بكسلٍ صحيح، فاختلافُ ULP عند حدٍّ تامٍّ يُزيحُ حافّةً كاملة ⇒ لقطةٌ تُخفِقُ
+#      على معماريّةِ آرم وتنجحُ على x86 بلا تغييرٍ في الكود. المنعُ يجعلُ
+#      الحتميّةَ مضمونةً بالبناءِ لا متوقّعةً منه. (MSVC لا يدمجُ افتراضًا.)
+# (EN) clang contracts a*b+c into FMA by default; layout math is float then
+#      truncated to int pixels, so a one-ULP difference at an exact boundary
+#      shifts a whole edge — green on x86, red on arm64, with no code change.
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(test_ui_render_pixels PRIVATE -ffp-contract=off)
+endif()
+
 # 14e-2. حارس دلالة السحب المستمرّ (FR-009) — يقفل عقد OnDrag المشترك بين
 # (AR) كلّ المنصّات: إطلاق مستمرّ بدلتا تفاضليّة على العنصر المُمسَك، بلا إعادة
 #      إطلاق إجماليّ عند الرفع ولا سحب شبحيّ. C++ مستضاف بلا SDL2/عتاد.

@@ -126,3 +126,4 @@ node.findProperty(props::ALIGN)   // ✓  لا  findProperty("محاذاة")
 | `features/graphics/core/include/sad_ui/layout.h` | `LayoutDirection`، `LayoutConstraints` |
 | `language-truth/ui_props.yaml` | مصدر حقيقة مفاتيح الخصائص (٨٢ مفتاحًا) |
 | `tests/unit/comprehensive/test_ui_render_displaylist.cpp` | اختبار ذهبيّ للمواقع (RTL/LTR) |
+| `tests/unit/comprehensive/test_ui_render_pixels.cpp` | بوّابةُ بكسلٍ ذهبيّةٌ عبرَ المُصيِّرِ الحرّ — تقيسُ ما يصلُ الشاشةَ لا نداءَ الرسم (تحديث اللقطات: `SAD_UI_DUMP_GOLDEN=1` محلّيًّا) |

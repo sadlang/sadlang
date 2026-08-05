@@ -15,10 +15,13 @@
 //   لتحديث القائمة الذهبيّة بعد تغيير مقصود في التخطيط/الرسم: شغّل
 //   الاختبار بمتغيّر البيئة SAD_UI_DUMP_GOLDEN=1 — يطبع **كل** الحالات
 //   دفعةً واحدة بين علامتَي BEGIN/END لتُنسَخ القائمة منها مباشرةً.
+//   ولا يعمل الوضع إن كان `CI` مضبوطًا — ولو محلّيًّا في صدفتك — كي لا
+//   تبارك جولةُ التكامل انحدارًا بإعادة كتابة مرجعها.
 // ======================================================================
 
 #include "sad_test_framework.h"
 #include "recording_renderer.h"
+#include "ui_tests_shared.h"
 
 #include "sad_ui/ir.h"
 #include "sad_ui/layout.h"
@@ -35,30 +38,6 @@ using namespace sad::ui;
 // ── أبعاد سطح العرض الثابتة لكل الحالات ───────────────────────────────
 static constexpr float kViewportW = 400.0f;
 static constexpr float kViewportH = 600.0f;
-
-// ── (أ) مفاتيح مُشتقّة من مصدر الحقيقة (أسماء معدّلات SoT) ──────────────
-// تُشتقّ من modifierTypeToArabicName (types.cpp) بدل كتابتها يدويًّا — فأيّ
-// تباعد بين الاختبار وSoT يُكشَف بالبناء، ولا نكرّر السلسلة العربيّة.
-static const std::string K_COLOR = modifierTypeToArabicName(ModifierType::ForegroundColor); // لون
-static const std::string K_ALIGN = modifierTypeToArabicName(ModifierType::Alignment);       // محاذاة
-static const std::string K_GRAD = modifierTypeToArabicName(ModifierType::GradientColor);    // تدرج
-
-// ── (ب) مفاتيح خصائص IR خاصّة بالمحرّك (ليست أسماء معدّلات) ─────────────
-// هذه مفاتيح يقرؤها renderNode مباشرةً من IRNode ولا تقابل معدّلًا في SoT
-// (أو تخالف اسمه)، فتبقى ثوابت hex موثَّقة بموضع قراءتها في platform_renderer.cpp:
-static const std::string K_TITLE = "\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86";                 // عنوان — نصّ الزرّ (فرع Button)
-static const std::string K_CONTENT = "\xd9\x85\xd8\xad\xd8\xaa\xd9\x88\xd9\x89";               // محتوى — نصّ العنصر النصّيّ (فرع Text)
-static const std::string K_TEXT = "\xd9\x86\xd8\xb5";                                          // نص — مفتاح نصّ احتياطيّ عامّ
-static const std::string K_BG = "\xd8\xae\xd9\x84\xd9\x81\xd9\x8a\xd8\xa9";                     // خلفية — مفتاح IR (المعدّل الرسميّ «لون_خلفية»)
-static const std::string K_WIDTH = "\xd8\xb9\xd8\xb1\xd8\xb6";                                  // عرض — عرض ثابت للعنصر
-static const std::string K_FONTSZ = "\xd8\xad\xd8\xac\xd9\x85_\xd8\xa7\xd9\x84\xd8\xae\xd8\xb7"; // حجم_الخط — يقرؤه renderNode (المعدّل «حجم_خط»)
-static const std::string K_GRAD_END = "\xd8\xaa\xd8\xaf\xd8\xb1\xd8\xac_\xd9\x86\xd9\x87\xd8\xa7\xd9\x8a\xd8\xa9"; // تدرج_نهاية — لون نهاية التدرّج (فرع Button)
-static const std::string K_VALUE = "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9";                          // قيمة — قيمة حقل النصّ (فرع TextField)
-static const std::string K_OPACITY = "\xd8\xb4\xd9\x81\xd8\xa7\xd9\x81\xd9\x8a\xd8\xa9";         // شفافية — مفتاح IR (المعدّل «عتامة»)
-static const std::string K_SRC = "\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1";                            // مصدر — مسار الصورة (فرع Image)
-
-// ── قيَم نصّيّة للاختبار ───────────────────────────────────────────────
-static const std::string V_HELLO_AR = "\xd9\x85\xd8\xb1\xd8\xad\xd8\xa8\xd8\xa7";               // مرحبا
 
 // ── أدوات بناء موجزة لأشجار IR ────────────────────────────────────────
 // النمط: mk(نوع) لإنشاء عقدة، ثمّ withStr/withNum لإسناد خاصيّة IR وإرجاع
@@ -104,7 +83,12 @@ static void goldenCheckDir(const std::string &name,
                            const std::string &expected)
 {
     std::string actual = renderTreeDir(root, dir);
-    if (std::getenv("SAD_UI_DUMP_GOLDEN"))
+    // (AR) وضعُ التحديثِ يطبعُ ويمرُّ أخضرَ — بابٌ خلفيٌّ لو ورثت بيئةُ CI هذا
+    //      المتغيّرَ عرَضًا، فتصيرُ البوّابةُ تُبارِكُ كلَّ انحدارٍ بدل كشفِه.
+    //      يُقصَرُ على التشغيلِ المحلّيّ (نظيرُ الحارسِ في اختبارِ البكسل).
+    //      والشرطُ نفسُه مشترَكٌ في `ui_tests_shared.h` كي لا يُصلَحَ في موضعٍ
+    //      ويبقى البابُ مفتوحًا في آخرَ بلا إشارةٍ من المصرّف.
+    if (goldenDumpRequested() && !insideContinuousIntegration())
     {
         std::cout << "\n===== BEGIN " << name << " =====\n"
                   << actual
@@ -581,7 +565,7 @@ int main()
             "circleoutline (10.00,20.00) r=5.00 t=2.00 #2196F3\n"
             "line (0.00,0.00) (100.00,50.00) t=1.00 #4CAF50\n"
             "end-frame\n";
-        if (std::getenv("SAD_UI_DUMP_GOLDEN"))
+        if (goldenDumpRequested() && !insideContinuousIntegration())
             std::cout << "\n===== BEGIN primitives_direct =====\n"
                       << actual << "===== END primitives_direct =====\n";
         else

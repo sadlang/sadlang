@@ -1,0 +1,16 @@
+# (AR) استثناءٌ لازم: جذرُ المستودعِ يتجاهلُ `*.ppm` كلَّها بوصفِها «ملفّاتٍ
+#      مؤقّتة» (‎.gitignore:106)، وهذه الذهبيّاتُ **دائمةٌ ومرجعُ البوّابة**:
+#      بدونَه تُودَعُ البوّابةُ بلا مرجعِها فتُخفِقُ في CI بلا سببٍ ظاهر.
+#      يسبقُ القاعدتَينِ أدناه لأنّ آخرَ نمطٍ مطابقٍ هو الحاكم.
+# (EN) Root ignores every *.ppm as temporary; these goldens are permanent —
+#      without this the gate would ship without its reference. Placed first
+#      because the last matching pattern wins.
+!*.ppm
+
+# (AR) لقطاتٌ فعليّةٌ يكتبها اختبارُ البكسلِ عند الإخفاقِ للمقارنةِ بالعين — ليست ذهبيّاتٍ.
+# (EN) Actual snapshots written on failure for eyeball comparison — not goldens.
+*.actual.ppm
+
+# (AR) تحويلاتٌ مشتقّةٌ للعرضِ وحدَه (PPM ⇐ PNG) — لا تُودَع.
+# (EN) Derived view-only conversions.
+*.png

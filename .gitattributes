@@ -31,3 +31,11 @@ CMakeLists.txt text eol=lf
 
 # ─── (AR) ملفات نص ص بترميز UTF-8 ───
 *.ص   text working-tree-encoding=UTF-8 eol=lf
+
+# ─── (AR) لقطات البكسل الذهبيّة: ثنائيّة صريحًا ───
+# (AR) صيغة PPM ترويستُها نصّيّةٌ وحمولتُها بايتاتٌ خام، فقد يخمّنها git «نصًّا»
+#      لو خلت الحمولةُ من بايتِ NUL — فيُطبّع 0x0D‏/‏0x0A داخل بكسلاتٍ حقيقيّة
+#      ويُفسِد اللقطةَ صامتًا على ويندوز. التصريحُ يقطعُ التخمين.
+# (EN) PPM has a text header and a raw byte payload; git may guess "text" and
+#      normalize line endings inside real pixels. Declare it binary.
+*.ppm binary
