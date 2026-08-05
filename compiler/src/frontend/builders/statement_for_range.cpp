@@ -139,8 +139,24 @@ namespace Sad
                         b_.currentFunction_->addBasicBlock(exitB);
                     }
 
-                    // (AR) تخصيص alloca لمتغير الحلقة
-                    std::string loopVarAlloc = "%" + forRange->variable;
+                    // ========================================================================
+                    // (AR) لاحقةٌ فريدةٌ لموقعِ العدّاد — النمطُ نفسُه المستعملُ في صيغةِ
+                    //      «لكل … في» (انظر `loopVarAllocName` أدناه). بدونها يتقاسمُ
+                    //      العدّادُ الموقعَ `%<اسم>` مع أيِّ `متغير` بالاسم نفسِه داخلَ
+                    //      الجسم، فيكتبُ التصريحُ في موقعِ التحكّمِ ويُفسدُ عدَّ الدورات:
+                    //      «لكل ي من 1 الى 3» ثمّ «متغير ي = 100» كان يعطي دورةً واحدةً
+                    //      (أو حلقةً لا نهائيّةً قبلَ م‑١٠) والمفسّرُ يعطي ثلاثًا. وباللاحقةِ
+                    //      يأخذُ التصريحُ الداخليُّ موقعَه المستقلَّ ويبقى العدُّ سليمًا،
+                    //      فيطابقُ المحرّكان (مقيس: ٣ دوراتٍ في كليهما).
+                    // (EN) Unique suffix for the counter slot — the same scheme the foreach
+                    //      form already uses. Without it the counter shares `%<name>` with any
+                    //      same-named declaration in the body, which then writes into the
+                    //      control slot and corrupts the iteration count (1 iteration, or an
+                    //      infinite loop before م‑١٠) while the interpreter yields 3. With the
+                    //      suffix the inner declaration gets its own slot and both engines agree.
+                    // ========================================================================
+                    std::string rangeIdxSuffix = condL.substr(condL.find_last_of('_') + 1);
+                    std::string loopVarAlloc = "%" + forRange->variable + "_" + rangeIdxSuffix;
                     {
                         SIRInstruction allocInst(SIROpcode::ALLOC);
                         allocInst.result = SIROperand::Register(loopVarAlloc, SadTypeKind::Integer);
@@ -196,6 +212,10 @@ namespace Sad
                     varInfo.registerName = loopVarAlloc;
                     varInfo.type = SadTypeKind::Integer;
                     varInfo.isMutable = true;
+                    // (AR) موقعُه يملكُه شرطُ الحلقةِ لا تصريحٌ داخلَ الجسم — انظر
+                    //      `isLoopControl` في sir_builder.h و`priorIsReusableSlot`.
+                    // (EN) Owned by the loop condition, not by a body declaration.
+                    varInfo.isLoopControl = true;
                     b_.addVariable(varInfo);
 
                     // ================================================================
@@ -428,11 +448,33 @@ namespace Sad
                     }
 
                     // ---- كتلة الجسم ----
+                    // ================================================================
+                    // (AR) م-٩: تسجيلُ سياقِ الحلقةِ لـ«توقف»/«استمر». كان هذا المسارُ
+                    //      وحدَه بلا تسجيل، فيرفعُ المترجِمُ «جملة 'قف' خارج حلقة»
+                    //      على برنامجٍ يُنفّذه المفسِّرُ سليمًا — تباعُدُ محرِّكَين لا
+                    //      قيدَ لغة. المساران الآخران في هذا الملفّ (القناة والتكرار)
+                    //      يُسجّلانه أصلًا، والكتلتان هنا موجودتان
+                    //      (range_inc / range_exit) — فالناقصُ التسجيلُ لا البنية.
+                    //      «استمر» ⇒ كتلةُ الزيادة (تزيد ثمّ تفحص الشرط)،
+                    //      و«توقف» ⇒ كتلةُ الخروج.
+                    // (EN) م-٩: register the loop context for break/continue. This was
+                    //      the only path in this file that skipped it, so the compiler
+                    //      rejected «توقف» inside «لكل ي من ١ الى ٣» while the
+                    //      interpreter ran it fine — an engine divergence, not a rule.
+                    //      Both blocks already exist; only the registration was missing.
+                    // ================================================================
+                    LoopContext rangeLoopCtx;
+                    rangeLoopCtx.continueLabel = incL;
+                    rangeLoopCtx.breakLabel = exitL;
+                    b_.enterLoop(rangeLoopCtx);
+
                     b_.currentBlock_ = bodyB;
                     if (forRange->body)
                     {
                         buildStatement(forRange->body.get());
                     }
+
+                    b_.exitLoop();
                     {
                         SIRInstruction brInc = SIRInstruction::Branch(SIROperand::Label(incL));
                         if (b_.currentBlock_)

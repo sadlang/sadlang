@@ -743,6 +743,38 @@ namespace Sad
 
         public:
             /**
+             * @brief (AR) حدُّ الاستدعاء: جسمُ المُستدعى لا يرث حلقاتِ مُستدعِيه
+             * @brief (EN) Call boundary: a callee body does not inherit its caller's loops
+             *
+             * (AR) عدّادُ الحلقاتِ عامٌّ للمنفِّذ، فدالّةٌ تُستدعى من داخلِ حلقةٍ كانت ترى
+             *      نفسَها «داخلَ حلقة» فلا يُطلَق SEM013 على «توقف/استمر» في جسمها —
+             *      فتُبتلع صامتةً أو تكسر حلقةَ المستدعي بحسب مسارِ الاستدعاء.
+             *      يُصفّر هذا الحارسُ العدّادَ لمدّةِ الجسم ويعيده بعده.
+             * (EN) The loop counter is executor-global, so a function invoked from inside a
+             *      loop saw itself as "inside a loop" and SEM013 never fired for a
+             *      break/continue in its body — it was silently swallowed, or broke the
+             *      caller's loop, depending on the invocation path. This guard zeroes the
+             *      counter for the duration of the body and restores it afterwards.
+             */
+            class CallBoundaryScope
+            {
+            public:
+                explicit CallBoundaryScope(StatementExecutor &executor)
+                    : executor_(executor), savedLoopDepth_(executor.loopDepth_)
+                {
+                    executor_.loopDepth_ = 0;
+                }
+                ~CallBoundaryScope() { executor_.loopDepth_ = savedLoopDepth_; }
+
+                CallBoundaryScope(const CallBoundaryScope &) = delete;
+                CallBoundaryScope &operator=(const CallBoundaryScope &) = delete;
+
+            private:
+                StatementExecutor &executor_;
+                int savedLoopDepth_;
+            };
+
+            /**
              * @brief (AR) تنفيذ جسم دالة
              * @brief (EN) Execute function body
              * @param body (AR) جسم الدالة / (EN) Function body

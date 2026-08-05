@@ -400,6 +400,18 @@ namespace Sad
                         // (AR) التحقق: هل هذا معرّف متبوع بمعرّف آخر؟ (أي: نوع_صنف اسم)
                         // (EN) Check: is this identifier followed by another? (i.e. class_type name)
                         // (AR) ملاحظة: نفحص isTokenUsableAsName لدعم الكلمات المفتاحية مثل "من"/"و"/"أو" كأسماء معاملات
+                        // (AR) ISSUE-005: معاملُ الطريقة تصريحٌ كمعاملِ الدالّة الحرّة —
+                        //      «صنف ج / دالة اجمع(نهاية) / ارجع نهاية» كانت تُنتج SEM018
+                        //      في غير موضعِه، وهو الضررُ نفسُه الذي أُنشئ SYN027 لمنعه.
+                        //      ⚠ الحارسُ يجب أن يقعَ على **اسمِ المعامل** لا على أوّلِ رمز:
+                        //      في صيغة «نوع اسم» أوّلُ رمزٍ هو اسمُ الصنف، وحراستُه تترك
+                        //      الاسمَ الحقيقيَّ بلا فحصٍ فتبقى الثغرةُ مفتوحةً في
+                        //      «دالة سجل(حدث نهاية)» وحدها. لذا نفحصُ في كلّ فرعٍ بعد
+                        //      استقرارِ موضعِ الاسم.
+                        // (EN) ISSUE-005: a method parameter is a declaration like any other.
+                        //      ⚠ The guard must sit on the PARAMETER NAME, not the first token:
+                        //      in the «Type name» form the first token is the class name, so
+                        //      guarding it leaves the real name unchecked.
                         Token firstToken = current_;
                         // (AR) نتحقق من الرمز التالي: إذا كان معرّفاً أيضاً فهذا "نوع اسم"
                         TokenType nextType = peekNext().getType();
@@ -407,6 +419,7 @@ namespace Sad
                         {
                             // (AR) صيغة: نوع_صنف اسم_المعامل (مثل: شخص ش)
                             advance(); // (AR) استهلاك اسم النوع
+                            rejectStatementStarterAsDeclName(); // (AR) الآن current_ = اسمُ المعامل
                             Token paramToken = current_;
                             advance(); // (AR) استهلاك اسم المعامل
                             // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
@@ -425,7 +438,9 @@ namespace Sad
                         }
                         else
                         {
-                            // (AR) صيغة: اسم_المعامل فقط (بدون نوع)
+                            // (AR) صيغة: اسم_المعامل فقط (بدون نوع) — هنا firstToken هو الاسم
+                            // (EN) Form: bare parameter name — here firstToken IS the name
+                            rejectStatementStarterAsDeclName();
                             advance();
                             // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                             ExprPtr defaultValue = nullptr;
@@ -648,6 +663,9 @@ namespace Sad
                     {
                         // (AR) كلمة سياقية مُستخدمة كاسم معامل (مثل: باني(سمة = لاشيء))
                         // (EN) Contextual keyword used as parameter name (e.g.: constructor(trait = null))
+                        // (AR) ISSUE-005: ومعاملُ الباني كذلك — «باني(نهاية)» كانت تمرّ صامتة.
+                        // (EN) ISSUE-005: constructor parameters too — «باني(نهاية)» passed silently.
+                        rejectStatementStarterAsDeclName();
                         Token paramToken = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                         advance();
                         // (AR) تصريح النوع الاختياري: اسم : نوع

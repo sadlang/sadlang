@@ -133,7 +133,17 @@ namespace Sad
             // (EN) Parenthesized form removed — for x in collection (no parens)
             if (check(TT::PAREN_LEFT))
             {
-                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", kw(TT::KEYWORD_FOR) + " (...)"}, {"new", kw(TT::KEYWORD_FOR) + " ... " + kw(TT::KEYWORD_IN) + " ... (بلا أقواس)"}, {"example", kw(TT::KEYWORD_FOR) + " عنصر " + kw(TT::KEYWORD_IN) + " مجموعة"}});
+                // (AR) SYN028 يحمل معنى «بلا أقواس» في نصِّه المولَّد، فلا تُكتب هنا.
+                //      وحشوتُه الوحيدةُ اسمُ البنيةِ من kw() لا نثر. ولا يُمرَّرُ «مثال»:
+                //      المثالُ المفهومُ يلزمُه اسمُ عنصرٍ ومجموعةٍ وهما نثرٌ لا معجم، وتركيبُه
+                //      من kw() وحدَها أخرجَ «لكل في» — تلميحًا لا يُترجَم. فالتلميحُ الآن
+                //      يصفُ الفعلَ (احذفِ القوسين) ونصُّه كلُّه في SoT.
+                // (EN) SYN028 carries the “no parentheses” wording in its generated text. Its
+                //      only placeholder is the construct name from kw(). No “example” is passed:
+                //      a meaningful one needs an item/collection noun — prose, not lexicon — and
+                //      composing it from kw() alone produced «لكل في», an untranslatable hint.
+                errorCatalog(Errors::ErrorCode::SYN_PARENS_FORM_REMOVED,
+                             {{"construct", kw(TT::KEYWORD_FOR)}});
             }
 
             // (AR) تحليل متغير الحلقة — يسمح بالمعرّفات وكلمات الأنواع والكلمات المفتاحية كأسماء
@@ -148,6 +158,7 @@ namespace Sad
             {
                 // (AR) قبول كلمة النوع أو المفتاحية كاسم متغير حلقة (مثل: لكل خطأ في ...)
                 // (EN) Accept type keyword or reserved word as loop variable (e.g., for error in ...)
+                rejectStatementStarterAsDeclName();
                 var = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                 advance();
             }
@@ -169,6 +180,10 @@ namespace Sad
                 }
                 else if (isTypeToken(current_.getType()) || isTokenUsableAsName(current_.getType()))
                 {
+                    // (AR) المتغيّر الثاني في التفكيك تصريحٌ كالأوّل — «لكل ف، نهاية في …»
+                    //      كانت تُقبل ثمّ يتعثّر الجسمُ بأربعة أخطاءٍ عند الاستعمال.
+                    // (EN) The destructured second variable is a declaration too.
+                    rejectStatementStarterAsDeclName();
                     valVar = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                     advance();
                 }
@@ -201,7 +216,13 @@ namespace Sad
                 }
                 else
                 {
-                    errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_TO)}, {"ctx_ar", "في حلقة " + kw(TT::KEYWORD_FROM) + ".." + kw(TT::KEYWORD_TO)}, {"ctx_en", "in a " + kw(TT::KEYWORD_FROM) + ".." + kw(TT::KEYWORD_TO) + " loop"}});
+                    // (AR) SYN029 مخصَّصٌ لهذا الموضع، فسياقُه في نصِّه المولَّد لا في الكود.
+                    //      كان هنا موصولان عربيٌّ وإنجليزيٌّ مكتوبان يدويًّا («في حلقة»/«in a … loop»).
+                    // (EN) SYN029 is specific to this site; its context lives in the generated text.
+                    errorCatalog(Errors::ErrorCode::SYN_FOR_RANGE_MISSING_TO,
+                                 {{"from_kw", kw(TT::KEYWORD_FROM)},
+                                  {"to_kw", kw(TT::KEYWORD_TO)},
+                                  {"for_kw", kw(TT::KEYWORD_FOR)}});
                 }
                 auto endExpr = parseExpression();
                 // (AR) إنشاء تعبير نطاق: بداية..نهاية
@@ -210,7 +231,17 @@ namespace Sad
             }
             else
             {
-                errorCatalogExpected(Errors::ErrorCode::SYN_EXPECTED_KEYWORD, {{"kw", kw(TT::KEYWORD_IN)}, {"ctx_ar", "أو '" + kw(TT::KEYWORD_FROM) + "' في حلقة '" + kw(TT::KEYWORD_FOR) + "'"}, {"ctx_en", "or '" + kw(TT::KEYWORD_FROM) + "' in a '" + kw(TT::KEYWORD_FOR) + "' loop"}});
+                // (AR) SYN030 يذكر الصيغتَين معًا في نصِّه المولَّد؛ كان الموصولُ هنا يدويًّا.
+                // (EN) SYN030 names both forms in its generated text.
+                errorCatalog(Errors::ErrorCode::SYN_FOR_MISSING_ITERATOR_KEYWORD,
+                             {{"for_kw", kw(TT::KEYWORD_FOR)},
+                              {"in_kw", kw(TT::KEYWORD_IN)},
+                              {"from_kw", kw(TT::KEYWORD_FROM)},
+                              // (AR) كانت «الى»/«to» نثرًا مكتوبًا في نصِّ SoT فتُخرج
+                              //      تلميحًا إنجليزيًّا لا يُترجَم؛ صارت حشوةً معجميّة.
+                              // (EN) «الى»/«to» used to be prose inside the SoT text, producing
+                              //      an English hint that does not compile; now a lexicon slot.
+                              {"to_kw", kw(TT::KEYWORD_TO)}});
                 collection = nullptr;
             }
 
@@ -678,14 +709,25 @@ namespace Sad
                         return nullptr;
                     }
 
-                    // (AR) تحليل الجسم الافتراضي
-                    while (!check(TT::KEYWORD_END) && !isAtEnd())
+                    // (AR) تحليل الجسم الافتراضي — يقف عند «عندما» أيضاً وإلّا ابتلع البندَ
+                    //      التالي وقُرئ اسمَ متغيّر (نظير ISSUE-109 في «حالة» و«طابق»).
+                    // (EN) Parse the default body — it must also stop at «عندما», otherwise the
+                    //      next clause is swallowed and read as an identifier (cf. ISSUE-109).
+                    while (!check(TT::KEYWORD_END) && !check(TT::KEYWORD_WHEN) && !isAtEnd())
                     {
                         StmtPtr stmt = parseStatement();
                         if (stmt)
                         {
                             defaultBody.push_back(std::move(stmt));
                         }
+                    }
+
+                    if (check(TT::KEYWORD_WHEN))
+                    {
+                        errorCatalog(Errors::ErrorCode::SYN_DEFAULT_CLAUSE_NOT_LAST,
+                                     {{"construct_kw", kw(TT::KEYWORD_SELECT)},
+                                      {"when_kw", kw(TT::KEYWORD_WHEN)},
+                                      {"default_kw", kw(TT::KEYWORD_DEFAULT)}});
                     }
                 }
                 else
@@ -859,6 +901,10 @@ namespace Sad
                          current_.getType() == TT::LITERAL_NULL)
                 {
                     // (AR) دعم خطأ/صحيح/لاشيء كأسماء استثناء: امسك (خطأ)
+                    // (AR) ISSUE-005: ومعاملُ «امسك» تصريحٌ يُقرأ في الجسم — «امسك نهاية»
+                    //      كانت تمرّ صامتةً (EXIT=0) ثمّ يفشل استعمالُه.
+                    // (EN) ISSUE-005: the catch parameter is a declaration read in the body.
+                    rejectStatementStarterAsDeclName();
                     firstToken = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                     advance();
                 }
@@ -1063,10 +1109,19 @@ namespace Sad
                     // (EN) Colon ':' is optional
                     match(TT::COLON);
 
-                    // (AR) تحليل جسم الحالة الافتراضية — جمل متعددة
-                    // (EN) Parse default body — multiple statements
+                    // (AR) تحليل جسم الحالة الافتراضية — جمل متعددة. ويقف الجسم عند
+                    //      «عندما» أيضًا: بندٌ بعد «افتراضي» خطأٌ نحويّ (SYN032)، وكان
+                    //      الجسمُ يبتلعه فيُقرأ «عندما» اسمَ متغيّرٍ ⇒ تشخيصٌ مضلِّل بعد
+                    //      تنفيذِ جسمَي البندين. والبنودُ المتداخلةُ لا تبلغ هذا الشرط،
+                    //      إذ تستهلكها `parseStatement` مع جملتها.
+                    // (EN) Parse default body — multiple statements. It also stops at
+                    //      «عندما»: a clause after «افتراضي» is a syntax error (SYN032),
+                    //      and the body used to swallow it, so «عندما» was read as a
+                    //      variable name — a misleading diagnostic after both bodies ran.
+                    //      Nested clauses never reach this check: parseStatement consumes
+                    //      them along with their own statement.
                     std::vector<StmtPtr> defaultStmts;
-                    while (!check(TT::KEYWORD_END) && !isAtEnd())
+                    while (!check(TT::KEYWORD_END) && !check(TT::KEYWORD_WHEN) && !isAtEnd())
                     {
                         auto stmt = parseStatement();
                         if (stmt)
@@ -1088,8 +1143,20 @@ namespace Sad
                         defaultCase = std::make_unique<BlockStmt>(std::move(defaultStmts));
                     }
 
-                    // Default must be last, so break
-                    // (AR) الحالة الافتراضية يجب أن تكون الأخيرة، لذا اخرج
+                    // (AR) «افتراضي» آخرُ البنود. فإن تلاه «عندما» رُفع SYN032 ثمّ تُوبع
+                    //      التحليلُ تعافيًا كي تُقرأ البنودُ الباقيةُ في موضعها لا داخلَه.
+                    // (EN) «افتراضي» comes last. If a «عندما» follows, raise SYN032 and then
+                    //      keep parsing for recovery, so the remaining clauses are read in
+                    //      their own position rather than inside the default body.
+                    if (check(TT::KEYWORD_WHEN))
+                    {
+                        errorCatalog(Errors::ErrorCode::SYN_DEFAULT_CLAUSE_NOT_LAST,
+                                     {{"construct_kw", kw(TT::KEYWORD_CASE)},
+                                      {"when_kw", kw(TT::KEYWORD_WHEN)},
+                                      {"default_kw", kw(TT::KEYWORD_DEFAULT)}});
+                        continue;
+                    }
+
                     break;
                 }
                 else

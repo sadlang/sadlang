@@ -224,7 +224,7 @@ errors:
   placeholders:
   - keyword
   fix_hint:
-    ar: اخرج وتابع تُستخدَمان داخل الحلقات فقط.
+    ar: '''توقف'' و''استمر'' تُستخدَمان داخل الحلقات فقط.'
     en: Break/continue are valid only inside loops.
   detailed:
     ar: جملة تحكّم الحلقة '{keyword}' ظهرت خارج أي حلقة.

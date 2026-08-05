@@ -1,0 +1,13 @@
+# @rule: gr.stmt.for, gr.expr.assignment
+# @description: لكل × الإسناد — تعديلٌ متكرّرٌ لمتغيّرٍ واحد
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 8
+
+دالة رئيسية()
+    متغير ق = 1
+    لكل ن من 1 الى 3
+        ق = ق * 2
+    نهاية
+    اطبع_سطر(ق)
+نهاية

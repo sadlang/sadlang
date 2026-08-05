@@ -318,13 +318,24 @@ namespace Sad
 
                 node.finallyBlock->accept(*this);
 
-                // (AR) إذا غيّرت finally الحالة (مثلاً ارجع داخل finally)، لها الأولوية على كل شيء
-                // (EN) If finally changed flow (e.g. return inside finally), it takes precedence over all
-                if (flowControl_ == FlowControl::RETURN)
+                // (AR) إذا غيّرت «أخيراً» التدفّق (ارجع أو توقف أو استمر) فلها الأولويّة على
+                //      كلّ شيء: تُلغي الاستثناءَ المعلَّق وتُبطل تدفّقَ الكتلةِ السابق. وقصرُ
+                //      الشرطِ على RETURN وحدَه كان يبتلع «توقف/استمر» المكتوبتَين داخل
+                //      «أخيراً» بلا أثرٍ ولا تشخيص، على خلافِ المصرّف. والأعضاءُ الثلاثةُ
+                //      مسرودةٌ صراحةً لا بـ«ليس NONE»: العضوُ الخامسُ YIELD ليس فعلَ خروجٍ
+                //      من الكتلة، فإلغاءُ استثناءٍ معلَّقٍ لأجله ابتلاعٌ صامت.
+                // (EN) If the finally block changed the flow (return, break or continue) it
+                //      takes precedence over everything: it cancels the pending exception and
+                //      overrides the earlier flow. Restricting this to RETURN alone silently
+                //      swallowed a break/continue written inside finally, diverging from the
+                //      compiler. The three members are listed explicitly rather than tested
+                //      with "!= NONE": YIELD is not a block-exiting action, so cancelling a
+                //      pending exception for it would be a silent swallow.
+                if (flowControl_ == FlowControl::RETURN || flowControl_ == FlowControl::BREAK ||
+                    flowControl_ == FlowControl::CONTINUE)
                 {
-                    // (AR) return داخل finally — يلغي الاستثناء ويُبطل return السابق
                     pendingException = nullptr;
-                    // flowControl_ و returnValue_ تبقى كما هي (من finally)
+                    // (AR) flowControl_ وreturnValue_ يبقيان كما تركتهما «أخيراً»
                 }
                 else
                 {

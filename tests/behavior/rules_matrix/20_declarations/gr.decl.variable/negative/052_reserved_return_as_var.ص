@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable
+# @description: «ارجع» بادئةُ جملةٍ فلا تصلح اسمَ متغيّر — SYN027 (ISSUE-005)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error: SYN027
+
+دالة رئيسية()
+    متغير ارجع = 9
+    اطبع_سطر(ارجع)
+نهاية

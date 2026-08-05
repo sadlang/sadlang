@@ -99,8 +99,9 @@ BASELINE = {
     "shared/parser/src/declarations/parser_oop.cpp": 3,
     # (AR) 1 رسالةُ «بعد كلمة النوع…» + 3 آثارِ تنقيحٍ إنجليزيّةٍ محروسةٍ بمتغيّر بيئة.
     "shared/parser/src/core/parser_main.cpp": 4,
-    # (AR) «حالة» داخل «طابق» — تُطبَع بلا رمزٍ فلا يراها sad-check --json ولا الـLSP.
-    "shared/parser/src/statements/parser_advanced.cpp": 1,
+    # (AR) ✅ كُنِس: «حالة» داخل «طابق» كانت تُطبَع بلا رمزٍ فلا يراها sad-check --json
+    #      ولا الـLSP. صارت SYN031 بحشواتٍ كلُّها تهجئةُ معجمٍ من kw().
+    "shared/parser/src/statements/parser_advanced.cpp": 0,
     # (AR) «متوقع اسم متغير بعد &» — مكتوبةٌ بايتاتٍ سداسيّةً فتُفلت من البحث النصّيّ.
     "shared/parser/src/core/parser_expressions.cpp": 1,
     # (AR) تلميحاتُ الاسترداد («🔧 هل تقصد…»، «✓ تمّ الاسترداد…») — تحتاج صنفَ

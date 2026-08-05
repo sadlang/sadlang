@@ -1,0 +1,13 @@
+# @rule: gr.decl.function
+# @description: «بينما» بادئةُ جملةٍ فلا تصلح اسمَ دالّة — SYN027 (ISSUE-005)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error: SYN027
+
+دالة بينما()
+    ارجع 1
+نهاية
+
+دالة رئيسية()
+    اطبع_سطر(بينما())
+نهاية

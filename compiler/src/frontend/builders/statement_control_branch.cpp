@@ -13,6 +13,9 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "lexer_keywords.h" // (AR) تهجئةُ الكلماتِ من معجمِ SoT / (EN) SoT keyword spellings
+#include "error_manager.h"
+#include "error_codes.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -24,6 +27,25 @@ namespace Sad
     {
         namespace SIR
         {
+
+            // (AR) تشخيصُ «تحكّمٌ خارجَ حلقة» (SEM013) من كتالوجِ الأخطاء ومعجمِ الكلمات
+            //      كليهما — لا نصًّا مكتوبًا هنا. كانت الرسالتان سلسلتَين خامَّتَين تسمّيان
+            //      «قف» و«أكمل»، وهما تهجئتان لا تعرفهما اللغة (SoT: «توقف» و«استمر»)،
+            //      فيقرأ المستعمِلُ كلمةً لا يستطيع كتابتَها، ويختلف نصُّ المحرّكَين.
+            // (EN) The "control outside loop" diagnostic (SEM013) comes from the error
+            //      catalog and the keyword lexicon alike — never hard-coded here. The two
+            //      messages used to be raw strings naming «قف» and «أكمل», spellings the
+            //      language does not know (SoT: «توقف» and «استمر»), so the reader saw a
+            //      word they cannot write and the two engines disagreed on the text.
+            static std::string controlOutsideLoopMessage(Lexer::TokenType keywordType)
+            {
+                const auto *entry = Lexer::KeywordTable::getEntry(keywordType);
+                Sad::Errors::RenderContext context;
+                context.placeholders = {
+                    {"keyword", entry ? entry->primaryWord : std::string()}};
+                return Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                    Sad::Errors::ErrorCode::SEM_CONTROL_OUTSIDE_LOOP, context);
+            }
 
             // ============================================================================
             // buildReturnStatement - بناء جملة return
@@ -641,7 +663,7 @@ namespace Sad
                 LoopContext *loop = b_.getCurrentLoop();
                 if (!loop)
                 {
-                    b_.errors_.push_back("(AR) خطأ: جملة 'قف' خارج حلقة. (EN) Error: 'break' outside of loop.");
+                    b_.errors_.push_back(controlOutsideLoopMessage(Lexer::TokenType::KEYWORD_BREAK));
                     return;
                 }
 
@@ -713,7 +735,7 @@ namespace Sad
                 LoopContext *loop = b_.getCurrentLoop();
                 if (!loop)
                 {
-                    b_.errors_.push_back("(AR) خطأ: جملة 'أكمل' خارج حلقة. (EN) Error: 'continue' outside of loop.");
+                    b_.errors_.push_back(controlOutsideLoopMessage(Lexer::TokenType::KEYWORD_CONTINUE));
                     return;
                 }
 

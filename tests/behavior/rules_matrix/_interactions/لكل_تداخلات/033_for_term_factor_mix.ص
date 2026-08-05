@@ -1,0 +1,13 @@
+# @rule: gr.stmt.for, gr.expr.term, gr.expr.factor
+# @description: لكل × الجمعِ والضربِ في تعبيرٍ واحد
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 20
+
+دالة رئيسية()
+    متغير مجموع = 0
+    لكل ن من 1 الى 4
+        مجموع = مجموع + ن * 2
+    نهاية
+    اطبع_سطر(مجموع)
+نهاية

@@ -103,6 +103,12 @@ namespace Sad
             SYN_DOC_ORPHAN,               ///< SYN024: (AR) توثيق يتيم لا يلتصق بتصريح / (EN) Orphan doc comment not attached to a declaration
             SYN_DOC_TRAILING,             ///< SYN025: (AR) توثيق في ذيل سطر كود / (EN) Doc comment trailing a code line
             SYN_DECORATOR_NOT_ALLOWED,    ///< SYN026: (AR) مُزخرِف في موضع لا يقبله / (EN) Decorator in a position that rejects it
+            SYN_RESERVED_AS_DECL_NAME,    ///< SYN027: (AR) كلمة محجوزة في موضع اسم التصريح / (EN) Reserved keyword in a declaration-name position
+            SYN_PARENS_FORM_REMOVED,      ///< SYN028: (AR) صيغة الأقواس أُزيلت من هذه البنية / (EN) Parenthesised form removed
+            SYN_FOR_RANGE_MISSING_TO,     ///< SYN029: (AR) حدّ النهاية مفقود في حلقة المدى / (EN) Missing range terminator
+            SYN_FOR_MISSING_ITERATOR_KEYWORD, ///< SYN030: (AR) كلمة التكرار مفقودة بعد متغيّر الحلقة / (EN) Missing iteration keyword
+            SYN_MATCH_WRONG_ARM_KEYWORD,  ///< SYN031: (AR) كلمة خاطئة في موضع ذراع المطابقة / (EN) Wrong keyword in a match-arm position
+            SYN_DEFAULT_CLAUSE_NOT_LAST,  ///< SYN032: (AR) بند «افتراضي» ليس آخرَ البنود في «حالة»/«طابق» / (EN) The default clause is not last in a switch/match
 
             // ====================================================================
             // (AR) أخطاء دلالية / (EN) Semantic Errors

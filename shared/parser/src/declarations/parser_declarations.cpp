@@ -234,6 +234,7 @@ namespace Sad
             {
                 // (AR) كلمة مفتاحية ناعمة أو حرفية كاسم دالة (مثلاً: دالة خطأ(...)، دالة صحيح(...))
                 // (EN) Soft keyword or literal as function name (e.g., function خطأ(...), function صحيح(...))
+                rejectStatementStarterAsDeclName();
                 auto tok = current_;
                 advance();
                 name = Token(TT::IDENTIFIER, tok.getValue(), tok.getPosition());
@@ -1334,6 +1335,20 @@ namespace Sad
             // (AR) التحقق من صيغة النوع أولاً: نوع معرّف = قيمة;
             // (AR) لكن فقط إذا كان بعد النوع معرّف — وإلا النوع هو اسم المتغير
             // (EN) BUT only if there's an IDENTIFIER after the type — otherwise the type IS the var name
+            // (AR) ISSUE-102 — صيغةُ «متغير <نوع> <اسم>» **لا تبلغُ حارسَ ISSUE-005**، وليس
+            //      العلاجُ هنا: `isTypeToken` نفسُها لا تعدُّ «رقم»/«نص» نوعًا إلّا إذا تلاها
+            //      IDENTIFIER أو «؟» (parser_helpers.cpp)، لأنّ أسماءَ الأنواعِ المدمجةِ تُلفَظ
+            //      IDENTIFIER لا TYPE_*. فبادئةُ الجملةِ بعدَ النوعِ تُخرِجُ isTypeToken=false
+            //      فيسقطُ التحليلُ إلى فرعِ «النوعُ هو الاسم» ويُقرأ ما بعدَه جملةً مستقلّة.
+            //      وتوسيعُ isTypeToken لبادئاتِ الجملةِ يمسُّ **٤٥ موضعَ نداءٍ** منها مسارٌ في
+            //      parser_main يرفعُ رسالةً ثنائيّةً **مكتوبةً في الكود** — فالتوسيعُ يفتحُ بابَ
+            //      نصٍّ خامٍّ بدل أن يسدَّه. مسجَّلٌ ISSUE-102 ولم يُنفَّذ هنا عمدًا.
+            // (EN) ISSUE-102 — the «var <type> <name>» form does NOT reach the ISSUE-005 guard, and
+            //      the fix does not belong here: isTypeToken itself only treats «رقم»/«نص» as a type
+            //      when followed by IDENTIFIER or «؟», because built-in type names lex as IDENTIFIER
+            //      rather than TYPE_*. Widening it touches 45 call sites, one of which raises a
+            //      hand-written bilingual message — widening would open a raw-text path, not close
+            //      one. Registered as ISSUE-102; deliberately not implemented here.
             if (isTypeToken(current_.getType()) && peekNext().getType() == TT::IDENTIFIER)
             {
                 // Format 2: TYPE IDENTIFIER = value;
@@ -1437,12 +1452,18 @@ namespace Sad
                     }
                 }
             }
+            // (AR) ISSUE-005: بادئةُ الجملةِ تُرفض هنا وحدَها — «متغير بينما = 9» كان
+            //      يُقبَل، فيُقرأ «بينما = 5» بعدَه حلقةً لا إسنادًا ويُقتطع ما يليه
+            //      صامتًا. أمّا «متغير جديد» و«متغير من» فتبقيان (لا تبدآن جملة).
+            // (EN) ISSUE-005: reject a statement-starting keyword in this position only.
             else if (isTokenUsableAsName(current_.getType()))
             {
-                // (AR) كلمة محجوزة مسموح بها كاسم متغير (مثل: جديد، نهاية، من، باني، استمر)
-                //      يمكن استخدامها بعد 'متغير' لأن السياق واضح
-                // (EN) Allowed reserved word as variable name (e.g., new, end, from, constructor, continue)
-                //      Can be used after 'var' because context is unambiguous
+                // (AR) بادئةُ الجملةِ تُرفض؛ وما عداها من المحجوزِ يبقى مقبولًا كما كان
+                //      («متغير جديد»، «متغير من»، «متغير باني» …) — الرفضُ مقصورٌ على
+                //      ما يُنتج اللبسَ في موضع الجملة.
+                // (EN) Only statement starters are rejected; every other permitted
+                //      reserved word keeps working exactly as before.
+                rejectStatementStarterAsDeclName();
                 name = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                 advance();
 

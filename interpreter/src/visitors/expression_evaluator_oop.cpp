@@ -407,7 +407,12 @@ namespace Sad
             {
                 if (methodBody)
                 {
-                    methodBody->accept(statementExecutor_);
+                    {
+                        // (AR) حدُّ الاستدعاء: حلقاتُ المستدعِي لا تُرى داخلَ جسمِ الطريقة
+                        // (EN) Call boundary: the caller's loops are invisible in the method body
+                        StatementExecutor::CallBoundaryScope callBoundary(statementExecutor_);
+                        methodBody->accept(statementExecutor_);
+                    }
 
                     // التحقق من وجود return
                     if (statementExecutor_.getFlowControl() == FlowControl::RETURN)

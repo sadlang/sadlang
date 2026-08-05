@@ -283,6 +283,20 @@ namespace Sad
                 std::string envRegister; ///< (AR) سجل __env / (EN) __env register name
 
                 // ================================================================
+                // (AR) موقعُ تحكُّمٍ بحلقة: عدّادُ `لكل ي من … الى …` يملكُ موقعَه
+                //      شرطُ الحلقةِ لا التصريحُ الذي يحملُ الاسمَ نفسَه. من دونِ هذه
+                //      الرايةِ يجتازُ العدّادُ كلَّ شروطِ إعادةِ استعمالِ الموقع
+                //      (محلّيٌّ · متغيّرٌ · عددٌ · `%<اسم>`) فيكتبُ التصريحُ الداخليُّ
+                //      في موقعِ التحكّمِ ويُفسدُ عدَّ الدورات.
+                // (EN) Loop-control storage: a range-loop counter's slot is owned by the
+                //      loop condition, not by a same-named declaration inside the body.
+                //      Without this flag the counter satisfies every slot-reuse condition
+                //      (local, mutable, integer, `%<name>`), so an inner declaration would
+                //      write into the control slot and corrupt the iteration count.
+                // ================================================================
+                bool isLoopControl = false; ///< (AR) عدّاد حلقة مدى؟ / (EN) Is a range-loop counter?
+
+                // ================================================================
                 // (AR) اسم دالة اللامدا المرتبطة (إذا كان المتغير يحمل بنية إغلاق)
                 //      يُستخدم في Step 3.5 لتحديد نوع إرجاع CLOSURE_CALL
                 //      بدون هذا: نوع الإرجاع يكون Integer افتراضياً → Boolean يضيع

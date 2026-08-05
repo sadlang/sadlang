@@ -19,6 +19,7 @@
 #include "channel.h"
 #include "sad_type_system.h"
 #include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
+#include "lexer_keywords.h" // (AR) تهجئةُ الكلماتِ من معجمِ SoT / (EN) SoT keyword spellings
 #include <iostream>
 #include <sstream>
 #include <map>
@@ -27,6 +28,18 @@ namespace Sad
 {
     namespace Interpreter
     {
+
+        // (AR) تهجئةُ الكلمةِ المفتاحيّةِ كما في معجمِ مصدرِ الحقيقة — لا نصًّا مكتوبًا هنا.
+        //      كانت تشخيصاتُ SEM013 تذكر «اخرج/break» و«تابع/continue» وهما تهجئتان
+        //      لا وجودَ لهما في اللغة، فيقرأ المستعمِلُ كلمةً لا يستطيع كتابتَها.
+        // (EN) Keyword spelling straight from the SoT lexicon — never hard-coded here.
+        //      SEM013 used to name «اخرج/break» and «تابع/continue», spellings the
+        //      language does not have, so the reader saw a word they cannot write.
+        static inline std::string keywordSpelling(Lexer::TokenType type)
+        {
+            const auto *entry = Lexer::KeywordTable::getEntry(type);
+            return entry ? entry->primaryWord : std::string();
+        }
 
         // (AR) دالة مساعدة للحصول على اسم الملف من مدير الأخطاء
         // (EN) Helper function to get filename from error manager
@@ -183,7 +196,7 @@ namespace Sad
             {
                 {
                     Sad::Errors::RenderContext _rc;
-                    _rc.placeholders = {{"keyword", "اخرج/break"}};
+                    _rc.placeholders = {{"keyword", keywordSpelling(Lexer::TokenType::KEYWORD_BREAK)}};
                     Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_CONTROL_OUTSIDE_LOOP, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
                 };
                 return;
@@ -200,7 +213,7 @@ namespace Sad
             {
                 {
                     Sad::Errors::RenderContext _rc;
-                    _rc.placeholders = {{"keyword", "تابع/continue"}};
+                    _rc.placeholders = {{"keyword", keywordSpelling(Lexer::TokenType::KEYWORD_CONTINUE)}};
                     Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::SEM_CONTROL_OUTSIDE_LOOP, Sad::Errors::SourceLocation(getSourceFilename(), static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
                 };
                 return;

@@ -1488,6 +1488,7 @@ namespace Sad
                     }
                     else if (isTokenUsableAsName(current_.getType()))
                     {
+                        rejectStatementStarterAsDeclName();
                         param = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                         advance();
                     }
@@ -1541,6 +1542,7 @@ namespace Sad
                         }
                         else if (isTokenUsableAsName(current_.getType()))
                         {
+                            rejectStatementStarterAsDeclName();
                             paramName = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                             advance();
                         }
@@ -1597,6 +1599,7 @@ namespace Sad
                         }
                         else if (isTokenUsableAsName(current_.getType()))
                         {
+                            rejectStatementStarterAsDeclName();
                             paramName = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                             advance();
                         }
@@ -1633,6 +1636,7 @@ namespace Sad
                         }
                         else if (isTokenUsableAsName(current_.getType()) || isTypeToken(current_.getType()))
                         {
+                            rejectStatementStarterAsDeclName();
                             paramName = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                             advance();
                         }
@@ -2247,6 +2251,87 @@ namespace Sad
             default:
                 return false;
             }
+        }
+
+        // ======================================================================
+        // (AR) ISSUE-005: الكلماتُ التي تبدأ جملةً — تبقى صالحةً أسماءَ حقولٍ وطرقٍ
+        //      ووسائطَ مسمّاةً ومعاملات (لا لبسَ هناك)، وتُرفض اسمَ تصريحٍ وحدَه.
+        //      القائمةُ هنا **بادئاتُ الجملة** حصرًا لا كلُّ محجوز: قصرُها هو ما
+        //      يجعل أثرَ السدّ صفرًا على المكتبة القياسيّة (مُسحت ٥٣٦٧ ملفَّ ‎.ص
+        //      **متعقَّبةً في المستودع** — العددُ مقيسٌ بـ`git ls-files '*.ص'`).
+        // (EN) ISSUE-005: statement-starting keywords only — not every reserved word.
+        //      Narrowing to these is what keeps the fix at zero breakage across the
+        //      tree (5367 tracked .ص files scanned; measured via git ls-files).
+        // ======================================================================
+        bool ParserCore::isStatementStartingKeyword(TokenType tokenType)
+        {
+            using TT = TokenType;
+            switch (tokenType)
+            {
+            case TT::KEYWORD_IF:      // إذا
+            case TT::KEYWORD_ELSE:    // وإلا
+            case TT::KEYWORD_ELSE_IF: // وإلا إذا
+            case TT::KEYWORD_WHILE:   // بينما
+            case TT::KEYWORD_FOR:     // لكل
+            case TT::KEYWORD_MATCH:   // طابق
+            case TT::KEYWORD_WHEN:    // عندما
+            case TT::KEYWORD_DEFAULT: // افتراضي
+            // (AR) «حالة» سياقيّة (KW-CTX-009) فلا يُصدرها المعجم KEYWORD_CASE أصلًا،
+            //      وهذا البند **لا يُبلَغ اليوم**. يبقى لأنّ ترقيتها إلى محجوزة قرارٌ
+            //      وارد، ولئلّا يُفتح الباب صامتًا حينها. لا تعدّه حمايةً قائمة.
+            // (EN) «حالة» is contextual (KW-CTX-009): the lexer never emits KEYWORD_CASE,
+            //      so this case is UNREACHABLE today. Kept so that promoting it to a
+            //      reserved word does not silently reopen the hole. Not live protection.
+            case TT::KEYWORD_CASE:    // حالة
+            // (AR) بادئاتُ التصريح: «متغير دالة = 1» هو مثالُ ISSUE-005 القانونيّ نفسُه.
+            //      و«صنف» **مستثناةٌ عمدًا**: المعجم يجرّد الشدّة فيصير الفعلُ «صنّف»
+            //      هو «صنف»، ومنعُه يقتطع اسمَ دالّةٍ مشروعًا (تعليقُ isTokenUsableAsName
+            //      ينصّ عليه: «صنف (for functions like صنّف)»).
+            // (EN) Declaration starters: «متغير دالة = 1» is ISSUE-005's own canonical
+            //      example. «صنف» is deliberately excluded — the lexer strips the shadda,
+            //      so the legitimate verb «صنّف» collapses to «صنف».
+            case TT::KEYWORD_FUNCTION:  // دالة
+            case TT::KEYWORD_STRUCT:    // بنية
+            case TT::KEYWORD_ENUM:      // تعداد
+            case TT::KEYWORD_IMPORT:    // استورد
+            // (AR) ⛔ «متغير» و«ثابت» و«صدّر» و«مجرد» **مستثناةٌ عمدًا** رغم أنّها تبدأ
+            //      تصريحًا: هي **مُعدِّلاتُ تصريح** تقع نحويًّا في موضع الاسم نفسِه، فلا
+            //      يملك المحلّل عند هذه النقطة ما يفصل المُعدِّل عن الاسم. ضمُّها كسر
+            //      «متغير ثابت رقم ص = 10» — صيغةً مشروعةً التقطها اختبار
+            //      `gr.decl.variable/basic/045_mod_const_typed.ص`. الثمنُ المقبول:
+            //      «متغير متغير = 9» تبقى مقبولةً ويهبط تشخيصُها على السطر التالي.
+            // (EN) ⛔ «متغير»/«ثابت»/«صدّر»/«مجرد» are deliberately EXCLUDED although they
+            //      begin a declaration: they are declaration MODIFIERS occupying the same
+            //      syntactic slot as the name, and at this point the parser cannot tell
+            //      one from the other. Including them broke «متغير ثابت رقم ص = 10».
+            // (AR) «مولد» و«أنتج» ليستا في isTokenUsableAsName أصلًا، وكلّ نداءات
+            //      الحارس داخل فرعٍ محروسٍ بها — فهذان **غير مبلوغَين** كـ«حالة».
+            //      يبقيان للسبب نفسه: ألّا يُفتح البابُ صامتًا لو رُفعت الحراسة.
+            // (EN) «مولد»/«أنتج» are absent from isTokenUsableAsName and every guard
+            //      call sits inside a branch gated by it — UNREACHABLE, like «حالة».
+            case TT::KEYWORD_GENERATOR: // مولد   (غير مبلوغ)
+            case TT::KEYWORD_YIELD:     // أنتج   (غير مبلوغ)
+            case TT::KEYWORD_RETURN:  // ارجع
+            case TT::KEYWORD_BREAK:   // توقف
+            case TT::KEYWORD_CONTINUE:// استمر
+            case TT::KEYWORD_TRY:     // حاول
+            case TT::KEYWORD_CATCH:   // امسك
+            case TT::KEYWORD_FINALLY: // أخيرًا
+            case TT::KEYWORD_THROW:   // ارمي
+            case TT::KEYWORD_END:     // نهاية
+                return true;
+            default:
+                return false;
+            }
+        }
+
+        bool ParserCore::rejectStatementStarterAsDeclName()
+        {
+            if (!isStatementStartingKeyword(current_.getType()))
+                return false;
+            errorCatalog(Errors::ErrorCode::SYN_RESERVED_AS_DECL_NAME,
+                         {{"word", current_.getValue()}});
+            return true;
         }
 
         Types::SadTypeKind ParserCore::mapTokenTypeToKind(TokenType tokenType)

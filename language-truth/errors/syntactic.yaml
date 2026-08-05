@@ -471,3 +471,196 @@ errors:
   detailed:
     ar: المُزخرِف «@اسم» يلتصق بتصريح الدالة الذي يليه مباشرة ليغلّف سلوكها. وضعه فوق {target_ar} لا معنى له لأنّ المُزخرِف يحتاج دالّةً يغلّفها، فيرفضه المحلّل بدل أن يُهمله صامتًا.
     en: A decorator «@name» attaches to the function declaration immediately following it in order to wrap its behavior. Placing it above {target_en} is meaningless because a decorator needs a function to wrap, so the parser rejects it rather than dropping it silently.
+- code: SYN_RESERVED_AS_DECL_NAME
+  id: SYN027
+  category: syntactic
+  title:
+    ar: كلمة محجوزة في موضع اسم التصريح
+    en: Reserved keyword in a declaration-name position
+  brief:
+    ar: '«{word}» كلمة محجوزة تبدأ جملة، فلا تصلح اسمًا لتصريح'
+    en: '«{word}» is a reserved statement-starting keyword and cannot name a declaration'
+  placeholders:
+  - word
+  fix_hint:
+    ar: 'اختر اسمًا غير محجوز، أو أضف إليه سابقة أو لاحقة تميّزه (مثل: «قيمة_المدى» بدل «نهاية»).'
+    en: 'Choose a non-reserved name, or qualify it with a prefix or suffix (e.g. «قيمة_المدى» instead of «نهاية»).'
+  detailed:
+    ar: |
+      الكلمات التي **تبدأ جملة** («إذا»، «بينما»، «لكل»، «طابق»، «عندما»، «ارجع»،
+      «توقف»، «استمر»، «حاول»، «امسك»، «نهاية» …) تبقى مقبولة **أسماءَ حقولٍ
+      وطرقٍ ووسائطَ مسمّاةً وبعد النقطة** — فلا لبس هناك — وتُرفض في مواضع
+      **اسم التصريح**: المتغيّر والثابت والدالّة ومتغيّرَي الحلقة ومعاملات الدوالّ
+      والطرق والبواني و«امسك». **يبقى دَينًا مُعلَنًا:** معامل لامدا السهم
+      أحاديّ المعامل «(نهاية) => …» يمرّ (مسار إعادة تفسير تعبيرٍ قائمةَ معاملات)،
+      وسلوكه صحيح لا ضارّ لأنّ الاسم يُقرأ في موضع تعبير لا جملة. والسبب أنّ
+      الاسم المصرَّح يُقرأ لاحقًا في **موضع الجملة**: بعد «متغير بينما = 9» يُقرأ
+      السطر «بينما = 5» حلقةً لا إسنادًا، و«ارجع نهاية» تتوقّف عند «نهاية»
+      فيصير الإرجاع فارغًا وما بعده كودًا في المستوى الأعلى (SEM018 في غير موضعه).
+      الرفض هنا أرخص من تشخيص مضلّل هناك.
+
+      **ما لا يُرفض عمدًا:** «صنف» — المعجم يجرّد الشدّة فيصير الفعل العربيّ
+      «صنّف» هو «صنف»، ومنعه يقتطع اسم دالّة مشروعًا. و«حالة» سياقيّة
+      (KW-CTX-009) فلا يُصدرها المعجم رمزًا محجوزًا أصلًا.
+    en: |
+      Keywords that **begin a statement** («إذا», «بينما», «لكل», «طابق», «عندما»,
+      «ارجع», «توقف», «استمر», «حاول», «امسك», «نهاية» …) remain usable as field
+      names, method names, named arguments and after a dot — no ambiguity arises
+      there — but are rejected in **declaration-name positions**: variable,
+      constant, function, both loop variables, and function/method/constructor/catch
+      parameters. **Declared debt:** the single-parameter arrow lambda «(نهاية) => …»
+      still passes (a distinct path that reinterprets an expression as a parameter
+      list); its behaviour is correct, not silently wrong. A declared name is later
+      read in **statement position**: after «متغير بينما = 9» the line «بينما = 5»
+      parses as a loop, and «ارجع نهاية» stops at «نهاية», emptying the return and
+      spilling the rest to top level (a misplaced SEM018). Rejecting here is cheaper
+      than misdiagnosing there.
+
+      **Deliberately not rejected:** «صنف» — the lexer strips the shadda, so the
+      legitimate Arabic verb «صنّف» becomes «صنف»; banning it would truncate a
+      valid function name. And «حالة» is contextual (KW-CTX-009), never emitted
+      as a reserved token.
+- code: SYN_PARENS_FORM_REMOVED
+  id: SYN028
+  category: syntactic
+  title:
+    ar: صيغة الأقواس أُزيلت من هذه البنية
+    en: The parenthesised form of this construct was removed
+  brief:
+    ar: '«{construct}» لا تُكتب بأقواس'
+    en: '«{construct}» is not written with parentheses'
+  placeholders:
+  - construct
+  fix_hint:
+    ar: 'احذف القوسين حول ما بعد «{construct}» واترك ما بينهما كما هو'
+    en: 'Remove the parentheses after «{construct}» and keep their contents as-is'
+  detailed:
+    ar: |
+      كانت هذه البنية تُكتب بأقواس حول عنصرها، ثمّ أُزيلت الصيغة توحيدًا لشكل الجمل
+      في اللغة: «إذا» و«بينما» تحتفظان بالأقواس لأنّ ما بينهما شرط، أمّا «لكل»
+      و«حالة» و«امسك» فما بعدها ليس شرطًا فلا قوسين. المحلّل يتابع بعد هذا الخطأ فلا
+      يُقطع التشخيص عند أوّل موضع، لكنّه **يُخرج رموزًا تابعة**: في حالة «لكل» يكون
+      التسلسل المقيس SYN028 ثمّ SYN001 ثمّ SYN030 ثمّ SYN001 — أربعة رموز سببها هذا
+      الرمز وحده، مُقاسةٌ لا مُفترَضة.
+    en: |
+      This construct used to take parentheses around its element; the form was removed
+      to unify statement shape. «إذا»/«بينما» keep their parentheses because what they
+      enclose is a condition; «لكل»/«حالة»/«امسك» do not. The parser keeps going so
+      diagnostics are not truncated at the first occurrence, but it does emit FOLLOW-ON codes:
+      for the for-each form the measured sequence is SYN028, SYN001, SYN030, SYN001 — four
+      codes whose sole cause is this one; measured, not assumed.
+- code: SYN_FOR_RANGE_MISSING_TO
+  id: SYN029
+  category: syntactic
+  title:
+    ar: حدّ النهاية مفقود في حلقة المدى
+    en: Missing range terminator in a counted loop
+  brief:
+    ar: 'توقّعت «{to_kw}» بعد بداية المدى في حلقة «{from_kw}»'
+    en: 'Expected «{to_kw}» after the range start in a «{from_kw}» loop'
+  placeholders:
+  - from_kw
+  - to_kw
+  - for_kw
+  fix_hint:
+    ar: 'اكتب المدى كاملًا: {for_kw} عدّاد {from_kw} بداية {to_kw} نهاية'
+    en: 'Write the full range: {for_kw} counter {from_kw} start {to_kw} end'
+  detailed:
+    ar: |
+      حلقة المدى تأخذ حدَّين اثنين لا حدًّا واحدًا، والمدى **شامل الطرفين**: «{from_kw} ١
+      {to_kw} ٣» تدور ثلاث مرّات. بغير «{to_kw}» لا يعرف المحلّل أين ينتهي تعبير
+      البداية فيبتلع ما بعده، ويظهر الخطأ عندئذٍ في موضع بعيد عن سببه.
+    en: |
+      A counted loop takes two bounds, and the range is **inclusive**: «{from_kw} 1
+      {to_kw} 3» iterates three times. Without «{to_kw}» the parser cannot tell where the
+      start expression ends, so it swallows what follows and the error surfaces far from
+      its cause.
+- code: SYN_FOR_MISSING_ITERATOR_KEYWORD
+  id: SYN030
+  category: syntactic
+  title:
+    ar: كلمة التكرار مفقودة بعد متغيّر الحلقة
+    en: Missing iteration keyword after the loop variable
+  brief:
+    ar: 'توقّعت «{in_kw}» أو «{from_kw}» بعد متغيّر حلقة «{for_kw}»'
+    en: 'Expected «{in_kw}» or «{from_kw}» after the «{for_kw}» loop variable'
+  placeholders:
+  - for_kw
+  - in_kw
+  - from_kw
+  - to_kw
+  fix_hint:
+    ar: 'للتكرار على مجموعة: {for_kw} عنصر {in_kw} مجموعة — وللمدى: {for_kw} عدّاد {from_kw} ١ {to_kw} ٣'
+    en: 'To iterate a collection: {for_kw} item {in_kw} collection — for a range: {for_kw} counter {from_kw} 1 {to_kw} 3'
+  detailed:
+    ar: |
+      لحلقة «{for_kw}» صيغتان لا ثالثة لهما: التكرار على مجموعة بـ«{in_kw}»، والمدى
+      العدديّ بـ«{from_kw} … {to_kw} …». وما بعد متغيّر الحلقة يجب أن يكون إحداهما، وإلّا
+      لم يعرف المحلّل ما الذي يدور عليه فيترك المجموعة فارغة.
+    en: |
+      The «{for_kw}» loop has exactly two forms: collection iteration with «{in_kw}», and a
+      numeric range with «{from_kw} … {to_kw} …». What follows the loop variable must be one of
+      them; otherwise the parser has nothing to iterate and leaves the collection empty.
+- code: SYN_MATCH_WRONG_ARM_KEYWORD
+  id: SYN031
+  category: syntactic
+  title:
+    ar: كلمة خاطئة في موضع ذراع المطابقة
+    en: Wrong keyword in a match-arm position
+  brief:
+    ar: '«{found}» لا تُستخدم داخل «{match_kw}»'
+    en: '«{found}» cannot be used inside «{match_kw}»'
+  placeholders:
+  - found
+  - match_kw
+  - when_kw
+  - default_kw
+  fix_hint:
+    ar: 'أذرع «{match_kw}» تبدأ بـ«{when_kw}» أو «{default_kw}» — استبدل «{found}» بإحداهما.'
+    en: 'Arms of «{match_kw}» start with «{when_kw}» or «{default_kw}» — replace «{found}» with one of them.'
+  detailed:
+    ar: |
+      «{match_kw}» و«{found}» بنيتان مختلفتان لا مترادفتان: «{found}» جملة تفرّع مستقلّة
+      أذرعها «{when_kw}»، و«{match_kw}» مطابقة أنماط أذرعها «{when_kw}» و«{default_kw}».
+      وهذا التشخيص **لا يتعافى**: بعده يتتابع SYN011 (توقّعت «{when_kw}») ثمّ SYN001، فيقرأ
+      المستعمل شلّالًا سببه واحد. الرمز الأوّل وحده هو الحقيقة، وما بعده تَبَعٌ له. (سلوكٌ
+      سابقٌ لتسجيل هذا الرمز، مُقاسٌ لا مُفترَض.)
+    en: |
+      «{match_kw}» and «{found}» are distinct constructs, not synonyms: «{found}» is a
+      standalone branching statement whose arms are «{when_kw}», while «{match_kw}» is
+      pattern matching whose arms are «{when_kw}» and «{default_kw}». This diagnostic does
+      NOT recover: SYN011 (expected «{when_kw}») and then SYN001 follow, so the user reads a
+      cascade with a single cause. Only the first code is the truth. (Pre-existing behaviour,
+      measured rather than assumed.)
+- code: SYN_DEFAULT_CLAUSE_NOT_LAST
+  id: SYN032
+  category: syntactic
+  title:
+    ar: بند «{default_kw}» ليس آخرَ بنود «{construct_kw}»
+    en: The «{default_kw}» clause is not the last one in «{construct_kw}»
+  brief:
+    ar: 'بعد «{default_kw}» جاء بند «{when_kw}» — و«{default_kw}» آخرُ البنود'
+    en: 'A «{when_kw}» clause follows «{default_kw}», which must come last'
+  placeholders:
+  - construct_kw
+  - when_kw
+  - default_kw
+  fix_hint:
+    ar: 'انقل بند «{default_kw}» إلى ما بعد كلّ بنود «{when_kw}» — فهو المُلتقِط الأخير.'
+    en: 'Move the «{default_kw}» clause after every «{when_kw}» clause — it is the final catch-all.'
+  detailed:
+    ar: |
+      «{default_kw}» هو المُلتقِط الذي يُطابِق ما لم تُطابِقه البنود قبله، فلا معنى لبندٍ
+      بعده. وقبل تسجيل هذا الرمز كان جسم «{default_kw}» **يبتلع** ما يليه في البناءين معًا:
+      ففي «حالة» يُقرأ «{when_kw}» اسمَ متغيّرٍ لا كلمةً مفتاحيّة، فيُنفِّذ المفسّر جسمَي
+      البندين معًا ثمّ يُخطئ SEM001 «متغيّر غير معرَّف» ويقول المصرّف Undefined variable؛
+      وفي «طابق» يقع التشخيص SYN001 على النقطتين «:» في السطر التالي. ثلاثة تشخيصات
+      تقود بعيدًا عن السبب الواحد. (سلوكٌ سابقٌ لتسجيل هذا الرمز، مُقاسٌ لا مُفترَض.)
+    en: |
+      «{default_kw}» is the catch-all matching whatever the preceding clauses did not, so a
+      clause after it is meaningless. Before this code was registered the «{default_kw}» body
+      **swallowed** what followed: «{when_kw}» was read as a variable name rather than a
+      keyword, so the interpreter ran both bodies and then reported SEM001 "undefined
+      variable" while the compiler said Undefined variable; in a match statement the
+      diagnostic instead landed as SYN001 on the colon of the following line. Three
+      diagnostics for one cause. (Pre-existing behaviour, measured rather than assumed.)

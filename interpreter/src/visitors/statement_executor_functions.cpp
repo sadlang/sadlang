@@ -486,6 +486,10 @@ namespace Sad
             flowControl_ = FlowControl::NONE;
             returnValue_ = Data::Value();
 
+            // (AR) حدُّ الاستدعاء: حلقاتُ المستدعِي لا تُرى من جسمِ الدالّة
+            // (EN) Call boundary: the caller's loops are invisible inside the function body
+            CallBoundaryScope callBoundary(*this);
+
             // (AR) تنفيذ جسم الدالة / (EN) Execute function body
             // IMPORTANT: إذا كان الـ body هو BlockStmt، نُنفّذ statements مباشرةً
             // بدون pushScope إضافي لأن ScopeGuard في expression_evaluator

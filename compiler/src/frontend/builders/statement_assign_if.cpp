@@ -425,6 +425,94 @@ namespace Sad
                 SadTypeKind varType = b_.astTypeToSIRType(varDecl->type);
                 bool needsTypeInference = (varDecl->type == Types::SadTypeKind::Unknown);
 
+                // ================================================================
+                // (AR) م-١٠: لقطةُ حالِ المتغيّرِ السابقِ بالاسم نفسِه **قبل** بناء المُهيِّئ.
+                //      ولا تجوزُ اللقطةُ بعدَه: استنتاجُ النوع أدناه يكتبُ
+                //      `existingVar->type = varType` على المدخلةِ الموجودةِ نفسِها، فتصيرُ
+                //      مقارنةُ النوعِ بعدَها **صحيحةً دائمًا** — وهو ما أخفى انهيارًا حقيقيًّا.
+                // (EN) م-١٠: snapshot the pre-existing same-named variable BEFORE building the
+                //      initializer. Snapshotting after is wrong: the type-inference block below
+                //      writes `existingVar->type = varType` onto that very entry, making a later
+                //      type comparison vacuously true — which masked a real crash.
+                // ================================================================
+                const VariableInfo *priorSameName = b_.lookupVariable(varDecl->name);
+                const bool priorIsReusableSlot =
+                    priorSameName != nullptr &&
+                    !priorSameName->isGlobal &&
+                    // (AR) المعامل مستثنًى **تحفّظًا** لا لأنّ تخزينَه مختلف: موقعُه
+                    //      ALLOC محلّيّةٌ باسم `%<اسم>` تمامًا كغيره (sir_builder_functions).
+                    //      فالاستثناءُ قرارُ حَذَرٍ يُبقي السلوكَ السابقَ ولا يزعمُ فرقًا بنيويًّا.
+                    // (EN) Parameters are excluded out of CAUTION, not because their storage
+                    //      differs: it is a local ALLOC named `%<name>` like any other. The
+                    //      exclusion preserves prior behaviour; it does not claim a structural
+                    //      difference. (A pre-existing divergence remains in that case.)
+                    !priorSameName->isParameter &&
+                    // (AR) الملتقَطُ يحمل `%__cap_…` فيستبعدُه فحصُ الاسم أدناه وحدَه؛
+                    //      يُذكَر صراحةً لأنّ الاعتمادَ على تسميةٍ داخليّةٍ حمايةٌ هشّة.
+                    // (EN) Captured vars carry `%__cap_…`, so the name check alone excludes
+                    //      them; stated explicitly because relying on an internal naming
+                    //      convention is a brittle guarantee.
+                    !priorSameName->isCaptured &&
+                    // (AR) 🔴 والثابتُ مستثنًى **لزومًا لا تحفّظًا**: إعادةُ استعمالِ موقعِه
+                    //      تكتبُ فوقَه فعلًا، فتفتحُ طريقًا للالتفافِ على SEM007 («لا يمكن
+                    //      تعديل الثابت») بلا تشخيصٍ ولا خطأ. مُبرهَنٌ حيًّا: «ثابت ع = 1»
+                    //      ثمّ «متغير ع = 9» في ذراعِ «طابق» ⇒ المفسّرُ 1 والمترجِمُ 9.
+                    //      وقبلَ هذا الإصلاحِ كان المترجِمُ يطبعُ 1 مطابقًا — فحذفُ هذا
+                    //      الشرطِ انحدارٌ لا تضييقُ نطاق.
+                    // (EN) 🔴 Constants are excluded out of NECESSITY, not caution: reusing the
+                    //      slot genuinely overwrites them, silently bypassing SEM007 ("cannot
+                    //      modify constant"). Proven live: «ثابت ع = 1» then «متغير ع = 9» in a
+                    //      match arm ⇒ interpreter 1, compiler 9. Before this fix the compiler
+                    //      printed 1 (matching), so dropping this clause is a regression.
+                    priorSameName->isMutable &&
+                    // (AR) وعدّادُ حلقةِ المدى مستثنًى **لزومًا** كذلك: يجتازُ كلَّ ما
+                    //      سبق (محلّيٌّ · متغيّرٌ · عددٌ · `%<اسم>`) لكنّ موقعَه يملكُه
+                    //      شرطُ الحلقة. من دونِ هذا الاستثناءِ يكتبُ التصريحُ الداخليُّ
+                    //      في موقعِ التحكّمِ فيهبطُ عدُّ الدوراتِ من ٣ إلى ١ (مقيس).
+                    // (EN) Range-loop counters are excluded out of NECESSITY too: they pass
+                    //      every clause above, but their slot is owned by the loop condition.
+                    //      Without this the inner declaration writes into the control slot and
+                    //      the iteration count drops from 3 to 1 (measured).
+                    !priorSameName->isLoopControl &&
+                    priorSameName->registerName == ("%" + varDecl->name);
+                const SadTypeKind priorType =
+                    priorSameName ? priorSameName->type : SadTypeKind::Unknown;
+
+                // ================================================================
+                // (AR) ⚠ إعادةُ الاستعمال مقصورةٌ على **الأنواعِ القياسيّة** عمدًا.
+                //      تطابقُ `SadTypeKind` تطابقٌ اسميٌّ لا تمثيليّ: مصفوفتانِ كلتاهما
+                //      `Array` تختلفان في نوعِ العنصر، وخريطتانِ في نوعِ القيمة، وكائنانِ
+                //      في تخطيطِ الحقول — ونوعُ الصنفِ **لا يُسجَّل في VariableInfo أصلًا**
+                //      (يُسجَّل في classInstanceTypes_)، فلا سبيلَ إلى مقارنتِه هنا.
+                //      فأيُّ إعادةِ استعمالٍ في هذه الفئاتِ تقرأ بياناتٍ بتخطيطٍ خاطئ:
+                //      مُبرهَنٌ حيًّا أنّ `["أ"،"ب"]` ثمّ `[10،20]` بالاسم نفسِه ⇒ **SIGSEGV**.
+                //      القياسيُّ وحدَه ذو تمثيلٍ محدَّدٍ بالنوع، فهو وحدَه آمن.
+                // (EN) ⚠ Slot reuse is deliberately limited to SCALAR types. A matching
+                //      SadTypeKind is a nominal match, not a representational one: two Arrays
+                //      may differ in element type, two Maps in value type, two objects in field
+                //      layout — and the class name is never recorded in VariableInfo at all
+                //      (it lives in classInstanceTypes_), so it cannot be compared here. Reuse
+                //      in those families reads data through the wrong layout: proven live that
+                //      `["أ","ب"]` then `[10,20]` under one name ⇒ SIGSEGV. Only scalars have a
+                //      representation fully determined by their type.
+                // ================================================================
+                const bool priorTypeIsScalar =
+                    priorType == SadTypeKind::Integer || priorType == SadTypeKind::Float ||
+                    priorType == SadTypeKind::Boolean || priorType == SadTypeKind::String ||
+                    priorType == SadTypeKind::UInt64 || priorType == SadTypeKind::Byte;
+                // (AR) ⚠ لا يُبنى الحكمُ على `elementType`/`elementClassName`: الأوّلُ **بلا
+                //      تهيئةٍ افتراضيّةٍ** في VariableInfo ولا يُكتَب إلّا للمصفوفات، فقراءتُه
+                //      لمتغيّرٍ قياسيٍّ قراءةُ قيمةٍ غيرِ معرَّفة. (جرّبتُه فمنعَ إعادةَ
+                //      الاستعمالِ في الحالةِ القياسيّةِ نفسِها التي يقصدُها الإصلاح.)
+                //      والفصلُ الصحيحُ **بالنوعِ وحدَه**: Array/Map/Class ليست قياسيّةً فتُستبعَد.
+                // (EN) ⚠ The decision must NOT rest on elementType/elementClassName: the former
+                //      has NO default initialiser in VariableInfo and is written only for arrays,
+                //      so reading it for a scalar reads an indeterminate value. (Tried it: it
+                //      blocked reuse in the very scalar case this fix targets.) The type alone is
+                //      the correct discriminator — Array/Map/Class are not scalars.
+                const bool priorHasNoAggregateShape =
+                    priorSameName == nullptr || priorSameName->className.empty();
+
                 // (AR) [NS-06 موجة 2] نوع اختياريّ `T؟`: استعمل النوع الداخليّ (T) للتخزين/
                 //      التحميل كي تحتفظ القيمة الحاضرة بنوعها الصحيح (نص لا i64)، فلا
                 //      يُحوَّل مؤشّر النصّ عدديًّا في `؟؟`. تمثيل العدم يبقى الحارس i64
@@ -572,9 +660,86 @@ namespace Sad
                     }
                 }
 
+                // ================================================================
+                // (AR) م-١٠ (ISSUE-100): «متغير» بالاسم نفسه داخل نطاقٍ مُتضمَّنٍ في
+                //      الدالّة نفسِها **يكتب فوق** الخارجيَّ ولا يُظلّلُه — قرارٌ مقصودٌ
+                //      في المفسّر (interpreter/src/managers/variable_manager.cpp:84)
+                //      وموثَّقٌ في language-truth/grammar/20_declarations.yaml (م-٨).
+                //      وكان المترجِمُ يخالفُه **صامتًا** حيثما فُتح نطاقٌ فعلًا: كتلُ
+                //      «إذا» لا تفتح نطاقًا فتطابقُ مصادفةً، أمّا كلُّ موضعٍ ينادي
+                //      `enterScope()` فيفتح — ومنها ذراعُ «طابق»، و«حاول»/«امسك»،
+                //      و«أجّل»، واللامدا/الاستيعاب، وحلقاتُ «لكل» بصيغتَيها.
+                //      (لا يُذكَرُ عددٌ هنا عمدًا: عدُّ المواضعِ يختلفُ باختلافِ ما
+                //      يُستثنى من تعريفٍ وتعليقٍ ومُتشابِهِ اسمٍ في الخلفيّة، فهو رقمٌ
+                //      هشٌّ لا يُضيفُ إلى الحجّةِ شيئًا.)
+                //      **المُبرهَنُ حيًّا هنا ذراعُ «طابق»**
+                //      وحدَها (055 و001/002 في grammar_gaps)؛ وبقيّةُ المواضع تُغطّيها
+                //      **بالآليّة لا بالتعداد**: الإصلاحُ يقعُ في `buildLocalVariable`
+                //      فيسري على أيِّ نطاقٍ مفتوحٍ كان. فتُصدَر ALLOC ثانيةٌ
+                //      بالاسم نفسِه؛ يُعيد المولّدُ تسميتَها فيكتب STORE في الموقع
+                //      الجديد ويقرأ LOAD الخارجيَّ القديم ⇒ نتيجتان مختلفتان بلا خطأ.
+                //      الإصلاح نظيرُ قاعدة المفسّر: إن وُجد الاسمُ في نطاقٍ أعلى ضمن
+                //      الدالّة (لا عامًّا) نُعيد استعمال موقعِه ولا نُخصّص جديدًا،
+                //      فيقع STORE على الموقع الذي يقرؤه LOAD.
+                // (EN) م-١٠ (ISSUE-100): a same-named «متغير» in an inner scope of the same
+                //      function OVERWRITES the outer one rather than shadowing it — a
+                //      deliberate interpreter rule (variable_manager.cpp:84), documented in
+                //      20_declarations.yaml. The compiler diverged SILENTLY wherever a scope
+                //      was actually pushed: an «إذا» body pushes none (so it matched by
+                //      accident), but every enterScope() site does — match arms, try/catch,
+                //      defer, lambdas/comprehensions, both for-loop forms. (No count is given:
+                //      it shifts with what you exclude — the definition, comments, a same-named
+                //      backend method — so it is a brittle number that adds nothing.)
+                //      Only the match arm is proven live; the rest are covered by
+                //      MECHANISM (the fix sits in buildLocalVariable, so it applies to any
+                //      pushed scope) rather than by enumeration. Emitting a second ALLOC under the same
+                //      name. The emitter renames it, so the STORE lands in the new slot while
+                //      the later LOAD reads the original — two different results, no error.
+                // ================================================================
+                // (AR) ⚠ شرطُ إعادةِ الاستعمالِ **يجب** أن يشترطَ تطابقَ النوع. الموقعُ
+                //      مُخصَّصٌ بنوعِ الأوّل، فإعادةُ استعمالِه لنوعٍ آخرَ تكتبُ عددًا في
+                //      موقعِ مؤشّرِ نصٍّ ⇒ SIGSEGV عندَ أوّلِ قراءة (مُبرهَنٌ حيًّا:
+                //      «متغير ق = "نص"» ثمّ «متغير ق = 5» كان ينهار). والمفسّرُ لا يقعُ
+                //      في هذا لأنّ موقعَه مُعنوَنٌ ديناميكيًّا لا مُخصَّصٌ بنوعٍ ساكن.
+                //      وعندَ اختلافِ النوعِ نُخصّصُ ALLOC جديدةً كما كان — أي نعودُ إلى
+                //      السلوكِ السابقِ في تلك الحالةِ وحدَها، فلا انحدار.
+                //      ويُستثنى المعاملُ والملتقَطُ **تحفّظًا مُعلَنًا لا فرقًا بنيويًّا**:
+                //      المعاملُ يستعملُ `%<اسم>` نفسَه فلا يميّزُه شيءٌ في التمثيل، لكنّ
+                //      امتلاكَه للموقعِ يعودُ إلى نداءِ الدالّةِ لا إلى هذا التصريح، فتُرك
+                //      خارجَ نطاقِ الإصلاحِ حتّى يُقاسَ على حِدَة. و`!isCaptured` **زائدٌ
+                //      منطقيًّا** (الملتقَطُ يحملُ `%__cap_…` فيسقطُ بفحصِ اسمِ السجلّ
+                //      أصلًا) وأُبقيَ صريحًا ليقرأَه من يأتي بعدُ شرطًا مقصودًا.
+                // (EN) ⚠ Slot reuse MUST require a matching type: the slot was allocated with
+                //      the first declaration's type, so reusing it for another type writes an
+                //      integer into a string-pointer slot ⇒ SIGSEGV on the first read (proven
+                //      live). On a type mismatch we emit a fresh ALLOC exactly as before, so
+                //      that case keeps its previous behaviour. Parameters and closure-captured
+                //      variables are excluded as a STATED PRECAUTION, not a representational
+                //      difference: a parameter uses the very same `%<name>` slot. Ownership
+                //      comes from the call, not from this declaration, so it stays out of
+                //      scope until measured separately. `!isCaptured` is logically redundant
+                //      (captures carry `%__cap_…`) and is kept explicit for the next reader.
+                // (AR) ولا يكفي أن يكونَ **السابقُ** قياسيًّا: لو صار الجديدُ مصفوفةً
+                //      لكُتب مؤشّرُ SadArray في موقعٍ يقرؤه ما بعدُ عددًا. فالطرفانِ معًا.
+                // (EN) The PRIOR being scalar is not enough: if the new one is an aggregate we
+                //      would store a SadArray pointer into a slot later read as a scalar.
+                const bool newTypeIsScalar =
+                    varType == SadTypeKind::Integer || varType == SadTypeKind::Float ||
+                    varType == SadTypeKind::Boolean || varType == SadTypeKind::String ||
+                    varType == SadTypeKind::UInt64 || varType == SadTypeKind::Byte;
+                const bool newHasNoAggregateShape =
+                    varInfo.className.empty() &&
+                    b_.classInstanceTypes_.find(varDecl->name) == b_.classInstanceTypes_.end();
+
+                const bool reuseOuterSlot =
+                    priorIsReusableSlot &&
+                    priorTypeIsScalar && newTypeIsScalar &&
+                    priorHasNoAggregateShape && newHasNoAggregateShape &&
+                    priorType == varType;
+
                 // (AR) توليد تعليمة ALLOC لتخصيص الذاكرة
                 // (EN) Generate ALLOC instruction for memory allocation
-                if (b_.currentBlock_)
+                if (b_.currentBlock_ && !reuseOuterSlot)
                 {
                     SIRInstruction allocInst;
                     allocInst.opcode = SIROpcode::ALLOC;

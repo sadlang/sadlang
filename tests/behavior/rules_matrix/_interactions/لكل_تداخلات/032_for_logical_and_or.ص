@@ -1,0 +1,15 @@
+# @rule: gr.stmt.for, gr.expr.logical_and, gr.expr.logical_or
+# @description: لكل × «و»/«أو» في شرطٍ مركّب
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 1
+
+دالة رئيسية()
+    متغير عدد = 0
+    لكل ن في [2، 4، 7]
+        إذا (ن > 3 و ن % 2 == 0)
+            عدد = عدد + 1
+        نهاية
+    نهاية
+    اطبع_سطر(عدد)
+نهاية

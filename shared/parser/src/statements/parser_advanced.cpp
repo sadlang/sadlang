@@ -550,9 +550,18 @@ namespace Sad
                 // (EN) Match branches: only `عندما` is accepted
                 if (check(TT::KEYWORD_CASE) || checkContextual(TT::KEYWORD_CASE))
                 {
-                    error(
-                        "(AR) ❌ `حالة` لا تُستخدم داخل `طابق`. استخدم `عندما` بدلاً منها.\n"
-                        "(EN) `حالة` cannot be used inside `طابق`. Use `عندما` instead.");
+                    // (AR) كانت رسالةً ثنائيّةً **مكتوبةً في الكود بلا رمزِ خطأ**، فلا يراها
+                    //      sad-check --json ولا الـLSP ولا تخضع لمستوى الشرح. SYN019 يحمل
+                    //      المعنى. وحشواتُ SYN031 كلُّها تهجئةُ معجمٍ من kw() — لا اسمَ فئةٍ
+                    //      إنجليزيًّا يُكتب هنا، فالنصُّ كلُّه من مصدر الحقيقة.
+                    // (EN) This was a bilingual message hard-written with NO error code, so
+                    //      neither sad-check --json nor the LSP could see it. Every SYN031
+                    //      placeholder is a lexicon spelling from kw() — no prose in code.
+                    errorCatalog(Errors::ErrorCode::SYN_MATCH_WRONG_ARM_KEYWORD,
+                                 {{"found", kw(TT::KEYWORD_CASE)},
+                                  {"match_kw", kw(TT::KEYWORD_MATCH)},
+                                  {"when_kw", kw(TT::KEYWORD_WHEN)},
+                                  {"default_kw", kw(TT::KEYWORD_DEFAULT)}});
                     // recover: treat as عندما
                     advance(); // skip حالة/KEYWORD_CASE
                     cases.push_back(parseCaseClause());
@@ -572,8 +581,17 @@ namespace Sad
                     match(TT::COLON);
                     // (AR) تحليل جسم الحالة الافتراضية
                     // (EN) Parse default case body
+                    // (AR) يقف الجسم عند «عندما» أيضًا: ذراعٌ بعد «افتراضي» خطأٌ نحويّ
+                    //      (SYN032)، وكان الجسمُ يبتلعها فيقع التشخيصُ SYN001 على النقطتين
+                    //      في السطر التالي — بعيدًا عن السبب. والأذرعُ المتداخلةُ لا تبلغ
+                    //      هذا الشرط، إذ تستهلكها `parseDeclaration` مع جملتها.
+                    // (EN) The body also stops at «عندما»: an arm after «افتراضي» is a
+                    //      syntax error (SYN032); the body used to swallow it so SYN001
+                    //      landed on the next line's colon, far from the cause. Nested arms
+                    //      never reach this check — parseDeclaration consumes them with
+                    //      their own statement.
                     std::vector<StmtPtr> defaultBody;
-                    while (!isMatchEnd() && !isAtEnd())
+                    while (!isMatchEnd() && !check(TT::KEYWORD_WHEN) && !isAtEnd())
                     {
                         auto stmt = parseDeclaration();
                         if (stmt)
@@ -590,6 +608,21 @@ namespace Sad
                         std::move(wildcardPattern),
                         nullptr,
                         std::move(defaultBody)));
+
+                    // (AR) «افتراضي» آخرُ الأذرع. فإن تلاه «عندما» رُفع SYN032 ثمّ تُوبع
+                    //      التحليلُ تعافيًا كي تُقرأ الأذرعُ الباقيةُ في موضعها لا داخلَه.
+                    // (EN) «افتراضي» comes last. If a «عندما» follows, raise SYN032 and keep
+                    //      parsing for recovery so the remaining arms are read in their own
+                    //      position rather than inside the default body.
+                    if (check(TT::KEYWORD_WHEN))
+                    {
+                        errorCatalog(Errors::ErrorCode::SYN_DEFAULT_CLAUSE_NOT_LAST,
+                                     {{"construct_kw", kw(TT::KEYWORD_MATCH)},
+                                      {"when_kw", kw(TT::KEYWORD_WHEN)},
+                                      {"default_kw", kw(TT::KEYWORD_DEFAULT)}});
+                        continue;
+                    }
+
                     break; // (AR) الافتراضي يجب أن يكون الأخير / (EN) Default must be last
                 }
                 else

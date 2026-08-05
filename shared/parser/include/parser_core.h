@@ -1596,6 +1596,46 @@ namespace Sad
             bool isTokenUsableAsName(Lexer::TokenType tokenType);
 
             /**
+             * @brief (AR) هل الرمز يبدأ جملةً؟ — المميِّز الذي يفصل موضعَ اسمِ التصريح
+             *        عن سائر مواضع الأسماء.
+             *
+             *        isTokenUsableAsName متساهلةٌ عمدًا: المكتبة القياسيّة تحتاج
+             *        «ألوان.خطأ» و«تعداد.خارجي» و«.و()» و«متغير جديد». والتساهل
+             *        سليمٌ في الوصولِ بنقطةٍ وأسماءِ الطرق والوسائطِ المسمّاة
+             *        والمعاملات — فكلُّها داخل سياقٍ لا تُقرأ فيه الكلمةُ جملةً.
+             *
+             *        لكنّ **اسم التصريح** يُقرأ لاحقًا في **موضع الجملة**: بعد
+             *        «متغير بينما = 9» يُقرأ السطرُ «بينما = 5» حلقةً لا إسنادًا،
+             *        فيقتطع المحلّلُ ما بعده صامتًا. لذا تُرفض هنا وحدها (SYN027).
+             *        [ISSUE-005 في language-truth/grammar/DISCOVERED_ISSUES.md]
+             *
+             * (EN) Does this token begin a statement? — the discriminator that
+             *      separates declaration-name position from every other name
+             *      position. isTokenUsableAsName is deliberately permissive (the
+             *      stdlib needs «ألوان.خطأ», «تعداد.خارجي», «.و()», «متغير جديد»),
+             *      and that is safe after a dot, for method names, named arguments
+             *      and parameters. It is NOT safe for a declaration name, which is
+             *      later read in statement position: after «متغير بينما = 9» the
+             *      line «بينما = 5» parses as a loop, silently truncating the rest.
+             *
+             * @param tokenType (AR) نوع الرمز (EN) Token type
+             * @return (AR) true إن كانت الكلمة تبدأ جملة (EN) true if it starts a statement
+             */
+            static bool isStatementStartingKeyword(Lexer::TokenType tokenType);
+
+            /**
+             * @brief (AR) يرفع SYN027 إن كان الرمز الحاليّ بادئةَ جملة، ولا يفعل شيئًا
+             *        سواه. تُستدعى في **كل** موضع اسمِ تصريح — نقطةٌ واحدةٌ للحقيقة
+             *        بدل تكرار الكتلة في سبعة مواضع (كان تكرارُها يعني أنّ أيَّ
+             *        تصحيحٍ للرسالة يلزم سبعَ مرّات، وأنّ موضعًا منسيًّا لا يُرى).
+             *        (EN) Raise SYN027 if the current token starts a statement; no-op
+             *        otherwise. Called at EVERY declaration-name site — one point of
+             *        truth instead of the block duplicated seven times.
+             * @return (AR) true إن رُفِع الخطأ (EN) true if the error was raised
+             */
+            bool rejectStatementStarterAsDeclName();
+
+            /**
              * @brief (AR) التحقق من أن المعرّف هو اسم صنف مسجّل
              *        (EN) Checks if identifier is a registered class name
              *

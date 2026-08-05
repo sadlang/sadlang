@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: «دالة» بادئةُ تصريحٍ فلا تصلح اسمَ متغيّر — المثالُ القانونيُّ لـISSUE-005 حرفيًّا (كان الكاشفُ في grammar_gaps/تساهل_الأسماء)
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error: SYN027
+
+متغير دالة = 1
+اطبع_سطر(دالة)
