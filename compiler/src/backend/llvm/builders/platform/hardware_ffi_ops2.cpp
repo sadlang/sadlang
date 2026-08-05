@@ -33,6 +33,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/platform/hardware_ffi_codegen.h"
+#include "sad_dyn_repr.h" // (AR) ز.٣٧: توزيعُ «طول» على وسمِ القيمةِ الديناميّة
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -556,6 +557,61 @@ namespace Sad
             if (!str)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
+
+            // (AR) ز.٣٧: «طول» على قيمةٍ ديناميّة. الأماميّةُ لا تعرف الوسمَ زمنَ الترجمة
+            //      فتختار STRING_LEN، وكان %SadDyn يصل هنا فيُكسَر بـIntToPtr على بنيةٍ
+            //      (‏"Invalid cast!") ⇒ انهيارُ المصرّف. الوسمُ لا يُعرَف إلّا زمنَ التشغيل،
+            //      فالتوزيعُ هنا لا هناك: مصفوفةٌ ⇒ حقلُ الطول، وما عداها ⇒ عدُّ UTF-8،
+            //      وهو ما يفعله المفسّر بالضبط.
+            // (EN) ز.٣٧: `طول` on a dynamic value. The frontend cannot know the tag at
+            //      compile time so it picks STRING_LEN, and a %SadDyn used to reach here and
+            //      break on IntToPtr over a struct ("Invalid cast!") ⇒ compiler crash. The
+            //      tag is only known at runtime, so dispatch belongs here, not there: an
+            //      array ⇒ its length field, anything else ⇒ UTF-8 count — exactly what the
+            //      interpreter does.
+            if (isSadDyn(str))
+            {
+                auto &b = *cg_.builder_;
+                auto &ctx = *cg_.context_;
+                auto *i64Ty = llvm::Type::getInt64Ty(ctx);
+                llvm::Value *kind = dynKindByte(cg_, str);
+                llvm::Value *payload = dynPayloadI64(cg_, str);
+
+                auto *parent = b.GetInsertBlock()->getParent();
+                auto *arrayBB = llvm::BasicBlock::Create(ctx, "dyn.len.array", parent);
+                auto *strBB = llvm::BasicBlock::Create(ctx, "dyn.len.str", parent);
+                auto *mergeBB = llvm::BasicBlock::Create(ctx, "dyn.len.merge", parent);
+
+                llvm::Value *isArray = b.CreateICmpEQ(
+                    kind,
+                    llvm::ConstantInt::get(llvm::Type::getInt8Ty(ctx), DynKind::Array),
+                    "dyn.len.isarray");
+                b.CreateCondBr(isArray, arrayBB, strBB);
+
+                b.SetInsertPoint(arrayBB);
+                llvm::StructType *arrTy = sadArrayStructType(ctx);
+                llvm::Value *arrPtr = b.CreateIntToPtr(payload, i8p, "dyn.len.arrptr");
+                llvm::Value *lenPtr = b.CreateStructGEP(arrTy, arrPtr, 0, "dyn.len.lenptr");
+                llvm::Value *arrLen = b.CreateLoad(i64Ty, lenPtr, "dyn.len.arrlen");
+                b.CreateBr(mergeBB);
+                arrayBB = b.GetInsertBlock();
+
+                b.SetInsertPoint(strBB);
+                llvm::Value *strPtr = b.CreateIntToPtr(payload, i8p, "dyn.len.strptr");
+                llvm::Value *strLen =
+                    b.CreateCall(getOrCreateUtf8Strlen(), {strPtr}, "dyn.len.strlen");
+                b.CreateBr(mergeBB);
+                strBB = b.GetInsertBlock();
+
+                b.SetInsertPoint(mergeBB);
+                auto *phi = b.CreatePHI(i64Ty, 2, "dyn.len.result");
+                phi->addIncoming(arrLen, arrayBB);
+                phi->addIncoming(strLen, strBB);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = phi;
+                return phi;
+            }
+
             if (!str->getType()->isPointerTy())
                 str = cg_.builder_->CreateIntToPtr(str, i8p);
 

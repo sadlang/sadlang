@@ -1045,14 +1045,30 @@ namespace Sad
             //      already unavailable freestanding.
             llvm::BasicBlock *arrayBB =
                 cg.freestanding_ ? nullptr : llvm::BasicBlock::Create(ctx, "dyn.ts.array", parent);
+            // (AR) ز.٤٣: ذراعُ الخريطة — نظيرُ ذراعِ المصفوفةِ حرفيًّا. بدونها يسقط وسمُ
+            //      الخريطةِ إلى `nullBB` فيُطبع «لاشيء» بينما المفسّرُ يطبع `{أ: ١}`،
+            //      وهو تباعُدٌ **أحدثَه** إدخالُ الخريطةِ مسارَ الوسم: `نوع()` يقول
+            //      «خريطة» و`نص()` يقول «لاشيء» — تناقُضٌ داخليٌّ لا يُقبَل. والمساعِدُ
+            //      `__sad_map_to_string` قائمٌ أصلًا (تستعمله الطباعةُ الساكنة).
+            //      مستضافٌ فقط كالمصفوفة: يحتاج malloc/sprintf.
+            // (EN) ز.٤٣: the map arm — a literal sibling of the array arm. Without it the
+            //      Map tag falls to nullBB and prints «لاشيء» while the interpreter prints
+            //      `{أ: ١}` — a divergence *introduced* by routing maps through the tag
+            //      path: نوع() says «خريطة» while نص() says «لاشيء», an internal
+            //      contradiction. The helper __sad_map_to_string already exists (used by
+            //      static printing). Hosted-only, like the array arm: needs malloc/sprintf.
+            llvm::BasicBlock *mapBB =
+                cg.freestanding_ ? nullptr : llvm::BasicBlock::Create(ctx, "dyn.ts.map", parent);
 
-            llvm::SwitchInst *sw = b.CreateSwitch(kind, nullBB, arrayBB ? 5 : 4);
+            llvm::SwitchInst *sw = b.CreateSwitch(kind, nullBB, arrayBB ? 6 : 4);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Int), intBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Float), floatBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Bool), boolBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Str), strBB);
             if (arrayBB)
                 sw->addCase(llvm::ConstantInt::get(i8, DynKind::Array), arrayBB);
+            if (mapBB)
+                sw->addCase(llvm::ConstantInt::get(i8, DynKind::Map), mapBB);
 
             // (AR) صحيح: %lld / (EN) int: %lld
             b.SetInsertPoint(intBB);
@@ -1165,6 +1181,38 @@ namespace Sad
                 // (EN) The arm reaches the merge from two blocks (ok/null); both feed the PHI below.
             }
 
+            // (AR) ز.٤٣: الخريطة — المؤشّرُ العدمُ يُعرَض «لاشيء» كنظيرِه في ذراعِ المصفوفة.
+            // (EN) ز.٤٣: map — a null pointer renders «لاشيء», mirroring the array arm.
+            llvm::Value *mapRes = nullptr;
+            llvm::BasicBlock *mapOkBB = nullptr;
+            llvm::Value *mapNullRes = nullptr;
+            llvm::BasicBlock *mapNullBB = nullptr;
+            if (mapBB)
+            {
+                b.SetInsertPoint(mapBB);
+                cg.ensureMapToStringHelper();
+                llvm::Value *mapPtr = b.CreateIntToPtr(payload, ptrTy, "dyn.ts.mapp");
+                llvm::Value *mapIsNull = b.CreateICmpEQ(
+                    mapPtr, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)),
+                    "dyn.ts.mapnull");
+                auto *mapOk = llvm::BasicBlock::Create(ctx, "dyn.ts.map.ok", parent);
+                auto *mapNull = llvm::BasicBlock::Create(ctx, "dyn.ts.map.null", parent);
+                b.CreateCondBr(mapIsNull, mapNull, mapOk);
+
+                b.SetInsertPoint(mapOk);
+                auto mapHelperFn = cg.module_->getOrInsertFunction(
+                    "__sad_map_to_string", llvm::FunctionType::get(ptrTy, {ptrTy}, false));
+                mapRes = b.CreateCall(mapHelperFn, {mapPtr}, "dyn.ts.map.str");
+                mapOkBB = b.GetInsertBlock();
+                b.CreateBr(mergeBB);
+
+                b.SetInsertPoint(mapNull);
+                mapNullRes =
+                    b.CreateGlobalStringPtr(::Sad::Types::repr::kNullDisplay, "dyn.ts.map.nullstr");
+                mapNullBB = b.GetInsertBlock();
+                b.CreateBr(mergeBB);
+            }
+
             // (AR) عدم/غيره: لاشيء / (EN) null/other: لاشيء
             b.SetInsertPoint(nullBB);
             llvm::Value *nullRes = b.CreateGlobalStringPtr(
@@ -1173,7 +1221,7 @@ namespace Sad
             nullBB = b.GetInsertBlock();
 
             b.SetInsertPoint(mergeBB);
-            auto *phi = b.CreatePHI(ptrTy, arrayRes ? 7 : 5, "dyn.ts.result");
+            auto *phi = b.CreatePHI(ptrTy, arrayRes ? 9 : 5, "dyn.ts.result");
             phi->addIncoming(intRes, intBB);
             phi->addIncoming(floatRes, floatBB);
             phi->addIncoming(boolRes, boolBB);
@@ -1183,6 +1231,11 @@ namespace Sad
             {
                 phi->addIncoming(arrayRes, arrayOkBB);
                 phi->addIncoming(arrayNullRes, arrayNullBB);
+            }
+            if (mapRes)
+            {
+                phi->addIncoming(mapRes, mapOkBB);
+                phi->addIncoming(mapNullRes, mapNullBB);
             }
             b.CreateRet(phi);
 
@@ -1230,14 +1283,27 @@ namespace Sad
             // (EN) Amelia (ISSUE-076): the Null kind ⇒ the SoT name «عدم», not «مجهول». نوع() of a
             //      null dynamic payload matches the interpreter («عدم») instead of the default.
             auto *nullBB = llvm::BasicBlock::Create(ctx, "dyn.tn.null", parent);
+            // (AR) ز.٣٧: وسمُ المصفوفة كان يسقط إلى default فيُرجع «مجهول» بينما المفسّرُ
+            //      يُرجع «مصفوفة» — تباعُدٌ صامتٌ يُفسِد كلَّ توزيعٍ على نوع(قيمةٍ ديناميّة).
+            // (EN) ز.٣٧: the Array kind used to fall to default and yield «مجهول» while the
+            //      interpreter yields «مصفوفة» — a silent divergence breaking any dispatch
+            //      on نوع() of a dynamic value.
+            auto *arrayBB = llvm::BasicBlock::Create(ctx, "dyn.tn.array", parent);
+            // (AR) ز.٤٣: والخريطةُ مثلُها — صارت تُوسَم عنصرًا في مصفوفةٍ مختلطة، فلولا
+            //      ذراعُها هنا لأرجع `نوع()` «مجهول» بينما يُرجع المفسّرُ «خريطة».
+            // (EN) ز.٤٣: a map is now tagged as an element of a heterogeneous array; without
+            //      this arm نوع() would answer «مجهول» while the interpreter answers «خريطة».
+            auto *mapBB = llvm::BasicBlock::Create(ctx, "dyn.tn.map", parent);
             auto *mergeBB = llvm::BasicBlock::Create(ctx, "dyn.tn.merge", parent);
 
-            llvm::SwitchInst *sw = b.CreateSwitch(kind, defBB, 5);
+            llvm::SwitchInst *sw = b.CreateSwitch(kind, defBB, 7);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Int), intBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Float), floatBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Bool), boolBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Str), strBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Null), nullBB);
+            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Array), arrayBB);
+            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Map), mapBB);
 
             b.SetInsertPoint(intBB);
             llvm::Value *ri = nameFor(SadTypeKind::Integer);
@@ -1263,15 +1329,25 @@ namespace Sad
             llvm::Value *rnull = nameFor(SadTypeKind::Null);
             b.CreateBr(mergeBB);
             nullBB = b.GetInsertBlock();
+            b.SetInsertPoint(arrayBB);
+            llvm::Value *rarray = nameFor(SadTypeKind::Array);
+            b.CreateBr(mergeBB);
+            arrayBB = b.GetInsertBlock();
+            b.SetInsertPoint(mapBB);
+            llvm::Value *rmap = nameFor(SadTypeKind::Map);
+            b.CreateBr(mergeBB);
+            mapBB = b.GetInsertBlock();
 
             b.SetInsertPoint(mergeBB);
-            auto *phi = b.CreatePHI(ptrTy, 6, "dyn.tn.result");
+            auto *phi = b.CreatePHI(ptrTy, 8, "dyn.tn.result");
             phi->addIncoming(ri, intBB);
             phi->addIncoming(rf, floatBB);
             phi->addIncoming(rb, boolBB);
             phi->addIncoming(rs, strBB);
             phi->addIncoming(rd, defBB);
             phi->addIncoming(rnull, nullBB);
+            phi->addIncoming(rarray, arrayBB);
+            phi->addIncoming(rmap, mapBB);
             return phi;
         }
 

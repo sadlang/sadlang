@@ -898,7 +898,42 @@ namespace Sad
                     return SadTypeKind::Integer;
 
                 // (AR) توحيد الأنواع: STRING يسيطر، I64+F64→F64
-                // (EN) Unify types: STRING dominates, I64+F64→F64
+                //
+                //      ⚠️ ز.٤٢ — عيبٌ **قائمٌ معروفٌ** هنا، وتراجعٌ موثَّقٌ عن إصلاحه:
+                //      الجدولُ يعرف ثلاثَ حالاتٍ فقط، وأيُّ زوجٍ خارجَها يسقط من كلِّ
+                //      الفروعِ فيبقى **نوعُ أوّلِ `ارجع`** — كذبةٌ صامتة. فـ
+                //      `إذا (…) ارجع "نص" نهاية ارجع [١، ٢]` تُقرأ نصًّا في الذراعين،
+                //      ويخالف `نوع()` المفسّرَ.
+                //
+                //      جُرِّب توحيدُ المتباينِ إلى `Any` (الجوابُ الصادق، ونظيرُ المسارِ
+                //      القائم ISSUE-076/084) و**أُعيد**: الأماميّةُ ليست جاهزةً لاستهلاكِ
+                //      `Any` في الفهرسة. المُصغَّرُ المُثبِت:
+                //
+                //          دالة ابحث(س)
+                //              إذا (س == 1)  ارجع [1، 2]  نهاية
+                //              ارجع لاشيء
+                //          نهاية
+                //          … متغير ن = ابحث(1)؛ اطبع(ن[0])
+                //
+                //      المفسّر يطبع `1`؛ ومع التوحيدِ إلى Any يخرج المصرَّفُ **صامتًا
+                //      برمزِ ٠ بلا طباعةٍ ولا خطأ**. والسببُ أنّ `لاشيء` تُستنتَج
+                //      `Integer` (أعلاه)، فيصير الزوجُ Array+Integer ⇒ Any ⇒ تصل القيمةُ
+                //      إلى `normalizeArrayPtr` وليس فيها حالةُ `%SadDyn` (بخلاف شقيقتِها
+                //      `normalizeMapPtr`) ⇒ `StructGEP` على بنيةٍ لا مؤشّر.
+                //
+                //      شرطا القبولِ لأيِّ محاولةٍ لاحقة (كلاهما مطلوب):
+                //        ١) `normalizeArrayPtr` تحرس الوسمَ وتفكّ الحمولةَ مؤشّرًا، نظيرَ
+                //           `normalizeMapPtr` حرفيًّا.
+                //        ٢) توزيعُ الفهرسةِ والطرقِ في الأماميّة يعي `Any` فيؤجّله إلى
+                //           الحارسِ الزمنيّ بدل رفضِه ساكنًا.
+                //      وهما نفسُ الشرطين اللذين أوقفا رفعَ ABI في `sir_builder_helpers.cpp`.
+                // (EN) Unify types: STRING dominates, I64+F64→F64.
+                //      ⚠️ ز.٤٢: a known live defect here plus a documented revert. Unifying
+                //      disjoint pairs to `Any` is the honest answer but the frontend cannot
+                //      consume it: `normalizeArrayPtr` has no %SadDyn case (unlike its
+                //      sibling normalizeMapPtr), so `[1,2] | لاشيء` then `n[0]` exits
+                //      silently with code 0. Two acceptance conditions, both required, are
+                //      spelled out above — the same two that stopped the ABI promotion.
                 SadTypeKind unified = returnTypes[0];
                 for (size_t i = 1; i < returnTypes.size(); ++i)
                 {

@@ -71,12 +71,29 @@ namespace Sad
                 //      predicate excluded it, so `[[1,2], "s"]` fell to the static path
                 //      (tags=null) and its elements printed as addresses. An array — like a
                 //      string — is a pointer in the 8-byte slot, so tagging it suffices.
+                // (AR) ز.٤٣: والخريطةُ مثلُها تمامًا — `DynKind::Map=6` موجودٌ في
+                //      `sad_dyn_repr.h`، و`toDyn` تكتبه، و`normalizeMapPtr` تقرؤه وتحرسه.
+                //      كان استثناؤها هنا يُسقِط `[خريطة، عدد]` إلى المسارِ الساكن
+                //      (وسوم=null) فتُقرأ الخريطةُ بافتراضِ `homogKind=Int` ⇒ «رقم» بدل
+                //      «خريطة»، وتنهار `.احصل()` عليها. وهذا بعينِه ما يحجب مكتبةَ
+                //      جيسون: كلُّ دالّةِ تحليلٍ تُرجع `[القيمة، الموضع]`، وقيمةُ الكائنِ
+                //      خريطة. والخريطةُ — كالمصفوفةِ والنصّ — مؤشّرٌ في خانةِ ثمانيةِ
+                //      بايتات، فوسمُها كافٍ ولا تعليبَ كومةٍ إضافيًّا.
+                // (EN) ز.٤٣: a map is exactly the same case — DynKind::Map=6 exists in
+                //      sad_dyn_repr.h, toDyn writes it and normalizeMapPtr reads and guards
+                //      it. Excluding it here dropped `[map, int]` to the static path
+                //      (tags=null), so the map was read under homogKind=Int ⇒ «رقم» instead
+                //      of «خريطة» and `.احصل()` on it collapsed. This is precisely what
+                //      blocked the JSON library: every parse function returns
+                //      `[value, position]` and an object's value is a map. A map — like an
+                //      array and a string — is a pointer in the 8-byte slot, so tagging it
+                //      suffices; no extra heap boxing.
                 auto isBoxableScalar = [](SadTypeKind t) {
                     return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
                            t == SadTypeKind::String || t == SadTypeKind::Boolean ||
                            t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
                            t == SadTypeKind::Null || t == SadTypeKind::Any ||
-                           t == SadTypeKind::Array;
+                           t == SadTypeKind::Array || t == SadTypeKind::Map;
                 };
                 bool allElementsScalar = true;
                 // (AR) عنصرٌ ديناميّ النوع (Any، كنتيجة قسمة /،//): يوجب التعليبَ حتّى في
