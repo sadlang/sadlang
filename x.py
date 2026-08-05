@@ -709,6 +709,28 @@ def _find_library(name: str, config: str) -> Path | None:
     return None
 
 
+def _find_runtime_library(name: str, config: str) -> Path | None:
+    """(AR) نظيرُها لمكتباتِ وقتِ التشغيلِ وحدَها، بتفضيلِ Release.
+        السببُ ليس تحسينًا: سائقُ المترجمِ يربطُ CRT الإصدارَ دائمًا، وأرشيفُ
+        Debug بـMSVC يستدعي CRT التنقيح (`__imp__CrtDbgReport`) — فنسخُ أرشيفِ
+        Debug إلى dist/Debug يُنتِجُ توزيعةً **تُترجِمُ ولا تربط**: كلُّ برنامجِ
+        واجهةٍ يفشلُ بـLNK2001. نُنضِّدُ ما يربطه السائقُ فعلًا، ونعودُ إلى تهيئةِ
+        الطلبِ حين لا تكونُ Release مبنيّة (ومنه المولِّدُ أحاديُّ التهيئة).
+        (ملاحظةٌ صريحة: هذا يجعلُ dist/Debug يحملُ أرشيفَ Release لوقتِ التشغيلِ
+        بينما المحرّكانِ فيه Debug — وهو المزيجُ الذي يربطُه السائقُ من شجرةِ
+        البناءِ أصلًا، لا خلطًا جديدًا.)
+    (EN) Runtime-library counterpart with a Release preference. Not an
+        optimization: the driver always links the release CRT, so a Debug MSVC
+        archive staged into dist/Debug yields a distribution that compiles but
+        cannot link (LNK2001 on `__imp__CrtDbgReport`). Fall back to the
+        requested config when Release was not built (single-config generators)."""
+    if config != "Release":
+        preferred = _find_library(name, "Release")
+        if preferred is not None:
+            return preferred
+    return _find_library(name, config)
+
+
 # ──────────────────────────────────────────────────────────────────────
 # الأوامر / Commands
 # ──────────────────────────────────────────────────────────────────────
@@ -718,10 +740,64 @@ def cmd_configure(args: argparse.Namespace) -> None:
 
 
 def _configure_if_needed() -> None:
+    _request_cmake_api()
     if (BUILD_DIR / "CMakeCache.txt").exists():
         return
     _log("تهيئة CMake لأول مرة / first-time CMake configure …")
     _run(["cmake", "-S", str(ROOT), "-B", str(BUILD_DIR)])
+
+
+def _request_cmake_api() -> None:
+    """(AR) يضع استعلامَ file-API قبلَ أيِّ توليد، فتُنتِج CMake فهرسَ الأهداف
+        مجّانًا مع التوليد. الاستعلامُ عديمُ الحالة: ملفٌّ فارغٌ باسمِ النسخة.
+    (EN) Drop a stateless CMake file-API query so generation emits the target
+        index for free."""
+    query = BUILD_DIR / ".cmake" / "api" / "v1" / "query" / "codemodel-v2"
+    if query.exists():
+        return
+    query.parent.mkdir(parents=True, exist_ok=True)
+    query.touch()
+
+
+def _known_targets() -> set[str] | None:
+    """(AR) أسماءُ الأهدافِ التي تعرفُها هذه التهيئةُ فعلًا، من ردِّ file-API.
+        يعودُ None حين لا يتوفّرُ الردّ — وحينَها **لا نحذفُ شيئًا**: الجهلُ
+        بالوجودِ ليس دليلَ غياب.
+    (EN) Targets this configuration actually defines, from the file-API reply.
+        None when unavailable — and then we drop nothing: not knowing is not
+        evidence of absence."""
+    reply = BUILD_DIR / ".cmake" / "api" / "v1" / "reply"
+    if not reply.is_dir():
+        return None
+    names: set[str] = set()
+    for codemodel in reply.glob("codemodel-v2-*.json"):
+        try:
+            data = json.loads(codemodel.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for configuration in data.get("configurations", []):
+            for target in configuration.get("targets", []):
+                name = target.get("name")
+                if name:
+                    names.add(name)
+    return names or None
+
+
+def _buildable_runtime_libraries() -> tuple[list[str], list[str]]:
+    """(AR) يفصلُ مكتباتِ وقتِ التشغيلِ إلى «تُبنى الآن» و«غيرُ معرَّفةٍ في هذه
+        التهيئة». عقدُ الوحدةِ أعلاه: كلُّها اختياريّةٌ يُتخطّى غيرُ المبنيِّ بلا
+        فشل — فتمريرُ هدفٍ لا وجودَ له إلى `cmake --build --target` يُفشِلُ
+        البناءَ كلَّه، وهو ما يقعُ في بناءٍ بلا رسوماتٍ (SAD_ENABLE_GRAPHICS=OFF).
+    (EN) Split runtime libraries into "build now" and "not defined in this
+        configuration". Passing an undefined target to `cmake --build --target`
+        fails the whole build, which is exactly what a headless
+        (SAD_ENABLE_GRAPHICS=OFF) configuration would hit."""
+    known = _known_targets()
+    if known is None:
+        return list(RUNTIME_LIBRARIES), []
+    buildable = [name for name in RUNTIME_LIBRARIES if name in known]
+    undefined = [name for name in RUNTIME_LIBRARIES if name not in known]
+    return buildable, undefined
 
 
 def _stage(config: str) -> dict:
@@ -772,7 +848,7 @@ def _stage(config: str) -> dict:
     skipped: list[str] = []
     staged_files: set[str] = set()
     for name in RUNTIME_LIBRARIES:
-        src = _find_library(name, config)
+        src = _find_runtime_library(name, config)
         if src is None:
             skipped.append(name)
             continue
@@ -819,7 +895,36 @@ def cmd_build(args: argparse.Namespace) -> None:
             build_cmd += ["--config", config]
         for target in ENGINES:
             build_cmd += ["--target", target]
+        # (AR) مكتباتُ وقتِ التشغيلِ تُبنى **مع** المحرّكَين لا بعدَهما: المترجمُ
+        #      يربطها في برامجِ المستخدم، فأرشيفٌ بائتٌ يعني ثنائيًّا يفشلُ ربطُه
+        #      برمزٍ موجودٍ فعلًا في المصدر — تشخيصٌ مُضلِّلٌ يقودُ إلى مطاردةِ وهم.
+        # (EN) Build the runtime archives WITH the engines: the compiler links them
+        #      into user programs, so a stale archive yields "unresolved external
+        #      symbol" for a symbol that is right there in the source.
+        buildable_libraries, undefined_libraries = _buildable_runtime_libraries()
+        for target in buildable_libraries:
+            build_cmd += ["--target", target]
         _run(build_cmd)
+        if undefined_libraries:
+            _log("مكتبات وقت تشغيل غير معرَّفة في هذه التهيئة (تُتخطّى بلا فشل) / "
+                 "runtime libraries not defined in this configuration (skipped): "
+                 + ", ".join(undefined_libraries))
+
+        # (AR) السائقُ يفضّلُ أرشيفاتِ Release مهما كانت تهيئتُه (أرشيفُ Debug
+        #      بـMSVC يستلزمُ CRT التنقيح `_calloc_dbg` بينما يربطُ السائقُ CRT
+        #      الإصدارَ دائمًا) — فبناءُ Debug وحدَه يترك ما يُربَط فعلًا بائتًا.
+        #      نُحدِّثُ أرشيفاتِ Release كذلك في البناءِ متعدّدِ التهيئات.
+        # (EN) The driver prefers Release archives whatever its own configuration
+        #      (a Debug MSVC archive needs the debug CRT while the driver always
+        #      links the release one), so a Debug-only build leaves what is actually
+        #      linked stale. Refresh the Release archives too on multi-config.
+        if multi and config != "Release" and buildable_libraries:
+            refresh_cmd = ["cmake", "--build", str(BUILD_DIR), "--config", "Release"]
+            for target in buildable_libraries:
+                refresh_cmd += ["--target", target]
+            _log("تحديث أرشيفات وقت التشغيل بتهيئة Release (هي ما يربطه المترجم) / "
+                 "refreshing Release runtime archives (what the compiler links)")
+            _run(refresh_cmd)
 
         manifest = _stage(config)
         _log(f"✓ {config}: ثُبّت المحرّكان في / staged engines to dist/{config}/")

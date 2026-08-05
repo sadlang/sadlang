@@ -181,6 +181,9 @@ SadWidget sad_widget_create(int32_t nodeType);
 /** .م(صحيح) → خاصّيّة int64 */    void sad_set_prop_int(SadWidget w, const char* name, int64_t value);
 /** .م(عشري) → خاصّيّة عدديّة */   void sad_set_prop_num(SadWidget w, const char* name, double value);
 /** .م()/.م(منطقي) → منطقيّة */   void sad_set_prop_bool(SadWidget w, const char* name, int32_t value);
+/** (AR) قيمةٌ ديناميّةٌ بوسمِها وحمولتِها — يحسمُ وقتُ التشغيلِ كالمفسّر تمامًا.
+ *  (EN) Dynamic value as kind+payload — the runtime decides, like the interpreter. */
+void sad_set_prop_dyn(SadWidget w, const char* name, uint8_t kind, int64_t payload);
 /** .عند_*(دالة) → ربط حدث */     void sad_add_event(SadWidget w, const char* name, SadEventCallback cb, void* data);
 
 /* ─── سلسلة التحريك الانسيابيّة (م-أ3ر، L3) — نظائر WidgetBuilder ─── */

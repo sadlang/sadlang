@@ -1055,6 +1055,13 @@ namespace Sad
                 BUILTIN_UI_SET_PROP_INT,   ///< .م(صحيح) → sad_set_prop_int(w,name,val) — int64_t كالمفسّر
                 BUILTIN_UI_SET_PROP_NUM,   ///< .م(عشري) → sad_set_prop_num(w,name,val)
                 BUILTIN_UI_SET_PROP_BOOL,  ///< .م() / .م(منطقي) → sad_set_prop_bool(w,name,val)
+                /// (AR) قيمةٌ **لم يُحسَمْ نوعُها وقتَ الترجمة** (`أي`/`مجهول`، كنتيجةِ `6 / 2`):
+                ///      تُمرَّرُ بوسمِها وحمولتِها ويحسمُ وقتُ التشغيل — نظيرُ
+                ///      setIRPropertyFromValue في المفسّر بالضبط. البدائلُ الساكنةُ
+                ///      تُخطئ: بالمفتاحِ وحدَه تُخفِقُ المفاتيحُ متعدّدةُ الأنواعِ («قيمة»
+                ///      عدديّةٌ للمنزلقِ ومنطقيّةٌ للمفتاح)، وبالسقوطِ إلى STR تُخزَّنُ
+                ///      نصًّا فارغًا. → sad_set_prop_dyn(w,name,kind,payload)
+                BUILTIN_UI_SET_PROP_DYN,
                 BUILTIN_UI_ADD_EVENT,      ///< .عند_*(دالة) → sad_add_event(w,name,cb,data) — نظير addIREvent
                 // --- 20f. سلسلة التحريك (م-أ3ر، L3) — آلة حالة فوق IRNode ---
                 BUILTIN_UI_ANIM_BEGIN,        ///< .حرّك(أنواع) → sad_anim_begin(w,csv) — يبدأ مجموعة (مركّب بالفاصلة)

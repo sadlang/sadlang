@@ -286,6 +286,8 @@ namespace Sad
                 return cg_.emitUiSetPropNum(inst);
             case SIROpcode::BUILTIN_UI_SET_PROP_BOOL:
                 return cg_.emitUiSetPropBool(inst);
+            case SIROpcode::BUILTIN_UI_SET_PROP_DYN:
+                return cg_.emitUiSetPropDyn(inst);
             // أثر المعدّلات (م-أ3ر، L2): ربط حدث عند_* بالعقدة
             case SIROpcode::BUILTIN_UI_ADD_EVENT:
                 return cg_.emitUiAddEvent(inst);

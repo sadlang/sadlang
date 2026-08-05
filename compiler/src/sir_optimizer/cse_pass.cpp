@@ -434,6 +434,7 @@ namespace Sad
                 case SIR::SIROpcode::BUILTIN_UI_SET_PROP_INT:
                 case SIR::SIROpcode::BUILTIN_UI_SET_PROP_NUM:
                 case SIR::SIROpcode::BUILTIN_UI_SET_PROP_BOOL:
+                case SIR::SIROpcode::BUILTIN_UI_SET_PROP_DYN:
                 case SIR::SIROpcode::BUILTIN_UI_ADD_EVENT:
                 case SIR::SIROpcode::BUILTIN_UI_SET_EVENT_PHASE:
                 case SIR::SIROpcode::BUILTIN_UI_SET_EVENT_DATA:

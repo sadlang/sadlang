@@ -26,6 +26,7 @@
 // (AR) جدولُ مصانعِ العناصرِ المولَّدُ من language-truth — رأسٌ في الطبقةِ الأساسِ
 //      (المحلّل) لا في مكتبةِ الرسومات، فلا يكسر طبقيّةَ المصرِّف.
 #include "generated/ui_parser_nodes_generated.h"
+#include "sad_ui/prop_keys.h" // (AR) مفاتيحُ الخصائصِ + جدولُ المفاتيحِ العدديّة (مُولَّد من SoT)
 
 #include <unordered_map>
 namespace Bn = Sad::Builtins::Names;
@@ -135,6 +136,81 @@ namespace Sad
                 //      setIRPropertyFromValue). نحاكيه: نُصدر عقدة المصنع فارغةً (بلا
                 //      operands) ثمّ SET_PROP(«قيمة») بحسب نوع الوسيط (int/num/bool/str)
                 //      ⇒ طباعة_شجرة تطابق المفسّر تمامًا. يعيد مقبض العنصر.
+                // (AR) النوعُ لم يُحسَمْ وقتَ الترجمة: `أي`/`مجهول` — نتيجةُ `6 / 2`
+                //   مثلًا، إذ قد تكون صحيحًا أو عشريًّا زمنَ التشغيل.
+                // (EN) Compile-time-undecided type (Any/Unknown), e.g. the result of `/`.
+                auto isUndecidedAtCompileTime = [](SadTypeKind kind) {
+                    return kind == SadTypeKind::Any || kind == SadTypeKind::Unknown;
+                };
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) اختيارُ أوپكودِ ضبطِ الخاصّيّةِ **الأولى** بحسبِ نوعِ الوسيط.
+                //   كان الاختيارُ سلسلةً ثلاثيّةً تسألُ عن `رقم`/`عشري`/`منطقي`
+                //   وتُسقِطُ ما عداها إلى STR — فكلُّ نوعٍ عدديٍّ محدَّدِ الحجمِ
+                //   (`طبيعي64`، `بايت`، `حرف`، عدد٨/١٦/٣٢/٦٤…) كان يُخزَّن **نصًّا**
+                //   فيقرؤه المُرسِّم فارغًا: `ترقيم_صفحات(صفحاتٌ_طبيعي64)` يطبع
+                //   «قيمة: ""» بينما المفسّرُ يطبع «قيمة: 4». تباعُدٌ صامتٌ لا خطأَ
+                //   فيه ولا تحذير — من عائلةِ العيبِ نفسِها التي أغلقها #395.
+                //   والمفسّرُ لا يعرفُ أحجامًا أصلًا: يفحصُ **بنيةَ القيمة**، فكلُّ
+                //   ما هو عددٌ صحيحٌ عندَه عددٌ صحيح.
+                //   أمّا غيرُ المحسومِ وقتَ الترجمةِ فيُحسَمُ **بالمفتاحِ من مصدرِ
+                //   الحقيقة** (`value_type: عدد` ⇒ isNumericPropKey) — وهو النهجُ
+                //   المُستقرُّ في مسارِ المعدّلات (call_method_dispatch.cpp) ولم
+                //   يكن قد بلغَ مسارَ الخاصّيّةِ الأولى.
+                // (EN) Pick the primary-property SET_PROP opcode from the argument type.
+                //   The old ternary asked only about Integer/Float/Boolean and dumped
+                //   everything else into STR, so every sized numeric type was stored as
+                //   text and read back empty — a silent divergence from the interpreter,
+                //   which inspects value structure and knows nothing of widths.
+                //   Undecided types are resolved BY KEY from the SoT numeric-key table,
+                //   the approach already established on the modifier path.
+                // ════════════════════════════════════════════════════════════════
+                auto primaryPropOpcode = [&](SadTypeKind kind, const char *propKey) -> SIROpcode {
+                    switch (kind)
+                    {
+                    case SadTypeKind::Integer:
+                    case SadTypeKind::Byte:
+                    case SadTypeKind::Char:
+                    case SadTypeKind::Int8:
+                    case SadTypeKind::Int16:
+                    case SadTypeKind::Int32:
+                    case SadTypeKind::Int64:
+                    case SadTypeKind::UInt8:
+                    case SadTypeKind::UInt16:
+                    case SadTypeKind::UInt32:
+                    case SadTypeKind::UInt64:
+                        return SIROpcode::BUILTIN_UI_SET_PROP_INT;
+                    case SadTypeKind::Float:
+                    case SadTypeKind::Float32:
+                    case SadTypeKind::Float64:
+                        return SIROpcode::BUILTIN_UI_SET_PROP_NUM;
+                    case SadTypeKind::Boolean:
+                        return SIROpcode::BUILTIN_UI_SET_PROP_BOOL;
+                    case SadTypeKind::Null:
+                        // (AR) العدمُ ليس نصًّا: مسارُ STR يمرّرُ مؤشّرًا صفريًّا
+                        //   فتُخزَّنُ «قيمة: ""» بينما يطبعُ المفسّرُ «قيمة: لاشيء»
+                        //   (setIRPropertyFromValue يُصيِّرُ العدمَ نصَّ عرضِه).
+                        //   المسارُ الديناميُّ يحملُ وسمَ العدمِ فيتطابقان.
+                        // (EN) Null is not a string: the STR path passes a null
+                        //   pointer and stores "", while the interpreter prints
+                        //   the null display text. The dynamic path carries the
+                        //   Null tag, so both engines agree.
+                        return SIROpcode::BUILTIN_UI_SET_PROP_DYN;
+                    default:
+                        break;
+                    }
+                    if (isUndecidedAtCompileTime(kind))
+                    {
+                        // (AR) لا نُخمّن: نمرّرُ الوسمَ والحمولةَ ويحسمُ وقتُ التشغيل
+                        //   كالمفسّر. الحسمُ بالمفتاحِ وحدَه (isNumericPropKey) يُخفِقُ
+                        //   في المفاتيحِ متعدّدةِ الأنواعِ في مصدرِ الحقيقة — «قيمة»
+                        //   مثلًا `عدد أو منطقيّ` فتسقطُ إلى STR وتُخزَّنُ فارغةً.
+                        (void)propKey;
+                        return SIROpcode::BUILTIN_UI_SET_PROP_DYN;
+                    }
+                    return SIROpcode::BUILTIN_UI_SET_PROP_STR;
+                };
+
                 auto lowerValueWidget = [&](SIROpcode factoryOp) -> BuildResult {
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(factoryOp); // بلا operands ⇒ عقدة فارغة
@@ -143,14 +219,11 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     if (!argResults.empty())
                     {
-                        SIROpcode op =
-                            argResults[0].type == SadTypeKind::Integer ? SIROpcode::BUILTIN_UI_SET_PROP_INT
-                          : argResults[0].type == SadTypeKind::Float   ? SIROpcode::BUILTIN_UI_SET_PROP_NUM
-                          : argResults[0].type == SadTypeKind::Boolean ? SIROpcode::BUILTIN_UI_SET_PROP_BOOL
-                                                                       : SIROpcode::BUILTIN_UI_SET_PROP_STR;
+                        SIROpcode op = primaryPropOpcode(argResults[0].type, sad::ui::props::VALUE);
                         SIRInstruction sp(op);
                         sp.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer)); // العنصر
-                        sp.operands.push_back(SIROperand::ConstantString("\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9")); // قيمة
+                        // (AR) مفتاحُ «قيمة» من مصدرِ الحقيقةِ لا سلسلةً حرفيّة.
+                        sp.operands.push_back(SIROperand::ConstantString(sad::ui::props::VALUE));
                         sp.operands.push_back(argOperands[0]);
                         if (b_.currentBlock_)
                             b_.currentBlock_->instructions.push_back(sp);
@@ -176,6 +249,7 @@ namespace Sad
                            kind == SadTypeKind::Unknown || kind == SadTypeKind::Integer ||
                            kind == SadTypeKind::Array;
                 };
+
 
                 // (AR) `extraOperand` لأوپكودِ الإنشاءِ العامّ (رقمُ نوعِ العقدة)؛
                 //   و`primaryProp` مفتاحُ الخاصّيّةِ الأولى إن كان للمصنعِ واحدة.
@@ -204,17 +278,24 @@ namespace Sad
                     //   وحُجّةُ «مقبضِ العنصرِ في خانةِ i64» تخصّ **الحاويات** (لا
                     //   خاصّيّةَ أولى لها فلا تبلغ هذا الفرعَ أصلًا)، فتبقى سليمةً في
                     //   حلقةِ الأبناء.
+                    //   وكذلك النوعُ غيرُ المحسومِ وقتَ الترجمة: `ترقيم_صفحات(6 / 2)`
+                    //   كان يُعَدُّ شبيهَ عنصرٍ فيصيرُ `ADD_CHILD(w, 3)` ويُسقِطُه
+                    //   `sad_ui_runtime` صامتًا ⇒ عقدةٌ **بلا خاصّيّةٍ إطلاقًا**
+                    //   (`ترقيم_صفحات` مجرّدةً) بينما المفسّرُ يطبع «قيمة: 3».
+                    //   المفسّرُ يفحصُ بنيةَ القيمةِ زمنَ التشغيلِ فالعددُ ليس عنصرًا
+                    //   أبدًا؛ ونحن نحسمُ بالمفتاحِ كما في مسارِ المعدّلات. ويبقى
+                    //   حدٌّ مُعلَنٌ: قيمةٌ ديناميّةٌ تحملُ **عنصرًا** فعليًّا وتُمرَّرُ
+                    //   أوّلَ وسيطٍ لمصنعٍ ذي خاصّيّةٍ أولى ستُكتَبُ خاصّيّةً لا ابنًا.
+                    //   والحاوياتُ — وهي موضعُ الأبناءِ الحقيقيّ — لا خاصّيّةَ أولى
+                    //   لها فلا تبلغُ هذا الفرعَ أصلًا.
                     const bool firstArgIsPropValue =
                         !argResults.empty() && (!isWidgetLikeArg(argResults[0].type) ||
-                                                argResults[0].type == SadTypeKind::Integer);
+                                                argResults[0].type == SadTypeKind::Integer ||
+                                                isUndecidedAtCompileTime(argResults[0].type));
                     size_t firstChild = 0;
                     if (primaryProp && primaryProp[0] != '\0' && firstArgIsPropValue)
                     {
-                        const SIROpcode setOp =
-                            argResults[0].type == SadTypeKind::Integer ? SIROpcode::BUILTIN_UI_SET_PROP_INT
-                          : argResults[0].type == SadTypeKind::Float   ? SIROpcode::BUILTIN_UI_SET_PROP_NUM
-                          : argResults[0].type == SadTypeKind::Boolean ? SIROpcode::BUILTIN_UI_SET_PROP_BOOL
-                                                                      : SIROpcode::BUILTIN_UI_SET_PROP_STR;
+                        const SIROpcode setOp = primaryPropOpcode(argResults[0].type, primaryProp);
                         SIRInstruction setProp(setOp);
                         setProp.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer));
                         setProp.operands.push_back(SIROperand::ConstantString(primaryProp));

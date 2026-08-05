@@ -572,6 +572,8 @@ namespace Sad
                     return "ui.set_prop_num";
                 case SIROpcode::BUILTIN_UI_SET_PROP_BOOL:
                     return "ui.set_prop_bool";
+                case SIROpcode::BUILTIN_UI_SET_PROP_DYN:
+                    return "ui.set_prop_dyn";
                 case SIROpcode::BUILTIN_UI_ADD_EVENT:
                     return "ui.add_event";
                 case SIROpcode::BUILTIN_UI_ANIM_BEGIN:

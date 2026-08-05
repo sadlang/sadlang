@@ -2054,6 +2054,7 @@ namespace Sad
             llvm::Value *emitUiSetPropInt(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetPropInt(inst); }
             llvm::Value *emitUiSetPropNum(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetPropNum(inst); }
             llvm::Value *emitUiSetPropBool(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetPropBool(inst); }
+            llvm::Value *emitUiSetPropDyn(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiSetPropDyn(inst); }
             llvm::Value *emitUiAddEvent(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAddEvent(inst); }
             llvm::Value *emitUiAnimBegin(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimBegin(inst); }
             llvm::Value *emitUiAnimDuration(std::shared_ptr<SIRInstruction> inst) { return ui_->emitUiAnimDuration(inst); }

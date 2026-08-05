@@ -151,6 +151,9 @@ public:
     llvm::Value *emitUiSetPropInt(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSetPropNum(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitUiSetPropBool(std::shared_ptr<SIRInstruction> inst);
+    /// (AR) قيمةٌ ديناميّةٌ (%SadDyn): يُمرَّرُ الوسمُ والحمولةُ ويحسمُ وقتُ التشغيل.
+    /// (EN) Dynamic (%SadDyn) value: pass kind+payload, decide at runtime.
+    llvm::Value *emitUiSetPropDyn(std::shared_ptr<SIRInstruction> inst);
     // (AR) أثر المعدّلات (م-أ3ر، L2): ربط حدث عند_* بالعقدة.
     llvm::Value *emitUiAddEvent(std::shared_ptr<SIRInstruction> inst);
     // (AR) أثر المعدّلات (م-أ3ر، L3): سلسلة التحريك.

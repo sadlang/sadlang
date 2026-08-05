@@ -1482,6 +1482,38 @@ llvm::Value* UICodeGen::emitUiSetPropNum(std::shared_ptr<SIRInstruction> inst) {
         {ptrTy, ptrTy, f64Ty}, {widget, name, value});
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// (AR) قيمةٌ لم يُحسَمْ نوعُها وقتَ الترجمة ⇒ نمرّرُ **الوسمَ والحمولةَ** ويحسمُ
+//   وقتُ التشغيل، نظيرَ setIRPropertyFromValue في المفسّر حرفًا بحرف. كلُّ حسمٍ
+//   ساكنٍ يُخطئ هنا: بالمفتاحِ وحدَه تُخفِقُ المفاتيحُ متعدّدةُ الأنواعِ في مصدرِ
+//   الحقيقة («قيمة» = `عدد أو منطقيّ`)، والسقوطُ إلى STR يمرّرُ مؤشّرًا عدميًّا
+//   فتُخزَّنُ الخاصّيّةُ نصًّا فارغًا: `ترقيم_صفحات(6 / 2)` كان يطبع «قيمة: ""»
+//   بينما المفسّرُ يطبع «قيمة: 3».
+//   الوسمُ والحمولةُ يُستخرَجانِ من %SadDyn مباشرةً (بلا فروعٍ ولا تخصيص)؛ وإن
+//   وصلت قيمةٌ محدَّدةُ النوعِ عبرَ مسارٍ غيرِ معتادٍ نُغلّفُها بـtoDyn أوّلًا فلا
+//   يسقطُ مدقِّقُ LLVM.
+// (EN) Compile-time-undecided value ⇒ pass the %SadDyn kind+payload and let the
+//   runtime decide, mirroring the interpreter's setIRPropertyFromValue exactly.
+//   Every static guess is wrong here: key-based dispatch fails for polymorphic
+//   keys, and the STR fallback substitutes a null pointer.
+// ════════════════════════════════════════════════════════════════════════════
+llvm::Value* UICodeGen::emitUiSetPropDyn(std::shared_ptr<SIRInstruction> inst) {
+    auto* ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+    auto* i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+    auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
+    llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
+    llvm::Value* raw = cg_.resolveOperand(inst->operands[2]);
+    llvm::Value* dyn = Sad::LLVM::isSadDyn(raw)
+        ? raw
+        : Sad::LLVM::toDyn(cg_, raw, inst->operands[2].dataType);
+    llvm::Value* kind = Sad::LLVM::dynKindByte(cg_, dyn);
+    llvm::Value* payload = Sad::LLVM::dynPayloadI64(cg_, dyn);
+    return emitUIRuntimeCall(cg_, "sad_set_prop_dyn", voidTy,
+        {ptrTy, ptrTy, i8Ty, i64Ty}, {widget, name, kind, payload});
+}
+
 // (AR) L2: ربط حدث عند_* — sad_add_event(widget, name, cb, data).
 //      ردّ النداء وبياناته اختياريّان (يُستبدلان بمؤشّر فارغ عند الغياب)،
 //      مثل onTap في مصنع الزرّ.

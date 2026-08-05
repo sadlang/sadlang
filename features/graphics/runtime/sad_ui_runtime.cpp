@@ -61,6 +61,7 @@
 #include <chrono>  // (م1-ب) نبضة الساعة الحيّة: system_clock لبوّابة الدقيقة الجداريّة
 #include <cstdint>
 #include <cstring>
+#include "value_repr_generated.h" // (AR) وسومُ SadDyn من مصدرِ الحقيقة
 #include <cstdio>  // (AR) fprintf لإعلان فشل تهيئة الوضع الحرّ على stderr
 #include <cstdlib> // (م-تحكّم) malloc لنسخة نصّ توليد_ويب المملوكة للمستدعي
 #include <iostream>
@@ -718,6 +719,53 @@ void sad_set_prop_bool(SadWidget w, const char* name, int32_t value) {
     if (impl) animCommit(impl);
     if (impl && impl->irNode && name)
         impl->irNode->setProperty(name, value != 0);
+}
+
+/* (AR) قيمةٌ ديناميّةٌ (%SadDyn) — الوسمُ والحمولةُ كما هما في المصرّف.
+ *      هذه مرآةُ setIRPropertyFromValue في المفسّر (widget_builder.cpp:96) حرفًا
+ *      بحرف: صحيحٌ ⇒ int64، عشريٌّ ⇒ double، منطقيٌّ ⇒ bool، وما عداه ⇒ نصّ.
+ *      الوسومُ من مصدرِ الحقيقةِ الموحَّد (value_repr.yaml) لا أرقامًا سحريّة،
+ *      وهي نفسُها التي يحرسُها static_assert في sad_dyn_repr.h.
+ * (EN) Dynamic (%SadDyn) value — a literal mirror of the interpreter's
+ *      setIRPropertyFromValue. Tags come from the shared SoT, not magic numbers. */
+void sad_set_prop_dyn(SadWidget w, const char* name, uint8_t kind, int64_t payload) {
+    auto* impl = toWidget(w);
+    if (impl) animCommit(impl);
+    if (!impl || !impl->irNode || !name)
+        return;
+    using namespace Sad::Types::repr;
+    if (kind == static_cast<uint8_t>(kDynKindInt)) {
+        impl->irNode->setProperty(name, payload);
+    } else if (kind == static_cast<uint8_t>(kDynKindFloat)) {
+        // (AR) الحمولةُ نمطُ بتّاتِ double (لا تحويلٌ عدديّ) — كما يُغلّفها packDyn.
+        double asDouble = 0.0;
+        std::memcpy(&asDouble, &payload, sizeof(asDouble));
+        impl->irNode->setProperty(name, asDouble);
+    } else if (kind == static_cast<uint8_t>(kDynKindBool)) {
+        impl->irNode->setProperty(name, payload != 0);
+    } else if (kind == static_cast<uint8_t>(kDynKindStr)) {
+        const char* text = reinterpret_cast<const char*>(static_cast<intptr_t>(payload));
+        impl->irNode->setProperty(name, std::string(text ? text : ""));
+    } else if (kind == static_cast<uint8_t>(kDynKindNull)) {
+        // (AR) المفسّرُ يُحوّلُ ما ليس عددًا ولا منطقيًّا إلى نصٍّ بـtoString،
+        //      ونصُّ العدمِ من مصدرِ الحقيقةِ نفسِه فلا تنحرفُ الطبقتان.
+        impl->irNode->setProperty(name, kNullDisplay);
+    } else {
+        // (AR) مصفوفةٌ/خريطةٌ/كائنٌ خاصّيّةً أولى — **دَينٌ مُعلَنٌ مقيس**:
+        //      المصفوفةُ وحدَها لا تبلغُ هنا (المفسّرُ يعدُّها عنصرًا لا قيمةً،
+        //      isWidgetLike في widget_builtins.cpp). أمّا الخريطةُ والكائنُ غيرُ
+        //      العنصريِّ **فتبلغانِ**: المفسّرُ يُصيِّرهما نصًّا بـtoString
+        //      (widget_builder.cpp) — «{أ: 1}» مثلًا — بينما لا يملكُ وقتُ التشغيلِ
+        //      هنا مُصيِّرَ نصٍّ للحاويات، فيُترَكُ الحقلُ بلا كتابة. تباعُدٌ باقٍ
+        //      مقصورٌ على حاويةٍ تُمرَّرُ خاصّيّةً أولى؛ يُعلَنُ ولا يُخمَّنُ نصًّا
+        //      ثالثًا يخالفُ المحرّكَين معًا.
+        // (EN) Declared, measured debt: arrays never reach here (the interpreter
+        //      treats them as children), but maps and non-widget objects DO — the
+        //      interpreter stringifies them via toString while this runtime has no
+        //      container stringifier, so the property stays unwritten. A real,
+        //      narrow divergence, declared rather than papered over with a third
+        //      spelling that matches neither engine.
+    }
 }
 
 /* ─── ربط حدث انسيابيّ عند_* (م-أ3ر، L2) ───
