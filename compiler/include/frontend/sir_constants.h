@@ -318,6 +318,20 @@ namespace Sad::Compiler
     //      on both sides — a shared contract written twice, hence a silent-drift
     //      hazard if either side changed alone.
     // ──────────────────────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) اسما مساعِدَي تصييرِ الخريطةِ نصًّا. للمفسّرِ **صيغتان** مقيستان:
+    //      الطباعةُ تقتبسُ المفاتيح «{"أ": 1}» و`toString`/`نص()` لا تقتبسُها
+    //      «{أ: 1}». الاسمانِ ثابتانِ مسمّيانِ لا حرفيّاتٍ مبعثرة: كانا مكرَّرَين
+    //      في تسعةِ مواضع، وخطأٌ مطبعيٌّ واحدٌ في `getOrInsertFunction` يُنتِجُ
+    //      تصريحًا بلا تعريفٍ لا يظهرُ إلّا خطأَ ربطٍ غامضًا عندَ التوصيل.
+    // (EN) The two map-stringifier helper names. The interpreter has TWO measured
+    //      spellings (quoted for print, unquoted for toString/نص()). Named constants,
+    //      not literals scattered across nine call sites where one typo yields an
+    //      undefined symbol surfacing only as an obscure link error.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr const char *kMapToStringQuotedFn = "__sad_map_to_string";
+    inline constexpr const char *kMapToStringPlainFn = "__sad_map_to_string_plain";
+
     inline constexpr int64_t kMapValueTagString = 0;
     inline constexpr int64_t kMapValueTagInteger = 1;
     inline constexpr int64_t kMapValueTagFloat = 2;

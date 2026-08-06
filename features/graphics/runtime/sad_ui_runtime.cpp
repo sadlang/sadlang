@@ -751,20 +751,25 @@ void sad_set_prop_dyn(SadWidget w, const char* name, uint8_t kind, int64_t paylo
         //      ونصُّ العدمِ من مصدرِ الحقيقةِ نفسِه فلا تنحرفُ الطبقتان.
         impl->irNode->setProperty(name, kNullDisplay);
     } else {
-        // (AR) مصفوفةٌ/خريطةٌ/كائنٌ خاصّيّةً أولى — **دَينٌ مُعلَنٌ مقيس**:
-        //      المصفوفةُ وحدَها لا تبلغُ هنا (المفسّرُ يعدُّها عنصرًا لا قيمةً،
-        //      isWidgetLike في widget_builtins.cpp). أمّا الخريطةُ والكائنُ غيرُ
-        //      العنصريِّ **فتبلغانِ**: المفسّرُ يُصيِّرهما نصًّا بـtoString
-        //      (widget_builder.cpp) — «{أ: 1}» مثلًا — بينما لا يملكُ وقتُ التشغيلِ
-        //      هنا مُصيِّرَ نصٍّ للحاويات، فيُترَكُ الحقلُ بلا كتابة. تباعُدٌ باقٍ
-        //      مقصورٌ على حاويةٍ تُمرَّرُ خاصّيّةً أولى؛ يُعلَنُ ولا يُخمَّنُ نصًّا
-        //      ثالثًا يخالفُ المحرّكَين معًا.
-        // (EN) Declared, measured debt: arrays never reach here (the interpreter
-        //      treats them as children), but maps and non-widget objects DO — the
-        //      interpreter stringifies them via toString while this runtime has no
-        //      container stringifier, so the property stays unwritten. A real,
-        //      narrow divergence, declared rather than papered over with a third
-        //      spelling that matches neither engine.
+        // (AR) خريطةٌ أو كائنٌ أو مقبضُ عنصرٍ قيمةَ خاصّيّة — **دَينٌ مُعلَنٌ مقيس**.
+        //      المصفوفةُ **لم تعدْ تبلغُ هنا**: يُصيِّرُها المصرّفُ نصًّا قبلَ الكتابةِ
+        //      بـARRAY_TO_STRING (المساعِدُ نفسُه الذي يستعملُه `نص(مصفوفة)`) فتطابقُ
+        //      `toString` في المفسّر. وما يبقى — الخريطةُ والكائنُ والمقبضُ — يُصيِّرُه
+        //      المفسّرُ نصًّا («{أ: 1}») ولا يملكُ وقتُ التشغيلِ هنا مُصيِّرًا لها،
+        //      فيُترَكُ الحقلُ **بلا كتابة** — **في مسارِ الوسيطِ الواحدِ وحدَه**؛ أمّا
+        //      المعدِّلُ متعدّدُ الوسائطِ فيمرُّ بـ`sad_prop_join_add_*` لا بهنا، وهناك
+        //      يُدمَجُ المقبضُ **فارغًا** (بعدَ سدِّ قراءةٍ خارجَ الحدّ كانت تُخرِجُ
+        //      بايتاتٍ تختلفُ في كلِّ تشغيل). حدُّ الإعلانِ يُذكَرُ ولا يُعمَّم.
+        //      وهذا **مقصودٌ** بعدَ قياس: البديلُ الذي
+        //      كان قائمًا هو فكُّ المقبضِ `const char*` ⇒ قراءةٌ خارجَ الحدّ تطبعُ
+        //      بايتاتِ كومةٍ خامّة. غيابٌ مُعلَنٌ خيرٌ من نصٍّ ثالثٍ يخالفُ المحرّكَين.
+        // (EN) Declared, measured debt: arrays no longer reach here (the compiler
+        //      stringifies them via ARRAY_TO_STRING first, matching the interpreter's
+        //      toString). Maps, objects and widget handles still do — the interpreter
+        //      stringifies them, this runtime has no such stringifier, so the property
+        //      stays UNWRITTEN. Deliberate: the previous behaviour decoded the handle
+        //      as `const char*` and printed raw heap bytes. A declared absence beats a
+        //      third spelling that matches neither engine.
     }
 }
 

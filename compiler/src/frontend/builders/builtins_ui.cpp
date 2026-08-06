@@ -27,9 +27,13 @@
 //      (المحلّل) لا في مكتبةِ الرسومات، فلا يكسر طبقيّةَ المصرِّف.
 #include "generated/ui_parser_nodes_generated.h"
 #include "sad_ui/prop_keys.h" // (AR) مفاتيحُ الخصائصِ + جدولُ المفاتيحِ العدديّة (مُولَّد من SoT)
+// (AR) قرارُ خفضِ قيمةِ الخاصّيّة — مشتركٌ مع مسارِ المعدّلاتِ فلا نسختانِ تتباعدان.
+#include "builders/ui_prop_lowering.h"
 
 #include <unordered_map>
+#include <algorithm> // (AR) std::min — حدُّ أريّةِ المصنع
 namespace Bn = Sad::Builtins::Names;
+namespace uiprops = Sad::Compiler::Frontend::UIProps;
 
 namespace Sad
 {
@@ -165,50 +169,80 @@ namespace Sad
                 //   Undecided types are resolved BY KEY from the SoT numeric-key table,
                 //   the approach already established on the modifier path.
                 // ════════════════════════════════════════════════════════════════
+                //   وقرارُ الاختيارِ نفسُه **يعيشُ في موضعٍ واحد** (ui_prop_lowering.h)
+                //   ويستدعيه مسارُ المعدّلاتِ أيضًا: ترقيةُ أحدِ المسارَين دونَ الآخرِ
+                //   هي بعينِها ما أنتجَ تباعُدَي #396 و#400 الصامتَين.
+                // (EN) The choice itself lives in ONE place (ui_prop_lowering.h) and is
+                //   shared with the modifier path — upgrading one path and not the other
+                //   is exactly what produced the #396/#400 silent divergences.
                 auto primaryPropOpcode = [&](SadTypeKind kind, const char *propKey) -> SIROpcode {
-                    switch (kind)
+                    (void)propKey; // (AR) الحسمُ بالنوعِ والوسمِ لا بالمفتاح
+                    return uiprops::propOpcodeForValueType(kind);
+                };
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) مصنعٌ خانتُه الأولى **نصّيّة** (`زر(عنوان)`، `صورة(مصدر)`،
+                //   `أيقونة(اسم)`، `حقل_نص(تلميح)`…). العلّةُ التي أُغلِقت لـ`نص_عنصر`
+                //   وحدَه كانت حيّةً في ثلاثةَ عشرَ مصنعًا غيرِه: توقيعُ وقتِ التشغيلِ
+                //   `const char*`، وجسرُ الوسائطِ يحوّلُ الصحيحَ بـ`IntToPtr`، فيُقرأُ
+                //   العددُ عنوانًا ⇒ **SIGSEGV** (مقيس: `زر(42)` · `أيقونة(42)` ·
+                //   `صورة(42)` · `حقل_نص(42)` تُسقِطُ البرنامجَ بـ0xC0000005 بينما
+                //   المفسّرُ يطبعُ `زر(عنوان: 42)`).
+                //   العلاجُ **بنيويٌّ لا موضعيّ**: الخانةُ النصّيّةُ لا تستقبلُ إلّا
+                //   نصًّا؛ فإن لم يكن الوسيطُ نصًّا وُضِعَ في الخانةِ نائبٌ فارغٌ —
+                //   **وبقيت الوسائطُ الباقيةُ في مواضعِها** فلا يُزَحُّ ردُّ النداءِ إلى
+                //   خانةِ العنوان — ثمّ كُتِبتِ الخاصّيّةُ الأولى بالأوپكودِ المناسبِ
+                //   للنوع، وهو المسارُ نفسُه الذي يسلكُه المفسّرُ
+                //   (MAKE_WIDGET_WITH_PROP_FN ⇒ setIRPropertyFromValue).
+                // (EN) A factory whose FIRST SLOT IS TEXT. The bug closed for نص_عنصر
+                //   alone was alive in thirteen other factories: the runtime signature
+                //   is `const char*` and the arg bridge IntToPtr's an integer, so the
+                //   number is dereferenced ⇒ SIGSEGV. Structural fix: the text slot only
+                //   ever receives text; a non-text first argument leaves an empty
+                //   placeholder there (later arguments keep their positions, so the
+                //   callback is not shifted into the label slot) and is written as the
+                //   primary property with the type-appropriate opcode — the interpreter's
+                //   own path.
+                // ════════════════════════════════════════════════════════════════
+                //   و`maxFactoryOperands` يحفظُ **أريّةَ كلِّ مصنعٍ كما كانت**: منها ما
+                //   يستقبلُ خانةً واحدةً فقط (`صورة`/`أيقونة`/`تلميح`…) ومنها ما يستقبلُ
+                //   ردَّ نداءٍ وبياناتٍ بعدَ العنوان (`زر`). زيادةُ الخانةِ تُفسِدُ توقيعَ
+                //   النداءِ في الخلفيّة، فلا تُعمَّمُ الأريّةُ بحجّةِ التوحيد.
+                auto lowerTextSlotFactory = [&](SIROpcode factoryOp, const char *primaryKey,
+                                                size_t maxFactoryOperands) -> BuildResult {
+                    const bool firstArgIsText =
+                        !argResults.empty() && argResults[0].type == SadTypeKind::String;
+                    std::string r = b_.newTempRegister();
+                    SIRInstruction inst(factoryOp);
+                    const size_t factoryOperandCount =
+                        maxFactoryOperands == 0 ? argOperands.size()
+                                                : std::min(argOperands.size(), maxFactoryOperands);
+                    for (size_t i = 0; i < factoryOperandCount; ++i)
                     {
-                    case SadTypeKind::Integer:
-                    case SadTypeKind::Byte:
-                    case SadTypeKind::Char:
-                    case SadTypeKind::Int8:
-                    case SadTypeKind::Int16:
-                    case SadTypeKind::Int32:
-                    case SadTypeKind::Int64:
-                    case SadTypeKind::UInt8:
-                    case SadTypeKind::UInt16:
-                    case SadTypeKind::UInt32:
-                    case SadTypeKind::UInt64:
-                        return SIROpcode::BUILTIN_UI_SET_PROP_INT;
-                    case SadTypeKind::Float:
-                    case SadTypeKind::Float32:
-                    case SadTypeKind::Float64:
-                        return SIROpcode::BUILTIN_UI_SET_PROP_NUM;
-                    case SadTypeKind::Boolean:
-                        return SIROpcode::BUILTIN_UI_SET_PROP_BOOL;
-                    case SadTypeKind::Null:
-                        // (AR) العدمُ ليس نصًّا: مسارُ STR يمرّرُ مؤشّرًا صفريًّا
-                        //   فتُخزَّنُ «قيمة: ""» بينما يطبعُ المفسّرُ «قيمة: لاشيء»
-                        //   (setIRPropertyFromValue يُصيِّرُ العدمَ نصَّ عرضِه).
-                        //   المسارُ الديناميُّ يحملُ وسمَ العدمِ فيتطابقان.
-                        // (EN) Null is not a string: the STR path passes a null
-                        //   pointer and stores "", while the interpreter prints
-                        //   the null display text. The dynamic path carries the
-                        //   Null tag, so both engines agree.
-                        return SIROpcode::BUILTIN_UI_SET_PROP_DYN;
-                    default:
-                        break;
+                        if (i == 0 && !firstArgIsText)
+                            inst.operands.push_back(SIROperand::ConstantString(uiprops::kEmptyTextSlotPlaceholder));
+                        else
+                            inst.operands.push_back(argOperands[i]);
                     }
-                    if (isUndecidedAtCompileTime(kind))
+                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    if (!argOperands.empty() && !firstArgIsText)
                     {
-                        // (AR) لا نُخمّن: نمرّرُ الوسمَ والحمولةَ ويحسمُ وقتُ التشغيل
-                        //   كالمفسّر. الحسمُ بالمفتاحِ وحدَه (isNumericPropKey) يُخفِقُ
-                        //   في المفاتيحِ متعدّدةِ الأنواعِ في مصدرِ الحقيقة — «قيمة»
-                        //   مثلًا `عدد أو منطقيّ` فتسقطُ إلى STR وتُخزَّنُ فارغةً.
-                        (void)propKey;
-                        return SIROpcode::BUILTIN_UI_SET_PROP_DYN;
+                        SIROperand valueOp = argOperands[0];
+                        const bool asText = uiprops::lowerArrayValueToString(
+                            b_, valueOp, argResults[0].type, argResults[0].elementType);
+                        SIRInstruction sp(asText ? SIROpcode::BUILTIN_UI_SET_PROP_STR
+                                                 : primaryPropOpcode(argResults[0].type, primaryKey));
+                        sp.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer));
+                        sp.operands.push_back(SIROperand::ConstantString(primaryKey));
+                        sp.operands.push_back(valueOp);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(sp);
+                        if (asText)
+                            uiprops::releaseLoweredArrayString(b_, valueOp);
                     }
-                    return SIROpcode::BUILTIN_UI_SET_PROP_STR;
+                    return BuildResult(r, SadTypeKind::Pointer);
                 };
 
                 auto lowerValueWidget = [&](SIROpcode factoryOp) -> BuildResult {
@@ -219,14 +253,23 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     if (!argResults.empty())
                     {
-                        SIROpcode op = primaryPropOpcode(argResults[0].type, sad::ui::props::VALUE);
+                        // (AR) المصفوفةُ قيمةَ خاصّيّةٍ تُصيَّرُ نصًّا كما يفعلُ المفسّر
+                        //      (`toString`) — وإلّا بلغَ مؤشّرُها خانةَ `const char*`.
+                        SIROperand valueOp = argOperands[0];
+                        const bool asText = uiprops::lowerArrayValueToString(
+                            b_, valueOp, argResults[0].type, argResults[0].elementType);
+                        SIROpcode op = asText
+                                           ? SIROpcode::BUILTIN_UI_SET_PROP_STR
+                                           : primaryPropOpcode(argResults[0].type, sad::ui::props::VALUE);
                         SIRInstruction sp(op);
                         sp.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer)); // العنصر
                         // (AR) مفتاحُ «قيمة» من مصدرِ الحقيقةِ لا سلسلةً حرفيّة.
                         sp.operands.push_back(SIROperand::ConstantString(sad::ui::props::VALUE));
-                        sp.operands.push_back(argOperands[0]);
+                        sp.operands.push_back(valueOp);
                         if (b_.currentBlock_)
                             b_.currentBlock_->instructions.push_back(sp);
+                        if (asText)
+                            uiprops::releaseLoweredArrayString(b_, valueOp);
                     }
                     return BuildResult(r, SadTypeKind::Pointer);
                 };
@@ -501,54 +544,65 @@ namespace Sad
                 if (funcName == Bn::UIWidgets::TEXT_WIDGET ||
                     funcName == Bn::CompilerUi::UI_4)
                 {
+                    // (AR) #٤٠٠: الوسيطُ غيرُ النصّيِّ **لا يُمرَّرُ إلى المصنع**.
+                    //   `sad_text` توقيعُها `const char*`، وجسرُ الوسائطِ يحوّلُ الصحيحَ
+                    //   بـ`IntToPtr` فيُقرأُ العنوانُ ٤٢ نصًّا: `نص_عنصر(42)` ⇒ **SIGSEGV**
+                    //   بينما المفسّرُ يطبعُ «نص(محتوى: 42)» (يفحصُ بنيةَ القيمةِ فيخزّنُها
+                    //   صحيحًا). فنُنشئُ العقدةَ فارغةً ثمّ نكتبُ «محتوى» بالأوپكودِ الذي
+                    //   يناسبُ النوعَ — وهو المسارُ الذي رقّاه #396 للخاصّيّةِ الأولى.
+                    // (EN) #400: a non-string argument must not reach the factory: `sad_text`
+                    //   takes `const char*` and the arg bridge IntToPtr's an integer, so
+                    //   `نص_عنصر(42)` dereferences address 42 (SIGSEGV) while the interpreter
+                    //   prints `نص(محتوى: 42)`. Create the node empty and write «محتوى»
+                    //   with the type-appropriate opcode instead.
+                    const bool contentArgIsText =
+                        !argResults.empty() && argResults[0].type == SadTypeKind::String;
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT);
-                    if (!argOperands.empty())
+                    if (!argOperands.empty() && contentArgIsText)
                         inst.operands.push_back(argOperands[0]);
                     inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
+                    if (!argOperands.empty() && !contentArgIsText)
+                    {
+                        // (AR) والمصفوفةُ تُصيَّرُ نصًّا أوّلًا: بدونِه يُختارُ لها
+                        //      STR فيُقرأُ مؤشّرُ `SadArray` بـ`std::string(const char*)`
+                        //      ⇒ قراءةٌ خارجَ الحدّ. المفسّرُ يُصيِّرُها بـ`toString`.
+                        SIROperand valueOp = argOperands[0];
+                        const bool asText = uiprops::lowerArrayValueToString(
+                            b_, valueOp, argResults[0].type, argResults[0].elementType);
+                        SIRInstruction sp(
+                            asText ? SIROpcode::BUILTIN_UI_SET_PROP_STR
+                                   : primaryPropOpcode(argResults[0].type, sad::ui::props::CONTENT));
+                        sp.operands.push_back(SIROperand::Register(r, SadTypeKind::Pointer));
+                        sp.operands.push_back(SIROperand::ConstantString(sad::ui::props::CONTENT));
+                        sp.operands.push_back(valueOp);
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(sp);
+                        if (asText)
+                            uiprops::releaseLoweredArrayString(b_, valueOp);
+                    }
                     return BuildResult(r, SadTypeKind::Pointer);
                 }
 
                 // ─── نص_منسق(نص,حجم,أحمر,أخضر,أزرق,شفافية) / sad_text_styled(...) ───
                 if (funcName == Bn::CompilerUi::UI_5)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT_STYLED);
-                    for (auto &a : argOperands)
-                        inst.operands.push_back(a);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_TEXT_STYLED, sad::ui::props::CONTENT, 0);
+                    }
 
                 // ─── زر(عنوان,دالة_ضغط,بيانات) / sad_button(label,cb,data) ───
                 if (funcName == Bn::UIWidgets::BUTTON)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_BUTTON);
-                    for (auto &a : argOperands)
-                        inst.operands.push_back(a);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_BUTTON, sad::ui::props::TITLE, 0);
+                    }
 
                 // ─── زر_نوع(عنوان,نوع,لون,دالة,بيانات) / sad_button_variant(...) ───
                 if (funcName == Bn::CompilerUi::UI_7)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_BUTTON_VARIANT);
-                    for (auto &a : argOperands)
-                        inst.operands.push_back(a);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_BUTTON_VARIANT, sad::ui::props::TITLE, 0);
+                    }
 
                 // ─── زر_أيقونة() / sad_icon_button(icon,cb,data) ───
                 // (AR) نطابق الاسم المعياريّ «زر_أيقونة» (UIWidgets::ICON_BUTTON،
@@ -558,41 +612,20 @@ namespace Sad
                 //      the legacy alias «زر_ايقونة» (UI_8) is rejected by both engines.
                 if (funcName == Bn::UIWidgets::ICON_BUTTON)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_ICON_BUTTON);
-                    for (auto &a : argOperands)
-                        inst.operands.push_back(a);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_ICON_BUTTON, sad::ui::props::ICON, 0);
+                    }
 
                 // ─── زر_عائم(ايقونة,لون_r,لون_g,لون_b,لون_a,دالة,بيانات) / sad_fab(...) ───
                 if (funcName == Bn::UIWidgets::FAB)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_FAB);
-                    for (auto &a : argOperands)
-                        inst.operands.push_back(a);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_FAB, sad::ui::props::ICON, 0);
+                    }
 
                 // ─── حقل_نص(تلميح,دالة,بيانات) / sad_text_field(hint,cb,data) ───
                 if (funcName == Bn::UIWidgets::TEXT_FIELD)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT_FIELD);
-                    for (auto &a : argOperands)
-                        inst.operands.push_back(a);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_TEXT_FIELD, sad::ui::props::HINT, 0);
+                    }
 
                 // ─── خانة_اختيار() / sad_checkbox(cb,data) ───
                 // (AR) نطابق الاسم المعياريّ «خانة_اختيار» (UIWidgets::CHECKBOX) فقط،
@@ -635,15 +668,8 @@ namespace Sad
                 // ─── شريط_تطبيق(عنوان) / sad_app_bar(title) ───
                 if (funcName == Bn::UIWidgets::APP_BAR)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_BAR);
-                    if (!argOperands.empty())
-                        inst.operands.push_back(argOperands[0]);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_APP_BAR, sad::ui::props::TITLE, 1);
+                    }
 
                 // ─── فاصل() / sad_spacer() ───
                 if (funcName == Bn::UIWidgets::SPACER)
@@ -699,41 +725,20 @@ namespace Sad
                 // ─── صورة(مصدر) / sad_image(source) ───
                 if (funcName == Bn::UIWidgets::IMAGE)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_IMAGE);
-                    if (!argOperands.empty())
-                        inst.operands.push_back(argOperands[0]);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_IMAGE, sad::ui::props::SOURCE, 1);
+                    }
 
                 // ─── أيقونة(اسم) / sad_icon(name) ───
                 if (funcName == Bn::UIWidgets::ICON)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_ICON);
-                    if (!argOperands.empty())
-                        inst.operands.push_back(argOperands[0]);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_ICON, sad::ui::props::NAME, 1);
+                    }
 
                 // ─── زر_نصي(عنوان) / sad_text_button(label) ───
                 if (funcName == Bn::UIWidgets::TEXT_BUTTON)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT_BUTTON);
-                    if (!argOperands.empty())
-                        inst.operands.push_back(argOperands[0]);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_TEXT_BUTTON, sad::ui::props::TITLE, 1);
+                    }
 
                 // ─── شبكة(أبناء...) / sad_grid() ───
                 if (funcName == Bn::UIWidgets::GRID)
@@ -791,28 +796,14 @@ namespace Sad
                 // ─── شريط_إشعار(رسالة) / sad_snackbar(msg) ───
                 if (funcName == Bn::UIWidgets::SNACKBAR)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_SNACKBAR);
-                    if (!argOperands.empty())
-                        inst.operands.push_back(argOperands[0]);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_SNACKBAR, sad::ui::props::MESSAGE, 1);
+                    }
 
                 // ─── تلميح(نص) / sad_tooltip(text) ───
                 if (funcName == Bn::UIWidgets::TOOLTIP)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_TOOLTIP);
-                    if (!argOperands.empty())
-                        inst.operands.push_back(argOperands[0]);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_TOOLTIP, sad::ui::props::TEXT, 1);
+                    }
 
                 // ─── شريط_تقدم(قيمة) / sad_progress(value) ───
                 if (funcName == Bn::UIWidgets::PROGRESS)
@@ -842,15 +833,8 @@ namespace Sad
                 // ─── منطقة_نص(تلميح) / sad_text_area(hint) ───
                 if (funcName == Bn::UIWidgets::TEXT_AREA)
                 {
-                    std::string r = b_.newTempRegister();
-                    SIRInstruction inst(SIROpcode::BUILTIN_UI_TEXT_AREA);
-                    if (!argOperands.empty())
-                        inst.operands.push_back(argOperands[0]);
-                    inst.result = SIROperand::Register(r, SadTypeKind::Pointer);
-                    if (b_.currentBlock_)
-                        b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(r, SadTypeKind::Pointer);
-                }
+                        return lowerTextSlotFactory(SIROpcode::BUILTIN_UI_TEXT_AREA, sad::ui::props::HINT, 1);
+                    }
 
                 // ─── درج(أبناء...) / sad_drawer() ───
                 if (funcName == Bn::UIWidgets::DRAWER)

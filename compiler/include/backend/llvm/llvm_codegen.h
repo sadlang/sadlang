@@ -866,7 +866,7 @@ namespace Sad
             void ensureArrayToStringStrHelper() { strs_->ensureArrayToStringStrHelper(); } // نظير نصّيّ __sad_array_to_string_str / String variant
             void ensureArrayToStringFloatHelper() { strs_->ensureArrayToStringFloatHelper(); } // نظير عشريّ __sad_array_to_string_float / Float variant
             void ensureArrayToStringDynHelper() { strs_->ensureArrayToStringDynHelper(); } // نظير موسوم __sad_array_to_string_dyn / boxed variant
-            void ensureMapToStringHelper() { strs_->ensureMapToStringHelper(); } // __sad_map_to_string / Map-to-string helper
+            void ensureMapToStringHelper(bool quoteKeys) { strs_->ensureMapToStringHelper(quoteKeys); } // __sad_map_to_string / Map-to-string helper
             llvm::Value *emitStringCharAt(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCharAt(inst); }
             llvm::Value *emitStringCmp(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCmp(inst); }
             llvm::Value *emitStringOrdCmp(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringOrdCmp(inst); }

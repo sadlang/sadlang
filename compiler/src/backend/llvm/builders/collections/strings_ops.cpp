@@ -742,9 +742,14 @@ namespace Sad
         // (EN) Map-to-string helper mirroring the interpreter's format: quoted keys, values by
         //      type tag. Two passes (size then fill) using allocas for counters. Mallocs and returns.
         // ================================================================
-        void StringsCodeGen::ensureMapToStringHelper()
+        void StringsCodeGen::ensureMapToStringHelper(bool quoteKeys)
         {
-            llvm::Function *existing = cg_.module_->getFunction("__sad_map_to_string");
+            // (AR) اسمانِ لنسختَين: المقتبسةُ للطباعةِ وغيرُ المقتبسةِ لـ`نص(خريطة)`
+            //      وخاصّيّةِ عنصرِ الواجهة — الفرقُ حرفانِ اثنان لا خوارزميّةٌ ثانية.
+            const char *const helperName =
+                quoteKeys ? ::Sad::Compiler::kMapToStringQuotedFn
+                          : ::Sad::Compiler::kMapToStringPlainFn;
+            llvm::Function *existing = cg_.module_->getFunction(helperName);
             if (existing && !existing->empty())
                 return;
 
@@ -755,7 +760,7 @@ namespace Sad
 
             llvm::FunctionType *fnTy = llvm::FunctionType::get(ptrTy, {ptrTy}, false);
             llvm::Function *fn = llvm::Function::Create(
-                fnTy, llvm::Function::InternalLinkage, "__sad_map_to_string", cg_.module_.get());
+                fnTy, llvm::Function::InternalLinkage, helperName, cg_.module_.get());
             llvm::Argument *mapArg = fn->getArg(0);
             mapArg->setName("map");
 
@@ -821,8 +826,45 @@ namespace Sad
             llvm::BasicBlock *flNext = llvm::BasicBlock::Create(*cg_.context_, "fl.next", fn);
             llvm::BasicBlock *flEnd = llvm::BasicBlock::Create(*cg_.context_, "fl.end", fn);
 
-            // ── entry: تحميل الحقول + alloca العدّادات ──
+            // ════════════════════════════════════════════════════════════════
+            // (AR) **حارسُ المؤشّرِ العدم — أوّلَ تعليمةٍ لا بعدَها.** الجسمُ يفكُّ
+            //   `map` فورًا لقراءةِ السَّعةِ والمصفوفات، فخريطةٌ غيرُ مُهيّأةٍ أو دالّةٌ
+            //   مصرَّحةُ الإرجاعِ `خريطة` تُرجِعُ `لاشيء` ⇒ **SIGSEGV** بينما المفسّرُ
+            //   يطبعُ «لاشيء». وذراعُ الخريطةِ في `dynToString` تملكُ هذا الحارسَ
+            //   أصلًا (dyn.ts.map.null) — فأُخِذَتِ الصيغةُ منها وأُسقِطَ حارسُها.
+            //   ويعودُ **مخزنٌ مُخصَّصٌ طازج** لا ثابتًا عامًّا: عقدُ الدالّةِ أنّ
+            //   الناتجَ يملكُه المُنادي ويُحرِّرُه، وإعادةُ ثابتٍ هنا تجعلُ `free`
+            //   عندَ المستهلِكِ انهيارًا ثانيًا.
+            // (EN) Null-pointer guard as the FIRST instruction: the body dereferences
+            //   `map` immediately, so an uninitialised map (or a function declared to
+            //   return خريطة returning لاشيء) meant SIGSEGV while the interpreter
+            //   prints «لاشيء». dynToString's map arm already has this guard — the
+            //   spelling was copied from it and the guard was dropped. Returns a FRESH
+            //   malloc'd buffer, never a global constant, so the caller's free stays valid.
+            // ════════════════════════════════════════════════════════════════
+            llvm::BasicBlock *nullArg = llvm::BasicBlock::Create(*cg_.context_, "m2s.null", fn);
+            llvm::BasicBlock *liveArg = llvm::BasicBlock::Create(*cg_.context_, "m2s.live", fn);
             B.SetInsertPoint(entry);
+            B.CreateCondBr(
+                B.CreateICmpEQ(mapArg,
+                               llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)),
+                               "m2s.isnull"),
+                nullArg, liveArg);
+
+            B.SetInsertPoint(nullArg);
+            {
+                // (AR) نصُّ العرضِ من مصدرِ الحقيقةِ الموحَّد لا حرفيّةً خامّة.
+                llvm::Value *nullText =
+                    B.CreateGlobalStringPtr(::Sad::Types::repr::kNullDisplay, "m2s.nulltext");
+                const size_t nullTextSize = ::Sad::Types::repr::kNullDisplay.size() + 1;
+                llvm::Value *nullBuf = cg_.emitMalloc(C0(static_cast<int64_t>(nullTextSize)), "m2s.nullbuf");
+                B.CreateCall(sprintfFn,
+                             {nullBuf, B.CreateGlobalStringPtr("%s", "m2s.nullfmt"), nullText});
+                B.CreateRet(nullBuf);
+            }
+
+            // ── entry: تحميل الحقول + alloca العدّادات ──
+            B.SetInsertPoint(liveArg);
             auto loadField = [&](int idx, const char *nm)
             {
                 llvm::Value *gep = B.CreateGEP(i64Ty, mapArg, C0(idx), nm);
@@ -942,9 +984,23 @@ namespace Sad
             //      name. Now that floats are formatted here with `__sad_format_double` (%.6f),
             //      DBL_MAX reaches about 316 characters ⇒ 512 is the safe unified bound for every
             //      non-string tag (a named constant, not a bare number).
-            constexpr int64_t kNonStringValueReserveBytes = 512;
-            B.CreateStore(B.CreateAdd(B.CreateLoad(i64Ty, accA, "acc.v3"),
-                                      C0(kNonStringValueReserveBytes), "acc.f"),
+            // (AR) والحدُّ **يُفرَّقُ بالوسم** لا يُوحَّدُ على أسوأِ الحالات: العشريُّ
+            //      وحدَه هو الذي يبلغُ ٣١٦ محرفًا (DBL_MAX بـ%.6f)، أمّا الصحيحُ فأطولُه
+            //      ‑9223372036854775808 (٢٠ محرفًا) والمنطقيُّ والعدمُ أقصرُ. وتوحيدُ ٥١٢
+            //      لكلِّ وسمٍ كان يحجزُ نحوَ كيلوبايتٍ لخريطةٍ من مدخلَين عدديَّين نصُّها
+            //      ٢٠ محرفًا — والحجزُ هنا **يُقاسُ في الذاكرةِ الحيّة** لأنّ ناتجَ
+            //      `نص(خريطة)` يهربُ إلى البرنامجِ ولا يُحرَّر (نموذجُ الملكيّةِ القائم).
+            // (EN) The bound is now per-tag rather than worst-case-for-all: only Float can
+            //      reach ~316 chars; an i64 needs 20 and bool/null less. The unified 512
+            //      reserved ~1 KB for a two-integer map whose text is 20 chars — and the
+            //      reservation is live memory, since نص(map)'s result escapes unfreed.
+            constexpr int64_t kFloatValueReserveBytes = 512;
+            constexpr int64_t kScalarValueReserveBytes = 24;
+            llvm::Value *szIsFloatTag = B.CreateICmpEQ(
+                szType, C0(Sad::Compiler::kMapValueTagFloat), "sz.is.float.tag");
+            llvm::Value *szReserve = B.CreateSelect(szIsFloatTag, C0(kFloatValueReserveBytes),
+                                                    C0(kScalarValueReserveBytes), "sz.reserve");
+            B.CreateStore(B.CreateAdd(B.CreateLoad(i64Ty, accA, "acc.v3"), szReserve, "acc.f"),
                           accA);
             B.CreateBr(szNext);
 
@@ -1001,9 +1057,13 @@ namespace Sad
 
             B.SetInsertPoint(flKey);
             B.CreateStore(C0(0), firstA);
-            writeChar('"');
+            // (AR) الاقتباسُ اختياريّ: تمريرةُ الحجمِ تحجزُ للحرفَين دائمًا، فإسقاطُهما
+            //      يزيدُ فسحةً ولا ينقصُها — لا تجاوزَ مخزن.
+            if (quoteKeys)
+                writeChar('"');
             writeFmt(fmtS, flKeyPtr); // اسم المفتاح
-            writeChar('"');
+            if (quoteKeys)
+                writeChar('"');
             writeChar(':');
             writeChar(' ');
             llvm::Value *flType = loadI64Elem(typesArr, fi, "fl.type");

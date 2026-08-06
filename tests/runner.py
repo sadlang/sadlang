@@ -322,7 +322,20 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
         )
         if compile_result.returncode != 0:
             elapsed = (time.perf_counter() - start) * 1000
-            return "", elapsed, f"COMPILE_ERROR: {compile_result.stderr.strip()}"
+            # (AR) المصرّفُ يكتبُ تقريرَ التشخيصِ في stdout، وسقوطُه بإشارةٍ لا يكتبُ
+            #      شيئًا في الاثنَين؛ فبـstderr وحدَه يظهرُ الإخفاقُ في CI بلا سبب.
+            #      رمزُ الخروجِ يُذكَرُ دائمًا: السالبُ إشارةٌ (‑11 = SIGSEGV، ‑6 = إجهاض).
+            # (EN) The compiler writes its diagnostic report to stdout, and a crash by
+            #      signal writes to neither; stderr alone makes a CI failure causeless.
+            #      Always report the exit code: negative means a signal.
+            # (AR) ذيلُ stdout لا رأسُه: بناءُ التنقيحِ يسبقُ الخطأَ بمئاتِ أسطرِ [DEBUG].
+            # (EN) stdout tail, not head: a Debug build precedes the error with
+            #      hundreds of [DEBUG] lines.
+            detail = compile_result.stderr.strip()
+            if not detail:
+                detail = "[ذيل stdout] " + compile_result.stdout.strip()[-600:]
+            return "", elapsed, (f"COMPILE_ERROR (رمز {compile_result.returncode}): "
+                                 f"{detail}")
 
         if not exe_path.exists():
             elapsed = (time.perf_counter() - start) * 1000
@@ -1041,9 +1054,16 @@ def print_result(result: TestResult, verbose: bool, use_colors: bool):
         print(f"         ↳ {result.error_message[:800]}")
     elif verbose and result.error_message:
         print(f"         ↳ {result.error_message}")
-    if verbose and result.status == Status.FAIL_OUTPUT:
-        print(f"         مفسر:  {result.interp_output[:100]!r}")
-        print(f"         مترجم: {result.compiler_output[:100]!r}")
+    # (AR) اختلافُ المخرَجاتِ يُطبَعُ دائمًا كذلك: بدونه يظهرُ FAIL_OUTPUT في CI
+    #      اسمًا بلا سبب، ولا يُشخَّصُ عيبٌ خاصٌّ بمنصّةٍ إلّا بإعادةِ تشغيلٍ يدويّة.
+    # (EN) Always surface the output mismatch too: without it a CI FAIL_OUTPUT is a
+    #      bare name, and a platform-specific defect cannot be triaged from the log.
+    if result.status == Status.FAIL_OUTPUT:
+        width = 400 if verbose else 200
+        expected_joined = "\n".join(result.metadata.expected_output)
+        print(f"         متوقّع: {expected_joined[:width]!r}")
+        print(f"         مفسر:  {result.interp_output[:width]!r}")
+        print(f"         مترجم: {result.compiler_output[:width]!r}")
 
 
 def classify_results(results: list[TestResult]) -> dict:

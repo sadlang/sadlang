@@ -417,6 +417,44 @@ namespace Sad
             }
 
             // ================================================================
+            // (AR) الخريطة: `نص(خريطة)` كان يُلوَّن هنا على **مؤشّرِ الخريطة** فيُنسَّق
+            //   `%lld` ⇒ يُطبَعُ عنوانٌ خام: `نص({"أ": 1})` تُعطي «1825978152560» بينما
+            //   المفسّرُ يعطي «{أ: 1}». عائلةُ ISSUE-080 نفسُها التي أُغلِقت للمصفوفاتِ
+            //   بـARRAY_TO_STRING ولم تبلغِ الخرائط. والصيغةُ هنا **غيرُ المقتبسة**
+            //   (نظيرُ `toString` في المفسّر) لا صيغةُ الطباعةِ المقتبسة — للمفسّرِ
+            //   صيغتان مقيستان: `اطبع(خريطة)` ⇒ «{"أ": 1}» و`نص(خريطة)` ⇒ «{أ: 1}».
+            //   والمدى **يُقالُ ولا يُوسَّع**: الشرطُ على النوعِ **الساكن**، فخريطةٌ تعبرُ
+            //   `أي` لا تُلتقَطُ هنا وتبقى على المسارِ العدديّ — عائلةٌ قائمةٌ يشترك فيها
+            //   `نص(أي = مصفوفة)` أيضًا، لا يُغلِقُها هذا الفرعُ ولا يدّعي إغلاقَها.
+            //   وأمّا المخزن: يهربُ إلى البرنامجِ (قيمةُ `نص()` نفسُها) فلا يُحرَّرُ هنا —
+            //   وهذا نموذجُ الملكيّةِ القائمُ لكلِّ تحويلاتِ النصِّ لا استثناءٌ لها. وقياسُ
+            //   «المصفوفةُ لا تُسرّب» **مضلّل**: مساعِدُها يُدمَجُ فيُرقَّى تخصيصُه إلى مكدّس،
+            //   ومساعِدُ الخريطةِ أكبرُ من أن يُدمَجَ فيظهرُ الأثرُ. الفارقُ في التحسينِ لا
+            //   في الملكيّة، والتحريرُ العامُّ يقتضي تمريرةَ ملكيّةٍ لا رقعةً هنا.
+            // (EN) Map: `نص(map)` used to lower onto the map POINTER and format it %lld,
+            //   printing a raw address. Same ISSUE-080 family closed for arrays but never
+            //   reaching maps. The UNQUOTED spelling is used here (the interpreter's
+            //   toString), not the quoted print spelling — it has two, measured.
+            // ================================================================
+            if (inst->operands[0].dataType == SadTypeKind::Map)
+            {
+                auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                llvm::Value *mapPtr = val;
+                if (mapPtr->getType()->isIntegerTy())
+                    mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "m2s.i2p");
+                if (mapPtr->getType()->isPointerTy())
+                {
+                    cg_.ensureMapToStringHelper(/*quoteKeys=*/false);
+                    llvm::FunctionCallee mapHelper = cg_.module_->getOrInsertFunction(
+                        ::Sad::Compiler::kMapToStringPlainFn, llvm::FunctionType::get(ptrTy, {ptrTy}, false));
+                    llvm::Value *mapText = cg_.builder_->CreateCall(mapHelper, {mapPtr}, "m2s.result");
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = mapText;
+                    return mapText;
+                }
+            }
+
+            // ================================================================
             // (AR) ISSUE-076/082/084 (ب″): معامل ديناميّ Any = حمولة ADT موسومة.
             //      نص(Any) يُلوَّن I64_TO_STRING (لا مسار سلسلة ديناميّ)، فنفكّ الوسم رباعيًّا
             //      هنا زمنَ التشغيل: 00 نصّ · 01 صندوق عشريّ · 10 صحيح · 11 منطقيّ. يعبر حدود

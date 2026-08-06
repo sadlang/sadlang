@@ -298,9 +298,9 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "print.map.i2p");
                     if (mapPtr->getType()->isPointerTy())
                     {
-                        cg_.ensureMapToStringHelper();
+                        cg_.ensureMapToStringHelper(/*quoteKeys=*/true);
                         llvm::FunctionType *mHelperType = llvm::FunctionType::get(ptrTy, {ptrTy}, false);
-                        llvm::FunctionCallee mHelperFn = cg_.module_->getOrInsertFunction("__sad_map_to_string", mHelperType);
+                        llvm::FunctionCallee mHelperFn = cg_.module_->getOrInsertFunction(::Sad::Compiler::kMapToStringQuotedFn, mHelperType);
                         llvm::Value *mStr = cg_.builder_->CreateCall(mHelperFn, {mapPtr}, "print.map.str");
                         llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
                         cg_.builder_->CreateCall(printfFunc, {fmt, mStr});

@@ -205,48 +205,18 @@ inline size_t utf8CharCount(const std::string& text) {
     return count;
 }
 
-inline float getNumericProp(const IRProperty* prop, float defaultVal = 0.0f) {
-    if (!prop) return defaultVal;
-    if (auto* v = std::get_if<double>(&prop->value))
-        return static_cast<float>(*v);
-    if (auto* vi = std::get_if<int64_t>(&prop->value))
-        return static_cast<float>(*vi);
-    return defaultVal;
-}
-
-inline Color parseColorProp(const IRProperty* prop, const Color& defaultColor) {
-    if (!prop) return defaultColor;
-    auto* cs = std::get_if<std::string>(&prop->value);
-    if (!cs) return defaultColor;
-    auto nc = arabicNameToColor(*cs);
-    if (nc) return Color::fromNamed(*nc);
-    if (cs->size() == 7 && (*cs)[0] == '#') {
-        unsigned int hex = std::stoul(cs->substr(1), nullptr, 16);
-        return {static_cast<float>((hex >> 16) & 0xFF) / 255.0f,
-                static_cast<float>((hex >> 8) & 0xFF) / 255.0f,
-                static_cast<float>(hex & 0xFF) / 255.0f, 1.0f};
-    }
-    if (cs->size() == 9 && (*cs)[0] == '#') {
-        unsigned int hex = std::stoul(cs->substr(1), nullptr, 16);
-        return {static_cast<float>((hex >> 24) & 0xFF) / 255.0f,
-                static_cast<float>((hex >> 16) & 0xFF) / 255.0f,
-                static_cast<float>((hex >> 8) & 0xFF) / 255.0f,
-                static_cast<float>(hex & 0xFF) / 255.0f};
-    }
-    return defaultColor;
-}
-
-inline bool getBoolProp(const IRProperty* prop, bool defaultVal = false) {
-    if (!prop) return defaultVal;
-    if (auto* b = std::get_if<bool>(&prop->value)) return *b;
-    if (auto* s = std::get_if<std::string>(&prop->value)) {
-        return (*s == "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad" ||
-                *s == "صحيح" || *s == "true" || *s == "1" ||
-                *s == "\xd9\x85\xd9\x81\xd8\xb9\xd9\x84" || *s == "مفعل");
-    }
-    if (auto* i = std::get_if<int64_t>(&prop->value)) return *i != 0;
-    return defaultVal;
-}
+// (AR) حُذِفت من هنا ثلاثُ نسخٍ ميّتةٍ من محلّلاتِ الخصائصِ
+//   (`getNumericProp` · `parseColorProp` · `getBoolProp`) — بقيّةُ توحيدِ #395،
+//   بصفرِ استعمالٍ في `backends/desktop/src/*.cpp` كلِّها.
+//   ولم يكن بقاؤُها حياديًّا: كانت **حقيقةً ثانيةً تنجرف** — نسخةُ `parseColorProp`
+//   هنا بلا حارسِ `stoul` (تُنهي البرنامجَ على لونٍ معطوب) بعدَ أن حُرِست نسخةُ
+//   القلب، ونسخةُ `getBoolProp` تقارنُ **سلاسلَ خامّةً** (`"صحيح"`/`"true"`/`"1"`/
+//   `"مفعل"`) بينما نسخةُ القلبِ تقرأُ ثوابتَ `propval::` المولَّدة.
+//   المرجعُ الوحيدُ الآن: `features/graphics/core/src/platform_renderer.cpp`.
+// (EN) Three dead duplicates of the property parsers were removed here (the tail of
+//   the #395 unification): zero uses across backends/desktop/src. They were not
+//   harmless — a second truth that had already drifted (no stoul guard, raw
+//   boolean literals instead of the generated propval:: constants).
 
 // ═══════════════════════════════════════════════════════════════════
 // (AR) بحثٌ موحَّد عن نصّ العنصر عبر قائمة مفاتيح مرتَّبة بالأولويّة.

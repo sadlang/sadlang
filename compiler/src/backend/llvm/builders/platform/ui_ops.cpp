@@ -20,6 +20,9 @@
 #include "llvm_codegen.h"
 #include "builders/platform/ui_codegen.h"
 #include "sad_dyn_repr.h" // (AR) فكّ القيمة الديناميّة %SadDyn (unpackDouble/isSadDyn)
+// (AR) تصنيفُ المقبضِ المُبهَمِ — التعريفُ نفسُه الذي يستعملُه مسارا الخفضِ الأماميّان،
+//      فلا يتباعدُ حكمُ «ما لا يجوزُ أن يُقرأَ نصًّا» بين الطبقتَين.
+#include "builders/ui_prop_lowering.h"
 #include "sir_constants.h" // (م1-ج) kSadNullSentinel — حارس بانِي يُرجع لاشيء/void
 #include "sad_event_layout_generated.h" // (② rfcs#46) تخطيط «حدث» المولَّد (SAD_EVENT_FIELDS/POD/الاسم)
 #include <llvm/IR/DerivedTypes.h>
@@ -1505,6 +1508,57 @@ llvm::Value* UICodeGen::emitUiSetPropDyn(std::shared_ptr<SIRInstruction> inst) {
     llvm::Value* widget = cg_.resolveOperand(inst->operands[0]);
     llvm::Value* name = cg_.resolveOperand(inst->operands[1]);
     llvm::Value* raw = cg_.resolveOperand(inst->operands[2]);
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) مقبضٌ مُبهَمٌ (عنصرُ واجهةٍ/كائنٌ/خريطة) **لا يُوسَمُ نصًّا**. الوسمُ العامُّ
+    //   `toDyn` يُسقِطُ `Pointer` على `Str` — وهو صحيحٌ في مسارِ الحساب حيثُ المؤشّرُ
+    //   نصٌّ فعلًا، وخاطئٌ هنا: `صندوق().لون(زر("س"))` كانت تطبعُ بايتاتِ كومةٍ خامّة
+    //   لأنّ وقتَ التشغيلِ يفكُّ الحمولةَ `const char*`. الوسمُ الكائنيُّ يجعلُ الحقلَ
+    //   يُترَكُ بلا كتابةٍ (دَينٌ مُعلَنٌ: المفسّرُ يُصيِّرُ الكائنَ نصًّا وليس لدى وقتِ
+    //   التشغيلِ هنا مُصيِّرُ كائنات) بدل قراءةٍ خارجَ الحدّ.
+    // (EN) An opaque handle must never be tagged Str: the generic toDyn maps Pointer
+    //   to Str (right for arithmetic, wrong here), so the runtime decoded a widget
+    //   handle as `const char*` and printed raw heap bytes. Tagging it as an object
+    //   leaves the field unwritten (declared debt) instead of reading out of bounds.
+    // ════════════════════════════════════════════════════════════════════════
+    // ════════════════════════════════════════════════════════════════════════
+    // (AR) الخريطةُ **تُصيَّرُ نصًّا** بدل أن تُترَكَ بلا كتابة: المفسّرُ يكتبُ
+    //   «{أ: 1}» (صيغةُ `toString` غيرُ المقتبسة، لا صيغةُ الطباعةِ المقتبسة)،
+    //   والمساعِدُ المولَّدُ نفسُه يُنتِجُها الآن. هذا هو الدَّينُ الذي أُعلِنَ في
+    //   الدفعةِ السابقةِ مسدودًا لا مُبرَّرًا.
+    // (EN) A map is now stringified rather than left unwritten: the interpreter
+    //   writes the UNQUOTED toString spelling, and the generated helper produces it.
+    // ════════════════════════════════════════════════════════════════════════
+    if (!Sad::LLVM::isSadDyn(raw) && inst->operands[2].dataType == SadTypeKind::Map)
+    {
+        llvm::Value* mapPtr = raw;
+        if (mapPtr->getType()->isIntegerTy())
+            mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "prop.map.i2p");
+        if (mapPtr->getType()->isPointerTy())
+        {
+            cg_.ensureMapToStringHelper(/*quoteKeys=*/false);
+            llvm::FunctionCallee mapHelper = cg_.module_->getOrInsertFunction(
+                ::Sad::Compiler::kMapToStringPlainFn, llvm::FunctionType::get(ptrTy, {ptrTy}, false));
+            llvm::Value* mapText = cg_.builder_->CreateCall(mapHelper, {mapPtr}, "prop.map.str");
+            llvm::Value* result = emitUIRuntimeCall(cg_, "sad_set_prop_str", voidTy,
+                {ptrTy, ptrTy, ptrTy}, {widget, name, mapText});
+            // (AR) المساعِدُ يُخصّص و`sad_set_prop_str` ينسخ ⇒ التحريرُ فورًا.
+            cg_.emitFreeCall(mapText);
+            return result;
+        }
+    }
+    const bool opaqueHandle =
+        !Sad::LLVM::isSadDyn(raw) &&
+        Sad::Compiler::Frontend::UIProps::isOpaqueHandleKind(inst->operands[2].dataType);
+    if (opaqueHandle)
+    {
+        llvm::Value* handleKind =
+            llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Obj);
+        llvm::Value* handlePayload = raw->getType()->isPointerTy()
+            ? cg_.builder_->CreatePtrToInt(raw, i64Ty, "prop.handle.i64")
+            : cg_.builder_->CreateIntCast(raw, i64Ty, false);
+        return emitUIRuntimeCall(cg_, "sad_set_prop_dyn", voidTy,
+            {ptrTy, ptrTy, i8Ty, i64Ty}, {widget, name, handleKind, handlePayload});
+    }
     llvm::Value* dyn = Sad::LLVM::isSadDyn(raw)
         ? raw
         : Sad::LLVM::toDyn(cg_, raw, inst->operands[2].dataType);
@@ -1686,9 +1740,52 @@ llvm::Value* UICodeGen::emitUiPropJoinAdd(std::shared_ptr<SIRInstruction> inst) 
     }
     [[fallthrough]];
     default: {
-        // (AR) نوعٌ غير متوقَّع (مؤشّر/كائن/مصفوفة) ⇒ مسارٌ نصّيٌّ آمن بحارس مؤشّر
-        //      (نظير toString، يتدهور بأمان) بدل FPToSI على غير عدديّ.
-        llvm::Value* s = raw->getType()->isPointerTy()
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) «حارسُ المؤشّرِ» هنا كان يحرسُ **النوعَ الخاطئ**: يسألُ «أهو مؤشّرٌ؟»
+        //   ويُمرّرُ كلَّ مؤشّرٍ إلى `const char*`. والمقبضُ مؤشّرٌ أيضًا — فكان
+        //   `صندوق().حدود(زر("س")، 3)` يقرأُ الكومةَ حتّى أوّلِ صفرٍ عارضٍ فيطبعُ
+        //   بايتاتٍ **تختلفُ في كلِّ تشغيل** (وقد يعبرُ الصفحةَ فيُسقِطَ البرنامج).
+        //   السؤالُ الصحيحُ عن **نوعِ SIR** لا عن تمثيلِ LLVM: النصُّ وحدَه يُمرَّرُ،
+        //   وما عداه يُمرَّرُ عدمًا فيُدمَجُ فارغًا — غيابٌ مُعلَنٌ كنظيرِه في
+        //   `sad_set_prop_dyn`، لا قراءةٌ خارجَ الحدّ.
+        // (EN) The old "pointer guard" guarded the wrong thing — it asked whether the
+        //   VALUE is a pointer and passed every pointer as `const char*`; a widget
+        //   handle is a pointer too, so it read the heap until a stray NUL and printed
+        //   per-run-varying bytes. Ask about the SIR TYPE instead: only String passes.
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) والنوعُ غيرُ المحسومِ وقتَ الترجمةِ يُستثنى عمدًا فيبقى على سلوكِه:
+        //   معامِلٌ بلا تصريحٍ يحملُ نصًّا حالةٌ واقعيّةٌ شائعة، وحملُه مقبضًا في
+        //   خاصّيّةٍ مدموجةٍ بفواصلَ حالةٌ لا معنى لها. نُضيّقُ على **المقبضِ المحسومِ**
+        //   ولا نكسرُ العاملَ — والتضييقُ الكاملُ يحتاجُ مُجمِّعًا يقبلُ الوسمَ والحمولةَ
+        //   كـ`sad_set_prop_dyn`، وهو أوسعُ من هذه الدفعةِ فيُعلَن.
+        // (EN) Undecided types keep their behaviour on purpose (an untyped parameter
+        //   holding text is common; holding a handle in a comma-joined property is not).
+        //   Full tightening needs a tag+payload accumulator — declared, not silently done.
+        // (AR) والخريطةُ تُصيَّرُ نصًّا هنا أيضًا — نفسُ العلاجِ في نفسِ الطبقةِ لكِلا
+        //   فرعَي المعدِّل (وسيطٌ واحد · وسائطُ متعدّدة)، فلا يعودُ أحدُهما يتباعدُ.
+        if (valOp.dataType == SadTypeKind::Map)
+        {
+            llvm::Value* mapPtr = raw;
+            if (mapPtr->getType()->isIntegerTy())
+                mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "join.map.i2p");
+            if (mapPtr->getType()->isPointerTy())
+            {
+                cg_.ensureMapToStringHelper(/*quoteKeys=*/false);
+                llvm::FunctionCallee mapHelper = cg_.module_->getOrInsertFunction(
+                    ::Sad::Compiler::kMapToStringPlainFn, llvm::FunctionType::get(ptrTy, {ptrTy}, false));
+                llvm::Value* mapText = cg_.builder_->CreateCall(mapHelper, {mapPtr}, "join.map.str");
+                llvm::Value* joined = emitUIRuntimeCall(cg_, "sad_prop_join_add_str", voidTy,
+                    {ptrTy, ptrTy}, {widget, mapText});
+                cg_.emitFreeCall(mapText); // المُجمِّعُ ينسخُ عندَ الإضافة
+                return joined;
+            }
+        }
+        // (AR) بلا حارسِ حجمٍ هنا: `operands[1]` مفكوكٌ أصلًا في رأسِ الدالّة، فحارسٌ
+        //   بعدَه بستّةٍ وعشرينَ سطرًا يوحي بأمانٍ لا يوفّرُه.
+        const bool textSafe =
+            (Sad::Compiler::Frontend::UIProps::isTextSafeKind(valOp.dataType) ||
+             Sad::Compiler::Frontend::UIProps::isUndecidedAtCompileTime(valOp.dataType));
+        llvm::Value* s = (textSafe && raw->getType()->isPointerTy())
             ? raw : llvm::ConstantPointerNull::get(ptrTy);
         return emitUIRuntimeCall(cg_, "sad_prop_join_add_str", voidTy, {ptrTy, ptrTy}, {widget, s});
     }

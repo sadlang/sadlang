@@ -1190,7 +1190,23 @@ namespace Sad
             if (mapBB)
             {
                 b.SetInsertPoint(mapBB);
-                cg.ensureMapToStringHelper();
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🚧 **حدٌّ معروفٌ يُعلَنُ هنا ولا يُخبَّأ**: `dynToString` مسارٌ
+                //   واحدٌ يخدمُ مستهلِكَين يطلبانِ صيغتَين مختلفتَين — الطباعةُ تطلبُ
+                //   المقتبسةَ و`نص()` تطلبُ غيرَ المقتبسة. فالاختيارُ هنا **يُصيبُ
+                //   الطباعةَ ويُخطئُ التحويلَ** لحاويةٍ متداخلة:
+                //     `اطبع([1، {"أ":2}])` ⇒ «[1, {"أ": 2}]» في المحرّكَين ✅
+                //     `نص([1، {"أ":2}])`   ⇒ المفسّرُ «[1, {أ: 2}]» والمصرّفُ المقتبسة ❌
+                //   وهذا **سابقٌ لرايةِ الصيغتَين** لا انحدارٌ عنها. وإغلاقُه يقتضي
+                //   عالمَينِ كاملَينِ من المساعِدين (`dynToString` ومساعِدُ المصفوفةِ
+                //   الموسومةِ يستدعي كلٌّ منهما الآخرَ فتتضاعفُ النسخُ) — دفعةٌ مستقلّةٌ
+                //   لا ذيلٌ لهذه. والإبقاءُ على المقتبسةِ هنا يحفظُ الطباعةَ كما هي.
+                // (EN) KNOWN, DECLARED LIMIT: dynToString is one path serving two consumers
+                //   that want different spellings; this choice is right for print and wrong
+                //   for نص() of a NESTED container. Pre-existing, not a regression from the
+                //   flag. Closing it needs two full worlds of mutually-recursive helpers.
+                // ════════════════════════════════════════════════════════════
+                cg.ensureMapToStringHelper(/*quoteKeys=*/true);
                 llvm::Value *mapPtr = b.CreateIntToPtr(payload, ptrTy, "dyn.ts.mapp");
                 llvm::Value *mapIsNull = b.CreateICmpEQ(
                     mapPtr, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)),

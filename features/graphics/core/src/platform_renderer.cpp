@@ -87,6 +87,37 @@ namespace sad
             return defaultVal;
         }
 
+        // (AR) قراءةُ رقمٍ سداسيَّ عشريٍّ **بلا استثناء**: `std::stoul` ترمي
+        //   `std::invalid_argument` على أوّلِ محرفٍ ليس رقمًا سداسيًّا، ولا مُلتقِطَ
+        //   لها في مسارِ الرسمِ ⇒ `.خلفية("#zzzzzz")` **تُنهي البرنامجَ كلَّه** بدل
+        //   الرجوعِ إلى اللونِ الافتراضيّ. والمفسّرُ لا ينهار: لا يفكُّ اللونَ أصلًا
+        //   إلّا عندَ الرسم. فالفحصُ المسبقُ يجعلُ اللونَ المعطوبَ **خطأً في القيمةِ
+        //   لا في حياةِ العمليّة**.
+        // (EN) Parse hex WITHOUT throwing: std::stoul throws on the first non-hex
+        //   char and nothing catches it on the render path, so a malformed colour
+        //   terminates the whole program instead of falling back to the default.
+        static bool tryParseHexDigits(const std::string &digits, unsigned int &out)
+        {
+            if (digits.empty() || digits.size() > 8)
+                return false;
+            unsigned int value = 0;
+            for (char c : digits)
+            {
+                unsigned int digit;
+                if (c >= '0' && c <= '9')
+                    digit = static_cast<unsigned int>(c - '0');
+                else if (c >= 'a' && c <= 'f')
+                    digit = static_cast<unsigned int>(c - 'a') + 10u;
+                else if (c >= 'A' && c <= 'F')
+                    digit = static_cast<unsigned int>(c - 'A') + 10u;
+                else
+                    return false;
+                value = (value << 4) | digit;
+            }
+            out = value;
+            return true;
+        }
+
         // تحويل نص لوني إلى Color
         static Color parseColorProp(const IRProperty *prop, const Color &defaultColor)
         {
@@ -98,16 +129,15 @@ namespace sad
             auto nc = arabicNameToColor(*cs);
             if (nc)
                 return Color::fromNamed(*nc);
-            if (cs->size() == 7 && (*cs)[0] == '#')
+            unsigned int hex = 0;
+            if (cs->size() == 7 && (*cs)[0] == '#' && tryParseHexDigits(cs->substr(1), hex))
             {
-                unsigned int hex = std::stoul(cs->substr(1), nullptr, 16);
                 return {static_cast<float>((hex >> 16) & 0xFF) / 255.0f,
                         static_cast<float>((hex >> 8) & 0xFF) / 255.0f,
                         static_cast<float>(hex & 0xFF) / 255.0f, 1.0f};
             }
-            if (cs->size() == 9 && (*cs)[0] == '#')
+            if (cs->size() == 9 && (*cs)[0] == '#' && tryParseHexDigits(cs->substr(1), hex))
             {
-                unsigned int hex = std::stoul(cs->substr(1), nullptr, 16);
                 return {static_cast<float>((hex >> 24) & 0xFF) / 255.0f,
                         static_cast<float>((hex >> 16) & 0xFF) / 255.0f,
                         static_cast<float>((hex >> 8) & 0xFF) / 255.0f,

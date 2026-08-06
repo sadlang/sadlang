@@ -28,6 +28,8 @@
 #include "utf8_utils.h"
 #include "sad_ui/ui_modifiers.h" // (AR) أسماء معدّلات SadUI (مُولَّد من language-truth) — لا literals
 #include "sad_ui/prop_keys.h"    // (AR) مفاتيح الخصائص + جدول المفاتيح العدديّة (مُولَّد من SoT)
+// (AR) قرارُ خفضِ قيمةِ الخاصّيّة — مشتركٌ مع مسارِ الخاصّيّةِ الأولى فلا نسختانِ تتباعدان.
+#include "builders/ui_prop_lowering.h"
 #include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (RUN_METHOD_NOT_FOUND)
 #include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
 #include "error_codes.h"   // (AR) ErrorCode::RUN_METHOD_NOT_FOUND
@@ -37,6 +39,8 @@
 #include <iostream>
 #include <filesystem>
 #include <optional>
+
+namespace uiprops = Sad::Compiler::Frontend::UIProps;
 
 namespace Sad
 {
@@ -651,6 +655,19 @@ namespace Sad
                     {
                         args.push_back(SIROperand::Register(argResult.registerName, argResult.type));
                     }
+                    // (AR) نوعُ العنصرِ يُنقَلُ مع المعامل: بدونِه تصلُ مصفوفةٌ نصّيّةٌ
+                    //      محمولةٌ في **متغيّر** بـelementType=فراغ فتُصيَّرُ بالمسارِ
+                    //      العدديّ ⇒ «لون: "[140701969330249]"» (عنوانُ المؤشّرِ رقمًا)
+                    //      بينما المفسّرُ «لون: "[أ]"». مقيسٌ: المصفوفةُ الحرفيّةُ كانت
+                    //      تصحُّ والمتغيّرُ يخطئ — فرقٌ لا يراه إلّا اختبارٌ بمتغيّر.
+                    // (EN) Carry the element type onto the operand: without it a string
+                    //      array held in a VARIABLE arrives with elementType=Void and is
+                    //      stringified through the integer path, printing the pointer.
+                    //      (والحارسُ `args.size() > 1` لا `!args.empty()`: `args[0]` هو
+                    //      `self` دائمًا، فالفارغُ مستحيلٌ والحارسُ الأوّلُ ميّتٌ — ولو
+                    //      صحَّ يومًا لكتبَ نوعَ العنصرِ على `self` لا على الوسيط.)
+                    if (args.size() > 1)
+                        args.back().elementType = argResult.elementType;
                 }
 
                 // ========================================================================
@@ -1054,43 +1071,41 @@ namespace Sad
                             //      intValue، لكنّ I64 أوضح دلالةً وأضمن للنوع.)
                             SIROpcode op = SIROpcode::BUILTIN_UI_SET_PROP_BOOL;
                             SIROperand valueOp = SIROperand::ConstantI64(1);
+                            bool arrayValueLoweredToText = false;
                             if (numModifierArgs == 1)
                             {
                                 // (AR) args[1] مبنيّ مسبقًا كثابت/سجلّ (الأسطر ~394–415)؛
                                 //      نُمرّره كما هو ونختار الرمز بحسب نوعه الفعليّ (dataType).
                                 //      نُفرِد الصحيح عن العشريّ ليُخزَّن int64_t كما في المفسّر
                                 //      (widget_builder.cpp: toInt64 ⇒ متغاير int64_t لا double).
-                                const SIROperand &val = args[1];
-                                switch (val.dataType)
-                                {
-                                case SadTypeKind::String:
-                                    op = SIROpcode::BUILTIN_UI_SET_PROP_STR;  break;
-                                case SadTypeKind::Boolean:
-                                    op = SIROpcode::BUILTIN_UI_SET_PROP_BOOL; break;
-                                case SadTypeKind::Integer:
-                                    op = SIROpcode::BUILTIN_UI_SET_PROP_INT;  break;
-                                case SadTypeKind::Float:
-                                    op = SIROpcode::BUILTIN_UI_SET_PROP_NUM;  break;
-                                default:
-                                    // (AR) نوعٌ غير محسوم وقت الترجمة (Any/Unknown): نتيجةُ `/`
-                                    //      نوعها Any لأنّ صحيح/صحيح قد يكون صحيحًا أو عشريًّا
-                                    //      زمنَ التشغيل. كان السقوطُ الأعمى إلى STR يُخزّن مفتاحًا
-                                    //      عدديًّا **نصًّا** فيقرؤه المُرسِّم صفرًا (مقيس بالبكسل على
-                                    //      fb0: «نصف_قطر(22)» قرصٌ بينما «نصف_قطر(قطر / 2)» مربّع).
-                                    //      الحسمُ الآن **بالمفتاح** من مصدر الحقيقة
-                                    //      (value_type: عدد ⇒ isNumericPropKey) لا بتخمين القيمة؛
-                                    //      وغيرُ العدديّ يبقى نصًّا كما كان، فلا تتأثّر «لون»/«عنوان»
-                                    //      العائدة من دوالّ بلا تصريح نوع.
-                                    // (EN) Compile-time-undecided type (Any/Unknown), e.g. the
-                                    //      result of `/`. Blindly falling back to STR stored a
-                                    //      numeric key as text, which the renderer read as 0.
-                                    //      Decide by KEY from the SoT (value_type: عدد) instead;
-                                    //      non-numeric keys keep the string path unchanged.
-                                    op = sad::ui::props::isNumericPropKey(m.c_str())
-                                             ? SIROpcode::BUILTIN_UI_SET_PROP_NUM
-                                             : SIROpcode::BUILTIN_UI_SET_PROP_STR;
-                                    break;
-                                }
+                                SIROperand val = args[1];
+                                // (AR) مصفوفةٌ قيمةَ معدِّلٍ ⇒ تُصيَّرُ نصًّا بالمساعِدِ
+                                //      نفسِه الذي يستعملُه `نص(مصفوفة)`، نظيرَ `toString`
+                                //      في المفسّر: `صندوق().لون(["أ"])` ⇒ «لون: [أ]».
+                                //      وبدونِه يبلغُ مؤشّرُ `SadArray` خانةَ `const char*`.
+                                //      والأبناءُ لا يمرّون من هنا (`isChild` محسومٌ أعلاه).
+                                // (EN) An array as a modifier VALUE is stringified with the
+                                //      same helper `نص(array)` uses, mirroring toString.
+                                arrayValueLoweredToText = uiprops::lowerArrayValueToString(
+                                    b_, val, val.dataType, val.elementType);
+                                // ════════════════════════════════════════════════════
+                                // (AR) اختيارُ الأوپكودِ **قرارٌ واحدٌ مشترَك** مع مسارِ
+                                //   الخاصّيّةِ الأولى (ui_prop_lowering.h). كان هنا تعدادٌ
+                                //   ثانٍ نسخةً عن الأوّل، وترقيةُ أحدِهما دونَ الآخرِ هي
+                                //   عينُها التي أنتجت تباعُدَي #396 و#400 الصامتَين:
+                                //   • الأحجامُ المحدَّدة (بايت/طبيعي٦٤/عدد٣٢…) — المفسّرُ لا
+                                //     يعرفُ عرضًا أصلًا (`isInteger()` صادقةٌ لكلِّ صحيح) —
+                                //     كانت تسقطُ إلى نصٍّ فارغ: `رقاقة("م").نص(بايت)` ⇒ «نص: ""».
+                                //   • مفتاحٌ متعدّدُ الأنواعِ في مصدرِ الحقيقة («قيمة» =
+                                //     `عدد أو منطقيّ`) لا يُحسَمُ بالمفتاح ⇒ `.قيمة(6 / 2)`
+                                //     كانت «قيمة: ""» بينما المفسّرُ «قيمة: 3».
+                                //   • العدمُ يحملُ قيمةَ حارسٍ i64 ⇒ «‑9.22e+18» بدل «لاشيء».
+                                //   • ومقبضٌ مُبهَمٌ (عنصرٌ/كائنٌ/خريطة) في خانةِ `const char*`
+                                //     قراءةٌ خارجَ الحدّ — يحفظُه الوسمُ الديناميّ.
+                                // (EN) One shared decision with the primary-property path.
+                                // ════════════════════════════════════════════════════
+                                op = uiprops::propOpcodeForValueType(
+                                    arrayValueLoweredToText ? SadTypeKind::String : val.dataType);
                                 valueOp = val;
                             }
                             SIRInstruction inst(op);
@@ -1099,6 +1114,8 @@ namespace Sad
                             inst.operands.push_back(valueOp);
                             if (b_.currentBlock_)
                                 b_.currentBlock_->instructions.push_back(inst);
+                            if (arrayValueLoweredToText)
+                                uiprops::releaseLoweredArrayString(b_, valueOp);
                         }
                         else // numModifierArgs > 1 (isChild محسوم أعلاه)
                         {
@@ -1115,11 +1132,26 @@ namespace Sad
                             //      formatting source matching Value::toString) so it is
                             //      faithful even for register args, not just constants.
                             // ════════════════════════════════════════════════════════
+                            // (AR) والوسائطُ هنا تمرُّ بالخفضِ **نفسِه** الذي يمرُّ به
+                            //   الوسيطُ المفرد: كان هذا الفرعُ يدفعُ الوسيطَ خامًّا فيبلغُ
+                            //   المقبضُ خانةَ `const char*` في `sad_prop_join_add_str`
+                            //   ⇒ قراءةٌ خارجَ الحدّ **مختلفةُ الناتجِ في كلِّ تشغيل**
+                            //   (`صندوق().حدود(زر("س")، 3)` تطبعُ بايتاتِ كومةٍ عشوائيّة).
+                            //   ومصفوفةٌ في وسيطٍ متعدّدٍ كانت تُدمَجُ فارغةً («,3» بدل
+                            //   «[1, 2],3»). القرارُ واحدٌ للفرعَين أو يتباعدانِ ثالثةً.
+                            // (EN) These args go through the SAME lowering as the single-arg
+                            //   branch: the raw push let a handle reach a `const char*` slot
+                            //   (a per-run-varying OOB read) and dropped arrays entirely.
+                            std::vector<SIROperand> joinTextTemporaries;
                             for (size_t i = 1; i < args.size(); ++i)
                             {
+                                SIROperand joinValue = args[i];
+                                if (uiprops::lowerArrayValueToString(
+                                        b_, joinValue, joinValue.dataType, joinValue.elementType))
+                                    joinTextTemporaries.push_back(joinValue);
                                 SIRInstruction add(SIROpcode::BUILTIN_UI_PROP_JOIN_ADD);
                                 add.operands.push_back(handleOp);
-                                add.operands.push_back(args[i]);
+                                add.operands.push_back(joinValue);
                                 if (b_.currentBlock_)
                                     b_.currentBlock_->instructions.push_back(add);
                             }
@@ -1128,6 +1160,9 @@ namespace Sad
                             commit.operands.push_back(SIROperand::ConstantString(m)); // اسم الخاصيّة
                             if (b_.currentBlock_)
                                 b_.currentBlock_->instructions.push_back(commit);
+                            // (AR) التحريرُ بعدَ الدمجِ لا قبلَه: المُجمِّعُ ينسخُ عندَ الإضافة.
+                            for (const SIROperand &temporary : joinTextTemporaries)
+                                uiprops::releaseLoweredArrayString(b_, temporary);
                         }
 
                         // (AR) نُعيد المقبض نفسه (Pointer، بلا صنف) ليبقى «كائنًا» ويتسلسل.

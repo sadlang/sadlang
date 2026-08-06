@@ -119,6 +119,30 @@ static llvm::Function *getOrCreateSplitHelper(
                 if (isSadDyn(val))
                     return dynToString(cg_, val);
 
+                // ════════════════════════════════════════════════════════════
+                // (AR) الخريطةُ في وصلٍ نصّيّ: كانت تسقطُ إلى المسارِ العدديِّ فيُلحَقُ
+                //   **عنوانُ المؤشّرِ رقمًا** — `"س" + {"أ": 1}` تُعطي «س1825978152560»
+                //   بينما المفسّرُ يعطي «س{أ: 1}». نظيرُ ذراعِ المصفوفةِ أدناه تمامًا،
+                //   وبالصيغةِ غيرِ المقتبسةِ (`toString`) لا صيغةِ الطباعةِ المقتبسة.
+                // (EN) A map in a string concat used to fall to the integer path and append
+                //   the pointer as a number. Mirrors the array arm below, unquoted spelling.
+                // ════════════════════════════════════════════════════════════
+                if (op.dataType == SadTypeKind::Map)
+                {
+                    auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                    llvm::Value *mapPtr = val;
+                    if (ty->isIntegerTy(64))
+                        mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "map.i2p");
+                    if (mapPtr->getType()->isPointerTy())
+                    {
+                        cg_.ensureMapToStringHelper(/*quoteKeys=*/false);
+                        llvm::FunctionCallee mapHelper = cg_.module_->getOrInsertFunction(
+                            ::Sad::Compiler::kMapToStringPlainFn,
+                            llvm::FunctionType::get(ptrTy, {ptrTy}, false));
+                        return cg_.builder_->CreateCall(mapHelper, {mapPtr}, "cat.map.str");
+                    }
+                }
+
                 // (AR) تحويل المصفوفة إلى نص: "[عنصر1، عنصر2، ...]"
                 // (EN) Convert array to string representation
                 if (op.dataType == SadTypeKind::Array)
@@ -642,6 +666,17 @@ static llvm::Function *getOrCreateSplitHelper(
                 return buf;
             };
 
+            // (AR) الخريطةُ وحدَها تُخصِّصُ مخزنًا **مؤقّتًا** في `ensureString` (المساعِدُ
+            //   كبيرٌ فلا يُدمَجُ والمؤشّرُ يهربُ بالإرجاع ⇒ لا يُرقّى إلى مكدّس كما يحدثُ
+            //   لمساعِدِ المصفوفة). والنتيجةُ أدناه **تنسخُ** الطرفَين بـmemcpy، فالمؤقّتُ
+            //   لقًى بعدَها ⇒ يُحرَّر. بلا هذا يتسرّبُ عند كلِّ وصلٍ نصّيٍّ بخريطة —
+            //   مقيسٌ: ٥٠٠ ألف دورةٍ ⇒ ٢٨٣ م.ب مقابل ٦٫٦ م.ب لخطِّ الأساس.
+            // (EN) Only the map allocates a TEMPORARY in ensureString (its helper is too large
+            //   to inline and the pointer escapes, so unlike the array helper it is never
+            //   promoted to the stack). The result below memcpy's both sides, so the temporary
+            //   is dead afterwards and is freed — otherwise every map concat leaks (measured).
+            const bool leftIsMapTemporary = inst->operands[0].dataType == SadTypeKind::Map;
+            const bool rightIsMapTemporary = inst->operands[1].dataType == SadTypeKind::Map;
             left = ensureString(left, leftTy, inst->operands[0]);
             right = ensureString(right, rightTy, inst->operands[1]);
 
@@ -680,6 +715,12 @@ static llvm::Function *getOrCreateSplitHelper(
                                                         llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_), 1), "copylen2");
             cg_.builder_->CreateCall(memcpyFn, {dest2, right,
                 cg_.builder_->CreateZExtOrTrunc(copyLen2, szTy, "copylen2.sz")});
+
+            // (AR) التحريرُ **بعدَ** النسختَين: قبلَهما استعمالٌ بعدَ التحرير.
+            if (leftIsMapTemporary && left->getType()->isPointerTy())
+                cg_.emitFreeCall(left);
+            if (rightIsMapTemporary && right->getType()->isPointerTy())
+                cg_.emitFreeCall(right);
 
             if (inst->result.has_value())
             {

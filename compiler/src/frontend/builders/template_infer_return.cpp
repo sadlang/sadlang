@@ -55,6 +55,21 @@ namespace Sad
                 constexpr std::string_view SOT_RETURNS_FLOAT = "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a";               // عشري
                 constexpr std::string_view SOT_RETURNS_STRING = "\xd9\x86\xd8\xb5";                             // نص
                 constexpr std::string_view SOT_RETURNS_BOOLEAN = "\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a";     // منطقي
+
+                // (AR) قياسيٌّ **غيرُ نصّيّ**: قيمةٌ تسعُ حمولةَ %SadDyn بلا كومةٍ ولا مؤشّر.
+                //      النصُّ مستثنًى عمدًا لأنّه الطرفُ الآخرُ في موازنةِ توحيدِ المُرجَع؛
+                //      والمصفوفةُ/الخريطةُ/الكائنُ خارجَها لأنّ حمولتَها مؤشّرٌ مُدارٌ لا يزال
+                //      يفقدُ وسمَه في خانةِ المتغيّر (انظر ز.٤٢ في هذا الملفّ).
+                // (EN) A NON-string scalar: fits a %SadDyn payload with no heap pointer. String
+                //      is deliberately excluded (it is the other side of the unification), and
+                //      array/map/object are excluded because their managed-pointer payload still
+                //      loses its tag in a variable slot (see ز.٤٢ in this file).
+                inline bool isScalarKind(SadTypeKind kind)
+                {
+                    return kind == SadTypeKind::Integer || kind == SadTypeKind::Float ||
+                           kind == SadTypeKind::Boolean || kind == SadTypeKind::Byte ||
+                           kind == SadTypeKind::UInt64;
+                }
             } // namespace
 
             SadTypeKind TemplateBuilder::builtinReturnsToSIRKind(std::string_view soTReturns)
@@ -927,6 +942,19 @@ namespace Sad
                 //        ٢) توزيعُ الفهرسةِ والطرقِ في الأماميّة يعي `Any` فيؤجّله إلى
                 //           الحارسِ الزمنيّ بدل رفضِه ساكنًا.
                 //      وهما نفسُ الشرطين اللذين أوقفا رفعَ ABI في `sir_builder_helpers.cpp`.
+                //
+                //      ── تحديثٌ مقيسٌ (لا مُستنتَجٌ من قراءةِ كود) ──
+                //      • الشرطُ ١ **مستوفًى**: حالةُ `%SadDyn` أُضيفت إلى `normalizeArrayPtr`
+                //        (`array_ops.cpp`، فرعُ `isSadDyn` بحارسِ الوسمِ و`emitDynNotArrayFailure`).
+                //        النصُّ أعلاه كان بائتًا حتّى صُحِّح هنا.
+                //      • الشرطُ ٢ **مستوفًى في الفهرسةِ نفسِها**: `expression_index.cpp` يمرّرُ
+                //        الفهرسَ العدديَّ على `Any` إلى ARRAY_GET بدل رفضِه ساكنًا.
+                //      • **العائقُ الباقي انتقلَ إلى موضعٍ ثالثٍ لم يكن مذكورًا**: خانةُ
+                //        المتغيّرِ تفقدُ الوسم. مقيسٌ بالمُصغَّرِ نفسِه:
+                //            `اطبع(ابحث(1)[0])`         ⇒ ١ (تكافؤٌ تامٌّ مع المفسّر)
+                //            `متغير ن = ابحث(1)؛ ن[0]`  ⇒ **٠** (المفسّر: ١)
+                //        فالفهرسةُ سليمةٌ والتخزينُ هو الكاسر. ولذلك اقتصرَ التوحيدُ أدناه على
+                //        القياسيِّ غيرِ النصّيّ: حمولتُه لا مؤشّرَ فيها فلا تمرُّ بهذا العائق.
                 // (EN) Unify types: STRING dominates, I64+F64→F64.
                 //      ⚠️ ز.٤٢: a known live defect here plus a documented revert. Unifying
                 //      disjoint pairs to `Any` is the honest answer but the frontend cannot
@@ -955,8 +983,38 @@ namespace Sad
                     {
                         unified = SadTypeKind::Float;
                     }
+                    // (AR) نصٌّ مقابلَ قياسيٍّ (صحيح/عشريّ/منطقيّ) ⇒ `Any` لا `String`.
+                    //      «النصُّ يسيطر» كانت **كذبةً تُنفَّذ**: القيمةُ القياسيّةُ تعبرُ
+                    //      حينئذٍ في موضعِ مؤشّرِ نصٍّ، فتُفكُّ عنوانًا. المقيسُ قبلَ الإصلاح:
+                    //        نص+صحيح  ⇒ يُترجَمُ ثمّ SIGSEGV (فشلٌ **صامت**)
+                    //        نص+عشريّ ⇒ verifyModule يرفض ⇒ «علّةُ مترجمٍ داخليّة»
+                    //        نص+منطقيّ⇒ verifyModule يرفض كذلك
+                    //      والمفسّرُ يُنفّذُ الثلاثةَ سليمةً، فالتباعُدُ كان في المصرّفِ وحدَه.
+                    //      ومع `Any` تعبرُ القيمةُ موسومةً ويفكّها المستهلكُ زمنَ التشغيلِ
+                    //      كالمفسّرِ حرفًا بحرف — مُتحقَّقٌ منه في ستّةِ مستهلكين: الطباعةُ
+                    //      و`نوع()` والحسابُ ووصلُ النصِّ والمقارنةُ والتمريرُ إلى دالّة.
+                    // (EN) String vs a scalar ⇒ `Any`, not `String`. "String dominates" was an
+                    //      executed lie: the scalar then crossed in a char* slot and was
+                    //      dereferenced (SIGSEGV for int; an invalid module for float/bool),
+                    //      while the interpreter ran all three correctly. Tagged crossing
+                    //      restores parity — verified across six consumers.
+                    else if ((unified == SadTypeKind::String && isScalarKind(returnTypes[i])) ||
+                             (returnTypes[i] == SadTypeKind::String && isScalarKind(unified)))
+                    {
+                        unified = SadTypeKind::Any;
+                    }
                     else if (unified == SadTypeKind::String || returnTypes[i] == SadTypeKind::String)
                     {
+                        // (AR) نصٌّ مقابلَ **غيرِ قياسيٍّ** (مصفوفة/خريطة/كائن): يبقى على حالِه.
+                        //      قِستُ توحيدَه إلى `Any` فأنتجَ **جوابًا خاطئًا صامتًا** لا إصلاحًا
+                        //      — انظر ز.٤٢ أعلاه: `متغير ن = ابحث(1)` ثمّ `ن[0]` يطبعُ صفرًا،
+                        //      بينما `ابحث(1)[0]` مباشرةً يطبعُ الصوابَ. الخطأُ الصامتُ أسوأُ
+                        //      من العطبِ المُعلَن، فلا يُبدَّلُ أحدُهما بالآخرِ قبلَ سدِّ خانةِ
+                        //      المتغيّر.
+                        // (EN) String vs a NON-scalar (array/map/object) stays as it was:
+                        //      unifying it to `Any` produced a silently WRONG answer rather than
+                        //      a fix (see ز.٤٢ above). A wrong answer is worse than a declared
+                        //      defect, so this waits for the variable-slot fix.
                         unified = SadTypeKind::String;
                     }
                 }

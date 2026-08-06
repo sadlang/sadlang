@@ -51,7 +51,13 @@ public:
     //      نصّ %s، رقم %lld، منطقيّ صحيح/خطأ). يخصّص مخزنه ويُعيده — المستدعي يحرّره.
     // (EN) Builds "{"k0": v0, …}" from a map (quoted keys; values by type tag: string
     //      %s, int %lld, bool صحيح/خطأ). Mallocs its own buffer and returns it — caller frees.
-    void ensureMapToStringHelper();
+    // (AR) مُصيِّرُ الخريطةِ نصًّا. للمفسّرِ **صيغتان** لا واحدة، وهذا مقيسٌ لا مُفترَض:
+    //      الطباعةُ تقتبسُ المفاتيح «{"أ": 1}» و`نص(خريطة)`/`toString` لا تقتبسُها
+    //      «{أ: 1}» — وخاصّيّةُ عنصرِ الواجهةِ تستعملُ الثانية. توليدُ نسختَين بالعلمِ
+    //      نفسِه خيرٌ من نسخِ الدالّةِ كلِّها أو من تخمينِ صيغةٍ ثالثةٍ تخالفُ المحرّكَين.
+    // (EN) The interpreter has TWO map spellings (quoted for print, unquoted for
+    //      toString/UI properties). One generator, one flag.
+    void ensureMapToStringHelper(bool quoteKeys);
     llvm::Value *emitBuiltinTypeOf(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinArrayAppend(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinArrayRemove(std::shared_ptr<SIRInstruction> inst);

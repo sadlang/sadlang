@@ -378,6 +378,20 @@ bool PatternMatchingOptimizer::generateJumpTable(llvm::SwitchInst* switch_inst, 
         stats.jump_tables_created++;
         return true;
     }
+
+    // (AR) ⚠️ لا تُحذَف هذه العودة: غيابُها كان **سلوكًا غيرَ معرَّف** لا مجرّدَ
+    //      تحذير. مبدّلٌ بأربعِ حالاتٍ فأكثرَ وقيمٍ **غيرِ متجاورة** كان يسقطُ من
+    //      نهايةِ دالّةٍ ذاتِ قيمة؛ فتُتخطّى المشيّعةُ ويُستدعى `free` على المخزنِ
+    //      الداخليِّ لـ`SmallVector` على المكدّس ⇒ «free(): invalid size» ⇒ إجهاضُ
+    //      المصرّفِ نفسِه. مقيسٌ: g++ ‎-O2 على لينكس يُجهِض، وclang/MSVC يبتلعانِه
+    //      صامتَين — فالعيبُ كان يظهرُ في منصّةٍ واحدةٍ ويختفي في اثنتَين.
+    // (EN) ⚠️ Do not drop this return: its absence was UNDEFINED BEHAVIOUR, not a
+    //      mere warning. A switch with ≥4 NON-contiguous cases fell off the end of a
+    //      value-returning function, skipping the epilogue and calling free() on the
+    //      stack-inline buffer of `SmallVector` ⇒ "free(): invalid size" ⇒ the
+    //      compiler itself aborted. Measured: g++ -O2 on Linux aborts; clang and MSVC
+    //      swallow it silently — the defect showed on one platform and hid on two.
+    return false;
 }
 
 /**
