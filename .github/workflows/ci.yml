@@ -463,6 +463,36 @@ jobs:
           }
           Write-Host "✅ بوّابة القرار: PASS/CONCERNS — لا تراجع حرج" -ForegroundColor Green
 
+      - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
+        shell: pwsh
+        if: matrix.config == 'Release'
+        run: |
+          # (AR) هذه الاختبارات تحرس عيوبًا **لا تُخفق البناءَ ولا الربط** — تُخفق
+          #      الإقلاعَ على عتادٍ آخر وفي مستودعٍ آخر بعد أيّام (حجمُ الكومة،
+          #      ورمزٌ مستضافٌ مبثوثٌ في وضعٍ حرّ). فبقاؤها خارج CI يعني أنّ
+          #      الانحدارَ يعود صامتًا كما جاء أوّلَ مرّة.
+          # (EN) These guard defects that break neither build nor link — only the
+          #      boot, on other hardware, in another repository, days later.
+          # (AR) ⚠️ التغطيةُ الحقيقيّةُ على لينكس لا هنا. مثبّتُ LLVM-win64.exe لا
+          #      يوفّر مكتباتِ التطوير، فهدفُ sad-build **قد لا يُولَّد أصلًا**
+          #      (انظر خطوة «بناء المترجم» أعلاه، وهي تُنهي نفسَها بـexit 0).
+          #      فهذه الخطوةُ انتهازيّة: تعمل إن وُجد الثنائيّ، وإلّا أعلنت غيابَها
+          #      بـ::warning:: — لا تدّعي حراسةً لا تؤدّيها. وغيابُ الثنائيّ أُبلغ
+          #      عنه أصلًا في خطوة البناء، فلا يضيع صامتًا.
+          # (EN) Real coverage lives in the Linux job. The LLVM-win64 installer
+          #      ships no dev libs, so sad-build may never be generated here. This
+          #      step is opportunistic and announces its own absence as a warning
+          #      instead of claiming a guard it does not provide.
+          $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
+          if (-not (Test-Path $sadc)) {
+            Write-Host "::warning::sad-build.exe غير مبنيّ على runner ويندوز — اختبارات الوضع الحرّ لم تُشغَّل هنا (التغطية على لينكس)"
+            exit 0
+          }
+          python -m pip install --quiet pytest
+          # (AR) ‎-rs‎ يطبع سببَ كلِّ تخطٍّ: تخطٍّ غيرُ مرئيٍّ يُقرأ نجاحًا.
+          python -m pytest tests/system/lowlevel_freestanding -q -rs
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: "🔥 Burn-in للاختبارات الجديدة في الـPR / Burn-in changed PR tests"
         shell: pwsh
         if: matrix.config == 'Release' && github.event_name == 'pull_request'
@@ -551,8 +581,18 @@ jobs:
 
       - name: "🏗️ بناء المترجم sad-build / Build sad-build Compiler"
         run: |
-          cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc) || \
+          # (AR) نسجّل نجاحَ هذا البناء بالذات في البيئة. الخبيئةُ تستعيد ‎build/‎
+          #      كاملًا بمفتاحٍ بادئ، فوجودُ ‎build/bin/sad-build‎ لا يدلّ على أنّه
+          #      بُني الآن: قد يكون ثنائيًّا بائتًا من تشغيلٍ سابق. ومن يفحص
+          #      ‎-x‎ وحدَه قد يختبر مترجمًا لا يحوي الكودَ المدفوع.
+          # (EN) Record whether THIS run built it: the cache restores build/ under a
+          #      prefix key, so the file's mere existence may mean a stale binary
+          #      from an earlier run rather than one containing the pushed code.
+          if cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc); then
+            echo "SAD_BUILD_FRESH=1" >> $GITHUB_ENV
+          else
             echo "⚠️ sad-build build failed (LLVM linking issue) — continuing"
+          fi
 
       - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors, Utils/Modules)"
         run: |
@@ -641,6 +681,42 @@ jobs:
           else
             echo "⚠️ SKIP: sad-run or sad-build not found"
           fi
+
+      - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
+        if: matrix.config == 'Release'
+        run: |
+          # (AR) هذه الاختبارات تحرس عيوبًا **لا تُخفق البناءَ ولا الربط** — تُخفق
+          #      الإقلاعَ على عتادٍ آخر وفي مستودعٍ آخر بعد أيّام (حجمُ الكومة،
+          #      ورمزٌ مستضافٌ مبثوثٌ في وضعٍ حرّ). وهذه هي المنصّةُ التي تُبنى فيها
+          #      مكتباتُ LLVM-dev فعلًا، فهنا مصدرُ التغطية الحقيقيّ لا على ويندوز.
+          # (EN) These guard defects that break neither build nor link — only the
+          #      boot, elsewhere, days later. Linux is where LLVM-dev actually
+          #      builds the compiler, so this is the real coverage.
+          # (AR) الشرطُ على «بُني الآن» لا على «الملفُّ موجود»: الخبيئةُ قد تُبقي
+          #      ثنائيًّا بائتًا يجتاز ‎-x‎ فتُخرج المجموعةُ «نجح الكلّ» عن كودٍ لم
+          #      تلمسه — وهو الأخضرُ الكاذبُ الذي كُتبت هذه الخطوةُ لمنعه.
+          # (EN) Gate on "built in this run", not on "file exists": a cached stale
+          #      binary would pass -x and the suite would report success about code
+          #      it never compiled.
+          # (AR) وإخفاقُ بناءِ المترجم عطلٌ **تتحمّله هذه الوظيفةُ عمدًا** منذ
+          #      إنشائها (سطرُ «continuing» أعلاه). فترقيتُه هنا إلى قفلِ دمجٍ
+          #      لكلّ المستودع قرارُ سياسةٍ منفصل، لا أثرٌ جانبيٌّ لإضافة اختبارات.
+          #      فالغيابُ ‎::warning::‎ — وقد أُبلغ عنه مرّتين قبلَه.
+          # (EN) A failed compiler build is a failure this job deliberately
+          #      tolerates; escalating it into a repo-wide merge blocker is a
+          #      separate policy call, not a side effect of adding tests.
+          if [ "${SAD_BUILD_FRESH:-}" != "1" ]; then
+            echo "::warning::sad-build لم يُبنَ في هذا التشغيل — اختبارات الوضع الحرّ لم تُشغَّل"
+            exit 0
+          fi
+          python3 -m pip install --user --break-system-packages pytest || python3 -m pip install --user pytest
+          # (AR) ‎-rs‎ يطبع سببَ كلِّ تخطٍّ، و‎SAD_LOWLEVEL_REQUIRE_BUILD‎ يحوّل
+          #      «تخطٍّ لغياب الثنائيّ» إلى إخفاق (انظر conftest.py): المترجمُ
+          #      بُني في هذا التشغيل، فالتخطّي هنا عيبُ اكتشافِ مسارٍ لا غياب.
+          # (EN) -rs prints every skip reason, and the env var turns
+          #      "skipped: sad-build missing" into a failure — the compiler was
+          #      built in this very run, so a skip means broken path discovery.
+          SAD_LOWLEVEL_REQUIRE_BUILD=1 python3 -m pytest tests/system/lowlevel_freestanding -q -rs
 
       - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
         uses: actions/upload-artifact@v4

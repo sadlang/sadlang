@@ -21,10 +21,14 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
 
+# (AR) ومسارات بلا ‎.exe‎ للينكس/ماك: بدونها يبتلع ‎skipif‎ الملفَّ أخضرَ صامتًا في CI.
 _CANDIDATES = [
     ROOT / "build" / "bin" / "Release" / "sad-build.exe",
     ROOT / "build" / "bin" / "Debug" / "sad-build.exe",
     ROOT / "build" / "bin" / "sad-build.exe",
+    ROOT / "build" / "bin" / "Release" / "sad-build",
+    ROOT / "build" / "bin" / "Debug" / "sad-build",
+    ROOT / "build" / "bin" / "sad-build",
 ]
 SAD_BUILD = next((p for p in _CANDIDATES if p.exists()), None)
 

@@ -242,6 +242,13 @@ namespace sad
                 // (EN) Pass freestanding mode to emit built-in runtime
                 llvm_codegen_->setFreestanding(options_.freestanding);
 
+                // (AR) حجم الكومة الساكنة الحرّة: 0 يعني الافتراضيّ المحافظ في
+                //      مُولِّد ‎malloc‎. يُحوَّل من ميغابايت إلى بايت هنا كي يبقى
+                //      سطحُ سطر الأوامر بوحدةٍ واحدةٍ مفهومة.
+                // (EN) Freestanding heap size: 0 keeps the codegen default.
+                llvm_codegen_->setFreestandingHeapBytes(
+                    static_cast<std::uint64_t>(options_.freestanding_heap_mib) * 1024ULL * 1024ULL);
+
                 // (AR) استخدام اسم الملف المجرّد فقط كـ module name
                 //      لتجنب انهيار LLVM COFF writer مع المحارف العربية في المسار
                 // (EN) Use just the filename stem as module name to avoid
@@ -301,14 +308,18 @@ namespace sad
                 //      not surface the 5 hosted codegen bugs deferred to ISSUE-073.
                 //      No hand-written string here: the canonical SEM019 text's sole
                 //      source is the SoT catalog (built + already printed by
-                //      reportError). We forward those messages into the driver's
-                //      DiagnosticEngine so the "N error(s)" tally is honest — codegen
-                //      errors live in a channel separate from error_count_.
+                //      reportError). We only *count* them so the "N error(s)" tally
+                //      is honest — codegen errors live in a channel separate from
+                //      error_count_ but are already on screen.
+                // (AR) ⚠️ عَدٌّ لا إعادةُ طباعة: ‎reportError‎ يطبع فورَ وقوع الخطأ،
+                //      فتمريرُ النصّ إلى ‎report_error‎ كان يطبعه **مرّةً ثانية**.
+                //      قِيس على SEM037: سطرا رسالةٍ وإرشادٍ يظهران أربع مرّات
+                //      (وثمانيًا مع «--اشرح»). الحصيلةُ تبقى صادقةً بالعدّ وحده.
                 if (options_.freestanding && llvm_codegen_->hasErrors())
                 {
-                    for (const auto &codegen_error : llvm_codegen_->getErrors())
+                    for (std::size_t i = 0; i < llvm_codegen_->getErrors().size(); ++i)
                     {
-                        diagnostics_.report_error(codegen_error);
+                        diagnostics_.count_external_error();
                     }
                     return false;
                 }

@@ -47,7 +47,17 @@ namespace Sad
             errorCodes_.push_back(code);
             Sad::Errors::RenderContext ctx;
             ctx.placeholders = std::move(placeholders);
-            reportError(Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(code, ctx));
+            // (AR) أخطاء الكتالوج مُوجَّهةٌ للمستخدم (نصٌّ من SoT بإرشادِ إصلاح)،
+            //      فتُطبَع بظرف «error:» لا بـ«LLVM CodeGen Error:» — الأخيرةُ
+            //      لغةُ مطوّري المترجم، وتبقى للنصوص الخامّة الداخليّة أدناه.
+            // (EN) Catalog errors are user-facing (SoT text with a fix hint), so
+            //      they print under "error:", not the compiler-dev "LLVM CodeGen
+            //      Error:" prefix which stays for raw internal strings.
+            hasErrors_ = true;
+            const std::string message =
+                Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(code, ctx);
+            errors_.push_back(message);
+            std::cerr << "error: " << message << std::endl;
         }
 
     } // namespace LLVM

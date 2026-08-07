@@ -803,14 +803,122 @@ BinCalc computeBin(llvm::IRBuilder<>& B, llvm::Type* i64Ty, llvm::Value* need)
 void FreestandingCodeGen::emitFreestandingMalloc(
     llvm::Type* i8Ty, llvm::Type* i64Ty, llvm::Type* ptrTy)
 {
-    // (AR) 512م.ب في BSS — صفريّةٌ لا تُثقل الملفّ ولا زمنَ الإقلاع: النواةُ
-    //      تصفّر صفحاتِها **عند أوّل مسٍّ** لا عند التحميل، فالمقيمُ منها هو
-    //      المستعمَلُ فعلًا لا المعلَن.
-    //      ⚠️ هذا سقفٌ لا علاجٌ: كودُ ص لا يحرّر قيمَه بعد (لا مالكيّةَ ولا
-    //      كانِس)، فما دام التسريبُ قائمًا يحدّد حجمُ الكومة **عمرَ التشغيل**.
-    //      المقيسُ على قشرة sad-os: ‎≈0.9ك.ب لكلّ إعادة بناءٍ للشجرة‎ ⇒ هذه
-    //      السعةُ تكفي ‎≈560 ألفَ إعادةِ بناء‎. والسقفُ يتناسب طردًا مع الذاكرة.
-    constexpr uint64_t HEAP_SIZE = 512ULL * 1024 * 1024;
+    // ========================================================================
+    // (AR) حجمُ الكومة الساكنة — **افتراضٌ مشروطٌ بالهدف**، يعلوه «--حجم-الكومة».
+    //
+    //   ⚠️ اقرأ هذا أوّلًا: العددُ سقفٌ لا علاج. كودُ ص لا يحرّر قيمَه بعد (لا
+    //      مالكيّةَ ولا كانِس)، فما دام التسريبُ قائمًا يحدّد حجمُ الكومة
+    //      **عمرَ التشغيل** (‎≈0.9ك.ب لكلّ إعادةِ بناءِ شجرةٍ على قشرة sad-os).
+    //      رفعُ الرقم يؤجّل الموتَ ولا يمنعه؛ المنعُ استردادٌ حقيقيّ.
+    //
+    //   الفارقُ الحاسم في اختيار الافتراض: هل يوجد مُصفِّحٌ عند الطلب تحتَنا؟
+    //
+    //   • **نطاقُ مستخدمٍ حرّ** (لينكس بنداءات نظامٍ مبثوثة): نعم. ‎.bss‎ تُصفَّر
+    //     صفحةً صفحةً عند أوّل مسّ، فالمقيمُ هو المستعمَلُ لا المعلَن، والإعلانُ
+    //     الكبيرُ مجّانيٌّ فعلًا. وهذه هي الحالةُ التي قِيست عليها 512م.ب في
+    //     ‎0cab87a2‎ ‏(‏#300‏)‏ بقياسٍ حيٍّ على قشرة sad-os، وهي تبقى كما أُقِرّت.
+    //
+    //   • **معدنٌ عارٍ**: لا. النواةُ **هي** المُصفِّح. سكربتُ ربطها يضع ‎.bss‎
+    //     داخل ‎[_kernel_start.._kernel_end]‎، ومخصِّصُ الإطارات يحجز ذلك المدى
+    //     كلَّه ليحمي نفسَه ⇒ فالمعلَنُ **مقيمٌ دائمًا**. قِيس على نواة النحلة:
+    //     كومةُ 512م.ب رفعت ‎_kernel_end‎ إلى ‎0x20210c90‎ (≈514م.ب) بينما تُقلع
+    //     بـ‎-m 128M‎ ⇒ صفرُ إطاراتٍ حرّة ⇒ ماتت كلُّ خدمةٍ تحجز ذاكرة. ونوافذُ
+    //     ‎.bss‎ في خرائط النوى ضيّقةٌ بطبعها.
+    //
+    //   والمميِّزُ أدناه هو نفسُه الذي تستعمله جسورُ العتاد — فلا مصدرَ حقيقةٍ ثانٍ.
+    //
+    // (EN) Static heap size — target-conditional default, overridden by
+    //      «--حجم-الكومة». The "zero-cost .bss" assumption depends on demand
+    //      paging: true for freestanding userspace, false on bare metal where
+    //      .bss lives inside [_kernel_start.._kernel_end] and the frame
+    //      allocator reserves that whole range, so the declared size is always
+    //      resident. One number cannot serve both.
+    // ========================================================================
+    constexpr uint64_t DEFAULT_HEAP_BARE_METAL = 4ULL * 1024 * 1024;
+    constexpr uint64_t DEFAULT_HEAP_USERSPACE = 512ULL * 1024 * 1024;
+
+    const HwBridgeProfile profile = hwBridgeProfile();
+    const bool bareMetal = (profile == HwBridgeProfile::BareMetalPortIO ||
+                            profile == HwBridgeProfile::BareMetalStub);
+
+    const bool heapRequestedExplicitly = (cg_.freestandingHeapBytes_ != 0);
+
+    uint64_t HEAP_SIZE = heapRequestedExplicitly
+                             ? cg_.freestandingHeapBytes_
+                             : (bareMetal ? DEFAULT_HEAP_BARE_METAL
+                                          : DEFAULT_HEAP_USERSPACE);
+
+    // ------------------------------------------------------------------------
+    // (AR) حارسُ الالتفاف — يُفحَص هنا لا في المحلِّل لأنّ عرضَ الهدف يُعرَف هنا.
+    //      حقلُ حجم القسم في ELF32 اثنان وثلاثون بتًّا، فحجمٌ يبلغ ‎2^32‎ يلتفّ
+    //      **صامتًا**: قِيس على ‎i686‎ أنّ 4096م.ب تُنتج قسمًا حجمه 496 بايتًا،
+    //      ويخرج المُجمِّعُ والرابطُ بصفرٍ بلا تشخيص. والأخطر أنّ فحصَ الفيضان
+    //      أدناه يقارن بـ‎HEAP_SIZE‎ في i64، فيظنّ المخصِّصُ أنّ لديه 4ﭼ.ب
+    //      والقسمُ مئاتُ بايتات ⇒ كلُّ تخصيصٍ بعدها يكتب خارجه بلا صوت.
+    //      فالسقفُ نصفُ فضاءِ العنونة: يترك مجالًا لبقيّة الأقسام والمكدّس.
+    //
+    //      والقاعدةُ تسري على 64 بتًّا أيضًا. استثناؤها كان ثغرةً في التعليل:
+    //      ‎BareMetalPortIO‎ يشمل ‎x86_64‎، فنواةٌ على ‎x86_64-unknown-none-elf‎
+    //      كانت تقبل ‎--حجم-الكومة=4294967295‎ ⇒ قسمُ ‎.bss‎ حجمُه
+    //      4 503 599 626 322 880 بايتًا (4 پ.ب) في كائنٍ حجمُه 11ك.ب، وخروجٌ
+    //      بصفرٍ بلا تشخيص، قِيس بـllvm-readobj.
+    //
+    //      ⚠️ وهذا حدُّ **استحالةٍ هندسيّة** لا حدُّ معقوليّة: 128ت.ب في ‎.bss‎
+    //      نواةٍ ما تزال تُبثّ بخروجٍ صفريّ. السقفُ يمنع ما لا يمكن أن يُعنوَن،
+    //      لا ما لا ينبغي أن يُطلَب — والثاني قرارُ من يعرف رامَ لوحته.
+    //
+    //      ⚠️ و«نصفُ فضاءِ العنونة» على 64 بتًّا ليس نصفَ ‎2^64‎: العنونةُ
+    //      القانونيّةُ على المعماريّات السائدة (x86_64 · aarch64 · riscv64) 48
+    //      بتًّا، والبتّاتُ العليا امتدادُ إشارةٍ إلزاميّ. فسقفٌ عند ‎2^63‎ لا
+    //      يردعُ شيئًا أصلًا: أقصى ما يعبّر عنه العلمُ (‎uint32‎ ميغابايت) نحوُ
+    //      4 پ.ب = ‎2^52‎ — دونه بأحدَ عشرَ رتبةً. فالمرجعُ عرضُ العنونة لا الكلمة.
+    // (EN) Wrap guard — checked here because the target width is known here.
+    //      ELF32's section-size field is 32 bits, so 2^32 wraps silently and the
+    //      i64 overflow check below would trust a size the section does not have.
+    //      The rule applies to 64-bit too: excluding it was a gap in the reasoning
+    //      (BareMetalPortIO includes x86_64), and 4 PiB of .bss is emitted with
+    //      exit 0 — measured. Note "half the address space" on 64-bit means half
+    //      of the canonical 2^48, not of 2^64: a 2^63 cap could never bite, since
+    //      the flag's own uint32-MiB domain tops out around 2^52.
+    // ------------------------------------------------------------------------
+    // (AR) عرضُ العنونة القانونيّ على 64 بتًّا. متحفّظٌ عمدًا: من فعّل LA57 أو
+    //      LVA يملك عنونةً أوسع، لكنّ كومةً ساكنةً تجاوز 128 ت.ب لا وجودَ لها.
+    constexpr unsigned CANONICAL_ADDRESS_BITS_64 = 48;
+
+    const unsigned sizeBits = cg_.getSizeType()->getBitWidth();
+    {
+        const unsigned addressBits =
+            (sizeBits >= 64) ? CANONICAL_ADDRESS_BITS_64 : sizeBits;
+        const uint64_t maxHeap = (1ULL << addressBits) / 2;
+        if (HEAP_SIZE > maxHeap)
+        {
+            // (AR) الخطأُ للطلبِ الصريحِ وحدَه. الافتراضيُّ اختيارُنا لا خطأُ
+            //      المستخدم، فيُقلَّصُ صامتًا: على هدفٍ بعرضِ 16 بتًّا يفوق
+            //      افتراضيُّ المعدنِ العاري (4م.ب) سقفَ الهدفِ (32ك.ب)، فالإبلاغُ
+            //      عنه كان يجعل الترجمةَ مستحيلةً **بلا أيّ علم** — وأسوأ: قيمةُ
+            //      الإرشادِ تصير 0، و«--حجم-الكومة=0» مرفوضةٌ بدورها ⇒ طريقٌ مسدود.
+            // (EN) Report only what the user actually asked for. The default is
+            //      our choice, not their mistake, so it is clamped silently: on a
+            //      16-bit target the 4 MiB bare-metal default exceeds the target's
+            //      own 32 KiB ceiling, and erroring there made compilation
+            //      impossible with no flag passed at all.
+            if (heapRequestedExplicitly)
+            {
+                // (AR) بالميغابايت لا بالبايت: العلمُ يأخذ ميغابايت، فقيمةُ
+                //      ‎{maximum_mib}‎ تُنسخ إلى سطر الأوامر كما هي بلا قسمةٍ ذهنيّة.
+                // (EN) MiB, not bytes: the flag takes MiB, so {maximum_mib} can be
+                //      pasted straight back into the command line.
+                constexpr uint64_t MIB = 1024ULL * 1024ULL;
+                cg_.reportError(::Sad::Errors::ErrorCode::SEM_FREESTANDING_HEAP_TOO_LARGE,
+                                {{"requested_mib", std::to_string(HEAP_SIZE / MIB)},
+                                 {"bits", std::to_string(sizeBits)},
+                                 {"maximum_mib", std::to_string(maxHeap / MIB)}});
+            }
+            // (AR) نُقلّص بعد الإبلاغ كي لا تُبنى وحدةٌ ملتفّةٌ لو تُجوهل الخطأ.
+            // (EN) Clamp after reporting so no wrapped module is ever emitted.
+            HEAP_SIZE = maxHeap;
+        }
+    }
     constexpr uint64_t HEADER_SIZE = 16; // (AR) [سعة i64][تالي ptr]
 
     // (AR) ⚠️ الوسائط/العائد بنوع ‎size_t‎ الهدف (i32 على 32-بت) ليطابق عقد C

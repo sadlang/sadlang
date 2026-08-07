@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <string>
 
 namespace sad
@@ -206,6 +207,20 @@ namespace sad
                 }
             }
 
+            // ────────────────────────────────────────────────────────────────
+            // (AR) «--حجم-الكومة» بلا وضعٍ حرّ خطأٌ — لكنّه **لا يُفحَص هنا**.
+            //      الوضعُ الحرُّ يُفعَّل من طريقين: العلمُ «--حرّ»، وسمةُ المصدر
+            //      «#![بلا_مكتبة_قياسية]»/«#![no_std]». والثانيةُ لا تُقرأ إلّا
+            //      بعد فتحِ الملفّ، فالفحصُ زمنَ الوزم كان يرفض نواةً حرّةً فعلًا
+            //      ويصفُها بالمستضافة. موضعُه الصحيح: بعد استقرارِ العَلَم في
+            //      المرحلة 0 من التحليل (compiler_driver_analysis.cpp).
+            // (EN) «--حجم-الكومة» without freestanding is an error — but it is
+            //      NOT checked here. Freestanding can also be activated by a
+            //      source attribute, which is only read after the file is
+            //      opened; checking at parse time rejected genuinely
+            //      freestanding kernels. See phase 0 in the analysis stage.
+            // ────────────────────────────────────────────────────────────────
+
             return true;
         }
 
@@ -303,6 +318,43 @@ namespace sad
             case A::NoMain: options.no_main = true; return true;
             case A::AbortOnPanic: options.abort_on_panic = true; return true;
             case A::AllowAlloc: options.allow_freestanding_alloc = true; return true;
+            case A::HeapSize:
+            {
+                // (AR) الصيغةُ وحدَها، بلا سقف: السقفُ يعتمد عرضَ الهدف وهو مجهولٌ
+                //      في هذه الطبقة (قد يأتي «--هدف» بعد هذا العلم). التفصيلُ في
+                //      ‎emitFreestandingMalloc‎ (‎SEM_FREESTANDING_HEAP_TOO_LARGE‎).
+                //
+                //      والتحقّقُ يدويٌّ لا بـ‎stoul‎: ‎stoul("64ك")‎ تعيد 64 صامتةً
+                //      فتصير الوحدةُ المكتوبةُ خطأً حجمًا مقبولًا. لا تُبسِّطه.
+                // (EN) Syntax only; the real bound needs the target width (see
+                //      emitFreestandingMalloc). Hand-rolled parse on purpose:
+                //      stoul("64ك") silently returns 64.
+                if (value.empty()) return requireValue();
+                std::uint64_t mib = 0;
+                for (char ch : value)
+                {
+                    if (ch < '0' || ch > '9')
+                    {
+                        diag.report_error(canonical + cli_gen::messages::HeapSizeInvalid + value);
+                        return false;
+                    }
+                    mib = mib * 10 + static_cast<std::uint64_t>(ch - '0');
+                    // (AR) حارسُ فيضانِ الحساب نفسِه (لا سقفُ سياسة): رقمٌ من
+                    //      عشرين خانةً يلتفّ في ‎uint64‎ قبل أن يبلغ التوليد.
+                    if (mib > (std::numeric_limits<std::uint32_t>::max)())
+                    {
+                        diag.report_error(canonical + cli_gen::messages::HeapSizeInvalid + value);
+                        return false;
+                    }
+                }
+                if (mib == 0)
+                {
+                    diag.report_error(canonical + cli_gen::messages::HeapSizeInvalid + value);
+                    return false;
+                }
+                options.freestanding_heap_mib = static_cast<std::uint32_t>(mib);
+                return true;
+            }
             case A::LinkerScript:
                 if (value.empty()) return requireValue();
                 options.linker_script = value; return true;

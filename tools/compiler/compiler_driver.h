@@ -6,6 +6,7 @@
 #ifndef SAD_COMPILER_DRIVER_H
 #define SAD_COMPILER_DRIVER_H
 
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <optional>
@@ -273,6 +274,20 @@ namespace sad
             bool allow_freestanding_alloc = false;
 
             /**
+             * (AR) حجم الكومة الساكنة في الوضع الحرّ بالميغابايت (0 = الافتراضيّ).
+             *      الكومةُ مصفوفةٌ في ‎.bss‎، ولا مُصفِّحَ عند الطلب تحت نواةٍ
+             *      معدنيّة، فالمقيمُ منها هو **المعلَن**: يمتدّ ‎_kernel_end‎ بحجمها
+             *      كاملًا، ويحجز مخصِّصُ الإطارات ‎[_kernel_start.._kernel_end]‎
+             *      فلا يبقى إطارٌ حرّ إن جاوز الحجمُ الرامَ المتاح.
+             *      لذلك الافتراضُ محافظ، والتوسيعُ صريحٌ بـ«--حجم-الكومة».
+             * (EN) Freestanding static heap size in MiB (0 = compiler default).
+             *      The heap is a .bss array; with no demand paging under a
+             *      bare-metal kernel the declared size is the resident size, so
+             *      it extends _kernel_end and the frame allocator reserves it all.
+             */
+            std::uint32_t freestanding_heap_mib = 0;
+
+            /**
              * (AR) وضع الوحدة: يُعامل الملف كمكتبة بدون نقطة دخول
              *      يتخطى إنشاء __sad_main ودالة main wrapper
              *      يُستخدم لتجميع ملفات مكتبة في مشاريع متعددة الملفات
@@ -419,6 +434,18 @@ namespace sad
 
             void report_fatal(const std::string &msg, const std::string &file = "",
                               int line = -1, int column = -1);
+
+            /**
+             * (AR) عَدُّ خطأٍ **طُبع في قناةٍ أخرى** بلا إعادة طباعته.
+             *      يُستعمل لأخطاء مولّد الشيفرة: ‎LLVMCodeGenContext::reportError‎
+             *      يطبعها فورَ وقوعها، فتمريرُها إلى ‎report_error‎ كان يطبعها
+             *      **مرّةً ثانية** — سطران متطابقان للمستخدم، وأربعةٌ مع «--اشرح».
+             *      وهذا يُبقي حصيلة «N error(s)» صادقةً بلا ازدواج.
+             * (EN) Count an error already printed on another channel, without
+             *      re-printing it. Codegen errors print at the point of failure;
+             *      forwarding them to report_error duplicated every line.
+             */
+            void count_external_error() { ++error_count_; }
 
             // Get statistics
             int get_error_count() const { return error_count_; }

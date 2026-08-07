@@ -671,6 +671,12 @@ namespace Sad
             void setFreestanding(bool mode) { freestanding_ = mode; }
 
             /**
+             * (AR) تعيين حجم الكومة الساكنة الحرّة بالبايت (0 = الافتراضيّ المحافظ)
+             * (EN) Set the freestanding static heap size in bytes (0 = default)
+             */
+            void setFreestandingHeapBytes(std::uint64_t bytes) { freestandingHeapBytes_ = bytes; }
+
+            /**
              * (AR) توليد تطبيقات وقت التشغيل المستقل لدوال C الأساسية
              * (EN) Emit freestanding runtime implementations for essential C functions
              *      malloc, free, memcpy, memset, strlen, strcmp, strcpy, strcat,

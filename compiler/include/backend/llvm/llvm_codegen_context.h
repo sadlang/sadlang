@@ -31,6 +31,7 @@
 #ifndef SAD_LLVM_CODEGEN_CONTEXT_H
 #define SAD_LLVM_CODEGEN_CONTEXT_H
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -127,6 +128,14 @@ namespace Sad
             /// (AR) وضع مستقل: لا اعتماد على libc
             /// (EN) Freestanding mode: no libc dependency
             bool freestanding_ = false;
+
+            /// (AR) حجم الكومة الساكنة الحرّة بالبايت. الكومةُ مصفوفةٌ في ‎.bss‎،
+            ///      ولا مُصفِّحَ عند الطلب تحت نواةٍ معدنيّة، فالمعلَنُ هو المقيم:
+            ///      يمتدّ ‎_kernel_end‎ بحجمها كاملًا. يُضبَط من «--حجم-الكومة»؛
+            ///      و0 تعني الافتراضيَّ المحافظ في ‎emitFreestandingMalloc‎.
+            /// (EN) Freestanding static heap size in bytes (0 = conservative
+            ///      default). Set from «--حجم-الكومة».
+            std::uint64_t freestandingHeapBytes_ = 0;
 
             // ------------------------------------------------------------------------
             // (5) تتبع الأخطاء / Error tracking

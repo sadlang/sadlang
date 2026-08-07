@@ -180,6 +180,27 @@ namespace Sad
             if (!cg_.module_ || !cg_.builder_)
                 return;
 
+            // ================================================================
+            // (AR) الوضعُ الحرّ: لا CRT ⇒ لا `setlocale`.
+            //
+            // التعليلُ أعلاه كلُّه مشروطٌ بوجودِ زمنِ تشغيلِ C: العلّةُ أنّ دوالَّ
+            // CRT الضيّقة تؤوّل `char*` بصفحةِ نظامٍ محلّيّة. وفي الوضع الحرّ لا
+            // `fopen` ولا `remove` ولا صفحةَ نظامٍ أصلًا — فالتهيئةُ بلا موضوع.
+            // وأسوأُ من ذلك: `setlocale` رمزٌ خارجيّ لا يُعرِّفه أحد، فيُخفِق
+            // الربطُ بـ`undefined symbol: setlocale` عند كلّ برنامجٍ حرّ.
+            //
+            // العطبُ المقيس: نواةُ النحلة تمرّر `--حرّ --بلا-رئيسية` ومع ذلك
+            // تُبعَث `define i32 @main()` وفيها نداءُ `setlocale` ⇒ يسقط
+            // `ld.lld` عند ربطِ برامجِ نطاقِ المستخدم (0x40000000).
+            //
+            // (EN) Freestanding has no CRT, so `setlocale` is both pointless
+            // (no narrow-CRT path family to fix) and fatal (undefined symbol at
+            // link time). Measured: nahla's user programs failed to link with
+            // `undefined symbol: setlocale` despite passing `--حرّ`.
+            // ================================================================
+            if (cg_.freestanding_)
+                return;
+
             auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
 
