@@ -104,6 +104,16 @@ target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/null_sa
 target_link_libraries(sad_interp PUBLIC sad_program_rules)
 target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/program_rules/include)
 
+# (AR) الترويسات المُولَّدة من مصدر الحقيقة: `sad_interp` يجمّع
+#      `compiler/src/frontend/sir_builder_module.cpp` وهو يضمّ
+#      `sad_event_layout_generated.h`. المسار كان مضافًا لأهداف المترجم
+#      والرسومات وحدها، فيصل هذا الملفّ الترويسةَ بالمصادفة عبر مسارٍ آخر —
+#      وينكشف الغيابُ أوّلَ ما يُبنى الهدفُ بسلسلة أدواتٍ أخرى (Emscripten).
+# (EN) SoT-generated headers: sad_interp compiles sir_builder_module.cpp which
+#      includes sad_event_layout_generated.h. The path was only on the compiler
+#      and graphics targets; the gap surfaces under a different toolchain.
+target_include_directories(sad_interp PRIVATE ${CMAKE_SOURCE_DIR}/shared/types/generated)
+
 # (AR) الطبقة الأمنية المشتركة (BoundsChecker, SafeArithmetic, InputSanitizer,
 #      SafeAllocator, TaintTracker). sad_interp يجمّع مصادر المفسر التي تستخدم
 #      assertSafeCast<int>(...) في أي تحويل size_t→int، فلا بد من الربط هنا

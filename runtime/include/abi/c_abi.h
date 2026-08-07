@@ -70,7 +70,20 @@
 // Platform Detection / كشف المنصة
 // ============================================================================
 
-#if defined(_WIN32) || defined(_WIN64)
+// (AR) Emscripten أوّلًا: الاستدعاءُ الأجنبيّ لا يعمل في رمل المتصفّح، لكنّ
+//      الترويسة تُقحَم في كلّ من يربط `sad_core` — ومنه مفسّرُ المتصفّح. و
+//      ‏`#error` هنا كان يمنع بناءَ المفسّر كاملًا للويب، فيُبنى بدلًا منه من
+//      قائمةِ ملفّاتٍ يدويّةٍ تُعيد كتابة نصفه — وذلك أصلُ اختلافِ المفسّرَين.
+//      فالمنصّة تُعرَّف هنا، وامتناعُ FFI يُفرَض حيث يُنادى لا حيث يُترجَم.
+// (EN) Emscripten first: FFI cannot work in the browser sandbox, but this header
+//      is pulled in by everything linking `sad_core` — including the wasm build.
+#if defined(__EMSCRIPTEN__)
+    #define SAD_PLATFORM_WASM 1
+    #define SAD_ABI_EXPORT __attribute__((visibility("default")))
+    #define SAD_ABI_IMPORT
+    #define SAD_CALLING_CONV
+    #define SAD_STDCALL
+#elif defined(_WIN32) || defined(_WIN64)
     #define SAD_PLATFORM_WINDOWS 1
     #define SAD_ABI_EXPORT __declspec(dllexport)
     #define SAD_ABI_IMPORT __declspec(dllimport)
@@ -99,6 +112,10 @@
     #define SAD_ARCH_ARM64 1
 #elif defined(__i386__) || defined(_M_IX86)
     #define SAD_ARCH_X86 1
+#elif defined(__wasm32__) || defined(__wasm__)
+    // (AR) مؤشّرٌ ٣٢ بتًّا — وهو بعينه ما يجعل خرجَ المتصفّح قد يخالف الأصليّ،
+    //      فبوّابةُ التكافؤ في الأكاديمية تقابلهما مثالًا مثالًا.
+    #define SAD_ARCH_WASM32 1
 #else
     #error "Unsupported architecture for C ABI"
 #endif

@@ -67,10 +67,56 @@ option(BUILD_EXAMPLES "بناء الأمثلة / Build examples" ON)
 option(ENABLE_DEBUG_LOGGING "تفعيل سجلّات التنقيح / Enable debug logging" OFF)
 option(BUILD_PKG_MANAGER "بناء مدير الحزم / Build package manager" ON)
 option(ENABLE_LLVM_BACKEND "تفعيل LLVM Backend / Enable LLVM Backend" ON)
+# ══════════════════════════════════════════════════════════════════════
+# الاستثناءات على Emscripten — عالميّةٌ أو لا شيء
+# Exceptions on Emscripten — global or nothing
+# ══════════════════════════════════════════════════════════════════════
+# (AR) افتراضُ Emscripten هو **تعطيلُ التقاط** الاستثناءات: كلُّ `try/catch` يصير
+#      كودًا ميّتًا، وأوّلُ رمْيٍ يسرّب مؤشّرًا خامًّا إلى JS بدل أن يُلتقَط. وأثرُه
+#      على المتعلّم مباشر: `حاول/امسك` — وهي بنيةُ لغةٍ لا رفاهيّة — تُسقط الوحدةَ
+#      بدل أن تعمل، وقد قِيس ذلك حيًّا (`ارمي` داخل `امسك` سليمٍ ⇒ انهيار).
+#
+#      والعَلَمُ يجب أن يكون **عالميًّا** لا على هدف wasm وحدَه: الرميُ يقع في
+#      `sad_core` والالتقاطُ في `tools/wasm`، فلو حمل أحدُهما العَلَمَ دون الآخر لم
+#      تُغلَّف نداءاتُه بـ`invoke` ومرّ الاستثناءُ من فوق المِمسَك. ولذلك موضعُه هنا
+#      — قبل تعريف أيّ هدف — لا في `cmake/wasm.cmake` المُضمَّن بعدها جميعًا.
+# (EN) Emscripten disables exception *catching* by default, making every try/catch
+#      dead code. The flag must be global: throws live in sad_core, catches in
+#      tools/wasm — a partially-flagged build lets exceptions fly past the handler.
+if(EMSCRIPTEN)
+    add_compile_options(-fexceptions)
+    add_link_options(-fexceptions)
+    message(STATUS "[wasm] Exception catching enabled globally (-fexceptions)")
+
+    # (AR) والرسوماتُ مطفأةٌ في المتصفّح — لا لأنّها غيرُ مرغوبة، بل لأنّ خلفيّةَ
+    #      الويب **لا تُترجَم**. `features/graphics/backends/web/src/web_renderer.cpp`
+    #      يُضاف إلى البناء `if(EMSCRIPTEN)` وحدَه، وفيه أربعةَ عشرَ خطأً: يستدعي
+    #      `hitTest` و`fireEvent` و`focusedNode_` و`collectFocusableNodes` و
+    #      `findNodeRect` و`findScrollableAt` و`getScrollOffset` و`setScrollOffset`
+    #      — وكلُّها أعضاءُ خلفيّةِ سطحِ المكتب، لا وجودَ لها في `WebWindow` ولا في
+    #      `WebRenderer`. كتلةٌ منسوخةٌ لم يترجمها مترجِمٌ قطّ، ولم يكشفها أحدٌ لأنّ
+    #      الحارسَ الوحيدَ عليها هو بناءُ wasm — والبناءُ ذاك كان معطوبًا من جهةٍ
+    #      أخرى (قائمةُ مصادرَ يدويّةٌ لا تُهيَّأ).
+    #
+    #      فالإطفاءُ هنا **إقرارٌ بغيابِ قدرة** لا إخفاءٌ لها: عارضُ اللوحة في
+    #      المتصفّح غيرُ موجودٍ بعد. و`tools/wasm/sad_wasm.cpp` لا يثبّت جسرَ
+    #      الواجهات أصلًا، فالمفسّرُ في المتصفّح مقطوعُ الرسوم بقصدٍ لا بمصادفة.
+    #      ومن أراد إصلاحَ الخلفيّة فليمرّر `-DSAD_ENABLE_GRAPHICS=ON` صراحةً
+    #      ويواجه الأخطاءَ الأربعةَ عشرَ — لا تُخفى عنه.
+    # (EN) Graphics off in the browser not by preference but because the web backend
+    #      does not compile: web_renderer.cpp (added only under EMSCRIPTEN) calls eight
+    #      desktop-only members that WebWindow/WebRenderer never had — 14 errors. This
+    #      is an acknowledged missing capability, not a hidden one; pass
+    #      -DSAD_ENABLE_GRAPHICS=ON to face it.
+    set(SAD_ENABLE_GRAPHICS OFF CACHE BOOL "بناء دعم الرسومات SDL / Build SDL graphics support")
+    message(STATUS "[wasm] Graphics off by default — the web canvas backend does not compile yet")
+endif()
+
 # (AR) SAD_ENABLE_GRAPHICS=OFF: بناء headless (بلا SDL) لأنظمة مضمّنة/initramfs — يُسقط جسر
 #      الواجهات من sad-repl/sad-run. ملاحظة: اختبارات الواجهات (BUILD_TESTS) تتطلّب الرسومات.
 # (EN) SAD_ENABLE_GRAPHICS=OFF: headless build (no SDL) for embedded/initramfs — drops the UI
 #      bridge from sad-repl/sad-run. Note: UI tests (BUILD_TESTS) require graphics.
+
 option(SAD_ENABLE_GRAPHICS "بناء دعم الرسومات SDL / Build SDL graphics support" ON)
 option(SAD_STATIC_REPL "ربط sad-repl ساكنًا لأنظمة مضمّنة/initramfs / Static-link sad-repl" OFF)
 option(BUILD_WASM "بناء هدف WebAssembly / Build WebAssembly target" OFF)

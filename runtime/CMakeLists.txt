@@ -37,6 +37,16 @@ endif()
 # FFI Library
 # ============================================================================
 file(GLOB FFI_SOURCES "src/ffi/*.cpp")
+# (AR) لا FFI في رمل المتصفّح: لا `dlopen` ولا مكتبةً أصليّةً تُحمَّل، وحشوُ
+#      الوسائط نفسُه مستحيلٌ على wasm32 — `double` ثمانيةُ بايتات و`void*`
+#      أربعة، وذلك `static_assert` يُخفق لا رأيًا يُناقَش. فتُستثنى المكتبةُ
+#      بدل تعطيل التوكيد: قدرةٌ غائبةٌ تُقال ولا تُزوَّر.
+# (EN) No FFI in the browser sandbox: no dlopen, and argument packing is
+#      impossible on wasm32 (double is 8 bytes, void* is 4 — a hard static_assert).
+if(EMSCRIPTEN)
+    set(FFI_SOURCES "")
+    message(STATUS "[wasm] sad_rt_ffi مُستثناة — لا استدعاءَ أجنبيًّا في المتصفّح")
+endif()
 if(FFI_SOURCES)
     add_library(sad_rt_ffi STATIC ${FFI_SOURCES})
     target_include_directories(sad_rt_ffi

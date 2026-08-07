@@ -59,6 +59,19 @@ using socket_handle_t = int;
 #define SAD_INVALID_SOCKET (-1)
 #define SAD_SOCKET_ERROR (-1)
 #define SAD_CLOSE_SOCKET ::close
+// (AR) ‏`<netinet/tcp.h>` يعرّف `TCP_LISTEN` و`TCP_CLOSE` **ماكروَين** (حالتا
+//      اتّصالٍ رقميّتان)، وهما اسما ثابتَين في `Bsk` المُولَّد من مصدر الحقيقة.
+//      فيستبدل المعالجُ الأوّليّ الاسمَ برقمٍ داخل `Bsk::…` فينكسر الترجمة.
+//      ولا يقع على ويندوز لأنّ الفرعَ الآخر لا يشمل هذه الترويسة — فبقي
+//      كامنًا. والماكرو يُلغى لأنّ هذا الملفّ لا يستعمل حالاتِ الاتّصال أصلًا.
+// (EN) <netinet/tcp.h> defines TCP_LISTEN/TCP_CLOSE as macros, colliding with the
+//      SoT-generated constant names in Bsk. Latent on Windows (header not pulled).
+#ifdef TCP_LISTEN
+#undef TCP_LISTEN
+#endif
+#ifdef TCP_CLOSE
+#undef TCP_CLOSE
+#endif
 #endif
 
 namespace Sad

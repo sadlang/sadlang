@@ -11,6 +11,8 @@ build-tests/
 build_new/
 build_cov/
 build_release/
+# بناء WebAssembly (emcmake) — ٣ م.ب ثنائيّةٌ تنحرف صامتةً عن نسخة اللغة
+build_wasm/
 out/
 cmake-build-*/
 # (AR) مخرجات منسّق البناء x.py (المرحلة 0 — sadlang-rfcs#10)
