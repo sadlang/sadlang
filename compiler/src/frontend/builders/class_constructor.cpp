@@ -350,7 +350,11 @@ namespace Sad
                         paramInfo.type = b_.astTypeToSIRType(param.type);
                         paramInfo.registerName = "%" + param.name;
                         paramInfo.isGlobal = false;
-                        paramInfo.isMutable = false;
+                        // (AR) معاملُ الباني نسخةٌ محلّيّةٌ كمعاملِ الطريقةِ والدالّةِ الحرّة —
+                        //      `باني(م)` ثمّ `م = قيمة_افتراضيّة` نمطٌ مشروعٌ يقبلُه المفسّر.
+                        // (EN) A constructor parameter is a local copy like any other; `ctor(x)`
+                        //      followed by `x = default` is legitimate and the interpreter accepts it.
+                        paramInfo.isMutable = true;
                         paramInfo.isParameter = true;
                         paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_constructor_size");
                         b_.addVariable(paramInfo);

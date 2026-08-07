@@ -202,6 +202,40 @@ namespace Sad
                         }
                     }
 
+                    // ───────────────────────────────────────────────────────────────
+                    // (AR) تبطينُ الوسائطِ الناقصةِ بـ**عدمٍ** (لاشيء) لا بتركِ الخانةِ فارغة.
+                    //      بدونه تحملُ تعليمةُ الاستدعاءِ معاملاتٍ أقلَّ ممّا يُصرِّحُه الباني،
+                    //      فتُبطّنُها الخلفيّةُ بـ`Constant::getNullValue` أي **صفرًا** —
+                    //      والصفرُ رقمٌ مشروعٌ لا عدم، فتعطي `هذا._مهلة == لاشيء` **خطأً**
+                    //      في الشيفرةِ المترجَمةِ و**صحيحًا** في المفسّرِ بعدَ إصلاحِ
+                    //      expression_evaluator_oop_new.cpp ⇒ تباعُدُ محرّكَين.
+                    //      التفصيلُ والثغرةُ المعلَنةُ في `padOmittedArgsWithNull` (sir_module.h).
+                    //      و`params[0]` هو self (يُضيفُه buildClassConstructor أوّلَ معامل)
+                    //      و`args[0]` هو self كذلك، فالفهرسانِ متقابلانِ تمامًا.
+                    // (EN) Pad missing arguments with **null**. Without this the CALL carries
+                    //      fewer operands than the constructor declares, so the backend pads with
+                    //      `Constant::getNullValue`, i.e. **zero** — a legitimate number, not
+                    //      null. `this._timeout == null` then yields false in compiled code and
+                    //      true in the interpreter: an engine divergence. Details and the declared
+                    //      gap live in `padOmittedArgsWithNull` (sir_module.h). `params[0]` is
+                    //      self (added first by buildClassConstructor) and so is `args[0]`, so the
+                    //      two index spaces line up exactly.
+                    // ───────────────────────────────────────────────────────────────
+                    // (AR) عددُ الوسائطِ المُمرَّرةِ **فعلًا** — يُلتقَطُ قبلَ التبطين. استنتاجُ
+                    //      أنواعِ الحقولِ أدناه يجبُ أن يقتصرَ عليه: خانةٌ مُبطَّنةٌ لا تحملُ
+                    //      نوعًا كتبَه المستخدم، فلو دخلت الاستنتاجَ لثبّتت نوعَ الحقلِ على
+                    //      وسمِ التبطينِ فلا يُصحّحُه استدعاءٌ لاحقٌ يُمرّرُ الوسيطَ حقًّا.
+                    // (EN) The count of arguments **actually** passed — captured before padding.
+                    //      The field-type inference below must be bounded by it: a padded slot
+                    //      carries no user-written type, and letting it into the inference would
+                    //      pin the field to the pad's tag, which a later call that does pass the
+                    //      argument can no longer correct.
+                    const size_t passedArgCount = args.size();
+                    padOmittedArgsWithNull(constructor->getParameters(), args);
+                    // (AR) إبقاءُ أسماءِ الأصنافِ متوازيةً مع الوسائط — المُبطَّنُ بلا صنف.
+                    // (EN) Keep class names parallel to args — a padded slot has no class.
+                    argClassNames.resize(args.size());
+
                     // (AR) إنشاء تعليمة استدعاء الباني
                     // (EN) Create constructor call instruction
                     if (b_.currentBlock_)
@@ -231,7 +265,11 @@ namespace Sad
                         // (EN) Build map: paramName → argType
                         std::unordered_map<std::string, SadTypeKind> paramTypes;
                         std::unordered_map<std::string, std::string> paramClassNames;
-                        for (size_t i = 1; i < params.size() && i < args.size(); i++)
+                        // (AR) الحدُّ `passedArgCount` لا `args.size()`: الخاناتُ المُبطَّنةُ
+                        //      بعدَه ليست أنواعًا كتبها المستخدم (انظر التعليقَ أعلاه).
+                        // (EN) Bound by `passedArgCount`, not `args.size()`: the slots padded
+                        //      past it are not user-written types (see the note above).
+                        for (size_t i = 1; i < params.size() && i < passedArgCount; i++)
                         {
                             paramTypes[params[i].name] = args[i].dataType;
                             if (i < argClassNames.size() && !argClassNames[i].empty())

@@ -24,6 +24,7 @@
 
 #include "sir_types.h"
 #include "sir_instruction.h"
+#include "sir_constants.h" // (AR) kSadNullSentinel لتبطين الوسيط المُغفَل / (EN) null pad sentinel
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -320,6 +321,134 @@ namespace Sad
 
                 std::string toString() const;
             };
+
+            // ======================================================================
+            // (AR) تبطينُ الوسائطِ المُغفَلةِ بـ«عدم» — سلطةٌ واحدةٌ لكلِّ مواضعِ الاستدعاء
+            // (EN) Padding omitted arguments with null — one authority for all call sites
+            // ======================================================================
+
+            /**
+             * @brief (AR) هل يُخفَّض هذا النوعُ إلى **مؤشّرٍ** في الخلفيّة؟
+             * @brief (EN) Does this kind lower to a **pointer** in the backend?
+             *
+             * (AR) المرجعُ الوحيد: `LLVMTypeMapper::mapSIRType` — الأنواعُ المعدودةُ هنا
+             *      هي عينُ التي تُرجِعُ منها `getStringPtrType()`.
+             * (EN) Single reference: `LLVMTypeMapper::mapSIRType` — the kinds listed here
+             *      are exactly those that return `getStringPtrType()` there.
+             */
+            inline bool sirKindLowersToPointer(SadTypeKind kind)
+            {
+                return kind == SadTypeKind::Pointer ||
+                       kind == SadTypeKind::String ||
+                       kind == SadTypeKind::Array ||
+                       kind == SadTypeKind::Struct ||
+                       kind == SadTypeKind::Map ||
+                       kind == SadTypeKind::Function ||
+                       kind == SadTypeKind::Error;
+            }
+
+            /**
+             * @brief (AR) هل يعبرُ حارسُ العدمِ i64 إلى هذا النوعِ **سليمًا**؟
+             * @brief (EN) Does the i64 null sentinel reach this kind **intact**?
+             *
+             * (AR) الخلفيّةُ تُكيّفُ الوسيطَ إلى نوعِ معاملِ المستدعَى (cf_branch_call): فحارسُ
+             *      i64 يبقى حارسًا إن كان المعاملُ i64، ويُشوَّه فيما عداه —
+             *      `SIToFP` يجعلُه عشريًّا هائلًا، و`Trunc` إلى i1/i8 يجعلُه 1، و`IntToPtr`
+             *      يجعلُه مؤشّرًا شاردًا. فلا يُبطَّنُ بالعدمِ إلّا ما يحفظُه.
+             * (EN) The backend coerces each argument to the callee's parameter type
+             *      (cf_branch_call): the i64 sentinel survives only into an i64 parameter and is
+             *      corrupted otherwise — `SIToFP` turns it into a huge double, `Trunc` to i1/i8
+             *      turns it into 1, `IntToPtr` turns it into a wild pointer. So only kinds that
+             *      preserve it are padded with null.
+             */
+            inline bool sirKindPreservesNullSentinel(SadTypeKind kind)
+            {
+                return kind == SadTypeKind::Integer ||
+                       kind == SadTypeKind::UInt64 ||
+                       kind == SadTypeKind::Null ||
+                       kind == SadTypeKind::Unknown;
+            }
+
+            /**
+             * @brief (AR) يُبطّنُ `args` حتّى يبلغَ عددَ المعاملاتِ المُصرَّحةِ للمستدعَى
+             * @brief (EN) Pads `args` up to the callee's declared parameter count
+             *
+             * (AR) الخانةُ غيرُ المُمرَّرةِ ولا الافتراضيّةُ **عدمٌ** لا فراغٌ ولا صفر — نظيرُ
+             *      ما يفعلُه المفسّرُ عند ربطِ معاملاتِ الباني. بلا تبطينٍ تُبطّنُ الخلفيّةُ
+             *      بـ`Constant::getNullValue` أي **صفرًا**، والصفرُ يساوي رقمًا مشروعًا فتعطي
+             *      `س == لاشيء` خطأً في المترجَمِ وصحيحًا في المفسّر ⇒ تباعُدُ محرّكَين.
+             *      والوسمُ `Null` (لا `Integer`) هو وسمُ حرفيِّ `لاشيء` نفسِه، فتتوافقُ معه
+             *      مساراتُ المقارنةِ و`??` و`نوع()` وتغليفُ «أي» (toDyn).
+             *      والمعاملُ غيرُ المُصرَّحِ بنوعٍ يُخفَّض إلى `Integer` (astTypeToSIRType:
+             *      `Unknown ⇒ Integer`)، وهو الحالُ الغالبُ في المكتبةِ القياسيّة، فيُبطَّنُ
+             *      بالعدمِ كما ينبغي.
+             * (EN) A slot neither passed nor defaulted is **null** — not void, not zero —
+             *      mirroring the interpreter's constructor parameter binding. Without padding
+             *      the backend pads with `Constant::getNullValue`, i.e. **zero**, which is a
+             *      legitimate number, so `x == null` is false in compiled code and true in the
+             *      interpreter: an engine divergence. The `Null` tag (not `Integer`) is the very
+             *      tag the `لاشيء` literal carries, so comparison/`??`/`نوع()`/`أي`-boxing agree.
+             *      An untyped parameter lowers to `Integer` (astTypeToSIRType: `Unknown ⇒
+             *      Integer`) — the prevailing case across the standard library — so it does get
+             *      the null pad.
+             *
+             * 🚧 (AR) ثغرةٌ معلَنةٌ لا يُدَّعى سدُّها: الخانةُ التي لا يعبرُها الحارسُ سليمًا
+             *      (نصٌّ · مصفوفةٌ · خريطةٌ · دالّةٌ · عشريٌّ · منطقيٌّ · بايت) تُبطَّنُ
+             *      **بصفرِ نوعِها** — وهو عينُ ما تُبطّنُ به الخلفيّةُ اليوم، فلا يتغيّرُ
+             *      سلوكُها ولا يُزرَعُ فيها مؤشّرٌ شاردٌ ولا `صحيح` كاذب. تمثيلُ العدمِ في
+             *      هذه الأنواعِ يحتاجُ عقدًا مستقلًّا يُقاسُ على المحرّكَين.
+             * 🚧 (EN) Declared gap, not claimed closed: a slot the sentinel cannot reach intact
+             *      (string · array · map · function · float · boolean · byte) is padded with
+             *      **its own type's zero** — exactly what the backend pads with today, so its
+             *      behaviour is unchanged and it grows neither a wild pointer nor a bogus
+             *      `true`. Representing null in those types needs its own dual-engine contract.
+             *
+             * @param declaredParams (AR) معاملاتُ المستدعَى المُصرَّحةُ (تشملُ self عندَ البُناة)
+             * @param args (AR) الوسائطُ المبنيّةُ حتّى الآن — تُوسَّعُ في مكانها
+             */
+            inline void padOmittedArgsWithNull(const std::vector<SIRParameter> &declaredParams,
+                                               std::vector<SIROperand> &args)
+            {
+                for (size_t index = args.size(); index < declaredParams.size(); ++index)
+                {
+                    const SadTypeKind declaredKind = declaredParams[index].type;
+
+                    if (sirKindPreservesNullSentinel(declaredKind))
+                    {
+                        SIROperand nullPad = SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel);
+                        nullPad.dataType = SadTypeKind::Null;
+                        args.push_back(nullPad);
+                        continue;
+                    }
+
+                    // (AR) صفرُ النوعِ — مطابقٌ لـ`Constant::getNullValue` نوعًا بنوع.
+                    // (EN) The type's zero — matches `Constant::getNullValue` kind for kind.
+                    if (declaredKind == SadTypeKind::Float)
+                    {
+                        args.push_back(SIROperand::ConstantF64(0.0));
+                    }
+                    else if (declaredKind == SadTypeKind::Boolean)
+                    {
+                        args.push_back(SIROperand::ConstantBool(false));
+                    }
+                    else if (sirKindLowersToPointer(declaredKind))
+                    {
+                        // (AR) وسمُ `Pointer` يجعلُ الخلفيّةَ تُصدِر `IntToPtr(0)` أي مؤشّرًا
+                        //      صفريًّا — لا `Constant String` بمحتوى فارغ.
+                        // (EN) The `Pointer` tag makes the backend emit `IntToPtr(0)`, i.e. a
+                        //      null pointer — not an empty string constant.
+                        SIROperand pointerPad = SIROperand::ConstantI64(0);
+                        pointerPad.dataType = SadTypeKind::Pointer;
+                        args.push_back(pointerPad);
+                    }
+                    else
+                    {
+                        SIROperand zeroPad = SIROperand::ConstantI64(0);
+                        zeroPad.dataType = declaredKind;
+                        args.push_back(zeroPad);
+                    }
+                }
+            }
 
             // ======================================================================
             // فئة الدالة / Function Class

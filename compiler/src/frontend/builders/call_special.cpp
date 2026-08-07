@@ -217,6 +217,25 @@ namespace Sad
                         superArgs.push_back(SIROperand::Register(argResult.registerName, argResult.type));
                     }
 
+                    // (AR) تبطينُ ما أغفلَه `الأساس(...)` بـ«عدم» — نظيرُ ما يفعلُه
+                    //      buildNewObject للباني المباشر. بدونه يبقى مسارُ الوراثةِ وحدَه
+                    //      بلا تبطينٍ فتُبطّنُ الخلفيّةُ بصفرٍ ⇒ `س == لاشيء` خطأٌ في
+                    //      المترجَمِ وصحيحٌ في المفسّر، وهو عينُ التباعُدِ المُصلَحِ هناك.
+                    //      وإن لم يُسجَّلْ للأبِ بانٍ (بنيةٌ بلا باني) فلا معاملاتِ تُبطَّن.
+                    // (EN) Pad what `super(...)` omitted with null — the counterpart of what
+                    //      buildNewObject does for a direct constructor. Without it the
+                    //      inheritance path alone stays unpadded, so the backend pads with zero
+                    //      and `x == null` is false in compiled code yet true in the interpreter
+                    //      — the very divergence fixed there. If the parent has no registered
+                    //      constructor (a struct without one) there is nothing to pad.
+                    if (auto parentSirClass = b_.module_->getClass(sirClass->parentClass))
+                    {
+                        if (auto parentCtor = parentSirClass->getMethod(parentCtorName))
+                        {
+                            padOmittedArgsWithNull(parentCtor->getParameters(), superArgs);
+                        }
+                    }
+
                     // (AR) إصدار تعليمة CALL لباني الأب
                     // (EN) Emit CALL instruction for parent constructor
                     std::string superResultReg = b_.newTempRegister();
