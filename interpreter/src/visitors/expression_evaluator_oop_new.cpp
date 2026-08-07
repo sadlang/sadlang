@@ -351,11 +351,24 @@ namespace Sad
                         constructor->parameters[i].defaultValue->accept(*this);
                         variableManager_.define(paramName, lastResult_);
                     }
-                    // (AR) أولوية 4: قيمة فارغة (للمعاملات الاختيارية بدون افتراضي)
-                    // (EN) Priority 4: Empty value (for optional params without default)
+                    // (AR) أولوية ٤: وسيطٌ لم يُمرَّر ولا افتراضيَّ له ⇒ **عدمٌ** (لاشيء)
+                    //      لا فراغ. والفرقُ ليس تجميليًّا: `Value()` تُنشئ فراغًا (Void)،
+                    //      وvalue.h:244 ينصُّ أنّ العدمَ نوعٌ متمايزٌ عن الفراغِ تمامًا
+                    //      (S-TS-P1). فكان `منفذ == لاشيء` يعطي **خطأً** لمعاملٍ مُغفَل،
+                    //      فيمرُّ حارسُ `منفذ != لاشيء` ولا يقصرُ `و` دائرتَه، فيُقيَّم
+                    //      `منفذ > 0` على فراغٍ ⇒ SEM010 «لا تُدعَم إلّا == و!=».
+                    //      وهو النمطُ الذي تقومُ عليه المكتبةُ القياسيّةُ كلُّها
+                    //      (شبكات.ص:90 · 678 · 809)، فالوسيطُ المُغفَلُ عدمٌ بالتعريف.
+                    // (EN) Priority 4: an argument neither passed nor defaulted is **null**,
+                    //      not void. Not cosmetic: `Value()` builds a Void, and value.h:244
+                    //      states Null is a fully distinct kind from Void (S-TS-P1). So
+                    //      `port == null` returned false for an omitted parameter, the
+                    //      `port != null` guard passed, `and` did not short-circuit, and
+                    //      `port > 0` was evaluated on a void ⇒ SEM010. The whole stdlib
+                    //      rests on that idiom; an omitted argument is null by definition.
                     else
                     {
-                        variableManager_.define(paramName, Value());
+                        variableManager_.define(paramName, Value::makeNull());
                     }
                 }
 

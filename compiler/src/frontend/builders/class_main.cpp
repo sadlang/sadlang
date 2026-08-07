@@ -482,7 +482,15 @@ namespace Sad
                                 paramInfo.type = b_.astTypeToSIRType(param.type);
                                 paramInfo.registerName = "%" + param.name;
                                 paramInfo.isGlobal = false;
-                                paramInfo.isMutable = false;
+                                // (AR) معاملُ الطريقة نسخةٌ محلّيّةٌ كمعاملِ الدالّةِ الحرّة سواءً بسواء
+                                //      (sir_builder_functions.cpp) — ولا يجعله انتماؤه إلى صنفٍ ثابتًا.
+                                //      كان `false` هنا وحدَه فيُرفَض `رمز = 1000` داخلَ طريقةٍ ويُقبَل
+                                //      في دالّةٍ حرّة، والمفسّرُ يقبلُهما معًا ⇒ تباعُدُ محرّكَين.
+                                // (EN) A method parameter is a local copy exactly like a free-function
+                                //      parameter; belonging to a class does not make it const. This site
+                                //      alone said `false`, so `code = 1000` was rejected inside a method
+                                //      yet accepted in a free function — and the interpreter accepts both.
+                                paramInfo.isMutable = true;
                                 paramInfo.isParameter = true;
                                 paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_main_size");
                                 b_.addVariable(paramInfo);
@@ -717,7 +725,21 @@ namespace Sad
                                 paramInfo.type = b_.astTypeToSIRType(param.type);
                                 paramInfo.registerName = "%" + param.name;
                                 paramInfo.isGlobal = false;
-                                paramInfo.isMutable = false;
+                                // (AR) كسابقتها: المعاملُ نسخةٌ محلّيّةٌ قابلةٌ للتعديل، لا ثابتٌ.
+                                // (EN) As above: the parameter is a mutable local copy, not a const.
+                                paramInfo.isMutable = true;
+                                // (AR) ووسمُه معاملًا لازمٌ **مع** قابليّةِ التعديلِ لا زينةً معها:
+                                //      شرطُ إعادةِ استعمالِ الخانةِ في buildLocalVariable هو
+                                //      (متغيّرٌ && ليس معاملًا)؛ فرفعُ isMutable وحدَه هنا يفتحُ
+                                //      لتصريحٍ داخليٍّ باسمِ المعاملِ أن يكتبَ فوقَ خانتِه. وبه
+                                //      يطابقُ هذا الموضعُ سائرَ مواضعِ المعاملات.
+                                // (EN) Tagging it a parameter is REQUIRED alongside mutability, not
+                                //      decoration: buildLocalVariable reuses a slot only when it is
+                                //      (mutable && not a parameter), so raising isMutable alone here
+                                //      would let an inner declaration of the same name overwrite the
+                                //      parameter's slot. This also aligns the site with every other
+                                //      parameter registration.
+                                paramInfo.isParameter = true;
                                 paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "class_main_size");
                                 b_.addVariable(paramInfo);
                             }
@@ -964,7 +986,9 @@ namespace Sad
                     paramInfo.type = b_.astTypeToSIRType(param.type);
                     paramInfo.registerName = "%" + param.name;
                     paramInfo.isGlobal = false;
-                    paramInfo.isMutable = false;
+                    // (AR) كسابقتَيها: المعاملُ نسخةٌ محلّيّةٌ قابلةٌ للتعديل، لا ثابتٌ.
+                    // (EN) As above: the parameter is a mutable local copy, not a const.
+                    paramInfo.isMutable = true;
                     paramInfo.isParameter = true;
                     paramInfo.scopeLevel = Sad::Security::SafeArithmetic::assertSafeCast<int>(b_.scopeStack_.size(), "buildClassMethod_size");
                     b_.addVariable(paramInfo);
