@@ -281,8 +281,15 @@ StmtPtr cloneStatement(const Statement& stmt) {
     }
     
     if (auto* p = dynamic_cast<const ConstructorDecl*>(&stmt))
-        return std::make_unique<ConstructorDecl>(
+    {
+        auto clonedCtor = std::make_unique<ConstructorDecl>(
             cloneParams(p->parameters), cloneS(p->body), cloneEList(p->superArgs), p->position);
+        // (AR) والنسخُ يحملُ وسمَ نداءِ الأساسِ كذلك: نسخةٌ تفقدُه تُلغي نداءَ الأبِ صامتةً.
+        // (EN) The clone carries the base-call flag too: a clone that loses it silently drops the
+        //      parent call.
+        clonedCtor->hasBaseCall = p->hasBaseCall;
+        return clonedCtor;
+    }
     
     if (auto* p = dynamic_cast<const DestructorDecl*>(&stmt))
         return std::make_unique<DestructorDecl>(cloneS(p->body), p->position);

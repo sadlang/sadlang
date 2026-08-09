@@ -95,6 +95,46 @@ namespace Sad
                 if (name.size() > 8 && name.substr(0, 8) == "__macro_")
                     return false;
 
+                // ================================================================
+                // (AR) لا يُدمَجُ البانِي سطريًّا. والعلّةُ من جنسِ علّةِ `__macro_` أعلاه:
+                //      خاناتُ حقولِ البانِي تُخصَّصُ بـ`ALLOC` باسمِ الحقل، وتَعرِفُها
+                //      الخلفيّةُ بمطابقةِ ذلك الاسمِ بأسماءِ حقولِ الصنفِ فتُسقِطُها على
+                //      `GEP` في `self`. والدمجُ السطريُّ يُصدّرُ كلَّ سجلٍّ ببادئةِ
+                //      `_inlN_`، فينقطعُ التطابقُ، ويسقطُ الحقلُ إلى مكدَّسٍ محلّيٍّ في
+                //      المستدعي يُهمَلُ عندَ خروجِه — فتضيعُ الكتابةُ **صامتةً**: لا
+                //      تشخيصَ ولا انهيارَ ولا تغيُّرَ في رمزِ الخروج، والحقلُ يبقى على
+                //      تهيئتِه. المقيس: `باني() { وسم = ٤٢ }` ⇒ المفسّرُ ٤٢ والمصرِّفُ ١.
+                //
+                //      والضابطُ عَلَمٌ صريحٌ يضعُه بانِي الصنفِ، لا مطابقةُ اسمٍ نصّيّة.
+                //
+                //      ⚠️ والقاعدةُ نفسُها تصدُقُ على كلِّ طريقةٍ غيرِ ساكنة — فهي كذلك
+                //      تُخصِّصُ خاناتِ حقولٍ بأسمائها. غيرَ أنّ منعَ دمجِها يكشفُ ثغرةً
+                //      أخرى قائمةً في استنتاجِ تواقيعِ الأعضاءِ (نوعُ المعامِلِ غيرِ
+                //      المُصرَّحِ ونوعُ الإرجاعِ عبرَ `هذا.طريقة()` والوراثة)، والدمجُ
+                //      اليومَ يستُرها. وهي ثغرةٌ مقيسةٌ مُعلَنةٌ لا مطويّة، تُعالَجُ
+                //      بذاتها لا بتوسيعِ هذا المنعِ فوقَ ما يوجبُه عقدُ البانِي.
+                // (EN) Never inline a constructor. Same family of fault as the `__macro_`
+                //      exclusion above: a constructor's field slots are emitted as `ALLOC`
+                //      under the field's own name, and the backend recognises them by matching
+                //      that name against the class's field names, lowering them to a `GEP` into
+                //      `self`. Inlining prefixes every register with `_inlN_`, breaking the
+                //      match, so the field degrades into a caller-local stack slot discarded on
+                //      return — the write is lost **silently**.
+                //
+                //      The test is an explicit flag set by the class builder, not a textual
+                //      name match.
+                //
+                //      ⚠️ The same rule holds for every non-static method, which likewise
+                //      allocates field slots by name. But forbidding their inlining exposes a
+                //      separate, pre-existing gap in member signature inference (undeclared
+                //      parameter types, and return types through `this.method()` and
+                //      inheritance) that inlining currently masks. That gap is measured and
+                //      declared, not buried; it is to be fixed on its own terms, not by
+                //      widening this exclusion beyond what the constructor contract requires.
+                // ================================================================
+                if (callee.isConstructor)
+                    return false;
+
                 // Don't inline recursive or large functions
                 size_t totalInsts = 0;
                 for (const auto &block : callee.getBasicBlocks())
@@ -136,12 +176,36 @@ namespace Sad
                 std::unordered_map<std::string, SIROperand> paramMap;
                 const auto &params = callee.getParameters();
                 // operands[0] is function name, rest are args
-                for (size_t i = 0; i < params.size() && i + 1 < callInst.operands.size(); ++i)
+                for (size_t i = 0; i < params.size(); ++i)
                 {
-                    paramMap[params[i].name] = callInst.operands[i + 1];
+                    // (AR) وسيطٌ مُمرَّرٌ ⇒ يُربَط. ومعاملٌ لم يبلغْه وسيطٌ (استدعاءٌ أقصرُ من
+                    //      التصريح) ⇒ يُربَطُ بـ**عدمٍ**، لا يُترَكُ بلا ربط.
+                    //      العطبُ المقيس: بلا هذا يخرجُ المعاملُ من `paramMap`، فيمرُّ على
+                    //      `renameReg` فيصيرَ `%_inl0_وسم` — سجلًّا **لا يُعرَّفُ قطّ** —
+                    //      فتبثُّ الخلفيّةُ «خطأ مترجم داخلي: مرجع غير معرَّف» ثمّ **تخرجُ
+                    //      برمزِ صفر**، أي علّةٌ تجتازُ كلَّ بوّابةٍ تحتكمُ إلى رمزِ الخروج.
+                    //      والقيمةُ عدمٌ لا صفرٌ مطابقةً لتبطينِ مواضعِ الاستدعاءِ (buildNewObject
+                    //      و`الأساس(...)`) ولربطِ المفسّرِ في executeCtorChain — وبالمُعينِ
+                    //      نفسِه `makeOmittedArgPad`، فهو وحدَه يعرفُ متى يعبرُ الحارسُ سليمًا:
+                    //      التبطينُ هنا يدخلُ **جسمَ** المستدعَى بلا تكييفِ الخلفيّة، فحارسُ i64
+                    //      في خانةٍ مؤشّريّةٍ يصيرُ مؤشّرًا شاردًا لا عدمًا.
+                    // (EN) A passed argument binds; a parameter no argument reached (a call
+                    //      shorter than the declaration) binds to **null** rather than being left
+                    //      unmapped. Measured defect: without this the parameter escapes
+                    //      `paramMap`, flows through `renameReg` into `%_inl0_tag` — a register
+                    //      that is never defined — so the backend emits "internal compiler error:
+                    //      undefined reference" and then **exits zero**: a fault that passes every
+                    //      gate keyed on the exit code. Null, not zero, to match the call-site
+                    //      padding (buildNewObject, `super(...)`) and the interpreter's
+                    //      executeCtorChain binding.
+                    const SIROperand bound = (i + 1 < callInst.operands.size())
+                                                 ? callInst.operands[i + 1]
+                                                 : makeOmittedArgPad(params[i].type);
+
+                    paramMap[params[i].name] = bound;
                     // (AR) أيضاً سجّل بصيغة %اسم لأن التعليمات تستخدم هذا الشكل
                     // (EN) Also register with % prefix since instructions use this form
-                    paramMap["%" + params[i].name] = callInst.operands[i + 1];
+                    paramMap["%" + params[i].name] = bound;
                 }
 
                 // Generate unique register prefix for inlined code

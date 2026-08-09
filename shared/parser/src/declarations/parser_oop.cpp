@@ -719,6 +719,7 @@ namespace Sad
             // Spec: docs\language_spec\rules\03_oop.md - constructor can call base constructor
             // Syntax: باني(params) : الأساس(arg1, arg2)
             ExprList superArgs;
+            bool hasBaseCall = false;
             if (match(TT::COLON))
             {
                 // (AR) توقع كلمة "الأساس" أو "super"
@@ -748,13 +749,14 @@ namespace Sad
                 superArgs = parseArgumentList();
 
                 consume(TT::PAREN_RIGHT, "");
+                hasBaseCall = true;
             }
 
             // (AR) التحقق من استدعاء الأساس() في بداية جسم الباني (بدون نقطتين)
             // (EN) Check for super() call at the start of constructor body (without colon)
             // الصيغة الوحيدة المدعومة: الأساس(args) أو الأساس.باني(args)
             // (EN) Only supported forms: الأساس(args) or الأساس.باني(args)
-            if (superArgs.empty() && check(TT::KEYWORD_SUPER))
+            if (!hasBaseCall && check(TT::KEYWORD_SUPER))
             {
                 // (AR) نتحقق من الرمز التالي قبل الاستهلاك لتجنب استهلاك خاطئ
                 // (EN) Check next token before consuming to avoid wrong consumption
@@ -767,6 +769,7 @@ namespace Sad
                     advance(); // consume '('
                     superArgs = parseArgumentList();
                     consume(TT::PAREN_RIGHT, "");
+                    hasBaseCall = true;
                 }
                 else if (nextType == TT::DOT)
                 {
@@ -782,6 +785,7 @@ namespace Sad
                         consume(TT::PAREN_LEFT, "");
                         superArgs = parseArgumentList();
                         consume(TT::PAREN_RIGHT, "");
+                        hasBaseCall = true;
                     }
                     else
                     {
@@ -822,6 +826,7 @@ namespace Sad
 
             auto ctorDecl = std::make_unique<ConstructorDecl>(std::move(parameters), std::move(body),
                                                               std::move(superArgs));
+            ctorDecl->hasBaseCall = hasBaseCall;
             // (AR) إرفاق التوثيق الملتقط بالباني / (EN) Attach captured doc to constructor
             ctorDecl->docComment = std::move(capturedDoc);
             return ctorDecl;

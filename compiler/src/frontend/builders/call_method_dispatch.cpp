@@ -370,9 +370,49 @@ namespace Sad
                 // (EN) Try to find class name from VariableExpr
                 if (auto varExpr = dynamic_cast<Sad::AST::VariableExpr *>(methodCallExpr->object.get()))
                 {
+                    // (AR) رَبطُ المعامِلِ في نطاقِ دالّتِه يسبقُ الخريطتَينِ المسطَّحتَين.
+                    //
+                    //      `classInstanceTypes_` و`VariableInfo::className` مفهرستانِ بالاسمِ
+                    //      العاري على البرنامجِ كلِّه، فمتغيّرٌ محلّيٌّ في دالّةٍ أخرى يحملُ اسمَ
+                    //      المعامِلِ يُملي صنفَه عليه. والرَّبطُ هنا مفتاحُه (الدالّة، المعامِل)
+                    //      فهو أدقُّ منهما وأحقُّ بالتقديم.
+                    //
+                    //      والأهمُّ أنّه **الحسمُ نفسُه** الذي رقّى خانةَ المعامِلِ في المسح: لو
+                    //      قُدِّمَت الخريطةُ المسطَّحةُ لاختلفَ المُرقّي عن الباثّ، فتُرقّى
+                    //      الخانةُ بتوقيعِ صنفٍ ويُبَثُّ النداءُ إلى صنفٍ آخرَ ⇒ إجهاضُ LLVM.
+                    // (EN) A parameter's binding within its own function outranks both flat maps.
+                    //
+                    //      `classInstanceTypes_` and `VariableInfo::className` are indexed by bare
+                    //      name across the whole program, so a local in another function sharing
+                    //      the parameter's name dictates its class. This binding is keyed by
+                    //      (function, parameter) — more precise, and therefore takes precedence.
+                    //
+                    //      More importantly it is **the same resolution** that promoted the
+                    //      parameter's slot during the scan: were the flat map preferred, the
+                    //      promoter and the emitter would disagree, so the slot would be promoted
+                    //      with one class's signature while the call went to another ⇒ LLVM abort.
+                    bool boundByScope = false;
+                    if (b_.currentFunction_)
+                    {
+                        auto bound = b_.paramClassBindings_.find(
+                            {b_.currentFunction_->name, varExpr->name});
+                        if (bound != b_.paramClassBindings_.end())
+                        {
+                            // (AR) قيمةٌ فارغة = تعارُضٌ محسوم: لا توجيهَ (ولا ترقيةَ في المسح).
+                            // (EN) Empty value = settled conflict: no redirection (and no promotion).
+                            boundByScope = true;
+                            className = bound->second;
+                        }
+                    }
+
                     // (AR) البحث عن معلومات المتغير في b_.classInstanceTypes_
                     // (EN) Look up variable info in b_.classInstanceTypes_
-                    if (b_.classInstanceTypes_.find(varExpr->name) != b_.classInstanceTypes_.end())
+                    if (boundByScope)
+                    {
+                        // (AR) حُسِمَ أعلاه — لا يُعادُ الحسمُ من خريطةٍ مسطَّحة.
+                        // (EN) Settled above — not re-resolved from a flat map.
+                    }
+                    else if (b_.classInstanceTypes_.find(varExpr->name) != b_.classInstanceTypes_.end())
                     {
                         className = b_.classInstanceTypes_[varExpr->name];
                     }
@@ -548,7 +588,46 @@ namespace Sad
                             }
                         }
                     }
-                    if (className.empty())
+                    // (AR) ولا يُخمَّنُ المالكُ حينَ يكونُ نوعُ المُستقبِلِ مدمَجًا معروفًا.
+                    //
+                    //      البحثُ أدناه يمرُّ على **كلِّ** الأصنافِ باسمِ الطريقةِ وحدَه ويأخذُ
+                    //      أوّلَ ما يجد. وحينَ يكونُ المُستقبِلُ مصفوفةً أو نصًّا أو خريطةً
+                    //      يفرُغُ className، فيُصرَفُ `مصفوفة.أضف(...)` إلى `صنف.أضف`
+                    //      لمجرّدِ تصادُمِ الاسم: لا يُضافُ العنصرُ، ويُطبَعُ ما لا علاقةَ له،
+                    //      ثمّ يُقرَأُ خارجَ الحدّ. والعيبُ لا يشترطُ إنشاءَ الصنفِ أصلًا.
+                    //
+                    //      ونوعُ المُستقبِلِ معروفٌ ساكنًا في `VariableInfo::type` — كانَ
+                    //      مُهمَلًا بينما يُقرَأُ `className` وحدَه من البنيةِ نفسِها. فالسدُّ
+                    //      بقراءةِ ما هو معلومٌ لا بقائمةِ أسماءٍ محجوزةٍ تُطارِدُ التصادمات.
+                    // (EN) The owner is never guessed when the receiver's type is a known builtin.
+                    //
+                    //      The search below walks EVERY class by method name alone and takes the
+                    //      first hit. When the receiver is an array, string or map, className is
+                    //      empty, so `array.add(...)` is dispatched to `SomeClass.add` purely on a
+                    //      name collision: the element is not appended, something unrelated is
+                    //      printed, and then an out-of-bounds read follows. The defect does not
+                    //      even require the class to be instantiated.
+                    //
+                    //      ونوعُ المُستقبِلِ يُؤخَذُ من `objResult` — نتيجةِ بنائِه فعلًا أعلاه
+                    //      (السطر ٣٦٣) — لا من شكلِ عقدتِه في الشجرة. وعدُّ الأشكالِ كانَ
+                    //      يسدُّ المتغيّرَ والمصفوفةَ الحرفيّةَ ويترُكُ ثلاثةَ أبوابٍ مفتوحة:
+                    //      حقلٌ (`هذا.عناصر.أضف`)، ونداءٌ متسلسل (`اصنع().أضف`)، وفهرسةٌ
+                    //      (`ج[0].أضف`) — وفي الثلاثةِ تُكتَبُ مؤشّراتٌ خامٌّ مكانَ العناصر.
+                    //      وكلُّ شكلٍ جديدٍ كانَ سيفتحُ بابًا رابعًا. أمّا `objResult.type`
+                    //      فيصفُ **القيمةَ** لا كتابتَها، فيُغلِقُ الأشكالَ كلَّها دفعةً.
+                    // (EN) The receiver's type is taken from `objResult` — the result of actually
+                    //      building it above (line 363) — not from the shape of its AST node.
+                    //      Enumerating shapes sealed the variable and the array literal and left
+                    //      three doors open: a field (`this.items.add`), a chained call
+                    //      (`make().add`) and an index (`m[0].add`) — in all three, raw pointers are
+                    //      written over the elements. Every new shape would open a fourth door.
+                    //      `objResult.type` describes the **value**, not how it was spelled, so it
+                    //      closes every shape at once.
+                    const bool receiverHasBuiltinType = (objResult.type == SadTypeKind::Array ||
+                                                         objResult.type == SadTypeKind::String ||
+                                                         objResult.type == SadTypeKind::Map);
+
+                    if (className.empty() && !receiverHasBuiltinType)
                     {
                         // (AR) أولاً: عدّ الأصناف التي تملك هذه الطريقة
                         // (EN) First: count how many classes have this method

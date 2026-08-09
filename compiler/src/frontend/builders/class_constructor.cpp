@@ -44,6 +44,7 @@ namespace Sad
 
                 std::string fullCtorName = classDecl->name + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
                 auto sirCtor = std::make_shared<SIRFunction>(fullCtorName, SadTypeKind::Void);
+                sirCtor->isConstructor = true;
                 sirCtor->addParameter(SIRParameter(kSelfParamName, SadTypeKind::Integer));
 
                 for (const auto &param : ctorDecl->parameters)
@@ -405,10 +406,39 @@ namespace Sad
                     }
 
                     // ═══════════════════════════════════════════════════════════════
-                    // (AR) استدعاء باني الأب إذا كانت هناك superArgs
-                    // (EN) Call parent constructor if superArgs exist
+                    // (AR) استدعاء بانِي الأبِ متى وردَ نداءُ الأساسِ نصًّا — ولو بلا وسائط.
+                    //
+                    //      ويُشترَطُ أن يكونَ للأبِ بانٍ فعلًا: `الأساس()` في صنفٍ أبوه مجرّدٌ
+                    //      بلا بانٍ ليسَ خطأً في المصدر، بل لا شيءَ يُنفَّذ. والمفسّرُ يحرسُ
+                    //      هذا أصلًا (`if (baseClass->constructor)`)، وكانَ المصرِّفُ بلا
+                    //      حارسٍ نظيرٍ — لاتماثلٌ كامنٌ لم يظهرْ ما دامَ النداءُ الفارغُ
+                    //      مُلغًى. وبغيرِه يُبَثُّ نداءٌ لرمزٍ لا وجودَ له فيُخفِقُ الرَّبطُ:
+                    //      `unresolved external symbol أب.بناء`.
+                    // (EN) Call the parent constructor whenever a base call is written in the
+                    //      source — even with no arguments.
+                    //
+                    //      The parent must actually have a constructor: `super()` in a class whose
+                    //      parent is abstract and constructor-less is not a source error, there is
+                    //      simply nothing to run. The interpreter already guards this
+                    //      (`if (baseClass->constructor)`); the compiler had no counterpart — a
+                    //      latent asymmetry that stayed hidden while the empty call was dropped.
+                    //      Without the guard a call to a nonexistent symbol is emitted and linking
+                    //      fails: `unresolved external symbol Parent.ctor`.
                     // ═══════════════════════════════════════════════════════════════
-                    if (!ctorDecl->superArgs.empty() && !parentClass.empty())
+                    const bool baseCallIsWritten =
+                        !ctorDecl->superArgs.empty() || ctorDecl->hasBaseCall;
+                    bool parentDeclaresConstructor = false;
+                    if (baseCallIsWritten && !parentClass.empty() && b_.module_)
+                    {
+                        if (auto parentSirClass = b_.module_->getClass(parentClass))
+                        {
+                            parentDeclaresConstructor =
+                                parentSirClass->getMethod(
+                                    parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1") != nullptr;
+                        }
+                    }
+
+                    if (baseCallIsWritten && !parentClass.empty() && parentDeclaresConstructor)
                     {
                         // (AR) بناء معاملات استدعاء باني الأب
                         // (EN) Build parent constructor call arguments
@@ -501,6 +531,29 @@ namespace Sad
                             else
                             {
                                 superArgOperands.push_back(SIROperand::Register(argResult.registerName, argResult.type));
+                            }
+                        }
+
+                        // ═══════════════════════════════════════════════════════════════
+                        // (AR) تبطينُ خاناتِ `الأساس(...)` المُغفَلةِ بعدمٍ — نداءٌ أقصرُ من
+                        //      تصريحِ بانِي الأبِ يبلغُه ناقصًا وإلّا. وكان الدمجُ السطريُّ
+                        //      يستُرُ هذا النقصَ بتبطينِه الخاصِّ؛ فلمّا مُنِعَ دمجُ الأعضاءِ
+                        //      ظهرَ على حقيقتِه. والمُعينُ واحدٌ لا يُنسَخُ: `makeOmittedArgPad`.
+                        // (EN) Pad omitted `super(...)` slots with null — a call shorter than
+                        //      the parent constructor's declaration would otherwise reach it
+                        //      short. Inlining used to mask this with its own padding; once
+                        //      member inlining was forbidden the gap surfaced. One helper,
+                        //      never duplicated: `makeOmittedArgPad`.
+                        // ═══════════════════════════════════════════════════════════════
+                        {
+                            auto parentSirClassForPad = b_.module_->getClass(parentClass);
+                            if (parentSirClassForPad)
+                            {
+                                auto parentCtorForPad = parentSirClassForPad->getMethod(parentCtorName);
+                                if (parentCtorForPad)
+                                {
+                                    padOmittedArgsWithNull(parentCtorForPad->getParameters(), superArgOperands);
+                                }
                             }
                         }
 

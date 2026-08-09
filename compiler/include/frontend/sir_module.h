@@ -370,8 +370,8 @@ namespace Sad
             }
 
             /**
-             * @brief (AR) يُبطّنُ `args` حتّى يبلغَ عددَ المعاملاتِ المُصرَّحةِ للمستدعَى
-             * @brief (EN) Pads `args` up to the callee's declared parameter count
+             * @brief (AR) يبني قيمةَ التبطينِ لخانةِ معاملٍ واحدةٍ لم يبلغْها وسيط
+             * @brief (EN) Builds the pad value for a single parameter slot no argument reached
              *
              * (AR) الخانةُ غيرُ المُمرَّرةِ ولا الافتراضيّةُ **عدمٌ** لا فراغٌ ولا صفر — نظيرُ
              *      ما يفعلُه المفسّرُ عند ربطِ معاملاتِ الباني. بلا تبطينٍ تُبطّنُ الخلفيّةُ
@@ -403,50 +403,76 @@ namespace Sad
              *      behaviour is unchanged and it grows neither a wild pointer nor a bogus
              *      `true`. Representing null in those types needs its own dual-engine contract.
              *
-             * @param declaredParams (AR) معاملاتُ المستدعَى المُصرَّحةُ (تشملُ self عندَ البُناة)
-             * @param args (AR) الوسائطُ المبنيّةُ حتّى الآن — تُوسَّعُ في مكانها
+             * (AR) وهذه صيغةُ الخانةِ الواحدة، ليشتركَ فيها موضعُ الاستدعاءِ ومُضمِّنُ
+             *      الأماميّةِ (sir_frontend_optimizer_passes2) على منطقٍ واحد: فالمُضمِّنُ
+             *      يستبدلُ المعاملَ في **جسمِ** المستدعَى مباشرةً بلا مرورٍ بتكييفِ الخلفيّة،
+             *      فالحارسُ أعلاه هو حِمايتُه الوحيدة. ولهذا يُشارَكُ المنطقُ ولا يُكرَّر:
+             *      نسخةٌ ثانيةٌ تسهو عن الحارسِ تزرعُ مؤشّرًا شاردًا لا تُصحّحُه الخلفيّة.
+             * (EN) The single-slot form, so the call site and the frontend inliner
+             *      (sir_frontend_optimizer_passes2) share one rule: the inliner substitutes the
+             *      parameter straight into the callee's **body**, bypassing the backend's
+             *      coercion, so the guard above is its only protection. Hence sharing rather than
+             *      duplicating: a second copy that forgot the guard would plant a wild pointer
+             *      the backend never gets to fix.
+             *
+             * @param declaredKind (AR) نوعُ المعاملِ المُصرَّحِ الذي لم يبلغْه وسيط
+             */
+            inline SIROperand makeOmittedArgPad(SadTypeKind declaredKind)
+            {
+                if (sirKindPreservesNullSentinel(declaredKind))
+                {
+                    SIROperand nullPad = SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel);
+                    nullPad.dataType = SadTypeKind::Null;
+                    return nullPad;
+                }
+
+                // (AR) صفرُ النوعِ — مطابقٌ لـ`Constant::getNullValue` نوعًا بنوع.
+                // (EN) The type's zero — matches `Constant::getNullValue` kind for kind.
+                if (declaredKind == SadTypeKind::Float)
+                {
+                    return SIROperand::ConstantF64(0.0);
+                }
+
+                if (declaredKind == SadTypeKind::Boolean)
+                {
+                    return SIROperand::ConstantBool(false);
+                }
+
+                if (sirKindLowersToPointer(declaredKind))
+                {
+                    // (AR) وسمُ `Pointer` يجعلُ الخلفيّةَ تُصدِر `IntToPtr(0)` أي مؤشّرًا
+                    //      صفريًّا — لا `Constant String` بمحتوى فارغ.
+                    // (EN) The `Pointer` tag makes the backend emit `IntToPtr(0)`, i.e. a
+                    //      null pointer — not an empty string constant.
+                    SIROperand pointerPad = SIROperand::ConstantI64(0);
+                    pointerPad.dataType = SadTypeKind::Pointer;
+                    return pointerPad;
+                }
+
+                SIROperand zeroPad = SIROperand::ConstantI64(0);
+                zeroPad.dataType = declaredKind;
+                return zeroPad;
+            }
+
+            /**
+             * @brief (AR) يُبطّنُ `args` حتّى يبلغَ عددَ المعاملاتِ المُصرَّحةِ للمستدعَى
+             * @brief (EN) Pads `args` up to the callee's declared parameter count
+             *
+             * (AR) صيغةُ موضعِ الاستدعاء: كلُّ خانةٍ زائدةٍ تأخذُ ما يبنيه
+             *      `makeOmittedArgPad` لنوعِها. ولا يمسُّ الوسائطَ المُمرَّرةَ فعلًا.
+             * (EN) The call-site form: every surplus slot takes whatever
+             *      `makeOmittedArgPad` builds for its kind. Arguments actually passed are
+             *      left untouched.
+             *
+             * @param declaredParams (AR) معاملاتُ المستدعَى المُصرَّحة
+             * @param args           (AR) الوسائطُ — تُوسَّعُ في مكانِها
              */
             inline void padOmittedArgsWithNull(const std::vector<SIRParameter> &declaredParams,
                                                std::vector<SIROperand> &args)
             {
                 for (size_t index = args.size(); index < declaredParams.size(); ++index)
                 {
-                    const SadTypeKind declaredKind = declaredParams[index].type;
-
-                    if (sirKindPreservesNullSentinel(declaredKind))
-                    {
-                        SIROperand nullPad = SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel);
-                        nullPad.dataType = SadTypeKind::Null;
-                        args.push_back(nullPad);
-                        continue;
-                    }
-
-                    // (AR) صفرُ النوعِ — مطابقٌ لـ`Constant::getNullValue` نوعًا بنوع.
-                    // (EN) The type's zero — matches `Constant::getNullValue` kind for kind.
-                    if (declaredKind == SadTypeKind::Float)
-                    {
-                        args.push_back(SIROperand::ConstantF64(0.0));
-                    }
-                    else if (declaredKind == SadTypeKind::Boolean)
-                    {
-                        args.push_back(SIROperand::ConstantBool(false));
-                    }
-                    else if (sirKindLowersToPointer(declaredKind))
-                    {
-                        // (AR) وسمُ `Pointer` يجعلُ الخلفيّةَ تُصدِر `IntToPtr(0)` أي مؤشّرًا
-                        //      صفريًّا — لا `Constant String` بمحتوى فارغ.
-                        // (EN) The `Pointer` tag makes the backend emit `IntToPtr(0)`, i.e. a
-                        //      null pointer — not an empty string constant.
-                        SIROperand pointerPad = SIROperand::ConstantI64(0);
-                        pointerPad.dataType = SadTypeKind::Pointer;
-                        args.push_back(pointerPad);
-                    }
-                    else
-                    {
-                        SIROperand zeroPad = SIROperand::ConstantI64(0);
-                        zeroPad.dataType = declaredKind;
-                        args.push_back(zeroPad);
-                    }
+                    args.push_back(makeOmittedArgPad(declaredParams[index].type));
                 }
             }
 
@@ -467,6 +493,7 @@ namespace Sad
                 std::string name;                                        ///< (AR) اسم الدالة / (EN) Function name
                 std::string linkName;                                    ///< (AR) اسم الربط الخارجي (FFI) / (EN) FFI link name (empty = use function name)
                 SadTypeKind returnType;                                  ///< (AR) نوع الإرجاع / (EN) Return type
+                bool isConstructor = false;                              ///< (AR) بانٍ — يملك خانات حقول الكائن فلا يُدمج سطريًّا / (EN) Constructor — owns object field slots, never inlined
                 bool isCoroutine = false;                                ///< (AR) دالة غير متزامنة (كوروتين) / (EN) Async function (coroutine)
                 bool isGenerator = false;                                ///< (AR) دالة مولّد / (EN) Generator function
                 bool isExported = false;                                 ///< (AR) دالة مُصدّرة (صدّر) / (EN) Exported function (export)

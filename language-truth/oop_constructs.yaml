@@ -15,6 +15,36 @@ constructs:
     keywords_used: [صنف, باني, هدم, هذا, الأساس, نهاية]
     since: "1.0.0"
     status: stable
+    description_ar: >
+      الصنفُ يجمعُ حقولًا وطرائقَ تحتَ اسمٍ واحد، وطرائقُه تُصرَفُ بنوعِ المُستقبِلِ
+      لا باسمِ الطريقةِ وحدَه.
+
+      ونوعُ المُستقبِلِ يُؤخَذُ من **القيمةِ المبنيّةِ** لا من شكلِ كتابتِها في الشجرة،
+      فيستوي في ذلكَ المتغيّرُ والمصفوفةُ الحرفيّةُ والحقلُ والفهرسةُ والنداءُ المتسلسل.
+      وهذا ليسَ تفصيلَ تنفيذ: صرفُ النداءِ بعدِّ **أشكالِ** المُستقبِلِ يترُكُ بابًا
+      مفتوحًا لكلِّ شكلٍ لم يُعَدّ، فيختطفُ تعريفُ «دالة أضف(...)» في أيِّ صنفٍ نداءَ
+      «<مصفوفة>.أضف(...)» ولو لم يُنشَأْ من الصنفِ كائنٌ قطّ. والسؤالُ عن نوعِ القيمةِ
+      يُغلِقُ الأشكالَ كلَّها دفعةً واحدة.
+
+      ولازمُ ذلكَ أنّ نوعَ الحقلِ يجبُ أن يُسجَّلَ **مرّةً واحدة**: حقلٌ مُهيَّأٌ
+      بمصفوفةٍ نوعُه مصفوفة، لا أن يُعلَنَ مصفوفةً في قناةِ التخصيصِ وعددًا صحيحًا في
+      جدولِ الأنواع — فقارئُ الحقلِ يقرأُ أحدَ السجلَّينِ فيرى غيرَ الحقيقة.
+    description_en: >
+      A class groups fields and methods under one name, and its methods are dispatched
+      on the receiver's type, not on the method name alone.
+
+      The receiver's type is taken from the **built value**, not from the shape of its
+      spelling in the AST, so a variable, an array literal, a field, an index and a
+      chained call are all alike. This is not an implementation detail: dispatching by
+      enumerating receiver **shapes** leaves a door open for every shape not enumerated,
+      so defining «دالة أضف(...)» in any class hijacks «<array>.أضف(...)» even when no
+      object of that class is ever created. Asking for the value's type closes every
+      shape at once.
+
+      It follows that a field's type must be recorded **once**: a field initialised with
+      an array is of array type, rather than being declared an array on the allocation
+      channel and an integer in the type table — the field's reader consults one of the
+      two records and sees something other than the truth.
     example: |
       صنف حيوان
           متغير عام اسم
@@ -23,6 +53,198 @@ constructs:
           نهاية
           دالة عام صوت()
               ارجع "..."
+          نهاية
+      نهاية
+
+  - id: oop.constructor
+    name_ar: "الباني"
+    name_en: constructor
+    category: class
+    syntax: "باني([<معامل> [، <معامل>...]]) ... نهاية"
+    keywords_used: [باني, هذا, الأساس, نهاية]
+    since: "1.0.0"
+    status: stable
+    description_ar: >
+      البانِي دالّةٌ عضوٌ تُستدعى مرّةً عندَ إنشاءِ الكائن، بعدَ تطبيقِ تهيئاتِ الحقولِ
+      وقبلَ أن يُسلَّمَ الكائنُ للمستدعي. وعقدُه ثلاثُ موادّ يلزمُ المحرّكَينِ معًا:
+
+        (١) المعامِلُ يحجبُ الحقلَ ذا الاسمِ نفسِه داخلَ جسمِ البانِي. فالاسمُ العاري
+            يدلُّ على المعامِلِ لا على الحقل، والحقلُ يبقى على تهيئتِه ما لم يُكتَبْ
+            صراحةً عبرَ «هذا.<حقل>». وهذا هو مسوّغُ الاصطلاحِ «هذا.اسم = اسم».
+            والحجبُ حكمُ **مستوًى** لا حكمُ سلسلة: معامِلُ المشتقِّ لا يحجبُ شيئًا
+            في جسمِ الأب، فالاسمُ العاري هناك يدلُّ على الحقل.
+            وثغرةٌ مُعلَنة: نطاقُ البانِي في المفسّرِ مسطَّحٌ لا نطاقَ لكلِّ مستوًى،
+            فإن سمّى بانِي المشتقِّ معامِلًا باسمِ متغيّرٍ عامٍّ يكتبُه جسمُ الأب، ضاعَت
+            كتابةُ الأبِ في المفسّرِ وبلغَت في المصرِّف. غيرُ انحداريّ (خطُّ الأساسِ
+            مقيسٌ يفعلُ مثلَه)، وسدُّها يقتضي نطاقًا لكلِّ مستوًى لا حارسًا يقيسُ
+            «أهذا الاسمُ معامِلٌ في مكانٍ ما» — فمثلُ ذلكَ الحارسِ يبتلعُ كتابةً مشروعة.
+
+        (٢) إسنادٌ باسمٍ عارٍ إلى اسمِ حقلٍ **ليس** معامِلًا يكتبُ الحقلَ نفسَه،
+            لا متغيّرًا محلّيًّا يُهمَلُ عندَ خروجِ البانِي.
+
+        (٣) خانةُ معامِلٍ لم يبلغْها وسيطٌ — في «<صنف>(...)» أو في «الأساس(...)» —
+            قيمتُها **عدم**، لا صفرٌ ولا خطأُ عددِ وسائط. والبانِي بذلك مستثنًى من
+            RUN029 (الوسيطُ المطلوبُ المفقود) الذي يحكمُ الدوالَّ الحرّة.
+            و«الأساس()» بلا وسائطَ نداءٌ يُنفَّذُ بخاناتٍ عدميّة، لا نداءٌ مُلغًى:
+            وتمييزُه من «لا نداءَ للأساس» محمولٌ في الشجرةِ نفسِها بوسمٍ صريح، إذ
+            قائمةُ الوسائطِ وحدَها لا تُفرّقُ بينَهما — كلتاهما فارغة.
+            وثغرةٌ مُعلَنة: حقلٌ بقيَ عدمًا يطبعُه المفسّرُ «لاشيء» بينما يطبعُه
+            المصرِّفُ حارسَ العدمِ عددًا — وهي علّةُ خفضِ النوعِ غيرِ المُصرَّحِ إلى
+            «صحيح» لا علّةُ البانِي.
+            وثغرةٌ مُعلَنةٌ ثانية: ذلكَ الحقلُ نفسُه يطبعُه المفسّرُ «لاشيء» بينما
+            مقارنتُه بـ«لاشيء» تُعطي «خطأ» — فالطباعةُ والمقارنةُ لا تتّفقانِ عليه.
+
+      ونوعُ معامِلِ العضوِ غيرِ المُصرَّحِ يُستنتَجُ من مواقعِ نداءِ العضوِ بالإجماع، ولا
+      يُستنتَجُ إلّا حينَ يُحسَمُ مالكُ النداءِ ساكنًا: «هذا» ⇒ الصنفُ المحيط، و«صنف()»
+      أو متغيّرٌ مربوطٌ بصنفِه ⇒ ذلكَ الصنف؛ وتُطلَبُ الطريقةُ في المالكِ ثمّ في سلسلةِ
+      أساسِه، ويُفكُّ غلافُ «صدّر» فيُعامَلُ الصنفُ المُصدَّرُ كالعاري. ومالكٌ لا يُحسَمُ
+      يُترَكُ بلا ترقيةٍ ولا يُخمَّن.
+
+      ومعامِلُ الدالّةِ الحرّةِ يُحسَمُ صنفُه من صنفِ وسيطِه في موقعِ النداء، ورَبطُه
+      مفتاحُه مركَّبٌ (اسمُ الدالّة، اسمُ المعامِل) لا اسمٌ عارٍ — وإلّا صادمَ متغيّرًا
+      محلّيًّا يحملُ اسمَه في دالّةٍ أخرى. وموقعانِ يُمرّرانِ صنفَينِ مختلفَينِ إلى
+      المعامِلِ نفسِه تعارُضٌ يُوقِفُ **الترقيةَ الساكنة**: فلا تُرقّى الخانةُ بتوقيعِ
+      أحدِ الصنفَين، ولا يُرجَّحُ فيه بآخِرِ موقع.
+
+      ولا يُوقِفُ التعارُضُ **التوجيهَ**: النداءُ يبقى موزَّعًا بنوعِ المُستقبِلِ زمنَ
+      التشغيلِ فيبلُغُ صنفَه الصحيحَ في الحالتَينِ معًا. غيرَ أنّ الخانةَ غيرَ المُرقّاةِ
+      تظلُّ **صحيحًا** بحكمِ الثغرةِ المُعلَنةِ أدناه، فإن مرَّ بها عشريٌّ أُجهِضَ
+      المصرِّفُ برسالةِ LLVM «توقيعٌ لا يُطابِق» — لا لأنّ التوجيهَ خمَّن، بل لأنّ
+      الخانةَ عددٌ صحيح.
+
+      وهذا الحسمُ **واحدٌ يقرؤه اثنان**: مُرقّي الخانةِ في المسح، وباثُّ النداءِ في
+      التوليد. وحينَ يحسمُ كلٌّ منهما على حِدَة يختلفانِ، فتُرقّى الخانةُ بتوقيعِ صنفٍ
+      ويُبَثُّ النداءُ إلى صنفٍ آخرَ ⇒ إجهاضُ LLVM «توقيعٌ لا يُطابِق». فوحدةُ الحسمِ
+      شرطُ سلامةٍ لا تنظيمُ شيفرة.
+
+      وثغرةٌ مُعلَنةٌ في هذا الحدِّ بعينِه: خانةُ المعامِلِ غيرِ المُصرَّحِ تُخفَضُ إلى
+      **صحيح**، فحيثُ لا يُحسَمُ المالكُ — كمعامِلِ دالّةٍ حرّةٍ يُمرَّرُ إليه كائن —
+      تبقى الخانةُ صحيحًا. وعاقبتُها ليستْ «ترقيةً فائتة» بل إحدى اثنتَين: خرجٌ فاسدٌ
+      بلا تشخيص (عشريٌّ يُطبَعُ ببتّاتِه عددًا صحيحًا في المصرِّفِ بينما يُصيبُ
+      المفسّر)، أو — قبلَ حسمِ المالك — إجهاضُ المصرِّفِ برسالةِ LLVM «توقيعٌ لا
+      يُطابِق» ثمّ تعلّقُه بلا ملفِّ خرجٍ ولا تشخيصِ لغة. فحسمُ المالكِ شرطُ سلامةٍ لا
+      تحسينُ استنتاج، والسدُّ الجذريُّ خفضُ المعامِلِ غيرِ المُصرَّحِ إلى نوعٍ يقبلُ
+      التنوّع.
+
+      وثغرةٌ مُعلَنةٌ في تطبيقِ مُهيِّئاتِ الحقول: حقلٌ مُهيَّأٌ بمصفوفةٍ يُخصَّصُ في
+      المصرِّفِ بطولٍ صفرٍ دائمًا ولا تُطبَّقُ عناصرُ مُهيِّئِه إطلاقًا، إذ لا تُسجَّلُ
+      القيمُ الابتدائيّةُ إلّا للحرفيّاتِ المُفرَدة. وكانت هذه الثغرةُ **مستورةً** بخطأٍ
+      آخرَ يُقابلُها: نوعُ الحقلِ كانَ يُسجَّلُ «صحيح» فتُطبَعُ قيمةُ المؤشّرِ عددًا كبيرًا
+      ولا يُرى الفراغ. فلمّا صحَّ تسجيلُ النوعِ ظهرَتْ على حقيقتِها — وهو أثرُ تصحيحٍ لا
+      انحدار: الخرجُ كانَ فاسدًا قبلَه وبعدَه، وإنّما تغيّرَتْ صورةُ فسادِه.
+
+      ولازمُ المادّتَينِ (١) و(٢) أنّ خاناتِ حقولِ العضوِ محسوبةٌ نسبةً إلى إطارِ
+      الكائن، فلا يجوزُ دمجُ البانِي سطريًّا في مستدعيه. واللازمُ نفسُه يسري على كلِّ
+      طريقةٍ غيرِ ساكنة، غيرَ أنّ المصرِّفَ اليومَ يمنعُ دمجَ البانِي وحدَه — ثغرةٌ
+      مُعلَنةٌ لا يستُرُها هذا النصّ، سببُها أنّ منعَ دمجِ الطرائقِ يكشفُ نقصًا سابقًا
+      في استنتاجِ توقيعِ العضو، وهو يُعالَجُ بشروطِه لا بتوسيعِ المنع.
+    description_en: >
+      A constructor is a member function invoked once at object creation, after field
+      initialisers are applied and before the object is handed to the caller. Its
+      contract has three articles binding on both engines:
+
+        (1) A parameter shadows a field of the same name inside the constructor body.
+            A bare name denotes the parameter, not the field; the field keeps its
+            initialiser unless written explicitly through «هذا.<field>». This is what
+            makes the «هذا.اسم = اسم» idiom meaningful. Shadowing is a PER-LEVEL rule,
+            not a chain-wide one: a derived parameter shadows nothing in the parent's
+            body, where a bare name denotes the field.
+            A declared gap: the interpreter's constructor scope is flat rather than one
+            scope per level, so if a derived constructor names a parameter after a
+            global the parent body writes, that write is lost in the interpreter and
+            lands in the compiler. Not a regression (the baseline was built and measured
+            doing the same); closing it needs a scope per level, not a guard asking "is
+            this name a parameter somewhere" — such a guard swallows a legitimate write.
+
+        (2) A bare assignment to a field name that is **not** a parameter writes the
+            field itself, not a local discarded when the constructor returns.
+
+        (3) A parameter slot no argument reached — in «<Class>(...)» or in
+            «الأساس(...)» — holds **null**, not zero and not an arity error. The
+            constructor is thereby exempt from RUN029 (missing required argument),
+            which governs free functions. `الأساس()` with no arguments is a call that
+            runs with null slots, not a call that is dropped: the distinction from "no
+            base call at all" is carried in the AST itself by an explicit flag, since the
+            argument list alone cannot separate them — both are empty. A declared gap: a
+            field left null prints as «لاشيء» in the interpreter while the compiler prints
+            the null sentinel as a number — that is the undeclared-parameter lowering to
+            integer, not a constructor defect. A second declared gap: that same field
+            prints as «لاشيء» while comparing it to «لاشيء» yields false — printing and
+            comparison disagree about it.
+
+      An undeclared member parameter's type is inferred from the member's call sites by
+      unanimity, and only where the call's owner is statically resolved: `this` ⇒ the
+      enclosing class; `Class()` or a variable bound to a class ⇒ that class. The method
+      is looked up in the owner and then up its base chain, and the `export` shell is
+      unwrapped so an exported class is treated exactly like a bare one. An owner that is
+      not resolved is left unpromoted, never guessed.
+
+      A free function's parameter has its class resolved from the class of its argument at
+      the call site. That binding is keyed compositely by (function name, parameter name),
+      never by a bare name — otherwise it collides with a same-named local in another
+      function. Two sites passing different classes to the same parameter is a conflict
+      that halts **static promotion**: the slot is not promoted with either class's
+      signature, and the matter is never decided by the last site.
+
+      The conflict does not halt **dispatch**: the call remains dispatched on the
+      receiver's runtime type and reaches the correct class in both cases. The unpromoted
+      slot, however, stays **integer** by the declared gap below, so a float passing
+      through it aborts the compiler with LLVM's "bad signature" — not because dispatch
+      guessed, but because the slot is an integer.
+
+      This resolution is **one fact with two readers**: the scan that promotes the slot and
+      the emitter that issues the call. When each resolves separately they disagree, so the
+      slot is promoted with one class's signature while the call goes to another ⇒ an LLVM
+      "bad signature" abort. A single resolution is a soundness requirement, not code
+      hygiene.
+
+      A declared gap at precisely this boundary: an undeclared parameter's slot is lowered
+      to **integer**, so wherever the owner is not resolved the slot stays integer. The consequence is not a
+      "missed promotion" but one of two things: corrupt output with no diagnostic (a float
+      printed as its bits reinterpreted as an integer in the compiler, while the
+      interpreter is correct), or — before owner resolution — an LLVM-level "bad
+      signature" abort followed by a hang, with no output file and no language diagnostic.
+      Owner resolution is therefore a soundness requirement, not an inference improvement;
+      the radical cure is lowering undeclared parameters to a type that admits variance.
+
+      A declared gap in applying field initialisers: a field initialised with an array is
+      always allocated with length zero in the compiler and its initialiser's elements are
+      never applied, because only single literals are recorded as initial values. This gap
+      was **masked** by an opposing error: the field's type was recorded as integer, so the
+      pointer value printed as a large number and the emptiness was invisible. Once the
+      type was recorded correctly the gap surfaced as it truly is — the effect of a
+      correction, not a regression: the output was wrong before and after, only the shape
+      of its wrongness changed.
+
+      Articles (1) and (2) entail that a member's field slots are computed relative to
+      the object's frame, so a constructor must never be inlined into its caller. The
+      same entailment holds for every non-static method, but the compiler today bans
+      inlining for the constructor only — a declared gap this text does not paper over,
+      caused by the fact that banning method inlining exposes a pre-existing weakness in
+      member signature inference, which is to be fixed on its own terms rather than by
+      widening the ban.
+    example: |
+      صنف أساسيّ
+          متغير عام وسم = 1
+          متغير عام مِعرّف
+
+          باني(مِعرّف، وسم)
+              هذا.مِعرّف = مِعرّف   # (١) «هذا.» يكتبُ الحقل
+              وسم = 5              # (١) «وسم» معامِلٌ حاجبٌ — الحقلُ يبقى 1
+          نهاية
+      نهاية
+
+      صنف مفرد
+          متغير عام وسم = 1
+
+          باني()
+              وسم = 42             # (٢) ليس معامِلًا ⇒ يكتبُ الحقل
+          نهاية
+      نهاية
+
+      صنف مشتقّ يرث أساسيّ
+          باني(مِعرّف)
+              الأساس(مِعرّف)       # (٣) «وسم» خانةٌ مُغفَلةٌ ⇒ عدم
           نهاية
       نهاية
 

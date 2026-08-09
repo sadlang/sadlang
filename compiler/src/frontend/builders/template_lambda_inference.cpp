@@ -5,6 +5,7 @@
 // تم استخراج هذا الملف من sir_builder_type_inference.cpp وفقاً لقاعدة CW-05
 // ============================================================================
 
+#include <functional>
 #include <string>
 #include <map>
 #include "sir_builder.h"
@@ -55,6 +56,320 @@ namespace Sad
                 "\xD8\xB4\xD8\xB1\xD9\x8A\xD8\xAD\xD8\xA9",                          // شريحة
             };
 
+            // ============================================================================
+            // refineMemberParams / refineCalledMember — استنتاج أنواع معاملات الأعضاء
+            // ============================================================================
+            // (AR) تُرقَّى أنواعُ معاملاتِ العضوِ من مواقعِ النداءِ كما تُرقّى معاملاتُ
+            //      الدالّةِ الحرّة. والترقيةُ تُكتَبُ في الشجرة، فبانِيا الصنفِ والطريقةِ
+            //      يقرآنِ أنواعَهما منها. وهي أُحاديّةُ الاتّجاه: من الافتراضيِّ العامِّ
+            //      إلى الأخصّ، ولا تنقضُ نوعًا صرّح به الكاتب.
+            // (EN) A member's parameter types are promoted from call sites exactly as a free
+            //      function's are. The promotion is written into the AST, which is where the
+            //      class and method builders read their types from. It is one-way — from the
+            //      general default toward the more specific — and never overrides a type the
+            //      author declared.
+            void TemplateBuilder::recordMemberParamArgs(
+                std::vector<Sad::AST::Parameter> &params,
+                const std::vector<std::unique_ptr<Sad::AST::Expr>> &arguments,
+                bool paramsBelongToConstructor)
+            {
+                for (size_t index = 0; index < params.size(); ++index)
+                {
+                    auto &param = params[index];
+
+                    // (AR) لا يُرقّى إلّا معامِلٌ **لم يُصرَّحْ** نوعُه؛ فالنوعُ المُصرَّحُ
+                    //      عقدُ الكاتبِ لا يُخمَّنُ فوقه. والمعامِلُ غيرُ المُصرَّحِ يبلغُ
+                    //      الشجرةَ بنوعِ «صنف» واسمِ نوعٍ فارغ — لا بـ«مجهول» كما قد
+                    //      يُظَنّ؛ وهذا مقيسٌ لا مُستنتَج.
+                    // (EN) Consider only a parameter whose type was **not declared**; a declared
+                    //      type is the author's contract and is never guessed over. An
+                    //      undeclared parameter reaches the AST as Class with an empty type
+                    //      name — not as Unknown as one might assume; this is measured, not
+                    //      supposed.
+                    const bool isUndeclared =
+                        param.type == Types::SadTypeKind::Unknown ||
+                        (param.type == Types::SadTypeKind::Class && param.typeName.empty());
+                    if (!isUndeclared)
+                        continue;
+
+                    // (AR) خانةٌ لم يبلغْها وسيطٌ في هذا الموقع: قيمتُها **عدم** بنصِّ
+                    //      المادّةِ (٣)، فهي مخالِفةٌ لا غائبة. وإغفالُها عن التسجيلِ
+                    //      يجعلُ موقعًا واحدًا «إجماعًا» فتُرقّى الخانةُ إلى نصٍّ مثلًا،
+                    //      ثمّ يُبطِّنُها الموقعُ المُغفِلُ بصفرِ النوعِ لا بعدم — فيتباعدُ
+                    //      المحرّكانِ في `س() == لاشيء`. فالعدمُ يُسجَّلُ صراحةً ليمنع.
+                    // (EN) A slot no argument reached at this site is **null** by the letter of
+                    //      Article (3) — it disagrees, it is not absent. Leaving it unrecorded
+                    //      makes a single site a "unanimity", the slot is promoted to e.g.
+                    //      String, and the omitting site then pads it with the type's zero
+                    //      rather than null — so the two engines diverge on `س() == لاشيء`.
+                    //      Null is therefore recorded explicitly, so that it blocks.
+                    if (index >= arguments.size())
+                    {
+                        // (AR) الإغفالُ مشروعٌ في البانِي وحدَه (المادّة ٣)، وهناكَ يُسجَّلُ
+                        //      **عدمًا** مخالِفًا يمنعُ الإجماع. أمّا الطريقةُ فنداؤُها الناقصُ
+                        //      مرفوضٌ أصلًا (RUN030)، فلا يجوزُ لموقعٍ لا يُنفَّذُ قانونًا أن
+                        //      يمنعَ ترقيةً لموقعٍ يُنفَّذ.
+                        // (EN) Omission is lawful in a constructor alone (Article 3), and there it
+                        //      is recorded as a disagreeing **null** that blocks unanimity. A
+                        //      method's short call is rejected outright (RUN030), so a site that
+                        //      can never lawfully run must not block a promotion for one that can.
+                        if (paramsBelongToConstructor)
+                        {
+                            scanMemberArgKinds_[&param].insert(static_cast<int>(SadTypeKind::Void));
+                        }
+                        continue;
+                    }
+
+                    scanMemberArgKinds_[&param].insert(
+                        static_cast<int>(inferExprType(arguments[index].get())));
+                }
+            }
+
+            void TemplateBuilder::applyAgreedMemberParamTypes()
+            {
+                for (auto &[param, kinds] : scanMemberArgKinds_)
+                {
+                    // (AR) اتّفاقٌ تامٌّ أو لا ترقية. واختلافُ نوعٍ واحدٍ — ولو كان عدمًا —
+                    //      يكفي لإبقاءِ الخانةِ على عمومِها، وهو الجانبُ الآمن.
+                    // (EN) Unanimity or no promotion. A single disagreeing kind — null included
+                    //      — is enough to leave the slot general, which is the safe side.
+                    if (kinds.size() != 1)
+                        continue;
+
+                    const auto agreed = static_cast<SadTypeKind>(*kinds.begin());
+                    if (agreed != SadTypeKind::String &&
+                        agreed != SadTypeKind::Float &&
+                        agreed != SadTypeKind::Boolean)
+                        continue;
+
+                    param->type = agreed;
+                    param->sadType = Types::SadType::fromValueType(agreed);
+                }
+            }
+
+            void TemplateBuilder::refineCalledMember(
+                const Sad::AST::Expression *objectExpr,
+                const std::string &methodName,
+                const std::vector<std::unique_ptr<Sad::AST::Expr>> &arguments)
+            {
+                Sad::AST::ClassDecl *owner = nullptr;
+
+                // (AR) الكائنُ إنشاءٌ مباشرٌ «صنف().طريقة(...)» ⇒ المالكُ معلومٌ يقينًا.
+                // (EN) The object is a direct instantiation ⇒ the owner is known for certain.
+                // (AR) والمُستقبِلُ «هذا» مالكُه الصنفُ المحيطُ الذي نمسحُ عضوَه الآن —
+                //      يقينٌ لا تخمين. وتركُه بلا حسمٍ ليسَ «امتناعًا عن الترقية» بل خرجٌ
+                //      فاسدٌ أو إجهاضُ المصرِّفِ برسالةِ LLVM بلا تشخيصِ لغة.
+                // (EN) The receiver `this` is owned by the enclosing class whose member we are
+                //      scanning — certainty, not a guess. Leaving it unresolved is not "no
+                //      promotion" but corrupt output, or an LLVM-level compiler abort with no
+                //      language diagnostic.
+                if (dynamic_cast<const Sad::AST::ThisExpr *>(objectExpr))
+                {
+                    owner = scanEnclosingClass_;
+                }
+                else
+                {
+                    owner = resolveExprClass(objectExpr);
+                }
+
+                // (AR) ولا يُلجَأُ إلى اسمِ الطريقةِ وحدَه البتّة: مُستقبِلٌ مدمَجٌ يحملُ
+                //      اسمَ الطريقةِ نفسَه (`مصفوفة.أضف`) يُنسَبُ حينَها إلى صنفٍ لا صلةَ
+                //      له به، فيُسجَّلُ نوعُ وسيطٍ أجنبيٍّ في خانتِه فيكسِرُ إجماعًا صحيحًا
+                //      — أو يُرقّيها خطأً. والمالكُ الذي لا يُحسَمُ يُترَكُ بلا ترقية.
+                // (EN) Never by method name alone: a builtin receiver carrying the same method
+                //      name (`array.add`) would be attributed to an unrelated class, so a
+                //      foreign argument type is recorded in its slot — breaking a correct
+                //      unanimity, or promoting it wrongly. An owner that cannot be resolved is
+                //      left unpromoted.
+                if (!owner)
+                    return;
+
+                // (AR) والطريقةُ تُطلَبُ في الصنفِ ثمّ في سلسلةِ أساسِه: الوراثةُ تجعلُ
+                //      المالكَ المُعلَنَ غيرَ المُعرِّف. والوقوفُ عندَ المستوى الواحدِ ليسَ
+                //      «ترقيةً فائتةً»: خانةُ المعامِلِ تبقى صحيحًا بينما موقعُ النداءِ
+                //      يُمرِّرُ عشريًّا، فيسقطُ المصرِّفُ في LLVM ويعلَق بلا تشخيصِ لغة.
+                // (EN) The method is looked up in the class then up its base chain: inheritance
+                //      makes the declared owner not the definer. Stopping at one level is not a
+                //      "missed promotion": the parameter slot stays integer while the call site
+                //      passes a float, so the compiler asserts inside LLVM and hangs, with no
+                //      language diagnostic.
+                if (auto *method = findMethodInHierarchy(owner, methodName))
+                    recordMemberParamArgs(method->parameters, arguments, false);
+            }
+
+            // (AR) فكُّ غلافِ التصدير: «صدّر صنف …» عقدةُ تصديرٍ تحوي الصنف، ومقارنةُ
+            //      النوعِ عاريةً تتخطّاه بالكلّيّة — فلا يُفهرَسُ ولا تُمسَحُ أعضاؤه.
+            // (EN) Unwrap the export shell: `export class ...` is an export node wrapping the
+            //      class, and a bare type test skips it entirely — so it is neither indexed
+            //      nor are its members scanned.
+            Sad::AST::ClassDecl *TemplateBuilder::asClassDecl(Sad::AST::Statement *stmt)
+            {
+                if (!stmt)
+                    return nullptr;
+                if (auto *classDecl = dynamic_cast<Sad::AST::ClassDecl *>(stmt))
+                    return classDecl;
+                if (auto *exportDecl = dynamic_cast<Sad::AST::ExportDecl *>(stmt))
+                    return dynamic_cast<Sad::AST::ClassDecl *>(exportDecl->declaration.get());
+                if (auto *exportStmt = dynamic_cast<Sad::AST::ExportStmt *>(stmt))
+                    return dynamic_cast<Sad::AST::ClassDecl *>(exportStmt->declaration.get());
+                return nullptr;
+            }
+
+            // (AR) طلبُ الطريقةِ في الصنفِ ثمّ في أصنافِه الأساسيّةِ بالعرضِ أوّلًا —
+            //      كترتيبِ التوزيعِ نفسِه. والمزوراتُ تمنعُ اللانهايةَ في وراثةٍ دائريّةٍ
+            //      أو ماسٍ متعدّد: عطبٌ في المصدرِ لا يجوزُ أن يصيرَ تعليقًا في المصرِّف.
+            // (EN) Look the method up in the class then in its base classes, breadth-first —
+            //      the same order dispatch uses. The visited set prevents non-termination on
+            //      cyclic or diamond inheritance: a defect in the source must never become a
+            //      compiler hang.
+            Sad::AST::MethodDecl *TemplateBuilder::findMethodInHierarchy(Sad::AST::ClassDecl *owner,
+                                                                        const std::string &methodName)
+            {
+                std::set<const Sad::AST::ClassDecl *> visitedClasses;
+                std::vector<Sad::AST::ClassDecl *> pendingClasses{owner};
+
+                while (!pendingClasses.empty())
+                {
+                    Sad::AST::ClassDecl *currentClass = pendingClasses.front();
+                    pendingClasses.erase(pendingClasses.begin());
+                    if (!currentClass || !visitedClasses.insert(currentClass).second)
+                        continue;
+
+                    for (const auto &member : currentClass->members)
+                    {
+                        auto *method = dynamic_cast<Sad::AST::MethodDecl *>(member.get());
+                        if (method && method->name == methodName)
+                            return method;
+                    }
+
+                    for (const auto &baseName : currentClass->superclasses)
+                    {
+                        auto it = scanClassByName_.find(baseName);
+                        if (it != scanClassByName_.end())
+                            pendingClasses.push_back(it->second);
+                    }
+                }
+
+                return nullptr;
+            }
+
+            // (AR) حسمُ صنفِ تعبيرٍ ساكنًا — يقينًا لا تخمينًا. تُجمَعُ هنا الصورُ الثلاثُ
+            //      التي كانت متناثرةً: إنشاءٌ مباشر، ونداءُ صنفٍ باسمِه، ومتغيّرٌ مربوطٌ.
+            // (EN) Resolve an expression's class statically — with certainty, not by guessing.
+            //      The three forms that were scattered are gathered here: direct instantiation,
+            //      a call naming a class, and a bound variable.
+            Sad::AST::ClassDecl *TemplateBuilder::resolveExprClass(const Sad::AST::Expression *expr)
+            {
+                if (!expr)
+                    return nullptr;
+
+                if (auto *newExpr = dynamic_cast<const Sad::AST::NewExpr *>(expr))
+                {
+                    auto it = scanClassByName_.find(newExpr->className);
+                    return it != scanClassByName_.end() ? it->second : nullptr;
+                }
+                if (auto *callExpr = dynamic_cast<const Sad::AST::CallExpr *>(expr))
+                {
+                    if (auto *calleeName =
+                            dynamic_cast<const Sad::AST::VariableExpr *>(callExpr->callee.get()))
+                    {
+                        auto it = scanClassByName_.find(calleeName->name);
+                        if (it != scanClassByName_.end())
+                            return it->second;
+                    }
+                    return nullptr;
+                }
+                if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(expr))
+                {
+                    // (AR) المعامِلُ المربوطُ في نطاقِ دالّتِه يسبقُ الخريطةَ المسطَّحة: هو
+                    //      أدقُّ منها، وقيمتُه العدميّةُ تعارُضٌ محسومٌ يمنعُ الترقيةَ ولا
+                    //      يسمحُ بالسقوطِ إلى اسمٍ عارٍ يخصُّ دالّةً أخرى.
+                    // (EN) A parameter bound within its own function outranks the flat map: it is
+                    //      more precise, and a null value there is a settled conflict that blocks
+                    //      promotion — it must not fall through to a bare name owned by another
+                    //      function.
+                    if (!b_.currentScanFuncName_.empty())
+                    {
+                        auto scoped = b_.paramClassBindings_.find(
+                            {b_.currentScanFuncName_, varExpr->name});
+                        if (scoped != b_.paramClassBindings_.end())
+                        {
+                            if (scoped->second.empty())
+                                return nullptr;
+                            auto named = scanClassByName_.find(scoped->second);
+                            return named != scanClassByName_.end() ? named->second : nullptr;
+                        }
+                    }
+
+                    auto it = scanClassOfVariable_.find(varExpr->name);
+                    return it != scanClassOfVariable_.end() ? it->second : nullptr;
+                }
+                return nullptr;
+            }
+
+            // (AR) رَبطُ معامِلاتِ الدالّةِ الحرّةِ بأصنافِ وسائطِها من مواقعِ النداء.
+            //
+            //      كائنٌ يُمرَّرُ إلى دالّةٍ حرّةٍ ثمّ يُنادى عليه: `دالة ع(م) … م.اعرض(٢٫٥)`.
+            //      كانَ مالكُ `م.اعرض` لا يُحسَمُ ساكنًا، فلا تُرقّى خانةُ معامِلِ الطريقة.
+            //      وعاقبتُها ليست «ترقيةً فائتة»: المعامِلُ غيرُ المُصرَّحِ يُخفَضُ إلى
+            //      **صحيح**، فتُمرَّرُ بتّاتُ العشريِّ عددًا صحيحًا ⇒ خرجٌ فاسدٌ بلا تشخيص
+            //      (`اعرض:4612811918334230528`) بينما المفسّرُ يُصيب.
+            //
+            //      والمعلومةُ كانت حاضرةً في موقعِ النداءِ ولم تُقرَأ. والمسحُ ثلاثُ تمريراتٍ
+            //      والخرائطُ لا تُمسَحُ بينَها، فالرَّبطُ هنا يبلغُ جسمَ الدالّةِ في التمريرةِ
+            //      التالية. ومالكٌ لا يُحسَمُ يبقى بلا ترقيةٍ كما كان — لا يُخمَّن.
+            // (EN) Bind a free function's parameters to the classes of its arguments at call sites.
+            //
+            //      An object passed to a free function and then called on: `func f(o) … o.show(2.5)`.
+            //      The owner of `o.show` was not statically resolved, so the method's parameter slot
+            //      was never promoted. That is not a "missed promotion": an undeclared parameter is
+            //      lowered to **integer**, so a float is passed as its bits reinterpreted as an
+            //      integer ⇒ corrupt output with no diagnostic, while the interpreter is correct.
+            //
+            //      The information was present at the call site and simply was not read. The scan
+            //      runs three passes and these maps are not cleared between them, so a binding made
+            //      here reaches the function body on the next pass. An owner that cannot be resolved
+            //      stays unpromoted exactly as before — never guessed.
+            void TemplateBuilder::bindFunctionParamsToArgumentClasses(
+                const std::string &functionName,
+                const std::vector<std::unique_ptr<Sad::AST::Expr>> &arguments)
+            {
+                if (functionName.empty())
+                    return;
+
+                auto functionIt = b_.functionTable_.find(functionName);
+                if (functionIt == b_.functionTable_.end())
+                    return;
+
+                const auto &parameters = functionIt->second.parameters;
+                const size_t boundCount = std::min(parameters.size(), arguments.size());
+
+                for (size_t index = 0; index < boundCount; ++index)
+                {
+                    Sad::AST::ClassDecl *argumentClass = resolveExprClass(arguments[index].get());
+                    if (!argumentClass)
+                        continue;
+
+                    const std::pair<std::string, std::string> key{functionName,
+                                                                  parameters[index].name};
+                    auto existing = b_.paramClassBindings_.find(key);
+                    if (existing == b_.paramClassBindings_.end())
+                    {
+                        b_.paramClassBindings_[key] = argumentClass->name;
+                    }
+                    else if (existing->second != argumentClass->name)
+                    {
+                        // (AR) موقعانِ يُمرّرانِ صنفَينِ مختلفَينِ: يُحسَمُ تعارُضًا فلا تُرقّى
+                        //      الخانة. وترجيحُ آخِرِ كاتبٍ كانَ سيُصرِّفُ نداءً إلى صنفٍ خاطئٍ
+                        //      صامتًا — وهو التخمينُ بالاسمِ نفسُه عائدًا من مفتاحٍ آخر.
+                        // (EN) Two sites pass different classes: settle it as a conflict so the slot
+                        //      is not promoted. Last-writer-wins would dispatch a call to the wrong
+                        //      class silently — the same name-guessing returning under another key.
+                        existing->second.clear();
+                    }
+                }
+            }
+
             void TemplateBuilder::scanCallSitesInExpr(const Sad::AST::Expression *expr)
             {
                 if (!expr)
@@ -71,6 +386,8 @@ namespace Sad
                     {
                         funcName = varExpr->name;
                     }
+
+                    bindFunctionParamsToArgumentClasses(funcName, call->arguments);
 
                     // (AR) [GAP 4] نداءُ متغيّرٍ مربوطٍ بلامدا: إن كان الوسيطُ مصفوفةً
                     //      مختلطةً/متجانسةً غيرَ صحيحةٍ (حرفيّةً أو متغيّرًا مُسجَّلًا في
@@ -188,6 +505,22 @@ namespace Sad
                             std::string ctorName = funcName + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
                             it = b_.functionTable_.find(ctorName);
                             isImplicitCtorCall = (it != b_.functionTable_.end());
+                        }
+
+                        // (AR) صيغةُ الإنشاءِ بلا «جديد» — تُرقّى معاملاتُ البانِي في
+                        //      الشجرةِ كصيغةِ NewExpr سواءً بسواء.
+                        // (EN) The no-`new` instantiation form — the constructor's parameters
+                        //      are promoted in the AST exactly as for the NewExpr form.
+                        if (isImplicitCtorCall)
+                        {
+                            auto classIt = scanClassByName_.find(funcName);
+                            if (classIt != scanClassByName_.end())
+                                for (const auto &member : classIt->second->members)
+                                    if (auto *ctor = dynamic_cast<Sad::AST::ConstructorDecl *>(member.get()))
+                                    {
+                                        recordMemberParamArgs(ctor->parameters, call->arguments, true);
+                                        break;
+                                    }
                         }
 
                         if (it != b_.functionTable_.end())
@@ -607,6 +940,21 @@ namespace Sad
                         }
                     }
 
+                    // (AR) والترقيةُ في الشجرةِ كذلك: بانِي الصنفِ يقرأُ أنواعَ
+                    //      معاملاتِه من الشجرةِ لا من `functionTable_`.
+                    // (EN) Promote in the AST too: the class builder reads its constructor's
+                    //      parameter types from the AST, not from `functionTable_`.
+                    {
+                        auto classIt = scanClassByName_.find(newExpr->className);
+                        if (classIt != scanClassByName_.end())
+                            for (const auto &member : classIt->second->members)
+                                if (auto *ctor = dynamic_cast<Sad::AST::ConstructorDecl *>(member.get()))
+                                {
+                                    recordMemberParamArgs(ctor->parameters, newExpr->arguments, true);
+                                    break;
+                                }
+                    }
+
                     // (AR) مسح وسائط NewExpr أيضاً
                     for (const auto &arg : newExpr->arguments)
                         scanCallSitesInExpr(arg.get());
@@ -687,10 +1035,34 @@ namespace Sad
                         }
                     }
 
+                    // (AR) وترقيةُ معاملاتِ الطريقةِ في الشجرة — تشملُ ما لا يبلغُه
+                    //      المفتاحُ أعلاه: «صنف().طريقة(…)» و«متغيّر.طريقة(…)».
+                    // (EN) Promote the method's parameters in the AST — covering what the key
+                    //      above cannot reach: `Class().method(…)` and `variable.method(…)`.
+                    refineCalledMember(methodCall->object.get(), methodCall->methodName,
+                                       methodCall->arguments);
+
                     // (AR) مسح وسائط الطريقة (قد تحوي استدعاءات متداخلة)
                     for (const auto &arg : methodCall->arguments)
                         scanCallSitesInExpr(arg.get());
                     scanCallSitesInExpr(methodCall->object.get());
+                    return;
+                }
+
+                // (AR) وصولٌ إلى عضوٍ بالصيغةِ الأخرى — `MemberExpr`. وغيابُها من المسحِ
+                //      كان يقطعُ التعاودَ عندَ `ق(٢٫٥).قيمة`: فلا يُزارُ الإنشاءُ داخلَها
+                //      أصلًا، ويبقى معامِلُ البانِي على الافتراضيِّ ⇒ عشريٌّ يُمرَّرُ في
+                //      خانةِ صحيح. والصيغةُ الأخرى `MemberAccessExpr` مشمولةٌ أدناه —
+                //      فالنقصُ كان في تغطيةِ العُقَدِ لا في منطقِ الترقية.
+                // (EN) The other member-access form — `MemberExpr`. Its absence from the scan
+                //      cut the recursion at `ق(2.5).قيمة`: the instantiation inside was never
+                //      visited at all, so the constructor's parameter kept its default and a
+                //      float was passed in an integer slot. The sibling form
+                //      `MemberAccessExpr` is handled below — the gap was node coverage, not
+                //      promotion logic.
+                if (auto *memberExpr = dynamic_cast<const Sad::AST::MemberExpr *>(expr))
+                {
+                    scanCallSitesInExpr(memberExpr->object.get());
                     return;
                 }
 
@@ -753,6 +1125,37 @@ namespace Sad
                 {
                     if (varDecl->initializer)
                     {
+                        // (AR) رَبطُ الاسمِ بصنفِه حينَ يكونُ المُهيِّئُ إنشاءَ كائن: هو ما
+                        //      يجعلُ `م.طريقة(...)` مالكُها معلومًا لا مخمَّنًا.
+                        //
+                        //      والخريطةُ مسطَّحةٌ بالاسمِ بلا نطاق: اسمٌ واحدٌ في دالّتَينِ
+                        //      لصنفَينِ يتشاركُ المفتاح، ويُعادُ ربطُه بترتيبِ المسحِ فيصحُّ
+                        //      عمليًّا. وهذا اتّكاءٌ مُعلَنٌ على ترتيبِ الزيارةِ لا على نطاقٍ
+                        //      حقيقيّ؛ وسدُّه بخريطةٍ منطوقةٍ بالنطاقِ لا بحارسٍ إضافيّ.
+                        // (EN) Bind the name to its class when the initializer instantiates one:
+                        //      this is what makes the owner of `v.method(...)` known, not guessed.
+                        //
+                        //      The map is flat by name, with no scoping: one name used in two
+                        //      functions for two classes shares the key and is rebound in scan
+                        //      order, which happens to be correct. That is a declared reliance on
+                        //      visit order rather than on real scoping; closing it needs a
+                        //      scope-aware map, not an extra guard.
+                        if (auto *newInit = dynamic_cast<const Sad::AST::NewExpr *>(varDecl->initializer.get()))
+                        {
+                            auto classIt = scanClassByName_.find(newInit->className);
+                            if (classIt != scanClassByName_.end())
+                                scanClassOfVariable_[varDecl->name] = classIt->second;
+                        }
+                        else if (auto *callInit = dynamic_cast<const Sad::AST::CallExpr *>(varDecl->initializer.get()))
+                        {
+                            if (auto *calleeVar = dynamic_cast<const Sad::AST::VariableExpr *>(callInit->callee.get()))
+                            {
+                                auto classIt = scanClassByName_.find(calleeVar->name);
+                                if (classIt != scanClassByName_.end())
+                                    scanClassOfVariable_[varDecl->name] = classIt->second;
+                            }
+                        }
+
                         // (AR) [GAP 3b] سجِّل نوعَ عنصر المصفوفة الحرفيّة المُهيّئة لهذا
                         //      المتغيّر، كي يُوسَّع أيُّ معاملٍ يُمرَّر إليه هذا المتغيّرُ
                         //      لاحقًا: مختلطٌ قياسيّ ⇒ Any (فتُقرأ فهرستُه موسومةً زمنَ
@@ -1349,6 +1752,45 @@ namespace Sad
                 //      أجسام الوحدات المستوردة المجموعة في preRegisterImportedSignatures)
                 // (EN) Scan one statement list (applied to the main program then to the
                 //      imported module bodies collected in preRegisterImportedSignatures)
+                // ════════════════════════════════════════════════════════════════════
+                // (AR) فهرسةُ الأصنافِ أوّلًا بالاسمِ لحلِّ «صنف(…)» و«صنف().طريقة(…)».
+                //      ولا تُفهرَسُ أسماءُ الطرائق: مالكُ «متغيّر.طريقة(…)» يُحسَمُ من رَبطِ
+                //      المتغيّرِ بصنفِه، ومالكُ «هذا.طريقة(…)» هو الصنفُ المحيط — يقينًا
+                //      لا بتفرّدِ اسمٍ يُخمَّنُ به.
+                // (EN) Index the classes by name first, to resolve `Class(…)` and
+                //      `Class().method(…)`. Method names are NOT indexed: the owner of
+                //      `variable.method(…)` comes from the variable-to-class binding, and the
+                //      owner of `this.method(…)` is the enclosing class — with certainty,
+                //      not by guessing at name uniqueness.
+                // ════════════════════════════════════════════════════════════════════
+                scanClassByName_.clear();
+                scanClassOfVariable_.clear();
+                b_.paramClassBindings_.clear();
+                scanMemberArgKinds_.clear();
+                {
+                    std::function<void(Sad::AST::StmtList *)> indexClasses =
+                        [&](Sad::AST::StmtList *stmts)
+                    {
+                        if (!stmts)
+                            return;
+                        for (const auto &stmt : *stmts)
+                        {
+                            auto *classDecl = asClassDecl(stmt.get());
+                            if (!classDecl)
+                                continue;
+                            scanClassByName_[classDecl->name] = classDecl;
+                        }
+                    };
+                    // (AR) والفهرسةُ تشملُ الوحداتِ المستوردةَ كما يشملُها المسحُ نفسُه:
+                    //      فهرسٌ أضيقُ من المسحِ يعني مالكًا لا يُحسَمُ حيثُ يُمسَحُ نداؤه.
+                    // (EN) Indexing covers imported modules exactly as the scan does: an index
+                    //      narrower than the scan means an owner left unresolved where its call
+                    //      site is nonetheless scanned.
+                    indexClasses(program);
+                    for (Sad::AST::StmtList *body : b_.importedModuleBodies_)
+                        indexClasses(body);
+                }
+
                 auto scanStmtList = [&](Sad::AST::StmtList *stmts)
                 {
                     if (!stmts)
@@ -1357,6 +1799,31 @@ namespace Sad
                     {
                         if (!stmt)
                             continue;
+
+                        // (AR) مسحُ أجسامِ أعضاءِ الأصناف — كانت خارجَ المسحِ بالكلّيّة،
+                        //      فنداءٌ داخلَ طريقةٍ لا يُرقّي شيئًا.
+                        // (EN) Scan class member bodies — they were outside the scan entirely,
+                        //      so a call inside a method promoted nothing.
+                        if (auto *classDecl = asClassDecl(stmt.get()))
+                        {
+                            Sad::AST::ClassDecl *previousEnclosing = scanEnclosingClass_;
+                            scanEnclosingClass_ = classDecl;
+                            for (const auto &member : classDecl->members)
+                            {
+                                if (auto *ctor = dynamic_cast<Sad::AST::ConstructorDecl *>(member.get()))
+                                {
+                                    if (ctor->body)
+                                        scanCallSitesInStmt(ctor->body.get());
+                                }
+                                else if (auto *method = dynamic_cast<Sad::AST::MethodDecl *>(member.get()))
+                                {
+                                    if (method->body)
+                                        scanCallSitesInStmt(method->body.get());
+                                }
+                            }
+                            scanEnclosingClass_ = previousEnclosing;
+                            continue;
+                        }
 
                         // (AR) مسح أجسام الدوال
                         // (EN) Scan function bodies
@@ -1480,6 +1947,7 @@ namespace Sad
                     scanStmtList(program);
                     for (Sad::AST::StmtList *body : b_.importedModuleBodies_)
                         scanStmtList(body);
+                    applyAgreedMemberParamTypes();
                     const bool changed = reinferReturnTypes();
                     if (!changed && pass >= 1)
                         break;

@@ -17,6 +17,7 @@
 #include "../sir_instruction.h"
 
 #include <memory>
+#include <map>
 #include <set>
 #include <string>
 #include <string_view>
@@ -178,6 +179,64 @@ namespace Sad
                 std::string instantiateTemplate(const std::string &templateName, const std::vector<SadTypeKind> &typeArguments, const std::vector<SIROperand> &constArguments);
 
             private:
+                // ══════════════════════════════════════════════════════════════
+                // (AR) خريطتا أعضاءِ الأصناف لاستنتاجِ أنواعِ المعاملاتِ من مواقعِ
+                //      النداء. الاستنتاجُ كان يقفُ عندَ الدوالِّ الحرّة، فمعامِلُ
+                //      العضوِ غيرُ المُصرَّحِ يبقى Integer الافتراضيَّ ⇒ يُقرأُ النصُّ
+                //      عنوانًا ويُطبَعُ رقمٌ مكانَه. وكان الدمجُ السطريُّ يستُرُ ذلك
+                //      بتمريرِ الوسيطِ بنوعِه في موقعِ النداء؛ فلمّا مُنِعَ دمجُ
+                //      الأعضاءِ (خاناتُ حقولِها نسبةً إلى إطارِ الكائن) ظهرَ العيبُ.
+                //      والتصحيحُ يُكتَبُ في الشجرةِ مباشرةً لأنّ بانِيَ الصنفِ يقرأُ
+                //      أنواعَ معاملاتِه منها لا من `functionTable_`.
+                // (EN) Class-member maps for call-site parameter type inference. Inference
+                //      stopped at free functions, so an undeclared member parameter kept the
+                //      default Integer ⇒ a string was read as an address and a number printed
+                //      in its place. Inlining used to mask this by passing the argument with
+                //      its own type at the call site; forbidding member inlining (a member's
+                //      field slots are relative to the object frame) surfaced it. The
+                //      correction is written into the AST because the class builder reads its
+                //      parameter types from there, not from `functionTable_`.
+                // ══════════════════════════════════════════════════════════════
+                std::unordered_map<std::string, Sad::AST::ClassDecl *> scanClassByName_;
+                std::unordered_map<std::string, Sad::AST::ClassDecl *> scanClassOfVariable_;
+
+                Sad::AST::ClassDecl *scanEnclosingClass_ = nullptr;
+
+                static Sad::AST::ClassDecl *asClassDecl(Sad::AST::Statement *stmt);
+                Sad::AST::MethodDecl *findMethodInHierarchy(Sad::AST::ClassDecl *owner,
+                                                            const std::string &methodName);
+                Sad::AST::ClassDecl *resolveExprClass(const Sad::AST::Expression *expr);
+                void bindFunctionParamsToArgumentClasses(
+                    const std::string &functionName,
+                    const std::vector<std::unique_ptr<Sad::AST::Expr>> &arguments);
+
+                // (AR) أنواعُ الوسائطِ التي بلغت كلَّ خانةِ معامِلِ عضوٍ، مجموعةً عبرَ
+                //      مواقعِ النداءِ كلِّها. والترقيةُ تُطبَّقُ **بعدَ** المسحِ لا أثناءَه:
+                //      فترقيةٌ من موقعٍ واحدٍ تُفسِدُ الخانةَ إن كان موقعٌ آخرُ يُمرِّرُ
+                //      عدمًا أو نوعًا مغايرًا — والمقيسُ انهيارٌ (SIGSEGV) حين رُقّيت
+                //      خانةٌ إلى نصٍّ ثمّ بلغَها `لاشيء` من نداءٍ آخر.
+                // (EN) The argument kinds that reached each member parameter slot, gathered
+                //      across every call site. Promotion is applied **after** the scan, not
+                //      during it: promoting from a single site corrupts the slot when another
+                //      site passes null or a different kind — measured as a SIGSEGV once a slot
+                //      was promoted to string and then reached by `null` from another call.
+                std::map<Sad::AST::Parameter *, std::set<int>> scanMemberArgKinds_;
+
+                /// (AR) يُسجّل أنواعَ وسائطِ موقعِ نداءٍ لخاناتِ معامِلاتِ عضو
+                /// (EN) Records one call site's argument kinds against a member's parameter slots
+                void recordMemberParamArgs(std::vector<Sad::AST::Parameter> &params,
+                                           const std::vector<std::unique_ptr<Sad::AST::Expr>> &arguments,
+                                           bool paramsBelongToConstructor);
+
+                /// (AR) يُطبّق الترقياتِ التي اتّفقت عليها مواقعُ النداءِ كلُّها
+                /// (EN) Applies the promotions every call site agreed on
+                void applyAgreedMemberParamTypes();
+
+                /// (AR) يُرقّي معاملاتِ عضوٍ بلغَه نداءٌ — بانيًا كان أو طريقة
+                /// (EN) Refines a called member's parameters — constructor or method
+                void refineCalledMember(const Sad::AST::Expression *objectExpr,
+                                        const std::string &methodName,
+                                        const std::vector<std::unique_ptr<Sad::AST::Expr>> &arguments);
                 // (AR) جسمُ الاستيرادِ الانتقائيِّ الواحد: يستهلكه `من م استورد …`
                 //      و`صدّر … من م` معًا. استُخرج بالحقولِ الثلاثةِ لا بالعقدة كي
                 //      لا يُصطنَع `FromImportStmt` مؤقّتٌ لإعادةِ التصدير — فعمرُه

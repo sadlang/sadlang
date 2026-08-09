@@ -1201,6 +1201,22 @@ namespace Sad
                         leftOp = SIROperand::ConstantI64(0);
                         leftOp.dataType = SadTypeKind::Integer;
                     }
+                    // (AR) و«عدم» يحملُ تمثيلَ الحارسِ i64، فلولا وسمٌ صريحٌ لسقطَ في الفرعِ
+                    //      الأخيرِ بوسمِ «صحيح» — وهو ضياعُ نوعٍ عندَ حدِّ معامِلِ SIR لا
+                    //      مجرّدُ وسمٍ ناقص: الخلفيّةُ تفقدُ حينَها كلَّ سبيلٍ لتمييزِ العدمِ
+                    //      من عددٍ عاديّ، فتُحوِّلُ الحارسَ مؤشرًا وتُمرِّرُه إلى strcmp ⇒
+                    //      SIGSEGV في «نصّ == لاشيء». فالوسمُ هنا شرطُ سلامةٍ لا تحسينُ دقّة.
+                    // (EN) `null` carries the i64 sentinel representation, so without an explicit
+                    //      tag it falls into the last branch tagged as Integer — a type lost at the
+                    //      SIR-operand boundary, not merely a missing tag: the backend then has no
+                    //      way to tell null from an ordinary number, converts the sentinel to a
+                    //      pointer and hands it to strcmp ⇒ SIGSEGV on `string == null`. The tag
+                    //      is a soundness requirement, not a precision improvement.
+                    else if (leftResult.type == SadTypeKind::Null)
+                    {
+                        leftOp = SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel);
+                        leftOp.dataType = SadTypeKind::Null;
+                    }
                     else
                     {
                         leftOp = SIROperand::ConstantI64(std::stoll(leftResult.constantValue));
@@ -1232,6 +1248,22 @@ namespace Sad
                         // (AR) لاشيء/null → عدد صحيح بقيمة 0
                         rightOp = SIROperand::ConstantI64(0);
                         rightOp.dataType = SadTypeKind::Integer;
+                    }
+                    // (AR) و«عدم» يحملُ تمثيلَ الحارسِ i64، فلولا وسمٌ صريحٌ لسقطَ في الفرعِ
+                    //      الأخيرِ بوسمِ «صحيح» — وهو ضياعُ نوعٍ عندَ حدِّ معامِلِ SIR لا
+                    //      مجرّدُ وسمٍ ناقص: الخلفيّةُ تفقدُ حينَها كلَّ سبيلٍ لتمييزِ العدمِ
+                    //      من عددٍ عاديّ، فتُحوِّلُ الحارسَ مؤشرًا وتُمرِّرُه إلى strcmp ⇒
+                    //      SIGSEGV في «نصّ == لاشيء». فالوسمُ هنا شرطُ سلامةٍ لا تحسينُ دقّة.
+                    // (EN) `null` carries the i64 sentinel representation, so without an explicit
+                    //      tag it falls into the last branch tagged as Integer — a type lost at the
+                    //      SIR-operand boundary, not merely a missing tag: the backend then has no
+                    //      way to tell null from an ordinary number, converts the sentinel to a
+                    //      pointer and hands it to strcmp ⇒ SIGSEGV on `string == null`. The tag
+                    //      is a soundness requirement, not a precision improvement.
+                    else if (rightResult.type == SadTypeKind::Null)
+                    {
+                        rightOp = SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel);
+                        rightOp.dataType = SadTypeKind::Null;
                     }
                     else
                     {

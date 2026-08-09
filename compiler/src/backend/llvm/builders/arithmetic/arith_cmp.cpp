@@ -199,6 +199,134 @@ namespace Sad
          * @param inst تعليمة SIR / SIR instruction
          * @return قيمة LLVM / LLVM value
          */
+        namespace
+        {
+            // (AR) مقارنةُ «عدم» في المساواةِ واللامساواة — قبلَ أيِّ تفرّعٍ على شكلِ التمثيل.
+            //
+            //      «لاشيء» تمثيلُه حارسٌ عدديٌّ (kSadNullSentinel)، فمقارنتُه حكمٌ عدديٌّ على
+            //      القيمةِ لا مقارنةُ نصوص. وكانَ المسارُ يتفرّعُ أوّلًا على شكلِ الطرفَين،
+            //      فمتى طُبِّعا مؤشرَينِ في مرحلةٍ سابقةٍ ذهبَ إلى strcmp فاستدعى:
+            //          strcmp(ptr، inttoptr(-9223372036854775807))
+            //      وعاقبتُه SIGSEGV.
+            //
+            //      ولا يجوزُ أن يكونَ الجوابُ ثابتًا («عدمٌ لا يساوي نصًّا ⇒ خطأ»): خانةٌ
+            //      نوعُها الساكنُ نصٌّ أو عددٌ قد تحملُ الحارسَ **وقتَ التشغيل**، وهو ما
+            //      يجعلُ «متغيّرٌ == لاشيء» صحيحًا. فالحكمُ الثابتُ يكسِرُ العدمَ الحقيقيّ.
+            //      والصوابُ تطبيعُ الطرفِ الآخرِ إلى ٦٤ بتًّا ومقارنتُه بالحارس.
+            // (EN) Null comparison in equality/inequality — above any dispatch on the shape of
+            //      the representation.
+            //
+            //      `null` is represented by a numeric sentinel (kSadNullSentinel), so comparing
+            //      it is a numeric judgement about the value, not a string comparison. The path
+            //      used to dispatch on the operand shapes first, so once an earlier stage had
+            //      normalised both to pointers it went to strcmp and called:
+            //          strcmp(ptr, inttoptr(-9223372036854775807))
+            //      which segfaults.
+            //
+            //      The answer must not be a constant ("null never equals a string ⇒ false"): a
+            //      slot whose static type is string or integer may hold the sentinel AT RUNTIME,
+            //      which is exactly what makes `variable == null` true. A constant verdict breaks
+            //      genuine null. The correct rule is to normalise the other side to 64 bits and
+            //      compare it against the sentinel.
+            bool operandIsNullLiteral(const SIROperand &operand)
+            {
+                return operand.dataType == SadTypeKind::Null;
+            }
+
+            // (AR) تطبيعُ الطرفِ غيرِ العدمِ إلى عرضِ الحارسِ (٦٤ بتًّا) بلا تغييرِ بتّاتِه:
+            //      المؤشرُ بـptrtoint، والعشريُّ ببتّاتِه، والعددُ الأضيقُ بتمديدِ إشارة.
+            //      وما لا يُطبَّعُ يُعادُ فيه عدمٌ ليسقطَ النداءُ إلى المسارِ العامِّ بدلَ
+            //      أن يُخترَعَ له جوابٌ — فالسكوتُ عن المجهولِ أسلمُ من تخمينِه.
+            // (EN) Normalise the non-null side to the sentinel's width (64 bits) without changing
+            //      its bits: pointers via ptrtoint, doubles via their bit pattern, narrower
+            //      integers via sign extension. Anything else returns null so the caller falls
+            //      through to the general path rather than inventing an answer — staying silent
+            //      about the unknown is safer than guessing at it.
+            llvm::Value *normaliseToSentinelWidth(LLVMCodeGen &cg, llvm::Value *value)
+            {
+                if (!value)
+                    return nullptr;
+
+                llvm::Type *valueType = value->getType();
+                llvm::Type *int64Type = llvm::Type::getInt64Ty(*cg.context_);
+
+                if (valueType->isPointerTy())
+                    return cg.builder_->CreatePtrToInt(value, int64Type, "null.ptr2int");
+                if (valueType->isIntegerTy(64))
+                    return value;
+                if (valueType->isIntegerTy())
+                    return cg.builder_->CreateSExt(value, int64Type, "null.sext");
+                if (valueType->isDoubleTy())
+                    return cg.builder_->CreateBitCast(value, int64Type, "null.bits");
+
+                return nullptr;
+            }
+
+            // (AR) مقارنةُ نصَّينِ آمنةٌ من العدم.
+            //
+            //      الوسمُ الساكنُ لا يكفي هنا ولا يمكنُ أن يكفي: خانةٌ نوعُها المُصرَّحُ «نصّ»
+            //      تقبلُ نصًّا في موقعِ نداءٍ وعدمًا في آخر، فلا يوجَدُ وسمٌ واحدٌ يصدُقُ على
+            //      الاثنَين. فحملُ الوسمِ عبرَ رَبطِ المعامِلِ — وهو ما كانَ نصُّ العقدِ يصِفُه
+            //      علاجًا — لا يُغني عن فحصٍ **وقتَ التشغيل**، لأنّ السؤالَ نفسَه زمنُ تشغيل.
+            //
+            //      ومن غيرِ هذا الفحصِ يُمرَّرُ حارسُ العدمِ إلى strcmp فيسقطُ البرنامجُ
+            //      بـSIGSEGV بلا تشخيص، بينما المفسّرُ يُصيبُ ويُنذِر.
+            //
+            //      والصياغةُ بلا تفرّعٍ عمدًا: يُستبدَلُ بالمؤشرِ العدميِّ نصٌّ فارغٌ قبلَ
+            //      النداء، فلا تُقرَأُ ذاكرةٌ غيرُ صالحةٍ أصلًا، ثمّ يُنتقى الجوابُ. فالعدمُ
+            //      يساوي العدمَ ولا يساوي نصًّا، وهو حكمُ المفسّرِ حرفًا.
+            // (EN) Null-safe string comparison.
+            //
+            //      A static tag is not enough here and cannot be: a slot declared `string` may
+            //      receive a string at one call site and null at another, so no single static tag
+            //      is true of both. Carrying the tag across parameter binding — which the contract
+            //      text prescribed as the cure — does not remove the need for a RUNTIME check,
+            //      because the question itself is a runtime one.
+            //
+            //      Without this check the null sentinel reaches strcmp and the program dies with
+            //      SIGSEGV and no diagnostic, while the interpreter is correct and warns.
+            //
+            //      The formulation is deliberately branchless: a null pointer is replaced by an
+            //      empty string before the call, so invalid memory is never read at all, and then
+            //      the answer is selected. Null equals null and never equals a string — exactly
+            //      the interpreter's verdict.
+            llvm::Value *emitNullSafeStringEquality(LLVMCodeGen &cg,
+                                                    llvm::Value *left,
+                                                    llvm::Value *right,
+                                                    bool wantEqual)
+            {
+                llvm::Type *int64Type = llvm::Type::getInt64Ty(*cg.context_);
+                llvm::Type *pointerType = llvm::PointerType::getUnqual(*cg.context_);
+                llvm::Constant *sentinel =
+                    llvm::ConstantInt::get(int64Type, Sad::Compiler::kSadNullSentinel);
+
+                llvm::Value *leftBits = cg.builder_->CreatePtrToInt(left, int64Type, "str.l.bits");
+                llvm::Value *rightBits = cg.builder_->CreatePtrToInt(right, int64Type, "str.r.bits");
+                llvm::Value *leftIsNull = cg.builder_->CreateICmpEQ(leftBits, sentinel, "str.l.isnull");
+                llvm::Value *rightIsNull = cg.builder_->CreateICmpEQ(rightBits, sentinel, "str.r.isnull");
+                llvm::Value *eitherIsNull = cg.builder_->CreateOr(leftIsNull, rightIsNull, "str.either.isnull");
+                llvm::Value *bothAreNull = cg.builder_->CreateAnd(leftIsNull, rightIsNull, "str.both.isnull");
+
+                llvm::Value *emptyText = cg.builder_->CreateGlobalStringPtr("", "str.empty");
+                llvm::Value *safeLeft = cg.builder_->CreateSelect(leftIsNull, emptyText, left, "str.l.safe");
+                llvm::Value *safeRight = cg.builder_->CreateSelect(rightIsNull, emptyText, right, "str.r.safe");
+
+                llvm::FunctionType *strcmpType = llvm::FunctionType::get(
+                    llvm::Type::getInt32Ty(*cg.context_), {pointerType, pointerType}, false);
+                llvm::FunctionCallee strcmpFn = cg.module_->getOrInsertFunction("strcmp", strcmpType);
+                llvm::Value *strcmpResult =
+                    cg.builder_->CreateCall(strcmpFn, {safeLeft, safeRight}, "strcmp.ret");
+                llvm::Value *textsMatch = cg.builder_->CreateICmpEQ(
+                    strcmpResult, llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg.context_), 0), "streq");
+
+                llvm::Value *areEqual =
+                    cg.builder_->CreateSelect(eitherIsNull, bothAreNull, textsMatch, "str.eq.nullsafe");
+                if (wantEqual)
+                    return areEqual;
+                return cg.builder_->CreateNot(areEqual, "str.ne.nullsafe");
+            }
+        } // namespace
+
         llvm::Value *ArithmeticCodeGen::emitCmpEq(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst)
@@ -220,6 +348,25 @@ namespace Sad
             }
 
             llvm::Value *result = nullptr;
+
+            // (AR) مقارنةُ «عدم» أوّلًا — راجِعْ تعليقَ operandIsNullLiteral أعلاه.
+            // (EN) Null comparison first — see the operandIsNullLiteral comment above.
+            if (operandIsNullLiteral(inst->operands[0]) != operandIsNullLiteral(inst->operands[1]))
+            {
+                llvm::Value *other = operandIsNullLiteral(inst->operands[0]) ? right : left;
+                if (llvm::Value *widened = normaliseToSentinelWidth(cg_, other))
+                {
+                    result = cg_.builder_->CreateICmpEQ(
+                        widened,
+                        llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_),
+                                               Sad::Compiler::kSadNullSentinel),
+                        "nulleq");
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = result;
+                    return result;
+                }
+            }
+
             llvm::Type *leftTy = left->getType();
             llvm::Type *rightTy = right->getType();
 
@@ -233,14 +380,7 @@ namespace Sad
                                     inst->operands[1].dataType == SadTypeKind::String);
                 if (isStringCmp)
                 {
-                    llvm::FunctionType *strcmpType = llvm::FunctionType::get(
-                        llvm::Type::getInt32Ty(*cg_.context_),
-                        {llvm::PointerType::getUnqual(*cg_.context_), llvm::PointerType::getUnqual(*cg_.context_)},
-                        false);
-                    llvm::FunctionCallee strcmpFn = cg_.module_->getOrInsertFunction("strcmp", strcmpType);
-                    llvm::Value *cmpResult = cg_.builder_->CreateCall(strcmpFn, {left, right}, "strcmp.ret");
-                    result = cg_.builder_->CreateICmpEQ(cmpResult,
-                                                    llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 0), "streq");
+                    result = emitNullSafeStringEquality(cg_, left, right, true);
                 }
                 else
                 {
@@ -268,20 +408,6 @@ namespace Sad
                 {
                     bool isStringCmp = (inst->operands[0].dataType == SadTypeKind::String ||
                                         inst->operands[1].dataType == SadTypeKind::String);
-                    // (AR) [S-TS-P4 codegen] حارس: `لاشيء == نص`. الطرف العددي هنا قد يكون
-                    //      حارس Null (kSadNullSentinel)؛ تحويله إلى مؤشر وتمريره لـstrcmp
-                    //      يُسقِط التنفيذ. عدم لا يساوي أيّ نص فعليّ → النتيجة «خطأ» مباشرة.
-                    // (EN) [S-TS-P4 codegen] Guard: `null == string`. The integer side may be the
-                    //      Null sentinel; IntToPtr+strcmp on it segfaults. null never equals a real
-                    //      string → return constant false directly.
-                    if (inst->operands[0].dataType == SadTypeKind::Null ||
-                        inst->operands[1].dataType == SadTypeKind::Null)
-                    {
-                        result = llvm::ConstantInt::get(cg_.getInt1Type(), 0); // false
-                        if (inst->result.has_value())
-                            cg_.context_info_.namedValues[inst->result->name] = result;
-                        return result;
-                    }
                     if (isStringCmp &&
                         ((leftTy->isIntegerTy(64) && rightTy->isPointerTy()) ||
                          (leftTy->isPointerTy() && rightTy->isIntegerTy(64))))
@@ -291,14 +417,7 @@ namespace Sad
                         if (rightTy->isIntegerTy(64))
                             right = cg_.builder_->CreateIntToPtr(right, llvm::PointerType::getUnqual(*cg_.context_), "i642ptr.r");
 
-                        llvm::FunctionType *strcmpType = llvm::FunctionType::get(
-                            llvm::Type::getInt32Ty(*cg_.context_),
-                            {llvm::PointerType::getUnqual(*cg_.context_), llvm::PointerType::getUnqual(*cg_.context_)},
-                            false);
-                        llvm::FunctionCallee strcmpFn = cg_.module_->getOrInsertFunction("strcmp", strcmpType);
-                        llvm::Value *cmpResult = cg_.builder_->CreateCall(strcmpFn, {left, right}, "strcmp.ret");
-                        result = cg_.builder_->CreateICmpEQ(cmpResult,
-                                                        llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 0), "streq");
+                        result = emitNullSafeStringEquality(cg_, left, right, true);
                         if (inst->result.has_value())
                         {
                             cg_.context_info_.namedValues[inst->result->name] = result;
@@ -385,6 +504,26 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) والمقارنةُ نفسُها هنا: العطبُ مُطابِقٌ في مسارِ اللامساواة، إذ يستدعي
+            //      strcmp على الحارسِ المُحوَّلِ مؤشرًا.
+            // (EN) The same comparison here: the identical defect exists on the inequality path,
+            //      which strcmps the sentinel-as-pointer.
+            if (operandIsNullLiteral(inst->operands[0]) != operandIsNullLiteral(inst->operands[1]))
+            {
+                llvm::Value *other = operandIsNullLiteral(inst->operands[0]) ? right : left;
+                if (llvm::Value *widened = normaliseToSentinelWidth(cg_, other))
+                {
+                    llvm::Value *nullResult = cg_.builder_->CreateICmpNE(
+                        widened,
+                        llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_),
+                                               Sad::Compiler::kSadNullSentinel),
+                        "nullne");
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = nullResult;
+                    return nullResult;
+                }
+            }
+
             llvm::Type *leftTy = left->getType();
             llvm::Type *rightTy = right->getType();
 
@@ -396,14 +535,7 @@ namespace Sad
                                     inst->operands[1].dataType == SadTypeKind::String);
                 if (isStringCmp)
                 {
-                    llvm::FunctionType *strcmpType = llvm::FunctionType::get(
-                        llvm::Type::getInt32Ty(*cg_.context_),
-                        {llvm::PointerType::getUnqual(*cg_.context_), llvm::PointerType::getUnqual(*cg_.context_)},
-                        false);
-                    llvm::FunctionCallee strcmpFn = cg_.module_->getOrInsertFunction("strcmp", strcmpType);
-                    llvm::Value *cmpResult = cg_.builder_->CreateCall(strcmpFn, {left, right}, "strcmp.ret");
-                    llvm::Value *result = cg_.builder_->CreateICmpNE(cmpResult,
-                                                                 llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 0), "strne");
+                    llvm::Value *result = emitNullSafeStringEquality(cg_, left, right, false);
                     if (inst->result.has_value())
                         cg_.context_info_.namedValues[inst->result->name] = result;
                     return result;

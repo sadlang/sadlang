@@ -1,0 +1,36 @@
+# @description خانةٌ مُغفَلةٌ تبقى عدمًا ولو مرَّ بها نصٌّ من موقعِ نداءٍ آخر
+# @skip_compiler
+# @expected الحسن\nصحيح
+
+# ============================================================
+# (AR) @skip_compiler: المعامِلُ غيرُ المُصرَّحِ يبلغُ الشجرةَ بنوعِ «صنف» واسمِ
+#      نوعٍ فارغ (٢١)، والأماميّةُ تخفضُه إلى **صحيح** لا إلى نوعٍ يقبلُ العدم
+#      (مقيسٌ: `AST type=21 -> SIR type=1`). فتبطينُ الخانةِ المُغفَلةِ صفرٌ لا
+#      عدم، فينقلبُ `== لاشيء` كذبًا في المصرِّفِ وحدَه.
+#
+#      وهذه علّةُ «أي» بعينِها لا علّةُ البانِي: خفضُ النوعِ غيرِ المُصرَّحِ.
+#      تُصلَحُ في حملتِها، ولا تُستَرُ هنا بتعديلِ المتوقَّع.
+#
+#      وبموقعِ نداءٍ واحدٍ يتّفقُ المحرّكانِ (انظر ١١٨ و١١٩)؛ فالفارقُ هنا هو
+#      وجودُ موقعٍ ثانٍ يُمرِّرُ الخانةَ نصًّا.
+# (EN) @skip_compiler: an undeclared parameter reaches the AST as Class with an
+#      empty type name (21) and the frontend lowers it to **Integer**, not to a
+#      null-capable type (measured: `AST type=21 -> SIR type=1`). The omitted
+#      slot is therefore padded with zero rather than null, so `== لاشيء` flips
+#      to false in the compiler alone. This is the «أي» lowering defect, not a
+#      constructor defect; it is fixed in its own campaign and is not papered
+#      over here by adjusting the expectation.
+# ============================================================
+
+صنف شخص
+    متغير عام اسم
+    متغير عام لقب
+
+    باني(اسم، لقب)
+        هذا.اسم = اسم
+        هذا.لقب = لقب
+    نهاية
+نهاية
+
+اطبع_سطر(شخص("علي", "الحسن").لقب)
+اطبع_سطر(نص(شخص("سعد").لقب == لاشيء))

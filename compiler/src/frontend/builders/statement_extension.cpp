@@ -262,6 +262,21 @@ namespace Sad
                                                 auto clonedFunc = std::make_shared<SIRFunction>(newFuncName, func->returnType);
                                                 clonedFunc->parameters = func->parameters;
                                                 clonedFunc->basicBlocks = func->basicBlocks;
+                                                // (AR) صفةُ «بانٍ» تُنسَخُ معَ الجسم. فالنسخةُ تحملُ
+                                                //      خاناتِ حقولِ الكائنِ نفسَها، ومنعُ الدمجِ
+                                                //      السطريِّ حكمٌ عليها كما على أصلِها. وإسقاطُها
+                                                //      هنا يُعيدُ العطبَ من بابٍ جانبيّ: بانٍ منسوخٌ
+                                                //      يُدمَجُ، فتنكسرُ مطابقةُ اسمِ الخانة، فتضيعُ
+                                                //      كتابةُ الحقلِ صامتةً.
+                                                // (EN) The "constructor" property is copied with the
+                                                //      body. The clone owns the same object field
+                                                //      slots, so the inlining ban binds it exactly as
+                                                //      it binds the original. Dropping it here would
+                                                //      reintroduce the defect through a side door: a
+                                                //      cloned constructor gets inlined, the slot-name
+                                                //      match breaks, and the field write is lost
+                                                //      silently.
+                                                clonedFunc->isConstructor = func->isConstructor;
                                                 newFuncs.push_back(clonedFunc);
                                             }
                                         }

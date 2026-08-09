@@ -731,6 +731,14 @@ namespace Sad
                         }
 
                         auto ctorFunc = std::make_shared<SIRFunction>(ctorName, SadTypeKind::Void);
+                        // (AR) الرايةُ عقدٌ دلاليٌّ — «هذه الدالّةُ بانٍ» — لا اختصارٌ لعلّةٍ
+                        //      بعينِها. فترفَعُ عندَ كلِّ موضعٍ يُنشئُ بانيًا، لا عندَ الموضعِ
+                        //      الذي انكشفَ منه العطبُ وحدَه، وإلّا صارَ صمتُها ثغرةً تنتظر.
+                        // (EN) The flag is a semantic contract — "this function is a constructor"
+                        //      — not shorthand for one particular defect. It is raised at every
+                        //      site that creates a constructor, not only the site the defect
+                        //      surfaced from; otherwise its silence is a gap waiting to open.
+                        ctorFunc->isConstructor = true;
                         for (const auto &cp : ctorParams)
                             ctorFunc->addParameter(cp);
                         auto savedCtxCtor = b_.saveContext();

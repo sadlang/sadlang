@@ -342,6 +342,17 @@ namespace Sad
             StmtPtr body;                      ///< Constructor body / جسم الباني
             ExprList superArgs;                ///< Super constructor args / معاملات الباني الأب
 
+            // (AR) هل وردَ نداءُ الأساسِ نصًّا؟ قائمةُ الوسائطِ وحدَها لا تُميّزُ «لا نداءَ
+            //      للأساس» من «الأساس() بلا وسائط»: كلتاهما قائمةٌ فارغة. وبغيرِ هذا التمييزِ
+            //      يُلغى النداءُ كلُّه بدلَ أن تُبطَّنَ خاناتُه عدمًا، فلا يُنفَّذُ بانِي الأبِ
+            //      أصلًا — خلافًا للمادّةِ (٣) بمنطوقِها، وفي المحرّكَينِ معًا.
+            // (EN) Was a base call written in the source? The argument list alone cannot separate
+            //      "no base call" from "base() with no arguments": both are an empty list. Without
+            //      this distinction the whole call is dropped instead of having its slots padded
+            //      with null, so the parent constructor never runs at all — contrary to Article (3)
+            //      as written, and in both engines.
+            bool hasBaseCall = false;          ///< Base call written? / نداءُ الأساسِ مكتوب؟
+
             /**
              * @brief Constructor / البناء
              */

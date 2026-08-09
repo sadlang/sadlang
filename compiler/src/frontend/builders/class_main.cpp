@@ -232,6 +232,23 @@ namespace Sad
                                 if (dynamic_cast<Sad::AST::ArrayExpr *>(fieldDecl->initializer.get()))
                                 {
                                     sirClass->markFieldAsArray(fieldDecl->name);
+
+                                    // (AR) ونوعُ الحقلِ نفسُه مصفوفة. كانت الحقيقةُ تُسجَّلُ **مرّتَينِ
+                                    //      ومتناقضتَين**: `markFieldAsArray` تُعلِنُها في قناةٍ جانبيّةٍ
+                                    //      تخدمُ التخصيصَ في البانِي، بينما `addField` أدناه تُسجّلُ
+                                    //      `Integer` لأنّ المُهيِّئَ ليسَ `LiteralExpr`. فقارئُ الحقلِ
+                                    //      (`buildExprMember`) يقرأُ السجلَّ الثاني فيرى عددًا صحيحًا،
+                                    //      ومن ثَمَّ يُصرَفُ `هذا.حقل.أضف(...)` إلى طريقةِ صنفٍ تُصادِفُ
+                                    //      الاسمَ بدلَ مدمَجِ المصفوفة.
+                                    // (EN) The field's own type is Array. The fact was recorded **twice
+                                    //      and inconsistently**: `markFieldAsArray` states it on a side
+                                    //      channel serving allocation in the constructor, while
+                                    //      `addField` below records `Integer` because the initializer is
+                                    //      not a `LiteralExpr`. The field's reader (`buildExprMember`)
+                                    //      consults the second record, sees an integer, and so
+                                    //      `this.field.add(...)` is dispatched to a name-colliding class
+                                    //      method instead of the array builtin.
+                                    fieldType = SadTypeKind::Array;
                                 }
                             }
                         }

@@ -193,6 +193,37 @@ namespace Sad
                 // (EN) Current function name during call site scanning
                 std::string currentScanFuncName_;
 
+                // (AR) صنفُ معامِلِ دالّةٍ حرّة، مفتاحُه مركَّب: (اسمُ الدالّة، اسمُ المعامِل).
+                //
+                //      موضعُه هنا — في السياقِ المشترَك — لا في `TemplateBuilder`، لأنّ له
+                //      قارئَينِ لا قارئًا واحدًا: المسحُ يُرقّي **خانةَ** المعامِل، والموزِّعُ
+                //      يبثُّ **النداء**. وحينَ يحسمُ كلٌّ منهما المالكَ على حِدَة يختلفان،
+                //      فتُرقّى الخانةُ بتوقيعِ صنفٍ ويُبَثُّ النداءُ إلى صنفٍ آخرَ ⇒ إجهاضُ
+                //      LLVM: «Calling a function with a bad signature». فالحسمُ واحدٌ
+                //      يُكتَبُ مرّةً ويُقرَأُ مرّتَين.
+                //
+                //      والمفتاحُ مركَّبٌ لأنّ خرائطَ الأسماءِ العاريةِ مسطَّحةٌ على البرنامجِ
+                //      كلِّه، فيتصادمُ معامِلُ دالّةٍ مع متغيّرٍ محلّيٍّ يحملُ اسمَه في دالّةٍ
+                //      أخرى. و`nullptr` قيمةً ليست غيابًا بل **تعارُضٌ محسوم**: موقعانِ
+                //      يُمرّرانِ صنفَينِ مختلفَينِ ⇒ لا ترقيةَ ولا توجيه، فيبقى السلوكُ كما كان.
+                // (EN) A free function's parameter class, under a composite key:
+                //      (function name, parameter name).
+                //
+                //      It lives here — in the shared context — rather than in `TemplateBuilder`
+                //      because it has two readers, not one: the scan promotes the parameter
+                //      **slot**, the dispatcher emits the **call**. When each resolves the owner
+                //      separately they disagree, so the slot is promoted with one class's
+                //      signature while the call is emitted to another ⇒ an LLVM assertion:
+                //      "Calling a function with a bad signature". One resolution, written once
+                //      and read twice.
+                //
+                //      The key is composite because bare-name maps are flat over the whole
+                //      program, so a parameter collides with a same-named local in another
+                //      function. A `nullptr` value is not absence but a **settled conflict**: two
+                //      sites pass different classes ⇒ neither promotion nor redirection, so the
+                //      behaviour stays exactly as it was.
+                std::map<std::pair<std::string, std::string>, std::string> paramClassBindings_;
+
                 // (AR) خريطة اسم المتغيّر → نوع عنصر مصفوفته الحرفيّة أثناء المسح
                 //      المُسبَق. تُملأ عند تصريح متغيّرٍ بمُهيّئٍ مصفوفةٍ مختلطةٍ قياسيّةٍ
                 //      (⇒ Any)، وتُقرأ في استنتاج نوع المعامل حين يُمرَّر المتغيّرُ نفسُه
