@@ -323,6 +323,26 @@ namespace sad
             bool emit_ast = false;    // طباعة AST
             bool emit_ast_json = false; // طباعة AST بصيغة JSON آليّة (يتوقّف قبل التوليد)
             bool emit_sir = false;    // طباعة SIR
+            // (AR) الخلفيّة الأصليّة بلا LLVM: SIR ⇒ شيفرةُ آلةٍ ⇒ ثنائيُ ELF64 ساكن.
+            //      المعماريّة تُشتقّ من target (aarch64 ⇒ ARM64، وإلّا x86-64).
+            // (EN) Native no-LLVM backend: SIR ⇒ machine code ⇒ static ELF64.
+            bool native_backend = false;
+
+            // (AR) هل يُبنى SIR بالشكل الحرّ؟ الخلفيّةُ الأصليّةُ حرّةٌ بالبناء: مخرَجُها
+            //      ELF ساكنٌ بنداءاتِ نظامٍ خام بلا libc، فسِقالةُ الوضع المستضاف
+            //      (مخزنُ قفزِ الاستثناء وأخواتُه) تُنتج SIR لا مقابلَ له في المخفّض.
+            //
+            //      عمداً لا يقلب هذا «freestanding» نفسَه: العَلَمُ الخام يحمل قراراتٍ
+            //      لغويّةً أوسعَ من شكل SIR — أبرزُها تخطّي قاعدةِ الدالّة الرئيسيّة
+            //      (SEM018) وحقنِ «رئيسية» الافتراضيّ. قلبُه كان يُرخي تلك القواعد
+            //      لكلّ مستخدِمِ الخلفيّةِ الأصليّة بلا أن يطلب ذلك.
+            // (EN) Should SIR be built in the freestanding shape? The native backend is
+            //      freestanding by construction (static ELF, raw syscalls, no libc), so
+            //      hosted scaffolding yields SIR the lowerer has no counterpart for.
+            //      Deliberately does NOT flip `freestanding` itself: that raw flag also
+            //      relaxes language rules (SEM018, default main injection) which the
+            //      native backend never asked to relax.
+            bool freestanding_sir_shape() const { return freestanding || native_backend; }
             bool emit_llvm = false;   // طباعة LLVM IR
             bool emit_asm = false;    // طباعة assembly
             bool time_passes = false; // توقيت المراحل / Time each pass
@@ -614,6 +634,14 @@ namespace sad
              * @brief Backend: Code Generation / الواجهة الخلفية
              */
             bool run_backend();
+
+            // (AR) الخلفيّة الأصليّة (بلا LLVM): تُخفّض sir_module_ إلى شيفرةَ آلةٍ
+            //      وتكتب ثنائيَ ELF64 ساكنًا إلى output_file. تُستدعى من run_backend()
+            //      حين options_.native_backend، فتتخطّى مسارَ LLVM والرابطَ الأجنبيّ كليًّا.
+            // (EN) Native (no-LLVM) backend: lowers sir_module_ to machine code and
+            //      writes a static ELF64 to output_file. Called from run_backend()
+            //      when options_.native_backend is set, bypassing LLVM entirely.
+            bool run_native_backend();
 
             /**
              * @brief Print intermediate representations

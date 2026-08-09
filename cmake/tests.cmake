@@ -493,4 +493,30 @@ if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate
     message(STATUS "✓ بوّابة NFR / NFR gate enabled (tests/system/benchmark)")
 endif()
 
+# ─────────────────────────────────────────────────────────────────────
+# (AR) بوّابة وصل الخلفيّة الأصليّة (بلا LLVM) بالمُشغِّل — تُشغّل sad-build
+#      نفسَه بـ«--خلفية-أصلية» وتحكم على بنية ELF64 الناتجة. اختباراتُ
+#      الوحدة (NativeSirBridge وأخواتُها) تستدعي الهيدرات مباشرةً، فتخضرّ
+#      حتّى لو لم يبلُغِ المخفّضَ مستخدِمٌ من سطر الأوامر؛ هذه البوّابة تسدّ
+#      تلك الفجوة بالذّات. لا تُنفّذ الثنائيّات (ELF لينكس) — برهانُ التشغيل
+#      الحيّ في scripts/native_backend/prove_*.sh.
+# (EN) Gate proving the native (no-LLVM) backend is reachable from the driver:
+#      runs sad-build with the flag and judges the resulting ELF64. Unit tests
+#      call the headers directly and stay green even when no user can reach the
+#      lowerer; this gate closes exactly that gap.
+# ─────────────────────────────────────────────────────────────────────
+if(Python3_FOUND AND TARGET sad-build
+   AND EXISTS "${CMAKE_SOURCE_DIR}/tests/system/native_backend/native_flag_gate.py")
+    add_test(
+        NAME NativeBackendFlagGate
+        COMMAND ${Python3_EXECUTABLE}
+                "${CMAKE_SOURCE_DIR}/tests/system/native_backend/native_flag_gate.py"
+                --compiler "$<TARGET_FILE:sad-build>"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    set_tests_properties(NativeBackendFlagGate PROPERTIES
+        TIMEOUT 300 LABELS "System;native")
+    message(STATUS "✓ بوّابة الخلفيّة الأصليّة / native-backend flag gate enabled")
+endif()
+
 message(STATUS "✓ الاختبارات مفعلة / Tests enabled")

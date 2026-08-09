@@ -294,7 +294,11 @@ namespace Sad
             INT_NATIVE_IMM_RANGE,           ///< INT015: (AR) فوريّ خارج المدى في التخفيض الأصليّ / (EN) Immediate out of range in native lowering
             INT_NATIVE_ENCODING_MISSING,    ///< INT016: (AR) لا صيغة ترميز أصليّة للتعليمة / (EN) No native encoding spec for instruction
             INT_NATIVE_UNDEF_VREG,          ///< INT017: (AR) سجلّ افتراضيّ غير معرَّف في التخفيض الأصليّ / (EN) Undefined virtual register in native lowering
-            INT_NATIVE_LABEL_UNDEFINED      ///< INT018: (AR) لصيقةُ قفزٍ لا تشير إلى كتلةٍ معرَّفة / (EN) Branch label targets an undefined block
+            INT_NATIVE_LABEL_UNDEFINED,     ///< INT018: (AR) لصيقةُ قفزٍ لا تشير إلى كتلةٍ معرَّفة / (EN) Branch label targets an undefined block
+            INT_NATIVE_OUTPUT_WRITE,        ///< INT019: (AR) تعذّرت كتابة ثنائيّ ELF64 إلى مسار المخرَج / (EN) Could not write the ELF64 binary to the output path
+            INT_NATIVE_TARGET_UNSUPPORTED,  ///< INT020: (AR) هدفٌ لا مخفّضَ له أو لا يستعمل ELF / (EN) Target with no lowerer or not ELF-based
+            INT_NATIVE_OUTPUT_TYPE,         ///< INT021: (AR) نوعُ مخرَجٍ لا تنتجه الخلفيّة الأصليّة / (EN) Output type the native backend does not produce
+            INT_NATIVE_NO_MODULE            ///< INT022: (AR) بلوغُ الخلفيّة بلا وحدةِ SIR / (EN) Reached the backend with no SIR module
         };
 
         /**

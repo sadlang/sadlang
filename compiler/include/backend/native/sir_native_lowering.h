@@ -88,6 +88,38 @@ namespace sad
         //      addr=0 (النواةُ تختار)، prot=قراءة|كتابة، flags=خاصّ|مجهول (الذاكرةُ مُصفّرةٌ
         //      سلفًا ⇒ tags/homogKind للمصفوفة يُصفّران مجّانًا)، fd=-1، offset=0.
         inline constexpr long long kSysMmapX86 = 9;      // (AR) mmap
+
+        // (AR) نداءاتُ نظامِ الملفّات (Linux/x86-64) — مدمَجَتا اكتب_بايتات/اقرأ_بايتات.
+        //      المسارُ الأصليّ بلا libc: لا fopen ولا fwrite، بل open/read/write/lseek/close
+        //      مباشرةً. الأرقامُ من جدولِ نداءات x86-64 (arch/x86/entry/syscalls).
+        // (EN) Filesystem syscalls (Linux/x86-64) for the raw-bytes builtins. The native
+        //      path has no libc: open/read/write/lseek/close directly, not fopen/fwrite.
+        inline constexpr long long kSysReadX86 = 0;    // (AR) read
+        inline constexpr long long kSysOpenX86 = 2;    // (AR) open
+        inline constexpr long long kSysCloseX86 = 3;   // (AR) close
+        inline constexpr long long kSysLseekX86 = 8;   // (AR) lseek
+
+        // (AR) أعلامُ open ووضعُ الإنشاء — قيمٌ عدديّةٌ من ABI لينكس (asm-generic/fcntl.h):
+        //      O_WRONLY(1)|O_CREAT(0x40)|O_TRUNC(0x200) = 0x241 للكتابة، O_RDONLY(0) للقراءة.
+        //      الوضعُ 0644 يُقرأ ثمانيًّا (rw-r--r--) — يطابق ما يُنشئه fopen("wb") تحت umask.
+        // (EN) open flags and creation mode from the Linux ABI; 0644 matches what
+        //      fopen("wb") creates under the default umask.
+        inline constexpr long long kOpenWriteCreateTrunc = 0x241;
+        inline constexpr long long kOpenReadOnly = 0;
+        inline constexpr long long kFileCreateMode = 0644;
+
+        // (AR) مبادئُ lseek: نهايةُ الملفّ لقياس الحجم، ثمّ بدايتُه للقراءة.
+        inline constexpr long long kSeekEnd = 2;
+        inline constexpr long long kSeekSet = 0;
+
+        // (AR) قناعُ البايت: عنصرُ المصفوفة i64 يُقتطَع إلى بايتٍ واحدٍ عند الكتابة (يطابق
+        //      اقتطاعَ مسار LLVM trunc i8 والمفسّرَ `&0xFF`).
+        inline constexpr long long kByteMask = 0xFF;
+
+        // (AR) رمزُ الإخفاق الذي يُرجعه open عند تعذّر الفتح: كلُّ قيمةٍ سالبة (‎-errno‎).
+        //      الفحصُ «أقلّ من صفر» لا مساواةٌ برقمٍ بعينه.
+        inline constexpr long long kFdInvalidBoundary = 0;
+
         inline constexpr long long kSysMunmapX86 = 11;   // (AR) munmap — لتحرير كتلةِ الكومة (FREE)
         inline constexpr long long kProtReadWrite = 0x3; // (AR) PROT_READ|PROT_WRITE
         inline constexpr long long kMapPrivAnon = 0x22;  // (AR) MAP_PRIVATE|MAP_ANONYMOUS
@@ -575,6 +607,16 @@ namespace sad
             inline constexpr static int kArrExtSlots = 6;
             long long arrExtBaseDisp_ = 0;
             long long arrExtSlot(int i) const { return arrExtBaseDisp_ + static_cast<long long>(i) * 8; }
+
+            // (AR) خاناتُ خدشِ بايتاتِ الملفّات (اكتب_بايتات/اقرأ_بايتات): واصفُ الملفّ والطولُ
+            //      ومؤشّرُ المخزن ومؤشّرُ البيانات وعدّادُ اللولب ومؤشّرُ البنية — قيمٌ يجب أن
+            //      تبقى حيّةً عبر نداءاتِ النظام وmmap، وكلاهما يدهس الحوضَ بأكمله.
+            // (EN) Scratch slots for the raw-bytes file builtins: fd, length, buffer,
+            //      data pointer, loop counter and struct pointer — values that must
+            //      survive syscalls and mmap, both of which clobber the whole pool.
+            inline constexpr static int kFileBytesSlots = 6;
+            long long fileBytesBaseDisp_ = 0;
+            long long fileBytesSlot(int i) const { return fileBytesBaseDisp_ + static_cast<long long>(i) * 8; }
 
             // (AR) كتلةُ البيانات (rodata): سلاسلُ الطباعة الحرفيّةُ تُلحَق بعد كلّ الشيفرة في
             //      نفس مقطع R+X؛ عنوانُها المطلق (vbase+إزاحة) يُرقَّع في mov r64,imm64.
@@ -1363,6 +1405,25 @@ namespace sad
             }
             // (AR) mmap بحجمٍ مُهيّأٍ سلفًا في RSI (بخلاف emitMmap ذي الحجم الثابت) — لنموّ الإلحاق
             //      حيث الحجمُ (newcap×٨) يُحسَب زمنَ التشغيل. يضبط بقيّةَ الوسائط ثمّ syscall.
+            // (AR) يقصّ سجلًّا إلى صفرٍ إن كان سالبًا. نداءاتُ النظام تُعيد ‎-errno‎ عند الإخفاق،
+            //      وأيُّ عائدٍ يُستعمَل طولًا يجب أن يمرّ من هنا: طولٌ سالبٌ يُنتج حجمَ تخصيصٍ سالبًا
+            //      ثمّ كتابةً على مؤشّرِ خطأ (انهيارٌ لا تشخيص).
+            // (EN) Clamp a register to zero when negative. Syscalls return -errno on
+            //      failure, and any return used as a length must pass through here: a
+            //      negative length yields a negative allocation size and then a write to
+            //      an error pointer (a crash, not a diagnostic).
+            bool clampNonNegative(int reg)
+            {
+                if (!cmpZero(reg))
+                    return false;
+                size_t nonNeg;
+                if (!emitJccFwd(x86::mnem::kJge, nonNeg))
+                    return false;
+                if (!movImm(reg, 0))
+                    return false;
+                patchFwd(nonNeg);
+                return true;
+            }
             bool emitMmapPresetSize()
             {
                 return movImm(x86::RDI, 0) &&
@@ -1947,6 +2008,7 @@ namespace sad
                 bool hasMemBlock = false;    // (AR) حجز/حرر/عبّئ/انسخ (نواةُ الكومة) ⇒ syscall/حلقةٌ تدهس الحوض
                 bool hasStrHeap = false;     // (AR) أوپكودُ نصٍّ يخصّص كومةً داخليًّا (I64_TO_STRING/CONCAT/…)
                 bool hasArrayExt = false;    // (AR) CONCAT/ZIP ⇒ mmap (+حلقةٌ لـZIP) يدهس الحوضَ + خاناتُ خدشٍ عابرةٌ لـmmap
+                bool hasFileBytes = false;   // (AR) اكتب_بايتات/اقرأ_بايتات ⇒ نداءاتُ نظامٍ + mmap تدهس الحوض
                 bool hasArrayToStr = false;  // (AR) ARRAY_TO_STRING ⇒ يلزمه مخزنُ خدشِ عشريّ (kFtoaBufPayload) للمسار العشريّ
                 dynGetCount_ = 0;
                 maxOutgoingStackArgs_ = 0;
@@ -2086,6 +2148,9 @@ namespace sad
                                  inst.opcode == sir::SIROpcode::STRING_REPLACE ||
                                  inst.opcode == sir::SIROpcode::BUILTIN_STRING_REPLACE)
                             hasStrHeap = true; // (AR) يخصّص مخزنَ نصٍّ/يستعمل خانةَ hayBase (mmap/الحوض)
+                        else if (inst.opcode == sir::SIROpcode::BUILTIN_FILE_WRITE_BYTES ||
+                                 inst.opcode == sir::SIROpcode::BUILTIN_FILE_READ_BYTES)
+                            hasFileBytes = true; // (AR) open/read/write/lseek + mmap ⇒ انسكابٌ + خانات خدش
                         else if (inst.opcode == sir::SIROpcode::ARRAY_TO_STRING ||
                                  inst.opcode == sir::SIROpcode::TUPLE_TO_STRING)
                         {
@@ -2210,10 +2275,16 @@ namespace sad
                     used += kArrExtSlots * 8;
                     arrExtBaseDisp_ = -used;
                 }
+                // (AR) بايتاتُ الملفّات: ٦ خاناتِ خدشٍ تبقى حيّةً عبر نداءاتِ النظام وmmap.
+                if (hasFileBytes)
+                {
+                    used += kFileBytesSlots * 8;
+                    fileBytesBaseDisp_ = -used;
+                }
                 // (AR) إن نادت الدالّةُ أو طبعت، احجز منطقةَ انسكابٍ: خانةٌ لكلّ سجلّ حوض. النداءُ
                 //      يدهس كلَّ الحوض (caller-saved)، والطباعةُ تستعمل سجلّاتِ الحوض مُبدَّداتٍ ⇒
                 //      تُنسَك المؤقّتاتُ الحيّةُ حولَهما وتُعاد.
-                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing || hasMemBlock || hasStrHeap || hasArrayExt)
+                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing || hasMemBlock || hasStrHeap || hasArrayExt || hasFileBytes)
                 {
                     spillBase_ = -(used + 8);
                     used += static_cast<long long>(pool_.size()) * 8;
@@ -5104,6 +5175,249 @@ namespace sad
                     if (!allocReg(inst.result->name, dst))
                         return false;
                     return loadMemBase(dst, x86::RAX, kArrOffLen);
+                }
+                case OP::BUILTIN_FILE_WRITE_BYTES:
+                {
+                    // (AR) اكتب_بايتات(مسار، مصفوفة) ⇒ منطقيّ. المسارُ الأصليّ بلا libc: لا fopen
+                    //      ولا fwrite، بل open/write/close مباشرةً. البايتُ الصفريُّ لا يقطع شيئًا
+                    //      هنا (الطولُ صريحٌ من رأس المصفوفة) — وهذا هو سببُ وجود المدمجة أصلًا:
+                    //      كتابةُ رأس ELF مستحيلةٌ بمسارٍ نصّيٍّ يتوقّف عند أوّل 0x00.
+                    //
+                    //      اقتطاعُ العنصر: elem & 0xFF على i64 الخام — يطابق المفسّرَ (&0xFF بعد
+                    //      toInt64) لعناصرِ الأعداد. العنصرُ العشريُّ أو المعلَّب يلزمه فكُّ وسمٍ
+                    //      زمنَ التشغيل، ولمّا يُنفَّذ بعدُ في هذا المخفّض ⇒ رفضٌ صريحٌ عند الترجمة
+                    //      خيرٌ من بايتٍ يتباعد صامتًا عن المفسّر.
+                    // (EN) write_bytes(path, array) → bool, via raw open/write/close. A zero
+                    //      byte truncates nothing here (the length comes from the array
+                    //      header) — precisely why this builtin exists: an ELF header cannot
+                    //      be written through a text path that stops at the first 0x00.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (inst.operands[1].elementType == types::SadTypeKind::Any ||
+                        inst.operands[1].elementType == types::SadTypeKind::Float)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    // (AR) نداءُ النظام وmmap يدهسان الحوضَ كلَّه ⇒ انسكِبْ كلَّ مؤقّتٍ حيّ.
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+
+                    // (AR) الطولُ ومؤشّرُ البيانات من رأس البنية ⇒ خانتا خدشٍ تبقيان عبر mmap.
+                    if (!loadInto(x86::RAX, inst.operands[1]) ||
+                        !loadMemBase(x86::RDI, x86::RAX, kArrOffLen) || !storeMem(fileBytesSlot(1), x86::RDI) ||
+                        !loadMemBase(x86::RSI, x86::RAX, kArrOffData) || !storeMem(fileBytesSlot(3), x86::RSI))
+                        return false;
+
+                    // (AR) مخزنُ البايتات: الطول+١ دائمًا ⇒ حجمٌ غيرُ صفريّ حتّى لمصفوفةٍ فارغة
+                    //      (mmap بحجمٍ صفريّ يُخفِق). البايتُ الزائدُ لا يُكتَب (write يأخذ الطول).
+                    if (!loadMem(x86::RSI, fileBytesSlot(1)) || !addImm(x86::RSI, 1) || !emitMmapPresetSize())
+                        return false;
+                    if (!storeMem(fileBytesSlot(2), x86::RAX))
+                        return false;
+
+                    // (AR) لولبُ التعبئة: buf[i] = data[i] & 0xFF، بفحصِ i<len في الرأس (لا do-while
+                    //      ⇒ مصفوفةٌ فارغةٌ لا تكتب بايتًا ولا تلتفّ).
+                    if (!movImm(x86::RAX, 0) || !storeMem(fileBytesSlot(4), x86::RAX))
+                        return false;
+                    const size_t fillHead = code_.size();
+                    if (!loadMem(x86::RAX, fileBytesSlot(4)) || !loadMem(x86::RDI, fileBytesSlot(1)) ||
+                        !cmpRegReg(x86::RAX, x86::RDI))
+                        return false;
+                    size_t fillDone;
+                    if (!emitJccFwd(x86::mnem::kJge, fillDone))
+                        return false;
+                    if (!loadMem(x86::RSI, fileBytesSlot(3)) || !movReg(x86::RDX, x86::RAX) ||
+                        !shlImm(x86::RDX, 3) || !addReg(x86::RSI, x86::RDX) || // RSI = data + i×8
+                        !loadMemBase(x86::RDX, x86::RSI, 0) ||                 // RDX = data[i]
+                        !movImm(x86::R8, kByteMask) || !andReg(x86::RDX, x86::R8) ||
+                        !loadMem(x86::RSI, fileBytesSlot(2)) || !addReg(x86::RSI, x86::RAX) ||
+                        !storeByte(x86::RSI, x86::RDX))                        // buf[i] = البايت
+                        return false;
+                    if (!addImm(x86::RAX, 1) || !storeMem(fileBytesSlot(4), x86::RAX) ||
+                        !emitJmpBack(fillHead))
+                        return false;
+                    patchFwd(fillDone);
+
+                    // (AR) open(path, O_WRONLY|O_CREAT|O_TRUNC, 0644) ⇒ RAX = fd أو -errno.
+                    if (!materializeString(inst.operands[0], x86::RDI, true) ||
+                        !movImm(x86::RSI, kOpenWriteCreateTrunc) || !movImm(x86::RDX, kFileCreateMode) ||
+                        !movImm(x86::RAX, kSysOpenX86) || !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+                    if (!storeMem(fileBytesSlot(0), x86::RAX))
+                        return false;
+
+                    // (AR) fd سالبٌ ⇒ فشلُ فتح: النتيجةُ «خطأ» بلا كتابةٍ ولا إغلاق (لا واصفَ يُغلَق).
+                    if (!movImm(x86::RDI, kFdInvalidBoundary) || !cmpRegReg(x86::RAX, x86::RDI))
+                        return false;
+                    size_t openFailed;
+                    if (!emitJccFwd(x86::mnem::kJl, openFailed))
+                        return false;
+
+                    // (AR) write(fd, buf, len) ثمّ close(fd). نتيجةُ write تُقارَن بالطول: كتابةٌ
+                    //      جزئيّةٌ ليست نجاحًا.
+                    if (!loadMem(x86::RDI, fileBytesSlot(0)) || !loadMem(x86::RSI, fileBytesSlot(2)) ||
+                        !loadMem(x86::RDX, fileBytesSlot(1)) ||
+                        !movImm(x86::RAX, kSysWriteX86) || !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+                    if (!storeMem(fileBytesSlot(5), x86::RAX))
+                        return false;
+                    if (!loadMem(x86::RDI, fileBytesSlot(0)) ||
+                        !movImm(x86::RAX, kSysCloseX86) || !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+                    if (!loadMem(x86::RAX, fileBytesSlot(5)) || !loadMem(x86::RDI, fileBytesSlot(1)) ||
+                        !cmpRegReg(x86::RAX, x86::RDI))
+                        return false;
+                    size_t wrote;
+                    if (!emitJccFwd(x86::mnem::kJe, wrote))
+                        return false;
+
+                    patchFwd(openFailed);
+                    if (!movImm(x86::RAX, 0)) // (AR) خطأ
+                        return false;
+                    size_t writeEnd;
+                    if (!emitJccFwd(x86::mnem::kJmp, writeEnd))
+                        return false;
+                    patchFwd(wrote);
+                    if (!movImm(x86::RAX, 1)) // (AR) صحيح
+                        return false;
+                    patchFwd(writeEnd);
+                    if (!storeMem(fileBytesSlot(5), x86::RAX))
+                        return false;
+
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    int wdst;
+                    if (!allocReg(inst.result->name, wdst))
+                        return false;
+                    return loadMem(wdst, fileBytesSlot(5));
+                }
+                case OP::BUILTIN_FILE_READ_BYTES:
+                {
+                    // (AR) اقرأ_بايتات(مسار) ⇒ مصفوفةُ أعدادٍ ٠..٢٥٥. open/lseek(END)/lseek(SET)/
+                    //      read/close خامًّا، ثمّ بناءُ SadArray خماسيّةٍ: الطول=السعة=الحجم،
+                    //      tags=عدم وhomogKind=Int (كلُّ مُنتِجٍ يُهيّئ الحقلين ٣+٤، وإلّا قرأ
+                    //      المستهلِكُ مؤشّرَ قمامةٍ أو افترض وسمًا خاطئًا).
+                    // (EN) read_bytes(path) → array of 0..255 via raw syscalls, then a
+                    //      five-field SadArray with tags=null and homogKind=Int (every
+                    //      producer must initialise fields 3 and 4).
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) ||
+                            common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
+                            if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
+                                return false;
+
+                    // (AR) open(path, O_RDONLY) ⇒ fd. الفشلُ (fd<0) ⇒ مصفوفةٌ فارغة.
+                    //      ⚠️ دَينٌ مُعلَنٌ (انحرافٌ عن المفسّر): المفسّر يرفع RUN_FILE_ERROR عند
+                    //      تعذّر الفتح (builtin_module_basics.cpp)، وهذا المسارُ يُعيد مصفوفةً
+                    //      فارغةً صامتًا. السببُ أنّ رفعَ خطإٍ زمنَ التشغيل هنا يلزمه مسارُ هلعٍ
+                    //      بنداءِ نظامٍ لم يُوصَل بعدُ لمدمجاتِ الملفّات. لا تقرأ هذا على أنّه تطابق.
+                    if (!materializeString(inst.operands[0], x86::RDI, true) ||
+                        !movImm(x86::RSI, kOpenReadOnly) || !movImm(x86::RDX, 0) ||
+                        !movImm(x86::RAX, kSysOpenX86) || !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+                    if (!storeMem(fileBytesSlot(0), x86::RAX) || !movImm(x86::RSI, 0) ||
+                        !storeMem(fileBytesSlot(1), x86::RSI)) // (AR) الطولُ الافتراضيّ = ٠
+                        return false;
+                    if (!movImm(x86::RDI, kFdInvalidBoundary) || !cmpRegReg(x86::RAX, x86::RDI))
+                        return false;
+                    size_t roOpenFailed;
+                    if (!emitJccFwd(x86::mnem::kJl, roOpenFailed))
+                        return false;
+
+                    // (AR) الحجمُ = lseek(fd, 0, SEEK_END)، ثمّ العودةُ إلى البداية للقراءة.
+                    if (!loadMem(x86::RDI, fileBytesSlot(0)) || !movImm(x86::RSI, 0) ||
+                        !movImm(x86::RDX, kSeekEnd) ||
+                        !movImm(x86::RAX, kSysLseekX86) || !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+                    if (!clampNonNegative(x86::RAX) || !storeMem(fileBytesSlot(1), x86::RAX))
+                        return false;
+                    if (!loadMem(x86::RDI, fileBytesSlot(0)) || !movImm(x86::RSI, 0) ||
+                        !movImm(x86::RDX, kSeekSet) ||
+                        !movImm(x86::RAX, kSysLseekX86) || !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+
+                    // (AR) مخزنُ القراءة (الحجم+١ ⇒ غيرُ صفريّ)، ثمّ read(fd, buf, size) وclose.
+                    if (!loadMem(x86::RSI, fileBytesSlot(1)) || !addImm(x86::RSI, 1) || !emitMmapPresetSize())
+                        return false;
+                    if (!storeMem(fileBytesSlot(2), x86::RAX))
+                        return false;
+                    if (!loadMem(x86::RDI, fileBytesSlot(0)) || !loadMem(x86::RSI, fileBytesSlot(2)) ||
+                        !loadMem(x86::RDX, fileBytesSlot(1)) ||
+                        !movImm(x86::RAX, kSysReadX86) || !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+                    // (AR) الطولُ الفعليُّ = ما قرأه read (قد يقلّ عن حجمِ lseek عند سباقٍ على الملفّ).
+                    //      وقد يكون سالبًا (‎-errno‎): قراءةُ مجلّدٍ تُعيد ‎-EISDIR‎ مثلًا. طولٌ سالبٌ
+                    //      يعطي حجمَ mmap سالبًا ⇒ فشلَ تخصيصٍ ⇒ كتابةً على مؤشّرِ خطأ. القصُّ إلى
+                    //      صفرٍ يجعل الإخفاقَ مصفوفةً فارغةً لا انهيارًا.
+                    if (!clampNonNegative(x86::RAX) || !storeMem(fileBytesSlot(1), x86::RAX))
+                        return false;
+                    if (!loadMem(x86::RDI, fileBytesSlot(0)) ||
+                        !movImm(x86::RAX, kSysCloseX86) || !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+                    size_t haveBuf;
+                    if (!emitJccFwd(x86::mnem::kJmp, haveBuf))
+                        return false;
+
+                    // (AR) مسارُ فشلِ الفتح: مخزنُ بايتٍ واحدٍ وطولٌ صفريّ ⇒ مصفوفةٌ فارغةٌ سليمةُ البنية.
+                    patchFwd(roOpenFailed);
+                    if (!movImm(x86::RSI, 1) || !emitMmapPresetSize() || !storeMem(fileBytesSlot(2), x86::RAX))
+                        return false;
+                    patchFwd(haveBuf);
+
+                    // (AR) بنيةُ SadArray: الرأسُ + الطولُ×٨ خانةَ بيانات (+٨ كي لا يكون الحجمُ صفريًّا).
+                    if (!loadMem(x86::RSI, fileBytesSlot(1)) || !shlImm(x86::RSI, 3) ||
+                        !addImm(x86::RSI, kArrHeaderBytes + kArrSlotBytes) || !emitMmapPresetSize())
+                        return false;
+                    if (!storeMem(fileBytesSlot(5), x86::RAX))
+                        return false;
+                    // (AR) الحقولُ الخمسة: الطول، السعة، البيانات (تلي الرأسَ مباشرةً)، الوسوم=عدم،
+                    //      نوعُ التجانس=Int (المستهلِكُ يقرؤه حين tags=null).
+                    if (!loadMem(x86::RDI, fileBytesSlot(1)) ||
+                        !storeMemBase(x86::RAX, kArrOffLen, x86::RDI) ||
+                        !storeMemBase(x86::RAX, kArrOffCap, x86::RDI))
+                        return false;
+                    if (!movReg(x86::RDI, x86::RAX) || !addImm(x86::RDI, kArrHeaderBytes) ||
+                        !storeMemBase(x86::RAX, kArrOffData, x86::RDI))
+                        return false;
+                    if (!movImm(x86::RDI, 0) || !storeMemBase(x86::RAX, kArrOffTags, x86::RDI) ||
+                        !movImm(x86::RDI, kDynKindInt) || !storeMemBase(x86::RAX, kArrOffHomog, x86::RDI))
+                        return false;
+
+                    // (AR) لولبُ التعبئة: data[i] = (i64)buf[i] ممدَّدًا بالصفر ⇒ ٠..٢٥٥ لا سالبًا.
+                    if (!movImm(x86::RAX, 0) || !storeMem(fileBytesSlot(4), x86::RAX))
+                        return false;
+                    const size_t rdHead = code_.size();
+                    if (!loadMem(x86::RAX, fileBytesSlot(4)) || !loadMem(x86::RDI, fileBytesSlot(1)) ||
+                        !cmpRegReg(x86::RAX, x86::RDI))
+                        return false;
+                    size_t rdDone;
+                    if (!emitJccFwd(x86::mnem::kJge, rdDone))
+                        return false;
+                    if (!loadMem(x86::RSI, fileBytesSlot(2)) || !addReg(x86::RSI, x86::RAX) ||
+                        !loadByteZX(x86::RDX, x86::RSI) ||                      // RDX = buf[i] (٠..٢٥٥)
+                        !loadMem(x86::RSI, fileBytesSlot(5)) ||
+                        !loadMemBase(x86::RSI, x86::RSI, kArrOffData) ||
+                        !movReg(x86::R8, x86::RAX) || !shlImm(x86::R8, 3) || !addReg(x86::RSI, x86::R8) ||
+                        !storeMemBase(x86::RSI, 0, x86::RDX))                   // data[i] = البايت
+                        return false;
+                    if (!addImm(x86::RAX, 1) || !storeMem(fileBytesSlot(4), x86::RAX) ||
+                        !emitJmpBack(rdHead))
+                        return false;
+                    patchFwd(rdDone);
+
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!loadMem(kv.second, spillDisp(static_cast<size_t>(poolIndexOf(kv.second)))))
+                                return false;
+                    int rdst;
+                    if (!allocReg(inst.result->name, rdst))
+                        return false;
+                    return loadMem(rdst, fileBytesSlot(5));
                 }
                 case OP::BUILTIN_ARRAY_APPEND:
                 case OP::ARRAY_APPEND:

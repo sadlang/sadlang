@@ -3162,6 +3162,25 @@ TEST(Arm64SirBridge, LowersFloorMinPrint) { lowerAndWriteArm64(kSrcFloorMinPrint
 TEST(NativeSirBridge, LowersModAnyPrint) { lowerAndWriteX86(kSrcModAnyPrint, "sad_sir_modanyprint"); }
 TEST(Arm64SirBridge, LowersModAnyPrint) { lowerAndWriteArm64(kSrcModAnyPrint, "sad_arm64_modanyprint"); }
 
+// (AR) [بايتاتُ الملفّات] ذهابٌ-إيابٌ ببايتٍ صفريٍّ مضمَّن — الحاجزُ الذي وُلدت له
+//      المدمجتان: المسارُ النصّيّ (fputs/<<) يقف عند أوّل 0x00 فيستحيل رأسُ ELF.
+//      المصدر: «استورد أساسيات · دالة رئيسية() · م = [72، 0، 255، 66] ·
+//      اكتب_بايتات(ملفّ، م) · ق = اقرأ_بايتات(ملفّ) · اطبع(طول(ق)) · ارجع 0».
+//      هنا نُثبت التخفيضَ والترميز على المعماريّتين؛ والبرهانُ الحيّ (طول=4 وبايتات
+//      48 00 ff 42، مطابقًا للمفسّر) في scripts/native_backend/prove_write_bytes.sh.
+static const std::string kSrcWriteReadBytes =
+    "\xD8\xA7\xD8\xB3\xD8\xAA\xD9\x88\xD8\xB1\xD8\xAF \xD8\xA3\xD8\xB3\xD8\xA7\xD8\xB3\xD9\x8A\xD8\xA7\xD8\xAA\n"
+    "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9 \xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9()\n"
+    "    \xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1 \xD9\x85 = [72\xD8\x8C 0\xD8\x8C 255\xD8\x8C 66]\n"
+    "    \xD8\xA7\xD9\x83\xD8\xAA\xD8\xA8_\xD8\xA8\xD8\xA7\xD9\x8A\xD8\xAA\xD8\xA7\xD8\xAA(\"sad_bytes_rt.bin\"\xD8\x8C \xD9\x85)\n"
+    "    \xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1 \xD9\x82 = \xD8\xA7\xD9\x82\xD8\xB1\xD8\xA3_\xD8\xA8\xD8\xA7\xD9\x8A\xD8\xAA\xD8\xA7\xD8\xAA(\"sad_bytes_rt.bin\")\n"
+    "    \xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9(\xD8\xB7\xD9\x88\xD9\x84(\xD9\x82))\n"
+    "    \xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9 0\n"
+    "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\n";
+
+TEST(NativeSirBridge, LowersWriteReadBytes) { lowerAndWriteX86(kSrcWriteReadBytes, "sad_sir_writebytes"); }
+TEST(Arm64SirBridge, LowersWriteReadBytes) { lowerAndWriteArm64(kSrcWriteReadBytes, "sad_arm64_writebytes"); }
+
 // (AR) المختلطُ (صحيح×عشري) يُرفَضُ صراحةً على المعماريّتين (تماثل).
 TEST(NativeSirBridge, RejectsMixedMinMax)
 {

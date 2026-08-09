@@ -57,6 +57,17 @@ namespace sad
         inline constexpr long long kSysWriteArm64 = 64; // (AR) write
         inline constexpr long long kSysMmapArm64 = 222; // (AR) mmap (تخصيصُ كومةٍ للمصفوفات)
         inline constexpr long long kSysMunmapArm64 = 215; // (AR) munmap — تحريرُ كتلةِ الكومة (FREE)
+        // (AR) نداءاتُ نظامِ الملفّات (Linux/AArch64) — مدمَجَتا اكتب_بايتات/اقرأ_بايتات.
+        //      AArch64 لا نداءَ open فيه أصلًا (أُسقِط من الـABI الحديث) ⇒ openat بواصفِ
+        //      المجلّد AT_FDCWD. هذا فارقٌ حقيقيٌّ عن x86-64 لا اختلافُ رقمٍ فحسب.
+        // (EN) Filesystem syscalls (Linux/AArch64). AArch64 has no `open` at all — the
+        //      modern ABI dropped it — so openat with AT_FDCWD is used. A real difference
+        //      from x86-64, not merely a renumbering.
+        inline constexpr long long kSysOpenatArm64 = 56;  // (AR) openat
+        inline constexpr long long kSysCloseArm64 = 57;   // (AR) close
+        inline constexpr long long kSysLseekArm64 = 62;   // (AR) lseek
+        inline constexpr long long kSysReadArm64 = 63;    // (AR) read
+        inline constexpr long long kAtFdCwd = -100;       // (AR) AT_FDCWD — المسارُ نسبيٌّ لمجلّد العمل
         inline constexpr long long kFdStdoutArm64 = 1;  // (AR) واصفُ الخرج القياسيّ (stdout)
         inline constexpr long long kItoaRadixArm64 = 10; // (AR) أساسُ التحويل العشريّ
         inline constexpr long long kAsciiZeroArm64 = 0x30; // (AR) رمزُ الصفر ASCII ('0') — أساسُ itoa
@@ -321,6 +332,12 @@ namespace sad
             static constexpr int kArrExtSlots = 6;
             int arrExtBaseSlot_ = -1;
             long long arrExtSlot(int i) const { return static_cast<long long>(arrExtBaseSlot_) + i; }
+
+            // (AR) خاناتُ خدشِ بايتاتِ الملفّات (مرآةُ x86): fd/الطول/المخزن/البيانات/العدّاد/البنية.
+            //      قيمٌ يجب أن تبقى حيّةً عبر نداءاتِ النظام وmmap، وكلاهما يدهس الحوضَ بأكمله.
+            static constexpr int kFileBytesSlots = 6;
+            int fileBytesBaseSlot_ = -1;
+            long long fileBytesSlot(int i) const { return static_cast<long long>(fileBytesBaseSlot_) + i; }
 
             // (AR) كتلةُ البيانات (rodata): سلاسلُ الطباعة الحرفيّةُ تُلحَق بعد كلّ الشيفرة في نفس
             //      مقطع R+X؛ عنوانُها المطلق (vbase+إزاحة) يُرقَّع في تسلسلِ movz+movk×3.
@@ -1281,6 +1298,20 @@ namespace sad
                 return emit(a64::mnem::kB, "rel26", {a64::Operand::I(imm)});
             }
             // (AR) mmap بحجمٍ مُهيّأٍ سلفًا في x1 (لنموّ الإلحاق: الحجمُ newcap×٨ يُحسَب زمنَ التشغيل).
+            // (AR) يقصّ x0 إلى صفرٍ إن كان سالبًا — نظيرُ clampNonNegative في x86. نداءاتُ
+            //      النظام تُعيد ‎-errno‎، وطولٌ سالبٌ يُنتج حجمَ تخصيصٍ سالبًا ثمّ انهيارًا.
+            // (EN) Clamp x0 to zero when negative — the AArch64 twin of clampNonNegative.
+            bool clampNonNegativeArm64(int reg)
+            {
+                if (!cmp(reg, a64reg::kXzr))
+                    return false;
+                size_t nonNeg;
+                if (!emitBranchFwd(a64::mnem::kBge, "rel19", nonNeg))
+                    return false;
+                if (!movz(reg, 0))
+                    return false;
+                return patchBranchFwd(nonNeg, 23, 5);
+            }
             bool emitMmapArm64PresetSize()
             {
                 return movz(a64reg::kX0, 0) &&
@@ -1614,6 +1645,7 @@ namespace sad
                 bool hasAppend = false;   // (AR) BUILTIN_ARRAY_APPEND ⇒ mmap (عند النموّ) + خانات خدش
                 bool hasBoxing = false;   // (AR) SET/GET معلَّبٌ ⇒ يستعمل الحوضَ خدشًا + خانات dyn
                 bool hasMemBlock = false; // (AR) حجز/حرر/عبّئ/انسخ (نواةُ الكومة) ⇒ svc/حلقةٌ تدهس الحوض
+                bool hasFileBytes = false; // (AR) اكتب_بايتات/اقرأ_بايتات ⇒ نداءاتُ نظامٍ + mmap تدهس الحوض
                 bool hasStrHeap = false;  // (AR) أوپكودُ نصٍّ يخصّص كومةً داخليًّا (I64_TO_STRING/CONCAT/…)
                 bool hasArrayExt = false; // (AR) CONCAT/ZIP ⇒ mmap (+حلقةٌ لـZIP) + خاناتُ خدشٍ عابرةٌ لـmmap
                 bool hasArrayToStr = false; // (AR) ARRAY_TO_STRING ⇒ مخزنُ خدشِ عشريّ للمسار العشريّ
@@ -1696,6 +1728,9 @@ namespace sad
                                  inst.opcode == sir::SIROpcode::STRING_REPLACE ||
                                  inst.opcode == sir::SIROpcode::BUILTIN_STRING_REPLACE)
                             hasStrHeap = true; // (AR) يخصّص مخزنَ نصٍّ/يستعمل خانةَ hayBase (mmap/الحوض)
+                        else if (inst.opcode == sir::SIROpcode::BUILTIN_FILE_WRITE_BYTES ||
+                                 inst.opcode == sir::SIROpcode::BUILTIN_FILE_READ_BYTES)
+                            hasFileBytes = true; // (AR) openat/read/write/lseek + mmap ⇒ انسكابٌ + خانات خدش
                         else if (inst.opcode == sir::SIROpcode::ARRAY_TO_STRING ||
                                  inst.opcode == sir::SIROpcode::TUPLE_TO_STRING)
                         {
@@ -1827,8 +1862,14 @@ namespace sad
                     arrExtBaseSlot_ = slot;
                     slot += kArrExtSlots;
                 }
+                // (AR) بايتاتُ الملفّات: ٦ خاناتِ خدشٍ تبقى حيّةً عبر نداءاتِ النظام وmmap.
+                if (hasFileBytes)
+                {
+                    fileBytesBaseSlot_ = slot;
+                    slot += kFileBytesSlots;
+                }
                 // (AR) إن نادت الدالّةُ أو طبعت أو خصّصت مصفوفة أو ألحقت أو علّبت، احجز منطقةَ انسكابٍ.
-                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing || hasMemBlock || hasStrHeap || hasArrayExt)
+                if (hasCall || hasPrint || hasArrayNew || hasAppend || hasBoxing || hasMemBlock || hasStrHeap || hasArrayExt || hasFileBytes)
                 {
                     spillBaseSlot_ = slot;
                     slot += static_cast<int>(pool_.size());
@@ -4698,6 +4739,233 @@ namespace sad
                     if (!allocReg(inst.result->name, dst))
                         return false;
                     return ldrBase(dst, a64reg::kScratch0, kArrOffLen / kArrSlotBytes);
+                }
+                case OP::BUILTIN_FILE_WRITE_BYTES:
+                {
+                    // (AR) اكتب_بايتات(مسار، مصفوفة) ⇒ منطقيّ — مرآةُ x86 بنداءاتِ AArch64.
+                    //      الفارقُ الحقيقيّ: لا نداءَ open في هذا الـABI ⇒ openat(AT_FDCWD, …).
+                    //      البايتُ الصفريُّ لا يقطع شيئًا (الطولُ من رأس المصفوفة) — سببُ وجودِ
+                    //      المدمجة: رأسُ ELF لا يُكتَب بمسارٍ نصّيٍّ يقف عند أوّل 0x00.
+                    //      خانات: 0=fd 1=len 2=buf 3=data 4=i 5=النتيجة.
+                    // (EN) Mirror of the x86 case with AArch64 syscalls; the real difference
+                    //      is that this ABI has no `open`, so openat(AT_FDCWD, …) is used.
+                    if (!inst.result || inst.operands.size() != 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (inst.operands[1].elementType == types::SadTypeKind::Any ||
+                        inst.operands[1].elementType == types::SadTypeKind::Float)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!spillReg(kv.second))
+                                return false;
+
+                    // (AR) 🔑 اقرأ المعاملَ عبر x16/x17 (خارج الحوض) قبل لمسِ أيّ سجلّ حوض.
+                    if (!materialize(a64reg::kScratch0, inst.operands[1]) ||
+                        !ldrBase(a64reg::kScratch1, a64reg::kScratch0, kArrOffLen / kArrSlotBytes) ||
+                        !strSlot(a64reg::kScratch1, fileBytesSlot(1)) ||
+                        !ldrBase(a64reg::kScratch1, a64reg::kScratch0, kArrOffData / kArrSlotBytes) ||
+                        !strSlot(a64reg::kScratch1, fileBytesSlot(3)))
+                        return false;
+
+                    // (AR) مخزنُ البايتات: الطول+١ ⇒ حجمٌ غيرُ صفريّ حتّى لمصفوفةٍ فارغة.
+                    if (!ldrSlot(a64reg::kX1, fileBytesSlot(1)) || !addImm(a64reg::kX1, a64reg::kX1, 1) ||
+                        !emitMmapArm64PresetSize() || !strSlot(a64reg::kX0, fileBytesSlot(2)))
+                        return false;
+
+                    // (AR) لولبُ التعبئة: buf[i] = data[i] & 0xFF بفحصِ i<len في الرأس.
+                    if (!movz(9, 0) || !strSlot(9, fileBytesSlot(4)))
+                        return false;
+                    const size_t wFillHead = code_.size();
+                    if (!ldrSlot(9, fileBytesSlot(4)) || !ldrSlot(10, fileBytesSlot(1)) || !cmp(9, 10))
+                        return false;
+                    size_t wFillDone;
+                    if (!emitBranchFwd(a64::mnem::kBge, "rel19", wFillDone))
+                        return false;
+                    if (!ldrSlot(10, fileBytesSlot(3)) || !addLsl3(10, 10, 9) || // x10 = data + i×8
+                        !ldrBase(11, 10, 0) ||                                   // x11 = data[i]
+                        !ldrSlot(12, fileBytesSlot(2)) || !rrr(a64::mnem::kAdd, 12, 12, 9) ||
+                        !strb(11, 12))                                           // buf[i] = البايتُ الأدنى
+                        return false;
+                    if (!addImm(9, 9, 1) || !strSlot(9, fileBytesSlot(4)) || !emitBBack(wFillHead))
+                        return false;
+                    if (!patchBranchFwd(wFillDone, 23, 5))
+                        return false;
+
+                    // (AR) openat(AT_FDCWD, path, O_WRONLY|O_CREAT|O_TRUNC, 0644) ⇒ x0 = fd أو -errno.
+                    if (!movConst(a64reg::kX0, kAtFdCwd) ||
+                        !materializeString(inst.operands[0], a64reg::kX1, true) ||
+                        !movz(a64reg::kX2, kOpenWriteCreateTrunc) || !movz(3, kFileCreateMode) ||
+                        !movz(a64reg::kX8, kSysOpenatArm64) || !emit(a64::mnem::kSvc, "", {}))
+                        return false;
+                    if (!strSlot(a64reg::kX0, fileBytesSlot(0)))
+                        return false;
+
+                    // (AR) fd سالبٌ ⇒ فشلُ فتح: «خطأ» بلا كتابةٍ ولا إغلاق.
+                    if (!cmp(a64reg::kX0, a64reg::kXzr))
+                        return false;
+                    size_t wOpenFailed;
+                    if (!emitBranchFwd(a64::mnem::kBlt, "rel19", wOpenFailed))
+                        return false;
+
+                    // (AR) write(fd, buf, len) ثمّ close(fd)؛ الكتابةُ الجزئيّةُ ليست نجاحًا.
+                    if (!ldrSlot(a64reg::kX0, fileBytesSlot(0)) || !ldrSlot(a64reg::kX1, fileBytesSlot(2)) ||
+                        !ldrSlot(a64reg::kX2, fileBytesSlot(1)) ||
+                        !movz(a64reg::kX8, kSysWriteArm64) || !emit(a64::mnem::kSvc, "", {}))
+                        return false;
+                    if (!strSlot(a64reg::kX0, fileBytesSlot(5)))
+                        return false;
+                    if (!ldrSlot(a64reg::kX0, fileBytesSlot(0)) ||
+                        !movz(a64reg::kX8, kSysCloseArm64) || !emit(a64::mnem::kSvc, "", {}))
+                        return false;
+                    if (!ldrSlot(9, fileBytesSlot(5)) || !ldrSlot(10, fileBytesSlot(1)) || !cmp(9, 10))
+                        return false;
+                    size_t wWrote;
+                    if (!emitBranchFwd(a64::mnem::kBeq, "rel19", wWrote))
+                        return false;
+
+                    if (!patchBranchFwd(wOpenFailed, 23, 5))
+                        return false;
+                    if (!movz(9, 0)) // (AR) خطأ
+                        return false;
+                    size_t wEnd;
+                    if (!emitBranchFwd(a64::mnem::kB, "rel26", wEnd))
+                        return false;
+                    if (!patchBranchFwd(wWrote, 23, 5))
+                        return false;
+                    if (!movz(9, 1)) // (AR) صحيح
+                        return false;
+                    if (!patchBranchFwd(wEnd, 25, 0))
+                        return false;
+                    if (!strSlot(9, fileBytesSlot(5)))
+                        return false;
+
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    int wdst;
+                    if (!allocReg(inst.result->name, wdst))
+                        return false;
+                    return ldrSlot(wdst, fileBytesSlot(5));
+                }
+                case OP::BUILTIN_FILE_READ_BYTES:
+                {
+                    // (AR) اقرأ_بايتات(مسار) ⇒ مصفوفةُ أعدادٍ ٠..٢٥٥ (مرآةُ x86 بنداءاتِ AArch64).
+                    //      البنيةُ خماسيّةٌ: الطول=السعة، tags=عدم، homogKind=Int — كلُّ مُنتِجٍ
+                    //      يُهيّئ الحقلين ٣+٤ وإلّا قرأ المستهلِكُ مؤشّرَ قمامةٍ أو وسمًا خاطئًا.
+                    //      خانات: 0=fd 1=len 2=buf 3=(غير مستعملة) 4=i 5=البنية.
+                    if (!inst.result || inst.operands.size() != 1)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!spillReg(kv.second))
+                                return false;
+
+                    // (AR) openat(AT_FDCWD, path, O_RDONLY) ⇒ fd. الفشلُ ⇒ مصفوفةٌ فارغة.
+                    //      ⚠️ دَينٌ مُعلَنٌ (انحرافٌ عن المفسّر، مطابقٌ لمخفّض x86): المفسّر يرفع
+                    //      RUN_FILE_ERROR، وهذا المسارُ يُعيد مصفوفةً فارغةً صامتًا.
+                    if (!movConst(a64reg::kX0, kAtFdCwd) ||
+                        !materializeString(inst.operands[0], a64reg::kX1, true) ||
+                        !movz(a64reg::kX2, kOpenReadOnly) || !movz(3, 0) ||
+                        !movz(a64reg::kX8, kSysOpenatArm64) || !emit(a64::mnem::kSvc, "", {}))
+                        return false;
+                    if (!strSlot(a64reg::kX0, fileBytesSlot(0)) || !movz(9, 0) ||
+                        !strSlot(9, fileBytesSlot(1))) // (AR) الطولُ الافتراضيّ = ٠
+                        return false;
+                    if (!cmp(a64reg::kX0, a64reg::kXzr))
+                        return false;
+                    size_t rOpenFailed;
+                    if (!emitBranchFwd(a64::mnem::kBlt, "rel19", rOpenFailed))
+                        return false;
+
+                    // (AR) الحجمُ = lseek(fd, 0, SEEK_END) ثمّ العودةُ إلى البداية.
+                    if (!ldrSlot(a64reg::kX0, fileBytesSlot(0)) || !movz(a64reg::kX1, 0) ||
+                        !movz(a64reg::kX2, kSeekEnd) ||
+                        !movz(a64reg::kX8, kSysLseekArm64) || !emit(a64::mnem::kSvc, "", {}))
+                        return false;
+                    if (!clampNonNegativeArm64(a64reg::kX0) || !strSlot(a64reg::kX0, fileBytesSlot(1)))
+                        return false;
+                    if (!ldrSlot(a64reg::kX0, fileBytesSlot(0)) || !movz(a64reg::kX1, 0) ||
+                        !movz(a64reg::kX2, kSeekSet) ||
+                        !movz(a64reg::kX8, kSysLseekArm64) || !emit(a64::mnem::kSvc, "", {}))
+                        return false;
+
+                    // (AR) مخزنُ القراءة (الحجم+١)، ثمّ read(fd, buf, size) وclose.
+                    if (!ldrSlot(a64reg::kX1, fileBytesSlot(1)) || !addImm(a64reg::kX1, a64reg::kX1, 1) ||
+                        !emitMmapArm64PresetSize() || !strSlot(a64reg::kX0, fileBytesSlot(2)))
+                        return false;
+                    if (!ldrSlot(a64reg::kX0, fileBytesSlot(0)) || !ldrSlot(a64reg::kX1, fileBytesSlot(2)) ||
+                        !ldrSlot(a64reg::kX2, fileBytesSlot(1)) ||
+                        !movz(a64reg::kX8, kSysReadArm64) || !emit(a64::mnem::kSvc, "", {}))
+                        return false;
+                    // (AR) الطولُ الفعليُّ = ما قرأه read (قد يقلّ عن حجمِ lseek عند سباقٍ على الملفّ)،
+                    //      وقد يكون سالبًا (‎-errno‎؛ قراءةُ مجلّدٍ ⇒ ‎-EISDIR‎). القصُّ يمنع حجمَ
+                    //      تخصيصٍ سالبٍ ثمّ كتابةً على مؤشّرِ خطأ.
+                    if (!clampNonNegativeArm64(a64reg::kX0) || !strSlot(a64reg::kX0, fileBytesSlot(1)))
+                        return false;
+                    if (!ldrSlot(a64reg::kX0, fileBytesSlot(0)) ||
+                        !movz(a64reg::kX8, kSysCloseArm64) || !emit(a64::mnem::kSvc, "", {}))
+                        return false;
+                    size_t rHaveBuf;
+                    if (!emitBranchFwd(a64::mnem::kB, "rel26", rHaveBuf))
+                        return false;
+
+                    // (AR) مسارُ فشلِ الفتح: مخزنُ بايتٍ واحدٍ وطولٌ صفريّ ⇒ مصفوفةٌ فارغةٌ سليمةُ البنية.
+                    if (!patchBranchFwd(rOpenFailed, 23, 5))
+                        return false;
+                    if (!movz(a64reg::kX1, 1) || !emitMmapArm64PresetSize() ||
+                        !strSlot(a64reg::kX0, fileBytesSlot(2)))
+                        return false;
+                    if (!patchBranchFwd(rHaveBuf, 25, 0))
+                        return false;
+
+                    // (AR) بنيةُ SadArray: الرأسُ + الطولُ×٨ (+٨ كي لا يكون الحجمُ صفريًّا).
+                    if (!ldrSlot(9, fileBytesSlot(1)) || !movz(10, 3) ||
+                        !rrr(a64::mnem::kLslv, a64reg::kX1, 9, 10) ||
+                        !addImm(a64reg::kX1, a64reg::kX1, kArrHeaderBytes + kArrSlotBytes) ||
+                        !emitMmapArm64PresetSize())
+                        return false;
+                    if (!strSlot(a64reg::kX0, fileBytesSlot(5)))
+                        return false;
+                    if (!ldrSlot(9, fileBytesSlot(1)) ||
+                        !strBase(9, a64reg::kX0, kArrOffLen / kArrSlotBytes) ||
+                        !strBase(9, a64reg::kX0, kArrOffCap / kArrSlotBytes))
+                        return false;
+                    if (!addImm(9, a64reg::kX0, kArrHeaderBytes) ||
+                        !strBase(9, a64reg::kX0, kArrOffData / kArrSlotBytes))
+                        return false;
+                    if (!movz(10, 0) || !strBase(10, a64reg::kX0, kArrOffTags / kArrSlotBytes) ||
+                        !movz(10, kDynKindInt) || !strBase(10, a64reg::kX0, kArrOffHomog / kArrSlotBytes))
+                        return false;
+
+                    // (AR) لولبُ التعبئة: data[i] = (i64)buf[i] ممدَّدًا بالصفر ⇒ ٠..٢٥٥ لا سالبًا.
+                    if (!movz(9, 0) || !strSlot(9, fileBytesSlot(4)))
+                        return false;
+                    const size_t rHead = code_.size();
+                    if (!ldrSlot(9, fileBytesSlot(4)) || !ldrSlot(10, fileBytesSlot(1)) || !cmp(9, 10))
+                        return false;
+                    size_t rDone;
+                    if (!emitBranchFwd(a64::mnem::kBge, "rel19", rDone))
+                        return false;
+                    if (!ldrSlot(10, fileBytesSlot(2)) || !rrr(a64::mnem::kAdd, 10, 10, 9) ||
+                        !ldrb(11, 10) ||                                          // x11 = buf[i] (٠..٢٥٥)
+                        !ldrSlot(12, fileBytesSlot(5)) ||
+                        !ldrBase(12, 12, kArrOffData / kArrSlotBytes) ||
+                        !addLsl3(12, 12, 9) || !strBase(11, 12, 0))               // data[i] = البايت
+                        return false;
+                    if (!addImm(9, 9, 1) || !strSlot(9, fileBytesSlot(4)) || !emitBBack(rHead))
+                        return false;
+                    if (!patchBranchFwd(rDone, 23, 5))
+                        return false;
+
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first))
+                            if (!reloadReg(kv.second))
+                                return false;
+                    int rdst;
+                    if (!allocReg(inst.result->name, rdst))
+                        return false;
+                    return ldrSlot(rdst, fileBytesSlot(5));
                 }
                 case OP::BUILTIN_ARRAY_APPEND:
                 case OP::ARRAY_APPEND:

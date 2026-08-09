@@ -587,7 +587,12 @@ namespace sad
             sir_builder_ = std::make_unique<SIRBuilder>();
             sir_builder_->setCurrentFilePath(file);
             sir_builder_->setModuleMode(options_.module_mode);
-            sir_builder_->setFreestanding(options_.freestanding);
+            // (AR) شكلُ SIR الحرّ يلزم الخلفيّةَ الأصليّةَ أيضًا — انظر تعليقَ
+            //      freestanding_sir_shape() في compiler_driver.h لسببِ فصلِه عن العَلَم الخام.
+            // (EN) The freestanding SIR shape is also required by the native backend —
+            //      see freestanding_sir_shape() in compiler_driver.h for why it is kept
+            //      distinct from the raw flag.
+            sir_builder_->setFreestanding(options_.freestanding_sir_shape());
             sir_module_ = sir_builder_->buildModule(&current_ast_);
 
             // (AR) سجّل تحذيرات بناء SIR (غير قاتلة) قبل الحكم على الأخطاء — تُسجَّل سواءٌ نجح

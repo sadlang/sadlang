@@ -158,6 +158,9 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_diagnostics.cpp
         ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_analysis.cpp
         ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_backend.cpp
+        # (AR) الخلفيّة الأصليّة (بلا LLVM): SIR ⇒ شيفرةُ آلة ⇒ ELF64 ساكن
+        # (EN) Native (no-LLVM) backend: SIR ⇒ machine code ⇒ static ELF64
+        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_native.cpp
         ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_cli.cpp
         ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_linker.cpp
         ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_lld.cpp

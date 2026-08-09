@@ -201,6 +201,22 @@ flags:
     desc_ar: "إظهار التمثيل الوسيط للغة ص (SIR)"
     desc_en: "Emit Sad IR (SIR)"
 
+  # ─── الخلفيّة الأصليّة (بلا LLVM) / Native backend (no LLVM) ─────────
+  # (AR) يوجّه التوليدَ إلى الخلفيّة الأصليّة السياديّة: SIR ⇒ شيفرةُ آلةٍ
+  #      مباشرةً ⇒ ثنائيُ ELF64 ساكن، بلا LLVM ولا رابطٍ أجنبيّ. المعماريّةُ
+  #      تُشتقّ من «--هدف»: aarch64 ⇒ ARM64، وإلّا x86-64.
+  # (EN) Routes codegen to the sovereign native backend: SIR ⇒ machine code ⇒
+  #      static ELF64, with no LLVM and no foreign linker. Architecture is derived
+  #      from "--هدف": aarch64 ⇒ ARM64, otherwise x86-64.
+  - id: flag.native_backend
+    canonical: "--خلفية-أصلية"
+    kind: bool
+    engines: [compiler]
+    action: NativeBackend
+    sets: native_backend
+    desc_ar: "التوليد بالخلفيّة الأصليّة بلا LLVM (SIR ⇒ ELF64 ساكن)"
+    desc_en: "Generate via the native no-LLVM backend (SIR ⇒ static ELF64)"
+
   - id: flag.time_passes
     canonical: "--توقيت-المراحل"
     kind: bool

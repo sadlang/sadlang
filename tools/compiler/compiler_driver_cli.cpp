@@ -409,6 +409,7 @@ namespace sad
             case A::EmitAst: options.emit_ast = true; return true;
             case A::EmitAstJson: options.emit_ast_json = true; return true;
             case A::EmitSir: options.emit_sir = true; return true;
+            case A::NativeBackend: options.native_backend = true; return true;
             case A::TimePasses: options.time_passes = true; return true;
 
             // ─── الشرح واللغة ───
