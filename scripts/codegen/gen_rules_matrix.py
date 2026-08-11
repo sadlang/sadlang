@@ -205,7 +205,12 @@ def scan_tests() -> list:
     for tf in sorted(RULES_MATRIX_DIR.rglob("*.ص")):
         rel = tf.relative_to(RULES_MATRIX_DIR)
         records.append({
-            "rel": str(rel),
+            # (AR) as_posix لا str: توأمُ scan_tests في check_grammar_conformance.py.
+            #      لا يبلغ ملفًّا مُودَعًا اليومَ (نصُّ تشخيصٍ فقط)، لكنّ str يجعل نصَّ
+            #      الحارسِ نفسِه يختلف بين المنصّتَين — والانجرافُ الكامنُ يستيقظ عند
+            #      أوّلِ توسيعٍ يكتبه إلى ملفّ.
+            # (EN) as_posix, not str: twin of scan_tests(); latent drift otherwise.
+            "rel": rel.as_posix(),
             "category": _category_of(rel),
             "rule_ids": _extract_rule_ids(tf),
         })

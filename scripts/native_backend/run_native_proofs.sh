@@ -236,6 +236,16 @@ else
   FAILED="$FAILED prove_any_float.sh"
 fi
 
+if [ -n "$SADBUILD" ]; then
+  run_proof prove_map_and_strings.sh  "$SADBUILD" "$WORK/mapstr"
+elif [ "$NO_COMPILER" = "1" ]; then
+  declare_only prove_map_and_strings.sh "لا مُصرِّفَ في هذه التشغيلة (--بلا-مصرف) ⇒ إسنادُ النصّ والخريطةُ غيرُ مقيسَين"
+else
+  echo "❌ prove_map_and_strings.sh — لا مُصرِّف (--مصرف) ⇒ لا برهانَ لإسنادِ النصّ ولا للخريطة"
+  DECLARED="$DECLARED prove_map_and_strings.sh"
+  FAILED="$FAILED prove_map_and_strings.sh"
+fi
+
 # ── ③ حارسُ التغطية ──────────────────────────────────────────────────────────
 echo
 MISSING=""

@@ -66,7 +66,7 @@ Type = TypeCore [ '؟' ] ; TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطق
 ```
 
 #### 🧩 تفصيل البدائل
-- `( «رقم» | «عشري» | «نص» | «منطقي» | «فراغ» | «مصفوفة» | «خريطة» | «IDENTIFIER» ) [ «<» type { «،» type } «>» ] [ «؟» ]`
+- `( «رقم» | «عشري» | «نص» | «منطقي» | «فراغ» | «مصفوفة» | «خريطة» | «IDENTIFIER» ) [ «<» type { ( «،» | «,» ) type } «>» ] [ «؟» ]`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -121,30 +121,37 @@ flowchart LR
   n14 --> n15
   n16{"◇"}
   n17{"◇"}
-  n18["«،»"]
-  n19["type"]
-  n18 --> n19
+  n18{"◆"}
+  n19{"◆"}
+  n20["«،»"]
+  n18 --> n20
+  n20 --> n19
+  n21["«,»"]
+  n18 --> n21
+  n21 --> n19
+  n22["type"]
+  n19 --> n22
   n16 --> n18
-  n19 --> n17
-  n19 -- "تكرار" --> n18
+  n22 --> n17
+  n22 -- "تكرار" --> n18
   n16 -- "صفر/أكثر" --> n17
   n15 --> n16
-  n20["«>»"]
-  n17 --> n20
+  n23["«>»"]
+  n17 --> n23
   n12 --> n14
-  n20 --> n13
+  n23 --> n13
   n12 -- "تخطّي" --> n13
   n3 --> n12
-  n21{"◇"}
-  n22{"◇"}
-  n23["«؟»"]
-  n21 --> n23
-  n23 --> n22
-  n21 -- "تخطّي" --> n22
-  n13 --> n21
+  n24{"◇"}
+  n25{"◇"}
+  n26["«؟»"]
+  n24 --> n26
+  n26 --> n25
+  n24 -- "تخطّي" --> n25
+  n13 --> n24
   n1 --> n2
-  n24(["⇒ SadTypeKind ∣ SadTypePtr"])
-  n22 --> n24
+  n27(["⇒ SadTypeKind ∣ SadTypePtr"])
+  n25 --> n27
 ```
 
 ---
@@ -333,7 +340,7 @@ TemplateArgs = ( Type | Expression ) { ',' ( Type | Expression ) } ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `( type | expression ) { «،» ( type | expression ) }`
+- `( type | expression ) { ( «،» | «,» ) ( type | expression ) }`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -368,24 +375,31 @@ flowchart LR
   n5 --> n3
   n6{"◇"}
   n7{"◇"}
-  n8["«،»"]
+  n8{"◆"}
   n9{"◆"}
-  n10{"◆"}
-  n11["type"]
-  n9 --> n11
-  n11 --> n10
-  n12["expression"]
+  n10["«،»"]
+  n8 --> n10
+  n10 --> n9
+  n11["«,»"]
+  n8 --> n11
+  n11 --> n9
+  n12{"◆"}
+  n13{"◆"}
+  n14["type"]
+  n12 --> n14
+  n14 --> n13
+  n15["expression"]
+  n12 --> n15
+  n15 --> n13
   n9 --> n12
-  n12 --> n10
-  n8 --> n9
   n6 --> n8
-  n10 --> n7
-  n10 -- "تكرار" --> n8
+  n13 --> n7
+  n13 -- "تكرار" --> n8
   n6 -- "صفر/أكثر" --> n7
   n3 --> n6
   n1 --> n2
-  n13(["⇒ TemplateInstantiation"])
-  n7 --> n13
+  n16(["⇒ TemplateInstantiation"])
+  n7 --> n16
 ```
 
 ---
@@ -778,7 +792,7 @@ ListComprehension = 'لكل' Identifier [ '،' Identifier ] 'في' Expression [ 
 ```
 
 #### 🧩 تفصيل البدائل
-- `«لكل» «IDENTIFIER» [ «،» «IDENTIFIER» ] «في» expression [ «إذا» expression ] «أنتج» expression`
+- `«لكل» «IDENTIFIER» [ ( «،» | «,» ) «IDENTIFIER» ] «في» expression [ «إذا» expression ] «أنتج» expression`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -807,33 +821,40 @@ flowchart LR
   n2 --> n3
   n4{"◇"}
   n5{"◇"}
-  n6["«،»"]
-  n7["«IDENTIFIER»"]
-  n6 --> n7
+  n6{"◆"}
+  n7{"◆"}
+  n8["«،»"]
+  n6 --> n8
+  n8 --> n7
+  n9["«,»"]
+  n6 --> n9
+  n9 --> n7
+  n10["«IDENTIFIER»"]
+  n7 --> n10
   n4 --> n6
-  n7 --> n5
+  n10 --> n5
   n4 -- "تخطّي" --> n5
   n3 --> n4
-  n8["«في»"]
-  n5 --> n8
-  n9["expression"]
-  n8 --> n9
-  n10{"◇"}
-  n11{"◇"}
-  n12["«إذا»"]
-  n13["expression"]
-  n12 --> n13
-  n10 --> n12
-  n13 --> n11
-  n10 -- "تخطّي" --> n11
-  n9 --> n10
-  n14["«أنتج»"]
-  n11 --> n14
-  n15["expression"]
-  n14 --> n15
-  n1 --> n2
-  n16(["⇒ ListComprehensionExpr"])
+  n11["«في»"]
+  n5 --> n11
+  n12["expression"]
+  n11 --> n12
+  n13{"◇"}
+  n14{"◇"}
+  n15["«إذا»"]
+  n16["expression"]
   n15 --> n16
+  n13 --> n15
+  n16 --> n14
+  n13 -- "تخطّي" --> n14
+  n12 --> n13
+  n17["«أنتج»"]
+  n14 --> n17
+  n18["expression"]
+  n17 --> n18
+  n1 --> n2
+  n19(["⇒ ListComprehensionExpr"])
+  n18 --> n19
 ```
 
 #### مثال
@@ -855,7 +876,7 @@ SetComprehension = 'لكل' Identifier [ '،' Identifier ] 'في' Expression [ '
 ```
 
 #### 🧩 تفصيل البدائل
-- `«لكل» «IDENTIFIER» [ «،» «IDENTIFIER» ] «في» expression [ «إذا» expression ] «أنتج» expression`
+- `«لكل» «IDENTIFIER» [ ( «،» | «,» ) «IDENTIFIER» ] «في» expression [ «إذا» expression ] «أنتج» expression`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -884,33 +905,40 @@ flowchart LR
   n2 --> n3
   n4{"◇"}
   n5{"◇"}
-  n6["«،»"]
-  n7["«IDENTIFIER»"]
-  n6 --> n7
+  n6{"◆"}
+  n7{"◆"}
+  n8["«،»"]
+  n6 --> n8
+  n8 --> n7
+  n9["«,»"]
+  n6 --> n9
+  n9 --> n7
+  n10["«IDENTIFIER»"]
+  n7 --> n10
   n4 --> n6
-  n7 --> n5
+  n10 --> n5
   n4 -- "تخطّي" --> n5
   n3 --> n4
-  n8["«في»"]
-  n5 --> n8
-  n9["expression"]
-  n8 --> n9
-  n10{"◇"}
-  n11{"◇"}
-  n12["«إذا»"]
-  n13["expression"]
-  n12 --> n13
-  n10 --> n12
-  n13 --> n11
-  n10 -- "تخطّي" --> n11
-  n9 --> n10
-  n14["«أنتج»"]
-  n11 --> n14
-  n15["expression"]
-  n14 --> n15
-  n1 --> n2
-  n16(["⇒ SetComprehensionExpr"])
+  n11["«في»"]
+  n5 --> n11
+  n12["expression"]
+  n11 --> n12
+  n13{"◇"}
+  n14{"◇"}
+  n15["«إذا»"]
+  n16["expression"]
   n15 --> n16
+  n13 --> n15
+  n16 --> n14
+  n13 -- "تخطّي" --> n14
+  n12 --> n13
+  n17["«أنتج»"]
+  n14 --> n17
+  n18["expression"]
+  n17 --> n18
+  n1 --> n2
+  n19(["⇒ SetComprehensionExpr"])
+  n18 --> n19
 ```
 
 #### مثال
@@ -932,7 +960,7 @@ DictComprehension = 'لكل' Identifier [ '،' Identifier ] 'في' Expression [ 
 ```
 
 #### 🧩 تفصيل البدائل
-- `«لكل» «IDENTIFIER» [ «،» «IDENTIFIER» ] «في» expression [ «إذا» expression ] «أنتج» expression ( «:» | «=» ) expression`
+- `«لكل» «IDENTIFIER» [ ( «،» | «,» ) «IDENTIFIER» ] «في» expression [ «إذا» expression ] «أنتج» expression ( «:» | «=» ) expression`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -961,44 +989,51 @@ flowchart LR
   n2 --> n3
   n4{"◇"}
   n5{"◇"}
-  n6["«،»"]
-  n7["«IDENTIFIER»"]
-  n6 --> n7
+  n6{"◆"}
+  n7{"◆"}
+  n8["«،»"]
+  n6 --> n8
+  n8 --> n7
+  n9["«,»"]
+  n6 --> n9
+  n9 --> n7
+  n10["«IDENTIFIER»"]
+  n7 --> n10
   n4 --> n6
-  n7 --> n5
+  n10 --> n5
   n4 -- "تخطّي" --> n5
   n3 --> n4
-  n8["«في»"]
-  n5 --> n8
-  n9["expression"]
-  n8 --> n9
-  n10{"◇"}
-  n11{"◇"}
-  n12["«إذا»"]
-  n13["expression"]
-  n12 --> n13
-  n10 --> n12
-  n13 --> n11
-  n10 -- "تخطّي" --> n11
-  n9 --> n10
-  n14["«أنتج»"]
-  n11 --> n14
-  n15["expression"]
-  n14 --> n15
-  n16{"◆"}
-  n17{"◆"}
-  n18["«:»"]
-  n16 --> n18
-  n18 --> n17
-  n19["«=»"]
-  n16 --> n19
-  n19 --> n17
+  n11["«في»"]
+  n5 --> n11
+  n12["expression"]
+  n11 --> n12
+  n13{"◇"}
+  n14{"◇"}
+  n15["«إذا»"]
+  n16["expression"]
   n15 --> n16
-  n20["expression"]
-  n17 --> n20
+  n13 --> n15
+  n16 --> n14
+  n13 -- "تخطّي" --> n14
+  n12 --> n13
+  n17["«أنتج»"]
+  n14 --> n17
+  n18["expression"]
+  n17 --> n18
+  n19{"◆"}
+  n20{"◆"}
+  n21["«:»"]
+  n19 --> n21
+  n21 --> n20
+  n22["«=»"]
+  n19 --> n22
+  n22 --> n20
+  n18 --> n19
+  n23["expression"]
+  n20 --> n23
   n1 --> n2
-  n21(["⇒ DictComprehensionExpr"])
-  n20 --> n21
+  n24(["⇒ DictComprehensionExpr"])
+  n23 --> n24
 ```
 
 #### مثال
@@ -1204,7 +1239,7 @@ ContractDecl = 'عقد' Identifier [ 'يرث' Identifier { ',' Identifier } ] { 
 ```
 
 #### 🧩 تفصيل البدائل
-- `«عقد» «IDENTIFIER» [ «يرث» «IDENTIFIER» { «،» «IDENTIFIER» } ] { member } «نهاية»`
+- `«عقد» «IDENTIFIER» [ «يرث» «IDENTIFIER» { ( «،» | «,» ) «IDENTIFIER» } ] { member } «نهاية»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -1238,31 +1273,38 @@ flowchart LR
   n6 --> n7
   n8{"◇"}
   n9{"◇"}
-  n10["«،»"]
-  n11["«IDENTIFIER»"]
-  n10 --> n11
+  n10{"◆"}
+  n11{"◆"}
+  n12["«،»"]
+  n10 --> n12
+  n12 --> n11
+  n13["«,»"]
+  n10 --> n13
+  n13 --> n11
+  n14["«IDENTIFIER»"]
+  n11 --> n14
   n8 --> n10
-  n11 --> n9
-  n11 -- "تكرار" --> n10
+  n14 --> n9
+  n14 -- "تكرار" --> n10
   n8 -- "صفر/أكثر" --> n9
   n7 --> n8
   n4 --> n6
   n9 --> n5
   n4 -- "تخطّي" --> n5
   n3 --> n4
-  n12{"◇"}
-  n13{"◇"}
-  n14["member"]
-  n12 --> n14
-  n14 --> n13
-  n14 -- "تكرار" --> n14
-  n12 -- "صفر/أكثر" --> n13
-  n5 --> n12
-  n15["«نهاية»"]
-  n13 --> n15
+  n15{"◇"}
+  n16{"◇"}
+  n17["member"]
+  n15 --> n17
+  n17 --> n16
+  n17 -- "تكرار" --> n17
+  n15 -- "صفر/أكثر" --> n16
+  n5 --> n15
+  n18["«نهاية»"]
+  n16 --> n18
   n1 --> n2
-  n16(["⇒ ClassDecl"])
-  n15 --> n16
+  n19(["⇒ ClassDecl"])
+  n18 --> n19
 ```
 
 #### مثال
@@ -1467,7 +1509,7 @@ InlineAsm = '@تجميع' '(' STRING { ',' ( STRING | 'متطاير' ) } ')' ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `«@» «تجميع» «(» «STRING_LITERAL» { «،» «STRING_LITERAL» } «)»`
+- `«@» «تجميع» «(» «STRING_LITERAL» { ( «،» | «,» ) «STRING_LITERAL» } «)»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -1495,19 +1537,26 @@ flowchart LR
   n4 --> n5
   n6{"◇"}
   n7{"◇"}
-  n8["«،»"]
-  n9["«STRING_LITERAL»"]
-  n8 --> n9
+  n8{"◆"}
+  n9{"◆"}
+  n10["«،»"]
+  n8 --> n10
+  n10 --> n9
+  n11["«,»"]
+  n8 --> n11
+  n11 --> n9
+  n12["«STRING_LITERAL»"]
+  n9 --> n12
   n6 --> n8
-  n9 --> n7
-  n9 -- "تكرار" --> n8
+  n12 --> n7
+  n12 -- "تكرار" --> n8
   n6 -- "صفر/أكثر" --> n7
   n5 --> n6
-  n10["«)»"]
-  n7 --> n10
+  n13["«)»"]
+  n7 --> n13
   n1 --> n2
-  n11(["⇒ InlineAsmExpr"])
-  n10 --> n11
+  n14(["⇒ InlineAsmExpr"])
+  n13 --> n14
 ```
 
 ---

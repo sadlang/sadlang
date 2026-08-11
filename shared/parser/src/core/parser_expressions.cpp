@@ -1589,6 +1589,7 @@ namespace Sad
                 errorCatalog(Errors::ErrorCode::SYN_UNEXPECTED_EOF);
                 break;
             case TT::SEMICOLON:
+            case TT::ARABIC_SEMICOLON:
                 errorCatalog(Errors::ErrorCode::SYN_EXPECTED_EXPRESSION,
                              {{"ctx_ar", "قبل الفاصلة المنقوطة"},
                               {"ctx_en", "before the semicolon"}});

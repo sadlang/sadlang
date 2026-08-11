@@ -30,7 +30,7 @@ productions:
           - kind: repeat
             children:
               - { kind: nonterminal, ref: gr.program.declaration }
-          - { kind: terminal, ref: EOF, value: "<نهاية الملف>" }
+          - { kind: terminal, ref: END_OF_FILE, value: "<نهاية الملف>" }
     maps_to:
       - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::parseProgram" }
     ast_node: "StmtList"

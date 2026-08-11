@@ -18,8 +18,11 @@ productions:
   # ── تصريح متغير/ثابت/ساكن ─────────────────────────────────────────────
   - id: gr.decl.variable
     lhs: { nonterminal: VarDeclaration, name_ar: "تصريح متغير", name_en: variable_declaration }
-    ebnf: "VarDeclaration = ('متغير' | 'ثابت' | 'ساكن') { Modifier } [ Type ] Identifier [ '=' Expression ] ;"
+    ebnf: >
+      VarDeclaration = ( ('متغير' | 'ثابت' | 'ساكن') { Modifier } [ Type ]
+                       | Type ) Identifier [ '=' Expression ] ;
     alternatives:
+      # (AR) ① الصيغة المفتاحيّة: كلمة مفتاحيّة ← مُعدِّلات ← نوع اختياريّ ← اسم
       - symbols:
           - kind: alt
             children:
@@ -43,13 +46,32 @@ productions:
             children:
               - { kind: terminal, ref: OP_ASSIGN, value: "=" }
               - { kind: nonterminal, ref: gr.expr.expression }
+      # (AR) ② الصيغة النوعيّة: نوع ← اسم — بلا كلمةٍ مفتاحيّةٍ وبلا مُعدِّلات.
+      #      النوع إلزاميّ هنا (هو ما يُميّز التصريحَ عن جملةِ تعبير)، والتهيئة اختياريّة.
+      - symbols:
+          - { kind: nonterminal, ref: gr.decl.type_ref }
+          - { kind: terminal, ref: IDENTIFIER }
+          - kind: optional
+            children:
+              - { kind: terminal, ref: OP_ASSIGN, value: "=" }
+              - { kind: nonterminal, ref: gr.expr.expression }
     references: { keywords: ["KW-RES-034", "KW-RES-035", "KW-RES-036", "KW-RES-026", "KW-RES-027", "KW-RES-028"] }
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseVarDecl" }
     ast_node: "VarDeclStmt"
     description_ar: >
-      تصريح متغير قابل للتغيير («متغير»)، أو ثابت («ثابت»)، أو ساكن («ساكن»). اسم النوع
-      اختياريّ قبل المعرّف («متغير رقم س») والأنواع غير محجوزة (تُلفَظ IDENTIFIER)؛
+      تصريح متغير قابل للتغيير («متغير»)، أو ثابت («ثابت»)، أو ساكن («ساكن»).
+      ⭐ **للتصريح صيغتان معتمَدتان، كلتاهما داخل المواصفة (قرار مالك 2026-08-11، ISSUE-114):**
+      **① الصيغة المفتاحيّة** «متغير رقم س = 10» — تبدأ بكلمةٍ مفتاحيّة، وتقبل المُعدِّلات،
+      والنوع فيها اختياريّ. **② الصيغة النوعيّة** «رقم س = 10» — تبدأ بالنوع مباشرةً بلا
+      كلمةٍ مفتاحيّة. والصيغة ② تعني «متغير» دائماً (لا ثبات ولا سكون)، ولا تقبل مُعدِّلات:
+      «عام رقم س = 10» **مرفوضة** (يُقرأ «عام» جملةَ تعبيرٍ فيُبلَّغ «المتغير 'عام' غير معرَّف»)
+      — فمن أراد مُعدِّلاً لزمته الصيغة ①. **النوع إلزاميّ في ②** لأنّه هو ما يفصل التصريحَ
+      عن جملةِ تعبير، ويقبل أيَّ نوعٍ مدمجٍ أو **اسمَ صنفٍ من المستخدم** («شخص ك = شخص()»
+      مقيسةٌ حيّة). والتهيئة اختياريّة في الصيغتين («رقم س» وحدها تصريحٌ صحيح).
+      ⚠️ الصيغة ② **لا تدعم لاحقةَ الاختياريّ «؟»** بعدُ ولا سلسلةَ تصاريحَ بفاصلة.
+      اسم النوع في ① اختياريّ **بعد** الكلمة المفتاحية وقبل المعرّف
+      («متغير رقم س») والأنواع غير محجوزة (تُلفَظ IDENTIFIER)؛
       التهيئة «= تعبير» اختياريّة (تصريح بلا قيمة مسموح). ⭐ قاعدة «الصفة بعد الموصوف»:
       تأتي المُعدِّلات **بعد** الكلمة المفتاحية لا قبلها: «متغير ثابت ص = 10»، «متغير عام
       س»، «متغير خاص س»، «متغير محمي س»، «متغير ساكن عام ك». **ملاحظات سلوك محقَّقة:**
@@ -74,10 +96,25 @@ productions:
       متغير عام ك = 1
       متغير ساكن عام مشترك = 0
 
+      # المنقوطة «؛» اختياريّة لا إلزاميّة (نهاية السطر تفصل الجمل)
+      متغير ن = 1؛
+
+      # ② الصيغة النوعيّة — النوع يبدأ التصريح بلا كلمةٍ مفتاحيّة
+      رقم س = 10
+      نص اسم = "ص"
+      طبيعي64 ن2 = 5
+      شخص ك = شخص()          # صنف من المستخدم
+      رقم ف                    # بلا تهيئة
+
+      # ✗ مرفوضة: لا مُعدِّلات في الصيغة النوعيّة — استعمل «متغير عام رقم س = 10»
+      # عام رقم س = 10
+
   # ── إشارة نوع (مساعِدة) ────────────────────────────────────────────────
   - id: gr.decl.type_ref
     lhs: { nonterminal: TypeRef, name_ar: "إشارة نوع", name_en: type_reference }
-    ebnf: "TypeRef = ('رقم' | 'عشري' | 'نص' | 'منطقي' | 'مصفوفة' | 'خريطة' | 'أي' | Identifier) ;"
+    ebnf: >
+      TypeRef = ('رقم' | 'عشري' | 'نص' | 'منطقي' | 'مصفوفة' | 'خريطة' | 'أي'
+               | 'طبيعي64' | 'بايت' | 'فراغ' | 'عدم' | Identifier) ;
     alternatives:
       - symbols:
           - { kind: terminal, ref: IDENTIFIER, value: "<اسم نوع>" }
@@ -85,10 +122,24 @@ productions:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseVarDecl" }
     description_ar: >
       اسم نوع يُلفَظ كـIDENTIFIER (الأنواع **غير محجوزة** في المعجم). الأنواع المدمجة
-      شائعة الاستعمال: «رقم» (صحيح)، «عشري»، «نص»، «منطقي»، «مصفوفة»، «خريطة»، «أي»؛
-      ويصلح أيّ معرّف صنفٍ مُعرَّفٍ من المستخدم. يظهر في تصريح المتغير («متغير نص اسم»)،
-      ونوع المعامل («دالة ت(رقم س)»)، ونوع إرجاع الدالة («دالة رقم جمع()»). لاحقة «؟»
-      تجعل النوع اختياريّاً (أمان العدم، NS-06).
+      شائعة الاستعمال: «رقم» (صحيح)، «عشري»، «نص»، «منطقي»، «مصفوفة»، «خريطة»، «أي»،
+      «طبيعي64»، «بايت»، «فراغ»، «عدم»؛ ويصلح أيّ معرّف صنفٍ مُعرَّفٍ من المستخدم.
+      ⭐ TypeRef **يبدأ تصريحاً بذاته** (قرار مالك 2026-08-11 — الصيغة النوعيّة ② في
+      gr.decl.variable): «نص اسم = "ص"» تصريحٌ معياريّ. ويظهر كذلك تابعاً لكلمة مفتاحية
+      («متغير نص اسم»)، ونوعَ معامل («دالة ت(رقم س)»)، ونوعَ إرجاع («دالة رقم جمع()»).
+      **قيدُ الإبهام:** حين يبدأ TypeRef التصريحَ **يلزمه معرّفٌ بعده مباشرةً** — «رقم»
+      وحدها جملةُ تعبيرٍ لا تصريح، وهو ما يفصل الصيغتين بلا التباس.
+      ⚠️ **لاحقة «؟» (أمان العدم، NS-06) — مقيسةٌ في المواضع الأربعة، لا مفترَضة:**
+      مدعومةٌ في **موضع نوع الإرجاع وحدَه** («دالة نص؟ جد()» ⇒ خروج ٠)؛ ومرفوضةٌ في
+      تصريح المتغيّر بصيغتيه وفي المعاملات: «متغير نص؟ اسم» ⇒ SYN009، و«دالة ت(نص؟ س)»
+      ⇒ SYN009، و«نص؟ اسم» ⇒ SYN001. دَينُ NS-06 مرصود — والوصفُ يذكر ما يعمل لا ما
+      يُرجى أن يعمل.
+      ⚠️ **«مضاعف» لفظٌ مُزالٌ يُتعرَّف عليه عمداً:** أُزيل من اللغة (SYN014 يُرشد إلى
+      «عشري»)، ويظلّ المُحلِّل يتعرّف عليه كي يصل التنفيذ إلى ذلك التشخيص الودّيّ.
+      مُعلَنٌ في `types.yaml ⇒ removed_type_words` ومُولَّدٌ في `REMOVED_TYPE_NAMES`،
+      لا مُصلَّباً. **وليس «مدخلاً ميّتاً»**: قِيس أنّ إسقاطه من تعرُّف المُحلِّل يُنزِل
+      التشخيص إلى SYN016 «الاسم يحتوي مسافة» الذي ينصح باستعمال اللفظ المُزال اسماً
+      للمتغيّر — تدهورٌ لا تنظيف (حرسه `negative/061` و`062`).
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 3 } }
@@ -96,6 +147,10 @@ productions:
       متغير نص اسم = "ص"
       متغير رقم عدد = 42
       دالة عشري نصف(رقم س) ارجع س / 2 نهاية
+
+      # ✓ الصيغة النوعيّة: النوع يبدأ التصريح
+      نص عنوان = "ص"
+      رقم عدد2 = 42
 
   # ── تصريح دالة ─────────────────────────────────────────────────────────
   - id: gr.decl.function
@@ -152,7 +207,7 @@ productions:
     alternatives:
       - symbols:
           - kind: repeat1
-            separator: OP_COMMA
+            separator: ARABIC_COMMA
             children:
               - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.type_ref } ] }
               - { kind: terminal, ref: IDENTIFIER }
@@ -301,7 +356,7 @@ productions:
           - { kind: terminal, ref: KEYWORD_EXPORT, value: "صدّر" }
           - { kind: terminal, ref: IDENTIFIER, value: "<عنصر>" }
           - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_AS, value: "كـ" }, { kind: terminal, ref: IDENTIFIER } ] }
-          - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: IDENTIFIER, value: "<عنصر>" }, { kind: optional, children: [ { kind: terminal, ref: KEYWORD_AS, value: "كـ" }, { kind: terminal, ref: IDENTIFIER } ] } ] }
+          - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: terminal, ref: IDENTIFIER, value: "<عنصر>" }, { kind: optional, children: [ { kind: terminal, ref: KEYWORD_AS, value: "كـ" }, { kind: terminal, ref: IDENTIFIER } ] } ] }
           - { kind: terminal, ref: KEYWORD_FROM, value: "من" }
           - { kind: terminal, ref: IDENTIFIER, value: "<مسار_وحدة>" }
     references: { keywords: ["KW-RES-033", "KW-RES-031", "KW-RES-032"] }
@@ -380,7 +435,7 @@ productions:
           - kind: optional
             children:
               - { kind: nonterminal, ref: gr.expr.expression }
-              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+              - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: nonterminal, ref: gr.expr.expression } ] }
     maps_to:
       - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseArgumentList" }
     description_ar: >

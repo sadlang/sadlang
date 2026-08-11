@@ -79,7 +79,7 @@ CATEGORY_SECTION = {
 }
 
 
-def emit_header(types: list[dict[str, Any]]) -> str:
+def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | None = None) -> str:
     """
     (AR) يُنتج محتوى sad_type_kind_generated.h من قائمة الأنواع المُرتّبة.
     (EN) Emits sad_type_kind_generated.h content from the ordered type list.
@@ -190,6 +190,34 @@ def emit_header(types: list[dict[str, Any]]) -> str:
     for t in surface:
         name = t.get("word") or "?"
         lines.append(f'            "{hex_escape(name)}", // {name}')
+    lines.append("        }};")
+    lines.append("")
+
+    # ========================================================================
+    # (AR) ألفاظ أنواعٍ أُزيلت من اللغة (removed_type_words) — يجب أن يظلّ
+    #      المحلّل يتعرّف عليها كي يُبلِّغ SYN014 موجِّهًا إلى البديل. حذفُها من
+    #      تعرُّف المحلّل يبدِّل التشخيص الودّيّ بآخرَ **معقولٍ خاطئ** (لفظُ النوع
+    #      واسمُ المتغيّر يُقرآن اسمًا واحدًا فيه مسافة ⇒ SYN016 ينصح باستعمال
+    #      اللفظ المُزال اسمًا للمتغيّر). فالقائمة مُولَّدة لا مُصلَّبة.
+    # (EN) Type words removed from the language: the parser must still recognise
+    #      them to emit SYN014 pointing at the replacement. Dropping them turns a
+    #      helpful diagnostic into a plausible-but-wrong one.
+    # ========================================================================
+    removed_list = removed or []
+    lines.append("        // ─── ألفاظ أنواعٍ مُزالة / Removed type words ───")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) ألفاظ الأنواع المُزالة — مُولَّدة من types.yaml")
+    lines.append("         * @brief (EN) Removed type words — generated from types.yaml")
+    lines.append("         *")
+    lines.append(f"         * (AR) العدد: {len(removed_list)} — يستهلكها المحلّل ليُبقي تشخيص SYN014 حيًّا.")
+    lines.append(f"         * (EN) {len(removed_list)} — consumed by the parser to keep SYN014 alive.")
+    lines.append("         */")
+    lines.append(
+        f"        inline constexpr std::array<std::string_view, {len(removed_list)}> REMOVED_TYPE_NAMES = {{{{"
+    )
+    for r in removed_list:
+        name = r.get("word") or "?"
+        lines.append(f'            "{hex_escape(name)}", // {name} ⇒ {r.get("replacement", "?")}')
     lines.append("        }};")
     lines.append("")
 
@@ -410,7 +438,7 @@ def main() -> int:
         validate_no_duplicates(types, key="kind", context="types.yaml kind")
         validate_no_duplicates(types, key="id", context="types.yaml id")
 
-        header_text = emit_header(types)
+        header_text = emit_header(types, data.get("removed_type_words") or [])
         changed = write_if_changed(args.header, header_text)
 
         if not args.quiet:

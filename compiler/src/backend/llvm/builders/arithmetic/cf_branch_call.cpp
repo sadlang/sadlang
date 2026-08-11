@@ -623,84 +623,16 @@ namespace Sad
             //      concrete arg to a %SadDyn param ⇒ toDyn (pack per its SIR type); a %SadDyn arg to
             //      a concrete param ⇒ unpack. The bit-tagging + malloc(8) box (leak) is gone.
             // ================================================================
-            llvm::StructType *dynTy = getSadDynType(*cg_.context_);
-
+            // (AR) جدولُ التحويلِ **واحدٌ** الآن: `coerceToParamType` في sad_dyn_repr.cpp.
+            //      كان هنا نسخةٌ ثالثةٌ تفكّ الموسومَ إلى i64 بالحمولةِ الخامّ، فقيمةٌ وسمُها
+            //      عشريٌّ تعبر هذا الحدَّ بنمطِ بتّاتِها عددًا صحيحًا — جوابٌ خاطئٌ صامت.
+            //      ونوعُ SIR للوسيطِ يُمرَّر ليحمل وسمَ التعليبِ الصحيحَ في الاتّجاهِ المقابل.
             for (size_t i = 0; i < args.size() && i < funcType->getNumParams(); ++i)
             {
-                llvm::Type *expectedType = funcType->getParamType(i);
-                llvm::Type *actualType = args[i]->getType();
-
-                if (expectedType != actualType)
-                {
-                    // (AR) معامل %SadDyn ووسيطٌ محسوس ⇒ غلّف حسب نوع SIR للوسيط
-                    // (EN) %SadDyn param, concrete arg ⇒ pack per the arg's SIR type
-                    if (expectedType == dynTy)
-                    {
-                        SadTypeKind argSir = ((i + 1) < inst->operands.size())
-                                                 ? inst->operands[i + 1].dataType
-                                                 : SadTypeKind::Integer;
-                        args[i] = toDyn(cg_, args[i], argSir);
-                    }
-                    // (AR) معامل محدَّد ووسيطٌ %SadDyn ⇒ فُكّ إلى نوع المعامل
-                    // (EN) concrete param, %SadDyn arg ⇒ unpack to the param type
-                    else if (actualType == dynTy)
-                    {
-                        if (expectedType->isDoubleTy())
-                            args[i] = unpackDouble(cg_, args[i]);
-                        else if (expectedType->isPointerTy())
-                            args[i] = unpackPtr(cg_, args[i]);
-                        else if (expectedType->isIntegerTy(1))
-                            args[i] = cg_.builder_->CreateTrunc(
-                                dynPayloadI64(cg_, args[i]), cg_.getInt1Type(), "arg.dyn.i1");
-                        else
-                            args[i] = dynPayloadI64(cg_, args[i]);
-                    }
-                    else if (expectedType->isIntegerTy(64) && actualType->isPointerTy())
-                    {
-                        // (AR) تحويل مؤشر → i64 (لتمرير كائنات للبناة)
-                        // (EN) Convert ptr → i64 (for passing objects to constructors)
-                        args[i] = cg_.builder_->CreatePtrToInt(args[i], cg_.getInt64Type(), "arg.ptrtoint");
-                    }
-                    else if (expectedType->isPointerTy() && actualType->isIntegerTy(64))
-                    {
-                        // (AR) تحويل i64 → مؤشر
-                        // (EN) Convert i64 → ptr
-                        args[i] = cg_.builder_->CreateIntToPtr(args[i],
-                                                           llvm::PointerType::getUnqual(*cg_.context_), "arg.inttoptr");
-                    }
-                    else if (expectedType->isIntegerTy(64) && actualType->isIntegerTy(1))
-                    {
-                        // (AR) تحويل i1 (منطقي) → i64
-                        // (EN) Convert i1 (bool) → i64
-                        args[i] = cg_.builder_->CreateZExt(args[i], cg_.getInt64Type(), "arg.i1toi64");
-                    }
-                    else if (expectedType->isIntegerTy(1) && actualType->isIntegerTy(64))
-                    {
-                        // (AR) تحويل i64 → i1 (منطقي)
-                        // (EN) Convert i64 → i1 (bool)
-                        args[i] = cg_.builder_->CreateTrunc(args[i], cg_.getInt1Type(), "arg.i64toi1");
-                    }
-                    else if (expectedType->isPointerTy() && actualType->isIntegerTy(1))
-                    {
-                        // (AR) تحويل i1 → مؤشر (عبر i64)
-                        // (EN) Convert i1 → ptr (via i64)
-                        llvm::Value *ext = cg_.builder_->CreateZExt(args[i], cg_.getInt64Type(), "arg.i1toi64");
-                        args[i] = cg_.builder_->CreateIntToPtr(ext,
-                                                           llvm::PointerType::getUnqual(*cg_.context_), "arg.i1toptr");
-                    }
-                    else if (expectedType->isDoubleTy() && actualType->isIntegerTy())
-                    {
-                        // (AR) تحويل عدد صحيح → عشري
-                        // (EN) Convert integer → double
-                        args[i] = cg_.builder_->CreateSIToFP(args[i], cg_.getDoubleType(), "arg.itofp");
-                    }
-                    else if (expectedType->isIntegerTy() && actualType->isDoubleTy())
-                    {
-                        // (AR) تحويل عشري → عدد صحيح
-                        // (EN) Convert double → integer
-                        args[i] = cg_.builder_->CreateFPToSI(args[i], expectedType, "arg.fptoi");
-                    }
-                }
+                const SadTypeKind argSir = ((i + 1) < inst->operands.size())
+                                               ? inst->operands[i + 1].dataType
+                                               : SadTypeKind::Integer;
+                args[i] = coerceToParamType(cg_, args[i], funcType->getParamType(i), argSir);
             }
 
             llvm::Value *result = nullptr;

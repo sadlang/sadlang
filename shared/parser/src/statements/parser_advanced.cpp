@@ -1575,17 +1575,24 @@ namespace Sad
                         //      مثال: قالب<نوع T> دالة اسم(T أ) ترجع رقم
                         // (EN) [Phase 8] Primitive type names as return type in template functions
                         //      Example: template<type T> function name(T a) returns int
-                        if (rn == "\xD8\xB1\xD9\x82\xD9\x85") // رقم
-                            returnType = Types::SadTypeKind::Integer;
-                        else if (rn == "\xD9\x86\xD8\xB5") // نص
-                            returnType = Types::SadTypeKind::String;
-                        else if (rn == "\xD8\xB9\xD8\xB4\xD8\xB1\xD9\x8A" ||
-                                 rn == "\xD9\x85\xD8\xB6\xD8\xA7\xD8\xB9\xD9\x81") // عشري/مضاعف
-                            returnType = Types::SadTypeKind::Float;
-                        else if (rn == "\xD9\x85\xD9\x86\xD8\xB7\xD9\x82\xD9\x8A") // منطقي
-                            returnType = Types::SadTypeKind::Boolean;
-                        else if (rn == "\xD9\x81\xD8\xB1\xD8\xA7\xD8\xBA") // فراغ
-                            returnType = Types::SadTypeKind::Void;
+                        //
+                        // (AR) 🔑 كان هنا جدولٌ سادسٌ مكتوبٌ بمحارفَ سُداسيّةٍ انجرف عن
+                        //      إخوته: يقبل «مضاعف» صامتًا (`ترجع مضاعف` ⇒ 1.5 بخروجٍ ٠
+                        //      بلا SYN014)، وينقصه «عدم/مصفوفة/خريطة/أي/طبيعي64/بايت».
+                        //      والسُداسيّةُ تجعله غيرَ مرئيٍّ لحارسٍ يبحث عن ألفاظٍ عربيّة.
+                        //      الآن يفوّض إلى النقطةِ الواحدة في `parser_helpers.cpp`.
+                        // (EN) A sixth, hex-escaped copy lived here and had drifted;
+                        //      it now delegates to the single resolver.
+                        //      و`primitivesOnly` يمنع التوحيدَ من **توسيع** المقبول:
+                        //      «عدم/مصفوفة/خريطة/أي/طبيعي64/بايت» تبقى أسماءَ أصناف
+                        //      هنا كما كانت — قِيس أنّ توسيعَها كسر `صنف بايت` بانهيارٍ
+                        //      صامت و`ترجع أي` بخطأٍ داخليّ.
+                        Types::SadTypeKind resolvedReturn =
+                            resolveTypeWordName(rn, /*primitivesOnly=*/true);
+                        if (resolvedReturn != Types::SadTypeKind::Unknown)
+                        {
+                            returnType = resolvedReturn;
+                        }
                         else
                         {
                             returnTypeName = rn;

@@ -21,6 +21,7 @@
 #define SAD_NATIVE_SIR_LOWERING_COMMON_H
 
 #include "backend/native/generated/native_diagnostics_generated.h"
+#include "frontend/sir_constants.h"
 #include "frontend/sir_instruction.h"
 #include "frontend/sir_types.h"
 #include "error_codes.h"
@@ -118,6 +119,38 @@ namespace sad
                        op.dataType == types::SadTypeKind::Any;
             }
 
+            // (AR) هل في التعليمةِ معامِلٌ **علبةُ Any**؟ سؤالٌ مختلفٌ عن سابقِه: ذاك عن
+            //      معامِلٍ بعينه، وهذا عن **شكلِ التخفيض** — لأنّ وجودَ علبةٍ واحدةٍ يعني
+            //      أنّ نوعَ العمليّةِ الحقيقيَّ لا يُعرَف إلّا زمنَ التشغيل: الأماميّةُ تُصدِر
+            //      ADD_I64 لـ`Any + Any` (لا صيغةً عشريّة)، فإن كانت إحدى الحمولتَين
+            //      بتّاتِ double فالجمعُ الصحيحُ عليها **جوابٌ خاطئٌ صامت** لا تقريب.
+            //      فمن هنا يفترق المسار: لا بفكِّ المعامِلِ بل بالفرعِ على وسمِه.
+            inline bool hasBoxedAnyOperand(const sir::SIRInstruction &inst)
+            {
+                for (const auto &op : inst.operands)
+                    if (isBoxedAny(op))
+                        return true;
+                return false;
+            }
+
+            // (AR) هل هذا نداءٌ لمُساعِدِ زمنِ تشغيلٍ بالاسم؟ الأماميّةُ تُصدِر مُساعِداتِ
+            //      الخريطة/المجموعة بمعامِلٍ أوّلَ ثابتٍ نصّيٍّ لا FUNCTION. والشكلُ وحدَه
+            //      لا يكفي: حرفيّةٌ نصّيّةٌ وقعت في خانةِ المُنادى بفسادِ SIR تحمل الشكلَ
+            //      عينَه، فتُصنَّف خطأً «غيرَ مدعومةٍ بعد» — وتلميحُ ذاك الرمزِ يقول
+            //      «ليس عطلًا يُبلَّغ» فيُسكِت عطبًا حقيقيًّا. فالبادئةُ هي الفارق.
+            // (EN) Is this a runtime-helper call? The frontend emits map/set helpers
+            //      with a string-constant callee, but so would a corrupt SIR whose
+            //      callee slot holds a user literal — and misclassifying that as
+            //      "unsupported yet" silences a real defect. The prefix decides.
+            inline bool isRuntimeHelperCallee(const sir::SIROperand &op)
+            {
+                if (op.type != sir::SIROperandType::CONSTANT ||
+                    op.dataType != types::SadTypeKind::String)
+                    return false;
+                const std::string prefix = Sad::Compiler::kRuntimeSymbolPrefix;
+                return op.name.rfind(prefix, 0) == 0;
+            }
+
             // (AR) هل المعاملُ ثابتٌ صحيح؟ يُعيد قيمتَه (الشرطُ نفسُه في كلّ الأهداف).
             inline bool isConstInt(const sir::SIROperand &op, long long &out)
             {
@@ -149,6 +182,24 @@ namespace sad
                 return false;
             }
 
+            // (AR) هل نوعُ المعامِلِ **صحيحٌ موقَّعٌ** يصلح لترقيةٍ عشريّةٍ بـcvtsi2sd/scvtf؟
+            //      كان الفحصُ في `loadFloatOperandPromoting` يقارن بـInteger وحدَه، فمعامِلٌ
+            //      مصرَّحٌ `عدد٣٢`/`عدد٦٤` يسقط من الترقيةِ ويمرّ نمطَ بتّاتِه فيُقرأ double —
+            //      وهو **جوابٌ خاطئٌ صامتٌ** لا إخفاق: `عدد٣٢ س = ٣` في طرفٍ معلَّبٍ يعطي
+            //      ١٫٥e‑٣٢٣ لا ٣٫٠، وهو بعينِه العطبُ الذي وُجدت الترقيةُ لسدّه في Integer.
+            //      واللا-موقَّعُ يبقى خارجًا عمدًا: تحويلُه يلزمه مسارٌ لا-موقَّعٌ لا cvtsi2sd،
+            //      فإدراجُه هنا يستبدل خطأً بخطأٍ بدل أن يُخفِق بوضوح.
+            // (EN) Is this operand a SIGNED integer kind eligible for float promotion?
+            //      The check previously compared against Integer alone, so a declared
+            //      Int32/Int64 operand silently passed its bit pattern as a double.
+            //      Unsigned kinds stay out deliberately (they need an unsigned convert).
+            inline bool isSignedIntKind(types::SadTypeKind k)
+            {
+                using K = types::SadTypeKind;
+                return k == K::Integer || k == K::Int8 || k == K::Int16 || k == K::Int32 ||
+                       k == K::Int64;
+            }
+
             // (AR) يجد مقارنةً في الكتلة نتيجتُها condName تُغذّي BR_COND المُنهيَ لها، شرطَ أن
             //      تكون آخرَ تعليمةٍ قبل المُنهي (نمطُ البانِي المعتاد) — وإلّا لا إدماج. محايدٌ
             //      للمعماريّة: يخفّضها كلُّ هدفٍ بتسلسلِ (مقارنة؛ فرعٌ شرطيّ then؛ فرعٌ else).
@@ -160,8 +211,15 @@ namespace sad
                     return nullptr;
                 const sir::SIRInstruction &prev = is[is.size() - 2];
                 // (AR) مقارنةُ العوائم لا تُدمَج (ucomisd/fcmp + NaN) ⇒ تُترَك لمسارِ القيمة.
+                // (AR) وكذلك **مقارنةُ معامِلٍ معلَّبٍ**: نوعُها لا يُعرَف إلّا زمنَ التشغيل،
+                //      والإدماجُ يُخفّضها في كلِّ هدفٍ بتسلسلِه الخاصّ (مقارنةٌ فـb.cond)
+                //      خارجَ `driveComparison` ⇒ لا يبلغها الإرسالُ بالوسم. وقِيس ذلك:
+                //      `إذا (خليط[١] > ٣)` بقي «نعم» في الهدفَين بعد أن صارت الصيغةُ
+                //      قيمةً «كاذبة» — العيبُ نفسُه بشكلٍ ثانٍ. فتُترَك لمسارِ القيمة:
+                //      يُصدِر ٠/١ في سجلٍّ ثمّ يختبره BR_COND، وهو المسارُ الذي تسلكه
+                //      مقارنةُ العوائمِ أصلًا ⇒ لا تسلسلَ جديدًا في أيِّ هدف.
                 if (isComparison(prev.opcode) && !isFloatCompare(prev) &&
-                    prev.result && prev.result->name == condName)
+                    !hasBoxedAnyOperand(prev) && prev.result && prev.result->name == condName)
                     return &prev;
                 return nullptr;
             }
@@ -340,6 +398,28 @@ namespace sad
                     int dst;
                     if (!self->allocReg(inst.result->name, dst))
                         return false;
+                    // (AR) **الشكلُ الثاني**: معامِلٌ معلَّبٌ ونتيجةٌ Any ⇒ نوعُ العمليّةِ
+                    //      لا يُعرَف إلّا زمنَ التشغيل، فالتتابعُ الثلاثيُّ لا يصفُه: لا
+                    //      «معامِلانِ ثمّ إصدارٌ ثمّ تعليب» بل مساران مُصدَران معًا وفرعٌ
+                    //      بينهما على الوسم، ووسمُ المُخرَجِ يتبع المسارَ المسلوك لا
+                    //      يُفترَض. ولذلك خطّافٌ رابعٌ يملك تتابعَه، لا حقلٌ في الشكل.
+                    //      وشرطُ `boxesAny` قيدٌ لا تزيين: البتّيّاتُ والعشريّاتُ تُنتِج
+                    //      بتّاتٍ خامّةً بلا وسمٍ تُتابِعُه.
+                    //      ⚠️ وشرطُ `result->dataType == Any` قيدٌ **يُسرِّب**، وهو مقيسٌ لا
+                    //         مُقدَّر: في `دالة ط(أي س، أي ع)` تُصدِر الأماميّةُ ADD_I64
+                    //         بمعامِلَي Any ونتيجةِ **Integer** (رُصِد dt0=dt1=Any و
+                    //         res=Integer) ⇒ يسقط الإرسالُ بالوسمِ ويعود المسارُ الأعمى:
+                    //         «س + ع» = ٤٦١٢٨١١٩١٨٣٣٤٢٣٠٥٣٥ والمفسّرُ «٩٫٥».
+                    //         ورفعُ القيدِ **لا يُصلحه**: خانةُ dyn محجوزةٌ لنتائجِ Any
+                    //         وحدَها فيتجاوز التعليبُ الحجز، والمستهلِكُ (اطبع_سطر) يقرأ
+                    //         سجلًّا نوعُه Integer فيطبع صحيحًا مهما صحّ الحساب. موضعُ
+                    //         العلاجِ الأماميّةُ (نوعُ نتيجةِ «أي ⊕ أي» المكتوبةِ معامِلًا)،
+                    //         وهو عيبٌ **سابقٌ لهذه الدفعة** (قِيس على HEAD بالنتيجةِ
+                    //         عينِها) مُسجَّلٌ حالةً في prove_any_float.sh
+                    //         (`any_param_add`) لا مسكوتٌ عنه.
+                    if (shape->boxesAny && inst.result->dataType == types::SadTypeKind::Any &&
+                        common::hasBoxedAnyOperand(inst))
+                        return self->lowerTaggedBinary(inst, dst);
                     if (!self->prepareBinaryOperands(inst, dst))
                         return false;
                     if (!self->emitBinaryOp(inst, dst))
@@ -388,6 +468,13 @@ namespace sad
                     int dst;
                     if (!self->allocReg(inst.result->name, dst))
                         return false;
+                    // (AR) ونظيرُه في المقارنة: `خليط[١] > ٣` تُخفَّض مقارنةً **صحيحةً**
+                    //      (نوعُ المعامِلِ الساكنُ Any لا Float) فتُقارَن بتّاتُ ٢٫٥ عددًا
+                    //      صحيحًا ضخمًا ⇒ «صادقة» والصوابُ «كاذبة». والفرعُ هنا يقع بعد
+                    //      `resolveCompareCondition` عمدًا: الشرطُ الصحيحُ محلولٌ سلفًا،
+                    //      ويبقى الحقلُ العشريُّ على الخطّافِ لأنّ ترميزَه ملكُ الهدف.
+                    if (common::hasBoxedAnyOperand(inst))
+                        return self->lowerTaggedComparison(inst, dst);
                     return self->prepareCompareOperands(inst) && self->emitCompareResult(inst, dst);
                 }
             };

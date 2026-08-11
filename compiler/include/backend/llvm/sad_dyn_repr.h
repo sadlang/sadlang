@@ -124,6 +124,25 @@ namespace Sad
         ///      Branchless (select).
         llvm::Value *unpackI64(LLVMCodeGen &cg, llvm::Value *dyn);
 
+        /// (AR) يوائم وسيطًا مع نوعِ معاملٍ عند حدِّ نداء: معاملٌ موسوم ⇒ تعليب،
+        ///      وسيطٌ موسومٌ لمعاملٍ محسوس ⇒ فكّ، وما عداهما تحويلاتُ مؤشّر/صحيح/عشريّ/منطقيّ.
+        ///      استُخرِج لأنّ جدولَ التحويلِ كان منسوخًا في موضعَين كائنيَّين وينقصهما
+        ///      الموسومُ في كليهما — والنسخُ هو ما جعل الثغرةَ ثغرتَين.
+        ///      وصار **الجدولَ الوحيد**: نسخةُ النداءِ العامّة (`cf_branch_call.cpp`) كانت
+        ///      تفكّ إلى i64 بالحمولةِ الخامّ (`dynPayloadI64`) بينما هذه تحترم الوسم
+        ///      (`unpackI64`) — أي قيمةٌ وسمُها عشريٌّ تعبر ذاك الحدَّ بنمطِ بتّاتِها عددًا
+        ///      صحيحًا: **جوابٌ خاطئٌ صامتٌ** يقرؤه المستخدمُ رقمًا فلكيًّا. فوُحِّدا هنا.
+        ///      و`sirType` نوعُ SIR للوسيطِ يُستعمَل في اتّجاهِ **التعليب** وحدَه ليحمل الوسمَ
+        ///      الصحيح؛ وتركُه Unknown يستنتجه من نوعِ LLVM (كافٍ في المواضعِ الكائنيّة).
+        /// (EN) Reconcile an argument with a parameter type at a call boundary. This is now
+        ///      the single cast table: the general call site unpacked to i64 with the RAW
+        ///      payload while this one honours the tag, so a Float-tagged value crossed that
+        ///      boundary as its bit pattern — a silent wrong answer. `sirType` is used only
+        ///      in the packing direction to carry the correct tag.
+        llvm::Value *coerceToParamType(LLVMCodeGen &cg, llvm::Value *v, llvm::Type *want,
+                                       Compiler::SIR::SadTypeKind sirType =
+                                           Compiler::SIR::SadTypeKind::Unknown);
+
         // ====================================================================
         // (AR) التعليب/فكّ التعليب على الكومة — «option A» لعناصر المصفوفات مختلطة
         //      الأنواع (ISSUE-052/070/080/082). خانةُ المصفوفة 8 بايت لا تسع الوسمَ،

@@ -1,0 +1,12 @@
+# @rule: gr.oop.new
+# @description: without_new_kw
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 6
+
+صنف نقطة
+    متغير عام س
+    باني(س) هذا.س = س نهاية
+نهاية
+متغير ن = نقطة(6)
+اطبع_سطر(ن.س)

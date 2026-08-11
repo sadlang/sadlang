@@ -1574,6 +1574,21 @@ namespace Sad
             bool isTypeToken(Lexer::TokenType tokenType);
 
             /**
+             * @brief (AR) يحوّل **لفظَ** نوعٍ مكتوبًا مُعرِّفًا إلى نوعه، ويُبلّغ SYN014
+             *        عن الألفاظ المُزالة (`removed_type_words` في مصدر الحقيقة).
+             *        نقطةُ الحقيقةِ الوحيدةُ لهذا التحويل: كانت مُكرَّرةً في
+             *        `parser_advanced.cpp` بمحارفَ سُداسيّةٍ، فانجرفت نسختُها ومرّ
+             *        `ترجع مضاعف` بلا تشخيص.
+             *        (EN) Maps a type WORD (spelled as an identifier) to its kind and
+             *        reports SYN014 for removed words. Single source for this mapping.
+             *
+             * @param name (AR) اللفظ (EN) The word
+             * @return (AR) النوع، أو Unknown إن لم يكن لفظَ نوع (EN) kind, or Unknown
+             */
+            Types::SadTypeKind resolveTypeWordName(const std::string &name,
+                                                  bool primitivesOnly = false);
+
+            /**
              * @brief (AR) هل الكلمة المفتاحية يمكن استخدامها كمعرّف (اسم دالة أو معامل)؟
              *        (EN) Can this keyword be used as an identifier (function/parameter name)?
              *

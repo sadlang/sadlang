@@ -473,9 +473,126 @@ namespace Sad
             //      (a dynamic `/` result stored into a top-level variable). 2) a concrete
             //      value into a %SadDyn slot ⇒ pack it (toDyn) before storing.
             // ================================================================
+            llvm::StructType *dynTy = getSadDynType(*cg_.context_);
+            // ================================================================
+            // (AR) ترقيةُ خانةٍ إلى %SadDyn تُبدّل مكانَ التخزين، لكنّ التحميلاتِ
+            //      والتخزيناتِ **المُصدَرةَ سلفًا** تبقى مُشيرةً إلى الخانةِ القديمة.
+            //      وهذا جوابٌ خاطئٌ صامت: في `مجموع = مجموع + ش.العمر` يُصدَر تحميلُ
+            //      الطرفِ الأيسرِ قبلَ التخزينِ الذي يُطلق الترقية، فيقرأ اللولبُ في
+            //      كلِّ دورةٍ الخانةَ القديمةَ التي لم يعد يكتبها أحد ⇒ المجموعُ =
+            //      آخِرُ حدٍّ لا مجموعُ الحدود. فالإصلاحُ إعادةُ توجيهِ كلِّ استعمالٍ
+            //      قائمٍ إلى الخانةِ الجديدة: التحميلُ يُفكّ تعليبَه إلى نوعِه القديم،
+            //      والتخزينُ يُعلَّب. وإن وُجد استعمالٌ ليس تحميلًا ولا تخزينًا (مؤشّرٌ
+            //      مُمرَّرٌ، GEP…) فلا يُعاد التوجيهُ أصلًا: تُترَك الخانةُ القديمةُ
+            //      وتُرحَّل قيمتُها كما كان — لا نُصلح ما لا نفهمه.
+            // (EN) Promoting a slot to %SadDyn moves the storage, but loads/stores
+            //      ALREADY emitted still point at the old slot — a silent wrong answer
+            //      (`sum = sum + p.age`: the LHS load precedes the store that triggers
+            //      promotion, so every iteration re-reads a slot nobody writes anymore).
+            //      Redirect every existing use: loads unbox to their old type, stores
+            //      box. If any use is neither (a GEP, a passed pointer), redirect nothing
+            //      and fall back to migrating the value as before.
+            // ================================================================
+            // (AR) تعليبُ الثابتِ الابتدائيّ. **يُرجع nullptr لما لا يفهمه** فيعود
+            //      المُنادي إلى الترحيلِ زمنَ التشغيل: التخمينُ هنا جوابٌ خاطئٌ صامت
+            //      (مبادِئٌ مؤشّرُ حرفيّةٍ نصّيّةٍ خُمِّن «عدمًا» ⇒ قراءةٌ قبلَ أوّلِ
+            //      إسنادٍ تُعيد «لاشيء» بدل النصّ بلا تشخيص).
+            //      و`i1` وسمُه **Bool** لا Int، وحمولتُه بالتمديدِ الصفريّ: قيمةُ
+            //      `APInt(1,1)` موقَّعةً ‎−1‎ لا ١ ⇒ «‑1» بدل «صحيح».
+            // (EN) Box a constant initializer, returning nullptr for anything it does not
+            //      understand so the caller falls back to the runtime migration — guessing
+            //      here is a silent wrong answer (a string-literal pointer guessed as Null
+            //      reads back as «لاشيء»). `i1` is tagged Bool, not Int, and zero-extended:
+            //      APInt(1,1) sign-extends to −1, which would print «-1» instead of «صحيح».
+            auto boxInitializer = [&](llvm::Constant *init,
+                                      llvm::StructType *dTy) -> llvm::Constant * {
+                if (!init)
+                    return nullptr;
+                llvm::Type *i8Ty = cg_.builder_->getInt8Ty();
+                llvm::Type *i64Ty = cg_.getInt64Type();
+                uint8_t kind;
+                llvm::Constant *payload;
+                if (auto *ci = llvm::dyn_cast<llvm::ConstantInt>(init))
+                {
+                    const bool isBool = ci->getType()->isIntegerTy(1);
+                    kind = static_cast<uint8_t>(isBool ? DynKind::Bool : DynKind::Int);
+                    payload = llvm::ConstantInt::get(
+                        i64Ty, isBool ? ci->getZExtValue()
+                                      : static_cast<uint64_t>(ci->getSExtValue()));
+                }
+                else if (auto *cf = llvm::dyn_cast<llvm::ConstantFP>(init))
+                {
+                    kind = static_cast<uint8_t>(DynKind::Float);
+                    payload = llvm::ConstantInt::get(
+                        i64Ty, cf->getValueAPF().bitcastToAPInt().getZExtValue());
+                }
+                else if (llvm::isa<llvm::ConstantPointerNull>(init))
+                {
+                    kind = static_cast<uint8_t>(DynKind::Null);
+                    payload = llvm::ConstantInt::get(i64Ty, 0);
+                }
+                else
+                    return nullptr; // (AR) مبادِئٌ لا نعرف وسمَه ⇒ لا نُخمّن
+                return llvm::ConstantStruct::get(
+                    dTy, {llvm::ConstantInt::get(i8Ty, kind), payload});
+            };
+
+            auto redirectSlotUses = [&](llvm::Value *oldSlot, llvm::Value *newSlot,
+                                        llvm::Type *oldTy) -> bool {
+                std::vector<llvm::User *> uses(oldSlot->user_begin(), oldSlot->user_end());
+                for (llvm::User *u : uses)
+                {
+                    if (auto *ld = llvm::dyn_cast<llvm::LoadInst>(u))
+                    {
+                        if (ld->getPointerOperand() != oldSlot)
+                            return false;
+                        continue;
+                    }
+                    if (auto *st = llvm::dyn_cast<llvm::StoreInst>(u))
+                    {
+                        if (st->getPointerOperand() != oldSlot)
+                            return false;
+                        continue;
+                    }
+                    return false;
+                }
+                llvm::BasicBlock *savedBB = cg_.builder_->GetInsertBlock();
+                auto savedIt = cg_.builder_->GetInsertPoint();
+                for (llvm::User *u : uses)
+                {
+                    if (auto *ld = llvm::dyn_cast<llvm::LoadInst>(u))
+                    {
+                        cg_.builder_->SetInsertPoint(ld);
+                        llvm::Value *dv = cg_.builder_->CreateLoad(dynTy, newSlot, "promo.reload");
+                        llvm::Value *cv = nullptr;
+                        if (oldTy->isDoubleTy())
+                            cv = unpackDouble(cg_, dv);
+                        else if (oldTy->isPointerTy())
+                            cv = unpackPtr(cg_, dv);
+                        else
+                        {
+                            cv = unpackI64(cg_, dv);
+                            if (oldTy->isIntegerTy() && !oldTy->isIntegerTy(64))
+                                cv = cg_.builder_->CreateTrunc(cv, oldTy, "promo.trunc");
+                        }
+                        ld->replaceAllUsesWith(cv);
+                        ld->eraseFromParent();
+                    }
+                    else if (auto *st = llvm::dyn_cast<llvm::StoreInst>(u))
+                    {
+                        cg_.builder_->SetInsertPoint(st);
+                        llvm::Value *bv = toDyn(cg_, st->getValueOperand(), SadTypeKind::Unknown);
+                        cg_.builder_->CreateStore(bv, newSlot);
+                        st->eraseFromParent();
+                    }
+                }
+                if (savedBB)
+                    cg_.builder_->SetInsertPoint(savedBB, savedIt);
+                return true;
+            };
+
             if (value && ptr)
             {
-                llvm::StructType *dynTy = getSadDynType(*cg_.context_);
                 llvm::Type *slotTy = nullptr;
                 if (auto *ai = llvm::dyn_cast<llvm::AllocaInst>(ptr))
                     slotTy = ai->getAllocatedType();
@@ -494,15 +611,40 @@ namespace Sad
                             llvm::GlobalValue::InternalLinkage,
                             llvm::ConstantAggregateZero::get(dynTy),
                             globalName + ".dyn");
-                        llvm::Value *oldVal = cg_.builder_->CreateLoad(slotTy, g, "old.glob.val");
-                        cg_.builder_->CreateStore(
-                            toDyn(cg_, oldVal, SadTypeKind::Unknown), newGV);
+                        // (AR) القيمةُ الابتدائيّةُ تُعلَّب ثابتًا (لا نداءَ زمنِ تشغيل)،
+                        //      ثمّ يُعاد توجيهُ كلِّ استعمالٍ قائم. فإن تعذّر التوجيهُ
+                        //      رُحِّلت القيمةُ زمنَ التشغيل كما كان.
+                        // (EN) Box the initializer as a constant, then redirect every
+                        //      existing use; if redirection is not possible, migrate at
+                        //      runtime as before.
+                        llvm::Constant *boxedInit =
+                            g->hasInitializer() ? boxInitializer(g->getInitializer(), dynTy) : nullptr;
+                        const bool redirected = boxedInit && redirectSlotUses(g, newGV, slotTy);
+                        if (redirected)
+                            newGV->setInitializer(boxedInit);
+                        else
+                        {
+                            llvm::Value *oldVal = cg_.builder_->CreateLoad(slotTy, g, "old.glob.val");
+                            cg_.builder_->CreateStore(
+                                toDyn(cg_, oldVal, SadTypeKind::Unknown), newGV);
+                        }
                         for (auto &kv : cg_.context_info_.globalValues)
                             if (kv.second == g)
                                 kv.second = newGV;
                         for (auto &kv : cg_.context_info_.namedValues)
                             if (kv.second == g)
                                 kv.second = newGV;
+                        // (AR) الحذفُ **بعد** تصحيحِ الخرائط: لو حُذف قبلَها لقارنّا
+                        //      مؤشّرًا محرَّرًا فتبقى فيها إحالاتٌ ميّتة. ومجموعةُ
+                        //      المتطايرات تُنقَل كذلك: إبقاءُ مؤشّرٍ محرَّرٍ فيها يجعل
+                        //      عامًّا لاحقًا يقع في العنوانِ نفسِه يُوسَم متطايرًا خطأً.
+                        // (EN) Erase AFTER fixing the maps. The volatile set is migrated too:
+                        //      a freed pointer left there would mark a later global that lands
+                        //      on the same address as volatile.
+                        if (cg_.context_info_.volatileGlobalVars.erase(g))
+                            cg_.context_info_.volatileGlobalVars.insert(newGV);
+                        if (redirected && g->use_empty())
+                            g->eraseFromParent();
                         ptr = newGV;
                     }
                     else if (auto *ai = llvm::dyn_cast<llvm::AllocaInst>(ptr))
@@ -515,12 +657,18 @@ namespace Sad
                         std::string allocaName = ai->getName().str();
                         llvm::AllocaInst *newAlloca = entryBuilder.CreateAlloca(
                             dynTy, nullptr, allocaName + ".dyn");
-                        llvm::Value *oldVal = cg_.builder_->CreateLoad(slotTy, ai, "old.slot.val");
-                        cg_.builder_->CreateStore(
-                            toDyn(cg_, oldVal, SadTypeKind::Unknown), newAlloca);
+                        const bool redirected = redirectSlotUses(ai, newAlloca, slotTy);
+                        if (!redirected)
+                        {
+                            llvm::Value *oldVal = cg_.builder_->CreateLoad(slotTy, ai, "old.slot.val");
+                            cg_.builder_->CreateStore(
+                                toDyn(cg_, oldVal, SadTypeKind::Unknown), newAlloca);
+                        }
                         for (auto &kv : cg_.context_info_.namedValues)
                             if (kv.second == ai)
                                 kv.second = newAlloca;
+                        if (redirected && ai->use_empty())
+                            ai->eraseFromParent();
                         ptr = newAlloca;
                     }
                 }

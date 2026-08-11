@@ -1,0 +1,10 @@
+# @rule: gr.oop.field
+# @description: حقل سلبيّ — «متغير» بلا اسم
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف س
+    متغير = 0
+نهاية
+متغير ك = س()

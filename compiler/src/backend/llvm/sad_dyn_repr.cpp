@@ -354,6 +354,61 @@ namespace Sad
             return makeDyn(cg, llvm::ConstantInt::get(i8, kind), payload);
         }
 
+        llvm::Value *coerceToParamType(LLVMCodeGen &cg, llvm::Value *v, llvm::Type *want,
+                                       SadTypeKind sirType)
+        {
+            if (!v || !want || v->getType() == want)
+                return v;
+            llvm::StructType *dynTy = getSadDynType(*cg.context_);
+            if (want == dynTy)
+                return toDyn(cg, v, sirType);
+            if (isSadDyn(v))
+            {
+                if (want->isDoubleTy())
+                    return unpackDouble(cg, v);
+                if (want->isPointerTy())
+                    return unpackPtr(cg, v);
+                // (AR) `unpackI64` لا `dynPayloadI64`: الأولى تحترم الوسمَ (عشريّ⇒fptosi)،
+                //      والثانيةُ تُعيد الحمولةَ خامًّا فتُقرَأ بتّاتُ الـdouble عددًا صحيحًا.
+                llvm::Value *raw = unpackI64(cg, v);
+                return (want->isIntegerTy() && !want->isIntegerTy(64))
+                           ? cg.builder_->CreateTrunc(raw, want, "arg.dyn.trunc")
+                           : raw;
+            }
+            llvm::Type *have = v->getType();
+            if (want->isIntegerTy(64) && have->isPointerTy())
+                return cg.builder_->CreatePtrToInt(v, want, "arg.p2i");
+            if (want->isPointerTy() && have->isIntegerTy(64))
+                return cg.builder_->CreateIntToPtr(v, want, "arg.i2p");
+            // (AR) منطقيٌّ ⇒ مؤشّر: عبر i64 (لا bitcast بين عرضَين مختلفَين).
+            if (want->isPointerTy() && have->isIntegerTy(1))
+                return cg.builder_->CreateIntToPtr(
+                    cg.builder_->CreateZExt(v, cg.getInt64Type(), "arg.zext"), want, "arg.i2p");
+            if (want->isDoubleTy() && have->isIntegerTy())
+                return cg.builder_->CreateSIToFP(v, want, "arg.i2f");
+            if (want->isIntegerTy() && have->isDoubleTy())
+                return cg.builder_->CreateFPToSI(v, want, "arg.f2i");
+            // (AR) صحيحٌ ⇒ صحيحٌ بعرضٍ آخر. والتوسيعُ يجب أن يتبع **إشارةَ نوعِ المصدر**
+            //      لا عرضَه: المنطقيُّ (i1) واللا-موقَّعُ (`بايت`/`طبيعي*`) بالأصفار،
+            //      والموقَّعُ بالإشارة. وتوسيعُ `بايت ب = ٢٠٠` بالإشارةِ يُعطي ‑٥٦ —
+            //      **جوابٌ خاطئٌ صامتٌ** لا خطأَ تحقّق، ولذلك تُمرَّر `sirType` أصلًا.
+            if (want->isIntegerTy() && have->isIntegerTy())
+            {
+                const unsigned wantBits = want->getIntegerBitWidth();
+                const unsigned haveBits = have->getIntegerBitWidth();
+                if (wantBits < haveBits)
+                    return cg.builder_->CreateTrunc(v, want, "arg.trunc");
+                const bool unsignedSrc =
+                    haveBits == 1 || sirType == SadTypeKind::Byte ||
+                    sirType == SadTypeKind::UInt8 || sirType == SadTypeKind::UInt16 ||
+                    sirType == SadTypeKind::UInt32 || sirType == SadTypeKind::UInt64 ||
+                    sirType == SadTypeKind::Boolean || sirType == SadTypeKind::Char;
+                return unsignedSrc ? cg.builder_->CreateZExt(v, want, "arg.zext")
+                                   : cg.builder_->CreateSExt(v, want, "arg.sext");
+            }
+            return v;
+        }
+
         llvm::Value *toDyn(LLVMCodeGen &cg, llvm::Value *v, SadTypeKind sirType)
         {
             if (isSadDyn(v))

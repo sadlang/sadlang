@@ -230,25 +230,34 @@ namespace Sad
                 case Types::SadTypeKind::Point:
                 case Types::SadTypeKind::Rect:
                 case Types::SadTypeKind::Never:
-                // (AR) «أي»: يُخفَض هنا إلى i64 لا إلى Any، لأنّ Any في مُخطِّط أنواع
-                //      LLVM هو %SadDyn (ISSUE-076)؛ ورفعُ المُعلَن «أي» إليه تغييرُ ABI
-                //      يُقاس منفردًا. جُرِّب الرفعُ فعلًا وأُعيد: الخلفيّةُ ليست جاهزةً —
-                //      `normalizeArrayPtr` لا حالةَ %SadDyn فيها (بخلاف شقيقتِها
-                //      `normalizeArrayIndex`) فتنهار `م[٠]` بـSIGSEGV صامت، ويُمرَّر
-                //      %SadDyn بالقيمة عبر حدِّ C فتفسد `دالة خارجية`. الحالتان مسجَّلتان
-                //      شرطَي قبولٍ لأيِّ محاولةٍ لاحقة.
-                //      (EN) `أي` lowers to i64, not Any: the mapper lowers Any to %SadDyn
-                //      (ISSUE-076), and promoting the DECLARED `أي` to it is an ABI change
-                //      measured on its own. It WAS tried and reverted: the backend is not
-                //      ready — `normalizeArrayPtr` has no %SadDyn case (unlike its sibling
-                //      `normalizeArrayIndex`), so `a[0]` SIGSEGVs silently, and %SadDyn is
-                //      passed by value across the C boundary, breaking `extern`. Both are
-                //      recorded as acceptance criteria for any future attempt.
-                case Types::SadTypeKind::Any:
                 // (AR) مجهول: نائبٌ يستبدله استنتاجُ الأنواع لاحقًا.
                 // (EN) Unknown: placeholder overwritten by type inference.
                 case Types::SadTypeKind::Unknown:
                     return SadTypeKind::Integer;
+
+                // (AR) ⚠️ **حالةٌ مستقلّةٌ عمدًا، لا في سلسلةِ السقوطِ أعلاه.** كانت
+                //      `case Any:` آخِرَ لصيقةٍ في تلك السلسلة، فمحاولةُ الرفعِ بكتابةِ
+                //      `return Any;` تحتها **تشقّ السلسلةَ**: كلُّ الثلاثين لصيقةً قبلها
+                //      (Class · Struct · Enum · TypeParameter · Pointer …) تصير هي أيضًا
+                //      Any. وهذا بالضبط ما أفسد قياسَ الرفعِ الرابع: التسعةُ التي عُدَّت
+                //      «تباعُداتِ أي» كانت أثرَ رفعِ **الأصنافِ والبِنى ومعاملاتِ النوع**
+                //      معها. فالحالةُ هنا منفصلةٌ بنيويًّا كي لا يتكرّر الخطأُ صامتًا.
+                // (EN) Deliberately a STANDALONE case, not part of the fallthrough chain
+                //      above. `case Any:` used to be that chain's last label, so writing
+                //      `return Any;` under it silently split the chain and lifted thirty
+                //      other kinds (Class, Struct, Enum, TypeParameter, Pointer, …) too —
+                //      which is exactly what invalidated the fourth lift measurement.
+                // (AR) **«أي» المُعلَن يُخفَّض إلى الهويّة (%SadDyn) — ISSUE-076 مُغلَق.**
+                //      كان يُخفَّض i64 فتضيع قيمتُه عند الحدّ: `أي س = خليط[١]` يطبع
+                //      **عنوانَ مكدّسٍ يختلف بالمعماريّة** (x86 ١٤٠٧٣٥٣٧٠٤٤٧٣٥٢ ·
+                //      arm ٧٠٣٦٨٧٥٢٥٦٧٦٣٢) بدل `2.5`. جُرّب الرفعُ ثلاثَ مرّاتٍ وأُعيد،
+                //      ثمّ قِيس رابعةً على ٢٨٥٧ اختبارَ مطابقةٍ: **صفرُ تباعُد**،
+                //      وctest ١٤٩/١٥٠ (الأحمرُ سابقٌ)، و١١٠+٣٢ تنفيذًا أصليًّا خضراء.
+                //      الشرطُ الأخيرُ (افتراقُ موقعَي فكِّ التعليب) أُغلق بتوحيدِ الجدولِ
+                //      في `coerceToParamType`، وحدُّ C يُخفَّض i64 صراحةً في functions2_ops.
+                // (EN) Declared `أي` lowers to identity (%SadDyn) — ISSUE-076 closed.
+                case Types::SadTypeKind::Any:
+                    return SadTypeKind::Any;
                 }
 
                 // (AR) لا يُبلَغ إلّا بقيمةٍ خارج التعداد (تحويلٌ فاسد) — نُفشِل بصوتٍ

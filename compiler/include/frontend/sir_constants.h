@@ -196,6 +196,14 @@ namespace Sad::Compiler
     //      frontend files (indexing, methods, comprehensions, for-loop,
     //      binary ops); unified here so the two ends cannot drift silently.
     // ──────────────────────────────────────────────────────────────────
+    // (AR) بادئةُ كلِّ رموزِ زمنِ التشغيل. تُميّز نداءَ مُساعِدٍ حقيقيًّا من حرفيّةٍ
+    //      نصّيّةٍ وقعت في خانةِ المُنادى بفسادِ SIR — والفرقُ بينهما فرقُ تصنيفٍ:
+    //      الأوّلُ «غيرُ مدعومٍ بعد»، والثاني عطبٌ داخليٌّ يُبلَّغ عنه.
+    // (EN) The prefix of every runtime symbol — it separates a genuine helper
+    //      call from a string literal that landed in the callee slot through
+    //      corrupt SIR; the two get different diagnostic classes.
+    inline constexpr const char *kRuntimeSymbolPrefix = "__sad_";
+
     inline constexpr const char *kRuntimeMapCreate = "__sad_map_create";
     inline constexpr const char *kRuntimeMapGet = "__sad_map_get";
     inline constexpr const char *kRuntimeMapGetI64 = "__sad_map_get_i64";

@@ -43,7 +43,7 @@
 **النتيجة الفعلية:**
 - ✅ pytest: **190 pass / 247 skip / 0 fail** (تحقق عملي تام)
 - ✅ جميع ملفات `scripts/codegen/` تجتاز `py_compile`
-- ✅ Backup التحقّق: `C:\Users\Admin\Desktop\صالح\kadahtech\data\language\` يحتوي **فقط** على `{error_messages.yaml, keywords.schema.json, keywords.yaml}` — `builtins/` غير موجود فعلاً، فـ skipif مبرّر هندسياً.
+- ✅ Backup التحقّق: نسخةٌ احتياطيّةٌ خارجَ المستودعِ (مسارُها محلّيٌّ لا يُودَع) تحتوي **فقط** على `{error_messages.yaml, keywords.schema.json, keywords.yaml}` — `builtins/` غير موجود فعلاً، فـ skipif مبرّر هندسياً.
 
 **التوثيق:**
 - `RECOVERY_FINAL_REPORT.md` (9 أقسام كاملة)

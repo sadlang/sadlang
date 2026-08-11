@@ -32,12 +32,12 @@ productions:
             children:
               - { kind: terminal, ref: KEYWORD_INHERITS, value: "يرث" }
               - { kind: terminal, ref: IDENTIFIER }
-              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: IDENTIFIER } ] }
+              - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: terminal, ref: IDENTIFIER } ] }
           - kind: optional
             children:
               - { kind: terminal, ref: KEYWORD_IMPL, value: "نفّذ" }
               - { kind: terminal, ref: IDENTIFIER }
-              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: IDENTIFIER } ] }
+              - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: terminal, ref: IDENTIFIER } ] }
           - { kind: repeat, children: [ { kind: nonterminal, ref: gr.oop.member } ] }
           - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
     references: { keywords: ["KW-RES-003", "KW-RES-006", "KW-RES-007", "KW-RES-029"] }
@@ -82,7 +82,7 @@ productions:
           - { kind: terminal, ref: KEYWORD_ENUM, value: "تعداد" }
           - { kind: terminal, ref: IDENTIFIER }
           - kind: repeat1
-            separator: OP_COMMA
+            separator: ARABIC_COMMA
             children:
               - { kind: terminal, ref: IDENTIFIER }
               - kind: optional
@@ -98,7 +98,7 @@ productions:
                             children:
                               - { kind: optional, children: [ { kind: nonterminal, ref: gr.adv.type } ] }
                               - { kind: terminal, ref: IDENTIFIER }
-                              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: optional, children: [ { kind: nonterminal, ref: gr.adv.type } ] }, { kind: terminal, ref: IDENTIFIER } ] }
+                              - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: optional, children: [ { kind: nonterminal, ref: gr.adv.type } ] }, { kind: terminal, ref: IDENTIFIER } ] }
                           - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
                       # (AR) قيمة صريحة تثبّت الوسم: '=' تعبير / (EN) explicit tag value: '=' Expression
                       - kind: group
@@ -464,7 +464,7 @@ productions:
             children:
               - { kind: terminal, ref: KEYWORD_INHERITS, value: "يرث" }
               - { kind: terminal, ref: IDENTIFIER }
-              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: IDENTIFIER } ] }
+              - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: terminal, ref: IDENTIFIER } ] }
           - kind: repeat
             children:
               - { kind: terminal, ref: KEYWORD_FUNCTION, value: "دالة" }

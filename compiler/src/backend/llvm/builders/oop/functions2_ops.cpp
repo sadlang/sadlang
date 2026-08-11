@@ -155,6 +155,10 @@ namespace Sad
                 returnType = cg_.typeMapper_
                                  ? cg_.typeMapper_->mapSIRType(returnSIRType)
                                  : cg_.getInt64Type();
+                // (AR) والعائدُ كالمعامل: «أي» عائدًا من دالّةٍ خارجيّةٍ لا يكون موسومًا.
+                // (EN) Same rule for the return: an extern's `أي` return is not tagged.
+                if (sirFunc->isExtern && returnSIRType == SadTypeKind::Any)
+                    returnType = cg_.getInt64Type();
                 break;
             }
 
@@ -206,9 +210,39 @@ namespace Sad
                 case SadTypeKind::String:
                     return cg_.getInt8PtrType();
                 // (AR) ISSUE-076 (حلّ %SadDyn الجذريّ): معاملٌ ديناميّ (Any) ⇒ %SadDyn.
-                // (EN) ISSUE-076: a dynamic param (Any) ⇒ %SadDyn.
+                //      إلّا على حدّ FFI: لغةُ C لا تعرف قيمةً موسومة، و%SadDyn يُمرَّر
+                //      هيكلًا من ١٦ بايتًا في سجلَّين، فيقرأ الطرفُ الآخرُ **الوسمَ**
+                //      مكانَ القيمة — جوابٌ خاطئٌ صامت (`abs(أي = -5)` ⇒ 1 = وسمُ
+                //      الصحيح، لا 5). فعلى الحدّ يُمرَّر المحتوى (i64)، ويتكفّل موقعُ
+                //      النداء بفكّ التعليب لأنّه يوائم الوسيطَ مع نوعِ المعامل.
+                //      🐞 **وحدُّ ذلك مقيسٌ ومُبلَّغ**: موقعُ النداءِ العامّ
+                //      (`cf_branch_call.cpp`) يفكّ إلى i64 بـ`dynPayloadI64` — الحمولةَ
+                //      **خامًّا** — لا بـ`unpackI64` الذي يحوّل الحمولةَ العشريّةَ. فوسمُ
+                //      Float عبرَ حدِّ C يمرّ نمطَ بتّاتِه (`abs(أي=٢٫٥)` ⇒ رقمٌ هائلٌ لا ٢)،
+                //      بينما وسمُ Int يمرّ صحيحًا — ولذلك أظهر القياسُ الفرعَ العاملَ
+                //      دونَ العاطل. توحيدُ الموقعَين على `coerceToParamType` (وهو يستعمل
+                //      `unpackI64`) شرطُ قبولٍ لرفعِ «أي»، ولم يُنفَّذ هنا لأنّه تغييرُ
+                //      سلوكٍ على مسارٍ حيٍّ يلزمه تشغيلُ مطابقةٍ كامل.
+                // (EN) Measured limit, reported: the general call site unboxes to i64 with
+                //      dynPayloadI64 (RAW payload), not unpackI64 (which converts a Float
+                //      payload). So a Float tag across the C boundary passes its bit
+                //      pattern (abs(أي=2.5) ⇒ a huge integer, not 2) while an Int tag is
+                //      correct — which is why the measurement hit the working branch only.
+                //      Unifying both sites on coerceToParamType is an acceptance criterion
+                //      for the `أي` lift; not done here because it is a live behaviour
+                //      change that needs a full conformance run.
+                //      والمفسّرُ لا ينفّذ الخارجيّات (RUN059) ⇒ لا تكشف هذا مقارنةٌ
+                //      مزدوجة أبدًا؛ لذا القاعدةُ هنا لا في الاختبار.
+                // (EN) ISSUE-076: a dynamic param (Any) ⇒ %SadDyn — except across the FFI
+                //      boundary. C has no tagged value, and %SadDyn is a 16-byte struct in
+                //      two registers, so the callee reads the TAG instead of the value —
+                //      a silent wrong answer (`abs(أي = -5)` ⇒ 1, the Int tag, not 5).
+                //      At the boundary pass the payload (i64); the call site already
+                //      reconciles the arg with the param type. The interpreter refuses to
+                //      run externs (RUN059), so no dual comparison can ever catch this.
                 case SadTypeKind::Any:
-                    return getSadDynType(*cg_.context_);
+                    return sirFunc->isExtern ? cg_.getInt64Type()
+                                             : getSadDynType(*cg_.context_);
                 default:
                     return cg_.getInt64Type();
                 }

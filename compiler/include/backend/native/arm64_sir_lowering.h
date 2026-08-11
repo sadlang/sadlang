@@ -88,6 +88,7 @@ namespace sad
             inline constexpr int kSp = 31;       // (AR) مؤشّرُ المكدّس SP — الرقمُ ٣١ في عنونةِ add/sub الفوريّة (لا XZR)
             inline constexpr int kLr = 30;       // (AR) سجلّ الرابط x30 (عنوانُ العودة) — يُحفَظ عبر النداء (الدفعة ٦)
             inline constexpr long long kImm16Max = 0xFFFF; // (AR) أقصى فوريّ لـMOVZ (بلا MOVK)
+            inline constexpr long long kImm12Max = 0xFFF;  // (AR) أقصى فوريّ لـADD/SUB (حقلُ imm12)
         } // namespace a64reg
 
         // (AR) مخفّضُ SIR→AArch64 (نطاقُ تكافؤ x86 الكامل). صنفٌ مستقلٌّ عن X86SirLowering
@@ -231,6 +232,8 @@ namespace sad
             // (AR) سياقُ التخفيض الحاليّ (يُضبَط في lowerBlock): يمكّن allocReg من استرجاعِ سجلِّ
             //      مؤقّتٍ ميّتٍ عند نفاد الحوض (لازمٌ للمصفوفات كثيرةِ المؤقّتات). نظيرُ x86.
             const sir::SIRBasicBlock *curBlock_ = nullptr;
+            // (AR) عددُ الإسناداتِ المفهرَسةِ للخرائطِ في الدالّةِ الجارية (سعةٌ ساكنة).
+            long long mapSetCount_ = 0;
             size_t curInstIdx_ = 0;
             std::vector<uint8_t> code_;
 
@@ -763,10 +766,24 @@ namespace sad
             // (AR) [عقدُ Any] يُعلِّب قيمةً قياسيّة في خانتَي dyn ({tag، payload}) ويُعيد مؤشّرَها
             //      (sp + الفهرس×٨) في dst — مرآةُ تعليبِ ARRAY_GET(Any)/x86 boxScalarInto. الخانةُ
             //      محجوزةٌ سلفًا في assignFrameSlots (dynGetCount_). payloadReg يُخزَّن قبل addImm.
+            // (AR) 🛡️ المُخصِّصُ الوحيدُ لخانةِ dyn — مرآةُ `takeDynSlot` في x86 (الحجّةُ والقياسُ
+            //      والعطبُ الذي استدعاه مفصَّلةٌ هناك): الحجزُ والاستهلاكُ جدولان منفصلان، وتجاوزُ
+            //      الحجزِ فشلُ ترجمةٍ صريحٌ لا دهسُ خانةٍ جارة.
+            bool takeDynSlot(int &outSlot)
+            {
+                if (dynSlotNext_ >= dynGetCount_)
+                    return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                diag::kDynSlotOverrun + std::to_string(dynSlotNext_ + 1) +
+                                    diag::kSlotOfReserved + std::to_string(dynGetCount_));
+                outSlot = dynBaseSlot_ + dynSlotNext_ * 2;
+                ++dynSlotNext_;
+                return true;
+            }
             bool boxScalarIntoArm64(int dst, int tagReg, int payloadReg)
             {
-                const int ts = dynBaseSlot_ + dynSlotNext_ * 2;
-                ++dynSlotNext_;
+                int ts = 0;
+                if (!takeDynSlot(ts))
+                    return false;
                 return strSlot(tagReg, ts) && strSlot(payloadReg, ts + 1) &&
                        addImm(dst, 31, static_cast<long long>(ts) * 8); // dst = sp + ts×8
             }
@@ -994,6 +1011,31 @@ namespace sad
                        emit(a64::mnem::kSvc, "", {});
             }
 
+            // (AR) يطبع نصًّا محسوبًا زمنَ التشغيل (مؤشّرٌ منتهٍ بـNUL في `ptrReg`) — مرآةُ
+            //      x86 (الحجّةُ هناك): حلقةُ بايتاتٍ تحسب الطولَ ثمّ write.
+            //      ⚠️ قيدُ `ptrReg` كما في x86: يُقرأ بعدَ الحلقةِ التي تدهس x1/x2/x17،
+            //         فلا يكون منها. المُنادي الوحيدُ اليومَ يمرّر x9.
+            // (EN) Print a runtime-computed NUL-terminated string — mirror of x86.
+            bool emitPrintStrPtrArm64(int ptrReg)
+            {
+                if (!movReg(a64reg::kX1, ptrReg) || !movz(a64reg::kX2, 0))
+                    return false;
+                const size_t head = code_.size();
+                if (!ldrb(a64reg::kScratch1, a64reg::kX1) || !cmp(a64reg::kScratch1, a64reg::kXzr))
+                    return false;
+                size_t done;
+                if (!emitBranchFwd(a64::mnem::kBeq, "rel19", done))
+                    return false;
+                if (!addImm(a64reg::kX1, a64reg::kX1, 1) || !addImm(a64reg::kX2, a64reg::kX2, 1) ||
+                    !emitBBack(head))
+                    return false;
+                if (!patchBranchFwd(done, 23, 5))
+                    return false;
+                return movReg(a64reg::kX1, ptrReg) && // (AR) أعِد المؤشّرَ لبدايتِه (x2=الطول)
+                       movz(a64reg::kX0, kFdStdoutArm64) && movz(a64reg::kX8, kSysWriteArm64) &&
+                       emit(a64::mnem::kSvc, "", {});
+            }
+
             // (AR) يطبع عددًا صحيحًا موقَّعًا (في x9): itoa عبر sdiv/msub يبني الأرقامَ تنازليًّا في
             //      مخزنِ الإطار، ثمّ write. السالبُ يُعالَج بحيلةِ الباقي-السالب (النفيُ عبر xzr للرقم
             //      المطلق) بلا نفيِ x9 ⇒ **آمنٌ لـINT64_MIN**؛ ثمّ '-' في المخزن نفسِه. يستعمل x9..x14
@@ -1197,6 +1239,23 @@ namespace sad
                 if (!patchBranchFwd(bigDone, 25, 0)) // (AR) مقصدُ قفزةِ فرعِ ≥2^63 (بعد الكتابة)
                     return false;
                 return true;
+            }
+
+            // (AR) طباعةُ المنطقيِّ الساكن «صحيح»/«خطأ» — مرآةُ `emitPrintBool` في x86
+            //      (الحجّةُ والقياسُ هناك). النصّان من مصدرِ الحقيقةِ لا حرفيّتَين.
+            bool emitPrintBool(int valReg)
+            {
+                size_t isFalse, done;
+                if (!cmp(valReg, 31) || !emitBranchFwd(a64::mnem::kBeq, "rel19", isFalse))
+                    return false;
+                if (!emitPrintString(kDynBoolTrueText) ||
+                    !emitBranchFwd(a64::mnem::kB, "rel26", done))
+                    return false;
+                if (!patchBranchFwd(isFalse, 23, 5))
+                    return false;
+                if (!emitPrintString(kDynBoolFalseText))
+                    return false;
+                return patchBranchFwd(done, 25, 0);
             }
 
             // (AR) طباعةُ قيمةٍ معلَّبة (Any): ptrReg يشير إلى خانةِ dyn {tag@0، payload@8}. توزيعٌ
@@ -1795,6 +1854,17 @@ namespace sad
                             hasBoxing = true;
                             ++dynGetCount_;
                         }
+                        // (AR) [عقدُ Any] **والأحاديُّ** (NEG/NOT) — مرآةُ x86، والعلّةُ
+                        //      والقياسُ مفصَّلان هناك: `boxUnaryResult` يُعلِّب ولم يكن
+                        //      معدودًا ⇒ خانةٌ غيرُ محجوزةٍ تدهس جارتَها («لاشيء» هنا
+                        //      و«0.0» في x86 مكانَ «‑2.5»).
+                        if ((inst.opcode == sir::SIROpcode::NEG ||
+                             inst.opcode == sir::SIROpcode::NOT) && inst.result &&
+                            inst.result->dataType == types::SadTypeKind::Any)
+                        {
+                            hasBoxing = true;
+                            ++dynGetCount_;
+                        }
                     }
                 // (AR) القيمُ العابرةُ للكتل (تُعرَّف في كتلةٍ وتُقرأ في أخرى، عدا PHI/ALLOC/السلاسل):
                 //      تُنسَك عند تعريفها في خانةٍ. مُمرَّرٌ أوّلٌ يسجّل كتلةَ التعريف، وثانٍ يكتشف الاستعمالَ
@@ -2019,6 +2089,183 @@ namespace sad
 
             // (AR) عقدُ Any: الحاصلُ الخامُّ يُعاد تعليبًا (وسمُ Int) — RET/الطباعةُ تفكّان.
             bool boxBinaryResult(const sir::SIRInstruction &inst, int dst) { return boxIfAnyArm64(inst, dst); }
+
+            // (AR) **الإرسالُ بالوسمِ زمنَ التشغيل** — مرآةُ نظيرِه في x86-64 (العلّةُ
+            //   والعلاجُ والقيدُ مفصَّلةٌ هناك في `lowerTaggedBinary`). ما يخصُّ AArch64:
+            //   • لا `cmp Xn, #imm` ⇒ `sub` ثمّ `cmp Xn, xzr` (كما في `loadFloatOperandInto`).
+            //   • حاملُ العلَمِ **x16**: يعبر فرعًا واحدًا فقط (من حسابِه إلى `b.ne`)،
+            //     ثمّ يعود مُبدَّدَ معامِلٍ في كلا المسارَين. وx8 مُبدَّدُ الوسم كعادتِه،
+            //     ثمّ يحمل وسمَ المُخرَجِ إلى التعليبِ بعد الالتقاء.
+            //   • حقولُ الرقعة: `b.<cond>` رَبعُها imm19@23-5 و`b` غيرُ المشروط imm26@25-0.
+            bool computeAnyFloatFlagArm64(const sir::SIRInstruction &inst)
+            {
+                if (!movz(a64reg::kScratch0, 0))
+                    return false;
+                for (size_t i = 0; i < 2; ++i)
+                {
+                    const sir::SIROperand &op = inst.operands[i];
+                    if (!common::isBoxedAny(op))
+                        continue; // (AR) غيرُ المعلَّبِ نوعُه ساكنٌ ⇒ لا وسمَ يُقاس
+                    if (!materialize(a64reg::kScratch1, op) ||
+                        !ldrBase(a64reg::kX8, a64reg::kScratch1, kSadDynKindOff / kArrSlotBytes) ||
+                        !subImm(a64reg::kX8, a64reg::kX8, kDynKindFloat) ||
+                        !cmp(a64reg::kX8, a64reg::kXzr))
+                        return false;
+                    size_t notFloat;
+                    if (!emitBranchFwd(a64::mnem::kBne, "rel19", notFloat))
+                        return false;
+                    if (!movz(a64reg::kScratch0, 1) || !patchBranchFwd(notFloat, 23, 5))
+                        return false;
+                }
+                return cmp(a64reg::kScratch0, a64reg::kXzr);
+            }
+
+            // (AR) **معامِلٌ عشريٌّ مع ترقيةِ الصحيحِ الساكن** — مرآةُ نظيرِه في x86
+            //      (العلّةُ والقياسُ مفصَّلان هناك): في المسارَين المُرسَلَين بالوسم لا
+            //      صيغةَ عشريّةً سبقتْ، فثابتٌ صحيحٌ يمرّ نمطَ بتّاتِه ويُقرأ double.
+            bool loadFloatOperandPromoting(int dst, const sir::SIROperand &op)
+            {
+                if (common::isBoxedAny(op) || !common::isSignedIntKind(op.dataType))
+                    return loadFloatOperandInto(dst, op);
+                return materialize(dst, op) && scvtf(kD2, dst) && fmovFromFp(dst, kD2);
+            }
+
+            bool emitFloatArithFromIntArm64(sir::SIROpcode op, const sir::SIRInstruction &inst,
+                                            int dst)
+            {
+                using OP = sir::SIROpcode;
+                if (!loadFloatOperandPromoting(a64reg::kScratch0, inst.operands[0]) ||
+                    !loadFloatOperandPromoting(a64reg::kScratch1, inst.operands[1]) ||
+                    !fmovToFp(kD0, a64reg::kScratch0) || !fmovToFp(kD1, a64reg::kScratch1))
+                    return false;
+                const bool ok = op == OP::ADD_I64   ? fadd(kD0, kD0, kD1)
+                                : op == OP::SUB_I64 ? fsub(kD0, kD0, kD1)
+                                                    : fmul(kD0, kD0, kD1);
+                return ok && fmovFromFp(dst, kD0);
+            }
+
+            // (AR) **حارسُ الوسمِ العدديِّ على المسارِ العشريّ** — مرآةُ نظيرِه في x86
+            //      (العلّةُ والقياسُ مفصَّلان هناك): وسمٌ غيرُ عدديٍّ مقرونٌ بـFloat كان
+            //      يُجَرُّ إلى `scvtf` فيُنتج «٣٫٥» بدل قمامةٍ مرئيّة. العقدُ عينُ عقدِ
+            //      `negTagged`: إجهاضٌ برمزِ ١٣٣. ولا `cmp Xn, #imm` ⇒ `sub` ثمّ
+            //      `cmp x8, xzr` مرّتين (Float ثمّ Int).
+            bool guardNumericTagsOnFloatPathArm64(const sir::SIRInstruction &inst)
+            {
+                for (size_t i = 0; i < 2; ++i)
+                {
+                    const sir::SIROperand &op = inst.operands[i];
+                    if (!common::isBoxedAny(op))
+                        continue;
+                    if (!materialize(a64reg::kScratch1, op) ||
+                        !ldrBase(a64reg::kX8, a64reg::kScratch1, kSadDynKindOff / kArrSlotBytes))
+                        return false;
+                    size_t okFloat, okInt;
+                    if (!subImm(a64reg::kScratch0, a64reg::kX8, kDynKindFloat) ||
+                        !cmp(a64reg::kScratch0, a64reg::kXzr) ||
+                        !emitBranchFwd(a64::mnem::kBeq, "rel19", okFloat) ||
+                        !subImm(a64reg::kScratch0, a64reg::kX8, kDynKindInt) ||
+                        !cmp(a64reg::kScratch0, a64reg::kXzr) ||
+                        !emitBranchFwd(a64::mnem::kBeq, "rel19", okInt))
+                        return false;
+                    if (!movz(a64reg::kX0, kNonNumericOperandPanicCode) ||
+                        !movz(a64reg::kX8, kSysExitArm64) || !emit(a64::mnem::kSvc, "", {}))
+                        return false;
+                    if (!patchBranchFwd(okFloat, 23, 5) || !patchBranchFwd(okInt, 23, 5))
+                        return false;
+                }
+                return true;
+            }
+
+            bool lowerTaggedBinary(const sir::SIRInstruction &inst, int dst)
+            {
+                size_t isFloat, done;
+                if (!computeAnyFloatFlagArm64(inst) ||
+                    !emitBranchFwd(a64::mnem::kBne, "rel19", isFloat))
+                    return false;
+                if (!loadScalarInto(a64reg::kScratch0, inst.operands[0]) ||
+                    !loadScalarInto(a64reg::kScratch1, inst.operands[1]) ||
+                    !emitBinaryOp(inst, dst) || !movz(a64reg::kX8, kDynKindInt) ||
+                    !emitBranchFwd(a64::mnem::kB, "rel26", done) ||
+                    !patchBranchFwd(isFloat, 23, 5))
+                    return false;
+                if (!guardNumericTagsOnFloatPathArm64(inst) ||
+                    !emitFloatArithFromIntArm64(inst.opcode, inst, dst) ||
+                    !movz(a64reg::kX8, kDynKindFloat) || !patchBranchFwd(done, 25, 0))
+                    return false;
+                return boxScalarIntoArm64(dst, a64reg::kX8, dst);
+            }
+
+            // (AR) **`==`/`!=` لا تُجهَض** — مرآةُ نظيرِه في x86 (الحجّةُ والقياسُ هناك):
+            //      وسمان مختلفان جوابُهما «غيرُ متساويين» لا خطأُ نوع.
+            bool taggedEqNeShortcutArm64(const sir::SIRInstruction &inst, int dst,
+                                         std::vector<size_t> &outJumps)
+            {
+                const long long answer = inst.opcode == sir::SIROpcode::NE ? 1 : 0;
+                for (size_t i = 0; i < 2; ++i)
+                {
+                    const sir::SIROperand &op = inst.operands[i];
+                    if (!common::isBoxedAny(op))
+                        continue;
+                    if (!materialize(a64reg::kScratch1, op) ||
+                        !ldrBase(a64reg::kX8, a64reg::kScratch1, kSadDynKindOff / kArrSlotBytes))
+                        return false;
+                    size_t okFloat, okInt;
+                    if (!subImm(a64reg::kScratch0, a64reg::kX8, kDynKindFloat) ||
+                        !cmp(a64reg::kScratch0, a64reg::kXzr) ||
+                        !emitBranchFwd(a64::mnem::kBeq, "rel19", okFloat) ||
+                        !subImm(a64reg::kScratch0, a64reg::kX8, kDynKindInt) ||
+                        !cmp(a64reg::kScratch0, a64reg::kXzr) ||
+                        !emitBranchFwd(a64::mnem::kBeq, "rel19", okInt))
+                        return false;
+                    size_t toJoin;
+                    if (!movz(dst, answer) || !emitBranchFwd(a64::mnem::kB, "rel26", toJoin))
+                        return false;
+                    outJumps.push_back(toJoin);
+                    if (!patchBranchFwd(okFloat, 23, 5) || !patchBranchFwd(okInt, 23, 5))
+                        return false;
+                }
+                return true;
+            }
+
+            static bool isEqNe(sir::SIROpcode op)
+            {
+                return op == sir::SIROpcode::EQ || op == sir::SIROpcode::NE;
+            }
+
+            bool lowerTaggedComparison(const sir::SIRInstruction &inst, int dst)
+            {
+                // (AR) الحقلُ العشريُّ يُحلُّ **قبل** الإصدار: فشلُه بعده يترك مسارًا
+                //      صحيحًا مُصدَرًا وفرعًا بلا مقصد (والشرطُ الصحيحُ حُلَّ في
+                //      `resolveCompareCondition` سلفًا — عقدُ التتابع نفسُه).
+                long long floatField;
+                if (!csetFloatInvertedField(inst.opcode, floatField))
+                    return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                size_t isFloat, done;
+                if (!computeAnyFloatFlagArm64(inst) ||
+                    !emitBranchFwd(a64::mnem::kBne, "rel19", isFloat))
+                    return false;
+                if (!prepareCompareOperands(inst) || !emitCompareResult(inst, dst) ||
+                    !emitBranchFwd(a64::mnem::kB, "rel26", done) ||
+                    !patchBranchFwd(isFloat, 23, 5))
+                    return false;
+                std::vector<size_t> eqNeJoins;
+                if (isEqNe(inst.opcode) ? !taggedEqNeShortcutArm64(inst, dst, eqNeJoins)
+                                        : !guardNumericTagsOnFloatPathArm64(inst))
+                    return false;
+                if (!loadFloatOperandPromoting(a64reg::kScratch0, inst.operands[0]) ||
+                    !loadFloatOperandPromoting(a64reg::kScratch1, inst.operands[1]) ||
+                    !fmovToFp(kD0, a64reg::kScratch0) || !fmovToFp(kD1, a64reg::kScratch1) ||
+                    !fcmp(kD0, kD1) ||
+                    !emit(a64::mnem::kCset, "x, cond",
+                          {a64::Operand::R(dst), a64::Operand::I(floatField)}))
+                    return false;
+                if (!patchBranchFwd(done, 25, 0))
+                    return false;
+                for (size_t j : eqNeJoins)
+                    if (!patchBranchFwd(j, 25, 0))
+                        return false;
+                return true;
+            }
 
             // (AR) **الباقياتُ الستّ**، وهي صنفان لا صنفٌ واحد:
             //      (أ) القسمةُ والأرضيّةُ والباقي **تكسر التتابعَ فعلًا**: حارسُ القسمةِ على
@@ -2252,8 +2499,8 @@ namespace sad
                 // (AR) المعامِلان عبر `loadFloatOperandInto` كنظيرَيهما في الحساب: معامِلُ
                 //      Any يُفكُّ بوسمِه، وإلّا قُورِن مؤشّرُ خانةٍ ببتّاتِ double فصدر جوابٌ
                 //      خاطئٌ صامت. ولا تصادمَ: الحاملان x16/x17 ومُبدَّدُ الوسمِ x8.
-                return loadFloatOperandInto(a64reg::kScratch0, inst.operands[0]) &&
-                       loadFloatOperandInto(a64reg::kScratch1, inst.operands[1]) &&
+                return loadFloatOperandPromoting(a64reg::kScratch0, inst.operands[0]) &&
+                       loadFloatOperandPromoting(a64reg::kScratch1, inst.operands[1]) &&
                        fmovToFp(kD0, a64reg::kScratch0) && fmovToFp(kD1, a64reg::kScratch1) &&
                        fcmp(kD0, kD1) &&
                        emit(a64::mnem::kCset, "x, cond", {a64::Operand::R(dst), a64::Operand::I(field)});
@@ -2281,13 +2528,18 @@ namespace sad
             //         `خليط[٠] == ٧` كان كاذبًا هنا وصادقًا في x86 (انجرافُ هدفَين لا عيبُ
             //         هدفٍ واحد)، بل `خليط[٠] == خليط[٠]` نفسُه كان كاذبًا لأنّ كلَّ قراءةٍ
             //         تُخصّص علبةً جديدة. مرآةُ x86 الذي يفكّها منذ عقدِ Any.
-            //      🐞 والفكُّ هنا **بلا وسم**، وهو نصفُ صوابٍ لا صوابٌ تامّ: المقارنةُ
-            //         الصحيحةُ تأخذ الحمولةَ خامًّا أيًّا كان وسمُها، فحمولةُ وسمِ Float
-            //         تُقارَن بتّاتِ double كعددٍ صحيحٍ ضخم — `خليط[١] > ٣` (حيث خليط[١]
-            //         = ٢٫٥) يقول صادقة في الهدفَين والمفسّرُ يقول كاذبة. إغلاقُه ليس
-            //         فكًّا بالوسمِ فحسب: مقارنةُ صحيحٍ بعشريٍّ تلزمها ترقيةٌ زمنَ التشغيل
-            //         (فرعٌ رباعيٌّ على الوسمَين) — عيبٌ مُبلَّغٌ في prove_any_float.sh
-            //         (`cmp_float_payload`) لا مُصلَحٌ في هذه الدفعة.
+            //      ✅ والفكُّ هنا **بلا وسم** — وهو صوابٌ في موضعِه بعد الإرسالِ بالوسم: هذا
+            //         الخطّافُ لا يُبلَغ اليومَ إلّا حين **لا** يكون في التعليمةِ معامِلٌ
+            //         معلَّب، أو كمسارٍ صحيحٍ داخلَ `lowerTaggedComparison` بعد أن قاس
+            //         الوسمَ وقرّر. وقبلَ ذلك الإرسالِ كان يُبلَغ عاريًا فتُقارَن حمولةُ
+            //         وسمِ Float بتّاتِ double كعددٍ صحيحٍ ضخم: `خليط[١] > ٣` (حيث
+            //         خليط[١] = ٢٫٥) «صادقة» والمفسّرُ «كاذبة».
+            //      ⚠️ وما يبقى خارجَ حراسةِ الإرسال: معاملاتُ «أي» المكتوبةُ في تصريحِ
+            //         دالّة. `دالة ط(أي س، أي ع)` ثمّ `س > ع` ⇒ جوابٌ **ثابتٌ لا يتبع
+            //         الوسيطَين**، ويختلف بالمعماريّة (x86 «١» دائمًا وAArch64 «٠»
+            //         دائمًا، والمفسّرُ «صحيح» ثمّ «خطأ»). عيبٌ **سابقٌ لهذه الدفعة**
+            //         (قِيس على HEAD بالنتيجةِ عينِها) مُسجَّلٌ حالةً في
+            //         prove_any_float.sh (`any_param_cmp`).
             bool prepareCompareOperands(const sir::SIRInstruction &inst)
             {
                 return loadScalarInto(a64reg::kScratch0, inst.operands[0]) &&
@@ -2331,6 +2583,14 @@ namespace sad
                        rrr(a64::mnem::kEor, dst, a64reg::kScratch0, a64reg::kX8);
             }
 
+            // (AR) محوُ بتِّ الإشارةِ في **المُبدَّدِ نفسِه** (لا في الوجهة): مُستهلِكُه
+            //      `logicalNotArm64` يختبر kScratch0. مرآةُ `clearSignBit` في x86.
+            bool clearSignBitArm64()
+            {
+                return movImm64Bits(a64reg::kX8, ~kF64SignMask) &&
+                       rrr(a64::mnem::kAnd, a64reg::kScratch0, a64reg::kScratch0, a64reg::kX8);
+            }
+
             bool negTagged(int dst)
             {
                 if (!unaryAnyTagged_)
@@ -2348,7 +2608,7 @@ namespace sad
                     !cmp(a64reg::kX8, a64reg::kXzr) ||
                     !emitBranchFwd(a64::mnem::kBeq, "rel19", isInt))
                     return false;
-                if (!movz(a64reg::kX0, kNonNumericUnaryPanicCode) ||
+                if (!movz(a64reg::kX0, kNonNumericOperandPanicCode) ||
                     !movz(a64reg::kX8, kSysExitArm64) || !emit(a64::mnem::kSvc, "", {}))
                     return false;
                 if (!patchBranchFwd(isInt, 23, 5))
@@ -2359,6 +2619,24 @@ namespace sad
                 if (!patchBranchFwd(isFloat, 23, 5))
                     return false;
                 if (!flipSignBitArm64(dst))
+                    return false;
+                return patchBranchFwd(done, 25, 0); // (AR) b غيرُ مشروط: imm26@25-0
+            }
+
+            // (AR) النفيُ المنطقيُّ (`ليس`) — مرآةُ `logicalNot` في x86. اختبارٌ صفريٌّ مجرّدٌ،
+            //      ومن يَفرِزُ ما يصلحُ له هي **قائمةُ السماحِ** عند `case OP::NOT` وحدَها
+            //      (الحجّةُ والقياسُ في نظيرتِها في x86).
+            bool logicalNotArm64(int dst)
+            {
+                size_t isZero, done;
+                if (!cmp(a64reg::kScratch0, a64reg::kXzr) ||
+                    !emitBranchFwd(a64::mnem::kBeq, "rel19", isZero))
+                    return false;
+                if (!movz(dst, 0) || !emitBranchFwd(a64::mnem::kB, "rel26", done))
+                    return false;
+                if (!patchBranchFwd(isZero, 23, 5))
+                    return false;
+                if (!movz(dst, 1))
                     return false;
                 return patchBranchFwd(done, 25, 0); // (AR) b غيرُ مشروط: imm26@25-0
             }
@@ -2382,15 +2660,273 @@ namespace sad
                 {
                 case OP::NEG: // (AR) −a = xzr − a (متمّمٌ ثنائيّ)، أو قلبُ بتِّ الإشارةِ للعشريّ
                     return negTagged(dst);
-                // (AR) القلبُ البتّيُّ على معامِلٍ معلَّبٍ يُرفَض ترجمةً لا يُخمَّن (انظر x86).
+                // (AR) القلبُ البتّيُّ على معامِلٍ معلَّبٍ يُرفَض ترجمةً لا يُخمَّن (انظر x86)،
+                //      وتمييزُ المنطقيِّ من البتّيِّ بنوعِ النتيجةِ — مرآةُ x86.
                 case OP::NOT:
+                {
+                    const bool isLogical =
+                        inst.result && inst.result->dataType == types::SadTypeKind::Boolean;
                     if (unaryAnyTagged_)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
-                    return emit(a64::mnem::kMvn, "x, x",
-                                {a64::Operand::R(dst), a64::Operand::R(a64reg::kScratch0)});
+                    if (!isLogical)
+                        return emit(a64::mnem::kMvn, "x, x",
+                                    {a64::Operand::R(dst), a64::Operand::R(a64reg::kScratch0)});
+                    // (AR) قائمةُ سماحٍ لا قائمةَ منع — الحجّةُ والقياسُ (‑0.0 والعدمُ
+                    //      والمصفوفةُ الفارغة) مفصَّلةٌ في نظيرتِها في x86.
+                    switch (inst.operands[0].dataType)
+                    {
+                    case types::SadTypeKind::Integer:
+                    case types::SadTypeKind::Boolean:
+                    case types::SadTypeKind::Byte:
+                    case types::SadTypeKind::UInt64:
+                    case types::SadTypeKind::Int8:
+                    case types::SadTypeKind::Int16:
+                    case types::SadTypeKind::Int32:
+                    case types::SadTypeKind::Int64:
+                    case types::SadTypeKind::UInt8:
+                    case types::SadTypeKind::UInt16:
+                    case types::SadTypeKind::UInt32:
+                        return logicalNotArm64(dst);
+                    // (AR) والعروضُ المسمّاةُ معه (قيمٌ مستقلّةٌ في التعداد): أوّلُ تمريرةٍ
+                    //      تُطبّع `Float`⇒`Float64` تجعل `ليس 2.5` فشلَ ترجمةٍ لو غابت.
+                    case types::SadTypeKind::Float:
+                    case types::SadTypeKind::Float32:
+                    case types::SadTypeKind::Float64:
+                        return clearSignBitArm64() && logicalNotArm64(dst);
+                    default:
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    }
+                }
                 // (AR) لا يُبلَغ: الموزِّعُ لا يوجّه إلى هنا إلّا الاثنين.
                 default: return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
                 }
+            }
+
+            // (AR) مُساعِداتُ زمنِ تشغيلِ الخريطةِ أصليًّا — مرآةُ x86 (الحجّةُ والتخطيطُ
+            //      وحدودُ الدعمِ موثَّقةٌ هناك). التخطيطُ من مصدرِ الحقيقة عينِه، فلا
+            //      يتباعد الهدفان. المُنفَّذُ: الإنشاءُ والحجمُ فقط.
+            // (EN) Native map runtime helpers — mirror of x86 (rationale, layout and the
+            //      limits of support are documented there). Same SoT layout, so the two
+            //      targets cannot drift. Implemented: create and size only.
+            // (AR) **بحثٌ خطّيٌّ عن خانةِ مفتاحٍ في الخريطة** — مرآةُ نظيرِه في x86 حرفيًّا
+            //      (العقدُ والعلّةُ مفصَّلان هناك): مسحٌ على السعة، ومفتاحٌ عدمٌ ⇒ خانةٌ فارغة.
+            //      الداخل: x0=القاعدة · x1=مؤشّرُ المفتاح. الخارج: x4=فهرسُ الخانة ·
+            //      x5=١ إن كان موجودًا و٠ إن كانت فارغة · x3=مصفوفةُ المفاتيح · x2=السعة.
+            //      يدهس x2..x8 وx16 ⇒ داخلَ سياجِ انسكابٍ فقط. و`panicWhenFull` يفصل
+            //      عقدَ الإدراجِ (لا بديلَ عن الإجهاض) عن عقدِ البحثِ (جوابُه «غيرُ موجود»).
+            bool emitMapFindSlotArm64(bool panicWhenFull)
+            {
+                namespace rep = types::repr;
+                if (!ldrBase(2, 0, rep::kMapFieldCapacity) || !ldrBase(3, 0, rep::kMapFieldKeys) ||
+                    !movz(4, 0))
+                    return false;
+                const size_t scan = code_.size();
+                if (!cmp(4, 2))
+                    return false;
+                size_t full;
+                if (!emitBranchFwd(a64::mnem::kBge, "rel19", full))
+                    return false;
+                // (AR) x5 = المفاتيح[x4] — العنوانُ بـadd Xd,Xn,Xm,LSL#3 ثمّ تحميلٌ بإزاحةِ صفر.
+                if (!addLsl3(a64reg::kScratch0, 3, 4) || !ldrBase(5, a64reg::kScratch0, 0) ||
+                    !cmp(5, a64reg::kXzr))
+                    return false;
+                size_t empty;
+                if (!emitBranchFwd(a64::mnem::kBeq, "rel19", empty))
+                    return false;
+                // (AR) مقارنةُ نصَّين بايتًا بايتًا حتّى NUL (لا strcmp — لا libc).
+                if (!movReg(6, 1))
+                    return false;
+                const size_t cmpLoop = code_.size();
+                if (!ldrb(7, 5) || !ldrb(a64reg::kX8, 6) || !cmp(7, a64reg::kX8))
+                    return false;
+                size_t differ;
+                if (!emitBranchFwd(a64::mnem::kBne, "rel19", differ) || !cmp(7, a64reg::kXzr))
+                    return false;
+                size_t hit;
+                if (!emitBranchFwd(a64::mnem::kBeq, "rel19", hit))
+                    return false;
+                if (!addImm(5, 5, 1) || !addImm(6, 6, 1) || !emitBBack(cmpLoop))
+                    return false;
+                if (!patchBranchFwd(differ, 23, 5))
+                    return false;
+                if (!addImm(4, 4, 1) || !emitBBack(scan))
+                    return false;
+                if (!patchBranchFwd(full, 23, 5))
+                    return false;
+                if (panicWhenFull &&
+                    (!movz(a64reg::kX0, kMapOverflowPanicCode) ||
+                     !movz(a64reg::kX8, kSysExitArm64) || !emit(a64::mnem::kSvc, "", {})))
+                    return false;
+                // (AR) بحثٌ على خريطةٍ ممتلئةٍ ⇒ يسقط إلى «غيرُ موجود» (x5=٠).
+                if (!patchBranchFwd(empty, 23, 5) || !movz(5, 0))
+                    return false;
+                size_t done;
+                if (!emitBranchFwd(a64::mnem::kB, "rel26", done))
+                    return false;
+                if (!patchBranchFwd(hit, 23, 5) || !movz(5, 1))
+                    return false;
+                return patchBranchFwd(done, 25, 0);
+            }
+
+            bool emitMapHelper(const sir::SIRInstruction &inst, const sir::SIRBasicBlock &block,
+                               size_t instIdx, bool &handled)
+            {
+                namespace rep = types::repr;
+                handled = false;
+                const std::string &fname = inst.operands[0].name;
+                const bool isCreate = (fname == Sad::Compiler::kRuntimeMapCreate);
+                const bool isSize = (fname == Sad::Compiler::kRuntimeMapSize);
+                const bool isSet = (fname == Sad::Compiler::kRuntimeMapSetTyped);
+                const bool isGet = (fname == Sad::Compiler::kRuntimeMapGetI64);
+                const bool isHas = (fname == Sad::Compiler::kRuntimeMapHas);
+                if (!isCreate && !isSize && !isSet && !isGet && !isHas)
+                    return true;
+                handled = true;
+                // (AR) الإسنادُ وحدَه بلا نتيجة؛ وما عداه يجب أن يُنتج قيمة.
+                if (!inst.result && !isSet)
+                    return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+
+                auto deliver = [&]() -> bool {
+                    int dst;
+                    return allocReg(inst.result->name, dst) && movReg(dst, 0);
+                };
+                // (AR) سياجُ الانسكاب — الشرطُ نفسُه المستعمَلُ في النداءِ العامّ (حيٌّ **أو**
+                //      وسيطٌ سجليٌّ لهذا النداء): الوسيطُ يُقرأ من خانتِه بعدَ دهسِ الحوض.
+                auto spillLive = [&]() -> bool {
+                    for (const auto &kv : regOf_)
+                        if ((common::usedAfterInBlock(block, instIdx, kv.first) ||
+                             common::isPoolArgOfCall(inst, kv.first,
+                                                     [this](const std::string &n) { return isMemName(n); })) &&
+                            !spillReg(kv.second))
+                            return false;
+                    return true;
+                };
+                auto reloadLive = [&]() -> bool {
+                    for (const auto &kv : regOf_)
+                        if (common::usedAfterInBlock(block, instIdx, kv.first) && !reloadReg(kv.second))
+                            return false;
+                    return true;
+                };
+
+                // (AR) خ[م] = ق — مرآةُ x86 (العقدُ ودَينُ المفتاحِ غيرِ المنسوخِ منصوصان هناك).
+                if (isSet)
+                {
+                    if (inst.operands.size() != 5)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    // (AR) مرآةُ x86: النصُّ قيمةً غيرُ مدعومٍ بعد، ويُسمّى باسمه.
+                    if (inst.operands[3].dataType == types::SadTypeKind::String ||
+                        strReg_.count(inst.operands[3].name))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                    diag::kMapValueUnsupported + inst.operands[3].name);
+                    if (!spillLive() || !materialize(0, inst.operands[1]) ||
+                        !materializeString(inst.operands[2], 1, true) ||
+                        !emitMapFindSlotArm64(/*panicWhenFull=*/true) || !cmp(5, a64reg::kXzr))
+                        return false;
+                    size_t keyStored;
+                    if (!emitBranchFwd(a64::mnem::kBne, "rel19", keyStored))
+                        return false;
+                    if (!addLsl3(a64reg::kScratch0, 3, 4) || !strBase(1, a64reg::kScratch0, 0) ||
+                        !ldrBase(a64reg::kScratch1, 0, rep::kMapFieldCount) ||
+                        !addImm(a64reg::kScratch1, a64reg::kScratch1, 1) ||
+                        !strBase(a64reg::kScratch1, 0, rep::kMapFieldCount))
+                        return false;
+                    if (!patchBranchFwd(keyStored, 23, 5))
+                        return false;
+                    const long long fields[2] = {rep::kMapFieldValues, rep::kMapFieldTypes};
+                    for (int i = 0; i < 2; ++i)
+                    {
+                        if (!loadArgInto(7, inst.operands[3 + i]) || !ldrBase(3, 0, fields[i]) ||
+                            !addLsl3(a64reg::kScratch0, 3, 4) || !strBase(7, a64reg::kScratch0, 0))
+                            return false;
+                    }
+                    return reloadLive();
+                }
+
+                // (AR) خ[م] قراءةً صحيحةً · و«يحوي» — الخانةُ الفارغةُ مصفَّرةٌ بـmmap ⇒ صفرٌ بلا فرع.
+                if (isGet || isHas)
+                {
+                    if (!requireArity(inst, 3))
+                        return false;
+                    if (!spillLive() || !materialize(0, inst.operands[1]) ||
+                        !materializeString(inst.operands[2], 1, true) ||
+                        !emitMapFindSlotArm64(/*panicWhenFull=*/false))
+                        return false;
+                    if (isHas)
+                    {
+                        if (!movReg(0, 5))
+                            return false;
+                    }
+                    else
+                    {
+                        // (AR) مرآةُ x86: الفرعُ على وجودِ المفتاح، لا على تصفيرِ mmap —
+                        //      فهرسُ «لم يُوجَد» على خريطةٍ ممتلئةٍ يقرأ مصفوفةَ الوسوم.
+                        if (!cmp(5, a64reg::kXzr))
+                            return false;
+                        size_t hit;
+                        if (!emitBranchFwd(a64::mnem::kBne, "rel19", hit) || !movz(0, 0))
+                            return false;
+                        size_t end;
+                        if (!emitBranchFwd(a64::mnem::kB, "rel26", end))
+                            return false;
+                        if (!patchBranchFwd(hit, 23, 5) || !ldrBase(3, 0, rep::kMapFieldValues) ||
+                            !addLsl3(a64reg::kScratch0, 3, 4) || !ldrBase(0, a64reg::kScratch0, 0))
+                            return false;
+                        if (!patchBranchFwd(end, 25, 0))
+                            return false;
+                    }
+                    return reloadLive() && deliver();
+                }
+
+                if (isSize)
+                {
+                    if (!requireArity(inst, 2))
+                        return false;
+                    return materialize(0, inst.operands[1]) &&
+                           ldrBase(0, 0, rep::kMapFieldCount) &&
+                           deliver();
+                }
+
+                // (AR) مرآةُ x86 حرفيًّا (العلّةُ والتقديرُ الزائدُ منصوصان هناك).
+                long long hint = 0;
+                if (inst.operands.size() >= 2 && !common::isConstInt(inst.operands[1], hint))
+                    return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                diag::kMapDynamicCapacity + inst.operands[1].name);
+                long long cap = (hint + mapSetCount_) * rep::kMapGrowthFactor;
+                if (cap < rep::kMapMinCapacity)
+                    cap = rep::kMapMinCapacity;
+                const long long total = rep::kMapHeaderBytes + 3 * cap * rep::kMapSlotBytes;
+                for (const auto &kv : regOf_)
+                    if (common::usedAfterInBlock(block, instIdx, kv.first))
+                        if (!spillReg(kv.second))
+                            return false;
+                if (!emitMmapArm64(total)) // (AR) x0 = القاعدة (مصفَّرة)
+                    return false;
+                if (!movz(a64reg::kScratch0, cap) ||
+                    !strBase(a64reg::kScratch0, 0, rep::kMapFieldCapacity))
+                    return false;
+                const long long fields[3] = {rep::kMapFieldKeys, rep::kMapFieldValues, rep::kMapFieldTypes};
+                for (int i = 0; i < 3; ++i)
+                {
+                    const long long off = rep::kMapHeaderBytes + i * cap * rep::kMapSlotBytes;
+                    // (AR) `addImm` لا يفحص المدى، و`encodeFixed32` **يرمي** عند تجاوزِ
+                    //      imm12 (٤٠٩٥) — استثناءٌ غيرُ ملتقَطٍ يُنهي المترجمَ بلا تشخيص،
+                    //      بينما x86 (imm32) يترجم الحرفيّةَ نفسَها ⇒ انجرافُ هدفَين.
+                    //      فالفحصُ هنا يحوّله إلى إخفاقِ ترجمةٍ مُسمّى.
+                    // (EN) addImm does not range-check and the encoder THROWS past imm12,
+                    //      killing the compiler with no diagnostic while x86 compiles the
+                    //      same literal. Check explicitly and fail with a named diagnostic.
+                    if (off > a64reg::kImm12Max)
+                        return fail(EC::INT_NATIVE_IMM_RANGE,
+                                    diag::kMapCapacityImm12 + std::to_string(cap));
+                    if (!addImm(a64reg::kScratch0, 0, off) ||
+                        !strBase(a64reg::kScratch0, 0, fields[i]))
+                        return false;
+                }
+                for (const auto &kv : regOf_)
+                    if (common::usedAfterInBlock(block, instIdx, kv.first))
+                        if (!reloadReg(kv.second))
+                            return false;
+                return deliver();
             }
 
             bool lowerInstruction(const sir::SIRInstruction &inst,
@@ -4439,6 +4975,11 @@ namespace sad
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kStoreNonslot + detailOpcode(inst));
                     if (const std::string *cn = objClassForOperand(inst.operands[0]))
                         objClassOf_[inst.operands[1].name] = *cn;
+                    // (AR) قيمةٌ نصّيّة ⇒ جسّدْ عنوانَها — مرآةُ x86 (الحجّةُ والقياسُ هناك).
+                    // (EN) A string value ⇒ materialize its address — mirror of x86.
+                    if (inst.operands[0].dataType == types::SadTypeKind::String)
+                        return materializeString(inst.operands[0], a64reg::kScratch0, /*fromSpill=*/false) &&
+                               strSlot(a64reg::kScratch0, slot);
                     return materialize(a64reg::kScratch0, inst.operands[0]) &&
                            strSlot(a64reg::kScratch0, slot);
                 }
@@ -4446,9 +4987,24 @@ namespace sad
                 {
                     // (AR) call @دالّة, وسائط… ⇒ ضع الوسائطَ في x0..x7 ثمّ bl (imm26 يُرقَّع لإزاحة
                     //      الدالّة)؛ النتيجةُ في x0 ⇒ سجلُّ النتيجة. النداءُ من الداخلة فقط (فُحِص).
-                    if (inst.operands.empty() ||
-                        inst.operands[0].type != sir::SIROperandType::FUNCTION)
+                    // (AR) النداءُ بالاسمِ لمُساعِدِ زمنِ تشغيلٍ يُصنَّف «غيرَ مدعومٍ بعد»
+                    //      لا «خطأً مترجمًا داخليًّا» — مرآةُ x86 (الحجّةُ والقياسُ هناك).
+                    if (inst.operands.empty())
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (inst.operands[0].type != sir::SIROperandType::FUNCTION)
+                    {
+                        if (common::isRuntimeHelperCallee(inst.operands[0]))
+                        {
+                            bool handled = false;
+                            if (!emitMapHelper(inst, block, instIdx, handled))
+                                return false;
+                            if (handled)
+                                return true;
+                            return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                        diag::kRuntimeHelper + inst.operands[0].name);
+                        }
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    }
                     const size_t argc = inst.operands.size() - 1;
                     // (AR) bl يدهس x9..x15/x0..x7 (caller-saved). انسكِبْ المؤقّتاتِ الحيّةَ بعد
                     //      النداء (أو وسائطَ سجليّةً له) إلى خانات الانسكاب، حمّل الوسائطَ منها (لا
@@ -4714,11 +5270,22 @@ namespace sad
                                 return false;
                         }
                         else if (op.dataType == types::SadTypeKind::String)
-                            return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kPrintStrComputed + diag::kVregSigil + op.name);
+                        {
+                            if (!materializeString(op, 9, /*fromSpill=*/true) ||
+                                !emitPrintStrPtrArm64(9))
+                                return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                            diag::kPrintStrComputed + diag::kVregSigil + op.name);
+                        }
                         else if (op.dataType == types::SadTypeKind::Any)
                         {
                             // (AR) معلَّب: المعاملُ مؤشّرٌ إلى خانةِ dyn ⇒ طباعةٌ مبوَّبةٌ زمنَ التشغيل.
                             if (!loadArgInto(9, op) || !emitPrintBoxed(9))
+                                return false;
+                        }
+                        else if (op.dataType == types::SadTypeKind::Boolean)
+                        {
+                            // (AR) منطقيّ: «صحيح»/«خطأ» كالمعلَّب والمفسّر، لا «1»/«0».
+                            if (!loadArgInto(9, op) || !emitPrintBool(9))
                                 return false;
                         }
                         else if (op.dataType == types::SadTypeKind::Float)
@@ -4907,8 +5474,9 @@ namespace sad
                         if (!ldrBase(11, 9, kArrOffTags / kArrSlotBytes) || !addLsl3(11, 11, a64reg::kScratch1) ||
                             !ldrBase(12, 11, 0))
                             return false;
-                        const int ts = dynBaseSlot_ + dynSlotNext_ * 2;
-                        ++dynSlotNext_;
+                        int ts = 0; // (AR) عبر المُخصِّصِ المحروس (لا عدَّ يدويّ)
+                        if (!takeDynSlot(ts))
+                            return false;
                         if (!strSlot(12, ts) || !strSlot(10, ts + 1)) // tag@ts، payload@ts+1
                             return false;
                         for (const auto &kv : regOf_)
@@ -5815,8 +6383,21 @@ namespace sad
             }
 
             // (AR) يخفّض دالّةً واحدة: إطارٌ خاصّ، مقدّمةٌ تُسكِن سجلّاتِ ABI في خانات المعاملات، ثمّ كتلُها.
+            // (AR) عددُ نداءاتِ `__sad_map_set_typed` في دالّةٍ — مرآةُ نظيرِه في x86.
+            static long long countMapSets(const sir::SIRFunction &fn)
+            {
+                long long n = 0;
+                for (const auto &block : fn.getBasicBlocks())
+                    for (const auto &inst : block->instructions)
+                        if (inst.opcode == sir::SIROpcode::CALL && !inst.operands.empty() &&
+                            inst.operands[0].name == Sad::Compiler::kRuntimeMapSetTyped)
+                            ++n;
+                return n;
+            }
+
             bool lowerFunction(const sir::SIRFunction &fn)
             {
+                mapSetCount_ = countMapSets(fn);
                 currentFn_ = fn.getName();
                 curIsEntry_ = (currentFn_ == entryName_);
                 memSlot_.clear();

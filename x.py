@@ -618,6 +618,41 @@ SOT_CHECK_GUARDS = (
         "script": "check_no_handwritten_import_gate.py",
         "args": (),
     },
+    {
+        # (AR) كلُّ `terminal.ref` في قواعد النحو له وجودٌ في كتالوج الرموز: كانت
+        #      ٢٥ إحالةً شبحيّةً (`OP_COMMA` ٢٢ مرّة، `EOF`، `KEYWORD_ITERATIONS`،
+        #      `KEYWORD_SEED`) تعبر خضراءَ لأنّ أحدًا لم يكن يقابلها بالكتالوج.
+        # (EN) Every grammar `terminal.ref` must exist in the token catalog: 25
+        #      ghost refs used to pass green because nothing cross-checked them.
+        "name": "grammar_terminal_refs",
+        "script": "check_grammar_terminal_refs.py",
+        "args": (),
+    },
+    {
+        # (AR) ألفاظُ الأنواع في المحلّل مشتقّةٌ من types.yaml: كانت نسخةً مُصلَّبةً
+        #      فانجرفت وبقيت فيها «مضاعف» بعد إزالتها من اللغة. يقارن الحارسُ
+        #      جدولَي «اللفظ ⇒ النوع» في المحلّل بمصدر الحقيقة، ويشترط أن يكون كلّ
+        #      لفظٍ سطحيًّا أو مُعلَنًا في `removed_type_words`.
+        # (EN) Parser type words must come from types.yaml: the hardcoded copy had
+        #      drifted, still listing «مضاعف» after the language removed it.
+        "name": "type_words_sot",
+        "script": "check_type_words_sot.py",
+        "args": (),
+    },
+    {
+        # (AR) تقريرا المطابقةِ المُودَعان يشهدان لملفّاتٍ موجودة: شهد التقريرُ
+        #      لـ`gr.oop.new` بثلاثةَ عشرَ اختبارًا وسرَدها بأسمائها، وأحدَ عشرَ منها
+        #      لم تدخل المستودعَ قطّ (ابتلعها .gitignore) — فالاستنساخُ النظيفُ لا
+        #      يُعيد إنتاجَ الشهادة. ولم يكن المولِّدُ في `gen --check` أصلًا، فلا حدَّ
+        #      للانجرافِ في الزمن. الحارسُ يقابل الصفوفَ بالقرصِ بلا تشغيلِ اختبارات.
+        # (EN) The committed conformance reports must attest to files that exist:
+        #      the report vouched for 13 gr.oop.new tests while 11 were never in the
+        #      repo at all. The generator was not part of gen --check, so nothing
+        #      bounded the drift. This guard diffs rows against disk, no test runs.
+        "name": "conformance_report_fresh",
+        "script": "check_conformance_report_fresh.py",
+        "args": (),
+    },
 )
 
 

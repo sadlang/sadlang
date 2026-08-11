@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: الصيغة النوعيّة ② — النوع يبدأ التصريح بلا كلمة مفتاحيّة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 10
+
+رقم س = 10
+اطبع_سطر(س)

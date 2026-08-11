@@ -40,8 +40,19 @@ on:
       - "features/graphics/core/include/sad_ui/**"
       - "docs/parser_rule/_generated/**"
       - "tests/behavior/rules_matrix/**"
+      # (AR) وشقُّ كاشفةِ الثغراتِ محروسٌ كذلك (conformance_report_fresh)، فلولا
+      #      إدراجُه لَمرَّ PR يضيف اختبارَ ثغراتٍ وحدَه بلا حارسٍ — محروسٌ شكليًّا.
+      # (EN) The gaps side is guarded too; without this the guard is nominal only.
+      - "tests/behavior/grammar_gaps/**"
       - "tools/repl/generated/**"
       - "x.py"
+      # (AR) .gitignore مُدرَجٌ عمدًا: نمطٌ فيه ابتلع صامتًا ١١ عيّنةً حيّةً لقاعدةِ
+      #      «جديد» بينما تقريرا المطابقةِ يشهدان لها بالنجاح — وحارسُ
+      #      conformance_report_fresh هو ما يكشف ذلك. فلو بقي الملفُّ خارجَ
+      #      المرشِّح لعبَرَ التغييرُ الذي يصنع العطبَ بلا حارسٍ إطلاقًا.
+      # (EN) .gitignore is listed on purpose: a pattern in it silently swallowed 11
+      #      live fixtures while the conformance reports vouched for them.
+      - ".gitignore"
       - ".github/workflows/codegen-check.yml"
   pull_request:
     branches: [ main, master, dev, sadlang ]
@@ -61,8 +72,19 @@ on:
       - "features/graphics/core/include/sad_ui/**"
       - "docs/parser_rule/_generated/**"
       - "tests/behavior/rules_matrix/**"
+      # (AR) وشقُّ كاشفةِ الثغراتِ محروسٌ كذلك (conformance_report_fresh)، فلولا
+      #      إدراجُه لَمرَّ PR يضيف اختبارَ ثغراتٍ وحدَه بلا حارسٍ — محروسٌ شكليًّا.
+      # (EN) The gaps side is guarded too; without this the guard is nominal only.
+      - "tests/behavior/grammar_gaps/**"
       - "tools/repl/generated/**"
       - "x.py"
+      # (AR) .gitignore مُدرَجٌ عمدًا: نمطٌ فيه ابتلع صامتًا ١١ عيّنةً حيّةً لقاعدةِ
+      #      «جديد» بينما تقريرا المطابقةِ يشهدان لها بالنجاح — وحارسُ
+      #      conformance_report_fresh هو ما يكشف ذلك. فلو بقي الملفُّ خارجَ
+      #      المرشِّح لعبَرَ التغييرُ الذي يصنع العطبَ بلا حارسٍ إطلاقًا.
+      # (EN) .gitignore is listed on purpose: a pattern in it silently swallowed 11
+      #      live fixtures while the conformance reports vouched for them.
+      - ".gitignore"
       - ".github/workflows/codegen-check.yml"
 
 # (AR) منع التشغيل المتزامن لنفس الفرع

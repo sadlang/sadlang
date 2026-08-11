@@ -382,12 +382,14 @@ namespace Sad
 
             bool CommonSubexpressionEliminationPass::ExprKey::operator==(const ExprKey &other) const
             {
-                return opcode == other.opcode && operandNames == other.operandNames;
+                return opcode == other.opcode && resultType == other.resultType &&
+                       operandNames == other.operandNames;
             }
 
             size_t CommonSubexpressionEliminationPass::ExprKeyHash::operator()(const ExprKey &key) const
             {
                 size_t h = std::hash<int>{}(static_cast<int>(key.opcode));
+                h ^= std::hash<int>{}(static_cast<int>(key.resultType)) + 0x9e3779b9 + (h << 6) + (h >> 2);
                 for (const auto &name : key.operandNames)
                 {
                     h ^= std::hash<std::string>{}(name) + 0x9e3779b9 + (h << 6) + (h >> 2);
@@ -478,6 +480,7 @@ namespace Sad
 
                         ExprKey key;
                         key.opcode = inst.opcode;
+                        key.resultType = inst.result->dataType;
                         for (const auto &op : inst.operands)
                         {
                             if (op.type == SIROperandType::REGISTER)

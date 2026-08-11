@@ -99,7 +99,7 @@ productions:
                           - kind: optional
                             children:
                               - { kind: nonterminal, ref: gr.pattern.pattern }
-                              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
+                              - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
                           - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
                   # (AR) غير مؤهَّل: '(' أنماط ')' ⇒ ConstructorPattern (نمط الباني بحمولة)
                   # (EN) unqualified: '(' patterns ')' ⇒ ConstructorPattern (tagged-enum ctor)
@@ -109,7 +109,7 @@ productions:
                       - kind: optional
                         children:
                           - { kind: nonterminal, ref: gr.pattern.pattern }
-                          - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
+                          - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
                       - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parsePrimaryPattern" }
@@ -130,10 +130,10 @@ productions:
           - kind: optional
             children:
               - { kind: nonterminal, ref: gr.pattern.pattern }
-              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
+              - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
               - kind: optional
                 children:
-                  - { kind: optional, children: [ { kind: terminal, ref: OP_COMMA, value: "،" } ] }
+                  - { kind: optional, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] } ] }
                   - { kind: terminal, ref: OP_MULTIPLY, value: "*" }
                   - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: BRACKET_RIGHT, value: "]" }
@@ -159,7 +159,7 @@ productions:
               - { kind: optional, children: [ { kind: terminal, ref: COLON, value: ":" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
               - kind: repeat
                 children:
-                  - { kind: terminal, ref: OP_COMMA, value: "،" }
+                  - { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }
                   - { kind: terminal, ref: IDENTIFIER }
                   - { kind: optional, children: [ { kind: terminal, ref: COLON, value: ":" }, { kind: nonterminal, ref: gr.pattern.pattern } ] }
           - { kind: terminal, ref: BRACE_RIGHT, value: "}" }

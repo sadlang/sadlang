@@ -142,7 +142,7 @@ productions:
           - { kind: terminal, ref: IDENTIFIER }
           - kind: optional
             children:
-              - { kind: terminal, ref: OP_COMMA, value: "،" }
+              - { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }
               - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: KEYWORD_IN, value: "في" }
           - { kind: nonterminal, ref: gr.expr.expression }
@@ -458,18 +458,24 @@ productions:
   # ── جملة تعبير ───────────────────────────────────────────────────────────
   - id: gr.stmt.expression
     lhs: { nonterminal: ExpressionStatement, name_ar: "جملة تعبير", name_en: expression_statement }
-    ebnf: "ExpressionStatement = Expression [ ';' ] ;"
+    ebnf: "ExpressionStatement = Expression [ '؛' | ';' ] ;"
     alternatives:
       - symbols:
           - { kind: nonterminal, ref: gr.expr.expression }
-          - { kind: optional, children: [ { kind: terminal, ref: SEMICOLON, value: "؛" } ] }
+          # (AR) رمزان متميّزان في المعجم (`ARABIC_SEMICOLON` لـ«؛» و`SEMICOLON` لـ`;`)،
+          #      والمُحلِّل يقبلُهما معًا في كلِّ موضع (`SEMICOLON || ARABIC_SEMICOLON`).
+          #      المعياريّةُ «؛»، والـASCII مقبولةٌ للتوافق — والإحالةُ إلى
+          #      `SEMICOLON` وحدَها بقيمةِ «؛» كانت خلطًا بين رمزٍ ورسمِ رمزٍ آخر.
+          - { kind: optional, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_SEMICOLON, value: "؛" }, { kind: terminal, ref: SEMICOLON, value: ";" } ] } ] }
     maps_to:
       - { file: shared/parser/src/statements/parser_statements.cpp, function: "ParserCore::parseExpressionStmt" }
     ast_node: "ExprStmt"
     description_ar: >
       تعبير يُقيَّم كجملة لأثره الجانبيّ: استدعاء دالة، إسناد «س = قيمة»، إسناد مركّب
       «س += قيمة»، استدعاء طريقة «كائن.طريقة()»، تعبير حسابيّ… الإسناد نفسه تعبير فيصلح
-      جملةً. المنقوطة «؛» في آخر الجملة **اختيارية** (السطر يفصل الجمل عادةً).
+      جملةً. المنقوطة «؛» في آخر الجملة **اختيارية** (السطر يفصل الجمل عادةً)،
+      والمنقوطة اللاتينية `;` مقبولةٌ مكانها للتوافق (رمزان متميّزان،
+      يقبلُهما المُحلِّلُ معًا) — والمعياريّةُ العربيّة.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 40, edge: 35, negative: 10, interaction: 15 } }

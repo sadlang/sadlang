@@ -592,6 +592,16 @@ namespace Sad
             }
             // (AR) إذا كان الكائن لا يزال i64 (مثلاً من array_get) — حوّله إلى ptr
             // (EN) If object is still i64 (e.g. from array_get) — cast to ptr
+            // (AR) الكائنُ نفسُه قد يَرِد موسومًا (%SadDyn) حين يكون حقلًا من نوع «أي»
+            //      يحمل مرجعَ كائن — كما في `ش.عنوان.مدينة`. الوصولُ إلى حقلٍ يلزمه
+            //      مؤشّر، وتمريرُ الهيكلِ الموسومِ كما هو كان يُجهض المترجمَ بتأكيدِ
+            //      LLVM «Ptr must have pointer type» — إخفاقًا داخليًّا لا تشخيصًا.
+            // (EN) The object itself can arrive tagged (%SadDyn) when it is an `أي`
+            //      field holding an object reference (`p.address.city`). Field access
+            //      needs a pointer; passing the tagged struct through used to abort the
+            //      compiler on «Ptr must have pointer type» instead of diagnosing.
+            if (isSadDyn(actualObj))
+                actualObj = unpackPtr(cg_, actualObj);
             if (actualObj->getType()->isIntegerTy())
             {
                 actualObj = cg_.builder_->CreateIntToPtr(actualObj,
@@ -978,6 +988,16 @@ namespace Sad
             }
             // (AR) إذا كان الكائن لا يزال i64 — حوّله إلى ptr
             // (EN) If object is still i64 — cast to ptr
+            // (AR) الكائنُ نفسُه قد يَرِد موسومًا (%SadDyn) حين يكون حقلًا من نوع «أي»
+            //      يحمل مرجعَ كائن — كما في `ش.عنوان.مدينة`. الوصولُ إلى حقلٍ يلزمه
+            //      مؤشّر، وتمريرُ الهيكلِ الموسومِ كما هو كان يُجهض المترجمَ بتأكيدِ
+            //      LLVM «Ptr must have pointer type» — إخفاقًا داخليًّا لا تشخيصًا.
+            // (EN) The object itself can arrive tagged (%SadDyn) when it is an `أي`
+            //      field holding an object reference (`p.address.city`). Field access
+            //      needs a pointer; passing the tagged struct through used to abort the
+            //      compiler on «Ptr must have pointer type» instead of diagnosing.
+            if (isSadDyn(actualObj))
+                actualObj = unpackPtr(cg_, actualObj);
             if (actualObj->getType()->isIntegerTy())
             {
                 actualObj = cg_.builder_->CreateIntToPtr(actualObj,

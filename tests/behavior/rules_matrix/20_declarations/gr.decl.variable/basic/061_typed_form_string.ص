@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: الصيغة النوعيّة ② بنوع نصّيّ
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: ص
+
+نص اسم = "ص"
+اطبع_سطر(اسم)

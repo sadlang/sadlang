@@ -58,21 +58,28 @@ namespace Optimizer {
  */
 struct ExpressionKey {
     SIR::SIROpcode opcode;              ///< رمز العملية / Operation code
+    // (AR) نوعُ **النتيجة** جزءٌ من الهُويّة: `AND`/`OR` (وهما في القائمة المؤهَّلة)
+    //      يحملان دلالتَين — منطقيَّين بنتيجةِ Boolean وبتّيَّين بنتيجةِ Integer —
+    //      ولا يفرّق بينهما إلّا هي. ومفتاحٌ بلا نوعِ نتيجةٍ يدمج `س & ص` مع
+    //      `ب١ و ب٢` فيرث أحدُهما قيمةَ الآخر. نظيرُ الإصلاحِ في `ExprKey` الأماميّ.
+    SIR::SadTypeKind resultType = SIR::SadTypeKind::Unknown;
     std::vector<std::string> operands;   ///< المعاملات / Operands
     
     /**
      * @brief (AR) منشئ
      * @brief (EN) Constructor
      */
-    ExpressionKey(SIR::SIROpcode op, const std::vector<std::string>& ops)
-        : opcode(op), operands(ops) {}
+    ExpressionKey(SIR::SIROpcode op, const std::vector<std::string>& ops,
+                  SIR::SadTypeKind rt = SIR::SadTypeKind::Unknown)
+        : opcode(op), resultType(rt), operands(ops) {}
     
     /**
      * @brief (AR) مقارنة المساواة
      * @brief (EN) Equality comparison
      */
     bool operator==(const ExpressionKey& other) const {
-        return opcode == other.opcode && operands == other.operands;
+        return opcode == other.opcode && resultType == other.resultType &&
+               operands == other.operands;
     }
     
     /**

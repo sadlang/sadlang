@@ -188,6 +188,18 @@ namespace Sad
             "\xd8\xb9\xd8\xaf\xd9\x85", // عدم
         }};
 
+        // ─── ألفاظ أنواعٍ مُزالة / Removed type words ───
+        /**
+         * @brief (AR) ألفاظ الأنواع المُزالة — مُولَّدة من types.yaml
+         * @brief (EN) Removed type words — generated from types.yaml
+         *
+         * (AR) العدد: 1 — يستهلكها المحلّل ليُبقي تشخيص SYN014 حيًّا.
+         * (EN) 1 — consumed by the parser to keep SYN014 alive.
+         */
+        inline constexpr std::array<std::string_view, 1> REMOVED_TYPE_NAMES = {{
+            "\xd9\x85\xd8\xb6\xd8\xa7\xd8\xb9\xd9\x81", // مضاعف ⇒ عشري
+        }};
+
         /**
          * @brief (AR) وصف النوع السطحيّ بالعربية بحسب كلمته — مُولَّد من types.yaml
          * @brief (EN) Arabic description of a surface type by its word — generated

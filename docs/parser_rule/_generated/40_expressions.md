@@ -1270,7 +1270,7 @@ Primary = 'إذا' '(' Expression ')' [ 'ثم' ] Expression 'وإلا' Expressio
 **4.** *قيمة حرفيّة:* `( «صحيح» | «خطأ» | «لاشيء» | «NUMBER_INTEGER» | «NUMBER_DOUBLE» | «STRING_LITERAL» | «STRING_RAW» )`
 **5.** *نص منسَّق:* `fstring`
 **6.** *متغيّر / تخصيص قالب:* `«IDENTIFIER» [ «<» template_args «>» ]`
-**7.** *تجميع / صف / سهميّة:* `«(» [ expression { «،» expression } ] «)» [ «=>» expression ]`
+**7.** *تجميع / صف / سهميّة:* `«(» [ expression { ( «،» | «,» ) expression } ] «)» [ «=>» expression ]`
 **8.** *مصفوفة / خريطة حرفيّة:* `( array_literal | map_literal )`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
@@ -1387,43 +1387,50 @@ flowchart LR
   n39["expression"]
   n40{"◇"}
   n41{"◇"}
-  n42["«،»"]
-  n43["expression"]
-  n42 --> n43
+  n42{"◆"}
+  n43{"◆"}
+  n44["«،»"]
+  n42 --> n44
+  n44 --> n43
+  n45["«,»"]
+  n42 --> n45
+  n45 --> n43
+  n46["expression"]
+  n43 --> n46
   n40 --> n42
-  n43 --> n41
-  n43 -- "تكرار" --> n42
+  n46 --> n41
+  n46 -- "تكرار" --> n42
   n40 -- "صفر/أكثر" --> n41
   n39 --> n40
   n37 --> n39
   n41 --> n38
   n37 -- "تخطّي" --> n38
   n36 --> n37
-  n44["«)»"]
-  n38 --> n44
-  n45{"◇"}
-  n46{"◇"}
-  n47["«=>»"]
-  n48["expression"]
+  n47["«)»"]
+  n38 --> n47
+  n48{"◇"}
+  n49{"◇"}
+  n50["«=>»"]
+  n51["expression"]
+  n50 --> n51
+  n48 --> n50
+  n51 --> n49
+  n48 -- "تخطّي" --> n49
   n47 --> n48
-  n45 --> n47
-  n48 --> n46
-  n45 -- "تخطّي" --> n46
-  n44 --> n45
   n1 -- "تجميع / صف / سهميّة" --> n36
-  n49(["⇒ LiteralExpr ∣ VariableExpr ∣ TupleExpr ∣ ArrayExpr ∣ MapExpr ∣ ThisExpr ∣ SuperExpr ∣ AwaitExpr ∣ ErrorPropagateExpr ∣ TernaryExpr ∣ LambdaExpr ∣ CallExpr ∣ TemplateInstantiation"])
-  n46 --> n49
-  n50{"◆"}
-  n51{"◆"}
-  n52["array_literal"]
-  n50 --> n52
-  n52 --> n51
-  n53["map_literal"]
-  n50 --> n53
-  n53 --> n51
-  n1 -- "مصفوفة / خريطة حرفيّة" --> n50
-  n54(["⇒ LiteralExpr ∣ VariableExpr ∣ TupleExpr ∣ ArrayExpr ∣ MapExpr ∣ ThisExpr ∣ SuperExpr ∣ AwaitExpr ∣ ErrorPropagateExpr ∣ TernaryExpr ∣ LambdaExpr ∣ CallExpr ∣ TemplateInstantiation"])
-  n51 --> n54
+  n52(["⇒ LiteralExpr ∣ VariableExpr ∣ TupleExpr ∣ ArrayExpr ∣ MapExpr ∣ ThisExpr ∣ SuperExpr ∣ AwaitExpr ∣ ErrorPropagateExpr ∣ TernaryExpr ∣ LambdaExpr ∣ CallExpr ∣ TemplateInstantiation"])
+  n49 --> n52
+  n53{"◆"}
+  n54{"◆"}
+  n55["array_literal"]
+  n53 --> n55
+  n55 --> n54
+  n56["map_literal"]
+  n53 --> n56
+  n56 --> n54
+  n1 -- "مصفوفة / خريطة حرفيّة" --> n53
+  n57(["⇒ LiteralExpr ∣ VariableExpr ∣ TupleExpr ∣ ArrayExpr ∣ MapExpr ∣ ThisExpr ∣ SuperExpr ∣ AwaitExpr ∣ ErrorPropagateExpr ∣ TernaryExpr ∣ LambdaExpr ∣ CallExpr ∣ TemplateInstantiation"])
+  n54 --> n57
 ```
 
 #### مثال
@@ -1659,7 +1666,7 @@ ArrayLiteral = '[' [ ListComprehension | Expression { ( ',' | '،' ) Expression 
 ```
 
 #### 🧩 تفصيل البدائل
-- `«[» [ ( list_comprehension | ( expression { «،» expression } ) ) ] «]»`
+- `«[» [ ( list_comprehension | ( expression { ( «،» | «,» ) expression } ) ) ] «]»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -1693,12 +1700,19 @@ flowchart LR
   n8["expression"]
   n9{"◇"}
   n10{"◇"}
-  n11["«،»"]
-  n12["expression"]
-  n11 --> n12
+  n11{"◆"}
+  n12{"◆"}
+  n13["«،»"]
+  n11 --> n13
+  n13 --> n12
+  n14["«,»"]
+  n11 --> n14
+  n14 --> n12
+  n15["expression"]
+  n12 --> n15
   n9 --> n11
-  n12 --> n10
-  n12 -- "تكرار" --> n11
+  n15 --> n10
+  n15 -- "تكرار" --> n11
   n9 -- "صفر/أكثر" --> n10
   n8 --> n9
   n5 --> n8
@@ -1707,11 +1721,11 @@ flowchart LR
   n6 --> n4
   n3 -- "تخطّي" --> n4
   n2 --> n3
-  n13["«)»"]
-  n4 --> n13
+  n16["«)»"]
+  n4 --> n16
   n1 --> n2
-  n14(["⇒ ArrayExpr ∣ ListComprehensionExpr"])
-  n13 --> n14
+  n17(["⇒ ArrayExpr ∣ ListComprehensionExpr"])
+  n16 --> n17
 ```
 
 #### مثال
@@ -1733,7 +1747,7 @@ MapLiteral = '{' [ DictComprehension | SetComprehension | Expression ( ':' | '='
 ```
 
 #### 🧩 تفصيل البدائل
-- `«{» [ ( dict_comprehension | set_comprehension | ( expression ( «:» | «=» ) expression { «،» expression } ) ) ] «}»`
+- `«{» [ ( dict_comprehension | set_comprehension | ( expression ( «:» | «=» ) expression { ( «،» | «,» ) expression } ) ) ] «}»`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -1781,12 +1795,19 @@ flowchart LR
   n11 --> n14
   n15{"◇"}
   n16{"◇"}
-  n17["«،»"]
-  n18["expression"]
-  n17 --> n18
+  n17{"◆"}
+  n18{"◆"}
+  n19["«،»"]
+  n17 --> n19
+  n19 --> n18
+  n20["«,»"]
+  n17 --> n20
+  n20 --> n18
+  n21["expression"]
+  n18 --> n21
   n15 --> n17
-  n18 --> n16
-  n18 -- "تكرار" --> n17
+  n21 --> n16
+  n21 -- "تكرار" --> n17
   n15 -- "صفر/أكثر" --> n16
   n14 --> n15
   n5 --> n9
@@ -1795,11 +1816,11 @@ flowchart LR
   n6 --> n4
   n3 -- "تخطّي" --> n4
   n2 --> n3
-  n19["«❳»"]
-  n4 --> n19
+  n22["«❳»"]
+  n4 --> n22
   n1 --> n2
-  n20(["⇒ MapExpr ∣ DictComprehensionExpr ∣ SetComprehensionExpr"])
-  n19 --> n20
+  n23(["⇒ MapExpr ∣ DictComprehensionExpr ∣ SetComprehensionExpr"])
+  n22 --> n23
 ```
 
 #### مثال

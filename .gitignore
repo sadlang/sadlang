@@ -13,11 +13,16 @@ build_cov/
 build_release/
 # بناء WebAssembly (emcmake) — ٣ م.ب ثنائيّةٌ تنحرف صامتةً عن نسخة اللغة
 build_wasm/
-out/
+# (AR) مُرسَيان بالجذر كسطر /build/ أعلاه وللسببِ نفسِه: النمطُ غيرُ المُرسى يبتلع
+#      أيَّ مجلّدٍ بهذا الاسمِ في أيِّ عمقٍ — ومجلّدُ مصادرَ باسم out/ أو dist/ يختفي
+#      صامتًا. القياسُ عند الإرساء: كلاهما لم يكن يطابق إلّا الجذرَ فعلًا (٠ فرق).
+# (EN) Anchored like /build/ above: unanchored, they swallow same-named source
+#      dirs at any depth. Measured: today both matched the root only.
+/out/
 cmake-build-*/
 # (AR) مخرجات منسّق البناء x.py (المرحلة 0 — sadlang-rfcs#10)
 # (EN) x.py build-orchestrator outputs (Phase 0 — sadlang-rfcs#10)
-dist/
+/dist/
 _xpy_build.log
 
 # ── ملفّات مُجمَّعة / Compiled files ──
@@ -63,6 +68,36 @@ _deps/
 *.new
 *~
 
+# (AR) استثناءٌ مُلزِم: أسماءُ قواعد النحو تنتهي باسم اللفظ، فقاعدةُ «جديد» مجلَّدُها
+#      gr.oop.new — فابتلعه *.new أعلاه صامتًا، وضاعت ١١ عيّنةً حيّةً بينما تقريرا
+#      المطابقةِ يشهدان لها بالنجاح. ولا يُعاد ضمُّ ملفٍّ داخلَ مجلّدٍ مُستبعَد، فيجب
+#      رفعُ الاستبعاد عن المجلّدِ نفسِه.
+#      والصنفُ المُعرَّضُ هو «شجرةُ عيّناتِ الاختبار» كلُّها لا مجلّداتُ gr.* وحدَها:
+#      فالتداخُلاتُ في _interactions/ وثغراتُ النحو في grammar_gaps/ تُسمّى باللفظِ
+#      نفسِه ولا تبدأ بـgr.. ولم يقع فيها فقدٌ فعليٌّ بعدُ — المفقودُ كان gr.oop.new
+#      وحدَه — لكنّ محاكاةً خارجَ المستودعِ أثبتت أنّها في الفخِّ نفسِه، فالتوسيعُ
+#      وقائيٌّ لا ترميميّ. والملفّاتُ تبقى محكومةً بأنماطِها (exe · ll · pyc تُستبعَد).
+# (EN) The exposed class is the whole tests/behavior fixture tree, not just gr.*
+#      dirs. No loss has occurred there yet — this widening is preventive.
+!tests/behavior/**/
+
+# (AR) وآخِرُ نمطٍ مطابقٍ هو الغالبُ في git، فالنفيُ أعلاه يهزم كلَّ نمطِ مجلّدٍ
+#      أُعلِن قبلَه — و.vs/ و.idea/ وCMakeFiles/ و_deps/ ومجلّداتِ البناءِ كلُّها
+#      مُعلَنةٌ قبلَه. فلولا إعادةُ استبعادِها هنا لتسرّبت لو أُنشئت تحت
+#      tests/behavior. الاستثناءُ مقصودٌ للعيّناتِ لا لمخرجاتِ الأدوات.
+# (EN) Last match wins: the negation above defeats every directory pattern declared
+#      earlier, so tool/build dirs are re-excluded here for the tests/behavior tree.
+tests/behavior/**/.vs/
+tests/behavior/**/.idea/
+tests/behavior/**/CMakeFiles/
+tests/behavior/**/_deps/
+tests/behavior/**/build/
+tests/behavior/**/build-*/
+tests/behavior/**/build_*/
+tests/behavior/**/cmake-build-*/
+tests/behavior/**/.pytest_cache/
+tests/behavior/**/*.sir
+
 # ── مجلّد الملفّات المؤقّتة للتجارب / Scratch directory ──
 _scratch/
 
@@ -75,12 +110,15 @@ _scratch/
 # (متتبَّعة في git — حوكمة BMAD جزء من المستودع / tracked: BMAD governance is part of the repo)
 
 # ── مخرجات بناء واختبار في الجذر / Root build & test outputs ──
-build_*.txt
-test_*.txt
-test_*.xml
-test-results.xml
-trait_*.txt
-graphics_build.txt
+# (AR) العنوانُ يقول «في الجذر» والأنماطُ لم تكن مُرساةً — و`test_*.txt` غيرُ المُرسى
+#      أخطرُها: يبتلع أيَّ ملفَّ بياناتٍ باسمِ test_*.txt في أيِّ شجرةِ اختبارات.
+# (EN) The heading said "at root" but the patterns were unanchored.
+/build_*.txt
+/test_*.txt
+/test_*.xml
+/test-results.xml
+/trait_*.txt
+/graphics_build.txt
 sad_debug_log.txt
 sadc_build_log*.txt
 CMakeLists.txt.new
@@ -109,30 +147,48 @@ CMakeLists.txt.backup
 *.rsp
 *.bc
 
-# ── ملفّات debug وtrace / Debug & trace files ──
-*_debug.txt
-*_trace.txt
-*_err.txt
-*_out.txt
-*_stderr.txt
-*_stdout.txt
-dbg*.txt
-err*.txt
-out*.txt
-res*.txt
-trace*.txt
+# ── ملفّات debug وtrace في الجذر / Debug & trace files at root ──
+# (AR) مُرسًى بالجذر: هذه آثارُ تشغيلٍ يدويٍّ تُكتَب في الجذر، وغيرُ المُرسى منها
+#      يبتلع أيَّ عيّنةٍ باسمٍ مشابهٍ في أيِّ عمقٍ (out.txt · results.txt …). القياسُ
+#      عند الإرساء: لم يكن أيٌّ منها يطابق شيئًا خارجَ الجذر (٠ فرق).
+# (EN) Anchored to root: these are manual-run artifacts; unanchored they would
+#      swallow same-named fixtures at any depth. Measured: zero non-root matches.
+/*_debug.txt
+/*_trace.txt
+/*_err.txt
+/*_out.txt
+/*_stderr.txt
+/*_stdout.txt
+/dbg*.txt
+/err*.txt
+/out*.txt
+/res*.txt
+/trace*.txt
+# (AR) آثارُ التشغيلِ اليدويِّ في شجرةِ البراهينِ Testing/: الأثرُ الوحيدُ القائمُ اليومَ
+#      يكتبه 01_system.ص بمسارٍ مكتوبٍ في متنِه بجوارِ مصادرَ متعقَّبة. عُمِّم على
+#      الشجرةِ لا على الملفِّ، إذ الاستبعادُ المُفرَدُ يترك شقيقَه يمرّ.
+# (EN) Manual-run artifacts under the Testing/ proof tree — generalized to the
+#      tree, since a single-file exclusion lets its sibling through.
+Testing/**/*_out.txt
 
 # ── مخرجات SIR / SIR outputs ──
-sir_*.txt
-*.sir
+/sir_*.txt
+# (AR) لا مُنتِجَ آليًّا لـ.sir في المستودع: `--أظهر-سير` يطبع إلى المخرَجِ القياسيّ
+#      لا إلى ملفّ (تولّي compiler_driver_backend.cpp)، والموجودُ في build/ أثرُ
+#      إعادةِ توجيهٍ يدويّة. فالنمطُ العائمُ كان يحرس ما لا يُنتَج، ويبتلع عيّنةَ SIR
+#      مرجعيّةً مستقبلًا. أُرسِيَ بالجذرِ ومُدّ إلى مجلّداتِ البناءِ لتلك الآثارِ اليدويّة.
+# (EN) Nothing in the repo writes .sir files; --أظهر-سير prints to stdout. The
+#      floating pattern guarded a non-existent producer and risked eating a fixture.
+/*.sir
+build*/**/*.sir
 
 # ── مخرجات أداة التنسيق / Formatter output ──
-fmt_*.txt
+/fmt_*.txt
 
-# ── ملفّات اختبار المترجم / Compiler test files ──
-comp_*.txt
-exc_*.txt
-fin_*.txt
+# ── ملفّات اختبار المترجم في الجذر / Compiler test files at root ──
+/comp_*.txt
+/exc_*.txt
+/fin_*.txt
 
 # ── حزم الموبايل / Mobile packages ──
 *.apk

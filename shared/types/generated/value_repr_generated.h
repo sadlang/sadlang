@@ -17,6 +17,17 @@ namespace Sad { namespace Types { namespace repr {
     inline constexpr long long kDynKindBool = 4;  // منطقيّ (٠/١)
     inline constexpr long long kDynKindArray = 5;  // مصفوفة (مؤشّرٌ مُدار) — homogKind لناتجِ ZIP
 
+    // ── map_layout (runtime map memory layout) ──
+    inline constexpr long long kMapFieldCount = 0;  // فهرسُ حقلِ عددِ العناصرِ في الترويسة
+    inline constexpr long long kMapFieldCapacity = 1;  // فهرسُ حقلِ السعة
+    inline constexpr long long kMapFieldKeys = 2;  // فهرسُ حقلِ مؤشّرِ مصفوفةِ المفاتيح
+    inline constexpr long long kMapFieldValues = 3;  // فهرسُ حقلِ مؤشّرِ مصفوفةِ القيم
+    inline constexpr long long kMapFieldTypes = 4;  // فهرسُ حقلِ مؤشّرِ مصفوفةِ وسومِ الأنواع
+    inline constexpr long long kMapHeaderBytes = 40;  // حجمُ الترويسة بالبايت (٥ حقولٍ × ٨)
+    inline constexpr long long kMapSlotBytes = 8;  // حجمُ خانةِ المفتاح/القيمة/الوسم بالبايت
+    inline constexpr long long kMapMinCapacity = 8;  // أدنى سعةٍ عند الإنشاء
+    inline constexpr long long kMapGrowthFactor = 2;  // معاملُ التوسيعِ عند الامتلاء
+
     // ── display_texts (user-facing value display) ──
     inline const std::string kNullDisplay = "لاشيء";  // عرضُ قيمةِ العدم/الفراغ (Null/Void) — يطابق Value::toString والمفسّر وdynToString
     inline const std::string kBoolTrueDisplay = "صحيح";  // عرضُ القيمةِ المنطقيّةِ الصادقة

@@ -85,6 +85,32 @@ def _emit(data: dict[str, Any]) -> str:
             lines.append(f"    inline constexpr long long {name} = {value};{comment}")
         lines.append("")
 
+    # (AR) أقسامٌ عدديّةٌ إضافيّة: تخطيطُ الخريطةِ ووسومُ قيمِها. كلٌّ في فضاءِ
+    #      ترقيمٍ مستقلّ ⇒ فحصُ التكرار داخلَ القسمِ لا عبرَه.
+    # (EN) Extra numeric sections: map layout and map value tags. Each has its own
+    #      numbering space, so duplicate checking is per-section, not global.
+    for section, title in (("map_layout", "map_layout (runtime map memory layout)"),
+                           ("map_value_tags", "map_value_tags (map slot value tags)")):
+        entries = data.get(section) or []
+        if not entries:
+            continue
+        lines.append(f"    // ── {title} ──")
+        seen_sec: set[int] = set()
+        for e in entries:
+            name = e.get("name")
+            _check_name(name)
+            value = e.get("value")
+            if not isinstance(value, int):
+                _fatal(f"قيمةُ {section} يجب أن تكون عددًا صحيحًا: {e!r}")
+            if section == "map_value_tags":
+                if value in seen_sec:
+                    _fatal(f"وسمٌ مكرَّر {value} عند {name!r}")
+                seen_sec.add(value)
+            ar = e.get("ar", "")
+            comment = f"  // {ar}" if ar else ""
+            lines.append(f"    inline constexpr long long {name} = {value};{comment}")
+        lines.append("")
+
     # ── display_texts (user-facing value strings) ──
     texts = data.get("display_texts") or []
     if texts:

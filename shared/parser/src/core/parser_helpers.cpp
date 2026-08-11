@@ -1828,39 +1828,7 @@ namespace Sad
             if (check(TT::IDENTIFIER))
             {
                 const std::string &name = current_.getValue();
-                Types::SadTypeKind resolved = Types::SadTypeKind::Unknown;
-                if (name == "رقم")
-                    resolved = Types::SadTypeKind::Integer;
-                else if (name == "عشري")
-                    resolved = Types::SadTypeKind::Float;
-                else if (name == "مضاعف")
-                {
-                    // (AR) ❌ كلمة `مضاعف` أُزيلت — استخدم `عشري`
-                    errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", "مضاعف"}, {"new", kw(TT::TYPE_DOUBLE)}, {"example", kw(TT::KEYWORD_VAR) + " س: " + kw(TT::TYPE_DOUBLE)}});
-                    resolved = Types::SadTypeKind::Float; // recover
-                }
-                else if (name == "نص")
-                    resolved = Types::SadTypeKind::String;
-                else if (name == "منطقي")
-                    resolved = Types::SadTypeKind::Boolean;
-                else if (name == "فراغ")
-                    resolved = Types::SadTypeKind::Void;
-                else if (name == "عدم")
-                    resolved = Types::SadTypeKind::Void;
-                else if (name == "مصفوفة")
-                    resolved = Types::SadTypeKind::Array;
-                else if (name == "خريطة")
-                    resolved = Types::SadTypeKind::Map;
-                // (AR) «أي» نوعٌ ديناميٌّ لا صنف؛ ربطُه بـClass كان سهوًا يُخفيه
-                //      أنّ المسارَ الشقيقَ في هذا الملفِّ نفسِه يُرجع Any.
-                // (EN) `أي` is the dynamic type, not a class; mapping it to Class was
-                //      an oversight — the sibling path in this same file returns Any.
-                else if (name == "أي")
-                    resolved = Types::SadTypeKind::Any;
-                else if (name == "طبيعي64")
-                    resolved = Types::SadTypeKind::UInt64;
-                else if (name == "بايت")
-                    resolved = Types::SadTypeKind::Byte;
+                Types::SadTypeKind resolved = resolveTypeWordName(name);
 
                 if (resolved != Types::SadTypeKind::Unknown)
                 {
@@ -2070,6 +2038,79 @@ namespace Sad
         // ======================================================================
 
         /**
+         * @brief (AR) لفظُ نوعٍ (مكتوبًا مُعرِّفًا) ⇒ نوعُه — نقطةٌ واحدةٌ لا نُسَخ.
+         *
+         * (AR) 🔑 لماذا وُحِّدت: كانت هذه السلسلةُ مُكرَّرةً في `parser_advanced.cpp`
+         *      بمحارفَ سُداسيّةٍ (`"\xD9\x85\xD8\xB6..."`)، فانجرفت النسختان:
+         *      قِيس أنّ `ترجع مضاعف` داخل قالبٍ يُرجع 1.5 بخروجٍ ٠ **بلا** SYN014،
+         *      بينما `مضاعف م = 1.5` يُبلّغ. نسخةٌ مكتوبةٌ سُداسيًّا لا يراها حارسٌ
+         *      يبحث عن ألفاظٍ عربيّة، فانجرافُها صامتٌ مرّتين.
+         * (EN) Unified: this chain was duplicated in parser_advanced.cpp using hex
+         *      escapes and had drifted — `ترجع مضاعف` returned 1.5 with no SYN014.
+         */
+        Types::SadTypeKind ParserCore::resolveTypeWordName(const std::string &name,
+                                                          bool primitivesOnly)
+        {
+            using TT = TokenType;
+
+            // (AR) ⚠️ `primitivesOnly` ليس تجميلًا: مسارُ نوعِ إرجاعِ القوالبِ كان
+            //      يعرف **ستّةَ** ألفاظٍ فقط، وما عداها يُعامَل اسمَ صنفٍ مُعرَّف
+            //      (`Class` + `returnTypeName`). فتوحيدُ الجدولِ بلا هذا القيدِ
+            //      **وسّع** المقبولَ فانقلبت الدلالة، وقِيس الضررُ حيًّا:
+            //        · `صنف بايت` + `ترجع بايت` — كان يُترجَم ويطبع `5`، فصار
+            //          يُترجَم بخروجٍ ٠ ثمّ **ينهار SIGSEGV**، والمفسّرُ يطبع
+            //          «لاشيء» ⇒ إخفاقٌ صامتٌ وتباعُدُ محرّكَين معًا.
+            //        · `ترجع أي` — كان يطبع `42`، فصار ICE «PRINT_ANY_RAW_I64».
+            //      كشفتهما مراجعةٌ خصوميّة؛ ومصفوفةُ القواعدِ الخضراءُ ١٠٠٪ لم ترَهما
+            //      لأنّها لا تحوي عيّنةً لأيٍّ من الشكلَين. فالقاعدة: التوحيدُ يُزيل
+            //      **الانجرافَ** ولا يُوسّع المقبول؛ وتوسيعُه قرارُ لغةٍ يُقاس وحدَه.
+            // (EN) The template return path knew only six words; anything else was a
+            //      user class name. Unifying without this restriction widened the
+            //      accepted set and broke `صنف بايت`+`ترجع بايت` (SIGSEGV) and
+            //      `ترجع أي` (ICE). Unification must not widen.
+
+            if (name == "رقم")
+                return Types::SadTypeKind::Integer;
+            else if (name == "عشري")
+                return Types::SadTypeKind::Float;
+            else if (name == "مضاعف")
+            {
+                // (AR) ❌ كلمة `مضاعف` أُزيلت — استخدم `عشري`
+                errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", "مضاعف"}, {"new", kw(TT::TYPE_DOUBLE)}, {"example", kw(TT::KEYWORD_VAR) + " س: " + kw(TT::TYPE_DOUBLE)}});
+                return Types::SadTypeKind::Float; // recover
+            }
+            else if (name == "نص")
+                return Types::SadTypeKind::String;
+            else if (name == "منطقي")
+                return Types::SadTypeKind::Boolean;
+            else if (name == "فراغ")
+                return Types::SadTypeKind::Void;
+
+            // (AR) ما دون هذا الحدّ لم يكن مسارُ القوالبِ يعرفه ⇒ يبقى اسمَ صنفٍ هناك.
+            if (primitivesOnly)
+                return Types::SadTypeKind::Unknown;
+
+            if (name == "عدم")
+                return Types::SadTypeKind::Void;
+            else if (name == "مصفوفة")
+                return Types::SadTypeKind::Array;
+            else if (name == "خريطة")
+                return Types::SadTypeKind::Map;
+            // (AR) «أي» نوعٌ ديناميٌّ لا صنف؛ ربطُه بـClass كان سهوًا يُخفيه
+            //      أنّ المسارَ الشقيقَ في هذا الملفِّ نفسِه يُرجع Any.
+            // (EN) `أي` is the dynamic type, not a class; mapping it to Class was
+            //      an oversight — the sibling path in this same file returns Any.
+            else if (name == "أي")
+                return Types::SadTypeKind::Any;
+            else if (name == "طبيعي64")
+                return Types::SadTypeKind::UInt64;
+            else if (name == "بايت")
+                return Types::SadTypeKind::Byte;
+
+            return Types::SadTypeKind::Unknown;
+        }
+
+        /**
          * @brief (AR) يفحص ما إذا كان الرمز الحالي رمز نوع بيانات.
          *        (EN) Checks if current token is a data type token.
          *
@@ -2093,16 +2134,39 @@ namespace Sad
             }
 
             // (AR) أنواع البيانات كمُعرّفات مدمجة — فقط عندما يليها معرّف آخر (اسم متغير)
-            //      هذا يمنع الالتباس بين "رقم" كاسم نوع و"رقم" كاسم متغير
-            // (EN) Built-in type identifiers — only when followed by another identifier (var name)
-            //      This prevents ambiguity between "رقم" as type and "رقم" as variable name
+            //      هذا يمنع الالتباس بين "رقم" كاسم نوع و"رقم" كاسم متغير.
+            //
+            //      🔑 القائمة تُقرأ من **مصدر الحقيقة** (types.yaml ⇒ SURFACE_TYPE_NAMES
+            //      المُولَّدة في sad_type_kind_generated.h، وتصل هنا عبر sad_type_system.h
+            //      الذي يضمّه parser_core.h). كانت قائمةً مُصلَّبةً باثنَي عشر اسمًا فانجرفت:
+            //      بقيت فيها «مضاعف» بعدما أُزيلت من اللغة (تُبلِّغ SYN014)، فكان المحلّل
+            //      يوجّهها إلى مسار التصريح لتُرفَض بعدُ. الاشتقاق من المصدر يمنع انجرافَ
+            //      **هذا الجدول** — لا كلَّ انجرافٍ في المشروع.
+            //      ⚠️ دَينٌ مرصود (مراجعة خصوميّة 2026-08-11): جداولُ ألفاظٍ أخرى ما زالت
+            //      مُصلَّبةً خارج تغطية `check_type_words_sot.py`، أخطرُها
+            //      `shared/parser/src/statements/parser_advanced.cpp` — يربط «مضاعف» ⇒ Float
+            //      بمحارفَ سُداسيّةٍ (`"\xD9\x85\xD8\xB6..."`) لا يراها الحارسُ نصًّا، ومقيسٌ
+            //      حيًّا أنّ «ترجع مضاعف» داخل قالبٍ تمرّ بخروج ٠ بلا SYN014.
+            //
+            //      🔑 والألفاظُ **المُزالة** (REMOVED_TYPE_NAMES) تُقبل هنا عمدًا كذلك.
+            //      إسقاطُها بحجّة «مدخلٌ ميّت» يبدّل تشخيصًا ودّيًّا بآخرَ **معقولٍ خاطئ**:
+            //      «مضاعف م = 1.5» لا يعود تصريحًا فيُقرأ «مضاعف م» اسمًا واحدًا فيه
+            //      مسافة ⇒ SYN016 ينصح بـ«متغير مضاعف_م» أي باللفظ المُزال اسمًا
+            //      للمتغيّر. القبولُ هنا هو ما يوصل التنفيذَ إلى فرع SYN014 أدناه.
+            // (EN) Built-in type identifiers — only when followed by another identifier (var
+            //      name). The list is derived from the SoT (types.yaml ⇒ SURFACE_TYPE_NAMES
+            //      + REMOVED_TYPE_NAMES) rather than hardcoded: the previous hardcoded copy
+            //      had drifted, still listing «مضاعف» after the language removed it — while
+            //      simply deleting it would have downgraded SYN014 into a wrong SYN016.
             if (tokenType == TT::IDENTIFIER)
             {
                 const std::string &name = current_.getValue();
-                bool isTypeName = (name == "رقم" || name == "عشري" || name == "مضاعف" || name == "نص" ||
-                                   name == "منطقي" || name == "فراغ" || name == "عدم" ||
-                                   name == "مصفوفة" || name == "خريطة" || name == "أي" ||
-                                   name == "طبيعي64" || name == "بايت");
+                bool isTypeName = std::find(Types::SURFACE_TYPE_NAMES.begin(),
+                                            Types::SURFACE_TYPE_NAMES.end(),
+                                            name) != Types::SURFACE_TYPE_NAMES.end()
+                                  || std::find(Types::REMOVED_TYPE_NAMES.begin(),
+                                               Types::REMOVED_TYPE_NAMES.end(),
+                                               name) != Types::REMOVED_TYPE_NAMES.end();
                 if (isTypeName)
                 {
                     // (AR) تحقق من أن الرمز التالي هو معرّف (اسم متغير/حقل) أو لاحقة

@@ -415,16 +415,8 @@ namespace Sad
                                         args.push_back(llvm::Constant::getNullValue(pt));
                                     }
                                     for (size_t ai = 0; ai < args.size() && ai < expectedArgs; ai++)
-                                    {
-                                        llvm::Type *expectedType = directMethod->getFunctionType()->getParamType(ai);
-                                        if (args[ai]->getType() != expectedType)
-                                        {
-                                            if (expectedType->isIntegerTy(64) && args[ai]->getType()->isPointerTy())
-                                                args[ai] = cg_.builder_->CreatePtrToInt(args[ai], expectedType, "arg.p2i");
-                                            else if (expectedType->isPointerTy() && args[ai]->getType()->isIntegerTy(64))
-                                                args[ai] = cg_.builder_->CreateIntToPtr(args[ai], expectedType, "arg.i2p");
-                                        }
-                                    }
+                                        args[ai] = coerceToParamType(
+                                            cg_, args[ai], directMethod->getFunctionType()->getParamType(ai));
                                     branchResult = cg_.builder_->CreateCall(directMethod, args,
                                                                         directMethod->getReturnType()->isVoidTy() ? "" : (methodName + "_direct"));
                                 }
@@ -593,27 +585,12 @@ namespace Sad
                     args.push_back(llvm::Constant::getNullValue(paramType));
                 }
             }
-            // (AR) تحويل أنواع الوسائط
-            // (EN) Cast argument types
+            // (AR) مواءمةُ أنواعِ الوسائطِ مع المعاملات — جدولٌ واحدٌ مشترك (يشمل
+            //      القيمةَ الموسومةَ %SadDyn في الاتّجاهين).
+            // (EN) Reconcile arg types with params — one shared table (tagged %SadDyn
+            //      handled in both directions).
             for (size_t i = 0; i < args.size() && i < expectedArgs; i++)
-            {
-                llvm::Type *expectedType = method->getFunctionType()->getParamType(i);
-                if (args[i]->getType() != expectedType)
-                {
-                    if (expectedType->isIntegerTy(64) && args[i]->getType()->isPointerTy())
-                    {
-                        args[i] = cg_.builder_->CreatePtrToInt(args[i], expectedType, "arg.ptrtoint");
-                    }
-                    else if (expectedType->isPointerTy() && args[i]->getType()->isIntegerTy(64))
-                    {
-                        args[i] = cg_.builder_->CreateIntToPtr(args[i], expectedType, "arg.inttoptr");
-                    }
-                    else if (expectedType->isIntegerTy(64) && args[i]->getType()->isIntegerTy(1))
-                    {
-                        args[i] = cg_.builder_->CreateZExt(args[i], expectedType, "arg.zext");
-                    }
-                }
-            }
+                args[i] = coerceToParamType(cg_, args[i], method->getFunctionType()->getParamType(i));
 
             llvm::Value *result = cg_.builder_->CreateCall(method, args,
                                                        method->getReturnType()->isVoidTy() ? "" : (methodName + "_result"));

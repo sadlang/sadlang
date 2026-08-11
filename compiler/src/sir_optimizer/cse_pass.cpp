@@ -26,6 +26,7 @@ namespace Sad
             size_t ExpressionKey::hash() const
             {
                 size_t h = std::hash<int>{}(static_cast<int>(opcode));
+                h ^= std::hash<int>{}(static_cast<int>(resultType)) + 0x9e3779b9 + (h << 6) + (h >> 2);
 
                 for (const auto &operand : operands)
                 {
@@ -309,7 +310,10 @@ namespace Sad
                     return nullptr;
                 }
 
-                return std::make_unique<ExpressionKey>(opcode, operandNames);
+                // (AR) نوعُ النتيجةِ جزءٌ من المفتاح — انظر التعليقَ في `ExpressionKey`.
+                const SIR::SadTypeKind rt =
+                    inst->result.has_value() ? inst->result->dataType : SIR::SadTypeKind::Unknown;
+                return std::make_unique<ExpressionKey>(opcode, operandNames, rt);
             }
 
             bool CSEPass::isEliminable(const SIR::SIRInstruction *inst)

@@ -490,7 +490,7 @@ productions:
           - kind: optional
             children:
               - { kind: nonterminal, ref: gr.expr.expression }
-              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+              - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: nonterminal, ref: gr.expr.expression } ] }
           - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
           - kind: optional
             children:
@@ -604,7 +604,7 @@ productions:
               - kind: alt
                 children:
                   - { kind: nonterminal, ref: gr.adv.list_comprehension }
-                  - { kind: group, children: [ { kind: nonterminal, ref: gr.expr.expression }, { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.expr.expression } ] } ] }
+                  - { kind: group, children: [ { kind: nonterminal, ref: gr.expr.expression }, { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: nonterminal, ref: gr.expr.expression } ] } ] }
           - { kind: terminal, ref: BRACKET_RIGHT, value: "]" }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseArrayLiteral" }
@@ -633,7 +633,7 @@ productions:
                       - { kind: nonterminal, ref: gr.expr.expression }
                       - { kind: alt, children: [ { kind: terminal, ref: COLON, value: ":" }, { kind: terminal, ref: OP_ASSIGN, value: "=" } ] }
                       - { kind: nonterminal, ref: gr.expr.expression }
-                      - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.expr.expression } ] }
+                      - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: nonterminal, ref: gr.expr.expression } ] }
           - { kind: terminal, ref: BRACE_RIGHT, value: "}" }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseMapLiteral" }

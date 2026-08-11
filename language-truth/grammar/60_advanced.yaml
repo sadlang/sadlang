@@ -43,7 +43,7 @@ productions:
             children:
               - { kind: terminal, ref: OP_LESS, value: "<" }
               - { kind: nonterminal, ref: gr.adv.type }
-              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: nonterminal, ref: gr.adv.type } ] }
+              - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: nonterminal, ref: gr.adv.type } ] }
               - { kind: terminal, ref: OP_GREATER, value: ">" }
           - { kind: optional, children: [ { kind: terminal, ref: QUESTION, value: "؟" } ] }
     maps_to:
@@ -65,7 +65,7 @@ productions:
       - symbols:
           - { kind: terminal, ref: OP_LESS, value: "<" }
           - kind: repeat1
-            separator: OP_COMMA
+            separator: ARABIC_COMMA
             children:
               - { kind: terminal, ref: LIFETIME }
           - { kind: terminal, ref: OP_GREATER, value: ">" }
@@ -105,7 +105,7 @@ productions:
       - symbols:
           - { kind: terminal, ref: OP_LESS, value: "<" }
           - kind: repeat1
-            separator: OP_COMMA
+            separator: ARABIC_COMMA
             children:
               - kind: alt
                 children:
@@ -130,7 +130,7 @@ productions:
             children:
               - { kind: nonterminal, ref: gr.adv.type }
               - { kind: nonterminal, ref: gr.expr.expression }
-          - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: alt, children: [ { kind: nonterminal, ref: gr.adv.type }, { kind: nonterminal, ref: gr.expr.expression } ] } ] }
+          - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: alt, children: [ { kind: nonterminal, ref: gr.adv.type }, { kind: nonterminal, ref: gr.expr.expression } ] } ] }
     maps_to:
       - { file: shared/parser/src/statements/parser_advanced.cpp, function: "ParserCore::parseTemplateInstantiation" }
     ast_node: "TemplateInstantiation"
@@ -146,7 +146,7 @@ productions:
       - symbols:
           - { kind: terminal, ref: KEYWORD_WHERE, value: "حيث" }
           - kind: repeat1
-            separator: OP_COMMA
+            separator: ARABIC_COMMA
             children:
               - { kind: terminal, ref: IDENTIFIER }
               - { kind: terminal, ref: COLON, value: ":" }
@@ -267,7 +267,7 @@ productions:
           - { kind: terminal, ref: IDENTIFIER }
           - kind: optional
             children:
-              - { kind: terminal, ref: OP_COMMA, value: "،" }
+              - { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }
               - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: KEYWORD_IN, value: "في" }
           - { kind: nonterminal, ref: gr.expr.expression }
@@ -297,7 +297,7 @@ productions:
           - { kind: terminal, ref: IDENTIFIER }
           - kind: optional
             children:
-              - { kind: terminal, ref: OP_COMMA, value: "،" }
+              - { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }
               - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: KEYWORD_IN, value: "في" }
           - { kind: nonterminal, ref: gr.expr.expression }
@@ -327,7 +327,7 @@ productions:
           - { kind: terminal, ref: IDENTIFIER }
           - kind: optional
             children:
-              - { kind: terminal, ref: OP_COMMA, value: "،" }
+              - { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }
               - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: KEYWORD_IN, value: "في" }
           - { kind: nonterminal, ref: gr.expr.expression }
@@ -380,8 +380,8 @@ productions:
           - { kind: terminal, ref: PAREN_LEFT, value: "(" }
           - { kind: terminal, ref: STRING_LITERAL }
           - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
-          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_ITERATIONS, value: "تكرارات" }, { kind: terminal, ref: NUMBER_INTEGER } ] }
-          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_SEED, value: "بذرة" }, { kind: terminal, ref: NUMBER_INTEGER } ] }
+          - { kind: optional, children: [ { kind: terminal, ref: IDENTIFIER, value: "تكرارات" }, { kind: terminal, ref: NUMBER_INTEGER } ] }
+          - { kind: optional, children: [ { kind: terminal, ref: IDENTIFIER, value: "بذرة" }, { kind: terminal, ref: NUMBER_INTEGER } ] }
           - { kind: repeat, children: [ { kind: nonterminal, ref: gr.program.statement } ] }
           - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
     references: { keywords: ["KW-RES-007"] }
@@ -419,7 +419,7 @@ productions:
             children:
               - { kind: terminal, ref: KEYWORD_INHERITS, value: "يرث" }
               - { kind: terminal, ref: IDENTIFIER }
-              - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: IDENTIFIER } ] }
+              - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: terminal, ref: IDENTIFIER } ] }
           - { kind: repeat, children: [ { kind: nonterminal, ref: gr.oop.member } ] }
           - { kind: terminal, ref: KEYWORD_END, value: "نهاية" }
     references: { keywords: ["KW-RES-007"] }
@@ -538,7 +538,7 @@ productions:
           - { kind: terminal, ref: KEYWORD_ASM, value: "تجميع" }
           - { kind: terminal, ref: PAREN_LEFT, value: "(" }
           - { kind: terminal, ref: STRING_LITERAL }
-          - { kind: repeat, children: [ { kind: terminal, ref: OP_COMMA, value: "،" }, { kind: terminal, ref: STRING_LITERAL } ] }
+          - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: terminal, ref: STRING_LITERAL } ] }
           - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
     maps_to:
       - { file: shared/parser/src/core/parser_main.cpp, function: "ParserCore::tryParseDirective" }

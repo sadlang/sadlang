@@ -1,0 +1,12 @@
+# @rule: gr.oop.new
+# @description: suffix_new
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+صنف نقطة
+    متغير عام س
+    باني(س) هذا.س = س نهاية
+نهاية
+متغير ن = نقطة(5) جديد
+اطبع_سطر(ن.س)

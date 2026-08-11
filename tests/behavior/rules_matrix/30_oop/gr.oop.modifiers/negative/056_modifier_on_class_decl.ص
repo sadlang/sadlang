@@ -1,0 +1,10 @@
+# @rule: gr.oop.modifiers
+# @description: معدّلات سلبيّ — معدّلٌ على تصريحِ الصنفِ نفسِه لا على عضو
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+خاص صنف س
+    متغير عام ق = 0
+نهاية
+متغير ك = س()

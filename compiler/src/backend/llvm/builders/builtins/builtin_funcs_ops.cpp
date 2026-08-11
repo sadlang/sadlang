@@ -307,6 +307,30 @@ namespace Sad
                         //      toDyn (String⇒Str, Null⇒Null) inside its predecessor to match the PHI.
                         if (val && !isSadDyn(val) && phiType == getSadDynType(*cg_.context_))
                             val = toDyn(cg_, val, inst->operands[i].dataType);
+                        // (AR) والاتّجاهُ المعاكس: واردٌ %SadDyn وPHI محسوس. يقع حين
+                        //      يُخفَّض «أي» إلى %SadDyn فيصير أحدُ فرعَي «؟؟» موسومًا
+                        //      والآخرُ رقمًا — وكان يُجهض المترجمَ بتأكيدِ LLVM
+                        //      «All operands to PHI node must be the same type»، أي
+                        //      إخفاقًا داخليًّا لا تشخيصًا. يُفكّ التعليبُ إلى نوعِ الـPHI
+                        //      داخلَ السَّلَفِ نفسِه (حفاظًا على الهيمنة).
+                        // (EN) The mirror direction: a %SadDyn incoming into a concrete
+                        //      PHI. It appears once `أي` lowers to %SadDyn, making one
+                        //      `??` arm tagged and the other an int — which used to abort
+                        //      the compiler on an LLVM assertion rather than diagnose.
+                        //      Unbox to the PHI type inside the predecessor (dominance).
+                        else if (val && isSadDyn(val) && phiType != getSadDynType(*cg_.context_))
+                        {
+                            if (phiType->isDoubleTy())
+                                val = unpackDouble(cg_, val);
+                            else if (phiType->isPointerTy())
+                                val = unpackPtr(cg_, val);
+                            else
+                            {
+                                val = unpackI64(cg_, val);
+                                if (phiType->isIntegerTy() && !phiType->isIntegerTy(64))
+                                    val = cg_.builder_->CreateTrunc(val, phiType, "phi.dyn.trunc");
+                            }
+                        }
 
                         if (val && val->getType() != phiType)
                         {

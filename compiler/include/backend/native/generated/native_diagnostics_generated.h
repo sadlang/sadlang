@@ -14,6 +14,7 @@ namespace sad { namespace native { namespace diag {
     inline const std::string kFormSep = " ";  // فاصلٌ بين المنمنمة وصيغةِ الترميز في تشخيص «ترميزٌ مفقود»
     inline const std::string kNoImmField = ":no-imm-field";  // لا حقلَ فوريّ في صيغةِ الترميز المطلوبة (لاحقة)
     inline const std::string kUnsignedSuffix = "-unsigned=";  // لاحقةُ «معامِلٌ لا-موقَّع في مقارنةِ ترتيبٍ موقَّعة» (يسبقها موضعُ الفحص)
+    inline const std::string kSlotOfReserved = "/";  // فاصلُ «المستهلَك/المحجوز» في تشخيصِ تجاوزِ خاناتِ dyn
 
     // ── pure ──
     inline const std::string kMoveKind = "move-kind";  // نوعُ معامل MOVE غيرُ مدعوم
@@ -68,6 +69,11 @@ namespace sad { namespace native { namespace diag {
     inline const std::string kU32 = "u32:";  // فوريٌّ لا-موقَّعٌ يتجاوز ٣٢ بتًّا
     inline const std::string kUnaligned = "unaligned:";  // قيمةٌ غيرُ محاذاةٍ حيث تلزم المحاذاة
     inline const std::string kPool = "pool=";  // نفادُ حوضِ السجلّات (يتبعه حجمُ الحوض)
+    inline const std::string kDynSlotOverrun = "dyn-slot-overrun:";  // استهلاكُ خاناتِ dyn تجاوزَ حجزَ assignFrameSlots (مُنتِجُ تعليبٍ غيرُ معدودٍ في جدولِ العدّ) — يتبعه عدّادُ الاستهلاك/الحجز
+    inline const std::string kRuntimeHelper = "runtime-helper:";  // نداءٌ لمُساعِدِ زمنِ تشغيلٍ بالاسم (خريطة/مجموعة/…) لم تُنفّذه الخلفيّةُ الأصليّةُ بعد — يتبعه اسمُ المُساعِد
+    inline const std::string kMapDynamicCapacity = "map-cap-nonconst:";  // سعةُ الخريطةِ الابتدائيّةُ ليست ثابتًا زمنَ الترجمة — يتبعه المعامل
+    inline const std::string kMapCapacityImm12 = "map-cap-imm12:";  // إزاحةُ مصفوفةِ خريطةٍ تتجاوز imm12 (٤٠٩٥) على AArch64 — يتبعها السعة
+    inline const std::string kMapValueUnsupported = "map-value-kind:";  // قيمةُ خريطةٍ من نوعٍ لا تُخزّنه الخلفيّةُ الأصليّةُ بعد (نصّ/عشريّ) — يتبعه المعامل. بلا هذا الحارس يخرج تشخيصُ «سجلٌّ افتراضيٌّ مُستعمَل قبل تعريفه» فيُقرأ عطبًا داخليًّا لا فجوةَ ميزة
 
     // ── vreg ──
     inline const std::string kCmpBMemvar = "cmp-b-memvar:";  // معامِلُ المقارنةِ الثاني متغيّرُ ذاكرةٍ (مؤجَّل)

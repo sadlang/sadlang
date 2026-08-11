@@ -1,0 +1,11 @@
+# @rule: gr.oop.new
+# @description: call_form
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 5
+
+صنف ن
+    متغير عام ق
+    باني(ق) هذا.ق = ق نهاية
+نهاية
+اطبع_سطر(ن(5).ق)

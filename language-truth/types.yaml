@@ -18,9 +18,15 @@ schema_version: "5.0"
 description_ar: "كل أنواع لغة ص (49 نوعًا) — سطحية وداخلية، مصدر توليد SadTypeKind"
 description_en: "All Sad type kinds (49) — surface + internal, SoT for SadTypeKind"
 
-# (AR) ملاحظة: النوع السطحي «عدم» (TYPE_NULL، مسجّل في keywords.yaml) ينتظر
-#      قيمة SadTypeKind::Null (قصّة S-TS-P1). حاليًّا لا قيمة enum له.
-# (EN) Surface type «عدم»/null awaits SadTypeKind::Null (story S-TS-P1).
+# (AR) ⚠️ تصحيحُ ملاحظةٍ بائتة (2026-08-11): كان هنا «النوع السطحي «عدم» ينتظر قيمة
+#      SadTypeKind::Null … حاليًّا لا قيمة enum له» — وهذا لم يعد صحيحًا: القيمة
+#      مُعرَّفةٌ في آخر القائمة (type.null، kind: Null) ومُولَّدةٌ فعلًا في
+#      sad_type_kind_generated.h. الباقي من الدَّين أنّ **المحلّل** يُخفّض «عدم»
+#      إلى SadTypeKind::Void فيساوي بينه وبين «فراغ» (ISSUE-113) — ورفعُه تغييرُ
+#      دلالةٍ يلزمه قياسٌ مزدوجُ المحرّكَين. يرصده حارس check_type_words_sot.py
+#      تباعُدًا مُعلَنًا كي لا يمرّ صامتًا.
+# (EN) Corrected stale note: SadTypeKind::Null EXISTS and is generated. The
+#      remaining debt is that the parser lowers «عدم» to Void (ISSUE-113).
 
 categories_ar:
   primitive:       "بدائية"
@@ -34,6 +40,21 @@ categories_ar:
   async:           "غير متزامنة"
   graphics:        "رسومات"
   simd:            "متجهات SIMD"
+
+# ============================================================================
+# (AR) ألفاظُ أنواعٍ أُزيلت من اللغة — مصدرُ حقيقةٍ لمسارِ التشخيصِ الودّيّ.
+#      المحلّلُ ما زال يتعرّف على اللفظِ **عمدًا** كي يُبلِّغ SYN014 برسالةٍ تُرشد
+#      إلى البديل، بدل «معرّف غير معرَّف» الغامض. فوجودُه في الشيفرةِ مقصودٌ لا
+#      انجراف — ولذلك يلزم أن يكون **مُعلَنًا هنا** كي يُميّزه حارسُ
+#      scripts/codegen/check_type_words_sot.py عن بقيّةِ الانجراف.
+# (EN) Type words removed from the language — SoT for the friendly-diagnostic
+#      path. The parser still recognises them deliberately to emit SYN014
+#      pointing at the replacement, so their presence must be declared here.
+# ============================================================================
+removed_type_words:
+  - { word: مضاعف, replacement: عشري, error_code: SYN_REMOVED_SYNTAX, since: "1.0.0",
+      description_ar: "أُزيلت لصالح «عشري» (f64) — لا نوعَ عشريًّا مزدوجَ الدقّةِ منفصلًا في ص",
+      description_en: "Removed in favour of «عشري» (f64) — Sad has no separate double type" }
 
 types:
 

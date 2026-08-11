@@ -169,7 +169,13 @@ def scan_tests() -> list[dict]:
         rel = tf.relative_to(RULES_MATRIX_DIR)
         records.append({
             "path": tf,
-            "rel": str(rel),
+            # (AR) as_posix لا str: هذا الحقلُ يُكتَب حرفيًّا في CONFORMANCE_REPORT_detail.md
+            #      (٢٩١٥ سطرًا) وهو أيضًا مفتاحُ الفرزِ الذي يرتّب جداولَه. وstr يُعطي
+            #      `\` على ويندوز و`/` على لينكس، فينجرف الملفُّ المُودَعُ — ويتبدّل
+            #      ترتيبُ صفوفِه معه — عند كلِّ توليدٍ على منصّةٍ مغايرة.
+            # (EN) as_posix, not str: this field is written verbatim into the committed
+            #      detail report and is also its sort key; str churns both across OSes.
+            "rel": rel.as_posix(),
             "name": tf.name,
             "category": _category_of(rel),
             "folder_rule": _folder_rule_of(rel),
@@ -299,7 +305,7 @@ def write_evidence(matrix: dict, counts: dict) -> None:
     out = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "generated_by": "scripts/codegen/check_grammar_conformance.py",
-        "source_report": str(DUAL_REPORT.relative_to(ROOT)),
+        "source_report": DUAL_REPORT.relative_to(ROOT).as_posix(),
         "total_rules": len(matrix),
         "summary": summary,
         "rules": {rid: {**m, "test_counts": dict(counts.get(rid, {}))}
@@ -339,6 +345,29 @@ def _gap_tag(filepath: Path) -> str:
     return "—"
 
 
+def _report_path(raw: str) -> str:
+    """(AR) يُصيّر مسارَ اختبارٍ نسبيًّا للجذر قبل كتابته في تقريرٍ يُودَع.
+
+    مصدرُ `file` تقريرُ العدّاء، وقد يأتي مطلقًا أو نسبيًّا بحسب كيفيّةِ استدعائه.
+    والمطلقُ يُسرِّب بنيةَ قرصِ المطوّرِ إلى مصدرِ الحقيقة، ويجعل التقريرَ غيرَ
+    قابلٍ لإعادةِ الإنتاجِ على آلةٍ أخرى — وقد وقع ذلك فعلًا في جدول «المتخطّى».
+
+    والفاصلُ يُوحَّد إلى `/` بـas_posix: النسبيَّةُ وحدَها لا تكفي، إذ يكتب ويندوز
+    `tests\\behavior\\…` ولينكس `tests/behavior/…` فينجرف الملفُّ المُودَعُ بينهما
+    عند كلِّ توليدٍ — وهو عينُ عطبِ «لا يُعاد إنتاجُه على آلةٍ أخرى» المقصودِ إصلاحُه.
+    (EN) Render a test path relative to the repo root, with POSIX separators —
+    relativizing alone still churns the committed file between Windows and Linux.
+    """
+    if not raw:
+        # (AR) الفارغُ يُصيّره Path نقطةً، فيُطبَع «.» بدل أن يظهر الحقلُ ناقصًا
+        # (EN) Path('') resolves to '.', hiding a missing field behind a plausible value
+        return raw
+    try:
+        return Path(raw).resolve().relative_to(ROOT).as_posix()
+    except (ValueError, OSError):
+        return raw.replace("\\", "/")
+
+
 def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict],
                    out_path: Path, gaps_report: dict | None = None) -> None:
     """(AR) يكتب تقريرين: ملخّص (out_path) + تفصيل لكل اختبار (out_path_detail.md)
@@ -355,6 +384,13 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
     tot_comp = sum(e.get("compiler_time_ms", 0) for e in tests)
     # (AR) جمع كل التباعدات/الإخفاقات (هنا «نعرف الاختلافات لنصحّحها»)
     diffs = [e for e in tests if e["status"] not in ("PASS", "SKIP")]
+    # (AR) المتخطّى يُعَدّ صراحةً: كان يسقط من العدّادين معاً (لا في «تطابق» ولا في
+    #      «تباعد») فيُقرأ الملخّصُ أخضرَ وفيه فجوةٌ غيرُ محسوبة. وبهذا صار
+    #      المجموعُ مغلقًا: تطابقٌ + تباعدٌ + متخطًّى = الإجمالي.
+    # (EN) Skips are counted explicitly: they used to fall out of both counters,
+    #      so the summary read green with an uncounted hole. The three counters
+    #      now close over the total.
+    skipped = [e for e in tests if e["status"] == "SKIP"]
 
     L = []
     L.append("# تقرير مطابقة قواعد لغة ص — مقارنة المفسر والمترجم")
@@ -367,11 +403,19 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
     L.append("")
     L.append("## الملخص")
     L.append("")
-    L.append(f"- إجمالي الاختبارات: **{total}** — تطابق مزدوج: **{passed}** — تباعد/إخفاق: **{len(diffs)}**")
+    L.append(f"- إجمالي الاختبارات: **{total}** — تطابق مزدوج: **{passed}** — "
+             f"تباعد/إخفاق: **{len(diffs)}** — متخطًّى: **{len(skipped)}**")
     sm = {v: sum(1 for m in matrix.values() if m["verdict"] == v)
           for v in ("dual_ok", "compiler_gap", "interp_only", "broken", "no_tests", "not_run")}
+    # (AR) كلُّ حُكمٍ يُطبَع ولو كان صفرًا لولا أنّ حذفَه يُخفي قاعدةً محسوبةً في
+    #      المقام دونَ بسطٍ يُظهرها؛ فالمعفاةُ و«لم تُشغَّل» تظهران عند وجودهما.
+    # (EN) Verdicts that used to be omitted are shown when nonzero, so a rule
+    #      cannot sit in the denominator without appearing in any numerator.
+    extra = "".join(f" · {ar}: {sm[k]}" for k, ar in
+                    (("interp_only", "مُعفاة (مفسر فقط)"), ("not_run", "لم تُشغَّل")) if sm[k])
     L.append(f"- القواعد: {len(matrix)} — مطلقة: **{sm['dual_ok']}** · "
-             f"فجوة مترجم: {sm['compiler_gap']} · مكسورة: {sm['broken']} · بلا اختبارات: {sm['no_tests']}")
+             f"فجوة مترجم: {sm['compiler_gap']} · مكسورة: {sm['broken']} · "
+             f"بلا اختبارات: {sm['no_tests']}" + extra)
     avg_i = tot_interp / total if total else 0
     avg_c = tot_comp / total if total else 0
     L.append(f"- زمن التنفيذ: المفسر **{tot_interp/1000:.1f}s** (متوسط {avg_i:.0f}ms/اختبار) · "
@@ -382,15 +426,24 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
     L.append("## التباعدات والإخفاقات (للتصحيح)")
     L.append("")
     if not diffs:
-        L.append("✅ **لا تباعد** — كل الاختبارات أعطت مخرجاً متطابقاً في المفسر والمترجم.")
+        L.append(f"✅ **لا تباعد** — كل اختبار **شُغِّل** أعطى مخرجاً متطابقاً في المفسر والمترجم"
+                 + (f" (و**{len(skipped)}** لم يُشغَّل — انظر «المتخطّى» أدناه)." if skipped else "."))
     else:
         L.append("| الاختبار | الحالة | مفسر(ms) | مترجم(ms) | مخرج المفسر | مخرج المترجم |")
         L.append("|---|---|---|---|---|---|")
         for e in diffs:
             io = (e.get("interp_output", "") or "").replace("\n", "⏎")[:50]
             co = (e.get("compiler_output", "") or "").replace("\n", "⏎")[:50]
-            L.append(f"| `{e['file']}` | {_STATUS_AR.get(e['status'], e['status'])} | "
+            L.append(f"| `{_report_path(e['file'])}` | {_STATUS_AR.get(e['status'], e['status'])} | "
                      f"{e.get('interp_time_ms',0):.0f} | {e.get('compiler_time_ms',0):.0f} | `{io}` | `{co}` |")
+    L.append("")
+    if skipped:
+        L.append("## المتخطّى (لم يُشغَّل — غيرُ مقيسٍ لا ناجح)")
+        L.append("")
+        L.append("| الاختبار | سببُ التخطّي |")
+        L.append("|---|---|")
+        for e in sorted(skipped, key=lambda x: x["file"]):
+            L.append(f"| `{_report_path(e['file'])}` | {e.get('error', '—') or '—'} |")
     L.append("")
     # ── قسم الاختبارات الكاشفة للثغرات (غير مُبوَّب) ──
     if gaps_report is not None:

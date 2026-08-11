@@ -55,13 +55,17 @@ namespace Sad
             auto *i64Ty = cg_.getInt64Type();
             auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
-            constexpr int64_t kSlotBytes = 8;
-            constexpr int64_t kGrowthFactor = 2;
-            constexpr int64_t kFieldCount = 0;
-            constexpr int64_t kFieldCapacity = 1;
-            constexpr int64_t kFieldKeys = 2;
-            constexpr int64_t kFieldValues = 3;
-            constexpr int64_t kFieldTypes = 4;
+            // (AR) التخطيطُ من مصدرِ الحقيقة (value_repr.yaml) لا من نسخةٍ محلّيّة:
+            //      الخلفيّةُ الأصليّةُ تقرأ الثوابتَ عينَها، فلا يتباعدُ المُخفِّضان.
+            // (EN) Layout from the SoT (value_repr.yaml), not a local copy: the native
+            //      backend reads the same constants, so the two lowerings cannot drift.
+            constexpr int64_t kSlotBytes = ::Sad::Types::repr::kMapSlotBytes;
+            constexpr int64_t kGrowthFactor = ::Sad::Types::repr::kMapGrowthFactor;
+            constexpr int64_t kFieldCount = ::Sad::Types::repr::kMapFieldCount;
+            constexpr int64_t kFieldCapacity = ::Sad::Types::repr::kMapFieldCapacity;
+            constexpr int64_t kFieldKeys = ::Sad::Types::repr::kMapFieldKeys;
+            constexpr int64_t kFieldValues = ::Sad::Types::repr::kMapFieldValues;
+            constexpr int64_t kFieldTypes = ::Sad::Types::repr::kMapFieldTypes;
 
             auto fieldGep = [&](int64_t field, const char *nm) {
                 return cg_.builder_->CreateGEP(
@@ -267,17 +271,20 @@ namespace Sad
 
                 // (AR) حساب السعة: max(حجم_المُعطى * 2, 8)
                 llvm::Value *hint = args.empty() ? llvm::ConstantInt::get(i64Ty, 0) : args[0];
-                llvm::Value *doubled = cg_.builder_->CreateMul(hint, llvm::ConstantInt::get(i64Ty, 2), "cap.hint");
-                llvm::Value *minCap = llvm::ConstantInt::get(i64Ty, 8);
+                llvm::Value *doubled = cg_.builder_->CreateMul(
+                    hint, llvm::ConstantInt::get(i64Ty, ::Sad::Types::repr::kMapGrowthFactor), "cap.hint");
+                llvm::Value *minCap = llvm::ConstantInt::get(i64Ty, ::Sad::Types::repr::kMapMinCapacity);
                 llvm::Value *cmp = cg_.builder_->CreateICmpUGT(doubled, minCap, "cap.cmp");
                 llvm::Value *capacity = cg_.builder_->CreateSelect(cmp, doubled, minCap, "cap.final");
 
                 // (AR) تخصيص البنية الرئيسية: 5 حقول * 8 = 40 بايت
 
-                llvm::Value *mapPtr = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 40), "map.ptr");
+                llvm::Value *mapPtr = cg_.emitMalloc(
+                    llvm::ConstantInt::get(i64Ty, ::Sad::Types::repr::kMapHeaderBytes), "map.ptr");
 
                 // (AR) تخصيص المصفوفات (keys, values, types)
-                llvm::Value *arrBytes = cg_.builder_->CreateMul(capacity, llvm::ConstantInt::get(i64Ty, 8), "arr.bytes");
+                llvm::Value *arrBytes = cg_.builder_->CreateMul(
+                    capacity, llvm::ConstantInt::get(i64Ty, ::Sad::Types::repr::kMapSlotBytes), "arr.bytes");
                 llvm::Value *keysPtr = cg_.emitMalloc(arrBytes, "map.keys");
                 llvm::Value *valsPtr = cg_.emitMalloc(arrBytes, "map.vals");
                 llvm::Value *typesPtr = cg_.emitMalloc(arrBytes, "map.types");
@@ -1051,13 +1058,13 @@ namespace Sad
 
                 // (AR) حجمُ ترويسةِ الخريطةِ وعرضُ خانتِها — بمسمّياتٍ لا أرقامٍ عارية.
                 // (EN) Map header size and slot width — named, not bare numbers.
-                constexpr int64_t kMapHeaderBytes = 40; // count, capacity, keys, values, types
-                constexpr int64_t kSlotBytes = 8;
-                constexpr int64_t kFieldCount = 0;
-                constexpr int64_t kFieldCapacity = 1;
-                constexpr int64_t kFieldKeys = 2;
-                constexpr int64_t kFieldValues = 3;
-                constexpr int64_t kFieldTypes = 4;
+                constexpr int64_t kMapHeaderBytes = ::Sad::Types::repr::kMapHeaderBytes;
+                constexpr int64_t kSlotBytes = ::Sad::Types::repr::kMapSlotBytes;
+                constexpr int64_t kFieldCount = ::Sad::Types::repr::kMapFieldCount;
+                constexpr int64_t kFieldCapacity = ::Sad::Types::repr::kMapFieldCapacity;
+                constexpr int64_t kFieldKeys = ::Sad::Types::repr::kMapFieldKeys;
+                constexpr int64_t kFieldValues = ::Sad::Types::repr::kMapFieldValues;
+                constexpr int64_t kFieldTypes = ::Sad::Types::repr::kMapFieldTypes;
 
                 llvm::Value *srcMap = normalizeMapPtr(args[0], "mcopy.src.ptr");
 

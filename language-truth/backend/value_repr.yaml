@@ -54,3 +54,39 @@ display_texts:
   - { name: kArrayOpen,    value: "[",  ar: "قوسُ فتحِ عرضِ المصفوفة" }
   - { name: kArrayClose,   value: "]",  ar: "قوسُ إغلاقِ عرضِ المصفوفة" }
   - { name: kArrayElemSep, value: ", ", ar: "فاصلُ عناصرِ عرضِ المصفوفة (لاتينيٌّ — يطابق المفسّر)" }
+
+# (AR) تخطيطُ الخريطةِ زمنَ التشغيل. كان مكتوبًا يدويًّا داخلَ map_ops.cpp وحدَه
+#      (constexpr محلّيّة في دالّتَين منفصلتَين)، ولا مُستهلِكَ ثانٍ يقابله — فلمّا
+#      لزم الخلفيّةَ الأصليّةَ التخطيطُ نفسُه صار نسخُه ثالثًا هو بابَ الانجراف
+#      عينَه الذي وُجد هذا الملفُّ لسدّه. الترويسةُ خمسةُ حقولٍ i64 متتابعة،
+#      وثلاثُ مصفوفاتٍ خانتُها ٨ بايت؛ مفتاحٌ = عدمٌ يعني خانةً فارغة.
+# (EN) Runtime map layout. It lived only as local constexprs inside map_ops.cpp
+#      with no second consumer; the native backend needs the same layout, and
+#      copying it a third time is exactly the drift this file exists to prevent.
+#      Header = five consecutive i64 fields; three arrays of 8-byte slots; a null
+#      key marks an empty slot.
+map_layout:
+  - { name: kMapFieldCount,    value: 0, ar: "فهرسُ حقلِ عددِ العناصرِ في الترويسة" }
+  - { name: kMapFieldCapacity, value: 1, ar: "فهرسُ حقلِ السعة" }
+  - { name: kMapFieldKeys,     value: 2, ar: "فهرسُ حقلِ مؤشّرِ مصفوفةِ المفاتيح" }
+  - { name: kMapFieldValues,   value: 3, ar: "فهرسُ حقلِ مؤشّرِ مصفوفةِ القيم" }
+  - { name: kMapFieldTypes,    value: 4, ar: "فهرسُ حقلِ مؤشّرِ مصفوفةِ وسومِ الأنواع" }
+  - { name: kMapHeaderBytes,   value: 40, ar: "حجمُ الترويسة بالبايت (٥ حقولٍ × ٨)" }
+  - { name: kMapSlotBytes,     value: 8, ar: "حجمُ خانةِ المفتاح/القيمة/الوسم بالبايت" }
+  - { name: kMapMinCapacity,   value: 8, ar: "أدنى سعةٍ عند الإنشاء" }
+  - { name: kMapGrowthFactor,  value: 2, ar: "معاملُ التوسيعِ عند الامتلاء" }
+
+# (AR) ⚠️ وسومُ **قيمِ** الخريطةِ لا تُرفَع هنا عمدًا. مصدرُها الحيُّ الوحيدُ
+#      `Sad::Compiler::kMapValueTag*` في `compiler/include/frontend/sir_constants.h`
+#      وفيه **ثمانيةُ** أعضاءَ (نصّ٠ صحيح١ عشريّ٢ منطقيّ٣ عدم٤ فراغ٥ خريطة٦ مصفوفة٧)،
+#      كلٌّ منها موثَّقٌ بالعيبِ الذي وُلد لسدّه. وأوّلُ صياغةٍ هنا أعلنت أربعةً فقط
+#      بلا مستهلِك — أي **نسخةً ثانيةً ناقصةً** لمساحةِ الوسوم، وهي بعينِها الفجوةُ
+#      التي وُجد هذا الملفُّ ليمنعها: قارئٌ يبني على الأربعةِ يُعيد إسقاطَ عدم/خريطة/
+#      مصفوفةٍ في وسمِ النصّ. فالمرفوعُ هنا **التخطيطُ** وحدَه (له مستهلِكان فعليّان)،
+#      ورفعُ الوسومِ يلزمه نقلُ الثمانيةِ ونقلُ مستهلِكِها معًا — دفعةٌ مستقلّة.
+# (EN) Map VALUE tags are deliberately not lifted here: their single live source is
+#      Sad::Compiler::kMapValueTag* (eight members, each documented by the defect it
+#      closed). A first draft declared four of them with no consumer — a second,
+#      incomplete copy of the tag space, exactly the drift this file exists to
+#      prevent. Only the LAYOUT is lifted (it has two real consumers); lifting the
+#      tags requires moving all eight and their consumer together.

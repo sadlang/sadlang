@@ -1,0 +1,9 @@
+# @rule: gr.oop.new
+# @description: سالب — إنشاءُ صنفٍ غيرِ معرَّفٍ بصيغةِ «جديد» اللاحقة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error: الصنف 'صنف_غير_موجود' غير معرّف
+# @expect_compile_error: Class not found: صنف_غير_موجود
+
+متغير ك = صنف_غير_موجود(1) جديد
+اطبع_سطر(ك)

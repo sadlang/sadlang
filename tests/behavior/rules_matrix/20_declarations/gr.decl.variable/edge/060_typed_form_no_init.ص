@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable
+# @description: الصيغة النوعيّة ② بلا تهيئة — التهيئة اختياريّة كالصيغة المفتاحيّة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 7
+
+رقم ف
+ف = 7
+اطبع_سطر(ف)
