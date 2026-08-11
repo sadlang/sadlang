@@ -797,7 +797,14 @@ if(TARGET sad_tools)
  endif()
  set_target_properties(test_native_backend_m1 PROPERTIES
  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
+ # (AR) مجلّدُ عملٍ مخصّص: هذه الاختباراتُ تكتب ~١٩٠ ثنائيَّ ELF إلى **cwd**. وقبلَ
+ #      تقديمِ enable_testing() لم تكن تُشغَّل في CTest فلم يظهر الأثر؛ وبعدَه صارت
+ #      تُشغَّل وcwd = ‎build/compiler‎ ⇒ ~٢٣٠ ملفًّا تدخل خبيئةَ ‎actions/cache‎ (path: build)
+ #      في كلِّ تهيئةٍ وكلِّ منصّة. الحجزُ هنا يُبقيها في مجلّدٍ واحدٍ معروفٍ يخصّها.
+ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/native_proofs_out)
  add_test(NAME NativeBackendM1 COMMAND test_native_backend_m1)
+ set_tests_properties(NativeBackendM1 PROPERTIES
+ WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/native_proofs_out)
  message(STATUS "Configured test: test_native_backend_m1")
  endif()
 
@@ -816,7 +823,10 @@ if(TARGET sad_tools)
  endif()
  set_target_properties(test_native_backend_arm64 PROPERTIES
  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
+ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/native_proofs_out)
  add_test(NAME NativeBackendArm64 COMMAND test_native_backend_arm64)
+ set_tests_properties(NativeBackendArm64 PROPERTIES
+ WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/native_proofs_out)
  message(STATUS "Configured test: test_native_backend_arm64")
  endif()
 endif()
@@ -847,7 +857,10 @@ if(TARGET sad_frontend AND TARGET sad_shared)
  endif()
  set_target_properties(test_native_sir_bridge PROPERTIES
  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
+ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/native_proofs_out)
  add_test(NAME NativeSirBridge COMMAND test_native_sir_bridge)
+ set_tests_properties(NativeSirBridge PROPERTIES
+ WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/native_proofs_out)
  message(STATUS "Configured test: test_native_sir_bridge")
  endif()
 endif()

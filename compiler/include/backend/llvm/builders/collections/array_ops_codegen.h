@@ -12,6 +12,7 @@
 
 #include <memory>
 #include <llvm/IR/Value.h>
+#include <llvm/IR/BasicBlock.h>
 #include "sir_instruction.h"
 
 namespace Sad
@@ -58,6 +59,38 @@ namespace Sad
 
             // (AR) عمليات المصفوفات
             llvm::Value *emitArrayNew(std::shared_ptr<SIRInstruction>);
+            /// (AR) يرفض فهرسًا نصّيًّا على عمليّةِ مصفوفة (يمنع تأكيدَ LLVM الحاجب)
+            /// (EN) rejects a string index on an array op (prevents the blocking LLVM assert)
+            bool rejectStringIndex(const std::shared_ptr<SIRInstruction> &inst);
+
+            // ================================================================
+            // (AR) **إرسالُ الفهرسةِ بوسمِ الكائنِ زمنَ التشغيل.**
+            //      حين يكون نوعُ الكائنِ الساكنُ «أي» وفهرسُه عددًا، لا يستطيع أيُّ
+            //      تحليلٍ ساكنٍ أن يقرّر: `م["ج"][1]` مصفوفةٌ و`خ["أ"][2]` خريطةٌ
+            //      بمفتاحٍ عدديّ، وكلتاهما ARRAY_GET/ARRAY_SET بالنوعِ نفسِه. فكان
+            //      المسارُ يمضي إلى المصفوفةِ دائمًا فيُهلِعُ حارسُ الوسمِ على الخريطة.
+            //      نتفرّعُ هنا على **وسمِ الكائنِ زمنَ التشغيل** بدل النوعِ الساكن:
+            //      وسمُ خريطةٍ ⇒ ننصِّصُ المفتاحَ ونستدعي مساعِدَ الخريطة (تناظرًا مع
+            //      تنصيصِ المفتاحِ في الأمام)، وإلّا مسارُ المصفوفةِ كما هو.
+            // (EN) Runtime-tag dispatch for indexing. When the object's static type is
+            //      «أي» and the index is numeric, no static analysis can decide between
+            //      an array and a map with a numeric key — both are ARRAY_GET/ARRAY_SET
+            //      with the same static type. Branch on the runtime tag instead.
+            // ================================================================
+            struct DynIndexDispatch
+            {
+                bool active = false;
+                llvm::BasicBlock *contBB = nullptr;
+                llvm::Value *slot = nullptr; ///< (AR) خانةُ الدمجِ (%SadDyn) للقراءة
+            };
+
+            DynIndexDispatch beginDynMapDispatch(const std::shared_ptr<SIRInstruction> &inst,
+                                                 llvm::Value *objValue,
+                                                 llvm::Value *index,
+                                                 llvm::Value *value,
+                                                 bool isSet);
+            llvm::Value *endDynMapDispatch(DynIndexDispatch &dispatch, llvm::Value *arrayResult);
+
             llvm::Value *emitArrayGet(std::shared_ptr<SIRInstruction>);
             llvm::Value *emitArraySet(std::shared_ptr<SIRInstruction>);
             llvm::Value *emitArrayLen(std::shared_ptr<SIRInstruction>);

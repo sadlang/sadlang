@@ -371,136 +371,31 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                     cg_.builder_->CreateCall(printfFunc, {fmt, strPtr});
                 }
                 // ================================================================
-                // (AR) [إصلاح قنوات] فك وسم MSB 2-bit للقيم المستقبَلة من القنوات
-                //      نوع Any يعني أن القيمة موسومة بنظام:
-                //      bit63=0 → مؤشر (نص) — inttoptr وطباعة %s
-                //      bit63=1, bit62=0 → رقم — مسح bit63 وطباعة %lld
-                //      bit63=1, bit62=1 → منطقي — مسح bit63+62 وطباعة صحيح/خطأ
-                //      kSadNullSentinel → لاشيء
-                // (EN) [Channel fix] Decode MSB 2-bit tagged values received from channels
+                // (AR) **فرعٌ غيرُ مبلوغٍ عمدًا — تشخيصٌ لا فكُّ وسم.**
+                //      كان هنا فكُّ وسمِ MSB ثنائيِّ البتّ لقيمةِ `أي` واصلةً i64
+                //      خامًّا (وُضِع أصلًا للقيمِ المستقبَلةِ من القنوات). وبعد رفعِ
+                //      `أي` إلى `SadTypeKind::Any` في `astTypeToSIRType` صارت كلُّ
+                //      قيمِ `أي` تصل **‎%SadDyn‎** لا i64؛ و`استقبل` القناة تُرجِع
+                //      `Integer` أصلًا. قِيس البلوغُ حيًّا بمِسبارٍ مؤقّت: صفرُ إصابةٍ
+                //      في ٤ بُناةٍ مصنوعةٍ قصدًا و٣٨ ملفًّا موجَّهًا ومسحٍ شاملٍ على
+                //      شجرةِ الاختباراتِ كلِّها.
+                //      ⚠️ ولم يُحذَف الفرعُ صمتًا: مخطّطُ الوسمِ نفسُه ما زال حيًّا
+                //      (‎kAdtPayloadBit63/62‎ في ‎arith_type_conv‎ و‎enum_ops‎
+                //      و‎string_ops*‎)، فحذفُ آخِرِ فاكٍّ في جهةِ الطباعةِ يجعل أيَّ
+                //      إحياءٍ يطبع **قمامةً معقولةَ المظهر** بدل أن يُخفِق ظاهرًا —
+                //      وذاك تدهور. فإن بلغَه تمثيلٌ يومًا، أخفَقَ بصوتٍ عالٍ هنا.
+                // (EN) Deliberately unreachable: the `أي` lift routes every Any value
+                //      through %SadDyn, and channel receive yields Integer. Reachability
+                //      was measured (0 hits across the whole behavior tree), so the MSB
+                //      decoder was replaced by a loud ICE rather than deleted — the tag
+                //      scheme itself is still live elsewhere, and a silent deletion would
+                //      turn a resurrection into plausible-looking garbage output.
                 // ================================================================
                 else if (op.dataType == SadTypeKind::Any && v->getType()->isIntegerTy(64))
                 {
-                    auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
-                    auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
-
-                    // (AR) فحص sentinel أولاً (لاشيء)
-                    llvm::Value *isNullSentinel = cg_.builder_->CreateICmpEQ(
-                        v, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kSadNullSentinel),
-                        "any.is_null");
-
-                    auto *parentFunc = cg_.builder_->GetInsertBlock()->getParent();
-                    auto *nullBB = llvm::BasicBlock::Create(*cg_.context_, "any.null", parentFunc);
-                    auto *checkTagBB = llvm::BasicBlock::Create(*cg_.context_, "any.check_tag", parentFunc);
-                    auto *ptrOrFloatBB = llvm::BasicBlock::Create(*cg_.context_, "any.ptr_or_float", parentFunc);
-                    auto *ptrBB = llvm::BasicBlock::Create(*cg_.context_, "any.ptr", parentFunc);
-                    auto *floatBB = llvm::BasicBlock::Create(*cg_.context_, "any.float", parentFunc);
-                    auto *intOrBoolBB = llvm::BasicBlock::Create(*cg_.context_, "any.int_or_bool", parentFunc);
-                    auto *boolBB = llvm::BasicBlock::Create(*cg_.context_, "any.bool", parentFunc);
-                    auto *intBB = llvm::BasicBlock::Create(*cg_.context_, "any.int", parentFunc);
-                    auto *mergeBB = llvm::BasicBlock::Create(*cg_.context_, "any.merge", parentFunc);
-
-                    cg_.builder_->CreateCondBr(isNullSentinel, nullBB, checkTagBB);
-
-                    // (AR) لاشيء
-                    cg_.builder_->SetInsertPoint(nullBB);
-                    {
-                        llvm::Value *fmtS = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
-                        llvm::Value *nullStr = cg_.builder_->CreateGlobalStringPtr(
-                            "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1", "null.str"); // لاشيء
-                        cg_.builder_->CreateCall(printfFunc, {fmtS, nullStr});
-                    }
-                    cg_.builder_->CreateBr(mergeBB);
-
-                    // (AR) فحص bit63: مضبوط ⇒ صحيح/منطقيّ (10/11)؛ مصفّر ⇒ مؤشّر/عشريّ (00/01)
-                    // (EN) Check bit63: set ⇒ int/bool (10/11); clear ⇒ pointer/float (00/01)
-                    cg_.builder_->SetInsertPoint(checkTagBB);
-                    {
-                        llvm::Value *bit63Mask = llvm::ConstantInt::get(i64Ty, kAdtPayloadBit63);
-                        llvm::Value *bit63 = cg_.builder_->CreateAnd(v, bit63Mask, "any.bit63");
-                        llvm::Value *hiClear = cg_.builder_->CreateICmpEQ(
-                            bit63, llvm::ConstantInt::get(i64Ty, 0), "any.hi_clear");
-                        cg_.builder_->CreateCondBr(hiClear, ptrOrFloatBB, intOrBoolBB);
-                    }
-
-                    // (AR) ISSUE-076/084: تمييز النصّ (00) عن الصندوق العشريّ (01) عبر bit62
-                    // (EN) ISSUE-076/084: distinguish string (00) from boxed float (01) via bit62
-                    cg_.builder_->SetInsertPoint(ptrOrFloatBB);
-                    {
-                        llvm::Value *bit62Mask = llvm::ConstantInt::get(i64Ty, kAdtPayloadBit62);
-                        llvm::Value *bit62 = cg_.builder_->CreateAnd(v, bit62Mask, "any.bit62.pf");
-                        llvm::Value *isFloat = cg_.builder_->CreateICmpNE(
-                            bit62, llvm::ConstantInt::get(i64Ty, 0), "any.is_float");
-                        cg_.builder_->CreateCondBr(isFloat, floatBB, ptrBB);
-                    }
-
-                    // (AR) مؤشر (نص) — 00
-                    cg_.builder_->SetInsertPoint(ptrBB);
-                    {
-                        llvm::Value *strPtr = cg_.builder_->CreateIntToPtr(v, ptrTy, "any.str.i2p");
-                        llvm::Value *fmtS = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
-                        cg_.builder_->CreateCall(printfFunc, {fmtS, strPtr});
-                    }
-                    cg_.builder_->CreateBr(mergeBB);
-
-                    // (AR) صندوق عشريّ (01) — امسح bit62 ⇒ مؤشّر الصندوق ⇒ حمّل الـdouble ⇒
-                    //      اطبع بـ__sad_print_double (نفس تنسيق المفسّر). ISSUE-076/084.
-                    // (EN) Boxed float (01) — clear bit62 ⇒ box pointer ⇒ load double ⇒ print via
-                    //      __sad_print_double (same format as the interpreter). ISSUE-076/084.
-                    cg_.builder_->SetInsertPoint(floatBB);
-                    {
-                        llvm::Value *boxI64 = cg_.builder_->CreateAnd(
-                            v, llvm::ConstantInt::get(i64Ty, ~kAdtPayloadBit62), "any.float.clear");
-                        llvm::Value *boxPtr = cg_.builder_->CreateIntToPtr(boxI64, ptrTy, "any.float.ptr");
-                        llvm::Value *d = cg_.builder_->CreateLoad(
-                            llvm::Type::getDoubleTy(*cg_.context_), boxPtr, "any.float.load");
-                        llvm::FunctionType *printDoubleTy = llvm::FunctionType::get(
-                            llvm::Type::getVoidTy(*cg_.context_),
-                            {llvm::Type::getDoubleTy(*cg_.context_)}, false);
-                        llvm::FunctionCallee printDoubleFn =
-                            cg_.module_->getOrInsertFunction("__sad_print_double", printDoubleTy);
-                        cg_.builder_->CreateCall(printDoubleFn, {d});
-                    }
-                    cg_.builder_->CreateBr(mergeBB);
-
-                    // (AR) فحص bit62 — منطقي أم رقم
-                    cg_.builder_->SetInsertPoint(intOrBoolBB);
-                    {
-                        llvm::Value *bit62Mask = llvm::ConstantInt::get(i64Ty, 1ULL << 62);
-                        llvm::Value *bit62 = cg_.builder_->CreateAnd(v, bit62Mask, "any.bit62");
-                        llvm::Value *isBool = cg_.builder_->CreateICmpNE(
-                            bit62, llvm::ConstantInt::get(i64Ty, 0), "any.is_bool");
-                        cg_.builder_->CreateCondBr(isBool, boolBB, intBB);
-                    }
-
-                    // (AR) منطقي — مسح bit63+62
-                    cg_.builder_->SetInsertPoint(boolBB);
-                    {
-                        llvm::Value *clearMask = llvm::ConstantInt::get(i64Ty, ~(3ULL << 62));
-                        llvm::Value *cleanVal = cg_.builder_->CreateAnd(v, clearMask, "any.bool.clean");
-                        llvm::Value *fmtS = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
-                        llvm::Value *trueStr = cg_.builder_->CreateGlobalStringPtr(
-                            "\xd8\xb5\xd8\xad\xd9\x8a\xd8\xad", "any.bool.true"); // صحيح
-                        llvm::Value *falseStr = cg_.builder_->CreateGlobalStringPtr(
-                            "\xd8\xae\xd8\xb7\xd8\xa3", "any.bool.false"); // خطأ
-                        llvm::Value *cond = cg_.builder_->CreateICmpNE(
-                            cleanVal, llvm::ConstantInt::get(i64Ty, 0), "any.bool.cond");
-                        llvm::Value *boolStr = cg_.builder_->CreateSelect(cond, trueStr, falseStr, "any.bool.sel");
-                        cg_.builder_->CreateCall(printfFunc, {fmtS, boolStr});
-                    }
-                    cg_.builder_->CreateBr(mergeBB);
-
-                    // (AR) رقم — مسح bit63
-                    cg_.builder_->SetInsertPoint(intBB);
-                    {
-                        llvm::Value *clearBit63 = llvm::ConstantInt::get(i64Ty, ~(1ULL << 63));
-                        llvm::Value *cleanVal = cg_.builder_->CreateAnd(v, clearBit63, "any.int.clean");
-                        llvm::Value *fmtD = cg_.builder_->CreateGlobalStringPtr("%lld", "fmt.d");
-                        cg_.builder_->CreateCall(printfFunc, {fmtD, cleanVal});
-                    }
-                    cg_.builder_->CreateBr(mergeBB);
-
-                    cg_.builder_->SetInsertPoint(mergeBB);
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_TYPE_CONSTRAINT,
+                                    {{"detail", "PRINT_ANY_RAW_I64"}});
+                    return nullptr;
                 }
                 else if (v->getType()->isIntegerTy(64))
                 {

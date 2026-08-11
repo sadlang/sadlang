@@ -220,6 +220,15 @@ namespace sad
         //      ⇒ تماثلٌ صارمٌ بين المعماريّتين. القيمةُ ١٣٦ = ‎128+SIGFPE‎ (عرفُ استثناءِ القسمة).
         inline constexpr long long kDivZeroPanicCode = 136;
 
+        // (AR) رمزُ خروجِ الهلع عند **نفيِ قيمةٍ غيرِ عدديّة**: معامِلُ Any وسمُه ليس Int
+        //      ولا Float (منطقيّ/عدم/نصّ/مصفوفة). المرجعُ (المفسّر) يرمي RUN053؛ والخلفيّةُ
+        //      الأصليّةُ بلا استثناءاتٍ ملتقَطة ⇒ إجهاضٌ فوريّ. ومميَّزٌ عن ١٣٤ (الحدّ) و١٣٦
+        //      (القسمة) عمدًا ليُقرأ السببُ من رمزِ الخروجِ وحدَه: ١٣٣ = ‎128+SIGTRAP‎.
+        //      والبديلُ الذي رُفِض: المتمّمُ الثنائيُّ على حمولةٍ غيرِ عدديّةٍ ثمّ تعليبُها
+        //      بوسمِها ⇒ «‑صحيح = صحيح» و«‑لاشيء = لاشيء» بخروجِ صفر — جوابٌ خاطئٌ صامتٌ
+        //      أسوأُ من السقوطِ الذي كان (قِيس: كلاهما كان يسقط بإشارة ١١ قبل هذا الإصلاح).
+        inline constexpr long long kNonNumericUnaryPanicCode = 133;
+
         // (AR) 2^63 عائمًا ولاحقةُ ".0": المُنسِّقُ العشريّ يعالجُ |x|≥2^63 (نتيجةُ INT64_MIN//‑1 المُرقّاة)
         //      بطرحِ 2^63 ثمّ تحويلٍ موقَّعٍ ثمّ OR 2^63 (نفسُ الخوارزميّة على المعماريّتين) ⇒ رسمٌ لا-موقَّعٌ
         //      نظيفٌ بدل فيضِ cvttsd2si(x86)/fcvtzs(ARM64). مشتركٌ بين مُنسِّقَي x86/ARM64. النطاقُ المُعالَجُ
@@ -269,8 +278,13 @@ namespace sad
         //      كتلة (ما يعبر الكتلَ فعبر الذاكرة). النداءُ يدهس كلَّ الحوض (caller-saved) ⇒
         //      تُنسَك المؤقّتاتُ الحيّة إلى خانات إطارٍ قبله وتُعاد بعده، وتُحمَّل وسائطُ
         //      المؤقّتات من خانات الانسكاب (صفر تصادمٍ = نقلٌ متوازٍ). PHI ⇒ فشلٌ صريح.
-        class X86SirLowering
+        // (AR) يرث المُصدِرَ المجرَّدَ المشترك (م٤) — وهو بدورِه يرث القاعدةَ التشخيصيّة:
+        //      حالةُ الفشل وعقدُ الشكل وتتابعُ العمليّةِ الثنائيّة عقدٌ واحدٌ عبر الأهداف
+        //      لا نسخةٌ لكلّ معماريّة. المُصادقةُ لأنّ الخطّافاتِ الثلاثةَ خاصّة.
+        class X86SirLowering : public common::LoweringDriver<X86SirLowering>
         {
+            friend class common::LoweringDriver<X86SirLowering>;
+
         public:
             LoweringResult lowerModule(const sir::SIRModule &module)
             {
@@ -451,8 +465,6 @@ namespace sad
             }
 
         private:
-            using EC = ::Sad::Errors::ErrorCode;
-
             std::map<std::string, int> regOf_;                                    // (AR) اسم السجلّ الافتراضيّ ⇒ فيزيائيّ
             const std::vector<int> pool_{x86::RDX, x86::RCX, x86::RSI, x86::R8,    // (AR) حوضُ التخصيص
                                          x86::R9, x86::R10, x86::R11};
@@ -462,8 +474,6 @@ namespace sad
             const sir::SIRBasicBlock *curBlock_ = nullptr;
             size_t curInstIdx_ = 0;
             std::vector<uint8_t> code_;
-            EC errorCode_ = EC::INT_NATIVE_NO_ENTRY;
-            std::string detail_;
 
             // (AR) تدفّق التحكّم: خريطةُ لصيقة الكتلة (مؤهَّلةٌ بالدالّة) ⇒ إزاحتها، وطابورُ
             //      ترقيع rel32. الفرعُ يستهدف لصيقةً داخل الدالّة؛ النداءُ يستهدف دالّةً.
@@ -859,19 +869,11 @@ namespace sad
             }
 
             // (AR) رموزُ {detail} كبياناتٍ محضة (لا نثر): وسمُ الحالة قصيرٌ يُميّز فرعَ الفشل.
-            //      النثرُ كلُّه في كتالوج SoT؛ هذه القيمُ تملأ {detail} حصرًا.
+            //      النثرُ كلُّه في كتالوج SoT؛ هذه القيمُ تملأ {detail} حصرًا. ونظيراهما
+            //      المعتمدان على الأوپكود (`detailOpcode`/`detailUiOpcode`) في القاعدة
+            //      المشتركة `common::LoweringDiagnostics`.
             static std::string detailBlocks() { return diag::kBlocksZero; }
             static std::string detailNoRet() { return diag::kNoRetTerminator; }
-            static std::string detailOpcode(const sir::SIRInstruction &i)
-            {
-                return diag::kOpcode + std::to_string(static_cast<int>(i.opcode));
-            }
-
-            // (AR) تشخيصُ أوپكودِ واجهةٍ في المسار الأصليّ — وسمٌ صريحٌ يقول السبب.
-            static std::string detailUiOpcode(const sir::SIRInstruction &i)
-            {
-                return diag::kUiRequiresLlvm + std::to_string(static_cast<int>(i.opcode));
-            }
 
             LoweringResult &finishError(LoweringResult &r, EC code, const std::string &detail = "")
             {
@@ -895,13 +897,6 @@ namespace sad
                 return fns.empty() ? nullptr : fns[0].get();
             }
 
-            // (AR) يسجّل رمزَ الخطأ (من كتالوج SoT) وبياناتِ {detail}؛ لا نصَّ رسالةٍ هنا.
-            bool fail(EC code, const std::string &detail = "")
-            {
-                errorCode_ = code;
-                detail_ = detail;
-                return false;
-            }
 
             // (AR) يخصّص سجلًّا فيزيائيًّا لسجلٍّ افتراضيّ. عند نفاد الحوض **يفشل بوضوح**
             //      لا يلتفّ (التفافٌ صامتٌ يدهس سجلًّا حيًّا ⇒ إفساد — عيب أميليا BLOCKER-1).
@@ -1049,7 +1044,9 @@ namespace sad
             //    عابرٌ للحساب فقط (كـRAX/RDI للصحيح) لا يُخصَّص لسجلٍّ افتراضيّ ⇒ لا حوضَ جديد. ──
             static constexpr int kXmm0 = 0; // (AR) سجلّ عشريّ خدشٌ ٠
             static constexpr int kXmm1 = 1; // (AR) سجلّ عشريّ خدشٌ ١
-            static constexpr int kXmm2 = 2; // (AR) سجلّ عشريّ خدشٌ ٢ (متراكمُ نصّ→عشريّ)
+            static constexpr int kXmm2 = 2; // (AR) خدشٌ ٢: متراكمُ نصّ→عشريّ **ومُبدَّدُ**
+                                            //      loadFloatOperandInto (مفصولٌ عن ٠/١ عمدًا:
+                                            //      المُنادي يركن فيهما فلا يجوز دهسُهما)
             static constexpr int kXmm3 = 3; // (AR) سجلّ عشريّ خدشٌ ٣ (ثابتُ العشرة / مقسومُ الكسر)
             bool movqToXmm(int xmm, int gpr) { return emit(x86::mnem::kMovqXmmR64, "xmm, r64", {x86::Operand::R(xmm), x86::Operand::R(gpr)}); }
             bool movqFromXmm(int gpr, int xmm) { return emit(x86::mnem::kMovqR64Xmm, "r64, xmm", {x86::Operand::R(gpr), x86::Operand::R(xmm)}); }
@@ -1093,10 +1090,17 @@ namespace sad
                                    const sir::SIROperand &rhs, sir::SIROpcode op)
             {
                 using OP = sir::SIROpcode;
-                // (AR) حمّل نمطَي البتّات ثمّ انقلهما لسجلَّي xmm الخدش.
-                if (!loadInto(x86::RAX, lhs) || !loadInto(x86::RDI, rhs))
+                // (AR) حمّل نمطَي البتّات ثمّ انقلهما لسجلَّي xmm الخدش. المعامِلان يمرّان
+                //      بـ`loadFloatOperandInto` كنظيرَيهما في الحساب: الوسمُ يُفحَص زمنَ
+                //      التشغيل وإلّا قُورِن مؤشّرُ خانةٍ ببتّاتِ double فصدر **جوابٌ خاطئٌ
+                //      صامت** (لا هلعَ ولا تشخيص): `[٧، ٢٫٥][٠] > ١٫٥` كان يقول «أصغر»
+                //      والمفسّرُ «أكبر».
+                //      وواحدٌ في المرّة عبر xmm: المُحمِّلُ يستعمل RDI مُبدَّدًا للوسم، فلا
+                //      يصلح RDI حاملًا للمعامِل الثاني (يُدهَس قبل قراءةِ حمولته). فالأوّلُ
+                //      يُركن في xmm0 ثمّ يُعاد استعمالُ RAX للثاني ⇒ صفرُ سجلٍّ إضافيّ.
+                if (!loadFloatOperandInto(x86::RAX, lhs) || !movqToXmm(kXmm0, x86::RAX))
                     return false;
-                if (!movqToXmm(kXmm0, x86::RAX) || !movqToXmm(kXmm1, x86::RDI))
+                if (!loadFloatOperandInto(x86::RAX, rhs) || !movqToXmm(kXmm1, x86::RAX))
                     return false;
                 switch (op)
                 {
@@ -1964,10 +1968,64 @@ namespace sad
             //      المُغذَّى لحسابٍ صحيحٍ: حمولتُه بتّاتُ double — حالةٌ نادرةٌ تُفكَّك كـi64، خارجَ العيبَين.)
             bool loadScalarInto(int dst, const sir::SIROperand &op)
             {
-                if (op.type == sir::SIROperandType::REGISTER &&
-                    op.dataType == types::SadTypeKind::Any)
+                if (common::isBoxedAny(op))
                     return loadInto(dst, op) && loadMemBase(dst, dst, kSadDynPayloadOff);
                 return loadInto(dst, op);
+            }
+
+            // (AR) تحميلُ معامِلٍ **لعمليّةٍ عشريّة**: الخارجُ في dst بتّاتُ double لكلّ
+            //      معامِلٍ معلَّب.
+            //      ⚠️ وليس «دائمًا»: المعامِلُ غيرُ المعلَّبِ يمرّ بـ`loadInto` كما هو، فإن
+            //         كان صحيحًا ساكنًا مرّ خامًّا بلا تحويل. عقدُ الأماميّةِ أن تُرقّيَه
+            //         (I64_TO_F64) قبلَ الصيغةِ العشريّة، وهو عقدٌ **مخروقٌ اليوم**: 🐞
+            //         `متغير س = ١٠ · متغير ص = ٤ · اطبع_سطر(س / ص)` يُصدِر DIV_F64
+            //         بمعامِلَي Int ونتيجةِ Any بلا خانةِ dyn ⇒ سقوطٌ بإشارة ١١ في
+            //         الهدفَين والمفسّرُ «٢٫٥». عيبٌ قديمٌ سابقٌ لهذه الدفعة، موضعُه
+            //         الأماميّةُ ومسحُ التعليب لا هذا المُحمِّل، ومقيسٌ في
+            //         prove_any_float.sh (`int_div_float`).
+            //      الفارقُ عن `loadScalarInto` أنّ فكَّ العلبةِ هناك أعمى الوسم: يأخذ
+            //      الحمولةَ كما هي. والحمولةُ لا تكون بتّاتِ double إلّا إذا كان الوسمُ
+            //      Float؛ فإن كانت عددًا صحيحًا لزمها تحويلٌ لا إعادةُ تفسير.
+            //      والوسمُ لا يُعرَف إلّا زمنَ التشغيل — النوعُ الساكنُ هنا `Any` لا أكثر —
+            //      فالفرعُ في الشيفرةِ المولَّدة لا في المخفّض:
+            //          RDI  = [ptr+kSadDynKindOff]   ; الوسم (RDI خارجَ الحوض ⇒ لا يدهس حيًّا)
+            //          dst  = [ptr+kSadDynPayloadOff]; الحمولة
+            //          cmp RDI, Float ; je تمّ       ; بتّاتُ double فعلًا
+            //          cvtsi2sd xmm2 / movq          ; وإلّا: صحيحٌ ⇒ حوّله
+            //      ⚠️ ومُبدَّدُه العشريُّ **kXmm2 لا kXmm0**: المُنادي قد يكون ركن معامِلًا
+            //         سابقًا في xmm0/xmm1 قبل استدعائنا للمعامِلِ التالي (هذا حالُ
+            //         `floatCompareToReg`)، والفرعُ يُصدَر أو لا يُصدَر بحسبِ وسمٍ لا
+            //         يُعرَف إلّا زمنَ التشغيل ⇒ دهسٌ **متقطّع** يظهر في شكلٍ من أشكالِ
+            //         المعامِلَين دون الآخر. فالمُبدَّدُ مفصولٌ عن سجلّاتِ التنظيمِ عقدًا.
+            //      الشاهدُ الحيّ: `[٧، ٢٫٥][٠] + ١٫٥` ⇒ «8.5» كالمفسّر (كان «1.5»).
+            //      🐞 والوسومُ الثلاثةُ الباقيةُ تسلك مسلكَ الصحيح، وهذا **عيبٌ قائمٌ لا
+            //         قرارُ تصميم**. المقيسُ اليومَ (بعد هذه الرقعة):
+            //         • Str  `["نص"، ٢٫٥][٠] + ١٫٥`: المفسّرُ **يضمّ** («نص1.5») — عمليّةٌ
+            //           معرَّفةٌ لا خطأُ نوع — والأماميّةُ **لا تمسكها** (الترجمةُ تنجح)،
+            //           والهدفان يطبعان عنوانَ الواصفِ عددًا (والعنوانُ يختلف بالمعماريّة).
+            //         • Bool `[صحيح، ٢٫٥][٠] + ١٫٥`: المفسّرُ يُخفِق بـRUN053 («تتطلّب قيمةً
+            //           رقميّة»)، والهدفان يطبعان «2.5» — أي ترقيةً صامتةً نظيفةً (صحيح⇒١٫٠)
+            //           تبدو مشروعةً وهي أخطرُ من القمامةِ الظاهرة.
+            //         • Null `[لاشيء، ٢٫٥][٠] + ١٫٥`: المفسّرُ RUN053، والهدفان
+            //           «-9223372036854775808.0».
+            //         إغلاقُها ليس فرعًا رابعًا هنا: الضمُّ يلزمه مسارُ نصٍّ لا عمليّةٌ
+            //         عشريّة، والمنطقيُّ/العدمُ يلزمهما هلعُ تشغيلٍ يطابق رمزَ المفسّر.
+            bool loadFloatOperandInto(int dst, const sir::SIROperand &op)
+            {
+                if (!common::isBoxedAny(op))
+                    return loadInto(dst, op);
+                if (!loadInto(dst, op) ||
+                    !loadMemBase(x86::RDI, dst, kSadDynKindOff) ||
+                    !loadMemBase(dst, dst, kSadDynPayloadOff))
+                    return false;
+                size_t isFloat;
+                if (!cmpImm8(x86::RDI, kDynKindFloat) ||
+                    !emitJccFwd(x86::mnem::kJe, isFloat))
+                    return false;
+                if (!cvtsi2sd(kXmm2, dst) || !movqFromXmm(dst, kXmm2))
+                    return false;
+                patchFwd(isFloat);
+                return true;
             }
 
             // (AR) المسحُ المسبق: يخصّص خانةَ إطارٍ للمعاملات (بترتيب ABI) ثمّ لكلّ ALLOC،
@@ -2319,6 +2377,287 @@ namespace sad
                 return true;
             }
 
+            // ══════════════════════════════════════════════════════════════
+            // (AR) **جدولُ العمليّاتِ الثنائيّةِ وخطّافاتُها** (م٤، الطورُ الرابع).
+            //   التتابعُ (تحقّقٌ ⇒ جدولٌ ⇒ وجهةٌ ⇒ معامِلان ⇒ إصدارٌ ⇒ تعليب) في
+            //   `common::LoweringDriver`؛ وهنا مضمونُه في x86-64 وحدَه.
+            //   عشرُ عمليّاتٍ في الجدول — ونظيرُه في AArch64 يحمل العشرَ ذاتَها بعدَ أن
+            //   طوَت هذه الدفعةُ فجوةَ العضويّةِ بينهما. وما بقي خارجَه (القسمةُ والباقي
+            //   والإزاحاتُ الثلاث) خارجٌ **بسببٍ عتاديٍّ مُعلَن**: يكسر ترتيبَ التتابع.
+            // ══════════════════════════════════════════════════════════════
+            const common::BinaryOpShape *binaryShape(sir::SIROpcode op) const
+            {
+                using OP = sir::SIROpcode;
+                // (AR) عقدُ Any: الحسابُ الصحيحُ يُعلِّب (السلسلةُ قد تكون Any)، والبتّيّاتُ
+                //      لا (نتيجتُها بتّاتٌ خام)، والعشريّاتُ لا (بتّاتُ f64 في GPR).
+                static constexpr common::BinaryOpShape kBoxed{true};
+                static constexpr common::BinaryOpShape kRaw{false};
+                switch (op)
+                {
+                case OP::ADD_I64:
+                case OP::SUB_I64:
+                case OP::MUL_I64:
+                    return &kBoxed;
+                case OP::AND:
+                case OP::OR:
+                case OP::XOR:
+                case OP::ADD_F64:
+                case OP::SUB_F64:
+                case OP::MUL_F64:
+                case OP::DIV_F64:
+                    return &kRaw;
+                default:
+                    return nullptr; // (AR) ليست من عملِ هذا المُصدِر
+                }
+            }
+
+            // (AR) تهيئةُ المعامِلَين. فرقان عن AArch64، كلاهما عتاديٌّ لا اعتباطيّ:
+            //      (١) x86 ثنائيُّ العنوان ⇒ المعامِلُ الأوّلُ يُحمَّل في **الوجهةِ نفسِها**
+            //          (لا في مُبدَّد)، والثاني في RAX.
+            //      (٢) ⚠️ الطيُّ الفوريّ (`add/sub r64, imm32`): ثابتٌ في المعامِل الثاني
+            //          يُطوى في التعليمة فلا يُحمَّل أصلًا. تحسينٌ لا نظيرَ له في AArch64
+            //          (تُحمِّل المعامِلَين دائمًا) — إسقاطُه باسمِ التوحيد يُصدِر شيفرةً
+            //          أسوأ بصمتٍ لا مكافئة، فبقي خطّافًا في العقد.
+            //
+            //      🐞 والعشريّاتُ تُحمَّل بـ`loadScalarInto` كنظيرتِها في AArch64. كانت
+            //         تُحمَّل بـ`loadInto` — عيبٌ حيٌّ لا انجرافٌ نظريّ: الأماميّةُ تُرقّي
+            //         `Any + Float` إلى **Float** (لا Any) فتُصدِر ADD_F64 بمعامِلٍ Any،
+            //         ومعامِلُ Any مؤشّرُ خانةٍ معلَّبة ⇒ تفسيرُه بتّاتِ f64 خام يُنتج قيمةً
+            //         غيرَ ذاتِ معنى. الشاهدُ الحيّ: `[١، ٢٫٥][١] + ١٫٥` ⇒ المفسّرُ
+            //         وAArch64 «٤٫٠» وx86 كان «١٫٥».
+            //
+            //         وأُغلِق نصفُه الثاني بـ`loadFloatOperandInto`: الفكُّ كان **أعمى
+            //         الوسم** فيأخذ الحمولةَ بتّاتِ double أيًّا كان وسمُها، و`[٧، ٢٫٥][٠]
+            //         + ١٫٥` يطبع «١٫٥» والصحيحُ «٨٫٥». صار الفرعُ على الوسمِ زمنَ
+            //         التشغيل (نظيرُ dynToDouble في مسار LLVM) في الهدفَين معًا —
+            //         ⚠️ في كلِّ موضعٍ يُقرأ فيه معامِلُ Any **بتّاتِ double**: الحسابُ
+            //         العشريّ، والمقارنةُ العشريّةُ بشكلَي المعامِلَين، والتحويلانِ
+            //         (I64_TO_F64 وF64_TO_I64) والجذر. وما يزال مفتوحًا خارجَ ذلك:
+            //         🐞 **معامِلا Any معًا**: الأماميّةُ تُبقي النتيجةَ Any فلا تُصدِر
+            //            صيغةً عشريّةً أصلًا، والحمولتان تُعامَلان صحيحَين أعميَين:
+            //            • جمعًا: ADD_I64 ⇒ `خليط[٠]+خليط[١]` = ٤٦١٢٨١١٩١٨٣٣٤٢٣٠٥٣٥
+            //              (٧ + بتّاتُ ٢٫٥) والصحيحُ «٩٫٥».
+            //            • مقارنةً: مقارنةٌ صحيحةٌ ⇒ `خليط[٠] > خليط[١]` كاذبةٌ في الهدفَين
+            //              والمفسّرُ يقول صادقة (بتّاتُ ٢٫٥ عددًا صحيحًا أكبرُ من ٧).
+            //            موضعُ إصلاحِهما الأماميّةُ (ترقيةُ النوع) لا هذا المُحمِّل: لا صيغةَ
+            //            عشريّةً تُخفَّض كي تُفَكَّ العلبةُ فيها.
+            //         (والنفيُ الأحاديُّ كان منها، وأُغلق — انظر `prepareUnaryOperand` أدناه.)
+            //
+            //      ⚠️ ولا يحرس هذا اختبارُ rules_matrix: مُشغِّلُ الاختبارات لا يمرّر
+            //         `--خلفية-أصلية` أصلًا، فالمجموعةُ تمرّ عبر المفسّر ومسارِ LLVM وتخضرُّ
+            //         سواءٌ أصُلِح هذا أم رُدّ — فليست دليلًا على تغييرٍ في هذا المُحمِّل.
+            //         الحارسُ هو البرهانُ الحيُّ (scripts/native_backend/prove_any_float.sh)،
+            //         وقد صار موصولًا بـCI عبر run_native_proofs.sh بعد أن كان يدويًّا.
+            bool prepareBinaryOperands(const sir::SIRInstruction &inst, int dst)
+            {
+                using OP = sir::SIROpcode;
+                const sir::SIROperand &b = inst.operands[1];
+                binaryImmFolded_ = false;
+                if (inst.opcode == OP::ADD_F64 || inst.opcode == OP::SUB_F64 ||
+                    inst.opcode == OP::MUL_F64 || inst.opcode == OP::DIV_F64)
+                    return loadFloatOperandInto(dst, inst.operands[0]) &&
+                           loadFloatOperandInto(x86::RAX, b);
+                if (!loadScalarInto(dst, inst.operands[0])) // (AR) المعامل الأوّل (يفكّ Any المعلَّب)
+                    return false;
+                if ((inst.opcode == OP::ADD_I64 || inst.opcode == OP::SUB_I64) &&
+                    common::isConstInt(b, binaryImm_))
+                {
+                    binaryImmFolded_ = true; // (AR) فوريّ ⇒ add/sub r64,imm32 بلا تحميل
+                    return true;
+                }
+                return loadScalarInto(x86::RAX, b); // (AR) مُبدَّدٌ (يفكّ Any المعلَّب)
+            }
+
+            // (AR) الإصدار. العشريّاتُ عبر xmm0/xmm1 ثمّ استخراجُ البتّات إلى dst.
+            bool emitBinaryOp(const sir::SIRInstruction &inst, int dst)
+            {
+                using OP = sir::SIROpcode;
+                switch (inst.opcode)
+                {
+                case OP::ADD_I64: return binaryImmFolded_ ? addImm(dst, binaryImm_) : addReg(dst, x86::RAX);
+                case OP::SUB_I64: return binaryImmFolded_ ? subImm(dst, binaryImm_) : subReg(dst, x86::RAX);
+                case OP::MUL_I64: return imulReg(dst, x86::RAX);
+                case OP::AND: return andReg(dst, x86::RAX);
+                case OP::OR: return orReg(dst, x86::RAX);
+                case OP::XOR: return xorReg(dst, x86::RAX);
+                case OP::ADD_F64:
+                case OP::SUB_F64:
+                case OP::MUL_F64:
+                case OP::DIV_F64:
+                {
+                    // (AR) العشريّ بتّاتُ i64 في GPR: عبّئ dst/RAX في xmm0/xmm1، نفّذ عمليّةَ
+                    //      SSE المزدوجة، ثمّ استخرج البتّاتِ إلى dst.
+                    if (!movqToXmm(kXmm0, dst) || !movqToXmm(kXmm1, x86::RAX))
+                        return false;
+                    const bool ok = inst.opcode == OP::ADD_F64   ? addsd(kXmm0, kXmm1)
+                                    : inst.opcode == OP::SUB_F64 ? subsd(kXmm0, kXmm1)
+                                    : inst.opcode == OP::MUL_F64 ? mulsd(kXmm0, kXmm1)
+                                                                 : divsd(kXmm0, kXmm1);
+                    return ok && movqFromXmm(dst, kXmm0);
+                }
+                // (AR) لا يُبلَغ: `binaryShape` ردّ nullptr لكلِّ ما عداه فما وصل هنا شيء.
+                default: return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                }
+            }
+
+            // (AR) عقدُ Any: الحاصلُ الخامُّ يُعاد تعليبًا (وسمُ Int) — RET/الطباعةُ تفكّان.
+            //      مرآةُ emitDynamicNumericBinOp في مسار LLVM.
+            bool boxBinaryResult(const sir::SIRInstruction &inst, int dst) { return boxIfAny(inst, dst); }
+
+            bool unaryStaticFloat_ = false; // (AR) معامِلٌ عشريٌّ ساكنٌ (غيرُ معلَّب)؟
+            bool unaryAnyTagged_ = false;  // (AR) هل كان معامِلُ الأحاديّ علبةَ Any؟ يعبر
+                                           //      من التهيئة إلى الإصدارِ ثمّ إلى التعليب
+            long long binaryImm_ = 0;      // (AR) الثابتُ المطويُّ في التعليمة (إن طُوي)
+            bool binaryImmFolded_ = false; // (AR) هل طُوي؟ يعبر من التهيئة إلى الإصدار
+
+            // (AR) **خطّافاتُ المقارنة** (م٤، الطورُ الرابع). التتابعُ في
+            //   `common::LoweringDriver::driveComparison`؛ وهنا مضمونُه في x86-64.
+
+            // (AR) مقارنةُ عوائم: ucomisd + setcc لا-موقَّع بدلالة IEEE. كتلةٌ يملكها الهدف
+            //      لأنّ ترتيبَها الداخليَّ يفترق عن AArch64 (هنا التخصيصُ يسبق القرار).
+            bool lowerFloatComparison(const sir::SIRInstruction &inst)
+            {
+                int fdst;
+                if (!allocReg(inst.result->name, fdst))
+                    return false;
+                return floatCompareToReg(fdst, inst.operands[0], inst.operands[1], inst.opcode);
+            }
+
+            // (AR) حلُّ الشرط: كلا المعامِلَين طبيعي64 ⇒ setcc لا-موقَّع؛ وإلّا الموقَّع مع
+            //      رفضِ المتبقّي. يفشل قبل تخصيصِ الوجهة (عقدُ التتابع).
+            bool resolveCompareCondition(const sir::SIRInstruction &inst)
+            {
+                const bool unsignedCmp = bothUInt64(inst);
+                if (!unsignedCmp && !rejectUnsignedCmp(inst, diag::kCmpValue))
+                    return false;
+                compareSetcc_ = unsignedCmp ? setccForCmpUnsigned(inst.opcode)
+                                            : setccForCmp(inst.opcode);
+                return compareSetcc_ || fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+            }
+
+            // (AR) الأيسرُ في RAX (يفكّ Any) ثمّ قارنه بالأيمن (فوريٌّ/سجلّ، يفكّ Any).
+            bool prepareCompareOperands(const sir::SIRInstruction &inst)
+            {
+                return loadScalarInto(x86::RAX, inst.operands[0]) && cmpAgainst(inst.operands[1]);
+            }
+
+            // (AR) AL = ٠/١ بـsetcc، ثمّ dst = تمديدُ AL بالصفر. RAX مُبدَّد.
+            bool emitCompareResult(const sir::SIRInstruction &, int dst)
+            {
+                return setccReg(*compareSetcc_, x86::RAX) && movzxReg(dst, x86::RAX);
+            }
+
+            const std::string *compareSetcc_ = nullptr; // (AR) الشرطُ المحلولُ يعبر إلى الإصدار
+
+            // (AR) **خطّافا الأحاديّ** (م٤، الطورُ الرابع): %dst = ~a (NOT) أو −a (NEG).
+            //      x86 ثنائيُّ العنوان ⇒ يعمل في المكان: المعامِلُ يُحمَّل في الوجهةِ نفسِها
+            //      ثمّ تُطبَّق التعليمةُ عليها (وAArch64 يحتاج مصدرًا ووجهةً منفصلَين).
+            // (AR) **المعامِلُ الأحاديّ** — وكان عيبًا حيًّا في الهدفَين معًا (لا انجرافًا
+            //      بينهما): `loadInto` وحدَه ⇒ النفيُ يقع على **مؤشّرِ العلبة** لا على
+            //      القيمة، ثمّ يقرأ المستهلِكُ الناتجَ خانةَ dyn فيسقط. قِيس
+            //      `اطبع_سطر(-[٧، ٢٫٥][٠])` ⇒ إشارة ١١ في الهدفَين (x86 خروجٌ ١٣٩،
+            //      وAArch64 تحت qemu «uncaught target signal 11») والمفسّرُ «‑٧»؛
+            //      والتفكيكُ أظهر `neg r10` على `rbp-0x38` (عنوانَ خانة) ثمّ `mov r8,[rdi]`.
+            //      وإصلاحُه ليس استبدالَ المُحمِّل وحدَه: حمولةُ Any قد تكون بتّاتِ double،
+            //      والمتمّمُ الثنائيُّ ليس نفيًا عشريًّا ⇒ فحصُ الوسمِ زمنَ التشغيل، والوسمُ
+            //      يبقى في RDI حتّى التعليبِ ليخرج الناتجُ بوسمِ مدخلِه لا بوسمٍ مفترَض.
+            //      البرهانُ الحيُّ (يُفشِل عند الردّ): `neg_any` ⇒ «‑7» و`neg_any_float`
+            //      ⇒ «‑2.5» على المعماريّتين في prove_any_float.sh — و«‑2.5» وحدَها
+            //      تُميّز قلبَ بتِّ الإشارةِ من المتمّمِ الثنائيّ.
+            bool prepareUnaryOperand(const sir::SIRInstruction &inst, int dst)
+            {
+                const sir::SIROperand &op = inst.operands[0];
+                unaryAnyTagged_ = false;
+                // (AR) والعشريُّ **الساكنُ** (غيرُ المعلَّب) كان مكسورًا هو أيضًا وبنفسِ العلّة:
+                //      `متغير س = ٢٫٥ · اطبع_سطر(-س)` ⇒ المفسّرُ «‑2.5» والهدفان «‑1.75»
+                //      (المتمّمُ الثنائيُّ على بتّاتِ double). جوابٌ خاطئٌ صامتٌ سابقٌ لهذه
+                //      الدفعة، وإصلاحُه هنا لأنّ العلّةَ واحدةٌ والمسارُ واحد.
+                unaryStaticFloat_ = (op.dataType == types::SadTypeKind::Float);
+                if (!common::isBoxedAny(op))
+                    return loadInto(dst, op);
+                if (!loadInto(dst, op) ||
+                    !loadMemBase(x86::RDI, dst, kSadDynKindOff) ||
+                    !loadMemBase(dst, dst, kSadDynPayloadOff))
+                    return false;
+                unaryAnyTagged_ = true;
+                return true;
+            }
+
+            // (AR) النفيُ بحسبِ الوسم: العشريُّ يُقلَب ببتِّ الإشارةِ وحدَه (متمّمٌ ثنائيٌّ
+            //      على بتّاتِ double يُنتج قيمةً شاذّة)، وما عداه بمتمّمٍ ثنائيّ.
+            bool flipSignBit(int dst)
+            {
+                return movImm64(x86::RAX, static_cast<long long>(kF64SignMask)) && xorReg(dst, x86::RAX);
+            }
+
+            bool negTagged(int dst)
+            {
+                if (!unaryAnyTagged_)
+                    return unaryStaticFloat_ ? flipSignBit(dst) : negReg(dst);
+                size_t notFloat, done;
+                if (!cmpImm8(x86::RDI, kDynKindFloat) ||
+                    !emitJccFwd(x86::mnem::kJne, notFloat))
+                    return false;
+                if (!flipSignBit(dst) || !emitJccFwd(x86::mnem::kJmp, done))
+                    return false;
+                patchFwd(notFloat);
+                // (AR) ليس عشريًّا ⇒ يجبُ أن يكون صحيحًا. وما عداهما (منطقيّ/عدم/نصّ/مصفوفة)
+                //      **يُجهِض** ولا يُخمَّن: نفيُه ليس عمليّةً معرَّفةً في المرجع.
+                size_t isInt;
+                if (!cmpImm8(x86::RDI, kDynKindInt) || !emitJccFwd(x86::mnem::kJe, isInt))
+                    return false;
+                if (!movImm(x86::RDI, kNonNumericUnaryPanicCode) || !movImm(x86::RAX, kSysExitX86) ||
+                    !emit(x86::mnem::kSyscall, "", {}))
+                    return false;
+                patchFwd(isInt);
+                if (!negReg(dst))
+                    return false;
+                patchFwd(done);
+                return true;
+            }
+
+            // (AR) تعليبُ ناتجِ الأحاديّ. الوسمُ من **المدخل** حين كان معلَّبًا (RDI)، لا
+            //      `kDynKindInt` المفترَضُ في `boxIfAny`: نفيُ ٢٫٥ عشريٌّ لا صحيح.
+            bool boxUnaryResult(const sir::SIRInstruction &inst, int dst)
+            {
+                if (!inst.result || inst.result->dataType != types::SadTypeKind::Any)
+                    return true;
+                if (unaryAnyTagged_)
+                    return boxScalarInto(dst, x86::RDI, dst);
+                // (AR) ⚠️ ولا فرعَ هنا للعشريِّ الساكن: جُرِّب فلم يُبلَغ. تخزينُ `-س` في
+                //      مصفوفةٍ مختلطة يُعلَّب في ARRAY_SET لا هنا (نوعُ نتيجةِ النفيِ Float
+                //      لا Any فيردُّ هذا الخطّافُ فورًا)، وهناك يُثبَّت وسمُ Int ⇒
+                //      «‑4610560118520545280» بدل «‑2.5». والشاهدُ الضابطُ `خ[٠] = س`
+                //      بلا نفيٍ مكسورٌ بعينِ العلّة ⇒ عطبُ تعليبٍ في ARRAY_SET سابقٌ لهذه
+                //      الدفعة، لا عطبُ نفي. مقيسٌ ومُبلَّغٌ في prove_any_float.sh
+                //      (`neg_static_float_boxed`)، وفرعٌ ميّتٌ هنا كان سيُخفيه.
+                return boxIfAny(inst, dst);
+            }
+
+            bool emitUnaryOp(const sir::SIRInstruction &inst, int dst)
+            {
+                using OP = sir::SIROpcode;
+                switch (inst.opcode)
+                {
+                // (AR) القلبُ البتّيُّ على معامِلٍ معلَّبٍ **يُرفَض ترجمةً** لا يُخمَّن: قلبُ
+                //      بتّاتِ double أو بتّاتِ منطقيٍّ (٠/١ ⇒ ‑١/‑٢) جوابٌ خاطئٌ صامت.
+                //      ودقّةً في التبرير (مقيسًا على البناءِ السابق): `~معلَّب` كان يسقط
+                //      بإشارة ١١، بينما `ليس معلَّب` كان **يُترجَم ويعمل ويطبع عنوانَ مكدّسٍ**
+                //      يختلف بالمعماريّة (والمفسّرُ «خطأ») ⇒ فالرفضُ يستبدل خطأً صامتًا
+                //      بخطأِ ترجمةٍ صريح، ويُسقِط برنامجًا كان «يُترجَم» لا برنامجًا كان يعمل.
+                //      🐞 ودَينٌ أوسعُ مُبلَّغٌ لا مُصلَحٌ هنا: `ليس` يُخفَّض قلبًا بتّيًّا لكلّ
+                //         الأنواعِ لا للمعلَّبِ وحدَه — قِيس: `ليس ٧` ⇒ «‑8» و`ليس 2.5` ⇒
+                //         «‑4612811918334230529» (قلبُ بتّاتِ double) في المعماريّتين،
+                //         والمفسّرُ «خطأ» في الحالتين. موضعُه الأماميّةُ لا هذا المُحمِّل.
+                case OP::NOT: return unaryAnyTagged_
+                                         ? fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst))
+                                         : notReg(dst);
+                case OP::NEG: return negTagged(dst);
+                // (AR) لا يُبلَغ: الموزِّعُ لا يوجّه إلى هنا إلّا الاثنين.
+                default: return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                }
+            }
+
             bool lowerInstruction(const sir::SIRInstruction &inst,
                                   const sir::SIRBasicBlock &block, size_t instIdx)
             {
@@ -2327,8 +2666,8 @@ namespace sad
                 {
                 case OP::MOVE:
                 {
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     // (AR) MOVE %r = سلسلةٌ حرفيّة: لا سجلَّ فيزيائيًّا (السلاسلُ بياناتٌ لا قيمُ
                     //      سجلّات)؛ نسجّل المحتوى ليُطبَعَ حرفيًّا، ولا نُصدِر شيفرة.
                     if (inst.operands[0].type == sir::SIROperandType::CONSTANT &&
@@ -2344,73 +2683,25 @@ namespace sad
                 }
                 case OP::ADD_I64:
                 case OP::SUB_I64:
-                {
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    int dst;
-                    if (!allocReg(inst.result->name, dst))
-                        return false;
-                    if (!loadScalarInto(dst, inst.operands[0])) // (AR) المعامل الأوّل (يفكّ Any المعلَّب)
-                        return false;
-                    const sir::SIROperand &b = inst.operands[1];
-                    long long bc;
-                    if (common::isConstInt(b, bc)) // (AR) فوريّ ⇒ add/sub r64,imm32
-                    {
-                        if (!(inst.opcode == OP::ADD_I64 ? addImm(dst, bc) : subImm(dst, bc)))
-                            return false;
-                    }
-                    // (AR) معاملٌ ثانٍ سجليّ/ذاكرة: حمّله في المُبدَّد RAX (فكَّ Any) ثمّ اجمع/اطرح بالسجلّ.
-                    else if (!loadScalarInto(x86::RAX, b) ||
-                             !(inst.opcode == OP::ADD_I64 ? addReg(dst, x86::RAX) : subReg(dst, x86::RAX)))
-                        return false;
-                    // (AR) نتيجةٌ Any (معاملٌ Any في السلسلة) ⇒ أعِد تعليبَ الحاصلِ الخام (وسمُ Int)
-                    //      اتّساقًا مع عقدِ Any (RET/الطباعةُ تفكّان). مرآةُ emitDynamicNumericBinOp في LLVM.
-                    return boxIfAny(inst, dst);
-                }
                 case OP::MUL_I64:
-                {
-                    // (AR) %dst = a × b ⇒ حمّل a في dst وb في المُبدَّد RAX ثمّ imul dst,RAX.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    int dst;
-                    if (!allocReg(inst.result->name, dst))
-                        return false;
-                    if (!loadScalarInto(dst, inst.operands[0]) || // (AR) يفكّ Any المعلَّب
-                        !loadScalarInto(x86::RAX, inst.operands[1]) ||
-                        !imulReg(dst, x86::RAX))
-                        return false;
-                    return boxIfAny(inst, dst); // (AR) نتيجةٌ Any ⇒ أعِد التعليب (وسمُ Int)
-                }
                 case OP::ADD_F64:
                 case OP::SUB_F64:
                 case OP::MUL_F64:
                 case OP::DIV_F64:
-                {
-                    // (AR) حسابٌ عشريّ: العشريّ بتّاتُ i64 في GPR. حمّل a في dst وb في RAX، عبّئهما
-                    //      في xmm0/xmm1، نفّذ عمليّةَ SSE المزدوجة، ثمّ استخرج البتّات إلى dst.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    int dst;
-                    if (!allocReg(inst.result->name, dst))
-                        return false;
-                    if (!loadInto(dst, inst.operands[0]) || !loadInto(x86::RAX, inst.operands[1]))
-                        return false;
-                    if (!movqToXmm(kXmm0, dst) || !movqToXmm(kXmm1, x86::RAX))
-                        return false;
-                    bool ok = inst.opcode == OP::ADD_F64   ? addsd(kXmm0, kXmm1)
-                              : inst.opcode == OP::SUB_F64 ? subsd(kXmm0, kXmm1)
-                              : inst.opcode == OP::MUL_F64 ? mulsd(kXmm0, kXmm1)
-                                                          : divsd(kXmm0, kXmm1);
-                    return ok && movqFromXmm(dst, kXmm0);
-                }
+                    return driveBinary(inst);
                 case OP::I64_TO_F64:
                 {
                     // (AR) صحيح ⇒ عشريّ: cvtsi2sd xmm0, dst(=الصحيح) ثمّ استخرج بتّاتِ العشريّ إلى dst.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    //      ومعامِلُ Any يُفَكُّ بوسمِه: `loadFloatOperandInto` يُخرِج بتّاتِ double
+                    //      تمامًا وهو المطلوبُ هنا ⇒ لا تحويلَ بعده (وإلّا حُوِّل مؤشّرُ الخانة:
+                    //      `عشري(خليط[٠])` كان يطبع عنوانًا لا «7.0»).
+                    if (!requireArity(inst, 1))
+                        return false;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
+                    if (common::isBoxedAny(inst.operands[0]))
+                        return loadFloatOperandInto(dst, inst.operands[0]);
                     return loadInto(dst, inst.operands[0]) && cvtsi2sd(kXmm0, dst) &&
                            movqFromXmm(dst, kXmm0);
                 }
@@ -2418,11 +2709,18 @@ namespace sad
                 {
                     // (AR) جذر(س) ⇒ عشريّ. المعاملُ صحيحٌ ⇒ حوّله double (cvtsi2sd)؛ عشريٌّ ⇒ بتّاته
                     //      double فعلًا (movq). ثمّ sqrtsd (SSE2 بلا رفعِ خطّ أساس) ⇒ استخرج البتّاتِ.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
+                    //      ومعامِلُ Any لا يُحسَم نوعُه ساكنًا ⇒ يُفَكُّ بوسمِه إلى بتّاتِ double.
+                    if (common::isBoxedAny(inst.operands[0]))
+                    {
+                        if (!loadFloatOperandInto(dst, inst.operands[0]) || !movqToXmm(kXmm0, dst))
+                            return false;
+                        return sqrtsd(kXmm0, kXmm0) && movqFromXmm(dst, kXmm0);
+                    }
                     if (!loadInto(dst, inst.operands[0]))
                         return false;
                     if (inst.operands[0].dataType == types::SadTypeKind::Float)
@@ -2439,8 +2737,8 @@ namespace sad
                     // (AR) مطلق(س): نوعُ النتيجة = نوعُ المعامل (I64/F64). العشريُّ = مسحُ بتِّ الإشارة
                     //      (AND بقناع 0x7FFF…FFFF — العشريُّ بتّاتٌ في GPR ⇒ بلا SSE). الصحيحُ = خدعةُ
                     //      قناعِ الإشارةِ اللافرعيّة: t=x>>63 (حسابيّ)؛ x = (x^t) − t = |x| (آمنٌ لـINT64_MIN).
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -2456,8 +2754,8 @@ namespace sad
                 {
                     // (AR) أصغر/أكبر (صحيحان موقَّعان، نتيجةٌ Integer): حمّل a في dst وb في RAX، قارِنْ،
                     //      ثمّ نقلٌ شرطيّ — أكبر: cmovl dst,RAX (إن dst<RAX)؛ أصغر: cmovg dst,RAX.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     const bool aFloat = inst.operands[0].dataType == types::SadTypeKind::Float;
                     const bool bFloat = inst.operands[1].dataType == types::SadTypeKind::Float;
                     // (AR) المختلطُ (صحيحٌ×عشريّ): المفسّرُ يعيدُ نوعَ الفائزِ (قد يكونُ صحيحًا) ⇒ تباعُدُ
@@ -2495,11 +2793,16 @@ namespace sad
                 case OP::F64_TO_I64:
                 {
                     // (AR) عشريّ ⇒ صحيح باقتطاعٍ نحو الصفر: عبّئ بتّاتِ dst في xmm0 ثمّ cvttsd2si dst, xmm0.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    //      ومعامِلُ Any يُفَكُّ بوسمِه أوّلًا (وإلّا اقتُطِع مؤشّرُ الخانةِ مقروءًا
+                    //      بتّاتِ double: `رقم(خليط[١])` كان «0» والصحيحُ «2»).
+                    if (!requireArity(inst, 1))
+                        return false;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
+                    if (common::isBoxedAny(inst.operands[0]))
+                        return loadFloatOperandInto(dst, inst.operands[0]) &&
+                               movqToXmm(kXmm0, dst) && cvttsd2si(dst, kXmm0);
                     return loadInto(dst, inst.operands[0]) && movqToXmm(kXmm0, dst) &&
                            cvttsd2si(dst, kXmm0);
                 }
@@ -2507,8 +2810,8 @@ namespace sad
                 {
                     // (AR) عشريّ ⇒ صحيح **مُشبَّع** (llvm.fptosi.sat): NaN→٠، +طفح→INT64_MAX،
                     //      −طفح→INT64_MIN، وإلّا اقتطاعٌ نحو الصفر. المعاملُ الصحيحُ (تمريرٌ) = هويّة.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -2576,8 +2879,8 @@ namespace sad
                 case OP::BOOL_TO_I64: // (AR) منطقيّ (٠/١ في GPR أصلًا) ⇒ صحيح: هويّة.
                 case OP::CAST:        // (AR) تحويلٌ عامّ بلا تغييرِ تمثيلٍ (i64→i64): هويّة.
                 {
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -2586,8 +2889,8 @@ namespace sad
                 case OP::I64_TO_BOOL:
                 {
                     // (AR) صحيح ⇒ منطقيّ (٠/١): test rax,rax؛ setne AL (غيرُ صفرٍ ⇒ ١)؛ movzx dst,AL.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -2597,8 +2900,8 @@ namespace sad
                 case OP::ADDR:
                 {
                     // (AR) عنوانُ متغيّرِ إطارٍ (ALLOC/معامل): lea dst,[rbp+إزاحة]. عنوانُ مؤشّرِ حوضٍ غيرُ مدعوم.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     long long disp;
                     if (!isMemVar(inst.operands[0], disp))
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kAddrNonslot + detailOpcode(inst));
@@ -2611,8 +2914,8 @@ namespace sad
                 {
                     // (AR) دورانٌ يسارًا (يتيمٌ سطحيًّا؛ صحيحٌ للاكتمال): مقدارٌ ثابت ⇒ rol dst,imm8.
                     //      المتغيّرُ غيرُ مدعوم (نادرٌ وميّت). n∈[0,63].
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     long long n;
                     if (!common::isConstInt(inst.operands[1], n))
                         return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kRolVar + detailOpcode(inst));
@@ -2627,8 +2930,8 @@ namespace sad
                 case OP::PTR_CAST:
                 {
                     // (AR) تحويلُ مؤشّر (i64↔ptr): هويّةٌ في نموذجِ القيمة-في-سجلّ (لا تغييرَ تمثيل).
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     if (!loadInto(x86::RAX, inst.operands[0]))
                         return false;
                     int dst;
@@ -2639,8 +2942,8 @@ namespace sad
                 case OP::PTR_ADD:
                 {
                     // (AR) حسابُ مؤشّرٍ ببايتات: result = ptr + offset (المُبدَّدان RAX/RDI خارجَ الحوض).
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     if (!loadInto(x86::RAX, inst.operands[0]))
                         return false;
                     long long off;
@@ -2661,8 +2964,8 @@ namespace sad
                 {
                     // (AR) حجز(size): mmap(size+16)؛ اكتب [base]=توقيع، [base+8]=الحجمُ الكلّيّ؛ أرجِع
                     //      base+16. نَنسِك المؤقّتاتِ الحيّةَ/المعاملاتِ (mmap يدهس caller-saved) ثمّ نعيدها.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -2815,8 +3118,8 @@ namespace sad
                 {
                     // (AR) إنشاءُ نصّ: يُجسّد المعاملَ قيمةً زمنَ تشغيلٍ (مؤشّرَ i8*). لا تخصيصَ كومة
                     //      (حرفيّةٌ ⇒ عنوانُ rodata؛ مؤشّرٌ حيّ ⇒ هويّة). لا يدهس الحوضَ (RAX/dst فقط).
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -2826,8 +3129,8 @@ namespace sad
                 {
                     // (AR) منطقيّ → نصّ: القيمةُ ≠٠ ⇒ عنوانُ «صحيح»، وإلّا «خطأ» (ثابتان في rodata).
                     //      مؤشّرُ i8*. لا تخصيصَ ولا دهسَ حوضٍ (RAX/RDI خدشٌ خارجَ الحوض).
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     if (!loadInto(x86::RAX, inst.operands[0]) || !cmpZero(x86::RAX))
                         return false;
                     size_t isFalse;
@@ -2853,8 +3156,8 @@ namespace sad
                     // (AR) طولُ النصّ بنقاطِ رمزِ UTF-8 (يطابق __sad_utf8_strlen والمفسّر): عُدَّ البايتَ
                     //      الذي ليس تابعًا (b & 0xC0) != 0x80 حتّى NUL. تدهس الحلقةُ الحوضَ (RSI/R8/R9)
                     //      ⇒ نسكٌ حولَها؛ المعاملُ يُقرأ من خانتِه (fromSpill). RSI=المؤشّر، RAX=العدّاد.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -2895,8 +3198,8 @@ namespace sad
                 {
                     // (AR) مقارنةُ نصّين: تُعيد منطقيًّا (١ متساويان، ٠ مختلفان) — يطابق emitStringCmp في
                     //      LLVM (strcmp==0، ليست -1/0/1). مقارنةٌ بايتيّةٌ حتّى NUL. تدهس الحوضَ (RSI/R8).
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -2947,8 +3250,8 @@ namespace sad
                     //      ولأنّ UTF-8 حافظٌ للترتيب فهذا عينُه ترتيبُ نقاطِ الترميز.
                     //      البادئةُ أصغر: النصُّ الأقصرُ ينتهي بـNUL(٠) وهو أدنى بايت.
                     //      تدهس الحوضَ (RSI/R8) ⇒ نسكٌ حولَها، مرآةُ STRING_CMP حرفًا بحرف.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -3007,8 +3310,8 @@ namespace sad
                 {
                     // (AR) نصّ → رقم (atoll): إشارةٌ اختياريّةٌ ثمّ أرقامٌ عشريّةٌ حتّى أوّلِ غيرِ رقم. تدهس
                     //      الحوضَ (RSI/RCX/R8/R9) ⇒ نسكٌ حولَها. RAX=المتراكم، R9=الإشارة (١/‎-1‎).
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -3064,8 +3367,8 @@ namespace sad
                     //      عند الغياب: matchPtr=نهايةُ s، lenN=lenR=٠ ⇒ المقطعُ ١=كلُّ s، البديلُ/الذيلُ فارغان
                     //      = نسخةٌ من s (توحيدٌ بلا فرعِ نسخٍ منفصل). خانات strHeap: 0=lenN 1=matchPtr 2=totalLen
                     //      3=buf 4=seg1Len 5=lenR 6=lenTail.
-                    if (!inst.result || inst.operands.size() != 3)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 3))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -3173,8 +3476,8 @@ namespace sad
                     //      string_ops.cpp: strstr ثمّ تحويلُ إزاحةِ البايت لفهرسِ نقطةِ رمز)، أو ‎-1‎ عند
                     //      الغياب. 🔴 المفسّرُ يُعيد إزاحةَ بايتٍ (انجرافٌ موثَّق؛ الخلفيّةُ تطابق LLVM).
                     //      needle فارغٌ ⇒ ٠ (كـstrstr). RSI=haystack الجاري، hayBase في strHeap[0].
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -3252,8 +3555,8 @@ namespace sad
                     // (AR) جزءُ نصّ: المعاملات s، start، count (بنقاطِ رمزِ UTF-8 كـLLVM). p0=s متقدّمًا
                     //      start نقطة؛ p1=p0 متقدّمًا count نقطة (قصٌّ ضمنيٌّ عند NUL)؛ byteLen=p1−p0؛
                     //      buf=mmap(byteLen+1+16)+memcpy(p0,byteLen)+NUL. p0/byteLen/buf في خانات strHeap.
-                    if (!inst.result || inst.operands.size() != 3)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 3))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -3301,8 +3604,8 @@ namespace sad
                     //      (يطابق string_ops.cpp: malloc(l1+l2+1)+نسخ+NUL). len1/len2 بالبايت (لا نقاطِ
                     //      رمز). الأطوالُ والمخزنُ في خانات strHeap لتبقى عبر mmap (يدهس الحوضَ). RDI مؤشّرُ
                     //      الوجهةِ الجاري (خدشٌ خارجَ الحوض)، RAX خدشُ mmap/النتيجة.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -3352,8 +3655,8 @@ namespace sad
                     //      (باقٍ-سالبٌ ⇒ آمنٌ لـINT64_MIN) لكن الكتابةُ في الكومة والإرجاعُ مؤشّرًا لا write.
                     //      🔴 المؤشّرُ المُعاد وسطُ المخزن (الأرقامُ من النهاية) لا قاعدتُه ⇒ غيرُ قابلٍ
                     //      لـFREE (يتخطّاه الحارسُ بأمان)؛ تسريبٌ مقبولٌ مطابقٌ لـLLVM (نصوصُ TO_STRING لا تُحرَّر).
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -3436,8 +3739,8 @@ namespace sad
                     //      تنازليًّا في مخزنِ الإطار (printBufTopDisp_) ثمّ byteCopy إلى buf؛ اختم
                     //      بـ']'+NUL. المساراتُ النصّيّة/العشريّة/Any تلي في هذه الدفعة.
                     //      خانات strHeap: 0=len 1=data(الأساس) 2=buf 3=dst(الجاري) 4=i.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     const types::SadTypeKind atsElem = inst.operands[0].elementType;
                     // (AR) انسكِبْ كلَّ مؤقّتٍ حيّ: mmap والحلقةُ البايتيّةُ تدهسان الحوضَ.
                     for (const auto &kv : regOf_)
@@ -4036,8 +4339,8 @@ namespace sad
                     //      بـNUL ويُعيد مؤشّرًا لأوّلِ رمز — كتابةٌ في الكومة لا write. 🔴 المؤشّرُ وسطُ
                     //      المخزن ⇒ غيرُ قابلٍ لـFREE (تسريبٌ مطابقٌ لـLLVM؛ نصوصُ TO_STRING لا تُحرَّر).
                     //      خانات strHeap: 0=ip 1=scaled 2=nd 3=sign.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -4170,8 +4473,8 @@ namespace sad
                     //      النقطة) في متراكمٍ double: acc = acc×١٠ + رقم؛ ونعدّ خاناتِ الكسر fd، ثمّ
                     //      result = acc ÷ ١٠^fd، ثمّ نطبّقُ الإشارة (٠−acc). النتيجةُ نمطُ بتّاتٍ i64 في dst
                     //      (كسائرِ العوائم في الحوض). يدهس الحوضَ ⇒ نسكٌ حولَه. xmm2=المتراكم، xmm3=١٠٫٠.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -4265,31 +4568,10 @@ namespace sad
                 case OP::AND:
                 case OP::OR:
                 case OP::XOR:
-                {
-                    // (AR) %dst = a <بتّيّ> b ⇒ حمّل a في dst وb في المُبدَّد RAX ثمّ العمليّة بالسجلّ.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    int dst;
-                    if (!allocReg(inst.result->name, dst))
-                        return false;
-                    if (!loadScalarInto(dst, inst.operands[0]) || !loadScalarInto(x86::RAX, inst.operands[1]))
-                        return false; // (AR) يفكّ معاملَ Any المعلَّب (تماثلُ عقدِ Any مع ARM64)
-                    return inst.opcode == OP::AND ? andReg(dst, x86::RAX)
-                         : inst.opcode == OP::OR  ? orReg(dst, x86::RAX)
-                                                  : xorReg(dst, x86::RAX);
-                }
+                    return driveBinary(inst);
                 case OP::NOT:
                 case OP::NEG:
-                {
-                    // (AR) أحاديّ: %dst = ~a (NOT) أو −a (NEG) ⇒ حمّل a في dst ثمّ التعليمةُ الأحاديّة.
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    int dst;
-                    if (!allocReg(inst.result->name, dst))
-                        return false;
-                    return loadInto(dst, inst.operands[0]) &&
-                           (inst.opcode == OP::NOT ? notReg(dst) : negReg(dst));
-                }
+                    return driveUnary(inst);
                 case OP::SHL:
                 case OP::SHR:
                 case OP::SAR:
@@ -4298,8 +4580,8 @@ namespace sad
                     //      المتغيّرُ (سجلّ/ذاكرة) يلزمه CL: نمرّر القيمةَ عبر RAX ونحفظ/نعيد RCX حولَ
                     //      الإزاحة (خانةُ خدشٍ shiftScratchDisp_) ⇒ لا يُدهَس مؤقّتٌ حيٌّ في RCX. SHR
                     //      منطقيّة (تحشو أصفارًا)، SAR حسابيّة (تمدّ الإشارة).
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     // (AR) الإزاحةُ اليمنى الحسابيّة إن SAR صراحةً، أو SHR على معاملٍ **موقَّع** (Integer):
                     //      `>>` عامٌّ إشارتُه من نوعِ المعامل الأيسر (طبيعي64/بايت⇒منطقيّة، غيرُها⇒حسابيّة)
                     //      مطابقةً للمفسّر ومسارِ LLVM (arith_cmp.cpp) — `-16>>2=-4` لا قيمةً ضخمة.
@@ -4346,35 +4628,7 @@ namespace sad
                 case OP::LE:
                 case OP::GT:
                 case OP::GE:
-                {
-                    // (AR) المقارنةُ كقيمة (غيرُ مدموجةٍ في فرع): cmp ثمّ setcc AL (٠/١) ثمّ movzx dst,AL.
-                    //      المدموجةُ في BR_COND تُتخطّى في lowerBlock فلا تصل هنا. RAX مُبدَّد.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
-                    // (AR) مقارنةُ عوائم (أحدُ المعامِلَين Float): ucomisd + setcc لا-موقَّع بدلالة IEEE.
-                    if (common::isFloatCompare(inst))
-                    {
-                        int fdst;
-                        if (!allocReg(inst.result->name, fdst))
-                            return false;
-                        return floatCompareToReg(fdst, inst.operands[0], inst.operands[1], inst.opcode);
-                    }
-                    // (AR) كلا المعامِلَين طبيعي64 ⇒ setcc لا-موقَّع؛ وإلّا الموقَّع مع رفضِ المتبقّي.
-                    const bool unsignedCmp = bothUInt64(inst);
-                    if (!unsignedCmp && !rejectUnsignedCmp(inst, diag::kCmpValue))
-                        return false;
-                    const std::string *setcc = unsignedCmp ? setccForCmpUnsigned(inst.opcode)
-                                                           : setccForCmp(inst.opcode);
-                    if (!setcc)
-                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
-                    int dst;
-                    if (!allocReg(inst.result->name, dst))
-                        return false;
-                    return loadScalarInto(x86::RAX, inst.operands[0]) && // (AR) الأيسر في RAX (يفكّ Any)
-                           cmpAgainst(inst.operands[1]) &&         // (AR) قارنه بالأيمن (imm/سجلّ، يفكّ Any)
-                           setccReg(*setcc, x86::RAX) &&           // (AR) AL = ٠/١
-                           movzxReg(dst, x86::RAX);                // (AR) dst = تمديدُ AL بالصفر
-                }
+                    return driveComparison(inst);
                 case OP::MOD_I64:
                 case OP::DIV_I64:       // (AR) قسمةٌ صحيحةٌ (حاصلُ idiv نحوَ الصفر)؛ يتيمةٌ سطحيًّا (`/`⇒FLOOR_DIV_I64).
                 case OP::FLOOR_DIV_I64:
@@ -4387,8 +4641,8 @@ namespace sad
                     //      • لا-موقَّعة (أيُّ معاملٍ طبيعي64، هيمنةً كـLLVM): xor rdx,rdx (تصفيرُ
                     //        النصفِ العالي) ثمّ div — بلا تمديدِ إشارة ⇒ النطاقُ الكامل ٢^٦٤
                     //        (MAX//2=INT64_MAX، MAX%2=1) مطابقةً للمفسّر ومسارِ LLVM.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     int dst;
                     if (!allocReg(inst.result->name, dst))
                         return false;
@@ -4907,8 +5161,8 @@ namespace sad
                 case OP::ENV_LOAD:
                 {
                     // (AR) تحميلُ ملتقَطٍ من البيئة (الدفعة ٧): operands=[%__env, فهرس]. dst = [env + فهرس×8].
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     long long idx;
                     if (!common::isConstInt(inst.operands[1], idx) || idx < 0)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
@@ -5000,8 +5254,8 @@ namespace sad
                     //      mmap كتلةً واحدة (رأسٌ ٤٠ + بياناتٌ cap×٨)، ونهيّئ len/cap/data؛
                     //      tags/homogKind يُصفّرهما mmap (المتجانسةُ العدديّة). السعةُ ثابتةٌ
                     //      من الأمام؛ الحجمُ الديناميّ مؤجَّلٌ ⇒ فشلٌ صريح.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     long long lenv, capv;
                     if (!common::isConstInt(inst.operands[0], lenv) ||
                         !common::isConstInt(inst.operands[1], capv))
@@ -5116,8 +5370,8 @@ namespace sad
                 case OP::ARRAY_GET:
                 {
                     // (AR) result = arr[index]. نحسب عنوانَ العنصر في RAX ثمّ نحمّله في الوجهة.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     // (AR) القراءةُ المعلَّبة تُكشَف بنوعِ **النتيجة** Any (الأمامُ يضعها هناك لا على
                     //      المعامل — بخلاف SET) اتّساقًا مع مسارِ LLVM (array_ops.cpp).
                     if (inst.result->dataType == types::SadTypeKind::Any)
@@ -5167,8 +5421,8 @@ namespace sad
                 case OP::ARRAY_LEN:
                 {
                     // (AR) result = طول(arr) ⇒ [arr+0].
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     if (!loadInto(x86::RAX, inst.operands[0]))
                         return false;
                     int dst;
@@ -5191,8 +5445,8 @@ namespace sad
                     //      byte truncates nothing here (the length comes from the array
                     //      header) — precisely why this builtin exists: an ELF header cannot
                     //      be written through a text path that stops at the first 0x00.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     if (inst.operands[1].elementType == types::SadTypeKind::Any ||
                         inst.operands[1].elementType == types::SadTypeKind::Float)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
@@ -5303,8 +5557,8 @@ namespace sad
                     // (EN) read_bytes(path) → array of 0..255 via raw syscalls, then a
                     //      five-field SadArray with tags=null and homogKind=Int (every
                     //      producer must initialise fields 3 and 4).
-                    if (!inst.result || inst.operands.size() != 1)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 1))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -5585,8 +5839,8 @@ namespace sad
                     //      (len1+len2)×8]، ننسخ منطقتَي البيانات خامًا، ونضبط الطول/السعة/data/tags=null/homog.
                     //      المسارُ الساكن (tags=null) فقط: نرفض المعلَّبَ (Any) والمختلطَ النوعين صراحةً
                     //      (يلزمهما دمجُ مخزنِ الوسوم — مؤجَّلٌ). data=base+40 (مطابقٌ لـARRAY_NEW).
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     const types::SadTypeKind e0 = inst.operands[0].elementType;
                     const types::SadTypeKind e1 = inst.operands[1].elementType;
                     const bool bothKnown = e0 != types::SadTypeKind::Void && e1 != types::SadTypeKind::Void;
@@ -5651,8 +5905,8 @@ namespace sad
                     //      مؤشّرٌ لمصفوفةِ زوجٍ {أ[i]، ب[i]} (الخاناتُ تُنسخ خامًا). حلقةٌ ذاتُ mmap داخليٍّ
                     //      لكلّ زوج ⇒ القيمُ العابرةُ (outLen/i/data1/data2/outArr/outData) في خانات الخدش.
                     //      homog للناتج = Array (مصفوفةٌ من مصفوفات، tags=null). خانات: 0=outLen 1=i 2=data1 3=data2 4=outArr 5=outData.
-                    if (!inst.result || inst.operands.size() != 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireArity(inst, 2))
+                        return false;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first))
                             if (!storeMem(spillDisp(static_cast<size_t>(poolIndexOf(kv.second))), kv.second))
@@ -5755,8 +6009,8 @@ namespace sad
                     //      قيمةُ التعداد = مؤشّرُ كومة [i64 tag@0 | SadDyn f0@8 | …]، SadDyn={kind@0،payload@8}.
                     //      نخصّص عبر mmap، نخزّن الوسمَ، ثمّ لكلّ حمولة (kind من نوعها + i64 قيمتها).
                     //      الحمولاتُ العدديّةُ kind=Int؛ float/string مؤجَّلةٌ (فشلٌ صريح). النتيجةُ = المؤشّر.
-                    if (!inst.result || inst.operands.size() < 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireMinArity(inst, 2))
+                        return false;
                     long long tagv;
                     if (!common::isConstInt(inst.operands[1], tagv))
                         return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
@@ -5822,8 +6076,8 @@ namespace sad
                 {
                     // (AR) فحصُ حالةِ التعداد: operands=[obj, ConstI64(tag), String(اسم), ConstI64(isUnit)].
                     //      isUnit=1 ⇒ القيمةُ الوسمُ مباشرةً؛ 0 ⇒ حمّل [obj+0]. النتيجةُ منطقيّة (tag==المتوقَّع).
-                    if (!inst.result || inst.operands.size() < 4)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireMinArity(inst, 4))
+                        return false;
                     long long tagv, isUnit;
                     if (!common::isConstInt(inst.operands[1], tagv) ||
                         !common::isConstInt(inst.operands[3], isUnit))
@@ -5843,8 +6097,8 @@ namespace sad
                 {
                     // (AR) استخراجُ حمولةٍ: operands=[obj, ConstI64(fieldIdx), String(اسم)]. نحمّل الحمولةَ
                     //      i64 من خانةِ SadDyn (جزءُ payload). للنتيجة العدديّة؛ Any (قيمةٌ ديناميّة) مؤجَّل.
-                    if (!inst.result || inst.operands.size() < 2)
-                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    if (!requireMinArity(inst, 2))
+                        return false;
                     long long fieldIdx;
                     if (!common::isConstInt(inst.operands[1], fieldIdx) || fieldIdx < 0)
                         return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
@@ -6058,8 +6312,10 @@ namespace sad
                 if (b.type == sir::SIROperandType::REGISTER)
                 {
                     // (AR) [عقدُ Any] معامِلُ Any معلَّبٌ (مؤشّرُ dyn) ⇒ حمّله في RDI وفُكَّ الحمولةَ
-                    //      ([RDI+payloadOff]) ثمّ cmp — المقارنةُ تريد القيمةَ الخام (تماثلُ ARM64).
-                    if (b.dataType == types::SadTypeKind::Any)
+                    //      ([RDI+payloadOff]) ثمّ cmp — المقارنةُ تريد القيمةَ الخام.
+                    //      (كان مكتوبًا هنا «تماثلُ ARM64» وهو كاذبٌ مقيسًا: AArch64 كان
+                    //       يقارن المؤشّرَ حتّى سُدَّ في `prepareCompareOperands` هناك.)
+                    if (common::isBoxedAny(b))
                         return loadScalarInto(x86::RDI, b) &&
                                emit(x86::mnem::kCmp, "r64, r64", {x86::Operand::R(x86::RAX), x86::Operand::R(x86::RDI)});
                     long long disp;
@@ -6133,7 +6389,12 @@ namespace sad
                     return false;
                 // (AR) المعامل الأوّل في المُبدَّد RAX (يُحمَّل من الخانة إن متغيّرَ ذاكرة)، ثمّ
                 //      قارنه بالثاني (ثابتٌ imm أو سجلّ). كلا المعامِلَين في الذاكرة غيرُ مدعوم.
-                if (!loadInto(x86::RAX, cmp->operands[0]))
+                //      🐞 وكان `loadInto` هنا بينما `cmpAgainst` يفكّ المعامِلَ الثاني منذ
+                //         عقدِ Any ⇒ **نصفُ فكٍّ**: `إذا (خليط[٠] == ٧)` كان كاذبًا (يقارن
+                //         المؤشّرَ بـ٧) بينما `إذا (٧ == خليط[٠])` صادقًا — الجوابُ يتبدّل
+                //         بترتيبِ المعامِلَين. والمقارنةُ **قيمةً** كانت تفكّ الاثنين
+                //         (`prepareCompareOperands`) ⇒ افتراقُ شكلَين للعمليّةِ نفسِها.
+                if (!loadScalarInto(x86::RAX, cmp->operands[0]))
                     return false;
                 if (!cmpAgainst(cmp->operands[1]))
                     return false;

@@ -1,0 +1,10 @@
+# @rule: gr.oop.member
+# @description: عضو سلبيّ — كلمةٌ ليست عضوًا معروفًا في جسدِ الصنف
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+صنف ع
+    ثابتة ق = 1
+نهاية
+اطبع_سطر(1)

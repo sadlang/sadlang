@@ -814,7 +814,39 @@ namespace Sad
 
                 // (AR) إذا كان الكائن خريطة → استخدام __sad_map_set_typed بدلاً من ARRAY_SET
                 // (EN) If object is a map → use __sad_map_set_typed instead of ARRAY_SET
-                if (objResult.type == SadTypeKind::Map || objResult.type == SadTypeKind::Struct)
+                //
+                // (AR) و«أي» يدخل هنا كذلك، **تناظرًا مع مسارِ القراءةِ أعلاه**: الكتابةُ
+                //      المتداخلةُ `م["أ"]["ب"] = 5` هدفُها نتيجةُ قراءةٍ موسومةٍ زمنَ
+                //      التشغيل، فنوعُها الساكنُ `أي`. وكان الشرطُ يذكر Map/Struct فقط،
+                //      فتسقطُ الكتابةُ إلى ARRAY_SET بفهرسٍ **نصّيّ** ⇒ IR فاسدٌ في
+                //      Release وتأكيدٌ حاجبٌ في Debug. والحارسُ زمنَ التشغيلِ واحدٌ في
+                //      الطرفَين: `normalizeMapPtr` يفحصُ الوسمَ عند map.set كما عند
+                //      map.get.
+                // (EN) `أي` enters here too, symmetrically with the read path above: a nested
+                //      write `م["أ"]["ب"] = 5` targets a runtime-tagged read result, so its
+                //      static type is Any. The condition previously named Map/Struct only, so
+                //      the write fell through to ARRAY_SET with a **string** index ⇒ invalid IR
+                //      in Release, blocking assert in Debug.
+                //
+                // (AR) ⚠️ والشرطُ **نصٌّ حصرًا** لا «ليس صحيحًا»: مسارُ القراءةِ يستعمل
+                //      `!= Integer` معتمِدًا على أنّ «مفتاحَ الخريطةِ نصٌّ دائمًا» — وهي
+                //      دعوى **خاطئة** (اللغةُ تقبل مفاتيحَ عدديّة، والقراءةُ نفسُها
+                //      تُنصِّصها). ولو نُسِخت هنا لَصرَفَت `ح[ف] = 99` — حيث `ح` مصفوفةٌ
+                //      و`ف` فهرسٌ نوعُه الساكنُ `أي` — إلى مساعِدِ الخريطةِ فيُجهِض
+                //      الثنائيُّ زمنَ التشغيل، وهما بُعدان يُتقنهما ARRAY_SET أصلًا
+                //      (`normalizeArrayIndex` يفكُّ `%SadDyn` صراحةً). فالنصُّ وحدَه
+                //      مفتاحُ خريطةٍ يقينًا، وهو بعينِه ما يرفضه حارسُ الخلفيّة.
+                //      🔴 دَينٌ قائمٌ لا تُحدِثه هذه الهُنيْهةُ ولا تسدُّه: `خ["أ"][2] = 5`
+                //      (خريطةٌ متداخلةٌ بمفتاحٍ عدديّ) ما زال يُصرَف إلى ARRAY_SET
+                //      فيُجهِض. سدُّه يحتاج إرسالًا **بوسمِ الكائنِ زمنَ التشغيل** لا
+                //      بالنوعِ الساكنِ للفهرس.
+                // (EN) ⚠️ String only, not "not Integer": the read path's premise that a map
+                //      key is always a string is false, and copying it here would divert
+                //      `arr[i] = v` (Any-typed index) to the map helper and abort at runtime.
+                //      Debt: a nested map with a numeric key still misroutes; the real fix is
+                //      runtime-tag dispatch, not static index type.
+                if (objResult.type == SadTypeKind::Map || objResult.type == SadTypeKind::Struct ||
+                    (objResult.type == SadTypeKind::Any && idxResult.type == SadTypeKind::String))
                 {
                     // ================================================================
                     // (AR) [Fix #46] تحديث elementType للمتغير عند أول تخزين في خريطة فارغة:
@@ -856,6 +888,36 @@ namespace Sad
                                 mapVar->elementType = SadTypeKind::Any;
                             }
                         }
+                    }
+
+                    // (AR) المفاتيحُ تُخزَّنُ نصوصًا — نظيرُ التنصيصِ في مسارِ القراءة
+                    //      (ISSUE-044) وكان **مفقودًا هنا**: `خ[2] = 5` كانت تُمرِّرُ عددًا
+                    //      حيثُ ينتظرُ `__sad_map_set_typed` مؤشّرَ نصٍّ فيُقرَأُ العددُ
+                    //      عنوانًا ⇒ **انهيارُ تجزئةٍ** زمنَ التشغيلِ بخروجِ ترجمةٍ ٠.
+                    //      والمفسّرُ يطبع ٥. فالطرفانِ يجب أن يُنصِّصا بالطريقةِ نفسِها،
+                    //      وإلّا كتبَ أحدُهما بمفتاحٍ لا يقرؤه الآخَر.
+                    // (EN) Keys are stored as strings — the counterpart of the read path's
+                    //      conversion (ISSUE-044), which was **missing here**: `خ[2] = 5`
+                    //      passed an integer where __sad_map_set_typed expects a string
+                    //      pointer, so the integer was read as an address ⇒ segfault at run
+                    //      time with a 0 compile exit. Both sides must stringify alike.
+                    if ((idxResult.type == SadTypeKind::Integer ||
+                         idxResult.type == SadTypeKind::Float ||
+                         idxResult.type == SadTypeKind::Boolean) &&
+                        b_.currentBlock_)
+                    {
+                        std::string keyStrReg = b_.newTempRegister();
+                        SIROpcode keyConvOp = (idxResult.type == SadTypeKind::Float)     ? SIROpcode::F64_TO_STRING
+                                              : (idxResult.type == SadTypeKind::Boolean) ? SIROpcode::BOOL_TO_STRING
+                                                                                         : SIROpcode::I64_TO_STRING;
+                        SIRInstruction keyConv(keyConvOp);
+                        keyConv.result = SIROperand::Register(keyStrReg, SadTypeKind::String);
+                        keyConv.operands.push_back(
+                            SIROperand::Register(idxResult.registerName, idxResult.type));
+                        keyConv.comment = "map index-assign key to string";
+                        b_.currentBlock_->addInstruction(keyConv);
+                        idxResult.registerName = keyStrReg;
+                        idxResult.type = SadTypeKind::String;
                     }
 
                     // (AR) تخزين مطبوع: نُرسل القيمة كـ i64 مع علامة النوع

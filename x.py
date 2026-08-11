@@ -537,6 +537,20 @@ SOT_CHECK_GUARDS = (
         "args": ("--check",),
     },
     {
+        # (AR) ربطُ القواعد بأوپكودات SIR ودعمُ الخلفيّة الأصليّة (بلا LLVM):
+        #      يستدعي gen_sir_opcodes_yaml.py --check فيمسك كتالوجًا بائتًا عن تعداد
+        #      المترجم، ثمّ يتحقّق أنّ لكلّ قاعدةٍ نحويّةٍ مدخلًا في lowers_to.yaml،
+        #      وأنّ المعماريّات المخفوضة فعلًا تطابق backend/targets.yaml (لا هدفَ
+        #      يدّعي lowered بلا خفض، ولا معماريّةَ تُخفَّض خارج القائمة).
+        #      رخيصٌ: لا يعيد ترجمةَ الاختبارات — الاشتقاقُ الكامل يدويٌّ بـ--recompute.
+        # (EN) Grammar↔SIR mapping + native (LLVM-free) backend support: catches a
+        #      stale opcode catalog, rules missing a lowers_to entry, and drift
+        #      between actually-lowered ISAs and backend/targets.yaml. Cheap: no rebuild.
+        "name": "grammar_lowers_to",
+        "script": "check_lowers_to.py",
+        "args": (),
+    },
+    {
         # (AR) اتّساق خصائص الواجهة: primary_prop لكلّ عنصر ⇐ مفتاح في ui_props.yaml.
         # (EN) UI-property consistency: each widget primary_prop maps to a ui_props key.
         "name": "ui_props_consistency",

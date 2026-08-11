@@ -158,6 +158,25 @@ if(MSVC AND ENABLE_LLVM_BACKEND AND SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT)
 endif()
 
 # ══════════════════════════════════════════════════════════════════════
+# (AR) enable_testing() **قبل** المكوّنات الفرعيّة لا بعدها: CMake يتجاهل كلَّ
+#      add_test() يصدر قبل تمكين الاختبارات — بصمتٍ تامّ، بلا تحذير. وكان
+#      enable_testing() في cmake/tests.cmake وحدَه (يُضمَّن بعد core_components)،
+#      فسقطت اختباراتُ الخلفيّة الأصليّة الثلاثةُ من CTest كلّيًّا: أُعلن عنها
+#      «Configured test: …» وبُنيت وربطت، ولم تُشغَّل قطّ. مقيس: تشغيلةُ CI على dev
+#      أعلنت «100% tests passed, 178 tests» وليس فيها NativeBackendM1 ولا
+#      NativeBackendArm64 ولا NativeSirBridge — ولذلك ظلّ NativeBackendM1 أحمرَ
+#      منذ إعادةِ تسميةِ «فوق»⇒«أعلى» (#381) بلا أن يُخفِق شيئًا.
+#      وهذه هي الـadd_test الثلاثةُ الوحيدةُ الصادرةُ قبل tests.cmake، فالتقديمُ
+#      يضمّها ولا يوسّع النطاقَ إلى غيرها. والشرطُ نفسُه (BUILD_TESTS) مُبقًى.
+# (EN) enable_testing() must precede the sub-components: CMake silently drops any
+#      add_test() issued before it. The three native-backend tests were built and
+#      announced but never registered — measured on a real CI run.
+# ══════════════════════════════════════════════════════════════════════
+if(BUILD_TESTS)
+    enable_testing()
+endif()
+
+# ══════════════════════════════════════════════════════════════════════
 # تضمين المكوّنات الفرعيّة الرئيسيّة
 # Include core sub-components (shared/, interpreter/, compiler/)
 # ══════════════════════════════════════════════════════════════════════

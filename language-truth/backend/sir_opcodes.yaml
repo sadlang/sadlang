@@ -1,0 +1,3893 @@
+# ═══════════════════════════════════════════════════════════════════
+# sir_opcodes.yaml — كتالوج أوپكودات SIR (مصدر الحقيقة)
+# ═══════════════════════════════════════════════════════════════════
+# (AR) مُولَّد آليًّا بـscripts/codegen/gen_sir_opcodes_yaml.py — لا يُحرَّر يدويًّا.
+#      المصدر: compiler/include/frontend/sir_types.h (التعداد)
+#           + compiler/src/frontend/sir_types.cpp (المنمنمات)
+#
+# (AR) الغرض: يجعل أسماء الأوپكودات مفرداتٍ يحرسها مصدر الحقيقة، فيصير
+#      حقل «lowers_to» في قواعد النحو قابلًا للتحقّق لا نصًّا حرًّا.
+#
+# (AR) الحقلان متمايزان عمدًا:
+#      native_lowered ← المعماريّات التي تخفض الأوپكود فعلًا في شيفرة
+#                        الخلفيّة الأصليّة (بلا LLVM) — القياس الصادق.
+#      isel_declared  ← المعماريّات التي تعلن نمطًا له في backend/*/isel.yaml.
+#      الفجوة بينهما تُظهر أنّ جداول SoT ما تزال بذرةً بينما الخفض في C++.
+# ═══════════════════════════════════════════════════════════════════
+
+version: "1.0"
+description_ar: "كتالوج أوپكودات SIR — الاسم، المنمنمة، والخفض الأصليّ"
+description_en: "SIR opcode catalog — name, mnemonic, and native lowering"
+
+stats:
+  total: 772
+  with_mnemonic: 339
+  natively_lowered: 103
+  native_lowered_arm64: 103
+  native_lowered_x86_64: 103
+  isel_declared_arm64: 3
+  isel_declared_x86_64: 3
+  isel_names_not_in_enum: 1
+  isel_drift: [CONST_I64]
+
+opcodes:
+  - name: ADD_I64
+    mnemonic: "add.i64"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: [arm64, x86_64]
+  - name: ADD_F64
+    mnemonic: "add.f64"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: SUB_I64
+    mnemonic: "sub.i64"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: SUB_F64
+    mnemonic: "sub.f64"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: MUL_I64
+    mnemonic: "mul.i64"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: MUL_F64
+    mnemonic: "mul.f64"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: DIV_I64
+    mnemonic: "div.i64"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: DIV_F64
+    mnemonic: "div.f64"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: FLOOR_DIV_I64
+    mnemonic: "floordiv.i64"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: MOD_I64
+    mnemonic: "mod.i64"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: NEG
+    mnemonic: "neg"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: NULL_ASSERT
+    mnemonic: "null.assert"
+    section: "العمليات الحسابية / Arithmetic (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: AND
+    mnemonic: "and"
+    section: "العمليات الثنائية / Bitwise (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: OR
+    mnemonic: "or"
+    section: "العمليات الثنائية / Bitwise (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: XOR
+    mnemonic: "xor"
+    section: "العمليات الثنائية / Bitwise (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: NOT
+    mnemonic: "not"
+    section: "العمليات الثنائية / Bitwise (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: SHL
+    mnemonic: "shl"
+    section: "العمليات الثنائية / Bitwise (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: SHR
+    mnemonic: "shr"
+    section: "العمليات الثنائية / Bitwise (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: SAR
+    mnemonic: "sar"
+    section: "العمليات الثنائية / Bitwise (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ROL
+    mnemonic: "rol"
+    section: "العمليات الثنائية / Bitwise (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: EQ
+    mnemonic: "eq"
+    section: "المقارنات / Comparison (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: NE
+    mnemonic: "ne"
+    section: "المقارنات / Comparison (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: LT
+    mnemonic: "lt"
+    section: "المقارنات / Comparison (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: LE
+    mnemonic: "le"
+    section: "المقارنات / Comparison (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: GT
+    mnemonic: "gt"
+    section: "المقارنات / Comparison (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: GE
+    mnemonic: "ge"
+    section: "المقارنات / Comparison (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BR
+    mnemonic: "br"
+    section: "التحكم في التدفق / Control Flow (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BR_COND
+    mnemonic: "br.cond"
+    section: "التحكم في التدفق / Control Flow (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: RET
+    mnemonic: "ret"
+    section: "التحكم في التدفق / Control Flow (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: [arm64, x86_64]
+  - name: RET_VOID
+    mnemonic: "ret.void"
+    section: "التحكم في التدفق / Control Flow (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: CALL
+    mnemonic: "call"
+    section: "التحكم في التدفق / Control Flow (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: CALL_INDIRECT
+    mnemonic: "call.indirect"
+    section: "التحكم في التدفق / Control Flow (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: SWITCH
+    mnemonic: "switch"
+    section: "التحكم في التدفق / Control Flow (8)"
+    native_lowered: []
+    isel_declared: []
+  - name: PHI
+    mnemonic: "phi"
+    section: "التحكم في التدفق / Control Flow (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ALLOC
+    mnemonic: "alloc"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ALLOC_HEAP
+    mnemonic: "alloc.heap"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: FREE
+    mnemonic: "free"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: LOAD
+    mnemonic: "load"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STORE
+    mnemonic: "store"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: MOVE
+    mnemonic: "move"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ADDR
+    mnemonic: "addr"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: PTR_ADD
+    mnemonic: "ptr.add"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: PTR_CAST
+    mnemonic: "ptr.cast"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: MEMCPY
+    mnemonic: "memcpy"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: MEMSET
+    mnemonic: "memset"
+    section: "الذاكرة والمؤشرات / Memory (11)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ARRAY_NEW
+    mnemonic: "array.new"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ARRAY_GET
+    mnemonic: "array.get"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ARRAY_SET
+    mnemonic: "array.set"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ARRAY_LEN
+    mnemonic: "array.len"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ARRAY_APPEND
+    mnemonic: "array.append"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ARRAY_REMOVE
+    mnemonic: "array.remove"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ARRAY_CONCAT
+    mnemonic: "array.concat"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ARRAY_ZIP
+    mnemonic: "array.zip"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: TUPLE_NEW
+    mnemonic: "tuple.new"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: TUPLE_GET
+    mnemonic: "tuple.get"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: TUPLE_LEN
+    mnemonic: "tuple.len"
+    section: "المصفوفات / Arrays (6)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STRING_NEW
+    mnemonic: "string.new"
+    section: "النصوص / Strings (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STRING_LEN
+    mnemonic: "string.len"
+    section: "النصوص / Strings (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STRING_CONCAT
+    mnemonic: "string.concat"
+    section: "النصوص / Strings (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STRING_CMP
+    mnemonic: "string.cmp"
+    section: "النصوص / Strings (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STRING_ORD_CMP
+    mnemonic: "string.ord_cmp"
+    section: "النصوص / Strings (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STRING_SUBSTR
+    mnemonic: "string.substr"
+    section: "النصوص / Strings (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STRING_FIND
+    mnemonic: "string.find"
+    section: "النصوص / Strings (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STRING_REPLACE
+    mnemonic: "string.replace"
+    section: "النصوص / Strings (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STRING_TO_I64
+    mnemonic: "string.to_i64"
+    section: "النصوص / Strings (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: STRING_TO_F64
+    mnemonic: ""
+    section: "النصوص / Strings (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: OBJECT_NEW
+    mnemonic: "object.new"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: OBJECT_GET
+    mnemonic: "object.get"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: OBJECT_SET
+    mnemonic: "object.set"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: OBJECT_CALL
+    mnemonic: "object.call"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: INSTANCEOF
+    mnemonic: "instanceof"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: OBJECT_CAST
+    mnemonic: "object.cast"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: CLASS_DEF
+    mnemonic: "class.def"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: METHOD_DEF
+    mnemonic: "method.def"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: FIELD_DEF
+    mnemonic: "field.def"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: CONSTRUCTOR_CALL
+    mnemonic: "constructor.call"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: ENUM_CONSTRUCT
+    mnemonic: ""
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ENUM_GET_TAG
+    mnemonic: ""
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: ENUM_GET_PAYLOAD
+    mnemonic: ""
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ENUM_IS_VARIANT
+    mnemonic: ""
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ENUM_FREE
+    mnemonic: ""
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: []
+    isel_declared: []
+  - name: I64_TO_F64
+    mnemonic: "i64.to.f64"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: F64_TO_I64
+    mnemonic: "f64.to.i64"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: F64_TO_I64_SAT
+    mnemonic: "f64.to.i64.sat"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: I64_TO_BOOL
+    mnemonic: "i64.to.bool"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BOOL_TO_I64
+    mnemonic: "bool.to.i64"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: I64_TO_STRING
+    mnemonic: "i64.to.string"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: F64_TO_STRING
+    mnemonic: "f64.to.string"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BOOL_TO_STRING
+    mnemonic: "bool.to.string"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ARRAY_TO_STRING
+    mnemonic: "array.to.string"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: TUPLE_TO_STRING
+    mnemonic: "tuple.to.string"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: CAST
+    mnemonic: "cast"
+    section: "تحويل الأنواع / Type Conversion (8)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_PRINT
+    mnemonic: "builtin.print"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_READ
+    mnemonic: "builtin.read"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SQRT
+    mnemonic: "builtin.sqrt"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_LOG
+    mnemonic: "builtin.log"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_POW
+    mnemonic: "builtin.pow"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SIN
+    mnemonic: "builtin.sin"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_COS
+    mnemonic: "builtin.cos"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_TAN
+    mnemonic: "builtin.tan"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ABS
+    mnemonic: "builtin.abs"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_FLOOR
+    mnemonic: "builtin.floor"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CEIL
+    mnemonic: "builtin.ceil"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ROUND
+    mnemonic: "builtin.round"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MIN
+    mnemonic: "builtin.min"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_MAX
+    mnemonic: "builtin.max"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_ASSERT
+    mnemonic: "builtin.assert"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_DEBUG
+    mnemonic: "builtin.debug"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_LOG10
+    mnemonic: "builtin.log10"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_LOG2
+    mnemonic: "builtin.log2"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ASIN
+    mnemonic: "builtin.asin"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ACOS
+    mnemonic: "builtin.acos"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_TRUNC
+    mnemonic: "builtin.trunc"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FMOD
+    mnemonic: "builtin.fmod"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CLAMP
+    mnemonic: "builtin.clamp"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ATAN
+    mnemonic: "builtin.atan"
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_STRING_LENGTH
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_STRING_CHAR_AT
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_STRING_TO_UPPER
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_STRING_TO_LOWER
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_STRING_FIND
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_STRING_REPLACE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_STRING_SUBSTRING
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_STRING_TRIM
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_STRING_SPLIT
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_STRING_JOIN
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_STRING_STARTS_WITH
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_STRING_ENDS_WITH
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_STRING_CONTAINS
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ARRAY_APPEND
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_ARRAY_REMOVE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_ARRAY_SIZE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ARRAY_INDEX_OF
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ARRAY_CONTAINS
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ARRAY_REVERSE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ARRAY_SORT
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ARRAY_FIRST
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ARRAY_LAST
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ARRAY_SLICE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_READ
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_WRITE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_APPEND
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_DELETE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_COPY
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_MOVE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_CREATE_DIR
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_REMOVE_DIR
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_LIST_DIR
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_IS_DIR
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_EXISTS
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_IS_FILE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_REGEX_SEARCH
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_REGEX_MATCH
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_IS_SYMLINK
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_REAL_PATH
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_ABS_PATH
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_FILE_WRITE_BYTES
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_FILE_READ_BYTES
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_FILE_SIZE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_RANDOM
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SLEEP
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_EXIT
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_TYPE_OF
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_IS_INTEGER
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_IS_FLOAT
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_IS_STRING
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_IS_ARRAY
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_TO_BOOL
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_READ_LINE
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CLEAR_SCREEN
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SUM
+    mnemonic: ""
+    section: "الدوال المضمنة / Builtin (50+)"
+    native_lowered: []
+    isel_declared: []
+  - name: INLINE_ASM
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PORT_WRITE
+    mnemonic: "builtin.port_write"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PORT_READ
+    mnemonic: "builtin.port_read"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PORT_WRITE_16
+    mnemonic: "builtin.port_write16"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PORT_READ_16
+    mnemonic: "builtin.port_read16"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PORT_WRITE_32
+    mnemonic: "builtin.port_write32"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PORT_READ_32
+    mnemonic: "builtin.port_read32"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MEM_WRITE_8
+    mnemonic: "builtin.mem_write8"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MEM_READ_8
+    mnemonic: "builtin.mem_read8"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MEM_WRITE_16
+    mnemonic: "builtin.mem_write16"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MEM_READ_16
+    mnemonic: "builtin.mem_read16"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MEM_WRITE_32
+    mnemonic: "builtin.mem_write32"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MEM_READ_32
+    mnemonic: "builtin.mem_read32"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MEM_WRITE_64
+    mnemonic: "builtin.mem_write64"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MEM_READ_64
+    mnemonic: "builtin.mem_read64"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_INTERRUPT
+    mnemonic: "builtin.interrupt"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_HALT
+    mnemonic: "builtin.halt"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CLI
+    mnemonic: "builtin.cli"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_STI
+    mnemonic: "builtin.sti"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_ADDR_OF
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MEM_COPY
+    mnemonic: "builtin.mem_copy"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_MEM_SET
+    mnemonic: "builtin.mem_set"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_MEM_FILL_32
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MEM_COPY_32
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_VGA_WRITE
+    mnemonic: "builtin.vga_write"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_VGA_CLEAR
+    mnemonic: "builtin.vga_clear"
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SERIAL_INIT
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SERIAL_WRITE
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SERIAL_READ
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SERIAL_READY
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_GPIO_WRITE
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_GPIO_READ
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_GPIO_MODE
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_TIMER_INIT
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_TIMER_READ
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_TIMER_WAIT
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_RESET
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CPUID
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_RDTSC
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_MFENCE
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_LFENCE
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SFENCE
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_DMA_INIT
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_DMA_START
+    mnemonic: ""
+    section: "عمليات برمجة أنظمة التشغيل / OS Development Operations"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_ASSERT
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_VERIFY
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_IS_SAFE
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_PANIC
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_HASH
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_ENCRYPT
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_DECRYPT
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_ASSERT_TYPE
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_ASSERT_EQUAL
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_ASSERT_GREATER
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_SANITIZE
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_TIMESTAMP
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_SECURE_RANDOM
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_SECURITY_BASE64_ENCODE
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_BLAKE3_HASH
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_BLAKE3_KEYED_HASH
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_KDF_PBKDF2
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_KDF_HKDF
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_AEAD_ENCRYPT
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_AEAD_DECRYPT
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_KDF_ARGON2ID
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_X25519_KEYGEN_PRIV
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_X25519_DERIVE_PUB
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_X25519_EXCHANGE
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_ED25519_KEYGEN_PRIV
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_ED25519_DERIVE_PUB
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_ED25519_SIGN
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_CRYPTO_ED25519_VERIFY
+    mnemonic: ""
+    section: "دوال الأمان / Security Functions (14)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_PRINTF
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_MALLOC
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: FFI_FREE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: FFI_REALLOC
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_CALLOC
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_STRLEN
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_STRCPY
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_STRCMP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_STRCAT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_MEMCPY
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: FFI_MEMSET
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: FFI_FOPEN
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_FCLOSE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_FWRITE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_FREAD
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_SYSTEM
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_GETENV
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_ATOI
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_ATOF
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: FFI_SNPRINTF
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_SPAWN
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_AWAIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_YIELD
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_SLEEP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CREATE_FUTURE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_RESOLVE_FUTURE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_GET_FUTURE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CREATE_CHANNEL
+    mnemonic: "async.channel.create"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_SEND
+    mnemonic: "async.channel.send"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_RECV
+    mnemonic: "async.channel.recv"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_CLOSE
+    mnemonic: "async.channel.close"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_IS_CLOSED
+    mnemonic: "async.channel.is_closed"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_HAS_DATA
+    mnemonic: "async.channel.has_data"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_SIZE
+    mnemonic: "async.channel.size"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_CAPACITY
+    mnemonic: "async.channel.capacity"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_TRY_SEND
+    mnemonic: "async.channel.try_send"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_TRY_RECV
+    mnemonic: "async.channel.try_recv"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_SEND_TIMEOUT
+    mnemonic: "async.channel.send_timeout"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_CHANNEL_RECV_TIMEOUT
+    mnemonic: "async.channel.recv_timeout"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_MUTEX_CREATE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_MUTEX_LOCK
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_MUTEX_UNLOCK
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_MUTEX_TRY_LOCK
+    mnemonic: "async.mutex.try_lock"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_MUTEX_IS_LOCKED
+    mnemonic: "async.mutex.is_locked"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_FUTURE_IS_READY
+    mnemonic: "async.future.is_ready"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_THREAD_SPAWN
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_THREAD_JOIN
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_ATOMIC_LOAD
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_ATOMIC_STORE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_ATOMIC_ADD
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_ATOMIC_CAS
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_WAIT_ALL
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_WAIT_ANY
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_SELECT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_WG_CREATE
+    mnemonic: "async.wg.create"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_WG_ADD
+    mnemonic: "async.wg.add"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_WG_DONE
+    mnemonic: "async.wg.done"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_WG_WAIT
+    mnemonic: "async.wg.wait"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ASYNC_WG_COUNT
+    mnemonic: "async.wg.count"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: CORO_SUSPEND
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: CORO_RETURN
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: GENERATOR_YIELD
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: GENERATOR_CONSUME
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_CPU_GET_INFO
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_CPU_GET_FEATURES
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_CPU_READ_MSR
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_CPU_WRITE_MSR
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_CPU_READ_CR
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_CPU_WRITE_CR
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_CPU_INVLPG
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_CPU_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SYMBOL_ADDR
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_GDT_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_GDT_LOAD
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_GDT_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_PAGING_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_PAGING_MAP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_PAGING_UNMAP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_PAGING_FLUSH_TLB
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_PAGING_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_IDT_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_IDT_LOAD
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_IDT_REGISTER_ISR
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_IDT_ENABLE_IRQ
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_IDT_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_PCI_ENUMERATE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_PCI_READ_CONFIG
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_PCI_WRITE_CONFIG
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_PCI_GET_DEVICE_COUNT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_PCI_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_DMA_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_DMA_TRANSFER
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_DMA_STATUS
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_DMA_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_FB_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_FB_SET_PIXEL
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_FB_DRAW_RECT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_FB_FILL_RECT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_FB_DRAW_LINE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_FB_DRAW_STRING
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_FB_CLEAR
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_FB_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_FIND_TABLE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_SHUTDOWN
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SPINLOCK_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SPINLOCK_LOCK
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SPINLOCK_UNLOCK
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_MUTEX_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_MUTEX_LOCK
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_MUTEX_UNLOCK
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SEMAPHORE_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_BARRIER_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SCHED_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SCHED_CREATE_PROC
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SCHED_CREATE_THREAD
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SCHED_YIELD
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SCHED_SLEEP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SCHED_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_BOOT_GET_INFO
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_BOOT_GET_MEMORY_MAP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_BOOT_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_VFS_MOUNT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_VFS_UNMOUNT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_VFS_OPEN
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_VFS_READ
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_VFS_WRITE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_VFS_CLOSE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_VFS_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_SEND_EOI
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_SEND_IPI
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_SET_TIMER
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_HPET_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_HPET_READ
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_HPET_SLEEP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_HPET_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SYSCALL_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SYSCALL_REGISTER
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SYSCALL_INVOKE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_SYSCALL_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_MEM_ALLOC_PHYS
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_MEM_FREE_PHYS
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_MEM_MAP_REGION
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_MEM_GET_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_INIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_EXIT_BOOT_SERVICES
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_IS_INITIALIZED
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_BS_EXITED
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_RESET_SYSTEM
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_ALLOC_PAGES
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_FREE_PAGES
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_ALLOC_POOL
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_FREE_POOL
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_GET_MEMORY_MAP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_GET_MEMMAP_KEY
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_TOTAL_MEMORY
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_INIT_GOP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_SET_GOP_MODE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_QUERY_GOP_MODE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_GOP_MODE_COUNT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_CURRENT_GOP_MODE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_FRAMEBUFFER_BASE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_FRAMEBUFFER_SIZE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_FILL_SCREEN
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_DRAW_RECT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_GOP_BLT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_GET_TIME
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_SET_TIME
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_GET_VARIABLE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_SET_VARIABLE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_OPEN_VOLUME
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_OPEN_FILE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_READ_FILE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_WRITE_FILE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_CLOSE_FILE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_FILE_INFO
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_LOCATE_PROTOCOL
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_REVISION
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_VENDOR
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_FW_REVISION
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_UEFI_REPORT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_INIT_FULL
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_INIT_RSDP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_ENABLE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_DISABLE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_IS_INITIALIZED
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_VERSION
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_REBOOT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_SLEEP
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_DELAY_US
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_READ_PM_TIMER
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_IS_PM_32BIT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_PROCESSOR_COUNT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_LOCAL_APIC_ADDR
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_ACPI_ECAM_BASE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_SUPPORTED
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_X2_SUPPORTED
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_ID
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_IO_COUNT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_INIT_TIMER
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_START_TIMER
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_STOP_TIMER
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_TIMER_COUNT
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_CALIBRATE
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_SET_PRIORITY
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_DISABLE_PIC
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_MASK_IRQ
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_UNMASK_IRQ
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_ROUTE_IRQ
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_SEND_IPI_ALL
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_SEND_INIT_IPI
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_SEND_SIPI
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_WAIT_DELIVERY
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_APIC_INIT_IO
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_ALLOC
+    mnemonic: "android.alloc"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_FREE
+    mnemonic: "android.free"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_STRING_CREATE
+    mnemonic: "android.string.create"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_STRING_CONCAT
+    mnemonic: "android.string.concat"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_STRING_LENGTH
+    mnemonic: "android.string.length"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_STRING_SUBSTR
+    mnemonic: "android.string.substr"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_STRING_COMPARE
+    mnemonic: "android.string.compare"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_STRING_FREE
+    mnemonic: "android.string.free"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_ARRAY_CREATE
+    mnemonic: "android.array.create"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_ARRAY_GET
+    mnemonic: "android.array.get"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_ARRAY_SET
+    mnemonic: "android.array.set"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_ARRAY_LENGTH
+    mnemonic: "android.array.length"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_ARRAY_PUSH
+    mnemonic: "android.array.push"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_ARRAY_POP
+    mnemonic: "android.array.pop"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_ARRAY_FREE
+    mnemonic: "android.array.free"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_MAP_CREATE
+    mnemonic: "android.map.create"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_MAP_GET
+    mnemonic: "android.map.get"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_MAP_SET
+    mnemonic: "android.map.set"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_MAP_HAS
+    mnemonic: "android.map.has"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_MAP_DELETE
+    mnemonic: "android.map.delete"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_MAP_SIZE
+    mnemonic: "android.map.size"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_MAP_FREE
+    mnemonic: "android.map.free"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_NET_CONNECT
+    mnemonic: "android.net.connect"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_NET_SEND
+    mnemonic: "android.net.send"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_NET_RECV
+    mnemonic: "android.net.recv"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_NET_CLOSE
+    mnemonic: "android.net.close"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_HTTP_REQUEST
+    mnemonic: "android.http.request"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_WS_CONNECT
+    mnemonic: "android.ws.connect"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_WS_SEND
+    mnemonic: "android.ws.send"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_WS_RECV
+    mnemonic: "android.ws.recv"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_THREAD_CREATE
+    mnemonic: "android.thread.create"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_THREAD_JOIN
+    mnemonic: "android.thread.join"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_MUTEX_CREATE
+    mnemonic: "android.mutex.create"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_MUTEX_LOCK
+    mnemonic: "android.mutex.lock"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_MUTEX_UNLOCK
+    mnemonic: "android.mutex.unlock"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_CHANNEL_CREATE
+    mnemonic: "android.channel.create"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_CHANNEL_SEND
+    mnemonic: "android.channel.send"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_CHANNEL_RECV
+    mnemonic: "android.channel.recv"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_UI_INIT
+    mnemonic: "android.ui.init"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_UI_CREATE_WIDGET
+    mnemonic: "android.ui.create_widget"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_UI_SET_TEXT
+    mnemonic: "android.ui.set_text"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_UI_SET_CALLBACK
+    mnemonic: "android.ui.set_callback"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_UI_SHOW
+    mnemonic: "android.ui.show"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_UI_HIDE
+    mnemonic: "android.ui.hide"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_UI_UPDATE
+    mnemonic: "android.ui.update"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_UI_RUN
+    mnemonic: "android.ui.run"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_LOG
+    mnemonic: "android.log"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: ANDROID_PRINT
+    mnemonic: "android.print"
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_COLUMN
+    mnemonic: "ui.column"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ROW
+    mnemonic: "ui.row"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_STACK
+    mnemonic: "ui.stack"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_CONTAINER
+    mnemonic: "ui.container"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TEXT
+    mnemonic: "ui.text"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TEXT_STYLED
+    mnemonic: "ui.text_styled"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_BUTTON
+    mnemonic: "ui.button"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_BUTTON_VARIANT
+    mnemonic: "ui.button_variant"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ICON_BUTTON
+    mnemonic: "ui.icon_button"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_FAB
+    mnemonic: "ui.fab"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TEXT_FIELD
+    mnemonic: "ui.text_field"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_CHECKBOX
+    mnemonic: "ui.checkbox"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SWITCH
+    mnemonic: "ui.switch"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SLIDER
+    mnemonic: "ui.slider"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_CARD
+    mnemonic: "ui.card"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SCAFFOLD
+    mnemonic: "ui.scaffold"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_APP_BAR
+    mnemonic: "ui.app_bar"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SPACER
+    mnemonic: "ui.spacer"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_DIVIDER
+    mnemonic: "ui.divider"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_DIALOG
+    mnemonic: "ui.dialog"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_IMAGE
+    mnemonic: "ui.image"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ICON
+    mnemonic: "ui.icon"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TEXT_BUTTON
+    mnemonic: "ui.text_button"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_GRID
+    mnemonic: "ui.grid"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_CENTER
+    mnemonic: "ui.center"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_PADDING
+    mnemonic: "ui.padding"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ALIGN
+    mnemonic: "ui.align"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_EXPANDED
+    mnemonic: "ui.expanded"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_FLEXIBLE
+    mnemonic: "ui.flexible"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SIZED_BOX
+    mnemonic: "ui.sized_box"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_WRAP
+    mnemonic: "ui.wrap"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_BOX
+    mnemonic: "ui.box"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SCROLL_VIEW
+    mnemonic: "ui.scroll_view"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_BOTTOM_NAV
+    mnemonic: "ui.bottom_nav"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SNACKBAR
+    mnemonic: "ui.snackbar"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TOOLTIP
+    mnemonic: "ui.tooltip"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_PROGRESS
+    mnemonic: "ui.progress"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_LAZY_COLUMN
+    mnemonic: "ui.lazy_column"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_LAZY_ROW
+    mnemonic: "ui.lazy_row"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_LIST_VIEW
+    mnemonic: "ui.list_view"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TEXT_AREA
+    mnemonic: "ui.text_area"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_DRAWER
+    mnemonic: "ui.drawer"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SAFE_AREA
+    mnemonic: "ui.safe_area"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SURFACE
+    mnemonic: "ui.surface"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_WIDGET_BY_TYPE
+    mnemonic: "ui.widget_by_type"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SPIN_BOX
+    mnemonic: "ui.spin_box"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_GROUP_BOX
+    mnemonic: "ui.group_box"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SPINNER
+    mnemonic: "ui.spinner"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_STATUS_BAR
+    mnemonic: "ui.status_bar"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_WINDOW
+    mnemonic: "ui.window"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TITLE_BAR
+    mnemonic: "ui.title_bar"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SCROLL_BAR
+    mnemonic: "ui.scroll_bar"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TASKBAR
+    mnemonic: "ui.taskbar"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_START_MENU
+    mnemonic: "ui.start_menu"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SYSTEM_TRAY
+    mnemonic: "ui.system_tray"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_MENU
+    mnemonic: "ui.menu"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TOOLBAR
+    mnemonic: "ui.toolbar"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SEGMENTED_CONTROL
+    mnemonic: "ui.segmented_control"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TREE_VIEW
+    mnemonic: "ui.tree_view"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SPLIT_VIEW
+    mnemonic: "ui.split_view"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_DATA_TABLE
+    mnemonic: "ui.data_table"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_BREADCRUMB
+    mnemonic: "ui.breadcrumb"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_PICKER
+    mnemonic: "ui.picker"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_DATE_PICKER
+    mnemonic: "ui.date_picker"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_STEPPER
+    mnemonic: "ui.stepper"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_RATING_BAR
+    mnemonic: "ui.rating_bar"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ALERT
+    mnemonic: "ui.alert"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ADD_CHILD
+    mnemonic: "ui.add_child"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_REMOVE_CHILD
+    mnemonic: "ui.remove_child"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_CLEAR_CHILDREN
+    mnemonic: "ui.clear_children"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_TEXT
+    mnemonic: "ui.set_text"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_SIZE
+    mnemonic: "ui.set_size"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_FLEX
+    mnemonic: "ui.set_flex"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_BACKGROUND
+    mnemonic: "ui.set_background"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_FOREGROUND
+    mnemonic: "ui.set_foreground"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_SPACING
+    mnemonic: "ui.set_spacing"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_PADDING
+    mnemonic: "ui.set_padding"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_ALIGNMENT
+    mnemonic: "ui.set_alignment"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_BORDER
+    mnemonic: "ui.set_border"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_ELEVATION
+    mnemonic: "ui.set_elevation"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_OPACITY
+    mnemonic: "ui.set_opacity"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_VISIBILITY
+    mnemonic: "ui.set_visibility"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_APP_CREATE
+    mnemonic: "ui.app_create"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_APP_SET_ROOT
+    mnemonic: "ui.app_set_root"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_APP_LAYOUT
+    mnemonic: "ui.app_layout"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_APP_RENDER
+    mnemonic: "ui.app_render"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_APP_RUN
+    mnemonic: "ui.app_run"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_PRINT_TREE
+    mnemonic: "ui.print_tree"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_APP_DESTROY
+    mnemonic: "ui.app_destroy"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_WIDGET_DESTROY
+    mnemonic: "ui.widget_destroy"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_TOGGLE_THEME
+    mnemonic: "ui.toggle_theme"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_DARK_MODE
+    mnemonic: "ui.dark_mode"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_LIGHT_MODE
+    mnemonic: "ui.light_mode"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_IS_DARK
+    mnemonic: "ui.is_dark"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_NEXT_KEY
+    mnemonic: "ui.next_key"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_NAVIGATE
+    mnemonic: "ui.navigate"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_NAV_BACK
+    mnemonic: "ui.nav_back"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_NAV_ROOT
+    mnemonic: "ui.nav_root"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_REPLACE_PAGE
+    mnemonic: "ui.replace_page"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_PAGE_COUNT
+    mnemonic: "ui.page_count"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_CURRENT_PAGE
+    mnemonic: "ui.current_page"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_NAVIGATE_TRANSITION
+    mnemonic: "ui.navigate_transition"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_BACK_TRANSITION
+    mnemonic: "ui.back_transition"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_NAVIGATE_EXIT_TRANSITION
+    mnemonic: "ui.navigate_exit_transition"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_UPDATE_STATE
+    mnemonic: "ui.update_state"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_STOP_PROPAGATION
+    mnemonic: "ui.stop_propagation"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_STATE
+    mnemonic: "ui.set_state"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_TITLE
+    mnemonic: "ui.set_title"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_CLOSE_WINDOW
+    mnemonic: "ui.close_window"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_GEN_WEB
+    mnemonic: "ui.gen_web"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_GEN_ANDROID
+    mnemonic: "ui.gen_android"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_GEN_IOS
+    mnemonic: "ui.gen_ios"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_GEN_MACOS
+    mnemonic: "ui.gen_macos"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_PROP_STR
+    mnemonic: "ui.set_prop_str"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_PROP_INT
+    mnemonic: "ui.set_prop_int"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_PROP_NUM
+    mnemonic: "ui.set_prop_num"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_PROP_BOOL
+    mnemonic: "ui.set_prop_bool"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_PROP_DYN
+    mnemonic: "ui.set_prop_dyn"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ADD_EVENT
+    mnemonic: "ui.add_event"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ANIM_BEGIN
+    mnemonic: "ui.anim_begin"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ANIM_DURATION
+    mnemonic: "ui.anim_duration"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ANIM_EASING
+    mnemonic: "ui.anim_easing"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_EVENT_PHASE
+    mnemonic: "ui.set_event_phase"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_SET_EVENT_DATA
+    mnemonic: "ui.set_event_data"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ANIM_DELAY
+    mnemonic: "ui.anim_delay"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ANIM_REPEAT
+    mnemonic: "ui.anim_repeat"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_ANIM_AUTO_REVERSE
+    mnemonic: "ui.anim_auto_reverse"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_PROP_JOIN_ADD
+    mnemonic: "ui.prop_join_add"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_UI_PROP_JOIN_COMMIT
+    mnemonic: "ui.prop_join_commit"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: MODULE_LOAD
+    mnemonic: "module.load"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: MODULE_SYMBOL
+    mnemonic: "module.symbol"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: MODULE_EXPORT
+    mnemonic: "module.export"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: MODULE_INIT
+    mnemonic: "module.init"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: CLOSURE_CREATE
+    mnemonic: "closure.create"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: CLOSURE_CALL
+    mnemonic: "closure.call"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ENV_LOAD
+    mnemonic: "env.load"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: ENV_STORE
+    mnemonic: "env.store"
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
+  - name: BUILTIN_NET_TCP_NEW
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_TCP_CONNECT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_TCP_SEND
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_TCP_RECV
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_TCP_CLOSE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_TCP_BIND
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_TCP_LISTEN
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_TCP_ACCEPT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_TCP_CONNECTED
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_TCP_REMOTE_ADDR
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_UDP_NEW
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_UDP_BIND
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_UDP_SEND
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_UDP_RECV
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_UDP_CLOSE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RECV_TIMEOUT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_SEND_TIMEOUT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_NO_DELAY
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_LOCAL_PORT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_NEW_CLIENT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_FREE_CLIENT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_GET
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_POST
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_PUT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_DELETE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_PATCH
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_SET_BASE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_SET_HEADER
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_SET_TIMEOUT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_SET_BEARER
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_LAST_ERROR
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_HTTP_IS_OK
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RESP_FREE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RESP_STATUS
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RESP_BODY
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RESP_HEADER
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RESP_SUCCESS
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_SRV_NEW
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_SRV_FREE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_SRV_ON_GET
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_SRV_ON_POST
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_SRV_ON_PUT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_SRV_ON_DELETE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_SRV_LISTEN
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_SRV_STOP
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_SRV_CORS
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_REQ_METHOD
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_REQ_PATH
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_REQ_BODY
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_REQ_HEADER
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_REQ_QUERY
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RESP_SET_STATUS
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RESP_SET_BODY
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RESP_SET_JSON
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RESP_SET_HTML
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_RESP_SET_HEADER
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_INIT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_CLEANUP
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_ERROR_CODE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_ERROR_MSG
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_ADDR_NEW
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_ADDR_NEW_V6
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_ADDR_FREE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_ADDR_IP
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_ADDR_PORT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_ADDR_IS_V4
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_ADDR_IS_V6
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_ADDR_STR
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_NEW
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_FREE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_CONNECT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_CLOSE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_IS_CONNECTED
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_SEND
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_PING
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_RECEIVE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_HAS_MESSAGE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_GET_URL
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_LAST_ERROR
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_RECV_TIMEOUT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_CLIENT_SEND_TIMEOUT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_NEW
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_FREE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_START
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_STOP
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_IS_RUNNING
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_CONN_COUNT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_GET_PORT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_BROADCAST
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_BROADCAST_ROOM
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_ROOM_COUNT
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_ROOM_SIZE
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_NET_WS_SERVER_CLOSE_ALL
+    mnemonic: ""
+    section: "نظام الواجهة الموحد / Unified UI System (sad_ui.h)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_BUILD
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_SPLAT
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_EXTRACT
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_INSERT
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_LOAD
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_STORE
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_ADD
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_SUB
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_MUL
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_DIV
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_FMA
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_NEG
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_ABS
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_SQRT
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_MIN
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_MAX
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_AND
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_OR
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_XOR
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_EQ
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_NE
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_LT
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_LE
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_GT
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_GE
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_HSUM
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_HMUL
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_HMIN
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_HMAX
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_DOT
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_SHUFFLE
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: VECTOR_SELECT
+    mnemonic: ""
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: TRUNCATE_U8
+    mnemonic: "trunc.u8"
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: BOX_DYN
+    mnemonic: "box.dyn"
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []

@@ -1,22 +1,29 @@
 // ============================================================================
-// (AR) أدواتٌ مشتركةٌ لمخفّضات SIR الأصليّة (x86-64 وAArch64، ولاحقًا RISC-V/…): تحليلُ
-//      SIR محايدُ المعماريّة (لا بايتاتٌ ولا سجلّات) — تمييزُ المقارنات، إدماجُ المقارنة
-//      المُغذِّية لفرعٍ شرطيّ، وقراءةُ الثابت الصحيح. كانت هذه الدوالُّ الثلاثُ مكرَّرةً
-//      حرفيًّا في X86SirLowering وArm64SirLowering؛ توحيدُها هنا يمنع الانجرافَ بينهما
-//      ويؤسّس للواجهة المشتركة (طورٌ تالٍ: مُصدِرٌ مجرَّد يقود الخطَّ المشترك). النموذجُ
+// (AR) أدواتٌ مشتركةٌ لمخفّضات SIR الأصليّة (x86-64 وAArch64، ولاحقًا RISC-V/…) في
+//      ثلاثِ طبقات: (١) مسنداتُ تحليلٍ عديمةُ الحالة محايدةُ المعماريّة (لا بايتاتٌ ولا
+//      سجلّات) — تمييزُ المقارنات، إدماجُ المقارنة المُغذِّية لفرعٍ شرطيّ، قراءةُ الثابت
+//      الصحيح، وعقدُ الشكل؛ و(٢) `LoweringDiagnostics`: قاعدةٌ **ذاتُ حالة** تملك رمزَ
+//      الخطأ وبياناتِه؛ و(٣) `LoweringDriver<Target>`: المُصدِرُ المجرَّد بنمط CRTP —
+//      تتابعاتُ الثنائيّ والأحاديّ والمقارنة تعيش مرّةً واحدةً وتستدعي خطّافاتِ الهدف
+//      (أسفلَ الملفّ). كان كلُّ ذلك مكرَّرًا حرفيًّا في X86SirLowering
+//      وArm64SirLowering؛ توحيدُه هنا يمنع الانجرافَ بينهما. النموذجُ
 //      «كلٌّ في سجلّ» لكلّ الأهداف يجعل الإدماجَ (المقارنةُ آخرَ تعليمةٍ قبل المُنهي)
 //      قاعدةً مشتركة، فلا حاجةَ لـsetcc/movzx (x86) ولا لسجلّ شرطٍ وسيط (ARM64).
 // (EN) Shared architecture-neutral SIR analysis for the native lowerers (x86-64,
 //      AArch64, and later RISC-V/…): classify comparisons, fuse a comparison that
-//      feeds a conditional branch, and read an integer constant. These three were
-//      duplicated verbatim in both lowerers; unifying them here prevents drift and
-//      seeds the shared interface (a later phase abstracts the emitter).
+//      feeds a conditional branch, read an integer constant, and check instruction
+//      shape — plus a stateful `LoweringDiagnostics` base that owns the error code,
+//      plus `LoweringDriver<Target>`, the CRTP abstract emitter that owns the
+//      binary/unary/comparison sequences and calls back into each target's hooks.
+//      All of it was duplicated verbatim in both lowerers; unifying it here prevents drift.
 // ============================================================================
 #ifndef SAD_NATIVE_SIR_LOWERING_COMMON_H
 #define SAD_NATIVE_SIR_LOWERING_COMMON_H
 
+#include "backend/native/generated/native_diagnostics_generated.h"
 #include "frontend/sir_instruction.h"
 #include "frontend/sir_types.h"
+#include "error_codes.h"
 
 #include <cstddef>
 #include <string>
@@ -65,6 +72,50 @@ namespace sad
                     return false;
                 return inst.operands[0].dataType == types::SadTypeKind::Float ||
                        inst.operands[1].dataType == types::SadTypeKind::Float;
+            }
+
+            // ══════════════════════════════════════════════════════════════
+            // (AR) **عقدُ الشكل** (م٤، اللبنةُ الأولى): نتيجةٌ موجودةٌ وعددُ معامِلاتٍ متوقَّع.
+            //   هذا الشرطُ كان مكتوبًا خامًا ٨٢ مرّةً بصيغةِ
+            //   (`!inst.result || inst.operands.size() != N`) وستَّ مرّاتٍ بصيغةِ `< N` —
+            //   ٨٨ موضعًا في المخفّضَين (٤٧ في x86 و٤١ في ARM64)، وكانت كلُّ معماريّةٍ جديدةٍ
+            //   ستكتبه من جديد. تسميتُه هنا تجعله **عقدًا واحدًا** يستهلكه كلُّ هدف، ويمنع
+            //   أن ينجرف هدفٌ إلى `!=` وآخرُ إلى `<` صامتًا.
+            //
+            //   هذان الشرطان مجرَّدان بلا تشخيص. ولا يُناديهما المخفّضان مباشرةً: يرثان
+            //   `LoweringDiagnostics` أدناه ويُناديان `requireArity`/`requireMinArity`
+            //   فيأتيهما الشرطُ وتشخيصُه معًا. وفصلُ الطبقتين مقصود — هدفٌ لا يرث القاعدةَ
+            //   (أداةُ تحليلٍ مثلًا) يبقى قادرًا على استهلاك العقد بلا حالةِ فشل.
+            // ══════════════════════════════════════════════════════════════
+            inline bool hasResultAndArity(const sir::SIRInstruction &inst, std::size_t arity)
+            {
+                return inst.result && inst.operands.size() == arity;
+            }
+
+            // (AR) نظيرُه ذو الحدّ الأدنى: تعليماتٌ متغيّرةُ العدد (نداءٌ، بناءُ مصفوفة…).
+            //      مفصولٌ عمدًا لا بمعاملٍ منطقيّ: `==` و`>=` عقدان مختلفان، وخلطُهما في
+            //      دالّةٍ واحدةٍ يجعل موضعَ الاستدعاء يقرأ الشرطَ الخطأ بسهولة.
+            inline bool hasResultAndMinArity(const sir::SIRInstruction &inst, std::size_t least)
+            {
+                return inst.result && inst.operands.size() >= least;
+            }
+
+            // (AR) هل المعامِلُ **علبةُ Any** (مؤشّرُ خانةِ dyn) لا قيمةً خامّة؟ بوّابةٌ واحدةٌ
+            //      لأنّ تفرّقَها فخٌّ صامت: موضعٌ يبوّب على `dataType == Any` وحدَه بينما
+            //      المُحمِّلُ يشترط `REGISTER` أيضًا ⇒ معامِلُ Any غيرُ REGISTER يمرّ بلا فكٍّ
+            //      ولا تحويلٍ فيُنتج جوابًا خاطئًا صامتًا. الشرطُ الآن في موضعٍ واحد لكلّ
+            //      بوّاباتِ معامِلاتِ **الحساب والمقارنة والتحويل**.
+            //      (١) وفحصُ `result->dataType == Any` شيءٌ آخر: سؤالُه «أيُعلَّب الناتج؟»
+            //          لا «أهذا المعامِلُ علبة؟» — فلا يُدمَج بها.
+            //      (٢) وبوّابةُ الطباعةِ المعلَّبة (`BUILTIN_PRINT` في الهدفَين) ما تزال
+            //          يدويّةً تبوّب على `dataType == Any` بلا شرطِ REGISTER — مسارٌ قديمٌ
+            //          خارجَ هذه الدفعة، ولم يُبلَغ فيه معامِلٌ ثابتٌ بنوعِ Any عمليًّا،
+            //          لكنّه الفخُّ نفسُه فيُضمَّ إلى هنا حين يُمَسّ.
+            //      (الثابتُ لا يكون علبةً: التعليبُ يُخصَّص زمنَ التشغيل.)
+            inline bool isBoxedAny(const sir::SIROperand &op)
+            {
+                return op.type == sir::SIROperandType::REGISTER &&
+                       op.dataType == types::SadTypeKind::Any;
             }
 
             // (AR) هل المعاملُ ثابتٌ صحيح؟ يُعيد قيمتَه (الشرطُ نفسُه في كلّ الأهداف).
@@ -158,6 +209,189 @@ namespace sad
                         return true;
                 return false;
             }
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) **القاعدةُ التشخيصيّةُ المشتركة** (م٤، الطورُ الثالث).
+            //
+            //   حالةُ الفشل — `errorCode_` و`detail_` و`fail()` و`detailOpcode()`
+            //   و`detailUiOpcode()` — كانت مكرَّرةً **حرفًا بحرف** في المخفّضَين، وكانت
+            //   ستُكرَّر ثالثةً في RISC-V ورابعةً في ARMv7 وخامسةً في i686. رفعُها إلى
+            //   قاعدةٍ واحدةٍ يجعل عقدَ التشخيص واحدًا لا خمسةَ نسخٍ تنجرف.
+            //
+            //   ولماذا قاعدةٌ عاديّةٌ لا CRTP: لا شيءَ هنا يستدعي المشتقَّ — الحالةُ
+            //   والمنطقُ محايدان تمامًا. وموضعُ الوراثةِ القالبيّة `LoweringDriver`
+            //   أسفلَ هذا الملفّ، حيث يقود التتابعُ المشتركُ خطّافاتِ الهدف فعلًا؛
+            //   استعمالُها هنا كلفةٌ نحويّةٌ بلا مقابل.
+            //
+            //   `requireArity`/`requireMinArity`: عقدُ الشكل وتشخيصُه في نداءٍ واحد.
+            //   قبلَها كان موضعُ الاستدعاء يختار رمزَ الخطأ بنفسه ٨٨ مرّة — ويكفي أن
+            //   يختار هدفٌ جديدٌ رمزًا آخرَ ليفترق التشخيصُ بين المعماريّات صامتًا.
+            // ═══════════════════════════════════════════════════════════════
+            class LoweringDiagnostics
+            {
+            protected:
+                // (AR) محميّةٌ لا عامّة: اختصارٌ لخدمةِ المشتقّات، لا جزءٌ من واجهةِ المخفّض.
+                using EC = ::Sad::Errors::ErrorCode;
+
+                // (AR) قاعدةُ تركيبٍ لا تعدّدِ أشكال: لا حذفَ عبر مؤشّرِ قاعدة، فمُدمِّرٌ
+                //      محميٌّ غيرُ افتراضيّ يُقفل البابَ بلا كلفةِ جدولٍ افتراضيّة.
+                ~LoweringDiagnostics() = default;
+
+                // (AR) رمزُ الخطأ من كتالوج SoT وبياناتُه المرافقة؛ لا نصَّ رسالةٍ هنا.
+                //      القيمةُ الابتدائيّة «لا مدخل»: وحدةٌ بلا دالّةٍ رئيسيّةٍ فشلٌ لا نجاح.
+                EC errorCode_ = EC::INT_NATIVE_NO_ENTRY;
+                std::string detail_;
+
+                bool fail(EC code, const std::string &detail = "")
+                {
+                    errorCode_ = code;
+                    detail_ = detail;
+                    return false;
+                }
+
+                static std::string detailOpcode(const sir::SIRInstruction &i)
+                {
+                    return diag::kOpcode + std::to_string(static_cast<int>(i.opcode));
+                }
+
+                // (AR) تشخيصُ أوپكودِ واجهةٍ في المسار الأصليّ: الخلفيّةُ السياديّةُ لا تخفّض
+                //      الواجهةَ — قرارٌ معماريٌّ مُعلَنٌ لا نقصٌ عابر (انظر isUiOpcode أعلاه).
+                static std::string detailUiOpcode(const sir::SIRInstruction &i)
+                {
+                    return diag::kUiRequiresLlvm + std::to_string(static_cast<int>(i.opcode));
+                }
+
+                // (AR) شكلٌ مضبوط: نتيجةٌ موجودةٌ وعددُ معامِلاتٍ مساوٍ. الفشلُ يَسِمُ
+                //      الأوپكودَ كي لا يكون التشخيصُ «معامِلاتٌ غيرُ صالحة» بلا دلالة.
+                bool requireArity(const sir::SIRInstruction &inst, std::size_t arity)
+                {
+                    return hasResultAndArity(inst, arity) ||
+                           fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                }
+
+                // (AR) شكلٌ ذو حدٍّ أدنى: تعليماتٌ متغيّرةُ العدد (نداءٌ، بناءُ مصفوفة…).
+                bool requireMinArity(const sir::SIRInstruction &inst, std::size_t least)
+                {
+                    return hasResultAndMinArity(inst, least) ||
+                           fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                }
+            };
+
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) **المُصدِرُ المجرَّدُ لتخفيضِ SIR** (م٤، الطورُ الرابع، الشقُّ الثاني).
+            //
+            //   الملاحظةُ التي يقوم عليها: خفضُ عمليّةٍ ثنائيّةٍ في كلِّ معماريّةٍ رأيناها
+            //   هو **التتابعُ نفسُه** بستِّ خطوات — تحقّقُ الشكل، البحثُ في جدولِ الهدف،
+            //   تخصيصُ سجلِّ الوجهة، تهيئةُ المعامِلَين، إصدارُ التعليمة، ثمّ إعادةُ تعليبِ
+            //   النتيجةِ إن كان نوعُها Any. ما يفترق بين الأهداف هو **مضمونُ** الخطوتين
+            //   الرابعةِ والخامسة لا ترتيبُهما ولا وجودُهما.
+            //
+            //   والملاحظةُ ذاتُها تصدق على الأحاديِّ وعلى المقارنة، فيقودها المُصدِرُ نفسُه
+            //   بتتابعَين أقصر (`driveUnary` و`driveComparison`) — ولذلك اسمُه «مُصدِرُ
+            //   تخفيضٍ» لا «مُصدِرُ عمليّةٍ ثنائيّة».
+            //
+            //   لذلك رُفِع التتابعُ إلى هنا وبقي المضمونُ في الهدف عبر ثلاثةِ خطّافات
+            //   (`prepareBinaryOperands` · `emitBinaryOp` · `boxBinaryResult`) وجدولٍ
+            //   (`binaryShape`). المكسبُ ليس في عددِ الأسطر: المعماريّةُ السادسةُ تُصبح
+            //   **جدولَ أسماءِ تعليمات** لا نسخةً سادسةً من التتابع — ولا تستطيع أن تُخطئ
+            //   ترتيبَه ولا أن تُسقط تعليبَ Any، لأنّ التتابعَ ليس ملكَها.
+            //
+            //   ولماذا CRTP هنا وقاعدةٌ عاديّةٌ في `LoweringDiagnostics` أعلاه: هذه القاعدةُ
+            //   **تنادي المشتقَّ** (الخطّافاتُ الثلاث)، وتلك لا تناديه. القاعدةُ الافتراضيّةُ
+            //   كانت ستؤدّي الغرضَ بجدولٍ افتراضيٍّ في مسارٍ ساخنٍ يُنفَّذ لكلِّ تعليمة؛
+            //   وCRTP يُلغي ذلك بلا كلفةِ تشغيلٍ ولا مؤشّرِ صنف.
+            //
+            //   ⚠️ ما لا يقوده هذا المُصدِر — وبقصد: العمليّاتُ التي تكسر **ترتيبَ**
+            //      التتابع لا مضمونَه. مثالُها الحاسم: الإزاحةُ ذاتُ المقدارِ المتغيّر في
+            //      x86 تُخصِّص الوجهةَ **بعد** الإصدار (لأنّ CL يجب أن يُحرَّر أوّلًا)،
+            //      والقسمةُ تحجز RDX:RAX. إقحامُها هنا يقلب ترتيبَ تخصيصِ السجلّات ⇒
+            //      شيفرةٌ أخرى لا تجريدٌ. تبقى في الهدف صراحةً، وجدولُه يُغفلها فيردُّ
+            //      `nullptr` ⇒ لا تصل أصلًا.
+            // ═══════════════════════════════════════════════════════════════
+
+            // (AR) وصفُ العمليّةِ الثنائيّةِ في جدولِ الهدف. الحقلُ المشتركُ الوحيد: هل
+            //      النتيجةُ خاضعةٌ لعقدِ Any (تُعلَّب إن كان نوعُ النتيجةِ Any). أسماءُ
+            //      التعليمات نفسُها تبقى في جدولِ الهدف لأنّ ترميزَها ملكُ معماريّتِه.
+            struct BinaryOpShape
+            {
+                bool boxesAny = false;
+            };
+
+            template <class Target>
+            class LoweringDriver : public LoweringDiagnostics
+            {
+            protected:
+                // (AR) قاعدةُ تركيبٍ كسابقتِها: مُدمِّرٌ محميٌّ غيرُ افتراضيّ. بدونه يكون
+                //      مُدمِّرُ القالبِ الضمنيُّ عامًّا، فيُفتَح البابُ الذي أُقفل في القاعدة
+                //      أدنى منه — وحذفٌ عبر مؤشّرِ قاعدةٍ يُسرِّب حالةَ الهدفِ صامتًا.
+                ~LoweringDriver() = default;
+
+                // (AR) التتابعُ المشترك. الخطّافاتُ الثلاثةُ خاصّةٌ في الهدف عادةً، فالهدفُ
+                //      يُصادِق هذا القالبَ (`friend`) بدل أن يفتحَ واجهتَه للجميع.
+                bool driveBinary(const sir::SIRInstruction &inst)
+                {
+                    Target *self = static_cast<Target *>(this);
+                    if (!requireArity(inst, 2))
+                        return false;
+                    // (AR) خارجَ الجدول ⇒ «غيرُ مدعوم». مسارٌ ميّتٌ ما دام الموزِّعُ لا يوجّه
+                    //      إلّا ما في الجدول؛ حارسٌ يمنع أن يُسقِطَ هدفٌ جديدٌ مدخلًا صامتًا.
+                    const BinaryOpShape *shape = self->binaryShape(inst.opcode);
+                    if (!shape)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
+                    int dst;
+                    if (!self->allocReg(inst.result->name, dst))
+                        return false;
+                    if (!self->prepareBinaryOperands(inst, dst))
+                        return false;
+                    if (!self->emitBinaryOp(inst, dst))
+                        return false;
+                    return shape->boxesAny ? self->boxBinaryResult(inst, dst) : true;
+                }
+
+                // (AR) **الأحاديّ** (NOT/NEG): التتابعُ عينُه بلا معامِلٍ ثانٍ. وقد كان بلا
+                //      خطّافِ تعليبٍ أيضًا، وكان ذلك عيبًا لا تبسيطًا: النفيُ على معامِلِ Any
+                //      كان مكسورًا في الهدفَين (سقوطٌ بإشارة ١١)، وإصلاحُه مسّ **هذا
+                //      التتابعَ** لا الخطّافَ وحدَه لأنّ النتيجةَ تخضع لعقدِ Any كنظيرتِها
+                //      الثنائيّة. ولا حقلَ `boxesAny` هنا: الأحاديُّ كلُّه خاضعٌ للعقد،
+                //      والخطّافُ نفسُه يردُّ فورًا حين لا تكون النتيجةُ Any.
+                bool driveUnary(const sir::SIRInstruction &inst)
+                {
+                    Target *self = static_cast<Target *>(this);
+                    if (!requireArity(inst, 1))
+                        return false;
+                    int dst;
+                    if (!self->allocReg(inst.result->name, dst))
+                        return false;
+                    // (AR) والتعليبُ خطوةٌ ثالثةٌ في التتابعِ لا خطّافٌ اختياريّ: كان
+                    //      ناقصًا هنا وحدَه بين التتابعاتِ الثلاثة، فنتيجةُ النفيِ على
+                    //      معامِلٍ Any تخرج **خامّةً** بلا خانةِ dyn ⇒ يقرؤها المستهلِكُ
+                    //      مؤشّرًا فيسقط. عقدُ Any واحدٌ للثنائيّ والأحاديّ.
+                    return self->prepareUnaryOperand(inst, dst) && self->emitUnaryOp(inst, dst) &&
+                           self->boxUnaryResult(inst, dst);
+                }
+
+                // (AR) **المقارنةُ كقيمة**. تتابعٌ بخمسِ خطوات، وترتيبُه مُلزِمٌ لا اعتباطيّ:
+                //      حلُّ الشرطِ يسبق تخصيصَ الوجهة لأنّه **قد يفشل** (مقارنةٌ لا-موقَّعةٌ
+                //      مرفوضة، أو أوپكودُ مقارنةٍ لا شرطَ له) — والفشلُ بعد التخصيصِ يترك
+                //      سجلًّا محجوزًا لنتيجةٍ لن تُكتَب. مسارُ العوائمِ يفترق داخليًّا بين
+                //      الهدفَين (x86 يُخصِّص ثمّ يقارن، وAArch64 يحلُّ حقلَ cset أوّلًا)
+                //      فبقي كتلةً واحدةً يملكها الهدف.
+                //      لا تصل هنا مقارنةٌ مدموجةٌ في فرعٍ شرطيّ: `lowerBlock` يتخطّاها.
+                bool driveComparison(const sir::SIRInstruction &inst)
+                {
+                    Target *self = static_cast<Target *>(this);
+                    if (!requireArity(inst, 2))
+                        return false;
+                    if (isFloatCompare(inst))
+                        return self->lowerFloatComparison(inst);
+                    if (!self->resolveCompareCondition(inst))
+                        return false;
+                    int dst;
+                    if (!self->allocReg(inst.result->name, dst))
+                        return false;
+                    return self->prepareCompareOperands(inst) && self->emitCompareResult(inst, dst);
+                }
+            };
+
         } // namespace common
     } // namespace native
 } // namespace sad

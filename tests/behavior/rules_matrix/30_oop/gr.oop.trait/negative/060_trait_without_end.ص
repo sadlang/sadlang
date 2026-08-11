@@ -1,0 +1,9 @@
+# @rule: gr.oop.trait
+# @description: سمة سلبيّ — إعلانُ سمةٍ بلا «نهاية» تُغلقه
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error
+
+سمة قابل
+    دالة وصف()
+اطبع_سطر(1)

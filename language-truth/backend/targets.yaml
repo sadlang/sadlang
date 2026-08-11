@@ -1,0 +1,101 @@
+# ============================================================================
+# (AR) targets.yaml — مصدرُ الحقيقة الوحيد لقائمة المعماريّات المستهدَفة
+#      في حملة «الخلفيّة الأصليّة بلا LLVM».
+# (EN) Single source of truth for the sovereign-backend target architectures.
+# ----------------------------------------------------------------------------
+# (AR) المرجع: قرار المالك المُحدِّث في
+#      تقارير_مؤقته/لغة ص/no_llvm/تقرير_استقلال_المترجم_عن_LLVM.md §٩٫٦ —
+#      «السيادة = خمس معماريّات فأكثر بلا LLVM إطلاقًا».
+#      الخانة الإلزاميّة عبر الخمس: ELF + لينكس/الوضع الحرّ.
+#      Mach-O/darwin وPE/Win64 خارج نواة السيادة (تبقى على LLVM حتّى قرارٍ لاحق).
+#
+#      ⚠️ لا تُكتب هذه القائمة يدويًّا في سكربتٍ أو لوحة. مَن يحتاجها يقرؤها من هنا.
+# ============================================================================
+
+version: "1.0"
+status: experimental
+scope_ar: "ELF + لينكس والوضع الحرّ عبر الخمس جميعًا"
+
+targets:
+  - id: x86_64
+    name_ar: "x86-64"
+    milestone: "م٠–م٣"
+    order: 1
+    status: lowered
+    rationale_ar: "بيئة التطوير والخوادم؛ ترسي الطبقة المشتركة؛ نواة sad-os الحاليّة"
+    sot_dir: language-truth/backend/x86_64
+    abi: language-truth/backend/abi/x86_64-linux.yaml
+    lowering: compiler/include/backend/native/sir_native_lowering.h
+
+  - id: arm64
+    name_ar: "AArch64/ARM64"
+    milestone: "م٥"
+    order: 2
+    status: lowered
+    rationale_ar: "الأرخص ترميزًا ويفتح الهواتف (Android) بكلفة ELF إضافيّة صغيرة"
+    sot_dir: language-truth/backend/arm64
+    abi: language-truth/backend/abi/aarch64-linux.yaml
+    lowering: compiler/include/backend/native/arm64_sir_lowering.h
+
+  - id: riscv64
+    name_ar: "RISC-V RV64GC (+RV32)"
+    milestone: "م٦"
+    order: 3
+    status: planned
+    rationale_ar: "الأكثر انتظامًا + سيادة عتاد + جداولُه تُولَّد من المواصفة"
+
+  - id: armv7
+    name_ar: "ARMv7-A/Thumb-2"
+    milestone: "م٧"
+    order: 4
+    status: planned
+    rationale_ar: "يغطّي الهواتف والمضمّنات الأقدم؛ الأصعب ترميزًا فيؤجَّل"
+
+  - id: i686
+    name_ar: "x86 i686"
+    milestone: "م٨"
+    order: 5
+    status: planned
+    rationale_ar: "يكمل تغطية x86 القديمة + نواة النحلة i686 القائمة"
+
+# (AR) مرحلةٌ بينيّةٌ ليست معماريّةً: م٤ من §٩٫٦ = استخراجُ الطبقة الجدوليّة
+#      (table-driven) من x86-64 قبل التكرار على الباقيات. تُسجَّل هنا كي لا يبدوَ
+#      ترقيمُ المراحل مقطوعًا بين م٣ (x86-64) وم٥ (AArch64).
+#      ⚠️ الحالة الواقعيّة: **جاريةٌ لا مكتملة**. المشترك بين المخفّضَين
+#      (compiler/include/backend/native/sir_lowering_common.h) كان ١٦٥ سطرًا من
+#      تحليل SIR المحايد فقط، وصار ٣٧٥ سطرًا تحوي فوقَه مُصدِرًا مجرَّدًا
+#      (LoweringDriver<Target>) يملك تتابعاتِ الثنائيّ والأحاديّ والمقارنة.
+#      وما يزال خارجَه: القسمةُ وأرضيّتُها والباقي والإزاحاتُ الثلاث والذاكرةُ
+#      والنداءُ والطباعة (التفصيلُ في stages أدناه). والمعماريّتان تخفّضان
+#      الأوپكودات نفسَها بلا استثناء ⇒ ما بقي من التكرار بنيويٌّ لا عرَضيّ.
+stages:
+  - id: table_driven_extraction
+    milestone: "م٤"
+    name_ar: "استخراج الطبقة الجدوليّة"
+    status: in_progress
+    # (AR) ما استُخرِج إلى compiler/include/backend/native/sir_lowering_common.h:
+    #      ١. مسنداتُ تحليلِ SIR عديمةُ الحالة (isComparison · isConstInt ·
+    #         findFusedComparison · hasResultAndArity · hasResultAndMinArity).
+    #      ٢. LoweringDiagnostics — قاعدةُ تركيبٍ لا تعدّدِ أشكال (مُدمِّرٌ محميٌّ
+    #         غيرُ افتراضيّ) تجمع فحوصَ العدديّة ورسائلَ الفشلِ من كتالوج SoT.
+    #      ٣. LoweringDriver<Target> بنمط CRTP — تتابعُ التخفيضِ يعيش مرّةً
+    #         واحدةً والهدفُ يقدّم خطّافاتِه: الثنائيّ · الأحاديّ · المقارنة.
+    #      عقدُ الاستخراج: بصمةُ sha256 لمخرَجِ ELF عبر مصفوفةِ القواعد ×
+    #      {x86_64, arm64} ⇒ صفرُ بايتةٍ مختلفة. لا تأكيدًا بل قياسًا.
+    #      ⚠️ ونطاقُ هذا البرهانِ محدود: المصفوفةُ لا تمثّل معامِلَ Any في عمليّةٍ
+    #         عشريّة، فتغييرُ السلوكِ المقصودُ في تلك الحالة (loadInto ⇒
+    #         loadScalarInto في x86) لا يظهر في البصمة. برهانُه الحيُّ منفصل:
+    #         scripts/native_backend/prove_any_float.sh — والبصمةُ ليست بديلًا
+    #         عن مراجعةٍ بل حارسٌ ضدّ تغييرٍ غيرِ مقصود.
+    remaining_ar: >-
+      لم يُستخرَج بعد: القسمةُ وأرضيّتُها والباقي — تكسر التتابعَ فعلًا (حارسُ
+      المقسوم-عليه صفرًا قبلَ الإصدار، وتصحيحُ الأرضيّةِ بعدَه)؛ والإزاحاتُ
+      الثلاث — لا تكسره في AArch64 وتُستثنى لأنّ نظيرَها في x86 يخصّص بعدَ
+      الإصدارِ لتحريرِ CL، وعضويّةُ الجدولين عقدٌ واحد؛ ثمّ الذاكرةُ والنداءُ
+      والطباعة.
+    blocks_ar: "كلُّ معماريّةٍ مخطَّطة — إضافتُها قبلَها تعني مخفّضًا يدويًّا ثالثًا"
+
+# (AR) خارج النطاق الإلزاميّ — قرارٌ منفصل بعد نضج الخمس (م٩).
+out_of_scope:
+  - { id: darwin_macho, name_ar: "Mach-O/darwin", reason_ar: "أجهزة Apple — تبقى على LLVM" }
+  - { id: win64_pe,     name_ar: "PE/Win64",      reason_ar: "ويندوز — يبقى على LLVM" }

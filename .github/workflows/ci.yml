@@ -718,6 +718,36 @@ jobs:
           #      built in this very run, so a skip means broken path discovery.
           SAD_LOWLEVEL_REQUIRE_BUILD=1 python3 -m pytest tests/system/lowlevel_freestanding -q -rs
 
+      - name: "🔬 براهين الخلفيّة الأصليّة (تنفيذٌ حيّ) / Native Backend Live Proofs"
+        if: matrix.config == 'Release'
+        run: |
+          # (AR) الفجوةُ التي تسدّها هذه الخطوة: كان في المستودع ١٧ سكربتَ برهانٍ حيٍّ
+          #      للخلفيّةِ الأصليّة **بلا مُنادٍ واحد** — لا وظيفةَ CI تشغّلها ولا مسارَ
+          #      عدّاءٍ يمرّر `--خلفية-أصلية`. فكلُّ ما تحرسه كان محروسًا يومَ كُتِب فقط.
+          #      ثمنُ ذلك مقيس: عيبُ نصفِ فكِّ علبةِ Any في الفرعِ المُدمَج عاش شهورًا،
+          #      واختبارُ NativeBackendM1 ظلّ أحمرَ منذ إعادةِ تسميةِ «فوق»⇒«أعلى» بلا
+          #      أن يراه أحد. التفريقُ الحاسم: الاختبارُ الوحدويُّ يقيس **ترميزًا**،
+          #      وهذه الخطوةُ تقيس **تنفيذًا** — ثنائيُّ ELF يُشغَّل فعلًا.
+          # (EN) Closes the structural gap: 17 live-proof scripts had no caller, so
+          #      nothing ever executed a natively-emitted ELF in CI. Unit tests measure
+          #      encodings; this measures execution.
+          # (AR) qemu-user-static للنصف الآخر: AArch64 يُنفَّذ هنا لا يُترجَم فحسب.
+          sudo apt-get install -y qemu-user-static
+          # (AR) المصرّفُ شرطُ برهانِ فكِّ Any بوسمِه وحدَه (يُصرَّف من مصدر ص). وبناؤه
+          #      عطلٌ **تتحمّله هذه الوظيفةُ عمدًا** منذ إنشائها، فغيابُه إقرارٌ صريحٌ
+          #      مُعلَنٌ (`--بلا-مصرف`) لا صمتٌ: يُسقِط برهانَ فكِّ Any بوسمِه وبرهانَ
+          #      حافّتَي البايتات (كلاهما يُصرَّف من مصدر ص)، ويُبقي بقيّةَ البراهين.
+          if [ "${SAD_BUILD_FRESH:-}" = "1" ]; then
+            COMPILER_ARG=(--مصرف "$PWD/build/bin/sad-build")
+          else
+            echo "::warning::sad-build لم يُبنَ في هذا التشغيل — برهانُ فكِّ Any بوسمِه غيرُ مقيسٍ هنا"
+            COMPILER_ARG=(--بلا-مصرف)
+          fi
+          bash scripts/native_backend/run_native_proofs.sh \
+            --مجلد-العمل "$RUNNER_TEMP/native_proofs" \
+            --منتج "$PWD/build/bin/tests" \
+            "${COMPILER_ARG[@]}"
+
       - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
         uses: actions/upload-artifact@v4
         with:

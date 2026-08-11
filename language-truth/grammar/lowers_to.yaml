@@ -1,0 +1,670 @@
+# ═══════════════════════════════════════════════════════════════════
+# lowers_to.yaml — خفضُ كلّ قاعدةٍ نحويّةٍ إلى أوپكودات SIR
+# ═══════════════════════════════════════════════════════════════════
+# (AR) مُولَّد آليًّا بـscripts/codegen/gen_grammar_lowers_to.py — لا يُحرَّر يدويًّا.
+#      الاشتقاق تجريبيّ: تُترجَم اختباراتُ القاعدة بـ«--أظهر-sir» فتُجمَع
+#      أوپكوداتُها كاملةً في lowers_to (عليها يقوم الحكم الأصليّ)، ويُفرَز
+#      beyond_baseline لما تُضيفه القاعدةُ فوق سقالةِ أيّ دالّة. وما لم
+#      يُترجَم يُعلَن not_derived صراحةً — لا يُفترض نجاحه.
+#
+# (AR) native_ok: المعماريّات التي تخفض كلَّ أوپكودات القاعدة في الخلفيّة
+#      الأصليّة بلا LLVM. native_missing: الأوپكودات المانعة لكلّ معماريّة.
+# ═══════════════════════════════════════════════════════════════════
+
+version: "1.0"
+description_ar: "ربط قواعد النحو بأوپكودات SIR — مُشتقّ بالتشغيل"
+description_en: "Grammar rule to SIR opcode mapping — derived by execution"
+
+baseline_opcodes: [ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, CALL, CLOSURE_CALL, GE, LOAD, NE, RET, STORE, SUB_I64]
+
+stats:
+  rules_total: 107
+  derived: 105
+  not_derived: 2
+  native_ok_arm64: 102
+  native_ok_x86_64: 102
+  samples_per_rule: 3
+
+rules:
+  - id: gr.program.program
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BUILTIN_PRINT, LOAD, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_var_print.ص, 002_const_print.ص, 003_two_vars_sum.ص]
+  - id: gr.program.declaration
+    status: derived
+    lowers_to: [ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, MUL_I64, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [BUILTIN_PRINT, MUL_I64, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_var_decl.ص, 002_const_decl.ص, 003_func_decl.ص]
+  - id: gr.program.statement
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BR, BR_COND, BUILTIN_PRINT, LT, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, LT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_expr_stmt.ص, 002_if_stmt.ص, 003_while_stmt.ص]
+  - id: gr.program.block
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BR, BR_COND, BUILTIN_PRINT, GT, LOAD, LT, MOVE, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, ARRAY_SET, BUILTIN_PRINT, GT, LT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_if_block.ص, 002_while_block.ص, 003_for_block.ص]
+  - id: gr.stmt.if
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_true_cmp_gt.ص, 002_true_cmp_gt2.ص, 003_true_cmp_lt.ص]
+  - id: gr.stmt.while
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BR, BR_COND, BUILTIN_PRINT, LT, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, LT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_count_lt_1.ص, 002_count_lt_2.ص, 003_count_lt_3.ص]
+  - id: gr.stmt.for
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BR, BR_COND, BUILTIN_PRINT, LOAD, LT, MOVE, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, ARRAY_SET, BUILTIN_PRINT, LT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_print_arr_1.ص, 002_print_arr_2.ص, 003_print_arr_3.ص]
+  - id: gr.stmt.match
+    status: derived
+    lowers_to: [BR, BR_COND, BUILTIN_PRINT, EQ, MOVE, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, EQ, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_sel_1.ص, 002_sel_2.ص, 003_sel_3.ص]
+  - id: gr.stmt.try
+    status: derived
+    lowers_to: [ALLOC, BR, BR_COND, BUILTIN_PRINT, CALL, EQ, LOAD, MOVE, NE, RET, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, EQ, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_catch.ص, 002_finally.ص, 003_no_error.ص]
+  - id: gr.stmt.throw
+    status: derived
+    lowers_to: [ALLOC, BR, BR_COND, BUILTIN_PRINT, CALL, MOVE, NE, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_string.ص, 002_number.ص, 003_after_throw_skipped.ص]
+  - id: gr.stmt.return
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_value.ص, 002_expr.ص, 003_string.ص]
+  - id: gr.stmt.break
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BR, BR_COND, BUILTIN_PRINT, EQ, LOAD, LT, MOVE, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, ARRAY_SET, BUILTIN_PRINT, EQ, LT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_in_while.ص, 002_in_for.ص, 003_first_iter.ص]
+  - id: gr.stmt.continue
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BR, BR_COND, BUILTIN_PRINT, EQ, LOAD, LT, MOD_I64, MOVE, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, ARRAY_SET, BUILTIN_PRINT, EQ, LT, MOD_I64, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_in_for.ص, 002_in_while.ص, 003_odd.ص]
+  - id: gr.stmt.expression
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_print_str.ص, 002_print_num.ص, 003_print_neg.ص]
+  - id: gr.stmt.switch
+    status: derived
+    lowers_to: [ALLOC, BR, BR_COND, BUILTIN_PRINT, EQ, MOVE, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, EQ, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_match_case.ص, 002_default.ص, 003_middle_case.ص]
+  - id: gr.decl.variable
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_var_int.ص, 002_var_int2.ص, 003_var_neg.ص]
+  - id: gr.decl.type_ref
+    status: derived
+    lowers_to: [ALLOC, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BUILTIN_PRINT, MOVE, RET_VOID, STORE]
+    beyond_baseline: [ARRAY_SET, BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_typed_رقم.ص, 002_typed_نص.ص, 003_typed_مصفوفة.ص]
+  - id: gr.decl.function
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, NE, RET, RET_VOID, SHL, STORE, SUB_I64]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID, SHL]
+    native_ok: [arm64, x86_64]
+    evidence: [001_no_param.ص, 002_one_param.ص, 003_two_param.ص]
+  - id: gr.decl.parameters
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_params_1.ص, 002_params_2.ص, 003_params_3.ص]
+  - id: gr.decl.import
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_import_رياضيات.ص, 002_import_أساسيات.ص, 003_import_نصوص.ص]
+  - id: gr.decl.export
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_export_func.ص, 002_export_var.ص, 003_export_const.ص]
+  - id: gr.decl.reexport
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_bare_wildcard.ص, 002_bare_wildcard_after_func.ص, 003_bare_wildcard_with_const.ص]
+  - id: gr.decl.extern
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_extern_one.ص, 002_extern_no_param.ص, 003_extern_two.ص]
+  - id: gr.decl.arg_list
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_multi_arabic.ص, 002_multi_latin.ص, 003_empty.ص]
+  - id: gr.oop.class
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, LOAD, MOVE, OBJECT_CALL, RET, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, OBJECT_CALL, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_field_ctor_method.ص, 002_abstract_override.ص, 003_inherits.ص]
+  - id: gr.oop.enum
+    status: derived
+    lowers_to: [BUILTIN_PRINT, LOAD, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_plain_index.ص, 002_explicit_value.ص, 050_three_members.ص]
+  - id: gr.oop.struct
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, LOAD, MOVE, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_default_field_values.ص, 002_default_then_assign.ص, 003_float_field.ص]
+  - id: gr.oop.member
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, LOAD, MOVE, RET, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_mixed_members.ص, 050_field_ctor_method.ص, 051_field_method.ص]
+  - id: gr.oop.field
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, LOAD, MOVE, RET, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_public_default.ص, 002_private_via_method.ص, 050_public_init.ص]
+  - id: gr.oop.method
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BUILTIN_PRINT, MOVE, MUL_I64, RET, RET_VOID]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, MOVE, MUL_I64, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_with_params.ص, 002_static.ص, 050_instance.ص]
+  - id: gr.oop.constructor
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, LOAD, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_param_this.ص, 002_base_call.ص, 050_single_param.ص]
+  - id: gr.oop.destructor
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, MOVE, RET, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_destructor_present.ص, 050_open_msg.ص, 051_declared_with_ctor.ص]
+  - id: gr.oop.property
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, LOAD, MOVE, RET, RET_VOID, SHL, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID, SHL]
+    native_ok: [arm64, x86_64]
+    evidence: [001_get_set.ص, 051_get_computed.ص, 052_set_get_pair.ص]
+  - id: gr.oop.operator
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BUILTIN_PRINT, LOAD, OBJECT_CALL, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, OBJECT_CALL, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_plus.ص, 050_plus.ص, 050_minus.ص]
+  - id: gr.oop.modifiers
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BUILTIN_PRINT, LOAD, MOVE, RET, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_private_static.ص, 050_private_public.ص, 051_public_method.ص]
+  - id: gr.oop.trait
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, MOVE, RET, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_trait_impl_inline.ص, 050_impl_in_header.ص, 051_impl_for_form.ص]
+  - id: gr.oop.impl
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, LOAD, MOVE, RET, RET_VOID, SHL, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID, SHL]
+    native_ok: [arm64, x86_64]
+    evidence: [001_impl_for.ص, 050_impl_for.ص, 050_impl_uses_field.ص]
+  - id: gr.oop.extension
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BUILTIN_PRINT, LOAD, MOVE, RET, RET_VOID, SHL, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, MOVE, RET_VOID, SHL]
+    native_ok: [arm64, x86_64]
+    evidence: [001_extension_method.ص, 050_add_method.ص, 050_two_ext_methods.ص]
+  - id: gr.oop.new
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, LOAD, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [050_suffix_new.ص, 051_call_form.ص, 052_suffix_form.ص]
+  - id: gr.oop.this_super
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BUILTIN_PRINT, LOAD, MOVE, OBJECT_CALL, RET, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, MOVE, OBJECT_CALL, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_this_in_method.ص, 002_super_method.ص, 050_this_field.ص]
+  - id: gr.expr.expression
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_precedence.ص, 060_x_add.ص, 061_x_str.ص]
+  - id: gr.expr.pipeline
+    status: derived
+    lowers_to: [ALLOC, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BUILTIN_PRINT, MOVE, RET_VOID, STORE]
+    beyond_baseline: [ARRAY_SET, BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_pipe_len.ص, 060_p_len3.ص, 061_p_len2.ص]
+  - id: gr.expr.assignment
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BUILTIN_PRINT, MOVE, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_compound.ص, 002_walrus.ص, 060_a_plus.ص]
+  - id: gr.expr.ternary
+    status: derived
+    lowers_to: [ALLOC, BR, BUILTIN_PRINT, LOAD, MOVE, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_basic.ص, 060_t_true.ص, 061_t_false.ص]
+  - id: gr.expr.null_coalesce
+    status: derived
+    lowers_to: [BR, BR_COND, BUILTIN_PRINT, MOVE, NE, PHI, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, PHI, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_basic.ص, 060_nc_null.ص, 061_nc_val.ص]
+  - id: gr.expr.logical_or
+    status: derived
+    lowers_to: [ALLOC, BR, BR_COND, BUILTIN_PRINT, LOAD, MOVE, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_symbol.ص, 002_word.ص, 050_or_tt.ص]
+  - id: gr.expr.logical_and
+    status: derived
+    lowers_to: [ALLOC, BR, BR_COND, BUILTIN_PRINT, LOAD, MOVE, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_symbol.ص, 002_word.ص, 050_and_tt.ص]
+  - id: gr.expr.bitwise_or
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_basic.ص, 050_bor_6_1.ص, 051_bor_4_2.ص]
+  - id: gr.expr.bitwise_xor
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_basic.ص, 050_bxor_5_3.ص, 051_bxor_7_7.ص]
+  - id: gr.expr.bitwise_and
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_basic.ص, 050_band_6_3.ص, 051_band_7_4.ص]
+  - id: gr.expr.equality
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_equal.ص, 002_not_equal.ص, 050_eq_int_t.ص]
+  - id: gr.expr.comparison
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, EQ, GE, GT, LOAD, LT, MOVE, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [ADD_I64, ARRAY_SET, BUILTIN_PRINT, EQ, GT, LT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [053_طبيعي64_call_return_unsigned.ص, 001_le.ص, 002_in.ص]
+  - id: gr.expr.range
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BR, BR_COND, BUILTIN_PRINT, LE, LOAD, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, LE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_for_sum.ص, 060_r_sum13.ص, 061_r_sum15.ص]
+  - id: gr.expr.term
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_add_sub.ص, 002_shift.ص, 060_tm_add.ص]
+  - id: gr.expr.factor
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_mul_div.ص, 002_floor_mod.ص, 060_f_muldiv.ص]
+  - id: gr.expr.unary
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BUILTIN_PRINT, NOT, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, NOT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_neg_not.ص, 002_bitnot.ص, 003_prefix_incr.ص]
+  - id: gr.expr.power
+    status: derived
+    lowers_to: [BUILTIN_POW, BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_POW, BUILTIN_PRINT, RET_VOID]
+    native_ok: []
+    native_missing_arm64: [BUILTIN_POW]
+    native_missing_x86_64: [BUILTIN_POW]
+    evidence: [001_basic.ص, 060_pw_2_10.ص, 061_pw_3_2.ص]
+  - id: gr.expr.postfix
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BUILTIN_PRINT, MOVE, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, ARRAY_SET, BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_index.ص, 002_call.ص, 003_increment.ص]
+  - id: gr.expr.primary
+    status: derived
+    lowers_to: [ALLOC, ARRAY_GET, ARRAY_SET, BR, BUILTIN_ABS, BUILTIN_PRINT, LOAD, MOVE, RET_VOID, STORE, TUPLE_NEW]
+    beyond_baseline: [ARRAY_SET, BUILTIN_ABS, BUILTIN_PRINT, MOVE, RET_VOID, TUPLE_NEW]
+    native_ok: [arm64, x86_64]
+    evidence: [001_tuple.ص, 002_if_expr.ص, 003_abs.ص]
+  - id: gr.expr.lambda
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, CLOSURE_CALL, CLOSURE_CREATE, LOAD, MOVE, RET, RET_VOID, SHL, STORE]
+    beyond_baseline: [BUILTIN_PRINT, CLOSURE_CREATE, MOVE, RET_VOID, SHL]
+    native_ok: [arm64, x86_64]
+    evidence: [001_arrow.ص, 060_l_arrow.ص, 061_l_noparam.ص]
+  - id: gr.expr.fstring
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, I64_TO_STRING, RET_VOID, STORE, STRING_CONCAT]
+    beyond_baseline: [BUILTIN_PRINT, I64_TO_STRING, RET_VOID, STRING_CONCAT]
+    native_ok: [arm64, x86_64]
+    evidence: [001_interp.ص, 060_fs_interp.ص, 061_fs_literal.ص]
+  - id: gr.expr.decorator
+    status: derived
+    lowers_to: [ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_on_function.ص, 060_d_basic.ص, 061_d_ret5.ص]
+  - id: gr.expr.directive
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_sizeof.ص, 060_dir_sizeof_num.ص, 061_dir_sizeof_num2.ص]
+  - id: gr.expr.array_literal
+    status: derived
+    lowers_to: [ARRAY_GET, ARRAY_NEW, ARRAY_SET, BUILTIN_PRINT, MOVE, RET_VOID]
+    beyond_baseline: [ARRAY_SET, BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_index.ص, 060_arr_index.ص, 061_arr_print.ص]
+  - id: gr.expr.map_literal
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, CALL, I64_TO_STRING, MOVE, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, I64_TO_STRING, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_index.ص, 002_int_key.ص, 060_map_index.ص]
+  - id: gr.pattern.pattern
+    status: derived
+    lowers_to: [BR, BR_COND, BUILTIN_PRINT, EQ, MOVE, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, EQ, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_wildcard.ص, 002_wildcard_fallback.ص, 003_literal_dispatch.ص]
+  - id: gr.pattern.primary
+    status: derived
+    lowers_to: [AND, BR, BR_COND, BUILTIN_PRINT, EQ, GE, LT, MOVE, RET_VOID]
+    beyond_baseline: [AND, BUILTIN_PRINT, EQ, LT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_literal_int.ص, 002_range.ص, 003_var_bind.ص]
+  - id: gr.pattern.list
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BR, BR_COND, BUILTIN_PRINT, EQ, LOAD, MOVE, MUL_I64, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, ARRAY_SET, BUILTIN_PRINT, EQ, MOVE, MUL_I64, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_two.ص, 002_three.ص, 003_single.ص]
+  - id: gr.pattern.struct
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, AND, BR, BR_COND, BUILTIN_PRINT, EQ, LOAD, MOVE, MUL_I64, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, AND, BUILTIN_PRINT, EQ, MOVE, MUL_I64, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_bind_two_fields.ص, 002_bind_product.ص, 003_literal_field.ص]
+  - id: gr.pattern.binding
+    status: derived
+    lowers_to: [AND, BR, BR_COND, BUILTIN_PRINT, GE, LT, MOVE, RET_VOID]
+    beyond_baseline: [AND, BUILTIN_PRINT, LT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_in_range.ص, 002_out_range.ص, 003_bind_exclusive.ص]
+  - id: gr.pattern.or
+    status: derived
+    lowers_to: [BR, BR_COND, BUILTIN_PRINT, EQ, MOVE, OR, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, EQ, MOVE, OR, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_or_literals.ص, 002_or_no_match.ص, 003_or_two_groups.ص]
+  - id: gr.adv.type
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_typed_param.ص, 050_edge_type.ص, 051_edge_type.ص]
+  - id: gr.adv.lifetime_params
+    status: derived
+    lowers_to: [ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, MOVE, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_struct_lifetime.ص, 050_edge_lifetime_params.ص, 001_lifetime_struct.ص]
+  - id: gr.adv.template_decl
+    status: derived
+    lowers_to: [BUILTIN_PRINT, LOAD, MOVE, RET, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_generic_fn.ص, 001_tdecl_tparams.ص, 001_tdecl_function.ص]
+  - id: gr.adv.template_params
+    status: derived
+    lowers_to: [BUILTIN_PRINT, LOAD, MOVE, RET, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_type_param.ص, 050_edge_template_params.ص, 051_edge_template_params.ص]
+  - id: gr.adv.template_args
+    status: derived
+    lowers_to: [BUILTIN_PRINT, LOAD, MOVE, RET, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_explicit.ص, 050_edge_template_args.ص, 001_targs_type.ص]
+  - id: gr.adv.where_clause
+    status: derived
+    lowers_to: [BUILTIN_PRINT, LOAD, MOVE, RET, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_constraint.ص, 050_edge_where_clause.ص]
+  - id: gr.adv.yield
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, LT, NE, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, LT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [050_basic_yield.ص, 051_basic_yield.ص, 050_edge_yield.ص]
+  - id: gr.adv.with
+    status: derived
+    lowers_to: [BR, BR_COND, BUILTIN_PRINT, CALL, MOVE, NE, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_alias.ص, 050_edge_with.ص, 051_edge_with.ص]
+  - id: gr.adv.defer
+    status: derived
+    lowers_to: [ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, CLOSURE_CREATE, GE, LOAD, NE, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [BUILTIN_PRINT, CLOSURE_CREATE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_lifo.ص, 050_edge_defer.ص, 051_edge_defer.ص]
+  - id: gr.adv.go
+    status: derived
+    lowers_to: [ALLOC, ASYNC_CHANNEL_RECV, ASYNC_CHANNEL_SEND, ASYNC_CREATE_CHANNEL, BUILTIN_PRINT, RET_VOID, STORE]
+    beyond_baseline: [ASYNC_CHANNEL_RECV, ASYNC_CHANNEL_SEND, ASYNC_CREATE_CHANNEL, BUILTIN_PRINT, RET_VOID]
+    native_ok: []
+    native_missing_arm64: [ASYNC_CHANNEL_RECV, ASYNC_CHANNEL_SEND, ASYNC_CREATE_CHANNEL]
+    native_missing_x86_64: [ASYNC_CHANNEL_RECV, ASYNC_CHANNEL_SEND, ASYNC_CREATE_CHANNEL]
+    evidence: [001_channel_block.ص, 051_edge_go.ص]
+  - id: gr.adv.select
+    status: derived
+    lowers_to: [ALLOC, ASYNC_CHANNEL_RECV, ASYNC_CHANNEL_SEND, ASYNC_CREATE_CHANNEL, BR, BR_COND, BUILTIN_PRINT, NE, RET_VOID, STORE]
+    beyond_baseline: [ASYNC_CHANNEL_RECV, ASYNC_CHANNEL_SEND, ASYNC_CREATE_CHANNEL, BUILTIN_PRINT, RET_VOID]
+    native_ok: []
+    native_missing_arm64: [ASYNC_CHANNEL_RECV, ASYNC_CHANNEL_SEND, ASYNC_CREATE_CHANNEL]
+    native_missing_x86_64: [ASYNC_CHANNEL_RECV, ASYNC_CHANNEL_SEND, ASYNC_CREATE_CHANNEL]
+    evidence: [001_one_channel.ص, 050_edge_select.ص]
+  - id: gr.adv.list_comprehension
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_APPEND, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BR, BR_COND, BUILTIN_PRINT, GT, LOAD, LT, MOVE, RET_VOID, SHL, STORE]
+    beyond_baseline: [ADD_I64, ARRAY_APPEND, ARRAY_SET, BUILTIN_PRINT, GT, LT, MOVE, RET_VOID, SHL]
+    native_ok: [arm64, x86_64]
+    evidence: [001_map.ص, 002_filter.ص, 100_map_id_3.ص]
+  - id: gr.adv.set_comprehension
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_APPEND, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BR, BR_COND, BUILTIN_PRINT, EQ, LOAD, LT, MOVE, MUL_I64, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, ARRAY_APPEND, ARRAY_SET, BUILTIN_PRINT, EQ, LT, MOVE, MUL_I64, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_dedup.ص, 002_map.ص, 100_dedup_id_3.ص]
+  - id: gr.adv.dict_comprehension
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BR, BR_COND, BUILTIN_PRINT, CALL, GT, I64_TO_STRING, LOAD, LT, MOVE, MUL_I64, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, ARRAY_SET, BUILTIN_PRINT, GT, I64_TO_STRING, LT, MOVE, MUL_I64, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_single_var.ص, 002_with_condition.ص, 100_kv_id_3.ص]
+  - id: gr.adv.macro
+    status: derived
+    lowers_to: [ADD_I64, BUILTIN_PRINT, CALL, RET, RET_VOID, SHL]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID, SHL]
+    native_ok: [arm64, x86_64]
+    evidence: [001_double.ص, 050_edge_macro.ص, 051_edge_macro.ص]
+  - id: gr.adv.property_test
+    status: not_derived
+    reason: "لا اختبارات إيجابيّة في rules_matrix"
+  - id: gr.adv.await
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_value.ص, 050_edge_await.ص, 051_edge_await.ص]
+  - id: gr.adv.contract
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BUILTIN_PRINT, LOAD, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_wallet.ص, 050_edge_contract.ص, 051_edge_contract.ص]
+  - id: gr.adv.ffi_extern_block
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_ffi_block_linkage.ص, 001_ffi_block_extern.ص]
+  - id: gr.adv.ffi_linkage
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_ffi_block_linkage.ص]
+  - id: gr.adv.ffi_ctype
+    status: not_derived
+    reason: "لا اختبارات إيجابيّة في rules_matrix"
+  - id: gr.adv.inline_asm
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_nop.ص, 050_edge_inline_asm.ص]
+  - id: gr.adv.asm_dialect
+    status: derived
+    lowers_to: [ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, NE, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_host_add.ص, 002_halt_loop.ص, 003_host_mul_implicit_writes.ص]
+  - id: gr.adv.ui_decl
+    status: derived
+    lowers_to: [ADD_I64, ALLOC, BUILTIN_PRINT, LOAD, RET, RET_VOID, STORE]
+    beyond_baseline: [ADD_I64, BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_component.ص, 050_edge_ui_decl.ص, 001_uidecl_uistate.ص]
+  - id: gr.adv.ui_state
+    status: derived
+    lowers_to: [ALLOC, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, BR, BR_COND, BUILTIN_PRINT, CALL, CLOSURE_CALL, GE, LOAD, NE, RET, RET_VOID, STORE, SUB_I64]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_state_field.ص, 050_edge_ui_state.ص, 001_type_uistate.ص]
+  - id: gr.adv.widget
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_show.ص, 050_edge_widget.ص, 001_modchain_widget.ص]
+  - id: gr.adv.ui_modifier_chain
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_chain.ص, 050_edge_ui_modifier_chain.ص, 001_modchain_widget.ص]
+  - id: gr.adv.ui_event
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_on_click.ص, 050_edge_ui_event.ص]
+  - id: gr.lex.identifier
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_arabic.ص, 002_latin.ص, 003_underscore.ص]
+  - id: gr.lex.integer
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_decimal.ص, 002_hex.ص, 003_binary.ص]
+  - id: gr.lex.double
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_simple.ص, 002_half.ص, 003_exponent.ص]
+  - id: gr.lex.string
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_simple.ص, 002_spaces.ص, 003_mixed.ص]
+  - id: gr.lex.raw_string
+    status: derived
+    lowers_to: [BUILTIN_PRINT, RET_VOID]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_simple.ص, 002_no_escape.ص, 003_windows_path.ص]
+  - id: gr.lex.fstring
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, I64_TO_STRING, RET_VOID, STORE, STRING_CONCAT]
+    beyond_baseline: [BUILTIN_PRINT, I64_TO_STRING, RET_VOID, STRING_CONCAT]
+    native_ok: [arm64, x86_64]
+    evidence: [001_var.ص, 002_expr.ص, 003_no_interp.ص]
+  - id: gr.lex.lifetime
+    status: derived
+    lowers_to: [ADDR, ALLOC, BUILTIN_PRINT, LOAD, MOVE, RET_VOID, STORE]
+    beyond_baseline: [ADDR, BUILTIN_PRINT, MOVE, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_struct_param.ص, 002_borrow_mut.ص, 003_borrow_immut.ص]
+  - id: gr.lex.comment
+    status: derived
+    lowers_to: [ALLOC, BUILTIN_PRINT, RET_VOID, STORE]
+    beyond_baseline: [BUILTIN_PRINT, RET_VOID]
+    native_ok: [arm64, x86_64]
+    evidence: [001_line.ص, 002_trailing.ص, 003_block.ص]

@@ -350,12 +350,37 @@ namespace sad
                 //      tests. Deliberately scoped to this code: the general gate is
                 //      deferred (ISSUE-073) to avoid exposing the 5 masked codegen
                 //      bugs (yield/generators + equality-range).
+                // (AR) وأُلحِق بالبوّابة نفسِها SEM_INDEXING_NOT_SUPPORTED: فهرسٌ نصّيٌّ
+                //      على عمليّةِ مصفوفة (معامِلٌ بلا نوعٍ يُفهرَس بمفتاح). كان يُجهِض
+                //      LLVM بتأكيدٍ حاجب؛ وبعد الحارس صار تشخيصًا مطبوعًا — ولولا هذه
+                //      البوّابة لخرج ‎0‎ ومعه ثنائيٌّ مكسور، أي **إخفاقٌ صامت** أسوأُ من
+                //      الإجهاض الظاهر. الرمز مقصورٌ عمدًا (البوّابة العامّة ISSUE-073).
+                // (EN) SEM_INDEXING_NOT_SUPPORTED joins the same gate: a string index on
+                //      an array op used to hit a blocking LLVM assert; with the guard it
+                //      is a printed diagnostic — without this gate it would exit 0 with a
+                //      broken binary, a silent failure worse than the visible abort.
+                // (AR) وأُلحِق INT_SIR_TYPE_CONSTRAINT للحجّةِ نفسِها حرفيًّا: انتهاكُ قيدِ
+                //      نوعٍ زمنَ التوليد يعني تعليمةً لم تُولَّد (مثلًا فرعُ الطباعةِ الذي
+                //      يستقبل `أي` بقيمةِ i64 خامّة) فيخرج الثنائيُّ **ناقصَ أثرٍ** بخروجٍ
+                //      ‎0‎. كان تركُه خارجَ البوّابةِ تناقضًا داخلَ الرقعةِ نفسِها: بابٌ
+                //      يُغلَق وآخَرُ من صنفِه يُترَك مفتوحًا.
+                // (EN) INT_SIR_TYPE_CONSTRAINT joins for exactly the same reason: a type
+                //      constraint violated at codegen means an instruction was not emitted,
+                //      so the binary silently lacks an effect while exiting 0.
                 if (llvm_codegen_->hasErrorCode(
-                        ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT))
+                        ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT) ||
+                    llvm_codegen_->hasErrorCode(
+                        ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED) ||
+                    llvm_codegen_->hasErrorCode(
+                        ::Sad::Errors::ErrorCode::INT_SIR_TYPE_CONSTRAINT))
                 {
-                    for (const auto &codegen_error : llvm_codegen_->getErrors())
+                    // (AR) ⚠️ عَدٌّ لا إعادةُ طباعة — كبوّابةِ الوضعِ الحرِّ أعلاه: ‎reportError‎
+                    //      طبع الرسالةَ فورَ وقوعها، وتمريرُها إلى ‎report_error‎ كان
+                    //      يطبعها مرّةً ثانية (قِيس حيًّا: سطرُ «لا يدعم الفهرسة» مكرّرًا).
+                    // (EN) Count, don't re-print — as in the freestanding gate above.
+                    for (std::size_t i = 0; i < llvm_codegen_->getErrors().size(); ++i)
                     {
-                        diagnostics_.report_error(codegen_error);
+                        diagnostics_.count_external_error();
                     }
                     return false;
                 }

@@ -399,6 +399,186 @@ namespace Sad
             return arrPtr;
         }
 
+        // ====================================================================
+        // (AR) **حارسُ الفهرسِ النصّيّ على عمليّةِ مصفوفة.**
+        //      معامِلٌ بلا نوعٍ يُفهرَس بمفتاحٍ نصّيّ (`دالة اضف(خ) خ["ا"] = 1`)
+        //      تُخفّضه الأماميّةُ `array.set` لا مُساعِدَ خريطة، فيصل إلى هنا فهرسٌ
+        //      **مؤشّرُ نصّ**. وكان يمضي إلى `normalizeArrayIndex` فيقارَن بـ0 عبر
+        //      ICmpSLT: طيّةٌ ثابتةٌ بين مؤشّرٍ وعددٍ ⇒ تأكيدُ LLVM الحاجب
+        //      «Op types should be identical!». وذلك التأكيدُ في بناءِ Debug يفتح
+        //      نافذةَ إجهاضٍ مشروطةً فتبقى العمليّةُ حيّةً بلا عملٍ فتُقفِل الملفَّ
+        //      التنفيذيَّ ويُخفِق الربطُ لاحقًا بـLNK1168 بلا علاقةٍ ظاهرة.
+        //      ⇒ نرفض هنا **صراحةً** بتشخيصِ الكتالوج. الرفضُ مقصودٌ ولا يُستبدَل
+        //      بإسنادِ خريطةٍ صامت: الخريطةُ تُمرَّر بالقيمةِ في المفسّر، فإرسالُها
+        //      خريطةً هنا يُنتِج جوابًا **مقبولَ المظهرِ خاطئًا** بدل انهيارٍ ظاهر —
+        //      وهو تدهور. دلالةُ الإسنادِ المفهرَسِ على معامِلٍ مجهولِ النوع قرارٌ
+        //      لغويٌّ (RFC) لا ترقيعُ خلفيّة.
+        // (EN) String-index guard on an array op. An untyped parameter indexed by a
+        //      string key lowers to `array.set`, so a string POINTER arrives here as
+        //      the index and used to be constant-folded against 0 → LLVM's
+        //      "Op types should be identical!" assert (a modal abort in Debug that
+        //      orphans the process and locks the exe). We now reject explicitly
+        //      rather than silently re-routing to a map set, which would turn a
+        //      visible crash into a plausible-looking wrong answer.
+        // ====================================================================
+        bool ArrayOpsCodeGen::rejectStringIndex(const std::shared_ptr<SIRInstruction> &inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+                return false;
+            // (AR) والعشريُّ مثلُ النصّ: `خ["أ"][2.5]` يبلغ `normalizeArrayIndex`
+            //      فيُقارَنُ `double` بـ`i64` ⇒ التأكيدُ الحاجبُ نفسُه. و«أي» **ليس**
+            //      منها: فهرسٌ موسومٌ زمنَ التشغيل مشروعٌ ويفكُّه المسارُ الموسوم.
+            // (EN) Float behaves like String here: it reaches normalizeArrayIndex and
+            //      compares a double against an i64 ⇒ the same blocking assert. «أي» is
+            //      NOT in this set: a runtime-tagged index is legitimate and unpacked.
+            if (inst->operands[1].dataType != SadTypeKind::String &&
+                inst->operands[1].dataType != SadTypeKind::Float)
+                return false;
+            cg_.reportError(::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED,
+                            {{"type", ::Sad::Types::sadTypeKindArabicName(inst->operands[0].dataType)}});
+            return true;
+        }
+
+        // ====================================================================
+        // (AR) **إرسالُ الفهرسةِ بوسمِ الكائنِ زمنَ التشغيل** (انظر الترويسةَ للحجّة).
+        //      يُفتحُ الفرعُ فقط حين يصل الكائنُ `%SadDyn` والفهرسُ i64: عندئذٍ
+        //      وحدَه يستحيل الحسمُ ساكنًا. وخارجَ ذلك يعود بـ`active=false` فلا
+        //      يُغيّرُ حرفًا من المسارِ القائم.
+        //      الدمجُ بخانةِ مكدّسٍ لا بـPHI: نوعُ نتيجةِ مسارِ المصفوفةِ غيرُ معروفٍ
+        //      قبلَ توليدِه، وقيمةٌ مُعرَّفةٌ في فرعٍ لا تسودُ كتلةَ الالتقاء.
+        // (EN) Runtime-tag dispatch for indexing. Opened only when the object arrives
+        //      as %SadDyn and the index is an i64 — precisely the case no static
+        //      analysis can settle. Merging via a stack slot rather than a PHI: the
+        //      array path's result type is unknown before it is generated, and a value
+        //      defined in one branch does not dominate the join block.
+        // ====================================================================
+        ArrayOpsCodeGen::DynIndexDispatch
+        ArrayOpsCodeGen::beginDynMapDispatch(const std::shared_ptr<SIRInstruction> &inst,
+                                             llvm::Value *objValue,
+                                             llvm::Value *index,
+                                             llvm::Value *value,
+                                             bool isSet)
+        {
+            DynIndexDispatch dispatch;
+            if (!inst || !objValue || !index)
+                return dispatch;
+            if (!Sad::LLVM::isSadDyn(objValue) || !index->getType()->isIntegerTy(64))
+                return dispatch;
+            if (isSet && !value)
+                return dispatch;
+
+            // (AR) المنطقيُّ يُرقّى i64 فيجتاز الحارسَ أعلاه، لكنّ الأمامَ ينصِّصه
+            //      «صحيح/خطأ» (BOOL_TO_STRING) بينما ننصِّصُه هنا `%lld` — طرفانِ
+            //      لا يتّفقان على شكلِ المفتاح، فيُكتَبُ تحت «0» ويُقرَأُ تحت «صحيح»
+            //      فيعود **عدمٌ بخروجٍ ٠**: جوابٌ خاطئٌ صامتٌ محلَّ إجهاضٍ صاخبٍ كان
+            //      قائمًا — تدهور. فنُبقي المنطقيَّ خارجَ الإرسالِ حتّى يتّحدَ
+            //      التنصيصُ في الطرفَين (دَينٌ موثَّق).
+            // (EN) A boolean is promoted to i64 and would pass the guard above, but the
+            //      frontend stringifies it as «صحيح/خطأ» while we would use %lld — two
+            //      ends disagreeing on the key's shape, yielding a silent wrong answer
+            //      where a loud abort stood before. Keep booleans out until both ends
+            //      agree (documented debt).
+            if (inst->operands.size() > 1 &&
+                inst->operands[1].dataType == SadTypeKind::Boolean)
+                return dispatch;
+
+            auto *i8Ty = cg_.getInt8Type();
+            auto *i64Ty = cg_.getInt64Type();
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            llvm::Function *parentFn = cg_.builder_->GetInsertBlock()->getParent();
+            if (!parentFn)
+                return dispatch;
+
+            auto *mapBB = llvm::BasicBlock::Create(*cg_.context_, "idx.dyn.map", parentFn);
+            auto *arrBB = llvm::BasicBlock::Create(*cg_.context_, "idx.dyn.arr", parentFn);
+            dispatch.contBB = llvm::BasicBlock::Create(*cg_.context_, "idx.dyn.cont", parentFn);
+
+            // (AR) الخاناتُ في **كتلةِ الدخول** لا عند نقطةِ الإدراجِ الجارية: تخصيصُها
+            //      في موضعِ الفهرسةِ يعني `alloca` داخلَ جسمِ الحلقة، والمكدّسُ لا
+            //      يُستردُّ إلّا بالعودةِ من الدالّة ⇒ فيضانٌ **صامتٌ بلا رسالة** عند
+            //      ‏١م.ب÷١٦ب = ٦٥٥٣٦ دورةً بالضبط (قِيس: ٦٠٠٠٠ تنجح و٦٥٠٠٠ تخرج ١٢٧).
+            //      والمخزنُ مكدّسٌ لا كومة: `__sad_map_set_typed` يحتفظ بنسخةِ `strdup`
+            //      لا بالمخزنِ نفسِه، والقراءةُ لا يحتفظ بها أحد — فكان `emitMalloc`
+            //      تسريبَ ٣٢ بايتًا لكلّ عمليّة (قِيس: ١٢٦م.ب مقابل ٥م.ب لشاهدٍ).
+            // (EN) Allocate in the ENTRY block, not at the current insertion point: an
+            //      alloca inside a loop body is never reclaimed until the function returns
+            //      ⇒ a silent stack overflow at exactly 1MB/16B = 65536 iterations. And the
+            //      key buffer is stack, not heap: __sad_map_set_typed keeps a strdup copy
+            //      and the read keeps nothing, so emitMalloc leaked 32 bytes per operation.
+            llvm::IRBuilder<> entryBuilder(&parentFn->getEntryBlock(),
+                                           parentFn->getEntryBlock().getFirstInsertionPt());
+            if (!isSet)
+                dispatch.slot = entryBuilder.CreateAlloca(
+                    Sad::LLVM::getSadDynType(*cg_.context_), nullptr, "idx.dyn.slot");
+            llvm::Value *keyBuf = entryBuilder.CreateAlloca(
+                llvm::ArrayType::get(cg_.getInt8Type(), 32), nullptr, "idx.dyn.key.buf");
+
+            llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, objValue);
+            llvm::Value *isMap = cg_.builder_->CreateICmpEQ(
+                kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Map), "idx.dyn.is.map");
+            cg_.builder_->CreateCondBr(isMap, mapBB, arrBB);
+
+            // (AR) فرعُ الخريطة: المفتاحُ يُنصَّصُ بمساعِدِ زمنِ التشغيلِ نفسِه الذي
+            //      يستعمله `نص()` — الكومةُ لا المكدّس، لأنّ `__sad_map_set_typed`
+            //      يحتفظ بالمؤشّرِ في مصفوفةِ المفاتيح.
+            // (EN) Map branch: the key is stringified by the same runtime helper `نص()`
+            //      uses — heap, not stack, because __sad_map_set_typed retains the pointer.
+            cg_.builder_->SetInsertPoint(mapBB);
+            llvm::Value *key = keyBuf;
+            auto *sprintfTy = llvm::FunctionType::get(
+                llvm::Type::getInt32Ty(*cg_.context_), {ptrTy, ptrTy}, true);
+            auto sprintfFn = cg_.module_->getOrInsertFunction("sprintf", sprintfTy);
+            llvm::Value *keyFmt = cg_.builder_->CreateGlobalStringPtr("%lld", "idx.dyn.key.fmt");
+            cg_.builder_->CreateCall(sprintfFn, {key, keyFmt, index});
+
+            std::vector<llvm::Value *> mapArgs{objValue, key};
+            if (isSet)
+            {
+                mapArgs.push_back(value);
+                mapArgs.push_back(llvm::ConstantInt::get(
+                    i64Ty, ::Sad::Compiler::mapValueTagFor(inst->operands[2].dataType)));
+                cg_.emitCallMap(::Sad::Compiler::kRuntimeMapSetTyped, mapArgs, inst);
+            }
+            else
+            {
+                auto mapValue = cg_.emitCallMap(::Sad::Compiler::kRuntimeMapGetDyn, mapArgs, inst);
+                if (mapValue.has_value() && mapValue.value())
+                    cg_.builder_->CreateStore(mapValue.value(), dispatch.slot);
+            }
+            if (!cg_.builder_->GetInsertBlock()->getTerminator())
+                cg_.builder_->CreateBr(dispatch.contBB);
+
+            cg_.builder_->SetInsertPoint(arrBB);
+            dispatch.active = true;
+            return dispatch;
+        }
+
+        llvm::Value *ArrayOpsCodeGen::endDynMapDispatch(DynIndexDispatch &dispatch,
+                                                        llvm::Value *arrayResult)
+        {
+            if (!dispatch.active || !dispatch.contBB)
+                return arrayResult;
+
+            // (AR) مسارُ المصفوفةِ قد يكون بدّل الكتلةَ الحاليّةَ (حرّاسٌ وفحوصُ حدود).
+            // (EN) The array path may have moved the current block (guards, bounds checks).
+            if (dispatch.slot && arrayResult)
+            {
+                llvm::Value *asDyn = Sad::LLVM::isSadDyn(arrayResult)
+                                         ? arrayResult
+                                         : Sad::LLVM::toDyn(cg_, arrayResult, SadTypeKind::Any);
+                if (asDyn)
+                    cg_.builder_->CreateStore(asDyn, dispatch.slot);
+            }
+            if (!cg_.builder_->GetInsertBlock()->getTerminator())
+                cg_.builder_->CreateBr(dispatch.contBB);
+
+            cg_.builder_->SetInsertPoint(dispatch.contBB);
+            if (!dispatch.slot)
+                return arrayResult;
+            return cg_.builder_->CreateLoad(
+                Sad::LLVM::getSadDynType(*cg_.context_), dispatch.slot, "idx.dyn.merged");
+        }
+
         llvm::Value *ArrayOpsCodeGen::emitArrayGet(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
@@ -406,6 +586,9 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "ARRAY_GET"}});
                 return nullptr;
             }
+
+            if (rejectStringIndex(inst))
+                return nullptr;
 
             // (AR) إصلاح: استخدام find() بدلاً من [] لتجنب إدخال nullptr في الخريطة
             // (EN) Fix: use find() instead of [] to avoid inserting nullptr into the map
@@ -420,6 +603,9 @@ namespace Sad
             llvm::Value *index = cg_.resolveOperand(inst->operands[1]);
             if (!arrPtr || !index)
                 return nullptr;
+
+            DynIndexDispatch dispatch =
+                beginDynMapDispatch(inst, arrPtr, index, nullptr, /*isSet=*/false);
 
             // (AR) تطبيع مؤشر المصفوفة عبر الدالة الموحّدة
             // (EN) Normalize arrPtr via unified helper
@@ -603,6 +789,8 @@ namespace Sad
                 }
             }
 
+            result = endDynMapDispatch(dispatch, result);
+
             if (inst->result.has_value())
             {
                 cg_.context_info_.namedValues[inst->result->name] = result;
@@ -618,6 +806,9 @@ namespace Sad
                 return nullptr;
             }
 
+            if (rejectStringIndex(inst))
+                return nullptr;
+
             // (AR) إصلاح: استخدام find() بدلاً من [] لتجنب إدخال nullptr في الخريطة
             // (EN) Fix: use find() instead of [] to avoid inserting nullptr into the map
             llvm::Value *arrPtr = nullptr;
@@ -632,6 +823,9 @@ namespace Sad
             llvm::Value *value = cg_.resolveOperand(inst->operands[2]);
             if (!arrPtr || !index || !value)
                 return nullptr;
+
+            DynIndexDispatch dispatch =
+                beginDynMapDispatch(inst, arrPtr, index, value, /*isSet=*/true);
 
             // ================================================================
             // (AR) [عناصر موسومة زمنَ التشغيل — الخيار أ الجذريّ] مصفوفةٌ مختلطةٌ قياسيّة
@@ -705,6 +899,7 @@ namespace Sad
 
                 llvm::Value *tagSlot = cg_.builder_->CreateGEP(i8Ty, tags, {index}, "arr.tag.slot");
                 cg_.builder_->CreateStore(kindByte, tagSlot);
+                endDynMapDispatch(dispatch, nullptr);
                 return dyn;
             }
             // (AR) ISSUE-063 (غير-Any): قيمة %SadDyn بخانةٍ عاديّة ⇒ خزّن الحمولة i64 (بتّاتها
@@ -849,6 +1044,7 @@ namespace Sad
                 cg_.builder_->CreateStore(llvm::ConstantInt::get(cg_.getInt8Type(), k), hkGep);
             }
 
+            endDynMapDispatch(dispatch, nullptr);
             return value;
         }
 
