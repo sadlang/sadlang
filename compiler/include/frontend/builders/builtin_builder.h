@@ -72,6 +72,10 @@ namespace Sad
 
                 std::optional<BuildResult> buildBuiltinCallNetwork(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
 
+                // (AR) وحدةُ «عمليات» — بدائيّاتُ تشغيلِ العمليّات (builtins_processes.cpp)
+                // (EN) The «عمليات» module — process primitives (builtins_processes.cpp)
+                std::optional<BuildResult> buildBuiltinCallProcesses(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
+
                 std::optional<BuildResult> buildBuiltinSystem_OsCore(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);
 
                 std::optional<BuildResult> buildBuiltinSystem_OsHardware(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands);

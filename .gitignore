@@ -8,6 +8,8 @@
 /build/
 build-debug/
 build-tests/
+# (AR) بناءُ ويندوز الأصليّ (MSVC + LLVM) — يُقاس به نظيرُ المنصّة ولا يُلتزَم
+build-win/
 build_new/
 build_cov/
 build_release/

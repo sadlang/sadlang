@@ -1335,6 +1335,31 @@ namespace Sad
                 //      pointer (like a string/nested-array element); ARRAY_GET decodes it to Any.
                 BOX_DYN,
 
+                // ========================================================================
+                // القسم 23: وحدة عمليات — بدائيّات تشغيل العمليّات
+                // Section 23: Processes module — process primitives
+                // ========================================================================
+                // (AR) نظيرُ المصرِّف لوحدةِ `عمليات` في المفسّر
+                //      (interpreter/src/builtins/builtin_module_processes.cpp). كلُّ
+                //      رمزٍ يُترجَم في الخلفيّةِ إلى دالّةٍ مساعدةٍ تُولَّد في الوحدةِ
+                //      نفسِها (‏`__sad_proc_*`) تنادي libc مباشرةً — لا مكتبةَ زمنِ
+                //      تشغيلٍ تُربَط، اتّساقًا مع سائرِ مدمجاتِ المصرِّف.
+                //      **لينكس/glibc حصرًا**: القيمُ العدديّةُ للأعلامِ (‏`O_*`) وأرقامُ
+                //      الإشاراتِ وحجمُ `sigset_t` مُثبَّتةٌ في المولِّد، فتُرفَض الترجمةُ
+                //      صراحةً على هدفٍ آخرَ بدل توليدِ أعلامٍ خاطئةٍ صامتة.
+                // (EN) The compiler counterpart of the interpreter's `عمليات` module.
+                //      Each opcode lowers to a module-local helper (`__sad_proc_*`)
+                //      calling libc directly — no linked runtime library, consistent
+                //      with every other compiler builtin. Linux/glibc only: the numeric
+                //      O_* flags, signal numbers and sigset_t size are baked into the
+                //      emitter, so a non-Linux target is rejected outright rather than
+                //      silently emitting wrong flags.
+                BUILTIN_PROC_SPAWN,   ///< شغل_برنامجا / fork + execvp + self-pipe
+                BUILTIN_PROC_WAIT,    ///< انتظر_عملية / waitpid
+                BUILTIN_PROC_PIPE,    ///< انبوب / pipe2(O_CLOEXEC) → خريطة {قراءة، كتابة}
+                BUILTIN_PROC_CLOSE,   ///< اغلق / close
+                BUILTIN_PROC_OPEN_FD, ///< افتح_وصفا / open(O_CLOEXEC)
+
                 Nop ///< لا عملية (markers) / No operation (for markers)
             };
 

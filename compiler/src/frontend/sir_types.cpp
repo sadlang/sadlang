@@ -753,6 +753,18 @@ namespace Sad
                 case SIROpcode::ASYNC_WG_COUNT:
                     return "async.wg.count";
 
+                // (AR) وحدة عمليات / (EN) Processes module
+                case SIROpcode::BUILTIN_PROC_SPAWN:
+                    return "proc.spawn";
+                case SIROpcode::BUILTIN_PROC_WAIT:
+                    return "proc.wait";
+                case SIROpcode::BUILTIN_PROC_PIPE:
+                    return "proc.pipe";
+                case SIROpcode::BUILTIN_PROC_CLOSE:
+                    return "proc.close";
+                case SIROpcode::BUILTIN_PROC_OPEN_FD:
+                    return "proc.open_fd";
+
                 default:
                     return "unknown";
                 }

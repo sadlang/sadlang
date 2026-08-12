@@ -104,6 +104,7 @@
 #include "builders/oop/functions_codegen.h"              // (AR) Phase 8 Step 4: FunctionsCodeGen
 #include "builders/builtins/builtin_funcs_codegen.h"     // (AR) Phase 8 Step 5: BuiltinFuncsCodeGen
 #include "builders/builtins/network_builtins_codegen.h"  // (AR) Phase 8 Step 6: NetworkBuiltinsCodeGen
+#include "builders/builtins/processes_builtins_codegen.h" // (AR) وحدة عمليات — بدائيّات التشغيل
 #include "builders/directives/coroutines_codegen.h"      // (AR) Phase 8 Step 7: CoroutinesCodeGen
 #include "builders/collections/strings_codegen.h"        // (AR) Phase 8 Step 8: StringsCodeGen
 #include "builders/core/instr_core_codegen.h"            // (AR) Phase 8 Step 9: InstrCoreCodeGen
@@ -981,6 +982,11 @@ namespace Sad
             //      Emits calls to C API functions from features/network/core
             llvm::Value *emitNetworkBuiltin(std::shared_ptr<SIRInstruction> inst) { return nb_->emitNetworkBuiltin(inst); }
 
+            // (AR) وحدةُ «عمليات»: fork/execvp، waitpid، pipe2، close، open — دوالٌّ
+            //      تُولَّدُ في الوحدةِ المُصدَرةِ نفسِها وتنادي libc (لا مكتبةَ تُربَط).
+            // (EN) The «عمليات» module: emitted as module-local functions calling libc.
+            llvm::Value *emitProcessesBuiltin(std::shared_ptr<SIRInstruction> inst) { return proc_->emitProcessesBuiltin(inst); }
+
             // (AR) الطبقة الخامسة: تعليمات SIMD المتجهات (Phase 3)
             //      تنتج تعليمات LLVM متجهة <N x T> أصلية: FMA, sqrt.v8f64,
             //      vector.reduce.fadd، إلخ. الأداء يتفوق على C++ scalar.
@@ -1853,6 +1859,7 @@ namespace Sad
             std::unique_ptr<BuiltinFuncsCodeGen> baf_;
             // (AR) Phase 8 Step 6: دوال الشبكة المدمجة (2 methods كبيرة)
             std::unique_ptr<NetworkBuiltinsCodeGen> nb_;
+            std::unique_ptr<ProcessesBuiltinsCodeGen> proc_;
             // (AR) Phase 8 Step 7: الكوروتينات والمولّدات (6 methods)
             std::unique_ptr<CoroutinesCodeGen> coro_;
             // (AR) Phase 8 Step 8: نصوص + helpers (5 methods)

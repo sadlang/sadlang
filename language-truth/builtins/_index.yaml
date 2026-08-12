@@ -12,6 +12,7 @@ files:
 - crypto.yaml
 - maps.yaml
 - sockets.yaml
+- processes.yaml
 - http_client.yaml
 - http_server.yaml
 - network_utils.yaml

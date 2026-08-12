@@ -57,6 +57,7 @@ namespace Sad
         static const std::string kModPlatform   = std::string(Builtins::getCanonicalModuleName(ModuleId::PLATFORM));
         static const std::string kModNetwork    = std::string(Builtins::getCanonicalModuleName(ModuleId::NETWORK));
         static const std::string kModSockets    = std::string(Builtins::getCanonicalModuleName(ModuleId::SOCKETS));
+        static const std::string kModProcesses  = std::string(Builtins::getCanonicalModuleName(ModuleId::PROCESSES));
 
         // ═════════════════════════════════════════════════════════════════
         // (AR) إعلانات خارجية — ملفات التسجيل حسب المحتوى
@@ -67,6 +68,7 @@ namespace Sad
         extern void registerBuiltinsMath(Interpreter &interpreter);
         extern void registerBuiltinsAssertions(Interpreter &interpreter);
         extern void registerBuiltinsCrypto(Interpreter &interpreter);
+        extern void registerBuiltinsProcesses(Interpreter &interpreter);
         extern void registerBuiltinsAsync(Interpreter &interpreter);
         extern void registerBuiltinsMaps(Interpreter &interpreter);
         extern void registerBuiltinsKernelCPU(Interpreter &interpreter);
@@ -233,6 +235,15 @@ namespace Sad
                                      "وصلات TCP، مراسيل UDP، إعدادات الشبكة",
                                      [](Interpreter &interp)
                                      { registerBuiltinsSockets(interp); },
+                                     {}});
+
+            // ─── عمليات / Processes — fork/execvp، waitpid، pipe، close، open ───
+            //     (AR) البدائيّات التي تُغني برنامج ص عن system()، فتصير الصدَفة
+            //          برنامجًا بص لا كودًا بـC++ داخل sad-repl.
+            registry.registerModule({kModProcesses,
+                                     "تشغيل برنامج، انتظار، أنبوب، توجيه، وصف ملفّ",
+                                     [](Interpreter &interp)
+                                     { registerBuiltinsProcesses(interp); },
                                      {}});
 
             // ─── شبكة / Network HTTP (Part 40b) — HTTP client, server, utilities ───

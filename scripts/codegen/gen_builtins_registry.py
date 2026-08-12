@@ -76,6 +76,7 @@ MODULE_TO_ENUM = {
     "NETWORK":      "ModuleId::NETWORK",
     "CRYPTO":       "ModuleId::CRYPTO",
     "SOCKETS":      "ModuleId::SOCKETS",
+    "PROCESSES":    "ModuleId::PROCESSES",
 }
 
 # ─── namespace → comment ───
@@ -91,6 +92,7 @@ NS_COMMENTS = {
     "Crypto":            ("وحدة تشفير", "Crypto module"),
     "Maps":              ("وحدة خرائط", "Maps module"),
     "Sockets":           ("وحدة مقابس", "Sockets module"),
+    "Processes":         ("وحدة عمليات", "Processes module"),
     "HttpClient":        ("عميل HTTP", "HTTP Client"),
     "HttpServer":        ("خادم HTTP", "HTTP Server"),
     "NetworkUtils":      ("أدوات الشبكة", "Network utilities"),

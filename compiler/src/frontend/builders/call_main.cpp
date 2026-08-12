@@ -557,6 +557,21 @@ namespace Sad
                 }
 
                 // ========================================================================
+                // (AR) الخطوة 2.65: الدوالُّ المضمنةُ لوحدةِ «عمليات»
+                //      شغل_برنامجا · انتظر_عملية · انبوب · اغلق · افتح_وصفا
+                // (EN) Step 2.65: «عمليات» (processes) module builtins
+                // ========================================================================
+                builtinResult = b_.buildBuiltinCallProcesses(funcName, isUserDefinedFunction, argResults, argOperands);
+                if (builtinResult.has_value())
+                {
+#ifdef SIR_BUILDER_DEBUG
+                    std::cerr << "[SIR-DBG] buildFunctionCall: handled by BuiltinProcesses! type="
+                              << static_cast<int>(builtinResult.value().type) << std::endl;
+#endif
+                    return builtinResult.value();
+                }
+
+                // ========================================================================
                 // (AR) الخطوة 2.7: حل الأسماء المستعارة للامدا
                 // (EN) Step 2.7: Resolve lambda aliases
                 // مثال: ف(5) حيث ف = لامدا(س): س + 1 → funcName = "__lambda_0"

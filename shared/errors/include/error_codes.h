@@ -274,6 +274,26 @@ namespace Sad
             RUN_REGEX_UNKNOWN_FLAG,   ///< RUN061: (AR) رايةُ تعبيرٍ نمطيّ مجهولة / (EN) Unknown regex flag
 
             // ════════════════════════════════════════════════════════════════
+            // (AR) بدائيّات العمليّات (وحدة عمليات) — fork/execvp، waitpid، pipe،
+            //      close، open. كلّها تفشل صراحةً: صدَفةٌ تبني «&&» على رمزِ خروجٍ
+            //      مختلَقٍ أسوأ من صدَفةٍ تتوقّف.
+            // (EN) Process primitives (عمليات module). All fail loudly: a shell
+            //      branching on a fabricated exit status is worse than one that stops.
+            // ════════════════════════════════════════════════════════════════
+            RUN_PROC_SPAWN_FAILED,          ///< RUN062: (AR) تعذّر تشغيل البرنامج / (EN) Failed to spawn program
+            RUN_PROC_NOT_CHILD,             ///< RUN063: (AR) انتظار عمليّة ليست ابنًا / (EN) Waiting on a non-child
+            RUN_PROC_BAD_DESCRIPTOR,        ///< RUN064: (AR) وصف ملفّ غير صالح / (EN) Invalid file descriptor
+            RUN_PROC_BAD_MODE,              ///< RUN065: (AR) وضع فتح مجهول / (EN) Unknown open mode
+            RUN_PROC_UNSUPPORTED_PLATFORM,  ///< RUN066: (AR) غير مدعومة على هذه المنصّة / (EN) Unsupported platform
+            RUN_PROC_OPEN_FAILED,           ///< RUN067: (AR) تعذّر فتح وصف ملفّ / (EN) Failed to open descriptor
+            RUN_PROC_PIPE_FAILED,           ///< RUN068: (AR) تعذّر إنشاء أنبوب / (EN) Failed to create pipe
+            RUN_PROC_WAIT_FAILED,           ///< RUN069: (AR) فشل انتظار العمليّة / (EN) Waiting on process failed
+            RUN_PROC_BAD_STREAM_KEY,        ///< RUN070: (AR) مفتاح مجرًى غير صالح / (EN) Invalid stream key
+            RUN_PROC_REDIRECT_FAILED,       ///< RUN071: (AR) فشل توجيه المجاري في الابن / (EN) Child redirection failed
+            RUN_PROC_CLOSE_FAILED,          ///< RUN072: (AR) فشل إغلاق الوصف / (EN) Closing the descriptor failed
+            RUN_PROC_HANDLE_KIND,           ///< RUN073: (AR) نوع المقبض غير متوقّع / (EN) Wrong handle kind
+
+            // ════════════════════════════════════════════════════════════════
             // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.
             // (EN) Internal compiler errors (ICE) — compiler defects, catalog-based.
             // ════════════════════════════════════════════════════════════════

@@ -124,6 +124,7 @@ namespace Sad
             fns_ = std::make_unique<FunctionsCodeGen>(*this);
             baf_ = std::make_unique<BuiltinFuncsCodeGen>(*this);
             nb_ = std::make_unique<NetworkBuiltinsCodeGen>(*this);
+            proc_ = std::make_unique<ProcessesBuiltinsCodeGen>(*this);
             coro_ = std::make_unique<CoroutinesCodeGen>(*this);
             strs_ = std::make_unique<StringsCodeGen>(*this);
             ic_ = std::make_unique<InstrCoreCodeGen>(*this);

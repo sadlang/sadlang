@@ -20,8 +20,8 @@ description_ar: "كتالوج أوپكودات SIR — الاسم، المنمن
 description_en: "SIR opcode catalog — name, mnemonic, and native lowering"
 
 stats:
-  total: 772
-  with_mnemonic: 339
+  total: 777
+  with_mnemonic: 344
   natively_lowered: 103
   native_lowered_arm64: 103
   native_lowered_x86_64: 103
@@ -3888,6 +3888,31 @@ opcodes:
     isel_declared: []
   - name: BOX_DYN
     mnemonic: "box.dyn"
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PROC_SPAWN
+    mnemonic: "proc.spawn"
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PROC_WAIT
+    mnemonic: "proc.wait"
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PROC_PIPE
+    mnemonic: "proc.pipe"
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PROC_CLOSE
+    mnemonic: "proc.close"
+    section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
+    native_lowered: []
+    isel_declared: []
+  - name: BUILTIN_PROC_OPEN_FD
+    mnemonic: "proc.open_fd"
     section: "عمليات SIMD / SIMD Vector Operations (Phase 3)"
     native_lowered: []
     isel_declared: []

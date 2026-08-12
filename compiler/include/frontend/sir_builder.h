@@ -1225,6 +1225,16 @@ namespace Sad
                 }
 
                 /**
+                 * @brief (AR) معالجة استدعاء دالة مدمجة من وحدة «عمليات»
+                 *        شغل_برنامجا · انتظر_عملية · انبوب · اغلق · افتح_وصفا
+                 * @brief (EN) Handle a builtin call from the «عمليات» (processes) module
+                 */
+                std::optional<BuildResult> buildBuiltinCallProcesses(const std::string &funcName, bool isUserDefinedFunction, std::vector<BuildResult> &argResults, std::vector<SIROperand> &argOperands)
+                {
+                    return builtins_->buildBuiltinCallProcesses(funcName, isUserDefinedFunction, argResults, argOperands);
+                }
+
+                /**
                  * @brief (AR) دالة مساعدة: بناء تعليمة SIR لدالة شبكة
                  * @brief (EN) Helper: build SIR instruction for a network function
                  * @param opcode (AR) رمز العملية / (EN) SIR opcode

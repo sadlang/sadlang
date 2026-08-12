@@ -56,6 +56,7 @@ namespace Sad
             NETWORK = 8,    /// (AR) شبكة / (EN) Network
             CRYPTO = 9,     /// (AR) تشفير / (EN) Crypto
             SOCKETS = 10,   /// (AR) مقابس / (EN) Sockets
+            PROCESSES = 11, /// (AR) عمليات / (EN) Processes
 
             _MODULE_COUNT /// (AR) عدد الوحدات (للتحقق) / (EN) Module count (for validation)
         };
@@ -78,7 +79,7 @@ namespace Sad
         //      Used by interpreter (BuiltinModuleRegistry) and compiler (sir_builder_module_check)
         // ════════════════════════════════════════════════════════════════════
 
-        inline const std::array<ModuleAlias, 10> MODULE_ALIASES = {{
+        inline const std::array<ModuleAlias, 11> MODULE_ALIASES = {{
             // ─── اسم واحد فقط لكل وحدة — لا أسماء بديلة ───
             {"رياضيات", ModuleId::MATH},
             {"نصوص", ModuleId::STRINGS},
@@ -90,6 +91,7 @@ namespace Sad
             {"شبكة", ModuleId::NETWORK},
             {"تشفير", ModuleId::CRYPTO},
             {"مقابس", ModuleId::SOCKETS},
+            {"عمليات", ModuleId::PROCESSES},
         }};
 
         // ════════════════════════════════════════════════════════════════════
@@ -139,6 +141,8 @@ namespace Sad
                 return "تشفير";
             case ModuleId::SOCKETS:
                 return "مقابس";
+            case ModuleId::PROCESSES:
+                return "عمليات";
             default:
                 return "";
             }

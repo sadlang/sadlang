@@ -99,6 +99,8 @@ class TestMetadata:
     timeout: int = 30
     skip_compiler: bool = False
     skip_interpreter: bool = False
+    posix_only: bool = False
+    windows_only: bool = False
     description: str = ""
     priority: str = "P1"
     expect_error: str = ""  # (AR) إذا غير فارغ: الاختبار يتوقع خطأ يحتوي هذا النص
@@ -164,6 +166,16 @@ _RE_PRIORITY = re.compile(r"^#\s*@priority:?\s+(P[0-9]+(?:\.[\w.]+)?)$")
 _RE_STDIN = re.compile(r"^#\s*@stdin_data:?\s+(.+)$")  # (AR) بيانات stdin للاختبارات التفاعلية
 _RE_UNORDERED = re.compile(r"^#\s*@unordered\b")          # (AR) فرز الخرج قبل المقارنة
 _RE_NONDET = re.compile(r"^#\s*@nondeterministic\b")      # (AR) خرج لاحتمي مُثبَت
+# (AR) @posix_only: الاختبار يقيس بدائيّاتٍ دلالتُها POSIX (fork/exec، وصفات، أنابيب)،
+#      وهي ترمي خطأً صريحًا على ويندوز عمدًا (RUN066) لا تُحاكى صامتةً. فيُتخطّى هناك
+#      تخطّيًا **مرئيًّا** — لا يُشطب من العدّ ولا يُعدّ نجاحًا.
+# (EN) @posix_only: gate for tests of POSIX-semantic primitives, which deliberately
+#      throw on Windows rather than being silently emulated. Skipped visibly there.
+_RE_POSIX_ONLY = re.compile(r"^#\s*@posix_only\b")
+# (AR) @windows_only: نظيرُ ما سبق للاختباراتِ التي تحتاجُ برنامجًا ويندوزيًّا
+#      (‏cmd.exe) بدل /bin/sh. الوسمانِ للبرنامجِ الخارجيِّ لا للبدائيّة نفسِها.
+# (EN) @windows_only: the mirror gate, for tests needing a Windows program.
+_RE_WINDOWS_ONLY = re.compile(r"^#\s*@windows_only\b")
 
 
 def parse_metadata(filepath: Path) -> TestMetadata:
@@ -242,6 +254,12 @@ def parse_metadata(filepath: Path) -> TestMetadata:
                 if _RE_UNORDERED.match(line):
                     meta.unordered = True
                     continue
+                if _RE_POSIX_ONLY.match(line):
+                    meta.posix_only = True
+                    continue
+                if _RE_WINDOWS_ONLY.match(line):
+                    meta.windows_only = True
+                    continue
                 if _RE_NONDET.match(line):
                     # (AR) @nondeterministic يستلزم فرز الخرج (مقارنة كمجموعة)
                     meta.nondeterministic = True
@@ -258,10 +276,22 @@ def parse_metadata(filepath: Path) -> TestMetadata:
 # ═══════════════════════════════════════════════════════════════════════════════════
 
 def run_interpreter(sad_exe: Path, test_file: Path, timeout: int,
-                    stdin_data: str = "") -> tuple[str, float, str]:
+                    stdin_data: str = "", work_dir: Path = None) -> tuple[str, float, str]:
     """
     (AR) تشغيل ملف .ص عبر المفسر وإرجاع (المخرج، الوقت_بالمللي، رسالة_خطأ)
     (EN) Run .ص file via interpreter, return (output, time_ms, error_msg)
+
+    (AR) `work_dir`: مجلّدُ عملٍ خاصٌّ بالتشغيلة. المصرَّفُ يعملُ في مجلّدٍ مؤقّتٍ
+         منذ البداية (run_compiler)، والمفسّرُ كان يرثُ مجلّدَ المستدعي — أي
+         **جذرَ المستودعِ عمليًّا**. فاختبارٌ يكتبُ مسارًا نسبيًّا كان يكتبُ في
+         مكانين مختلفين بحسب المحرّك، ويخلّفُ أثرَه في شجرةِ المصدر. وهو الفرقُ
+         الذي يمنعُ كتابةَ اختبارٍ **محمولٍ** للوصفاتِ أصلًا: `/tmp` ليس على
+         ويندوز، والنسبيُّ لم يكن يعمل. توحيدُ المجلّدِ يفتحُ البابَ للاثنين.
+    (EN) The compiled engine has always run in a private temp dir; the
+         interpreter inherited the caller's — effectively the repo root. A
+         relative path therefore meant two different places depending on the
+         engine, which is precisely what made a portable descriptor test
+         impossible: /tmp does not exist on Windows and relative did not work.
     """
     start = time.perf_counter()
     try:
@@ -273,6 +303,7 @@ def run_interpreter(sad_exe: Path, test_file: Path, timeout: int,
             encoding="utf-8",
             errors="replace",
             input=stdin_data if stdin_data else None,
+            cwd=str(work_dir) if work_dir else None,
         )
         elapsed = (time.perf_counter() - start) * 1000
         output = result.stdout.rstrip("\n")
@@ -636,6 +667,36 @@ def run_freestanding_audit(sadc_exe: Path, test_files: list, temp_dir: Path,
     }
 
 
+def _half_checked(rel_path: str, meta: "TestMetadata", interp_out: str,
+                  interp_time: float, why: str) -> "TestResult":
+    """(AR) سالبٌ مزدوجٌ بلا مترجم — نصفُه مفحوصٌ فعلًا.
+
+    كان يُتخطّى كلُّه حين يغيب المترجم، والحقُّ أنّ نصفَه الأوّل (رفضُ المفسّر
+    مع مطابقة النصّ) **قد فُحص بالفعل** قبل بلوغ هذا الموضع: لو لم يرمِ
+    المفسّرُ أو رمى بنصٍّ آخرَ لكان الاختبارُ سقط أعلاه. فالتخطّي كان يرمي
+    فحصًا تمَّ ويعلنُ «لم يُقَس شيء» — وهو غيرُ صحيح.
+
+    وأثرُه ليس نظريًّا: على ويندوز لا يُبنى `sad-build` غالبًا (وهو يسقط
+    محلّيًّا على برنامجٍ فارغ)، فكانت سوالبُ وحدة عمليات كلُّها تُتخطّى هناك
+    ولا يُقاس من المفسّرِ شيء — أي أنّ المنصّةَ التي أُضيف لها التنفيذُ حديثًا
+    هي بعينها التي لا تُقاس. والنصفُ المقيسُ يُعلَن نصفًا (‏«مفسّر فقط») لا
+    يُقدَّم تكافؤًا مزدوجًا.
+
+    (EN) A dual negative with no compiler: its interpreter half has already
+    been verified above (a missing or mismatched error would have failed the
+    test there), so skipping the whole thing discards a check that ran and
+    reports "nothing measured", which is untrue. It is reported as an
+    interpreter-only pass, never counted as dual parity.
+    """
+    if meta.expect_error:
+        return TestResult(file=rel_path, status=Status.PASS,
+                          interp_output=interp_out, interp_time_ms=interp_time,
+                          metadata=meta,
+                          error_message="نصفُ التكافؤ: المفسّر رفض — " + why)
+    return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
+                      error_message="تخطي: " + why)
+
+
 def run_single_test(
     sad_exe: Path,
     sadc_exe: Path,
@@ -655,6 +716,21 @@ def run_single_test(
     #      skip_compiler. This matches the intent in dual_tests.cmake.
     if sadc_exe is None:
         meta.skip_compiler = True
+
+    # (AR) بوّابة المنصّة: @posix_only على غير POSIX ⇒ تخطٍّ مرئيّ لا فشل.
+    # (EN) Platform gate: @posix_only off POSIX ⇒ a visible skip, not a failure.
+    if meta.posix_only and os.name != "posix":
+        return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
+                          error_message="تخطي: @posix_only على منصّة غير POSIX")
+    # (AR) ونظيرُها: @windows_only. وُجِد لأنّ بعضَ اختباراتِ البدائيّاتِ تحتاج
+    #      **برنامجًا خارجيًّا** (‏/bin/sh مقابل cmd.exe)، فالبرنامجُ لا المفهومُ
+    #      هو ما يفترق. وما لا يحتاجُ برنامجًا صار محمولًا بلا وسمِ منصّةٍ أصلًا.
+    # (EN) The mirror gate: some primitive tests need an actual external program
+    #      (/bin/sh vs cmd.exe) — the program differs, not the concept. Tests that
+    #      need no program carry no platform tag at all.
+    if meta.windows_only and os.name != "nt":
+        return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
+                          error_message="تخطي: @windows_only على منصّة غير ويندوز")
 
     # (AR) التحقق من @skip
     if meta.skip_compiler and meta.skip_interpreter:
@@ -687,8 +763,14 @@ def run_single_test(
                                  and not meta.expect_error):
         interp_out, interp_time, interp_err = "", 0.0, ""
     else:
-        interp_out, interp_time, interp_err = run_interpreter(sad_exe, test_file, timeout,
-                                                                   stdin_data=meta.stdin_data)
+        interp_work = temp_dir / ("interp_" + uuid.uuid4().hex[:8])
+        interp_work.mkdir(parents=True, exist_ok=True)
+        try:
+            interp_out, interp_time, interp_err = run_interpreter(
+                sad_exe, Path(test_file).resolve(), timeout,
+                stdin_data=meta.stdin_data, work_dir=interp_work)
+        finally:
+            shutil.rmtree(interp_work, ignore_errors=True)
 
     if interp_err == "TIMEOUT":
         return TestResult(file=rel_path, status=Status.FAIL_TIMEOUT,
@@ -742,8 +824,8 @@ def run_single_test(
             #      يمكن فحص الرفض الترجميّ.
             # (EN) No compiler available (interpreter-only mode) or explicit
             #      @skip_compiler — the compile rejection cannot be checked.
-            return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
-                              error_message="تخطي: expect_compile_error بلا مترجم")
+            return _half_checked(rel_path, meta, interp_out, interp_time,
+                                 "expect_compile_error بلا مترجم")
         compiler_out, compiler_time, compiler_err = run_compiler(
             sadc_exe, test_file, temp_dir, timeout, stdin_data=meta.stdin_data)
         if compiler_err == "TIMEOUT":
@@ -783,8 +865,8 @@ def run_single_test(
     # ═══════════════════════════════════════════════════════════════
     if meta.expect_error_compiled:
         if meta.skip_compiler:
-            return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
-                              error_message="تخطي: expect_error_compiled بلا مترجم")
+            return _half_checked(rel_path, meta, interp_out, interp_time,
+                                 "expect_error_compiled بلا مترجم")
         compiler_out, compiler_time, compiler_err = run_compiler(
             sadc_exe, test_file, temp_dir, timeout, stdin_data=meta.stdin_data,
             capture_exit=True)

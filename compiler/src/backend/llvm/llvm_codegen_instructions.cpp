@@ -404,6 +404,13 @@ namespace Sad
             if (reportedRealError())
                 return nullptr;
 
+            // (AR) الطبقة 4.5: بدائيّاتُ وحدةِ «عمليات» (fork/execvp، waitpid، pipe)
+            // (EN) Tier 4.5: «عمليات» process primitives
+            if (llvm::Value *result = emitProcessesBuiltin(inst))
+                return result;
+            if (reportedRealError())
+                return nullptr;
+
             // (AR) الطبقة الخامسة: تعليمات SIMD متجهات (Phase 3)
             //      تنتج <N x T> أصلية + intrinsics (fma, sqrt, vector.reduce)
             // (EN) Tier 5: SIMD vector instructions (Phase 3)
