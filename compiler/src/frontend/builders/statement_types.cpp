@@ -903,9 +903,13 @@ namespace Sad
                     std::string dtorName = "__destructor";
                     auto dtorFunc = std::make_shared<SIRFunction>(dtorName, SadTypeKind::Void);
 
-                    // (AR) إضافة معامل this
-                    // (EN) Add 'this' parameter
-                    dtorFunc->addParameter(SIRParameter("this", SadTypeKind::Pointer));
+                    // (AR) إضافة معامل المُستقبِل — بالاسمِ المحميِّ نفسِه الذي
+                    //      يستعملُه الباني والطرائق (ISSUE-119): `this` تهجئةٌ
+                    //      مشروعةٌ لمعرِّفِ مستخدمٍ فلا تصلحُ اسمَ موقعٍ داخليّ.
+                    // (EN) Add the receiver parameter under the same protected name the
+                    //      constructor and methods use (ISSUE-119): `this` is a legal user
+                    //      identifier and must not name an internal slot.
+                    dtorFunc->addParameter(SIRParameter(kSelfParamName, SadTypeKind::Pointer));
 
                     auto entryBlock = b_.createBasicBlock("destructor_entry");
                     dtorFunc->addBasicBlock(entryBlock);

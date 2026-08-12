@@ -182,7 +182,7 @@ namespace Sad
                         b_.addVariable(selfInfo);
                         // (AR) self هو كائن من نوع الصنف الحالي
                         // (EN) self is an object of the current class type
-                        b_.classInstanceTypes_["self"] = classDecl->name;
+                        b_.classInstanceTypes_[kSelfParamName] = classDecl->name;
                         b_.classInstanceTypes_[kSelfRegisterName] = classDecl->name;
                     }
 

@@ -96,13 +96,65 @@ namespace Sad::Compiler
     // (EN) Default entry block name for any SIR function
     inline constexpr const char *kEntryBlockName = "entry";
 
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) فاصلُ فضاءِ أسماءِ المواقعِ الداخليّة (ISSUE-110/119). موطنُه هنا
+    //      لا في `sir_builder.h` كي تبلغَه الخلفيّاتُ بلا جرِّ الباني كلِّه.
+    //      تفصيلُ لماذا `#` وحدَه آمنٌ: انظر تعليقَ الفاصلِ في `sir_builder.h`.
+    // (EN) Internal slot namespace separator (ISSUE-110/119). It lives here, not in
+    //      sir_builder.h, so backends can reach it without dragging the whole builder.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr const char *kSlotNamespaceSeparator = "#";
+
+    // (AR) أداةُ برهانٍ زمنَ ترجمة: هل يبدأ النصُّ بالبادئةِ المعطاة؟
+    // (EN) Compile-time proof helper: does text start with the given prefix?
+    inline constexpr bool startsWithPrefix(const char *text, const char *prefix)
+    {
+        while (*prefix != '\0')
+        {
+            if (*text != *prefix)
+                return false;
+            ++text;
+            ++prefix;
+        }
+        return true;
+    }
+
     // (AR) اسم معامل self — المعامل الضمني الأول في دوال الصنف
-    // (EN) Self parameter name — implicit first parameter in class methods
-    inline constexpr const char *kSelfParamName = "self";
+    //      🔑 يقعُ في فضاءِ أسماءِ المواقعِ (ISSUE-119): `self` تهجئةٌ مشروعةٌ
+    //      لمعرِّفِ مستخدم، وكان `متغير self = 5` في جسمِ طريقةٍ يدهسُ مدخلَ
+    //      المُستقبِلِ في جدولِ الأسماءِ **وموقعَه** معًا ⇒ بناءٌ بخروجٍ صفرٍ
+    //      ثمّ انهيارُ ذاكرةٍ صامتٌ عندَ قراءةِ حقل.
+    // (EN) Self parameter name — implicit first parameter in class methods.
+    //      🔑 Namespaced (ISSUE-119): `self` is a legal user identifier, and
+    //      `متغير self = 5` inside a method used to overwrite BOTH the receiver's
+    //      name-table entry and its slot ⇒ exit-0 build then a silent SIGSEGV.
+    inline constexpr const char *kSelfParamName = "#self";
 
     // (AR) اسم سجل self — النسخة المسبوقة بـ % للاستخدام في SIR registers
     // (EN) Self register name — %-prefixed version for SIR register usage
-    inline constexpr const char *kSelfRegisterName = "%self";
+    inline constexpr const char *kSelfRegisterName = "%#self";
+
+    // (AR) برهانٌ زمنَ ترجمةٍ على أنّ الاسمَين يبقيانِ في فضاءِ الأسماءِ المحميّ:
+    //      تغييرُ الفاصلِ دونَ تحديثِ الاسمَين يكسرُ البناءَ بدلَ أن يعيدَ العيبَ صامتًا.
+    // (EN) Compile-time proof that both names stay inside the protected namespace:
+    //      changing the separator without updating them breaks the build instead of
+    //      silently reopening the defect.
+    static_assert(startsWithPrefix(kSelfParamName, kSlotNamespaceSeparator),
+                  "self parameter name must live in the internal slot namespace");
+    static_assert(startsWithPrefix(kSelfRegisterName + 1, kSlotNamespaceSeparator),
+                  "self register name must live in the internal slot namespace");
+
+    // (AR) ولا يكفي أن يبدأ كلٌّ منهما بالفاصل: المفتاحانِ يُبحَثُ بهما معًا في
+    //      `namedValues`/`objectClassMap`، فلو تغيّر أحدُهما وحدَه لانشقّا صامتَين.
+    //      فيُبرهَنُ هنا أنّ سجلَّ المُستقبِلِ هو **حرفُ السجلِّ + اسمُ المعامل** حرفيًّا.
+    // (EN) Starting with the separator is not enough: both keys are looked up together in
+    //      namedValues/objectClassMap, so changing one alone would split them silently.
+    //      Prove here that the register name is literally sigil + parameter name.
+    inline constexpr bool kSelfRegisterMatchesParam =
+        kSelfRegisterName[0] == '%' && startsWithPrefix(kSelfRegisterName + 1, kSelfParamName) &&
+        startsWithPrefix(kSelfParamName, kSelfRegisterName + 1);
+    static_assert(kSelfRegisterMatchesParam,
+                  "self register name must be exactly '%' followed by the self parameter name");
 
     // (AR) اسم المرادف العربي لـ this — "هذا" — يُسجَّل كمرادف لـ self
     // (EN) Arabic alias for "this" — "هذا" — registered as alias for self

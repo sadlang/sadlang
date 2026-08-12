@@ -153,7 +153,7 @@ namespace Sad
                             }
                             sirParams.push_back(SIRParameter(param.name, paramType));
                         }
-                        sirParams.push_back(SIRParameter("__env", SadTypeKind::Integer));
+                        sirParams.push_back(SIRParameter(environmentParameterName(), SadTypeKind::Integer));
 
                         // (AR) استنتاج نوع الإرجاع
                         // (EN) Infer return type
@@ -207,12 +207,12 @@ namespace Sad
                             SIRInstruction envLoadInst;
                             envLoadInst.opcode = SIROpcode::ENV_LOAD;
                             envLoadInst.result = SIROperand::Register(loadReg, captures[i].type);
-                            envLoadInst.operands.push_back(SIROperand::Register("%__env", SadTypeKind::Integer));
+                            envLoadInst.operands.push_back(SIROperand::Register(environmentSlotName(), SadTypeKind::Integer));
                             envLoadInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
                             if (b_.currentBlock_)
                                 b_.currentBlock_->addInstruction(envLoadInst);
 
-                            std::string allocaName = "%__cap_" + captures[i].varName + "_" + std::to_string(i);
+                            std::string allocaName = makeCaptureSlotName(captures[i].varName, i);
                             SIRInstruction storeInit;
                             storeInit.opcode = SIROpcode::STORE;
                             storeInit.operands.push_back(SIROperand::Register(loadReg, captures[i].type));
@@ -230,7 +230,7 @@ namespace Sad
                             capVar.scopeLevel = b_.currentScopeLevel_;
                             capVar.isCaptured = true;
                             capVar.captureIndex = static_cast<int>(i);
-                            capVar.envRegister = "%__env";
+                            capVar.envRegister = environmentSlotName();
                             b_.addVariable(capVar);
                         }
 
@@ -266,7 +266,7 @@ namespace Sad
                                             const std::string &srcReg = inst.operands[0].name;
                                             for (const auto &cap : captures)
                                             {
-                                                std::string capAllocaName = "%__cap_" + cap.varName + "_";
+                                                std::string capAllocaName = makeCaptureSlotPrefix(cap.varName);
                                                 if (srcReg.find(capAllocaName) != std::string::npos ||
                                                     srcReg == "%" + cap.varName)
                                                 {

@@ -1023,7 +1023,7 @@ namespace Sad
                                         const auto &ps = fit->second.parameters;
                                         handlerArity = static_cast<int>(ps.size());
                                         // (AR) اللامدا تحمل __env مخفيًّا كمعاملٍ أخير — اطرحه.
-                                        if (!ps.empty() && ps.back().name == "__env")
+                                        if (!ps.empty() && ps.back().name == environmentParameterName())
                                             --handlerArity;
                                     }
                                     if (handlerArity > 1)

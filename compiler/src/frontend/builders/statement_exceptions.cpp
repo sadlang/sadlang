@@ -169,10 +169,10 @@ namespace Sad
                         // (AR) تسميات فريدة لهذه السجلات لتجنب التعارض في الدوال الكبيرة
                         // (EN) Unique names to avoid conflicts in large functions
                         std::string uniq = std::to_string(b_.nextLabel_);
-                        finallyRetI64Reg = "%__fri64_" + uniq;
-                        finallyRetPtrReg = "%__frptr_" + uniq;
-                        finallyRetTypeReg = "%__frtype_" + uniq;
-                        finallyHasRetReg = "%__frhas_" + uniq;
+                        finallyRetI64Reg = std::string("%") + kSlotNamespaceSeparator + "fri64" + kSlotNamespaceSeparator + uniq;
+                        finallyRetPtrReg = std::string("%") + kSlotNamespaceSeparator + "frptr" + kSlotNamespaceSeparator + uniq;
+                        finallyRetTypeReg = std::string("%") + kSlotNamespaceSeparator + "frtype" + kSlotNamespaceSeparator + uniq;
+                        finallyHasRetReg = std::string("%") + kSlotNamespaceSeparator + "frhas" + kSlotNamespaceSeparator + uniq;
 
                         // ALLOC i64 لقيم الأرقام
                         {

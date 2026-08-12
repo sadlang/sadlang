@@ -63,6 +63,86 @@ namespace Sad
         {
 
             // ======================================================================
+            // (AR) فاصلُ فضاءِ أسماءِ المواقعِ الداخليّة (ISSUE-110)
+            //      كلُّ موقعٍ يُصدرُه المولّدُ لحسابِه — عدّادُ حلقةٍ · فهرسُ تعدادٍ ·
+            //      رصّةُ «أجّل» · مواقعُ الالتقاط — يجبُ أن يقعَ في فضاءِ أسماءٍ
+            //      **لا يستطيعُ المستخدمُ تهجئتَه**. وإلّا وقعَ تصريحٌ بالاسمِ عينِه
+            //      في الموقعِ نفسِه، فتختطفُ الـALLOC الثانيةُ خريطةَ الأسماءِ
+            //      ⇒ حلقةٌ لا نهائيّةٌ أو انهيارُ ذاكرةٍ أو تباعُدٌ صامت.
+            //      🔑 اللاحقةُ الرقميّةُ **لا تكفي**: «عدّاد_5» تهجئةٌ مشروعةٌ تمامًا.
+            //      و«#» وحدَه آمنٌ لأنّه في لغةِ ص **بادئُ تعليق**، فيلتقطُه المُعجَمُ
+            //      قبلَ scanIdentifier ولا يقبلُه الأخيرُ (حروفٌ وأرقامٌ و«_» فقط)
+            //      ⇒ يستحيلُ وقوعُه داخلَ معرِّفٍ يكتبُه المستخدم. وLLVM يقتبسُ
+            //      مثلَ هذا الاسمِ (%"%ي#5") فيقبلُه سليمًا.
+            // (EN) Internal slot namespace separator (ISSUE-110). Every slot the builder
+            //      emits for its own bookkeeping must live in a namespace the USER CANNOT
+            //      SPELL; otherwise a same-named declaration hijacks the codegen name map
+            //      ⇒ infinite loop, SIGSEGV, or silent divergence. A numeric suffix is NOT
+            //      enough (`counter_5` is a legal identifier). Only `#` is safe: it starts
+            //      a comment in Sad, so the lexer consumes it before scanIdentifier, which
+            //      accepts only alphanumerics and `_`. LLVM quotes such names and accepts
+            //      them.
+            //      🔑 الثابتُ نفسُه في `sir_constants.h` كي تبلغَه الخلفيّاتُ بلا
+            //      جرِّ الباني؛ ويُستحضَرُ هنا بالاسمِ لا يُهجَّأُ ثانيةً.
+            //      🔑 The constant itself lives in sir_constants.h so backends can reach
+            //      it without dragging the builder; imported here by name, never re-spelled.
+            // ======================================================================
+            using Sad::Compiler::kSlotNamespaceSeparator;
+
+            // ======================================================================
+            // (AR) معاملُ بيئةِ الإغلاقِ وموقعُه. الاسمُ الثابتُ بلا لاحقةٍ أشدُّ
+            //      عرضةً للتصادمِ لا أقلَّ. والاسمانِ مقترنانِ عمدًا: الموقعُ مشتقٌّ
+            //      من المعامل، فلو هُجِّئَ كلٌّ منهما وحدَه لانفصلا صامتَين.
+            // (EN) Closure-environment parameter and its slot. Deliberately coupled: the
+            //      slot derives from the parameter, so hand-spelling each invites silent
+            //      drift between producer and matcher.
+            //      🔑 والفاصلُ يُشتقُّ هنا من الثابتِ أعلاه لا يُهجَّأُ ثانيةً، وإلّا
+            //      نقلَ تغييرُ الفاصلِ المواقعَ كلَّها وأبقى اسمَ البيئةِ خلفَه
+            //      ⇒ انشقاقُ فضاءِ الأسماءِ صامتًا. وهما دالّتانِ لا متغيّرَينِ
+            //      لأنّ الساكنَ المحلّيَّ يُهيَّأُ عندَ أوّلِ نداءٍ فينجو من
+            //      عشوائيّةِ ترتيبِ التهيئةِ بينَ وحداتِ الترجمة.
+            //      🔑 The separator is DERIVED here, never re-spelled: otherwise changing
+            //      it would move every slot and leave the environment name behind — a
+            //      silent namespace split. Functions, not variables: a function-local
+            //      static initializes on first call, immune to cross-TU init order.
+            // ======================================================================
+            inline const std::string &environmentParameterName()
+            {
+                static const std::string name = std::string(kSlotNamespaceSeparator) + "env";
+                return name;
+            }
+
+            inline const std::string &environmentSlotName()
+            {
+                static const std::string name = "%" + environmentParameterName();
+                return name;
+            }
+
+            // ======================================================================
+            // (AR) بُناةُ أسماءِ مواقعِ المتغيّراتِ الملتقَطة. المُنتِجُ والمقارِنُ
+            //      بالبادئةِ في ملفَّينِ متباعدَين ⇒ تهجئةٌ واحدةٌ هنا لا غير.
+            // (EN) Capture-slot name builders. Producer and prefix matcher live in
+            //      different files; one spelling, here.
+            // ======================================================================
+            inline std::string makeCaptureSlotPrefix(const std::string &variableName)
+            {
+                return std::string("%") + kSlotNamespaceSeparator + "cap" +
+                       kSlotNamespaceSeparator + variableName + kSlotNamespaceSeparator;
+            }
+
+            inline std::string makeCaptureSlotName(const std::string &variableName, size_t captureIndex)
+            {
+                return makeCaptureSlotPrefix(variableName) + std::to_string(captureIndex);
+            }
+
+            inline std::string makeDeferCaptureSlotName(const std::string &variableName, size_t captureIndex)
+            {
+                return std::string("%") + kSlotNamespaceSeparator + "defer_cap" +
+                       kSlotNamespaceSeparator + variableName + kSlotNamespaceSeparator +
+                       std::to_string(captureIndex);
+            }
+
+            // ======================================================================
             // AST Type Aliases - توافق مع الأسماء القديمة
             // AST Type Compatibility Aliases
             // ======================================================================

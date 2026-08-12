@@ -78,7 +78,7 @@ namespace Sad
                 }
 
                 std::vector<SIRParameter> sirParams;
-                sirParams.push_back(SIRParameter("__env", SadTypeKind::Integer));
+                sirParams.push_back(SIRParameter(environmentParameterName(), SadTypeKind::Integer));
 
                 auto lambdaFunc = std::make_shared<SIRFunction>(lambdaName, SadTypeKind::Void);
                 lambdaFunc->addParameter(sirParams[0]);
@@ -98,14 +98,14 @@ namespace Sad
                     SIRInstruction envLoadInst;
                     envLoadInst.opcode = SIROpcode::ENV_LOAD;
                     envLoadInst.result = SIROperand::Register(loadReg, captures[i].type);
-                    envLoadInst.operands.push_back(SIROperand::Register("%__env", SadTypeKind::Integer));
+                    envLoadInst.operands.push_back(SIROperand::Register(environmentSlotName(), SadTypeKind::Integer));
                     envLoadInst.operands.push_back(SIROperand::ConstantI64(static_cast<int64_t>(i)));
                     if (b_.currentBlock_)
                     {
                         b_.currentBlock_->addInstruction(envLoadInst);
                     }
 
-                    std::string allocaName = "%__defer_cap_" + captures[i].varName + "_" + std::to_string(i);
+                    std::string allocaName = makeDeferCaptureSlotName(captures[i].varName, i);
                     SIRInstruction storeInit;
                     storeInit.opcode = SIROpcode::STORE;
                     storeInit.operands.push_back(SIROperand::Register(loadReg, captures[i].type));
@@ -125,7 +125,7 @@ namespace Sad
                     capVar.scopeLevel = b_.currentScopeLevel_;
                     capVar.isCaptured = true;
                     capVar.captureIndex = static_cast<int>(i);
-                    capVar.envRegister = "%__env";
+                    capVar.envRegister = environmentSlotName();
                     b_.addVariable(capVar);
                 }
 

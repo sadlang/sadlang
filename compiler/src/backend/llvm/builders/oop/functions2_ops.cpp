@@ -7,6 +7,7 @@
 
 #include "llvm_codegen.h"
 #include "sad_dyn_repr.h"
+#include "frontend/sir_constants.h"
 #include "builders/oop/functions_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
@@ -636,8 +637,8 @@ namespace Sad
 #endif
                 // (AR) تسجيل %self في objectClassMap للباني
                 // (EN) Register %self in objectClassMap for constructor
-                cg_.context_info_.objectClassMap["%self"] = cg_.context_info_.currentConstructorClass;
-                cg_.context_info_.objectClassMap["self"] = cg_.context_info_.currentConstructorClass;
+                cg_.context_info_.objectClassMap[::Sad::Compiler::kSelfRegisterName] = cg_.context_info_.currentConstructorClass;
+                cg_.context_info_.objectClassMap[::Sad::Compiler::kSelfParamName] = cg_.context_info_.currentConstructorClass;
             }
             else
             {
@@ -658,8 +659,8 @@ namespace Sad
 #endif
                         // (AR) تسجيل %self في objectClassMap للدالة
                         // (EN) Register %self in objectClassMap for method
-                        cg_.context_info_.objectClassMap["%self"] = cg_.context_info_.currentMethodClass;
-                        cg_.context_info_.objectClassMap["self"] = cg_.context_info_.currentMethodClass;
+                        cg_.context_info_.objectClassMap[::Sad::Compiler::kSelfRegisterName] = cg_.context_info_.currentMethodClass;
+                        cg_.context_info_.objectClassMap[::Sad::Compiler::kSelfParamName] = cg_.context_info_.currentMethodClass;
                     }
                 }
             }

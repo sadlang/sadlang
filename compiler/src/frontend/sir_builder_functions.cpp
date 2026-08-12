@@ -590,8 +590,8 @@ namespace Sad
 
                 if (needsDeferMachinery)
                 {
-                currentDeferStackReg_ = "%__defer_stack_" + std::to_string(nextLabel_++);
-                currentDeferExecutedFlagReg_ = "%__defer_done_" + std::to_string(nextLabel_++);
+                currentDeferStackReg_ = std::string("%") + kSlotNamespaceSeparator + "defer_stack" + kSlotNamespaceSeparator + std::to_string(nextLabel_++);
+                currentDeferExecutedFlagReg_ = std::string("%") + kSlotNamespaceSeparator + "defer_done" + kSlotNamespaceSeparator + std::to_string(nextLabel_++);
                 currentFunctionCleanupHandlerActive_ = true;
 
                 {
@@ -619,7 +619,7 @@ namespace Sad
                     currentBlock_->addInstruction(initDoneInst);
                 }
 
-                std::string functionCleanupJmpbufReg = "%__defer_jmpbuf_" + std::to_string(nextLabel_++);
+                std::string functionCleanupJmpbufReg = std::string("%") + kSlotNamespaceSeparator + "defer_jmpbuf" + kSlotNamespaceSeparator + std::to_string(nextLabel_++);
                 std::string functionCleanupSetjmpReg = newTempRegister();
                 std::string functionCleanupCmpReg = newTempRegister();
                 std::string functionBodyLabel = newLabel("function_body");

@@ -157,7 +157,7 @@ namespace Sad
                         // (EN) Argument is expression or unknown variable — create local alloca
                         auto argResult = b_.buildExpression(argExpr);
 
-                        std::string allocName = "%" + macroDef->params[i] + "_inline";
+                        std::string allocName = "%" + macroDef->params[i] + kSlotNamespaceSeparator + "inline";
                         SIRInstruction allocInst(SIROpcode::ALLOC);
                         allocInst.result = SIROperand::Register(allocName, argResult.type);
                         if (b_.currentBlock_)

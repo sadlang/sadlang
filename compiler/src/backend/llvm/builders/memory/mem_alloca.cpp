@@ -6,6 +6,7 @@
 
 #include "llvm_codegen.h"
 #include "sad_dyn_repr.h"
+#include "frontend/sir_constants.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -379,14 +380,14 @@ namespace Sad
                         // (AR) استخدام GEP من self بدلاً من alloca محلي
                         // (EN) Use GEP from self instead of local alloca
                         llvm::Value *selfPtr = nullptr;
-                        auto selfIt = cg_.context_info_.namedValues.find("self");
+                        auto selfIt = cg_.context_info_.namedValues.find(::Sad::Compiler::kSelfParamName);
                         if (selfIt != cg_.context_info_.namedValues.end())
                         {
                             selfPtr = selfIt->second;
                         }
                         else
                         {
-                            auto selfIt2 = cg_.context_info_.namedValues.find("%self");
+                            auto selfIt2 = cg_.context_info_.namedValues.find(::Sad::Compiler::kSelfRegisterName);
                             if (selfIt2 != cg_.context_info_.namedValues.end())
                             {
                                 selfPtr = selfIt2->second;

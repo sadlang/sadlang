@@ -415,7 +415,7 @@ namespace Sad
                             }
                             // (AR) عدّاد فريد على المكدّس، مُصفَّر (نمط غير-SSA آمن عبر الكتل).
                             std::string idxSuffix = condL.substr(condL.find_last_of('_') + 1);
-                            std::string idxAlloc = "%_spread_idx_" + idxSuffix;
+                            std::string idxAlloc = std::string("%") + kSlotNamespaceSeparator + "spread_idx" + kSlotNamespaceSeparator + idxSuffix;
                             {
                                 SIRInstruction a(SIROpcode::ALLOC);
                                 a.result = SIROperand::Register(idxAlloc, SadTypeKind::Integer);

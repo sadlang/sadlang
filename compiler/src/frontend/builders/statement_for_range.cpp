@@ -140,23 +140,26 @@ namespace Sad
                     }
 
                     // ========================================================================
-                    // (AR) لاحقةٌ فريدةٌ لموقعِ العدّاد — النمطُ نفسُه المستعملُ في صيغةِ
-                    //      «لكل … في» (انظر `loopVarAllocName` أدناه). بدونها يتقاسمُ
-                    //      العدّادُ الموقعَ `%<اسم>` مع أيِّ `متغير` بالاسم نفسِه داخلَ
-                    //      الجسم، فيكتبُ التصريحُ في موقعِ التحكّمِ ويُفسدُ عدَّ الدورات:
-                    //      «لكل ي من 1 الى 3» ثمّ «متغير ي = 100» كان يعطي دورةً واحدةً
-                    //      (أو حلقةً لا نهائيّةً قبلَ م‑١٠) والمفسّرُ يعطي ثلاثًا. وباللاحقةِ
-                    //      يأخذُ التصريحُ الداخليُّ موقعَه المستقلَّ ويبقى العدُّ سليمًا،
-                    //      فيطابقُ المحرّكان (مقيس: ٣ دوراتٍ في كليهما).
-                    // (EN) Unique suffix for the counter slot — the same scheme the foreach
-                    //      form already uses. Without it the counter shares `%<name>` with any
-                    //      same-named declaration in the body, which then writes into the
-                    //      control slot and corrupts the iteration count (1 iteration, or an
-                    //      infinite loop before م‑١٠) while the interpreter yields 3. With the
-                    //      suffix the inner declaration gets its own slot and both engines agree.
+                    // (AR) موقعُ العدّادِ يسكنُ فضاءَ أسماءٍ لا يستطيعُ المستخدمُ كتابتَه.
+                    //      بلا فصلٍ يتقاسمُ العدّادُ الموقعَ `%<اسم>` مع أيِّ `متغير` بالاسمِ
+                    //      نفسِه داخلَ الجسم، فيكتبُ التصريحُ في موقعِ التحكّمِ ويُفسدُ عدَّ
+                    //      الدورات: «لكل ي من 1 الى 3» ثمّ «متغير ي = 100» كان يعطي دورةً
+                    //      واحدةً (أو حلقةً لا نهائيّةً قبلَ م‑١٠) والمفسّرُ يعطي ثلاثًا.
+                    //      ولا تكفي لاحقةٌ من حروفٍ وأرقامٍ (`%ي_5`) لأنّها **تهجئةٌ مشروعةٌ
+                    //      لمعرّفِ مستخدم**: `متغير ي_5` كان يُعيدُ التصادمَ عينَه بصورتِه
+                    //      الأسوأ — حلقةٌ لا نهائيّة (ولا يُذكَرُ عددُ الأسطرِ ثابتًا: هو أثرُ
+                    //      مهلةٍ لا قيمةٌ قابلةٌ لإعادةِ الإنتاج). لذا الفاصلُ المسمّى
+                    //      `kSlotNamespaceSeparator` — انظرْ تعليلَه في sir_builder.h.
+                    // (EN) The counter slot lives in a namespace the user cannot spell. Without
+                    //      separation it shares `%<name>` with any same-named declaration in the
+                    //      body, which writes into the control slot and corrupts the iteration
+                    //      count. An alphanumeric suffix (`%ي_5`) is NOT enough — it is a legal
+                    //      user identifier, and `متغير ي_5` reproduced the collision as an
+                    //      infinite loop. Hence `#`, which starts a comment in Sad and therefore
+                    //      can never occur inside an identifier.
                     // ========================================================================
                     std::string rangeIdxSuffix = condL.substr(condL.find_last_of('_') + 1);
-                    std::string loopVarAlloc = "%" + forRange->variable + "_" + rangeIdxSuffix;
+                    std::string loopVarAlloc = "%" + forRange->variable + kSlotNamespaceSeparator + rangeIdxSuffix;
                     {
                         SIRInstruction allocInst(SIROpcode::ALLOC);
                         allocInst.result = SIROperand::Register(loopVarAlloc, SadTypeKind::Integer);
@@ -687,7 +690,13 @@ namespace Sad
 
                     // (AR) تخصيص متغير الحلقة وتحديد نوعه من b_.channelTypeMap_
                     // (EN) Allocate loop variable and infer its type from b_.channelTypeMap_
-                    std::string loopVarAllocName = "%" + forRange->variable;
+                    // (AR) الفاصلُ `#` كما في صيغتَي المدى والمجموعة: يمنعُ تصريحًا داخلَ
+                    //      الجسمِ بالاسمِ نفسِه من اختطافِ موقعِ عنصرِ القناة.
+                    // (EN) `#` separator as in the range/foreach forms: keeps a same-named body
+                    //      declaration from hijacking the channel element slot.
+                    std::string loopVarAllocName =
+                        "%" + forRange->variable + kSlotNamespaceSeparator +
+                        condLabel.substr(condLabel.find_last_of('_') + 1);
                     SadTypeKind chanElemType = SadTypeKind::Integer;
                     {
                         // (AR) البحث عن نوع عنصر القناة من اسم السجل أو اسم المتغير الأصلي
@@ -891,7 +900,7 @@ namespace Sad
                 //      register being "defined" in multiple blocks (non-SSA counter).
                 // ========================================================================
                 std::string idxSuffix = condLabel.substr(condLabel.find_last_of('_') + 1);
-                std::string indexAllocName = "%_foreach_idx_" + idxSuffix;
+                std::string indexAllocName = std::string("%") + kSlotNamespaceSeparator + "foreach_idx" + kSlotNamespaceSeparator + idxSuffix;
 
                 // ALLOC the counter slot
                 {
@@ -923,7 +932,14 @@ namespace Sad
                 //      when multiple foreach loops use the same variable name (e.g. ع).
                 //      Without suffix: namedValues["%ع"] gets overwritten in codegen
                 //      and LOAD/STORE inside the loop body reads/writes wrong alloca.
-                std::string loopVarAllocName = "%" + forRange->variable + "_" + idxSuffix;
+                // (AR) الفاصلُ `#` لا `_`: اللاحقةُ الأبجديّةُ الرقميّةُ تهجئةٌ مشروعةٌ لمعرّفِ
+                //      مستخدمٍ، و«لكل ي في [1، 2، 3]» ثمّ «متغير ي_5 = 100» كان يجعلُ
+                //      التصريحَ يختطفُ موقعَ عنصرِ الحلقةِ فيطبعُ المترجِمُ `100` والمفسّرُ `1`.
+                // (EN) `#` not `_`: an alphanumeric suffix is a legal user identifier, and a
+                //      body declaration spelled like it hijacked the element slot (compiler
+                //      printed `100` where the interpreter printed `1`). `#` starts a comment
+                //      in Sad, so it cannot appear in any identifier.
+                std::string loopVarAllocName = "%" + forRange->variable + kSlotNamespaceSeparator + idxSuffix;
 
                 // ALLOC the loop variable slot
                 // (AR) نستخدم نوع العنصر الفعلي إن كان معروفاً (مثل STRING للنصوص)
@@ -999,7 +1015,7 @@ namespace Sad
                                        ? SadTypeKind::String
                                        : SadTypeKind::Integer;
 
-                    valueVarAllocName = "%" + forRange->valueVar + "_" + idxSuffix;
+                    valueVarAllocName = "%" + forRange->valueVar + kSlotNamespaceSeparator + idxSuffix;
                     {
                         SIRInstruction allocVal(SIROpcode::ALLOC);
                         allocVal.result = SIROperand::Register(valueVarAllocName, valueVarType);

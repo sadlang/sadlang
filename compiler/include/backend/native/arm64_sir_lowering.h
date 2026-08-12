@@ -25,6 +25,7 @@
 #include "backend/native/elf64_writer.h"
 #include "backend/native/sir_lowering_common.h"
 
+#include "frontend/sir_constants.h"
 #include "frontend/sir_module.h"
 #include "frontend/sir_instruction.h"
 #include "frontend/sir_types.h"
@@ -6406,7 +6407,7 @@ namespace sad
                 {
                     const auto dot = currentFn_.find('.');
                     if (dot != std::string::npos)
-                        objClassOf_[diag::kVregSigil + std::string("self")] = currentFn_.substr(0, dot);
+                        objClassOf_[std::string(::Sad::Compiler::kSelfRegisterName)] = currentFn_.substr(0, dot);
                 }
                 // (AR) ابذرْ صنفَ كلِّ معاملٍ مصرَّحٍ بصنفٍ مسجَّل (للإرسالِ الافتراضيّ على معامل). (الدفعة ٦)
                 for (const auto &p : fn.getParameters())

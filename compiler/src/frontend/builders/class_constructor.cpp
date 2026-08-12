@@ -445,7 +445,7 @@ namespace Sad
                         std::string parentCtorName = parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
 
                         std::vector<SIROperand> superArgOperands;
-                        superArgOperands.push_back(SIROperand::Register("%self", SadTypeKind::Integer)); // self
+                        superArgOperands.push_back(SIROperand::Register(kSelfRegisterName, SadTypeKind::Integer)); // self
 
                         // ═══════════════════════════════════════════════════════════════
                         // (AR) بناء خريطة وسائط الأساس → معاملات الباني
