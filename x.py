@@ -176,6 +176,21 @@ CODEGEN_DOMAINS = (
         ],
     },
     {
+        # (AR) أوپكودات SIR المقيَّدة بعائلة معالج (تبثّ `cli`/`outb`/`mov %crN`…).
+        #      كان المترجم يبثّها لأيّ هدفٍ بخروجٍ صفريّ، فيخفق المُجمِّعُ برسالةٍ
+        #      لا تدلّ — أو يخرج ثنائيٌّ لا يعمل. الجدول يجعل القيد مُعلَنًا.
+        "name": "arch_specific_opcodes",
+        "script": "gen_arch_specific_opcodes.py",
+        "out_dir": "compiler/include/backend/generated",
+        "outputs": ("arch_specific_opcodes_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/backend/arch_specific_opcodes.yaml",
+            "--opcodes", "language-truth/backend/sir_opcodes.yaml",
+            "--out-h", f"{d}/arch_specific_opcodes_generated.h",
+            "--quiet",
+        ],
+    },
+    {
         # (AR) مفاتيح خصائص عناصر واجهة SadUI (عنوان/محتوى/…) — مصدر الحقيقة الوحيد.
         #      يُولَّد إلى هيدر مُلتزَم داخل مكتبة الرسومات الطرفيّة (لا اعتماد ربط جديد).
         "name": "ui_props",

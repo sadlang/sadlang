@@ -211,6 +211,13 @@ void LLVMPaging::emitInvalidatePage(llvm::IRBuilder<>& builder,
     builder.CreateCall(inlineAsm, {virtAddr});
 }
 
+// 🔴 دَينٌ مُعلَنٌ (٢٠٢٦-٠٨-١٢): هذا الملفُّ كلُّه يحمل العطبَ الذي سُدَّ في
+//    `builders/platform/lowlevel_ops.cpp` — عرضُ سجلٍّ مثبَّتٌ i64 لا يتبع ثالوثَ
+//    الهدف (`getTargetGprType`)، و`invlpg` بلا `~{memory}`. ولم يُسَدَّ هنا عمدًا:
+//    مقيسٌ أنّ `LLVMPaging` **بلا نداءٍ واحدٍ** من خارج ملفّه، فمساراتُه ميّتة،
+//    وهو خارجَ `emitInstruction` فلا تبلغه بوّابةُ المعماريّة كذلك.
+//    الحسمُ (وصلُه أو حذفُه) رقعةٌ مستقلّةٌ بقياسها؛ وإصلاحُه بلا حسمٍ يشتري
+//    شيفرةً صحيحةً لا يشغّلها أحد.
 void LLVMPaging::emitFlushTLB(llvm::IRBuilder<>& builder) {
     auto* i64Ty = llvm::Type::getInt64Ty(m_ctx);
     

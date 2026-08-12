@@ -1,0 +1,166 @@
+# ═══════════════════════════════════════════════════════════════════
+# arch_specific_opcodes.yaml — أوپكودات SIR التي تُخفَّض إلى تعليمات
+#                              مقيَّدةٍ بمعماريّةٍ بعينها (مصدر الحقيقة)
+# ═══════════════════════════════════════════════════════════════════
+# (AR) الغرض: أوپكوداتٌ يبثّ خفضُها أسمبليًّا مضمَّنًا لا يفهمه إلّا معالجٌ من
+#      عائلةٍ بعينها (`cli`، `outb`، `mov %crN`، `rdtsc`…). المترجمُ اليومَ
+#      يبثّها **لأيّ هدفٍ يُطلَب** بخروجٍ صفريّ، فيقع الإخفاقُ عند المُجمِّع —
+#      أو لا يقع أصلًا فيخرج ثنائيٌّ لا يعمل.
+#
+#      المقيس (٢٠٢٦‑٠٨‑١٢): `عداد_الدورات()` بـ`--هدف=aarch64-unknown-elf`
+#      يخرج بصفر، ويبثّ `rdtsc\n\tshl $$32, %rdx\n\tor %rdx, %rax`، ثمّ يردّ
+#      المُجمِّع خطأً. والأمرُ نفسُه على `i686-unknown-elf` — أي على المعماريّة
+#      التي تعمل عليها نواةُ النحلة اليوم.
+#
+# (AR) ⚠️ ولماذا ملفٌّ مكتوبٌ باليد لا حقلٌ في `sir_opcodes.yaml`: ذاك مُولَّدٌ
+#      آليًّا من `sir_types.h` (التعداد والمنمنمات)، ولا مصدرَ في التعداد لقيدِ
+#      المعماريّة — القيدُ يعيش في **شيفرة الخفض** لا في اسم الأوپكود. فيُعلَن
+#      هنا صراحةً، ويحرسه اختبارٌ من طرفين:
+#        (١) كلُّ اسمٍ هنا موجودٌ في `sir_opcodes.yaml` — فلا اسمَ ميّت.
+#        (٢) كلُّ مُصدِرٍ يحوي أسمبليَّ x86 في شيفرة الخلفيّة أوپكودُه مُعلَنٌ
+#            هنا — فلا يُضاف مُصدِرٌ جديدٌ ويفلت من القيد.
+#
+# (AR) وهذا الملفُّ **لا يمنع** الخفضَ ولا يبدّله؛ يُعلن القيدَ فقط. الحكمُ
+#      بالقيد في `emitInstruction` (نقطةُ التوزيع الوحيدة).
+#
+# (AR) 🔴 دَينٌ مُعلَنٌ خارجَ مدى هذا الجدول: كتلةُ «تجميع … نهاية» (أسمبليٌّ
+#      يكتبه المستعمل) لا تمرّ بهذه البوّابة. و`language-truth/dialects/assembly.yaml`
+#      يُعلن `architectures: [i686]` لكنّ الإعلانَ لا يُبَثُّ في الرأس المولَّد ولا
+#      يُفحَص عند الخفض. مقيس (٢٠٢٦‑٠٨‑١٢) بالمنمنمات **العربيّة** — وهي وحدَها
+#      ما يقبله المعجم، والمنمنمةُ اللاتينيّةُ تُردّ بـSEM025 فلا تصلح شاهدًا:
+#          تجميع ⏎ عطّل_المقاطعات ⏎ أوقف ⏎ نهاية
+#      بـ`--هدف=aarch64-unknown-elf` تخرج بصفر وتبثّ `"cli\n\thlt"` في الـIR.
+# ═══════════════════════════════════════════════════════════════════
+
+version: "1.0"
+status: experimental
+description_ar: "أوپكودات SIR المقيَّدة بمعماريّة — الاسم، العائلة، والمنمنمة الشاهدة"
+description_en: "SIR opcodes constrained to a CPU family — name, family, witness mnemonic"
+
+# (AR) `witness` منمنمةٌ **يقرؤها إنسان** — تظهر نصًّا في رسالة الخطأ. فلا تُنسَخ
+#      من قالب `InlineAsm` بمعاملاته (`$0`): «تعليمة `%cr3`» ليست تعليمةً أصلًا.
+#      والحارسُ يلتقط المنمنماتِ من **الشيفرة** لا من هذا الحقل، فلا يقيّده شكلُه.
+
+# (AR) عائلاتُ المعماريّات. `llvm_archs` الأسماءُ **القانونيّة** كما يعيدها
+#      `llvm::Triple::getArchTypeName(getArch())` — لا مكوّنُ الثالوث الخام.
+#      ⚠️ فـ«i686» و«i586» و«i386» كلُّها تُقنَّن إلى **`i386`**؛ وكتابةُ «i686»
+#      هنا تجعل البوّابةَ ترفض i686 — وهي من العائلة نفسِها.
+families:
+  - id: x86
+    name_ar: "عائلة x86 (i686 وx86_64)"
+    llvm_archs: [i386, x86_64]
+
+opcodes:
+  # ─── مقاطعاتٌ وحالةُ معالج ───
+  - name: BUILTIN_CLI
+    family: x86
+    witness: "cli"
+  - name: BUILTIN_STI
+    family: x86
+    witness: "sti"
+  - name: BUILTIN_HALT
+    family: x86
+    witness: "hlt"
+  - name: BUILTIN_INTERRUPT
+    family: x86
+    witness: "int N"
+  - name: BUILTIN_CPUID
+    family: x86
+    witness: "cpuid"
+  - name: BUILTIN_RDTSC
+    family: x86
+    witness: "rdtsc"
+
+  # ─── حواجزُ ذاكرةٍ (تعليماتُ SSE — لا مقابلَ لها بالاسم خارج x86) ───
+  - name: BUILTIN_MFENCE
+    family: x86
+    witness: "mfence"
+  - name: BUILTIN_LFENCE
+    family: x86
+    witness: "lfence"
+  - name: BUILTIN_SFENCE
+    family: x86
+    witness: "sfence"
+
+  # ─── منافذُ الدخل/الخرج (فضاءُ منافذٍ منفصلٌ لا يوجد على ARM/RISC-V) ───
+  - name: BUILTIN_PORT_READ
+    family: x86
+    witness: "inb"
+  - name: BUILTIN_PORT_WRITE
+    family: x86
+    witness: "outb"
+  # (AR) نظائرُ ١٦ و٣٢ بتًّا: تُوزَّع إلى المُصدِرَين نفسيهما بحالاتِ `case` مكدَّسة،
+  #      فأفلتت من أوّلِ مسحٍ لخريطة التوزيع وبقيت تُبَثُّ لـaarch64 بخروجٍ صفريّ.
+  - name: BUILTIN_PORT_READ_16
+    family: x86
+    witness: "inw"
+  - name: BUILTIN_PORT_READ_32
+    family: x86
+    witness: "inl"
+  - name: BUILTIN_PORT_WRITE_16
+    family: x86
+    witness: "outw"
+  - name: BUILTIN_PORT_WRITE_32
+    family: x86
+    witness: "outl"
+  - name: BUILTIN_RESET
+    family: x86
+    witness: "outb"
+  - name: BUILTIN_SERIAL_INIT
+    family: x86
+    witness: "outb"
+  - name: BUILTIN_SERIAL_READ
+    family: x86
+    witness: "inb"
+  - name: BUILTIN_SERIAL_READY
+    family: x86
+    witness: "inb"
+  - name: BUILTIN_SERIAL_WRITE
+    family: x86
+    witness: "outb"
+  - name: BUILTIN_TIMER_INIT
+    family: x86
+    witness: "outb"
+  - name: BUILTIN_TIMER_READ
+    family: x86
+    witness: "inb"
+  - name: BUILTIN_TIMER_WAIT
+    family: x86
+    witness: "rdtsc"
+  - name: BUILTIN_DMA_INIT
+    family: x86
+    witness: "outb"
+  - name: BUILTIN_DMA_START
+    family: x86
+    witness: "outb"
+
+  # ─── سلاسلُ التكرار ───
+  - name: BUILTIN_MEM_FILL_32
+    family: x86
+    witness: "rep stosl"
+
+  # ─── سجلّاتُ تحكّمٍ وترقيمٌ وجداولُ واصفات ───
+  - name: LOWLEVEL_CPU_READ_CR
+    family: x86
+    witness: "mov %crN"
+  - name: LOWLEVEL_CPU_WRITE_CR
+    family: x86
+    witness: "mov %crN"
+  - name: LOWLEVEL_CPU_READ_MSR
+    family: x86
+    witness: "rdmsr"
+  - name: LOWLEVEL_CPU_WRITE_MSR
+    family: x86
+    witness: "wrmsr"
+  - name: LOWLEVEL_CPU_INVLPG
+    family: x86
+    witness: "invlpg"
+  - name: LOWLEVEL_PAGING_FLUSH_TLB
+    family: x86
+    witness: "mov %cr3"
+  - name: LOWLEVEL_GDT_LOAD
+    family: x86
+    witness: "lgdt"
+  - name: LOWLEVEL_IDT_LOAD
+    family: x86
+    witness: "lidt"

@@ -30,6 +30,8 @@ MIR (تعليماتٌ مجرّدة + سجلّاتٌ افتراضيّة)
 language-truth/backend/
   targets.yaml          ← المعماريّاتُ المستهدَفة (مصدرُ الحقيقة الوحيد للقائمة)
   sir_opcodes.yaml      ← كتالوجُ أوپكودات SIR **مولَّد** (gen_sir_opcodes_yaml.py)
+  arch_specific_opcodes.yaml
+                        ← الأوپكوداتُ المقيَّدةُ بعائلةِ معالج (تبثّ cli/outb/mov %crN/rdtsc)
   <arch>/
     instructions.yaml   ← جدول التعليمات (الترميز الثنائيّ)      [backend_encoding.schema.json]
     registers.yaml      ← جدول السجلّات (num/role/reserved)      [backend_register_file.schema.json]
@@ -50,6 +52,25 @@ language-truth/backend/
 كلُّ جدولٍ يُتحقَّق في CI عبر `language-truth/tests/test_schema_validation.py`؛ ويحرس
 `x.py gen --check` (المدخل `grammar_lowers_to`) طزاجةَ `sir_opcodes.yaml` ومطابقةَ
 المعماريّات المخفوضة فعلًا لقائمة `targets.yaml`.
+
+### `arch_specific_opcodes.yaml` — قيدُ عائلةِ المعالج
+
+هذا الجدولُ يجيب سؤالًا واحدًا: **أيصحّ بثُّ خفضِ هذا الأوپكود لهذا الهدف أصلًا؟**
+فبعضُ الأوپكودات تُخفَّض إلى أسمبليٍّ مضمَّنٍ لا يفهمه إلّا معالجٌ من عائلةٍ بعينها —
+`cli`، `outb`، `mov %crN`، `rdtsc`. وكان المترجمُ يبثّها **لأيّ هدفٍ يُطلَب بخروجٍ
+صفريّ**: `عداد_الدورات()` بـ`--هدف=aarch64-unknown-elf` كان ينجح ويبثّ `rdtsc`.
+
+- **لماذا ملفٌّ باليد لا حقلٌ في `sir_opcodes.yaml`**: ذاك مُولَّدٌ من `sir_types.h`،
+  ولا مصدرَ في التعداد لقيدِ المعماريّة — القيدُ يعيش في **شيفرة الخفض**.
+- **يُستهلَك** عبر `arch_specific_opcodes_generated.h` في `emitInstruction` (نقطةُ
+  التوزيع الوحيدة). والمفتاحُ **قيمةُ التعداد** لا نصُّ الاسم، فالاسمُ الخاطئُ في
+  الـYAML خطأُ ترجمةٍ لا صمت.
+- **`llvm_archs` أسماءٌ قانونيّة** (`getArchTypeName`) لا مكوّنُ الثالوث الخام:
+  «i686» و«i586» تُقنَّنان إلى **`i386`**، وكتابةُ «i686» تجعل البوّابةَ ترفض
+  معماريّةَ النواة نفسَها.
+- **حارسان**: `test_arch_specific_opcodes_sot.py` يحرس الجدولَ من طرفين (لا اسمَ
+  ميّتًا فيه، ولا مُصدِرَ x86 خارجَه)، و`test_arch_gate.py` يحرس **الأثر** — يشغّل
+  المترجمَ ويتحقّق من الرفض خارجَ العائلة **والقبولِ داخلَها**.
 
 ## عقد واجهة `Target` (الحاجز المعماريّ)
 

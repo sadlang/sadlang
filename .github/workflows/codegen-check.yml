@@ -3,15 +3,15 @@
 # (AR) الوصف: حارس انجراف المصدر المولَّد — المرحلة 1 من sadlang-rfcs#10.
 #             language-truth/*.yaml هو مصدر الحقيقة الوحيد؛ الملفّات المولَّدة
 #             تبقى متعقَّبة لكنّها مشتقّات خالصة. تفشل البوّابة إن لم تَعُد أيّ
-#             منها مطابقةً لِما يولّده YAML الحاليّ (12 نطاقًا، 24 ملفًّا)، أو إن
+#             منها مطابقةً لِما يولّده YAML الحاليّ (24 نطاقًا، 36 ملفًّا)، أو إن
 #             فشل أحد حرّاس الاتّساق الخالصين (كتالوج المفردات token_catalog +
 #             سلامة وسوم مصفوفة القواعد rules_matrix).
 #             نقطة الدخول الموحَّدة: `python x.py gen --check`.
 # (EN) Description: Generated-source drift guard — Phase 1 of sadlang-rfcs#10.
 #             language-truth/*.yaml is the SINGLE source of truth; generated
 #             files stay tracked but are pure derivations. The gate fails if any
-#             of them no longer matches what the current YAML generates (12
-#             domains, 24 files), or if a pure consistency guard fails
+#             of them no longer matches what the current YAML generates (24
+#             domains, 36 files), or if a pure consistency guard fails
 #             (token_catalog + rules_matrix). Single entry point:
 #             `python x.py gen --check`.
 # ======================================================================
@@ -45,6 +45,18 @@ on:
       # (EN) The gaps side is guarded too; without this the guard is nominal only.
       - "tests/behavior/grammar_gaps/**"
       - "tools/repl/generated/**"
+      # (AR) مخرَجاتُ النطاقاتِ الحديثةِ الخمسةِ الباقية — أُضيفت مقيسةً: مقارنةُ
+      #      مجلّداتِ `out_dir` في x.py بهذا المرشِّح أظهرت خمسةً خارجَه، فكان كلُّ
+      #      واحدٍ منها محروسًا شكليًّا: PR يحرّر المخرَجَ يدويًّا بلا لمسِ
+      #      language-truth/ ولا x.py لا يستثير سيرَ العمل، فيُدمَج الانجرافُ أخضرَ.
+      # (EN) The five remaining generated-output dirs, added by measurement: each
+      #      was nominally guarded — a PR hand-editing the output without touching
+      #      language-truth/ or x.py never triggered this workflow at all.
+      - "compiler/include/backend/generated/**"
+      - "compiler/include/backend/native/generated/**"
+      - "shared/dialects/generated/**"
+      - "shared/cli/include/**"
+      - "docs/cli_flags/_generated/**"
       - "x.py"
       # (AR) .gitignore مُدرَجٌ عمدًا: نمطٌ فيه ابتلع صامتًا ١١ عيّنةً حيّةً لقاعدةِ
       #      «جديد» بينما تقريرا المطابقةِ يشهدان لها بالنجاح — وحارسُ
@@ -77,6 +89,18 @@ on:
       # (EN) The gaps side is guarded too; without this the guard is nominal only.
       - "tests/behavior/grammar_gaps/**"
       - "tools/repl/generated/**"
+      # (AR) مخرَجاتُ النطاقاتِ الحديثةِ الخمسةِ الباقية — أُضيفت مقيسةً: مقارنةُ
+      #      مجلّداتِ `out_dir` في x.py بهذا المرشِّح أظهرت خمسةً خارجَه، فكان كلُّ
+      #      واحدٍ منها محروسًا شكليًّا: PR يحرّر المخرَجَ يدويًّا بلا لمسِ
+      #      language-truth/ ولا x.py لا يستثير سيرَ العمل، فيُدمَج الانجرافُ أخضرَ.
+      # (EN) The five remaining generated-output dirs, added by measurement: each
+      #      was nominally guarded — a PR hand-editing the output without touching
+      #      language-truth/ or x.py never triggered this workflow at all.
+      - "compiler/include/backend/generated/**"
+      - "compiler/include/backend/native/generated/**"
+      - "shared/dialects/generated/**"
+      - "shared/cli/include/**"
+      - "docs/cli_flags/_generated/**"
       - "x.py"
       # (AR) .gitignore مُدرَجٌ عمدًا: نمطٌ فيه ابتلع صامتًا ١١ عيّنةً حيّةً لقاعدةِ
       #      «جديد» بينما تقريرا المطابقةِ يشهدان لها بالنجاح — وحارسُ
@@ -94,9 +118,9 @@ concurrency:
 
 jobs:
   # ======================================================================
-  # (AR) فحص التزامن: language-truth/*.yaml → 24 ملفًّا مولَّدًا، لا انجراف
+  # (AR) فحص التزامن: language-truth/*.yaml → 36 ملفًّا مولَّدًا في 24 نطاقًا، لا انجراف
   #      + حرّاس الاتّساق الخالصون (token_catalog + rules_matrix).
-  # (EN) Sync check: language-truth/*.yaml → 24 generated files — no drift,
+  # (EN) Sync check: language-truth/*.yaml → 36 generated files in 24 domains — no drift,
   #      plus the pure consistency guards (token_catalog + rules_matrix).
   # ======================================================================
   codegen-sync:

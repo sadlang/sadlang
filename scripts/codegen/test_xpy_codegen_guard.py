@@ -2,13 +2,13 @@
 ============================================================================
 (AR) test_xpy_codegen_guard.py — اختبارات حارس انجراف المصدر المولَّد
      (المرحلة 1 من sadlang-rfcs#10). يثبّت عقد `x.py gen --check`:
-       - جدول النطاقات يغطّي الملفّات المولَّدة بالضبط (24 ملفًّا)، وكل مولّد موجود.
+       - جدول النطاقات يغطّي الملفّات المولَّدة بالضبط (36 ملفًّا في 24 نطاقًا)، وكل مولّد موجود.
        - جدول حرّاس الفحص الخالصين (SOT_CHECK_GUARDS) سكربتاته موجودة.
        - منطق القرار (تطبيع نهايات الأسطر) يتجاهل CRLF↔LF ويلتقط فرق المحتوى.
        - الحارس يمرّ على الشجرة النظيفة (تكامل: وسائط الجدول صحيحة + لا انحراف).
 (EN) Tests for the generated-source drift guard (Phase 1 of sadlang-rfcs#10).
-     Pins the `x.py gen --check` contract: domain table covers exactly the six
-     generated files, the EOL-normalizing decision predicate ignores CRLF↔LF but
+     Pins the `x.py gen --check` contract: domain table covers exactly the 36
+     generated files (24 domains), the EOL-normalizing decision predicate ignores CRLF↔LF but
      catches content drift, and the guard passes on a clean tree end-to-end.
 ============================================================================
 """
@@ -106,6 +106,13 @@ EXPECTED_OUTPUTS = {
     # (AR) تمثيلُ القيمة زمنَ التشغيل (وسومُ SadDyn + نصوصُ عرضِ لاشيء/صحيح/خطأ) — مصدرٌ واحدٌ للطبقات الثلاث.
     # (EN) Runtime value representation (SadDyn tags + display texts) — single source for all three engines.
     "shared/types/generated/value_repr_generated.h",
+    # (AR) قيدُ العائلةِ المعماريّةِ للمدمجاتِ المنخفضةِ المستوى — من
+    #      language-truth/backend/arch_specific_opcodes.yaml — يقرأ المولِّدُ معه
+    #      sir_opcodes.yaml ليتحقّق أنّ كلَّ أوپكودٍ مقيَّدٍ موجودٌ فعلًا: ما الذي
+    #      يُخفَّض إلى تعليمةٍ تخصُّ عائلةً بعينِها، فيَردُّه SEM038 على هدفٍ خارجَها.
+    # (EN) Architecture-family constraint for low-level builtins — which opcodes
+    #      lower to family-specific instructions, so SEM038 rejects other targets.
+    "compiler/include/backend/generated/arch_specific_opcodes_generated.h",
 }
 
 

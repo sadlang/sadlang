@@ -650,3 +650,23 @@ errors:
   detailed:
     ar: 'طُلبت {requested_mib} م.ب والحدُّ {maximum_mib} م.ب على هدفٍ بعرض {bits} بتًّا. وكومة الوضع الحرّ مصفوفةٌ في قسم ‎.bss‎، والحدُّ نصفُ فضاء العنونة ليبقى مجالٌ لبقيّة الأقسام وللمكدّس — لكنّ ما يُقاس عليه النصف يختلف باختلاف العرض. على هدفٍ بعرض 32 بتًّا أو أقلّ فضاء العنونة هو 2 مرفوعًا للعرض، والدافع التفافٌ صامت: حقل حجم القسم في ELF32 عرضه 32 بتًّا، فحجم يبلغ 2^32 أو يجاوزه يلتفّ — قِيس على هدف ‎i686‎ أنّ كومة 4096 م.ب تُنتج قسمًا حجمه 496 بايتًا، ويخرج المُجمِّع والرابط بصفرٍ بلا تشخيص. والأخطر أنّ فحص الفيضان في ‎malloc‎ المولَّد يقارن بالحجم المطلوب بعرض 64 بتًّا، فيظنّ المخصِّص أنّ لديه 4096 م.ب بينما القسم مئات البايتات ⇒ كلّ تخصيصٍ بعد ذلك يكتب خارج القسم بلا صوت. أمّا على هدفٍ بعرض 64 بتًّا فحقل ‎sh_size‎ في ELF64 عرضه 64 بتًّا ولا يلتفّ، والمرجع ليس عرض الكلمة بل العنونة القانونيّة: 48 بتًّا على x86_64 و aarch64 و riscv64 بنمط Sv48، والبتّات فوقها امتداد إشارةٍ إلزاميّ، فالحدّ 2^47 أي 128 تيرابايت. ولو قِيس النصف على 2^64 لصار حارسًا لا ينطلق أبدًا، إذ مجال هذا العلم نفسه ميغابايتات بعرض 32 بتًّا فلا يبلغ ذلك السقف.'
     en: '{requested_mib} MiB requested, limit {maximum_mib} MiB on a {bits}-bit target. The freestanding heap is an array in .bss and the limit is half the address space, leaving room for the other sections and the stack — but what that half is measured against depends on the width. At 32 bits or less the address space is 2^width and the driver is a silent wrap: the ELF32 section-size field is 32 bits, so a size at or above 2^32 wraps — measured on i686, a 4096 MiB heap yields a 496-byte section while assembler and linker both exit zero. Worse, the generated malloc''s overflow check compares against the 64-bit requested size, so the allocator believes it owns 4096 MiB while the real section is a few hundred bytes. At 64 bits ELF64 sh_size is 64 bits wide and never wraps; the reference is not the word width but the canonical address width — 48 bits on x86_64, aarch64 and riscv64 (Sv48), with the bits above it a mandatory sign extension — hence 2^47, that is 128 TiB. Measuring the half against 2^64 instead would be a guard that can never fire, since this flag''s own domain is 32-bit megabytes.'
+- code: SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN
+  id: SEM038
+  category: semantic
+  title:
+    ar: مدمجة مقيّدة بعائلة معالج تُطلب لهدف من عائلة أخرى
+    en: CPU-family-constrained builtin requested for a foreign target
+  brief:
+    ar: 'المدمجة «{opcode}» تُخفَّض إلى تعليمة «{witness}» تخصّ {family}، والهدف المطلوب «{target}»'
+    en: 'Builtin «{opcode}» lowers to instruction «{witness}», which belongs to {family}; the requested target is «{target}»'
+  placeholders:
+  - opcode
+  - witness
+  - family
+  - target
+  fix_hint:
+    ar: 'ابنِ لهدف من العائلة نفسها (‎--هدف=i686-...‎ أو ‎--هدف=x86_64-...‎)، أو استبدل بالمدمجة نظيرًا محايدًا للمعماريّة، أو اعزل الاستدعاء خلف فرع خاصّ بالمعماريّة.'
+    en: 'Build for a target in the same family (--هدف=i686-... or --هدف=x86_64-...), replace the builtin with an architecture-neutral equivalent, or isolate the call behind an architecture-specific branch.'
+  detailed:
+    ar: 'بعض المدمجات تُخفَّض إلى تعليمات لا توجد إلّا في عائلة معالج بعينها: ‎cli‎ و‎sti‎ و‎hlt‎ و‎cpuid‎ و‎rdtsc‎ و‎inb/outb‎ و‎mov %crN‎ و‎lgdt/lidt‎ و‎invlpg‎ كلّها من عائلة x86 وحدها؛ فلا فضاء منافذ معزولًا ولا سجلّات تحكّم بهذه الأسماء على ARM أو RISC-V. وكان المترجم يبثّها لأيّ هدف يُطلب بخروج صفريّ، فيقع الإخفاق عند المُجمِّع برسالة لا تدلّ على السبب، أو لا يقع أصلًا فيخرج ثنائيّ لا يعمل. والقياس الذي ولّد هذا التشخيص: قراءة عدّاد الدورات بهدف aarch64 كانت تنجح وتبثّ ‎rdtsc‎. والقيد ليس خاصًّا بالوضع الحرّ بل يقع مستضافًا كذلك، لأنّ التعليمة غائبة عن المعماريّة لا عن المكتبة. وقائمة المدمجات المقيّدة مصدر حقيقة في ‎language-truth/backend/arch_specific_opcodes.yaml‎.'
+    en: 'Some builtins lower to instructions that exist only in one CPU family: cli, sti, hlt, cpuid, rdtsc, inb/outb, mov %crN, lgdt/lidt and invlpg are all x86-only, since there is no isolated port space and no control register by those names on ARM or RISC-V. The compiler used to emit them for any requested target with a zero exit, so the failure landed on the assembler with a message that did not name the cause, or did not land at all and yielded a binary that cannot run. The measurement behind this diagnostic: a timestamp-counter read targeting aarch64 succeeded and emitted rdtsc. The constraint is not freestanding-specific: it applies to hosted builds too, because the instruction is absent from the architecture, not from the library. The constrained list is a source of truth in language-truth/backend/arch_specific_opcodes.yaml.'

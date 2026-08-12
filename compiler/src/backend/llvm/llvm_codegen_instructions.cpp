@@ -27,6 +27,7 @@
 #include "llvm_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
+#include "backend/generated/arch_specific_opcodes_generated.h"
 #include <llvm/Support/TargetSelect.h>
 // Source: LLVM 14+ API - llvm/MC/TargetRegistry.h بدلاً من llvm/Support/TargetRegistry.h
 #include <llvm/MC/TargetRegistry.h>
@@ -354,6 +355,77 @@ namespace Sad
                         context_info_.namedValues[inst->result->name] =
                             llvm::ConstantPointerNull::get(
                                 llvm::cast<llvm::PointerType>(ptrTy));
+                    }
+                    return nullptr;
+                }
+            }
+
+            // (AR) بوّابةُ معماريّة الهدف: أوپكوداتٌ يبثّ خفضُها أسمبليًّا مضمَّنًا
+            //      لا يفهمه إلّا معالجٌ من عائلةٍ بعينها (`cli`، `outb`، `mov %crN`،
+            //      `rdtsc`…). كان المترجم يبثّها **لأيّ هدفٍ يُطلَب** بخروجٍ صفريّ:
+            //      `عداد_الدورات()` بـ`--هدف=aarch64-unknown-elf` يخرج بصفر ويبثّ
+            //      `rdtsc` — فيقع الإخفاقُ عند المُجمِّع برسالةٍ لا تدلّ على السبب،
+            //      أو لا يقع فيخرج ثنائيٌّ لا يعمل. القائمةُ من مصدر الحقيقة
+            //      (language-truth/backend/arch_specific_opcodes.yaml) لا مكتوبةً هنا.
+            //      توضع قبل الطبقات للسبب نفسِه الذي وُضِعت لأجله بوّابةُ الوضع
+            //      الحرّ: كي لا يُقرأ الإيقافُ «opcode غير مدعوم».
+            // (EN) Target-architecture gate: opcodes whose lowering emits inline asm
+            //      only one CPU family understands. The list comes from the SoT, not
+            //      from this file. Placed before the tiers so the early-out is not
+            //      misread as "unsupported opcode".
+            if (const auto *constraint = ::Sad::Backend::findArchConstraint(inst->opcode))
+            {
+                // (AR) الاسمُ **القانونيّ** للمعماريّة لا مكوّنُ الثالوث الخام:
+                //      `getArchName()` تعيد ما كُتب («i686»)، فقائمةُ العائلة
+                //      لا تطابقه ⇒ يُرفَض i686 وهو من x86. و`getArchTypeName`
+                //      تعيد اسمًا واحدًا لكلّ صيغِ العائلة («i386»).
+                // (EN) Canonical arch name, not the raw triple component:
+                //      getArchName() returns "i686" as written, which no family
+                //      list matches — rejecting i686 though it *is* x86.
+                const std::string targetArch =
+                    llvm::Triple::getArchTypeName(
+                        llvm::Triple(llvm::Triple::normalize(module_->getTargetTriple()))
+                            .getArch())
+                        .str();
+                if (!::Sad::Backend::archSatisfiesFamily(constraint->familyId, targetArch))
+                {
+                    // (AR) الصياغةُ في الكتالوج لا هنا — كبوّابةِ الوضعِ الحرِّ
+                    //      أعلاه: نصٌّ مبنيٌّ في C++ يجعل الرسالةَ أحاديّةَ اللغة
+                    //      حتمًا مهما كان `brief.en`.
+                    //      🔴 دَينان مُعلَنان في هذا التشخيص، كلاهما أوسعُ من هذه
+                    //      البوّابة فلا يُسَدّان هنا:
+                    //      (١) `{opcode}` اسمُ أوپكودِ SIR (`BUILTIN_RDTSC`) لا الاسمُ
+                    //          الذي كتبه المستعمل (`عداد_الدورات`). والوصلُ بينهما
+                    //          يحتاج قرارًا لا نسخًا: `cpp_id` في `builtins/*.yaml`
+                    //          لا يطابق اسمَ الأوپكود ١:١ (`CPU_11` مقابل
+                    //          `BUILTIN_PORT_WRITE_16`)، ونسخُ الاسم العربيّ إلى جدولنا
+                    //          يجعل الحقيقةَ في موضعين.
+                    //      (٢) لا موقعَ مصدرٍ (سطرًا وعمودًا) — و`reportError` في
+                    //          `llvm_codegen_context.h` لا تقبل موقعًا أصلًا، فالنقصُ
+                    //          في مسار أخطاء الخلفيّة كلِّه لا في هذه البوّابة.
+                    reportError(
+                        ::Sad::Errors::ErrorCode::SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN,
+                        {{"opcode", std::string(constraint->opcode)},
+                         {"witness", std::string(constraint->witness)},
+                         {"family", std::string(constraint->familyAr)},
+                         {"target", targetArch}});
+                    // (AR) اربط الناتجَ بصفرٍ ثابت كما تفعل بوّابةُ الوضع الحرّ فوقها:
+                    //      الرجوعُ عاريًا يترك سجلَّ النتيجة غيرَ معرَّفٍ فيتلوه بلاغُ
+                    //      «خطأ مترجم داخليّ: Undefined register» يطلب من المستعمل
+                    //      الإبلاغَ عن علّةٍ لا وجودَ لها. البناءُ يُحبَط عبر بوّابة
+                    //      الرمز في السائق لا عبر هذا الإرجاع.
+                    // (EN) Bind a zero result as the freestanding gate above does:
+                    //      returning bare leaves the result register undefined, so a
+                    //      spurious "internal compiler error" follows the real
+                    //      diagnostic. The build aborts via the driver's code gate.
+                    // (AR) i64: أكثرُ المقيَّدين بلا نتيجةٍ أصلًا (`cli`/`hlt`/`outb`…)،
+                    //      وكلُّ **ذي نتيجةٍ** منهم اليومَ يربطها i64 (منافذُ الدخل،
+                    //      معرّفُ المعالج، التسلسليّ، المؤقّت، عدّادُ الدورات، سجلّاتُ
+                    //      التحكّم والنموذج). مقيَّدٌ جديدٌ نتيجتُه أضيقُ يحتاج نوعَه.
+                    if (inst->result.has_value())
+                    {
+                        context_info_.namedValues[inst->result->name] =
+                            llvm::ConstantInt::get(llvm::Type::getInt64Ty(*context_), 0);
                     }
                     return nullptr;
                 }

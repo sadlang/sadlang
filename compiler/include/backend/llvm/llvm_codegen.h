@@ -73,6 +73,7 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/Target/TargetMachine.h>
+#include <llvm/TargetParser/Triple.h>
 
 // Sad LLVM Components (مكونات Sad LLVM)
 #include "llvm_type_mapper.h"
@@ -454,6 +455,13 @@ namespace Sad
              *      يدفع 4 ⇒ النصف الأعلى قمامة ⇒ دوس ذاكرة صامت.
              * (EN) Mandatory for any C library signature taking a size.
              *
+             * (AR) ⚠️ هذا عرضُ **المؤشّر** (خاصّةُ ABI). ولعرضِ **سجلّ** الآلة —
+             *      وهو ما تُقيَّد به سجلّاتُ التحكّم والأسمبليُّ المضمَّن — انظر
+             *      `getTargetGprType`. يفترقان على x32 (مؤشّرٌ 32 وسجلٌّ 64).
+             * (EN) This is the *pointer* width (an ABI property). For the machine
+             *      *register* width — what inline asm is constrained by — see
+             *      getTargetGprType. They differ on x32.
+             *
              * @return نوع الحجم الموافق للهدف / Target-matching size type
              */
             llvm::IntegerType *getSizeType() const {
@@ -670,6 +678,32 @@ namespace Sad
              * @param mode (AR) صحيح لتفعيل الوضع المستقل / (EN) true to enable freestanding
              */
             void setFreestanding(bool mode) { freestanding_ = mode; }
+
+            /**
+             * (AR) نوعُ سجلّ الأغراض العامّة للهدف (i32 على i686 وi64 على x86_64).
+             *      تُصاغ به سجلّاتُ التحكّم وعناوينُ إبطالِ الصفحات وواصفاتُ الجداول.
+             *      اشتقاقُه من `freestanding_` يخلط وضعًا (بلا libc) بهدفٍ (عرضِ
+             *      السجلّ)، فيُصدر `mov %cr3, %eax` لهدفٍ 64-بتّيّ ويُخفِق المُجمِّعُ
+             *      بـ«cannot compile inline asm».
+             *
+             *      ⚠️ ولماذا **معماريّةُ الثالوث** لا عرضُ المؤشّر في تخطيط البيانات:
+             *      عرضُ المؤشّر خاصّةُ ABI لا خاصّةُ سجلّ. على `x86_64‑…‑gnux32`
+             *      يعطي التخطيطُ ‎p:32:32‎ فيُشتقّ i32، ويردّ المُجمِّعُ
+             *      «instruction requires: Not 64-bit mode» — أي العطبُ نفسُه بمحكٍّ
+             *      أدقَّ لكن ما زال خاطئًا. المحكُّ هو عرضُ السجلّ: `isArch64Bit`.
+             * (EN) Target general-purpose register type, derived from the triple's
+             *      architecture — not from the freestanding mode, and not from the
+             *      data layout's pointer width (an ABI property: x32 is 64-bit
+             *      registers with 32-bit pointers).
+             */
+            llvm::Type* getTargetGprType() const {
+                // (AR) التطبيعُ لازمٌ: ثالوثٌ ثلاثيُّ المكوّنات يُقرأ مكوّنُه الثاني
+                //      بائعًا لا نظامًا (انظر تحذير freestanding_codegen.h).
+                return llvm::Triple(llvm::Triple::normalize(module_->getTargetTriple()))
+                        .isArch64Bit()
+                    ? llvm::Type::getInt64Ty(*context_)
+                    : llvm::Type::getInt32Ty(*context_);
+            }
 
             /**
              * (AR) تعيين حجم الكومة الساكنة الحرّة بالبايت (0 = الافتراضيّ المحافظ)

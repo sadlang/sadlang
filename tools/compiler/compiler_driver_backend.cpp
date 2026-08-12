@@ -367,10 +367,21 @@ namespace sad
                 // (EN) INT_SIR_TYPE_CONSTRAINT joins for exactly the same reason: a type
                 //      constraint violated at codegen means an instruction was not emitted,
                 //      so the binary silently lacks an effect while exiting 0.
+                // (AR) وأُلحِق SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN بالحجّةِ نفسِها: مدمجةٌ
+                //      تُخفَّض إلى تعليمةٍ من عائلةِ معالجٍ أخرى (rdtsc لهدفِ ARM) تعني
+                //      كائنًا مكسورًا حتمًا. والقيدُ **ليس خاصًّا بالوضع الحرّ** — التعليمةُ
+                //      غائبةٌ عن المعماريّة لا عن المكتبة — فبوّابةُ الوضعِ الحرِّ أعلاه لا
+                //      تبلغه. قِيس قبل هذا السطر: هدفٌ مستضافٌ على aarch64 يطبع خطأين
+                //      **ويخرج بصفر** ويكتب ملفَّ الخرج.
+                // (EN) SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN joins for the same reason and
+                //      is NOT freestanding-specific, so the gate above never sees it:
+                //      measured, a hosted aarch64 target printed two errors and exited 0.
                 if (llvm_codegen_->hasErrorCode(
                         ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT) ||
                     llvm_codegen_->hasErrorCode(
                         ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED) ||
+                    llvm_codegen_->hasErrorCode(
+                        ::Sad::Errors::ErrorCode::SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN) ||
                     llvm_codegen_->hasErrorCode(
                         ::Sad::Errors::ErrorCode::INT_SIR_TYPE_CONSTRAINT))
                 {

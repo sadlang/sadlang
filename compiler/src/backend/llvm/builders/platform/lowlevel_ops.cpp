@@ -89,8 +89,9 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuReadMSR(std::shared_ptr<SIRInstruct
     reg = cg_.builder_->CreateIntCast(reg, i32Ty, false);
 
     if (cg_.freestanding_) {
-        // (AR) i686 حرّ: rdmsr يعيد edx:eax؛ ندمجهما بلا shlq/rax (x86-64)
-        // (EN) Freestanding i686: rdmsr -> {eax,edx}, combine without 64-bit ops
+        // (AR) الوضع الحرّ: rdmsr يعيد edx:eax على الهدفين معًا؛ ندمجهما في i64
+        //      بعمليّات LLVM لا بـshlq (فلا يفترض النصُّ عرضَ سجلّ).
+        // (EN) Freestanding: rdmsr -> {eax,edx} on both targets; combine in IR.
         auto* retTy = llvm::StructType::get(*cg_.context_, {i32Ty, i32Ty});
         auto* asmTy = llvm::FunctionType::get(retTy, {i32Ty}, false);
         auto* inlineAsm = llvm::InlineAsm::get(asmTy,
@@ -105,7 +106,11 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuReadMSR(std::shared_ptr<SIRInstruct
             cg_.builder_->CreateOr(eax64, shifted, "msr_val"));
     }
 
-    // (AR) الوضع المستضاف (x86-64): يبقى كما هو
+    // (AR) الوضع المستضاف: يبقى كما هو. ⚠️ دَينٌ مُقَرٌّ: هذا الأسمبليُّ
+    //      (shlq/%rdx/%rax) مقيَّدٌ بـx86-64، فالمستضافُ هنا يفترض المعماريّةَ
+    //      لا العرضَ وحدَه. والبابُ الباقي هو **المستضافُ على i686**: بوّابةُ
+    //      المعماريّة تقبله (i686 داخلَ العائلة) ثمّ يبثّ `shlq`/`%rax` ولا
+    //      وجودَ لهما هناك. أمّا مستضافُ aarch64 فتردّه البوّابةُ قبل بلوغِه.
     auto* asmTy = llvm::FunctionType::get(i64Ty, {i32Ty}, false);
     auto* inlineAsm = llvm::InlineAsm::get(asmTy,
         "rdmsr; shlq $$32, %rdx; orq %rdx, %rax",
@@ -161,21 +166,22 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuReadCR(std::shared_ptr<SIRInstructi
     llvm::Value* crNum = cg_.resolveOperand(inst->operands[0]);
 
     if (cg_.freestanding_) {
-        // (AR) i686 حرّ: `mov %crN, reg32` ثمّ تمديد بالصفر إلى i64 (يصفّر النصف
-        //      العلويّ تلقائيًّا — نظير جالبات العتاد)
+        // (AR) `mov %crN, reg` ثمّ توسيعٌ بالأصفار إلى i64 (عقدُ جالبات العتاد).
+        //      عرضُ السجلّ من الهدف: i686 ⇒ reg32، x86_64 ⇒ reg64. التوسيعُ إلى
+        //      i64 على الهدف الـ64-بتّيّ لا يُصدر تعليمةً (النوعان متطابقان).
         unsigned n = 0;
         if (!extractConstCrNum(cg_, crNum, "اقرأ_سجل_تحكم", n)) {
             // (AR) اربط الناتج بصفر ثابت كي لا تتتالى «Undefined register» على
             //      مستهلكيه (نمط بوّابة SEM019)؛ البناء يُحبَط عبر بوّابة hasErrors.
             return bindLowlevelResult(cg_, inst, llvm::ConstantInt::get(i64Ty, 0));
         }
-        auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
-        auto* asmTy = llvm::FunctionType::get(i32Ty, {}, false);
+        auto* gprTy = cg_.getTargetGprType();
+        auto* asmTy = llvm::FunctionType::get(gprTy, {}, false);
         auto* inlineAsm = llvm::InlineAsm::get(asmTy,
             "mov %cr" + std::to_string(n) + ", $0", "=r",
             true, false, llvm::InlineAsm::AD_ATT);
         auto* raw = cg_.builder_->CreateCall(asmTy, inlineAsm, {});
-        return bindLowlevelResult(cg_, inst, cg_.builder_->CreateZExt(raw, i64Ty));
+        return bindLowlevelResult(cg_, inst, cg_.builder_->CreateIntCast(raw, i64Ty, false));
     }
 
     // (AR) الوضع المستضاف: نداء runtime يحسم الفرع على رقم CR
@@ -190,16 +196,17 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuWriteCR(std::shared_ptr<SIRInstruct
     llvm::Value* val = cg_.resolveOperand(inst->operands[1]);
 
     if (cg_.freestanding_) {
-        // (AR) i686 حرّ: `mov reg32, %crN` — القيمة تُقصّ إلى 32-بت (فضاء i686)
+        // (AR) `mov reg, %crN` — القيمة تُلاءَم لعرض سجلّ الهدف: تُقصّ إلى 32-بت على
+        //      i686 (فضاءُ عناوينه)، وتبقى 64-بت على x86_64.
         unsigned n = 0;
         if (!extractConstCrNum(cg_, crNum, "اكتب_سجل_تحكم", n)) return nullptr;
-        auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
-        llvm::Value* val32 = cg_.builder_->CreateTrunc(val, i32Ty);
-        auto* asmTy = llvm::FunctionType::get(voidTy, {i32Ty}, false);
+        auto* gprTy = cg_.getTargetGprType();
+        llvm::Value* valGpr = cg_.builder_->CreateIntCast(val, gprTy, false);
+        auto* asmTy = llvm::FunctionType::get(voidTy, {gprTy}, false);
         auto* inlineAsm = llvm::InlineAsm::get(asmTy,
             "mov $0, %cr" + std::to_string(n), "r,~{memory}",
             true, false, llvm::InlineAsm::AD_ATT);
-        return cg_.builder_->CreateCall(asmTy, inlineAsm, {val32});
+        return cg_.builder_->CreateCall(asmTy, inlineAsm, {valGpr});
     }
 
     return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),
@@ -213,13 +220,14 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuInvlpg(std::shared_ptr<SIRInstructi
     llvm::Value* addr = cg_.resolveOperand(inst->operands[0]);
 
     if (cg_.freestanding_) {
-        // (AR) i686 حرّ: العنوان 32-بت (قيد r بنوع i64 يطلب سجلًّا 64-بت غير موجود)
-        auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
-        llvm::Value* addr32 = cg_.builder_->CreateIntCast(addr, i32Ty, false);
-        auto* asmTy = llvm::FunctionType::get(voidTy, {i32Ty}, false);
+        // (AR) العنوان بعرض سجلّ الهدف: قيدُ r بنوع i64 يطلب سجلًّا 64-بت لا وجود
+        //      له على i686، وقصُّه إلى 32-بت على x86_64 يُبطل الصفحةَ الخطأ.
+        auto* gprTy = cg_.getTargetGprType();
+        llvm::Value* addrGpr = cg_.builder_->CreateIntCast(addr, gprTy, false);
+        auto* asmTy = llvm::FunctionType::get(voidTy, {gprTy}, false);
         auto* inlineAsm = llvm::InlineAsm::get(asmTy,
             "invlpg ($0)", "r,~{memory}", true, false, llvm::InlineAsm::AD_ATT);
-        return cg_.builder_->CreateCall(asmTy, inlineAsm, {addr32});
+        return cg_.builder_->CreateCall(asmTy, inlineAsm, {addrGpr});
     }
 
     auto* asmTy = llvm::FunctionType::get(voidTy, {i64Ty}, false);
@@ -238,8 +246,8 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuGetReport(std::shared_ptr<SIRInstru
 // عنوان_رمز / symbol_addr — عنوان رمز رابط خارجيّ كـرقم (i64)
 // (AR) يأخذ اسم رمز رابط ثابتًا (سلسلة حرفيّة) ويُصدر ptrtoint على رمز خارجيّ.
 //      إن كان الرمز مصرَّحًا مسبقًا (دالّة أو عالميّ) يُعاد استخدامه؛ وإلّا يُنشأ
-//      تصريح رمز بيانات خارجيّ (i8) عند الطلب. المؤشّر 32-بت (i686) يوسَّع
-//      بالأصفار إلى i64 (نظير عقد الجالبات (unsigned int)&sym كـu64).
+//      تصريح رمز بيانات خارجيّ (i8) عند الطلب. مؤشّر الهدف (32-بت على i686 و64
+//      على x86_64) يوسَّع بالأصفار إلى i64 (نظير عقد الجالبات (unsigned int)&sym كـu64).
 //      قيد النطاق: للرموز الرابطة الخارجيّة حصرًا (بيانات/دوالّ C/أسمبلي/رموز .ld)؛
 //      لا يرصد الأخطاء المطبعيّة (اسم لا يطابق ⇒ خطأ رابط متأخّر)، ولا يأخذ عنوان
 //      رمز ص مُعرَّف داخليًّا (اسمه مُشوَّه mangled). الوسيط غير الثابت أو الفارغ
@@ -275,7 +283,7 @@ llvm::Value* LowlevelCodeGen::emitLowlevelSymbolAddr(std::shared_ptr<SIRInstruct
         g = cg_.module_->getOrInsertGlobal(sym, i8Ty); // ExternalLinkage عند الإنشاء
     }
 
-    // (AR) ptrtoint إلى i64 — من مؤشّر الهدف (32-بت i686 ⇒ توسيع أصفار)
+    // (AR) ptrtoint إلى i64 — من مؤشّر الهدف (يوسَّع بالأصفار على الأهداف 32-بتّيّة)
     llvm::Value* addr = cg_.builder_->CreatePtrToInt(g, i64Ty, "symaddr");
     return bindLowlevelResult(cg_, inst, addr);
 }
@@ -290,11 +298,13 @@ llvm::Value* LowlevelCodeGen::emitLowlevelGdtInit(std::shared_ptr<SIRInstruction
         "sad_ll_gdt_init", voidTy, {}, {});
 }
 
-// (AR) يُصدر lgdt/lidt الحرّة على i686: تعليمة تحمّل واصف الجدول (الحدّ 2-بايت +
-//      القاعدة 4-بايت) من الذاكرة عبر مؤشّر (operands[0]، يُقصّ إلى 32-بت). يتطلّب
-//      وجود المؤشّر؛ غيابه في الوضع الحرّ خطأ استعمال. clobber "memory" يرسّخ كتابة
-//      الواصف قبل التحميل. يُشارَك بين lgdt/lidt (المنمنمة الوحيدة تختلف).
-// (EN) Emit freestanding i686 lgdt/lidt: loads the table descriptor via a pointer.
+// (AR) يُصدر lgdt/lidt الحرّة: تعليمة تحمّل واصف الجدول (الحدّ 2-بايت + القاعدة
+//      بعرض سجلّ الهدف: 4 بايت على i686 و8 على x86_64) من الذاكرة عبر مؤشّر
+//      (operands[0]، يُلاءَم لعرض سجلّ الهدف). يتطلّب وجود المؤشّر؛ غيابه في الوضع
+//      الحرّ خطأ استعمال. clobber "memory" يرسّخ كتابة الواصف قبل التحميل.
+//      يُشارَك بين lgdt/lidt (المنمنمة الوحيدة تختلف).
+// (EN) Emit freestanding lgdt/lidt: loads the table descriptor via a pointer whose
+//      width follows the target register width.
 static llvm::Value* emitFreestandingTableLoad(LLVMCodeGen& cg,
     const std::shared_ptr<SIRInstruction>& inst, const char* mnemonic, const char* who) {
     auto* voidTy = llvm::Type::getVoidTy(*cg.context_);
@@ -303,14 +313,14 @@ static llvm::Value* emitFreestandingTableLoad(LLVMCodeGen& cg,
             {{"detail", std::string(who) + ": يتطلّب مؤشّر واصف الجدول (الحدّ+القاعدة) في الوضع الحرّ"}});
         return nullptr;
     }
-    auto* i32Ty = llvm::Type::getInt32Ty(*cg.context_);
+    auto* gprTy = cg.getTargetGprType();
     llvm::Value* ptr = cg.resolveOperand(inst->operands[0]);
-    llvm::Value* ptr32 = cg.builder_->CreateIntCast(ptr, i32Ty, false);
-    auto* asmTy = llvm::FunctionType::get(voidTy, {i32Ty}, false);
+    llvm::Value* ptrGpr = cg.builder_->CreateIntCast(ptr, gprTy, false);
+    auto* asmTy = llvm::FunctionType::get(voidTy, {gprTy}, false);
     auto* inlineAsm = llvm::InlineAsm::get(asmTy,
         std::string(mnemonic) + " ($0)", "r,~{memory}",
         true, false, llvm::InlineAsm::AD_ATT);
-    return cg.builder_->CreateCall(asmTy, inlineAsm, {ptr32});
+    return cg.builder_->CreateCall(asmTy, inlineAsm, {ptrGpr});
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelGdtLoad(std::shared_ptr<SIRInstruction> inst) {
@@ -359,19 +369,23 @@ llvm::Value* LowlevelCodeGen::emitLowlevelPagingUnmap(std::shared_ptr<SIRInstruc
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelPagingFlushTlb(std::shared_ptr<SIRInstruction> inst) {
-    // (AR) mov cr3, cr3 — إفراغ ذاكرة الترجمة بالكامل
+    // (AR) قراءةُ cr3 ثمّ إعادةُ كتابته — إفراغُ ذاكرة الترجمة بالكامل. يُصاغ
+    //      بقيدَي سجلٍّ (=r ثمّ r) لا باسمِ مركمٍ حرفيّ، فيختار مُخصِّصُ السجلّات
+    //      سجلًّا عامًّا بعرض الهدف (32 بتًّا على i686 و64 على x86_64) أيًّا كان،
+    //      بلا فرعٍ على الوضع ولا إتلافٍ لمركمٍ بعينه. والمسار واحدٌ في الوضعين
+    //      لأنّ الدلالة واحدة.
+    // (EN) Read cr3 then write it back — full TLB flush. Uses register constraints
+    //      so the width follows the target instead of a hardcoded accumulator.
     auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
-    auto* asmTy = llvm::FunctionType::get(voidTy, {}, false);
-    if (cg_.freestanding_) {
-        // (AR) i686 حرّ: عبر eax لا rax (x86-64)
-        auto* inlineAsm = llvm::InlineAsm::get(asmTy,
-            "mov %cr3, %eax; mov %eax, %cr3", "~{eax},~{memory}",
-            true, false, llvm::InlineAsm::AD_ATT);
-        return cg_.builder_->CreateCall(asmTy, inlineAsm, {});
-    }
-    auto* inlineAsm = llvm::InlineAsm::get(asmTy,
-        "movq %cr3, %rax; movq %rax, %cr3", "~{rax}", true);
-    return cg_.builder_->CreateCall(asmTy, inlineAsm, {});
+    auto* gprTy = cg_.getTargetGprType();
+    auto* readTy = llvm::FunctionType::get(gprTy, {}, false);
+    auto* readAsm = llvm::InlineAsm::get(readTy,
+        "mov %cr3, $0", "=r", true, false, llvm::InlineAsm::AD_ATT);
+    auto* cr3 = cg_.builder_->CreateCall(readTy, readAsm, {});
+    auto* writeTy = llvm::FunctionType::get(voidTy, {gprTy}, false);
+    auto* writeAsm = llvm::InlineAsm::get(writeTy,
+        "mov $0, %cr3", "r,~{memory}", true, false, llvm::InlineAsm::AD_ATT);
+    return cg_.builder_->CreateCall(writeTy, writeAsm, {cr3});
 }
 
 llvm::Value* LowlevelCodeGen::emitLowlevelPagingGetReport(std::shared_ptr<SIRInstruction> inst) {

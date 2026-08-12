@@ -560,7 +560,13 @@ jobs:
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
           sudo apt-get update
-          sudo apt-get install -y llvm-18-dev libclang-18-dev lld-18
+          # (AR) ‎clang-18‎ ليس تبعيّةَ بناء: هو **أداةُ الحكم** في اختبارات
+          #      الوضع الحرّ — `llvm-18-dev` يعطي المكتباتِ لا سائقَ المُجمِّع،
+          #      وبلا السائقِ يتخطّى الحكمُ الحاسمُ (تجميعُ الأسمبليّ المولَّد)
+          #      صامتًا فيبقى الملفُّ أخضرَ بلا برهان.
+          # (EN) clang-18 is not a build dep: it is the *judge* for freestanding
+          #      tests. llvm-18-dev ships libraries, not the compiler driver.
+          sudo apt-get install -y llvm-18-dev libclang-18-dev lld-18 clang-18
           echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
 
       - name: "📦 خبيئة بناء CMake / Cache CMake Build"
@@ -716,7 +722,18 @@ jobs:
           # (EN) -rs prints every skip reason, and the env var turns
           #      "skipped: sad-build missing" into a failure — the compiler was
           #      built in this very run, so a skip means broken path discovery.
-          SAD_LOWLEVEL_REQUIRE_BUILD=1 python3 -m pytest tests/system/lowlevel_freestanding -q -rs
+          # (AR) و‎SAD_REQUIRE_CLANG‎ نظيرُه للمورِد الثاني: الحكمُ الحاسمُ في
+          #      `test_cpu_ctl_target_width.py` هو **تجميعُ** الأسمبليِّ المولَّد،
+          #      وبقيّةُ الملفّ تقرأ نصًّا. فبلا هذا المتغيّرِ يتخطّى ذلك الحكمُ
+          #      لغياب clang ويبقى الملفُّ أخضرَ بلا برهان — وهو العطبُ نفسُه
+          #      الذي وُضِع أخوه لأجله. و‎SAD_CLANG‎ يُثبَّت على سائقِ LLVM 18
+          #      المثبَّت أعلاه لا على أيٍّ في المسار، كي يكون المُجمِّعُ الحاكمُ
+          #      معلومَ النسخة.
+          # (EN) SAD_REQUIRE_CLANG is its twin for the second resource: the
+          #      decisive assertion actually assembles the emitted asm; without
+          #      clang it skips and the file stays green with no proof.
+          SAD_CLANG=/usr/lib/llvm-18/bin/clang SAD_REQUIRE_CLANG=1 \
+            SAD_LOWLEVEL_REQUIRE_BUILD=1 python3 -m pytest tests/system/lowlevel_freestanding -q -rs
 
       - name: "🔬 براهين الخلفيّة الأصليّة (تنفيذٌ حيّ) / Native Backend Live Proofs"
         if: matrix.config == 'Release'

@@ -756,6 +756,40 @@ namespace Sad
             return result;
         }
 
+        // ====================================================================
+        // (AR) يقرأ عدّاد الطوابع الزمنيّة ويعيده i64 واحدًا.
+        //
+        //      `rdtsc` يعيد النصفين في edx:eax على **كلا** الهدفين، لكنّ دمجَهما
+        //      داخل نصّ الأسمبلي بـ`shl $$32, %rdx; or %rdx, %rax` يفترض سجلّاتٍ
+        //      64-بتّيّة — فيردّه المُجمِّعُ على i686، وهي معماريّةُ نواة النحلة
+        //      اليوم (مقيس: `عداد_الدورات()` بـ`--هدف=i686-unknown-elf` يولّد IR
+        //      بخروجٍ صفريّ ثمّ يُخفِق التجميع). فيُقرأ الزوجُ خامًا ويُدمَج
+        //      بعمليّات LLVM: نصٌّ لا يفترض عرضَ سجلّ، ودمجٌ يصحّ على الهدفين
+        //      — نظيرُ ما تفعله اقرأ_سجل_نموذج.
+        //
+        //      ويشترك في هذه المساعدة مستهلكاها (`عداد_الدورات` و`مؤقت_انتظر`)
+        //      وقد كانا نسختين حرفيّتين.
+        // (EN) Read the timestamp counter as one i64. rdtsc returns edx:eax on both
+        //      targets; combining inside the asm text assumed a 64-bit register file
+        //      and failed to assemble on i686. Shared by both call sites.
+        // ====================================================================
+        static llvm::Value *emitRdtscValue(LLVMCodeGen &cg, const char *name)
+        {
+            llvm::Type *i64 = llvm::Type::getInt64Ty(*cg.context_);
+            llvm::Type *i32 = llvm::Type::getInt32Ty(*cg.context_);
+            auto *pairTy = llvm::StructType::get(*cg.context_, {i32, i32});
+            llvm::FunctionType *ft = llvm::FunctionType::get(pairTy, {}, false);
+            llvm::InlineAsm *ia = llvm::InlineAsm::get(
+                ft, "rdtsc", "={eax},={edx},~{dirflag},~{fpsr},~{flags}", true, false);
+            llvm::Value *pair = cg.builder_->CreateCall(
+                ft, static_cast<llvm::Value *>(ia), {}, "rdtsc.pair");
+            auto *low = cg.builder_->CreateZExt(
+                cg.builder_->CreateExtractValue(pair, 0, "tsc_lo"), i64);
+            auto *high = cg.builder_->CreateZExt(
+                cg.builder_->CreateExtractValue(pair, 1, "tsc_hi"), i64);
+            return cg.builder_->CreateOr(low, cg.builder_->CreateShl(high, 32), name);
+        }
+
         llvm::Value *HardwareFFICodeGen::emitTimerWait(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
@@ -767,16 +801,14 @@ namespace Sad
             if (!us)
                 return nullptr;
             llvm::Type *i64 = llvm::Type::getInt64Ty(*cg_.context_);
-            llvm::FunctionType *rdtscFT = llvm::FunctionType::get(i64, {}, false);
-            llvm::InlineAsm *rdtscIA = llvm::InlineAsm::get(rdtscFT, "rdtsc\n\tshl $$32, %rdx\n\tor %rdx, %rax", "={rax},~{rdx},~{dirflag},~{fpsr},~{flags}", true, false);
-            llvm::Value *start = cg_.builder_->CreateCall(rdtscFT, static_cast<llvm::Value *>(rdtscIA), {}, "w.start");
+            llvm::Value *start = emitRdtscValue(cg_, "w.start");
             llvm::Value *target = cg_.builder_->CreateAdd(start, cg_.builder_->CreateMul(us, llvm::ConstantInt::get(i64, 1000)));
             llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
             llvm::BasicBlock *loopBB = llvm::BasicBlock::Create(*cg_.context_, "w.loop", curFunc);
             llvm::BasicBlock *doneBB = llvm::BasicBlock::Create(*cg_.context_, "w.done", curFunc);
             cg_.builder_->CreateBr(loopBB);
             cg_.builder_->SetInsertPoint(loopBB);
-            llvm::Value *now = cg_.builder_->CreateCall(rdtscFT, static_cast<llvm::Value *>(rdtscIA), {}, "w.now");
+            llvm::Value *now = emitRdtscValue(cg_, "w.now");
             cg_.builder_->CreateCondBr(cg_.builder_->CreateICmpUGE(now, target), doneBB, loopBB);
             cg_.builder_->SetInsertPoint(doneBB);
             // (AR) قيمة إشاريّة «عُولجت»: تعليمة void بلا قيمة، وإرجاع nullptr يُسقط
@@ -836,10 +868,7 @@ namespace Sad
 
         llvm::Value *HardwareFFICodeGen::emitRdtsc(std::shared_ptr<SIRInstruction> inst)
         {
-            llvm::Type *i64 = llvm::Type::getInt64Ty(*cg_.context_);
-            llvm::FunctionType *ft = llvm::FunctionType::get(i64, {}, false);
-            llvm::InlineAsm *ia = llvm::InlineAsm::get(ft, "rdtsc\n\tshl $$32, %rdx\n\tor %rdx, %rax", "={rax},~{rdx},~{dirflag},~{fpsr},~{flags}", true, false);
-            llvm::Value *result = cg_.builder_->CreateCall(ft, static_cast<llvm::Value *>(ia), {}, "rdtsc.val");
+            llvm::Value *result = emitRdtscValue(cg_, "rdtsc.val");
             if (inst && inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
             return result;

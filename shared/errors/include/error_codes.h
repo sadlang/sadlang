@@ -171,6 +171,7 @@ namespace Sad
             SEM_ASM_INVALID_PREFIX_OPERAND, ///< SEM035: (AR) منمنمة لا تصلح تابعةً لبادئة تكرار — كتاباتها الضمنيّة تتجاوز البادئة / (EN) mnemonic invalid as a repeat-prefix operand (implicit writes exceed the prefix's)
             SEM_NON_EXHAUSTIVE_MATCH,     ///< SEM036: (AR) مطابقة تعداد بحمولة غير مستنفِدة (معامل غير مُغطّى بلا فرع شامل) / (EN) non-exhaustive tagged-enum match (uncovered variant, no catch-all)
             SEM_FREESTANDING_HEAP_TOO_LARGE, ///< SEM037: (AR) حجم الكومة الحرّة يجاوز فضاء عنونة الهدف — حقل حجم قسم ELF32 يلتفّ صامتًا / (EN) freestanding heap exceeds the target address space — the ELF32 section-size field wraps silently
+            SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN, ///< SEM038: (AR) مدمجة تُخفَّض إلى تعليمة من عائلة معالج أخرى (rdtsc/outb/mov %crN لهدف ARM) / (EN) builtin lowers to a foreign CPU family's instruction
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors
