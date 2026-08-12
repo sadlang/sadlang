@@ -237,7 +237,82 @@ def run_dual_execution(args, subdir: str = "rules_matrix") -> dict:
     if not DUAL_REPORT.exists():
         print(f"❌ لم يُنتَج تقرير: {DUAL_REPORT} (exit={proc.returncode})", file=sys.stderr)
         return {}
-    return json.load(open(DUAL_REPORT, encoding="utf-8"))
+    تقرير = json.load(open(DUAL_REPORT, encoding="utf-8"))
+    # (AR) العدّاءُ يكتب دائمًا إلى الاسمِ نفسِه، فتشغيلةُ الثغراتِ كانت تدهس شاهدَ
+    #      تشغيلةِ العيّنات: بعد الانتهاء لا يبقى على القرصِ ما يُراجَع به التقريرُ
+    #      المُودَع (١١٠ صفًّا مكانَ ٢٩٢٨). فتُحفَظ نسخةٌ باسمِ المجلّدِ لكلِّ تشغيلة.
+    # (EN) The runner always writes the same filename, so the gaps run clobbered the
+    #      fixtures run — keep a per-subdir copy so the audit trail survives.
+    نسخة = DUAL_REPORT.with_name(f"_dual_report_{subdir.replace('/', '_')}.json")
+    نسخة.write_text(json.dumps(تقرير, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"   ▸ شاهدٌ محفوظ: {نسخة.relative_to(ROOT).as_posix()}")
+    return تقرير
+
+
+def _خليّة(نصّ: str, حدّ: int = 0) -> str:
+    """(AR) نصٌّ صالحٌ لخليّةِ جدولِ ماركداون.
+
+    (AR) `|` غيرُ مهروبٍ يكسر الصفَّ إلى أعمدةٍ زائدةٍ فيُعرَض مشوَّهًا — وقارئُ الحارسِ
+         يفحص العمودَ الأوّلَ فيمرّ الصفُّ المكسورُ أخضرَ. ولم يكن هروبٌ في أيٍّ من
+         الخلايا الثلاثِ (مخرَجا التباعداتِ · سببُ التخطّي · وسمُ الثغرة)، والشاهدُ
+         مُودَعٌ لا مفترَض: `CONFORMANCE_REPORT.md` عند 570b2692 يحمل الصفَّ
+         `| تحقّق — أنبوب |> |` بستّةِ أعمدةٍ بدل خمسة، ومرّ أخضرَ.
+    (AR) والحدُّ يُطبَّق قبلَ الهروب: القطعُ بعدَه قد يشطر `\\|` فيترك شرطةً معلّقةً،
+         ويجعل الحدَّ الفعّالَ نصفَه لمخرَجٍ مملوءٍ بالأنابيب.
+    (AR) والعلامةُ الخلفيّةُ تُبدَّل: الخليّةُ تُكتَب داخلَ `` ` ``، فمخرَجُ تشخيصٍ فيه
+         علامةٌ خلفيّةٌ يُنهي المدى مبكّرًا — صنفُ عطبِ الأنبوبِ نفسُه في محرفٍ آخر،
+         ولا يراه قارئُ الحارسِ كذلك لأنّه يفحص العمودَ الأوّلَ وحدَه. ولا تُهرَّب
+         بشرطةٍ خلفيّةٍ (ماركداونُ لا يعرف ذلك داخلَ مدى شفرة) بل تُبدَّل بنظيرِها
+         المرئيِّ ‹ʻ› فيبقى الصفُّ سليمًا والنصُّ مقروءًا.
+    (EN) One safe-cell helper for every table: escaping one cell and forgetting its
+         neighbour is exactly how a broken row reaches the reader. Truncate first,
+         escape second — the reverse can split an escape pair.
+    """
+    نصّ = (نصّ or "").replace("\r\n", "⏎").replace("\n", "⏎").replace("\r", "⏎")
+    if حدّ:
+        نصّ = نصّ[:حدّ]
+    return نصّ.replace("|", r"\|").replace("`", "ʻ")
+
+
+def _rel_of_entry(entry: dict) -> str | None:
+    """(AR) مسارُ صفٍّ من تقرير العدّاء نسبةً إلى rules_matrix بصيغةِ posix — أو None.
+
+    (AR) لماذا لا الاسمُ المجرَّد: كان الوصلُ `Path(file).name`، وفي الشجرةِ ٨٢ اسمًا
+         مكرَّرًا تغطّي ٢٧٩ ملفًّا (`033_extra_33.ص` في تسعةِ مجلّداتٍ مختلفة). فكانت
+         تسعةُ صفوفٍ تحمل حالةَ وزمنَ صفٍّ واحدٍ منها — قِيسَ ذلك: ٨٢/٨٢ مجموعةً
+         أعضاؤها بحالةٍ وزمنَين متطابقَين بايتيًّا، وهي استحالةٌ إحصائيّة. فكان
+         ٩٫٥٪ من التقريرِ شهادةً منقولةً لا مقيسة، وانقلابُ حالةٍ في أيٍّ منها مكتومٌ
+         بالبناء.
+    (EN) Join by relative path, not bare filename: 82 duplicate names cover 279 files,
+         so name-keying silently copied one sibling's verdict onto all of them.
+    """
+    try:
+        return Path(entry["file"]).resolve().relative_to(RULES_MATRIX_DIR).as_posix()
+    except (ValueError, OSError, KeyError):
+        return None
+
+
+def _index_by_rel(tests: list[dict]) -> dict:
+    """(AR) فهرسُ نتائجِ العدّاء بالمسارِ النسبيّ — ويُخفِق بصوتٍ إن تعذّر وصلُ صفّ."""
+    out: dict = {}
+    يتيمة = []
+    for e in tests:
+        rel = _rel_of_entry(e)
+        if rel is None:
+            يتيمة.append(e.get("file", "?"))
+            continue
+        out[rel] = e
+    مبتلَعة = len(tests) - len(يتيمة) - len(out)
+    if مبتلَعة:
+        # (AR) الاتّجاهُ المقابلُ للعلّةِ المُصلَحة، وكان صامتًا تمامًا: مسارٌ نسبيٌّ
+        #      مكرَّرٌ يجعل صفًّا يدهس صفًّا فيختفي أحدُهما بلا أثر.
+        print(f"  ⚠️ {مبتلَعة} صفًّا في تقرير العدّاء دهسه صفٌّ بنفسِ المسارِ النسبيّ",
+              file=sys.stderr)
+    if يتيمة:
+        # (AR) صمتُ الوصلِ هو العلّةُ التي عولجت هنا، فلا يُستبدَل بصمتٍ آخر.
+        print(f"  ⚠️ {len(يتيمة)} صفًّا في تقرير العدّاء تعذّر وصلُه بشجرةِ العيّنات "
+              f"(أوّلها: {يتيمة[0]})", file=sys.stderr)
+    return out
 
 
 def _support(status: str, mode: str) -> dict:
@@ -260,15 +335,20 @@ def _support(status: str, mode: str) -> dict:
 
 def derive_matrix(productions: dict, records: list[dict], report: dict) -> dict:
     """(AR) يجمع نتائج التنفيذ لكل قاعدة من تقرير runner."""
-    by_name = {Path(e["file"]).name: e for e in report.get("tests", [])}
+    by_rel = _index_by_rel(report.get("tests", []))
     rule_results: dict = defaultdict(list)
     for rec in records:
-        entry = by_name.get(rec["name"])
+        entry = by_rel.get(rec["rel"])
         res = {"test": rec["rel"], "category": rec["category"]}
         if entry is None:
             res.update({"interpreter": "?", "compiler": "?", "status": "NOT_RUN"})
         else:
             res.update(_support(entry["status"], entry.get("mode", "dual_parity")))
+            # (AR) الأزمنةُ خرجت من التقريرَين المُودَعَين (بيانٌ لا يُعاد إنتاجُه)،
+            #      فمقرُّها هنا: أثرُ بناءٍ غيرُ متعقَّبٍ يُقرأ لتحليلِ الأداء. حذفُها
+            #      من المُودَعِ دون إثباتِها هنا كان سيكون فقدًا لا نقلًا.
+            res["interp_ms"] = entry.get("interp_time_ms", 0)
+            res["compiler_ms"] = entry.get("compiler_time_ms", 0)
         for rid in rec["rule_ids"]:
             if rid in productions:
                 rule_results[rid].append(res)
@@ -376,7 +456,7 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
     """
     import time
     tests = report.get("tests", [])
-    by_name = {Path(e["file"]).name: e for e in tests}
+    by_rel = _index_by_rel(tests)
     total = len(tests)
     passed = sum(1 for e in tests if e["status"] == "PASS")
     # (AR) أزمنة التنفيذ الكلية
@@ -416,10 +496,10 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
     L.append(f"- القواعد: {len(matrix)} — مطلقة: **{sm['dual_ok']}** · "
              f"فجوة مترجم: {sm['compiler_gap']} · مكسورة: {sm['broken']} · "
              f"بلا اختبارات: {sm['no_tests']}" + extra)
-    avg_i = tot_interp / total if total else 0
-    avg_c = tot_comp / total if total else 0
-    L.append(f"- زمن التنفيذ: المفسر **{tot_interp/1000:.1f}s** (متوسط {avg_i:.0f}ms/اختبار) · "
-             f"المترجم **{tot_comp/1000:.1f}s** (متوسط {avg_c:.0f}ms/اختبار)")
+    # (AR) لا زمنَ في المُودَع — لا هنا ولا في الجداول: العدّاءُ يتوازى فالرقمُ دالّةُ
+    #      ازدحامٍ لا دالّةُ اختبار. الأزمنةُ كلُّها في أثرِ البناءِ غيرِ المتعقَّب.
+    L.append("- الأزمنة: في أثر البناء `build/_grammar_conformance.json` (غير متعقَّب) —"
+             " لا تُودَع لأنّ العدّاء يتوازى فلا يُعاد إنتاجها.")
     L.append(f"- التفصيل الكامل لكل اختبار: [`{out_path.stem}_detail.md`](./{out_path.stem}_detail.md)")
     L.append("")
     # ── قسم التباعدات (الأهم: «كيف نعرف الاختلافات لنصحّحها») ──
@@ -429,21 +509,30 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
         L.append(f"✅ **لا تباعد** — كل اختبار **شُغِّل** أعطى مخرجاً متطابقاً في المفسر والمترجم"
                  + (f" (و**{len(skipped)}** لم يُشغَّل — انظر «المتخطّى» أدناه)." if skipped else "."))
     else:
-        L.append("| الاختبار | الحالة | مفسر(ms) | مترجم(ms) | مخرج المفسر | مخرج المترجم |")
-        L.append("|---|---|---|---|---|---|")
-        for e in diffs:
-            io = (e.get("interp_output", "") or "").replace("\n", "⏎")[:50]
-            co = (e.get("compiler_output", "") or "").replace("\n", "⏎")[:50]
-            L.append(f"| `{_report_path(e['file'])}` | {_STATUS_AR.get(e['status'], e['status'])} | "
-                     f"{e.get('interp_time_ms',0):.0f} | {e.get('compiler_time_ms',0):.0f} | `{io}` | `{co}` |")
+        L.append("| الاختبار | الحالة | مخرج المفسر | مخرج المترجم |")
+        L.append("|---|---|---|---|")
+        # (AR) وهذا الجدولُ لم يكن مفروزًا إطلاقًا: يرث ترتيبَ تقريرِ العدّاء. وهو
+        #      فارغٌ اليومَ فبرهانُ «قابلٍ لإعادةِ الإنتاج» لم يمسَّه — أي أنّ أهمَّ
+        #      جداولِ التقريرِ (ما يُقرأ حين يقع خطب) هو أقلُّها اختبارًا. يُفرَز
+        #      بالمفتاحِ نفسِه فيصير الجدولُ الوحيدُ المتبقّي حتميًّا كذلك.
+        # (EN) The diffs table was never sorted; empty today, so the reproducibility
+        #      proof never touched the one table that matters when something breaks.
+        for e in sorted(diffs, key=lambda x: _report_path(x["file"])):
+            io = _خليّة(e.get("interp_output", ""), 50)
+            co = _خليّة(e.get("compiler_output", ""), 50)
+            L.append(f"| `{_report_path(e['file'])}` | "
+                     f"{_STATUS_AR.get(e['status'], e['status'])} | `{io}` | `{co}` |")
     L.append("")
     if skipped:
         L.append("## المتخطّى (لم يُشغَّل — غيرُ مقيسٍ لا ناجح)")
         L.append("")
         L.append("| الاختبار | سببُ التخطّي |")
         L.append("|---|---|")
-        for e in sorted(skipped, key=lambda x: x["file"]):
-            L.append(f"| `{_report_path(e['file'])}` | {e.get('error', '—') or '—'} |")
+        # (AR) الفرزُ بمسارٍ نسبيٍّ پوسكسيّ لا بالمطلقِ بفواصلِ المنصّة: المطلقُ يجعل
+        #      ترتيبَ صفوفِ ملفٍّ مُودَعٍ دالّةَ نظامِ التشغيل. (لا فرقَ اليومَ — قِيسَ
+        #      أنّ الترتيبَين متطابقان للـ٢٩٢٨ والـ١١٠ — وهذا إغلاقٌ وقائيّ.)
+        for e in sorted(skipped, key=lambda x: _report_path(x["file"])):
+            L.append(f"| `{_report_path(e['file'])}` | {_خليّة(e.get('error', '')) or '—'} |")
     L.append("")
     # ── قسم الاختبارات الكاشفة للثغرات (غير مُبوَّب) ──
     if gaps_report is not None:
@@ -454,15 +543,18 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
         L.append(f"تتعمّد اختبار ميزات مشكوكة لكشف ما لا يعمل. كاشفة: **{len(gtests)}** — "
                  f"تكشف ثغرة: **{len(gfail)}**. (راجع [DISCOVERED_ISSUES.md](./DISCOVERED_ISSUES.md))")
         L.append("")
-        L.append("| الاختبار | الثغرة | النتيجة | مفسر(ms) | مترجم(ms) |")
-        L.append("|---|---|---|---|---|")
-        for e in sorted(gtests, key=lambda x: x["file"]):
-            # (AR) ابحث عن الملف فعلياً (قد يكون في مجلد ثيمة فرعي) لقراءة وسم @gap
+        L.append("| الاختبار | الثغرة | النتيجة |")
+        L.append("|---|---|---|")
+        for e in sorted(gtests, key=lambda x: _report_path(x["file"])):
+            # (AR) ابحث عن الملف فعلياً (قد يكون في مجلد ثيمة فرعي) لقراءة وسم @gap.
+            #      وهذا وصلٌ بالاسمِ المجرَّدِ عن قصد: صفُّ الجدولِ يعرض الاسمَ العاريَ
+            #      كذلك، فتفرُّدُ أسماءِ grammar_gaps شرطٌ لا رفاهية — ويفرضه صراحةً
+            #      check_conformance_report_fresh.py فيُحمِّر عند أوّلِ تكرار. فإن سقط
+            #      ذلك الحارسُ يومًا وجب تحويلُ هذا الوصلِ إلى المسارِ كما في الأعلى.
             matches = list(GAPS_DIR.rglob(Path(e["file"]).name))
-            tag = _gap_tag(matches[0]) if matches else "—"
+            tag = _خليّة(_gap_tag(matches[0])) if matches else "—"
             verdict = "تعمل ✅" if e["status"] == "PASS" else f"تكشف ثغرة ❌ ({_STATUS_AR.get(e['status'], e['status'])})"
-            L.append(f"| `{Path(e['file']).name}` | {tag} | {verdict} | "
-                     f"{e.get('interp_time_ms',0):.0f} | {e.get('compiler_time_ms',0):.0f} |")
+            L.append(f"| `{Path(e['file']).name}` | {tag} | {verdict} |")
         L.append("")
     # ── جدول القواعد ──
     L.append("## المقارنة المزدوجة لكل قاعدة")
@@ -482,16 +574,28 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
     D.append("# تفصيل اختبارات مطابقة القواعد — كل اختبار بكل معلوماته")
     D.append("")
     D.append("> مُولَّد آلياً مع [التقرير الملخّص](./" + out_path.name + "). أعمدة: الرقم، الاختبار،")
-    D.append("> القاعدة، الفئة، الحالة (نتيجة مقارنة المفسر بالمترجم)، زمن المفسر، زمن المترجم.")
+    D.append("> القاعدة، الفئة، الحالة (نتيجة مقارنة المفسر بالمترجم).")
+    D.append(">")
+    # (AR) لا عمودَ زمنٍ هنا عن قصد: قِيسَ أنّ ٢٩١٠ صفًّا من ٢٩١٢ (٩٩٫٩٪) كان يتبدّل
+    #      فيها الزمنُ وحدَه بين توليدَين متتاليَين، بوسيطِ نسبةٍ ١٫٢٣× ومدًى
+    #      ٠٫٥×–٣٫٣٧×، لأنّ العدّاءَ يتوازى على أنويةِ الآلة. فالعمودُ لم يكن يقيس
+    #      الاختبارَ بل ازدحامَ الآلةِ ساعةَ القياس: بيانٌ لا يُعاد إنتاجُه في ملفٍّ
+    #      يشهد ويُستشهَد به، وثمنُه ~٢٩٠٠ سطرِ فرقٍ عند كلِّ توليدٍ وتضاربُ دمجٍ
+    #      مضمونٌ لأيِّ فرعَين يُوَلِّدان. الأزمنةُ لم تُحذَف: هي في أثرِ البناءِ
+    #      build/_grammar_conformance.json حيث تنتمي — غيرِ متعقَّبٍ ولا مُستشهَدٍ به.
+    # (EN) No timing column on purpose: 99.9% of rows churned on time alone because
+    #      the runner parallelizes. Timings live in the untracked build evidence.
+    D.append("> الأزمنة في أثر البناء `build/_grammar_conformance.json` (غير متعقَّب):")
+    D.append("> عمودُ زمنٍ هنا يتبدّل في ٩٩٫٩٪ من الصفوف عند كلِّ توليد لأنّ العدّاء")
+    D.append("> يتوازى — فهو يقيس ازدحامَ الآلة لا الاختبار.")
     D.append("")
-    D.append("| # | الاختبار | القاعدة | الفئة | الحالة | مفسر(ms) | مترجم(ms) |")
-    D.append("|---|---|---|---|---|---|---|")
+    D.append("| # | الاختبار | القاعدة | الفئة | الحالة |")
+    D.append("|---|---|---|---|---|")
     for i, rec in enumerate(sorted(records, key=lambda r: r["rel"]), start=1):
-        e = by_name.get(rec["name"], {})
+        e = by_rel.get(rec["rel"], {})
         rid = rec.get("folder_rule") or (rec["rule_ids"][0] if rec["rule_ids"] else "—")
         st = _STATUS_AR.get(e.get("status", "NOT_RUN"), e.get("status", "؟"))
-        D.append(f"| {i} | `{rec['rel']}` | `{rid}` | {rec['category']} | {st} | "
-                 f"{e.get('interp_time_ms',0):.0f} | {e.get('compiler_time_ms',0):.0f} |")
+        D.append(f"| {i} | `{rec['rel']}` | `{rid}` | {rec['category']} | {st} |")
     D.append("")
     detail_path = out_path.with_name(out_path.stem + "_detail.md")
     detail_path.write_text("\n".join(D), encoding="utf-8")

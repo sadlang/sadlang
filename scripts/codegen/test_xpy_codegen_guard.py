@@ -172,5 +172,175 @@ def test_gen_check_passes_on_clean_tree():
         pytest.fail(f"الحارس فشل على شجرة يُفترَض أنّها نظيفة (rc={exc.code})")
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) انحدارٌ: وصلُ نتيجةِ التشغيلِ بصفِّ التقريرِ يكون **بالمسار** لا بالاسم.
+# (EN) Regression: the run-result ⟷ report-row join must be by path, not by name.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _load_conformance():
+    """(AR) يحمّل check_grammar_conformance.py وحدةً (يتطلّب pyyaml)."""
+    yaml = pytest.importorskip("yaml")  # noqa: F841 — المولّد يستورده عند التحميل
+    path = ROOT / "scripts" / "codegen" / "check_grammar_conformance.py"
+    spec = importlib.util.spec_from_file_location("conformance_under_test", path)
+    assert spec and spec.loader, "تعذّر تحميل check_grammar_conformance.py"
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_run_results_join_by_path_not_by_filename():
+    """(AR) العلّةُ المقيسة (٢٠٢٦-٠٨-١٢): كان الوصلُ `Path(file).name`، وفي الشجرةِ
+    ٨٢ اسمًا مكرَّرًا يغطّي ٢٧٩ ملفًّا (`033_extra_33.ص` في تسعةِ مجلّداتٍ مختلفة).
+    فحملت تسعةُ صفوفٍ حالةَ وزمنَ واحدٍ منها — قِيسَ ذلك: ٨٢/٨٢ مجموعةً أعضاؤها
+    بحالةٍ وزمنَين متطابقَين بايتيًّا، وهي استحالةٌ إحصائيّة. أي أنّ ٩٫٥٪ من عمودَي
+    الحالةِ والزمنِ شهادةٌ منقولةٌ لا مقيسة، وانقلابُ حالةٍ فيها مكتومٌ بالبناء.
+
+    (AR) البذرةُ هنا اسمان متطابقان في مجلّدَين مختلفَين بحالتَين مختلفتَين: الوصلُ
+    بالاسمِ يجعلهما صفًّا واحدًا (فيضيع أحدُهما ويُنسَخ الآخر)، والوصلُ بالمسارِ
+    يُبقيهما اثنَين. الاختبارُ يفشل على الشيفرةِ ما قبلَ الإصلاح.
+    """
+    conf = _load_conformance()
+    base = conf.RULES_MATRIX_DIR
+    مكرَّر = "033_extra_33.ص"
+    tests = [
+        {"file": str(base / "10_statements" / "gr.stmt.for" / "edge" / مكرَّر),
+         "status": "PASS", "mode": "dual_parity",
+         "interp_time_ms": 190, "compiler_time_ms": 4256},
+        {"file": str(base / "20_declarations" / "gr.decl.function" / "basic" / مكرَّر),
+         "status": "FAIL_OUTPUT", "mode": "dual_parity",
+         "interp_time_ms": 67, "compiler_time_ms": 3224},
+    ]
+    فهرس = conf._index_by_rel(tests)  # noqa: SLF001 — الدالّةُ محلُّ الاختبار
+
+    assert len(فهرس) == 2, (
+        "الاسمُ المكرَّرُ طوى صفَّين في واحد — الوصلُ عاد إلى الاسمِ المجرَّد")
+    أوّل = "10_statements/gr.stmt.for/edge/" + مكرَّر
+    ثانٍ = "20_declarations/gr.decl.function/basic/" + مكرَّر
+    assert set(فهرس) == {أوّل, ثانٍ}, "المفاتيحُ ليست مساراتٍ نسبيّةً بصيغةِ posix"
+    # (AR) والحالةُ لا تُنسَخ من الشقيق: لكلِّ مسارٍ حالتُه وزمنُه هو.
+    assert فهرس[أوّل]["status"] == "PASS"
+    assert فهرس[ثانٍ]["status"] == "FAIL_OUTPUT"
+    assert فهرس[ثانٍ]["compiler_time_ms"] == 3224
+
+
+def test_unjoinable_run_result_is_reported_not_swallowed(capsys):
+    """(AR) صمتُ الوصلِ هو العلّةُ عينُها، فلا يُستبدَل بصمتٍ آخر: صفٌّ خارجَ شجرةِ
+    العيّنات يجب أن يُذكَر على stderr لا أن يسقط بلا أثر."""
+    conf = _load_conformance()
+    فهرس = conf._index_by_rel(  # noqa: SLF001
+        [{"file": str(ROOT / "لا" / "وجود" / "له.ص"), "status": "PASS"}])
+    assert فهرس == {}
+    assert "تعذّر وصلُه" in capsys.readouterr().err
+
+
+def _سجلّ(rel: str, rule: str, cat: str) -> dict:
+    """(AR) سجلُّ عيّنةٍ مصطنعٌ بالشكلِ الذي يُنتجه scan_tests."""
+    import pathlib as _pl
+    return {"path": _pl.Path(rel), "rel": rel, "name": rel.rsplit("/", 1)[-1],
+            "category": cat, "folder_rule": rule, "rule_ids": [rule]}
+
+
+def test_generator_call_sites_join_by_path_not_by_filename(tmp_path):
+    """(AR) يقود المولِّدَ من طرفِه (derive_matrix ثمّ write_markdown) ويحكم على
+    الملفِّ المكتوبِ نفسِه، ولا يمسّ الدالّةَ المساعِدةَ إطلاقًا.
+
+    (AR) لماذا لا يكفي اختبارُ `_index_by_rel` وحدَه: أعيدت العلّةُ الأصليّةُ حرفيًّا
+    (مواضعُ الاستدعاءِ تعود إلى الوصلِ بالاسمِ والدالّةُ المساعِدةُ تبقى سليمةً بلا
+    استدعاء) فمرّ الاختبارُ المساعِدُ **أخضرَ**. أي أنّ حمرتَه كانت غيابَ الدالّةِ لا
+    كسرَ الوصل.
+
+    (AR) وهو **مكمِّلٌ لا بديل**: لو صار الوصلُ بآخِرِ مكوّنَين (`فئة/اسم`) لمرَّ هذا
+    الاختبارُ أخضرَ — وهي علّةٌ حيّةٌ لا فرضيّة: ٨٤ تصادُمَ (فئة/اسم) تغطّي ٢٥٠ ملفًّا
+    في الشجرة. يمسكها الاختبارُ المساعِدُ وحدَه بتوكيدِ **شكلِ المفتاح**. فالاثنان
+    يقيسان طبقتَين مختلفتَين ولا يُغني أحدُهما عن الآخر.
+    """
+    conf = _load_conformance()
+    مكرَّر = "033_extra_33.ص"
+    أوّل = f"10_statements/gr.stmt.for/edge/{مكرَّر}"
+    ثانٍ = f"20_declarations/gr.decl.function/basic/{مكرَّر}"
+    records = [_سجلّ(أوّل, "gr.stmt.for", "edge"), _سجلّ(ثانٍ, "gr.decl.function", "basic")]
+    base = conf.RULES_MATRIX_DIR
+    report = {"tests": [
+        # (AR) `base / "أ/ب"` يفصل بفواصلِ المنصّةِ من نفسِه. وكان هنا
+        #      `.replace("/", "\\")` فرضًا لفواصلِ ويندوز — وهي على لينكس محارفُ
+        #      اسمٍ عاديّةٌ لا فواصل، فيصير المسارُ مكوّنًا واحدًا لا يطابق `rel`
+        #      أبدًا ⇒ `not_run` ⇒ الاختبارُ أحمرُ على CI (ubuntu) وحدَها.
+        {"file": str(base / أوّل), "status": "PASS",
+         "mode": "dual_parity", "interp_time_ms": 190, "compiler_time_ms": 4256},
+        {"file": str(base / ثانٍ), "status": "FAIL_OUTPUT",
+         "mode": "dual_parity", "interp_time_ms": 67, "compiler_time_ms": 3224,
+         "interp_output": "أ", "compiler_output": "ب"},
+    ]}
+    productions = {r: {"layer": "core", "compiler_optional": False, "budget": {},
+                       "file": "اختبار.yaml"}
+                   for r in ("gr.stmt.for", "gr.decl.function")}
+
+    # ── ① derive_matrix: لكلِّ قاعدةٍ حكمُها هي، لا حكمُ شقيقتِها بالاسم ──
+    matrix = conf.derive_matrix(productions, records, report)
+    assert matrix["gr.stmt.for"]["verdict"] == "dual_ok", (
+        "القاعدةُ السليمةُ ورثت إخفاقَ شقيقتِها بالاسم — الوصلُ عاد إلى الاسمِ المجرَّد")
+    assert matrix["gr.decl.function"]["verdict"] == "broken", (
+        "الإخفاقُ ابتُلع: القاعدةُ المكسورةُ ورثت نجاحَ شقيقتِها بالاسم")
+
+    # ── ② الأزمنةُ خرجت من المُودَعِ فمقرُّها أثرُ البناء: تُحرَس حيث صارت ──
+    نتائج = {ن["test"]: ن for ن in matrix["gr.stmt.for"]["tests"]
+             + matrix["gr.decl.function"]["tests"]}
+    assert نتائج[أوّل]["interp_ms"] == 190 and نتائج[أوّل]["compiler_ms"] == 4256
+    assert نتائج[ثانٍ]["interp_ms"] == 67 and نتائج[ثانٍ]["compiler_ms"] == 3224, (
+        "الأزمنةُ فُقِدت بإخراجِها من التقرير بدل أن تُنقَل إلى أثرِ البناء")
+
+    # ── ③ write_markdown: الصفّان في الملفِّ المكتوبِ يحملان حالتَين مختلفتَين ──
+    import re
+    conf.write_markdown(matrix, {}, report, records, tmp_path / "تقرير.md")
+    نصّ = (tmp_path / "تقرير_detail.md").read_text(encoding="utf-8")
+    نمط = re.compile(r"^\|\s*\d+\s*\|\s*`([^`]+)`\s*\|[^|]*\|[^|]*\|\s*([^|]+?)\s*\|")
+    صفوف = {m.group(1): m.group(2) for m in map(نمط.match, نصّ.splitlines()) if m}
+    assert set(صفوف) == {أوّل, ثانٍ}, f"صفوفُ التفصيلِ ليست مسارَين متمايزَين: {set(صفوف)}"
+    assert صفوف[أوّل] != صفوف[ثانٍ], (
+        "صفّان لملفَّين مختلفَين بنفسِ الحالة — شهادةٌ منقولةٌ لا مقيسة")
+    assert "تطابق" in صفوف[أوّل] and "تباعد" in صفوف[ثانٍ]
+    # (AR) ولا عمودَ زمنٍ في المكتوب: الرَّتشُ يُقاس في المولِّدِ لا في المُودَعِ وحدَه.
+    assert "(ms)" not in نصّ, "عمودُ زمنٍ عاد إلى التقريرِ التفصيليّ"
+
+
+def test_safe_cell_escapes_pipes_and_all_newlines():
+    """(AR) `_خليّة` هي العلاجُ الوحيدُ لصفٍّ يكسر جدولَه — ولا يراه أيُّ حارسٍ آخر:
+    قارئُ check_conformance_report_fresh.py يفحص العمودَ الأوّلَ وحدَه، فالصفُّ ذو
+    الأعمدةِ الستّةِ مرّ أخضرَ فعلًا في التقريرِ المُودَعِ عند 570b2692.
+    """
+    conf = _load_conformance()
+    خليّة = getattr(conf, "_خليّة")
+
+    assert خليّة("تحقّق — أنبوب |>") == r"تحقّق — أنبوب \|>"
+    assert خليّة("أ|ب|ج").count("|") == خليّة("أ|ب|ج").count(r"\|") == 2
+    # (AR) الأشكالُ الثلاثةُ لنهايةِ السطر — و`\r` وحدَه نهايةُ سطرٍ عند بعضِ المُصيّرات
+    assert خليّة("سطر\r\nتالٍ") == خليّة("سطر\nتالٍ") == خليّة("سطر\rتالٍ") == "سطر⏎تالٍ"
+    assert خليّة("") == "" and خليّة(None) == ""
+    # (AR) والعلامةُ الخلفيّةُ تُنهي مدى الشفرةِ الذي يحيط بالخليّة — عطبٌ من صنفِ
+    #      الأنبوبِ نفسِه، ولا يراه قارئُ الحارسِ (يفحص العمودَ الأوّلَ وحدَه).
+    assert "`" not in خليّة("خطأ في `الرمز`") and "الرمز" in خليّة("خطأ في `الرمز`")
+    # (AR) القطعُ قبلَ الهروب: لا شرطةَ معلّقةً، والحدُّ يَعُدُّ محارفَ المصدرِ لا الهروب
+    مقطوعة = خليّة("|" * 40, 10)
+    assert مقطوعة == r"\|" * 10, "القطعُ بعدَ الهروب: شطر زوجًا أو أنقص الحدَّ إلى نصفِه"
+
+
+def test_free_text_cells_go_through_the_safe_cell():
+    """(AR) بذرةُ «تهرب خليّةً وتنسى جارتَها»: المواضعُ الأربعةُ التي تكتب **نصًّا
+    حرًّا** في خليّةٍ يجب أن تمرّ بـ`_خليّة`. الفحصُ نصّيٌّ عمدًا — الأثرُ لا يظهر إلّا
+    عند أوّلِ تباعدٍ أو تخطٍّ بنصٍّ فيه `|`، وهو ما لا يقع في الشجرةِ الخضراءِ اليوم.
+
+    (AR) ولا يغطّي الخلايا التي مصدرُها ليس نصًّا حرًّا: المسارُ والقاعدةُ والفئةُ
+    والحالةُ في التفصيليّ، واسمُ ملفِّ الثغرة، والقاعدةُ والطبقةُ في جدولِ القواعد —
+    مصادرُها أسماءُ ملفّاتٍ وقيمُ YAML وثوابتُ الحالات، لا مخرَجُ برنامج. فالاسمُ
+    يقول «نصٌّ حرّ» لا «كلُّ خليّة».
+    """
+    مصدر = (ROOT / "scripts" / "codegen" / "check_grammar_conformance.py").read_text(
+        encoding="utf-8")
+    for حقل in ("interp_output", "compiler_output"):
+        assert f'_خليّة(e.get("{حقل}"' in مصدر, f"خليّةُ {حقل} تكتب نصًّا خامًّا"
+    assert "_خليّة(e.get('error'" in مصدر, "خليّةُ سببِ التخطّي تكتب نصًّا خامًّا"
+    assert "_خليّة(_gap_tag(" in مصدر, "خليّةُ وسمِ الثغرةِ تكتب نصًّا خامًّا"
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

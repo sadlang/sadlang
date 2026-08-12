@@ -1,2922 +1,2939 @@
 # تفصيل اختبارات مطابقة القواعد — كل اختبار بكل معلوماته
 
 > مُولَّد آلياً مع [التقرير الملخّص](./CONFORMANCE_REPORT.md). أعمدة: الرقم، الاختبار،
-> القاعدة، الفئة، الحالة (نتيجة مقارنة المفسر بالمترجم)، زمن المفسر، زمن المترجم.
+> القاعدة، الفئة، الحالة (نتيجة مقارنة المفسر بالمترجم).
+>
+> الأزمنة في أثر البناء `build/_grammar_conformance.json` (غير متعقَّب):
+> عمودُ زمنٍ هنا يتبدّل في ٩٩٫٩٪ من الصفوف عند كلِّ توليد لأنّ العدّاء
+> يتوازى — فهو يقيس ازدحامَ الآلة لا الاختبار.
 
-| # | الاختبار | القاعدة | الفئة | الحالة | مفسر(ms) | مترجم(ms) |
-|---|---|---|---|---|---|---|
-| 1 | `00_program/gr.program.block/basic/001_if_block.ص` | `gr.program.block` | basic | تطابق ✅ | 75 | 3002 |
-| 2 | `00_program/gr.program.block/basic/002_while_block.ص` | `gr.program.block` | basic | تطابق ✅ | 67 | 3002 |
-| 3 | `00_program/gr.program.block/basic/003_for_block.ص` | `gr.program.block` | basic | تطابق ✅ | 49 | 3161 |
-| 4 | `00_program/gr.program.block/basic/004_func_block.ص` | `gr.program.block` | basic | تطابق ✅ | 50 | 3567 |
-| 5 | `00_program/gr.program.block/basic/005_single_stmt_block.ص` | `gr.program.block` | basic | تطابق ✅ | 90 | 2988 |
-| 6 | `00_program/gr.program.block/basic/006_if_else_blocks.ص` | `gr.program.block` | basic | تطابق ✅ | 87 | 2993 |
-| 7 | `00_program/gr.program.block/edge/001_nested_blocks.ص` | `gr.program.block` | edge | تطابق ✅ | 104 | 3100 |
-| 8 | `00_program/gr.program.block/edge/002_code_after_end.ص` | `gr.program.block` | edge | تطابق ✅ | 78 | 2955 |
-| 9 | `00_program/gr.program.block/edge/003_deep_nest.ص` | `gr.program.block` | edge | تطابق ✅ | 73 | 3095 |
-| 10 | `00_program/gr.program.block/edge/004_sequential_blocks.ص` | `gr.program.block` | edge | تطابق ✅ | 71 | 3101 |
-| 11 | `00_program/gr.program.block/edge/005_elseif_chain.ص` | `gr.program.block` | edge | تطابق ✅ | 56 | 3125 |
-| 12 | `00_program/gr.program.block/edge/006_while_with_if.ص` | `gr.program.block` | edge | تطابق ✅ | 65 | 3218 |
-| 13 | `00_program/gr.program.block/edge/007_empty_loop_body_guarded.ص` | `gr.program.block` | edge | تطابق ✅ | 104 | 3068 |
-| 14 | `00_program/gr.program.block/negative/001_unterminated.ص` | `gr.program.block` | negative | تطابق ✅ | 128 | 0 |
-| 15 | `00_program/gr.program.block/negative/002_extra_end.ص` | `gr.program.block` | negative | تطابق ✅ | 85 | 0 |
-| 16 | `00_program/gr.program.block/negative/003_while_unterminated.ص` | `gr.program.block` | negative | تطابق ✅ | 67 | 0 |
-| 17 | `00_program/gr.program.block/negative/004_func_unterminated.ص` | `gr.program.block` | negative | تطابق ✅ | 66 | 0 |
-| 18 | `00_program/gr.program.declaration/basic/001_var_decl.ص` | `gr.program.declaration` | basic | تطابق ✅ | 62 | 2813 |
-| 19 | `00_program/gr.program.declaration/basic/002_const_decl.ص` | `gr.program.declaration` | basic | تطابق ✅ | 137 | 3060 |
-| 20 | `00_program/gr.program.declaration/basic/003_func_decl.ص` | `gr.program.declaration` | basic | تطابق ✅ | 66 | 3399 |
-| 21 | `00_program/gr.program.declaration/basic/004_var_expr_init.ص` | `gr.program.declaration` | basic | تطابق ✅ | 125 | 2988 |
-| 22 | `00_program/gr.program.declaration/basic/005_var_string.ص` | `gr.program.declaration` | basic | تطابق ✅ | 128 | 2975 |
-| 23 | `00_program/gr.program.declaration/basic/006_var_mod.ص` | `gr.program.declaration` | basic | تطابق ✅ | 60 | 2860 |
-| 24 | `00_program/gr.program.declaration/basic/007_const_used.ص` | `gr.program.declaration` | basic | تطابق ✅ | 63 | 2931 |
-| 25 | `00_program/gr.program.declaration/basic/008_func_two_params.ص` | `gr.program.declaration` | basic | تطابق ✅ | 62 | 3293 |
-| 26 | `00_program/gr.program.declaration/edge/001_nested_func.ص` | `gr.program.declaration` | edge | تطابق ✅ | 55 | 3254 |
-| 27 | `00_program/gr.program.declaration/edge/002_func_inline.ص` | `gr.program.declaration` | edge | تطابق ✅ | 66 | 3133 |
-| 28 | `00_program/gr.program.declaration/edge/003_multi_vars.ص` | `gr.program.declaration` | edge | تطابق ✅ | 51 | 2713 |
-| 29 | `00_program/gr.program.declaration/edge/004_var_from_call.ص` | `gr.program.declaration` | edge | تطابق ✅ | 61 | 3122 |
-| 30 | `00_program/gr.program.declaration/edge/005_const_then_var.ص` | `gr.program.declaration` | edge | تطابق ✅ | 58 | 2812 |
-| 31 | `00_program/gr.program.declaration/negative/001_var_no_name.ص` | `gr.program.declaration` | negative | تطابق ✅ | 91 | 0 |
-| 32 | `00_program/gr.program.declaration/negative/002_const_no_name.ص` | `gr.program.declaration` | negative | تطابق ✅ | 76 | 0 |
-| 33 | `00_program/gr.program.declaration/negative/003_missing_init.ص` | `gr.program.declaration` | negative | تطابق ✅ | 58 | 0 |
-| 34 | `00_program/gr.program.declaration/negative/004_num_var_name.ص` | `gr.program.declaration` | negative | تطابق ✅ | 56 | 0 |
-| 35 | `00_program/gr.program.program/basic/001_var_print.ص` | `gr.program.program` | basic | تطابق ✅ | 62 | 2742 |
-| 36 | `00_program/gr.program.program/basic/002_const_print.ص` | `gr.program.program` | basic | تطابق ✅ | 57 | 2750 |
-| 37 | `00_program/gr.program.program/basic/003_two_vars_sum.ص` | `gr.program.program` | basic | تطابق ✅ | 124 | 2874 |
-| 38 | `00_program/gr.program.program/basic/004_func_then_call.ص` | `gr.program.program` | basic | تطابق ✅ | 66 | 3217 |
-| 39 | `00_program/gr.program.program/basic/005_two_funcs.ص` | `gr.program.program` | basic | تطابق ✅ | 56 | 3598 |
-| 40 | `00_program/gr.program.program/basic/006_var_func_call.ص` | `gr.program.program` | basic | تطابق ✅ | 130 | 3167 |
-| 41 | `00_program/gr.program.program/basic/007_three_prints.ص` | `gr.program.program` | basic | تطابق ✅ | 132 | 2835 |
-| 42 | `00_program/gr.program.program/basic/008_reassign.ص` | `gr.program.program` | basic | تطابق ✅ | 50 | 2785 |
-| 43 | `00_program/gr.program.program/edge/001_line_comments.ص` | `gr.program.program` | edge | تطابق ✅ | 100 | 2685 |
-| 44 | `00_program/gr.program.program/edge/002_block_comment.ص` | `gr.program.program` | edge | تطابق ✅ | 82 | 2865 |
-| 45 | `00_program/gr.program.program/edge/003_blank_lines.ص` | `gr.program.program` | edge | تطابق ✅ | 129 | 2909 |
-| 46 | `00_program/gr.program.program/edge/004_many_decls.ص` | `gr.program.program` | edge | تطابق ✅ | 62 | 2982 |
-| 47 | `00_program/gr.program.program/edge/005_semicolons.ص` | `gr.program.program` | edge | تطابق ✅ | 57 | 2967 |
-| 48 | `00_program/gr.program.program/edge/006_leading_comment_trailing_blank.ص` | `gr.program.program` | edge | تطابق ✅ | 55 | 2964 |
-| 49 | `00_program/gr.program.program/negative/001_stray_end.ص` | `gr.program.program` | negative | تطابق ✅ | 123 | 0 |
-| 50 | `00_program/gr.program.program/negative/002_lone_else.ص` | `gr.program.program` | negative | تطابق ✅ | 68 | 0 |
-| 51 | `00_program/gr.program.program/negative/003_unterminated_func.ص` | `gr.program.program` | negative | تطابق ✅ | 68 | 0 |
-| 52 | `00_program/gr.program.statement/basic/001_expr_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ | 62 | 2927 |
-| 53 | `00_program/gr.program.statement/basic/002_if_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ | 77 | 2882 |
-| 54 | `00_program/gr.program.statement/basic/003_while_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ | 73 | 2764 |
-| 55 | `00_program/gr.program.statement/basic/004_for_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ | 112 | 2984 |
-| 56 | `00_program/gr.program.statement/basic/005_return_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ | 137 | 3242 |
-| 57 | `00_program/gr.program.statement/basic/006_assign_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ | 117 | 2964 |
-| 58 | `00_program/gr.program.statement/basic/007_if_else_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ | 59 | 2987 |
-| 59 | `00_program/gr.program.statement/basic/008_nested_call.ص` | `gr.program.statement` | basic | تطابق ✅ | 54 | 3320 |
-| 60 | `00_program/gr.program.statement/edge/001_break_loop.ص` | `gr.program.statement` | edge | تطابق ✅ | 85 | 3119 |
-| 61 | `00_program/gr.program.statement/edge/002_continue_loop.ص` | `gr.program.statement` | edge | تطابق ✅ | 65 | 3048 |
-| 62 | `00_program/gr.program.statement/edge/003_deep_if.ص` | `gr.program.statement` | edge | تطابق ✅ | 124 | 3158 |
-| 63 | `00_program/gr.program.statement/edge/004_while_sum.ص` | `gr.program.statement` | edge | تطابق ✅ | 58 | 3086 |
-| 64 | `00_program/gr.program.statement/edge/005_for_array_even.ص` | `gr.program.statement` | edge | تطابق ✅ | 120 | 3102 |
-| 65 | `00_program/gr.program.statement/negative/001_if_no_end.ص` | `gr.program.statement` | negative | تطابق ✅ | 106 | 0 |
-| 66 | `00_program/gr.program.statement/negative/002_while_no_end.ص` | `gr.program.statement` | negative | تطابق ✅ | 62 | 0 |
-| 67 | `00_program/gr.program.statement/negative/003_for_no_in.ص` | `gr.program.statement` | negative | تطابق ✅ | 56 | 0 |
-| 68 | `10_statements/gr.stmt.break/basic/001_in_while.ص` | `gr.stmt.break` | basic | تطابق ✅ | 87 | 3049 |
-| 69 | `10_statements/gr.stmt.break/basic/002_in_for.ص` | `gr.stmt.break` | basic | تطابق ✅ | 111 | 3098 |
-| 70 | `10_statements/gr.stmt.break/basic/003_first_iter.ص` | `gr.stmt.break` | basic | تطابق ✅ | 65 | 3191 |
-| 71 | `10_statements/gr.stmt.break/edge/001_inner_only.ص` | `gr.stmt.break` | edge | تطابق ✅ | 81 | 3475 |
-| 72 | `10_statements/gr.stmt.break/edge/002_conditional.ص` | `gr.stmt.break` | edge | تطابق ✅ | 50 | 3891 |
-| 73 | `10_statements/gr.stmt.break/edge/003_while_true.ص` | `gr.stmt.break` | edge | تطابق ✅ | 63 | 3189 |
-| 74 | `10_statements/gr.stmt.break/edge/004_break_in_try_runs_finally.ص` | `gr.stmt.break` | edge | تطابق ✅ | 78 | 0 |
-| 75 | `10_statements/gr.stmt.break/edge/005_break_inside_finally_exits_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ | 99 | 4237 |
-| 76 | `10_statements/gr.stmt.break/edge/006_break_in_switch_breaks_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ | 70 | 3348 |
-| 77 | `10_statements/gr.stmt.break/edge/007_break_in_match_breaks_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ | 57 | 3418 |
-| 78 | `10_statements/gr.stmt.break/edge/008_break_in_catch_exits_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ | 115 | 3576 |
-| 79 | `10_statements/gr.stmt.break/edge/050_break_nested_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ | 67 | 3423 |
-| 80 | `10_statements/gr.stmt.break/negative/001_top_level.ص` | `gr.stmt.break` | negative | تطابق ✅ | 97 | 0 |
-| 81 | `10_statements/gr.stmt.break/negative/002_break_in_function_called_from_loop.ص` | `gr.stmt.break` | negative | تطابق ✅ | 80 | 181 |
-| 82 | `10_statements/gr.stmt.break/negative/003_break_in_method_called_from_loop.ص` | `gr.stmt.break` | negative | تطابق ✅ | 83 | 177 |
-| 83 | `10_statements/gr.stmt.break/negative/004_break_in_switch_outside_loop.ص` | `gr.stmt.break` | negative | تطابق ✅ | 128 | 79 |
-| 84 | `10_statements/gr.stmt.continue/basic/001_in_for.ص` | `gr.stmt.continue` | basic | تطابق ✅ | 66 | 3055 |
-| 85 | `10_statements/gr.stmt.continue/basic/002_in_while.ص` | `gr.stmt.continue` | basic | تطابق ✅ | 68 | 2813 |
-| 86 | `10_statements/gr.stmt.continue/basic/003_odd.ص` | `gr.stmt.continue` | basic | تطابق ✅ | 83 | 3270 |
-| 87 | `10_statements/gr.stmt.continue/edge/001_nested.ص` | `gr.stmt.continue` | edge | تطابق ✅ | 64 | 3355 |
-| 88 | `10_statements/gr.stmt.continue/edge/002_conditional.ص` | `gr.stmt.continue` | edge | تطابق ✅ | 50 | 3891 |
-| 89 | `10_statements/gr.stmt.continue/edge/003_skip_many.ص` | `gr.stmt.continue` | edge | تطابق ✅ | 54 | 3689 |
-| 90 | `10_statements/gr.stmt.continue/edge/004_continue_in_try_runs_finally.ص` | `gr.stmt.continue` | edge | تطابق ✅ | 67 | 0 |
-| 91 | `10_statements/gr.stmt.continue/edge/005_continue_inside_finally_skips_tail.ص` | `gr.stmt.continue` | edge | تطابق ✅ | 73 | 4498 |
-| 92 | `10_statements/gr.stmt.continue/edge/006_continue_in_switch.ص` | `gr.stmt.continue` | edge | تطابق ✅ | 70 | 4012 |
-| 93 | `10_statements/gr.stmt.continue/edge/050_continue_skips_even.ص` | `gr.stmt.continue` | edge | تطابق ✅ | 92 | 3402 |
-| 94 | `10_statements/gr.stmt.continue/negative/001_top_level.ص` | `gr.stmt.continue` | negative | تطابق ✅ | 97 | 0 |
-| 95 | `10_statements/gr.stmt.continue/negative/002_continue_in_function_called_from_loop.ص` | `gr.stmt.continue` | negative | تطابق ✅ | 155 | 106 |
-| 96 | `10_statements/gr.stmt.expression/basic/001_print_str.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 93 | 3063 |
-| 97 | `10_statements/gr.stmt.expression/basic/002_print_num.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 98 | 3226 |
-| 98 | `10_statements/gr.stmt.expression/basic/003_print_neg.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 79 | 3075 |
-| 99 | `10_statements/gr.stmt.expression/basic/004_print_zero.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 52 | 3138 |
-| 100 | `10_statements/gr.stmt.expression/basic/005_arith_add.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 116 | 3174 |
-| 101 | `10_statements/gr.stmt.expression/basic/006_arith_sub.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 50 | 3114 |
-| 102 | `10_statements/gr.stmt.expression/basic/007_arith_mul.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 104 | 3139 |
-| 103 | `10_statements/gr.stmt.expression/basic/008_arith_mod.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 76 | 3084 |
-| 104 | `10_statements/gr.stmt.expression/basic/009_arith_pow.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 214 | 3034 |
-| 105 | `10_statements/gr.stmt.expression/basic/010_arith_add3.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 55 | 2891 |
-| 106 | `10_statements/gr.stmt.expression/basic/011_arith_mul_add.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 47 | 2954 |
-| 107 | `10_statements/gr.stmt.expression/basic/012_arith_paren.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 56 | 2849 |
-| 108 | `10_statements/gr.stmt.expression/basic/013_arith_nested_arith.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 60 | 2905 |
-| 109 | `10_statements/gr.stmt.expression/basic/014_arith_pow2.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 56 | 2914 |
-| 110 | `10_statements/gr.stmt.expression/basic/015_concat2.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 61 | 3037 |
-| 111 | `10_statements/gr.stmt.expression/basic/016_concat3.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 97 | 3015 |
-| 112 | `10_statements/gr.stmt.expression/basic/017_concat_num.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 125 | 2838 |
-| 113 | `10_statements/gr.stmt.expression/basic/018_concat_var.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 50 | 2936 |
-| 114 | `10_statements/gr.stmt.expression/basic/019_to_str.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 52 | 3005 |
-| 115 | `10_statements/gr.stmt.expression/basic/020_to_num.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 65 | 2855 |
-| 116 | `10_statements/gr.stmt.expression/basic/021_len_str.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 115 | 2985 |
-| 117 | `10_statements/gr.stmt.expression/basic/022_len_arr.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 58 | 2944 |
-| 118 | `10_statements/gr.stmt.expression/basic/023_assign.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 132 | 2852 |
-| 119 | `10_statements/gr.stmt.expression/basic/024_reassign_expr.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 60 | 2886 |
-| 120 | `10_statements/gr.stmt.expression/basic/025_assign_chain.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 65 | 2971 |
-| 121 | `10_statements/gr.stmt.expression/basic/026_assign_str.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 49 | 2925 |
-| 122 | `10_statements/gr.stmt.expression/basic/027_plus_eq.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 104 | 2926 |
-| 123 | `10_statements/gr.stmt.expression/basic/028_minus_eq.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 59 | 2913 |
-| 124 | `10_statements/gr.stmt.expression/basic/029_times_eq.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 55 | 2827 |
-| 125 | `10_statements/gr.stmt.expression/basic/030_plus_eq_str.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 61 | 2813 |
-| 126 | `10_statements/gr.stmt.expression/basic/031_call_void.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 56 | 3174 |
-| 127 | `10_statements/gr.stmt.expression/basic/032_call_ret.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 59 | 3254 |
-| 128 | `10_statements/gr.stmt.expression/basic/033_call_arg_expr.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 48 | 3293 |
-| 129 | `10_statements/gr.stmt.expression/basic/034_call_two.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 144 | 3727 |
-| 130 | `10_statements/gr.stmt.expression/basic/035_cmp_store.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 85 | 2940 |
-| 131 | `10_statements/gr.stmt.expression/basic/036_bool_and.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 54 | 3036 |
-| 132 | `10_statements/gr.stmt.expression/basic/037_bool_or.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 58 | 2909 |
-| 133 | `10_statements/gr.stmt.expression/basic/038_not_store.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 94 | 2954 |
-| 134 | `10_statements/gr.stmt.expression/basic/039_ternary_t.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 122 | 2885 |
-| 135 | `10_statements/gr.stmt.expression/basic/040_ternary_f.ص` | `gr.stmt.expression` | basic | تطابق ✅ | 56 | 2874 |
-| 136 | `10_statements/gr.stmt.expression/edge/001_nested_call.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 107 | 3524 |
-| 137 | `10_statements/gr.stmt.expression/edge/002_chained_args.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 91 | 3422 |
-| 138 | `10_statements/gr.stmt.expression/edge/003_semicolon.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 58 | 2920 |
-| 139 | `10_statements/gr.stmt.expression/edge/004_two_semicolons.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 68 | 2920 |
-| 140 | `10_statements/gr.stmt.expression/edge/005_deep_arith.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 109 | 2787 |
-| 141 | `10_statements/gr.stmt.expression/edge/006_ternary_nested.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 58 | 2871 |
-| 142 | `10_statements/gr.stmt.expression/edge/007_ternary_arith.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 51 | 2848 |
-| 143 | `10_statements/gr.stmt.expression/edge/008_compound_seq.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 61 | 2713 |
-| 144 | `10_statements/gr.stmt.expression/edge/009_pow_chain.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 124 | 2695 |
-| 145 | `10_statements/gr.stmt.expression/edge/010_concat_chain.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 56 | 2800 |
-| 146 | `10_statements/gr.stmt.expression/edge/011_conv_arith.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 51 | 2755 |
-| 147 | `10_statements/gr.stmt.expression/edge/012_len_in_expr.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 54 | 2878 |
-| 148 | `10_statements/gr.stmt.expression/edge/013_call_in_cond_assign.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 104 | 3228 |
-| 149 | `10_statements/gr.stmt.expression/edge/014_multi_assign_calc.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 132 | 2863 |
-| 150 | `10_statements/gr.stmt.expression/edge/015_ternary_in_call.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 83 | 2675 |
-| 151 | `10_statements/gr.stmt.expression/edge/016_str_concat_num_calc.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 52 | 3021 |
-| 152 | `10_statements/gr.stmt.expression/edge/017_neg_pow.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 68 | 3018 |
-| 153 | `10_statements/gr.stmt.expression/edge/018_mod_chain.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 59 | 2978 |
-| 154 | `10_statements/gr.stmt.expression/edge/019_bool_complex.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 64 | 2999 |
-| 155 | `10_statements/gr.stmt.expression/edge/020_assign_from_ternary.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 67 | 2823 |
-| 156 | `10_statements/gr.stmt.expression/edge/021_nested_paren_deep.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 66 | 2869 |
-| 157 | `10_statements/gr.stmt.expression/edge/022_call_result_compound.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 64 | 3249 |
-| 158 | `10_statements/gr.stmt.expression/edge/023_string_eq_expr.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 68 | 2928 |
-| 159 | `10_statements/gr.stmt.expression/edge/024_multi_print.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 98 | 2814 |
-| 160 | `10_statements/gr.stmt.expression/edge/025_expr_then_assign.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 103 | 2958 |
-| 161 | `10_statements/gr.stmt.expression/edge/026_func_chain3.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 96 | 3271 |
-| 162 | `10_statements/gr.stmt.expression/edge/027_mixed_types_concat.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 56 | 2894 |
-| 163 | `10_statements/gr.stmt.expression/edge/028_ternary_compare_chain.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 94 | 3023 |
-| 164 | `10_statements/gr.stmt.expression/edge/029_power_of_power.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 50 | 2918 |
-| 165 | `10_statements/gr.stmt.expression/edge/030_assign_self_ref.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 60 | 2802 |
-| 166 | `10_statements/gr.stmt.expression/edge/031_extra_31.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 71 | 2972 |
-| 167 | `10_statements/gr.stmt.expression/edge/032_extra_32.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 100 | 2988 |
-| 168 | `10_statements/gr.stmt.expression/edge/033_extra_33.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 60 | 3079 |
-| 169 | `10_statements/gr.stmt.expression/edge/034_extra_34.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 56 | 2996 |
-| 170 | `10_statements/gr.stmt.expression/edge/035_extra_35.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 96 | 3204 |
-| 171 | `10_statements/gr.stmt.expression/edge/050_assignment_side_effect.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 130 | 2876 |
-| 172 | `10_statements/gr.stmt.expression/edge/051_call_stmt.ص` | `gr.stmt.expression` | edge | تطابق ✅ | 129 | 2846 |
-| 173 | `10_statements/gr.stmt.expression/negative/001_incomplete_call.ص` | `gr.stmt.expression` | negative | تطابق ✅ | 106 | 0 |
-| 174 | `10_statements/gr.stmt.expression/negative/002_incomplete_add.ص` | `gr.stmt.expression` | negative | تطابق ✅ | 60 | 0 |
-| 175 | `10_statements/gr.stmt.expression/negative/003_incomplete_arg_in_call.ص` | `gr.stmt.expression` | negative | تطابق ✅ | 52 | 0 |
-| 176 | `10_statements/gr.stmt.expression/negative/004_leading_op.ص` | `gr.stmt.expression` | negative | تطابق ✅ | 56 | 0 |
-| 177 | `10_statements/gr.stmt.expression/negative/005_assign_no_rhs.ص` | `gr.stmt.expression` | negative | تطابق ✅ | 44 | 0 |
-| 178 | `10_statements/gr.stmt.expression/negative/006_double_op.ص` | `gr.stmt.expression` | negative | تطابق ✅ | 89 | 0 |
-| 179 | `10_statements/gr.stmt.expression/negative/007_stray_comma.ص` | `gr.stmt.expression` | negative | تطابق ✅ | 55 | 0 |
-| 180 | `10_statements/gr.stmt.expression/negative/008_unclosed_string.ص` | `gr.stmt.expression` | negative | تطابق ✅ | 54 | 0 |
-| 181 | `10_statements/gr.stmt.expression/negative/009_ternary_incomplete.ص` | `gr.stmt.expression` | negative | تطابق ✅ | 59 | 0 |
-| 182 | `10_statements/gr.stmt.expression/negative/010_call_missing_arg_sep.ص` | `gr.stmt.expression` | negative | تطابق ✅ | 56 | 0 |
-| 183 | `10_statements/gr.stmt.for/basic/001_print_arr_1.ص` | `gr.stmt.for` | basic | تطابق ✅ | 58 | 2988 |
-| 184 | `10_statements/gr.stmt.for/basic/002_print_arr_2.ص` | `gr.stmt.for` | basic | تطابق ✅ | 107 | 2773 |
-| 185 | `10_statements/gr.stmt.for/basic/003_print_arr_3.ص` | `gr.stmt.for` | basic | تطابق ✅ | 57 | 2868 |
-| 186 | `10_statements/gr.stmt.for/basic/004_print_arr_4.ص` | `gr.stmt.for` | basic | تطابق ✅ | 46 | 3094 |
-| 187 | `10_statements/gr.stmt.for/basic/005_print_arr_5.ص` | `gr.stmt.for` | basic | تطابق ✅ | 108 | 3096 |
-| 188 | `10_statements/gr.stmt.for/basic/006_print_arr_6.ص` | `gr.stmt.for` | basic | تطابق ✅ | 63 | 3065 |
-| 189 | `10_statements/gr.stmt.for/basic/007_print_arr_7.ص` | `gr.stmt.for` | basic | تطابق ✅ | 64 | 3135 |
-| 190 | `10_statements/gr.stmt.for/basic/008_print_arr_8.ص` | `gr.stmt.for` | basic | تطابق ✅ | 152 | 3233 |
-| 191 | `10_statements/gr.stmt.for/basic/009_print_arr_9.ص` | `gr.stmt.for` | basic | تطابق ✅ | 66 | 3247 |
-| 192 | `10_statements/gr.stmt.for/basic/010_print_arr_10.ص` | `gr.stmt.for` | basic | تطابق ✅ | 51 | 3216 |
-| 193 | `10_statements/gr.stmt.for/basic/011_print_arr_11.ص` | `gr.stmt.for` | basic | تطابق ✅ | 66 | 3171 |
-| 194 | `10_statements/gr.stmt.for/basic/012_print_arr_12.ص` | `gr.stmt.for` | basic | تطابق ✅ | 65 | 3236 |
-| 195 | `10_statements/gr.stmt.for/basic/013_strings2.ص` | `gr.stmt.for` | basic | تطابق ✅ | 59 | 3137 |
-| 196 | `10_statements/gr.stmt.for/basic/014_strings3.ص` | `gr.stmt.for` | basic | تطابق ✅ | 55 | 3111 |
-| 197 | `10_statements/gr.stmt.for/basic/015_strings_concat.ص` | `gr.stmt.for` | basic | تطابق ✅ | 95 | 3386 |
-| 198 | `10_statements/gr.stmt.for/basic/016_sum3.ص` | `gr.stmt.for` | basic | تطابق ✅ | 146 | 3279 |
-| 199 | `10_statements/gr.stmt.for/basic/017_sum_big.ص` | `gr.stmt.for` | basic | تطابق ✅ | 81 | 3326 |
-| 200 | `10_statements/gr.stmt.for/basic/018_product.ص` | `gr.stmt.for` | basic | تطابق ✅ | 76 | 3444 |
-| 201 | `10_statements/gr.stmt.for/basic/019_count.ص` | `gr.stmt.for` | basic | تطابق ✅ | 98 | 3252 |
-| 202 | `10_statements/gr.stmt.for/basic/020_max_like.ص` | `gr.stmt.for` | basic | تطابق ✅ | 132 | 3194 |
-| 203 | `10_statements/gr.stmt.for/basic/021_sum_even.ص` | `gr.stmt.for` | basic | تطابق ✅ | 79 | 3357 |
-| 204 | `10_statements/gr.stmt.for/basic/022_count_pos.ص` | `gr.stmt.for` | basic | تطابق ✅ | 66 | 3306 |
-| 205 | `10_statements/gr.stmt.for/basic/023_concat_sum.ص` | `gr.stmt.for` | basic | تطابق ✅ | 64 | 3108 |
-| 206 | `10_statements/gr.stmt.for/basic/024_double.ص` | `gr.stmt.for` | basic | تطابق ✅ | 61 | 3168 |
-| 207 | `10_statements/gr.stmt.for/basic/025_inc.ص` | `gr.stmt.for` | basic | تطابق ✅ | 60 | 3125 |
-| 208 | `10_statements/gr.stmt.for/basic/026_square.ص` | `gr.stmt.for` | basic | تطابق ✅ | 62 | 3230 |
-| 209 | `10_statements/gr.stmt.for/basic/027_mod.ص` | `gr.stmt.for` | basic | تطابق ✅ | 69 | 3188 |
-| 210 | `10_statements/gr.stmt.for/basic/028_neg.ص` | `gr.stmt.for` | basic | تطابق ✅ | 102 | 3250 |
-| 211 | `10_statements/gr.stmt.for/basic/029_add_const.ص` | `gr.stmt.for` | basic | تطابق ✅ | 62 | 3127 |
-| 212 | `10_statements/gr.stmt.for/basic/030_str_num.ص` | `gr.stmt.for` | basic | تطابق ✅ | 85 | 3104 |
-| 213 | `10_statements/gr.stmt.for/basic/031_computed_arr.ص` | `gr.stmt.for` | basic | تطابق ✅ | 58 | 3302 |
-| 214 | `10_statements/gr.stmt.for/basic/032_single.ص` | `gr.stmt.for` | basic | تطابق ✅ | 56 | 3130 |
-| 215 | `10_statements/gr.stmt.for/basic/033_two.ص` | `gr.stmt.for` | basic | تطابق ✅ | 71 | 3388 |
-| 216 | `10_statements/gr.stmt.for/basic/034_var_array.ص` | `gr.stmt.for` | basic | تطابق ✅ | 84 | 3521 |
-| 217 | `10_statements/gr.stmt.for/basic/035_mixed_calc.ص` | `gr.stmt.for` | basic | تطابق ✅ | 66 | 3412 |
-| 218 | `10_statements/gr.stmt.for/basic/036_extra_36.ص` | `gr.stmt.for` | basic | تطابق ✅ | 70 | 3197 |
-| 219 | `10_statements/gr.stmt.for/basic/037_extra_37.ص` | `gr.stmt.for` | basic | تطابق ✅ | 68 | 3160 |
-| 220 | `10_statements/gr.stmt.for/basic/038_extra_38.ص` | `gr.stmt.for` | basic | تطابق ✅ | 54 | 3135 |
-| 221 | `10_statements/gr.stmt.for/basic/039_extra_39.ص` | `gr.stmt.for` | basic | تطابق ✅ | 60 | 3156 |
-| 222 | `10_statements/gr.stmt.for/basic/040_extra_40.ص` | `gr.stmt.for` | basic | تطابق ✅ | 61 | 3137 |
-| 223 | `10_statements/gr.stmt.for/edge/001_nested.ص` | `gr.stmt.for` | edge | تطابق ✅ | 64 | 3355 |
-| 224 | `10_statements/gr.stmt.for/edge/002_nested3.ص` | `gr.stmt.for` | edge | تطابق ✅ | 57 | 2615 |
-| 225 | `10_statements/gr.stmt.for/edge/003_with_if.ص` | `gr.stmt.for` | edge | تطابق ✅ | 53 | 2632 |
-| 226 | `10_statements/gr.stmt.for/edge/004_with_if_else.ص` | `gr.stmt.for` | edge | تطابق ✅ | 66 | 3133 |
-| 227 | `10_statements/gr.stmt.for/edge/005_with_break.ص` | `gr.stmt.for` | edge | تطابق ✅ | 63 | 3218 |
-| 228 | `10_statements/gr.stmt.for/edge/006_with_continue.ص` | `gr.stmt.for` | edge | تطابق ✅ | 67 | 3172 |
-| 229 | `10_statements/gr.stmt.for/edge/007_with_match.ص` | `gr.stmt.for` | edge | تطابق ✅ | 118 | 3151 |
-| 230 | `10_statements/gr.stmt.for/edge/008_with_try.ص` | `gr.stmt.for` | edge | تطابق ✅ | 149 | 3495 |
-| 231 | `10_statements/gr.stmt.for/edge/009_in_func.ص` | `gr.stmt.for` | edge | تطابق ✅ | 74 | 3516 |
-| 232 | `10_statements/gr.stmt.for/edge/010_nested_sum.ص` | `gr.stmt.for` | edge | تطابق ✅ | 63 | 3288 |
-| 233 | `10_statements/gr.stmt.for/edge/011_inner_break.ص` | `gr.stmt.for` | edge | تطابق ✅ | 65 | 3230 |
-| 234 | `10_statements/gr.stmt.for/edge/012_if_break_outer_continue.ص` | `gr.stmt.for` | edge | تطابق ✅ | 76 | 3217 |
-| 235 | `10_statements/gr.stmt.for/edge/013_return_in.ص` | `gr.stmt.for` | edge | تطابق ✅ | 67 | 3677 |
-| 236 | `10_statements/gr.stmt.for/edge/014_multi_stmt.ص` | `gr.stmt.for` | edge | تطابق ✅ | 55 | 3039 |
-| 237 | `10_statements/gr.stmt.for/edge/015_var_in_body.ص` | `gr.stmt.for` | edge | تطابق ✅ | 136 | 3045 |
-| 238 | `10_statements/gr.stmt.for/edge/016_nested_if2.ص` | `gr.stmt.for` | edge | تطابق ✅ | 124 | 3102 |
-| 239 | `10_statements/gr.stmt.for/edge/017_accumulate_str.ص` | `gr.stmt.for` | edge | تطابق ✅ | 51 | 3149 |
-| 240 | `10_statements/gr.stmt.for/edge/018_while_inside.ص` | `gr.stmt.for` | edge | تطابق ✅ | 100 | 3233 |
-| 241 | `10_statements/gr.stmt.for/edge/019_guarded_last.ص` | `gr.stmt.for` | edge | تطابق ✅ | 64 | 3285 |
-| 242 | `10_statements/gr.stmt.for/edge/020_sum_nested.ص` | `gr.stmt.for` | edge | تطابق ✅ | 68 | 3280 |
-| 243 | `10_statements/gr.stmt.for/edge/021_extra_21.ص` | `gr.stmt.for` | edge | تطابق ✅ | 54 | 3393 |
-| 244 | `10_statements/gr.stmt.for/edge/022_extra_22.ص` | `gr.stmt.for` | edge | تطابق ✅ | 102 | 3186 |
-| 245 | `10_statements/gr.stmt.for/edge/023_extra_23.ص` | `gr.stmt.for` | edge | تطابق ✅ | 67 | 3242 |
-| 246 | `10_statements/gr.stmt.for/edge/024_extra_24.ص` | `gr.stmt.for` | edge | تطابق ✅ | 187 | 3101 |
-| 247 | `10_statements/gr.stmt.for/edge/025_extra_25.ص` | `gr.stmt.for` | edge | تطابق ✅ | 156 | 3094 |
-| 248 | `10_statements/gr.stmt.for/edge/026_extra_26.ص` | `gr.stmt.for` | edge | تطابق ✅ | 129 | 3043 |
-| 249 | `10_statements/gr.stmt.for/edge/027_extra_27.ص` | `gr.stmt.for` | edge | تطابق ✅ | 121 | 3054 |
-| 250 | `10_statements/gr.stmt.for/edge/028_extra_28.ص` | `gr.stmt.for` | edge | تطابق ✅ | 119 | 3169 |
-| 251 | `10_statements/gr.stmt.for/edge/029_extra_29.ص` | `gr.stmt.for` | edge | تطابق ✅ | 116 | 2989 |
-| 252 | `10_statements/gr.stmt.for/edge/030_extra_30.ص` | `gr.stmt.for` | edge | تطابق ✅ | 65 | 3053 |
-| 253 | `10_statements/gr.stmt.for/edge/031_extra_31.ص` | `gr.stmt.for` | edge | تطابق ✅ | 71 | 2972 |
-| 254 | `10_statements/gr.stmt.for/edge/032_extra_32.ص` | `gr.stmt.for` | edge | تطابق ✅ | 100 | 2988 |
-| 255 | `10_statements/gr.stmt.for/edge/033_extra_33.ص` | `gr.stmt.for` | edge | تطابق ✅ | 60 | 3079 |
-| 256 | `10_statements/gr.stmt.for/edge/034_extra_34.ص` | `gr.stmt.for` | edge | تطابق ✅ | 56 | 2996 |
-| 257 | `10_statements/gr.stmt.for/edge/035_extra_35.ص` | `gr.stmt.for` | edge | تطابق ✅ | 96 | 3204 |
-| 258 | `10_statements/gr.stmt.for/edge/036_range_from_to.ص` | `gr.stmt.for` | edge | تطابق ✅ | 59 | 2829 |
-| 259 | `10_statements/gr.stmt.for/edge/037_range_single.ص` | `gr.stmt.for` | edge | تطابق ✅ | 63 | 2945 |
-| 260 | `10_statements/gr.stmt.for/edge/050_empty_array.ص` | `gr.stmt.for` | edge | تطابق ✅ | 56 | 2954 |
-| 261 | `10_statements/gr.stmt.for/edge/051_single.ص` | `gr.stmt.for` | edge | تطابق ✅ | 94 | 3066 |
-| 262 | `10_statements/gr.stmt.for/edge/052_nested.ص` | `gr.stmt.for` | edge | تطابق ✅ | 56 | 3010 |
-| 263 | `10_statements/gr.stmt.for/edge/053_with_break.ص` | `gr.stmt.for` | edge | تطابق ✅ | 74 | 3196 |
-| 264 | `10_statements/gr.stmt.for/edge/054_with_continue.ص` | `gr.stmt.for` | edge | تطابق ✅ | 156 | 2992 |
-| 265 | `10_statements/gr.stmt.for/edge/055_range_accumulate.ص` | `gr.stmt.for` | edge | تطابق ✅ | 72 | 2894 |
-| 266 | `10_statements/gr.stmt.for/edge/056_range_contains_if.ص` | `gr.stmt.for` | edge | تطابق ✅ | 58 | 2763 |
-| 267 | `10_statements/gr.stmt.for/edge/057_destructure_index.ص` | `gr.stmt.for` | edge | تطابق ✅ | 58 | 3189 |
-| 268 | `10_statements/gr.stmt.for/edge/058_range_single_iteration.ص` | `gr.stmt.for` | edge | تطابق ✅ | 120 | 3356 |
-| 269 | `10_statements/gr.stmt.for/edge/059_range_inclusive_count.ص` | `gr.stmt.for` | edge | تطابق ✅ | 56 | 3196 |
-| 270 | `10_statements/gr.stmt.for/edge/060_range_negative_bounds.ص` | `gr.stmt.for` | edge | تطابق ✅ | 100 | 3254 |
-| 271 | `10_statements/gr.stmt.for/edge/061_range_crossing_zero.ص` | `gr.stmt.for` | edge | تطابق ✅ | 66 | 3250 |
-| 272 | `10_statements/gr.stmt.for/edge/062_range_computed_bounds.ص` | `gr.stmt.for` | edge | تطابق ✅ | 121 | 3177 |
-| 273 | `10_statements/gr.stmt.for/edge/063_empty_array_zero_iterations.ص` | `gr.stmt.for` | edge | تطابق ✅ | 107 | 3167 |
-| 274 | `10_statements/gr.stmt.for/edge/064_single_element_array.ص` | `gr.stmt.for` | edge | تطابق ✅ | 102 | 3375 |
-| 275 | `10_statements/gr.stmt.for/edge/065_nested_two_levels_product.ص` | `gr.stmt.for` | edge | تطابق ✅ | 52 | 3375 |
-| 276 | `10_statements/gr.stmt.for/edge/066_nested_three_levels.ص` | `gr.stmt.for` | edge | تطابق ✅ | 65 | 3527 |
-| 277 | `10_statements/gr.stmt.for/edge/067_nested_inner_uses_outer.ص` | `gr.stmt.for` | edge | تطابق ✅ | 67 | 3549 |
-| 278 | `10_statements/gr.stmt.for/edge/068_break_first_iteration.ص` | `gr.stmt.for` | edge | تطابق ✅ | 57 | 3471 |
-| 279 | `10_statements/gr.stmt.for/edge/069_break_at_boundary.ص` | `gr.stmt.for` | edge | تطابق ✅ | 76 | 3460 |
-| 280 | `10_statements/gr.stmt.for/edge/070_continue_skips_all.ص` | `gr.stmt.for` | edge | تطابق ✅ | 57 | 3272 |
-| 281 | `10_statements/gr.stmt.for/edge/071_continue_filters_odd.ص` | `gr.stmt.for` | edge | تطابق ✅ | 55 | 3353 |
-| 282 | `10_statements/gr.stmt.for/edge/072_break_inner_only.ص` | `gr.stmt.for` | edge | تطابق ✅ | 68 | 3361 |
-| 283 | `10_statements/gr.stmt.for/edge/073_continue_inner_only.ص` | `gr.stmt.for` | edge | تطابق ✅ | 59 | 3431 |
-| 284 | `10_statements/gr.stmt.for/edge/074_loop_var_scoped_to_loop.ص` | `gr.stmt.for` | edge | تطابق ✅ | 122 | 3325 |
-| 285 | `10_statements/gr.stmt.for/edge/075_array_index_by_length.ص` | `gr.stmt.for` | edge | تطابق ✅ | 66 | 3292 |
-| 286 | `10_statements/gr.stmt.for/edge/076_iterate_strings_concat.ص` | `gr.stmt.for` | edge | تطابق ✅ | 63 | 3626 |
-| 287 | `10_statements/gr.stmt.for/edge/077_iterate_booleans_count.ص` | `gr.stmt.for` | edge | تطابق ✅ | 88 | 3326 |
-| 288 | `10_statements/gr.stmt.for/edge/078_map_pair_unpacking.ص` | `gr.stmt.for` | edge | تطابق ✅ | 62 | 3575 |
-| 289 | `10_statements/gr.stmt.for/edge/079_two_sequential_loops.ص` | `gr.stmt.for` | edge | تطابق ✅ | 63 | 3265 |
-| 290 | `10_statements/gr.stmt.for/edge/080_loop_in_function_returns.ص` | `gr.stmt.for` | edge | تطابق ✅ | 104 | 3846 |
-| 291 | `10_statements/gr.stmt.for/edge/081_hundred_iterations_sum.ص` | `gr.stmt.for` | edge | تطابق ✅ | 62 | 3320 |
-| 292 | `10_statements/gr.stmt.for/edge/082_accumulate_product.ص` | `gr.stmt.for` | edge | تطابق ✅ | 84 | 3140 |
-| 293 | `10_statements/gr.stmt.for/edge/083_build_string_accum.ص` | `gr.stmt.for` | edge | تطابق ✅ | 62 | 3336 |
-| 294 | `10_statements/gr.stmt.for/edge/084_mutate_outer_var.ص` | `gr.stmt.for` | edge | تطابق ✅ | 58 | 3342 |
-| 295 | `10_statements/gr.stmt.for/edge/085_var_declared_inside_overwrites.ص` | `gr.stmt.for` | edge | تطابق ✅ | 118 | 3304 |
-| 296 | `10_statements/gr.stmt.for/edge/086_nested_break_outer_via_flag.ص` | `gr.stmt.for` | edge | تطابق ✅ | 59 | 3353 |
-| 297 | `10_statements/gr.stmt.for/edge/087_range_bounds_from_function.ص` | `gr.stmt.for` | edge | تطابق ✅ | 176 | 4076 |
-| 298 | `10_statements/gr.stmt.for/edge/088_redeclare_in_range_body_type_kept.ص` | `gr.stmt.for` | edge | تطابق ✅ | 50 | 3184 |
-| 299 | `10_statements/gr.stmt.for/edge/089_redeclare_loop_counter_name_in_body.ص` | `gr.stmt.for` | edge | تطابق ✅ | 54 | 3129 |
-| 300 | `10_statements/gr.stmt.for/negative/001_unterminated.ص` | `gr.stmt.for` | negative | تطابق ✅ | 128 | 0 |
-| 301 | `10_statements/gr.stmt.for/negative/002_no_in.ص` | `gr.stmt.for` | negative | تطابق ✅ | 111 | 0 |
-| 302 | `10_statements/gr.stmt.for/negative/003_no_var.ص` | `gr.stmt.for` | negative | تطابق ✅ | 63 | 0 |
-| 303 | `10_statements/gr.stmt.for/negative/004_inner_unterminated.ص` | `gr.stmt.for` | negative | تطابق ✅ | 50 | 0 |
-| 304 | `10_statements/gr.stmt.for/negative/005_nested_outer_unterminated.ص` | `gr.stmt.for` | negative | تطابق ✅ | 48 | 0 |
-| 305 | `10_statements/gr.stmt.for/negative/006_body_no_end.ص` | `gr.stmt.for` | negative | تطابق ✅ | 123 | 0 |
-| 306 | `10_statements/gr.stmt.for/negative/007_extra_end.ص` | `gr.stmt.for` | negative | تطابق ✅ | 69 | 0 |
-| 307 | `10_statements/gr.stmt.for/negative/008_match_inside_unterminated.ص` | `gr.stmt.for` | negative | تطابق ✅ | 54 | 0 |
-| 308 | `10_statements/gr.stmt.for/negative/009_while_inside_unterminated.ص` | `gr.stmt.for` | negative | تطابق ✅ | 51 | 0 |
-| 309 | `10_statements/gr.stmt.for/negative/010_no_collection.ص` | `gr.stmt.for` | negative | تطابق ✅ | 109 | 0 |
-| 310 | `10_statements/gr.stmt.for/negative/051_reserved_when_as_loop_var.ص` | `gr.stmt.for` | negative | تطابق ✅ | 48 | 0 |
-| 311 | `10_statements/gr.stmt.for/negative/052_reserved_end_as_second_loop_var.ص` | `gr.stmt.for` | negative | تطابق ✅ | 54 | 0 |
-| 312 | `10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص` | `gr.stmt.if` | basic | تطابق ✅ | 55 | 2934 |
-| 313 | `10_statements/gr.stmt.if/basic/002_true_cmp_gt2.ص` | `gr.stmt.if` | basic | تطابق ✅ | 62 | 2946 |
-| 314 | `10_statements/gr.stmt.if/basic/003_true_cmp_lt.ص` | `gr.stmt.if` | basic | تطابق ✅ | 89 | 3030 |
-| 315 | `10_statements/gr.stmt.if/basic/004_true_cmp_lt2.ص` | `gr.stmt.if` | basic | تطابق ✅ | 67 | 3002 |
-| 316 | `10_statements/gr.stmt.if/basic/005_true_cmp_eq.ص` | `gr.stmt.if` | basic | تطابق ✅ | 51 | 3245 |
-| 317 | `10_statements/gr.stmt.if/basic/006_true_cmp_eq2.ص` | `gr.stmt.if` | basic | تطابق ✅ | 67 | 3294 |
-| 318 | `10_statements/gr.stmt.if/basic/007_true_cmp_ne.ص` | `gr.stmt.if` | basic | تطابق ✅ | 54 | 2981 |
-| 319 | `10_statements/gr.stmt.if/basic/008_true_cmp_ne2.ص` | `gr.stmt.if` | basic | تطابق ✅ | 53 | 3140 |
-| 320 | `10_statements/gr.stmt.if/basic/009_true_cmp_ge.ص` | `gr.stmt.if` | basic | تطابق ✅ | 60 | 2944 |
-| 321 | `10_statements/gr.stmt.if/basic/010_true_cmp_ge2.ص` | `gr.stmt.if` | basic | تطابق ✅ | 62 | 2910 |
-| 322 | `10_statements/gr.stmt.if/basic/011_true_cmp_le.ص` | `gr.stmt.if` | basic | تطابق ✅ | 66 | 2954 |
-| 323 | `10_statements/gr.stmt.if/basic/012_true_cmp_le2.ص` | `gr.stmt.if` | basic | تطابق ✅ | 62 | 3007 |
-| 324 | `10_statements/gr.stmt.if/basic/013_true_bool_true.ص` | `gr.stmt.if` | basic | تطابق ✅ | 67 | 3140 |
-| 325 | `10_statements/gr.stmt.if/basic/014_true_bool_and.ص` | `gr.stmt.if` | basic | تطابق ✅ | 58 | 2963 |
-| 326 | `10_statements/gr.stmt.if/basic/015_true_bool_or.ص` | `gr.stmt.if` | basic | تطابق ✅ | 62 | 2911 |
-| 327 | `10_statements/gr.stmt.if/basic/016_true_bool_or2.ص` | `gr.stmt.if` | basic | تطابق ✅ | 62 | 3094 |
-| 328 | `10_statements/gr.stmt.if/basic/017_true_bool_not.ص` | `gr.stmt.if` | basic | تطابق ✅ | 61 | 3130 |
-| 329 | `10_statements/gr.stmt.if/basic/018_true_bool_not_cmp.ص` | `gr.stmt.if` | basic | تطابق ✅ | 91 | 3233 |
-| 330 | `10_statements/gr.stmt.if/basic/019_true_logic_and.ص` | `gr.stmt.if` | basic | تطابق ✅ | 54 | 3078 |
-| 331 | `10_statements/gr.stmt.if/basic/020_true_logic_or.ص` | `gr.stmt.if` | basic | تطابق ✅ | 75 | 3089 |
-| 332 | `10_statements/gr.stmt.if/basic/021_true_arith_add.ص` | `gr.stmt.if` | basic | تطابق ✅ | 60 | 3169 |
-| 333 | `10_statements/gr.stmt.if/basic/022_true_arith_mul.ص` | `gr.stmt.if` | basic | تطابق ✅ | 66 | 3079 |
-| 334 | `10_statements/gr.stmt.if/basic/023_true_arith_mod.ص` | `gr.stmt.if` | basic | تطابق ✅ | 70 | 3089 |
-| 335 | `10_statements/gr.stmt.if/basic/024_true_arith_sub.ص` | `gr.stmt.if` | basic | تطابق ✅ | 69 | 3124 |
-| 336 | `10_statements/gr.stmt.if/basic/025_true_arith_eq.ص` | `gr.stmt.if` | basic | تطابق ✅ | 90 | 2890 |
-| 337 | `10_statements/gr.stmt.if/basic/026_false_gt.ص` | `gr.stmt.if` | basic | تطابق ✅ | 75 | 2812 |
-| 338 | `10_statements/gr.stmt.if/basic/027_false_lt.ص` | `gr.stmt.if` | basic | تطابق ✅ | 79 | 2946 |
-| 339 | `10_statements/gr.stmt.if/basic/028_false_eq.ص` | `gr.stmt.if` | basic | تطابق ✅ | 114 | 2844 |
-| 340 | `10_statements/gr.stmt.if/basic/029_false_ne.ص` | `gr.stmt.if` | basic | تطابق ✅ | 67 | 2796 |
-| 341 | `10_statements/gr.stmt.if/basic/030_false_ge.ص` | `gr.stmt.if` | basic | تطابق ✅ | 51 | 2931 |
-| 342 | `10_statements/gr.stmt.if/basic/031_false_le.ص` | `gr.stmt.if` | basic | تطابق ✅ | 61 | 2974 |
-| 343 | `10_statements/gr.stmt.if/basic/032_false_bool.ص` | `gr.stmt.if` | basic | تطابق ✅ | 84 | 3095 |
-| 344 | `10_statements/gr.stmt.if/basic/033_false_not.ص` | `gr.stmt.if` | basic | تطابق ✅ | 48 | 2921 |
-| 345 | `10_statements/gr.stmt.if/basic/034_false_and.ص` | `gr.stmt.if` | basic | تطابق ✅ | 61 | 2922 |
-| 346 | `10_statements/gr.stmt.if/basic/035_false_or.ص` | `gr.stmt.if` | basic | تطابق ✅ | 125 | 3089 |
-| 347 | `10_statements/gr.stmt.if/basic/036_false_logic.ص` | `gr.stmt.if` | basic | تطابق ✅ | 66 | 3311 |
-| 348 | `10_statements/gr.stmt.if/basic/037_false_mod.ص` | `gr.stmt.if` | basic | تطابق ✅ | 131 | 3309 |
-| 349 | `10_statements/gr.stmt.if/basic/038_var_cond.ص` | `gr.stmt.if` | basic | تطابق ✅ | 66 | 3305 |
-| 350 | `10_statements/gr.stmt.if/basic/039_str_eq.ص` | `gr.stmt.if` | basic | تطابق ✅ | 91 | 3210 |
-| 351 | `10_statements/gr.stmt.if/basic/040_func_cond.ص` | `gr.stmt.if` | basic | تطابق ✅ | 90 | 3431 |
-| 352 | `10_statements/gr.stmt.if/edge/001_nest2.ص` | `gr.stmt.if` | edge | تطابق ✅ | 98 | 2863 |
-| 353 | `10_statements/gr.stmt.if/edge/002_nest3.ص` | `gr.stmt.if` | edge | تطابق ✅ | 51 | 2789 |
-| 354 | `10_statements/gr.stmt.if/edge/003_nest4.ص` | `gr.stmt.if` | edge | تطابق ✅ | 66 | 3159 |
-| 355 | `10_statements/gr.stmt.if/edge/004_in_while.ص` | `gr.stmt.if` | edge | تطابق ✅ | 125 | 3106 |
-| 356 | `10_statements/gr.stmt.if/edge/005_in_for.ص` | `gr.stmt.if` | edge | تطابق ✅ | 110 | 3308 |
-| 357 | `10_statements/gr.stmt.if/edge/006_in_func.ص` | `gr.stmt.if` | edge | تطابق ✅ | 110 | 3602 |
-| 358 | `10_statements/gr.stmt.if/edge/007_in_match.ص` | `gr.stmt.if` | edge | تطابق ✅ | 73 | 3161 |
-| 359 | `10_statements/gr.stmt.if/edge/008_in_try.ص` | `gr.stmt.if` | edge | تطابق ✅ | 78 | 3344 |
-| 360 | `10_statements/gr.stmt.if/edge/009_chain2.ص` | `gr.stmt.if` | edge | تطابق ✅ | 75 | 3149 |
-| 361 | `10_statements/gr.stmt.if/edge/010_chain3.ص` | `gr.stmt.if` | edge | تطابق ✅ | 71 | 3169 |
-| 362 | `10_statements/gr.stmt.if/edge/011_chain4.ص` | `gr.stmt.if` | edge | تطابق ✅ | 54 | 3263 |
-| 363 | `10_statements/gr.stmt.if/edge/012_chain5_else.ص` | `gr.stmt.if` | edge | تطابق ✅ | 64 | 3142 |
-| 364 | `10_statements/gr.stmt.if/edge/013_paren_and.ص` | `gr.stmt.if` | edge | تطابق ✅ | 64 | 3118 |
-| 365 | `10_statements/gr.stmt.if/edge/014_paren_or.ص` | `gr.stmt.if` | edge | تطابق ✅ | 141 | 2933 |
-| 366 | `10_statements/gr.stmt.if/edge/015_triple_and.ص` | `gr.stmt.if` | edge | تطابق ✅ | 61 | 3129 |
-| 367 | `10_statements/gr.stmt.if/edge/016_mix_and_or.ص` | `gr.stmt.if` | edge | تطابق ✅ | 55 | 2839 |
-| 368 | `10_statements/gr.stmt.if/edge/017_not_compound.ص` | `gr.stmt.if` | edge | تطابق ✅ | 55 | 2980 |
-| 369 | `10_statements/gr.stmt.if/edge/018_nested_not.ص` | `gr.stmt.if` | edge | تطابق ✅ | 48 | 2807 |
-| 370 | `10_statements/gr.stmt.if/edge/019_else_taken.ص` | `gr.stmt.if` | edge | تطابق ✅ | 130 | 2665 |
-| 371 | `10_statements/gr.stmt.if/edge/020_else_skipped.ص` | `gr.stmt.if` | edge | تطابق ✅ | 96 | 2772 |
-| 372 | `10_statements/gr.stmt.if/edge/021_var_in_then.ص` | `gr.stmt.if` | edge | تطابق ✅ | 53 | 2695 |
-| 373 | `10_statements/gr.stmt.if/edge/022_var_in_else.ص` | `gr.stmt.if` | edge | تطابق ✅ | 122 | 2721 |
-| 374 | `10_statements/gr.stmt.if/edge/023_assign_in_then.ص` | `gr.stmt.if` | edge | تطابق ✅ | 55 | 2983 |
-| 375 | `10_statements/gr.stmt.if/edge/024_multi_then.ص` | `gr.stmt.if` | edge | تطابق ✅ | 125 | 2801 |
-| 376 | `10_statements/gr.stmt.if/edge/025_nest_in_else.ص` | `gr.stmt.if` | edge | تطابق ✅ | 83 | 2798 |
-| 377 | `10_statements/gr.stmt.if/edge/026_loop_in_then.ص` | `gr.stmt.if` | edge | تطابق ✅ | 60 | 2816 |
-| 378 | `10_statements/gr.stmt.if/edge/027_seq_ifs.ص` | `gr.stmt.if` | edge | تطابق ✅ | 51 | 2911 |
-| 379 | `10_statements/gr.stmt.if/edge/028_cond_var_calc.ص` | `gr.stmt.if` | edge | تطابق ✅ | 55 | 2854 |
-| 380 | `10_statements/gr.stmt.if/edge/029_string_cond_ne.ص` | `gr.stmt.if` | edge | تطابق ✅ | 58 | 2838 |
-| 381 | `10_statements/gr.stmt.if/edge/030_deep_else_last.ص` | `gr.stmt.if` | edge | تطابق ✅ | 50 | 2793 |
-| 382 | `10_statements/gr.stmt.if/edge/031_return_both.ص` | `gr.stmt.if` | edge | تطابق ✅ | 57 | 3234 |
-| 383 | `10_statements/gr.stmt.if/edge/032_break_in_if.ص` | `gr.stmt.if` | edge | تطابق ✅ | 54 | 3125 |
-| 384 | `10_statements/gr.stmt.if/edge/033_continue_in_if.ص` | `gr.stmt.if` | edge | تطابق ✅ | 51 | 3117 |
-| 385 | `10_statements/gr.stmt.if/edge/034_func_call_then.ص` | `gr.stmt.if` | edge | تطابق ✅ | 69 | 3455 |
-| 386 | `10_statements/gr.stmt.if/edge/035_nested_chain.ص` | `gr.stmt.if` | edge | تطابق ✅ | 65 | 3052 |
-| 387 | `10_statements/gr.stmt.if/edge/050_deep_nest.ص` | `gr.stmt.if` | edge | تطابق ✅ | 155 | 2917 |
-| 388 | `10_statements/gr.stmt.if/edge/051_elseif_chain.ص` | `gr.stmt.if` | edge | تطابق ✅ | 153 | 2900 |
-| 389 | `10_statements/gr.stmt.if/edge/052_else_nested_if_diff_line.ص` | `gr.stmt.if` | edge | تطابق ✅ | 85 | 2784 |
-| 390 | `10_statements/gr.stmt.if/edge/053_compound_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ | 119 | 3063 |
-| 391 | `10_statements/gr.stmt.if/edge/054_or_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ | 105 | 3069 |
-| 392 | `10_statements/gr.stmt.if/edge/055_not_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ | 87 | 3084 |
-| 393 | `10_statements/gr.stmt.if/edge/056_false_skips.ص` | `gr.stmt.if` | edge | تطابق ✅ | 132 | 3037 |
-| 394 | `10_statements/gr.stmt.if/edge/057_nested_else.ص` | `gr.stmt.if` | edge | تطابق ✅ | 63 | 2771 |
-| 395 | `10_statements/gr.stmt.if/edge/058_if_in_loop.ص` | `gr.stmt.if` | edge | تطابق ✅ | 52 | 3042 |
-| 396 | `10_statements/gr.stmt.if/edge/059_nest5.ص` | `gr.stmt.if` | edge | تطابق ✅ | 131 | 2852 |
-| 397 | `10_statements/gr.stmt.if/edge/060_chain6_last.ص` | `gr.stmt.if` | edge | تطابق ✅ | 68 | 2814 |
-| 398 | `10_statements/gr.stmt.if/edge/061_chain6_first.ص` | `gr.stmt.if` | edge | تطابق ✅ | 52 | 2960 |
-| 399 | `10_statements/gr.stmt.if/edge/062_chain_else_fallback.ص` | `gr.stmt.if` | edge | تطابق ✅ | 100 | 2792 |
-| 400 | `10_statements/gr.stmt.if/edge/063_cond_zero_eq.ص` | `gr.stmt.if` | edge | تطابق ✅ | 108 | 2688 |
-| 401 | `10_statements/gr.stmt.if/edge/064_cond_negative.ص` | `gr.stmt.if` | edge | تطابق ✅ | 170 | 2648 |
-| 402 | `10_statements/gr.stmt.if/edge/065_cond_big.ص` | `gr.stmt.if` | edge | تطابق ✅ | 106 | 2780 |
-| 403 | `10_statements/gr.stmt.if/edge/066_and5.ص` | `gr.stmt.if` | edge | تطابق ✅ | 52 | 2900 |
-| 404 | `10_statements/gr.stmt.if/edge/067_or5.ص` | `gr.stmt.if` | edge | تطابق ✅ | 61 | 2888 |
-| 405 | `10_statements/gr.stmt.if/edge/068_not_triple.ص` | `gr.stmt.if` | edge | تطابق ✅ | 68 | 2857 |
-| 406 | `10_statements/gr.stmt.if/edge/069_paren_deep.ص` | `gr.stmt.if` | edge | تطابق ✅ | 121 | 2445 |
-| 407 | `10_statements/gr.stmt.if/edge/070_precedence_and_over_or.ص` | `gr.stmt.if` | edge | تطابق ✅ | 60 | 2482 |
-| 408 | `10_statements/gr.stmt.if/edge/071_precedence_or_then_and.ص` | `gr.stmt.if` | edge | تطابق ✅ | 54 | 2328 |
-| 409 | `10_statements/gr.stmt.if/edge/072_str_ne.ص` | `gr.stmt.if` | edge | تطابق ✅ | 51 | 2472 |
-| 410 | `10_statements/gr.stmt.if/edge/073_bool_var_true.ص` | `gr.stmt.if` | edge | تطابق ✅ | 124 | 2508 |
-| 411 | `10_statements/gr.stmt.if/edge/074_bool_var_false_else.ص` | `gr.stmt.if` | edge | تطابق ✅ | 97 | 2551 |
-| 412 | `10_statements/gr.stmt.if/edge/075_mod_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ | 47 | 2714 |
-| 413 | `10_statements/gr.stmt.if/edge/076_arith_precedence_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ | 46 | 2637 |
-| 414 | `10_statements/gr.stmt.if/edge/077_func_cond_false_else.ص` | `gr.stmt.if` | edge | تطابق ✅ | 109 | 3929 |
-| 415 | `10_statements/gr.stmt.if/edge/078_array_index_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ | 55 | 3539 |
-| 416 | `10_statements/gr.stmt.if/edge/079_len_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ | 104 | 3517 |
-| 417 | `10_statements/gr.stmt.if/edge/080_seq_three_ifs.ص` | `gr.stmt.if` | edge | تطابق ✅ | 141 | 3384 |
-| 418 | `10_statements/gr.stmt.if/edge/081_redeclared_var_in_then.ص` | `gr.stmt.if` | edge | تطابق ✅ | 142 | 3421 |
-| 419 | `10_statements/gr.stmt.if/edge/082_reassign_in_else.ص` | `gr.stmt.if` | edge | تطابق ✅ | 122 | 3437 |
-| 420 | `10_statements/gr.stmt.if/edge/083_inner_else_binds_to_inner_if.ص` | `gr.stmt.if` | edge | تطابق ✅ | 83 | 3564 |
-| 421 | `10_statements/gr.stmt.if/edge/084_nested_in_elseif_body.ص` | `gr.stmt.if` | edge | تطابق ✅ | 79 | 3342 |
-| 422 | `10_statements/gr.stmt.if/edge/085_false_then_continue_after.ص` | `gr.stmt.if` | edge | تطابق ✅ | 83 | 2807 |
-| 423 | `10_statements/gr.stmt.if/edge/086_deep_else_chain.ص` | `gr.stmt.if` | edge | تطابق ✅ | 70 | 2798 |
-| 424 | `10_statements/gr.stmt.if/edge/087_string_concat_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ | 64 | 2894 |
-| 425 | `10_statements/gr.stmt.if/edge/088_both_branches_have_nesting.ص` | `gr.stmt.if` | edge | تطابق ✅ | 75 | 2824 |
-| 426 | `10_statements/gr.stmt.if/edge/089_redeclare_in_then_type_change.ص` | `gr.stmt.if` | edge | تطابق ✅ | 63 | 3386 |
-| 427 | `10_statements/gr.stmt.if/negative/001_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ | 128 | 0 |
-| 428 | `10_statements/gr.stmt.if/negative/002_else_no_if.ص` | `gr.stmt.if` | negative | تطابق ✅ | 62 | 0 |
-| 429 | `10_statements/gr.stmt.if/negative/003_elseif_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ | 49 | 0 |
-| 430 | `10_statements/gr.stmt.if/negative/004_inner_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ | 50 | 0 |
-| 431 | `10_statements/gr.stmt.if/negative/005_else_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ | 57 | 0 |
-| 432 | `10_statements/gr.stmt.if/negative/006_elseif_no_if.ص` | `gr.stmt.if` | negative | تطابق ✅ | 62 | 0 |
-| 433 | `10_statements/gr.stmt.if/negative/007_nested_outer_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ | 61 | 0 |
-| 434 | `10_statements/gr.stmt.if/negative/008_chain_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ | 64 | 0 |
-| 435 | `10_statements/gr.stmt.if/negative/009_else_after_else.ص` | `gr.stmt.if` | negative | تطابق ✅ | 61 | 0 |
-| 436 | `10_statements/gr.stmt.if/negative/010_double_end_inner.ص` | `gr.stmt.if` | negative | تطابق ✅ | 53 | 0 |
-| 437 | `10_statements/gr.stmt.match/basic/001_sel_1.ص` | `gr.stmt.match` | basic | تطابق ✅ | 46 | 3016 |
-| 438 | `10_statements/gr.stmt.match/basic/002_sel_2.ص` | `gr.stmt.match` | basic | تطابق ✅ | 146 | 2916 |
-| 439 | `10_statements/gr.stmt.match/basic/003_sel_3.ص` | `gr.stmt.match` | basic | تطابق ✅ | 136 | 2990 |
-| 440 | `10_statements/gr.stmt.match/basic/004_sel_9.ص` | `gr.stmt.match` | basic | تطابق ✅ | 60 | 2663 |
-| 441 | `10_statements/gr.stmt.match/basic/005_nodef_1.ص` | `gr.stmt.match` | basic | تطابق ✅ | 53 | 2666 |
-| 442 | `10_statements/gr.stmt.match/basic/006_nodef_2.ص` | `gr.stmt.match` | basic | تطابق ✅ | 58 | 2651 |
-| 443 | `10_statements/gr.stmt.match/basic/007_nodef_3.ص` | `gr.stmt.match` | basic | تطابق ✅ | 60 | 2637 |
-| 444 | `10_statements/gr.stmt.match/basic/008_nodef_nomatch.ص` | `gr.stmt.match` | basic | تطابق ✅ | 55 | 2599 |
-| 445 | `10_statements/gr.stmt.match/basic/009_single_0.ص` | `gr.stmt.match` | basic | تطابق ✅ | 52 | 2602 |
-| 446 | `10_statements/gr.stmt.match/basic/010_single_5.ص` | `gr.stmt.match` | basic | تطابق ✅ | 53 | 2638 |
-| 447 | `10_statements/gr.stmt.match/basic/011_single_7.ص` | `gr.stmt.match` | basic | تطابق ✅ | 54 | 2706 |
-| 448 | `10_statements/gr.stmt.match/basic/012_single_42.ص` | `gr.stmt.match` | basic | تطابق ✅ | 65 | 2655 |
-| 449 | `10_statements/gr.stmt.match/basic/013_str_ألف.ص` | `gr.stmt.match` | basic | تطابق ✅ | 63 | 2443 |
-| 450 | `10_statements/gr.stmt.match/basic/014_str_باء.ص` | `gr.stmt.match` | basic | تطابق ✅ | 59 | 2462 |
-| 451 | `10_statements/gr.stmt.match/basic/015_str_default.ص` | `gr.stmt.match` | basic | تطابق ✅ | 120 | 2511 |
-| 452 | `10_statements/gr.stmt.match/basic/016_var_expr.ص` | `gr.stmt.match` | basic | تطابق ✅ | 52 | 2767 |
-| 453 | `10_statements/gr.stmt.match/basic/017_calc_expr.ص` | `gr.stmt.match` | basic | تطابق ✅ | 55 | 2687 |
-| 454 | `10_statements/gr.stmt.match/basic/018_mod_expr.ص` | `gr.stmt.match` | basic | تطابق ✅ | 55 | 2605 |
-| 455 | `10_statements/gr.stmt.match/basic/019_many_4.ص` | `gr.stmt.match` | basic | تطابق ✅ | 104 | 2571 |
-| 456 | `10_statements/gr.stmt.match/basic/020_many_5.ص` | `gr.stmt.match` | basic | تطابق ✅ | 53 | 2564 |
-| 457 | `10_statements/gr.stmt.match/basic/021_many_6.ص` | `gr.stmt.match` | basic | تطابق ✅ | 45 | 2552 |
-| 458 | `10_statements/gr.stmt.match/basic/022_first.ص` | `gr.stmt.match` | basic | تطابق ✅ | 95 | 2546 |
-| 459 | `10_statements/gr.stmt.match/basic/023_middle.ص` | `gr.stmt.match` | basic | تطابق ✅ | 50 | 2490 |
-| 460 | `10_statements/gr.stmt.match/basic/024_last.ص` | `gr.stmt.match` | basic | تطابق ✅ | 92 | 2770 |
-| 461 | `10_statements/gr.stmt.match/basic/025_multi_body.ص` | `gr.stmt.match` | basic | تطابق ✅ | 80 | 2764 |
-| 462 | `10_statements/gr.stmt.match/basic/026_default_multi.ص` | `gr.stmt.match` | basic | تطابق ✅ | 47 | 2747 |
-| 463 | `10_statements/gr.stmt.match/basic/027_neg_val.ص` | `gr.stmt.match` | basic | تطابق ✅ | 54 | 2664 |
-| 464 | `10_statements/gr.stmt.match/basic/028_zero.ص` | `gr.stmt.match` | basic | تطابق ✅ | 56 | 2648 |
-| 465 | `10_statements/gr.stmt.match/basic/029_extra_29.ص` | `gr.stmt.match` | basic | تطابق ✅ | 116 | 2989 |
-| 466 | `10_statements/gr.stmt.match/basic/030_extra_30.ص` | `gr.stmt.match` | basic | تطابق ✅ | 65 | 3053 |
-| 467 | `10_statements/gr.stmt.match/basic/031_extra_31.ص` | `gr.stmt.match` | basic | تطابق ✅ | 71 | 2972 |
-| 468 | `10_statements/gr.stmt.match/basic/032_extra_32.ص` | `gr.stmt.match` | basic | تطابق ✅ | 100 | 2988 |
-| 469 | `10_statements/gr.stmt.match/basic/033_extra_33.ص` | `gr.stmt.match` | basic | تطابق ✅ | 60 | 3079 |
-| 470 | `10_statements/gr.stmt.match/basic/034_extra_34.ص` | `gr.stmt.match` | basic | تطابق ✅ | 56 | 2996 |
-| 471 | `10_statements/gr.stmt.match/basic/035_extra_35.ص` | `gr.stmt.match` | basic | تطابق ✅ | 96 | 3204 |
-| 472 | `10_statements/gr.stmt.match/basic/036_extra_36.ص` | `gr.stmt.match` | basic | تطابق ✅ | 70 | 3197 |
-| 473 | `10_statements/gr.stmt.match/basic/037_extra_37.ص` | `gr.stmt.match` | basic | تطابق ✅ | 68 | 3160 |
-| 474 | `10_statements/gr.stmt.match/basic/038_extra_38.ص` | `gr.stmt.match` | basic | تطابق ✅ | 54 | 3135 |
-| 475 | `10_statements/gr.stmt.match/basic/039_extra_39.ص` | `gr.stmt.match` | basic | تطابق ✅ | 60 | 3156 |
-| 476 | `10_statements/gr.stmt.match/basic/040_extra_40.ص` | `gr.stmt.match` | basic | تطابق ✅ | 61 | 3137 |
-| 477 | `10_statements/gr.stmt.match/basic/041_when_no_colon.ص` | `gr.stmt.match` | basic | تطابق ✅ | 63 | 2814 |
-| 478 | `10_statements/gr.stmt.match/edge/001_in_for.ص` | `gr.stmt.match` | edge | تطابق ✅ | 66 | 3055 |
-| 479 | `10_statements/gr.stmt.match/edge/002_in_while.ص` | `gr.stmt.match` | edge | تطابق ✅ | 68 | 2813 |
-| 480 | `10_statements/gr.stmt.match/edge/003_in_func.ص` | `gr.stmt.match` | edge | تطابق ✅ | 56 | 3308 |
-| 481 | `10_statements/gr.stmt.match/edge/004_nested.ص` | `gr.stmt.match` | edge | تطابق ✅ | 63 | 3700 |
-| 482 | `10_statements/gr.stmt.match/edge/005_if_in_case.ص` | `gr.stmt.match` | edge | تطابق ✅ | 56 | 2834 |
-| 483 | `10_statements/gr.stmt.match/edge/006_loop_in_case.ص` | `gr.stmt.match` | edge | تطابق ✅ | 50 | 2966 |
-| 484 | `10_statements/gr.stmt.match/edge/007_var_in_case.ص` | `gr.stmt.match` | edge | تطابق ✅ | 119 | 2503 |
-| 485 | `10_statements/gr.stmt.match/edge/008_continue_in_loop.ص` | `gr.stmt.match` | edge | تطابق ✅ | 60 | 2604 |
-| 486 | `10_statements/gr.stmt.match/edge/009_break_in_loop.ص` | `gr.stmt.match` | edge | تطابق ✅ | 54 | 2624 |
-| 487 | `10_statements/gr.stmt.match/edge/010_return_default.ص` | `gr.stmt.match` | edge | تطابق ✅ | 58 | 2908 |
-| 488 | `10_statements/gr.stmt.match/edge/011_nested_default.ص` | `gr.stmt.match` | edge | تطابق ✅ | 50 | 2617 |
-| 489 | `10_statements/gr.stmt.match/edge/012_two_matches.ص` | `gr.stmt.match` | edge | تطابق ✅ | 52 | 2688 |
-| 490 | `10_statements/gr.stmt.match/edge/013_assign_in_case.ص` | `gr.stmt.match` | edge | تطابق ✅ | 49 | 2644 |
-| 491 | `10_statements/gr.stmt.match/edge/014_match_after.ص` | `gr.stmt.match` | edge | تطابق ✅ | 58 | 2552 |
-| 492 | `10_statements/gr.stmt.match/edge/015_if_else_in_case.ص` | `gr.stmt.match` | edge | تطابق ✅ | 57 | 2544 |
-| 493 | `10_statements/gr.stmt.match/edge/016_string_in_loop.ص` | `gr.stmt.match` | edge | تطابق ✅ | 53 | 2744 |
-| 494 | `10_statements/gr.stmt.match/edge/017_computed_in_func.ص` | `gr.stmt.match` | edge | تطابق ✅ | 55 | 3024 |
-| 495 | `10_statements/gr.stmt.match/edge/018_default_only.ص` | `gr.stmt.match` | edge | تطابق ✅ | 58 | 2555 |
-| 496 | `10_statements/gr.stmt.match/edge/019_many_with_loop.ص` | `gr.stmt.match` | edge | تطابق ✅ | 73 | 2834 |
-| 497 | `10_statements/gr.stmt.match/edge/020_extra_20.ص` | `gr.stmt.match` | edge | تطابق ✅ | 70 | 3397 |
-| 498 | `10_statements/gr.stmt.match/edge/021_extra_21.ص` | `gr.stmt.match` | edge | تطابق ✅ | 54 | 3393 |
-| 499 | `10_statements/gr.stmt.match/edge/022_extra_22.ص` | `gr.stmt.match` | edge | تطابق ✅ | 102 | 3186 |
-| 500 | `10_statements/gr.stmt.match/edge/023_extra_23.ص` | `gr.stmt.match` | edge | تطابق ✅ | 67 | 3242 |
-| 501 | `10_statements/gr.stmt.match/edge/024_extra_24.ص` | `gr.stmt.match` | edge | تطابق ✅ | 187 | 3101 |
-| 502 | `10_statements/gr.stmt.match/edge/025_extra_25.ص` | `gr.stmt.match` | edge | تطابق ✅ | 156 | 3094 |
-| 503 | `10_statements/gr.stmt.match/edge/026_extra_26.ص` | `gr.stmt.match` | edge | تطابق ✅ | 129 | 3043 |
-| 504 | `10_statements/gr.stmt.match/edge/027_extra_27.ص` | `gr.stmt.match` | edge | تطابق ✅ | 121 | 3054 |
-| 505 | `10_statements/gr.stmt.match/edge/028_extra_28.ص` | `gr.stmt.match` | edge | تطابق ✅ | 119 | 3169 |
-| 506 | `10_statements/gr.stmt.match/edge/029_extra_29.ص` | `gr.stmt.match` | edge | تطابق ✅ | 116 | 2989 |
-| 507 | `10_statements/gr.stmt.match/edge/030_extra_30.ص` | `gr.stmt.match` | edge | تطابق ✅ | 65 | 3053 |
-| 508 | `10_statements/gr.stmt.match/edge/031_extra_31.ص` | `gr.stmt.match` | edge | تطابق ✅ | 71 | 2972 |
-| 509 | `10_statements/gr.stmt.match/edge/032_extra_32.ص` | `gr.stmt.match` | edge | تطابق ✅ | 100 | 2988 |
-| 510 | `10_statements/gr.stmt.match/edge/033_extra_33.ص` | `gr.stmt.match` | edge | تطابق ✅ | 60 | 3079 |
-| 511 | `10_statements/gr.stmt.match/edge/034_extra_34.ص` | `gr.stmt.match` | edge | تطابق ✅ | 56 | 2996 |
-| 512 | `10_statements/gr.stmt.match/edge/035_extra_35.ص` | `gr.stmt.match` | edge | تطابق ✅ | 96 | 3204 |
-| 513 | `10_statements/gr.stmt.match/edge/036_guard.ص` | `gr.stmt.match` | edge | تطابق ✅ | 81 | 3519 |
-| 514 | `10_statements/gr.stmt.match/edge/037_guard_false.ص` | `gr.stmt.match` | edge | تطابق ✅ | 91 | 3571 |
-| 515 | `10_statements/gr.stmt.match/edge/050_no_parens.ص` | `gr.stmt.match` | edge | تطابق ✅ | 77 | 0 |
-| 516 | `10_statements/gr.stmt.match/edge/051_range_pattern.ص` | `gr.stmt.match` | edge | تطابق ✅ | 107 | 3229 |
-| 517 | `10_statements/gr.stmt.match/edge/052_or_pattern.ص` | `gr.stmt.match` | edge | تطابق ✅ | 90 | 3217 |
-| 518 | `10_statements/gr.stmt.match/edge/053_wildcard.ص` | `gr.stmt.match` | edge | تطابق ✅ | 93 | 3238 |
-| 519 | `10_statements/gr.stmt.match/edge/054_string_pattern.ص` | `gr.stmt.match` | edge | تطابق ✅ | 128 | 3305 |
-| 520 | `10_statements/gr.stmt.match/edge/055_nested.ص` | `gr.stmt.match` | edge | تطابق ✅ | 99 | 3212 |
-| 521 | `10_statements/gr.stmt.match/edge/056_inclusive_range.ص` | `gr.stmt.match` | edge | تطابق ✅ | 118 | 3085 |
-| 522 | `10_statements/gr.stmt.match/edge/057_single_arm_taken.ص` | `gr.stmt.match` | edge | تطابق ✅ | 70 | 3633 |
-| 523 | `10_statements/gr.stmt.match/edge/058_single_arm_not_taken_no_default.ص` | `gr.stmt.match` | edge | تطابق ✅ | 93 | 3521 |
-| 524 | `10_statements/gr.stmt.match/edge/059_default_only_no_arms.ص` | `gr.stmt.match` | edge | تطابق ✅ | 56 | 3249 |
-| 525 | `10_statements/gr.stmt.match/edge/060_first_matching_arm_wins.ص` | `gr.stmt.match` | edge | تطابق ✅ | 64 | 3206 |
-| 526 | `10_statements/gr.stmt.match/edge/061_default_after_nonmatching.ص` | `gr.stmt.match` | edge | تطابق ✅ | 122 | 3151 |
-| 527 | `10_statements/gr.stmt.match/edge/062_six_arms_last_matches.ص` | `gr.stmt.match` | edge | تطابق ✅ | 98 | 3058 |
-| 528 | `10_statements/gr.stmt.match/edge/063_string_subject.ص` | `gr.stmt.match` | edge | تطابق ✅ | 50 | 2954 |
-| 529 | `10_statements/gr.stmt.match/edge/064_bool_subject_true.ص` | `gr.stmt.match` | edge | تطابق ✅ | 53 | 2898 |
-| 530 | `10_statements/gr.stmt.match/edge/065_bool_subject_false.ص` | `gr.stmt.match` | edge | تطابق ✅ | 49 | 3080 |
-| 531 | `10_statements/gr.stmt.match/edge/066_negative_subject.ص` | `gr.stmt.match` | edge | تطابق ✅ | 98 | 3245 |
-| 532 | `10_statements/gr.stmt.match/edge/067_zero_subject.ص` | `gr.stmt.match` | edge | تطابق ✅ | 58 | 3131 |
-| 533 | `10_statements/gr.stmt.match/edge/068_computed_subject.ص` | `gr.stmt.match` | edge | تطابق ✅ | 53 | 3123 |
-| 534 | `10_statements/gr.stmt.match/edge/069_subject_from_function.ص` | `gr.stmt.match` | edge | تطابق ✅ | 64 | 3455 |
-| 535 | `10_statements/gr.stmt.match/edge/070_arm_body_multiple_statements.ص` | `gr.stmt.match` | edge | تطابق ✅ | 61 | 2912 |
-| 536 | `10_statements/gr.stmt.match/edge/071_arm_body_mutates_outer.ص` | `gr.stmt.match` | edge | تطابق ✅ | 56 | 2969 |
-| 537 | `10_statements/gr.stmt.match/edge/072_var_decl_in_arm_overwrites_outer.ص` | `gr.stmt.match` | edge | تطابق ✅ | 52 | 2869 |
-| 538 | `10_statements/gr.stmt.match/edge/073_nested_match_in_arm.ص` | `gr.stmt.match` | edge | تطابق ✅ | 50 | 3140 |
-| 539 | `10_statements/gr.stmt.match/edge/074_nested_match_default_inner.ص` | `gr.stmt.match` | edge | تطابق ✅ | 81 | 3129 |
-| 540 | `10_statements/gr.stmt.match/edge/075_parens_optional_on_subject.ص` | `gr.stmt.match` | edge | تطابق ✅ | 51 | 3105 |
-| 541 | `10_statements/gr.stmt.match/edge/076_colon_optional_after_pattern.ص` | `gr.stmt.match` | edge | تطابق ✅ | 61 | 3100 |
-| 542 | `10_statements/gr.stmt.match/edge/077_arms_out_of_order.ص` | `gr.stmt.match` | edge | تطابق ✅ | 49 | 2880 |
-| 543 | `10_statements/gr.stmt.match/edge/078_default_first_then_arms.ص` | `gr.stmt.match` | edge | تطابق ✅ | 56 | 2903 |
-| 544 | `10_statements/gr.stmt.match/edge/079_after_match_continues.ص` | `gr.stmt.match` | edge | تطابق ✅ | 57 | 3108 |
-| 545 | `10_statements/gr.stmt.match/edge/080_two_sequential_matches.ص` | `gr.stmt.match` | edge | تطابق ✅ | 108 | 3227 |
-| 546 | `10_statements/gr.stmt.match/edge/081_match_inside_function_return.ص` | `gr.stmt.match` | edge | تطابق ✅ | 68 | 4058 |
-| 547 | `10_statements/gr.stmt.match/edge/082_match_default_return.ص` | `gr.stmt.match` | edge | تطابق ✅ | 120 | 4058 |
-| 548 | `10_statements/gr.stmt.match/edge/083_subject_string_concat.ص` | `gr.stmt.match` | edge | تطابق ✅ | 83 | 3894 |
-| 549 | `10_statements/gr.stmt.match/edge/084_subject_array_index.ص` | `gr.stmt.match` | edge | تطابق ✅ | 67 | 3853 |
-| 550 | `10_statements/gr.stmt.match/edge/085_subject_modulo.ص` | `gr.stmt.match` | edge | تطابق ✅ | 81 | 3762 |
-| 551 | `10_statements/gr.stmt.match/edge/086_arm_calls_function.ص` | `gr.stmt.match` | edge | تطابق ✅ | 74 | 4083 |
-| 552 | `10_statements/gr.stmt.match/negative/001_no_end.ص` | `gr.stmt.match` | negative | تطابق ✅ | 126 | 0 |
-| 553 | `10_statements/gr.stmt.match/negative/002_when_top.ص` | `gr.stmt.match` | negative | تطابق ✅ | 141 | 0 |
-| 554 | `10_statements/gr.stmt.match/negative/003_default_top.ص` | `gr.stmt.match` | negative | تطابق ✅ | 68 | 0 |
-| 555 | `10_statements/gr.stmt.match/negative/004_case_unterminated_inner.ص` | `gr.stmt.match` | negative | تطابق ✅ | 72 | 0 |
-| 556 | `10_statements/gr.stmt.match/negative/005_nested_unterminated.ص` | `gr.stmt.match` | negative | تطابق ✅ | 62 | 0 |
-| 557 | `10_statements/gr.stmt.match/negative/006_no_value.ص` | `gr.stmt.match` | negative | تطابق ✅ | 66 | 0 |
-| 558 | `10_statements/gr.stmt.match/negative/007_loop_inside_unterminated.ص` | `gr.stmt.match` | negative | تطابق ✅ | 67 | 0 |
-| 559 | `10_statements/gr.stmt.match/negative/008_extra_end.ص` | `gr.stmt.match` | negative | تطابق ✅ | 80 | 0 |
-| 560 | `10_statements/gr.stmt.match/negative/009_in_loop_unterminated.ص` | `gr.stmt.match` | negative | تطابق ✅ | 73 | 0 |
-| 561 | `10_statements/gr.stmt.match/negative/010_when_colon_no_body_no_end.ص` | `gr.stmt.match` | negative | تطابق ✅ | 68 | 0 |
-| 562 | `10_statements/gr.stmt.match/negative/011_default_not_last.ص` | `gr.stmt.match` | negative | تطابق ✅ | 66 | 0 |
-| 563 | `10_statements/gr.stmt.return/basic/001_value.ص` | `gr.stmt.return` | basic | تطابق ✅ | 71 | 3176 |
-| 564 | `10_statements/gr.stmt.return/basic/002_expr.ص` | `gr.stmt.return` | basic | تطابق ✅ | 55 | 2898 |
-| 565 | `10_statements/gr.stmt.return/basic/003_string.ص` | `gr.stmt.return` | basic | تطابق ✅ | 52 | 3270 |
-| 566 | `10_statements/gr.stmt.return/basic/004_nested.ص` | `gr.stmt.return` | basic | تطابق ✅ | 63 | 3700 |
-| 567 | `10_statements/gr.stmt.return/basic/005_early.ص` | `gr.stmt.return` | basic | تطابق ✅ | 59 | 3288 |
-| 568 | `10_statements/gr.stmt.return/edge/001_in_if.ص` | `gr.stmt.return` | edge | تطابق ✅ | 52 | 3330 |
-| 569 | `10_statements/gr.stmt.return/edge/002_in_loop.ص` | `gr.stmt.return` | edge | تطابق ✅ | 68 | 3213 |
-| 570 | `10_statements/gr.stmt.return/edge/003_bare.ص` | `gr.stmt.return` | edge | تطابق ✅ | 59 | 2956 |
-| 571 | `10_statements/gr.stmt.return/edge/006_bare_return_stops_at_match_arm.ص` | `gr.stmt.return` | edge | تطابق ✅ | 60 | 2992 |
-| 572 | `10_statements/gr.stmt.return/edge/007_bare_return_stops_at_default_arm.ص` | `gr.stmt.return` | edge | تطابق ✅ | 56 | 2999 |
-| 573 | `10_statements/gr.stmt.return/edge/008_deep_recursion_200.ص` | `gr.stmt.return` | edge | تطابق ✅ | 116 | 3018 |
-| 574 | `10_statements/gr.stmt.return/edge/009_bare_return_stops_at_reserved_arm_words.ص` | `gr.stmt.return` | edge | تطابق ✅ | 65 | 3458 |
-| 575 | `10_statements/gr.stmt.return/edge/051_return_expr.ص` | `gr.stmt.return` | edge | تطابق ✅ | 50 | 2956 |
-| 576 | `10_statements/gr.stmt.return/edge/052_empty_return_greedy.ص` | `gr.stmt.return` | edge | تطابق ✅ | 48 | 2986 |
-| 577 | `10_statements/gr.stmt.return/negative/001_unterminated_func.ص` | `gr.stmt.return` | negative | تطابق ✅ | 73 | 0 |
-| 578 | `10_statements/gr.stmt.return/negative/002_stray_paren.ص` | `gr.stmt.return` | negative | تطابق ✅ | 58 | 0 |
-| 579 | `10_statements/gr.stmt.switch/basic/001_match_case.ص` | `gr.stmt.switch` | basic | تطابق ✅ | 49 | 2887 |
-| 580 | `10_statements/gr.stmt.switch/basic/002_default.ص` | `gr.stmt.switch` | basic | تطابق ✅ | 53 | 2680 |
-| 581 | `10_statements/gr.stmt.switch/basic/003_middle_case.ص` | `gr.stmt.switch` | basic | تطابق ✅ | 64 | 2712 |
-| 582 | `10_statements/gr.stmt.switch/basic/004_no_default.ص` | `gr.stmt.switch` | basic | تطابق ✅ | 59 | 2783 |
-| 583 | `10_statements/gr.stmt.switch/basic/005_optional_colon.ص` | `gr.stmt.switch` | basic | تطابق ✅ | 44 | 2662 |
-| 584 | `10_statements/gr.stmt.switch/basic/006_multi_stmt_arm.ص` | `gr.stmt.switch` | basic | تطابق ✅ | 52 | 2682 |
-| 585 | `10_statements/gr.stmt.switch/basic/007_string_equality.ص` | `gr.stmt.switch` | basic | تطابق ✅ | 52 | 2664 |
-| 586 | `10_statements/gr.stmt.switch/basic/008_negative.ص` | `gr.stmt.switch` | basic | تطابق ✅ | 50 | 2522 |
-| 587 | `10_statements/gr.stmt.switch/basic/009_computed_scrutinee.ص` | `gr.stmt.switch` | basic | تطابق ✅ | 52 | 2532 |
-| 588 | `10_statements/gr.stmt.switch/basic/010_first_case.ص` | `gr.stmt.switch` | basic | تطابق ✅ | 59 | 2566 |
-| 589 | `10_statements/gr.stmt.switch/edge/001_expr_scrutinee.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 56 | 2529 |
-| 590 | `10_statements/gr.stmt.switch/edge/002_nested.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 59 | 3114 |
-| 591 | `10_statements/gr.stmt.switch/edge/003_no_match_no_default.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 44 | 2613 |
-| 592 | `10_statements/gr.stmt.switch/edge/004_in_loop.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 59 | 2720 |
-| 593 | `10_statements/gr.stmt.switch/edge/005_bool_expr.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 58 | 2547 |
-| 594 | `10_statements/gr.stmt.switch/edge/006_equality_not_range.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 52 | 2583 |
-| 595 | `10_statements/gr.stmt.switch/edge/007_many_cases.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 48 | 2615 |
-| 596 | `10_statements/gr.stmt.switch/edge/008_no_colon_mixed.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 53 | 2420 |
-| 597 | `10_statements/gr.stmt.switch/edge/050_deep_many.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 52 | 2570 |
-| 598 | `10_statements/gr.stmt.switch/edge/051_in_if.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 52 | 2724 |
-| 599 | `10_statements/gr.stmt.switch/edge/052_string_default.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 63 | 3080 |
-| 600 | `10_statements/gr.stmt.switch/edge/053_computed.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 62 | 3267 |
-| 601 | `10_statements/gr.stmt.switch/edge/054_bool_false.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 64 | 3348 |
-| 602 | `10_statements/gr.stmt.switch/edge/055_no_colon_all.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 131 | 3421 |
-| 603 | `10_statements/gr.stmt.switch/edge/055_only_default.ص` | `gr.stmt.switch` | edge | تطابق ✅ | 75 | 3421 |
-| 604 | `10_statements/gr.stmt.switch/negative/001_parens_removed.ص` | `gr.stmt.switch` | negative | تطابق ✅ | 85 | 0 |
-| 605 | `10_statements/gr.stmt.switch/negative/002_default_not_last.ص` | `gr.stmt.switch` | negative | تطابق ✅ | 56 | 0 |
-| 606 | `10_statements/gr.stmt.switch/negative/003_unclosed.ص` | `gr.stmt.switch` | negative | تطابق ✅ | 82 | 0 |
-| 607 | `10_statements/gr.stmt.switch/negative/004_braces_rejected.ص` | `gr.stmt.switch` | negative | تطابق ✅ | 91 | 0 |
-| 608 | `10_statements/gr.stmt.switch/negative/005_case_inside.ص` | `gr.stmt.switch` | negative | تطابق ✅ | 116 | 0 |
-| 609 | `10_statements/gr.stmt.throw/basic/001_string.ص` | `gr.stmt.throw` | basic | تطابق ✅ | 84 | 3798 |
-| 610 | `10_statements/gr.stmt.throw/basic/002_number.ص` | `gr.stmt.throw` | basic | تطابق ✅ | 94 | 3841 |
-| 611 | `10_statements/gr.stmt.throw/basic/003_after_throw_skipped.ص` | `gr.stmt.throw` | basic | تطابق ✅ | 97 | 3853 |
-| 612 | `10_statements/gr.stmt.throw/edge/001_in_func.ص` | `gr.stmt.throw` | edge | تطابق ✅ | 104 | 3998 |
-| 613 | `10_statements/gr.stmt.throw/edge/002_in_loop.ص` | `gr.stmt.throw` | edge | تطابق ✅ | 68 | 3213 |
-| 614 | `10_statements/gr.stmt.throw/edge/050_throw_caught_msg.ص` | `gr.stmt.throw` | edge | تطابق ✅ | 66 | 3176 |
-| 615 | `10_statements/gr.stmt.throw/negative/001_uncaught.ص` | `gr.stmt.throw` | negative | تطابق ✅ | 53 | 0 |
-| 616 | `10_statements/gr.stmt.throw/negative/002_uncaught_in_func.ص` | `gr.stmt.throw` | negative | تطابق ✅ | 107 | 0 |
-| 617 | `10_statements/gr.stmt.try/basic/001_catch.ص` | `gr.stmt.try` | basic | تطابق ✅ | 67 | 3112 |
-| 618 | `10_statements/gr.stmt.try/basic/002_finally.ص` | `gr.stmt.try` | basic | تطابق ✅ | 52 | 3307 |
-| 619 | `10_statements/gr.stmt.try/basic/003_no_error.ص` | `gr.stmt.try` | basic | تطابق ✅ | 49 | 3009 |
-| 620 | `10_statements/gr.stmt.try/basic/004_catch_finally.ص` | `gr.stmt.try` | basic | تطابق ✅ | 62 | 3282 |
-| 621 | `10_statements/gr.stmt.try/basic/005_print_after.ص` | `gr.stmt.try` | basic | تطابق ✅ | 55 | 2986 |
-| 622 | `10_statements/gr.stmt.try/edge/001_in_loop.ص` | `gr.stmt.try` | edge | تطابق ✅ | 57 | 3032 |
-| 623 | `10_statements/gr.stmt.try/edge/002_nested.ص` | `gr.stmt.try` | edge | تطابق ✅ | 59 | 3114 |
-| 624 | `10_statements/gr.stmt.try/edge/003_func_throws.ص` | `gr.stmt.try` | edge | تطابق ✅ | 117 | 3294 |
-| 625 | `10_statements/gr.stmt.try/edge/004_finally_runs.ص` | `gr.stmt.try` | edge | تطابق ✅ | 111 | 3224 |
-| 626 | `10_statements/gr.stmt.try/edge/005_multi_catch.ص` | `gr.stmt.try` | edge | تطابق ✅ | 56 | 3078 |
-| 627 | `10_statements/gr.stmt.try/edge/050_no_error.ص` | `gr.stmt.try` | edge | تطابق ✅ | 71 | 3119 |
-| 628 | `10_statements/gr.stmt.try/edge/051_with_finally.ص` | `gr.stmt.try` | edge | تطابق ✅ | 63 | 3506 |
-| 629 | `10_statements/gr.stmt.try/edge/052_catch_finally.ص` | `gr.stmt.try` | edge | تطابق ✅ | 71 | 3454 |
-| 630 | `10_statements/gr.stmt.try/edge/053_nested.ص` | `gr.stmt.try` | edge | تطابق ✅ | 45 | 2536 |
-| 631 | `10_statements/gr.stmt.try/edge/054_multi_catch_first.ص` | `gr.stmt.try` | edge | تطابق ✅ | 58 | 2792 |
-| 632 | `10_statements/gr.stmt.try/edge/055_throw_caught.ص` | `gr.stmt.try` | edge | تطابق ✅ | 40 | 2881 |
-| 633 | `10_statements/gr.stmt.try/edge/056_finally_after_catch.ص` | `gr.stmt.try` | edge | تطابق ✅ | 100 | 3145 |
-| 634 | `10_statements/gr.stmt.try/negative/001_no_end.ص` | `gr.stmt.try` | negative | تطابق ✅ | 126 | 0 |
-| 635 | `10_statements/gr.stmt.try/negative/002_catch_no_try.ص` | `gr.stmt.try` | negative | تطابق ✅ | 96 | 0 |
-| 636 | `10_statements/gr.stmt.try/negative/051_reserved_end_as_catch_param.ص` | `gr.stmt.try` | negative | تطابق ✅ | 48 | 0 |
-| 637 | `10_statements/gr.stmt.while/basic/001_count_lt_1.ص` | `gr.stmt.while` | basic | تطابق ✅ | 53 | 2665 |
-| 638 | `10_statements/gr.stmt.while/basic/002_count_lt_2.ص` | `gr.stmt.while` | basic | تطابق ✅ | 45 | 2634 |
-| 639 | `10_statements/gr.stmt.while/basic/003_count_lt_3.ص` | `gr.stmt.while` | basic | تطابق ✅ | 58 | 2596 |
-| 640 | `10_statements/gr.stmt.while/basic/004_count_lt_4.ص` | `gr.stmt.while` | basic | تطابق ✅ | 44 | 2554 |
-| 641 | `10_statements/gr.stmt.while/basic/005_count_lt_5.ص` | `gr.stmt.while` | basic | تطابق ✅ | 54 | 2616 |
-| 642 | `10_statements/gr.stmt.while/basic/006_count_le_1.ص` | `gr.stmt.while` | basic | تطابق ✅ | 53 | 2598 |
-| 643 | `10_statements/gr.stmt.while/basic/007_count_le_2.ص` | `gr.stmt.while` | basic | تطابق ✅ | 80 | 2564 |
-| 644 | `10_statements/gr.stmt.while/basic/008_count_le_3.ص` | `gr.stmt.while` | basic | تطابق ✅ | 56 | 2754 |
-| 645 | `10_statements/gr.stmt.while/basic/009_countdown_2.ص` | `gr.stmt.while` | basic | تطابق ✅ | 53 | 3012 |
-| 646 | `10_statements/gr.stmt.while/basic/010_countdown_3.ص` | `gr.stmt.while` | basic | تطابق ✅ | 48 | 2998 |
-| 647 | `10_statements/gr.stmt.while/basic/011_countdown_4.ص` | `gr.stmt.while` | basic | تطابق ✅ | 47 | 2909 |
-| 648 | `10_statements/gr.stmt.while/basic/012_step2.ص` | `gr.stmt.while` | basic | تطابق ✅ | 54 | 3001 |
-| 649 | `10_statements/gr.stmt.while/basic/013_step3.ص` | `gr.stmt.while` | basic | تطابق ✅ | 84 | 3370 |
-| 650 | `10_statements/gr.stmt.while/basic/014_until_ne.ص` | `gr.stmt.while` | basic | تطابق ✅ | 82 | 3338 |
-| 651 | `10_statements/gr.stmt.while/basic/015_while_eq_flag.ص` | `gr.stmt.while` | basic | تطابق ✅ | 68 | 3455 |
-| 652 | `10_statements/gr.stmt.while/basic/016_sum.ص` | `gr.stmt.while` | basic | تطابق ✅ | 76 | 3724 |
-| 653 | `10_statements/gr.stmt.while/basic/017_sum5.ص` | `gr.stmt.while` | basic | تطابق ✅ | 66 | 3456 |
-| 654 | `10_statements/gr.stmt.while/basic/018_product.ص` | `gr.stmt.while` | basic | تطابق ✅ | 76 | 3444 |
-| 655 | `10_statements/gr.stmt.while/basic/019_counter.ص` | `gr.stmt.while` | basic | تطابق ✅ | 146 | 3410 |
-| 656 | `10_statements/gr.stmt.while/basic/020_double_until.ص` | `gr.stmt.while` | basic | تطابق ✅ | 75 | 3393 |
-| 657 | `10_statements/gr.stmt.while/basic/021_logic_and.ص` | `gr.stmt.while` | basic | تطابق ✅ | 93 | 3002 |
-| 658 | `10_statements/gr.stmt.while/basic/022_logic_or.ص` | `gr.stmt.while` | basic | تطابق ✅ | 100 | 3019 |
-| 659 | `10_statements/gr.stmt.while/basic/023_bool_flag.ص` | `gr.stmt.while` | basic | تطابق ✅ | 124 | 2782 |
-| 660 | `10_statements/gr.stmt.while/basic/024_not_cond.ص` | `gr.stmt.while` | basic | تطابق ✅ | 58 | 2761 |
-| 661 | `10_statements/gr.stmt.while/basic/025_noiter_1.ص` | `gr.stmt.while` | basic | تطابق ✅ | 54 | 2741 |
-| 662 | `10_statements/gr.stmt.while/basic/026_noiter_2.ص` | `gr.stmt.while` | basic | تطابق ✅ | 56 | 2722 |
-| 663 | `10_statements/gr.stmt.while/basic/027_noiter_3.ص` | `gr.stmt.while` | basic | تطابق ✅ | 48 | 2858 |
-| 664 | `10_statements/gr.stmt.while/basic/028_noiter_4.ص` | `gr.stmt.while` | basic | تطابق ✅ | 107 | 2807 |
-| 665 | `10_statements/gr.stmt.while/basic/029_var_inside.ص` | `gr.stmt.while` | basic | تطابق ✅ | 59 | 2744 |
-| 666 | `10_statements/gr.stmt.while/basic/030_two_vars.ص` | `gr.stmt.while` | basic | تطابق ✅ | 60 | 2714 |
-| 667 | `10_statements/gr.stmt.while/basic/031_cond_calc.ص` | `gr.stmt.while` | basic | تطابق ✅ | 79 | 2703 |
-| 668 | `10_statements/gr.stmt.while/basic/032_string_build.ص` | `gr.stmt.while` | basic | تطابق ✅ | 47 | 2782 |
-| 669 | `10_statements/gr.stmt.while/basic/033_count_extra_33.ص` | `gr.stmt.while` | basic | تطابق ✅ | 60 | 2691 |
-| 670 | `10_statements/gr.stmt.while/basic/034_count_extra_34.ص` | `gr.stmt.while` | basic | تطابق ✅ | 63 | 2685 |
-| 671 | `10_statements/gr.stmt.while/basic/035_count_extra_35.ص` | `gr.stmt.while` | basic | تطابق ✅ | 55 | 2501 |
-| 672 | `10_statements/gr.stmt.while/basic/036_count_extra_36.ص` | `gr.stmt.while` | basic | تطابق ✅ | 119 | 2553 |
-| 673 | `10_statements/gr.stmt.while/basic/037_count_extra_37.ص` | `gr.stmt.while` | basic | تطابق ✅ | 95 | 2613 |
-| 674 | `10_statements/gr.stmt.while/basic/038_count_extra_38.ص` | `gr.stmt.while` | basic | تطابق ✅ | 91 | 2602 |
-| 675 | `10_statements/gr.stmt.while/basic/039_count_extra_39.ص` | `gr.stmt.while` | basic | تطابق ✅ | 49 | 2614 |
-| 676 | `10_statements/gr.stmt.while/basic/040_count_extra_40.ص` | `gr.stmt.while` | basic | تطابق ✅ | 60 | 2626 |
-| 677 | `10_statements/gr.stmt.while/edge/001_nested2.ص` | `gr.stmt.while` | edge | تطابق ✅ | 58 | 2620 |
-| 678 | `10_statements/gr.stmt.while/edge/002_nested3.ص` | `gr.stmt.while` | edge | تطابق ✅ | 57 | 2615 |
-| 679 | `10_statements/gr.stmt.while/edge/003_with_if.ص` | `gr.stmt.while` | edge | تطابق ✅ | 53 | 2632 |
-| 680 | `10_statements/gr.stmt.while/edge/004_with_break.ص` | `gr.stmt.while` | edge | تطابق ✅ | 141 | 2624 |
-| 681 | `10_statements/gr.stmt.while/edge/005_with_continue.ص` | `gr.stmt.while` | edge | تطابق ✅ | 53 | 2686 |
-| 682 | `10_statements/gr.stmt.while/edge/006_with_match.ص` | `gr.stmt.while` | edge | تطابق ✅ | 50 | 2629 |
-| 683 | `10_statements/gr.stmt.while/edge/007_with_try.ص` | `gr.stmt.while` | edge | تطابق ✅ | 70 | 2906 |
-| 684 | `10_statements/gr.stmt.while/edge/008_in_func.ص` | `gr.stmt.while` | edge | تطابق ✅ | 57 | 3042 |
-| 685 | `10_statements/gr.stmt.while/edge/009_true_break.ص` | `gr.stmt.while` | edge | تطابق ✅ | 49 | 2615 |
-| 686 | `10_statements/gr.stmt.while/edge/010_return_in.ص` | `gr.stmt.while` | edge | تطابق ✅ | 55 | 3100 |
-| 687 | `10_statements/gr.stmt.while/edge/011_break_continue.ص` | `gr.stmt.while` | edge | تطابق ✅ | 53 | 2744 |
-| 688 | `10_statements/gr.stmt.while/edge/012_compound_cond.ص` | `gr.stmt.while` | edge | تطابق ✅ | 55 | 3288 |
-| 689 | `10_statements/gr.stmt.while/edge/013_two_counters.ص` | `gr.stmt.while` | edge | تطابق ✅ | 62 | 3282 |
-| 690 | `10_statements/gr.stmt.while/edge/014_if_else_in.ص` | `gr.stmt.while` | edge | تطابق ✅ | 56 | 3375 |
-| 691 | `10_statements/gr.stmt.while/edge/015_nested_break_inner.ص` | `gr.stmt.while` | edge | تطابق ✅ | 61 | 3490 |
-| 692 | `10_statements/gr.stmt.while/edge/016_accumulate_str.ص` | `gr.stmt.while` | edge | تطابق ✅ | 126 | 3296 |
-| 693 | `10_statements/gr.stmt.while/edge/017_for_inside.ص` | `gr.stmt.while` | edge | تطابق ✅ | 72 | 3396 |
-| 694 | `10_statements/gr.stmt.while/edge/018_decrement_sum.ص` | `gr.stmt.while` | edge | تطابق ✅ | 80 | 3388 |
-| 695 | `10_statements/gr.stmt.while/edge/019_guarded_print.ص` | `gr.stmt.while` | edge | تطابق ✅ | 74 | 3527 |
-| 696 | `10_statements/gr.stmt.while/edge/020_multi_stmt_body.ص` | `gr.stmt.while` | edge | تطابق ✅ | 95 | 3310 |
-| 697 | `10_statements/gr.stmt.while/edge/021_extra_21.ص` | `gr.stmt.while` | edge | تطابق ✅ | 54 | 3393 |
-| 698 | `10_statements/gr.stmt.while/edge/022_extra_22.ص` | `gr.stmt.while` | edge | تطابق ✅ | 102 | 3186 |
-| 699 | `10_statements/gr.stmt.while/edge/023_extra_23.ص` | `gr.stmt.while` | edge | تطابق ✅ | 67 | 3242 |
-| 700 | `10_statements/gr.stmt.while/edge/024_extra_24.ص` | `gr.stmt.while` | edge | تطابق ✅ | 187 | 3101 |
-| 701 | `10_statements/gr.stmt.while/edge/025_extra_25.ص` | `gr.stmt.while` | edge | تطابق ✅ | 156 | 3094 |
-| 702 | `10_statements/gr.stmt.while/edge/026_extra_26.ص` | `gr.stmt.while` | edge | تطابق ✅ | 129 | 3043 |
-| 703 | `10_statements/gr.stmt.while/edge/027_extra_27.ص` | `gr.stmt.while` | edge | تطابق ✅ | 121 | 3054 |
-| 704 | `10_statements/gr.stmt.while/edge/028_extra_28.ص` | `gr.stmt.while` | edge | تطابق ✅ | 119 | 3169 |
-| 705 | `10_statements/gr.stmt.while/edge/029_extra_29.ص` | `gr.stmt.while` | edge | تطابق ✅ | 116 | 2989 |
-| 706 | `10_statements/gr.stmt.while/edge/030_extra_30.ص` | `gr.stmt.while` | edge | تطابق ✅ | 65 | 3053 |
-| 707 | `10_statements/gr.stmt.while/edge/031_extra_31.ص` | `gr.stmt.while` | edge | تطابق ✅ | 71 | 2972 |
-| 708 | `10_statements/gr.stmt.while/edge/032_extra_32.ص` | `gr.stmt.while` | edge | تطابق ✅ | 100 | 2988 |
-| 709 | `10_statements/gr.stmt.while/edge/033_extra_33.ص` | `gr.stmt.while` | edge | تطابق ✅ | 60 | 3079 |
-| 710 | `10_statements/gr.stmt.while/edge/034_extra_34.ص` | `gr.stmt.while` | edge | تطابق ✅ | 56 | 2996 |
-| 711 | `10_statements/gr.stmt.while/edge/035_extra_35.ص` | `gr.stmt.while` | edge | تطابق ✅ | 96 | 3204 |
-| 712 | `10_statements/gr.stmt.while/edge/050_never.ص` | `gr.stmt.while` | edge | تطابق ✅ | 115 | 2573 |
-| 713 | `10_statements/gr.stmt.while/edge/051_with_break.ص` | `gr.stmt.while` | edge | تطابق ✅ | 75 | 2584 |
-| 714 | `10_statements/gr.stmt.while/edge/052_with_continue.ص` | `gr.stmt.while` | edge | تطابق ✅ | 55 | 2634 |
-| 715 | `10_statements/gr.stmt.while/edge/053_nested.ص` | `gr.stmt.while` | edge | تطابق ✅ | 45 | 2536 |
-| 716 | `10_statements/gr.stmt.while/edge/054_countdown.ص` | `gr.stmt.while` | edge | تطابق ✅ | 56 | 2510 |
-| 717 | `10_statements/gr.stmt.while/edge/055_contains_if.ص` | `gr.stmt.while` | edge | تطابق ✅ | 54 | 2529 |
-| 718 | `10_statements/gr.stmt.while/edge/056_boundary_zero.ص` | `gr.stmt.while` | edge | تطابق ✅ | 51 | 2548 |
-| 719 | `10_statements/gr.stmt.while/edge/057_accumulate.ص` | `gr.stmt.while` | edge | تطابق ✅ | 50 | 2544 |
-| 720 | `10_statements/gr.stmt.while/edge/058_break_in_nested.ص` | `gr.stmt.while` | edge | تطابق ✅ | 54 | 2610 |
-| 721 | `10_statements/gr.stmt.while/edge/059_zero_iter_then_after.ص` | `gr.stmt.while` | edge | تطابق ✅ | 52 | 2632 |
-| 722 | `10_statements/gr.stmt.while/edge/060_one_iter_exact.ص` | `gr.stmt.while` | edge | تطابق ✅ | 49 | 2631 |
-| 723 | `10_statements/gr.stmt.while/edge/061_nested3.ص` | `gr.stmt.while` | edge | تطابق ✅ | 58 | 2728 |
-| 724 | `10_statements/gr.stmt.while/edge/062_cond_and_compound.ص` | `gr.stmt.while` | edge | تطابق ✅ | 62 | 2613 |
-| 725 | `10_statements/gr.stmt.while/edge/063_cond_or_compound.ص` | `gr.stmt.while` | edge | تطابق ✅ | 49 | 2521 |
-| 726 | `10_statements/gr.stmt.while/edge/064_cond_not.ص` | `gr.stmt.while` | edge | تطابق ✅ | 49 | 2604 |
-| 727 | `10_statements/gr.stmt.while/edge/065_flag_toggle.ص` | `gr.stmt.while` | edge | تطابق ✅ | 53 | 2694 |
-| 728 | `10_statements/gr.stmt.while/edge/066_countdown10.ص` | `gr.stmt.while` | edge | تطابق ✅ | 52 | 2619 |
-| 729 | `10_statements/gr.stmt.while/edge/067_step3.ص` | `gr.stmt.while` | edge | تطابق ✅ | 47 | 2490 |
-| 730 | `10_statements/gr.stmt.while/edge/068_multiply_accum.ص` | `gr.stmt.while` | edge | تطابق ✅ | 45 | 2607 |
-| 731 | `10_statements/gr.stmt.while/edge/069_string_accum.ص` | `gr.stmt.while` | edge | تطابق ✅ | 46 | 2832 |
-| 732 | `10_statements/gr.stmt.while/edge/070_break_first_iter.ص` | `gr.stmt.while` | edge | تطابق ✅ | 49 | 2872 |
-| 733 | `10_statements/gr.stmt.while/edge/071_continue_skip_even.ص` | `gr.stmt.while` | edge | تطابق ✅ | 53 | 3003 |
-| 734 | `10_statements/gr.stmt.while/edge/072_outer_flag_break.ص` | `gr.stmt.while` | edge | تطابق ✅ | 59 | 3112 |
-| 735 | `10_statements/gr.stmt.while/edge/073_two_counters_diff_rates.ص` | `gr.stmt.while` | edge | تطابق ✅ | 59 | 3234 |
-| 736 | `10_statements/gr.stmt.while/edge/074_len_bound.ص` | `gr.stmt.while` | edge | تطابق ✅ | 61 | 3288 |
-| 737 | `10_statements/gr.stmt.while/edge/075_index_sum.ص` | `gr.stmt.while` | edge | تطابق ✅ | 75 | 3331 |
-| 738 | `10_statements/gr.stmt.while/edge/076_if_else_inside.ص` | `gr.stmt.while` | edge | تطابق ✅ | 70 | 3255 |
-| 739 | `10_statements/gr.stmt.while/edge/077_two_sequential_loops.ص` | `gr.stmt.while` | edge | تطابق ✅ | 93 | 3963 |
-| 740 | `10_statements/gr.stmt.while/edge/078_reuse_counter.ص` | `gr.stmt.while` | edge | تطابق ✅ | 75 | 3696 |
-| 741 | `10_statements/gr.stmt.while/edge/079_cond_from_function.ص` | `gr.stmt.while` | edge | تطابق ✅ | 74 | 4309 |
-| 742 | `10_statements/gr.stmt.while/edge/080_nested_continue_inner.ص` | `gr.stmt.while` | edge | تطابق ✅ | 89 | 4008 |
-| 743 | `10_statements/gr.stmt.while/edge/081_in_func_with_return.ص` | `gr.stmt.while` | edge | تطابق ✅ | 119 | 3808 |
-| 744 | `10_statements/gr.stmt.while/edge/082_mod_filter_count.ص` | `gr.stmt.while` | edge | تطابق ✅ | 79 | 3246 |
-| 745 | `10_statements/gr.stmt.while/edge/083_paren_deep_cond.ص` | `gr.stmt.while` | edge | تطابق ✅ | 136 | 2958 |
-| 746 | `10_statements/gr.stmt.while/edge/084_negative_start.ص` | `gr.stmt.while` | edge | تطابق ✅ | 65 | 2726 |
-| 747 | `10_statements/gr.stmt.while/edge/085_cond_recomputed_each_pass.ص` | `gr.stmt.while` | edge | تطابق ✅ | 50 | 2966 |
-| 748 | `10_statements/gr.stmt.while/edge/086_hundred_iterations.ص` | `gr.stmt.while` | edge | تطابق ✅ | 131 | 2938 |
-| 749 | `10_statements/gr.stmt.while/edge/087_false_flag_immediately.ص` | `gr.stmt.while` | edge | تطابق ✅ | 61 | 3085 |
-| 750 | `10_statements/gr.stmt.while/edge/088_nested2_sum_products.ص` | `gr.stmt.while` | edge | تطابق ✅ | 48 | 3124 |
-| 751 | `10_statements/gr.stmt.while/negative/001_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ | 128 | 0 |
-| 752 | `10_statements/gr.stmt.while/negative/002_body_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ | 62 | 0 |
-| 753 | `10_statements/gr.stmt.while/negative/003_inner_if_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ | 62 | 0 |
-| 754 | `10_statements/gr.stmt.while/negative/004_nested_outer_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ | 55 | 0 |
-| 755 | `10_statements/gr.stmt.while/negative/005_no_body_no_end.ص` | `gr.stmt.while` | negative | تطابق ✅ | 59 | 0 |
-| 756 | `10_statements/gr.stmt.while/negative/006_inner_unterminated2.ص` | `gr.stmt.while` | negative | تطابق ✅ | 56 | 0 |
-| 757 | `10_statements/gr.stmt.while/negative/007_extra_end.ص` | `gr.stmt.while` | negative | تطابق ✅ | 69 | 0 |
-| 758 | `10_statements/gr.stmt.while/negative/008_if_inside_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ | 53 | 0 |
-| 759 | `10_statements/gr.stmt.while/negative/009_match_inside_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ | 47 | 0 |
-| 760 | `10_statements/gr.stmt.while/negative/010_try_inside_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ | 118 | 0 |
-| 761 | `20_declarations/gr.decl.arg_list/basic/001_multi_arabic.ص` | `gr.decl.arg_list` | basic | تطابق ✅ | 100 | 3259 |
-| 762 | `20_declarations/gr.decl.arg_list/basic/002_multi_latin.ص` | `gr.decl.arg_list` | basic | تطابق ✅ | 62 | 3251 |
-| 763 | `20_declarations/gr.decl.arg_list/basic/003_empty.ص` | `gr.decl.arg_list` | basic | تطابق ✅ | 72 | 3335 |
-| 764 | `20_declarations/gr.decl.arg_list/basic/004_nested_call.ص` | `gr.decl.arg_list` | basic | تطابق ✅ | 63 | 3234 |
-| 765 | `20_declarations/gr.decl.arg_list/basic/005_expr_args.ص` | `gr.decl.arg_list` | basic | تطابق ✅ | 56 | 3459 |
-| 766 | `20_declarations/gr.decl.arg_list/edge/001_single_arg.ص` | `gr.decl.arg_list` | edge | تطابق ✅ | 54 | 3430 |
-| 767 | `20_declarations/gr.decl.arg_list/edge/002_many_args.ص` | `gr.decl.arg_list` | edge | تطابق ✅ | 67 | 3528 |
-| 768 | `20_declarations/gr.decl.arg_list/edge/003_mixed_commas.ص` | `gr.decl.arg_list` | edge | تطابق ✅ | 59 | 3476 |
-| 769 | `20_declarations/gr.decl.arg_list/edge/004_typed_values.ص` | `gr.decl.arg_list` | edge | تطابق ✅ | 56 | 3238 |
-| 770 | `20_declarations/gr.decl.arg_list/negative/001_trailing_comma.ص` | `gr.decl.arg_list` | negative | تطابق ✅ | 66 | 0 |
-| 771 | `20_declarations/gr.decl.arg_list/negative/002_missing_comma.ص` | `gr.decl.arg_list` | negative | تطابق ✅ | 54 | 0 |
-| 772 | `20_declarations/gr.decl.export/basic/001_export_func.ص` | `gr.decl.export` | basic | تطابق ✅ | 124 | 3170 |
-| 773 | `20_declarations/gr.decl.export/basic/002_export_var.ص` | `gr.decl.export` | basic | تطابق ✅ | 119 | 2868 |
-| 774 | `20_declarations/gr.decl.export/basic/003_export_const.ص` | `gr.decl.export` | basic | تطابق ✅ | 59 | 2663 |
-| 775 | `20_declarations/gr.decl.export/basic/004_export_class.ص` | `gr.decl.export` | basic | تطابق ✅ | 119 | 2726 |
-| 776 | `20_declarations/gr.decl.export/basic/005_export_then_use.ص` | `gr.decl.export` | basic | تطابق ✅ | 70 | 2993 |
-| 777 | `20_declarations/gr.decl.export/basic/006_export_func2.ص` | `gr.decl.export` | basic | تطابق ✅ | 48 | 2935 |
-| 778 | `20_declarations/gr.decl.export/edge/001_export_in_program.ص` | `gr.decl.export` | edge | تطابق ✅ | 46 | 3088 |
-| 779 | `20_declarations/gr.decl.export/edge/002_export_recursive.ص` | `gr.decl.export` | edge | تطابق ✅ | 61 | 3084 |
-| 780 | `20_declarations/gr.decl.export/edge/003_export_enum.ص` | `gr.decl.export` | edge | تطابق ✅ | 50 | 2686 |
-| 781 | `20_declarations/gr.decl.export/edge/004_export_var_use.ص` | `gr.decl.export` | edge | تطابق ✅ | 52 | 2776 |
-| 782 | `20_declarations/gr.decl.export/negative/001_export_kw_only.ص` | `gr.decl.export` | negative | تطابق ✅ | 49 | 0 |
-| 783 | `20_declarations/gr.decl.export/negative/002_export_keyword.ص` | `gr.decl.export` | negative | تطابق ✅ | 46 | 0 |
-| 784 | `20_declarations/gr.decl.extern/basic/001_extern_one.ص` | `gr.decl.extern` | basic | تطابق ✅ | 50 | 2783 |
-| 785 | `20_declarations/gr.decl.extern/basic/002_extern_no_param.ص` | `gr.decl.extern` | basic | تطابق ✅ | 64 | 2940 |
-| 786 | `20_declarations/gr.decl.extern/basic/003_extern_two.ص` | `gr.decl.extern` | basic | تطابق ✅ | 104 | 2880 |
-| 787 | `20_declarations/gr.decl.extern/basic/004_extern_then_code.ص` | `gr.decl.extern` | basic | تطابق ✅ | 68 | 3042 |
-| 788 | `20_declarations/gr.decl.extern/basic/005_extern_linkname.ص` | `gr.decl.extern` | basic | تطابق ✅ | 61 | 2909 |
-| 789 | `20_declarations/gr.decl.extern/edge/001_extern_with_func.ص` | `gr.decl.extern` | edge | تطابق ✅ | 64 | 3601 |
-| 790 | `20_declarations/gr.decl.extern/edge/002_extern_multi.ص` | `gr.decl.extern` | edge | تطابق ✅ | 126 | 3054 |
-| 791 | `20_declarations/gr.decl.extern/edge/003_extern_typed.ص` | `gr.decl.extern` | edge | تطابق ✅ | 77 | 3172 |
-| 792 | `20_declarations/gr.decl.extern/edge/004_method_named_extern.ص` | `gr.decl.extern` | edge | تطابق ✅ | 111 | 3671 |
-| 793 | `20_declarations/gr.decl.extern/edge/005_soft_name_call_stmt.ص` | `gr.decl.extern` | edge | تطابق ✅ | 96 | 4435 |
-| 794 | `20_declarations/gr.decl.extern/edge/006_soft_name_assign.ص` | `gr.decl.extern` | edge | تطابق ✅ | 73 | 3043 |
-| 795 | `20_declarations/gr.decl.extern/negative/001_extern_no_func.ص` | `gr.decl.extern` | negative | تطابق ✅ | 125 | 0 |
-| 796 | `20_declarations/gr.decl.extern/negative/002_extern_kw_only.ص` | `gr.decl.extern` | negative | تطابق ✅ | 80 | 0 |
-| 797 | `20_declarations/gr.decl.extern/negative/003_removed_prefix_form.ص` | `gr.decl.extern` | negative | تطابق ✅ | 68 | 0 |
-| 798 | `20_declarations/gr.decl.extern/negative/004_removed_prefix_linkname.ص` | `gr.decl.extern` | negative | تطابق ✅ | 59 | 0 |
-| 799 | `20_declarations/gr.decl.extern/negative/005_masculine_adjective.ص` | `gr.decl.extern` | negative | تطابق ✅ | 102 | 0 |
-| 800 | `20_declarations/gr.decl.extern/negative/006_feminine_block_opener.ص` | `gr.decl.extern` | negative | تطابق ✅ | 66 | 0 |
-| 801 | `20_declarations/gr.decl.extern/negative/007_extern_inside_class.ص` | `gr.decl.extern` | negative | تطابق ✅ | 81 | 0 |
-| 802 | `20_declarations/gr.decl.extern/negative/008_empty_linkname.ص` | `gr.decl.extern` | negative | تطابق ✅ | 58 | 0 |
-| 803 | `20_declarations/gr.decl.function/basic/001_no_param.ص` | `gr.decl.function` | basic | تطابق ✅ | 125 | 3645 |
-| 804 | `20_declarations/gr.decl.function/basic/002_one_param.ص` | `gr.decl.function` | basic | تطابق ✅ | 120 | 3577 |
-| 805 | `20_declarations/gr.decl.function/basic/003_two_param.ص` | `gr.decl.function` | basic | تطابق ✅ | 109 | 3473 |
-| 806 | `20_declarations/gr.decl.function/basic/004_three_param.ص` | `gr.decl.function` | basic | تطابق ✅ | 107 | 3181 |
-| 807 | `20_declarations/gr.decl.function/basic/005_void_print.ص` | `gr.decl.function` | basic | تطابق ✅ | 64 | 3155 |
-| 808 | `20_declarations/gr.decl.function/basic/006_return_str.ص` | `gr.decl.function` | basic | تطابق ✅ | 64 | 3116 |
-| 809 | `20_declarations/gr.decl.function/basic/007_return_bool.ص` | `gr.decl.function` | basic | تطابق ✅ | 52 | 3182 |
-| 810 | `20_declarations/gr.decl.function/basic/008_multi_stmt.ص` | `gr.decl.function` | basic | تطابق ✅ | 64 | 3177 |
-| 811 | `20_declarations/gr.decl.function/basic/009_recursion.ص` | `gr.decl.function` | basic | تطابق ✅ | 118 | 3217 |
-| 812 | `20_declarations/gr.decl.function/basic/010_calls_other.ص` | `gr.decl.function` | basic | تطابق ✅ | 99 | 3502 |
-| 813 | `20_declarations/gr.decl.function/basic/011_default_param.ص` | `gr.decl.function` | basic | تطابق ✅ | 98 | 2981 |
-| 814 | `20_declarations/gr.decl.function/basic/012_default_override.ص` | `gr.decl.function` | basic | تطابق ✅ | 60 | 2885 |
-| 815 | `20_declarations/gr.decl.function/basic/013_typed_param.ص` | `gr.decl.function` | basic | تطابق ✅ | 53 | 2900 |
-| 816 | `20_declarations/gr.decl.function/basic/014_early_return.ص` | `gr.decl.function` | basic | تطابق ✅ | 53 | 2900 |
-| 817 | `20_declarations/gr.decl.function/basic/015_no_return.ص` | `gr.decl.function` | basic | تطابق ✅ | 55 | 2977 |
-| 818 | `20_declarations/gr.decl.function/basic/016_extra_16.ص` | `gr.decl.function` | basic | تطابق ✅ | 82 | 3204 |
-| 819 | `20_declarations/gr.decl.function/basic/017_extra_17.ص` | `gr.decl.function` | basic | تطابق ✅ | 82 | 3252 |
-| 820 | `20_declarations/gr.decl.function/basic/018_extra_18.ص` | `gr.decl.function` | basic | تطابق ✅ | 145 | 3266 |
-| 821 | `20_declarations/gr.decl.function/basic/019_extra_19.ص` | `gr.decl.function` | basic | تطابق ✅ | 124 | 3372 |
-| 822 | `20_declarations/gr.decl.function/basic/020_extra_20.ص` | `gr.decl.function` | basic | تطابق ✅ | 70 | 3397 |
-| 823 | `20_declarations/gr.decl.function/basic/021_extra_21.ص` | `gr.decl.function` | basic | تطابق ✅ | 54 | 3393 |
-| 824 | `20_declarations/gr.decl.function/basic/022_extra_22.ص` | `gr.decl.function` | basic | تطابق ✅ | 102 | 3186 |
-| 825 | `20_declarations/gr.decl.function/basic/023_extra_23.ص` | `gr.decl.function` | basic | تطابق ✅ | 67 | 3242 |
-| 826 | `20_declarations/gr.decl.function/basic/024_extra_24.ص` | `gr.decl.function` | basic | تطابق ✅ | 187 | 3101 |
-| 827 | `20_declarations/gr.decl.function/basic/025_extra_25.ص` | `gr.decl.function` | basic | تطابق ✅ | 156 | 3094 |
-| 828 | `20_declarations/gr.decl.function/basic/026_extra_26.ص` | `gr.decl.function` | basic | تطابق ✅ | 129 | 3043 |
-| 829 | `20_declarations/gr.decl.function/basic/027_extra_27.ص` | `gr.decl.function` | basic | تطابق ✅ | 121 | 3054 |
-| 830 | `20_declarations/gr.decl.function/basic/028_extra_28.ص` | `gr.decl.function` | basic | تطابق ✅ | 119 | 3169 |
-| 831 | `20_declarations/gr.decl.function/basic/029_extra_29.ص` | `gr.decl.function` | basic | تطابق ✅ | 116 | 2989 |
-| 832 | `20_declarations/gr.decl.function/basic/030_extra_30.ص` | `gr.decl.function` | basic | تطابق ✅ | 65 | 3053 |
-| 833 | `20_declarations/gr.decl.function/basic/031_extra_31.ص` | `gr.decl.function` | basic | تطابق ✅ | 71 | 2972 |
-| 834 | `20_declarations/gr.decl.function/basic/032_extra_32.ص` | `gr.decl.function` | basic | تطابق ✅ | 100 | 2988 |
-| 835 | `20_declarations/gr.decl.function/basic/033_extra_33.ص` | `gr.decl.function` | basic | تطابق ✅ | 60 | 3079 |
-| 836 | `20_declarations/gr.decl.function/basic/034_extra_34.ص` | `gr.decl.function` | basic | تطابق ✅ | 56 | 2996 |
-| 837 | `20_declarations/gr.decl.function/basic/035_extra_35.ص` | `gr.decl.function` | basic | تطابق ✅ | 96 | 3204 |
-| 838 | `20_declarations/gr.decl.function/basic/036_extra_36.ص` | `gr.decl.function` | basic | تطابق ✅ | 70 | 3197 |
-| 839 | `20_declarations/gr.decl.function/basic/037_extra_37.ص` | `gr.decl.function` | basic | تطابق ✅ | 68 | 3160 |
-| 840 | `20_declarations/gr.decl.function/basic/038_extra_38.ص` | `gr.decl.function` | basic | تطابق ✅ | 54 | 3135 |
-| 841 | `20_declarations/gr.decl.function/basic/039_extra_39.ص` | `gr.decl.function` | basic | تطابق ✅ | 60 | 3156 |
-| 842 | `20_declarations/gr.decl.function/basic/040_extra_40.ص` | `gr.decl.function` | basic | تطابق ✅ | 61 | 3137 |
-| 843 | `20_declarations/gr.decl.function/basic/041_طبيعي64_call_return_unsigned.ص` | `gr.decl.function` | basic | تطابق ✅ | 44 | 3321 |
-| 844 | `20_declarations/gr.decl.function/edge/001_nested_func.ص` | `gr.decl.function` | edge | تطابق ✅ | 55 | 3254 |
-| 845 | `20_declarations/gr.decl.function/edge/002_returns_lambda.ص` | `gr.decl.function` | edge | تطابق ✅ | 54 | 2971 |
-| 846 | `20_declarations/gr.decl.function/edge/003_higher_order.ص` | `gr.decl.function` | edge | تطابق ✅ | 115 | 3401 |
-| 847 | `20_declarations/gr.decl.function/edge/004_loop_inside.ص` | `gr.decl.function` | edge | تطابق ✅ | 48 | 3211 |
-| 848 | `20_declarations/gr.decl.function/edge/005_try_inside.ص` | `gr.decl.function` | edge | تطابق ✅ | 104 | 3340 |
-| 849 | `20_declarations/gr.decl.function/edge/006_match_inside.ص` | `gr.decl.function` | edge | تطابق ✅ | 54 | 3150 |
-| 850 | `20_declarations/gr.decl.function/edge/007_mutual_recursion.ص` | `gr.decl.function` | edge | تطابق ✅ | 51 | 3681 |
-| 851 | `20_declarations/gr.decl.function/edge/008_many_params.ص` | `gr.decl.function` | edge | تطابق ✅ | 59 | 3058 |
-| 852 | `20_declarations/gr.decl.function/edge/009_default_expr.ص` | `gr.decl.function` | edge | تطابق ✅ | 60 | 3075 |
-| 853 | `20_declarations/gr.decl.function/edge/010_mixed_default.ص` | `gr.decl.function` | edge | تطابق ✅ | 51 | 3338 |
-| 854 | `20_declarations/gr.decl.function/edge/011_return_array.ص` | `gr.decl.function` | edge | تطابق ✅ | 99 | 3119 |
-| 855 | `20_declarations/gr.decl.function/edge/012_return_nested_call.ص` | `gr.decl.function` | edge | تطابق ✅ | 88 | 3454 |
-| 856 | `20_declarations/gr.decl.function/edge/013_async_attr.ص` | `gr.decl.function` | edge | تطابق ✅ | 58 | 3086 |
-| 857 | `20_declarations/gr.decl.function/edge/014_call_in_arg.ص` | `gr.decl.function` | edge | تطابق ✅ | 61 | 3168 |
-| 858 | `20_declarations/gr.decl.function/edge/015_fib.ص` | `gr.decl.function` | edge | تطابق ✅ | 66 | 3327 |
-| 859 | `20_declarations/gr.decl.function/edge/016_extra_16.ص` | `gr.decl.function` | edge | تطابق ✅ | 82 | 3204 |
-| 860 | `20_declarations/gr.decl.function/edge/017_extra_17.ص` | `gr.decl.function` | edge | تطابق ✅ | 82 | 3252 |
-| 861 | `20_declarations/gr.decl.function/edge/018_extra_18.ص` | `gr.decl.function` | edge | تطابق ✅ | 145 | 3266 |
-| 862 | `20_declarations/gr.decl.function/edge/019_extra_19.ص` | `gr.decl.function` | edge | تطابق ✅ | 124 | 3372 |
-| 863 | `20_declarations/gr.decl.function/edge/020_extra_20.ص` | `gr.decl.function` | edge | تطابق ✅ | 70 | 3397 |
-| 864 | `20_declarations/gr.decl.function/edge/021_extra_21.ص` | `gr.decl.function` | edge | تطابق ✅ | 54 | 3393 |
-| 865 | `20_declarations/gr.decl.function/edge/022_extra_22.ص` | `gr.decl.function` | edge | تطابق ✅ | 102 | 3186 |
-| 866 | `20_declarations/gr.decl.function/edge/023_extra_23.ص` | `gr.decl.function` | edge | تطابق ✅ | 67 | 3242 |
-| 867 | `20_declarations/gr.decl.function/edge/024_extra_24.ص` | `gr.decl.function` | edge | تطابق ✅ | 187 | 3101 |
-| 868 | `20_declarations/gr.decl.function/edge/025_extra_25.ص` | `gr.decl.function` | edge | تطابق ✅ | 156 | 3094 |
-| 869 | `20_declarations/gr.decl.function/edge/026_extra_26.ص` | `gr.decl.function` | edge | تطابق ✅ | 129 | 3043 |
-| 870 | `20_declarations/gr.decl.function/edge/027_extra_27.ص` | `gr.decl.function` | edge | تطابق ✅ | 121 | 3054 |
-| 871 | `20_declarations/gr.decl.function/edge/028_extra_28.ص` | `gr.decl.function` | edge | تطابق ✅ | 119 | 3169 |
-| 872 | `20_declarations/gr.decl.function/edge/029_extra_29.ص` | `gr.decl.function` | edge | تطابق ✅ | 116 | 2989 |
-| 873 | `20_declarations/gr.decl.function/edge/030_extra_30.ص` | `gr.decl.function` | edge | تطابق ✅ | 65 | 3053 |
-| 874 | `20_declarations/gr.decl.function/edge/031_extra_31.ص` | `gr.decl.function` | edge | تطابق ✅ | 71 | 2972 |
-| 875 | `20_declarations/gr.decl.function/edge/032_extra_32.ص` | `gr.decl.function` | edge | تطابق ✅ | 100 | 2988 |
-| 876 | `20_declarations/gr.decl.function/edge/033_extra_33.ص` | `gr.decl.function` | edge | تطابق ✅ | 60 | 3079 |
-| 877 | `20_declarations/gr.decl.function/edge/034_extra_34.ص` | `gr.decl.function` | edge | تطابق ✅ | 56 | 2996 |
-| 878 | `20_declarations/gr.decl.function/edge/035_extra_35.ص` | `gr.decl.function` | edge | تطابق ✅ | 96 | 3204 |
-| 879 | `20_declarations/gr.decl.function/edge/050_rettype_num.ص` | `gr.decl.function` | edge | تطابق ✅ | 63 | 3379 |
-| 880 | `20_declarations/gr.decl.function/edge/051_rettype_str.ص` | `gr.decl.function` | edge | تطابق ✅ | 48 | 3514 |
-| 881 | `20_declarations/gr.decl.function/edge/052_rettype_float.ص` | `gr.decl.function` | edge | تطابق ✅ | 62 | 4030 |
-| 882 | `20_declarations/gr.decl.function/edge/052_shadda_and_contextual_names_ok.ص` | `gr.decl.function` | edge | تطابق ✅ | 147 | 3711 |
-| 883 | `20_declarations/gr.decl.function/edge/053_إرجاع_مصفوفة_مختلطة.ص` | `gr.decl.function` | edge | تطابق ✅ | 114 | 4116 |
-| 884 | `20_declarations/gr.decl.function/edge/054_إرجاع_مصفوفة_نصوص_متجانسة.ص` | `gr.decl.function` | edge | تطابق ✅ | 56 | 3268 |
-| 885 | `20_declarations/gr.decl.function/edge/055_معامل_مصفوفة_مختلطة_حرفيّة.ص` | `gr.decl.function` | edge | تطابق ✅ | 86 | 3686 |
-| 886 | `20_declarations/gr.decl.function/edge/056_معامل_مصفوفة_نصوص_متجانسة.ص` | `gr.decl.function` | edge | تطابق ✅ | 55 | 3192 |
-| 887 | `20_declarations/gr.decl.function/edge/057_معامل_متعدّد_المواقع_متجانس_ثمّ_مختلط.ص` | `gr.decl.function` | edge | تطابق ✅ | 110 | 3172 |
-| 888 | `20_declarations/gr.decl.function/edge/058_إرجاعان_متنافران_نصّ_متجانس.ص` | `gr.decl.function` | edge | تطابق ✅ | 58 | 3985 |
-| 889 | `20_declarations/gr.decl.function/edge/059_إرجاعان_متنافران_عشريّ_متجانس.ص` | `gr.decl.function` | edge | تطابق ✅ | 110 | 3955 |
-| 890 | `20_declarations/gr.decl.function/edge/060_إرجاعان_متنافران_منطقيّ_متجانس.ص` | `gr.decl.function` | edge | تطابق ✅ | 55 | 3891 |
-| 891 | `20_declarations/gr.decl.function/edge/061_إرجاعان_محدّدان_مختلفان.ص` | `gr.decl.function` | edge | تطابق ✅ | 61 | 3906 |
-| 892 | `20_declarations/gr.decl.function/edge/062_مفاتيح_خريطة_عبر_Any.ص` | `gr.decl.function` | edge | تطابق ✅ | 56 | 4099 |
-| 893 | `20_declarations/gr.decl.function/edge/063_وسيط_متغيّر_مصفوفة_مختلطة_عبر_Any.ص` | `gr.decl.function` | edge | تطابق ✅ | 52 | 3848 |
-| 894 | `20_declarations/gr.decl.function/edge/064_وسيط_متغيّر_مصفوفة_نصوص_متجانسة.ص` | `gr.decl.function` | edge | تطابق ✅ | 88 | 3646 |
-| 895 | `20_declarations/gr.decl.function/edge/065_موقعان_متغيّر_مختلط_ثمّ_متجانس.ص` | `gr.decl.function` | edge | تطابق ✅ | 54 | 3856 |
-| 896 | `20_declarations/gr.decl.function/edge/066_معامل_مشترك_متغيّرا_نصّ_ثمّ_صحيح.ص` | `gr.decl.function` | edge | تطابق ✅ | 56 | 3888 |
-| 897 | `20_declarations/gr.decl.function/edge/067_معامل_مشترك_متغيّرا_عشريّ_ثمّ_صحيح.ص` | `gr.decl.function` | edge | تطابق ✅ | 51 | 3896 |
-| 898 | `20_declarations/gr.decl.function/edge/068_وسيط_نتيجة_نداء_مصفوفة_مختلطة.ص` | `gr.decl.function` | edge | تطابق ✅ | 56 | 4406 |
-| 899 | `20_declarations/gr.decl.function/edge/069_وسيط_نتيجة_نداء_مصفوفة_نصوص_متجانسة.ص` | `gr.decl.function` | edge | تطابق ✅ | 60 | 3892 |
-| 900 | `20_declarations/gr.decl.function/edge/070_موقعان_نتيجة_نداء_صحيحة_ثمّ_مختلطة.ص` | `gr.decl.function` | edge | تطابق ✅ | 76 | 5059 |
-| 901 | `20_declarations/gr.decl.function/negative/001_no_end.ص` | `gr.decl.function` | negative | تطابق ✅ | 126 | 0 |
-| 902 | `20_declarations/gr.decl.function/negative/002_stray_paren.ص` | `gr.decl.function` | negative | تطابق ✅ | 58 | 0 |
-| 903 | `20_declarations/gr.decl.function/negative/003_inner_if_noend.ص` | `gr.decl.function` | negative | تطابق ✅ | 62 | 0 |
-| 904 | `20_declarations/gr.decl.function/negative/004_kw_only.ص` | `gr.decl.function` | negative | تطابق ✅ | 128 | 0 |
-| 905 | `20_declarations/gr.decl.function/negative/005_body_unterminated.ص` | `gr.decl.function` | negative | تطابق ✅ | 137 | 0 |
-| 906 | `20_declarations/gr.decl.function/negative/006_varargs.ص` | `gr.decl.function` | negative | تطابق ✅ | 109 | 0 |
-| 907 | `20_declarations/gr.decl.function/negative/007_return_type_arrow.ص` | `gr.decl.function` | negative | تطابق ✅ | 109 | 0 |
-| 908 | `20_declarations/gr.decl.function/negative/008_dup_comma_param.ص` | `gr.decl.function` | negative | تطابق ✅ | 121 | 0 |
-| 909 | `20_declarations/gr.decl.function/negative/009_missing_body.ص` | `gr.decl.function` | negative | تطابق ✅ | 79 | 0 |
-| 910 | `20_declarations/gr.decl.function/negative/010_nested_unterminated.ص` | `gr.decl.function` | negative | تطابق ✅ | 80 | 0 |
-| 911 | `20_declarations/gr.decl.function/negative/050_arrow_rettype_after_params.ص` | `gr.decl.function` | negative | تطابق ✅ | 129 | 0 |
-| 912 | `20_declarations/gr.decl.function/negative/051_reserved_while_as_func_name.ص` | `gr.decl.function` | negative | تطابق ✅ | 113 | 0 |
-| 913 | `20_declarations/gr.decl.import/basic/001_import_رياضيات.ص` | `gr.decl.import` | basic | تطابق ✅ | 110 | 3635 |
-| 914 | `20_declarations/gr.decl.import/basic/002_import_أساسيات.ص` | `gr.decl.import` | basic | تطابق ✅ | 65 | 3421 |
-| 915 | `20_declarations/gr.decl.import/basic/003_import_نصوص.ص` | `gr.decl.import` | basic | تطابق ✅ | 70 | 3408 |
-| 916 | `20_declarations/gr.decl.import/basic/004_import_خرائط.ص` | `gr.decl.import` | basic | تطابق ✅ | 89 | 3641 |
-| 917 | `20_declarations/gr.decl.import/basic/005_import_تأكيدات.ص` | `gr.decl.import` | basic | تطابق ✅ | 92 | 3277 |
-| 918 | `20_declarations/gr.decl.import/basic/006_import_منصة.ص` | `gr.decl.import` | basic | تطابق ✅ | 186 | 3442 |
-| 919 | `20_declarations/gr.decl.import/basic/007_import_as.ص` | `gr.decl.import` | basic | تطابق ✅ | 89 | 3268 |
-| 920 | `20_declarations/gr.decl.import/basic/008_two_imports.ص` | `gr.decl.import` | basic | تطابق ✅ | 124 | 3088 |
-| 921 | `20_declarations/gr.decl.import/basic/009_import_then_code.ص` | `gr.decl.import` | basic | تطابق ✅ | 75 | 3174 |
-| 922 | `20_declarations/gr.decl.import/basic/010_import_alias_short.ص` | `gr.decl.import` | basic | تطابق ✅ | 116 | 3069 |
-| 923 | `20_declarations/gr.decl.import/basic/011_import_alias2.ص` | `gr.decl.import` | basic | تطابق ✅ | 72 | 3097 |
-| 924 | `20_declarations/gr.decl.import/basic/012_import_three.ص` | `gr.decl.import` | basic | تطابق ✅ | 62 | 3181 |
-| 925 | `20_declarations/gr.decl.import/edge/001_import_in_order.ص` | `gr.decl.import` | edge | تطابق ✅ | 61 | 3657 |
-| 926 | `20_declarations/gr.decl.import/edge/002_import_with_class.ص` | `gr.decl.import` | edge | تطابق ✅ | 98 | 3299 |
-| 927 | `20_declarations/gr.decl.import/edge/003_alias_then_alias.ص` | `gr.decl.import` | edge | تطابق ✅ | 70 | 3224 |
-| 928 | `20_declarations/gr.decl.import/edge/004_import_loop_after.ص` | `gr.decl.import` | edge | تطابق ✅ | 73 | 3347 |
-| 929 | `20_declarations/gr.decl.import/edge/005_import_cond_after.ص` | `gr.decl.import` | edge | تطابق ✅ | 85 | 3144 |
-| 930 | `20_declarations/gr.decl.import/edge/006_import_func_after.ص` | `gr.decl.import` | edge | تطابق ✅ | 71 | 3753 |
-| 931 | `20_declarations/gr.decl.import/edge/006_استيراد_بسيط_يليه_انتقائي.ص` | `gr.decl.import` | edge | تطابق ✅ | 111 | 3135 |
-| 932 | `20_declarations/gr.decl.import/edge/007_import_many_stmts.ص` | `gr.decl.import` | edge | تطابق ✅ | 100 | 3190 |
-| 933 | `20_declarations/gr.decl.import/edge/007_استيراد_بسيط_يليه_انتقائي_بلا_سطر_فارغ.ص` | `gr.decl.import` | edge | تطابق ✅ | 92 | 3055 |
-| 934 | `20_declarations/gr.decl.import/edge/008_extra1.ص` | `gr.decl.import` | edge | تطابق ✅ | 93 | 3026 |
-| 935 | `20_declarations/gr.decl.import/negative/001_no_module.ص` | `gr.decl.import` | negative | تطابق ✅ | 66 | 0 |
-| 936 | `20_declarations/gr.decl.import/negative/002_from_no_import.ص` | `gr.decl.import` | negative | تطابق ✅ | 67 | 0 |
-| 937 | `20_declarations/gr.decl.import/negative/003_from_no_module.ص` | `gr.decl.import` | negative | تطابق ✅ | 54 | 0 |
-| 938 | `20_declarations/gr.decl.import/negative/004_from_import_fails.ص` | `gr.decl.import` | negative | تطابق ✅ | 122 | 0 |
-| 939 | `20_declarations/gr.decl.parameters/basic/001_params_1.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 62 | 3514 |
-| 940 | `20_declarations/gr.decl.parameters/basic/002_params_2.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 107 | 3540 |
-| 941 | `20_declarations/gr.decl.parameters/basic/003_params_3.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 60 | 3586 |
-| 942 | `20_declarations/gr.decl.parameters/basic/004_params_4.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 66 | 3527 |
-| 943 | `20_declarations/gr.decl.parameters/basic/005_params_5.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 114 | 3768 |
-| 944 | `20_declarations/gr.decl.parameters/basic/006_no_params.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 64 | 3668 |
-| 945 | `20_declarations/gr.decl.parameters/basic/007_typed_one.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 66 | 3639 |
-| 946 | `20_declarations/gr.decl.parameters/basic/008_default_one.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 142 | 3779 |
-| 947 | `20_declarations/gr.decl.parameters/basic/009_two_typed.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 69 | 3847 |
-| 948 | `20_declarations/gr.decl.parameters/basic/010_mixed.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 91 | 3578 |
-| 949 | `20_declarations/gr.decl.parameters/basic/011_extra_11.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 72 | 3828 |
-| 950 | `20_declarations/gr.decl.parameters/basic/012_extra_12.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 61 | 3562 |
-| 951 | `20_declarations/gr.decl.parameters/basic/013_extra_13.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 130 | 3642 |
-| 952 | `20_declarations/gr.decl.parameters/basic/014_extra_14.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 53 | 3810 |
-| 953 | `20_declarations/gr.decl.parameters/basic/015_extra_15.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 88 | 3492 |
-| 954 | `20_declarations/gr.decl.parameters/basic/016_extra_16.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 82 | 3204 |
-| 955 | `20_declarations/gr.decl.parameters/basic/017_extra_17.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 82 | 3252 |
-| 956 | `20_declarations/gr.decl.parameters/basic/018_extra_18.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 145 | 3266 |
-| 957 | `20_declarations/gr.decl.parameters/basic/019_extra_19.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 124 | 3372 |
-| 958 | `20_declarations/gr.decl.parameters/basic/020_extra_20.ص` | `gr.decl.parameters` | basic | تطابق ✅ | 70 | 3397 |
-| 959 | `20_declarations/gr.decl.parameters/edge/001_default_uses_expr.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 75 | 3659 |
-| 960 | `20_declarations/gr.decl.parameters/edge/002_many_typed.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 74 | 3606 |
-| 961 | `20_declarations/gr.decl.parameters/edge/003_param_shadows.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 91 | 3527 |
-| 962 | `20_declarations/gr.decl.parameters/edge/004_param_in_loop.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 62 | 3537 |
-| 963 | `20_declarations/gr.decl.parameters/edge/005_two_defaults.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 111 | 3496 |
-| 964 | `20_declarations/gr.decl.parameters/edge/006_extra_6.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 61 | 3491 |
-| 965 | `20_declarations/gr.decl.parameters/edge/007_extra_7.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 121 | 3502 |
-| 966 | `20_declarations/gr.decl.parameters/edge/008_extra_8.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 130 | 3489 |
-| 967 | `20_declarations/gr.decl.parameters/edge/009_extra_9.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 55 | 3668 |
-| 968 | `20_declarations/gr.decl.parameters/edge/010_extra_10.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 140 | 3526 |
-| 969 | `20_declarations/gr.decl.parameters/edge/011_extra_11.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 72 | 3828 |
-| 970 | `20_declarations/gr.decl.parameters/edge/012_extra_12.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 61 | 3562 |
-| 971 | `20_declarations/gr.decl.parameters/edge/013_extra_13.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 130 | 3642 |
-| 972 | `20_declarations/gr.decl.parameters/edge/014_extra_14.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 53 | 3810 |
-| 973 | `20_declarations/gr.decl.parameters/edge/015_extra_15.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 88 | 3492 |
-| 974 | `20_declarations/gr.decl.parameters/edge/051_bool_param_to_string.ص` | `gr.decl.parameters` | edge | تطابق ✅ | 91 | 3623 |
-| 975 | `20_declarations/gr.decl.parameters/negative/001_trailing_comma.ص` | `gr.decl.parameters` | negative | تطابق ✅ | 66 | 0 |
-| 976 | `20_declarations/gr.decl.parameters/negative/002_leading_comma.ص` | `gr.decl.parameters` | negative | تطابق ✅ | 64 | 0 |
-| 977 | `20_declarations/gr.decl.parameters/negative/003_default_no_value2.ص` | `gr.decl.parameters` | negative | تطابق ✅ | 60 | 0 |
-| 978 | `20_declarations/gr.decl.parameters/negative/004_default_no_value.ص` | `gr.decl.parameters` | negative | تطابق ✅ | 111 | 0 |
-| 979 | `20_declarations/gr.decl.parameters/negative/005_varargs_param.ص` | `gr.decl.parameters` | negative | تطابق ✅ | 73 | 0 |
-| 980 | `20_declarations/gr.decl.parameters/negative/050_variadic_unsupported.ص` | `gr.decl.parameters` | negative | تطابق ✅ | 66 | 0 |
-| 981 | `20_declarations/gr.decl.parameters/negative/051_reserved_end_as_param.ص` | `gr.decl.parameters` | negative | تطابق ✅ | 58 | 0 |
-| 982 | `20_declarations/gr.decl.reexport/basic/001_bare_wildcard.ص` | `gr.decl.reexport` | basic | تطابق ✅ | 98 | 3122 |
-| 983 | `20_declarations/gr.decl.reexport/basic/002_bare_wildcard_after_func.ص` | `gr.decl.reexport` | basic | تطابق ✅ | 89 | 3610 |
-| 984 | `20_declarations/gr.decl.reexport/basic/003_bare_wildcard_with_const.ص` | `gr.decl.reexport` | basic | تطابق ✅ | 66 | 3180 |
-| 985 | `20_declarations/gr.decl.reexport/basic/004_wildcard_from_module.ص` | `gr.decl.reexport` | basic | تطابق ✅ | 73 | 3611 |
-| 986 | `20_declarations/gr.decl.reexport/basic/005_selective_from_module_alias.ص` | `gr.decl.reexport` | basic | تطابق ✅ | 59 | 3667 |
-| 987 | `20_declarations/gr.decl.reexport/basic/وحدة_مصدر.ص` | `gr.decl.reexport` | basic | تخطٍّ | 0 | 0 |
-| 988 | `20_declarations/gr.decl.reexport/edge/001_bare_wildcard_twice.ص` | `gr.decl.reexport` | edge | تطابق ✅ | 56 | 3534 |
-| 989 | `20_declarations/gr.decl.reexport/negative/001_items_without_from.ص` | `gr.decl.reexport` | negative | تطابق ✅ | 133 | 0 |
-| 990 | `20_declarations/gr.decl.type_ref/basic/001_typed_رقم.ص` | `gr.decl.type_ref` | basic | تطابق ✅ | 68 | 3146 |
-| 991 | `20_declarations/gr.decl.type_ref/basic/002_typed_نص.ص` | `gr.decl.type_ref` | basic | تطابق ✅ | 68 | 3026 |
-| 992 | `20_declarations/gr.decl.type_ref/basic/003_typed_مصفوفة.ص` | `gr.decl.type_ref` | basic | تطابق ✅ | 136 | 3288 |
-| 993 | `20_declarations/gr.decl.variable/basic/001_var_int.ص` | `gr.decl.variable` | basic | تطابق ✅ | 64 | 2974 |
-| 994 | `20_declarations/gr.decl.variable/basic/002_var_int2.ص` | `gr.decl.variable` | basic | تطابق ✅ | 65 | 3206 |
-| 995 | `20_declarations/gr.decl.variable/basic/003_var_neg.ص` | `gr.decl.variable` | basic | تطابق ✅ | 58 | 3193 |
-| 996 | `20_declarations/gr.decl.variable/basic/004_var_zero.ص` | `gr.decl.variable` | basic | تطابق ✅ | 59 | 3150 |
-| 997 | `20_declarations/gr.decl.variable/basic/005_var_str.ص` | `gr.decl.variable` | basic | تطابق ✅ | 64 | 3013 |
-| 998 | `20_declarations/gr.decl.variable/basic/006_var_str2.ص` | `gr.decl.variable` | basic | تطابق ✅ | 71 | 3020 |
-| 999 | `20_declarations/gr.decl.variable/basic/007_var_bool_t.ص` | `gr.decl.variable` | basic | تطابق ✅ | 120 | 3052 |
-| 1000 | `20_declarations/gr.decl.variable/basic/008_var_bool_f.ص` | `gr.decl.variable` | basic | تطابق ✅ | 62 | 3155 |
-| 1001 | `20_declarations/gr.decl.variable/basic/009_var_add.ص` | `gr.decl.variable` | basic | تطابق ✅ | 58 | 3152 |
-| 1002 | `20_declarations/gr.decl.variable/basic/010_var_mul.ص` | `gr.decl.variable` | basic | تطابق ✅ | 62 | 3036 |
-| 1003 | `20_declarations/gr.decl.variable/basic/011_var_mod.ص` | `gr.decl.variable` | basic | تطابق ✅ | 62 | 3103 |
-| 1004 | `20_declarations/gr.decl.variable/basic/012_var_paren.ص` | `gr.decl.variable` | basic | تطابق ✅ | 56 | 2964 |
-| 1005 | `20_declarations/gr.decl.variable/basic/013_const_int.ص` | `gr.decl.variable` | basic | تطابق ✅ | 61 | 3255 |
-| 1006 | `20_declarations/gr.decl.variable/basic/014_const_int2.ص` | `gr.decl.variable` | basic | تطابق ✅ | 64 | 3187 |
-| 1007 | `20_declarations/gr.decl.variable/basic/015_const_neg.ص` | `gr.decl.variable` | basic | تطابق ✅ | 66 | 3181 |
-| 1008 | `20_declarations/gr.decl.variable/basic/016_const_zero.ص` | `gr.decl.variable` | basic | تطابق ✅ | 126 | 3064 |
-| 1009 | `20_declarations/gr.decl.variable/basic/017_const_str.ص` | `gr.decl.variable` | basic | تطابق ✅ | 73 | 2981 |
-| 1010 | `20_declarations/gr.decl.variable/basic/018_const_str2.ص` | `gr.decl.variable` | basic | تطابق ✅ | 68 | 3009 |
-| 1011 | `20_declarations/gr.decl.variable/basic/019_const_bool_t.ص` | `gr.decl.variable` | basic | تطابق ✅ | 64 | 3026 |
-| 1012 | `20_declarations/gr.decl.variable/basic/020_const_bool_f.ص` | `gr.decl.variable` | basic | تطابق ✅ | 63 | 3189 |
-| 1013 | `20_declarations/gr.decl.variable/basic/021_typed_رقم.ص` | `gr.decl.variable` | basic | تطابق ✅ | 61 | 3128 |
-| 1014 | `20_declarations/gr.decl.variable/basic/022_typed_نص.ص` | `gr.decl.variable` | basic | تطابق ✅ | 62 | 3175 |
-| 1015 | `20_declarations/gr.decl.variable/basic/023_typed_منطقي.ص` | `gr.decl.variable` | basic | تطابق ✅ | 56 | 3222 |
-| 1016 | `20_declarations/gr.decl.variable/basic/024_typed_عشري.ص` | `gr.decl.variable` | basic | تطابق ✅ | 51 | 3290 |
-| 1017 | `20_declarations/gr.decl.variable/basic/025_from_func.ص` | `gr.decl.variable` | basic | تطابق ✅ | 66 | 3950 |
-| 1018 | `20_declarations/gr.decl.variable/basic/026_from_var.ص` | `gr.decl.variable` | basic | تطابق ✅ | 68 | 3337 |
-| 1019 | `20_declarations/gr.decl.variable/basic/027_array_init.ص` | `gr.decl.variable` | basic | تطابق ✅ | 119 | 3575 |
-| 1020 | `20_declarations/gr.decl.variable/basic/028_map_init.ص` | `gr.decl.variable` | basic | تطابق ✅ | 66 | 3650 |
-| 1021 | `20_declarations/gr.decl.variable/basic/029_no_init_then_set.ص` | `gr.decl.variable` | basic | تطابق ✅ | 83 | 3621 |
-| 1022 | `20_declarations/gr.decl.variable/basic/030_reassign.ص` | `gr.decl.variable` | basic | تطابق ✅ | 132 | 3425 |
-| 1023 | `20_declarations/gr.decl.variable/basic/031_compound_init.ص` | `gr.decl.variable` | basic | تطابق ✅ | 97 | 3511 |
-| 1024 | `20_declarations/gr.decl.variable/basic/032_static_var.ص` | `gr.decl.variable` | basic | تطابق ✅ | 115 | 3257 |
-| 1025 | `20_declarations/gr.decl.variable/basic/033_extra_33.ص` | `gr.decl.variable` | basic | تطابق ✅ | 60 | 3079 |
-| 1026 | `20_declarations/gr.decl.variable/basic/034_extra_34.ص` | `gr.decl.variable` | basic | تطابق ✅ | 56 | 2996 |
-| 1027 | `20_declarations/gr.decl.variable/basic/035_extra_35.ص` | `gr.decl.variable` | basic | تطابق ✅ | 96 | 3204 |
-| 1028 | `20_declarations/gr.decl.variable/basic/036_extra_36.ص` | `gr.decl.variable` | basic | تطابق ✅ | 70 | 3197 |
-| 1029 | `20_declarations/gr.decl.variable/basic/037_extra_37.ص` | `gr.decl.variable` | basic | تطابق ✅ | 68 | 3160 |
-| 1030 | `20_declarations/gr.decl.variable/basic/038_extra_38.ص` | `gr.decl.variable` | basic | تطابق ✅ | 54 | 3135 |
-| 1031 | `20_declarations/gr.decl.variable/basic/039_extra_39.ص` | `gr.decl.variable` | basic | تطابق ✅ | 60 | 3156 |
-| 1032 | `20_declarations/gr.decl.variable/basic/040_extra_40.ص` | `gr.decl.variable` | basic | تطابق ✅ | 61 | 3137 |
-| 1033 | `20_declarations/gr.decl.variable/basic/045_mod_const_typed.ص` | `gr.decl.variable` | basic | تطابق ✅ | 54 | 3269 |
-| 1034 | `20_declarations/gr.decl.variable/basic/046_typed_طبيعي64.ص` | `gr.decl.variable` | basic | تطابق ✅ | 185 | 3147 |
-| 1035 | `20_declarations/gr.decl.variable/basic/047_typed_بايت.ص` | `gr.decl.variable` | basic | تطابق ✅ | 123 | 3278 |
-| 1036 | `20_declarations/gr.decl.variable/basic/048_byte_wide_value.ص` | `gr.decl.variable` | basic | تطابق ✅ | 142 | 3308 |
-| 1037 | `20_declarations/gr.decl.variable/basic/049_byte_trunc_register.ص` | `gr.decl.variable` | basic | تطابق ✅ | 63 | 3192 |
-| 1038 | `20_declarations/gr.decl.variable/basic/050_طبيعي64_literal_over_i64max.ص` | `gr.decl.variable` | basic | تطابق ✅ | 64 | 3185 |
-| 1039 | `20_declarations/gr.decl.variable/basic/051_طبيعي64_unsigned_print.ص` | `gr.decl.variable` | basic | تطابق ✅ | 74 | 3300 |
-| 1040 | `20_declarations/gr.decl.variable/basic/052_طبيعي64_unsigned_compare.ص` | `gr.decl.variable` | basic | تطابق ✅ | 122 | 3152 |
-| 1041 | `20_declarations/gr.decl.variable/basic/054_طبيعي64_wrapping_arith.ص` | `gr.decl.variable` | basic | تطابق ✅ | 75 | 3255 |
-| 1042 | `20_declarations/gr.decl.variable/basic/055_طبيعي64_null_sentinel_collision.ص` | `gr.decl.variable` | basic | تطابق ✅ | 73 | 3249 |
-| 1043 | `20_declarations/gr.decl.variable/basic/056_طبيعي64_unsigned_div_mod.ص` | `gr.decl.variable` | basic | تطابق ✅ | 77 | 3087 |
-| 1044 | `20_declarations/gr.decl.variable/basic/057_طبيعي64_global_div_mod_in_function.ص` | `gr.decl.variable` | basic | تطابق ✅ | 66 | 3920 |
-| 1045 | `20_declarations/gr.decl.variable/basic/058_طبيعي64_captured_div_mod_in_closure.ص` | `gr.decl.variable` | basic | تطابق ✅ | 79 | 3466 |
-| 1046 | `20_declarations/gr.decl.variable/basic/059_طبيعي64_reassign_literal_div_mod.ص` | `gr.decl.variable` | basic | تطابق ✅ | 78 | 3028 |
-| 1047 | `20_declarations/gr.decl.variable/edge/001_long_name.ص` | `gr.decl.variable` | edge | تطابق ✅ | 74 | 3131 |
-| 1048 | `20_declarations/gr.decl.variable/edge/002_unicode_name.ص` | `gr.decl.variable` | edge | تطابق ✅ | 59 | 3011 |
-| 1049 | `20_declarations/gr.decl.variable/edge/003_latin_name.ص` | `gr.decl.variable` | edge | تطابق ✅ | 52 | 3069 |
-| 1050 | `20_declarations/gr.decl.variable/edge/004_block_var.ص` | `gr.decl.variable` | edge | تطابق ✅ | 60 | 3064 |
-| 1051 | `20_declarations/gr.decl.variable/edge/005_chain_calc.ص` | `gr.decl.variable` | edge | تطابق ✅ | 56 | 3110 |
-| 1052 | `20_declarations/gr.decl.variable/edge/006_reassign_expr.ص` | `gr.decl.variable` | edge | تطابق ✅ | 131 | 3239 |
-| 1053 | `20_declarations/gr.decl.variable/edge/007_bool_expr_init.ص` | `gr.decl.variable` | edge | تطابق ✅ | 91 | 3148 |
-| 1054 | `20_declarations/gr.decl.variable/edge/008_nested_array.ص` | `gr.decl.variable` | edge | تطابق ✅ | 140 | 3311 |
-| 1055 | `20_declarations/gr.decl.variable/edge/009_ternary_init.ص` | `gr.decl.variable` | edge | تطابق ✅ | 62 | 3212 |
-| 1056 | `20_declarations/gr.decl.variable/edge/010_str_concat_init.ص` | `gr.decl.variable` | edge | تطابق ✅ | 62 | 3240 |
-| 1057 | `20_declarations/gr.decl.variable/edge/011_in_loop.ص` | `gr.decl.variable` | edge | تطابق ✅ | 56 | 3358 |
-| 1058 | `20_declarations/gr.decl.variable/edge/012_in_func.ص` | `gr.decl.variable` | edge | تطابق ✅ | 119 | 3580 |
-| 1059 | `20_declarations/gr.decl.variable/edge/013_multi_same_line.ص` | `gr.decl.variable` | edge | تطابق ✅ | 145 | 3255 |
-| 1060 | `20_declarations/gr.decl.variable/edge/014_const_in_expr.ص` | `gr.decl.variable` | edge | تطابق ✅ | 178 | 3343 |
-| 1061 | `20_declarations/gr.decl.variable/edge/015_reassign_type_change.ص` | `gr.decl.variable` | edge | تطابق ✅ | 60 | 3152 |
-| 1062 | `20_declarations/gr.decl.variable/edge/016_extra_16.ص` | `gr.decl.variable` | edge | تطابق ✅ | 82 | 3204 |
-| 1063 | `20_declarations/gr.decl.variable/edge/017_extra_17.ص` | `gr.decl.variable` | edge | تطابق ✅ | 82 | 3252 |
-| 1064 | `20_declarations/gr.decl.variable/edge/018_extra_18.ص` | `gr.decl.variable` | edge | تطابق ✅ | 145 | 3266 |
-| 1065 | `20_declarations/gr.decl.variable/edge/019_extra_19.ص` | `gr.decl.variable` | edge | تطابق ✅ | 124 | 3372 |
-| 1066 | `20_declarations/gr.decl.variable/edge/020_extra_20.ص` | `gr.decl.variable` | edge | تطابق ✅ | 70 | 3397 |
-| 1067 | `20_declarations/gr.decl.variable/edge/021_extra_21.ص` | `gr.decl.variable` | edge | تطابق ✅ | 54 | 3393 |
-| 1068 | `20_declarations/gr.decl.variable/edge/022_extra_22.ص` | `gr.decl.variable` | edge | تطابق ✅ | 102 | 3186 |
-| 1069 | `20_declarations/gr.decl.variable/edge/023_extra_23.ص` | `gr.decl.variable` | edge | تطابق ✅ | 67 | 3242 |
-| 1070 | `20_declarations/gr.decl.variable/edge/024_extra_24.ص` | `gr.decl.variable` | edge | تطابق ✅ | 187 | 3101 |
-| 1071 | `20_declarations/gr.decl.variable/edge/025_extra_25.ص` | `gr.decl.variable` | edge | تطابق ✅ | 156 | 3094 |
-| 1072 | `20_declarations/gr.decl.variable/edge/026_extra_26.ص` | `gr.decl.variable` | edge | تطابق ✅ | 129 | 3043 |
-| 1073 | `20_declarations/gr.decl.variable/edge/027_extra_27.ص` | `gr.decl.variable` | edge | تطابق ✅ | 121 | 3054 |
-| 1074 | `20_declarations/gr.decl.variable/edge/028_extra_28.ص` | `gr.decl.variable` | edge | تطابق ✅ | 119 | 3169 |
-| 1075 | `20_declarations/gr.decl.variable/edge/029_extra_29.ص` | `gr.decl.variable` | edge | تطابق ✅ | 116 | 2989 |
-| 1076 | `20_declarations/gr.decl.variable/edge/030_extra_30.ص` | `gr.decl.variable` | edge | تطابق ✅ | 65 | 3053 |
-| 1077 | `20_declarations/gr.decl.variable/edge/031_extra_31.ص` | `gr.decl.variable` | edge | تطابق ✅ | 71 | 2972 |
-| 1078 | `20_declarations/gr.decl.variable/edge/032_extra_32.ص` | `gr.decl.variable` | edge | تطابق ✅ | 100 | 2988 |
-| 1079 | `20_declarations/gr.decl.variable/edge/033_extra_33.ص` | `gr.decl.variable` | edge | تطابق ✅ | 60 | 3079 |
-| 1080 | `20_declarations/gr.decl.variable/edge/034_extra_34.ص` | `gr.decl.variable` | edge | تطابق ✅ | 56 | 2996 |
-| 1081 | `20_declarations/gr.decl.variable/edge/035_extra_35.ص` | `gr.decl.variable` | edge | تطابق ✅ | 96 | 3204 |
-| 1082 | `20_declarations/gr.decl.variable/edge/036_mod_static_public.ص` | `gr.decl.variable` | edge | تطابق ✅ | 75 | 3006 |
-| 1083 | `20_declarations/gr.decl.variable/edge/037_mod_protected.ص` | `gr.decl.variable` | edge | تطابق ✅ | 70 | 2986 |
-| 1084 | `20_declarations/gr.decl.variable/edge/053_nonstarter_reserved_as_var_ok.ص` | `gr.decl.variable` | edge | تطابق ✅ | 65 | 3428 |
-| 1085 | `20_declarations/gr.decl.variable/edge/054_redeclare_same_scope_type_change.ص` | `gr.decl.variable` | edge | تطابق ✅ | 67 | 3443 |
-| 1086 | `20_declarations/gr.decl.variable/edge/055_redeclare_scalar_string_same_type.ص` | `gr.decl.variable` | edge | تطابق ✅ | 58 | 3461 |
-| 1087 | `20_declarations/gr.decl.variable/edge/056_redeclare_shadows_local_const.ص` | `gr.decl.variable` | edge | تطابق ✅ | 122 | 3961 |
-| 1088 | `20_declarations/gr.decl.variable/negative/001_no_name.ص` | `gr.decl.variable` | negative | تطابق ✅ | 62 | 0 |
-| 1089 | `20_declarations/gr.decl.variable/negative/002_no_value.ص` | `gr.decl.variable` | negative | تطابق ✅ | 59 | 0 |
-| 1090 | `20_declarations/gr.decl.variable/negative/003_num_name.ص` | `gr.decl.variable` | negative | تطابق ✅ | 51 | 0 |
-| 1091 | `20_declarations/gr.decl.variable/negative/004_kw_only.ص` | `gr.decl.variable` | negative | تطابق ✅ | 128 | 0 |
-| 1092 | `20_declarations/gr.decl.variable/negative/005_const_reassign.ص` | `gr.decl.variable` | negative | تطابق ✅ | 76 | 0 |
-| 1093 | `20_declarations/gr.decl.variable/negative/006_double_assign.ص` | `gr.decl.variable` | negative | تطابق ✅ | 63 | 0 |
-| 1094 | `20_declarations/gr.decl.variable/negative/007_const_no_name.ص` | `gr.decl.variable` | negative | تطابق ✅ | 61 | 0 |
-| 1095 | `20_declarations/gr.decl.variable/negative/008_lhs_literal.ص` | `gr.decl.variable` | negative | تطابق ✅ | 64 | 0 |
-| 1096 | `20_declarations/gr.decl.variable/negative/009_trailing_op.ص` | `gr.decl.variable` | negative | تطابق ✅ | 76 | 0 |
-| 1097 | `20_declarations/gr.decl.variable/negative/010_undefined_use.ص` | `gr.decl.variable` | negative | تطابق ✅ | 147 | 0 |
-| 1098 | `20_declarations/gr.decl.variable/negative/051_reserved_while_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ | 64 | 0 |
-| 1099 | `20_declarations/gr.decl.variable/negative/052_reserved_return_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ | 62 | 0 |
-| 1100 | `20_declarations/gr.decl.variable/negative/053_reserved_function_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ | 55 | 0 |
-| 1101 | `20_declarations/gr.decl.variable/negative/054_typed_reserved_while_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ | 55 | 0 |
-| 1102 | `30_oop/gr.oop.class/basic/001_field_ctor_method.ص` | `gr.oop.class` | basic | تطابق ✅ | 56 | 3110 |
-| 1103 | `30_oop/gr.oop.class/basic/002_abstract_override.ص` | `gr.oop.class` | basic | تطابق ✅ | 60 | 3052 |
-| 1104 | `30_oop/gr.oop.class/basic/003_inherits.ص` | `gr.oop.class` | basic | تطابق ✅ | 66 | 3033 |
-| 1105 | `30_oop/gr.oop.class/basic/050_simple_field.ص` | `gr.oop.class` | basic | تطابق ✅ | 95 | 3270 |
-| 1106 | `30_oop/gr.oop.class/basic/051_ctor_init.ص` | `gr.oop.class` | basic | تطابق ✅ | 64 | 3225 |
-| 1107 | `30_oop/gr.oop.class/basic/052_method_call.ص` | `gr.oop.class` | basic | تطابق ✅ | 65 | 3218 |
-| 1108 | `30_oop/gr.oop.class/basic/053_two_fields.ص` | `gr.oop.class` | basic | تطابق ✅ | 127 | 3276 |
-| 1109 | `30_oop/gr.oop.class/basic/054_inherit.ص` | `gr.oop.class` | basic | تطابق ✅ | 132 | 3319 |
-| 1110 | `30_oop/gr.oop.class/basic/055_three_methods.ص` | `gr.oop.class` | basic | تطابق ✅ | 59 | 3505 |
-| 1111 | `30_oop/gr.oop.class/basic/056_field_and_method.ص` | `gr.oop.class` | basic | تطابق ✅ | 58 | 3601 |
-| 1112 | `30_oop/gr.oop.class/basic/057_ctor_two_fields.ص` | `gr.oop.class` | basic | تطابق ✅ | 61 | 3660 |
-| 1113 | `30_oop/gr.oop.class/basic/058_method_returns_field.ص` | `gr.oop.class` | basic | تطابق ✅ | 125 | 3392 |
-| 1114 | `30_oop/gr.oop.class/basic/059_mutate_via_method.ص` | `gr.oop.class` | basic | تطابق ✅ | 118 | 3288 |
-| 1115 | `30_oop/gr.oop.class/basic/060_two_instances.ص` | `gr.oop.class` | basic | تطابق ✅ | 143 | 3280 |
-| 1116 | `30_oop/gr.oop.class/basic/061_string_field.ص` | `gr.oop.class` | basic | تطابق ✅ | 71 | 3237 |
-| 1117 | `30_oop/gr.oop.class/basic/062_bool_field_method.ص` | `gr.oop.class` | basic | تطابق ✅ | 72 | 3349 |
-| 1118 | `30_oop/gr.oop.class/basic/063_method_calls_method.ص` | `gr.oop.class` | basic | تطابق ✅ | 115 | 3170 |
-| 1119 | `30_oop/gr.oop.class/basic/064_field_default_and_ctor.ص` | `gr.oop.class` | basic | تطابق ✅ | 65 | 3207 |
-| 1120 | `30_oop/gr.oop.class/basic/065_inherit_field.ص` | `gr.oop.class` | basic | تطابق ✅ | 129 | 3214 |
-| 1121 | `30_oop/gr.oop.class/basic/066_three_fields_sum.ص` | `gr.oop.class` | basic | تطابق ✅ | 57 | 3304 |
-| 1122 | `30_oop/gr.oop.class/basic/067_method_with_param_and_field.ص` | `gr.oop.class` | basic | تطابق ✅ | 109 | 3182 |
-| 1123 | `30_oop/gr.oop.class/basic/068_empty_ctor.ص` | `gr.oop.class` | basic | تطابق ✅ | 59 | 3105 |
-| 1124 | `30_oop/gr.oop.class/basic/069_getter.ص` | `gr.oop.class` | basic | تطابق ✅ | 79 | 3000 |
-| 1125 | `30_oop/gr.oop.class/basic/070_setter_method.ص` | `gr.oop.class` | basic | تطابق ✅ | 66 | 3240 |
-| 1126 | `30_oop/gr.oop.class/basic/071_add_method.ص` | `gr.oop.class` | basic | تطابق ✅ | 132 | 3244 |
-| 1127 | `30_oop/gr.oop.class/basic/072_sub_method.ص` | `gr.oop.class` | basic | تطابق ✅ | 109 | 3071 |
-| 1128 | `30_oop/gr.oop.class/basic/073_mul_method.ص` | `gr.oop.class` | basic | تطابق ✅ | 63 | 3190 |
-| 1129 | `30_oop/gr.oop.class/basic/074_greeting.ص` | `gr.oop.class` | basic | تطابق ✅ | 71 | 3104 |
-| 1130 | `30_oop/gr.oop.class/basic/075_counter_start.ص` | `gr.oop.class` | basic | تطابق ✅ | 76 | 3112 |
-| 1131 | `30_oop/gr.oop.class/basic/076_two_field_concat.ص` | `gr.oop.class` | basic | تطابق ✅ | 63 | 3244 |
-| 1132 | `30_oop/gr.oop.class/basic/077_square.ص` | `gr.oop.class` | basic | تطابق ✅ | 67 | 3067 |
-| 1133 | `30_oop/gr.oop.class/basic/078_is_positive.ص` | `gr.oop.class` | basic | تطابق ✅ | 98 | 3155 |
-| 1134 | `30_oop/gr.oop.class/basic/079_max_of_two.ص` | `gr.oop.class` | basic | تطابق ✅ | 136 | 3168 |
-| 1135 | `30_oop/gr.oop.class/basic/080_bool_store.ص` | `gr.oop.class` | basic | تطابق ✅ | 129 | 3250 |
-| 1136 | `30_oop/gr.oop.class/basic/081_float_field.ص` | `gr.oop.class` | basic | تطابق ✅ | 119 | 3241 |
-| 1137 | `30_oop/gr.oop.class/basic/082_increment_by.ص` | `gr.oop.class` | basic | تطابق ✅ | 65 | 3391 |
-| 1138 | `30_oop/gr.oop.class/basic/083_reset.ص` | `gr.oop.class` | basic | تطابق ✅ | 63 | 3431 |
-| 1139 | `30_oop/gr.oop.class/basic/084_name_default.ص` | `gr.oop.class` | basic | تطابق ✅ | 79 | 3158 |
-| 1140 | `30_oop/gr.oop.class/basic/085_multiply_field.ص` | `gr.oop.class` | basic | تطابق ✅ | 75 | 3346 |
-| 1141 | `30_oop/gr.oop.class/basic/086_negate.ص` | `gr.oop.class` | basic | تطابق ✅ | 52 | 3139 |
-| 1142 | `30_oop/gr.oop.class/basic/087_concat_three.ص` | `gr.oop.class` | basic | تطابق ✅ | 86 | 3141 |
-| 1143 | `30_oop/gr.oop.class/basic/088_double_field_default.ص` | `gr.oop.class` | basic | تطابق ✅ | 61 | 3091 |
-| 1144 | `30_oop/gr.oop.class/edge/050_override.ص` | `gr.oop.class` | edge | تطابق ✅ | 119 | 3122 |
-| 1145 | `30_oop/gr.oop.class/edge/051_inherit_chain.ص` | `gr.oop.class` | edge | تطابق ✅ | 68 | 3116 |
-| 1146 | `30_oop/gr.oop.class/edge/052_nested_obj.ص` | `gr.oop.class` | edge | تطابق ✅ | 126 | 3142 |
-| 1147 | `30_oop/gr.oop.class/edge/053_self_method_call.ص` | `gr.oop.class` | edge | تطابق ✅ | 109 | 3144 |
-| 1148 | `30_oop/gr.oop.class/edge/054_bool_field.ص` | `gr.oop.class` | edge | تطابق ✅ | 136 | 3227 |
-| 1149 | `30_oop/gr.oop.class/edge/055_chain_setters.ص` | `gr.oop.class` | edge | تطابق ✅ | 106 | 3159 |
-| 1150 | `30_oop/gr.oop.class/edge/056_object_field.ص` | `gr.oop.class` | edge | تطابق ✅ | 66 | 3378 |
-| 1151 | `30_oop/gr.oop.class/edge/057_method_in_loop.ص` | `gr.oop.class` | edge | تطابق ✅ | 66 | 3386 |
-| 1152 | `30_oop/gr.oop.class/edge/058_conditional_field.ص` | `gr.oop.class` | edge | تطابق ✅ | 118 | 3360 |
-| 1153 | `30_oop/gr.oop.class/edge/059_nested_inherit_override.ص` | `gr.oop.class` | edge | تطابق ✅ | 62 | 3550 |
-| 1154 | `30_oop/gr.oop.class/edge/060_field_used_in_two_methods.ص` | `gr.oop.class` | edge | تطابق ✅ | 114 | 3640 |
-| 1155 | `30_oop/gr.oop.class/edge/061_method_uses_two_fields.ص` | `gr.oop.class` | edge | تطابق ✅ | 110 | 3631 |
-| 1156 | `30_oop/gr.oop.class/edge/062_accumulate_in_loop.ص` | `gr.oop.class` | edge | تطابق ✅ | 71 | 3776 |
-| 1157 | `30_oop/gr.oop.class/edge/063_method_returns_object_field.ص` | `gr.oop.class` | edge | تطابق ✅ | 200 | 3540 |
-| 1158 | `30_oop/gr.oop.class/edge/064_recursive_method.ص` | `gr.oop.class` | edge | تطابق ✅ | 149 | 3291 |
-| 1159 | `30_oop/gr.oop.class/edge/065_chain_of_methods.ص` | `gr.oop.class` | edge | تطابق ✅ | 140 | 3186 |
-| 1160 | `30_oop/gr.oop.class/edge/066_super_method_call.ص` | `gr.oop.class` | edge | تطابق ✅ | 71 | 3206 |
-| 1161 | `30_oop/gr.oop.class/edge/067_override_returns_diff.ص` | `gr.oop.class` | edge | تطابق ✅ | 95 | 3343 |
-| 1162 | `30_oop/gr.oop.class/edge/068_inherited_method.ص` | `gr.oop.class` | edge | تطابق ✅ | 108 | 3100 |
-| 1163 | `30_oop/gr.oop.class/edge/069_field_modified_across_methods.ص` | `gr.oop.class` | edge | تطابق ✅ | 59 | 3094 |
-| 1164 | `30_oop/gr.oop.class/edge/070_conditional_in_ctor_path.ص` | `gr.oop.class` | edge | تطابق ✅ | 90 | 3171 |
-| 1165 | `30_oop/gr.oop.class/edge/071_two_objects_interact.ص` | `gr.oop.class` | edge | تطابق ✅ | 68 | 3044 |
-| 1166 | `30_oop/gr.oop.class/edge/072_while_with_method.ص` | `gr.oop.class` | edge | تطابق ✅ | 67 | 3153 |
-| 1167 | `30_oop/gr.oop.class/edge/073_method_with_local_var.ص` | `gr.oop.class` | edge | تطابق ✅ | 140 | 3037 |
-| 1168 | `30_oop/gr.oop.class/edge/074_nested_method_calls.ص` | `gr.oop.class` | edge | تطابق ✅ | 69 | 3061 |
-| 1169 | `30_oop/gr.oop.class/edge/075_string_field_method.ص` | `gr.oop.class` | edge | تطابق ✅ | 58 | 3282 |
-| 1170 | `30_oop/gr.oop.class/edge/076_three_level_inherit.ص` | `gr.oop.class` | edge | تطابق ✅ | 122 | 3060 |
-| 1171 | `30_oop/gr.oop.class/edge/077_method_calls_own_field_method.ص` | `gr.oop.class` | edge | تطابق ✅ | 114 | 3102 |
-| 1172 | `30_oop/gr.oop.class/edge/078_bool_method_branch.ص` | `gr.oop.class` | edge | تطابق ✅ | 64 | 3018 |
-| 1173 | `30_oop/gr.oop.class/edge/079_sum_via_loop_field.ص` | `gr.oop.class` | edge | تطابق ✅ | 142 | 3099 |
-| 1174 | `30_oop/gr.oop.class/edge/081_field_object_method_chain.ص` | `gr.oop.class` | edge | تطابق ✅ | 67 | 3089 |
-| 1175 | `30_oop/gr.oop.class/edge/082_multiple_instances_independent.ص` | `gr.oop.class` | edge | تطابق ✅ | 62 | 3105 |
-| 1176 | `30_oop/gr.oop.class/edge/083_empty_body_method.ص` | `gr.oop.class` | edge | تطابق ✅ | 89 | 3203 |
-| 1177 | `30_oop/gr.oop.class/edge/084_method_returns_bool_field.ص` | `gr.oop.class` | edge | تطابق ✅ | 72 | 3168 |
-| 1178 | `30_oop/gr.oop.class/edge/085_deep_method_nest.ص` | `gr.oop.class` | edge | تطابق ✅ | 62 | 3124 |
-| 1179 | `30_oop/gr.oop.class/negative/050_missing_end.ص` | `gr.oop.class` | negative | تطابق ✅ | 54 | 0 |
-| 1180 | `30_oop/gr.oop.class/negative/051_stray_member_kw.ص` | `gr.oop.class` | negative | تطابق ✅ | 96 | 0 |
-| 1181 | `30_oop/gr.oop.class/negative/052_missing_end.ص` | `gr.oop.class` | negative | تطابق ✅ | 72 | 0 |
-| 1182 | `30_oop/gr.oop.class/negative/053_modifier_before_kw.ص` | `gr.oop.class` | negative | تطابق ✅ | 60 | 0 |
-| 1183 | `30_oop/gr.oop.class/negative/054_empty_no_end.ص` | `gr.oop.class` | negative | تطابق ✅ | 125 | 0 |
-| 1184 | `30_oop/gr.oop.class/negative/055_inherits_no_parent.ص` | `gr.oop.class` | negative | تطابق ✅ | 64 | 0 |
-| 1185 | `30_oop/gr.oop.class/negative/056_ctor_missing_end.ص` | `gr.oop.class` | negative | تطابق ✅ | 57 | 0 |
-| 1186 | `30_oop/gr.oop.class/negative/057_unknown_member_kw.ص` | `gr.oop.class` | negative | تطابق ✅ | 58 | 0 |
-| 1187 | `30_oop/gr.oop.class/negative/058_no_name.ص` | `gr.oop.class` | negative | تطابق ✅ | 51 | 0 |
-| 1188 | `30_oop/gr.oop.class/negative/059_abstract_method_no_body_called.ص` | `gr.oop.class` | negative | تطابق ✅ | 62 | 0 |
-| 1189 | `30_oop/gr.oop.constructor/basic/001_param_this.ص` | `gr.oop.constructor` | basic | تطابق ✅ | 67 | 3238 |
-| 1190 | `30_oop/gr.oop.constructor/basic/002_base_call.ص` | `gr.oop.constructor` | basic | تطابق ✅ | 84 | 3063 |
-| 1191 | `30_oop/gr.oop.constructor/basic/050_single_param.ص` | `gr.oop.constructor` | basic | تطابق ✅ | 147 | 3239 |
-| 1192 | `30_oop/gr.oop.constructor/basic/051_no_param_default.ص` | `gr.oop.constructor` | basic | تطابق ✅ | 108 | 3114 |
-| 1193 | `30_oop/gr.oop.constructor/basic/052_three_params.ص` | `gr.oop.constructor` | basic | تطابق ✅ | 94 | 3240 |
-| 1194 | `30_oop/gr.oop.constructor/basic/053_ctor_no_args_defaults.ص` | `gr.oop.constructor` | basic | تطابق ✅ | 80 | 3384 |
-| 1195 | `30_oop/gr.oop.constructor/edge/050_super_call.ص` | `gr.oop.constructor` | edge | تطابق ✅ | 67 | 3171 |
-| 1196 | `30_oop/gr.oop.constructor/edge/051_two_params.ص` | `gr.oop.constructor` | edge | تطابق ✅ | 52 | 3163 |
-| 1197 | `30_oop/gr.oop.constructor/edge/052_default_field_in_ctor.ص` | `gr.oop.constructor` | edge | تطابق ✅ | 62 | 3076 |
-| 1198 | `30_oop/gr.oop.constructor/edge/053_ctor_computes.ص` | `gr.oop.constructor` | edge | تطابق ✅ | 72 | 2889 |
-| 1199 | `30_oop/gr.oop.constructor/edge/054_ctor_calls_method.ص` | `gr.oop.constructor` | edge | تطابق ✅ | 61 | 2949 |
-| 1200 | `30_oop/gr.oop.constructor/negative/050_no_parens.ص` | `gr.oop.constructor` | negative | تطابق ✅ | 77 | 0 |
-| 1201 | `30_oop/gr.oop.constructor/negative/051_missing_end.ص` | `gr.oop.constructor` | negative | تطابق ✅ | 56 | 0 |
-| 1202 | `30_oop/gr.oop.constructor/negative/051_reserved_end_as_ctor_param.ص` | `gr.oop.constructor` | negative | تطابق ✅ | 55 | 0 |
-| 1203 | `30_oop/gr.oop.destructor/basic/001_destructor_present.ص` | `gr.oop.destructor` | basic | تطابق ✅ | 53 | 3226 |
-| 1204 | `30_oop/gr.oop.destructor/basic/050_open_msg.ص` | `gr.oop.destructor` | basic | تطابق ✅ | 63 | 3241 |
-| 1205 | `30_oop/gr.oop.destructor/basic/051_declared_with_ctor.ص` | `gr.oop.destructor` | basic | تطابق ✅ | 60 | 3195 |
-| 1206 | `30_oop/gr.oop.destructor/edge/050_in_class_with_field.ص` | `gr.oop.destructor` | edge | تطابق ✅ | 63 | 3351 |
-| 1207 | `30_oop/gr.oop.destructor/edge/053_destructor_with_field_access.ص` | `gr.oop.destructor` | edge | تطابق ✅ | 62 | 3289 |
-| 1208 | `30_oop/gr.oop.destructor/negative/050_with_params.ص` | `gr.oop.destructor` | negative | تطابق ✅ | 66 | 0 |
-| 1209 | `30_oop/gr.oop.enum/basic/001_plain_index.ص` | `gr.oop.enum` | basic | تطابق ✅ | 60 | 3132 |
-| 1210 | `30_oop/gr.oop.enum/basic/002_explicit_value.ص` | `gr.oop.enum` | basic | تطابق ✅ | 60 | 3098 |
-| 1211 | `30_oop/gr.oop.enum/basic/050_three_members.ص` | `gr.oop.enum` | basic | تطابق ✅ | 92 | 3163 |
-| 1212 | `30_oop/gr.oop.enum/basic/051_four_members.ص` | `gr.oop.enum` | basic | تطابق ✅ | 60 | 3026 |
-| 1213 | `30_oop/gr.oop.enum/basic/060_first_member_is_zero.ص` | `gr.oop.enum` | basic | تطابق ✅ | 59 | 2994 |
-| 1214 | `30_oop/gr.oop.enum/basic/061_two_explicit_values.ص` | `gr.oop.enum` | basic | تطابق ✅ | 66 | 2993 |
-| 1215 | `30_oop/gr.oop.enum/edge/050_explicit_values.ص` | `gr.oop.enum` | edge | تطابق ✅ | 116 | 2927 |
-| 1216 | `30_oop/gr.oop.enum/edge/051_single_member.ص` | `gr.oop.enum` | edge | تطابق ✅ | 122 | 2984 |
-| 1217 | `30_oop/gr.oop.enum/edge/052_mixed_values.ص` | `gr.oop.enum` | edge | تطابق ✅ | 56 | 2992 |
-| 1218 | `30_oop/gr.oop.enum/edge/060_member_in_arithmetic.ص` | `gr.oop.enum` | edge | تطابق ✅ | 126 | 3136 |
-| 1219 | `30_oop/gr.oop.enum/edge/061_member_compared.ص` | `gr.oop.enum` | edge | تطابق ✅ | 60 | 3343 |
-| 1220 | `30_oop/gr.oop.enum/negative/050_no_members.ص` | `gr.oop.enum` | negative | تطابق ✅ | 68 | 0 |
-| 1221 | `30_oop/gr.oop.enum/negative/051_missing_end.ص` | `gr.oop.enum` | negative | تطابق ✅ | 56 | 0 |
-| 1222 | `30_oop/gr.oop.enum/negative/052_stray_body.ص` | `gr.oop.enum` | negative | تطابق ✅ | 106 | 0 |
-| 1223 | `30_oop/gr.oop.enum/negative/053_empty_enum_catalog_code.ص` | `gr.oop.enum` | negative | تطابق ✅ | 92 | 0 |
-| 1224 | `30_oop/gr.oop.extension/basic/001_extension_method.ص` | `gr.oop.extension` | basic | تطابق ✅ | 116 | 3236 |
-| 1225 | `30_oop/gr.oop.extension/basic/050_add_method.ص` | `gr.oop.extension` | basic | تطابق ✅ | 66 | 3214 |
-| 1226 | `30_oop/gr.oop.extension/basic/060_ext_method_no_field.ص` | `gr.oop.extension` | basic | تطابق ✅ | 116 | 3348 |
-| 1227 | `30_oop/gr.oop.extension/basic/061_ext_method_with_param.ص` | `gr.oop.extension` | basic | تطابق ✅ | 71 | 3271 |
-| 1228 | `30_oop/gr.oop.extension/edge/050_two_ext_methods.ص` | `gr.oop.extension` | edge | تطابق ✅ | 117 | 3226 |
-| 1229 | `30_oop/gr.oop.extension/edge/060_ext_calls_class_method.ص` | `gr.oop.extension` | edge | تطابق ✅ | 98 | 3197 |
-| 1230 | `30_oop/gr.oop.extension/edge/061_ext_method_on_two_objects.ص` | `gr.oop.extension` | edge | تطابق ✅ | 132 | 3155 |
-| 1231 | `30_oop/gr.oop.extension/negative/050_missing_end.ص` | `gr.oop.extension` | negative | تطابق ✅ | 54 | 0 |
-| 1232 | `30_oop/gr.oop.extension/negative/060_ext_unknown_type.ص` | `gr.oop.extension` | negative | تطابق ✅ | 68 | 0 |
-| 1233 | `30_oop/gr.oop.field/basic/001_public_default.ص` | `gr.oop.field` | basic | تطابق ✅ | 61 | 3149 |
-| 1234 | `30_oop/gr.oop.field/basic/002_private_via_method.ص` | `gr.oop.field` | basic | تطابق ✅ | 74 | 3144 |
-| 1235 | `30_oop/gr.oop.field/basic/050_public_init.ص` | `gr.oop.field` | basic | تطابق ✅ | 73 | 3021 |
-| 1236 | `30_oop/gr.oop.field/basic/051_string_field_initializer.ص` | `gr.oop.field` | basic | تطابق ✅ | 62 | 3018 |
-| 1237 | `30_oop/gr.oop.field/basic/052_multiple_fields.ص` | `gr.oop.field` | basic | تطابق ✅ | 124 | 3226 |
-| 1238 | `30_oop/gr.oop.field/basic/053_field_default_then_override.ص` | `gr.oop.field` | basic | تطابق ✅ | 83 | 3140 |
-| 1239 | `30_oop/gr.oop.field/edge/050_private_via_method.ص` | `gr.oop.field` | edge | تطابق ✅ | 69 | 3060 |
-| 1240 | `30_oop/gr.oop.field/edge/050_حقل_مصفوفة_عبر_Any.ص` | `gr.oop.field` | edge | تطابق ✅ | 111 | 4474 |
-| 1241 | `30_oop/gr.oop.field/edge/051_uninit_field_external_set.ص` | `gr.oop.field` | edge | تطابق ✅ | 82 | 3164 |
-| 1242 | `30_oop/gr.oop.field/edge/052_same_field_name_two_classes.ص` | `gr.oop.field` | edge | تطابق ✅ | 76 | 3707 |
-| 1243 | `30_oop/gr.oop.field/edge/053_uninit_field_set_in_match_arm.ص` | `gr.oop.field` | edge | تطابق ✅ | 68 | 3061 |
-| 1244 | `30_oop/gr.oop.field/negative/050_modifier_before.ص` | `gr.oop.field` | negative | تطابق ✅ | 130 | 0 |
-| 1245 | `30_oop/gr.oop.field/negative/054_field_without_name.ص` | `gr.oop.field` | negative | تطابق ✅ | 66 | 0 |
-| 1246 | `30_oop/gr.oop.impl/basic/001_impl_for.ص` | `gr.oop.impl` | basic | تطابق ✅ | 61 | 3264 |
-| 1247 | `30_oop/gr.oop.impl/basic/050_impl_for.ص` | `gr.oop.impl` | basic | تطابق ✅ | 128 | 3350 |
-| 1248 | `30_oop/gr.oop.impl/basic/060_impl_two_methods.ص` | `gr.oop.impl` | basic | تطابق ✅ | 55 | 3244 |
-| 1249 | `30_oop/gr.oop.impl/basic/061_impl_method_with_param.ص` | `gr.oop.impl` | basic | تطابق ✅ | 66 | 3208 |
-| 1250 | `30_oop/gr.oop.impl/edge/050_impl_uses_field.ص` | `gr.oop.impl` | edge | تطابق ✅ | 64 | 3058 |
-| 1251 | `30_oop/gr.oop.impl/edge/060_impl_reads_ctor_field.ص` | `gr.oop.impl` | edge | تطابق ✅ | 64 | 2967 |
-| 1252 | `30_oop/gr.oop.impl/edge/061_two_classes_one_trait.ص` | `gr.oop.impl` | edge | تطابق ✅ | 59 | 3021 |
-| 1253 | `30_oop/gr.oop.impl/negative/050_missing_end.ص` | `gr.oop.impl` | negative | تطابق ✅ | 54 | 0 |
-| 1254 | `30_oop/gr.oop.impl/negative/060_impl_without_target.ص` | `gr.oop.impl` | negative | تطابق ✅ | 87 | 0 |
-| 1255 | `30_oop/gr.oop.member/basic/001_mixed_members.ص` | `gr.oop.member` | basic | تطابق ✅ | 50 | 3158 |
-| 1256 | `30_oop/gr.oop.member/basic/050_field_ctor_method.ص` | `gr.oop.member` | basic | تطابق ✅ | 58 | 3122 |
-| 1257 | `30_oop/gr.oop.member/basic/051_field_method.ص` | `gr.oop.member` | basic | تطابق ✅ | 97 | 3237 |
-| 1258 | `30_oop/gr.oop.member/basic/052_ctor_method.ص` | `gr.oop.member` | basic | تطابق ✅ | 62 | 3231 |
-| 1259 | `30_oop/gr.oop.member/basic/060_two_fields_one_method.ص` | `gr.oop.member` | basic | تطابق ✅ | 69 | 3420 |
-| 1260 | `30_oop/gr.oop.member/basic/061_static_and_instance.ص` | `gr.oop.member` | basic | تطابق ✅ | 149 | 3411 |
-| 1261 | `30_oop/gr.oop.member/basic/062_ctor_and_destructor.ص` | `gr.oop.member` | basic | تطابق ✅ | 126 | 3319 |
-| 1262 | `30_oop/gr.oop.member/basic/063_property_beside_method.ص` | `gr.oop.member` | basic | تطابق ✅ | 67 | 3525 |
-| 1263 | `30_oop/gr.oop.member/edge/050_all_member_kinds.ص` | `gr.oop.member` | edge | تطابق ✅ | 68 | 3336 |
-| 1264 | `30_oop/gr.oop.member/edge/051_multi_method.ص` | `gr.oop.member` | edge | تطابق ✅ | 75 | 3134 |
-| 1265 | `30_oop/gr.oop.member/edge/060_method_uses_static_field.ص` | `gr.oop.member` | edge | تطابق ✅ | 99 | 3194 |
-| 1266 | `30_oop/gr.oop.member/edge/061_three_methods_chain.ص` | `gr.oop.member` | edge | تطابق ✅ | 70 | 3072 |
-| 1267 | `30_oop/gr.oop.member/edge/062_field_shadowed_by_param.ص` | `gr.oop.member` | edge | تطابق ✅ | 99 | 3076 |
-| 1268 | `30_oop/gr.oop.member/edge/063_operator_beside_field.ص` | `gr.oop.member` | edge | تطابق ✅ | 134 | 3143 |
-| 1269 | `30_oop/gr.oop.member/negative/050_unknown_kw.ص` | `gr.oop.member` | negative | تطابق ✅ | 64 | 0 |
-| 1270 | `30_oop/gr.oop.member/negative/060_member_outside_class.ص` | `gr.oop.member` | negative | تطابق ✅ | 114 | 0 |
-| 1271 | `30_oop/gr.oop.member/negative/061_unknown_member_keyword.ص` | `gr.oop.member` | negative | تطابق ✅ | 69 | 0 |
-| 1272 | `30_oop/gr.oop.member/negative/062_method_without_end.ص` | `gr.oop.member` | negative | تطابق ✅ | 66 | 0 |
-| 1273 | `30_oop/gr.oop.method/basic/001_with_params.ص` | `gr.oop.method` | basic | تطابق ✅ | 150 | 3097 |
-| 1274 | `30_oop/gr.oop.method/basic/002_static.ص` | `gr.oop.method` | basic | تطابق ✅ | 126 | 3115 |
-| 1275 | `30_oop/gr.oop.method/basic/050_instance.ص` | `gr.oop.method` | basic | تطابق ✅ | 68 | 3004 |
-| 1276 | `30_oop/gr.oop.method/basic/051_static.ص` | `gr.oop.method` | basic | تطابق ✅ | 116 | 3095 |
-| 1277 | `30_oop/gr.oop.method/basic/052_param_and_field.ص` | `gr.oop.method` | basic | تطابق ✅ | 112 | 3227 |
-| 1278 | `30_oop/gr.oop.method/basic/053_method_two_params.ص` | `gr.oop.method` | basic | تطابق ✅ | 142 | 3229 |
-| 1279 | `30_oop/gr.oop.method/basic/053_no_param.ص` | `gr.oop.method` | basic | تطابق ✅ | 70 | 3227 |
-| 1280 | `30_oop/gr.oop.method/basic/054_string_return.ص` | `gr.oop.method` | basic | تطابق ✅ | 56 | 3210 |
-| 1281 | `30_oop/gr.oop.method/edge/050_uses_field.ص` | `gr.oop.method` | edge | تطابق ✅ | 138 | 3357 |
-| 1282 | `30_oop/gr.oop.method/edge/051_two_methods.ص` | `gr.oop.method` | edge | تطابق ✅ | 65 | 3150 |
-| 1283 | `30_oop/gr.oop.method/edge/052_طريقة_تُرجع_مصفوفة_مختلطة.ص` | `gr.oop.method` | edge | تطابق ✅ | 106 | 3894 |
-| 1284 | `30_oop/gr.oop.method/edge/053_طريقة_تُرجع_مصفوفة_نصوص.ص` | `gr.oop.method` | edge | تطابق ✅ | 120 | 3248 |
-| 1285 | `30_oop/gr.oop.method/edge/054_method_calls_sibling.ص` | `gr.oop.method` | edge | تطابق ✅ | 64 | 3097 |
-| 1286 | `30_oop/gr.oop.method/edge/055_method_reads_and_writes_field.ص` | `gr.oop.method` | edge | تطابق ✅ | 81 | 3301 |
-| 1287 | `30_oop/gr.oop.method/negative/050_no_parens.ص` | `gr.oop.method` | negative | تطابق ✅ | 77 | 0 |
-| 1288 | `30_oop/gr.oop.method/negative/051_missing_end.ص` | `gr.oop.method` | negative | تطابق ✅ | 56 | 0 |
-| 1289 | `30_oop/gr.oop.method/negative/051_reserved_end_as_method_param.ص` | `gr.oop.method` | negative | تطابق ✅ | 65 | 0 |
-| 1290 | `30_oop/gr.oop.method/negative/052_reserved_end_as_typed_method_param.ص` | `gr.oop.method` | negative | تطابق ✅ | 54 | 0 |
-| 1291 | `30_oop/gr.oop.modifiers/basic/001_private_static.ص` | `gr.oop.modifiers` | basic | تطابق ✅ | 90 | 3167 |
-| 1292 | `30_oop/gr.oop.modifiers/basic/050_private_public.ص` | `gr.oop.modifiers` | basic | تطابق ✅ | 56 | 3115 |
-| 1293 | `30_oop/gr.oop.modifiers/basic/051_public_method.ص` | `gr.oop.modifiers` | basic | تطابق ✅ | 88 | 3200 |
-| 1294 | `30_oop/gr.oop.modifiers/basic/052_public_field_read.ص` | `gr.oop.modifiers` | basic | تطابق ✅ | 135 | 3049 |
-| 1295 | `30_oop/gr.oop.modifiers/basic/053_static_method_call.ص` | `gr.oop.modifiers` | basic | تطابق ✅ | 72 | 3218 |
-| 1296 | `30_oop/gr.oop.modifiers/edge/050_protected_field.ص` | `gr.oop.modifiers` | edge | تطابق ✅ | 66 | 3256 |
-| 1297 | `30_oop/gr.oop.modifiers/edge/051_static_and_instance.ص` | `gr.oop.modifiers` | edge | تطابق ✅ | 62 | 3244 |
-| 1298 | `30_oop/gr.oop.modifiers/edge/054_private_read_via_public_method.ص` | `gr.oop.modifiers` | edge | تطابق ✅ | 60 | 3584 |
-| 1299 | `30_oop/gr.oop.modifiers/edge/055_static_field_shared.ص` | `gr.oop.modifiers` | edge | تطابق ✅ | 78 | 3324 |
-| 1300 | `30_oop/gr.oop.modifiers/negative/050_before_keyword.ص` | `gr.oop.modifiers` | negative | تطابق ✅ | 64 | 0 |
-| 1301 | `30_oop/gr.oop.modifiers/negative/056_modifier_on_class_decl.ص` | `gr.oop.modifiers` | negative | تطابق ✅ | 74 | 0 |
-| 1302 | `30_oop/gr.oop.new/basic/050_suffix_new.ص` | `gr.oop.new` | basic | تطابق ✅ | 65 | 3402 |
-| 1303 | `30_oop/gr.oop.new/basic/051_call_form.ص` | `gr.oop.new` | basic | تطابق ✅ | 56 | 3621 |
-| 1304 | `30_oop/gr.oop.new/basic/052_suffix_form.ص` | `gr.oop.new` | basic | تطابق ✅ | 72 | 3155 |
-| 1305 | `30_oop/gr.oop.new/basic/053_new_with_two_args.ص` | `gr.oop.new` | basic | تطابق ✅ | 68 | 3199 |
-| 1306 | `30_oop/gr.oop.new/basic/053_string_arg.ص` | `gr.oop.new` | basic | تطابق ✅ | 56 | 3169 |
-| 1307 | `30_oop/gr.oop.new/edge/050_without_new_kw.ص` | `gr.oop.new` | edge | تطابق ✅ | 54 | 3239 |
-| 1308 | `30_oop/gr.oop.new/edge/051_new_in_expression.ص` | `gr.oop.new` | edge | تطابق ✅ | 124 | 3171 |
-| 1309 | `30_oop/gr.oop.new/edge/054_new_inside_expression.ص` | `gr.oop.new` | edge | تطابق ✅ | 63 | 3267 |
-| 1310 | `30_oop/gr.oop.new/edge/055_new_as_argument.ص` | `gr.oop.new` | edge | تطابق ✅ | 75 | 3934 |
-| 1311 | `30_oop/gr.oop.new/negative/050_no_class_after_new.ص` | `gr.oop.new` | negative | تطابق ✅ | 88 | 0 |
-| 1312 | `30_oop/gr.oop.new/negative/056_new_unknown_class.ص` | `gr.oop.new` | negative | تطابق ✅ | 86 | 0 |
-| 1313 | `30_oop/gr.oop.operator/basic/001_plus.ص` | `gr.oop.operator` | basic | تطابق ✅ | 139 | 3264 |
-| 1314 | `30_oop/gr.oop.operator/basic/050_plus.ص` | `gr.oop.operator` | basic | تطابق ✅ | 56 | 3141 |
-| 1315 | `30_oop/gr.oop.operator/basic/052_minus.ص` | `gr.oop.operator` | basic | تطابق ✅ | 161 | 3151 |
-| 1316 | `30_oop/gr.oop.operator/basic/053_times.ص` | `gr.oop.operator` | basic | تطابق ✅ | 131 | 3111 |
-| 1317 | `30_oop/gr.oop.operator/edge/050_minus.ص` | `gr.oop.operator` | edge | تطابق ✅ | 58 | 3052 |
-| 1318 | `30_oop/gr.oop.operator/edge/051_mul.ص` | `gr.oop.operator` | edge | تطابق ✅ | 62 | 3077 |
-| 1319 | `30_oop/gr.oop.operator/edge/054_chained_plus.ص` | `gr.oop.operator` | edge | تطابق ✅ | 66 | 3191 |
-| 1320 | `30_oop/gr.oop.operator/negative/050_no_symbol.ص` | `gr.oop.operator` | negative | تطابق ✅ | 65 | 0 |
-| 1321 | `30_oop/gr.oop.operator/negative/051_missing_end.ص` | `gr.oop.operator` | negative | تطابق ✅ | 56 | 0 |
-| 1322 | `30_oop/gr.oop.property/basic/001_get_set.ص` | `gr.oop.property` | basic | تطابق ✅ | 57 | 3370 |
-| 1323 | `30_oop/gr.oop.property/basic/051_get_computed.ص` | `gr.oop.property` | basic | تطابق ✅ | 64 | 3264 |
-| 1324 | `30_oop/gr.oop.property/basic/052_set_get_pair.ص` | `gr.oop.property` | basic | تطابق ✅ | 118 | 3144 |
-| 1325 | `30_oop/gr.oop.property/basic/053_get_only.ص` | `gr.oop.property` | basic | تطابق ✅ | 56 | 3128 |
-| 1326 | `30_oop/gr.oop.property/edge/050_get_only.ص` | `gr.oop.property` | edge | تطابق ✅ | 72 | 3226 |
-| 1327 | `30_oop/gr.oop.property/edge/051_set_then_get.ص` | `gr.oop.property` | edge | تطابق ✅ | 54 | 3039 |
-| 1328 | `30_oop/gr.oop.property/edge/054_set_then_get_twice.ص` | `gr.oop.property` | edge | تطابق ✅ | 136 | 3091 |
-| 1329 | `30_oop/gr.oop.property/edge/055_computed_from_two_fields.ص` | `gr.oop.property` | edge | تطابق ✅ | 120 | 3098 |
-| 1330 | `30_oop/gr.oop.property/negative/050_missing_end.ص` | `gr.oop.property` | negative | تطابق ✅ | 54 | 0 |
-| 1331 | `30_oop/gr.oop.property/negative/056_property_without_accessor.ص` | `gr.oop.property` | negative | تطابق ✅ | 60 | 0 |
-| 1332 | `30_oop/gr.oop.struct/basic/001_default_field_values.ص` | `gr.oop.struct` | basic | تطابق ✅ | 58 | 3126 |
-| 1333 | `30_oop/gr.oop.struct/basic/002_default_then_assign.ص` | `gr.oop.struct` | basic | تطابق ✅ | 61 | 3099 |
-| 1334 | `30_oop/gr.oop.struct/basic/003_float_field.ص` | `gr.oop.struct` | basic | تطابق ✅ | 56 | 3178 |
-| 1335 | `30_oop/gr.oop.struct/basic/004_bool_field.ص` | `gr.oop.struct` | basic | تطابق ✅ | 144 | 2992 |
-| 1336 | `30_oop/gr.oop.struct/basic/050_two_fields.ص` | `gr.oop.struct` | basic | تطابق ✅ | 63 | 3089 |
-| 1337 | `30_oop/gr.oop.struct/basic/051_ctor.ص` | `gr.oop.struct` | basic | تطابق ✅ | 64 | 3221 |
-| 1338 | `30_oop/gr.oop.struct/basic/052_c_repr_accepted.ص` | `gr.oop.struct` | basic | تطابق ✅ | 67 | 3196 |
-| 1339 | `30_oop/gr.oop.struct/edge/050_two_fields_external.ص` | `gr.oop.struct` | edge | تطابق ✅ | 137 | 3265 |
-| 1340 | `30_oop/gr.oop.struct/edge/051_method_reads_default.ص` | `gr.oop.struct` | edge | تطابق ✅ | 68 | 3200 |
-| 1341 | `30_oop/gr.oop.struct/edge/051_struct_constructor_and_method.ص` | `gr.oop.struct` | edge | تطابق ✅ | 58 | 3186 |
-| 1342 | `30_oop/gr.oop.struct/edge/052_c_repr_method_direct_dispatch.ص` | `gr.oop.struct` | edge | تطابق ✅ | 107 | 3208 |
-| 1343 | `30_oop/gr.oop.struct/edge/052_ctor_and_two_methods.ص` | `gr.oop.struct` | edge | تطابق ✅ | 66 | 3376 |
-| 1344 | `30_oop/gr.oop.struct/negative/050_missing_end.ص` | `gr.oop.struct` | negative | تطابق ✅ | 54 | 0 |
-| 1345 | `30_oop/gr.oop.struct/negative/051_paren_form.ص` | `gr.oop.struct` | negative | تطابق ✅ | 65 | 0 |
-| 1346 | `30_oop/gr.oop.struct/negative/052_empty_no_end.ص` | `gr.oop.struct` | negative | تطابق ✅ | 60 | 0 |
-| 1347 | `30_oop/gr.oop.struct/negative/053_c_repr_on_non_struct.ص` | `gr.oop.struct` | negative | تطابق ✅ | 60 | 0 |
-| 1348 | `30_oop/gr.oop.this_super/basic/001_this_in_method.ص` | `gr.oop.this_super` | basic | تطابق ✅ | 66 | 3231 |
-| 1349 | `30_oop/gr.oop.this_super/basic/002_super_method.ص` | `gr.oop.this_super` | basic | تطابق ✅ | 63 | 3241 |
-| 1350 | `30_oop/gr.oop.this_super/basic/050_this_field.ص` | `gr.oop.this_super` | basic | تطابق ✅ | 125 | 3094 |
-| 1351 | `30_oop/gr.oop.this_super/basic/051_this_multi_field.ص` | `gr.oop.this_super` | basic | تطابق ✅ | 58 | 3042 |
-| 1352 | `30_oop/gr.oop.this_super/edge/050_super_method.ص` | `gr.oop.this_super` | edge | تطابق ✅ | 59 | 3136 |
-| 1353 | `30_oop/gr.oop.this_super/edge/051_this_in_method_chain.ص` | `gr.oop.this_super` | edge | تطابق ✅ | 55 | 3094 |
-| 1354 | `30_oop/gr.oop.this_super/edge/053_this_returned_from_method.ص` | `gr.oop.this_super` | edge | تطابق ✅ | 52 | 3106 |
-| 1355 | `30_oop/gr.oop.this_super/negative/050_this_outside_class.ص` | `gr.oop.this_super` | negative | تطابق ✅ | 150 | 0 |
-| 1356 | `30_oop/gr.oop.trait/basic/001_trait_impl_inline.ص` | `gr.oop.trait` | basic | تطابق ✅ | 62 | 3131 |
-| 1357 | `30_oop/gr.oop.trait/basic/050_impl_in_header.ص` | `gr.oop.trait` | basic | تطابق ✅ | 57 | 2971 |
-| 1358 | `30_oop/gr.oop.trait/basic/051_impl_for_form.ص` | `gr.oop.trait` | basic | تطابق ✅ | 129 | 3052 |
-| 1359 | `30_oop/gr.oop.trait/basic/060_trait_two_methods.ص` | `gr.oop.trait` | basic | تطابق ✅ | 126 | 3144 |
-| 1360 | `30_oop/gr.oop.trait/basic/061_trait_method_with_param.ص` | `gr.oop.trait` | basic | تطابق ✅ | 63 | 3138 |
-| 1361 | `30_oop/gr.oop.trait/edge/050_two_methods.ص` | `gr.oop.trait` | edge | تطابق ✅ | 122 | 3189 |
-| 1362 | `30_oop/gr.oop.trait/edge/060_two_traits_in_header.ص` | `gr.oop.trait` | edge | تطابق ✅ | 59 | 3077 |
-| 1363 | `30_oop/gr.oop.trait/edge/061_trait_impl_reads_field.ص` | `gr.oop.trait` | edge | تطابق ✅ | 68 | 3080 |
-| 1364 | `30_oop/gr.oop.trait/edge/062_trait_method_calls_sibling.ص` | `gr.oop.trait` | edge | تطابق ✅ | 82 | 3098 |
-| 1365 | `30_oop/gr.oop.trait/negative/050_missing_end.ص` | `gr.oop.trait` | negative | تطابق ✅ | 54 | 0 |
-| 1366 | `30_oop/gr.oop.trait/negative/060_trait_method_unimplemented.ص` | `gr.oop.trait` | negative | تطابق ✅ | 63 | 0 |
-| 1367 | `40_expressions/gr.expr.array_literal/basic/001_index.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 57 | 3522 |
-| 1368 | `40_expressions/gr.expr.array_literal/basic/060_arr_index.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 65 | 2984 |
-| 1369 | `40_expressions/gr.expr.array_literal/basic/061_arr_print.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 66 | 3093 |
-| 1370 | `40_expressions/gr.expr.array_literal/basic/062_arr_empty_len.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 121 | 3298 |
-| 1371 | `40_expressions/gr.expr.array_literal/basic/063_arr_len.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 82 | 3237 |
-| 1372 | `40_expressions/gr.expr.array_literal/basic/064_arr_strings.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 154 | 3380 |
-| 1373 | `40_expressions/gr.expr.array_literal/basic/065_arr_single.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 150 | 3343 |
-| 1374 | `40_expressions/gr.expr.array_literal/basic/066_مصفوفة_مختلطة_عدد_عشري.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 93 | 3895 |
-| 1375 | `40_expressions/gr.expr.array_literal/basic/067_مصفوفة_مختلطة_أربعة_أنواع.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 63 | 4007 |
-| 1376 | `40_expressions/gr.expr.array_literal/basic/068_مصفوفة_مختلطة_طباعة_حاوية.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 73 | 3790 |
-| 1377 | `40_expressions/gr.expr.array_literal/basic/069_مصفوفة_مختلطة_إعادة_إسناد.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 76 | 3930 |
-| 1378 | `40_expressions/gr.expr.array_literal/basic/070_مصفوفة_مختلطة_إلحاق.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 61 | 4133 |
-| 1379 | `40_expressions/gr.expr.array_literal/basic/071_مصفوفة_مختلطة_استيعاب.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 114 | 4026 |
-| 1380 | `40_expressions/gr.expr.array_literal/basic/072_مصفوفة_ديناميّة_قسمة.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 64 | 4109 |
-| 1381 | `40_expressions/gr.expr.array_literal/basic/073_مصفوفة_مختلطة_شريحة.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 62 | 4210 |
-| 1382 | `40_expressions/gr.expr.array_literal/basic/074_مصفوفة_موسومة_إعادة_إسناد_لغير_موسومة.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 63 | 4265 |
-| 1383 | `40_expressions/gr.expr.array_literal/basic/075_مصفوفة_دمج_مختلط_بمحدّد.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 64 | 4174 |
-| 1384 | `40_expressions/gr.expr.array_literal/basic/076_مصفوفة_دمج_محدّدين_مختلفين.ص` | `gr.expr.array_literal` | basic | تطابق ✅ | 140 | 4000 |
-| 1385 | `40_expressions/gr.expr.array_literal/edge/060_arr_nested.ص` | `gr.expr.array_literal` | edge | تطابق ✅ | 63 | 3400 |
-| 1386 | `40_expressions/gr.expr.array_literal/edge/061_arr_expr_elems.ص` | `gr.expr.array_literal` | edge | تطابق ✅ | 56 | 3404 |
-| 1387 | `40_expressions/gr.expr.array_literal/edge/062_arr_mixed_index.ص` | `gr.expr.array_literal` | edge | تطابق ✅ | 53 | 3214 |
-| 1388 | `40_expressions/gr.expr.array_literal/edge/063_arr_comprehension.ص` | `gr.expr.array_literal` | edge | تطابق ✅ | 64 | 3485 |
-| 1389 | `40_expressions/gr.expr.array_literal/edge/064_arr_len_nested.ص` | `gr.expr.array_literal` | edge | تطابق ✅ | 57 | 3372 |
-| 1390 | `40_expressions/gr.expr.array_literal/edge/077_مصفوفة_متداخلة_داخل_مختلطة.ص` | `gr.expr.array_literal` | edge | تطابق ✅ | 148 | 4130 |
-| 1391 | `40_expressions/gr.expr.array_literal/edge/078_مصفوفة_تعشيش_مضاعف.ص` | `gr.expr.array_literal` | edge | تطابق ✅ | 91 | 4124 |
-| 1392 | `40_expressions/gr.expr.array_literal/edge/079_مصفوفة_فارغة_متداخلة.ص` | `gr.expr.array_literal` | edge | تطابق ✅ | 69 | 4016 |
-| 1393 | `40_expressions/gr.expr.array_literal/negative/060_arr_unclosed.ص` | `gr.expr.array_literal` | negative | تطابق ✅ | 64 | 0 |
-| 1394 | `40_expressions/gr.expr.array_literal/negative/061_arr_trailing_comma_open.ص` | `gr.expr.array_literal` | negative | تطابق ✅ | 65 | 0 |
-| 1395 | `40_expressions/gr.expr.assignment/basic/001_compound.ص` | `gr.expr.assignment` | basic | تطابق ✅ | 132 | 3148 |
-| 1396 | `40_expressions/gr.expr.assignment/basic/002_walrus.ص` | `gr.expr.assignment` | basic | تطابق ✅ | 77 | 3250 |
-| 1397 | `40_expressions/gr.expr.assignment/basic/060_a_plus.ص` | `gr.expr.assignment` | basic | تطابق ✅ | 106 | 3177 |
-| 1398 | `40_expressions/gr.expr.assignment/basic/061_a_minus.ص` | `gr.expr.assignment` | basic | تطابق ✅ | 68 | 3186 |
-| 1399 | `40_expressions/gr.expr.assignment/basic/062_a_mul.ص` | `gr.expr.assignment` | basic | تطابق ✅ | 117 | 3305 |
-| 1400 | `40_expressions/gr.expr.assignment/basic/063_a_div.ص` | `gr.expr.assignment` | basic | تطابق ✅ | 100 | 3652 |
-| 1401 | `40_expressions/gr.expr.assignment/basic/064_a_mod.ص` | `gr.expr.assignment` | basic | تطابق ✅ | 77 | 2958 |
-| 1402 | `40_expressions/gr.expr.assignment/basic/065_a_floordiv.ص` | `gr.expr.assignment` | basic | تطابق ✅ | 140 | 3656 |
-| 1403 | `40_expressions/gr.expr.assignment/basic/066_a_walrus.ص` | `gr.expr.assignment` | basic | تطابق ✅ | 66 | 2984 |
-| 1404 | `40_expressions/gr.expr.assignment/basic/067_a_reassign.ص` | `gr.expr.assignment` | basic | تطابق ✅ | 103 | 3098 |
-| 1405 | `40_expressions/gr.expr.assignment/edge/060_a_chain_compound.ص` | `gr.expr.assignment` | edge | تطابق ✅ | 63 | 3004 |
-| 1406 | `40_expressions/gr.expr.assignment/edge/061_a_index_assign.ص` | `gr.expr.assignment` | edge | تطابق ✅ | 144 | 3122 |
-| 1407 | `40_expressions/gr.expr.assignment/edge/062_a_map_assign.ص` | `gr.expr.assignment` | edge | تطابق ✅ | 82 | 3350 |
-| 1408 | `40_expressions/gr.expr.assignment/edge/063_a_str_plus.ص` | `gr.expr.assignment` | edge | تطابق ✅ | 70 | 3141 |
-| 1409 | `40_expressions/gr.expr.assignment/edge/064_a_neg_result.ص` | `gr.expr.assignment` | edge | تطابق ✅ | 90 | 3227 |
-| 1410 | `40_expressions/gr.expr.assignment/edge/065_a_mul_zero.ص` | `gr.expr.assignment` | edge | تطابق ✅ | 69 | 3074 |
-| 1411 | `40_expressions/gr.expr.assignment/edge/066_a_div_float.ص` | `gr.expr.assignment` | edge | تطابق ✅ | 60 | 3935 |
-| 1412 | `40_expressions/gr.expr.assignment/edge/067_a_walrus_expr.ص` | `gr.expr.assignment` | edge | تطابق ✅ | 103 | 3368 |
-| 1413 | `40_expressions/gr.expr.assignment/negative/060_a_walrus_nonname.ص` | `gr.expr.assignment` | negative | تطابق ✅ | 61 | 0 |
-| 1414 | `40_expressions/gr.expr.assignment/negative/061_a_missing_rhs.ص` | `gr.expr.assignment` | negative | تطابق ✅ | 101 | 0 |
-| 1415 | `40_expressions/gr.expr.assignment/negative/062_a_no_lhs.ص` | `gr.expr.assignment` | negative | تطابق ✅ | 84 | 0 |
-| 1416 | `40_expressions/gr.expr.assignment/negative/063_a_double_op.ص` | `gr.expr.assignment` | negative | تطابق ✅ | 71 | 0 |
-| 1417 | `40_expressions/gr.expr.bitwise_and/basic/001_basic.ص` | `gr.expr.bitwise_and` | basic | تطابق ✅ | 112 | 2824 |
-| 1418 | `40_expressions/gr.expr.bitwise_and/basic/050_band_6_3.ص` | `gr.expr.bitwise_and` | basic | تطابق ✅ | 57 | 3352 |
-| 1419 | `40_expressions/gr.expr.bitwise_and/basic/051_band_7_4.ص` | `gr.expr.bitwise_and` | basic | تطابق ✅ | 88 | 3292 |
-| 1420 | `40_expressions/gr.expr.bitwise_and/basic/052_band_0_9.ص` | `gr.expr.bitwise_and` | basic | تطابق ✅ | 82 | 3162 |
-| 1421 | `40_expressions/gr.expr.bitwise_and/basic/053_band_5_5.ص` | `gr.expr.bitwise_and` | basic | تطابق ✅ | 68 | 3587 |
-| 1422 | `40_expressions/gr.expr.bitwise_and/edge/050_band_chain.ص` | `gr.expr.bitwise_and` | edge | تطابق ✅ | 72 | 3458 |
-| 1423 | `40_expressions/gr.expr.bitwise_and/edge/051_band_prec_over_xor.ص` | `gr.expr.bitwise_and` | edge | تطابق ✅ | 128 | 3415 |
-| 1424 | `40_expressions/gr.expr.bitwise_and/edge/052_band_var.ص` | `gr.expr.bitwise_and` | edge | تطابق ✅ | 77 | 3318 |
-| 1425 | `40_expressions/gr.expr.bitwise_and/negative/050_band_missing_rhs.ص` | `gr.expr.bitwise_and` | negative | تطابق ✅ | 120 | 0 |
-| 1426 | `40_expressions/gr.expr.bitwise_or/basic/001_basic.ص` | `gr.expr.bitwise_or` | basic | تطابق ✅ | 112 | 2824 |
-| 1427 | `40_expressions/gr.expr.bitwise_or/basic/050_bor_6_1.ص` | `gr.expr.bitwise_or` | basic | تطابق ✅ | 70 | 3329 |
-| 1428 | `40_expressions/gr.expr.bitwise_or/basic/051_bor_4_2.ص` | `gr.expr.bitwise_or` | basic | تطابق ✅ | 64 | 3160 |
-| 1429 | `40_expressions/gr.expr.bitwise_or/basic/052_bor_0_0.ص` | `gr.expr.bitwise_or` | basic | تطابق ✅ | 83 | 3218 |
-| 1430 | `40_expressions/gr.expr.bitwise_or/basic/053_bor_5_5.ص` | `gr.expr.bitwise_or` | basic | تطابق ✅ | 63 | 2987 |
-| 1431 | `40_expressions/gr.expr.bitwise_or/edge/050_bor_chain.ص` | `gr.expr.bitwise_or` | edge | تطابق ✅ | 59 | 2987 |
-| 1432 | `40_expressions/gr.expr.bitwise_or/edge/051_bor_with_and_prec.ص` | `gr.expr.bitwise_or` | edge | تطابق ✅ | 66 | 2983 |
-| 1433 | `40_expressions/gr.expr.bitwise_or/edge/052_bor_var.ص` | `gr.expr.bitwise_or` | edge | تطابق ✅ | 63 | 3136 |
-| 1434 | `40_expressions/gr.expr.bitwise_or/negative/050_bor_missing_rhs.ص` | `gr.expr.bitwise_or` | negative | تطابق ✅ | 73 | 0 |
-| 1435 | `40_expressions/gr.expr.bitwise_xor/basic/001_basic.ص` | `gr.expr.bitwise_xor` | basic | تطابق ✅ | 112 | 2824 |
-| 1436 | `40_expressions/gr.expr.bitwise_xor/basic/050_bxor_5_3.ص` | `gr.expr.bitwise_xor` | basic | تطابق ✅ | 62 | 3279 |
-| 1437 | `40_expressions/gr.expr.bitwise_xor/basic/051_bxor_7_7.ص` | `gr.expr.bitwise_xor` | basic | تطابق ✅ | 145 | 3114 |
-| 1438 | `40_expressions/gr.expr.bitwise_xor/basic/052_bxor_0_9.ص` | `gr.expr.bitwise_xor` | basic | تطابق ✅ | 125 | 3031 |
-| 1439 | `40_expressions/gr.expr.bitwise_xor/basic/053_bxor_6_1.ص` | `gr.expr.bitwise_xor` | basic | تطابق ✅ | 108 | 3080 |
-| 1440 | `40_expressions/gr.expr.bitwise_xor/edge/050_bxor_chain.ص` | `gr.expr.bitwise_xor` | edge | تطابق ✅ | 115 | 2974 |
-| 1441 | `40_expressions/gr.expr.bitwise_xor/edge/051_bxor_prec_over_or.ص` | `gr.expr.bitwise_xor` | edge | تطابق ✅ | 126 | 3103 |
-| 1442 | `40_expressions/gr.expr.bitwise_xor/edge/052_bxor_var.ص` | `gr.expr.bitwise_xor` | edge | تطابق ✅ | 88 | 3037 |
-| 1443 | `40_expressions/gr.expr.bitwise_xor/negative/050_bxor_missing_rhs.ص` | `gr.expr.bitwise_xor` | negative | تطابق ✅ | 59 | 0 |
-| 1444 | `40_expressions/gr.expr.comparison/basic/001_le.ص` | `gr.expr.comparison` | basic | تطابق ✅ | 60 | 3079 |
-| 1445 | `40_expressions/gr.expr.comparison/basic/002_in.ص` | `gr.expr.comparison` | basic | تطابق ✅ | 82 | 3219 |
-| 1446 | `40_expressions/gr.expr.comparison/basic/050_lt_t.ص` | `gr.expr.comparison` | basic | تطابق ✅ | 190 | 3110 |
-| 1447 | `40_expressions/gr.expr.comparison/basic/051_gt_f.ص` | `gr.expr.comparison` | basic | تطابق ✅ | 55 | 3308 |
-| 1448 | `40_expressions/gr.expr.comparison/basic/052_le_t.ص` | `gr.expr.comparison` | basic | تطابق ✅ | 83 | 3352 |
-| 1449 | `40_expressions/gr.expr.comparison/basic/053_ge_t.ص` | `gr.expr.comparison` | basic | تطابق ✅ | 137 | 3416 |
-| 1450 | `40_expressions/gr.expr.comparison/basic/054_in_list_t.ص` | `gr.expr.comparison` | basic | تطابق ✅ | 76 | 3484 |
-| 1451 | `40_expressions/gr.expr.comparison/basic/055_in_list_f.ص` | `gr.expr.comparison` | basic | تطابق ✅ | 83 | 3521 |
-| 1452 | `40_expressions/gr.expr.comparison/basic/056_str_lt_digits.ص` | `gr.expr.comparison` | basic | تطابق ✅ | 143 | 3556 |
-| 1453 | `40_expressions/gr.expr.comparison/basic/057_str_lt_arabic.ص` | `gr.expr.comparison` | basic | تطابق ✅ | 138 | 3359 |
-| 1454 | `40_expressions/gr.expr.comparison/edge/050_cmp_expr_lhs.ص` | `gr.expr.comparison` | edge | تطابق ✅ | 117 | 3386 |
-| 1455 | `40_expressions/gr.expr.comparison/edge/051_cmp_with_and.ص` | `gr.expr.comparison` | edge | تطابق ✅ | 64 | 3142 |
-| 1456 | `40_expressions/gr.expr.comparison/edge/052_in_string.ص` | `gr.expr.comparison` | edge | تطابق ✅ | 71 | 3263 |
-| 1457 | `40_expressions/gr.expr.comparison/edge/053_ge_eq_boundary.ص` | `gr.expr.comparison` | edge | تطابق ✅ | 214 | 3070 |
-| 1458 | `40_expressions/gr.expr.comparison/edge/054_str_prefix_shorter.ص` | `gr.expr.comparison` | edge | تطابق ✅ | 59 | 3073 |
-| 1459 | `40_expressions/gr.expr.comparison/edge/055_str_ascii_before_arabic.ص` | `gr.expr.comparison` | edge | تطابق ✅ | 88 | 3252 |
-| 1460 | `40_expressions/gr.expr.comparison/edge/056_str_cmp_in_function.ص` | `gr.expr.comparison` | edge | تطابق ✅ | 64 | 3812 |
-| 1461 | `40_expressions/gr.expr.comparison/edge/057_str_equal_and_empty.ص` | `gr.expr.comparison` | edge | تطابق ✅ | 138 | 3468 |
-| 1462 | `40_expressions/gr.expr.comparison/negative/050_lt_missing_rhs.ص` | `gr.expr.comparison` | negative | تطابق ✅ | 64 | 0 |
-| 1463 | `40_expressions/gr.expr.comparison/negative/051_in_missing_rhs.ص` | `gr.expr.comparison` | negative | تطابق ✅ | 110 | 0 |
-| 1464 | `40_expressions/gr.expr.decorator/basic/001_on_function.ص` | `gr.expr.decorator` | basic | تطابق ✅ | 65 | 3757 |
-| 1465 | `40_expressions/gr.expr.decorator/basic/060_d_basic.ص` | `gr.expr.decorator` | basic | تطابق ✅ | 72 | 3743 |
-| 1466 | `40_expressions/gr.expr.decorator/basic/061_d_ret5.ص` | `gr.expr.decorator` | basic | تطابق ✅ | 136 | 3586 |
-| 1467 | `40_expressions/gr.expr.decorator/basic/062_d_with_param.ص` | `gr.expr.decorator` | basic | تطابق ✅ | 79 | 3649 |
-| 1468 | `40_expressions/gr.expr.decorator/basic/063_d_with_args.ص` | `gr.expr.decorator` | basic | تطابق ✅ | 83 | 3709 |
-| 1469 | `40_expressions/gr.expr.decorator/edge/060_d_two_stacked.ص` | `gr.expr.decorator` | edge | تطابق ✅ | 137 | 3653 |
-| 1470 | `40_expressions/gr.expr.decorator/edge/061_d_func_adds.ص` | `gr.expr.decorator` | edge | تطابق ✅ | 108 | 3493 |
-| 1471 | `40_expressions/gr.expr.decorator/edge/062_d_called_twice.ص` | `gr.expr.decorator` | edge | تطابق ✅ | 63 | 3400 |
-| 1472 | `40_expressions/gr.expr.decorator/negative/060_d_alone.ص` | `gr.expr.decorator` | negative | تطابق ✅ | 72 | 0 |
-| 1473 | `40_expressions/gr.expr.decorator/negative/061_d_number.ص` | `gr.expr.decorator` | negative | تطابق ✅ | 68 | 0 |
-| 1474 | `40_expressions/gr.expr.directive/basic/001_sizeof.ص` | `gr.expr.directive` | basic | تطابق ✅ | 135 | 3104 |
-| 1475 | `40_expressions/gr.expr.directive/basic/060_dir_sizeof_num.ص` | `gr.expr.directive` | basic | تطابق ✅ | 73 | 2939 |
-| 1476 | `40_expressions/gr.expr.directive/basic/061_dir_sizeof_num2.ص` | `gr.expr.directive` | basic | تطابق ✅ | 126 | 3003 |
-| 1477 | `40_expressions/gr.expr.directive/basic/062_dir_sizeof_in_expr.ص` | `gr.expr.directive` | basic | تطابق ✅ | 106 | 2995 |
-| 1478 | `40_expressions/gr.expr.directive/basic/063_dir_sizeof_cmp.ص` | `gr.expr.directive` | basic | تطابق ✅ | 133 | 3192 |
-| 1479 | `40_expressions/gr.expr.directive/edge/060_dir_sizeof_twice.ص` | `gr.expr.directive` | edge | تطابق ✅ | 67 | 3318 |
-| 1480 | `40_expressions/gr.expr.directive/edge/061_dir_sizeof_mul.ص` | `gr.expr.directive` | edge | تطابق ✅ | 79 | 3315 |
-| 1481 | `40_expressions/gr.expr.directive/edge/062_dir_sizeof_in_var_add.ص` | `gr.expr.directive` | edge | تطابق ✅ | 67 | 3435 |
-| 1482 | `40_expressions/gr.expr.directive/negative/060_dir_no_paren.ص` | `gr.expr.directive` | negative | تطابق ✅ | 79 | 0 |
-| 1483 | `40_expressions/gr.expr.directive/negative/061_dir_no_name.ص` | `gr.expr.directive` | negative | تطابق ✅ | 84 | 0 |
-| 1484 | `40_expressions/gr.expr.equality/basic/001_equal.ص` | `gr.expr.equality` | basic | تطابق ✅ | 149 | 3273 |
-| 1485 | `40_expressions/gr.expr.equality/basic/002_not_equal.ص` | `gr.expr.equality` | basic | تطابق ✅ | 74 | 3479 |
-| 1486 | `40_expressions/gr.expr.equality/basic/050_eq_int_t.ص` | `gr.expr.equality` | basic | تطابق ✅ | 117 | 3602 |
-| 1487 | `40_expressions/gr.expr.equality/basic/051_eq_int_f.ص` | `gr.expr.equality` | basic | تطابق ✅ | 74 | 3730 |
-| 1488 | `40_expressions/gr.expr.equality/basic/052_neq_int_t.ص` | `gr.expr.equality` | basic | تطابق ✅ | 96 | 3499 |
-| 1489 | `40_expressions/gr.expr.equality/basic/053_eq_str.ص` | `gr.expr.equality` | basic | تطابق ✅ | 65 | 3464 |
-| 1490 | `40_expressions/gr.expr.equality/basic/054_eq_bool.ص` | `gr.expr.equality` | basic | تطابق ✅ | 71 | 3327 |
-| 1491 | `40_expressions/gr.expr.equality/edge/050_eq_chain_expr.ص` | `gr.expr.equality` | edge | تطابق ✅ | 81 | 3399 |
-| 1492 | `40_expressions/gr.expr.equality/edge/051_neq_str.ص` | `gr.expr.equality` | edge | تطابق ✅ | 114 | 3151 |
-| 1493 | `40_expressions/gr.expr.equality/edge/052_eq_with_and.ص` | `gr.expr.equality` | edge | تطابق ✅ | 65 | 3067 |
-| 1494 | `40_expressions/gr.expr.equality/edge/053_eq_neg.ص` | `gr.expr.equality` | edge | تطابق ✅ | 62 | 2768 |
-| 1495 | `40_expressions/gr.expr.equality/negative/050_eq_missing_rhs.ص` | `gr.expr.equality` | negative | تطابق ✅ | 61 | 0 |
-| 1496 | `40_expressions/gr.expr.equality/negative/051_eq_triple.ص` | `gr.expr.equality` | negative | تطابق ✅ | 63 | 0 |
-| 1497 | `40_expressions/gr.expr.expression/basic/001_precedence.ص` | `gr.expr.expression` | basic | تطابق ✅ | 61 | 2890 |
-| 1498 | `40_expressions/gr.expr.expression/basic/060_x_add.ص` | `gr.expr.expression` | basic | تطابق ✅ | 95 | 2749 |
-| 1499 | `40_expressions/gr.expr.expression/basic/061_x_str.ص` | `gr.expr.expression` | basic | تطابق ✅ | 60 | 2635 |
-| 1500 | `40_expressions/gr.expr.expression/basic/062_x_bool.ص` | `gr.expr.expression` | basic | تطابق ✅ | 59 | 2677 |
-| 1501 | `40_expressions/gr.expr.expression/basic/063_x_mul.ص` | `gr.expr.expression` | basic | تطابق ✅ | 52 | 2896 |
-| 1502 | `40_expressions/gr.expr.expression/basic/064_x_paren.ص` | `gr.expr.expression` | basic | تطابق ✅ | 51 | 2758 |
-| 1503 | `40_expressions/gr.expr.expression/basic/065_x_sub.ص` | `gr.expr.expression` | basic | تطابق ✅ | 74 | 2758 |
-| 1504 | `40_expressions/gr.expr.expression/basic/066_x_cmp.ص` | `gr.expr.expression` | basic | تطابق ✅ | 53 | 2768 |
-| 1505 | `40_expressions/gr.expr.expression/basic/067_x_neg.ص` | `gr.expr.expression` | basic | تطابق ✅ | 57 | 2978 |
-| 1506 | `40_expressions/gr.expr.expression/edge/060_x_nested_paren.ص` | `gr.expr.expression` | edge | تطابق ✅ | 72 | 2584 |
-| 1507 | `40_expressions/gr.expr.expression/edge/061_x_prec.ص` | `gr.expr.expression` | edge | تطابق ✅ | 60 | 2589 |
-| 1508 | `40_expressions/gr.expr.expression/edge/062_x_bool_chain.ص` | `gr.expr.expression` | edge | تطابق ✅ | 49 | 2889 |
-| 1509 | `40_expressions/gr.expr.expression/edge/063_x_concat3.ص` | `gr.expr.expression` | edge | تطابق ✅ | 55 | 2912 |
-| 1510 | `40_expressions/gr.expr.expression/negative/060_x_unbalanced.ص` | `gr.expr.expression` | negative | تطابق ✅ | 50 | 0 |
-| 1511 | `40_expressions/gr.expr.expression/negative/061_x_trailing_op.ص` | `gr.expr.expression` | negative | تطابق ✅ | 58 | 0 |
-| 1512 | `40_expressions/gr.expr.factor/basic/001_mul_div.ص` | `gr.expr.factor` | basic | تطابق ✅ | 44 | 2805 |
-| 1513 | `40_expressions/gr.expr.factor/basic/002_floor_mod.ص` | `gr.expr.factor` | basic | تطابق ✅ | 104 | 2894 |
-| 1514 | `40_expressions/gr.expr.factor/basic/060_f_muldiv.ص` | `gr.expr.factor` | basic | تطابق ✅ | 49 | 2757 |
-| 1515 | `40_expressions/gr.expr.factor/basic/061_f_mul.ص` | `gr.expr.factor` | basic | تطابق ✅ | 81 | 2648 |
-| 1516 | `40_expressions/gr.expr.factor/basic/062_f_div.ص` | `gr.expr.factor` | basic | تطابق ✅ | 103 | 2628 |
-| 1517 | `40_expressions/gr.expr.factor/basic/063_f_mul3.ص` | `gr.expr.factor` | basic | تطابق ✅ | 77 | 2678 |
-| 1518 | `40_expressions/gr.expr.factor/basic/064_f_floor.ص` | `gr.expr.factor` | basic | تطابق ✅ | 74 | 2811 |
-| 1519 | `40_expressions/gr.expr.factor/basic/065_f_mod.ص` | `gr.expr.factor` | basic | تطابق ✅ | 56 | 3046 |
-| 1520 | `40_expressions/gr.expr.factor/edge/060_f_leftassoc.ص` | `gr.expr.factor` | edge | تطابق ✅ | 55 | 2865 |
-| 1521 | `40_expressions/gr.expr.factor/edge/061_f_float.ص` | `gr.expr.factor` | edge | تطابق ✅ | 74 | 3084 |
-| 1522 | `40_expressions/gr.expr.factor/edge/062_f_mod_chain.ص` | `gr.expr.factor` | edge | تطابق ✅ | 64 | 3297 |
-| 1523 | `40_expressions/gr.expr.factor/edge/063_f_floor_neg.ص` | `gr.expr.factor` | edge | تطابق ✅ | 92 | 3405 |
-| 1524 | `40_expressions/gr.expr.factor/negative/060_f_trailing.ص` | `gr.expr.factor` | negative | تطابق ✅ | 67 | 0 |
-| 1525 | `40_expressions/gr.expr.factor/negative/061_f_lead.ص` | `gr.expr.factor` | negative | تطابق ✅ | 134 | 0 |
-| 1526 | `40_expressions/gr.expr.fstring/basic/001_interp.ص` | `gr.expr.fstring` | basic | تطابق ✅ | 63 | 3449 |
-| 1527 | `40_expressions/gr.expr.fstring/basic/060_fs_interp.ص` | `gr.expr.fstring` | basic | تطابق ✅ | 68 | 3446 |
-| 1528 | `40_expressions/gr.expr.fstring/basic/061_fs_literal.ص` | `gr.expr.fstring` | basic | تطابق ✅ | 93 | 3601 |
-| 1529 | `40_expressions/gr.expr.fstring/basic/062_fs_expr.ص` | `gr.expr.fstring` | basic | تطابق ✅ | 83 | 3316 |
-| 1530 | `40_expressions/gr.expr.fstring/basic/063_fs_two.ص` | `gr.expr.fstring` | basic | تطابق ✅ | 134 | 3338 |
-| 1531 | `40_expressions/gr.expr.fstring/basic/064_fs_text_var.ص` | `gr.expr.fstring` | basic | تطابق ✅ | 123 | 3550 |
-| 1532 | `40_expressions/gr.expr.fstring/edge/060_fs_expr_complex.ص` | `gr.expr.fstring` | edge | تطابق ✅ | 71 | 3149 |
-| 1533 | `40_expressions/gr.expr.fstring/edge/061_fs_str_var.ص` | `gr.expr.fstring` | edge | تطابق ✅ | 112 | 3162 |
-| 1534 | `40_expressions/gr.expr.fstring/edge/062_fs_call.ص` | `gr.expr.fstring` | edge | تطابق ✅ | 68 | 3253 |
-| 1535 | `40_expressions/gr.expr.fstring/edge/063_fs_multi.ص` | `gr.expr.fstring` | edge | تطابق ✅ | 74 | 3321 |
-| 1536 | `40_expressions/gr.expr.fstring/edge/064_fs_text_after.ص` | `gr.expr.fstring` | edge | تطابق ✅ | 103 | 3196 |
-| 1537 | `40_expressions/gr.expr.fstring/negative/060_fs_unterminated.ص` | `gr.expr.fstring` | negative | تطابق ✅ | 138 | 0 |
-| 1538 | `40_expressions/gr.expr.fstring/negative/061_fs_open_brace.ص` | `gr.expr.fstring` | negative | تطابق ✅ | 73 | 0 |
-| 1539 | `40_expressions/gr.expr.lambda/basic/001_arrow.ص` | `gr.expr.lambda` | basic | تطابق ✅ | 83 | 3170 |
-| 1540 | `40_expressions/gr.expr.lambda/basic/060_l_arrow.ص` | `gr.expr.lambda` | basic | تطابق ✅ | 107 | 3160 |
-| 1541 | `40_expressions/gr.expr.lambda/basic/061_l_noparam.ص` | `gr.expr.lambda` | basic | تطابق ✅ | 79 | 3061 |
-| 1542 | `40_expressions/gr.expr.lambda/basic/062_l_two_params.ص` | `gr.expr.lambda` | basic | تطابق ✅ | 148 | 2785 |
-| 1543 | `40_expressions/gr.expr.lambda/basic/063_l_block.ص` | `gr.expr.lambda` | basic | تطابق ✅ | 63 | 2777 |
-| 1544 | `40_expressions/gr.expr.lambda/basic/064_l_str.ص` | `gr.expr.lambda` | basic | تطابق ✅ | 76 | 2750 |
-| 1545 | `40_expressions/gr.expr.lambda/basic/065_l_bool.ص` | `gr.expr.lambda` | basic | تطابق ✅ | 50 | 2790 |
-| 1546 | `40_expressions/gr.expr.lambda/edge/051_arrow_lambda_reserved_param_accepted_debt.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 57 | 3271 |
-| 1547 | `40_expressions/gr.expr.lambda/edge/060_l_iife.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 62 | 2677 |
-| 1548 | `40_expressions/gr.expr.lambda/edge/061_l_closure.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 70 | 2801 |
-| 1549 | `40_expressions/gr.expr.lambda/edge/062_l_block_multi.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 66 | 2734 |
-| 1550 | `40_expressions/gr.expr.lambda/edge/063_l_zero_arg_expr.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 55 | 2760 |
-| 1551 | `40_expressions/gr.expr.lambda/edge/064_l_passed_arg.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 57 | 3264 |
-| 1552 | `40_expressions/gr.expr.lambda/edge/065_معامل_لامدا_مصفوفة_مختلطة_عبر_متغيّر.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 110 | 3494 |
-| 1553 | `40_expressions/gr.expr.lambda/edge/066_معامل_لامدا_مصفوفة_نصوص_متجانسة.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 63 | 3376 |
-| 1554 | `40_expressions/gr.expr.lambda/edge/067_معامل_لامدا_مشترك_نصّ_ثمّ_صحيح.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 60 | 3471 |
-| 1555 | `40_expressions/gr.expr.lambda/edge/068_التقاط_مصفوفة_مختلطة.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 53 | 3334 |
-| 1556 | `40_expressions/gr.expr.lambda/edge/069_التقاط_مصفوفة_صحيحة_متجانسة.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 53 | 2913 |
-| 1557 | `40_expressions/gr.expr.lambda/edge/070_معامل_لامدا_نتيجة_نداء_مختلطة.ص` | `gr.expr.lambda` | edge | تطابق ✅ | 102 | 3857 |
-| 1558 | `40_expressions/gr.expr.lambda/negative/060_l_no_parens.ص` | `gr.expr.lambda` | negative | تطابق ✅ | 68 | 0 |
-| 1559 | `40_expressions/gr.expr.lambda/negative/061_l_no_body.ص` | `gr.expr.lambda` | negative | تطابق ✅ | 50 | 0 |
-| 1560 | `40_expressions/gr.expr.lambda/negative/062_l_arrow_no_expr.ص` | `gr.expr.lambda` | negative | تطابق ✅ | 94 | 0 |
-| 1561 | `40_expressions/gr.expr.logical_and/basic/001_symbol.ص` | `gr.expr.logical_and` | basic | تطابق ✅ | 105 | 3226 |
-| 1562 | `40_expressions/gr.expr.logical_and/basic/002_word.ص` | `gr.expr.logical_and` | basic | تطابق ✅ | 98 | 3184 |
-| 1563 | `40_expressions/gr.expr.logical_and/basic/050_and_tt.ص` | `gr.expr.logical_and` | basic | تطابق ✅ | 57 | 2781 |
-| 1564 | `40_expressions/gr.expr.logical_and/basic/051_and_tf.ص` | `gr.expr.logical_and` | basic | تطابق ✅ | 76 | 3190 |
-| 1565 | `40_expressions/gr.expr.logical_and/basic/052_and_ff.ص` | `gr.expr.logical_and` | basic | تطابق ✅ | 58 | 3200 |
-| 1566 | `40_expressions/gr.expr.logical_and/basic/053_and_word.ص` | `gr.expr.logical_and` | basic | تطابق ✅ | 97 | 3264 |
-| 1567 | `40_expressions/gr.expr.logical_and/basic/054_and_from_cmp.ص` | `gr.expr.logical_and` | basic | تطابق ✅ | 106 | 3351 |
-| 1568 | `40_expressions/gr.expr.logical_and/edge/050_and_chain3.ص` | `gr.expr.logical_and` | edge | تطابق ✅ | 96 | 3587 |
-| 1569 | `40_expressions/gr.expr.logical_and/edge/051_and_all_true.ص` | `gr.expr.logical_and` | edge | تطابق ✅ | 79 | 3441 |
-| 1570 | `40_expressions/gr.expr.logical_and/edge/052_and_mixed_word.ص` | `gr.expr.logical_and` | edge | تطابق ✅ | 131 | 3428 |
-| 1571 | `40_expressions/gr.expr.logical_and/edge/053_and_prec_over_or.ص` | `gr.expr.logical_and` | edge | تطابق ✅ | 89 | 3741 |
-| 1572 | `40_expressions/gr.expr.logical_and/negative/050_and_missing_rhs.ص` | `gr.expr.logical_and` | negative | تطابق ✅ | 105 | 0 |
-| 1573 | `40_expressions/gr.expr.logical_and/negative/051_and_double_op.ص` | `gr.expr.logical_and` | negative | تطابق ✅ | 76 | 0 |
-| 1574 | `40_expressions/gr.expr.logical_or/basic/001_symbol.ص` | `gr.expr.logical_or` | basic | تطابق ✅ | 105 | 3226 |
-| 1575 | `40_expressions/gr.expr.logical_or/basic/002_word.ص` | `gr.expr.logical_or` | basic | تطابق ✅ | 98 | 3184 |
-| 1576 | `40_expressions/gr.expr.logical_or/basic/050_or_tt.ص` | `gr.expr.logical_or` | basic | تطابق ✅ | 126 | 3148 |
-| 1577 | `40_expressions/gr.expr.logical_or/basic/051_or_tf.ص` | `gr.expr.logical_or` | basic | تطابق ✅ | 63 | 3124 |
-| 1578 | `40_expressions/gr.expr.logical_or/basic/052_or_ff.ص` | `gr.expr.logical_or` | basic | تطابق ✅ | 97 | 3259 |
-| 1579 | `40_expressions/gr.expr.logical_or/basic/053_or_word.ص` | `gr.expr.logical_or` | basic | تطابق ✅ | 73 | 3244 |
-| 1580 | `40_expressions/gr.expr.logical_or/basic/054_or_from_cmp.ص` | `gr.expr.logical_or` | basic | تطابق ✅ | 98 | 3030 |
-| 1581 | `40_expressions/gr.expr.logical_or/edge/050_or_chain3.ص` | `gr.expr.logical_or` | edge | تطابق ✅ | 56 | 3222 |
-| 1582 | `40_expressions/gr.expr.logical_or/edge/051_or_short_circuit.ص` | `gr.expr.logical_or` | edge | تطابق ✅ | 116 | 3182 |
-| 1583 | `40_expressions/gr.expr.logical_or/edge/052_or_mixed_word_sym.ص` | `gr.expr.logical_or` | edge | تطابق ✅ | 94 | 2906 |
-| 1584 | `40_expressions/gr.expr.logical_or/edge/053_or_with_and.ص` | `gr.expr.logical_or` | edge | تطابق ✅ | 66 | 2912 |
-| 1585 | `40_expressions/gr.expr.logical_or/negative/050_or_missing_rhs.ص` | `gr.expr.logical_or` | negative | تطابق ✅ | 112 | 0 |
-| 1586 | `40_expressions/gr.expr.logical_or/negative/051_or_missing_lhs.ص` | `gr.expr.logical_or` | negative | تطابق ✅ | 56 | 0 |
-| 1587 | `40_expressions/gr.expr.map_literal/basic/001_index.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 57 | 3522 |
-| 1588 | `40_expressions/gr.expr.map_literal/basic/002_int_key.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 62 | 2971 |
-| 1589 | `40_expressions/gr.expr.map_literal/basic/060_map_index.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 56 | 2843 |
-| 1590 | `40_expressions/gr.expr.map_literal/basic/061_map_int_key.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 106 | 2876 |
-| 1591 | `40_expressions/gr.expr.map_literal/basic/062_map_eq_sep.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 68 | 2911 |
-| 1592 | `40_expressions/gr.expr.map_literal/basic/063_map_print.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 93 | 3529 |
-| 1593 | `40_expressions/gr.expr.map_literal/basic/064_map_two_keys.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 51 | 3054 |
-| 1594 | `40_expressions/gr.expr.map_literal/basic/065_map_empty_ok.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 62 | 2829 |
-| 1595 | `40_expressions/gr.expr.map_literal/basic/066_named_size_has.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 57 | 3025 |
-| 1596 | `40_expressions/gr.expr.map_literal/basic/067_named_get_default.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 60 | 3333 |
-| 1597 | `40_expressions/gr.expr.map_literal/basic/068_named_set_is_pure.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 124 | 2937 |
-| 1598 | `40_expressions/gr.expr.map_literal/basic/069_named_delete_is_pure.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 56 | 2903 |
-| 1599 | `40_expressions/gr.expr.map_literal/basic/070_named_keys_values.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 64 | 3047 |
-| 1600 | `40_expressions/gr.expr.map_literal/basic/071_strip_diacritics.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 65 | 2812 |
-| 1601 | `40_expressions/gr.expr.map_literal/basic/072_named_set_delete_purity_by_content.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 50 | 3250 |
-| 1602 | `40_expressions/gr.expr.map_literal/basic/073_strip_diacritics_quranic_marks.ص` | `gr.expr.map_literal` | basic | تطابق ✅ | 138 | 2810 |
-| 1603 | `40_expressions/gr.expr.map_literal/edge/060_map_expr_val.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 129 | 2846 |
-| 1604 | `40_expressions/gr.expr.map_literal/edge/061_map_nested.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 47 | 3418 |
-| 1605 | `40_expressions/gr.expr.map_literal/edge/062_map_bool_val.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 57 | 2833 |
-| 1606 | `40_expressions/gr.expr.map_literal/edge/063_map_reassign.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 65 | 3098 |
-| 1607 | `40_expressions/gr.expr.map_literal/edge/064_map_str_val.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 103 | 3223 |
-| 1608 | `40_expressions/gr.expr.map_literal/edge/065_map_value_keeps_type_across_call.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 64 | 4522 |
-| 1609 | `40_expressions/gr.expr.map_literal/edge/066_function_returns_map.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 72 | 3977 |
-| 1610 | `40_expressions/gr.expr.map_literal/edge/067_map_methods.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 83 | 4119 |
-| 1611 | `40_expressions/gr.expr.map_literal/edge/068_map_value_type_names.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 80 | 4160 |
-| 1612 | `40_expressions/gr.expr.map_literal/edge/069_map_value_printed_across_call.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 108 | 4679 |
-| 1613 | `40_expressions/gr.expr.map_literal/edge/070_map_float_iteration.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 76 | 3992 |
-| 1614 | `40_expressions/gr.expr.map_literal/edge/071_map_values_are_tagged.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 80 | 4336 |
-| 1615 | `40_expressions/gr.expr.map_literal/edge/072_map_grows_when_full.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 70 | 5082 |
-| 1616 | `40_expressions/gr.expr.map_literal/edge/073_mixed_map_arithmetic.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 82 | 4334 |
-| 1617 | `40_expressions/gr.expr.map_literal/edge/074_map_null_value_and_method_get.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 73 | 4444 |
-| 1618 | `40_expressions/gr.expr.map_literal/edge/075_map_to_string_all_tags.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 194 | 4139 |
-| 1619 | `40_expressions/gr.expr.map_literal/edge/076_null_via_every_writer.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 88 | 4057 |
-| 1620 | `40_expressions/gr.expr.map_literal/edge/077_nested_containers_across_call.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 124 | 4352 |
-| 1621 | `40_expressions/gr.expr.map_literal/edge/078_map_one_free_slot.ص` | `gr.expr.map_literal` | edge | تطابق ✅ | 71 | 4225 |
-| 1622 | `40_expressions/gr.expr.map_literal/negative/060_map_unclosed.ص` | `gr.expr.map_literal` | negative | تطابق ✅ | 58 | 0 |
-| 1623 | `40_expressions/gr.expr.map_literal/negative/061_map_no_value.ص` | `gr.expr.map_literal` | negative | تطابق ✅ | 99 | 0 |
-| 1624 | `40_expressions/gr.expr.null_coalesce/basic/001_basic.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ | 112 | 2824 |
-| 1625 | `40_expressions/gr.expr.null_coalesce/basic/060_nc_null.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ | 54 | 2903 |
-| 1626 | `40_expressions/gr.expr.null_coalesce/basic/061_nc_val.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ | 56 | 2856 |
-| 1627 | `40_expressions/gr.expr.null_coalesce/basic/062_nc_null_str.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ | 64 | 2758 |
-| 1628 | `40_expressions/gr.expr.null_coalesce/basic/063_nc_str.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ | 100 | 2730 |
-| 1629 | `40_expressions/gr.expr.null_coalesce/basic/064_nc_var_null.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ | 139 | 2872 |
-| 1630 | `40_expressions/gr.expr.null_coalesce/edge/060_nc_chain.ص` | `gr.expr.null_coalesce` | edge | تطابق ✅ | 56 | 2812 |
-| 1631 | `40_expressions/gr.expr.null_coalesce/edge/061_nc_expr_rhs.ص` | `gr.expr.null_coalesce` | edge | تطابق ✅ | 80 | 2790 |
-| 1632 | `40_expressions/gr.expr.null_coalesce/edge/062_nc_var_nonnull.ص` | `gr.expr.null_coalesce` | edge | تطابق ✅ | 51 | 2875 |
-| 1633 | `40_expressions/gr.expr.null_coalesce/edge/063_nc_bool.ص` | `gr.expr.null_coalesce` | edge | تطابق ✅ | 54 | 2848 |
-| 1634 | `40_expressions/gr.expr.null_coalesce/negative/060_nc_missing_rhs.ص` | `gr.expr.null_coalesce` | negative | تطابق ✅ | 86 | 0 |
-| 1635 | `40_expressions/gr.expr.null_coalesce/negative/061_nc_missing_lhs.ص` | `gr.expr.null_coalesce` | negative | تطابق ✅ | 88 | 0 |
-| 1636 | `40_expressions/gr.expr.pipeline/basic/001_pipe_len.ص` | `gr.expr.pipeline` | basic | تطابق ✅ | 78 | 2850 |
-| 1637 | `40_expressions/gr.expr.pipeline/basic/060_p_len3.ص` | `gr.expr.pipeline` | basic | تطابق ✅ | 48 | 2711 |
-| 1638 | `40_expressions/gr.expr.pipeline/basic/061_p_len2.ص` | `gr.expr.pipeline` | basic | تطابق ✅ | 60 | 2735 |
-| 1639 | `40_expressions/gr.expr.pipeline/basic/062_p_str_len.ص` | `gr.expr.pipeline` | basic | تطابق ✅ | 52 | 2819 |
-| 1640 | `40_expressions/gr.expr.pipeline/basic/063_p_to_str.ص` | `gr.expr.pipeline` | basic | تطابق ✅ | 51 | 2881 |
-| 1641 | `40_expressions/gr.expr.pipeline/basic/064_p_len1.ص` | `gr.expr.pipeline` | basic | تطابق ✅ | 98 | 2944 |
-| 1642 | `40_expressions/gr.expr.pipeline/basic/065_p_len4.ص` | `gr.expr.pipeline` | basic | تطابق ✅ | 59 | 2903 |
-| 1643 | `40_expressions/gr.expr.pipeline/edge/060_p_chain.ص` | `gr.expr.pipeline` | edge | تطابق ✅ | 52 | 2938 |
-| 1644 | `40_expressions/gr.expr.pipeline/edge/061_p_user_fn.ص` | `gr.expr.pipeline` | edge | تطابق ✅ | 54 | 3236 |
-| 1645 | `40_expressions/gr.expr.pipeline/edge/062_p_user_double.ص` | `gr.expr.pipeline` | edge | تطابق ✅ | 55 | 3293 |
-| 1646 | `40_expressions/gr.expr.pipeline/edge/063_p_extra_arg.ص` | `gr.expr.pipeline` | edge | تطابق ✅ | 58 | 3350 |
-| 1647 | `40_expressions/gr.expr.pipeline/edge/064_p_in_expr.ص` | `gr.expr.pipeline` | edge | تطابق ✅ | 58 | 3191 |
-| 1648 | `40_expressions/gr.expr.pipeline/negative/060_p_missing_rhs.ص` | `gr.expr.pipeline` | negative | تطابق ✅ | 125 | 0 |
-| 1649 | `40_expressions/gr.expr.pipeline/negative/061_p_missing_lhs.ص` | `gr.expr.pipeline` | negative | تطابق ✅ | 68 | 0 |
-| 1650 | `40_expressions/gr.expr.postfix/basic/001_index.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 57 | 3522 |
-| 1651 | `40_expressions/gr.expr.postfix/basic/002_call.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 134 | 3606 |
-| 1652 | `40_expressions/gr.expr.postfix/basic/003_increment.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 108 | 3600 |
-| 1653 | `40_expressions/gr.expr.postfix/basic/060_pf_index.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 83 | 3788 |
-| 1654 | `40_expressions/gr.expr.postfix/basic/061_pf_call.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 74 | 3494 |
-| 1655 | `40_expressions/gr.expr.postfix/basic/062_pf_index0.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 71 | 3663 |
-| 1656 | `40_expressions/gr.expr.postfix/basic/063_pf_index4.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 83 | 3550 |
-| 1657 | `40_expressions/gr.expr.postfix/basic/064_pf_str_index.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 130 | 3473 |
-| 1658 | `40_expressions/gr.expr.postfix/basic/065_pf_map_index.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 75 | 3490 |
-| 1659 | `40_expressions/gr.expr.postfix/basic/066_pf_decr.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 87 | 3059 |
-| 1660 | `40_expressions/gr.expr.postfix/basic/067_pf_str_len_call.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 68 | 3296 |
-| 1661 | `40_expressions/gr.expr.postfix/basic/068_pf_index_last.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 66 | 3267 |
-| 1662 | `40_expressions/gr.expr.postfix/basic/069_pf_incr.ص` | `gr.expr.postfix` | basic | تطابق ✅ | 71 | 2979 |
-| 1663 | `40_expressions/gr.expr.postfix/edge/060_pf_slice.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 64 | 3110 |
-| 1664 | `40_expressions/gr.expr.postfix/edge/061_pf_slice_step.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 60 | 3043 |
-| 1665 | `40_expressions/gr.expr.postfix/edge/062_pf_slice02.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 58 | 3029 |
-| 1666 | `40_expressions/gr.expr.postfix/edge/063_pf_str_idx0.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 62 | 2783 |
-| 1667 | `40_expressions/gr.expr.postfix/edge/064_pf_nested_index.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 114 | 2998 |
-| 1668 | `40_expressions/gr.expr.postfix/edge/065_pf_str_index0.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 56 | 3100 |
-| 1669 | `40_expressions/gr.expr.postfix/edge/066_pf_map_int_key.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 58 | 3087 |
-| 1670 | `40_expressions/gr.expr.postfix/edge/067_pf_call_index.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 56 | 3230 |
-| 1671 | `40_expressions/gr.expr.postfix/edge/068_pf_map_nested.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 85 | 3794 |
-| 1672 | `40_expressions/gr.expr.postfix/edge/069_pf_index_expr.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 112 | 2978 |
-| 1673 | `40_expressions/gr.expr.postfix/edge/071_pf_slice_method_open.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 104 | 3060 |
-| 1674 | `40_expressions/gr.expr.postfix/edge/072_adt_field_collision.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 59 | 3410 |
-| 1675 | `40_expressions/gr.expr.postfix/edge/073_adt_field_collision_both.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 61 | 2846 |
-| 1676 | `40_expressions/gr.expr.postfix/edge/074_adt_field_shared_three.ص` | `gr.expr.postfix` | edge | تطابق ✅ | 55 | 3426 |
-| 1677 | `40_expressions/gr.expr.postfix/negative/060_pf_unbalanced_index.ص` | `gr.expr.postfix` | negative | تطابق ✅ | 93 | 0 |
-| 1678 | `40_expressions/gr.expr.postfix/negative/061_pf_unbalanced_call.ص` | `gr.expr.postfix` | negative | تطابق ✅ | 58 | 0 |
-| 1679 | `40_expressions/gr.expr.postfix/negative/062_pf_missing_close.ص` | `gr.expr.postfix` | negative | تطابق ✅ | 43 | 0 |
-| 1680 | `40_expressions/gr.expr.postfix/negative/063_pf_lead_dot.ص` | `gr.expr.postfix` | negative | تطابق ✅ | 53 | 0 |
-| 1681 | `40_expressions/gr.expr.power/basic/001_basic.ص` | `gr.expr.power` | basic | تطابق ✅ | 112 | 2824 |
-| 1682 | `40_expressions/gr.expr.power/basic/060_pw_2_10.ص` | `gr.expr.power` | basic | تطابق ✅ | 44 | 2841 |
-| 1683 | `40_expressions/gr.expr.power/basic/061_pw_3_2.ص` | `gr.expr.power` | basic | تطابق ✅ | 107 | 2925 |
-| 1684 | `40_expressions/gr.expr.power/basic/062_pw_5_0.ص` | `gr.expr.power` | basic | تطابق ✅ | 51 | 2902 |
-| 1685 | `40_expressions/gr.expr.power/basic/063_pw_2_3.ص` | `gr.expr.power` | basic | تطابق ✅ | 68 | 2966 |
-| 1686 | `40_expressions/gr.expr.power/edge/060_pw_right_assoc.ص` | `gr.expr.power` | edge | تطابق ✅ | 87 | 2592 |
-| 1687 | `40_expressions/gr.expr.power/edge/061_pw_of_sum.ص` | `gr.expr.power` | edge | تطابق ✅ | 50 | 2572 |
-| 1688 | `40_expressions/gr.expr.power/edge/062_pw_in_add.ص` | `gr.expr.power` | edge | تطابق ✅ | 51 | 2732 |
-| 1689 | `40_expressions/gr.expr.power/negative/060_pw_trailing.ص` | `gr.expr.power` | negative | تطابق ✅ | 88 | 0 |
-| 1690 | `40_expressions/gr.expr.primary/basic/001_tuple.ص` | `gr.expr.primary` | basic | تطابق ✅ | 62 | 2680 |
-| 1691 | `40_expressions/gr.expr.primary/basic/002_if_expr.ص` | `gr.expr.primary` | basic | تطابق ✅ | 49 | 3140 |
-| 1692 | `40_expressions/gr.expr.primary/basic/003_abs.ص` | `gr.expr.primary` | basic | تطابق ✅ | 54 | 3127 |
-| 1693 | `40_expressions/gr.expr.primary/basic/060_pr_tuple.ص` | `gr.expr.primary` | basic | تطابق ✅ | 54 | 3389 |
-| 1694 | `40_expressions/gr.expr.primary/basic/061_pr_if_expr.ص` | `gr.expr.primary` | basic | تطابق ✅ | 60 | 3422 |
-| 1695 | `40_expressions/gr.expr.primary/basic/062_pr_abs.ص` | `gr.expr.primary` | basic | تطابق ✅ | 98 | 3546 |
-| 1696 | `40_expressions/gr.expr.primary/basic/063_pr_int.ص` | `gr.expr.primary` | basic | تطابق ✅ | 156 | 3709 |
-| 1697 | `40_expressions/gr.expr.primary/basic/064_pr_str.ص` | `gr.expr.primary` | basic | تطابق ✅ | 90 | 3711 |
-| 1698 | `40_expressions/gr.expr.primary/basic/065_pr_true.ص` | `gr.expr.primary` | basic | تطابق ✅ | 156 | 3564 |
-| 1699 | `40_expressions/gr.expr.primary/basic/066_pr_false.ص` | `gr.expr.primary` | basic | تطابق ✅ | 122 | 3120 |
-| 1700 | `40_expressions/gr.expr.primary/basic/067_pr_null.ص` | `gr.expr.primary` | basic | تطابق ✅ | 121 | 3228 |
-| 1701 | `40_expressions/gr.expr.primary/basic/068_pr_float.ص` | `gr.expr.primary` | basic | تطابق ✅ | 83 | 2888 |
-| 1702 | `40_expressions/gr.expr.primary/basic/069_pr_var.ص` | `gr.expr.primary` | basic | تطابق ✅ | 142 | 3055 |
-| 1703 | `40_expressions/gr.expr.primary/basic/070_pr_group.ص` | `gr.expr.primary` | basic | تطابق ✅ | 95 | 2825 |
-| 1704 | `40_expressions/gr.expr.primary/basic/071_pr_if_str.ص` | `gr.expr.primary` | basic | تطابق ✅ | 58 | 2871 |
-| 1705 | `40_expressions/gr.expr.primary/edge/060_pr_tuple_index2.ص` | `gr.expr.primary` | edge | تطابق ✅ | 58 | 2894 |
-| 1706 | `40_expressions/gr.expr.primary/edge/061_pr_abs_expr.ص` | `gr.expr.primary` | edge | تطابق ✅ | 66 | 2730 |
-| 1707 | `40_expressions/gr.expr.primary/edge/062_pr_abs_float.ص` | `gr.expr.primary` | edge | تطابق ✅ | 56 | 2881 |
-| 1708 | `40_expressions/gr.expr.primary/edge/063_pr_if_nested.ص` | `gr.expr.primary` | edge | تطابق ✅ | 128 | 2851 |
-| 1709 | `40_expressions/gr.expr.primary/edge/064_pr_await.ص` | `gr.expr.primary` | edge | تطابق ✅ | 61 | 2708 |
-| 1710 | `40_expressions/gr.expr.primary/edge/065_pr_deep_group.ص` | `gr.expr.primary` | edge | تطابق ✅ | 51 | 2817 |
-| 1711 | `40_expressions/gr.expr.primary/edge/066_pr_group_single.ص` | `gr.expr.primary` | edge | تطابق ✅ | 85 | 2768 |
-| 1712 | `40_expressions/gr.expr.primary/edge/067_pr_bigint.ص` | `gr.expr.primary` | edge | تطابق ✅ | 123 | 2938 |
-| 1713 | `40_expressions/gr.expr.primary/edge/068_pr_neg_group.ص` | `gr.expr.primary` | edge | تطابق ✅ | 45 | 2938 |
-| 1714 | `40_expressions/gr.expr.primary/edge/069_pr_bool_group.ص` | `gr.expr.primary` | edge | تطابق ✅ | 47 | 2976 |
-| 1715 | `40_expressions/gr.expr.primary/negative/060_pr_unterminated_str.ص` | `gr.expr.primary` | negative | تطابق ✅ | 66 | 0 |
-| 1716 | `40_expressions/gr.expr.primary/negative/061_pr_if_no_else.ص` | `gr.expr.primary` | negative | تطابق ✅ | 114 | 0 |
-| 1717 | `40_expressions/gr.expr.primary/negative/062_pr_abs_unclosed.ص` | `gr.expr.primary` | negative | تطابق ✅ | 101 | 0 |
-| 1718 | `40_expressions/gr.expr.primary/negative/063_pr_tuple_unclosed.ص` | `gr.expr.primary` | negative | تطابق ✅ | 54 | 0 |
-| 1719 | `40_expressions/gr.expr.primary/negative/064_pr_lone_paren.ص` | `gr.expr.primary` | negative | تطابق ✅ | 58 | 0 |
-| 1720 | `40_expressions/gr.expr.range/basic/001_for_sum.ص` | `gr.expr.range` | basic | تطابق ✅ | 57 | 2964 |
-| 1721 | `40_expressions/gr.expr.range/basic/060_r_sum13.ص` | `gr.expr.range` | basic | تطابق ✅ | 70 | 2903 |
-| 1722 | `40_expressions/gr.expr.range/basic/061_r_sum15.ص` | `gr.expr.range` | basic | تطابق ✅ | 61 | 2833 |
-| 1723 | `40_expressions/gr.expr.range/basic/062_r_sum04.ص` | `gr.expr.range` | basic | تطابق ✅ | 66 | 2776 |
-| 1724 | `40_expressions/gr.expr.range/basic/063_r_sum24.ص` | `gr.expr.range` | basic | تطابق ✅ | 78 | 2806 |
-| 1725 | `40_expressions/gr.expr.range/basic/064_r_single.ص` | `gr.expr.range` | basic | تطابق ✅ | 125 | 2741 |
-| 1726 | `40_expressions/gr.expr.range/edge/060_r_sum14.ص` | `gr.expr.range` | edge | تطابق ✅ | 58 | 2696 |
-| 1727 | `40_expressions/gr.expr.range/edge/061_r_expr_bound.ص` | `gr.expr.range` | edge | تطابق ✅ | 54 | 2665 |
-| 1728 | `40_expressions/gr.expr.range/edge/062_r_slice_bounds.ص` | `gr.expr.range` | edge | تطابق ✅ | 50 | 2958 |
-| 1729 | `40_expressions/gr.expr.range/edge/063_r_var_bound.ص` | `gr.expr.range` | edge | تطابق ✅ | 93 | 2816 |
-| 1730 | `40_expressions/gr.expr.range/edge/064_r_count.ص` | `gr.expr.range` | edge | تطابق ✅ | 82 | 2815 |
-| 1731 | `40_expressions/gr.expr.range/negative/060_r_no_start.ص` | `gr.expr.range` | negative | تطابق ✅ | 118 | 0 |
-| 1732 | `40_expressions/gr.expr.range/negative/061_r_unbalanced.ص` | `gr.expr.range` | negative | تطابق ✅ | 63 | 0 |
-| 1733 | `40_expressions/gr.expr.term/basic/001_add_sub.ص` | `gr.expr.term` | basic | تطابق ✅ | 55 | 2755 |
-| 1734 | `40_expressions/gr.expr.term/basic/002_shift.ص` | `gr.expr.term` | basic | تطابق ✅ | 62 | 2728 |
-| 1735 | `40_expressions/gr.expr.term/basic/060_tm_add.ص` | `gr.expr.term` | basic | تطابق ✅ | 54 | 2751 |
-| 1736 | `40_expressions/gr.expr.term/basic/061_tm_sub.ص` | `gr.expr.term` | basic | تطابق ✅ | 53 | 2747 |
-| 1737 | `40_expressions/gr.expr.term/basic/062_tm_addsub.ص` | `gr.expr.term` | basic | تطابق ✅ | 55 | 2740 |
-| 1738 | `40_expressions/gr.expr.term/basic/063_tm_shl.ص` | `gr.expr.term` | basic | تطابق ✅ | 82 | 3176 |
-| 1739 | `40_expressions/gr.expr.term/basic/064_tm_shr.ص` | `gr.expr.term` | basic | تطابق ✅ | 50 | 3222 |
-| 1740 | `40_expressions/gr.expr.term/basic/065_tm_add3.ص` | `gr.expr.term` | basic | تطابق ✅ | 139 | 3280 |
-| 1741 | `40_expressions/gr.expr.term/basic/066_tm_identity_operand.ص` | `gr.expr.term` | basic | تطابق ✅ | 64 | 3493 |
-| 1742 | `40_expressions/gr.expr.term/basic/067_طبيعي64_logical_shift_right.ص` | `gr.expr.term` | basic | تطابق ✅ | 67 | 3365 |
-| 1743 | `40_expressions/gr.expr.term/basic/068_طبيعي64_bitwise_unsigned_print.ص` | `gr.expr.term` | basic | تطابق ✅ | 104 | 3220 |
-| 1744 | `40_expressions/gr.expr.term/basic/069_طبيعي64_call_return_print_boundary.ص` | `gr.expr.term` | basic | تطابق ✅ | 61 | 4428 |
-| 1745 | `40_expressions/gr.expr.term/basic/070_طبيعي64_method_call_print_boundary.ص` | `gr.expr.term` | basic | تطابق ✅ | 67 | 3348 |
-| 1746 | `40_expressions/gr.expr.term/basic/071_طبيعي64_unary_print_boundary.ص` | `gr.expr.term` | basic | تطابق ✅ | 107 | 3335 |
-| 1747 | `40_expressions/gr.expr.term/basic/072_طبيعي64_inferred_var_print_boundary.ص` | `gr.expr.term` | basic | تطابق ✅ | 64 | 3280 |
-| 1748 | `40_expressions/gr.expr.term/basic/073_طبيعي64_tostring_print_boundary.ص` | `gr.expr.term` | basic | تطابق ✅ | 72 | 3196 |
-| 1749 | `40_expressions/gr.expr.term/basic/074_بايت_اقتطاع_إعادة_إسناد_ثابت.ص` | `gr.expr.term` | basic | تطابق ✅ | 74 | 3138 |
-| 1750 | `40_expressions/gr.expr.term/basic/075_بايت_اقتطاع_إعادة_إسناد_محسوب.ص` | `gr.expr.term` | basic | تطابق ✅ | 60 | 3058 |
-| 1751 | `40_expressions/gr.expr.term/basic/076_بايت_اقتطاع_إعادة_إسناد_متكرّر.ص` | `gr.expr.term` | basic | تطابق ✅ | 64 | 3161 |
-| 1752 | `40_expressions/gr.expr.term/basic/077_بايت_اقتطاع_إعادة_إسناد_حدود.ص` | `gr.expr.term` | basic | تطابق ✅ | 108 | 2954 |
-| 1753 | `40_expressions/gr.expr.term/basic/078_بايت_اقتطاع_إعادة_إسناد_من_طبيعي64.ص` | `gr.expr.term` | basic | تطابق ✅ | 61 | 2897 |
-| 1754 | `40_expressions/gr.expr.term/basic/079_بايت_اقتطاع_إعادة_إسناد_من_قسمة.ص` | `gr.expr.term` | basic | تطابق ✅ | 105 | 3194 |
-| 1755 | `40_expressions/gr.expr.term/edge/060_tm_leftassoc.ص` | `gr.expr.term` | edge | تطابق ✅ | 60 | 2744 |
-| 1756 | `40_expressions/gr.expr.term/edge/061_tm_shift_after_add.ص` | `gr.expr.term` | edge | تطابق ✅ | 125 | 2842 |
-| 1757 | `40_expressions/gr.expr.term/edge/062_tm_neg_start.ص` | `gr.expr.term` | edge | تطابق ✅ | 59 | 2732 |
-| 1758 | `40_expressions/gr.expr.term/edge/063_tm_shr_chain.ص` | `gr.expr.term` | edge | تطابق ✅ | 129 | 2758 |
-| 1759 | `40_expressions/gr.expr.term/edge/064_tm_any_plus_float.ص` | `gr.expr.term` | edge | تطابق ✅ | 92 | 3370 |
-| 1760 | `40_expressions/gr.expr.term/negative/060_tm_trailing.ص` | `gr.expr.term` | negative | تطابق ✅ | 50 | 0 |
-| 1761 | `40_expressions/gr.expr.term/negative/061_tm_lead_shift.ص` | `gr.expr.term` | negative | تطابق ✅ | 118 | 0 |
-| 1762 | `40_expressions/gr.expr.ternary/basic/001_basic.ص` | `gr.expr.ternary` | basic | تطابق ✅ | 112 | 2824 |
-| 1763 | `40_expressions/gr.expr.ternary/basic/060_t_true.ص` | `gr.expr.ternary` | basic | تطابق ✅ | 67 | 2742 |
-| 1764 | `40_expressions/gr.expr.ternary/basic/061_t_false.ص` | `gr.expr.ternary` | basic | تطابق ✅ | 56 | 2689 |
-| 1765 | `40_expressions/gr.expr.ternary/basic/062_t_str_t.ص` | `gr.expr.ternary` | basic | تطابق ✅ | 58 | 2674 |
-| 1766 | `40_expressions/gr.expr.ternary/basic/063_t_str_f.ص` | `gr.expr.ternary` | basic | تطابق ✅ | 129 | 2737 |
-| 1767 | `40_expressions/gr.expr.ternary/basic/064_t_eq.ص` | `gr.expr.ternary` | basic | تطابق ✅ | 106 | 2777 |
-| 1768 | `40_expressions/gr.expr.ternary/basic/065_t_gt.ص` | `gr.expr.ternary` | basic | تطابق ✅ | 126 | 2850 |
-| 1769 | `40_expressions/gr.expr.ternary/edge/060_t_nested_right.ص` | `gr.expr.ternary` | edge | تطابق ✅ | 90 | 2748 |
-| 1770 | `40_expressions/gr.expr.ternary/edge/061_t_expr_branch.ص` | `gr.expr.ternary` | edge | تطابق ✅ | 56 | 2908 |
-| 1771 | `40_expressions/gr.expr.ternary/edge/062_t_in_var.ص` | `gr.expr.ternary` | edge | تطابق ✅ | 49 | 2884 |
-| 1772 | `40_expressions/gr.expr.ternary/edge/063_t_cond_expr.ص` | `gr.expr.ternary` | edge | تطابق ✅ | 53 | 2638 |
-| 1773 | `40_expressions/gr.expr.ternary/edge/064_t_nested_cond.ص` | `gr.expr.ternary` | edge | تطابق ✅ | 56 | 2760 |
-| 1774 | `40_expressions/gr.expr.ternary/negative/060_t_missing_colon.ص` | `gr.expr.ternary` | negative | تطابق ✅ | 123 | 0 |
-| 1775 | `40_expressions/gr.expr.ternary/negative/061_t_missing_else.ص` | `gr.expr.ternary` | negative | تطابق ✅ | 118 | 0 |
-| 1776 | `40_expressions/gr.expr.unary/basic/001_neg_not.ص` | `gr.expr.unary` | basic | تطابق ✅ | 53 | 2780 |
-| 1777 | `40_expressions/gr.expr.unary/basic/002_bitnot.ص` | `gr.expr.unary` | basic | تطابق ✅ | 52 | 2653 |
-| 1778 | `40_expressions/gr.expr.unary/basic/003_prefix_incr.ص` | `gr.expr.unary` | basic | تطابق ✅ | 56 | 2834 |
-| 1779 | `40_expressions/gr.expr.unary/basic/004_prefix_incr_stmt.ص` | `gr.expr.unary` | basic | تطابق ✅ | 46 | 2816 |
-| 1780 | `40_expressions/gr.expr.unary/basic/060_u_neg.ص` | `gr.expr.unary` | basic | تطابق ✅ | 58 | 2762 |
-| 1781 | `40_expressions/gr.expr.unary/basic/061_u_not_t.ص` | `gr.expr.unary` | basic | تطابق ✅ | 90 | 2814 |
-| 1782 | `40_expressions/gr.expr.unary/basic/062_u_bitnot0.ص` | `gr.expr.unary` | basic | تطابق ✅ | 58 | 2990 |
-| 1783 | `40_expressions/gr.expr.unary/basic/063_u_not_f.ص` | `gr.expr.unary` | basic | تطابق ✅ | 60 | 2979 |
-| 1784 | `40_expressions/gr.expr.unary/basic/064_u_neg_paren.ص` | `gr.expr.unary` | basic | تطابق ✅ | 61 | 3195 |
-| 1785 | `40_expressions/gr.expr.unary/basic/065_u_bitnot5.ص` | `gr.expr.unary` | basic | تطابق ✅ | 109 | 3296 |
-| 1786 | `40_expressions/gr.expr.unary/edge/060_u_double_neg.ص` | `gr.expr.unary` | edge | تطابق ✅ | 71 | 3371 |
-| 1787 | `40_expressions/gr.expr.unary/edge/061_u_double_not.ص` | `gr.expr.unary` | edge | تطابق ✅ | 72 | 3436 |
-| 1788 | `40_expressions/gr.expr.unary/edge/062_u_neg_mul.ص` | `gr.expr.unary` | edge | تطابق ✅ | 90 | 3547 |
-| 1789 | `40_expressions/gr.expr.unary/edge/063_u_bitnot_expr.ص` | `gr.expr.unary` | edge | تطابق ✅ | 91 | 3377 |
-| 1790 | `40_expressions/gr.expr.unary/edge/064_u_predecr.ص` | `gr.expr.unary` | edge | تطابق ✅ | 84 | 3242 |
-| 1791 | `40_expressions/gr.expr.unary/negative/060_u_bang_alone.ص` | `gr.expr.unary` | negative | تطابق ✅ | 71 | 0 |
-| 1792 | `40_expressions/gr.expr.unary/negative/061_u_tilde_alone.ص` | `gr.expr.unary` | negative | تطابق ✅ | 75 | 0 |
-| 1793 | `50_patterns/gr.pattern.binding/basic/001_in_range.ص` | `gr.pattern.binding` | basic | تطابق ✅ | 82 | 3304 |
-| 1794 | `50_patterns/gr.pattern.binding/basic/002_out_range.ص` | `gr.pattern.binding` | basic | تطابق ✅ | 71 | 3103 |
-| 1795 | `50_patterns/gr.pattern.binding/basic/003_bind_exclusive.ص` | `gr.pattern.binding` | basic | تطابق ✅ | 143 | 3154 |
-| 1796 | `50_patterns/gr.pattern.binding/edge/001_bind_inclusive.ص` | `gr.pattern.binding` | edge | تطابق ✅ | 80 | 3357 |
-| 1797 | `50_patterns/gr.pattern.list/basic/001_two.ص` | `gr.pattern.list` | basic | تطابق ✅ | 86 | 3169 |
-| 1798 | `50_patterns/gr.pattern.list/basic/002_three.ص` | `gr.pattern.list` | basic | تطابق ✅ | 111 | 3289 |
-| 1799 | `50_patterns/gr.pattern.list/basic/003_single.ص` | `gr.pattern.list` | basic | تطابق ✅ | 52 | 3238 |
-| 1800 | `50_patterns/gr.pattern.list/basic/004_wildcard_elem.ص` | `gr.pattern.list` | basic | تطابق ✅ | 71 | 3200 |
-| 1801 | `50_patterns/gr.pattern.list/edge/001_empty.ص` | `gr.pattern.list` | edge | تطابق ✅ | 61 | 3262 |
-| 1802 | `50_patterns/gr.pattern.list/edge/003_nested.ص` | `gr.pattern.list` | edge | تطابق ✅ | 83 | 3413 |
-| 1803 | `50_patterns/gr.pattern.list/edge/004_nested_mismatch.ص` | `gr.pattern.list` | edge | تطابق ✅ | 88 | 3330 |
-| 1804 | `50_patterns/gr.pattern.list/edge/005_rest.ص` | `gr.pattern.list` | edge | تطابق ✅ | 106 | 3098 |
-| 1805 | `50_patterns/gr.pattern.list/edge/007_nested_literal_nomatch.ص` | `gr.pattern.list` | edge | تطابق ✅ | 60 | 3051 |
-| 1806 | `50_patterns/gr.pattern.list/edge/008_nested_on_scalar.ص` | `gr.pattern.list` | edge | تطابق ✅ | 111 | 2874 |
-| 1807 | `50_patterns/gr.pattern.list/edge/009_nested_on_int_array.ص` | `gr.pattern.list` | edge | تطابق ✅ | 61 | 2818 |
-| 1808 | `50_patterns/gr.pattern.list/edge/010_struct_elem_on_int.ص` | `gr.pattern.list` | edge | تطابق ✅ | 66 | 2797 |
-| 1809 | `50_patterns/gr.pattern.list/edge/011_struct_elem_no_falsematch.ص` | `gr.pattern.list` | edge | تطابق ✅ | 56 | 2847 |
-| 1810 | `50_patterns/gr.pattern.list/edge/012_enum_in_list.ص` | `gr.pattern.list` | edge | تطابق ✅ | 163 | 3395 |
-| 1811 | `50_patterns/gr.pattern.list/edge/013_enum_in_list_shadow_param.ص` | `gr.pattern.list` | edge | تطابق ✅ | 145 | 3760 |
-| 1812 | `50_patterns/gr.pattern.list/edge/014_enum_in_list_reuse_name.ص` | `gr.pattern.list` | edge | تطابق ✅ | 59 | 3559 |
-| 1813 | `50_patterns/gr.pattern.list/edge/015_guard_nested.ص` | `gr.pattern.list` | edge | تطابق ✅ | 57 | 2914 |
-| 1814 | `50_patterns/gr.pattern.list/edge/016_guard_nested_reads_var.ص` | `gr.pattern.list` | edge | تطابق ✅ | 55 | 2895 |
-| 1815 | `50_patterns/gr.pattern.list/edge/017_guard_nested_dead_scalar.ص` | `gr.pattern.list` | edge | تطابق ✅ | 57 | 2848 |
-| 1816 | `50_patterns/gr.pattern.list/edge/018_guard_destructure_reads_elems.ص` | `gr.pattern.list` | edge | تطابق ✅ | 55 | 2828 |
-| 1817 | `50_patterns/gr.pattern.list/edge/019_guard_destructure_two_vars.ص` | `gr.pattern.list` | edge | تطابق ✅ | 54 | 2826 |
-| 1818 | `50_patterns/gr.pattern.list/edge/020_guard_rest_pattern.ص` | `gr.pattern.list` | edge | تطابق ✅ | 55 | 2866 |
-| 1819 | `50_patterns/gr.pattern.list/edge/021_guard_enum_in_list.ص` | `gr.pattern.list` | edge | تطابق ✅ | 68 | 3458 |
-| 1820 | `50_patterns/gr.pattern.list/edge/022_list_string_element_compare.ص` | `gr.pattern.list` | edge | تطابق ✅ | 55 | 2690 |
-| 1821 | `50_patterns/gr.pattern.list/edge/023_list_float_element_compare.ص` | `gr.pattern.list` | edge | تطابق ✅ | 58 | 2807 |
-| 1822 | `50_patterns/gr.pattern.list/edge/024_list_bool_element_compare.ص` | `gr.pattern.list` | edge | تطابق ✅ | 44 | 2920 |
-| 1823 | `50_patterns/gr.pattern.list/negative/001_unclosed.ص` | `gr.pattern.list` | negative | تطابق ✅ | 130 | 0 |
-| 1824 | `50_patterns/gr.pattern.or/basic/001_or_literals.ص` | `gr.pattern.or` | basic | تطابق ✅ | 58 | 3180 |
-| 1825 | `50_patterns/gr.pattern.or/basic/002_or_no_match.ص` | `gr.pattern.or` | basic | تطابق ✅ | 125 | 3264 |
-| 1826 | `50_patterns/gr.pattern.or/basic/003_or_two_groups.ص` | `gr.pattern.or` | basic | تطابق ✅ | 65 | 3203 |
-| 1827 | `50_patterns/gr.pattern.or/edge/001_or_in_loop.ص` | `gr.pattern.or` | edge | تطابق ✅ | 71 | 3451 |
-| 1828 | `50_patterns/gr.pattern.or/edge/002_double_pipe.ص` | `gr.pattern.or` | edge | تطابق ✅ | 83 | 3356 |
-| 1829 | `50_patterns/gr.pattern.or/negative/001_trailing_pipe.ص` | `gr.pattern.or` | negative | تطابق ✅ | 127 | 0 |
-| 1830 | `50_patterns/gr.pattern.pattern/basic/001_wildcard.ص` | `gr.pattern.pattern` | basic | تطابق ✅ | 123 | 3448 |
-| 1831 | `50_patterns/gr.pattern.pattern/basic/002_wildcard_fallback.ص` | `gr.pattern.pattern` | basic | تطابق ✅ | 84 | 3310 |
-| 1832 | `50_patterns/gr.pattern.pattern/basic/003_literal_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ | 100 | 3224 |
-| 1833 | `50_patterns/gr.pattern.pattern/basic/004_string_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ | 88 | 3053 |
-| 1834 | `50_patterns/gr.pattern.pattern/basic/005_bool_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ | 67 | 3092 |
-| 1835 | `50_patterns/gr.pattern.pattern/basic/006_null_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ | 128 | 3129 |
-| 1836 | `50_patterns/gr.pattern.pattern/basic/007_list_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ | 128 | 3275 |
-| 1837 | `50_patterns/gr.pattern.pattern/basic/008_struct_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ | 73 | 3134 |
-| 1838 | `50_patterns/gr.pattern.pattern/edge/001_enum_dispatch.ص` | `gr.pattern.pattern` | edge | تطابق ✅ | 93 | 3133 |
-| 1839 | `50_patterns/gr.pattern.primary/basic/001_literal_int.ص` | `gr.pattern.primary` | basic | تطابق ✅ | 148 | 3117 |
-| 1840 | `50_patterns/gr.pattern.primary/basic/002_range.ص` | `gr.pattern.primary` | basic | تطابق ✅ | 68 | 3180 |
-| 1841 | `50_patterns/gr.pattern.primary/basic/003_var_bind.ص` | `gr.pattern.primary` | basic | تطابق ✅ | 60 | 3216 |
-| 1842 | `50_patterns/gr.pattern.primary/basic/004_range_low.ص` | `gr.pattern.primary` | basic | تطابق ✅ | 74 | 3112 |
-| 1843 | `50_patterns/gr.pattern.primary/basic/005_string_literal.ص` | `gr.pattern.primary` | basic | تطابق ✅ | 120 | 3200 |
-| 1844 | `50_patterns/gr.pattern.primary/basic/006_bool_literal.ص` | `gr.pattern.primary` | basic | تطابق ✅ | 83 | 3139 |
-| 1845 | `50_patterns/gr.pattern.primary/edge/001_default_no_match.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 60 | 3025 |
-| 1846 | `50_patterns/gr.pattern.primary/edge/002_enum_unit.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 69 | 3319 |
-| 1847 | `50_patterns/gr.pattern.primary/edge/003_enum_adt.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 93 | 4082 |
-| 1848 | `50_patterns/gr.pattern.primary/edge/004_inclusive_range.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 72 | 3098 |
-| 1849 | `50_patterns/gr.pattern.primary/edge/005_negative_literal.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 76 | 3220 |
-| 1850 | `50_patterns/gr.pattern.primary/edge/012_adt_string_payload.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 125 | 3316 |
-| 1851 | `50_patterns/gr.pattern.primary/edge/013_adt_ctor_arg_to_func.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 72 | 4232 |
-| 1852 | `50_patterns/gr.pattern.primary/edge/014_adt_field_access.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 84 | 3137 |
-| 1853 | `50_patterns/gr.pattern.primary/edge/015_adt_field_access_multi.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 145 | 3132 |
-| 1854 | `50_patterns/gr.pattern.primary/edge/016_guard_enum_payload.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 69 | 3021 |
-| 1855 | `50_patterns/gr.pattern.primary/edge/017_guard_enum_multifield.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 127 | 3152 |
-| 1856 | `50_patterns/gr.pattern.primary/edge/018_adt_float_payload.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 61 | 2986 |
-| 1857 | `50_patterns/gr.pattern.primary/edge/019_adt_float_arithmetic.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 65 | 2985 |
-| 1858 | `50_patterns/gr.pattern.primary/edge/020_guard_float_payload.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 130 | 2972 |
-| 1859 | `50_patterns/gr.pattern.primary/edge/021_negative_float_payload.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 85 | 2772 |
-| 1860 | `50_patterns/gr.pattern.primary/edge/022_adt_float_direct_access.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 116 | 2790 |
-| 1861 | `50_patterns/gr.pattern.primary/edge/023_adt_string_payload_compare.ص` | `gr.pattern.primary` | edge | تطابق ✅ | 63 | 2832 |
-| 1862 | `50_patterns/gr.pattern.primary/negative/001_minus_no_number.ص` | `gr.pattern.primary` | negative | تطابق ✅ | 120 | 0 |
-| 1863 | `50_patterns/gr.pattern.struct/basic/001_bind_two_fields.ص` | `gr.pattern.struct` | basic | تطابق ✅ | 57 | 3019 |
-| 1864 | `50_patterns/gr.pattern.struct/basic/002_bind_product.ص` | `gr.pattern.struct` | basic | تطابق ✅ | 57 | 3339 |
-| 1865 | `50_patterns/gr.pattern.struct/basic/003_literal_field.ص` | `gr.pattern.struct` | basic | تطابق ✅ | 62 | 3222 |
-| 1866 | `50_patterns/gr.pattern.struct/edge/001_range_field.ص` | `gr.pattern.struct` | edge | تطابق ✅ | 62 | 3261 |
-| 1867 | `50_patterns/gr.pattern.struct/edge/002_shorthand.ص` | `gr.pattern.struct` | edge | تطابق ✅ | 62 | 3803 |
-| 1868 | `50_patterns/gr.pattern.struct/edge/003_empty.ص` | `gr.pattern.struct` | edge | تطابق ✅ | 72 | 3335 |
-| 1869 | `50_patterns/gr.pattern.struct/negative/001_missing_colon.ص` | `gr.pattern.struct` | negative | تطابق ✅ | 69 | 0 |
-| 1870 | `60_advanced/gr.adv.asm_dialect/basic/001_host_add.ص` | `gr.adv.asm_dialect` | basic | تطابق ✅ | 0 | 3226 |
-| 1871 | `60_advanced/gr.adv.asm_dialect/basic/002_halt_loop.ص` | `gr.adv.asm_dialect` | basic | تطابق ✅ | 0 | 3663 |
-| 1872 | `60_advanced/gr.adv.asm_dialect/basic/003_host_mul_implicit_writes.ص` | `gr.adv.asm_dialect` | basic | تطابق ✅ | 0 | 3216 |
-| 1873 | `60_advanced/gr.adv.asm_dialect/basic/004_task_register.ص` | `gr.adv.asm_dialect` | basic | تطابق ✅ | 0 | 3574 |
-| 1874 | `60_advanced/gr.adv.asm_dialect/edge/050_immediate_clobber.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ | 0 | 3153 |
-| 1875 | `60_advanced/gr.adv.asm_dialect/edge/051_memory_addressing.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ | 0 | 3706 |
-| 1876 | `60_advanced/gr.adv.asm_dialect/edge/052_forward_jump.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ | 0 | 3587 |
-| 1877 | `60_advanced/gr.adv.asm_dialect/edge/053_doc_comment_inside_block.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ | 0 | 3892 |
-| 1878 | `60_advanced/gr.adv.asm_dialect/negative/050_unknown_mnemonic.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 64 | 0 |
-| 1879 | `60_advanced/gr.adv.asm_dialect/negative/051_operand_count.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 54 | 0 |
-| 1880 | `60_advanced/gr.adv.asm_dialect/negative/052_interpreter_gate.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 116 | 0 |
-| 1881 | `60_advanced/gr.adv.asm_dialect/negative/053_duplicate_label.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 67 | 0 |
-| 1882 | `60_advanced/gr.adv.asm_dialect/negative/054_undefined_label.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 56 | 0 |
-| 1883 | `60_advanced/gr.adv.asm_dialect/negative/055_two_outputs.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 57 | 0 |
-| 1884 | `60_advanced/gr.adv.asm_dialect/negative/056_memory_mixed_base.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 127 | 0 |
-| 1885 | `60_advanced/gr.adv.asm_dialect/negative/057_unknown_register.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 59 | 0 |
-| 1886 | `60_advanced/gr.adv.asm_dialect/negative/058_xchg_sadvar_source.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 55 | 0 |
-| 1887 | `60_advanced/gr.adv.asm_dialect/negative/059_clobber_suggestion_specials.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 57 | 0 |
-| 1888 | `60_advanced/gr.adv.asm_dialect/negative/060_register_suggestion_content.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 72 | 0 |
-| 1889 | `60_advanced/gr.adv.asm_dialect/negative/061_prefix_operand_implicit_writes.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ | 85 | 0 |
-| 1890 | `60_advanced/gr.adv.await/basic/001_value.ص` | `gr.adv.await` | basic | تطابق ✅ | 71 | 3176 |
-| 1891 | `60_advanced/gr.adv.await/edge/050_edge_await.ص` | `gr.adv.await` | edge | تطابق ✅ | 98 | 3113 |
-| 1892 | `60_advanced/gr.adv.await/edge/051_edge_await.ص` | `gr.adv.await` | edge | تطابق ✅ | 64 | 3352 |
-| 1893 | `60_advanced/gr.adv.await/negative/050_negative_await.ص` | `gr.adv.await` | negative | تطابق ✅ | 74 | 0 |
-| 1894 | `60_advanced/gr.adv.contract/basic/001_wallet.ص` | `gr.adv.contract` | basic | تطابق ✅ | 72 | 3379 |
-| 1895 | `60_advanced/gr.adv.contract/edge/050_edge_contract.ص` | `gr.adv.contract` | edge | تطابق ✅ | 151 | 3391 |
-| 1896 | `60_advanced/gr.adv.contract/edge/051_edge_contract.ص` | `gr.adv.contract` | edge | تطابق ✅ | 70 | 3504 |
-| 1897 | `60_advanced/gr.adv.defer/basic/001_lifo.ص` | `gr.adv.defer` | basic | تطابق ✅ | 73 | 3881 |
-| 1898 | `60_advanced/gr.adv.defer/edge/050_edge_defer.ص` | `gr.adv.defer` | edge | تطابق ✅ | 88 | 3820 |
-| 1899 | `60_advanced/gr.adv.defer/edge/051_edge_defer.ص` | `gr.adv.defer` | edge | تطابق ✅ | 77 | 3690 |
-| 1900 | `60_advanced/gr.adv.defer/negative/050_negative_defer.ص` | `gr.adv.defer` | negative | تطابق ✅ | 69 | 0 |
-| 1901 | `60_advanced/gr.adv.dict_comprehension/basic/001_single_var.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 119 | 4015 |
-| 1902 | `60_advanced/gr.adv.dict_comprehension/basic/002_with_condition.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 67 | 3959 |
-| 1903 | `60_advanced/gr.adv.dict_comprehension/basic/100_kv_id_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 137 | 4188 |
-| 1904 | `60_advanced/gr.adv.dict_comprehension/basic/101_kv_double_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 113 | 4184 |
-| 1905 | `60_advanced/gr.adv.dict_comprehension/basic/102_kv_square_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 61 | 4141 |
-| 1906 | `60_advanced/gr.adv.dict_comprehension/basic/103_kv_inc_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 99 | 4080 |
-| 1907 | `60_advanced/gr.adv.dict_comprehension/basic/104_kv_dec_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 69 | 4187 |
-| 1908 | `60_advanced/gr.adv.dict_comprehension/basic/105_kv_times10_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 151 | 4054 |
-| 1909 | `60_advanced/gr.adv.dict_comprehension/basic/106_kv_id_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 73 | 3955 |
-| 1910 | `60_advanced/gr.adv.dict_comprehension/basic/107_kv_double_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 65 | 3965 |
-| 1911 | `60_advanced/gr.adv.dict_comprehension/basic/108_kv_square_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 90 | 4000 |
-| 1912 | `60_advanced/gr.adv.dict_comprehension/basic/109_kv_inc_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 61 | 4095 |
-| 1913 | `60_advanced/gr.adv.dict_comprehension/basic/110_kv_dec_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 60 | 3991 |
-| 1914 | `60_advanced/gr.adv.dict_comprehension/basic/111_kv_times10_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 64 | 4177 |
-| 1915 | `60_advanced/gr.adv.dict_comprehension/basic/112_kv_id_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 81 | 4215 |
-| 1916 | `60_advanced/gr.adv.dict_comprehension/basic/113_kv_double_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 82 | 4122 |
-| 1917 | `60_advanced/gr.adv.dict_comprehension/basic/114_kv_square_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 141 | 4210 |
-| 1918 | `60_advanced/gr.adv.dict_comprehension/basic/115_kv_inc_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 81 | 4123 |
-| 1919 | `60_advanced/gr.adv.dict_comprehension/basic/116_kv_dec_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 92 | 4197 |
-| 1920 | `60_advanced/gr.adv.dict_comprehension/basic/117_kv_times10_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 193 | 4174 |
-| 1921 | `60_advanced/gr.adv.dict_comprehension/basic/118_kv_id_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 80 | 4165 |
-| 1922 | `60_advanced/gr.adv.dict_comprehension/basic/119_kv_double_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 68 | 4176 |
-| 1923 | `60_advanced/gr.adv.dict_comprehension/basic/120_kv_square_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 147 | 3958 |
-| 1924 | `60_advanced/gr.adv.dict_comprehension/basic/121_kv_inc_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 128 | 3966 |
-| 1925 | `60_advanced/gr.adv.dict_comprehension/basic/122_kv_dec_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 68 | 4100 |
-| 1926 | `60_advanced/gr.adv.dict_comprehension/basic/123_kv_times10_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 65 | 4264 |
-| 1927 | `60_advanced/gr.adv.dict_comprehension/basic/124_kv_id_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 80 | 4232 |
-| 1928 | `60_advanced/gr.adv.dict_comprehension/basic/125_kv_double_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 82 | 3984 |
-| 1929 | `60_advanced/gr.adv.dict_comprehension/basic/126_kv_square_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 120 | 3945 |
-| 1930 | `60_advanced/gr.adv.dict_comprehension/basic/127_kv_inc_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 62 | 3927 |
-| 1931 | `60_advanced/gr.adv.dict_comprehension/basic/128_kv_dec_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 136 | 4013 |
-| 1932 | `60_advanced/gr.adv.dict_comprehension/basic/129_kv_times10_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 61 | 3942 |
-| 1933 | `60_advanced/gr.adv.dict_comprehension/basic/200_pairunpack_index.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ | 66 | 4143 |
-| 1934 | `60_advanced/gr.adv.dict_comprehension/edge/001_single_entry.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 115 | 4037 |
-| 1935 | `60_advanced/gr.adv.dict_comprehension/edge/100_filter_gt2_0.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 72 | 3400 |
-| 1936 | `60_advanced/gr.adv.dict_comprehension/edge/101_filter_ge3_1.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 67 | 3255 |
-| 1937 | `60_advanced/gr.adv.dict_comprehension/edge/102_filter_lt4_2.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 60 | 3213 |
-| 1938 | `60_advanced/gr.adv.dict_comprehension/edge/103_filter_even_3.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 68 | 3148 |
-| 1939 | `60_advanced/gr.adv.dict_comprehension/edge/104_filter_odd_4.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 56 | 3164 |
-| 1940 | `60_advanced/gr.adv.dict_comprehension/edge/105_filter_ne3_5.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 56 | 3230 |
-| 1941 | `60_advanced/gr.adv.dict_comprehension/edge/106_filter_gt0_6.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 55 | 3323 |
-| 1942 | `60_advanced/gr.adv.dict_comprehension/edge/107_filter_ge2_7.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 71 | 3143 |
-| 1943 | `60_advanced/gr.adv.dict_comprehension/edge/108_filter_gt2_8.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 62 | 3069 |
-| 1944 | `60_advanced/gr.adv.dict_comprehension/edge/109_filter_ge3_9.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 47 | 3186 |
-| 1945 | `60_advanced/gr.adv.dict_comprehension/edge/110_filter_lt4_10.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 59 | 3554 |
-| 1946 | `60_advanced/gr.adv.dict_comprehension/edge/111_filter_even_11.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 66 | 3618 |
-| 1947 | `60_advanced/gr.adv.dict_comprehension/edge/112_filter_odd_12.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 64 | 3621 |
-| 1948 | `60_advanced/gr.adv.dict_comprehension/edge/113_filter_ne3_13.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 68 | 3740 |
-| 1949 | `60_advanced/gr.adv.dict_comprehension/edge/114_filter_gt0_14.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 159 | 3579 |
-| 1950 | `60_advanced/gr.adv.dict_comprehension/edge/300_lastwins_k0_4.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 134 | 4117 |
-| 1951 | `60_advanced/gr.adv.dict_comprehension/edge/301_lastwins_k1_4.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 58 | 3994 |
-| 1952 | `60_advanced/gr.adv.dict_comprehension/edge/302_lastwins_k0_6.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 103 | 4064 |
-| 1953 | `60_advanced/gr.adv.dict_comprehension/edge/303_lastwins_k1_6.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 77 | 4067 |
-| 1954 | `60_advanced/gr.adv.dict_comprehension/edge/304_lastwins_k0_4.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 64 | 4008 |
-| 1955 | `60_advanced/gr.adv.dict_comprehension/edge/305_lastwins_k1_4.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 88 | 3762 |
-| 1956 | `60_advanced/gr.adv.dict_comprehension/edge/306_lastwins_k0_5.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 62 | 3823 |
-| 1957 | `60_advanced/gr.adv.dict_comprehension/edge/307_lastwins_k1_5.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 67 | 3919 |
-| 1958 | `60_advanced/gr.adv.dict_comprehension/edge/403_depth_var_source.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ | 101 | 3977 |
-| 1959 | `60_advanced/gr.adv.dict_comprehension/negative/001_old_order.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ | 91 | 0 |
-| 1960 | `60_advanced/gr.adv.dict_comprehension/negative/002_no_yield.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ | 57 | 0 |
-| 1961 | `60_advanced/gr.adv.dict_comprehension/negative/108_dict_old_order.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ | 67 | 0 |
-| 1962 | `60_advanced/gr.adv.dict_comprehension/negative/109_dict_no_yield.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ | 132 | 0 |
-| 1963 | `60_advanced/gr.adv.dict_comprehension/negative/110_dict_no_colon.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ | 74 | 0 |
-| 1964 | `60_advanced/gr.adv.dict_comprehension/negative/111_dict_no_in.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ | 69 | 0 |
-| 1965 | `60_advanced/gr.adv.go/basic/001_channel_block.ص` | `gr.adv.go` | basic | تطابق ✅ | 75 | 3341 |
-| 1966 | `60_advanced/gr.adv.go/edge/051_edge_go.ص` | `gr.adv.go` | edge | تطابق ✅ | 73 | 3320 |
-| 1967 | `60_advanced/gr.adv.go/negative/050_negative_go.ص` | `gr.adv.go` | negative | تطابق ✅ | 59 | 0 |
-| 1968 | `60_advanced/gr.adv.inline_asm/basic/001_nop.ص` | `gr.adv.inline_asm` | basic | تطابق ✅ | 0 | 3038 |
-| 1969 | `60_advanced/gr.adv.inline_asm/edge/050_edge_inline_asm.ص` | `gr.adv.inline_asm` | edge | تطابق ✅ | 0 | 3052 |
-| 1970 | `60_advanced/gr.adv.lifetime_params/basic/001_struct_lifetime.ص` | `gr.adv.lifetime_params` | basic | تطابق ✅ | 66 | 3178 |
-| 1971 | `60_advanced/gr.adv.lifetime_params/edge/050_edge_lifetime_params.ص` | `gr.adv.lifetime_params` | edge | تطابق ✅ | 62 | 3714 |
-| 1972 | `60_advanced/gr.adv.lifetime_params/negative/050_negative_lifetime_params.ص` | `gr.adv.lifetime_params` | negative | تطابق ✅ | 61 | 0 |
-| 1973 | `60_advanced/gr.adv.list_comprehension/basic/001_map.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 63 | 3272 |
-| 1974 | `60_advanced/gr.adv.list_comprehension/basic/002_filter.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 63 | 3539 |
-| 1975 | `60_advanced/gr.adv.list_comprehension/basic/100_map_id_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 153 | 3328 |
-| 1976 | `60_advanced/gr.adv.list_comprehension/basic/101_map_double_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 135 | 3296 |
-| 1977 | `60_advanced/gr.adv.list_comprehension/basic/102_map_square_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 66 | 3227 |
-| 1978 | `60_advanced/gr.adv.list_comprehension/basic/103_map_inc_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 82 | 3288 |
-| 1979 | `60_advanced/gr.adv.list_comprehension/basic/104_map_dec_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 106 | 2983 |
-| 1980 | `60_advanced/gr.adv.list_comprehension/basic/105_map_times10_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 59 | 3079 |
-| 1981 | `60_advanced/gr.adv.list_comprehension/basic/106_map_mod3_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 75 | 2980 |
-| 1982 | `60_advanced/gr.adv.list_comprehension/basic/107_map_plus5_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 55 | 2938 |
-| 1983 | `60_advanced/gr.adv.list_comprehension/basic/108_map_neg_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 124 | 2956 |
-| 1984 | `60_advanced/gr.adv.list_comprehension/basic/109_map_triple_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 75 | 3019 |
-| 1985 | `60_advanced/gr.adv.list_comprehension/basic/110_map_id_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 98 | 2932 |
-| 1986 | `60_advanced/gr.adv.list_comprehension/basic/111_map_double_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 93 | 3152 |
-| 1987 | `60_advanced/gr.adv.list_comprehension/basic/112_map_square_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 53 | 3012 |
-| 1988 | `60_advanced/gr.adv.list_comprehension/basic/113_map_inc_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 57 | 3009 |
-| 1989 | `60_advanced/gr.adv.list_comprehension/basic/114_map_dec_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 59 | 2972 |
-| 1990 | `60_advanced/gr.adv.list_comprehension/basic/115_map_times10_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 58 | 3004 |
-| 1991 | `60_advanced/gr.adv.list_comprehension/basic/116_map_mod3_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 55 | 3094 |
-| 1992 | `60_advanced/gr.adv.list_comprehension/basic/117_map_plus5_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 60 | 2860 |
-| 1993 | `60_advanced/gr.adv.list_comprehension/basic/118_map_neg_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 60 | 3069 |
-| 1994 | `60_advanced/gr.adv.list_comprehension/basic/119_map_triple_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 60 | 2985 |
-| 1995 | `60_advanced/gr.adv.list_comprehension/basic/120_map_id_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 74 | 3136 |
-| 1996 | `60_advanced/gr.adv.list_comprehension/basic/121_map_double_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 106 | 3024 |
-| 1997 | `60_advanced/gr.adv.list_comprehension/basic/122_map_square_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 70 | 3063 |
-| 1998 | `60_advanced/gr.adv.list_comprehension/basic/123_map_inc_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 52 | 3047 |
-| 1999 | `60_advanced/gr.adv.list_comprehension/basic/124_map_dec_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 53 | 3040 |
-| 2000 | `60_advanced/gr.adv.list_comprehension/basic/125_map_times10_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 53 | 3068 |
-| 2001 | `60_advanced/gr.adv.list_comprehension/basic/126_map_mod3_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 54 | 3182 |
-| 2002 | `60_advanced/gr.adv.list_comprehension/basic/127_map_plus5_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 97 | 3261 |
-| 2003 | `60_advanced/gr.adv.list_comprehension/basic/128_map_neg_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 67 | 3434 |
-| 2004 | `60_advanced/gr.adv.list_comprehension/basic/129_map_triple_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 70 | 3491 |
-| 2005 | `60_advanced/gr.adv.list_comprehension/basic/130_map_id_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 65 | 3331 |
-| 2006 | `60_advanced/gr.adv.list_comprehension/basic/131_map_double_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 73 | 3334 |
-| 2007 | `60_advanced/gr.adv.list_comprehension/basic/132_map_square_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 102 | 3166 |
-| 2008 | `60_advanced/gr.adv.list_comprehension/basic/133_map_inc_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 72 | 3203 |
-| 2009 | `60_advanced/gr.adv.list_comprehension/basic/134_map_dec_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 67 | 3141 |
-| 2010 | `60_advanced/gr.adv.list_comprehension/basic/135_map_times10_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 94 | 3126 |
-| 2011 | `60_advanced/gr.adv.list_comprehension/basic/136_map_mod3_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 93 | 3323 |
-| 2012 | `60_advanced/gr.adv.list_comprehension/basic/137_map_plus5_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 58 | 3262 |
-| 2013 | `60_advanced/gr.adv.list_comprehension/basic/138_map_neg_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 70 | 3136 |
-| 2014 | `60_advanced/gr.adv.list_comprehension/basic/139_map_triple_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 98 | 3142 |
-| 2015 | `60_advanced/gr.adv.list_comprehension/basic/200_pairunpack_value.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 63 | 3329 |
-| 2016 | `60_advanced/gr.adv.list_comprehension/basic/201_pairunpack_sum.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ | 68 | 3407 |
-| 2017 | `60_advanced/gr.adv.list_comprehension/edge/001_filter_all_out.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 67 | 3279 |
-| 2018 | `60_advanced/gr.adv.list_comprehension/edge/002_expr_uses_var_twice.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 52 | 3162 |
-| 2019 | `60_advanced/gr.adv.list_comprehension/edge/100_filter_gt2_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 68 | 3279 |
-| 2020 | `60_advanced/gr.adv.list_comprehension/edge/101_filter_ge3_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 66 | 3272 |
-| 2021 | `60_advanced/gr.adv.list_comprehension/edge/102_filter_lt4_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 57 | 3179 |
-| 2022 | `60_advanced/gr.adv.list_comprehension/edge/103_filter_even_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 55 | 3127 |
-| 2023 | `60_advanced/gr.adv.list_comprehension/edge/104_filter_odd_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 114 | 2909 |
-| 2024 | `60_advanced/gr.adv.list_comprehension/edge/105_filter_ne3_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 110 | 2839 |
-| 2025 | `60_advanced/gr.adv.list_comprehension/edge/106_filter_gt0_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 101 | 2852 |
-| 2026 | `60_advanced/gr.adv.list_comprehension/edge/107_filter_ge2_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 54 | 3220 |
-| 2027 | `60_advanced/gr.adv.list_comprehension/edge/108_filter_gt2_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 49 | 3163 |
-| 2028 | `60_advanced/gr.adv.list_comprehension/edge/109_filter_ge3_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 54 | 3139 |
-| 2029 | `60_advanced/gr.adv.list_comprehension/edge/110_filter_lt4_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 59 | 3108 |
-| 2030 | `60_advanced/gr.adv.list_comprehension/edge/111_filter_even_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 64 | 2956 |
-| 2031 | `60_advanced/gr.adv.list_comprehension/edge/112_filter_odd_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 63 | 2984 |
-| 2032 | `60_advanced/gr.adv.list_comprehension/edge/113_filter_ne3_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 63 | 3065 |
-| 2033 | `60_advanced/gr.adv.list_comprehension/edge/114_filter_gt0_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 65 | 3138 |
-| 2034 | `60_advanced/gr.adv.list_comprehension/edge/115_filter_ge2_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 64 | 3096 |
-| 2035 | `60_advanced/gr.adv.list_comprehension/edge/116_filter_gt2_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 54 | 3254 |
-| 2036 | `60_advanced/gr.adv.list_comprehension/edge/117_filter_ge3_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 100 | 3312 |
-| 2037 | `60_advanced/gr.adv.list_comprehension/edge/118_filter_lt4_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 64 | 3253 |
-| 2038 | `60_advanced/gr.adv.list_comprehension/edge/119_filter_even_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 70 | 3094 |
-| 2039 | `60_advanced/gr.adv.list_comprehension/edge/120_filter_odd_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 62 | 3138 |
-| 2040 | `60_advanced/gr.adv.list_comprehension/edge/121_filter_ne3_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 57 | 3146 |
-| 2041 | `60_advanced/gr.adv.list_comprehension/edge/122_filter_gt0_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 60 | 3158 |
-| 2042 | `60_advanced/gr.adv.list_comprehension/edge/123_filter_ge2_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 54 | 3132 |
-| 2043 | `60_advanced/gr.adv.list_comprehension/edge/200_fmap_gt2_double.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 62 | 3157 |
-| 2044 | `60_advanced/gr.adv.list_comprehension/edge/200_pairunpack_condition.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 60 | 3283 |
-| 2045 | `60_advanced/gr.adv.list_comprehension/edge/201_fmap_even_square.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 56 | 3014 |
-| 2046 | `60_advanced/gr.adv.list_comprehension/edge/202_fmap_lt4_times10.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 57 | 3386 |
-| 2047 | `60_advanced/gr.adv.list_comprehension/edge/203_fmap_gt0_inc.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 70 | 3496 |
-| 2048 | `60_advanced/gr.adv.list_comprehension/edge/204_fmap_ge2_id.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 72 | 3650 |
-| 2049 | `60_advanced/gr.adv.list_comprehension/edge/205_fmap_gt2_double.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 81 | 3390 |
-| 2050 | `60_advanced/gr.adv.list_comprehension/edge/206_fmap_even_square.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 96 | 3415 |
-| 2051 | `60_advanced/gr.adv.list_comprehension/edge/207_fmap_lt4_times10.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 67 | 3122 |
-| 2052 | `60_advanced/gr.adv.list_comprehension/edge/208_fmap_gt0_inc.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 83 | 3242 |
-| 2053 | `60_advanced/gr.adv.list_comprehension/edge/209_fmap_ge2_id.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 74 | 3352 |
-| 2054 | `60_advanced/gr.adv.list_comprehension/edge/210_fmap_gt2_double.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 56 | 3325 |
-| 2055 | `60_advanced/gr.adv.list_comprehension/edge/211_fmap_lt4_times10.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 58 | 3217 |
-| 2056 | `60_advanced/gr.adv.list_comprehension/edge/212_fmap_gt0_inc.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 115 | 3299 |
-| 2057 | `60_advanced/gr.adv.list_comprehension/edge/213_fmap_ge2_id.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 81 | 3226 |
-| 2058 | `60_advanced/gr.adv.list_comprehension/edge/214_fmap_gt2_double.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 56 | 3034 |
-| 2059 | `60_advanced/gr.adv.list_comprehension/edge/215_fmap_even_square.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 56 | 3145 |
-| 2060 | `60_advanced/gr.adv.list_comprehension/edge/216_fmap_lt4_times10.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 63 | 3150 |
-| 2061 | `60_advanced/gr.adv.list_comprehension/edge/217_fmap_gt0_inc.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 64 | 3145 |
-| 2062 | `60_advanced/gr.adv.list_comprehension/edge/218_fmap_ge2_id.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 100 | 3226 |
-| 2063 | `60_advanced/gr.adv.list_comprehension/edge/219_fmap_gt2_double.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 66 | 3032 |
-| 2064 | `60_advanced/gr.adv.list_comprehension/edge/220_fmap_even_square.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 58 | 3093 |
-| 2065 | `60_advanced/gr.adv.list_comprehension/edge/221_fmap_gt0_inc.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 59 | 3072 |
-| 2066 | `60_advanced/gr.adv.list_comprehension/edge/222_fmap_ge2_id.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 49 | 3036 |
-| 2067 | `60_advanced/gr.adv.list_comprehension/edge/401_depth_chained.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 95 | 3188 |
-| 2068 | `60_advanced/gr.adv.list_comprehension/edge/402_depth_in_function.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ | 104 | 3702 |
-| 2069 | `60_advanced/gr.adv.list_comprehension/negative/001_old_order.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ | 91 | 0 |
-| 2070 | `60_advanced/gr.adv.list_comprehension/negative/002_no_yield.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ | 57 | 0 |
-| 2071 | `60_advanced/gr.adv.list_comprehension/negative/100_list_old_order.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ | 56 | 0 |
-| 2072 | `60_advanced/gr.adv.list_comprehension/negative/101_list_no_yield.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ | 55 | 0 |
-| 2073 | `60_advanced/gr.adv.list_comprehension/negative/102_list_no_in.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ | 48 | 0 |
-| 2074 | `60_advanced/gr.adv.list_comprehension/negative/103_list_no_var.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ | 56 | 0 |
-| 2075 | `60_advanced/gr.adv.list_comprehension/negative/104_list_unclosed.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ | 61 | 0 |
-| 2076 | `60_advanced/gr.adv.macro/basic/001_double.ص` | `gr.adv.macro` | basic | تطابق ✅ | 59 | 2929 |
-| 2077 | `60_advanced/gr.adv.macro/edge/050_edge_macro.ص` | `gr.adv.macro` | edge | تطابق ✅ | 125 | 2903 |
-| 2078 | `60_advanced/gr.adv.macro/edge/051_edge_macro.ص` | `gr.adv.macro` | edge | تطابق ✅ | 62 | 2919 |
-| 2079 | `60_advanced/gr.adv.macro/negative/050_negative_macro.ص` | `gr.adv.macro` | negative | تطابق ✅ | 70 | 0 |
-| 2080 | `60_advanced/gr.adv.select/basic/001_one_channel.ص` | `gr.adv.select` | basic | تطابق ✅ | 61 | 2885 |
-| 2081 | `60_advanced/gr.adv.select/edge/050_edge_select.ص` | `gr.adv.select` | edge | تطابق ✅ | 66 | 3121 |
-| 2082 | `60_advanced/gr.adv.select/negative/002_default_not_last.ص` | `gr.adv.select` | negative | تطابق ✅ | 56 | 0 |
-| 2083 | `60_advanced/gr.adv.select/negative/050_negative_select.ص` | `gr.adv.select` | negative | تطابق ✅ | 50 | 0 |
-| 2084 | `60_advanced/gr.adv.set_comprehension/basic/001_dedup.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 120 | 3216 |
-| 2085 | `60_advanced/gr.adv.set_comprehension/basic/002_map.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 58 | 3268 |
-| 2086 | `60_advanced/gr.adv.set_comprehension/basic/100_dedup_id_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 60 | 3164 |
-| 2087 | `60_advanced/gr.adv.set_comprehension/basic/101_dedup_double_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 53 | 3059 |
-| 2088 | `60_advanced/gr.adv.set_comprehension/basic/102_dedup_square_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 60 | 3031 |
-| 2089 | `60_advanced/gr.adv.set_comprehension/basic/103_dedup_inc_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 47 | 3186 |
-| 2090 | `60_advanced/gr.adv.set_comprehension/basic/104_dedup_dec_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 68 | 3094 |
-| 2091 | `60_advanced/gr.adv.set_comprehension/basic/105_dedup_times10_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 72 | 3218 |
-| 2092 | `60_advanced/gr.adv.set_comprehension/basic/106_dedup_id_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 75 | 3332 |
-| 2093 | `60_advanced/gr.adv.set_comprehension/basic/107_dedup_double_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 68 | 3433 |
-| 2094 | `60_advanced/gr.adv.set_comprehension/basic/108_dedup_square_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 69 | 3330 |
-| 2095 | `60_advanced/gr.adv.set_comprehension/basic/109_dedup_inc_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 61 | 3349 |
-| 2096 | `60_advanced/gr.adv.set_comprehension/basic/110_dedup_dec_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 54 | 3386 |
-| 2097 | `60_advanced/gr.adv.set_comprehension/basic/111_dedup_times10_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 76 | 3172 |
-| 2098 | `60_advanced/gr.adv.set_comprehension/basic/112_dedup_id_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 73 | 3120 |
-| 2099 | `60_advanced/gr.adv.set_comprehension/basic/113_dedup_double_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 58 | 3162 |
-| 2100 | `60_advanced/gr.adv.set_comprehension/basic/114_dedup_square_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 58 | 3130 |
-| 2101 | `60_advanced/gr.adv.set_comprehension/basic/115_dedup_inc_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 91 | 3081 |
-| 2102 | `60_advanced/gr.adv.set_comprehension/basic/116_dedup_dec_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 61 | 3050 |
-| 2103 | `60_advanced/gr.adv.set_comprehension/basic/117_dedup_times10_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 48 | 3198 |
-| 2104 | `60_advanced/gr.adv.set_comprehension/basic/118_dedup_id_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 61 | 3126 |
-| 2105 | `60_advanced/gr.adv.set_comprehension/basic/119_dedup_double_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 53 | 3080 |
-| 2106 | `60_advanced/gr.adv.set_comprehension/basic/120_dedup_square_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 59 | 3136 |
-| 2107 | `60_advanced/gr.adv.set_comprehension/basic/121_dedup_inc_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 66 | 3137 |
-| 2108 | `60_advanced/gr.adv.set_comprehension/basic/122_dedup_dec_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 47 | 3082 |
-| 2109 | `60_advanced/gr.adv.set_comprehension/basic/123_dedup_times10_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 74 | 3014 |
-| 2110 | `60_advanced/gr.adv.set_comprehension/basic/124_dedup_id_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 110 | 3088 |
-| 2111 | `60_advanced/gr.adv.set_comprehension/basic/125_dedup_double_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 59 | 3013 |
-| 2112 | `60_advanced/gr.adv.set_comprehension/basic/126_dedup_square_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 64 | 2926 |
-| 2113 | `60_advanced/gr.adv.set_comprehension/basic/127_dedup_inc_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 58 | 2981 |
-| 2114 | `60_advanced/gr.adv.set_comprehension/basic/128_dedup_dec_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 66 | 2986 |
-| 2115 | `60_advanced/gr.adv.set_comprehension/basic/129_dedup_times10_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 54 | 3224 |
-| 2116 | `60_advanced/gr.adv.set_comprehension/basic/200_pairunpack_value.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ | 63 | 3329 |
-| 2117 | `60_advanced/gr.adv.set_comprehension/edge/001_with_condition.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 48 | 3341 |
-| 2118 | `60_advanced/gr.adv.set_comprehension/edge/100_filter_gt2_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 72 | 3400 |
-| 2119 | `60_advanced/gr.adv.set_comprehension/edge/101_filter_ge3_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 67 | 3255 |
-| 2120 | `60_advanced/gr.adv.set_comprehension/edge/102_filter_lt4_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 60 | 3213 |
-| 2121 | `60_advanced/gr.adv.set_comprehension/edge/103_filter_even_3.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 68 | 3148 |
-| 2122 | `60_advanced/gr.adv.set_comprehension/edge/104_filter_odd_4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 56 | 3164 |
-| 2123 | `60_advanced/gr.adv.set_comprehension/edge/105_filter_ne3_5.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 56 | 3230 |
-| 2124 | `60_advanced/gr.adv.set_comprehension/edge/106_filter_gt0_6.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 55 | 3323 |
-| 2125 | `60_advanced/gr.adv.set_comprehension/edge/107_filter_ge2_7.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 71 | 3143 |
-| 2126 | `60_advanced/gr.adv.set_comprehension/edge/108_filter_gt2_8.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 62 | 3069 |
-| 2127 | `60_advanced/gr.adv.set_comprehension/edge/109_filter_ge3_9.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 47 | 3186 |
-| 2128 | `60_advanced/gr.adv.set_comprehension/edge/110_filter_lt4_10.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 59 | 3554 |
-| 2129 | `60_advanced/gr.adv.set_comprehension/edge/111_filter_even_11.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 66 | 3618 |
-| 2130 | `60_advanced/gr.adv.set_comprehension/edge/112_filter_odd_12.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 64 | 3621 |
-| 2131 | `60_advanced/gr.adv.set_comprehension/edge/113_filter_ne3_13.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 68 | 3740 |
-| 2132 | `60_advanced/gr.adv.set_comprehension/edge/114_filter_gt0_14.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 159 | 3579 |
-| 2133 | `60_advanced/gr.adv.set_comprehension/edge/300_fold_mod2_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 72 | 3647 |
-| 2134 | `60_advanced/gr.adv.set_comprehension/edge/301_foldval_mod2_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 102 | 3398 |
-| 2135 | `60_advanced/gr.adv.set_comprehension/edge/302_foldval_mod2_4_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 67 | 3275 |
-| 2136 | `60_advanced/gr.adv.set_comprehension/edge/303_fold_mod3_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 63 | 3236 |
-| 2137 | `60_advanced/gr.adv.set_comprehension/edge/304_foldval_mod3_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 68 | 3292 |
-| 2138 | `60_advanced/gr.adv.set_comprehension/edge/305_foldval_mod3_4_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 70 | 3430 |
-| 2139 | `60_advanced/gr.adv.set_comprehension/edge/306_fold_mod4_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 69 | 3247 |
-| 2140 | `60_advanced/gr.adv.set_comprehension/edge/307_foldval_mod4_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 78 | 3202 |
-| 2141 | `60_advanced/gr.adv.set_comprehension/edge/308_foldval_mod4_4_3.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 60 | 3265 |
-| 2142 | `60_advanced/gr.adv.set_comprehension/edge/309_fold_mod2_len5.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 62 | 3206 |
-| 2143 | `60_advanced/gr.adv.set_comprehension/edge/310_foldval_mod2_5_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 71 | 3338 |
-| 2144 | `60_advanced/gr.adv.set_comprehension/edge/311_foldval_mod2_5_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 62 | 3371 |
-| 2145 | `60_advanced/gr.adv.set_comprehension/edge/312_fold_mod3_len5.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 124 | 3279 |
-| 2146 | `60_advanced/gr.adv.set_comprehension/edge/313_foldval_mod3_5_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 60 | 3215 |
-| 2147 | `60_advanced/gr.adv.set_comprehension/edge/314_foldval_mod3_5_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 59 | 3291 |
-| 2148 | `60_advanced/gr.adv.set_comprehension/edge/315_fold_mod4_len5.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 56 | 3283 |
-| 2149 | `60_advanced/gr.adv.set_comprehension/edge/316_foldval_mod4_5_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 63 | 3155 |
-| 2150 | `60_advanced/gr.adv.set_comprehension/edge/317_foldval_mod4_5_3.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 57 | 3163 |
-| 2151 | `60_advanced/gr.adv.set_comprehension/edge/318_fold_mod2_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 52 | 3294 |
-| 2152 | `60_advanced/gr.adv.set_comprehension/edge/319_foldval_mod2_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 65 | 3090 |
-| 2153 | `60_advanced/gr.adv.set_comprehension/edge/320_fold_mod3_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 52 | 3259 |
-| 2154 | `60_advanced/gr.adv.set_comprehension/edge/321_foldval_mod3_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 65 | 3287 |
-| 2155 | `60_advanced/gr.adv.set_comprehension/edge/322_foldval_mod3_4_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 58 | 3338 |
-| 2156 | `60_advanced/gr.adv.set_comprehension/edge/323_fold_mod4_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 66 | 3520 |
-| 2157 | `60_advanced/gr.adv.set_comprehension/edge/324_foldval_mod4_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 70 | 3255 |
-| 2158 | `60_advanced/gr.adv.set_comprehension/edge/325_foldval_mod4_4_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 55 | 3286 |
-| 2159 | `60_advanced/gr.adv.set_comprehension/edge/326_fold_mod2_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 62 | 3336 |
-| 2160 | `60_advanced/gr.adv.set_comprehension/edge/327_foldval_mod2_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 58 | 3344 |
-| 2161 | `60_advanced/gr.adv.set_comprehension/edge/328_fold_mod3_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 106 | 3467 |
-| 2162 | `60_advanced/gr.adv.set_comprehension/edge/329_foldval_mod3_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 68 | 3298 |
-| 2163 | `60_advanced/gr.adv.set_comprehension/edge/330_foldval_mod3_4_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 62 | 3329 |
-| 2164 | `60_advanced/gr.adv.set_comprehension/edge/331_fold_mod4_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 69 | 3526 |
-| 2165 | `60_advanced/gr.adv.set_comprehension/edge/332_foldval_mod4_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 60 | 3395 |
-| 2166 | `60_advanced/gr.adv.set_comprehension/edge/333_foldval_mod4_4_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 66 | 3612 |
-| 2167 | `60_advanced/gr.adv.set_comprehension/edge/334_fold_mod2_len6.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 77 | 3540 |
-| 2168 | `60_advanced/gr.adv.set_comprehension/edge/335_foldval_mod2_6_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 59 | 3417 |
-| 2169 | `60_advanced/gr.adv.set_comprehension/edge/336_foldval_mod2_6_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 70 | 3352 |
-| 2170 | `60_advanced/gr.adv.set_comprehension/edge/337_fold_mod3_len6.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 71 | 3238 |
-| 2171 | `60_advanced/gr.adv.set_comprehension/edge/338_foldval_mod3_6_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 58 | 3362 |
-| 2172 | `60_advanced/gr.adv.set_comprehension/edge/339_foldval_mod3_6_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 61 | 3284 |
-| 2173 | `60_advanced/gr.adv.set_comprehension/edge/340_fold_mod4_len6.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 74 | 3178 |
-| 2174 | `60_advanced/gr.adv.set_comprehension/edge/341_foldval_mod4_6_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 58 | 3304 |
-| 2175 | `60_advanced/gr.adv.set_comprehension/edge/342_foldval_mod4_6_3.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 138 | 3465 |
-| 2176 | `60_advanced/gr.adv.set_comprehension/edge/400_depth_var_source_fold.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ | 66 | 3504 |
-| 2177 | `60_advanced/gr.adv.set_comprehension/negative/001_no_yield.ص` | `gr.adv.set_comprehension` | negative | تطابق ✅ | 61 | 0 |
-| 2178 | `60_advanced/gr.adv.set_comprehension/negative/105_set_old_order.ص` | `gr.adv.set_comprehension` | negative | تطابق ✅ | 150 | 0 |
-| 2179 | `60_advanced/gr.adv.set_comprehension/negative/106_set_no_yield.ص` | `gr.adv.set_comprehension` | negative | تطابق ✅ | 64 | 0 |
-| 2180 | `60_advanced/gr.adv.set_comprehension/negative/107_set_no_in.ص` | `gr.adv.set_comprehension` | negative | تطابق ✅ | 68 | 0 |
-| 2181 | `60_advanced/gr.adv.template_args/basic/001_explicit.ص` | `gr.adv.template_args` | basic | تطابق ✅ | 70 | 3500 |
-| 2182 | `60_advanced/gr.adv.template_args/edge/050_edge_template_args.ص` | `gr.adv.template_args` | edge | تطابق ✅ | 100 | 3538 |
-| 2183 | `60_advanced/gr.adv.template_decl/basic/001_generic_fn.ص` | `gr.adv.template_decl` | basic | تطابق ✅ | 90 | 3484 |
-| 2184 | `60_advanced/gr.adv.template_decl/negative/050_negative_template_decl.ص` | `gr.adv.template_decl` | negative | تطابق ✅ | 63 | 0 |
-| 2185 | `60_advanced/gr.adv.template_params/basic/001_type_param.ص` | `gr.adv.template_params` | basic | تطابق ✅ | 130 | 3661 |
-| 2186 | `60_advanced/gr.adv.template_params/edge/050_edge_template_params.ص` | `gr.adv.template_params` | edge | تطابق ✅ | 72 | 3424 |
-| 2187 | `60_advanced/gr.adv.template_params/edge/051_edge_template_params.ص` | `gr.adv.template_params` | edge | تطابق ✅ | 72 | 3492 |
-| 2188 | `60_advanced/gr.adv.type/basic/001_typed_param.ص` | `gr.adv.type` | basic | تطابق ✅ | 74 | 3924 |
-| 2189 | `60_advanced/gr.adv.type/edge/050_edge_type.ص` | `gr.adv.type` | edge | تطابق ✅ | 67 | 3941 |
-| 2190 | `60_advanced/gr.adv.type/edge/051_edge_type.ص` | `gr.adv.type` | edge | تطابق ✅ | 64 | 3902 |
-| 2191 | `60_advanced/gr.adv.type/negative/050_negative_type.ص` | `gr.adv.type` | negative | تطابق ✅ | 71 | 0 |
-| 2192 | `60_advanced/gr.adv.ui_decl/basic/001_component.ص` | `gr.adv.ui_decl` | basic | تطابق ✅ | 118 | 3428 |
-| 2193 | `60_advanced/gr.adv.ui_decl/edge/050_edge_ui_decl.ص` | `gr.adv.ui_decl` | edge | تطابق ✅ | 70 | 3462 |
-| 2194 | `60_advanced/gr.adv.ui_event/basic/001_on_click.ص` | `gr.adv.ui_event` | basic | تطابق ✅ | 0 | 3357 |
-| 2195 | `60_advanced/gr.adv.ui_event/edge/050_edge_ui_event.ص` | `gr.adv.ui_event` | edge | تطابق ✅ | 0 | 3411 |
-| 2196 | `60_advanced/gr.adv.ui_modifier_chain/basic/001_chain.ص` | `gr.adv.ui_modifier_chain` | basic | تطابق ✅ | 0 | 3438 |
-| 2197 | `60_advanced/gr.adv.ui_modifier_chain/edge/050_edge_ui_modifier_chain.ص` | `gr.adv.ui_modifier_chain` | edge | تطابق ✅ | 0 | 3336 |
-| 2198 | `60_advanced/gr.adv.ui_state/basic/001_state_field.ص` | `gr.adv.ui_state` | basic | تطابق ✅ | 90 | 3363 |
-| 2199 | `60_advanced/gr.adv.ui_state/edge/050_edge_ui_state.ص` | `gr.adv.ui_state` | edge | تطابق ✅ | 80 | 3331 |
-| 2200 | `60_advanced/gr.adv.where_clause/basic/001_constraint.ص` | `gr.adv.where_clause` | basic | تطابق ✅ | 73 | 3216 |
-| 2201 | `60_advanced/gr.adv.where_clause/edge/050_edge_where_clause.ص` | `gr.adv.where_clause` | edge | تطابق ✅ | 62 | 3291 |
-| 2202 | `60_advanced/gr.adv.widget/basic/001_show.ص` | `gr.adv.widget` | basic | تطابق ✅ | 0 | 3127 |
-| 2203 | `60_advanced/gr.adv.widget/edge/050_edge_widget.ص` | `gr.adv.widget` | edge | تطابق ✅ | 0 | 3021 |
-| 2204 | `60_advanced/gr.adv.with/basic/001_alias.ص` | `gr.adv.with` | basic | تطابق ✅ | 84 | 3317 |
-| 2205 | `60_advanced/gr.adv.with/edge/050_edge_with.ص` | `gr.adv.with` | edge | تطابق ✅ | 61 | 3356 |
-| 2206 | `60_advanced/gr.adv.with/edge/051_edge_with.ص` | `gr.adv.with` | edge | تطابق ✅ | 107 | 3397 |
-| 2207 | `60_advanced/gr.adv.with/negative/050_negative_with.ص` | `gr.adv.with` | negative | تطابق ✅ | 67 | 0 |
-| 2208 | `60_advanced/gr.adv.yield/basic/050_basic_yield.ص` | `gr.adv.yield` | basic | تطابق ✅ | 68 | 4617 |
-| 2209 | `60_advanced/gr.adv.yield/basic/051_basic_yield.ص` | `gr.adv.yield` | basic | تطابق ✅ | 58 | 4704 |
-| 2210 | `60_advanced/gr.adv.yield/edge/050_edge_yield.ص` | `gr.adv.yield` | edge | تطابق ✅ | 60 | 4691 |
-| 2211 | `60_advanced/gr.adv.yield/edge/051_edge_yield.ص` | `gr.adv.yield` | edge | تطابق ✅ | 134 | 4841 |
-| 2212 | `60_advanced/gr.adv.yield/negative/050_negative_yield.ص` | `gr.adv.yield` | negative | تطابق ✅ | 66 | 0 |
-| 2213 | `70_lexical/gr.lex.comment/basic/001_line.ص` | `gr.lex.comment` | basic | تطابق ✅ | 57 | 3248 |
-| 2214 | `70_lexical/gr.lex.comment/basic/002_trailing.ص` | `gr.lex.comment` | basic | تطابق ✅ | 69 | 3190 |
-| 2215 | `70_lexical/gr.lex.comment/basic/003_block.ص` | `gr.lex.comment` | basic | تطابق ✅ | 57 | 3141 |
-| 2216 | `70_lexical/gr.lex.comment/basic/004_doc.ص` | `gr.lex.comment` | basic | تطابق ✅ | 137 | 3150 |
-| 2217 | `70_lexical/gr.lex.comment/edge/001_block_multiline.ص` | `gr.lex.comment` | edge | تطابق ✅ | 86 | 3094 |
-| 2218 | `70_lexical/gr.lex.comment/edge/002_doc_block.ص` | `gr.lex.comment` | edge | تطابق ✅ | 81 | 3038 |
-| 2219 | `70_lexical/gr.lex.comment/edge/003_code_like_inside.ص` | `gr.lex.comment` | edge | تطابق ✅ | 62 | 3158 |
-| 2220 | `70_lexical/gr.lex.comment/edge/004_consecutive.ص` | `gr.lex.comment` | edge | تطابق ✅ | 61 | 3030 |
-| 2221 | `70_lexical/gr.lex.comment/edge/005_empty_line.ص` | `gr.lex.comment` | edge | تطابق ✅ | 70 | 3032 |
-| 2222 | `70_lexical/gr.lex.comment/edge/006_inline_block.ص` | `gr.lex.comment` | edge | تطابق ✅ | 66 | 3110 |
-| 2223 | `70_lexical/gr.lex.comment/edge/007_emoji.ص` | `gr.lex.comment` | edge | تطابق ✅ | 76 | 3070 |
-| 2224 | `70_lexical/gr.lex.comment/edge/008_trailing_block.ص` | `gr.lex.comment` | edge | تطابق ✅ | 56 | 3228 |
-| 2225 | `70_lexical/gr.lex.comment/edge/009_doc_attached.ص` | `gr.lex.comment` | edge | تطابق ✅ | 66 | 3579 |
-| 2226 | `70_lexical/gr.lex.comment/edge/010_doc_blank_orphan.ص` | `gr.lex.comment` | edge | تطابق ✅ | 80 | 3768 |
-| 2227 | `70_lexical/gr.lex.comment/edge/011_doc_trailing.ص` | `gr.lex.comment` | edge | تطابق ✅ | 62 | 3714 |
-| 2228 | `70_lexical/gr.lex.comment/edge/012_doc_eof.ص` | `gr.lex.comment` | edge | تطابق ✅ | 94 | 3170 |
-| 2229 | `70_lexical/gr.lex.comment/edge/013_docblock_matrix.ص` | `gr.lex.comment` | edge | تطابق ✅ | 141 | 3668 |
-| 2230 | `70_lexical/gr.lex.comment/negative/001_unterminated_block.ص` | `gr.lex.comment` | negative | تطابق ✅ | 57 | 0 |
-| 2231 | `70_lexical/gr.lex.double/basic/001_simple.ص` | `gr.lex.double` | basic | تطابق ✅ | 133 | 3091 |
-| 2232 | `70_lexical/gr.lex.double/basic/002_half.ص` | `gr.lex.double` | basic | تطابق ✅ | 55 | 3338 |
-| 2233 | `70_lexical/gr.lex.double/basic/003_exponent.ص` | `gr.lex.double` | basic | تطابق ✅ | 132 | 3414 |
-| 2234 | `70_lexical/gr.lex.double/basic/004_exp_negative.ص` | `gr.lex.double` | basic | تطابق ✅ | 75 | 3353 |
-| 2235 | `70_lexical/gr.lex.double/basic/005_exp_positive.ص` | `gr.lex.double` | basic | تطابق ✅ | 83 | 3395 |
-| 2236 | `70_lexical/gr.lex.double/edge/001_leading_zero.ص` | `gr.lex.double` | edge | تطابق ✅ | 89 | 3225 |
-| 2237 | `70_lexical/gr.lex.double/edge/002_many_decimals.ص` | `gr.lex.double` | edge | تطابق ✅ | 61 | 3221 |
-| 2238 | `70_lexical/gr.lex.double/edge/003_uppercase_e.ص` | `gr.lex.double` | edge | تطابق ✅ | 96 | 3037 |
-| 2239 | `70_lexical/gr.lex.double/edge/004_integer_valued.ص` | `gr.lex.double` | edge | تطابق ✅ | 65 | 3007 |
-| 2240 | `70_lexical/gr.lex.double/edge/005_underscore_mantissa.ص` | `gr.lex.double` | edge | تطابق ✅ | 128 | 3080 |
-| 2241 | `70_lexical/gr.lex.double/edge/006_underscore_fraction.ص` | `gr.lex.double` | edge | تطابق ✅ | 146 | 2906 |
-| 2242 | `70_lexical/gr.lex.double/edge/007_exp_no_point.ص` | `gr.lex.double` | edge | تطابق ✅ | 65 | 2938 |
-| 2243 | `70_lexical/gr.lex.double/negative/001_trailing_dot.ص` | `gr.lex.double` | negative | تطابق ✅ | 53 | 0 |
-| 2244 | `70_lexical/gr.lex.double/negative/002_leading_dot.ص` | `gr.lex.double` | negative | تطابق ✅ | 54 | 0 |
-| 2245 | `70_lexical/gr.lex.fstring/basic/001_var.ص` | `gr.lex.fstring` | basic | تطابق ✅ | 59 | 2954 |
-| 2246 | `70_lexical/gr.lex.fstring/basic/002_expr.ص` | `gr.lex.fstring` | basic | تطابق ✅ | 55 | 2898 |
-| 2247 | `70_lexical/gr.lex.fstring/basic/003_no_interp.ص` | `gr.lex.fstring` | basic | تطابق ✅ | 58 | 2982 |
-| 2248 | `70_lexical/gr.lex.fstring/edge/001_multiple.ص` | `gr.lex.fstring` | edge | تطابق ✅ | 52 | 3178 |
-| 2249 | `70_lexical/gr.lex.fstring/edge/002_literal_braces.ص` | `gr.lex.fstring` | edge | تطابق ✅ | 60 | 2989 |
-| 2250 | `70_lexical/gr.lex.fstring/edge/003_arithmetic.ص` | `gr.lex.fstring` | edge | تطابق ✅ | 77 | 3138 |
-| 2251 | `70_lexical/gr.lex.fstring/edge/004_boolean_interp.ص` | `gr.lex.fstring` | edge | تطابق ✅ | 52 | 3052 |
-| 2252 | `70_lexical/gr.lex.fstring/edge/005_call_interp.ص` | `gr.lex.fstring` | edge | تطابق ✅ | 65 | 3483 |
-| 2253 | `70_lexical/gr.lex.fstring/edge/006_mixed_text.ص` | `gr.lex.fstring` | edge | تطابق ✅ | 66 | 3167 |
-| 2254 | `70_lexical/gr.lex.fstring/negative/001_unterminated.ص` | `gr.lex.fstring` | negative | تطابق ✅ | 128 | 0 |
-| 2255 | `70_lexical/gr.lex.identifier/basic/001_arabic.ص` | `gr.lex.identifier` | basic | تطابق ✅ | 158 | 3141 |
-| 2256 | `70_lexical/gr.lex.identifier/basic/002_latin.ص` | `gr.lex.identifier` | basic | تطابق ✅ | 74 | 3168 |
-| 2257 | `70_lexical/gr.lex.identifier/basic/003_underscore.ص` | `gr.lex.identifier` | basic | تطابق ✅ | 89 | 3033 |
-| 2258 | `70_lexical/gr.lex.identifier/basic/004_leading_underscore.ص` | `gr.lex.identifier` | basic | تطابق ✅ | 58 | 2943 |
-| 2259 | `70_lexical/gr.lex.identifier/basic/005_trailing_digits.ص` | `gr.lex.identifier` | basic | تطابق ✅ | 68 | 3030 |
-| 2260 | `70_lexical/gr.lex.identifier/basic/006_long_name.ص` | `gr.lex.identifier` | basic | تطابق ✅ | 51 | 3098 |
-| 2261 | `70_lexical/gr.lex.identifier/edge/001_single_char.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 61 | 3296 |
-| 2262 | `70_lexical/gr.lex.identifier/edge/002_wrapped_underscores.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 70 | 3204 |
-| 2263 | `70_lexical/gr.lex.identifier/edge/003_latin_digits.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 81 | 3244 |
-| 2264 | `70_lexical/gr.lex.identifier/edge/004_arabic_embedded_digit.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 68 | 3232 |
-| 2265 | `70_lexical/gr.lex.identifier/edge/005_very_long.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 67 | 3124 |
-| 2266 | `70_lexical/gr.lex.identifier/edge/006_mixed_script.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 69 | 3134 |
-| 2267 | `70_lexical/gr.lex.identifier/edge/007_underscore_only.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 112 | 3068 |
-| 2268 | `70_lexical/gr.lex.identifier/edge/008_underscore_digit.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 70 | 3217 |
-| 2269 | `70_lexical/gr.lex.identifier/edge/009_arabic_indic_digit.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 64 | 3135 |
-| 2270 | `70_lexical/gr.lex.identifier/edge/010_tatweel.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 60 | 3059 |
-| 2271 | `70_lexical/gr.lex.identifier/edge/011_keyword_prefix.ص` | `gr.lex.identifier` | edge | تطابق ✅ | 69 | 3069 |
-| 2272 | `70_lexical/gr.lex.identifier/negative/001_leading_digit.ص` | `gr.lex.identifier` | negative | تطابق ✅ | 98 | 0 |
-| 2273 | `70_lexical/gr.lex.identifier/negative/002_illegal_char.ص` | `gr.lex.identifier` | negative | تطابق ✅ | 67 | 0 |
-| 2274 | `70_lexical/gr.lex.integer/basic/001_decimal.ص` | `gr.lex.integer` | basic | تطابق ✅ | 59 | 2979 |
-| 2275 | `70_lexical/gr.lex.integer/basic/002_hex.ص` | `gr.lex.integer` | basic | تطابق ✅ | 58 | 2820 |
-| 2276 | `70_lexical/gr.lex.integer/basic/003_binary.ص` | `gr.lex.integer` | basic | تطابق ✅ | 60 | 2853 |
-| 2277 | `70_lexical/gr.lex.integer/basic/004_octal.ص` | `gr.lex.integer` | basic | تطابق ✅ | 53 | 2838 |
-| 2278 | `70_lexical/gr.lex.integer/basic/005_zero.ص` | `gr.lex.integer` | basic | تطابق ✅ | 58 | 2886 |
-| 2279 | `70_lexical/gr.lex.integer/edge/001_underscore_sep.ص` | `gr.lex.integer` | edge | تطابق ✅ | 58 | 2879 |
-| 2280 | `70_lexical/gr.lex.integer/edge/002_hex_mixed_case.ص` | `gr.lex.integer` | edge | تطابق ✅ | 50 | 2861 |
-| 2281 | `70_lexical/gr.lex.integer/edge/003_binary_underscore.ص` | `gr.lex.integer` | edge | تطابق ✅ | 113 | 2844 |
-| 2282 | `70_lexical/gr.lex.integer/edge/004_max_i64.ص` | `gr.lex.integer` | edge | تطابق ✅ | 49 | 2744 |
-| 2283 | `70_lexical/gr.lex.integer/edge/005_leading_zeros.ص` | `gr.lex.integer` | edge | تطابق ✅ | 56 | 2910 |
-| 2284 | `70_lexical/gr.lex.integer/edge/006_hex_underscore.ص` | `gr.lex.integer` | edge | تطابق ✅ | 68 | 2908 |
-| 2285 | `70_lexical/gr.lex.integer/edge/007_hex_zero.ص` | `gr.lex.integer` | edge | تطابق ✅ | 51 | 2906 |
-| 2286 | `70_lexical/gr.lex.integer/edge/008_arabic_indic.ص` | `gr.lex.integer` | edge | تطابق ✅ | 111 | 2927 |
-| 2287 | `70_lexical/gr.lex.integer/negative/001_bad_hex.ص` | `gr.lex.integer` | negative | تطابق ✅ | 55 | 0 |
-| 2288 | `70_lexical/gr.lex.integer/negative/002_bad_binary.ص` | `gr.lex.integer` | negative | تطابق ✅ | 53 | 0 |
-| 2289 | `70_lexical/gr.lex.lifetime/basic/001_struct_param.ص` | `gr.lex.lifetime` | basic | تطابق ✅ | 63 | 2838 |
-| 2290 | `70_lexical/gr.lex.lifetime/basic/002_borrow_mut.ص` | `gr.lex.lifetime` | basic | تطابق ✅ | 56 | 3025 |
-| 2291 | `70_lexical/gr.lex.lifetime/basic/003_borrow_immut.ص` | `gr.lex.lifetime` | basic | تطابق ✅ | 108 | 2830 |
-| 2292 | `70_lexical/gr.lex.lifetime/edge/001_multi_params.ص` | `gr.lex.lifetime` | edge | تطابق ✅ | 60 | 2938 |
-| 2293 | `70_lexical/gr.lex.lifetime/edge/002_long_name.ص` | `gr.lex.lifetime` | edge | تطابق ✅ | 75 | 3076 |
-| 2294 | `70_lexical/gr.lex.lifetime/edge/003_latin_name.ص` | `gr.lex.lifetime` | edge | تطابق ✅ | 52 | 3069 |
-| 2295 | `70_lexical/gr.lex.lifetime/edge/004_latin_two_comma.ص` | `gr.lex.lifetime` | edge | تطابق ✅ | 59 | 3062 |
-| 2296 | `70_lexical/gr.lex.lifetime/edge/005_single_latin_letter.ص` | `gr.lex.lifetime` | edge | تطابق ✅ | 65 | 3138 |
-| 2297 | `70_lexical/gr.lex.lifetime/negative/001_numeric_name.ص` | `gr.lex.lifetime` | negative | تطابق ✅ | 79 | 0 |
-| 2298 | `70_lexical/gr.lex.raw_string/basic/001_simple.ص` | `gr.lex.raw_string` | basic | تطابق ✅ | 133 | 3091 |
-| 2299 | `70_lexical/gr.lex.raw_string/basic/002_no_escape.ص` | `gr.lex.raw_string` | basic | تطابق ✅ | 62 | 3116 |
-| 2300 | `70_lexical/gr.lex.raw_string/basic/003_windows_path.ص` | `gr.lex.raw_string` | basic | تطابق ✅ | 62 | 3147 |
-| 2301 | `70_lexical/gr.lex.raw_string/edge/001_empty_between.ص` | `gr.lex.raw_string` | edge | تطابق ✅ | 74 | 3023 |
-| 2302 | `70_lexical/gr.lex.raw_string/edge/002_many_backslashes.ص` | `gr.lex.raw_string` | edge | تطابق ✅ | 82 | 2933 |
-| 2303 | `70_lexical/gr.lex.raw_string/edge/003_braces.ص` | `gr.lex.raw_string` | edge | تطابق ✅ | 67 | 2921 |
-| 2304 | `70_lexical/gr.lex.raw_string/edge/004_raw_newline_literal.ص` | `gr.lex.raw_string` | edge | تطابق ✅ | 55 | 3366 |
-| 2305 | `70_lexical/gr.lex.raw_string/edge/005_raw_unicode_literal.ص` | `gr.lex.raw_string` | edge | تطابق ✅ | 62 | 3204 |
-| 2306 | `70_lexical/gr.lex.raw_string/edge/006_raw_tab_literal.ص` | `gr.lex.raw_string` | edge | تطابق ✅ | 64 | 3302 |
-| 2307 | `70_lexical/gr.lex.raw_string/edge/007_raw_arabic_path.ص` | `gr.lex.raw_string` | edge | تطابق ✅ | 58 | 3304 |
-| 2308 | `70_lexical/gr.lex.raw_string/negative/001_unterminated.ص` | `gr.lex.raw_string` | negative | تطابق ✅ | 128 | 0 |
-| 2309 | `70_lexical/gr.lex.string/basic/001_simple.ص` | `gr.lex.string` | basic | تطابق ✅ | 133 | 3091 |
-| 2310 | `70_lexical/gr.lex.string/basic/002_spaces.ص` | `gr.lex.string` | basic | تطابق ✅ | 62 | 2917 |
-| 2311 | `70_lexical/gr.lex.string/basic/003_mixed.ص` | `gr.lex.string` | basic | تطابق ✅ | 62 | 2799 |
-| 2312 | `70_lexical/gr.lex.string/basic/004_newline_escape.ص` | `gr.lex.string` | basic | تطابق ✅ | 65 | 2752 |
-| 2313 | `70_lexical/gr.lex.string/basic/005_symbols.ص` | `gr.lex.string` | basic | تطابق ✅ | 55 | 2852 |
-| 2314 | `70_lexical/gr.lex.string/edge/001_escaped_quote.ص` | `gr.lex.string` | edge | تطابق ✅ | 64 | 2885 |
-| 2315 | `70_lexical/gr.lex.string/edge/002_tab_escape.ص` | `gr.lex.string` | edge | تطابق ✅ | 65 | 2920 |
-| 2316 | `70_lexical/gr.lex.string/edge/003_backslash.ص` | `gr.lex.string` | edge | تطابق ✅ | 57 | 2968 |
-| 2317 | `70_lexical/gr.lex.string/edge/004_emoji.ص` | `gr.lex.string` | edge | تطابق ✅ | 56 | 2872 |
-| 2318 | `70_lexical/gr.lex.string/edge/005_empty_between.ص` | `gr.lex.string` | edge | تطابق ✅ | 44 | 2882 |
-| 2319 | `70_lexical/gr.lex.string/edge/006_unicode_escape.ص` | `gr.lex.string` | edge | تطابق ✅ | 62 | 2796 |
-| 2320 | `70_lexical/gr.lex.string/edge/007_empty_length.ص` | `gr.lex.string` | edge | تطابق ✅ | 65 | 2946 |
-| 2321 | `70_lexical/gr.lex.string/edge/008_carriage_return.ص` | `gr.lex.string` | edge | تطابق ✅ | 61 | 2918 |
-| 2322 | `70_lexical/gr.lex.string/edge/009_null_escape.ص` | `gr.lex.string` | edge | تطابق ✅ | 56 | 0 |
-| 2323 | `70_lexical/gr.lex.string/negative/001_unterminated.ص` | `gr.lex.string` | negative | تطابق ✅ | 128 | 0 |
-| 2324 | `70_lexical/gr.lex.string/negative/002_escaped_close.ص` | `gr.lex.string` | negative | تطابق ✅ | 54 | 0 |
-| 2325 | `70_lexical/gr.lex.string/negative/003_unicode_brace_unsupported.ص` | `gr.lex.string` | negative | تطابق ✅ | 55 | 0 |
-| 2326 | `_interactions/_combos/001_recursion_factorial.ص` | `gr.decl.function` | interaction | تطابق ✅ | 56 | 3266 |
-| 2327 | `_interactions/_combos/002_recursion_fib.ص` | `gr.decl.function` | interaction | تطابق ✅ | 82 | 3341 |
-| 2328 | `_interactions/_combos/003_loop_if_sum_even.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 104 | 3014 |
-| 2329 | `_interactions/_combos/004_while_break_continue.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 55 | 2876 |
-| 2330 | `_interactions/_combos/005_nested_loops_grid.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 65 | 2977 |
-| 2331 | `_interactions/_combos/006_class_full.ص` | `gr.oop.class` | interaction | تطابق ✅ | 60 | 3015 |
-| 2332 | `_interactions/_combos/007_class_operator_method.ص` | `gr.oop.class` | interaction | تطابق ✅ | 54 | 3020 |
-| 2333 | `_interactions/_combos/008_inheritance_super.ص` | `gr.oop.class` | interaction | تطابق ✅ | 72 | 3008 |
-| 2334 | `_interactions/_combos/009_struct_in_function_loop.ص` | `gr.oop.struct` | interaction | تطابق ✅ | 66 | 3467 |
-| 2335 | `_interactions/_combos/010_try_throw_catch_loop.ص` | `gr.stmt.try` | interaction | تطابق ✅ | 67 | 3111 |
-| 2336 | `_interactions/_combos/011_enum_match_function.ص` | `gr.oop.enum` | interaction | تطابق ✅ | 60 | 3404 |
-| 2337 | `_interactions/_combos/012_lambda_pipeline_array.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 57 | 3082 |
-| 2338 | `_interactions/_combos/013_nested_map_array_loop.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ | 62 | 3061 |
-| 2339 | `_interactions/_combos/014_list_comprehension_filter.ص` | `gr.adv.list_comprehension` | interaction | تطابق ✅ | 55 | 3166 |
-| 2340 | `_interactions/_combos/015_ternary_logical_compare.ص` | `gr.expr.ternary` | interaction | تطابق ✅ | 55 | 2802 |
-| 2341 | `_interactions/_combos/016_string_ops_combo.ص` | `gr.decl.function` | interaction | تطابق ✅ | 54 | 3457 |
-| 2342 | `_interactions/_combos/017_class_field_struct_method.ص` | `gr.oop.class` | interaction | تطابق ✅ | 143 | 3238 |
-| 2343 | `_interactions/_combos/018_deep_arithmetic_precedence.ص` | `gr.expr.term` | interaction | تطابق ✅ | 63 | 3668 |
-| 2344 | `_interactions/_combos/019_bitwise_logical_combo.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 65 | 2971 |
-| 2345 | `_interactions/_combos/020_for_match_accumulate.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 61 | 3316 |
-| 2346 | `_interactions/_combos/021_closure_counter.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 150 | 3558 |
-| 2347 | `_interactions/_combos/022_property_class_method.ص` | `gr.oop.class` | interaction | تطابق ✅ | 82 | 3148 |
-| 2348 | `_interactions/_combos/023_trait_impl_call.ص` | `gr.oop.trait` | interaction | تطابق ✅ | 85 | 3012 |
-| 2349 | `_interactions/_combos/024_var_types_arithmetic.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 56 | 3004 |
-| 2350 | `_interactions/_combos/025_guard_clauses_function.ص` | `gr.decl.function` | interaction | تطابق ✅ | 59 | 3559 |
-| 2351 | `_interactions/_combos/026_nested_if_match_loop.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 64 | 3118 |
-| 2352 | `_interactions/_combos/b2_big_mix_class_struct_enum.ص` | `gr.oop.class` | interaction | تطابق ✅ | 97 | 3136 |
-| 2353 | `_interactions/_combos/b2_bitwise_flags_match.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ | 53 | 3039 |
-| 2354 | `_interactions/_combos/b2_contract_invariant_methods.ص` | `gr.adv.contract` | interaction | تطابق ✅ | 68 | 2871 |
-| 2355 | `_interactions/_combos/b2_deep_nesting_5.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 62 | 3033 |
-| 2356 | `_interactions/_combos/b2_defer_order_function.ص` | `gr.decl.function` | interaction | تطابق ✅ | 57 | 3339 |
-| 2357 | `_interactions/_combos/b2_fstring_loop_build.ص` | `gr.expr.fstring` | interaction | تطابق ✅ | 55 | 3222 |
-| 2358 | `_interactions/_combos/b2_guard_match_return.ص` | `gr.decl.function` | interaction | تطابق ✅ | 48 | 3631 |
-| 2359 | `_interactions/_combos/b2_higher_order_return_lambda.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 56 | 3333 |
-| 2360 | `_interactions/_combos/b2_map_struct_values.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ | 58 | 3025 |
-| 2361 | `_interactions/_combos/b2_multilevel_inheritance.ص` | `gr.oop.class` | interaction | تطابق ✅ | 80 | 2891 |
-| 2362 | `_interactions/_combos/b2_negative_index_loop.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ | 64 | 2985 |
-| 2363 | `_interactions/_combos/b2_nested_closures.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 58 | 3290 |
-| 2364 | `_interactions/_combos/b2_nested_comprehension.ص` | `gr.adv.list_comprehension` | interaction | تطابق ✅ | 65 | 3070 |
-| 2365 | `_interactions/_combos/b2_operator_compare_ternary.ص` | `gr.oop.operator` | interaction | تطابق ✅ | 62 | 3025 |
-| 2366 | `_interactions/_combos/b2_pipe_chain_calls.ص` | `gr.expr.pipeline` | interaction | تطابق ✅ | 59 | 3401 |
-| 2367 | `_interactions/_combos/b2_poly_array_dispatch.ص` | `gr.oop.class` | interaction | تطابق ✅ | 140 | 3202 |
-| 2368 | `_interactions/_combos/b2_recursion_accumulator.ص` | `gr.decl.function` | interaction | تطابق ✅ | 82 | 3473 |
-| 2369 | `_interactions/_combos/b2_state_machine_enum.ص` | `gr.oop.enum` | interaction | تطابق ✅ | 67 | 2937 |
-| 2370 | `_interactions/_combos/b2_static_and_instance.ص` | `gr.oop.class` | interaction | تطابق ✅ | 60 | 3271 |
-| 2371 | `_interactions/_combos/b2_string_length_loop_filter.ص` | `gr.decl.function` | interaction | تطابق ✅ | 63 | 3339 |
-| 2372 | `_interactions/_combos/b2_try_rethrow_chain.ص` | `gr.stmt.try` | interaction | تطابق ✅ | 90 | 3846 |
-| 2373 | `_interactions/_combos/b2_tuple_function_unpack.ص` | `gr.expr.primary` | interaction | تطابق ✅ | 69 | 0 |
-| 2374 | `_interactions/_combos/b3_abstract_override_dispatch.ص` | `gr.oop.class` | interaction | تطابق ✅ | 89 | 3397 |
-| 2375 | `_interactions/_combos/b3_closure_counter_state.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 61 | 3333 |
-| 2376 | `_interactions/_combos/b3_compound_assign_loop.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 58 | 2890 |
-| 2377 | `_interactions/_combos/b3_enum_arith_match.ص` | `gr.oop.enum` | interaction | تطابق ✅ | 58 | 3522 |
-| 2378 | `_interactions/_combos/b3_export_enum_in_method.ص` | `gr.decl.export` | interaction | تطابق ✅ | 90 | 2770 |
-| 2379 | `_interactions/_combos/b3_export_struct_in_method.ص` | `gr.decl.export` | interaction | تطابق ✅ | 54 | 3018 |
-| 2380 | `_interactions/_combos/b3_fib_recursion.ص` | `gr.decl.function` | interaction | تطابق ✅ | 232 | 3636 |
-| 2381 | `_interactions/_combos/b3_fluent_builder_chain.ص` | `gr.oop.class` | interaction | تطابق ✅ | 56 | 3037 |
-| 2382 | `_interactions/_combos/b3_guard_clauses_multi.ص` | `gr.decl.function` | interaction | تطابق ✅ | 70 | 3636 |
-| 2383 | `_interactions/_combos/b3_map_accumulate_keys.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ | 62 | 3247 |
-| 2384 | `_interactions/_combos/b3_multidim_array_sum.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ | 51 | 3290 |
-| 2385 | `_interactions/_combos/b3_mutual_recursion_even_odd.ص` | `gr.decl.function` | interaction | تطابق ✅ | 61 | 4022 |
-| 2386 | `_interactions/_combos/b3_nested_function_def.ص` | `gr.decl.function` | interaction | تطابق ✅ | 67 | 3866 |
-| 2387 | `_interactions/_combos/b3_nested_match_in_loop.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 126 | 3053 |
-| 2388 | `_interactions/_combos/b3_nested_ternary_chain.ص` | `gr.expr.ternary` | interaction | تطابق ✅ | 78 | 3337 |
-| 2389 | `_interactions/_combos/b3_precedence_stress.ص` | `gr.expr.term` | interaction | تطابق ✅ | 64 | 2808 |
-| 2390 | `_interactions/_combos/b3_recursion_with_class_state.ص` | `gr.oop.class` | interaction | تطابق ✅ | 62 | 3298 |
-| 2391 | `_interactions/_combos/b3_short_circuit_sideeffect.ص` | `gr.decl.function` | interaction | تطابق ✅ | 56 | 3824 |
-| 2392 | `_interactions/_combos/b3_string_reverse_loop.ص` | `gr.decl.function` | interaction | تطابق ✅ | 51 | 3562 |
-| 2393 | `_interactions/_combos/b3_struct_array_field_iterate.ص` | `gr.oop.struct` | interaction | تطابق ✅ | 96 | 3194 |
-| 2394 | `_interactions/_combos/b3_try_finally_order.ص` | `gr.stmt.try` | interaction | تطابق ✅ | 57 | 4312 |
-| 2395 | `_interactions/_combos/b3_while_break_continue.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 102 | 3237 |
-| 2396 | `_interactions/_generated/adv.contract__oop.member/001_contract_member.ص` | `gr.adv.contract` | interaction | تطابق ✅ | 58 | 3387 |
-| 2397 | `_interactions/_generated/adv.dict_comprehension__expr.map_literal/001_dictcomp_map.ص` | `gr.adv.dict_comprehension` | interaction | تطابق ✅ | 76 | 4089 |
-| 2398 | `_interactions/_generated/adv.ffi_extern_block__adv.ffi_linkage/001_ffi_block_linkage.ص` | `gr.adv.ffi_extern_block` | interaction | تطابق ✅ | 64 | 3209 |
-| 2399 | `_interactions/_generated/adv.ffi_extern_block__decl.extern/001_ffi_block_extern.ص` | `gr.adv.ffi_extern_block` | interaction | تطابق ✅ | 145 | 3028 |
-| 2400 | `_interactions/_generated/adv.lifetime_params__oop.struct/001_lifetime_struct.ص` | `gr.adv.lifetime_params` | interaction | تطابق ✅ | 61 | 3076 |
-| 2401 | `_interactions/_generated/adv.list_comprehension__expr.array_literal/001_listcomp_array.ص` | `gr.adv.list_comprehension` | interaction | تطابق ✅ | 68 | 3310 |
-| 2402 | `_interactions/_generated/adv.macro__decl.parameters/001_macro_params.ص` | `gr.adv.macro` | interaction | تطابق ✅ | 56 | 3004 |
-| 2403 | `_interactions/_generated/adv.set_comprehension__expr.map_literal/001_setcomp_map.ص` | `gr.adv.set_comprehension` | interaction | تطابق ✅ | 47 | 3317 |
-| 2404 | `_interactions/_generated/adv.template_args__adv.type/001_targs_type.ص` | `gr.adv.template_args` | interaction | تطابق ✅ | 122 | 2925 |
-| 2405 | `_interactions/_generated/adv.template_args__expr.primary/001_targs_primary.ص` | `gr.adv.template_args` | interaction | تطابق ✅ | 96 | 2809 |
-| 2406 | `_interactions/_generated/adv.template_decl__adv.template_params/001_tdecl_tparams.ص` | `gr.adv.template_decl` | interaction | تطابق ✅ | 54 | 2644 |
-| 2407 | `_interactions/_generated/adv.template_decl__decl.function/001_tdecl_function.ص` | `gr.adv.template_decl` | interaction | تطابق ✅ | 51 | 2653 |
-| 2408 | `_interactions/_generated/adv.template_decl__oop.class/001_tdecl_class.ص` | `gr.adv.template_decl` | interaction | تطابق ✅ | 52 | 2694 |
-| 2409 | `_interactions/_generated/adv.template_params__adv.type/001_tparams_type.ص` | `gr.adv.template_params` | interaction | تطابق ✅ | 109 | 2550 |
-| 2410 | `_interactions/_generated/adv.type__adv.ui_state/001_type_uistate.ص` | `gr.adv.type` | interaction | تطابق ✅ | 48 | 3034 |
-| 2411 | `_interactions/_generated/adv.type__oop.field/001_type_field.ص` | `gr.adv.type` | interaction | تطابق ✅ | 56 | 2581 |
-| 2412 | `_interactions/_generated/adv.type__oop.method/001_type_method.ص` | `gr.adv.type` | interaction | تطابق ✅ | 51 | 2535 |
-| 2413 | `_interactions/_generated/adv.type__oop.property/001_type_property.ص` | `gr.adv.type` | interaction | تطابق ✅ | 54 | 2587 |
-| 2414 | `_interactions/_generated/adv.ui_decl__adv.ui_state/001_uidecl_uistate.ص` | `gr.adv.ui_decl` | interaction | تطابق ✅ | 48 | 2701 |
-| 2415 | `_interactions/_generated/adv.ui_decl__decl.function/001_uidecl_function.ص` | `gr.adv.ui_decl` | interaction | تطابق ✅ | 45 | 2959 |
-| 2416 | `_interactions/_generated/adv.ui_modifier_chain__adv.widget/001_modchain_widget.ص` | `gr.adv.ui_modifier_chain` | interaction | تطابق ✅ | 0 | 2707 |
-| 2417 | `_interactions/_generated/adv.ui_modifier_chain__decl.arg_list/001_modchain_args.ص` | `gr.adv.ui_modifier_chain` | interaction | تطابق ✅ | 0 | 2644 |
-| 2418 | `_interactions/_generated/adv.widget__decl.arg_list/001_widget_args.ص` | `gr.adv.widget` | interaction | تطابق ✅ | 0 | 2592 |
-| 2419 | `_interactions/_generated/decl.arg_list__expr.decorator/001_args_decorator.ص` | `gr.decl.arg_list` | interaction | تطابق ✅ | 52 | 3033 |
-| 2420 | `_interactions/_generated/decl.arg_list__expr.directive/001_args_directive.ص` | `gr.decl.arg_list` | interaction | تطابق ✅ | 51 | 2531 |
-| 2421 | `_interactions/_generated/decl.arg_list__expr.postfix/001_args_postfix.ص` | `gr.decl.arg_list` | interaction | تطابق ✅ | 106 | 3000 |
-| 2422 | `_interactions/_generated/decl.arg_list__oop.constructor/001_args_ctor.ص` | `gr.decl.arg_list` | interaction | تطابق ✅ | 53 | 2631 |
-| 2423 | `_interactions/_generated/decl.export__decl.function/001_export_function.ص` | `gr.decl.export` | interaction | تطابق ✅ | 47 | 2951 |
-| 2424 | `_interactions/_generated/decl.export__decl.function/002_export_function_args.ص` | `gr.decl.export` | interaction | تطابق ✅ | 64 | 3084 |
-| 2425 | `_interactions/_generated/decl.export__decl.import/001_export_import.ص` | `gr.decl.export` | interaction | تطابق ✅ | 54 | 2877 |
-| 2426 | `_interactions/_generated/decl.export__decl.variable/001_export_variable.ص` | `gr.decl.export` | interaction | تطابق ✅ | 87 | 2490 |
-| 2427 | `_interactions/_generated/decl.export__oop.class/001_export_class.ص` | `gr.decl.export` | interaction | تطابق ✅ | 55 | 2686 |
-| 2428 | `_interactions/_generated/decl.export__oop.enum/001_export_fn_enum.ص` | `gr.decl.export` | interaction | تطابق ✅ | 52 | 2563 |
-| 2429 | `_interactions/_generated/decl.export__oop.impl/001_export_fn_impl.ص` | `gr.decl.export` | interaction | تطابق ✅ | 49 | 3074 |
-| 2430 | `_interactions/_generated/decl.export__oop.struct/001_export_fn_struct.ص` | `gr.decl.export` | interaction | تطابق ✅ | 57 | 2629 |
-| 2431 | `_interactions/_generated/decl.export__oop.trait/001_export_fn_trait.ص` | `gr.decl.export` | interaction | تطابق ✅ | 58 | 3196 |
-| 2432 | `_interactions/_generated/decl.extern__decl.parameters/001_extern_parameters.ص` | `gr.decl.extern` | interaction | تطابق ✅ | 52 | 2818 |
-| 2433 | `_interactions/_generated/decl.function__decl.parameters/001_function_parameters.ص` | `gr.decl.function` | interaction | تطابق ✅ | 79 | 3398 |
-| 2434 | `_interactions/_generated/decl.function__decl.parameters/002_function_one_param.ص` | `gr.decl.function` | interaction | تطابق ✅ | 95 | 3459 |
-| 2435 | `_interactions/_generated/decl.function__oop.class/001_fn_class.ص` | `gr.decl.function` | interaction | تطابق ✅ | 116 | 3576 |
-| 2436 | `_interactions/_generated/decl.function__oop.enum/001_fn_enum.ص` | `gr.decl.function` | interaction | تطابق ✅ | 67 | 3772 |
-| 2437 | `_interactions/_generated/decl.function__oop.extension/001_fn_extension.ص` | `gr.decl.function` | interaction | تطابق ✅ | 102 | 3570 |
-| 2438 | `_interactions/_generated/decl.function__oop.impl/001_fn_impl.ص` | `gr.decl.function` | interaction | تطابق ✅ | 53 | 3540 |
-| 2439 | `_interactions/_generated/decl.function__oop.struct/001_fn_struct.ص` | `gr.decl.function` | interaction | تطابق ✅ | 72 | 3465 |
-| 2440 | `_interactions/_generated/decl.function__oop.trait/001_fn_trait.ص` | `gr.decl.function` | interaction | تطابق ✅ | 84 | 3361 |
-| 2441 | `_interactions/_generated/decl.function__program.block/001_fn_block.ص` | `gr.decl.function` | interaction | تطابق ✅ | 52 | 3322 |
-| 2442 | `_interactions/_generated/decl.import__oop.class/001_import_class.ص` | `gr.decl.import` | interaction | تطابق ✅ | 57 | 2894 |
-| 2443 | `_interactions/_generated/decl.import__oop.enum/001_import_enum.ص` | `gr.decl.import` | interaction | تطابق ✅ | 58 | 2950 |
-| 2444 | `_interactions/_generated/decl.import__oop.impl/001_import_impl.ص` | `gr.decl.import` | interaction | تطابق ✅ | 65 | 3039 |
-| 2445 | `_interactions/_generated/decl.import__oop.struct/001_import_struct.ص` | `gr.decl.import` | interaction | تطابق ✅ | 98 | 2982 |
-| 2446 | `_interactions/_generated/decl.import__oop.trait/001_import_trait.ص` | `gr.decl.import` | interaction | تطابق ✅ | 67 | 3111 |
-| 2447 | `_interactions/_generated/decl.parameters__decl.type_ref/001_typed_parameter.ص` | `gr.decl.parameters` | interaction | تطابق ✅ | 50 | 3293 |
-| 2448 | `_interactions/_generated/decl.parameters__expr.lambda/001_params_lambda.ص` | `gr.decl.parameters` | interaction | تطابق ✅ | 114 | 2904 |
-| 2449 | `_interactions/_generated/decl.parameters__oop.constructor/001_params_ctor.ص` | `gr.decl.parameters` | interaction | تطابق ✅ | 65 | 3135 |
-| 2450 | `_interactions/_generated/decl.parameters__oop.method/001_params_method.ص` | `gr.decl.parameters` | interaction | تطابق ✅ | 51 | 3058 |
-| 2451 | `_interactions/_generated/decl.parameters__oop.operator/001_params_operator.ص` | `gr.decl.parameters` | interaction | تطابق ✅ | 49 | 3104 |
-| 2452 | `_interactions/_generated/decl.parameters__oop.trait/001_params_trait.ص` | `gr.decl.parameters` | interaction | تطابق ✅ | 108 | 3035 |
-| 2453 | `_interactions/_generated/decl.type_ref__decl.variable/001_typed_variable.ص` | `gr.decl.type_ref` | interaction | تطابق ✅ | 62 | 2916 |
-| 2454 | `_interactions/_generated/decl.type_ref__decl.variable/002_typed_variable_string.ص` | `gr.decl.type_ref` | interaction | تطابق ✅ | 59 | 2911 |
-| 2455 | `_interactions/_generated/decl.variable__oop.class/001_var_class.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 60 | 2737 |
-| 2456 | `_interactions/_generated/decl.variable__oop.enum/001_var_enum.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 57 | 2717 |
-| 2457 | `_interactions/_generated/decl.variable__oop.impl/001_var_impl.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 66 | 2672 |
-| 2458 | `_interactions/_generated/decl.variable__oop.struct/001_var_struct.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 52 | 2769 |
-| 2459 | `_interactions/_generated/decl.variable__oop.trait/001_var_trait.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 49 | 2596 |
-| 2460 | `_interactions/_generated/expr.array_literal__expr.primary/001_array_of_parens.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ | 49 | 2663 |
-| 2461 | `_interactions/_generated/expr.array_literal__expr.primary/002_array_literals.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ | 67 | 2809 |
-| 2462 | `_interactions/_generated/expr.array_literal__expr.primary/003_nested_arrays.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ | 56 | 2735 |
-| 2463 | `_interactions/_generated/expr.array_literal__expr.primary/004_array_len.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ | 52 | 2683 |
-| 2464 | `_interactions/_generated/expr.array_literal__expr.primary/005_array_of_tuple.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ | 121 | 2801 |
-| 2465 | `_interactions/_generated/expr.array_literal__expr.primary/006_array_strings.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ | 55 | 2675 |
-| 2466 | `_interactions/_generated/expr.assignment__expr.pipeline/001_assign_pipeline_len.ص` | `gr.expr.assignment` | interaction | تطابق ✅ | 46 | 2716 |
-| 2467 | `_interactions/_generated/expr.assignment__expr.pipeline/002_assign_pipeline_empty.ص` | `gr.expr.assignment` | interaction | تطابق ✅ | 54 | 2719 |
-| 2468 | `_interactions/_generated/expr.assignment__expr.pipeline/003_reassign_pipeline.ص` | `gr.expr.assignment` | interaction | تطابق ✅ | 68 | 2936 |
-| 2469 | `_interactions/_generated/expr.assignment__expr.ternary/001_assign_ternary.ص` | `gr.expr.assignment` | interaction | تطابق ✅ | 56 | 3038 |
-| 2470 | `_interactions/_generated/expr.assignment__expr.ternary/002_assign_ternary_false.ص` | `gr.expr.assignment` | interaction | تطابق ✅ | 64 | 2955 |
-| 2471 | `_interactions/_generated/expr.assignment__expr.ternary/003_compound_then_ternary.ص` | `gr.expr.assignment` | interaction | تطابق ✅ | 102 | 2939 |
-| 2472 | `_interactions/_generated/expr.assignment__expr.ternary/004_ternary_nested_assign.ص` | `gr.expr.assignment` | interaction | تطابق ✅ | 99 | 2926 |
-| 2473 | `_interactions/_generated/expr.assignment__expr.ternary/005_reassign_via_ternary.ص` | `gr.expr.assignment` | interaction | تطابق ✅ | 53 | 2953 |
-| 2474 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/001_and_then_xor.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 107 | 2992 |
-| 2475 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/002_xor_then_and.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 58 | 3061 |
-| 2476 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/003_paren_xor_and.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 61 | 3108 |
-| 2477 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/004_and_xor_zero.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 63 | 3111 |
-| 2478 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/005_chain_and_xor.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 73 | 3136 |
-| 2479 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/006_all_ones.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 68 | 3020 |
-| 2480 | `_interactions/_generated/expr.bitwise_and__expr.equality/001_and_eq.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 62 | 3073 |
-| 2481 | `_interactions/_generated/expr.bitwise_and__expr.equality/002_eq_bool_and.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 52 | 2938 |
-| 2482 | `_interactions/_generated/expr.bitwise_and__expr.equality/003_and_neq.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 60 | 2893 |
-| 2483 | `_interactions/_generated/expr.bitwise_and__expr.equality/004_mask_check.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 110 | 2763 |
-| 2484 | `_interactions/_generated/expr.bitwise_and__expr.equality/005_and_zero_eq.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ | 54 | 2875 |
-| 2485 | `_interactions/_generated/expr.bitwise_or__expr.bitwise_xor/001_or_then_xor.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ | 52 | 2835 |
-| 2486 | `_interactions/_generated/expr.bitwise_or__expr.bitwise_xor/002_xor_then_or.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ | 58 | 2880 |
-| 2487 | `_interactions/_generated/expr.bitwise_or__expr.bitwise_xor/003_paren_or_xor.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ | 64 | 2886 |
-| 2488 | `_interactions/_generated/expr.bitwise_or__expr.bitwise_xor/004_or_xor_zero.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ | 121 | 2920 |
-| 2489 | `_interactions/_generated/expr.bitwise_or__expr.bitwise_xor/005_chain_or_xor.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ | 62 | 2888 |
-| 2490 | `_interactions/_generated/expr.bitwise_or__expr.logical_and/001_or_bit_in_and.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ | 64 | 2855 |
-| 2491 | `_interactions/_generated/expr.bitwise_or__expr.logical_and/002_logical_and_guard_or.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ | 54 | 2873 |
-| 2492 | `_interactions/_generated/expr.bitwise_or__expr.logical_and/003_both.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ | 65 | 3032 |
-| 2493 | `_interactions/_generated/expr.bitwise_or__expr.logical_and/004_or_zero_and_false.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ | 58 | 2866 |
-| 2494 | `_interactions/_generated/expr.comparison__expr.equality/001_lt_eq_true.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 56 | 3015 |
-| 2495 | `_interactions/_generated/expr.comparison__expr.equality/002_gt_neq.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 82 | 2936 |
-| 2496 | `_interactions/_generated/expr.comparison__expr.equality/003_le_eq_chain.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 54 | 2901 |
-| 2497 | `_interactions/_generated/expr.comparison__expr.equality/004_eq_of_comparisons.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 55 | 2701 |
-| 2498 | `_interactions/_generated/expr.comparison__expr.equality/005_neq_numbers.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 70 | 2757 |
-| 2499 | `_interactions/_generated/expr.comparison__expr.equality/006_ge_eq_false.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 50 | 2710 |
-| 2500 | `_interactions/_generated/expr.comparison__expr.equality/007_mixed_lt_eq_num.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 63 | 2577 |
-| 2501 | `_interactions/_generated/expr.comparison__expr.equality/008_string_eq_cmp.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 54 | 2610 |
-| 2502 | `_interactions/_generated/expr.comparison__expr.range/001_range_loop_cmp.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 52 | 2736 |
-| 2503 | `_interactions/_generated/expr.comparison__expr.range/002_range_bound_cmp.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 108 | 2541 |
-| 2504 | `_interactions/_generated/expr.comparison__expr.range/003_range_filter_lt.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 55 | 2674 |
-| 2505 | `_interactions/_generated/expr.comparison__expr.range/004_range_count_ge.ص` | `gr.expr.comparison` | interaction | تطابق ✅ | 53 | 2616 |
-| 2506 | `_interactions/_generated/expr.decorator__expr.expression/001_decorator_expr.ص` | `gr.expr.decorator` | interaction | تطابق ✅ | 46 | 2887 |
-| 2507 | `_interactions/_generated/expr.directive__expr.expression/001_directive_expr.ص` | `gr.expr.directive` | interaction | تطابق ✅ | 59 | 2582 |
-| 2508 | `_interactions/_generated/expr.expression__expr.comparison/001_expr_comparison.ص` | `gr.expr.expression` | interaction | تطابق ✅ | 58 | 2509 |
-| 2509 | `_interactions/_generated/expr.expression__expr.pipeline/001_expr_pipeline.ص` | `gr.expr.expression` | interaction | تطابق ✅ | 52 | 2568 |
-| 2510 | `_interactions/_generated/expr.expression__expr.ternary/001_expr_ternary.ص` | `gr.expr.expression` | interaction | تطابق ✅ | 55 | 2608 |
-| 2511 | `_interactions/_generated/expr.factor__expr.term/001_precedence_mul_add.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 52 | 2623 |
-| 2512 | `_interactions/_generated/expr.factor__expr.term/002_precedence_add_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 48 | 2492 |
-| 2513 | `_interactions/_generated/expr.factor__expr.term/003_parens_override.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 51 | 2531 |
-| 2514 | `_interactions/_generated/expr.factor__expr.term/004_div_then_sub.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 54 | 2659 |
-| 2515 | `_interactions/_generated/expr.factor__expr.term/005_sub_then_div.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 56 | 2791 |
-| 2516 | `_interactions/_generated/expr.factor__expr.term/006_mixed_all.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 83 | 2700 |
-| 2517 | `_interactions/_generated/expr.factor__expr.term/007_left_assoc_sub.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 54 | 3085 |
-| 2518 | `_interactions/_generated/expr.factor__expr.term/008_nested_parens.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 49 | 3237 |
-| 2519 | `_interactions/_generated/expr.factor__expr.term/009_float_mix.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 61 | 3342 |
-| 2520 | `_interactions/_generated/expr.factor__expr.term/010_zero_add_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 74 | 3520 |
-| 2521 | `_interactions/_generated/expr.factor__expr.term/011_neg_result.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 66 | 3394 |
-| 2522 | `_interactions/_generated/expr.factor__expr.term/012_div_exact.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 154 | 3438 |
-| 2523 | `_interactions/_generated/expr.factor__expr.term/013_var_terms.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 102 | 3286 |
-| 2524 | `_interactions/_generated/expr.factor__expr.term/014_chain_mul_add.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 76 | 3176 |
-| 2525 | `_interactions/_generated/expr.factor__expr.unary/001_neg_times.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 68 | 3080 |
-| 2526 | `_interactions/_generated/expr.factor__expr.unary/002_times_neg.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 65 | 3024 |
-| 2527 | `_interactions/_generated/expr.factor__expr.unary/003_neg_times_neg.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 55 | 2959 |
-| 2528 | `_interactions/_generated/expr.factor__expr.unary/004_neg_div.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 58 | 2927 |
-| 2529 | `_interactions/_generated/expr.factor__expr.unary/005_double_neg_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 63 | 2973 |
-| 2530 | `_interactions/_generated/expr.factor__expr.unary/006_not_in_factor_guard.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 59 | 2872 |
-| 2531 | `_interactions/_generated/expr.factor__expr.unary/007_paren_neg_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 63 | 2983 |
-| 2532 | `_interactions/_generated/expr.factor__expr.unary/008_neg_div_neg.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 65 | 2925 |
-| 2533 | `_interactions/_generated/expr.factor__expr.unary/009_unary_float.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 64 | 2968 |
-| 2534 | `_interactions/_generated/expr.factor__expr.unary/010_zero_neg_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 60 | 3033 |
-| 2535 | `_interactions/_generated/expr.factor__expr.unary/011_var_neg_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ | 59 | 2910 |
-| 2536 | `_interactions/_generated/expr.fstring__expr.primary/001_fstring_literal.ص` | `gr.expr.fstring` | interaction | تطابق ✅ | 51 | 3027 |
-| 2537 | `_interactions/_generated/expr.fstring__expr.primary/002_fstring_paren.ص` | `gr.expr.fstring` | interaction | تطابق ✅ | 61 | 2777 |
-| 2538 | `_interactions/_generated/expr.fstring__expr.primary/003_fstring_var.ص` | `gr.expr.fstring` | interaction | تطابق ✅ | 94 | 2635 |
-| 2539 | `_interactions/_generated/expr.fstring__expr.primary/004_fstring_index.ص` | `gr.expr.fstring` | interaction | تطابق ✅ | 53 | 2705 |
-| 2540 | `_interactions/_generated/expr.fstring__expr.primary/005_fstring_two.ص` | `gr.expr.fstring` | interaction | تطابق ✅ | 120 | 2647 |
-| 2541 | `_interactions/_generated/expr.fstring__expr.primary/006_fstring_bool.ص` | `gr.expr.fstring` | interaction | تطابق ✅ | 57 | 2705 |
-| 2542 | `_interactions/_generated/expr.lambda__expr.primary/001_lambda_call_literal.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 56 | 2683 |
-| 2543 | `_interactions/_generated/expr.lambda__expr.primary/002_lambda_const.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 54 | 2734 |
-| 2544 | `_interactions/_generated/expr.lambda__expr.primary/003_lambda_two_args.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 47 | 2801 |
-| 2545 | `_interactions/_generated/expr.lambda__expr.primary/004_lambda_paren_body.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 55 | 2612 |
-| 2546 | `_interactions/_generated/expr.lambda__expr.primary/005_lambda_on_literal_arg.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 53 | 2658 |
-| 2547 | `_interactions/_generated/expr.lambda__program.block/001_lambda_in_block.ص` | `gr.expr.lambda` | interaction | تطابق ✅ | 56 | 3015 |
-| 2548 | `_interactions/_generated/expr.logical_and__expr.logical_or/001_and_before_or.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ | 53 | 2683 |
-| 2549 | `_interactions/_generated/expr.logical_and__expr.logical_or/002_or_with_and.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ | 84 | 2636 |
-| 2550 | `_interactions/_generated/expr.logical_and__expr.logical_or/003_paren_or_and.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ | 59 | 2775 |
-| 2551 | `_interactions/_generated/expr.logical_and__expr.logical_or/004_short_circuit_and.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ | 52 | 2800 |
-| 2552 | `_interactions/_generated/expr.logical_and__expr.logical_or/005_all_false.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ | 56 | 2685 |
-| 2553 | `_interactions/_generated/expr.logical_and__expr.logical_or/006_all_true.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ | 54 | 2798 |
-| 2554 | `_interactions/_generated/expr.logical_and__expr.logical_or/007_cmp_and_or.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ | 92 | 2588 |
-| 2555 | `_interactions/_generated/expr.logical_and__expr.logical_or/008_nested.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ | 49 | 2766 |
-| 2556 | `_interactions/_generated/expr.logical_or__expr.null_coalesce/001_coalesce_then_or.ص` | `gr.expr.logical_or` | interaction | تطابق ✅ | 106 | 2554 |
-| 2557 | `_interactions/_generated/expr.logical_or__expr.null_coalesce/002_or_value_coalesce.ص` | `gr.expr.logical_or` | interaction | تطابق ✅ | 52 | 2888 |
-| 2558 | `_interactions/_generated/expr.logical_or__expr.null_coalesce/003_coalesce_left_present.ص` | `gr.expr.logical_or` | interaction | تطابق ✅ | 51 | 2801 |
-| 2559 | `_interactions/_generated/expr.logical_or__expr.null_coalesce/004_num_coalesce_cmp_or.ص` | `gr.expr.logical_or` | interaction | تطابق ✅ | 61 | 3086 |
-| 2560 | `_interactions/_generated/expr.map_literal__expr.primary/001_map_literal_value.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ | 65 | 3183 |
-| 2561 | `_interactions/_generated/expr.map_literal__expr.primary/002_map_two_keys.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ | 72 | 3322 |
-| 2562 | `_interactions/_generated/expr.map_literal__expr.primary/003_map_paren_value.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ | 62 | 3303 |
-| 2563 | `_interactions/_generated/expr.map_literal__expr.primary/004_map_int_key.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ | 73 | 3333 |
-| 2564 | `_interactions/_generated/expr.map_literal__expr.primary/005_map_nested.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ | 60 | 4062 |
-| 2565 | `_interactions/_generated/expr.null_coalesce__expr.ternary/001_coalesce_in_ternary.ص` | `gr.expr.null_coalesce` | interaction | تطابق ✅ | 146 | 3124 |
-| 2566 | `_interactions/_generated/expr.null_coalesce__expr.ternary/002_ternary_in_coalesce.ص` | `gr.expr.null_coalesce` | interaction | تطابق ✅ | 81 | 3083 |
-| 2567 | `_interactions/_generated/expr.null_coalesce__expr.ternary/003_coalesce_value.ص` | `gr.expr.null_coalesce` | interaction | تطابق ✅ | 87 | 3292 |
-| 2568 | `_interactions/_generated/expr.null_coalesce__expr.ternary/004_nested_both.ص` | `gr.expr.null_coalesce` | interaction | تطابق ✅ | 92 | 3197 |
-| 2569 | `_interactions/_generated/expr.postfix__expr.power/001_index_power.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 61 | 3244 |
-| 2570 | `_interactions/_generated/expr.postfix__expr.power/002_power_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 70 | 3180 |
-| 2571 | `_interactions/_generated/expr.postfix__expr.power/003_index_base_index_exp.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 65 | 3084 |
-| 2572 | `_interactions/_generated/expr.postfix__expr.power/004_map_index_power.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 64 | 3055 |
-| 2573 | `_interactions/_generated/expr.postfix__expr.power/005_power_then_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 50 | 3005 |
-| 2574 | `_interactions/_generated/expr.postfix__expr.power/006_nested_index_power.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 101 | 3189 |
-| 2575 | `_interactions/_generated/expr.postfix__expr.primary/001_array_index_literal.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 122 | 3190 |
-| 2576 | `_interactions/_generated/expr.postfix__expr.primary/002_paren_expr_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 60 | 3244 |
-| 2577 | `_interactions/_generated/expr.postfix__expr.primary/003_tuple_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 148 | 3276 |
-| 2578 | `_interactions/_generated/expr.postfix__expr.primary/004_first_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 62 | 2996 |
-| 2579 | `_interactions/_generated/expr.postfix__expr.primary/005_nested_array_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 87 | 2933 |
-| 2580 | `_interactions/_generated/expr.postfix__expr.primary/006_string_literal_len_call.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 53 | 2785 |
-| 2581 | `_interactions/_generated/expr.postfix__expr.primary/007_map_literal_key.ص` | `gr.expr.postfix` | interaction | تطابق ✅ | 58 | 2666 |
-| 2582 | `_interactions/_generated/expr.power__expr.unary/001_neg_base_power.ص` | `gr.expr.power` | interaction | تطابق ✅ | 55 | 2524 |
-| 2583 | `_interactions/_generated/expr.power__expr.unary/002_paren_neg_base.ص` | `gr.expr.power` | interaction | تطابق ✅ | 47 | 2570 |
-| 2584 | `_interactions/_generated/expr.power__expr.unary/003_right_assoc.ص` | `gr.expr.power` | interaction | تطابق ✅ | 54 | 2654 |
-| 2585 | `_interactions/_generated/expr.power__expr.unary/004_not_then_power_guard.ص` | `gr.expr.power` | interaction | تطابق ✅ | 58 | 2592 |
-| 2586 | `_interactions/_generated/expr.power__expr.unary/005_zero_power.ص` | `gr.expr.power` | interaction | تطابق ✅ | 52 | 2692 |
-| 2587 | `_interactions/_generated/expr.power__expr.unary/006_one_power_big.ص` | `gr.expr.power` | interaction | تطابق ✅ | 71 | 2749 |
-| 2588 | `_interactions/_generated/expr.power__expr.unary/007_var_neg_power.ص` | `gr.expr.power` | interaction | تطابق ✅ | 52 | 2680 |
-| 2589 | `_interactions/_generated/expr.range__expr.term/001_range_upper_add.ص` | `gr.expr.range` | interaction | تطابق ✅ | 58 | 2875 |
-| 2590 | `_interactions/_generated/expr.range__expr.term/002_range_lower_sub.ص` | `gr.expr.range` | interaction | تطابق ✅ | 58 | 2738 |
-| 2591 | `_interactions/_generated/expr.range__expr.term/003_range_both_term.ص` | `gr.expr.range` | interaction | تطابق ✅ | 63 | 2753 |
-| 2592 | `_interactions/_generated/expr.range__expr.term/004_sum_range_term.ص` | `gr.expr.range` | interaction | تطابق ✅ | 49 | 2544 |
-| 2593 | `_interactions/_generated/oop.class__oop.enum/001_class_uses_enum.ص` | `gr.oop.class` | interaction | تطابق ✅ | 57 | 2776 |
-| 2594 | `_interactions/_generated/oop.class__oop.enum/002_enum_then_class.ص` | `gr.oop.class` | interaction | تطابق ✅ | 48 | 2737 |
-| 2595 | `_interactions/_generated/oop.class__oop.enum/003_class_field_enum.ص` | `gr.oop.class` | interaction | تطابق ✅ | 60 | 2632 |
-| 2596 | `_interactions/_generated/oop.class__oop.impl/001_class_impl_block.ص` | `gr.oop.class` | interaction | تطابق ✅ | 50 | 2660 |
-| 2597 | `_interactions/_generated/oop.class__oop.impl/002_class_impl_uses_field.ص` | `gr.oop.class` | interaction | تطابق ✅ | 48 | 2635 |
-| 2598 | `_interactions/_generated/oop.class__oop.member/001_class_one_member.ص` | `gr.oop.class` | interaction | تطابق ✅ | 75 | 2645 |
-| 2599 | `_interactions/_generated/oop.class__oop.member/002_class_many_members.ص` | `gr.oop.class` | interaction | تطابق ✅ | 68 | 2934 |
-| 2600 | `_interactions/_generated/oop.class__oop.struct/001_class_and_struct_toplevel.ص` | `gr.oop.class` | interaction | تطابق ✅ | 61 | 3010 |
-| 2601 | `_interactions/_generated/oop.class__oop.struct/002_class_method_takes_struct.ص` | `gr.oop.class` | interaction | تطابق ✅ | 60 | 2988 |
-| 2602 | `_interactions/_generated/oop.class__oop.struct/003_struct_in_method.ص` | `gr.oop.class` | interaction | تطابق ✅ | 53 | 3133 |
-| 2603 | `_interactions/_generated/oop.class__oop.trait/001_class_impl_trait_header.ص` | `gr.oop.class` | interaction | تطابق ✅ | 109 | 3052 |
-| 2604 | `_interactions/_generated/oop.class__oop.trait/002_trait_default_like.ص` | `gr.oop.class` | interaction | تطابق ✅ | 107 | 3103 |
-| 2605 | `_interactions/_generated/oop.constructor__oop.member/001_ctor_and_method.ص` | `gr.oop.constructor` | interaction | تطابق ✅ | 155 | 3239 |
-| 2606 | `_interactions/_generated/oop.constructor__oop.member/002_ctor_inits_member.ص` | `gr.oop.constructor` | interaction | تطابق ✅ | 59 | 3044 |
-| 2607 | `_interactions/_generated/oop.constructor__oop.modifiers/001_ctor_private_field.ص` | `gr.oop.constructor` | interaction | تطابق ✅ | 120 | 3131 |
-| 2608 | `_interactions/_generated/oop.constructor__oop.modifiers/002_ctor_static_sibling.ص` | `gr.oop.constructor` | interaction | تطابق ✅ | 70 | 3027 |
-| 2609 | `_interactions/_generated/oop.constructor__oop.struct/001_struct_no_ctor_default.ص` | `gr.oop.constructor` | interaction | تطابق ✅ | 51 | 3125 |
-| 2610 | `_interactions/_generated/oop.constructor__oop.struct/002_ctor_reads_struct_field.ص` | `gr.oop.constructor` | interaction | تطابق ✅ | 125 | 3120 |
-| 2611 | `_interactions/_generated/oop.constructor__program.block/001_ctor_block.ص` | `gr.oop.constructor` | interaction | تطابق ✅ | 116 | 2973 |
-| 2612 | `_interactions/_generated/oop.destructor__oop.member/001_dtor_with_method.ص` | `gr.oop.destructor` | interaction | تطابق ✅ | 108 | 3097 |
-| 2613 | `_interactions/_generated/oop.destructor__oop.member/002_dtor_with_field.ص` | `gr.oop.destructor` | interaction | تطابق ✅ | 56 | 2947 |
-| 2614 | `_interactions/_generated/oop.destructor__oop.modifiers/001_dtor_private_field.ص` | `gr.oop.destructor` | interaction | تطابق ✅ | 65 | 3038 |
-| 2615 | `_interactions/_generated/oop.destructor__oop.modifiers/002_dtor_static.ص` | `gr.oop.destructor` | interaction | تطابق ✅ | 58 | 3024 |
-| 2616 | `_interactions/_generated/oop.destructor__program.block/001_dtor_block.ص` | `gr.oop.destructor` | interaction | تطابق ✅ | 102 | 3019 |
-| 2617 | `_interactions/_generated/oop.enum__oop.impl/001_enum_with_impl_block.ص` | `gr.oop.enum` | interaction | تطابق ✅ | 71 | 2879 |
-| 2618 | `_interactions/_generated/oop.enum__oop.struct/001_enum_and_struct.ص` | `gr.oop.enum` | interaction | تطابق ✅ | 85 | 2868 |
-| 2619 | `_interactions/_generated/oop.enum__oop.struct/002_struct_field_enum_default.ص` | `gr.oop.enum` | interaction | تطابق ✅ | 66 | 2905 |
-| 2620 | `_interactions/_generated/oop.enum__oop.trait/001_enum_with_trait_class.ص` | `gr.oop.enum` | interaction | تطابق ✅ | 60 | 2892 |
-| 2621 | `_interactions/_generated/oop.field__oop.member/001_field_among_members.ص` | `gr.oop.field` | interaction | تطابق ✅ | 58 | 2964 |
-| 2622 | `_interactions/_generated/oop.field__oop.member/002_two_fields.ص` | `gr.oop.field` | interaction | تطابق ✅ | 54 | 2896 |
-| 2623 | `_interactions/_generated/oop.field__oop.modifiers/001_private_field.ص` | `gr.oop.field` | interaction | تطابق ✅ | 64 | 2684 |
-| 2624 | `_interactions/_generated/oop.field__oop.modifiers/002_static_field.ص` | `gr.oop.field` | interaction | تطابق ✅ | 49 | 2804 |
-| 2625 | `_interactions/_generated/oop.field__oop.modifiers/003_public_static_mix.ص` | `gr.oop.field` | interaction | تطابق ✅ | 56 | 2684 |
-| 2626 | `_interactions/_generated/oop.field__oop.struct/001_struct_fields.ص` | `gr.oop.field` | interaction | تطابق ✅ | 52 | 2663 |
-| 2627 | `_interactions/_generated/oop.field__oop.struct/002_struct_field_assign.ص` | `gr.oop.field` | interaction | تطابق ✅ | 89 | 2562 |
-| 2628 | `_interactions/_generated/oop.impl__oop.struct/001_impl_block_plus_struct.ص` | `gr.oop.impl` | interaction | تطابق ✅ | 58 | 2657 |
-| 2629 | `_interactions/_generated/oop.impl__oop.trait/001_impl_trait_block.ص` | `gr.oop.impl` | interaction | تطابق ✅ | 127 | 2646 |
-| 2630 | `_interactions/_generated/oop.impl__oop.trait/002_impl_trait_two_methods.ص` | `gr.oop.impl` | interaction | تطابق ✅ | 58 | 2734 |
-| 2631 | `_interactions/_generated/oop.member__oop.method/001_method_is_member.ص` | `gr.oop.member` | interaction | تطابق ✅ | 60 | 2568 |
-| 2632 | `_interactions/_generated/oop.member__oop.method/002_two_methods.ص` | `gr.oop.member` | interaction | تطابق ✅ | 56 | 2675 |
-| 2633 | `_interactions/_generated/oop.member__oop.operator/001_operator_as_member.ص` | `gr.oop.member` | interaction | تطابق ✅ | 63 | 2688 |
-| 2634 | `_interactions/_generated/oop.member__oop.operator/002_operator_with_method.ص` | `gr.oop.member` | interaction | تطابق ✅ | 46 | 2670 |
-| 2635 | `_interactions/_generated/oop.member__oop.property/001_property_as_member.ص` | `gr.oop.member` | interaction | تطابق ✅ | 50 | 2587 |
-| 2636 | `_interactions/_generated/oop.member__oop.property/002_property_and_method.ص` | `gr.oop.member` | interaction | تطابق ✅ | 57 | 2618 |
-| 2637 | `_interactions/_generated/oop.method__oop.modifiers/001_static_method.ص` | `gr.oop.method` | interaction | تطابق ✅ | 53 | 2625 |
-| 2638 | `_interactions/_generated/oop.method__oop.modifiers/002_private_method_via_public.ص` | `gr.oop.method` | interaction | تطابق ✅ | 46 | 2838 |
-| 2639 | `_interactions/_generated/oop.method__oop.struct/001_method_takes_struct.ص` | `gr.oop.method` | interaction | تطابق ✅ | 66 | 2844 |
-| 2640 | `_interactions/_generated/oop.method__oop.struct/002_method_builds_struct.ص` | `gr.oop.method` | interaction | تطابق ✅ | 60 | 2840 |
-| 2641 | `_interactions/_generated/oop.method__program.block/001_method_block.ص` | `gr.oop.method` | interaction | تطابق ✅ | 52 | 2969 |
-| 2642 | `_interactions/_generated/oop.modifiers__oop.operator/001_operator_with_private.ص` | `gr.oop.modifiers` | interaction | تطابق ✅ | 58 | 3225 |
-| 2643 | `_interactions/_generated/oop.modifiers__oop.property/001_property_private_backed.ص` | `gr.oop.modifiers` | interaction | تطابق ✅ | 58 | 3306 |
-| 2644 | `_interactions/_generated/oop.operator__program.block/001_operator_block.ص` | `gr.oop.operator` | interaction | تطابق ✅ | 76 | 3544 |
-| 2645 | `_interactions/_generated/oop.property__program.block/001_property_with_block_fn.ص` | `gr.oop.property` | interaction | تطابق ✅ | 123 | 3840 |
-| 2646 | `_interactions/_generated/oop.struct__oop.trait/001_trait_class_plus_struct.ص` | `gr.oop.struct` | interaction | تطابق ✅ | 123 | 3396 |
-| 2647 | `_interactions/_generated/pattern.list__pattern.primary/001_plist_pprimary.ص` | `gr.pattern.list` | interaction | تطابق ✅ | 80 | 3344 |
-| 2648 | `_interactions/_generated/pattern.list__pattern.struct/001_plist_pstruct.ص` | `gr.pattern.list` | interaction | تطابق ✅ | 80 | 2986 |
-| 2649 | `_interactions/_generated/pattern.or__pattern.primary/001_por_pprimary.ص` | `gr.pattern.or` | interaction | تطابق ✅ | 70 | 2958 |
-| 2650 | `_interactions/_generated/pattern.primary__pattern.struct/001_pprimary_pstruct.ص` | `gr.pattern.primary` | interaction | تطابق ✅ | 101 | 3042 |
-| 2651 | `_interactions/_generated/program.block__stmt.break/001_block_break.ص` | `gr.program.block` | interaction | تطابق ✅ | 49 | 3233 |
-| 2652 | `_interactions/_generated/program.block__stmt.continue/001_block_continue.ص` | `gr.program.block` | interaction | تطابق ✅ | 62 | 3521 |
-| 2653 | `_interactions/_generated/program.block__stmt.expression/001_block_expr.ص` | `gr.program.block` | interaction | تطابق ✅ | 72 | 3347 |
-| 2654 | `_interactions/_generated/program.block__stmt.for/001_block_for.ص` | `gr.program.block` | interaction | تطابق ✅ | 107 | 3378 |
-| 2655 | `_interactions/_generated/program.block__stmt.if/001_block_if.ص` | `gr.program.block` | interaction | تطابق ✅ | 60 | 3363 |
-| 2656 | `_interactions/_generated/program.block__stmt.if/002_block_if_else.ص` | `gr.program.block` | interaction | تطابق ✅ | 53 | 3462 |
-| 2657 | `_interactions/_generated/program.block__stmt.match/001_block_match.ص` | `gr.program.block` | interaction | تطابق ✅ | 57 | 3552 |
-| 2658 | `_interactions/_generated/program.block__stmt.return/001_block_return.ص` | `gr.program.block` | interaction | تطابق ✅ | 64 | 3238 |
-| 2659 | `_interactions/_generated/program.block__stmt.return/002_block_return_early.ص` | `gr.program.block` | interaction | تطابق ✅ | 59 | 3272 |
-| 2660 | `_interactions/_generated/program.block__stmt.try/001_block_try.ص` | `gr.program.block` | interaction | تطابق ✅ | 71 | 3249 |
-| 2661 | `_interactions/_generated/program.block__stmt.while/001_block_while.ص` | `gr.program.block` | interaction | تطابق ✅ | 62 | 3051 |
-| 2662 | `_interactions/oop.extension__oop.class/061_ext_with_inheritance.ص` | `gr.oop.extension` | interaction | تطابق ✅ | 57 | 2712 |
-| 2663 | `_interactions/oop.extension__oop.trait/060_ext_with_trait.ص` | `gr.oop.extension` | interaction | تطابق ✅ | 94 | 2665 |
-| 2664 | `_interactions/إذا_تداخلات/001_if_var_scope.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 131 | 3186 |
-| 2665 | `_interactions/إذا_تداخلات/002_if_while.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 48 | 2708 |
-| 2666 | `_interactions/إذا_تداخلات/003_if_for.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 57 | 2638 |
-| 2667 | `_interactions/إذا_تداخلات/004_if_match.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 50 | 2645 |
-| 2668 | `_interactions/إذا_تداخلات/005_if_try.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 57 | 2863 |
-| 2669 | `_interactions/إذا_تداخلات/006_if_return.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 50 | 3127 |
-| 2670 | `_interactions/إذا_تداخلات/007_if_break.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 52 | 2698 |
-| 2671 | `_interactions/إذا_تداخلات/008_if_continue.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 50 | 2971 |
-| 2672 | `_interactions/إذا_تداخلات/009_if_expr_assign.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 68 | 2964 |
-| 2673 | `_interactions/إذا_تداخلات/010_if_for_match.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 51 | 2949 |
-| 2674 | `_interactions/إذا_تداخلات/011_if_func_loop.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 56 | 3283 |
-| 2675 | `_interactions/إذا_تداخلات/012_if_try_finally.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 56 | 3135 |
-| 2676 | `_interactions/إذا_تداخلات/013_if_nested_while.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 59 | 2635 |
-| 2677 | `_interactions/إذا_تداخلات/014_if_match_default.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 56 | 2640 |
-| 2678 | `_interactions/إذا_تداخلات/015_if_all.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 49 | 3210 |
-| 2679 | `_interactions/إذا_تداخلات/016_if_var_reassign.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 60 | 2763 |
-| 2680 | `_interactions/إذا_تداخلات/017_if_func_two_calls.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 52 | 3802 |
-| 2681 | `_interactions/إذا_تداخلات/018_if_return_early.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 48 | 3518 |
-| 2682 | `_interactions/إذا_تداخلات/019_if_break_while.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 65 | 3158 |
-| 2683 | `_interactions/إذا_تداخلات/020_if_continue_for.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 54 | 3536 |
-| 2684 | `_interactions/إذا_تداخلات/021_if_throw_skips_rest_of_block.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 110 | 3652 |
-| 2685 | `_interactions/إذا_تداخلات/022_if_try_finally_order.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 113 | 3860 |
-| 2686 | `_interactions/إذا_تداخلات/023_if_match_default_not_taken.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 144 | 3214 |
-| 2687 | `_interactions/إذا_تداخلات/024_if_array_literal_scan.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 144 | 3187 |
-| 2688 | `_interactions/إذا_تداخلات/025_if_map_literal.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 59 | 3121 |
-| 2689 | `_interactions/إذا_تداخلات/026_if_assignment_in_both.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 94 | 2866 |
-| 2690 | `_interactions/إذا_تداخلات/027_if_unary_minus.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 66 | 2927 |
-| 2691 | `_interactions/إذا_تداخلات/028_if_binary_mixed.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 60 | 2908 |
-| 2692 | `_interactions/إذا_تداخلات/029_if_nested_call.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 69 | 4064 |
-| 2693 | `_interactions/إذا_تداخلات/030_if_string_len.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 60 | 3183 |
-| 2694 | `_interactions/إذا_تداخلات/031_if_recursion.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 61 | 3583 |
-| 2695 | `_interactions/إذا_تداخلات/032_if_while_break_continue.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 56 | 3043 |
-| 2696 | `_interactions/إذا_تداخلات/033_if_for_nested_match.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 57 | 2909 |
-| 2697 | `_interactions/إذا_تداخلات/034_if_try_in_loop.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 55 | 3263 |
-| 2698 | `_interactions/إذا_تداخلات/035_if_struct_field.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 58 | 2923 |
-| 2699 | `_interactions/إذا_تداخلات/036_if_class_method.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 66 | 2911 |
-| 2700 | `_interactions/إذا_تداخلات/037_if_logical_and_or_grouped.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 50 | 2804 |
-| 2701 | `_interactions/إذا_تداخلات/038_if_nested_func_scope.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 65 | 3128 |
-| 2702 | `_interactions/إذا_تداخلات/039_if_in_match_arm.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 106 | 2539 |
-| 2703 | `_interactions/إذا_تداخلات/040_if_while_accumulate.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 67 | 2683 |
-| 2704 | `_interactions/إذا_تداخلات/041_if_last_index_via_len.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 50 | 2594 |
-| 2705 | `_interactions/إذا_تداخلات/042_if_throw_propagates_from_func.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 46 | 3443 |
-| 2706 | `_interactions/إذا_تداخلات/043_if_chain_over_string.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 54 | 2657 |
-| 2707 | `_interactions/إذا_تداخلات/044_if_for_nested_two_levels.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 50 | 2737 |
-| 2708 | `_interactions/إذا_تداخلات/045_if_all_statements.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 58 | 3522 |
-| 2709 | `_interactions/بينما_تداخلات/001_while_if.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 120 | 2585 |
-| 2710 | `_interactions/بينما_تداخلات/002_while_for.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 52 | 2659 |
-| 2711 | `_interactions/بينما_تداخلات/003_while_match.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 50 | 2649 |
-| 2712 | `_interactions/بينما_تداخلات/004_while_try.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 52 | 2865 |
-| 2713 | `_interactions/بينما_تداخلات/005_while_return.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 132 | 3080 |
-| 2714 | `_interactions/بينما_تداخلات/006_while_break.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 55 | 2679 |
-| 2715 | `_interactions/بينما_تداخلات/007_while_continue.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 51 | 2694 |
-| 2716 | `_interactions/بينما_تداخلات/008_while_expr.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 123 | 2574 |
-| 2717 | `_interactions/بينما_تداخلات/009_while_nested_if_match.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 58 | 2603 |
-| 2718 | `_interactions/بينما_تداخلات/010_while_func_for.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 53 | 3259 |
-| 2719 | `_interactions/بينما_تداخلات/011_while_throw_caught.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 59 | 3292 |
-| 2720 | `_interactions/بينما_تداخلات/012_while_if_else_break.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 55 | 3330 |
-| 2721 | `_interactions/بينما_تداخلات/013_while_for_sum.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 60 | 3384 |
-| 2722 | `_interactions/بينما_تداخلات/014_while_match_continue.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 73 | 3465 |
-| 2723 | `_interactions/بينما_تداخلات/015_while_all.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 68 | 3932 |
-| 2724 | `_interactions/بينما_تداخلات/016_while_var_scope.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 89 | 3455 |
-| 2725 | `_interactions/بينما_تداخلات/017_while_if_chain.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 88 | 3453 |
-| 2726 | `_interactions/بينما_تداخلات/018_while_for_nested.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 79 | 3445 |
-| 2727 | `_interactions/بينما_تداخلات/019_while_match_arms.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 85 | 3502 |
-| 2728 | `_interactions/بينما_تداخلات/020_while_try_finally.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 66 | 3838 |
-| 2729 | `_interactions/بينما_تداخلات/021_while_throw_break_out.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 74 | 3551 |
-| 2730 | `_interactions/بينما_تداخلات/022_while_return_from_func.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 85 | 3646 |
-| 2731 | `_interactions/بينما_تداخلات/023_while_break_nested.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 111 | 2913 |
-| 2732 | `_interactions/بينما_تداخلات/024_while_continue_guard.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 59 | 3026 |
-| 2733 | `_interactions/بينما_تداخلات/025_while_array_literal_build.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 62 | 3050 |
-| 2734 | `_interactions/بينما_تداخلات/026_while_map_lookup.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 59 | 3390 |
-| 2735 | `_interactions/بينما_تداخلات/027_while_multiple_assignments.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 114 | 3049 |
-| 2736 | `_interactions/بينما_تداخلات/028_while_unary_negate.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 70 | 3000 |
-| 2737 | `_interactions/بينما_تداخلات/029_while_call_in_body.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 80 | 3510 |
-| 2738 | `_interactions/بينما_تداخلات/030_while_string_ops.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 103 | 3100 |
-| 2739 | `_interactions/بينما_تداخلات/031_while_recursive_helper.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 66 | 3369 |
-| 2740 | `_interactions/بينما_تداخلات/032_while_if_break_continue_mix.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 58 | 3034 |
-| 2741 | `_interactions/بينما_تداخلات/033_while_for_match_deep.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 64 | 3060 |
-| 2742 | `_interactions/بينما_تداخلات/034_while_try_recover_continue.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 59 | 3296 |
-| 2743 | `_interactions/بينما_تداخلات/035_while_struct_field_update.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 66 | 3054 |
-| 2744 | `_interactions/بينما_تداخلات/036_while_class_method_loop.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 50 | 3089 |
-| 2745 | `_interactions/بينما_تداخلات/037_while_logic_ops_cond.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 54 | 2961 |
-| 2746 | `_interactions/بينما_تداخلات/038_while_func_scope_isolation.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 101 | 3346 |
-| 2747 | `_interactions/بينما_تداخلات/039_while_in_match_arm.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 73 | 2860 |
-| 2748 | `_interactions/بينما_تداخلات/040_while_equality_string_guard.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 60 | 2861 |
-| 2749 | `_interactions/بينما_تداخلات/041_while_nested_index_matrix.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 69 | 2967 |
-| 2750 | `_interactions/بينما_تداخلات/042_while_throw_from_func.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 134 | 3193 |
-| 2751 | `_interactions/بينما_تداخلات/043_while_comparison_bounds.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 52 | 2716 |
-| 2752 | `_interactions/بينما_تداخلات/044_while_for_alternating.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 98 | 2726 |
-| 2753 | `_interactions/بينما_تداخلات/045_while_all_statements.ص` | `gr.stmt.while` | interaction | تطابق ✅ | 53 | 3518 |
-| 2754 | `_interactions/تصريح_استيراد_تداخلات/001_import_use_loop.ص` | `gr.decl.import` | interaction | تطابق ✅ | 51 | 2821 |
-| 2755 | `_interactions/تصريح_استيراد_تداخلات/002_import_func_call.ص` | `gr.decl.import` | interaction | تطابق ✅ | 109 | 3038 |
-| 2756 | `_interactions/تصريح_استيراد_تداخلات/003_import_var.ص` | `gr.decl.import` | interaction | تطابق ✅ | 113 | 2711 |
-| 2757 | `_interactions/تصريح_استيراد_تداخلات/004_import_cond.ص` | `gr.decl.import` | interaction | تطابق ✅ | 52 | 3033 |
-| 2758 | `_interactions/تصريح_استيراد_تداخلات/005_import_match.ص` | `gr.decl.import` | interaction | تطابق ✅ | 59 | 3103 |
-| 2759 | `_interactions/تصريح_استيراد_تداخلات/006_import_three_stmts.ص` | `gr.decl.import` | interaction | تطابق ✅ | 59 | 3153 |
-| 2760 | `_interactions/تصريح_تصدير_تداخلات/001_export_use_loop.ص` | `gr.decl.export` | interaction | تطابق ✅ | 54 | 3786 |
-| 2761 | `_interactions/تصريح_تصدير_تداخلات/002_export_in_if.ص` | `gr.decl.export` | interaction | تطابق ✅ | 61 | 3203 |
-| 2762 | `_interactions/تصريح_تصدير_تداخلات/003_export_recursive.ص` | `gr.decl.export` | interaction | تطابق ✅ | 79 | 3650 |
-| 2763 | `_interactions/تصريح_خارجي_تداخلات/001_extern_with_local.ص` | `gr.decl.extern` | interaction | تطابق ✅ | 133 | 3570 |
-| 2764 | `_interactions/تصريح_دالة_تداخلات/001_func_call_loop.ص` | `gr.decl.function` | interaction | تطابق ✅ | 85 | 3416 |
-| 2765 | `_interactions/تصريح_دالة_تداخلات/002_func_in_if.ص` | `gr.decl.function` | interaction | تطابق ✅ | 67 | 3224 |
-| 2766 | `_interactions/تصريح_دالة_تداخلات/003_func_recursive_while.ص` | `gr.decl.function` | interaction | تطابق ✅ | 105 | 3372 |
-| 2767 | `_interactions/تصريح_دالة_تداخلات/004_func_returns_in_loop.ص` | `gr.decl.function` | interaction | تطابق ✅ | 51 | 3308 |
-| 2768 | `_interactions/تصريح_دالة_تداخلات/005_func_match.ص` | `gr.decl.function` | interaction | تطابق ✅ | 58 | 3316 |
-| 2769 | `_interactions/تصريح_دالة_تداخلات/006_func_try.ص` | `gr.decl.function` | interaction | تطابق ✅ | 54 | 3582 |
-| 2770 | `_interactions/تصريح_دالة_تداخلات/007_func_default_loop.ص` | `gr.decl.parameters` | interaction | تطابق ✅ | 61 | 3433 |
-| 2771 | `_interactions/تصريح_دالة_تداخلات/008_func_higher_order.ص` | `gr.decl.function` | interaction | تطابق ✅ | 59 | 3806 |
-| 2772 | `_interactions/تصريح_دالة_تداخلات/009_func_break_return.ص` | `gr.decl.function` | interaction | تطابق ✅ | 74 | 3475 |
-| 2773 | `_interactions/تصريح_دالة_تداخلات/010_func_nested_call3.ص` | `gr.decl.function` | interaction | تطابق ✅ | 57 | 3388 |
-| 2774 | `_interactions/تصريح_دالة_تداخلات/011_func_two_def.ص` | `gr.decl.function` | interaction | تطابق ✅ | 108 | 3828 |
-| 2775 | `_interactions/تصريح_دالة_تداخلات/012_func_array_param.ص` | `gr.decl.parameters` | interaction | تطابق ✅ | 60 | 3494 |
-| 2776 | `_interactions/تصريح_دالة_تداخلات/013_func_in_while.ص` | `gr.decl.function` | interaction | تطابق ✅ | 57 | 3428 |
-| 2777 | `_interactions/تصريح_دالة_تداخلات/014_func_cond_return.ص` | `gr.decl.function` | interaction | تطابق ✅ | 102 | 3420 |
-| 2778 | `_interactions/تصريح_دالة_تداخلات/015_func_default_typed.ص` | `gr.decl.parameters` | interaction | تطابق ✅ | 90 | 3325 |
-| 2779 | `_interactions/تصريح_متغير_تداخلات/001_var_if.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 64 | 2880 |
-| 2780 | `_interactions/تصريح_متغير_تداخلات/002_var_while.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 56 | 2811 |
-| 2781 | `_interactions/تصريح_متغير_تداخلات/003_var_for.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 53 | 3051 |
-| 2782 | `_interactions/تصريح_متغير_تداخلات/004_var_func.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 132 | 3341 |
-| 2783 | `_interactions/تصريح_متغير_تداخلات/005_var_match.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 127 | 2942 |
-| 2784 | `_interactions/تصريح_متغير_تداخلات/006_var_try.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 132 | 3219 |
-| 2785 | `_interactions/تصريح_متغير_تداخلات/007_const_func.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 74 | 3415 |
-| 2786 | `_interactions/تصريح_متغير_تداخلات/008_var_nested_scope.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 57 | 2996 |
-| 2787 | `_interactions/تصريح_متغير_تداخلات/009_var_array_loop.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 59 | 3052 |
-| 2788 | `_interactions/تصريح_متغير_تداخلات/010_var_reassign_loop.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 63 | 2971 |
-| 2789 | `_interactions/تصريح_متغير_تداخلات/011_typed_in_func.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 56 | 3144 |
-| 2790 | `_interactions/تصريح_متغير_تداخلات/012_var_ternary_if.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 66 | 2761 |
-| 2791 | `_interactions/تصريح_متغير_تداخلات/013_var_in_match_case.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 56 | 2678 |
-| 2792 | `_interactions/تصريح_متغير_تداخلات/014_var_func_array.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 123 | 3259 |
-| 2793 | `_interactions/تصريح_متغير_تداخلات/015_var_const_calc.ص` | `gr.decl.variable` | interaction | تطابق ✅ | 63 | 2686 |
-| 2794 | `_interactions/تصريحات_متتابعة/001_decls_then_logic.ص` | `gr.program.program` | interaction | تطابق ✅ | 109 | 2830 |
-| 2795 | `_interactions/تعبير_تداخلات/001_expr_if.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 54 | 2902 |
-| 2796 | `_interactions/تعبير_تداخلات/002_expr_while.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 44 | 3209 |
-| 2797 | `_interactions/تعبير_تداخلات/003_expr_for.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 135 | 3477 |
-| 2798 | `_interactions/تعبير_تداخلات/004_expr_match.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 80 | 3531 |
-| 2799 | `_interactions/تعبير_تداخلات/005_expr_return.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 65 | 3933 |
-| 2800 | `_interactions/تعبير_تداخلات/006_expr_try.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 62 | 3752 |
-| 2801 | `_interactions/تعبير_تداخلات/007_expr_ternary_if.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 93 | 3310 |
-| 2802 | `_interactions/تعبير_تداخلات/008_expr_break.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 122 | 3155 |
-| 2803 | `_interactions/تعبير_تداخلات/009_expr_continue.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 76 | 3212 |
-| 2804 | `_interactions/تعبير_تداخلات/010_expr_func_compose.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 54 | 3827 |
-| 2805 | `_interactions/تعبير_تداخلات/011_expr_nested_loops.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 68 | 3255 |
-| 2806 | `_interactions/تعبير_تداخلات/012_expr_if_else_assign.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 62 | 3178 |
-| 2807 | `_interactions/تعبير_تداخلات/013_expr_match_accum.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 57 | 3215 |
-| 2808 | `_interactions/تعبير_تداخلات/014_expr_ternary_loop.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 59 | 3051 |
-| 2809 | `_interactions/تعبير_تداخلات/015_expr_all.ص` | `gr.stmt.expression` | interaction | تطابق ✅ | 67 | 3498 |
-| 2810 | `_interactions/جمل_شاملة/001_all_statements.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 63 | 3806 |
-| 2811 | `_interactions/حالة_تداخلات/001_switch_for_expr.ص` | `gr.stmt.switch` | interaction | تطابق ✅ | 55 | 3033 |
-| 2812 | `_interactions/حالة_تداخلات/002_switch_func_return.ص` | `gr.stmt.switch` | interaction | تطابق ✅ | 56 | 3407 |
-| 2813 | `_interactions/حالة_تداخلات/003_switch_if_compare.ص` | `gr.stmt.switch` | interaction | تطابق ✅ | 62 | 2996 |
-| 2814 | `_interactions/حالة_تداخلات/004_switch_in_while.ص` | `gr.stmt.switch` | interaction | تطابق ✅ | 60 | 3036 |
-| 2815 | `_interactions/حالة_تداخلات/005_switch_var_string.ص` | `gr.stmt.switch` | interaction | تطابق ✅ | 62 | 3006 |
-| 2816 | `_interactions/حالة_تداخلات/006_return_from_arm.ص` | `gr.stmt.switch` | interaction | تطابق ✅ | 61 | 3661 |
-| 2817 | `_interactions/حلقة_شرط_مطابقة/001_loop_if_match.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 56 | 3719 |
-| 2818 | `_interactions/دالة_حلقة_شرط/001_func_loop_if.ص` | `gr.program.program` | interaction | تطابق ✅ | 128 | 3656 |
-| 2819 | `_interactions/شرط_متغير_نطاق/001_if_var_scope.ص` | `gr.program.program` | interaction | تطابق ✅ | 131 | 3186 |
-| 2820 | `_interactions/طابق_تداخلات/001_match_if.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 73 | 3036 |
-| 2821 | `_interactions/طابق_تداخلات/002_match_for.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 69 | 3073 |
-| 2822 | `_interactions/طابق_تداخلات/003_match_while.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 66 | 3058 |
-| 2823 | `_interactions/طابق_تداخلات/004_match_try.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 55 | 3228 |
-| 2824 | `_interactions/طابق_تداخلات/005_match_return.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 71 | 3533 |
-| 2825 | `_interactions/طابق_تداخلات/006_match_break.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 59 | 3097 |
-| 2826 | `_interactions/طابق_تداخلات/007_match_continue.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 61 | 3132 |
-| 2827 | `_interactions/طابق_تداخلات/008_match_expr.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 61 | 3249 |
-| 2828 | `_interactions/طابق_تداخلات/009_match_nested_if.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 69 | 2884 |
-| 2829 | `_interactions/طابق_تداخلات/010_match_for_in_case.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 69 | 3110 |
-| 2830 | `_interactions/طابق_تداخلات/011_match_func_loop.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 77 | 3485 |
-| 2831 | `_interactions/طابق_تداخلات/012_match_while_continue.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 64 | 3024 |
-| 2832 | `_interactions/طابق_تداخلات/013_match_throw_caught.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 142 | 3144 |
-| 2833 | `_interactions/طابق_تداخلات/014_match_if_else_default.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 66 | 2797 |
-| 2834 | `_interactions/طابق_تداخلات/015_match_all.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 57 | 3350 |
-| 2835 | `_interactions/طابق_تداخلات/016_match_if_inside_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 60 | 3434 |
-| 2836 | `_interactions/طابق_تداخلات/017_match_while_inside_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 46 | 3486 |
-| 2837 | `_interactions/طابق_تداخلات/018_match_for_inside_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 56 | 3463 |
-| 2838 | `_interactions/طابق_تداخلات/019_match_try_inside_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 64 | 3845 |
-| 2839 | `_interactions/طابق_تداخلات/020_match_throw_from_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 61 | 3819 |
-| 2840 | `_interactions/طابق_تداخلات/021_match_break_in_loop_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 66 | 3683 |
-| 2841 | `_interactions/طابق_تداخلات/022_match_continue_in_loop_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 62 | 3614 |
-| 2842 | `_interactions/طابق_تداخلات/023_match_return_each_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 157 | 3834 |
-| 2843 | `_interactions/طابق_تداخلات/024_match_function_call_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 120 | 3666 |
-| 2844 | `_interactions/طابق_تداخلات/025_match_var_decl_in_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 56 | 3244 |
-| 2845 | `_interactions/طابق_تداخلات/026_match_array_literal_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 60 | 3449 |
-| 2846 | `_interactions/طابق_تداخلات/027_match_map_literal_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 66 | 3460 |
-| 2847 | `_interactions/طابق_تداخلات/028_match_assignment_in_arms.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 142 | 3319 |
-| 2848 | `_interactions/طابق_تداخلات/029_match_unary_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 95 | 3246 |
-| 2849 | `_interactions/طابق_تداخلات/030_match_comparison_result.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 54 | 3199 |
-| 2850 | `_interactions/طابق_تداخلات/031_match_equality_string.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 58 | 3296 |
-| 2851 | `_interactions/طابق_تداخلات/032_match_logical_and_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 59 | 3350 |
-| 2852 | `_interactions/طابق_تداخلات/033_match_logical_or_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 60 | 3346 |
-| 2853 | `_interactions/طابق_تداخلات/034_match_term_factor_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 54 | 3317 |
-| 2854 | `_interactions/طابق_تداخلات/035_match_struct_field_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 62 | 2913 |
-| 2855 | `_interactions/طابق_تداخلات/036_match_class_method_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 64 | 3484 |
-| 2856 | `_interactions/طابق_تداخلات/037_match_in_loop_all_arms.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 111 | 3506 |
-| 2857 | `_interactions/طابق_تداخلات/038_match_in_while_loop.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 60 | 3418 |
-| 2858 | `_interactions/طابق_تداخلات/039_match_in_function_recursive.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 120 | 4048 |
-| 2859 | `_interactions/طابق_تداخلات/040_match_nested_three_levels.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 58 | 3437 |
-| 2860 | `_interactions/طابق_تداخلات/041_match_arm_calls_function_side_effect.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 57 | 3771 |
-| 2861 | `_interactions/طابق_تداخلات/042_match_default_with_loop.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 118 | 3203 |
-| 2862 | `_interactions/طابق_تداخلات/043_match_string_arms_chain.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 67 | 3634 |
-| 2863 | `_interactions/طابق_تداخلات/044_match_try_finally_around.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 64 | 4129 |
-| 2864 | `_interactions/طابق_تداخلات/045_match_all_statements.ص` | `gr.stmt.match` | interaction | تطابق ✅ | 61 | 4754 |
-| 2865 | `_interactions/كائنيّة_تداخلات/001_super_ctor_and_method.ص` | `gr.oop.this_super` | interaction | تطابق ✅ | 62 | 3191 |
-| 2866 | `_interactions/كائنيّة_تداخلات/002_this_in_conditional.ص` | `gr.oop.this_super` | interaction | تطابق ✅ | 74 | 3065 |
-| 2867 | `_interactions/كائنيّة_تداخلات/003_new_in_loop.ص` | `gr.oop.new` | interaction | تطابق ✅ | 73 | 3004 |
-| 2868 | `_interactions/لكل_تداخلات/001_for_if.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 50 | 2966 |
-| 2869 | `_interactions/لكل_تداخلات/002_for_while.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 83 | 3083 |
-| 2870 | `_interactions/لكل_تداخلات/003_for_match.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 65 | 3109 |
-| 2871 | `_interactions/لكل_تداخلات/004_for_try.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 53 | 3206 |
-| 2872 | `_interactions/لكل_تداخلات/005_for_return.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 54 | 3536 |
-| 2873 | `_interactions/لكل_تداخلات/006_for_break.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 67 | 3058 |
-| 2874 | `_interactions/لكل_تداخلات/007_for_continue.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 58 | 3046 |
-| 2875 | `_interactions/لكل_تداخلات/008_for_expr.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 57 | 2981 |
-| 2876 | `_interactions/لكل_تداخلات/009_for_if_match.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 72 | 3074 |
-| 2877 | `_interactions/لكل_تداخلات/010_for_nested_while.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 97 | 3066 |
-| 2878 | `_interactions/لكل_تداخلات/011_for_func_sum.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 63 | 3478 |
-| 2879 | `_interactions/لكل_تداخلات/012_for_throw_caught.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 71 | 3455 |
-| 2880 | `_interactions/لكل_تداخلات/013_for_if_break_count.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 70 | 3048 |
-| 2881 | `_interactions/لكل_تداخلات/014_for_match_continue.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 60 | 3115 |
-| 2882 | `_interactions/لكل_تداخلات/015_for_all.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 78 | 3362 |
-| 2883 | `_interactions/لكل_تداخلات/016_for_if_elseif_else.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 54 | 3305 |
-| 2884 | `_interactions/لكل_تداخلات/017_for_while_nested.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 64 | 3295 |
-| 2885 | `_interactions/لكل_تداخلات/018_for_match_classify.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 59 | 3437 |
-| 2886 | `_interactions/لكل_تداخلات/019_for_try_catch_each.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 59 | 3809 |
-| 2887 | `_interactions/لكل_تداخلات/020_for_throw_propagates_out.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 62 | 3890 |
-| 2888 | `_interactions/لكل_تداخلات/021_for_break_in_if.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 62 | 3777 |
-| 2889 | `_interactions/لكل_تداخلات/022_for_continue_in_match.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 71 | 3700 |
-| 2890 | `_interactions/لكل_تداخلات/023_for_return_from_function.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 68 | 4053 |
-| 2891 | `_interactions/لكل_تداخلات/024_for_function_call_each.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 64 | 4010 |
-| 2892 | `_interactions/لكل_تداخلات/025_for_var_decl_scope.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 64 | 3391 |
-| 2893 | `_interactions/لكل_تداخلات/026_for_array_literal_build.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 64 | 3542 |
-| 2894 | `_interactions/لكل_تداخلات/027_for_map_literal_sum.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 66 | 3821 |
-| 2895 | `_interactions/لكل_تداخلات/028_for_assignment_compound.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 108 | 3317 |
-| 2896 | `_interactions/لكل_تداخلات/029_for_unary_negate.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 56 | 3562 |
-| 2897 | `_interactions/لكل_تداخلات/030_for_comparison_guard.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 95 | 3643 |
-| 2898 | `_interactions/لكل_تداخلات/031_for_equality_count.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 60 | 3501 |
-| 2899 | `_interactions/لكل_تداخلات/032_for_logical_and_or.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 114 | 3490 |
-| 2900 | `_interactions/لكل_تداخلات/033_for_term_factor_mix.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 60 | 3362 |
-| 2901 | `_interactions/لكل_تداخلات/034_for_postfix_index_chain.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 80 | 3548 |
-| 2902 | `_interactions/لكل_تداخلات/035_for_struct_field_update.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 75 | 2924 |
-| 2903 | `_interactions/لكل_تداخلات/036_for_class_method_each.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 59 | 3578 |
-| 2904 | `_interactions/لكل_تداخلات/037_for_recursion_inside.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 126 | 3696 |
-| 2905 | `_interactions/لكل_تداخلات/038_for_string_length_filter.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 59 | 3509 |
-| 2906 | `_interactions/لكل_تداخلات/039_for_nested_with_break_continue.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 55 | 3564 |
-| 2907 | `_interactions/لكل_تداخلات/040_for_in_match_arm.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 57 | 3225 |
-| 2908 | `_interactions/لكل_تداخلات/041_for_in_try_block.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 58 | 3884 |
-| 2909 | `_interactions/لكل_تداخلات/042_for_range_and_array_mixed.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 58 | 3318 |
-| 2910 | `_interactions/لكل_تداخلات/043_for_comprehension_source.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 59 | 3530 |
-| 2911 | `_interactions/لكل_تداخلات/044_for_bool_flag_toggle.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 61 | 3377 |
-| 2912 | `_interactions/لكل_تداخلات/045_for_all_statements.ص` | `gr.stmt.for` | interaction | تطابق ✅ | 56 | 4246 |
-| 2913 | `_interactions/معالجة_وتكرار/001_try_loop_throw.ص` | `gr.stmt.if` | interaction | تطابق ✅ | 55 | 3841 |
-| 2914 | `_interactions/معجميّة_تداخلات/001_تعليق_معرّف_نص_عدد.ص` | `gr.lex.comment` | interaction | تطابق ✅ | 62 | 2895 |
-| 2915 | `_interactions/معجميّة_تداخلات/002_تعليق_معرّف_نص_مقحم_خام_عمر.ص` | `gr.lex.comment` | interaction | تطابق ✅ | 58 | 2900 |
+| # | الاختبار | القاعدة | الفئة | الحالة |
+|---|---|---|---|---|
+| 1 | `00_program/gr.program.block/basic/001_if_block.ص` | `gr.program.block` | basic | تطابق ✅ |
+| 2 | `00_program/gr.program.block/basic/002_while_block.ص` | `gr.program.block` | basic | تطابق ✅ |
+| 3 | `00_program/gr.program.block/basic/003_for_block.ص` | `gr.program.block` | basic | تطابق ✅ |
+| 4 | `00_program/gr.program.block/basic/004_func_block.ص` | `gr.program.block` | basic | تطابق ✅ |
+| 5 | `00_program/gr.program.block/basic/005_single_stmt_block.ص` | `gr.program.block` | basic | تطابق ✅ |
+| 6 | `00_program/gr.program.block/basic/006_if_else_blocks.ص` | `gr.program.block` | basic | تطابق ✅ |
+| 7 | `00_program/gr.program.block/edge/001_nested_blocks.ص` | `gr.program.block` | edge | تطابق ✅ |
+| 8 | `00_program/gr.program.block/edge/002_code_after_end.ص` | `gr.program.block` | edge | تطابق ✅ |
+| 9 | `00_program/gr.program.block/edge/003_deep_nest.ص` | `gr.program.block` | edge | تطابق ✅ |
+| 10 | `00_program/gr.program.block/edge/004_sequential_blocks.ص` | `gr.program.block` | edge | تطابق ✅ |
+| 11 | `00_program/gr.program.block/edge/005_elseif_chain.ص` | `gr.program.block` | edge | تطابق ✅ |
+| 12 | `00_program/gr.program.block/edge/006_while_with_if.ص` | `gr.program.block` | edge | تطابق ✅ |
+| 13 | `00_program/gr.program.block/edge/007_empty_loop_body_guarded.ص` | `gr.program.block` | edge | تطابق ✅ |
+| 14 | `00_program/gr.program.block/negative/001_unterminated.ص` | `gr.program.block` | negative | تطابق ✅ |
+| 15 | `00_program/gr.program.block/negative/002_extra_end.ص` | `gr.program.block` | negative | تطابق ✅ |
+| 16 | `00_program/gr.program.block/negative/003_while_unterminated.ص` | `gr.program.block` | negative | تطابق ✅ |
+| 17 | `00_program/gr.program.block/negative/004_func_unterminated.ص` | `gr.program.block` | negative | تطابق ✅ |
+| 18 | `00_program/gr.program.declaration/basic/001_var_decl.ص` | `gr.program.declaration` | basic | تطابق ✅ |
+| 19 | `00_program/gr.program.declaration/basic/002_const_decl.ص` | `gr.program.declaration` | basic | تطابق ✅ |
+| 20 | `00_program/gr.program.declaration/basic/003_func_decl.ص` | `gr.program.declaration` | basic | تطابق ✅ |
+| 21 | `00_program/gr.program.declaration/basic/004_var_expr_init.ص` | `gr.program.declaration` | basic | تطابق ✅ |
+| 22 | `00_program/gr.program.declaration/basic/005_var_string.ص` | `gr.program.declaration` | basic | تطابق ✅ |
+| 23 | `00_program/gr.program.declaration/basic/006_var_mod.ص` | `gr.program.declaration` | basic | تطابق ✅ |
+| 24 | `00_program/gr.program.declaration/basic/007_const_used.ص` | `gr.program.declaration` | basic | تطابق ✅ |
+| 25 | `00_program/gr.program.declaration/basic/008_func_two_params.ص` | `gr.program.declaration` | basic | تطابق ✅ |
+| 26 | `00_program/gr.program.declaration/edge/001_nested_func.ص` | `gr.program.declaration` | edge | تطابق ✅ |
+| 27 | `00_program/gr.program.declaration/edge/002_func_inline.ص` | `gr.program.declaration` | edge | تطابق ✅ |
+| 28 | `00_program/gr.program.declaration/edge/003_multi_vars.ص` | `gr.program.declaration` | edge | تطابق ✅ |
+| 29 | `00_program/gr.program.declaration/edge/004_var_from_call.ص` | `gr.program.declaration` | edge | تطابق ✅ |
+| 30 | `00_program/gr.program.declaration/edge/005_const_then_var.ص` | `gr.program.declaration` | edge | تطابق ✅ |
+| 31 | `00_program/gr.program.declaration/negative/001_var_no_name.ص` | `gr.program.declaration` | negative | تطابق ✅ |
+| 32 | `00_program/gr.program.declaration/negative/002_const_no_name.ص` | `gr.program.declaration` | negative | تطابق ✅ |
+| 33 | `00_program/gr.program.declaration/negative/003_missing_init.ص` | `gr.program.declaration` | negative | تطابق ✅ |
+| 34 | `00_program/gr.program.declaration/negative/004_num_var_name.ص` | `gr.program.declaration` | negative | تطابق ✅ |
+| 35 | `00_program/gr.program.program/basic/001_var_print.ص` | `gr.program.program` | basic | تطابق ✅ |
+| 36 | `00_program/gr.program.program/basic/002_const_print.ص` | `gr.program.program` | basic | تطابق ✅ |
+| 37 | `00_program/gr.program.program/basic/003_two_vars_sum.ص` | `gr.program.program` | basic | تطابق ✅ |
+| 38 | `00_program/gr.program.program/basic/004_func_then_call.ص` | `gr.program.program` | basic | تطابق ✅ |
+| 39 | `00_program/gr.program.program/basic/005_two_funcs.ص` | `gr.program.program` | basic | تطابق ✅ |
+| 40 | `00_program/gr.program.program/basic/006_var_func_call.ص` | `gr.program.program` | basic | تطابق ✅ |
+| 41 | `00_program/gr.program.program/basic/007_three_prints.ص` | `gr.program.program` | basic | تطابق ✅ |
+| 42 | `00_program/gr.program.program/basic/008_reassign.ص` | `gr.program.program` | basic | تطابق ✅ |
+| 43 | `00_program/gr.program.program/edge/001_line_comments.ص` | `gr.program.program` | edge | تطابق ✅ |
+| 44 | `00_program/gr.program.program/edge/002_block_comment.ص` | `gr.program.program` | edge | تطابق ✅ |
+| 45 | `00_program/gr.program.program/edge/003_blank_lines.ص` | `gr.program.program` | edge | تطابق ✅ |
+| 46 | `00_program/gr.program.program/edge/004_many_decls.ص` | `gr.program.program` | edge | تطابق ✅ |
+| 47 | `00_program/gr.program.program/edge/005_semicolons.ص` | `gr.program.program` | edge | تطابق ✅ |
+| 48 | `00_program/gr.program.program/edge/006_leading_comment_trailing_blank.ص` | `gr.program.program` | edge | تطابق ✅ |
+| 49 | `00_program/gr.program.program/negative/001_stray_end.ص` | `gr.program.program` | negative | تطابق ✅ |
+| 50 | `00_program/gr.program.program/negative/002_lone_else.ص` | `gr.program.program` | negative | تطابق ✅ |
+| 51 | `00_program/gr.program.program/negative/003_unterminated_func.ص` | `gr.program.program` | negative | تطابق ✅ |
+| 52 | `00_program/gr.program.statement/basic/001_expr_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ |
+| 53 | `00_program/gr.program.statement/basic/002_if_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ |
+| 54 | `00_program/gr.program.statement/basic/003_while_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ |
+| 55 | `00_program/gr.program.statement/basic/004_for_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ |
+| 56 | `00_program/gr.program.statement/basic/005_return_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ |
+| 57 | `00_program/gr.program.statement/basic/006_assign_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ |
+| 58 | `00_program/gr.program.statement/basic/007_if_else_stmt.ص` | `gr.program.statement` | basic | تطابق ✅ |
+| 59 | `00_program/gr.program.statement/basic/008_nested_call.ص` | `gr.program.statement` | basic | تطابق ✅ |
+| 60 | `00_program/gr.program.statement/edge/001_break_loop.ص` | `gr.program.statement` | edge | تطابق ✅ |
+| 61 | `00_program/gr.program.statement/edge/002_continue_loop.ص` | `gr.program.statement` | edge | تطابق ✅ |
+| 62 | `00_program/gr.program.statement/edge/003_deep_if.ص` | `gr.program.statement` | edge | تطابق ✅ |
+| 63 | `00_program/gr.program.statement/edge/004_while_sum.ص` | `gr.program.statement` | edge | تطابق ✅ |
+| 64 | `00_program/gr.program.statement/edge/005_for_array_even.ص` | `gr.program.statement` | edge | تطابق ✅ |
+| 65 | `00_program/gr.program.statement/negative/001_if_no_end.ص` | `gr.program.statement` | negative | تطابق ✅ |
+| 66 | `00_program/gr.program.statement/negative/002_while_no_end.ص` | `gr.program.statement` | negative | تطابق ✅ |
+| 67 | `00_program/gr.program.statement/negative/003_for_no_in.ص` | `gr.program.statement` | negative | تطابق ✅ |
+| 68 | `10_statements/gr.stmt.break/basic/001_in_while.ص` | `gr.stmt.break` | basic | تطابق ✅ |
+| 69 | `10_statements/gr.stmt.break/basic/002_in_for.ص` | `gr.stmt.break` | basic | تطابق ✅ |
+| 70 | `10_statements/gr.stmt.break/basic/003_first_iter.ص` | `gr.stmt.break` | basic | تطابق ✅ |
+| 71 | `10_statements/gr.stmt.break/edge/001_inner_only.ص` | `gr.stmt.break` | edge | تطابق ✅ |
+| 72 | `10_statements/gr.stmt.break/edge/002_conditional.ص` | `gr.stmt.break` | edge | تطابق ✅ |
+| 73 | `10_statements/gr.stmt.break/edge/003_while_true.ص` | `gr.stmt.break` | edge | تطابق ✅ |
+| 74 | `10_statements/gr.stmt.break/edge/004_break_in_try_runs_finally.ص` | `gr.stmt.break` | edge | تطابق ✅ |
+| 75 | `10_statements/gr.stmt.break/edge/005_break_inside_finally_exits_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ |
+| 76 | `10_statements/gr.stmt.break/edge/006_break_in_switch_breaks_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ |
+| 77 | `10_statements/gr.stmt.break/edge/007_break_in_match_breaks_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ |
+| 78 | `10_statements/gr.stmt.break/edge/008_break_in_catch_exits_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ |
+| 79 | `10_statements/gr.stmt.break/edge/050_break_nested_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ |
+| 80 | `10_statements/gr.stmt.break/negative/001_top_level.ص` | `gr.stmt.break` | negative | تطابق ✅ |
+| 81 | `10_statements/gr.stmt.break/negative/002_break_in_function_called_from_loop.ص` | `gr.stmt.break` | negative | تطابق ✅ |
+| 82 | `10_statements/gr.stmt.break/negative/003_break_in_method_called_from_loop.ص` | `gr.stmt.break` | negative | تطابق ✅ |
+| 83 | `10_statements/gr.stmt.break/negative/004_break_in_switch_outside_loop.ص` | `gr.stmt.break` | negative | تطابق ✅ |
+| 84 | `10_statements/gr.stmt.continue/basic/001_in_for.ص` | `gr.stmt.continue` | basic | تطابق ✅ |
+| 85 | `10_statements/gr.stmt.continue/basic/002_in_while.ص` | `gr.stmt.continue` | basic | تطابق ✅ |
+| 86 | `10_statements/gr.stmt.continue/basic/003_odd.ص` | `gr.stmt.continue` | basic | تطابق ✅ |
+| 87 | `10_statements/gr.stmt.continue/edge/001_nested.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
+| 88 | `10_statements/gr.stmt.continue/edge/002_conditional.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
+| 89 | `10_statements/gr.stmt.continue/edge/003_skip_many.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
+| 90 | `10_statements/gr.stmt.continue/edge/004_continue_in_try_runs_finally.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
+| 91 | `10_statements/gr.stmt.continue/edge/005_continue_inside_finally_skips_tail.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
+| 92 | `10_statements/gr.stmt.continue/edge/006_continue_in_switch.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
+| 93 | `10_statements/gr.stmt.continue/edge/050_continue_skips_even.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
+| 94 | `10_statements/gr.stmt.continue/negative/001_top_level.ص` | `gr.stmt.continue` | negative | تطابق ✅ |
+| 95 | `10_statements/gr.stmt.continue/negative/002_continue_in_function_called_from_loop.ص` | `gr.stmt.continue` | negative | تطابق ✅ |
+| 96 | `10_statements/gr.stmt.expression/basic/001_print_str.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 97 | `10_statements/gr.stmt.expression/basic/002_print_num.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 98 | `10_statements/gr.stmt.expression/basic/003_print_neg.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 99 | `10_statements/gr.stmt.expression/basic/004_print_zero.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 100 | `10_statements/gr.stmt.expression/basic/005_arith_add.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 101 | `10_statements/gr.stmt.expression/basic/006_arith_sub.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 102 | `10_statements/gr.stmt.expression/basic/007_arith_mul.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 103 | `10_statements/gr.stmt.expression/basic/008_arith_mod.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 104 | `10_statements/gr.stmt.expression/basic/009_arith_pow.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 105 | `10_statements/gr.stmt.expression/basic/010_arith_add3.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 106 | `10_statements/gr.stmt.expression/basic/011_arith_mul_add.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 107 | `10_statements/gr.stmt.expression/basic/012_arith_paren.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 108 | `10_statements/gr.stmt.expression/basic/013_arith_nested_arith.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 109 | `10_statements/gr.stmt.expression/basic/014_arith_pow2.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 110 | `10_statements/gr.stmt.expression/basic/015_concat2.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 111 | `10_statements/gr.stmt.expression/basic/016_concat3.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 112 | `10_statements/gr.stmt.expression/basic/017_concat_num.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 113 | `10_statements/gr.stmt.expression/basic/018_concat_var.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 114 | `10_statements/gr.stmt.expression/basic/019_to_str.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 115 | `10_statements/gr.stmt.expression/basic/020_to_num.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 116 | `10_statements/gr.stmt.expression/basic/021_len_str.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 117 | `10_statements/gr.stmt.expression/basic/022_len_arr.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 118 | `10_statements/gr.stmt.expression/basic/023_assign.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 119 | `10_statements/gr.stmt.expression/basic/024_reassign_expr.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 120 | `10_statements/gr.stmt.expression/basic/025_assign_chain.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 121 | `10_statements/gr.stmt.expression/basic/026_assign_str.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 122 | `10_statements/gr.stmt.expression/basic/027_plus_eq.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 123 | `10_statements/gr.stmt.expression/basic/028_minus_eq.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 124 | `10_statements/gr.stmt.expression/basic/029_times_eq.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 125 | `10_statements/gr.stmt.expression/basic/030_plus_eq_str.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 126 | `10_statements/gr.stmt.expression/basic/031_call_void.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 127 | `10_statements/gr.stmt.expression/basic/032_call_ret.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 128 | `10_statements/gr.stmt.expression/basic/033_call_arg_expr.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 129 | `10_statements/gr.stmt.expression/basic/034_call_two.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 130 | `10_statements/gr.stmt.expression/basic/035_cmp_store.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 131 | `10_statements/gr.stmt.expression/basic/036_bool_and.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 132 | `10_statements/gr.stmt.expression/basic/037_bool_or.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 133 | `10_statements/gr.stmt.expression/basic/038_not_store.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 134 | `10_statements/gr.stmt.expression/basic/039_ternary_t.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 135 | `10_statements/gr.stmt.expression/basic/040_ternary_f.ص` | `gr.stmt.expression` | basic | تطابق ✅ |
+| 136 | `10_statements/gr.stmt.expression/edge/001_nested_call.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 137 | `10_statements/gr.stmt.expression/edge/002_chained_args.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 138 | `10_statements/gr.stmt.expression/edge/003_semicolon.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 139 | `10_statements/gr.stmt.expression/edge/004_two_semicolons.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 140 | `10_statements/gr.stmt.expression/edge/005_deep_arith.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 141 | `10_statements/gr.stmt.expression/edge/006_ternary_nested.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 142 | `10_statements/gr.stmt.expression/edge/007_ternary_arith.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 143 | `10_statements/gr.stmt.expression/edge/008_compound_seq.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 144 | `10_statements/gr.stmt.expression/edge/009_pow_chain.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 145 | `10_statements/gr.stmt.expression/edge/010_concat_chain.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 146 | `10_statements/gr.stmt.expression/edge/011_conv_arith.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 147 | `10_statements/gr.stmt.expression/edge/012_len_in_expr.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 148 | `10_statements/gr.stmt.expression/edge/013_call_in_cond_assign.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 149 | `10_statements/gr.stmt.expression/edge/014_multi_assign_calc.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 150 | `10_statements/gr.stmt.expression/edge/015_ternary_in_call.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 151 | `10_statements/gr.stmt.expression/edge/016_str_concat_num_calc.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 152 | `10_statements/gr.stmt.expression/edge/017_neg_pow.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 153 | `10_statements/gr.stmt.expression/edge/018_mod_chain.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 154 | `10_statements/gr.stmt.expression/edge/019_bool_complex.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 155 | `10_statements/gr.stmt.expression/edge/020_assign_from_ternary.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 156 | `10_statements/gr.stmt.expression/edge/021_nested_paren_deep.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 157 | `10_statements/gr.stmt.expression/edge/022_call_result_compound.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 158 | `10_statements/gr.stmt.expression/edge/023_string_eq_expr.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 159 | `10_statements/gr.stmt.expression/edge/024_multi_print.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 160 | `10_statements/gr.stmt.expression/edge/025_expr_then_assign.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 161 | `10_statements/gr.stmt.expression/edge/026_func_chain3.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 162 | `10_statements/gr.stmt.expression/edge/027_mixed_types_concat.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 163 | `10_statements/gr.stmt.expression/edge/028_ternary_compare_chain.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 164 | `10_statements/gr.stmt.expression/edge/029_power_of_power.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 165 | `10_statements/gr.stmt.expression/edge/030_assign_self_ref.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 166 | `10_statements/gr.stmt.expression/edge/031_extra_31.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 167 | `10_statements/gr.stmt.expression/edge/032_extra_32.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 168 | `10_statements/gr.stmt.expression/edge/033_extra_33.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 169 | `10_statements/gr.stmt.expression/edge/034_extra_34.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 170 | `10_statements/gr.stmt.expression/edge/035_extra_35.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 171 | `10_statements/gr.stmt.expression/edge/050_assignment_side_effect.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 172 | `10_statements/gr.stmt.expression/edge/051_call_stmt.ص` | `gr.stmt.expression` | edge | تطابق ✅ |
+| 173 | `10_statements/gr.stmt.expression/negative/001_incomplete_call.ص` | `gr.stmt.expression` | negative | تطابق ✅ |
+| 174 | `10_statements/gr.stmt.expression/negative/002_incomplete_add.ص` | `gr.stmt.expression` | negative | تطابق ✅ |
+| 175 | `10_statements/gr.stmt.expression/negative/003_incomplete_arg_in_call.ص` | `gr.stmt.expression` | negative | تطابق ✅ |
+| 176 | `10_statements/gr.stmt.expression/negative/004_leading_op.ص` | `gr.stmt.expression` | negative | تطابق ✅ |
+| 177 | `10_statements/gr.stmt.expression/negative/005_assign_no_rhs.ص` | `gr.stmt.expression` | negative | تطابق ✅ |
+| 178 | `10_statements/gr.stmt.expression/negative/006_double_op.ص` | `gr.stmt.expression` | negative | تطابق ✅ |
+| 179 | `10_statements/gr.stmt.expression/negative/007_stray_comma.ص` | `gr.stmt.expression` | negative | تطابق ✅ |
+| 180 | `10_statements/gr.stmt.expression/negative/008_unclosed_string.ص` | `gr.stmt.expression` | negative | تطابق ✅ |
+| 181 | `10_statements/gr.stmt.expression/negative/009_ternary_incomplete.ص` | `gr.stmt.expression` | negative | تطابق ✅ |
+| 182 | `10_statements/gr.stmt.expression/negative/010_call_missing_arg_sep.ص` | `gr.stmt.expression` | negative | تطابق ✅ |
+| 183 | `10_statements/gr.stmt.for/basic/001_print_arr_1.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 184 | `10_statements/gr.stmt.for/basic/002_print_arr_2.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 185 | `10_statements/gr.stmt.for/basic/003_print_arr_3.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 186 | `10_statements/gr.stmt.for/basic/004_print_arr_4.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 187 | `10_statements/gr.stmt.for/basic/005_print_arr_5.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 188 | `10_statements/gr.stmt.for/basic/006_print_arr_6.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 189 | `10_statements/gr.stmt.for/basic/007_print_arr_7.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 190 | `10_statements/gr.stmt.for/basic/008_print_arr_8.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 191 | `10_statements/gr.stmt.for/basic/009_print_arr_9.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 192 | `10_statements/gr.stmt.for/basic/010_print_arr_10.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 193 | `10_statements/gr.stmt.for/basic/011_print_arr_11.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 194 | `10_statements/gr.stmt.for/basic/012_print_arr_12.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 195 | `10_statements/gr.stmt.for/basic/013_strings2.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 196 | `10_statements/gr.stmt.for/basic/014_strings3.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 197 | `10_statements/gr.stmt.for/basic/015_strings_concat.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 198 | `10_statements/gr.stmt.for/basic/016_sum3.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 199 | `10_statements/gr.stmt.for/basic/017_sum_big.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 200 | `10_statements/gr.stmt.for/basic/018_product.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 201 | `10_statements/gr.stmt.for/basic/019_count.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 202 | `10_statements/gr.stmt.for/basic/020_max_like.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 203 | `10_statements/gr.stmt.for/basic/021_sum_even.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 204 | `10_statements/gr.stmt.for/basic/022_count_pos.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 205 | `10_statements/gr.stmt.for/basic/023_concat_sum.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 206 | `10_statements/gr.stmt.for/basic/024_double.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 207 | `10_statements/gr.stmt.for/basic/025_inc.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 208 | `10_statements/gr.stmt.for/basic/026_square.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 209 | `10_statements/gr.stmt.for/basic/027_mod.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 210 | `10_statements/gr.stmt.for/basic/028_neg.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 211 | `10_statements/gr.stmt.for/basic/029_add_const.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 212 | `10_statements/gr.stmt.for/basic/030_str_num.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 213 | `10_statements/gr.stmt.for/basic/031_computed_arr.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 214 | `10_statements/gr.stmt.for/basic/032_single.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 215 | `10_statements/gr.stmt.for/basic/033_two.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 216 | `10_statements/gr.stmt.for/basic/034_var_array.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 217 | `10_statements/gr.stmt.for/basic/035_mixed_calc.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 218 | `10_statements/gr.stmt.for/basic/036_extra_36.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 219 | `10_statements/gr.stmt.for/basic/037_extra_37.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 220 | `10_statements/gr.stmt.for/basic/038_extra_38.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 221 | `10_statements/gr.stmt.for/basic/039_extra_39.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 222 | `10_statements/gr.stmt.for/basic/040_extra_40.ص` | `gr.stmt.for` | basic | تطابق ✅ |
+| 223 | `10_statements/gr.stmt.for/edge/001_nested.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 224 | `10_statements/gr.stmt.for/edge/002_nested3.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 225 | `10_statements/gr.stmt.for/edge/003_with_if.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 226 | `10_statements/gr.stmt.for/edge/004_with_if_else.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 227 | `10_statements/gr.stmt.for/edge/005_with_break.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 228 | `10_statements/gr.stmt.for/edge/006_with_continue.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 229 | `10_statements/gr.stmt.for/edge/007_with_match.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 230 | `10_statements/gr.stmt.for/edge/008_with_try.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 231 | `10_statements/gr.stmt.for/edge/009_in_func.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 232 | `10_statements/gr.stmt.for/edge/010_nested_sum.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 233 | `10_statements/gr.stmt.for/edge/011_inner_break.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 234 | `10_statements/gr.stmt.for/edge/012_if_break_outer_continue.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 235 | `10_statements/gr.stmt.for/edge/013_return_in.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 236 | `10_statements/gr.stmt.for/edge/014_multi_stmt.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 237 | `10_statements/gr.stmt.for/edge/015_var_in_body.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 238 | `10_statements/gr.stmt.for/edge/016_nested_if2.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 239 | `10_statements/gr.stmt.for/edge/017_accumulate_str.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 240 | `10_statements/gr.stmt.for/edge/018_while_inside.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 241 | `10_statements/gr.stmt.for/edge/019_guarded_last.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 242 | `10_statements/gr.stmt.for/edge/020_sum_nested.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 243 | `10_statements/gr.stmt.for/edge/021_extra_21.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 244 | `10_statements/gr.stmt.for/edge/022_extra_22.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 245 | `10_statements/gr.stmt.for/edge/023_extra_23.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 246 | `10_statements/gr.stmt.for/edge/024_extra_24.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 247 | `10_statements/gr.stmt.for/edge/025_extra_25.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 248 | `10_statements/gr.stmt.for/edge/026_extra_26.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 249 | `10_statements/gr.stmt.for/edge/027_extra_27.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 250 | `10_statements/gr.stmt.for/edge/028_extra_28.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 251 | `10_statements/gr.stmt.for/edge/029_extra_29.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 252 | `10_statements/gr.stmt.for/edge/030_extra_30.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 253 | `10_statements/gr.stmt.for/edge/031_extra_31.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 254 | `10_statements/gr.stmt.for/edge/032_extra_32.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 255 | `10_statements/gr.stmt.for/edge/033_extra_33.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 256 | `10_statements/gr.stmt.for/edge/034_extra_34.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 257 | `10_statements/gr.stmt.for/edge/035_extra_35.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 258 | `10_statements/gr.stmt.for/edge/036_range_from_to.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 259 | `10_statements/gr.stmt.for/edge/037_range_single.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 260 | `10_statements/gr.stmt.for/edge/050_empty_array.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 261 | `10_statements/gr.stmt.for/edge/051_single.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 262 | `10_statements/gr.stmt.for/edge/052_nested.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 263 | `10_statements/gr.stmt.for/edge/053_with_break.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 264 | `10_statements/gr.stmt.for/edge/054_with_continue.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 265 | `10_statements/gr.stmt.for/edge/055_range_accumulate.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 266 | `10_statements/gr.stmt.for/edge/056_range_contains_if.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 267 | `10_statements/gr.stmt.for/edge/057_destructure_index.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 268 | `10_statements/gr.stmt.for/edge/058_range_single_iteration.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 269 | `10_statements/gr.stmt.for/edge/059_range_inclusive_count.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 270 | `10_statements/gr.stmt.for/edge/060_range_negative_bounds.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 271 | `10_statements/gr.stmt.for/edge/061_range_crossing_zero.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 272 | `10_statements/gr.stmt.for/edge/062_range_computed_bounds.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 273 | `10_statements/gr.stmt.for/edge/063_empty_array_zero_iterations.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 274 | `10_statements/gr.stmt.for/edge/064_single_element_array.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 275 | `10_statements/gr.stmt.for/edge/065_nested_two_levels_product.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 276 | `10_statements/gr.stmt.for/edge/066_nested_three_levels.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 277 | `10_statements/gr.stmt.for/edge/067_nested_inner_uses_outer.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 278 | `10_statements/gr.stmt.for/edge/068_break_first_iteration.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 279 | `10_statements/gr.stmt.for/edge/069_break_at_boundary.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 280 | `10_statements/gr.stmt.for/edge/070_continue_skips_all.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 281 | `10_statements/gr.stmt.for/edge/071_continue_filters_odd.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 282 | `10_statements/gr.stmt.for/edge/072_break_inner_only.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 283 | `10_statements/gr.stmt.for/edge/073_continue_inner_only.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 284 | `10_statements/gr.stmt.for/edge/074_loop_var_scoped_to_loop.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 285 | `10_statements/gr.stmt.for/edge/075_array_index_by_length.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 286 | `10_statements/gr.stmt.for/edge/076_iterate_strings_concat.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 287 | `10_statements/gr.stmt.for/edge/077_iterate_booleans_count.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 288 | `10_statements/gr.stmt.for/edge/078_map_pair_unpacking.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 289 | `10_statements/gr.stmt.for/edge/079_two_sequential_loops.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 290 | `10_statements/gr.stmt.for/edge/080_loop_in_function_returns.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 291 | `10_statements/gr.stmt.for/edge/081_hundred_iterations_sum.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 292 | `10_statements/gr.stmt.for/edge/082_accumulate_product.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 293 | `10_statements/gr.stmt.for/edge/083_build_string_accum.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 294 | `10_statements/gr.stmt.for/edge/084_mutate_outer_var.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 295 | `10_statements/gr.stmt.for/edge/085_var_declared_inside_overwrites.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 296 | `10_statements/gr.stmt.for/edge/086_nested_break_outer_via_flag.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 297 | `10_statements/gr.stmt.for/edge/087_range_bounds_from_function.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 298 | `10_statements/gr.stmt.for/edge/088_redeclare_in_range_body_type_kept.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 299 | `10_statements/gr.stmt.for/edge/089_redeclare_loop_counter_name_in_body.ص` | `gr.stmt.for` | edge | تطابق ✅ |
+| 300 | `10_statements/gr.stmt.for/negative/001_unterminated.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 301 | `10_statements/gr.stmt.for/negative/002_no_in.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 302 | `10_statements/gr.stmt.for/negative/003_no_var.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 303 | `10_statements/gr.stmt.for/negative/004_inner_unterminated.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 304 | `10_statements/gr.stmt.for/negative/005_nested_outer_unterminated.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 305 | `10_statements/gr.stmt.for/negative/006_body_no_end.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 306 | `10_statements/gr.stmt.for/negative/007_extra_end.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 307 | `10_statements/gr.stmt.for/negative/008_match_inside_unterminated.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 308 | `10_statements/gr.stmt.for/negative/009_while_inside_unterminated.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 309 | `10_statements/gr.stmt.for/negative/010_no_collection.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 310 | `10_statements/gr.stmt.for/negative/051_reserved_when_as_loop_var.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 311 | `10_statements/gr.stmt.for/negative/052_reserved_end_as_second_loop_var.ص` | `gr.stmt.for` | negative | تطابق ✅ |
+| 312 | `10_statements/gr.stmt.if/basic/001_true_cmp_gt.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 313 | `10_statements/gr.stmt.if/basic/002_true_cmp_gt2.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 314 | `10_statements/gr.stmt.if/basic/003_true_cmp_lt.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 315 | `10_statements/gr.stmt.if/basic/004_true_cmp_lt2.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 316 | `10_statements/gr.stmt.if/basic/005_true_cmp_eq.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 317 | `10_statements/gr.stmt.if/basic/006_true_cmp_eq2.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 318 | `10_statements/gr.stmt.if/basic/007_true_cmp_ne.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 319 | `10_statements/gr.stmt.if/basic/008_true_cmp_ne2.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 320 | `10_statements/gr.stmt.if/basic/009_true_cmp_ge.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 321 | `10_statements/gr.stmt.if/basic/010_true_cmp_ge2.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 322 | `10_statements/gr.stmt.if/basic/011_true_cmp_le.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 323 | `10_statements/gr.stmt.if/basic/012_true_cmp_le2.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 324 | `10_statements/gr.stmt.if/basic/013_true_bool_true.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 325 | `10_statements/gr.stmt.if/basic/014_true_bool_and.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 326 | `10_statements/gr.stmt.if/basic/015_true_bool_or.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 327 | `10_statements/gr.stmt.if/basic/016_true_bool_or2.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 328 | `10_statements/gr.stmt.if/basic/017_true_bool_not.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 329 | `10_statements/gr.stmt.if/basic/018_true_bool_not_cmp.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 330 | `10_statements/gr.stmt.if/basic/019_true_logic_and.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 331 | `10_statements/gr.stmt.if/basic/020_true_logic_or.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 332 | `10_statements/gr.stmt.if/basic/021_true_arith_add.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 333 | `10_statements/gr.stmt.if/basic/022_true_arith_mul.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 334 | `10_statements/gr.stmt.if/basic/023_true_arith_mod.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 335 | `10_statements/gr.stmt.if/basic/024_true_arith_sub.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 336 | `10_statements/gr.stmt.if/basic/025_true_arith_eq.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 337 | `10_statements/gr.stmt.if/basic/026_false_gt.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 338 | `10_statements/gr.stmt.if/basic/027_false_lt.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 339 | `10_statements/gr.stmt.if/basic/028_false_eq.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 340 | `10_statements/gr.stmt.if/basic/029_false_ne.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 341 | `10_statements/gr.stmt.if/basic/030_false_ge.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 342 | `10_statements/gr.stmt.if/basic/031_false_le.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 343 | `10_statements/gr.stmt.if/basic/032_false_bool.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 344 | `10_statements/gr.stmt.if/basic/033_false_not.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 345 | `10_statements/gr.stmt.if/basic/034_false_and.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 346 | `10_statements/gr.stmt.if/basic/035_false_or.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 347 | `10_statements/gr.stmt.if/basic/036_false_logic.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 348 | `10_statements/gr.stmt.if/basic/037_false_mod.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 349 | `10_statements/gr.stmt.if/basic/038_var_cond.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 350 | `10_statements/gr.stmt.if/basic/039_str_eq.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 351 | `10_statements/gr.stmt.if/basic/040_func_cond.ص` | `gr.stmt.if` | basic | تطابق ✅ |
+| 352 | `10_statements/gr.stmt.if/edge/001_nest2.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 353 | `10_statements/gr.stmt.if/edge/002_nest3.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 354 | `10_statements/gr.stmt.if/edge/003_nest4.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 355 | `10_statements/gr.stmt.if/edge/004_in_while.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 356 | `10_statements/gr.stmt.if/edge/005_in_for.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 357 | `10_statements/gr.stmt.if/edge/006_in_func.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 358 | `10_statements/gr.stmt.if/edge/007_in_match.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 359 | `10_statements/gr.stmt.if/edge/008_in_try.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 360 | `10_statements/gr.stmt.if/edge/009_chain2.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 361 | `10_statements/gr.stmt.if/edge/010_chain3.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 362 | `10_statements/gr.stmt.if/edge/011_chain4.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 363 | `10_statements/gr.stmt.if/edge/012_chain5_else.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 364 | `10_statements/gr.stmt.if/edge/013_paren_and.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 365 | `10_statements/gr.stmt.if/edge/014_paren_or.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 366 | `10_statements/gr.stmt.if/edge/015_triple_and.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 367 | `10_statements/gr.stmt.if/edge/016_mix_and_or.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 368 | `10_statements/gr.stmt.if/edge/017_not_compound.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 369 | `10_statements/gr.stmt.if/edge/018_nested_not.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 370 | `10_statements/gr.stmt.if/edge/019_else_taken.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 371 | `10_statements/gr.stmt.if/edge/020_else_skipped.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 372 | `10_statements/gr.stmt.if/edge/021_var_in_then.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 373 | `10_statements/gr.stmt.if/edge/022_var_in_else.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 374 | `10_statements/gr.stmt.if/edge/023_assign_in_then.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 375 | `10_statements/gr.stmt.if/edge/024_multi_then.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 376 | `10_statements/gr.stmt.if/edge/025_nest_in_else.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 377 | `10_statements/gr.stmt.if/edge/026_loop_in_then.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 378 | `10_statements/gr.stmt.if/edge/027_seq_ifs.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 379 | `10_statements/gr.stmt.if/edge/028_cond_var_calc.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 380 | `10_statements/gr.stmt.if/edge/029_string_cond_ne.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 381 | `10_statements/gr.stmt.if/edge/030_deep_else_last.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 382 | `10_statements/gr.stmt.if/edge/031_return_both.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 383 | `10_statements/gr.stmt.if/edge/032_break_in_if.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 384 | `10_statements/gr.stmt.if/edge/033_continue_in_if.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 385 | `10_statements/gr.stmt.if/edge/034_func_call_then.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 386 | `10_statements/gr.stmt.if/edge/035_nested_chain.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 387 | `10_statements/gr.stmt.if/edge/050_deep_nest.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 388 | `10_statements/gr.stmt.if/edge/051_elseif_chain.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 389 | `10_statements/gr.stmt.if/edge/052_else_nested_if_diff_line.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 390 | `10_statements/gr.stmt.if/edge/053_compound_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 391 | `10_statements/gr.stmt.if/edge/054_or_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 392 | `10_statements/gr.stmt.if/edge/055_not_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 393 | `10_statements/gr.stmt.if/edge/056_false_skips.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 394 | `10_statements/gr.stmt.if/edge/057_nested_else.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 395 | `10_statements/gr.stmt.if/edge/058_if_in_loop.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 396 | `10_statements/gr.stmt.if/edge/059_nest5.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 397 | `10_statements/gr.stmt.if/edge/060_chain6_last.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 398 | `10_statements/gr.stmt.if/edge/061_chain6_first.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 399 | `10_statements/gr.stmt.if/edge/062_chain_else_fallback.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 400 | `10_statements/gr.stmt.if/edge/063_cond_zero_eq.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 401 | `10_statements/gr.stmt.if/edge/064_cond_negative.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 402 | `10_statements/gr.stmt.if/edge/065_cond_big.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 403 | `10_statements/gr.stmt.if/edge/066_and5.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 404 | `10_statements/gr.stmt.if/edge/067_or5.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 405 | `10_statements/gr.stmt.if/edge/068_not_triple.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 406 | `10_statements/gr.stmt.if/edge/069_paren_deep.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 407 | `10_statements/gr.stmt.if/edge/070_precedence_and_over_or.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 408 | `10_statements/gr.stmt.if/edge/071_precedence_or_then_and.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 409 | `10_statements/gr.stmt.if/edge/072_str_ne.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 410 | `10_statements/gr.stmt.if/edge/073_bool_var_true.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 411 | `10_statements/gr.stmt.if/edge/074_bool_var_false_else.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 412 | `10_statements/gr.stmt.if/edge/075_mod_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 413 | `10_statements/gr.stmt.if/edge/076_arith_precedence_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 414 | `10_statements/gr.stmt.if/edge/077_func_cond_false_else.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 415 | `10_statements/gr.stmt.if/edge/078_array_index_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 416 | `10_statements/gr.stmt.if/edge/079_len_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 417 | `10_statements/gr.stmt.if/edge/080_seq_three_ifs.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 418 | `10_statements/gr.stmt.if/edge/081_redeclared_var_in_then.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 419 | `10_statements/gr.stmt.if/edge/082_reassign_in_else.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 420 | `10_statements/gr.stmt.if/edge/083_inner_else_binds_to_inner_if.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 421 | `10_statements/gr.stmt.if/edge/084_nested_in_elseif_body.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 422 | `10_statements/gr.stmt.if/edge/085_false_then_continue_after.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 423 | `10_statements/gr.stmt.if/edge/086_deep_else_chain.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 424 | `10_statements/gr.stmt.if/edge/087_string_concat_cond.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 425 | `10_statements/gr.stmt.if/edge/088_both_branches_have_nesting.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 426 | `10_statements/gr.stmt.if/edge/089_redeclare_in_then_type_change.ص` | `gr.stmt.if` | edge | تطابق ✅ |
+| 427 | `10_statements/gr.stmt.if/negative/001_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ |
+| 428 | `10_statements/gr.stmt.if/negative/002_else_no_if.ص` | `gr.stmt.if` | negative | تطابق ✅ |
+| 429 | `10_statements/gr.stmt.if/negative/003_elseif_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ |
+| 430 | `10_statements/gr.stmt.if/negative/004_inner_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ |
+| 431 | `10_statements/gr.stmt.if/negative/005_else_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ |
+| 432 | `10_statements/gr.stmt.if/negative/006_elseif_no_if.ص` | `gr.stmt.if` | negative | تطابق ✅ |
+| 433 | `10_statements/gr.stmt.if/negative/007_nested_outer_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ |
+| 434 | `10_statements/gr.stmt.if/negative/008_chain_unterminated.ص` | `gr.stmt.if` | negative | تطابق ✅ |
+| 435 | `10_statements/gr.stmt.if/negative/009_else_after_else.ص` | `gr.stmt.if` | negative | تطابق ✅ |
+| 436 | `10_statements/gr.stmt.if/negative/010_double_end_inner.ص` | `gr.stmt.if` | negative | تطابق ✅ |
+| 437 | `10_statements/gr.stmt.match/basic/001_sel_1.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 438 | `10_statements/gr.stmt.match/basic/002_sel_2.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 439 | `10_statements/gr.stmt.match/basic/003_sel_3.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 440 | `10_statements/gr.stmt.match/basic/004_sel_9.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 441 | `10_statements/gr.stmt.match/basic/005_nodef_1.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 442 | `10_statements/gr.stmt.match/basic/006_nodef_2.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 443 | `10_statements/gr.stmt.match/basic/007_nodef_3.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 444 | `10_statements/gr.stmt.match/basic/008_nodef_nomatch.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 445 | `10_statements/gr.stmt.match/basic/009_single_0.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 446 | `10_statements/gr.stmt.match/basic/010_single_5.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 447 | `10_statements/gr.stmt.match/basic/011_single_7.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 448 | `10_statements/gr.stmt.match/basic/012_single_42.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 449 | `10_statements/gr.stmt.match/basic/013_str_ألف.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 450 | `10_statements/gr.stmt.match/basic/014_str_باء.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 451 | `10_statements/gr.stmt.match/basic/015_str_default.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 452 | `10_statements/gr.stmt.match/basic/016_var_expr.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 453 | `10_statements/gr.stmt.match/basic/017_calc_expr.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 454 | `10_statements/gr.stmt.match/basic/018_mod_expr.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 455 | `10_statements/gr.stmt.match/basic/019_many_4.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 456 | `10_statements/gr.stmt.match/basic/020_many_5.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 457 | `10_statements/gr.stmt.match/basic/021_many_6.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 458 | `10_statements/gr.stmt.match/basic/022_first.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 459 | `10_statements/gr.stmt.match/basic/023_middle.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 460 | `10_statements/gr.stmt.match/basic/024_last.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 461 | `10_statements/gr.stmt.match/basic/025_multi_body.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 462 | `10_statements/gr.stmt.match/basic/026_default_multi.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 463 | `10_statements/gr.stmt.match/basic/027_neg_val.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 464 | `10_statements/gr.stmt.match/basic/028_zero.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 465 | `10_statements/gr.stmt.match/basic/029_extra_29.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 466 | `10_statements/gr.stmt.match/basic/030_extra_30.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 467 | `10_statements/gr.stmt.match/basic/031_extra_31.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 468 | `10_statements/gr.stmt.match/basic/032_extra_32.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 469 | `10_statements/gr.stmt.match/basic/033_extra_33.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 470 | `10_statements/gr.stmt.match/basic/034_extra_34.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 471 | `10_statements/gr.stmt.match/basic/035_extra_35.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 472 | `10_statements/gr.stmt.match/basic/036_extra_36.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 473 | `10_statements/gr.stmt.match/basic/037_extra_37.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 474 | `10_statements/gr.stmt.match/basic/038_extra_38.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 475 | `10_statements/gr.stmt.match/basic/039_extra_39.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 476 | `10_statements/gr.stmt.match/basic/040_extra_40.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 477 | `10_statements/gr.stmt.match/basic/041_when_no_colon.ص` | `gr.stmt.match` | basic | تطابق ✅ |
+| 478 | `10_statements/gr.stmt.match/edge/001_in_for.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 479 | `10_statements/gr.stmt.match/edge/002_in_while.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 480 | `10_statements/gr.stmt.match/edge/003_in_func.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 481 | `10_statements/gr.stmt.match/edge/004_nested.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 482 | `10_statements/gr.stmt.match/edge/005_if_in_case.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 483 | `10_statements/gr.stmt.match/edge/006_loop_in_case.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 484 | `10_statements/gr.stmt.match/edge/007_var_in_case.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 485 | `10_statements/gr.stmt.match/edge/008_continue_in_loop.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 486 | `10_statements/gr.stmt.match/edge/009_break_in_loop.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 487 | `10_statements/gr.stmt.match/edge/010_return_default.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 488 | `10_statements/gr.stmt.match/edge/011_nested_default.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 489 | `10_statements/gr.stmt.match/edge/012_two_matches.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 490 | `10_statements/gr.stmt.match/edge/013_assign_in_case.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 491 | `10_statements/gr.stmt.match/edge/014_match_after.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 492 | `10_statements/gr.stmt.match/edge/015_if_else_in_case.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 493 | `10_statements/gr.stmt.match/edge/016_string_in_loop.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 494 | `10_statements/gr.stmt.match/edge/017_computed_in_func.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 495 | `10_statements/gr.stmt.match/edge/018_default_only.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 496 | `10_statements/gr.stmt.match/edge/019_many_with_loop.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 497 | `10_statements/gr.stmt.match/edge/020_extra_20.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 498 | `10_statements/gr.stmt.match/edge/021_extra_21.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 499 | `10_statements/gr.stmt.match/edge/022_extra_22.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 500 | `10_statements/gr.stmt.match/edge/023_extra_23.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 501 | `10_statements/gr.stmt.match/edge/024_extra_24.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 502 | `10_statements/gr.stmt.match/edge/025_extra_25.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 503 | `10_statements/gr.stmt.match/edge/026_extra_26.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 504 | `10_statements/gr.stmt.match/edge/027_extra_27.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 505 | `10_statements/gr.stmt.match/edge/028_extra_28.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 506 | `10_statements/gr.stmt.match/edge/029_extra_29.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 507 | `10_statements/gr.stmt.match/edge/030_extra_30.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 508 | `10_statements/gr.stmt.match/edge/031_extra_31.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 509 | `10_statements/gr.stmt.match/edge/032_extra_32.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 510 | `10_statements/gr.stmt.match/edge/033_extra_33.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 511 | `10_statements/gr.stmt.match/edge/034_extra_34.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 512 | `10_statements/gr.stmt.match/edge/035_extra_35.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 513 | `10_statements/gr.stmt.match/edge/036_guard.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 514 | `10_statements/gr.stmt.match/edge/037_guard_false.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 515 | `10_statements/gr.stmt.match/edge/050_no_parens.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 516 | `10_statements/gr.stmt.match/edge/051_range_pattern.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 517 | `10_statements/gr.stmt.match/edge/052_or_pattern.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 518 | `10_statements/gr.stmt.match/edge/053_wildcard.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 519 | `10_statements/gr.stmt.match/edge/054_string_pattern.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 520 | `10_statements/gr.stmt.match/edge/055_nested.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 521 | `10_statements/gr.stmt.match/edge/056_inclusive_range.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 522 | `10_statements/gr.stmt.match/edge/057_single_arm_taken.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 523 | `10_statements/gr.stmt.match/edge/058_single_arm_not_taken_no_default.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 524 | `10_statements/gr.stmt.match/edge/059_default_only_no_arms.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 525 | `10_statements/gr.stmt.match/edge/060_first_matching_arm_wins.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 526 | `10_statements/gr.stmt.match/edge/061_default_after_nonmatching.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 527 | `10_statements/gr.stmt.match/edge/062_six_arms_last_matches.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 528 | `10_statements/gr.stmt.match/edge/063_string_subject.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 529 | `10_statements/gr.stmt.match/edge/064_bool_subject_true.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 530 | `10_statements/gr.stmt.match/edge/065_bool_subject_false.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 531 | `10_statements/gr.stmt.match/edge/066_negative_subject.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 532 | `10_statements/gr.stmt.match/edge/067_zero_subject.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 533 | `10_statements/gr.stmt.match/edge/068_computed_subject.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 534 | `10_statements/gr.stmt.match/edge/069_subject_from_function.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 535 | `10_statements/gr.stmt.match/edge/070_arm_body_multiple_statements.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 536 | `10_statements/gr.stmt.match/edge/071_arm_body_mutates_outer.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 537 | `10_statements/gr.stmt.match/edge/072_var_decl_in_arm_overwrites_outer.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 538 | `10_statements/gr.stmt.match/edge/073_nested_match_in_arm.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 539 | `10_statements/gr.stmt.match/edge/074_nested_match_default_inner.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 540 | `10_statements/gr.stmt.match/edge/075_parens_optional_on_subject.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 541 | `10_statements/gr.stmt.match/edge/076_colon_optional_after_pattern.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 542 | `10_statements/gr.stmt.match/edge/077_arms_out_of_order.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 543 | `10_statements/gr.stmt.match/edge/078_default_first_then_arms.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 544 | `10_statements/gr.stmt.match/edge/079_after_match_continues.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 545 | `10_statements/gr.stmt.match/edge/080_two_sequential_matches.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 546 | `10_statements/gr.stmt.match/edge/081_match_inside_function_return.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 547 | `10_statements/gr.stmt.match/edge/082_match_default_return.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 548 | `10_statements/gr.stmt.match/edge/083_subject_string_concat.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 549 | `10_statements/gr.stmt.match/edge/084_subject_array_index.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 550 | `10_statements/gr.stmt.match/edge/085_subject_modulo.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 551 | `10_statements/gr.stmt.match/edge/086_arm_calls_function.ص` | `gr.stmt.match` | edge | تطابق ✅ |
+| 552 | `10_statements/gr.stmt.match/negative/001_no_end.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 553 | `10_statements/gr.stmt.match/negative/002_when_top.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 554 | `10_statements/gr.stmt.match/negative/003_default_top.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 555 | `10_statements/gr.stmt.match/negative/004_case_unterminated_inner.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 556 | `10_statements/gr.stmt.match/negative/005_nested_unterminated.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 557 | `10_statements/gr.stmt.match/negative/006_no_value.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 558 | `10_statements/gr.stmt.match/negative/007_loop_inside_unterminated.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 559 | `10_statements/gr.stmt.match/negative/008_extra_end.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 560 | `10_statements/gr.stmt.match/negative/009_in_loop_unterminated.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 561 | `10_statements/gr.stmt.match/negative/010_when_colon_no_body_no_end.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 562 | `10_statements/gr.stmt.match/negative/011_default_not_last.ص` | `gr.stmt.match` | negative | تطابق ✅ |
+| 563 | `10_statements/gr.stmt.return/basic/001_value.ص` | `gr.stmt.return` | basic | تطابق ✅ |
+| 564 | `10_statements/gr.stmt.return/basic/002_expr.ص` | `gr.stmt.return` | basic | تطابق ✅ |
+| 565 | `10_statements/gr.stmt.return/basic/003_string.ص` | `gr.stmt.return` | basic | تطابق ✅ |
+| 566 | `10_statements/gr.stmt.return/basic/004_nested.ص` | `gr.stmt.return` | basic | تطابق ✅ |
+| 567 | `10_statements/gr.stmt.return/basic/005_early.ص` | `gr.stmt.return` | basic | تطابق ✅ |
+| 568 | `10_statements/gr.stmt.return/edge/001_in_if.ص` | `gr.stmt.return` | edge | تطابق ✅ |
+| 569 | `10_statements/gr.stmt.return/edge/002_in_loop.ص` | `gr.stmt.return` | edge | تطابق ✅ |
+| 570 | `10_statements/gr.stmt.return/edge/003_bare.ص` | `gr.stmt.return` | edge | تطابق ✅ |
+| 571 | `10_statements/gr.stmt.return/edge/006_bare_return_stops_at_match_arm.ص` | `gr.stmt.return` | edge | تطابق ✅ |
+| 572 | `10_statements/gr.stmt.return/edge/007_bare_return_stops_at_default_arm.ص` | `gr.stmt.return` | edge | تطابق ✅ |
+| 573 | `10_statements/gr.stmt.return/edge/008_deep_recursion_200.ص` | `gr.stmt.return` | edge | تطابق ✅ |
+| 574 | `10_statements/gr.stmt.return/edge/009_bare_return_stops_at_reserved_arm_words.ص` | `gr.stmt.return` | edge | تطابق ✅ |
+| 575 | `10_statements/gr.stmt.return/edge/051_return_expr.ص` | `gr.stmt.return` | edge | تطابق ✅ |
+| 576 | `10_statements/gr.stmt.return/edge/052_empty_return_greedy.ص` | `gr.stmt.return` | edge | تطابق ✅ |
+| 577 | `10_statements/gr.stmt.return/negative/001_unterminated_func.ص` | `gr.stmt.return` | negative | تطابق ✅ |
+| 578 | `10_statements/gr.stmt.return/negative/002_stray_paren.ص` | `gr.stmt.return` | negative | تطابق ✅ |
+| 579 | `10_statements/gr.stmt.switch/basic/001_match_case.ص` | `gr.stmt.switch` | basic | تطابق ✅ |
+| 580 | `10_statements/gr.stmt.switch/basic/002_default.ص` | `gr.stmt.switch` | basic | تطابق ✅ |
+| 581 | `10_statements/gr.stmt.switch/basic/003_middle_case.ص` | `gr.stmt.switch` | basic | تطابق ✅ |
+| 582 | `10_statements/gr.stmt.switch/basic/004_no_default.ص` | `gr.stmt.switch` | basic | تطابق ✅ |
+| 583 | `10_statements/gr.stmt.switch/basic/005_optional_colon.ص` | `gr.stmt.switch` | basic | تطابق ✅ |
+| 584 | `10_statements/gr.stmt.switch/basic/006_multi_stmt_arm.ص` | `gr.stmt.switch` | basic | تطابق ✅ |
+| 585 | `10_statements/gr.stmt.switch/basic/007_string_equality.ص` | `gr.stmt.switch` | basic | تطابق ✅ |
+| 586 | `10_statements/gr.stmt.switch/basic/008_negative.ص` | `gr.stmt.switch` | basic | تطابق ✅ |
+| 587 | `10_statements/gr.stmt.switch/basic/009_computed_scrutinee.ص` | `gr.stmt.switch` | basic | تطابق ✅ |
+| 588 | `10_statements/gr.stmt.switch/basic/010_first_case.ص` | `gr.stmt.switch` | basic | تطابق ✅ |
+| 589 | `10_statements/gr.stmt.switch/edge/001_expr_scrutinee.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 590 | `10_statements/gr.stmt.switch/edge/002_nested.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 591 | `10_statements/gr.stmt.switch/edge/003_no_match_no_default.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 592 | `10_statements/gr.stmt.switch/edge/004_in_loop.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 593 | `10_statements/gr.stmt.switch/edge/005_bool_expr.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 594 | `10_statements/gr.stmt.switch/edge/006_equality_not_range.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 595 | `10_statements/gr.stmt.switch/edge/007_many_cases.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 596 | `10_statements/gr.stmt.switch/edge/008_no_colon_mixed.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 597 | `10_statements/gr.stmt.switch/edge/050_deep_many.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 598 | `10_statements/gr.stmt.switch/edge/051_in_if.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 599 | `10_statements/gr.stmt.switch/edge/052_string_default.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 600 | `10_statements/gr.stmt.switch/edge/053_computed.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 601 | `10_statements/gr.stmt.switch/edge/054_bool_false.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 602 | `10_statements/gr.stmt.switch/edge/055_no_colon_all.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 603 | `10_statements/gr.stmt.switch/edge/055_only_default.ص` | `gr.stmt.switch` | edge | تطابق ✅ |
+| 604 | `10_statements/gr.stmt.switch/negative/001_parens_removed.ص` | `gr.stmt.switch` | negative | تطابق ✅ |
+| 605 | `10_statements/gr.stmt.switch/negative/002_default_not_last.ص` | `gr.stmt.switch` | negative | تطابق ✅ |
+| 606 | `10_statements/gr.stmt.switch/negative/003_unclosed.ص` | `gr.stmt.switch` | negative | تطابق ✅ |
+| 607 | `10_statements/gr.stmt.switch/negative/004_braces_rejected.ص` | `gr.stmt.switch` | negative | تطابق ✅ |
+| 608 | `10_statements/gr.stmt.switch/negative/005_case_inside.ص` | `gr.stmt.switch` | negative | تطابق ✅ |
+| 609 | `10_statements/gr.stmt.throw/basic/001_string.ص` | `gr.stmt.throw` | basic | تطابق ✅ |
+| 610 | `10_statements/gr.stmt.throw/basic/002_number.ص` | `gr.stmt.throw` | basic | تطابق ✅ |
+| 611 | `10_statements/gr.stmt.throw/basic/003_after_throw_skipped.ص` | `gr.stmt.throw` | basic | تطابق ✅ |
+| 612 | `10_statements/gr.stmt.throw/edge/001_in_func.ص` | `gr.stmt.throw` | edge | تطابق ✅ |
+| 613 | `10_statements/gr.stmt.throw/edge/002_in_loop.ص` | `gr.stmt.throw` | edge | تطابق ✅ |
+| 614 | `10_statements/gr.stmt.throw/edge/050_throw_caught_msg.ص` | `gr.stmt.throw` | edge | تطابق ✅ |
+| 615 | `10_statements/gr.stmt.throw/negative/001_uncaught.ص` | `gr.stmt.throw` | negative | تطابق ✅ |
+| 616 | `10_statements/gr.stmt.throw/negative/002_uncaught_in_func.ص` | `gr.stmt.throw` | negative | تطابق ✅ |
+| 617 | `10_statements/gr.stmt.try/basic/001_catch.ص` | `gr.stmt.try` | basic | تطابق ✅ |
+| 618 | `10_statements/gr.stmt.try/basic/002_finally.ص` | `gr.stmt.try` | basic | تطابق ✅ |
+| 619 | `10_statements/gr.stmt.try/basic/003_no_error.ص` | `gr.stmt.try` | basic | تطابق ✅ |
+| 620 | `10_statements/gr.stmt.try/basic/004_catch_finally.ص` | `gr.stmt.try` | basic | تطابق ✅ |
+| 621 | `10_statements/gr.stmt.try/basic/005_print_after.ص` | `gr.stmt.try` | basic | تطابق ✅ |
+| 622 | `10_statements/gr.stmt.try/edge/001_in_loop.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 623 | `10_statements/gr.stmt.try/edge/002_nested.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 624 | `10_statements/gr.stmt.try/edge/003_func_throws.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 625 | `10_statements/gr.stmt.try/edge/004_finally_runs.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 626 | `10_statements/gr.stmt.try/edge/005_multi_catch.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 627 | `10_statements/gr.stmt.try/edge/050_no_error.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 628 | `10_statements/gr.stmt.try/edge/051_with_finally.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 629 | `10_statements/gr.stmt.try/edge/052_catch_finally.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 630 | `10_statements/gr.stmt.try/edge/053_nested.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 631 | `10_statements/gr.stmt.try/edge/054_multi_catch_first.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 632 | `10_statements/gr.stmt.try/edge/055_throw_caught.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 633 | `10_statements/gr.stmt.try/edge/056_finally_after_catch.ص` | `gr.stmt.try` | edge | تطابق ✅ |
+| 634 | `10_statements/gr.stmt.try/negative/001_no_end.ص` | `gr.stmt.try` | negative | تطابق ✅ |
+| 635 | `10_statements/gr.stmt.try/negative/002_catch_no_try.ص` | `gr.stmt.try` | negative | تطابق ✅ |
+| 636 | `10_statements/gr.stmt.try/negative/051_reserved_end_as_catch_param.ص` | `gr.stmt.try` | negative | تطابق ✅ |
+| 637 | `10_statements/gr.stmt.while/basic/001_count_lt_1.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 638 | `10_statements/gr.stmt.while/basic/002_count_lt_2.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 639 | `10_statements/gr.stmt.while/basic/003_count_lt_3.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 640 | `10_statements/gr.stmt.while/basic/004_count_lt_4.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 641 | `10_statements/gr.stmt.while/basic/005_count_lt_5.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 642 | `10_statements/gr.stmt.while/basic/006_count_le_1.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 643 | `10_statements/gr.stmt.while/basic/007_count_le_2.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 644 | `10_statements/gr.stmt.while/basic/008_count_le_3.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 645 | `10_statements/gr.stmt.while/basic/009_countdown_2.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 646 | `10_statements/gr.stmt.while/basic/010_countdown_3.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 647 | `10_statements/gr.stmt.while/basic/011_countdown_4.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 648 | `10_statements/gr.stmt.while/basic/012_step2.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 649 | `10_statements/gr.stmt.while/basic/013_step3.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 650 | `10_statements/gr.stmt.while/basic/014_until_ne.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 651 | `10_statements/gr.stmt.while/basic/015_while_eq_flag.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 652 | `10_statements/gr.stmt.while/basic/016_sum.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 653 | `10_statements/gr.stmt.while/basic/017_sum5.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 654 | `10_statements/gr.stmt.while/basic/018_product.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 655 | `10_statements/gr.stmt.while/basic/019_counter.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 656 | `10_statements/gr.stmt.while/basic/020_double_until.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 657 | `10_statements/gr.stmt.while/basic/021_logic_and.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 658 | `10_statements/gr.stmt.while/basic/022_logic_or.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 659 | `10_statements/gr.stmt.while/basic/023_bool_flag.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 660 | `10_statements/gr.stmt.while/basic/024_not_cond.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 661 | `10_statements/gr.stmt.while/basic/025_noiter_1.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 662 | `10_statements/gr.stmt.while/basic/026_noiter_2.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 663 | `10_statements/gr.stmt.while/basic/027_noiter_3.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 664 | `10_statements/gr.stmt.while/basic/028_noiter_4.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 665 | `10_statements/gr.stmt.while/basic/029_var_inside.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 666 | `10_statements/gr.stmt.while/basic/030_two_vars.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 667 | `10_statements/gr.stmt.while/basic/031_cond_calc.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 668 | `10_statements/gr.stmt.while/basic/032_string_build.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 669 | `10_statements/gr.stmt.while/basic/033_count_extra_33.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 670 | `10_statements/gr.stmt.while/basic/034_count_extra_34.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 671 | `10_statements/gr.stmt.while/basic/035_count_extra_35.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 672 | `10_statements/gr.stmt.while/basic/036_count_extra_36.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 673 | `10_statements/gr.stmt.while/basic/037_count_extra_37.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 674 | `10_statements/gr.stmt.while/basic/038_count_extra_38.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 675 | `10_statements/gr.stmt.while/basic/039_count_extra_39.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 676 | `10_statements/gr.stmt.while/basic/040_count_extra_40.ص` | `gr.stmt.while` | basic | تطابق ✅ |
+| 677 | `10_statements/gr.stmt.while/edge/001_nested2.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 678 | `10_statements/gr.stmt.while/edge/002_nested3.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 679 | `10_statements/gr.stmt.while/edge/003_with_if.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 680 | `10_statements/gr.stmt.while/edge/004_with_break.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 681 | `10_statements/gr.stmt.while/edge/005_with_continue.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 682 | `10_statements/gr.stmt.while/edge/006_with_match.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 683 | `10_statements/gr.stmt.while/edge/007_with_try.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 684 | `10_statements/gr.stmt.while/edge/008_in_func.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 685 | `10_statements/gr.stmt.while/edge/009_true_break.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 686 | `10_statements/gr.stmt.while/edge/010_return_in.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 687 | `10_statements/gr.stmt.while/edge/011_break_continue.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 688 | `10_statements/gr.stmt.while/edge/012_compound_cond.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 689 | `10_statements/gr.stmt.while/edge/013_two_counters.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 690 | `10_statements/gr.stmt.while/edge/014_if_else_in.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 691 | `10_statements/gr.stmt.while/edge/015_nested_break_inner.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 692 | `10_statements/gr.stmt.while/edge/016_accumulate_str.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 693 | `10_statements/gr.stmt.while/edge/017_for_inside.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 694 | `10_statements/gr.stmt.while/edge/018_decrement_sum.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 695 | `10_statements/gr.stmt.while/edge/019_guarded_print.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 696 | `10_statements/gr.stmt.while/edge/020_multi_stmt_body.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 697 | `10_statements/gr.stmt.while/edge/021_extra_21.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 698 | `10_statements/gr.stmt.while/edge/022_extra_22.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 699 | `10_statements/gr.stmt.while/edge/023_extra_23.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 700 | `10_statements/gr.stmt.while/edge/024_extra_24.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 701 | `10_statements/gr.stmt.while/edge/025_extra_25.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 702 | `10_statements/gr.stmt.while/edge/026_extra_26.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 703 | `10_statements/gr.stmt.while/edge/027_extra_27.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 704 | `10_statements/gr.stmt.while/edge/028_extra_28.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 705 | `10_statements/gr.stmt.while/edge/029_extra_29.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 706 | `10_statements/gr.stmt.while/edge/030_extra_30.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 707 | `10_statements/gr.stmt.while/edge/031_extra_31.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 708 | `10_statements/gr.stmt.while/edge/032_extra_32.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 709 | `10_statements/gr.stmt.while/edge/033_extra_33.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 710 | `10_statements/gr.stmt.while/edge/034_extra_34.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 711 | `10_statements/gr.stmt.while/edge/035_extra_35.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 712 | `10_statements/gr.stmt.while/edge/050_never.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 713 | `10_statements/gr.stmt.while/edge/051_with_break.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 714 | `10_statements/gr.stmt.while/edge/052_with_continue.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 715 | `10_statements/gr.stmt.while/edge/053_nested.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 716 | `10_statements/gr.stmt.while/edge/054_countdown.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 717 | `10_statements/gr.stmt.while/edge/055_contains_if.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 718 | `10_statements/gr.stmt.while/edge/056_boundary_zero.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 719 | `10_statements/gr.stmt.while/edge/057_accumulate.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 720 | `10_statements/gr.stmt.while/edge/058_break_in_nested.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 721 | `10_statements/gr.stmt.while/edge/059_zero_iter_then_after.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 722 | `10_statements/gr.stmt.while/edge/060_one_iter_exact.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 723 | `10_statements/gr.stmt.while/edge/061_nested3.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 724 | `10_statements/gr.stmt.while/edge/062_cond_and_compound.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 725 | `10_statements/gr.stmt.while/edge/063_cond_or_compound.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 726 | `10_statements/gr.stmt.while/edge/064_cond_not.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 727 | `10_statements/gr.stmt.while/edge/065_flag_toggle.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 728 | `10_statements/gr.stmt.while/edge/066_countdown10.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 729 | `10_statements/gr.stmt.while/edge/067_step3.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 730 | `10_statements/gr.stmt.while/edge/068_multiply_accum.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 731 | `10_statements/gr.stmt.while/edge/069_string_accum.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 732 | `10_statements/gr.stmt.while/edge/070_break_first_iter.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 733 | `10_statements/gr.stmt.while/edge/071_continue_skip_even.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 734 | `10_statements/gr.stmt.while/edge/072_outer_flag_break.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 735 | `10_statements/gr.stmt.while/edge/073_two_counters_diff_rates.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 736 | `10_statements/gr.stmt.while/edge/074_len_bound.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 737 | `10_statements/gr.stmt.while/edge/075_index_sum.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 738 | `10_statements/gr.stmt.while/edge/076_if_else_inside.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 739 | `10_statements/gr.stmt.while/edge/077_two_sequential_loops.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 740 | `10_statements/gr.stmt.while/edge/078_reuse_counter.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 741 | `10_statements/gr.stmt.while/edge/079_cond_from_function.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 742 | `10_statements/gr.stmt.while/edge/080_nested_continue_inner.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 743 | `10_statements/gr.stmt.while/edge/081_in_func_with_return.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 744 | `10_statements/gr.stmt.while/edge/082_mod_filter_count.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 745 | `10_statements/gr.stmt.while/edge/083_paren_deep_cond.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 746 | `10_statements/gr.stmt.while/edge/084_negative_start.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 747 | `10_statements/gr.stmt.while/edge/085_cond_recomputed_each_pass.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 748 | `10_statements/gr.stmt.while/edge/086_hundred_iterations.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 749 | `10_statements/gr.stmt.while/edge/087_false_flag_immediately.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 750 | `10_statements/gr.stmt.while/edge/088_nested2_sum_products.ص` | `gr.stmt.while` | edge | تطابق ✅ |
+| 751 | `10_statements/gr.stmt.while/negative/001_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ |
+| 752 | `10_statements/gr.stmt.while/negative/002_body_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ |
+| 753 | `10_statements/gr.stmt.while/negative/003_inner_if_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ |
+| 754 | `10_statements/gr.stmt.while/negative/004_nested_outer_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ |
+| 755 | `10_statements/gr.stmt.while/negative/005_no_body_no_end.ص` | `gr.stmt.while` | negative | تطابق ✅ |
+| 756 | `10_statements/gr.stmt.while/negative/006_inner_unterminated2.ص` | `gr.stmt.while` | negative | تطابق ✅ |
+| 757 | `10_statements/gr.stmt.while/negative/007_extra_end.ص` | `gr.stmt.while` | negative | تطابق ✅ |
+| 758 | `10_statements/gr.stmt.while/negative/008_if_inside_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ |
+| 759 | `10_statements/gr.stmt.while/negative/009_match_inside_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ |
+| 760 | `10_statements/gr.stmt.while/negative/010_try_inside_unterminated.ص` | `gr.stmt.while` | negative | تطابق ✅ |
+| 761 | `20_declarations/gr.decl.arg_list/basic/001_multi_arabic.ص` | `gr.decl.arg_list` | basic | تطابق ✅ |
+| 762 | `20_declarations/gr.decl.arg_list/basic/002_multi_latin.ص` | `gr.decl.arg_list` | basic | تطابق ✅ |
+| 763 | `20_declarations/gr.decl.arg_list/basic/003_empty.ص` | `gr.decl.arg_list` | basic | تطابق ✅ |
+| 764 | `20_declarations/gr.decl.arg_list/basic/004_nested_call.ص` | `gr.decl.arg_list` | basic | تطابق ✅ |
+| 765 | `20_declarations/gr.decl.arg_list/basic/005_expr_args.ص` | `gr.decl.arg_list` | basic | تطابق ✅ |
+| 766 | `20_declarations/gr.decl.arg_list/edge/001_single_arg.ص` | `gr.decl.arg_list` | edge | تطابق ✅ |
+| 767 | `20_declarations/gr.decl.arg_list/edge/002_many_args.ص` | `gr.decl.arg_list` | edge | تطابق ✅ |
+| 768 | `20_declarations/gr.decl.arg_list/edge/003_mixed_commas.ص` | `gr.decl.arg_list` | edge | تطابق ✅ |
+| 769 | `20_declarations/gr.decl.arg_list/edge/004_typed_values.ص` | `gr.decl.arg_list` | edge | تطابق ✅ |
+| 770 | `20_declarations/gr.decl.arg_list/negative/001_trailing_comma.ص` | `gr.decl.arg_list` | negative | تطابق ✅ |
+| 771 | `20_declarations/gr.decl.arg_list/negative/002_missing_comma.ص` | `gr.decl.arg_list` | negative | تطابق ✅ |
+| 772 | `20_declarations/gr.decl.export/basic/001_export_func.ص` | `gr.decl.export` | basic | تطابق ✅ |
+| 773 | `20_declarations/gr.decl.export/basic/002_export_var.ص` | `gr.decl.export` | basic | تطابق ✅ |
+| 774 | `20_declarations/gr.decl.export/basic/003_export_const.ص` | `gr.decl.export` | basic | تطابق ✅ |
+| 775 | `20_declarations/gr.decl.export/basic/004_export_class.ص` | `gr.decl.export` | basic | تطابق ✅ |
+| 776 | `20_declarations/gr.decl.export/basic/005_export_then_use.ص` | `gr.decl.export` | basic | تطابق ✅ |
+| 777 | `20_declarations/gr.decl.export/basic/006_export_func2.ص` | `gr.decl.export` | basic | تطابق ✅ |
+| 778 | `20_declarations/gr.decl.export/edge/001_export_in_program.ص` | `gr.decl.export` | edge | تطابق ✅ |
+| 779 | `20_declarations/gr.decl.export/edge/002_export_recursive.ص` | `gr.decl.export` | edge | تطابق ✅ |
+| 780 | `20_declarations/gr.decl.export/edge/003_export_enum.ص` | `gr.decl.export` | edge | تطابق ✅ |
+| 781 | `20_declarations/gr.decl.export/edge/004_export_var_use.ص` | `gr.decl.export` | edge | تطابق ✅ |
+| 782 | `20_declarations/gr.decl.export/negative/001_export_kw_only.ص` | `gr.decl.export` | negative | تطابق ✅ |
+| 783 | `20_declarations/gr.decl.export/negative/002_export_keyword.ص` | `gr.decl.export` | negative | تطابق ✅ |
+| 784 | `20_declarations/gr.decl.extern/basic/001_extern_one.ص` | `gr.decl.extern` | basic | تطابق ✅ |
+| 785 | `20_declarations/gr.decl.extern/basic/002_extern_no_param.ص` | `gr.decl.extern` | basic | تطابق ✅ |
+| 786 | `20_declarations/gr.decl.extern/basic/003_extern_two.ص` | `gr.decl.extern` | basic | تطابق ✅ |
+| 787 | `20_declarations/gr.decl.extern/basic/004_extern_then_code.ص` | `gr.decl.extern` | basic | تطابق ✅ |
+| 788 | `20_declarations/gr.decl.extern/basic/005_extern_linkname.ص` | `gr.decl.extern` | basic | تطابق ✅ |
+| 789 | `20_declarations/gr.decl.extern/edge/001_extern_with_func.ص` | `gr.decl.extern` | edge | تطابق ✅ |
+| 790 | `20_declarations/gr.decl.extern/edge/002_extern_multi.ص` | `gr.decl.extern` | edge | تطابق ✅ |
+| 791 | `20_declarations/gr.decl.extern/edge/003_extern_typed.ص` | `gr.decl.extern` | edge | تطابق ✅ |
+| 792 | `20_declarations/gr.decl.extern/edge/004_method_named_extern.ص` | `gr.decl.extern` | edge | تطابق ✅ |
+| 793 | `20_declarations/gr.decl.extern/edge/005_soft_name_call_stmt.ص` | `gr.decl.extern` | edge | تطابق ✅ |
+| 794 | `20_declarations/gr.decl.extern/edge/006_soft_name_assign.ص` | `gr.decl.extern` | edge | تطابق ✅ |
+| 795 | `20_declarations/gr.decl.extern/negative/001_extern_no_func.ص` | `gr.decl.extern` | negative | تطابق ✅ |
+| 796 | `20_declarations/gr.decl.extern/negative/002_extern_kw_only.ص` | `gr.decl.extern` | negative | تطابق ✅ |
+| 797 | `20_declarations/gr.decl.extern/negative/003_removed_prefix_form.ص` | `gr.decl.extern` | negative | تطابق ✅ |
+| 798 | `20_declarations/gr.decl.extern/negative/004_removed_prefix_linkname.ص` | `gr.decl.extern` | negative | تطابق ✅ |
+| 799 | `20_declarations/gr.decl.extern/negative/005_masculine_adjective.ص` | `gr.decl.extern` | negative | تطابق ✅ |
+| 800 | `20_declarations/gr.decl.extern/negative/006_feminine_block_opener.ص` | `gr.decl.extern` | negative | تطابق ✅ |
+| 801 | `20_declarations/gr.decl.extern/negative/007_extern_inside_class.ص` | `gr.decl.extern` | negative | تطابق ✅ |
+| 802 | `20_declarations/gr.decl.extern/negative/008_empty_linkname.ص` | `gr.decl.extern` | negative | تطابق ✅ |
+| 803 | `20_declarations/gr.decl.function/basic/001_no_param.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 804 | `20_declarations/gr.decl.function/basic/002_one_param.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 805 | `20_declarations/gr.decl.function/basic/003_two_param.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 806 | `20_declarations/gr.decl.function/basic/004_three_param.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 807 | `20_declarations/gr.decl.function/basic/005_void_print.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 808 | `20_declarations/gr.decl.function/basic/006_return_str.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 809 | `20_declarations/gr.decl.function/basic/007_return_bool.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 810 | `20_declarations/gr.decl.function/basic/008_multi_stmt.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 811 | `20_declarations/gr.decl.function/basic/009_recursion.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 812 | `20_declarations/gr.decl.function/basic/010_calls_other.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 813 | `20_declarations/gr.decl.function/basic/011_default_param.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 814 | `20_declarations/gr.decl.function/basic/012_default_override.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 815 | `20_declarations/gr.decl.function/basic/013_typed_param.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 816 | `20_declarations/gr.decl.function/basic/014_early_return.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 817 | `20_declarations/gr.decl.function/basic/015_no_return.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 818 | `20_declarations/gr.decl.function/basic/016_extra_16.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 819 | `20_declarations/gr.decl.function/basic/017_extra_17.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 820 | `20_declarations/gr.decl.function/basic/018_extra_18.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 821 | `20_declarations/gr.decl.function/basic/019_extra_19.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 822 | `20_declarations/gr.decl.function/basic/020_extra_20.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 823 | `20_declarations/gr.decl.function/basic/021_extra_21.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 824 | `20_declarations/gr.decl.function/basic/022_extra_22.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 825 | `20_declarations/gr.decl.function/basic/023_extra_23.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 826 | `20_declarations/gr.decl.function/basic/024_extra_24.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 827 | `20_declarations/gr.decl.function/basic/025_extra_25.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 828 | `20_declarations/gr.decl.function/basic/026_extra_26.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 829 | `20_declarations/gr.decl.function/basic/027_extra_27.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 830 | `20_declarations/gr.decl.function/basic/028_extra_28.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 831 | `20_declarations/gr.decl.function/basic/029_extra_29.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 832 | `20_declarations/gr.decl.function/basic/030_extra_30.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 833 | `20_declarations/gr.decl.function/basic/031_extra_31.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 834 | `20_declarations/gr.decl.function/basic/032_extra_32.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 835 | `20_declarations/gr.decl.function/basic/033_extra_33.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 836 | `20_declarations/gr.decl.function/basic/034_extra_34.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 837 | `20_declarations/gr.decl.function/basic/035_extra_35.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 838 | `20_declarations/gr.decl.function/basic/036_extra_36.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 839 | `20_declarations/gr.decl.function/basic/037_extra_37.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 840 | `20_declarations/gr.decl.function/basic/038_extra_38.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 841 | `20_declarations/gr.decl.function/basic/039_extra_39.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 842 | `20_declarations/gr.decl.function/basic/040_extra_40.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 843 | `20_declarations/gr.decl.function/basic/041_طبيعي64_call_return_unsigned.ص` | `gr.decl.function` | basic | تطابق ✅ |
+| 844 | `20_declarations/gr.decl.function/edge/001_nested_func.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 845 | `20_declarations/gr.decl.function/edge/002_returns_lambda.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 846 | `20_declarations/gr.decl.function/edge/003_higher_order.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 847 | `20_declarations/gr.decl.function/edge/004_loop_inside.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 848 | `20_declarations/gr.decl.function/edge/005_try_inside.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 849 | `20_declarations/gr.decl.function/edge/006_match_inside.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 850 | `20_declarations/gr.decl.function/edge/007_mutual_recursion.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 851 | `20_declarations/gr.decl.function/edge/008_many_params.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 852 | `20_declarations/gr.decl.function/edge/009_default_expr.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 853 | `20_declarations/gr.decl.function/edge/010_mixed_default.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 854 | `20_declarations/gr.decl.function/edge/011_return_array.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 855 | `20_declarations/gr.decl.function/edge/012_return_nested_call.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 856 | `20_declarations/gr.decl.function/edge/013_async_attr.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 857 | `20_declarations/gr.decl.function/edge/014_call_in_arg.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 858 | `20_declarations/gr.decl.function/edge/015_fib.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 859 | `20_declarations/gr.decl.function/edge/016_extra_16.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 860 | `20_declarations/gr.decl.function/edge/017_extra_17.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 861 | `20_declarations/gr.decl.function/edge/018_extra_18.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 862 | `20_declarations/gr.decl.function/edge/019_extra_19.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 863 | `20_declarations/gr.decl.function/edge/020_extra_20.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 864 | `20_declarations/gr.decl.function/edge/021_extra_21.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 865 | `20_declarations/gr.decl.function/edge/022_extra_22.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 866 | `20_declarations/gr.decl.function/edge/023_extra_23.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 867 | `20_declarations/gr.decl.function/edge/024_extra_24.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 868 | `20_declarations/gr.decl.function/edge/025_extra_25.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 869 | `20_declarations/gr.decl.function/edge/026_extra_26.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 870 | `20_declarations/gr.decl.function/edge/027_extra_27.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 871 | `20_declarations/gr.decl.function/edge/028_extra_28.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 872 | `20_declarations/gr.decl.function/edge/029_extra_29.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 873 | `20_declarations/gr.decl.function/edge/030_extra_30.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 874 | `20_declarations/gr.decl.function/edge/031_extra_31.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 875 | `20_declarations/gr.decl.function/edge/032_extra_32.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 876 | `20_declarations/gr.decl.function/edge/033_extra_33.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 877 | `20_declarations/gr.decl.function/edge/034_extra_34.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 878 | `20_declarations/gr.decl.function/edge/035_extra_35.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 879 | `20_declarations/gr.decl.function/edge/050_rettype_num.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 880 | `20_declarations/gr.decl.function/edge/051_rettype_str.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 881 | `20_declarations/gr.decl.function/edge/052_rettype_float.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 882 | `20_declarations/gr.decl.function/edge/052_shadda_and_contextual_names_ok.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 883 | `20_declarations/gr.decl.function/edge/053_إرجاع_مصفوفة_مختلطة.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 884 | `20_declarations/gr.decl.function/edge/054_إرجاع_مصفوفة_نصوص_متجانسة.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 885 | `20_declarations/gr.decl.function/edge/055_معامل_مصفوفة_مختلطة_حرفيّة.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 886 | `20_declarations/gr.decl.function/edge/056_معامل_مصفوفة_نصوص_متجانسة.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 887 | `20_declarations/gr.decl.function/edge/057_معامل_متعدّد_المواقع_متجانس_ثمّ_مختلط.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 888 | `20_declarations/gr.decl.function/edge/058_إرجاعان_متنافران_نصّ_متجانس.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 889 | `20_declarations/gr.decl.function/edge/059_إرجاعان_متنافران_عشريّ_متجانس.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 890 | `20_declarations/gr.decl.function/edge/060_إرجاعان_متنافران_منطقيّ_متجانس.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 891 | `20_declarations/gr.decl.function/edge/061_إرجاعان_محدّدان_مختلفان.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 892 | `20_declarations/gr.decl.function/edge/062_مفاتيح_خريطة_عبر_Any.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 893 | `20_declarations/gr.decl.function/edge/063_وسيط_متغيّر_مصفوفة_مختلطة_عبر_Any.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 894 | `20_declarations/gr.decl.function/edge/064_وسيط_متغيّر_مصفوفة_نصوص_متجانسة.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 895 | `20_declarations/gr.decl.function/edge/065_موقعان_متغيّر_مختلط_ثمّ_متجانس.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 896 | `20_declarations/gr.decl.function/edge/066_معامل_مشترك_متغيّرا_نصّ_ثمّ_صحيح.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 897 | `20_declarations/gr.decl.function/edge/067_معامل_مشترك_متغيّرا_عشريّ_ثمّ_صحيح.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 898 | `20_declarations/gr.decl.function/edge/068_وسيط_نتيجة_نداء_مصفوفة_مختلطة.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 899 | `20_declarations/gr.decl.function/edge/069_وسيط_نتيجة_نداء_مصفوفة_نصوص_متجانسة.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 900 | `20_declarations/gr.decl.function/edge/070_موقعان_نتيجة_نداء_صحيحة_ثمّ_مختلطة.ص` | `gr.decl.function` | edge | تطابق ✅ |
+| 901 | `20_declarations/gr.decl.function/negative/001_no_end.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 902 | `20_declarations/gr.decl.function/negative/002_stray_paren.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 903 | `20_declarations/gr.decl.function/negative/003_inner_if_noend.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 904 | `20_declarations/gr.decl.function/negative/004_kw_only.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 905 | `20_declarations/gr.decl.function/negative/005_body_unterminated.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 906 | `20_declarations/gr.decl.function/negative/006_varargs.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 907 | `20_declarations/gr.decl.function/negative/007_return_type_arrow.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 908 | `20_declarations/gr.decl.function/negative/008_dup_comma_param.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 909 | `20_declarations/gr.decl.function/negative/009_missing_body.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 910 | `20_declarations/gr.decl.function/negative/010_nested_unterminated.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 911 | `20_declarations/gr.decl.function/negative/050_arrow_rettype_after_params.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 912 | `20_declarations/gr.decl.function/negative/051_reserved_while_as_func_name.ص` | `gr.decl.function` | negative | تطابق ✅ |
+| 913 | `20_declarations/gr.decl.import/basic/001_import_رياضيات.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 914 | `20_declarations/gr.decl.import/basic/002_import_أساسيات.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 915 | `20_declarations/gr.decl.import/basic/003_import_نصوص.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 916 | `20_declarations/gr.decl.import/basic/004_import_خرائط.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 917 | `20_declarations/gr.decl.import/basic/005_import_تأكيدات.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 918 | `20_declarations/gr.decl.import/basic/006_import_منصة.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 919 | `20_declarations/gr.decl.import/basic/007_import_as.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 920 | `20_declarations/gr.decl.import/basic/008_two_imports.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 921 | `20_declarations/gr.decl.import/basic/009_import_then_code.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 922 | `20_declarations/gr.decl.import/basic/010_import_alias_short.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 923 | `20_declarations/gr.decl.import/basic/011_import_alias2.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 924 | `20_declarations/gr.decl.import/basic/012_import_three.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 925 | `20_declarations/gr.decl.import/edge/001_import_in_order.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 926 | `20_declarations/gr.decl.import/edge/002_import_with_class.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 927 | `20_declarations/gr.decl.import/edge/003_alias_then_alias.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 928 | `20_declarations/gr.decl.import/edge/004_import_loop_after.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 929 | `20_declarations/gr.decl.import/edge/005_import_cond_after.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 930 | `20_declarations/gr.decl.import/edge/006_import_func_after.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 931 | `20_declarations/gr.decl.import/edge/006_استيراد_بسيط_يليه_انتقائي.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 932 | `20_declarations/gr.decl.import/edge/007_import_many_stmts.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 933 | `20_declarations/gr.decl.import/edge/007_استيراد_بسيط_يليه_انتقائي_بلا_سطر_فارغ.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 934 | `20_declarations/gr.decl.import/edge/008_extra1.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 935 | `20_declarations/gr.decl.import/negative/001_no_module.ص` | `gr.decl.import` | negative | تطابق ✅ |
+| 936 | `20_declarations/gr.decl.import/negative/002_from_no_import.ص` | `gr.decl.import` | negative | تطابق ✅ |
+| 937 | `20_declarations/gr.decl.import/negative/003_from_no_module.ص` | `gr.decl.import` | negative | تطابق ✅ |
+| 938 | `20_declarations/gr.decl.import/negative/004_from_import_fails.ص` | `gr.decl.import` | negative | تطابق ✅ |
+| 939 | `20_declarations/gr.decl.parameters/basic/001_params_1.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 940 | `20_declarations/gr.decl.parameters/basic/002_params_2.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 941 | `20_declarations/gr.decl.parameters/basic/003_params_3.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 942 | `20_declarations/gr.decl.parameters/basic/004_params_4.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 943 | `20_declarations/gr.decl.parameters/basic/005_params_5.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 944 | `20_declarations/gr.decl.parameters/basic/006_no_params.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 945 | `20_declarations/gr.decl.parameters/basic/007_typed_one.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 946 | `20_declarations/gr.decl.parameters/basic/008_default_one.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 947 | `20_declarations/gr.decl.parameters/basic/009_two_typed.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 948 | `20_declarations/gr.decl.parameters/basic/010_mixed.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 949 | `20_declarations/gr.decl.parameters/basic/011_extra_11.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 950 | `20_declarations/gr.decl.parameters/basic/012_extra_12.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 951 | `20_declarations/gr.decl.parameters/basic/013_extra_13.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 952 | `20_declarations/gr.decl.parameters/basic/014_extra_14.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 953 | `20_declarations/gr.decl.parameters/basic/015_extra_15.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 954 | `20_declarations/gr.decl.parameters/basic/016_extra_16.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 955 | `20_declarations/gr.decl.parameters/basic/017_extra_17.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 956 | `20_declarations/gr.decl.parameters/basic/018_extra_18.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 957 | `20_declarations/gr.decl.parameters/basic/019_extra_19.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 958 | `20_declarations/gr.decl.parameters/basic/020_extra_20.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
+| 959 | `20_declarations/gr.decl.parameters/edge/001_default_uses_expr.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 960 | `20_declarations/gr.decl.parameters/edge/002_many_typed.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 961 | `20_declarations/gr.decl.parameters/edge/003_param_shadows.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 962 | `20_declarations/gr.decl.parameters/edge/004_param_in_loop.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 963 | `20_declarations/gr.decl.parameters/edge/005_two_defaults.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 964 | `20_declarations/gr.decl.parameters/edge/006_extra_6.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 965 | `20_declarations/gr.decl.parameters/edge/007_extra_7.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 966 | `20_declarations/gr.decl.parameters/edge/008_extra_8.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 967 | `20_declarations/gr.decl.parameters/edge/009_extra_9.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 968 | `20_declarations/gr.decl.parameters/edge/010_extra_10.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 969 | `20_declarations/gr.decl.parameters/edge/011_extra_11.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 970 | `20_declarations/gr.decl.parameters/edge/012_extra_12.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 971 | `20_declarations/gr.decl.parameters/edge/013_extra_13.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 972 | `20_declarations/gr.decl.parameters/edge/014_extra_14.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 973 | `20_declarations/gr.decl.parameters/edge/015_extra_15.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 974 | `20_declarations/gr.decl.parameters/edge/051_bool_param_to_string.ص` | `gr.decl.parameters` | edge | تطابق ✅ |
+| 975 | `20_declarations/gr.decl.parameters/negative/001_trailing_comma.ص` | `gr.decl.parameters` | negative | تطابق ✅ |
+| 976 | `20_declarations/gr.decl.parameters/negative/002_leading_comma.ص` | `gr.decl.parameters` | negative | تطابق ✅ |
+| 977 | `20_declarations/gr.decl.parameters/negative/003_default_no_value2.ص` | `gr.decl.parameters` | negative | تطابق ✅ |
+| 978 | `20_declarations/gr.decl.parameters/negative/004_default_no_value.ص` | `gr.decl.parameters` | negative | تطابق ✅ |
+| 979 | `20_declarations/gr.decl.parameters/negative/005_varargs_param.ص` | `gr.decl.parameters` | negative | تطابق ✅ |
+| 980 | `20_declarations/gr.decl.parameters/negative/050_variadic_unsupported.ص` | `gr.decl.parameters` | negative | تطابق ✅ |
+| 981 | `20_declarations/gr.decl.parameters/negative/051_reserved_end_as_param.ص` | `gr.decl.parameters` | negative | تطابق ✅ |
+| 982 | `20_declarations/gr.decl.reexport/basic/001_bare_wildcard.ص` | `gr.decl.reexport` | basic | تطابق ✅ |
+| 983 | `20_declarations/gr.decl.reexport/basic/002_bare_wildcard_after_func.ص` | `gr.decl.reexport` | basic | تطابق ✅ |
+| 984 | `20_declarations/gr.decl.reexport/basic/003_bare_wildcard_with_const.ص` | `gr.decl.reexport` | basic | تطابق ✅ |
+| 985 | `20_declarations/gr.decl.reexport/basic/004_wildcard_from_module.ص` | `gr.decl.reexport` | basic | تطابق ✅ |
+| 986 | `20_declarations/gr.decl.reexport/basic/005_selective_from_module_alias.ص` | `gr.decl.reexport` | basic | تطابق ✅ |
+| 987 | `20_declarations/gr.decl.reexport/basic/وحدة_مصدر.ص` | `gr.decl.reexport` | basic | تخطٍّ |
+| 988 | `20_declarations/gr.decl.reexport/edge/001_bare_wildcard_twice.ص` | `gr.decl.reexport` | edge | تطابق ✅ |
+| 989 | `20_declarations/gr.decl.reexport/negative/001_items_without_from.ص` | `gr.decl.reexport` | negative | تطابق ✅ |
+| 990 | `20_declarations/gr.decl.type_ref/basic/001_typed_رقم.ص` | `gr.decl.type_ref` | basic | تطابق ✅ |
+| 991 | `20_declarations/gr.decl.type_ref/basic/002_typed_نص.ص` | `gr.decl.type_ref` | basic | تطابق ✅ |
+| 992 | `20_declarations/gr.decl.type_ref/basic/003_typed_مصفوفة.ص` | `gr.decl.type_ref` | basic | تطابق ✅ |
+| 993 | `20_declarations/gr.decl.variable/basic/001_var_int.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 994 | `20_declarations/gr.decl.variable/basic/002_var_int2.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 995 | `20_declarations/gr.decl.variable/basic/003_var_neg.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 996 | `20_declarations/gr.decl.variable/basic/004_var_zero.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 997 | `20_declarations/gr.decl.variable/basic/005_var_str.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 998 | `20_declarations/gr.decl.variable/basic/006_var_str2.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 999 | `20_declarations/gr.decl.variable/basic/007_var_bool_t.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1000 | `20_declarations/gr.decl.variable/basic/008_var_bool_f.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1001 | `20_declarations/gr.decl.variable/basic/009_var_add.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1002 | `20_declarations/gr.decl.variable/basic/010_var_mul.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1003 | `20_declarations/gr.decl.variable/basic/011_var_mod.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1004 | `20_declarations/gr.decl.variable/basic/012_var_paren.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1005 | `20_declarations/gr.decl.variable/basic/013_const_int.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1006 | `20_declarations/gr.decl.variable/basic/014_const_int2.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1007 | `20_declarations/gr.decl.variable/basic/015_const_neg.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1008 | `20_declarations/gr.decl.variable/basic/016_const_zero.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1009 | `20_declarations/gr.decl.variable/basic/017_const_str.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1010 | `20_declarations/gr.decl.variable/basic/018_const_str2.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1011 | `20_declarations/gr.decl.variable/basic/019_const_bool_t.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1012 | `20_declarations/gr.decl.variable/basic/020_const_bool_f.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1013 | `20_declarations/gr.decl.variable/basic/021_typed_رقم.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1014 | `20_declarations/gr.decl.variable/basic/022_typed_نص.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1015 | `20_declarations/gr.decl.variable/basic/023_typed_منطقي.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1016 | `20_declarations/gr.decl.variable/basic/024_typed_عشري.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1017 | `20_declarations/gr.decl.variable/basic/025_from_func.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1018 | `20_declarations/gr.decl.variable/basic/026_from_var.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1019 | `20_declarations/gr.decl.variable/basic/027_array_init.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1020 | `20_declarations/gr.decl.variable/basic/028_map_init.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1021 | `20_declarations/gr.decl.variable/basic/029_no_init_then_set.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1022 | `20_declarations/gr.decl.variable/basic/030_reassign.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1023 | `20_declarations/gr.decl.variable/basic/031_compound_init.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1024 | `20_declarations/gr.decl.variable/basic/032_static_var.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1025 | `20_declarations/gr.decl.variable/basic/033_extra_33.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1026 | `20_declarations/gr.decl.variable/basic/034_extra_34.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1027 | `20_declarations/gr.decl.variable/basic/035_extra_35.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1028 | `20_declarations/gr.decl.variable/basic/036_extra_36.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1029 | `20_declarations/gr.decl.variable/basic/037_extra_37.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1030 | `20_declarations/gr.decl.variable/basic/038_extra_38.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1031 | `20_declarations/gr.decl.variable/basic/039_extra_39.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1032 | `20_declarations/gr.decl.variable/basic/040_extra_40.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1033 | `20_declarations/gr.decl.variable/basic/045_mod_const_typed.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1034 | `20_declarations/gr.decl.variable/basic/046_typed_طبيعي64.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1035 | `20_declarations/gr.decl.variable/basic/047_typed_بايت.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1036 | `20_declarations/gr.decl.variable/basic/048_byte_wide_value.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1037 | `20_declarations/gr.decl.variable/basic/049_byte_trunc_register.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1038 | `20_declarations/gr.decl.variable/basic/050_طبيعي64_literal_over_i64max.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1039 | `20_declarations/gr.decl.variable/basic/051_طبيعي64_unsigned_print.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1040 | `20_declarations/gr.decl.variable/basic/052_طبيعي64_unsigned_compare.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1041 | `20_declarations/gr.decl.variable/basic/054_طبيعي64_wrapping_arith.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1042 | `20_declarations/gr.decl.variable/basic/055_طبيعي64_null_sentinel_collision.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1043 | `20_declarations/gr.decl.variable/basic/056_طبيعي64_unsigned_div_mod.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1044 | `20_declarations/gr.decl.variable/basic/057_طبيعي64_global_div_mod_in_function.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1045 | `20_declarations/gr.decl.variable/basic/058_طبيعي64_captured_div_mod_in_closure.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1046 | `20_declarations/gr.decl.variable/basic/059_طبيعي64_reassign_literal_div_mod.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1047 | `20_declarations/gr.decl.variable/basic/060_typed_form_int.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1048 | `20_declarations/gr.decl.variable/basic/061_typed_form_string.ص` | `gr.decl.variable` | basic | تطابق ✅ |
+| 1049 | `20_declarations/gr.decl.variable/edge/001_long_name.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1050 | `20_declarations/gr.decl.variable/edge/002_unicode_name.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1051 | `20_declarations/gr.decl.variable/edge/003_latin_name.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1052 | `20_declarations/gr.decl.variable/edge/004_block_var.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1053 | `20_declarations/gr.decl.variable/edge/005_chain_calc.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1054 | `20_declarations/gr.decl.variable/edge/006_reassign_expr.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1055 | `20_declarations/gr.decl.variable/edge/007_bool_expr_init.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1056 | `20_declarations/gr.decl.variable/edge/008_nested_array.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1057 | `20_declarations/gr.decl.variable/edge/009_ternary_init.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1058 | `20_declarations/gr.decl.variable/edge/010_str_concat_init.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1059 | `20_declarations/gr.decl.variable/edge/011_in_loop.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1060 | `20_declarations/gr.decl.variable/edge/012_in_func.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1061 | `20_declarations/gr.decl.variable/edge/013_multi_same_line.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1062 | `20_declarations/gr.decl.variable/edge/014_const_in_expr.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1063 | `20_declarations/gr.decl.variable/edge/015_reassign_type_change.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1064 | `20_declarations/gr.decl.variable/edge/016_extra_16.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1065 | `20_declarations/gr.decl.variable/edge/017_extra_17.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1066 | `20_declarations/gr.decl.variable/edge/018_extra_18.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1067 | `20_declarations/gr.decl.variable/edge/019_extra_19.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1068 | `20_declarations/gr.decl.variable/edge/020_extra_20.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1069 | `20_declarations/gr.decl.variable/edge/021_extra_21.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1070 | `20_declarations/gr.decl.variable/edge/022_extra_22.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1071 | `20_declarations/gr.decl.variable/edge/023_extra_23.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1072 | `20_declarations/gr.decl.variable/edge/024_extra_24.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1073 | `20_declarations/gr.decl.variable/edge/025_extra_25.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1074 | `20_declarations/gr.decl.variable/edge/026_extra_26.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1075 | `20_declarations/gr.decl.variable/edge/027_extra_27.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1076 | `20_declarations/gr.decl.variable/edge/028_extra_28.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1077 | `20_declarations/gr.decl.variable/edge/029_extra_29.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1078 | `20_declarations/gr.decl.variable/edge/030_extra_30.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1079 | `20_declarations/gr.decl.variable/edge/031_extra_31.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1080 | `20_declarations/gr.decl.variable/edge/032_extra_32.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1081 | `20_declarations/gr.decl.variable/edge/033_extra_33.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1082 | `20_declarations/gr.decl.variable/edge/034_extra_34.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1083 | `20_declarations/gr.decl.variable/edge/035_extra_35.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1084 | `20_declarations/gr.decl.variable/edge/036_mod_static_public.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1085 | `20_declarations/gr.decl.variable/edge/037_mod_protected.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1086 | `20_declarations/gr.decl.variable/edge/053_nonstarter_reserved_as_var_ok.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1087 | `20_declarations/gr.decl.variable/edge/054_redeclare_same_scope_type_change.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1088 | `20_declarations/gr.decl.variable/edge/055_redeclare_scalar_string_same_type.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1089 | `20_declarations/gr.decl.variable/edge/056_redeclare_shadows_local_const.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1090 | `20_declarations/gr.decl.variable/edge/060_typed_form_no_init.ص` | `gr.decl.variable` | edge | تطابق ✅ |
+| 1091 | `20_declarations/gr.decl.variable/negative/001_no_name.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1092 | `20_declarations/gr.decl.variable/negative/002_no_value.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1093 | `20_declarations/gr.decl.variable/negative/003_num_name.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1094 | `20_declarations/gr.decl.variable/negative/004_kw_only.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1095 | `20_declarations/gr.decl.variable/negative/005_const_reassign.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1096 | `20_declarations/gr.decl.variable/negative/006_double_assign.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1097 | `20_declarations/gr.decl.variable/negative/007_const_no_name.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1098 | `20_declarations/gr.decl.variable/negative/008_lhs_literal.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1099 | `20_declarations/gr.decl.variable/negative/009_trailing_op.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1100 | `20_declarations/gr.decl.variable/negative/010_undefined_use.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1101 | `20_declarations/gr.decl.variable/negative/051_reserved_while_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1102 | `20_declarations/gr.decl.variable/negative/052_reserved_return_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1103 | `20_declarations/gr.decl.variable/negative/053_reserved_function_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1104 | `20_declarations/gr.decl.variable/negative/054_typed_reserved_while_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1105 | `20_declarations/gr.decl.variable/negative/060_typed_form_rejects_modifier.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1106 | `20_declarations/gr.decl.variable/negative/061_removed_word_double_typed_form.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1107 | `20_declarations/gr.decl.variable/negative/062_removed_word_double_keyword_form.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1108 | `30_oop/gr.oop.class/basic/001_field_ctor_method.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1109 | `30_oop/gr.oop.class/basic/002_abstract_override.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1110 | `30_oop/gr.oop.class/basic/003_inherits.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1111 | `30_oop/gr.oop.class/basic/050_simple_field.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1112 | `30_oop/gr.oop.class/basic/051_ctor_init.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1113 | `30_oop/gr.oop.class/basic/052_method_call.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1114 | `30_oop/gr.oop.class/basic/053_two_fields.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1115 | `30_oop/gr.oop.class/basic/054_inherit.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1116 | `30_oop/gr.oop.class/basic/055_three_methods.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1117 | `30_oop/gr.oop.class/basic/056_field_and_method.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1118 | `30_oop/gr.oop.class/basic/057_ctor_two_fields.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1119 | `30_oop/gr.oop.class/basic/058_method_returns_field.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1120 | `30_oop/gr.oop.class/basic/059_mutate_via_method.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1121 | `30_oop/gr.oop.class/basic/060_two_instances.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1122 | `30_oop/gr.oop.class/basic/061_string_field.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1123 | `30_oop/gr.oop.class/basic/062_bool_field_method.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1124 | `30_oop/gr.oop.class/basic/063_method_calls_method.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1125 | `30_oop/gr.oop.class/basic/064_field_default_and_ctor.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1126 | `30_oop/gr.oop.class/basic/065_inherit_field.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1127 | `30_oop/gr.oop.class/basic/066_three_fields_sum.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1128 | `30_oop/gr.oop.class/basic/067_method_with_param_and_field.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1129 | `30_oop/gr.oop.class/basic/068_empty_ctor.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1130 | `30_oop/gr.oop.class/basic/069_getter.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1131 | `30_oop/gr.oop.class/basic/070_setter_method.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1132 | `30_oop/gr.oop.class/basic/071_add_method.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1133 | `30_oop/gr.oop.class/basic/072_sub_method.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1134 | `30_oop/gr.oop.class/basic/073_mul_method.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1135 | `30_oop/gr.oop.class/basic/074_greeting.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1136 | `30_oop/gr.oop.class/basic/075_counter_start.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1137 | `30_oop/gr.oop.class/basic/076_two_field_concat.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1138 | `30_oop/gr.oop.class/basic/077_square.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1139 | `30_oop/gr.oop.class/basic/078_is_positive.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1140 | `30_oop/gr.oop.class/basic/079_max_of_two.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1141 | `30_oop/gr.oop.class/basic/080_bool_store.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1142 | `30_oop/gr.oop.class/basic/081_float_field.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1143 | `30_oop/gr.oop.class/basic/082_increment_by.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1144 | `30_oop/gr.oop.class/basic/083_reset.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1145 | `30_oop/gr.oop.class/basic/084_name_default.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1146 | `30_oop/gr.oop.class/basic/085_multiply_field.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1147 | `30_oop/gr.oop.class/basic/086_negate.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1148 | `30_oop/gr.oop.class/basic/087_concat_three.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1149 | `30_oop/gr.oop.class/basic/088_double_field_default.ص` | `gr.oop.class` | basic | تطابق ✅ |
+| 1150 | `30_oop/gr.oop.class/edge/050_override.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1151 | `30_oop/gr.oop.class/edge/051_inherit_chain.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1152 | `30_oop/gr.oop.class/edge/052_nested_obj.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1153 | `30_oop/gr.oop.class/edge/053_self_method_call.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1154 | `30_oop/gr.oop.class/edge/054_bool_field.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1155 | `30_oop/gr.oop.class/edge/055_chain_setters.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1156 | `30_oop/gr.oop.class/edge/056_object_field.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1157 | `30_oop/gr.oop.class/edge/057_method_in_loop.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1158 | `30_oop/gr.oop.class/edge/058_conditional_field.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1159 | `30_oop/gr.oop.class/edge/059_nested_inherit_override.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1160 | `30_oop/gr.oop.class/edge/060_field_used_in_two_methods.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1161 | `30_oop/gr.oop.class/edge/061_method_uses_two_fields.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1162 | `30_oop/gr.oop.class/edge/062_accumulate_in_loop.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1163 | `30_oop/gr.oop.class/edge/063_method_returns_object_field.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1164 | `30_oop/gr.oop.class/edge/064_recursive_method.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1165 | `30_oop/gr.oop.class/edge/065_chain_of_methods.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1166 | `30_oop/gr.oop.class/edge/066_super_method_call.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1167 | `30_oop/gr.oop.class/edge/067_override_returns_diff.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1168 | `30_oop/gr.oop.class/edge/068_inherited_method.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1169 | `30_oop/gr.oop.class/edge/069_field_modified_across_methods.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1170 | `30_oop/gr.oop.class/edge/070_conditional_in_ctor_path.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1171 | `30_oop/gr.oop.class/edge/071_two_objects_interact.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1172 | `30_oop/gr.oop.class/edge/072_while_with_method.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1173 | `30_oop/gr.oop.class/edge/073_method_with_local_var.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1174 | `30_oop/gr.oop.class/edge/074_nested_method_calls.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1175 | `30_oop/gr.oop.class/edge/075_string_field_method.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1176 | `30_oop/gr.oop.class/edge/076_three_level_inherit.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1177 | `30_oop/gr.oop.class/edge/077_method_calls_own_field_method.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1178 | `30_oop/gr.oop.class/edge/078_bool_method_branch.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1179 | `30_oop/gr.oop.class/edge/079_sum_via_loop_field.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1180 | `30_oop/gr.oop.class/edge/081_field_object_method_chain.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1181 | `30_oop/gr.oop.class/edge/082_multiple_instances_independent.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1182 | `30_oop/gr.oop.class/edge/083_empty_body_method.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1183 | `30_oop/gr.oop.class/edge/084_method_returns_bool_field.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1184 | `30_oop/gr.oop.class/edge/085_deep_method_nest.ص` | `gr.oop.class` | edge | تطابق ✅ |
+| 1185 | `30_oop/gr.oop.class/negative/050_missing_end.ص` | `gr.oop.class` | negative | تطابق ✅ |
+| 1186 | `30_oop/gr.oop.class/negative/051_stray_member_kw.ص` | `gr.oop.class` | negative | تطابق ✅ |
+| 1187 | `30_oop/gr.oop.class/negative/052_missing_end.ص` | `gr.oop.class` | negative | تطابق ✅ |
+| 1188 | `30_oop/gr.oop.class/negative/053_modifier_before_kw.ص` | `gr.oop.class` | negative | تطابق ✅ |
+| 1189 | `30_oop/gr.oop.class/negative/054_empty_no_end.ص` | `gr.oop.class` | negative | تطابق ✅ |
+| 1190 | `30_oop/gr.oop.class/negative/055_inherits_no_parent.ص` | `gr.oop.class` | negative | تطابق ✅ |
+| 1191 | `30_oop/gr.oop.class/negative/056_ctor_missing_end.ص` | `gr.oop.class` | negative | تطابق ✅ |
+| 1192 | `30_oop/gr.oop.class/negative/057_unknown_member_kw.ص` | `gr.oop.class` | negative | تطابق ✅ |
+| 1193 | `30_oop/gr.oop.class/negative/058_no_name.ص` | `gr.oop.class` | negative | تطابق ✅ |
+| 1194 | `30_oop/gr.oop.class/negative/059_abstract_method_no_body_called.ص` | `gr.oop.class` | negative | تطابق ✅ |
+| 1195 | `30_oop/gr.oop.constructor/basic/001_param_this.ص` | `gr.oop.constructor` | basic | تطابق ✅ |
+| 1196 | `30_oop/gr.oop.constructor/basic/002_base_call.ص` | `gr.oop.constructor` | basic | تطابق ✅ |
+| 1197 | `30_oop/gr.oop.constructor/basic/050_single_param.ص` | `gr.oop.constructor` | basic | تطابق ✅ |
+| 1198 | `30_oop/gr.oop.constructor/basic/051_no_param_default.ص` | `gr.oop.constructor` | basic | تطابق ✅ |
+| 1199 | `30_oop/gr.oop.constructor/basic/052_three_params.ص` | `gr.oop.constructor` | basic | تطابق ✅ |
+| 1200 | `30_oop/gr.oop.constructor/basic/053_ctor_no_args_defaults.ص` | `gr.oop.constructor` | basic | تطابق ✅ |
+| 1201 | `30_oop/gr.oop.constructor/edge/050_super_call.ص` | `gr.oop.constructor` | edge | تطابق ✅ |
+| 1202 | `30_oop/gr.oop.constructor/edge/051_two_params.ص` | `gr.oop.constructor` | edge | تطابق ✅ |
+| 1203 | `30_oop/gr.oop.constructor/edge/052_default_field_in_ctor.ص` | `gr.oop.constructor` | edge | تطابق ✅ |
+| 1204 | `30_oop/gr.oop.constructor/edge/053_ctor_computes.ص` | `gr.oop.constructor` | edge | تطابق ✅ |
+| 1205 | `30_oop/gr.oop.constructor/edge/054_ctor_calls_method.ص` | `gr.oop.constructor` | edge | تطابق ✅ |
+| 1206 | `30_oop/gr.oop.constructor/negative/050_no_parens.ص` | `gr.oop.constructor` | negative | تطابق ✅ |
+| 1207 | `30_oop/gr.oop.constructor/negative/051_missing_end.ص` | `gr.oop.constructor` | negative | تطابق ✅ |
+| 1208 | `30_oop/gr.oop.constructor/negative/051_reserved_end_as_ctor_param.ص` | `gr.oop.constructor` | negative | تطابق ✅ |
+| 1209 | `30_oop/gr.oop.destructor/basic/001_destructor_present.ص` | `gr.oop.destructor` | basic | تطابق ✅ |
+| 1210 | `30_oop/gr.oop.destructor/basic/050_open_msg.ص` | `gr.oop.destructor` | basic | تطابق ✅ |
+| 1211 | `30_oop/gr.oop.destructor/basic/051_declared_with_ctor.ص` | `gr.oop.destructor` | basic | تطابق ✅ |
+| 1212 | `30_oop/gr.oop.destructor/edge/050_in_class_with_field.ص` | `gr.oop.destructor` | edge | تطابق ✅ |
+| 1213 | `30_oop/gr.oop.destructor/edge/053_destructor_with_field_access.ص` | `gr.oop.destructor` | edge | تطابق ✅ |
+| 1214 | `30_oop/gr.oop.destructor/negative/050_with_params.ص` | `gr.oop.destructor` | negative | تطابق ✅ |
+| 1215 | `30_oop/gr.oop.enum/basic/001_plain_index.ص` | `gr.oop.enum` | basic | تطابق ✅ |
+| 1216 | `30_oop/gr.oop.enum/basic/002_explicit_value.ص` | `gr.oop.enum` | basic | تطابق ✅ |
+| 1217 | `30_oop/gr.oop.enum/basic/050_three_members.ص` | `gr.oop.enum` | basic | تطابق ✅ |
+| 1218 | `30_oop/gr.oop.enum/basic/051_four_members.ص` | `gr.oop.enum` | basic | تطابق ✅ |
+| 1219 | `30_oop/gr.oop.enum/basic/060_first_member_is_zero.ص` | `gr.oop.enum` | basic | تطابق ✅ |
+| 1220 | `30_oop/gr.oop.enum/basic/061_two_explicit_values.ص` | `gr.oop.enum` | basic | تطابق ✅ |
+| 1221 | `30_oop/gr.oop.enum/edge/050_explicit_values.ص` | `gr.oop.enum` | edge | تطابق ✅ |
+| 1222 | `30_oop/gr.oop.enum/edge/051_single_member.ص` | `gr.oop.enum` | edge | تطابق ✅ |
+| 1223 | `30_oop/gr.oop.enum/edge/052_mixed_values.ص` | `gr.oop.enum` | edge | تطابق ✅ |
+| 1224 | `30_oop/gr.oop.enum/edge/060_member_in_arithmetic.ص` | `gr.oop.enum` | edge | تطابق ✅ |
+| 1225 | `30_oop/gr.oop.enum/edge/061_member_compared.ص` | `gr.oop.enum` | edge | تطابق ✅ |
+| 1226 | `30_oop/gr.oop.enum/negative/050_no_members.ص` | `gr.oop.enum` | negative | تطابق ✅ |
+| 1227 | `30_oop/gr.oop.enum/negative/051_missing_end.ص` | `gr.oop.enum` | negative | تطابق ✅ |
+| 1228 | `30_oop/gr.oop.enum/negative/052_stray_body.ص` | `gr.oop.enum` | negative | تطابق ✅ |
+| 1229 | `30_oop/gr.oop.enum/negative/053_empty_enum_catalog_code.ص` | `gr.oop.enum` | negative | تطابق ✅ |
+| 1230 | `30_oop/gr.oop.extension/basic/001_extension_method.ص` | `gr.oop.extension` | basic | تطابق ✅ |
+| 1231 | `30_oop/gr.oop.extension/basic/050_add_method.ص` | `gr.oop.extension` | basic | تطابق ✅ |
+| 1232 | `30_oop/gr.oop.extension/basic/060_ext_method_no_field.ص` | `gr.oop.extension` | basic | تطابق ✅ |
+| 1233 | `30_oop/gr.oop.extension/basic/061_ext_method_with_param.ص` | `gr.oop.extension` | basic | تطابق ✅ |
+| 1234 | `30_oop/gr.oop.extension/edge/050_two_ext_methods.ص` | `gr.oop.extension` | edge | تطابق ✅ |
+| 1235 | `30_oop/gr.oop.extension/edge/060_ext_calls_class_method.ص` | `gr.oop.extension` | edge | تطابق ✅ |
+| 1236 | `30_oop/gr.oop.extension/edge/061_ext_method_on_two_objects.ص` | `gr.oop.extension` | edge | تطابق ✅ |
+| 1237 | `30_oop/gr.oop.extension/negative/050_missing_end.ص` | `gr.oop.extension` | negative | تطابق ✅ |
+| 1238 | `30_oop/gr.oop.extension/negative/060_ext_unknown_type.ص` | `gr.oop.extension` | negative | تطابق ✅ |
+| 1239 | `30_oop/gr.oop.field/basic/001_public_default.ص` | `gr.oop.field` | basic | تطابق ✅ |
+| 1240 | `30_oop/gr.oop.field/basic/002_private_via_method.ص` | `gr.oop.field` | basic | تطابق ✅ |
+| 1241 | `30_oop/gr.oop.field/basic/050_public_init.ص` | `gr.oop.field` | basic | تطابق ✅ |
+| 1242 | `30_oop/gr.oop.field/basic/051_string_field_initializer.ص` | `gr.oop.field` | basic | تطابق ✅ |
+| 1243 | `30_oop/gr.oop.field/basic/052_multiple_fields.ص` | `gr.oop.field` | basic | تطابق ✅ |
+| 1244 | `30_oop/gr.oop.field/basic/053_field_default_then_override.ص` | `gr.oop.field` | basic | تطابق ✅ |
+| 1245 | `30_oop/gr.oop.field/edge/050_private_via_method.ص` | `gr.oop.field` | edge | تطابق ✅ |
+| 1246 | `30_oop/gr.oop.field/edge/050_حقل_مصفوفة_عبر_Any.ص` | `gr.oop.field` | edge | تطابق ✅ |
+| 1247 | `30_oop/gr.oop.field/edge/051_uninit_field_external_set.ص` | `gr.oop.field` | edge | تطابق ✅ |
+| 1248 | `30_oop/gr.oop.field/edge/052_same_field_name_two_classes.ص` | `gr.oop.field` | edge | تطابق ✅ |
+| 1249 | `30_oop/gr.oop.field/edge/053_uninit_field_set_in_match_arm.ص` | `gr.oop.field` | edge | تطابق ✅ |
+| 1250 | `30_oop/gr.oop.field/negative/050_modifier_before.ص` | `gr.oop.field` | negative | تطابق ✅ |
+| 1251 | `30_oop/gr.oop.field/negative/054_field_without_name.ص` | `gr.oop.field` | negative | تطابق ✅ |
+| 1252 | `30_oop/gr.oop.impl/basic/001_impl_for.ص` | `gr.oop.impl` | basic | تطابق ✅ |
+| 1253 | `30_oop/gr.oop.impl/basic/050_impl_for.ص` | `gr.oop.impl` | basic | تطابق ✅ |
+| 1254 | `30_oop/gr.oop.impl/basic/060_impl_two_methods.ص` | `gr.oop.impl` | basic | تطابق ✅ |
+| 1255 | `30_oop/gr.oop.impl/basic/061_impl_method_with_param.ص` | `gr.oop.impl` | basic | تطابق ✅ |
+| 1256 | `30_oop/gr.oop.impl/edge/050_impl_uses_field.ص` | `gr.oop.impl` | edge | تطابق ✅ |
+| 1257 | `30_oop/gr.oop.impl/edge/060_impl_reads_ctor_field.ص` | `gr.oop.impl` | edge | تطابق ✅ |
+| 1258 | `30_oop/gr.oop.impl/edge/061_two_classes_one_trait.ص` | `gr.oop.impl` | edge | تطابق ✅ |
+| 1259 | `30_oop/gr.oop.impl/negative/050_missing_end.ص` | `gr.oop.impl` | negative | تطابق ✅ |
+| 1260 | `30_oop/gr.oop.impl/negative/060_impl_without_end.ص` | `gr.oop.impl` | negative | تطابق ✅ |
+| 1261 | `30_oop/gr.oop.member/basic/001_mixed_members.ص` | `gr.oop.member` | basic | تطابق ✅ |
+| 1262 | `30_oop/gr.oop.member/basic/050_field_ctor_method.ص` | `gr.oop.member` | basic | تطابق ✅ |
+| 1263 | `30_oop/gr.oop.member/basic/051_field_method.ص` | `gr.oop.member` | basic | تطابق ✅ |
+| 1264 | `30_oop/gr.oop.member/basic/052_ctor_method.ص` | `gr.oop.member` | basic | تطابق ✅ |
+| 1265 | `30_oop/gr.oop.member/basic/060_two_fields_one_method.ص` | `gr.oop.member` | basic | تطابق ✅ |
+| 1266 | `30_oop/gr.oop.member/basic/061_static_and_instance.ص` | `gr.oop.member` | basic | تطابق ✅ |
+| 1267 | `30_oop/gr.oop.member/basic/062_ctor_and_destructor.ص` | `gr.oop.member` | basic | تطابق ✅ |
+| 1268 | `30_oop/gr.oop.member/basic/063_property_beside_method.ص` | `gr.oop.member` | basic | تطابق ✅ |
+| 1269 | `30_oop/gr.oop.member/edge/050_all_member_kinds.ص` | `gr.oop.member` | edge | تطابق ✅ |
+| 1270 | `30_oop/gr.oop.member/edge/051_multi_method.ص` | `gr.oop.member` | edge | تطابق ✅ |
+| 1271 | `30_oop/gr.oop.member/edge/060_method_uses_static_field.ص` | `gr.oop.member` | edge | تطابق ✅ |
+| 1272 | `30_oop/gr.oop.member/edge/061_three_methods_chain.ص` | `gr.oop.member` | edge | تطابق ✅ |
+| 1273 | `30_oop/gr.oop.member/edge/062_field_shadowed_by_param.ص` | `gr.oop.member` | edge | تطابق ✅ |
+| 1274 | `30_oop/gr.oop.member/edge/063_operator_beside_field.ص` | `gr.oop.member` | edge | تطابق ✅ |
+| 1275 | `30_oop/gr.oop.member/negative/050_unknown_kw.ص` | `gr.oop.member` | negative | تطابق ✅ |
+| 1276 | `30_oop/gr.oop.member/negative/060_method_without_param_list.ص` | `gr.oop.member` | negative | تطابق ✅ |
+| 1277 | `30_oop/gr.oop.member/negative/061_unknown_member_keyword.ص` | `gr.oop.member` | negative | تطابق ✅ |
+| 1278 | `30_oop/gr.oop.member/negative/062_method_without_end.ص` | `gr.oop.member` | negative | تطابق ✅ |
+| 1279 | `30_oop/gr.oop.method/basic/001_with_params.ص` | `gr.oop.method` | basic | تطابق ✅ |
+| 1280 | `30_oop/gr.oop.method/basic/002_static.ص` | `gr.oop.method` | basic | تطابق ✅ |
+| 1281 | `30_oop/gr.oop.method/basic/050_instance.ص` | `gr.oop.method` | basic | تطابق ✅ |
+| 1282 | `30_oop/gr.oop.method/basic/051_static.ص` | `gr.oop.method` | basic | تطابق ✅ |
+| 1283 | `30_oop/gr.oop.method/basic/052_param_and_field.ص` | `gr.oop.method` | basic | تطابق ✅ |
+| 1284 | `30_oop/gr.oop.method/basic/053_method_two_params.ص` | `gr.oop.method` | basic | تطابق ✅ |
+| 1285 | `30_oop/gr.oop.method/basic/053_no_param.ص` | `gr.oop.method` | basic | تطابق ✅ |
+| 1286 | `30_oop/gr.oop.method/basic/054_string_return.ص` | `gr.oop.method` | basic | تطابق ✅ |
+| 1287 | `30_oop/gr.oop.method/edge/050_uses_field.ص` | `gr.oop.method` | edge | تطابق ✅ |
+| 1288 | `30_oop/gr.oop.method/edge/051_two_methods.ص` | `gr.oop.method` | edge | تطابق ✅ |
+| 1289 | `30_oop/gr.oop.method/edge/052_طريقة_تُرجع_مصفوفة_مختلطة.ص` | `gr.oop.method` | edge | تطابق ✅ |
+| 1290 | `30_oop/gr.oop.method/edge/053_طريقة_تُرجع_مصفوفة_نصوص.ص` | `gr.oop.method` | edge | تطابق ✅ |
+| 1291 | `30_oop/gr.oop.method/edge/054_method_calls_sibling.ص` | `gr.oop.method` | edge | تطابق ✅ |
+| 1292 | `30_oop/gr.oop.method/edge/055_method_reads_and_writes_field.ص` | `gr.oop.method` | edge | تطابق ✅ |
+| 1293 | `30_oop/gr.oop.method/negative/050_no_parens.ص` | `gr.oop.method` | negative | تطابق ✅ |
+| 1294 | `30_oop/gr.oop.method/negative/051_missing_end.ص` | `gr.oop.method` | negative | تطابق ✅ |
+| 1295 | `30_oop/gr.oop.method/negative/051_reserved_end_as_method_param.ص` | `gr.oop.method` | negative | تطابق ✅ |
+| 1296 | `30_oop/gr.oop.method/negative/052_reserved_end_as_typed_method_param.ص` | `gr.oop.method` | negative | تطابق ✅ |
+| 1297 | `30_oop/gr.oop.modifiers/basic/001_private_static.ص` | `gr.oop.modifiers` | basic | تطابق ✅ |
+| 1298 | `30_oop/gr.oop.modifiers/basic/050_private_public.ص` | `gr.oop.modifiers` | basic | تطابق ✅ |
+| 1299 | `30_oop/gr.oop.modifiers/basic/051_public_method.ص` | `gr.oop.modifiers` | basic | تطابق ✅ |
+| 1300 | `30_oop/gr.oop.modifiers/basic/052_public_field_read.ص` | `gr.oop.modifiers` | basic | تطابق ✅ |
+| 1301 | `30_oop/gr.oop.modifiers/basic/053_static_method_call.ص` | `gr.oop.modifiers` | basic | تطابق ✅ |
+| 1302 | `30_oop/gr.oop.modifiers/edge/050_protected_field.ص` | `gr.oop.modifiers` | edge | تطابق ✅ |
+| 1303 | `30_oop/gr.oop.modifiers/edge/051_static_and_instance.ص` | `gr.oop.modifiers` | edge | تطابق ✅ |
+| 1304 | `30_oop/gr.oop.modifiers/edge/054_private_read_via_public_method.ص` | `gr.oop.modifiers` | edge | تطابق ✅ |
+| 1305 | `30_oop/gr.oop.modifiers/edge/055_static_field_shared.ص` | `gr.oop.modifiers` | edge | تطابق ✅ |
+| 1306 | `30_oop/gr.oop.modifiers/negative/050_before_keyword.ص` | `gr.oop.modifiers` | negative | تطابق ✅ |
+| 1307 | `30_oop/gr.oop.modifiers/negative/056_modifier_on_class_decl.ص` | `gr.oop.modifiers` | negative | تطابق ✅ |
+| 1308 | `30_oop/gr.oop.new/basic/050_suffix_new.ص` | `gr.oop.new` | basic | تطابق ✅ |
+| 1309 | `30_oop/gr.oop.new/basic/051_call_form.ص` | `gr.oop.new` | basic | تطابق ✅ |
+| 1310 | `30_oop/gr.oop.new/basic/052_suffix_form.ص` | `gr.oop.new` | basic | تطابق ✅ |
+| 1311 | `30_oop/gr.oop.new/basic/053_new_with_two_args.ص` | `gr.oop.new` | basic | تطابق ✅ |
+| 1312 | `30_oop/gr.oop.new/basic/053_string_arg.ص` | `gr.oop.new` | basic | تطابق ✅ |
+| 1313 | `30_oop/gr.oop.new/edge/050_without_new_kw.ص` | `gr.oop.new` | edge | تطابق ✅ |
+| 1314 | `30_oop/gr.oop.new/edge/051_new_in_expression.ص` | `gr.oop.new` | edge | تطابق ✅ |
+| 1315 | `30_oop/gr.oop.new/edge/054_new_inside_expression.ص` | `gr.oop.new` | edge | تطابق ✅ |
+| 1316 | `30_oop/gr.oop.new/edge/055_new_as_argument.ص` | `gr.oop.new` | edge | تطابق ✅ |
+| 1317 | `30_oop/gr.oop.new/negative/050_no_class_after_new.ص` | `gr.oop.new` | negative | تطابق ✅ |
+| 1318 | `30_oop/gr.oop.new/negative/056_new_unknown_class.ص` | `gr.oop.new` | negative | تطابق ✅ |
+| 1319 | `30_oop/gr.oop.new/negative/057_new_without_operand.ص` | `gr.oop.new` | negative | تطابق ✅ |
+| 1320 | `30_oop/gr.oop.operator/basic/001_plus.ص` | `gr.oop.operator` | basic | تطابق ✅ |
+| 1321 | `30_oop/gr.oop.operator/basic/050_plus.ص` | `gr.oop.operator` | basic | تطابق ✅ |
+| 1322 | `30_oop/gr.oop.operator/basic/052_minus.ص` | `gr.oop.operator` | basic | تطابق ✅ |
+| 1323 | `30_oop/gr.oop.operator/basic/053_times.ص` | `gr.oop.operator` | basic | تطابق ✅ |
+| 1324 | `30_oop/gr.oop.operator/edge/050_minus.ص` | `gr.oop.operator` | edge | تطابق ✅ |
+| 1325 | `30_oop/gr.oop.operator/edge/051_mul.ص` | `gr.oop.operator` | edge | تطابق ✅ |
+| 1326 | `30_oop/gr.oop.operator/edge/054_chained_plus.ص` | `gr.oop.operator` | edge | تطابق ✅ |
+| 1327 | `30_oop/gr.oop.operator/negative/050_no_symbol.ص` | `gr.oop.operator` | negative | تطابق ✅ |
+| 1328 | `30_oop/gr.oop.operator/negative/051_missing_end.ص` | `gr.oop.operator` | negative | تطابق ✅ |
+| 1329 | `30_oop/gr.oop.property/basic/001_get_set.ص` | `gr.oop.property` | basic | تطابق ✅ |
+| 1330 | `30_oop/gr.oop.property/basic/051_get_computed.ص` | `gr.oop.property` | basic | تطابق ✅ |
+| 1331 | `30_oop/gr.oop.property/basic/052_set_get_pair.ص` | `gr.oop.property` | basic | تطابق ✅ |
+| 1332 | `30_oop/gr.oop.property/basic/053_get_only.ص` | `gr.oop.property` | basic | تطابق ✅ |
+| 1333 | `30_oop/gr.oop.property/edge/050_get_only.ص` | `gr.oop.property` | edge | تطابق ✅ |
+| 1334 | `30_oop/gr.oop.property/edge/051_set_then_get.ص` | `gr.oop.property` | edge | تطابق ✅ |
+| 1335 | `30_oop/gr.oop.property/edge/054_set_then_get_twice.ص` | `gr.oop.property` | edge | تطابق ✅ |
+| 1336 | `30_oop/gr.oop.property/edge/055_computed_from_two_fields.ص` | `gr.oop.property` | edge | تطابق ✅ |
+| 1337 | `30_oop/gr.oop.property/negative/050_missing_end.ص` | `gr.oop.property` | negative | تطابق ✅ |
+| 1338 | `30_oop/gr.oop.property/negative/056_property_without_accessor.ص` | `gr.oop.property` | negative | تطابق ✅ |
+| 1339 | `30_oop/gr.oop.struct/basic/001_default_field_values.ص` | `gr.oop.struct` | basic | تطابق ✅ |
+| 1340 | `30_oop/gr.oop.struct/basic/002_default_then_assign.ص` | `gr.oop.struct` | basic | تطابق ✅ |
+| 1341 | `30_oop/gr.oop.struct/basic/003_float_field.ص` | `gr.oop.struct` | basic | تطابق ✅ |
+| 1342 | `30_oop/gr.oop.struct/basic/004_bool_field.ص` | `gr.oop.struct` | basic | تطابق ✅ |
+| 1343 | `30_oop/gr.oop.struct/basic/050_two_fields.ص` | `gr.oop.struct` | basic | تطابق ✅ |
+| 1344 | `30_oop/gr.oop.struct/basic/051_ctor.ص` | `gr.oop.struct` | basic | تطابق ✅ |
+| 1345 | `30_oop/gr.oop.struct/basic/052_c_repr_accepted.ص` | `gr.oop.struct` | basic | تطابق ✅ |
+| 1346 | `30_oop/gr.oop.struct/edge/050_two_fields_external.ص` | `gr.oop.struct` | edge | تطابق ✅ |
+| 1347 | `30_oop/gr.oop.struct/edge/051_method_reads_default.ص` | `gr.oop.struct` | edge | تطابق ✅ |
+| 1348 | `30_oop/gr.oop.struct/edge/051_struct_constructor_and_method.ص` | `gr.oop.struct` | edge | تطابق ✅ |
+| 1349 | `30_oop/gr.oop.struct/edge/052_c_repr_method_direct_dispatch.ص` | `gr.oop.struct` | edge | تطابق ✅ |
+| 1350 | `30_oop/gr.oop.struct/edge/052_ctor_and_two_methods.ص` | `gr.oop.struct` | edge | تطابق ✅ |
+| 1351 | `30_oop/gr.oop.struct/negative/050_missing_end.ص` | `gr.oop.struct` | negative | تطابق ✅ |
+| 1352 | `30_oop/gr.oop.struct/negative/051_paren_form.ص` | `gr.oop.struct` | negative | تطابق ✅ |
+| 1353 | `30_oop/gr.oop.struct/negative/052_empty_no_end.ص` | `gr.oop.struct` | negative | تطابق ✅ |
+| 1354 | `30_oop/gr.oop.struct/negative/053_c_repr_on_non_struct.ص` | `gr.oop.struct` | negative | تطابق ✅ |
+| 1355 | `30_oop/gr.oop.this_super/basic/001_this_in_method.ص` | `gr.oop.this_super` | basic | تطابق ✅ |
+| 1356 | `30_oop/gr.oop.this_super/basic/002_super_method.ص` | `gr.oop.this_super` | basic | تطابق ✅ |
+| 1357 | `30_oop/gr.oop.this_super/basic/050_this_field.ص` | `gr.oop.this_super` | basic | تطابق ✅ |
+| 1358 | `30_oop/gr.oop.this_super/basic/051_this_multi_field.ص` | `gr.oop.this_super` | basic | تطابق ✅ |
+| 1359 | `30_oop/gr.oop.this_super/edge/050_super_method.ص` | `gr.oop.this_super` | edge | تطابق ✅ |
+| 1360 | `30_oop/gr.oop.this_super/edge/051_this_in_method_chain.ص` | `gr.oop.this_super` | edge | تطابق ✅ |
+| 1361 | `30_oop/gr.oop.this_super/edge/053_this_returned_from_method.ص` | `gr.oop.this_super` | edge | تطابق ✅ |
+| 1362 | `30_oop/gr.oop.this_super/negative/050_this_outside_class.ص` | `gr.oop.this_super` | negative | تطابق ✅ |
+| 1363 | `30_oop/gr.oop.trait/basic/001_trait_impl_inline.ص` | `gr.oop.trait` | basic | تطابق ✅ |
+| 1364 | `30_oop/gr.oop.trait/basic/050_impl_in_header.ص` | `gr.oop.trait` | basic | تطابق ✅ |
+| 1365 | `30_oop/gr.oop.trait/basic/051_impl_for_form.ص` | `gr.oop.trait` | basic | تطابق ✅ |
+| 1366 | `30_oop/gr.oop.trait/basic/060_trait_two_methods.ص` | `gr.oop.trait` | basic | تطابق ✅ |
+| 1367 | `30_oop/gr.oop.trait/basic/061_trait_method_with_param.ص` | `gr.oop.trait` | basic | تطابق ✅ |
+| 1368 | `30_oop/gr.oop.trait/edge/050_two_methods.ص` | `gr.oop.trait` | edge | تطابق ✅ |
+| 1369 | `30_oop/gr.oop.trait/edge/060_two_traits_in_header.ص` | `gr.oop.trait` | edge | تطابق ✅ |
+| 1370 | `30_oop/gr.oop.trait/edge/061_trait_impl_reads_field.ص` | `gr.oop.trait` | edge | تطابق ✅ |
+| 1371 | `30_oop/gr.oop.trait/edge/062_trait_method_calls_sibling.ص` | `gr.oop.trait` | edge | تطابق ✅ |
+| 1372 | `30_oop/gr.oop.trait/negative/050_missing_end.ص` | `gr.oop.trait` | negative | تطابق ✅ |
+| 1373 | `30_oop/gr.oop.trait/negative/060_trait_without_end.ص` | `gr.oop.trait` | negative | تطابق ✅ |
+| 1374 | `40_expressions/gr.expr.array_literal/basic/001_index.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1375 | `40_expressions/gr.expr.array_literal/basic/060_arr_index.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1376 | `40_expressions/gr.expr.array_literal/basic/061_arr_print.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1377 | `40_expressions/gr.expr.array_literal/basic/062_arr_empty_len.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1378 | `40_expressions/gr.expr.array_literal/basic/063_arr_len.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1379 | `40_expressions/gr.expr.array_literal/basic/064_arr_strings.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1380 | `40_expressions/gr.expr.array_literal/basic/065_arr_single.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1381 | `40_expressions/gr.expr.array_literal/basic/066_مصفوفة_مختلطة_عدد_عشري.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1382 | `40_expressions/gr.expr.array_literal/basic/067_مصفوفة_مختلطة_أربعة_أنواع.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1383 | `40_expressions/gr.expr.array_literal/basic/068_مصفوفة_مختلطة_طباعة_حاوية.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1384 | `40_expressions/gr.expr.array_literal/basic/069_مصفوفة_مختلطة_إعادة_إسناد.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1385 | `40_expressions/gr.expr.array_literal/basic/070_مصفوفة_مختلطة_إلحاق.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1386 | `40_expressions/gr.expr.array_literal/basic/071_مصفوفة_مختلطة_استيعاب.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1387 | `40_expressions/gr.expr.array_literal/basic/072_مصفوفة_ديناميّة_قسمة.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1388 | `40_expressions/gr.expr.array_literal/basic/073_مصفوفة_مختلطة_شريحة.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1389 | `40_expressions/gr.expr.array_literal/basic/074_مصفوفة_موسومة_إعادة_إسناد_لغير_موسومة.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1390 | `40_expressions/gr.expr.array_literal/basic/075_مصفوفة_دمج_مختلط_بمحدّد.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1391 | `40_expressions/gr.expr.array_literal/basic/076_مصفوفة_دمج_محدّدين_مختلفين.ص` | `gr.expr.array_literal` | basic | تطابق ✅ |
+| 1392 | `40_expressions/gr.expr.array_literal/edge/060_arr_nested.ص` | `gr.expr.array_literal` | edge | تطابق ✅ |
+| 1393 | `40_expressions/gr.expr.array_literal/edge/061_arr_expr_elems.ص` | `gr.expr.array_literal` | edge | تطابق ✅ |
+| 1394 | `40_expressions/gr.expr.array_literal/edge/062_arr_mixed_index.ص` | `gr.expr.array_literal` | edge | تطابق ✅ |
+| 1395 | `40_expressions/gr.expr.array_literal/edge/063_arr_comprehension.ص` | `gr.expr.array_literal` | edge | تطابق ✅ |
+| 1396 | `40_expressions/gr.expr.array_literal/edge/064_arr_len_nested.ص` | `gr.expr.array_literal` | edge | تطابق ✅ |
+| 1397 | `40_expressions/gr.expr.array_literal/edge/077_مصفوفة_متداخلة_داخل_مختلطة.ص` | `gr.expr.array_literal` | edge | تطابق ✅ |
+| 1398 | `40_expressions/gr.expr.array_literal/edge/078_مصفوفة_تعشيش_مضاعف.ص` | `gr.expr.array_literal` | edge | تطابق ✅ |
+| 1399 | `40_expressions/gr.expr.array_literal/edge/079_مصفوفة_فارغة_متداخلة.ص` | `gr.expr.array_literal` | edge | تطابق ✅ |
+| 1400 | `40_expressions/gr.expr.array_literal/negative/060_arr_unclosed.ص` | `gr.expr.array_literal` | negative | تطابق ✅ |
+| 1401 | `40_expressions/gr.expr.array_literal/negative/061_arr_trailing_comma_open.ص` | `gr.expr.array_literal` | negative | تطابق ✅ |
+| 1402 | `40_expressions/gr.expr.assignment/basic/001_compound.ص` | `gr.expr.assignment` | basic | تطابق ✅ |
+| 1403 | `40_expressions/gr.expr.assignment/basic/002_walrus.ص` | `gr.expr.assignment` | basic | تطابق ✅ |
+| 1404 | `40_expressions/gr.expr.assignment/basic/060_a_plus.ص` | `gr.expr.assignment` | basic | تطابق ✅ |
+| 1405 | `40_expressions/gr.expr.assignment/basic/061_a_minus.ص` | `gr.expr.assignment` | basic | تطابق ✅ |
+| 1406 | `40_expressions/gr.expr.assignment/basic/062_a_mul.ص` | `gr.expr.assignment` | basic | تطابق ✅ |
+| 1407 | `40_expressions/gr.expr.assignment/basic/063_a_div.ص` | `gr.expr.assignment` | basic | تطابق ✅ |
+| 1408 | `40_expressions/gr.expr.assignment/basic/064_a_mod.ص` | `gr.expr.assignment` | basic | تطابق ✅ |
+| 1409 | `40_expressions/gr.expr.assignment/basic/065_a_floordiv.ص` | `gr.expr.assignment` | basic | تطابق ✅ |
+| 1410 | `40_expressions/gr.expr.assignment/basic/066_a_walrus.ص` | `gr.expr.assignment` | basic | تطابق ✅ |
+| 1411 | `40_expressions/gr.expr.assignment/basic/067_a_reassign.ص` | `gr.expr.assignment` | basic | تطابق ✅ |
+| 1412 | `40_expressions/gr.expr.assignment/edge/060_a_chain_compound.ص` | `gr.expr.assignment` | edge | تطابق ✅ |
+| 1413 | `40_expressions/gr.expr.assignment/edge/061_a_index_assign.ص` | `gr.expr.assignment` | edge | تطابق ✅ |
+| 1414 | `40_expressions/gr.expr.assignment/edge/062_a_map_assign.ص` | `gr.expr.assignment` | edge | تطابق ✅ |
+| 1415 | `40_expressions/gr.expr.assignment/edge/063_a_str_plus.ص` | `gr.expr.assignment` | edge | تطابق ✅ |
+| 1416 | `40_expressions/gr.expr.assignment/edge/064_a_neg_result.ص` | `gr.expr.assignment` | edge | تطابق ✅ |
+| 1417 | `40_expressions/gr.expr.assignment/edge/065_a_mul_zero.ص` | `gr.expr.assignment` | edge | تطابق ✅ |
+| 1418 | `40_expressions/gr.expr.assignment/edge/066_a_div_float.ص` | `gr.expr.assignment` | edge | تطابق ✅ |
+| 1419 | `40_expressions/gr.expr.assignment/edge/067_a_walrus_expr.ص` | `gr.expr.assignment` | edge | تطابق ✅ |
+| 1420 | `40_expressions/gr.expr.assignment/negative/060_a_walrus_nonname.ص` | `gr.expr.assignment` | negative | تطابق ✅ |
+| 1421 | `40_expressions/gr.expr.assignment/negative/061_a_missing_rhs.ص` | `gr.expr.assignment` | negative | تطابق ✅ |
+| 1422 | `40_expressions/gr.expr.assignment/negative/062_a_no_lhs.ص` | `gr.expr.assignment` | negative | تطابق ✅ |
+| 1423 | `40_expressions/gr.expr.assignment/negative/063_a_double_op.ص` | `gr.expr.assignment` | negative | تطابق ✅ |
+| 1424 | `40_expressions/gr.expr.bitwise_and/basic/001_basic.ص` | `gr.expr.bitwise_and` | basic | تطابق ✅ |
+| 1425 | `40_expressions/gr.expr.bitwise_and/basic/050_band_6_3.ص` | `gr.expr.bitwise_and` | basic | تطابق ✅ |
+| 1426 | `40_expressions/gr.expr.bitwise_and/basic/051_band_7_4.ص` | `gr.expr.bitwise_and` | basic | تطابق ✅ |
+| 1427 | `40_expressions/gr.expr.bitwise_and/basic/052_band_0_9.ص` | `gr.expr.bitwise_and` | basic | تطابق ✅ |
+| 1428 | `40_expressions/gr.expr.bitwise_and/basic/053_band_5_5.ص` | `gr.expr.bitwise_and` | basic | تطابق ✅ |
+| 1429 | `40_expressions/gr.expr.bitwise_and/edge/050_band_chain.ص` | `gr.expr.bitwise_and` | edge | تطابق ✅ |
+| 1430 | `40_expressions/gr.expr.bitwise_and/edge/051_band_prec_over_xor.ص` | `gr.expr.bitwise_and` | edge | تطابق ✅ |
+| 1431 | `40_expressions/gr.expr.bitwise_and/edge/052_band_var.ص` | `gr.expr.bitwise_and` | edge | تطابق ✅ |
+| 1432 | `40_expressions/gr.expr.bitwise_and/negative/050_band_missing_rhs.ص` | `gr.expr.bitwise_and` | negative | تطابق ✅ |
+| 1433 | `40_expressions/gr.expr.bitwise_or/basic/001_basic.ص` | `gr.expr.bitwise_or` | basic | تطابق ✅ |
+| 1434 | `40_expressions/gr.expr.bitwise_or/basic/050_bor_6_1.ص` | `gr.expr.bitwise_or` | basic | تطابق ✅ |
+| 1435 | `40_expressions/gr.expr.bitwise_or/basic/051_bor_4_2.ص` | `gr.expr.bitwise_or` | basic | تطابق ✅ |
+| 1436 | `40_expressions/gr.expr.bitwise_or/basic/052_bor_0_0.ص` | `gr.expr.bitwise_or` | basic | تطابق ✅ |
+| 1437 | `40_expressions/gr.expr.bitwise_or/basic/053_bor_5_5.ص` | `gr.expr.bitwise_or` | basic | تطابق ✅ |
+| 1438 | `40_expressions/gr.expr.bitwise_or/edge/050_bor_chain.ص` | `gr.expr.bitwise_or` | edge | تطابق ✅ |
+| 1439 | `40_expressions/gr.expr.bitwise_or/edge/051_bor_with_and_prec.ص` | `gr.expr.bitwise_or` | edge | تطابق ✅ |
+| 1440 | `40_expressions/gr.expr.bitwise_or/edge/052_bor_var.ص` | `gr.expr.bitwise_or` | edge | تطابق ✅ |
+| 1441 | `40_expressions/gr.expr.bitwise_or/negative/050_bor_missing_rhs.ص` | `gr.expr.bitwise_or` | negative | تطابق ✅ |
+| 1442 | `40_expressions/gr.expr.bitwise_xor/basic/001_basic.ص` | `gr.expr.bitwise_xor` | basic | تطابق ✅ |
+| 1443 | `40_expressions/gr.expr.bitwise_xor/basic/050_bxor_5_3.ص` | `gr.expr.bitwise_xor` | basic | تطابق ✅ |
+| 1444 | `40_expressions/gr.expr.bitwise_xor/basic/051_bxor_7_7.ص` | `gr.expr.bitwise_xor` | basic | تطابق ✅ |
+| 1445 | `40_expressions/gr.expr.bitwise_xor/basic/052_bxor_0_9.ص` | `gr.expr.bitwise_xor` | basic | تطابق ✅ |
+| 1446 | `40_expressions/gr.expr.bitwise_xor/basic/053_bxor_6_1.ص` | `gr.expr.bitwise_xor` | basic | تطابق ✅ |
+| 1447 | `40_expressions/gr.expr.bitwise_xor/edge/050_bxor_chain.ص` | `gr.expr.bitwise_xor` | edge | تطابق ✅ |
+| 1448 | `40_expressions/gr.expr.bitwise_xor/edge/051_bxor_prec_over_or.ص` | `gr.expr.bitwise_xor` | edge | تطابق ✅ |
+| 1449 | `40_expressions/gr.expr.bitwise_xor/edge/052_bxor_var.ص` | `gr.expr.bitwise_xor` | edge | تطابق ✅ |
+| 1450 | `40_expressions/gr.expr.bitwise_xor/negative/050_bxor_missing_rhs.ص` | `gr.expr.bitwise_xor` | negative | تطابق ✅ |
+| 1451 | `40_expressions/gr.expr.comparison/basic/001_le.ص` | `gr.expr.comparison` | basic | تطابق ✅ |
+| 1452 | `40_expressions/gr.expr.comparison/basic/002_in.ص` | `gr.expr.comparison` | basic | تطابق ✅ |
+| 1453 | `40_expressions/gr.expr.comparison/basic/050_lt_t.ص` | `gr.expr.comparison` | basic | تطابق ✅ |
+| 1454 | `40_expressions/gr.expr.comparison/basic/051_gt_f.ص` | `gr.expr.comparison` | basic | تطابق ✅ |
+| 1455 | `40_expressions/gr.expr.comparison/basic/052_le_t.ص` | `gr.expr.comparison` | basic | تطابق ✅ |
+| 1456 | `40_expressions/gr.expr.comparison/basic/053_ge_t.ص` | `gr.expr.comparison` | basic | تطابق ✅ |
+| 1457 | `40_expressions/gr.expr.comparison/basic/054_in_list_t.ص` | `gr.expr.comparison` | basic | تطابق ✅ |
+| 1458 | `40_expressions/gr.expr.comparison/basic/055_in_list_f.ص` | `gr.expr.comparison` | basic | تطابق ✅ |
+| 1459 | `40_expressions/gr.expr.comparison/basic/056_str_lt_digits.ص` | `gr.expr.comparison` | basic | تطابق ✅ |
+| 1460 | `40_expressions/gr.expr.comparison/basic/057_str_lt_arabic.ص` | `gr.expr.comparison` | basic | تطابق ✅ |
+| 1461 | `40_expressions/gr.expr.comparison/edge/050_cmp_expr_lhs.ص` | `gr.expr.comparison` | edge | تطابق ✅ |
+| 1462 | `40_expressions/gr.expr.comparison/edge/051_cmp_with_and.ص` | `gr.expr.comparison` | edge | تطابق ✅ |
+| 1463 | `40_expressions/gr.expr.comparison/edge/052_in_string.ص` | `gr.expr.comparison` | edge | تطابق ✅ |
+| 1464 | `40_expressions/gr.expr.comparison/edge/053_ge_eq_boundary.ص` | `gr.expr.comparison` | edge | تطابق ✅ |
+| 1465 | `40_expressions/gr.expr.comparison/edge/054_str_prefix_shorter.ص` | `gr.expr.comparison` | edge | تطابق ✅ |
+| 1466 | `40_expressions/gr.expr.comparison/edge/055_str_ascii_before_arabic.ص` | `gr.expr.comparison` | edge | تطابق ✅ |
+| 1467 | `40_expressions/gr.expr.comparison/edge/056_str_cmp_in_function.ص` | `gr.expr.comparison` | edge | تطابق ✅ |
+| 1468 | `40_expressions/gr.expr.comparison/edge/057_str_equal_and_empty.ص` | `gr.expr.comparison` | edge | تطابق ✅ |
+| 1469 | `40_expressions/gr.expr.comparison/negative/050_lt_missing_rhs.ص` | `gr.expr.comparison` | negative | تطابق ✅ |
+| 1470 | `40_expressions/gr.expr.comparison/negative/051_in_missing_rhs.ص` | `gr.expr.comparison` | negative | تطابق ✅ |
+| 1471 | `40_expressions/gr.expr.decorator/basic/001_on_function.ص` | `gr.expr.decorator` | basic | تطابق ✅ |
+| 1472 | `40_expressions/gr.expr.decorator/basic/060_d_basic.ص` | `gr.expr.decorator` | basic | تطابق ✅ |
+| 1473 | `40_expressions/gr.expr.decorator/basic/061_d_ret5.ص` | `gr.expr.decorator` | basic | تطابق ✅ |
+| 1474 | `40_expressions/gr.expr.decorator/basic/062_d_with_param.ص` | `gr.expr.decorator` | basic | تطابق ✅ |
+| 1475 | `40_expressions/gr.expr.decorator/basic/063_d_with_args.ص` | `gr.expr.decorator` | basic | تطابق ✅ |
+| 1476 | `40_expressions/gr.expr.decorator/edge/060_d_two_stacked.ص` | `gr.expr.decorator` | edge | تطابق ✅ |
+| 1477 | `40_expressions/gr.expr.decorator/edge/061_d_func_adds.ص` | `gr.expr.decorator` | edge | تطابق ✅ |
+| 1478 | `40_expressions/gr.expr.decorator/edge/062_d_called_twice.ص` | `gr.expr.decorator` | edge | تطابق ✅ |
+| 1479 | `40_expressions/gr.expr.decorator/negative/060_d_alone.ص` | `gr.expr.decorator` | negative | تطابق ✅ |
+| 1480 | `40_expressions/gr.expr.decorator/negative/061_d_number.ص` | `gr.expr.decorator` | negative | تطابق ✅ |
+| 1481 | `40_expressions/gr.expr.directive/basic/001_sizeof.ص` | `gr.expr.directive` | basic | تطابق ✅ |
+| 1482 | `40_expressions/gr.expr.directive/basic/060_dir_sizeof_num.ص` | `gr.expr.directive` | basic | تطابق ✅ |
+| 1483 | `40_expressions/gr.expr.directive/basic/061_dir_sizeof_num2.ص` | `gr.expr.directive` | basic | تطابق ✅ |
+| 1484 | `40_expressions/gr.expr.directive/basic/062_dir_sizeof_in_expr.ص` | `gr.expr.directive` | basic | تطابق ✅ |
+| 1485 | `40_expressions/gr.expr.directive/basic/063_dir_sizeof_cmp.ص` | `gr.expr.directive` | basic | تطابق ✅ |
+| 1486 | `40_expressions/gr.expr.directive/edge/060_dir_sizeof_twice.ص` | `gr.expr.directive` | edge | تطابق ✅ |
+| 1487 | `40_expressions/gr.expr.directive/edge/061_dir_sizeof_mul.ص` | `gr.expr.directive` | edge | تطابق ✅ |
+| 1488 | `40_expressions/gr.expr.directive/edge/062_dir_sizeof_in_var_add.ص` | `gr.expr.directive` | edge | تطابق ✅ |
+| 1489 | `40_expressions/gr.expr.directive/negative/060_dir_no_paren.ص` | `gr.expr.directive` | negative | تطابق ✅ |
+| 1490 | `40_expressions/gr.expr.directive/negative/061_dir_no_name.ص` | `gr.expr.directive` | negative | تطابق ✅ |
+| 1491 | `40_expressions/gr.expr.equality/basic/001_equal.ص` | `gr.expr.equality` | basic | تطابق ✅ |
+| 1492 | `40_expressions/gr.expr.equality/basic/002_not_equal.ص` | `gr.expr.equality` | basic | تطابق ✅ |
+| 1493 | `40_expressions/gr.expr.equality/basic/050_eq_int_t.ص` | `gr.expr.equality` | basic | تطابق ✅ |
+| 1494 | `40_expressions/gr.expr.equality/basic/051_eq_int_f.ص` | `gr.expr.equality` | basic | تطابق ✅ |
+| 1495 | `40_expressions/gr.expr.equality/basic/052_neq_int_t.ص` | `gr.expr.equality` | basic | تطابق ✅ |
+| 1496 | `40_expressions/gr.expr.equality/basic/053_eq_str.ص` | `gr.expr.equality` | basic | تطابق ✅ |
+| 1497 | `40_expressions/gr.expr.equality/basic/054_eq_bool.ص` | `gr.expr.equality` | basic | تطابق ✅ |
+| 1498 | `40_expressions/gr.expr.equality/edge/050_eq_chain_expr.ص` | `gr.expr.equality` | edge | تطابق ✅ |
+| 1499 | `40_expressions/gr.expr.equality/edge/051_neq_str.ص` | `gr.expr.equality` | edge | تطابق ✅ |
+| 1500 | `40_expressions/gr.expr.equality/edge/052_eq_with_and.ص` | `gr.expr.equality` | edge | تطابق ✅ |
+| 1501 | `40_expressions/gr.expr.equality/edge/053_eq_neg.ص` | `gr.expr.equality` | edge | تطابق ✅ |
+| 1502 | `40_expressions/gr.expr.equality/negative/050_eq_missing_rhs.ص` | `gr.expr.equality` | negative | تطابق ✅ |
+| 1503 | `40_expressions/gr.expr.equality/negative/051_eq_triple.ص` | `gr.expr.equality` | negative | تطابق ✅ |
+| 1504 | `40_expressions/gr.expr.expression/basic/001_precedence.ص` | `gr.expr.expression` | basic | تطابق ✅ |
+| 1505 | `40_expressions/gr.expr.expression/basic/060_x_add.ص` | `gr.expr.expression` | basic | تطابق ✅ |
+| 1506 | `40_expressions/gr.expr.expression/basic/061_x_str.ص` | `gr.expr.expression` | basic | تطابق ✅ |
+| 1507 | `40_expressions/gr.expr.expression/basic/062_x_bool.ص` | `gr.expr.expression` | basic | تطابق ✅ |
+| 1508 | `40_expressions/gr.expr.expression/basic/063_x_mul.ص` | `gr.expr.expression` | basic | تطابق ✅ |
+| 1509 | `40_expressions/gr.expr.expression/basic/064_x_paren.ص` | `gr.expr.expression` | basic | تطابق ✅ |
+| 1510 | `40_expressions/gr.expr.expression/basic/065_x_sub.ص` | `gr.expr.expression` | basic | تطابق ✅ |
+| 1511 | `40_expressions/gr.expr.expression/basic/066_x_cmp.ص` | `gr.expr.expression` | basic | تطابق ✅ |
+| 1512 | `40_expressions/gr.expr.expression/basic/067_x_neg.ص` | `gr.expr.expression` | basic | تطابق ✅ |
+| 1513 | `40_expressions/gr.expr.expression/edge/060_x_nested_paren.ص` | `gr.expr.expression` | edge | تطابق ✅ |
+| 1514 | `40_expressions/gr.expr.expression/edge/061_x_prec.ص` | `gr.expr.expression` | edge | تطابق ✅ |
+| 1515 | `40_expressions/gr.expr.expression/edge/062_x_bool_chain.ص` | `gr.expr.expression` | edge | تطابق ✅ |
+| 1516 | `40_expressions/gr.expr.expression/edge/063_x_concat3.ص` | `gr.expr.expression` | edge | تطابق ✅ |
+| 1517 | `40_expressions/gr.expr.expression/negative/060_x_unbalanced.ص` | `gr.expr.expression` | negative | تطابق ✅ |
+| 1518 | `40_expressions/gr.expr.expression/negative/061_x_trailing_op.ص` | `gr.expr.expression` | negative | تطابق ✅ |
+| 1519 | `40_expressions/gr.expr.factor/basic/001_mul_div.ص` | `gr.expr.factor` | basic | تطابق ✅ |
+| 1520 | `40_expressions/gr.expr.factor/basic/002_floor_mod.ص` | `gr.expr.factor` | basic | تطابق ✅ |
+| 1521 | `40_expressions/gr.expr.factor/basic/060_f_muldiv.ص` | `gr.expr.factor` | basic | تطابق ✅ |
+| 1522 | `40_expressions/gr.expr.factor/basic/061_f_mul.ص` | `gr.expr.factor` | basic | تطابق ✅ |
+| 1523 | `40_expressions/gr.expr.factor/basic/062_f_div.ص` | `gr.expr.factor` | basic | تطابق ✅ |
+| 1524 | `40_expressions/gr.expr.factor/basic/063_f_mul3.ص` | `gr.expr.factor` | basic | تطابق ✅ |
+| 1525 | `40_expressions/gr.expr.factor/basic/064_f_floor.ص` | `gr.expr.factor` | basic | تطابق ✅ |
+| 1526 | `40_expressions/gr.expr.factor/basic/065_f_mod.ص` | `gr.expr.factor` | basic | تطابق ✅ |
+| 1527 | `40_expressions/gr.expr.factor/edge/060_f_leftassoc.ص` | `gr.expr.factor` | edge | تطابق ✅ |
+| 1528 | `40_expressions/gr.expr.factor/edge/061_f_float.ص` | `gr.expr.factor` | edge | تطابق ✅ |
+| 1529 | `40_expressions/gr.expr.factor/edge/062_f_mod_chain.ص` | `gr.expr.factor` | edge | تطابق ✅ |
+| 1530 | `40_expressions/gr.expr.factor/edge/063_f_floor_neg.ص` | `gr.expr.factor` | edge | تطابق ✅ |
+| 1531 | `40_expressions/gr.expr.factor/negative/060_f_trailing.ص` | `gr.expr.factor` | negative | تطابق ✅ |
+| 1532 | `40_expressions/gr.expr.factor/negative/061_f_lead.ص` | `gr.expr.factor` | negative | تطابق ✅ |
+| 1533 | `40_expressions/gr.expr.fstring/basic/001_interp.ص` | `gr.expr.fstring` | basic | تطابق ✅ |
+| 1534 | `40_expressions/gr.expr.fstring/basic/060_fs_interp.ص` | `gr.expr.fstring` | basic | تطابق ✅ |
+| 1535 | `40_expressions/gr.expr.fstring/basic/061_fs_literal.ص` | `gr.expr.fstring` | basic | تطابق ✅ |
+| 1536 | `40_expressions/gr.expr.fstring/basic/062_fs_expr.ص` | `gr.expr.fstring` | basic | تطابق ✅ |
+| 1537 | `40_expressions/gr.expr.fstring/basic/063_fs_two.ص` | `gr.expr.fstring` | basic | تطابق ✅ |
+| 1538 | `40_expressions/gr.expr.fstring/basic/064_fs_text_var.ص` | `gr.expr.fstring` | basic | تطابق ✅ |
+| 1539 | `40_expressions/gr.expr.fstring/edge/060_fs_expr_complex.ص` | `gr.expr.fstring` | edge | تطابق ✅ |
+| 1540 | `40_expressions/gr.expr.fstring/edge/061_fs_str_var.ص` | `gr.expr.fstring` | edge | تطابق ✅ |
+| 1541 | `40_expressions/gr.expr.fstring/edge/062_fs_call.ص` | `gr.expr.fstring` | edge | تطابق ✅ |
+| 1542 | `40_expressions/gr.expr.fstring/edge/063_fs_multi.ص` | `gr.expr.fstring` | edge | تطابق ✅ |
+| 1543 | `40_expressions/gr.expr.fstring/edge/064_fs_text_after.ص` | `gr.expr.fstring` | edge | تطابق ✅ |
+| 1544 | `40_expressions/gr.expr.fstring/negative/060_fs_unterminated.ص` | `gr.expr.fstring` | negative | تطابق ✅ |
+| 1545 | `40_expressions/gr.expr.fstring/negative/061_fs_open_brace.ص` | `gr.expr.fstring` | negative | تطابق ✅ |
+| 1546 | `40_expressions/gr.expr.lambda/basic/001_arrow.ص` | `gr.expr.lambda` | basic | تطابق ✅ |
+| 1547 | `40_expressions/gr.expr.lambda/basic/060_l_arrow.ص` | `gr.expr.lambda` | basic | تطابق ✅ |
+| 1548 | `40_expressions/gr.expr.lambda/basic/061_l_noparam.ص` | `gr.expr.lambda` | basic | تطابق ✅ |
+| 1549 | `40_expressions/gr.expr.lambda/basic/062_l_two_params.ص` | `gr.expr.lambda` | basic | تطابق ✅ |
+| 1550 | `40_expressions/gr.expr.lambda/basic/063_l_block.ص` | `gr.expr.lambda` | basic | تطابق ✅ |
+| 1551 | `40_expressions/gr.expr.lambda/basic/064_l_str.ص` | `gr.expr.lambda` | basic | تطابق ✅ |
+| 1552 | `40_expressions/gr.expr.lambda/basic/065_l_bool.ص` | `gr.expr.lambda` | basic | تطابق ✅ |
+| 1553 | `40_expressions/gr.expr.lambda/edge/051_arrow_lambda_reserved_param_accepted_debt.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1554 | `40_expressions/gr.expr.lambda/edge/060_l_iife.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1555 | `40_expressions/gr.expr.lambda/edge/061_l_closure.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1556 | `40_expressions/gr.expr.lambda/edge/062_l_block_multi.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1557 | `40_expressions/gr.expr.lambda/edge/063_l_zero_arg_expr.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1558 | `40_expressions/gr.expr.lambda/edge/064_l_passed_arg.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1559 | `40_expressions/gr.expr.lambda/edge/065_معامل_لامدا_مصفوفة_مختلطة_عبر_متغيّر.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1560 | `40_expressions/gr.expr.lambda/edge/066_معامل_لامدا_مصفوفة_نصوص_متجانسة.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1561 | `40_expressions/gr.expr.lambda/edge/067_معامل_لامدا_مشترك_نصّ_ثمّ_صحيح.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1562 | `40_expressions/gr.expr.lambda/edge/068_التقاط_مصفوفة_مختلطة.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1563 | `40_expressions/gr.expr.lambda/edge/069_التقاط_مصفوفة_صحيحة_متجانسة.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1564 | `40_expressions/gr.expr.lambda/edge/070_معامل_لامدا_نتيجة_نداء_مختلطة.ص` | `gr.expr.lambda` | edge | تطابق ✅ |
+| 1565 | `40_expressions/gr.expr.lambda/negative/060_l_no_parens.ص` | `gr.expr.lambda` | negative | تطابق ✅ |
+| 1566 | `40_expressions/gr.expr.lambda/negative/061_l_no_body.ص` | `gr.expr.lambda` | negative | تطابق ✅ |
+| 1567 | `40_expressions/gr.expr.lambda/negative/062_l_arrow_no_expr.ص` | `gr.expr.lambda` | negative | تطابق ✅ |
+| 1568 | `40_expressions/gr.expr.logical_and/basic/001_symbol.ص` | `gr.expr.logical_and` | basic | تطابق ✅ |
+| 1569 | `40_expressions/gr.expr.logical_and/basic/002_word.ص` | `gr.expr.logical_and` | basic | تطابق ✅ |
+| 1570 | `40_expressions/gr.expr.logical_and/basic/050_and_tt.ص` | `gr.expr.logical_and` | basic | تطابق ✅ |
+| 1571 | `40_expressions/gr.expr.logical_and/basic/051_and_tf.ص` | `gr.expr.logical_and` | basic | تطابق ✅ |
+| 1572 | `40_expressions/gr.expr.logical_and/basic/052_and_ff.ص` | `gr.expr.logical_and` | basic | تطابق ✅ |
+| 1573 | `40_expressions/gr.expr.logical_and/basic/053_and_word.ص` | `gr.expr.logical_and` | basic | تطابق ✅ |
+| 1574 | `40_expressions/gr.expr.logical_and/basic/054_and_from_cmp.ص` | `gr.expr.logical_and` | basic | تطابق ✅ |
+| 1575 | `40_expressions/gr.expr.logical_and/edge/050_and_chain3.ص` | `gr.expr.logical_and` | edge | تطابق ✅ |
+| 1576 | `40_expressions/gr.expr.logical_and/edge/051_and_all_true.ص` | `gr.expr.logical_and` | edge | تطابق ✅ |
+| 1577 | `40_expressions/gr.expr.logical_and/edge/052_and_mixed_word.ص` | `gr.expr.logical_and` | edge | تطابق ✅ |
+| 1578 | `40_expressions/gr.expr.logical_and/edge/053_and_prec_over_or.ص` | `gr.expr.logical_and` | edge | تطابق ✅ |
+| 1579 | `40_expressions/gr.expr.logical_and/negative/050_and_missing_rhs.ص` | `gr.expr.logical_and` | negative | تطابق ✅ |
+| 1580 | `40_expressions/gr.expr.logical_and/negative/051_and_double_op.ص` | `gr.expr.logical_and` | negative | تطابق ✅ |
+| 1581 | `40_expressions/gr.expr.logical_or/basic/001_symbol.ص` | `gr.expr.logical_or` | basic | تطابق ✅ |
+| 1582 | `40_expressions/gr.expr.logical_or/basic/002_word.ص` | `gr.expr.logical_or` | basic | تطابق ✅ |
+| 1583 | `40_expressions/gr.expr.logical_or/basic/050_or_tt.ص` | `gr.expr.logical_or` | basic | تطابق ✅ |
+| 1584 | `40_expressions/gr.expr.logical_or/basic/051_or_tf.ص` | `gr.expr.logical_or` | basic | تطابق ✅ |
+| 1585 | `40_expressions/gr.expr.logical_or/basic/052_or_ff.ص` | `gr.expr.logical_or` | basic | تطابق ✅ |
+| 1586 | `40_expressions/gr.expr.logical_or/basic/053_or_word.ص` | `gr.expr.logical_or` | basic | تطابق ✅ |
+| 1587 | `40_expressions/gr.expr.logical_or/basic/054_or_from_cmp.ص` | `gr.expr.logical_or` | basic | تطابق ✅ |
+| 1588 | `40_expressions/gr.expr.logical_or/edge/050_or_chain3.ص` | `gr.expr.logical_or` | edge | تطابق ✅ |
+| 1589 | `40_expressions/gr.expr.logical_or/edge/051_or_short_circuit.ص` | `gr.expr.logical_or` | edge | تطابق ✅ |
+| 1590 | `40_expressions/gr.expr.logical_or/edge/052_or_mixed_word_sym.ص` | `gr.expr.logical_or` | edge | تطابق ✅ |
+| 1591 | `40_expressions/gr.expr.logical_or/edge/053_or_with_and.ص` | `gr.expr.logical_or` | edge | تطابق ✅ |
+| 1592 | `40_expressions/gr.expr.logical_or/negative/050_or_missing_rhs.ص` | `gr.expr.logical_or` | negative | تطابق ✅ |
+| 1593 | `40_expressions/gr.expr.logical_or/negative/051_or_missing_lhs.ص` | `gr.expr.logical_or` | negative | تطابق ✅ |
+| 1594 | `40_expressions/gr.expr.map_literal/basic/001_index.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1595 | `40_expressions/gr.expr.map_literal/basic/002_int_key.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1596 | `40_expressions/gr.expr.map_literal/basic/060_map_index.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1597 | `40_expressions/gr.expr.map_literal/basic/061_map_int_key.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1598 | `40_expressions/gr.expr.map_literal/basic/062_map_eq_sep.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1599 | `40_expressions/gr.expr.map_literal/basic/063_map_print.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1600 | `40_expressions/gr.expr.map_literal/basic/064_map_two_keys.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1601 | `40_expressions/gr.expr.map_literal/basic/065_map_empty_ok.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1602 | `40_expressions/gr.expr.map_literal/basic/066_named_size_has.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1603 | `40_expressions/gr.expr.map_literal/basic/067_named_get_default.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1604 | `40_expressions/gr.expr.map_literal/basic/068_named_set_is_pure.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1605 | `40_expressions/gr.expr.map_literal/basic/069_named_delete_is_pure.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1606 | `40_expressions/gr.expr.map_literal/basic/070_named_keys_values.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1607 | `40_expressions/gr.expr.map_literal/basic/071_strip_diacritics.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1608 | `40_expressions/gr.expr.map_literal/basic/072_named_set_delete_purity_by_content.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1609 | `40_expressions/gr.expr.map_literal/basic/073_strip_diacritics_quranic_marks.ص` | `gr.expr.map_literal` | basic | تطابق ✅ |
+| 1610 | `40_expressions/gr.expr.map_literal/edge/060_map_expr_val.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1611 | `40_expressions/gr.expr.map_literal/edge/061_map_nested.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1612 | `40_expressions/gr.expr.map_literal/edge/062_map_bool_val.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1613 | `40_expressions/gr.expr.map_literal/edge/063_map_reassign.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1614 | `40_expressions/gr.expr.map_literal/edge/064_map_str_val.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1615 | `40_expressions/gr.expr.map_literal/edge/065_map_value_keeps_type_across_call.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1616 | `40_expressions/gr.expr.map_literal/edge/066_function_returns_map.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1617 | `40_expressions/gr.expr.map_literal/edge/067_map_methods.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1618 | `40_expressions/gr.expr.map_literal/edge/068_map_value_type_names.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1619 | `40_expressions/gr.expr.map_literal/edge/069_map_value_printed_across_call.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1620 | `40_expressions/gr.expr.map_literal/edge/070_map_float_iteration.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1621 | `40_expressions/gr.expr.map_literal/edge/071_map_values_are_tagged.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1622 | `40_expressions/gr.expr.map_literal/edge/072_map_grows_when_full.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1623 | `40_expressions/gr.expr.map_literal/edge/073_mixed_map_arithmetic.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1624 | `40_expressions/gr.expr.map_literal/edge/074_map_null_value_and_method_get.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1625 | `40_expressions/gr.expr.map_literal/edge/075_map_to_string_all_tags.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1626 | `40_expressions/gr.expr.map_literal/edge/076_null_via_every_writer.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1627 | `40_expressions/gr.expr.map_literal/edge/077_nested_containers_across_call.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1628 | `40_expressions/gr.expr.map_literal/edge/078_map_one_free_slot.ص` | `gr.expr.map_literal` | edge | تطابق ✅ |
+| 1629 | `40_expressions/gr.expr.map_literal/negative/060_map_unclosed.ص` | `gr.expr.map_literal` | negative | تطابق ✅ |
+| 1630 | `40_expressions/gr.expr.map_literal/negative/061_map_no_value.ص` | `gr.expr.map_literal` | negative | تطابق ✅ |
+| 1631 | `40_expressions/gr.expr.null_coalesce/basic/001_basic.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ |
+| 1632 | `40_expressions/gr.expr.null_coalesce/basic/060_nc_null.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ |
+| 1633 | `40_expressions/gr.expr.null_coalesce/basic/061_nc_val.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ |
+| 1634 | `40_expressions/gr.expr.null_coalesce/basic/062_nc_null_str.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ |
+| 1635 | `40_expressions/gr.expr.null_coalesce/basic/063_nc_str.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ |
+| 1636 | `40_expressions/gr.expr.null_coalesce/basic/064_nc_var_null.ص` | `gr.expr.null_coalesce` | basic | تطابق ✅ |
+| 1637 | `40_expressions/gr.expr.null_coalesce/edge/060_nc_chain.ص` | `gr.expr.null_coalesce` | edge | تطابق ✅ |
+| 1638 | `40_expressions/gr.expr.null_coalesce/edge/061_nc_expr_rhs.ص` | `gr.expr.null_coalesce` | edge | تطابق ✅ |
+| 1639 | `40_expressions/gr.expr.null_coalesce/edge/062_nc_var_nonnull.ص` | `gr.expr.null_coalesce` | edge | تطابق ✅ |
+| 1640 | `40_expressions/gr.expr.null_coalesce/edge/063_nc_bool.ص` | `gr.expr.null_coalesce` | edge | تطابق ✅ |
+| 1641 | `40_expressions/gr.expr.null_coalesce/negative/060_nc_missing_rhs.ص` | `gr.expr.null_coalesce` | negative | تطابق ✅ |
+| 1642 | `40_expressions/gr.expr.null_coalesce/negative/061_nc_missing_lhs.ص` | `gr.expr.null_coalesce` | negative | تطابق ✅ |
+| 1643 | `40_expressions/gr.expr.pipeline/basic/001_pipe_len.ص` | `gr.expr.pipeline` | basic | تطابق ✅ |
+| 1644 | `40_expressions/gr.expr.pipeline/basic/060_p_len3.ص` | `gr.expr.pipeline` | basic | تطابق ✅ |
+| 1645 | `40_expressions/gr.expr.pipeline/basic/061_p_len2.ص` | `gr.expr.pipeline` | basic | تطابق ✅ |
+| 1646 | `40_expressions/gr.expr.pipeline/basic/062_p_str_len.ص` | `gr.expr.pipeline` | basic | تطابق ✅ |
+| 1647 | `40_expressions/gr.expr.pipeline/basic/063_p_to_str.ص` | `gr.expr.pipeline` | basic | تطابق ✅ |
+| 1648 | `40_expressions/gr.expr.pipeline/basic/064_p_len1.ص` | `gr.expr.pipeline` | basic | تطابق ✅ |
+| 1649 | `40_expressions/gr.expr.pipeline/basic/065_p_len4.ص` | `gr.expr.pipeline` | basic | تطابق ✅ |
+| 1650 | `40_expressions/gr.expr.pipeline/edge/060_p_chain.ص` | `gr.expr.pipeline` | edge | تطابق ✅ |
+| 1651 | `40_expressions/gr.expr.pipeline/edge/061_p_user_fn.ص` | `gr.expr.pipeline` | edge | تطابق ✅ |
+| 1652 | `40_expressions/gr.expr.pipeline/edge/062_p_user_double.ص` | `gr.expr.pipeline` | edge | تطابق ✅ |
+| 1653 | `40_expressions/gr.expr.pipeline/edge/063_p_extra_arg.ص` | `gr.expr.pipeline` | edge | تطابق ✅ |
+| 1654 | `40_expressions/gr.expr.pipeline/edge/064_p_in_expr.ص` | `gr.expr.pipeline` | edge | تطابق ✅ |
+| 1655 | `40_expressions/gr.expr.pipeline/negative/060_p_missing_rhs.ص` | `gr.expr.pipeline` | negative | تطابق ✅ |
+| 1656 | `40_expressions/gr.expr.pipeline/negative/061_p_missing_lhs.ص` | `gr.expr.pipeline` | negative | تطابق ✅ |
+| 1657 | `40_expressions/gr.expr.postfix/basic/001_index.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1658 | `40_expressions/gr.expr.postfix/basic/002_call.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1659 | `40_expressions/gr.expr.postfix/basic/003_increment.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1660 | `40_expressions/gr.expr.postfix/basic/060_pf_index.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1661 | `40_expressions/gr.expr.postfix/basic/061_pf_call.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1662 | `40_expressions/gr.expr.postfix/basic/062_pf_index0.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1663 | `40_expressions/gr.expr.postfix/basic/063_pf_index4.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1664 | `40_expressions/gr.expr.postfix/basic/064_pf_str_index.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1665 | `40_expressions/gr.expr.postfix/basic/065_pf_map_index.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1666 | `40_expressions/gr.expr.postfix/basic/066_pf_decr.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1667 | `40_expressions/gr.expr.postfix/basic/067_pf_str_len_call.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1668 | `40_expressions/gr.expr.postfix/basic/068_pf_index_last.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1669 | `40_expressions/gr.expr.postfix/basic/069_pf_incr.ص` | `gr.expr.postfix` | basic | تطابق ✅ |
+| 1670 | `40_expressions/gr.expr.postfix/edge/060_pf_slice.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1671 | `40_expressions/gr.expr.postfix/edge/061_pf_slice_step.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1672 | `40_expressions/gr.expr.postfix/edge/062_pf_slice02.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1673 | `40_expressions/gr.expr.postfix/edge/063_pf_str_idx0.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1674 | `40_expressions/gr.expr.postfix/edge/064_pf_nested_index.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1675 | `40_expressions/gr.expr.postfix/edge/065_pf_str_index0.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1676 | `40_expressions/gr.expr.postfix/edge/066_pf_map_int_key.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1677 | `40_expressions/gr.expr.postfix/edge/067_pf_call_index.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1678 | `40_expressions/gr.expr.postfix/edge/068_pf_map_nested.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1679 | `40_expressions/gr.expr.postfix/edge/069_pf_index_expr.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1680 | `40_expressions/gr.expr.postfix/edge/071_pf_slice_method_open.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1681 | `40_expressions/gr.expr.postfix/edge/072_adt_field_collision.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1682 | `40_expressions/gr.expr.postfix/edge/073_adt_field_collision_both.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1683 | `40_expressions/gr.expr.postfix/edge/074_adt_field_shared_three.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1684 | `40_expressions/gr.expr.postfix/edge/075_nested_map_write.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1685 | `40_expressions/gr.expr.postfix/edge/076_map_numeric_key_write.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1686 | `40_expressions/gr.expr.postfix/edge/077_nested_map_numeric_key.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1687 | `40_expressions/gr.expr.postfix/edge/078_tagged_array_write_dyn_index.ص` | `gr.expr.postfix` | edge | تطابق ✅ |
+| 1688 | `40_expressions/gr.expr.postfix/negative/060_pf_unbalanced_index.ص` | `gr.expr.postfix` | negative | تطابق ✅ |
+| 1689 | `40_expressions/gr.expr.postfix/negative/061_pf_unbalanced_call.ص` | `gr.expr.postfix` | negative | تطابق ✅ |
+| 1690 | `40_expressions/gr.expr.postfix/negative/062_pf_missing_close.ص` | `gr.expr.postfix` | negative | تطابق ✅ |
+| 1691 | `40_expressions/gr.expr.postfix/negative/063_pf_lead_dot.ص` | `gr.expr.postfix` | negative | تطابق ✅ |
+| 1692 | `40_expressions/gr.expr.power/basic/001_basic.ص` | `gr.expr.power` | basic | تطابق ✅ |
+| 1693 | `40_expressions/gr.expr.power/basic/060_pw_2_10.ص` | `gr.expr.power` | basic | تطابق ✅ |
+| 1694 | `40_expressions/gr.expr.power/basic/061_pw_3_2.ص` | `gr.expr.power` | basic | تطابق ✅ |
+| 1695 | `40_expressions/gr.expr.power/basic/062_pw_5_0.ص` | `gr.expr.power` | basic | تطابق ✅ |
+| 1696 | `40_expressions/gr.expr.power/basic/063_pw_2_3.ص` | `gr.expr.power` | basic | تطابق ✅ |
+| 1697 | `40_expressions/gr.expr.power/edge/060_pw_right_assoc.ص` | `gr.expr.power` | edge | تطابق ✅ |
+| 1698 | `40_expressions/gr.expr.power/edge/061_pw_of_sum.ص` | `gr.expr.power` | edge | تطابق ✅ |
+| 1699 | `40_expressions/gr.expr.power/edge/062_pw_in_add.ص` | `gr.expr.power` | edge | تطابق ✅ |
+| 1700 | `40_expressions/gr.expr.power/negative/060_pw_trailing.ص` | `gr.expr.power` | negative | تطابق ✅ |
+| 1701 | `40_expressions/gr.expr.primary/basic/001_tuple.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1702 | `40_expressions/gr.expr.primary/basic/002_if_expr.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1703 | `40_expressions/gr.expr.primary/basic/003_abs.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1704 | `40_expressions/gr.expr.primary/basic/060_pr_tuple.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1705 | `40_expressions/gr.expr.primary/basic/061_pr_if_expr.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1706 | `40_expressions/gr.expr.primary/basic/062_pr_abs.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1707 | `40_expressions/gr.expr.primary/basic/063_pr_int.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1708 | `40_expressions/gr.expr.primary/basic/064_pr_str.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1709 | `40_expressions/gr.expr.primary/basic/065_pr_true.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1710 | `40_expressions/gr.expr.primary/basic/066_pr_false.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1711 | `40_expressions/gr.expr.primary/basic/067_pr_null.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1712 | `40_expressions/gr.expr.primary/basic/068_pr_float.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1713 | `40_expressions/gr.expr.primary/basic/069_pr_var.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1714 | `40_expressions/gr.expr.primary/basic/070_pr_group.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1715 | `40_expressions/gr.expr.primary/basic/071_pr_if_str.ص` | `gr.expr.primary` | basic | تطابق ✅ |
+| 1716 | `40_expressions/gr.expr.primary/edge/060_pr_tuple_index2.ص` | `gr.expr.primary` | edge | تطابق ✅ |
+| 1717 | `40_expressions/gr.expr.primary/edge/061_pr_abs_expr.ص` | `gr.expr.primary` | edge | تطابق ✅ |
+| 1718 | `40_expressions/gr.expr.primary/edge/062_pr_abs_float.ص` | `gr.expr.primary` | edge | تطابق ✅ |
+| 1719 | `40_expressions/gr.expr.primary/edge/063_pr_if_nested.ص` | `gr.expr.primary` | edge | تطابق ✅ |
+| 1720 | `40_expressions/gr.expr.primary/edge/064_pr_await.ص` | `gr.expr.primary` | edge | تطابق ✅ |
+| 1721 | `40_expressions/gr.expr.primary/edge/065_pr_deep_group.ص` | `gr.expr.primary` | edge | تطابق ✅ |
+| 1722 | `40_expressions/gr.expr.primary/edge/066_pr_group_single.ص` | `gr.expr.primary` | edge | تطابق ✅ |
+| 1723 | `40_expressions/gr.expr.primary/edge/067_pr_bigint.ص` | `gr.expr.primary` | edge | تطابق ✅ |
+| 1724 | `40_expressions/gr.expr.primary/edge/068_pr_neg_group.ص` | `gr.expr.primary` | edge | تطابق ✅ |
+| 1725 | `40_expressions/gr.expr.primary/edge/069_pr_bool_group.ص` | `gr.expr.primary` | edge | تطابق ✅ |
+| 1726 | `40_expressions/gr.expr.primary/negative/060_pr_unterminated_str.ص` | `gr.expr.primary` | negative | تطابق ✅ |
+| 1727 | `40_expressions/gr.expr.primary/negative/061_pr_if_no_else.ص` | `gr.expr.primary` | negative | تطابق ✅ |
+| 1728 | `40_expressions/gr.expr.primary/negative/062_pr_abs_unclosed.ص` | `gr.expr.primary` | negative | تطابق ✅ |
+| 1729 | `40_expressions/gr.expr.primary/negative/063_pr_tuple_unclosed.ص` | `gr.expr.primary` | negative | تطابق ✅ |
+| 1730 | `40_expressions/gr.expr.primary/negative/064_pr_lone_paren.ص` | `gr.expr.primary` | negative | تطابق ✅ |
+| 1731 | `40_expressions/gr.expr.range/basic/001_for_sum.ص` | `gr.expr.range` | basic | تطابق ✅ |
+| 1732 | `40_expressions/gr.expr.range/basic/060_r_sum13.ص` | `gr.expr.range` | basic | تطابق ✅ |
+| 1733 | `40_expressions/gr.expr.range/basic/061_r_sum15.ص` | `gr.expr.range` | basic | تطابق ✅ |
+| 1734 | `40_expressions/gr.expr.range/basic/062_r_sum04.ص` | `gr.expr.range` | basic | تطابق ✅ |
+| 1735 | `40_expressions/gr.expr.range/basic/063_r_sum24.ص` | `gr.expr.range` | basic | تطابق ✅ |
+| 1736 | `40_expressions/gr.expr.range/basic/064_r_single.ص` | `gr.expr.range` | basic | تطابق ✅ |
+| 1737 | `40_expressions/gr.expr.range/edge/060_r_sum14.ص` | `gr.expr.range` | edge | تطابق ✅ |
+| 1738 | `40_expressions/gr.expr.range/edge/061_r_expr_bound.ص` | `gr.expr.range` | edge | تطابق ✅ |
+| 1739 | `40_expressions/gr.expr.range/edge/062_r_slice_bounds.ص` | `gr.expr.range` | edge | تطابق ✅ |
+| 1740 | `40_expressions/gr.expr.range/edge/063_r_var_bound.ص` | `gr.expr.range` | edge | تطابق ✅ |
+| 1741 | `40_expressions/gr.expr.range/edge/064_r_count.ص` | `gr.expr.range` | edge | تطابق ✅ |
+| 1742 | `40_expressions/gr.expr.range/negative/060_r_no_start.ص` | `gr.expr.range` | negative | تطابق ✅ |
+| 1743 | `40_expressions/gr.expr.range/negative/061_r_unbalanced.ص` | `gr.expr.range` | negative | تطابق ✅ |
+| 1744 | `40_expressions/gr.expr.term/basic/001_add_sub.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1745 | `40_expressions/gr.expr.term/basic/002_shift.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1746 | `40_expressions/gr.expr.term/basic/060_tm_add.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1747 | `40_expressions/gr.expr.term/basic/061_tm_sub.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1748 | `40_expressions/gr.expr.term/basic/062_tm_addsub.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1749 | `40_expressions/gr.expr.term/basic/063_tm_shl.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1750 | `40_expressions/gr.expr.term/basic/064_tm_shr.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1751 | `40_expressions/gr.expr.term/basic/065_tm_add3.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1752 | `40_expressions/gr.expr.term/basic/066_tm_identity_operand.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1753 | `40_expressions/gr.expr.term/basic/067_طبيعي64_logical_shift_right.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1754 | `40_expressions/gr.expr.term/basic/068_طبيعي64_bitwise_unsigned_print.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1755 | `40_expressions/gr.expr.term/basic/069_طبيعي64_call_return_print_boundary.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1756 | `40_expressions/gr.expr.term/basic/070_طبيعي64_method_call_print_boundary.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1757 | `40_expressions/gr.expr.term/basic/071_طبيعي64_unary_print_boundary.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1758 | `40_expressions/gr.expr.term/basic/072_طبيعي64_inferred_var_print_boundary.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1759 | `40_expressions/gr.expr.term/basic/073_طبيعي64_tostring_print_boundary.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1760 | `40_expressions/gr.expr.term/basic/074_بايت_اقتطاع_إعادة_إسناد_ثابت.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1761 | `40_expressions/gr.expr.term/basic/075_بايت_اقتطاع_إعادة_إسناد_محسوب.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1762 | `40_expressions/gr.expr.term/basic/076_بايت_اقتطاع_إعادة_إسناد_متكرّر.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1763 | `40_expressions/gr.expr.term/basic/077_بايت_اقتطاع_إعادة_إسناد_حدود.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1764 | `40_expressions/gr.expr.term/basic/078_بايت_اقتطاع_إعادة_إسناد_من_طبيعي64.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1765 | `40_expressions/gr.expr.term/basic/079_بايت_اقتطاع_إعادة_إسناد_من_قسمة.ص` | `gr.expr.term` | basic | تطابق ✅ |
+| 1766 | `40_expressions/gr.expr.term/edge/060_tm_leftassoc.ص` | `gr.expr.term` | edge | تطابق ✅ |
+| 1767 | `40_expressions/gr.expr.term/edge/061_tm_shift_after_add.ص` | `gr.expr.term` | edge | تطابق ✅ |
+| 1768 | `40_expressions/gr.expr.term/edge/062_tm_neg_start.ص` | `gr.expr.term` | edge | تطابق ✅ |
+| 1769 | `40_expressions/gr.expr.term/edge/063_tm_shr_chain.ص` | `gr.expr.term` | edge | تطابق ✅ |
+| 1770 | `40_expressions/gr.expr.term/edge/064_tm_any_plus_float.ص` | `gr.expr.term` | edge | تطابق ✅ |
+| 1771 | `40_expressions/gr.expr.term/negative/060_tm_trailing.ص` | `gr.expr.term` | negative | تطابق ✅ |
+| 1772 | `40_expressions/gr.expr.term/negative/061_tm_lead_shift.ص` | `gr.expr.term` | negative | تطابق ✅ |
+| 1773 | `40_expressions/gr.expr.ternary/basic/001_basic.ص` | `gr.expr.ternary` | basic | تطابق ✅ |
+| 1774 | `40_expressions/gr.expr.ternary/basic/060_t_true.ص` | `gr.expr.ternary` | basic | تطابق ✅ |
+| 1775 | `40_expressions/gr.expr.ternary/basic/061_t_false.ص` | `gr.expr.ternary` | basic | تطابق ✅ |
+| 1776 | `40_expressions/gr.expr.ternary/basic/062_t_str_t.ص` | `gr.expr.ternary` | basic | تطابق ✅ |
+| 1777 | `40_expressions/gr.expr.ternary/basic/063_t_str_f.ص` | `gr.expr.ternary` | basic | تطابق ✅ |
+| 1778 | `40_expressions/gr.expr.ternary/basic/064_t_eq.ص` | `gr.expr.ternary` | basic | تطابق ✅ |
+| 1779 | `40_expressions/gr.expr.ternary/basic/065_t_gt.ص` | `gr.expr.ternary` | basic | تطابق ✅ |
+| 1780 | `40_expressions/gr.expr.ternary/edge/060_t_nested_right.ص` | `gr.expr.ternary` | edge | تطابق ✅ |
+| 1781 | `40_expressions/gr.expr.ternary/edge/061_t_expr_branch.ص` | `gr.expr.ternary` | edge | تطابق ✅ |
+| 1782 | `40_expressions/gr.expr.ternary/edge/062_t_in_var.ص` | `gr.expr.ternary` | edge | تطابق ✅ |
+| 1783 | `40_expressions/gr.expr.ternary/edge/063_t_cond_expr.ص` | `gr.expr.ternary` | edge | تطابق ✅ |
+| 1784 | `40_expressions/gr.expr.ternary/edge/064_t_nested_cond.ص` | `gr.expr.ternary` | edge | تطابق ✅ |
+| 1785 | `40_expressions/gr.expr.ternary/negative/060_t_missing_colon.ص` | `gr.expr.ternary` | negative | تطابق ✅ |
+| 1786 | `40_expressions/gr.expr.ternary/negative/061_t_missing_else.ص` | `gr.expr.ternary` | negative | تطابق ✅ |
+| 1787 | `40_expressions/gr.expr.unary/basic/001_neg_not.ص` | `gr.expr.unary` | basic | تطابق ✅ |
+| 1788 | `40_expressions/gr.expr.unary/basic/002_bitnot.ص` | `gr.expr.unary` | basic | تطابق ✅ |
+| 1789 | `40_expressions/gr.expr.unary/basic/003_prefix_incr.ص` | `gr.expr.unary` | basic | تطابق ✅ |
+| 1790 | `40_expressions/gr.expr.unary/basic/004_prefix_incr_stmt.ص` | `gr.expr.unary` | basic | تطابق ✅ |
+| 1791 | `40_expressions/gr.expr.unary/basic/060_u_neg.ص` | `gr.expr.unary` | basic | تطابق ✅ |
+| 1792 | `40_expressions/gr.expr.unary/basic/061_u_not_t.ص` | `gr.expr.unary` | basic | تطابق ✅ |
+| 1793 | `40_expressions/gr.expr.unary/basic/062_u_bitnot0.ص` | `gr.expr.unary` | basic | تطابق ✅ |
+| 1794 | `40_expressions/gr.expr.unary/basic/063_u_not_f.ص` | `gr.expr.unary` | basic | تطابق ✅ |
+| 1795 | `40_expressions/gr.expr.unary/basic/064_u_neg_paren.ص` | `gr.expr.unary` | basic | تطابق ✅ |
+| 1796 | `40_expressions/gr.expr.unary/basic/065_u_bitnot5.ص` | `gr.expr.unary` | basic | تطابق ✅ |
+| 1797 | `40_expressions/gr.expr.unary/edge/060_u_double_neg.ص` | `gr.expr.unary` | edge | تطابق ✅ |
+| 1798 | `40_expressions/gr.expr.unary/edge/061_u_double_not.ص` | `gr.expr.unary` | edge | تطابق ✅ |
+| 1799 | `40_expressions/gr.expr.unary/edge/062_u_neg_mul.ص` | `gr.expr.unary` | edge | تطابق ✅ |
+| 1800 | `40_expressions/gr.expr.unary/edge/063_u_bitnot_expr.ص` | `gr.expr.unary` | edge | تطابق ✅ |
+| 1801 | `40_expressions/gr.expr.unary/edge/064_u_predecr.ص` | `gr.expr.unary` | edge | تطابق ✅ |
+| 1802 | `40_expressions/gr.expr.unary/negative/060_u_bang_alone.ص` | `gr.expr.unary` | negative | تطابق ✅ |
+| 1803 | `40_expressions/gr.expr.unary/negative/061_u_tilde_alone.ص` | `gr.expr.unary` | negative | تطابق ✅ |
+| 1804 | `50_patterns/gr.pattern.binding/basic/001_in_range.ص` | `gr.pattern.binding` | basic | تطابق ✅ |
+| 1805 | `50_patterns/gr.pattern.binding/basic/002_out_range.ص` | `gr.pattern.binding` | basic | تطابق ✅ |
+| 1806 | `50_patterns/gr.pattern.binding/basic/003_bind_exclusive.ص` | `gr.pattern.binding` | basic | تطابق ✅ |
+| 1807 | `50_patterns/gr.pattern.binding/edge/001_bind_inclusive.ص` | `gr.pattern.binding` | edge | تطابق ✅ |
+| 1808 | `50_patterns/gr.pattern.list/basic/001_two.ص` | `gr.pattern.list` | basic | تطابق ✅ |
+| 1809 | `50_patterns/gr.pattern.list/basic/002_three.ص` | `gr.pattern.list` | basic | تطابق ✅ |
+| 1810 | `50_patterns/gr.pattern.list/basic/003_single.ص` | `gr.pattern.list` | basic | تطابق ✅ |
+| 1811 | `50_patterns/gr.pattern.list/basic/004_wildcard_elem.ص` | `gr.pattern.list` | basic | تطابق ✅ |
+| 1812 | `50_patterns/gr.pattern.list/edge/001_empty.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1813 | `50_patterns/gr.pattern.list/edge/003_nested.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1814 | `50_patterns/gr.pattern.list/edge/004_nested_mismatch.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1815 | `50_patterns/gr.pattern.list/edge/005_rest.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1816 | `50_patterns/gr.pattern.list/edge/007_nested_literal_nomatch.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1817 | `50_patterns/gr.pattern.list/edge/008_nested_on_scalar.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1818 | `50_patterns/gr.pattern.list/edge/009_nested_on_int_array.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1819 | `50_patterns/gr.pattern.list/edge/010_struct_elem_on_int.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1820 | `50_patterns/gr.pattern.list/edge/011_struct_elem_no_falsematch.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1821 | `50_patterns/gr.pattern.list/edge/012_enum_in_list.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1822 | `50_patterns/gr.pattern.list/edge/013_enum_in_list_shadow_param.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1823 | `50_patterns/gr.pattern.list/edge/014_enum_in_list_reuse_name.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1824 | `50_patterns/gr.pattern.list/edge/015_guard_nested.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1825 | `50_patterns/gr.pattern.list/edge/016_guard_nested_reads_var.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1826 | `50_patterns/gr.pattern.list/edge/017_guard_nested_dead_scalar.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1827 | `50_patterns/gr.pattern.list/edge/018_guard_destructure_reads_elems.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1828 | `50_patterns/gr.pattern.list/edge/019_guard_destructure_two_vars.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1829 | `50_patterns/gr.pattern.list/edge/020_guard_rest_pattern.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1830 | `50_patterns/gr.pattern.list/edge/021_guard_enum_in_list.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1831 | `50_patterns/gr.pattern.list/edge/022_list_string_element_compare.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1832 | `50_patterns/gr.pattern.list/edge/023_list_float_element_compare.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1833 | `50_patterns/gr.pattern.list/edge/024_list_bool_element_compare.ص` | `gr.pattern.list` | edge | تطابق ✅ |
+| 1834 | `50_patterns/gr.pattern.list/negative/001_unclosed.ص` | `gr.pattern.list` | negative | تطابق ✅ |
+| 1835 | `50_patterns/gr.pattern.or/basic/001_or_literals.ص` | `gr.pattern.or` | basic | تطابق ✅ |
+| 1836 | `50_patterns/gr.pattern.or/basic/002_or_no_match.ص` | `gr.pattern.or` | basic | تطابق ✅ |
+| 1837 | `50_patterns/gr.pattern.or/basic/003_or_two_groups.ص` | `gr.pattern.or` | basic | تطابق ✅ |
+| 1838 | `50_patterns/gr.pattern.or/edge/001_or_in_loop.ص` | `gr.pattern.or` | edge | تطابق ✅ |
+| 1839 | `50_patterns/gr.pattern.or/edge/002_double_pipe.ص` | `gr.pattern.or` | edge | تطابق ✅ |
+| 1840 | `50_patterns/gr.pattern.or/negative/001_trailing_pipe.ص` | `gr.pattern.or` | negative | تطابق ✅ |
+| 1841 | `50_patterns/gr.pattern.pattern/basic/001_wildcard.ص` | `gr.pattern.pattern` | basic | تطابق ✅ |
+| 1842 | `50_patterns/gr.pattern.pattern/basic/002_wildcard_fallback.ص` | `gr.pattern.pattern` | basic | تطابق ✅ |
+| 1843 | `50_patterns/gr.pattern.pattern/basic/003_literal_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ |
+| 1844 | `50_patterns/gr.pattern.pattern/basic/004_string_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ |
+| 1845 | `50_patterns/gr.pattern.pattern/basic/005_bool_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ |
+| 1846 | `50_patterns/gr.pattern.pattern/basic/006_null_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ |
+| 1847 | `50_patterns/gr.pattern.pattern/basic/007_list_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ |
+| 1848 | `50_patterns/gr.pattern.pattern/basic/008_struct_dispatch.ص` | `gr.pattern.pattern` | basic | تطابق ✅ |
+| 1849 | `50_patterns/gr.pattern.pattern/edge/001_enum_dispatch.ص` | `gr.pattern.pattern` | edge | تطابق ✅ |
+| 1850 | `50_patterns/gr.pattern.primary/basic/001_literal_int.ص` | `gr.pattern.primary` | basic | تطابق ✅ |
+| 1851 | `50_patterns/gr.pattern.primary/basic/002_range.ص` | `gr.pattern.primary` | basic | تطابق ✅ |
+| 1852 | `50_patterns/gr.pattern.primary/basic/003_var_bind.ص` | `gr.pattern.primary` | basic | تطابق ✅ |
+| 1853 | `50_patterns/gr.pattern.primary/basic/004_range_low.ص` | `gr.pattern.primary` | basic | تطابق ✅ |
+| 1854 | `50_patterns/gr.pattern.primary/basic/005_string_literal.ص` | `gr.pattern.primary` | basic | تطابق ✅ |
+| 1855 | `50_patterns/gr.pattern.primary/basic/006_bool_literal.ص` | `gr.pattern.primary` | basic | تطابق ✅ |
+| 1856 | `50_patterns/gr.pattern.primary/edge/001_default_no_match.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1857 | `50_patterns/gr.pattern.primary/edge/002_enum_unit.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1858 | `50_patterns/gr.pattern.primary/edge/003_enum_adt.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1859 | `50_patterns/gr.pattern.primary/edge/004_inclusive_range.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1860 | `50_patterns/gr.pattern.primary/edge/005_negative_literal.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1861 | `50_patterns/gr.pattern.primary/edge/012_adt_string_payload.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1862 | `50_patterns/gr.pattern.primary/edge/013_adt_ctor_arg_to_func.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1863 | `50_patterns/gr.pattern.primary/edge/014_adt_field_access.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1864 | `50_patterns/gr.pattern.primary/edge/015_adt_field_access_multi.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1865 | `50_patterns/gr.pattern.primary/edge/016_guard_enum_payload.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1866 | `50_patterns/gr.pattern.primary/edge/017_guard_enum_multifield.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1867 | `50_patterns/gr.pattern.primary/edge/018_adt_float_payload.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1868 | `50_patterns/gr.pattern.primary/edge/019_adt_float_arithmetic.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1869 | `50_patterns/gr.pattern.primary/edge/020_guard_float_payload.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1870 | `50_patterns/gr.pattern.primary/edge/021_negative_float_payload.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1871 | `50_patterns/gr.pattern.primary/edge/022_adt_float_direct_access.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1872 | `50_patterns/gr.pattern.primary/edge/023_adt_string_payload_compare.ص` | `gr.pattern.primary` | edge | تطابق ✅ |
+| 1873 | `50_patterns/gr.pattern.primary/negative/001_minus_no_number.ص` | `gr.pattern.primary` | negative | تطابق ✅ |
+| 1874 | `50_patterns/gr.pattern.struct/basic/001_bind_two_fields.ص` | `gr.pattern.struct` | basic | تطابق ✅ |
+| 1875 | `50_patterns/gr.pattern.struct/basic/002_bind_product.ص` | `gr.pattern.struct` | basic | تطابق ✅ |
+| 1876 | `50_patterns/gr.pattern.struct/basic/003_literal_field.ص` | `gr.pattern.struct` | basic | تطابق ✅ |
+| 1877 | `50_patterns/gr.pattern.struct/edge/001_range_field.ص` | `gr.pattern.struct` | edge | تطابق ✅ |
+| 1878 | `50_patterns/gr.pattern.struct/edge/002_shorthand.ص` | `gr.pattern.struct` | edge | تطابق ✅ |
+| 1879 | `50_patterns/gr.pattern.struct/edge/003_empty.ص` | `gr.pattern.struct` | edge | تطابق ✅ |
+| 1880 | `50_patterns/gr.pattern.struct/negative/001_missing_colon.ص` | `gr.pattern.struct` | negative | تطابق ✅ |
+| 1881 | `60_advanced/gr.adv.asm_dialect/basic/001_host_add.ص` | `gr.adv.asm_dialect` | basic | تطابق ✅ |
+| 1882 | `60_advanced/gr.adv.asm_dialect/basic/002_halt_loop.ص` | `gr.adv.asm_dialect` | basic | تطابق ✅ |
+| 1883 | `60_advanced/gr.adv.asm_dialect/basic/003_host_mul_implicit_writes.ص` | `gr.adv.asm_dialect` | basic | تطابق ✅ |
+| 1884 | `60_advanced/gr.adv.asm_dialect/basic/004_task_register.ص` | `gr.adv.asm_dialect` | basic | تطابق ✅ |
+| 1885 | `60_advanced/gr.adv.asm_dialect/edge/050_immediate_clobber.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
+| 1886 | `60_advanced/gr.adv.asm_dialect/edge/051_memory_addressing.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
+| 1887 | `60_advanced/gr.adv.asm_dialect/edge/052_forward_jump.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
+| 1888 | `60_advanced/gr.adv.asm_dialect/edge/053_doc_comment_inside_block.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
+| 1889 | `60_advanced/gr.adv.asm_dialect/negative/050_unknown_mnemonic.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1890 | `60_advanced/gr.adv.asm_dialect/negative/051_operand_count.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1891 | `60_advanced/gr.adv.asm_dialect/negative/052_interpreter_gate.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1892 | `60_advanced/gr.adv.asm_dialect/negative/053_duplicate_label.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1893 | `60_advanced/gr.adv.asm_dialect/negative/054_undefined_label.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1894 | `60_advanced/gr.adv.asm_dialect/negative/055_two_outputs.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1895 | `60_advanced/gr.adv.asm_dialect/negative/056_memory_mixed_base.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1896 | `60_advanced/gr.adv.asm_dialect/negative/057_unknown_register.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1897 | `60_advanced/gr.adv.asm_dialect/negative/058_xchg_sadvar_source.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1898 | `60_advanced/gr.adv.asm_dialect/negative/059_clobber_suggestion_specials.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1899 | `60_advanced/gr.adv.asm_dialect/negative/060_register_suggestion_content.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1900 | `60_advanced/gr.adv.asm_dialect/negative/061_prefix_operand_implicit_writes.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1901 | `60_advanced/gr.adv.await/basic/001_value.ص` | `gr.adv.await` | basic | تطابق ✅ |
+| 1902 | `60_advanced/gr.adv.await/edge/050_edge_await.ص` | `gr.adv.await` | edge | تطابق ✅ |
+| 1903 | `60_advanced/gr.adv.await/edge/051_edge_await.ص` | `gr.adv.await` | edge | تطابق ✅ |
+| 1904 | `60_advanced/gr.adv.await/negative/050_negative_await.ص` | `gr.adv.await` | negative | تطابق ✅ |
+| 1905 | `60_advanced/gr.adv.contract/basic/001_wallet.ص` | `gr.adv.contract` | basic | تطابق ✅ |
+| 1906 | `60_advanced/gr.adv.contract/edge/050_edge_contract.ص` | `gr.adv.contract` | edge | تطابق ✅ |
+| 1907 | `60_advanced/gr.adv.contract/edge/051_edge_contract.ص` | `gr.adv.contract` | edge | تطابق ✅ |
+| 1908 | `60_advanced/gr.adv.defer/basic/001_lifo.ص` | `gr.adv.defer` | basic | تطابق ✅ |
+| 1909 | `60_advanced/gr.adv.defer/edge/050_edge_defer.ص` | `gr.adv.defer` | edge | تطابق ✅ |
+| 1910 | `60_advanced/gr.adv.defer/edge/051_edge_defer.ص` | `gr.adv.defer` | edge | تطابق ✅ |
+| 1911 | `60_advanced/gr.adv.defer/negative/050_negative_defer.ص` | `gr.adv.defer` | negative | تطابق ✅ |
+| 1912 | `60_advanced/gr.adv.dict_comprehension/basic/001_single_var.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1913 | `60_advanced/gr.adv.dict_comprehension/basic/002_with_condition.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1914 | `60_advanced/gr.adv.dict_comprehension/basic/100_kv_id_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1915 | `60_advanced/gr.adv.dict_comprehension/basic/101_kv_double_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1916 | `60_advanced/gr.adv.dict_comprehension/basic/102_kv_square_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1917 | `60_advanced/gr.adv.dict_comprehension/basic/103_kv_inc_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1918 | `60_advanced/gr.adv.dict_comprehension/basic/104_kv_dec_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1919 | `60_advanced/gr.adv.dict_comprehension/basic/105_kv_times10_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1920 | `60_advanced/gr.adv.dict_comprehension/basic/106_kv_id_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1921 | `60_advanced/gr.adv.dict_comprehension/basic/107_kv_double_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1922 | `60_advanced/gr.adv.dict_comprehension/basic/108_kv_square_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1923 | `60_advanced/gr.adv.dict_comprehension/basic/109_kv_inc_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1924 | `60_advanced/gr.adv.dict_comprehension/basic/110_kv_dec_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1925 | `60_advanced/gr.adv.dict_comprehension/basic/111_kv_times10_4.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1926 | `60_advanced/gr.adv.dict_comprehension/basic/112_kv_id_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1927 | `60_advanced/gr.adv.dict_comprehension/basic/113_kv_double_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1928 | `60_advanced/gr.adv.dict_comprehension/basic/114_kv_square_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1929 | `60_advanced/gr.adv.dict_comprehension/basic/115_kv_inc_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1930 | `60_advanced/gr.adv.dict_comprehension/basic/116_kv_dec_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1931 | `60_advanced/gr.adv.dict_comprehension/basic/117_kv_times10_5.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1932 | `60_advanced/gr.adv.dict_comprehension/basic/118_kv_id_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1933 | `60_advanced/gr.adv.dict_comprehension/basic/119_kv_double_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1934 | `60_advanced/gr.adv.dict_comprehension/basic/120_kv_square_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1935 | `60_advanced/gr.adv.dict_comprehension/basic/121_kv_inc_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1936 | `60_advanced/gr.adv.dict_comprehension/basic/122_kv_dec_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1937 | `60_advanced/gr.adv.dict_comprehension/basic/123_kv_times10_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1938 | `60_advanced/gr.adv.dict_comprehension/basic/124_kv_id_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1939 | `60_advanced/gr.adv.dict_comprehension/basic/125_kv_double_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1940 | `60_advanced/gr.adv.dict_comprehension/basic/126_kv_square_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1941 | `60_advanced/gr.adv.dict_comprehension/basic/127_kv_inc_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1942 | `60_advanced/gr.adv.dict_comprehension/basic/128_kv_dec_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1943 | `60_advanced/gr.adv.dict_comprehension/basic/129_kv_times10_3.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1944 | `60_advanced/gr.adv.dict_comprehension/basic/200_pairunpack_index.ص` | `gr.adv.dict_comprehension` | basic | تطابق ✅ |
+| 1945 | `60_advanced/gr.adv.dict_comprehension/edge/001_single_entry.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1946 | `60_advanced/gr.adv.dict_comprehension/edge/100_filter_gt2_0.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1947 | `60_advanced/gr.adv.dict_comprehension/edge/101_filter_ge3_1.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1948 | `60_advanced/gr.adv.dict_comprehension/edge/102_filter_lt4_2.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1949 | `60_advanced/gr.adv.dict_comprehension/edge/103_filter_even_3.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1950 | `60_advanced/gr.adv.dict_comprehension/edge/104_filter_odd_4.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1951 | `60_advanced/gr.adv.dict_comprehension/edge/105_filter_ne3_5.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1952 | `60_advanced/gr.adv.dict_comprehension/edge/106_filter_gt0_6.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1953 | `60_advanced/gr.adv.dict_comprehension/edge/107_filter_ge2_7.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1954 | `60_advanced/gr.adv.dict_comprehension/edge/108_filter_gt2_8.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1955 | `60_advanced/gr.adv.dict_comprehension/edge/109_filter_ge3_9.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1956 | `60_advanced/gr.adv.dict_comprehension/edge/110_filter_lt4_10.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1957 | `60_advanced/gr.adv.dict_comprehension/edge/111_filter_even_11.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1958 | `60_advanced/gr.adv.dict_comprehension/edge/112_filter_odd_12.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1959 | `60_advanced/gr.adv.dict_comprehension/edge/113_filter_ne3_13.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1960 | `60_advanced/gr.adv.dict_comprehension/edge/114_filter_gt0_14.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1961 | `60_advanced/gr.adv.dict_comprehension/edge/300_lastwins_k0_4.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1962 | `60_advanced/gr.adv.dict_comprehension/edge/301_lastwins_k1_4.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1963 | `60_advanced/gr.adv.dict_comprehension/edge/302_lastwins_k0_6.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1964 | `60_advanced/gr.adv.dict_comprehension/edge/303_lastwins_k1_6.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1965 | `60_advanced/gr.adv.dict_comprehension/edge/304_lastwins_k0_4.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1966 | `60_advanced/gr.adv.dict_comprehension/edge/305_lastwins_k1_4.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1967 | `60_advanced/gr.adv.dict_comprehension/edge/306_lastwins_k0_5.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1968 | `60_advanced/gr.adv.dict_comprehension/edge/307_lastwins_k1_5.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1969 | `60_advanced/gr.adv.dict_comprehension/edge/403_depth_var_source.ص` | `gr.adv.dict_comprehension` | edge | تطابق ✅ |
+| 1970 | `60_advanced/gr.adv.dict_comprehension/negative/001_old_order.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ |
+| 1971 | `60_advanced/gr.adv.dict_comprehension/negative/002_no_yield.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ |
+| 1972 | `60_advanced/gr.adv.dict_comprehension/negative/108_dict_old_order.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ |
+| 1973 | `60_advanced/gr.adv.dict_comprehension/negative/109_dict_no_yield.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ |
+| 1974 | `60_advanced/gr.adv.dict_comprehension/negative/110_dict_no_colon.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ |
+| 1975 | `60_advanced/gr.adv.dict_comprehension/negative/111_dict_no_in.ص` | `gr.adv.dict_comprehension` | negative | تطابق ✅ |
+| 1976 | `60_advanced/gr.adv.go/basic/001_channel_block.ص` | `gr.adv.go` | basic | تطابق ✅ |
+| 1977 | `60_advanced/gr.adv.go/edge/051_edge_go.ص` | `gr.adv.go` | edge | تطابق ✅ |
+| 1978 | `60_advanced/gr.adv.go/negative/050_negative_go.ص` | `gr.adv.go` | negative | تطابق ✅ |
+| 1979 | `60_advanced/gr.adv.inline_asm/basic/001_nop.ص` | `gr.adv.inline_asm` | basic | تطابق ✅ |
+| 1980 | `60_advanced/gr.adv.inline_asm/edge/050_edge_inline_asm.ص` | `gr.adv.inline_asm` | edge | تطابق ✅ |
+| 1981 | `60_advanced/gr.adv.lifetime_params/basic/001_struct_lifetime.ص` | `gr.adv.lifetime_params` | basic | تطابق ✅ |
+| 1982 | `60_advanced/gr.adv.lifetime_params/edge/050_edge_lifetime_params.ص` | `gr.adv.lifetime_params` | edge | تطابق ✅ |
+| 1983 | `60_advanced/gr.adv.lifetime_params/negative/050_negative_lifetime_params.ص` | `gr.adv.lifetime_params` | negative | تطابق ✅ |
+| 1984 | `60_advanced/gr.adv.list_comprehension/basic/001_map.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1985 | `60_advanced/gr.adv.list_comprehension/basic/002_filter.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1986 | `60_advanced/gr.adv.list_comprehension/basic/100_map_id_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1987 | `60_advanced/gr.adv.list_comprehension/basic/101_map_double_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1988 | `60_advanced/gr.adv.list_comprehension/basic/102_map_square_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1989 | `60_advanced/gr.adv.list_comprehension/basic/103_map_inc_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1990 | `60_advanced/gr.adv.list_comprehension/basic/104_map_dec_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1991 | `60_advanced/gr.adv.list_comprehension/basic/105_map_times10_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1992 | `60_advanced/gr.adv.list_comprehension/basic/106_map_mod3_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1993 | `60_advanced/gr.adv.list_comprehension/basic/107_map_plus5_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1994 | `60_advanced/gr.adv.list_comprehension/basic/108_map_neg_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1995 | `60_advanced/gr.adv.list_comprehension/basic/109_map_triple_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1996 | `60_advanced/gr.adv.list_comprehension/basic/110_map_id_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1997 | `60_advanced/gr.adv.list_comprehension/basic/111_map_double_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1998 | `60_advanced/gr.adv.list_comprehension/basic/112_map_square_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 1999 | `60_advanced/gr.adv.list_comprehension/basic/113_map_inc_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2000 | `60_advanced/gr.adv.list_comprehension/basic/114_map_dec_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2001 | `60_advanced/gr.adv.list_comprehension/basic/115_map_times10_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2002 | `60_advanced/gr.adv.list_comprehension/basic/116_map_mod3_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2003 | `60_advanced/gr.adv.list_comprehension/basic/117_map_plus5_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2004 | `60_advanced/gr.adv.list_comprehension/basic/118_map_neg_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2005 | `60_advanced/gr.adv.list_comprehension/basic/119_map_triple_4.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2006 | `60_advanced/gr.adv.list_comprehension/basic/120_map_id_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2007 | `60_advanced/gr.adv.list_comprehension/basic/121_map_double_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2008 | `60_advanced/gr.adv.list_comprehension/basic/122_map_square_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2009 | `60_advanced/gr.adv.list_comprehension/basic/123_map_inc_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2010 | `60_advanced/gr.adv.list_comprehension/basic/124_map_dec_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2011 | `60_advanced/gr.adv.list_comprehension/basic/125_map_times10_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2012 | `60_advanced/gr.adv.list_comprehension/basic/126_map_mod3_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2013 | `60_advanced/gr.adv.list_comprehension/basic/127_map_plus5_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2014 | `60_advanced/gr.adv.list_comprehension/basic/128_map_neg_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2015 | `60_advanced/gr.adv.list_comprehension/basic/129_map_triple_5.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2016 | `60_advanced/gr.adv.list_comprehension/basic/130_map_id_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2017 | `60_advanced/gr.adv.list_comprehension/basic/131_map_double_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2018 | `60_advanced/gr.adv.list_comprehension/basic/132_map_square_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2019 | `60_advanced/gr.adv.list_comprehension/basic/133_map_inc_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2020 | `60_advanced/gr.adv.list_comprehension/basic/134_map_dec_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2021 | `60_advanced/gr.adv.list_comprehension/basic/135_map_times10_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2022 | `60_advanced/gr.adv.list_comprehension/basic/136_map_mod3_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2023 | `60_advanced/gr.adv.list_comprehension/basic/137_map_plus5_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2024 | `60_advanced/gr.adv.list_comprehension/basic/138_map_neg_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2025 | `60_advanced/gr.adv.list_comprehension/basic/139_map_triple_3.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2026 | `60_advanced/gr.adv.list_comprehension/basic/200_pairunpack_value.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2027 | `60_advanced/gr.adv.list_comprehension/basic/201_pairunpack_sum.ص` | `gr.adv.list_comprehension` | basic | تطابق ✅ |
+| 2028 | `60_advanced/gr.adv.list_comprehension/edge/001_filter_all_out.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2029 | `60_advanced/gr.adv.list_comprehension/edge/002_expr_uses_var_twice.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2030 | `60_advanced/gr.adv.list_comprehension/edge/100_filter_gt2_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2031 | `60_advanced/gr.adv.list_comprehension/edge/101_filter_ge3_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2032 | `60_advanced/gr.adv.list_comprehension/edge/102_filter_lt4_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2033 | `60_advanced/gr.adv.list_comprehension/edge/103_filter_even_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2034 | `60_advanced/gr.adv.list_comprehension/edge/104_filter_odd_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2035 | `60_advanced/gr.adv.list_comprehension/edge/105_filter_ne3_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2036 | `60_advanced/gr.adv.list_comprehension/edge/106_filter_gt0_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2037 | `60_advanced/gr.adv.list_comprehension/edge/107_filter_ge2_len3.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2038 | `60_advanced/gr.adv.list_comprehension/edge/108_filter_gt2_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2039 | `60_advanced/gr.adv.list_comprehension/edge/109_filter_ge3_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2040 | `60_advanced/gr.adv.list_comprehension/edge/110_filter_lt4_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2041 | `60_advanced/gr.adv.list_comprehension/edge/111_filter_even_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2042 | `60_advanced/gr.adv.list_comprehension/edge/112_filter_odd_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2043 | `60_advanced/gr.adv.list_comprehension/edge/113_filter_ne3_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2044 | `60_advanced/gr.adv.list_comprehension/edge/114_filter_gt0_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2045 | `60_advanced/gr.adv.list_comprehension/edge/115_filter_ge2_len4.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2046 | `60_advanced/gr.adv.list_comprehension/edge/116_filter_gt2_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2047 | `60_advanced/gr.adv.list_comprehension/edge/117_filter_ge3_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2048 | `60_advanced/gr.adv.list_comprehension/edge/118_filter_lt4_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2049 | `60_advanced/gr.adv.list_comprehension/edge/119_filter_even_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2050 | `60_advanced/gr.adv.list_comprehension/edge/120_filter_odd_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2051 | `60_advanced/gr.adv.list_comprehension/edge/121_filter_ne3_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2052 | `60_advanced/gr.adv.list_comprehension/edge/122_filter_gt0_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2053 | `60_advanced/gr.adv.list_comprehension/edge/123_filter_ge2_len5.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2054 | `60_advanced/gr.adv.list_comprehension/edge/200_fmap_gt2_double.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2055 | `60_advanced/gr.adv.list_comprehension/edge/200_pairunpack_condition.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2056 | `60_advanced/gr.adv.list_comprehension/edge/201_fmap_even_square.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2057 | `60_advanced/gr.adv.list_comprehension/edge/202_fmap_lt4_times10.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2058 | `60_advanced/gr.adv.list_comprehension/edge/203_fmap_gt0_inc.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2059 | `60_advanced/gr.adv.list_comprehension/edge/204_fmap_ge2_id.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2060 | `60_advanced/gr.adv.list_comprehension/edge/205_fmap_gt2_double.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2061 | `60_advanced/gr.adv.list_comprehension/edge/206_fmap_even_square.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2062 | `60_advanced/gr.adv.list_comprehension/edge/207_fmap_lt4_times10.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2063 | `60_advanced/gr.adv.list_comprehension/edge/208_fmap_gt0_inc.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2064 | `60_advanced/gr.adv.list_comprehension/edge/209_fmap_ge2_id.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2065 | `60_advanced/gr.adv.list_comprehension/edge/210_fmap_gt2_double.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2066 | `60_advanced/gr.adv.list_comprehension/edge/211_fmap_lt4_times10.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2067 | `60_advanced/gr.adv.list_comprehension/edge/212_fmap_gt0_inc.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2068 | `60_advanced/gr.adv.list_comprehension/edge/213_fmap_ge2_id.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2069 | `60_advanced/gr.adv.list_comprehension/edge/214_fmap_gt2_double.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2070 | `60_advanced/gr.adv.list_comprehension/edge/215_fmap_even_square.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2071 | `60_advanced/gr.adv.list_comprehension/edge/216_fmap_lt4_times10.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2072 | `60_advanced/gr.adv.list_comprehension/edge/217_fmap_gt0_inc.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2073 | `60_advanced/gr.adv.list_comprehension/edge/218_fmap_ge2_id.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2074 | `60_advanced/gr.adv.list_comprehension/edge/219_fmap_gt2_double.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2075 | `60_advanced/gr.adv.list_comprehension/edge/220_fmap_even_square.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2076 | `60_advanced/gr.adv.list_comprehension/edge/221_fmap_gt0_inc.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2077 | `60_advanced/gr.adv.list_comprehension/edge/222_fmap_ge2_id.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2078 | `60_advanced/gr.adv.list_comprehension/edge/401_depth_chained.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2079 | `60_advanced/gr.adv.list_comprehension/edge/402_depth_in_function.ص` | `gr.adv.list_comprehension` | edge | تطابق ✅ |
+| 2080 | `60_advanced/gr.adv.list_comprehension/negative/001_old_order.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ |
+| 2081 | `60_advanced/gr.adv.list_comprehension/negative/002_no_yield.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ |
+| 2082 | `60_advanced/gr.adv.list_comprehension/negative/100_list_old_order.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ |
+| 2083 | `60_advanced/gr.adv.list_comprehension/negative/101_list_no_yield.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ |
+| 2084 | `60_advanced/gr.adv.list_comprehension/negative/102_list_no_in.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ |
+| 2085 | `60_advanced/gr.adv.list_comprehension/negative/103_list_no_var.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ |
+| 2086 | `60_advanced/gr.adv.list_comprehension/negative/104_list_unclosed.ص` | `gr.adv.list_comprehension` | negative | تطابق ✅ |
+| 2087 | `60_advanced/gr.adv.macro/basic/001_double.ص` | `gr.adv.macro` | basic | تطابق ✅ |
+| 2088 | `60_advanced/gr.adv.macro/edge/050_edge_macro.ص` | `gr.adv.macro` | edge | تطابق ✅ |
+| 2089 | `60_advanced/gr.adv.macro/edge/051_edge_macro.ص` | `gr.adv.macro` | edge | تطابق ✅ |
+| 2090 | `60_advanced/gr.adv.macro/negative/050_negative_macro.ص` | `gr.adv.macro` | negative | تطابق ✅ |
+| 2091 | `60_advanced/gr.adv.select/basic/001_one_channel.ص` | `gr.adv.select` | basic | تطابق ✅ |
+| 2092 | `60_advanced/gr.adv.select/edge/050_edge_select.ص` | `gr.adv.select` | edge | تطابق ✅ |
+| 2093 | `60_advanced/gr.adv.select/negative/002_default_not_last.ص` | `gr.adv.select` | negative | تطابق ✅ |
+| 2094 | `60_advanced/gr.adv.select/negative/050_negative_select.ص` | `gr.adv.select` | negative | تطابق ✅ |
+| 2095 | `60_advanced/gr.adv.set_comprehension/basic/001_dedup.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2096 | `60_advanced/gr.adv.set_comprehension/basic/002_map.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2097 | `60_advanced/gr.adv.set_comprehension/basic/100_dedup_id_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2098 | `60_advanced/gr.adv.set_comprehension/basic/101_dedup_double_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2099 | `60_advanced/gr.adv.set_comprehension/basic/102_dedup_square_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2100 | `60_advanced/gr.adv.set_comprehension/basic/103_dedup_inc_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2101 | `60_advanced/gr.adv.set_comprehension/basic/104_dedup_dec_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2102 | `60_advanced/gr.adv.set_comprehension/basic/105_dedup_times10_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2103 | `60_advanced/gr.adv.set_comprehension/basic/106_dedup_id_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2104 | `60_advanced/gr.adv.set_comprehension/basic/107_dedup_double_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2105 | `60_advanced/gr.adv.set_comprehension/basic/108_dedup_square_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2106 | `60_advanced/gr.adv.set_comprehension/basic/109_dedup_inc_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2107 | `60_advanced/gr.adv.set_comprehension/basic/110_dedup_dec_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2108 | `60_advanced/gr.adv.set_comprehension/basic/111_dedup_times10_4.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2109 | `60_advanced/gr.adv.set_comprehension/basic/112_dedup_id_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2110 | `60_advanced/gr.adv.set_comprehension/basic/113_dedup_double_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2111 | `60_advanced/gr.adv.set_comprehension/basic/114_dedup_square_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2112 | `60_advanced/gr.adv.set_comprehension/basic/115_dedup_inc_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2113 | `60_advanced/gr.adv.set_comprehension/basic/116_dedup_dec_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2114 | `60_advanced/gr.adv.set_comprehension/basic/117_dedup_times10_5.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2115 | `60_advanced/gr.adv.set_comprehension/basic/118_dedup_id_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2116 | `60_advanced/gr.adv.set_comprehension/basic/119_dedup_double_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2117 | `60_advanced/gr.adv.set_comprehension/basic/120_dedup_square_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2118 | `60_advanced/gr.adv.set_comprehension/basic/121_dedup_inc_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2119 | `60_advanced/gr.adv.set_comprehension/basic/122_dedup_dec_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2120 | `60_advanced/gr.adv.set_comprehension/basic/123_dedup_times10_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2121 | `60_advanced/gr.adv.set_comprehension/basic/124_dedup_id_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2122 | `60_advanced/gr.adv.set_comprehension/basic/125_dedup_double_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2123 | `60_advanced/gr.adv.set_comprehension/basic/126_dedup_square_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2124 | `60_advanced/gr.adv.set_comprehension/basic/127_dedup_inc_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2125 | `60_advanced/gr.adv.set_comprehension/basic/128_dedup_dec_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2126 | `60_advanced/gr.adv.set_comprehension/basic/129_dedup_times10_3.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2127 | `60_advanced/gr.adv.set_comprehension/basic/200_pairunpack_value.ص` | `gr.adv.set_comprehension` | basic | تطابق ✅ |
+| 2128 | `60_advanced/gr.adv.set_comprehension/edge/001_with_condition.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2129 | `60_advanced/gr.adv.set_comprehension/edge/100_filter_gt2_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2130 | `60_advanced/gr.adv.set_comprehension/edge/101_filter_ge3_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2131 | `60_advanced/gr.adv.set_comprehension/edge/102_filter_lt4_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2132 | `60_advanced/gr.adv.set_comprehension/edge/103_filter_even_3.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2133 | `60_advanced/gr.adv.set_comprehension/edge/104_filter_odd_4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2134 | `60_advanced/gr.adv.set_comprehension/edge/105_filter_ne3_5.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2135 | `60_advanced/gr.adv.set_comprehension/edge/106_filter_gt0_6.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2136 | `60_advanced/gr.adv.set_comprehension/edge/107_filter_ge2_7.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2137 | `60_advanced/gr.adv.set_comprehension/edge/108_filter_gt2_8.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2138 | `60_advanced/gr.adv.set_comprehension/edge/109_filter_ge3_9.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2139 | `60_advanced/gr.adv.set_comprehension/edge/110_filter_lt4_10.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2140 | `60_advanced/gr.adv.set_comprehension/edge/111_filter_even_11.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2141 | `60_advanced/gr.adv.set_comprehension/edge/112_filter_odd_12.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2142 | `60_advanced/gr.adv.set_comprehension/edge/113_filter_ne3_13.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2143 | `60_advanced/gr.adv.set_comprehension/edge/114_filter_gt0_14.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2144 | `60_advanced/gr.adv.set_comprehension/edge/300_fold_mod2_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2145 | `60_advanced/gr.adv.set_comprehension/edge/301_foldval_mod2_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2146 | `60_advanced/gr.adv.set_comprehension/edge/302_foldval_mod2_4_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2147 | `60_advanced/gr.adv.set_comprehension/edge/303_fold_mod3_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2148 | `60_advanced/gr.adv.set_comprehension/edge/304_foldval_mod3_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2149 | `60_advanced/gr.adv.set_comprehension/edge/305_foldval_mod3_4_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2150 | `60_advanced/gr.adv.set_comprehension/edge/306_fold_mod4_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2151 | `60_advanced/gr.adv.set_comprehension/edge/307_foldval_mod4_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2152 | `60_advanced/gr.adv.set_comprehension/edge/308_foldval_mod4_4_3.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2153 | `60_advanced/gr.adv.set_comprehension/edge/309_fold_mod2_len5.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2154 | `60_advanced/gr.adv.set_comprehension/edge/310_foldval_mod2_5_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2155 | `60_advanced/gr.adv.set_comprehension/edge/311_foldval_mod2_5_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2156 | `60_advanced/gr.adv.set_comprehension/edge/312_fold_mod3_len5.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2157 | `60_advanced/gr.adv.set_comprehension/edge/313_foldval_mod3_5_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2158 | `60_advanced/gr.adv.set_comprehension/edge/314_foldval_mod3_5_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2159 | `60_advanced/gr.adv.set_comprehension/edge/315_fold_mod4_len5.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2160 | `60_advanced/gr.adv.set_comprehension/edge/316_foldval_mod4_5_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2161 | `60_advanced/gr.adv.set_comprehension/edge/317_foldval_mod4_5_3.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2162 | `60_advanced/gr.adv.set_comprehension/edge/318_fold_mod2_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2163 | `60_advanced/gr.adv.set_comprehension/edge/319_foldval_mod2_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2164 | `60_advanced/gr.adv.set_comprehension/edge/320_fold_mod3_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2165 | `60_advanced/gr.adv.set_comprehension/edge/321_foldval_mod3_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2166 | `60_advanced/gr.adv.set_comprehension/edge/322_foldval_mod3_4_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2167 | `60_advanced/gr.adv.set_comprehension/edge/323_fold_mod4_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2168 | `60_advanced/gr.adv.set_comprehension/edge/324_foldval_mod4_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2169 | `60_advanced/gr.adv.set_comprehension/edge/325_foldval_mod4_4_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2170 | `60_advanced/gr.adv.set_comprehension/edge/326_fold_mod2_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2171 | `60_advanced/gr.adv.set_comprehension/edge/327_foldval_mod2_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2172 | `60_advanced/gr.adv.set_comprehension/edge/328_fold_mod3_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2173 | `60_advanced/gr.adv.set_comprehension/edge/329_foldval_mod3_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2174 | `60_advanced/gr.adv.set_comprehension/edge/330_foldval_mod3_4_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2175 | `60_advanced/gr.adv.set_comprehension/edge/331_fold_mod4_len4.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2176 | `60_advanced/gr.adv.set_comprehension/edge/332_foldval_mod4_4_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2177 | `60_advanced/gr.adv.set_comprehension/edge/333_foldval_mod4_4_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2178 | `60_advanced/gr.adv.set_comprehension/edge/334_fold_mod2_len6.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2179 | `60_advanced/gr.adv.set_comprehension/edge/335_foldval_mod2_6_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2180 | `60_advanced/gr.adv.set_comprehension/edge/336_foldval_mod2_6_1.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2181 | `60_advanced/gr.adv.set_comprehension/edge/337_fold_mod3_len6.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2182 | `60_advanced/gr.adv.set_comprehension/edge/338_foldval_mod3_6_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2183 | `60_advanced/gr.adv.set_comprehension/edge/339_foldval_mod3_6_2.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2184 | `60_advanced/gr.adv.set_comprehension/edge/340_fold_mod4_len6.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2185 | `60_advanced/gr.adv.set_comprehension/edge/341_foldval_mod4_6_0.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2186 | `60_advanced/gr.adv.set_comprehension/edge/342_foldval_mod4_6_3.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2187 | `60_advanced/gr.adv.set_comprehension/edge/400_depth_var_source_fold.ص` | `gr.adv.set_comprehension` | edge | تطابق ✅ |
+| 2188 | `60_advanced/gr.adv.set_comprehension/negative/001_no_yield.ص` | `gr.adv.set_comprehension` | negative | تطابق ✅ |
+| 2189 | `60_advanced/gr.adv.set_comprehension/negative/105_set_old_order.ص` | `gr.adv.set_comprehension` | negative | تطابق ✅ |
+| 2190 | `60_advanced/gr.adv.set_comprehension/negative/106_set_no_yield.ص` | `gr.adv.set_comprehension` | negative | تطابق ✅ |
+| 2191 | `60_advanced/gr.adv.set_comprehension/negative/107_set_no_in.ص` | `gr.adv.set_comprehension` | negative | تطابق ✅ |
+| 2192 | `60_advanced/gr.adv.template_args/basic/001_explicit.ص` | `gr.adv.template_args` | basic | تطابق ✅ |
+| 2193 | `60_advanced/gr.adv.template_args/edge/050_edge_template_args.ص` | `gr.adv.template_args` | edge | تطابق ✅ |
+| 2194 | `60_advanced/gr.adv.template_decl/basic/001_generic_fn.ص` | `gr.adv.template_decl` | basic | تطابق ✅ |
+| 2195 | `60_advanced/gr.adv.template_decl/basic/002_template_return_any.ص` | `gr.adv.template_decl` | basic | تطابق ✅ |
+| 2196 | `60_advanced/gr.adv.template_decl/negative/050_negative_template_decl.ص` | `gr.adv.template_decl` | negative | تطابق ✅ |
+| 2197 | `60_advanced/gr.adv.template_decl/negative/051_removed_word_double_return_type.ص` | `gr.adv.template_decl` | negative | تطابق ✅ |
+| 2198 | `60_advanced/gr.adv.template_params/basic/001_type_param.ص` | `gr.adv.template_params` | basic | تطابق ✅ |
+| 2199 | `60_advanced/gr.adv.template_params/edge/050_edge_template_params.ص` | `gr.adv.template_params` | edge | تطابق ✅ |
+| 2200 | `60_advanced/gr.adv.template_params/edge/051_edge_template_params.ص` | `gr.adv.template_params` | edge | تطابق ✅ |
+| 2201 | `60_advanced/gr.adv.type/basic/001_typed_param.ص` | `gr.adv.type` | basic | تطابق ✅ |
+| 2202 | `60_advanced/gr.adv.type/edge/050_edge_type.ص` | `gr.adv.type` | edge | تطابق ✅ |
+| 2203 | `60_advanced/gr.adv.type/edge/051_edge_type.ص` | `gr.adv.type` | edge | تطابق ✅ |
+| 2204 | `60_advanced/gr.adv.type/negative/050_negative_type.ص` | `gr.adv.type` | negative | تطابق ✅ |
+| 2205 | `60_advanced/gr.adv.ui_decl/basic/001_component.ص` | `gr.adv.ui_decl` | basic | تطابق ✅ |
+| 2206 | `60_advanced/gr.adv.ui_decl/edge/050_edge_ui_decl.ص` | `gr.adv.ui_decl` | edge | تطابق ✅ |
+| 2207 | `60_advanced/gr.adv.ui_event/basic/001_on_click.ص` | `gr.adv.ui_event` | basic | تطابق ✅ |
+| 2208 | `60_advanced/gr.adv.ui_event/edge/050_edge_ui_event.ص` | `gr.adv.ui_event` | edge | تطابق ✅ |
+| 2209 | `60_advanced/gr.adv.ui_modifier_chain/basic/001_chain.ص` | `gr.adv.ui_modifier_chain` | basic | تطابق ✅ |
+| 2210 | `60_advanced/gr.adv.ui_modifier_chain/edge/050_edge_ui_modifier_chain.ص` | `gr.adv.ui_modifier_chain` | edge | تطابق ✅ |
+| 2211 | `60_advanced/gr.adv.ui_state/basic/001_state_field.ص` | `gr.adv.ui_state` | basic | تطابق ✅ |
+| 2212 | `60_advanced/gr.adv.ui_state/edge/050_edge_ui_state.ص` | `gr.adv.ui_state` | edge | تطابق ✅ |
+| 2213 | `60_advanced/gr.adv.where_clause/basic/001_constraint.ص` | `gr.adv.where_clause` | basic | تطابق ✅ |
+| 2214 | `60_advanced/gr.adv.where_clause/edge/050_edge_where_clause.ص` | `gr.adv.where_clause` | edge | تطابق ✅ |
+| 2215 | `60_advanced/gr.adv.widget/basic/001_show.ص` | `gr.adv.widget` | basic | تطابق ✅ |
+| 2216 | `60_advanced/gr.adv.widget/edge/050_edge_widget.ص` | `gr.adv.widget` | edge | تطابق ✅ |
+| 2217 | `60_advanced/gr.adv.with/basic/001_alias.ص` | `gr.adv.with` | basic | تطابق ✅ |
+| 2218 | `60_advanced/gr.adv.with/edge/050_edge_with.ص` | `gr.adv.with` | edge | تطابق ✅ |
+| 2219 | `60_advanced/gr.adv.with/edge/051_edge_with.ص` | `gr.adv.with` | edge | تطابق ✅ |
+| 2220 | `60_advanced/gr.adv.with/negative/050_negative_with.ص` | `gr.adv.with` | negative | تطابق ✅ |
+| 2221 | `60_advanced/gr.adv.yield/basic/050_basic_yield.ص` | `gr.adv.yield` | basic | تطابق ✅ |
+| 2222 | `60_advanced/gr.adv.yield/basic/051_basic_yield.ص` | `gr.adv.yield` | basic | تطابق ✅ |
+| 2223 | `60_advanced/gr.adv.yield/edge/050_edge_yield.ص` | `gr.adv.yield` | edge | تطابق ✅ |
+| 2224 | `60_advanced/gr.adv.yield/edge/051_edge_yield.ص` | `gr.adv.yield` | edge | تطابق ✅ |
+| 2225 | `60_advanced/gr.adv.yield/negative/050_negative_yield.ص` | `gr.adv.yield` | negative | تطابق ✅ |
+| 2226 | `70_lexical/gr.lex.comment/basic/001_line.ص` | `gr.lex.comment` | basic | تطابق ✅ |
+| 2227 | `70_lexical/gr.lex.comment/basic/002_trailing.ص` | `gr.lex.comment` | basic | تطابق ✅ |
+| 2228 | `70_lexical/gr.lex.comment/basic/003_block.ص` | `gr.lex.comment` | basic | تطابق ✅ |
+| 2229 | `70_lexical/gr.lex.comment/basic/004_doc.ص` | `gr.lex.comment` | basic | تطابق ✅ |
+| 2230 | `70_lexical/gr.lex.comment/edge/001_block_multiline.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2231 | `70_lexical/gr.lex.comment/edge/002_doc_block.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2232 | `70_lexical/gr.lex.comment/edge/003_code_like_inside.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2233 | `70_lexical/gr.lex.comment/edge/004_consecutive.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2234 | `70_lexical/gr.lex.comment/edge/005_empty_line.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2235 | `70_lexical/gr.lex.comment/edge/006_inline_block.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2236 | `70_lexical/gr.lex.comment/edge/007_emoji.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2237 | `70_lexical/gr.lex.comment/edge/008_trailing_block.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2238 | `70_lexical/gr.lex.comment/edge/009_doc_attached.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2239 | `70_lexical/gr.lex.comment/edge/010_doc_blank_orphan.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2240 | `70_lexical/gr.lex.comment/edge/011_doc_trailing.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2241 | `70_lexical/gr.lex.comment/edge/012_doc_eof.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2242 | `70_lexical/gr.lex.comment/edge/013_docblock_matrix.ص` | `gr.lex.comment` | edge | تطابق ✅ |
+| 2243 | `70_lexical/gr.lex.comment/negative/001_unterminated_block.ص` | `gr.lex.comment` | negative | تطابق ✅ |
+| 2244 | `70_lexical/gr.lex.double/basic/001_simple.ص` | `gr.lex.double` | basic | تطابق ✅ |
+| 2245 | `70_lexical/gr.lex.double/basic/002_half.ص` | `gr.lex.double` | basic | تطابق ✅ |
+| 2246 | `70_lexical/gr.lex.double/basic/003_exponent.ص` | `gr.lex.double` | basic | تطابق ✅ |
+| 2247 | `70_lexical/gr.lex.double/basic/004_exp_negative.ص` | `gr.lex.double` | basic | تطابق ✅ |
+| 2248 | `70_lexical/gr.lex.double/basic/005_exp_positive.ص` | `gr.lex.double` | basic | تطابق ✅ |
+| 2249 | `70_lexical/gr.lex.double/edge/001_leading_zero.ص` | `gr.lex.double` | edge | تطابق ✅ |
+| 2250 | `70_lexical/gr.lex.double/edge/002_many_decimals.ص` | `gr.lex.double` | edge | تطابق ✅ |
+| 2251 | `70_lexical/gr.lex.double/edge/003_uppercase_e.ص` | `gr.lex.double` | edge | تطابق ✅ |
+| 2252 | `70_lexical/gr.lex.double/edge/004_integer_valued.ص` | `gr.lex.double` | edge | تطابق ✅ |
+| 2253 | `70_lexical/gr.lex.double/edge/005_underscore_mantissa.ص` | `gr.lex.double` | edge | تطابق ✅ |
+| 2254 | `70_lexical/gr.lex.double/edge/006_underscore_fraction.ص` | `gr.lex.double` | edge | تطابق ✅ |
+| 2255 | `70_lexical/gr.lex.double/edge/007_exp_no_point.ص` | `gr.lex.double` | edge | تطابق ✅ |
+| 2256 | `70_lexical/gr.lex.double/negative/001_trailing_dot.ص` | `gr.lex.double` | negative | تطابق ✅ |
+| 2257 | `70_lexical/gr.lex.double/negative/002_leading_dot.ص` | `gr.lex.double` | negative | تطابق ✅ |
+| 2258 | `70_lexical/gr.lex.fstring/basic/001_var.ص` | `gr.lex.fstring` | basic | تطابق ✅ |
+| 2259 | `70_lexical/gr.lex.fstring/basic/002_expr.ص` | `gr.lex.fstring` | basic | تطابق ✅ |
+| 2260 | `70_lexical/gr.lex.fstring/basic/003_no_interp.ص` | `gr.lex.fstring` | basic | تطابق ✅ |
+| 2261 | `70_lexical/gr.lex.fstring/edge/001_multiple.ص` | `gr.lex.fstring` | edge | تطابق ✅ |
+| 2262 | `70_lexical/gr.lex.fstring/edge/002_literal_braces.ص` | `gr.lex.fstring` | edge | تطابق ✅ |
+| 2263 | `70_lexical/gr.lex.fstring/edge/003_arithmetic.ص` | `gr.lex.fstring` | edge | تطابق ✅ |
+| 2264 | `70_lexical/gr.lex.fstring/edge/004_boolean_interp.ص` | `gr.lex.fstring` | edge | تطابق ✅ |
+| 2265 | `70_lexical/gr.lex.fstring/edge/005_call_interp.ص` | `gr.lex.fstring` | edge | تطابق ✅ |
+| 2266 | `70_lexical/gr.lex.fstring/edge/006_mixed_text.ص` | `gr.lex.fstring` | edge | تطابق ✅ |
+| 2267 | `70_lexical/gr.lex.fstring/negative/001_unterminated.ص` | `gr.lex.fstring` | negative | تطابق ✅ |
+| 2268 | `70_lexical/gr.lex.identifier/basic/001_arabic.ص` | `gr.lex.identifier` | basic | تطابق ✅ |
+| 2269 | `70_lexical/gr.lex.identifier/basic/002_latin.ص` | `gr.lex.identifier` | basic | تطابق ✅ |
+| 2270 | `70_lexical/gr.lex.identifier/basic/003_underscore.ص` | `gr.lex.identifier` | basic | تطابق ✅ |
+| 2271 | `70_lexical/gr.lex.identifier/basic/004_leading_underscore.ص` | `gr.lex.identifier` | basic | تطابق ✅ |
+| 2272 | `70_lexical/gr.lex.identifier/basic/005_trailing_digits.ص` | `gr.lex.identifier` | basic | تطابق ✅ |
+| 2273 | `70_lexical/gr.lex.identifier/basic/006_long_name.ص` | `gr.lex.identifier` | basic | تطابق ✅ |
+| 2274 | `70_lexical/gr.lex.identifier/edge/001_single_char.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2275 | `70_lexical/gr.lex.identifier/edge/002_wrapped_underscores.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2276 | `70_lexical/gr.lex.identifier/edge/003_latin_digits.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2277 | `70_lexical/gr.lex.identifier/edge/004_arabic_embedded_digit.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2278 | `70_lexical/gr.lex.identifier/edge/005_very_long.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2279 | `70_lexical/gr.lex.identifier/edge/006_mixed_script.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2280 | `70_lexical/gr.lex.identifier/edge/007_underscore_only.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2281 | `70_lexical/gr.lex.identifier/edge/008_underscore_digit.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2282 | `70_lexical/gr.lex.identifier/edge/009_arabic_indic_digit.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2283 | `70_lexical/gr.lex.identifier/edge/010_tatweel.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2284 | `70_lexical/gr.lex.identifier/edge/011_keyword_prefix.ص` | `gr.lex.identifier` | edge | تطابق ✅ |
+| 2285 | `70_lexical/gr.lex.identifier/negative/001_leading_digit.ص` | `gr.lex.identifier` | negative | تطابق ✅ |
+| 2286 | `70_lexical/gr.lex.identifier/negative/002_illegal_char.ص` | `gr.lex.identifier` | negative | تطابق ✅ |
+| 2287 | `70_lexical/gr.lex.integer/basic/001_decimal.ص` | `gr.lex.integer` | basic | تطابق ✅ |
+| 2288 | `70_lexical/gr.lex.integer/basic/002_hex.ص` | `gr.lex.integer` | basic | تطابق ✅ |
+| 2289 | `70_lexical/gr.lex.integer/basic/003_binary.ص` | `gr.lex.integer` | basic | تطابق ✅ |
+| 2290 | `70_lexical/gr.lex.integer/basic/004_octal.ص` | `gr.lex.integer` | basic | تطابق ✅ |
+| 2291 | `70_lexical/gr.lex.integer/basic/005_zero.ص` | `gr.lex.integer` | basic | تطابق ✅ |
+| 2292 | `70_lexical/gr.lex.integer/edge/001_underscore_sep.ص` | `gr.lex.integer` | edge | تطابق ✅ |
+| 2293 | `70_lexical/gr.lex.integer/edge/002_hex_mixed_case.ص` | `gr.lex.integer` | edge | تطابق ✅ |
+| 2294 | `70_lexical/gr.lex.integer/edge/003_binary_underscore.ص` | `gr.lex.integer` | edge | تطابق ✅ |
+| 2295 | `70_lexical/gr.lex.integer/edge/004_max_i64.ص` | `gr.lex.integer` | edge | تطابق ✅ |
+| 2296 | `70_lexical/gr.lex.integer/edge/005_leading_zeros.ص` | `gr.lex.integer` | edge | تطابق ✅ |
+| 2297 | `70_lexical/gr.lex.integer/edge/006_hex_underscore.ص` | `gr.lex.integer` | edge | تطابق ✅ |
+| 2298 | `70_lexical/gr.lex.integer/edge/007_hex_zero.ص` | `gr.lex.integer` | edge | تطابق ✅ |
+| 2299 | `70_lexical/gr.lex.integer/edge/008_arabic_indic.ص` | `gr.lex.integer` | edge | تطابق ✅ |
+| 2300 | `70_lexical/gr.lex.integer/negative/001_bad_hex.ص` | `gr.lex.integer` | negative | تطابق ✅ |
+| 2301 | `70_lexical/gr.lex.integer/negative/002_bad_binary.ص` | `gr.lex.integer` | negative | تطابق ✅ |
+| 2302 | `70_lexical/gr.lex.lifetime/basic/001_struct_param.ص` | `gr.lex.lifetime` | basic | تطابق ✅ |
+| 2303 | `70_lexical/gr.lex.lifetime/basic/002_borrow_mut.ص` | `gr.lex.lifetime` | basic | تطابق ✅ |
+| 2304 | `70_lexical/gr.lex.lifetime/basic/003_borrow_immut.ص` | `gr.lex.lifetime` | basic | تطابق ✅ |
+| 2305 | `70_lexical/gr.lex.lifetime/edge/001_multi_params.ص` | `gr.lex.lifetime` | edge | تطابق ✅ |
+| 2306 | `70_lexical/gr.lex.lifetime/edge/002_long_name.ص` | `gr.lex.lifetime` | edge | تطابق ✅ |
+| 2307 | `70_lexical/gr.lex.lifetime/edge/003_latin_name.ص` | `gr.lex.lifetime` | edge | تطابق ✅ |
+| 2308 | `70_lexical/gr.lex.lifetime/edge/004_latin_two_comma.ص` | `gr.lex.lifetime` | edge | تطابق ✅ |
+| 2309 | `70_lexical/gr.lex.lifetime/edge/005_single_latin_letter.ص` | `gr.lex.lifetime` | edge | تطابق ✅ |
+| 2310 | `70_lexical/gr.lex.lifetime/negative/001_numeric_name.ص` | `gr.lex.lifetime` | negative | تطابق ✅ |
+| 2311 | `70_lexical/gr.lex.raw_string/basic/001_simple.ص` | `gr.lex.raw_string` | basic | تطابق ✅ |
+| 2312 | `70_lexical/gr.lex.raw_string/basic/002_no_escape.ص` | `gr.lex.raw_string` | basic | تطابق ✅ |
+| 2313 | `70_lexical/gr.lex.raw_string/basic/003_windows_path.ص` | `gr.lex.raw_string` | basic | تطابق ✅ |
+| 2314 | `70_lexical/gr.lex.raw_string/edge/001_empty_between.ص` | `gr.lex.raw_string` | edge | تطابق ✅ |
+| 2315 | `70_lexical/gr.lex.raw_string/edge/002_many_backslashes.ص` | `gr.lex.raw_string` | edge | تطابق ✅ |
+| 2316 | `70_lexical/gr.lex.raw_string/edge/003_braces.ص` | `gr.lex.raw_string` | edge | تطابق ✅ |
+| 2317 | `70_lexical/gr.lex.raw_string/edge/004_raw_newline_literal.ص` | `gr.lex.raw_string` | edge | تطابق ✅ |
+| 2318 | `70_lexical/gr.lex.raw_string/edge/005_raw_unicode_literal.ص` | `gr.lex.raw_string` | edge | تطابق ✅ |
+| 2319 | `70_lexical/gr.lex.raw_string/edge/006_raw_tab_literal.ص` | `gr.lex.raw_string` | edge | تطابق ✅ |
+| 2320 | `70_lexical/gr.lex.raw_string/edge/007_raw_arabic_path.ص` | `gr.lex.raw_string` | edge | تطابق ✅ |
+| 2321 | `70_lexical/gr.lex.raw_string/negative/001_unterminated.ص` | `gr.lex.raw_string` | negative | تطابق ✅ |
+| 2322 | `70_lexical/gr.lex.string/basic/001_simple.ص` | `gr.lex.string` | basic | تطابق ✅ |
+| 2323 | `70_lexical/gr.lex.string/basic/002_spaces.ص` | `gr.lex.string` | basic | تطابق ✅ |
+| 2324 | `70_lexical/gr.lex.string/basic/003_mixed.ص` | `gr.lex.string` | basic | تطابق ✅ |
+| 2325 | `70_lexical/gr.lex.string/basic/004_newline_escape.ص` | `gr.lex.string` | basic | تطابق ✅ |
+| 2326 | `70_lexical/gr.lex.string/basic/005_symbols.ص` | `gr.lex.string` | basic | تطابق ✅ |
+| 2327 | `70_lexical/gr.lex.string/edge/001_escaped_quote.ص` | `gr.lex.string` | edge | تطابق ✅ |
+| 2328 | `70_lexical/gr.lex.string/edge/002_tab_escape.ص` | `gr.lex.string` | edge | تطابق ✅ |
+| 2329 | `70_lexical/gr.lex.string/edge/003_backslash.ص` | `gr.lex.string` | edge | تطابق ✅ |
+| 2330 | `70_lexical/gr.lex.string/edge/004_emoji.ص` | `gr.lex.string` | edge | تطابق ✅ |
+| 2331 | `70_lexical/gr.lex.string/edge/005_empty_between.ص` | `gr.lex.string` | edge | تطابق ✅ |
+| 2332 | `70_lexical/gr.lex.string/edge/006_unicode_escape.ص` | `gr.lex.string` | edge | تطابق ✅ |
+| 2333 | `70_lexical/gr.lex.string/edge/007_empty_length.ص` | `gr.lex.string` | edge | تطابق ✅ |
+| 2334 | `70_lexical/gr.lex.string/edge/008_carriage_return.ص` | `gr.lex.string` | edge | تطابق ✅ |
+| 2335 | `70_lexical/gr.lex.string/edge/009_null_escape.ص` | `gr.lex.string` | edge | تطابق ✅ |
+| 2336 | `70_lexical/gr.lex.string/negative/001_unterminated.ص` | `gr.lex.string` | negative | تطابق ✅ |
+| 2337 | `70_lexical/gr.lex.string/negative/002_escaped_close.ص` | `gr.lex.string` | negative | تطابق ✅ |
+| 2338 | `70_lexical/gr.lex.string/negative/003_unicode_brace_unsupported.ص` | `gr.lex.string` | negative | تطابق ✅ |
+| 2339 | `_interactions/_combos/001_recursion_factorial.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2340 | `_interactions/_combos/002_recursion_fib.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2341 | `_interactions/_combos/003_loop_if_sum_even.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2342 | `_interactions/_combos/004_while_break_continue.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2343 | `_interactions/_combos/005_nested_loops_grid.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2344 | `_interactions/_combos/006_class_full.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2345 | `_interactions/_combos/007_class_operator_method.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2346 | `_interactions/_combos/008_inheritance_super.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2347 | `_interactions/_combos/009_struct_in_function_loop.ص` | `gr.oop.struct` | interaction | تطابق ✅ |
+| 2348 | `_interactions/_combos/010_try_throw_catch_loop.ص` | `gr.stmt.try` | interaction | تطابق ✅ |
+| 2349 | `_interactions/_combos/011_enum_match_function.ص` | `gr.oop.enum` | interaction | تطابق ✅ |
+| 2350 | `_interactions/_combos/012_lambda_pipeline_array.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2351 | `_interactions/_combos/013_nested_map_array_loop.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ |
+| 2352 | `_interactions/_combos/014_list_comprehension_filter.ص` | `gr.adv.list_comprehension` | interaction | تطابق ✅ |
+| 2353 | `_interactions/_combos/015_ternary_logical_compare.ص` | `gr.expr.ternary` | interaction | تطابق ✅ |
+| 2354 | `_interactions/_combos/016_string_ops_combo.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2355 | `_interactions/_combos/017_class_field_struct_method.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2356 | `_interactions/_combos/018_deep_arithmetic_precedence.ص` | `gr.expr.term` | interaction | تطابق ✅ |
+| 2357 | `_interactions/_combos/019_bitwise_logical_combo.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2358 | `_interactions/_combos/020_for_match_accumulate.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2359 | `_interactions/_combos/021_closure_counter.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2360 | `_interactions/_combos/022_property_class_method.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2361 | `_interactions/_combos/023_trait_impl_call.ص` | `gr.oop.trait` | interaction | تطابق ✅ |
+| 2362 | `_interactions/_combos/024_var_types_arithmetic.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2363 | `_interactions/_combos/025_guard_clauses_function.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2364 | `_interactions/_combos/026_nested_if_match_loop.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2365 | `_interactions/_combos/b2_big_mix_class_struct_enum.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2366 | `_interactions/_combos/b2_bitwise_flags_match.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ |
+| 2367 | `_interactions/_combos/b2_contract_invariant_methods.ص` | `gr.adv.contract` | interaction | تطابق ✅ |
+| 2368 | `_interactions/_combos/b2_deep_nesting_5.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2369 | `_interactions/_combos/b2_defer_order_function.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2370 | `_interactions/_combos/b2_fstring_loop_build.ص` | `gr.expr.fstring` | interaction | تطابق ✅ |
+| 2371 | `_interactions/_combos/b2_guard_match_return.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2372 | `_interactions/_combos/b2_higher_order_return_lambda.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2373 | `_interactions/_combos/b2_map_struct_values.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ |
+| 2374 | `_interactions/_combos/b2_multilevel_inheritance.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2375 | `_interactions/_combos/b2_negative_index_loop.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ |
+| 2376 | `_interactions/_combos/b2_nested_closures.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2377 | `_interactions/_combos/b2_nested_comprehension.ص` | `gr.adv.list_comprehension` | interaction | تطابق ✅ |
+| 2378 | `_interactions/_combos/b2_operator_compare_ternary.ص` | `gr.oop.operator` | interaction | تطابق ✅ |
+| 2379 | `_interactions/_combos/b2_pipe_chain_calls.ص` | `gr.expr.pipeline` | interaction | تطابق ✅ |
+| 2380 | `_interactions/_combos/b2_poly_array_dispatch.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2381 | `_interactions/_combos/b2_recursion_accumulator.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2382 | `_interactions/_combos/b2_state_machine_enum.ص` | `gr.oop.enum` | interaction | تطابق ✅ |
+| 2383 | `_interactions/_combos/b2_static_and_instance.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2384 | `_interactions/_combos/b2_string_length_loop_filter.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2385 | `_interactions/_combos/b2_try_rethrow_chain.ص` | `gr.stmt.try` | interaction | تطابق ✅ |
+| 2386 | `_interactions/_combos/b2_tuple_function_unpack.ص` | `gr.expr.primary` | interaction | تطابق ✅ |
+| 2387 | `_interactions/_combos/b3_abstract_override_dispatch.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2388 | `_interactions/_combos/b3_closure_counter_state.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2389 | `_interactions/_combos/b3_compound_assign_loop.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2390 | `_interactions/_combos/b3_enum_arith_match.ص` | `gr.oop.enum` | interaction | تطابق ✅ |
+| 2391 | `_interactions/_combos/b3_export_enum_in_method.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2392 | `_interactions/_combos/b3_export_struct_in_method.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2393 | `_interactions/_combos/b3_fib_recursion.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2394 | `_interactions/_combos/b3_fluent_builder_chain.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2395 | `_interactions/_combos/b3_guard_clauses_multi.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2396 | `_interactions/_combos/b3_map_accumulate_keys.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ |
+| 2397 | `_interactions/_combos/b3_multidim_array_sum.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ |
+| 2398 | `_interactions/_combos/b3_mutual_recursion_even_odd.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2399 | `_interactions/_combos/b3_nested_function_def.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2400 | `_interactions/_combos/b3_nested_match_in_loop.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2401 | `_interactions/_combos/b3_nested_ternary_chain.ص` | `gr.expr.ternary` | interaction | تطابق ✅ |
+| 2402 | `_interactions/_combos/b3_precedence_stress.ص` | `gr.expr.term` | interaction | تطابق ✅ |
+| 2403 | `_interactions/_combos/b3_recursion_with_class_state.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2404 | `_interactions/_combos/b3_short_circuit_sideeffect.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2405 | `_interactions/_combos/b3_string_reverse_loop.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2406 | `_interactions/_combos/b3_struct_array_field_iterate.ص` | `gr.oop.struct` | interaction | تطابق ✅ |
+| 2407 | `_interactions/_combos/b3_try_finally_order.ص` | `gr.stmt.try` | interaction | تطابق ✅ |
+| 2408 | `_interactions/_combos/b3_while_break_continue.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2409 | `_interactions/_generated/adv.contract__oop.member/001_contract_member.ص` | `gr.adv.contract` | interaction | تطابق ✅ |
+| 2410 | `_interactions/_generated/adv.dict_comprehension__expr.map_literal/001_dictcomp_map.ص` | `gr.adv.dict_comprehension` | interaction | تطابق ✅ |
+| 2411 | `_interactions/_generated/adv.ffi_extern_block__adv.ffi_linkage/001_ffi_block_linkage.ص` | `gr.adv.ffi_extern_block` | interaction | تطابق ✅ |
+| 2412 | `_interactions/_generated/adv.ffi_extern_block__decl.extern/001_ffi_block_extern.ص` | `gr.adv.ffi_extern_block` | interaction | تطابق ✅ |
+| 2413 | `_interactions/_generated/adv.lifetime_params__oop.struct/001_lifetime_struct.ص` | `gr.adv.lifetime_params` | interaction | تطابق ✅ |
+| 2414 | `_interactions/_generated/adv.list_comprehension__expr.array_literal/001_listcomp_array.ص` | `gr.adv.list_comprehension` | interaction | تطابق ✅ |
+| 2415 | `_interactions/_generated/adv.macro__decl.parameters/001_macro_params.ص` | `gr.adv.macro` | interaction | تطابق ✅ |
+| 2416 | `_interactions/_generated/adv.set_comprehension__expr.map_literal/001_setcomp_map.ص` | `gr.adv.set_comprehension` | interaction | تطابق ✅ |
+| 2417 | `_interactions/_generated/adv.template_args__adv.type/001_targs_type.ص` | `gr.adv.template_args` | interaction | تطابق ✅ |
+| 2418 | `_interactions/_generated/adv.template_args__expr.primary/001_targs_primary.ص` | `gr.adv.template_args` | interaction | تطابق ✅ |
+| 2419 | `_interactions/_generated/adv.template_decl__adv.template_params/001_tdecl_tparams.ص` | `gr.adv.template_decl` | interaction | تطابق ✅ |
+| 2420 | `_interactions/_generated/adv.template_decl__decl.function/001_tdecl_function.ص` | `gr.adv.template_decl` | interaction | تطابق ✅ |
+| 2421 | `_interactions/_generated/adv.template_decl__oop.class/001_tdecl_class.ص` | `gr.adv.template_decl` | interaction | تطابق ✅ |
+| 2422 | `_interactions/_generated/adv.template_params__adv.type/001_tparams_type.ص` | `gr.adv.template_params` | interaction | تطابق ✅ |
+| 2423 | `_interactions/_generated/adv.type__adv.ui_state/001_type_uistate.ص` | `gr.adv.type` | interaction | تطابق ✅ |
+| 2424 | `_interactions/_generated/adv.type__oop.field/001_type_field.ص` | `gr.adv.type` | interaction | تطابق ✅ |
+| 2425 | `_interactions/_generated/adv.type__oop.method/001_type_method.ص` | `gr.adv.type` | interaction | تطابق ✅ |
+| 2426 | `_interactions/_generated/adv.type__oop.property/001_type_property.ص` | `gr.adv.type` | interaction | تطابق ✅ |
+| 2427 | `_interactions/_generated/adv.ui_decl__adv.ui_state/001_uidecl_uistate.ص` | `gr.adv.ui_decl` | interaction | تطابق ✅ |
+| 2428 | `_interactions/_generated/adv.ui_decl__decl.function/001_uidecl_function.ص` | `gr.adv.ui_decl` | interaction | تطابق ✅ |
+| 2429 | `_interactions/_generated/adv.ui_modifier_chain__adv.widget/001_modchain_widget.ص` | `gr.adv.ui_modifier_chain` | interaction | تطابق ✅ |
+| 2430 | `_interactions/_generated/adv.ui_modifier_chain__decl.arg_list/001_modchain_args.ص` | `gr.adv.ui_modifier_chain` | interaction | تطابق ✅ |
+| 2431 | `_interactions/_generated/adv.widget__decl.arg_list/001_widget_args.ص` | `gr.adv.widget` | interaction | تطابق ✅ |
+| 2432 | `_interactions/_generated/decl.arg_list__expr.decorator/001_args_decorator.ص` | `gr.decl.arg_list` | interaction | تطابق ✅ |
+| 2433 | `_interactions/_generated/decl.arg_list__expr.directive/001_args_directive.ص` | `gr.decl.arg_list` | interaction | تطابق ✅ |
+| 2434 | `_interactions/_generated/decl.arg_list__expr.postfix/001_args_postfix.ص` | `gr.decl.arg_list` | interaction | تطابق ✅ |
+| 2435 | `_interactions/_generated/decl.arg_list__oop.constructor/001_args_ctor.ص` | `gr.decl.arg_list` | interaction | تطابق ✅ |
+| 2436 | `_interactions/_generated/decl.export__decl.function/001_export_function.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2437 | `_interactions/_generated/decl.export__decl.function/002_export_function_args.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2438 | `_interactions/_generated/decl.export__decl.import/001_export_import.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2439 | `_interactions/_generated/decl.export__decl.variable/001_export_variable.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2440 | `_interactions/_generated/decl.export__oop.class/001_export_class.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2441 | `_interactions/_generated/decl.export__oop.enum/001_export_fn_enum.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2442 | `_interactions/_generated/decl.export__oop.impl/001_export_fn_impl.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2443 | `_interactions/_generated/decl.export__oop.struct/001_export_fn_struct.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2444 | `_interactions/_generated/decl.export__oop.trait/001_export_fn_trait.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2445 | `_interactions/_generated/decl.extern__decl.parameters/001_extern_parameters.ص` | `gr.decl.extern` | interaction | تطابق ✅ |
+| 2446 | `_interactions/_generated/decl.function__decl.parameters/001_function_parameters.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2447 | `_interactions/_generated/decl.function__decl.parameters/002_function_one_param.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2448 | `_interactions/_generated/decl.function__oop.class/001_fn_class.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2449 | `_interactions/_generated/decl.function__oop.enum/001_fn_enum.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2450 | `_interactions/_generated/decl.function__oop.extension/001_fn_extension.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2451 | `_interactions/_generated/decl.function__oop.impl/001_fn_impl.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2452 | `_interactions/_generated/decl.function__oop.struct/001_fn_struct.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2453 | `_interactions/_generated/decl.function__oop.trait/001_fn_trait.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2454 | `_interactions/_generated/decl.function__program.block/001_fn_block.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2455 | `_interactions/_generated/decl.import__oop.class/001_import_class.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2456 | `_interactions/_generated/decl.import__oop.enum/001_import_enum.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2457 | `_interactions/_generated/decl.import__oop.impl/001_import_impl.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2458 | `_interactions/_generated/decl.import__oop.struct/001_import_struct.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2459 | `_interactions/_generated/decl.import__oop.trait/001_import_trait.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2460 | `_interactions/_generated/decl.parameters__decl.type_ref/001_typed_parameter.ص` | `gr.decl.parameters` | interaction | تطابق ✅ |
+| 2461 | `_interactions/_generated/decl.parameters__expr.lambda/001_params_lambda.ص` | `gr.decl.parameters` | interaction | تطابق ✅ |
+| 2462 | `_interactions/_generated/decl.parameters__oop.constructor/001_params_ctor.ص` | `gr.decl.parameters` | interaction | تطابق ✅ |
+| 2463 | `_interactions/_generated/decl.parameters__oop.method/001_params_method.ص` | `gr.decl.parameters` | interaction | تطابق ✅ |
+| 2464 | `_interactions/_generated/decl.parameters__oop.operator/001_params_operator.ص` | `gr.decl.parameters` | interaction | تطابق ✅ |
+| 2465 | `_interactions/_generated/decl.parameters__oop.trait/001_params_trait.ص` | `gr.decl.parameters` | interaction | تطابق ✅ |
+| 2466 | `_interactions/_generated/decl.type_ref__decl.variable/001_typed_variable.ص` | `gr.decl.type_ref` | interaction | تطابق ✅ |
+| 2467 | `_interactions/_generated/decl.type_ref__decl.variable/002_typed_variable_string.ص` | `gr.decl.type_ref` | interaction | تطابق ✅ |
+| 2468 | `_interactions/_generated/decl.variable__oop.class/001_var_class.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2469 | `_interactions/_generated/decl.variable__oop.enum/001_var_enum.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2470 | `_interactions/_generated/decl.variable__oop.impl/001_var_impl.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2471 | `_interactions/_generated/decl.variable__oop.struct/001_var_struct.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2472 | `_interactions/_generated/decl.variable__oop.trait/001_var_trait.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2473 | `_interactions/_generated/expr.array_literal__expr.primary/001_array_of_parens.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ |
+| 2474 | `_interactions/_generated/expr.array_literal__expr.primary/002_array_literals.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ |
+| 2475 | `_interactions/_generated/expr.array_literal__expr.primary/003_nested_arrays.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ |
+| 2476 | `_interactions/_generated/expr.array_literal__expr.primary/004_array_len.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ |
+| 2477 | `_interactions/_generated/expr.array_literal__expr.primary/005_array_of_tuple.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ |
+| 2478 | `_interactions/_generated/expr.array_literal__expr.primary/006_array_strings.ص` | `gr.expr.array_literal` | interaction | تطابق ✅ |
+| 2479 | `_interactions/_generated/expr.assignment__expr.pipeline/001_assign_pipeline_len.ص` | `gr.expr.assignment` | interaction | تطابق ✅ |
+| 2480 | `_interactions/_generated/expr.assignment__expr.pipeline/002_assign_pipeline_empty.ص` | `gr.expr.assignment` | interaction | تطابق ✅ |
+| 2481 | `_interactions/_generated/expr.assignment__expr.pipeline/003_reassign_pipeline.ص` | `gr.expr.assignment` | interaction | تطابق ✅ |
+| 2482 | `_interactions/_generated/expr.assignment__expr.ternary/001_assign_ternary.ص` | `gr.expr.assignment` | interaction | تطابق ✅ |
+| 2483 | `_interactions/_generated/expr.assignment__expr.ternary/002_assign_ternary_false.ص` | `gr.expr.assignment` | interaction | تطابق ✅ |
+| 2484 | `_interactions/_generated/expr.assignment__expr.ternary/003_compound_then_ternary.ص` | `gr.expr.assignment` | interaction | تطابق ✅ |
+| 2485 | `_interactions/_generated/expr.assignment__expr.ternary/004_ternary_nested_assign.ص` | `gr.expr.assignment` | interaction | تطابق ✅ |
+| 2486 | `_interactions/_generated/expr.assignment__expr.ternary/005_reassign_via_ternary.ص` | `gr.expr.assignment` | interaction | تطابق ✅ |
+| 2487 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/001_and_then_xor.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2488 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/002_xor_then_and.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2489 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/003_paren_xor_and.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2490 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/004_and_xor_zero.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2491 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/005_chain_and_xor.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2492 | `_interactions/_generated/expr.bitwise_and__expr.bitwise_xor/006_all_ones.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2493 | `_interactions/_generated/expr.bitwise_and__expr.equality/001_and_eq.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2494 | `_interactions/_generated/expr.bitwise_and__expr.equality/002_eq_bool_and.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2495 | `_interactions/_generated/expr.bitwise_and__expr.equality/003_and_neq.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2496 | `_interactions/_generated/expr.bitwise_and__expr.equality/004_mask_check.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2497 | `_interactions/_generated/expr.bitwise_and__expr.equality/005_and_zero_eq.ص` | `gr.expr.bitwise_and` | interaction | تطابق ✅ |
+| 2498 | `_interactions/_generated/expr.bitwise_or__expr.bitwise_xor/001_or_then_xor.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ |
+| 2499 | `_interactions/_generated/expr.bitwise_or__expr.bitwise_xor/002_xor_then_or.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ |
+| 2500 | `_interactions/_generated/expr.bitwise_or__expr.bitwise_xor/003_paren_or_xor.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ |
+| 2501 | `_interactions/_generated/expr.bitwise_or__expr.bitwise_xor/004_or_xor_zero.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ |
+| 2502 | `_interactions/_generated/expr.bitwise_or__expr.bitwise_xor/005_chain_or_xor.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ |
+| 2503 | `_interactions/_generated/expr.bitwise_or__expr.logical_and/001_or_bit_in_and.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ |
+| 2504 | `_interactions/_generated/expr.bitwise_or__expr.logical_and/002_logical_and_guard_or.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ |
+| 2505 | `_interactions/_generated/expr.bitwise_or__expr.logical_and/003_both.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ |
+| 2506 | `_interactions/_generated/expr.bitwise_or__expr.logical_and/004_or_zero_and_false.ص` | `gr.expr.bitwise_or` | interaction | تطابق ✅ |
+| 2507 | `_interactions/_generated/expr.comparison__expr.equality/001_lt_eq_true.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2508 | `_interactions/_generated/expr.comparison__expr.equality/002_gt_neq.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2509 | `_interactions/_generated/expr.comparison__expr.equality/003_le_eq_chain.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2510 | `_interactions/_generated/expr.comparison__expr.equality/004_eq_of_comparisons.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2511 | `_interactions/_generated/expr.comparison__expr.equality/005_neq_numbers.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2512 | `_interactions/_generated/expr.comparison__expr.equality/006_ge_eq_false.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2513 | `_interactions/_generated/expr.comparison__expr.equality/007_mixed_lt_eq_num.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2514 | `_interactions/_generated/expr.comparison__expr.equality/008_string_eq_cmp.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2515 | `_interactions/_generated/expr.comparison__expr.range/001_range_loop_cmp.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2516 | `_interactions/_generated/expr.comparison__expr.range/002_range_bound_cmp.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2517 | `_interactions/_generated/expr.comparison__expr.range/003_range_filter_lt.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2518 | `_interactions/_generated/expr.comparison__expr.range/004_range_count_ge.ص` | `gr.expr.comparison` | interaction | تطابق ✅ |
+| 2519 | `_interactions/_generated/expr.decorator__expr.expression/001_decorator_expr.ص` | `gr.expr.decorator` | interaction | تطابق ✅ |
+| 2520 | `_interactions/_generated/expr.directive__expr.expression/001_directive_expr.ص` | `gr.expr.directive` | interaction | تطابق ✅ |
+| 2521 | `_interactions/_generated/expr.expression__expr.comparison/001_expr_comparison.ص` | `gr.expr.expression` | interaction | تطابق ✅ |
+| 2522 | `_interactions/_generated/expr.expression__expr.pipeline/001_expr_pipeline.ص` | `gr.expr.expression` | interaction | تطابق ✅ |
+| 2523 | `_interactions/_generated/expr.expression__expr.ternary/001_expr_ternary.ص` | `gr.expr.expression` | interaction | تطابق ✅ |
+| 2524 | `_interactions/_generated/expr.factor__expr.term/001_precedence_mul_add.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2525 | `_interactions/_generated/expr.factor__expr.term/002_precedence_add_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2526 | `_interactions/_generated/expr.factor__expr.term/003_parens_override.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2527 | `_interactions/_generated/expr.factor__expr.term/004_div_then_sub.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2528 | `_interactions/_generated/expr.factor__expr.term/005_sub_then_div.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2529 | `_interactions/_generated/expr.factor__expr.term/006_mixed_all.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2530 | `_interactions/_generated/expr.factor__expr.term/007_left_assoc_sub.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2531 | `_interactions/_generated/expr.factor__expr.term/008_nested_parens.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2532 | `_interactions/_generated/expr.factor__expr.term/009_float_mix.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2533 | `_interactions/_generated/expr.factor__expr.term/010_zero_add_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2534 | `_interactions/_generated/expr.factor__expr.term/011_neg_result.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2535 | `_interactions/_generated/expr.factor__expr.term/012_div_exact.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2536 | `_interactions/_generated/expr.factor__expr.term/013_var_terms.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2537 | `_interactions/_generated/expr.factor__expr.term/014_chain_mul_add.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2538 | `_interactions/_generated/expr.factor__expr.unary/001_neg_times.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2539 | `_interactions/_generated/expr.factor__expr.unary/002_times_neg.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2540 | `_interactions/_generated/expr.factor__expr.unary/003_neg_times_neg.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2541 | `_interactions/_generated/expr.factor__expr.unary/004_neg_div.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2542 | `_interactions/_generated/expr.factor__expr.unary/005_double_neg_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2543 | `_interactions/_generated/expr.factor__expr.unary/006_not_in_factor_guard.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2544 | `_interactions/_generated/expr.factor__expr.unary/007_paren_neg_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2545 | `_interactions/_generated/expr.factor__expr.unary/008_neg_div_neg.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2546 | `_interactions/_generated/expr.factor__expr.unary/009_unary_float.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2547 | `_interactions/_generated/expr.factor__expr.unary/010_zero_neg_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2548 | `_interactions/_generated/expr.factor__expr.unary/011_var_neg_mul.ص` | `gr.expr.factor` | interaction | تطابق ✅ |
+| 2549 | `_interactions/_generated/expr.fstring__expr.primary/001_fstring_literal.ص` | `gr.expr.fstring` | interaction | تطابق ✅ |
+| 2550 | `_interactions/_generated/expr.fstring__expr.primary/002_fstring_paren.ص` | `gr.expr.fstring` | interaction | تطابق ✅ |
+| 2551 | `_interactions/_generated/expr.fstring__expr.primary/003_fstring_var.ص` | `gr.expr.fstring` | interaction | تطابق ✅ |
+| 2552 | `_interactions/_generated/expr.fstring__expr.primary/004_fstring_index.ص` | `gr.expr.fstring` | interaction | تطابق ✅ |
+| 2553 | `_interactions/_generated/expr.fstring__expr.primary/005_fstring_two.ص` | `gr.expr.fstring` | interaction | تطابق ✅ |
+| 2554 | `_interactions/_generated/expr.fstring__expr.primary/006_fstring_bool.ص` | `gr.expr.fstring` | interaction | تطابق ✅ |
+| 2555 | `_interactions/_generated/expr.lambda__expr.primary/001_lambda_call_literal.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2556 | `_interactions/_generated/expr.lambda__expr.primary/002_lambda_const.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2557 | `_interactions/_generated/expr.lambda__expr.primary/003_lambda_two_args.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2558 | `_interactions/_generated/expr.lambda__expr.primary/004_lambda_paren_body.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2559 | `_interactions/_generated/expr.lambda__expr.primary/005_lambda_on_literal_arg.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2560 | `_interactions/_generated/expr.lambda__program.block/001_lambda_in_block.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
+| 2561 | `_interactions/_generated/expr.logical_and__expr.logical_or/001_and_before_or.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ |
+| 2562 | `_interactions/_generated/expr.logical_and__expr.logical_or/002_or_with_and.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ |
+| 2563 | `_interactions/_generated/expr.logical_and__expr.logical_or/003_paren_or_and.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ |
+| 2564 | `_interactions/_generated/expr.logical_and__expr.logical_or/004_short_circuit_and.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ |
+| 2565 | `_interactions/_generated/expr.logical_and__expr.logical_or/005_all_false.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ |
+| 2566 | `_interactions/_generated/expr.logical_and__expr.logical_or/006_all_true.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ |
+| 2567 | `_interactions/_generated/expr.logical_and__expr.logical_or/007_cmp_and_or.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ |
+| 2568 | `_interactions/_generated/expr.logical_and__expr.logical_or/008_nested.ص` | `gr.expr.logical_and` | interaction | تطابق ✅ |
+| 2569 | `_interactions/_generated/expr.logical_or__expr.null_coalesce/001_coalesce_then_or.ص` | `gr.expr.logical_or` | interaction | تطابق ✅ |
+| 2570 | `_interactions/_generated/expr.logical_or__expr.null_coalesce/002_or_value_coalesce.ص` | `gr.expr.logical_or` | interaction | تطابق ✅ |
+| 2571 | `_interactions/_generated/expr.logical_or__expr.null_coalesce/003_coalesce_left_present.ص` | `gr.expr.logical_or` | interaction | تطابق ✅ |
+| 2572 | `_interactions/_generated/expr.logical_or__expr.null_coalesce/004_num_coalesce_cmp_or.ص` | `gr.expr.logical_or` | interaction | تطابق ✅ |
+| 2573 | `_interactions/_generated/expr.map_literal__expr.primary/001_map_literal_value.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ |
+| 2574 | `_interactions/_generated/expr.map_literal__expr.primary/002_map_two_keys.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ |
+| 2575 | `_interactions/_generated/expr.map_literal__expr.primary/003_map_paren_value.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ |
+| 2576 | `_interactions/_generated/expr.map_literal__expr.primary/004_map_int_key.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ |
+| 2577 | `_interactions/_generated/expr.map_literal__expr.primary/005_map_nested.ص` | `gr.expr.map_literal` | interaction | تطابق ✅ |
+| 2578 | `_interactions/_generated/expr.null_coalesce__expr.ternary/001_coalesce_in_ternary.ص` | `gr.expr.null_coalesce` | interaction | تطابق ✅ |
+| 2579 | `_interactions/_generated/expr.null_coalesce__expr.ternary/002_ternary_in_coalesce.ص` | `gr.expr.null_coalesce` | interaction | تطابق ✅ |
+| 2580 | `_interactions/_generated/expr.null_coalesce__expr.ternary/003_coalesce_value.ص` | `gr.expr.null_coalesce` | interaction | تطابق ✅ |
+| 2581 | `_interactions/_generated/expr.null_coalesce__expr.ternary/004_nested_both.ص` | `gr.expr.null_coalesce` | interaction | تطابق ✅ |
+| 2582 | `_interactions/_generated/expr.postfix__expr.power/001_index_power.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2583 | `_interactions/_generated/expr.postfix__expr.power/002_power_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2584 | `_interactions/_generated/expr.postfix__expr.power/003_index_base_index_exp.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2585 | `_interactions/_generated/expr.postfix__expr.power/004_map_index_power.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2586 | `_interactions/_generated/expr.postfix__expr.power/005_power_then_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2587 | `_interactions/_generated/expr.postfix__expr.power/006_nested_index_power.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2588 | `_interactions/_generated/expr.postfix__expr.primary/001_array_index_literal.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2589 | `_interactions/_generated/expr.postfix__expr.primary/002_paren_expr_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2590 | `_interactions/_generated/expr.postfix__expr.primary/003_tuple_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2591 | `_interactions/_generated/expr.postfix__expr.primary/004_first_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2592 | `_interactions/_generated/expr.postfix__expr.primary/005_nested_array_index.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2593 | `_interactions/_generated/expr.postfix__expr.primary/006_string_literal_len_call.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2594 | `_interactions/_generated/expr.postfix__expr.primary/007_map_literal_key.ص` | `gr.expr.postfix` | interaction | تطابق ✅ |
+| 2595 | `_interactions/_generated/expr.power__expr.unary/001_neg_base_power.ص` | `gr.expr.power` | interaction | تطابق ✅ |
+| 2596 | `_interactions/_generated/expr.power__expr.unary/002_paren_neg_base.ص` | `gr.expr.power` | interaction | تطابق ✅ |
+| 2597 | `_interactions/_generated/expr.power__expr.unary/003_right_assoc.ص` | `gr.expr.power` | interaction | تطابق ✅ |
+| 2598 | `_interactions/_generated/expr.power__expr.unary/004_not_then_power_guard.ص` | `gr.expr.power` | interaction | تطابق ✅ |
+| 2599 | `_interactions/_generated/expr.power__expr.unary/005_zero_power.ص` | `gr.expr.power` | interaction | تطابق ✅ |
+| 2600 | `_interactions/_generated/expr.power__expr.unary/006_one_power_big.ص` | `gr.expr.power` | interaction | تطابق ✅ |
+| 2601 | `_interactions/_generated/expr.power__expr.unary/007_var_neg_power.ص` | `gr.expr.power` | interaction | تطابق ✅ |
+| 2602 | `_interactions/_generated/expr.range__expr.term/001_range_upper_add.ص` | `gr.expr.range` | interaction | تطابق ✅ |
+| 2603 | `_interactions/_generated/expr.range__expr.term/002_range_lower_sub.ص` | `gr.expr.range` | interaction | تطابق ✅ |
+| 2604 | `_interactions/_generated/expr.range__expr.term/003_range_both_term.ص` | `gr.expr.range` | interaction | تطابق ✅ |
+| 2605 | `_interactions/_generated/expr.range__expr.term/004_sum_range_term.ص` | `gr.expr.range` | interaction | تطابق ✅ |
+| 2606 | `_interactions/_generated/oop.class__oop.enum/001_class_uses_enum.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2607 | `_interactions/_generated/oop.class__oop.enum/002_enum_then_class.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2608 | `_interactions/_generated/oop.class__oop.enum/003_class_field_enum.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2609 | `_interactions/_generated/oop.class__oop.impl/001_class_impl_block.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2610 | `_interactions/_generated/oop.class__oop.impl/002_class_impl_uses_field.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2611 | `_interactions/_generated/oop.class__oop.member/001_class_one_member.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2612 | `_interactions/_generated/oop.class__oop.member/002_class_many_members.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2613 | `_interactions/_generated/oop.class__oop.struct/001_class_and_struct_toplevel.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2614 | `_interactions/_generated/oop.class__oop.struct/002_class_method_takes_struct.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2615 | `_interactions/_generated/oop.class__oop.struct/003_struct_in_method.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2616 | `_interactions/_generated/oop.class__oop.trait/001_class_impl_trait_header.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2617 | `_interactions/_generated/oop.class__oop.trait/002_trait_default_like.ص` | `gr.oop.class` | interaction | تطابق ✅ |
+| 2618 | `_interactions/_generated/oop.constructor__oop.member/001_ctor_and_method.ص` | `gr.oop.constructor` | interaction | تطابق ✅ |
+| 2619 | `_interactions/_generated/oop.constructor__oop.member/002_ctor_inits_member.ص` | `gr.oop.constructor` | interaction | تطابق ✅ |
+| 2620 | `_interactions/_generated/oop.constructor__oop.modifiers/001_ctor_private_field.ص` | `gr.oop.constructor` | interaction | تطابق ✅ |
+| 2621 | `_interactions/_generated/oop.constructor__oop.modifiers/002_ctor_static_sibling.ص` | `gr.oop.constructor` | interaction | تطابق ✅ |
+| 2622 | `_interactions/_generated/oop.constructor__oop.struct/001_struct_no_ctor_default.ص` | `gr.oop.constructor` | interaction | تطابق ✅ |
+| 2623 | `_interactions/_generated/oop.constructor__oop.struct/002_ctor_reads_struct_field.ص` | `gr.oop.constructor` | interaction | تطابق ✅ |
+| 2624 | `_interactions/_generated/oop.constructor__program.block/001_ctor_block.ص` | `gr.oop.constructor` | interaction | تطابق ✅ |
+| 2625 | `_interactions/_generated/oop.destructor__oop.member/001_dtor_with_method.ص` | `gr.oop.destructor` | interaction | تطابق ✅ |
+| 2626 | `_interactions/_generated/oop.destructor__oop.member/002_dtor_with_field.ص` | `gr.oop.destructor` | interaction | تطابق ✅ |
+| 2627 | `_interactions/_generated/oop.destructor__oop.modifiers/001_dtor_private_field.ص` | `gr.oop.destructor` | interaction | تطابق ✅ |
+| 2628 | `_interactions/_generated/oop.destructor__oop.modifiers/002_dtor_static.ص` | `gr.oop.destructor` | interaction | تطابق ✅ |
+| 2629 | `_interactions/_generated/oop.destructor__program.block/001_dtor_block.ص` | `gr.oop.destructor` | interaction | تطابق ✅ |
+| 2630 | `_interactions/_generated/oop.enum__oop.impl/001_enum_with_impl_block.ص` | `gr.oop.enum` | interaction | تطابق ✅ |
+| 2631 | `_interactions/_generated/oop.enum__oop.struct/001_enum_and_struct.ص` | `gr.oop.enum` | interaction | تطابق ✅ |
+| 2632 | `_interactions/_generated/oop.enum__oop.struct/002_struct_field_enum_default.ص` | `gr.oop.enum` | interaction | تطابق ✅ |
+| 2633 | `_interactions/_generated/oop.enum__oop.trait/001_enum_with_trait_class.ص` | `gr.oop.enum` | interaction | تطابق ✅ |
+| 2634 | `_interactions/_generated/oop.field__oop.member/001_field_among_members.ص` | `gr.oop.field` | interaction | تطابق ✅ |
+| 2635 | `_interactions/_generated/oop.field__oop.member/002_two_fields.ص` | `gr.oop.field` | interaction | تطابق ✅ |
+| 2636 | `_interactions/_generated/oop.field__oop.modifiers/001_private_field.ص` | `gr.oop.field` | interaction | تطابق ✅ |
+| 2637 | `_interactions/_generated/oop.field__oop.modifiers/002_static_field.ص` | `gr.oop.field` | interaction | تطابق ✅ |
+| 2638 | `_interactions/_generated/oop.field__oop.modifiers/003_public_static_mix.ص` | `gr.oop.field` | interaction | تطابق ✅ |
+| 2639 | `_interactions/_generated/oop.field__oop.struct/001_struct_fields.ص` | `gr.oop.field` | interaction | تطابق ✅ |
+| 2640 | `_interactions/_generated/oop.field__oop.struct/002_struct_field_assign.ص` | `gr.oop.field` | interaction | تطابق ✅ |
+| 2641 | `_interactions/_generated/oop.impl__oop.struct/001_impl_block_plus_struct.ص` | `gr.oop.impl` | interaction | تطابق ✅ |
+| 2642 | `_interactions/_generated/oop.impl__oop.trait/001_impl_trait_block.ص` | `gr.oop.impl` | interaction | تطابق ✅ |
+| 2643 | `_interactions/_generated/oop.impl__oop.trait/002_impl_trait_two_methods.ص` | `gr.oop.impl` | interaction | تطابق ✅ |
+| 2644 | `_interactions/_generated/oop.member__oop.method/001_method_is_member.ص` | `gr.oop.member` | interaction | تطابق ✅ |
+| 2645 | `_interactions/_generated/oop.member__oop.method/002_two_methods.ص` | `gr.oop.member` | interaction | تطابق ✅ |
+| 2646 | `_interactions/_generated/oop.member__oop.operator/001_operator_as_member.ص` | `gr.oop.member` | interaction | تطابق ✅ |
+| 2647 | `_interactions/_generated/oop.member__oop.operator/002_operator_with_method.ص` | `gr.oop.member` | interaction | تطابق ✅ |
+| 2648 | `_interactions/_generated/oop.member__oop.property/001_property_as_member.ص` | `gr.oop.member` | interaction | تطابق ✅ |
+| 2649 | `_interactions/_generated/oop.member__oop.property/002_property_and_method.ص` | `gr.oop.member` | interaction | تطابق ✅ |
+| 2650 | `_interactions/_generated/oop.method__oop.modifiers/001_static_method.ص` | `gr.oop.method` | interaction | تطابق ✅ |
+| 2651 | `_interactions/_generated/oop.method__oop.modifiers/002_private_method_via_public.ص` | `gr.oop.method` | interaction | تطابق ✅ |
+| 2652 | `_interactions/_generated/oop.method__oop.struct/001_method_takes_struct.ص` | `gr.oop.method` | interaction | تطابق ✅ |
+| 2653 | `_interactions/_generated/oop.method__oop.struct/002_method_builds_struct.ص` | `gr.oop.method` | interaction | تطابق ✅ |
+| 2654 | `_interactions/_generated/oop.method__program.block/001_method_block.ص` | `gr.oop.method` | interaction | تطابق ✅ |
+| 2655 | `_interactions/_generated/oop.modifiers__oop.operator/001_operator_with_private.ص` | `gr.oop.modifiers` | interaction | تطابق ✅ |
+| 2656 | `_interactions/_generated/oop.modifiers__oop.property/001_property_private_backed.ص` | `gr.oop.modifiers` | interaction | تطابق ✅ |
+| 2657 | `_interactions/_generated/oop.operator__program.block/001_operator_block.ص` | `gr.oop.operator` | interaction | تطابق ✅ |
+| 2658 | `_interactions/_generated/oop.property__program.block/001_property_with_block_fn.ص` | `gr.oop.property` | interaction | تطابق ✅ |
+| 2659 | `_interactions/_generated/oop.struct__oop.trait/001_trait_class_plus_struct.ص` | `gr.oop.struct` | interaction | تطابق ✅ |
+| 2660 | `_interactions/_generated/pattern.list__pattern.primary/001_plist_pprimary.ص` | `gr.pattern.list` | interaction | تطابق ✅ |
+| 2661 | `_interactions/_generated/pattern.list__pattern.struct/001_plist_pstruct.ص` | `gr.pattern.list` | interaction | تطابق ✅ |
+| 2662 | `_interactions/_generated/pattern.or__pattern.primary/001_por_pprimary.ص` | `gr.pattern.or` | interaction | تطابق ✅ |
+| 2663 | `_interactions/_generated/pattern.primary__pattern.struct/001_pprimary_pstruct.ص` | `gr.pattern.primary` | interaction | تطابق ✅ |
+| 2664 | `_interactions/_generated/program.block__stmt.break/001_block_break.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2665 | `_interactions/_generated/program.block__stmt.continue/001_block_continue.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2666 | `_interactions/_generated/program.block__stmt.expression/001_block_expr.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2667 | `_interactions/_generated/program.block__stmt.for/001_block_for.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2668 | `_interactions/_generated/program.block__stmt.if/001_block_if.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2669 | `_interactions/_generated/program.block__stmt.if/002_block_if_else.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2670 | `_interactions/_generated/program.block__stmt.match/001_block_match.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2671 | `_interactions/_generated/program.block__stmt.return/001_block_return.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2672 | `_interactions/_generated/program.block__stmt.return/002_block_return_early.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2673 | `_interactions/_generated/program.block__stmt.try/001_block_try.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2674 | `_interactions/_generated/program.block__stmt.while/001_block_while.ص` | `gr.program.block` | interaction | تطابق ✅ |
+| 2675 | `_interactions/oop.extension__oop.class/061_ext_with_inheritance.ص` | `gr.oop.extension` | interaction | تطابق ✅ |
+| 2676 | `_interactions/oop.extension__oop.trait/060_ext_with_trait.ص` | `gr.oop.extension` | interaction | تطابق ✅ |
+| 2677 | `_interactions/إذا_تداخلات/001_if_var_scope.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2678 | `_interactions/إذا_تداخلات/002_if_while.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2679 | `_interactions/إذا_تداخلات/003_if_for.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2680 | `_interactions/إذا_تداخلات/004_if_match.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2681 | `_interactions/إذا_تداخلات/005_if_try.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2682 | `_interactions/إذا_تداخلات/006_if_return.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2683 | `_interactions/إذا_تداخلات/007_if_break.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2684 | `_interactions/إذا_تداخلات/008_if_continue.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2685 | `_interactions/إذا_تداخلات/009_if_expr_assign.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2686 | `_interactions/إذا_تداخلات/010_if_for_match.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2687 | `_interactions/إذا_تداخلات/011_if_func_loop.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2688 | `_interactions/إذا_تداخلات/012_if_try_finally.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2689 | `_interactions/إذا_تداخلات/013_if_nested_while.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2690 | `_interactions/إذا_تداخلات/014_if_match_default.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2691 | `_interactions/إذا_تداخلات/015_if_all.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2692 | `_interactions/إذا_تداخلات/016_if_var_reassign.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2693 | `_interactions/إذا_تداخلات/017_if_func_two_calls.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2694 | `_interactions/إذا_تداخلات/018_if_return_early.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2695 | `_interactions/إذا_تداخلات/019_if_break_while.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2696 | `_interactions/إذا_تداخلات/020_if_continue_for.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2697 | `_interactions/إذا_تداخلات/021_if_throw_skips_rest_of_block.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2698 | `_interactions/إذا_تداخلات/022_if_try_finally_order.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2699 | `_interactions/إذا_تداخلات/023_if_match_default_not_taken.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2700 | `_interactions/إذا_تداخلات/024_if_array_literal_scan.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2701 | `_interactions/إذا_تداخلات/025_if_map_literal.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2702 | `_interactions/إذا_تداخلات/026_if_assignment_in_both.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2703 | `_interactions/إذا_تداخلات/027_if_unary_minus.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2704 | `_interactions/إذا_تداخلات/028_if_binary_mixed.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2705 | `_interactions/إذا_تداخلات/029_if_nested_call.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2706 | `_interactions/إذا_تداخلات/030_if_string_len.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2707 | `_interactions/إذا_تداخلات/031_if_recursion.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2708 | `_interactions/إذا_تداخلات/032_if_while_break_continue.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2709 | `_interactions/إذا_تداخلات/033_if_for_nested_match.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2710 | `_interactions/إذا_تداخلات/034_if_try_in_loop.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2711 | `_interactions/إذا_تداخلات/035_if_struct_field.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2712 | `_interactions/إذا_تداخلات/036_if_class_method.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2713 | `_interactions/إذا_تداخلات/037_if_logical_and_or_grouped.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2714 | `_interactions/إذا_تداخلات/038_if_nested_func_scope.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2715 | `_interactions/إذا_تداخلات/039_if_in_match_arm.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2716 | `_interactions/إذا_تداخلات/040_if_while_accumulate.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2717 | `_interactions/إذا_تداخلات/041_if_last_index_via_len.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2718 | `_interactions/إذا_تداخلات/042_if_throw_propagates_from_func.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2719 | `_interactions/إذا_تداخلات/043_if_chain_over_string.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2720 | `_interactions/إذا_تداخلات/044_if_for_nested_two_levels.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2721 | `_interactions/إذا_تداخلات/045_if_all_statements.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2722 | `_interactions/بينما_تداخلات/001_while_if.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2723 | `_interactions/بينما_تداخلات/002_while_for.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2724 | `_interactions/بينما_تداخلات/003_while_match.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2725 | `_interactions/بينما_تداخلات/004_while_try.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2726 | `_interactions/بينما_تداخلات/005_while_return.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2727 | `_interactions/بينما_تداخلات/006_while_break.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2728 | `_interactions/بينما_تداخلات/007_while_continue.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2729 | `_interactions/بينما_تداخلات/008_while_expr.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2730 | `_interactions/بينما_تداخلات/009_while_nested_if_match.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2731 | `_interactions/بينما_تداخلات/010_while_func_for.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2732 | `_interactions/بينما_تداخلات/011_while_throw_caught.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2733 | `_interactions/بينما_تداخلات/012_while_if_else_break.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2734 | `_interactions/بينما_تداخلات/013_while_for_sum.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2735 | `_interactions/بينما_تداخلات/014_while_match_continue.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2736 | `_interactions/بينما_تداخلات/015_while_all.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2737 | `_interactions/بينما_تداخلات/016_while_var_scope.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2738 | `_interactions/بينما_تداخلات/017_while_if_chain.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2739 | `_interactions/بينما_تداخلات/018_while_for_nested.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2740 | `_interactions/بينما_تداخلات/019_while_match_arms.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2741 | `_interactions/بينما_تداخلات/020_while_try_finally.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2742 | `_interactions/بينما_تداخلات/021_while_throw_break_out.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2743 | `_interactions/بينما_تداخلات/022_while_return_from_func.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2744 | `_interactions/بينما_تداخلات/023_while_break_nested.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2745 | `_interactions/بينما_تداخلات/024_while_continue_guard.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2746 | `_interactions/بينما_تداخلات/025_while_array_literal_build.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2747 | `_interactions/بينما_تداخلات/026_while_map_lookup.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2748 | `_interactions/بينما_تداخلات/027_while_multiple_assignments.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2749 | `_interactions/بينما_تداخلات/028_while_unary_negate.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2750 | `_interactions/بينما_تداخلات/029_while_call_in_body.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2751 | `_interactions/بينما_تداخلات/030_while_string_ops.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2752 | `_interactions/بينما_تداخلات/031_while_recursive_helper.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2753 | `_interactions/بينما_تداخلات/032_while_if_break_continue_mix.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2754 | `_interactions/بينما_تداخلات/033_while_for_match_deep.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2755 | `_interactions/بينما_تداخلات/034_while_try_recover_continue.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2756 | `_interactions/بينما_تداخلات/035_while_struct_field_update.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2757 | `_interactions/بينما_تداخلات/036_while_class_method_loop.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2758 | `_interactions/بينما_تداخلات/037_while_logic_ops_cond.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2759 | `_interactions/بينما_تداخلات/038_while_func_scope_isolation.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2760 | `_interactions/بينما_تداخلات/039_while_in_match_arm.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2761 | `_interactions/بينما_تداخلات/040_while_equality_string_guard.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2762 | `_interactions/بينما_تداخلات/041_while_nested_index_matrix.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2763 | `_interactions/بينما_تداخلات/042_while_throw_from_func.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2764 | `_interactions/بينما_تداخلات/043_while_comparison_bounds.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2765 | `_interactions/بينما_تداخلات/044_while_for_alternating.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2766 | `_interactions/بينما_تداخلات/045_while_all_statements.ص` | `gr.stmt.while` | interaction | تطابق ✅ |
+| 2767 | `_interactions/تصريح_استيراد_تداخلات/001_import_use_loop.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2768 | `_interactions/تصريح_استيراد_تداخلات/002_import_func_call.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2769 | `_interactions/تصريح_استيراد_تداخلات/003_import_var.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2770 | `_interactions/تصريح_استيراد_تداخلات/004_import_cond.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2771 | `_interactions/تصريح_استيراد_تداخلات/005_import_match.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2772 | `_interactions/تصريح_استيراد_تداخلات/006_import_three_stmts.ص` | `gr.decl.import` | interaction | تطابق ✅ |
+| 2773 | `_interactions/تصريح_تصدير_تداخلات/001_export_use_loop.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2774 | `_interactions/تصريح_تصدير_تداخلات/002_export_in_if.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2775 | `_interactions/تصريح_تصدير_تداخلات/003_export_recursive.ص` | `gr.decl.export` | interaction | تطابق ✅ |
+| 2776 | `_interactions/تصريح_خارجي_تداخلات/001_extern_with_local.ص` | `gr.decl.extern` | interaction | تطابق ✅ |
+| 2777 | `_interactions/تصريح_دالة_تداخلات/001_func_call_loop.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2778 | `_interactions/تصريح_دالة_تداخلات/002_func_in_if.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2779 | `_interactions/تصريح_دالة_تداخلات/003_func_recursive_while.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2780 | `_interactions/تصريح_دالة_تداخلات/004_func_returns_in_loop.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2781 | `_interactions/تصريح_دالة_تداخلات/005_func_match.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2782 | `_interactions/تصريح_دالة_تداخلات/006_func_try.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2783 | `_interactions/تصريح_دالة_تداخلات/007_func_default_loop.ص` | `gr.decl.parameters` | interaction | تطابق ✅ |
+| 2784 | `_interactions/تصريح_دالة_تداخلات/008_func_higher_order.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2785 | `_interactions/تصريح_دالة_تداخلات/009_func_break_return.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2786 | `_interactions/تصريح_دالة_تداخلات/010_func_nested_call3.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2787 | `_interactions/تصريح_دالة_تداخلات/011_func_two_def.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2788 | `_interactions/تصريح_دالة_تداخلات/012_func_array_param.ص` | `gr.decl.parameters` | interaction | تطابق ✅ |
+| 2789 | `_interactions/تصريح_دالة_تداخلات/013_func_in_while.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2790 | `_interactions/تصريح_دالة_تداخلات/014_func_cond_return.ص` | `gr.decl.function` | interaction | تطابق ✅ |
+| 2791 | `_interactions/تصريح_دالة_تداخلات/015_func_default_typed.ص` | `gr.decl.parameters` | interaction | تطابق ✅ |
+| 2792 | `_interactions/تصريح_متغير_تداخلات/001_var_if.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2793 | `_interactions/تصريح_متغير_تداخلات/002_var_while.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2794 | `_interactions/تصريح_متغير_تداخلات/003_var_for.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2795 | `_interactions/تصريح_متغير_تداخلات/004_var_func.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2796 | `_interactions/تصريح_متغير_تداخلات/005_var_match.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2797 | `_interactions/تصريح_متغير_تداخلات/006_var_try.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2798 | `_interactions/تصريح_متغير_تداخلات/007_const_func.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2799 | `_interactions/تصريح_متغير_تداخلات/008_var_nested_scope.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2800 | `_interactions/تصريح_متغير_تداخلات/009_var_array_loop.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2801 | `_interactions/تصريح_متغير_تداخلات/010_var_reassign_loop.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2802 | `_interactions/تصريح_متغير_تداخلات/011_typed_in_func.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2803 | `_interactions/تصريح_متغير_تداخلات/012_var_ternary_if.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2804 | `_interactions/تصريح_متغير_تداخلات/013_var_in_match_case.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2805 | `_interactions/تصريح_متغير_تداخلات/014_var_func_array.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2806 | `_interactions/تصريح_متغير_تداخلات/015_var_const_calc.ص` | `gr.decl.variable` | interaction | تطابق ✅ |
+| 2807 | `_interactions/تصريحات_متتابعة/001_decls_then_logic.ص` | `gr.program.program` | interaction | تطابق ✅ |
+| 2808 | `_interactions/تعبير_تداخلات/001_expr_if.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2809 | `_interactions/تعبير_تداخلات/002_expr_while.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2810 | `_interactions/تعبير_تداخلات/003_expr_for.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2811 | `_interactions/تعبير_تداخلات/004_expr_match.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2812 | `_interactions/تعبير_تداخلات/005_expr_return.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2813 | `_interactions/تعبير_تداخلات/006_expr_try.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2814 | `_interactions/تعبير_تداخلات/007_expr_ternary_if.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2815 | `_interactions/تعبير_تداخلات/008_expr_break.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2816 | `_interactions/تعبير_تداخلات/009_expr_continue.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2817 | `_interactions/تعبير_تداخلات/010_expr_func_compose.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2818 | `_interactions/تعبير_تداخلات/011_expr_nested_loops.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2819 | `_interactions/تعبير_تداخلات/012_expr_if_else_assign.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2820 | `_interactions/تعبير_تداخلات/013_expr_match_accum.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2821 | `_interactions/تعبير_تداخلات/014_expr_ternary_loop.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2822 | `_interactions/تعبير_تداخلات/015_expr_all.ص` | `gr.stmt.expression` | interaction | تطابق ✅ |
+| 2823 | `_interactions/جمل_شاملة/001_all_statements.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2824 | `_interactions/حالة_تداخلات/001_switch_for_expr.ص` | `gr.stmt.switch` | interaction | تطابق ✅ |
+| 2825 | `_interactions/حالة_تداخلات/002_switch_func_return.ص` | `gr.stmt.switch` | interaction | تطابق ✅ |
+| 2826 | `_interactions/حالة_تداخلات/003_switch_if_compare.ص` | `gr.stmt.switch` | interaction | تطابق ✅ |
+| 2827 | `_interactions/حالة_تداخلات/004_switch_in_while.ص` | `gr.stmt.switch` | interaction | تطابق ✅ |
+| 2828 | `_interactions/حالة_تداخلات/005_switch_var_string.ص` | `gr.stmt.switch` | interaction | تطابق ✅ |
+| 2829 | `_interactions/حالة_تداخلات/006_return_from_arm.ص` | `gr.stmt.switch` | interaction | تطابق ✅ |
+| 2830 | `_interactions/حلقة_شرط_مطابقة/001_loop_if_match.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2831 | `_interactions/دالة_حلقة_شرط/001_func_loop_if.ص` | `gr.program.program` | interaction | تطابق ✅ |
+| 2832 | `_interactions/شرط_متغير_نطاق/001_if_var_scope.ص` | `gr.program.program` | interaction | تطابق ✅ |
+| 2833 | `_interactions/طابق_تداخلات/001_match_if.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2834 | `_interactions/طابق_تداخلات/002_match_for.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2835 | `_interactions/طابق_تداخلات/003_match_while.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2836 | `_interactions/طابق_تداخلات/004_match_try.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2837 | `_interactions/طابق_تداخلات/005_match_return.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2838 | `_interactions/طابق_تداخلات/006_match_break.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2839 | `_interactions/طابق_تداخلات/007_match_continue.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2840 | `_interactions/طابق_تداخلات/008_match_expr.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2841 | `_interactions/طابق_تداخلات/009_match_nested_if.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2842 | `_interactions/طابق_تداخلات/010_match_for_in_case.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2843 | `_interactions/طابق_تداخلات/011_match_func_loop.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2844 | `_interactions/طابق_تداخلات/012_match_while_continue.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2845 | `_interactions/طابق_تداخلات/013_match_throw_caught.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2846 | `_interactions/طابق_تداخلات/014_match_if_else_default.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2847 | `_interactions/طابق_تداخلات/015_match_all.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2848 | `_interactions/طابق_تداخلات/016_match_if_inside_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2849 | `_interactions/طابق_تداخلات/017_match_while_inside_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2850 | `_interactions/طابق_تداخلات/018_match_for_inside_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2851 | `_interactions/طابق_تداخلات/019_match_try_inside_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2852 | `_interactions/طابق_تداخلات/020_match_throw_from_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2853 | `_interactions/طابق_تداخلات/021_match_break_in_loop_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2854 | `_interactions/طابق_تداخلات/022_match_continue_in_loop_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2855 | `_interactions/طابق_تداخلات/023_match_return_each_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2856 | `_interactions/طابق_تداخلات/024_match_function_call_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2857 | `_interactions/طابق_تداخلات/025_match_var_decl_in_arm.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2858 | `_interactions/طابق_تداخلات/026_match_array_literal_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2859 | `_interactions/طابق_تداخلات/027_match_map_literal_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2860 | `_interactions/طابق_تداخلات/028_match_assignment_in_arms.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2861 | `_interactions/طابق_تداخلات/029_match_unary_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2862 | `_interactions/طابق_تداخلات/030_match_comparison_result.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2863 | `_interactions/طابق_تداخلات/031_match_equality_string.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2864 | `_interactions/طابق_تداخلات/032_match_logical_and_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2865 | `_interactions/طابق_تداخلات/033_match_logical_or_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2866 | `_interactions/طابق_تداخلات/034_match_term_factor_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2867 | `_interactions/طابق_تداخلات/035_match_struct_field_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2868 | `_interactions/طابق_تداخلات/036_match_class_method_subject.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2869 | `_interactions/طابق_تداخلات/037_match_in_loop_all_arms.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2870 | `_interactions/طابق_تداخلات/038_match_in_while_loop.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2871 | `_interactions/طابق_تداخلات/039_match_in_function_recursive.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2872 | `_interactions/طابق_تداخلات/040_match_nested_three_levels.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2873 | `_interactions/طابق_تداخلات/041_match_arm_calls_function_side_effect.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2874 | `_interactions/طابق_تداخلات/042_match_default_with_loop.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2875 | `_interactions/طابق_تداخلات/043_match_string_arms_chain.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2876 | `_interactions/طابق_تداخلات/044_match_try_finally_around.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2877 | `_interactions/طابق_تداخلات/045_match_all_statements.ص` | `gr.stmt.match` | interaction | تطابق ✅ |
+| 2878 | `_interactions/كائنيّة_تداخلات/001_super_ctor_and_method.ص` | `gr.oop.this_super` | interaction | تطابق ✅ |
+| 2879 | `_interactions/كائنيّة_تداخلات/002_this_in_conditional.ص` | `gr.oop.this_super` | interaction | تطابق ✅ |
+| 2880 | `_interactions/كائنيّة_تداخلات/003_new_in_loop.ص` | `gr.oop.new` | interaction | تطابق ✅ |
+| 2881 | `_interactions/لكل_تداخلات/001_for_if.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2882 | `_interactions/لكل_تداخلات/002_for_while.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2883 | `_interactions/لكل_تداخلات/003_for_match.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2884 | `_interactions/لكل_تداخلات/004_for_try.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2885 | `_interactions/لكل_تداخلات/005_for_return.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2886 | `_interactions/لكل_تداخلات/006_for_break.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2887 | `_interactions/لكل_تداخلات/007_for_continue.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2888 | `_interactions/لكل_تداخلات/008_for_expr.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2889 | `_interactions/لكل_تداخلات/009_for_if_match.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2890 | `_interactions/لكل_تداخلات/010_for_nested_while.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2891 | `_interactions/لكل_تداخلات/011_for_func_sum.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2892 | `_interactions/لكل_تداخلات/012_for_throw_caught.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2893 | `_interactions/لكل_تداخلات/013_for_if_break_count.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2894 | `_interactions/لكل_تداخلات/014_for_match_continue.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2895 | `_interactions/لكل_تداخلات/015_for_all.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2896 | `_interactions/لكل_تداخلات/016_for_if_elseif_else.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2897 | `_interactions/لكل_تداخلات/017_for_while_nested.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2898 | `_interactions/لكل_تداخلات/018_for_match_classify.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2899 | `_interactions/لكل_تداخلات/019_for_try_catch_each.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2900 | `_interactions/لكل_تداخلات/020_for_throw_propagates_out.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2901 | `_interactions/لكل_تداخلات/021_for_break_in_if.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2902 | `_interactions/لكل_تداخلات/022_for_continue_in_match.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2903 | `_interactions/لكل_تداخلات/023_for_return_from_function.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2904 | `_interactions/لكل_تداخلات/024_for_function_call_each.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2905 | `_interactions/لكل_تداخلات/025_for_var_decl_scope.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2906 | `_interactions/لكل_تداخلات/026_for_array_literal_build.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2907 | `_interactions/لكل_تداخلات/027_for_map_literal_sum.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2908 | `_interactions/لكل_تداخلات/028_for_assignment_compound.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2909 | `_interactions/لكل_تداخلات/029_for_unary_negate.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2910 | `_interactions/لكل_تداخلات/030_for_comparison_guard.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2911 | `_interactions/لكل_تداخلات/031_for_equality_count.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2912 | `_interactions/لكل_تداخلات/032_for_logical_and_or.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2913 | `_interactions/لكل_تداخلات/033_for_term_factor_mix.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2914 | `_interactions/لكل_تداخلات/034_for_postfix_index_chain.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2915 | `_interactions/لكل_تداخلات/035_for_struct_field_update.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2916 | `_interactions/لكل_تداخلات/036_for_class_method_each.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2917 | `_interactions/لكل_تداخلات/037_for_recursion_inside.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2918 | `_interactions/لكل_تداخلات/038_for_string_length_filter.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2919 | `_interactions/لكل_تداخلات/039_for_nested_with_break_continue.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2920 | `_interactions/لكل_تداخلات/040_for_in_match_arm.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2921 | `_interactions/لكل_تداخلات/041_for_in_try_block.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2922 | `_interactions/لكل_تداخلات/042_for_range_and_array_mixed.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2923 | `_interactions/لكل_تداخلات/043_for_comprehension_source.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2924 | `_interactions/لكل_تداخلات/044_for_bool_flag_toggle.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2925 | `_interactions/لكل_تداخلات/045_for_all_statements.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
+| 2926 | `_interactions/معالجة_وتكرار/001_try_loop_throw.ص` | `gr.stmt.if` | interaction | تطابق ✅ |
+| 2927 | `_interactions/معجميّة_تداخلات/001_تعليق_معرّف_نص_عدد.ص` | `gr.lex.comment` | interaction | تطابق ✅ |
+| 2928 | `_interactions/معجميّة_تداخلات/002_تعليق_معرّف_نص_مقحم_خام_عمر.ص` | `gr.lex.comment` | interaction | تطابق ✅ |
