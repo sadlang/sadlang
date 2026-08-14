@@ -412,7 +412,13 @@ namespace Sad
                 if (b_.module_ && varDecl->isConst)
                 {
                     auto sirGlobal = b_.module_->getGlobalVariable(varDecl->name);
-                    if (sirGlobal && sirGlobal->isConstant && !sirGlobal->initialValue.empty())
+                    // (AR) الحكمُ بالعَلَمِ لا بفراغِ النصّ: `ثابت فارغ = ""` مُهيَّأٌ تهيئةً
+                    //      كاملةً، وكان اشتقاقُ التهيئةِ من الفراغِ يُسقِطه إلى المسارِ المحلّيِّ
+                    //      فيبقى العامُّ مصفَّرًا ⇒ يُطبع «void».
+                    // (EN) Judge by the flag, not by emptiness: `ثابت فارغ = ""` is fully
+                    //      initialised; deriving initialisation from emptiness dropped it to the
+                    //      local path, leaving the global zeroed ⇒ printed as "void".
+                    if (sirGlobal && sirGlobal->isConstant && sirGlobal->hasInitialValue)
                     {
                         // (AR) الثابت العام مُهيأ بالفعل — لا حاجة لكود إضافي
                         // (EN) Const global already initialized — no code needed

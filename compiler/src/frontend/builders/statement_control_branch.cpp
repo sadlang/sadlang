@@ -76,14 +76,105 @@ namespace Sad
                 //      decrement __sad_try_active by that count, else the counter leaks after
                 //      the frame dies and the next division-by-zero guard longjmps into a dead
                 //      jmpbuf (0xC0000005). Emitted before the RET.
-                for (int i = 0; i < b_.currentTryDepth_ && b_.currentBlock_; ++i)
-                {
-                    SIRInstruction tryExit;
-                    tryExit.opcode = SIROpcode::CALL;
-                    tryExit.operands.push_back(SIROperand::Function("__sad_try_exit"));
-                    tryExit.comment = "barrier7: exit active try (return)";
-                    b_.currentBlock_->addInstruction(tryExit);
-                }
+                // (AR) والمعالِجُ يُنبَذ مع العدّاد — عدّادان لا واحد.
+                //
+                //      «حاول» تدفع شيئَين: `__sad_try_active` (يقول: ثمّة حاولٌ نشط)
+                //      و`__sad_handler_count` مع jmpbuf في مكدّسِ المعالِجات (يقول: **أين**
+                //      يُقفَز). والخروجُ المبكّر كان يخفّض الأوّلَ ولا ينبذ الثاني، فيبقى
+                //      في المكدّسِ مؤشّرٌ إلى jmpbuf إطارٍ **مات**. ثمّ يرمي المستدعي فيقرأ
+                //      الرميُ الخانةَ العلياً — وهي الميّتةُ — فيقفز إلى إطارٍ لا وجودَ له.
+                //
+                //      وشرطُ ظهورِه ثلاثيٌّ فبدا نادرًا: دالّةٌ ترجع من **داخلِ** «حاول»،
+                //      تُنادى من **داخلِ** «حاول» أخرى، ثمّ يُرمى بعدها. وهو حرفًا شكلُ
+                //      `حلل_عدد` في مكتبة جيسون: تُرجع الزوجَ من داخلِ حارسِ المدى،
+                //      فيسقط اختبارُ مسارِ الأخطاء (١٤٦) بلا أن يمسّ الخطأُ العددَ أصلًا.
+                //
+                //      والتعليقُ فوق `__sad_try_exit` يصف هذا العطبَ بعينِه («يقفز أوّلُ
+                //      حارسٍ لاحقٍ إلى jmpbuf ميّت») ثمّ يعالج نصفَه: العدّادَ دون المكدّس.
+                // (EN) The handler is popped with the counter — there are two counters, not one.
+                //
+                //      A «try» pushes two things: `__sad_try_active` (there is a live try) and
+                //      `__sad_handler_count` plus a jmpbuf on the handler stack (**where** to
+                //      jump). The early exit decremented the first and never popped the second,
+                //      leaving on the stack a pointer to a **dead** frame's jmpbuf. The caller
+                //      then throws, the raise reads the top slot — the dead one — and jumps into
+                //      a frame that no longer exists.
+                //
+                //      Three conditions must coincide, which is why it looked rare: a function
+                //      returning from **inside** a try, called from **inside** another try, with
+                //      a throw afterwards. That is exactly the shape of `parse_number` in the
+                //      JSON library, which returns its pair from inside the range guard — so the
+                //      error-path test (146) died without the error ever touching a number.
+                //
+                //      The comment above `__sad_try_exit` describes this very defect ("the next
+                //      guard longjmps into a dead jmpbuf") and then fixes half of it: the
+                //      counter without the stack.
+                // (AR) والعدّادان يُنبَذان معًا وبعدَ بناءِ التعبير — لا هذا قبلَه وذاك بعدَه.
+                //
+                //      كان `__sad_try_exit` يُبعَث هنا، قبلَ بناءِ تعبيرِ الإرجاع، بينما
+                //      نُقِل نبذُ المعالِجِ إلى ما بعدَه بالحجّةِ المشروحةِ أدناه. والحجّةُ
+                //      نفسُها تشملُ العدّادَ: `ارجع أ / ب` داخلَ «حاول» — القسمةُ في
+                //      التعبيرِ نفسِه قد تهلع، وحارسُ الهلعِ يقرأ `__sad_try_active`
+                //      ليعرفَ أثمّة التقاطٌ ممكن. فتصفيرُه قبلَ بناءِ التعبيرِ يجعل الهلعَ
+                //      الجوهريَّ (RUN001) داخلَ التعبيرِ غيرَ قابلٍ للالتقاط. مقيسًا:
+                //      المفسّرُ يلتقطُ ويعودُ ٠، والمصرَّفُ يموتُ بـRUN001 وخروجٍ ١؛
+                //      ونقلُ القسمةِ إلى متغيّرٍ ثمّ إرجاعُه يجعلُه يلتقط — أي أنّ
+                //      مكدّسَ المعالِجاتِ سليمٌ والعلّةُ في هذا العدّادِ وحدَه.
+                // (EN) Both counters are popped together, after the expression is built.
+                //
+                //      `__sad_try_exit` used to be emitted here, before the return expression,
+                //      while the handler pop was moved after it for the reason documented below.
+                //      That same reason covers the counter: in `return a / b` inside a try, the
+                //      division may panic and the panic guard reads `__sad_try_active` to decide
+                //      whether a catch is reachable. Clearing it first makes an intrinsic panic
+                //      (RUN001) inside the expression uncatchable — measured: the interpreter
+                //      catches and returns 0, the compiled program dies with RUN001 and exit 1.
+                //
+                // (AR) والنبذُ **بعد** بناءِ تعبيرِ الإرجاع لا قبلَه.
+                //
+                //      `ارجع طبقة3(س)` داخلَ «حاول»: النداءُ نفسُه قد يرمي، وهو ما تحرسه
+                //      هذه «الحاول» بعينِها. فنبذُ المعالِجِ قبلَ بناءِ التعبيرِ يعني أنّ
+                //      الرميَ يجد فوقَ المكدّسِ معالِجَ الطبقةِ **الأعلى**، فتُتخطّى كتلُ
+                //      `امسك` الوسطى بأسرِها. مقيسًا: سلسلةُ ثلاثِ طبقاتٍ طبعت الطبقةَ
+                //      الأولى وحدَها.
+                //
+                //      ولذلك يُبعَث النبذُ عند نقطتَين تُدرِكان أنّ القيمةَ استقرّت:
+                //      بعد البناءِ المسبَق (مسارُ «أجّل»)، أو قبيلَ RET في المسارِ العاديّ.
+                //      و`handlerPopsEmitted` يمنع بعثَه مرّتَين.
+                // (EN) The pop goes **after** the return expression is built, not before.
+                //
+                //      `return layer3(x)` inside a try: the call itself may throw, and this very
+                //      try is what guards it. Popping the handler before building the expression
+                //      means the raise finds the **outer** frame's handler on top, so every
+                //      intermediate `catch` is skipped. Measured: a three-layer chain printed
+                //      only the outermost layer.
+                //
+                //      So the pop is emitted at the two points that know the value has settled:
+                //      after the pre-build (the defer path), or just before RET on the normal
+                //      path. `handlerPopsEmitted` keeps it from being emitted twice.
+                bool handlerPopsEmitted = false;
+                const int handlerPopCount = b_.currentTryDepth_;
+                auto emitTryHandlerPops = [&]() {
+                    if (handlerPopsEmitted)
+                        return;
+                    handlerPopsEmitted = true;
+                    for (int i = 0; i < handlerPopCount && b_.currentBlock_; ++i)
+                    {
+                        SIRInstruction tryExit;
+                        tryExit.opcode = SIROpcode::CALL;
+                        tryExit.operands.push_back(SIROperand::Function("__sad_try_exit"));
+                        tryExit.comment = "barrier7: exit active try (return)";
+                        b_.currentBlock_->addInstruction(tryExit);
+                    }
+                    for (int i = 0; i < handlerPopCount && b_.currentBlock_; ++i)
+                    {
+                        SIRInstruction popInst;
+                        popInst.opcode = SIROpcode::CALL;
+                        popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
+                        popInst.comment = "barrier7: pop the exited try's handler (return)";
+                        b_.currentBlock_->addInstruction(popInst);
+                    }
+                };
 
                 // ================================================================
                 // (AR) FIX X06: بناء تعبير الإرجاع قبل defer
@@ -158,6 +249,15 @@ namespace Sad
                         //      normal path does NOT rebuild it (interp printed once, compiler twice).
                         voidSideEffectPrebuilt = true;
                     }
+                }
+
+                // (AR) القيمةُ بُنيت (أو لا قيمةَ أصلًا) ⇒ خرجنا من «حاول» فعلًا: انبذ معالِجَها
+                //      قبل «أجّل» و RET.
+                // (EN) The value is built (or there is none) ⇒ the try really is being left:
+                //      pop its handler before defers and RET.
+                if (hasPrebuiltRet || voidSideEffectPrebuilt || !retStmt->value)
+                {
+                    emitTryHandlerPops();
                 }
 
                 // ================================================================
@@ -492,6 +592,10 @@ namespace Sad
                         }
                     }
 
+                    // (AR) الشبكةُ الأخيرة: مسارٌ لم يمرّ بالبناءِ المسبَق (مُعادٌ بلا «أجّل»).
+                    // (EN) Last net: a path that did not go through the pre-build (no defers).
+                    emitTryHandlerPops();
+
                     // (AR) توليد تعليمة RET مع القيمة
                     // (EN) Generate RET instruction with value
                     SIRInstruction retInst;
@@ -677,6 +781,12 @@ namespace Sad
                     tryExit.operands.push_back(SIROperand::Function("__sad_try_exit"));
                     tryExit.comment = "barrier7: exit active try (break)";
                     b_.currentBlock_->addInstruction(tryExit);
+
+                    SIRInstruction popInst;
+                    popInst.opcode = SIROpcode::CALL;
+                    popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
+                    popInst.comment = "barrier7: pop the exited try's handler (break)";
+                    b_.currentBlock_->addInstruction(popInst);
                 }
 
                 // (AR) توليد قفز غير شرطي إلى كتلة خروج الحلقة
@@ -749,6 +859,12 @@ namespace Sad
                     tryExit.operands.push_back(SIROperand::Function("__sad_try_exit"));
                     tryExit.comment = "barrier7: exit active try (continue)";
                     b_.currentBlock_->addInstruction(tryExit);
+
+                    SIRInstruction popInst;
+                    popInst.opcode = SIROpcode::CALL;
+                    popInst.operands.push_back(SIROperand::Function("__sad_pop_handler"));
+                    popInst.comment = "barrier7: pop the exited try's handler (continue)";
+                    b_.currentBlock_->addInstruction(popInst);
                 }
 
                 // (AR) توليد قفز غير شرطي إلى كتلة استمرار الحلقة

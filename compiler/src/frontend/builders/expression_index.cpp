@@ -612,6 +612,37 @@ namespace Sad
                     }
                 }
 
+                // (AR) والمُفهرَسُ الموسومُ زمنَ التشغيل: نتيجتُه موسومةٌ مثلُه.
+                //
+                //      `resultType` يبدأُ `Integer` افتراضًا، ولا فرعَ في السلسلةِ أعلاه
+                //      يمسُّ `أي`، فكان `متداخل[0]` يخرجُ بنوعٍ ساكنٍ «رقم» وحمولتُه
+                //      `%SadDyn`. والنوعُ الكاذبُ يتسرّبُ إلى ما بعدَه: `متداخل[0].احصل("ب")`
+                //      تُشخَّصُ «الطريقة احصل غير موجودة في الصنف رقم» — تشخيصٌ يشيرُ إلى
+                //      نوعٍ لم يوجد قطّ. وهي المرآةُ الدقيقةُ لفرعِ `elementType == Any`
+                //      أعلاه: هناك الحاويةُ معروفةٌ وعنصرُها موسوم، وهنا الحاويةُ نفسُها
+                //      موسومة — والحكمُ واحد.
+                //
+                //      و`ARRAY_GET` يفكُّ الوسمَ أصلًا عبر `normalizeArrayPtr` ويعلّبُ
+                //      النتيجة، فالتغييرُ يصحّحُ الوصفَ الساكنَ ليطابقَ ما يُبعَثُ فعلًا.
+                // (EN) A runtime-tagged indexee yields a runtime-tagged result.
+                //
+                //      `resultType` starts as `Integer`, and no branch in the chain above
+                //      touches `Any`, so `nested[0]` came out statically typed «رقم» while
+                //      carrying a `%SadDyn`. The false type then leaks downstream:
+                //      `nested[0].get("b")` is diagnosed as "method get not found on class
+                //      رقم" — a diagnostic naming a type that never existed. This is the exact
+                //      mirror of the `elementType == Any` branch above: there the container is
+                //      known and its element tagged, here the container itself is tagged — the
+                //      judgement is the same.
+                //
+                //      `ARRAY_GET` already unpacks the tag via `normalizeArrayPtr` and boxes
+                //      the result, so this only makes the static description match what is
+                //      actually emitted.
+                if (objResult.type == SadTypeKind::Any)
+                {
+                    resultType = SadTypeKind::Any;
+                }
+
                 // (AR) تعليمة ARRAY_GET للوصول بالفهرس
                 // (EN) ARRAY_GET instruction for indexed access
                 std::string resultReg = b_.newTempRegister();

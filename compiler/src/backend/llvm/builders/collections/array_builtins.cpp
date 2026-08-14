@@ -25,6 +25,7 @@
  */
 
 #include "llvm_codegen.h"
+#include "sir_constants.h" // (AR) kRuntimeMapHas لتفريعِ «يحتوي» على الوسم / (EN) kRuntimeMapHas for tag-dispatched contains
 #include "sad_dyn_repr.h" // (AR) DynKind لتهيئة الحقل ٤ homogKind / (EN) DynKind for field 4 homogKind init
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
@@ -205,6 +206,176 @@ namespace Sad
 
         llvm::Value *ArrayBuiltinsCodeGen::emitBuiltinArrayContains(std::shared_ptr<SIRInstruction> inst)
         {
+            // ════════════════════════════════════════════════════════════════
+            // (AR) مُستقبِلٌ موسومٌ زمنَ التشغيل ⇒ التفريعُ على الوسمِ لا على النوعِ الساكن.
+            //
+            //      `يحتوي` اسمٌ مشتركٌ بين العائلاتِ الثلاث، والواجهةُ تميّزُ بالنوعِ
+            //      الساكنِ وحدَه (method_call_array_basic): نصٌّ ⇒ احتواءُ نصّ، خريطةٌ ⇒
+            //      `__sad_map_has`، وما عداهما ⇒ مصفوفة. و«أي» تسقطُ في «ما عداهما»،
+            //      فـ`حلل("{...}").يحتوي("أ")` تُبنى فهرسةَ مصفوفةٍ على خريطةٍ موسومة —
+            //      مقيسًا: يُصرَّفُ بلا شكوى ثمّ يموتُ زمنَ التشغيلِ بـ«فهرسةٌ بعددٍ
+            //      طُبِّقت على قيمةٍ ليست مصفوفة»، بينما المفسّرُ يطبع «صحيح».
+            //
+            //      والواجهةُ لا تملكُ ما تحكمُ به: الوسمُ لا يُعرَفُ إلّا زمنَ التشغيل.
+            //      فيُحكَمُ حيثُ يُعرَف — هنا، بفرعَين يلتقيان في phi. والنصُّ لا يمرُّ
+            //      بهذا الموضعِ أصلًا (الواجهةُ توجّهه إلى BUILTIN_STRING_CONTAINS
+            //      بنوعِه الساكن)، فالفرعان هما كلُّ ما يبلغُنا.
+            // (EN) A runtime-tagged receiver means dispatch on the tag, not the static type.
+            //
+            //      `contains` is a name shared by all three families, and the frontend
+            //      disambiguates by static type alone (method_call_array_basic): string goes to
+            //      string-contains, map to `__sad_map_has`, anything else to the array path.
+            //      «أي» lands in "anything else", so `parse("{...}").contains("a")` is built as
+            //      array indexing over a tagged map — measured: it compiles without complaint
+            //      and then dies at runtime with "integer indexing applied to a non-array
+            //      value", while the interpreter prints «صحيح».
+            //
+            //      والواجهةُ لا تملكُ ما تحكمُ به: الوسمُ لا يُعرَفُ إلّا زمنَ التشغيل.
+            //      فيُحكَمُ حيثُ يُعرَف — هنا، بثلاثةِ فروعٍ تلتقي في phi.
+            //
+            // ⚠️ والفروعُ ثلاثةٌ لا فرعان: كان مكتوبًا هنا أنّ «النصَّ لا يمرُّ بهذا
+            //    الموضعِ أصلًا لأنّ الواجهةَ توجّهه بنوعِه الساكن» — وهذا صحيحٌ للنصِّ
+            //    **الساكنِ** وحدَه. أمّا الوسمُ `Str` فيصلُ حتمًا، **مقيسًا**:
+            //    `دالة منطقي افحص(أي القيمة) { ارجع القيمة.يحتوي("ب") }` منادَاةً
+            //    بـ`"أبج"` تطبع «صحيح» في المفسّرِ وتموتُ في المصرَّفِ بـ«فهرسةٌ بعددٍ
+            //    طُبِّقت على قيمةٍ ليست مصفوفة (النوع الساكن: أي)». فتعليقٌ يدّعي
+            //    استحالةَ حالةٍ واقعةٍ أخطرُ من غيابِ الفرعِ نفسِه.
+            // (EN) The frontend has nothing to judge by: the tag is knowable only at runtime.
+            //      So the judgement moves to where it is known — here, as three branches meeting
+            //      in a phi.
+            //
+            // ⚠️ Three, not two: this comment used to claim strings never reach this site
+            //    because the frontend routes them by static type. True of *statically* typed
+            //    strings only — a `Str` tag arrives for certain, measured: an «أي» parameter
+            //    holding "أبج" prints true on the interpreter and aborts on the compiler with
+            //    "integer indexing applied to a non-array value". A comment asserting that a
+            //    reachable case is unreachable is worse than the missing branch itself.
+            // ════════════════════════════════════════════════════════════════
+            if (inst && inst->operands.size() > 1)
+            {
+                llvm::Value *receiver = cg_.resolveOperand(inst->operands[0]);
+                if (receiver)
+                    receiver = Sad::LLVM::loadDynSlot(cg_, receiver);
+
+                if (receiver && Sad::LLVM::isSadDyn(receiver))
+                {
+                    auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                    auto *i1Ty = llvm::Type::getInt1Ty(*cg_.context_);
+                    llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, receiver);
+                    llvm::Value *tagIsMap = cg_.builder_->CreateICmpEQ(
+                        kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Map),
+                        "contains.dyn.is.map");
+                    llvm::Value *tagIsStr = cg_.builder_->CreateICmpEQ(
+                        kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Str),
+                        "contains.dyn.is.str");
+
+                    llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                    llvm::BasicBlock *mapBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "contains.dyn.map", curFunc);
+                    llvm::BasicBlock *strTestBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "contains.dyn.str.test", curFunc);
+                    llvm::BasicBlock *strBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "contains.dyn.str", curFunc);
+                    llvm::BasicBlock *arrBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "contains.dyn.arr", curFunc);
+                    llvm::BasicBlock *joinBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "contains.dyn.join", curFunc);
+                    cg_.builder_->CreateCondBr(tagIsMap, mapBB, strTestBB);
+
+                    cg_.builder_->SetInsertPoint(strTestBB);
+                    cg_.builder_->CreateCondBr(tagIsStr, strBB, arrBB);
+
+                    // (AR) فرعُ الخريطة: وجودُ المفتاح. `normalizeMapPtr` تفكُّ الحمولةَ بعد
+                    //      فحصِ الوسمِ — وقد فُحِص، فمسارُ فشلِها ميّتٌ هنا لا مُستهلَك.
+                    // (EN) Map branch: key presence. `normalizeMapPtr` unpacks the payload after
+                    //      checking the tag — already checked, so its failure path is dead here.
+                    cg_.builder_->SetInsertPoint(mapBB);
+                    std::vector<llvm::Value *> mapArgs;
+                    mapArgs.push_back(receiver);
+                    mapArgs.push_back(cg_.resolveOperand(inst->operands[1]));
+                    llvm::Value *mapAnswer = llvm::cast<llvm::Value>(llvm::ConstantInt::get(i1Ty, 0));
+                    auto mapCall = cg_.emitCallMap(::Sad::Compiler::kRuntimeMapHas, mapArgs, inst);
+                    if (mapCall.has_value() && mapCall.value())
+                    {
+                        // (AR) `__sad_map_has` تُرجعُ i64 (٠/١) و«يحتوي» منطقيّةٌ i1 — نُسوّي.
+                        // (EN) `__sad_map_has` yields i64 (0/1) while contains is i1 — normalise.
+                        llvm::Value *raw = mapCall.value();
+                        mapAnswer = raw->getType()->isIntegerTy(1)
+                                        ? raw
+                                        : cg_.builder_->CreateICmpNE(
+                                              raw, llvm::ConstantInt::get(raw->getType(), 0),
+                                              "contains.dyn.map.bool");
+                    }
+                    llvm::BasicBlock *mapExitBB = cg_.builder_->GetInsertBlock();
+                    cg_.builder_->CreateBr(joinBB);
+
+                    // (AR) فرعُ النصّ: `strstr(الحمولة، المطلوب) != NULL`. ولا تُستعمَل
+                    //      `emitBuiltinStringContains` هنا: `normalizeStringPtr` تسوّي
+                    //      العددَ إلى مؤشّرٍ ولا تعرف `%SadDyn`، فتمرّر البنيةَ كما هي
+                    //      إلى `strstr` فيسقط verifyModule. فتُفكُّ الحمولةُ صراحةً.
+                    // (EN) String branch: `strstr(payload, needle) != NULL`. It does not reuse
+                    //      `emitBuiltinStringContains`: `normalizeStringPtr` casts an integer to a
+                    //      pointer but knows nothing of `%SadDyn`, so it would hand the struct
+                    //      straight to `strstr` and fail verifyModule. Unpack explicitly instead.
+                    cg_.builder_->SetInsertPoint(strBB);
+                    auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                    llvm::Value *haystack = Sad::LLVM::unpackPtr(cg_, receiver);
+                    llvm::Value *needle = cg_.resolveOperand(inst->operands[1]);
+                    if (needle)
+                        needle = Sad::LLVM::loadDynSlot(cg_, needle);
+                    if (needle && Sad::LLVM::isSadDyn(needle))
+                        needle = Sad::LLVM::unpackPtr(cg_, needle);
+                    else if (needle && needle->getType()->isIntegerTy())
+                        needle = cg_.builder_->CreateIntToPtr(
+                            cg_.builder_->CreateIntCast(needle, cg_.getInt64Type(), false,
+                                                        "contains.dyn.str.needle.i64"),
+                            ptrTy, "contains.dyn.str.needle.ptr");
+
+                    llvm::Value *strAnswer = llvm::cast<llvm::Value>(llvm::ConstantInt::get(i1Ty, 0));
+                    if (haystack && needle && haystack->getType()->isPointerTy() &&
+                        needle->getType()->isPointerTy())
+                    {
+                        auto *strstrType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy}, false);
+                        auto strstrFunc = cg_.module_->getOrInsertFunction(
+                            ::Sad::Compiler::kLibcStringSearch, strstrType);
+                        llvm::Value *found = cg_.builder_->CreateCall(
+                            strstrFunc, {haystack, needle}, "contains.dyn.str.found");
+                        strAnswer = cg_.builder_->CreateICmpNE(
+                            found, llvm::ConstantPointerNull::get(ptrTy), "contains.dyn.str.bool");
+                    }
+                    llvm::BasicBlock *strExitBB = cg_.builder_->GetInsertBlock();
+                    cg_.builder_->CreateBr(joinBB);
+
+                    // (AR) فرعُ المصفوفة: المسارُ القائمُ كما هو.
+                    // (EN) Array branch: the existing path, unchanged.
+                    cg_.builder_->SetInsertPoint(arrBB);
+                    llvm::Value *arrIdx = emitBuiltinArrayIndexOf(inst);
+                    llvm::Value *arrAnswer =
+                        arrIdx ? cg_.builder_->CreateICmpNE(
+                                     arrIdx, llvm::ConstantInt::get(cg_.getInt64Type(), -1),
+                                     "contains.dyn.arr.bool")
+                               : llvm::cast<llvm::Value>(llvm::ConstantInt::get(i1Ty, 0));
+                    llvm::BasicBlock *arrExitBB = cg_.builder_->GetInsertBlock();
+                    cg_.builder_->CreateBr(joinBB);
+
+                    cg_.builder_->SetInsertPoint(joinBB);
+                    llvm::PHINode *answer =
+                        cg_.builder_->CreatePHI(i1Ty, 3, "contains.dyn.result");
+                    answer->addIncoming(mapAnswer, mapExitBB);
+                    answer->addIncoming(strAnswer, strExitBB);
+                    answer->addIncoming(arrAnswer, arrExitBB);
+
+                    // (AR) التسجيلُ أخيرًا: فرعُ الخريطةِ سجّل قيمتَه الخاصّةَ باسمِ النتيجةِ
+                    //      وهي معرَّفةٌ في كتلةٍ لا تهيمنُ على ما بعد، فيجب أن تُزاحَ بالـphi.
+                    // (EN) Registered last: the map branch recorded its own value under the
+                    //      result name, defined in a block that does not dominate what follows,
+                    //      so the phi must displace it.
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = answer;
+                    return answer;
+                }
+            }
+
             // Delegates to indexOf, checks result != -1
             llvm::Value *idxResult = emitBuiltinArrayIndexOf(inst);
             if (!idxResult)

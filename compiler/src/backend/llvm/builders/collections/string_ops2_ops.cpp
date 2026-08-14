@@ -72,7 +72,34 @@ namespace Sad
             //      (elementType=Any): instead of heap boxing, derive (tag, payload) via toDyn,
             //      store the raw payload in the data slot and the tag in the parallel tags
             //      buffer (field 3) at the same slot — consistent with emitArraySet's tagged write.
-            bool isDyn = (inst->operands[0].elementType == SadTypeKind::Any);
+            // (AR) الوسمُ يلزم متى كان **أحدُ** الطرفين ديناميًّا: المصفوفةُ المُعلَنةُ
+            //      مختلطةً (elementType=Any) — وهو ما كان يُفحَص وحدَه — **أو** القيمةُ
+            //      المُلحَقةُ نفسُها ديناميّة.
+            //
+            //      والحالةُ الثانيةُ هي الشائعة: `متغير الناتج = []` مصفوفةٌ فارغةٌ لا
+            //      نوعَ عنصرٍ لها، فـ`الناتج.أضف(الزوج[0])` — والزوجُ مختلط — كان يسلك
+            //      الذراعَ الساكنةَ فيُخزَّن بناءُ %SadDyn كاملًا في خانةِ i64 ويُسجَّل
+            //      وسمُ التجانسِ «صحيح». والمقروءُ بعدها عددٌ من بتّاتِ بناءٍ لا قيمة:
+            //      `["س"، 1]` تُقرأ `[18859119797075971، 140697540374529]`.
+            //
+            //      وهو عطبٌ **صامتٌ لا ينهار**: لا تشخيصَ ولا سقوط، فقط أعدادٌ لا معنى
+            //      لها. وبه كان محلّلُ جيسون يُرجع `[1،1،1]` لِـ`[1,2,3]` فتُخفِق
+            //      الدورةُ المغلقةُ بلا سببٍ ظاهرٍ في المكتبة.
+            // (EN) A tag is required when **either** side is dynamic: the array declared
+            //      heterogeneous (elementType=Any) — which was the only thing checked — **or**
+            //      the appended value itself being dynamic.
+            //
+            //      The second case is the common one: `var out = []` is an empty array with no
+            //      element type, so `out.append(pair[0])` — with a heterogeneous pair — took the
+            //      static arm, storing the whole %SadDyn struct into an i64 slot and recording
+            //      the homogeneous tag as Int. What is read back is a number made of a struct's
+            //      bits, not a value: `["s", 1]` reads as `[18859119797075971, 140697540374529]`.
+            //
+            //      It is a **silent, non-crashing** defect: no diagnostic, no fault, just
+            //      meaningless numbers. It is what made the JSON parser return `[1,1,1]` for
+            //      `[1,2,3]`, failing the round trip with no visible cause in the library.
+            bool isDyn = (inst->operands[0].elementType == SadTypeKind::Any) ||
+                         (inst->operands[1].dataType == SadTypeKind::Any);
             llvm::Value *kindByte = nullptr;
             if (isDyn)
             {
@@ -109,8 +136,23 @@ namespace Sad
                 llvm::BasicBlock *pre0 = cg_.builder_->GetInsertBlock();
                 cg_.builder_->CreateCondBr(isNull0, a0, c0);
                 cg_.builder_->SetInsertPoint(a0);
+                // (AR) البذرةُ وسمُ التجانسِ الحاليُّ (الحقل ٤) لا «عدم».
+                //      مخزنُ الوسومِ يُنشَأ عند أوّلِ إلحاقٍ ديناميّ، وقد تكون المصفوفةُ
+                //      قبله مملوءةً بعناصرَ ساكنةٍ وسمُها الوحيدُ محفوظٌ في الحقل ٤ (لأنّ
+                //      القارئَ يقرؤه حين tags==null). فتصفيرُه «عدمًا» يمحو وسمَ كلِّ
+                //      عنصرٍ سابقٍ في اللحظةِ التي يصير فيها المخزنُ هو المرجع، فتُقرأ
+                //      أعدادٌ سليمةٌ «لاشيء». والبذرةُ بالوسمِ الحاليِّ تحفظها.
+                // (EN) Seed with the current homogeneous tag (field 4), not Null.
+                //      The tags buffer is created on the first dynamic append, and the array may
+                //      already hold static elements whose only tag lives in field 4 (since the
+                //      reader consults it while tags==null). Zeroing to Null erases every prior
+                //      element's tag at the very moment the buffer becomes authoritative, so
+                //      perfectly good numbers read back as «null». Seeding with the current tag
+                //      preserves them.
+                llvm::Value *hkSeedGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 4, "app.tags.seed.gep");
+                llvm::Value *hkSeed = cg_.builder_->CreateLoad(i8Ty, hkSeedGep, "app.tags.seed");
                 llvm::Value *nt0 = cg_.emitMalloc(cap0, "app.tags.buf0");
-                cg_.builder_->CreateMemSet(nt0, llvm::ConstantInt::get(i8Ty, DynKind::Null), cap0, llvm::MaybeAlign(1));
+                cg_.builder_->CreateMemSet(nt0, hkSeed, cap0, llvm::MaybeAlign(1));
                 cg_.builder_->CreateStore(nt0, tagsGep0);
                 llvm::BasicBlock *a0end = cg_.builder_->GetInsertBlock();
                 cg_.builder_->CreateBr(c0);

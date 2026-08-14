@@ -169,6 +169,47 @@ namespace Sad::Compiler
 
     // (AR) مكدس معالجات الاستثناءات (مصفوفة jmp_buf)
     // (EN) Exception handler stack (array of jmp_buf)
+    // (AR) سَعةُ مكدّسِ المعالِجات — ثابتٌ واحدٌ بدل ثمانيةِ «64» متناثرة.
+    //
+    //      كلُّ دالّةٍ مُصرَّفةٍ تدفع معالِجًا (لتنظيفِ «أجّل») لا الدوالُّ ذاتُ
+    //      «حاول» وحدَها، فعمقُ النداءِ هو ما يستهلك هذه السَّعة. وكانت ٦٤
+    //      مكتوبةً رقمًا في ثمانيةِ مواضعَ **بلا فحصِ حدود**: عند العمقِ ٦٥
+    //      يُكتَب المؤشّرُ خارجَ المصفوفةِ فوقَ عالميّاتٍ مجاورة، ثمّ يُقرأ
+    //      عند الرميِ فيُقفَز إلى عنوانٍ مهشَّم — SIGSEGV بلا تشخيص.
+    //      مقيسًا: تحليلُ جيسون لمصفوفةٍ متداخلةٍ ٢٠١ مستوًى (وهو مدخلٌ
+    //      يردّه المفسّرُ بخطأٍ **مُلتقَط**) كان يُسقِط الثنائيَّ المُصرَّف.
+    //
+    //      والسَّعةُ هنا أُرفِعت إلى ٤٠٩٦، فلم يَعُد هذا المكدّسُ هو القيدَ
+    //      الفعليّ: مكدّسُ C نفسُه ينفد قبله (لكلِّ إطارٍ jmpbuf بـ٢٥٦ بايتًا).
+    //      ومع الرفعِ حدٌّ **بجهتَين مختلفتَين**، ولا تُخلَط إحداهما بالأخرى:
+    //      عند **الكتابةِ** (دفعُ معالِجٍ في `حاول`) يُجهَضُ عاليًا — لا تقصيرَ
+    //      ولا إعادةَ استعمالِ خانةٍ مشغولة، انظر kHandlerStackOverflowMsg.
+    //      وعند **القراءةِ** (الرميُ وإعادةُ الرميِ والنبذ) يبقى تقصيرٌ دفاعيٌّ
+    //      إلى آخرِ خانةٍ وأرضيّةٌ عند الصفر، فلا تُقرَأ بايتةٌ خارجَ المصفوفةِ
+    //      حتّى لو اختلّت محاسبةُ العدّادِ في مسارٍ لم يُقَس.
+    //      وأصدُقُ ما يُقال في الرفعِ نفسِه: المقيسُ منه أنّ جيسونَ بعمقِ ٢٠١
+    //      صار يعمل، لا أنّ الحدَّ صار يُبلَغُ فيُحرَس.
+    // (EN) Handler-stack capacity — one constant instead of eight scattered `64`s.
+    //
+    //      Every compiled function pushes a handler (for «defer» cleanup), not only those
+    //      with a «try», so call depth is what consumes this capacity. It was written as a
+    //      literal 64 in eight places **with no bounds check**: at depth 65 the pointer is
+    //      written past the array over neighbouring globals, then read back on a raise and
+    //      jumped to — SIGSEGV with no diagnostic.
+    //      Measured: parsing a 201-level nested JSON array (an input the interpreter rejects
+    //      with a **caught** error) killed the compiled binary.
+    //
+    //      Capacity is raised to 4096 here, so this stack is no longer the real limit: the C
+    //      stack runs out first (each frame carries a 256-byte jmpbuf). The bound now has two
+    //      distinct sides, not to be conflated: on the **write** side (pushing a handler at
+    //      `try`) it aborts loudly — no clamping, no reuse of an occupied slot, see
+    //      kHandlerStackOverflowMsg. On the **read** side (raise, rethrow, pop) a defensive
+    //      clamp to the last slot and a floor at zero remain, so no byte outside the array is
+    //      ever read even if counter accounting breaks on some unmeasured path.
+    //      The honest claim about the raise itself: what was measured is that 201-deep JSON
+    //      now works — not that the limit is reached and guarded.
+    inline constexpr unsigned kSadHandlerStackCapacity = 4096;
+
     inline constexpr const char *kRuntimeHandlerStack = "__sad_handler_stack";
 
     // (AR) عداد عدد المعالجات النشطة
@@ -263,6 +304,53 @@ namespace Sad::Compiler
     inline constexpr const char *kRuntimeMapSize = "__sad_map_size";
     inline constexpr const char *kRuntimeMapHas = "__sad_map_has";
     inline constexpr const char *kRuntimeMapDelete = "__sad_map_delete";
+
+    // (AR) رفعُ استثناءٍ من داخلِ الخلفيّة — الاسمُ نفسُه الذي تلتقطه
+    //      ExceptionCodeGen::emitCallException فتبني مسارَ setjmp/longjmp كاملًا
+    //      (تخزينُ النوعِ والرسالة، ثمّ القفزُ إلى أعلى معالِج، أو تقريرُ «لم
+    //      يلتقطه أحد» إن لم يكن ثمّة معالِج). كان يُكتَب سلسلةً خامّةً في موضعٍ
+    //      واحد؛ صار ثابتًا كي يُنادى من مواضعَ أخرى بلا تهجئةٍ ثانية.
+    // (EN) Raising an exception from inside the backend — the same name that
+    //      ExceptionCodeGen::emitCallException recognises to build the full
+    //      setjmp/longjmp path (store type and message, then jump to the topmost
+    //      handler, or report "nobody caught this" when there is none). It used to
+    //      be a raw literal at one site; as a constant it can be called from others
+    //      without a second spelling.
+    inline constexpr const char *kRuntimeRaise = "__sad_raise";
+
+    // (AR) المحوِّلانِ المُبلِّغان — بديلا `atoll`/`atof`. الفرقُ الوحيدُ الذي يعنينا
+    //      أنّ هذين يضعان `ERANGE` في `errno` عند الطفحِ أو الهبوطِ بينما الأوّلان
+    //      يُشبِعان صامتَين؛ وما عدا ذلك فالتحليلُ نفسُه.
+    // (EN) The reporting converters — replacements for `atoll`/`atof`. The only
+    //      difference that matters here is that these set `ERANGE` in `errno` on
+    //      overflow or underflow where the former saturate silently; the parsing is
+    //      otherwise identical.
+    inline constexpr const char *kLibcStringToLongLong = "strtoll";
+    inline constexpr const char *kLibcStringToDouble = "strtod";
+
+    // (AR) بحثُ نصٍّ داخلَ نصّ — يُستعمَل في فرعِ الوسمِ `Str` من «يحتوي». وليس من
+    //      المحوِّلَين أعلاه في شيء؛ فُصِل عنهما لأنّ إقحامَه بينهما وبين تعليقِهما
+    //      كان يُقرأ كأنّه ثالثُهما.
+    // (EN) Substring search — used by the `Str` tag branch of `contains`. Unrelated to the
+    //      two converters above; separated because sitting between them and their comment
+    //      read as if it were a third converter.
+    inline constexpr const char *kLibcStringSearch = "strstr";
+
+    // (AR) موضعُ `errno` باختلافِ المنصّة — دالّةٌ تُرجعُ مؤشّرًا إلى الخانة، لا
+    //      متغيّرًا عامًّا، في المكتباتِ الثلاث. (نسخةٌ ثانيةٌ من الجدولِ نفسِه
+    //      تعيشُ في processes_builtins_ops.cpp؛ القيمُ متطابقةٌ ويجب أن تبقى.)
+    // (EN) Platform-dependent `errno` location — a function returning a pointer to the
+    //      slot, not a global variable, in all three libcs. (A second copy of the same
+    //      table lives in processes_builtins_ops.cpp; the values match and must stay so.)
+    inline constexpr const char *kErrnoLocationWindows = "_errno";
+    inline constexpr const char *kErrnoLocationDarwin = "__error";
+    inline constexpr const char *kErrnoLocationPosix = "__errno_location";
+
+    // (AR) أساسُ العدِّ العشريّ لـ`strtoll` — جيسونُ عشريٌّ دائمًا (RFC 8259 §6)،
+    //      و`رقم()` في ص كذلك؛ ولو مُرِّر ٠ لفُسِّرت «010» ثمانيّةً و«0x10» ست عشريّةً.
+    // (EN) Decimal base for `strtoll` — JSON is always decimal (RFC 8259 §6) and so is
+    //      Sad's `رقم()`; passing 0 would read "010" as octal and "0x10" as hex.
+    inline constexpr int kDecimalBase = 10;
 
     // (AR) نسخٌ سطحيٌّ للخريطة. تحتاجُه الواجهةُ المسمّاةُ وحدَها: `خريطة_عين`
     //      و`خريطة_احذف` **نقيّتان** في المفسّرِ — تُرجعان خريطةً جديدةً ولا تمسّان
@@ -504,6 +592,102 @@ namespace Sad::Compiler
     //      replaces it with __sad_panic(kSadPanicCheckViolation).
     inline constexpr const char *kDivZeroRun001Msg =
         "خطأ [RUN001]: محاولة قسمة %g على صفر\n";
+
+    // (AR) نصٌّ عدديٌّ يتجاوزُ مدى النوعِ الهدف — `رقم("9223372036854775808")`
+    //      و`عشري("1e309")`.
+    //
+    //      المفسّرُ يرمي فيهما، وكان المصرَّفُ يمرّرُهما صامتًا: `atoll`/`atof`
+    //      تُشبِعان إلى `LLONG_MAX`/`inf` ولا تُبلِّغان. فيخرجُ البرنامجُ برمزِ ٠
+    //      وقيمةٍ خاطئة — أخطرُ صنفٍ من التباعد، لأنّ الحارسَ الذي كُتِبَ لالتقاطِه
+    //      (`حاول/امسك` في `حلل_عدد` بمكتبةِ جيسون) لا يشتعلُ أصلًا.
+    //
+    //      والمحوِّلُ هو الذي يعرفُ مداه بالضبط، فلا نكتبُ حدًّا بأيدينا: نُبدِّلُ
+    //      `atoll`/`atof` بـ`strtoll`/`strtod` — وهما يُبلِّغان الطفحَ بـ`ERANGE` —
+    //      ونترجمُ حكمَهما رميًا يلتقطُه `امسك`. والوضعُ الحرُّ خارجَ هذا كلِّه:
+    //      لا `errno` هناك ولا استثناءات، فيبقى المسارُ القديمُ كما هو.
+    // (EN) A numeric string beyond the target type's range — `int("9223372036854775808")`
+    //      and `float("1e309")`.
+    //
+    //      The interpreter throws on both; the compiler used to pass them through
+    //      silently: `atoll`/`atof` saturate to `LLONG_MAX`/`inf` and report nothing. The
+    //      program exits 0 carrying a wrong value — the worst class of divergence, because
+    //      the guard written to catch it (`try/catch` in the JSON library's number parser)
+    //      never fires.
+    //
+    //      The converter is what knows its exact range, so we write no bound of our own:
+    //      `atoll`/`atof` become `strtoll`/`strtod`, which report overflow via `ERANGE`,
+    //      and their verdict is translated into a raise that `catch` can see. Freestanding
+    //      is outside all of this — no `errno` and no exceptions there — so its path is
+    //      left untouched.
+    inline constexpr const char *kNumberOutOfRangeMsg =
+        "نصٌّ عدديٌّ يتجاوز مدى النوع";
+
+    // (AR) نصٌّ لا يبدأ بعددٍ أصلًا: `رقم("abc")` و`عشري("")`. المفسّرُ يرمي
+    //      `RUN_BUILTIN_REQUIRES_ARG` لأنّ `std::stoll` يقذف `invalid_argument`،
+    //      بينما كان المصرِّفُ يُعيدُ صفرًا صامتًا برمزِ خروجٍ ٠. و`strtoll` لا يضعُ
+    //      `errno` في هذه الحال، فالحارسُ المدَويُّ لا يشتعل — الشاهدُ الوحيدُ هو
+    //      `endptr == str` أي «لم يُستهلَك محرفٌ واحد». و`رقم("12abc")` ليس منها:
+    //      `stoll` تُرجع ١٢ وكذلك `strtoll`، فالطرفان متّفقان أصلًا.
+    // (EN) A string that does not begin with a number at all: `رقم("abc")`, `عشري("")`.
+    //      The interpreter raises RUN_BUILTIN_REQUIRES_ARG because `std::stoll` throws
+    //      `invalid_argument`, while the compiler silently returned 0 with exit code 0.
+    //      `strtoll` does not set `errno` in this case, so the range guard never fires —
+    //      the only witness is `endptr == str`, i.e. "not one character consumed".
+    //      `رقم("12abc")` is not such a case: `stoll` and `strtoll` both answer 12.
+    inline constexpr const char *kNumberNotNumericMsg =
+        "نصٌّ لا يمثّل عددًا";
+
+    // (AR) نقطةُ ترميزٍ خارجَ [0, 0x10FFFF] أو في نطاقِ البدائلِ [0xD800, 0xDFFF]:
+    //      المفسّرُ يرمي، وكان المصرِّفُ يُعطي نصًّا **فارغًا** برمزِ خروجٍ ٠ — جوابٌ
+    //      خاطئٌ صامت. وقد كان التسويغُ المكتوبُ «لا مسارَ رميٍ في هذا الموضع»،
+    //      وأبطلَته الدفعةُ نفسُها حين صار `emitCallException(kRuntimeRaise, …)`
+    //      مستعمَلًا في هذا الملفِّ عينِه لحارسَي `رقم`/`عشري`. فالتسويغُ سقط
+    //      والآليّةُ حاضرة، فسُدَّ التباعدُ بدل أن يُعادَ إعلانُه.
+    //      ولا يشمل هذا `حرف_من_رمز(0)`: تلك نقطةُ ترميزٍ **صالحة**، وتباعدُها
+    //      بنيويٌّ (النصُّ منتهٍ بصفر) لا يُسَدُّ برمي.
+    // (EN) A code point outside [0, 0x10FFFF] or inside the surrogate range: the interpreter
+    //      raises, while the compiler returned an EMPTY string with exit code 0 — a silent
+    //      wrong answer. The written justification ("no throw path here") was invalidated by
+    //      this very batch, which made emitCallException(kRuntimeRaise, …) live in this same
+    //      file for the رقم/عشري guards. The excuse fell, the mechanism is present, so the
+    //      divergence is closed rather than re-declared.
+    //      This does NOT cover حرف_من_رمز(0): that is a *valid* code point whose divergence
+    //      is structural (NUL-terminated strings) and cannot be closed by raising.
+    inline constexpr const char *kCharCodeOutOfRangeMsg =
+        "نقطةُ ترميزٍ خارجَ المدى أو في نطاقِ البدائل";
+
+    // (AR) طفحُ مكدَّسِ معالِجات `حاول`: كان الفهرسُ يُقَصُّ إلى آخرِ خانةٍ بلا فرع،
+    //      فيكتبُ المعالِجُ ٤٠٩٧ فوقَ المعالِجِ ٤٠٩٦ **صامتًا** ثمّ يُنبَذُ كلاهما بنبذةٍ
+    //      واحدة: يقفزُ الاستثناءُ إلى معالِجٍ خطأٍ أو إلى `jmp_buf` مات إطارُه — وهو
+    //      سلوكٌ غيرُ معرَّفٍ يظهرُ انهيارًا بلا صلةٍ بموضعِه. والتقصيرُ يخفيه، فيصيرُ
+    //      البرنامجُ «يعمل» وقد فقدَ معالِجًا. الإجهاضُ العالي أصدقُ من إعادةِ استعمالِ
+    //      خانةٍ مشغولة: عمقُ ٤٠٩٦ لا يُبلَغُ إلّا بعَوْدٍ هاربٍ أصلًا.
+    //
+    //      ⚠️ وحدُّ ما يُدَّعى لهذا الفرعِ **مقيسٌ لا متوقَّع**: عَوْدٌ بعمقِ ٤٠٠٠ في
+    //      ثنائيٍّ مُصرَّفٍ ينتهي بطفحِ مكدَّسِ C (0xC00000FD) **قبل** أن يمتلئ هذا
+    //      المكدَّس، فالفرعُ لم يشتعل في القياس. فهو حارسُ عمقٍ أخيرٍ لا حارسٌ
+    //      يوميّ، وبقاؤُه لأنّ محاسبةَ الدفعِ والنبذِ موزّعةٌ على مواضعَ عدّة وأيُّ
+    //      اختلالٍ فيها يبلغُ السَّعةَ من غيرِ عَوْدٍ عميق. لا يُقرأ على أنّه برهانُ
+    //      حمايةٍ من العَوْدِ الهارب — ذاك يقعُ على مكدَّسِ C أوّلًا.
+    // (EN) ⚠️ What this branch may claim is **measured, not assumed**: a 4000-deep recursion
+    //      in a compiled binary dies of a C stack overflow (0xC00000FD) *before* this stack
+    //      fills, so the branch did not fire under measurement. It is a last-resort depth
+    //      guard, not an everyday one; it stays because push/pop accounting is spread over
+    //      several sites and any imbalance can reach capacity without deep recursion. Do not
+    //      read it as proof of protection against runaway recursion — that hits the C stack first.
+    // (EN) `try` handler-stack overflow: the index used to be clamped to the last slot
+    //      branchlessly, so handler 4097 silently overwrote handler 4096 and a single pop
+    //      discarded both — the exception then longjmps to the wrong handler, or into a
+    //      `jmp_buf` whose frame is gone: undefined behaviour surfacing as a crash unrelated
+    //      to its cause. Clamping hides it, so the program "works" having lost a handler.
+    //      Aborting loudly is more honest than reusing an occupied slot: a depth of 4096 is
+    //      only reached by runaway recursion in the first place.
+    inline constexpr const char *kHandlerStackOverflowMsg =
+        "طفحَ مكدَّسُ معالِجات 'حاول' (عمقٌ يتجاوز الحدَّ) — عَوْدٌ هاربٌ على الأرجح\n";
+
+    // (AR) قيمةُ `ERANGE` — ٣٤ في جلبك ومسل وUCRT معًا، فلا تتفرّعُ بالمنصّة.
+    // (EN) `ERANGE` — 34 on glibc, musl and the UCRT alike, so no per-platform branch.
+    inline constexpr int kErrnoRangeError = 34;
 
     // (AR) تشخيصا القسمة الأرضيّة العشريّة والباقي العشريّ على صفر (RUN009/RUN010)
     //      — إغلاق بوّابتَي NaN المتبقّيتين بعد سدّ fdiv (نفس نمط الحارس؛ %g مرآة

@@ -875,6 +875,12 @@ namespace Sad
                  * @param varDecl (AR) تصريح المتغير / (EN) Variable declaration
                  */
                 void buildGlobalVariable(AST::VariableDeclNode *varDecl);
+                /// (AR) طيُّ مُهيِّئٍ حرفيٍّ مركّبٍ لثابتٍ عامّ (سالبٌ، جمعُ حرفيّتَين، وصلُ نصَّين).
+                ///      `false` إن لم يكن التعبيرُ حرفيًّا بحتًا — وهي الحالُ التي كانت تُسقَط بصمت.
+                /// (EN) Fold a composite literal initializer for a module global; false when the
+                ///      expression is not purely literal — the case that used to be dropped silently.
+                bool tryFoldLiteralInitializer(Sad::AST::Expression *expr, std::string &out,
+                                               SadTypeKind &outKind);
 
                 /**
                  * @brief (AR) بناء صنف

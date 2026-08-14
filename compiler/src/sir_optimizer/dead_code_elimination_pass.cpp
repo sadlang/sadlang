@@ -576,6 +576,7 @@ namespace Sad
                 // ────────────────────────────────────────────────────────────────
                 case SIR::SIROpcode::BUILTIN_STRING_LENGTH:
                 case SIR::SIROpcode::BUILTIN_STRING_CHAR_AT:
+                case SIR::SIROpcode::BUILTIN_STRING_CHAR_FROM_CODE:
                 case SIR::SIROpcode::BUILTIN_STRING_TO_UPPER:
                 case SIR::SIROpcode::BUILTIN_STRING_TO_LOWER:
                 case SIR::SIROpcode::BUILTIN_STRING_FIND:

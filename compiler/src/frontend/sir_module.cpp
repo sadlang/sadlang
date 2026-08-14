@@ -136,7 +136,14 @@ SIRGlobalVariable::SIRGlobalVariable(const std::string& name,
                                      SadTypeKind type,
                                      const std::string& initialValue,
                                      bool isConstant)
-    : name(name), type(type), initialValue(initialValue), isConstant(isConstant) {}
+    // (AR) المعامل الافتراضيّ للقيمة الأوليّة هو "" ويعني «لا قيمة»، فيُشتقّ العَلَمُ منه هنا
+    //      وحدَه. أمّا مواضعُ الإسنادِ المباشرِ لـ`initialValue` فتَعِدُ العَلَمَ صراحةً، إذ قد
+    //      تُسنِد نصًّا فارغًا هو قيمةٌ حقيقيّةٌ لا غياب.
+    // (EN) The constructor's default initial value is "" meaning "none", so the flag is derived
+    //      from it here only. Sites that assign `initialValue` directly must set the flag
+    //      explicitly, since they may assign an empty string that is a real value, not an absence.
+    : name(name), type(type), initialValue(initialValue),
+      hasInitialValue(!initialValue.empty()), isConstant(isConstant) {}
 
 std::string SIRGlobalVariable::toString() const {
     std::ostringstream oss;
@@ -151,7 +158,7 @@ std::string SIRGlobalVariable::toString() const {
     
     oss << sirTypeToString(type);
     
-    if (!initialValue.empty()) {
+    if (hasInitialValue) {
         oss << " " << initialValue;
     } else {
         oss << " zeroinitializer";

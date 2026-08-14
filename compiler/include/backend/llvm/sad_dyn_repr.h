@@ -91,6 +91,19 @@ namespace Sad
         llvm::StructType *getSadDynType(llvm::LLVMContext &ctx);
         /// (AR) هل القيمة من نوع %SadDyn؟ / (EN) is the value a %SadDyn?
         bool isSadDyn(const llvm::Value *v);
+        /// (AR) إن كانت `v` **خانةً** (alloca/global) نوعُها المُخصَّصُ `%SadDyn` فحمِّلها
+        ///      وأعِد القيمة؛ وإلّا أعِدها كما هي. الحاجةُ إليها جذريّةٌ لا تجميليّة:
+        ///      `namedValues` تُعيد الخانةَ لا القيمة، ومَن يفحص `isSadDyn` يرى `ptr`
+        ///      فيحكم «ليست موسومة»، فتنزلق الخانةُ إلى مسارِ «مؤشّرٌ جاهز» ويُعامَل
+        ///      **عنوانُ الخانةِ** مؤشّرَ حاويةٍ — فيُقرأ وسمُ %SadDyn طولًا. هذا هو
+        ///      وجهُ العطبِ في فهرسةِ معاملٍ مُصرَّحٍ «أي». نظيرُ الحالةِ ١ب لـ`alloca ptr`.
+        /// (EN) If `v` is a **slot** (alloca/global) whose allocated type is `%SadDyn`,
+        ///      load it and return the value; otherwise return it unchanged. `namedValues`
+        ///      hands back the slot, not the value, so an `isSadDyn` check sees a `ptr`,
+        ///      concludes "not tagged", and the slot falls through to the "already a
+        ///      pointer" path where its **address** is used as a container pointer — the
+        ///      %SadDyn kind byte is then read as a length. Twin of case 1b for `alloca ptr`.
+        llvm::Value *loadDynSlot(LLVMCodeGen &cg, llvm::Value *v);
 
         // ====================================================================
         // (AR) البناء (بلا malloc — insertvalue) / (EN) construction (no malloc)

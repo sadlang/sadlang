@@ -698,7 +698,20 @@ void StatementExecutor::visitFromImportStmt(AST::FromImportStmt& node) {
     // ═══════════════════════════════════════════════════════════════
     auto& builtinRegistry = BuiltinModuleRegistry::getInstance();
     if (builtinRegistry.isBuiltinModule(fullModuleName)) {
-        builtinRegistry.loadModule(fullModuleName);
+        // (AR) الاستيرادُ الانتقائيُّ يُبلَّغ للسجلّ فلا يبقى مرئيًّا إلّا ما طُلِب.
+        //      كان يُسجَّل كلُّ محتوى الوحدةِ ثمّ يُتحقَّقُ من وجودِ الأسماءِ فقط —
+        //      فحواجزُ الأسماءِ المتصادمةِ تُكسَرُ لبرامجَ لم تطلبها (قِيس: `رقم`).
+        // (EN) The selective import is now reported to the registry so only the requested
+        //      names stay visible. Previously the whole module was registered and the
+        //      selective clause merely *verified* the names existed — so a colliding name
+        //      broke programs that never asked for it (measured on `رقم`).
+        std::vector<std::string> requestedNames;
+        if (!node.isWildcard) {
+            for (const auto& item : node.items) {
+                requestedNames.push_back(item.name);
+            }
+        }
+        builtinRegistry.loadModule(fullModuleName, requestedNames);
         
         // (AR) بناء خريطة الصادرات
         // (EN) Build exports map

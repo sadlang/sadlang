@@ -205,6 +205,14 @@ namespace Sad
             if (!mapValue)
                 return nullptr;
 
+            // (AR) خانةٌ نوعُها `%SadDyn` تُحمَّلُ أوّلًا — وإلّا فشل فحصُ `isSadDyn` أدناه
+            //      (النوعُ `ptr` لا بنية) فسقطت الخانةُ إلى مسارِ المؤشّرِ الجاهز وعُومِل
+            //      عنوانُها خريطةً. النظيرُ في `normalizeArrayPtr`.
+            // (EN) A `%SadDyn` slot is loaded first — otherwise the isSadDyn check below
+            //      fails (the type is `ptr`, not a struct), the slot falls to the ready-pointer
+            //      path, and its address is treated as a map. Twin of normalizeArrayPtr.
+            mapValue = Sad::LLVM::loadDynSlot(cg_, mapValue);
+
             auto *i64Ty = cg_.getInt64Type();
             auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 

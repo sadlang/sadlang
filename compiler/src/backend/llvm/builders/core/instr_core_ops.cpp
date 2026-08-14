@@ -111,6 +111,8 @@ namespace Sad
                 return cg_.emitFFIStrlen(inst);
             case SIROpcode::BUILTIN_STRING_CHAR_AT:
                 return cg_.emitStringCharAt(inst);
+            case SIROpcode::BUILTIN_STRING_CHAR_FROM_CODE:
+                return cg_.emitStringCharFromCode(inst);
 
             // Control Flow - Source: sir_types.h:156-163
             case SIROpcode::BR:

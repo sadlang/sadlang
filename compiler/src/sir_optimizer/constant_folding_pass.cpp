@@ -426,6 +426,32 @@ namespace Sad
                 //      (mirroring the interpreter's useDouble).
                 const bool cmpHasFloat = isFloatOperand(leftOp) || isFloatOperand(rightOp);
 
+                // (AR) منطقيٌّ في مواجهةِ عدد: **لا يُطوى** إلى مقارنةٍ عدديّة.
+                //      عقدُ المفسّرِ يجعل المنطقيَّ نوعًا قائمًا بذاته لا عددًا متنكّرًا،
+                //      فـ«1 == صحيح» عندَه «خطأ». وكان الطيُّ يقرأ قيمتَيهما الصحيحتَين
+                //      (١ و١) فيطويها إلى «صحيح» — جوابٌ يخالف المحرّكَ الآخرَ لبرنامجٍ
+                //      واحدٍ، ويُحسَم زمنَ الترجمةِ فلا يبقى في المُصدَرِ أثرٌ يُقاس.
+                //      والتسليمُ للمُصدِر هو الصواب: هناك بوّابةُ boolVersusNumber تُجيب
+                //      الجوابَ الثابتَ الصحيحَ (خطأ/صحيح) بدلَ اختراعِه هنا.
+                // (EN) Bool versus number: do **not** fold to a numeric comparison.
+                //      The interpreter's contract makes bool its own type, not an integer in
+                //      disguise, so `1 == true` is false there. This folder was reading both
+                //      integer values (1 and 1) and folding to true — an answer that disagrees
+                //      with the other engine for one program, decided at compile time so no
+                //      trace survives in the emitted code to be measured. Deferring to the
+                //      emitter is the fix: its boolVersusNumber gate gives the correct constant
+                //      verdict (false/true) instead of inventing one here.
+                const bool leftIsBool = leftOp.dataType == SIR::SadTypeKind::Boolean;
+                const bool rightIsBool = rightOp.dataType == SIR::SadTypeKind::Boolean;
+                const bool leftIsNumber = leftOp.dataType == SIR::SadTypeKind::Integer ||
+                                          leftOp.dataType == SIR::SadTypeKind::Float;
+                const bool rightIsNumber = rightOp.dataType == SIR::SadTypeKind::Integer ||
+                                           rightOp.dataType == SIR::SadTypeKind::Float;
+                if ((leftIsBool && rightIsNumber) || (rightIsBool && leftIsNumber))
+                {
+                    return false;
+                }
+
                 // Try integer comparison first
                 std::optional<int64_t> leftInt = getIntegerConstant(leftOp);
                 std::optional<int64_t> rightInt = getIntegerConstant(rightOp);

@@ -260,7 +260,67 @@ namespace Sad
                 const BuildResult &objResult, const std::string &methodName,
                 const std::vector<SIROperand> &args)
             {
-                if (objResult.type != SadTypeKind::Map)
+                // (AR) والمُستقبِلُ الموسومُ زمنَ التشغيل («أي») يدخلُ كذلك — لأسماءٍ
+                //      لا تحتملُ عائلةً أخرى.
+                //
+                //      `حلل("{...}")` تُرجعُ قيمةً نوعُها الساكنُ «أي» وحمولتُها خريطةٌ
+                //      موسومة. وكان الحارسُ يردُّها هنا، فتسقطُ إلى بوّابةِ الرمزِ في
+                //      call_method_dispatch وتُفشِلُ البناءَ بـ«الطريقة احصل غير موجودة
+                //      في الصنف أي» — بينما المفسّرُ ينفّذها. والخلفيّةُ جاهزةٌ أصلًا:
+                //      `normalizeMapPtr` تفكُّ `%SadDyn` بعد فحصِ الوسمِ وتفشلُ صاخبةً
+                //      إن لم يكن خريطة، وهو الحارسُ نفسُه الذي تعتمدُه الفهرسةُ
+                //      `م["أ"]` على «أي» منذ [م-٠٠١].
+                //
+                //      والقصرُ على الأسماءِ المفردةِ مقصود: `احصل`/`عيّن`/`مفاتيح`/`قيم`
+                //      لا معنى لها في المصفوفةِ ولا في النصّ، فتوجيهُها
+                //      قطعيّ. أمّا `يحتوي`/`حجم`/`فارغة` فمشتركةٌ بين العائلاتِ الثلاث،
+                //      وتوجيهُها بالنوعِ الساكنِ وحدَه يخطئُ نصفَ الحالات — فتلك تحتاج
+                //      تفريعًا على الوسمِ زمنَ التشغيل، ولم يُبنَ بعد. حدٌّ مُعلَنٌ لا مسكوتٌ
+                //      عنه: `أي.يحتوي` ما زال يذهبُ إلى مسارِ المصفوفةِ فيفشلُ صاخبًا
+                //      على خريطة.
+                // (EN) A runtime-tagged receiver («أي») is admitted too — for names that
+                //      cannot belong to another family.
+                //
+                //      `parse("{...}")` returns a value whose static type is «أي» carrying a
+                //      tagged map. The guard used to reject it here; it then fell to the symbol
+                //      gate in call_method_dispatch and failed the build with "method احصل not
+                //      found on class أي" — while the interpreter runs it. The backend is
+                //      already prepared: `normalizeMapPtr` unpacks a `%SadDyn` after checking
+                //      the tag and fails loudly when it is not a map — the very guard that
+                //      indexing `m["a"]` on «أي» has relied on since card م-٠٠١.
+                //
+                //      Restricting this to unambiguous names is deliberate: get/set/delete/
+                //      keys/values mean nothing on an array or a string, so the routing is
+                //      certain. `contains`/`size`/`empty` are shared across all three families,
+                //      and routing them by static type alone is wrong half the time — those
+                //      need a runtime tag branch, which does not exist yet. A declared, not
+                //      silent, limit: `any.contains` still goes down the array path and fails
+                //      loudly on a map.
+                // ⚠️ (AR) و`احذف` ليست منها وإن بدت كذلك: مصدرُ الحقيقةِ يعرّف
+                //      `Array::DELETE` بالاسمِ نفسِه `احذف`، فهي مشتركةٌ لا مفردة.
+                //      وكانت مُدرَجةً هنا في أوّلِ صياغةٍ لهذه البوّابة، **فقِيسَ الأثر**:
+                //      `حلل("[1,2,3]").احذف(0)` كان يُردّ بتشخيصٍ زمنَ الترجمة، فصار
+                //      يُبنى `__sad_map_delete` ثمّ يموتُ زمنَ التشغيلِ بـ«طريقةُ خريطةٍ
+                //      طُبِّقت على قيمةٍ ليست خريطة» بينما يطبع المفسّر `2` — أي أنّ
+                //      الإدراجَ حوّل خطأَ ترجمةٍ إلى إجهاضِ تشغيل، وسدَّ الطريقَ أمام
+                //      تنفيذِ `احذف` للمصفوفاتِ الموسومةِ لاحقًا. فأُخرِجَت.
+                //      (والمصفوفةُ لا مُعالِجَ لـ`احذف` في الواجهةِ أصلًا، فالسلوكُ
+                //       الراجعُ هو التشخيصُ الساكنُ لا فقدانَ ميزةٍ كانت تعمل.)
+                // (EN) `delete` is NOT one of them despite appearances: the source of truth
+                //      defines `Array::DELETE` under the same Arabic name, so it is shared, not
+                //      unambiguous. It was listed here in the first draft of this gate, and the
+                //      effect was measured: `parse("[1,2,3]").delete(0)` used to be rejected at
+                //      compile time and instead started emitting `__sad_map_delete`, dying at
+                //      runtime with "a map method applied to a non-map value" while the
+                //      interpreter prints `2` — the listing turned a compile error into a runtime
+                //      abort and blocked any later array implementation. So it was removed.
+                const bool receiverIsRuntimeTagged = (objResult.type == SadTypeKind::Any);
+                const bool nameIsMapOnly =
+                    (methodName == TM::Map::GET || methodName == TM::Map::SET ||
+                     methodName == TM::Map::KEYS || methodName == TM::Map::VALUES);
+
+                if (objResult.type != SadTypeKind::Map &&
+                    !(receiverIsRuntimeTagged && nameIsMapOnly))
                     return std::nullopt;
 
                 // ================================================================

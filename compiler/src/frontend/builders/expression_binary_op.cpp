@@ -391,17 +391,117 @@ namespace Sad
                 bool leftIsStringLiteral = (leftResult.type == SadTypeKind::String && leftResult.isConstant);
                 bool rightIsStringLiteral = (rightResult.type == SadTypeKind::String && rightResult.isConstant);
 
-                // (AR) معامل STRING حقيقي غير مُستنتج: متغير نصي أو نتيجة دالة (ليس parameter)
-                // (EN) Real non-inferred STRING operand: string variable or function result (not parameter)
-                bool leftIsRealString = (leftResult.type == SadTypeKind::String && !leftResult.isParameter);
-                bool rightIsRealString = (rightResult.type == SadTypeKind::String && !rightResult.isParameter);
+                // ================================================================
+                // (AR) معاملٌ **مُصرَّحٌ** «نص» نصٌّ حقيقيّ — لا يُستثنى مع المُستنتَجين.
+                //
+                //      الاستثناءُ أدناه (`كلاهما نصّ وكلاهما معامل ⇒ حسابُ مؤشرات`) وُضِع
+                //      لمعاملٍ **استُنتِج** نصًّا وهو في الحقيقةِ مؤشّرٌ يُحسَب. لكنّه كان
+                //      يقرأ `isParameter` وحدَها، فابتلع معه المعاملَ الذي **صرّح** به
+                //      المؤلِّفُ `نص`. ونتيجتُه أنّ:
+                //
+                //          دالة نص الصق(نص أول، نص ثان)
+                //              ارجع أول + ثان
+                //          نهاية
+                //
+                //      تُصرَّف جمعًا عدديًّا لعنوانَي النصَّين، فيُطبَع الناتجُ مؤشّرًا
+                //      فيسقط البرنامجُ بـSIGSEGV. وهو أبسطُ شكلٍ يمكن كتابتُه لضمِّ
+                //      نصَّين — والمفسّرُ يضمّهما.
+                //
+                //      وهذا بعينِه ما كان يُسقِط `نسق()` في مكتبةِ جيسون: `البادئة +
+                //      الازاحة` معاملان مُصرَّحان `نص`. ولذلك بدا العطبُ «في المكتبة»
+                //      وهو في بناءِ العملياتِ الثنائيّة.
+                //
+                //      والتصريحُ يُقرَأ من `declaredSurfaceType` — النوعِ المُعلَنِ صراحةً
+                //      لا المُستنتَج — فيبقى الاستثناءُ قائمًا لمن وُضِع لأجله.
+                // (EN) A parameter DECLARED `string` is a real string — it must not be swept up
+                //      with the inferred ones.
+                //
+                //      The exception below (`both string and both parameters ⇒ pointer
+                //      arithmetic`) exists for a parameter that was INFERRED to be a string but
+                //      is really a pointer being arithmetic'd. It tested `isParameter` alone,
+                //      which also swallowed the parameter the author DECLARED as `string`. The
+                //      result: the simplest possible two-string concatenation compiled to an
+                //      integer add of the two string addresses, printed as a pointer, and died
+                //      with SIGSEGV — while the interpreter concatenates.
+                //
+                //      This is exactly what crashed `format()` in the JSON library: `prefix +
+                //      indent` are two parameters declared `string`. That is why the defect
+                //      looked like "a library bug" when it lives in the binary-op builder.
+                //
+                //      The declaration is read from `declaredSurfaceType` — the explicitly
+                //      declared type, not the inferred one — so the exception still holds for
+                //      the case it was written for.
+                // ================================================================
+                auto operandIsDeclaredString = [&](const Sad::AST::Expression *operandExpr) {
+                    if (auto *var = dynamic_cast<const Sad::AST::VariableExpr *>(operandExpr))
+                    {
+                        auto *info = b_.lookupVariable(var->name);
+                        return info != nullptr &&
+                               info->declaredSurfaceType == SadTypeKind::String;
+                    }
+                    return false;
+                };
+                const bool leftDeclaredString = operandIsDeclaredString(binOp->left.get());
+                const bool rightDeclaredString = operandIsDeclaredString(binOp->right.get());
+
+                // (AR) معامل STRING حقيقي غير مُستنتج: متغير نصي أو نتيجة دالة أو معامل مُصرَّح «نص»
+                // (EN) Real non-inferred STRING operand: string variable, function result, or a
+                //      parameter declared `string`
+                bool leftIsRealString = (leftResult.type == SadTypeKind::String &&
+                                         (!leftResult.isParameter || leftDeclaredString));
+                bool rightIsRealString = (rightResult.type == SadTypeKind::String &&
+                                          (!rightResult.isParameter || rightDeclaredString));
 
                 // (AR) === دعم المصفوفات: STRING + ARRAY → دمج نصوص (تحويل المصفوفة لنص) ===
                 // (EN) === Array support: STRING + ARRAY → string concat (convert array to string) ===
                 bool leftIsArray = (leftResult.type == SadTypeKind::Array);
                 bool rightIsArray = (rightResult.type == SadTypeKind::Array);
 
-                if (leftIsStringLiteral || rightIsStringLiteral)
+                // (AR) و«لاشيء» ليست طرفًا نصّيًّا مهما كان الطرفُ الآخر.
+                //
+                //      متى صار أحدُ الطرفَين نصًّا ذهبت المقارنةُ إلى `STRING_CMP`، وهو
+                //      **غيرُ واعٍ بالعدم**: يقارن محتوى مؤشّرَين. بينما `EQ` تملك مسارَ
+                //      عدمٍ صريحًا (`operandIsNullLiteral` ثمّ مقارنةُ الحارس) هو الذي
+                //      يجعل `س == لاشيء` صحيحةً لخانةٍ نوعُها الساكنُ نصٌّ وتحمل عدمًا
+                //      وقتَ التشغيل.
+                //      وقد ظهر هذا حين صار المعامِلُ المُصرَّحُ «نص» نصًّا حقيقيًّا (فوق):
+                //      `دالة افحص(نص س)` تُنادى بـ«لاشيء» فانقلب `س == لاشيء` إلى خطأ.
+                //      فنُستثني العدمَ من قرارِ «نصّيّة» العمليّة، ليبقى لـ`EQ` مسارُه.
+                // (EN) `null` is never a string operand, whatever the other side is.
+                //
+                //      Once one side counted as a string the comparison went to `STRING_CMP`,
+                //      which is **not null-aware**: it compares two pointers' contents. `EQ`, by
+                //      contrast, has an explicit null path (`operandIsNullLiteral` then a
+                //      sentinel comparison) — and that path is what makes `s == null` true for a
+                //      slot whose static type is string but which holds null at runtime.
+                //      This surfaced when a parameter declared `string` began counting as a real
+                //      string (above): `function check(string s)` called with `null` flipped
+                //      `s == null` to false. So null is excluded from the "is this a string
+                //      operation" decision, leaving `EQ` its path.
+                //      ويُقيَّد الاستثناءُ بالمقارنةِ وحدَها (`==` و`!=`).
+                //
+                //      لأنّ «لاشيء» طرفٌ نصّيٌّ **في الدمج**: `"أ:" + ع` حيث `ع` عدمٌ يجب
+                //      أن ينتج `"أ:لاشيء"` لا فراغًا — وهو عقدٌ محروسٌ باختبارِ ٠٥٩
+                //      (حارسُ تباعُدِ ٠٩٧). فتعميمُ الاستثناءِ على `+` أخرج الدمجَ من
+                //      مسارِ النصوصِ وأسقطه. المقصودُ كان مسارَ `STRING_CMP` غيرَ الواعي
+                //      بالعدمِ لا مسارَ `STRING_CONCAT` الواعيَ به.
+                // (EN) The exception is confined to comparison (`==`, `!=`) alone.
+                //
+                //      In concatenation `null` IS a string operand: `"a:" + v` with `v` null
+                //      must yield `"a:null"`, not the empty string — a contract guarded by test
+                //      059 (divergence guard 097). Generalising the exception to `+` pulled
+                //      concatenation out of the string path and broke it. The target was the
+                //      null-blind `STRING_CMP` path, not the null-aware `STRING_CONCAT` one.
+                const bool isEqualityComparison = (binOp->op == Lexer::TokenType::OP_EQUAL ||
+                                                   binOp->op == Lexer::TokenType::OP_NOT_EQUAL);
+                const bool eitherOperandIsNull = (leftResult.type == SadTypeKind::Null ||
+                                                  rightResult.type == SadTypeKind::Null);
+
+                if (isEqualityComparison && eitherOperandIsNull)
+                {
+                    isStringOp = false;
+                }
+                else if (leftIsStringLiteral || rightIsStringLiteral)
                 {
                     // (AR) أحد المعاملين نص حرفي فعلي — دمج نصوص مؤكد
                     // (EN) One operand is a real string literal — definitely string concat

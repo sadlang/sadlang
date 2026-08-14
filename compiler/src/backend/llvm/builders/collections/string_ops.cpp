@@ -24,6 +24,14 @@ using namespace Sad::Compiler::SIR;
 
 namespace Sad {
 namespace LLVM {
+
+// (AR) مخزنُ `حرف_من_رمز`: أربعةُ بايتاتٍ هي أقصى ترميزِ UTF-8 لنقطةِ ترميزٍ واحدة،
+//      وخامسٌ للصفرِ الخاتم. ثابتٌ مسمًّى لأنّ الأربعةَ يعتمد عليها حسابُ الطولِ أدناه.
+// (EN) The `حرف_من_رمز` buffer: four bytes is the maximum UTF-8 encoding of one code
+//      point, plus one NUL terminator. Named because the length computation depends on it.
+static constexpr unsigned kCharFromCodeMaxUtf8Bytes = 4;
+static constexpr unsigned kCharFromCodeBufferBytes = kCharFromCodeMaxUtf8Bytes + 1;
+
 static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
 {
     llvm::StructType *st = llvm::StructType::getTypeByName(ctx, "SadArray");
@@ -796,6 +804,178 @@ static llvm::Function *getOrCreateSplitHelper(
 
 
 
+        // ====================================================================
+        // (AR) حرف_من_رمز — نقطةُ ترميزٍ (i64) ⇒ نصُّ UTF-8 مُنهًى بصفر.
+        //      يُولَّد بلا فروعٍ: طولُ الترميزِ يُحسَب بمقارناتٍ تُجمَع، والبايتاتُ
+        //      الأربعةُ تُبنى كلُّها ثمّ يُختار كلُّ بايتٍ بـ`select` حسب الطول.
+        //      اخترتُ اللافرعيَّ لأنّ الفروعَ هنا كانت تعني أربعَ كتلٍ وPHI في
+        //      دالّةٍ تُستدعى داخلَ حلقةِ تحليلٍ حرفًا حرفًا.
+        //      والنقطةُ خارجَ المدى أو في نطاقِ البدائلِ **تَرمي** كما يرمي المفسّر.
+        //      كانت تُعطي نصًّا فارغًا برمزِ خروجٍ ٠ بتسويغِ «لا مسارَ رميٍ هنا»،
+        //      وذاك التسويغُ سقط: `emitCallException(kRuntimeRaise, …)` صار حيًّا في
+        //      هذا الملفِّ عينِه لحارسَي `رقم`/`عشري`. والفرعُ الوحيدُ في دالّةٍ اخترتُها
+        //      لافرعيّةً لا يُخلُّ بذلك: هو على مسارِ الخطأِ وحدَه، ويُتوقَّعُ عدمُ أخذِه.
+        // (EN) حرف_من_رمز — a code point (i64) ⇒ a NUL-terminated UTF-8 string.
+        //      Branch-free: the encoded length is a sum of comparisons and all four
+        //      bytes are computed then selected per length. Chosen over four blocks
+        //      and a PHI because this runs inside a per-character parse loop.
+        //      Out-of-range or surrogate code points now RAISE, as the interpreter does.
+        //      They used to yield an empty string with exit code 0, justified by "no throw
+        //      path here" — an excuse this batch invalidated by making
+        //      emitCallException(kRuntimeRaise, …) live in this same file. The single branch
+        //      does not spoil the branch-free choice: it is on the error path only.
+        // (AR) وتباعدٌ ثانٍ **مُعلَنٌ وبنيويّ**: `حرف_من_رمز(0)` طولُه ١ مفسَّرًا و٠
+        //      مصرَّفًا. والسببُ أنّ النصَّ هنا منتهٍ بصفرٍ، فمحرفُ U+0000 نفسُه هو
+        //      الخاتم. سدُّه يقتضي نصًّا محمولَ الطولِ لا منتهيًا بصفر — تغييرُ
+        //      تمثيلٍ لا رقعةَ موضعٍ، فيُعلَن ولا يُدَّعى سدُّه.
+        // (EN) A second DECLARED, structural divergence: حرف_من_رمز(0) has length 1
+        //      interpreted and 0 compiled, because strings are NUL-terminated and U+0000
+        //      *is* the terminator. Closing it needs a length-carrying string
+        //      representation, not a local patch — declared, not claimed fixed.
+        // ====================================================================
+        llvm::Value *StringOpsCodeGen::emitStringCharFromCode(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.empty())
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                {{"detail", "BUILTIN_STRING_CHAR_FROM_CODE"}});
+                return nullptr;
+            }
+
+            llvm::Value *code = cg_.resolveOperand(inst->operands[0]);
+            if (!code)
+                return nullptr;
+
+            auto &b = *cg_.builder_;
+            auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+            auto *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+
+            // (AR) العشريُّ يُحوَّل لا يُمدَّد: `CreateIntCast` على `double` تُصدِر
+            //      `sext double … to i64` فيرفضه `verifyModule` («SExt only operates on
+            //      integer») فتظهر «علّةُ مترجمٍ داخليّة» — قِيس على `حرف_من_رمز(65.9)`
+            //      التي يقبلها المفسّرُ ويعطي «A». والاقتطاعُ نحوَ الصفرِ هو دلالةُ
+            //      `toInt()` في المفسّر، فالطرفان يتّفقان.
+            // (EN) A float must be converted, not extended: CreateIntCast on a double emits
+            //      `sext double … to i64`, which verifyModule rejects, surfacing as an
+            //      internal compiler error — measured on حرف_من_رمز(65.9), which the
+            //      interpreter accepts and answers "A". Truncation toward zero matches toInt().
+            if (code->getType()->isFloatingPointTy())
+            {
+                // (AR) الاقتطاعُ **مُشبِعٌ** لا عارٍ: `fptosi` على قيمةٍ خارجَ مدى i64
+                //      (أو NaN) نتيجتُها poison في LLVM، فالمقارناتُ الآتيةُ وتفرّعُ
+                //      البطلانِ عليها سلوكٌ غيرُ معرَّف — مقيسًا: `حرف_من_رمز(1e300)`
+                //      يرمي مفسَّرًا ولا يرمي مصرَّفًا فيعودُ نصًّا فارغًا بخروجٍ ٠،
+                //      أي العطبُ نفسُه الذي أضيفَ هذا الرميُ لسدِّه. والإشباعُ يجعل
+                //      1e300 ⇒ INT64_MAX فيقعُ في `tooBig` ويرمي. ونظيرُه المعتمَدُ
+                //      في `unpackI64` بالملفِّ sad_dyn_repr، فالموضعان متّسقان.
+                // (EN) Saturating, not raw: `fptosi` on an out-of-i64-range value (or NaN)
+                //      yields poison, making the range comparisons and the invalid-branch
+                //      below undefined — measured: حرف_من_رمز(1e300) raises in the
+                //      interpreter and silently yields an empty string with exit 0 when
+                //      compiled. Saturation maps 1e300 to INT64_MAX ⇒ tooBig ⇒ raise.
+                //      Mirrors unpackI64 in sad_dyn_repr.
+                llvm::Function *saturatingConvert = llvm::Intrinsic::getDeclaration(
+                    cg_.module_.get(), llvm::Intrinsic::fptosi_sat,
+                    {i64Ty, code->getType()});
+                code = b.CreateCall(saturatingConvert, {code}, "cfc.code.fp.sat");
+            }
+            else if (code->getType() != i64Ty)
+                code = b.CreateIntCast(code, i64Ty, true, "cfc.code");
+
+            auto konst = [&](long long v) { return llvm::ConstantInt::get(i64Ty, v); };
+
+            // (AR) النطاقُ الصالح: [0, 0x10FFFF] خلا نطاقِ البدائل [0xD800, 0xDFFF].
+            llvm::Value *tooSmall = b.CreateICmpSLT(code, konst(0), "cfc.neg");
+            llvm::Value *tooBig = b.CreateICmpSGT(code, konst(0x10FFFF), "cfc.big");
+            llvm::Value *surrogate = b.CreateAnd(
+                b.CreateICmpSGE(code, konst(0xD800)),
+                b.CreateICmpSLE(code, konst(0xDFFF)), "cfc.surrogate");
+            llvm::Value *invalid = b.CreateOr(b.CreateOr(tooSmall, tooBig), surrogate, "cfc.invalid");
+
+            // (AR) الرميُ في الوضعِ المستضافِ وحدَه: الوضعُ الحرُّ بلا استثناءاتٍ أصلًا،
+            //      فيبقى فيه التصفيرُ أدناه كما كان — تباعدٌ في وضعٍ لا يملك المسار،
+            //      لا في وضعٍ يملكه ويهمله.
+            // (EN) Hosted only: freestanding has no exceptions at all, so the zeroing below
+            //      stays there — a divergence in a mode that lacks the path, not in one that
+            //      has it and skips it.
+            if (!cg_.freestanding_)
+            {
+                llvm::Function *curFunc = b.GetInsertBlock()->getParent();
+                llvm::BasicBlock *raiseBB =
+                    llvm::BasicBlock::Create(*cg_.context_, "cfc.invalid.raise", curFunc);
+                llvm::BasicBlock *okBB =
+                    llvm::BasicBlock::Create(*cg_.context_, "cfc.invalid.ok", curFunc);
+                b.CreateCondBr(invalid, raiseBB, okBB);
+
+                b.SetInsertPoint(raiseBB);
+                std::vector<llvm::Value *> raiseArgs;
+                raiseArgs.push_back(cg_.getConstantString(::Sad::Compiler::kCharCodeOutOfRangeMsg));
+                cg_.emitCallException(::Sad::Compiler::kRuntimeRaise, raiseArgs, nullptr);
+
+                b.SetInsertPoint(okBB);
+            }
+
+            // (AR) الطول = 1 + (>=0x80) + (>=0x800) + (>=0x10000)، ويُصفَّر عند البطلان.
+            llvm::Value *length = konst(1);
+            length = b.CreateAdd(length, b.CreateZExt(b.CreateICmpSGE(code, konst(0x80)), i64Ty));
+            length = b.CreateAdd(length, b.CreateZExt(b.CreateICmpSGE(code, konst(0x800)), i64Ty));
+            length = b.CreateAdd(length, b.CreateZExt(b.CreateICmpSGE(code, konst(0x10000)), i64Ty),
+                                 "cfc.len");
+            length = b.CreateSelect(invalid, konst(0), length, "cfc.len.guarded");
+
+            // (AR) خمسةُ بايتاتٍ دائمًا: أربعةٌ للترميزِ وواحدٌ للصفرِ الخاتم.
+            //      عبرَ `cg_.emitMalloc` لا بتصريحٍ موضعيّ: هو **المسارُ الوحيدُ المسموح**
+            //      (انظر llvm_codegen.h:490)، وتخطّيه يفوّت عقدَ `size_t` المركزيَّ
+            //      ويتفلّت من بوّابةِ `call @malloc` في الوضعِ الحرّ (رصدُ أميليا م‑٤).
+            // (EN) Via `cg_.emitMalloc`, not a local declaration: that is the SOLE sanctioned
+            //      path (llvm_codegen.h:490); bypassing it misses the central `size_t`
+            //      contract and evades the freestanding `call @malloc` gate (Amelia م‑٤).
+            llvm::Value *buf = cg_.emitMalloc(
+                llvm::ConstantInt::get(i64Ty, kCharFromCodeBufferBytes), "cfc.buf");
+
+            auto lowSix = [&](llvm::Value *shifted) {
+                return b.CreateOr(b.CreateAnd(shifted, konst(0x3F)), konst(0x80));
+            };
+            llvm::Value *shift6 = b.CreateLShr(code, konst(6));
+            llvm::Value *shift12 = b.CreateLShr(code, konst(12));
+            llvm::Value *shift18 = b.CreateLShr(code, konst(18));
+
+            llvm::Value *isOne = b.CreateICmpEQ(length, konst(1), "cfc.is1");
+            llvm::Value *isTwo = b.CreateICmpEQ(length, konst(2), "cfc.is2");
+            llvm::Value *isThree = b.CreateICmpEQ(length, konst(3), "cfc.is3");
+
+            // (AR) البايتُ الأوّل: بادئةٌ مختلفةٌ لكلِّ طول.
+            llvm::Value *first = b.CreateOr(shift18, konst(0xF0));
+            first = b.CreateSelect(isThree, b.CreateOr(b.CreateAnd(shift12, konst(0x0F)), konst(0xE0)), first);
+            first = b.CreateSelect(isTwo, b.CreateOr(b.CreateAnd(shift6, konst(0x1F)), konst(0xC0)), first);
+            first = b.CreateSelect(isOne, b.CreateAnd(code, konst(0x7F)), first, "cfc.b0");
+
+            llvm::Value *second = lowSix(shift12);
+            second = b.CreateSelect(isThree, lowSix(shift6), second);
+            second = b.CreateSelect(isTwo, lowSix(code), second, "cfc.b1");
+
+            llvm::Value *third = lowSix(shift6);
+            third = b.CreateSelect(isThree, lowSix(code), third, "cfc.b2");
+
+            llvm::Value *fourth = lowSix(code);
+
+            // (AR) تُكتَب البايتاتُ الأربعةُ كلُّها دائمًا داخلَ المخزنِ (٥ بايتات)،
+            //      ثمّ يُوضَع الصفرُ الخاتمُ عند `length` فيقتطع ما زاد. لا كتابةَ
+            //      خارجَ المخزنِ في أيِّ حال.
+            llvm::Value *bytes[kCharFromCodeMaxUtf8Bytes] = {first, second, third, fourth};
+            for (unsigned i = 0; i < kCharFromCodeMaxUtf8Bytes; ++i)
+            {
+                llvm::Value *slot = b.CreateGEP(i8Ty, buf, {konst(i)});
+                b.CreateStore(b.CreateTrunc(bytes[i], i8Ty), slot);
+            }
+            llvm::Value *terminator = b.CreateGEP(i8Ty, buf, {length}, "cfc.nul");
+            b.CreateStore(llvm::ConstantInt::get(i8Ty, 0), terminator);
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = buf;
+            return buf;
+        }
+
         llvm::Value *StringOpsCodeGen::emitStringCmp(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
@@ -1049,6 +1229,116 @@ static llvm::Function *getOrCreateSplitHelper(
         // Phase N: Builtin String Functions / دوال النصوص المضمنة
         // ============================================================================
 
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) حارسُ مدى التحويلِ النصّيِّ إلى عدد — مُشترَكٌ بين الصحيحِ والعشريّ.
+        //
+        //      يصفّرُ `errno`، ثمّ يُنادى المحوِّلُ، ثمّ يُقرأُ `errno`: إن كان
+        //      `ERANGE` رُمِيَ استثناءٌ يلتقطه `امسك`، وإلّا مضى التنفيذُ بالقيمة.
+        //      والرميُ لا يُتبَعُ بقفزةٍ إلى كتلةِ النجاح: باعثُ `__sad_raise` ينتهي
+        //      بـ`unreachable` (إمّا longjmp وإمّا تقريرُ «لم يلتقطه أحد» ثمّ خروج)،
+        //      فأيُّ فرعٍ نضيفه بعده يجعلُ للكتلةِ خاتمتَين ويردُّه المُدقِّق.
+        //
+        //      والقياسُ لا الادّعاء: `errno` يُقرأُ بعد النداءِ مباشرةً في الكتلةِ
+        //      نفسِها، فلا شيءَ بينهما يمكن أن يكتبَه.
+        // (EN) The string-to-number range guard — shared by the integer and float paths.
+        //
+        //      It zeroes `errno`, calls the converter, then reads `errno`: `ERANGE` raises
+        //      an exception that `catch` can see, otherwise execution continues with the
+        //      value. The raise is not followed by a branch into the success block: the
+        //      `__sad_raise` emitter ends in `unreachable` (either a longjmp or the
+        //      "nobody caught this" report and exit), so any branch added after it would
+        //      give the block two terminators and the verifier would reject it.
+        //
+        //      Measured, not assumed: `errno` is read immediately after the call in the
+        //      same block, so nothing in between can write it.
+        // ════════════════════════════════════════════════════════════════════
+        namespace
+        {
+            const char *errnoLocationSymbol(const llvm::Module &module)
+            {
+                const llvm::Triple triple(llvm::Triple::normalize(module.getTargetTriple()));
+                if (triple.isOSWindows())
+                    return ::Sad::Compiler::kErrnoLocationWindows;
+                if (triple.isOSDarwin())
+                    return ::Sad::Compiler::kErrnoLocationDarwin;
+                return ::Sad::Compiler::kErrnoLocationPosix;
+            }
+        } // namespace
+
+        llvm::Value *StringOpsCodeGen::emitNumericRangeErrnoSlot()
+        {
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+            auto *errnoTy = llvm::FunctionType::get(ptrTy, {}, false);
+            auto errnoFn =
+                cg_.module_->getOrInsertFunction(errnoLocationSymbol(*cg_.module_), errnoTy);
+            llvm::Value *slot = cg_.builder_->CreateCall(errnoFn, {}, "num.errno.slot");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i32Ty, 0), slot);
+            return slot;
+        }
+
+        void StringOpsCodeGen::emitNumericRangeCheck(llvm::Value *errnoSlot, const char *label)
+        {
+            auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+            llvm::Value *code = cg_.builder_->CreateLoad(i32Ty, errnoSlot,
+                                                         std::string(label) + ".errno");
+            llvm::Value *outOfRange = cg_.builder_->CreateICmpEQ(
+                code, llvm::ConstantInt::get(i32Ty, ::Sad::Compiler::kErrnoRangeError),
+                std::string(label) + ".range");
+
+            llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+            llvm::BasicBlock *raiseBB =
+                llvm::BasicBlock::Create(*cg_.context_, std::string(label) + ".range.raise", curFunc);
+            llvm::BasicBlock *okBB =
+                llvm::BasicBlock::Create(*cg_.context_, std::string(label) + ".range.ok", curFunc);
+            cg_.builder_->CreateCondBr(outOfRange, raiseBB, okBB);
+
+            cg_.builder_->SetInsertPoint(raiseBB);
+            std::vector<llvm::Value *> raiseArgs;
+            raiseArgs.push_back(cg_.getConstantString(::Sad::Compiler::kNumberOutOfRangeMsg));
+            cg_.emitCallException(::Sad::Compiler::kRuntimeRaise, raiseArgs, nullptr);
+
+            cg_.builder_->SetInsertPoint(okBB);
+        }
+
+        llvm::Value *StringOpsCodeGen::emitNumericParseEndSlot(const char *label)
+        {
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+            llvm::BasicBlock &entry = curFunc->getEntryBlock();
+            llvm::IRBuilder<> entryBuilder(&entry, entry.getFirstInsertionPt());
+            return entryBuilder.CreateAlloca(ptrTy, nullptr, std::string(label) + ".end");
+        }
+
+        void StringOpsCodeGen::emitNumericParseCheck(llvm::Value *endSlot, llvm::Value *sourcePtr,
+                                                     const char *label)
+        {
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            llvm::Value *end = cg_.builder_->CreateLoad(ptrTy, endSlot,
+                                                        std::string(label) + ".endptr");
+            // (AR) لا محرفَ استُهلِك ⇒ النصُّ ليس عددًا. المقارنةُ بالمؤشّرِ نفسِه الذي
+            //      مُرّر للمحوِّل — لا بنسخةٍ منه — وإلّا قارنّا عنوانَين مختلفَين لنصٍّ واحد.
+            // (EN) Nothing consumed ⇒ the string is not a number. Compared against the very
+            //      pointer handed to the converter, not a copy, or we would be comparing two
+            //      different addresses of one string.
+            llvm::Value *notNumeric =
+                cg_.builder_->CreateICmpEQ(end, sourcePtr, std::string(label) + ".notnum");
+
+            llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+            llvm::BasicBlock *raiseBB = llvm::BasicBlock::Create(
+                *cg_.context_, std::string(label) + ".notnum.raise", curFunc);
+            llvm::BasicBlock *okBB = llvm::BasicBlock::Create(
+                *cg_.context_, std::string(label) + ".notnum.ok", curFunc);
+            cg_.builder_->CreateCondBr(notNumeric, raiseBB, okBB);
+
+            cg_.builder_->SetInsertPoint(raiseBB);
+            std::vector<llvm::Value *> raiseArgs;
+            raiseArgs.push_back(cg_.getConstantString(::Sad::Compiler::kNumberNotNumericMsg));
+            cg_.emitCallException(::Sad::Compiler::kRuntimeRaise, raiseArgs, nullptr);
+
+            cg_.builder_->SetInsertPoint(okBB);
+        }
+
         llvm::Value *StringOpsCodeGen::emitStringToI64(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.empty())
@@ -1060,11 +1350,37 @@ static llvm::Function *getOrCreateSplitHelper(
             if (!str)
                 return nullptr;
 
-            // Call atoll(str) → i64
-            auto *atollType = llvm::FunctionType::get(
-                cg_.getInt64Type(), {llvm::PointerType::getUnqual(*cg_.context_)}, false);
-            auto atollFunc = cg_.module_->getOrInsertFunction("atoll", atollType);
-            llvm::Value *result = cg_.builder_->CreateCall(atollFunc, {str}, "str2i64");
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            llvm::Value *result = nullptr;
+
+            if (cg_.freestanding_)
+            {
+                // (AR) الوضعُ الحرُّ: لا `errno` ولا استثناءات — المسارُ القديمُ بلا مساس.
+                // (EN) Freestanding: no `errno`, no exceptions — the old path, untouched.
+                auto *atollType = llvm::FunctionType::get(cg_.getInt64Type(), {ptrTy}, false);
+                auto atollFunc = cg_.module_->getOrInsertFunction("atoll", atollType);
+                result = cg_.builder_->CreateCall(atollFunc, {str}, "str2i64");
+            }
+            else
+            {
+                // (AR) `strtoll(str, NULL, 10)` مع تصفيرِ `errno` قبلَه وفحصِه بعدَه.
+                // (EN) `strtoll(str, NULL, 10)` with `errno` zeroed before and checked after.
+                llvm::Value *errnoSlot = emitNumericRangeErrnoSlot();
+                llvm::Value *endSlot = emitNumericParseEndSlot("str2i64");
+                auto *strtollType = llvm::FunctionType::get(
+                    cg_.getInt64Type(),
+                    {ptrTy, ptrTy, llvm::Type::getInt32Ty(*cg_.context_)}, false);
+                auto strtollFunc = cg_.module_->getOrInsertFunction(
+                    ::Sad::Compiler::kLibcStringToLongLong, strtollType);
+                result = cg_.builder_->CreateCall(
+                    strtollFunc,
+                    {str, endSlot,
+                     llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_),
+                                            ::Sad::Compiler::kDecimalBase)},
+                    "str2i64");
+                emitNumericRangeCheck(errnoSlot, "str2i64");
+                emitNumericParseCheck(endSlot, str, "str2i64");
+            }
 
             if (inst->result.has_value())
             {
@@ -1097,15 +1413,34 @@ static llvm::Function *getOrCreateSplitHelper(
             if (!str)
                 return nullptr;
 
-            // (AR) استدعاء atof(str) → f64
-            //      atof هي دالة C قياسية تحوّل نصاً إلى double
-            // (EN) Call atof(str) → f64
-            //      atof is a standard C function that converts string to double
-            auto *atofType = llvm::FunctionType::get(
-                llvm::Type::getDoubleTy(*cg_.context_),
-                {llvm::PointerType::getUnqual(*cg_.context_)}, false);
-            auto atofFunc = cg_.module_->getOrInsertFunction("atof", atofType);
-            llvm::Value *result = cg_.builder_->CreateCall(atofFunc, {str}, "str2f64");
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto *doubleTy = llvm::Type::getDoubleTy(*cg_.context_);
+            llvm::Value *result = nullptr;
+
+            if (cg_.freestanding_)
+            {
+                // (AR) الوضعُ الحرُّ: المسارُ القديمُ كما هو — انظر نظيرَه في التحويلِ الصحيح.
+                // (EN) Freestanding: the old path unchanged — see its twin in the integer path.
+                auto *atofType = llvm::FunctionType::get(doubleTy, {ptrTy}, false);
+                auto atofFunc = cg_.module_->getOrInsertFunction("atof", atofType);
+                result = cg_.builder_->CreateCall(atofFunc, {str}, "str2f64");
+            }
+            else
+            {
+                // (AR) و`ERANGE` هنا يشملُ الطرفَين: «1e309» طفحًا و«1e-400» هبوطًا —
+                //      وكلاهما جيسونٌ صالحٌ خارجَ مدى `عشري`، وكلاهما يرمي في المفسّر.
+                // (EN) `ERANGE` here covers both ends: "1e309" overflow and "1e-400"
+                //      underflow — both valid JSON outside the float range, and both raise
+                //      in the interpreter.
+                llvm::Value *errnoSlot = emitNumericRangeErrnoSlot();
+                llvm::Value *endSlot = emitNumericParseEndSlot("str2f64");
+                auto *strtodType = llvm::FunctionType::get(doubleTy, {ptrTy, ptrTy}, false);
+                auto strtodFunc = cg_.module_->getOrInsertFunction(
+                    ::Sad::Compiler::kLibcStringToDouble, strtodType);
+                result = cg_.builder_->CreateCall(strtodFunc, {str, endSlot}, "str2f64");
+                emitNumericRangeCheck(errnoSlot, "str2f64");
+                emitNumericParseCheck(endSlot, str, "str2f64");
+            }
 
             if (inst->result.has_value())
             {

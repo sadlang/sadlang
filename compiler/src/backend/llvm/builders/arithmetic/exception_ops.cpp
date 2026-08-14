@@ -210,7 +210,7 @@ namespace Sad
                 auto *handlerStack = cg_.module_->getNamedGlobal(kRuntimeHandlerStack);
                 if (!handlerStack)
                 {
-                    auto *arrType = llvm::ArrayType::get(ptrType, 64);
+                    auto *arrType = llvm::ArrayType::get(ptrType, Sad::Compiler::kSadHandlerStackCapacity);
                     handlerStack = new llvm::GlobalVariable(
                         *cg_.module_, arrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantAggregateZero::get(arrType), kRuntimeHandlerStack);
@@ -225,9 +225,79 @@ namespace Sad
                 }
 
                 llvm::Value *count = cg_.builder_->CreateLoad(i32Type, handlerCount, "handler_count");
-                auto *arrType = llvm::ArrayType::get(ptrType, 64);
+                auto *arrType = llvm::ArrayType::get(ptrType, Sad::Compiler::kSadHandlerStackCapacity);
+                // (AR) الطفحُ يُجهِضُ عاليًا ولا يُقَصّ — راجِعْ kHandlerStackOverflowMsg
+                //      للسببِ المقيس. والفرعُ هنا في دخولِ `حاول` لا في مقدّمةِ كلِّ نداءِ
+                //      دالّة، فكلفتُه لا تُذكَر مقابلَ إخفاءِ فقدِ معالِج.
+                // (EN) Overflow aborts loudly instead of clamping — see kHandlerStackOverflowMsg
+                //      for the measured reason. The branch sits at `try` entry, not in every
+                //      function prologue, so its cost is negligible against hiding a lost handler.
+                // (AR) الحدُّ هو السَّعةُ نفسُها لا آخرُ فهرس: الخانةُ ٤٠٩٥ صالحةٌ للكتابة،
+                //      فمقارنةُ `count` بـ«السعة − ١» كانت تُجهِض دفعةً قبل الأوان وتترك
+                //      المصفوفةَ بسعةٍ فعليّةٍ ٤٠٩٥. الشرطُ الصحيح: يُجهَضُ من لا يجد خانة.
+                // (EN) The bound is the capacity itself, not the last index: slot 4095 is
+                //      writable, so comparing `count` against capacity−1 aborted one push
+                //      early and left an effective capacity of 4095. Abort only when there
+                //      is genuinely no slot left.
+                llvm::Value *maxSlot = cg_.builder_->getInt32(
+                    static_cast<int>(Sad::Compiler::kSadHandlerStackCapacity));
+                llvm::Value *overflows =
+                    cg_.builder_->CreateICmpSGE(count, maxSlot, "handler.overflow");
+                {
+                    llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                    llvm::BasicBlock *abortBB = llvm::BasicBlock::Create(
+                        *cg_.context_, "handler.overflow.abort", curFunc);
+                    llvm::BasicBlock *contBB = llvm::BasicBlock::Create(
+                        *cg_.context_, "handler.overflow.ok", curFunc);
+                    cg_.builder_->CreateCondBr(overflows, abortBB, contBB);
+
+                    cg_.builder_->SetInsertPoint(abortBB);
+                    if (cg_.freestanding_)
+                    {
+                        cg_.emitFreestandingPanicCall(Sad::Compiler::kSadPanicCheckViolation);
+                    }
+                    else
+                    {
+                        auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                        auto *i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+                        llvm::Value *msg = cg_.builder_->CreateGlobalStringPtr(
+                            Sad::Compiler::kHandlerStackOverflowMsg, "handler.overflow.msg");
+                        auto printfFunc = cg_.module_->getOrInsertFunction(
+                            "printf", llvm::FunctionType::get(i32Ty, {ptrTy}, true));
+                        cg_.builder_->CreateCall(printfFunc, {msg});
+                        auto exitFunc = cg_.module_->getOrInsertFunction(
+                            "exit", llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_),
+                                                            {i32Ty}, false));
+                        cg_.builder_->CreateCall(exitFunc, {llvm::ConstantInt::get(i32Ty, 1)});
+                    }
+                    cg_.builder_->CreateUnreachable();
+                    cg_.builder_->SetInsertPoint(contBB);
+                }
+                llvm::Value *slotIndex = count;
+                // (AR) والطرفُ الأدنى محروسٌ كالأعلى: العدّادُ من نوعٍ **مُوقَّع**، والقصُّ
+                //      العلويُّ وحدَه يمرّر السالبَ كما هو. وفهرسٌ سالبٌ في `GEP` كتابةُ
+                //      مؤشّرٍ **تحتَ قاعدةِ** المصفوفة، أي فوقَ عالميّةٍ مجاورة — وهو
+                //      إفسادُ ذاكرةٍ أخطرُ من الطفحِ الذي حُرِس منه.
+                //      ولا يلزم أن يكون العدّادُ سالبًا اليوم ليلزمَ الحارس: محاسبةُ
+                //      الدفعِ والنبذِ موزّعةٌ على مواضعَ عدّة (الدخول، الخروج، الإرجاعُ
+                //      المبكّر، `اكسر`، `واصل`)، وأيُّ اختلالٍ في أحدها يعبر الصفرَ
+                //      صامتًا. فالكلفةُ `select` واحدةٌ بلا فرع.
+                // (EN) The low end is guarded like the high end: the counter is **signed**, and
+                //      clamping only the top passes a negative through unchanged. A negative
+                //      `GEP` index stores a pointer **below the array's base**, over a
+                //      neighbouring global — memory corruption worse than the overflow that was
+                //      guarded against.
+                //      The counter need not be negative today for the guard to be needed: push
+                //      and pop accounting is spread over several sites (entry, exit, early
+                //      return, `break`, `continue`), and any imbalance crosses zero silently.
+                //      The cost is one branchless `select`.
+                llvm::Value *underflows =
+                    cg_.builder_->CreateICmpSLT(slotIndex, cg_.builder_->getInt32(0),
+                                                "handler.underflow");
+                slotIndex = cg_.builder_->CreateSelect(underflows, cg_.builder_->getInt32(0),
+                                                       slotIndex, "handler.slot.idx.floored");
                 llvm::Value *slot = cg_.builder_->CreateGEP(arrType, handlerStack,
-                                                        {cg_.builder_->getInt32(0), count}, "handler_slot");
+                                                        {cg_.builder_->getInt32(0), slotIndex}, "handler_slot");
                 cg_.builder_->CreateStore(jmpbufPtr, slot);
                 llvm::Value *newCount = cg_.builder_->CreateAdd(count, cg_.builder_->getInt32(1), "new_count");
                 cg_.builder_->CreateStore(newCount, handlerCount);
@@ -291,6 +361,20 @@ namespace Sad
 
                 llvm::Value *count = cg_.builder_->CreateLoad(i32Type, handlerCount, "handler_count");
                 llvm::Value *newCount = cg_.builder_->CreateSub(count, cg_.builder_->getInt32(1), "new_count");
+                // (AR) ولا يُخزَّن عدّادٌ سالبٌ أبدًا: النبذُ كان يخفّض بلا حارس، فنبذةٌ
+                //      زائدةٌ واحدةٌ تُنزِل العدّادَ إلى ‑١ ويصير الدفعُ التالي كتابةً تحتَ
+                //      قاعدةِ المصفوفة. الأرضيّةُ هنا تجعل الخللَ **فقدَ معالِجٍ** (سلوكٌ
+                //      خاطئٌ يُلاحَظ) لا إفسادَ ذاكرةٍ (سلوكٌ خاطئٌ لا يُلاحَظ).
+                // (EN) A negative counter is never stored: the pop decremented unguarded, so one
+                //      surplus pop takes the counter to -1 and the next push writes below the
+                //      array's base. This floor turns the fault into a **lost handler** (wrong
+                //      behaviour you can observe) rather than memory corruption (wrong behaviour
+                //      you cannot).
+                llvm::Value *wentNegative =
+                    cg_.builder_->CreateICmpSLT(newCount, cg_.builder_->getInt32(0),
+                                                "handler.count.negative");
+                newCount = cg_.builder_->CreateSelect(wentNegative, cg_.builder_->getInt32(0),
+                                                      newCount, "handler.count.floored");
                 cg_.builder_->CreateStore(newCount, handlerCount);
 
                 llvm::Value *dummy = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
@@ -401,7 +485,7 @@ namespace Sad
                 auto *handlerStack = cg_.module_->getNamedGlobal(kRuntimeHandlerStack);
                 if (!handlerStack)
                 {
-                    auto *arrType = llvm::ArrayType::get(ptrType, 64);
+                    auto *arrType = llvm::ArrayType::get(ptrType, Sad::Compiler::kSadHandlerStackCapacity);
                     handlerStack = new llvm::GlobalVariable(
                         *cg_.module_, arrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantAggregateZero::get(arrType), kRuntimeHandlerStack);
@@ -447,8 +531,18 @@ namespace Sad
 
                 cg_.builder_->SetInsertPoint(hasHandlerBB);
                 llvm::Value *idx = cg_.builder_->CreateSub(count, cg_.builder_->getInt32(1), "handler_idx");
+                // (AR) القراءةُ تُقصَّر كالكتابة — وإلّا قُرئ مؤشّرٌ من خارجِ المصفوفةِ ثمّ قُفِز إليه.
+                // (EN) The read is clamped like the write — otherwise a pointer is read from
+                //      outside the array and jumped to.
+                {
+                    llvm::Value *lastSlot = cg_.builder_->getInt32(
+                        static_cast<int>(Sad::Compiler::kSadHandlerStackCapacity) - 1);
+                    llvm::Value *tooDeep =
+                        cg_.builder_->CreateICmpSGT(idx, lastSlot, "handler.idx.deep");
+                    idx = cg_.builder_->CreateSelect(tooDeep, lastSlot, idx, "handler.idx.clamped");
+                }
 
-                auto *arrType = llvm::ArrayType::get(ptrType, 64);
+                auto *arrType = llvm::ArrayType::get(ptrType, Sad::Compiler::kSadHandlerStackCapacity);
                 llvm::Value *slot = cg_.builder_->CreateGEP(arrType, handlerStack,
                                                         {cg_.builder_->getInt32(0), idx}, "handler_slot");
                 llvm::Value *jmpbuf = cg_.builder_->CreateLoad(ptrType, slot, "jmpbuf");
@@ -474,7 +568,12 @@ namespace Sad
                 cg_.builder_->CreateUnreachable();
 
                 llvm::Value *dummy = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
-                if (inst->result.has_value())
+                // (AR) و`inst` قد يكون فارغًا: الرميُ يُبعَث الآن من داخلِ الخلفيّةِ كذلك
+                //      (حارسُ مدى العدد) لا من تعليمةِ SIR وحدَها، فلا نتيجةَ تُسجَّل.
+                // (EN) `inst` may be null: the raise is now also emitted from inside the
+                //      backend (the number-range guard), not only from a SIR instruction,
+                //      so there is no result to register.
+                if (inst && inst->result.has_value())
                 {
                     cg_.context_info_.namedValues[inst->result->name] = dummy;
                 }
@@ -494,7 +593,7 @@ namespace Sad
                 auto *handlerStack = cg_.module_->getNamedGlobal(kRuntimeHandlerStack);
                 if (!handlerStack)
                 {
-                    auto *arrType = llvm::ArrayType::get(ptrType, 64);
+                    auto *arrType = llvm::ArrayType::get(ptrType, Sad::Compiler::kSadHandlerStackCapacity);
                     handlerStack = new llvm::GlobalVariable(
                         *cg_.module_, arrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantAggregateZero::get(arrType), kRuntimeHandlerStack);
@@ -541,8 +640,18 @@ namespace Sad
 
                 cg_.builder_->SetInsertPoint(rethrowHasHandlerBB);
                 llvm::Value *idx = cg_.builder_->CreateSub(count, cg_.builder_->getInt32(1), "handler_idx");
+                // (AR) القراءةُ تُقصَّر كالكتابة — وإلّا قُرئ مؤشّرٌ من خارجِ المصفوفةِ ثمّ قُفِز إليه.
+                // (EN) The read is clamped like the write — otherwise a pointer is read from
+                //      outside the array and jumped to.
+                {
+                    llvm::Value *lastSlot = cg_.builder_->getInt32(
+                        static_cast<int>(Sad::Compiler::kSadHandlerStackCapacity) - 1);
+                    llvm::Value *tooDeep =
+                        cg_.builder_->CreateICmpSGT(idx, lastSlot, "handler.idx.deep");
+                    idx = cg_.builder_->CreateSelect(tooDeep, lastSlot, idx, "handler.idx.clamped");
+                }
 
-                auto *arrType = llvm::ArrayType::get(ptrType, 64);
+                auto *arrType = llvm::ArrayType::get(ptrType, Sad::Compiler::kSadHandlerStackCapacity);
                 llvm::Value *slot = cg_.builder_->CreateGEP(arrType, handlerStack,
                                                         {cg_.builder_->getInt32(0), idx}, "handler_slot");
                 llvm::Value *jmpbuf = cg_.builder_->CreateLoad(ptrType, slot, "jmpbuf");

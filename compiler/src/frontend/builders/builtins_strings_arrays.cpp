@@ -80,6 +80,34 @@ namespace Sad
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
 
+                // 1c. حرف_من_رمز / fromCharCode — نقطةُ ترميزٍ ⇒ محرفُ UTF-8
+                // (AR) كانت غائبةً عن المصرِّفِ رأسًا رغم أنّ مصدرَ الحقيقةِ يعلنها
+                //      `stable` بـ`compiler_strategy: RUNTIME_CALL`: كلُّ برنامجٍ
+                //      يستعملها كان يُرفَض بـ«استدعاء دالّة غير معرّفة». وهي شرطُ
+                //      عملِ مكتبةِ جيسون مصرَّفةً بعد دعمِ هروبِ يونيكود.
+                if (funcName == Bmp::FROM_CHAR_CODE)
+                {
+                    if (argResults.empty())
+                    {
+                        Sad::Errors::RenderContext ectx;
+                        ectx.placeholders = {{"name", std::string(Bmp::FROM_CHAR_CODE)},
+                                             {"expected", "1"},
+                                             {"found", std::to_string(argResults.size())}};
+                        b_.errors_.push_back(
+                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ectx));
+                        return BuildResult("", SadTypeKind::String);
+                    }
+                    std::string resultReg = b_.newTempRegister();
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
+                    SIRInstruction inst(SIROpcode::BUILTIN_STRING_CHAR_FROM_CODE);
+                    inst.result = resultOp;
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult(resultReg, SadTypeKind::String);
+                }
+
                 // 2. تحويل_كبير / toUpper
                 if (funcName == Bs::TO_UPPER)
                 {

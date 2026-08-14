@@ -31,6 +31,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <map>
+#include <set>
 #include <memory>
 
 namespace Sad
@@ -507,6 +508,28 @@ namespace Sad
                 /// (EN) Function attributes [[attr]] — lowered to LLVM function attributes
                 std::vector<std::string> attributes;
 
+                /// (AR) أسماءُ ما صُرِّح **محلّيًّا** في هذه الدالّة (معاملاتٍ ومتغيّراتٍ).
+                ///      يسجّلها الوجهُ الأماميُّ في `addVariable` حين `isGlobal == false`،
+                ///      لأنّه وحدَه يملكُ النطاقات؛ وSIR لا تعليمةَ تصريحٍ فيها البتّة —
+                ///      الخاناتُ ضِمنيّةٌ من `STORE`، فلا يمكن للخلفيّةِ أن تميّز محلّيًّا
+                ///      يُظلِّلُ عامًّا من إسنادٍ إلى العامِّ نفسِه. وبغيابِ هذا السجلّ كانت
+                ///      `dynGlobalSlots_` — وهي **مجموعةٌ على مستوى الوحدةِ مفتاحُها الاسمُ
+                ///      المجرَّد** — تُطبَّق على كلِّ دالّةٍ فيها الاسمُ نفسُه: عامٌّ اسمُه
+                ///      `القيمة` نوعُه «أي» يجعلُ محلّيًّا صحيحًا اسمُه `القيمة` في دالّةٍ
+                ///      أخرى ديناميًّا، فيُصدَر `sext %SadDyn` ويسقطُ `verifyModule`.
+                ///      واسمُ المتغيّرِ وحدَه هو ما يقرّر — إعادةُ تسميتِه تُصلِح الترجمة.
+                /// (EN) Names declared **locally** in this function (parameters and variables).
+                ///      Recorded by the front end in `addVariable` when `isGlobal == false`,
+                ///      since only it owns the scopes: SIR has no declaration instruction at
+                ///      all — slots are implicit in `STORE` — so the backend cannot tell a
+                ///      local shadowing a global from an assignment to that global. Without
+                ///      this record, `dynGlobalSlots_` — a **module-wide, bare-name-keyed
+                ///      set** — applied to every function using the same name: an Any-typed
+                ///      global `القيمة` made an integer local `القيمة` in another function
+                ///      dynamic, emitting `sext %SadDyn` and failing `verifyModule`. The
+                ///      variable's name alone decided it; renaming it fixed the build.
+                std::set<std::string> localSlotNames;
+
                 /**
                  * @brief (AR) منشئ الدالة
                  * @brief (EN) Function constructor
@@ -608,6 +631,14 @@ namespace Sad
                 std::string name;         ///< (AR) اسم المتغير / (EN) Variable name
                 SadTypeKind type;         ///< (AR) نوع المتغير / (EN) Variable type
                 std::string initialValue; ///< (AR) القيمة الأولية (اختياري) / (EN) Initial value (optional)
+                // (AR) وجودُ القيمةِ الأوليّةِ عَلَمٌ مستقلٌّ عن نصِّها — ولا يُشتقّ منه بـ‏`.empty()`:
+                //      النصُّ الفارغُ `""` قيمةٌ أوليّةٌ **موجودةٌ** تمامًا كغيرها، فاشتقاقُ الوجودِ
+                //      من الفراغِ كان يجعل `ثابت فارغ = ""` غيرَ مُهيَّإٍ فيُصفَّر مؤشّرُه فيُطبع «void».
+                // (EN) Presence of an initial value is a flag independent of its text — never derive
+                //      it via `.empty()`: the empty string `""` is a present initial value like any
+                //      other. Deriving presence from emptiness left `ثابت فارغ = ""` uninitialised,
+                //      so its pointer was zeroed and printed as "void".
+                bool hasInitialValue = false; ///< (AR) هل عُيِّنت قيمةٌ أوليّةٌ أصلًا / (EN) Was an initial value assigned at all
                 bool isConstant;          ///< (AR) ثابت / (EN) Constant
                 // (AR) سمات تخزين ساكن (اللبنة 3.14)
                 std::string linkName;     ///< (AR) رمز رابط مُصدَّر ثابت (@رمز) — فارغ = اسم داخليّ مُشوَّه

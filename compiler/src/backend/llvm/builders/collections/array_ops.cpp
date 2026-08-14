@@ -104,6 +104,17 @@ namespace Sad
             if (!arrPtr)
                 return nullptr;
 
+            // (AR) الحالة ٠: **خانةٌ** نوعُها `%SadDyn` (alloca/global) — تُحمَّلُ أوّلًا.
+            //      وإلّا انزلقت إلى الحالةِ ٤ («مؤشّرٌ جاهز») فصار **عنوانُ الخانة**
+            //      مؤشّرَ مصفوفةٍ: تُقرأ بايتُ الوسمِ طولًا فحدودٌ عبثيّةٌ ثمّ SIGSEGV
+            //      أو — أسوأُ — قراءةٌ ناجحةٌ لقيمةٍ فاسدةٍ بخروجٍ ٠.
+            // (EN) Case 0: a **slot** whose type is `%SadDyn` (alloca/global) — load it
+            //      first. Otherwise it slips into case 4 ("already a pointer") and the
+            //      slot's ADDRESS becomes the array pointer: the kind byte is read as a
+            //      length ⇒ nonsense bounds then SIGSEGV, or worse a successful read of
+            //      a corrupt value with exit 0.
+            arrPtr = Sad::LLVM::loadDynSlot(cg_, arrPtr);
+
             // (AR) الحالة 1: alloca i64 — متغير محلي يحمل مؤشر مصفوفة محوّل بـ ptrtoint
             // (EN) Case 1: alloca i64 — local variable holding ptrtoint'd array pointer
             if (auto *allocaInst = llvm::dyn_cast<llvm::AllocaInst>(arrPtr))
@@ -604,6 +615,16 @@ namespace Sad
             if (!arrPtr || !index)
                 return nullptr;
 
+            // (AR) قبلَ الإرسال لا بعدَه: `beginDynMapDispatch` يشترط `isSadDyn(objValue)`،
+            //      والخانةُ `ptr` فلا يتحقّق الشرطُ ويُلغى التفريعُ بين الخريطةِ والمصفوفةِ
+            //      صامتًا. تحميلُها هنا يجعل المعامِلَ المُصرَّحَ «أي» يسلك مسارَ القيمةِ
+            //      الموسومةِ نفسَه الذي يسلكه عنصرُ مصفوفةٍ مختلطة.
+            // (EN) Before the dispatch, not after: beginDynMapDispatch requires
+            //      isSadDyn(objValue); a `ptr` slot fails it and the map-vs-array branch is
+            //      silently skipped. Loading here puts a declared-«أي» parameter on the same
+            //      tagged-value path a heterogeneous array element already takes.
+            arrPtr = Sad::LLVM::loadDynSlot(cg_, arrPtr);
+
             DynIndexDispatch dispatch =
                 beginDynMapDispatch(inst, arrPtr, index, nullptr, /*isSet=*/false);
 
@@ -642,8 +663,21 @@ namespace Sad
             //      heterogeneous ⇒ reconstruct %SadDyn from (tag, raw payload); else (defensive
             //      fallback) build it with an Int tag from the payload. Both yield Any — never
             //      an unbox on a raw slot (closes the stale-tag crash). Inverse of emitArraySet.
+            // (AR) وحاويةٌ ديناميّةٌ (`dispatch.active`) تُلزِمُ المسارَ الموسومَ ولو ادّعى
+            //      النوعُ الساكنُ للنتيجةِ غيرَ «أي»: العنصرُ يُقرأ من حاويةٍ لا يُعرَفُ
+            //      محتواها قبلَ التشغيل، فالوسمُ يجب أن يأتيَ من مخزنِ الوسومِ أو من
+            //      `homogKind` لا أن يُصلَّبَ ساكنًا. ولولا هذا لسلك القراءةُ مسارَ
+            //      `toDyn(…, Any)` في الدمج، وهو يسِمُ كلَّ حمولةٍ i64 بوسمِ **عددٍ صحيح**:
+            //      فيُطبَع النصُّ عنوانًا والمنطقيُّ ١ — **فسادٌ صامتٌ بخروجٍ ٠** لا انهيار.
+            // (EN) A dynamic container (dispatch.active) forces the tagged path even when the
+            //      result's static type claims otherwise: the element comes from a container
+            //      whose contents are unknown before runtime, so the tag must come from the
+            //      tags buffer or homogKind, never be hardcoded. Without this the merge takes
+            //      toDyn(…, Any), which stamps every i64 payload with the **Int** kind — a
+            //      string prints as an address and a boolean as 1: silent corruption, exit 0.
             bool isBoxedDyn = (inst->result.has_value() &&
-                               inst->result->dataType == SadTypeKind::Any);
+                               inst->result->dataType == SadTypeKind::Any) ||
+                              dispatch.active;
             if (inst->result.has_value())
             {
                 auto resultType = inst->result->dataType;
@@ -823,6 +857,10 @@ namespace Sad
             llvm::Value *value = cg_.resolveOperand(inst->operands[2]);
             if (!arrPtr || !index || !value)
                 return nullptr;
+
+            // (AR) نظيرُ القراءة: حمِّل الخانةَ الموسومةَ قبلَ الإرسال (انظر emitArrayGet).
+            // (EN) Twin of the read: load the tagged slot before the dispatch (see emitArrayGet).
+            arrPtr = Sad::LLVM::loadDynSlot(cg_, arrPtr);
 
             DynIndexDispatch dispatch =
                 beginDynMapDispatch(inst, arrPtr, index, value, /*isSet=*/true);

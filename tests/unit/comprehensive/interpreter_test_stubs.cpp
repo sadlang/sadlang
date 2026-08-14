@@ -65,7 +65,11 @@ namespace Sad
     namespace Interpreter
     {
 
-        bool BuiltinModuleRegistry::loadModule(const std::string & /*name*/) { return false; }
+        bool BuiltinModuleRegistry::loadModule(const std::string & /*name*/,
+                                               const std::vector<std::string> & /*requestedNames*/)
+        {
+            return false;
+        }
 
     } // namespace Interpreter
 } // namespace Sad

@@ -283,7 +283,48 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
                     ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
-                return makeVal(std::string(1, static_cast<char>(args[0]->toInt())));
+                // (AR) ترميزُ UTF-8 لنقطةِ الترميز — لا `char` واحدة. كان التنفيذُ
+                //      يقتطع النقطةَ إلى بايتٍ فيخالف عقدَه المُعلَنَ في مصدرِ الحقيقة
+                //      («تحويل رمز رقمي (Unicode) إلى حرفه المقابل»)، ويجعل الرموزَ
+                //      المتطابقةَ في البايتِ الأدنى متساويةً: `حرف_من_رمز(١٥٨٧)`
+                //      كانت تساوي `حرف_من_رمز(٥١)` — فلا محرفَ عربيًّا ولا كشفَ خطأ.
+                //      وهو الحاجزُ اللغويُّ أمام فكِّ `\uXXXX` في مكتبةِ جيسون.
+                // (EN) UTF-8-encode the code point instead of truncating it to one char.
+                //      The old body contradicted its own SoT contract ("Convert a Unicode
+                //      code point to its character") and made code points sharing a low
+                //      byte equal: حرف_من_رمز(1587) == حرف_من_رمز(51). It is the language
+                //      barrier blocking \uXXXX decoding in the JSON library.
+                long long codePoint = args[0]->toInt();
+                if (codePoint < 0 || codePoint > 0x10FFFF ||
+                    (codePoint >= 0xD800 && codePoint <= 0xDFFF))
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                std::string encoded;
+                auto pushByte = [&encoded](unsigned int byte)
+                { encoded.push_back(static_cast<char>(static_cast<unsigned char>(byte))); };
+                auto point = static_cast<unsigned int>(codePoint);
+                if (point < 0x80)
+                {
+                    pushByte(point);
+                }
+                else if (point < 0x800)
+                {
+                    pushByte(0xC0u | (point >> 6));
+                    pushByte(0x80u | (point & 0x3Fu));
+                }
+                else if (point < 0x10000)
+                {
+                    pushByte(0xE0u | (point >> 12));
+                    pushByte(0x80u | ((point >> 6) & 0x3Fu));
+                    pushByte(0x80u | (point & 0x3Fu));
+                }
+                else
+                {
+                    pushByte(0xF0u | (point >> 18));
+                    pushByte(0x80u | ((point >> 12) & 0x3Fu));
+                    pushByte(0x80u | ((point >> 6) & 0x3Fu));
+                    pushByte(0x80u | (point & 0x3Fu));
+                }
+                return makeVal(encoded);
             };
             fm.registerBuiltinFunction(std::string(Bmp::FROM_CHAR_CODE), fromCharCode_fn);
 

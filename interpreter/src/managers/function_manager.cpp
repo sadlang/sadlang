@@ -340,6 +340,23 @@ namespace Sad
             functions_[name].push_back(funcDef);
         }
 
+        FunctionManager::FunctionTableSnapshot FunctionManager::snapshotFunctionTable() const
+        {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
+            return functions_;
+        }
+
+        void FunctionManager::restoreFunctionFromSnapshot(const std::string &name,
+                                                          const FunctionTableSnapshot &snapshot)
+        {
+            std::lock_guard<std::recursive_mutex> lock(mutex_);
+            auto previous = snapshot.find(name);
+            if (previous == snapshot.end())
+                functions_.erase(name);
+            else
+                functions_[name] = previous->second;
+        }
+
         size_t FunctionManager::removeFunction(const std::string &name, int paramCount)
         {
             std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -617,6 +634,26 @@ namespace Sad
             const std::function<std::shared_ptr<Data::Value>(Sad::Interpreter::BuiltinContext &)> &func)
         {
             std::lock_guard<std::recursive_mutex> lock(mutex_);
+
+            // (AR) 🔴 قيدٌ مقيسٌ **مُعلَنٌ لا مسدود**: المدمَجةُ تدهس دالّةَ المستخدمِ
+            //      التي تشاركها الاسمَ عند تحميلِ وحدةٍ مضمَّنة — ولو جاء التحميلُ من
+            //      **داخلِ مكتبةٍ** يستوردها المستخدم. قِيس: `دالة نص حرف_من_رمز(...)`
+            //      تُعطي «MINE» ثمّ «A» بعد `استورد حلل من جيسون`.
+            //      جرّبتُ سدَّه بحارسٍ يمنع دهسَ تعريفٍ غيرِ مدمَجٍ، **فأنتج عطبًا أسوأ**:
+            //      يُلغى تسجيلُ الاسمِ فيُخفِق استيرادُ المكتبةِ نفسِها («الرمز غير موجود
+            //      في الوحدة المضمنة») — أي أنّ دالّةً يكتبها المستخدمُ تكسر مكتبةً لا
+            //      علاقةَ لها به. ولو مرّرنا التحقّقَ لَحُلَّ الاسمُ داخلَ المكتبةِ إلى
+            //      دالّةِ المستخدمِ: فسادٌ صامتٌ محلَّ إخفاقٍ صاخب.
+            //      فالعلاجُ الصحيحُ **نطاقُ أسماءٍ لكلِّ ملفّ/وحدة** لا حارسٌ هنا:
+            //      المدمَجاتُ اليومَ في جدولٍ عامٍّ واحدٍ بلا نطاق. قرارُ بنيةٍ يخصّ المالك.
+            // (EN) 🔴 A MEASURED, DECLARED limitation, not a fix: a builtin clobbers a
+            //      user function of the same name when a builtin module loads — even when
+            //      the load comes from INSIDE a library the user imported. Guarding against
+            //      it produced a WORSE defect: the name stops being registered, so the
+            //      library's own import fails; and letting the verification pass would
+            //      resolve the name inside the library to the user's function — silent
+            //      corruption instead of a loud failure. The real fix is per-file/module
+            //      name scoping, not a guard here. An architecture decision for the owner.
             removeFunction(name);
 
             std::vector<FunctionParameter> params;

@@ -32,6 +32,8 @@
 #pragma once
 
 #include <string>
+#include <set>
+#include <map>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
@@ -137,7 +139,14 @@ namespace Sad
              *
              * @note يُنفَّذ في builtin_registry.cpp لأنه يحتاج FunctionManager
              */
-            bool loadModule(const std::string &name);
+            /// (AR) `requestedNames` غيرُ فارغةٍ ⇒ استيرادٌ **انتقائيّ**: لا يبقى مرئيًّا
+            ///      من الوحدةِ إلّا ما طُلِب (متراكمًا عبر استيراداتٍ متعدّدة)، ويُستعادُ
+            ///      كلُّ اسمٍ آخرَ دهسه المسجِّلُ إلى ما كان عليه. فارغةٌ ⇒ استيرادٌ شامل.
+            /// (EN) A non-empty `requestedNames` means a **selective** import: only the
+            ///      requested names stay visible (accumulated across imports) and every other
+            ///      name the registrar overwrote is restored. Empty ⇒ wildcard import.
+            bool loadModule(const std::string &name,
+                            const std::vector<std::string> &requestedNames = {});
 
             /**
              * @brief (AR) الحصول على قائمة الدوال المُصدَّرة من وحدة
@@ -239,6 +248,12 @@ namespace Sad
 
             /// (AR) الوحدات المُحمَّلة
             std::unordered_set<std::string> loadedModules_;
+            // (AR) الوحداتُ التي استُوردت شاملةً — بعدَها لا يُقيَّدُ شيء.
+            // (EN) Modules imported with a wildcard — nothing is restricted afterwards.
+            std::set<std::string> wildcardModules_;
+            // (AR) الأسماءُ المطلوبةُ صراحةً لكلِّ وحدةٍ استُوردت انتقائيًّا (تتراكم).
+            // (EN) Explicitly requested names per selectively-imported module (accumulates).
+            std::map<std::string, std::set<std::string>> requestedNames_;
 
             /// (AR) مرجع المفسر / (EN) Interpreter reference
             Interpreter *interpreter_ = nullptr;

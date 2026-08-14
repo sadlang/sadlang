@@ -85,6 +85,17 @@ namespace Sad
                 {
                     scopeStack_.back()[varInfo.name] = varInfo;
                 }
+
+                // (AR) تسجيلُ الاسمِ المحلّيِّ في الدالّةِ الجارية — انظر
+                //      `SIRFunction::localSlotNames` لسببِ وجودِه: SIR لا تحمل نطاقًا،
+                //      فهذا هو الموضعُ **الوحيدُ** الذي يُعرَف فيه أنّ الاسمَ محلّيٌّ.
+                // (EN) Record the local name on the function being built — see
+                //      `SIRFunction::localSlotNames` for why: SIR carries no scope, so this
+                //      is the ONLY place where a name is known to be local.
+                if (!varInfo.isGlobal && currentFunction_)
+                {
+                    currentFunction_->localSlotNames.insert(varInfo.name);
+                }
             }
 
             // ============================================================================

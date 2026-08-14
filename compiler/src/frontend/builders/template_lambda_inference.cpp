@@ -856,7 +856,45 @@ namespace Sad
                                               << static_cast<int>(argType) << ")" << std::endl;
 #endif
                                 }
-                                else if (paramType != SadTypeKind::Integer && argType == SadTypeKind::String)
+                                // (AR) «أي» قمّةُ الشبكةِ فلا تُخفَّض إلى نصّ.
+                                //
+                                //      كانت هذه الذراعُ تقرأ «ليس Integer» فتبتلع `Any` معها،
+                                //      فيكفي موقعُ نداءٍ واحدٌ بوسيطٍ نصّيٍّ ليصير معاملٌ
+                                //      **مُصرَّحٌ `أي`** نصًّا في الجدول. والتوقيعُ المُصدَرُ
+                                //      يبقى `%SadDyn` — فينشقُّ الجدولُ عن الكود: تُدرَج عند
+                                //      كلِّ نداءٍ تاليٍ تحويلةٌ إلى نصّ ثمّ يُعادُ التغليفُ
+                                //      بوسمِ «نصّ».
+                                //
+                                //      وأثرُه ليس انهيارًا بل **كذبًا صامتًا**: `ولد([1،2،3])`
+                                //      في مكتبةِ جيسون كانت تُخرِج `["1","2","3"]` — جيسونٌ
+                                //      صالحُ الشكلِ يقول «نصوص» عن أعداد، ولا يُخفِق إلّا حين
+                                //      يقرأه طرفٌ آخر. وشرطُ ظهورِه أن يسبقَه نداءٌ بنصّ في
+                                //      الملفِّ نفسِه، فيختفي عند تصغيرِ المثالِ ويبدو «رفرفةً».
+                                //
+                                //      والتصريحُ `أي` قرارُ المؤلِّفِ لا نقصُ معلومةٍ يُستنتَج:
+                                //      لا موقعَ نداءٍ يُخوَّل نقضَه. أمّا `Integer` فافتراضٌ
+                                //      يعني «غيرَ معلوم» — وترقيتُه هي المقصودةُ هنا.
+                                // (EN) `Any` is the lattice top and must not be narrowed to String.
+                                //
+                                //      This arm tested "not Integer", which swallowed `Any` too, so a
+                                //      single string-argument call site turned a parameter **declared
+                                //      `any`** into a string in the table. The emitted signature stays
+                                //      `%SadDyn`, so the table and the code split: every later call site
+                                //      gets a to-string conversion inserted and is then re-boxed with
+                                //      the string tag.
+                                //
+                                //      The effect is not a crash but a **silent lie**: `generate([1,2,3])`
+                                //      in the JSON library emitted `["1","2","3"]` — well-formed JSON
+                                //      that says "strings" about numbers, failing only when someone else
+                                //      reads it. It only appears when a string call precedes it in the
+                                //      same file, so it vanishes on a reduced example and looks flaky.
+                                //
+                                //      A declared `any` is the author's decision, not missing information
+                                //      to be inferred: no call site is entitled to overrule it. `Integer`,
+                                //      by contrast, is the "unknown" default — promoting that is the point.
+                                else if (paramType != SadTypeKind::Integer &&
+                                         paramType != SadTypeKind::Any &&
+                                         argType == SadTypeKind::String)
                                 {
                                     // (AR) ترقية إلى STRING — النص هو أوسع الأنواع القابلة للمقارنة
                                     // (EN) Promote to STRING — string is the widest comparable type
@@ -866,6 +904,47 @@ namespace Sad
                                               << "] '" << funcInfo.parameters[i + paramOffset].name
                                               << "': " << static_cast<int>(paramType)
                                               << " -> STRING (widened)" << std::endl;
+#endif
+                                }
+                                // ═══════════════════════════════════════════════════════════
+                                // (AR) قمّةُ الشبكة: تعارضٌ لا ذراعَ له ⇒ «أي» لا تجمّدٌ صامت.
+                                //      قبلَ هذه الذراعِ كانت الشبكةُ بلا قمّة: متى غادر المعاملُ
+                                //      `Integer` إلى نوعٍ ملموسٍ (مصفوفة/منطقيّ/عشريّ) لم يَعُد أيُّ
+                                //      موقعِ نداءٍ **مخالفٍ** يوسّعه، فيتجمّد على أوّلِ نوعٍ بلغه
+                                //      وتُقرأ بقيّةُ المواقعِ بنوعٍ ليس نوعَها.
+                                //      مقيسًا: `افحص([1،2])` ثمّ `افحص(صحيح)` ثمّ `افحص(2.5)`
+                                //      كانت تُجيب «مصفوفة» ثلاثَ مرّات، والقيمُ تُقرأ مصفوفاتٍ
+                                //      فتُخرِج قمامةً أو تُسقِط الثنائيّ.
+                                //      و«أي» هنا ليست تخمينًا: هي النوعُ الذي يحمل وسمَه زمنَ
+                                //      التشغيل، فيقرأه `نوع()` وتفكّه الحسابات — وهو ما يفعله
+                                //      المفسّرُ أصلًا.
+                                // (EN) Lattice top: a conflict with no arm ⇒ Any, not a silent freeze.
+                                //      Before this arm the lattice had no top: once a param left
+                                //      `Integer` for a concrete kind (Array/Boolean/Float), no later
+                                //      *conflicting* call site could widen it, so it froze on the first
+                                //      kind it reached and every other site was read as the wrong type.
+                                //      Measured: `افحص([1،2])`, `افحص(صحيح)`, `افحص(2.5)` answered
+                                //      «مصفوفة» three times, and the values were read as arrays —
+                                //      emitting garbage or crashing the binary.
+                                //
+                                // (AR) `String` مستثنًى عمدًا: ذراعُه أعلاه تُبقيه لأنّ موقعَ النداءِ
+                                //      يُدرِج التحويلَ (BOOL_TO_STRING/I64_TO_STRING)، فتوسيعُه هنا
+                                //      يُبطِل تحويلًا يعمل. والاستثناءُ مقصورٌ عليه لا يُعمَّم.
+                                // (EN) `String` is deliberately excluded: its arm above keeps it because
+                                //      the call site inserts the conversion (BOOL_TO_STRING/I64_TO_STRING),
+                                //      so widening here would defeat a conversion that works. The
+                                //      exception is confined to it and is not generalised.
+                                // ═══════════════════════════════════════════════════════════
+                                else if (paramType != SadTypeKind::String &&
+                                         paramType != SadTypeKind::Any &&
+                                         argType != SadTypeKind::Void &&
+                                         argType != paramType)
+                                {
+                                    paramType = SadTypeKind::Any;
+#ifdef SIR_BUILDER_DEBUG
+                                    std::cerr << "[TYPE-INFER] " << funcName << " param[" << i
+                                              << "] '" << funcInfo.parameters[i + paramOffset].name
+                                              << "': conflicting call sites -> ANY" << std::endl;
 #endif
                                 }
                             }
@@ -1027,7 +1106,11 @@ namespace Sad
                                 {
                                     // (AR) STRING يبقى — التحويل يحدث عند موقع الاستدعاء
                                 }
-                                else if (paramType != SadTypeKind::Integer && argType == SadTypeKind::String)
+                                // (AR) نظيرُ ذراعِ الاستدعاءِ العاديّ: «أي» لا تُخفَّض هنا أيضًا.
+                                // (EN) Twin of the plain-call arm: `Any` is not narrowed here either.
+                                else if (paramType != SadTypeKind::Integer &&
+                                         paramType != SadTypeKind::Any &&
+                                         argType == SadTypeKind::String)
                                 {
                                     paramType = SadTypeKind::String;
                                 }

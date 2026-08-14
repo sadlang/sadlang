@@ -56,18 +56,34 @@ namespace Sad
         bool LLVMCodeGen::isDynSlot(const std::string &funcName, const std::string &slotName) const
         {
             std::string n = cleanSlotName(slotName);
-            if (dynGlobalSlots_.count(n))
-                return true;
             auto it = dynLocalSlots_.find(funcName);
-            return it != dynLocalSlots_.end() && it->second.count(n) != 0;
+            if (it != dynLocalSlots_.end() && it->second.count(n) != 0)
+                return true;
+            // (AR) العامُّ لا يُطبَّق على دالّةٍ تُصرّح الاسمَ محلّيًّا: `dynGlobalSlots_`
+            //      مجموعةٌ مفتاحُها الاسمُ المجرَّد، وتطبيقُها بلا هذا الشرطِ كان يجعل
+            //      محلّيًّا محسوسًا ديناميًّا لمجرّدِ مصادفةِ الاسم (انظر localSlotNames).
+            // (EN) A global does not apply to a function that declares the name locally:
+            //      `dynGlobalSlots_` is bare-name-keyed, and applying it unconditionally
+            //      made a concrete local dynamic on a mere name clash (see localSlotNames).
+            auto lit = funcLocalNames_.find(funcName);
+            if (lit != funcLocalNames_.end() && lit->second.count(n) != 0)
+                return false;
+            return dynGlobalSlots_.count(n) != 0;
         }
 
         void LLVMCodeGen::collectDynSlots(std::shared_ptr<SIRModule> sirModule)
         {
             dynGlobalSlots_.clear();
             dynLocalSlots_.clear();
+            funcLocalNames_.clear();
             if (!sirModule)
                 return;
+
+            // (AR) نسخُ سجلِّ الأسماءِ المحلّيّةِ من SIR ليُقرأ في isDynSlot زمنَ التوليد
+            // (EN) Copy the per-function local-name record from SIR for isDynSlot at emit time
+            for (const auto &fn : sirModule->getFunctions())
+                if (fn)
+                    funcLocalNames_[fn->getName()] = fn->localSlotNames;
 
             // (AR) أسماء المتغيّرات العامّة + العامّ المصرَّح Any أصلًا (المستوى الأعلى)
             // (EN) global names + globals the frontend already declared Any (top level)
@@ -104,10 +120,18 @@ namespace Sad
                     // (EN) stored value kinds per slot — for the text/number mix rule
                     std::map<std::string, std::set<SadTypeKind>> slotStoredKinds;
 
+                    // (AR) الأسماءُ المُصرَّحةُ محلّيًّا في هذه الدالّة — تُظلِّلُ العامَّ
+                    // (EN) Names declared locally in this function — they shadow the global
+                    const std::set<std::string> &localNames = fn->localSlotNames;
+
                     auto isDynSlotName = [&](const std::string &raw)
                     {
                         std::string n = cleanSlotName(raw);
-                        return localDyn.count(n) != 0 || dynGlobalSlots_.count(n) != 0;
+                        if (localDyn.count(n) != 0)
+                            return true;
+                        if (localNames.count(n) != 0)
+                            return false;
+                        return dynGlobalSlots_.count(n) != 0;
                     };
                     // (AR) قيمةُ معامل ديناميّة؟ Any ساكنًا، أو سجلّ ملوَّث، أو خانةٌ-كقيمة
                     //      ديناميّة (resolveOperand يحمّل الخانة تلقائيًّا)
@@ -124,6 +148,35 @@ namespace Sad
                     auto markSlotDyn = [&](const std::string &raw)
                     {
                         std::string n = cleanSlotName(raw);
+                        // (AR) ⚠️ الترقيةُ إلى المجموعةِ العامّةِ **لا** تُقيَّد بـ`localNames`،
+                        //      وقد قِيسَ الأمران. فالتصريحُ في المستوى الأعلى (`متغير س = 10`)
+                        //      يُسجَّلُ محلّيًّا في `main` كذلك — الوجهُ الأماميُّ يبنيه بالباني
+                        //      العامِّ نفسِه بـ`isGlobal = false` — فتقييدُ الترقيةِ به يمنعُ
+                        //      **الترقيةَ الحقيقيّةَ** للعامّ: `س = س / 4` في المستوى الأعلى
+                        //      يُرقّي `س` عشريًّا، فتقرأُ `main` ٢٫٥ بينما تقرأُ دالّةٌ أخرى ٢.
+                        //      قِيسَ على `005_global_promotion_split` و`003_self_division_loop`
+                        //      و`079_بايت_اقتطاع_إعادة_إسناد_من_قسمة`: ثلاثتُها سقطت بالتقييد.
+                        //      والتظليلُ يُحسَمُ على جهةِ **القراءة** وحدَها (isDynSlotName أعلاه
+                        //      وisDynSlot) وهي كافيةٌ لعطبِ الاصطدام، إذ كان العطبُ قراءةً لا كتابة.
+                        //      وتبقى بقيّةٌ مُعلَنةٌ لا مسكوتٌ عنها: محلّيٌّ **ديناميٌّ** في دالّةٍ
+                        //      غيرِ `main` يصادفُ اسمَ عامٍّ ما زال يُرقّي ذلك العامَّ. سدُّها
+                        //      يلزمه أن يُصرّح الوجهُ الأماميُّ عن العامِّ بـ`isGlobal = true` في
+                        //      المستوى الأعلى، وذلك تغييرٌ في مِلكيّةِ المعلومةِ لا في هذا المسح.
+                        // (EN) ⚠️ Escalation is deliberately NOT gated on `localNames`; both ways
+                        //      were measured. A top-level declaration (`var x = 10`) is ALSO
+                        //      recorded as a local of `main` — the front end builds it with the
+                        //      same generic builder, with `isGlobal = false` — so gating on it
+                        //      blocks the REAL promotion of the global: `x = x / 4` at top level
+                        //      promotes `x` to float, and `main` reads 2.5 while another function
+                        //      reads 2. Measured on 005_global_promotion_split,
+                        //      003_self_division_loop and 079 (byte truncation on reassignment):
+                        //      all three failed under the gate. Shadowing is decided on the READ
+                        //      side alone (isDynSlotName above and isDynSlot), which suffices for
+                        //      the collision defect — that defect was a read, not a write.
+                        //      A declared, not silent, remainder: a DYNAMIC local in a non-main
+                        //      function clashing with a global name still promotes that global.
+                        //      Closing it requires the front end to mark top-level declarations
+                        //      `isGlobal = true` — a change of information ownership, not of this scan.
                         if (globalNames.count(n))
                             changed = dynGlobalSlots_.insert(n).second || changed;
                         changed = localDyn.insert(n).second || changed;
@@ -281,6 +334,20 @@ namespace Sad
             return st->hasName() && st->getName() == kSadDynTypeName;
         }
 
+        llvm::Value *loadDynSlot(LLVMCodeGen &cg, llvm::Value *v)
+        {
+            if (!v || !cg.builder_ || !cg.context_)
+                return v;
+            llvm::Type *slotTy = nullptr;
+            if (auto *alloca = llvm::dyn_cast<llvm::AllocaInst>(v))
+                slotTy = alloca->getAllocatedType();
+            else if (auto *gv = llvm::dyn_cast<llvm::GlobalVariable>(v))
+                slotTy = gv->getValueType();
+            if (!slotTy || slotTy != getSadDynType(*cg.context_))
+                return v;
+            return cg.builder_->CreateLoad(slotTy, v, "dyn.slot.load");
+        }
+
         // ====================================================================
         // البناء / construction
         // ====================================================================
@@ -414,6 +481,23 @@ namespace Sad
             if (isSadDyn(v))
                 return v;
             uint8_t kind;
+            // (AR) حرفيّةُ «لاشيء» تصل هنا أحيانًا بنوعٍ ساكنٍ صحيحٍ لا Null (ذراعُ
+            //      `طابق` مقيسة)، وحمولتُها الحارس. فنَسِمُها Null **عند التغليف**، حيث
+            //      يُعرَف أنّها ثابتٌ حرفيّ — بدل أن يستنتجَ المُقارِنُ العدمَ من الحمولةِ
+            //      زمنَ التشغيل، فيَعُدَّ عددًا صحيحًا صالحًا قيمتُه الحارسُ عدمًا.
+            // (EN) The «null» literal sometimes arrives with a static Integer type (measured in
+            //      `match` arms) carrying the sentinel payload. Tag it Null **at boxing**, where
+            //      it is known to be a literal constant, instead of having the comparator infer
+            //      nullness from the payload at run time — which would make a legitimate integer
+            //      equal to the sentinel compare as null.
+            if (auto *constantOperand = llvm::dyn_cast_or_null<llvm::ConstantInt>(v))
+            {
+                if (constantOperand->getBitWidth() == 64 &&
+                    constantOperand->getSExtValue() == Sad::Compiler::kSadNullSentinel)
+                {
+                    return packDyn(cg, v, DynKind::Null);
+                }
+            }
             switch (sirType)
             {
             case SadTypeKind::Integer:
@@ -588,7 +672,7 @@ namespace Sad
             auto *handlerStack = cg.module_->getNamedGlobal(SC::kRuntimeHandlerStack);
             if (!handlerStack)
             {
-                auto *arrTy = llvm::ArrayType::get(ptrType, 64);
+                auto *arrTy = llvm::ArrayType::get(ptrType, SC::kSadHandlerStackCapacity);
                 handlerStack = new llvm::GlobalVariable(
                     *cg.module_, arrTy, false, llvm::GlobalValue::InternalLinkage,
                     llvm::ConstantAggregateZero::get(arrTy), SC::kRuntimeHandlerStack);
@@ -629,7 +713,15 @@ namespace Sad
             b.CreateStore(llvm::ConstantInt::get(i64Type, 0), exceptionValue);
 
             llvm::Value *idx = b.CreateSub(count, b.getInt32(1), "panic.idx");
-            auto *arrTy = llvm::ArrayType::get(ptrType, 64);
+            // (AR) تقصيرُ الفهرس — نظيرُ ما في exception_ops. راجِعْ kSadHandlerStackCapacity.
+            // (EN) Clamp the index — the twin of exception_ops. See kSadHandlerStackCapacity.
+            {
+                llvm::Value *lastSlot =
+                    b.getInt32(static_cast<int>(SC::kSadHandlerStackCapacity) - 1);
+                llvm::Value *tooDeep = b.CreateICmpSGT(idx, lastSlot, "panic.idx.deep");
+                idx = b.CreateSelect(tooDeep, lastSlot, idx, "panic.idx.clamped");
+            }
+            auto *arrTy = llvm::ArrayType::get(ptrType, SC::kSadHandlerStackCapacity);
             llvm::Value *slot = b.CreateGEP(arrTy, handlerStack, {b.getInt32(0), idx}, "panic.slot");
             llvm::Value *jmpbuf = b.CreateLoad(ptrType, slot, "panic.jmpbuf");
             auto *longjmpTy = llvm::FunctionType::get(
@@ -912,9 +1004,75 @@ namespace Sad
             //      branch since strcmp is unsafe on a non-pointer payload (int/float). Serves the whole
             //      %SadDyn family: EQ/NE (via emitDynamicEqNe) and LT/LE/GT/GE (via emitCmpLt…) unify here.
             llvm::Value *strK = llvm::ConstantInt::get(i8, DynKind::Str);
+            llvm::Value *lKind = dynKindByte(cg, l);
+            llvm::Value *rKind = dynKindByte(cg, r);
+
+            // (AR) «عدميّةٌ» زمنَ التشغيل: وسمُ Null، أو وسمُ Str وحمولتُه حارسُ العدم.
+            //      الثانيةُ ليست احتياطًا نظريًّا: خانةٌ نوعُها المُصرَّحُ «نصّ» تُعبّأ عدمًا
+            //      في موقعٍ ونصًّا في آخر، فتُغلَّف بوسمِ Str وحمولةِ الحارس. ولولا هذا
+            //      الفحصُ لذهب المسارُ إلى strcmp على المؤشرِ الحارسِ فسقط البرنامجُ
+            //      بـSIGSEGV — وهو ما يحرسه هذا الشرطُ **قبل** التفرّع لا بعده.
+            // (EN) Runtime "nullishness": the Null tag, or the Str tag with the null sentinel
+            //      as payload. The second case is not hypothetical: a slot declared `string`
+            //      may be filled with null at one site and a string at another, so it boxes as
+            //      Str-tagged with the sentinel payload. Without this test the path would reach
+            //      strcmp on the sentinel pointer and the program would die with SIGSEGV — which
+            //      this condition guards **before** the branch, not after it.
+            llvm::Value *sentinel =
+                llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx), Sad::Compiler::kSadNullSentinel);
+            //      والحكمُ على **الحمولةِ** أيًّا كان الوسم، لا على وسمِ Null وحدَه: حارسُ
+            //      العدمِ قيمةٌ محجوزةٌ على مستوى اللغةِ كلِّها (kSadNullSentinel)، والتغليفُ
+            //      لا يضع وسمَ Null دائمًا — مقيسًا: حرفيّةُ «لاشيء» في ذراعِ `طابق` تُغلَّف
+            //      وسمًا صحيحًا وحمولتُها الحارس. فلو حكَمنا بالوسمِ وحدَه لصار
+            //      `طابق(لاشيء)` لا يطابق `عندما لاشيء` — عدمٌ لا يساوي عدمًا.
+            //      والثمنُ المُعلَن: عددٌ قيمتُه الحارسُ نفسُه يُعدّ عدمًا. وهو ثمنُ التمثيلِ
+            //      القائمِ لا ثمنُ هذا الموضع: `normaliseToSentinelWidth` في مقارنةِ الأنواعِ
+            //      الساكنةِ تحكم بالحكمِ نفسِه، فالموضعان متّسقان.
+            // (EN) The test is on the **payload** whatever the tag, not on the Null tag alone:
+            //      the null sentinel is a language-wide reserved value (kSadNullSentinel), and
+            //      boxing does not always attach the Null tag — measured: the «null» literal in a
+            //      `match` arm is boxed with the Int tag and the sentinel as its payload. Judging
+            //      by the tag alone would make `match(null)` fail to match `case null` — null not
+            //      equal to null.
+            //      Declared cost: an integer whose value is the sentinel itself counts as null.
+            //      That is the cost of the existing representation, not of this site:
+            //      `normaliseToSentinelWidth` on the static-type path makes the same judgement,
+            //      so the two are consistent.
+            auto isNullish = [&](llvm::Value *v, llvm::Value *kind, const char *tag) {
+                llvm::Value *tagIsNull =
+                    b.CreateICmpEQ(kind, llvm::ConstantInt::get(i8, DynKind::Null),
+                                   std::string("dyn.cmp.") + tag + ".tagnull");
+                // (AR) والحمولةُ تُفحَص للوسمِ النصّيِّ وحدَه: هناك الحارسُ **مؤشّرٌ**
+                //      لا عدد، وبلوغُه strcmp موتٌ بـSIGSEGV، فالفحصُ يقي عطبًا حقيقيًّا.
+                //      أمّا وسمُ العددِ فحمولتُه عددٌ يعنيه المستعمل: فحصُها هناك كان
+                //      يجعل ‎-9223372036854775807 (وهو مدخلُ جيسونَ صالحٌ عند حدِّ i64)
+                //      يساوي «لاشيء» ويُطبَع `null` — جوابٌ خاطئٌ صامتٌ بخروجٍ ٠.
+                //      والعدمُ المغلَّفُ صار موسومًا Null عند التغليفِ (toDyn)، فلا حاجةَ
+                //      إلى استنتاجِه من حمولةِ عدد.
+                // (EN) The payload is tested for the Str tag only: there the sentinel is a
+                //      pointer, and reaching strcmp with it is a SIGSEGV, so the test prevents a
+                //      real defect. Under the Int tag the payload is a number the user meant:
+                //      testing it there made -9223372036854775807 (a valid JSON input at the i64
+                //      boundary) equal null and print `null` — a silent wrong answer with exit 0.
+                //      Boxed nulls now carry the Null tag from toDyn, so no inference is needed.
+                llvm::Value *payloadIsSentinel = b.CreateAnd(
+                    b.CreateICmpEQ(kind, strK, std::string("dyn.cmp.") + tag + ".sent.isstr"),
+                    b.CreateICmpEQ(dynPayloadI64(cg, v), sentinel,
+                                   std::string("dyn.cmp.") + tag + ".sent.val"),
+                    std::string("dyn.cmp.") + tag + ".sent");
+                return b.CreateOr(tagIsNull, payloadIsSentinel,
+                                  std::string("dyn.cmp.") + tag + ".nullish");
+            };
+            llvm::Value *lNullish = isNullish(l, lKind, "l");
+            llvm::Value *rNullish = isNullish(r, rKind, "r");
+            llvm::Value *eitherNullish = b.CreateOr(lNullish, rNullish, "dyn.cmp.either.null");
+            llvm::Value *bothNullish = b.CreateAnd(lNullish, rNullish, "dyn.cmp.both.null");
+
             llvm::Value *bothStr = b.CreateAnd(
-                b.CreateICmpEQ(dynKindByte(cg, l), strK, "dyn.cmp.lstr"),
-                b.CreateICmpEQ(dynKindByte(cg, r), strK, "dyn.cmp.rstr"),
+                b.CreateAnd(b.CreateICmpEQ(lKind, strK, "dyn.cmp.lstr"),
+                            b.CreateICmpEQ(rKind, strK, "dyn.cmp.rstr"),
+                            "dyn.cmp.bothstr.tags"),
+                b.CreateNot(eitherNullish, "dyn.cmp.neither.null"),
                 "dyn.cmp.bothstr");
 
             auto *parent = b.GetInsertBlock()->getParent();
@@ -993,7 +1151,76 @@ namespace Sad
             auto *phi = b.CreatePHI(i1, 2, "dyn.cmp.merge.res");
             phi->addIncoming(strRes, strBB);
             phi->addIncoming(numRes, numBB);
-            return phi;
+
+            // (AR) بوّابةُ الوسمِ للمساواةِ وحدَها.
+            //
+            //      الفرعُ العدديُّ أعلاه يقارن **الحمولةَ** دون سؤالٍ عن الوسم، فكان
+            //      «أي» يحملُ العددَ ١ يساوي «صحيح» (حمولةُ المنطقيِّ ١)، و«أي» يحملُ ٠
+            //      يساوي «خطأ». والمفسّرُ يقول في الحالتَين «خطأ»: المنطقيُّ نوعٌ قائمٌ
+            //      بذاته لا عددٌ متنكّر. وهذا هو الذي كان يجعل مولّدَ جيسون يُخرِج
+            //      {"أ":true} لقيمةٍ عددُها ١ — جيسونٌ **صالحُ الشكلِ كاذبُ المعنى**،
+            //      وهو أسوأُ من انهيارٍ لأنّه يمرّ صامتًا.
+            //
+            //      عقدُ المفسّرِ (evaluateComparisonOp) حرفًا:
+            //        · عدمٌ يساوي عدمًا فقط — أيًّا كان نوعُ الطرفِ الآخر.
+            //        · فراغٌ يساوي فراغًا فقط.
+            //        · عددان مختلفا الوسمِ (صحيحٌ/عشريّ) يُرقَّيان ويُقارَنان.
+            //        · وسمان مختلفان بعدَ ذلك ⇒ غيرُ متساويَين، بلا مقارنةِ محتوى.
+            //      والترتيبُ خارجٌ عن هذه البوّابةِ عمدًا: المفسّرُ يرفضه على الأنواعِ
+            //      المختلطةِ بخطأٍ لا بجواب، فمحاكاتُه هنا تحتاج تشخيصًا زمنَ التشغيلِ
+            //      لا انتقاءَ قيمة.
+            // (EN) Tag gate, for equality only.
+            //
+            //      The numeric branch above compares the **payload** without asking about the
+            //      tag, so an `any` holding the integer 1 equalled `true` (whose bool payload is
+            //      1), and an `any` holding 0 equalled `false`. The interpreter says false in
+            //      both cases: bool is its own type, not an integer in disguise. This is what
+            //      made the JSON generator emit an object member as `true` for a value that was
+            //      the integer 1 — well-formed JSON with the wrong meaning, which is worse than a
+            //      crash because it passes silently.
+            //
+            //      The interpreter's contract (evaluateComparisonOp), verbatim:
+            //        - null equals only null, whatever the other side's type.
+            //        - void equals only void.
+            //        - two numerics of differing tags (int/float) are promoted and compared.
+            //        - any other tag mismatch => not equal, with no content comparison.
+            //      Ordering is deliberately outside this gate: the interpreter rejects it on
+            //      mixed types with an error rather than an answer, so mirroring it here needs a
+            //      runtime diagnostic, not a value selection.
+            if (cmp != DynCmp::EQ && cmp != DynCmp::NE)
+                return phi;
+
+            llvm::Value *voidK = llvm::ConstantInt::get(i8, DynKind::Void);
+            llvm::Value *lVoid = b.CreateICmpEQ(lKind, voidK, "dyn.cmp.l.void");
+            llvm::Value *rVoid = b.CreateICmpEQ(rKind, voidK, "dyn.cmp.r.void");
+            llvm::Value *eitherVoid = b.CreateOr(lVoid, rVoid, "dyn.cmp.either.void");
+            llvm::Value *bothVoid = b.CreateAnd(lVoid, rVoid, "dyn.cmp.both.void");
+
+            auto isNumericKind = [&](llvm::Value *kind, const char *tag) {
+                return b.CreateOr(
+                    b.CreateICmpEQ(kind, llvm::ConstantInt::get(i8, DynKind::Int),
+                                   std::string("dyn.cmp.") + tag + ".isint"),
+                    b.CreateICmpEQ(kind, llvm::ConstantInt::get(i8, DynKind::Float),
+                                   std::string("dyn.cmp.") + tag + ".isflt"),
+                    std::string("dyn.cmp.") + tag + ".isnum");
+            };
+            llvm::Value *bothNumeric = b.CreateAnd(isNumericKind(lKind, "l"),
+                                                   isNumericKind(rKind, "r"),
+                                                   "dyn.cmp.both.num");
+            llvm::Value *sameKind = b.CreateICmpEQ(lKind, rKind, "dyn.cmp.same.kind");
+            llvm::Value *comparable = b.CreateOr(sameKind, bothNumeric, "dyn.cmp.comparable");
+
+            const bool wantEqual = (cmp == DynCmp::EQ);
+            llvm::Value *mismatchAnswer = llvm::ConstantInt::get(i1, wantEqual ? 0 : 1);
+            llvm::Value *voidAnswer = wantEqual ? bothVoid : b.CreateNot(bothVoid, "dyn.cmp.void.ne");
+            llvm::Value *nullAnswer =
+                wantEqual ? bothNullish : b.CreateNot(bothNullish, "dyn.cmp.null.ne");
+
+            llvm::Value *gated =
+                b.CreateSelect(comparable, phi, mismatchAnswer, "dyn.cmp.gated.kind");
+            gated = b.CreateSelect(eitherVoid, voidAnswer, gated, "dyn.cmp.gated.void");
+            gated = b.CreateSelect(eitherNullish, nullAnswer, gated, "dyn.cmp.gated.null");
+            return gated;
         }
 
         llvm::StructType *sadArrayStructType(llvm::LLVMContext &ctx)

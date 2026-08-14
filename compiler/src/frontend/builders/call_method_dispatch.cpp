@@ -790,8 +790,22 @@ namespace Sad
                         if (strOnly)
                             return *strOnly;
                     }
-                    else if (objResult.type == SadTypeKind::Map)
+                    else if (objResult.type == SadTypeKind::Map ||
+                             objResult.type == SadTypeKind::Any)
                     {
+                        // (AR) و«أي» قبلَ عائلةِ المصفوفةِ لا بعدَها. العائلةُ الأخيرةُ
+                        //      تُجرَّبُ أوّلًا في الترتيبِ التاريخيّ ولا تردُّ ما لا تعرف:
+                        //      فرعُها الأخيرُ «خلاف ذلك: مصفوفة» يبتلعُ المُستقبِلَ الموسومَ
+                        //      فتُبنى فهرسةُ مصفوفةٍ على خريطة. والبوّابةُ في
+                        //      buildMapBuiltinMethodCall تقصُر ما يُقبَلُ على «أي» على
+                        //      الأسماءِ المفردة، فما عداها يعودُ nullopt ويمضي كما كان.
+                        // (EN) «أي» goes before the array family, not after. That family is
+                        //      tried first by historical ordering and does not decline what it
+                        //      does not know: its final "otherwise: array" branch swallows a
+                        //      tagged receiver and builds array indexing over a map. The gate
+                        //      inside buildMapBuiltinMethodCall limits what «أي» may claim to
+                        //      the unambiguous names; anything else returns nullopt and the
+                        //      previous path continues unchanged.
                         auto mapOnly = b_.buildMapBuiltinMethodCall(objResult, methodName, args);
                         if (mapOnly)
                             return *mapOnly;

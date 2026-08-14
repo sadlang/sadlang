@@ -38,6 +38,7 @@ public:
     // (AR) العمليات الأساسية
     llvm::Value *emitStringConcat(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitStringCharAt(std::shared_ptr<SIRInstruction>);
+    llvm::Value *emitStringCharFromCode(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitStringCmp(std::shared_ptr<SIRInstruction>);
 
     // (AR) [ز.١٣] الترتيبُ المعجميُّ لنصّين: يُرجع i64 في ‎{-1, 0, +1}‎ بمقارنةِ بايتاتِ
@@ -54,6 +55,23 @@ public:
     llvm::Value *emitStringOrdCmp(std::shared_ptr<SIRInstruction>);
 
     // (AR) التحويلات
+    // (AR) حارسُ مدى التحويلِ النصّيِّ إلى عدد — التفصيلُ في string_ops.cpp.
+    // (EN) The string-to-number range guard — detail in string_ops.cpp.
+    llvm::Value *emitNumericRangeErrnoSlot();
+    void emitNumericRangeCheck(llvm::Value *errnoSlot, const char *label);
+
+    // (AR) خانةُ `endptr` التي يكتب فيها `strtoll`/`strtod` موضعَ التوقّف — تُخصَّص
+    //      في كتلةِ المدخلِ لا عند نقطةِ الإدراج، وإلّا نما المكدَّسُ داخلَ حلقة.
+    // (EN) The `endptr` slot that `strtoll`/`strtod` writes its stop position into —
+    //      allocated in the entry block, not at the insert point, or a loop would grow
+    //      the stack on every iteration.
+    llvm::Value *emitNumericParseEndSlot(const char *label);
+    // (AR) حارسُ «ليس عددًا»: يرمي إن لم يُستهلَك محرفٌ واحد (`endptr == str`).
+    //      انظر `kNumberNotNumericMsg` للقياسِ الذي أوجبه.
+    // (EN) The "not a number" guard: raises when not one character was consumed
+    //      (`endptr == str`). See `kNumberNotNumericMsg` for the measurement behind it.
+    void emitNumericParseCheck(llvm::Value *endSlot, llvm::Value *sourcePtr, const char *label);
+
     llvm::Value *emitStringToI64(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitStringToF64(std::shared_ptr<SIRInstruction>);
 

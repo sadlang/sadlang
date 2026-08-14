@@ -346,7 +346,7 @@ namespace Sad
                     // (AR) قيمة أولى معلَّبة ثابتًا حسب النوع المعلَن (إن وُجدت) وإلّا {عدم، 0}
                     // (EN) constant-packed initializer per the declared type (if any), else {Null, 0}
                     llvm::Constant *dynInit = llvm::ConstantAggregateZero::get(dynTy);
-                    if (!globalVar->initialValue.empty())
+                    if (globalVar->hasInitialValue)
                     {
                         try
                         {
@@ -435,7 +435,11 @@ namespace Sad
                 llvm::Constant *initializer = nullptr;
 
                 // Source: SIRGlobalVariable::initialValue is at sir_module.h:344
-                if (!globalVar->initialValue.empty())
+                // (AR) الحكمُ بعَلَمِ الوجودِ لا بفراغِ النصّ — وإلّا صار `ثابت فارغ = ""`
+                //      مؤشّرًا مصفَّرًا يُطبع «void» بدل نصٍّ فارغ.
+                // (EN) Judge by the presence flag, not by emptiness — otherwise
+                //      `ثابت فارغ = ""` becomes a zeroed pointer printed as "void".
+                if (globalVar->hasInitialValue)
                 {
                     // (AR) تحليل القيمة الأولية بناءً على النوع
                     // (EN) Parse initial value based on type
@@ -501,7 +505,7 @@ namespace Sad
                 // (EN) If constant but no literal initializer, create as global (mutable)
                 //      so __sad_main can write the computed value via STORE.
                 //      Constness is enforced at language level (parser), not LLVM level.
-                bool llvmConstant = isConstant && !globalVar->initialValue.empty();
+                bool llvmConstant = isConstant && globalVar->hasInitialValue;
                 // (AR) اللبنة 3.14: @رمز("اسم") ⇒ رمز رابط ثابت مُصدَّر (ExternalLinkage)
                 //      باسم linkName بدل الاسم الداخليّ المُشوَّه. مفتاح خريطة القيَم
                 //      يبقى الاسم العربيّ (varName) كي تُحلّ مراجع ص الداخليّة.

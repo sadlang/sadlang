@@ -131,6 +131,15 @@ namespace Sad
                     }
                 }
 
+                // (AR) نوعُ **عنصرِ** كلِّ حاويةٍ محلّيّة — مستقلٌّ عن نوعِ الحاويةِ نفسِها.
+                //      بدونه لا يملك استنتاجُ الإرجاعِ جوابًا عن `ز[0]` فيسقط إلى
+                //      الافتراضِ «رقم». راجِعْ ذراعَ IndexExpr أدناه.
+                // (EN) The ELEMENT type of each local container — distinct from the
+                //      container's own type. Without it return inference has no answer for
+                //      `pair[0]` and falls through to the Integer default. See the IndexExpr
+                //      arm below.
+                std::unordered_map<std::string, SadTypeKind> localElementTypes;
+
                 // ═══════════════════════════════════════════════════════════════════
                 // (AR) الخطوة 2: دالة استنتاج نوع تعبير مع دعم المتغيرات المحلية
                 // (EN) Step 2: Expression type inference with local variable support
@@ -659,6 +668,58 @@ namespace Sad
                     // ================================================================
                     if (dynamic_cast<const Sad::AST::LambdaExpr *>(expr))
                         return SadTypeKind::Function;
+                    // ================================================================
+                    // (AR) وصولُ فهرسٍ — كان بلا ذراعٍ أصلًا، فيسقط إلى الافتراضِ «رقم».
+                    //
+                    //      وثمنُه ليس نوعًا مغلوطًا في جدولٍ فحسب: دالّةٌ تُرجع `الزوج[0]`
+                    //      من مصفوفةٍ مختلطة تُصدَّر فعلًا بـ%SadDyn (وهو الصواب)، بينما
+                    //      يُسجَّل نوعُها «رقم». فمتى قُورنت قيمتُها بنصّ اشتغل اختصارُ
+                    //      «نصّ في مواجهة عددٍ ⇒ ثابتٌ خطأ» في بناءِ العملياتِ الثنائيّة
+                    //      **قبلَ إصدارِ أيِّ تعليمةِ مقارنة**، فلا يبقى في IR أثرٌ يُقاس:
+                    //      يُطبَع «خطأ» من ثابتٍ لا من حكم.
+                    //      مقيسًا: `حلل(ولد(س)) == س` في مكتبةِ جيسون كانت «خطأ» مصرَّفةً
+                    //      و«صحيح» مفسَّرةً — والدورةُ المغلقةُ هي خاصّيّةُ المكتبةِ الحاكمة.
+                    //
+                    //      والجوابُ هنا يتبع التمثيلَ لا يخمّنه: نوعُ العنصرِ متى عُرِف،
+                    //      و«أي» متى لم يُعرَف — و«أي» هي بعينها ما يُصدِره الباني لعنصرٍ
+                    //      مختلطٍ، فيتطابق الجدولُ مع الكود بدل أن يتناقضا.
+                    // (EN) Index access — had no arm at all, so it fell to the Integer default.
+                    //
+                    //      The cost is not merely a wrong type in a table: a function returning
+                    //      `pair[0]` from a heterogeneous array really is emitted as %SadDyn
+                    //      (correctly), while its type is recorded as Integer. So when its value
+                    //      is compared against a string, the "string vs number ⇒ constant false"
+                    //      short-circuit in the binary-op builder fires **before any comparison
+                    //      instruction is emitted**, leaving no trace in the IR to measure:
+                    //      «false» is printed from a constant, not from a judgement.
+                    //      Measured: `parse(generate(s)) == s` in the JSON library was false
+                    //      compiled and true interpreted — and that round trip is the library's
+                    //      governing property.
+                    //
+                    //      The answer here follows the representation rather than guessing it:
+                    //      the element type when it is known, and Any when it is not — and Any is
+                    //      exactly what the builder emits for a heterogeneous element, so the
+                    //      table agrees with the code instead of contradicting it.
+                    // ================================================================
+                    if (auto idx = dynamic_cast<const Sad::AST::IndexExpr *>(expr))
+                    {
+                        if (auto obj = dynamic_cast<const Sad::AST::VariableExpr *>(idx->object.get()))
+                        {
+                            auto elemIt = localElementTypes.find(obj->name);
+                            if (elemIt != localElementTypes.end() &&
+                                elemIt->second != SadTypeKind::Void &&
+                                elemIt->second != SadTypeKind::Unknown)
+                            {
+                                return elemIt->second;
+                            }
+                        }
+                        // (AR) فهرسةُ نصٍّ تُعطي نصًّا (محرفًا واحدًا) لا عنصرَ حاوية.
+                        // (EN) Indexing a string yields a string (one character), not a container element.
+                        if (inferExprType(idx->object.get()) == SadTypeKind::String)
+                            return SadTypeKind::String;
+                        return SadTypeKind::Any;
+                    }
+
                     // (AR) فحص DataType من التعبير نفسه (إذا توفر)
                     // (EN) Check DataType from expression itself (if available)
                     auto dtype = expr->getTypeKind();
@@ -696,6 +757,48 @@ namespace Sad
                         {
                             SadTypeKind varType = inferExprType(varDecl->initializer.get());
                             localVarTypes[varDecl->name] = varType;
+
+                            // (AR) تسجيلُ نوعِ العنصرِ للحاوياتِ المحلّيّة:
+                            //        · حرفيّةُ مصفوفةٍ ⇒ نوعُ عناصرِها إن تجانست، و«أي» إن اختلفت.
+                            //        · نداءُ دالّةٍ ⇒ `returnElementType` المسجَّلُ لها إن وُجد.
+                            //      وهذا هو ما تقرؤه ذراعُ IndexExpr أعلاه.
+                            // (EN) Record the element type of local containers:
+                            //        - array literal ⇒ its elements' type if homogeneous, Any otherwise.
+                            //        - function call ⇒ its recorded `returnElementType`, if any.
+                            //      This is what the IndexExpr arm above reads.
+                            if (auto arrLit =
+                                    dynamic_cast<const Sad::AST::ArrayExpr *>(varDecl->initializer.get()))
+                            {
+                                SadTypeKind elemType = SadTypeKind::Void;
+                                bool homogeneous = true;
+                                for (const auto &el : arrLit->elements)
+                                {
+                                    SadTypeKind t = inferExprType(el.get());
+                                    if (elemType == SadTypeKind::Void)
+                                        elemType = t;
+                                    else if (t != elemType)
+                                        homogeneous = false;
+                                }
+                                if (!arrLit->elements.empty())
+                                    localElementTypes[varDecl->name] =
+                                        homogeneous ? elemType : SadTypeKind::Any;
+                            }
+                            else if (auto callExpr = dynamic_cast<const Sad::AST::CallExpr *>(
+                                         varDecl->initializer.get()))
+                            {
+                                if (auto callee = dynamic_cast<const Sad::AST::VariableExpr *>(
+                                        callExpr->callee.get()))
+                                {
+                                    auto fnIt = b_.functionTable_.find(callee->name);
+                                    if (fnIt != b_.functionTable_.end() &&
+                                        fnIt->second.returnElementType != SadTypeKind::Void &&
+                                        fnIt->second.returnElementType != SadTypeKind::Unknown)
+                                    {
+                                        localElementTypes[varDecl->name] =
+                                            fnIt->second.returnElementType;
+                                    }
+                                }
+                            }
                         }
                         else
                         {

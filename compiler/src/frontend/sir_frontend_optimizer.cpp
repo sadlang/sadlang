@@ -188,6 +188,22 @@ namespace Sad
                 return op;
             }
 
+            namespace
+            {
+                // (AR) نوعٌ عدديٌّ لغرضِ الطيّ — المنطقيُّ مستثنًى عمدًا.
+                // (EN) Numeric for folding purposes — bool deliberately excluded.
+                bool isNumericFoldKind(SadTypeKind kind)
+                {
+                    return kind == SadTypeKind::Integer || kind == SadTypeKind::Float;
+                }
+
+                bool boolVersusNumberOperands(const SIROperand &lhs, const SIROperand &rhs)
+                {
+                    return (lhs.dataType == SadTypeKind::Boolean && isNumericFoldKind(rhs.dataType)) ||
+                           (rhs.dataType == SadTypeKind::Boolean && isNumericFoldKind(lhs.dataType));
+                }
+            } // namespace
+
             bool ConstantFoldingFrontendPass::foldInstruction(
                 SIRInstruction &inst,
                 std::unordered_map<std::string, SIROperand> &constants)
@@ -419,11 +435,30 @@ namespace Sad
                 //      constant compares raw double bits as integers: "6/2 == 3.0" folded wrong
                 //      (3 ≠ bits(3.0)), and "6/3 == 2" was broken the other way before ISSUE-063.
                 //      A float operand ⇒ compare as doubles (mirror the interpreter's useDouble).
+                // (AR) منطقيٌّ في مواجهةِ عدد: **لا يُطوى** إلى مقارنةٍ عدديّة.
+                //      عقدُ المفسّرِ يجعل المنطقيَّ نوعًا قائمًا بذاته لا عددًا متنكّرًا،
+                //      فـ«1 == صحيح» عندَه «خطأ». وكان الطيُّ يقرأ قيمتَيهما الصحيحتَين
+                //      (١ و١) فيطويها إلى «صحيح» — جوابٌ يخالف المحرّكَ الآخرَ لبرنامجٍ
+                //      واحدٍ، ويُحسَم زمنَ الترجمةِ فلا يبقى في المُصدَرِ أثرٌ يُقاس.
+                //      والتسليمُ للمُصدِر هو الصواب: هناك بوّابةُ boolVersusNumber تُجيب
+                //      الجوابَ الثابتَ الصحيحَ (خطأ/صحيح) بدلَ اختراعِه هنا.
+                // (EN) Bool versus number: do **not** fold to a numeric comparison.
+                //      The interpreter's contract makes bool its own type, not an integer in
+                //      disguise, so `1 == true` is false there. This folder was reading both
+                //      integer values (1 and 1) and folding to true — an answer that disagrees
+                //      with the other engine for one program, decided at compile time so no
+                //      trace survives in the emitted code to be measured. Deferring to the
+                //      emitter is the fix: its boolVersusNumber gate gives the correct constant
+                //      verdict (false/true) instead of inventing one here.
                 case SIROpcode::EQ:
+                    if (boolVersusNumberOperands(lhs, rhs))
+                        return false;
                     constants[resultName] = SIROperand::ConstantBool(
                         anyFloat ? (lhsD == rhsD) : (lhs.intValue == rhs.intValue));
                     return true;
                 case SIROpcode::NE:
+                    if (boolVersusNumberOperands(lhs, rhs))
+                        return false;
                     constants[resultName] = SIROperand::ConstantBool(
                         anyFloat ? (lhsD != rhsD) : (lhs.intValue != rhs.intValue));
                     return true;
@@ -758,6 +793,7 @@ namespace Sad
                 // ═══════════════════════════════════════════════════════════════
                 case SIROpcode::BUILTIN_STRING_LENGTH:
                 case SIROpcode::BUILTIN_STRING_CHAR_AT:
+                case SIROpcode::BUILTIN_STRING_CHAR_FROM_CODE:
                 case SIROpcode::BUILTIN_STRING_TO_UPPER:
                 case SIROpcode::BUILTIN_STRING_TO_LOWER:
                 case SIROpcode::BUILTIN_STRING_FIND:

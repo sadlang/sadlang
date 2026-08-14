@@ -12,6 +12,8 @@
 // (حد أقصى 800 سطر لكل ملف)
 // ============================================================================
 
+#include <limits>
+#include <sstream>
 #include <string>
 #include "sir_builder.h"
 #include "module_nodes.h"
@@ -1086,6 +1088,255 @@ namespace Sad
             // - astTypeToSIRType: sir_builder.h:713
             // - module_->addGlobalVariable: sir_module.h:591
             // ============================================================================
+            // ================================================================
+            // (AR) طيُّ مُهيِّئٍ حرفيٍّ مركّبٍ لثابتٍ عامّ.
+            //      يُعيد `true` مع النصِّ الجاهزِ للانبعاث، و`false` إن لم يكن التعبيرُ
+            //      حرفيًّا بحتًا (متغيّر، نداء، ...) فيبقى القرارُ للمنادي.
+            //      المدعوم: أحاديُّ `+`/`-`، وثنائيُّ `+ - * /` على حرفيّاتٍ عدديّة،
+            //      ووصلُ `+` على حرفيّاتٍ نصّيّة. والقسمةُ على صفرٍ **لا تُطوى**:
+            //      تُترَك للمسارِ العامِّ بدل أن نُثبِّت في العامِّ قيمةً مختلَقة.
+            // (EN) Fold a composite literal initializer for a module-level constant.
+            //      True + emit-ready text, or false when the expression is not purely
+            //      literal. Supported: unary +/-, binary + - * / over numeric literals,
+            //      and + over string literals. Division by zero is left UNFOLDED rather
+            //      than inventing a value for the global.
+            // ================================================================
+            namespace
+            {
+                struct FoldedLiteral
+                {
+                    bool isString = false;
+                    bool isFloat = false;
+                    long long integerValue = 0;
+                    double floatValue = 0.0;
+                    std::string stringValue;
+                };
+
+                // (AR) حسابٌ صحيحٌ مُدقَّقُ الفيض — مكتوبٌ يدويًّا لأنّ MSVC لا يعرف
+                //      `__builtin_*_overflow`. والفيضُ **لا يُطوى** بقيمةٍ ملفوفةٍ بل
+                //      يُترَك للمسارِ العامّ: قيمةٌ ملفوفةٌ في العامِّ تخالف المفسّرَ
+                //      صامتةً، وهو أسوأُ من ألّا نطوي.
+                // (EN) Hand-written overflow-checked integer arithmetic — MSVC has no
+                //      __builtin_*_overflow. An overflowing expression is left UNFOLDED
+                //      rather than folded to a wrapped value that would silently disagree
+                //      with the interpreter.
+                constexpr long long kFoldMax = (std::numeric_limits<long long>::max)();
+                constexpr long long kFoldMin = (std::numeric_limits<long long>::min)();
+
+                bool addChecked(long long a, long long b, long long &out)
+                {
+                    if ((b > 0 && a > kFoldMax - b) || (b < 0 && a < kFoldMin - b))
+                        return false;
+                    out = a + b;
+                    return true;
+                }
+
+                bool subChecked(long long a, long long b, long long &out)
+                {
+                    if ((b < 0 && a > kFoldMax + b) || (b > 0 && a < kFoldMin + b))
+                        return false;
+                    out = a - b;
+                    return true;
+                }
+
+                bool mulChecked(long long a, long long b, long long &out)
+                {
+                    if (a == 0 || b == 0) { out = 0; return true; }
+                    if (a == -1 && b == kFoldMin) return false;
+                    if (b == -1 && a == kFoldMin) return false;
+                    const bool overflows = a > 0
+                        ? (b > 0 ? a > kFoldMax / b : b < kFoldMin / a)
+                        : (b > 0 ? a < kFoldMin / b : a < kFoldMax / b);
+                    if (overflows)
+                        return false;
+                    out = a * b;
+                    return true;
+                }
+
+                bool foldLiteral(Sad::AST::Expression *expr, FoldedLiteral &out);
+
+                bool foldLiteralNode(Sad::AST::LiteralExpr *lit, FoldedLiteral &out)
+                {
+                    const auto &token = lit->token;
+                    std::string value = token.getValue();
+                    switch (token.getType())
+                    {
+                    case Lexer::TokenType::NUMBER_INTEGER:
+                    {
+                        int base = 10;
+                        std::string digits = value;
+                        if (value.size() > 2 && value[0] == '0')
+                        {
+                            const char prefix = value[1];
+                            if (prefix == 'x' || prefix == 'X') { base = 16; }
+                            else if (prefix == 'o' || prefix == 'O') { base = 8; digits = value.substr(2); }
+                            else if (prefix == 'b' || prefix == 'B') { base = 2; digits = value.substr(2); }
+                        }
+                        try { out.integerValue = static_cast<long long>(std::stoull(digits, nullptr, base)); }
+                        catch (...) { return false; }
+                        out.isFloat = false;
+                        out.isString = false;
+                        return true;
+                    }
+                    case Lexer::TokenType::NUMBER_DOUBLE:
+                        try { out.floatValue = std::stod(value); }
+                        catch (...) { return false; }
+                        out.isFloat = true;
+                        out.isString = false;
+                        return true;
+                    case Lexer::TokenType::LITERAL_TRUE:
+                        out.integerValue = 1; out.isFloat = false; out.isString = false; return true;
+                    case Lexer::TokenType::LITERAL_FALSE:
+                        out.integerValue = 0; out.isFloat = false; out.isString = false; return true;
+                    case Lexer::TokenType::STRING_LITERAL:
+                        out.stringValue = value; out.isString = true; return true;
+                    default:
+                        return false;
+                    }
+                }
+
+                bool foldLiteral(Sad::AST::Expression *expr, FoldedLiteral &out)
+                {
+                    if (!expr)
+                        return false;
+                    if (auto *lit = dynamic_cast<Sad::AST::LiteralExpr *>(expr))
+                        return foldLiteralNode(lit, out);
+                    if (auto *un = dynamic_cast<Sad::AST::UnaryExpr *>(expr))
+                    {
+                        if (un->op != Lexer::TokenType::OP_PLUS && un->op != Lexer::TokenType::OP_MINUS)
+                            return false;
+                        if (!foldLiteral(un->operand.get(), out) || out.isString)
+                            return false;
+                        if (un->op == Lexer::TokenType::OP_MINUS)
+                        {
+                            if (out.isFloat) out.floatValue = -out.floatValue;
+                            else out.integerValue = -out.integerValue;
+                        }
+                        return true;
+                    }
+                    if (auto *bin = dynamic_cast<Sad::AST::BinaryExpr *>(expr))
+                    {
+                        FoldedLiteral lhs, rhs;
+                        if (!foldLiteral(bin->left.get(), lhs) || !foldLiteral(bin->right.get(), rhs))
+                            return false;
+                        if (lhs.isString || rhs.isString)
+                        {
+                            if (!lhs.isString || !rhs.isString || bin->op != Lexer::TokenType::OP_PLUS)
+                                return false;
+                            out.isString = true;
+                            out.stringValue = lhs.stringValue + rhs.stringValue;
+                            return true;
+                        }
+                        const bool asFloat = lhs.isFloat || rhs.isFloat;
+                        const double a = lhs.isFloat ? lhs.floatValue : static_cast<double>(lhs.integerValue);
+                        const double c = rhs.isFloat ? rhs.floatValue : static_cast<double>(rhs.integerValue);
+                        out.isString = false;
+                        out.isFloat = asFloat;
+                        // (AR) الحسابُ الصحيحُ يُجرى **بمُدقِّقاتِ الفيض** لا خامًّا: فيضُ
+                        //      الصحيحِ المُوقَّعِ سلوكٌ غيرُ معرَّفٍ في C++، وقسمةُ
+                        //      `LLONG_MIN / -1` تُطلِق فخَّ العتادِ فينهار **المصرِّفُ
+                        //      نفسُه** بـEXCEPTION_INT_OVERFLOW بلا تشخيصٍ واحدٍ ولا
+                        //      ملفَّ ناتج — قِيس على `ثابت س = -9223372036854775808 / -1`.
+                        //      والفائضُ لا يُطوى بقيمةٍ ملفوفةٍ بل **لا يُطوى أصلًا**:
+                        //      يُترَك للمسارِ العامِّ فيقرّره كما يقرّر أيَّ تعبيرٍ آخر،
+                        //      بدل أن نُثبِّت في العامِّ عددًا لا يوافق ما يعطيه المفسّر.
+                        // (EN) Integer arithmetic goes through OVERFLOW-CHECKED builtins:
+                        //      signed overflow is UB, and LLONG_MIN / -1 raises the hardware
+                        //      trap, crashing the COMPILER itself with EXCEPTION_INT_OVERFLOW
+                        //      — no diagnostic, no output file (measured). An overflowing
+                        //      expression is left UNFOLDED rather than folded to a wrapped
+                        //      value that would not match the interpreter.
+                        switch (bin->op)
+                        {
+                        case Lexer::TokenType::OP_PLUS:
+                            if (asFloat) { out.floatValue = a + c; }
+                            else if (!addChecked(lhs.integerValue, rhs.integerValue,
+                                                 out.integerValue)) { return false; }
+                            return true;
+                        case Lexer::TokenType::OP_MINUS:
+                            if (asFloat) { out.floatValue = a - c; }
+                            else if (!subChecked(lhs.integerValue, rhs.integerValue,
+                                                 out.integerValue)) { return false; }
+                            return true;
+                        case Lexer::TokenType::OP_MULTIPLY:
+                            if (asFloat) { out.floatValue = a * c; }
+                            else if (!mulChecked(lhs.integerValue, rhs.integerValue,
+                                                 out.integerValue)) { return false; }
+                            return true;
+                        case Lexer::TokenType::OP_DIVIDE:
+                            if (asFloat)
+                            {
+                                if (c == 0.0) return false;
+                                out.floatValue = a / c;
+                            }
+                            else
+                            {
+                                if (rhs.integerValue == 0)
+                                    return false;
+                                // (AR) الحالةُ الوحيدةُ التي تُفلِت من فحصِ الصفر.
+                                if (rhs.integerValue == -1 &&
+                                    lhs.integerValue == (std::numeric_limits<long long>::min)())
+                                    return false;
+                                out.integerValue = lhs.integerValue / rhs.integerValue;
+                            }
+                            return true;
+                        default:
+                            return false;
+                        }
+                    }
+                    return false;
+                }
+
+                std::string formatFoldedDouble(double value)
+                {
+                    std::ostringstream oss;
+                    oss.precision(17);
+                    oss << value;
+                    std::string text = oss.str();
+                    if (text.find('.') == std::string::npos &&
+                        text.find('e') == std::string::npos &&
+                        text.find('E') == std::string::npos &&
+                        text.find("inf") == std::string::npos &&
+                        text.find("nan") == std::string::npos)
+                    {
+                        text += ".0";
+                    }
+                    return text;
+                }
+            } // namespace
+
+            bool SIRBuilder::tryFoldLiteralInitializer(Sad::AST::Expression *expr, std::string &out,
+                                                       SadTypeKind &outKind)
+            {
+                // (AR) الحرفيّةُ المفردةُ تُترَك للمسارِ القديمِ عمدًا: هو يحمل تطبيعَ
+                //      الأساساتِ ودلالاتٍ مستقرّةً منذ زمن، فلا يُستبدَل بلا داعٍ.
+                //      الطيُّ هنا للصيغِ المركّبةِ التي كانت تُسقَط بصمت.
+                // (EN) A lone literal is deliberately left to the legacy path (it carries
+                //      base normalization and long-settled semantics). This folder exists
+                //      for the composite forms that used to be silently dropped.
+                if (!expr || dynamic_cast<Sad::AST::LiteralExpr *>(expr))
+                    return false;
+                FoldedLiteral folded;
+                if (!foldLiteral(expr, folded))
+                    return false;
+                if (folded.isString)
+                {
+                    out = folded.stringValue;
+                    outKind = SadTypeKind::String;
+                }
+                else if (folded.isFloat)
+                {
+                    out = formatFoldedDouble(folded.floatValue);
+                    outKind = SadTypeKind::Float;
+                }
+                else
+                {
+                    out = std::to_string(folded.integerValue);
+                    outKind = SadTypeKind::Integer;
+                }
+                return true;
+            }
+
             void SIRBuilder::buildGlobalVariable(AST::VariableDeclNode *varDecl)
             {
                 if (!varDecl)
@@ -1102,7 +1353,25 @@ namespace Sad
                 // (EN) If type is UNKNOWN (defaults to Integer), infer from initializer
                 //      Needed for namespace vars like: var PI = 3.14159
                 //      where type is not explicit and must be inferred from literal value
-                if (varDecl->type == Types::SadTypeKind::Unknown && varDecl->initializer)
+                // (AR) الطيُّ يسبق الاستنتاج: نوعُ الثابتِ يُستنتَج من **قيمتِه المطويّة**
+                //      لا من كونِ المُهيِّئِ حرفيّةً مفردةً. وإلّا استُنتِج `ثابت س = -2.5`
+                //      عددًا صحيحًا فمرّت قيمتُه على `stoll` فصارت ‎-2.0، و`"أ" + "ب"`
+                //      عددًا صحيحًا فرُمي التحويلُ فبقيت `(null)` — كلاهما مقيسٌ.
+                // (EN) Fold before inferring: a constant's type comes from its FOLDED value,
+                //      not from whether the initializer is a lone literal. Otherwise
+                //      `ثابت س = -2.5` inferred Integer, went through stoll and became -2.0,
+                //      and `"أ" + "ب"` inferred Integer, threw on conversion, and stayed
+                //      "(null)" — both measured.
+                std::string foldedValue;
+                SadTypeKind foldedKind = SadTypeKind::Unknown;
+                const bool didFold =
+                    varDecl->initializer &&
+                    tryFoldLiteralInitializer(varDecl->initializer.get(), foldedValue, foldedKind);
+                if (varDecl->type == Types::SadTypeKind::Unknown && didFold)
+                {
+                    varType = foldedKind;
+                }
+                else if (varDecl->type == Types::SadTypeKind::Unknown && varDecl->initializer)
                 {
                     if (auto *litExpr = dynamic_cast<Sad::AST::LiteralExpr *>(varDecl->initializer.get()))
                     {
@@ -1124,7 +1393,26 @@ namespace Sad
                 // (EN) Handle initializer if it's a literal constant
                 if (varDecl->initializer)
                 {
-                    if (auto *litExpr = dynamic_cast<Sad::AST::LiteralExpr *>(varDecl->initializer.get()))
+                    // (AR) 🔴 كلُّ صيغةٍ لا يفهمها هذا الفرعُ كانت **تُسقَط بصمت**: يبقى
+                    //      العامُّ `zeroinitializer` فيُقرأ صفرًا (أو `(null)` للنصّ)
+                    //      برمزِ خروجٍ ٠ وبلا تشخيصٍ واحد. وأبسطُ صيغةٍ تقع فيها
+                    //      `ثابت س = -1` — سالبٌ = `UnaryExpr` لا `LiteralExpr` —
+                    //      وكذلك `1 + 2` و`"أ" + "ب"`. قِيس الثلاثةُ فأعطت 0 و0 و(null)
+                    //      بينما يعطي المفسّرُ ‎-1 و3 و«أب». فطُوِيت الصيغُ الحرفيّةُ
+                    //      المركّبةُ هنا بدل إسقاطِها.
+                    // (EN) 🔴 Any form this branch did not understand was SILENTLY dropped:
+                    //      the global stayed zeroinitializer and read back as 0 (or "(null)"
+                    //      for a string) with exit 0 and no diagnostic. The simplest case is
+                    //      `ثابت س = -1` — a UnaryExpr, not a LiteralExpr — and likewise
+                    //      `1 + 2` and `"أ" + "ب"`. All three measured 0/0/(null) compiled
+                    //      against -1/3/«أب» interpreted. Composite literal forms are now
+                    //      folded here instead of dropped.
+                    if (didFold)
+                    {
+                        sirGlobal->initialValue = foldedValue;
+                        sirGlobal->hasInitialValue = true;
+                    }
+                    else if (auto *litExpr = dynamic_cast<Sad::AST::LiteralExpr *>(varDecl->initializer.get()))
                     {
                         const auto &token = litExpr->token;
                         std::string value = token.getValue();
@@ -1167,6 +1455,24 @@ namespace Sad
                         else if (tokenType == Lexer::TokenType::STRING_LITERAL)
                         {
                             sirGlobal->initialValue = value;
+                        }
+
+                        // (AR) يُرفَع العَلَمُ للأذرعِ المُسنِدةِ وحدَها — لا لكلِّ حرفيّة؛ فالحرفيّةُ
+                        //      التي لا ذراعَ لها (مثل «لاشيء») تبقى بلا قيمةٍ أوليّةٍ كما كانت.
+                        //      ورفعُه لازمٌ للنصِّ الفارغ `""` خاصّةً: نصُّه فارغٌ ووجودُه حقيقيّ،
+                        //      ولو اشتُقّ الوجودُ من النصِّ لَعُدَّ غيابًا فصُفِّر مؤشّرُه فطُبع «void».
+                        // (EN) The flag is raised only for the arms that actually assigned — not for
+                        //      every literal; a literal with no arm (e.g. «لاشيء») stays value-less as
+                        //      before. It matters most for the empty string `""`: its text is empty but
+                        //      its presence is real; deriving presence from the text zeroed its pointer
+                        //      and printed "void".
+                        if (tokenType == Lexer::TokenType::NUMBER_INTEGER ||
+                            tokenType == Lexer::TokenType::NUMBER_DOUBLE ||
+                            tokenType == Lexer::TokenType::LITERAL_TRUE ||
+                            tokenType == Lexer::TokenType::LITERAL_FALSE ||
+                            tokenType == Lexer::TokenType::STRING_LITERAL)
+                        {
+                            sirGlobal->hasInitialValue = true;
                         }
                     }
                 }

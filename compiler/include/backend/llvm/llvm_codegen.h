@@ -419,6 +419,13 @@ namespace Sad
             std::set<std::string> dynGlobalSlots_;
             /// (AR) الخانات المحلّيّة الديناميّة لكلّ دالّة / (EN) dynamic local slots per function
             std::map<std::string, std::set<std::string>> dynLocalSlots_;
+            /// (AR) كلُّ اسمٍ مُصرَّحٍ محلّيًّا لكلّ دالّة (منسوخٌ عن `SIRFunction::localSlotNames`)
+            ///      — به وحدَه يميّز `isDynSlot` تظليلَ المحلّيِّ للعامِّ، إذ مفتاحُ
+            ///      `dynGlobalSlots_` هو الاسمُ المجرَّدُ على مستوى الوحدةِ كلِّها.
+            /// (EN) Every locally-declared name per function (copied from
+            ///      `SIRFunction::localSlotNames`) — the only way `isDynSlot` can tell a local
+            ///      shadowing a global, since `dynGlobalSlots_` is bare-name-keyed module-wide.
+            std::map<std::string, std::set<std::string>> funcLocalNames_;
 
             /**
              * الحصول على الوحدة الحالية
@@ -909,6 +916,7 @@ namespace Sad
             void ensureArrayToStringDynHelper() { strs_->ensureArrayToStringDynHelper(); } // نظير موسوم __sad_array_to_string_dyn / boxed variant
             void ensureMapToStringHelper(bool quoteKeys) { strs_->ensureMapToStringHelper(quoteKeys); } // __sad_map_to_string / Map-to-string helper
             llvm::Value *emitStringCharAt(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCharAt(inst); }
+            llvm::Value *emitStringCharFromCode(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCharFromCode(inst); }
             llvm::Value *emitStringCmp(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringCmp(inst); }
             llvm::Value *emitStringOrdCmp(std::shared_ptr<SIRInstruction> inst) { return strops_->emitStringOrdCmp(inst); }
 

@@ -802,18 +802,27 @@ namespace Sad
                                         }
                                     }
                                     sirGlobal->initialValue = value;
+                                    // (AR) رفعُ عَلَمِ الوجود: المستهلِكون (اختيارُ المُهيِّئ، وحكمُ
+                                    //      `constant`، وكبتُ الـSTORE) يحكمون بالعَلَمِ لا بفراغِ
+                                    //      النصّ — وهذه المرحلةُ مُنتِجٌ لهم كـbuildGlobalVariable.
+                                    // (EN) Raise the presence flag: consumers judge by the flag,
+                                    //      not by emptiness; this phase is a producer for them too.
+                                    sirGlobal->hasInitialValue = true;
                                 }
                                 else if (tokenType == Lexer::TokenType::NUMBER_DOUBLE)
                                 {
                                     sirGlobal->initialValue = value;
+                                    sirGlobal->hasInitialValue = true;
                                 }
                                 else if (tokenType == Lexer::TokenType::LITERAL_TRUE)
                                 {
                                     sirGlobal->initialValue = "1";
+                                    sirGlobal->hasInitialValue = true;
                                 }
                                 else if (tokenType == Lexer::TokenType::LITERAL_FALSE)
                                 {
                                     sirGlobal->initialValue = "0";
+                                    sirGlobal->hasInitialValue = true;
                                 }
                             }
                         }

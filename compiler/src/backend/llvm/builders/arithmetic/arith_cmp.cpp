@@ -233,6 +233,61 @@ namespace Sad
                 return operand.dataType == SadTypeKind::Null;
             }
 
+            // (AR) هل النوعُ الساكنُ عدديٌّ؟ — لا يشمل المنطقيَّ عمدًا.
+            // (EN) Is the static type numeric? — deliberately excludes bool.
+            bool isStaticNumericKind(SadTypeKind kind)
+            {
+                switch (kind)
+                {
+                case SadTypeKind::Integer:
+                case SadTypeKind::Float:
+                case SadTypeKind::Byte:
+                case SadTypeKind::Int8:
+                case SadTypeKind::Int16:
+                case SadTypeKind::Int32:
+                case SadTypeKind::Int64:
+                case SadTypeKind::UInt8:
+                case SadTypeKind::UInt16:
+                case SadTypeKind::UInt32:
+                case SadTypeKind::UInt64:
+                case SadTypeKind::Float32:
+                case SadTypeKind::Float64:
+                    return true;
+                default:
+                    return false;
+                }
+            }
+
+            // (AR) منطقيٌّ في مواجهةِ عدد — نوعان مختلفان في عقدِ المفسّر.
+            //
+            //      المفسّرُ (evaluateComparisonOp) يفصل: `isNumeric()` لا يشمل المنطقيّ،
+            //      فيسقط الطرفان إلى فرعِ «وسمان مختلفان» ويكون الجوابُ «خطأ» للمساواةِ
+            //      و«صحيح» للّامساواة. أمّا المصرِّفُ فكان يوسّع المنطقيَّ إلى ٦٤ بتًّا
+            //      (`zext_l`/`zext_r` أدناه) ثمّ يقارن عدديًّا، فيقول `1 == صحيح` **صحيح**.
+            //
+            //      وليس هذا فرقًا نظريًّا: `متغير رقم أ = 1` ثمّ `أ == ب` حيث `ب` منطقيّ
+            //      يعطي جوابَين متضادَّين على المحرّكَين لبرنامجٍ واحد. والحكمُ ثابتٌ هنا
+            //      لا زمنَ تشغيلٍ لأنّ النوعَين ساكنان: لا حالةَ تشغيلٍ تجعلهما متساوِيَين.
+            // (EN) Bool versus number — two different types under the interpreter's contract.
+            //
+            //      The interpreter (evaluateComparisonOp) separates them: `isNumeric()` does not
+            //      include bool, so both sides fall to the "differing tags" branch and the answer
+            //      is false for equality and true for inequality. The compiler, by contrast, was
+            //      widening the bool to 64 bits (`zext_l`/`zext_r` below) and then comparing
+            //      numerically, so it said `1 == true` is **true**.
+            //
+            //      This is not a theoretical difference: `var int a = 1` then `a == b` with `b`
+            //      boolean gives opposite answers on the two engines for one program. The verdict
+            //      is constant here rather than runtime because both types are static: no runtime
+            //      state can make them equal.
+            bool boolVersusNumber(const SIROperand &left, const SIROperand &right)
+            {
+                return (left.dataType == SadTypeKind::Boolean &&
+                        isStaticNumericKind(right.dataType)) ||
+                       (right.dataType == SadTypeKind::Boolean &&
+                        isStaticNumericKind(left.dataType));
+            }
+
             // (AR) تطبيعُ الطرفِ غيرِ العدمِ إلى عرضِ الحارسِ (٦٤ بتًّا) بلا تغييرِ بتّاتِه:
             //      المؤشرُ بـptrtoint، والعشريُّ ببتّاتِه، والعددُ الأضيقُ بتمديدِ إشارة.
             //      وما لا يُطبَّعُ يُعادُ فيه عدمٌ ليسقطَ النداءُ إلى المسارِ العامِّ بدلَ
@@ -365,6 +420,16 @@ namespace Sad
                         cg_.context_info_.namedValues[inst->result->name] = result;
                     return result;
                 }
+            }
+
+            // (AR) منطقيٌّ مقابل عدد ⇒ «خطأ» — راجِعْ تعليقَ boolVersusNumber أعلاه.
+            // (EN) Bool vs number ⇒ false — see the boolVersusNumber comment above.
+            if (boolVersusNumber(inst->operands[0], inst->operands[1]))
+            {
+                result = llvm::ConstantInt::getFalse(*cg_.context_);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = result;
+                return result;
             }
 
             llvm::Type *leftTy = left->getType();
@@ -522,6 +587,16 @@ namespace Sad
                         cg_.context_info_.namedValues[inst->result->name] = nullResult;
                     return nullResult;
                 }
+            }
+
+            // (AR) منطقيٌّ مقابل عدد ⇒ «صحيح» — راجِعْ تعليقَ boolVersusNumber أعلاه.
+            // (EN) Bool vs number ⇒ true — see the boolVersusNumber comment above.
+            if (boolVersusNumber(inst->operands[0], inst->operands[1]))
+            {
+                llvm::Value *mismatch = llvm::ConstantInt::getTrue(*cg_.context_);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = mismatch;
+                return mismatch;
             }
 
             llvm::Type *leftTy = left->getType();

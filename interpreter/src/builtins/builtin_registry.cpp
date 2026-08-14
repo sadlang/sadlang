@@ -95,10 +95,27 @@ namespace Sad
         // BuiltinModuleRegistry::loadModule — implemented here because it
         // needs FunctionManager (which requires interpreter_core.h)
         // ═════════════════════════════════════════════════════════════════
-        bool BuiltinModuleRegistry::loadModule(const std::string &name)
+        bool BuiltinModuleRegistry::loadModule(const std::string &name,
+                                              const std::vector<std::string> &requestedNames)
         {
             std::string canonical = resolveAlias(name);
-            if (loadedModules_.count(canonical) > 0)
+            const bool wildcard = requestedNames.empty();
+            auto &requested = requestedNames_[canonical];
+
+            // (AR) «اتّسعت الرؤية» — شرطُ إعادةِ التشغيلِ الوحيد: استيرادٌ شاملٌ أوّلَ مرّة،
+            //      أو اسمٌ مطلوبٌ جديد. المسجِّلُ بلا أثرٍ جانبيٍّ عدا التسجيل، والاستعادةُ
+            //      في استيرادٍ سابقٍ قد تكون أخفت اسمًا يطلبه استيرادٌ لاحق فيلزم ردُّه.
+            // (EN) "Visibility widened" is the sole re-run condition: a first wildcard, or a
+            //      newly requested name. The registrar has no side effects beyond registering,
+            //      and an earlier restore may have hidden a name a later import now needs.
+            bool widened = false;
+            if (wildcard)
+                widened = wildcardModules_.insert(canonical).second;
+            else
+                for (const auto &requestedName : requestedNames)
+                    widened = requested.insert(requestedName).second || widened;
+
+            if (loadedModules_.count(canonical) > 0 && !widened)
                 return true;
 
             auto it = modules_.find(canonical);
@@ -112,6 +129,21 @@ namespace Sad
             //      functions, instead of relying on name diff which fails when
             //      functions are pre-registered by StandardLibraryManager
             auto &fm = interpreter_->getFunctionManager();
+
+            // (AR) لقطةٌ **قبلَ** المسجِّل: هي وحدَها ما يسمح بردِّ اسمٍ دهسه المسجِّلُ
+            //      ولم يُطلَب. وبدونها كان `استورد حرف_من_رمز من خرائط` يُسجِّل كلَّ
+            //      دوالِّ الوحدة فيدهس `رقم` الأساسيّة بـ`Maps::ENUMERATE` — فتنكسر
+            //      `رقم("42")` في برنامجٍ لم يطلب من الوحدةِ إلّا اسمًا واحدًا لا صلةَ له.
+            // (EN) A snapshot BEFORE the registrar: it is the only thing that lets an
+            //      overwritten-but-unrequested name be given back. Without it,
+            //      `استورد حرف_من_رمز من خرائط` registered the whole module and clobbered the
+            //      core `رقم` with Maps::ENUMERATE, breaking `رقم("42")` in a program that
+            //      asked for one unrelated name.
+            const bool restrict_ = wildcardModules_.count(canonical) == 0;
+            Data::FunctionManager::FunctionTableSnapshot before;
+            if (restrict_)
+                before = fm.snapshotFunctionTable();
+
             fm.startRegistrationTracking();
 
             // (AR) استدعاء دالة التسجيل
@@ -120,7 +152,16 @@ namespace Sad
 
             // (AR) الحصول على جميع الدوال المسجلة أثناء التتبع (بدون تكرار)
             // (EN) Get all functions registered during tracking (deduplicated)
-            it->second.exportedFunctions = fm.stopRegistrationTracking();
+            auto registered = fm.stopRegistrationTracking();
+            if (!registered.empty() || it->second.exportedFunctions.empty())
+                it->second.exportedFunctions = registered;
+
+            if (restrict_)
+            {
+                for (const auto &registeredName : it->second.exportedFunctions)
+                    if (requested.count(registeredName) == 0)
+                        fm.restoreFunctionFromSnapshot(registeredName, before);
+            }
 
             loadedModules_.insert(canonical);
             return true;

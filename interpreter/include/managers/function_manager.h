@@ -574,6 +574,22 @@ namespace Sad
              * @brief (AR) بدء تتبع تسجيل الدوال (لالتقاط كل ما يسجله المسجّل)
              * @brief (EN) Start tracking function registrations
              */
+            /// (AR) لقطةٌ كاملةٌ لجدولِ الدوالّ — تُلتقط قبلَ تشغيلِ مسجِّلِ وحدةٍ
+            ///      مضمَّنةٍ ليُستعادَ بعدَه ما لم يُطلَب صراحةً في `استورد ... من`.
+            ///      اللقطةُ كاملةٌ لأنّ الأسماءَ التي سيدهسها المسجِّلُ لا تُعرَف قبلَ
+            ///      تشغيلِه؛ والتكلفةُ نسخُ مؤشّراتٍ مشتركةٍ مرّةً لكلِّ استيراد.
+            /// (EN) Full snapshot of the function table — taken before a builtin module's
+            ///      registrar runs so that whatever it overwrote can be restored unless the
+            ///      name was explicitly requested. It must be full: the set of names the
+            ///      registrar will overwrite is unknown until it has run.
+            using FunctionTableSnapshot =
+                std::unordered_map<std::string, std::vector<std::shared_ptr<FunctionDefinition>>>;
+            FunctionTableSnapshot snapshotFunctionTable() const;
+            /// (AR) أعِد اسمًا واحدًا إلى حالتِه في اللقطة — أو احذفه إن لم يكن فيها.
+            /// (EN) Restore one name to its snapshot state — or erase it if it was absent.
+            void restoreFunctionFromSnapshot(const std::string &name,
+                                             const FunctionTableSnapshot &snapshot);
+
             void startRegistrationTracking();
 
             /**
