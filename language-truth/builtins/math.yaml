@@ -15,6 +15,7 @@ functions:
   description_ar: الجذر التربيعي
   description_en: Square root
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: POWER
   canonical: أس
@@ -28,6 +29,7 @@ functions:
   description_ar: الأسّ
   description_en: Power
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: ABS
   canonical: مطلق
@@ -41,6 +43,7 @@ functions:
   description_ar: القيمة المطلقة
   description_en: Absolute value
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: ROUND
   canonical: تقريب
@@ -54,6 +57,7 @@ functions:
   description_ar: تقريب لأقرب صحيح
   description_en: Round
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: FLOOR
   canonical: أرضية
@@ -67,6 +71,7 @@ functions:
   description_ar: تقريب للأسفل
   description_en: Floor
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: CEIL
   canonical: سقف
@@ -80,6 +85,7 @@ functions:
   description_ar: تقريب للأعلى
   description_en: Ceil
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: SQUARE
   canonical: مربع
@@ -93,6 +99,7 @@ functions:
   description_ar: مربع العدد
   description_en: Square
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: MAX
   canonical: أكبر
@@ -106,6 +113,7 @@ functions:
   description_ar: الأكبر
   description_en: Maximum
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: MIN
   canonical: أصغر
@@ -119,6 +127,7 @@ functions:
   description_ar: الأصغر
   description_en: Minimum
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: SUM
   canonical: جمع
@@ -145,6 +154,7 @@ functions:
   description_ar: جيب الزاوية
   description_en: Sine
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: COS
   canonical: جتا
@@ -158,6 +168,7 @@ functions:
   description_ar: جتا الزاوية
   description_en: Cosine
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: TAN
   canonical: ظل
@@ -171,6 +182,7 @@ functions:
   description_ar: ظل الزاوية
   description_en: Tangent
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: ASIN
   canonical: معكوس_جيب
@@ -184,6 +196,7 @@ functions:
   description_ar: جيب عكسي
   description_en: Arc sine
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: ACOS
   canonical: معكوس_جتا
@@ -197,6 +210,7 @@ functions:
   description_ar: جتا عكسي
   description_en: Arc cosine
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: ATAN
   canonical: معكوس_ظل
@@ -210,6 +224,7 @@ functions:
   description_ar: ظل عكسي
   description_en: Arc tangent
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: ATAN2
   canonical: معكوس_ظل2
@@ -236,6 +251,7 @@ functions:
   description_ar: لوغاريتم طبيعي
   description_en: Natural log
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: LOG2
   canonical: لوغ2
@@ -249,6 +265,7 @@ functions:
   description_ar: لوغاريتم ثنائي
   description_en: Log base 2
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: LOG10
   canonical: لوغ10
@@ -262,6 +279,7 @@ functions:
   description_ar: لوغاريتم عشري
   description_en: Log base 10
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: EXP
   canonical: أسي
@@ -288,6 +306,7 @@ functions:
   description_ar: الثابت π
   description_en: Pi constant
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: PI_ALT
   canonical: باي
@@ -314,6 +333,7 @@ functions:
   description_ar: الثابت e
   description_en: Euler number
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: RANDOM
   canonical: عشوائي
@@ -327,6 +347,7 @@ functions:
   description_ar: عدد عشوائي [0,1)
   description_en: Random
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: RANDOM_INT
   canonical: عشوائي_صحيح
@@ -379,6 +400,7 @@ functions:
   description_ar: حصر في نطاق
   description_en: Clamp
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: TRUNCATE
   canonical: اقتطاع
@@ -392,6 +414,7 @@ functions:
   description_ar: اقتطاع عشري
   description_en: Truncate
   params: []
+  returns: عشري
   lookup_table: MODULE_FUNCTION
 - cpp_id: FMOD
   canonical: باقي
@@ -405,6 +428,7 @@ functions:
   description_ar: باقي عشري
   description_en: Float modulo
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: SIGN
   canonical: إشارة
@@ -418,6 +442,7 @@ functions:
   description_ar: إشارة العدد
   description_en: Sign
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: LERP
   canonical: استيفاء_خطي

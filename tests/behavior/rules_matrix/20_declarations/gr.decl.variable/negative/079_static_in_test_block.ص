@@ -1,0 +1,11 @@
+# @rule: gr.decl.variable
+# @description: «ساكن» داخلَ كتلةِ «اختبر» — جسمٌ **مبنيٌّ باليد** ثالث
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error: SEM039
+# @expect_compile_error: SEM039
+
+اختبر("ت")
+  متغير ساكن ن = 1
+نهاية
+اطبع_سطر(1)

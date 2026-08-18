@@ -1,0 +1,27 @@
+# جدول ABI لـ RISC-V RV64 على لينكس (LP64D + النداء العامّ asm-generic) — م٦، الهدف الثالث.
+# نفس backend_abi.schema.json يستوعبه بلا تغيير: e_machine مختلف، تعليمة النداء ecall،
+# لا منطقة حمراء (بخلاف System V x86-64)، ومحاذاة المكدّس ١٦ كسابقَيه.
+
+version: "1.0"
+isa: riscv64
+os: linux
+object_format: elf
+e_machine: 243         # EM_RISCV
+status: experimental
+
+call:
+  int_args:   [a0, a1, a2, a3, a4, a5, a6, a7]
+  fp_args:    [fa0, fa1, fa2, fa3, fa4, fa5, fa6, fa7]
+  int_return: [a0, a1]
+  fp_return:  [fa0, fa1]
+  stack_align: 16       # LP64D يُلزم محاذاة ١٦
+  red_zone: 0           # لا منطقة حمراء في RISC-V psABI
+
+syscall:
+  instruction: ecall
+  number_reg: a7
+  arg_regs: [a0, a1, a2, a3, a4, a5]
+  nr:                   # أرقام النداء العامّة (asm-generic/unistd.h) — تطابق AArch64
+    write: 64
+    exit: 93
+    exit_group: 94

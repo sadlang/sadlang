@@ -14,6 +14,7 @@
 
 #include "sir_constants.h"
 #include "adt_payload_tags.h"
+#include "builtin_registry.h" // (AR) أسماءُ طرائقِ النصِّ من السجلِّ المولَّد
 #include "sad_dyn_repr.h" // (AR) ISSUE-063: dynToString لمعامل %SadDyn في السَلسلة / (EN) dynToString for a %SadDyn concat operand
 #include "builders/collections/array_ops_codegen.h" // SAD_ARRAY_SLOT_BYTES
 
@@ -183,6 +184,51 @@ static llvm::Function *getOrCreateSplitHelper(
                         auto i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
                         auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
+                        // ════════════════════════════════════════════════════════
+                        // (AR) 🔑 حارسُ المصفوفةِ العدمِ — **عند المُنادي لا في المُساعِد**
+                        //
+                        //      وُضِع الحارسُ أوّلًا داخلَ مساعِداتِ التحويلِ الأربعةِ
+                        //      (نظيرَ حارسِ الخريطةِ) وبُنِي، فبقي الانهيارُ كما هو:
+                        //      لأنّ العطبَ **هنا** — `CreateStructGEP` + `CreateLoad`
+                        //      على مؤشّرِ المصفوفةِ يقعان **قبل** بلوغِ المُساعِد.
+                        //      فالحارسُ كان صحيحًا في ذاتِه وفي الطبقةِ الخطأ.
+                        //
+                        //      🔑 ودرسُه هو درسُ المقارنةِ نفسُه في الجلسةِ نفسِها:
+                        //      **رقعةٌ في طبقةٍ لا يمرُّ بها العطبُ تُبنى وتُصرَّف ولا
+                        //      تفعل شيئًا** — وتبدو صحيحةً في المراجعة. والقياسُ وحدَه
+                        //      يفرّق بين «سُدَّ» و«كُتِبت رقعةٌ».
+                        //
+                        //      والصيغةُ: يُبدَّل المؤشّرُ العدمُ ببنيةٍ عامّةٍ مصفَّرةٍ
+                        //      فتَسلم القراءات (طول=٠ · بيانات=عدم)، ثمّ يُنتقى المخرَجُ
+                        //      من الشرطِ الأصليّ. والقرارُ على **مؤشّرِ المصفوفةِ** لا
+                        //      على بياناتِها: مصفوفةٌ فارغةٌ مُهيّأةٌ (`مصفوفة س = []`)
+                        //      حيّةٌ ويجب أن تبقى «[]» لا «لاشيء».
+                        // (EN) Null-array guard AT THE CALLER, not in the helper. The guard
+                        //      was first added inside the four to-string helpers and the crash
+                        //      persisted: the fault is here — the StructGEP+Load on the array
+                        //      pointer happen BEFORE the helper is reached. A patch in a layer
+                        //      the defect never passes through compiles and does nothing.
+                        //      The decision is on the ARRAY pointer, not its data, so an
+                        //      initialised empty array still prints «[]».
+                        // ════════════════════════════════════════════════════════
+                        // ════════════════════════════════════════════════════════
+                        // (AR) 🔑 **وهذه النسخةُ كانت تفحص وجهًا واحدًا**: المؤشّرَ
+                        //      الصفريَّ وحدَه، بلا الحارسِ في خانةِ المؤشّر. فقِيس أنّ
+                        //      `"ق: " + مصفوفة_عارية` يطبع «لاشيء» بينما
+                        //      `مصفوفة عدمية س = لاشيء` ثمّ ضمُّها **ينهار** —
+                        //      نسخةٌ رابعةٌ أُسقِط نصفُ فحصِها، والنصفُ الباقي يجعلها
+                        //      تبدو محروسةً في المراجعةِ وفي نصفِ القياس.
+                        //      فيُنادى البابُ الواحدُ بدلَها.
+                        // (EN) This copy tested only ONE shape (the zero pointer), so a
+                        //      concat of `مصفوفة عدمية س = لاشيء` crashed while the bare
+                        //      declaration printed «لاشيء» — half a test looks guarded in
+                        //      review and in half the measurements. Call the single door.
+                        // ════════════════════════════════════════════════════════
+                        auto arrGuard = cg_.emitContainerNullGuard(
+                            val, arrTy, "__sad_null_array_placeholder", "arr.str");
+                        llvm::Value *arrIsNull = arrGuard.isNull;
+                        val = arrGuard.safePtr;
+
                         // Load length
                         llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, val, 0, "arr.str.len.gep");
                         llvm::Value *arrLen = cg_.builder_->CreateLoad(i64Ty, lenGep, "arr.str.len");
@@ -206,7 +252,12 @@ static llvm::Function *getOrCreateSplitHelper(
                             cg_.ensureArrayToStringDynHelper();
                             llvm::FunctionType *dTy = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy, ptrTy}, false);
                             llvm::FunctionCallee dFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_dyn", dTy);
-                            return cg_.builder_->CreateCall(dFn, {arrLen, dataPtr, tagsPtr}, "arr.str.dyn");
+                            llvm::Value *dynText =
+                                cg_.builder_->CreateCall(dFn, {arrLen, dataPtr, tagsPtr}, "arr.str.dyn");
+                            // (AR) القرارُ من مؤشّرِ المصفوفةِ لا من بياناتِها (انظر الحارسَ أعلاه).
+                            return cg_.builder_->CreateSelect(
+                                arrIsNull, cg_.emitSafeStringPtr(nullptr, "arr.str.dyn.null"), dynText,
+                                "arr.str.dyn.result");
                         }
 
                         // (AR) تخصيص مخزن كبير كافٍ: "[" + (كل عنصر حتى 32 حرف + ", ") * الطول + "]" + '\0'
@@ -232,7 +283,11 @@ static llvm::Function *getOrCreateSplitHelper(
                         llvm::FunctionType *helperType = llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty, ptrTy}, false);
                         llvm::FunctionCallee helperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string", helperType);
                         llvm::Value *result = cg_.builder_->CreateCall(helperFn, {buf, arrLen, dataPtr}, "arr.str.result");
-                        return result;
+                        // (AR) القرارُ من مؤشّرِ المصفوفةِ لا من بياناتِها — فمصفوفةٌ فارغةٌ
+                        //      مُهيّأةٌ تبقى «[]» ولا تنقلب «لاشيء».
+                        return cg_.builder_->CreateSelect(
+                            arrIsNull, cg_.emitSafeStringPtr(nullptr, "arr.str.null"), result,
+                            "arr.str.result.sel");
                     } // end if (ty->isPointerTy())
                 } // end if (op.dataType == SadTypeKind::Array)
 
@@ -244,22 +299,25 @@ static llvm::Function *getOrCreateSplitHelper(
                 //      Without this check, passing null pointer to strlen causes crash
                 if (op.dataType == SadTypeKind::Pointer)
                 {
-                    // (AR) لاشيء/null → نص "void"
-                    return cg_.builder_->CreateGlobalStringPtr("void", "null.str");
+                    // (AR) 🔑 كان يُنتِج «void» حرفيًّا بدعوى «كما يفعل المفسّر» — والمفسّرُ
+                    //      يطبع «لاشيء» (مقيس). لفظٌ إنﭽليزيٌّ مكتوبٌ في الشيفرةِ يزعم
+                    //      مطابقةَ محرّكٍ لا يطابقه. اللفظُ الآن من مصدرِ الحقيقةِ لا من هنا.
+                    // (EN) This emitted a hardcoded "void" claiming interpreter parity; the
+                    //      interpreter prints «لاشيء» (measured). Now read from SoT.
+                    return cg_.emitSafeStringPtr(nullptr, "cat.null");
                 }
 
                 if (ty->isPointerTy())
                 {
-                    // (AR) إذا كان مؤشر null فعلي (ConstantPointerNull أو i64(0) مُحوّل)
-                    //      نفحص وقت التشغيل ونعيد "void" إذا كان null
-                    // (EN) If it's actually an LLVM null pointer, do a runtime check
-                    //      and return "void" if null
-                    llvm::Value *isNull = cg_.builder_->CreateICmpEQ(
-                        val,
-                        llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(val->getType())),
-                        "ptr.isnull");
-                    llvm::Value *voidStr = cg_.builder_->CreateGlobalStringPtr("void", "null.fallback");
-                    return cg_.builder_->CreateSelect(isNull, voidStr, val, "ptr.safe");
+                    // (AR) 🔑 كان هنا فحصُ `nullptr` **وحدَه** — وحارسُ العدمِ ليس صفرًا،
+                    //      فيمرُّ خامًّا إلى `strlen` ⇒ انهيار. مقيس: «اطبع_سطر("قيمة: " + س)»
+                    //      حيث «س» خانةٌ نصّيّةٌ تحمل العدم: انهيارُ وصولٍ (0xC0000005)
+                    //      بينما المفسّرُ يطبع «قيمة: لاشيء». والخانةُ تصلُ **مؤشّرًا**
+                    //      لا i64، فحراسةُ الفرعِ العدديِّ وحدَها لم تكن تبلغها.
+                    // (EN) This checked ONLY nullptr; the null sentinel is not zero, so it
+                    //      reached strlen raw ⇒ crash (measured). The slot arrives as a
+                    //      pointer, not a boxed i64, so guarding the integer branch missed it.
+                    return cg_.emitSafeStringPtr(val, "cat.str");
                 }
                 // (AR) إذا كان نوع المعامل نصاً لكن القيمة i64 (مؤشر مُخزّن كعدد صحيح)
                 //      نحوّل من i64 إلى مؤشر — يحدث مع النصوص المنسقة (f-strings) والمتغيرات النصية
@@ -267,8 +325,12 @@ static llvm::Function *getOrCreateSplitHelper(
                 //      convert from i64 to pointer — happens with f-strings and string variables
                 if (op.dataType == SadTypeKind::String && ty->isIntegerTy(64))
                 {
-                    return cg_.builder_->CreateIntToPtr(val,
-                                                    llvm::PointerType::getUnqual(*cg_.context_), "str.unbox");
+                    // (AR) 🔑 عبر البابِ الواحد: الخانةُ نوعُها «نص» لكنّها قد تحمل حارسَ
+                    //      العدم، و`inttoptr` الخامُّ كان يُسلّمه إلى strlen ⇒ انهيار
+                    //      (مقيس: «اطبع("قيمة: " + س)» والمفسّرُ يطبع «قيمة: لاشيء»).
+                    // (EN) Through the single door: this String slot may carry the null
+                    //      sentinel; the raw inttoptr used to hand it to strlen ⇒ crash.
+                    return cg_.emitSafeStringPtr(val, "str.unbox");
                 }
                 // (AR) القيم المنطقية: ارجع "صحيح"/"خطأ" مباشرة بدلاً من تحويل الرقم
                 // (EN) Boolean values: return "صحيح"/"خطأ" directly instead of converting the number
@@ -366,11 +428,12 @@ static llvm::Function *getOrCreateSplitHelper(
 
                         // (AR) مؤشر (نص)
                         cg_.builder_->SetInsertPoint(ptrBB_l);
-                        llvm::Value *strPtr = cg_.builder_->CreateIntToPtr(val, ptrTy_l, "any.c.str");
-                        llvm::Value *ptrIsNull = cg_.builder_->CreateICmpEQ(
-                            strPtr, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy_l)), "any.c.ptrnull");
-                        llvm::Value *voidStr = cg_.builder_->CreateGlobalStringPtr("void", "any.c.void");
-                        llvm::Value *safeStr = cg_.builder_->CreateSelect(ptrIsNull, voidStr, strPtr, "any.c.safe");
+                        // (AR) لفظُ «void» الإنﭽليزيُّ كان مكتوبًا هنا يدًا ويفحص `nullptr` وحدَه، فلا
+                        //      يرى حارسَ العدم (‎0x8000000000000001‎) ويزعم مطابقةَ محرّكٍ لا
+                        //      يطابقه: المفسّرُ يطبع «لاشيء». عبرَ بابِ العرضِ الآن — من SoT.
+                        // (EN) The hand-written English "void" checked nullptr only, missing the
+                        //      sentinel, and claimed a parity the interpreter never had.
+                        llvm::Value *safeStr = cg_.emitSafeStringPtr(val, "any.c");
                         cg_.builder_->CreateBr(mergeBB);
 
                         // (AR) صندوق عشريّ (01): امسح bit62 ⇒ مؤشّر ⇒ حمّل double ⇒ نُنسّقه
@@ -469,9 +532,7 @@ static llvm::Function *getOrCreateSplitHelper(
                             llvm::ConstantPointerNull::get(
                                 llvm::cast<llvm::PointerType>(asPtr->getType())),
                             "adt.ptr.isnull");
-                        llvm::Value *voidStr = cg_.builder_->CreateGlobalStringPtr("void", "adt.null.str");
-                        llvm::Value *safePtr = cg_.builder_->CreateSelect(
-                            ptrIsNull, voidStr, asPtr, "adt.ptr.safe");
+                        llvm::Value *safePtr = cg_.emitSafeStringPtr(asPtr, "adt.null");
 
                         // (AR) تحويل الرقم إلى نص عبر sprintf
                         llvm::Value *numBuf = cg_.builder_->CreateAlloca(
@@ -740,21 +801,43 @@ static llvm::Function *getOrCreateSplitHelper(
 
 
 
-        llvm::Value *StringOpsCodeGen::normalizeStringPtr(llvm::Value *str, const char *label)
+        // (AR) 🔑 هذه الدالّةُ كانت تُحوِّل i64 إلى مؤشّرٍ **بلا فحصٍ**، فكلُّ مستدعٍ لها
+        //      كان منفذَ انهيارٍ حين تحمل الخانةُ حارسَ العدم.
+        //
+        // (AR) ⚠️ وأوّلُ إصلاحٍ لها كان **خطأً أشدَّ من العطب**: جُعلت غلافًا على بابِ
+        //      **العرض**، فصار «س.يحتوي("لا")» على خانةٍ عدميّةٍ يطبع «صحيح» — لأنّ
+        //      الحارسَ أُبدل بلفظِ «لاشيء» ثمّ بُحث فيه عن «لا» فوُجد. مقيسٌ حيًّا:
+        //      المفسّرُ يرفع RUN033 والمترجّمُ يجيب «صحيح». أي أنّ الإصلاحَ حوّل صنفًا
+        //      كاملًا من الانهياراتِ **المرئيّة** إلى أجوبةٍ كاذبةٍ لا يراها أحد،
+        //      وهو عينُ ما يحذّر منه تعليقُ البابِ نفسِه. كشفته مراجعةٌ خصميّة.
+        //
+        // (AR) 🔑 ولذلك صار اسمُ الطريقةِ **معامِلًا إلزاميًّا**: منفذٌ جديدٌ ينسى الاسمَ
+        //      لا يُصرَّف أصلًا. الحارسُ في **التوقيع** لا في انضباطِ من يأتي بعدُ.
+        // (EN) The first fix made this a wrapper over the DISPLAY door, turning a whole
+        //      class of visible crashes into invisible wrong answers («س.يحتوي("لا")»
+        //      answered true by searching the null word). It now goes through the
+        //      OPERATION door, and the method name is a REQUIRED parameter so that a
+        //      future port cannot silently forget it — the guard lives in the signature.
+        llvm::Value *StringOpsCodeGen::normalizeStringPtr(llvm::Value *str,
+                                                          const char *label,
+                                                          std::string_view methodName)
         {
             if (!str)
                 return nullptr;
-            if (str->getType()->isIntegerTy())
-            {
-                llvm::Value *asI64 = str;
-                if (!str->getType()->isIntegerTy(64))
-                    asI64 = cg_.builder_->CreateIntCast(str, cg_.getInt64Type(), false,
-                                                        std::string(label) + ".i64");
-                return cg_.builder_->CreateIntToPtr(
-                    asI64, llvm::PointerType::getUnqual(*cg_.context_),
-                    std::string(label) + ".ptr");
-            }
-            return str;
+            return cg_.emitStringPtrOrRaise(
+                str, LLVMCodeGen::stringMethodOperationLabel(methodName), label);
+        }
+
+        // (AR) بابُ **الوسيط**: المفسّرُ يُبدِل الوسيطَ العدميَّ بلفظِ «لاشيء» ولا يرفع
+        //      (مقيس: «"أهلا".استبدل("أ"، ب)» ⇒ «لاشيءهلا»، و«"أهلا".بحث(ب)» ⇒ ‎-1‎).
+        //      فالمستقبِلُ يرفعُ والوسيطُ يُعرَض — بابان لأنّ الدلالتَين اثنتان.
+        // (EN) Argument door: the interpreter substitutes the null word for a null
+        //      argument and proceeds; only the receiver raises.
+        llvm::Value *StringOpsCodeGen::normalizeStringArgPtr(llvm::Value *str, const char *label)
+        {
+            if (!str)
+                return nullptr;
+            return cg_.emitSafeStringPtr(str, label);
         }
 
         llvm::Value *StringOpsCodeGen::emitStringCharAt(std::shared_ptr<SIRInstruction> inst)
@@ -770,12 +853,16 @@ static llvm::Function *getOrCreateSplitHelper(
             if (!str || !index)
                 return nullptr;
 
-            // Ensure str is a pointer
-            llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
-            if (!str->getType()->isPointerTy())
-            {
-                str = cg_.builder_->CreateIntToPtr(str, i8p, "str.ptr");
-            }
+            // (AR) عبر البابِ الواحد لا بـinttoptr خامّ (كان يتجاوز normalizeStringPtr
+            //      وهي على بُعدِ أسطر).
+            // (EN) Through the single door, not a raw inttoptr.
+            // (AR) بابُ العمليّة: المفسّرُ يرفعُ RUN033 على «.حرف_عند» لقيمةٍ عدميّة.
+            // (EN) Operation door: the interpreter raises RUN033 here.
+            str = cg_.emitStringPtrOrRaise(
+                str,
+                LLVMCodeGen::stringMethodOperationLabel(
+                    Sad::Builtins::Names::TypeMethods::String::CHAR_AT),
+                "char_at.str");
 
             // Ensure index is i64
             if (index->getType() != llvm::Type::getInt64Ty(*cg_.context_))
@@ -1043,6 +1130,21 @@ static llvm::Function *getOrCreateSplitHelper(
             auto rightOk = cg_.builder_->CreateAnd(rightIsStr, rightNotNull, "str.cmp.r.ok");
             auto canStrcmp = cg_.builder_->CreateAnd(leftOk, rightOk, "str.cmp.can");
 
+            // (AR) 🔑 «عدمٌ يساوي عدمًا» — تُحسَب **هنا** في كتلةِ الدخولِ لا في كتلةِ
+            //      الدمج: قيمةُ PHI الواردةُ من ذراعٍ يجب أن تسيطرَ على نهايةِ تلك الذراع،
+            //      وقيمةٌ مولَّدةٌ في كتلةِ الدمجِ لا تسيطر على سابقتها ⇒ IR فاسد.
+            // (EN) Computed in the entry block: a PHI incoming value must dominate the end
+            //      of its predecessor; building it in the merge block yields invalid IR.
+            auto sentinel64 = llvm::ConstantInt::get(
+                i64Ty, static_cast<uint64_t>(Sad::Compiler::kSadNullSentinel));
+            auto leftIsNull = cg_.builder_->CreateOr(
+                cg_.builder_->CreateICmpEQ(leftI64, sentinel64, "str.cmp.l.sent"),
+                cg_.builder_->CreateICmpEQ(leftI64, zero64, "str.cmp.l.zero"), "str.cmp.l.null");
+            auto rightIsNull = cg_.builder_->CreateOr(
+                cg_.builder_->CreateICmpEQ(rightI64, sentinel64, "str.cmp.r.sent"),
+                cg_.builder_->CreateICmpEQ(rightI64, zero64, "str.cmp.r.zero"), "str.cmp.r.null");
+            auto bothNull = cg_.builder_->CreateAnd(leftIsNull, rightIsNull, "str.cmp.both_null");
+
             // (AR) تفريع: إذا كلاهما نص صالح → strcmp، وإلا → خطأ
             auto *entryBB = cg_.builder_->GetInsertBlock();
             auto *parentFunc = entryBB->getParent();
@@ -1074,7 +1176,15 @@ static llvm::Function *getOrCreateSplitHelper(
             cg_.builder_->SetInsertPoint(doneBB);
             auto *result = cg_.builder_->CreatePHI(llvm::Type::getInt1Ty(*cg_.context_), 2, "streq.phi");
             result->addIncoming(streq, strcmpBB);
-            result->addIncoming(llvm::ConstantInt::getFalse(*cg_.context_), entryBB);
+            // (AR) 🔑 الذراعُ غيرُ القابلةُ لـstrcmp كانت تُرجِع **كذبًا مطلقًا**، فـ
+            //      «س == لاشيء» على خانةٍ نصّيّةٍ عدميّةٍ يُعطي كذبًا في المترجّمِ وصدقًا
+            //      في المفسّر (مقيس: الاختبار 075). وهذا عيبُ **دلالةٍ** لا انهيار — أخفى
+            //      نفسَه لأنّه لا يُسقِط البرنامج. والصوابُ: عدمٌ يساوي عدمًا، ولا يساوي
+            //      نصًّا حاضرًا (الحاضرُ يذهب إلى ذراعِ strcmp أصلًا).
+            // (EN) This arm returned an unconditional false, so «س == لاشيء» was false in
+            //      the compiler and true in the interpreter — a semantic divergence that
+            //      hid because it never crashed. null == null is true.
+            result->addIncoming(bothNull, entryBB);
 
             if (inst->result.has_value())
             {
@@ -1409,7 +1519,18 @@ static llvm::Function *getOrCreateSplitHelper(
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_TO_F64"}});
                 return nullptr;
             }
-            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "upper.src");
+            // (AR) هذا منفذُ **تحويلٍ** لا طريقةً، والمفسّرُ يفرّق بينهما مقيسًا:
+            //      «عشري(س)» على عدمٍ ⇒ RUN037 باسمِ الدالّة، لا RUN033 باسمِ العمليّة.
+            //      فلا يمرُّ بـ`normalizeStringPtr` (وهي لمنافذِ الطرائق) بل يُنادي البابَ
+            //      برمزِه. وقبلَ هذا كان يُبدِل العدمَ باللفظِ ثمّ يمرّره إلى `atof`
+            //      فيطبع «0.0» صامتًا — جوابٌ كاذبٌ حيث يرفعُ المفسّر (مقيس).
+            // (EN) A conversion port, not a method: the interpreter raises RUN037 here
+            //      naming the builtin. Previously it silently answered 0.0 via atof.
+            llvm::Value *str = cg_.emitStringPtrOrRaise(
+                cg_.resolveOperand(inst->operands[0]),
+                std::string(Sad::Builtins::Names::TypeCtor::TO_FLOAT),
+                "to_f64.src",
+                ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             if (!str)
                 return nullptr;
 
@@ -1462,7 +1583,8 @@ static llvm::Function *getOrCreateSplitHelper(
         {
             if (!inst || inst->operands.empty())
                 return nullptr;
-            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "lower.src");
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "upper.src",
+                                                         Sad::Builtins::Names::TypeMethods::String::TO_UPPER);
             if (!str)
                 return nullptr;
 
@@ -1505,7 +1627,8 @@ static llvm::Function *getOrCreateSplitHelper(
         {
             if (!inst || inst->operands.empty())
                 return nullptr;
-            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "find.src");
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "lower.src",
+                                                         Sad::Builtins::Names::TypeMethods::String::TO_LOWER);
             if (!str)
                 return nullptr;
 
@@ -1543,8 +1666,9 @@ static llvm::Function *getOrCreateSplitHelper(
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_FIND"}});
                 return nullptr;
             }
-            llvm::Value *haystack = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "contains.hay");
-            llvm::Value *needle = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "contains.needle");
+            llvm::Value *haystack = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "find.hay",
+                                                       Sad::Builtins::Names::TypeMethods::String::FIND);
+            llvm::Value *needle = normalizeStringArgPtr(cg_.resolveOperand(inst->operands[1]), "find.needle");
             if (!haystack || !needle)
                 return nullptr;
 
@@ -1590,9 +1714,14 @@ static llvm::Function *getOrCreateSplitHelper(
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_REPLACE"}});
                 return nullptr;
             }
-            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "replace.src");
-            llvm::Value *oldStr = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "replace.old");
-            llvm::Value *newStr = cg_.resolveOperand(inst->operands[2]);
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "replace.src",
+                                                  Sad::Builtins::Names::TypeMethods::String::REPLACE);
+            llvm::Value *oldStr = normalizeStringArgPtr(cg_.resolveOperand(inst->operands[1]), "replace.old");
+            // (AR) المعامِلُ الثالثُ كان **يتجاوز البابَ** فيبلغ `strlen` خامًّا (السطرُ أدناه):
+            //      «س.استبدل("أ"، ب)» وب عدميّةٌ ⇒ انهيارُ تجزئة. «بابٌ واحدٌ» يعني كلَّ
+            //      المعاملات لا أوّلَها. كشفته مراجعةٌ خصميّة.
+            // (EN) The third operand bypassed the door and reached strlen raw.
+            llvm::Value *newStr = normalizeStringArgPtr(cg_.resolveOperand(inst->operands[2]), "replace.new");
             if (!str || !oldStr || !newStr)
                 return nullptr;
 
@@ -1669,20 +1798,86 @@ static llvm::Function *getOrCreateSplitHelper(
 
         llvm::Value *StringOpsCodeGen::emitBuiltinStringSubstring(std::shared_ptr<SIRInstruction> inst)
         {
-            if (!inst || inst->operands.size() < 3)
+            // (AR) 🔑 الوسائطُ **اختياريّةٌ في اللغة**، وكان اشتراطُ ثلاثةٍ هنا يجعل
+            //      «"أهلا".جزء()» علّةَ مترجّمٍ داخليّةً لا تُفشِل البناء، فيطبعُ
+            //      البرنامجُ «لاشيء» بينما يطبعُ المفسّرُ «أهلا» — كذبٌ صامتٌ لا انهيار.
+            //
+            // (AR) ⚠️ ودرسٌ ثانٍ من مراجعةٍ خصميّة: أوّلُ رقعةٍ نقلت **الافتراضَ** وحدَه
+            //      وتركت **القصَّ**، فصارت «"أهلا".جزء(-2)» تطبع «أهلا» بينما يطبعُ
+            //      المفسّرُ «لا» — أي أنّ الرقعةَ حوّلت خطأً ظاهرًا («لاشيء») إلى جوابٍ
+            //      يبدو صحيحًا وليس هو. فنُقل الحسابُ كلُّه: الافتراضاتُ **والقصُّ**.
+            // (EN) 🔑 The arguments are OPTIONAL in the language; requiring three made
+            //      «"أهلا".جزء()» an internal compiler error that did NOT fail the build.
+            // (EN) ⚠️ The first patch ported the DEFAULTS and not the CLAMPING, so
+            //      «"أهلا".جزء(-2)» answered «أهلا» where the interpreter answers «لا» —
+            //      trading a visible error for a plausible-looking lie. Both are ported now.
+            if (!inst || inst->operands.empty())
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "STRING_SUBSTRING"}});
                 return nullptr;
             }
-            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "substr.src");
-            llvm::Value *start = cg_.resolveOperand(inst->operands[1]);
-            llvm::Value *len = cg_.resolveOperand(inst->operands[2]);
-            if (!str || !start || !len)
+            const bool hasStart = inst->operands.size() > 1;
+            const bool hasLength = inst->operands.size() > 2;
+            // (AR) بابُ العمليّة لا العرض: قِيس أنّ «س.جزء(0، 2)» على خانةٍ عدميّةٍ كان
+            //      يُعطي «لا» — أوّلَ حرفَين من لفظِ «لاشيء» — بينما المفسّرُ يرفعُ RUN033.
+            // (EN) Operation door: «س.جزء(0،2)» on a null slot fabricated «لا» (measured).
+            llvm::Value *str = cg_.emitStringPtrOrRaise(
+                cg_.resolveOperand(inst->operands[0]),
+                LLVMCodeGen::stringMethodOperationLabel(
+                    Sad::Builtins::Names::TypeMethods::String::SUBSTRING),
+                "substr.src");
+            if (!str)
                 return nullptr;
 
             auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             auto i64Ty = cg_.getInt64Type();
+
+            llvm::Value *rawStart = hasStart ? cg_.resolveOperand(inst->operands[1])
+                                             : llvm::ConstantInt::get(i64Ty, 0);
+            llvm::Value *rawLength = hasLength ? cg_.resolveOperand(inst->operands[2]) : nullptr;
+            if (!rawStart || (hasLength && !rawLength))
+                return nullptr;
+
             auto i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+            llvm::IRBuilder<> &b = *cg_.builder_;
+            auto constant = [&](int64_t value) { return llvm::ConstantInt::get(i64Ty, value); };
+            auto signedMax = [&](llvm::Value *a, llvm::Value *c, const char *tag) {
+                return b.CreateSelect(b.CreateICmpSGT(a, c), a, c, tag);
+            };
+            auto signedMin = [&](llvm::Value *a, llvm::Value *c, const char *tag) {
+                return b.CreateSelect(b.CreateICmpSLT(a, c), a, c, tag);
+            };
+
+            // ────────────────────────────────────────────────────────────────
+            // (AR) قصُّ المدى كما يقصُّه المفسّرُ بالترتيبِ نفسِه — والترتيبُ ليس
+            //      تفصيلًا: الطولُ الافتراضيُّ يُحسَبُ من البدايةِ **قبل** قصِّها،
+            //      فـ«"أهلا".جزء(-2)» طولُها ٤-(-٢)=٦ ثمّ بدايتُها ٢ ثمّ يُقصُّ
+            //      الطولُ إلى ٢ ⇒ «لا». ولو قُصَّت البدايةُ أوّلًا لخرج «لا» خطأً
+            //      من طريقٍ آخرَ ثمّ افترقَ في مدخلٍ ثالث.
+            //      المرجع: expression_evaluator_oop_string_map_methods.cpp — «جزء».
+            // (EN) Clamp exactly as the interpreter does, in the same ORDER: the default
+            //      length is computed from the UNCLAMPED start, so «"أهلا".جزء(-2)» is
+            //      length 4-(-2)=6, then start 2, then length clamped to 2 ⇒ «لا».
+            // ────────────────────────────────────────────────────────────────
+            llvm::Value *charCount =
+                b.CreateCall(cg_.getOrCreateUtf8Strlen(), {str}, "substr.chars");
+
+            llvm::Value *length =
+                hasLength ? rawLength : b.CreateSub(charCount, rawStart, "substr.len.rest");
+
+            // (AR) بدايةٌ سالبةٌ تُعَدُّ من الآخر، ولا تنزلُ تحتَ الصفر ولا تتجاوزُ الطول.
+            // (EN) A negative start counts from the end; clamped into [0, charCount].
+            llvm::Value *wrapped = b.CreateAdd(charCount, rawStart, "substr.start.wrap");
+            llvm::Value *fromEnd = signedMax(wrapped, constant(0), "substr.start.wrap.nn");
+            llvm::Value *start = b.CreateSelect(
+                b.CreateICmpSLT(rawStart, constant(0)), fromEnd, rawStart, "substr.start.pick");
+            start = signedMin(start, charCount, "substr.start");
+
+            // (AR) طولٌ سالبٌ صفرٌ، ولا يتجاوزُ ما بقي من النصّ.
+            // (EN) A negative length is zero, and never exceeds what remains.
+            length = signedMax(length, constant(0), "substr.len.nn");
+            length = signedMin(length, b.CreateSub(charCount, start, "substr.len.max"),
+                               "substr.len");
 
             // (AR) تحويل فهرس الحرف والطول إلى إزاحات بايت باستخدام UTF-8
             // (EN) Convert character start index and length to byte offsets using UTF-8
@@ -1690,12 +1885,14 @@ static llvm::Function *getOrCreateSplitHelper(
 
             // (AR) موقع البايت لبداية الاستخراج
             // (EN) Byte offset of start character
-            llvm::Value *byteStart = cg_.builder_->CreateCall(charToByteFn, {str, start}, "byte.start");
+            llvm::Value *byteStart = b.CreateCall(charToByteFn, {str, start}, "byte.start");
 
-            // (AR) موقع البايت لنهاية الاستخراج (start + len)
-            // (EN) Byte offset of end character (start + len)
-            llvm::Value *charEnd = cg_.builder_->CreateAdd(start, len, "char.end");
-            llvm::Value *byteEnd = cg_.builder_->CreateCall(charToByteFn, {str, charEnd}, "byte.end");
+            // (AR) موقع البايت لنهاية الاستخراج — والمدى مقصوصٌ سلفًا، فـ`start+length`
+            //      لا يتجاوزُ عددَ المحارفِ بحال، ولا يُسأل التحويلُ عمّا لا عقدَ له فيه.
+            // (EN) End byte; the range is already clamped, so start+length never exceeds the
+            //      character count and the char→byte conversion is never asked out of range.
+            llvm::Value *charEnd = b.CreateAdd(start, length, "char.end");
+            llvm::Value *byteEnd = b.CreateCall(charToByteFn, {str, charEnd}, "byte.end");
 
             // (AR) طول البايتات = byteEnd - byteStart
             // (EN) Byte length = byteEnd - byteStart
@@ -1735,7 +1932,8 @@ static llvm::Function *getOrCreateSplitHelper(
             // Call C runtime: skip leading whitespace, then copy until trailing whitespace
             if (!inst || inst->operands.empty())
                 return nullptr;
-            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "trim.src");
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "trim.src",
+                                                  Sad::Builtins::Names::TypeMethods::String::TRIM);
             if (!str)
                 return nullptr;
 
@@ -1838,8 +2036,9 @@ static llvm::Function *getOrCreateSplitHelper(
             //      byte-wise strtok that shattered multibyte delimiters).
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "split.src");
-            llvm::Value *delim = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "split.delim");
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "split.src",
+                                                  Sad::Builtins::Names::TypeMethods::String::SPLIT);
+            llvm::Value *delim = normalizeStringArgPtr(cg_.resolveOperand(inst->operands[1]), "split.delim");
             if (!str || !delim)
                 return nullptr;
 
@@ -2180,7 +2379,7 @@ static llvm::Function *getOrCreateSplitHelper(
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
             llvm::Value *arrPtr = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *sep = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "join.sep");
+            llvm::Value *sep = normalizeStringArgPtr(cg_.resolveOperand(inst->operands[1]), "join.sep");
             if (!arrPtr || !sep)
                 return nullptr;
 
@@ -2271,8 +2470,9 @@ static llvm::Function *getOrCreateSplitHelper(
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "starts.src");
-            llvm::Value *prefix = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "starts.prefix");
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "starts.src",
+                                                  Sad::Builtins::Names::TypeMethods::String::STARTS_WITH);
+            llvm::Value *prefix = normalizeStringArgPtr(cg_.resolveOperand(inst->operands[1]), "starts.prefix");
             if (!str || !prefix)
                 return nullptr;
 
@@ -2306,8 +2506,9 @@ static llvm::Function *getOrCreateSplitHelper(
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "ends.src");
-            llvm::Value *suffix = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "ends.suffix");
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "ends.src",
+                                                  Sad::Builtins::Names::TypeMethods::String::ENDS_WITH);
+            llvm::Value *suffix = normalizeStringArgPtr(cg_.resolveOperand(inst->operands[1]), "ends.suffix");
             if (!str || !suffix)
                 return nullptr;
 
@@ -2343,8 +2544,9 @@ static llvm::Function *getOrCreateSplitHelper(
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "contains2.src");
-            llvm::Value *substr = normalizeStringPtr(cg_.resolveOperand(inst->operands[1]), "contains2.sub");
+            llvm::Value *str = normalizeStringPtr(cg_.resolveOperand(inst->operands[0]), "contains2.src",
+                                                  Sad::Builtins::Names::TypeMethods::String::CONTAINS);
+            llvm::Value *substr = normalizeStringArgPtr(cg_.resolveOperand(inst->operands[1]), "contains2.sub");
             if (!str || !substr)
                 return nullptr;
 

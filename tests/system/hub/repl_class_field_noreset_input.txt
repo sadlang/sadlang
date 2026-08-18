@@ -1,0 +1,15 @@
+# (AR) ضابطٌ ثانٍ: حقلٌ نوعُه صنفٌ **بلا** ‹:reset› — يعمل كذلك.
+#      الضابطان معًا يعزلان العطبَ في تقاطعِهما وحدَه؛ ولو قِيس التقاطعُ منفردًا
+#      لكان «لم ينهَر» شهادةً ناقصةً لا تُميّز الإصلاحَ من غيابِ الشرط.
+# (EN) Second control: a class-typed field with NO ‹:reset› — also fine. The two
+#      controls localize the defect to their intersection alone.
+صنف بسيط
+    رقم عدد
+نهاية
+صنف معشش
+    بسيط جزء
+نهاية
+معشش م
+م.جزء.عدد = 9
+اطبع_سطر("FIELD_NORESET_OK " + نص(م.جزء.عدد))
+:خروج

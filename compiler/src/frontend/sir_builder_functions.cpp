@@ -250,12 +250,9 @@ namespace Sad
 
                 // (AR) نوع إرجاع اختياريّ T؟: استعمل النوع الداخليّ T للإرجاع (NS-06)
                 // (EN) Optional return type T?: use inner type T for the return (NS-06)
-                if (funcDecl->returnType == Types::SadTypeKind::Optional && funcDecl->sadReturnType)
-                {
-                    if (auto *opt = dynamic_cast<const Sad::Types::SadOptionalType *>(funcDecl->sadReturnType.get()))
-                        if (opt->getInnerType())
-                            returnType = astTypeToSIRType(opt->getInnerType()->getKind());
-                }
+                returnType = resolveDeclaredStorageKind(funcDecl->returnType,
+                                                        funcDecl->sadReturnType.get(),
+                                                        returnType);
 
                 // (AR) إنشاء دالة SIR جديدة (sir_module.h:235 - SIRFunction constructor)
                 // (EN) Create new SIR function
@@ -364,12 +361,11 @@ namespace Sad
 
                     // (AR) معامل اختياريّ T؟: استعمل النوع الداخليّ T للتخزين (NS-06 موجة 3)
                     // (EN) Optional parameter T?: use inner type T for storage (NS-06 wave 3)
-                    if (param.type == Types::SadTypeKind::Optional && param.sadType)
-                    {
-                        if (auto *opt = dynamic_cast<const Sad::Types::SadOptionalType *>(param.sadType.get()))
-                            if (opt->getInnerType())
-                                paramType = astTypeToSIRType(opt->getInnerType()->getKind());
-                    }
+                    // (AR) الموضعُ الأحرجُ: معامِلُ `منطقي؟` كان يُخفَّض `i1` فيتطابق
+                    //      وسيطُ `لاشيء` ووسيطُ `صحيح` بتًّا ببتّ.
+                    // (EN) The critical site: a `bool?` parameter lowered to `i1`, making the
+                    //      `null` and `true` arguments bit-for-bit identical.
+                    paramType = resolveDeclaredStorageKind(param.type, param.sadType.get(), paramType);
 
                     // (AR) إذا كان النوع I64 (من UNKNOWN) وfunctionTable_ يحتوي نوعاً مستنتجاً أفضل
                     // (EN) If type is I64 (from UNKNOWN) and functionTable_ has a better inferred type
@@ -466,12 +462,11 @@ namespace Sad
 
                     // (AR) معامل اختياريّ T؟: استعمل النوع الداخليّ T للتخزين (NS-06 موجة 3)
                     // (EN) Optional parameter T?: use inner type T for storage (NS-06 wave 3)
-                    if (param.type == Types::SadTypeKind::Optional && param.sadType)
-                    {
-                        if (auto *opt = dynamic_cast<const Sad::Types::SadOptionalType *>(param.sadType.get()))
-                            if (opt->getInnerType())
-                                paramType = astTypeToSIRType(opt->getInnerType()->getKind());
-                    }
+                    // (AR) الموضعُ الأحرجُ: معامِلُ `منطقي؟` كان يُخفَّض `i1` فيتطابق
+                    //      وسيطُ `لاشيء` ووسيطُ `صحيح` بتًّا ببتّ.
+                    // (EN) The critical site: a `bool?` parameter lowered to `i1`, making the
+                    //      `null` and `true` arguments bit-for-bit identical.
+                    paramType = resolveDeclaredStorageKind(param.type, param.sadType.get(), paramType);
 
                     // (AR) نفس المنطق: استخدام النوع المستنتج عندما يكون UNKNOWN
                     // (EN) Same logic: use inferred type when UNKNOWN
@@ -1060,6 +1055,49 @@ namespace Sad
                             funcInfo.returnElementType = prevFtIt->second.returnElementType;
                         }
                     }
+
+                    // ═════════════════════════════════════════════════════════════
+                    // (AR) 🔑 وصنفُ الإرجاعِ أخو سابقِه حرفًا — وكان يُطمَسُ معه (ISSUE-140)
+                    // ═════════════════════════════════════════════════════════════
+                    //
+                    // (AR) `returnClassName` يُكتَبُ في موضِعَين لا يملكُ أحدُهما `funcInfo`
+                    //      هذه: تسجيلُ الطورِ الأوّلِ (من نوعِ الإرجاعِ المُصرَّح) و`buildReturnStatement`
+                    //      (من استنتاجِ جملةِ `ارجع` أثناءَ بناءِ الجسم). وكلاهما يكتبُ
+                    //      في **إدخالِ الجدول**، ثمّ يأتي هذا الإسنادُ فيستبدِلُ الإدخالَ كلَّه
+                    //      بـ`funcInfo` — فيُمحى الاثنان معًا.
+                    //
+                    //      🔑 **والمقيسُ أنّ الطمسَ وحدَه كان يُبطِلُ النوعَ المُصرَّح.**
+                    //      مُلئَ الحقلُ في الطورِ الأوّلِ فبقيَ العطبُ كما هو، ولم يزُلْ إلّا
+                    //      بإضافةِ الحفظِ هنا — فالطمسُ مُثبَتٌ بفرقِ قياسٍ لا بقراءةِ الكود.
+                    //
+                    //      ⚠️ **ولا يُدَّعى أنّ هذا يُفسِّرُ حالةَ الإرجاعِ غيرِ المُصرَّح.** قُِيسَ
+                    //      بمِجسَّينِ متتابعَينِ أنّ `ارجع شخص()` يُبنى **قبلَ** موضِعِ النداء
+                    //      (فلا مشكلةَ ترتيب) وأنّ `valueResult.className` **فارغٌ أصلًا**
+                    //      عندَه — أي أنّ الاستنتاجَ لم ينجحْ فيُمحى، بل لم ينجحْ قطّ. وذاك
+                    //      قيدٌ مستقلٌّ يبقى مفتوحًا (ISSUE-140/الشطرُ غيرُ المُصرَّح).
+                    //
+                    //      ⚠️ والتعليقُ أعلاه كان يصفُ هذا الفخَّ بعينِه لحقلٍ أخَ، ولم يمتدَّ
+                    //      إلى هذا الحقل — فإصلاحُ حقلٍ واحدٍ من حقولٍ يطمِسُها إسنادٌ
+                    //      واحدٌ يتركُ العطبَ حيًّا في أخواتِه.
+                    // (EN) MEASURED: the clobber alone defeated the DECLARED return class — filling
+                    //      it at phase 1 changed nothing until this preservation was added, so the
+                    //      clobber is proven by a measurement difference, not by reading the code.
+                    //      ⚠️ No claim is made that this explains the UNDECLARED case: two ordered
+                    //      probes measured that `return Person()` is built BEFORE the call site (so
+                    //      ordering is fine) and that valueResult.className is EMPTY there — the
+                    //      inference never succeeded, so it was never erased. That is a separate
+                    //      open constraint. The comment above described this same trap for one
+                    //      field and did not generalise: fixing one clobbered field of several
+                    //      leaves the defect alive in its siblings.
+                    // ═════════════════════════════════════════════════════════════
+                    {
+                        auto prevFtIt = functionTable_.find(funcDecl->name);
+                        if (prevFtIt != functionTable_.end() &&
+                            funcInfo.returnClassName.empty())
+                        {
+                            funcInfo.returnClassName = prevFtIt->second.returnClassName;
+                        }
+                    }
                     functionTable_[funcDecl->name] = funcInfo;
                 }
 
@@ -1344,9 +1382,14 @@ namespace Sad
                     return;
                 }
 
-                // (AR) تحويل النوع (astTypeToSIRType: sir_builder.h:713)
-                // (EN) Convert type
-                SadTypeKind varType = astTypeToSIRType(varDecl->type);
+                // (AR) تحويل النوع — عبر سلطةِ الخانةِ كي يفكَّ `T؟` هنا أيضًا؛ كان هذا
+                //      المسارُ يستدعي astTypeToSIRType مباشرةً فيسقط العدميُّ إلى الافتراضيّ.
+                // (EN) Convert the type through the storage authority so `T?` is unwrapped here
+                //      too; this path called astTypeToSIRType directly, so nullables fell
+                //      through to the default arm.
+                SadTypeKind varType = resolveDeclaredStorageKind(varDecl->type,
+                                                                 varDecl->sadType.get(),
+                                                                 astTypeToSIRType(varDecl->type));
                 // (AR) إذا كان النوع UNKNOWN (افتراضي Integer)، نستنتجه من المُهيئ
                 //      هذا ضروري لمتغيرات الفضاء مثل: متغير PI = 3.14159
                 //      حيث لا يُحدد النوع صراحة ويجب استنتاجه من القيمة الحرفية
@@ -1385,6 +1428,12 @@ namespace Sad
                             varType = SadTypeKind::Boolean;
                     }
                 }
+
+                // (AR) بابُ ISSUE-138 نفسُه — المسارُ الثالثُ لنوعِ خانةِ التصريح.
+                // (EN) The same ISSUE-138 door — the third declaration-kind path.
+                varType = resolveBareSlotStorageKind(
+                    varDecl->type, varDecl->initializer != nullptr, varType);
+
                 // (AR) إنشاء متغير عام (SIRGlobalVariable constructor: sir_module.h:96)
                 // (EN) Create global variable
                 auto sirGlobal = std::make_shared<SIRGlobalVariable>(varDecl->name, varType);
@@ -1411,6 +1460,7 @@ namespace Sad
                     {
                         sirGlobal->initialValue = foldedValue;
                         sirGlobal->hasInitialValue = true;
+                        sirGlobal->initialValueKind = foldedKind;
                     }
                     else if (auto *litExpr = dynamic_cast<Sad::AST::LiteralExpr *>(varDecl->initializer.get()))
                     {
@@ -1473,6 +1523,31 @@ namespace Sad
                             tokenType == Lexer::TokenType::STRING_LITERAL)
                         {
                             sirGlobal->hasInitialValue = true;
+                        }
+
+                        // (AR) ونوعُ القيمةِ يُسجَّل من **رمزِ الحرفيّة** لا من النوعِ
+                        //      المُصرَّح: هما يفترقان في `أي` وحدَها اليومَ، والأذرعُ
+                        //      أعلاه سوّت «صحيح» و«1» في النصِّ فلم يبقَ ما يفرّقهما.
+                        // (EN) Record the value kind from the LITERAL token, not the
+                        //      declared type: they diverge for `أي`, and the arms above
+                        //      collapse «صحيح» and 1 into the same text.
+                        switch (tokenType)
+                        {
+                        case Lexer::TokenType::NUMBER_INTEGER:
+                            sirGlobal->initialValueKind = SadTypeKind::Integer;
+                            break;
+                        case Lexer::TokenType::NUMBER_DOUBLE:
+                            sirGlobal->initialValueKind = SadTypeKind::Float;
+                            break;
+                        case Lexer::TokenType::LITERAL_TRUE:
+                        case Lexer::TokenType::LITERAL_FALSE:
+                            sirGlobal->initialValueKind = SadTypeKind::Boolean;
+                            break;
+                        case Lexer::TokenType::STRING_LITERAL:
+                            sirGlobal->initialValueKind = SadTypeKind::String;
+                            break;
+                        default:
+                            break;
                         }
                     }
                 }

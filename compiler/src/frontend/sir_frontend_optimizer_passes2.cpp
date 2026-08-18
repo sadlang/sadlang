@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cassert>
 #include <iostream>
+#include <unordered_set>
 
 namespace Sad
 {
@@ -71,6 +72,67 @@ namespace Sad
                 default:
                     return false;
                 }
+            }
+
+            // ================================================================
+            // (AR) هل يكتبُ المستدعَى في أحدِ معامِلاتِه؟ يُقارَنُ الاسمُ مجرَّدًا من `%`
+            //      لأنّ تعليماتِ SIR تحملُ الصيغتَين («ق» و«%ق») في مواضعَ مختلفة.
+            // (EN) Does the callee store into one of its own parameters? Names are compared
+            //      with any leading `%` stripped, since SIR instructions carry both forms.
+            // ================================================================
+            static bool calleeWritesToParameter(const SIRFunction &callee)
+            {
+                const auto stripSigil = [](const std::string &name) -> std::string
+                {
+                    return (!name.empty() && name[0] == '%') ? name.substr(1) : name;
+                };
+                std::unordered_set<std::string> parameterNames;
+                for (const auto &parameter : callee.getParameters())
+                {
+                    parameterNames.insert(stripSigil(parameter.name));
+                }
+                if (parameterNames.empty())
+                {
+                    return false;
+                }
+                for (const auto &block : callee.getBasicBlocks())
+                {
+                    if (!block)
+                    {
+                        continue;
+                    }
+                    for (const auto &instruction : block->instructions)
+                    {
+                        // (AR) `STORE` **ثنائيُّ المعامِلاتِ وحدَه**: `store قيمة، خانة`
+                        //      حيث operands[1] هو المقصِد. 🔑 ولمَ «ثنائيّ» شرطٌ لازم:
+                        //      إسنادُ العضوِ يُبَثُّ ثلاثيًّا — `store قيمة، %#self، "حقل"` —
+                        //      و`%#self` **معامِلٌ** في كلِّ طريقةٍ غيرِ ساكنة، فالفحصُ بلا
+                        //      هذا القيدِ يمنعُ دمجَ كلِّ طريقةٍ تُسنِد إلى حقل. والمقيس:
+                        //      `051_inheritance` طبعَ «معالجة:1264794700928» بدل
+                        //      «معالجة:500 حالة:قيد_الشحن» — لأنّ منعَ دمجِ الطرائقِ يكشفُ
+                        //      ثغرةَ استنتاجِ تواقيعِ الأعضاءِ التي يستُرها الدمجُ اليومَ
+                        //      (وهي مذكورةٌ صراحةً في استثناءِ البانِي أعلاه).
+                        //      وفي الثلاثيِّ لا يُكتَب في المعامِلِ أصلًا: `%#self` يُقرَأ
+                        //      قاعدةً للعنوان، والمكتوبُ فيه حقلٌ داخلَ الكائن.
+                        // (EN) Two-operand STORE only: `store value, slot`. A member
+                        //      assignment is emitted with three operands
+                        //      (`store value, %#self, "field"`), and `%#self` is a
+                        //      parameter of every non-static method — without this
+                        //      restriction the guard would forbid inlining any method
+                        //      that assigns to a field, which exposes the member-signature
+                        //      inference gap that inlining currently masks.
+                        if (instruction.opcode != SIROpcode::STORE ||
+                            instruction.operands.size() != 2)
+                        {
+                            continue;
+                        }
+                        if (parameterNames.count(stripSigil(instruction.operands[1].name)) != 0)
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
             }
 
             bool FunctionInliningFrontendPass::shouldInline(const SIRFunction &callee) const
@@ -134,6 +196,38 @@ namespace Sad
                 // ================================================================
                 if (callee.isConstructor)
                     return false;
+
+                // ================================================================
+                // (AR) لا يُدمَجُ سطريًّا مستدعًى **يكتبُ في معامِلِه** (ISSUE-165).
+                //      الدمجُ يستبدلُ اسمَ المعامِلِ بوسيطِ المستدعي استبدالًا في كلِّ
+                //      معامِلاتِ التعليمات — بما فيها **مقصِدُ** `STORE`. فإن كان الوسيطُ
+                //      حرفيًّا صارَ SIR إلى `store 1, 10`: تخزينٌ في ثابتٍ لا خانةَ له،
+                //      و`load 10` بعدَه. المقيس: `دالة ف(ق) { ق = 1؛ ارجع ق }` مُستدعاةً
+                //      في الوضعِ الحرِّ ⇒ «خطأ مترجم داخلي: Operands not found for store:
+                //      value=1, ptr=» ورمزُ خروجٍ ١ — أي أنّ المُصرِّفَ يسقطُ على مصدرٍ
+                //      سليمٍ يُصرِّفُه الوضعُ المستضافُ اليومَ ويُشغِّلُه المفسّر.
+                //
+                //      🔑 ولمَ لم تظهرْ إلّا في الوضعِ الحرّ: `شرط` و`بينما` تُنشئان كتلًا
+                //      إضافيّةً فيمنعُها حدُّ «أكثرَ من كتلتَين» أدناه — فالمعامِلُ
+                //      المكتوبُ فيه **داخلَ حلقةٍ** لا يُدمَج ولا ينهار. المنهارُ هو
+                //      الكتابةُ في المستوى الأعلى للدالّة وحدَها.
+                //
+                //      ⚠️ ولمَ منعٌ لا تكييف: المعامِلُ المكتوبُ فيه **خانةٌ** في المستدعَى،
+                //      والدمجُ الحاليُّ لا يملكُ إلّا استبدالَ القيمة. تمثيلُه يلزمُه
+                //      تجسيدُ خانةٍ (`ALLOC` للوسيطِ ثمّ `STORE` فيها) وربطُ المعامِلِ بها،
+                //      وهو توسيعٌ للدمجِ يُعالَجُ بذاته لا هنا. والمنعُ يُعيدُ الحالةَ إلى
+                //      النداءِ العاديِّ — وهو مقيسٌ سليمًا في الوضعَين.
+                // (EN) Never inline a callee that **writes to a parameter** (ISSUE-165).
+                //      Inlining substitutes the argument operand for the parameter name in
+                //      every operand slot — including a `STORE`'s destination. With a literal
+                //      argument the SIR becomes `store 1, 10`: a store into a constant, which
+                //      has no address. Measured: internal compiler error and exit 1 on source
+                //      the hosted mode compiles today.
+                // ================================================================
+                if (calleeWritesToParameter(callee))
+                {
+                    return false;
+                }
 
                 // Don't inline recursive or large functions
                 size_t totalInsts = 0;

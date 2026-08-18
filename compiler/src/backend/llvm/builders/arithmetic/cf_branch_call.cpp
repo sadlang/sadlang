@@ -25,6 +25,8 @@
 #include "builders/arithmetic/controlflow_codegen.h" // (Phase 7 Step 3)
 #include "llvm_codegen.h"
 #include "sad_dyn_repr.h"
+// (AR) منافذُ النصِّ الهابطةُ نداءً — لتردَّ مستقبِلَها العدميَّ إلى بابِ الرفع
+#include "string_runtime_ports.h"
 
 using namespace Sad::Compiler::SIR;
 using namespace Sad::Compiler; // (AR) للوصول لثوابت sir_constants.h
@@ -220,6 +222,39 @@ namespace Sad
                 if (arg)
                 {
                     args.push_back(arg);
+                }
+            }
+
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) 🔑 منفذُ **مستقبِلٍ** نصّيٍّ يهبطُ نداءً لا أوپكودًا: «عكس» و«كرر»
+            //      و«حرف_عند». وبابُ مؤشّرِ النصِّ يحرسُ بواعثَ الأوپكوداتِ وحدَها، فكان
+            //      «س.عكس()» على خانةٍ عدميّةٍ **ينهارُ انهيارَ تجزئة** بينما يرفعُ
+            //      المفسّرُ RUN033 — مقيسٌ، كشفه حارسُ تكافؤِ المستقبِلِ العدميّ.
+            //      فيمرُّ المعاملُ الأوّلُ من البابِ نفسِه ليتطابقَ الرمزُ والنصُّ معًا.
+            //      والاسمُ العربيُّ من الرأسِ المشترك، لا مكتوبًا هنا ثانيةً.
+            // (EN) 🔑 A string RECEIVER port that lowers to a CALL, not an opcode (reverse,
+            //      repeat, char_at): the door guards opcode emitters only, so a null receiver
+            //      segfaulted where the interpreter raises RUN033 (measured; found by the
+            //      null-receiver parity guard). Route operand 0 through the same door.
+            // ════════════════════════════════════════════════════════════════════
+            {
+                const std::string_view receiverMethod =
+                    ::Sad::Compiler::StringRuntimePorts::receiverMethodName(funcName);
+                // (AR) ⚠️ الحكمُ بعددِ **المعاملاتِ** لا بعددِ الوسائطِ المحلولة: الحلقةُ
+                //      أعلاه تُسقِطُ معاملًا يفشلُ حلُّه بلا حجزِ مكان، فينزلقُ الفهرس؛
+                //      ولو انزلق لصار `args[0]` عددًا فيُقرأ الصفرُ عدمًا ⇒ RUN033 كاذب.
+                //      فإن لم يتطابقِ العددان تُركَ النداءُ كما هو: بابٌ لا يُطبَّق أهونُ
+                //      من بابٍ يُطبَّق على المعاملِ الخطأ.
+                // (EN) ⚠️ Judge by OPERAND count, not resolved-arg count: the loop above drops
+                //      an operand that fails to resolve without reserving its slot, so indices
+                //      slide and args[0] could be the numeric argument — whose 0 reads as null
+                //      ⇒ a false RUN033. On mismatch, leave the call untouched.
+                const bool operandsIntact = inst->operands.size() == args.size() + 1;
+                if (!receiverMethod.empty() && operandsIntact && !args.empty())
+                {
+                    args[0] = cg_.emitStringPtrOrRaise(
+                        args[0], LLVMCodeGen::stringMethodOperationLabel(receiverMethod),
+                        "rt_string.recv");
                 }
             }
 

@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable
+# @description: «متغير ثابت رقم» — وجودُ النوعِ بعد المُعدِّلِ لا يُسقِطُ الثبات
+# @priority: P0
+# @requires: اطبع_سطر
+# @expect_error: SEM007
+# @expect_compile_error: لا يمكن تعديل الثابت
+
+متغير ثابت رقم س = 1
+س = 2
+اطبع_سطر(س)

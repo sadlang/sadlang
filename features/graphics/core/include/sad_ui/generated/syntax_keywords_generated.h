@@ -114,9 +114,10 @@
     X("\xd9\x8a\xd8\xaa\xd8\xb7\xd9\x84\xd8\xa8") /* يتطلب */ \
     X("\xd9\x8a\xd8\xb6\xd9\x85\xd9\x86") /* يضمن */ \
     X("\xd8\xb9\xd9\x82\xd8\xaf") /* عقد */ \
-    X("\xd8\xa7\xd8\xae\xd8\xaa\xd8\xa8\xd8\xb1") /* اختبر */
+    X("\xd8\xa7\xd8\xae\xd8\xaa\xd8\xa8\xd8\xb1") /* اختبر */ \
+    X("\xd8\xb9\xd8\xaf\xd9\x85\xd9\x8a") /* عدمي */
 
-#define SAD_UI_SYNTAX_CONTEXT_KEYWORD_LIST_COUNT 42
+#define SAD_UI_SYNTAX_CONTEXT_KEYWORD_LIST_COUNT 43
 
 // (AR) X("الكلمة") — أسماءُ الأنواعِ المدمَجة (رقم، نص، عشري…).
 #define SAD_UI_SYNTAX_TYPE_NAME_LIST(X) \

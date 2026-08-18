@@ -12,6 +12,7 @@
 
 #include "object_instance.h"
 #include "class_type.h"
+#include "class_manager.h"
 #include <sstream>
 #include <iostream>
 #include <algorithm>
@@ -435,8 +436,69 @@ namespace Sad
             {
                 if (!field.isStatic)
                 {
-                    // (AR) الخصائص غير الثابتة تُخزّن في الكائن
-                    // (EN) Non-static fields are stored in object
+                    // ═══════════════════════════════════════════════════════
+                    // (AR) حدُّ هذا المسلك — يُقال ولا يُستَر
+                    // ═══════════════════════════════════════════════════════
+                    //
+                    // (AR) هذا مسلكٌ ثانٍ لتهيئةِ الحقول، غيرُ الذي يمرُّ به
+                    //      `NewExpr` في المفسّر. و`shared/types` طبقةٌ بلا مُقيِّم،
+                    //      فلا سبيلَ إلى تقييمِ تعبيرٍ أو استدعاءِ بانٍ من هنا:
+                    //      أقصى ما يفعله الفرعُ أدناه استدعاءُ `createInstance`.
+                    //
+                    //      وحكمُ المالك (التصريحُ العاري = القيمةُ الافتراضيّةُ
+                    //      للنوع، والصنفُ يُنشَأ تعاوديًّا) **وُسِّع إلى `بنية`
+                    //      بإذنٍ صريحٍ من المالك (2026-08-15، مرحلة م٨)**، وأُصلح
+                    //      في المحلّلِ و`visitStructDecl` وحلقةِ حقولِ `visitNewExpr`
+                    //      لا هنا. قِيس قبلَه: حقلٌ صنفيٌّ في بنيةٍ يُخفِق بـRUN033
+                    //      وحقلُ `رقم` يعطي «لاشيء» لا صفرًا؛ وبعده `0` والبانيَ
+                    //      يُنفَّذ (البذرة VE038).
+                    // ═══════════════════════════════════════════════════════
+                    // (AR) ⚠️ فرعٌ لم أُثبِت أنّه يُنفَّذ — يُقال ولا يُدَّعى
+                    // ═══════════════════════════════════════════════════════
+                    //
+                    // (AR) أضفتُ الفرعَ التاليَ ظنًّا أنّه مسلكُ إنشاءِ حقولِ البنية،
+                    //      ثمّ قِست فتبيّن أنّ `visitNewExpr` **لا يستدعي**
+                    //      `createInstance` أصلًا — بل `new ObjectInstance` رأسًا،
+                    //      فلا تمرّ الأصنافُ من هنا. والبنيةُ كذلك: بانيها المعشَّشُ
+                    //      نُفِّذ فعلًا («>> الباني نُفِّذ»)، وهو ما لا يقدر عليه هذا
+                    //      المسلكُ ولا مصنعُ البنيةِ المدمَج — فالنداءُ ذهب إلى
+                    //      `visitNewExpr` لا إلى المصنع.
+                    //
+                    //      فما أصلح م٨ فعلًا هو المحلّلُ + `visitStructDecl` + حلقةُ
+                    //      الحقولِ في `visitNewExpr`. ويبقى هذا الفرعُ لأنّ
+                    //      `createInstance` لها مستدعٍ آخرُ في `ObjectManager` لم
+                    //      أبلغه ببرنامج، فيتساوى المسلكان إن سلكه أحد.
+                    //      ولا يُقرَأ هذا التعليقُ على أنّه وصفٌ لمسارٍ عامل.
+                    // (EN) ⚠️ Branch NOT demonstrated to execute. visitNewExpr uses
+                    //      `new ObjectInstance` directly, never createInstance, and
+                    //      the struct's nested constructor was observed to RUN —
+                    //      which neither this path nor the builtin factory can do.
+                    //      Kept only so the ObjectManager caller would agree.
+                    if (!field.defaultConstructClass.empty())
+                    {
+                        auto *classManager = ClassManager::getInstance();
+                        ClassType *fieldClass =
+                            classManager ? classManager->getClass(field.defaultConstructClass) : nullptr;
+                        if (fieldClass)
+                        {
+                            // (AR) `createInstance` تستدعي `initializeFields` بدورها،
+                            //      فالتعشيشُ **يُفترَض** أن يُبنى تعاوديًّا بلا حلقةٍ
+                            //      هنا. ⚠️ استنتاجٌ من قراءةِ الشيفرةِ لا قياس: الفرعُ
+                            //      كلُّه لم يثبت تنفيذُه ببرنامج (انظر أعلاه)، فلا
+                            //      برهانَ على التعاوديّةِ ولا على انتهائِها عند دورةٍ
+                            //      في التعشيش.
+                            // (EN) INFERRED FROM CODE, NOT MEASURED: createInstance
+                            //      should call initializeFields in turn. The whole
+                            //      branch is not demonstrated to execute, so recursion
+                            //      — and its termination on a cycle — is unproven.
+                            fields[field.name] = Value(fieldClass->createInstance());
+                            continue;
+                        }
+                        // (AR) صنفٌ غيرُ مسجَّل: تُترَك الخانةُ على «لاشيء» بدل
+                        //      كائنٍ نصفِ مبنيّ. الغيابُ المعلَنُ أسلمُ من قيمةٍ كاذبة.
+                        // (EN) Unregistered class: leave the slot null rather than
+                        //      hand out a half-built object.
+                    }
                     fields[field.name] = field.defaultValue;
                 }
             }

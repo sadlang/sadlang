@@ -331,9 +331,17 @@ namespace Sad
                                 }
                             }
 
+                            // (AR) 🔑 نوعُ نتيجةِ الباني الجبريِّ `Enum` لا `Struct` (ISSUE-153):
+                            //      التخفيضُ واحدٌ (كلاهما مؤشّرٌ في `isPointerLoweredKind`)، والفرقُ
+                            //      أنّ `toDyn` يسِمُ `Struct` كائنًا ⇒ `نوع()` يُجيبُ «كائن»
+                            //      والمرجعُ «خريطة» (يُمثِّلُ المتغيِّرةَ خريطةً) — مقيس.
+                            // (EN) The ADT constructor result is `Enum`, not `Struct` (ISSUE-153):
+                            //      identical lowering (both are pointer-lowered), but toDyn tags
+                            //      Struct as an object, so نوع() answered «object» where the
+                            //      reference answers «map» (it models a variant as a map) — measured.
                             std::string ctorResultReg = b_.newTempRegister();
                             SIRInstruction ctorCall(SIROpcode::CALL);
-                            ctorCall.result = SIROperand::Register(ctorResultReg, SadTypeKind::Struct);
+                            ctorCall.result = SIROperand::Register(ctorResultReg, SadTypeKind::Enum);
                             ctorCall.operands.push_back(SIROperand::Function(ctorIt->second.name));
                             for (const auto &a : ctorArgs)
                                 ctorCall.operands.push_back(a);
@@ -351,7 +359,7 @@ namespace Sad
                             //      Note: necessary but NOT sufficient for direct field access
                             //      (`s.radius`) — className isn't propagated to classInstanceTypes_,
                             //      so direct access stays a documented gap (ISSUE-077); match works.
-                            BuildResult ctorRes(ctorResultReg, SadTypeKind::Struct);
+                            BuildResult ctorRes(ctorResultReg, SadTypeKind::Enum);
                             ctorRes.className = enumVarExpr->name;
                             return ctorRes;
                         }
@@ -1488,6 +1496,50 @@ namespace Sad
 
                 if (b_.currentBlock_)
                 {
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 حارسُ المُستقبِلِ يُصدَر **هنا**، قبل النداءِ وفي
+                    //      المستدعي — لأنّ دامجَ الدوالِّ يستبدل النداءَ نفسَه بجسدِ
+                    //      المستدعى فيمحو كلَّ قراءةٍ للمُستقبِل. المقيس: `متغير ك`
+                    //      ثمّ `ك.أربعون()` ⇒ المُترجَمُ يطبع 42 برمزِ خروجٍ صفر
+                    //      بينما يرفع المفسّرُ RUN033. وتعليمةٌ سابقةٌ للنداءِ ينجو
+                    //      منها الدمجُ لأنّه لا يمسُّ إلّا النداء.
+                    //
+                    //      ⚠️ ولا يُمنَع الدمجُ بدلًا من ذلك: التعليلُ عند
+                    //      `shouldInline` يقول إنّ منعَ دمجِ الطرائقِ غيرِ الساكنةِ
+                    //      يكشف ثغرةً قائمةً في استنتاجِ تواقيعِ الأعضاء، وهي تُعالَج
+                    //      بذاتها. فالحارسُ يُوضَع حيث لا يتعارض مع ذلك القرار.
+                    //
+                    //      واللفظُ من المرجعِ حرفًا بحرف: المفسّرُ يركّبه
+                    //      `"." + methodName + "()"` — فهو معاملٌ لا ثابت، كما في
+                    //      منفذَي القراءةِ والكتابةِ («member access» مقابل «.=»).
+                    //
+                    //      ويُستثنى `هذا` و`الأساس`: مُستقبِلُهما لا يكون عدمًا داخل
+                    //      الطريقة، فحارسٌ عليه فرعٌ لا يُطلَق أبدًا في كلِّ نداءٍ
+                    //      داخليّ. وتُستثنى بواني ADT لأنّ `args[0]` ليست مُستقبِلًا
+                    //      فيها أصلًا.
+                    // (EN) The receiver guard is emitted HERE, before the call and in
+                    //      the caller, because the inliner replaces the call with the
+                    //      callee body and erases every read of the receiver. An
+                    //      instruction preceding the call survives inlining. Blocking
+                    //      inlining instead is rejected by the reasoning at
+                    //      shouldInline. The label matches the interpreter verbatim
+                    //      («." + methodName + "()»), so it is a parameter, not a
+                    //      constant. `this`/`super` receivers are excluded (never null
+                    //      inside a method), as are ADT constructors (args[0] is not a
+                    //      receiver there).
+                    // ════════════════════════════════════════════════════════
+                    const bool isSuperCall =
+                        dynamic_cast<Sad::AST::SuperExpr *>(methodCallExpr->object.get()) != nullptr;
+                    if (!isThisCall && !isSuperCall && !isADTCtor && !args.empty())
+                    {
+                        SIRInstruction guardInst;
+                        guardInst.opcode = SIROpcode::OBJECT_NULL_CHECK;
+                        guardInst.operands.push_back(args[0]);
+                        guardInst.operands.push_back(SIROperand::ConstantString(
+                            "." + methodCallExpr->methodName + "()"));
+                        b_.currentBlock_->addInstruction(guardInst);
+                    }
+
                     if ((isThisCall || isObjectCall) && !isADTCtor)
                     {
                         // (AR) التوزيع الافتراضي عبر vtable — OBJECT_CALL

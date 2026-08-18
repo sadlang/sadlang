@@ -949,6 +949,28 @@ namespace Sad
                 return result;
             }
 
+            // (AR) ISSUE-120: «ساكن» بديلٌ ثالثٌ يبدأ التصريح كـ«متغير»/«ثابت» — كما تنصّ
+            //      صيغةُ gr.decl.variable. كان الموزِّع يخلو منه، فيهبط «ساكن س = 9» جملةَ
+            //      تعبيرٍ ويُبلَّغ SEM001 «المتغير 'ساكن' غير معرَّف»: تشخيصٌ يلوم القارئَ
+            //      على كلمةٍ محجوزةٍ لم يُوصَل لها مسار.
+            // (EN) ISSUE-120: 'ساكن' starts a declaration like 'متغير'/'ثابت'.
+            if (match(TT::KEYWORD_STATIC))
+            {
+                if (!decorators.empty())
+                {
+                    errorCatalog(Errors::ErrorCode::SYN_DECORATOR_NOT_ALLOWED, {{"target_ar", "المتغيرات"}, {"target_en", "variables"}});
+                }
+                // (AR) حفظٌ واستعادةٌ لا ضبطٌ ومسح: التصريحُ قد يتداخل (تصريحٌ داخل
+                //      مُهيِّئِ لامدا مثلًا)، والمسحُ إلى false يفقد حالةَ الخارج. النمطُ
+                //      المجاورُ لـpendingConst_ يضبط ويمسح — وقد صار أثرُ ذلك مقيسًا بعد
+                //      أن نُفِّذ الثباتُ في المحرّكَين، فلا يُنسَخ العيبُ إلى العلَم الجديد.
+                const bool savedStatic = pendingStatic_;
+                pendingStatic_ = true;
+                auto result = parseVarDecl();
+                pendingStatic_ = savedStatic;
+                return result;
+            }
+
             // Check for type-first variable declaration: type IDENTIFIER = value;
             // Use proper lookahead to verify TYPE is followed by IDENTIFIER
             // (AR) التحقق من تصريح المتغير ببدء النوع: نوع معرّف = قيمة;
@@ -1510,6 +1532,11 @@ namespace Sad
                 auto exprStmt = std::make_unique<ExprStmt>(std::move(firstKey));
 
                 // Continue parsing rest of block
+                // (AR) ISSUE-120 — كتلةٌ بمعقوفتين تُبنى باليد ولا تمرّ بـ`parseBlockStmt`،
+                //      فتُحرَس هنا كي يعدَّها عدّادُ الكتل (نظيرُ أجسامِ الماكرو والسمةِ
+                //      و«اختبر»). كتلةُ «خارجي» لا تُحرَس: لا تقبل إلّا تصاريحَ دوالّ.
+                // (EN) Hand-rolled brace block — guard so the block counter sees it.
+                BlockDepthGuard braceBlockGuard(blockDepth_);
                 StmtList statements;
                 statements.push_back(std::move(exprStmt));
 
@@ -1592,6 +1619,8 @@ namespace Sad
                 advance(); // consume غير_آمن
 
                 StmtList body;
+                // (AR) ع-١ (مراجعةُ أميليا): جسمُ الموجِّه يُبنى باليد ⇒ البوّابةُ لا تبلغه.
+                BlockDepthGuard directiveBodyGuard(blockDepth_);
                 while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
                 {
                     auto stmt = parseDeclaration();
@@ -1611,6 +1640,8 @@ namespace Sad
                 advance(); // consume وقت_الترجمة
 
                 StmtList body;
+                // (AR) ع-١ (مراجعةُ أميليا): جسمُ الموجِّه يُبنى باليد ⇒ البوّابةُ لا تبلغه.
+                BlockDepthGuard directiveBodyGuard(blockDepth_);
                 while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
                 {
                     auto stmt = parseDeclaration();

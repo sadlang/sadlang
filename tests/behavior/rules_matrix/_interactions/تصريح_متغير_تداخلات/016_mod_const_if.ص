@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable, gr.stmt.if
+# @description: تصريحٌ بمُعدِّلٍ داخلَ «إذا» — الثباتُ يُقرأ ولا يُكسَر
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 41
+
+إذا (1 == 1)
+  متغير ثابت س = 41
+  اطبع_سطر(س)
+نهاية

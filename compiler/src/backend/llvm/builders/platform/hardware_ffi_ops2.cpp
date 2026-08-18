@@ -34,6 +34,7 @@
 #include "llvm_codegen.h"
 #include "builders/platform/hardware_ffi_codegen.h"
 #include "sad_dyn_repr.h" // (AR) ز.٣٧: توزيعُ «طول» على وسمِ القيمةِ الديناميّة
+#include "builtin_registry.h" // (AR) اسمُ «طول» من السجلِّ المولَّد لا حرفيًّا
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
@@ -597,7 +598,17 @@ namespace Sad
                 arrayBB = b.GetInsertBlock();
 
                 b.SetInsertPoint(strBB);
-                llvm::Value *strPtr = b.CreateIntToPtr(payload, i8p, "dyn.len.strptr");
+                // (AR) بابُ **العمليّة** لا بابُ العرض: المفسّرُ يرفعُ RUN033 على `.طول`
+                //      لقيمةٍ عدميّة، فلا يجوز أن يُجيب المترجّمُ بطولِ لفظِ «لاشيء».
+                //      (كان هذا السطرُ موصولًا ببابِ العرضِ خطأً، فنُقِض بعد القياس.)
+                // (EN) Operation door, not the display door: the interpreter raises RUN033
+                //      for «.طول» on null, so answering with the null word's length would
+                //      be a fabricated result.
+                llvm::Value *strPtr = cg_.emitStringPtrOrRaise(
+                    payload,
+                    LLVMCodeGen::stringMethodOperationLabel(
+                        Sad::Builtins::Names::TypeMethods::String::LENGTH),
+                    "dyn.len.str");
                 llvm::Value *strLen =
                     b.CreateCall(getOrCreateUtf8Strlen(), {strPtr}, "dyn.len.strlen");
                 b.CreateBr(mergeBB);
@@ -612,8 +623,19 @@ namespace Sad
                 return phi;
             }
 
-            if (!str->getType()->isPointerTy())
-                str = cg_.builder_->CreateIntToPtr(str, i8p);
+            // (AR) 🔑 بابُ العمليّة: هذا هو المسارُ **غيرُ الديناميّ** الذي تسلكه
+            //      «س.طول» على خانةٍ نصّيّةٍ مصرَّحة. كان `inttoptr` خامًّا ثمّ عدًّا،
+            //      فأعطى `0` لقيمةٍ عدميّةٍ بينما المفسّرُ يرفعُ RUN033 (مقيس).
+            //      وحراستي الأولى وقعت على ذراعِ %SadDyn وحدَها فلم تبلغ هذا المسار —
+            //      اقرأ المسارَ المأخوذَ فعلًا لا المسارَ المشابه.
+            // (EN) Operation door on the NON-dynamic path, which is what «س.طول» on a
+            //      declared string slot actually takes: a raw inttoptr then a count,
+            //      answering 0 for null while the interpreter raises RUN033 (measured).
+            str = cg_.emitStringPtrOrRaise(
+                str,
+                LLVMCodeGen::stringMethodOperationLabel(
+                    Sad::Builtins::Names::TypeMethods::String::LENGTH),
+                "strlen.src");
 
             // (AR) استخدام __sad_utf8_strlen بدلاً من strlen لعد حروف UTF-8
             // (EN) Use __sad_utf8_strlen instead of strlen to count UTF-8 characters

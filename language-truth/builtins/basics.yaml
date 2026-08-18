@@ -54,6 +54,7 @@ functions:
   description_ar: قراءة ملف
   description_en: Read file
   params: []
+  returns: نص
   lookup_table: MODULE_FUNCTION
 - cpp_id: WRITE_FILE
   canonical: اكتب_ملف
@@ -112,6 +113,7 @@ functions:
   description_ar: هل موجود؟
   description_en: File exists
   params: []
+  returns: منطقي
   lookup_table: MODULE_FUNCTION
 - cpp_id: IS_FILE
   canonical: هل_ملف
@@ -125,6 +127,7 @@ functions:
   description_ar: هل ملف؟
   description_en: Is file
   params: []
+  returns: منطقي
   lookup_table: MODULE_FUNCTION
 - cpp_id: REAL_PATH
   canonical: المسار_الحقيقي
@@ -162,6 +165,7 @@ functions:
   params:
     - name: مسار
       type: نص
+  returns: نص
   lookup_table: MODULE_FUNCTION
   # (AR) المضيف: std::filesystem::absolute. لا يتبع الروابط ⇒ لا يصلح وحده لفرض
   #      الاحتواء الأمنيّ؛ استعمل المسار_الحقيقي لذلك.
@@ -179,6 +183,7 @@ functions:
   params:
     - name: مسار
       type: نص
+  returns: منطقي
   lookup_table: MODULE_FUNCTION
   # (AR) المضيف: std::filesystem::is_symlink (نظير lstat لا stat). هل_ملف/هل_مجلد
   #      يتبعان الرابطَ فيُرجعان صفةَ الهدف — فلا يكشفان الرابطَ نفسه.
@@ -196,6 +201,7 @@ functions:
   params:
     - name: مسار
       type: نص
+  returns: منطقي
   lookup_table: MODULE_FUNCTION
   # (AR) مدعوم في المفسّر والمترجم. مضيف: stat/GetFileAttributes عبر sad_file_is_dir.
   #      حرّ: كعب ضعيف يعيد 0 (تتجاوزه النواة المضيفة بنظام ملفّات حقيقيّ).

@@ -21,12 +21,17 @@ description_en: "All Sad type kinds (49) — surface + internal, SoT for SadType
 # (AR) ⚠️ تصحيحُ ملاحظةٍ بائتة (2026-08-11): كان هنا «النوع السطحي «عدم» ينتظر قيمة
 #      SadTypeKind::Null … حاليًّا لا قيمة enum له» — وهذا لم يعد صحيحًا: القيمة
 #      مُعرَّفةٌ في آخر القائمة (type.null، kind: Null) ومُولَّدةٌ فعلًا في
-#      sad_type_kind_generated.h. الباقي من الدَّين أنّ **المحلّل** يُخفّض «عدم»
-#      إلى SadTypeKind::Void فيساوي بينه وبين «فراغ» (ISSUE-113) — ورفعُه تغييرُ
-#      دلالةٍ يلزمه قياسٌ مزدوجُ المحرّكَين. يرصده حارس check_type_words_sot.py
-#      تباعُدًا مُعلَنًا كي لا يمرّ صامتًا.
-# (EN) Corrected stale note: SadTypeKind::Null EXISTS and is generated. The
-#      remaining debt is that the parser lowers «عدم» to Void (ISSUE-113).
+#      sad_type_kind_generated.h.
+# (AR) ✅ وتحديثٌ ثانٍ (2026-08-14): الدَّينُ الباقي — أنّ المحلّلَ يُخفّض «عدم» إلى
+#      SadTypeKind::Void فيساوي بينه وبين «فراغ» — **سُدَّ وأُغلقت ISSUE-113**.
+#      المواضعُ البالغةُ كانت سبعةً لا ثلاثة (تُطلَب بالاسمِ لا بالرمز، إذ
+#      emittedByLexer=false)، والحاكمُ السابعُ خارجَ المحلِّل: fromValueType بلا
+#      حالةِ Null. ثمّ كشف الفصلُ عيبًا **مستقلًّا**: «فراغ» نفسُه كان يُقبَل خانةً
+#      فينهار المترجّم — فصار مرفوضًا بـSEM040 في المحلّلِ المشترك (لا في خلفيّةٍ
+#      بعينها) لأنّه بنصِّ هذا الملفّ «نوعُ الإرجاعِ الفارغ — لا قيمة».
+#      مقيسٌ باختبارَين سالبَين مزدوجَين (067، 068).
+# (EN) ISSUE-113 is closed: «عدم» no longer collapses into Void, and Void itself
+#      is now rejected as a slot type (SEM040) in the shared parser.
 
 categories_ar:
   primitive:       "بدائية"

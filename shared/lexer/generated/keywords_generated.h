@@ -50,7 +50,7 @@ const std::vector<KeywordEntry>& allEntries();
  * @brief (AR) عدد الإدخالات الإجمالي (compile-time)
  * @brief (EN) Total entry count (compile-time)
  */
-inline constexpr std::size_t kEntryCount = 96;
+inline constexpr std::size_t kEntryCount = 97;
 
 } // namespace Generated
 } // namespace Lexer

@@ -67,6 +67,7 @@ functions:
   description_en: Return length of a collection or string
   params:
   - قيمة
+  returns: رقم
   lookup_table: name_only
 - cpp_id: TYPE
   canonical: نوع
@@ -81,6 +82,7 @@ functions:
   description_en: Return type of a value as string
   params:
   - قيمة
+  returns: نص
   lookup_table: name_only
 - cpp_id: EXPECT
   canonical: متوقع

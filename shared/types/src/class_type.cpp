@@ -76,7 +76,10 @@ bool ClassType::isConvertibleTo(const Type* other) const {
 
 bool ClassType::addField(const std::string& fieldName, Type* type,
                          AST::Visibility visibility, bool isStatic,
-                         const Value& defaultValue) {
+                         const Value& defaultValue,
+                         const std::string& defaultConstructClass,
+                         size_t defaultConstructLine,
+                         size_t defaultConstructColumn) {
     // (AR) إضافة خاصية جديدة
     // (EN) Add new field
     
@@ -91,7 +94,10 @@ bool ClassType::addField(const std::string& fieldName, Type* type,
     ClassField field(fieldName, type, visibility);
     field.isStatic = isStatic;
     field.defaultValue = defaultValue;
-    
+    field.defaultConstructClass = defaultConstructClass;
+    field.defaultConstructLine = defaultConstructLine;
+    field.defaultConstructColumn = defaultConstructColumn;
+
     // (AR) إضافة للقائمة والفهرس
     // (EN) Add to list and index
     size_t index = fields.size();
@@ -581,6 +587,60 @@ void ClassType::printDebugInfo() const {
     std::cout << "║ Constructor: " << (constructor ? "Yes" : "No") << "\n";
     std::cout << "║ Destructor: " << (destructor ? "Yes" : "No") << "\n";
     std::cout << "╚════════════════════════════════════════╝\n";
+}
+
+} // namespace Data
+namespace Data
+{
+
+Value defaultValueForTypeKind(Types::SadTypeKind kind)
+{
+    // (AR) البايتُ والطبيعيُّ٦٤ عددان أيضًا، فصفرُهما صفر. وما سوى المذكورِ
+    //      يبقى «لاشيء»: غيابُ قيمةٍ معروفةٍ يُعلَن ولا يُختلَق له بديل.
+    // (EN) Byte and UInt64 are numbers too. Anything else stays null —
+    //      an unknown default is declared, not invented.
+    switch (kind)
+    {
+    case Types::SadTypeKind::Integer:
+    case Types::SadTypeKind::Byte:
+    case Types::SadTypeKind::UInt64:
+        return Value(0);
+    case Types::SadTypeKind::Float:
+        return Value(0.0);
+    case Types::SadTypeKind::String:
+        return Value("");
+    case Types::SadTypeKind::Boolean:
+        return Value(false);
+    // ════════════════════════════════════════════════════════════════
+    // (AR) 🔑 النوعُ العدميُّ يبدأ **عدمًا** لا **فراغًا** — وهما متمايزان
+    // ════════════════════════════════════════════════════════════════
+    //
+    // (AR) كان العدميُّ يسقط في `default:` فيعود `Value()` وهو **فراغ**
+    //      (VOID) لا **عدم** (Null). واللغةُ تفصل بينهما صراحةً: «عدم»
+    //      نوعٌ ساكنُه «لاشيء»، و«فراغ» لا قيمةَ أصلًا — ونصَّ على الفصلِ
+    //      تشخيصُ SEM040 نفسُه.
+    //
+    //      وأثرُ الخلطِ مقيسٌ في المفسّر: «منطقي عدمي م» ثمّ
+    //        نص(م)        ⇒ «لاشيء»      ← الطابعُ يعرض الفراغَ بلفظِ العدم
+    //        م == لاشيء   ⇒ «خطأ»        🔴 فالخانةُ ليست عدمًا
+    //      أي أنّ المحرّكَ **ينقض نفسَه**: يعرضها عدمًا ثمّ ينكر أنّها عدم.
+    //      وهو العيبُ المُدوَّنُ ع-٥ في تقريرِ المصفوفةِ منذ يومَين، وكُتِب
+    //      يومَها أنّ «المترجّمَ المصيبُ والمفسّرَ ينقض نفسَه» — وهذا موضعُه.
+    //
+    //      🔑 والطابعُ الذي يعرض الفراغَ والعدمَ بلفظٍ واحدٍ هو ما أخفى
+    //      العيبَ كلَّ هذه المدّة: مِجَسٌّ يقرأ بالطباعةِ لا يفرّق بينهما.
+    //      **فلا يُقاس تمايزُ نوعَين بأداةٍ تعرضهما بلفظٍ واحد.**
+    // (EN) A nullable type must start as NULL, not VOID — the language
+    //      distinguishes them (SEM040 states it), yet the printer shows both
+    //      as «لاشيء», which is exactly why this hid: the interpreter showed
+    //      the slot as null and then denied it was null under «== لاشيء».
+    // ════════════════════════════════════════════════════════════════
+    case Types::SadTypeKind::Optional:
+    case Types::SadTypeKind::Null:
+        return Value::makeNull();
+    default:
+        return Value();
+    }
 }
 
 } // namespace Data

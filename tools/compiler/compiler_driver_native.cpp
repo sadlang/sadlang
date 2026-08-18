@@ -10,7 +10,13 @@
 //      LLVM ولا رابطٍ أجنبيّ (لا ld ولا lld) ولا سلسلةِ أدواتٍ خارجيّة البتّة.
 //
 //      المعماريّةُ تُشتقّ من حقلِ architecture في ثالوثِ «--هدف»: aarch64/arm64 ⇒ ARM64،
-//      وإلّا x86-64 (الافتراض). لا علمَ معماريّةٍ مستقلّ: الهدفُ مصدرٌ واحد.
+//      وriscv64 ⇒ RISC-V RV64 (م٦)، وإلّا x86-64 (الافتراض). لا علمَ معماريّةٍ
+//      مستقلّ: الهدفُ مصدرٌ واحد.
+//
+//      ⚠️ الأهدافُ الثلاثةُ **غيرُ متكافئةِ التغطية**: x86-64 وARM64 يخفّضان ١٠٣
+//      أوپكودات، وriscv64 يخفّض مجموعةَ قاعدةِ تصريحِ المتغيّر وحدَها ويرفض ما
+//      عداها صراحةً (انظر ترويسةَ riscv64_sir_lowering.h). «الهدفُ مدعوم» هنا
+//      تعني «له مخفّضٌ موصول» لا «يترجم كلَّ برنامج».
 //
 // (EN) Wires the sovereign native backend into the live compilation path.
 //      Until now the SIR ⇒ machine-code lowerings (x86-64, ARM64) were proven
@@ -24,6 +30,7 @@
 #include "../../compiler/include/frontend/sir_module.h"
 #include "../../compiler/include/backend/native/sir_native_lowering.h"
 #include "../../compiler/include/backend/native/arm64_sir_lowering.h"
+#include "../../compiler/include/backend/native/riscv64_sir_lowering.h"
 
 #include <filesystem>
 #include <fstream>
@@ -51,6 +58,14 @@ namespace sad
             constexpr const char *kArchAarch64 = "aarch64";
             constexpr const char *kArchArm64 = "arm64";
             constexpr const char *kArchX8664 = "x86_64";
+            constexpr const char *kArchRiscv64 = "riscv64";
+
+            // (AR) هل الهدفُ RISC-V RV64؟ (م٦، الهدفُ الثالث.) اسمٌ واحدٌ في الثالوث
+            //      لأنّ ثالوثَ لينكس القياسيَّ يستعمل «riscv64» دون كنيةٍ ثانية.
+            bool targetIsRiscv64(const TargetTriple &triple)
+            {
+                return triple.architecture == kArchRiscv64;
+            }
 
             // (AR) هل الهدفُ AArch64؟ دونَ «--هدف» يكون الثالوثُ ثالوثَ المضيف،
             //      فيُخفّض لمعماريّةِ المضيف نفسِها.
@@ -86,7 +101,7 @@ namespace sad
             bool targetIsSupported(const TargetTriple &triple)
             {
                 const bool arch = triple.architecture == kArchX8664 ||
-                                  targetIsArm64(triple);
+                                  targetIsArm64(triple) || targetIsRiscv64(triple);
                 return arch && osIsElf(triple.os);
             }
 
@@ -162,20 +177,23 @@ namespace sad
             }
 
             const bool arm64 = targetIsArm64(options_.target);
+            const bool riscv64 = targetIsRiscv64(options_.target);
 
             if (options_.verbose)
             {
                 std::cout << "  [الخلفية الأصلية] SIR ⇒ "
-                          << (arm64 ? "ARM64" : "x86-64") << " ⇒ ELF64\n";
+                          << (riscv64 ? "RISC-V RV64" : arm64 ? "ARM64" : "x86-64")
+                          << " ⇒ ELF64\n";
             }
 
-            // (AR) مفترقُ المعماريّة: مخفّضانِ مستقلّان، والمخرَجُ من كليهما بايتاتُ
+            // (AR) مفترقُ المعماريّة: ثلاثةُ مخفّضاتٍ مستقلّة، ومخرَجُ كلٍّ منها بايتاتُ
             //      ELF64 كاملةٌ جاهزةٌ للكتابة (كلٌّ يلفُّ شيفرتَه بـe_machine هدفِه).
-            // (EN) Architecture fork: two independent lowerings, each returning a
+            // (EN) Architecture fork: three independent lowerings, each returning a
             //      complete ELF64 byte image (each wraps its code with its e_machine).
             const ::sad::native::LoweringResult result =
-                arm64 ? ::sad::native::lowerModuleToElfArm64(*sir_module_)
-                      : ::sad::native::lowerModuleToElf(*sir_module_);
+                riscv64 ? ::sad::native::lowerModuleToElfRiscv64(*sir_module_)
+                        : arm64 ? ::sad::native::lowerModuleToElfArm64(*sir_module_)
+                                : ::sad::native::lowerModuleToElf(*sir_module_);
 
             if (!result.ok)
             {

@@ -243,6 +243,25 @@ namespace Sad
             case K::Future:
             case K::Generator:
                 return registry_.getAnyType();
+            // (AR) 🔑 `أي` نوعٌ صريحٌ لا غيابُ نوع. كان يسقط في `default` فيُرَدَّ
+            //      `Unknown`، فيُهمِله `visitVarDeclStmt` («المُصرَّحُ مجهولٌ ⇒ خُذ
+            //      المُستنتَج») ويُقيَّد المتغيّرُ بنوعِ مُهيِّئه. والمقيس: `أي س = 5`
+            //      ثمّ `س = "نص"` تحت `--أنواع-صارمة` تُخفِق برسالة «متوقّع 'رقم'» —
+            //      **حرفًا بحرفِ** رسالةِ `متغير س = 5` ورسالةِ `رقم س = 5`. أي أنّ
+            //      الفاحصَ لم يكن يرى فرقًا بين الثلاثة: كانت `أي` عندَه **تعليقًا لا
+            //      نوعًا**، في الوضعِ الوحيدِ الذي يُفترَض أن تحمل فيه وزنًا دلاليًّا.
+            //      ⚠️ و`areTypesCompatible` تُجيز `Any` مع كلِّ شيءٍ منذ البداية —
+            //      فالبابُ كان مفتوحًا والطريقُ إليه وحدَه مقطوعًا. ولذلك لا يُقاس
+            //      هذا العطبُ بقراءةِ سلطةِ التوافق: هي سليمةٌ، والعلّةُ قبلَها بخطوة.
+            // (EN) `أي` is an explicit type, not the absence of one. It fell into
+            //      `default` and returned Unknown, so visitVarDeclStmt overrode it with
+            //      the initializer's type. Measured: `أي س = 5` then `س = "نص"` under
+            //      --strict-types failed with the SAME message as `متغير` and as `رقم` —
+            //      the checker saw no difference between the three. areTypesCompatible
+            //      has always accepted Any; only the road to it was cut, which is why
+            //      reading the compatibility authority does not expose this defect.
+            case K::Any:
+                return registry_.getAnyType();
             case K::Unknown:
             default:
                 return registry_.getUnknownType();
@@ -802,7 +821,24 @@ namespace Sad
 
                 // (AR) تحديث نوع المتغير في بيئة الأنواع ليعكس النوع الجديد
                 // (EN) Update variable type in type environment to reflect new type
-                if (valueType && !valueType->isUnknown())
+                // ================================================================
+                // (AR) ⚠️ ولا يضيقُ `أي` بأوّلِ إسناد: التتبّعُ التدفّقيُّ صوابٌ لخانةٍ
+                //      استُنتِج نوعُها، وخطأٌ لخانةٍ **صرّح كاتبُها** أنّها ديناميّة.
+                //      ولولا هذا القيدُ لصحَّ `أي س = 5` ثمّ `س = "نص"` وأخفق الثالثُ
+                //      `س = 7` — فيصير قبولُ `أي` رهنَ **عددِ** الإسناداتِ لا معناها،
+                //      وهو أسوأُ من الرفضِ الصريح لأنّه يُقرأ عشوائيًّا.
+                //      والفحصُ على النوعِ المربوطِ لا على تصريحٍ محفوظ، فالفاحصُ لا
+                //      يحتفظ بالمُصرَّح؛ وأثرُه لا يزيد على تعطيلِ تضييقٍ، فلا يُنشئ
+                //      إخفاقًا جديدًا في أيِّ حال.
+                // (EN) An `أي` slot must not be narrowed by its first assignment: flow
+                //      tracking is right for an inferred slot and wrong for one the
+                //      author declared dynamic. Otherwise the 2nd assignment passes and
+                //      the 3rd fails — acceptance by assignment COUNT, which reads as
+                //      random. The test is on the bound type (the checker keeps no record
+                //      of the declaration); it can only disable a narrowing, never create
+                //      a new failure.
+                // ================================================================
+                if (valueType && !valueType->isUnknown() && !(varType && varType->isAny()))
                 {
                     currentEnv_->bind(expr.name, valueType);
                 }

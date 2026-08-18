@@ -191,6 +191,78 @@ namespace Sad
         // (EN) Generate __sad_array_to_string function in the module
         //      Converts SadArray to readable string: "[elem1, elem2, ...]"
         // ============================================================================
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) حارسُ المؤشّرِ العدمِ لمساعِداتِ المصفوفةِ — موضعٌ واحدٌ لأربعةٍ
+        //
+        //      مساعِدُ الخريطةِ (`ensureMapToStringHelper`) يحمل هذا الحارسَ منذ
+        //      زمن، وتعليقُه يقول بنصِّه إنّ صيغتَه نُقِلت عن ذراعِ الخريطةِ في
+        //      `dynToString` **وأُسقِط حارسُها**. ثمّ نُقِلت الصيغةُ ثالثةً إلى
+        //      مساعِداتِ المصفوفةِ الأربعةِ فأُسقِط الحارسُ فيها كلِّها:
+        //
+        //        مصفوفة س            ثمّ  نص(س)   ⇒  0xC0000005  (والمفسّرُ «لاشيء»)
+        //        مصفوفة عدمية س = لاشيء ثمّ نص(س) ⇒  0xC0000005
+        //
+        //      🔑 فهذه رابعُ مرّةٍ يُنقَل فيها جسمٌ ويُترَك حارسُه. والدواءُ ليس
+        //      نسخةً خامسةً بل **موضعٌ واحدٌ يُنادى**: أيُّ مساعِدٍ خامسٍ يُكتَب
+        //      غدًا يناديه أو يظهر غيابُه في المراجعة.
+        //
+        //      ويعود **مخزنٌ مُخصَّصٌ طازج** لا ثابتًا عامًّا حين لا يُمرَّر مخزنُ
+        //      المُنادي: العقدُ أنّ الناتجَ يملكه المُنادي، وإعادةُ ثابتٍ تجعل
+        //      `free` عندَه انهيارًا ثانيًا — الفخُّ نفسُه المُوثَّقُ في توأمِه.
+        //
+        //      ⚠️ وحدُّه المُعلَن: يمنع **الانهيار** ويُطابِق مخرَجَ المفسّرِ
+        //      («لاشيء»)، ولا يجعل الحاويةَ العاريةَ **صالحةً للاستعمال**:
+        //      `مصفوفة س` ثمّ `س.أضف(1)` مسارٌ آخرُ لا يمرُّ من هنا.
+        // (EN) Null-data guard for the four array-to-string helpers — ONE place.
+        //      The map helper has had this guard for a long time; its own comment says
+        //      the spelling was copied from dynToString's map arm with the guard dropped.
+        //      The spelling was then copied a third time into the four array helpers —
+        //      guard dropped in all four. This is the fourth occurrence of "the flag
+        //      needs all its consumers", so the cure is a single callee, not a fifth copy.
+        // ════════════════════════════════════════════════════════════════════
+        static void emitArrayNullDataGuard(LLVMCodeGen &cg, llvm::Function *fn,
+                                           llvm::BasicBlock *liveBB, llvm::Value *dataArg)
+        {
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg.context_);
+            auto *i64Ty = llvm::Type::getInt64Ty(*cg.context_);
+            auto *i32Ty = llvm::Type::getInt32Ty(*cg.context_);
+            auto &B = *cg.builder_;
+
+            // (AR) يُنشَأ **قبل** كتلةِ الدخولِ القائمةِ فيصير هو مدخلَ الدالّة.
+            llvm::BasicBlock *guardBB =
+                llvm::BasicBlock::Create(*cg.context_, "a2s.guard", fn, liveBB);
+            llvm::BasicBlock *nullBB =
+                llvm::BasicBlock::Create(*cg.context_, "a2s.null", fn, liveBB);
+
+            B.SetInsertPoint(guardBB);
+            B.CreateCondBr(
+                B.CreateICmpEQ(dataArg,
+                               llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)),
+                               "a2s.isnull"),
+                nullBB, liveBB);
+
+            B.SetInsertPoint(nullBB);
+            llvm::FunctionCallee sprintfFn = cg.module_->getOrInsertFunction(
+                "sprintf", llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, true));
+            // (AR) نصُّ العرضِ من مصدرِ الحقيقةِ الموحَّد لا حرفيّةً خامّة.
+            llvm::Value *nullText =
+                B.CreateGlobalStringPtr(::Sad::Types::repr::kNullDisplay, "a2s.nulltext");
+            // (AR) ⚠️ **مخزنٌ طازجٌ دائمًا — ولا يُكتَب في مخزنِ المُنادي.** المُنادي
+            //      يحجزه بمقاسِ `طول×34+4`، وطولُ مصفوفةٍ عدمٍ **صفر** فيصير الحجزُ
+            //      أربعةَ بايتاتٍ بينما «لاشيء» أحدَ عشرَ بايتًا وفاصلتُها — فالكتابةُ
+            //      فيه تجاوزُ مخزنٍ يُصلِح انهيارًا بإحداثِ أخبثَ منه. والمُنادي يستعمل
+            //      **القيمةَ المرجَعة** لا مخزنَه، فالإرجاعُ الطازجُ سليمٌ عقدًا.
+            // (EN) ALWAYS a fresh buffer — never the caller's. The caller sizes it
+            //      len*34+4, and a null array's length is 0 ⇒ 4 bytes, while «لاشيء»
+            //      needs 12. Writing there would trade a crash for a heap overflow.
+            const size_t nullTextSize = ::Sad::Types::repr::kNullDisplay.size() + 1;
+            llvm::Value *outBuf = cg.emitMalloc(
+                llvm::ConstantInt::get(i64Ty, static_cast<int64_t>(nullTextSize)), "a2s.nullbuf");
+            B.CreateCall(sprintfFn,
+                         {outBuf, B.CreateGlobalStringPtr("%s", "a2s.nullfmt"), nullText});
+            B.CreateRet(outBuf);
+        }
+
         void StringsCodeGen::ensureArrayToStringHelper()
         {
             // (AR) إذا الدالة موجودة ولها جسم، لا تُنشئها مرة أخرى
@@ -233,6 +305,9 @@ namespace Sad
             // Declare sprintf
             llvm::FunctionType *sprintfTy = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, true);
             llvm::FunctionCallee sprintfFn = cg_.module_->getOrInsertFunction("sprintf", sprintfTy);
+
+            // (AR) حارسُ المؤشّرِ العدمِ أوّلًا — الجسمُ يفكُّ `data` فورًا.
+            emitArrayNullDataGuard(cg_, fn, entryBB, dataArg);
 
             // entry: write '[' at buf[0], pos = 1
             cg_.builder_->SetInsertPoint(entryBB);
@@ -357,6 +432,9 @@ namespace Sad
                 llvm::Value *i64v = cg_.builder_->CreateLoad(i64Ty, gep, "s2s.elem.i64");
                 return cg_.builder_->CreateIntToPtr(i64v, ptrTy, nm);
             };
+
+            // (AR) حارسُ المؤشّرِ العدمِ أوّلًا.
+            emitArrayNullDataGuard(cg_, fn, entryBB, dataArg);
 
             // entry → size.check
             cg_.builder_->SetInsertPoint(entryBB);
@@ -494,6 +572,9 @@ namespace Sad
             llvm::BasicBlock *elemBB = llvm::BasicBlock::Create(*cg_.context_, "elem.write", fn);
             llvm::BasicBlock *endBB = llvm::BasicBlock::Create(*cg_.context_, "loop.end", fn);
 
+            // (AR) حارسُ المؤشّرِ العدمِ أوّلًا.
+            emitArrayNullDataGuard(cg_, fn, entryBB, dataArg);
+
             // (AR) entry: buf = malloc(len*budget + 4)؛ buf[0]='[' / (EN) alloc + open bracket
             cg_.builder_->SetInsertPoint(entryBB);
             llvm::Value *bufSz = cg_.builder_->CreateAdd(
@@ -624,6 +705,10 @@ namespace Sad
             llvm::BasicBlock *p2comma = llvm::BasicBlock::Create(*cg_.context_, "p2.comma", fn);
             llvm::BasicBlock *p2elem = llvm::BasicBlock::Create(*cg_.context_, "p2.elem", fn);
             llvm::BasicBlock *p2end = llvm::BasicBlock::Create(*cg_.context_, "p2.end", fn);
+
+            // (AR) حارسُ المؤشّرِ العدمِ أوّلًا. (وحارسُ `tags` القائمُ أدناه يحرس
+            //      شيئًا آخرَ: مصفوفةً حيّةً بلا جدولِ وسوم.)
+            emitArrayNullDataGuard(cg_, fn, entryBB, dataArg);
 
             // (AR) entry: br pass1 / (EN)
             cg_.builder_->SetInsertPoint(entryBB);

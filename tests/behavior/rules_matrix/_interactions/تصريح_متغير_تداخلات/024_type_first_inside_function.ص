@@ -1,0 +1,11 @@
+# @rule: gr.decl.variable, gr.decl.function
+# @description: ② الصيغةُ النوعيّةُ داخلَ دالّة — لا تحتاجُ كلمةً مفتاحيّةً في أيِّ عمق
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 49
+
+دالة د()
+  رقم ن = 49
+  ارجع ن
+نهاية
+اطبع_سطر(د())

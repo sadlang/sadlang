@@ -8,6 +8,7 @@
 
 #include "compiler_driver.h"
 #include "utf8_utils.h"
+#include "sad_embedded_runtime_data.h" // (AR) بايتاتُ زمنِ التشغيل — مفتاحُ المخزون
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -799,6 +800,100 @@ namespace sad
 #endif
 
             return result == 0;
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // (AR) كائنُ زمنِ التشغيلِ مُصرَّفًا مرّةً ومخزَّنًا — التفصيلُ في الترويسة.
+        // (EN) Compile-once, cached runtime object — rationale in the header.
+        // ════════════════════════════════════════════════════════════════════════
+        std::optional<std::string> CompilerDriver::get_cached_runtime_object(
+            const std::string &c_compiler)
+        {
+            namespace fs = std::filesystem;
+
+            // (AR) بصمةُ FNV-1a على بايتاتِ زمنِ التشغيل + كلِّ ما يُغيّر ناتجَ
+            //      التصريف. المفتاحُ محتوًى، فلا إبطالَ يدويّ.
+            // (EN) FNV-1a over the runtime bytes plus everything that changes codegen.
+            uint64_t hash = 1469598103934665603ULL;
+            auto mix = [&hash](const char *data, size_t len) {
+                for (size_t i = 0; i < len; ++i)
+                {
+                    hash ^= static_cast<unsigned char>(data[i]);
+                    hash *= 1099511628211ULL;
+                }
+            };
+            mix(sad_embedded_runtime_data, sad_embedded_runtime_size);
+            mix(c_compiler.c_str(), c_compiler.size());
+            const std::string triple = options_.target.to_string();
+            mix(triple.c_str(), triple.size());
+            const char flags[2] = {options_.freestanding ? '1' : '0',
+                                   options_.link_static ? '1' : '0'};
+            mix(flags, sizeof(flags));
+
+#ifdef _WIN32
+            const std::string obj_suffix = ".obj";
+#else
+            const std::string obj_suffix = ".o";
+#endif
+            std::ostringstream key;
+            key << "sad_rt_" << std::hex << hash << obj_suffix;
+
+            std::error_code ec;
+            const fs::path cache_dir = fs::temp_directory_path(ec) / "sad_runtime_cache";
+            if (ec)
+                return std::nullopt;
+            fs::create_directories(cache_dir, ec); // (AR) الوجودُ المسبقُ ليس خطأً
+            const fs::path cached = cache_dir / key.str();
+
+            // (AR) إصابةٌ: الملفُّ موجودٌ وغيرُ فارغ. والفراغُ يُرفَض عمدًا — كائنٌ
+            //      بطولِ صفرٍ يجتاز `exists` ثمّ يُفشِل الربطَ برسالةٍ لا تدلّ عليه.
+            // (EN) Hit: present and non-empty. A zero-length object would pass
+            //      `exists` and then fail the link with an unrelated-looking error.
+            if (fs::exists(cached, ec) && fs::file_size(cached, ec) > 0 && !ec)
+            {
+                if (options_.verbose)
+                {
+                    std::cerr << "  (AR) زمنُ التشغيلِ من المخزون: " << cached.string() << "\n";
+                    std::cerr << "  (EN) Runtime from cache: " << cached.string() << "\n";
+                }
+                return cached.string();
+            }
+
+            // (AR) إخفاق: صرِّف إلى اسمٍ فريدٍ ثمّ انقُله ذرّيًّا إلى اسمِ المفتاح.
+            // (EN) Miss: compile to a unique name, then move it into place atomically.
+            auto temp_c = get_temp_file(".c");
+            temp_files_.push_back(temp_c);
+            {
+                std::ofstream rt(temp_c, std::ios::binary);
+                if (!rt.is_open())
+                    return std::nullopt;
+                rt.write(sad_embedded_runtime_data, sad_embedded_runtime_size);
+            }
+
+            auto temp_obj = get_temp_file(obj_suffix);
+            if (!compile_c_to_obj(temp_c.string(), temp_obj.string(), c_compiler))
+            {
+                temp_files_.push_back(temp_obj);
+                return std::nullopt;
+            }
+
+            fs::rename(temp_obj, cached, ec);
+            if (!ec)
+                return cached.string();
+
+            // (AR) خسِرنا السباقَ أو تعذّر النقل. إن وضعه غيرُنا فهو صالحٌ (المفتاحُ
+            //      محتوًى فالناتجان متطابقان)؛ وإلّا فاستعمل المؤقّتَ ولا تُخفِق —
+            //      المخزونُ تسريعٌ لا شرطُ صحّة.
+            // (EN) Lost the race or rename failed: use whoever won (same content key),
+            //      else fall back to the temp object. The cache is a speed-up, not a
+            //      correctness precondition.
+            if (fs::exists(cached, ec) && fs::file_size(cached, ec) > 0 && !ec)
+            {
+                fs::remove(temp_obj, ec);
+                return cached.string();
+            }
+            temp_files_.push_back(temp_obj);
+            return temp_obj.string();
         }
 
         // ────────────────────────────────────────────────────────────────────────

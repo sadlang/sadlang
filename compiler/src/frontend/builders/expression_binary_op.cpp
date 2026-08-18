@@ -1416,33 +1416,45 @@ namespace Sad
                     }
                 }
 
-                // (AR) [طبقة طبيعي64 — الخطوة ٥] قرار إشارة مقارنة الترتيب من النوع السطحيّ
-                //      **الضحل** (لا المُنتشَر العميق): لا-موقَّع فقط حين يُصرَّح كلا المعامِلين
-                //      طبيعي64 **صراحةً**، تمامًا كـresolveStaticType بالمفسّر. بلا هذا كان
-                //      المترجم يقرأ نوع طبيعي64 المُستنتَج (نتيجة نداء/متغيّر مُسنَد) فيقارن
-                //      لا-موقَّعًا بينما المفسّر موقَّع ⇒ انفراج تكافؤ (رصده أميليا). نُصحّح
-                //      dataType لمعاملَي i64 فقط (تصحيح UInt64↔Integer آمن العرض؛ كلاهما i64).
-                // (EN) [طبيعي64 layer — Step 5] Ordering-comparison signedness from the SHALLOW
-                //      surface type (not deep propagation): unsigned only when BOTH operands are
-                //      EXPLICITLY طبيعي64, exactly like the interpreter's resolveStaticType.
-                //      Without this the compiler read an inferred طبيعي64 type (a call result or an
-                //      assigned var) and compared unsigned while the interpreter compared signed ⇒
-                //      parity divergence (found by Amelia). We only adjust i64 operands' dataType
-                //      (a width-safe UInt64↔Integer flip; both are i64).
+                // (AR) [طبقة طبيعي64 — الخطوة ٥ · مُنقَّحة بقرارِ المالك 2026-08-16]
+                //      قرارُ إشارةِ مقارنةِ الترتيبِ من النوعِ السطحيِّ **الضحلِ** (لا
+                //      المُنتشَرِ العميق): لا-موقَّعٌ حين يكون **أيُّ** المعامِلَين
+                //      `طبيعي64` سطحًا — **هيمنةٌ لا اشتراط**، كنظيرَتِها للقسمةِ
+                //      الأرضيّةِ والباقي أسفلَه سواءً بسواء.
+                //
+                //      🔑 **وهذا هو موضعُ القرارِ الحقيقيُّ — لا الخلفيّة.** الشرطُ هنا
+                //      كان `&&`، وهو **يكتب فوق** `dataType` للمعامِلَين قبل أن يبلغا
+                //      المُصدِرَ، فأيُّ تغييرٍ في الخلفيّةِ يبقى **معطَّلًا** ما لم
+                //      يُغيَّر هذا. قِيس ذلك: غُيِّرت الأربعةُ مُصدِرات إلى الهيمنةِ
+                //      وبُنيت، فبقي `ط > 1` يعطي «خطأ» — والمفسّرُ وحدَه استجاب.
+                //      ودرسُه: **رقعةٌ في الطبقةِ الخطأِ تُبنى وتُصرَّف ولا تفعل شيئًا**،
+                //      وتبدو صحيحةً في المراجعةِ لأنّها تقرأ العَلَمَ الصحيح — والعَلَمُ
+                //      يصل إليها مُبدَّلًا.
+                //
+                //      وسببُ الاشتراطِ الأصليِّ كان مطابقةَ المفسّرِ (`resolveStaticType`
+                //      بـ`&&`) بعد انفراجٍ رصدته أميليا. وقد غُيِّر المفسّرُ معه في
+                //      الرقعةِ نفسِها، فالمطابقةُ قائمةٌ والقاعدةُ تبدّلت في الاثنَين.
+                // (EN) [طبيعي64 layer — Step 5, revised by owner ruling 2026-08-16]
+                //      Unsigned when EITHER operand's shallow surface is طبيعي64 — dominance,
+                //      not conjunction, exactly like the // and % sibling below.
+                //      🔑 THIS is the real decision point, not the backend: this block
+                //      OVERWRITES the operands' dataType before they reach the emitter, so a
+                //      backend-only change is inert. Measured: the four emitters were switched
+                //      to dominance and `ط > 1` still printed false; only the interpreter moved.
                 if (binOp->op == Lexer::TokenType::OP_LESS ||
                     binOp->op == Lexer::TokenType::OP_LESS_EQUAL ||
                     binOp->op == Lexer::TokenType::OP_GREATER ||
                     binOp->op == Lexer::TokenType::OP_GREATER_EQUAL)
                 {
-                    const bool bothU64 =
-                        resolveSurfaceType(binOp->left.get()) == SadTypeKind::UInt64 &&
+                    const bool anyU64Cmp =
+                        resolveSurfaceType(binOp->left.get()) == SadTypeKind::UInt64 ||
                         resolveSurfaceType(binOp->right.get()) == SadTypeKind::UInt64;
-                    auto adjustSign = [bothU64](SIROperand &op)
+                    auto adjustSign = [anyU64Cmp](SIROperand &op)
                     {
-                        if (op.dataType == SadTypeKind::UInt64 && !bothU64)
-                            op.dataType = SadTypeKind::Integer; // (AR) مُستنتَج ⇒ موقَّع (يُطابق المفسّر)
-                        else if (bothU64 && op.dataType == SadTypeKind::Integer)
-                            op.dataType = SadTypeKind::UInt64; // (AR) مُصرَّح صراحةً ⇒ لا-موقَّع
+                        if (op.dataType == SadTypeKind::UInt64 && !anyU64Cmp)
+                            op.dataType = SadTypeKind::Integer; // (AR) لا طبيعيَّ سطحًا ⇒ موقَّع
+                        else if (anyU64Cmp && op.dataType == SadTypeKind::Integer)
+                            op.dataType = SadTypeKind::UInt64; // (AR) هيمنةُ طبيعي64 ⇒ لا-موقَّع
                     };
                     adjustSign(leftOp);
                     adjustSign(rightOp);

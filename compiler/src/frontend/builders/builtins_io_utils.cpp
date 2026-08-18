@@ -511,7 +511,71 @@ namespace Sad
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_TYPE_OF);
                     inst.result = resultOp;
-                    inst.operands.push_back(argOperands[0]);
+
+                    // ══════════════════════════════════════════════════════════════
+                    // (AR) 🔑 `نوع()` يسألُ عن نوعٍ **دلاليٍّ**، والمُمرَّرُ إليه نوعُ **خانة**
+                    // ══════════════════════════════════════════════════════════════
+                    //
+                    // (AR) المقيسُ قبلَ السدّ (ISSUE-152): `شخص ك = شخص()` ثمّ `نوع(ك)`
+                    //      يُجيبُ **«رقم»** والمرجعُ «كائن» — بـrc=0 في الطرفَين.
+                    //      وثلاثةُ أجوبةٍ بحسبِ **صيغةِ التصريحِ** لا المعنى:
+                    //
+                    //          شخص ك = شخص()      ⇒ نوعُ السِجِلِّ `1` (Integer) ⇒ «رقم»
+                    //          متغير ك = شخص()    ⇒ نوعُ السِجِلِّ `22` (Struct) ⇒ «كائن» ✅
+                    //          نوع(شخص()) مباشرةً  ⇒ `22` ⇒ «كائن» ✅
+                    //
+                    //      والعلّةُ أنّ `astTypeToSIRType` تُخفِضُ `Class`/`Struct` إلى **مقبضٍ
+                    //      معتِمٍ** (i64) لأنّ لا بنيةَ لهما في SIR — وذلك قرارُ **تمثيلٍ**
+                    //      صحيحٌ في موضعِه. والخطأُ أنّ `نوع()` يقرأُ ذلك المقبضَ جوابًا
+                    //      دلاليًّا — فيُعلِنُ أنّ الكائنَ رقم.
+                    //
+                    //      ⚠️ **ولا يُصلَحُ برفعِ `Class`/`Struct` إلى الهويّةِ في جسرِ الأنواع**:
+                    //      ذاك **تغييرُ ABI** ينهى عنه التعليقُ صراحةً في `sir_builder_helpers.cpp`
+                    //      ويلزمُه قياسٌ مستقلٌّ على المحرّكَين. فالعلاجُ أن يُحمَلَ النوعُ
+                    //      الدلاليُّ إلى **المُعامِلِ وحدَه** هنا، فلا يتغيّرُ تمثيلٌ ولا يُمَسُّ
+                    //      نوعُ السِجِلِّ الذي يقرأُه سواه.
+                    //
+                    //      ⚠️ والتعدادُ الجبريُّ مستثنًى عمدًا: `className` يحملُ اسمَ التعدادِ
+                    //      أيضًا (لتعملَ `طابق`)، والمرجعُ يُجيبُ عنه «خريطة» لا «كائن» —
+                    //      فإدخالُه هنا يُبدِلُ كذبًا بكذب (ISSUE-153).
+                    // (EN) `نوع()` asks for a SEMANTIC type; what reaches it is a STORAGE kind.
+                    //      astTypeToSIRType lowers Class/Struct to an opaque i64 handle — a correct
+                    //      REPRESENTATION decision — and نوع() then reads that handle as the answer,
+                    //      declaring an object to be a number. Lifting Class/Struct to identity in
+                    //      the type bridge is an ABI change the bridge's own comment forbids without
+                    //      independent measurement, so the semantic kind is carried on THIS OPERAND
+                    //      only: no representation changes and no other reader is affected. ADTs are
+                    //      deliberately excluded — className also holds enum names (so `match` works)
+                    //      and the reference answers «map» for them, so including them would swap one
+                    //      lie for another (ISSUE-153).
+                    // ══════════════════════════════════════════════════════════════
+                    SIROperand typeOfOperand = argOperands[0];
+                    const std::string &operandClassName = argResults[0].className;
+                    // (AR) ⚠️ والشرطُ ضيِّقَ مرّتَينِ بقياسٍ، وكلُّ قيدٍ منهما منعَ انحدارًا:
+                    //   ① `Integer` وحدَه: هو المقبضُ الذي ضاعَ فيه المعنى. وما وصلَ
+                    //     بنوعِه الصحيحِ (Struct · Future · عنصر_واجهة …) لا يُمَسُّ.
+                    //   ② واسمٌ هو **لفظُ نوعٍ سطحيٌّ** (من SoT) ليس صنفًا للمستخدِم.
+                    // (AR) 🔴 والمقيس: بلا القيدَينِ كان `متغير م = مستقبل()` ثمّ `نوع(م)`
+                    //     يُجيبُ «كائن» والمرجعُ «مستقبل» — بذرةُ `060_future_type_wiring`
+                    //     حمراءُ، ولم تكن في الخمسةِ المرجعيّة. أي أنّ سدًّا يرفعُ نوعًا
+                    //     دلاليًّا قد يدوسُ نوعًا دلاليًّا أدقَّ منه واصلًا أصلًا.
+                    // (EN) Narrowed twice by measurement, each guard preventing a regression:
+                    //   1. Integer only — that IS the handle where the meaning was lost; anything
+                    //      arriving with its real kind (Struct, Future, Widget, …) is left alone.
+                    //   2. a name that is a SURFACE TYPE WORD (per the SoT) is not a user class.
+                    //   Measured: without these, `var f = future()` then `نوع(f)` answered «object»
+                    //   where the reference says «future» — seed 060_future_type_wiring went red and
+                    //   was NOT one of the five baseline failures. A fix that raises a semantic type
+                    //   can trample a MORE precise semantic type that was already arriving intact.
+                    if (!operandClassName.empty() &&
+                        argOperands[0].dataType == SadTypeKind::Integer &&
+                        b_.adtEnumTable_.find(operandClassName) == b_.adtEnumTable_.end() &&
+                        ::Sad::Types::sadTypeKindFromArabicName(operandClassName) ==
+                            Sad::Types::SadTypeKind::Unknown)
+                    {
+                        typeOfOperand.dataType = SadTypeKind::Class;
+                    }
+                    inst.operands.push_back(typeOfOperand);
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG

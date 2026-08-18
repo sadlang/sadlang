@@ -2007,6 +2007,88 @@ namespace Sad
                 SadTypeKind astTypeToSIRType(const Sad::Types::SadTypeKind &astType);
 
                 /**
+                 * @brief (AR) نوعُ **خانةِ** تصريحٍ — يفكّ `T؟` ويختار تمثيلَ العدمِ له
+                 * @brief (EN) The STORAGE kind of a declaration — unwraps `T?` and picks
+                 *             its null representation
+                 *
+                 * (AR) 🔑 سلطةٌ واحدةٌ لمحوِ `Optional`. كان المحوُ مكرَّرًا في ستّةِ مواضع:
+                 *      المتغيّرُ المحلّيّ · نوعُ الإرجاع · المعامِلُ (مرّتان) ·
+                 *      **والعامُّ في مسارَيه** — والأخيرانِ كانا **بلا معالجةٍ للـOptional
+                 *      أصلًا**، فيسقط `منطقي عدمي` في المستوى الأعلى إلى الفرعِ الافتراضيِّ
+                 *      في `astTypeToSIRType`. وقد قِيس ذلك: بعد إصلاحِ الأربعةِ وحدَها
+                 *      صحّ المحلّيُّ والمعامِلُ وبقي العامُّ يطبع `1` مكانَ `لاشيء` —
+                 *      لأنّ نطاقَ الأسماءِ صار يقول `Any` بينما `SIRGlobalVariable`
+                 *      ما زال يقول `Integer`، فاختلف الطرفانِ على خانةٍ واحدة.
+                 *      فوجب أن تكون **دالّةً واحدةً** لا نمطًا منسوخًا: النمطُ المنسوخُ هو
+                 *      عينُ ما ترك مسارَ العامِّ خارجَ الإصلاحِ سنةً كاملة.
+                 * (EN) 🔑 ONE authority for Optional erasure. It used to be duplicated across
+                 *      six sites: local var · return type · parameter (twice) · AND the global
+                 *      in both of its paths — the last two handled `Optional` NOT AT ALL, so a
+                 *      top-level `bool?` fell through to the default arm of `astTypeToSIRType`.
+                 *      Measured: fixing only the four made locals and parameters correct while
+                 *      the global still printed `1` instead of `null`, because the scope said
+                 *      `Any` while `SIRGlobalVariable` still said `Integer` — two owners
+                 *      disagreeing about one slot. Hence a FUNCTION, not a copied pattern: the
+                 *      copied pattern is exactly what left the global path out of the fix.
+                 *
+                 * 🔴 (AR) **ولماذا `fallbackKind` لا نوعَ مباشرًا**: أوّلُ صيغةٍ من هذه
+                 *      الدالّةِ كانت تُرجِع `astTypeToSIRType(declaredKind)` لغيرِ `T؟`،
+                 *      فاستُدعيت **بلا شرطٍ** في مواضعِ التجاوز — فدهست ما استُنتِج قبلها.
+                 *      وقِيس الثمنُ فورًا: نوعُ إرجاعِ الدالّةِ غيرِ المُصرَّحِ يُستنتَج من
+                 *      الجسمِ (`inferReturnTypeFromBody`)، فصار يُدهَس بـ`Integer` ⇒
+                 *      `ارجع "ممتاز"` تطبع **مؤشّرًا خامًّا** `140699353424075`.
+                 *      أخفقت به ثلاثةُ اختباراتِ سلوكٍ لا علاقةَ لها بالعدميّة.
+                 *      فصار العقدُ صريحًا: **لا يُغيَّر شيءٌ إلّا لـ`T؟`**؛ وما عداه
+                 *      يُرجَعُ `fallbackKind` كما هو. ولا يُترَك ذلك لانضباطِ موضعِ النداء:
+                 *      الشرطُ المنسوخُ في ستّةِ مواضعَ هو ما أوقعَ العطبَ أوّلَ مرّة.
+                 * 🔴 (EN) Why `fallbackKind` and not a direct kind: the first version returned
+                 *      `astTypeToSIRType(declaredKind)` for non-optionals, so it was called
+                 *      UNCONDITIONALLY at override sites and clobbered previously inferred
+                 *      types. Measured immediately: an unannotated return type is inferred from
+                 *      the body, and the clobber forced it to `Integer`, so `return "ممتاز"`
+                 *      printed a raw pointer. Three unrelated behaviour tests failed. The
+                 *      contract is now explicit — nothing changes except for `T?`, everything
+                 *      else returns `fallbackKind` untouched — rather than relying on call-site
+                 *      discipline, since the copied condition is what caused the defect.
+                 *
+                 * @param declaredKind  (AR) نوعُ التصريحِ كما بناه المحلّلُ النحويّ
+                 * @param declaredSadType (AR) النوعُ المُسبَّكُ (يحمل الداخليَّ لـ`T؟`)؛ قد يكون فارغًا
+                 * @param fallbackKind  (AR) ما يُرجَع حين لا يكون التصريحُ `T؟` — يُمرَّرُ إليه
+                 *                      النوعُ القائمُ في موضعِ النداء (مُستنتَجًا كان أو مُصرَّحًا)
+                 */
+                SadTypeKind resolveDeclaredStorageKind(const Sad::Types::SadTypeKind &declaredKind,
+                                                       const Sad::Types::SadType *declaredSadType,
+                                                       SadTypeKind fallbackKind);
+
+                /**
+                 * @brief (AR) نوعُ خانةٍ صُرِّحت بلا نوعٍ وبلا تهيئة — بابُ ISSUE-138 الواحد
+                 * @brief (EN) Storage kind of a typeless, initializer-less slot — the single
+                 *        ISSUE-138 door
+                 *
+                 * 🔑 (AR) `astTypeToSIRType` تُرجِع `Integer` عن `Unknown` بتعليقٍ يقول إنّه
+                 *      **نائبٌ يستبدله استنتاجُ الأنواعِ لاحقًا**. والفرضُ صحيحٌ حيثما وُجِد
+                 *      مُهيِّئٌ يُستنتَج منه، ويسقط حين لا يوجد: فلا شيءَ يستبدل النائبَ،
+                 *      فيخرج «رقم» جوابًا نهائيًّا عن خانةٍ لا نوعَ لها.
+                 *
+                 * 🔴 (AR) ولمَ بابٌ واحدٌ لا شرطٌ يُنسَخ: نوعُ خانةِ التصريحِ يُحسَب في
+                 *      **ثلاثةِ مواضعَ منفصلة** (المحلّيُّ · التسجيلُ المسبَقُ للعوامّ ·
+                 *      `buildGlobalVariable`). وقِيس ما يحدث حين يُطبَّق الشرطُ في موضعٍ
+                 *      واحد: صُحِّح المحلّيُّ وحدَه فصار العامُّ يُخصَّص `i64` بينما يُعلَن
+                 *      نوعُه `Any` ⇒ **انهيارُ مترجِمٍ داخليٌّ** (`PRINT_ANY_RAW_I64`) في
+                 *      أبسطِ برنامجٍ ممكن: «متغير ك» ثمّ «اطبع_سطر(ك)». فالتوزيعُ على
+                 *      المواضعِ ليس أسلوبًا بل عطبٌ مؤجَّل.
+                 *
+                 * @param declaredKind   (AR) نوعُ التصريحِ كما بناه المحلّلُ النحويّ
+                 * @param hasInitializer (AR) أللتصريحِ مُهيِّئٌ يُستنتَج منه النوع؟
+                 * @param resolvedKind   (AR) النوعُ المحسوبُ في موضعِ النداء — يُرجَع كما هو
+                 *                       ما لم تنطبق الحالة
+                 */
+                static SadTypeKind resolveBareSlotStorageKind(
+                    const Sad::Types::SadTypeKind &declaredKind,
+                    bool hasInitializer,
+                    SadTypeKind resolvedKind);
+
+                /**
                  * @brief (AR) تحويل نوع AST إلى SadTypePtr (النظام الموحد)
                  * @brief (EN) Convert AST DataType to SadTypePtr (unified type system)
                  * @param astType نوع AST / AST DataType

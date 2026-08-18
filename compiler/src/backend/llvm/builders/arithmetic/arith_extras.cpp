@@ -99,8 +99,7 @@ namespace Sad
             {
                 // (AR) [طبقة طبيعي64 — الخطوة ٥] ترتيب لا-موقَّع حين كلا المعامِلين طبيعي64.
                 // (EN) [طبيعي64 layer — Step 5] Unsigned ordering when both operands are طبيعي64.
-                result = (inst->operands[0].dataType == SadTypeKind::UInt64 &&
-                          inst->operands[1].dataType == SadTypeKind::UInt64)
+                result = isUnsignedOrderingCmp(*inst)
                              ? cg_.builder_->CreateICmpUGT(left, right, "cmpugttmp")
                              : cg_.builder_->CreateICmpSGT(left, right, "cmpgttmp");
             }
@@ -200,8 +199,7 @@ namespace Sad
             {
                 // (AR) [طبقة طبيعي64 — الخطوة ٥] ترتيب لا-موقَّع حين كلا المعامِلين طبيعي64.
                 // (EN) [طبيعي64 layer — Step 5] Unsigned ordering when both operands are طبيعي64.
-                result = (inst->operands[0].dataType == SadTypeKind::UInt64 &&
-                          inst->operands[1].dataType == SadTypeKind::UInt64)
+                result = isUnsignedOrderingCmp(*inst)
                              ? cg_.builder_->CreateICmpUGE(left, right, "cmpugetmp")
                              : cg_.builder_->CreateICmpSGE(left, right, "cmpgetmp");
             }

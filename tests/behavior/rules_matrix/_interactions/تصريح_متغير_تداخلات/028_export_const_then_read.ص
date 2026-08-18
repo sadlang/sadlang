@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable, gr.decl.export
+# @description: «صدّر» فوق «ثابت» — التصديرُ لا يُلغي الثباتَ ولا يُلغي القراءةَ المحلّيّة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 53
+
+صدّر ثابت س = 53
+اطبع_سطر(س)

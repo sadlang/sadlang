@@ -97,6 +97,18 @@ namespace Sad
             SadTypeKind typeNameKind = inst->operands[0].dataType;
             if (typeNameKind == SadTypeKind::UInt64 || typeNameKind == SadTypeKind::Byte)
                 typeNameKind = SadTypeKind::Integer;
+            // (AR) ومثلُه التعدادُ الجبريُّ (ISSUE-153): صارت قيمتُه تحملُ `Enum`
+            //      ساكنًا ليصدُقَ وسمُها في `%SadDyn`، فلو تُرِكَ لأجابَ `نوع()` «تعداد»
+            //      على المسارِ الساكنِ و«خريطة» على الموسوم — جوابانِ لسؤالٍ واحد.
+            //      ⚠️ والتعدادُ **البسيط** لا يتأثّر: قُِيسَ أنّ قيمتَه تصلُ `Integer`
+            //      ويُجيبُ عنها المحرّكانِ «رقم» — فلا يمرُّ بهذه الذراعِ أصلًا.
+            // (EN) Same for an ADT (ISSUE-153): its value now carries a static `Enum` so its
+            //      %SadDyn tag can tell the truth; left alone, نوع() would answer «enum» on the
+            //      static path and «map» on the tagged one — two answers to one question.
+            //      A PLAIN enum is unaffected: measured, its value arrives as Integer and both
+            //      engines answer «number», so it never reaches this arm.
+            if (typeNameKind == SadTypeKind::Enum)
+                typeNameKind = SadTypeKind::Map;
             const char *typeName = ::Sad::Types::sadTypeKindArabicName(typeNameKind);
 
             llvm::Value *staticStr = cg_.builder_->CreateGlobalStringPtr(typeName, "typeof_str");

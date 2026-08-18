@@ -15,6 +15,7 @@ functions:
   description_ar: طول النص
   description_en: String length
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: CHAR_CODE
   canonical: رمز_حرف
@@ -41,6 +42,7 @@ functions:
   description_ar: إيجاد نص فرعي
   description_en: Find
   params: []
+  returns: رقم
   lookup_table: MODULE_FUNCTION
 - cpp_id: REPLACE
   canonical: استبدل
@@ -54,6 +56,7 @@ functions:
   description_ar: استبدال
   description_en: Replace
   params: []
+  returns: نص
   lookup_table: MODULE_FUNCTION
 - cpp_id: SUBSTRING
   canonical: استخراج
@@ -67,6 +70,7 @@ functions:
   description_ar: استخراج جزء
   description_en: Substring
   params: []
+  returns: نص
   lookup_table: MODULE_FUNCTION
 - cpp_id: TRIM
   canonical: قص_أطراف
@@ -80,6 +84,7 @@ functions:
   description_ar: حذف مسافات
   description_en: Trim
   params: []
+  returns: نص
   lookup_table: MODULE_FUNCTION
 - cpp_id: TO_UPPER
   canonical: تحويل_كبير
@@ -93,6 +98,7 @@ functions:
   description_ar: حروف كبيرة
   description_en: Uppercase
   params: []
+  returns: نص
   lookup_table: MODULE_FUNCTION
 - cpp_id: TO_LOWER
   canonical: تحويل_صغير
@@ -106,6 +112,7 @@ functions:
   description_ar: حروف صغيرة
   description_en: Lowercase
   params: []
+  returns: نص
   lookup_table: MODULE_FUNCTION
 - cpp_id: SPLIT
   canonical: تقسيم
@@ -132,6 +139,7 @@ functions:
   description_ar: دمج قائمة
   description_en: Join
   params: []
+  returns: نص
   lookup_table: MODULE_FUNCTION
 - cpp_id: STARTS_WITH
   canonical: يبدأ_ب
@@ -145,6 +153,7 @@ functions:
   description_ar: يبدأ بـ
   description_en: Starts with
   params: []
+  returns: منطقي
   lookup_table: MODULE_FUNCTION
 - cpp_id: ENDS_WITH
   canonical: ينتهي_ب
@@ -158,6 +167,7 @@ functions:
   description_ar: ينتهي بـ
   description_en: Ends with
   params: []
+  returns: منطقي
   lookup_table: MODULE_FUNCTION
 - cpp_id: CONTAINS
   canonical: يحتوي_على
@@ -171,6 +181,7 @@ functions:
   description_ar: يحوي نص فرعي
   description_en: Contains
   params: []
+  returns: منطقي
   lookup_table: MODULE_FUNCTION
 - cpp_id: APPEND
   canonical: أضف

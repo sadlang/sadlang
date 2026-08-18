@@ -256,6 +256,22 @@ namespace Sad
          */
         using StmtList = std::vector<StmtPtr>;
 
+        /**
+         * @brief Access modifier / معدّل الوصول
+         *
+         * (AR) عُرِّف هنا لا في declarations.h لأنّ VarDeclStmt (statements.h) يحتاجه
+         *      أيضًا، وdeclarations.h هو الذي يُضمِّن statements.h لا العكس. النقل
+         *      لا يمسّ مستعمليه: كلُّهم يصلون إليه عبر declarations.h ⇐ ast_node.h.
+         * (EN) Defined here (not declarations.h) because VarDeclStmt needs it too and
+         *      declarations.h includes statements.h, not the other way round.
+         */
+        enum class AccessModifier
+        {
+            PUBLIC,   ///< Public / عام
+            PRIVATE,  ///< Private / خاص
+            PROTECTED ///< Protected / محمي
+        };
+
     } // namespace AST
 } // namespace Sad
 

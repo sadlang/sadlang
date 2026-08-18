@@ -1,0 +1,36 @@
+# (AR) سجلُّ دَينِ الصيغِ الميّتة — يُولَّد بـ`--سجّل` ويُقلَّم باليد.
+#      سطرٌ هنا يعني: مخالفةٌ **معروفةٌ** لم تُسَدّ بعدُ. سدُّها يوجب
+#      حذفَ سطرِها، وإلّا أخفق الحارسُ على السطرِ البائت.
+#      الصيغة: <المسار>\t<نصُّ السطرِ المخالف>
+tests/system/lsp/test_lsp_engine_comprehensive.cpp	fx.open(u8"دالة مجموع(أ، ب) { ارجع أ + ب }\n");
+tests/system/lsp/test_lsp_engine_comprehensive.cpp	fx.open(u8"متغير خ: خريطة = ٠\n");
+tests/system/lsp/test_lsp_engine_comprehensive.cpp	fx.open(u8"متغير س: رقم = 5\n");
+tests/system/lsp/test_lsp_engine_comprehensive.cpp	fx.open(u8"متغير ن: منطقي = صحيح\n");
+tests/unit/comprehensive/test_e2e_comprehensive.cpp	// إذا (صحيح) { }
+tests/unit/comprehensive/test_e2e_comprehensive.cpp	// إذا (صحيح) { } وإلا { }
+tests/unit/comprehensive/test_e2e_comprehensive.cpp	// دالة جمع(أ، ب) { }
+tests/unit/comprehensive/test_e2e_comprehensive.cpp	// دالة مربع(ن) { أرجع ن * ن; }
+tests/unit/comprehensive/test_e2e_comprehensive.cpp	// دالة مرحبا() { }
+tests/unit/comprehensive/test_e2e_comprehensive.cpp	// صنف حيوان { }
+tests/unit/comprehensive/test_e2e_comprehensive.cpp	// لكل (متغير ع = 0; ع < 10; ع = ع + 1) { }
+tests/unit/comprehensive/test_parser_comprehensive.cpp	// إذا (صحيح) { }
+tests/unit/comprehensive/test_parser_comprehensive.cpp	// بينما (صحيح) { }
+tests/unit/comprehensive/test_parser_comprehensive.cpp	// دالة تحية() { }
+tests/unit/comprehensive/test_parser_comprehensive.cpp	// دالة جمع(أ, ب) { ارجع أ + ب }
+tests/unit/comprehensive/test_parser_comprehensive.cpp	// صنف حيوان { }
+tests/unit/comprehensive/test_parser_comprehensive.cpp	// لكل (متغير ع = 0؛ ع < 10؛ ع++) { }
+tests/unit/comprehensive/test_parser_comprehensive.cpp	// متغير س: رقم = 5
+tests/unit/integration/cross_feature/test_integration.cpp	عقد.الكود = "صنف محفظة { ... }";
+tests/unit/integration/embedded/test_qemu.cpp	دالة خروج_qemu(كود: ص32) {
+tests/unit/integration/embedded/test_qemu.cpp	دالة معالج_مؤقت() {
+tests/unit/integration/web/test_wasm_output.cpp	إذا (أ > ب) {
+tests/unit/integration/web/test_wasm_output.cpp	تصدير دالة جمع(أ, ب) {
+tests/unit/integration/web/test_wasm_output.cpp	تصدير دالة طرح(أ, ب) {
+tests/unit/integration/web/test_wasm_output.cpp	دالة أقصى(أ, ب) {
+tests/unit/integration/web/test_wasm_output.cpp	دالة جمع(أ, ب) {
+tests/unit/integration/web/test_wasm_output.cpp	دالة رئيسية() {
+tests/unit/integration/web/test_wasm_output.cpp	دالة مجموع_إلى(ن) {
+tests/unit/integration/web/test_wasm_output.cpp	دالة مجموع_مصفوفة(مصفوفة, طول) {
+tests/unit/integration/web/test_wasm_output.cpp	دالة مضاعف(س) {
+tests/unit/parser/test_yield_integration.cpp	std::cout << "Code: دالة مولد() { اعطِ 100; }\n";
+tests/unit/parser/test_yield_integration.cpp	std::string code = "دالة مولد() { اعطِ 100; }";

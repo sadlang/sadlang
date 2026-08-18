@@ -360,7 +360,13 @@ namespace Sad
             bool isNumeric() const { return isNumericKind(kind_); }
             bool isComposite() const { return isCompositeKind(kind_); }
             bool isCallable() const { return isCallableKind(kind_); }
-            bool isNullable() const { return kind_ == SadTypeKind::Void || kind_ == SadTypeKind::Optional; }
+            // (AR) ISSUE-113: كان «فراغ» هو المعدودَ قابلًا للعدمِ و«عدم» **ليس** — أي أنّ
+            //      نوعَ العدمِ نفسَه لم يكن عدميًّا. وهو أثرُ الالتباسِ ذاتِه: يومَ كان
+            //      لفظُ «عدم» يُخفَّض إلى Void كان الشرطُ يبدو صحيحًا، ولمّا فُصلا انقلب
+            //      خطأً صامتًا. والصوابُ: العدميُّ هو ما يقبل «لاشيء» — عدمٌ أو اختياريّ.
+            // (EN) ISSUE-113: this used to name Void nullable and Null not — the null type
+            //      itself was not nullable. Correct once the two are separated.
+            bool isNullable() const { return kind_ == SadTypeKind::Null || kind_ == SadTypeKind::Optional; }
 
             /**
              * @brief (AR) هل النوع قابل للنسخ؟ (الأنواع البدائية والمراجع قابلة للنسخ)
@@ -418,15 +424,18 @@ namespace Sad
              */
             virtual std::vector<SadTypePtr> getTypeParams() const { return {}; }
 
-            // ─── تحويل إلى تمثيل النوع التشغيلي المتوافق / Runtime compatibility kind ───
-            SadTypeKind toValueType() const;
             // (AR) [S-TS-P2.5b] حُذف toDataType() — صفر مستهلك بعد توحيد المحور على SadTypeKind.
-            // (EN) [S-TS-P2.5b] toDataType() removed — zero consumers after SadTypeKind unification.
+            // (AR) [ISSUE-113] وحُذفت `toValueType()` كذلك — صفرُ مُنادٍ. وكانت تحمل
+            //      الاتّجاهَ المعكوسَ لـ`fromValueType`، فأُصلحت فيها حالةُ Null إبقاءً
+            //      على التماثل ثمّ قِيس أنّ الاتّجاهَ كلَّه ميّت: التماثلُ في شيفرةٍ
+            //      لا تُنفَّذ ليس صحّةً بل عبءُ صيانةٍ يوهم بها.
+            // (EN) [ISSUE-113] toValueType() removed — zero callers. Symmetry in code
+            //      that never runs is maintenance cost wearing the mask of correctness.
 
             // ─── Factory Methods ثابتة / Static factories ───
             static SadTypePtr fromValueType(SadTypeKind vt);
             // (AR) [S-TS-P2.5b] حُذف fromDataType() — استُبدِل بـ fromValueType(SadTypeKind).
-            static SadTypePtr fromArabicName(const std::string &name);
+            // (AR) [ISSUE-113] وحُذفت fromArabicName — صفرُ مُنادٍ (انظر SadTypeRegistry).
 
         protected:
             explicit SadType(SadTypeKind kind) : kind_(kind) {}
@@ -457,6 +466,12 @@ namespace Sad
                 {
                 case SadTypeKind::Void:
                     return 0;
+                // (AR) ISSUE-113: «عدم» يُنزَل إلى i64 بحارسِ kSadNullSentinel، فحجمُه
+                //      ثمانيةٌ لا صفر. صفرٌ هنا يعني «لا تمثيلَ له» وهو وصفُ «فراغ»
+                //      وحدَه — وهو بعينِه الخلطُ الذي وُلدت ISSUE-113 منه.
+                // (EN) Null lowers to an i64 sentinel; zero would describe Void alone.
+                case SadTypeKind::Null:
+                    return 8;
                 case SadTypeKind::Boolean:
                     return 1;
                 case SadTypeKind::Byte:
@@ -1402,35 +1417,15 @@ namespace Sad
                 return std::make_shared<SadGeneratorType>(std::move(yield));
             }
 
-            // ─── من اسم عربي / From Arabic name ───
-            SadTypePtr fromArabicName(const std::string &name) const
-            {
-                if (name == "فراغ" || name == "عدم" || name == "لاشيء")
-                    return void_;
-                if (name == "رقم")
-                    return integer_;
-                if (name == "عشري")
-                    return float_;
-                if (name == "منطقي")
-                    return boolean_;
-                if (name == "نص")
-                    return string_;
-                if (name == "بايت")
-                    return byte_;
-                if (name == "أي")
-                    return any_;
-                if (name == "مصفوفة")
-                    return std::make_shared<SadArrayType>();
-                if (name == "خريطة")
-                    return std::make_shared<SadMapType>();
-                {
-                    std::lock_guard<std::mutex> lock(mutex_);
-                    auto it = classTypes_.find(name);
-                    if (it != classTypes_.end())
-                        return it->second;
-                }
-                return nullptr;
-            }
+            // (AR) [ISSUE-113] حُذفت `fromArabicName` هنا وفي `SadType` — **صفرُ مُنادٍ**
+            //      في المستودعِ كلِّه (مقيسٌ ٢٠٢٦-٠٨-١٤). وكانت جدولَ ألفاظٍ مكتوبًا بيدٍ
+            //      خارجَ كلِّ نطاقِ حراسة، فانجرف انجرافَين لم يرَهما أحد: طوى «عدم»
+            //      و«لاشيء» في `void_`، وأسقط «طبيعي64» رأسًا. وأوّلُ إصلاحٍ ربطَها
+            //      بالمُولَّد، لكنّ ربطَ الميّتِ بمصدرِ الحقيقةِ يُبقي عبئَه ولا يشتري
+            //      صحّةً: الصوابُ حذفُه. ولفظُ «لاشيء» الذي كانت تقبله لم يكن لفظَ نوعٍ
+            //      أصلًا بل حرفيّةَ القيمة، فقبولُه هنا كان الخطأَ لا فقدُه.
+            // (EN) [ISSUE-113] fromArabicName deleted here and on SadType — zero callers
+            //      repo-wide. Wiring dead code to the SoT keeps its cost and buys nothing.
 
             // ─── مسح أنواع المستخدم (للاختبارات) / Clear user types ───
             void clearUserTypes()

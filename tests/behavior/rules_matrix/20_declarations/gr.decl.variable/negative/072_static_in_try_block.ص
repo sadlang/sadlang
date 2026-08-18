@@ -1,0 +1,13 @@
+# @rule: gr.decl.variable
+# @description: «ساكن» داخلَ «حاول» على مستوى الوحدة — كتلةٌ لا وحدةٌ مباشرة
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error: SEM039
+# @expect_compile_error: SEM039
+
+حاول
+  متغير ساكن ن = 1
+امسك خ
+  اطبع_سطر(0)
+نهاية
+اطبع_سطر(1)

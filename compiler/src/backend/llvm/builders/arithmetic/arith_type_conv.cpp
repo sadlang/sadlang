@@ -6,6 +6,7 @@
 
 #include "llvm_codegen.h"
 #include "llvm_optimizer.h"
+#include "sir_constants.h" // (AR) kSadNullSentinel — حارسُ العدمِ في نص()
 #include "llvm_volatile_ops.h"
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
@@ -444,6 +445,19 @@ namespace Sad
                     mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "m2s.i2p");
                 if (mapPtr->getType()->isPointerTy())
                 {
+                    // (AR) والعدمُ وجهان هنا أيضًا: مساعِدُ الخريطةِ يحرس المؤشّرَ الصفريَّ
+                    //      وحدَه، و`خريطة عدمية س = لاشيء` تُخزِّن الرمزَ فيمرُّ وينهار.
+                    //      فيُبدَّل الرمزُ صفرًا قبل النداءِ ليبلغ الحارسَ القائم.
+                    // (EN) Null has two shapes for maps too: the helper guards only the zero
+                    //      pointer, so `خريطة عدمية س = لاشيء` (which stores the sentinel)
+                    //      slipped through. Normalise the sentinel to null before the call so
+                    //      the existing guard sees it.
+                    // (AR) البابُ الواحدُ بذراعِ «لا نائب» — المساعِدُ يحرس الصفرَ سلفًا.
+                    // (EN) Single door, "no placeholder" arm — the helper guards zero.
+                    mapPtr = cg_.emitContainerNullGuard(
+                                    mapPtr, /*containerStructTy=*/nullptr,
+                                    /*placeholderName=*/nullptr, "m2s")
+                                 .safePtr;
                     cg_.ensureMapToStringHelper(/*quoteKeys=*/false);
                     llvm::FunctionCallee mapHelper = cg_.module_->getOrInsertFunction(
                         ::Sad::Compiler::kMapToStringPlainFn, llvm::FunctionType::get(ptrTy, {ptrTy}, false));
@@ -508,11 +522,10 @@ namespace Sad
 
                 // (AR) 00 نصّ: inttoptr (مع حماية null ⇒ "void")
                 cg_.builder_->SetInsertPoint(ptrBB);
-                llvm::Value *strPtr = cg_.builder_->CreateIntToPtr(val, ptrTy, "any.ts.str");
-                llvm::Value *ptrIsNull = cg_.builder_->CreateICmpEQ(
-                    strPtr, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), "any.ts.strnull");
-                llvm::Value *voidStr = cg_.builder_->CreateGlobalStringPtr("void", "any.ts.void");
-                llvm::Value *safeStr = cg_.builder_->CreateSelect(ptrIsNull, voidStr, strPtr, "any.ts.safe");
+                // (AR) لفظُ «void» مكتوبًا يدًا وفحصُ `nullptr` وحدَه ⇒ لا يرى الحارس.
+                //      عبرَ بابِ العرضِ الآن، واللفظُ من مصدرِ الحقيقة كما يطبع المفسّر.
+                // (EN) Hand-written "void" with a nullptr-only check missed the sentinel.
+                llvm::Value *safeStr = cg_.emitSafeStringPtr(val, "any.ts");
                 cg_.builder_->CreateBr(mergeBB);
 
                 // (AR) 01 صندوق عشريّ: امسح bit62 ⇒ مؤشّر ⇒ حمّل double ⇒ __sad_format_double
@@ -599,11 +612,49 @@ namespace Sad
                 cg_.builder_->CreateCall(sprintfFunc, {buf, fmt, val});
             }
 
+            llvm::Value *i64StrResult = buf;
+
+            // ================================================================
+            // (AR) حارسُ kSadNullSentinel — المسارُ الثاني للتحويل إلى نصّ
+            //      `اطبع(س)` تُلوَّن على مسارِ السَلسلة (string_ops.cpp) وفيه هذا
+            //      الحارسُ منذ زمن، بينما `نص(س)` تُلوَّن I64_TO_STRING وهنا **لم
+            //      يكن** — فطبعت الرقعةُ نفسُها «لاشيء» من طريقٍ و
+            //      «‎-9223372036854775807» من طريقٍ آخرَ في البرنامجِ الواحد.
+            //      والاستثناءُ منقولٌ حرفًا عن التوأم: طبيعي64/بايت لا يكونان نوعَ
+            //      العدمِ أبدًا (العدمُ يُخزَّن i64 نوعُه Integer)، فقيمةٌ شرعيّةٌ
+            //      تساوي الرمزَ كانت ستُحوَّل «لاشيء» خطأً.
+            //
+            //      🔑 والدرسُ: عَلَمٌ يلزمه **كلُّ** مُستهلِكيه. وقد كُتِب هذا الدرسُ
+            //      في هذه الشجرةِ مرّتَين قبل اليوم، ثمّ وُجِد مسارٌ ثالثٌ ينقضه.
+            //
+            //      ⚠️ وحدُّه: `sprintf` يُنفَّذُ في الحالتَين ثمّ يُنتقى المخرَج،
+            //      فلا فرعَ يُتجنَّب — كلفةٌ ثابتةٌ مقبولةٌ مقابل ألّا تُشقَّ الكتلة.
+            // (EN) kSadNullSentinel guard — the SECOND to-string path. `print(x)`
+            //      lowers through the concat path (string_ops.cpp) which has had this
+            //      guard for a long time, while `نص(x)` lowers to I64_TO_STRING which
+            //      did NOT — so one program printed «لاشيء» via one route and
+            //      «-9223372036854775807» via the other. The exception mirrors the
+            //      twin: طبيعي64/Byte are never the null type.
+            // ================================================================
+            if (!cg_.freestanding_ && val->getType()->isIntegerTy(64) &&
+                inst->operands[0].dataType != SadTypeKind::UInt64 &&
+                inst->operands[0].dataType != SadTypeKind::Byte)
+            {
+                auto *sentinelConst = llvm::ConstantInt::get(
+                    llvm::Type::getInt64Ty(*cg_.context_), Sad::Compiler::kSadNullSentinel);
+                llvm::Value *isSentinel =
+                    cg_.builder_->CreateICmpEQ(val, sentinelConst, "i64str.is.null");
+                llvm::Value *nullText = cg_.builder_->CreateGlobalStringPtr(
+                    "\xd9\x84\xd8\xa7\xd8\xb4\xd9\x8a\xd8\xa1", "i64str.null"); // لاشيء
+                i64StrResult =
+                    cg_.builder_->CreateSelect(isSentinel, nullText, buf, "i64str.result");
+            }
+
             if (inst->result.has_value())
             {
-                cg_.context_info_.namedValues[inst->result->name] = buf;
+                cg_.context_info_.namedValues[inst->result->name] = i64StrResult;
             }
-            return buf;
+            return i64StrResult;
         }
 
         llvm::Value *ArithmeticCodeGen::emitF64ToString(std::shared_ptr<SIRInstruction> inst)
@@ -771,6 +822,58 @@ namespace Sad
 
             // Load array length and data from SadArray struct
             llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
+
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 حارسُ المصفوفةِ العدمِ — **ثالثُ موضعٍ، وهو الذي يقع فيه العطب**
+            //
+            //      `مصفوفة س` عاريةً ثمّ `نص(س)` تُلوَّن `array.to.string` وتصل
+            //      **هنا**، فتفكُّ `CreateStructGEP` مؤشّرًا عدمًا ⇒ `0xC0000005`
+            //      ورمزُ ترجمةٍ **صفر**. والمفسّرُ يطبع «لاشيء».
+            //
+            //      ⚠️ وقصّةُ هذه الرقعةِ تُكتَب لأنّها الدرس: وُضِع الحارسُ أوّلًا في
+            //      مساعِداتِ التحويلِ الأربعةِ (نظيرَ حارسِ الخريطة) — فبقي الانهيار.
+            //      ثمّ وُضِع في مسارِ **ضمِّ النصوص** (`string_ops.cpp`) — فبقي.
+            //      لأنّ `نص(مصفوفة)` لا تمرُّ بأيٍّ منهما. وثلاثُ رقعاتٍ صحيحةٍ في
+            //      ثلاثِ طبقاتٍ لا يمرُّ بها العطبُ = صفرُ إصلاحٍ ورمزُ بناءٍ ناجح.
+            //
+            //      🔑 والدرسُ: **رقعةٌ في الطبقةِ الخطأِ تُبنى وتُصرَّف وتبدو صحيحةً
+            //      في المراجعة** — ولا يفرّق بينها وبين الإصلاحِ إلّا القياس. ولو
+            //      اكتُفِي بـ«أُضيف الحارسُ» لسُجِّل العيبُ مُغلَقًا وهو حيّ.
+            //
+            //      والقرارُ على **مؤشّرِ المصفوفةِ** لا على بياناتِها: مصفوفةٌ فارغةٌ
+            //      مُهيّأةٌ (`مصفوفة س = []`) حيّةٌ وتبقى «[]».
+            // (EN) Null-array guard — the THIRD site, and the one the defect passes
+            //      through. It was first added to the four to-string helpers (the crash
+            //      persisted), then to the string-concat path (it persisted), because
+            //      `نص(array)` lowers to array.to.string and reaches HERE. Three correct
+            //      patches in three layers the defect never traverses = zero fix and a
+            //      green build. Only measurement tells a fix from a patch.
+            // ════════════════════════════════════════════════════════════════
+            // (AR) والعدمُ هنا **وجهان** لا وجهٌ واحد: مؤشّرٌ صفريّ (تصريحٌ عارٍ)
+            //      و`kSadNullSentinel` (تهيئةٌ صريحةٌ بـ«لاشيء» — `مصفوفة عدمية س = لاشيء`
+            //      تُخزِّن الرمزَ في خانةِ المؤشّر). وقِيس أنّ حارسَ المؤشّرِ وحدَه يترك
+            //      الثانيةَ تنهار: فالرمزُ ليس صفرًا، فيمرُّ ويُفَكُّ عنوانًا.
+            // (EN) "Null" has TWO shapes here: a zero pointer (bare declaration) and
+            //      kSadNullSentinel (explicit `= لاشيء`, which stores the sentinel in the
+            //      pointer slot). A pointer-only guard lets the second one crash.
+            // (AR) وهذه أوّلُ النسخِ وأصحُّها — صارت نداءً للبابِ الواحدِ لا نسخةً
+            //      خامسة. ونصُّها محفوظٌ في سجلِّ الحارسِ نفسِه لأنّه سجلُّ الدرس.
+            // (EN) The first and most correct copy — now a call to the single door.
+            auto atsGuard = cg_.emitContainerNullGuard(
+                arrPtr, arrTy, "__sad_null_array_placeholder", "ats");
+            llvm::Value *atsIsNull = atsGuard.isNull;
+            arrPtr = atsGuard.safePtr;
+
+            // (AR) يُنتقى المخرَجُ عند كلِّ مخرجٍ من الدالّة — موضعٌ واحدٌ لأربعةِ مسارات.
+            auto atsFinish = [&](llvm::Value *live) -> llvm::Value *
+            {
+                llvm::Value *picked = cg_.builder_->CreateSelect(
+                    atsIsNull, cg_.emitSafeStringPtr(nullptr, "ats.null"), live, "ats.picked");
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = picked;
+                return picked;
+            };
+
             llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 0, "ats.len.gep");
             llvm::Value *arrLen = cg_.builder_->CreateLoad(i64Ty, lenGep, "ats.len");
             llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "ats.data.gep");
@@ -796,9 +899,7 @@ namespace Sad
                 llvm::FunctionType *strHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy}, false);
                 llvm::FunctionCallee strHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_str", strHelperType);
                 llvm::Value *sResult = cg_.builder_->CreateCall(strHelperFn, {arrLen, dataPtr}, "ats.sresult");
-                if (inst->result.has_value())
-                    cg_.context_info_.namedValues[inst->result->name] = sResult;
-                return sResult;
+                return atsFinish(sResult);
             }
             if (elemTy == Compiler::SIR::SadTypeKind::Float)
             {
@@ -806,9 +907,7 @@ namespace Sad
                 llvm::FunctionType *fHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy}, false);
                 llvm::FunctionCallee fHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_float", fHelperType);
                 llvm::Value *fResult = cg_.builder_->CreateCall(fHelperFn, {arrLen, dataPtr}, "ats.fresult");
-                if (inst->result.has_value())
-                    cg_.context_info_.namedValues[inst->result->name] = fResult;
-                return fResult;
+                return atsFinish(fResult);
             }
             if (elemTy == Compiler::SIR::SadTypeKind::Any)
             {
@@ -825,9 +924,7 @@ namespace Sad
                 llvm::FunctionType *dHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy, ptrTy}, false);
                 llvm::FunctionCallee dHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_dyn", dHelperType);
                 llvm::Value *dResult = cg_.builder_->CreateCall(dHelperFn, {arrLen, dataPtr, tagsPtr}, "ats.dresult");
-                if (inst->result.has_value())
-                    cg_.context_info_.namedValues[inst->result->name] = dResult;
-                return dResult;
+                return atsFinish(dResult);
             }
 
             // Ensure helper function exists
@@ -845,11 +942,7 @@ namespace Sad
             llvm::FunctionCallee helperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string", helperType);
             llvm::Value *result = cg_.builder_->CreateCall(helperFn, {buf, arrLen, dataPtr}, "ats.result");
 
-            if (inst->result.has_value())
-            {
-                cg_.context_info_.namedValues[inst->result->name] = result;
-            }
-            return result;
+            return atsFinish(result);
         }
 
         llvm::Value *ArithmeticCodeGen::emitCast(std::shared_ptr<SIRInstruction> inst)

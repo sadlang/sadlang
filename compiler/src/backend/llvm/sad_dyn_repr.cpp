@@ -515,8 +515,57 @@ namespace Sad
             case SadTypeKind::Pointer:
                 kind = DynKind::Str;
                 break;
+            // ═════════════════════════════════════════════════════════════════
+            // (AR) 🔑 الكائنُ وسمٌ قائمٌ بذاته — وإسقاطُه إلى `default` كان يُثبِتُ وسمًا كاذبًا
+            // ═════════════════════════════════════════════════════════════════
+            //
+            // (AR) المقيسُ قبلَ السدِّ: `أي ك = شخص()` ثمّ `نوع(ك)` يُجيبُ **«نص»**
+            //      والمرجعُ «كائن» — بـrc=0 في الطرفَين، أي كذبٌ صامت. والعلّةُ
+            //      أنّ `صنف`/`بنية` لم تكن لهما ذراعٌ هنا، فتسقطان إلى `default`
+            //      فيُستدَلَّ على الوسمِ من **نوع LLVM**: الكائنُ مؤشّرٌ ⇒ `DynKind::Str`.
+            //
+            // (AR) ⚠️ وأثرُه أوسعُ من `نوع()`: حارسُ المُستقبِلِ العدميِّ
+            //      (`oop_ops.cpp`) مُنِعَ من فحصِ الوسمِ على غرارِ `array_ops.cpp:176` **لأجلِ
+            //      هذا الوسمِ بعينِه**: حارسٌ يُبنى على وسمٍ كاذبٍ يُخفِقُ على المُستقبِلِ
+            //      السليم. فصدقُ الوسمِ هنا شرطٌ لـISSUE-142 لا تحسينٌ لـ`نوع()`.
+            //
+            // (EN) An object is a kind of its own; letting Class/Struct fall to `default`
+            //      inferred the tag from the LLVM type (a pointer) and stamped `Str` — so
+            //      `نوع()` answered «string» for an object, and the null-receiver guard in
+            //      oop_ops was barred from checking the tag at all, because a guard built on
+            //      a lying tag rejects valid receivers.
+            case SadTypeKind::Class:
+            case SadTypeKind::Struct:
+                kind = DynKind::Obj;
+                break;
+            // (AR) والتعدادُ الجبريُّ وسمٌ ثالثٌ لا ثالثَ لهما: كان يصلُ `Struct`
+            //      فيُوسَمُ كائنًا (ISSUE-153)، والمرجعُ يُجيبُ عنه «خريطة».
+            // (EN) An ADT is a third tag: it used to arrive as Struct and be tagged as an
+            //      object (ISSUE-153); the reference answers «map» for it.
+            case SadTypeKind::Enum:
+                kind = DynKind::Adt;
+                break;
             case SadTypeKind::Null:
                 kind = DynKind::Null;
+                break;
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 الفراغُ وسمٌ قائمٌ بذاته، لا يُستدَلُّ عليه من نوع LLVM
+            // ════════════════════════════════════════════════════════════════
+            //
+            // (AR) للعدمِ **شكلان** يفرّق بينهما المحرّكان في نصِّهما:
+            //        • خانةٌ صُرِّحت ولم تُهيَّأ  ⇒ `فراغ` (Void)
+            //        • خانةٌ هُيِّئت بـ«لاشيء»    ⇒ `عدم`  (Null)
+            //      وتوحيدُهما يجعل كلَّ تشخيصِ تصريحٍ مجرَّدٍ يكذبُ «عدم».
+            //
+            //      وبلا هذه الذراعِ يسقط `Void` في `default` فيُستدَلَّ عليه من
+            //      **نوع LLVM**: حمولةُ الصفرِ i64 ⇒ `DynKind::Int` ⇒ `نوع()`
+            //      يُجيب «رقم». أي أنّ الاستدلالَ من التمثيلِ يمحو تمييزًا
+            //      يحمله النوعُ الساكنُ وحدَه — والتمثيلُ لا يُميّز فراغًا من صفر.
+            // (EN) Void is a kind of its own, never inferred from the LLVM type: the
+            //      zero i64 payload would infer Int and نوع() would answer «رقم»,
+            //      erasing a distinction only the static type carries.
+            case SadTypeKind::Void:
+                kind = DynKind::Void;
                 break;
             case SadTypeKind::Array:
                 kind = DynKind::Array;
@@ -1597,9 +1646,17 @@ namespace Sad
             // (EN) [card م-٠٠١] Void is distinguished from Null: an absent map key yields a
             //      Void value in the interpreter, so نوع() answers «فراغ», not «عدم».
             auto *voidBB = llvm::BasicBlock::Create(ctx, "dyn.tn.void", parent);
+            // (AR) وذراعُ الكائنِ تلزمُ منذُ صار `صنف`/`بنية` يُوسَمُ `Obj` في `toDyn`:
+            //      ولولاها لسقطَ الوسمُ إلى `default` فأجابَ `نوع()` «مجهول» — أي لا يُستبدَلُ
+            //      كذبٌ بصدقٍ بل بكذبٍ آخر. والاسمُ من SoT: `Class ⇒ typeof_ar: كائن`.
+            // (EN) The object arm is required once Class/Struct are tagged Obj in toDyn:
+            //      without it the tag would fall to `default` and نوع() would answer
+            //      «unknown» — replacing one lie with another rather than with the truth.
+            auto *objBB = llvm::BasicBlock::Create(ctx, "dyn.tn.obj", parent);
+            auto *adtBB = llvm::BasicBlock::Create(ctx, "dyn.tn.adt", parent);
             auto *mergeBB = llvm::BasicBlock::Create(ctx, "dyn.tn.merge", parent);
 
-            llvm::SwitchInst *sw = b.CreateSwitch(kind, defBB, 8);
+            llvm::SwitchInst *sw = b.CreateSwitch(kind, defBB, 10);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Void), voidBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Int), intBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Float), floatBB);
@@ -1608,6 +1665,8 @@ namespace Sad
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Null), nullBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Array), arrayBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Map), mapBB);
+            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Obj), objBB);
+            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Adt), adtBB);
 
             b.SetInsertPoint(intBB);
             llvm::Value *ri = nameFor(SadTypeKind::Integer);
@@ -1645,9 +1704,23 @@ namespace Sad
             llvm::Value *rvoid = nameFor(SadTypeKind::Void);
             b.CreateBr(mergeBB);
             voidBB = b.GetInsertBlock();
+            b.SetInsertPoint(objBB);
+            llvm::Value *robj = nameFor(SadTypeKind::Class);
+            b.CreateBr(mergeBB);
+            objBB = b.GetInsertBlock();
+            // (AR) ⚠️ واسمُ التعدادِ «خريطة» لا «تعداد»: المرجعُ يُمثِّلُ المتغيِّرةَ
+            //      خريطةً فيُجيبُ `نوع()` «خريطة» — مقيسٌ لا مفترَض، والمطابقةُ
+            //      للمرجعِ هي العقدُ وإن بدا اللفظُ غريبًا.
+            // (EN) The ADT name is «map», not «enum»: the reference models a variant as a
+            //      map, so its نوع() answers «map» — measured, and matching the reference
+            //      is the contract even where the word reads oddly.
+            b.SetInsertPoint(adtBB);
+            llvm::Value *radt = nameFor(SadTypeKind::Map);
+            b.CreateBr(mergeBB);
+            adtBB = b.GetInsertBlock();
 
             b.SetInsertPoint(mergeBB);
-            auto *phi = b.CreatePHI(ptrTy, 9, "dyn.tn.result");
+            auto *phi = b.CreatePHI(ptrTy, 11, "dyn.tn.result");
             phi->addIncoming(rvoid, voidBB);
             phi->addIncoming(ri, intBB);
             phi->addIncoming(rf, floatBB);
@@ -1657,6 +1730,8 @@ namespace Sad
             phi->addIncoming(rnull, nullBB);
             phi->addIncoming(rarray, arrayBB);
             phi->addIncoming(rmap, mapBB);
+            phi->addIncoming(robj, objBB);
+            phi->addIncoming(radt, adtBB);
             return phi;
         }
 

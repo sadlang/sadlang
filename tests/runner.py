@@ -89,6 +89,7 @@ class Status(Enum):
     FAIL_RUNTIME = "FAIL_RUNTIME"    # (AR) فشل — الملف المُترجم تعطل عند التشغيل
     FAIL_TIMEOUT = "FAIL_TIMEOUT"    # (AR) فشل — تجاوز المهلة الزمنية
     SKIP = "SKIP"                    # (AR) تم التخطي — ميزة غير مدعومة
+    KNOWN_RED = "KNOWN_RED"          # (AR) حمرةٌ مُعلَنةٌ بـ@known_red — عيبٌ موصوفٌ محروسٌ لا انحدارٌ حادث
 
 
 @dataclass
@@ -131,6 +132,16 @@ class TestMetadata:
     # ── وسوم الحتمية (ADR-004 / TEST-007) ──
     unordered: bool = False        # (AR) @unordered: يُفرز الخرج قبل المقارنة (التزامن — ترتيب غير حتمي)
     nondeterministic: bool = False # (AR) @nondeterministic: خرج لاحتمي مُثبَت — مقارنة كمجموعة لا تسلسل
+    # ── الحمرةُ المُعلَنة ──
+    # (AR) @known_red <سبب>: بذرةٌ تصف الصوابَ وتُخفِق اليومَ عن قصد. تُفرَز KNOWN_RED
+    #      فلا تُحتسَب انحدارًا — **وإن نجحت انقلبت إخفاقًا**، لأنّ عيبًا يُغلَق بلا
+    #      حذفِ التوجيهِ يُغلَق صامتًا ولا يعلمه أحد. وقبلَ هذا التوجيهِ كانت الحمرةُ
+    #      مُعلَنةً للبشرِ في تعليقِ الرأسِ فقط، ولا يميّزها شيءٌ آليٌّ عن انحدارٍ حادث.
+    # (EN) @known_red <reason>: a seed describing the correct behavior that fails on
+    #      purpose. Classified KNOWN_RED so it is not counted as a regression — and if
+    #      it PASSES it becomes a failure, because a defect closed without removing the
+    #      directive is a defect closed silently.
+    known_red: str = ""
 
 
 @dataclass
@@ -156,6 +167,7 @@ class TestResult:
 _RE_EXPECTED = re.compile(r"^#\s*@expected:?\s+(.+)$")
 _RE_REQUIRES = re.compile(r"^#\s*@requires:?\s+(.+)$")
 _RE_TIMEOUT = re.compile(r"^#\s*@timeout:?\s+(\d+)$")
+_RE_KNOWN_RED = re.compile(r"^#\s*@known_red:?\s+(.+)$")   # (AR) حمرةٌ مُعلَنةٌ بسببِها
 _RE_SKIP_COMPILER = re.compile(r"^#\s*@skip_compiler\b")
 _RE_SKIP_INTERP = re.compile(r"^#\s*@skip_interpreter\b")
 _RE_EXPECT_ERROR = re.compile(r"^#\s*@expect_error:?\s*(.*)$")
@@ -264,6 +276,24 @@ def parse_metadata(filepath: Path) -> TestMetadata:
                     # (AR) @nondeterministic يستلزم فرز الخرج (مقارنة كمجموعة)
                     meta.nondeterministic = True
                     meta.unordered = True
+                    continue
+                # (AR) ⚠️ @known_red **لا يرخي المقارنة**. أُدرجت هذه الكتلةُ أوّلَ مرّةٍ
+                #      **داخلَ** كتلةِ @nondeterministic فورثت سطرَها `unordered = True`
+                #      وابتلعت `continue` معه. وأثرُه مقيسٌ بمِجَسٍّ خصميّ: بذرةٌ مخرَجُها
+                #      «أ،ب» وتوقُّعُها «ب،أ» صارت تُطابِق بلا ترتيب ⇒ PASS، فيقلبها
+                #      الغلافُ إلى «حمرةٌ مُعلَنةٌ صارت خضراء — أُصلح العيب».
+                #      🔑 أي أنّ التوجيهَ كان يستطيع **إعلانَ إصلاحِ عيبٍ لم يُصلَح**،
+                #      لأنّه أرخى المقارنةَ التي وُضِع ليحرسها. ووسمُ الحمرةِ لا يجوز
+                #      أن يمسَّ **كيف** تُقارَن، بل **كيف تُصنَّف** النتيجةُ بعد المقارنة.
+                # (EN) @known_red must NOT relax comparison. The first version of this
+                #      block was nested inside the @nondeterministic branch and inherited
+                #      its `unordered = True`, so a declared-red seed could match its
+                #      expectation out of order, PASS, and be reported as "fixed".
+                #      A red marker may change how a result is CLASSIFIED, never how it
+                #      is COMPARED.
+                m = _RE_KNOWN_RED.match(line)
+                if m:
+                    meta.known_red = m.group(1).strip()
                     continue
     except (OSError, UnicodeDecodeError):
         pass
@@ -697,7 +727,51 @@ def _half_checked(rel_path: str, meta: "TestMetadata", interp_out: str,
                       error_message="تخطي: " + why)
 
 
-def run_single_test(
+def run_single_test(*args, **kwargs) -> "TestResult":
+    """(AR) غلافُ `@known_red`: يفرز الحمرةَ المُعلَنةَ ويقلب نجاحَها إخفاقًا.
+       (EN) @known_red wrapper: classifies declared reds and flips an unexpected pass."""
+    result = _run_single_test_raw(*args, **kwargs)
+    reason = getattr(result.metadata, "known_red", "") if result.metadata else ""
+    if not reason:
+        return result
+    if result.status is Status.PASS:
+        result.status = Status.FAIL_OUTPUT
+        result.error_message = (
+            "حمرةٌ مُعلَنةٌ (@known_red) صارت خضراء — أُصلح العيبُ فاحذف التوجيه: " + reason)
+    # ════════════════════════════════════════════════════════════════════
+    # (AR) ⚠️ الوسمُ يبتلع **فرقَ المخرَجِ وحدَه** — لا الانهيارَ ولا التعليق
+    # ════════════════════════════════════════════════════════════════════
+    #
+    # (AR) النسخةُ الأولى ابتلعت كلَّ حالةٍ ليست PASS ولا SKIP. وأثرُه مقيسٌ
+    #      بمِجَسَّين خصميَّين في مجلّدِ دخانِ P0:
+    #        ملفٌّ فيه خطأُ تحليلٍ صريح   ⇒ KNOWN_RED · بوّابة PASS · exit 0
+    #        ملفٌّ فيه حلقةٌ لانهائيّة     ⇒ KNOWN_RED · بوّابة PASS · exit 0
+    #      أي أنّ سطرًا واحدًا في رأسِ ملفٍّ كان يعطّل **حاجزَ دخانِ P0** الموصوفَ
+    #      في هذا المُشغِّلِ بأنّه «أعلى مخاطرة». ولو انحدرت بذرةٌ موسومةٌ من
+    #      «مخرَجٍ خاطئٍ» إلى **انهيارٍ** أو **تعليقٍ** لَما تغيّر شيءٌ في المخرَج.
+    #
+    #      🔑 والحدُّ الصحيحُ من طبيعةِ الادّعاء: `@known_red` يقول «أعرف أنّ هذا
+    #      المخرَجَ خاطئٌ **بقدرٍ معلوم**» — وهذا ادّعاءٌ عن **قيمةٍ** لا عن
+    #      **بقاءِ العمليّةِ حيّة**. فانهيارٌ أو تعليقٌ أو رفضُ ترجمةٍ ليس «القدرَ
+    #      المعلوم» بل عطبٌ آخرُ لم يُشخَّص، ويبقى أحمرَ يوقف.
+    #      **وسمُ الأحمرِ يشمل ما وُصِف، ولا يُمنَح شيكًا على بياض.**
+    # (EN) The marker swallows OUTPUT MISMATCH only. The first version swallowed
+    #      every non-PASS status, so a parse error or an infinite loop in P0_smoke
+    #      became KNOWN_RED with gate PASS and exit 0 — one header line disabling
+    #      the highest-risk barrier. A declared red is a claim about a VALUE, not a
+    #      blank cheque for crashes, hangs, or compile failures.
+    # ════════════════════════════════════════════════════════════════════
+    elif result.status is Status.FAIL_OUTPUT:
+        result.status = Status.KNOWN_RED
+        result.error_message = "حمرةٌ مُعلَنة: " + reason
+    elif result.status is not Status.SKIP:
+        result.error_message = (
+            "حمرةٌ مُعلَنةٌ لكنّ الإخفاقَ من نوعٍ آخر (" + result.status.value +
+            ") — لا يبتلعه الوسمُ: " + (result.error_message or reason))
+    return result
+
+
+def _run_single_test_raw(
     sad_exe: Path,
     sadc_exe: Path,
     test_file: Path,
@@ -1163,10 +1237,21 @@ def classify_results(results: list[TestResult]) -> dict:
     interp_only_passed = 0
     interp_only_failed = 0
     skipped = 0
+    known_red = 0
 
     for t in results:
         if t.status == Status.SKIP:
             skipped += 1
+            continue
+        # (AR) ⚠️ الحمرةُ المُعلَنةُ تُعَدُّ في دلوٍ خاصٍّ بها. وكانت تسقط من الدلاءِ
+        #      كلِّها فلا تُحتسَب نجاحًا ولا إخفاقًا ولا تخطّيًا — فيصير المجموعُ
+        #      أصغرَ من الكلّ، وتُعلِن البوّابةُ «صفر فشل» بينما في الشجرةِ أربعُ
+        #      حمرات. **رقمٌ لا يُحتسَب في أيِّ دلوٍ يختفي، ولا يُقاس ما اختفى.**
+        # (EN) Declared reds get their own bucket. They previously fell through every
+        #      bucket, so passed+failed+skipped < total and the gate could announce
+        #      "zero failures" with four red seeds in the tree.
+        if t.status == Status.KNOWN_RED:
+            known_red += 1
             continue
 
         is_interp_only = t.metadata and t.metadata.skip_compiler
@@ -1188,6 +1273,7 @@ def classify_results(results: list[TestResult]) -> dict:
         "interp_only_passed": interp_only_passed,
         "interp_only_failed": interp_only_failed,
         "skipped": skipped,
+        "known_red": known_red,
         "total": len(results),
         "total_passed": dual_parity_passed + interp_only_passed,
         "total_failed": dual_parity_failed + interp_only_failed,
@@ -1219,6 +1305,11 @@ def print_summary(results: list[TestResult], use_colors: bool, elapsed_total: fl
     else:
         print(f"  فشل:    {failed}")
     print(f"  تخطي:   {skipped}")
+    # (AR) الحمرةُ المُعلَنةُ تُعرَض دائمًا ولو كانت صفرًا لا — تُعرَض إن وُجدت فقط،
+    #      لكنّها **لا تُطوى في «نجح» ولا في «فشل»**: عيبٌ موصوفٌ محروسٌ يُرى.
+    # (EN) Declared reds are shown separately — never folded into passed or failed.
+    if c.get("known_red"):
+        print(f"  {rd}حمراءُ مُعلَنة (@known_red): {c['known_red']}{r}")
     print()
     print(f"{b}  ── تفصيل النجاح ──{r}")
     print(f"  {g}تكافؤ مزدوج (مفسر+مترجم): {c['dual_parity_passed']}{r}")
@@ -1432,6 +1523,8 @@ def main():
                         help="طباعة تفاصيل")
     parser.add_argument("--report", action="store_true",
                         help="إنشاء تقرير JSON")
+    parser.add_argument("--journal", metavar="مسار",
+                        help="سجلٌّ تدريجيّ: سطر JSON لكل اختبار فور انتهائه — ينجو من مسحٍ منقطع")
     parser.add_argument("--html", nargs="?", const="auto",
                         help="إنشاء تقرير HTML (مسار اختياري، افتراضي: build/_dual_report.html)")
     parser.add_argument("--no-color", action="store_true",
@@ -1715,6 +1808,45 @@ def main():
         print(f"  تكرار:  {repeat_count}× (burn-in)")
     print()
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # (AR) السجلُّ التدريجيّ
+    # ═══════════════════════════════════════════════════════════════════════
+    #
+    # (AR) التقريرُ لا يُكتَب إلّا بعد آخرِ اختبار (write_report في الذيل)، فمسحٌ
+    #      ينقطع في منتصفه — بانقطاعِ الجلسةِ أو بقتلِ العمليّة — يُخلِّف صفرَ أثر:
+    #      لا نتيجةً جزئيّةً تُستنقَذ، ولا موضعَ توقّفٍ يُشخَّص به السبب. وقد ضاع
+    #      بذلك مسحٌ كامل: مضت ساعةٌ ولم يبقَ منها سطرٌ واحدٌ يُقرأ.
+    #      فالسطرُ يُكتَب ويُدفَع فورَ انتهاءِ كلِّ اختبار. والدفعُ مقصودٌ ولو أبطأ:
+    #      سجلٌّ يبقى في المخزنِ المؤقّتِ حين تُقتَل العمليّةُ لا يختلف عن غيابه.
+    #      وفشلُ فتحِ الملفِّ يُعلَن ولا يُسقِط المسح — الأداةُ خادمةُ القياسِ لا شرطُه.
+    journal_handle = None
+    if args.journal:
+        try:
+            journal_path = Path(args.journal)
+            journal_path.parent.mkdir(parents=True, exist_ok=True)
+            journal_handle = open(journal_path, "w", encoding="utf-8")
+        except OSError as journal_error:
+            print(f"⚠️ تعذّر فتح ملف السجل «{args.journal}»: {journal_error}")
+            journal_handle = None
+
+    def append_journal(result: TestResult) -> None:
+        """(AR) إلحاق سطرِ JSON واحدٍ بالسجلِّ ودفعُه إلى القرصِ فورًا."""
+        if journal_handle is None:
+            return
+        json.dump(
+            {
+                "file": result.file,
+                "status": result.status.value,
+                "interp_time_ms": result.interp_time_ms,
+                "compiler_time_ms": result.compiler_time_ms,
+                "error": result.error_message,
+            },
+            journal_handle,
+            ensure_ascii=False,
+        )
+        journal_handle.write("\n")
+        journal_handle.flush()
+
     # (AR) تشغيل الاختبارات (مع دعم burn-in تكراري)
     results: list[TestResult] = []
     start_total = time.perf_counter()
@@ -1738,6 +1870,7 @@ def main():
                 for future in as_completed(futures):
                     result = future.result()
                     iteration_results.append(result)
+                    append_journal(result)
                     if repeat_count == 1:
                         print_result(result, verbose, use_colors)
             # (AR) إعادة ترتيب حسب اسم الملف
@@ -1747,6 +1880,7 @@ def main():
             for tf in test_files:
                 result = run_single_test(sad_exe, sadc_exe, tf, temp_dir, timeout)
                 iteration_results.append(result)
+                append_journal(result)
                 if repeat_count == 1:
                     print_result(result, verbose, use_colors)
 
@@ -1781,6 +1915,10 @@ def main():
             print(f"{g}🔥 Burn-in نظيف: {repeat_count} جولة × {len(test_files)} اختبار = 0 فشل{re}")
         else:
             print(f"{rd}⚠️ Burn-in: {burn_in_failures} فشل إجمالي عبر {repeat_count} جولة{re}")
+
+    if journal_handle is not None:
+        journal_handle.close()
+        print(f"\n📓 السجل التدريجي: {args.journal}")
 
     # (AR) الملخص
     print_summary(results, use_colors, elapsed_total)
@@ -1874,8 +2012,18 @@ def main():
             verdict, color, code = "CONCERNS", y, 0
             reason = f"{failed} فشل ضمن الحد المقبول (بلا تراجع حرج)"
         else:
+            # (AR) ⚠️ «صفر فشل» جملةٌ تُقرَأ بلا تحفُّظ، فلا تُقال والشجرةُ فيها حمرةٌ
+            #      مُعلَنة. كانت `KNOWN_RED` تسقط من كلِّ الدلاء فتخرج البوّابةُ بـ
+            #      «PASS — صفر فشل» وفي الشجرةِ أربعُ بذورٍ حمراء. والحمرةُ المُعلَنةُ
+            #      ليست إخفاقًا يوقف الدمج، لكنّها **ليست صفرًا** — فتُذكَر بعددِها.
+            #      🔑 وآليّةُ وسمِ الأحمرِ مقبولًا تفسد يومَ تجعل اللوحةَ تقول «لا شيءَ
+            #      هنا». الوسمُ يُغيّر **حكمَ** الأحمرِ لا **وجودَه**.
+            # (EN) "zero failures" must not be printed while declared reds exist. They
+            #      are not blocking, but they are not zero either — name the count.
+            known_red_count = sum(1 for t in results if t.status == Status.KNOWN_RED)
             verdict, color, code = "PASS", g, 0
-            reason = "صفر فشل"
+            reason = ("صفر فشل" if known_red_count == 0
+                      else f"صفر فشلٍ غيرِ مُعلَن · و{known_red_count} حمراءُ مُعلَنة (@known_red)")
         print(f"\n{color}{_BOLD if use_colors else ''}بوّابة القرار: {verdict}{re} — {reason}")
         sys.exit(code)
 

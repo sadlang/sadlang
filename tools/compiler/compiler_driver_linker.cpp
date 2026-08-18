@@ -528,47 +528,20 @@ namespace sad
                     std::cerr << "  (EN) Trying embedded LLD linker...\n\n";
                 }
 
-                // (AR) كتابة ملف runtime .c إلى مجلد مؤقت
-                // (EN) Write runtime .c to temp directory
-                auto temp_runtime_c = get_temp_file(".c");
-                temp_files_.push_back(temp_runtime_c);
-
-                std::ofstream rt_file(temp_runtime_c);
-                bool runtime_written = false;
-                if (rt_file.is_open())
-                {
-                    // (AR) كتابة البيانات المضمّنة من الهيدر المُولّد تلقائياً
-                    // (EN) Write embedded data from auto-generated header
-                    rt_file.write(sad_embedded_runtime_data, sad_embedded_runtime_size);
-                    rt_file.close();
-                    runtime_written = true;
-                }
-
-                // (AR) البحث عن مترجم C وترجمة runtime
-                // (EN) Find a C compiler and compile the runtime
+                // (AR) زمنُ التشغيلِ من المخزونِ المفتوحِ بالمحتوى — يُصرَّف مرّةً
+                //      لا مرّةً لكلِّ ترجمة (انظر get_cached_runtime_object).
+                // (EN) Runtime from the content-keyed cache — compiled once, not once
+                //      per compilation (see get_cached_runtime_object).
                 std::string runtime_obj_path;
-                if (runtime_written)
+                if (auto c_compiler = find_c_compiler())
                 {
-                    auto c_compiler = find_c_compiler();
-                    if (c_compiler)
+                    if (auto cached = get_cached_runtime_object(*c_compiler))
                     {
-                        auto temp_runtime_obj = get_temp_file(
-#ifdef _WIN32
-                            ".obj"
-#else
-                            ".o"
-#endif
-                        );
-                        temp_files_.push_back(temp_runtime_obj);
-
-                        if (compile_c_to_obj(temp_runtime_c.string(), temp_runtime_obj.string(), *c_compiler))
+                        runtime_obj_path = *cached;
+                        if (options_.verbose)
                         {
-                            runtime_obj_path = temp_runtime_obj.string();
-                            if (options_.verbose)
-                            {
-                                std::cerr << "  (AR) تم ترجمة runtime بنجاح\n";
-                                std::cerr << "  (EN) Runtime compiled successfully\n";
-                            }
+                            std::cerr << "  (AR) كائنُ زمنِ التشغيل جاهز\n";
+                            std::cerr << "  (EN) Runtime object ready\n";
                         }
                     }
                 }
@@ -648,22 +621,49 @@ namespace sad
                 // (EN) Create minimal pure-C runtime temp file
                 // We use pure C (not C++) to avoid Clang/MSVC STL version issues.
                 // ============================================================
-                auto temp_runtime = get_temp_file(".c");
-                temp_files_.push_back(temp_runtime);
-
-                std::ofstream rt_file(temp_runtime);
-                if (rt_file.is_open())
+                // (AR) 🔑 كائنٌ مخزونٌ لا مصدرٌ يُعاد تصريفه: تمريرُ ملفِّ الـC هنا
+                //      كان يجعل clang **يُصرِّفُ ١٧٠ كيلوبايتَ في كلِّ ربط** (~٧٠٠ ms
+                //      مقيسة). المخزونُ مفتوحُه محتوى، فالناتجُ هو الناتجُ نفسُه.
+                //      وإن أخفق المخزونُ لأيِّ سبب، يُرَدُّ إلى المصدرِ كما كان —
+                //      تسريعٌ لا شرطُ صحّة، ولا مسارَ يفقد زمنَ التشغيلِ صامتًا.
+                // (EN) Pass a cached object, not source: handing the .c to clang made it
+                //      recompile 170 KB on every link (~700 ms measured). Falls back to
+                //      the source path if caching fails — a speed-up, never a precondition.
+                bool runtime_attached = false;
+#ifdef HAS_EMBEDDED_LLD
+                if (auto rt_compiler = find_c_compiler())
                 {
-                    // (AR) كتابة البيانات المضمّنة من الهيدر المُولّد تلقائياً
-                    // (EN) Write embedded data from auto-generated header
-                    rt_file.write(sad_embedded_runtime_data, sad_embedded_runtime_size);
-                    rt_file.close();
-                    command += " \"" + temp_runtime.string() + "\"";
-
-                    if (options_.verbose)
+                    if (auto cached_rt = get_cached_runtime_object(*rt_compiler))
                     {
-                        std::cerr << "  استخدام runtime مؤقت: " << temp_runtime.string() << "\n";
-                        std::cerr << "  Using embedded runtime: " << temp_runtime.string() << "\n";
+                        command += " \"" + *cached_rt + "\"";
+                        runtime_attached = true;
+                        if (options_.verbose)
+                        {
+                            std::cerr << "  كائنُ زمنِ التشغيل من المخزون: " << *cached_rt << "\n";
+                            std::cerr << "  Runtime object from cache: " << *cached_rt << "\n";
+                        }
+                    }
+                }
+#endif
+                if (!runtime_attached)
+                {
+                    auto temp_runtime = get_temp_file(".c");
+                    temp_files_.push_back(temp_runtime);
+
+                    std::ofstream rt_file(temp_runtime);
+                    if (rt_file.is_open())
+                    {
+                        // (AR) كتابة البيانات المضمّنة من الهيدر المُولّد تلقائياً
+                        // (EN) Write embedded data from auto-generated header
+                        rt_file.write(sad_embedded_runtime_data, sad_embedded_runtime_size);
+                        rt_file.close();
+                        command += " \"" + temp_runtime.string() + "\"";
+
+                        if (options_.verbose)
+                        {
+                            std::cerr << "  استخدام runtime مؤقت: " << temp_runtime.string() << "\n";
+                            std::cerr << "  Using embedded runtime: " << temp_runtime.string() << "\n";
+                        }
                     }
                 }
 

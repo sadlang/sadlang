@@ -252,6 +252,42 @@ namespace Sad
                 OBJECT_GET,       ///< الحصول على خاصية / Get property
                 OBJECT_SET,       ///< تعديل خاصية / Set property
                 OBJECT_CALL,      ///< استدعاء دالة / Call method
+                // ══════════════════════════════════════════════════════════════
+                // (AR) 🔑 حراسةُ المُستقبِلِ **عند موضعِ النداءِ** — لا في المستدعَى.
+                //
+                //      المقيس (ISSUE-137): `متغير ك` ثمّ `ك.أربعون()` حيث لا تمسّ
+                //      الطريقةُ `هذا` ⇒ المفسّرُ يرفع RUN033 بلفظِ `.أربعون()`،
+                //      والمُترجَمُ **يطبع 42 برمزِ خروجٍ صفر**. وقراءةُ SIR تشرح:
+                //      دامجُ الدوالِّ في الواجهةِ يستبدل النداءَ بجسدِ المستدعى،
+                //      فلا يبقى في `__sad_main` سطرٌ **يقرأ المُستقبِلَ أصلًا** —
+                //      فأيُّ حارسٍ في الخلفيّةِ عند `OBJECT_CALL` رقعةٌ في طبقةٍ
+                //      لا يمرّ بها الكود.
+                //
+                //      ⚠️ وطريقةٌ **تمسّ** `هذا.حقل` كانت ترفع — لا لأنّ منفذَها
+                //      محروسٌ بل لأنّها تستعير حارسَ الحقلِ من الجسدِ المدموج،
+                //      فتخرج بلفظِ «member access» بدل `.اسم()`. تغطيةٌ **بالصدفةِ**
+                //      تُقرأ تغطيةً بالتصميم، وهي التي أخّرت كشفَ العطب.
+                //
+                //      ولذلك يُصدَر الحارسُ تعليمةً مستقلّةً **قبل** النداءِ في
+                //      المستدعي: الدمجُ يستبدل النداءَ ولا يمسُّها، فتنجو.
+                //      operands[0] = المُستقبِل، operands[1] = لفظُ العمليّةِ نصًّا
+                //      (`.اسم()`) — والمرجعُ يبنيه من اسمِ الطريقة، فهو معاملٌ
+                //      لا ثابت.
+                // (EN) 🔑 Receiver guard AT THE CALL SITE, not in the callee.
+                //      Measured (ISSUE-137): a method that never touches `this` on a
+                //      null receiver printed 42 with exit 0 where the interpreter
+                //      raises RUN033 «.name()». The frontend inliner replaces the call
+                //      with the callee body, so nothing in the caller reads the
+                //      receiver at all — a backend guard on OBJECT_CALL would sit in a
+                //      layer the code never enters. A method that DOES touch a field
+                //      raised only by borrowing the field guard from the inlined body,
+                //      and so reported «member access» instead of «.name()»: coverage
+                //      by accident reading as coverage by design.
+                //      Emitted as a standalone instruction BEFORE the call, which
+                //      inlining does not touch. operands[0] = receiver,
+                //      operands[1] = the operation label («.name()») as a string.
+                // ══════════════════════════════════════════════════════════════
+                OBJECT_NULL_CHECK, ///< حراسة مُستقبِل النداء من العدم / Guard a call receiver against null
                 INSTANCEOF,       ///< تحقق من النوع / Type check
                 OBJECT_CAST,      ///< تحويل كائن / Object cast
                 CLASS_DEF,        ///< تعريف صنف / Define class
@@ -1485,6 +1521,32 @@ namespace Sad
                     op.type = SIROperandType::CONSTANT;
                     op.dataType = SadTypeKind::Boolean;
                     op.boolValue = value;
+                    return op;
+                }
+
+                /**
+                 * @brief (AR) إنشاء ثابتِ **فراغ** — خانةٌ صُرِّحت ولم تُهيَّأ.
+                 *
+                 * (AR) 🔑 وهو غيرُ ثابتِ العدم: للعدمِ شكلان يفرّق بينهما المحرّكان
+                 *      في نصِّهما — خانةٌ مجرَّدةٌ ⇒ «فراغ»، وخانةٌ هُيِّئت بـ«لاشيء»
+                 *      ⇒ «عدم». فلو خُزِّن الحارسُ `kSadNullSentinel` في المجرَّدةِ
+                 *      لصار كلُّ تشخيصِ تصريحٍ مجرَّدٍ يكذبُ «عدم»، ولَما بقي في
+                 *      اللغةِ ما يُميّز «لم تُسنَد بعدُ» من «أُسنِد إليها العدمُ عمدًا».
+                 *
+                 * (AR) والحمولةُ صفرٌ لأنّ الوسمَ وحدَه هو الحامل: `%SadDyn` بوسمِ
+                 *      Void لا تُقرأ حمولتُه البتّةَ في مسارِ العرضِ ولا في `نوع()`.
+                 *
+                 * @brief (EN) Create a VOID constant — a declared-but-uninitialised slot.
+                 *      Distinct from null: null has two shapes both engines spell apart
+                 *      (bare ⇒ «فراغ», `= لاشيء` ⇒ «عدم»); storing the null sentinel in a
+                 *      bare slot would make every bare-declaration diagnostic lie «عدم».
+                 */
+                static SIROperand ConstantVoid()
+                {
+                    SIROperand op;
+                    op.type = SIROperandType::CONSTANT;
+                    op.dataType = SadTypeKind::Void;
+                    op.intValue = 0;
                     return op;
                 }
 

@@ -177,6 +177,19 @@ ExprPtr cloneExpression(const Expression& expr) {
     if (auto* p = dynamic_cast<const MethodCallExpr*>(&expr)) {
         auto r = std::make_unique<MethodCallExpr>(cloneE(p->object), p->methodName);
         r->position = p->position;
+        // (AR) 🔑 `isOptional` يُنسَخ — وإسقاطُه يُنزِل «س؟.م()» إلى «س.م()» **صامتًا**:
+        //      لا إخفاقَ بناءٍ ولا تحذير، ويصير مُشغِّلُ الأمانِ مُشغِّلًا عاديًّا في
+        //      كلِّ ممرٍّ ينسخ الشجرة. وهو عينُ «العَلَمُ يلزمه كلُّ مُنتِجيه» —
+        //      والنسّاخُ مُنتِجٌ كالمحلّل.
+        //      ⚠️ ولا مستهلِكَ لهذا النسّاخِ خارجَ اختباراتِ الوحدةِ اليوم؛ ويُنسَخ
+        //      **الآن** لأنّ أوّلَ ممرِّ تعميمٍ أو ماكرو يبدأ بالنسخِ يُسقِط الأمانَ
+        //      بلا أن يُخفِق شيء.
+        // (EN) The flag is copied. Dropping it silently demotes «x?.m()» to «x.m()» —
+        //      no build failure, no warning — turning the safe operator into the unsafe
+        //      one in every tree-copying pass. The cloner is a producer too. It has no
+        //      consumer outside unit tests today; it is fixed now because the first
+        //      generics or macro pass that starts cloning would lose safety silently.
+        r->isOptional = p->isOptional;
         for (const auto& arg : p->arguments)
             r->arguments.push_back(cloneE(arg));
         return r;
@@ -205,7 +218,24 @@ StmtPtr cloneStatement(const Statement& stmt) {
         return std::make_unique<ReturnStmt>(cloneE(p->value), p->position);
     
     if (auto* p = dynamic_cast<const VarDeclStmt*>(&stmt))
-        return std::make_unique<VarDeclStmt>(p->name, p->type, cloneE(p->initializer), p->isConst, p->position);
+    {
+        // (AR) ISSUE-120 — سماتُ التخزين تُنسَخ صراحةً: المُنشئ لا يأخذ إلّا الأربعةَ
+        //      الأولى، فما زاد عليها (متطاير، رمز الرابط، مصفوفة .bss، ساكن، الوصول)
+        //      كان يسقط صامتًا في كلّ نسخة — والنسخُ يقع في توسيع الماكرو وتنضيد القوالب.
+        //      قِيس أنّ النسخة كانت تفقد isVolatile وisStaticArray قبل هذه الحقول أصلًا.
+        // (EN) ISSUE-120 — storage attributes are copied explicitly; the constructor
+        //      takes only the first four, so the rest were silently dropped on clone.
+        auto copy = std::make_unique<VarDeclStmt>(p->name, p->type, cloneE(p->initializer), p->isConst, p->position);
+        copy->sadType = p->sadType;
+        copy->linkSymbol = p->linkSymbol;
+        copy->isVolatile = p->isVolatile;
+        copy->isStaticArray = p->isStaticArray;
+        copy->staticArrayCount = p->staticArrayCount;
+        copy->isStatic = p->isStatic;
+        copy->access = p->access;
+        copy->docComment = p->docComment;
+        return copy;
+    }
     
     if (auto* p = dynamic_cast<const MultiVarDeclStmt*>(&stmt))
         return std::make_unique<MultiVarDeclStmt>(cloneSList(p->declarations), p->position);
@@ -270,7 +300,13 @@ StmtPtr cloneStatement(const Statement& stmt) {
     }
     
     if (auto* p = dynamic_cast<const FieldDecl*>(&stmt)) {
-        return std::make_unique<FieldDecl>(p->name, p->type, cloneE(p->initializer), p->access, p->isStatic, p->position);
+        auto f = std::make_unique<FieldDecl>(p->name, p->type, cloneE(p->initializer), p->access, p->isStatic, p->position);
+        // (AR) النوعُ الغنيُّ يُنسَخ: بدونه يبقى الحقلُ `Optional` بلا داخل، فلا
+        //      يعرف قرارُ الخانةِ **عدميَّ ماذا** هو ويسقط كلُّ عدميٍّ على خانةٍ واحدة.
+        // (EN) The rich type is copied; without it the field stays Optional with no
+        //      inner kind, and every nullable collapses onto one slot shape.
+        f->sadType = p->sadType;
+        return f;
     }
     
     if (auto* p = dynamic_cast<const MethodDecl*>(&stmt)) {

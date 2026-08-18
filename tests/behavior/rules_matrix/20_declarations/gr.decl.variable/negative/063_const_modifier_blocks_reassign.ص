@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable
+# @description: «متغير ثابت» يمنع إعادة الإسناد فعلًا — يُغلق ISSUE-030 (كان يقبل ويطبع 20)
+# @priority: P0
+# @requires: اطبع_سطر
+# @expect_error: SEM007
+# @expect_compile_error: لا يمكن تعديل الثابت
+
+متغير ثابت ص = 10
+ص = 20
+اطبع_سطر(ص)

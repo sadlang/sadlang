@@ -503,6 +503,55 @@ namespace Sad
                 return nullptr;
             }
 
+            // ================================================================
+            // (AR) نوعُ خانةِ التصريحِ — سلطةُ محوِ `Optional` الواحدة
+            // (EN) Declaration storage kind — the single Optional-erasure authority
+            // ================================================================
+            SadTypeKind SIRBuilder::resolveDeclaredStorageKind(
+                const Sad::Types::SadTypeKind &declaredKind,
+                const Sad::Types::SadType *declaredSadType,
+                SadTypeKind fallbackKind)
+            {
+                if (declaredKind != Types::SadTypeKind::Optional || declaredSadType == nullptr)
+                {
+                    return fallbackKind;
+                }
+
+                const auto *optional =
+                    dynamic_cast<const Sad::Types::SadOptionalType *>(declaredSadType);
+                if (optional == nullptr || !optional->getInnerType())
+                {
+                    return fallbackKind;
+                }
+
+                // (AR) العقد (أ): النوعُ الداخليُّ إن كانت خانتُه تحفظ العدمَ، و`Any`
+                //      (‏%SadDyn = وسمٌ خارجَ النطاق) إن كانت لا تحفظُه.
+                // (EN) Contract (a): the inner kind when its slot preserves null, `Any`
+                //      (%SadDyn = out-of-band tag) when it does not.
+                return sirNullableStorageKind(
+                    astTypeToSIRType(optional->getInnerType()->getKind()));
+            }
+
+            // ================================================================
+            // (AR) خانةٌ بلا نوعٍ وبلا تهيئة — بابُ ISSUE-138 الواحد
+            // (EN) Typeless, initializer-less slot — the single ISSUE-138 door
+            // ================================================================
+            SadTypeKind SIRBuilder::resolveBareSlotStorageKind(
+                const Sad::Types::SadTypeKind &declaredKind,
+                bool hasInitializer,
+                SadTypeKind resolvedKind)
+            {
+                // (AR) الشرطان لازمان معًا: `Unknown` **مع** مُهيِّئٍ يستبدله الاستنتاجُ
+                //      فعلًا فلا يُمَسّ، و`Unknown` بلا مُهيِّئٍ لا يستبدله شيء.
+                // (EN) Both clauses are required: Unknown WITH an initializer really is
+                //      overwritten by inference, so it is left alone.
+                if (declaredKind == Types::SadTypeKind::Unknown && !hasInitializer)
+                {
+                    return SadTypeKind::Any;
+                }
+                return resolvedKind;
+            }
+
         } // namespace SIR
     } // namespace Compiler
 } // namespace Sad

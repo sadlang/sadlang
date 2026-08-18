@@ -591,6 +591,8 @@ namespace Sad
                     //      never reach this check — parseDeclaration consumes them with
                     //      their own statement.
                     std::vector<StmtPtr> defaultBody;
+                    // (AR) ع-١: الذراعُ الافتراضيُّ نظيرُ الذراعِ الصريحة — البوّابةُ نفسُها.
+                    BlockDepthGuard defaultArmGuard(blockDepth_);
                     while (!isMatchEnd() && !check(TT::KEYWORD_WHEN) && !isAtEnd())
                     {
                         auto stmt = parseDeclaration();
@@ -701,6 +703,12 @@ namespace Sad
             // (AR) تحليل الجسم - جمل متعددة حتى 'حالة' أو 'نهاية' أو '}' التالية
             std::vector<StmtPtr> body;
 
+            // (AR) ع-١ (مراجعةُ أميليا): جسمٌ يُبنى باليد لا يمرُّ بـ`parseBlockStmt`
+            //      فيبقى `blockDepth_` صفرًا، فتسقط بوّابةُ SEM039 و«متغير ساكن ن = 0»
+            //      داخلَ ذراعِ «طابق» يُقبَل صامتًا بلا مدّةِ تخزينٍ ساكنة — قياسٌ صادقٌ
+            //      لشيءٍ لا يعني ما يُظنّ به. والحصرُ في نقطةٍ واحدةٍ لا يغني عن عدِّ
+            //      كلِّ جسمٍ يبنيه المُحلِّل بيده.
+            BlockDepthGuard armBodyGuard(blockDepth_);
             while (!check(TT::KEYWORD_CASE) && !check(TT::KEYWORD_WHEN) && !check(TT::KEYWORD_DEFAULT) && !check(TT::KEYWORD_END) &&
                    !checkContextual(TT::KEYWORD_CASE) &&
                    !check(TT::BRACE_RIGHT) && !isAtEnd())
@@ -2071,6 +2079,9 @@ namespace Sad
             {
                 // (AR) صيغة بدون أقواس: فضاء اسم ... نهاية
                 // (EN) No-brace syntax
+                // (AR) ع-١: أعضاءُ فضاءِ الاسمِ ليست أبناءً مباشرين للبرنامج، فلا
+                //      يُسجَّل «ساكن» فيها عامًّا ⇒ تهبط alloca في الإطار. البوّابةُ تلزم.
+                BlockDepthGuard namespaceBodyGuard(blockDepth_);
                 while (!check(TT::KEYWORD_END_NAMESPACE) && !check(TT::KEYWORD_END) &&
                        !checkContextual(TT::KEYWORD_END_NAMESPACE) &&
                        !isAtEnd())

@@ -9,6 +9,7 @@
 #include "builders/builtins/io_builtins_codegen.h"
 #include "adt_payload_tags.h"
 #include "sad_dyn_repr.h"
+#include "value_repr_generated.h" // (AR) kNullDisplay — لفظُ العدم من مصدرِ الحقيقة
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Module.h>
@@ -207,6 +208,64 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                     // (AR) تحميل طول المصفوفة وبياناتها من بنية SadArray
                     // (EN) Load array length and data from SadArray struct
                     llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
+
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 **بابُ الطباعةِ المباشرة** — المنفذُ الخامسُ لعائلةٍ
+                    //      أُغلِق منها أربعة. قِيس أنّ `اطبع(مصفوفة_عدم)` ينهار
+                    //      `0xC0000005` بينما `اطبع(نص(مصفوفة_عدم))` يطبع «لاشيء»:
+                    //      بابانِ من عائلةٍ واحدةٍ، حُرِس أحدُهما وتُرِك الآخَر.
+                    //      وبذرةُ الحراسةِ (VE051) كانت خضراءَ وكلُّ أسطرِها السبعةِ
+                    //      تمرُّ من `نص()` — فاسمُها يَعِد بأكثرَ ممّا تقيس.
+                    //      ⚠️ ولا نسخةَ خامسةً هنا: يُنادى البابُ الواحد.
+                    // (EN) The direct-print door — fifth port of a family of which
+                    //      four were closed. Measured: printing a null array crashed
+                    //      while printing نص(null array) yielded «لاشيء». The guarding
+                    //      seed was green and every one of its seven lines went through
+                    //      نص(). No fifth copy — the single door is called.
+                    // ════════════════════════════════════════════════════════
+                    auto arrGuard = cg_.emitContainerNullGuard(
+                        arrPtr, arrTy, "__sad_null_array_placeholder", "print.arr");
+                    arrPtr = arrGuard.safePtr;
+
+                    // (AR) يُنتقى المخرَجُ عند كلِّ طابعٍ — أربعةُ مساراتٍ وموضعٌ واحد.
+                    //      والتحريرُ يبقى على المخزنِ الحيِّ لا على المُنتقى: لفظُ العدمِ
+                    //      ثابتٌ عامٌّ، وتحريرُه انهيارٌ ثانٍ — وهو الفخُّ المُوثَّقُ في
+                    //      توأمِ هذا الحارسِ في `strings_ops.cpp`.
+                    // (EN) The output is picked at each printer — four paths, one place.
+                    //      free() stays on the live buffer, never on the picked value:
+                    //      the null word is a constant and freeing it is a second crash.
+                    auto printArrPicked = [&](llvm::Value *fmtStr, llvm::Value *live)
+                    {
+                        llvm::Value *picked = cg_.builder_->CreateSelect(
+                            arrGuard.isNull, cg_.emitSafeStringPtr(nullptr, "print.arr.null"),
+                            live, "print.arr.picked");
+                        cg_.builder_->CreateCall(printfFunc, {fmtStr, picked});
+                    };
+
+                    // (AR) 🔑 مسارُ العدمِ يُخصِّص هو الآخَر: حارسُ المساعِدِ يُعيد
+                    //      مخزنًا **طازجًا** بلفظِ العدمِ لا ثابتًا. والمسارُ العدديُّ
+                    //      وحدَه يُحرِّر مخزنَ المُنادي (`buf`) فيتسرّب ذاك — ١١ بايتًا
+                    //      لكلِّ نداءٍ، وفي حلقةٍ يتراكم.
+                    //      ⚠️ ولا يُحرَّر `live` بلا شرط: في المسارِ الحيِّ هو `buf`
+                    //      نفسُه، فتحريرُه تحريرٌ مزدوج. فيُنتقى للتحريرِ عدمًا في
+                    //      المسارِ الحيّ — و`free(NULL)` لا عملَ لها بالعقد.
+                    // (EN) The null path allocates too: the helper's guard returns a
+                    //      FRESH buffer holding the null word, not a constant. Only the
+                    //      integer path frees the caller's buf, so that one leaked.
+                    //      `live` must not be freed unconditionally — in the live path it
+                    //      IS buf, so that would be a double free; it is selected to NULL
+                    //      there instead, and free(NULL) is a no-op by contract.
+                    auto freeNullPathBuffer = [&](llvm::Value *live)
+                    {
+                        auto ptrTyLocal = llvm::PointerType::getUnqual(*cg_.context_);
+                        llvm::Value *onlyWhenNull = cg_.builder_->CreateSelect(
+                            arrGuard.isNull, live,
+                            llvm::ConstantPointerNull::get(
+                                llvm::cast<llvm::PointerType>(ptrTyLocal)),
+                            "print.arr.nullbuf");
+                        cg_.emitFreeCall(onlyWhenNull);
+                    };
+
                     llvm::Value *lenGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 0, "print.arr.len.gep");
                     llvm::Value *arrLen = cg_.builder_->CreateLoad(i64Ty, lenGep, "print.arr.len");
                     llvm::Value *dataGep = cg_.builder_->CreateStructGEP(arrTy, arrPtr, 2, "print.arr.data.gep");
@@ -226,7 +285,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         llvm::FunctionType *strHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy}, false);
                         llvm::FunctionCallee strHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_str", strHelperType);
                         llvm::Value *strResult = cg_.builder_->CreateCall(strHelperFn, {arrLen, dataPtr}, "print.arr.sstr");
-                        cg_.builder_->CreateCall(printfFunc, {fmt, strResult});
+                        printArrPicked(fmt, strResult);
                         cg_.emitFreeCall(strResult); // (AR) المساعِد النصّيّ يخصّص، فنحرّر ناتجه
                     }
                     // (AR) عناصر عشريّة ⇒ نظير __sad_array_to_string_float (bitcast خانة⇒double
@@ -241,7 +300,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         llvm::FunctionType *fHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy}, false);
                         llvm::FunctionCallee fHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_float", fHelperType);
                         llvm::Value *fResult = cg_.builder_->CreateCall(fHelperFn, {arrLen, dataPtr}, "print.arr.fstr");
-                        cg_.builder_->CreateCall(printfFunc, {fmt, fResult});
+                        printArrPicked(fmt, fResult);
                         cg_.emitFreeCall(fResult);
                     }
                     // (AR) [عناصر موسومة — option A] عناصرُ مصفوفةٍ مختلطةٍ قياسيّة: الخانات
@@ -262,7 +321,7 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         llvm::FunctionType *dHelperType = llvm::FunctionType::get(ptrTy, {i64Ty, ptrTy, ptrTy}, false);
                         llvm::FunctionCallee dHelperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string_dyn", dHelperType);
                         llvm::Value *dResult = cg_.builder_->CreateCall(dHelperFn, {arrLen, dataPtr, tagsPtr}, "print.arr.dstr");
-                        cg_.builder_->CreateCall(printfFunc, {fmt, dResult});
+                        printArrPicked(fmt, dResult);
                         cg_.emitFreeCall(dResult);
                     }
                     else
@@ -277,8 +336,9 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         llvm::FunctionType *helperType = llvm::FunctionType::get(ptrTy, {ptrTy, i64Ty, ptrTy}, false);
                         llvm::FunctionCallee helperFn = cg_.module_->getOrInsertFunction("__sad_array_to_string", helperType);
                         llvm::Value *strResult = cg_.builder_->CreateCall(helperFn, {buf, arrLen, dataPtr}, "print.arr.str");
-                        cg_.builder_->CreateCall(printfFunc, {fmt, strResult});
+                        printArrPicked(fmt, strResult);
                         cg_.emitFreeCall(buf);
+                        freeNullPathBuffer(strResult);
                     }
                 }
                 // ================================================================
@@ -298,6 +358,22 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                         mapPtr = cg_.builder_->CreateIntToPtr(mapPtr, ptrTy, "print.map.i2p");
                     if (mapPtr->getType()->isPointerTy())
                     {
+                        // (AR) البابُ نفسُه يُنادى — بذراعِ «لا نائب»: `__sad_map_to_string`
+                        //      يحرس المؤشّرَ الصفريَّ **سلفًا** ويُخصِّص لفظَ العدمِ بنفسِه،
+                        //      فيكفي أن تُسوّى الحالتانِ صفرًا. ولا تُخمَّن بنيةُ SadMap:
+                        //      نائبٌ بتخطيطٍ مُخمَّنٍ يُقرَأ فوقَ حجمِه عطبٌ صُنِع باليد.
+                        //      وقِيس أنّ `اطبع(خريطة_عدم)` كان ينهار كما تنهار المصفوفة،
+                        //      بينما `اطبع(نص(خريطة_عدم))` يطبع «لاشيء» — البابُ لا الطبقة.
+                        // (EN) Same door, "no placeholder" arm: the map helper already
+                        //      guards the zero pointer and mallocs the null word itself,
+                        //      so normalising both shapes to zero suffices. SadMap's layout
+                        //      is NOT guessed — an over-read placeholder would be a
+                        //      hand-made defect in the name of guarding.
+                        auto mapGuard = cg_.emitContainerNullGuard(
+                            mapPtr, /*containerStructTy=*/nullptr,
+                            /*placeholderName=*/nullptr, "print.map");
+                        mapPtr = mapGuard.safePtr;
+
                         cg_.ensureMapToStringHelper(/*quoteKeys=*/true);
                         llvm::FunctionType *mHelperType = llvm::FunctionType::get(ptrTy, {ptrTy}, false);
                         llvm::FunctionCallee mHelperFn = cg_.module_->getOrInsertFunction(::Sad::Compiler::kMapToStringQuotedFn, mHelperType);
@@ -327,10 +403,34 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                 }
                 else if (v->getType()->isPointerTy())
                 {
-                    // (AR) طباعة نص بدون سطر جديد تلقائي - SIR builder يضيف \n صراحة عند الحاجة
-                    // (EN) Print string without auto-newline - SIR builder adds \n explicitly when needed
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 الحارسُ لا يُسلَّم إلى عمليةِ نصوصٍ أبدًا — نصُّ types.yaml
+                    //      نفسِه في `type.null`: «الوسمُ الساكنُ لا يكفي وحدَه ولا يمكنُ
+                    //      أن يكفي… والسؤالُ نفسُه سؤالُ زمنِ تشغيل». وكان يُسلَّم هنا:
+                    //      خانةٌ نوعُها المُصرَّحُ «نص» تحمل حارسَ العدم (i64)، فيُحوّلها
+                    //      `resolveOperand` بـinttoptr إلى مؤشّرٍ ثمّ يقرأه `printf %s`
+                    //      ⇒ **انهيارُ تجزئة** (خروج 139). قِيس: «متغير نص س = لاشيء ⁄
+                    //      اطبع_سطر(س)» ينهار بينما «متغير رقم س = لاشيء» يطبع «لاشيء»،
+                    //      لأنّ الفرعَ العدديَّ أدناه يفحص الحارسَ والفرعَ النصّيَّ لا.
+                    //      عيبٌ **سابقٌ مستقلٌّ** عن صفةِ «عدمي» (يقع بلا صفةٍ أصلًا)،
+                    //      لكنّه في مسارِها المباشر: «نص عدمي» تصريحُ النصِّ العدميِّ
+                    //      بعينِه، فطباعتُه أوّلُ ما يفعله من يستعملها.
+                    //      والفحصُ زمنُ تشغيلٍ لا وسمٌ ساكن: `ptrtoint` ثمّ مقارنةٌ
+                    //      بالحارس. ومؤشّرُ نصٍّ حقيقيٍّ لا يساوي INT64_MIN+1 أبدًا،
+                    //      ولا يُقرأ المؤشّرُ قبل الحسم — فلا انهيارَ في أيِّ فرع.
+                    //      واللفظُ «لاشيء» يُقرأ من `kNullDisplay` المُولَّد من مصدرِ
+                    //      الحقيقةِ لا يُكتب هنا، فيطابق المفسّرَ وdynToString بالبناء.
+                    //
+                    // (AR) ⚠️ وهذا الحارسُ كُتِب هنا أوّلًا **رقعةَ منفذٍ**، فأغلق الطباعةَ
+                    //      وترك الضمَّ و`.طول` و`.جزء` والتوأمَ i64 مفتوحةً. صار المنطقُ
+                    //      نفسُه في `emitSafeStringPtr` بابًا واحدًا يمرُّ به كلُّ قارئ،
+                    //      وبقي التعليقُ شاهدًا على أنّ رقعةَ المنفذِ ليست علاجَ الطبقة.
+                    // (EN) This guard began as a per-port patch; the logic now lives in
+                    //      emitSafeStringPtr as the single door every reader goes through.
+                    // ════════════════════════════════════════════════════════════
                     llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
-                    cg_.builder_->CreateCall(printfFunc, {fmt, v});
+                    llvm::Value *safeStr = cg_.emitSafeStringPtr(v, "print.str");
+                    cg_.builder_->CreateCall(printfFunc, {fmt, safeStr});
                 }
                 // ================================================================
                 // (AR) [Fix Boolean-Print] طباعة قيم منطقية i1 كـ صحيح/خطأ
@@ -365,8 +465,10 @@ static llvm::StructType *getArrayStructType(llvm::LLVMContext &ctx)
                 // ================================================================
                 else if (op.dataType == SadTypeKind::String && v->getType()->isIntegerTy(64))
                 {
-                    llvm::Value *strPtr = cg_.builder_->CreateIntToPtr(
-                        v, llvm::PointerType::getUnqual(*cg_.context_), "print.str.i2p");
+                    // (AR) توأمُ فرعِ المؤشّرِ أعلاه: كان مُحصَّنًا هناك وخامًّا هنا،
+                    //      على بُعدِ ثلاثين سطرًا. البابُ الواحدُ يُغني عن حارسَين.
+                    // (EN) Twin of the pointer branch above: guarded there, raw here.
+                    llvm::Value *strPtr = cg_.emitSafeStringPtr(v, "print.str.i2p");
                     llvm::Value *fmt = cg_.builder_->CreateGlobalStringPtr("%s", "fmt.s");
                     cg_.builder_->CreateCall(printfFunc, {fmt, strPtr});
                 }

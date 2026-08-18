@@ -883,6 +883,14 @@ namespace Sad
                         // (EN) Search for default value in inheritance chain
                         std::string defaultVal;
                         SadTypeKind defaultType = SadTypeKind::Unknown;
+                        // (AR) 🔑 انظر التعليلَ في mem_alloca.cpp: العَلَمُ يلزمه **كلُّ**
+                        //      مُستهلِكيه. هذا هو المسارُ الثاني الذي يقرأ الجدولَ نفسَه
+                        //      (بانٍ موجود)، وتركُه على فحصِ الخواءِ يجعل النصَّ الفارغَ
+                        //      يصل في صنفٍ بلا بانٍ ويسقط في صنفٍ ببانٍ — تباعدٌ داخل
+                        //      المحرّكِ الواحدِ يصعب تفسيره.
+                        // (EN) Second consumer of the same table (constructor path).
+                        //      Both must use the presence flag or the two paths diverge.
+                        bool hasDefault = false;
                         for (const auto &ancestor : inheritanceChain)
                         {
                             auto it = ancestor->fieldDefaultValues_.find(fieldName);
@@ -890,17 +898,46 @@ namespace Sad
                             {
                                 defaultVal = it->second.first;
                                 defaultType = it->second.second;
+                                hasDefault = true;
                                 break;
                             }
                         }
 
-                        if (!defaultVal.empty() && defaultType != SadTypeKind::Unknown)
+                        if (hasDefault && defaultType != SadTypeKind::Unknown)
                         {
                             // (AR) الإزاحة عبر getFieldStructIndex — بلا إزاحة لبنى @تمثيل_سي [RFC #53 F2-ب]
                             // (EN) Offset via getFieldStructIndex — no offset for @تمثيل_سي structs [RFC #53 F2-ب]
+                            int slotIdx = cg_.getFieldStructIndex(className, fieldIdx);
                             llvm::Value *fieldGep = cg_.builder_->CreateStructGEP(
-                                structType, objPtr, cg_.getFieldStructIndex(className, fieldIdx),
+                                structType, objPtr, slotIdx,
                                 fieldName + ".default_init");
+
+                            // ═══════════════════════════════════════════════════
+                            // (AR) 🔑 التعليبُ توأمُ ما في `mem_alloca.cpp` — وكان
+                            //      **غائبًا هنا وحدَه**: ذراعُ العدمِ ثمّةَ تُعلِّب وأخواتُها
+                            //      الأربعُ تكتب بتّاتِها خامًّا فوق حقلَي {وسم، حمولة}.
+                            //      وما دامت `أي` تسقط في `default:` لم يكن للفارقِ أثرٌ
+                            //      يُرى؛ فلمّا صارت لها ذراعٌ صار الفارقُ عطبًا. والمسارانِ
+                            //      يفترقان بوجودِ البانِي وحدَه، فتوأمٌ واحدٌ مُصلَحٌ يجعل
+                            //      السلوكَ **متقطّعًا بحسبِ وجودِ بانٍ** — أخضرَ في نصفِ
+                            //      المِجَسّاتِ وأحمرَ في نصفِها، وهو أخفى من عطبٍ مطّرد.
+                            // (EN) Boxing is the twin of mem_alloca.cpp and was missing
+                            //      HERE ONLY: its null arm boxes while the other four write
+                            //      raw bits over the {tag, payload} pair. While `أي` fell to
+                            //      `default:` the difference was invisible; giving it an arm
+                            //      turns that difference into a defect. The two paths differ
+                            //      only by whether a constructor exists, so fixing one twin
+                            //      alone makes behaviour intermittent BY CONSTRUCTOR
+                            //      PRESENCE — green in half the probes.
+                            // ═══════════════════════════════════════════════════
+                            llvm::Type *fieldSlotTy = structType->getElementType(slotIdx);
+                            llvm::StructType *dynSlotTy = getSadDynType(*cg_.context_);
+                            auto storeDefault = [&](llvm::Value *cv, SadTypeKind kind)
+                            {
+                                if (fieldSlotTy == dynSlotTy)
+                                    cv = toDyn(cg_, cv, kind);
+                                cg_.builder_->CreateStore(cv, fieldGep);
+                            };
 
                             switch (defaultType)
                             {
@@ -914,8 +951,8 @@ namespace Sad
                                 catch (...)
                                 {
                                 }
-                                cg_.builder_->CreateStore(
-                                    llvm::ConstantInt::get(cg_.getInt64Type(), intVal), fieldGep);
+                                storeDefault(llvm::ConstantInt::get(cg_.getInt64Type(), intVal),
+                                             SadTypeKind::Integer);
                                 break;
                             }
                             case SadTypeKind::Float:
@@ -928,16 +965,16 @@ namespace Sad
                                 catch (...)
                                 {
                                 }
-                                cg_.builder_->CreateStore(
-                                    llvm::ConstantFP::get(cg_.getDoubleType(), dblVal), fieldGep);
+                                storeDefault(llvm::ConstantFP::get(cg_.getDoubleType(), dblVal),
+                                             SadTypeKind::Float);
                                 break;
                             }
                             case SadTypeKind::Boolean:
                             {
                                 bool boolVal = (defaultVal == "\xD8\xB5\xD8\xAD\xD9\x8A\xD8\xAD" || // صحيح
                                                 defaultVal == "true" || defaultVal == "1");
-                                cg_.builder_->CreateStore(
-                                    llvm::ConstantInt::get(cg_.getInt1Type(), boolVal ? 1 : 0), fieldGep);
+                                storeDefault(llvm::ConstantInt::get(cg_.getInt1Type(), boolVal ? 1 : 0),
+                                             SadTypeKind::Boolean);
                                 break;
                             }
                             case SadTypeKind::String:
@@ -953,7 +990,21 @@ namespace Sad
                                 //      sad_string_new_cstr ⇒ "undefined symbol", breaking the link
                                 //      of any class with a string-initialized field and no ctor.
                                 auto *strConst = cg_.builder_->CreateGlobalStringPtr(defaultVal, fieldName + ".defstr");
-                                cg_.builder_->CreateStore(strConst, fieldGep);
+                                storeDefault(strConst, SadTypeKind::String);
+                                break;
+                            }
+                            // (AR) [م‑ز] ذراعُ العدم — توأمُ نظيرتِها في `mem_alloca`.
+                            //      وتُعلَّب للخانةِ الموسومة كما تفعل نظيرتُها: خانةُ
+                            //      %SadDyn حقلانِ {وسم، حمولة}، وكتابةُ i64 خامٍ فوقها
+                            //      تُفسِد الوسمَ فيُقرأ العدمُ نوعًا آخَر.
+                            // (EN) [م‑ز] Null arm — twin of the one in mem_alloca, boxing
+                            //      for a tagged slot exactly as it does: a %SadDyn slot is
+                            //      {tag, payload}, and a raw i64 store corrupts the tag.
+                            case SadTypeKind::Null:
+                            {
+                                storeDefault(llvm::ConstantInt::get(cg_.getInt64Type(),
+                                                                    Sad::Compiler::kSadNullSentinel),
+                                             SadTypeKind::Null);
                                 break;
                             }
                             default:
@@ -962,6 +1013,73 @@ namespace Sad
                         }
                         fieldIdx++;
                     }
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════════════════
+            // (AR) 🔑 الحقولُ الصنفيّة: تُنشَأ **تعاوديًّا** قبلَ الباني.
+            //
+            //      قرارُ المالك يُرتِّب: تُصفَّر الحقولُ، ثمّ تُطبَّق القيمُ الافتراضيّةُ
+            //      لأنواعِها، ثمّ يُنفَّذ الباني. والقيمةُ الافتراضيّةُ لنوعٍ صنفيٍّ
+            //      كائنٌ مُنشَأ — فموضعُها هنا: بعدَ الحرفيّاتِ وقبلَ `ctorFunc`،
+            //      كي يجد الباني حقلَه حيًّا إن مسَّه.
+            //
+            //      والإنشاءُ بنداءٍ **تعاوديٍّ على هذه الدالّةِ نفسِها** لا بنسخةٍ
+            //      مختصرةٍ منها: النسخةُ ستفوتها الوراثةُ والمصفوفاتُ وvtable وباني
+            //      الصنفِ الداخليِّ، ثمّ تنحرف عن الأصلِ عند أوّلِ تحرير. والتعليمةُ
+            //      المُصطنَعةُ بلا `result` فلا تلوّث `namedValues`.
+            //
+            //      ولا دورةَ ممكنة: المحلّلُ لا يقبل حقلًا نوعُه صنفٌ **لم يُصرَّح
+            //      بعدُ** (قِيس: صنفٌ يحوي حقلًا من نوعِ نفسِه ⇒ SYN019، وكذا الإحالةُ
+            //      الأماميّة)، فالتعشيشُ شجرةٌ لا رسمٌ دوريّ. والحارسُ أدناه إعلانٌ
+            //      عن هذا الاعتمادِ لا استغناءٌ عنه: لو ارتخى المحلّلُ يومًا ظهر
+            //      تشخيصٌ بدل تعليقِ المترجم.
+            // (EN) Class-typed fields are constructed RECURSIVELY, after the literal
+            //      defaults and before the constructor runs — that is the owner's
+            //      ordering. Done by recursing into this very function (not a shortened
+            //      copy that would miss inheritance/arrays/vtable and then drift). No
+            //      cycle is possible: the parser rejects a field whose class is not yet
+            //      declared (measured: SYN019), so nesting is a tree; the guard below
+            //      declares that dependency rather than replacing it.
+            // ═══════════════════════════════════════════════════════════════════════
+            if (cg_.sirModule_)
+            {
+                auto sirClass = cg_.sirModule_->getClass(className);
+                if (sirClass && !sirClass->classFieldTypes_.empty())
+                {
+                    if (std::find(nestedCtorStack_.begin(), nestedCtorStack_.end(), className) !=
+                        nestedCtorStack_.end())
+                    {
+                        cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                        {{"detail", std::string("Cyclic class field nesting:") + className}});
+                        return objPtr;
+                    }
+                    nestedCtorStack_.push_back(className);
+
+                    int fieldIdx = 0;
+                    for (const auto &fieldName : sirClass->fieldOrder_)
+                    {
+                        auto nestedIt = sirClass->classFieldTypes_.find(fieldName);
+                        if (nestedIt != sirClass->classFieldTypes_.end())
+                        {
+                            auto nestedInst = std::make_shared<SIRInstruction>(
+                                SIROpcode::CONSTRUCTOR_CALL);
+                            nestedInst->operands.push_back(
+                                SIROperand::Register(nestedIt->second, SadTypeKind::Class));
+                            llvm::Value *nestedPtr = emitConstructorCall(nestedInst);
+                            if (nestedPtr)
+                            {
+                                llvm::Value *nestedGep = cg_.builder_->CreateStructGEP(
+                                    structType, objPtr,
+                                    cg_.getFieldStructIndex(className, fieldIdx),
+                                    fieldName + ".nested");
+                                cg_.builder_->CreateStore(nestedPtr, nestedGep);
+                            }
+                        }
+                        fieldIdx++;
+                    }
+
+                    nestedCtorStack_.pop_back();
                 }
             }
 

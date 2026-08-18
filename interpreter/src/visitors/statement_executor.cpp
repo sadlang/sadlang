@@ -205,25 +205,26 @@ namespace Sad
             }
             else
             {
-                // (AR) قيمة افتراضية حسب النوع / (EN) Default value based on type
-                switch (node.type)
-                {
-                case Types::SadTypeKind::Integer:
-                    value = Data::Value(0);
-                    break;
-                case Types::SadTypeKind::Float:
-                    value = Data::Value(0.0);
-                    break;
-                case Types::SadTypeKind::String:
-                    value = Data::Value("");
-                    break;
-                case Types::SadTypeKind::Boolean:
-                    value = Data::Value(false);
-                    break;
-                default:
-                    value = Data::Value(); // VOID
-                    break;
-                }
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 من مصدرِ الحقيقةِ الواحد — وكان هذا الجدولُ الخامسَ
+                // ════════════════════════════════════════════════════════════
+                //
+                // (AR) كان هنا نسخةٌ خامسةٌ من جدولِ القيمِ الافتراضيّةِ **بلا
+                //      «بايت» ولا «طبيعي64»**، فيسقطان في `default:` ويصيران
+                //      «لاشيء» — نقضًا لقرارِ المالكِ الذي ينصّ عليهما صراحةً.
+                //      قِيس (2026-08-15): «طبيعي64 س» و«بايت ب» داخل دالّةٍ
+                //      يطبعان «لاشيء» في المفسّر، ومكدّسًا غيرَ مهيّأ في
+                //      المترجّم — أي أنّ **المحرّكَين يخالفان الحكمَ بطريقتَين**.
+                //      وأُضيف النوعان إلى ثلاثةِ جداولَ ونُسيا هنا وفي المترجّم.
+                //
+                //      🔑 والدرسُ يُدوَّن حيث وقع: جدولٌ واحدٌ منسوخٌ خمسَ مرّاتٍ
+                //      لا يُصان بالانضباط. النداءُ الواحدُ لا ينجرف، والنسخُ
+                //      ينجرف حتمًا — والسؤالُ متى لا هل.
+                // (EN) This was the FIFTH copy of the default-value table, and it
+                //      lacked Byte and UInt64, so both fell to «لاشيء» against the
+                //      owner rule. One call cannot drift; five copies must.
+                // ════════════════════════════════════════════════════════════
+                value = Data::defaultValueForTypeKind(node.type);
             }
 
             // (AR) تعريف المتغير / (EN) Define variable

@@ -18,6 +18,7 @@
 
 #include "backend/native/sir_native_lowering.h"
 #include "backend/native/arm64_sir_lowering.h"
+#include "backend/native/riscv64_sir_lowering.h"
 
 #include <cstdio>
 #include <memory>
@@ -33,6 +34,21 @@ namespace
         auto ast = parser.parseProgram();
         Sad::Compiler::SIR::SIRBuilder builder;
         builder.setModuleMode(true);
+        builder.setFreestanding(true);
+        return builder.buildModule(&ast);
+    }
+
+    // (AR) والبناءُ في وضعِ **البرنامج** لا الوحدة (`module_mode=false`، كما يفعل
+    //      سائقُ المصرّفِ لبرنامجٍ عاديّ): وضعُ الوحدةِ يُذيّل الدالّةَ الداخلةَ بـRET
+    //      **بمعامِل**، وهو أوپكودٌ خارجَ مجموعةِ م٦ — فيُخفِقُ اختبارُ RV64 على شيءٍ
+    //      لا يراه المستعمِلُ في مسارِ الإنتاج أصلًا.
+    std::shared_ptr<Sad::Compiler::SIR::SIRModule> buildSirProgram(const std::string &src)
+    {
+        Sad::Lexer::LexerCore lexer(src);
+        Sad::Parser::ParserCore parser(lexer);
+        auto ast = parser.parseProgram();
+        Sad::Compiler::SIR::SIRBuilder builder;
+        builder.setModuleMode(false);
         builder.setFreestanding(true);
         return builder.buildModule(&ast);
     }
@@ -287,8 +303,13 @@ namespace
     //      مؤشّرِ الإغلاق قبلَ تحميلِ الدالّة (تفادي دهسِ سجلِّ الخدشِ بالوسائطِ السجليّة).
     const std::string kSrcClosureManyArgs =
         "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A"
-        "\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xAB\xD8\xA7\xD8\xA8\xD8\xAA\x20\x3D\x20\x32\x0A"
-        "\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x20\x3D\x20\xD9\x84\xD8\xA7\xD9\x85\xD8\xAF\xD8\xA7\x28\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA1\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA2\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA3\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA4\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA5\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA6\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA7\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA8\x29\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA1\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA2\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA3\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA4\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA5\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA6\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA7\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA8\x20\x2B\x20\xD8\xAB\xD8\xA7\xD8\xA8\xD8\xAA\x20\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
+        // (AR) كان اسمُ هذا المتغيّرِ «ثابت» — وهو لفظٌ **محجوزٌ دائمًا** (KW-RES-035).
+        //      قَبِلَه المحلّلُ قبلَ تشديدِ ISSUE-120 ثمّ صار SYN010. والتشديدُ مطابقٌ
+        //      للـSoT فالتصحيحُ في الاسمِ لا في المحلّل (كحالةِ ed25519، ISSUE-133).
+        //      🔑 وموضعُه هنا **سُداسيٌّ**: مسحُ الشجرةِ عن اللفظِ العربيِّ لم يكن ليراه —
+        //      فخُّ ISSUE-115 نفسُه، كشفه تشغيلُ الاختبارِ لا القراءة.
+        "\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\x5F\xD8\xAB\xD8\xA7\xD8\xA8\xD8\xAA\xD8\xA9\x20\x3D\x20\x32\x0A"
+        "\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x20\x3D\x20\xD9\x84\xD8\xA7\xD9\x85\xD8\xAF\xD8\xA7\x28\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA1\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA2\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA3\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA4\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA5\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA6\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA7\xD8\x8C\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA8\x29\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA1\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA2\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA3\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA4\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA5\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA6\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA7\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\xD9\xA8\x20\x2B\x20\xD9\x82\xD9\x8A\xD9\x85\xD8\xA9\x5F\xD8\xAB\xD8\xA7\xD8\xA8\xD8\xAA\xD8\xA9\x20\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A"
         "\x20\x20\x20\x20\xD8\xA7\xD8\xB1\xD8\xAC\xD8\xB9\x20\xD8\xA7\xD8\xAC\xD9\x85\xD8\xB9\x28\x35\xD8\x8C\x20\x35\xD8\x8C\x20\x35\xD8\x8C\x20\x35\xD8\x8C\x20\x35\xD8\x8C\x20\x35\xD8\x8C\x20\x35\xD8\x8C\x20\x35\x29\x0A"
         "\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
 
@@ -496,6 +517,26 @@ namespace
 
     const std::string kSrcFloorMinPrint =
         "\xD8\xAF\xD8\xA7\xD9\x84\xD8\xA9\x20\xD8\xB1\xD8\xA6\xD9\x8A\xD8\xB3\xD9\x8A\xD8\xA9\x28\x29\x0A\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xA3\xD8\xB3\xD8\xA7\xD8\xB3\x20\x3D\x20\x31\x0A\x20\x20\x20\x20\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xA7\xD9\x84\xD8\xA3\xD8\xAF\xD9\x86\xD9\x89\x20\x3D\x20\xD8\xA3\xD8\xB3\xD8\xA7\xD8\xB3\x20\x3C\x3C\x20\x36\x33\x0A\x20\x20\x20\x20\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\xD8\xA7\xD9\x84\xD8\xA3\xD8\xAF\xD9\x86\xD9\x89\x20\x2F\x2F\x20\x28\x30\x20\x2D\x20\x31\x29\x29\x0A\xD9\x86\xD9\x87\xD8\xA7\xD9\x8A\xD8\xA9\x0A";
+
+    // (AR) ── مصدرا م٦ (RISC-V RV64) ───────────────────────────────────────────
+    //      «متغير س = 2048» عمدًا: ٢٠٤٨ أوّلُ قيمةٍ تتجاوز الفوريَّ ذا الاثنَي عشرَ
+    //      بتًّا، فتُلزِمُ بناءَ الثابتِ بالشرائح لا ADDI واحدة.
+    //      ⚠️ وبلا غلافِ «دالة رئيسية … ارجع ٠» عمدًا: الغلافُ يُولّد RET بمعامِلٍ
+    //      (أوپكود ٣٩) وهو **خارجَ** المجموعةِ التي يخفّضها م٦ (RET_VOID فقط)، فيُخفِقُ
+    //      الاختبارُ الموجَبُ لسببٍ غيرِ مقصود، وأخطرُ منه أنّ الاختبارَ **السالب** كان
+    //      يخضرُّ على رفضِ RET لا على رفضِ الجمع. قِيس بالتشغيل لا بالافتراض.
+    const std::string kSrcRvDeclPrint =
+        "\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xB3\x20\x3D\x20\x32\x30\x34\x38\x0A"
+        "\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\xD8\xB3\x29\x0A";
+
+    // (AR) والجمعُ بين **متغيّرَين** — لا بين ثابتَين. الفرقُ ليس تجميليًّا: `1 + 2`
+    //      يطويه المُصدِرُ قبل SIR فلا يبلغ المخفّضَ أوپكودُ جمعٍ أصلًا، فيمرُّ الحارسُ
+    //      السالبُ وهو يقيس طاويَ الثوابتِ لا رفضَ المخفّض. (وقعت هذه بالضبط في
+    //      prove_riscv64_decl_parity.sh: قُبِلت الحالةُ وطُبِع «3».)
+    const std::string kSrcRvUnsupportedAdd =
+        "\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xA3\x20\x3D\x20\x31\x0A"
+        "\xD9\x85\xD8\xAA\xD8\xBA\xD9\x8A\xD8\xB1\x20\xD8\xA8\x20\x3D\x20\x32\x0A"
+        "\xD8\xA7\xD8\xB7\xD8\xA8\xD8\xB9\x5F\xD8\xB3\xD8\xB7\xD8\xB1\x28\xD8\xA3\x20\x2B\x20\xD8\xA8\x29\x0A";
 } // namespace
 
 // (AR) المصدرُ الحسابيّ يُبنى ويُخفَّض بنجاح، والـELF سليمٌ (EM_X86_64).
@@ -1563,6 +1604,87 @@ TEST(NativeSirBridge, LowersClassMethod)
     size_t wrote = std::fwrite(bin.data(), 1, bin.size(), fp);
     std::fclose(fp);
     ASSERT_EQ(int(wrote), int(bin.size()));
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// (AR) 🔑 **حارسُ المُستقبِلِ العدميّ على المسارِ الأصليّ** (بلا LLVM).
+//
+//      `OBJECT_NULL_CHECK` أُضيف إلى المُنتِج فصار يُصدَر قبلَ كلِّ نداءِ طريقةٍ
+//      على مُستقبِلٍ ليس `هذا`/`الأصل` — ولم تكن أيُّ خلفيّةٍ أصليّةٍ تعرفُه، فسقط
+//      تخفيضُ **كلِّ** برنامجٍ فيه نداءُ طريقةٍ بـ«بنيةٌ غير مدعومة (opcode=70)».
+//
+// (AR) ⚠️ ولا يكفي أن يعودَ التخفيضُ ناجحًا: النجاحُ وحدَه يمرُّ أيضًا لو جُعِلَ
+//      الأوپكودُ لا-عمليّةً صامتة — وذاك حارسٌ لا يحرس. فيُقاس **إصدارُ كتلةِ
+//      الهلعِ نفسِها** بايتًا بايتًا، ومعها ضابطٌ سالبٌ يجب ألّا تظهرَ فيه: نفسُ
+//      الصنفِ ونفسُ الكائنِ ونفسُ mmap، وقراءةُ حقلٍ بدلَ نداءِ طريقة. فإن مرَّ
+//      التأكيدُ الموجبُ والسالبُ معًا، فالبايتاتُ تُميّز فعلًا ولا تُصادِف.
+// ════════════════════════════════════════════════════════════════════════════
+static const char *kSrcClassFieldOnly =
+    "صنف نقطة\n"
+    "    متغير عام س = 0\n"
+    "    باني(س) هذا.س = س نهاية\n"
+    "نهاية\n"
+    "دالة رئيسية()\n"
+    "    متغير ن = نقطة(42)\n"
+    "    ارجع ن.س\n"
+    "نهاية\n";
+
+namespace
+{
+    // (AR) كتلةُ هلعِ المُستقبِلِ العدميّ على x86-64: mov edi,132؛ mov eax,60؛ syscall.
+    //      ١٣٢ متمايزٌ عن ١٣٩ (‎128+SIGSEGV‎) عمدًا — انظر kNullReceiverPanicCode.
+    const std::vector<uint8_t> kNullRecvPanicX86 = {
+        0xBF, 0x84, 0x00, 0x00, 0x00, 0xB8, 0x3C, 0x00, 0x00, 0x00, 0x0F, 0x05};
+    // (AR) ومرآتُها على AArch64: movz x0,#132؛ movz x8,#93؛ svc #0.
+    const std::vector<uint8_t> kNullRecvPanicArm64 = {
+        0x80, 0x10, 0x80, 0xD2, 0xA8, 0x0B, 0x80, 0xD2, 0x01, 0x00, 0x00, 0xD4};
+} // namespace
+
+TEST(NativeSirBridge, EmitsNullReceiverGuard)
+{
+    auto module = buildSir(kSrcClass);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("null-guard lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_TRUE(contains(res.code, kNullRecvPanicX86));
+}
+
+// (AR) الضابطُ السالب: نفسُ الصنفِ ونفسُ الكائن، وقراءةُ حقلٍ بدلَ نداءِ طريقةٍ ⇒
+//      لا مُستقبِلَ يُحرَس ⇒ يجب ألّا تظهرَ كتلةُ الهلع. بدونه يبقى التأكيدُ الموجبُ
+//      احتمالًا لا برهانًا (قد تكون البايتاتُ حاضرةً في كلِّ ثنائيّ).
+TEST(NativeSirBridge, NoNullReceiverGuardWithoutMethodCall)
+{
+    auto module = buildSir(kSrcClassFieldOnly);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElf(*module);
+    if (!res.ok)
+        std::printf("null-guard control lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_FALSE(contains(res.code, kNullRecvPanicX86));
+}
+
+TEST(Arm64SirBridge, EmitsNullReceiverGuard)
+{
+    auto module = buildSir(kSrcClass);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 null-guard lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_TRUE(contains(res.code, kNullRecvPanicArm64));
+}
+
+TEST(Arm64SirBridge, NoNullReceiverGuardWithoutMethodCall)
+{
+    auto module = buildSir(kSrcClassFieldOnly);
+    ASSERT_TRUE(module != nullptr);
+    auto res = sad::native::lowerModuleToElfArm64(*module);
+    if (!res.ok)
+        std::printf("arm64 null-guard control error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+    ASSERT_FALSE(contains(res.code, kNullRecvPanicArm64));
 }
 
 TEST(NativeSirBridge, LowersEnumMatch)
@@ -3210,6 +3332,47 @@ TEST(NativeSirBridge, RejectsMixedMinMax)
     ASSERT_TRUE(!rx.ok); // x86 يرفض المختلط
     auto ra = sad::native::lowerModuleToElfArm64(*module);
     ASSERT_TRUE(!ra.ok); // ARM64 يرفض المختلط (تماثل)
+}
+
+// ── م٦: جسرُ SIR → RISC-V RV64 ─────────────────────────────────────────────
+// (AR) لماذا هنا وليس في test_native_backend_riscv64.cpp: ذاك الملفُّ يقيس
+//      **المُرمِّز** (تعليمةً تعليمةً مقابل llvm-mc)، وأخضرُه لا يُثبِتُ أنّ المُرمِّزَ
+//      موصولٌ بـSIR أصلًا. وهذه سويّةٌ ثالثةٌ تحت البرهانِ الحيّ: لا تحتاج qemu
+//      فتُقاس حيث يُتخطّى البرهانُ الحيّ. (بندُ أميليا الأخير، ع-٩.)
+TEST(NativeSirBridge, Riscv64LowersDeclPrint)
+{
+    auto module = buildSirProgram(kSrcRvDeclPrint);
+    ASSERT_TRUE(module != nullptr);
+
+    auto res = sad::native::lowerModuleToElfRiscv64(*module);
+    if (!res.ok)
+        std::printf("riscv64 lowering error: %s\n", res.message().c_str());
+    ASSERT_TRUE(res.ok);
+
+    const auto &bin = res.code;
+    ASSERT_TRUE(bin.size() > sad::native::elf::kCodeOffset);
+    ASSERT_EQ(bin[0], uint8_t(0x7F));
+    ASSERT_EQ(bin[4], uint8_t(2)); // (AR) ELFCLASS64
+    // (AR) e_machine = EM_RISCV = 243 — لا 62 (x86) ولا 183 (AArch64).
+    ASSERT_EQ(int(bin[18]) | (int(bin[19]) << 8), int(sad::native::elf::kEmRiscv64));
+}
+
+// (AR) وما خرج عن مجموعةِ قاعدةِ تصريحِ المتغيّر يجب أن **يُرفَض برمزِ SoT**، لا أن
+//      يُخفَّضَ خطأً ولا أن يُنتِجَ ثنائيًّا مبتورًا يُقرأ أخضرَ.
+TEST(NativeSirBridge, Riscv64RejectsUnsupportedOpcode)
+{
+    auto module = buildSirProgram(kSrcRvUnsupportedAdd);
+    ASSERT_TRUE(module != nullptr);
+
+    auto res = sad::native::lowerModuleToElfRiscv64(*module);
+    ASSERT_TRUE(!res.ok);
+    ASSERT_TRUE(res.errorCode == ::Sad::Errors::ErrorCode::INT_NATIVE_UNSUPPORTED);
+    // (AR) والرمزُ وحدَه لا يكفي: `INT_NATIVE_UNSUPPORTED` يخرج من تسعةِ مساراتٍ في
+    //      هذا المخفّض (وحدةٌ متعدّدةُ الدوالّ · وجهةُ STORE · قيمتُه · MOVE · NEG ·
+    //      تعدُّدُ معاملاتِ الطباعة · نوعُها · سعةُ الإطار)، فيخضرُّ الاختبارُ على أيٍّ
+    //      منها. تفصيلُ «riscv64 opcode » وحدَه يُثبِتُ أنّ المرفوضَ **أوپكودُ الجمع**.
+    ASSERT_TRUE(res.detail.rfind("riscv64 opcode ", 0) == 0);
+    ASSERT_TRUE(res.code.empty());
 }
 
 int main(int argc, char **argv)

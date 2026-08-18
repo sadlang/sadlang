@@ -231,14 +231,27 @@ namespace Sad
             case TokenType::OP_GREATER:
             case TokenType::OP_GREATER_EQUAL:
             {
-                // (AR) [طبقة طبيعي64 — الخطوة ٥] مقارنة ترتيب لا-موقَّعة حين يكون كلا
-                //      المعامِلين طبيعي64 (النوع الساكن من الخطوة ٢). المساواة/عدمها متطابقة
-                //      موقَّعةً ولا-موقَّعةً (مساواة بتّات) فلا تتأثّر. يُطابق المترجم (ULT/UGT).
-                // (EN) [طبيعي64 layer — Step 5] Unsigned ordering when both operands are طبيعي64
-                //      (static type from Step 2). Equality is identical signed/unsigned (bit
-                //      equality) so it is unaffected. Mirrors the compiler (ULT/UGT).
+                // (AR) [طبقة طبيعي64 — الخطوة ٥ · مُنقَّحة بقرارِ المالك 2026-08-16]
+                //      مقارنةُ ترتيبٍ لا-موقَّعةٌ حين يكون **أيُّ** المعامِلَين طبيعي64
+                //      (هيمنة، كالحساب) — لا حين يكونان كليهما.
+                //
+                //      🔴 والشرطُ كان `&&`، فانفرجت اللغةُ على نفسِها: `ط > ن` بين
+                //      طبيعيَّين تُعطي «صحيح»، و`ط > 1` تُعطي **«خطأ»** لأكبرِ قيمةٍ
+                //      لا-موقَّعة. والمحرّكان كانا متّفقَين على ذلك، فمرَّت بوّابةُ
+                //      التكافؤِ ودُوِّنت في تقريرِ المصفوفة «مقارنةٌ غيرُ موجَّهة ✅»
+                //      — 🔑 والتطابقُ بين المحرّكَين ليس برهانَ صواب، وإنّما ينفي
+                //      الانفراجَ وحدَه.
+                //
+                //      وحكمُ المالك: تَهيمِن كما تَهيمِن في الحساب. والمساواةُ/عدمُها
+                //      متطابقةٌ موقَّعةً ولا-موقَّعةً (مساواةُ بتّات) فلا تتأثّر.
+                //      ⚠️ ولازمُه المُعلَن: `ط > -1` تصير «خطأ» — دلالةُ C، تُقال.
+                // (EN) [طبيعي64 layer — Step 5, revised by owner ruling 2026-08-16]
+                //      Unsigned ordering when EITHER operand is طبيعي64 (dominance, like
+                //      arithmetic), not when both. The old `&&` made `ط > ن` true but
+                //      `ط > 1` false; both engines agreed, so the equivalence gate passed
+                //      it. Agreement between engines is not proof of correctness.
                 const bool unsignedCmp =
-                    resolveStaticType(node.left.get()) == Types::SadTypeKind::UInt64 &&
+                    resolveStaticType(node.left.get()) == Types::SadTypeKind::UInt64 ||
                     resolveStaticType(node.right.get()) == Types::SadTypeKind::UInt64;
                 lastResult_ = evaluateComparisonOp(left, node.op, right, node.position, unsignedCmp);
                 break;

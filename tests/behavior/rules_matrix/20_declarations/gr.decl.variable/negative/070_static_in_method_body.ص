@@ -1,0 +1,15 @@
+# @rule: gr.decl.variable
+# @description: «ساكن» داخلَ طريقةِ صنف — جسمُ الطريقةِ لا يُستثنى من البوّابة
+# @priority: P0
+# @requires: اطبع_سطر
+# @expect_error: SEM039
+# @expect_compile_error: SEM039
+
+صنف ش
+  دالة م()
+    متغير ساكن ن = 1
+    ارجع ن
+  نهاية
+نهاية
+متغير ك = ش()
+اطبع_سطر(ك.م())

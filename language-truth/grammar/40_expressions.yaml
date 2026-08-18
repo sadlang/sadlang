@@ -267,7 +267,36 @@ productions:
     maps_to:
       - { file: shared/parser/src/core/parser_expressions.cpp, function: "ParserCore::parseComparison" }
     ast_node: "BinaryExpr"
-    description_ar: "مقارنات ترتيبيّة + عامل العضويّة «في» في نفس المستوى"
+    description_ar: >
+      مقارنات ترتيبيّة + عامل العضويّة «في» في نفس المستوى.
+
+      **إشارةُ الترتيبِ ودلالةُ «طبيعي64» (قرارُ مالكٍ 2026-08-16):**
+
+      المقارنةُ الترتيبيّةُ (`<` `<=` `>` `>=`) **لا-موقَّعةٌ حين يكون النوعُ
+      الساكنُ لـ«أيٍّ» من المعامِلَين `طبيعي64`** — هيمنةٌ لا اشتراط. وهذا
+      يُطابِق الحسابَ (`+` `−` `×`) الذي يهيمن فيه `طبيعي64` بمعامِلٍ واحد
+      سلفًا. والمساواةُ (`==` `!=`) مساواةُ بتّاتٍ فلا تتأثّر بالإشارة.
+
+      وكان الشرطُ قبلَ القرارِ اشتراطَ **كليهما**، فانفرجت اللغةُ على نفسِها:
+
+          طبيعي64 ط = 18446744073709551615
+          طبيعي64 ن = 1
+          ط > ن   ⇒  صحيح        (طبيعيّان: لا-موقَّعة)
+          ط > 1   ⇒  خطأ    🔴   (طبيعيٌّ × حرفيّ: موقَّعة)
+
+      والمحرّكان كانا **متّفقَين** على ذلك، فمرَّ من بوّابةِ التكافؤِ ودُوِّن
+      في تقريرِ المصفوفةِ «مقارنةٌ غيرُ موجَّهة ✅». 🔑 والتطابقُ بين المحرّكَين
+      ينفي الانفراجَ وحدَه ولا يُثبِت الصواب.
+
+      ⚠️ **ولازمُ هذا الاختيارِ يُقال ولا يُخبَّأ:** `ط > -1` تصير «خطأ» لأنّ
+      `-1` تُقرَأ لا-موقَّعةً فتكون أكبرَ ما يكون. وهي دلالةُ C نفسُها، لازمةٌ
+      للهيمنةِ لا مفاجأةٌ فيها.
+
+      **مواضعُ التنفيذِ خمسة**: `isUnsignedOrderingCmp` في
+      `arithmetic_codegen.h` (يناديه أربعةُ مُصدِرين: `<` و`<=` في
+      `arith_cmp.cpp`، و`>` و`>=` في `arith_extras.cpp`) والمفسّرُ في
+      `expression_evaluator_binary_ops.cpp`. وجُمِعت الأربعةُ في مُحدِّدٍ
+      واحدٍ عمدًا: قاعدةٌ تُنسَخ أربعَ مرّاتٍ تفترق في المرّةِ التي تُنسى.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 6, edge: 4, negative: 2, interaction: 2 } }
@@ -405,7 +434,7 @@ productions:
     ebnf: >
       Postfix = Primary { PostfixOp } ;
       PostfixOp = Identifier '!' '(' ArgList ')' | '(' ArgList ')' [ 'جديد' ]
-                | '.' Member [ '(' ArgList ')' ] | '؟.' Member
+                | '.' Member [ '(' ArgList ')' ] | '؟.' Member [ '(' ArgList ')' ]
                 | '[' IndexOrSlice ']' | ( '++' | '--' ) | '؟' '[' Expression ']' ;
     alternatives:
       - symbols:
@@ -417,7 +446,7 @@ productions:
                   - { kind: group, children: [ { kind: terminal, ref: OP_NOT, value: "!" }, { kind: terminal, ref: PAREN_LEFT, value: "(" }, { kind: nonterminal, ref: gr.decl.arg_list }, { kind: terminal, ref: PAREN_RIGHT, value: ")" } ] }
                   - { kind: group, children: [ { kind: terminal, ref: PAREN_LEFT, value: "(" }, { kind: nonterminal, ref: gr.decl.arg_list }, { kind: terminal, ref: PAREN_RIGHT, value: ")" }, { kind: optional, children: [ { kind: terminal, ref: KEYWORD_NEW, value: "جديد" } ] } ] }
                   - { kind: group, children: [ { kind: terminal, ref: DOT, value: "." }, { kind: terminal, ref: IDENTIFIER }, { kind: optional, children: [ { kind: terminal, ref: PAREN_LEFT, value: "(" }, { kind: nonterminal, ref: gr.decl.arg_list }, { kind: terminal, ref: PAREN_RIGHT, value: ")" } ] } ] }
-                  - { kind: group, children: [ { kind: terminal, ref: QUESTION_DOT, value: "؟." }, { kind: terminal, ref: IDENTIFIER } ] }
+                  - { kind: group, children: [ { kind: terminal, ref: QUESTION_DOT, value: "؟." }, { kind: terminal, ref: IDENTIFIER }, { kind: optional, children: [ { kind: terminal, ref: PAREN_LEFT, value: "(" }, { kind: nonterminal, ref: gr.decl.arg_list }, { kind: terminal, ref: PAREN_RIGHT, value: ")" } ] } ] }
                   - { kind: group, children: [ { kind: terminal, ref: BRACKET_LEFT, value: "[" }, { kind: nonterminal, ref: gr.expr.expression }, { kind: terminal, ref: BRACKET_RIGHT, value: "]" } ] }
                   - { kind: alt, children: [ { kind: terminal, ref: OP_INCREMENT, value: "++" }, { kind: terminal, ref: OP_DECREMENT, value: "--" } ] }
     references: { operators: ["op.call", "op.dot", "op.subscript", "op.optional_chain", "op.increment", "op.decrement"], keywords: ["KW-RES-008"] }

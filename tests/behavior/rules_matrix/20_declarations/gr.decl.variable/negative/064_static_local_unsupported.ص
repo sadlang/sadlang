@@ -1,0 +1,12 @@
+# @rule: gr.decl.variable
+# @description: «ساكن» داخل دالّة يُسمّى حدُّه صراحةً بـSEM039 لا بتشخيص عن مصفوفات .bss
+# @priority: P0
+# @requires: اطبع_سطر
+# @expect_error: SEM039
+# @expect_compile_error: SEM039
+
+دالة د()
+  متغير ساكن ن = 0
+  اطبع_سطر(ن)
+نهاية
+د()

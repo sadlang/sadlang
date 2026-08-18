@@ -1,0 +1,13 @@
+# @rule: gr.decl.variable
+# @description: «ساكن» داخلَ دالّةٍ قالبيّة — القالبُ لا يُفلِت من عدّادِ الكتل
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error: SEM039
+# @expect_compile_error: SEM039
+
+قالب <نوع ت>
+دالة هوية(ت س)
+  متغير ساكن ن = 1
+  ارجع س
+نهاية
+اطبع_سطر(هوية(7))

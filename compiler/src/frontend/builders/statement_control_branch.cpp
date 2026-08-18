@@ -201,6 +201,22 @@ namespace Sad
                 //      lost through the alloca/store/load of the defer path, keeping it
                 //      available for array-return tracking.
                 SadTypeKind prebuiltRetElementType = SadTypeKind::Void;
+                // (AR) 🔑 واسمُ صنفِ القيمةِ المُرجَعةِ يعبُرُ الـalloca/store/load كأخيهِ فوقه
+                //      (ISSUE-140 الشطرُ غيرُ المُصرَّح). فالمسارُ أدناهُ يُعيدُ بناءَ
+                //      `valueResult` يدويًّا من حقولٍ محفوظةٍ معدودة، فما لم يُحفَظ
+                //      يُمحى صامتًا — وكان `دالة حر() ارجع شخص()` يفقدُ «شخص»
+                //      فيُقرأُ حقلُهُ النصّيُّ عددًا فيُطبَعُ المؤشِّرُ خامًا بـrc=0.
+                //      ⚠️ والمسارُ يُسلَكُ وإن لم يكتبِ المستعمِلُ `أجّل` — مقيسٌ
+                //      (`currentDeferStackReg_` غيرُ فارغٍ في دالّةٍ عاديّة): فلا يُظَنُّ
+                //      أنّهُ حافّةٌ يندرُ بلوغُها.
+                // (EN) The returned value's class name must survive the alloca/store/load
+                //      like its sibling above (ISSUE-140, undeclared half). The path below
+                //      rebuilds `valueResult` by hand from a fixed set of saved fields, so
+                //      anything not saved is silently erased — `fn f() return Person()` lost
+                //      «Person» and its string field was then read as an integer, printing a
+                //      raw pointer at rc=0. NOTE: this path is taken even with no user
+                //      `defer` — measured; it is not a rare edge.
+                std::string prebuiltRetClassName;
                 bool hasPrebuiltRet = false;
                 // (AR) ISSUE-056: علامة أنّ تعبير الإرجاع نداءٌ يُرجع فراغاً وبُني مسبقاً
                 //      لأثره الجانبيّ فقط — يمنع المسار العاديّ من إعادة بنائه (تباعد مزدوج).
@@ -237,6 +253,7 @@ namespace Sad
                         prebuiltRetReg = tempAllocaReg;
                         prebuiltRetType = storeType;
                         prebuiltRetElementType = preResult.elementType;
+                        prebuiltRetClassName = preResult.className;
                         hasPrebuiltRet = true;
                     }
                     else if (preResult.registerName.empty() && !preResult.isConstant)
@@ -485,6 +502,7 @@ namespace Sad
                         valueResult.registerName = loadedRetReg;
                         valueResult.type = prebuiltRetType;
                         valueResult.elementType = prebuiltRetElementType;
+                        valueResult.className = prebuiltRetClassName;
                         valueResult.isDirectValue = true;
                     }
                     else

@@ -33,7 +33,24 @@ public:
     //      register rather than a declared variable. Some emitters normalized and
     //      some did not, so codegen hit the LLVM "Calling a function with a bad
     //      signature!" assertion. Mirrors normalizeArrayPtr for arrays.
-    llvm::Value *normalizeStringPtr(llvm::Value *str, const char *label);
+    // (AR) 🔑 `methodName` إلزاميٌّ لا اختياريّ: كلُّ مستدعٍ لهذه الدالّةِ منفذُ
+    //      **عمليّة**، والمفسّرُ يرفع فيه RUN033 باسمِ الطريقة. ولمّا كانت الدالّةُ
+    //      تُبدِل العدمَ بلفظِ «لاشيء» صمتًا أجاب «س.يحتوي("لا")» بـ«صحيح» (مقيس).
+    //      فالإلزامُ في التوقيعِ يمنع منفذًا جديدًا من أن ينسى الاسمَ صامتًا.
+    // (EN) `methodName` is required, not optional: every caller is an OPERATION port
+    //      where the interpreter raises RUN033 naming the method.
+    llvm::Value *normalizeStringPtr(llvm::Value *str, const char *label,
+                                    std::string_view methodName);
+
+    // (AR) 🔑 والوسيطُ **ليس** كالمستقبِل، وهذا مقيسٌ لا مُستنتَج:
+    //        • «ب.يحتوي("لا")» وب عدميّةٌ ⇒ المفسّرُ يرفع RUN033.
+    //        • «"أهلا".يحتوي(ب)» ⇒ المفسّرُ **لا يرفع**: يُبدِل الوسيطَ بلفظِ
+    //          «لاشيء» ثمّ يعمل — «"أهلا".استبدل("أ"، ب)» ⇒ «لاشيءهلا».
+    //      فتوحيدُ البابَين على المعاملاتِ كلِّها يصنع تباعدًا جديدًا في الاتّجاهِ
+    //      المعاكس: رفعٌ حيث يُجيب المفسّر. ولذلك بابان لا باب.
+    // (EN) Measured: the RECEIVER raises RUN033, a non-receiver ARGUMENT does not —
+    //      the interpreter substitutes the null word and proceeds.
+    llvm::Value *normalizeStringArgPtr(llvm::Value *str, const char *label);
 
     // (AR) العمليات الأساسية
     llvm::Value *emitStringConcat(std::shared_ptr<SIRInstruction>);

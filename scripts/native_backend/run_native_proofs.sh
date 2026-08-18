@@ -194,6 +194,7 @@ run_proof prove_boxing.sh             "$WORK"
 run_proof prove_boxing_str.sh         "$WORK"
 run_proof prove_array_append.sh       "$WORK"
 run_proof prove_array_bounds.sh       "$WORK"
+run_proof prove_class_method.sh       "$WORK"
 run_proof prove_virtual_dispatch.sh   "$WORK/sad_sir_virtual42" "$WORK/sad_sir_virtual_livetemp42"
 if [ -n "$QEMU" ]; then
   # (AR) نظيرُ الإرسالِ الافتراضيّ على AArch64 (blr عبر vtable) تحت qemu.
@@ -244,6 +245,19 @@ else
   echo "❌ prove_map_and_strings.sh — لا مُصرِّف (--مصرف) ⇒ لا برهانَ لإسنادِ النصّ ولا للخريطة"
   DECLARED="$DECLARED prove_map_and_strings.sh"
   FAILED="$FAILED prove_map_and_strings.sh"
+fi
+
+# (AR) م٦ — RISC-V RV64: برهانُ قاعدةِ تصريحِ المتغيّر حيًّا تحت qemu-riscv64.
+#      يلزمه مُصرِّفٌ (يُنتِج الثنائيَّ من مصدرِ ص بـ`--خلفية-أصلية --هدف=riscv64-…`)،
+#      فبلا مُصرِّفٍ يُعلَن غيرَ مقيسٍ ولا يُبتلَع صامتًا.
+if [ -n "$SADBUILD" ]; then
+  run_proof prove_riscv64_decl_parity.sh "$SADBUILD" "$WORK/rv64decl"
+elif [ "$NO_COMPILER" = "1" ]; then
+  declare_only prove_riscv64_decl_parity.sh "لا مُصرِّفَ في هذه التشغيلة (--بلا-مصرف) ⇒ تخفيضُ RV64 غيرُ مقيس"
+else
+  echo "❌ prove_riscv64_decl_parity.sh — لا مُصرِّف (--مصرف) ⇒ لا برهانَ لتخفيضِ RV64"
+  DECLARED="$DECLARED prove_riscv64_decl_parity.sh"
+  FAILED="$FAILED prove_riscv64_decl_parity.sh"
 fi
 
 # ── ③ حارسُ التغطية ──────────────────────────────────────────────────────────

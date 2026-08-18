@@ -1,0 +1,9 @@
+# @rule: gr.decl.variable
+# @description: «متغير ساكن = 5» تصريحٌ بلا اسم — تشخيصٌ عن الاسم لا عن حجم مصفوفة
+# @priority: P2
+# @requires: اطبع_سطر
+# @expect_error: SYN010
+# @expect_compile_error: SYN010
+
+متغير ساكن = 5
+اطبع_سطر("لن يصل")

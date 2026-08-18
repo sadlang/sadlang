@@ -20,12 +20,14 @@ description_ar: "كتالوج أوپكودات SIR — الاسم، المنمن
 description_en: "SIR opcode catalog — name, mnemonic, and native lowering"
 
 stats:
-  total: 778
-  with_mnemonic: 344
-  natively_lowered: 103
-  native_lowered_arm64: 103
-  native_lowered_x86_64: 103
+  total: 779
+  with_mnemonic: 345
+  natively_lowered: 104
+  native_lowered_arm64: 104
+  native_lowered_riscv64: 7
+  native_lowered_x86_64: 104
   isel_declared_arm64: 3
+  isel_declared_riscv64: 0
   isel_declared_x86_64: 3
   isel_names_not_in_enum: 1
   isel_drift: [CONST_I64]
@@ -84,7 +86,7 @@ opcodes:
   - name: NEG
     mnemonic: "neg"
     section: "العمليات الحسابية / Arithmetic (10)"
-    native_lowered: [arm64, x86_64]
+    native_lowered: [arm64, riscv64, x86_64]
     isel_declared: []
   - name: NULL_ASSERT
     mnemonic: "null.assert"
@@ -174,12 +176,12 @@ opcodes:
   - name: RET
     mnemonic: "ret"
     section: "التحكم في التدفق / Control Flow (8)"
-    native_lowered: [arm64, x86_64]
+    native_lowered: [arm64, riscv64, x86_64]
     isel_declared: [arm64, x86_64]
   - name: RET_VOID
     mnemonic: "ret.void"
     section: "التحكم في التدفق / Control Flow (8)"
-    native_lowered: [arm64, x86_64]
+    native_lowered: [arm64, riscv64, x86_64]
     isel_declared: []
   - name: CALL
     mnemonic: "call"
@@ -204,7 +206,7 @@ opcodes:
   - name: ALLOC
     mnemonic: "alloc"
     section: "الذاكرة والمؤشرات / Memory (11)"
-    native_lowered: [arm64, x86_64]
+    native_lowered: [arm64, riscv64, x86_64]
     isel_declared: []
   - name: ALLOC_HEAP
     mnemonic: "alloc.heap"
@@ -224,12 +226,12 @@ opcodes:
   - name: STORE
     mnemonic: "store"
     section: "الذاكرة والمؤشرات / Memory (11)"
-    native_lowered: [arm64, x86_64]
+    native_lowered: [arm64, riscv64, x86_64]
     isel_declared: []
   - name: MOVE
     mnemonic: "move"
     section: "الذاكرة والمؤشرات / Memory (11)"
-    native_lowered: [arm64, x86_64]
+    native_lowered: [arm64, riscv64, x86_64]
     isel_declared: []
   - name: ADDR
     mnemonic: "addr"
@@ -381,6 +383,11 @@ opcodes:
     section: "البرمجة الكائنية / OOP (10)"
     native_lowered: [arm64, x86_64]
     isel_declared: []
+  - name: OBJECT_NULL_CHECK
+    mnemonic: "obj.nullchk"
+    section: "البرمجة الكائنية / OOP (10)"
+    native_lowered: [arm64, x86_64]
+    isel_declared: []
   - name: INSTANCEOF
     mnemonic: "instanceof"
     section: "البرمجة الكائنية / OOP (10)"
@@ -494,7 +501,7 @@ opcodes:
   - name: BUILTIN_PRINT
     mnemonic: "builtin.print"
     section: "الدوال المضمنة / Builtin (50+)"
-    native_lowered: [arm64, x86_64]
+    native_lowered: [arm64, riscv64, x86_64]
     isel_declared: []
   - name: BUILTIN_READ
     mnemonic: "builtin.read"

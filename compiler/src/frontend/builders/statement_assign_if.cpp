@@ -14,9 +14,12 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "error_manager.h" // (AR) رسائل الكتالوج الثنائيّة (ISSUE-120) / (EN) catalog bilingual messages
 #include <stdexcept>
 #include <iostream>
+#include <optional>
 #include <filesystem>
+#include "sir_constants.h" // (AR) kSadNullSentinel — حارسُ العدمِ لا صفرُ المؤشّر
 
 namespace Sad
 {
@@ -46,9 +49,19 @@ namespace Sad
                 // (EN) Check if mutable
                 if (!varInfo->isMutable)
                 {
-                    // (AR) متغير ثابت لا يمكن تعديله
-                    // (EN) Constant variable cannot be modified
-                    b_.errors_.push_back("Cannot assign to const variable: " + assignment->name);
+                    // (AR) ISSUE-120 — عبر الكتالوج لا بنصٍّ خامّ: الرسالةُ كانت مكتوبةً
+                    //      يدويًّا بالإنجليزيّة وحدَها، فلا رمزَ لها ولا مقابلَ عربيّ. وأثرُ
+                    //      ذلك مقيس: اختبارٌ سالبٌ يطلب SEM007 في المترجم يُخفق رغم أنّ
+                    //      المترجم **يرفض** الإسناد فعلًا — فالحارسُ لا يرى ما لا يُرمَّز.
+                    //      المفسّر يبلّغ SEM007 لهذه الحالة نفسها، فالتوحيد يسدّ تباعدًا.
+                    // (EN) ISSUE-120 — route through the catalog: the hand-written English
+                    //      string carried no code, so a compiler-negative test asking for
+                    //      SEM007 failed even though the compiler does reject the write.
+                    Sad::Errors::RenderContext ectx;
+                    ectx.placeholders = {{"name", assignment->name}};
+                    b_.errors_.push_back(
+                        Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                            Sad::Errors::ErrorCode::SEM_CONST_ASSIGNMENT, ectx));
                     return;
                 }
 
@@ -527,12 +540,35 @@ namespace Sad
                 // (EN) [NS-06 wave 2] Optional `T?`: use inner type T for storage/load so a
                 //      present value keeps its real type (string not i64); null stays the i64
                 //      sentinel. Inner type now plumbed via sadType = Optional<T> from parser.
-                if (varDecl->type == Types::SadTypeKind::Optional && varDecl->sadType)
-                {
-                    if (auto *opt = dynamic_cast<const Sad::Types::SadOptionalType *>(varDecl->sadType.get()))
-                        if (opt->getInnerType())
-                            varType = b_.astTypeToSIRType(opt->getInnerType()->getKind());
-                }
+                varType = b_.resolveDeclaredStorageKind(varDecl->type, varDecl->sadType.get(), varType);
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 ISSUE-138: نائبٌ لا يُستبدَل يصير جوابًا نهائيًّا كاذبًا
+                // ════════════════════════════════════════════════════════════════
+                //
+                // (AR) `astTypeToSIRType` تُرجِع `Integer` عن `Unknown` بتعليقٍ يقول
+                //      إنّه **نائبٌ يستبدله استنتاجُ الأنواع لاحقًا**. والفرضُ صحيحٌ
+                //      حيثما وُجِد مُهيِّئٌ يُستنتَج منه — ويسقط حين لا يوجد: فلا شيءَ
+                //      يستبدل النائبَ، فيخرج «رقم» جوابًا نهائيًّا عن خانةٍ لا نوعَ
+                //      لها. ومقيسُه (٢٠٢٦-٠٨-١٧): `متغير ك` ثمّ `اطبع_سطر(ك)` يطبع
+                //      **`0`** والمرجعُ «لاشيء»، و`نوع(ك)` يقول **«رقم»** والمرجعُ
+                //      «فراغ» — بـrc=0 في الطرفَين، أي كذبٌ صامتٌ لا انهيار.
+                //
+                //      ⇒ الخانةُ بلا نوعٍ وبلا مُهيِّئٍ **ديناميّةٌ** (`%SadDyn`)،
+                //      تُهيَّأ فراغًا في جدولِ القيمِ الافتراضيّةِ أدناه.
+                //
+                //      وقِيس أنّ التبديلَ لا يُغيّر ما بعدَه: `أي ك` ثمّ `ك = 5` ثمّ
+                //      `ك + 1` تُعطي `6` في المحرّكَين كما تُعطيها `متغير ك`، عالميًّا
+                //      وداخلَ دالّة. فالتغييرُ يمسّ **الخانةَ قبل أوّلِ إسناد** وحدَها.
+                // (EN) ISSUE-138: astTypeToSIRType maps Unknown to Integer as a placeholder
+                //      "overwritten by inference later" — true only when an initializer
+                //      exists. With none, the placeholder IS the final answer, so a typeless
+                //      slot prints 0 and نوع() says «رقم» while the reference says «لاشيء»
+                //      / «فراغ», both at exit code 0. A typeless, initializer-less slot is
+                //      dynamic; it is defaulted to VOID below.
+                // ════════════════════════════════════════════════════════════════
+                varType = b_.resolveBareSlotStorageKind(
+                    varDecl->type, varDecl->initializer != nullptr, varType);
 
                 // (AR) إنشاء معلومات المتغير (sir_builder.h:139 - VariableInfo)
                 // (EN) Create variable info
@@ -848,6 +884,216 @@ namespace Sad
                     storeInst.operands.push_back(SIROperand::Register(varInfo.registerName, varType));
 
                     b_.currentBlock_->addInstruction(storeInst);
+                }
+                else if (b_.currentBlock_ && !reuseOuterSlot)
+                {
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 تصريحٌ بلا تهيئة: كانت الخانةُ تُحجَز ولا تُكتَب، فيقرأ
+                    //      المترجّمُ مكدّسًا غيرَ مهيّأ. مقيسٌ (٢٠٢٦-٠٨-١٤): «رقم س»
+                    //      داخل دالّةٍ يطبع ‎140733877452800‎ وقيمةً **تختلف في كلِّ
+                    //      تشغيل**، و«منطقي ج» يطبع «صحيح»، بينما المفسّرُ يطبع ‎0‎
+                    //      و«خطأ». ورمزُ خروجِ البناءِ صفرٌ في الحالتين، فلا شيءَ يشي.
+                    //
+                    // (AR) والقيمةُ الافتراضيّةُ تتبعُ **قابليّةَ النوعِ للعدم**، وهذا
+                    //      هو ما يجعلها متّسقةً مع أمان العدم لا مجرّدَ تصفيرٍ أعمى:
+                    //        • نوعٌ يقبلُ العدم («رقم عدمي» · «نص؟») ⇒ «لاشيء».
+                    //        • نوعٌ لا يقبله ⇒ قيمتُه الصفريّة (0 · 0.0 · خطأ · "").
+                    //      فحشوُ «لاشيء» في «رقم» غيرِ العدميِّ يخرق العقدَ الذي
+                    //      يقوم عليه أمانُ العدم: نوعٌ غيرُ اختياريٍّ لا يحمل عدمًا.
+                    //
+                    // (AR) والأنواعُ المركّبة (مصفوفة/خريطة/أي/كائن) تُترَك كما كانت:
+                    //      قيمتُها الافتراضيّةُ ليست ثابتًا بسيطًا، وتصفيرُها هنا
+                    //      ادّعاءٌ لا قياسَ له. حدٌّ مُعلَنٌ لا مسكوتٌ عنه.
+                    // (EN) 🔑 Declaration with no initializer: the slot was allocated and never
+                    //      written, so the compiler read uninitialized stack — measured as a
+                    //      value that CHANGES on every run, with build exit code 0. The default
+                    //      now follows the type's NULLABILITY: a nullable type defaults to null,
+                    //      a non-nullable one to its zero value. Filling a non-nullable «رقم»
+                    //      with null would break the very contract null-safety rests on.
+                    //      Aggregates (array/map/any/object) are deliberately left alone.
+                    // ════════════════════════════════════════════════════════════
+                    const bool declaredNullable =
+                        varDecl->sadType && varDecl->sadType->isNullable();
+
+                    std::optional<SIROperand> defaultValue;
+                    if (declaredNullable)
+                    {
+                        // ════════════════════════════════════════════════════════
+                        // (AR) ⚠️ «عشري عدمي» بلا تمثيلٍ للعدم — عيبٌ مُعلَنٌ لا مسدود
+                        // ════════════════════════════════════════════════════════
+                        //
+                        // (AR) الحارسُ `kSadNullSentinel` عددٌ صحيحٌ بعرضِ ٦٤ بتًّا،
+                        //      ولا نظيرَ له للعائم. فـ«عشري عدمي ع» يُخزَّن حارسًا
+                        //      يُعاد تفسيرُ بتّاتِه عائمةً، فيطبع المترجّمُ
+                        //      `-9223372036854775808.0` بينما يطبع المفسّرُ «لاشيء».
+                        //
+                        //      🔑 وجرّبتُ تخطّيَ التخزينِ للعائمِ فصار المخرَجُ `0.0`
+                        //      حتميًّا — **فتراجعتُ عنه**: «0.0» قيمةٌ **معقولةٌ**
+                        //      كاذبةٌ في نوعٍ عدميّ، و«-9.2e18» كاذبةٌ **مستنكَرة**.
+                        //      وحين لا يتاح الصوابُ فالخطأُ المستنكَرُ أسلمُ من
+                        //      الخطأِ المعقول: هذا يُلاحَظ فيُبلَّغ، وذاك يُصدَّق
+                        //      فيُبنى عليه. ولا أُبدِل كذبةً صاخبةً بكذبةٍ هادئةٍ
+                        //      وأسمّي ذلك إصلاحًا.
+                        //
+                        //      والسدُّ الحقيقيُّ يقتضي تمثيلًا للعدمِ في خانةٍ عائمة
+                        //      (تعليبٌ أو حمولةُ NaN) — قرارُ تصميمٍ لا رقعةُ سطر.
+                        //      تحرسه البذرةُ `VE043` حمراءَ مُعلَنةً حتّى يُقرَّر.
+                        //
+                        // (AR) 🔑 والحارسُ يُكتَب **حيث يُفهَم فقط**. قِيس (2026-08-15)
+                        //      أنّ كتابتَه في كلِّ نوعٍ عدميٍّ تسرّبه خامًا في أربعة:
+                        //        رقم عدمي     ⇒ «لاشيء»  ✅ (مسارُ الطباعةِ يفحصه)
+                        //        نص عدمية     ⇒ «لاشيء»  ✅ (مسارُ النصِّ يفحصه)
+                        //        بايت/طبيعي64 ⇒ -9223372036854775807  🔴 مستثنيان من
+                        //                       فحصِ الحارسِ عمدًا (تصادمُ قيمةٍ شرعيّة)
+                        //        منطقي عدمي   ⇒ «صحيح»   🔴 يُبتَر إلى بتٍّ واحد
+                        //        عشري عدمي    ⇒ -9.2e18  🔴 يُعاد تفسيرُه عائمًا
+                        //      و«صحيح» أخبثُها: قيمةٌ **معقولةٌ حتميّة** — وهي عينُ
+                        //      الكذبةِ الهادئةِ التي أعلنتُ رفضَها في الفقرةِ أعلاه
+                        //      ثمّ أَحدثتُها في هذه الكتلةِ نفسِها لنوعٍ آخر.
+                        //      فيُقصَر التخزينُ على النوعَين اللذَين يفهمهما الطابعُ،
+                        //      ويبقى الباقي على ما كان **قبل** هذه الرقعةِ: بلا كتابة.
+                        //      ⚠️ 🔑 **وتصويبُ ادّعاءٍ كتبتُه هنا ثمّ نقضه القياس:**
+                        //      كتبتُ أنّ ما يبقى بلا كتابةٍ «عطبٌ صاخبٌ يفضح نفسَه
+                        //      (قيمةٌ تختلف كلَّ تشغيل)». وقياسُ الثمانِ خاناتٍ
+                        //      (أربعةُ أنواعٍ × نطاقَين، خمسُ تشغيلاتٍ لكلٍّ) يقول غيرَ
+                        //      ذلك: **ستٌّ من ثمانٍ حتميّة**. داخلَ دالّةٍ يتغيّر
+                        //      «بايت» و«طبيعي64» وحدَهما، أمّا «منطقي» فيعطي «صحيح»
+                        //      حتميًّا و«عشري» يعطي `0.0` حتميًّا — و`0.0` هي بعينِها
+                        //      القيمةُ التي أعلنتُ أعلاه أنّي تراجعتُ عن كتابتِها لأنّها
+                        //      «كذبةٌ معقولة». وعلى مستوى الوحدةِ **الثمانِ كلُّها
+                        //      حتميّة** (خطأ · 0.0 · 0 · 0).
+                        //      فالتقييدُ **صحيحٌ في وجهِه الآخر** — يمنع كتابةَ حارسٍ
+                        //      يُفَكُّ خطأً — ولا يصحّ تعليلُه بأنّه اختار الصخبَ:
+                        //      لم يكن ثمّةَ صخبٌ ليُختار. والحدُّ الحقيقيُّ أنّ هذه
+                        //      الأنواعَ **بلا تمثيلٍ للعدمِ أصلًا**، وأيُّ قيمةٍ تبقى
+                        //      في خانتِها كذبةٌ — صاخبةً كانت أو هادئة.
+                        //      ودرسُه: **تعليلٌ يُكتَب قبل القياسِ يصير ادّعاءً**،
+                        //      ولو كان القرارُ الذي يعلّله صحيحًا.
+                        // (EN) CORRECTION, measured: the claim that the un-stored slots
+                        //      are "loud (a value that changes every run)" is false —
+                        //      6 of 8 measured slots are deterministic; at module scope
+                        //      all 8 are. Boolean yields «صحيح» and Float yields 0.0 —
+                        //      the very value rejected above as a plausible lie. The
+                        //      restriction is still right, but not for that reason:
+                        //      these types have NO null representation at all.
+                        // (EN) The sentinel is written ONLY where the print path
+                        //      understands it (Integer, String). Byte/UInt64 are
+                        //      deliberately excluded from the null check (legal-value
+                        //      collision), Boolean truncates it to «true», and Float
+                        //      reinterprets it. Those revert to the pre-patch state:
+                        //      no store — loud, nondeterministic, and honest.
+                        // ════════════════════════════════════════════════════════
+                        // ════════════════════════════════════════════════════════
+                        // (AR) ✅ م‑ب/م‑ج/م‑د: القيدُ أعلاه **بطَل** للأنواعِ المهاجَرة
+                        // ════════════════════════════════════════════════════════
+                        //
+                        // (AR) كلُّ ما قيل أعلاه («لا تمثيلَ للعدمِ في هذه الأنواع»،
+                        //      «أيُّ قيمةٍ تبقى في خانتِها كذبة») كان **صحيحًا حين
+                        //      كُتِب**، وقد زال سببُه: النوعُ العدميُّ الذي يُرجِع له
+                        //      `sirNullableNeedsOutOfBandTag` صوابًا صار يُخزَّن `Any`
+                        //      أي `%SadDyn` = {وسمٌ i8، حمولةٌ i64} — ووسمُ `Null` فيه
+                        //      **لا تنازعُه قيمةٌ مشروعة**. فلا كذبةَ صاخبةً ولا هادئة:
+                        //      الخانةُ تحمل عدمًا يُقرَأ عدمًا.
+                        //
+                        // (AR) 🔑 والتقريرُ أعلاه **يُترَك ولا يُمحى**: هو سجلُّ لماذا
+                        //      كان التقييدُ صوابًا، وفيه تصويبُ ادّعاءٍ نقضه القياس.
+                        //      محوُه يجعل السطرَ الجديدَ يبدو بديهيًّا وقد كلّف قياسَ
+                        //      ثمانِ خاناتٍ في خمسِ تشغيلات.
+                        //
+                        // (AR) ⚠️ ويبقى `Integer`/`String` على الحارسِ داخلَ النطاقِ
+                        //      حتّى **م‑هـ**: فحصُهما مفهومٌ في مسارِ الطباعةِ اليوم،
+                        //      وهجرتُهما مرحلةٌ قائمةٌ بذاتها لها بوّابتُها.
+                        // (EN) م‑ب/م‑ج/م‑د: the restriction above is obsolete for migrated
+                        //      kinds. A nullable kind for which sirNullableNeedsOutOfBandTag
+                        //      is true is now stored as `Any` (%SadDyn), whose `Null` tag no
+                        //      legitimate value can contend for — so there is no lie left to
+                        //      choose between, loud or quiet. The rationale above is KEPT, not
+                        //      deleted: it records why the restriction was right and carries a
+                        //      measured correction of a claim written before measuring.
+                        //      Integer/String stay on the in-band sentinel until م‑هـ.
+                        // ════════════════════════════════════════════════════════
+                        if (varType == SadTypeKind::Any)
+                        {
+                            // (AR) الوسمُ `Null` هو ما تُعلّبه `toDyn` وتقرؤه
+                            //      `dynToString`/`dynCompare` — نظيرُ `makeOmittedArgPad`.
+                            // (EN) The `Null` tag is what toDyn packs and dynToString /
+                            //      dynCompare read — mirroring makeOmittedArgPad.
+                            SIROperand dynNullDefault =
+                                SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel);
+                            dynNullDefault.dataType = SadTypeKind::Null;
+                            defaultValue = dynNullDefault;
+                        }
+                        else if (varType == SadTypeKind::Integer || varType == SadTypeKind::String)
+                        {
+                            defaultValue = SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel);
+                        }
+                    }
+                    else
+                    {
+                        switch (varType)
+                        {
+                        case SadTypeKind::Integer:
+                        case SadTypeKind::Byte:
+                        // (AR) 🔑 «طبيعي64» كان غائبًا عن هذا الجدولِ وحدَه بينما
+                        //      أُضيف إلى نظائرِه الثلاثةِ في المفسّرِ ومصدرِ الحقيقة.
+                        //      قِيس أثرُ غيابِه (٤ تشغيلاتٍ للثنائيِّ نفسِه):
+                        //      47139388169 · 355351788617 · 129422588889 · 18615432889
+                        //      — أي أنّ العطبَ الذي يعلن التعليقُ أعلاه أنّه أُغلق
+                        //      **بقي حيًّا لنوعٍ واحد**. ودرسُه: جدولٌ يُعدَّل يدويًّا
+                        //      في أربعةِ مواضعَ ينجرف في الموضعِ الذي يُنسى.
+                        // (EN) UInt64 was missing HERE only, while its three siblings
+                        //      got it — so the "fixed" uninitialized-stack read stayed
+                        //      alive for exactly one type, measured changing every run.
+                        case SadTypeKind::UInt64:
+                            defaultValue = SIROperand::ConstantI64(0);
+                            break;
+                        case SadTypeKind::Float:
+                            defaultValue = SIROperand::ConstantF64(0.0);
+                            break;
+                        case SadTypeKind::Boolean:
+                            defaultValue = SIROperand::ConstantBool(false);
+                            break;
+                        case SadTypeKind::String:
+                            defaultValue = SIROperand::ConstantString(std::string());
+                            break;
+                        // ════════════════════════════════════════════════════
+                        // (AR) 🔑 خانةُ «أي» المجرَّدة: **فراغٌ** لا صفرٌ ولا عدم
+                        // ════════════════════════════════════════════════════
+                        //
+                        // (AR) كانت تسقط في `default: break` فلا يُصدَر تخزينٌ
+                        //      البتّةَ، فتُقرأ الخانةُ على ما تركه المكدّس. والمقيسُ
+                        //      (٢٠٢٦-٠٨-١٧) أنّ `نوع()` عليها كان يُجيب **ثلاثةَ
+                        //      أجوبةٍ مختلفة** بحسبِ الموضعِ لا بحسبِ المعنى:
+                        //        `متغير ك` في المستوى الأعلى ⇒ «رقم»
+                        //        `أي م`   في المستوى الأعلى ⇒ «عدم»
+                        //        `أي م`   داخلَ دالّةٍ       ⇒ «مجهول»
+                        //      والمرجعُ يقول «فراغ» في الثلاثة.
+                        //
+                        //      ⚠️ ولا يجوز أن يُملأ بالحارسِ `kSadNullSentinel`:
+                        //      ذلك يجعلها «عدمًا» فيضيع الفرقُ بين «لم تُسنَد بعدُ»
+                        //      و«أُسنِد إليها العدمُ عمدًا» — وهو فرقٌ يحمله المرجعُ
+                        //      في نصِّه ويقوم عليه تشخيصُ الاستعمالِ قبل الإسناد.
+                        // (EN) A bare `أي` slot is VOID — not zero, not null. It used to
+                        //      fall through with no store at all, so نوع() answered three
+                        //      different things depending on position, none of them «فراغ».
+                        case SadTypeKind::Any:
+                            defaultValue = SIROperand::ConstantVoid();
+                            break;
+                        default:
+                            break;
+                        }
+                    }
+
+                    if (defaultValue.has_value())
+                    {
+                        SIRInstruction zeroInit;
+                        zeroInit.opcode = SIROpcode::STORE;
+                        zeroInit.operands.push_back(*defaultValue);
+                        zeroInit.operands.push_back(
+                            SIROperand::Register(varInfo.registerName, varType));
+                        zeroInit.comment = "default init (no initializer)";
+                        b_.currentBlock_->addInstruction(zeroInit);
+                    }
                 }
 
                 // (AR) إضافة المتغير للنطاق (sir_builder.h:591 - b_.addVariable)

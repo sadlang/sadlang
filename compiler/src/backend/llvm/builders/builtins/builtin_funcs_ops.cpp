@@ -349,6 +349,47 @@ namespace Sad
                         // (EN) Fallback when cg_.resolveOperand fails — prevents PHI predecessor mismatch error
                         val = llvm::Constant::getNullValue(phiType);
                     }
+
+                    // (AR) 🔑 م‑أ: آخِرُ حاجزٍ قبل addIncoming. سلسلةُ التوفيقِ أعلاه تُغطّي
+                    //      مؤشّر↔صحيح و%SadDyn↔محسوس، ولا تُغطّي **صحيح↔عشريّ**: خانةُ
+                    //      «عشري عدمي» تحمل حارسَ العدمِ i64 بينما نوعُ الـPHI double، فكان
+                    //      addIncoming يُجهِض المترجمَ بتأكيدِ LLVM «All operands to PHI node
+                    //      must be the same type» — إجهاضًا لا تشخيصًا، ورمزُ خروجِه يتذبذب
+                    //      بين ٣ و١٢٤ على ويندوز فلا يُفرَّق التعليقُ من الإجهاضِ المبتلَع.
+                    //      ولا يجوز سبكُ الحارسِ إلى double هنا: ذلك يُبدِل الانهيارَ **كذبًا
+                    //      صامتًا** (‎-0.0‎ بدل «لاشيء»). فالصوابُ الإبلاغُ برمزٍ ثابتٍ قاطع.
+                    //      ⚠️ INT_SIR_TYPE_CONSTRAINT مُدرَجٌ في بوّابةِ الإجهاضِ القاطعةِ في
+                    //      ‎compiler_driver_backend.cpp‎ ⇒ لا ثنائيَّ يُكتَب ولا خروجَ ‎0‎؛ وحشوةُ
+                    //      الوارد أدناه لصونِ سلامةِ IR لمدقّقِ LLVM فحسب، لا لإنتاجِ برنامج.
+                    //      وتحرسها البذرةُ VE055 — فإن أُخرِج الرمزُ من تلك البوّابةِ يومًا
+                    //      انقلبت الحشوةُ برنامجًا كاذبًا، والبذرةُ هي ما يُخفِق حينها.
+                    // (EN) م‑أ: last barrier before addIncoming. The reconciliation chain above
+                    //      covers ptr↔int and %SadDyn↔concrete, but NOT int↔double: a
+                    //      «عشري عدمي» slot carries the i64 null sentinel while the PHI type is
+                    //      double, so addIncoming aborted the compiler on an LLVM assertion
+                    //      rather than diagnosing — and its exit code oscillates between 3 and
+                    //      124 on Windows, so a hang is indistinguishable from a swallowed abort.
+                    //      Casting the sentinel to double here is forbidden: that converts the
+                    //      crash into a SILENT LIE (-0.0 instead of «لاشيء»). Reporting a stable
+                    //      fatal code is the correct answer. INT_SIR_TYPE_CONSTRAINT is on the
+                    //      fatal gate in compiler_driver_backend.cpp ⇒ no binary, non-zero exit;
+                    //      the padded incoming below only keeps the IR well-formed for LLVM's
+                    //      verifier. Seed VE055 guards this.
+                    if (val->getType() != phiType)
+                    {
+                        std::string phiTypeText;
+                        std::string valTypeText;
+                        {
+                            llvm::raw_string_ostream phiTypeStream(phiTypeText);
+                            phiType->print(phiTypeStream);
+                            llvm::raw_string_ostream valTypeStream(valTypeText);
+                            val->getType()->print(valTypeStream);
+                        }
+                        cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_TYPE_CONSTRAINT,
+                                        {{"detail", "PHI " + phiTypeText + " != " + valTypeText}});
+                        val = llvm::Constant::getNullValue(phiType);
+                    }
+
                     phi->addIncoming(val, bb);
                 }
             }

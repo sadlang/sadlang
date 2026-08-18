@@ -764,6 +764,22 @@ namespace sad
                     return false;
                 return patchBranchFwd(skip, 23, 5);
             }
+            // (AR) حارسُ المُستقبِلِ العدميّ (مرآةُ `emitNullReceiverGuard` في x86): المُستقبِلُ في
+            //      x0. صفرٌ ⇒ exit(132)، وإلّا نتخطّى كتلةَ الهلعِ ويمضي النداءُ الذي يليه.
+            //      الرمزُ نفسُه على المعماريّتَين عمدًا: سببُ الإجهاضِ يُقرأ من الخروجِ وحدَه،
+            //      فلو افترق الرمزان لصار الهدفُ جزءًا من الجواب.
+            bool emitNullReceiverGuardArm64()
+            {
+                if (!cmp(a64reg::kX0, a64reg::kXzr)) // (AR) المُستقبِل مقابلَ صفر
+                    return false;
+                size_t skip;
+                if (!emitBranchFwd(a64::mnem::kBne, "rel19", skip)) // (AR) ≠0 ⇒ تخطّي كتلةِ الهلع
+                    return false;
+                if (!movz(a64reg::kX0, kNullReceiverPanicCode) || !movz(a64reg::kX8, kSysExitArm64) ||
+                    !emit(a64::mnem::kSvc, "", {})) // (AR) exit(132) — لا عودة
+                    return false;
+                return patchBranchFwd(skip, 23, 5);
+            }
             // (AR) [عقدُ Any] يُعلِّب قيمةً قياسيّة في خانتَي dyn ({tag، payload}) ويُعيد مؤشّرَها
             //      (sp + الفهرس×٨) في dst — مرآةُ تعليبِ ARRAY_GET(Any)/x86 boxScalarInto. الخانةُ
             //      محجوزةٌ سلفًا في assignFrameSlots (dynGetCount_). payloadReg يُخزَّن قبل addImm.
@@ -5084,6 +5100,24 @@ namespace sad
                         return movReg(dst, a64reg::kX0); // (AR) قيمةُ الإرجاع من x0
                     }
                     return true;
+                }
+                case OP::OBJECT_NULL_CHECK:
+                {
+                    // (AR) حارسُ المُستقبِلِ العدميّ (مرآةُ x86): operands=[المُستقبِل، سياقُ النداء(نصّ)]،
+                    //      ولا نتيجة. يُحمَّل المُستقبِلُ في x0 ثمّ يُقارَن بصفر: صفرٌ ⇒ exit(132).
+                    if (inst.operands.size() < 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    // (AR) مُستقبِلٌ لا خانةَ له في هذا الإطار: لا حارسَ ولا تشخيص — عقدُ خلفيّةِ
+                    //      LLVM نفسُه (الحارسُ إضافةٌ إلى مسارٍ قائمٍ لا شرطٌ لصحّتِه).
+                    const sir::SIROperand &recv = inst.operands[0];
+                    if (recv.type != sir::SIROperandType::REGISTER)
+                        return true; // (AR) ثابتٌ مُستقبِلًا: ليس عدمًا بالبناء
+                    int recvSlot;
+                    if (!isMemVar(recv, recvSlot) && regOf_.find(recv.name) == regOf_.end())
+                        return true;
+                    if (!loadArgInto(a64reg::kX0, recv))
+                        return false;
+                    return emitNullReceiverGuardArm64();
                 }
                 case OP::CLOSURE_CREATE:
                 {

@@ -622,12 +622,33 @@ StmtPtr ParserCore::parseExportDecl() {
         declaration = parseStructDecl();
     }
     else if (match(TT::KEYWORD_CONST)) {
-        // صدّر ثابت ... - Const keyword consumed, now parse variable
+        // (AR) ISSUE-125 — «صدّر ثابت س = 1» كان **يُسقِط الثباتَ صامتًا**: الرمزُ
+        //      يُستهلَك هنا ولا يبلغ حلقةَ المُعدِّلات، فيُبنى التصريحُ بـisConst=false
+        //      ويمرّ «س = 2» بلا SEM007 — عينُ ISSUE-030 ناجيًا في مسارٍ ثالث.
+        //      («صدّر متغير ثابت س» كانت تعمل، فالعطبُ في المسارِ لا في الدلالة.)
+        //      كشفته مراجعةُ أميليا الثالثة؛ مقيسٌ قبل الوصل وبعده.
+        // (EN) 'صدّر ثابت' dropped constness: the token never reached the modifier loop.
+        const bool savedConst = pendingConst_;
+        pendingConst_ = true;
         declaration = parseVarDecl();
+        pendingConst_ = savedConst;
     }
     else if (match(TT::KEYWORD_VAR)) {
         // صدّر متغير ... - Var keyword consumed, now parse variable
         declaration = parseVarDecl();
+    }
+    else if (match(TT::KEYWORD_STATIC)) {
+        // (AR) ISSUE-120 — «صدّر ساكن مشترك = 51»: «ساكن» تبدأ التصريحَ كـ«متغير»
+        //      و«ثابت»، فوجب أن يعرفها موزِّعُ التصدير كما عرفها موزِّعُ التصريح.
+        //      قِيس قبل الوصل: كانت تُبلَّغ SYN010 «توقعت اسم تصريح بعد 'صدّر'» —
+        //      تشخيصٌ يطلب اسمًا والمكتوبُ كلمةٌ مفتاحيّةٌ موصولةٌ في مسارٍ آخر.
+        //      حفظٌ واستعادةٌ لا ضبطٌ ومسح: التصريحُ قد يتداخل في مُهيِّئِه.
+        // (EN) ISSUE-120 — 'ساكن' starts a declaration; the export dispatcher
+        //      must know it too. Save/restore (not set/clear) for nesting.
+        const bool savedStatic = pendingStatic_;
+        pendingStatic_ = true;
+        declaration = parseVarDecl();
+        pendingStatic_ = savedStatic;
     }
     else if (isTypeToken(current_.getType())) {
         // صدّر رقم س = ... - Type token, parse as variable declaration

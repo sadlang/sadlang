@@ -237,7 +237,46 @@ namespace Sad
 
                     // (AR) تقييم تعبير المُهيئ إن وجد
                     // (EN) Evaluate initializer expression if present
-                    if (fieldDecl->initializer)
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) 🔑 مُهيّئٌ يُنشِئ كائنًا لا يُقيَّم هنا. التقييمُ في هذا
+                    //      الموضعِ يقع مرّةً واحدةً **وقتَ تصريحِ الصنف**، فينتج عنه
+                    //      عطبان قِيسا معًا: (أ) بانيَ الحقلِ يُنفَّذ ولو لم يُنشَأ من
+                    //      الصنفِ كائنٌ قطّ (طُبِع «انشئ» قبل أوّلِ إنشاء)، (ب) القيمةُ
+                    //      المُقيَّمةُ كائنٌ واحدٌ يُستنسَخ بـ`clone()` وهي نسخةُ سطحٍ
+                    //      واحد، فكائنان من صنفٍ مركَّبٍ بمستويَين يتقاسمان الأعمق.
+                    //      فيُؤجَّل تقييمُه إلى لحظةِ الإنشاءِ عبر `initializerExpr`.
+                    //      ⚠️ ولا يُوسَّع الشرط: المُهيّئاتُ الأخرى (حرفيّةٌ وغيرُها)
+                    //      تبقى على تقييمِها السابقِ حرفًا بحرف.
+                    // (EN) An object-creating initializer must not be evaluated here:
+                    //      that happens once at class-declaration time, which both ran
+                    //      the field's constructor before any instantiation and shared
+                    //      one object across instances (clone() is one level deep).
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) ⚠️ الساكنُ يُستثنى: حلقةُ الإنشاءِ تتخطّى الحقولَ الساكنةَ،
+                    //      فتأجيلُ مُهيّئِها يعني ألّا يُقيَّم أبدًا. قِيس (2026-08-15):
+                    //      «متغير ساكن نسخة = شخص() جديد» يطبع «احمد» على الأصل
+                    //      ويرفع RUN033 بالتأجيل — انحدارٌ صامتٌ أحدثه شرطٌ غيرُ
+                    //      مشروطٍ بـisStatic. والساكنُ واحدٌ للصنفِ كلِّه فلا مشاركةَ
+                    //      بين نُسَخٍ تُخشى أصلًا.
+                    // (EN) Static fields are excluded: the instantiation loop skips
+                    //      them, so deferring their initializer means never evaluating
+                    //      it. A static field is shared by design, so the aliasing
+                    //      concern that motivated the deferral does not apply.
+                    std::string deferredConstructClass;
+                    size_t deferredConstructLine = 0;
+                    size_t deferredConstructColumn = 0;
+                    AST::NewExpr *newObjectInitializer =
+                        fieldDecl->isStatic
+                            ? nullptr
+                            : dynamic_cast<AST::NewExpr *>(
+                                  fieldDecl->initializer ? fieldDecl->initializer.get() : nullptr);
+                    if (newObjectInitializer)
+                    {
+                        deferredConstructClass = newObjectInitializer->className;
+                        deferredConstructLine = newObjectInitializer->position.line;
+                        deferredConstructColumn = newObjectInitializer->position.column;
+                    }
+                    else if (fieldDecl->initializer)
                     {
                         try
                         {
@@ -261,28 +300,25 @@ namespace Sad
                     {
                         // (AR) لا يوجد مُهيئ — استخدم القيمة الافتراضية للنوع
                         // (EN) No initializer — use type default
-                        switch (fieldDecl->type)
-                        {
-                        case Types::SadTypeKind::Integer:
-                            defaultValue = Value(0);
-                            break;
-                        case Types::SadTypeKind::Float:
-                            defaultValue = Value(0.0);
-                            break;
-                        case Types::SadTypeKind::String:
-                            defaultValue = Value("");
-                            break;
-                        case Types::SadTypeKind::Boolean:
-                            defaultValue = Value(false);
-                            break;
-                        default:
-                            defaultValue = Value();
-                        }
+                        // (AR) 🔑 من مصدرِ الحقيقةِ الواحدِ لا بنسخةٍ يدويّة. وقد كتبتُ
+                        //      في `class_type.h` حرفًا: «فمن أراد قيمةً افتراضيّةً
+                        //      فليطلبها من هنا، ولا ينسخِ الجدولَ مرّةً أخرى» — ثمّ
+                        //      نسختُه في هذا الملفِّ مرّتَين في الرقعةِ نفسِها، وعدّلتُ
+                        //      النسختَين يدويًّا بإضافةِ «بايت» و«طبيعي64».
+                        //      ونظيرُه في المترجّمِ نسي «طبيعي64» فقرأ مكدّسًا غيرَ
+                        //      مهيّأ — وهو بالضبطِ ما يحدث حين يُصان جدولٌ في أربعةِ
+                        //      مواضعَ باليد. **عقدٌ نقضه كاتبُه لا يُصلِحه تشديدُ لفظِه.**
+                        // (EN) From the single source of truth, not a hand copy. The
+                        //      contract written in class_type.h ("ask here, never copy
+                        //      the table again") was broken twice in this same patch.
+                        defaultValue = Data::defaultValueForTypeKind(fieldDecl->type);
                     }
 
                     // (AR) تمرير القيمة الافتراضية عند إضافة الحقل
                     // (EN) Pass default value when adding field
-                    classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic, defaultValue);
+                    classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic, defaultValue,
+                                        deferredConstructClass, deferredConstructLine,
+                                        deferredConstructColumn);
 
                     // Initialize static fields with their values
                     if (fieldDecl->isStatic)
@@ -677,7 +713,27 @@ namespace Sad
                 // (EN) Fix: Evaluate default value for all fields
                 // ═══════════════════════════════════════════════════════════════
                 Value defaultValue;
-                if (field->initializer)
+                // (AR) نسخةٌ ثانيةٌ من تأجيلِ المُهيّئِ المُنشِئ — يجب أن تبقى مطابقةً
+                //      للأولى في visitClassDecl، وإلّا انقسم الصنفُ الواحدُ سلوكًا
+                //      بحسبِ المسارِ الذي دخل منه.
+                // (EN) Second copy of the deferral; must stay identical to the first.
+                // (AR) نسخةٌ ثانيةٌ من استثناءِ الساكن — يجب أن تبقى مطابقةً للأولى.
+                // (EN) Second copy of the static exclusion; must match the first.
+                std::string deferredConstructClass;
+                size_t deferredConstructLine = 0;
+                size_t deferredConstructColumn = 0;
+                AST::NewExpr *newObjectInitializer =
+                    field->isStatic
+                        ? nullptr
+                        : dynamic_cast<AST::NewExpr *>(
+                              field->initializer ? field->initializer.get() : nullptr);
+                if (newObjectInitializer)
+                {
+                    deferredConstructClass = newObjectInitializer->className;
+                    deferredConstructLine = newObjectInitializer->position.line;
+                    deferredConstructColumn = newObjectInitializer->position.column;
+                }
+                else if (field->initializer)
                 {
                     try
                     {
@@ -701,28 +757,21 @@ namespace Sad
                 }
                 else
                 {
-                    switch (field->type)
-                    {
-                    case Types::SadTypeKind::Integer:
-                        defaultValue = Value(0);
-                        break;
-                    case Types::SadTypeKind::Float:
-                        defaultValue = Value(0.0);
-                        break;
-                    case Types::SadTypeKind::String:
-                        defaultValue = Value("");
-                        break;
-                    case Types::SadTypeKind::Boolean:
-                        defaultValue = Value(false);
-                        break;
-                    default:
-                        defaultValue = Value();
-                    }
+                    // (AR) من مصدرِ الحقيقةِ الواحد — كنظيرتِها في `visitClassDecl`.
+                    //      ولم تعد الحاجةُ إلى تحذيرِ «أبقِ النسختَين متطابقتَين»:
+                    //      نسختان تُصانان باليدِ تتطابقان اليومَ وتفترقان غدًا،
+                    //      ونداءٌ واحدٌ لا يفترق أصلًا.
+                    // (EN) From the single source of truth, like its twin. Two
+                    //      hand-maintained copies match today and drift tomorrow;
+                    //      one call cannot drift at all.
+                    defaultValue = Data::defaultValueForTypeKind(field->type);
                 }
 
                 // (AR) تمرير القيمة الافتراضية عند إضافة الحقل
                 // (EN) Pass default value when adding field
-                classType->addField(field->name, nullptr, vis, field->isStatic, defaultValue);
+                classType->addField(field->name, nullptr, vis, field->isStatic, defaultValue,
+                                    deferredConstructClass, deferredConstructLine,
+                                    deferredConstructColumn);
 
                 if (field->isStatic)
                 {

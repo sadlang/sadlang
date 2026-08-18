@@ -50,6 +50,7 @@ jobs:
   code-quality:
     name: "📋 فحص جودة الكود / Code Quality"
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
@@ -117,6 +118,7 @@ jobs:
   static-analysis:
     name: "🔍 تحليل ساكن / Static Analysis"
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: code-quality
 
     steps:
@@ -202,6 +204,7 @@ jobs:
     #      17 2022"). windows-latest moved to an image without VS2022 under that
     #      name, causing "could not find any instance of Visual Studio".
     runs-on: windows-2022
+    timeout-minutes: 60
     needs: code-quality
     strategy:
       fail-fast: false
@@ -485,12 +488,89 @@ jobs:
           #      instead of claiming a guard it does not provide.
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (-not (Test-Path $sadc)) {
-            Write-Host "::warning::sad-build.exe غير مبنيّ على runner ويندوز — اختبارات الوضع الحرّ لم تُشغَّل هنا (التغطية على لينكس)"
+            Write-Host "::warning::sad-build.exe غير مبنيّ على runner ويندوز — لم تُشغَّل اختباراتُ الوضع الحرّ ولا بوّابةُ حجمِ الخانةِ العدميّة ولا مجموعةُ أخطاءِ المدمجات هنا (التغطية على لينكس)"
             exit 0
           }
           python -m pip install --quiet pytest
           # (AR) ‎-rs‎ يطبع سببَ كلِّ تخطٍّ: تخطٍّ غيرُ مرئيٍّ يُقرأ نجاحًا.
           python -m pytest tests/system/lowlevel_freestanding -q -rs
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          # (AR) بوّابةُ حجمِ خانةِ النوعِ العدميّ (م‑ط) — نداءٌ منفصلٌ لا مُلحَقٌ
+          #      بالمسار أعلاه: ‎conftest.py‎ في مجلّدِ الوضعِ الحرّ يحمل خطّافَ
+          #      نهايةِ جلسةٍ يسري على الجلسةِ كلِّها، فخلطُ المجلّدَين يجعل
+          #      إخفاقَ أحدِهما يُنسَب إلى حارسِ الآخَر.
+          # (EN) Nullable slot-size gate (م‑ط) — invoked separately so the
+          #      freestanding conftest's session hook does not misattribute it.
+          python -m pytest tests/system/null_repr -q -rs
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          # (AR) 🔑 مجموعةُ أخطاءِ المدمجات — كانت **بلا مُنادٍ واحدٍ في CI** (أربعةُ
+          #      ملفّاتٍ · ٩٧ فحصًا). وثمنُ ذلك مقيسٌ يومَ وُصِلت: **٨ إخفاقات**، لا
+          #      انحدارًا بل **انجرافَ عقدٍ لم يره أحد**: ٧ مدمجاتٍ صارت تلزمها
+          #      «استورد رياضيات/أساسيات» والجدولُ نصفُ محدَّثٍ (لوغ أُصلحت، جيب لا)،
+          #      وفحصٌ يؤكّد أنّ المطابقةَ غيرَ المستنفِدةِ **تُبنى** بينما مصدرُ الحقيقة
+          #      (SEM036) يقول تُرفَض. فحارسٌ بلا مستهلِكٍ لا يسكت فحسب — يوثّق الخلافَ
+          #      ويُقرَأ. الوصلُ هنا يمنع عودةَ الصنفِ نفسِه.
+          # (EN) builtin-error suite had zero CI callers; wiring it exposed 8 stale
+          #      contract drifts, not regressions. A guard without a consumer does not
+          #      merely stay silent — it documents the opposite of the spec.
+          python -m pytest tests/system/builtin_errors -q -rs
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          # (AR) 🔑 بوّابةُ «أي نوعٌ لا تعليق» — و`--أنواع-صارمة` كان **بلا مُنادٍ
+          #      واحدٍ في الشجرةِ كلِّها**: لا اختبارَ سلوكٍ (لا توجيهَ له في الرانر)،
+          #      ولا اختبارَ نظام، ولا خطوةَ CI. فالوضعُ الصارمُ لم يكن أخضرَ — كان
+          #      **غيرَ مقيسٍ**، وهو غيرُه. وثمنُ ذلك مقيسٌ يومَ وُصِل: `أي` كانت
+          #      تُخفِق بالرسالةِ نفسِها حرفًا بحرفِ رسالةِ `متغير` و`رقم`، أي أنّها
+          #      عند الفاحصِ **تعليقٌ لا نوع** — في الوضعِ الوحيدِ الذي يُفترَض أن
+          #      تحمل فيه وزنًا دلاليًّا.
+          # (EN) The "any is a type, not a comment" gate. `--strict-types` had ZERO
+          #      callers anywhere in the tree: no behavioural directive, no system
+          #      test, no CI step. Strict mode was not green — it was UNMEASURED.
+          python -m pytest tests/system/any_type -q -rs
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+
+      # (AR) 🔑 **بوّابةُ صيغةِ مقاطعِ ص خارجَ ملفّات `.ص`** (ISSUE-150).
+      #      المقيس: مِجَسُّ `test_bounds_diag_sovereign.py` كان يكتب مصدرَه
+      #      بصيغةٍ حُذِفت من اللغة، فصار يُخفِق بـSYN001 و**ثلاثةُ حرّاسٍ لعقدِ
+      #      رموزِ الهلع صاروا غيرَ مقيسين** — لا لأنّ العقدَ انكسر بل لأنّ
+      #      مصدرَ المِجَسِّ لم يعد يُصرَّف. ⚠️ وصخبُ الإخفاقِ كان **رهنَ ترتيبِ
+      #      التوكيدات**: اثنان حملا نصَّ SYN001 في رسالتِهما، والثالثُ سقط على
+      #      سلسلةٍ فارغةٍ برسالةِ «التأكيد يجب أن يمرّر رمز 2 حصرًا» — يُقرأ
+      #      انحدارًا في عقدِ الهلعِ وهو انحدارٌ في صيغةِ الاختبار.
+      #      ⇒ الحارسُ يُصرِّف المِجَسّاتِ نفسَها، ويمسح جدولَ الصيغِ الميّتةِ
+      #      بسقّاطةٍ تُخفِق في الاتّجاهَين (دَينٌ جديدٌ، أو سطرٌ بائتٌ في السجلّ).
+      #      وهو **مسحُ مصدرٍ + تصريفُ مقاطع**: لا يلزمه ثنائيُّ اختبارٍ، ويتخطّى
+      #      الفحصَ ① **جهرًا** إن لم يُبنَ `sad-build`.
+      # (EN) Gate for Sad snippets living outside .ص files (ISSUE-150). It
+      #      compiles every probe source embedded in tests/**/*.py and scans a
+      #      dead-syntax pattern table under a two-way ratchet ledger.
+      - name: بوّابة صيغة مقاطع ص (ISSUE-150)
+        shell: pwsh
+        run: |
+          python -m pip install --quiet pytest
+          python scripts/codegen/check_sad_snippets_are_real_syntax.py
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # (AR) 🔑 **خطوةٌ مستقلّةٌ غيرُ مشروطةٍ عمدًا** — وهذا هو بيتُ القصيد فيها.
+      #      بوّابةُ تعدادِ حارسِ العدمِ **مسحُ مصدرٍ خالص**: لا تُصرّف شيئًا ولا
+      #      تُشغّل ثنائيًّا. ومع ذلك كانت — لو تُرِكت في خطوةِ `null_repr` — تُتخطّى
+      #      كلَّما لم يُبنَ `sad-build`، لأنّ تلك الخطوةَ تخرج `exit 0` بتحذيرٍ عند
+      #      غيابِه. فتصير الوظيفةُ خضراءَ وهي **لم تقِس**: وهو عينُ الصنفِ الذي
+      #      يقول «الأخضرُ قد يعني لم يُقَس».
+      #      وما تحرسه لا يُخفق بناءً ولا سلوكًا: **مُنتِجٌ جديدٌ للحارسِ داخلَ
+      #      نطاقِ القيمة** يُوسّع دَينَ العقد (أ) بصمتٍ فيصير سدُّه أبعد.
+      # (EN) Deliberately a SEPARATE, UNCONDITIONAL step. The sentinel-census gate
+      #      is a pure source scan — it compiles nothing and runs no binary — yet
+      #      inside the `null_repr` step it would be skipped whenever sad-build is
+      #      absent, since that step exits 0 with a warning. The job would then be
+      #      green having measured nothing. What it guards fails no build and no
+      #      behavioural test: a new in-band-sentinel producer silently widens the
+      #      contract-(a) debt.
+      - name: "🧮 تعدادُ حارسِ العدمِ داخلَ النطاق / In-band null-sentinel census"
+        shell: pwsh
+        run: |
+          python -m pip install --quiet pytest
+          python -m pytest tests/system/null_repr/test_null_sentinel_census.py -q -rs
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
       - name: "🔥 Burn-in للاختبارات الجديدة في الـPR / Burn-in changed PR tests"
@@ -528,6 +608,7 @@ jobs:
   linux:
     name: "🐧 Linux (${{ matrix.config }})"
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     needs: code-quality
     strategy:
       fail-fast: false
@@ -712,7 +793,7 @@ jobs:
           #      tolerates; escalating it into a repo-wide merge blocker is a
           #      separate policy call, not a side effect of adding tests.
           if [ "${SAD_BUILD_FRESH:-}" != "1" ]; then
-            echo "::warning::sad-build لم يُبنَ في هذا التشغيل — اختبارات الوضع الحرّ لم تُشغَّل"
+            echo "::warning::sad-build لم يُبنَ في هذا التشغيل — لم تُشغَّل اختباراتُ الوضع الحرّ ولا بوّابةُ حجمِ الخانةِ العدميّة ولا مجموعةُ أخطاءِ المدمجات"
             exit 0
           fi
           python3 -m pip install --user --break-system-packages pytest || python3 -m pip install --user pytest
@@ -734,6 +815,76 @@ jobs:
           #      clang it skips and the file stays green with no proof.
           SAD_CLANG=/usr/lib/llvm-18/bin/clang SAD_REQUIRE_CLANG=1 \
             SAD_LOWLEVEL_REQUIRE_BUILD=1 python3 -m pytest tests/system/lowlevel_freestanding -q -rs
+          # (AR) بوّابةُ حجمِ خانةِ النوعِ العدميّ (م‑ط): «لاشيء» حارسٌ **داخل**
+          #      نطاقِ القيمةِ اليوم، فكلُّ خانةٍ عدميّةٍ ثمانيةُ بايتات. والانتقالُ
+          #      إلى وسمٍ خارجَ النطاقِ يضاعفها بلا أن يُخفق بناءً ولا مخرَجًا ولا
+          #      اختبارَ سلوكٍ واحد. تُبنى **قبل** الهجرةِ لا بعدَها: بوّابةٌ بعدَها
+          #      تُصادِق التضاعفَ خطَّ أساسٍ بدل أن تكشفه.
+          # (EN) Nullable slot-size gate (م‑ط) — built before the migration so the
+          #      doubling fails loudly instead of being ratified as the baseline.
+          python3 -m pytest tests/system/null_repr -q -rs
+          # (AR) 🔑 مجموعةُ أخطاءِ المدمجات — كانت **بلا مُنادٍ واحدٍ في CI** (أربعةُ
+          #      ملفّاتٍ · ٩٧ فحصًا). وثمنُ ذلك مقيسٌ يومَ وُصِلت: **٨ إخفاقات**، لا
+          #      انحدارًا بل **انجرافَ عقدٍ لم يره أحد**: ٧ مدمجاتٍ صارت تلزمها
+          #      «استورد رياضيات/أساسيات» والجدولُ نصفُ محدَّثٍ (لوغ أُصلحت، جيب لا)،
+          #      وفحصٌ يؤكّد أنّ المطابقةَ غيرَ المستنفِدةِ **تُبنى** بينما مصدرُ الحقيقة
+          #      (SEM036) يقول تُرفَض. فحارسٌ بلا مستهلِكٍ لا يسكت فحسب — يوثّق الخلافَ
+          #      ويُقرَأ. الوصلُ هنا يمنع عودةَ الصنفِ نفسِه.
+          # (EN) builtin-error suite had zero CI callers; wiring it exposed 8 stale
+          #      contract drifts, not regressions. A guard without a consumer does not
+          #      merely stay silent — it documents the opposite of the spec.
+          python3 -m pytest tests/system/builtin_errors -q -rs
+          # (AR) 🔑 بوّابةُ «أي نوعٌ لا تعليق» — و`--أنواع-صارمة` كان **بلا مُنادٍ
+          #      واحدٍ في الشجرةِ كلِّها**: لا اختبارَ سلوكٍ (لا توجيهَ له في الرانر)،
+          #      ولا اختبارَ نظام، ولا خطوةَ CI. فالوضعُ الصارمُ لم يكن أخضرَ — كان
+          #      **غيرَ مقيسٍ**، وهو غيرُه. وثمنُ ذلك مقيسٌ يومَ وُصِل: `أي` كانت
+          #      تُخفِق بالرسالةِ نفسِها حرفًا بحرفِ رسالةِ `متغير` و`رقم`، أي أنّها
+          #      عند الفاحصِ **تعليقٌ لا نوع** — في الوضعِ الوحيدِ الذي يُفترَض أن
+          #      تحمل فيه وزنًا دلاليًّا.
+          # (EN) The "any is a type, not a comment" gate. `--strict-types` had ZERO
+          #      callers anywhere in the tree: no behavioural directive, no system
+          #      test, no CI step. Strict mode was not green — it was UNMEASURED.
+          python3 -m pytest tests/system/any_type -q -rs
+
+
+      # (AR) 🔑 **بوّابةُ صيغةِ مقاطعِ ص خارجَ ملفّات `.ص`** (ISSUE-150).
+      #      المقيس: مِجَسُّ `test_bounds_diag_sovereign.py` كان يكتب مصدرَه
+      #      بصيغةٍ حُذِفت من اللغة، فصار يُخفِق بـSYN001 و**ثلاثةُ حرّاسٍ لعقدِ
+      #      رموزِ الهلع صاروا غيرَ مقيسين** — لا لأنّ العقدَ انكسر بل لأنّ
+      #      مصدرَ المِجَسِّ لم يعد يُصرَّف. ⚠️ وصخبُ الإخفاقِ كان **رهنَ ترتيبِ
+      #      التوكيدات**: اثنان حملا نصَّ SYN001 في رسالتِهما، والثالثُ سقط على
+      #      سلسلةٍ فارغةٍ برسالةِ «التأكيد يجب أن يمرّر رمز 2 حصرًا» — يُقرأ
+      #      انحدارًا في عقدِ الهلعِ وهو انحدارٌ في صيغةِ الاختبار.
+      #      ⇒ الحارسُ يُصرِّف المِجَسّاتِ نفسَها، ويمسح جدولَ الصيغِ الميّتةِ
+      #      بسقّاطةٍ تُخفِق في الاتّجاهَين (دَينٌ جديدٌ، أو سطرٌ بائتٌ في السجلّ).
+      #      وهو **مسحُ مصدرٍ + تصريفُ مقاطع**: لا يلزمه ثنائيُّ اختبارٍ، ويتخطّى
+      #      الفحصَ ① **جهرًا** إن لم يُبنَ `sad-build`.
+      # (EN) Gate for Sad snippets living outside .ص files (ISSUE-150). It
+      #      compiles every probe source embedded in tests/**/*.py and scans a
+      #      dead-syntax pattern table under a two-way ratchet ledger.
+      - name: بوّابة صيغة مقاطع ص (ISSUE-150)
+        run: |
+          python3 scripts/codegen/check_sad_snippets_are_real_syntax.py
+
+      # (AR) 🔑 **خطوةٌ مستقلّةٌ غيرُ مشروطةٍ عمدًا** — وهذا هو بيتُ القصيد فيها.
+      #      بوّابةُ تعدادِ حارسِ العدمِ **مسحُ مصدرٍ خالص**: لا تُصرّف شيئًا ولا
+      #      تُشغّل ثنائيًّا. ومع ذلك كانت — لو تُرِكت في خطوةِ `null_repr` — تُتخطّى
+      #      كلَّما لم يُبنَ `sad-build`، لأنّ تلك الخطوةَ تخرج `exit 0` بتحذيرٍ عند
+      #      غيابِه. فتصير الوظيفةُ خضراءَ وهي **لم تقِس**: وهو عينُ الصنفِ الذي
+      #      يقول «الأخضرُ قد يعني لم يُقَس».
+      #      وما تحرسه لا يُخفق بناءً ولا سلوكًا: **مُنتِجٌ جديدٌ للحارسِ داخلَ
+      #      نطاقِ القيمة** يُوسّع دَينَ العقد (أ) بصمتٍ فيصير سدُّه أبعد.
+      # (EN) Deliberately a SEPARATE, UNCONDITIONAL step. The sentinel-census gate
+      #      is a pure source scan — it compiles nothing and runs no binary — yet
+      #      inside the `null_repr` step it would be skipped whenever sad-build is
+      #      absent, since that step exits 0 with a warning. The job would then be
+      #      green having measured nothing. What it guards fails no build and no
+      #      behavioural test: a new in-band-sentinel producer silently widens the
+      #      contract-(a) debt.
+      - name: "🧮 تعدادُ حارسِ العدمِ داخلَ النطاق / In-band null-sentinel census"
+        run: |
+          python3 -m pip install --quiet pytest
+          python3 -m pytest tests/system/null_repr/test_null_sentinel_census.py -q -rs
 
       - name: "🔬 براهين الخلفيّة الأصليّة (تنفيذٌ حيّ) / Native Backend Live Proofs"
         if: matrix.config == 'Release'
@@ -782,6 +933,7 @@ jobs:
     # (EN) Pinned to macos-14 (Apple Silicon/arm64) for a stable image, mirroring
     #      the windows-2022 pin above (avoid "latest" image drift).
     runs-on: macos-14
+    timeout-minutes: 60
     needs: code-quality
     strategy:
       fail-fast: false
@@ -998,6 +1150,7 @@ jobs:
   test-report:
     name: "📊 تقرير الاختبارات / Test Report"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [windows, linux, macos]
     if: always()
 
@@ -1027,6 +1180,7 @@ jobs:
   all-tests-pass:
     name: "✅ جميع الاختبارات / All Tests Pass"
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [windows, linux, macos]
     if: always()
 

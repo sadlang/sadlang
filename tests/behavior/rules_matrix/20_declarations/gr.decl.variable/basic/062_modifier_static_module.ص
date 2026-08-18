@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: «ساكن» مُعدِّلًا على مستوى الوحدة — ISSUE-120: كان SEM023 عن مصفوفات .bss
+# @priority: P0
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير ساكن س = 5
+اطبع_سطر(س)

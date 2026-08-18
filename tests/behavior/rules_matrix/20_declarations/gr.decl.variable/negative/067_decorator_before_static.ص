@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable
+# @description: مُزخرِفٌ فوق «ساكن» — الفرعُ الجديدُ في مسارِ الجملة يبلغُ SYN026 ولا يبتلعُ المُزخرِف
+# @priority: P1
+# @requires: اطبع_سطر
+# @expect_error: SYN026
+# @expect_compile_error: SYN026
+
+@مضمّن
+ساكن ك = 7
+اطبع_سطر(ك)

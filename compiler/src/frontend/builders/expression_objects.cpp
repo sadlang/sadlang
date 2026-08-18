@@ -620,11 +620,38 @@ namespace Sad
                 // (AR) محاولة استنتاج نوع العضو من module
                 // (EN) Try to infer member type from module
                 SadTypeKind memberType = SadTypeKind::Integer; // (AR) افتراضي
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) 🔑 صنفُ الحقلِ المُعشَّشِ — بلا هذا السطرِ لا يُقرأ التعشيشُ أصلًا.
+                //
+                //      كان `result.className` يُورَّث من **الكائنِ الحاوي** دائمًا، فَـ
+                //      `ك.د` تخرج بصنفِ `ك` لا بصنفِ `د`. فيبحث الوصولُ التالي
+                //      (`.ق`) عن الحقلِ في الصنفِ الخطأِ فلا يجده، فيُحمَّل بإزاحةٍ
+                //      لا تخصُّه ⇒ `rc=139` (مقيس 2026-08-16).
+                //
+                //      🔑 والدرسُ أنّ إنشاءَ الكائنِ المُعشَّشِ في الباني **وحدَه لا
+                //      يكفي**: الكتابةُ والقراءةُ بابان، وسدُّ أحدِهما يترك العطبَ
+                //      حيًّا كما هو. وقد قِيس ذلك: بعدَ عملِ الباني تعاوديًّا بقي
+                //      الانهيارُ كما كان حتّى وُصِل هذا الطرف.
+                // (EN) The nested field's own class. className was always inherited
+                //      from the CONTAINING object, so `k.d` carried k's class and the
+                //      next access looked `.q` up in the wrong class, loading a foreign
+                //      offset ⇒ measured rc=139. Constructing the nested object in the
+                //      constructor alone is not enough: write and read are two doors.
+                // ═══════════════════════════════════════════════════════════════
+                std::string nestedFieldClass;
                 if (!objResult.className.empty() && b_.module_)
                 {
                     auto sirClass = b_.module_->getClass(objResult.className);
                     if (sirClass)
                     {
+                        // (AR) الجدولُ نفسُه الذي يقرؤه التوأمُ `buildExprMember` —
+                        //      فلا يفترق البابان في جوابِ السؤالِ الواحد.
+                        // (EN) The same table the twin buildExprMember reads.
+                        auto nestedIt = sirClass->fieldClassNames_.find(memberExpr->memberName);
+                        if (nestedIt != sirClass->fieldClassNames_.end())
+                        {
+                            nestedFieldClass = nestedIt->second;
+                        }
                         auto fieldIt = sirClass->fields_.find(memberExpr->memberName);
                         if (fieldIt != sirClass->fields_.end())
                         {
@@ -667,7 +694,7 @@ namespace Sad
 #endif
 
                 BuildResult result(resultReg, memberType);
-                result.className = objResult.className;
+                result.className = nestedFieldClass.empty() ? objResult.className : nestedFieldClass;
                 result.isFieldAccess = true;
                 return result;
             }

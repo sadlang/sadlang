@@ -1,0 +1,10 @@
+# @rule: gr.decl.variable
+# @description: «صدّر ثابت س = 1» ثمّ إسنادٌ — الثباتُ لا يسقط في مسارِ التصدير (ISSUE-125؛ كان يطبع 2 صامتًا)
+# @priority: P0
+# @requires: اطبع_سطر
+# @expect_error: SEM007
+# @expect_compile_error: لا يمكن تعديل الثابت
+
+صدّر ثابت س = 1
+س = 2
+اطبع_سطر(س)

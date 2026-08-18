@@ -10,6 +10,8 @@
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sad_dyn_repr.h" // (AR) تعليب %SadDyn لعناصر المصفوفة المختلطة (الإلحاق) / (EN) %SadDyn boxing for heterogeneous array append
+#include "builtin_registry.h" // (AR) اسمُ «أضف» من السجلِّ المولَّدِ لا حرفًا
+#include "value.h"                      // (AR) Value::makeNull().getTypeName() — اسمُ نوعِ العدمِ نفسُه
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -111,6 +113,35 @@ namespace Sad
             // (AR) تطبيع مؤشر المصفوفة عبر الدالة الموحّدة
             // (EN) Normalize arrPtr via unified helper
             arrPtr = cg_.normalizeArrayPtr(arrPtr, "append");
+
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) 🔑 مستقبِلٌ عدميّ: يُرفَع RUN033 كما يرفعه المفسّرُ — لا انهيار.
+            //
+            //      قِيس (2026-08-16): `مصفوفة س` ثمّ `س.أضف(1)` ⇒ المفسّرُ
+            //      «نوع المعامل 'VOID' غير مدعوم في العملية '.أضف()'» برمزِ خروجٍ ١،
+            //      والمترجّمُ **يبني برمزِ خروجٍ صفرٍ ثمّ ينهار `rc=139`**.
+            //
+            //      ⚠️ 🔑 **وموضعُه بعدَ `normalizeArrayPtr` لا قبلَه — وهذا مقيسٌ لا
+            //      مُستنتَج**: قبلَه يكون `arrPtr` **عنوانَ الخانةِ** (عامٌّ أو alloca)
+            //      لا المصفوفةَ، وعنوانُ الخانةِ ليس صفرًا أبدًا. فالحارسُ الموضوعُ
+            //      قبلَه يُصدَّر في الشيفرةِ ويبدو صحيحًا و**لا يُفعَّل أبدًا**: قرأتُ
+            //      المُخرَجَ الأصليَّ فوجدتُ `leaq "س"(%rip)` يُقارَن بالصفرِ ثمّ
+            //      `movq "س"(%rip)` يُفَكُّ فينهار. التطبيعُ هو ما يُحمِّل المحتوى.
+            //
+            //      ⚠️ ولم يُبدَّل بـ«لاشيء» وإن كان أهونَ: هذا مسارُ **كتابةٍ** لا عرض.
+            //      وإسكاتُ انهيارٍ بقيمةٍ معقولةٍ في مسارِ كتابةٍ يُبدِّل عطبًا يُرى
+            //      بعطبٍ يُصدَّق — والإلحاقُ إلى عدمٍ لا جوابَ صحيحًا له أصلًا.
+            // (EN) Null receiver raises RUN033 exactly as the interpreter does. Placed
+            //      AFTER normalizeArrayPtr — measured, not assumed: before it, arrPtr is
+            //      the SLOT's address (global/alloca), which is never null, so the guard
+            //      emitted fine and never fired (read the asm: `leaq "س"(%rip)` compared
+            //      to zero, then `movq "س"(%rip)` dereferenced ⇒ crash).
+            // ════════════════════════════════════════════════════════════════════
+            cg_.emitRaiseIfNull(
+                arrPtr, ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                {{"operation", LLVMCodeGen::stringMethodOperationLabel(
+                                   ::Sad::Builtins::Names::Strings::APPEND)}},
+                "arr.append");
 
             auto i64Ty = cg_.getInt64Type();
             auto i8Ty = cg_.getInt8Type();

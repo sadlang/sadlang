@@ -1,0 +1,44 @@
+# جدول سجلّات RISC-V RV64 — م٦ (الهدف الثالث، عائلة fixed32).
+# num = رقمُ ترميز السجلّ داخل حقول rd/rs1/rs2. نفس مخطّط x86-64 وarm64 يستوعبه بلا تغيير.
+# x0=صفر ثابتُ الصفر، x1=ra، x2=sp، a0..a7 وسائط/عودة، s0..s11 محفوظة، t0..t6 مؤقّتة.
+
+version: "1.0"
+architecture: riscv64
+status: experimental
+
+classes:
+  gpr:
+    width: 64
+    registers:
+      - { ar: صفر, en: zero, num: 0, role: reserved, reserved: true, note: "الصفر المعماريّ — كتابتُه مُهمَلة" }
+      - { ar: را, en: ra, num: 1, role: caller_saved, note: "سجلّ العودة (الرابط)" }
+      - { ar: مك, en: sp, num: 2, role: callee_saved, note: "مؤشّر المكدّس" }
+      - { ar: عام, en: gp, num: 3, role: reserved, reserved: true, note: "المؤشّر العامّ" }
+      - { ar: خيط, en: tp, num: 4, role: reserved, reserved: true, note: "مؤشّر الخيط" }
+      - { ar: م0, en: t0, num: 5, role: caller_saved }
+      - { ar: م1, en: t1, num: 6, role: caller_saved }
+      - { ar: م2, en: t2, num: 7, role: caller_saved }
+      - { ar: حفظ0, en: s0, num: 8, role: callee_saved, note: "سجلّ الإطار (fp) عند الحاجة" }
+      - { ar: حفظ1, en: s1, num: 9, role: callee_saved }
+      - { ar: و0, en: a0, num: 10, role: caller_saved, note: "وسيط/عودة" }
+      - { ar: و1, en: a1, num: 11, role: caller_saved, note: "وسيط/عودة" }
+      - { ar: و2, en: a2, num: 12, role: caller_saved, note: "وسيط/عودة" }
+      - { ar: و3, en: a3, num: 13, role: caller_saved, note: "وسيط/عودة" }
+      - { ar: و4, en: a4, num: 14, role: caller_saved, note: "وسيط/عودة" }
+      - { ar: و5, en: a5, num: 15, role: caller_saved, note: "وسيط/عودة" }
+      - { ar: و6, en: a6, num: 16, role: caller_saved, note: "وسيط/عودة" }
+      - { ar: و7, en: a7, num: 17, role: caller_saved, note: "وسيط/عودة" }
+      - { ar: حفظ2, en: s2, num: 18, role: callee_saved }
+      - { ar: حفظ3, en: s3, num: 19, role: callee_saved }
+      - { ar: حفظ4, en: s4, num: 20, role: callee_saved }
+      - { ar: حفظ5, en: s5, num: 21, role: callee_saved }
+      - { ar: حفظ6, en: s6, num: 22, role: callee_saved }
+      - { ar: حفظ7, en: s7, num: 23, role: callee_saved }
+      - { ar: حفظ8, en: s8, num: 24, role: callee_saved }
+      - { ar: حفظ9, en: s9, num: 25, role: callee_saved }
+      - { ar: حفظ10, en: s10, num: 26, role: callee_saved }
+      - { ar: حفظ11, en: s11, num: 27, role: callee_saved }
+      - { ar: م3, en: t3, num: 28, role: caller_saved }
+      - { ar: م4, en: t4, num: 29, role: caller_saved }
+      - { ar: م5, en: t5, num: 30, role: caller_saved }
+      - { ar: م6, en: t6, num: 31, role: caller_saved }

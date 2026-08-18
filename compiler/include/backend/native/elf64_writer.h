@@ -27,6 +27,7 @@ namespace sad
             inline constexpr uint16_t kEtExec = 2;       // (AR) ET_EXEC
             inline constexpr uint16_t kEmX8664 = 62;     // (AR) EM_X86_64 (تُرآي e_machine في abi/x86_64-linux.yaml)
             inline constexpr uint16_t kEmAArch64 = 183;  // (AR) EM_AARCH64 (تُرآي e_machine في abi/aarch64-linux.yaml)
+            inline constexpr uint16_t kEmRiscv64 = 243;  // (AR) EM_RISCV (تُرآي e_machine في abi/riscv64-linux.yaml)
             inline constexpr uint32_t kPtLoad = 1;       // (AR) PT_LOAD
             inline constexpr uint32_t kPfRX = 5;         // (AR) R + X
             inline constexpr uint64_t kDefaultVBase = 0x400000; // (AR) عنوان التحميل الافتراضيّ

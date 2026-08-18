@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: المُهيِّئُ تعبيرٌ لا حرفيّةٌ فقط بعد سلسلةِ مُعدِّلات
+# @priority: P2
+# @requires: اطبع_سطر
+# @expected: 31
+
+متغير ساكن عام ن = 15 + 16
+اطبع_سطر(ن)

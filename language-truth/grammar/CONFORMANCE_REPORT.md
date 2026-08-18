@@ -1,14 +1,14 @@
 # تقرير مطابقة قواعد لغة ص — مقارنة المفسر والمترجم
 
 > **مُولَّد آلياً** بـ`scripts/codegen/check_grammar_conformance.py --run`. لا يُحرَّر يدوياً.
-> التوليد: 2026-08-12 19:52:28
+> التوليد: 2026-08-13 12:42:14
 
 كل اختبار يُشغَّل عبر **المفسر** (sad-run) و**المترجم** (sadc) ويُقارَن مخرجاهما:
 `تطابق` = المخرجان متطابقان؛ `تباعد` = اختلفا (هنا يظهر ما يجب تصحيحه).
 
 ## الملخص
 
-- إجمالي الاختبارات: **2935** — تطابق مزدوج: **2934** — تباعد/إخفاق: **0** — متخطًّى: **1**
+- إجمالي الاختبارات: **3002** — تطابق مزدوج: **3001** — تباعد/إخفاق: **0** — متخطًّى: **1**
 - القواعد: 107 — مطلقة: **105** · فجوة مترجم: 0 · مكسورة: 0 · بلا اختبارات: 2
 - الأزمنة: في أثر البناء `build/_grammar_conformance.json` (غير متعقَّب) — لا تُودَع لأنّ العدّاء يتوازى فلا يُعاد إنتاجها.
 - التفصيل الكامل لكل اختبار: [`CONFORMANCE_REPORT_detail.md`](./CONFORMANCE_REPORT_detail.md)
@@ -25,7 +25,7 @@
 
 ## اختبارات كاشفة للثغرات (Gaps) — غير مُبوَّبة (لا تُفشِل البناء)
 
-تتعمّد اختبار ميزات مشكوكة لكشف ما لا يعمل. كاشفة: **110** — تكشف ثغرة: **33**. (راجع [DISCOVERED_ISSUES.md](./DISCOVERED_ISSUES.md))
+تتعمّد اختبار ميزات مشكوكة لكشف ما لا يعمل. كاشفة: **115** — تكشف ثغرة: **32**. (راجع [DISCOVERED_ISSUES.md](./DISCOVERED_ISSUES.md))
 
 | الاختبار | الثغرة | النتيجة |
 |---|---|---|
@@ -68,17 +68,22 @@
 | `002_select.ص` | تحقّق — اختر | تعمل ✅ |
 | `003_waitgroup.ص` | تحقّق — مجموعة_انتظار | تعمل ✅ |
 | `002_return_top_level.ص` | ISSUE-004 | تكشف ثغرة ❌ (تباعد المخرجات ⚠️) |
-| `0010_topmod_mod_private.ص` | ISSUE-032 | تكشف ثغرة ❌ (فشل الترجمة ❌) |
-| `0011_topmod_mod_static.ص` | ISSUE-032 | تكشف ثغرة ❌ (فشل المفسر ❌) |
+| `0010_topmod_mod_private.ص` | ISSUE-032 | تعمل ✅ |
+| `0011_topmod_mod_static.ص` | ISSUE-032 | تعمل ✅ |
+| `0012_static_array_module_unusable.ص` | ISSUE-122 | تكشف ثغرة ❌ (فشل المفسر ❌) |
+| `0013_static_array_in_function_diverges.ص` | ISSUE-122 | تكشف ثغرة ❌ (فشل المفسر ❌) |
+| `0014_nameless_decl_swallows_next_line.ص` | ISSUE-123 | تكشف ثغرة ❌ (تباعد المخرجات ⚠️) |
+| `0015_tuple_destructure_compiler_crash.ص` | ISSUE-124 | تكشف ثغرة ❌ (تجاوز المهلة ⏱) |
+| `0016_tuple_destructure_in_function_crash.ص` | ISSUE-124 | تكشف ثغرة ❌ (تجاوز المهلة ⏱) |
 | `001_return_map.ص` | ISSUE-025 | تعمل ✅ |
 | `002_export_struct.ص` | — | تعمل ✅ |
 | `003_block_shadow.ص` | ISSUE-028 | تكشف ثغرة ❌ (تباعد المخرجات ⚠️) |
 | `004_import_haseb_alias.ص` | ISSUE-027 | تكشف ثغرة ❌ (فشل المفسر ❌) |
 | `005_func_no_parens.ص` | ISSUE-029 | تعمل ✅ |
-| `006_const_attr_mutable.ص` | ISSUE-030 | تكشف ثغرة ❌ (تباعد المخرجات ⚠️) |
-| `007_const_public_combo.ص` | ISSUE-031 | تكشف ثغرة ❌ (فشل المفسر ❌) |
-| `008_topmod_mod_const.ص` | ISSUE-032 | تكشف ثغرة ❌ (فشل الترجمة ❌) |
-| `009_topmod_mod_public.ص` | ISSUE-032 | تكشف ثغرة ❌ (فشل الترجمة ❌) |
+| `006_const_attr_mutable.ص` | ISSUE-030 | تعمل ✅ |
+| `007_const_public_combo.ص` | ISSUE-031 | تعمل ✅ |
+| `008_topmod_mod_const.ص` | ISSUE-032 | تعمل ✅ |
+| `009_topmod_mod_public.ص` | ISSUE-032 | تعمل ✅ |
 | `001_spread_array.ص` | ISSUE-012 | تكشف ثغرة ❌ (فشل المفسر ❌) |
 | `002_nested_index.ص` | تحقّق — فهرسة متداخلة | تعمل ✅ |
 | `002_wrong_variant_field.ص` | ISSUE-080 | تكشف ثغرة ❌ (فشل المفسر ❌) |
@@ -173,14 +178,14 @@
 | `gr.adv.with` | advanced | 4 | مطلقة (مفسر≡مترجم) |
 | `gr.adv.yield` | advanced | 5 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.arg_list` | declarations | 17 | مطلقة (مفسر≡مترجم) |
-| `gr.decl.export` | declarations | 26 | مطلقة (مفسر≡مترجم) |
+| `gr.decl.export` | declarations | 28 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.extern` | declarations | 22 | مطلقة (مفسر≡مترجم) |
-| `gr.decl.function` | declarations | 188 | مطلقة (مفسر≡مترجم) |
+| `gr.decl.function` | declarations | 190 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.import` | declarations | 38 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.parameters` | declarations | 56 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.reexport` | declarations | 8 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.type_ref` | declarations | 7 | مطلقة (مفسر≡مترجم) |
-| `gr.decl.variable` | declarations | 153 | مطلقة (مفسر≡مترجم) |
+| `gr.decl.variable` | declarations | 216 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.array_literal` | expressions | 55 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.assignment` | expressions | 36 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.bitwise_and` | expressions | 22 | مطلقة (مفسر≡مترجم) |
@@ -193,7 +198,7 @@
 | `gr.expr.expression` | expressions | 20 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.factor` | expressions | 52 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.fstring` | expressions | 20 | مطلقة (مفسر≡مترجم) |
-| `gr.expr.lambda` | expressions | 34 | مطلقة (مفسر≡مترجم) |
+| `gr.expr.lambda` | expressions | 35 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.logical_and` | expressions | 32 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.logical_or` | expressions | 34 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.map_literal` | expressions | 51 | مطلقة (مفسر≡مترجم) |
@@ -214,12 +219,12 @@
 | `gr.lex.lifetime` | lexical | 10 | مطلقة (مفسر≡مترجم) |
 | `gr.lex.raw_string` | lexical | 12 | مطلقة (مفسر≡مترجم) |
 | `gr.lex.string` | lexical | 19 | مطلقة (مفسر≡مترجم) |
-| `gr.oop.class` | oop | 127 | مطلقة (مفسر≡مترجم) |
+| `gr.oop.class` | oop | 128 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.constructor` | oop | 30 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.destructor` | oop | 11 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.enum` | oop | 31 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.extension` | oop | 12 | مطلقة (مفسر≡مترجم) |
-| `gr.oop.field` | oop | 30 | مطلقة (مفسر≡مترجم) |
+| `gr.oop.field` | oop | 31 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.impl` | oop | 20 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.member` | oop | 34 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.method` | oop | 47 | مطلقة (مفسر≡مترجم) |
@@ -236,18 +241,18 @@
 | `gr.pattern.pattern` | patterns | 9 | مطلقة (مفسر≡مترجم) |
 | `gr.pattern.primary` | patterns | 27 | مطلقة (مفسر≡مترجم) |
 | `gr.pattern.struct` | patterns | 9 | مطلقة (مفسر≡مترجم) |
-| `gr.program.block` | program | 38 | مطلقة (مفسر≡مترجم) |
+| `gr.program.block` | program | 39 | مطلقة (مفسر≡مترجم) |
 | `gr.program.declaration` | program | 20 | مطلقة (مفسر≡مترجم) |
 | `gr.program.program` | program | 20 | مطلقة (مفسر≡مترجم) |
 | `gr.program.statement` | program | 19 | مطلقة (مفسر≡مترجم) |
 | `gr.stmt.break` | statements | 39 | مطلقة (مفسر≡مترجم) |
 | `gr.stmt.continue` | statements | 32 | مطلقة (مفسر≡مترجم) |
 | `gr.stmt.expression` | statements | 114 | مطلقة (مفسر≡مترجم) |
-| `gr.stmt.for` | statements | 248 | مطلقة (مفسر≡مترجم) |
-| `gr.stmt.if` | statements | 235 | مطلقة (مفسر≡مترجم) |
-| `gr.stmt.match` | statements | 212 | مطلقة (مفسر≡مترجم) |
+| `gr.stmt.for` | statements | 249 | مطلقة (مفسر≡مترجم) |
+| `gr.stmt.if` | statements | 236 | مطلقة (مفسر≡مترجم) |
+| `gr.stmt.match` | statements | 213 | مطلقة (مفسر≡مترجم) |
 | `gr.stmt.return` | statements | 75 | مطلقة (مفسر≡مترجم) |
 | `gr.stmt.switch` | statements | 37 | مطلقة (مفسر≡مترجم) |
 | `gr.stmt.throw` | statements | 27 | مطلقة (مفسر≡مترجم) |
-| `gr.stmt.try` | statements | 54 | مطلقة (مفسر≡مترجم) |
-| `gr.stmt.while` | statements | 201 | مطلقة (مفسر≡مترجم) |
+| `gr.stmt.try` | statements | 55 | مطلقة (مفسر≡مترجم) |
+| `gr.stmt.while` | statements | 202 | مطلقة (مفسر≡مترجم) |

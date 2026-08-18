@@ -60,7 +60,7 @@ const std::vector<KeywordEntry>& allEntries() {
         { "و", TokenType::OP_AND, KeywordCategory::OPERATOR, true, {}, {}, "and" },
         { "أو", TokenType::OP_OR, KeywordCategory::OPERATOR, true, {}, {}, "or" },
         { "ليس", TokenType::OP_NOT, KeywordCategory::OPERATOR, true, {}, {}, "not" },
-        // ─── contextual (42) ───
+        // ─── contextual (43) ───
         { "مؤكد", TokenType::OP_NULL_ASSERT, KeywordCategory::CONTEXTUAL, false, {"مؤكدة"}, {}, "asserted" },
         { "خاصية", TokenType::KEYWORD_PROPERTY, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "property" },
         { "احصل", TokenType::KEYWORD_GET, KeywordCategory::CONTEXTUAL, false, {}, {}, "get" },
@@ -103,6 +103,7 @@ const std::vector<KeywordEntry>& allEntries() {
         { "يضمن", TokenType::KEYWORD_ENSURES, KeywordCategory::CONTEXTUAL, false, {}, {}, "ensures" },
         { "عقد", TokenType::KEYWORD_CONTRACT, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "contract" },
         { "اختبر", TokenType::KEYWORD_TEST, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "test" },
+        { "عدمي", TokenType::KEYWORD_NULLABLE, KeywordCategory::CONTEXTUAL, false, {"عدمية"}, {}, "nullable" },
         // ─── builtin_types (11) ───
         { "رقم", TokenType::TYPE_INTEGER, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "integer" },
         { "عشري", TokenType::TYPE_DOUBLE, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "double" },

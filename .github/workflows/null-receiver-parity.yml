@@ -1,0 +1,131 @@
+# (AR) ملف: .github/workflows/null-receiver-parity.yml
+# (AR) الوصف: حارسُ تكافؤِ المستقبِلِ العدميّ — يقيسُ **عائلةَ** الطرائقِ النصّيّةِ
+#             كلَّها كما يقرؤها من مصدرِ الحقيقة (language-truth/type_methods.yaml)،
+#             ويقارنُ المفسّرَ بالمترجّمِ في كلِّ منفذٍ منها على خانةٍ عدميّة.
+#
+#             ولماذا حارسٌ مستقلٌّ ولم تكفِ اختباراتُ السلوك؟ لأنّ الاختبارَ المكتوبَ
+#             يمسُّ ما كتبَه كاتبُه: وقف ٠٧٦ عند «.طول()» فلم يرَ انحدارًا مسَّ نحوَ
+#             سبعةَ عشرَ منفذًا، ولم يمسَّ أيٌّ من ٠٦٦–٠٧٩ منفذًا يهبطُ **نداءَ**
+#             زمنِ تشغيلٍ فبقي «س.عكس()» ينهارُ انهيارَ تجزئة. وقائمةُ هذا الحارسِ
+#             ليست مكتوبةً فيه: طريقةٌ نصّيّةٌ تُضافُ غدًا تدخلُ القياسَ من تلقائها.
+#
+#             وما يُقاس تطابقُ المحرّكَين لا «غيابُ الانهيار»: الجوابُ الكاذبُ الصامتُ
+#             لا ينهارُ أيضًا، وهو أخبثُ ممّا ينهار.
+# (EN) Null-receiver parity guard. Reads the string-method family from the SoT and compares
+#      interpreter vs compiler at every port. Hand-written tests only touch what their author
+#      touched; this list maintains itself. Parity is measured, not "absence of a crash".
+name: "🕳️ تكافؤ المستقبِل العدميّ / Null-receiver parity"
+
+on:
+  push:
+    paths:
+      - "language-truth/type_methods.yaml"
+      # (AR) المفسّرُ **مرجعُ** القياسِ لا طرفًا فيه: انجرافُ دلالةِ «جزء» فيه
+      #      يُغيّرُ جوابَ الحارسِ كلَّه، فلا يصحُّ ألّا يوقظَه.
+      # (EN) The interpreter is the REFERENCE, so its drift changes every verdict.
+      - "interpreter/**"
+      - "compiler/src/backend/llvm/**"
+      - "compiler/src/frontend/builders/method_call_string_map.cpp"
+      - "compiler/src/frontend/builders/expression_index.cpp"
+      - "compiler/include/frontend/string_runtime_ports.h"
+      # (AR) أجسامُ عكس/كرر/حرف_عند نفسِها تسكنُ زمنَ التشغيلِ المضمَّن.
+      # (EN) The bodies of reverse/repeat/char_at live in the embedded runtime.
+      - "tools/compiler/runtime/**"
+      - "scripts/codegen/check_null_receiver_parity.py"
+      - ".github/workflows/null-receiver-parity.yml"
+  pull_request:
+    branches: [ main, master, dev, sadlang ]
+    paths:
+      - "language-truth/type_methods.yaml"
+      # (AR) المفسّرُ **مرجعُ** القياسِ لا طرفًا فيه: انجرافُ دلالةِ «جزء» فيه
+      #      يُغيّرُ جوابَ الحارسِ كلَّه، فلا يصحُّ ألّا يوقظَه.
+      # (EN) The interpreter is the REFERENCE, so its drift changes every verdict.
+      - "interpreter/**"
+      - "compiler/src/backend/llvm/**"
+      - "compiler/src/frontend/builders/method_call_string_map.cpp"
+      - "compiler/src/frontend/builders/expression_index.cpp"
+      - "compiler/include/frontend/string_runtime_ports.h"
+      # (AR) أجسامُ عكس/كرر/حرف_عند نفسِها تسكنُ زمنَ التشغيلِ المضمَّن.
+      # (EN) The bodies of reverse/repeat/char_at live in the embedded runtime.
+      - "tools/compiler/runtime/**"
+      - "scripts/codegen/check_null_receiver_parity.py"
+      - ".github/workflows/null-receiver-parity.yml"
+
+concurrency:
+  group: null-receiver-parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  null-receiver-parity:
+    name: "🕳️ قياس منافذ العائلة / Measure the family's ports"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v4
+
+      - name: "🐍 إعداد Python / Setup Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # (AR) بوّابةُ `sad_check_codegen_env` في CMake تشترطُ pyyaml وjsonschema،
+      #      فبدونهما يتوقّفُ **البناءُ** قبل أن يُبنى أيُّ محرّك — وهو ما وقع فعلًا
+      #      في أوّلِ تشغيلٍ لهذه الوظيفة: لم يصلْ التنفيذُ إلى القياسِ أصلًا.
+      # (EN) CMake's codegen-env gate requires pyyaml/jsonschema; without them the BUILD
+      #      stops before either engine exists — which is exactly what happened on the
+      #      first run of this workflow: measurement was never reached.
+      - name: "📚 اعتماديّات التوليد / Codegen dependencies"
+        run: python -m pip install --upgrade pip pyyaml jsonschema
+
+      # (AR) مستودعُ apt.llvm.org كما في ci.yml حرفًا: الاعتمادُ على universe
+      #      يجعلُ الوظيفةَ تنكسرُ يومَ تنتقلُ صورةُ ubuntu-latest إلى إصدارٍ جديد.
+      # (EN) Same apt.llvm.org source as ci.yml; relying on universe breaks on image bumps.
+      - name: "📦 تثبيت LLVM 18 / Install LLVM 18"
+        run: |
+          sudo apt-get update
+          # (AR) SDL2 ضرورية: بدونها يربط CMake مكتبةَ SDL2 الويندوزيّةَ المرفقةَ
+          #      (SDL2.lib) على Linux فيفشلُ ربطُ `sad-run` بـR_AMD64_IMAGEBASE.
+          #      وهو ما وقع فعلًا في التشغيلِ الثاني لهذه الوظيفة — والسببُ موثَّقٌ
+          #      في ci.yml حرفًا، ولم يُنقَل معه إلى هنا.
+          # (EN) SDL2 dev pkgs required: without them CMake links the bundled Windows
+          #      SDL2.lib on Linux and sad-run fails with R_AMD64_IMAGEBASE. Documented
+          #      verbatim in ci.yml; the note had not travelled with the recipe.
+          sudo apt-get install -y cmake ninja-build g++ build-essential lsb-release wget gnupg \
+            libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
+          CODENAME=$(lsb_release -cs)
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
+          sudo apt-get update
+          sudo apt-get install -y llvm-18-dev libclang-18-dev clang-18
+          # (AR) المسارُ هو ما تستعمله بقيّةُ الوظائف؛ و«/usr/lib/llvm-18/cmake»
+          #      لا وجودَ له، و`find_package(... QUIET)` يُطفئ الخلفيّةَ صامتًا
+          #      فلا يوجدُ هدفُ sad-build أصلًا.
+          # (EN) The path the other workflows use; the wrong one silently disables the
+          #      LLVM backend, so the sad-build target does not even exist.
+          echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
+
+      # (AR) الحارسُ يحتاجُ **المحرّكَين معًا**: مقارنةُ مخرَجٍ بمخرَجٍ لا تصحُّ بواحد.
+      #      وبناءُ المفسّرِ وحدَه يجعلُ الوظيفةَ خضراءَ وهي لم تقِسْ شيئًا — ولذلك
+      #      أرضيّةُ القياسِ في السكربت تُفشِلُ هذه الحالةَ ولا تمرّرها.
+      # (EN) The guard needs BOTH engines; the script's measurement floor fails the
+      #      "built only one / linked nothing" case instead of passing it as green.
+      - name: "🔨 بناء المحرّكَين / Build both engines"
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DENABLE_LLVM_BACKEND=ON \
+            -DLLVM_DIR=$LLVM_DIR
+          cmake --build build --target sad-run sad-build -j "$(nproc)"
+
+      # (AR) `sad-build` يربطُ عبر `clang` غيرِ المُصدَّر، وحزمةُ clang-18 لا تُنشئ
+      #      ‎/usr/bin/clang‎. وبدونه يفشلُ الربطُ في كلِّ منفذ ⇒ «لا يبنيه المترجّم»
+      #      في كلِّ صفٍّ — وهي حالةٌ تُفشِلُ الحارسَ اليومَ ولا تمرُّ خضراء.
+      # (EN) sad-build links through an unexported `clang`; the clang-18 package creates no
+      #      /usr/bin/clang. Without it every port fails to build — which the guard now fails.
+      - name: "🔗 إتاحة clang للرابط / Expose clang to the linker"
+        run: sudo ln -sf /usr/lib/llvm-18/bin/clang /usr/bin/clang
+
+      - name: "🕳️ قياس التكافؤ / Measure parity"
+        env:
+          SAD_CLANG: /usr/lib/llvm-18/bin/clang
+        run: python scripts/codegen/check_null_receiver_parity.py --تفصيل

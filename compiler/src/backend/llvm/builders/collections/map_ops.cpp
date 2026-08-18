@@ -341,6 +341,32 @@ namespace Sad
 
                 // (AR) تحويل map من i64 إلى ptr — المتغيرات تُخزَن كـ i64
                 llvm::Value *mapPtr = normalizeMapPtr(args[0], "mset.map.ptr");
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 خريطةٌ عدميّةٌ في مسارِ الإسنادِ بالفهرس ⇒ RUN018 لا انهيار.
+                //
+                //      قِيس (2026-08-16): `خريطة س` ثمّ `س["ك"] = 1` ⇒ المفسّرُ
+                //      «الإسناد بالفهرس مدعوم للمصفوفات والقواميس فقط، لكن النوع
+                //      الممرّر 'VOID'» برمزِ خروجٍ ١، والمترجّمُ يبني صفرًا وينهار 139.
+                //
+                //      🔑 وهذا **الموضعُ الرابعُ** الذي جُرِّب: الحارسُ وُضِع أوّلًا في
+                //      `emitArraySet` على ظنِّ أنّ الخريطةَ غلافٌ فوق المصفوفة — وهو
+                //      ظنٌّ معقولٌ صُرِّف وبُني ولم يُغيِّر شيئًا. وقراءةُ المُخرَجِ
+                //      دلّت على `__sad_map_find_slot`: للخريطةِ مسارُها المستقلُّ.
+                //      **الطبقةُ تُقرأ من المُخرَجِ لا تُستنتَج من المعمار.**
+                //      (والحارسُ في `emitArraySet` يبقى: مصفوفةٌ عدميّةٌ تُفهرَس
+                //      كتابةً تسلكه، وهو مقيسٌ بذاته.)
+                // (EN) A null map in the indexed-assignment path raises RUN018. This is
+                //      the FOURTH placement tried: the guard first went into emitArraySet
+                //      on the reasonable assumption that maps are an array wrapper — it
+                //      compiled, built, and changed nothing. Reading the emitted code
+                //      showed __sad_map_find_slot: maps have their own path. The layer is
+                //      READ from the output, not inferred from the architecture.
+                // ════════════════════════════════════════════════════════════════
+                cg_.emitRaiseIfNull(
+                    mapPtr, ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID, {},
+                    "map.set");
+
                 llvm::Value *key = normalizeMapKey(args[1], "mset.key.ptr");
                 llvm::Value *value = args[2];
                 llvm::Value *typeTag = args[3];

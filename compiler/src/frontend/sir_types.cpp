@@ -59,6 +59,8 @@ namespace Sad
                     return "box.dyn";
                 case SIROpcode::NULL_ASSERT:
                     return "null.assert";
+                case SIROpcode::OBJECT_NULL_CHECK:
+                    return "obj.nullchk";
 
                 // Bitwise
                 case SIROpcode::AND:

@@ -12,6 +12,7 @@
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
+#include "value.h" // (AR) أسماءُ الأنواعِ من `Value::getTypeName` لا من نصٍّ مكتوب / (EN) type names from Value
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -254,6 +255,283 @@ namespace Sad
             return rawPtr;
         }
 
+
+        // ========================================================================
+        // (AR) 🔑 عائلةُ **الكائنِ** كانت غائبةً عن بابِ الرفعِ العامّ
+        //
+        //      `emitRaiseIfNull` بابٌ عامٌّ لكلِّ عائلةِ قيم، ويُنادى من النصِّ
+        //      والمصفوفةِ والخريطة — و**صفرَ مرّةٍ** من الكائن. فكان أبسطُ برنامجٍ
+        //      ممكن:
+        //
+        //          متغير ك            ← خانةٌ تُهيّأ صفرًا
+        //          اطبع(ك.حقل)
+        //
+        //      يُبنى بـrc=0 ثمّ **ينهار 0xC0000005**، بينما يرفعُ المفسّرُ
+        //      RUN033 «نوع المعامل 'VOID' غير مدعوم في العملية 'member access'».
+        //
+        //      ⚠️ ولا علاقةَ لهذا بالمحلّل. كان الشكلُ الذي كشفه «صنف س ك»
+        //      (معرِّفٌ زائدٌ بعد اسمِ الصنف) فبدا عطبًا نحويًّا، ونقضه الضابطُ:
+        //      `متغير ك` — تصريحٌ صريحٌ سليمٌ لا يمسُّه ذاك الفرعُ البتّة —
+        //      يُنتِج الانهيارَ عينَه. فالمحلّلُ **طريقٌ** إلى الشكلِ لا **علّتُه**،
+        //      ورقعةٌ هناك كانت ستُخفي المِجَسَّ وتترك أقصرَ برنامجٍ ينهار.
+        //
+        //      🔑 **والموضعُ قبلَ حلِّ الصنفِ عمدًا.** وُضِع الحارسُ أوّلًا عند GEP
+        //      فاجتاز البناءَ وأخضرَ مِجَسَّ الحقل — وترك الخاصّيّةَ تُخرِج `0`
+        //      بـrc=0. وقراءةُ SIR أظهرت السبب: مُستقبِلٌ عدميٌّ **لا صنفَ له**،
+        //      فيرتدُّ المُصدِرُ عند «No class mapping» قبل GEP بمراحل. والمفسّرُ
+        //      يرفع **بلا أن يسأل عن الصنفِ أصلًا** — فالسؤالُ عن العضوِ لاؽٍ
+        //      حين يكون المُستقبِلُ عدمًا. فليكن الحارسُ حيث لا يلزمُه صنف.
+        //
+        //      و`{type}` لا يُمرّر: البابُ يملؤه من **شكلِ** العدمِ (VOID لخانةٍ
+        //      صفريّة، NULL لحارسِ العدم) كما يفرّق المفسّر — انظر تعليلَه هناك.
+        //
+        // (EN) 🔑 The OBJECT family was missing from the general raise door:
+        //      emitRaiseIfNull is called from the string, array and map paths and ZERO
+        //      times from the object path, so `var k` followed by `k.field` built with
+        //      rc=0 and then segfaulted where the interpreter raises RUN033. NOT a parser
+        //      defect: the shape that exposed it was `Class a b`, but the control - a
+        //      plain, valid `var k` that never touches that branch - reproduces the
+        //      identical crash.
+        //      Placed BEFORE class resolution deliberately: the first placement, at the
+        //      GEP, built and greened the field probe while a property still answered 0
+        //      with rc=0. Reading the SIR showed why - a null receiver has no class, so
+        //      the emitter bails at "No class mapping" long before the GEP. The
+        //      interpreter raises without ever asking for a class, because asking which
+        //      member is moot once the receiver is null. So the guard goes where no class
+        //      is needed. {type} is filled by the door itself.
+        // ========================================================================
+        void OOPOpsCodeGen::raiseIfObjectReceiverIsNull(llvm::Value *objPtr, const char *tag,
+                                                        const char *operation)
+        {
+            // (AR) تطبيعٌ **للفحصِ وحدَه**: `namedValues` تُعيد الخانةَ، وعنوانُ
+            //      الخانةِ ليس عدمًا أبدًا — فحارسٌ يُوضَع عليه يُصدَر ولا يُطلَق أبدًا.
+            //      ويبقى المسارُ الأصليُّ يُطبّع لنفسِه، فلا يتغيّر ترتيبُ الإصدارِ
+            //      ولا أسماءُ السجلّات (السابقةُ نفسُها في `emitArraySet`).
+            //      ⚠️ وخانةُ الهيكلِ استثناءٌ لا نسيان: `alloca %class.X` عنوانُها
+            //      **هو** الكائن، فتحميلُها يقرأ أوّلَ حقلٍ مؤشّرًا.
+            // (EN) Normalize FOR THE CHECK ONLY: `namedValues` hands back the slot, whose
+            //      address is never null, so a guard on it emits and never fires. The
+            //      original path still normalizes for itself, so emission order and
+            //      register names are unchanged (same precedent as emitArraySet). A struct
+            //      alloca is excluded deliberately: its address IS the object.
+            if (!objPtr || !cg_.builder_ || !cg_.builder_->GetInsertBlock())
+                return;
+
+            llvm::Value *checked = objPtr;
+
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) 🔑 الحالةُ الأولى: قيمةُ `%SadDyn` — **وهي التي فاتت أوّلَ مرّة،
+            //      وأسقطها سطري أنا**. `loadDynSlot` أعلاه يُحوّل خانةَ «أي» إلى
+            //      **قيمةٍ** هيكليّة، فلم تعُد تُطابِق فرعَي `dyn_cast` أدناه (ليست
+            //      خانةً)، ومرّت إلى `emitRaiseIfNull` فارتدّ **صامتًا** عند
+            //      `else return` لأنّ الهيكلَ ليس مؤشّرًا ولا صحيحًا: صفرُ تعليمةِ
+            //      حراسةٍ تُصدَر.
+            //
+            //      والمقيس: `أي ك` ثمّ `ك.قيمة` ⇒ `0xC0000005`، و`أي ك = لاشيء`
+            //      كذلك — بينما يرفع المرجعُ RUN033 بالشكلَين. أي أنّ إيداعَ
+            //      `loadDynSlot` **أبطل** حارسَ الإيداعِ الذي يليه، والاثنان على
+            //      السطرَين نفسِهما.
+            //
+            //      ⇒ **رقعةٌ في مسارٍ تُغيّر شرطَ دخولِ الرقعةِ التي تليه.** ولا
+            //      يكشفه إلّا قياسُ التقاطع: البذرةُ ١٢٩ تقيس «أي» **حيًّا**،
+            //      و٠٨٤–٠٨٨ تقيس العدمَ على `متغير` — و«أي × عدم» لم تكن في أيٍّ
+            //      منهما، فبدت التغطيةُ تامّةً وفيها ثقبٌ بحجمِ حاصلِ الضرب.
+            //
+            //      والحمولةُ i64 هي التي تحمل الشكلَين اللذين يفرّق بينهما البابُ:
+            //      `zeroinitializer` ⇒ صفرٌ ⇒ `VOID`، و`kSadNullSentinel` ⇒ `NULL`.
+            //      ⚠️ ولا يُفحَص الوسمُ هنا كما يُفحَص في `array_ops.cpp:176`: وسمُ
+            //      المؤشّرِ في هذه الشجرةِ **يكذب** (`Pointer ⇒ DynKind::Str` في
+            //      `sad_dyn_repr.cpp:516`)، فالكائنُ في خانةِ «أي» موسومٌ نصًّا.
+            //      وحارسٌ يُبنى على وسمٍ كاذبٍ يُخفِق على المُستقبِلِ السليم.
+            // (EN) Case 1: a %SadDyn VALUE — the case that was missed, and my own
+            //      loadDynSlot line is what created it: the slot becomes a struct
+            //      value, matches neither dyn_cast below, and emitRaiseIfNull bails
+            //      silently (not pointer, not integer) emitting ZERO guard code.
+            //      Measured: `أي ك` then `ك.قيمة` segfaults where the reference
+            //      raises RUN033. No tag check here (unlike array_ops.cpp:176): the
+            //      pointer tag lies in this tree (Pointer => DynKind::Str), so an
+            //      object in an «أي» slot is tagged as a string.
+            // ════════════════════════════════════════════════════════════════════
+            if (Sad::LLVM::isSadDyn(checked))
+            {
+                // (AR) ⚠️ والوسمُ يُفحَصُ الآنَ قبلَ إسقاطِ الحمولة: صار الوسمُ صادقًا (ISSUE-142)
+                //      فلم يعُدِ النهيُ المكتوبُ أعلاه قائمًا. والترتيبُ لازمٌ: إسقاطُ
+                //      الحمولةِ يمحو الوسمَ، فما بعدَه لا يملكُ تمييزَ عددٍ من مؤشّر.
+                // (EN) The tag is checked BEFORE the payload is projected: it now tells the
+                //      truth, and projection erases it — nothing downstream can tell an
+                //      integer from a pointer.
+                raiseIfDynReceiverIsNotObject(checked, tag, operation);
+                checked = Sad::LLVM::dynPayloadI64(cg_, checked);
+            }
+            else if (auto *allocaInst = llvm::dyn_cast<llvm::AllocaInst>(objPtr))
+            {
+                if (allocaInst->getAllocatedType()->isStructTy())
+                    return;
+                checked = cg_.builder_->CreateLoad(allocaInst->getAllocatedType(), allocaInst,
+                                                   std::string(tag) + ".chk.load");
+            }
+            else if (auto *globalVar = llvm::dyn_cast<llvm::GlobalVariable>(objPtr))
+            {
+                if (globalVar->getValueType()->isStructTy())
+                    return;
+                checked = cg_.builder_->CreateLoad(globalVar->getValueType(), globalVar,
+                                                   std::string(tag) + ".chk.gload");
+            }
+
+            // (AR) 🔑 والمنفذانِ **لا يتشاركان اللفظَ**: المرجعُ يقول «member access» في
+            //      القراءةِ و«.=» في الكتابة، وهما موضعان مختلفان في المفسّر
+            //      (`expression_evaluator_members.cpp` مقابل `..._members_assign.cpp`).
+            //      ⚠️ وقد مرّرتُ «member access» للمنفذَين أوّلًا فاجتاز البناءُ واخضرَّ
+            //      منفذُ القراءةِ — وكشفت البذرةُ التوأمُ ٠٨٦ أنّ الكتابةَ ترفعُ **رفعًا
+            //      صحيحًا بلفظٍ خطأ**: rc=1 والنصُّ يخالف المرجع. أي أنّ نصفَ العائلةِ
+            //      كان سيُعلَن مكافئًا وهو ليس كذلك، ولا يكشفه إلّا قياسُ المنفذَين معًا.
+            //      فاللفظُ معاملٌ لا ثابتًا، ويأتي من موضعِ النداءِ لا من البابِ.
+            // (EN) The two ports do NOT share the label: the reference says
+            //      "member access" on read and ".=" on write - two distinct sites in
+            //      the interpreter. Passing "member access" for both compiled fine and
+            //      greened the read port, while the write port raised correctly with the
+            //      WRONG text (rc=1, text diverging from the reference). Only measuring
+            //      both ports catches that, so the label is a parameter, not a constant.
+            cg_.emitRaiseIfNull(checked, ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                                {{"operation", operation}}, tag);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 المُستقبِلُ الديناميُ الذي **ليس كائنًا** — ما لم يكن حراستُه ممكنةً
+        //
+        //      `emitRaiseIfNull` يسألُ سؤالًا واحدًا: أهذه الحمولةُ عدمٌ؟ وحمولةُ العددِ
+        //      ليست صفرًا ولا حارسًا، فتجتازُ البابَ وتبلُغُ ما بعدَه. والمقيس:
+        //
+        //          أي ك = شخص()      ← يُحلُّ الصنفُ من الإسنادِ الأوّل
+        //          ك = 5
+        //          اطبع_سطر(ك.اسم)   ← `0xC0000005` · والمرجعُ RUN033 بـINTEGER
+        //
+        //      وشكلٌ ثانٍ لا صنفَ فيه أصلًا (`أي ك = 5` ثمّ `ك.قيمة`) كان يُخرِجُ
+        //      **خطأَ مترجِمٍ داخليًّا** يطلُبُ من المستخدِمِ أن يُبلِّغَ عن علّةِ مترجِم —
+        //      وهي شكوى في محلِّها لولا أنّ الكودَ سليمٌ والعلّةَ علّتُه هو.
+        //
+        //      ⚠️ **ولم يكن هذا الحارسُ ممكنًا قبلَ اليوم.** التعليقُ الملاصقُ في
+        //      `raiseIfObjectReceiverIsNull` كان ينهى صراحةً عن فحصِ الوسمِ هنا لأنّ
+        //      `Pointer ⇒ DynKind::Str` كان يَسِمُ الكائنَ نصًّا: حارسٌ يُبنى عليه
+        //      يرفعُ على `أي ك = شخص()` ثمّ `ك.اسم` — أي يُخفِقُ على المُستقبِلِ
+        //      السليم. فصدقُ الوسمِ شرطُ وجودِ الحارسِ لا تحسينٌ يسبقُه.
+        //
+        //      🔑 والاسمُ يُملأُ من `Value` عينِها التي يملأُ منها المفسّرُ، ذراعًا ذراعًا:
+        //      رفعٌ باسمٍ مُخترَعٍ يجتازُ «rc=1» ويكذبُ في النصِّ — وهو أخفى من لا رفع.
+        //
+        //      ⚠️ ولا ذراعَ هنا لـ«عدم»/«فراغ»: لهما بابُهما المقيسُ بشكلَيه
+        //      (`VOID` مقابل `NULL`) وبذرتاه ــ وتكرارُهما هنا يُنتِجُ رفعَين
+        //      بنصَّين قد ينحرفان عند أوّلِ تحريرٍ للكتالوج.
+        //
+        //      ⚠️ والافتراضيُ يمرُّ ولا يرفع: وسمٌ لا نملكُ له اسمًا (تعدادٌ جبريٌّ)
+        //      يُرفَعُ عليه باسمٍ مُخمَّنٍ كذبٌ، والسكوتُ عنه يُبقي السلوكَ كما كان.
+        // (EN) A dynamic receiver that is NOT an object. emitRaiseIfNull asks one
+        //      question — is this payload null? — and an integer payload is neither zero
+        //      nor the sentinel, so it sails through. This guard was IMPOSSIBLE before
+        //      the tag was corrected: the adjacent comment above explicitly forbade a
+        //      tag check here because Pointer => DynKind::Str tagged objects as strings,
+        //      so the guard would have rejected valid receivers. Names come from the
+        //      same Value the interpreter fills from, arm by arm. Null/Void are
+        //      deliberately absent (their own measured door handles both shapes), and
+        //      the default falls through rather than raise with a guessed name.
+        // ═══════════════════════════════════════════════════════════════════════
+        void OOPOpsCodeGen::raiseIfDynReceiverIsNotObject(llvm::Value *dynValue, const char *tag,
+                                                          const char *operation)
+        {
+            if (!dynValue || !cg_.builder_ || !cg_.builder_->GetInsertBlock())
+                return;
+            if (!Sad::LLVM::isSadDyn(dynValue))
+                return;
+
+            llvm::Value *kindByte = Sad::LLVM::dynKindByte(cg_, dynValue);
+            llvm::IntegerType *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+            llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+            const std::string stem = std::string(tag) + ".dynkind";
+
+            llvm::BasicBlock *contBB =
+                llvm::BasicBlock::Create(*cg_.context_, stem + ".object", curFunc);
+
+            // (AR) الوسمُ ⇒ اسمُ النوعِ كما يكتبُه المفسّرُ — من `Value` لا من نصٍّ مكتوب.
+            // (EN) Tag => the interpreter's own type name, from `Value`, never a literal.
+            const std::vector<std::pair<uint8_t, std::string>> nonObjectKinds = {
+                {Sad::LLVM::DynKind::Int, Sad::Data::Value(static_cast<int64_t>(0)).getTypeName()},
+                {Sad::LLVM::DynKind::Float, Sad::Data::Value(0.0).getTypeName()},
+                {Sad::LLVM::DynKind::Str, Sad::Data::Value(std::string()).getTypeName()},
+                {Sad::LLVM::DynKind::Bool, Sad::Data::Value(false).getTypeName()},
+                {Sad::LLVM::DynKind::Array,
+                 Sad::Data::Value(Sad::Data::Value::ArrayType()).getTypeName()},
+                {Sad::LLVM::DynKind::Map,
+                 Sad::Data::Value(Sad::Data::Value::MapType()).getTypeName()},
+            };
+
+            llvm::SwitchInst *sw = cg_.builder_->CreateSwitch(
+                kindByte, contBB, static_cast<unsigned>(nonObjectKinds.size()));
+
+            for (const auto &kindAndName : nonObjectKinds)
+            {
+                llvm::BasicBlock *raiseBB =
+                    llvm::BasicBlock::Create(*cg_.context_, stem + ".raise", curFunc);
+                sw->addCase(llvm::ConstantInt::get(i8Ty, kindAndName.first), raiseBB);
+                cg_.builder_->SetInsertPoint(raiseBB);
+                cg_.emitNullRaiseBody(::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                                      {{"operation", operation}, {"type", kindAndName.second}},
+                                      stem);
+                cg_.builder_->CreateUnreachable();
+            }
+
+            cg_.builder_->SetInsertPoint(contBB);
+        }
+
+        // ════════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 منفذُ **نداءِ الطريقةِ** — ثالثُ منافذِ العائلةِ وآخرُها.
+        //
+        //      ولا يختلف عن أختَيه إلّا في موضعِ الإصدار: القراءةُ والكتابةُ
+        //      تُصدَران في الخلفيّةِ عند `OBJECT_GET`/`OBJECT_SET`، وهذا يُصدَر في
+        //      **الواجهةِ** عند موضعِ النداء — لأنّ دامجَ الدوالِّ يمحو النداءَ قبل
+        //      أن تراه الخلفيّة. والتعليلُ المقيسُ عند تعريفِ الأوپكودِ في
+        //      `sir_types.h`.
+        //
+        //      واللفظُ من التعليمةِ لا من هذا الباب: المرجعُ يقول `.اسم()` لكلِّ
+        //      طريقةٍ باسمها، فلا يصحّ ثابتٌ واحدٌ لكلِّ النداءات — كما لم يصحّ
+        //      لفظٌ واحدٌ للقراءةِ والكتابة.
+        // (EN) The METHOD-CALL port: the family's third and last. It differs from
+        //      its siblings only in where it is emitted — read/write are emitted in
+        //      the backend at OBJECT_GET/OBJECT_SET, this one in the FRONTEND at the
+        //      call site, because the inliner erases the call before the backend sees
+        //      it. The label comes from the instruction, not from this door: the
+        //      reference says «.name()» per method, so no single constant can serve
+        //      every call, exactly as no single label served read and write.
+        // ════════════════════════════════════════════════════════════════════════
+        llvm::Value *OOPOpsCodeGen::emitObjectNullCheck(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 2)
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                {{"detail", "OBJECT_NULL_CHECK"}});
+                return nullptr;
+            }
+
+            const std::string &recvName = inst->operands[0].name;
+            const std::string &operation = inst->operands[1].name;
+
+            auto it = cg_.context_info_.namedValues.find(recvName);
+            if (it == cg_.context_info_.namedValues.end() || !it->second)
+            {
+                // (AR) مُستقبِلٌ لا خانةَ له في هذا النطاق: لا حارسَ يُصدَر ولا خطأَ
+                //      يُبلَّغ — الحارسُ إضافةٌ إلى مسارٍ قائمٍ لا شرطٌ لصحّتِه، ورفعُ
+                //      تشخيصٍ داخليٍّ هنا يُحوّل برنامجًا يعمل إلى إخفاقِ ترجمة.
+                // (EN) A receiver with no slot in this scope: emit no guard and report
+                //      nothing. The guard is an addition to a working path, not a
+                //      precondition of it; an internal diagnostic here would turn a
+                //      working program into a compile failure.
+                return nullptr;
+            }
+
+            llvm::Value *objPtr = Sad::LLVM::loadDynSlot(cg_, it->second);
+            raiseIfObjectReceiverIsNull(objPtr, "obj.callchk", operation.c_str());
+            return nullptr;
+        }
+
         llvm::Value *OOPOpsCodeGen::emitObjectGet(std::shared_ptr<SIRInstruction> inst)
         {
             if (!inst || inst->operands.size() < 2)
@@ -291,6 +569,25 @@ namespace Sad
                     return nullptr;
                 }
             }
+
+            // (AR) خانةٌ نوعُها %SadDyn: `namedValues` تُعيد **الخانةَ** لا القيمة، فيرى
+            //      `isSadDyn` أدناه `ptr` فيحكم «ليست موسومة»، وتنزلق الخانةُ إلى مسارِ
+            //      «مؤشّرٌ جاهز» فيُعامَل **عنوانُ الخانةِ** مؤشّرَ كائن — وتُقرأ بايتاتُ
+            //      الوسمِ والحمولةِ حقولًا. والمقيس: `أي ك = عداد()` ثمّ `ك.قيمة` يطبع
+            //      حمولةَ المؤشّرِ عددًا (rc=0) بينما يطبع المرجعُ 5.
+            //      ويُنادى البابُ **قبل** اشتقاقِ `normalizedObjPtr` و`actualObj` معًا،
+            //      لأنّ الاشتقاقَين توأمان ومسارُ الخاصّيّة (`__get_*`) يمرّ بالأوّلِ وحدَه.
+            // (EN) A slot whose allocated type is %SadDyn: `namedValues` hands back the
+            //      SLOT, not the value, so the `isSadDyn` test below sees a `ptr`, decides
+            //      "not tagged", and the slot falls through to the "already a pointer" path
+            //      where its ADDRESS is used as an object pointer — the tag and payload
+            //      bytes are then read as fields. Called BEFORE both `normalizedObjPtr` and
+            //      `actualObj` are derived, since they are twins and the property-getter
+            //      path (`__get_*`) goes through the first one only.
+            objPtr = Sad::LLVM::loadDynSlot(cg_, objPtr);
+
+            raiseIfObjectReceiverIsNull(objPtr, "obj.get", "member access");
+
 
             // Look up class mapping
             auto classIt = cg_.context_info_.objectClassMap.find(objRegName);
@@ -375,6 +672,34 @@ namespace Sad
                 //      bind is a real layout defect (driver gate aborts); a member no
                 //      class knows is dynamic access — a runtime matter in the reference
                 //      engine (RUN033), which must not abort compilation.
+                // (AR) ⚠️ ومِحكُ الحقلِ هذا لا يليقُ بمُستقبِلٍ ديناميٍّ — ومع ذلك يبقى (ISSUE-142)
+                //
+                //      المِحكُ يسألُ أيوجدُ الحقلُ في تخطيطِ صنفٍ ما، وهو مِحكٌ لخانةٍ لها
+                //      صنفٌ ساكنٌ ضاعَ ربطُه؛ وخانةُ «أي» لا صنفَ لها **بالبناء**. فإجراؤه
+                //      عليها يجعلُ جوابَ المُصرِّفِ تابعًا لـ**اسمِ الحقل**: `ك.قيمة` يُجهِضُ
+                //      الترجمةَ لأنّ للصنفِ المضمَّنِ «حدث» حقلًا بذلك الاسم، و`ك.طول` يُبنى
+                //      لأنّ لا صنفَ يعرِفُه — والبرنامجانِ واحدٌ في المعنى.
+                //
+                //      🔑 **وقِيسَ استثناءُ الديناميِّ منه فرُدّ.** إسقاطُ المِحكِ عن الديناميِّ
+                //      أخرجَ خمسةَ أشكالٍ (`أي ك = عدد/نصّ/عشريّ/منطقيّ/لاشيء` ثمّ `ك.حقل`)
+                //      من إجهاضِ الترجمةِ إلى RUN033 مطابِقٍ للمرجعِ رمزًا ونصًّا — وأخرجَ معها
+                //      المُستقبِلَ التعداديَّ (`أي ك = خيار.بعض(5)` ثمّ `ك.قيمة`) من إجهاضٍ
+                //      إلى **`0` بـrc=0** والمرجعُ يرفعُ RUN005. فالإسقاطُ يشتري خمسةً
+                //      بتحويلِ إخفاقِ بناءٍ إلى **كذبٍ صامت**، وهو ثمنٌ لا يُدفع.
+                //
+                //      وسببُه مُقاسٌ لا مُفترَض: قيمةُ التعدادِ الجبريِّ تحملُ وسمَ `Obj`
+                //      لا `Adt` (مقيسٌ: `نوع()` عليها يُجيبُ «كائن» والمرجعُ «خريطة»)،
+                //      فتمرُّ من حارسِ الوسمِ أعلاه دونَ أن يرفعَ. ⇒ تصحيحُ وسمِ التعدادِ
+                //      شرطٌ لإسقاطِ المِحكِ هنا — كما كان صدقُ وسمِ الكائنِ شرطًا للحارسِ نفسِه.
+                // (EN) This field test does not fit a dynamic receiver, yet it stays. Measured:
+                //      dropping it for dynamic receivers moves five shapes from an aborting
+                //      internal error to a RUN033 matching the reference in code and text — and
+                //      moves the ADT receiver from an abort to `0` with rc=0 where the reference
+                //      raises RUN005. Buying five shapes with one SILENT LIE is not a trade to
+                //      make. The cause is measured: an ADT value carries the `Obj` tag, not
+                //      `Adt`, so it slips past the tag guard above. Fixing the ADT tag is a
+                //      precondition for dropping this test — exactly as a truthful object tag
+                //      was a precondition for the guard itself.
                 cg_.reportError(fieldExistsInAnyClass(fieldName)
                                     ? ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT
                                     : ::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF,
@@ -662,6 +987,25 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) خانةٌ نوعُها %SadDyn: `namedValues` تُعيد **الخانةَ** لا القيمة، فيرى
+            //      `isSadDyn` أدناه `ptr` فيحكم «ليست موسومة»، وتنزلق الخانةُ إلى مسارِ
+            //      «مؤشّرٌ جاهز» فيُعامَل **عنوانُ الخانةِ** مؤشّرَ كائن — وتُقرأ بايتاتُ
+            //      الوسمِ والحمولةِ حقولًا. والمقيس: `أي ك = عداد()` ثمّ `ك.قيمة` يطبع
+            //      حمولةَ المؤشّرِ عددًا (rc=0) بينما يطبع المرجعُ 5.
+            //      ويُنادى البابُ **قبل** اشتقاقِ `normalizedObjPtr` و`actualObj` معًا،
+            //      لأنّ الاشتقاقَين توأمان ومسارُ الخاصّيّة (`__get_*`) يمرّ بالأوّلِ وحدَه.
+            // (EN) A slot whose allocated type is %SadDyn: `namedValues` hands back the
+            //      SLOT, not the value, so the `isSadDyn` test below sees a `ptr`, decides
+            //      "not tagged", and the slot falls through to the "already a pointer" path
+            //      where its ADDRESS is used as an object pointer — the tag and payload
+            //      bytes are then read as fields. Called BEFORE both `normalizedObjPtr` and
+            //      `actualObj` are derived, since they are twins and the property-getter
+            //      path (`__get_*`) goes through the first one only.
+            objPtr = Sad::LLVM::loadDynSlot(cg_, objPtr);
+
+            raiseIfObjectReceiverIsNull(objPtr, "obj.set", ".=");
+
+
             auto classIt = cg_.context_info_.objectClassMap.find(objRegName);
             std::string className;
             if (classIt != cg_.context_info_.objectClassMap.end())
@@ -732,6 +1076,34 @@ namespace Sad
                 //      تخطيط مُجهِض؛ عضوٌ لا يعرفه أحد ⇒ ديناميكيّ (شأن زمن تشغيل)
                 // (EN) Same distinction as emitObjectGet: known-in-some-class field ⇒
                 //      aborting layout defect; unknown-to-all member ⇒ dynamic (runtime)
+                // (AR) ⚠️ ومِحكُ الحقلِ هذا لا يليقُ بمُستقبِلٍ ديناميٍّ — ومع ذلك يبقى (ISSUE-142)
+                //
+                //      المِحكُ يسألُ أيوجدُ الحقلُ في تخطيطِ صنفٍ ما، وهو مِحكٌ لخانةٍ لها
+                //      صنفٌ ساكنٌ ضاعَ ربطُه؛ وخانةُ «أي» لا صنفَ لها **بالبناء**. فإجراؤه
+                //      عليها يجعلُ جوابَ المُصرِّفِ تابعًا لـ**اسمِ الحقل**: `ك.قيمة` يُجهِضُ
+                //      الترجمةَ لأنّ للصنفِ المضمَّنِ «حدث» حقلًا بذلك الاسم، و`ك.طول` يُبنى
+                //      لأنّ لا صنفَ يعرِفُه — والبرنامجانِ واحدٌ في المعنى.
+                //
+                //      🔑 **وقِيسَ استثناءُ الديناميِّ منه فرُدّ.** إسقاطُ المِحكِ عن الديناميِّ
+                //      أخرجَ خمسةَ أشكالٍ (`أي ك = عدد/نصّ/عشريّ/منطقيّ/لاشيء` ثمّ `ك.حقل`)
+                //      من إجهاضِ الترجمةِ إلى RUN033 مطابِقٍ للمرجعِ رمزًا ونصًّا — وأخرجَ معها
+                //      المُستقبِلَ التعداديَّ (`أي ك = خيار.بعض(5)` ثمّ `ك.قيمة`) من إجهاضٍ
+                //      إلى **`0` بـrc=0** والمرجعُ يرفعُ RUN005. فالإسقاطُ يشتري خمسةً
+                //      بتحويلِ إخفاقِ بناءٍ إلى **كذبٍ صامت**، وهو ثمنٌ لا يُدفع.
+                //
+                //      وسببُه مُقاسٌ لا مُفترَض: قيمةُ التعدادِ الجبريِّ تحملُ وسمَ `Obj`
+                //      لا `Adt` (مقيسٌ: `نوع()` عليها يُجيبُ «كائن» والمرجعُ «خريطة»)،
+                //      فتمرُّ من حارسِ الوسمِ أعلاه دونَ أن يرفعَ. ⇒ تصحيحُ وسمِ التعدادِ
+                //      شرطٌ لإسقاطِ المِحكِ هنا — كما كان صدقُ وسمِ الكائنِ شرطًا للحارسِ نفسِه.
+                // (EN) This field test does not fit a dynamic receiver, yet it stays. Measured:
+                //      dropping it for dynamic receivers moves five shapes from an aborting
+                //      internal error to a RUN033 matching the reference in code and text — and
+                //      moves the ADT receiver from an abort to `0` with rc=0 where the reference
+                //      raises RUN005. Buying five shapes with one SILENT LIE is not a trade to
+                //      make. The cause is measured: an ADT value carries the `Obj` tag, not
+                //      `Adt`, so it slips past the tag guard above. Fixing the ADT tag is a
+                //      precondition for dropping this test — exactly as a truthful object tag
+                //      was a precondition for the guard itself.
                 cg_.reportError(fieldExistsInAnyClass(fieldName)
                                     ? ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT
                                     : ::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF,

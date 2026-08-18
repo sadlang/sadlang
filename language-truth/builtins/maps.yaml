@@ -573,6 +573,7 @@ functions:
   description_ar: رمز حرف (خرائط)
   description_en: Char code
   params: []
+  returns: رقم
   lookup_table: name_only
 - cpp_id: FROM_CHAR_CODE
   canonical: حرف_من_رمز
@@ -586,6 +587,7 @@ functions:
   description_ar: حرف من رمز
   description_en: From char code
   params: []
+  returns: نص
   lookup_table: name_only
 - cpp_id: COUNT
   canonical: عد
@@ -625,6 +627,7 @@ functions:
   description_ar: إزالة تشكيل
   description_en: Strip diacritics
   params: []
+  returns: نص
   lookup_table: name_only
 - cpp_id: COMPARE_TEXT
   canonical: مقارنة_نص
@@ -729,6 +732,7 @@ functions:
   description_ar: هل تحتوي المفتاح؟
   description_en: Map has key
   params: []
+  returns: منطقي
   lookup_table: name_only
 - cpp_id: MAP_DELETE
   canonical: خريطة_احذف
@@ -755,6 +759,7 @@ functions:
   description_ar: حجم الخريطة
   description_en: Map size
   params: []
+  returns: رقم
   lookup_table: name_only
 - cpp_id: MAP_ENTRIES
   canonical: خريطة_عناصر

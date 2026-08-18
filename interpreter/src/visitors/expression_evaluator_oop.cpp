@@ -64,6 +64,23 @@ namespace Sad
             node.object->accept(*this);
             Value objectValue = lastResult_;
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 قِصَرُ دائرةِ النداءِ الآمن (`س؟.م()`) — **قبلَ** كلِّ توزيع.
+            //      والمستقبِلُ يُقيَّم مرّةً واحدةً ثمّ يُفحَص: لا تكرارَ للأثرِ
+            //      الجانبيِّ، وهو ما يجب أن تطابقه الخلفيّة.
+            //      ⚠️ وهذا **وحدَه** ما يفعله العَلَم: ما عدا العدمِ يجب أن يتصرّف
+            //      `؟.` تصرُّفَ `.` حرفًا بحرف — وإلّا صار مُشغِّلُ الأمانِ لهجةً ثانية.
+            // (EN) Safe-call short-circuit, before any dispatch. The receiver is
+            //      evaluated exactly once, so there is no duplicated side effect — a
+            //      property the backend must match. Beyond null, `?.` must behave
+            //      exactly like `.`, or the safe operator becomes a second dialect.
+            // ════════════════════════════════════════════════════════════════
+            if (node.isOptional && objectValue.isNull())
+            {
+                lastResult_ = Value::makeNull();
+                return;
+            }
+
             // (AR) استدعاء طريقة الأساس «الأساس.طريقة()» (ISSUE-019): تقييم «الأساس» يُعيد اسم الصنف
             //      الأب نصًّا فيُحسَب استدعاءً ثابتًا ويُرفض (RUN050). نكتشف أنّ معامل الاستدعاء هو
             //      «الأساس» فنستبدل القيمة بالكائن الحاليّ «هذا» (استدعاء نسخة لا ثابت)، ثم نُعيد توجيه

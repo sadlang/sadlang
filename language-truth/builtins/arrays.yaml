@@ -41,6 +41,7 @@ functions:
   description_ar: حجم
   description_en: Array size
   params: []
+  returns: رقم
   lookup_table: name_only
 - cpp_id: INDEX_OF
   canonical: فهرس_مصفوفة
@@ -54,6 +55,7 @@ functions:
   description_ar: فهرس العنصر
   description_en: Index of
   params: []
+  returns: رقم
   lookup_table: name_only
 - cpp_id: ARRAY_CONTAINS
   canonical: يحتوي_عنصر
@@ -67,6 +69,7 @@ functions:
   description_ar: يحوي العنصر؟
   description_en: Contains
   params: []
+  returns: منطقي
   lookup_table: name_only
 - cpp_id: REVERSE
   canonical: قلب

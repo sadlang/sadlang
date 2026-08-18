@@ -218,6 +218,14 @@ namespace Sad
                                 // (EN) Search for default value in inheritance chain
                                 std::string defaultVal;
                                 SadTypeKind defaultType = SadTypeKind::Unknown;
+                                // (AR) 🔑 «وُجد» عَلَمٌ صريحٌ لا استنتاجٌ من الخواء: القيمةُ
+                                //      الافتراضيّةُ لنصٍّ غيرِ عدميٍّ هي النصُّ **الفارغ**،
+                                //      فشرطُ `!defaultVal.empty()` كان يبتلعها فيبقى الحقلُ
+                                //      مؤشّرًا صفريًّا من `memset(0)` ويُطبَع «لاشيء».
+                                //      الحضورُ في الجدولِ هو المعنى، لا امتلاءُ النصّ.
+                                // (EN) Presence in the map — not non-emptiness — means
+                                //      "has a default". The empty string IS a valid default.
+                                bool hasDefault = false;
                                 for (const auto &ancestor : inheritanceChain)
                                 {
                                     auto it = ancestor->fieldDefaultValues_.find(fieldName);
@@ -225,11 +233,12 @@ namespace Sad
                                     {
                                         defaultVal = it->second.first;
                                         defaultType = it->second.second;
+                                        hasDefault = true;
                                         break;
                                     }
                                 }
 
-                                if (!defaultVal.empty() && defaultType != SadTypeKind::Unknown)
+                                if (hasDefault && defaultType != SadTypeKind::Unknown)
                                 {
                                     // (AR) الإزاحة عبر getFieldStructIndex: +1 لتجاوز vtable في
                                     //      الأصناف العاديّة، وبلا إزاحة لبنى @تمثيل_سي [RFC #53 F2-ب]
@@ -308,11 +317,78 @@ namespace Sad
                                         storeDefault(strConst, SadTypeKind::String);
                                         break;
                                     }
+                                    // (AR) [م‑ز] ذراعُ العدم — كانت غائبةً في المُطبِّقَين
+                                    //      معًا، فيسقط الحقلُ العدميُّ في `default:` ويبقى
+                                    //      صفرَ `memset` بينما يقول المفسّرُ «لاشيء».
+                                    //      🔑 وإصلاحُ توأمٍ واحدٍ يجعل العطبَ **متقطّعًا**
+                                    //      بحسب مسارِ الإنشاء — أخضرَ في نصفِ المِجَسّات.
+                                    // (EN) [م‑ز] Null arm, absent from BOTH appliers; fixing
+                                    //      one twin alone would make the defect intermittent
+                                    //      by construction path — green in half the probes.
+                                    case SadTypeKind::Null:
+                                    {
+                                        storeDefault(
+                                            llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_),
+                                                                   Sad::Compiler::kSadNullSentinel),
+                                            SadTypeKind::Null);
+                                        break;
+                                    }
                                     default:
                                         break;
                                     }
                                 }
                                 fieldIdx2++;
+                            }
+                        }
+                    }
+
+                    // ═══════════════════════════════════════════════════════════════
+                    // (AR) 🔑 الحقولُ الصنفيّة: تُنشَأ تعاوديًّا — والتصريحُ المجرَّدُ
+                    //      **لا يمرُّ بالباني** بل بهذا المسارِ التوأمِ، فوجب وصلُه.
+                    //
+                    //      قِيس (2026-08-16): بعدَ وصلِ التعشيشِ في `emitConstructorCall`
+                    //      بقي `شخص ك` ينهار كما كان. وقراءةُ المُخرَجِ كشفت السبب:
+                    //      `malloc(16)` واحدٌ ثمّ `movq 8(%rax)` على خانةٍ صفريّة — أي
+                    //      أنّ الباني لم يُستدعَ أصلًا. فللتصريحِ المجرَّدِ مسارُ تخصيصٍ
+                    //      مستقلٌّ يكرّر التصفيرَ والمصفوفاتِ والقيمَ الافتراضيّة.
+                    //      **رقعةُ الطبقةِ الصحيحةِ في المسارِ الخطأِ رقعةٌ ميّتة.**
+                    //
+                    //      والإنشاءُ هنا بنداءِ `emitConstructorCall` نفسِه لا بنسخةٍ
+                    //      ثالثة: التوأمانِ موجودان سلفًا، فلا يُزاد ثالثٌ ينحرف.
+                    // (EN) Class-typed fields are constructed recursively here too: a
+                    //      bare declaration does NOT go through the constructor emitter
+                    //      but through this twin allocation path. Measured: after wiring
+                    //      the constructor, the crash was unchanged — the emitted code
+                    //      showed a single malloc(16) and a load off a zero slot. Done by
+                    //      calling emitConstructorCall itself, not a third copy.
+                    // ═══════════════════════════════════════════════════════════════
+                    if (cg_.sirModule_)
+                    {
+                        auto nestedOwner = cg_.sirModule_->getClass(className);
+                        if (nestedOwner && !nestedOwner->classFieldTypes_.empty())
+                        {
+                            int nestedIdx = 0;
+                            for (const auto &fieldName : nestedOwner->fieldOrder_)
+                            {
+                                auto nestedIt = nestedOwner->classFieldTypes_.find(fieldName);
+                                if (nestedIt != nestedOwner->classFieldTypes_.end())
+                                {
+                                    auto nestedInst = std::make_shared<Sad::Compiler::SIR::SIRInstruction>(
+                                        Sad::Compiler::SIR::SIROpcode::CONSTRUCTOR_CALL);
+                                    nestedInst->operands.push_back(
+                                        Sad::Compiler::SIR::SIROperand::Register(
+                                            nestedIt->second, SadTypeKind::Class));
+                                    llvm::Value *nestedPtr = cg_.emitConstructorCall(nestedInst);
+                                    if (nestedPtr)
+                                    {
+                                        llvm::Value *nestedGep = cg_.builder_->CreateStructGEP(
+                                            structType, rawPtr,
+                                            cg_.getFieldStructIndex(className, nestedIdx),
+                                            fieldName + ".nested");
+                                        cg_.builder_->CreateStore(nestedPtr, nestedGep);
+                                    }
+                                }
+                                nestedIdx++;
                             }
                         }
                     }

@@ -166,6 +166,31 @@ namespace Sad
             }
         }
 
+        // ─── اللفظ ⇒ النوع / Word ⇒ kind ───
+        /**
+         * @brief (AR) نوعُ اللفظِ السطحيّ — مُولَّد من types.yaml
+         * @brief (EN) Kind of a surface type word — generated from types.yaml
+         *
+         * (AR) يُرجِع Unknown لِما ليس لفظَ نوعٍ سطحيّ — فالمُنادي يميّز
+         *      «ليس نوعًا» عن «نوعٌ مجهول» بموضعِه لا بهذه الدالّة.
+         * (EN) Returns Unknown for anything that is not a surface type word.
+         */
+        inline SadTypeKind sadTypeKindFromArabicName(std::string_view word)
+        {
+            if (word == "\xd9\x81\xd8\xb1\xd8\xa7\xd8\xba") return SadTypeKind::Void; // فراغ
+            if (word == "\xd8\xb1\xd9\x82\xd9\x85") return SadTypeKind::Integer; // رقم
+            if (word == "\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a") return SadTypeKind::Float; // عشري
+            if (word == "\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a") return SadTypeKind::Boolean; // منطقي
+            if (word == "\xd9\x86\xd8\xb5") return SadTypeKind::String; // نص
+            if (word == "\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa") return SadTypeKind::Byte; // بايت
+            if (word == "\xd8\xb7\xd8\xa8\xd9\x8a\xd8\xb9\xd9\x8a\x36\x34") return SadTypeKind::UInt64; // طبيعي64
+            if (word == "\xd9\x85\xd8\xb5\xd9\x81\xd9\x88\xd9\x81\xd8\xa9") return SadTypeKind::Array; // مصفوفة
+            if (word == "\xd8\xae\xd8\xb1\xd9\x8a\xd8\xb7\xd8\xa9") return SadTypeKind::Map; // خريطة
+            if (word == "\xd8\xa3\xd9\x8a") return SadTypeKind::Any; // أي
+            if (word == "\xd8\xb9\xd8\xaf\xd9\x85") return SadTypeKind::Null; // عدم
+            return SadTypeKind::Unknown;
+        }
+
         // ─── أسماء الأنواع السطحية / Surface type names ───
         /**
          * @brief (AR) أسماء الأنواع السطحية (surface:true) — مُولَّدة من types.yaml

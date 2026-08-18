@@ -62,6 +62,48 @@
 namespace sad {
 namespace cli {
 
+namespace {
+
+// ==============================================================================
+// تهريب نصٍّ إلى JSON
+// ==============================================================================
+//
+// كان مُصدِرُ JSON يكتب رسائلَ الخطأ خامًا، فرسالةٌ فيها علامةُ اقتباسٍ أو
+// شرطةٌ مائلةٌ عكسيّة (وهما شائعتان في مسارات ويندوز) تُخرِج ملفًّا لا يُحلَّل —
+// أي تقريرٌ يبدو موجودًا ولا يُقرَأ. القياسُ لا يُحتَجُّ به إن كان مخرَجُه هشًّا.
+std::string escapeJsonString(const std::string &text)
+{
+    std::string escaped;
+    escaped.reserve(text.size() + 8);
+    for (const unsigned char character : text)
+    {
+        switch (character)
+        {
+            case '"': escaped += "\\\""; break;
+            case '\\': escaped += "\\\\"; break;
+            case '\n': escaped += "\\n"; break;
+            case '\r': escaped += "\\r"; break;
+            case '\t': escaped += "\\t"; break;
+            default:
+                if (character < 0x20)
+                {
+                    std::ostringstream unicodeEscape;
+                    unicodeEscape << "\\u" << std::hex << std::setw(4)
+                                  << std::setfill('0') << static_cast<int>(character);
+                    escaped += unicodeEscape.str();
+                }
+                else
+                {
+                    escaped += static_cast<char>(character);
+                }
+                break;
+        }
+    }
+    return escaped;
+}
+
+}  // namespace
+
 // ==============================================================================
 // تنفيذ خيارات أمر الاختبار
 // Test Command Options Implementation
@@ -138,7 +180,13 @@ std::vector<CommandOption> TestCommand::get_options() const {
         {"", "--report", "--تقرير",
          "Write report to file", "كتابة التقرير إلى ملف",
          true, "", false},
-        
+
+        // سجلٌّ تدريجيّ: سطرُ JSON لكلِّ اختبارٍ فورَ انتهائه
+        {"", "--journal", "--سجل",
+         "Append one JSON line per test as it finishes (survives an interrupted run)",
+         "إلحاق سطر JSON لكل اختبار فور انتهائه (ينجو من مسحٍ منقطع)",
+         true, "", false},
+
         // وضع المراقبة
         {"", "--watch", "--راقب",
          "Watch for changes and re-run tests", "مراقبة التغييرات وإعادة الاختبار",
@@ -239,7 +287,38 @@ int TestCommand::execute(const ParsedOptions& options) {
     std::mutex results_mutex;
     std::atomic<int> tests_completed(0);
     std::atomic<bool> should_stop(false);
-    
+
+    // ------------------------------------------------------------------
+    // السجلُّ التدريجيّ
+    // ------------------------------------------------------------------
+    //
+    // كان التقريرُ لا يُكتَب إلّا بعد آخرِ اختبار، فمسحٌ ينقطع في منتصفه —
+    // بانقطاعِ الجلسةِ أو بقتلِ العمليّة — يُخلِّف صفرَ أثر: لا نتيجةً جزئيّةً
+    // تُستنقَذ ولا موضعَ توقّفٍ يُشخَّص به السبب. وقد كلّفنا ذلك مسحًا كاملًا.
+    // فالسطرُ يُكتَب ويُدفَع فورَ انتهاءِ كلِّ اختبار، والدفعُ مقصودٌ ولو أبطأ:
+    // السجلُّ الذي يبقى في المخزنِ المؤقّتِ عند القتلِ لا يختلف عن غيابه.
+    std::ofstream journal_file;
+    const std::string journal_path = options.get("journal");
+    if (!journal_path.empty())
+    {
+        journal_file.open(journal_path, std::ios::out | std::ios::trunc);
+        if (!journal_file)
+        {
+            print_error_ar("فشل فتح ملف السجل: " + journal_path);
+        }
+    }
+
+    // يُنادى دائمًا تحت قفلِ results_mutex في المسارِ المتوازي.
+    auto append_journal = [&](const TestResult& result) {
+        if (!journal_file) return;
+        journal_file << "{\"name\":\"" << escapeJsonString(result.name)
+                     << "\",\"passed\":" << (result.passed ? "true" : "false")
+                     << ",\"duration_ms\":" << result.duration_ms
+                     << ",\"error\":\"" << escapeJsonString(result.error_message)
+                     << "\"}\n";
+        journal_file.flush();
+    };
+
     if (parallel && test_files.size() > 1) {
         // التشغيل المتوازي
         std::vector<std::thread> threads;
@@ -261,7 +340,8 @@ int TestCommand::execute(const ParsedOptions& options) {
                 {
                     std::lock_guard<std::mutex> lock(results_mutex);
                     results.push_back(result);
-                    
+                    append_journal(result);
+
                     // عرض التقدم
                     if (!quiet) {
                         int completed = ++tests_completed;
@@ -296,7 +376,8 @@ int TestCommand::execute(const ParsedOptions& options) {
             
             TestResult result = run_single_test(test_file);
             results.push_back(result);
-            
+            append_journal(result);
+
             // عرض النتيجة
             if (!quiet) {
                 print_test_result_line(result, verbose);
@@ -679,10 +760,10 @@ void TestCommand::write_report(const std::vector<TestResult>& results,
         for (size_t i = 0; i < results.size(); ++i) {
             const auto& r = results[i];
             file << "    {\n";
-            file << "      \"name\": \"" << r.name << "\",\n";
+            file << "      \"name\": \"" << escapeJsonString(r.name) << "\",\n";
             file << "      \"passed\": " << (r.passed ? "true" : "false") << ",\n";
             file << "      \"duration_ms\": " << r.duration_ms << ",\n";
-            file << "      \"error\": \"" << r.error_message << "\"\n";
+            file << "      \"error\": \"" << escapeJsonString(r.error_message) << "\"\n";
             file << "    }" << (i < results.size() - 1 ? "," : "") << "\n";
         }
         file << "  ]\n";

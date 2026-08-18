@@ -1,0 +1,15 @@
+# (AR) ضابطٌ أوّل: صنفٌ **بلا** حقلٍ صنفيّ مع ‹:reset› — كان يعمل قبل العطبِ وبعده.
+#      وجودُه يمنع أن يُقرَأ نجاحُ التقاطعِ على أنّه «‏:reset سليمٌ عمومًا».
+# (EN) First control: a class with NO class-typed field plus ‹:reset› — worked both
+#      before and after the defect; without it, the intersection's pass is unreadable.
+صنف بسيط
+    رقم عدد
+نهاية
+:reset
+صنف بسيط
+    رقم عدد
+نهاية
+بسيط م
+م.عدد = 5
+اطبع_سطر("PLAIN_RESET_OK " + نص(م.عدد))
+:خروج

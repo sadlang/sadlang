@@ -61,6 +61,8 @@ namespace Sad
                 return cg_.emitBoxDyn(inst);
             case SIROpcode::NULL_ASSERT:
                 return cg_.emitNullAssert(inst);
+            case SIROpcode::OBJECT_NULL_CHECK:
+                return cg_.emitObjectNullCheck(inst);
 
             // Bitwise - Source: sir_types.h:134-141
             case SIROpcode::AND:

@@ -78,7 +78,54 @@ namespace Sad
                         vis = AST::Visibility::PROTECTED;
                         break;
                     }
-                    classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic);
+                    // ═══════════════════════════════════════════════════════
+                    // (AR) مصدرُ حقيقةٍ ثانٍ لحقولِ الأصناف
+                    // ═══════════════════════════════════════════════════════
+                    //
+                    // (AR) هذا الموضعُ كان يُسقِط القيمةَ الافتراضيّةَ واسمَ صنفِ
+                    //      الإنشاءِ معًا، فالصنفُ القالبيُّ يفترق سلوكًا عن الصنفِ
+                    //      العاديِّ في القاعدةِ نفسِها. فيُمرَّر ما يُمرَّر في
+                    //      `statement_executor_oop.cpp` ليتطابق المسلكان.
+                    //
+                    //      🔑 وتصويبُ تدقيقٍ لاحقٍ (2026-08-15): النسخةُ الأولى من هذه
+                    //      الرقعةِ مرّرت اسمَ صنفِ الإنشاءِ والموضعَ **ولم تمرّرِ القيمةَ
+                    //      الافتراضيّةَ للنوع** (بقيت `Value()` أي «لاشيء»)، فادّعى
+                    //      التعليقُ تطابقًا لم يكن قائمًا: المسلكُ العاديُّ يحسبها
+                    //      والقالبيُّ يتركها. صُحِّح بندائها من مصدرِ الحقيقةِ الواحد
+                    //      `Data::defaultValueForTypeKind`. ودرسُه: ادّعاءُ التطابقِ
+                    //      يُقاس بمقارنةِ الوسائطِ وسيطًا وسيطًا لا بحُسنِ النيّة.
+                    //
+                    //      ⚠️ ويبقى التطابقُ **ناقصًا** بفارقٍ سابقٍ للرقعةِ لم أسدَّه:
+                    //      المسلكُ العاديُّ يُقيِّم المُهيّئَ الحرفيَّ (`رقم سن = 5`)
+                    //      وهذا المسلكُ لا يُقيِّمه أصلًا، فيبقى الحقلُ على الافتراضيِّ.
+                    //      سدُّه يقتضي مُقيِّمًا هنا، وهو خارجَ نطاقِ هذه الرقعةِ ولا
+                    //      يُقاس ما دام السطرُ لا يُبلَغ ببرنامج.
+                    //
+                    //      ⚠️ وحدَّ القياسِ يُقال كما هو: لم أُفلِح في كتابةِ برنامجٍ
+                    //      يبلغ هذا السطر — `صنف علبة<ن>` يُرفَض بـSYN019، و
+                    //      `قالب <نوع ت>` فوق صنفٍ ثمّ `علبة<رقم>()` يُخفِق بـSEM004
+                    //      («__template_علبة» غير معرَّفة)، وليس في مجموعةِ الاختبارِ
+                    //      كلِّها صنفٌ قالبيٌّ واحدٌ يُنشَأ منه كائن. فالتصحيحُ هنا
+                    //      **موافقةُ مسلكَين لا إصلاحٌ مقيس**، ولا أدّعي غيرَ ذلك.
+                    //      و«غيرُ مقيسٍ» ليس «ميّتًا»: قد يُفتَح الطريقُ غدًا.
+                    Value templateFieldDefault = Data::defaultValueForTypeKind(fieldDecl->type);
+                    std::string templateConstructClass;
+                    size_t templateConstructLine = 0;
+                    size_t templateConstructColumn = 0;
+                    if (auto *newObjectInitializer = fieldDecl->isStatic
+                                                         ? nullptr
+                                                         : dynamic_cast<AST::NewExpr *>(
+                                                               fieldDecl->initializer
+                                                                   ? fieldDecl->initializer.get()
+                                                                   : nullptr))
+                    {
+                        templateConstructClass = newObjectInitializer->className;
+                        templateConstructLine = newObjectInitializer->position.line;
+                        templateConstructColumn = newObjectInitializer->position.column;
+                    }
+                    classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic,
+                                        templateFieldDefault, templateConstructClass,
+                                        templateConstructLine, templateConstructColumn);
                 }
                 else if (auto *methodDecl = dynamic_cast<MethodDecl *>(member.get()))
                 {

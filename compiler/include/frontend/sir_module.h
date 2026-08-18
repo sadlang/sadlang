@@ -371,6 +371,102 @@ namespace Sad
             }
 
             /**
+             * @brief (AR) هل يحتاج النوعُ العدميُّ `T؟` وسمًا **خارجَ نطاقِ** القيمة؟
+             * @brief (EN) Does the nullable type `T?` need an **out-of-band** tag?
+             *
+             * (AR) 🔑 العقدُ المُقاس: العدمُ ينجو حيثما كانت الخانةُ ٦٤ بتًّا (`i64`/`ptr`)،
+             *      ويُدمَّر حيثما ضاق العرضُ أو تبدّلت الدلالة. و`منطقي` معامِلًا يُخفَّض
+             *      `i1`، فوسيطُ `لاشيء` ووسيطُ `صحيح` **بتّاتٌ متطابقةٌ حرفيًّا** —
+             *      فلا مستهلِكَ في الدنيا يفرّق بينهما، وأيُّ حارسٍ عند الطابعِ أو عند
+             *      `طابق` رقعةٌ في الطبقةِ الخطأ.
+             *      فتُخزَّن هذه الأنواعُ في `Any` أي `%SadDyn` = {وسمٌ i8، حمولةٌ i64}:
+             *      وسمٌ خارجَ النطاقِ لا تنازعُه قيمةٌ مشروعة.
+             *      وهذا **لا يبني تمثيلًا جديدًا** — يُوجّه العدميَّ إلى تمثيلٍ قائمٍ
+             *      مقيسٍ (ISSUE-063/076): المسحُ المسبق يبذر منه، و`mem_alloca` يختاره،
+             *      و`dynToString`/`dynCompare`/`emitPhi` تستهلكه.
+             * (EN) 🔑 Measured contract: null survives wherever the slot is 64-bit
+             *      (`i64`/`ptr`) and is destroyed wherever the width narrows or the
+             *      semantics change. A `منطقي` parameter lowers to `i1`, so the `لاشيء`
+             *      argument and the `صحيح` argument are **literally identical bits** — no
+             *      consumer can tell them apart, and a guard at the printer or at `طابق`
+             *      would be a patch in the wrong layer. Such types are therefore stored as
+             *      `Any`, i.e. `%SadDyn` = {i8 tag, i64 payload}: an out-of-band tag that no
+             *      legitimate value can contend for. This builds **no new representation** —
+             *      it routes nullables into the existing, measured one (ISSUE-063/076).
+             *
+             * ⚠️ (AR) هذه سلطةٌ **واحدة**؛ نسخةٌ ثانيةٌ تسهو عن نوعٍ تُعيد التباعُدَ الذي
+             *      وُضِعت لسدِّه. وبقيّةُ الأنواعِ العدميّةِ تُضاف هنا وحدَه (م‑ج فما بعدها).
+             * ⚠️ (EN) ONE authority; a second copy that forgets a kind reinstates the very
+             *      divergence this closes. Remaining nullable kinds are added here alone.
+             */
+            inline bool sirNullableNeedsOutOfBandTag(SadTypeKind innerKind)
+            {
+                // (AR) م‑ب: `منطقي؟` — المعامِلُ كان `i1`، فوسيطُ `لاشيء` ووسيطُ `صحيح`
+                //      بتّاتٌ متطابقةٌ حرفيًّا؛ لا مستهلِكَ يفرّق بينهما.
+                // (EN) م‑ب: `bool?` — the parameter was `i1`, so the `null` and `true`
+                //      arguments were literally identical bits.
+                if (innerKind == SadTypeKind::Boolean)
+                {
+                    return true;
+                }
+
+                // (AR) م‑ج: `عشري؟` — الخانةُ `double` والحارسُ i64، فالتكييفُ `sitofp`
+                //      يُحوّله عددًا عشريًّا هائلًا (`-9223372036854775808.0`) لا وسمًا.
+                //      وهو **تحويلُ دلالةٍ لا بترُ عرض**: الخانةُ ٦٤ بتًّا كاملةً ومع
+                //      ذلك يضيع العدم — فالعرضُ وحدَه ليس شرطَ النجاة.
+                //      ⚠️ ولا يُعالَج ببثِّ بتّاتِ الحارسِ في `double`: نمطُ البتّات
+                //      `0x8000000000000001` **عددٌ عشريٌّ شرعيٌّ** (تحت-طبيعيّ)، فحسابٌ
+                //      يُنتجه بالضبط يُقرَأ «لاشيء» — يُمدَّد التصادمُ ولا يُلغى.
+                // (EN) م‑ج: `float?` — the slot is `double` while the sentinel is i64, so
+                //      the `sitofp` coercion turns it into a huge float, not a tag. This is
+                //      a CHANGE OF MEANING, not a width truncation: the slot is a full 64
+                //      bits and null still dies — width alone is not the survival condition.
+                //      ⚠️ Not fixable by bit-casting the sentinel into the `double`: the bit
+                //      pattern 0x8000000000000001 IS a legitimate (subnormal) float, so a
+                //      computation producing it exactly would read as null — that extends
+                //      the collision instead of ending it.
+                if (innerKind == SadTypeKind::Float)
+                {
+                    return true;
+                }
+
+                // (AR) م‑د: `بايت؟` و`طبيعي64؟` — وخانتاهما `i64` تحفظان الحارسَ
+                //      بتًّا ببتّ، فليست العلّةُ تكييفًا كما في `منطقي` و`عشري`.
+                //      العلّةُ **تصادمُ قيمةٍ شرعيّة**: `kSadNullSentinel` عددٌ
+                //      صحيحٌ مشروعٌ في كِلا النوعَين، فكان فحصُ الحارسِ **مُستثنًى
+                //      فيهما عمدًا** لئلّا تُقرأ قيمةٌ حقيقيّةٌ عدمًا. والاستثناءُ
+                //      ثمنُه أنّ العدمَ لا يُقرَأ عدمًا أبدًا.
+                //      والوسمُ خارجَ النطاقِ يُنهي المفاضلةَ: لا استثناءَ ولا تصادم.
+                //
+                // (AR) 🔑 وهذا الصفُّ يُكمِل قاعدةَ النجاة: العدمُ يموت في ثلاثِ
+                //      صورٍ لا صورتَين — **بترُ عرضٍ** (`منطقي` ⇒ i1) · **تحويلُ
+                //      دلالةٍ** (`عشري` ⇒ sitofp) · و**تصادمُ قيمةٍ شرعيّةٍ**
+                //      (`بايت`/`طبيعي64` ⇒ الخانةُ سليمةٌ والحارسُ غيرُ مميَّز).
+                //      والثالثةُ لا يُصلحها عرضٌ ولا تكييفٌ — **الوسمُ وحدَه**.
+                // (EN) م‑د: `byte?` and `uint64?` — their `i64` slots preserve the
+                //      sentinel bit for bit, so the cause is not coercion as with bool
+                //      and float. The cause is a LEGAL-VALUE COLLISION: the sentinel is
+                //      a legitimate integer in both, so the null check was deliberately
+                //      EXCLUDED for them lest a real value read as null — at the price
+                //      that null never reads as null. An out-of-band tag ends the
+                //      trade-off: no exclusion, no collision.
+                //      🔑 This completes the survival rule: null dies in THREE ways, not
+                //      two — width truncation, meaning change, and legal-value collision.
+                //      The third is curable by neither width nor cast — only by a tag.
+                return innerKind == SadTypeKind::Byte ||
+                       innerKind == SadTypeKind::UInt64;
+            }
+
+            /**
+             * @brief (AR) نوعُ التخزينِ لِـ`T؟` — إمّا `T` نفسُه وإمّا `Any` (وسمٌ خارجَ النطاق)
+             * @brief (EN) The storage kind for `T?` — either `T` itself or `Any` (out-of-band tag)
+             */
+            inline SadTypeKind sirNullableStorageKind(SadTypeKind innerKind)
+            {
+                return sirNullableNeedsOutOfBandTag(innerKind) ? SadTypeKind::Any : innerKind;
+            }
+
+            /**
              * @brief (AR) يبني قيمةَ التبطينِ لخانةِ معاملٍ واحدةٍ لم يبلغْها وسيط
              * @brief (EN) Builds the pad value for a single parameter slot no argument reached
              *
@@ -425,6 +521,22 @@ namespace Sad
                     SIROperand nullPad = SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel);
                     nullPad.dataType = SadTypeKind::Null;
                     return nullPad;
+                }
+
+                // (AR) خانةُ `Any` تحمل الوسمَ **خارجَ** النطاق، فالعدمُ يبلغُها سليمًا:
+                //      الوسمُ `Null` هو ما تُعلّبه `toDyn` وتقرؤه `dynToString`/`dynCompare`.
+                //      وهذه هي خانةُ كلِّ نوعٍ عدميٍّ يُرجِعُ له `sirNullableNeedsOutOfBandTag`
+                //      صوابًا، فبطنُها بصفرِها كان يزرعُ `خطأ` مكانَ `لاشيء`.
+                // (EN) An `Any` slot carries its tag OUT of band, so null reaches it intact:
+                //      the `Null` tag is what `toDyn` packs and `dynToString`/`dynCompare`
+                //      read. This is the slot of every nullable kind for which
+                //      `sirNullableNeedsOutOfBandTag` is true; padding it with its zero
+                //      planted `false` where `null` belonged.
+                if (declaredKind == SadTypeKind::Any)
+                {
+                    SIROperand dynNullPad = SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel);
+                    dynNullPad.dataType = SadTypeKind::Null;
+                    return dynNullPad;
                 }
 
                 // (AR) صفرُ النوعِ — مطابقٌ لـ`Constant::getNullValue` نوعًا بنوع.
@@ -639,6 +751,24 @@ namespace Sad
                 //      other. Deriving presence from emptiness left `ثابت فارغ = ""` uninitialised,
                 //      so its pointer was zeroed and printed as "void".
                 bool hasInitialValue = false; ///< (AR) هل عُيِّنت قيمةٌ أوليّةٌ أصلًا / (EN) Was an initial value assigned at all
+                // (AR) 🔑 نوعُ **القيمةِ الأوليّةِ نفسِها** — مستقلٌّ عن `type` أعلاه.
+                //      حين تكون الخانةُ `أي` فـ`type` = `Any` ولا يُشتقّ منه صنفُ الحرفيّة،
+                //      ونصُّ `initialValue` وحدَه **لا يكفي**: «1» تُكتَب للعددِ ١ وللقيمةِ
+                //      «صحيح» سواءً بسواء، فلا يميّزهما مُصدِرٌ يشمُّ النصَّ. والمُصدِرُ كان
+                //      يسقط إلى `default:` فيُصفِّر خانةَ %SadDyn — وصفرُ الوسمِ **هو وسمُ
+                //      العدم** — فتُقرأ «لاشيء» ببناءٍ ناجحٍ ورمزِ خروجٍ صفر.
+                //      المقيس: `ثابت أي س = 5` ⇒ المفسّرُ «5»/«رقم» والمُترجَمُ
+                //      «لاشيء»/«عدم»؛ والضابطُ `ثابت رقم ص = 5` يعطي «5» في المحرّكَين.
+                //      ⚠️ ويبقى `Unknown` لكلِّ خانةٍ لم تُملأ، فتظلّ `type` هي الحاكمةَ
+                //      هناك ولا يتبدّل مسارٌ قائم.
+                // (EN) The kind of the INITIAL VALUE itself, independent of `type` above.
+                //      For an `أي` slot `type` is Any and carries no literal kind, and the
+                //      text alone cannot substitute: "1" serialises both the integer 1 and
+                //      the boolean true. The emitter fell to `default:` and left the
+                //      %SadDyn slot zeroed — and a zero tag IS the null tag — so it read
+                //      back as «لاشيء» with a successful build and exit code 0.
+                //      Stays Unknown wherever unset, so `type` still governs there.
+                SadTypeKind initialValueKind = SadTypeKind::Unknown;
                 bool isConstant;          ///< (AR) ثابت / (EN) Constant
                 // (AR) سمات تخزين ساكن (اللبنة 3.14)
                 std::string linkName;     ///< (AR) رمز رابط مُصدَّر ثابت (@رمز) — فارغ = اسم داخليّ مُشوَّه
@@ -761,6 +891,27 @@ namespace Sad
                 ///      Example: `var public x = 10` → fieldDefaultValues_["x"] = {"10", Integer}
                 ///      Used in emitConstructorCall to set values after memset(0)
                 std::unordered_map<std::string, std::pair<std::string, SadTypeKind>> fieldDefaultValues_;
+
+                /// (AR) 🔑 حقولٌ نوعُها صنف: الاسمُ ⇒ اسمُ صنفِ الحقل.
+                ///
+                ///      قرارُ المالك: «يأخذ كلُّ متغيّرٍ القيمةَ الافتراضيّةَ لنوعِه»،
+                ///      والقيمةُ الافتراضيّةُ لنوعٍ صنفيٍّ **كائنٌ مُنشَأ** لا مؤشّرٌ صفريّ.
+                ///      والمحلّلُ يُحلّي ذلك سلفًا إلى `NewExpr` بلا وسائط، لكنّ
+                ///      `fieldDefaultValues_` لا يحمل إلّا الحرفيّاتِ النصّيّة — فكان
+                ///      المُهيّئُ الصنفيُّ **يُسقَط صامتًا** ويبقى الحقلُ صفرًا بعد
+                ///      `memset(0)`، فينهار `ك.د.ق` بـ`rc=139` (مقيس 2026-08-16)
+                ///      بينما يطبع المفسّرُ `1`.
+                ///
+                ///      وهو جدولٌ مستقلٌّ لا توسيعٌ للأوّل لأنّ قيمتَه ليست حرفيّةً
+                ///      تُخزَّن بل **إنشاءٌ يُنفَّذ**، ولأنّ قارئَه (البانِي) يحتاجه
+                ///      قبل تطبيقِ الحرفيّاتِ لا معها.
+                /// (EN) Class-typed fields: name ⇒ its class name. The parser desugars
+                ///      them to an argument-less NewExpr, but fieldDefaultValues_ only
+                ///      carries literals, so the initializer was silently dropped and
+                ///      the field stayed null after memset(0) ⇒ measured rc=139 where
+                ///      the interpreter prints 1. A separate table because its value is
+                ///      an executed construction, not a stored literal.
+                std::unordered_map<std::string, std::string> classFieldTypes_;
 
                 /// (AR) تسجيل حقل كمصفوفة
                 /// (EN) Mark a field as an array field

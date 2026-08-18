@@ -12,8 +12,16 @@
 #include "sir_constants.h" // (AR) أسماءُ زمنِ تشغيلِ الخريطة — عقدٌ مشترَكٌ مع الخلفيّة
 // (AR) ثوابت أسماء طرق الأنواع المُولَّدة
 #include "builtin_registry.h"
+// (AR) رموزُ زمنِ تشغيلِ النصِّ ومقابلُها العربيُّ — عقدٌ واحدٌ مع الخلفيّة
+#include "string_runtime_ports.h"
 
 namespace TM = Sad::Builtins::Names::TypeMethods;
+
+// (AR) فاصلُ «قسم» حين لا يُعطى فاصل — المسافةُ، كما يقرؤها المفسّرُ حرفًا:
+//      `std::string sep = args.empty() ? " " : args[0].toString();`
+// (EN) Default separator for split when none is given — a space, mirroring the
+//      interpreter literally.
+static constexpr const char *kDefaultSplitSeparator = " ";
 
 namespace Sad
 {
@@ -31,8 +39,19 @@ namespace Sad
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_SPLIT);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Array);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, SadTypeKind::String));
+                    // (AR) 🔑 الفاصلُ اختياريٌّ في اللغة: المفسّرُ يقرأ «args.empty() ? " "»،
+                    //      فـ«"أ ب ج".قسم()» يُعطي [أ, ب, ج]. وكان المترجّمُ يبعثُ التعليمةَ
+                    //      بمعاملٍ واحدٍ فيقرأ الباعثُ معاملًا غيرَ موجود ⇒ **انهيارُ تجزئة**
+                    //      على نصٍّ حقيقيّ لا على عدمٍ فقط. فيُملأ الافتراضُ هنا، عند الجهةِ
+                    //      التي تملكُ دلالةَ اللغة، لا في الخلفيّة.
+                    // (EN) 🔑 The separator is optional: the interpreter reads `args.empty() ? " "`.
+                    //      The compiler emitted a one-operand instruction and the emitter read a
+                    //      missing operand ⇒ segfault on a REAL string, not only on null. The
+                    //      default belongs here, where the language semantics live.
                     if (args.size() > 1)
                         inst.operands.push_back(args[1]);
+                    else
+                        inst.operands.push_back(SIROperand::ConstantString(kDefaultSplitSeparator));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
                     BuildResult result(resultReg, SadTypeKind::Array);
@@ -154,11 +173,16 @@ namespace Sad
                 //      implementations that would silently drift apart.
                 // ════════════════════════════════════════════════════════════════════
                 {
-                    // (AR) أسماءُ رموز زمن التشغيل — ثوابتُ مسمّاةٌ لا سلاسلُ مباشرة
-                    // (EN) Runtime symbol names — named constants, not raw literals
-                    static constexpr const char *kRuntimeUtf8CharAt = "sad_llvm_string_utf8_char_at";
-                    static constexpr const char *kRuntimeStringReverse = "sad_llvm_string_reverse";
-                    static constexpr const char *kRuntimeStringRepeat = "sad_llvm_string_repeat";
+                    // (AR) أسماءُ رموز زمن التشغيل — من الرأسِ المشتركِ لا معرَّفةً هنا:
+                    //      الخلفيّةُ تحتاجُ الرمزَ نفسَه لتردَّ المستقبِلَ العدميَّ إلى بابِه،
+                    //      ونسختانِ من الاسمِ تنحرفان صامتًا (انظر string_runtime_ports.h).
+                    // (EN) Runtime symbol names come from the shared header, not defined here:
+                    //      the backend needs the same symbols to route a null receiver through
+                    //      the door, and two copies of a name drift silently.
+                    namespace RuntimePorts = ::Sad::Compiler::StringRuntimePorts;
+                    static const std::string kRuntimeUtf8CharAt{RuntimePorts::kUtf8CharAt};
+                    static const std::string kRuntimeStringReverse{RuntimePorts::kReverse};
+                    static const std::string kRuntimeStringRepeat{RuntimePorts::kRepeat};
 
                     // (AR) طرقٌ لها أوپكودٌ قائمٌ في الخلفيّة — تُوجَّه إليه بدل كتابة نسخةٍ
                     //      ثانيةٍ في زمن التشغيل تفترق عنه صامتًا. كانت غيرَ مبنيّةٍ هنا
@@ -211,16 +235,16 @@ namespace Sad
 
                     if (methodName == TM::String::CHAR_AT)
                     {
-                        runtimeFn = kRuntimeUtf8CharAt;
+                        runtimeFn = kRuntimeUtf8CharAt.c_str();
                         takesArgument = true;
                     }
                     else if (methodName == TM::String::REVERSE)
                     {
-                        runtimeFn = kRuntimeStringReverse;
+                        runtimeFn = kRuntimeStringReverse.c_str();
                     }
                     else if (methodName == TM::String::REPEAT)
                     {
-                        runtimeFn = kRuntimeStringRepeat;
+                        runtimeFn = kRuntimeStringRepeat.c_str();
                         takesArgument = true;
                     }
 

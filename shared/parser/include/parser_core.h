@@ -1411,6 +1411,21 @@ namespace Sad
             void errorCatalog(Errors::ErrorCode code, CatalogArgs placeholders = {});
 
             /**
+             * @brief (AR) مثل errorCatalog لكن بموضعٍ صريحٍ لا موضعِ الرمزِ الحاليّ
+             * @brief (EN) Like errorCatalog but at an explicit position
+             *
+             * @param code (Errors::ErrorCode) — (AR) رمزُ الخطأ / (EN) error code
+             * @param placeholders (CatalogArgs) — (AR) بدائلُ الرسالة / (EN) message placeholders
+             * @param position (Lexer::Position) — (AR) موضعُ التشخيص / (EN) diagnostic position
+             *
+             * ملاحظات إضافية:
+             * - AR: يلزم لكلِّ خطأٍ يُكتشَف بعد استيفاءِ البنيةِ التي يصفها.
+             * - EN: Required for any error detected after its construct is consumed.
+             */
+            void errorCatalogAt(Errors::ErrorCode code, CatalogArgs placeholders,
+                                const Lexer::Position &position);
+
+            /**
              * @brief (AR) نظير errorExpectedToken عبر الكتالوج: محروس بوضع الهلع، يسجل بلا
              *        طباعة فورية (نفس سلوك errorExpectedToken القديم).
              *        (EN) Catalog counterpart of errorExpectedToken: panic-guarded, records
@@ -1521,6 +1536,31 @@ namespace Sad
             Types::SadTypeKind parseType();
             // (AR) [S-TS-P4] النواة: تحلّل النوع الأساس دون لاحقة `؟` (يستدعيها parseType).
             Types::SadTypeKind parseTypeCore();
+
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 استهلاكُ علامةِ العدميّةِ — **موضعٌ واحدٌ يُنادى**.
+            //
+            //      العلامةُ صيغتان («؟» لاحقةً و«عدمي» صفةً)، وهما **ليستا
+            //      مترادفتَين في العمل** ما لم يستهلكهما الموضعُ نفسُه: قِيس أنّ
+            //      الصفةَ كانت تعمل في المعامِلِ والمتغيّرِ والإرجاعِ وتُخفِق في
+            //      الحقلِ، واللاحقةَ تعمل في الإرجاعِ وحدَه — لأنّ كلَّ موضعٍ
+            //      كان يحلُّ النوعَ بمسارِه ثمّ يستهلك ما يذكره هو.
+            //
+            //      ⚠️ فمَن أضاف موضعَ نوعٍ جديدًا ونسخ الفحصَ نسخًا أضاف صيغةً
+            //      وأسقط أختَها — بلا إخفاقِ بناءٍ ولا إخفاقِ سلوك. ولذلك
+            //      يُنادى هذا وحدَه: `parseType` تناديه، وتصريحُ الحقلِ يناديه،
+            //      وأيُّ موضعٍ ثالثٍ غدًا يناديه أو يظهر غيابُه في المراجعة.
+            // (EN) Consume the nullable marker — ONE place. The marker has two
+            //      spellings ('؟' suffix and 'عدمي' adjective) which are NOT
+            //      synonyms unless the SAME code consumes both: measured, the
+            //      adjective worked for parameters/variables/returns but not
+            //      fields, and the suffix worked for returns only, because each
+            //      position resolved its type its own way and then consumed
+            //      whichever spelling it happened to mention. Copying the check
+            //      into a new type position adds one spelling and drops the
+            //      other, failing no build and no behavioural test.
+            // ════════════════════════════════════════════════════════════════
+            bool consumeNullableMarker();
             // (AR) [NS-06 موجة 2] النوع الأساس T لآخر `T؟` حلّله parseType (وإلا Unknown).
             //      يُستعمل لبناء sadType غنيّ (SadOptionalType(T)) عند تصريح المتغيّر،
             //      فيحفظ codegen المترجم النوع الداخليّ بدل i64. يُصفَّر مع كلّ parseType.
@@ -1587,6 +1627,40 @@ namespace Sad
              */
             Types::SadTypeKind resolveTypeWordName(const std::string &name,
                                                   bool primitivesOnly = false);
+
+            /**
+             * @brief (AR) يرفض «فراغ» في موضعِ **نوعِ خانةٍ تُخزَّن** — متغيّرًا أو معامِلًا.
+             *        (EN) Rejects «فراغ» where a *stored slot* type is expected.
+             *
+             * (AR) مصدرُ الحقيقةِ يعرّف «فراغ» بأنّه «ما لم يُرجَع أصلًا»، فهو نوعُ
+             *      إرجاعٍ لا نوعُ قيمة. وقبولُه خانةً لم يكن تسامحًا بل انهيارًا:
+             *      `متغير فراغ س = لاشيء` كان يُسقِط المترجّم
+             *      («Cannot create a null constant of that type! UNREACHABLE») لأنّ
+             *      Void يُنزَل إلى `void` في LLVM ولا ثابتَ صفريَّ له، بينما يقبله
+             *      المفسّرُ ويحذّر تحذيرًا كاذبًا ⇒ تباعُدُ محرّكَين وانهيارٌ معًا.
+             *      🔑 والرفضُ يقع في **المحلّلِ المشترك** لا في خلفيّةٍ بعينها، فيتّفق
+             *      المحرّكان بالبناءِ لا بالمصادفة — ولذلك لم يُرقَّع موضعُ الانهيار
+             *      في `classes_vtables_ops.cpp`: ترقيعُه يُسكِت الأثرَ ويُبقي القبول.
+             * (EN) The rejection lives in the shared parser, so both engines agree by
+             *      construction; patching the LLVM crash site would silence the symptom
+             *      and keep the acceptance.
+             *
+             * @param kind (AR) النوعُ المُحلَّل (EN) the parsed kind
+             * @param name (AR) اسمُ الخانة إن عُرف بعد (EN) slot name if already known
+             * @return (AR) النوعُ نفسُه، أو Unknown تعافيًا إن كان فراغًا
+             */
+            Types::SadTypeKind rejectVoidAsSlotType(Types::SadTypeKind kind,
+                                                    const std::string &name = {});
+
+            /**
+             * @brief (AR) هل الرمزُ الحاليُّ صفةَ «عدمي/عدمية» لاحقةً للنوع؟ (لا يستهلك)
+             *        (EN) Is the current token the «nullable» adjective? (non-consuming)
+             *
+             * (AR) نظيرُ «؟» لفظًا: «رقم عدمي» = «رقم؟» — الصفةُ تلي الموصوفَ كما في
+             *      «متغير متطاير». يُشترَط أن يليَها اسمٌ كي لا تُبتلَع تسميةُ متغيّرٍ
+             *      بها. التفصيلُ والحدُّ المُعلَنُ في تعريفِ الدالّة.
+             */
+            bool matchesNullableAdjective();
 
             /**
              * @brief (AR) هل الكلمة المفتاحية يمكن استخدامها كمعرّف (اسم دالة أو معامل)؟
@@ -1688,6 +1762,55 @@ namespace Sad
             bool panicMode_;                             ///< (AR) وضع الذعر للتعافي من الأخطاء (EN) Panic mode for error recovery
             std::string filename_;                       ///< (AR) اسم الملف المصدري (EN) Source filename
             bool pendingConst_ = false;                  ///< (AR) علامة تصريح ثابت معلق (EN) Pending const declaration flag
+            bool pendingStatic_ = false;                 ///< (AR) علامة تصريح ساكن معلق — «ساكن س = 9» بلا «متغير» (ISSUE-120)
+            int blockDepth_ = 0;                         ///< (AR) عمق الكتل — صفرٌ = مستوى الوحدة مباشرةً (ISSUE-120)
+
+            // (AR) عددُ وسائطِ الباني **الواجبةِ** لكلِّ صنفٍ حُلِّل — بوّابةُ SEM041.
+            //      يُملأ في `parseConstructorDeclaration` ويُقرأ عند تحليةِ الإنشاءِ
+            //      الضمنيِّ في `parseVarDecl`. صنفٌ بلا بانٍ لا يظهر هنا أصلًا، وغيابُه
+            //      يعني «يجوز إنشاؤه ضمنًا» — وهو المعنى المقصود.
+            // (EN) Required (non-defaulted) constructor arg count per parsed class —
+            //      the SEM041 gate. Absence means "implicitly constructible".
+            std::unordered_map<std::string, size_t> classConstructorRequiredArgs_;
+
+            // (AR) الأصلُ الأوّلُ لكلِّ صنفٍ وارثٍ — تُمشى به السلسلةُ في البوّابة،
+            //      لأنّ الوارثَ بلا بانٍ خاصٍّ يُنشَأ ببانِي أصلِه.
+            // (EN) Primary base per subclass; the gate walks this chain because a
+            //      subclass without its own constructor is built by its base's.
+            std::unordered_map<std::string, std::string> classPrimaryBase_;
+
+            /**
+             * @brief (AR) عددُ الوسائطِ الواجبةِ لبانِي الصنفِ أو أقربِ أصلٍ يملك بانيًا
+             * @brief (EN) Required ctor args of the class or its nearest ancestor
+             *
+             * @param className (std::string) — (AR) اسمُ الصنف / (EN) class name
+             * @return (size_t) — (AR) العددُ الواجب، وصفرٌ إن لم يوجد بانٍ في السلسلة
+             *
+             * ملاحظات إضافية:
+             * - AR: يوقف المشيَ عند دورةٍ في الوراثةِ حتّى لا يعلّق المحلّل.
+             * - EN: Stops on an inheritance cycle so the parser cannot hang.
+             */
+            size_t requiredConstructorArgsFor(const std::string &className) const;
+
+        public:
+            /**
+             * @brief (AR) حارس عمق الكتلة — يرفع العدّاد ويعيده مهما كان مخرج المسار.
+             *        (EN) Block-depth guard — restores the counter on every exit path.
+             *
+             * (AR) الاسترداد من الأخطاء في هذا المُحلِّل قد يقفز من وسط الكتلة، فعدٌّ
+             *      يدويٌّ بـ++ و-- يترك العدّادَ مرفوعًا ويُحوِّل كلَّ تصريحٍ تالٍ على
+             *      مستوى الوحدة إلى «داخل كتلة» زورًا. الحارس يمنع ذلك بنيويًّا.
+             */
+            struct BlockDepthGuard
+            {
+                int &depth;
+                explicit BlockDepthGuard(int &d) : depth(d) { ++depth; }
+                ~BlockDepthGuard() { --depth; }
+                BlockDepthGuard(const BlockDepthGuard &) = delete;
+                BlockDepthGuard &operator=(const BlockDepthGuard &) = delete;
+            };
+
+        private:
 
             /**
              * @brief (AR) مخزن تجميع تعليق توثيقي مع معلومات التصاقه السطرية (م٢ من

@@ -140,15 +140,9 @@ namespace Sad
         // Class Declaration / تصريح الصنف
         // =========================================================================
 
-        /**
-         * @brief Access modifier / معدّل الوصول
-         */
-        enum class AccessModifier
-        {
-            PUBLIC,   ///< Public / عام
-            PRIVATE,  ///< Private / خاص
-            PROTECTED ///< Protected / محمي
-        };
+        // (AR) AccessModifier انتقل إلى ast_node.h ليراه VarDeclStmt أيضًا (ISSUE-120).
+        //      لا اسم مستعار هنا: النقل أبقى الاسم والفضاء كما هما، فمستعملوه لم يتغيّروا.
+        // (EN) AccessModifier moved to ast_node.h so VarDeclStmt can use it too.
 
         /**
          * @brief Class declaration node / عقدة تصريح الصنف
@@ -239,6 +233,34 @@ namespace Sad
             ExprPtr initializer;   ///< Initial value (optional) / القيمة الأولية
             AccessModifier access; ///< Access modifier / معدّل الوصول
             bool isStatic;         ///< Is static? / ثابت؟
+
+            // ════════════════════════════════════════════════════════════════
+            // (AR) [م‑ز] النوعُ الغنيُّ — نظيرُ `VarDeclStmt::sadType` في **الغرضِ**
+            //      لا في السلوك: ذاك يُهيَّأ في الباني فلا يكون عدمًا قطّ، وهذا
+            //      **لا يُبنى إلّا للحقلِ العدميّ** ويبقى عدمًا لغيرِه — فالقارئُ
+            //      يجب أن يفحصَه. ووُصِف أوّلًا بـ«حرفًا بحرف» وهو خطأ: التعليقُ
+            //      في هذا المستودعِ سِجِلٌّ يُبنى عليه لا زينة.
+            //
+            //      🔑 وسببُ لزومِه أنّ `type` **صنفٌ لا نوع**: `SadTypeKind` وحدَه
+            //      يقول «عدميّ» ولا يقول «عدميُّ ماذا». والخانةُ التي تُبنى للحقلِ
+            //      تختلف باختلافِ الداخل: `منطقي؟` تُوسَم خارجَ النطاقِ و`رقم؟`
+            //      تبقى داخلَه (م‑هـ). فبلا الداخلِ لا يمكن أن يُنادى قرارُ الخانةِ
+            //      أصلًا، ويصير كلُّ عدميٍّ خانةً واحدةً — وهو عينُ الخلطِ الذي
+            //      تُصلحه هذه الحملة.
+            //
+            //      ⚠️ ولا يُفتَح للحقلِ بابُ قرارٍ ثانٍ: المُقرِّرُ هو
+            //      `SIRBuilder::resolveDeclaredStorageKind` نفسُه الذي يقرّر
+            //      للمتغيّرِ والمعامِلِ والإرجاعِ والعامّ. وسلطتانِ تختلفان في نوعٍ
+            //      واحدٍ تُعيدان التباعُدَ الذي وُضِعت السلطةُ الواحدةُ لسدِّه.
+            // (EN) [م‑ز] The rich type — the exact twin of VarDeclStmt::sadType.
+            //      `type` alone says "nullable" but not "nullable of WHAT", and the
+            //      slot built for the field depends on the inner kind (`bool?` is
+            //      tagged out-of-band, `int?` is not yet). Without the inner type the
+            //      storage decision cannot even be asked. The decider stays the SAME
+            //      resolveDeclaredStorageKind used by variables, parameters, returns
+            //      and globals — a second authority would reinstate the divergence.
+            // ════════════════════════════════════════════════════════════════
+            Types::SadTypePtr sadType; ///< (AR) Optional<T> للحقلِ العدميِّ وحدَه / (EN) Optional<T>, nullable fields only
 
             /**
              * @brief Constructor / البناء
@@ -991,14 +1013,31 @@ namespace Sad
             ExprPtr defaultValue; ///< Default value (optional) / القيمة الافتراضية
             bool isPublic;        ///< Is public? / عام؟
 
+            // ──────────────────────────────────────────────────────────────
+            // (AR) اسمُ الصنفِ حين يكون نوعُ الحقلِ صنفًا — وإلّا فارغ.
+            //      كان `type` وحدَه هو كلَّ ما يُحفَظ، و`SadTypeKind::Class`
+            //      نوعٌ **بلا هُويّة**: فحقلٌ صنفيٌّ في `بنية` يفقد اسمَ صنفِه
+            //      عند التحليل، فلا يبقى ما يُنشَأ منه. وقِيس أثرُ ذلك:
+            //      «بنية علبة { بسيط جزء }» كانت تُنتِج حقلًا اسمُه **بسيط**
+            //      لأنّ المحلّلَ أخذ لفظَ النوعِ اسمًا للحقل، ثمّ ضاع «جزء».
+            // (EN) Class name when the field's type is a class; empty otherwise.
+            //      SadTypeKind::Class carries no identity, so a class-typed
+            //      struct field lost its class at parse time. Measured: the
+            //      field ended up named after its own type word.
+            // ──────────────────────────────────────────────────────────────
+            std::string typeName;
+
             StructField(const std::string &n, Types::SadTypeKind t,
-                        ExprPtr def = nullptr, bool pub = true)
-                : name(n), type(t), defaultValue(std::move(def)), isPublic(pub) {}
+                        ExprPtr def = nullptr, bool pub = true,
+                        const std::string &typeNameIn = std::string())
+                : name(n), type(t), defaultValue(std::move(def)), isPublic(pub),
+                  typeName(typeNameIn) {}
 
             StructField(StructField &&) = default;
             StructField &operator=(StructField &&) = default;
             StructField(const StructField &other)
-                : name(other.name), type(other.type), defaultValue(nullptr), isPublic(other.isPublic) {}
+                : name(other.name), type(other.type), defaultValue(nullptr),
+                  isPublic(other.isPublic), typeName(other.typeName) {}
         };
 
         class StructDecl : public Statement

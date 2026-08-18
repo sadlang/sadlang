@@ -406,6 +406,16 @@ namespace Sad
             // (EN) Parse body of with block
             std::vector<StmtPtr> bodyStatements;
 
+            // (AR) ع-٢: جسمٌ يُبنى باليدِ ولا يمرُّ بـ`parseBlockStmt`، فيبقى `blockDepth_`
+            //      صفرًا ولا تبلغه بوّابةُ SEM039. الحارسُ هنا **دفاعٌ سابقٌ لأوانه بقصد**:
+            //      قِيس أنّ هذا الجسمَ لا يقبل التصاريحَ أصلًا اليوم — «متغير ساكن ن = 0»
+            //      داخله يُبلَّغ SEM001 «المتغير 'متغير' غير معرَّف»، لأنّ الحلقةَ تنادي
+            //      `parseStatement` لا `parseDeclaration` (ISSUE-134). فلمّا يُسَدُّ ذلك
+            //      تكون البوّابةُ موصولةً سلفًا، ولا يُدّعى هنا إصلاحُ عطبٍ حيّ.
+            // (EN) Hand-rolled body: the SEM039 gate cannot reach it. Deliberately guarded
+            //      ahead of time — measured that this body rejects declarations outright
+            //      today (SEM001), because it calls parseStatement, not parseDeclaration.
+            BlockDepthGuard withBodyGuard(blockDepth_);
             while (!check(TT::KEYWORD_END) && !check(TT::KEYWORD_END_WITH) &&
                    !isAtEnd())
             {
@@ -510,6 +520,16 @@ namespace Sad
                 // (EN) Parse block until end
                 std::vector<StmtPtr> bodyStatements;
 
+                // (AR) ع-٢: جسمٌ يُبنى باليدِ ولا يمرُّ بـ`parseBlockStmt`، فيبقى `blockDepth_`
+                //      صفرًا ولا تبلغه بوّابةُ SEM039. الحارسُ هنا **دفاعٌ سابقٌ لأوانه بقصد**:
+                //      قِيس أنّ هذا الجسمَ لا يقبل التصاريحَ أصلًا اليوم — «متغير ساكن ن = 0»
+                //      داخله يُبلَّغ SEM001 «المتغير 'متغير' غير معرَّف»، لأنّ الحلقةَ تنادي
+                //      `parseStatement` لا `parseDeclaration` (ISSUE-134). فلمّا يُسَدُّ ذلك
+                //      تكون البوّابةُ موصولةً سلفًا، ولا يُدّعى هنا إصلاحُ عطبٍ حيّ.
+                // (EN) Hand-rolled body: the SEM039 gate cannot reach it. Deliberately guarded
+                //      ahead of time — measured that this body rejects declarations outright
+                //      today (SEM001), because it calls parseStatement, not parseDeclaration.
+                BlockDepthGuard deferBodyGuard(blockDepth_);
                 while (!check(TT::KEYWORD_END) && !isAtEnd())
                 {
                     StmtPtr stmt = parseStatement();
@@ -587,6 +607,9 @@ namespace Sad
             if (current_.getPosition().line > keyword.getPosition().line)
             {
                 std::vector<StmtPtr> bodyStatements;
+                // (AR) ع-١ (مراجعةُ أميليا): كتلةُ «أطلق» جسمٌ يُبنى باليد ⇒ بوّابةُ SEM039
+                //      لا تبلغه بلا هذا الحارس، فيمرُّ «متغير ساكن» بلا مدّةِ تخزينٍ ساكنة.
+                BlockDepthGuard goBodyGuard(blockDepth_);
                 while (!check(TT::KEYWORD_END) && !isAtEnd())
                 {
                     // (AR) نستخدم parseDeclaration بدلاً من parseStatement
@@ -713,6 +736,16 @@ namespace Sad
                     //      التالي وقُرئ اسمَ متغيّر (نظير ISSUE-109 في «حالة» و«طابق»).
                     // (EN) Parse the default body — it must also stop at «عندما», otherwise the
                     //      next clause is swallowed and read as an identifier (cf. ISSUE-109).
+                    // (AR) ع-٢: جسمٌ يُبنى باليدِ ولا يمرُّ بـ`parseBlockStmt`، فيبقى `blockDepth_`
+                    //      صفرًا ولا تبلغه بوّابةُ SEM039. الحارسُ هنا **دفاعٌ سابقٌ لأوانه بقصد**:
+                    //      قِيس أنّ هذا الجسمَ لا يقبل التصاريحَ أصلًا اليوم — «متغير ساكن ن = 0»
+                    //      داخله يُبلَّغ SEM001 «المتغير 'متغير' غير معرَّف»، لأنّ الحلقةَ تنادي
+                    //      `parseStatement` لا `parseDeclaration` (ISSUE-134). فلمّا يُسَدُّ ذلك
+                    //      تكون البوّابةُ موصولةً سلفًا، ولا يُدّعى هنا إصلاحُ عطبٍ حيّ.
+                    // (EN) Hand-rolled body: the SEM039 gate cannot reach it. Deliberately guarded
+                    //      ahead of time — measured that this body rejects declarations outright
+                    //      today (SEM001), because it calls parseStatement, not parseDeclaration.
+                    BlockDepthGuard selectDefaultGuard(blockDepth_);
                     while (!check(TT::KEYWORD_END) && !check(TT::KEYWORD_WHEN) && !isAtEnd())
                     {
                         StmtPtr stmt = parseStatement();
@@ -787,6 +820,15 @@ namespace Sad
          */
         StmtPtr ParserCore::parseBlockStmt(bool *closedByEnd)
         {
+            // (AR) ISSUE-120 — عدُّ الكتل هنا لا عند نداءاتها: البوّابةُ تسأل «أيصير هذا
+            //      التصريحُ عامًّا؟» لا «أنا داخل دالّة؟». وضعُ الحارسِ على مواضعِ أجسامِ
+            //      الدوالّ يُغري بحصرٍ لا يكتمل — «عامل» والقوالبُ والسماتُ والماكرو أجسامٌ
+            //      أيضًا، وكلُّ موضعٍ يفوت يُنتج سلبًا كاذبًا صامتًا. وأخطرُ منه أنّ الكتلةَ
+            //      الوحدويّةَ («إذا … نهاية» على مستوى الوحدة) تُخفض إلى alloca في
+            //      __sad_main فلا مدّةَ تخزينٍ ساكنة، وحصرُ الدوالِّ يفلتها. النقطةُ الواحدةُ
+            //      تغطّي الجميع بنيويًّا: مستوى الوحدة عمقُه صفر، وما دونه كتلة.
+            // (EN) ISSUE-120 — count blocks here, not at each body call site.
+            BlockDepthGuard blockGuard(blockDepth_);
             StmtList statements;
 
             // Parse statements until 'نهاية' keyword (spec 04_syntax.md)
@@ -1071,6 +1113,16 @@ namespace Sad
                     // (AR) تحليل جسم الحالة — جمل متعددة حتى عندما/افتراضي/نهاية التالية
                     // (EN) Parse case body — multiple statements until next when/default/end
                     std::vector<StmtPtr> bodyStmts;
+                    // (AR) ع-٢: جسمٌ يُبنى باليدِ ولا يمرُّ بـ`parseBlockStmt`، فيبقى `blockDepth_`
+                    //      صفرًا ولا تبلغه بوّابةُ SEM039. الحارسُ هنا **دفاعٌ سابقٌ لأوانه بقصد**:
+                    //      قِيس أنّ هذا الجسمَ لا يقبل التصاريحَ أصلًا اليوم — «متغير ساكن ن = 0»
+                    //      داخله يُبلَّغ SEM001 «المتغير 'متغير' غير معرَّف»، لأنّ الحلقةَ تنادي
+                    //      `parseStatement` لا `parseDeclaration` (ISSUE-134). فلمّا يُسَدُّ ذلك
+                    //      تكون البوّابةُ موصولةً سلفًا، ولا يُدّعى هنا إصلاحُ عطبٍ حيّ.
+                    // (EN) Hand-rolled body: the SEM039 gate cannot reach it. Deliberately guarded
+                    //      ahead of time — measured that this body rejects declarations outright
+                    //      today (SEM001), because it calls parseStatement, not parseDeclaration.
+                    BlockDepthGuard switchCaseGuard(blockDepth_);
                     while (!check(TT::KEYWORD_WHEN) && !check(TT::KEYWORD_DEFAULT) &&
                            !check(TT::KEYWORD_END) && !isAtEnd())
                     {
@@ -1121,6 +1173,16 @@ namespace Sad
                     //      Nested clauses never reach this check: parseStatement consumes
                     //      them along with their own statement.
                     std::vector<StmtPtr> defaultStmts;
+                    // (AR) ع-٢: جسمٌ يُبنى باليدِ ولا يمرُّ بـ`parseBlockStmt`، فيبقى `blockDepth_`
+                    //      صفرًا ولا تبلغه بوّابةُ SEM039. الحارسُ هنا **دفاعٌ سابقٌ لأوانه بقصد**:
+                    //      قِيس أنّ هذا الجسمَ لا يقبل التصاريحَ أصلًا اليوم — «متغير ساكن ن = 0»
+                    //      داخله يُبلَّغ SEM001 «المتغير 'متغير' غير معرَّف»، لأنّ الحلقةَ تنادي
+                    //      `parseStatement` لا `parseDeclaration` (ISSUE-134). فلمّا يُسَدُّ ذلك
+                    //      تكون البوّابةُ موصولةً سلفًا، ولا يُدّعى هنا إصلاحُ عطبٍ حيّ.
+                    // (EN) Hand-rolled body: the SEM039 gate cannot reach it. Deliberately guarded
+                    //      ahead of time — measured that this body rejects declarations outright
+                    //      today (SEM001), because it calls parseStatement, not parseDeclaration.
+                    BlockDepthGuard switchDefaultGuard(blockDepth_);
                     while (!check(TT::KEYWORD_END) && !check(TT::KEYWORD_WHEN) && !isAtEnd())
                     {
                         auto stmt = parseStatement();

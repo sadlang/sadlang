@@ -36,6 +36,7 @@ functions:
         استورد تشفير
         اطبع_سطر(بلايك3(""))
       runnable: true
+  returns: نص
   lookup_table: name_only
 - cpp_id: BLAKE3_KEYED_HASH
   canonical: هاش_مفتاح
@@ -570,4 +571,5 @@ functions:
         متغير ت = وقّع("رسالة", خاص)
         اطبع_سطر(تحقق_توقيع("رسالة", ت, عام))
       runnable: true
+  returns: منطقي
   lookup_table: name_only

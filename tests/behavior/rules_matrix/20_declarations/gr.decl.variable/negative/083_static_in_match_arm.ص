@@ -1,0 +1,13 @@
+﻿# @rule: gr.decl.variable
+# @description: «ساكن» في ذراعِ «طابق» — جسمٌ يُبنى باليد فلا تبلغه البوّابةُ إلّا بحارسِ عمقٍ صريح
+# @priority: P0
+# @requires: اطبع_سطر
+# @expect_error: SEM039
+# @expect_compile_error: SEM039
+
+متغير ع = 1
+طابق ع
+  عندما 1:
+    متغير ساكن ن = 0
+    اطبع_سطر(ن)
+نهاية

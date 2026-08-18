@@ -169,6 +169,20 @@ namespace Sad
                 // (EN) Method call on object
                 if (auto methodCallExpr = dynamic_cast<Sad::AST::MethodCallExpr *>(expr))
                 {
+                    // (AR) 🔑 العَلَمُ يُشرَّف هنا **قبلَ** التوزيعِ العاديّ. ولو تُرِك
+                    //      لَبَنَى المترجِمُ نداءً غيرَ آمنٍ لعقدةٍ مكتوبةٍ آمنةً:
+                    //      يعمل على المستقبِلِ الحيِّ ويرفع RUN033 على العدمِ بينما
+                    //      يُرجِع المفسّرُ «لاشيء» — تباعُدُ محرّكَين يُصنَع بإضافةِ
+                    //      حقلٍ ونسيانِ قارئِه، وهو عينُ «العَلَمُ يلزمه كلُّ مُنتِجيه».
+                    // (EN) Honour the flag BEFORE the normal dispatch. Left out, the
+                    //      compiler would build an UNSAFE call for a node written safe:
+                    //      correct on a live receiver, raising RUN033 on null while the
+                    //      interpreter returns «لاشيء» — a two-engine divergence created
+                    //      by adding a field and forgetting its reader.
+                    if (methodCallExpr->isOptional)
+                    {
+                        return buildExprOptionalMethodCall(methodCallExpr);
+                    }
                     return b_.buildMethodCall(methodCallExpr);
                 }
 

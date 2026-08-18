@@ -266,9 +266,18 @@ namespace Sad
                         auto funcIt = b_.functionTable_.find(fullName);
                         if (funcIt != b_.functionTable_.end() && b_.currentBlock_)
                         {
+                            // (AR) 🔑 المتغيِّرةُ الوحدويّةُ `Enum` كأختِها ذاتِ الحمولةِ (ISSUE-154):
+                            //      كانت تصلُ `Integer` فتخرجُ من كلِّ حكمِ تعدادٍ: `نوع()`
+                            //      تُجيبُ «رقم» والمرجعُ «خريطة»، وتمريرُها في خانةِ `أي`
+                            //      يُوسِمُها `Int` فتُخفِقُ `طابق` في كلِّ الأذرع. — مقيس.
+                            // (EN) A unit variant is `Enum` like its payload-carrying sibling
+                            //      (ISSUE-154): it used to arrive as `Integer` and so fell out of
+                            //      every enum-aware decision — نوع() answered «number» where the
+                            //      reference answers «map», and boxing it into an `أي` slot tagged it
+                            //      Int so طابق missed every arm. Measured.
                             std::string callReg = b_.newTempRegister();
                             SIRInstruction callInst(SIROpcode::CALL);
-                            callInst.result = SIROperand::Register(callReg, SadTypeKind::Integer);
+                            callInst.result = SIROperand::Register(callReg, SadTypeKind::Enum);
                             callInst.operands.push_back(
                                 SIROperand::Function(funcIt->second.name));
                             callInst.comment = "Call unit variant constructor: " + fullName;
@@ -276,7 +285,7 @@ namespace Sad
 
                             b_.classInstanceTypes_[callReg] = objName;
 
-                            BuildResult result(callReg, SadTypeKind::Integer);
+                            BuildResult result(callReg, SadTypeKind::Enum);
                             result.className = objName;
                             return result;
                         }

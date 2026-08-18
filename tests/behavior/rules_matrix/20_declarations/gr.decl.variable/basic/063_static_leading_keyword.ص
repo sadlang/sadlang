@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: «ساكن» تبدأ التصريح بلا «متغير» — ISSUE-120: كان SEM001 «المتغير 'ساكن' غير معرَّف»
+# @priority: P0
+# @requires: اطبع_سطر
+# @expected: 9
+
+ساكن ك = 9
+اطبع_سطر(ك)

@@ -8,6 +8,8 @@
 #define SAD_LLVM_OBJECTS_ARRAYS_CODEGEN_H
 
 #include <memory>
+#include <string>
+#include <vector>
 #include <llvm/IR/Value.h>
 #include "sir_instruction.h"
 
@@ -31,6 +33,13 @@ public:
     llvm::Value *emitMethodDef(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitFieldDef(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitConstructorCall(std::shared_ptr<SIRInstruction> inst);
+
+private:
+    /// (AR) سلسلةُ الأصنافِ المُنشَأةِ تعاوديًّا الآن — حارسُ دورةٍ يُعلِن اعتمادَنا
+    ///      على رفضِ المحلّلِ للإحالةِ الأماميّة، ولا يستغني عنه.
+    /// (EN) Classes currently being constructed recursively — a cycle guard that
+    ///      declares (not replaces) our reliance on the parser rejecting forward refs.
+    std::vector<std::string> nestedCtorStack_;
 };
 
 }} // namespace Sad::LLVM

@@ -239,6 +239,54 @@ if(TARGET sad-repl)
     set_tests_properties(HubRepl_Session PROPERTIES
         LABELS "hub;sad-repl;regression")
 
+    # ══════════════════════════════════════════════════════════════════════════
+    # (AR) ثلاثيّةُ «الحقلُ الصنفيُّ عبر ‹:reset›» — ضابطان وتقاطعٌ، لا حالةٌ مفردة.
+    #      العطبُ المقيس (2026-08-15): بعد أن صار الحقلُ الذي نوعُه صنفٌ يُنشَأ
+    #      ضمنًا، حملت ClassField مؤشّرًا **مستعارًا** إلى عقدةِ المُهيّئِ في الشجرة؛
+    #      و‹:reset› يُحرّر مرسى الأشجار بينما يبقى ClassType حيًّا في مفردةِ
+    #      ClassManager ⇒ أوّلُ إنشاءٍ بعد الإعادة يُسقط العمليّةَ بـSIGSEGV.
+    #      العلاجُ: البنيةُ تحمل **اسمًا** يملك نفسَه لا إشارةً إلى شجرةٍ تُحرَّر.
+    #
+    #      ولماذا ثلاثةُ اختباراتٍ لا واحد: نجاحُ التقاطعِ وحدَه لا يُميّز الإصلاحَ
+    #      من غيابِ الشرطِ أصلًا. الضابطان يُثبتان أنّ ‹:reset› يعمل بلا حقلٍ صنفيّ،
+    #      وأنّ الحقلَ الصنفيَّ يعمل بلا ‹:reset› — فيبقى التقاطعُ هو المقيسَ فعلًا.
+    #
+    #      ⚠️ حدٌّ مُعلَن: المُشغّلُ يحكم بظهورِ السلاسلِ وبعلامةِ «Access violation»،
+    #      ولا يفحص رمزَ الخروج. والانهيارُ المقيسُ كان صامتًا (rc=139 بلا علامة)،
+    #      فالذي يلتقطه هنا هو **غيابُ العلامةِ النصّيّة** بعد الانهيار لا الرمز.
+    # (EN) A three-way «class-typed field across ‹:reset›» set: two controls plus the
+    #      intersection. Passing the intersection alone would not distinguish the fix
+    #      from the precondition simply being absent. Note the driver asserts on output
+    #      substrings, not on the exit code — the measured crash was a silent SIGSEGV,
+    #      caught here by the marker line failing to appear.
+    # ══════════════════════════════════════════════════════════════════════════
+    add_test(NAME HubRepl_PlainClassReset
+        COMMAND ${CMAKE_COMMAND}
+            -DREPL_BIN=$<TARGET_FILE:sad-repl>
+            -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_plain_class_reset_input.txt
+            -DEXPECT=PLAIN_RESET_OK 5
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+    set_tests_properties(HubRepl_PlainClassReset PROPERTIES
+        LABELS "hub;sad-repl;regression")
+
+    add_test(NAME HubRepl_ClassFieldNoReset
+        COMMAND ${CMAKE_COMMAND}
+            -DREPL_BIN=$<TARGET_FILE:sad-repl>
+            -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_class_field_noreset_input.txt
+            -DEXPECT=FIELD_NORESET_OK 9
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+    set_tests_properties(HubRepl_ClassFieldNoReset PROPERTIES
+        LABELS "hub;sad-repl;regression")
+
+    add_test(NAME HubRepl_ClassFieldAcrossReset
+        COMMAND ${CMAKE_COMMAND}
+            -DREPL_BIN=$<TARGET_FILE:sad-repl>
+            -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/repl_class_field_reset_input.txt
+            -DEXPECT=RESET_FIELD_OK 7
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/repl_session_test.cmake)
+    set_tests_properties(HubRepl_ClassFieldAcrossReset PROPERTIES
+        LABELS "hub;sad-repl;regression")
+
     # (AR) إرغونوميا الصدَفة: تشغيل برنامج خارجيّ عبر ‹:شغّل›. فشل الإطلاق (أمر مجهول)
     #      محمول عبر المنصّات (يُبلَّغ باسم البرنامج في الخطأ) — يُتوقّع ظهور اسم الأمر.
     # (EN) Shell ergonomics: run an external program via ‹:run›. Launch failure

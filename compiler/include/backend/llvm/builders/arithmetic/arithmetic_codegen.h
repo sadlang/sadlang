@@ -20,6 +20,38 @@ namespace Sad
         using SIRInstruction = Compiler::SIR::SIRInstruction;
         using SIROperand = Compiler::SIR::SIROperand;
 
+        // ====================================================================
+        // (AR) هيمنةُ «طبيعي64» في ترتيبِ المقارنة — موضعٌ واحدٌ لأربعةِ مُصدِرين
+        //
+        //      كان الشرطُ `&&` (كلاهما طبيعي64)، فـ`ط > 1` تُقارَن **موقَّعةً**
+        //      فتُعطي «خطأ» لأكبرِ قيمةٍ لا-موقَّعة، بينما `ط > ن` بين طبيعيَّين
+        //      تُعطي «صحيح». وقضى المالكُ (2026-08-16) بأن تَهيمِن `طبيعي64` في
+        //      المقارنةِ كما تَهيمِن في الحسابِ سلفًا — فصار الشرطُ `||`.
+        //
+        //      🔑 وهو مكتوبٌ **هنا** لا في المُصدِرين: المقارنةُ تُلوَّن في ملفَّين
+        //      (`arith_cmp.cpp` لـ`<` و`<=`، و`arith_extras.cpp` لـ`>` و`>=`)،
+        //      وقاعدةٌ تُنسَخ أربعَ مرّاتٍ تفترق. وهذه الشجرةُ فيها ثلاثةُ دروسٍ
+        //      مقيسةٍ على ذلك بعينِه، آخرُها حارسُ العدمِ الذي وُجِد له مُستهلِكٌ
+        //      ثالثٌ ينقضه.
+        //
+        //      ⚠️ وأثرٌ يُقال ولا يُسكَت عنه: `ط > -1` تصير «خطأ» لأنّ `-1` تُقرَأ
+        //      لا-موقَّعةً فتكون أكبرَ ما يكون — وهي دلالةُ C نفسُها، لازمةٌ لهذا
+        //      الاختيارِ لا مفاجأةٌ فيه.
+        // (EN) طبيعي64 dominance in comparison ordering — one place, four emitters.
+        //      Was `&&` (both operands); the owner ruled it `||` (dominance), matching
+        //      the arithmetic path. `ط > -1` becomes false (C semantics) — stated, not
+        //      hidden. Written here because the four emitters live in two files.
+        // ====================================================================
+        inline bool isUnsignedOrderingCmp(const SIRInstruction &inst)
+        {
+            if (inst.operands.size() < 2)
+            {
+                return false;
+            }
+            return inst.operands[0].dataType == Sad::Types::SadTypeKind::UInt64 ||
+                   inst.operands[1].dataType == Sad::Types::SadTypeKind::UInt64;
+        }
+
         class ArithmeticCodeGen
         {
             LLVMCodeGen &cg_;

@@ -30,52 +30,6 @@ namespace Sad
 
         using VT = Sad::Types::SadTypeKind;
         // =================================================================================
-        // SadType::toValueType() — تحويل النوع الموحد إلى نوع التشغيل المتوافق
-        // =================================================================================
-        SadTypeKind SadType::toValueType() const
-        {
-            switch (kind_)
-            {
-            case SadTypeKind::Void:
-                return VT::Void;
-            case SadTypeKind::Integer:
-                return VT::Integer;
-            case SadTypeKind::Float:
-                return VT::Float;
-            case SadTypeKind::Boolean:
-                return VT::Boolean;
-            case SadTypeKind::String:
-                return VT::String;
-            case SadTypeKind::Byte:
-                return VT::Integer; // (AR) بايت يُعامَل كرقم في المفسر
-            case SadTypeKind::Array:
-                return VT::Array;
-            case SadTypeKind::Map:
-                return VT::Map;
-            case SadTypeKind::Tuple:
-                return VT::Tuple;
-            case SadTypeKind::Function:
-            case SadTypeKind::Closure:
-                return VT::Function;
-            case SadTypeKind::Class:
-            case SadTypeKind::Struct:
-            case SadTypeKind::Enum:
-            case SadTypeKind::Trait:
-                return VT::Class;
-            // (AR) «أي» تُقابل نفسَها؛ إسقاطُها إلى فراغٍ عبر الافتراضِ هو نظيرُ العيبِ
-            //      المُصلَحِ في `fromValueType` — يُسدّ هنا كي لا يبقى الاتّجاهان متباعدَين.
-            // (EN) Any maps to itself; letting it fall to Void through the default is the
-            //      mirror of the bug fixed in `fromValueType` — sealed so the two
-            //      directions do not drift apart.
-            case SadTypeKind::Any:
-                return VT::Any;
-            default:
-                return VT::Void;
-            }
-        }
-
-
-        // =================================================================================
         // SadType::fromValueType() — إنشاء نوع موحد من نوع التشغيل المتوافق
         // =================================================================================
         SadTypePtr SadType::fromValueType(SadTypeKind vt)
@@ -123,18 +77,28 @@ namespace Sad
             //      masked only because the parser wrongly mapped `أي` to Class.
             case VT::Any:
                 return reg.getAny();
+            // (AR) ISSUE-113: 🔑 **هذا هو الموضعُ الذي أبطل الإصلاحَ كلَّه.** عقدةُ
+            //      التصريحِ تبني `sadType` من هنا (statements.h)، وغيابُ حالةِ Null
+            //      يُسقِطها إلى `getVoid()` أدناه — فبقي المستعمِلُ يُقرأ عليه
+            //      «لمتغيّر 'س' من نوع 'فراغ'» وهو كتب «عدم»، مهما أُصلح المحلّل.
+            //      وهو الافتراضُ الصامتُ نفسُه الذي أوقع «أي» والاختياريَّ قبلَه:
+            //      عيبٌ يتكرّر لأنّ الفرعَ الافتراضيَّ يُخمّن بدل أن يكسر.
+            // (EN) ISSUE-113: this is what nullified the whole fix. Declaration nodes
+            //      build their sadType here, and a missing Null case dropped it to
+            //      Void — the same silent default that previously caught Any/Optional.
+            case VT::Null:
+                return reg.getNull();
             }
             return reg.getVoid();
         }
 
 
-        // =================================================================================
-        // SadType::fromArabicName() — إنشاء نوع من الاسم العربي
-        // =================================================================================
-        SadTypePtr SadType::fromArabicName(const std::string &name)
-        {
-            return SadTypeRegistry::instance().fromArabicName(name);
-        }
+        // (AR) [ISSUE-113] حُذفت `toValueType` و`fromArabicName` — صفرُ مُنادٍ في
+        //      المستودع (مقيسٌ ٢٠٢٦-٠٨-١٤). فبقيت `fromValueType` وحدَها هنا، وهي
+        //      **الحاكمُ الفعليّ**: عقدةُ التصريحِ تبني `sadType` منها، وغيابُ حالةِ
+        //      Null فيها هو ما أبطل إصلاحَ المواضعِ الستّةِ الأخرى بأكمله.
+        // (EN) [ISSUE-113] toValueType/fromArabicName removed — zero callers. What
+        //      remains is the one that actually governs declaration nodes.
 
     } // namespace Types
 } // namespace Sad

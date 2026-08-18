@@ -171,13 +171,43 @@ def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | Non
     lines.append("        }")
     lines.append("")
 
+    surface = [t for t in types if t.get("surface") is True]
+
+    # ========================================================================
+    # (AR) الاتّجاه المعاكس: اللفظ ⇒ النوع. كان **غيرَ مولَّدٍ إطلاقًا**، فكتبه
+    #      كلُّ موضعٍ يحتاجه بيدِه — ثلاثةُ جداولَ في ملفَّين. وقياسُ ISSUE-113
+    #      أظهر ثمنَ ذلك: أُصلح «عدم» في المواضعِ المفتاحيّةِ الثلاثةِ فلم يتغيّر
+    #      السلوكُ بتّةً، لأنّ تصريحَ المتغيّرِ يسلك جدولَ **الاسم** لا الرمز،
+    #      وهو جدولٌ ثالثٌ لم يره الإصلاح. جدولٌ واحدٌ مولَّدٌ يُنهي هذا الصنف.
+    # (EN) The reverse direction (word ⇒ kind) was never generated, so every site
+    #      hand-rolled it — three tables in two files. ISSUE-113 measured the cost:
+    #      fixing «عدم» at the token sites changed nothing, because variable
+    #      declarations take the *name* table, a third table the fix never saw.
+    # ========================================================================
+    lines.append("        // ─── اللفظ ⇒ النوع / Word ⇒ kind ───")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) نوعُ اللفظِ السطحيّ — مُولَّد من types.yaml")
+    lines.append("         * @brief (EN) Kind of a surface type word — generated from types.yaml")
+    lines.append("         *")
+    lines.append("         * (AR) يُرجِع Unknown لِما ليس لفظَ نوعٍ سطحيّ — فالمُنادي يميّز")
+    lines.append("         *      «ليس نوعًا» عن «نوعٌ مجهول» بموضعِه لا بهذه الدالّة.")
+    lines.append("         * (EN) Returns Unknown for anything that is not a surface type word.")
+    lines.append("         */")
+    lines.append("        inline SadTypeKind sadTypeKindFromArabicName(std::string_view word)")
+    lines.append("        {")
+    for t in surface:
+        name = t.get("word") or "?"
+        lines.append(f'            if (word == "{hex_escape(name)}") return SadTypeKind::{t["kind"]}; // {name}')
+    lines.append("            return SadTypeKind::Unknown;")
+    lines.append("        }")
+    lines.append("")
+
     # ========================================================================
     # (AR) أسماء الأنواع السطحية (surface:true) — المرئيّة في كود المستخدم.
     #      للأدوات (LSP: تلوينها كأنواع، الإكمال). مشتقّة من types.yaml لا تهريد.
     # (EN) Surface type names (surface:true) — user-visible in source. For tooling
     #      (LSP type coloring/completion). Derived from types.yaml, not hardcoded.
     # ========================================================================
-    surface = [t for t in types if t.get("surface") is True]
     lines.append("        // ─── أسماء الأنواع السطحية / Surface type names ───")
     lines.append("        /**")
     lines.append("         * @brief (AR) أسماء الأنواع السطحية (surface:true) — مُولَّدة من types.yaml")

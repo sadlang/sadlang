@@ -242,6 +242,19 @@ namespace sad
         //      القيمةُ ١٣٥ = ‎128+SIGBUS‎ (عرفُ عطبِ الذاكرة)، متمايزةٌ عن ١٣٣/١٣٤/١٣٦.
         inline constexpr long long kMapOverflowPanicCode = 135;
 
+        // (AR) رمزُ خروجِ الهلع عند **نداءِ طريقةٍ على مُستقبِلٍ عدميّ**: `OBJECT_NULL_CHECK`
+        //      يُصدِرُه المُنتِجُ قبلَ كلِّ نداءِ طريقةٍ على مُستقبِلٍ ليس `هذا`/`الأصل`. المرجعُ
+        //      (المفسّر) والمسارُ المُخفَّضُ بـLLVM يرفعان RUN033؛ والخلفيّةُ الأصليّةُ بلا
+        //      استثناءاتٍ ملتقَطة ⇒ إجهاضٌ فوريّ (كحدِّ المصفوفةِ والقسمةِ على صفر).
+        // (AR) ⚠️ ولمَ ١٣٢ لا ١٣٩: ١٣٩ = ‎128+SIGSEGV‎ هو **بعينِه** رمزُ الخروجِ الذي
+        //      يُنتِجُه الانهيارُ غيرُ المحروسِ الذي جاء هذا الحارسُ ليمنعَه. فلو تشاركا
+        //      الرمزَ لصار أيُّ اختبارٍ يتأكّدُ من ١٣٩ يمرُّ سواءٌ أطلق الحارسُ أم سقط
+        //      البرنامجُ سقوطًا خامًّا — قياسٌ لا يستطيع أن يُكذِّبَ نفسَه. فالرمزُ متمايزٌ
+        //      كي يبقى «حُرِسَ» و«انهار» جوابَين مختلفَين يُقرآن من الخروجِ وحدَه.
+        //      و١٣٢ = ‎128+SIGILL‎، ولا يُصدِرُ المُصدِرُ تعليمةً غيرَ شرعيّةٍ قطُّ ⇒ لا تصادم،
+        //      ومتمايزٌ عن ١٣٣ (معامِلٌ غيرُ عدديّ) و١٣٤ (الحدّ) و١٣٥ (الخريطة) و١٣٦ (القسمة).
+        inline constexpr long long kNullReceiverPanicCode = 132;
+
         // (AR) 2^63 عائمًا ولاحقةُ ".0": المُنسِّقُ العشريّ يعالجُ |x|≥2^63 (نتيجةُ INT64_MIN//‑1 المُرقّاة)
         //      بطرحِ 2^63 ثمّ تحويلٍ موقَّعٍ ثمّ OR 2^63 (نفسُ الخوارزميّة على المعماريّتين) ⇒ رسمٌ لا-موقَّعٌ
         //      نظيفٌ بدل فيضِ cvttsd2si(x86)/fcvtzs(ARM64). مشتركٌ بين مُنسِّقَي x86/ARM64. النطاقُ المُعالَجُ
@@ -1321,6 +1334,21 @@ namespace sad
                     return false;
                 if (!movImm(x86::RDI, kDivZeroPanicCode) || !movImm(x86::RAX, kSysExitX86) ||
                     !emit(x86::mnem::kSyscall, "", {})) // (AR) exit(136) — لا عودة
+                    return false;
+                placeLocalLabel(ok);
+                return true;
+            }
+            // (AR) حارسُ المُستقبِلِ العدميّ: المُستقبِلُ في RDI. إن كان صفرًا ⇒ إجهاضٌ فوريّ
+            //      exit(132) (مرآةُ كتلةِ هلعِ القسمة)؛ وإلّا نتخطّى الكتلةَ ونكمل. يُصدَر من
+            //      `OBJECT_NULL_CHECK` قبلَ نداءِ الطريقة، فيصير سقوطُ الوصولِ إلى الحقلِ عبرَ
+            //      مؤشّرٍ عدميٍّ إجهاضًا مُسمًّى بدلَ إشارةٍ خام — والتماثلُ مع ARM64 مقصود.
+            bool emitNullReceiverGuard()
+            {
+                const std::string ok = freshLocalLabel("objnn");
+                if (!cmpImm8(x86::RDI, 0) || !emitJump(x86::mnem::kJne, ok))
+                    return false;
+                if (!movImm(x86::RDI, kNullReceiverPanicCode) || !movImm(x86::RAX, kSysExitX86) ||
+                    !emit(x86::mnem::kSyscall, "", {})) // (AR) exit(132) — لا عودة
                     return false;
                 placeLocalLabel(ok);
                 return true;
@@ -5753,6 +5781,27 @@ namespace sad
                         return movReg(dst, x86::RAX); // (AR) قيمةُ الإرجاع من rax
                     }
                     return true;
+                }
+                case OP::OBJECT_NULL_CHECK:
+                {
+                    // (AR) حارسُ المُستقبِلِ العدميّ: operands=[المُستقبِل، سياقُ النداء(نصّ)]، ولا نتيجة.
+                    //      يُحمَّل المُستقبِلُ في RDI (خارجَ الحوض ⇒ لا يدهس معامِلًا حيًّا) ثمّ يُقارَن
+                    //      بصفرٍ: صفرٌ ⇒ exit(132)، وإلّا يمضي النداءُ الذي يليه كما كان.
+                    if (inst.operands.size() < 2)
+                        return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
+                    // (AR) مُستقبِلٌ لا خانةَ له في هذا الإطار: لا حارسَ يُصدَر ولا خطأَ يُبلَّغ —
+                    //      الحارسُ إضافةٌ إلى مسارٍ قائمٍ لا شرطٌ لصحّتِه، ورفعُ تشخيصٍ داخليٍّ هنا
+                    //      يُحوّل برنامجًا يعمل إلى إخفاقِ ترجمة. (مرآةُ عقدِ `emitObjectNullCheck`
+                    //      في خلفيّةِ LLVM حرفًا بحرف — والعقدُ واحدٌ كي لا يفترق المساران.)
+                    const sir::SIROperand &recv = inst.operands[0];
+                    if (recv.type != sir::SIROperandType::REGISTER)
+                        return true; // (AR) ثابتٌ مُستقبِلًا: ليس عدمًا بالبناء
+                    long long recvDisp;
+                    if (!isMemVar(recv, recvDisp) && regOf_.find(recv.name) == regOf_.end())
+                        return true;
+                    if (!loadArgInto(x86::RDI, recv))
+                        return false;
+                    return emitNullReceiverGuard();
                 }
                 case OP::CLOSURE_CREATE:
                 {

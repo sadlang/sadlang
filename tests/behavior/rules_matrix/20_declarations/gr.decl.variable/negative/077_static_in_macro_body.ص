@@ -1,0 +1,12 @@
+# @rule: gr.decl.variable
+# @description: «ساكن» داخلَ جسمِ ماكرو — جسمٌ **مبنيٌّ باليد** لا يمرُّ بـ`parseBlockStmt`؛ كان يُقبَل صامتًا حتّى حُرِس
+# @priority: P0
+# @requires: اطبع_سطر
+# @expect_error: SEM039
+# @expect_compile_error: SEM039
+
+ماكرو م()
+  متغير ساكن ن = 1
+  اطبع_سطر(ن)
+نهاية
+اطبع_سطر(1)

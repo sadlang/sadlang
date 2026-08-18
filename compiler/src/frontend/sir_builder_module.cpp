@@ -594,9 +594,14 @@ namespace Sad
 
                     if (varDecl)
                     {
-                        // (AR) تسجيل المتغير العام في النطاق العام
-                        // (EN) Register global variable in global scope
-                        SadTypeKind varType = astTypeToSIRType(varDecl->type);
+                        // (AR) تسجيل المتغير العام في النطاق العام — عبر سلطةِ الخانةِ
+                        //      كي يفكَّ `T؟`؛ وإلّا اختلف هذا النطاقُ عن SIRGlobalVariable.
+                        // (EN) Register the global in the global scope — through the storage
+                        //      authority so `T?` is unwrapped; otherwise this scope and
+                        //      SIRGlobalVariable disagree about one slot.
+                        SadTypeKind varType = resolveDeclaredStorageKind(varDecl->type,
+                                                                         varDecl->sadType.get(),
+                                                                         astTypeToSIRType(varDecl->type));
 
                         // ================================================================
                         // (AR) استنتاج النوع من القيمة الحرفية عندما يكون النوع غير معروف:
@@ -615,6 +620,16 @@ namespace Sad
                             //      Use helper that walks expression tree to detect float presence
                             varType = inferExprType(varDecl->initializer.get());
                         }
+
+                        // (AR) بابُ ISSUE-138 نفسُه: بلا نوعٍ وبلا تهيئةٍ ⇒ خانةٌ ديناميّة.
+                        //      وغيابُه هنا وحدَه — مع وجودِه في المسارِ المحلّيّ — كان
+                        //      يجعل العامَّ `i64` ونوعَه المُعلَنَ `Any` ⇒ انهيارُ مترجِمٍ
+                        //      داخليٌّ في «متغير ك» ثمّ «اطبع_سطر(ك)» بلا سواهما.
+                        // (EN) Same ISSUE-138 door. Its absence HERE alone, while the local
+                        //      path had it, allocated an i64 global while declaring its kind
+                        //      Any ⇒ internal compiler error on the two-line program.
+                        varType = resolveBareSlotStorageKind(
+                            varDecl->type, varDecl->initializer != nullptr, varType);
 
                         VariableInfo globalVarInfo;
                         globalVarInfo.name = varDecl->name;
@@ -808,21 +823,47 @@ namespace Sad
                                     // (EN) Raise the presence flag: consumers judge by the flag,
                                     //      not by emptiness; this phase is a producer for them too.
                                     sirGlobal->hasInitialValue = true;
+                                    // ═══════════════════════════════════════════════
+                                    // (AR) 🔑 وصنفُ القيمةِ معه — والدرسُ المُعاد: **العَلَمُ
+                                    //      يلزمه كلُّ مُنتِجيه**. مُلِئ `initialValueKind` أوّلًا في
+                                    //      `buildGlobalVariable` وحدَها، وهي مسارُ عوامِّ **فضاءِ
+                                    //      الأسماء**؛ أمّا عامُّ المستوى الأعلى — وهو المقصودُ —
+                                    //      فيُبنى هنا. فبُنِي المصرِّفُ نظيفًا واجتاز المراجعةَ
+                                    //      و**بقي `ثابت أي س = 5` يطبع «لاشيء»**: رقعةٌ صحيحةٌ في
+                                    //      مُنتِجٍ لا يمرّ به الكود.
+                                    //      ⇒ ولا يُكتشف بقراءةِ المعمار: الدالّةُ اسمُها
+                                    //      `buildGlobalVariable` فيبدو أنّها **هي** بابُ العوامّ.
+                                    //      الحكمُ من المُخرَج: `@"..." = internal global %SadDyn
+                                    //      zeroinitializer` بعد الرقعةِ يقول إنّ الرقعةَ لم تُنفَّذ.
+                                    // (EN) The value kind with it — and the recurring lesson: a
+                                    //      flag needs ALL of its producers. initialValueKind was
+                                    //      first filled in buildGlobalVariable alone, which is the
+                                    //      NAMESPACE-global path; top-level globals are built
+                                    //      here. The compiler built clean, passed review, and
+                                    //      `ثابت أي س = 5` still printed «لاشيء» — a correct patch
+                                    //      in a producer the code never enters. Not visible from
+                                    //      the architecture (the function is *named*
+                                    //      buildGlobalVariable); only the emitted IR shows it.
+                                    // ═══════════════════════════════════════════════
+                                    sirGlobal->initialValueKind = SadTypeKind::Integer;
                                 }
                                 else if (tokenType == Lexer::TokenType::NUMBER_DOUBLE)
                                 {
                                     sirGlobal->initialValue = value;
                                     sirGlobal->hasInitialValue = true;
+                                    sirGlobal->initialValueKind = SadTypeKind::Float;
                                 }
                                 else if (tokenType == Lexer::TokenType::LITERAL_TRUE)
                                 {
                                     sirGlobal->initialValue = "1";
                                     sirGlobal->hasInitialValue = true;
+                                    sirGlobal->initialValueKind = SadTypeKind::Boolean;
                                 }
                                 else if (tokenType == Lexer::TokenType::LITERAL_FALSE)
                                 {
                                     sirGlobal->initialValue = "0";
                                     sirGlobal->hasInitialValue = true;
+                                    sirGlobal->initialValueKind = SadTypeKind::Boolean;
                                 }
                             }
                         }
@@ -2099,6 +2140,53 @@ namespace Sad
                         {
                             SadTypeKind paramType = astTypeToSIRType(param.type);
                             funcInfo.parameters.push_back(SIRParameter(param.name, paramType));
+                        }
+                        // ═══════════════════════════════════════════════════════════
+                        // (AR) 🔑 صنفُ الإرجاعِ المُصرَّحُ معروفٌ **هنا**، وكان يُهمَل (ISSUE-140)
+                        // ═══════════════════════════════════════════════════════════
+                        //
+                        // (AR) المقيس: `دالة شخص حر()` ثمّ `نص(حر().اسم)` يطبعُ **مؤشّرًا
+                        //      خامًا** (`140696668676234`) بـrc=0 والمرجعُ «علي». والضابطُ أنّ الحقلَ
+                        //      **العدديّ** عبرَ المسارِ نفسِه سليم ⇒ فالإزاحةُ صحيحةٌ والمفقودُ
+                        //      **نوعُ الحقل**: يُقرأُ `Integer` فيُنسِّقُ `نص()` المؤشّرَ عددًا.
+                        //
+                        //      وموضِعُ الفجوةِ هنا: `buildExprMember` يستنبِطُ نوعَ الحقلِ من
+                        //      `objResult.className`، وموضِعُ النداءِ يملأُ ذلك من
+                        //      `functionTable_[fn].returnClassName` — وهذا الحقلُ لم يكن يُكتبُ
+                        //      من التصريحِ قطُّ، بل من **استنتاجِ جملةِ `ارجع`** وحدَها.
+                        //
+                        //      🔑 والمعلومةُ كانت حاضرةً هنا منذُ البدءِ ومُهمَلةً: التصريحُ
+                        //      يحملُ `returnType=Class` و`returnTypeName=شخص` (مقيس). وملؤها هنا
+                        //      **مستقلٌّ عن ترتيبِ الأطوار**: التسجيلُ المُسبَقُ يسبقُ بناءَ أيِّ
+                        //      جسمٍ، فلا يتوقّفُ الجوابُ على أيُّهما يُبنى أوّلًا — وهو عينُ ما
+                        //      يُخفِقُ في الدالّةِ بلا نوعِ إرجاعٍ مُصرَّح (يبقى مفتوحًا).
+                        //
+                        //      ⚠️ ولا يُكتبُ إلّا لـ`Class`/`Struct`: اسمُ النوعِ موجودٌ لـ`نص` و`رقم`
+                        //      أيضًا، وكتابتُه `returnClassName` تجعلُ موضِعَ النداءِ يُسجِّلُ النتيجةَ
+                        //      كائنًا في `classInstanceTypes_` — فيُبحَثُ عن حقولٍ في «صنفٍ» اسمُه `نص`.
+                        // (EN) The DECLARED return class is known right here and was ignored.
+                        //      Measured: `func Person free()` then `str(free().name)` prints a raw
+                        //      pointer with rc=0 where the reference prints the name — and the same
+                        //      path with a NUMERIC field is correct, so the offset is right and what
+                        //      is missing is the field TYPE: read as Integer, str() formats the
+                        //      pointer as a number. buildExprMember derives the field type from
+                        //      objResult.className, which the call site fills from
+                        //      functionTable_[fn].returnClassName — a field only ever written by
+                        //      inference over the `return` statement, never from the declaration.
+                        //      Filling it here is phase-order independent: pre-registration runs
+                        //      before any body is built, so the answer no longer depends on which
+                        //      is built first — which is exactly what still fails for a function
+                        //      with no declared return type (stays open).
+                        //      Only Class/Struct: a type name also exists for `string` and `int`,
+                        //      and writing those into returnClassName would make the call site
+                        //      register the result as an object and look up fields in a «class»
+                        //      named `string`.
+                        // ═══════════════════════════════════════════════════════════
+                        if ((funcDecl->returnType == Types::SadTypeKind::Class ||
+                             funcDecl->returnType == Types::SadTypeKind::Struct) &&
+                            !funcDecl->returnTypeName.empty())
+                        {
+                            funcInfo.returnClassName = funcDecl->returnTypeName;
                         }
                         // (AR) مؤشر الدالة سيُحدَّث لاحقاً في buildFunction
                         // (EN) sirFunction pointer will be updated later in buildFunction

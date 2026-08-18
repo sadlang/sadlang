@@ -390,7 +390,16 @@ namespace Sad
                             {
                                 std::string callReg = b_.newTempRegister();
                                 SIRInstruction callInst(SIROpcode::CALL);
-                                callInst.result = SIROperand::Register(callReg, SadTypeKind::Integer);
+                                // (AR) 🔑 المتغيِّرةُ الوحدويّةُ `Enum` كأختِها ذاتِ الحمولةِ (ISSUE-154):
+                                //      كانت تصلُ `Integer` فتخرجُ من كلِّ حكمِ تعدادٍ: `نوع()`
+                                //      تُجيبُ «رقم» والمرجعُ «خريطة»، وتمريرُها في خانةِ `أي`
+                                //      يُوسِمُها `Int` فتُخفِقُ `طابق` في كلِّ الأذرع. — مقيس.
+                                // (EN) A unit variant is `Enum` like its payload-carrying sibling
+                                //      (ISSUE-154): it used to arrive as `Integer` and so fell out of
+                                //      every enum-aware decision — نوع() answered «number» where the
+                                //      reference answers «map», and boxing it into an `أي` slot tagged it
+                                //      Int so طابق missed every arm. Measured.
+                                callInst.result = SIROperand::Register(callReg, SadTypeKind::Enum);
                                 callInst.operands.push_back(SIROperand::Function(ctorIt->second.name));
                                 callInst.comment = "[A-M5] bare unit variant value: " + fullName;
                                 b_.currentBlock_->addInstruction(callInst);
@@ -398,7 +407,7 @@ namespace Sad
                                 // (AR) نسِم النتيجة باسم التعداد كي تعمل «طابق» عليها لاحقًا.
                                 // (EN) Tag the result with the enum name so «match» works on it later.
                                 b_.classInstanceTypes_[callReg] = bareEnumName;
-                                BuildResult result(callReg, SadTypeKind::Integer);
+                                BuildResult result(callReg, SadTypeKind::Enum);
                                 result.className = bareEnumName;
                                 return result;
                             }

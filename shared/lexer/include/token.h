@@ -274,6 +274,10 @@ namespace Sad
             KEYWORD_THEN,            ///< 🔄 ثم / then — سياقية (في تعبير إذا الثلاثي)
             KEYWORD_PROPAGATE,       ///< 🔄 انشر / propagate — سياقية (نشر الخطأ مبكراً)
             KEYWORD_TO,              ///< 🔄 الى/إلى / to — سياقية (في حلقة من..الى)
+            // (AR) صفةُ قبولِ العدم على النوع: «رقم عدمي» = «رقم؟». سياقيّة عمدًا
+            //      (يُصدرها المُشكِّل IDENTIFIER) كي تبقى صالحةً اسمًا خارج موضعِ النوع.
+            // (EN) Nullable type adjective: «رقم عدمي» ≡ «رقم؟». Contextual on purpose.
+            KEYWORD_NULLABLE,        ///< 🔄 عدمي/عدمية / nullable — سياقية (صفة النوع القابل للعدم)
             TYPE_I64,          ///< ص64 / i64 (عدد صحيح 64-بت بإشارة / signed 64-bit)
             TYPE_USIZE,        ///< ط_حجم / usize (حجم عنوان الذاكرة / memory address size)
             TYPE_ISIZE,        ///< ص_حجم / isize (حجم عنوان بإشارة / signed address size)

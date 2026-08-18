@@ -929,7 +929,15 @@ namespace Sad
 
                             std::string ctorResultReg = b_.newTempRegister();
                             SIRInstruction ctorCall(SIROpcode::CALL);
-                            ctorCall.result = SIROperand::Register(ctorResultReg, SadTypeKind::Struct);
+                            // (AR) 🔑 نوعُ نتيجةِ الباني الجبريِّ `Enum` لا `Struct` (ISSUE-153):
+                            //      التخفيضُ واحدٌ (كلاهما مؤشّرٌ في `isPointerLoweredKind`)، والفرقُ
+                            //      أنّ `toDyn` يسِمُ `Struct` كائنًا ⇒ `نوع()` يُجيبُ «كائن»
+                            //      والمرجعُ «خريطة» (يُمثِّلُ المتغيِّرةَ خريطةً) — مقيس.
+                            // (EN) The ADT constructor result is `Enum`, not `Struct` (ISSUE-153):
+                            //      identical lowering (both are pointer-lowered), but toDyn tags
+                            //      Struct as an object, so نوع() answered «object» where the
+                            //      reference answers «map» (it models a variant as a map) — measured.
+                            ctorCall.result = SIROperand::Register(ctorResultReg, SadTypeKind::Enum);
                             ctorCall.operands.push_back(SIROperand::Function(ctorIt->second.name));
                             for (const auto &a : argOperands)
                                 ctorCall.operands.push_back(a);
@@ -941,7 +949,7 @@ namespace Sad
                             //      التعداد في adtEnumTable_) — نظير الصيغة المؤهَّلة.
                             // (EN) Tag the result's className with the enum name so «match» works
                             //      (it keys on the enum name in adtEnumTable_) — like the qualified form.
-                            BuildResult ctorRes(ctorResultReg, SadTypeKind::Struct);
+                            BuildResult ctorRes(ctorResultReg, SadTypeKind::Enum);
                             ctorRes.className = ctorEnumName;
                             return ctorRes;
                         }
@@ -1463,7 +1471,11 @@ namespace Sad
 
                 // (AR) الوسيط قيمةُ حالةٍ جبريّة (بنية) باسم تعدادٍ معروف؟
                 // (EN) Is the argument an ADT value (struct) tagged with a known enum?
-                if (argRes.type != SadTypeKind::Struct || argRes.className.empty())
+                // (AR) ومُستهلِكُ `طابق` يقبلُ الوسمَينِ معًا: قيمةُ التعدادِ صارت `Enum`
+                //      (ISSUE-153) والكائنُ يبقى `Struct` — وكلاهما يصلُ هنا.
+                if ((argRes.type != SadTypeKind::Struct &&
+                     argRes.type != SadTypeKind::Enum) ||
+                    argRes.className.empty())
                     return false;
                 auto enumIt = b_.adtEnumTable_.find(argRes.className);
                 if (enumIt == b_.adtEnumTable_.end())

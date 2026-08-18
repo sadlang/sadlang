@@ -829,6 +829,28 @@ if(TARGET sad_tools)
  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/native_proofs_out)
  message(STATUS "Configured test: test_native_backend_arm64")
  endif()
+
+ # (AR) اختبار م٦ — محرّك RISC-V RV64 (fixed32 بفوريٍّ مُشظّى) + ELF64 بـEM_RISCV.
+ #      يقع داخلَ الكتلة نفسِها (بعد enable_testing) عمدًا: add_test قبلَه يسقط بصمت.
+ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_native_backend_riscv64.cpp")
+ add_executable(test_native_backend_riscv64 tests/test_native_backend_riscv64.cpp)
+ target_include_directories(test_native_backend_riscv64 PRIVATE
+ ${CMAKE_CURRENT_SOURCE_DIR}/include
+ ${CMAKE_SOURCE_DIR}/include
+ ${CMAKE_SOURCE_DIR}/tests/framework
+ )
+ target_compile_features(test_native_backend_riscv64 PRIVATE cxx_std_17)
+ if(MSVC)
+ target_compile_options(test_native_backend_riscv64 PRIVATE /utf-8 /wd4819 /FS /EHsc)
+ endif()
+ set_target_properties(test_native_backend_riscv64 PROPERTIES
+ RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/tests)
+ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/native_proofs_out)
+ add_test(NAME NativeBackendRiscv64 COMMAND test_native_backend_riscv64)
+ set_tests_properties(NativeBackendRiscv64 PROPERTIES
+ WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/native_proofs_out)
+ message(STATUS "Configured test: test_native_backend_riscv64")
+ endif()
 endif()
 
 # (AR) جسر SIR→المحرّك السياديّ: يبني SIR من مصدر ص فعليّ (Lexer→Parser→SIRBuilder)

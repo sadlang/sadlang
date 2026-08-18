@@ -46,13 +46,36 @@ namespace Sad
             // (AR) تسجيل الحقول / (EN) Register fields
             for (auto &field : node.fields)
             {
+                // ═══════════════════════════════════════════════════════════
+                // (AR) حكمُ القيمةِ الافتراضيّةِ يشمل البنيةَ كما يشمل الصنف
+                // ═══════════════════════════════════════════════════════════
+                //
+                // (AR) كان الحقلُ بلا مُهيِّئٍ يأخذ `Value()` الخام — أي «لاشيء» —
+                //      فحقلُ `رقم` في بنيةٍ يعطي «لاشيء» بينما نظيرُه في صنفٍ
+                //      يعطي صفرًا: خانةٌ واحدةٌ بسلوكَين بحسبِ بابِ التصريح.
+                //      والجدولُ يُطلَب من مصدرِه الواحدِ لا يُنسَخ هنا.
+                // (EN) A struct field without an initializer used to take a raw
+                //      null, so a numeric field differed from its class twin.
                 Data::Value defaultVal;
+                std::string fieldConstructClass;
                 if (field.defaultValue)
                 {
                     defaultVal = evaluateExpression(*field.defaultValue);
                 }
+                else if (field.type == Types::SadTypeKind::Class && !field.typeName.empty())
+                {
+                    // (AR) حقلٌ نوعُه صنفٌ يُنشَأ عند إنشاءِ البنية، لا هنا —
+                    //      تمامًا كما في الصنف: التصفيرُ أوّلًا ثمّ الباني.
+                    // (EN) Class-typed field is constructed per instance, not here.
+                    fieldConstructClass = field.typeName;
+                }
+                else
+                {
+                    defaultVal = Data::defaultValueForTypeKind(field.type);
+                }
 
-                classType->addField(field.name, nullptr, AST::Visibility::PUBLIC, false, defaultVal);
+                classType->addField(field.name, nullptr, AST::Visibility::PUBLIC, false, defaultVal,
+                                    fieldConstructClass, node.position.line, node.position.column);
             }
 
             // ═══════════════════════════════════════════════════════════════════
@@ -154,6 +177,20 @@ namespace Sad
                                                     {
                                                         for (const auto &field : clsType->fields)
                                                         {
+                                                            // (AR) الحقلُ الصنفيُّ **إن** كان قد بُني في
+                                                            //      `initializeFields` فلا يُدهَس هنا بقيمتِه
+                                                            //      الخام. ⚠️ ولا يُدَّعى أنّه بُني: ذلك المسلكُ
+                                                            //      لم يثبت تنفيذُه (انظر object_instance.cpp).
+                                                            //      فالحارسُ يمنع الدهسَ على التقديرَين معًا،
+                                                            //      وهذا كلُّ ما يُقال عنه.
+                                                            // (EN) IF the class-typed field was built by
+                                                            //      initializeFields, do not clobber it. That path
+                                                            //      is NOT demonstrated to execute — the guard is
+                                                            //      correct either way; no claim is made.
+                                                            if (!field.defaultConstructClass.empty())
+                                                            {
+                                                                continue;
+                                                            }
                                                             instance->fields[field.name] = field.defaultValue.clone();
                                                         }
                                                     }
@@ -200,15 +237,31 @@ namespace Sad
                                                         instance = new Data::ObjectInstance(nullptr, 0);
                                                     }
 
+                                                    // ════════════════════════════════════════════════
+                                                    // (AR) 🔑 توأمُ الحارسِ — كان مكشوفًا
+                                                    // ════════════════════════════════════════════════
+                                                    //
+                                                    // (AR) هذه اللامدا الثانيةُ (بنيةٌ بلا بانٍ) كانت تكتب
+                                                    //      `Value()` لكلِّ حقلٍ **بلا وسيط**، فتدهس ما بناه
+                                                    //      `createInstance` أعلاه: القيمَ الافتراضيّةَ للأنواعِ
+                                                    //      والحقلَ الصنفيَّ معًا — أي أنّها تُبطِل الحكمَ كلَّه
+                                                    //      من حيث لا يُرى.
+                                                    //      والحارسُ أُضيف إلى توأمِها قبلَ أربعين سطرًا ولم
+                                                    //      يُضَف إليها. ودرسُه مكتوبٌ بيدي في
+                                                    //      `objects_arrays_ops.cpp`: «العَلَمُ يلزمه **كلُّ**
+                                                    //      مُستهلِكيه» — ولم يُطبَّق على المكانِ الذي يليه.
+                                                    //      فالوسيطُ الغائبُ يعني «اترك ما هو مبنيّ» لا «امحُه».
+                                                    // (EN) This second lambda wrote Value() for every field
+                                                    //      WITHOUT an argument, clobbering everything
+                                                    //      createInstance had just built — type defaults and
+                                                    //      class-typed fields alike. A missing argument means
+                                                    //      "leave what was built", not "erase it".
+                                                    // ════════════════════════════════════════════════
                                                     for (size_t i = 0; i < fieldsCopy.size(); ++i)
                                                     {
                                                         if (i < args.size() && args[i])
                                                         {
                                                             instance->fields[fieldsCopy[i].name] = *args[i];
-                                                        }
-                                                        else
-                                                        {
-                                                            instance->fields[fieldsCopy[i].name] = Data::Value();
                                                         }
                                                     }
 

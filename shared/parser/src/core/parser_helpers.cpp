@@ -1247,14 +1247,27 @@ namespace Sad
          */
         void ParserCore::errorCatalog(Errors::ErrorCode code, CatalogArgs placeholders)
         {
+            // (AR) الموضعُ الافتراضيُّ هو الرمزُ الحاليّ — وهو الصوابُ حين يقع الخطأُ
+            //      عند قراءةِ الرمز. أمّا ما يُشخَّص **بعد** استيفاءِ التصريحِ كلِّه
+            //      فالرمزُ الحاليُّ عندئذٍ رمزُ السطرِ التالي، فيُمرَّر موضعُ الاسمِ
+            //      صراحةً عبر errorCatalogAt (قِيس: SEM041 كان يؤشّر إلى
+            //      «اطبع_سطر» لا إلى سطرِ التصريح).
+            // (EN) Default position is the current token; declarations diagnosed after
+            //      being fully consumed must pass the name's position explicitly.
+            errorCatalogAt(code, std::move(placeholders), current_.getPosition());
+        }
+
+        void ParserCore::errorCatalogAt(Errors::ErrorCode code, CatalogArgs placeholders,
+                                        const Lexer::Position &position)
+        {
             panicMode_ = true;
 
             Errors::SourceLocation loc(
                 filename_.empty() ? "<source>" : filename_,
-                current_.getPosition().line,
-                current_.getPosition().column,
-                current_.getPosition().offset,
-                current_.getPosition().length);
+                position.line,
+                position.column,
+                position.offset,
+                position.length);
 
             Errors::RenderContext rctx(loc);
             rctx.placeholders = std::move(placeholders);
@@ -1530,7 +1543,17 @@ namespace Sad
                     {
                         // Type-first syntax: "int x"
                         // (AR) صيغة النوع أولاً: "رقم س"
-                        paramType = parseType();
+                        // (AR) الاسمُ يلي النوعَ في هذه الصيغة، فيُقرأ من الرمزِ الحاليِّ
+                        //      بعد استهلاكِ النوع: تشخيصٌ بلا اسمٍ («الخانة «»») يُلقي على
+                        //      المستعمِلِ عبءَ البحثِ عمّا يُلام.
+                        // (AR) ⚠️ سطران لا سطرٌ واحد: ترتيبُ تقييمِ وسائطِ النداء في
+                        //      C++ **غيرُ محدَّد**، فـ`f(parseType(), current_.getValue())`
+                        //      قرأ المصرِّفُ فيها الاسمَ **قبل** أن يستهلك النوعَ، فطبع
+                        //      التشخيصُ «الخانة «فراغ»» — أي سمّى النوعَ اسمًا. قِيس حيًّا.
+                        // (EN) Two statements, not one: C++ argument evaluation order is
+                        //      unspecified, and the name was read before the type was consumed.
+                        const Types::SadTypeKind parsedParamType = parseType();
+                        paramType = rejectVoidAsSlotType(parsedParamType, current_.getValue());
                         Types::SadTypeKind paramInnerTF = lastOptionalInner_;
                         // (AR) دعم استخدام الكلمات المفتاحية الناعمة كأسماء معاملات بعد النوع
                         // (EN) Support soft keywords as parameter names after type annotation
@@ -1650,7 +1673,7 @@ namespace Sad
                         Types::SadTypeKind paramInnerNF = Types::SadTypeKind::Unknown;
                         if (match(TT::COLON))
                         {
-                            paramType = parseType();
+                            paramType = rejectVoidAsSlotType(parseType(), paramName.getValue());
                             paramInnerNF = lastOptionalInner_;
                         }
 
@@ -1761,19 +1784,73 @@ namespace Sad
          *               - مصفوفة / array → ARRAY (with optional generic params)
          *               - قاموس / dict/map → MAP (with optional generic params)
          */
+        /**
+         * @brief (AR) هل الرمزُ الحاليُّ صفةَ «عدمي/عدمية» في موضعِ لاحقةِ النوع؟
+         *        (EN) Is the current token the «nullable» adjective in type-suffix position?
+         *
+         * (AR) الصفةُ سياقيّةٌ في المعجم فيُصدرها المُشكِّلُ IDENTIFIER دائمًا، فالتمييزُ
+         *      يقعُ هنا لا هناك. والتهجئتان تُقرآن من جدولِ الألفاظِ (`kw`/`kwAlias`)
+         *      لا تُكتبان في الشيفرة، فتغييرُ اللفظِ في keywords.yaml وحدَه يكفي.
+         *
+         * (AR) 🔑 والشرطُ أن يليَها **اسم**، وهو ما يفصلُ الصفةَ عن الاسمِ المسمّى بها:
+         *      «متغير رقم عدمي س» صفةٌ (يليها «س»)، بينما «متغير رقم عدمي = 5» تصريحُ
+         *      متغيّرٍ اسمُه «عدمي» (يليه «=») فيبقى عاملًا كما كان. ولولا هذا الشرطُ
+         *      لابتلعتِ الصفةُ اسمَ من سمّى متغيّرَه بها — وهو نمطُ ISSUE-030/031/032:
+         *      كلمةٌ حرّةٌ في خانةِ الاسمِ تُغيّرُ معنى برنامجٍ صحيحٍ صامتةً.
+         *
+         * (AR) ⚠️ حدٌّ مُعلَنٌ لا مُدَّعًى ضدَّه: في موضعِ الوسيطِ العامّ («مصفوفة<رقم
+         *      عدمي>») لا يلي الصفةَ اسمٌ بل «>»، فلا تُستهلَك هناك. لا اختبارَ يدّعي
+         *      تغطيتَه، ورفعُه يلزمه قياسٌ لموضعِ الوسيطِ على حدة.
+         * (EN) Declared limit: not consumed in generic-argument position (no name follows).
+         */
+        bool ParserCore::matchesNullableAdjective()
+        {
+            if (!check(TT::IDENTIFIER))
+                return false;
+            const std::string &word = current_.getValue();
+            if (word != kw(TT::KEYWORD_NULLABLE) && word != kwAlias(TT::KEYWORD_NULLABLE))
+                return false;
+            // (AR) 🔑 «يليها اسمٌ» تعني في السطرِ نفسِه. المُشكِّلُ لا يُصدرُ رمزَ نهايةِ سطر،
+            //      فبدون هذا الفحصِ يبتلعُ التصريحُ بلا مُهيّئٍ اسمَ السطرِ التالي:
+            //      «متغير رقم عدمي» ثمّ «س = 5» ⇒ متغيّرٌ اسمُه «س» واختفى «عدمي» صامتًا
+            //      (مقيس). ونظيرُ هذا الفحصِ قائمٌ في
+            //      parser_declarations.cpp في **فرعِ «اسمُ صنفٍ + معرّف»** وفي فرعِ
+            //      «معرّفٌ وحدَه» وفي حقولِ البنية. ⚠️ وكانت الإحالةُ هنا برقمَي سطرٍ
+            //      (1495/1505) فانجرفا حتّى صارا يشيران إلى فرعٍ **لا فحصَ فيه** —
+            //      وكان الفرعُ ذاك بلا قيدِ سطرٍ فعلًا حتّى قِيس وسُدَّ (2026-08-17).
+            //      ⇒ يُحال على **الفرعِ بوصفِه** لا على رقمِ سطرٍ يبلى بأوّلِ تحرير.
+            // (EN) "followed by a name" means on the SAME line — the lexer emits no EOL
+            //      token, so an initializer-less declaration would swallow the next line's
+            //      identifier (measured).
+            if (peekNext().getType() != TT::IDENTIFIER)
+                return false;
+            return peekNext().getPosition().line == current_.getPosition().line;
+        }
+
         // (AR) [S-TS-P4] غلاف parseType: يحلّل النوع الأساس ثم يستهلك لاحقة `؟` الاختيارية.
         //      `رقم؟` → Optional. parseType يُستدعى في مواضع الأنواع فقط (لا وسط تعبير)،
         //      فلا غموض مع الثلاثي `أ ؟ ب : ج`. (النوع الداخلي الغنيّ لـOptional<T> عبر
         //      sadType في العقد — تمثيل أغنى مخطّط لاحقًا؛ هنا على مستوى الـkind.)
         // (EN) [S-TS-P4] parseType wrapper: parse base type then consume optional `?` suffix.
         //      parseType is only called in type positions, so no ternary ambiguity.
+        // (AR) الموضعُ الواحدُ لاستهلاكِ علامةِ العدميّة — انظر التعليلَ عند الإعلان.
+        // (EN) The single place that consumes the nullable marker — see the decl.
+        bool ParserCore::consumeNullableMarker()
+        {
+            if (!check(TT::QUESTION) && !matchesNullableAdjective())
+            {
+                return false;
+            }
+            advance(); // (AR) استهلاك «؟» أو «عدمي» / (EN) consume '?' or 'nullable'
+            return true;
+        }
+
         Types::SadTypeKind ParserCore::parseType()
         {
             lastOptionalInner_ = Types::SadTypeKind::Unknown;
             Types::SadTypeKind base = parseTypeCore();
-            if (check(TT::QUESTION))
+            if (consumeNullableMarker())
             {
-                advance(); // consume '?'
                 // (AR) [NS-06 موجة 2] احفظ النوع الأساس T لبناء Optional<T> غنيّ لاحقًا.
                 // (EN) [NS-06 wave 2] remember base T to build a rich Optional<T> later.
                 lastOptionalInner_ = base;
@@ -1797,8 +1874,15 @@ namespace Sad
                 return Types::SadTypeKind::Boolean;
             if (match(TT::TYPE_VOID))
                 return Types::SadTypeKind::Void;
+            // (AR) ISSUE-113: «عدم» نوعٌ قائمٌ بذاته (type.null في types.yaml) لا مرادفٌ
+            //      لـ«فراغ». وكان يُخفَّض هنا إلى Void فينهار المترجّم على استعمالٍ سليم:
+            //      `متغير عدم س = لاشيء` ⇒ «Cannot create a null constant of that type!»
+            //      لأنّ Void يُنزَل إلى نوعِ void في LLVM ولا ثابتَ صفريَّ له، بينما
+            //      Null يُنزَل إلى i64 بحارسِ kSadNullSentinel (llvm_type_mapper.cpp).
+            //      وكان التشخيصُ يُسمّي للمستخدِمِ نوعًا لم يكتبه («فراغ»).
+            // (EN) ISSUE-113: «عدم» is its own type (type.null), not an alias of Void.
             if (match(TT::TYPE_NULL))
-                return Types::SadTypeKind::Void;
+                return Types::SadTypeKind::Null;
             if (match(TT::TYPE_U64))
                 return Types::SadTypeKind::UInt64;
             if (match(TT::TYPE_U8))
@@ -1924,8 +2008,9 @@ namespace Sad
                 return reg.getBoolean();
             if (match(TT::TYPE_VOID))
                 return reg.getVoid();
+            // (AR) ISSUE-113 — انظر التعليلَ في parseTypeCore أعلاه.
             if (match(TT::TYPE_NULL))
-                return reg.getVoid();
+                return reg.getNull();
             if (match(TT::TYPE_U64))
                 return reg.getUInt64();
             if (match(TT::TYPE_U8))
@@ -1966,30 +2051,57 @@ namespace Sad
                 const std::string &name = current_.getValue();
                 Types::SadTypePtr resolved = nullptr;
 
-                if (name == "رقم")
+                // (AR) ISSUE-113: الألفاظُ البسيطةُ تُحسَم من الجدولِ المُولَّد
+                //      (sadTypeKindFromArabicName عن types.yaml)، وتبقى هنا يدًا
+                //      حالتان **لسببٍ بنيويٍّ لا لإهمال**: «مضاعف» لفظٌ مُزالٌ يلزمه
+                //      تشخيصُ SYN014، و«مصفوفة»/«خريطة» تبتلعان معاملاتٍ عامّةً
+                //      فتحتاجان تقدُّمًا في الرموز. انظر التعليلَ في parseTypeCore.
+                //      🔑 والفرعان يُميَّزان بـ**النوعِ المُستخرَجِ** لا باللفظِ: كتابةُ
+                //      اللفظِ هنا كانت آخرَ ربطٍ يدويٍّ باقٍ، وهي نسخةٌ ثانيةٌ للفظِ
+                //      «مصفوفة» تنجرف يومَ يتغيّر في SoT بلا أن يحمرَّ شيء. الحاجةُ
+                //      البنيويّةُ هي التقدُّمُ في الرموز، لا معرفةُ اللفظِ نفسِه.
+                // (EN) The two branches key off the RESOLVED KIND, not the word: the
+                //      structural need is token lookahead, not knowing the spelling.
+                const Types::SadTypeKind wordKind = Types::sadTypeKindFromArabicName(name);
+                switch (wordKind)
+                {
+                case Types::SadTypeKind::Integer:
                     resolved = reg.getInteger();
-                else if (name == "عشري")
+                    break;
+                case Types::SadTypeKind::Float:
                     resolved = reg.getFloat();
-                else if (name == "مضاعف")
+                    break;
+                case Types::SadTypeKind::String:
+                    resolved = reg.getString();
+                    break;
+                case Types::SadTypeKind::Boolean:
+                    resolved = reg.getBoolean();
+                    break;
+                case Types::SadTypeKind::Void:
+                    resolved = reg.getVoid();
+                    break;
+                case Types::SadTypeKind::Null:
+                    resolved = reg.getNull();
+                    break;
+                case Types::SadTypeKind::Any:
+                    resolved = reg.getAny();
+                    break;
+                case Types::SadTypeKind::Byte:
+                    resolved = reg.getByte();
+                    break;
+                case Types::SadTypeKind::UInt64:
+                    resolved = reg.getUInt64();
+                    break;
+                default:
+                    break;
+                }
+
+                if (name == "مضاعف")
                 {
                     errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", "مضاعف"}, {"new", kw(TT::TYPE_DOUBLE)}, {"example", kw(TT::KEYWORD_VAR) + " س: " + kw(TT::TYPE_DOUBLE)}});
                     resolved = reg.getFloat();
                 }
-                else if (name == "نص")
-                    resolved = reg.getString();
-                else if (name == "منطقي")
-                    resolved = reg.getBoolean();
-                else if (name == "فراغ")
-                    resolved = reg.getVoid();
-                else if (name == "عدم")
-                    resolved = reg.getVoid();
-                else if (name == "أي")
-                    resolved = reg.getAny();
-                else if (name == "بايت")
-                    resolved = reg.getByte();
-                else if (name == "طبيعي64")
-                    resolved = reg.getUInt64();
-                else if (name == "مصفوفة")
+                else if (wordKind == Types::SadTypeKind::Array)
                 {
                     advance(); // consume the identifier
                     if (check(TT::OP_LESS))
@@ -2001,7 +2113,7 @@ namespace Sad
                     }
                     return reg.makeArray();
                 }
-                else if (name == "خريطة")
+                else if (wordKind == Types::SadTypeKind::Map)
                 {
                     advance(); // consume the identifier
                     if (check(TT::OP_LESS))
@@ -2069,45 +2181,64 @@ namespace Sad
             //      accepted set and broke `صنف بايت`+`ترجع بايت` (SIGSEGV) and
             //      `ترجع أي` (ICE). Unification must not widen.
 
-            if (name == "رقم")
-                return Types::SadTypeKind::Integer;
-            else if (name == "عشري")
-                return Types::SadTypeKind::Float;
-            else if (name == "مضاعف")
+            // (AR) ISSUE-113: 🔑 **هذا هو المسارُ الذي يسلكه تصريحُ المتغيّرِ فعلًا** —
+            //      باسمِ اللفظِ لا برمزِ المُعجَم. وقياسُ ISSUE-113 أثبت ثمنَ تعدُّدِ
+            //      الجداول: أُصلح «عدم» في مواضعِ الرمزِ الثلاثةِ فلم يتغيّر السلوكُ
+            //      حرفًا، لأنّ الحكمَ يقع هنا. والجدولُ الآن مشتقٌّ من المُولَّد
+            //      `sadTypeKindFromArabicName` (عن types.yaml) — نسخةٌ واحدةٌ لا
+            //      تنجرف، وإضافةُ لفظٍ سطحيٍّ إلى SoT تصل هذا المسارَ بلا تحرير.
+            // (EN) ISSUE-113: this is the table variable declarations actually use —
+            //      by word, not by token. It now derives from the generated map.
+            const Types::SadTypeKind resolved = Types::sadTypeKindFromArabicName(name);
+
+            // (AR) «مضاعف» لفظٌ **مُزالٌ** لا سطحيّ، فلا يعرفه المُولَّد عمدًا؛ ويبقى
+            //      تشخيصُ SYN014 يدًا كي لا يُقرأ اسمَ صنفٍ فيُنصَح به متغيّرًا.
+            if (name == "مضاعف")
             {
-                // (AR) ❌ كلمة `مضاعف` أُزيلت — استخدم `عشري`
                 errorCatalog(Errors::ErrorCode::SYN_REMOVED_SYNTAX, {{"old", "مضاعف"}, {"new", kw(TT::TYPE_DOUBLE)}, {"example", kw(TT::KEYWORD_VAR) + " س: " + kw(TT::TYPE_DOUBLE)}});
                 return Types::SadTypeKind::Float; // recover
             }
-            else if (name == "نص")
-                return Types::SadTypeKind::String;
-            else if (name == "منطقي")
-                return Types::SadTypeKind::Boolean;
-            else if (name == "فراغ")
-                return Types::SadTypeKind::Void;
 
-            // (AR) ما دون هذا الحدّ لم يكن مسارُ القوالبِ يعرفه ⇒ يبقى اسمَ صنفٍ هناك.
+            // (AR) ⚠️ القيدُ أعلاه مُطبَّقٌ على **النوعِ الناتج** لا على اللفظ: مسارُ
+            //      القوالبِ يعرف الأنواعَ البسيطةَ الخمسةَ وحدَها، وما عداها يبقى
+            //      اسمَ صنفٍ هناك. توسيعُ هذه المجموعةِ قرارُ لغةٍ يُقاس وحدَه.
             if (primitivesOnly)
-                return Types::SadTypeKind::Unknown;
+            {
+                switch (resolved)
+                {
+                case Types::SadTypeKind::Integer:
+                case Types::SadTypeKind::Float:
+                case Types::SadTypeKind::String:
+                case Types::SadTypeKind::Boolean:
+                case Types::SadTypeKind::Void:
+                    return resolved;
+                default:
+                    return Types::SadTypeKind::Unknown;
+                }
+            }
 
-            if (name == "عدم")
-                return Types::SadTypeKind::Void;
-            else if (name == "مصفوفة")
-                return Types::SadTypeKind::Array;
-            else if (name == "خريطة")
-                return Types::SadTypeKind::Map;
-            // (AR) «أي» نوعٌ ديناميٌّ لا صنف؛ ربطُه بـClass كان سهوًا يُخفيه
-            //      أنّ المسارَ الشقيقَ في هذا الملفِّ نفسِه يُرجع Any.
-            // (EN) `أي` is the dynamic type, not a class; mapping it to Class was
-            //      an oversight — the sibling path in this same file returns Any.
-            else if (name == "أي")
-                return Types::SadTypeKind::Any;
-            else if (name == "طبيعي64")
-                return Types::SadTypeKind::UInt64;
-            else if (name == "بايت")
-                return Types::SadTypeKind::Byte;
+            return resolved;
+        }
 
-            return Types::SadTypeKind::Unknown;
+        // (AR) ISSUE-113 — الشطرُ الثاني: بعدما فُصل «عدم» عن «فراغ» بقي الانهيارُ
+        //      قائمًا على «فراغ» صراحةً، وهو عيبٌ **مستقلٌّ كشفه الفصل** لا بقيّةٌ منه.
+        //      والحدُّ الدلاليُّ منصوصٌ في types.yaml نفسِه: «فراغ» نوعُ الإرجاعِ الفارغ
+        //      «لا قيمة» — فخانةٌ تحمله تناقضٌ في التعريف. يُرفَض هنا مرّةً واحدةً
+        //      لكِلا المحرّكَين، ويُتعافى بـUnknown كي يُكمِل التحليلُ فيُبلَّغ ما بعده.
+        // (EN) ISSUE-113, part two: with Null separated, the crash remained on Void
+        //      itself. types.yaml defines Void as «no value», so a slot holding it is a
+        //      contradiction. Rejected once, in the shared parser, for both engines.
+        Types::SadTypeKind ParserCore::rejectVoidAsSlotType(Types::SadTypeKind kind,
+                                                            const std::string &name)
+        {
+            using TT = TokenType;
+            if (kind != Types::SadTypeKind::Void)
+                return kind;
+            errorCatalog(Errors::ErrorCode::SEM_VOID_NOT_A_VALUE_TYPE,
+                         {{"name", name},
+                          {"void_word", kw(TT::TYPE_VOID)},
+                          {"null_word", kw(TT::TYPE_NULL)}});
+            return Types::SadTypeKind::Unknown; // (AR) تعافٍ: يُستنتَج من المُهيّئ
         }
 
         /**
@@ -2414,8 +2545,9 @@ namespace Sad
                 return Types::SadTypeKind::Boolean;
             case TT::TYPE_VOID:
                 return Types::SadTypeKind::Void;
+            // (AR) ISSUE-113 — انظر التعليلَ في parseTypeCore أعلاه.
             case TT::TYPE_NULL:
-                return Types::SadTypeKind::Void;
+                return Types::SadTypeKind::Null;
             case TT::TYPE_ARRAY:
                 return Types::SadTypeKind::Array;
             case TT::TYPE_MAP:

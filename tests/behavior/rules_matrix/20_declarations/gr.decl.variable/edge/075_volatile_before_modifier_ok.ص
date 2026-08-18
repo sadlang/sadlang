@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: «متطاير» في الصدارةِ يليها مُعدِّل — الوجهُ الموجبُ لحدِّ ISSUE-128
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 71
+
+متغير متطاير ساكن س = 71
+اطبع_سطر(س)

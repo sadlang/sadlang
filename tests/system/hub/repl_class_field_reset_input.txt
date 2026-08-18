@@ -1,0 +1,24 @@
+# (AR) التقاطع: حقلٌ نوعُه صنفٌ + ‹:reset› ثمّ إنشاء — كان ينهار SIGSEGV.
+#      العلّة: ClassField كان يحمل مؤشّرًا **مستعارًا** إلى عقدةِ المُهيّئِ في الشجرة،
+#      و‹:reset› يُحرّر مرسى الأشجار بينما ClassType يبقى حيًّا في مفردةِ ClassManager.
+#      العلامةُ ‹RESET_FIELD_OK 7› لا تظهر إلّا إن نجا الإنشاءُ بعد الإعادة.
+# (EN) Intersection case: class-typed field + ‹:reset› + instantiation — used to SIGSEGV.
+#      ClassField held a borrowed pointer into the AST; ‹:reset‹ frees the arena while
+#      the ClassType survives in the ClassManager singleton.
+صنف بسيط
+    رقم عدد
+نهاية
+صنف معشش
+    بسيط جزء
+نهاية
+:reset
+صنف بسيط
+    رقم عدد
+نهاية
+صنف معشش
+    بسيط جزء
+نهاية
+معشش م
+م.جزء.عدد = 7
+اطبع_سطر("RESET_FIELD_OK " + نص(م.جزء.عدد))
+:خروج

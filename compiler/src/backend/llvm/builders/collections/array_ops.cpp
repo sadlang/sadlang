@@ -9,6 +9,7 @@
 #include "llvm_volatile_ops.h"
 #include "sad_dyn_repr.h" // (AR) ISSUE-063: حمولة %SadDyn عند خانات المصفوفة / (EN) %SadDyn payload at array slots
 #include "sir_constants.h" // (AR) kSadPanicCheckViolation (رمز سبب الهلع)
+#include "value.h"         // (AR) Value::makeNull().getTypeName() — اسمُ نوعِ العدمِ نفسُه
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -857,6 +858,39 @@ namespace Sad
             llvm::Value *value = cg_.resolveOperand(inst->operands[2]);
             if (!arrPtr || !index || !value)
                 return nullptr;
+
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) 🔑 وعاءٌ عدميٌّ في مسارِ الإسنادِ بالفهرس: يُرفَع RUN018 لا ينهار.
+            //
+            //      قِيس (2026-08-16): `خريطة س` ثمّ `س["ك"] = 1` ⇒ المفسّرُ
+            //      «الإسناد بالفهرس مدعوم للمصفوفات والقواميس فقط، لكن النوع الممرّر
+            //      'VOID'» برمزِ خروجٍ ١، والمترجّمُ **يبني صفرًا ثمّ ينهار `rc=139`**.
+            //
+            //      والرمزُ هنا **غيرُ** رمزِ الإلحاق: المفسّرُ يفرّق بينهما مقيسًا
+            //      (RUN033 للطريقةِ على مستقبِلٍ عدميّ، وRUN018 للإسنادِ بالفهرس)،
+            //      فتوحيدُهما يُنتِج رفعًا صحيحًا برمزٍ يخالف المرجع.
+            //
+            //      ويشمل الخرائطَ لأنّ الخريطةَ تُخفَّض غلافًا موسومًا فوق ARRAY_SET.
+            //
+            //      ⚠️ 🔑 **والفحصُ على القيمةِ المُطبَّعةِ لا على المعامل**: قبلَ
+            //      التطبيعِ يكون `arrPtr` **عنوانَ الخانةِ** (عامٌّ أو alloca) وهو
+            //      ليس صفرًا أبدًا، فيمرّ الحارسُ دائمًا ثمّ يُفَكُّ المحتوى العدميُّ
+            //      فينهار. قِيس ذلك بقراءةِ المُخرَجِ الأصليِّ: `leaq "س"(%rip)`
+            //      يُقارَن بالصفرِ ثمّ `movq "س"(%rip)` يُفَكّ. ولذلك يُطبَّع هنا
+            //      **للفحصِ وحدَه** ويُترَك المسارُ الأصليُّ يُطبِّع لنفسِه كما كان —
+            //      فلا يُغيَّر ترتيبُ التوليدِ ولا تُنقَل مسؤوليّةُ التطبيع.
+            // (EN) A null container in the indexed-assignment path raises RUN018 (not
+            //      RUN033 — the interpreter distinguishes them, measured). The check is
+            //      on the NORMALIZED value: before normalization arrPtr is the slot's
+            //      address, never null, so the guard would emit and never fire (read the
+            //      asm). Normalized here for the CHECK ONLY; the original path still
+            //      normalizes for itself, so emission order is unchanged.
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) `{type}` يملؤه البابُ بنفسِه من شكلِ العدمِ — انظر تعليلَه هناك.
+            // (EN) {type} is filled by the door itself from the null's shape.
+            cg_.emitRaiseIfNull(normalizeArrayPtr(arrPtr, "set.guard"),
+                                ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID, {},
+                                "arr.set");
 
             // (AR) نظيرُ القراءة: حمِّل الخانةَ الموسومةَ قبلَ الإرسال (انظر emitArrayGet).
             // (EN) Twin of the read: load the tagged slot before the dispatch (see emitArrayGet).

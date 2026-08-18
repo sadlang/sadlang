@@ -257,6 +257,31 @@ namespace Sad
             std::string methodName;                       ///< (AR) اسم الطريقة / (EN) method name
             std::vector<std::unique_ptr<Expr>> arguments; ///< (AR) المعاملات / (EN) arguments
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 أنداءٌ **آمنٌ** هو (`س؟.م()`)؟ — والعَلَمُ هنا لا عقدةٌ ثانية.
+            //
+            //      وسببُ وجودِه أنّ `؟.` كانت في المحلّلِ **وصولَ عضوٍ فقط**: فرعُها
+            //      لا يفحص `(` أصلًا، بينما فرعُ `.` يفحصه ويبني نداءَ طريقة. فكان
+            //      `س؟.طول()` يُبنى وصولًا إلى عضوٍ اسمُه «طول» — ثمّ يُرفَع RUN033
+            //      **على مستقبِلٍ حيٍّ غيرِ عدميّ**. أي أنّ مُشغِّلَ الأمانِ كان يرفض
+            //      ما يقبله المُشغِّلُ غيرُ الآمن: `س.طول()` تعمل و`س؟.طول()` تُخفِق.
+            //
+            //      ⚠️ وعَلَمٌ لا عقدةٌ ثانيةٌ عمدًا: `OptionalChainExpr` نظيرٌ
+            //      لـ`MemberExpr`، ولو صُنِعت لها نظيرةٌ ثالثةٌ لنداءِ الطريقةِ
+            //      لَلَزِم كلَّ زائرٍ في المحرّكَين أن يعرفها، ومن ينساها يسقط إلى
+            //      السلوكِ غيرِ الآمنِ **صامتًا**. والعَلَمُ يجعل الناسيَ يُنتِج
+            //      الدلالةَ القديمةَ في موضعٍ واحدٍ معروفٍ يُقاس.
+            // (EN) Is this a SAFE call (`x?.m()`)? A flag, not a second node.
+            //      `؟.` was member-access-only in the parser: its branch never checked
+            //      for `(` while the `.` branch did, so `س؟.طول()` became a member
+            //      access named «طول» and raised RUN033 on a LIVE receiver — the safe
+            //      operator rejecting what the unsafe one accepts. A flag rather than a
+            //      third node type: a new node would have to be taught to every visitor
+            //      in both engines, and whoever forgot it would silently fall back to
+            //      unsafe behaviour.
+            // ════════════════════════════════════════════════════════════════
+            bool isOptional = false;
+
             /**
              * @brief (AR) منشئ مع الكائن واسم الطريقة
              * @brief (EN) Constructor with object and method name

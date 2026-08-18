@@ -267,8 +267,32 @@ namespace Sad
             // ── استدعاء طريقة: كائن.طريقة(وسائط) ─────────────────────────────
             if (auto *mc = dynamic_cast<AST::MethodCallExpr *>(expr))
             {
-                checkOptionalAccess(mc->object.get(), mc->methodName, /*method*/ true,
-                                    mc->position, result);
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 النداءُ الآمنُ لا يُشخَّص «وصولًا غيرَ آمن» — والعَلَمُ
+                //      **ثالثُ مستهلِكيه** بعد المفسّرِ والمترجِم.
+                //
+                //      وقِيس أثرُ إغفالِه: `س؟.طول()` كانت تُنتِج تحذيرًا نصُّه
+                //      «استعمل الوصولَ الآمنَ 'س؟.طول'» — أي **يأمر الكاتبَ بما
+                //      فعله بالفعل**. وذلك أسوأُ من غيابِ التحذير: تحذيرٌ صادقُ
+                //      الصياغةِ كاذبُ الموضوعِ يُدرَّب المستعمِلُ على تجاهلِه،
+                //      فيتجاهل معه الصادقَ.
+                //
+                //      ⚠️ وهذا هو الوجهُ الثالثُ لـ«العَلَمُ يلزمه كلُّ مُنتِجيه»:
+                //      قارئٌ مُغفَلٌ في **طبقةِ التشخيصِ** لا يُخفِق بناءً ولا
+                //      سلوكًا ولا اختبارَ تكافؤ — يُفسِد رسالةً يقرؤها إنسان.
+                // (EN) A safe call must not be flagged as unsafe access — the flag's
+                //      THIRD consumer after the interpreter and the compiler. Measured:
+                //      `x?.len()` produced "use safe access 'x?.len'", i.e. it ordered
+                //      the author to do what they had already done. Worse than no
+                //      warning: a well-formed warning about the wrong thing trains the
+                //      reader to ignore warnings. It breaks no build, no behaviour and
+                //      no parity test — it corrupts a message a human reads.
+                // ════════════════════════════════════════════════════════════
+                if (!mc->isOptional)
+                {
+                    checkOptionalAccess(mc->object.get(), mc->methodName, /*method*/ true,
+                                        mc->position, result);
+                }
                 analyzeExpr(mc->object.get(), result);
                 for (auto &a : mc->arguments)
                     analyzeExpr(a.get(), result);

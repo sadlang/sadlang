@@ -24,7 +24,7 @@ productions:
   - id: gr.adv.type
     lhs: { nonterminal: Type, name_ar: "نوع", name_en: type }
     ebnf: >
-      Type = TypeCore [ '؟' ] ;
+      Type = TypeCore [ '؟' | ( 'عدمي' | 'عدمية' ) Identifier<lookahead, same-line> ] ;
       TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطقي' | 'فراغ' | 'عدم' | 'أي'
                | ( 'مصفوفة' | 'خريطة' ) [ '<' Type [ ',' Type ] '>' ] | Identifier ;
     alternatives:
@@ -45,15 +45,31 @@ productions:
               - { kind: nonterminal, ref: gr.adv.type }
               - { kind: repeat, children: [ { kind: alt, children: [ { kind: terminal, ref: ARABIC_COMMA, value: "،" }, { kind: terminal, ref: COMMA, value: "," } ] }, { kind: nonterminal, ref: gr.adv.type } ] }
               - { kind: terminal, ref: OP_GREATER, value: ">" }
-          - { kind: optional, children: [ { kind: terminal, ref: QUESTION, value: "؟" } ] }
+          - kind: optional
+            children:
+              - kind: alt
+                children:
+                  - { kind: terminal, ref: QUESTION, value: "؟" }
+                  - { kind: terminal, ref: KEYWORD_NULLABLE, value: "عدمي" }
     maps_to:
       - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseType" }
+      - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::matchesNullableAdjective" }
       - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseTypeCore" }
       - { file: shared/parser/src/core/parser_helpers.cpp, function: "ParserCore::parseGenericType" }
     ast_node: "SadTypeKind | SadTypePtr"
     description_ar: >
       أنواع مدمجة كمُعرّفات سياقيّة (رقم/نص/...) لا كلمات محجوزة. اللاحقة «؟» ⇒ اختياريّ.
       الأنواع العامّة «مصفوفة<T>»/«خريطة<K,V>». «مضاعف» أُزيلت (استخدم «عشري»).
+      ولاحقةٌ لفظيّةٌ مكافئةٌ لـ«؟»: الصفةُ «عدمي» (وتأنيثُها «عدمية») — «رقم عدمي»
+      ⇒ Optional حرفًا بحرف. الصفةُ سياقيّةٌ في المعجم فيلزمها **نظرٌ مسبقٌ باسم**:
+      تُستهلَك متى تلاها IDENTIFIER **في السطرِ نفسِه**، فيبقى «متغير رقم عدمي = 5»
+      تصريحَ متغيّرٍ اسمُه «عدمي» كما كان. 🔑 وقيدُ السطرِ ليس تجميلًا: المُشكِّلُ لا
+      يُصدرُ رمزَ نهايةِ سطر والتصريحُ بلا مُهيّئٍ مقبول، فبدونه يُقرأ «متغير رقم عدمي»
+      ثمّ «س = 5» تصريحًا واحدًا اسمُه «س» ويختفي «عدمي» صامتًا (مقيس؛ الاختبار 073).
+      ⚠️ وحدٌّ مُعلَن: موضعُ الوسيطِ العامّ («مصفوفة<رقم عدمي>»)
+      لا يليه اسمٌ فلا تُستهلَك فيه — لم يُقَس ولا يُدَّعى.
+      ملحوظةٌ مقيسة: «؟» **لا** تبلغ تصريحَ المتغيّرِ («متغير نص؟ اسم» ⇒ SYN009)،
+      واللفظُ يبلغه — فالصفةُ أوسعُ موضعًا من الرمز لا مرادفةٌ له في كلِّ موقع.
     since: "1.0.0"
     status: stable
     conformance: { compiler_optional: false, test_budget: { basic: 8, edge: 6, negative: 3, interaction: 3 } }

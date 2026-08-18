@@ -352,7 +352,25 @@ namespace Sad
                         {
                             uint8_t kind = DynKind::Null;
                             llvm::Constant *payload = llvm::ConstantInt::get(i64Ty, 0);
-                            switch (varType)
+                            // (AR) 🔑 التفريعُ على نوعِ **القيمةِ** لا على نوعِ الخانة.
+                            //      خانةُ `أي` نوعُها `Any` ولا ذراعَ له هنا، فكان
+                            //      `ثابت أي س = 5` يسقط في `default:` فيبقى الوسمُ `Null`
+                            //      والحمولةُ صفرًا ⇒ «لاشيء» ببناءٍ ناجحٍ ورمزِ خروجٍ صفر،
+                            //      بينما يقول المفسّرُ «5». وضابطُه `ثابت رقم ص = 5` يعمل
+                            //      في المحرّكَين — فالعلّةُ في `أي` وحدَها لا في الثوابت.
+                            //      وتبقى `varType` حاكمةً حيثما لم تُملأ `initialValueKind`،
+                            //      فلا يتبدّل مسارٌ قائم.
+                            // (EN) Switch on the VALUE kind, not the slot kind: an `أي` slot
+                            //      is typed Any, which has no arm here, so `ثابت أي س = 5`
+                            //      fell to `default:` and kept the Null tag with a zero
+                            //      payload ⇒ «لاشيء», build OK, exit 0, against «5» from the
+                            //      interpreter. `varType` still governs wherever
+                            //      initialValueKind is unset, so no existing path shifts.
+                            SadTypeKind initKind =
+                                globalVar->initialValueKind != SadTypeKind::Unknown
+                                    ? globalVar->initialValueKind
+                                    : varType;
+                            switch (initKind)
                             {
                             case SadTypeKind::Integer:
                                 kind = DynKind::Int;

@@ -49,24 +49,29 @@ TYPES_YAML = ROOT / "language-truth" / "types.yaml"
 #      و`0` ليست إعفاءً: تعني «يجب ألّا يحمل هذا الملفُّ جدولًا» — فإعادةُ بناءِ
 #      جدولٍ فيه تُحمِّر الحارس. (قِيس: جدولٌ سادسٌ في `parser_advanced.cpp` عاش
 #      سنينَ منجرفًا لأنّه خارجَ أيّ نطاقِ فحص، وقد وُحِّد الآن.)
+#      ⚠️ **صفرٌ في `parser_helpers.cpp` منذ سدِّ ISSUE-113**: جداولُه الثلاثةُ
+#      المكتوبةُ بيدٍ أُبدلت بالتفويضِ إلى المُولَّد `sadTypeKindFromArabicName`.
+#      وهذا يقلب معنى «صفر» هنا خطرًا جديدًا: حذفُ التفويضِ كلِّه يُرضي «صفرَ
+#      جداول» فيمرّ أخضر. ولذلك وُلد فحصُ التفويضِ في `check_delegation` أدناه —
+#      العدّادُ وحدَه لم يعد كافيًا.
+#      🔑 و«صفرٌ» تُقرأ الآن **صفرَ روابطَ بأيِّ اصطلاح** لا صفرَ عناقيدَ فوق العتبة
+#      (`any_idiom` في `extract_table`): أثبتت ثلاثُ بذورٍ خصوميّةٍ أنّ القفلَ السابقَ
+#      يُهزَم بردِّ ثلاثةِ فروعٍ (دون MIN_TABLE_WORDS)، أو بجدولِ `std::map` لا تراه
+#      WORD_RE، أو بحذفِ التفويضِ مع إبقاءِ الاسمِ في سلسلةٍ حرفيّة — وكلُّها كانت
+#      خضراءَ وقد أُبطل الإصلاح. والثلاثُ حمراءُ الآن، مقيسةً لا مُدّعاة.
 SCANNED = [
-    (pathlib.Path("shared") / "parser" / "src" / "core" / "parser_helpers.cpp", 2),
+    (pathlib.Path("shared") / "parser" / "src" / "core" / "parser_helpers.cpp", 0),
     (pathlib.Path("shared") / "parser" / "src" / "declarations" / "parser_declarations.cpp", 0),
     (pathlib.Path("shared") / "parser" / "src" / "statements" / "parser_advanced.cpp", 0),
 ]
 
 # (AR) تباعُداتٌ مُعلَنةٌ بسببها — كلٌّ منها دَينٌ مرصود، لا رخصةُ صمت.
 # (EN) Declared divergences, each with a written reason — tracked debt, not silence.
-DECLARED_DIVERGENCES = {
-    # (AR) SoT يجعل «عدم» نوعًا مستقلًّا (kind: Null، متمايزًا عن «فراغ»/Void)، والمحلّل
-    #      يخفضه إلى Void فيتساوى النوعان عنده.
-    #      ⚠️ **الحجّة الأولى لهذا التأجيل كانت باطلة**: استندتُ إلى تعليقٍ في
-    #      types.yaml يقول «لا قيمة enum لعدم»، وهو تعليقٌ بائت — القيمة مُولَّدةٌ
-    #      فعلًا (`SadTypeKind::Null` في sad_type_kind_generated.h). فالعائق ليس
-    #      غيابَ القيمة بل أنّ الرفع تغييرُ دلالةٍ يلزمه قياسٌ مزدوجُ المحرّكَين.
-    #      وسُجِّل ISSUE-113 كي يكون دَينًا يُطالَب به لا استثناءً يُنسى.
-    ("عدم", "Void", "Null"): "ISSUE-113 — الرفع إلى SadTypeKind::Null (وهي موجودة) تغييرُ دلالةٍ يلزمه قياسٌ مزدوج",
-}
+#      ⚠️ **فارغةٌ عمدًا.** كان فيها مدخلٌ واحدٌ («عدم» ⇒ Void بدل Null، ISSUE-113)
+#      وقد سُدَّ الدَّينُ بالقياس: `عدم` نوعٌ مستقلٌّ الآن في المحلّلِ والسجلّ معًا.
+#      وحذفُ المدخلِ شرطُ الإصلاحِ لا زينتُه — لو بقي لَقَبِلَ الحارسُ ارتدادَ
+#      «عدم» إلى Void غدًا وهو أخضر، فيصير الإصلاحُ بلا قفل.
+DECLARED_DIVERGENCES: dict[tuple[str, str, str], str] = {}
 
 # (AR) الطرفان مقبولان: `name == "لفظ"` و`"لفظ" == name` — الترتيبُ المعكوسُ
 #      (نمطُ Yoda) كان يُخفي الجدولَ كلَّه عن الاستخراج.
@@ -103,9 +108,28 @@ LINE_COMMENT_RE = re.compile(r"//.*$", re.MULTILINE)
 BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
 
 
+STRING_LITERAL_RE = re.compile(r'"(?:[^"\\\n]|\\.)*"')
+
+
 def strip_comments(text: str) -> str:
     """(AR) يُسقط التعليقاتِ كي لا يُحسَب المُعطَّلُ عاملًا. (EN) Drop comments."""
     return LINE_COMMENT_RE.sub("", BLOCK_COMMENT_RE.sub("", text))
+
+
+def strip_comments_and_strings(text: str) -> str:
+    """(AR) يُسقط التعليقاتِ **والسلاسلَ الحرفيّة** معًا — لفحوصِ «هل يُنادى فعلًا؟».
+
+    🔑 وُلدت هذه من بذرةٍ خصوميّةٍ مرّت خضراء: حُذف التفويضُ كلُّه إلى المُولَّد،
+    وأُبقي اسمُ الدالّةِ في **سلسلةٍ حرفيّة** (`const char *k = "sadTypeKind…";`).
+    فـ`strip_comments` يجرّد التعليقاتِ ولا يجرّد السلاسل، والفحصُ كان يبحث عن
+    **ورودِ الاسمِ** لا عن نداءٍ — فبقي أخضرَ وقد زال الحلُّ كلُّه. والدرسُ أعمُّ من
+    الثغرة: أشهرُ صيغتَي تعطيلٍ هما التعليقُ والسلسلةُ الحرفيّة، فمن جرّد إحداهما
+    وترك الأخرى لم يسدَّ الباب بل نقله.
+    (EN) Born from an adversarial seed: deleting every delegation call while keeping
+    the function name inside a string literal kept the guard green. Comments were
+    stripped; strings were not; and the check tested occurrence, not invocation.
+    """
+    return STRING_LITERAL_RE.sub('""', strip_comments(text))
 
 
 ESCAPE_RE = re.compile(r"\\(?:x([0-9A-Fa-f]{2})|([0-7]{1,3}))")
@@ -171,16 +195,56 @@ def load_sot():
     return surface, removed
 
 
-def extract_table(path: pathlib.Path):
+# (AR) 🔑 **لفظٌ عربيٌّ حرفيٌّ مهما كان الاصطلاح** — لا `== "لفظ"` ولا سواه. WORD_RE
+#      مقيَّدةٌ باصطلاحِ المقارنةِ عمدًا (تقليلًا للإيجابِ الكاذبِ في الملفّاتِ التي
+#      يُتوقَّع فيها جدول)، وأثبتت بذرةٌ خصوميّةٌ ثمنَ ذلك: جدولٌ يدويٌّ مُعادٌ بصيغةِ
+#      `std::map<std::string، SadTypeKind>` بألفاظٍ عربيّةٍ صريحة **لا تراه** WORD_RE
+#      فيمرّ أخضرَ وهو يُبطِل التفويضَ كلَّه. فتُستعمَل هذه في الملفّاتِ المُعلَنِ
+#      فيها **صفرُ جداول**: هناك لا إيجابَ كاذبًا يُخشى، إذ القاعدةُ «لا لفظَ يُربَط
+#      بنوعٍ هنا أصلًا» — والاصطلاحُ لا يشتري إعفاءً.
+# (EN) Any Arabic/hex literal, in ANY idiom. Used where zero tables are declared:
+#      there the rule is "no word maps to a kind here at all", so idiom buys no exemption.
+ANY_WORD_RE = re.compile(
+    r'"([؀-ۿ_٠-٩0-9]+)"|"((?:\\(?:x[0-9A-Fa-f]{2}|[0-7]{1,3}))+)"'
+)
+
+# (AR) ونظيرُها على طرفِ النوع: KIND_RE مقيَّدةٌ بـ`resolved =`/`return` فلا ترى
+#      مدخلَ قاموسٍ `{"عدم"، SadTypeKind::Void}` ولا إسنادًا إلى حقلٍ. وفي وضعِ
+#      «صفرِ الجداول» القيدُ ضررٌ محض: أيُّ ذكرٍ لنوعٍ بجوارِ لفظٍ هو الربطُ المُحرَّم.
+# (EN) The kind side, unanchored: a map entry binds a word to a kind just as an
+#      assignment does, and where zero tables are declared any binding is the violation.
+ANY_KIND_RE = re.compile(
+    r"SadTypeKind::([A-Za-z_][A-Za-z0-9_]*)"
+    r"|reg\.(?:get|make)([A-Za-z_][A-Za-z0-9_]*)\s*\("
+)
+
+
+def extract_table(path: pathlib.Path, any_idiom: bool = False):
     """(AR) يستخرج **كلَّ** مواضع `name == "لفظ"` ⇒ نوع، لا أوّلَ موضعٍ لكلّ لفظ.
 
     🔑 كانت النتيجة قاموسًا بـ`setdefault`، فابتلع الجدولَ الثاني كلَّه: كلُّ لفظٍ
     يظهر مرّتين (جدول `SadTypeKind::X` ثمّ جدول `reg.getX()`)، والقاموسُ يحتفظ
     بالأوّل ويُسقط الثاني بصمت — فتمرّ بذرةُ عطبٍ في الجدول الثاني خضراء.
+
+    `any_idiom=True` ⇒ يُلتقَط أيُّ لفظٍ حرفيٍّ يُجاور نوعًا مهما كان الاصطلاح
+    (انظر ANY_WORD_RE) — للملفّاتِ المُعلَنِ فيها صفرُ جداول.
     """
-    lines = io.open(path, encoding="utf-8", errors="ignore").read().splitlines()
+    raw = io.open(path, encoding="utf-8", errors="ignore").read()
+    # (AR) في وضعِ «أيُّ اصطلاح» تُجرَّد التعليقاتُ **قبل** تحديدِ المواضع لا بعده:
+    #      وإلّا صار تعليقٌ يذكر لفظًا بين علامتَي اقتباسٍ إيجابًا كاذبًا. والتجريدُ
+    #      يحفظ عددَ الأسطر كي تبقى أرقامُ السطورِ صادقةً في التشخيص.
+    # (EN) Strip comments before locating candidates in any-idiom mode, line-preservingly.
+    if any_idiom:
+        raw = BLOCK_COMMENT_RE.sub(lambda m: "\n" * m.group(0).count("\n"), raw)
+        raw = LINE_COMMENT_RE.sub("", raw)
+    lines = raw.splitlines()
 
     def word_at(ln):
+        if any_idiom:
+            a = ANY_WORD_RE.search(ln)
+            if a:
+                return a.group(1) or decode_hex_word(a.group(2))
+            return None
         m = WORD_RE.search(ln)
         if m:
             return m.group(1) or m.group(2)
@@ -195,7 +259,7 @@ def extract_table(path: pathlib.Path):
         end = starts[pos + 1] if pos + 1 < len(starts) else len(lines)
         end = min(end, i + MAX_BRANCH_LINES, len(lines))
         body = strip_comments("\n".join(lines[i:end]))
-        k = KIND_RE.search(body)
+        k = (ANY_KIND_RE if any_idiom else KIND_RE).search(body)
         if k:
             found.append(
                 (
@@ -267,7 +331,28 @@ def main() -> int:
         if not path.exists():
             problems.append("ملفٌّ مفقودٌ من نطاق الفحص: %s" % rel.as_posix())
             continue
-        table = extract_table(path)
+        # (AR) 🔑 «صفرٌ» تعني **صفرَ روابط**، لا «صفرَ عناقيدَ تبلغ العتبة». وهذا هو
+        #      سدُّ أخطرِ ثغرتَين أثبتتهما بذورٌ خصوميّة: ردُّ ثلاثةِ فروعٍ فقط
+        #      (`عدم ⇒ Void`) يبقى دون MIN_TABLE_WORDS فيمرّ أخضرَ وقد أُبطل الإصلاحُ
+        #      كلُّه؛ وجدولٌ بصيغةِ `std::map` لا تراه WORD_RE أصلًا. فحيث لا جدولَ
+        #      مُعلَنًا يُمسَح الملفُّ **بأيِّ اصطلاح**، ولا يُعفى لفظٌ سطحيٌّ ولو كان
+        #      تخفيضُه مطابقًا لمصدرِ الحقيقةِ اليومَ: المطابقُ اليومَ هو المنجرفُ غدًا،
+        #      والسببُ الذي وُلد له التفويضُ هو **وجودُ نسخةٍ** لا خطؤُها.
+        # (EN) Zero means zero bindings, not zero clusters above a threshold. Restoring
+        #      three branches stayed under MIN_TABLE_WORDS and went green; a std::map
+        #      table was invisible to WORD_RE. A word mapped correctly today is the
+        #      drifted copy tomorrow — delegation exists to forbid the copy, not its error.
+        #      ⚠️ وحدُّ هذا الوضعِ المُعلَنُ: يُقتصَر على الألفاظِ التي **يعرفها SoT**
+        #      (سطحيّةً أو مُزالة). بلا هذا القيدِ يلتقط المسحُ نصوصَ التشخيصِ نفسَها
+        #      («المتغير»، «الدالة»، «حقل») فتُقرأ جدولًا وهي رسائلُ — قِيس: ١١ إيجابًا
+        #      كاذبًا من ١٣. والثمنُ مُعلَن: جدولٌ يُبنى بلفظٍ ليس في SoT أصلًا لا يُرى
+        #      هنا، وهو مقبولٌ لأنّ لفظًا خارجَ SoT ليس نسخةً تنجرف عنه.
+        # (EN) Restricted to words the SoT knows; otherwise diagnostic message text
+        #      («المتغير», «حقل») reads as a table — measured: 11 false positives of 13.
+        zero_declared = expected_tables == 0
+        table = extract_table(path, any_idiom=zero_declared)
+        if zero_declared:
+            table = [e for e in table if e[0] in surface or e[0] in removed]
         scanned_words += len(table)
         # (AR) يُسجَّل كلُّ ملفٍّ — حتّى المتوقَّعُ خاليًا — كي يكشفَ العددُ جدولًا
         #      أُعيد بناؤه حيث لا يجوز، لا أن يمرَّ لأنّ الفحصَ لم يشمله.
@@ -288,6 +373,14 @@ def main() -> int:
                 problems.append(
                     "%s — «%s» يُخفَّض إلى SadTypeKind::%s وهو ليس لفظًا سطحيًّا في SoT "
                     "ولا مُعلَنًا في removed_type_words" % (loc, word, kind)
+                )
+                continue
+            if zero_declared:
+                problems.append(
+                    "%s — «%s» يُربَط بـSadTypeKind::%s بيدٍ في ملفٍّ مُعلَنٍ بصفرِ جداول: "
+                    "نسخةٌ يدويّةٌ عادت مكانَ التفويضِ إلى «sadTypeKindFromArabicName» "
+                    "(ولو طابقت SoT اليومَ — الوجودُ هو المُحرَّم لا الخطأ)"
+                    % (loc, word, kind)
                 )
                 continue
             expected = surface[word]
@@ -338,10 +431,17 @@ def main() -> int:
     #      المحلّلِ كلُّه: أيُّ ملفٍّ يحمل جدولًا وليس مُعلَنًا �⇒ خطأ، لا صمت.
     # (EN) Discovery, not a list: any parser file carrying a table must be declared.
     # ────────────────────────────────────────────────────────────────────────
+    #      ⚠️ ووُسِّع المسحُ إلى `shared/types/` مع سدِّ ISSUE-113: أخطرُ نسخةٍ
+    #      منجرفةٍ (`SadTypeRegistry::fromArabicName`) عاشت هناك — خارجَ كلِّ
+    #      نطاقٍ — فطوت «عدم» و«لاشيء» في Void وأسقطت «طبيعي64» رأسًا، ولم
+    #      يحمرَّ لها حارس. والمُولَّدُ يُستثنى فهو المصدرُ لا نسخةٌ عنه.
     declared = {rel.as_posix() for rel, _ in SCANNED}
-    parser_root = ROOT / "shared" / "parser"
     tree = sorted(
-        p for ext in ("*.cpp", "*.h", "*.hpp") for p in parser_root.rglob(ext)
+        p
+        for root in (ROOT / "shared" / "parser", ROOT / "shared" / "types")
+        for ext in ("*.cpp", "*.h", "*.hpp")
+        for p in root.rglob(ext)
+        if "generated" not in p.parts
     )
     for path in tree:
         rel_p = path.relative_to(ROOT).as_posix()
@@ -364,13 +464,90 @@ def main() -> int:
     # ────────────────────────────────────────────────────────────────────────
     helpers = ROOT / "shared" / "parser" / "src" / "core" / "parser_helpers.cpp"
     if helpers.exists():
-        src = strip_comments(io.open(helpers, encoding="utf-8", errors="ignore").read())
+        src = strip_comments_and_strings(io.open(helpers, encoding="utf-8", errors="ignore").read())
         for arr in ("SURFACE_TYPE_NAMES", "REMOVED_TYPE_NAMES"):
             if arr not in src:
                 problems.append(
                     "shared/parser/src/core/parser_helpers.cpp — «%s» المُولَّدةُ غيرُ "
                     "مستعمَلة: تعرُّفُ المحلّلِ لم يعد مشتقًّا من SoT (ISSUE-114)" % arr
                 )
+
+    # ────────────────────────────────────────────────────────────────────────
+    # (AR) 🔑 **فحصُ التفويض** — وُلد مع سدِّ ISSUE-113. بعدما صار المتوقَّعُ «صفرَ
+    #      جداولٍ مكتوبةٍ بيد»، صار الأخضرُ يُنال بطريقَين: بالتفويضِ إلى المُولَّد
+    #      (المقصود)، أو **بحذفِ الحلِّ رأسًا** (كارثة). فيُشترَط أمران:
+    #        ① المستهلِكون ينادون `sadTypeKindFromArabicName` فعلًا؛
+    #        ② الجدولُ المُولَّدُ نفسُه يطابق SoT لفظًا بلفظ — فمُولِّدٌ منجرفٌ
+    #           يُنتِج جدولًا منجرفًا في كلِّ المستهلِكين دفعةً واحدة، وهو ضررٌ
+    #           أوسعُ من أيِّ نسخةٍ يدويّةٍ كانت.
+    # (EN) Delegation check: with zero hand tables expected, green is also reachable
+    #      by deleting the logic. Require real calls into the generated map, and
+    #      require the generated map itself to match the SoT word for word.
+    # ────────────────────────────────────────────────────────────────────────
+    GENERATED_FN = "sadTypeKindFromArabicName"
+    # (AR) ⚠️ حُذف `shared/types/include/sad_type_system.h` من المستهلِكين مع حذفِ
+    #      `SadTypeRegistry::fromArabicName` نفسِها (صفرُ مُنادٍ، ISSUE-113): اشتراطُ
+    #      نداءٍ في ملفٍّ لم يعد فيه ما يُنادي يجعل الحارسَ يطلب إحياءَ الميّتِ لا
+    #      حراسةَ الحيّ. والمستهلِكُ الحقيقيُّ الوحيدُ هو مسارُ تصريحِ المتغيّر.
+    # (EN) The header was dropped from CONSUMERS together with the dead function it
+    #      hosted; demanding a call in a file with nothing to call resurrects dead code.
+    CONSUMERS = [
+        pathlib.Path("shared") / "parser" / "src" / "core" / "parser_helpers.cpp",
+    ]
+    # (AR) 🔑 **نداءٌ لا ورود.** `GENERATED_FN in src` يُرضيه اسمٌ في سلسلةٍ حرفيّةٍ
+    #      أو في مُعرِّفٍ آخرَ يحتويه — وقد قِيست البذرةُ خضراءَ والحلُّ محذوف. فيُشترَط
+    #      قوسُ نداءٍ، وتُجرَّد السلاسلُ مع التعليقات.
+    # (EN) Invocation, not occurrence: require a call paren, on string-stripped source.
+    CALL_RE = re.compile(re.escape(GENERATED_FN) + r"\s*\(")
+    for rel in CONSUMERS:
+        path = ROOT / rel
+        if not path.exists():
+            problems.append("ملفٌّ مفقودٌ من فحص التفويض: %s" % rel.as_posix())
+            continue
+        src = strip_comments_and_strings(
+            io.open(path, encoding="utf-8", errors="ignore").read()
+        )
+        if not CALL_RE.search(src):
+            problems.append(
+                "%s — لا ينادي «%s» المُولَّدة نداءً فعليًّا: جدولُ الألفاظِ لم يعد "
+                "مشتقًّا من SoT (حذفُ التفويضِ يُرضي «صفرَ جداول» فيمرّ صامتًا — ISSUE-113)"
+                % (rel.as_posix(), GENERATED_FN)
+            )
+
+    gen_header = ROOT / "shared" / "types" / "generated" / "sad_type_kind_generated.h"
+    if not gen_header.exists():
+        problems.append("الرأسُ المُولَّدُ مفقود: shared/types/generated/sad_type_kind_generated.h")
+    else:
+        gen_src = io.open(gen_header, encoding="utf-8", errors="ignore").read()
+        body = gen_src.split(GENERATED_FN, 1)[1] if GENERATED_FN in gen_src else ""
+        body = body.split("return SadTypeKind::Unknown", 1)[0]
+        gen_map = {}
+        for raw, kind in re.findall(
+            r'word\s*==\s*"((?:\\x[0-9A-Fa-f]{2})+)"\s*\)\s*return\s+SadTypeKind::([A-Za-z_]\w*)',
+            body,
+        ):
+            gen_map[decode_hex_word(raw)] = kind
+        if not gen_map:
+            problems.append(
+                "sad_type_kind_generated.h — «%s» غائبةٌ أو فارغة: المُولِّدُ لم "
+                "يُصدِر جدولَ «اللفظ ⇒ النوع» (gen_types.py)" % GENERATED_FN
+            )
+        for word, kind in sorted(surface.items()):
+            if word not in gen_map:
+                problems.append(
+                    "sad_type_kind_generated.h — «%s» لفظٌ سطحيٌّ في SoT وغائبٌ عن "
+                    "الجدولِ المُولَّد: يُقرأ اسمَ صنفٍ لا نوعًا" % word
+                )
+            elif gen_map[word] != kind:
+                problems.append(
+                    "sad_type_kind_generated.h — «%s» ⇒ SadTypeKind::%s ومصدرُ "
+                    "الحقيقة يقول %s" % (word, gen_map[word], kind)
+                )
+        for word in sorted(set(gen_map) - set(surface)):
+            problems.append(
+                "sad_type_kind_generated.h — «%s» في الجدولِ المُولَّدِ وليس لفظًا "
+                "سطحيًّا في SoT: توسيعٌ صامتٌ للمقبول" % word
+            )
 
     print("  الملفّات: %d · ألفاظ مفحوصة: %d" % (len(SCANNED), scanned_words))
     for d in declared_hits:

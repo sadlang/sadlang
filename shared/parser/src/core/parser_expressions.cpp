@@ -963,6 +963,25 @@ namespace Sad
                         member = consume(TT::IDENTIFIER, "");
                     }
 
+                    // (AR) 🔑 نداءُ طريقةٍ آمن: `س؟.م(…)`. وغيابُ هذا الفحصِ كان
+                    //      العلّةَ الجذريّة — فرعُ `.` يفحص `(` وفرعُ `؟.` لا يفحصه،
+                    //      فيصير النداءُ وصولَ عضوٍ ثمّ تُترَك `(…)` لِما بعدَها.
+                    // (EN) Safe method call `x?.m(…)`. Its absence was the root cause:
+                    //      the `.` branch checks for `(` and the `؟.` branch did not.
+                    if (check(TT::PAREN_LEFT))
+                    {
+                        match(TT::PAREN_LEFT);
+                        auto optArgs = parseArgumentList();
+                        consume(TT::PAREN_RIGHT, "");
+                        auto optCall = std::make_unique<MethodCallExpr>(
+                            std::move(expr), member.getValue());
+                        optCall->arguments = std::move(optArgs);
+                        optCall->isOptional = true;
+                        optCall->position = member.getPosition();
+                        expr = std::move(optCall);
+                        continue;
+                    }
+
                     expr = std::make_unique<OptionalChainExpr>(
                         std::move(expr),
                         member.getValue(),

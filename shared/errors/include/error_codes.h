@@ -172,6 +172,11 @@ namespace Sad
             SEM_NON_EXHAUSTIVE_MATCH,     ///< SEM036: (AR) مطابقة تعداد بحمولة غير مستنفِدة (معامل غير مُغطّى بلا فرع شامل) / (EN) non-exhaustive tagged-enum match (uncovered variant, no catch-all)
             SEM_FREESTANDING_HEAP_TOO_LARGE, ///< SEM037: (AR) حجم الكومة الحرّة يجاوز فضاء عنونة الهدف — حقل حجم قسم ELF32 يلتفّ صامتًا / (EN) freestanding heap exceeds the target address space — the ELF32 section-size field wraps silently
             SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN, ///< SEM038: (AR) مدمجة تُخفَّض إلى تعليمة من عائلة معالج أخرى (rdtsc/outb/mov %crN لهدف ARM) / (EN) builtin lowers to a foreign CPU family's instruction
+            SEM_STATIC_LOCAL_UNSUPPORTED, ///< SEM039: (AR) «متغير ساكن» داخل دالّة — مدّة تخزين ساكنة غير منفَّذة في المحرّكين / (EN) function-local static storage duration is not implemented
+            SEM_VOID_NOT_A_VALUE_TYPE,    ///< SEM040: (AR) «فراغ» نوعُ إرجاعٍ لا نوعُ قيمة — لا يصلح لخانةٍ تُخزَّن (ISSUE-113) / (EN) void is a return type, not a value type
+            SEM_IMPLICIT_CTOR_REQUIRES_ARGS, ///< SEM041: (AR) إنشاءٌ ضمنيٌّ لصنفٍ بانيه يشترط وسائط — «شخص ك» بلا تهيئة / (EN) implicit construction of a class whose constructor requires arguments
+            SEM_COMPILER_FIELD_TYPE_UNSUPPORTED, ///< SEM042: (AR) حقلٌ نوعُه صنفٌ لا يخفضه المترجّمُ بعد — رفضٌ صريحٌ بدل بناءٍ ينهار / (EN) class-typed field not lowered yet — explicit rejection instead of a crashing build
+            SEM_OPTIONAL_CALL_RECEIVER_NOT_SIMPLE, ///< SEM043: (AR) الوصولُ الآمنُ بنداءِ طريقةٍ يلزمه مستقبِلٌ بسيطٌ — أثرٌ جانبيٌّ مضاعَفٌ لا يُرى في مخرَجٍ صحيح / (EN) safe method call needs a simple receiver — a duplicated side effect no correct output reveals
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors

@@ -243,9 +243,51 @@ namespace Sad
                 if (field.isStatic)
                     continue;
 
-                // (AR) استخدام نسخة عميقة من القيمة الافتراضية لتجنب مشاركة المصفوفات/القواميس بين الكائنات
-                // (EN) Use deep clone of default value to avoid sharing arrays/maps between instances
-                objectInstance->initField(field.name, field.defaultValue.clone());
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) 🔑 حقلٌ نوعُه صنفٌ يُنشَأ **هنا**، لكلِّ نسخةٍ على حدة.
+                //      `clone()` نسخةُ سطحٍ واحد: تنسخ خريطةَ الحقولِ ولا تستنسخ
+                //      ما تشير إليه من كائنات. فكان كائنان من صنفٍ مركَّبٍ
+                //      بمستويَين يتقاسمان الكائنَ الأعمقَ — قِيس أنّ الكتابةَ في
+                //      أحدِهما تُقرَأ في الآخر، بينما مستوًى واحدٌ يبدو سليمًا.
+                //      وتقييمُ التعبيرِ هنا يعطي كائنًا جديدًا ويشغّل بانيَه في
+                //      وقتِه الصحيح.
+                // (EN) A class-typed field is constructed here, per instance:
+                //      clone() copies the field map without deep-copying the objects
+                //      it points to, so two instances measurably shared the deeper
+                //      object while one level looked correct.
+                // ═══════════════════════════════════════════════════════════════
+                if (!field.defaultConstructClass.empty())
+                {
+                    // (AR) عقدةٌ محلّيّةٌ على المكدّس لا إشارةٌ محفوظة: البنيةُ تحمل
+                    //      **اسمًا** يملك نفسَه، فلا تبقى إشارةٌ إلى شجرةٍ قد تُحرَّر
+                    //      قبل الكائن (قِيس انهيارُ ذلك في الصدَفةِ بعد `:reset`).
+                    // (EN) A stack-local node built from an owned name — no reference
+                    //      into an AST that may be freed before the object.
+                    AST::NewExpr constructField(field.defaultConstructClass);
+                    // (AR) موضعُ التصريحِ يُنقَل إلى العقدةِ المحلّيّة، وإلّا أشارت
+                    //      أخطاءُ الإنشاءِ إلى السطرِ ١ العمودِ ١. والصفرُ يُترَك على
+                    //      حالِه: «لا أعرف» أصدقُ من موضعٍ مختلَق.
+                    //      ⚠️ الوصلُ مقيسٌ بنيويًّا (المنتِجُ والمستهلِكُ متطابقان)
+                    //      **ولم يُبرهَن ببرنامج**: لم أجد صيغةً تُخفِق داخلَ إنشاءِ
+                    //      حقلٍ ضمنيٍّ فتطبعَ موضعًا. فالصوابُ هنا صوابُ تركيبٍ لا
+                    //      صوابُ مخرَجٍ مشهود.
+                    // (EN) Structurally threaded, NOT proven by a program: no input
+                    //      was found that fails inside implicit field construction
+                    //      and prints a position.
+                    if (field.defaultConstructLine != 0)
+                    {
+                        constructField.position.line = field.defaultConstructLine;
+                        constructField.position.column = field.defaultConstructColumn;
+                    }
+                    constructField.accept(*this);
+                    objectInstance->initField(field.name, getResult());
+                }
+                else
+                {
+                    // (AR) استخدام نسخة عميقة من القيمة الافتراضية لتجنب مشاركة المصفوفات/القواميس بين الكائنات
+                    // (EN) Use deep clone of default value to avoid sharing arrays/maps between instances
+                    objectInstance->initField(field.name, field.defaultValue.clone());
+                }
             }
 
 #ifdef DEBUG_OOP

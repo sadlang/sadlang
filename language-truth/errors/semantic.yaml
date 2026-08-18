@@ -670,3 +670,94 @@ errors:
   detailed:
     ar: 'بعض المدمجات تُخفَّض إلى تعليمات لا توجد إلّا في عائلة معالج بعينها: ‎cli‎ و‎sti‎ و‎hlt‎ و‎cpuid‎ و‎rdtsc‎ و‎inb/outb‎ و‎mov %crN‎ و‎lgdt/lidt‎ و‎invlpg‎ كلّها من عائلة x86 وحدها؛ فلا فضاء منافذ معزولًا ولا سجلّات تحكّم بهذه الأسماء على ARM أو RISC-V. وكان المترجم يبثّها لأيّ هدف يُطلب بخروج صفريّ، فيقع الإخفاق عند المُجمِّع برسالة لا تدلّ على السبب، أو لا يقع أصلًا فيخرج ثنائيّ لا يعمل. والقياس الذي ولّد هذا التشخيص: قراءة عدّاد الدورات بهدف aarch64 كانت تنجح وتبثّ ‎rdtsc‎. والقيد ليس خاصًّا بالوضع الحرّ بل يقع مستضافًا كذلك، لأنّ التعليمة غائبة عن المعماريّة لا عن المكتبة. وقائمة المدمجات المقيّدة مصدر حقيقة في ‎language-truth/backend/arch_specific_opcodes.yaml‎.'
     en: 'Some builtins lower to instructions that exist only in one CPU family: cli, sti, hlt, cpuid, rdtsc, inb/outb, mov %crN, lgdt/lidt and invlpg are all x86-only, since there is no isolated port space and no control register by those names on ARM or RISC-V. The compiler used to emit them for any requested target with a zero exit, so the failure landed on the assembler with a message that did not name the cause, or did not land at all and yielded a binary that cannot run. The measurement behind this diagnostic: a timestamp-counter read targeting aarch64 succeeded and emitted rdtsc. The constraint is not freestanding-specific: it applies to hosted builds too, because the instruction is absent from the architecture, not from the library. The constrained list is a source of truth in language-truth/backend/arch_specific_opcodes.yaml.'
+- code: SEM_STATIC_LOCAL_UNSUPPORTED
+  id: SEM039
+  category: semantic
+  title:
+    ar: تخزين ساكن لمتغيّر خارج مستوى الوحدة المباشر غير مدعوم بعد
+    en: Static storage duration outside direct module level is not yet supported
+  brief:
+    ar: 'المتغيّر «{name}» صُرِّح ساكنًا داخل كتلة، ومدّة التخزين الساكنة لا تتحقّق إلّا لما يصير عامًّا'
+    en: 'Variable «{name}» is declared static inside a block; static storage duration only holds for declarations that become globals'
+  placeholders:
+  - name
+  fix_hint:
+    ar: 'انقل التصريح إلى مستوى الوحدة **المباشر** — أي ابنًا مباشرًا للبرنامج، لا داخل دالّة ولا داخل كتلة «إذا»/«بينما»/«لكل» ولو كانت في أعلى الملفّ. أو أسقط «ساكن» إن كان المقصود متغيّرًا عاديًّا. وللتخزين الساكن داخل الدوالّ استعمل صيغة المصفوفة: «متغير ساكن اسم مصفوفة[N]».'
+    en: 'Move the declaration to *direct* module level — a direct child of the program, not inside a function and not inside an if/while/for block even at the top of the file. Or drop «ساكن» if an ordinary variable was intended. For static storage inside functions use the array form: «متغير ساكن اسم مصفوفة[N]».'
+  detailed:
+    ar: 'مدّة التخزين الساكنة تعني أنّ الخانة تُهيَّأ مرّة واحدة وتبقى قيمتها بين النداءات. وهي لا تتحقّق إلّا للتصاريح التي تصير عوامَّ، وذلك مقيس: حلقة تسجيل العوامّ في المترجم تمسح أبناء البرنامج المباشرين وحدهم، فما دونهم يهبط alloca في إطار النداء ويزول بزواله؛ والمفسّر يعرّف بالنسخ في نطاق النداء ولا يملك خانة معمّرة تُربط بموقع التصريح. ولذلك البوّابة تقيس عمق الكتلة لا عمق الدالّة: «متغير ساكن ب = 7» داخل «إذا … نهاية» في أعلى الملفّ ليس عامًّا وإن بدا وحدويًّا. وقبل ISSUE-120 كان «متغير ساكن ن = 0» يُبلَّغ بـSEM023 برسالة تتحدّث عن مصفوفات .bss لأنّ فرع اللبنة 3.16 كان يبتلع كلّ «ساكن»؛ فصار التشخيص يسمّي الحدّ الحقيقيّ بدل أن يحيل على صيغة لا صلة لها. أمّا مصفوفة التخزين الساكن «متغير ساكن اسم مصفوفة[N]» فتعمل في الموضعين لأنّها تُبثّ في قسم .bss لا في إطار النداء.'
+    en: 'Static storage duration means the slot is initialized once and keeps its value across calls. It only holds for declarations that become globals, and this is measured: the compiler''s global-registration loop scans direct children of the program only, so anything deeper lowers to an alloca in the call frame and dies with it; the interpreter defines by copy in the call scope with no persistent slot keyed to the declaration site. Hence the gate measures block depth, not function depth: «متغير ساكن ب = 7» inside an if-block at the top of the file is not a global even though it looks module-level. Before ISSUE-120 this was reported as SEM023 with a message about .bss arrays, because the Brick 3.16 branch swallowed every «ساكن»; the diagnostic now names the real limit. The static storage array form does work in both positions, because it is emitted into .bss rather than the call frame.'
+- code: SEM_VOID_NOT_A_VALUE_TYPE
+  id: SEM040
+  category: semantic
+  title:
+    ar: «{void_word}» نوعُ إرجاعٍ لا نوعُ قيمة
+    en: «{void_word}» is a return type, not a value type
+  brief:
+    ar: 'الخانة «{name}» صُرِّح نوعُها «{void_word}»، و«{void_word}» يعني «لم تُرجَع قيمةٌ أصلًا» فلا خانةَ تحمله'
+    en: 'Slot «{name}» is declared «{void_word}», which means «no value was ever returned» — no slot can hold it'
+  placeholders:
+  - name
+  - void_word
+  - null_word
+  fix_hint:
+    ar: 'إن كان المقصودُ خانةً تقبل «لاشيء» فاكتب «{null_word}» — وهو نوعُ القيمةِ العدميّةِ الصريحة. وإن كان المقصودُ استنتاجَ النوعِ من المُهيّئ فاحذف النوعَ رأسًا.'
+    en: 'If a slot that accepts «لاشيء» was intended, write «{null_word}» — the type of the explicit null value. If type inference was intended, drop the type annotation entirely.'
+  detailed:
+    ar: 'مصدرُ الحقيقة يفصل الغيابَين فصلًا صريحًا: «{void_word}» هو ما لم يُرجَع أصلًا (مفتاحٌ غائب، بحثٌ بلا مطابقة)، و«{null_word}» هو قيمةُ «لاشيء» الصريحة. والفصلُ ليس تسميةً: «{null_word}» يُنزَل إلى عددٍ صحيحٍ بحارسٍ مميَّز فله تمثيلٌ يُخزَّن، أمّا «{void_word}» فيُنزَل إلى نوعِ ‎void‎ في LLVM ولا ثابتَ صفريَّ له. ولذلك كان «متغير {void_word} س = لاشيء» يُسقِط المترجّم برسالةٍ داخليّة «Cannot create a null constant of that type! UNREACHABLE»، بينما يقبله المفسّرُ ويحذّر تحذيرًا كاذبًا عن إسنادِ عدمٍ إلى فراغ — تباعُدُ محرّكَين وانهيارٌ من عيبٍ واحد. والقياسُ الذي ولّد هذا التشخيص: ISSUE-113، حيث كان لفظُ «{null_word}» نفسُه يُخفَّض إلى {void_word} في سبعةِ مواضع، فلمّا فُصلا بقي الانهيارُ قائمًا على «{void_word}» صراحةً — عيبٌ مستقلٌّ كشفه الفصل. والرفضُ يقع في المحلّلِ لا في خلفيّةٍ بعينها، فيتّفق المحرّكان بالبناءِ لا بالمصادفة.'
+    en: 'The source of truth separates the two absences explicitly: «{void_word}» is what was never returned (a missing key, a search with no match), while «{null_word}» is the explicit null value. The separation is not cosmetic: «{null_word}» lowers to an integer with a distinguished sentinel, so it has a representation that can be stored, whereas «{void_word}» lowers to LLVM''s void type, for which no zero constant exists. Hence «متغير {void_word} س = لاشيء» used to crash the compiler with the internal message «Cannot create a null constant of that type! UNREACHABLE», while the interpreter accepted it and emitted a false warning about assigning null to void — an engine divergence and a crash from one defect. The measurement behind this diagnostic is ISSUE-113: the word «{null_word}» itself was being lowered to {void_word} in seven places, and once the two were separated the crash remained on «{void_word}» proper — an independent defect the separation exposed. The rejection lives in the parser rather than in one backend, so both engines agree by construction rather than by coincidence.'
+- code: SEM_IMPLICIT_CTOR_REQUIRES_ARGS
+  id: SEM041
+  category: semantic
+  title:
+    ar: الإنشاءُ الضمنيُّ لا يصلح لصنفٍ بانيه يشترط وسائط
+    en: Implicit construction does not apply to a class whose constructor requires arguments
+  brief:
+    ar: 'الخانة «{name}» صُرِّح نوعُها الصنفَ «{class_name}»، وبانيه لا يُستدعى بلا وسائط (المطلوب: {required}) فلا سبيلَ إلى إنشائه بلا تهيئة'
+    en: 'Slot «{name}» is declared of class «{class_name}», whose constructor requires {required} argument(s), so it cannot be constructed without an initializer'
+  placeholders:
+  - name
+  - class_name
+  - required
+  fix_hint:
+    ar: 'اكتب التهيئةَ صراحةً مع وسائطِ الباني: «{class_name} {name} = {class_name}(…)».'
+    en: 'Write the initializer explicitly with the constructor arguments: «{class_name} {name} = {class_name}(…)».'
+  detailed:
+    ar: 'قرارُ المالك (2026-08-15) جعل «{class_name} {name}» بلا تهيئةٍ مكافئةً لـ«{class_name} {name} = {class_name}()» حرفًا بحرف: تُملأ الحقولُ بقيمِ أنواعِها الافتراضيّةِ تعاوديًّا، ثمّ يُستدعى الباني فيكتب فوقَها. وهذا الترتيبُ يفترض بانيًا يمكن استدعاؤه بلا وسائط. فإن اشترط الباني وسائطَ لم يبقَ للإنشاءِ الضمنيِّ معنًى: لا قيمةَ يمكن للغةِ أن تختلقها للوسيط. والقياسُ الذي ولّد هذا التشخيص: كان المحرّكان يقبلان الصيغةَ صامتَين ويملآن الوسيطَ الناقصَ بـ«لاشيء»، فيُنفَّذ جسمُ الباني على عدمٍ ويخرج الحقلُ «لاشيء» — أي أنّ الخانةَ تحمل غيابًا في نوعٍ غيرِ عدميّ، وهو نقضُ العقدِ الذي تقوم عليه القاعدةُ أصلًا. والرفضُ أوضحُ من القبولِ الصامتِ لأنّ الكاتبَ يعرف وسائطَ بانيه ولا تعرفها اللغة. ⚠️ وحُذف من العلاجِ اقتراحٌ سابقٌ بكتابةِ «{class_name} عدمي {name} = لاشيء»: قِيست الصيغةُ المقترَحةُ حرفًا بحرفٍ فتبيّن أنّ المحلّلَ كان يقرأ «عدمي» اسمًا للمتغيّرِ ويُسقِط الاسمَ الحقيقيَّ **صامتًا**، فيرفع SEM041 ثانيةً ويقترح الصيغةَ الفاسدةَ نفسَها في حلقةٍ مغلقة. ⚠️ وتبدّل هذا في 2026-08-17: صار الفرعُ يشخّص المعرِّفَ الزائدَ بـSYN016 في المحرّكَين، فانقطعت الحلقةُ — «عدّاد عدمي ك» يُرفَض صراحةً بدل أن يُقبَل بمعنًى غيرِ الذي كُتِب. **ولا صيغةَ عاملةً اليومَ لخانةٍ صنفيّةٍ عدميّة**: الرفضُ الصريحُ ليس قبولًا، والقبولُ يلزمه دعمُ الخلفيّةِ لخانةٍ صنفيّةٍ عدميّة وهو غيرُ منجَز. والدرسُ: **العلاجُ المقترَحُ في التشخيصِ يُقاس كما يُقاس الرفضُ نفسُه** — تشخيصٌ صادقُ الرفضِ يحمل علاجًا كاذبًا يُضلُّ أكثرَ ممّا يهدي.'
+    en: 'The owner decision (2026-08-15) makes «{class_name} {name}» without an initializer equivalent to «{class_name} {name} = {class_name}()»: fields are filled with their types'' default values recursively, then the constructor runs over them. That order presupposes a constructor callable with no arguments. If the constructor requires arguments, implicit construction has no meaning — the language cannot invent a value for the argument. The measurement behind this diagnostic: both engines accepted the form silently and padded the missing argument with «لاشيء», so the constructor body ran on null and the field came out «لاشيء» — a non-nullable slot holding an absence, which is precisely the contract the rule exists to uphold. Rejecting is clearer than accepting silently, because the author knows the constructor''s arguments and the language does not.'
+- code: SEM_COMPILER_FIELD_TYPE_UNSUPPORTED
+  id: SEM042
+  category: semantic
+  title:
+    ar: نوعُ الحقلِ لا يخفضه المترجّمُ بعد
+    en: Field type not yet lowered by the compiler
+  brief:
+    ar: 'الحقل «{name}» في «{owner}» نوعُه الصنفُ «{class_name}»، والمترجّمُ لا يخفض حقلًا صنفيًّا بعد — فيُرفَض هنا بدل أن يُبنى برنامجٌ ينهار'
+    en: 'Field «{name}» in «{owner}» has class type «{class_name}», which the compiler does not lower yet — rejected here instead of building a program that crashes'
+  placeholders:
+  - name
+  - owner
+  - class_name
+  fix_hint:
+    ar: 'شغّل هذا الملفَّ بالمفسّرِ (فالقاعدةُ مطبَّقةٌ فيه)، أو استبدل بالحقلِ الصنفيِّ حقولًا من أنواعٍ بسيطة حتّى يُخفَّض الحقلُ الصنفيّ.'
+    en: 'Run this file with the interpreter (the rule is implemented there), or replace the class-typed field with primitive fields until class-typed fields are lowered.'
+  detailed:
+    ar: 'مسارُ البنيةِ في المترجّمِ كان يُسقِط نوعَ الحقلِ الصنفيِّ إلى «رقم» في الفرعِ الافتراضيّ، فتصير الخانةُ عددًا صحيحًا يحمل صفرًا، ثمّ يُفكُّ بوصفِه مؤشّرًا عند أوّلِ وصولٍ إلى عضو. والمقيسُ (2026-08-15، ثلاثُ تشغيلات): البناءُ ينجح برمزِ خروجٍ **صفر** ثمّ ينهار البرنامجُ المُنتَجُ بـSIGSEGV (رمز 139). وهذا أسوأُ مخرَجٍ ممكن: رمزُ خروجِ البناءِ يقول «تمّ» وأداةُ البناءِ لا تشي بشيء، فتمرُّ العلّةُ إلى المستعمِل. والرفضُ هنا **ليس تضييقًا للغة** بل إعلانٌ عن حدٍّ قائمٍ أصلًا: القاعدةُ نفسُها مطبَّقةٌ في المفسّرِ وتعمل. ويُرفَع هذا الرمزُ يومَ يُخفَّض الحقلُ الصنفيُّ في المترجّم. والدرسُ: **حدٌّ لا يُعلَن يُنفَّذ انهيارًا**، والرفضُ الصريحُ أصدقُ من بناءٍ ناجحٍ يكذب.'
+    en: 'The compiler''s struct path fell through to «Integer» for class-typed fields, so the slot became an integer holding zero which was then dereferenced as a pointer on first member access. Measured (2026-08-15, three runs): the build succeeds with exit code ZERO and the produced program then crashes with SIGSEGV (139) — the worst possible outcome, because the build reports success and nothing warns. Rejecting is not a narrowing of the language but the declaration of a limit that already exists: the same rule is implemented and working in the interpreter. This code is retired the day class-typed fields are lowered.'
+- code: SEM_OPTIONAL_CALL_RECEIVER_NOT_SIMPLE
+  id: SEM043
+  category: semantic
+  title:
+    ar: الوصولُ الآمنُ بنداءِ طريقةٍ يلزمه مستقبِلٌ بسيط
+    en: Safe method call requires a simple receiver
+  brief:
+    ar: 'المستقبِلُ في «؟.{method}()» تعبيرٌ قد يقع أثرُه مرّتَين — أسنِدْه إلى متغيّرٍ أوّلًا ثمّ نادِه'
+    en: 'The receiver of «?.{method}()» is an expression whose side effect could happen twice — bind it to a variable first, then call'
+  placeholders:
+  - method
+  fix_hint:
+    ar: 'متغير مستقبل = <التعبير> ثمّ «مستقبل؟.{method}()». والمستقبِلُ المقبولُ اليومَ: متغيّرٌ، أو «هذا»، أو عضوٌ منهما.'
+    en: 'Bind first: «متغير r = <expr>» then «r?.{method}()». Accepted receivers today: a variable, «هذا», or a member of them.'
+  detailed:
+    ar: 'صياغةُ الخلفيّةِ للنداءِ الآمنِ تفحص المستقبِلَ ثمّ تُعيد بناءَه في فرعِ النداء، فتقرؤه **مرّتَين**. وذلك سليمٌ لقراءةِ متغيّرٍ أو «هذا» أو عضوٍ منهما — لا أثرَ جانبيَّ لها — وغيرُ سليمٍ لمستقبِلٍ هو نداءٌ أو إسناد: يقع أثرُه مرّتَين. 🔑 والرفضُ هنا أصدقُ من البناء: أثرٌ جانبيٌّ مضاعَفٌ **عطبٌ لا يُرى في مخرَجٍ صحيح** — يعطي البرنامجُ الجوابَ المتوقَّعَ ويكتب في السجلِّ سطرَين أو يزيد عدّادًا مرّتَين، فلا بذرةَ تُخفِق ولا مستعمِلَ يشكّ. وهو الصنفُ نفسُه الذي يُحذِّر منه هذا الكتالوجُ في SEM041: تشخيصٌ صادقُ الرفضِ خيرٌ من قبولٍ صامتٍ يكذب. ⚠️ وهذا حدُّ **صياغةٍ** لا حدُّ لغة: يُرفَع يومَ تُخزَّن نتيجةُ المستقبِلِ في سجلٍّ يُعاد استعمالُه في الفرعَين بدل إعادةِ بنائِه. والمفسّرُ لا يحمل هذا الحدَّ أصلًا — يُقيّم المستقبِلَ مرّةً واحدةً — فالحدُّ في المترجِّمِ وحدَه، وهو تباعُدٌ **مُعلَنٌ** لا مسكوتٌ عنه.'
+    en: 'The backend lowering for a safe call tests the receiver and then rebuilds it inside the call branch, reading it TWICE. That is sound for a variable, «this», or a member of them (no side effects) and unsound for a call or assignment receiver, whose effect would happen twice. Rejecting is more honest than building: a duplicated side effect is a defect NO correct output reveals — the program returns the expected value while writing two log lines or incrementing a counter twice, so no seed fails and no user suspects. This is a LOWERING limit, not a language limit: it is retired the day the receiver is materialised into a register reused by both branches. The interpreter does not carry this limit (it evaluates the receiver once), so the divergence is DECLARED, not silent.'

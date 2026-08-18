@@ -1106,7 +1106,13 @@ namespace Sad
             {
                 expr.object->accept(*this);
             }
-            result_ += "." + expr.methodName + "()";
+            // (AR) العلامةُ تُطبَع كما كُتِبت: طابعٌ يعرض «س؟.م()» بصيغةِ «س.م()»
+            //      يجعل الشجرةَ المطبوعةَ **تكذب** على قارئِها — وهي الأداةُ التي
+            //      يُشخَّص بها حين يُشكّ في المحلّل. وطابعٌ يكذب يُضلُّ التشخيصَ نفسَه.
+            // (EN) The marker is printed as written: a printer that renders «x?.m()»
+            //      as «x.m()» makes the dumped tree lie to the very reader who dumps
+            //      it to diagnose the parser.
+            result_ += (expr.isOptional ? "؟." : ".") + expr.methodName + "()";
         }
 
         /**

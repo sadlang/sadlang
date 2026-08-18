@@ -1,0 +1,8 @@
+# @rule: gr.decl.variable
+# @description: تركيب مُعدِّلَين «متغير ثابت عام» — يُغلق ISSUE-031
+# @priority: P1
+# @requires: اطبع_سطر
+# @expected: 5
+
+متغير ثابت عام س = 5
+اطبع_سطر(س)

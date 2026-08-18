@@ -131,6 +131,10 @@ namespace Sad
 
                 BuildResult buildExprOptionalChain(Sad::AST::OptionalChainExpr *expr);
 
+                // (AR) النداءُ الآمن — حدُّه المُعلَنُ (SEM043) وتعليلُه عند التعريف.
+                // (EN) Safe method call — declared limit (SEM043); rationale at the definition.
+                BuildResult buildExprOptionalMethodCall(Sad::AST::MethodCallExpr *expr);
+
                 BuildResult buildExprNullCoalesce(Sad::AST::NullCoalesceExpr *expr);
 
                 BuildResult buildExprSlice(Sad::AST::SliceExpr *expr);

@@ -66,6 +66,44 @@ namespace Sad
             Value defaultValue;         ///< (AR) قيمة افتراضية / (EN) default value
             bool isStatic;              ///< (AR) هل ثابتة؟ / (EN) is static?
 
+            // ──────────────────────────────────────────────────────────────
+            // (AR) 🔑 مُهيّئٌ يُقيَّم **عند كلِّ إنشاء** لا مرّةً عند تصريحِ الصنف.
+            //      `defaultValue` قيمةٌ مُقيَّمةٌ سلفًا تُستنسَخ لكلِّ كائن، وذلك
+            //      يكفي للقيمِ البسيطة. أمّا حقلٌ نوعُه صنفٌ فقيمتُه كائنٌ،
+            //      و`Value::clone()` نسخةُ **سطحٍ واحد**: قِيس أنّ كائنَين من
+            //      صنفٍ فيه حقلٌ مركَّبٌ بمستويَين يتقاسمان الكائنَ الأعمق
+            //      (الكتابةُ في أحدِهما تُقرأ في الآخر)، وأنّ بانيَ الحقلِ يُنفَّذ
+            //      مرّةً واحدةً وقتَ تصريحِ الصنفِ ولو لم يُنشَأ منه كائنٌ قطّ.
+            //      فالمؤشّرُ هنا يحمل التعبيرَ ليُعادَ تقييمُه لكلِّ نسخة.
+            //      🔑 واسمٌ لا مؤشّر: كانت هنا إشارةٌ **مستعارةٌ** إلى عقدةٍ في
+            //      الشجرة، فقِيس انهيارُها — `ClassType` يعيش في مُفردةِ
+            //      `ClassManager` بينما تُحرَّر الشجرة، فأمرُ `:reset` في الصدَفةِ
+            //      ثمّ إنشاءُ كائنٍ يُسقِط العمليّةَ بـSIGSEGV. والضابطان يعزلانه:
+            //      صنفٌ بلا حقلٍ صنفيٍّ مع `:reset` يعمل، وحقلٌ صنفيٌّ بلا `:reset`
+            //      يعمل. والاسمُ يملك نفسَه فلا عمرَ يُراقَب — وهو كافٍ لأنّ
+            //      التحليةَ لا تُنتِج إلّا `NewExpr` بلا وسائط.
+            // (EN) A name, not a borrowed pointer: ClassType outlives the AST (it
+            //      lives in the ClassManager singleton), so a REPL `:reset` followed
+            //      by an instantiation crashed measurably. A string owns itself, and
+            //      it suffices because the desugar only ever emits an argument-less
+            //      NewExpr.
+            // ──────────────────────────────────────────────────────────────
+            std::string defaultConstructClass;
+
+            // ──────────────────────────────────────────────────────────────
+            // (AR) موضعُ التصريحِ الذي وُلِّدت منه التحلية — سطرًا وعمودًا خامَّين.
+            //      العقدةُ التي تُبنى وقتَ الإنشاءِ في `expression_evaluator_oop_new`
+            //      عقدةٌ محلّيّةٌ على المكدّس، فلو تُركت بموضعِها الافتراضيِّ لأشارت
+            //      كلُّ أخطاءِ الإنشاءِ إلى السطرِ ١ العمودِ ١. وعددان خامَّان لا
+            //      `Lexer::Position` عمدًا: `shared/types` لا يعتمد على المعجم،
+            //      ولا يصحّ أن يجرَّ إليه اعتمادٌ من أجلِ حقلَين.
+            //      صفرٌ يعني «لا موضعَ معروف» — وهو إعلانُ جهلٍ لا ادّعاءُ علم.
+            // (EN) Declaration position the desugar came from, as raw numbers.
+            //      Zero means "unknown" — an admission, not a false claim.
+            // ──────────────────────────────────────────────────────────────
+            size_t defaultConstructLine = 0;
+            size_t defaultConstructColumn = 0;
+
             /**
              * @brief (AR) منشئ مع اسم ونوع
              * @brief (EN) Constructor with name and type
@@ -376,7 +414,10 @@ namespace Sad
              */
             bool addField(const std::string &fieldName, Type *type,
                           AST::Visibility visibility, bool isStatic = false,
-                          const Value &defaultValue = Value());
+                          const Value &defaultValue = Value(),
+                          const std::string &defaultConstructClass = std::string(),
+                          size_t defaultConstructLine = 0,
+                          size_t defaultConstructColumn = 0);
 
             /**
              * @brief (AR) البحث عن خاصية بالاسم
@@ -695,6 +736,19 @@ namespace Sad
              */
             bool checkVisibility(AST::Visibility vis, const ClassType *fromClass) const;
         };
+
+        // ==============================================================
+        // (AR) القيمةُ الافتراضيّةُ لنوعٍ — مصدرُ حقيقةٍ واحد
+        // ==============================================================
+        //
+        // (AR) حكمُ المالك: التصريحُ بلا مُهيِّئٍ يساوي إسنادَ القيمةِ الافتراضيّةِ
+        //      للنوع — صفرًا للعدد، و0.0 للعشريّ، ونصًّا فارغًا، وخطأً للمنطقيّ.
+        //      وكان هذا الجدولُ منسوخًا في مواضعَ عدّة، فتفترق الخانةُ الواحدةُ
+        //      بحسبِ البابِ الذي دخلت منه. فمن أراد قيمةً افتراضيّةً فليطلبها
+        //      من هنا، ولا ينسخِ الجدولَ مرّةً أخرى.
+        // (EN) One table for type defaults. It used to be copied per call site,
+        //      so the same slot could differ by which path declared it.
+        Value defaultValueForTypeKind(Types::SadTypeKind kind);
 
     } // namespace Data
 } // namespace Sad

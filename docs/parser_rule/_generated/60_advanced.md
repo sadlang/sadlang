@@ -57,22 +57,23 @@ flowchart TD
 ### gr.adv.type — نوع <span dir="ltr">(Type)</span>
 
 - **الرقم التسلسليّ:** `ق-072` · **المعرّف الموحَّد:** `gr.adv.type` · **الحالة:** stable · **منذ:** 1.0.0
-- **الوصف:** أنواع مدمجة كمُعرّفات سياقيّة (رقم/نص/...) لا كلمات محجوزة. اللاحقة «؟» ⇒ اختياريّ. الأنواع العامّة «مصفوفة<T>»/«خريطة<K,V>». «مضاعف» أُزيلت (استخدم «عشري»).
+- **الوصف:** أنواع مدمجة كمُعرّفات سياقيّة (رقم/نص/...) لا كلمات محجوزة. اللاحقة «؟» ⇒ اختياريّ. الأنواع العامّة «مصفوفة<T>»/«خريطة<K,V>». «مضاعف» أُزيلت (استخدم «عشري»). ولاحقةٌ لفظيّةٌ مكافئةٌ لـ«؟»: الصفةُ «عدمي» (وتأنيثُها «عدمية») — «رقم عدمي» ⇒ Optional حرفًا بحرف. الصفةُ سياقيّةٌ في المعجم فيلزمها **نظرٌ مسبقٌ باسم**: تُستهلَك متى تلاها IDENTIFIER **في السطرِ نفسِه**، فيبقى «متغير رقم عدمي = 5» تصريحَ متغيّرٍ اسمُه «عدمي» كما كان. 🔑 وقيدُ السطرِ ليس تجميلًا: المُشكِّلُ لا يُصدرُ رمزَ نهايةِ سطر والتصريحُ بلا مُهيّئٍ مقبول، فبدونه يُقرأ «متغير رقم عدمي» ثمّ «س = 5» تصريحًا واحدًا اسمُه «س» ويختفي «عدمي» صامتًا (مقيس؛ الاختبار 073). ⚠️ وحدٌّ مُعلَن: موضعُ الوسيطِ العامّ («مصفوفة<رقم عدمي>») لا يليه اسمٌ فلا تُستهلَك فيه — لم يُقَس ولا يُدَّعى. ملحوظةٌ مقيسة: «؟» **لا** تبلغ تصريحَ المتغيّرِ («متغير نص؟ اسم» ⇒ SYN009)، واللفظُ يبلغه — فالصفةُ أوسعُ موضعًا من الرمز لا مرادفةٌ له في كلِّ موقع.
 
 #### 📐 BNF
 ```bnf
-Type = TypeCore [ '؟' ] ; TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطقي' | 'فراغ' | 'عدم' | 'أي'
+Type = TypeCore [ '؟' | ( 'عدمي' | 'عدمية' ) Identifier<lookahead, same-line> ] ; TypeCore = 'رقم' | 'عشري' | 'نص' | 'منطقي' | 'فراغ' | 'عدم' | 'أي'
          | ( 'مصفوفة' | 'خريطة' ) [ '<' Type [ ',' Type ] '>' ] | Identifier ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `( «رقم» | «عشري» | «نص» | «منطقي» | «فراغ» | «مصفوفة» | «خريطة» | «IDENTIFIER» ) [ «<» type { ( «،» | «,» ) type } «>» ] [ «؟» ]`
+- `( «رقم» | «عشري» | «نص» | «منطقي» | «فراغ» | «مصفوفة» | «خريطة» | «IDENTIFIER» ) [ «<» type { ( «،» | «,» ) type } «>» ] [ ( «؟» | «عدمي» ) ]`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
 1. [`ParserCore::parseType`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
-2. [`ParserCore::parseTypeCore`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
-3. [`ParserCore::parseGenericType`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
+2. [`ParserCore::matchesNullableAdjective`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
+3. [`ParserCore::parseTypeCore`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
+4. [`ParserCore::parseGenericType`](../../../shared/parser/src/core/parser_helpers.cpp) — `shared/parser/src/core/parser_helpers.cpp`
 - **عقدة AST المُنتَجة:** `SadTypeKind | SadTypePtr`
 - **مُستدعى من:** [`parseEnumDecl`](30_oop.md#gr.oop.enum)، [`parseFieldDeclaration`](30_oop.md#gr.oop.field)، [`parseMethodDeclaration`](30_oop.md#gr.oop.method)، [`parsePropertyDeclaration`](30_oop.md#gr.oop.property)، [`parseType`](60_advanced.md#gr.adv.type)، [`parseTemplateParameters`](60_advanced.md#gr.adv.template_params)، [`parseTemplateInstantiation`](60_advanced.md#gr.adv.template_args)، [`parseUIStateDecl`](60_advanced.md#gr.adv.ui_state)
 
@@ -144,14 +145,21 @@ flowchart LR
   n3 --> n12
   n24{"◇"}
   n25{"◇"}
-  n26["«؟»"]
+  n26{"◆"}
+  n27{"◆"}
+  n28["«؟»"]
+  n26 --> n28
+  n28 --> n27
+  n29["«عدمي»"]
+  n26 --> n29
+  n29 --> n27
   n24 --> n26
-  n26 --> n25
+  n27 --> n25
   n24 -- "تخطّي" --> n25
   n13 --> n24
   n1 --> n2
-  n27(["⇒ SadTypeKind ∣ SadTypePtr"])
-  n25 --> n27
+  n30(["⇒ SadTypeKind ∣ SadTypePtr"])
+  n25 --> n30
 ```
 
 ---

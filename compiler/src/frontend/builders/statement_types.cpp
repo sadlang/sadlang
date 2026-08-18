@@ -12,6 +12,8 @@
 #include "lexer_core.h"
 #include "parser_core.h"
 #include "pattern_nodes.h"
+#include "error_catalog.h" // (AR) getTemplate(code)->id — رمزُ الخطأ من الكتالوج لا حرفًا
+#include "error_manager.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
 #include <stdexcept>
@@ -447,10 +449,101 @@ namespace Sad
                         case Sad::Types::SadTypeKind::Array:
                             fieldType = SadTypeKind::Array;
                             break;
+                        // (AR) «بايت» و«طبيعي64» كانا يسقطان في `default:` فيصيران «رقم».
+                        //      القيمةُ تصادف الصوابَ (صفر) والنوعُ لا — وتصادفُ الصوابِ
+                        //      ليست صوابًا، لأنّها تنكسر أوّلَ ما يُسأَل عن العرضِ أو
+                        //      عن التوجيه (طبيعي64 غيرُ موجَّه).
+                        // (EN) Byte and UInt64 fell through to Integer: the value happened
+                        //      to be right (zero) and the type did not.
+                        case Sad::Types::SadTypeKind::Byte:
+                            fieldType = SadTypeKind::Byte;
+                            break;
+                        case Sad::Types::SadTypeKind::UInt64:
+                            fieldType = SadTypeKind::UInt64;
+                            break;
                         default:
                             fieldType = SadTypeKind::Integer;
                             break;
                         }
+
+                        // ════════════════════════════════════════════════════════════
+                        // (AR) 🔑 حقلٌ نوعُه صنف: يُرفَض صراحةً ولا يُبنى برنامجٌ ينهار
+                        // ════════════════════════════════════════════════════════════
+                        //
+                        // (AR) كان الفرعُ `default:` يُسقِط الحقلَ الصنفيَّ إلى «رقم»،
+                        //      فتصير الخانةُ عددًا يحمل صفرًا، ثمّ يُفَكُّ مؤشّرًا عند
+                        //      أوّلِ وصولٍ إلى عضو. والمقيسُ (2026-08-15، ×٣):
+                        //      **البناءُ ينجح rc=0 ثمّ ينهار المُنتَجُ rc=139**.
+                        //
+                        //      وهذا المنفذُ **فتحته رقعةُ المحلّلِ نفسُها**: قبلها لم يكن
+                        //      لبنيةٍ حقلٌ صنفيٌّ أصلًا (لفظُ الصنفِ كان يصير اسمَ الحقل)،
+                        //      فلم يكن للمترجّمِ ما يخفضه. فحُوِّل تشخيصٌ إلى انهيار،
+                        //      وهو الانقلابُ عينُه الذي وُضعت بوّابةُ SEM041 لمنعِه.
+                        //
+                        //      والرفضُ هنا **ليس تضييقًا للغة**: القاعدةُ مطبَّقةٌ وتعمل
+                        //      في المفسّر. وهو إعلانٌ عن حدٍّ كان يُنفَّذ انهيارًا،
+                        //      ويُرفَع يومَ يُخفَّض الحقلُ الصنفيُّ في المترجّم.
+                        //      🔑 والدرسُ: **رمزُ خروجِ بناءٍ صفريٌّ لبرنامجٍ ينهار هو
+                        //      أسوأُ مخرَجٍ ممكن** — الرفضُ يُوقِف، والنجاحُ الكاذبُ يُسلِّم.
+                        // (EN) A class-typed struct field fell through to Integer and was
+                        //      later dereferenced as a pointer: build rc=0 then SIGSEGV.
+                        //      Reject explicitly instead. Not a narrowing of the language —
+                        //      the rule works in the interpreter; this declares a limit that
+                        //      was previously executed as a crash.
+                        // ════════════════════════════════════════════════════════════
+                        if (field.type == Sad::Types::SadTypeKind::Class)
+                        {
+                            Sad::Errors::RenderContext fieldErrorContext;
+                            fieldErrorContext.placeholders = {
+                                {"name", field.name},
+                                {"owner", structDecl->name},
+                                {"class_name", field.typeName}};
+                            // (AR) يُبلَّغ عبر الكتالوجِ **ومعه** دلوُ أخطاءِ الباني:
+                            //      الأوّلُ يُخرِج السطرَ المرمَّزَ «⛔ [SEM042]» الذي
+                            //      تُثبِّته البذورُ ويقرؤه الكاتب، والثاني هو ما يجعل
+                            //      رمزَ خروجِ البناءِ غيرَ صفريّ. وتركُ أحدِهما يُنتِج
+                            //      إمّا رسالةً بلا رمزٍ لا تُثبَّت، أو رفضًا لا يُوقِف
+                            //      البناء — وقد قِيس الأوّلُ: البذرةُ أخفقت برسالةِ
+                            //      «خطأ الترجمة لا يحتوي 'SEM042'» رغمَ صحّةِ الرفض.
+                            // (EN) Reported through the catalog AND the builder's error
+                            //      bucket: the first emits the coded «⛔ [SEM042]» line
+                            //      that seeds pin on, the second is what makes the build
+                            //      exit nonzero. Either alone is insufficient.
+                            Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                                Sad::Errors::ErrorCode::SEM_COMPILER_FIELD_TYPE_UNSUPPORTED,
+                                Sad::Errors::SourceLocation("", structDecl->position.line,
+                                                            structDecl->position.column),
+                                fieldErrorContext);
+                            // (AR) 🔑 الرمزُ يُصدَّر مع الرسالة، ويُؤخَذ **من الكتالوجِ**
+                            //      لا يُكتَب حرفًا: `getTemplate(code)->id`. وبلا ذلك
+                            //      تخرج الرسالةُ نصًّا بلا رمزٍ فلا تُثبِّتها بذرةٌ
+                            //      بـ`@expect_compile_error SEM042` — قِيس ذلك: البذرةُ
+                            //      أخفقت برسالةِ «خطأ الترجمة لا يحتوي 'SEM042'» رغمَ
+                            //      صحّةِ الرفضِ ورمزِ خروجٍ ١. والبديلُ الوحيدُ العاملُ
+                            //      كان توجيهًا **عاريًا** يمرّ على أيِّ خطأ — وهو الفخُّ
+                            //      الذي تحذّر منه بذرةُ VE037 بنصِّها.
+                            //      🔑 **تشخيصٌ بلا رمزٍ لا يُحرَس**: الرمزُ ليس زينةَ
+                            //      عرضٍ بل هو المِقبَضُ الوحيدُ الذي تُمسِك به البذرة.
+                            // (EN) The code is emitted with the message and taken FROM THE
+                            //      CATALOG, never written as a literal. Without it the seed
+                            //      could not pin on SEM042 and the only working alternative
+                            //      was a bare directive that matches any error.
+                            const auto *fieldErrorTemplate =
+                                Sad::Errors::ErrorCatalog::instance().getTemplate(
+                                    Sad::Errors::ErrorCode::SEM_COMPILER_FIELD_TYPE_UNSUPPORTED);
+                            std::string fieldErrorText;
+                            if (fieldErrorTemplate)
+                            {
+                                fieldErrorText = "[" + fieldErrorTemplate->id + "] ";
+                            }
+                            fieldErrorText +=
+                                Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                    Sad::Errors::ErrorCode::SEM_COMPILER_FIELD_TYPE_UNSUPPORTED,
+                                    fieldErrorContext);
+                            b_.errors_.push_back(fieldErrorText);
+                            continue;
+                        }
+
                         sirClass->addField(field.name, fieldType);
 
                         // (AR) سجّل القيمة الافتراضية للحقل (إن وُجدت) لتُهيَّأ وقت الإنشاء (ISSUE-036)
@@ -459,6 +552,23 @@ namespace Sad
                         {
                             b_.structFieldDefaults_[structDecl->name].emplace_back(
                                 field.name, field.defaultValue.get());
+                        }
+                        else if (fieldType == SadTypeKind::String)
+                        {
+                            // (AR) 🔑 حقلٌ نصّيٌّ في **بنية** بلا مُهيّئ: مسارُ البنيةِ لم يكن
+                            //      يسجّل قيمةً افتراضيّةً البتّة، فيتركه `memset(0)` مؤشّرًا
+                            //      صفريًّا فيُطبَع «لاشيء». قِيس (2026-08-15): بنيةٌ فيها
+                            //      «نص اسم» ⇒ المفسّر `[]` والمترجّم `[لاشيء]`.
+                            //      ونظيرُ هذا السطرِ موجودٌ في `class_main.cpp` للصنف منذ
+                            //      رقعةٍ سابقة — وبابُ البنيةِ تُرك مكشوفًا.
+                            //      ⚠️ والأخبثُ أنّ الطرفَين كانا **متّفقَين** على «لاشيء»
+                            //      قبل إصلاحِ المفسّر، فإصلاحُ طرفٍ واحدٍ وَلَّد التباعُد.
+                            //      **إصلاحُ محرّكٍ واحدٍ في قاعدةٍ مشتركةٍ نصفُ إصلاح.**
+                            // (EN) A string field in a STRUCT had no default registered at
+                            //      all, so memset(0) left a null pointer printing «لاشيء»,
+                            //      while the class path already registered "". Fixing only
+                            //      the interpreter created the divergence.
+                            sirClass->fieldDefaultValues_[field.name] = {std::string(), fieldType};
                         }
                     }
 

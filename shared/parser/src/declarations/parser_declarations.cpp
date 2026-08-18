@@ -650,6 +650,34 @@ namespace Sad
                     std::cout << "[OOP] يرث من: " << baseToken.getValue() << "\n";
 #endif
                 } while (matchComma()); // Support both commas
+
+                // (AR) 🔑 تسجيلُ الأصلِ الأوّلِ لبوّابةِ SEM041: صنفٌ بلا بانٍ خاصٍّ
+                //      به يُنشَأ ببانِي أصلِه، فبحثٌ مسطَّحٌ في جدولِ الوسائطِ يجعل
+                //      «مشتق ك» تمرّ بينما «اساس ك» تُرفَض — والبانيُ المنفَّذُ واحد.
+                //      قِيس ذلك: طُبِع 0 بلا تشخيصٍ ولم يُستدعَ بانِي الأصلِ أصلًا.
+                // (EN) Record the primary base for the SEM041 gate: a subclass without
+                //      its own constructor is built by its base's, so a flat lookup let
+                //      the derived form through while rejecting the base form.
+                // (AR) ⚠️ الأصلُ **الأوّلُ** وحدَه عمدًا، لا كلُّ الأصول. قِيس
+                //      (2026-08-15) أنّ المحرّكَ نفسَه لا يُنفّذ إلّا بانِيَ الأصلِ
+                //      الأوّل: «صنف مشتق يرث بلا_بان، يحتاج» يفشل بـRUN025 حتّى
+                //      مع إنشاءٍ **صريحٍ** `مشتق()`، وعلى `dev` كذلك — أي أنّ
+                //      حقولَ الأصلِ الثاني لا تُهيَّأ أصلًا (عيبٌ قائمٌ في الوراثةِ
+                //      المتعدّدةِ لا شأنَ للبوّابةِ به).
+                //      فلو وسّعتُ البوّابةَ إلى «أيُّ أصلٍ يشترط وسائط» لَرفضتُ
+                //      برنامجًا يقبله المحرّك — وهو الاتّجاهُ الخطِر: بوّابةٌ ترفض
+                //      صحيحًا أسوأُ من بوّابةٍ لا تُوجَد (وهو خطأُ «آخرِ بانٍ»
+                //      المُصلَحُ في parser_oop.cpp عائدًا من بابٍ آخر).
+                //      فالبوّابةُ تطابق ما يفعله المحرّكُ لا ما يُتمنّى أن يفعله.
+                // (EN) Deliberately the PRIMARY base only: measured that the engine
+                //      runs only the primary base's constructor — secondary bases'
+                //      fields are never initialized, failing with RUN025 even under
+                //      explicit construction, on dev too. Widening the gate to "any
+                //      base" would reject programs the engine accepts.
+                if (!baseClassNames.empty())
+                {
+                    classPrimaryBase_[className] = baseClassNames.front();
+                }
             }
 
             // (AR) تنفيذ السمات (اختياري): صنف اسم نفّذ سمة1، سمة2
@@ -1233,28 +1261,94 @@ namespace Sad
             }
 
             // =====================================================================
+            // (AR) ISSUE-120 — حلقة المُعدِّلات: «الصفة بعد الموصوف».
+            //      «متغير ثابت س»، «متغير عام س»، «متغير ساكن عام س»، «ساكن س».
+            //      قبل هذه الحلقة لم يكن المُعدِّل يُحلَّل أصلًا: يسقط التحليلُ إلى فرع
+            //      «الاسم» فيُقرأ المُعدِّلُ نفسُه **اسمًا للمتغيّر**، ويبقى ما بعده جملةَ
+            //      إسنادٍ حرّة. فـ«متغير ثابت ص = 10» كان يُصرِّح «ثابت» (=لاشيء) ثمّ
+            //      يُسنِد إلى «ص» بلا ثبات — وهو تفسيرُ ISSUE-030 وISSUE-031 معًا،
+            //      لا سلوكٌ مقصود. الترتيب حرٌّ بين المُعدِّلات، ومحكومٌ بأن تَتْبَع
+            //      الكلمةَ المفتاحيّة لا تسبقها. تنبيه: حارسُ SYN_ADJECTIVE_ORDER يُرفَع
+            //      في **جسمِ الصنفِ وحدَه**؛ على مستوى الجملة «عام متغير س» يبلغ تشخيصًا
+            //      أعمّ. لا يُدّعى هنا حارسٌ لا يبلغه المسار.
+            // (EN) ISSUE-120 — declaration modifier loop (adjective-after-noun).
+            // =====================================================================
+            // (AR) استهلاكٌ لمرّةٍ واحدة لا قراءةٌ متكرّرة: العلَمُ المعلَّق يبقى مرفوعًا
+            //      طوال تحليلِ المُهيِّئ، فلو قُرئ بلا تصفيرٍ لَقرأه كلُّ `parseVarDecl`
+            //      متداخل. قِيس: «ساكن أ = لامدا() / متغير ن = 1 / … نهاية» كان يرفع
+            //      SEM039 على «ن» — اسمٌ لم يُوسَم ساكنًا قطّ، فتشخيصٌ يلوم من لم يكتب.
+            //      والنظيرُ في `pendingConst_` كان **العيبَ نفسَه حيًّا** (ISSUE-125):
+            //      «ثابت أ = لامدا() / متغير ن = 1 / ن = 2 / نهاية» كان يرفع SEM007 على
+            //      «ن» — اسمٌ مُصرَّحٌ بـ«متغير» صراحةً. كشفته مراجعةُ أميليا الثالثة، ولم
+            //      يكن مسجَّلًا (تعليقٌ سابقٌ هنا أحال على سجلٍّ لا وجودَ له — صُحِّح).
+            //      فيُستهلَك العلَمان معًا لمرّةٍ واحدة، لا أن يُنسَخ العيبُ ولا أن يُترَك.
+            // (EN) Consume-once: a pending flag left set leaks into nested declarations.
+            //      Applies to BOTH flags — the const one had the very same live defect.
+            bool declConst = pendingConst_;
+            bool declStatic = pendingStatic_;
+            pendingConst_ = false;
+            pendingStatic_ = false;
+            AST::AccessModifier declAccess = AST::AccessModifier::PUBLIC;
+            for (;;)
+            {
+                if (check(TT::KEYWORD_CONST))
+                {
+                    advance();
+                    declConst = true;
+                    continue;
+                }
+                if (check(TT::KEYWORD_PUBLIC) || check(TT::KEYWORD_PRIVATE) ||
+                    check(TT::KEYWORD_PROTECTED))
+                {
+                    declAccess = check(TT::KEYWORD_PRIVATE)     ? AST::AccessModifier::PRIVATE
+                                 : check(TT::KEYWORD_PROTECTED) ? AST::AccessModifier::PROTECTED
+                                                                : AST::AccessModifier::PUBLIC;
+                    advance();
+                    continue;
+                }
+                if (check(TT::KEYWORD_STATIC))
+                {
+                    advance(); // (AR) استهلاك «ساكن» / (EN) consume 'static'
+                    declStatic = true;
+                    continue;
+                }
+                break;
+            }
+
+            // (AR) صيغة اللبنة 3.16 تُميَّز باستنطاقِ رمزٍ واحدٍ بعد الاسم: «مصفوفة».
+            //      المُحلِّل تدفّقيّ (رمزٌ حاليّ + رمزٌ تالٍ) فلا استنطاقَ ثلاثيًّا —
+            //      ولذلك يُفحَص المِجَسُّ **بعد** الحلقة لا داخلَ فرعِ «ساكن»: لو فُحِص
+            //      داخله لسقط الترتيبُ «متغير ساكن عام جدول مصفوفة[4]» (المُعدِّلُ يلي
+            //      «ساكن» فيُخفِق المِجَسّ) إلى تصريحٍ بلا مُهيّئ + جملةٍ يتيمة
+            //      «مصفوفة[4]» ⇒ SEM001 مضلِّل بدل SEM023 الصالح.
+            // (EN) Probed after the loop so modifier order cannot break detection.
+            const bool staticArrayForm =
+                declStatic && check(TT::IDENTIFIER) &&
+                // (AR) «مصفوفة» في `builtin_types` بـemittedByLexer=false فتُلفَظ IDENTIFIER
+                //      دائمًا؛ ومع ذلك يُفحَص الوسمُ أيضًا كي لا يُقيَّد الفصلُ بقرارِ لفظٍ
+                //      قد يتغيّر. اللفظُ يُقرأ من جدول الألفاظ (`kw`) لا يُكتب هنا.
+                (peekNext().getType() == TT::TYPE_ARRAY ||
+                 (peekNext().getType() == TT::IDENTIFIER &&
+                  peekNext().getValue() == kw(TT::TYPE_ARRAY)));
+            Token saNameTok(TT::IDENTIFIER, "", Lexer::Position());
+            if (staticArrayForm)
+            {
+                saNameTok = current_;
+                advance(); // (AR) الاسم / (EN) the name
+                advance(); // (AR) «مصفوفة» / (EN) 'array'
+            }
+
+            // =====================================================================
             // (AR) اللبنة 3.16: مصفوفة تخزين ساكن مصفَّرة في .bss —
             //      «متغير ساكن اسم مصفوفة[N]» ⇒ [N x i8] zeroinitializer.
             //      لا مُهيّئ (مصفَّرة تلقائيًّا)؛ N ثابت موجب زمن-ترجمة؛ تُصدَّر عبر @رمز
             //      (linkSymbol). البايتات i8 — نهلة تعنونها بـعنوان_رمز + اكتب_ذاكرة32.
+            //      الفرعُ لم يعد يبتلع كلَّ «ساكن»: يبلغُه المسارُ حين استُنطِقت «مصفوفة»
+            //      وحدَها، فـ«متغير ساكن ن = 0» صار تصريحًا ساكنًا عاديًّا لا SEM023.
             // (EN) Brick 3.16: named zero-filled static .bss array.
             // =====================================================================
-            if (check(TT::KEYWORD_STATIC))
+            if (staticArrayForm)
             {
-                advance(); // (AR) استهلاك «ساكن» / (EN) consume 'static'
-                if (!check(TT::IDENTIFIER))
-                    errorCatalog(Errors::ErrorCode::SEM_STATIC_ARRAY_SIZE,
-                                 {{"detail", "توقّع اسم المخزن بعد «ساكن»: متغير ساكن اسم مصفوفة[N]"}});
-                Token saNameTok = current_;
-                advance(); // (AR) الاسم / (EN) the name
-                // (AR) «مصفوفة» نوع مدمج (builtin_types، emittedByLexer=false) فقد يُلفَظ
-                //      IDENTIFIER — نقبل الحالتين (نظير الأنواع السياقيّة).
-                if (check(TT::TYPE_ARRAY) ||
-                    (check(TT::IDENTIFIER) && current_.getValue() == "مصفوفة"))
-                    advance();
-                else
-                    errorCatalog(Errors::ErrorCode::SEM_STATIC_ARRAY_SIZE,
-                                 {{"detail", "توقّع «مصفوفة» بعد اسم المخزن الساكن: متغير ساكن اسم مصفوفة[N]"}});
                 consume(TT::BRACKET_LEFT, "");
                 Token saSizeTok = consume(TT::NUMBER_INTEGER, "");
                 consume(TT::BRACKET_RIGHT, "");
@@ -1268,11 +1362,13 @@ namespace Sad
                 // (AR) النوع cosmetic هنا (الخلفيّة تُصدر [N x i8] من zeroArrayCount لا من
                 //      النوع)؛ Integer يتجنّب تحذير astTypeToSIRType على الأنواع غير المعالَجة.
                 auto saDecl = std::make_unique<VarDeclStmt>(
-                    saNameTok.getValue(), Types::SadTypeKind::Integer, nullptr, false,
+                    saNameTok.getValue(), Types::SadTypeKind::Integer, nullptr, declConst,
                     saNameTok.getPosition());
                 saDecl->isStaticArray = true;
                 saDecl->staticArrayCount = saCount;
                 saDecl->isVolatile = declVolatile;
+                saDecl->isStatic = true;
+                saDecl->access = declAccess;
                 return saDecl;
             }
 
@@ -1320,8 +1416,18 @@ namespace Sad
                 if (check(TT::SEMICOLON) || check(TT::ARABIC_SEMICOLON))
                     advance();
 
-                bool isConst = pendingConst_;
-                return std::make_unique<TupleDestructureStmt>(names, isConst, std::move(initializer), startPos);
+                // (AR) ISSUE-120: «متغير ثابت (أ، ب) = ...» — الثبات يأتي من الحلقة أيضًا.
+                //      وبوّابةُ «ساكن» تُرفَع هنا كذلك: هذا المسارُ **يعود قبل** البوّابةِ
+                //      أسفلَ الدالّة، فكان «متغير ساكن (أ، ب) = (1، 2)» داخلَ دالّةٍ يمرّ
+                //      ويُنفَّذ متغيّرَين عاديَّين — قياسٌ صادقٌ لشيءٍ لا يعني ما يُظنّ به.
+                //      (كشفته مراجعةُ أميليا الثالثة، مقيسٌ 2026-08-13.)
+                // (EN) The tuple path returns before the gate below — raise it here too.
+                if (declStatic && blockDepth_ > 0)
+                {
+                    errorCatalog(Errors::ErrorCode::SEM_STATIC_LOCAL_UNSUPPORTED,
+                                 {{"name", names.empty() ? std::string() : names.front()}});
+                }
+                return std::make_unique<TupleDestructureStmt>(names, declConst, std::move(initializer), startPos);
             }
 
             Types::SadTypeKind varType = Types::SadTypeKind::Unknown;
@@ -1384,7 +1490,24 @@ namespace Sad
                 // (AR) التحقق مما إذا كان هذا المعرّف هو اسم صنف
                 // (AR) لكن فقط إذا كان متبوعاً بمعرّف آخر — إذا كان متبوعاً بـ = فهو اسم المتغير
                 // (EN) BUT only if followed by another IDENTIFIER — if followed by = it IS the var name
-                if (isClassName(current_.getValue()) && peekNext().getType() == TT::IDENTIFIER)
+                // (AR) 🔑 «يليه اسمٌ» تعني في السطرِ نفسِه. والمُشكِّلُ لا يُصدِر رمزَ نهايةِ
+                //      سطر، فبدون قيدِ السطرِ يبتلعُ اسمُ الصنفِ **معرِّفَ السطرِ التالي**
+                //      اسمًا للمتغيّر. والمقيس: «عدّاد» وحدَها في سطرٍ ثمّ
+                //      «اطبع_سطر("مرحبا")» في السطرِ الذي يليه ⇒ rc=0 و**لا خرجَ
+                //      البتّةَ** في المحرّكَين — أي أنّ جملةً كاملةً اختفت بلا تشخيصٍ
+                //      واحد، لأنّ «اطبع_سطر» صارت اسمَ متغيّرٍ من نوعِ «عدّاد».
+                //      وهذا هو العطبُ عينُه الذي قِيس في حقولِ البنية (2026-08-15)
+                //      فأُضيف له القيدُ هناك (:2367) — وبقي فرعُ المتغيّرِ بلا قيدٍ
+                //      حتّى قِيس هنا. ⇒ القيدُ الواحدُ يلزم **كلَّ** مواضعِ النمط،
+                //      وسدُّ أحدِها يترك النمطَ حيًّا في الباقي.
+                // (EN) "followed by a name" means ON THE SAME LINE — the lexer emits no
+                //      EOL token, so without the line check a class name swallows the
+                //      NEXT line's identifier as the variable name. Measured: a bare
+                //      `عدّاد` line followed by `اطبع_سطر("مرحبا")` exits 0 with NO
+                //      output in both engines — a whole statement vanished with zero
+                //      diagnostics. Same defect measured in struct fields (:2367).
+                if (isClassName(current_.getValue()) && peekNext().getType() == TT::IDENTIFIER &&
+                    peekNext().getPosition().line == current_.getPosition().line)
                 {
                     // Class-typed variable: ClassName varName = ...;
                     // (AR) متغير من نوع صنف: اسم_الصنف اسم_المتغير = ...;
@@ -1402,6 +1525,29 @@ namespace Sad
 
                     name = peek();
                     advance();
+
+                    // (AR) 🔑 معرِّفٌ ثالثٌ في السطرِ نفسِه ⇒ **تصريحٌ شبحٌ صامت**.
+                    //      المقيس: «عدّاد س ك» يُصرِّح «س» مُهيّأً، ويُولَّد لـ«ك»
+                    //      تصريحٌ بلا نوعٍ ولا تهيئةٍ بلا تشخيصٍ واحد. ثمّ استعمالُ
+                    //      «ك» كان يُنتِج انهيارَ تجزئةٍ في المُترجَم — فبدا العطبُ
+                    //      محلّليًّا وليس هو: الانهيارُ كان في الخلفيّةِ (ISSUE-136)
+                    //      ويُنتِجه «متغير ك» المجرَّدُ الذي لا يمرّ بهذا الفرعِ أصلًا.
+                    //      ⇒ ويُشخَّص هذا هنا لأنّه **قبولٌ خاطئٌ**، لا لأنّه كان سببَ
+                    //      الانهيار. والشقيقُ في :1523 يشخّص النمطَ نفسَه منذ البداية.
+                    // (EN) A third identifier on the same line produced a SILENT GHOST
+                    //      declaration: `عدّاد س ك` declares `س` and invents an untyped,
+                    //      uninitialised `ك` with zero diagnostics. Diagnosed here because
+                    //      it is wrong ACCEPTANCE — the segfault it appeared to cause lived
+                    //      in the backend (ISSUE-136) and reproduces without this branch.
+                    if (check(TT::IDENTIFIER) && current_.getPosition().line == name.getPosition().line)
+                    {
+                        errorCatalog(Errors::ErrorCode::SYN_NAME_HAS_SPACE,
+                                     {{"what_ar", "المتغير"},
+                                      {"what_en", "variable"},
+                                      {"name", name.getValue() + " " + current_.getValue()},
+                                      {"suggested", className + " " + name.getValue() + "_" + current_.getValue()}});
+                        return nullptr;
+                    }
                 }
                 else
                 {
@@ -1431,25 +1577,12 @@ namespace Sad
                         }
                     }
 
-                    // Optional type annotation: name : type
-                    // (AR) تصريح النوع الاختياري: اسم : نوع
-                    if (match(TT::COLON))
-                    {
-                        // We have a type annotation, parse it
-                        // (AR) لدينا تصريح نوع، قم بتحليله
-                        Types::SadTypeKind annotatedType = parseType();
-
-                        // Check if the type was parsed successfully
-                        // (AR) تحقق مما إذا تم تحليل النوع بنجاح
-                        if (annotatedType == Types::SadTypeKind::Unknown)
-                        {
-                            errorCatalog(Errors::ErrorCode::SYN_UNKNOWN_ELEMENT, {{"what_ar", "النوع بعد ':' في تصريح المتغير '" + name.getValue() + "'"}, {"what_en", "type after ':' in the declaration of '" + name.getValue() + "'"}, {"found", current_.getValue()}, {"allowed", kw(TT::TYPE_INTEGER) + "، " + kw(TT::TYPE_DOUBLE) + "، " + kw(TT::TYPE_STRING) + "، " + kw(TT::TYPE_BOOLEAN) + "، ..."}});
-                            return nullptr;
-                        }
-
-                        varType = annotatedType;
-                        varInnerKind = lastOptionalInner_;
-                    }
+                    // (AR) 🔑 حُذِف دعمُ «اسم: نوع» — قرارُ مالكٍ (2026-08-15): النوعُ
+                    //      يسبق الاسمَ في العربيّة («رقم س»)، وصيغةٌ واحدةٌ للمعنى الواحد.
+                    //      والنقطتان تبقيان على معناهنّ في نوعِ الإرجاعِ ووسمِ المُعامِلِ
+                    //      ومفاتيحِ الخرائطِ والشرائح — لم يُحكَم عليها.
+                    // (EN) Support for «name: type» was DELETED (owner decision): the type
+                    //      precedes the name in Arabic. The colon keeps its other meanings.
                 }
             }
             // (AR) ISSUE-005: بادئةُ الجملةِ تُرفض هنا وحدَها — «متغير بينما = 9» كان
@@ -1467,16 +1600,12 @@ namespace Sad
                 name = Token(TT::IDENTIFIER, current_.getValue(), current_.getPosition());
                 advance();
 
-                // Optional type annotation: name : type
-                if (match(TT::COLON))
-                {
-                    Types::SadTypeKind annotatedType = parseType();
-                    if (annotatedType != Types::SadTypeKind::Unknown)
-                    {
-                        varType = annotatedType;
-                        varInnerKind = lastOptionalInner_;
-                    }
-                }
+                // (AR) البابُ الثاني للاسم (كلمةٌ محجوزةٌ تُستعمل اسمًا): حُذِف منه
+                //      دعمُ النقطتَين كما حُذِف من الأوّل. وتركُ بابٍ واحدٍ يجعل قبولَ
+                //      الصيغةِ يعتمد على **أيِّ فرعٍ سلكه الاسم** — فرقٌ لا يفسّره شيء.
+                // (EN) The second name branch (reserved word used as a name): colon
+                //      support deleted here too; leaving one branch would make acceptance
+                //      depend on which branch the name took.
             }
             else
             {
@@ -1565,15 +1694,94 @@ namespace Sad
             // (AR) حفظ موقع أول متغير / (EN) Save position of first variable
             Lexer::Position firstPos = name.getPosition();
 
+            // (AR) ISSUE-120 — «ساكن» خارج مستوى الوحدة المباشر: مدّةُ التخزين الساكنة
+            //      غير منفَّذة إلّا لما يصير عامًّا. المفسّر يعرّف بالنسخ في نطاق النداء،
+            //      والمترجم يبني الخانة بـalloca في الإطار؛ وتسجيلُ العوامّ في
+            //      sir_builder_module يمسح **أبناءَ البرنامج المباشرين وحدهم** — فالتصريحُ
+            //      داخل كتلةٍ وحدويّة («إذا … نهاية» في أعلى الملفّ) يهبط alloca كذلك.
+            //      لذلك الشرطُ عمقُ الكتلة لا عمقُ الدالّة: السؤالُ «أيصير عامًّا؟».
+            //      قبولُها صامتةً متغيّرًا عاديًّا **قياسٌ صادقٌ لشيءٍ لا يعني ما يُظنّ به**:
+            //      الاختبارُ يمرّ لأنّ لا خطأ، والدلالةُ المطلوبة غائبة. فيُسمّى الحدُّ صراحةً.
+            //      المصفوفةُ الساكنة مستثناةٌ: تُبثّ في ‎.bss‎ لا في الإطار فتعمل في الموضعين.
+            // (EN) ISSUE-120 — static outside direct module level: name the real limit.
+            //      The condition is block depth, not function depth: only direct children
+            //      of the program become globals. The .bss array form is exempt.
+            if (declStatic && blockDepth_ > 0)
+            {
+                errorCatalog(Errors::ErrorCode::SEM_STATIC_LOCAL_UNSUPPORTED,
+                             {{"name", name.getValue()}});
+            }
+
+            // (AR) ISSUE-113: «فراغ» نوعُ إرجاعٍ لا نوعُ خانة. البوّابةُ هنا لا عند كلِّ
+            //      موضعِ إسنادٍ للنوعِ لأنّ المسارات الثلاثةَ (نوعٌ أوّلًا، «: نوع» بعد
+            //      الاسم، و«: نوع» بعد بادئةِ جملةٍ) تلتقي هنا وحدَها — والاسمُ معروفٌ
+            //      عندئذٍ فيُسمّيه التشخيصُ بدل أن يشير إلى موضعٍ مبهم.
+            // (EN) All three declaration forms converge here, and the name is known.
+            varType = rejectVoidAsSlotType(varType, name.getValue());
+
+            // ═══════════════════════════════════════════════════════════════════
+            // (AR) 🔑 الإنشاءُ الضمنيُّ للصنف — قرارُ مالكٍ (2026-08-15):
+            //      «الصنفُ مركّبٌ من متغيّراتٍ للغةِ ص، لذلك يُنشَأ صنفٌ ويأخذ كلُّ
+            //      متغيّرٍ في داخلِه القيمةَ الافتراضيّةَ لنوعِ المتغيّر».
+            //      فـ«شخص ك» تكافئ «شخص ك = شخص()» حرفًا بحرف. ونُنفّذها **تحليةً
+            //      في المحلّلِ المشترك** لا منطقًا مكرَّرًا في محرّكَين: النتيجةُ أنّ
+            //      المحرّكَين يتّفقان **بالبناءِ لا بالمصادفة**، ويرث الضمنيُّ ترتيبَ
+            //      الإنشاءِ المنصوصَ عليه (تصفيرُ الحقولِ ثمّ الباني) من مسارِ
+            //      `NewExpr` القائمِ بلا نسخٍ ثانٍ يمكن أن ينجرف.
+            //      وقياسُ ما قبلَها (2026-08-15، ٩ صيغ): ثمانٍ تسقط — المفسّرُ يرفع
+            //      RUN033 «member access على VOID»، والمترجمُ يبني rc=0 ثمّ ينهار
+            //      البرنامجُ المُنتَجُ rc=139. أي أنّ الخانةَ كانت تُترَك **فراغًا**.
+            //      ⚠️ ولا يُوسَّع المقبول: الشرطُ نوعُ صنفٍ **بلا مُهيّئٍ** — وهي
+            //      حالةٌ كانت تسقط بلا استثناء، فلا سلوكَ عاملًا يمكن أن ينحدر.
+            // (EN) Owner decision 2026-08-15: `Person p` desugars to `Person p = Person()`.
+            //      Done in the shared parser so both engines agree by construction and
+            //      inherit the specified init order (zero fields, then constructor) from
+            //      the existing NewExpr path instead of a second copy that could drift.
+            // ═══════════════════════════════════════════════════════════════════
+            if (varType == Types::SadTypeKind::Class && !initializer && !className.empty())
+            {
+                // (AR) بوّابةُ SEM041: بانٍ يشترط وسائطَ لا يُستدعى ضمنًا — ولا قيمةَ
+                //      تختلقها اللغةُ للوسيط. وقياسُ ما قبلَ البوّابة: المحرّكان
+                //      يقبلان صامتَين ويملآن الناقصَ بـ«لاشيء»، فيخرج الحقلُ غيابًا
+                //      في نوعٍ غيرِ عدميّ — نقضُ العقدِ الذي وُضعت القاعدةُ لحفظِه.
+                // (EN) A constructor requiring arguments cannot be called implicitly.
+                // (AR) بمشيِ سلسلةِ الوراثة: الوارثُ بلا بانٍ خاصٍّ يُنشَأ ببانِي أصلِه.
+                // (EN) Walks the inheritance chain — see requiredConstructorArgsFor.
+                const size_t requiredArgs = requiredConstructorArgsFor(className);
+                if (requiredArgs > 0)
+                {
+                    // (AR) موضعُ الاسمِ لا موضعُ الرمزِ الحاليّ: التشخيصُ يقع بعد
+                    //      استيفاءِ التصريحِ كلِّه، فالرمزُ الحاليُّ رمزُ السطرِ التالي
+                    //      — قِيس أنّه كان يؤشّر إلى «اطبع_سطر» بعد سطرَين.
+                    // (EN) The name's position, not the current token's.
+                    errorCatalogAt(Errors::ErrorCode::SEM_IMPLICIT_CTOR_REQUIRES_ARGS,
+                                   {{"name", name.getValue()},
+                                    {"class_name", className},
+                                    {"required", std::to_string(requiredArgs)}},
+                                   name.getPosition());
+                }
+                else
+                {
+                    // (AR) موضعُ اسمِ المتغيّرِ لا الموضعُ الافتراضيّ — انظر التعليلَ
+                    //      في نظيرِها بـparser_oop.cpp: السطرُ ١ والعمودُ ١ موضعٌ
+                    //      صالحُ الشكلِ كاذبُ المضمون.
+                    auto constructNode = std::make_unique<NewExpr>(className);
+                    constructNode->position = name.getPosition();
+                    initializer = std::move(constructNode);
+                }
+            }
+
             // (AR) إنشاء أول تصريح متغير / (EN) Create first variable declaration
             auto firstDecl = std::make_unique<VarDeclStmt>(
                 name.getValue(),
                 varType,
                 std::move(initializer),
-                pendingConst_,
+                declConst,
                 firstPos);
             firstDecl->docComment = std::move(docComment);
             firstDecl->isVolatile = declVolatile; // (AR) لصيقة «متطاير» (اللبنة 3.14)
+            firstDecl->isStatic = declStatic;     // (AR) «ساكن» مُعدِّلًا (ISSUE-120)
+            firstDecl->access = declAccess;       // (AR) «عام»/«خاص»/«محمي» (ISSUE-120)
 
             // (AR) [NS-06 موجة 2] لنوع اختياريّ `T؟`: ابنِ sadType غنيًّا = Optional<T>
             //      (المُنشئ يضع fromValueType(Optional) بلا T داخليّ). هذا يمكّن codegen
@@ -1623,16 +1831,12 @@ namespace Sad
                     // (AR) النوع الداخليّ T لنوع اختياريّ T؟ في هذا المتغيّر (NS-06)
                     // (EN) Inner type T for an optional T? on this variable (NS-06)
                     Types::SadTypeKind nextInnerKind = Types::SadTypeKind::Unknown;
-                    if (match(TT::COLON))
-                    {
-                        nextType = parseType();
-                        if (nextType == Types::SadTypeKind::Optional)
-                            nextInnerKind = lastOptionalInner_;
-                        if (nextType == Types::SadTypeKind::Unknown)
-                        {
-                            errorCatalog(Errors::ErrorCode::SYN_UNKNOWN_ELEMENT, {{"what_ar", "النوع بعد ':' في تصريح المتغير '" + nextName.getValue() + "'"}, {"what_en", "type after ':' in the declaration of '" + nextName.getValue() + "'"}, {"found", current_.getValue()}, {"allowed", kw(TT::TYPE_INTEGER) + "، " + kw(TT::TYPE_DOUBLE) + "، " + kw(TT::TYPE_STRING) + "، " + kw(TT::TYPE_BOOLEAN) + "، ..."}});
-                        }
-                    }
+                    // (AR) البابُ الثالث: المتغيّرُ التالي بعد الفاصلة — حُذِف منه دعمُ
+                    //      النقطتَين كذلك. وهو أخفى الثلاثة، ولو تُرِك لَبقيت الصيغةُ
+                    //      حيّةً في نصفِ السطر: `متغير س = 1 ، ع: رقم = 2`.
+                    // (EN) The third door: the post-comma variable — colon support deleted
+                    //      here too. The subtlest of the three; leaving it would keep the
+                    //      form alive mid-line.
 
                     // (AR) المُهيّئ الاختياري / (EN) Optional initializer
                     ExprPtr nextInit = nullptr;
@@ -1646,13 +1850,92 @@ namespace Sad
                         }
                     }
 
+                    // (AR) ISSUE-113: البوّابةُ نفسُها على بقيّةِ السلسلة — «متغير أ = 1،
+                    //      ب: فراغ = لاشيء» يجب ألّا يمرَّ لأنّه الثاني.
+                    // (EN) Same gate for the rest of the chain, not just the first.
+                    nextType = rejectVoidAsSlotType(nextType, nextName.getValue());
+
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 نوعُ التصريحِ يسري على السلسلةِ كلِّها (ع-٨)
+                    // ════════════════════════════════════════════════════════════
+                    //
+                    // (AR) كان `nextType` يبدأ **مجهولًا** ولا يرث نوعَ التصريح،
+                    //      فـ«رقم أ، ب» تعطي في المفسّر `[0، لاشيء]`: الأوّلُ يأخذ
+                    //      قيمتَه الافتراضيّةَ والثاني يبقى فراغًا. عيبٌ سابقٌ
+                    //      مُدوَّنٌ (ع-٨)، وقد **كشفته** رقعةُ الإنشاءِ الضمنيِّ ولم
+                    //      تُحدِثه: بعدها صار «بسيط أ، ب» يُنشِئ الأوّلَ ويترك
+                    //      الثانيَ فراغًا — أي أنّ العطبَ صار **متقطّعًا**، وهو أخفى
+                    //      من عطبٍ مطّرد: الشكلُ يبدو عاملًا حتّى يُقرَأ الاسمُ الثاني.
+                    //      فيُسَدُّ من جذرِه لا بمساواةِ الخانتَين في العطب.
+                    //
+                    //      ⚠️ والوراثةُ مشروطةٌ بغيابِ تصريحٍ صريح: «أ، ب: نص» تُبقي
+                    //      لـ«ب» نوعَه المكتوب. والمُعدِّلاتُ تسري على السلسلةِ سلفًا
+                    //      (ISSUE-120)، فهذا اطّرادٌ لسابقةٍ قائمةٍ لا قاعدةٌ جديدة.
+                    // (EN) The chain never inherited the declared type: «رقم أ، ب»
+                    //      gave [0, null]. Pre-existing (ع-٨), surfaced — not caused —
+                    //      by implicit construction, which made the defect intermittent
+                    //      (first constructed, second void). Fixed at the root. Only
+                    //      applies when the chain element has no explicit annotation.
+                    // ════════════════════════════════════════════════════════════
+                    std::string nextClassName;
+                    if (nextType == Types::SadTypeKind::Unknown &&
+                        varType != Types::SadTypeKind::Unknown)
+                    {
+                        nextType = varType;
+                        nextClassName = className;
+                        // (AR) 🔑 والعدميّةُ تُورَث مع النوعِ لا بعده. النسخةُ الأولى
+                        //      ورّثت `varType` و`className` **ونسيت `varInnerKind`**،
+                        //      فبقي `nextInnerKind` مجهولًا فلم يُبنَ `sadType` الغنيُّ
+                        //      للخانةِ الثانية. قِيس أثرُه: «نص عدمية أ، ب» يعطي في
+                        //      المترجّمِ «لاشيء» ثمّ `0` — أي أنّ الخانةَ الثانيةَ فقدت
+                        //      عدميّتَها فصارت نصًّا غيرَ عدميّ.
+                        //      وكان التعليقُ أسفلَه يقول «خانتان في تصريحٍ واحدٍ بنوعٍ
+                        //      واحدٍ لا تسلكان مسلكَين» — فنقضه المِجَسُّ في السطرِ الذي
+                        //      كُتِب فيه. **وراثةٌ ناقصةٌ أسوأُ من غيابِ الوراثة**، لأنّ
+                        //      الناقصةَ تُنتِج خانةً تبدو موروثةً وليست كذلك.
+                        // (EN) Nullability is inherited WITH the type, not after it. The
+                        //      first version inherited varType and className but forgot
+                        //      varInnerKind, so the second slot silently lost its
+                        //      nullability: «نص عدمية أ، ب» ⇒ «لاشيء» then 0.
+                        if (nextInnerKind == Types::SadTypeKind::Unknown)
+                        {
+                            nextInnerKind = varInnerKind;
+                        }
+                    }
+
+                    // (AR) والإنشاءُ الضمنيُّ يسري كذلك — ومعه بوّابةُ SEM041. فخانتان
+                    //      في تصريحٍ واحدٍ بنوعٍ واحدٍ لا تسلكان مسلكَين.
+                    // (EN) Implicit construction — and its SEM041 gate — apply to the
+                    //      chain too: two slots of one type must not behave differently.
+                    if (nextType == Types::SadTypeKind::Class && !nextInit && !nextClassName.empty())
+                    {
+                        const size_t nextRequiredArgs = requiredConstructorArgsFor(nextClassName);
+                        if (nextRequiredArgs > 0)
+                        {
+                            errorCatalogAt(Errors::ErrorCode::SEM_IMPLICIT_CTOR_REQUIRES_ARGS,
+                                           {{"name", nextName.getValue()},
+                                            {"class_name", nextClassName},
+                                            {"required", std::to_string(nextRequiredArgs)}},
+                                           nextName.getPosition());
+                        }
+                        else
+                        {
+                            auto nextConstructNode = std::make_unique<NewExpr>(nextClassName);
+                            nextConstructNode->position = nextName.getPosition();
+                            nextInit = std::move(nextConstructNode);
+                        }
+                    }
+
                     auto nextDecl = std::make_unique<VarDeclStmt>(
                         nextName.getValue(),
                         nextType,
                         std::move(nextInit),
-                        pendingConst_,
+                        declConst,
                         nextName.getPosition());
                     nextDecl->isVolatile = declVolatile; // (AR) «متطاير» (اللبنة 3.14)
+                    // (AR) ISSUE-120: المُعدِّل يسري على السلسلة كلّها — «متغير ثابت أ = 1، ب = 2»
+                    nextDecl->isStatic = declStatic;
+                    nextDecl->access = declAccess;
                     // (AR) [NS-06] سباكة Optional<T> للمتغيّر التالي كما في الأول
                     // (EN) [NS-06] Plumb Optional<T> for the next variable like the first
                     if (nextType == Types::SadTypeKind::Optional &&
@@ -2090,9 +2373,44 @@ namespace Sad
                 }
 
                 // (AR) إذا كان الرمز الحالي نوعاً
+                std::string fieldTypeName;
                 if (isTypeToken(current_.getType()))
                 {
                     fieldType = parseType();
+                }
+                // ════════════════════════════════════════════════════════════
+                // (AR) لفظُ صنفٍ نوعًا للحقل — «بسيط جزء»
+                // ════════════════════════════════════════════════════════════
+                //
+                // (AR) `isTypeToken` لا تعرف الأصنافَ المعرَّفةَ في البرنامج، فكان
+                //      لفظُ الصنفِ يسقط إلى فرعِ الاسم: صار **اسمَ الحقل**، وضاع
+                //      الاسمُ الحقيقيُّ بعده. قِيس ذلك: «بنية علبة { بسيط جزء }»
+                //      تُنتِج حقلًا اسمُه «بسيط» و«ص.جزء» غيرُ موجود.
+                //
+                //      والشرطُ ضيّقٌ عمدًا — معرِّفٌ **مسجَّلٌ صنفًا** يليه معرِّفٌ
+                //      آخر **على السطرِ نفسِه** — فلا يبتلع «س ص» حيث لا صنفَ
+                //      باسمِ «س».
+                //
+                //      🔑 وقيدُ السطرِ ليس زينةً: النسخةُ الأولى أغفلته، فقِيس
+                //      (2026-08-15) أنّ بنيةً فيها حقلان مجرَّدان سطرًا سطرًا،
+                //      اسمُ أوّلِهما يصادف اسمَ صنفٍ معرَّف، تصير حقلًا واحدًا —
+                //      «بنية طيف { لون ⏎ عدد }» أنتجت حقلًا اسمُه «عدد» ونوعُه
+                //      «لون»، و**اختفى حقلُ «لون» بلا تشخيصٍ واحد**. والحقولُ
+                //      المجرّدةُ تُكتَب سطرًا سطرًا، فهذا هو الشكلُ الشائعُ لا
+                //      النادر. وادّعاءُ «ما كان مقبولًا يبقى مقبولًا» كان مكتوبًا
+                //      هنا **قبل أن يُقاس** — فنقضه أوّلُ مِجَسٍّ خصميّ.
+                // (EN) isTypeToken does not know user classes, so a class type
+                //      word fell through and became the field's name. Narrow by
+                //      design: a registered class name followed by an identifier
+                //      ON THE SAME LINE — without the line check, two bare fields
+                //      on consecutive lines silently collapsed into one.
+                else if (check(TT::IDENTIFIER) && peekNext().getType() == TT::IDENTIFIER &&
+                         current_.getPosition().line == peekNext().getPosition().line &&
+                         isClassName(current_.getValue()))
+                {
+                    fieldTypeName = current_.getValue();
+                    fieldType = Types::SadTypeKind::Class;
+                    advance();
                 }
 
                 if (!check(TT::IDENTIFIER))
@@ -2111,11 +2429,46 @@ namespace Sad
                     defaultValue = parseExpression();
                 }
 
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 البابُ الثالثُ لبوّابةِ SEM041 — كان مفتوحًا
+                // ════════════════════════════════════════════════════════════
+                //
+                // (AR) كتبتُ في `parser_oop.cpp` أنّ «البوّابةَ في المسارَين أو
+                //      لا تكون»، والمساراتُ **ثلاثةٌ** لا اثنان: التصريحُ العاري،
+                //      وحقلُ الصنف، **وحقلُ البنية** — وهذا الثالثُ تُرِك مكشوفًا.
+                //      قِيس أثرُه (2026-08-15، ×٣): «بنية علبة { شخص صاحب }»
+                //      وبانِي «شخص» يشترط وسيطًا ⇒ **rc=0 بلا تشخيصٍ البتّة**،
+                //      والكائنُ يُنشَأ ويُنفَّذ جسمُ البانِي على وسيطٍ غائب، فيستقرّ
+                //      «لاشيء» في حقلِ «رقم» غيرِ العدميّ.
+                //      وقبلَ التحليةِ كان الحالُ `RUN033` · rc=1. أي أنّ رقعةً
+                //      وُضعت لسدِّ عيبٍ **بدّلت خطأً صريحًا بكذبٍ صامت** في هذا
+                //      الباب — وهو أسوأُ ما يمكن أن تفعله رقعةٌ من هذا النوع.
+                //      ⚠️ ولا تُبنى بوّابةٌ على تعليقٍ: البوّابةُ سطرُ شيفرةٍ
+                //      يُقاس، والتعليقُ لا تُخفِقه بوّابةٌ ولا يمنع شيئًا.
+                // (EN) The SEM041 gate had THREE call sites, not two: bare
+                //      declaration, class field, and STRUCT field. The third was
+                //      open, turning an explicit RUN033 (rc=1) into a silent
+                //      rc=0 with a null in a non-nullable field.
+                // ════════════════════════════════════════════════════════════
+                if (fieldType == Types::SadTypeKind::Class && !fieldTypeName.empty() && !defaultValue)
+                {
+                    const size_t requiredArgs = requiredConstructorArgsFor(fieldTypeName);
+                    if (requiredArgs > 0)
+                    {
+                        errorCatalogAt(Errors::ErrorCode::SEM_IMPLICIT_CTOR_REQUIRES_ARGS,
+                                       {{"name", fieldName.getValue()},
+                                        {"class_name", fieldTypeName},
+                                        {"required", std::to_string(requiredArgs)}},
+                                       fieldName.getPosition());
+                    }
+                }
+
                 // (AR) تخطي الفاصلة أو الفاصلة المنقوطة الاختيارية
                 matchComma(); // also accept comma as separator
                 matchSemicolon();
 
-                fields.push_back(StructField(fieldName.getValue(), fieldType, std::move(defaultValue), fieldIsMutable));
+                fields.push_back(StructField(fieldName.getValue(), fieldType, std::move(defaultValue),
+                                             fieldIsMutable, fieldTypeName));
             }
 
             if (!isStructEnd())
@@ -2292,6 +2645,13 @@ namespace Sad
                 }
             }
 
+            // (AR) ISSUE-120 — جسمٌ مبنيٌّ باليد لا يمرّ بـ`parseBlockStmt`، فلا يعدّه
+            //      عدّادُ الكتل ما لم يُحرَس هنا. قِيس على نظيرَيه (جسم السمة الافتراضيّ
+            //      وجسم الماكرو): «متغير ساكن» داخلهما كان يمرّ بلا SEM039 — أي يُقبَل
+            //      متغيّرًا عاديًّا بينما يظنّه كاتبُه ساكنًا. «العدُّ في نقطةٍ واحدة»
+            //      دعوى لا تصحّ إلّا على الأجسام التي تمرّ بتلك النقطة.
+            // (EN) Hand-rolled body: guard it or the block counter never sees it.
+            BlockDepthGuard testBodyGuard(blockDepth_);
             AST::StmtList bodyStmts;
             while (!check(TT::KEYWORD_END) && !isAtEnd())
             {
@@ -2432,10 +2792,22 @@ namespace Sad
                     {
                         // (AR) هناك جسم افتراضي — نحلله كعبارات حتى 'نهاية'
                         // (EN) There's a default body — parse statements until 'نهاية'
+                        // (AR) ISSUE-120 — جسمٌ مبنيٌّ باليد: يُحرَس كي يعدَّه عدّادُ
+                        //      الكتل، وإلّا مرّ «متغير ساكن» فيه بلا SEM039.
+                        BlockDepthGuard traitBodyGuard(blockDepth_);
                         std::vector<StmtPtr> bodyStmts;
                         while (!check(TT::KEYWORD_END) && !isAtEnd())
                         {
-                            auto stmt = parseStatement();
+                            // (AR) ISSUE-129 — `parseStatement` لا يعرف «متغير/ثابت/ساكن»
+                            //      (مسارُها `parseDeclaration`)، فكان جسمُ السمةِ الافتراضيُّ
+                            //      **يبتلع التصاريحَ صامتًا**: «متغير ساكن = 5» بلا اسمٍ لا
+                            //      تُبلَّغ SYN010، والحارسُ أعلاه كان يعدّ كتلةً لا يدخلها
+                            //      تصريحٌ قطّ. قِيس: `)))` تُبلَّغ SYN009 (فالجسمُ يُحلَّل)
+                            //      بينما التصريحُ يمرّ بلا أثر. التسويةُ مع نظائرِه
+                            //      (الماكرو و«اختبر») التي تنادي `parseDeclaration`.
+                            // (EN) parseStatement ignores var/const/static — declarations
+                            //      were silently swallowed here. Use parseDeclaration.
+                            auto stmt = parseDeclaration();
                             if (stmt)
                                 bodyStmts.push_back(std::move(stmt));
                         }
@@ -2707,6 +3079,9 @@ namespace Sad
 
             // (AR) تحليل جسم الماكرو (كتلة من الجمل حتى 'نهاية')
             // (EN) Parse macro body (block of statements until 'end')
+            // (AR) ISSUE-120 — جسمٌ مبنيٌّ باليد: يُحرَس كي يعدَّه عدّادُ الكتل.
+            //      قِيس أنّ «ماكرو م() / متغير ساكن ن = 1 / نهاية» كان يمرّ بلا SEM039.
+            BlockDepthGuard macroBodyGuard(blockDepth_);
             StmtList bodyStmts;
             while (!check(TT::KEYWORD_END) && !isAtEnd())
             {

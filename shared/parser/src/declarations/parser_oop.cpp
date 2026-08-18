@@ -131,6 +131,40 @@ namespace Sad
                 advance(); // consume type
                 typeName = typeToken.getValue();
                 fieldType = mapTokenTypeToKind(typeToken.getType());
+
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) 🔑 ألفاظُ الأنواعِ المضمَّنةِ تُلفَظ IDENTIFIER لا TYPE_*،
+                //      و`mapTokenTypeToKind` تحكم **بالرمزِ** فتُرجِع Unknown لها
+                //      جميعًا. فكان كلُّ حقلٍ بالصيغةِ النوعيّةِ («رقم سن») يُسجَّل
+                //      نوعُه Unknown، فيسقط في `default:` عند حسابِ القيمةِ
+                //      الافتراضيّةِ في المحرّكَين معًا: المفسّرُ يعطي `لاشيء`
+                //      للحقولِ الأربعةِ كلِّها، والمترجمُ يبني الحقلَ i64 فيطبع
+                //      `0` لمنطقيٍّ و`0` لعشريٍّ و«لاشيء» لنصّ. وهو نقضٌ لقرارِ
+                //      المالك (2026-08-15): «الصنفُ مركّبٌ من متغيّرات، فيأخذ كلُّ
+                //      متغيّرٍ في داخلِه القيمةَ الافتراضيّةَ لنوعِه».
+                //      والعلاجُ الجذريُّ أن يُحكَم **باللفظِ** كما يفعل تصريحُ
+                //      المتغيّرِ (`resolveTypeWordName`) — وهو المسارُ نفسُه الذي
+                //      يجعل المحلّيَّ يصيب حيث يخطئ الحقل.
+                //      ⚠️ ولا يُوسَّع المقبولُ: لا يُستشار الجدولُ اللفظيُّ إلّا
+                //      حين يعجز الرمزيُّ (Unknown)، فما حُسِم بالرمزِ يبقى كما هو.
+                //      (انظر تعليلَ «التوحيدُ لا يُوسّع» في parser_helpers.cpp.)
+                // (EN) Built-in type words lex as IDENTIFIER, so the token-keyed map
+                //      returns Unknown for every type-first field, and both engines
+                //      fall into the `default:` arm of their default-value switch.
+                //      Resolve by word — exactly what variable declarations do — but
+                //      only as a fallback, so nothing already resolved is widened.
+                // ═══════════════════════════════════════════════════════════════
+                if (fieldType == Types::SadTypeKind::Unknown)
+                {
+                    fieldType = resolveTypeWordName(typeName);
+                }
+
+                // (AR) «فراغ» لا يصلح خانةً — والحقلُ خانةٌ كالمتغيّر. كان يمرُّ قبلَ
+                //      الإصلاحِ أعلاه لأنّه كان يُقرأ Unknown، فيُرفَض الآن بالعقدِ
+                //      نفسِه الذي يرفضه متغيّرًا ومعامِلًا (SEM040).
+                // (EN) Void is not a slot type, and a field is a slot. It slipped
+                //      through only because it used to read as Unknown.
+                fieldType = rejectVoidAsSlotType(fieldType, current_.getValue());
             }
             else if (check(TT::IDENTIFIER))
             {
@@ -152,6 +186,36 @@ namespace Sad
                 errorCatalog(Errors::ErrorCode::SYN_EXPECTED_NAME, {{"what_ar", "نوع الحقل"}, {"what_en", "field type"}, {"ctx_ar", "في جسم البنية/الصنف"}, {"ctx_en", "in the struct/class body"}});
                 synchronize();
                 return nullptr;
+            }
+
+            // ═══════════════════════════════════════════════════════════════════
+            // (AR) [م‑ز] الصفةُ العدميّةُ للحقل — «رقم عدمي قيمة» و«رقم؟ قيمة».
+            //
+            //      🔑 وسببُ غيابِها أنّ هذا المسارَ **لا يمرُّ بـ`parseType`**: يحلُّ
+            //      النوعَ بـ`mapTokenTypeToKind`/`resolveTypeWordName` مباشرةً، وتلك
+            //      لا تستهلك لاحقةً. فكان الحقلُ يُخفِق بـSYN019 بصفةٍ وSYN001
+            //      بلاحقة — بينما المتغيّرُ والمعامِلُ والإرجاعُ يقبلونها.
+            //      ⇒ **دعمُ الصيغةِ خاصّيّةُ الموضعِ لا خاصّيّةُ النوع**، وتوثيقٌ
+            //      يقول «`T؟` صيغةُ العدميّة» صادقٌ في موضعٍ ويكذب في أربعة.
+            //
+            //      ⚠️ ولا يُوسَّع المقبول: الصفةُ لا تُستهلَك إلّا إن **تلاها اسمٌ في
+            //      السطرِ نفسِه** — وهو شرطُ `matchesNullableAdjective` نفسُه. وبدونه
+            //      يبتلع تصريحٌ بلا مُهيّئٍ اسمَ السطرِ التالي، وهو فخٌّ مقيسٌ
+            //      مُوثَّقٌ في مسارِ المتغيّر.
+            // (EN) [م‑ز] The field's nullable marker. This path never goes through
+            //      parseType — it resolves the kind directly — so neither the `عدمي`
+            //      adjective nor the `؟` suffix was consumed, and a field failed with
+            //      SYN019/SYN001 while variables, parameters and returns accepted it.
+            //      Nullable support is a property of the POSITION, not of the type.
+            //      The adjective is consumed only when followed by a name on the SAME
+            //      line — the same guard as matchesNullableAdjective, without which an
+            //      initialiser-less declaration swallows the next line's identifier.
+            // ═══════════════════════════════════════════════════════════════════
+            Types::SadTypeKind fieldInnerKind = Types::SadTypeKind::Unknown;
+            if (consumeNullableMarker())
+            {
+                fieldInnerKind = fieldType;
+                fieldType = Types::SadTypeKind::Optional;
             }
 
             // (AR) الاسم / (EN) Name
@@ -177,8 +241,77 @@ namespace Sad
                 // Semicolon consumed
             }
 
+            // ═══════════════════════════════════════════════════════════════════
+            // (AR) 🔑 اطّرادُ الإنشاءِ الضمنيِّ **تعاوديًّا** — قرارُ مالكٍ (2026-08-15):
+            //      «يأخذ كلُّ متغيّرٍ في داخلِ الصنفِ القيمةَ الافتراضيّةَ لنوعِه».
+            //      وحقلٌ نوعُه صنفٌ قيمتُه الافتراضيّةُ **كائنٌ مُنشَأ** لا فراغ، تمامًا
+            //      كما `شخص ك` على مستوى المتغيّر. فتصريحُ «بسيط جزء» داخل «معشش»
+            //      يصير «بسيط جزء = بسيط()»، وبه يعمل `م.جزء.عدد = 7`.
+            //      وقياسُ ما قبلَها: المفسّرُ يرفع RUN033 «member access على VOID»
+            //      والبرنامجُ المُترجَمُ ينهار rc=139 — بينما المُهيّئُ الصريحُ يعمل،
+            //      فالفجوةُ في التحليةِ لا في تنفيذِ الحقول.
+            //      ⚠️ ولا مشاركةَ بين النُّسَخ: المفسّرُ يقيّم مُهيّئَ الحقلِ مرّةً عند
+            //      تصريحِ الصنفِ ثمّ **يستنسخ** لكلِّ كائن — قِيس ذلك صراحةً بكائنَين،
+            //      فتعديلُ حقلِ أحدِهما لا يمسّ الآخر.
+            // (EN) Recursive arm of the same owner decision: a class-typed field's
+            //      default value is a constructed object, not VOID. Measured: no
+            //      aliasing between instances — the interpreter clones per instance.
+            // ═══════════════════════════════════════════════════════════════════
+            if (fieldType == Types::SadTypeKind::Class && !initializer && !typeName.empty())
+            {
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) 🔑 بوّابةُ SEM041 هنا كما في مسارِ المتغيّر. وغيابُها عن هذا
+                //      المسارِ وحدَه كان **أسوأَ من ترك التحليةِ كلِّها**: قِيس أنّ
+                //      «صنف خط { نقطة بداية }» وبانيها يشترط وسيطًا كان يرفع
+                //      RUN033 برمزِ خروجٍ 1 قبل التحلية، فصار يمرُّ برمزِ خروجٍ **صفر**
+                //      ويطبع «لاشيء» — أي أنّ التحليةَ بلا بوّابةٍ حوّلت خطأً صريحًا
+                //      إلى كذبٍ صامت. والبوّابةُ في المسارَين أو لا تكون: خانةٌ
+                //      واحدةٌ محروسةٌ وأخرى مكشوفةٌ تعني أنّ العقدَ يُنقَض من البابِ
+                //      الذي لم يُغلَق.
+                // (EN) The same gate as in the variable path. Its absence here was
+                //      worse than no desugar at all: a measured RUN033 (exit 1) became
+                //      exit 0 printing «لاشيء» — an explicit error turned into a
+                //      silent lie.
+                // ═══════════════════════════════════════════════════════════════
+                const size_t requiredArgs = requiredConstructorArgsFor(typeName);
+                if (requiredArgs > 0)
+                {
+                    // (AR) موضعُ اسمِ الحقلِ لا الرمزِ الحاليّ — انظر التعليلَ في
+                    //      نظيرتِها بمسارِ المتغيّر.
+                    // (EN) The field name's position; see the variable-path twin.
+                    errorCatalogAt(Errors::ErrorCode::SEM_IMPLICIT_CTOR_REQUIRES_ARGS,
+                                   {{"name", fieldName},
+                                    {"class_name", typeName},
+                                    {"required", std::to_string(requiredArgs)}},
+                                   nameToken.getPosition());
+                }
+                else
+                {
+                    // (AR) العقدةُ المولَّدةُ تأخذ موضعَ اسمِ الحقل. وبلا ذلك تحمل
+                    //      موضعَ ASTNode الافتراضيَّ — السطرَ ١ والعمودَ ١ — فيصير
+                    //      كلُّ خطأِ إنشاءٍ (صنفٌ مجهول، مجرَّد، وسائطُ زائدة) يشير
+                    //      إلى أوّلِ الملفّ: موضعٌ **صالحُ الشكلِ كاذبُ المضمون**،
+                    //      وهو أضلُّ من الصفرِ لأنّ الصفرَ يُعلِن جهلَه.
+                    auto constructNode = std::make_unique<NewExpr>(typeName);
+                    constructNode->position = nameToken.getPosition();
+                    initializer = std::move(constructNode);
+                }
+            }
+
             auto fieldDecl = std::make_unique<FieldDecl>(fieldName, fieldType, std::move(initializer),
                                                          access, isStatic, nameToken.getPosition());
+
+            // (AR) النوعُ الغنيُّ يُبنى **هنا فقط** — وبِه وحدَه يعرف المترجِمُ عدميَّ
+            //      ماذا هو، فيُنادي قرارَ الخانةِ الواحد. ولو تُرِك خاليًا لَقُرِئ
+            //      الحقلُ «عدميًّا بلا داخل» فسقط على خانةٍ واحدةٍ لكلِّ الأنواع.
+            // (EN) Built here only; without it the compiler sees "nullable of nothing"
+            //      and every nullable field collapses onto one slot shape.
+            if (fieldType == Types::SadTypeKind::Optional &&
+                fieldInnerKind != Types::SadTypeKind::Unknown)
+            {
+                fieldDecl->sadType = Types::SadTypeRegistry::instance().makeOptional(
+                    Types::SadType::fromValueType(fieldInnerKind));
+            }
             // (AR) إرفاق التوثيق الملتقط بالحقل / (EN) Attach captured doc to field
             fieldDecl->docComment = std::move(capturedDoc);
             return fieldDecl;
@@ -383,7 +516,14 @@ namespace Sad
                     if (isTypeFollowedByName)
                     {
                         // (AR) نوع صريح مدمج (رقم، نص، منطقي، إلخ) متبوع باسم المعامل
-                        paramType = parseType();
+                        // (AR) ⚠️ سطران لا سطرٌ واحد: ترتيبُ تقييمِ وسائطِ النداء في
+                        //      C++ **غيرُ محدَّد**، فـ`f(parseType(), current_.getValue())`
+                        //      قرأ المصرِّفُ فيها الاسمَ **قبل** أن يستهلك النوعَ، فطبع
+                        //      التشخيصُ «الخانة «فراغ»» — أي سمّى النوعَ اسمًا. قِيس حيًّا.
+                        // (EN) Two statements, not one: C++ argument evaluation order is
+                        //      unspecified, and the name was read before the type was consumed.
+                        const Types::SadTypeKind parsedParamType = parseType();
+                        paramType = rejectVoidAsSlotType(parsedParamType, current_.getValue());
                         Token paramToken = consume(TT::IDENTIFIER, "");
                         // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                         ExprPtr defaultValue = nullptr;
@@ -454,7 +594,8 @@ namespace Sad
                     else
                     {
                         // (AR) نوع المعامل / (EN) Parameter type
-                        paramType = parseType();
+                        const Types::SadTypeKind parsedParamType = parseType();
+                        paramType = rejectVoidAsSlotType(parsedParamType, current_.getValue());
 
                         // (AR) اسم المعامل / (EN) Parameter name
                         Token paramToken = consume(TT::IDENTIFIER, "");
@@ -619,7 +760,8 @@ namespace Sad
                              peekNext().getType() == TT::IDENTIFIER)
                     {
                         // (AR) نوع صريح موجود متبوع باسم معامل / (EN) Explicit type present followed by param name
-                        paramType = parseType();
+                        const Types::SadTypeKind parsedParamType = parseType();
+                        paramType = rejectVoidAsSlotType(parsedParamType, current_.getValue());
                         Token paramToken = consume(TT::IDENTIFIER, "");
                         // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                         if (match(TT::OP_ASSIGN))
@@ -650,7 +792,7 @@ namespace Sad
                         // (EN) Optional type annotation: name : type
                         if (match(TT::COLON))
                         {
-                            paramType = parseType();
+                            paramType = rejectVoidAsSlotType(parseType(), paramToken.getValue());
                         }
                         // (AR) القيمة الافتراضية الاختيارية / (EN) Optional default value
                         if (match(TT::OP_ASSIGN))
@@ -672,7 +814,7 @@ namespace Sad
                         // (EN) Optional type annotation: name : type
                         if (match(TT::COLON))
                         {
-                            paramType = parseType();
+                            paramType = rejectVoidAsSlotType(parseType(), paramToken.getValue());
                         }
                         if (match(TT::OP_ASSIGN))
                         {
@@ -802,7 +944,7 @@ namespace Sad
             }
 
             // (AR) جسم الباني / (EN) Constructor body
-            StmtPtr body = parseBlockStmt();
+            auto body = parseBlockStmt();
 
             // (AR) إدراج جمل تعيين تلقائي لمعاملات هذا.خاصية
             // (EN) Inject auto-assignment statements for this.property parameters
@@ -821,6 +963,44 @@ namespace Sad
                         auto stmt = std::make_unique<ExprStmt>(std::move(assignExpr));
                         block->statements.insert(block->statements.begin(), std::move(stmt));
                     }
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════════════
+            // (AR) 🔑 تسجيلُ عددِ الوسائطِ **الواجبة** (بلا قيمةٍ افتراضيّة) للبوّابةِ
+            //      SEM041. ولا مفرَّ من التسجيلِ هنا: تسجيلُ الصنفِ في ClassManager
+            //      أثناءَ التحليلِ **مؤقّتٌ وفارغٌ** (ClassType بلا بانٍ) — يُملأ عند
+            //      التنفيذِ لا عند التحليل، فسؤالُه عن الباني وقتَ التحليةِ يعطي
+            //      «لا بانيَ» دائمًا فتمرُّ الصيغةُ الممنوعةُ صامتة. والبانيُ يُحلَّل
+            //      قبل أيِّ تصريحٍ يستعمل الصنفَ (لأنّ `isClassName` تشترط سبقَ
+            //      التصريحِ أصلًا)، فالجدولُ جاهزٌ عند الحاجةِ إليه.
+            // (EN) Record the count of *required* (non-defaulted) constructor params
+            //      for the SEM041 gate. It must be recorded here: the parse-time
+            //      ClassManager registration is a temporary, empty ClassType with no
+            //      constructor, so asking it at desugar time always answers "none".
+            // ═══════════════════════════════════════════════════════════════════
+            {
+                size_t requiredArgs = 0;
+                for (const auto &parameter : parameters)
+                {
+                    if (!parameter.defaultValue)
+                    {
+                        ++requiredArgs;
+                    }
+                }
+                // (AR) 🔑 **أدنى** عددٍ لا آخرُه. صنفٌ فيه `باني()` و`باني(رقم ب)`
+                //      يقبل نداءً بلا وسائطَ عبر الأوّل، فالإسنادُ المباشرُ يجعل
+                //      ترتيبَ الكتابةِ يقرّر: قِيس أنّ الصيغةَ الصحيحةَ تُرفَض بـSEM041
+                //      في المحرّكَين حين يأتي البانيُ ذو الوسائطِ آخرًا. وبوّابةٌ
+                //      ترفض برنامجًا سليمًا أسوأُ من بوّابةٍ لا تُوجَد.
+                // (EN) Keep the MINIMUM arity, not the last one written: a class with
+                //      both a nullary and an argument-taking constructor is callable
+                //      with zero arguments. Plain assignment made declaration order
+                //      decide, and measurably rejected valid programs.
+                auto existing = classConstructorRequiredArgs_.find(className);
+                if (existing == classConstructorRequiredArgs_.end() || requiredArgs < existing->second)
+                {
+                    classConstructorRequiredArgs_[className] = requiredArgs;
                 }
             }
 
@@ -855,7 +1035,7 @@ namespace Sad
             consume(TT::PAREN_RIGHT, "");
 
             // (AR) جسم الهدام / (EN) Destructor body
-            StmtPtr body = parseBlockStmt();
+            auto body = parseBlockStmt();
 
             return std::make_unique<DestructorDecl>(std::move(body));
         }
@@ -1063,6 +1243,13 @@ namespace Sad
 
             // Parse getter body - statements until 'نهاية'
             StmtList getterStatements;
+            // (AR) ع-٢: جسمُ الخاصّيّةِ يُبنى باليد، وعمقُ الصنفِ صفرٌ عمدًا (الحقلُ الساكنُ
+            //      فيه مشروع). والحارسُ **دفاعٌ سابقٌ لأوانه بقصد**: قِيس أنّ جسمَ
+            //      «احصل»/«عيّن» لا يقبل التصاريحَ اليوم (SEM001، لأنّه `parseStatement`
+            //      لا `parseDeclaration` — ISSUE-134)، فلا يُدّعى هنا إصلاحُ عطبٍ حيّ.
+            // (EN) Deliberately guarded ahead of time: measured that accessor bodies
+            //      reject declarations outright today.
+            BlockDepthGuard getterBodyGuard(blockDepth_);
             while (!check(TT::KEYWORD_END) && !isAtEnd())
             {
                 auto stmt = parseStatement();
@@ -1092,6 +1279,13 @@ namespace Sad
 
                 // Parse setter body - statements until 'نهاية'
                 StmtList setterStatements;
+                // (AR) ع-٢: جسمُ الخاصّيّةِ يُبنى باليد، وعمقُ الصنفِ صفرٌ عمدًا (الحقلُ الساكنُ
+                //      فيه مشروع). والحارسُ **دفاعٌ سابقٌ لأوانه بقصد**: قِيس أنّ جسمَ
+                //      «احصل»/«عيّن» لا يقبل التصاريحَ اليوم (SEM001، لأنّه `parseStatement`
+                //      لا `parseDeclaration` — ISSUE-134)، فلا يُدّعى هنا إصلاحُ عطبٍ حيّ.
+                // (EN) Deliberately guarded ahead of time: measured that accessor bodies
+                //      reject declarations outright today.
+                BlockDepthGuard setterBodyGuard(blockDepth_);
                 while (!check(TT::KEYWORD_END) && !isAtEnd())
                 {
                     auto stmt = parseStatement();
@@ -1125,6 +1319,38 @@ namespace Sad
                 std::move(setter),
                 access,
                 isStatic);
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // (AR) عددُ وسائطِ البانِي الواجبةِ — بمشيِ سلسلةِ الوراثة
+        // (EN) Required constructor args — walking the inheritance chain
+        // ══════════════════════════════════════════════════════════════════════
+        size_t ParserCore::requiredConstructorArgsFor(const std::string &className) const
+        {
+            // (AR) حدُّ خطواتٍ صريحٌ لا مجموعةُ زياراتٍ: الدورةُ في الوراثةِ خطأٌ
+            //      يُشخَّص في موضعِه، وواجبُ هذه الدالّةِ ألّا تعلّق المحلّلَ لا أن
+            //      تُصحّح الدورة. وبلا هذا الحدِّ يصير `صنف أ يرث ب` و`صنف ب يرث أ`
+            //      حلقةً لا نهائيّةً في المحلّل.
+            // (EN) An explicit step bound rather than a visited-set: an inheritance
+            //      cycle is diagnosed elsewhere; this function's duty is only not to
+            //      hang the parser.
+            constexpr size_t kMaxDepth = 64;
+            std::string current = className;
+            for (size_t depth = 0; depth < kMaxDepth; ++depth)
+            {
+                const auto found = classConstructorRequiredArgs_.find(current);
+                if (found != classConstructorRequiredArgs_.end())
+                {
+                    return found->second;
+                }
+                const auto base = classPrimaryBase_.find(current);
+                if (base == classPrimaryBase_.end())
+                {
+                    return 0;
+                }
+                current = base->second;
+            }
+            return 0;
         }
 
     } // namespace Parser

@@ -25,6 +25,7 @@
 #include "lexer_core.h"
 #include "parser_core.h"
 #include "pattern_nodes.h"
+#include "class_nodes.h" // (AR) NewExpr — مُهيّئُ الحقلِ الصنفيِّ المُحلَّى
 #include "utf8_utils.h"
 #include <stdexcept>
 #include <iostream>
@@ -170,7 +171,23 @@ namespace Sad
 
                         // (AR) تحويل النوع وإضافة الحقل
                         // (EN) Convert type and add field
-                        SadTypeKind fieldType = b_.astTypeToSIRType(fieldDecl->type);
+                        // (AR) [م‑ز] 🔑 **السلطةُ الواحدةُ تُنادى، ولا تُنسَخ**: هي التي
+                        //      تقرّر للمتغيّرِ والمعامِلِ والإرجاعِ والعامّ، فتقرّر للحقلِ
+                        //      بالمنطقِ نفسِه. ونسخةٌ ثانيةٌ هنا تسهو عن نوعٍ تُعيد
+                        //      التباعُدَ الذي وُضِعت السلطةُ لسدِّه — وقد وقع ذلك فعلًا
+                        //      في هذه الحملةِ حين عُدَّت مواضعُ المحوِ أربعةً وهي ستّ،
+                        //      لأنّ موضعَين لم يذكرا `Optional` أصلًا فلم يجدهما البحث.
+                        //      🔑 والدرس: **الغيابُ لا يُكشَف بالبحثِ عن الحضور.**
+                        // (EN) [م‑ز] Call the ONE authority; never copy it. It already
+                        //      decides for variables, parameters, returns and globals.
+                        //      A second copy that forgets a kind reinstates the very
+                        //      divergence it closes — which happened in this campaign
+                        //      when the erasure sites were counted as four and were six,
+                        //      because two never mentioned Optional at all. Absence is
+                        //      not found by searching for presence.
+                        SadTypeKind fieldType = b_.resolveDeclaredStorageKind(
+                            fieldDecl->type, fieldDecl->sadType.get(),
+                            b_.astTypeToSIRType(fieldDecl->type));
 
                         // (AR) الحقول الديناميكية (UNKNOWN/OBJECT): استنتاج النوع من المُهيئ أولاً
                         // (EN) Dynamic fields (UNKNOWN/OBJECT): infer type from initializer first
@@ -273,7 +290,47 @@ namespace Sad
                                     tokType == Sad::Lexer::TokenType::LITERAL_TRUE ||
                                     tokType == Sad::Lexer::TokenType::LITERAL_FALSE)
                                 {
-                                    sirClass->fieldDefaultValues_[fieldDecl->name] = {litVal, fieldType};
+                                    // ═══════════════════════════════════════════════
+                                    // (AR) 🔑 الجدولُ يقول «قيمةٌ ابتدائيّةٌ من هذا الصنف»
+                                    //      — وقارئاه يُفرّعان عليه ليعرفا **كيف يكتبانها**.
+                                    //      فحين تكون الخانةُ `أي` لم يكن فيه إلّا `Any`، ولا
+                                    //      ذراعَ له في أيٍّ من المُطبِّقَين، فيسقط في
+                                    //      `default:` ويبقى الحقلُ صفرَ `memset` — ووسمُ
+                                    //      %SadDyn الصفريُّ **هو وسمُ العدم** — فيُطبَع
+                                    //      «لاشيء» ببناءٍ ناجحٍ ورمزِ خروجٍ صفر.
+                                    //      المقيس: `صنف س … أي ح = 5 … رقم ن = 7 … نهاية` ⇒ المفسّرُ
+                                    //      «5» و«7»، والمُترجَمُ «لاشيء» و«7». والضابطُ `ن`
+                                    //      في **الصنفِ نفسِه** يُثبِت أنّ العلّةَ في `أي`
+                                    //      وحدَها لا في القيمِ الافتراضيّة.
+                                    //      ⚠️ ولا يُبدَّل النوعُ إلّا حين تكون الخانةُ `أي`:
+                                    //      `عشري ع = 5` حرفيّتُها صحيحةٌ وخانتُها عشريّة،
+                                    //      وتسجيلُ `Integer` لها يكتب i64 فوق خانةِ `double`
+                                    //      — إصلاحُ عطبٍ بإحداثِ أوسعَ منه.
+                                    // (EN) The table means "an initial value of this kind",
+                                    //      and both readers switch on it to know HOW to write
+                                    //      it. For an `أي` slot it held only Any, which has no
+                                    //      arm in either applier, so the field stayed at its
+                                    //      memset zero — and a zero %SadDyn tag IS the null
+                                    //      tag — printing «لاشيء» with a clean build, exit 0.
+                                    //      The sibling `رقم ن = 7` in the SAME class proves
+                                    //      the fault is `أي`'s alone. Substituted only for an
+                                    //      `أي` slot: `عشري ع = 5` has an integer literal in a
+                                    //      double slot, and recording Integer there would
+                                    //      write i64 bits over a double.
+                                    // ═══════════════════════════════════════════════
+                                    SadTypeKind defaultKind = fieldType;
+                                    if (fieldType == SadTypeKind::Any)
+                                    {
+                                        if (tokType == Sad::Lexer::TokenType::NUMBER_INTEGER)
+                                            defaultKind = SadTypeKind::Integer;
+                                        else if (tokType == Sad::Lexer::TokenType::NUMBER_DOUBLE)
+                                            defaultKind = SadTypeKind::Float;
+                                        else if (tokType == Sad::Lexer::TokenType::STRING_LITERAL)
+                                            defaultKind = SadTypeKind::String;
+                                        else
+                                            defaultKind = SadTypeKind::Boolean;
+                                    }
+                                    sirClass->fieldDefaultValues_[fieldDecl->name] = {litVal, defaultKind};
 #ifndef NDEBUG
                                     std::cout << "[DEBUG] buildClass: field '" << fieldDecl->name
                                               << "' default value = '" << litVal
@@ -281,6 +338,95 @@ namespace Sad
 #endif
                                 }
                             }
+                        }
+                        // ═══════════════════════════════════════════════════════════════
+                        // (AR) 🔑 حقلٌ نوعُه صنف: المحلّلُ حلّاه إلى `NewExpr` بلا وسائط،
+                        //      فيُسجَّل هنا ليُنشِئه البانِي تعاوديًّا بعد `memset(0)`.
+                        //
+                        //      وكان الفرعُ أعلاه لا يقبل إلّا `LiteralExpr`، فيسقط
+                        //      `NewExpr` صامتًا ويبقى الحقلُ صفرًا. المقيسُ (2026-08-16):
+                        //      صنفٌ فيه حقلٌ صنفيٌّ ⇒ المفسّرُ يطبع `1` والمترجّمُ
+                        //      **يبني برمزِ خروجٍ صفرٍ ثمّ ينهار `rc=139`**.
+                        //
+                        //      ⚠️ ومشروطٌ بخلوِّ النداءِ من الوسائط: بانٍ يشترط وسيطًا
+                        //      ترفضه بوّابةُ SEM041 في المحلّلِ قبل بلوغِ هذا الموضع،
+                        //      فالوسائطُ هنا تعني مُهيّئًا **صريحًا** كتبه الكاتبُ
+                        //      (`نقطة د = نقطة(3)`) وله مسارُه — ولا يصحّ أن نُنشئه
+                        //      مرّتَين.
+                        // (EN) A class-typed field: the parser desugared it to an
+                        //      argument-less NewExpr, recorded here so the constructor
+                        //      builds it recursively after memset(0). The literal-only
+                        //      branch above dropped it silently ⇒ measured rc=139.
+                        // ═══════════════════════════════════════════════════════════════
+                        if (auto *newExpr = dynamic_cast<AST::NewExpr *>(fieldDecl->initializer.get()))
+                        {
+                            if (newExpr->arguments.empty() && !newExpr->className.empty())
+                            {
+                                sirClass->classFieldTypes_[fieldDecl->name] = newExpr->className;
+                                // (AR) وجدولُ **القراءةِ** هو `fieldClassNames_` الموجودُ سلفًا،
+                                //      لا جدولٌ ثانٍ له: قارئُ الوصولِ المتسلسلِ يقرؤه وحدَه.
+                                //      والجدولان ليسا تكرارًا — هذا يقول «صنفُ الحقل»
+                                //      (يُملأ أيضًا من استنتاجِ وسائطِ الباني)، وذاك يقول
+                                //      «أنشِئه أنت» وهو خاصٌّ بالتحليةِ الضمنيّة.
+                                // (EN) The READ table is the pre-existing fieldClassNames_,
+                                //      not a second copy of it. The two are different facts:
+                                //      one is "this field's class", the other is "you must
+                                //      construct it" (implicit desugar only).
+                                sirClass->fieldClassNames_[fieldDecl->name] = newExpr->className;
+                            }
+                        }
+
+                        // ═══════════════════════════════════════════════════════════
+                        // (AR) [م‑ز] 🔑 الحقلُ **العدميُّ** بلا مُهيّئ يبدأ عدمًا.
+                        //
+                        //      وهذا شقُّ م‑ز الثاني، ونظيرُ ما فعلته م‑د للمتغيّر:
+                        //      المحلّلُ صار يقبل «رقم عدمي قيمة»، والمفسّرُ يعطيها
+                        //      «لاشيء» بجدولِه، **والمترجِمُ كان يطبع `0`** — لأنّ
+                        //      `memset(0)` يترك الخانةَ صفرًا ولا سطرَ يكتب الحارس.
+                        //      فقبولُ الصيغةِ وحدَه كان يصنع **تباعُدَ محرّكَين
+                        //      جديدًا** بدل أن يسدّ شيئًا: النحوُ يُقبَل والدلالةُ
+                        //      تفترق — وهو أسوأُ من رفضٍ صريحٍ يعرفه الكاتب.
+                        //
+                        //      ⚠️ والتسجيلُ هنا لا في الخلفيّة: `fieldDefaultValues_`
+                        //      هو الجدولُ الذي يقرؤه **المُطبِّقانِ معًا**
+                        //      (`emitAlloca` و`emitConstructorCall`)، فيتّفقان بلا
+                        //      نسخةٍ ثانية. ونوعُ القيمةِ `Null` لا `Optional`:
+                        //      المُطبِّقُ يوزّع على نوعِ **القيمةِ** لا على نوعِ الخانة.
+                        // (EN) [م‑ز] A nullable field with no initializer starts as null —
+                        //      the field twin of what م‑د did for variables. Accepting the
+                        //      syntax alone would have created a NEW two-engine divergence
+                        //      (parser accepts, interpreter says null, compiler said 0),
+                        //      which is worse than an explicit rejection the author can see.
+                        //      Registered here, not in the backend, because
+                        //      fieldDefaultValues_ is the one table BOTH appliers read.
+                        // ═══════════════════════════════════════════════════════════
+                        if (!fieldDecl->initializer &&
+                            fieldDecl->type == Types::SadTypeKind::Optional)
+                        {
+                            sirClass->fieldDefaultValues_[fieldDecl->name] = {
+                                std::to_string(Sad::Compiler::kSadNullSentinel),
+                                SadTypeKind::Null};
+                        }
+                        else if (!fieldDecl->initializer && fieldType == Types::SadTypeKind::String)
+                        {
+                            // ═══════════════════════════════════════════════════════════
+                            // (AR) 🔑 حقلٌ نصّيٌّ بلا مُهيّئ: `memset(0)` يتركه مؤشّرًا
+                            //      صفريًّا، فتقرؤه الطباعةُ «لاشيء» — وهو نقضٌ صريحٌ
+                            //      لأمانِ العدم: «نص» غيرُ عدميٍّ، وقيمتُه الصفريّةُ
+                            //      نصٌّ **فارغٌ** لا غياب. نصَّ على ذلك قرارُ المالكِ
+                            //      في 20_declarations.yaml حرفًا، ويُطبّقه المفسّرُ
+                            //      والمتغيّرُ المحلّيُّ في المترجمِ سلفًا — والحقلُ
+                            //      وحدَه كان يفترق (١ من ٤ صحيحة قبل هذه الرقعة).
+                            //      يُسجَّل هنا لا في الخلفيّةِ لأنّ `fieldDefaultValues_`
+                            //      هو الجدولُ الذي يقرؤه `emitConstructorCall` و
+                            //      `emitAlloca` معًا — فيتّفق المساران بلا نسخةٍ ثانية.
+                            //      ⚠️ ولا يُوسَّع المقبول: الفرعُ مشروطٌ بغيابِ المُهيّئ.
+                            // (EN) A string field with no initializer is left as a null
+                            //      pointer by memset(0) and prints «لاشيء». Non-nullable
+                            //      «نص» defaults to the empty string, as the owner rule
+                            //      and both the interpreter and local variables already do.
+                            // ═══════════════════════════════════════════════════════════
+                            sirClass->fieldDefaultValues_[fieldDecl->name] = {std::string(), fieldType};
                         }
 
                         // ================================================================

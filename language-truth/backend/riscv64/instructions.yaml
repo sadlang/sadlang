@@ -1,0 +1,299 @@
+# جدول ترميز تعليمات RISC-V RV64 (عائلة fixed32) — م٦، الهدف الثالث.
+# يُبرهِن عموميّة المخطّط للمرّة الثالثة: نفس backend_encoding.schema.json يستوعب
+# x86-64 (variable) وarm64 (fixed32 بحقولٍ متّصلة) وRISC-V (fixed32 بحقولٍ **مُشظّاة**).
+#
+# ⚠️ الفارقُ البنيويُّ الوحيدُ عن arm64: صيغتا S وB تُشظّيان الفوريَّ الواحد على حقلين
+#    غيرِ متجاورين، فلا يكفي `from: opN` (القيمةُ كاملةً). أُضيف حقلُ `from_bits: [hi, lo]`
+#    ليعني «شريحةَ بتّاتِ المعامل [hi..lo]» — إضافةٌ متوافقةٌ رجعيًّا: غيابُها = القيمةُ كاملة.
+#    ولذلك مُحرِّكُ RISC-V مستقلٌّ عن مُحرِّك arm64 حتّى تُوحَّد العائلة (ISSUE-130).
+#
+# المجموعةُ هنا ليست RV64I كاملةً: هي **ما تخفّضه الخلفيّةُ فعلًا** لقاعدة تصريح المتغيّر
+# (ALLOC/STORE/BUILTIN_PRINT/RET_VOID) — إطارٌ، خانةُ مكدّس، تحويلُ عددٍ إلى عشريّ، وwrite/exit.
+# اللاتينيّة (en) توثيقُ تقابلٍ فقط. الترميزُ متحقَّقٌ بايتًا ببايت في اختبار الوحدة.
+
+version: "1.0"
+architecture: riscv64
+word_bits: 64
+encoding_family: fixed32
+status: experimental
+
+instructions:
+  # ── صيغة I: imm[31:20] rs1[19:15] funct3[14:12] rd[11:7] opcode[6:0] ──
+  # ADDI rd, rs1, imm12  ⇒ يغطّي li (rs1=صفر) وmv (imm=0) وتعديلَ المكدّس
+  اجمع_فوريّ:
+    - en: addi
+      form: "x, x, imm12"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm, bits: 12, signed: true }
+      encode:
+        width: 32
+        fields:
+          - { name: imm,    hi: 31, lo: 20, from: op2 }
+          - { name: rs1,    hi: 19, lo: 15, from: op1 }
+          - { name: funct3, hi: 14, lo: 12, const: 0 }
+          - { name: rd,     hi: 11, lo: 7,  from: op0 }
+          - { name: opcode, hi: 6,  lo: 0,  const: 19 }        # 0x13 OP-IMM
+      reads_dest: false
+
+  # LD rd, imm12(rs1)  ⇒ funct3=3, opcode=0x03
+  حمّل_ثمانية:
+    - en: ld
+      form: "x, imm12(x)"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm, bits: 12, signed: true }
+      encode:
+        width: 32
+        fields:
+          - { name: imm,    hi: 31, lo: 20, from: op2 }
+          - { name: rs1,    hi: 19, lo: 15, from: op1 }
+          - { name: funct3, hi: 14, lo: 12, const: 3 }
+          - { name: rd,     hi: 11, lo: 7,  from: op0 }
+          - { name: opcode, hi: 6,  lo: 0,  const: 3 }         # 0x03 LOAD
+      reads_dest: false
+
+  # SLLI rd, rs1, shamt  ⇒ RV64: shamt ستّ بتّات في [25:20]، imm[31:26]=0
+  إزاحة_يسار_فوريّة:
+    - en: slli
+      form: "x, x, shamt6"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm, bits: 6 }
+      encode:
+        width: 32
+        fields:
+          - { name: fixed,  hi: 31, lo: 26, const: 0 }
+          - { name: shamt,  hi: 25, lo: 20, from: op2 }
+          - { name: rs1,    hi: 19, lo: 15, from: op1 }
+          - { name: funct3, hi: 14, lo: 12, const: 1 }
+          - { name: rd,     hi: 11, lo: 7,  from: op0 }
+          - { name: opcode, hi: 6,  lo: 0,  const: 19 }
+      reads_dest: false
+
+  # ECALL ⇒ كلمةٌ صفريّةٌ إلّا opcode=0x73 — نداءُ النظام (يُرآي syscall.instruction في ABI)
+  نداء_نظام:
+    - en: ecall
+      form: ""
+      operands: []
+      encode:
+        width: 32
+        fields:
+          - { name: imm,    hi: 31, lo: 20, const: 0 }
+          - { name: rs1,    hi: 19, lo: 15, const: 0 }
+          - { name: funct3, hi: 14, lo: 12, const: 0 }
+          - { name: rd,     hi: 11, lo: 7,  const: 0 }
+          - { name: opcode, hi: 6,  lo: 0,  const: 115 }       # 0x73 SYSTEM
+      reads_dest: false
+
+  # ── صيغة R: funct7[31:25] rs2[24:20] rs1[19:15] funct3[14:12] rd[11:7] opcode ──
+  اجمع:
+    - en: add
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: funct7, hi: 31, lo: 25, const: 0 }
+          - { name: rs2,    hi: 24, lo: 20, from: op2 }
+          - { name: rs1,    hi: 19, lo: 15, from: op1 }
+          - { name: funct3, hi: 14, lo: 12, const: 0 }
+          - { name: rd,     hi: 11, lo: 7,  from: op0 }
+          - { name: opcode, hi: 6,  lo: 0,  const: 51 }        # 0x33 OP
+      reads_dest: false
+
+  اطرح:
+    - en: sub
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: funct7, hi: 31, lo: 25, const: 32 }        # 0x20
+          - { name: rs2,    hi: 24, lo: 20, from: op2 }
+          - { name: rs1,    hi: 19, lo: 15, from: op1 }
+          - { name: funct3, hi: 14, lo: 12, const: 0 }
+          - { name: rd,     hi: 11, lo: 7,  from: op0 }
+          - { name: opcode, hi: 6,  lo: 0,  const: 51 }
+      reads_dest: false
+
+  # امتداد M — القسمةُ والباقي لا-موقَّعَين (تحويلُ العدد إلى عشريّ)
+  قسمة_لاموقعة:
+    - en: divu
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: funct7, hi: 31, lo: 25, const: 1 }         # امتداد M
+          - { name: rs2,    hi: 24, lo: 20, from: op2 }
+          - { name: rs1,    hi: 19, lo: 15, from: op1 }
+          - { name: funct3, hi: 14, lo: 12, const: 5 }
+          - { name: rd,     hi: 11, lo: 7,  from: op0 }
+          - { name: opcode, hi: 6,  lo: 0,  const: 51 }
+      reads_dest: false
+
+  باقي_لاموقع:
+    - en: remu
+      form: "x, x, x"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+      encode:
+        width: 32
+        fields:
+          - { name: funct7, hi: 31, lo: 25, const: 1 }
+          - { name: rs2,    hi: 24, lo: 20, from: op2 }
+          - { name: rs1,    hi: 19, lo: 15, from: op1 }
+          - { name: funct3, hi: 14, lo: 12, const: 7 }
+          - { name: rd,     hi: 11, lo: 7,  from: op0 }
+          - { name: opcode, hi: 6,  lo: 0,  const: 51 }
+      reads_dest: false
+
+  # ── صيغة U: imm[31:12] rd[11:7] opcode ──
+  # LUI rd, imm20 — مع ADDI يُشكّلان عنوانًا مطلقًا ٣٢-بت (قاعدةُ التحميل معروفةٌ ساكنًا)
+  أعلى_فوريّ:
+    - en: lui
+      form: "x, imm20"
+      operands:
+        - { kind: reg, class: gpr, role: out }
+        - { kind: imm, bits: 20 }
+      encode:
+        width: 32
+        fields:
+          - { name: imm,    hi: 31, lo: 12, from: op1 }
+          - { name: rd,     hi: 11, lo: 7,  from: op0 }
+          - { name: opcode, hi: 6,  lo: 0,  const: 55 }        # 0x37 LUI
+      reads_dest: false
+
+  # ── صيغة S (فوريٌّ مُشظّى): imm[11:5]→[31:25] · imm[4:0]→[11:7] ──
+  خزّن_ثمانية:
+    - en: sd
+      form: "x, imm12(x)"
+      operands:
+        - { kind: reg, class: gpr, role: in }                  # op0 = القيمة (rs2)
+        - { kind: reg, class: gpr, role: in }                  # op1 = القاعدة (rs1)
+        - { kind: imm, bits: 12, signed: true }                # op2 = الإزاحة
+      encode:
+        width: 32
+        fields:
+          - { name: imm_hi, hi: 31, lo: 25, from: op2, from_bits: [11, 5] }
+          - { name: rs2,    hi: 24, lo: 20, from: op0 }
+          - { name: rs1,    hi: 19, lo: 15, from: op1 }
+          - { name: funct3, hi: 14, lo: 12, const: 3 }
+          - { name: imm_lo, hi: 11, lo: 7,  from: op2, from_bits: [4, 0] }
+          - { name: opcode, hi: 6,  lo: 0,  const: 35 }        # 0x23 STORE
+      reads_dest: false
+
+  خزّن_بايت:
+    - en: sb
+      form: "x, imm12(x)"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm, bits: 12, signed: true }
+      encode:
+        width: 32
+        fields:
+          - { name: imm_hi, hi: 31, lo: 25, from: op2, from_bits: [11, 5] }
+          - { name: rs2,    hi: 24, lo: 20, from: op0 }
+          - { name: rs1,    hi: 19, lo: 15, from: op1 }
+          - { name: funct3, hi: 14, lo: 12, const: 0 }
+          - { name: imm_lo, hi: 11, lo: 7,  from: op2, from_bits: [4, 0] }
+          - { name: opcode, hi: 6,  lo: 0,  const: 35 }
+      reads_dest: false
+
+  # ── صيغة B (فوريٌّ مُشظّى ومُقلَّب): imm[12]→31 · imm[10:5]→[30:25] · imm[4:1]→[11:8] · imm[11]→7 ──
+  # الإزاحةُ بالبايتات وبتُّها الأدنى غيرُ مُرمَّزٍ (الأهدافُ زوجيّةٌ حتمًا).
+  اقفز_إن_تساوى:
+    - en: beq
+      form: "x, x, imm13"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm, bits: 13, signed: true }
+      encode:
+        width: 32
+        fields:
+          - { name: imm12,  hi: 31, lo: 31, from: op2, from_bits: [12, 12] }
+          - { name: imm10_5,hi: 30, lo: 25, from: op2, from_bits: [10, 5] }
+          - { name: rs2,    hi: 24, lo: 20, from: op1 }
+          - { name: rs1,    hi: 19, lo: 15, from: op0 }
+          - { name: funct3, hi: 14, lo: 12, const: 0 }
+          - { name: imm4_1, hi: 11, lo: 8,  from: op2, from_bits: [4, 1] }
+          - { name: imm11,  hi: 7,  lo: 7,  from: op2, from_bits: [11, 11] }
+          - { name: opcode, hi: 6,  lo: 0,  const: 99 }        # 0x63 BRANCH
+      reads_dest: false
+
+  اقفز_إن_اختلف:
+    - en: bne
+      form: "x, x, imm13"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm, bits: 13, signed: true }
+      encode:
+        width: 32
+        fields:
+          - { name: imm12,  hi: 31, lo: 31, from: op2, from_bits: [12, 12] }
+          - { name: imm10_5,hi: 30, lo: 25, from: op2, from_bits: [10, 5] }
+          - { name: rs2,    hi: 24, lo: 20, from: op1 }
+          - { name: rs1,    hi: 19, lo: 15, from: op0 }
+          - { name: funct3, hi: 14, lo: 12, const: 1 }
+          - { name: imm4_1, hi: 11, lo: 8,  from: op2, from_bits: [4, 1] }
+          - { name: imm11,  hi: 7,  lo: 7,  from: op2, from_bits: [11, 11] }
+          - { name: opcode, hi: 6,  lo: 0,  const: 99 }
+      reads_dest: false
+
+  اقفز_إن_أصغر:
+    - en: blt
+      form: "x, x, imm13"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm, bits: 13, signed: true }
+      encode:
+        width: 32
+        fields:
+          - { name: imm12,  hi: 31, lo: 31, from: op2, from_bits: [12, 12] }
+          - { name: imm10_5,hi: 30, lo: 25, from: op2, from_bits: [10, 5] }
+          - { name: rs2,    hi: 24, lo: 20, from: op1 }
+          - { name: rs1,    hi: 19, lo: 15, from: op0 }
+          - { name: funct3, hi: 14, lo: 12, const: 4 }
+          - { name: imm4_1, hi: 11, lo: 8,  from: op2, from_bits: [4, 1] }
+          - { name: imm11,  hi: 7,  lo: 7,  from: op2, from_bits: [11, 11] }
+          - { name: opcode, hi: 6,  lo: 0,  const: 99 }
+      reads_dest: false
+
+  اقفز_إن_أصغر_لاموقع:
+    - en: bltu
+      form: "x, x, imm13"
+      operands:
+        - { kind: reg, class: gpr, role: in }
+        - { kind: reg, class: gpr, role: in }
+        - { kind: imm, bits: 13, signed: true }
+      encode:
+        width: 32
+        fields:
+          - { name: imm12,  hi: 31, lo: 31, from: op2, from_bits: [12, 12] }
+          - { name: imm10_5,hi: 30, lo: 25, from: op2, from_bits: [10, 5] }
+          - { name: rs2,    hi: 24, lo: 20, from: op1 }
+          - { name: rs1,    hi: 19, lo: 15, from: op0 }
+          - { name: funct3, hi: 14, lo: 12, const: 6 }
+          - { name: imm4_1, hi: 11, lo: 8,  from: op2, from_bits: [4, 1] }
+          - { name: imm11,  hi: 7,  lo: 7,  from: op2, from_bits: [11, 11] }
+          - { name: opcode, hi: 6,  lo: 0,  const: 99 }
+      reads_dest: false

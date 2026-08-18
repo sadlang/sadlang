@@ -556,6 +556,165 @@ namespace Sad
             }
 
             /**
+             * (AR) البابُ الواحدُ لكلِّ مؤشّرِ نصٍّ يُقرأ — «مؤشّرٌ صالحُ الإسنادِ دائمًا».
+             *
+             *      المشكلةُ الجذريّة: «عدم» يُنزَل حارسًا عدديًّا (`kSadNullSentinel`)،
+             *      وخانةٌ نوعُها المُصرَّحُ «نص» قد تحمله، فيُحوَّل بـ`inttoptr` ويُقرأ —
+             *      وهو **ليس عنوانًا**. والحارسُ ليس صفرًا، فمقارنةُ `nullptr` لا تراه.
+             *      وكان في الخلفيّةِ ~١١٠ موضعِ `inttoptr` في سياقٍ نصّيّ، كلُّ واحدٍ
+             *      منها منفذُ انهيارٍ مستقلٌّ يلزمه حارسٌ خاصّ. رقعةُ منفذٍ تُغلق منفذًا
+             *      وتترك البقيّة — ومنها ما لم يُحصَ بعد.
+             *
+             *      العلاجُ في الطبقة: بابٌ واحدٌ يمرُّ به كلُّ قارئِ نصٍّ فيُعيد **دائمًا**
+             *      مؤشّرًا يجوز إسنادُه: إن كان الواردُ حارسَ العدمِ (عدديًّا) أو مؤشّرًا
+             *      صفريًّا، أعاد لفظَ العدمِ من مصدرِ الحقيقة (`kNullDisplay`) — فيطبع
+             *      المترجّمُ ما يطبعه المفسّرُ بدل أن ينهار. وأيُّ منفذٍ لم يُحصَ يهبط
+             *      إلى «لاشيء» لا إلى انهيارِ تجزئة: الخاصّيّةُ تُغلق **صنفَ** العطبِ
+             *      لا حالاتِه المعدودة.
+             *
+             * (EN) The single door for every string pointer that gets read: always
+             *      returns a dereferenceable i8*. Null (sentinel in the integer domain,
+             *      or a null pointer) yields the SoT null word instead of a wild address,
+             *      so an unenumerated port degrades to «لاشيء» rather than a segfault.
+             */
+            llvm::Value *emitSafeStringPtr(llvm::Value *value, const char *label);
+
+            /**
+             * (AR) نتيجةُ حارسِ الحاويةِ العدميّة: الشرطُ والمؤشّرُ الآمن.
+             * (EN) Container null-guard result: the predicate and a safe pointer.
+             */
+            struct ContainerNullGuard
+            {
+                llvm::Value *isNull;  ///< (AR) i1 — أعدمٌ هي؟ / (EN) i1 — is it null?
+                llvm::Value *safePtr; ///< (AR) مؤشّرٌ يجوز فكُّه دائمًا / (EN) always dereferenceable
+            };
+
+            /**
+             * (AR) **البابُ الثالث** — حاويةٌ (مصفوفةٌ/خريطةٌ) عدمٌ تُقرَأ بنيتُها.
+             *
+             *      🔑 وسببُ وجودِه أنّ نظيرَه كُتِب **أربعَ مرّاتٍ نسخًا**، وفي كلِّ
+             *      مرّةٍ أُسقِط شيءٌ منه أو وُضِع في طبقةٍ لا يمرُّ بها العطب. وسجلُّ
+             *      ذلك محفوظٌ في `arith_type_conv.cpp`: ثلاثُ رقعاتٍ صحيحةٍ في ثلاثِ
+             *      طبقاتٍ = صفرُ إصلاحٍ ورمزُ بناءٍ ناجح. ثمّ قِيس بعدَها أنّ
+             *      **بابَ الطباعةِ المباشرةِ** (`اطبع(حاوية_عدم)`) ما يزال مكشوفًا
+             *      بينما `اطبع(نص(حاوية_عدم))` محروس — بابانِ من عائلةٍ واحدة،
+             *      أُغلِق أحدُهما وتُرِك الآخَر.
+             *
+             *      فهذا موضعٌ **واحدٌ يُنادى**، وأيُّ منفذٍ خامسٍ يُكتَب غدًا يناديه
+             *      أو يظهر غيابُه في المراجعة.
+             *
+             * (AR) ⚠️ والعدمُ هنا **وجهان** لا وجهٌ واحد: مؤشّرٌ صفريّ (تصريحٌ عارٍ)،
+             *      و`kSadNullSentinel` في خانةِ المؤشّر (تهيئةٌ صريحةٌ بـ«لاشيء»).
+             *      وحارسُ المؤشّرِ وحدَه يترك الثانيةَ تنهار: الحارسُ ليس صفرًا،
+             *      فيمرُّ ويُفَكُّ عنوانًا. قِيس الوجهانِ كلاهما.
+             *
+             * (AR) ⚠️ والقرارُ على **مؤشّرِ الحاويةِ** لا على بياناتِها: حاويةٌ فارغةٌ
+             *      مُهيّأةٌ (`مصفوفة س = []`) حيّةٌ وتبقى «[]» لا «لاشيء».
+             *
+             * (EN) The THIRD door: a null container whose struct is about to be read.
+             *      Its predecessor was copied four times, each copy dropping something
+             *      or landing in a layer the defect never traverses (see the record in
+             *      arith_type_conv.cpp). Then the direct-print door was measured still
+             *      open while the to-string door was guarded — same family, one closed.
+             *      So this is ONE callee. Null has TWO shapes (zero pointer and the
+             *      sentinel in the pointer slot); a pointer-only test lets the second
+             *      crash. The test is on the CONTAINER pointer, not its data, so an
+             *      initialised empty container stays «[]» rather than becoming null.
+             *
+             * (AR) 🔑 والمشتركُ المُستخرَجُ هو **الفحصُ** لا العلاج: هو الذي سقط في
+             *      كلِّ نسخةٍ من النسخِ الأربع. أمّا العلاجُ فيختلف بالمُستهلِك:
+             *        • مُستهلِكٌ يفكُّ البنيةَ **بنفسِه** (طباعةُ المصفوفة) يلزمه
+             *          عنوانٌ صالحٌ ⇒ يُمرَّر `containerStructTy` فيُنتقى نائبٌ صفريّ.
+             *        • مُستهلِكٌ **يحرس الصفرَ سلفًا** (`__sad_map_to_string`) يكفيه
+             *          أن يصلَه صفرٌ ⇒ يُمرَّر `nullptr` فيُسوَّى الحارسُ صفرًا.
+             *      ⚠️ ولا تُخمَّن بنيةٌ لا يحتاجها المُستهلِك: نائبٌ بتخطيطٍ مُخمَّنٍ
+             *      يُقرَأ فوقَ حجمِه عطبٌ صُنِع باليد باسمِ الحراسة.
+             * (EN) What was extracted is the TEST, not the cure — the test is what every
+             *      one of the four copies dropped. The cure differs by consumer: one that
+             *      dereferences the struct itself needs a valid address (pass the struct
+             *      type ⇒ zero placeholder); one that already guards zero needs only to
+             *      receive zero (pass nullptr ⇒ the sentinel is normalised to null).
+             *      Never invent a layout the consumer does not need.
+             *
+             * @param containerPtr مؤشّرُ الحاوية (ptr أو i64 يُحوَّل)
+             * @param containerStructTy بنيةُ الحاوية للنائبِ الصفريّ — أو `nullptr`
+             *        فيُسوَّى الحارسُ مؤشّرًا صفريًّا للمُستهلِكِ الحارسِ سلفًا
+             * @param placeholderName اسمُ النائبِ العامِّ المشترك (يُهمَل مع `nullptr`)
+             * @param tag بادئةُ تسميةِ التعليمات
+             */
+            ContainerNullGuard emitContainerNullGuard(llvm::Value *containerPtr,
+                                                      llvm::Type *containerStructTy,
+                                                      const char *placeholderName,
+                                                      const std::string &tag);
+
+            /**
+             * (AR) البابُ الثاني — لمنافذِ **العمليّة** لا العرض.
+             *
+             *      المنافذُ صنفان، ودلالةُ المفسّرِ تفرّق بينهما:
+             *        • عرضٌ (طباعة/ضمّ/إقحام): المفسّرُ يطبع «لاشيء» ⇒ `emitSafeStringPtr`.
+             *        • عمليّةٌ (`.طول`/`.جزء`/`.حرف_عند`): المفسّرُ **يرفعُ RUN033**
+             *          «نوع المعامل 'NULL' غير مدعوم في العملية '…'» (مقيس).
+             *
+             * (AR) 🔑 ولو استُعمل بابُ العرضِ في موضعِ العمليّةِ لأنتج جوابًا **خاطئًا
+             *      صامتًا** بدل الانهيار: قِيس أنّ «س.جزء(0، 2)» على خانةٍ عدميّةٍ يُعطي
+             *      «لا» — أوّلَ حرفَين من لفظِ «لاشيء». وإبدالُ انهيارٍ مرئيٍّ بجوابٍ
+             *      كاذبٍ لا يُرى ليس علاجًا، بل تباعُدُ محرّكَين جديدٌ صُنِع باليد.
+             *
+             * (EN) Second door, for OPERATION ports (not display): the interpreter raises
+             *      RUN033 there, so the compiler must raise it too. Using the display door
+             *      here would silently answer «لا» for «س.جزء(0،2)» (measured) — trading a
+             *      visible crash for an invisible wrong answer.
+             *
+             * @param operationArabic اسمُ العمليّةِ كما يعرضه المفسّر (مثل «.جزء()»)
+             * @param raisedCode رمزُ الخطأ: RUN033 للطرائق، وRUN037 لتحويلاتِ المدمجات
+             *                   («عشري(س)» على عدمٍ ⇒ RUN037 في المفسّر — مقيس).
+             */
+            llvm::Value *emitStringPtrOrRaise(
+                llvm::Value *value,
+                const std::string &operationArabic,
+                const char *label,
+                Sad::Errors::ErrorCode raisedCode =
+                    Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID);
+
+            /**
+             * (AR) البابُ العامُّ للرفع — لكلِّ عائلةِ قيمٍ لا للنصِّ وحدَه.
+             *
+             *      `emitStringPtrOrRaise` أعلاه بابٌ نصّيٌّ يُعيد مؤشّرًا، فلا يصلح
+             *      لمستقبِلٍ مصفوفةٍ أو خريطةٍ لا يُراد منه مؤشّرٌ بل **استمرارُ**
+             *      المسارِ الأصليِّ بعد التحقّق. وهذا البابُ يفعل ذلك: إن كان `value`
+             *      عدمًا (صفرًا أو حارسَ العدم) طُبِع نصُّ الكتالوجِ وخرج البرنامجُ
+             *      بـ١؛ وإلّا استمرّ المُدرِجُ على كتلةِ «موجود» فيُصدَر ما بعدَه كما هو.
+             *
+             *      🔑 والفراغاتُ تُمرَّر من المستدعي لأنّها تختلف باختلافِ الرمز:
+             *      RUN033 يسأل عن `{operation}`، وRUN018 لا يسأل عنها.
+             *
+             *      ⚠️ **إلّا `{type}` فلا يمرّره المستدعي**: يملؤه البابُ بنفسِه من
+             *      **شكلِ** العدمِ (`VOID` لخانةٍ صفريّة، `NULL` لحارسِ العدم) كما
+             *      يفرّق المفسّرُ مقيسًا. وأيُّ قيمةٍ يمرّرها المستدعي لهذا المفتاح
+             *      تُستبدَل.
+             *
+             * (EN) The general raise door, for any value family (not just strings):
+             *      on null it prints the catalog text and exits(1); otherwise emission
+             *      continues on the "present" block. Placeholders come from the caller
+             *      because they differ per code — EXCEPT {type}, which the door fills
+             *      itself from the null's SHAPE (VOID vs NULL), as the interpreter does.
+             */
+            void emitRaiseIfNull(llvm::Value *value,
+                                 Sad::Errors::ErrorCode raisedCode,
+                                 const std::map<std::string, std::string> &placeholders,
+                                 const char *label);
+
+            /// (AR) جسمُ الرفعِ وحدَه (طباعةٌ فخروج) بلا تفريع — مشتركٌ بين البابَين.
+            /// (EN) The raise body alone (print then exit), shared by both doors.
+            void emitNullRaiseBody(Sad::Errors::ErrorCode raisedCode,
+                                   const std::map<std::string, std::string> &placeholders,
+                                   const std::string &tag);
+
+            /// (AR) «طول» ⇒ «.طول()» — اسمُ العمليّةِ بصيغةِ عرضِ المفسّر.
+            /// (EN) «طول» ⇒ «.طول()» — the interpreter's operation label spelling.
+            static std::string stringMethodOperationLabel(std::string_view methodName);
+
+            /**
              * التحقق من صحة الوحدة
              * Verify module correctness
              *
@@ -1538,6 +1697,7 @@ namespace Sad
             llvm::Value *emitObjectGet(std::shared_ptr<SIRInstruction> inst) { return oop_->emitObjectGet(inst); }                // قراءة خاصية
             llvm::Value *emitObjectSet(std::shared_ptr<SIRInstruction> inst) { return oop_->emitObjectSet(inst); }                // تعيين خاصية
             llvm::Value *emitObjectCall(std::shared_ptr<SIRInstruction> inst) { return objarr_->emitObjectCall(inst); }           // استدعاء طريقة
+            llvm::Value *emitObjectNullCheck(std::shared_ptr<SIRInstruction> inst) { return oop_->emitObjectNullCheck(inst); }     // حراسة مُستقبِل النداء
             llvm::Value *emitInstanceOf(std::shared_ptr<SIRInstruction> inst) { return objarr_->emitInstanceOf(inst); }           // تحقق النوع
             llvm::Value *emitObjectCast(std::shared_ptr<SIRInstruction> inst) { return objarr_->emitObjectCast(inst); }           // تحويل كائن
             llvm::Value *emitClassDef(std::shared_ptr<SIRInstruction> inst) { return objarr_->emitClassDef(inst); }               // تعريف صنف

@@ -5,6 +5,8 @@
 // ============================================================================
 #include "sir_builder.h"
 #include "builders/expression_builder.h"
+#include "error_catalog.h" // (AR) getTemplate(code)->id — الرمزُ من الكتالوج لا حرفًا
+#include "error_manager.h" // (AR) reportFromCatalog + buildBilingualMessage
 
 #include <iostream>
 #include <limits>
@@ -176,6 +178,231 @@ namespace Sad
             }
 
             // ============================================================================
+            // (AR) أينتهي هذا المستقبِلُ إلى قراءةٍ بلا أثرٍ جانبيّ؟ — تعاوديًّا.
+            //      يُقبَل: متغيّرٌ · «هذا» · عضوٌ **قاعدتُه مقبولةٌ هي الأخرى**.
+            //      ويُرفَض كلُّ ما عداه، ومنه النداءُ والإسنادُ والفهرسة —
+            //      ⚠️ والفهرسةُ مرفوضةٌ **تحفّظًا**: `س[i]` قراءةٌ بلا أثرٍ ظاهرٍ،
+            //      لكنّ `i` نفسَه قد يكون نداءً، ولا تُبنى هنا شجرةُ آثارٍ كاملة.
+            //      والتحفّظُ يُنتِج رفضًا مُشخَّصًا؛ وضدُّه يُنتِج أثرًا مضاعَفًا
+            //      **لا يُرى في مخرَجٍ صحيح**. والأوّلُ يُصلَح بسطرٍ من الكاتب.
+            // (EN) Does this receiver bottom out in a side-effect-free read? Accepts a
+            //      variable, «this», or a member whose BASE is itself acceptable.
+            //      Indexing is refused conservatively: the index expression could
+            //      itself be a call, and no full effect analysis is built here. Being
+            //      conservative costs a diagnosed rejection; the converse costs a
+            //      duplicated side effect that no correct output reveals.
+            // ============================================================================
+            static bool isSideEffectFreeReceiver(const Sad::AST::Expr *receiver)
+            {
+                while (receiver != nullptr)
+                {
+                    if (dynamic_cast<const Sad::AST::VariableExpr *>(receiver) != nullptr ||
+                        dynamic_cast<const Sad::AST::ThisExpr *>(receiver) != nullptr)
+                    {
+                        return true;
+                    }
+                    if (const auto *member = dynamic_cast<const Sad::AST::MemberExpr *>(receiver))
+                    {
+                        receiver = member->object.get();
+                        continue;
+                    }
+                    if (const auto *access =
+                            dynamic_cast<const Sad::AST::MemberAccessExpr *>(receiver))
+                    {
+                        receiver = access->object.get();
+                        continue;
+                    }
+                    return false;
+                }
+                return false;
+            }
+
+            // ============================================================================
+            // buildExprOptionalMethodCall
+            // ============================================================================
+            BuildResult ExpressionBuilder::buildExprOptionalMethodCall(AST::MethodCallExpr *methodCallExpr)
+            {
+                if (!methodCallExpr || !methodCallExpr->object)
+                    return BuildResult();
+
+                // (AR) المستقبِلُ البسيطُ وحدَه: قراءةُ متغيّرٍ أو «هذا» أو عضوٍ منهما —
+                //      لا أثرَ جانبيَّ لها فتُعاد مرّتَين بلا ضرر. وما عداه يُشخَّص:
+                //      نداءٌ مستقبِلًا يقع مرّتَين، وذاك عطبٌ لا يُرى في مخرَجٍ صحيح —
+                //      والسكوتُ عنه أسوأُ من رفضِه.
+                // (EN) Only a side-effect-free receiver may be re-read: variable, this, or
+                //      a member of them. Anything else is diagnosed, not silently doubled.
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 **الحارسُ يتعاود على القاعدةِ — ولا يفحص العقدةَ الطرفيّة.**
+                //
+                //      كُتِب أوّلًا فحصًا لصنفِ العقدةِ وحدَها، فكان يقبل أيَّ
+                //      `MemberExpr` **ولو كانت قاعدتُه نداءً**. وقِيس أثرُ ذلك:
+                //
+                //        دالة أنشئ()          ⇒ تطبع «نُودي» وتُرجِع كائنًا
+                //        أنشئ().اسم؟.طول()   ⇒ مفسّر: نُودي مرّةً · مترجَم: **مرّتَين**
+                //        أنشئ().اسم.طول()    ⇒ مرّةً في الاثنين (ضابط)
+                //
+                //      والجوابُ `3` **صحيحٌ في الحالتَين** — وهو ما يجعل العطبَ
+                //      غيرَ مرئيّ. أي أنّ الحارسَ كان يُعلِن عقدًا («عضوٌ منهما»)
+                //      ولا يُنفِّذه، ويترك يقع بالضبطِ ما وُضِع ليمنعه.
+                //
+                //      🔑 والدرسُ: **حارسٌ يفحص صنفَ العقدةِ يقيس شكلَ التعبيرِ لا
+                //      أثرَه.** والسؤالُ ليس «أهذا عضو؟» بل «أينتهي هذا التعبيرُ
+                //      إلى قراءةٍ بلا أثرٍ جانبيّ؟» — وذاك سؤالٌ تعاوديٌّ بطبعِه.
+                // (EN) The guard RECURSES on the base; it does not test the terminal
+                //      node. Written first as a node-kind test, it accepted any
+                //      MemberExpr even when its base was a CALL. Measured: the
+                //      compiler evaluated the receiver TWICE (two «نُودي» lines) while
+                //      the interpreter evaluated it once — with an identical, correct
+                //      answer hiding it. A node-kind test measures the SHAPE of an
+                //      expression, not its EFFECT; the real question ("does this end
+                //      in a side-effect-free read?") is recursive by nature.
+                // ════════════════════════════════════════════════════════════
+                const Sad::AST::Expr *receiver = methodCallExpr->object.get();
+                const bool receiverIsSimple = isSideEffectFreeReceiver(receiver);
+                if (!receiverIsSimple)
+                {
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 **تشخيصٌ بلا رمزٍ لا يُحرَس** — النمطُ الثلاثيُّ نفسُه
+                    //      المشروحُ عند SEM042 في `statement_types.cpp`:
+                    //        ① `reportFromCatalog` يُخرِج السطرَ المرمَّزَ الذي يقرؤه
+                    //           الكاتبُ و**تُثبِّته البذرةُ** بـ`@expect_compile_error`.
+                    //        ② الرمزُ يُؤخَذ من الكتالوجِ (`getTemplate(code)->id`) لا
+                    //           يُكتَب حرفًا — وإلّا انجرف عن مصدرِ الحقيقةِ صامتًا.
+                    //        ③ `b_.errors_` هو ما يجعل رمزَ خروجِ البناءِ غيرَ صفريّ.
+                    //      وتركُ أحدِها يُنتِج إمّا رسالةً لا تُثبَّت، أو رفضًا لا يُوقِف
+                    //      البناء. وكانت هذه الرسالةُ **سلسلةً عربيّةً مباشرةً** بلا
+                    //      رمزٍ، فكان الحدُّ الذي تُعلنه **غيرَ محروسٍ ببذرةٍ واحدة**:
+                    //      حدٌّ مذكورٌ في تعليقٍ ولا يقيسه شيءٌ يُنقَض عند أوّلِ تعديل.
+                    // (EN) A diagnostic without a code cannot be guarded — the same
+                    //      three-part pattern documented at SEM042: report through the
+                    //      catalog (the coded line seeds pin on), take the id FROM the
+                    //      catalog (never a literal), and push into the builder's error
+                    //      bucket (what makes the build exit nonzero). This message used
+                    //      to be a bare Arabic literal, so the limit it declares was
+                    //      guarded by no seed at all.
+                    // ════════════════════════════════════════════════════════
+                    Sad::Errors::RenderContext receiverErrorContext;
+                    receiverErrorContext.placeholders = {
+                        {"method", methodCallExpr->methodName}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                        Sad::Errors::ErrorCode::SEM_OPTIONAL_CALL_RECEIVER_NOT_SIMPLE,
+                        Sad::Errors::SourceLocation("", methodCallExpr->position.line,
+                                                    methodCallExpr->position.column),
+                        receiverErrorContext);
+                    const auto *receiverErrorTemplate =
+                        Sad::Errors::ErrorCatalog::instance().getTemplate(
+                            Sad::Errors::ErrorCode::SEM_OPTIONAL_CALL_RECEIVER_NOT_SIMPLE);
+                    std::string receiverErrorText;
+                    if (receiverErrorTemplate)
+                    {
+                        receiverErrorText = "[" + receiverErrorTemplate->id + "] ";
+                    }
+                    receiverErrorText +=
+                        Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                            Sad::Errors::ErrorCode::SEM_OPTIONAL_CALL_RECEIVER_NOT_SIMPLE,
+                            receiverErrorContext);
+                    b_.errors_.push_back(receiverErrorText);
+                    return BuildResult();
+                }
+
+                auto objResult = buildExpression(methodCallExpr->object.get());
+
+                // (AR) مستقبِلٌ معروفٌ «لاشيء» ساكنًا ⇒ عدمٌ بلا توليدِ فرعٍ أصلًا
+                //      (نظيرُ ISSUE-064 في `buildExprOptionalChain` حرفًا بحرف).
+                // (EN) Statically-null receiver ⇒ null, with no branch emitted at all.
+                if (objResult.type == SadTypeKind::Null)
+                {
+                    std::string nullOnly = b_.newTempRegister();
+                    if (b_.currentBlock_)
+                    {
+                        SIRInstruction moveInst(SIROpcode::MOVE);
+                        moveInst.result = SIROperand::Register(nullOnly, SadTypeKind::Integer);
+                        moveInst.operands.push_back(SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel));
+                        b_.currentBlock_->addInstruction(moveInst);
+                    }
+                    return BuildResult(nullOnly, SadTypeKind::Integer);
+                }
+
+                std::string callLabel = b_.newLabel("optcall_invoke");
+                std::string nullLabel = b_.newLabel("optcall_null");
+                std::string mergeLabel = b_.newLabel("optcall_merge");
+
+                auto callBlock = b_.createBasicBlock(callLabel);
+                auto nullBlock = b_.createBasicBlock(nullLabel);
+                auto mergeBlock = b_.createBasicBlock(mergeLabel);
+
+                // (AR) الفحصُ على الحارسِ لا على الصفر — نظيرُ ISSUE-064.
+                // (EN) Test against the sentinel, not zero — mirrors ISSUE-064.
+                std::string cmpReg = b_.newTempRegister();
+                if (b_.currentBlock_)
+                {
+                    SIRInstruction cmpInst(SIROpcode::NE);
+                    cmpInst.result = SIROperand::Register(cmpReg, SadTypeKind::Boolean);
+                    cmpInst.operands.push_back(
+                        SIROperand::Register(objResult.registerName, objResult.type));
+                    cmpInst.operands.push_back(SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel));
+                    b_.currentBlock_->addInstruction(cmpInst);
+                    b_.currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                        SIROperand::Register(cmpReg, SadTypeKind::Boolean),
+                        SIROperand::Label(callLabel),
+                        SIROperand::Label(nullLabel)));
+                }
+
+                // (AR) فرعُ النداء: المستقبِلُ حيٌّ ⇒ نداءُ الطريقةِ **كما هو** بلا
+                //      تعديلِ دلالة. وهو شرطُ ألّا يصير الوصولُ الآمنُ لهجةً ثانية.
+                // (EN) Live receiver ⇒ the ordinary method call, unchanged.
+                if (b_.currentFunction_)
+                    b_.currentFunction_->addBasicBlock(callBlock);
+                b_.currentBlock_ = callBlock;
+                auto callResult = b_.buildMethodCall(methodCallExpr);
+                const SadTypeKind callType =
+                    callResult.registerName.empty() ? SadTypeKind::Integer : callResult.type;
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+                // (AR) ⚠️ الكتلةُ الحاليّةُ قد تكون تبدّلت داخلَ بناءِ النداء (فروعٌ
+                //      داخليّة)، فيُؤخَذ اسمُ الوارِدِ من الحالةِ لا من المُفترَض.
+                // (EN) The current block may change inside the call build, so the PHI's
+                //      incoming label is read from state rather than assumed.
+                const std::string callIncomingLabel =
+                    b_.currentBlock_ ? b_.currentBlock_->name : callLabel;
+
+                if (b_.currentFunction_)
+                    b_.currentFunction_->addBasicBlock(nullBlock);
+                b_.currentBlock_ = nullBlock;
+                std::string nullReg = b_.newTempRegister();
+                if (b_.currentBlock_)
+                {
+                    SIRInstruction moveInst(SIROpcode::MOVE);
+                    moveInst.result = SIROperand::Register(nullReg, SadTypeKind::Integer);
+                    moveInst.operands.push_back(SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel));
+                    b_.currentBlock_->addInstruction(moveInst);
+                    b_.currentBlock_->addInstruction(SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+                }
+
+                if (b_.currentFunction_)
+                    b_.currentFunction_->addBasicBlock(mergeBlock);
+                b_.currentBlock_ = mergeBlock;
+
+                // (AR) النتيجةُ **موسومةٌ خارجَ النطاق** (`Any`) لا مثبَّتةً بنوعِ الطريقة:
+                //      الفرعانِ يحملان نوعَين مختلفَين (نتيجةُ الطريقةِ · العدم)، وتثبيتُهما
+                //      على نوعٍ واحدٍ هو عينُ ما تُصلحه هذه الحملة — العقدُ (أ) في موضعِه.
+                // (EN) The result is OUT-OF-BAND tagged (Any), not pinned to the method's
+                //      return type: the two edges carry different types, and pinning them
+                //      to one is the very defect this campaign closes.
+                std::string phiReg = b_.newTempRegister();
+                SIRInstruction phiInst = SIRInstruction::Phi(
+                    SIROperand::Register(phiReg, SadTypeKind::Any),
+                    {{SIROperand::Register(callResult.registerName, callType),
+                      SIROperand::Label(callIncomingLabel)},
+                     {SIROperand::Register(nullReg, SadTypeKind::Null),
+                      SIROperand::Label(nullLabel)}});
+                if (b_.currentBlock_)
+                    b_.currentBlock_->addInstruction(phiInst);
+
+                return BuildResult(phiReg, SadTypeKind::Any);
+            }
+
+            // ============================================================================
             // buildExprNullCoalesce
             // ============================================================================
             BuildResult ExpressionBuilder::buildExprNullCoalesce(AST::NullCoalesceExpr *nullCoalExpr)
@@ -196,6 +423,23 @@ namespace Sad
                 //      sentinel (0x8000…0001) truncates the sentinel to its low bit (=1),
                 //      so `true` is wrongly seen as the sentinel and the right operand is
                 //      returned. Short-circuit to the left value for any boolean operand.
+                //
+                // 🔑 (AR) [م‑ب · العقد (أ)] هذا الشرطُ **يبقى، ويصير أدقَّ ممّا كان**.
+                //      كان يقرأ «منطقيٌّ» فيشمل المنطقيَّ العدميَّ سهوًا؛ فبعد العقد (أ)
+                //      يُخزَّن `منطقي؟` في `Any` لا في `Boolean` (sirNullableStorageKind)،
+                //      فصار `Boolean` هنا يعني **غيرَ العدميِّ حصرًا** — وهو الذي لا يكون
+                //      «لاشيء» أبدًا، فقصرُ الدائرةِ له صوابٌ لا رقعة. وحذفُه — كما كانت
+                //      الخطّةُ تفترض — يُعيدُ بترَ الحارسِ على المنطقيِّ غيرِ العدميّ.
+                //      والعدميُّ لا يمرّ من هنا: نوعُه `Any` فيسلك مسارَ المقارنةِ الكامل.
+                // 🔑 (EN) [م‑ب · contract (a)] This test STAYS, and becomes more precise than
+                //      it was. It used to read «boolean» and so swept up nullable booleans by
+                //      accident; under contract (a) `bool?` is stored as `Any`, not `Boolean`
+                //      (sirNullableStorageKind), so `Boolean` here now means the NON-nullable
+                //      kind exclusively — the one that genuinely is never null, for which the
+                //      short-circuit is correct rather than a patch. Deleting it, as the plan
+                //      assumed, would reinstate sentinel truncation for non-nullable booleans.
+                //      Nullable booleans no longer reach this line: their kind is `Any`, so
+                //      they take the full comparison path.
                 if (leftResult.type == SadTypeKind::Boolean)
                 {
                     return leftResult;
@@ -381,8 +625,23 @@ namespace Sad
                 {
                     rightReg = b_.newTempRegister();
                     SIRInstruction moveInst(SIROpcode::MOVE);
-                    moveInst.result = SIROperand::Register(rightReg, resultType);
-                    switch (resultType)
+                    // (AR) 🔴 عطبٌ مقيسٌ قبل م‑ب: حين تكون النتيجةُ `Any` (خانةٌ موسومةٌ
+                    //      خارجَ النطاق) كان الثابتُ الأيمنُ يسقط إلى فرعِ `default` فيمرّ
+                    //      «true» على `std::stoll` ⇒ يرمي ⇒ **صفر**. قِيس على
+                    //      `أي س = لاشيء؛ اطبع_سطر(نص(س ؟؟ صحيح))`: المفسّرُ «صحيح»
+                    //      والمترجَمُ «0». و`Any` ليست نوعَ الثابتِ بل **وعاؤه**، فيُبنى
+                    //      الثابتُ بنوعِه هو وتتكفّلُ `toDyn` بتعليبِه عند PHI.
+                    // (EN) 🔴 Defect measured before م‑ب: when the result is `Any` (an
+                    //      out-of-band-tagged slot) the right constant fell through to
+                    //      `default`, so "true" hit `std::stoll`, threw, and yielded **zero**.
+                    //      Measured on `أي س = لاشيء; print(str(س ?? true))`: interpreter
+                    //      «صحيح», compiled «0». `Any` is not the constant's type but its
+                    //      CONTAINER, so the constant is built with its own kind and `toDyn`
+                    //      boxes it at the PHI.
+                    const SadTypeKind constantKind =
+                        (resultType == SadTypeKind::Any) ? rightResult.type : resultType;
+                    moveInst.result = SIROperand::Register(rightReg, constantKind);
+                    switch (constantKind)
                     {
                     case SadTypeKind::String:
                         moveInst.operands.push_back(SIROperand::ConstantString(rightResult.constantValue));

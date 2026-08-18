@@ -528,6 +528,11 @@ namespace Sad
             // (AR) كل ما لم يكن سهم أو لامدا يُعامل ككتلة حتى نهاية
             // (EN) Anything that's not arrow or lambda is treated as block until end
             {
+                // (AR) ISSUE-120 — جسمُ معالِجِ الحدث يُبنى باليد ولا يمرّ بـ
+                //      `parseBlockStmt`، فيُحرَس كي يعدَّه عدّادُ الكتل: «متغير ساكن»
+                //      داخله محلّيٌّ لا عامّ، فيجب أن يبلغ SEM039 كنظائره.
+                // (EN) Hand-rolled event-handler body — guard it for the block counter.
+                BlockDepthGuard eventBodyGuard(blockDepth_);
                 StmtList stmts;
                 while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
                 {
