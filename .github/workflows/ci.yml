@@ -129,8 +129,8 @@ jobs:
 
       - name: "📦 تثبيت أدوات التحليل / Install Analysis Tools"
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake g++ build-essential cppcheck clang-tidy-18
+          bash scripts/ci/apt_retry.sh update
+          bash scripts/ci/apt_retry.sh install -y cmake g++ build-essential cppcheck clang-tidy-18
           sudo ln -sf /usr/bin/clang-tidy-18 /usr/bin/clang-tidy 2>/dev/null || true
 
       - name: "📦 تثبيت LLVM 18 / Install LLVM 18"
@@ -138,8 +138,8 @@ jobs:
           CODENAME=$(lsb_release -cs)
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
-          sudo apt-get update
-          sudo apt-get install -y llvm-18-dev libclang-18-dev || true
+          bash scripts/ci/apt_retry.sh update
+          bash scripts/ci/apt_retry.sh install -y llvm-18-dev libclang-18-dev || true
           echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
 
       - name: "🔨 تكوين CMake (لتوليد compile_commands.json) / Configure CMake (compile_commands.json)"
@@ -623,12 +623,12 @@ jobs:
 
       - name: "📦 تثبيت المتطلبات / Install Dependencies"
         run: |
-          sudo apt-get update
+          bash scripts/ci/apt_retry.sh update
           # (AR) SDL2 ضرورية: بدونها يربط CMake مكتبة SDL2 الويندوزية المرفقة
           #      (SDL2.lib) على Linux فيفشل الربط (R_AMD64_IMAGEBASE/__ImageBase).
           # (EN) SDL2 dev pkgs required: without them CMake links the bundled Windows
           #      SDL2.lib on Linux, breaking the link (R_AMD64_IMAGEBASE/__ImageBase).
-          sudo apt-get install -y cmake g++ build-essential \
+          bash scripts/ci/apt_retry.sh install -y cmake g++ build-essential \
             libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
           # (AR) حزم توليد الكود — sad_check_codegen_env يتطلّبها وقت البناء.
           # (EN) Codegen deps — required at build time by sad_check_codegen_env.
@@ -640,14 +640,14 @@ jobs:
           CODENAME=$(lsb_release -cs)
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
-          sudo apt-get update
+          bash scripts/ci/apt_retry.sh update
           # (AR) ‎clang-18‎ ليس تبعيّةَ بناء: هو **أداةُ الحكم** في اختبارات
           #      الوضع الحرّ — `llvm-18-dev` يعطي المكتباتِ لا سائقَ المُجمِّع،
           #      وبلا السائقِ يتخطّى الحكمُ الحاسمُ (تجميعُ الأسمبليّ المولَّد)
           #      صامتًا فيبقى الملفُّ أخضرَ بلا برهان.
           # (EN) clang-18 is not a build dep: it is the *judge* for freestanding
           #      tests. llvm-18-dev ships libraries, not the compiler driver.
-          sudo apt-get install -y llvm-18-dev libclang-18-dev lld-18 clang-18
+          bash scripts/ci/apt_retry.sh install -y llvm-18-dev libclang-18-dev lld-18 clang-18
           echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
 
       - name: "📦 خبيئة بناء CMake / Cache CMake Build"
@@ -761,13 +761,35 @@ jobs:
         run: |
           sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ -x "$sad" ] && [ -x "$sadc" ]; then
-            echo "▶️ Running dual execution tests..."
-            python3 tests/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
-              echo "⚠️ Dual execution tests had failures"
-          else
-            echo "⚠️ SKIP: sad-run or sad-build not found"
+          # (AR) المفسّر إلزاميّ — غيابه عطلٌ حقيقيٌّ لا يُتخطّى، كما على ويندوز.
+          # (EN) The interpreter is mandatory — its absence is a real failure.
+          if [ ! -x "$sad" ]; then
+            echo "::error::MISSING: $sad — المفسّر إلزاميّ للتنفيذ المزدوج"
+            exit 1
           fi
+          # (AR) المترجم إن بُني: تكافُؤٌ ثنائيّ. وإن غاب **لا نتخطّى** بل نُشغّل
+          #      وضعَ المفسّر-فقط — فتَعملُ الاختباراتُ بدلَ علامةٍ خضراءَ مخادعة.
+          # (EN) Compiler if built → real parity. If absent we do NOT skip: run
+          #      interpreter-only, so the tests actually run instead of a fake green.
+          engine=(--interp "$sad")
+          if [ -x "$sadc" ]; then
+            engine+=(--compiler "$sadc")
+            echo "▶️ تنفيذٌ مزدوجٌ كاملٌ (مفسّر + مترجم) — المستوى: P0"
+          else
+            echo "::warning::وضعُ المفسّر-فقط — sad-build غيرُ مبنيٍّ فلا يُقاسُ التكافؤُ هنا"
+          fi
+          # (AR) ⚠️ --gate يُصدِرُ الحكم، والإخفاقُ **لا يُبتلَع**. وكان قبلَها
+          #      `|| echo "… had failures"` — فمكثتِ الخطوةُ خضراءَ والتكافؤُ **صفرٌ**.
+          #      وP0 بلا أرضيّةٍ مئويّةٍ عمدًا: خمسةُ ملفّاتٍ دخانٍ — أيُّ إخفاقٍ = FAIL.
+          #      ورفعُ المستوى إلى P1/P2 بحسبِ الحدثِ قرارُ سياسةٍ منفصلٌ.
+          # (EN) --gate issues the verdict and the failure is NOT swallowed. The
+          #      previous `|| echo` kept the step green while parity was ZERO.
+          #      P0 deliberately has no percentage floor: any smoke failure = FAIL.
+          if ! python3 tests/runner.py --level P0 --timeout 30 "${engine[@]}" --report --gate; then
+            echo "::error::بوّابةُ القرار: FAIL — إخفاقُ دخانٍ أو تراجعُ تكافُؤ"
+            exit 1
+          fi
+          echo "✅ بوّابةُ القرار: PASS — لا تراجعَ تكافُؤ"
 
       - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
         if: matrix.config == 'Release'
@@ -900,7 +922,7 @@ jobs:
           #      nothing ever executed a natively-emitted ELF in CI. Unit tests measure
           #      encodings; this measures execution.
           # (AR) qemu-user-static للنصف الآخر: AArch64 يُنفَّذ هنا لا يُترجَم فحسب.
-          sudo apt-get install -y qemu-user-static
+          bash scripts/ci/apt_retry.sh install -y qemu-user-static
           # (AR) المصرّفُ شرطُ برهانِ فكِّ Any بوسمِه وحدَه (يُصرَّف من مصدر ص). وبناؤه
           #      عطلٌ **تتحمّله هذه الوظيفةُ عمدًا** منذ إنشائها، فغيابُه إقرارٌ صريحٌ
           #      مُعلَنٌ (`--بلا-مصرف`) لا صمتٌ: يُسقِط برهانَ فكِّ Any بوسمِه وبرهانَ
@@ -1129,13 +1151,35 @@ jobs:
         run: |
           sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ -x "$sad" ] && [ -x "$sadc" ]; then
-            echo "▶️ Running dual execution tests..."
-            python3 tests/runner.py --level P0 --timeout 30 --interp "$sad" --compiler "$sadc" --report || \
-              echo "⚠️ Dual execution tests had failures"
-          else
-            echo "⚠️ SKIP: sad-run or sad-build not found"
+          # (AR) المفسّر إلزاميّ — غيابه عطلٌ حقيقيٌّ لا يُتخطّى، كما على ويندوز.
+          # (EN) The interpreter is mandatory — its absence is a real failure.
+          if [ ! -x "$sad" ]; then
+            echo "::error::MISSING: $sad — المفسّر إلزاميّ للتنفيذ المزدوج"
+            exit 1
           fi
+          # (AR) المترجم إن بُني: تكافُؤٌ ثنائيّ. وإن غاب **لا نتخطّى** بل نُشغّل
+          #      وضعَ المفسّر-فقط — فتَعملُ الاختباراتُ بدلَ علامةٍ خضراءَ مخادعة.
+          # (EN) Compiler if built → real parity. If absent we do NOT skip: run
+          #      interpreter-only, so the tests actually run instead of a fake green.
+          engine=(--interp "$sad")
+          if [ -x "$sadc" ]; then
+            engine+=(--compiler "$sadc")
+            echo "▶️ تنفيذٌ مزدوجٌ كاملٌ (مفسّر + مترجم) — المستوى: P0"
+          else
+            echo "::warning::وضعُ المفسّر-فقط — sad-build غيرُ مبنيٍّ فلا يُقاسُ التكافؤُ هنا"
+          fi
+          # (AR) ⚠️ --gate يُصدِرُ الحكم، والإخفاقُ **لا يُبتلَع**. وكان قبلَها
+          #      `|| echo "… had failures"` — فمكثتِ الخطوةُ خضراءَ والتكافؤُ **صفرٌ**.
+          #      وP0 بلا أرضيّةٍ مئويّةٍ عمدًا: خمسةُ ملفّاتٍ دخانٍ — أيُّ إخفاقٍ = FAIL.
+          #      ورفعُ المستوى إلى P1/P2 بحسبِ الحدثِ قرارُ سياسةٍ منفصلٌ.
+          # (EN) --gate issues the verdict and the failure is NOT swallowed. The
+          #      previous `|| echo` kept the step green while parity was ZERO.
+          #      P0 deliberately has no percentage floor: any smoke failure = FAIL.
+          if ! python3 tests/runner.py --level P0 --timeout 30 "${engine[@]}" --report --gate; then
+            echo "::error::بوّابةُ القرار: FAIL — إخفاقُ دخانٍ أو تراجعُ تكافُؤ"
+            exit 1
+          fi
+          echo "✅ بوّابةُ القرار: PASS — لا تراجعَ تكافُؤ"
 
       - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
         uses: actions/upload-artifact@v4

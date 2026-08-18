@@ -493,6 +493,30 @@ if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate
     message(STATUS "✓ بوّابة NFR / NFR gate enabled (tests/system/benchmark)")
 endif()
 
+# ──────────────────────────────────────────────────────────────────────
+# (AR) الاختبارُ الذاتيُّ لبوّابة NFR — بذرتان متعاكستان على دالّةِ الحكمِ الخالصة.
+#      ⚠️ ولا يحتاج مفسّرًا مبنيًّا: يُغذّي `evaluate` بقياساتٍ مُصطنَعةٍ ويشترطُ
+#      حكمَين متعاكسَين — سكوتًا على آلةٍ بطيئةٍ بالتساوي، وإخفاقًا على تراجعٍ
+#      حقيقيٍّ ولو كانت الآلةُ بطيئةً فوقَه. لأنّ تحويلَ الحكمِ إلى نسبةٍ يوسّعُ
+#      المقبولَ، وتوسيعٌ بلا شاهدٍ يُخفِقُ هو الطريقُ إلى حارسٍ لا يعضّ.
+# (EN) NFR gate self-test: feeds the pure verdict function synthetic samples and
+#      demands opposite verdicts — silent on a uniformly slow machine, failing on
+#      a real regression even under one. Making a verdict relative widens what is
+#      accepted; widening without a seed that still fails yields a toothless guard.
+# ──────────────────────────────────────────────────────────────────────
+if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate.py")
+    add_test(
+        NAME NFR_Gate_SelfTest
+        COMMAND ${CMAKE_COMMAND} -E env
+            "PYTHONIOENCODING=utf-8"
+            "PYTHONUTF8=1"
+            ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate.py"
+                --self-test
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    set_tests_properties(NFR_Gate_SelfTest PROPERTIES TIMEOUT 60 LABELS "System;nfr;contract")
+endif()
+
 # ─────────────────────────────────────────────────────────────────────
 # (AR) بوّابة وصل الخلفيّة الأصليّة (بلا LLVM) بالمُشغِّل — تُشغّل sad-build
 #      نفسَه بـ«--خلفية-أصلية» وتحكم على بنية ELF64 الناتجة. اختباراتُ

@@ -339,4 +339,29 @@ if(BUILD_TESTS)
         LABELS "coverage;dual_execution;maps;membership;core"
         TIMEOUT 60
     )
+
+    # ──────────────────────────────────────────────────────────────────
+    # (AR) حارسُ عقدِ مسارِ المحرّك — لا يحتاج مُصرِّفًا ولا محرّكًا مبنيًّا.
+    #      كلُّ اختباراتِ DualExecution أعلاه تمرّرُ `$<TARGET_FILE:sad-run>`
+    #      وهو **مطلقٌ** بحكمِ CMake، فتنجو من العطبِ ولا تكشفُه. والذي كشفَه
+    #      هو خطوةُ CI التي تمرّرُ `build/bin/sad-run` نسبيًّا — وكانت تبتلعُ
+    #      إخفاقَها. فالحارسُ هنا يُثبِّتُ العقدَ حيثما نُودِيَ المُشغِّل.
+    # (EN) Engine-path contract guard: needs neither compiler nor built engine.
+    #      Every DualExecution test above passes an absolute $<TARGET_FILE:...>,
+    #      so they survive the defect without exposing it; the CI step that
+    #      passes a relative path is what broke — and it swallowed its failure.
+    # ──────────────────────────────────────────────────────────────────
+    add_test(
+        NAME DualRunner_EnginePathContract
+        COMMAND ${CMAKE_COMMAND} -E env
+            "PYTHONIOENCODING=utf-8"
+            "PYTHONUTF8=1"
+            ${Python3_EXECUTABLE}
+                "${CMAKE_SOURCE_DIR}/tests/system/harness/test_engine_path_is_absolute.py"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    set_tests_properties(DualRunner_EnginePathContract PROPERTIES
+        LABELS "harness;dual_execution;contract"
+        TIMEOUT 120
+    )
 endif()

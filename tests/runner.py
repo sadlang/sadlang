@@ -305,6 +305,55 @@ def parse_metadata(filepath: Path) -> TestMetadata:
 # Part ③: Test execution
 # ═══════════════════════════════════════════════════════════════════════════════════
 
+def _resolve_binary(p: Path) -> Path:
+    """
+    (AR) حلّ مسار الثنائيّ عابرًا للمنصّات: مسارات config مكتوبة بصيغة ويندوز
+         (build/bin/Debug/x.exe). على المولّدات أحاديّة التهيئة (Linux/macOS)
+         تكون الثنائيّات في build/bin/x بلا لاحقة .exe وبلا مجلّد Debug/Release.
+         نجرّب البدائل بالترتيب حتّى نجد الموجود.
+    (EN) Cross-platform binary resolution: config paths are Windows-style
+         (multi-config). On single-config generators (Linux/macOS) the binary
+         lives at build/bin/x with no .exe and no Debug/Release dir. Try fallbacks.
+
+    (AR) 🔑 والمسارُ يُرَدُّ **مطلقًا** كلَّما وُجِد: `run_interpreter` يُشغّلُ المحرّكَ
+         في مجلّدِ عملٍ خاصٍّ (`cwd=work_dir`)، ومسارٌ نسبيٌّ يُحَلُّ على POSIX
+         **بعدَ** `chdir` فلا يوجد ⇒ خطأٌ في مللي ثانيةٍ يُقرأ `FAIL_INTERP` على
+         كلِّ ملفّ. وعلى ويندوز يُكمِلُ `CreateProcess` الاسمَ الجزئيَّ بمجلّدِ
+         العمليّةِ الأمِّ فيمرّ — ففرقُ المنصّتَين يجعلُ العطبَ خفيًّا حيث يُطوَّر
+         ظاهرًا حيث يُقاس. و`run_compiler` كان يُطلِقُ مساراتِه منذ البداية؛
+         هذا هو المكانُ الذي يجعلُ الدرسَ واحدًا للمحرّكَين بدل نصفِ تطبيق.
+    (EN) Always return an ABSOLUTE path when the binary is found: run_interpreter
+         executes the engine with cwd=work_dir, and on POSIX a relative program is
+         resolved AFTER the chdir, so it vanishes — a 1 ms failure reported as
+         FAIL_INTERP for every file. On Windows CreateProcess completes a partial
+         name against the PARENT's directory, so it passes — hiding the defect
+         exactly where we develop it. run_compiler already absolutised its paths;
+         this makes the lesson one rule for both engines instead of half of one.
+
+    (AR) ودالّةٌ على مستوى الوحدةِ لا مُعشَّشةٌ في `main` — لأنّ ما لا يُستورَد
+         لا يُحرَس، وهذا العقدُ (**مطلقٌ دائمًا**) هو الذي انكسرَ صامتًا.
+    (EN) Module-level, not nested in main: what cannot be imported cannot be
+         guarded, and this contract is precisely the one that broke silently.
+    """
+    if p.exists():
+        return p.resolve()
+    candidates = []
+    stem_variants = [p.name]
+    if p.suffix == ".exe":
+        stem_variants.append(p.stem)  # بلا .exe
+    for nm in stem_variants:
+        # المسار كما هو لكن باسم بديل
+        candidates.append(p.with_name(nm))
+        # إزالة مقطع Debug/Release من المسار
+        parts = [seg for seg in p.parent.parts if seg not in ("Debug", "Release")]
+        if parts:
+            candidates.append(Path(*parts) / nm)
+    for c in candidates:
+        if c.exists():
+            return c.resolve()
+    return p
+
+
 def run_interpreter(sad_exe: Path, test_file: Path, timeout: int,
                     stdin_data: str = "", work_dir: Path = None) -> tuple[str, float, str]:
     """
@@ -1204,9 +1253,19 @@ def print_result(result: TestResult, verbose: bool, use_colors: bool):
         line += ")"
     print(line)
 
-    # (AR) أخطاء الترجمة/التشغيل تُطبع دائمًا — نصّ الخطأ ضروريّ للتشخيص في CI.
-    # (EN) Always surface compile/runtime errors — the message is essential for CI triage.
-    if result.error_message and result.status in (Status.FAIL_COMPILE, Status.FAIL_RUNTIME):
+    # (AR) أخطاء المفسّر/الترجمة/التشغيل تُطبع دائمًا — نصّ الخطأ ضروريّ للتشخيص في CI.
+    # (EN) Always surface interpreter/compile/runtime errors — essential for CI triage.
+    #
+    # (AR) ⚠️ وFAIL_INTERP كان **خارجَ** هذه القائمة، فظهرَ في CI اسمًا بلا سبب:
+    #      «❌ FAIL_INTERP 001_hello.ص (مفسر: 1ms)» ولا شيءَ بعدَه. وهي الحالةُ
+    #      التي أخفت عطبَ المسارِ النسبيِّ أعلاه: رمزُ الإخفاقِ وحدَه لا يُميّز
+    #      «المحرّكُ لم يوجَدْ» من «المحرّكُ رفضَ البرنامج».
+    # (EN) FAIL_INTERP was absent from this list, so CI showed the code with no
+    #      cause — which is what hid the relative-path defect above: the code alone
+    #      cannot separate "engine not found" from "engine rejected the program".
+    if result.error_message and result.status in (Status.FAIL_INTERP,
+                                                  Status.FAIL_COMPILE,
+                                                  Status.FAIL_RUNTIME):
         print(f"         ↳ {result.error_message[:800]}")
     elif verbose and result.error_message:
         print(f"         ↳ {result.error_message}")
@@ -1635,32 +1694,6 @@ def main():
         max_parallel = args.parallel
     else:
         max_parallel = config["execution"]["max_parallel"]
-
-    # (AR) حلّ مسار الثنائيّ عابرًا للمنصّات: مسارات config مكتوبة بصيغة ويندوز
-    #      (build/bin/Debug/x.exe). على المولّدات أحاديّة التهيئة (Linux/macOS)
-    #      تكون الثنائيّات في build/bin/x بلا لاحقة .exe وبلا مجلّد Debug/Release.
-    #      نجرّب البدائل بالترتيب حتّى نجد الموجود.
-    # (EN) Cross-platform binary resolution: config paths are Windows-style
-    #      (multi-config). On single-config generators (Linux/macOS) the binary
-    #      lives at build/bin/x with no .exe and no Debug/Release dir. Try fallbacks.
-    def _resolve_binary(p: Path) -> Path:
-        if p.exists():
-            return p
-        candidates = []
-        stem_variants = [p.name]
-        if p.suffix == ".exe":
-            stem_variants.append(p.stem)  # بلا .exe
-        for nm in stem_variants:
-            # المسار كما هو لكن باسم بديل
-            candidates.append(p.with_name(nm))
-            # إزالة مقطع Debug/Release من المسار
-            parts = [seg for seg in p.parent.parts if seg not in ("Debug", "Release")]
-            if parts:
-                candidates.append(Path(*parts) / nm)
-        for c in candidates:
-            if c.exists():
-                return c
-        return p
 
     sad_exe = _resolve_binary(sad_exe)
     sadc_exe = _resolve_binary(sadc_exe)
