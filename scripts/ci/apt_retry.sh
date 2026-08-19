@@ -36,21 +36,79 @@ if [ "$#" -eq 0 ]; then
     exit 2
 fi
 
+# (AR) 🔑 إعادةُ المحاولةِ على المرآةِ العاطلةِ نفسِها ليست إعادةً. قِيسَ ذلك في
+#      ١٩ آب ٢٠٢٦: ثلاثُ محاولاتٍ بلغت حدَّها ٣٠٠ ث كلُّها على
+#      `azure.archive.ubuntu.com` (سطورُ `Ign:` متكرّرة) بينما
+#      `archive.ubuntu.com` في السجلِّ نفسِه يُجيبُ `Hit:`. فلا بدَّ أن يتغيّرَ
+#      **شيءٌ** بين المحاولتَين، وإلّا فالإعادةُ إنفاقُ زمنٍ بلا رجاء.
+# (EN) Retrying the same dead mirror is not a retry. Measured 2026-08-19: three
+#      300 s attempts all stalled on azure.archive.ubuntu.com while
+#      archive.ubuntu.com answered Hit: in the very same log.
+# 🔴 (AR) وأسماءُ متغيّراتِ الصدَفةِ **لاتينيّةٌ إلزامًا**: bash لا يقبلُ حرفًا
+#      عربيًّا في اسمِ متغيّر، فـ`قائمة=/etc/…` تُنفَّذُ **أمرًا** لا إسنادًا،
+#      و`$قائمة` تبقى نصًّا حرفيًّا. وهذا ما عطّلَ إسقاطَ المرآةِ في شوطِ
+#      0ce56e40: الدالّةُ نُوديت وردَّت «لا قائمةَ» لأنّ المسارَ لم يُسنَدْ قطُّ،
+#      و`bash -n` لا يراه لأنّه سليمُ النحوِ تمامًا. (وأسماءُ الدوالِّ العربيّةُ
+#      مقبولةٌ — الفرقُ في المتغيّراتِ وحدَها، وذاك ما جعلَ العطبَ خفيًّا.)
+# 🔴 (EN) Shell variable names must be ASCII: bash rejects Arabic letters in a
+#      variable name, so `قائمة=…` runs as a command and `$قائمة` stays
+#      literal — syntactically valid, so `bash -n` never sees it.
+# ⚠️ (AR) يُعلِنُ قرارَه في كلِّ فرعٍ ولا يمتنعُ صامتًا: امتناعٌ بلا سببٍ مطبوعٍ
+#      يُقرأُ «لم يلزمْ» وقد يكون «لم يستطعْ» — وهو عينُ فخِّ «الأخضرُ لم يُقَس».
+#      قِيسَ في شوطِ بوّابةِ الرسوماتِ على 0ce56e40: مهلةُ ٣٠٠ ث وقعت ولم يُطبَعْ
+#      سطرُ إسقاطٍ البتّةَ، فلم يُعرَفْ أيُّ شرطٍ ردَّه.
+# ⚠️ (EN) Announce the decision on every branch; a silent decline reads as
+#      "not needed" when it may be "not possible".
+اسقط_المرآة_العالقة() {
+    mirror_list=/etc/apt/apt-mirrors.txt
+    if [ ! -f "$mirror_list" ]; then
+        echo "ℹ️ لا $mirror_list — لا مرآةَ تُسقَط"
+        return 0
+    fi
+    if ! grep -q 'azure\.archive\.ubuntu\.com' "$mirror_list"; then
+        echo "ℹ️ لا مرآةَ azure في $mirror_list — لا شيءَ يُسقَط"
+        return 0
+    fi
+    # (AR) لا تُترَكُ القائمةُ فارغةً: يلزم بقاءُ مرآةٍ واحدةٍ على الأقلّ.
+    # (EN) Never empty the list: at least one mirror must survive.
+    remaining=$(grep -cv 'azure\.archive\.ubuntu\.com' "$mirror_list")
+    if [ "$remaining" -lt 1 ]; then
+        echo "⚠️ azure هي المرآةُ الوحيدةُ في $mirror_list — لا تُسقَط"
+        return 0
+    fi
+    echo "🔀 إسقاطُ مرآةِ azure ($remaining مرآةً تبقى) — المحاولةُ التالية عليها"
+    if sudo sed -i '/azure\.archive\.ubuntu\.com/d' "$mirror_list"; then
+        echo "✅ أُسقِطت · القائمةُ الآن:"
+        sed 's/^/     /' "$mirror_list"
+    else
+        echo "⚠️ تعذّرَ تعديلُ $mirror_list — يُمضى بلا إسقاط"
+    fi
+}
+
 attempt=1
 while [ "$attempt" -le "$ATTEMPTS" ]; do
     echo "▶️ apt $1 — المحاولة $attempt من $ATTEMPTS (حدّ $PER_ATTEMPT_SECONDS ث)"
     # (AR) `timeout` يقتل المحاولةَ العالقةَ وحدَها لا الوظيفةَ كلَّها.
     # (EN) timeout kills the stuck attempt, not the whole job.
-    if sudo timeout "$PER_ATTEMPT_SECONDS" apt-get "$@"; then
+    # ⚠️ (AR) الرمزُ يُلتقَطُ من الأمرِ مباشرةً لا من بعدِ `if`: كانت الصيغةُ
+    #      `if sudo timeout …; then … fi; status=$?` تُعطي **صفرًا دائمًا** في
+    #      مسارِ الإخفاق (قيمةُ جملةِ `if` نفسِها)، فماتَ فرعُ ١٢٤ وطُبِعَ
+    #      «أخفقت برمز 0» على مهلةٍ بلغت حدَّها تمامًا. قِيسَ في شوط 32226941372.
+    # ⚠️ (EN) Capture the status from the command itself: `status=$?` after an
+    #      `if` block reads the `if` statement's own status — always 0 on the
+    #      failure path — which killed the 124 branch and printed "code 0".
+    sudo timeout "$PER_ATTEMPT_SECONDS" apt-get "$@"
+    status=$?
+    if [ "$status" -eq 0 ]; then
         echo "✅ apt $1 — نجحت في المحاولة $attempt"
         exit 0
     fi
-    status=$?
     if [ "$status" -eq 124 ]; then
         echo "⏰ المحاولة $attempt تجاوزت $PER_ATTEMPT_SECONDS ث — يُعاد"
     else
         echo "⚠️ المحاولة $attempt أخفقت برمز $status — يُعاد"
     fi
+    اسقط_المرآة_العالقة
     attempt=$((attempt + 1))
     [ "$attempt" -le "$ATTEMPTS" ] && sleep 10
 done

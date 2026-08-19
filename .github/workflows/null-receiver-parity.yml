@@ -59,6 +59,8 @@ jobs:
   null-receiver-parity:
     name: "🕳️ قياس منافذ العائلة / Measure the family's ports"
     runs-on: ubuntu-latest
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ ١٦٫٨د — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 60
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
@@ -93,7 +95,14 @@ jobs:
           bash scripts/ci/apt_retry.sh install -y cmake ninja-build g++ build-essential lsb-release wget gnupg \
             libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
           CODENAME=$(lsb_release -cs)
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
+          # (AR) لا يُؤنبَبُ الجلبُ في gpg مباشرةً: محاولةٌ مبتورةٌ تكون قد
+          #      سكبت نصفَ مفتاحٍ في القناةِ قبلَ أن تُعاد، فيُبنى على نصفِ ملفّ.
+          # (EN) Never pipe the fetch into gpg: a truncated attempt has already
+          #      spilled half a key into the pipe before the retry happens.
+          bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            https://apt.llvm.org/llvm-snapshot.gpg.key
+          sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg \
+            < "$RUNNER_TEMP/llvm-snapshot.gpg.key"
           echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
           bash scripts/ci/apt_retry.sh update
           bash scripts/ci/apt_retry.sh install -y llvm-18-dev libclang-18-dev clang-18

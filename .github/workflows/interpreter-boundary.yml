@@ -36,6 +36,8 @@ jobs:
   boundary-guard:
     name: "🚧 فحص حدّ المفسّر / Boundary check"
     runs-on: ubuntu-latest
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ ٠٫٥د — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 15
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4

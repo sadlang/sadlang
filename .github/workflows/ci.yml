@@ -112,9 +112,9 @@ jobs:
             echo "::warning::Found $count .txt files in root directory — cleanup recommended"
           fi
 
-      - name: "🔁 حارسُ apt — كلُّ نداءٍ عبرَ المُغلِّف / apt retry guard"
+      - name: "🔁 حارسُ صمودِ CI — جلبٌ مُعادٌ ووظيفةٌ محدودة / CI resilience guard"
         shell: bash
-        run: python3 scripts/ci/check_apt_retry_usage.py
+        run: python3 scripts/ci/check_ci_resilience.py
 
   # ======================================================================
   # 1.5. تحليل ساكن / Static Analysis (clang-tidy + cppcheck)
@@ -140,7 +140,14 @@ jobs:
       - name: "📦 تثبيت LLVM 18 / Install LLVM 18"
         run: |
           CODENAME=$(lsb_release -cs)
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
+          # (AR) لا يُؤنبَبُ الجلبُ في gpg مباشرةً: محاولةٌ مبتورةٌ تكون قد
+          #      سكبت نصفَ مفتاحٍ في القناةِ قبلَ أن تُعاد، فيُبنى على نصفِ ملفّ.
+          # (EN) Never pipe the fetch into gpg: a truncated attempt has already
+          #      spilled half a key into the pipe before the retry happens.
+          bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            https://apt.llvm.org/llvm-snapshot.gpg.key
+          sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg \
+            < "$RUNNER_TEMP/llvm-snapshot.gpg.key"
           echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
           bash scripts/ci/apt_retry.sh update
           bash scripts/ci/apt_retry.sh install -y llvm-18-dev libclang-18-dev || true
@@ -237,27 +244,71 @@ jobs:
           $py = (Get-Command python).Source
           "PYTHON3_EXECUTABLE=$py" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-      - name: "📦 تحميل LLVM 18 (Release فقط) / Download LLVM 18 (Release only)"
+      # (AR) 🔑 خبيئةُ **سلسلةِ الأدواتِ** لا خبيئةُ البناء. وأقوى من إعادةِ
+      #      المحاولةِ على الشبكةِ ألّا تُطرَقَ الشبكةُ أصلًا: هذا التنزيلُ
+      #      (~٤٠٠ مب) عَلِقَ ٥:٠١:٢١ في الشوطَين 32066236587 و32066237695،
+      #      وكان يُعادُ في **كلِّ** شوطِ Release لأنّ `C:\LLVM` لم يُخبَّأْ قطُّ.
+      # (EN) Cache the toolchain itself, not the build tree. The strongest
+      #      retry is not needing the network: this ~400 MB download stalled
+      #      5h01m21s twice and ran on every single Release run.
+      #
+      # ⚠️ (AR) `restore`/`save` منفصلان عمدًا: خطوةُ `actions/cache` الموحّدةُ
+      #      تحفظُ في مرحلةِ `Post` ولا تحفظُ إن أخفقت الوظيفة — ووظيفةُ ويندوز
+      #      هي التي كانت تُخفِق، فما كانت الخبيئةُ لتُكتَبَ أبدًا. والحفظُ هنا
+      #      يقع **فورَ التثبيت** فيصمد وإن سقطَ ما بعدَه.
+      # ⚠️ (EN) Split restore/save on purpose: the unified cache action saves in
+      #      Post and skips it when the job fails — and the failing job was
+      #      exactly this one, so the entry would never be written.
+      - name: "📦 استرجاعُ خبيئةِ LLVM (Release فقط) / Restore LLVM cache"
         if: matrix.config == 'Release'
+        id: llvm-toolchain-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: C:\LLVM
+          key: win-llvm-toolchain-18.1.8
+
+      - name: "📦 تحميل LLVM 18 (عند غياب الخبيئة) / Download LLVM 18 (on cache miss)"
+        if: matrix.config == 'Release' && steps.llvm-toolchain-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $llvmVer = "18.1.8"
           $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvmVer}/LLVM-${llvmVer}-win64.exe"
           $installer = "$env:TEMP\LLVM-${llvmVer}-win64.exe"
           Write-Host "Downloading LLVM ${llvmVer}..."
-          Invoke-WebRequest -Uri $llvmUrl -OutFile $installer -UseBasicParsing
+          pwsh -NoProfile -File scripts/ci/net_retry.ps1 `
+            -Uri $llvmUrl -OutFile $installer -TimeoutSec 900
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Write-Host "Installing LLVM silently..."
           Start-Process -FilePath $installer -ArgumentList "/S","/D=C:\LLVM" -Wait
+          Write-Host "LLVM ${llvmVer} installed at C:\LLVM"
+
+      - name: "📦 حفظُ خبيئةِ LLVM / Save LLVM cache"
+        if: matrix.config == 'Release' && steps.llvm-toolchain-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: C:\LLVM
+          key: win-llvm-toolchain-18.1.8
+
+      # (AR) البيئةُ تُصدَّرُ في الحالَين: الخبيئةُ توفّرُ التنزيلَ لا الإسناد.
+      # (EN) Export env in both cases: the cache spares the download, not the wiring.
+      - name: "⚙️ بيئةُ LLVM (Release فقط) / LLVM env (Release only)"
+        if: matrix.config == 'Release'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'C:\LLVM\lib\cmake\llvm')) {
+            Write-Host "::error::C:\LLVM\lib\cmake\llvm غيرُ موجود — خبيئةٌ ناقصةٌ أو تثبيتٌ أخفق"
+            exit 1
+          }
           echo "LLVM_DIR=C:\LLVM\lib\cmake\llvm" >> $env:GITHUB_ENV
           echo "C:\LLVM\bin" >> $env:GITHUB_PATH
-          Write-Host "LLVM ${llvmVer} installed at C:\LLVM"
+          Write-Host "LLVM_DIR=C:\LLVM\lib\cmake\llvm"
 
       - name: "📦 خبيئة بناء CMake / Cache CMake Build"
         uses: actions/cache@v4
         with:
           path: build
-          key: win-llvm-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
-          restore-keys: win-llvm-${{ matrix.config }}-
+          key: win-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
+          restore-keys: win-build-${{ matrix.config }}-
 
       - name: "🔨 تكوين CMake / Configure CMake"
         shell: pwsh
@@ -651,7 +702,14 @@ jobs:
       - name: "📦 تثبيت LLVM 18 / Install LLVM 18"
         run: |
           CODENAME=$(lsb_release -cs)
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
+          # (AR) لا يُؤنبَبُ الجلبُ في gpg مباشرةً: محاولةٌ مبتورةٌ تكون قد
+          #      سكبت نصفَ مفتاحٍ في القناةِ قبلَ أن تُعاد، فيُبنى على نصفِ ملفّ.
+          # (EN) Never pipe the fetch into gpg: a truncated attempt has already
+          #      spilled half a key into the pipe before the retry happens.
+          bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            https://apt.llvm.org/llvm-snapshot.gpg.key
+          sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg \
+            < "$RUNNER_TEMP/llvm-snapshot.gpg.key"
           echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
           bash scripts/ci/apt_retry.sh update
           # (AR) ‎clang-18‎ ليس تبعيّةَ بناء: هو **أداةُ الحكم** في اختبارات
@@ -667,8 +725,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: linux-llvm-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
-          restore-keys: linux-llvm-${{ matrix.config }}-
+          key: linux-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
+          restore-keys: linux-build-${{ matrix.config }}-
 
       - name: "🔨 تكوين + بناء / Configure + Build"
         run: |
@@ -1116,7 +1174,7 @@ jobs:
 
       - name: "📦 تثبيت المتطلبات / Install Dependencies"
         run: |
-          brew install sdl2 sdl2_ttf llvm@18
+          bash scripts/ci/net_retry.sh brew install sdl2 sdl2_ttf llvm@18
           python3 -m pip install --user --break-system-packages pyyaml jsonschema \
             || python3 -m pip install --user pyyaml jsonschema
 
@@ -1128,8 +1186,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: build
-          key: macos-llvm-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
-          restore-keys: macos-llvm-${{ matrix.config }}-
+          key: macos-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
+          restore-keys: macos-build-${{ matrix.config }}-
 
       - name: "🔨 تكوين + بناء / Configure + Build"
         run: |

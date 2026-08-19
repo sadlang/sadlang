@@ -32,6 +32,8 @@ jobs:
   remind:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ ٠٫٢د — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 15
     steps:
       - uses: actions/setup-python@v5
         with:
@@ -45,7 +47,10 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          curl -fsSL -o sources.yaml \
+          # (AR) لا `checkout` في هذه الوظيفةِ فلا مُغلِّفَ — الإعادةُ والحدُّ
+          #      بأعلامِ curl نفسِها: ثلاثُ محاولاتٍ وسقفٌ ١٢٠ ث للجلبِ كلِّه.
+          curl -fsSL --retry 3 --retry-delay 5 --retry-all-errors \
+            --connect-timeout 15 --max-time 120 -o sources.yaml \
             https://raw.githubusercontent.com/sadlang/sadlang-docs/main/sync/sources.yaml || {
               echo "تعذّر جلب البيان — يُتخطّى"; echo "hit=0" >> "$GITHUB_OUTPUT"; exit 0; }
           gh pr view "$PR" --json files --jq '.files[].path' > changed.txt
@@ -99,6 +104,8 @@ jobs:
   dispatch:
     if: github.event_name == 'release' || github.event_name == 'push'
     runs-on: ubuntu-latest
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ ٠٫١د — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 15
     steps:
       - name: إطلاق التوثيق (repository_dispatch)
         env:
@@ -115,7 +122,8 @@ jobs:
           fi
           REF="${{ github.event.release.tag_name }}"
           [ -z "$REF" ] && REF="${{ github.ref_name }}"
-          curl -fsSL -X POST \
+          # SAD_CI_NO_RETRY: طلبٌ يُغيِّرُ حالةً — إعادتُه تُطلِقُ الحدثَ مرّتين؛ يُحَدُّ بالزمنِ ولا يُعاد
+          curl -fsSL --connect-timeout 15 --max-time 60 -X POST \
             -H "Authorization: Bearer $TOKEN" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/repos/sadlang/sadlang-docs/dispatches \

@@ -35,6 +35,8 @@ jobs:
   props-guard:
     name: "🔑 لا مفاتيح خصائص خام / No raw property keys"
     runs-on: ubuntu-latest
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ ٠٫٢د — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 15
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4

@@ -147,7 +147,7 @@ jobs:
 
       - name: 📦 SDL2 على ماك / SDL2 (macOS)
         if: runner.os == 'macOS'
-        run: brew install sdl2 sdl2_ttf
+        run: bash scripts/ci/net_retry.sh brew install sdl2 sdl2_ttf
 
       - name: 🔧 تهيئة البناء / Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DENABLE_LLVM_BACKEND=OFF

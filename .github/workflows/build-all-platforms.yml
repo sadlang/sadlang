@@ -307,6 +307,8 @@ jobs:
     name: 🚀 Create Release
     needs:   [ build-linux ]  # macOS أُزيل / removed
     runs-on: ubuntu-latest
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ ٠٫٠د — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
@@ -345,6 +347,8 @@ jobs:
     name: 📊 Build Summary
     needs: [ build-linux, build-ios, build-android]  # macOS أُزيل / removed
     runs-on: ubuntu-latest
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ ٠٫١د — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 15
     if: always()
     
     steps:

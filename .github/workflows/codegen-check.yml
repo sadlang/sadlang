@@ -126,6 +126,8 @@ jobs:
   codegen-sync:
     name: "🔑 فحص توليد الكود / Codegen Sync Check"
     runs-on: ubuntu-latest
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ ٠٫٧د — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 20
 
     steps:
       - name: "📥 تحميل الكود / Checkout"

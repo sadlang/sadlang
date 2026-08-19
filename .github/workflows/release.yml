@@ -48,6 +48,8 @@ jobs:
   build-interpreter:
     name: "المفسّر / Interpreter (${{ matrix.os }}-${{ matrix.arch }})"
     runs-on: ${{ matrix.runner }}
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ غيرُ مقيس — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -203,6 +205,8 @@ jobs:
   build-compiler:
     name: "المترجم / Compiler (${{ matrix.os }}-${{ matrix.arch }})"
     runs-on: ${{ matrix.runner }}
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ غيرُ مقيس — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -242,7 +246,9 @@ jobs:
       - name: "تثبيت LLVM / Install LLVM (Linux)"
         if: matrix.os == 'linux'
         run: |
-          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+          bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            https://apt.llvm.org/llvm-snapshot.gpg.key
+          sudo apt-key add "$RUNNER_TEMP/llvm-snapshot.gpg.key"
           echo "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-18 main" | sudo tee /etc/apt/sources.list.d/llvm.list
           bash scripts/ci/apt_retry.sh update -qq
           bash scripts/ci/apt_retry.sh install -y -qq llvm-18-dev libclang-18-dev lld-18 build-essential libssl-dev
@@ -257,7 +263,7 @@ jobs:
       - name: "تثبيت LLVM / Install LLVM (macOS)"
         if: matrix.os == 'macos'
         run: |
-          brew install llvm@18
+          bash scripts/ci/net_retry.sh brew install llvm@18
           echo "LLVM_DIR=$(brew --prefix llvm@18)/lib/cmake/llvm" >> $GITHUB_ENV
 
       # ── تهيئة البناء (مع LLVM) ──
@@ -307,7 +313,9 @@ jobs:
               $llvmVersion = "18.1.8"
               $installer = Join-Path $env:TEMP "LLVM-$llvmVersion-win64.exe"
               $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVersion/LLVM-$llvmVersion-win64.exe"
-              Invoke-WebRequest -Uri $url -OutFile $installer
+              pwsh -NoProfile -File scripts/ci/net_retry.ps1 `
+                -Uri $url -OutFile $installer -TimeoutSec 900
+              if ($LASTEXITCODE -ne 0) { throw "تعذّر تنزيل مثبّت LLVM" }
               Start-Process -FilePath $installer -ArgumentList "/S" -Wait
 
               $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -440,6 +448,8 @@ jobs:
     name: "نشر الإصدار / Create Release"
     needs: [build-interpreter, build-compiler]
     runs-on: ubuntu-latest
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ غيرُ مقيس — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 30
     permissions:
       contents: write
 
@@ -557,6 +567,8 @@ jobs:
     name: "تحديث سكريبتات التثبيت / Update Install Scripts"
     needs: [release]
     runs-on: ubuntu-latest
+    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ غيرُ مقيس — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
+    timeout-minutes: 20
     if: github.event_name == 'push'
     permissions:
       contents: write
