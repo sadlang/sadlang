@@ -75,6 +75,12 @@ add_comprehensive_test(test_parser_comprehensive test_parser_comprehensive.cpp)
 # 3. نظام القيم / Value System Tests (95 tests)
 add_comprehensive_test(test_value_comprehensive test_value_comprehensive.cpp)
 
+# 3.b. عقدُ الحاويةِ المرتّبةِ بالإدخال / Insertion-ordered map contract (ISSUE-180)
+# (AR) تُختبَرُ في طبقتِها لا عبرَ المفسّر: العطبُ الذي وقعَ فيها فعلًا (فهرسُ
+#      مُكرِّراتٍ يُنسَخُ فيُشيرُ إلى عُقَدِ الأصل) لم يظهرْ إلّا تعليقًا صامتًا
+#      في المفسّرِ بعد بناءٍ كامل.
+add_comprehensive_test(test_insertion_ordered_map_comprehensive test_insertion_ordered_map_comprehensive.cpp)
+
 # 4. المفسر / Interpreter Tests (76 tests)
 add_comprehensive_test(test_interpreter_comprehensive test_interpreter_comprehensive.cpp)
 # (AR) TEST-004: sad_interpreter جزئية بالتصميم (vtable الزائرين غير مكتمل) — المفسر الكامل في sad_core
@@ -508,6 +514,7 @@ add_custom_target(comprehensive_tests
         test_keywords_v41_comprehensive
         test_parser_comprehensive
         test_value_comprehensive
+        test_insertion_ordered_map_comprehensive
         test_interpreter_comprehensive
         test_stdlib_comprehensive
         test_errors_comprehensive

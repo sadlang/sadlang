@@ -1201,7 +1201,9 @@ namespace Sad
             llvm::Value *emitNetworkCall(std::shared_ptr<SIRInstruction> inst, const char *cFuncName, llvm::Type *returnType, const std::vector<llvm::Type *> &paramTypes) { return nb_->emitNetworkCall(inst, cFuncName, returnType, paramTypes); }
 
             // (AR) Phase 7 Step 5: delegate إلى ArrayOpsCodeGen (تبقى wrappers لأن array_file_coro.cpp يستدعيها)
-            llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr") { return arr_->normalizeArrayPtr(arrPtr, label); }
+            llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr",
+                                                       bool assertDynTag = true)
+            { return arr_->normalizeArrayPtr(arrPtr, label, assertDynTag); }
             llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx") { return arr_->normalizeArrayIndex(index, arrPtr, label); }
             void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc") { arr_->emitBoundsCheck(index, arrPtr, label); }
 

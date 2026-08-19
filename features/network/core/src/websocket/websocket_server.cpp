@@ -11,6 +11,46 @@
 #include <cstring>
 #include <algorithm>
 
+#ifndef _WIN32
+    #include <poll.h>
+#endif
+
+// ════════════════════════════════════════════════════════════════════════
+// (AR) 🔑 انتظارُ جاهزيّةٍ بمهلة — بديلٌ عن الاتّكالِ على إيقاظِ `accept`
+//      بإغلاقِ واصفِها. إغلاقُ واصفٍ **خيطٌ عالقٌ داخلَ `accept` عليه** سلوكٌ
+//      غيرُ معرَّفٍ في POSIX: يوقظُه Winsock فيمرُّ على ويندوز، ولا يوقظُه
+//      لينكس فيَعلَقُ `join` أبدًا. قِيس على CI (٢٠٢٦-٠٨-١٩): ستّةُ اختباراتِ
+//      شبكةٍ تنتهي مهلتُها على لينكس/Release وتجتازُ على ويندوز وماك —
+//      وهي حمراءُ على `dev` نفسِه بأعيانِها، فليست من رقعةٍ جديدة. (ISSUE-183)
+// (EN) Bounded readiness wait instead of relying on close() to wake a blocked
+//      accept(). Closing a descriptor another thread is blocked in accept() on is
+//      undefined in POSIX: Winsock wakes it so Windows passes, Linux does not so
+//      join() hangs forever. Measured on CI: six network tests time out on
+//      Linux/Release and pass on Windows and macOS — and they are red on dev too.
+// ════════════════════════════════════════════════════════════════════════
+namespace {
+    /// (AR) 1 = جاهزٌ · 0 = انتهت المهلة · -1 = خطأ / (EN) 1 ready, 0 timeout, -1 error
+    int sad_wait_readable(SOCKET handle, int timeout_ms) {
+#ifdef _WIN32
+        WSAPOLLFD descriptor{};
+        descriptor.fd = handle;
+        descriptor.events = POLLRDNORM;
+        return WSAPoll(&descriptor, 1, timeout_ms);
+#else
+        struct pollfd descriptor{};
+        descriptor.fd = handle;
+        descriptor.events = POLLIN;
+        return ::poll(&descriptor, 1, timeout_ms);
+#endif
+    }
+
+    /// (AR) دورةُ الفحص: قصيرةٌ كي يستجيبَ الإيقافُ سريعًا، وليست صفرًا كي لا
+    ///      تصيرَ الحلقةُ دورانًا مشغولًا يأكلُ نواةً كاملة.
+    /// (EN) Short enough that stop() responds promptly, non-zero so the loop does
+    ///      not become a busy spin burning a whole core.
+    constexpr int kAcceptPollIntervalMs = 50;
+} // namespace
+
 // Base64 encoding
 static const char base64_chars[] = 
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -139,9 +179,19 @@ void WebSocketConnection::close(CloseCode code, const std::string& reason) {
     send_frame(frame);
     
     connected_ = false;
+
+    // (AR) 🔑 إطفاءٌ قبلَ الإغلاق: `handle_client` قد يقعدُ في `recv` على هذا
+    //      المقبس، وإغلاقُه تحتَه هو العلّةُ نفسُها التي في `accept`. و`shutdown`
+    //      تُنهي `recv` بصفرٍ على المنصّتَين معًا فيخرجُ الخيطُ صراحةً لا صُدفةً.
+    // (EN) Shut down before closing: handle_client may sit in recv() on this socket,
+    //      and closing it underneath is the very same defect as in accept().
+    //      shutdown makes recv return 0 on both platforms, so the thread leaves
+    //      deliberately rather than by luck.
 #ifdef _WIN32
+    ::shutdown(socket_, SD_BOTH);
     closesocket(socket_);
 #else
+    ::shutdown(socket_, SHUT_RDWR);
     ::close(socket_);
 #endif
 }
@@ -290,19 +340,30 @@ void WebSocketServer::stop() {
     }
     
     impl_->running = false;
-    
+
+    // ════════════════════════════════════════════════════════════════════
+    // (AR) 🔑 **الترتيبُ هو الإصلاح.** كان يُغلَقُ المقبسُ ثمّ يُضَمُّ الخيطُ —
+    //      أي يُغلَقُ واصفٌ يقعدُ عليه خيطٌ في `accept`، وذاك غيرُ معرَّفٍ في
+    //      POSIX فيَعلَقُ الضمُّ أبدًا. فصار الضمُّ أوّلًا: الخيطُ يخرجُ من
+    //      تلقائِه خلالَ دورةِ فحصٍ واحدةٍ لأنّ `running` صارت خطأً، ثمّ
+    //      يُغلَقُ المقبسُ وقد خلا من قاعد. (ISSUE-183)
+    // (EN) THE ORDER IS THE FIX. It used to close the socket and then join, i.e.
+    //      close a descriptor a thread was sitting in accept() on — undefined in
+    //      POSIX, so the join hung forever. Now the join comes first: the thread
+    //      leaves on its own within one poll interval because running is false,
+    //      and only then is the socket closed, with nobody sitting on it.
+    // ════════════════════════════════════════════════════════════════════
+    if (impl_->accept_thread.joinable()) {
+        impl_->accept_thread.join();
+    }
+
     // Close all connections
     close_all_connections();
-    
+
     // Close server socket
     if (impl_->server_socket != INVALID_SOCKET) {
         closesocket(impl_->server_socket);
         impl_->server_socket = INVALID_SOCKET;
-    }
-    
-    // Wait for accept thread
-    if (impl_->accept_thread.joinable()) {
-        impl_->accept_thread.join();
     }
     
     // Wait for client threads
@@ -568,6 +629,30 @@ void WebSocketServer::set_connection_timeout(int timeout_ms) {
 
 void WebSocketServer::accept_thread_func() {
     while (impl_->running) {
+        // (AR) 🔑 لا يُدخَلُ `accept` إلّا بعدَ ثبوتِ جاهزيّةِ المقبس. فالحلقةُ
+        //      تستيقظُ كلَّ `kAcceptPollIntervalMs` وتفحصُ `running` بنفسِها،
+        //      فتخرجُ من تلقائِها ولا تنتظرُ إيقاظًا من إغلاقِ الواصف.
+        //      و`stop` تَضُمُّ هذا الخيطَ **قبلَ** أن تُغلِقَ المقبس، فلا يُغلَقُ
+        //      واصفٌ يقعدُ عليه خيطٌ أصلًا. (ISSUE-183)
+        // (EN) accept() is entered only once the socket is known readable. The loop
+        //      wakes every kAcceptPollIntervalMs and checks `running` itself, so it
+        //      exits on its own rather than waiting to be woken by a close(). And
+        //      stop() joins this thread BEFORE closing the socket, so no descriptor
+        //      is ever closed while a thread sits on it.
+        int readiness = sad_wait_readable(impl_->server_socket, kAcceptPollIntervalMs);
+        if (!impl_->running) {
+            break;
+        }
+        if (readiness == 0) {
+            continue;  // (AR) انتهت المهلة — يُعاد فحصُ `running`
+        }
+        if (readiness < 0) {
+            if (impl_->running) {
+                continue;  // (AR) مقاطعةٌ أو خطأٌ عابر
+            }
+            break;
+        }
+
         struct sockaddr_in client_addr;
         socklen_t addr_len = sizeof(client_addr);
         

@@ -126,8 +126,8 @@ jobs:
     
     - name: 📦 Install Dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
+        bash scripts/ci/apt_retry.sh update
+        bash scripts/ci/apt_retry.sh install -y \
           build-essential cmake ccache \
           libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev \
           libgl1-mesa-dev libglu1-mesa-dev

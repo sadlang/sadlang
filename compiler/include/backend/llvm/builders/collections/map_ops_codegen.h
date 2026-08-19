@@ -59,6 +59,25 @@ public:
     llvm::Function *getOrCreateMapFindSlot();
     llvm::Function *getOrCreateMapCollect();
 
+    // ══════════════════════════════════════════════════════════════════════
+    // (AR) 🔑 يبني `__sad_map_compact` — يُطبِقُ الخاناتِ بعدَ الحذفِ بدلَ أن
+    //      يترُكَ ثقبًا. الحذفُ كان يُصفّرُ خانةً وحدَها، والإدراجُ يبحثُ عن
+    //      **أوّلِ خانةٍ فارغة** — فأوّلُ إدراجٍ بعدَ حذفٍ يسقطُ في الثقبِ
+    //      متقدّمًا على مَن أُدخِلَ قبلَه. قِيس: أدخِلْ أ،ب،ج ثمّ احذف «أ» ثمّ
+    //      أدخِلْ «د» ⇒ المفاتيحُ `[د, ب, ج]` لا `[ب, ج, د]`.
+    //      وبالإطباقِ يصيرُ المشغولُ **بادئةً متّصلةً** `[0, count)` دائمًا،
+    //      فـ«أوّلُ خانةٍ فارغة» تُساوي «الإلحاقَ في الذيل» بالضرورةِ لا بالحظّ.
+    // (EN) Builds `__sad_map_compact` — closes the gap left by a delete instead of
+    //      leaving a hole. Delete used to null one slot while insert scans for the
+    //      FIRST EMPTY SLOT, so the next insert after a delete landed ahead of keys
+    //      inserted before it. Measured: insert أ,ب,ج, delete أ, insert د ⇒ keys read
+    //      [د, ب, ج] instead of [ب, ج, د]. Compaction makes the occupied region an
+    //      unbroken prefix [0, count), so "first empty slot" IS "append at the tail".
+    //
+    // (AR) التوقيع: (ptr keys, ptr values, ptr types, i64 capacity, i64 idx) → void
+    // ══════════════════════════════════════════════════════════════════════
+    llvm::Function *getOrCreateMapCompact();
+
     // (AR) [م-٠٠١ ق٢] يبني `__sad_strip_diacritics` — إزالةُ التشكيلِ العربيِّ من
     //      نصٍّ بترميزِ UTF-8. مصدرُ الحقيقةِ يضعُ `ازل_تشكيل` في مساحةِ «خرائط»
     //      فمكانُها هنا. تُرجعُ نصًّا جديدًا مخصَّصًا بالكومة.

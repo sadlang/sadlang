@@ -607,6 +607,22 @@ namespace Sad
                 std::string linkName;                                    ///< (AR) اسم الربط الخارجي (FFI) / (EN) FFI link name (empty = use function name)
                 SadTypeKind returnType;                                  ///< (AR) نوع الإرجاع / (EN) Return type
                 bool isConstructor = false;                              ///< (AR) بانٍ — يملك خانات حقول الكائن فلا يُدمج سطريًّا / (EN) Constructor — owns object field slots, never inlined
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 نوعُ **القيمةِ** التي يحملُها وعدُ الكوروتين — لا نوعُ ما
+                //      تُرجِعه الدالّة. فالكوروتينُ يُرجِعُ مقبضَ إطارٍ (`Pointer`)
+                //      دائمًا، والقيمةُ الحقيقيّةُ تُخزَّن في `coro.promise`.
+                //      و`returnType` يُدهَسُ بـ`Pointer` عند وسمِ الدالّةِ كوروتينًا،
+                //      فيضيعُ النوعُ المستنتَجُ من `ارجع` ولا يبقى له حاملٌ — ومَن
+                //      يقرأُ الوعدَ بعدَه لا يملكُ إلّا عرضَ وعائه (i64).
+                //      ولذلك كان `انتظر` على دالّةٍ تُرجِعُ نصًّا يطبعُ **عنوانًا**.
+                // (EN) The type of the VALUE the coroutine's promise carries — not what
+                //      the function returns, which is always a frame handle. `returnType`
+                //      is overwritten with Pointer when the function is marked a
+                //      coroutine, so the type inferred from `ارجع` had no carrier left,
+                //      and whoever read the promise knew only its container's width.
+                // ════════════════════════════════════════════════════════════
+                SadTypeKind coroutineValueType = SadTypeKind::Void;
+
                 bool isCoroutine = false;                                ///< (AR) دالة غير متزامنة (كوروتين) / (EN) Async function (coroutine)
                 bool isGenerator = false;                                ///< (AR) دالة مولّد / (EN) Generator function
                 bool isExported = false;                                 ///< (AR) دالة مُصدّرة (صدّر) / (EN) Exported function (export)

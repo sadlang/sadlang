@@ -15,6 +15,7 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <unordered_map>
 #include <optional>
 
@@ -110,6 +111,14 @@ public:
                 results.push_back(pkg);
             }
         }
+        // (AR) 🔑 ترتيبٌ بالاسم: `packages_` مُهشَّرةٌ فترتيبُ النتائجِ ترتيبُ
+        //      سَلّةٍ يختلفُ بالمنصّة — وهذه قائمةٌ تُعرَضُ على المستخدم. (ISSUE-182)
+        // (EN) Sort by name: packages_ is hashed so the result order is a
+        //      platform-dependent bucket order, and this list is shown to the user.
+        std::sort(results.begin(), results.end(),
+                  [](const PackageInfo &left, const PackageInfo &right) {
+                      return left.name < right.name;
+                  });
         return results;
     }
     

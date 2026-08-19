@@ -17,6 +17,7 @@ namespace Bffi = Sad::Builtins::Names::FFI;
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <algorithm>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -202,8 +203,22 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            std::vector<Data::Value> result;
+            // (AR) 🔑 مرتّبةٌ بالمعرّف — النظيرُ الحرفيُّ لـ`خيط_قائمة`: مصفوفةٌ
+            //      تُسلَّمُ إلى برنامجِ المستخدمِ بترتيبِ سَلّةٍ يختلفُ بالمنصّة.
+            //      (ISSUE-182)
+            // (EN) Sorted by id — the exact analogue of خيط_قائمة: an array handed to
+            //      the user program in a platform-dependent bucket order.
+            std::vector<uint64_t> libraryIds;
+            libraryIds.reserve(g_libraries.size());
             for (auto& [id, lib] : g_libraries) {
+                (void)lib;
+                libraryIds.push_back(id);
+            }
+            std::sort(libraryIds.begin(), libraryIds.end());
+
+            std::vector<Data::Value> result;
+            result.reserve(libraryIds.size());
+            for (uint64_t id : libraryIds) {
                 result.push_back(Data::Value(static_cast<double>(id)));
             }
             return std::make_shared<Data::Value>(result);

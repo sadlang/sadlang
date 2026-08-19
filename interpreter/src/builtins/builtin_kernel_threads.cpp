@@ -20,6 +20,7 @@
 #include <sstream>
 #include <thread>
 #include <unordered_map>
+#include <algorithm>
 
 namespace Sad
 {
@@ -364,8 +365,30 @@ namespace Sad
                     -> std::shared_ptr<Data::Value>
                 {
                 const auto &args = ctx.args(); (void)args;
-                    std::vector<Data::Value> ids;
+                    // ════════════════════════════════════════════════════
+                    // (AR) 🔑 مرتّبةٌ بالمعرّفِ تصاعديًّا. `g_threads` مُهشَّرةٌ فترتيبُ
+                    //      مرورِها ترتيبُ سَلّةٍ يقرّرُه تنفيذُ الحاويةِ في كلِّ منصّة —
+                    //      وهذه المصفوفةُ **تُسلَّمُ إلى برنامجِ المستخدمِ كما هي**،
+                    //      فيصيرُ ناتجُ `خيط_قائمة()` مختلفًا باختلافِ المنصّةِ على
+                    //      برنامجٍ واحد. والمعرّفُ تصاعديًّا هو ترتيبُ الإنشاءِ فيحملُ
+                    //      معنًى لا حتميّةً وحدَها. (ISSUE-182)
+                    // (EN) Sorted by ascending id: g_threads is hashed, so its traversal
+                    //      order is the platform container decision — and this array is
+                    //      handed to the user program verbatim, making خيط_قائمة() differ
+                    //      across platforms for one program. Ascending id is creation
+                    //      order, so it carries meaning, not just determinism.
+                    // ════════════════════════════════════════════════════
+                    std::vector<uint64_t> threadIds;
+                    threadIds.reserve(g_threads.size());
                     for (auto &[id, _] : g_threads)
+                    {
+                        threadIds.push_back(id);
+                    }
+                    std::sort(threadIds.begin(), threadIds.end());
+
+                    std::vector<Data::Value> ids;
+                    ids.reserve(threadIds.size());
+                    for (uint64_t id : threadIds)
                     {
                         ids.push_back(Data::Value(static_cast<double>(id)));
                     }

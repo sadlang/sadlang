@@ -513,6 +513,14 @@ namespace sad::net::streaming
         {
             result.push_back(info);
         }
+        // (AR) 🔑 ترتيبٌ بمعرّفِ البثِّ تصاعديًّا — وهو ترتيبُ الإنشاءِ فيحملُ
+        //      معنًى لا حتميّةً عمياء. `known_streams` مُهشَّرة. (ISSUE-182)
+        // (EN) Sort by ascending stream id — creation order, so it carries meaning
+        //      rather than blind determinism. known_streams is hashed.
+        std::sort(result.begin(), result.end(),
+                  [](const StreamInfo &left, const StreamInfo &right) {
+                      return left.stream_id < right.stream_id;
+                  });
         return result;
     }
 

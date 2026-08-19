@@ -46,7 +46,63 @@ namespace Sad
             ArrayOpsCodeGen &operator=(const ArrayOpsCodeGen &) = delete;
 
             // (AR) دوال مساعدة داخلية
-            llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr");
+            // ============================================================
+            // (AR) `assertDynTag`: هل يُزرَعُ تأكيدُ الوسمِ (`kind == Array`) بفرعِ
+            //      إخفاقٍ صاخبٍ حين تصلُ قيمةٌ `%SadDyn`؟
+            //
+            //      🔑 يُمرَّرُ `false` **للفحصِ وحدَه** — أي حين لا يُراد من التطبيع
+            //      إلّا قيمةٌ تُقارَنُ بالعدم. فالتأكيدُ يُنهي البرنامجَ قبلَ أن يرى
+            //      المُوزِّعُ (`beginDynMapDispatch`) وسمَ الخريطة، وهو مبنيٌّ لها:
+            //      `خ["س"]=1` يجعلُ `خ["أ"]` نوعُه «أي»، ثمّ `خ["أ"][2] = 5` كان
+            //      يُهلِعُ «فهرسةٌ بعددٍ … ليست مصفوفة» بينما المفسّرُ يكتبُ مفتاحًا
+            //      عدديًّا. وقُيس أنّ القراءةَ سليمةٌ والكتابةَ وحدَها تُخفِق، لأنّ
+            //      `emitArrayGet` لا حارسَ عدمٍ قبلَ إرسالِها.
+            //
+            //      ⚠️ ولا يُنقَلُ الحارسُ إلى ما بعدَ المُوزِّعِ بدلًا من ذلك: قِيس
+            //      أنّ الوعاءَ العدميَّ (`خريطة س` ثمّ `س["ك"]=1`) يعودُ حينئذٍ إلى
+            //      الانهيارِ `rc=139` — لأنّ فرعَ المصفوفةِ لا يُبلَغُ أصلًا. فالفحصُ
+            //      يبقى **قبلَ** الإرسالِ ويُنزَعُ منه التأكيدُ وحدَه.
+            // (EN) `assertDynTag`: plant the loud `kind == Array` assertion when a
+            //      %SadDyn value arrives? Pass `false` for CHECK-ONLY normalization —
+            //      the assertion kills a Map-tagged value before beginDynMapDispatch,
+            //      built precisely for it, can route it. Measured: the read path is
+            //      fine; only the write fails, since emitArrayGet has no null guard.
+            //      ⚠️ Moving the guard after the dispatch instead was measured to
+            //      restore the rc=139 crash on a null container — the array branch is
+            //      never reached. So the check stays BEFORE and loses only its assert.
+            // ============================================================
+            llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr",
+                                           bool assertDynTag = true);
+
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 حارسُ الإسنادِ بالفهرسِ لقيمةٍ **موسومة**: يحكمُ بالوسمِ لا
+            //      بالحمولة، ويرفعُ RUN018 باسمِ نوعِ الوسمِ نفسِه.
+            //
+            //      وسببُ وجودِه أنّ البابَ العامَّ (`emitRaiseIfNull`) يشتقُّ **شكلَ**
+            //      العدمِ من الحمولةِ وحدَها: الحارسُ ⇒ `'NULL'` والصفرُ ⇒ `'VOID'`.
+            //      وذلك صحيحٌ لقيمةٍ محسوسة، وكاذبٌ لقيمةٍ موسومة: `أي ك = 0`
+            //      وسمُها صحيحٌ وحمولتُها صفر، و`أي ك = خطأ` وسمُها منطقيٌّ
+            //      وحمولتُها صفر — فكلتاهما كانت تُشخَّصُ `'VOID'` والمفسّرُ يقول
+            //      `'INTEGER'` و`'BOOLEAN'`. وتعليقُ البابِ نفسِه يُدين هذا الصنف:
+            //      «الرفعُ يصير صحيحًا في نصفِ الحالاتِ ويكذبُ في نصفِها الآخرِ
+            //      نصًّا يُصدَّق — وهو أخفى من عدمِ الرفعِ أصلًا».
+            //
+            //      ⚠️ والوعاءانِ (مصفوفةٌ · خريطة) يمرّان بلا رفعٍ إلى مُوزِّعِهما،
+            //      فلا يُقتَلُ وسمُ الخريطةِ قبلَه (وهو عطبُ ISSUE-172 بعينِه).
+            //      وما عداهما — كائنٌ أو تعدادٌ جبريّ — يُترَك لتأكيدِ فرعِ
+            //      المصفوفةِ بعدَ الإرسال، فلا يُدَّعى له نصٌّ لم يُقَسْ مقابلُه.
+            // (EN) Index-assign guard for a TAGGED value: it judges by the tag, not the
+            //      payload, and raises RUN018 with the tag's own type name. The general
+            //      door derives the null SHAPE from the payload alone (sentinel ⇒ NULL,
+            //      zero ⇒ VOID), which is right for a concrete value and a lie for a
+            //      tagged one: an Int 0 and a Bool false both carry payload zero and were
+            //      reported as 'VOID' while the interpreter says 'INTEGER'/'BOOLEAN'.
+            //      Containers (array, map) pass through untouched so a Map tag is not
+            //      killed before its dispatch (that was ISSUE-172). Object/ADT tags are
+            //      left to the post-dispatch array assertion rather than asserting a text
+            //      whose counterpart was never measured.
+            // ════════════════════════════════════════════════════════════════
+            void emitDynIndexAssignGuard(llvm::Value *dynValue, const char *label);
 
             // (AR) [م-٠٠١] كتلةُ فشلٍ لقيمةٍ موسومةٍ زمنَ التشغيلِ ليس وسمُها
             //      مصفوفةً، تنتهي بـunreachable: مستضافٌ ⇒ تشخيصٌ عربيٌّ + exit(1)؛

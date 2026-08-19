@@ -195,9 +195,46 @@ namespace Sad
                         b_.addVariable(vi);
                     }
 
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 فضاءُ أسماءِ خاناتِ الجسم. SoT: `grammar.macro` ماكرو
+                    //      «hygenic» وحالتُه stable — و`enterScope` وحدَه لا يفي لأنّ
+                    //      SIR بلا نطاق: اسمُ الخانةِ يُشتقُّ من الاسمِ المجرَّد، فيقعُ
+                    //      `متغير قيمة` على ما يملكُه «قيمة» في المحيط (مقيسٌ في IR:
+                    //      `alloca` واحدةٌ وتخزينان فيها داخلَ دالّة، وتخزينان في
+                    //      العامِّ نفسِه في المستوى الأعلى).
+                    //
+                    //      ⚠️ والحفظُ والاستعادةُ لا التصفير: ماكروٌ يُنادي ماكروًا
+                    //      (مقيسٌ في `067_macros_basic`: `مربع_أكبر` تُنادي `أكبر`)،
+                    //      فتصفيرُ الفضاءِ عند خروجِ الداخليِّ يكشفُ خاناتِ الخارجيِّ
+                    //      لبقيّةِ جسمِه.
+                    // (EN) Slot namespace for the body. save/restore, not clear: macros
+                    //      nest (measured in 067), and clearing on the inner exit would
+                    //      expose the outer body's remaining slots.
+                    // ════════════════════════════════════════════════════════════
+                    const std::string savedNamespace = b_.macroSlotNamespace_;
+                    b_.macroSlotNamespace_ =
+                        funcName + kSlotNamespaceSeparator + std::to_string(b_.nextTempRegister_++);
+
+                    // (AR) 🔑 وهُويّةُ الصنفِ طريقٌ **سادسٌ** لا يمرُّ بفضاءِ الأسماء:
+                    //      `classInstanceTypes_` خريطةٌ مسطّحةٌ مفتاحُها الاسمُ المجرَّد،
+                    //      فـ`متغير مؤشر = باء()` داخلَ ماكرو تدهسُ هُويّةَ `مؤشر`
+                    //      الخارجيّةِ فيُرسَلُ نداؤها ساكنًا إلى الصنفِ الخطأ (مقيس).
+                    //      ⚠️ ولا يُكتَمُ التسجيلُ داخلَ الجسمِ — عندئذٍ يعمى الجسمُ عن
+                    //      صنفِ كائنِه هو — بل تُحفَظُ الخريطةُ وتُستعاد.
+                    // (EN) Class identity is a SIXTH route that bypasses the slot namespace:
+                    //      `classInstanceTypes_` is a flat bare-name map, so a declaration
+                    //      inside a macro overwrites the enclosing variable's class and its
+                    //      call is statically dispatched to the wrong one (measured).
+                    //      Suppressing the record inside the body would blind the body to its
+                    //      own object, so the map is saved and restored instead.
+                    const auto savedClassTypes = b_.classInstanceTypes_;
+
                     // (AR) بناء جسم الماكرو مباشرة في الدالة الحالية
                     // (EN) Build macro body directly in current function
                     b_.buildStatement(macroDef->body.get());
+
+                    b_.classInstanceTypes_ = savedClassTypes;
+                    b_.macroSlotNamespace_ = savedNamespace;
 
                     b_.exitScope();
 
@@ -293,12 +330,32 @@ namespace Sad
                     b_.addVariable(vi);
                 }
 
+                // (AR) 🔑 والفضاءُ لازمٌ هنا أيضًا وإن كان الجسمُ في دالّةٍ منفصلة:
+                //      قِيس أنّ `__macro_اختبار_عزل_1` يُخزِّن في العامِّ `@قيمة` نفسِه،
+                //      لأنّ الاسمَ المجرَّدَ يطابقُ عامًّا في الوحدةِ فتُلغى محلّيّتُه.
+                //      فانفصالُ الدالّةِ يعزلُ المحلّيَّ ولا يعزلُ العامّ.
+                // (EN) Needed here too even though the body lives in its own function:
+                //      measured that __macro_… stores into the same module global, since a
+                //      bare name matching a global loses its locality. Function separation
+                //      isolates locals, not globals.
+                const std::string savedNamespace = b_.macroSlotNamespace_;
+                b_.macroSlotNamespace_ =
+                    funcName + kSlotNamespaceSeparator + std::to_string(b_.nextTempRegister_++);
+
+                // (AR) وهُويّةُ الصنفِ تُحفَظُ وتُستعادُ هنا كذلك — انظر التعليلَ في
+                //      مسارِ التوسيعِ المباشرِ أعلاه.
+                // (EN) Class identity is saved/restored here too — see the inline path above.
+                const auto savedClassTypesForFunc = b_.classInstanceTypes_;
+
                 // (AR) بناء جسم الماكرو
                 // (EN) Build macro body
                 if (macroDef->body)
                 {
                     b_.buildStatement(macroDef->body.get());
                 }
+
+                b_.classInstanceTypes_ = savedClassTypesForFunc;
+                b_.macroSlotNamespace_ = savedNamespace;
 
                 // (AR) إضافة ReturnVoid إذا لم يكن هناك terminator
                 // (EN) Add ReturnVoid if no terminator

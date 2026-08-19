@@ -170,12 +170,12 @@ namespace Sad
                     _rc.placeholders = {{"kind", "قاموسي/dict"}};
                     Sad::Errors::ErrorManager::getInstance().reportFromCatalog(::Sad::Errors::ErrorCode::RUN_COMPREHENSION_NEEDS_ARRAY, Sad::Errors::SourceLocation("<input>", static_cast<int>(node.position.line), static_cast<int>(node.position.column)), _rc);
                 };
-                lastResult_ = Value(std::unordered_map<std::string, Value>());
+                lastResult_ = Value(Value::MapType());
                 return;
             }
 
             // (AR) إنشاء قاموس النتيجة / (EN) Create result dictionary
-            std::unordered_map<std::string, Value> result;
+            Value::MapType result;
 
             // (AR) إنشاء نطاق جديد للـ comprehension / (EN) Create new scope for comprehension
             variableManager_.enterScope(Data::ScopeType::BLOCK, "dict_comprehension");

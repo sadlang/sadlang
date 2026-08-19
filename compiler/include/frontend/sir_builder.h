@@ -271,6 +271,7 @@ namespace Sad
                 std::string funcRefName; ///< (② rfcs#46) اسم دالّة المرجع المسمّاة (لبصمة معالِج الحدث)
                 bool isGeneratorFuncRef = false; ///< (AR) مرجع دالّة مولّدة (يُصدِر CONSUME عند الاستدعاء غير المباشر) / (EN) Reference to a generator function (emits CONSUME on indirect call)
 
+
                 /**
                  * @brief (AR) منشئ افتراضي
                  * @brief (EN) Default constructor

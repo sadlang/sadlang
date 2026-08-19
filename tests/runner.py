@@ -452,6 +452,21 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
             return "", elapsed, "COMPILE_ERROR: لم يُنتج ملف تنفيذي"
 
         # (AR) خطوة 2: التشغيل
+        # (AR) 🔑 `cwd=work_dir` هنا أيضًا — لا في التصريفِ وحدَه. كان التصريفُ
+        #      يجري في المجلّدِ المؤقّتِ والتشغيلُ يرثُ مجلّدَ المُشغِّل (جذرَ
+        #      المستودعِ عمليًّا)، فيعملُ المحرّكانِ في **مجلّدَين مختلفَين**
+        #      ويصيرُ كلُّ مسارٍ نسبيٍّ في الاختبارِ شيئَين لا شيئًا واحدًا.
+        #      قِيس: `m1_fs_realpath_symlink` — `المسار_الحقيقي("./tests/..")`
+        #      يفشلُ للمفسّرِ (لا `tests` في مجلّدِه) وينجحُ للمترجمِ (يراها في
+        #      الجذر) ⇒ تباعُدٌ **صنعَته أداةُ القياسِ لا المحرّكان**.
+        #      وهو يُخفي كذلك: اختبارٌ يمرُّ لأنّ أحدَ المحرّكَين يرى ملفًّا لا يراه
+        #      الآخر يُقرأُ تكافؤًا وهو ليس منه.
+        # (EN) cwd=work_dir here too, not only for the compile step. Compilation ran
+        #      in the temp dir while execution inherited the runner's cwd — the repo
+        #      root — so the two engines ran in DIFFERENT directories and every
+        #      relative path in a test meant two different things. Measured on
+        #      m1_fs_realpath_symlink. It also hides divergence: a test can pass
+        #      because one engine sees a file the other cannot.
         run_result = subprocess.run(
             [str(exe_path)],
             capture_output=True,
@@ -460,6 +475,7 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
             encoding="utf-8",
             errors="replace",
             input=stdin_data if stdin_data else None,
+            cwd=str(work_dir),
         )
         elapsed = (time.perf_counter() - start) * 1000
         output = run_result.stdout.rstrip("\n")

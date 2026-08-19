@@ -314,6 +314,33 @@ namespace Sad
                 // (EN) Class type map for function parameters (inferred from call sites)
                 std::unordered_map<std::string, std::unordered_map<std::string, std::string>> paramClassTypes_;
 
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 فضاءُ أسماءِ خاناتِ جسمِ الماكرو — فارغٌ خارجَ التوسيع.
+                //      SoT يصفُ الماكرو «hygenic» (`grammar.macro`, stable)، وSIR
+                //      لا تحمل نطاقًا: اسمُ الخانةِ يُشتَقُّ من الاسمِ المجرَّد، فيقعُ
+                //      `متغير قيمة` داخلَ الماكرو على ما يملكُه «قيمة» في المحيط.
+                //      وقِيس أنّ المحيطَ ثلاثةُ أشكالٍ لا واحدٌ، ولكلٍّ مسارُ توليدٍ آخر
+                //      (دالّةٌ مؤقّتةٌ · توسيعٌ مباشرٌ في المستوى الأعلى · داخلَ دالّة)،
+                //      وكلُّها تنتهي إلى الخانةِ نفسِها — فالعلاجُ عند اشتقاقِ الاسمِ
+                //      لا عند أحدِ المسارات.
+                //
+                //      ⚠️ ويبقى `VariableInfo::name` **مجرَّدًا** عمدًا: البحثُ في
+                //      النطاقاتِ بالاسمِ المصدريّ، فقراءةُ الجسمِ لمتغيّرِه تصلُ إليه
+                //      عبرَ النطاقِ وتقرأُ `registerName` المُفضَّى. ولو لُوِّث الاسمُ
+                //      لَانقطعَ البحثُ عن المتغيّراتِ الخارجيّةِ المقروءةِ في الجسم.
+                //
+                //      🔴 ولا يمسُّ هذا **الكتلَ**: تظليلُ `متغير` في كتلةٍ عاديّةٍ
+                //      يبقى على سلوكِه (ISSUE-028، قرارُ نطاقٍ مفتوحٌ للمالك عمدًا).
+                // (EN) Slot namespace for a macro body — empty outside expansion. The SoT
+                //      declares macros "hygenic" and SIR carries no scope, so a slot name
+                //      derived from the bare identifier lands on whatever that name owns in
+                //      the enclosing context. Measured: three enclosing shapes, three
+                //      lowering paths, one slot — so the cure belongs at name derivation.
+                //      `VariableInfo::name` deliberately stays bare so scope lookup still
+                //      resolves outer variables read inside the body. Blocks are untouched.
+                // ════════════════════════════════════════════════════════════════
+                std::string macroSlotNamespace_;
+
                 int nextTempRegister_ = 0;  ///< (AR) رقم السجل المؤقت التالي / (EN) Next temp register
                 int nextLabel_ = 0;         ///< (AR) رقم التسمية التالية / (EN) Next label number
                 int currentScopeLevel_ = 0; ///< (AR) مستوى النطاق الحالي / (EN) Current scope level

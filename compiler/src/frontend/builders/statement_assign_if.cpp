@@ -410,6 +410,33 @@ namespace Sad
                           << "' type=" << static_cast<int>(varDecl->type) << std::endl;
 #endif
 
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 هل نحن داخلَ جسمِ ماكرو؟ العَلَمُ يُشتقُّ **مرّةً** هنا ويُقرأ
+                //      في **خمسةِ** مواضعَ أسفل. لأنّ التصريحَ لا يبلغُ حالةَ المحيطِ
+                //      من طريقٍ واحد: ① اسمُ السجلّ · ② إعادةُ استعمالِ خانةِ الخارج ·
+                //      ③ تخطّي الثابتِ العامّ · ④ نوعُ المتغيّرِ العامِّ في الوحدة ·
+                //      ⑤ نوعُ `VariableInfo` للمتغيّرِ الخارجيِّ في النطاق.
+                //
+                //      ⚠️ **والعددُ نفسُه كان كاذبًا**: كُتِب «أربعة» أوّلًا فبقيَ ⑤
+                //      مفتوحًا — وهو جارُ ④ حرفيًّا في الملفّ. فأنتج العزلُ الجزئيُّ
+                //      انهيارًا (`rc=139`) لم يكن في خطِّ الأساس. وعددٌ منثورٌ في
+                //      تعليقٍ نسخةٌ ثانيةٌ لحقيقةٍ تُصدَّق بلا فحص.
+                //
+                //      🔑 وسادسٌ لا يمرُّ بهذا العَلَمِ أصلًا: `classInstanceTypes_`
+                //      خريطةٌ مسطّحةٌ بالاسمِ المجرَّد، فتُحفَظ وتُستعاد في
+                //      `call_macro.cpp` — لأنّ كتمانَها هنا يُعمي جسمَ الماكرو عن
+                //      صنفِ كائنِه هو.
+                // (EN) Are we inside a macro body? Derived ONCE and read in FIVE places:
+                //      slot name, outer-slot reuse, const-global skip, module global type,
+                //      and the enclosing VariableInfo's type. The count itself was WRONG at
+                //      first ("four"), leaving ⑤ — literally the neighbour of ④ — open, and
+                //      partial isolation produced an rc=139 crash absent from the baseline.
+                //      A sixth route bypasses this flag entirely: `classInstanceTypes_` is a
+                //      flat bare-name map, saved and restored in call_macro.cpp instead,
+                //      because suppressing it here would blind the body to its own object.
+                // ════════════════════════════════════════════════════════════════
+                const bool inMacroBody = !b_.macroSlotNamespace_.empty();
+
                 // ================================================================
                 // (AR) تخطي الثوابت العامة التي لديها قيمة أولية حرفية:
                 //      المتغير مسجّل مسبقاً كمتغير عام ثابت في المرحلة 1.5 مع قيمة أولية.
@@ -422,7 +449,11 @@ namespace Sad
                 //      No ALLOC or STORE needed — value is already in the global.
                 //      Without this: STORE to constant = ACCESS_VIOLATION/crash.
                 // ================================================================
-                if (b_.module_ && varDecl->isConst)
+                // (AR) ⚠️ `!inMacroBody`: بلا هذا يقعُ `ثابت س = ...` داخلَ ماكرو على
+                //      عامٍّ خارجيٍّ يحملُ الاسمَ نفسَه فيُتخطّى إصدارُه أصلًا.
+                // (EN) Without !inMacroBody a const declaration inside a macro binds to a
+                //      same-named outer global and its emission is skipped entirely.
+                if (b_.module_ && varDecl->isConst && !inMacroBody)
                 {
                     auto sirGlobal = b_.module_->getGlobalVariable(varDecl->name);
                     // (AR) الحكمُ بالعَلَمِ لا بفراغِ النصّ: `ثابت فارغ = ""` مُهيَّأٌ تهيئةً
@@ -439,6 +470,7 @@ namespace Sad
                     }
                 }
 
+                // ════════════════════════════════════════════════════════════════
                 // (AR) تحويل النوع (VarDeclStmt::type: Types::SadTypeKind, line 77)
                 // (EN) Convert type
                 SadTypeKind varType = b_.astTypeToSIRType(varDecl->type);
@@ -583,7 +615,16 @@ namespace Sad
                 //      NOT overwritten by initializer inference below so the signedness decision
                 //      stays identical to the interpreter.
                 varInfo.declaredSurfaceType = varDecl->type;
-                varInfo.registerName = "%" + varDecl->name;
+                // (AR) 🔑 الفضاءُ يُلحَقُ بـ**السجلِّ** وحدَه، و`varInfo.name` يبقى مجرَّدًا:
+                //      البحثُ في النطاقاتِ بالاسمِ المصدريّ، فقراءةُ الجسمِ لمتغيّرِه تصلُ
+                //      إليه عبرَ النطاقِ وتقرأُ السجلَّ المُفضَّى. ولو فُضِّيَ الاسمُ لَانقطعَ
+                //      كذلك البحثُ عن المتغيّراتِ الخارجيّةِ التي يقرؤها الجسم.
+                // (EN) The namespace goes on the REGISTER only; `name` stays bare so scope
+                //      lookup keeps resolving both the body's own name and outer names.
+                varInfo.registerName = inMacroBody
+                                           ? ("%" + varDecl->name + kSlotNamespaceSeparator +
+                                              b_.macroSlotNamespace_)
+                                           : ("%" + varDecl->name);
                 varInfo.isGlobal = false;
                 varInfo.isMutable = !varDecl->isConst; // line 79
                 varInfo.scopeLevel = b_.currentScopeLevel_;
@@ -636,7 +677,10 @@ namespace Sad
                         //      Update SIRGlobalVariable and scope to match the real type.
                         //      Without this: float stored in i64 alloca → fptosi → truncation!
                         // ================================================================
-                        if (b_.module_)
+                        // (AR) ⚠️ `!inMacroBody`: تصريحٌ داخلَ ماكرو لا يملكُ العامَّ
+                        //      الخارجيَّ فلا يجوزُ أن يُبدِّلَ نوعَه.
+                        // (EN) A macro-body declaration does not own the outer global.
+                        if (b_.module_ && !inMacroBody)
                         {
                             auto sirGlobal = b_.module_->getGlobalVariable(varDecl->name);
                             if (sirGlobal && sirGlobal->type != varType)
@@ -644,12 +688,42 @@ namespace Sad
                                 sirGlobal->type = varType;
                             }
                         }
-                        // (AR) تحديث VariableInfo المُسجل مسبقاً في النطاق العام أيضاً
-                        // (EN) Also update pre-registered VariableInfo in global scope
-                        VariableInfo *existingVar = b_.lookupVariable(varDecl->name);
-                        if (existingVar && existingVar->type != varType)
+                        // ════════════════════════════════════════════════════
+                        // (AR) 🔴 **الطريقُ الخامس** — وهو أخطرُ الخمسةِ ولم يكن في
+                        //      العدِّ الأوّل. `addVariable` للمدخلةِ الداخليّةِ يقعُ
+                        //      **بعدَ** هذا السطر، فـ`lookupVariable` هنا يُصيبُ
+                        //      متغيّرَ **المحيطِ** حتمًا لا الداخليَّ.
+                        //
+                        //      وسدُّ جارِه أعلاه (نوعِ العامِّ) دونَ سدِّه **يُنتِجُ ما هو
+                        //      أسوأُ من التسريبِ الأصليّ**: تبقى الخانةُ معزولةً
+                        //      والعامُّ `i64`، بينما يظنُّ القارئُ أنّه نصٌّ — فيُنادى
+                        //      `strlen` على العنوان `0x5`. مقيسٌ ٢٠٢٦-٠٨-١٨:
+                        //      خارجُه `متغير ن = 5` وداخلُ الماكرو `متغير ن = "نص"` ⇒
+                        //      **`rc=139`** بعدَ الرقعةِ الناقصة، مقابلَ `rc=0` بقيمةٍ
+                        //      خاطئةٍ قبلَها. والعكسُ (نصٌّ خارجًا وعددٌ داخلًا) يطبعُ
+                        //      عنوانًا رقمًا (`140702511144960`) بلا انهيار.
+                        //
+                        //      🔑 والدرسُ أنّ **العزلَ الجزئيَّ أخطرُ من لا عزل**:
+                        //      حقيقتانِ متّفقتانِ على الخطأِ تُعطيان جوابًا خاطئًا،
+                        //      وحقيقتانِ متناقضتانِ تُعطيان انهيارًا.
+                        // (EN) 🔴 The FIFTH route, and the most dangerous — absent from the
+                        //      first count. The inner `addVariable` happens AFTER this line,
+                        //      so `lookupVariable` here necessarily hits the ENCLOSING
+                        //      variable. Sealing its neighbour (the global's type) without
+                        //      sealing this one is WORSE than the original leak: the slot is
+                        //      isolated and the global stays i64 while the reader believes it
+                        //      is a string, so `strlen` runs on address 0x5. Measured:
+                        //      rc=139 with the partial patch vs rc=0 (wrong value) before it.
+                        //      Partial isolation is more dangerous than none: two facts that
+                        //      agree on a wrong answer print garbage; two that disagree crash.
+                        // ════════════════════════════════════════════════════
+                        if (!inMacroBody)
                         {
-                            existingVar->type = varType;
+                            VariableInfo *existingVar = b_.lookupVariable(varDecl->name);
+                            if (existingVar && existingVar->type != varType)
+                            {
+                                existingVar->type = varType;
+                            }
                         }
                     }
 
@@ -774,6 +848,14 @@ namespace Sad
                     b_.classInstanceTypes_.find(varDecl->name) == b_.classInstanceTypes_.end();
 
                 const bool reuseOuterSlot =
+                    // (AR) 🔴 داخلَ جسمِ الماكرو لا إعادةَ استعمالٍ ألبتّة: هذا هو
+                    //      الطريقُ الذي قِيس في الشكلِ (ج) — `alloca` واحدةٌ وتخزينان
+                    //      فيها. وإعادةُ الاستعمالُ خارجَ الماكرو قرارٌ مقصودٌ يبقى
+                    //      (ISSUE-028)، فالاستثناءُ للماكرو وحدَه لا نقضٌ له.
+                    // (EN) No slot reuse inside a macro body — the route measured in
+                    //      shape (ج): one alloca, two stores. Reuse outside a macro is a
+                    //      deliberate decision (ISSUE-028) and stays untouched.
+                    !inMacroBody &&
                     priorIsReusableSlot &&
                     priorTypeIsScalar && newTypeIsScalar &&
                     priorHasNoAggregateShape && newHasNoAggregateShape &&

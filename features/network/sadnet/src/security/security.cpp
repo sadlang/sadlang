@@ -356,6 +356,14 @@ namespace sad::net::security
         {
             result.push_back(rec);
         }
+        // (AR) 🔑 ترتيبٌ بمعرّفِ العقدة: `reputations` مُهشَّرةٌ فترتيبُ القائمةِ
+        //      ترتيبُ سَلّةٍ يختلفُ بالمنصّة. (ISSUE-182)
+        // (EN) Sort by node id: reputations is hashed, so the list order is a
+        //      platform-dependent bucket order.
+        std::sort(result.begin(), result.end(),
+                  [](const ReputationRecord &left, const ReputationRecord &right) {
+                      return left.node_id.data < right.node_id.data;
+                  });
         return result;
     }
 

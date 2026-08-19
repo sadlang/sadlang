@@ -185,6 +185,11 @@ namespace Sad
                 {
                     names.push_back(name);
                 }
+                // (AR) 🔑 ترتيبٌ معجميٌّ: `modules_` مُهشَّرةٌ ولا ترتيبَ إدخالٍ ذا
+                //      معنًى هنا، فالمطلوبُ حتميّةٌ عبرَ المنصّات. (ISSUE-182)
+                // (EN) Lexicographic: modules_ is hashed and no insertion order is
+                //      meaningful here, so determinism across platforms is what matters.
+                std::sort(names.begin(), names.end());
                 return names;
             }
 

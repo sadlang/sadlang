@@ -518,6 +518,35 @@ if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/system/benchmark/nfr_gate
 endif()
 
 # ─────────────────────────────────────────────────────────────────────
+# (AR) حارسُ سجلِّ الحمرةِ المقيسة — `tests/behavior/DECLARED_REDS.tsv`.
+#      المجلّدان `grammar_gaps` و`_regression` خارجَ كلِّ مستوًى يُشغّلُه CI،
+#      ففيهما ٦١ ملفًّا أحمرَ لا يراها أحد. هذا الاختبارُ في وضعِ **البِنية**:
+#      يفحصُ صحّةَ السجلِّ ووجودَ ملفّاتِه بلا تشغيلِ حالةٍ واحدة — رخيصٌ ويصلحُ
+#      لكلِّ منصّة. والحكمُ الكاملُ (--measure) في خطوةٍ داخلَ وظيفةِ `🐧 Linux (Release)`ٍ لأنّه يلزمه
+#      محرّكان مبنيّان و.
+#      🔑 والحارسُ يقولُ صراحةً «لم أَقِسْ» في هذا الوضع، فلا يُقرأُ أخضرُه
+#      برهانًا على الحمرة — وهو عينُ العطبِ الذي بُنيَ ليمنعه.
+# (EN) Guard for the measured-reds registry, in STRUCTURE mode: validates the
+#      registry's shape and that every listed file exists, without running a
+#      single case. Full judgement (--measure) lives in its own CI job. The
+#      guard explicitly says "not measured" here, so its green is never read as
+#      proof about the reds themselves.
+# ─────────────────────────────────────────────────────────────────────
+if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/system/harness/test_declared_reds_registry.py")
+    add_test(
+        NAME DeclaredReds_RegistryShape
+        COMMAND ${CMAKE_COMMAND} -E env
+            "PYTHONIOENCODING=utf-8"
+            "PYTHONUTF8=1"
+            ${Python3_EXECUTABLE}
+                "${CMAKE_SOURCE_DIR}/tests/system/harness/test_declared_reds_registry.py"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    set_tests_properties(DeclaredReds_RegistryShape PROPERTIES
+        TIMEOUT 60 LABELS "System;harness;contract")
+endif()
+
+# ─────────────────────────────────────────────────────────────────────
 # (AR) بوّابة وصل الخلفيّة الأصليّة (بلا LLVM) بالمُشغِّل — تُشغّل sad-build
 #      نفسَه بـ«--خلفية-أصلية» وتحكم على بنية ELF64 الناتجة. اختباراتُ
 #      الوحدة (NativeSirBridge وأخواتُها) تستدعي الهيدرات مباشرةً، فتخضرّ

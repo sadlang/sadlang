@@ -607,10 +607,18 @@ public:
             result.emplace_back(entry.first, entry.second.useCount);
         }
         
-        // ترتيب تنازلي
+        // (AR) 🔑 ترتيبٌ تنازليٌّ **بترتيبٍ كلّيّ**: المقارنةُ بالعدِّ وحدَه تترُكُ
+        //      المتعادلَين لترتيبِ `pool` المُهشَّر، و`std::sort` غيرُ مستقرّة —
+        //      فيختلفُ الناتجُ بالمنصّة. الفاصلُ النصُّ نفسُه. (ISSUE-182)
+        // (EN) Descending by a TOTAL order: comparing counts alone leaves ties to the
+        //      hashed pool order, and std::sort is not stable, so the result differs by
+        //      platform. The string itself is the tie-breaker.
         std::sort(result.begin(), result.end(),
             [](const auto& a, const auto& b) {
-                return a.second > b.second;
+                if (a.second != b.second) {
+                    return a.second > b.second;
+                }
+                return a.first < b.first;
             });
         
         if (result.size() > count) {

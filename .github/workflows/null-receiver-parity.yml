@@ -82,7 +82,7 @@ jobs:
       # (EN) Same apt.llvm.org source as ci.yml; relying on universe breaks on image bumps.
       - name: "📦 تثبيت LLVM 18 / Install LLVM 18"
         run: |
-          sudo apt-get update
+          bash scripts/ci/apt_retry.sh update
           # (AR) SDL2 ضرورية: بدونها يربط CMake مكتبةَ SDL2 الويندوزيّةَ المرفقةَ
           #      (SDL2.lib) على Linux فيفشلُ ربطُ `sad-run` بـR_AMD64_IMAGEBASE.
           #      وهو ما وقع فعلًا في التشغيلِ الثاني لهذه الوظيفة — والسببُ موثَّقٌ
@@ -90,13 +90,13 @@ jobs:
           # (EN) SDL2 dev pkgs required: without them CMake links the bundled Windows
           #      SDL2.lib on Linux and sad-run fails with R_AMD64_IMAGEBASE. Documented
           #      verbatim in ci.yml; the note had not travelled with the recipe.
-          sudo apt-get install -y cmake ninja-build g++ build-essential lsb-release wget gnupg \
+          bash scripts/ci/apt_retry.sh install -y cmake ninja-build g++ build-essential lsb-release wget gnupg \
             libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
           CODENAME=$(lsb_release -cs)
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg
           echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
-          sudo apt-get update
-          sudo apt-get install -y llvm-18-dev libclang-18-dev clang-18
+          bash scripts/ci/apt_retry.sh update
+          bash scripts/ci/apt_retry.sh install -y llvm-18-dev libclang-18-dev clang-18
           # (AR) المسارُ هو ما تستعمله بقيّةُ الوظائف؛ و«/usr/lib/llvm-18/cmake»
           #      لا وجودَ له، و`find_package(... QUIET)` يُطفئ الخلفيّةَ صامتًا
           #      فلا يوجدُ هدفُ sad-build أصلًا.

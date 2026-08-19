@@ -253,9 +253,20 @@ public:
             case Kind::Literal:
                 return literalValue;
             case Kind::Enum: {
+                // (AR) 🔑 ترتيبٌ قبل الإصدار: `enumValues` مجموعةٌ مُهشَّرة،
+                //      وهذا النصُّ **يُعرَضُ على المستخدمِ** في تشخيصِ الاستيفاء —
+                //      فبلا ترتيبٍ يختلفُ نصُّ الرسالةِ باختلافِ المنصّةِ على شيفرةٍ
+                //      واحدة، وتصيرُ مقارنةُ التشخيصِ في الاختباراتِ رفرفةً. (ISSUE-182)
+                // (EN) Sort before emitting: enumValues is a hashed set and this text is
+                //      SHOWN TO THE USER in the exhaustiveness diagnostic. Unsorted, the
+                //      message differs across platforms for identical source and any
+                //      diagnostic comparison in tests becomes a flake.
+                std::vector<std::string> ordered(enumValues.begin(), enumValues.end());
+                std::sort(ordered.begin(), ordered.end());
+
                 std::string result = "{";
                 bool first = true;
-                for (const auto& v : enumValues) {
+                for (const auto& v : ordered) {
                     if (!first) result += ", ";
                     result += v;
                     first = false;
@@ -592,11 +603,19 @@ private:
                 missing.push_back(space->literalValue);
                 break;
                 
-            case PatternSpace::Kind::Enum:
-                for (const auto& v : space->enumValues) {
+            case PatternSpace::Kind::Enum: {
+                // (AR) الحالاتُ الناقصةُ تُعرَضُ على المستخدم — فترتيبُها جزءٌ من
+                //      الرسالة. (ISSUE-182)
+                // (EN) Missing cases are shown to the user, so their order is part of
+                //      the message.
+                std::vector<std::string> orderedValues(
+                    space->enumValues.begin(), space->enumValues.end());
+                std::sort(orderedValues.begin(), orderedValues.end());
+                for (const auto& v : orderedValues) {
                     missing.push_back(v);
                 }
                 break;
+            }
                 
             case PatternSpace::Kind::Union:
                 for (const auto& sub : space->subSpaces) {

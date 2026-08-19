@@ -1,0 +1,98 @@
+# ═══════════════════════════════════════════════════════════════════════════
+# (AR) سجلُّ الحمرةِ المقيسةِ خارجَ مستوياتِ CI — `grammar_gaps` و`_regression`.
+#
+#      🔑 لِمَ سجلٌّ لا وسمُ `@known_red`؟ لأنّ الوسمَ يبتلعُ **فرقَ المخرَجِ
+#      وحدَه** عمدًا، وتعليقُ `tests/runner.py` يوثّقُ سببَه مقيسًا: نسخةٌ أولى
+#      ابتلعت كلَّ ما ليس PASS، فصارَ ملفٌّ بخطأِ تحليلٍ وملفٌّ بحلقةٍ لانهائيّةٍ
+#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ٦١ هنا **٢٥
+#      فقط** صنفُها FAIL_OUTPUT، والـ٣٦ الباقيةُ انهياراتٌ وتعليقاتٌ ورفضُ
+#      ترجمةٍ — وتوسيعُ الوسمِ ليشملَها إعادةٌ لعطبٍ مُصلَح.
+#
+#      ⚠️ وهذا السجلُّ **دَينٌ موصوفٌ محروسٌ في الاتّجاهَين**، لا قائمةَ إذنٍ
+#      تُنسى: الحارسُ `test_declared_reds_registry.py` يُخفِقُ إن اخضرَّ ملفٌّ
+#      هنا (فيُحذَفُ صفُّه) وإن احمرَّ ملفٌّ ليس هنا (فالدَّينُ نما صامتًا)
+#      وإن تغيّرَ صنفُ الإخفاق (فالعطبُ صار عطبًا آخر لم يُشخَّص).
+#
+#      والصفوفُ **مولَّدةٌ من شوطٍ حقيقيٍّ** لا مكتوبةٌ يدويًّا:
+#      شوطُ ٢٠٢٦-٠٨-١٨ على `3333d4d5` — grammar_gaps ٣٣/١١٥ · _regression ٢٨/٩١.
+#
+# (EN) Registry of MEASURED reds outside every CI level. Why a registry and not
+#      @known_red? Because that marker deliberately swallows OUTPUT MISMATCH
+#      only — widening it to crashes/hangs/compile-failures would re-open a
+#      measured defect (a single header line once disabled the P0 smoke gate).
+#      Only 25 of these 61 are FAIL_OUTPUT. This file is guarded in BOTH
+#      directions by test_declared_reds_registry.py: a row that turns green, a
+#      new red that is absent, or a changed failure kind all fail the guard.
+#
+# ⚠️ بصمةُ التوليد / provenance: وُلِّد ٢٠٢٦-٠٨-١٨ على **ويندوز · بناء Debug ·
+#    ١٢ نواة · مهلة ٣٠ث**. وصنفُ الإخفاقِ **بيانٌ مقيسٌ لا حكم**: حرفُه يتبع
+#    المنصّةَ والبناء (قِيس أنّ ثلاثةَ صفوفٍ `FAIL_TIMEOUT` تخرج `abort` في أقلَّ
+#    من ثانيةٍ خارجَ حوارِ تأكيدِ Debug). فالحارسُ يُحاكِمُ **طبقتَه** لا حرفَه —
+#    انظر `fail_layer` في test_declared_reds_registry.py.
+# (EN) Provenance: generated 2026-08-18 on Windows / Debug / 12 cores / 30s timeout.
+#    The kind column is measured DATA, not a verdict: its exact letter follows the
+#    platform and build. The guard judges its LAYER instead — see `fail_layer`.
+#
+# الصيغة / format:  <المسار من tests/behavior><TAB><صنف الإخفاق>
+# ═══════════════════════════════════════════════════════════════════════════
+_regression/m1_imported_module_parity.ص	FAIL_COMPILE
+_regression/scan_bug16.ص	FAIL_OUTPUT
+_regression/test_bug11_diag.ص	FAIL_OUTPUT
+_regression/test_bug11_diag2.ص	FAIL_OUTPUT
+_regression/test_bug11_exact.ص	FAIL_OUTPUT
+_regression/test_bug18_exact.ص	FAIL_OUTPUT
+_regression/test_bug18_this_method.ص	FAIL_OUTPUT
+_regression/test_bug1_advanced.ص	FAIL_COMPILE
+_regression/test_bug1_chained_index.ص	FAIL_COMPILE
+_regression/test_bug1_exact.ص	FAIL_COMPILE
+_regression/test_bug3_length_depth.ص	FAIL_INTERP
+_regression/test_function_type.ص	FAIL_INTERP
+_regression/test_optional_null_advanced.ص	FAIL_COMPILE
+_regression/test_optional_null_coalesce.ص	FAIL_OUTPUT
+_regression/test_p01_array_key_access.ص	FAIL_COMPILE
+_regression/test_p07_array_pluseq.ص	FAIL_COMPILE
+_regression/test_p24_json_unified_builtin.ص	FAIL_COMPILE
+_regression/test_p25_xml_unified_builtin.ص	FAIL_COMPILE
+_regression/test_p26_json_invalid_input.ص	FAIL_COMPILE
+_regression/test_p27_xml_invalid_input.ص	FAIL_COMPILE
+_regression/test_p29_filesystem_invalid_input.ص	FAIL_OUTPUT
+_regression/test_p30_database_availability.ص	FAIL_COMPILE
+_regression/test_p31_json_unicode_parse.ص	FAIL_COMPILE
+_regression/test_p32_json_unicode_stringify.ص	FAIL_COMPILE
+_regression/test_p33_operator_overloading.ص	FAIL_OUTPUT
+_regression/test_p34_conversion_operators.ص	FAIL_RUNTIME
+_regression/test_p35_print_operator.ص	FAIL_OUTPUT
+_regression/test_p36_compiler_operators.ص	FAIL_OUTPUT
+grammar_gaps/باني_يستدعي_طريقة/001_ctor_calls_method.ص	FAIL_OUTPUT
+grammar_gaps/بنى_بيانات/003_flatten.ص	FAIL_COMPILE
+grammar_gaps/بنى_بيانات/006_multi_assign.ص	FAIL_INTERP
+grammar_gaps/بنيات_متقدمة/007_generic.ص	FAIL_INTERP
+grammar_gaps/بنيات_متقدمة/008_async_await.ص	FAIL_INTERP
+grammar_gaps/تباعد_نوع_عند_إعادة_التصريح/001_match_arm_type_change.ص	FAIL_OUTPUT
+grammar_gaps/تباعد_نوع_عند_إعادة_التصريح/002_match_arm_array_element_type.ص	FAIL_OUTPUT
+grammar_gaps/تباعد_نوع_عند_إعادة_التصريح/003_match_arm_shadows_parameter.ص	FAIL_OUTPUT
+grammar_gaps/تساهل_الأسماء/002_return_top_level.ص	FAIL_OUTPUT
+grammar_gaps/تصريحات/0012_static_array_module_unusable.ص	FAIL_INTERP
+grammar_gaps/تصريحات/0013_static_array_in_function_diverges.ص	FAIL_INTERP
+grammar_gaps/تصريحات/0014_nameless_decl_swallows_next_line.ص	FAIL_OUTPUT
+grammar_gaps/تصريحات/0015_tuple_destructure_compiler_crash.ص	FAIL_TIMEOUT
+grammar_gaps/تصريحات/0016_tuple_destructure_in_function_crash.ص	FAIL_TIMEOUT
+grammar_gaps/تصريحات/003_block_shadow.ص	FAIL_OUTPUT
+grammar_gaps/تصريحات/004_import_haseb_alias.ص	FAIL_INTERP
+grammar_gaps/تعابير_متقدمة/001_spread_array.ص	FAIL_INTERP
+grammar_gaps/تعداد_تصادم_حقل/002_wrong_variant_field.ص	FAIL_INTERP
+grammar_gaps/تعداد_وسيط_وصول_حقل/001_untyped_adt_param_field.ص	FAIL_OUTPUT
+grammar_gaps/دقة_الصحيح_64بت/001_int64_precision_dual.ص	FAIL_OUTPUT
+grammar_gaps/طرق_المصفوفات/001_arr_add.ص	FAIL_INTERP
+grammar_gaps/طرق_المصفوفات/003_arr_first.ص	FAIL_INTERP
+grammar_gaps/طرق_المصفوفات/008_arr_pop.ص	FAIL_OUTPUT
+grammar_gaps/طرق_النصوص/002_str_split.ص	FAIL_INTERP
+grammar_gaps/طرق_النصوص/003_str_trim.ص	FAIL_INTERP
+grammar_gaps/طرق_النصوص/006_str_substr.ص	FAIL_INTERP
+grammar_gaps/قائمة_عنصر_حرفيّ_مسطّح/001_literal_element_unchecked.ص	FAIL_OUTPUT
+grammar_gaps/قالب_وسيط_نصّ/001_template_string_arg_compiler.ص	FAIL_TIMEOUT
+grammar_gaps/متقدمة/001_yield_generator.ص	FAIL_INTERP
+grammar_gaps/متقدمة/002_ffi_extern.ص	FAIL_INTERP
+grammar_gaps/متقدمة/003_property_test_exit.ص	FAIL_OUTPUT
+grammar_gaps/نمط_حقل_بنية_متداخل/001_struct_field_nested_compiler.ص	FAIL_OUTPUT
+grammar_gaps/نمط_متداخل_مختلط/001_hetero_nested_compiler.ص	FAIL_OUTPUT

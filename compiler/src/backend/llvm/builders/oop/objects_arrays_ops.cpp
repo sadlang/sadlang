@@ -424,43 +424,61 @@ namespace Sad
 
                             if (phi && branchResult && !branchResult->getType()->isVoidTy())
                             {
+                                // ════════════════════════════════════════════════════
+                                // (AR) 🔑 التطبيعُ يمرُّ بجدولِ التحويلِ **الواحد**
+                                //      (`coerceToParamType`) لا بسلسلةٍ مكتوبةٍ هنا.
+                                //      وتوثيقُ ذلك الجدولِ يقول نصًّا إنّه استُخرِج لأنّه
+                                //      كان منسوخًا في موضعَين كائنيَّين **ينقصهما الموسومُ
+                                //      في كليهما** — وهذه كانت النسخةَ الثالثةَ، وينقصُها
+                                //      الموسومُ كذلك.
+                                //
+                                //      🔴 والثمنُ مقيسٌ لا متوقَّع: طريقةٌ افتراضيّةٌ فيها
+                                //      قسمةٌ (`(أ*ب)/2`) تُرجِع `%SadDyn`، فلم تُطابِقْ
+                                //      فرعًا من السلسلة، فسقط ذراعُها إلى `poison`. و
+                                //      `poison` في PHI يقرأ ما بقيَ في السجلّ: قِيس أنّ
+                                //      `مجموع = مجموع + ش.مساحة()` أعطى ٢٠٧٫٠ بدل ١٠٩٫٥
+                                //      لأنّ الذراعَ أعادت **مؤقَّتَ الدورةِ السابقة**
+                                //      (وصفرًا في الأولى) — في ستِّ تشكيلاتِ مصفوفةٍ بلا
+                                //      استثناء، بلا تحذيرٍ ولا خطأِ تحقّق.
+                                //
+                                //      ⚠️ ويبقى `poison` احتياطًا لِما يعجزُ الجدولُ عنه:
+                                //      لا يُبنى PHI بنوعٍ مخالف. لكنّه صار **آخرَ** الطريقِ
+                                //      لا فرعًا يبتلعُ صنفًا كاملًا من القيم.
+                                // (EN) Normalisation goes through the SINGLE cast table
+                                //      (`coerceToParamType`), whose own docs record that it
+                                //      was extracted because the table was duplicated in two
+                                //      OOP sites and BOTH lacked the tagged case. This was a
+                                //      third copy, also lacking it: a virtual method with a
+                                //      division returns %SadDyn, matched no branch, and its
+                                //      arm fell to `poison` — which in a PHI reads whatever
+                                //      is left in the register (measured: 207.0 instead of
+                                //      109.5, the previous iteration's temp, across six array
+                                //      permutations, with no diagnostic). Poison remains as a
+                                //      last resort so no PHI is built with a mismatched type.
+                                // ════════════════════════════════════════════════════
                                 llvm::Value *normalizedResult = branchResult;
                                 if (normalizedResult->getType() != phiType)
                                 {
-                                    if (phiType->isIntegerTy(64) && normalizedResult->getType()->isPointerTy())
-                                    {
-                                        normalizedResult = cg_.builder_->CreatePtrToInt(normalizedResult, phiType, "vt.res.p2i");
-                                    }
-                                    else if (phiType->isPointerTy() && normalizedResult->getType()->isIntegerTy(64))
-                                    {
-                                        normalizedResult = cg_.builder_->CreateIntToPtr(normalizedResult, phiType, "vt.res.i2p");
-                                    }
-                                    else if (phiType->isIntegerTy() && normalizedResult->getType()->isIntegerTy())
-                                    {
-                                        normalizedResult = cg_.builder_->CreateIntCast(normalizedResult, phiType, true, "vt.res.icast");
-                                    }
-                                    else if (phiType->isFloatingPointTy() && normalizedResult->getType()->isIntegerTy())
-                                    {
-                                        normalizedResult = cg_.builder_->CreateSIToFP(normalizedResult, phiType, "vt.res.i2f");
-                                    }
-                                    else if (phiType->isIntegerTy() && normalizedResult->getType()->isFloatingPointTy())
-                                    {
-                                        normalizedResult = cg_.builder_->CreateFPToSI(normalizedResult, phiType, "vt.res.f2i");
-                                    }
-                                    else if (phiType->isFloatingPointTy() && normalizedResult->getType()->isFloatingPointTy())
-                                    {
-                                        normalizedResult = cg_.builder_->CreateFPCast(normalizedResult, phiType, "vt.res.fcast");
-                                    }
-                                    else if (phiType->isPointerTy() && normalizedResult->getType()->isPointerTy())
-                                    {
-                                        normalizedResult = cg_.builder_->CreateBitCast(normalizedResult, phiType, "vt.res.bitcast");
-                                    }
-                                    else
-                                    {
-                                        // (AR) لا تحويل ممكن — استخدم poison لتفادي <badref>
-                                        // (EN) No conversion possible — use poison to avoid <badref>
-                                        normalizedResult = llvm::PoisonValue::get(phiType);
-                                    }
+                                    // (AR) ⚠️ ويُمرَّرُ نوعُ SIR ولا يُترَكُ `Unknown`: الجدولُ
+                                    //      يقرؤه في اتّجاهَين لا واحد — التعليبِ **و**
+                                    //      إشارةِ توسيعِ الصحيح (`بايت`/`طبيعي*` بالأصفار،
+                                    //      والموقَّعُ بالإشارة). وتركُه `Unknown` يُوسِّعُ
+                                    //      `بايت ب = ٢٠٠` بالإشارةِ إلى ‑٥٦ — جوابٌ خاطئٌ
+                                    //      صامت. والقيمةُ متاحةٌ هنا فلا عذرَ لإهمالِها،
+                                    //      وإن كانت ترويسةُ الجدولِ تقول «كافٍ» بغيرها.
+                                    // (EN) Pass the SIR type instead of leaving it Unknown: the
+                                    //      table reads it in two directions — boxing AND the
+                                    //      signedness of integer widening. Leaving it Unknown
+                                    //      sign-extends an unsigned byte 200 to -56, a silent
+                                    //      wrong answer. The value is available here.
+                                    normalizedResult = coerceToParamType(
+                                        cg_, normalizedResult, phiType,
+                                        inst->result.has_value() ? inst->result->dataType
+                                                                 : SadTypeKind::Unknown);
+                                }
+                                if (normalizedResult->getType() != phiType)
+                                {
+                                    normalizedResult = llvm::PoisonValue::get(phiType);
                                 }
                                 phi->addIncoming(normalizedResult, cg_.builder_->GetInsertBlock());
                             }

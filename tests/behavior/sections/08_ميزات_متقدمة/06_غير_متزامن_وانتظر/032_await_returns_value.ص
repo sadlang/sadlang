@@ -1,0 +1,75 @@
+﻿# @description انتظر يفكُّ قيمةَ الوعدِ بنوعِها — خمسةُ أنواعِ إرجاعٍ وضابطٌ متزامن
+# @expected صحيحة:42\nعشرية:2.5\nنصية:سلام\nبمعاملات:100\nعادية:42
+# @priority P1
+
+# ============================================================================
+# (AR) 🔑 عطبانِ في طبقتَين، وكلٌّ منهما وحدَه يكفي لإفسادِ الجواب:
+#
+#      ① **حقيقةٌ واحدةٌ بقارئَين** (ISSUE-176①): الدالّةُ غيرُ المتزامنةِ تُبنى
+#         كوروتينًا فيُعادُ ضبطُ `SIRFunction::returnType` إلى `Pointer` (مقبضُ
+#         الإطار)، بينما جدولُ الدوالِّ — الذي تقرؤه **مواضعُ النداء** — بقيَ
+#         على النوعِ المستنتَجِ من `ارجع`. ثمّ في `انتظر` ممرُّ هُويّةٍ للقيمِ
+#         القياسيّةِ وُضِع **عمدًا** لأنّ `CORO_SUSPEND` على عدديٍّ يُسقِطُ LLVM
+#         في legalization — فرأى «Integer» ومرَّرَ المقبضَ كما هو، فطُبِع
+#         **عنوانًا** (قِيس `2142012098544` بدل `42`).
+#
+#      ② **الوعاءُ عرضٌ لا نوع** (ISSUE-177): `coro.promise` هو `alloca i64`
+#         واحدٌ لكلِّ الأنواع. فبعدَ سدِّ ①، صار `انتظر` يقرأُ الوعدَ فعلًا —
+#         لكنّه يقرؤه **صحيحًا مهما كان**. والأسوأُ أنّ القطعَ كان يقعُ عند
+#         **التخزين** (`fptosi`) لا عند القراءة: `ارجع 2.5` تُخزَّن `2` فلا
+#         يُصلِحُها قارئٌ مهما عَلِمَ نوعَها. فصار التخزينُ بالبتّات
+#         (`bitcast`) والقراءةُ تُعيدُ القيمةَ إلى نوعِ المُنادَى.
+#
+#      🔑 والفرقُ بين الثقبَين في الخطورةِ لا في الحجم: النصُّ يُعطي عنوانًا
+#      **يُرى فورًا** (`140697363497228`)، والعشريُّ يُعطي `2` — **جوابًا
+#      معقولًا لا يُنبِّه أحدًا**. فالثاني أخطرُ وإن بدا أصغر.
+#
+#      ⚠️ و`عادية:42` ليست حشوًا: هي الضابطُ الذي يفصلُ «انتظر مكسور» عن
+#      «كلُّ نداءٍ مكسور» — دالّةٌ متزامنةٌ بالجسمِ نفسِه كانت تُعطي `42`
+#      صحيحةً طوال العطبَين، فالفرقُ بينهما هو الدليل.
+#
+#      ⚠️ والتخزينُ والقراءةُ **عقدٌ واحد**: لو رجعَ أحدُهما إلى `fptosi`/`sitofp`
+#      دون الآخرِ لَعادَ الجوابُ خاطئًا صامتًا بلا انهيارٍ ولا تحذير. وهذا
+#      الملفُّ هو ما يمنعُ ذلك الانفراد.
+#
+# (EN) Two defects in two layers, either sufficient alone. ① One fact, two readers:
+#      an async function's SIRFunction return type is rewritten to Pointer while the
+#      function table read by CALL SITES kept the type inferred from the body, so
+#      `انتظر`'s scalar identity path — added because CORO_SUSPEND on a scalar crashes
+#      LLVM legalization — passed the frame handle through and printed an address.
+#      ② The container is a width, not a type: coro.promise is one i64 for every type,
+#      and the truncation happened at the STORE (fptosi), so no reader could recover
+#      2.5 however well it knew the type. Store now keeps the bits (bitcast) and the
+#      read restores the callee's type. The string gap printed a visible address; the
+#      float gap printed 2 — a plausible answer that warns nobody, and so the more
+#      dangerous of the two. `عادية` is the control separating "await is broken" from
+#      "every call is broken". Store and read are ONE contract: if either reverts
+#      alone the answer is silently wrong, and this file is what prevents that.
+# ============================================================================
+
+دالة غير_متزامن صحيحة()
+    ارجع 42
+نهاية
+
+دالة غير_متزامن عشرية()
+    ارجع 2.5
+نهاية
+
+دالة غير_متزامن نصية()
+    ارجع "سلام"
+نهاية
+
+دالة غير_متزامن بمعاملات(أ، ب)
+    ارجع أ + ب
+نهاية
+
+# (AR) الضابط: الجسمُ نفسُه بلا `غير_متزامن` — كان أخضرَ طوال العطبَين
+دالة عادية()
+    ارجع 42
+نهاية
+
+اطبع_سطر("صحيحة:" + انتظر صحيحة())
+اطبع_سطر("عشرية:" + انتظر عشرية())
+اطبع_سطر("نصية:" + انتظر نصية())
+اطبع_سطر("بمعاملات:" + انتظر بمعاملات(40، 60))
+اطبع_سطر("عادية:" + عادية())

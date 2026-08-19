@@ -112,6 +112,10 @@ jobs:
             echo "::warning::Found $count .txt files in root directory — cleanup recommended"
           fi
 
+      - name: "🔁 حارسُ apt — كلُّ نداءٍ عبرَ المُغلِّف / apt retry guard"
+        shell: bash
+        run: python3 scripts/ci/check_apt_retry_usage.py
+
   # ======================================================================
   # 1.5. تحليل ساكن / Static Analysis (clang-tidy + cppcheck)
   # ======================================================================
@@ -608,7 +612,16 @@ jobs:
   linux:
     name: "🐧 Linux (${{ matrix.config }})"
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # (AR) ⚠️ رُفِعت من ٦٠: أُضيفت إلى هذه الوظيفةِ ثلاثُ بوّاباتٍ لم تكن فيها —
+    #      مصفوفةُ القواعد (٣٠٠٢ ملفًّا) والمستوى الكامل (٧٢٠) وسجلُّ الحمرة
+    #      (٢٠٦). وقِيست الثلاثُ محلّيًّا على ١٢ نواةً وبناءِ Debug: ٣٨٨ث للكامل
+    #      وحدَه. وعَتادُ CI أقلُّ نوًى وبناؤه Release، فالزمنُ **غيرُ مقيسٍ هناك**
+    #      بعدُ — والرفعُ احتياطٌ حتّى يُقاس، لا رقمٌ مشتقٌّ من قياس.
+    # (EN) Raised from 60: three gates were added to this job (3002 rules, 720 full,
+    #      206 registry). Measured locally at 388s for `full` alone on 12 cores
+    #      (Debug). CI hardware differs and its wall time is NOT yet measured — this
+    #      raise is headroom pending that measurement, not a derived number.
+    timeout-minutes: 120
     needs: code-quality
     strategy:
       fail-fast: false
@@ -790,6 +803,139 @@ jobs:
             exit 1
           fi
           echo "✅ بوّابةُ القرار: PASS — لا تراجعَ تكافُؤ"
+
+      - name: "🧮 مصفوفة القواعد — ٣٠٠٢ تكافُؤ / Rules Matrix Parity"
+        if: matrix.config == 'Release'
+        run: |
+          # (AR) 🔑 هذه الـ٣٠٠٢ لم تُشغَّلْ في CI قطّ — في أيِّ عصرٍ وعلى أيِّ منصّة.
+          #      ومُناديها الوحيدُ `check_grammar_conformance.py --run` لا تستدعيه
+          #      واحدةٌ من الورَقاتِ الخمسَ عشرة. فكان التكافُؤُ مقيسًا على ٥ ملفّاتٍ
+          #      من ٣٩٢٦ (٠٫١٣٪). وقِيس محلّيًّا ٢٠٢٦-٠٨-١٨ على ١٢ نواةً وبناءِ
+          #      Debug: ٣٠٠٠/٣٠٠٢ يجتاز · ١ تخطٍّ مقصودٌ · ١ عطبٌ حقيقيٌّ أُصلِح.
+          # (EN) These 3002 were NEVER run in CI, on any platform, in any era: their
+          #      only caller is check_grammar_conformance.py --run, which none of the
+          #      15 workflows invokes. Parity was measured on 5 of 3926 files (0.13%).
+          sad="build/bin/sad-run"
+          sadc="build/bin/sad-build"
+          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: المحرّكان إلزاميّان لمصفوفةِ القواعد"
+            exit 1
+          fi
+          # (AR) 🔴 **بلا `--gate` عمدًا — والسببُ مقيسٌ لا مبدئيّ.** كُتِبت هذه
+          #      الخطوةُ أوّلًا بـ`--gate` ظنًّا أنّه يعني «أيُّ إخفاقٍ = FAIL»، وهو
+          #      **عكسُ ما يفعل**: تُخفِقُ البوّابةُ على إخفاقِ `P0_smoke` أو خرقِ
+          #      `--gate-floor` أو رفرفةِ burn-in وحدَها، وما عداه ⇒ `CONCERNS` ⇒
+          #      **خروجٌ صفريّ** (`tests/runner.py`، فرعُ `elif failed > 0`). وليس في
+          #      `rules_matrix` ملفُّ `P0_smoke` واحدٌ، فـ٣٠٠٢ إخفاقًا كانت تمرُّ خضراء.
+          #      قِيس على `grammar_gaps` (٢٠٢٦-٠٨-١٨): ٣٣ إخفاقًا حقيقيًّا ⇒ مع
+          #      `--gate` رمزُ الخروجِ **٠**، وبلا `--gate` رمزُ الخروجِ **١**.
+          #      والخروجُ الافتراضيُّ `exit(1 if failed > 0)` هو المطلوبُ بعينِه، ولا
+          #      يحتسبُ `KNOWN_RED` (حالتُها لا تبدأ بـFAIL) فلا تحجبُ الدمج.
+          #      ⚠️ ولا يصلحُ `--gate-floor 100` بديلًا: النسبةُ `ناجح/الإجمالي`
+          #      تحتسبُ التخطّيَ والحمرةَ المُعلَنةَ في المقام، فتُخفِقُ دائمًا.
+          # (EN) 🔴 NO `--gate`, and the reason is measured: it fails only on a
+          #      P0_smoke failure, a breached floor, or a burn-in flake; anything else
+          #      is CONCERNS with exit 0. rules_matrix holds no P0_smoke file, so 3002
+          #      failures would have exited 0. Measured on grammar_gaps: 33 real
+          #      failures → exit 0 with --gate, exit 1 without. The default
+          #      `exit(1 if failed > 0)` is exactly the intent and does not count
+          #      KNOWN_RED. `--gate-floor 100` is NOT a substitute: the rate counts
+          #      SKIP and KNOWN_RED in its denominator, so it would always fail.
+          if ! python3 tests/runner.py --dir rules_matrix --timeout 30 \
+                 --interp "$sad" --compiler "$sadc" --report; then
+
+            # (AR) 🔑 يُعرَضُ **ما** أخفقَ لا عددُه: بوّابةٌ تقولُ «٦ من ٣٠٠٢»
+            #      ولا تقولُ أيَّ ستّةٍ ولا بمَ افترقَ المحرّكان تُلزِمُ شوطًا ثانيًا
+            #      لمجرّدِ رؤيةِ ما رآه الأوّل. والمُخرَجان في التقريرِ أصلًا.
+            # (EN) Show WHAT failed, not how many: the outputs are already in the
+            #      report; only the display was missing.
+            python3 tests/system/harness/print_parity_failures.py build/_dual_report.json || true
+            echo "::error::مصفوفةُ القواعد: FAIL — تراجعُ تكافُؤٍ في الـ٣٠٠٢"
+            exit 1
+          fi
+          echo "✅ مصفوفةُ القواعد: PASS"
+
+      - name: "📚 المستوى الكامل / Full Level Parity"
+        if: matrix.config == 'Release'
+        run: |
+          # (AR) 🔑 كان CI يقيسُ التكافؤَ على **P0 وحدَه** — خمسةُ ملفّاتِ دخان.
+          #      و`full` = `P0_smoke` + `sections` ⇒ **٧٢٠** ملفًّا (٥ + ٧١٥).
+          #      ⚠️ والعددُ لا يُكتَبُ في اسمِ الخطوة: يبلى مع كلِّ بذرةٍ جديدة.
+          #      وقِيس `sections` وحدَه محلّيًّا ٢٠٢٦-٠٨-١٨ على ١٢ نواةً وبناءِ
+          #      Debug: ٧١٥ إجماليًّا · ٦٨٧ نجاحًا · **٠ إخفاق** · ٢٥ تخطٍّ ·
+          #      ٣ حمراءَ مُعلَنةً · ٣٨٨ ثانية. فالبوّابةُ تُنزَلُ خضراءَ من أوّلِ شوط.
+          # (EN) CI measured parity on P0 alone — five smoke files. `full` is
+          #      P0_smoke + sections = 720 files (5 + 715). The count is deliberately
+          #      kept out of the step name: it rots with every new seed. `sections`
+          #      alone measured locally: 715 total, 687 pass, 0 fail, 25 skip,
+          #      3 declared red, 388s on 12 cores (Debug).
+          sad="build/bin/sad-run"
+          sadc="build/bin/sad-build"
+          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: المحرّكان إلزاميّان للمستوى الكامل"
+            exit 1
+          fi
+          # (AR) 🔴 بلا `--gate` — للسببِ المقيسِ نفسِه المشروحِ في الخطوةِ أعلاه.
+          #      وهنا الخداعُ **أخبثُ**: `full` يضمُّ خمسةَ ملفّاتِ `P0_smoke`، فتبدو
+          #      البوّابةُ عاملةً — بينما انحدارُ أيٍّ من الـ٧١٥ الباقيةِ يخرجُ بـ٠.
+          # (EN) 🔴 No --gate, same measured reason. Subtler here: `full` holds
+          #      five P0_smoke files so the gate looks alive, yet a regression in any
+          #      of the other 715 exits 0.
+          if ! python3 tests/runner.py --level full --timeout 60 \
+                 --interp "$sad" --compiler "$sadc" --report; then
+
+            # (AR) 🔑 يُعرَضُ **ما** أخفقَ لا عددُه: بوّابةٌ تقولُ «٦ من ٣٠٠٢»
+            #      ولا تقولُ أيَّ ستّةٍ ولا بمَ افترقَ المحرّكان تُلزِمُ شوطًا ثانيًا
+            #      لمجرّدِ رؤيةِ ما رآه الأوّل. والمُخرَجان في التقريرِ أصلًا.
+            # (EN) Show WHAT failed, not how many: the outputs are already in the
+            #      report; only the display was missing.
+            python3 tests/system/harness/print_parity_failures.py build/_dual_report.json || true
+            echo "::error::المستوى الكامل: FAIL — تراجعُ تكافُؤٍ في الـ٧٢٠"
+            exit 1
+          fi
+          echo "✅ المستوى الكامل: PASS"
+
+      - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
+        if: matrix.config == 'Release'
+        run: |
+          # (AR) 🔑 grammar_gaps و_regression خارجَ كلِّ مستوًى — ٦١ ملفًّا أحمرَ لا
+          #      يراها أحد. ولو صارت ٦٢ غدًا لَما لاحظَ أحدٌ، ولو اخضرَّ أحدُها
+          #      لَبقيَ موصوفًا عيبًا وهو مُصلَح. فالحكمُ يُخفِقُ في الاتّجاهَين:
+          #      اخضرارٌ مسجَّلٌ · احمرارٌ غيرُ مسجَّلٍ · تغيُّرُ صنفِ الإخفاق.
+          # (EN) Both directions: a registered row that turns green, an unregistered
+          #      red, or a changed failure kind all fail this step.
+          sad="build/bin/sad-run"
+          sadc="build/bin/sad-build"
+          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: المحرّكان إلزاميّان لسجلِّ الحمرة"
+            exit 1
+          fi
+          if ! python3 tests/system/harness/test_declared_reds_registry.py \
+                 --measure --interp "$sad" --compiler "$sadc"; then
+            # (AR) 🔑 يُعرَضُ **ما** انحرفَ لا أنّهُ انحرف: الحارسُ يقولُ اسمَ
+            #      الملفِّ وصنفَ إخفاقِه ولا يقولُ بمَ افترقَ المحرّكان، فيُلزِمُ
+            #      شوطًا ثانيًا لرؤيةِ ما رآهُ الأوّل. و`_regression` آخِرُ ما
+            #      يقيسُ الحارسُ، فالتقريرُ على القرصِ يحملُ صفوفَهُ بعينِها.
+            # (EN) Show WHAT drifted, not that it drifted: the guard names the file and
+            #      its failure kind but not how the engines differed, forcing a second
+            #      run to see what the first already saw. _regression is measured last,
+            #      so the report on disk holds exactly those rows.
+            python3 tests/system/harness/print_parity_failures.py build/_dual_report.json || true
+            echo "::error::سجلُّ الحمرة: انحرافٌ عن المقيس"
+            exit 1
+          fi
+          echo "✅ سجلُّ الحمرة: PASS"
+
+      - name: "🗺️ حارسُ ترتيبِ الخريطة / Map Order Contract"
+        run: |
+          # (AR) 🔑 حارسٌ ساكنٌ لا سلوكيٌّ، ولذلك لا يحتاجُ محرّكًا ولا يُقيَّدُ
+          #      بـ`matrix.config`: المحرّكُ الثالثُ — زمنُ التشغيلِ الأصليّ — لا
+          #      يُشغَّلُ عليه اختبارٌ بعدُ، فلا يحرُسُ عقدَ الترتيبِ فيه إلّا
+          #      قراءةُ مصدرِه. (ISSUE-180 · ISSUE-181)
+          # (EN) A static guard, not a behavioural one: the third engine (the native
+          #      runtime) has no tests running on it yet, so only reading its source
+          #      can guard the ordering contract there.
+          python3 tests/system/harness/test_map_order_contract.py
 
       - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
         if: matrix.config == 'Release'

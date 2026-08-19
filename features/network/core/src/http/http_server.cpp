@@ -295,6 +295,30 @@ namespace sad
                 pImpl->server_socket_->bind(port);
                 pImpl->server_socket_->listen(100);
 
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 مهلةُ استقبالٍ على مقبسِ الإصغاء — وهي تسري على
+                //      `accept` في المنصّتَين. بدونَها يقعدُ هذا الخيطُ في
+                //      `accept` بلا نهاية، و`stop` تُغلِقُ المقبسَ تحتَه: إيقاظُ
+                //      خيطٍ عالقٍ بإغلاقِ واصفِه سلوكٌ **غيرُ معرَّفٍ** في POSIX،
+                //      يوقظُه Winsock ولا يوقظُه لينكس — فلا يخرجُ الخيطُ ولا
+                //      تنتهي العمليّةُ أصلًا، فتُقرأُ مهلةُ الاختبار.
+                //      قِيس: `043_http_server_client_integration` تنتهي مهلتُها
+                //      على لينكس/Release وتجتازُ على ويندوز، وهي حمراءُ على
+                //      `dev` نفسِه. (ISSUE-183)
+                //      وبالمهلةِ تخرجُ `accept` دوريًّا رامية، والحلقةُ تلتقطُ
+                //      وتُعيدُ فحصَ `running_` — فتنتهي من تلقائِها.
+                // (EN) A receive timeout on the listening socket — it applies to
+                //      accept() on both platforms. Without it this thread sits in
+                //      accept() forever while stop() closes the socket underneath:
+                //      waking a blocked thread by closing its descriptor is UNDEFINED
+                //      in POSIX. Winsock wakes it, Linux does not, so the thread never
+                //      leaves and the process never exits — which reads as a test
+                //      timeout. With the timeout accept() returns periodically by
+                //      throwing, the loop catches it and re-checks running_.
+                // ════════════════════════════════════════════════════════════
+                constexpr int kAcceptTimeoutMs = 200;
+                pImpl->server_socket_->set_receive_timeout(kAcceptTimeoutMs);
+
                 // Main accept loop
                 while (pImpl->running_)
                 {
@@ -308,10 +332,16 @@ namespace sad
                     }
                     catch (const std::exception &ex)
                     {
+                        (void)ex;
                         if (pImpl->running_)
                         {
-                            // Log error but continue
+                            // (AR) انتهاءُ مهلةِ القبولِ يمرُّ من هنا وهو الحالةُ
+                            //      السويّة: يُعادُ فحصُ `running_` في رأسِ الحلقة.
+                            // (EN) An accept timeout arrives here and is the normal
+                            //      case: the loop head re-checks running_.
+                            continue;
                         }
+                        break;
                     }
                 }
             }

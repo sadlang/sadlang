@@ -33,6 +33,8 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
+
+#include "insertion_ordered_map.h"
 #include <stdexcept>
 #include <sstream>
 #include <functional>
@@ -112,7 +114,20 @@ namespace Sad
             // (AR) تعريفات الأنواع المركبة / (EN) Composite type definitions
             // ══════════════════════════════════════════════════════════════════
             using ArrayType = std::vector<Value>;
-            using MapType = std::unordered_map<std::string, Value>;
+
+            // ══════════════════════════════════════════════════════════════
+            // (AR) 🔑 مرتَّبةٌ بترتيبِ الإدخالِ لا مُهشَّرة. كانت `std::unordered_map`
+            //      فكان ترتيبُ مرورِ خرائطِ لغةِ ص قرارَ مكتبةِ المنصّةِ لا قرارَ
+            //      اللغة — وقرّرَته الثلاثُ ثلاثةَ قرارات. القياس: ستّةُ اختباراتٍ
+            //      في مصفوفةِ القواعدِ خضراءُ على ويندوز وماك حمراءُ على لينكس،
+            //      والمترجمُ هو المصيبُ في ستّتِها. (٢٠٢٦-٠٨-١٨)
+            // (EN) Insertion-ordered, not hashed. As a std::unordered_map the iteration
+            //      order of every Sad map was the platform library decision rather than
+            //      the language one, and the three platforms decided differently:
+            //      six rules-matrix tests were green on Windows and macOS and red on
+            //      Linux — with the compiler right in all six.
+            // ══════════════════════════════════════════════════════════════
+            using MapType = Sad::Types::InsertionOrderedMap<std::string, Value>;
 
             /// (AR) بنية الصف — تغلف vector<Value> لجعلها نوعاً مميزاً عن ArrayType في variant
             /// (EN) Tuple struct — wraps vector<Value> to make it a distinct type from ArrayType in variant

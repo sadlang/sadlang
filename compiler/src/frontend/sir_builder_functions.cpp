@@ -292,6 +292,11 @@ namespace Sad
                 if (funcDecl->is_async)
                 {
                     sirFunction->isCoroutine = true;
+                    // (AR) يُحفَظُ **قبل** الدهس بسطر: هذا هو الموضعُ الوحيدُ الذي
+                    //      يُعرَف فيه النوعُ المستنتَجُ من جسمِ الدالّة.
+                    // (EN) Saved one line BEFORE it is overwritten — the only place the
+                    //      type inferred from the body is still known.
+                    sirFunction->coroutineValueType = returnType;
                     // (AR) الكوروتين يُرجع مؤشراً (handle) بدلاً من القيمة مباشرة
                     // (EN) Coroutine returns a pointer (handle) instead of direct value
                     sirFunction->returnType = SadTypeKind::Pointer;
@@ -306,6 +311,7 @@ namespace Sad
                 {
                     sirFunction->isCoroutine = true;
                     sirFunction->isGenerator = true;
+                    sirFunction->coroutineValueType = returnType;
                     // (AR) المولّد يُرجع مؤشراً (handle) — المستهلك يجمع القيم
                     // (EN) Generator returns a pointer (handle) — consumer collects values
                     sirFunction->returnType = SadTypeKind::Pointer;
@@ -436,7 +442,16 @@ namespace Sad
                     auto tableIt = functionTable_.find(funcDecl->name);
                     if (tableIt != functionTable_.end())
                     {
-                        tableIt->second.returnType = returnType;
+                        // (AR) 🔑 `sirFunction->returnType` لا `returnType`: التعليقُ أعلاه
+                        //      يَعِدُ بمزامنةِ النوعِ **الحقيقيّ**، وكان يُسنِدُ المستنتَجَ —
+                        //      أي عينُ العطبِ المُصلَحِ في التسجيلِ الكاملِ أسفلَ الملفّ،
+                        //      باقيًا في توأمِه. ودالّةٌ `غير_متزامن` بلا جسمٍ يُعادُ ضبطُ
+                        //      نوعِها إلى `Pointer` قبلَ هذا السطرِ بكثير.
+                        // (EN) The comment above promises the REAL type but assigned the
+                        //      inferred one — the very defect fixed in the full registration
+                        //      below, left standing in its twin. A bodiless async function has
+                        //      its type rewritten to Pointer long before this line.
+                        tableIt->second.returnType = sirFunction->returnType;
                         tableIt->second.sirFunction = sirFunction;
                     }
                     module_->addFunction(sirFunction);
@@ -916,7 +931,31 @@ namespace Sad
                 {
                     FunctionInfo funcInfo;
                     funcInfo.name = funcDecl->name;
-                    funcInfo.returnType = returnType;
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 نوعُ الإرجاعِ يُقرأ من **الدالّةِ نفسِها** لا من المتغيّرِ
+                    //      المستنتَج: `returnType` استُنتِج من `ارجع` في الجسم، ثمّ
+                    //      أُعيدت كتابةُ `sirFunction->returnType` إلى `Pointer` أعلاه
+                    //      للكوروتين والمولّد. فحقيقةٌ واحدةٌ بقارئَين يفترقان.
+                    //
+                    //      🔴 والثمنُ مقيس: `دالة غير_متزامن حساب()` مع `ارجع 42`
+                    //      تُسجَّلُ هنا Integer بينما الدالّةُ تُرجِعُ مقبضَ إطارٍ
+                    //      (`ptr`). ثمّ `انتظر` — وفيها ممرُّ هُويّةٍ للقيمِ القياسيّةِ
+                    //      وُضِع عمدًا لأنّ CORO_SUSPEND على عدديٍّ يُسقِط legalization —
+                    //      يرى «Integer» فيمرِّرُ المقبضَ كما هو. فتُطبَع **عنوانًا**
+                    //      (قِيس `2142012098544` بدل `42`) بلا خطأٍ ولا تحذير.
+                    //      وسدُّ ذلك في `انتظر` وحدَه يترك الاختلافَ قائمًا لكلِّ قارئٍ
+                    //      آخرَ لهذا الجدول — فالسدُّ عند مصدرِ الحقيقة.
+                    // (EN) Read the return type from the FUNCTION, not from the inferred
+                    //      local: `returnType` comes from the body's `ارجع`, but
+                    //      `sirFunction->returnType` was rewritten to Pointer above for
+                    //      coroutines/generators — one fact, two readers that disagree.
+                    //      Measured cost: an async function registers as Integer while it
+                    //      actually returns a frame handle, so `انتظر`'s scalar identity
+                    //      path (added because CORO_SUSPEND on a scalar crashes LLVM
+                    //      legalization) passes the handle straight through and prints an
+                    //      address instead of the value, with no diagnostic.
+                    // ════════════════════════════════════════════════════════════
+                    funcInfo.returnType = sirFunction->returnType;
                     funcInfo.parameters = sirFunction->getParameters();
                     funcInfo.sirFunction = sirFunction;
                     funcInfo.isGenerator = sirFunction->isGenerator;

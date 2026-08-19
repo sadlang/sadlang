@@ -32,6 +32,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <algorithm>
 #include <string>
 
 namespace Sad {
@@ -144,6 +145,17 @@ public:
         for (const auto& pair : adjacencyList_) {
             result.push_back(pair.first);
         }
+        // ════════════════════════════════════════════════════════════════
+        // (AR) 🔑 ترتيبٌ معجميّ — والأثرُ ليس تجميليًّا: `findCoalescePair`
+        //      تختارُ الزوجَ **الأوّلَ** ذا أقلِّ جيران، والتعادلُ يُحسَمُ بترتيبِ
+        //      هذه القائمة. فبلا ترتيبٍ تختلفُ قراراتُ الدمجِ باختلافِ المنصّة
+        //      ⇒ **شيفرةٌ مولَّدةٌ مختلفةٌ لمصدرٍ واحد**. (ISSUE-182)
+        // (EN) Lexicographic — and the effect is not cosmetic: findCoalescePair takes
+        //      the FIRST pair with the fewest neighbours, and ties are broken by this
+        //      list's order. Unsorted, coalescing decisions differ per platform, so the
+        //      SAME SOURCE PRODUCES DIFFERENT CODE.
+        // ════════════════════════════════════════════════════════════════
+        std::sort(result.begin(), result.end());
         return result;
     }
     

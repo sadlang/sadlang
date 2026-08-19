@@ -141,7 +141,9 @@ jobs:
       #      (ماك عبرَ brew، وويندوز تُورَّد داخلَ الشجرة).
       - name: 📦 SDL2 على لينكس / SDL2 (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libsdl2-ttf-dev
+        run: |
+          bash scripts/ci/apt_retry.sh update
+          bash scripts/ci/apt_retry.sh install -y libsdl2-dev libsdl2-ttf-dev
 
       - name: 📦 SDL2 على ماك / SDL2 (macOS)
         if: runner.os == 'macOS'

@@ -969,8 +969,34 @@ namespace Sad
                 cg_.builder_->CreateCondBr(isNotNull, deleteBB, endBB);
 
                 cg_.builder_->SetInsertPoint(deleteBB);
-                // (AR) تصفير المفتاح
-                cg_.builder_->CreateStore(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)), slotKeyGep);
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 إطباقٌ لا تصفير. تصفيرُ الخانةِ وحدَها يترُكُ ثقبًا،
+                //      و`__sad_map_set_typed` يبحثُ عن **أوّلِ خانةٍ فارغة** —
+                //      فأوّلُ إدراجٍ بعدَ حذفٍ يسقطُ في الثقبِ متقدّمًا على مَن
+                //      أُدخِلَ قبلَه. قِيس على ويندوز حيثُ تجتازُ المصفوفةُ كلُّها:
+                //      أ،ب،ج ← احذف «أ» ← أدخِل «د» ⇒ `[د, ب, ج]` والمفسّرُ
+                //      يقولُ `[ب, ج, د]`. فالتباعُدُ لم يكن منصّةً بل بنيةً.
+                // (EN) Compact, don't just null. Nulling one slot leaves a hole, and
+                //      __sad_map_set_typed scans for the FIRST EMPTY SLOT, so the next
+                //      insert after a delete lands ahead of earlier keys. Measured on
+                //      Windows — where the whole matrix passes: insert أ,ب,ج / delete أ /
+                //      insert د ⇒ [د, ب, ج] while the interpreter says [ب, ج, د].
+                //      The divergence was structural, not a platform accident.
+                // ════════════════════════════════════════════════════════════════
+                llvm::Value *valsArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
+                                                              {llvm::ConstantInt::get(i64Ty, 3)}, "mdel.vals.gep");
+                llvm::Value *valsI64 = cg_.builder_->CreateLoad(i64Ty, valsArrGep, "mdel.vals.i64");
+                llvm::Value *valsArr = cg_.builder_->CreateIntToPtr(valsI64, ptrTy, "mdel.vals.ptr");
+
+                llvm::Value *typesArrGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
+                                                                {llvm::ConstantInt::get(i64Ty, 4)}, "mdel.types.gep");
+                llvm::Value *typesI64 = cg_.builder_->CreateLoad(i64Ty, typesArrGep, "mdel.types.i64");
+                llvm::Value *typesArr = cg_.builder_->CreateIntToPtr(typesI64, ptrTy, "mdel.types.ptr");
+
+                llvm::Function *compactFn = getOrCreateMapCompact();
+                cg_.builder_->CreateCall(compactFn, {keysArr, valsArr, typesArr, cap, slotIdx});
+
                 // (AR) إنقاص العداد
                 llvm::Value *countGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
                                                             {llvm::ConstantInt::get(i64Ty, 0)}, "mdel.count.gep");
@@ -1415,6 +1441,94 @@ namespace Sad
             // notFound: return 0 (fallback — shouldn't happen with proper capacity)
             b.SetInsertPoint(notFound);
             b.CreateRet(llvm::ConstantInt::get(i64Ty, 0));
+
+            return fn;
+        }
+
+        /**
+         * @brief (AR) إنشاء/استرجاع دالة __sad_map_compact — إطباقُ الخاناتِ بعدَ الحذف
+         *        (EN) Get or create __sad_map_compact — close the gap left by a delete
+         *
+         * @return llvm::Function* (ptr keys, ptr values, ptr types, i64 capacity, i64 idx) → void
+         *
+         * (AR) 🔑 تُزيحُ ما بعدَ `idx` خانةً واحدةً إلى اليسار في المصفوفاتِ الثلاثِ
+         *      **معًا** — المفاتيحُ والقيمُ والوسومُ صفٌّ واحدٌ منطقيًّا، فإزاحةُ
+         *      إحداها دونَ أختَيها تفصلُ المفتاحَ عن قيمتِه وتُنتِجُ جوابًا خاطئًا
+         *      صامتًا لا انهيارًا.
+         *      وتمسحُ المدى `[idx, capacity-1)` كاملًا لا `[idx, count)`: فهي
+         *      صحيحةٌ حتّى لو سبقَها ثقبٌ — الإزاحةُ تُزيحُ الفراغَ كما تُزيحُ
+         *      المشغول، والترتيبُ النسبيُّ محفوظٌ في الحالَين.
+         * (EN) Shifts everything after idx one slot left across ALL THREE arrays
+         *      together — key, value and tag are one logical row, and shifting one
+         *      without its siblings divorces a key from its value: a silent wrong
+         *      answer, not a crash. Sweeps the full [idx, capacity-1) range rather
+         *      than [idx, count) so it stays correct even if a hole preceded it.
+         */
+        llvm::Function *MapOpsCodeGen::getOrCreateMapCompact()
+        {
+            const char *fnName = "__sad_map_compact";
+            llvm::Function *fn = cg_.module_->getFunction(fnName);
+            if (fn)
+                return fn;
+
+            auto *i64Ty = cg_.getInt64Type();
+            auto *voidTy = llvm::Type::getVoidTy(*cg_.context_);
+            auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+
+            auto *fnType = llvm::FunctionType::get(voidTy, {ptrTy, ptrTy, ptrTy, i64Ty, i64Ty}, false);
+            fn = llvm::Function::Create(fnType, llvm::Function::InternalLinkage, fnName, *cg_.module_);
+
+            auto *entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+            auto *loop = llvm::BasicBlock::Create(*cg_.context_, "loop", fn);
+            auto *body = llvm::BasicBlock::Create(*cg_.context_, "body", fn);
+            auto *tail = llvm::BasicBlock::Create(*cg_.context_, "tail", fn);
+
+            auto argIt = fn->arg_begin();
+            llvm::Value *keysArr = &*argIt++;
+            llvm::Value *valuesArr = &*argIt++;
+            llvm::Value *typesArr = &*argIt++;
+            llvm::Value *capacity = &*argIt++;
+            llvm::Value *startIdx = &*argIt++;
+
+            llvm::IRBuilder<> b(*cg_.context_);
+            auto *nullPtr = llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy));
+            auto *one = llvm::ConstantInt::get(i64Ty, 1);
+
+            b.SetInsertPoint(entry);
+            // (AR) آخرُ خانةٍ يجوزُ أن تُقرأَ منها `j+1` هي `capacity-2`.
+            llvm::Value *lastShiftable = b.CreateSub(capacity, one, "last.shiftable");
+            b.CreateBr(loop);
+
+            b.SetInsertPoint(loop);
+            auto *j = b.CreatePHI(i64Ty, 2, "j");
+            j->addIncoming(startIdx, entry);
+            llvm::Value *done = b.CreateICmpSGE(j, lastShiftable, "shift.done");
+            b.CreateCondBr(done, tail, body);
+
+            b.SetInsertPoint(body);
+            llvm::Value *jNext = b.CreateAdd(j, one, "j.next");
+
+            llvm::Value *srcKeyGep = b.CreateGEP(ptrTy, keysArr, {jNext}, "src.key.gep");
+            llvm::Value *dstKeyGep = b.CreateGEP(ptrTy, keysArr, {j}, "dst.key.gep");
+            b.CreateStore(b.CreateLoad(ptrTy, srcKeyGep, "src.key"), dstKeyGep);
+
+            llvm::Value *srcValGep = b.CreateGEP(i64Ty, valuesArr, {jNext}, "src.val.gep");
+            llvm::Value *dstValGep = b.CreateGEP(i64Ty, valuesArr, {j}, "dst.val.gep");
+            b.CreateStore(b.CreateLoad(i64Ty, srcValGep, "src.val"), dstValGep);
+
+            llvm::Value *srcTypGep = b.CreateGEP(i64Ty, typesArr, {jNext}, "src.typ.gep");
+            llvm::Value *dstTypGep = b.CreateGEP(i64Ty, typesArr, {j}, "dst.typ.gep");
+            b.CreateStore(b.CreateLoad(i64Ty, srcTypGep, "src.typ"), dstTypGep);
+
+            j->addIncoming(jNext, body);
+            b.CreateBr(loop);
+
+            // (AR) الخانةُ الأخيرةُ تُصفَّرُ: الإزاحةُ تركت نسختَها مكرَّرةً هناك.
+            // (EN) Null the final slot — the shift left a duplicate of it behind.
+            b.SetInsertPoint(tail);
+            llvm::Value *lastKeyGep = b.CreateGEP(ptrTy, keysArr, {lastShiftable}, "last.key.gep");
+            b.CreateStore(nullPtr, lastKeyGep);
+            b.CreateRetVoid();
 
             return fn;
         }

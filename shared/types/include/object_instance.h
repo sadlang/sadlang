@@ -103,7 +103,13 @@ namespace Sad
              * - AR: لا تشمل الخصائص الثابتة (موجودة في ClassType)
              * - EN: Doesn't include static fields (stored in ClassType)
              */
-            std::unordered_map<std::string, Value> fields;
+            // (AR) 🔑 مرتّبةٌ بترتيبِ الإدخالِ لا مُهشَّرة: `toMap` على كائنٍ
+            //      يُحوّلُ هذه الحقولَ إلى خريطة، فلو بقيت مُهشَّرةً لَعادَ ترتيبُ
+            //      المنصّةِ من بابِ الكائنِ بعدَ أن سُدَّ من بابِ الخريطة.
+            // (EN) Insertion-ordered, not hashed: toMap on an object converts these
+            //      fields into a map, so leaving them hashed would let the platform
+            //      ordering back in through the object door after it was shut on maps.
+            Value::MapType fields;
 
             // ──────────────────────────────────────────────────────────────────
             // معلومات إضافية / Additional Info

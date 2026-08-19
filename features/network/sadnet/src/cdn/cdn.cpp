@@ -443,10 +443,20 @@ namespace sad::net::cdn
         }
 
         // (AR) ترتيب حسب الشعبية
+        // (AR) 🔑 ترتيبٌ **كلّيّ**: المقارنةُ بالشعبيّةِ وحدَها تترُكُ المتعادلَين
+        //      لترتيبِ `index` المُهشَّر، و`std::sort` غيرُ مستقرّة — فتختلفُ
+        //      القائمةُ بالمنصّة. الفاصلُ معرّفُ المحتوى. (ISSUE-182)
+        // (EN) A TOTAL order: comparing popularity alone leaves ties to the hashed
+        //      index order, and std::sort is not stable, so the list differs per
+        //      platform. The content id is the tie-breaker.
         std::sort(results.begin(), results.end(),
                   [](const ContentEntry &a, const ContentEntry &b)
                   {
-                      return a.popularity_score > b.popularity_score;
+                      if (a.popularity_score != b.popularity_score)
+                      {
+                          return a.popularity_score > b.popularity_score;
+                      }
+                      return a.content_id.data < b.content_id.data;
                   });
 
         return results;
@@ -463,10 +473,20 @@ namespace sad::net::cdn
             results.push_back(entry);
         }
 
+        // (AR) 🔑 ترتيبٌ **كلّيّ**: المقارنةُ بالشعبيّةِ وحدَها تترُكُ المتعادلَين
+        //      لترتيبِ `index` المُهشَّر، و`std::sort` غيرُ مستقرّة — فتختلفُ
+        //      القائمةُ بالمنصّة. الفاصلُ معرّفُ المحتوى. (ISSUE-182)
+        // (EN) A TOTAL order: comparing popularity alone leaves ties to the hashed
+        //      index order, and std::sort is not stable, so the list differs per
+        //      platform. The content id is the tie-breaker.
         std::sort(results.begin(), results.end(),
                   [](const ContentEntry &a, const ContentEntry &b)
                   {
-                      return a.popularity_score > b.popularity_score;
+                      if (a.popularity_score != b.popularity_score)
+                      {
+                          return a.popularity_score > b.popularity_score;
+                      }
+                      return a.content_id.data < b.content_id.data;
                   });
 
         if (results.size() > limit)

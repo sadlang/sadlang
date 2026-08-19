@@ -565,7 +565,7 @@ namespace Sad
                         }
                         catch (const std::exception &e)
                         {
-                            std::unordered_map<std::string, Data::Value> futureMap;
+                            Data::Value::MapType futureMap;
                             futureMap["__future__"] = Data::Value(true);
                             futureMap["__resolved__"] = Data::Value(false);
                             futureMap["__rejected__"] = Data::Value(true);
@@ -575,7 +575,7 @@ namespace Sad
                             return;
                         }
 
-                        std::unordered_map<std::string, Data::Value> futureMap;
+                        Data::Value::MapType futureMap;
                         futureMap["__future__"] = Data::Value(true);
                         futureMap["__resolved__"] = Data::Value(true);
                         futureMap["__rejected__"] = Data::Value(false);

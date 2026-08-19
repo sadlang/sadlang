@@ -252,6 +252,40 @@ namespace Sad
 
             llvm::Value *result = cg_.builder_->CreateLoad(i64Ty, innerPromise, prefix + ".result");
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 الوعاءُ عرضٌ لا نوع. فتُعادُ القيمةُ إلى نوعِها المُصرَّحِ في
+            //      نتيجةِ التعليمة، وإلّا قُرِئت صحيحًا مهما كانت (ISSUE-177).
+            //      ⚠️ و`bitcast` لا `sitofp` للعشريّ: الحمولةُ **نمطُ بتّاتِ** الـ
+            //      double لا قيمتُه الصحيحة — ونظيرُها في `emitCoroReturn` يخزّن
+            //      بالبتّات. والاثنان عقدٌ واحدٌ لو افترقا لَعاد الجوابُ خاطئًا صامتًا.
+            // (EN) The container is a width, not a type: restore the value to the type
+            //      declared on the instruction's result, or it reads as an integer
+            //      whatever it holds. bitcast — not sitofp — for a float: the payload is
+            //      the double's BIT PATTERN, matching the store side in emitCoroReturn.
+            //      The two are one contract; if they drift the answer is silently wrong.
+            // ════════════════════════════════════════════════════════════════
+            if (inst->result.has_value())
+            {
+                switch (inst->result->dataType)
+                {
+                case Sad::Compiler::SIR::SadTypeKind::Float:
+                case Sad::Compiler::SIR::SadTypeKind::Float64:
+                    result = cg_.builder_->CreateBitCast(result, cg_.getDoubleType(),
+                                                         prefix + ".result.f64");
+                    break;
+                case Sad::Compiler::SIR::SadTypeKind::String:
+                case Sad::Compiler::SIR::SadTypeKind::Array:
+                case Sad::Compiler::SIR::SadTypeKind::Map:
+                case Sad::Compiler::SIR::SadTypeKind::Class:
+                case Sad::Compiler::SIR::SadTypeKind::Struct:
+                case Sad::Compiler::SIR::SadTypeKind::Pointer:
+                    result = cg_.builder_->CreateIntToPtr(result, ptrTy, prefix + ".result.ptr");
+                    break;
+                default:
+                    break;
+                }
+            }
+
             // (AR) تدمير الكوروتين الداخلي
             // (EN) Destroy inner coroutine
             auto coroDestroyFn = llvm::Intrinsic::getDeclaration(cg_.module_.get(), llvm::Intrinsic::coro_destroy);
@@ -306,9 +340,17 @@ namespace Sad
 
                 // (AR) تحويل النوع إذا لزم الأمر
                 // (EN) Cast type if needed
+                // (AR) 🔴 `bitcast` لا `fptosi`: القطعُ يُتلِفُ القيمةَ **عند التخزين**
+                //      فلا يُصلِحُها قارئٌ مهما عَلِمَ نوعَها — قِيس أنّ `ارجع 2.5`
+                //      كانت تُعطي `2` (ISSUE-177). والنظيرُ في `emitCoroSuspend`
+                //      يقرأ بالبتّات، والاثنان عقدٌ واحد.
+                // (EN) bitcast, not fptosi: truncating destroys the value AT THE STORE, so
+                //      no reader can recover it however well it knows the type — measured:
+                //      `ارجع 2.5` yielded 2. The reader in emitCoroSuspend bitcasts back;
+                //      the two are one contract.
                 if (retVal->getType()->isDoubleTy())
                 {
-                    storeVal = cg_.builder_->CreateFPToSI(retVal, i64Ty, "coro.ret.toi64");
+                    storeVal = cg_.builder_->CreateBitCast(retVal, i64Ty, "coro.ret.f64bits");
                 }
                 else if (retVal->getType()->isPointerTy())
                 {

@@ -1,14 +1,14 @@
 # تقرير مطابقة قواعد لغة ص — مقارنة المفسر والمترجم
 
 > **مُولَّد آلياً** بـ`scripts/codegen/check_grammar_conformance.py --run`. لا يُحرَّر يدوياً.
-> التوليد: 2026-08-13 12:42:14
+> التوليد: 2026-08-19 01:30:12
 
 كل اختبار يُشغَّل عبر **المفسر** (sad-run) و**المترجم** (sadc) ويُقارَن مخرجاهما:
 `تطابق` = المخرجان متطابقان؛ `تباعد` = اختلفا (هنا يظهر ما يجب تصحيحه).
 
 ## الملخص
 
-- إجمالي الاختبارات: **3002** — تطابق مزدوج: **3001** — تباعد/إخفاق: **0** — متخطًّى: **1**
+- إجمالي الاختبارات: **3003** — تطابق مزدوج: **3002** — تباعد/إخفاق: **0** — متخطًّى: **1**
 - القواعد: 107 — مطلقة: **105** · فجوة مترجم: 0 · مكسورة: 0 · بلا اختبارات: 2
 - الأزمنة: في أثر البناء `build/_grammar_conformance.json` (غير متعقَّب) — لا تُودَع لأنّ العدّاء يتوازى فلا يُعاد إنتاجها.
 - التفصيل الكامل لكل اختبار: [`CONFORMANCE_REPORT_detail.md`](./CONFORMANCE_REPORT_detail.md)
@@ -25,7 +25,7 @@
 
 ## اختبارات كاشفة للثغرات (Gaps) — غير مُبوَّبة (لا تُفشِل البناء)
 
-تتعمّد اختبار ميزات مشكوكة لكشف ما لا يعمل. كاشفة: **115** — تكشف ثغرة: **32**. (راجع [DISCOVERED_ISSUES.md](./DISCOVERED_ISSUES.md))
+تتعمّد اختبار ميزات مشكوكة لكشف ما لا يعمل. كاشفة: **115** — تكشف ثغرة: **33**. (راجع [DISCOVERED_ISSUES.md](./DISCOVERED_ISSUES.md))
 
 | الاختبار | الثغرة | النتيجة |
 |---|---|---|
@@ -73,8 +73,8 @@
 | `0012_static_array_module_unusable.ص` | ISSUE-122 | تكشف ثغرة ❌ (فشل المفسر ❌) |
 | `0013_static_array_in_function_diverges.ص` | ISSUE-122 | تكشف ثغرة ❌ (فشل المفسر ❌) |
 | `0014_nameless_decl_swallows_next_line.ص` | ISSUE-123 | تكشف ثغرة ❌ (تباعد المخرجات ⚠️) |
-| `0015_tuple_destructure_compiler_crash.ص` | ISSUE-124 | تكشف ثغرة ❌ (تجاوز المهلة ⏱) |
-| `0016_tuple_destructure_in_function_crash.ص` | ISSUE-124 | تكشف ثغرة ❌ (تجاوز المهلة ⏱) |
+| `0015_tuple_destructure_compiler_crash.ص` | ISSUE-124 | تكشف ثغرة ❌ (فشل الترجمة ❌) |
+| `0016_tuple_destructure_in_function_crash.ص` | ISSUE-124 | تكشف ثغرة ❌ (فشل الترجمة ❌) |
 | `001_return_map.ص` | ISSUE-025 | تعمل ✅ |
 | `002_export_struct.ص` | — | تعمل ✅ |
 | `003_block_shadow.ص` | ISSUE-028 | تكشف ثغرة ❌ (تباعد المخرجات ⚠️) |
@@ -93,7 +93,7 @@
 | `002_return_in_arm.ص` | ISSUE-055 | تعمل ✅ |
 | `001_float_payload_return.ص` | ISSUE-084 | تعمل ✅ |
 | `001_float_payload_in_list.ص` | ISSUE-084 | تعمل ✅ |
-| `001_int64_precision_dual.ص` | ISSUE-INT64-PRECISION | تعمل ✅ |
+| `001_int64_precision_dual.ص` | ISSUE-INT64-PRECISION | تكشف ثغرة ❌ (تباعد المخرجات ⚠️) |
 | `001_lambda.ص` | تحقّق — لامدا | تعمل ✅ |
 | `002_closure.ص` | تحقّق — إغلاق | تعمل ✅ |
 | `003_pipeline.ص` | تحقّق — أنبوب \|> | تعمل ✅ |
@@ -120,7 +120,7 @@
 | `007_str_lower.ص` | تحقّق — .تحويل_صغير() | تعمل ✅ |
 | `001_literal_element_unchecked.ص` | ISSUE-083 | تكشف ثغرة ❌ (تباعد المخرجات ⚠️) |
 | `001_mixed_list_string_element.ص` | ISSUE-082 | تعمل ✅ |
-| `001_template_string_arg_compiler.ص` | ISSUE-071 | تكشف ثغرة ❌ (تجاوز المهلة ⏱) |
+| `001_template_string_arg_compiler.ص` | ISSUE-071 | تكشف ثغرة ❌ (فشل الترجمة ❌) |
 | `001_class_method.ص` | تحقّق — صنف+باني+طريقة | تعمل ✅ |
 | `002_field_access.ص` | تحقّق — وصول حقل | تعمل ✅ |
 | `003_inherit.ص` | تحقّق — وراثة | تعمل ✅ |
@@ -201,7 +201,7 @@
 | `gr.expr.lambda` | expressions | 35 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.logical_and` | expressions | 32 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.logical_or` | expressions | 34 | مطلقة (مفسر≡مترجم) |
-| `gr.expr.map_literal` | expressions | 51 | مطلقة (مفسر≡مترجم) |
+| `gr.expr.map_literal` | expressions | 52 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.null_coalesce` | expressions | 20 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.pipeline` | expressions | 20 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.postfix` | expressions | 69 | مطلقة (مفسر≡مترجم) |

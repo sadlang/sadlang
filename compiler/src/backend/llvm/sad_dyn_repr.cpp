@@ -451,6 +451,19 @@ namespace Sad
             if (want->isPointerTy() && have->isIntegerTy(1))
                 return cg.builder_->CreateIntToPtr(
                     cg.builder_->CreateZExt(v, cg.getInt64Type(), "arg.zext"), want, "arg.i2p");
+            // (AR) عشريٌّ ⇒ عشريٌّ بعرضٍ آخر. أُضيف حين صار هذا **الجدولَ الوحيدَ**
+            //      لثلاثةِ مواضع: السلسلةُ المحذوفةُ في `objects_arrays_ops.cpp` كانت
+            //      تغطّيه بـ`CreateFPCast`، وغيابُه هنا يُسقِط الحالةَ إلى `poison`.
+            //      ⚠️ ولا مسارَ مقيسًا يبلغُه اليومَ (`عشري32` غيرُ سطحيٍّ في
+            //      `language-truth/types.yaml`)، فهو سدُّ تضييقٍ لا إصلاحُ عطبٍ حيّ —
+            //      ويُذكَر كذلك كي لا يُقرأَ ادّعاءَ قياس.
+            // (EN) float ⇒ float of another width. Added when this became the SINGLE table
+            //      for three sites: the chain it replaced covered this with CreateFPCast, and
+            //      its absence drops the case to `poison`. No measured path reaches it today
+            //      (عشري32 is not surface-exposed), so this closes a narrowing, not a live
+            //      defect — stated plainly so it is not read as a measurement.
+            if (want->isFloatingPointTy() && have->isFloatingPointTy())
+                return cg.builder_->CreateFPCast(v, want, "arg.fcast");
             if (want->isDoubleTy() && have->isIntegerTy())
                 return cg.builder_->CreateSIToFP(v, want, "arg.i2f");
             if (want->isIntegerTy() && have->isDoubleTy())

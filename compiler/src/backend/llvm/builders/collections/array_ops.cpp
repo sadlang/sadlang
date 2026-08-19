@@ -100,7 +100,59 @@ namespace Sad
             cg_.builder_->CreateUnreachable();
         }
 
-        llvm::Value *ArrayOpsCodeGen::normalizeArrayPtr(llvm::Value *arrPtr, const char *label)
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) حارسُ الإسنادِ بالفهرسِ لقيمةٍ موسومة — انظر الترويسةَ للتعليل.
+        // (EN) Tagged index-assign guard — see the header for the rationale.
+        // ════════════════════════════════════════════════════════════════════
+        void ArrayOpsCodeGen::emitDynIndexAssignGuard(llvm::Value *dynValue, const char *label)
+        {
+            if (!dynValue || !cg_.builder_->GetInsertBlock())
+                return;
+
+            auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+            llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, dynValue);
+            const std::string tag = (label && *label) ? std::string(label) : std::string("dyn");
+
+            // (AR) 🔑 الأسماءُ تُؤخَذ من `Value` عينِها التي يملأ بها المفسّرُ رسالتَه،
+            //      لا تُهجَّأ هنا نصًّا. فلو تغيّر اسمُ نوعٍ في مصدرِ الحقيقةِ تبعَه
+            //      المترجّمُ بلا تحرير — وهجاؤه هنا يجعلُهما نسختَين تفترقان صامتتَين.
+            // (EN) Names come from the very Value the interpreter formats its message
+            //      from, never spelled out here: two spellings would drift in silence.
+            const std::pair<uint8_t, std::string> raising[] = {
+                {Sad::LLVM::DynKind::Null, Sad::Data::Value::makeNull().getTypeName()},
+                {Sad::LLVM::DynKind::Void, Sad::Data::Value().getTypeName()},
+                {Sad::LLVM::DynKind::Int, Sad::Data::Value(static_cast<int64_t>(0)).getTypeName()},
+                {Sad::LLVM::DynKind::Float, Sad::Data::Value(0.0).getTypeName()},
+                {Sad::LLVM::DynKind::Bool, Sad::Data::Value(false).getTypeName()},
+                {Sad::LLVM::DynKind::Str, Sad::Data::Value(std::string()).getTypeName()},
+            };
+
+            llvm::Function *parentFn = cg_.builder_->GetInsertBlock()->getParent();
+            for (const auto &entry : raising)
+            {
+                llvm::BasicBlock *raiseBB = llvm::BasicBlock::Create(
+                    *cg_.context_, tag + ".dyn.raise." + std::to_string(entry.first), parentFn);
+                llvm::BasicBlock *nextBB = llvm::BasicBlock::Create(
+                    *cg_.context_, tag + ".dyn.next." + std::to_string(entry.first), parentFn);
+
+                llvm::Value *matches = cg_.builder_->CreateICmpEQ(
+                    kind, llvm::ConstantInt::get(i8Ty, entry.first),
+                    tag + ".dyn.is." + std::to_string(entry.first));
+                cg_.builder_->CreateCondBr(matches, raiseBB, nextBB);
+
+                cg_.builder_->SetInsertPoint(raiseBB);
+                std::map<std::string, std::string> filled;
+                filled["type"] = entry.second;
+                cg_.emitNullRaiseBody(::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID,
+                                      filled, tag);
+                cg_.builder_->CreateUnreachable();
+
+                cg_.builder_->SetInsertPoint(nextBB);
+            }
+        }
+
+        llvm::Value *ArrayOpsCodeGen::normalizeArrayPtr(llvm::Value *arrPtr, const char *label,
+                                                        bool assertDynTag)
         {
             if (!arrPtr)
                 return nullptr;
@@ -179,6 +231,19 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
                 llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, arrPtr);
                 llvm::Value *payload = Sad::LLVM::dynPayloadI64(cg_, arrPtr);
+
+                // (AR) 🔑 تطبيعٌ **للفحصِ وحدَه**: تُستخرَجُ الحمولةُ بلا تفريعٍ ولا
+                //      تأكيد. المُنادي لا يريد إلّا قيمةً يقارنها بالعدمِ، وزرعُ
+                //      التأكيدِ هنا يقتلُ وسمَ الخريطةِ قبلَ مُوزِّعِه (انظر الترويسة).
+                // (EN) Check-only normalization: extract the payload with no branch and
+                //      no assertion. The caller only needs a value to compare against
+                //      null; asserting here kills a Map tag before its dispatch.
+                if (!assertDynTag)
+                {
+                    return cg_.builder_->CreateIntToPtr(
+                        payload, ptrTy, std::string(label) + ".dyn.probe");
+                }
+
                 llvm::Value *isArray = cg_.builder_->CreateICmpEQ(
                     kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Array),
                     std::string(label) + ".dyn.is.array");
@@ -886,15 +951,72 @@ namespace Sad
             //      asm). Normalized here for the CHECK ONLY; the original path still
             //      normalizes for itself, so emission order is unchanged.
             // ════════════════════════════════════════════════════════════════════
-            // (AR) `{type}` يملؤه البابُ بنفسِه من شكلِ العدمِ — انظر تعليلَه هناك.
-            // (EN) {type} is filled by the door itself from the null's shape.
-            cg_.emitRaiseIfNull(normalizeArrayPtr(arrPtr, "set.guard"),
-                                ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID, {},
-                                "arr.set");
-
-            // (AR) نظيرُ القراءة: حمِّل الخانةَ الموسومةَ قبلَ الإرسال (انظر emitArrayGet).
-            // (EN) Twin of the read: load the tagged slot before the dispatch (see emitArrayGet).
+            // ════════════════════════════════════════════════════════════════════
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) 🔑 **الفحصُ بلا تأكيدِ وسمٍ — والترتيبُ مقيسٌ لا مُفترَض.**
+            //
+            //      الحارسُ يُطبِّعُ ليفحص، و`normalizeArrayPtr` كانت تزرعُ في مسارِها
+            //      تأكيدَ وسمٍ (`kind == Array`) بفرعِ إخفاقٍ **غيرِ مشروط**. فكان
+            //      الحارسُ — وهو رقعةٌ صحيحةٌ لعدمِ الوعاء — يقتلُ كلَّ قيمةٍ وسمُها
+            //      **خريطة** قبلَ أن يراها `beginDynMapDispatch` المبنيُّ لها:
+            //      `خ["س"]=1` يجعلُ نوعَ `خ["أ"]` «أي»، ثمّ `خ["أ"][2] = 5` يُهلِعُ
+            //      «فهرسةٌ بعددٍ … ليست مصفوفة» بينما المفسّرُ يكتبُ مفتاحًا عدديًّا.
+            //      وقُيس أنّ القراءةَ سليمةٌ والكتابةَ وحدَها تُخفِق: `emitArrayGet`
+            //      لا حارسَ عدمٍ قبلَ إرسالِها.
+            //
+            //      ⚠️ **ونقلُ الحارسِ إلى ما بعدَ الإرسالِ جُرِّبَ وقيسَ فأخفق**: الوعاءُ
+            //      العدميُّ (`خريطة س` ثمّ `س["ك"]=1`) عادَ إلى `rc=139` لأنّ فرعَ
+            //      المصفوفةِ لا يُبلَغُ أصلًا. فالموضعُ يبقى **قبلَ** الإرسالِ ويُنزَعُ
+            //      منه التأكيدُ وحدَه: `assertDynTag=false` يستخرجُ الحمولةَ بلا تفريع.
+            // (EN) 🔑 Check without the tag assertion — and the ORDER is measured, not
+            //      assumed. normalizeArrayPtr used to plant an unconditional
+            //      `kind == Array` assertion, so this guard — itself a correct null fix —
+            //      killed every Map-tagged value before its own dispatch could route it.
+            //      ⚠️ Moving the guard after the dispatch was tried and MEASURED to
+            //      restore the rc=139 crash on a null container (the array branch is
+            //      never reached). So it stays before, minus the assertion.
+            //
+            //      (AR) `{type}` يملؤه البابُ بنفسِه من شكلِ العدمِ — انظر تعليلَه هناك.
+            //      (EN) {type} is filled by the door itself from the null's shape.
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) 🔑 **التحميلُ يُقدَّمُ على الفحص، والسببُ مقيس.** كان الفحصُ
+            //      `isSadDyn(arrPtr)` يقعُ على `arrPtr` قبلَ تحميله، وهو حينَها
+            //      **عنوانُ الخانةِ** (`ptr`) لا القيمة — فيُجيب «ليس موسومًا»
+            //      دائمًا، وتمضي كلُّ القيمِ الموسومةِ إلى البابِ العامّ. وقد بُنِيَ
+            //      الحارسُ الموسومُ أوّلًا في هذا الترتيبِ الخطأِ فلم يُبدِّلْ حرفًا
+            //      في المخرَج (`'VOID'` كما هي)، وكشفَه الـIR لا القراءة:
+            //      `%set.guard.dyn.probe` موجودةٌ — أي أنّ فرعَ الوسمِ يعملُ
+            //      **داخلَ** `normalizeArrayPtr` التي تُحمِّلُ في أوّلِها.
+            //      و`loadDynSlot` لا تفعل شيئًا لغيرِ خانةٍ من نوعِ `%SadDyn`،
+            //      فتقديمُها لا يغيّرُ المسارَ المحسوس.
+            // (EN) The load is hoisted ABOVE the check, and the reason is measured: the
+            //      check used to run on the SLOT ADDRESS (a plain `ptr`), so it always
+            //      answered "not tagged" and every tagged value fell through to the
+            //      general door. The tagged guard was first written in that wrong order
+            //      and changed nothing in the output; the IR exposed it, not reading —
+            //      `%set.guard.dyn.probe` was present, i.e. the tag branch ran INSIDE
+            //      normalizeArrayPtr, which loads at its entry. loadDynSlot is a no-op
+            //      for anything that is not a %SadDyn slot.
             arrPtr = Sad::LLVM::loadDynSlot(cg_, arrPtr);
+
+            // (AR) والقيمةُ الموسومةُ لها حارسُها: البابُ العامُّ يشتقُّ شكلَ العدمِ من
+            //      الحمولةِ وحدَها فيكذبُ `'VOID'` على صحيحٍ صفرٍ ومنطقيٍّ خطأ.
+            // (EN) A tagged value gets its own guard: the general door derives the null
+            //      shape from the payload alone and lies 'VOID' about Int 0 / Bool false.
+            if (Sad::LLVM::isSadDyn(arrPtr))
+            {
+                emitDynIndexAssignGuard(arrPtr, "arr.set");
+            }
+            else
+            {
+                // (AR) `assertDynTag=false` باقٍ صراحةً: لا أثرَ له في هذا الفرعِ
+                //      (الوسمُ منفيٌّ)، ويبقى كي لا يُقرأَ رجوعُ التأكيدِ من حذفِه.
+                // (EN) Kept explicit though inert in this branch, so its removal is not
+                //      misread as the assertion coming back.
+                cg_.emitRaiseIfNull(normalizeArrayPtr(arrPtr, "set.guard", /*assertDynTag=*/false),
+                                    ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID, {},
+                                    "arr.set");
+            }
 
             DynIndexDispatch dispatch =
                 beginDynMapDispatch(inst, arrPtr, index, value, /*isSet=*/true);

@@ -389,9 +389,57 @@ namespace Sad
                     std::cout << "[DEBUG] buildExpression: found AwaitExpr" << std::endl;
 #endif
 
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 نوعُ قيمةِ الوعدِ يُشتقُّ من **المُنادَى** لا من نوعِ
+                    //      السجلِّ العائد: الكوروتينُ يُرجِعُ مقبضَ إطارٍ دائمًا،
+                    //      والقيمةُ في `coro.promise` بعرضِ i64 لا يحمل نوعًا.
+                    //      فبلا هذا الاشتقاق يُقرأُ الوعدُ صحيحًا مهما كان: قِيس أنّ
+                    //      `ارجع 2.5` تُعطي `2` و`ارجع "سلام"` تُعطي **عنوانًا**.
+                    //      (ISSUE-177)
+                    // (EN) The promise's value type is derived from the CALLEE, not from
+                    //      the returned register's type: a coroutine always returns a frame
+                    //      handle and the promise is a bare i64. Without this the promise is
+                    //      read as an integer whatever it holds — measured: 2.5 → 2, and a
+                    //      string → an address.
+                    // ════════════════════════════════════════════════════════
+                    SadTypeKind promiseValueType = SadTypeKind::Void;
+                    if (auto *innerCall =
+                            dynamic_cast<Sad::AST::CallExpr *>(awaitExpr->expression.get()))
+                    {
+                        if (auto *calleeName =
+                                dynamic_cast<Sad::AST::VariableExpr *>(innerCall->callee.get()))
+                        {
+                            auto entry = b_.functionTable_.find(calleeName->name);
+                            if (entry != b_.functionTable_.end() && entry->second.sirFunction &&
+                                entry->second.sirFunction->isCoroutine)
+                            {
+                                promiseValueType = entry->second.sirFunction->coroutineValueType;
+                            }
+                        }
+                    }
+
                     // (AR) بناء التعبير الداخلي (استدعاء دالة غير متزامنة → يُرجع handle)
                     // (EN) Build inner expression (async function call → returns coroutine handle)
                     auto innerResult = buildExpression(awaitExpr->expression.get());
+
+                    // (AR) ⚠️ والكوروتينُ يسبقُ ممرَّ الهُويّةِ القياسيَّ أدناه: ذاك الممرُّ
+                    //      وُضِع لقيمةٍ **ليست وعدًا** أصلًا، ولو سبقَ لَابتلعَ الانتظارَ.
+                    // (EN) The coroutine case precedes the scalar identity path below, which
+                    //      exists for values that are NOT promises and would swallow the await.
+                    if (promiseValueType != SadTypeKind::Void)
+                    {
+                        std::string coroResultReg = b_.newTempRegister();
+                        SIRInstruction coroSuspend;
+                        coroSuspend.opcode = SIROpcode::CORO_SUSPEND;
+                        coroSuspend.result = SIROperand::Register(coroResultReg, promiseValueType);
+                        coroSuspend.operands.push_back(
+                            SIROperand::Register(innerResult.registerName, innerResult.type));
+                        if (b_.currentBlock_)
+                        {
+                            b_.currentBlock_->addInstruction(coroSuspend);
+                        }
+                        return BuildResult(coroResultReg, promiseValueType);
+                    }
 
                     // ====================================================================
                     // (AR) انتظار قيمة بدائيّة غير-Future: تمريرٌ مطابق للمفسّر الذي يُرجع
