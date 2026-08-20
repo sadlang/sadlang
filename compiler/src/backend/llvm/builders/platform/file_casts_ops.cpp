@@ -9,6 +9,7 @@
 #include "builders/platform/file_casts_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
+#include "sir_constants.h"                          // (AR) kFileOpenRun007Msg
 #include "sad_dyn_repr.h"                                  // (AR) DynKind::Int لوسم homogKind / (EN) DynKind::Int for homogKind
 #include "builders/collections/array_ops_codegen.h"       // (AR) SAD_ARRAY_SLOT_BYTES
 #include <llvm/Support/TargetSelect.h>
@@ -46,7 +47,8 @@ namespace Sad
         llvm::Value *FileCastsCodeGen::emitFopenGuarded(llvm::Value *path, const char *mode,
                                                         const char *tag, llvm::Value *failValue,
                                                         llvm::BasicBlock *&mergeBB,
-                                                        llvm::PHINode *&phi)
+                                                        llvm::PHINode *&phi,
+                                                        const char *failMsg)
         {
             auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             llvm::Function *fn = cg_.builder_->GetInsertBlock()->getParent();
@@ -66,14 +68,110 @@ namespace Sad
 
             cg_.builder_->CreateCondBr(isNull, failBB, okBB);
 
-            // (AR) مسارُ الفشل: القيمةُ البديلة ثمّ الالتقاء — بلا أيّ نداءِ CRT.
+            // (AR) مسارُ الفشل. بلا `failMsg`: القيمةُ البديلة ثمّ الالتقاء.
+            //      ومعه: 🔑 خطأٌ قابلٌ للالتقاط — لأنّ المفسّر (المرجع) يرمي RUN007
+            //      عند فشلِ الفتح، بينما كان المترجَمُ يُعيد قيمةً صامتةً ويُكمِل.
+            //      نمطُ الرفعِ نفسُه المستعمَلُ في حرّاسِ القسمة على صفر: إن كان ثمّة
+            //      «حاول» نشطٌ رُفِع إليه، وإلّا شُخِّص وخُرِج بـ١.
+            // (EN) Failure path. Without failMsg: the sentinel then merge. With it:
+            //      a catchable error, because the interpreter (the reference) throws
+            //      RUN007 on a failed open while the compiled side returned a silent
+            //      sentinel and carried on. Same raise pattern as the div-zero guards.
             cg_.builder_->SetInsertPoint(failBB);
-            cg_.builder_->CreateBr(mergeBB);
+            if (failMsg)
+            {
+                llvm::Value *msg = cg_.builder_->CreateGlobalStringPtr(
+                    failMsg, std::string(tag) + ".failfmt");
+                if (cg_.freestanding_)
+                {
+                    cg_.emitFreestandingPanicCall(Sad::Compiler::kSadPanicCheckViolation);
+                }
+                else
+                {
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 يُنسَّق **مرّةً واحدةً** ثمّ يُغذّي المصبَّين من المخزنِ
+                    //      نفسِه. كان القالبُ يُمرَّر إلى الرافعِ كما هو ويُنسَّق في
+                    //      `printf` وحدَه، فمن يلتقط الخطأ يقرأ:
+                    //        خطأ [RUN007]: تعذّر الوصول إلى الملف '%s'
+                    //      بـ`%s` حرفيّةً لا مسارًا — بينما غيرُ الملتقِطِ يرى المسارَ
+                    //      الصحيح. مصبّان لرسالةٍ واحدةٍ ⇒ ينجرفان؛ وواحدٌ لا ينجرف.
+                    //      واختبارُ ص٢٩ يفحص أنّ شيئًا التُقِط لا **ماذا** التُقِط،
+                    //      فبقيت الرسالةُ كاذبةً وهو أخضرُ.
+                    // (EN) Format ONCE, then feed both sinks from the same buffer. The
+                    //      template used to be handed to the raiser verbatim and formatted
+                    //      only inside printf, so a program that CAUGHT the error read a
+                    //      literal '%s' where the path belongs, while an uncaught failure
+                    //      printed the real path. Two sinks for one message drift; one
+                    //      cannot. p29 asserts that something was caught, not WHAT was
+                    //      caught, so the wrong text stayed green.
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 عامٌّ لا `alloca`: الرافعُ يخزّن **المؤشّرَ** في عامٍّ يقرؤه
+                    //      المُمسِكُ بعد الانفلاتِ من هذا الإطار، فمخزنُ المكدّسِ يموت قبل
+                    //      قارئِه وتُقرَأ الرسالةُ فارغة (مقيسًا). عمرُ المخزنِ يجب أن
+                    //      يبلغ آخرَ قارئٍ لا آخرَ كاتب.
+                    // (EN) A GLOBAL, not an alloca: the raiser stores the POINTER into a
+                    //      global that the catch site reads AFTER unwinding out of this
+                    //      frame, so a stack buffer dies before its reader and the message
+                    //      reads back empty (measured). The buffer must outlive its LAST
+                    //      READER, not its last writer.
+                    auto *msgBufTy = llvm::ArrayType::get(
+                        llvm::Type::getInt8Ty(*cg_.context_),
+                        Sad::Compiler::kFileErrorMessageBufferBytes);
+                    auto *msgBufGlobal =
+                        cg_.module_->getNamedGlobal(Sad::Compiler::kFileErrorMessageBufferSymbol);
+                    if (!msgBufGlobal)
+                    {
+                        msgBufGlobal = new llvm::GlobalVariable(
+                            *cg_.module_, msgBufTy, false, llvm::GlobalValue::InternalLinkage,
+                            llvm::ConstantAggregateZero::get(msgBufTy),
+                            Sad::Compiler::kFileErrorMessageBufferSymbol);
+                    }
+                    llvm::Value *msgBuf = msgBufGlobal;
+                    auto *snprintfType = llvm::FunctionType::get(
+                        llvm::Type::getInt32Ty(*cg_.context_),
+                        {ptrTy, llvm::Type::getInt64Ty(*cg_.context_), ptrTy}, true);
+                    auto snprintfFunc =
+                        cg_.module_->getOrInsertFunction("snprintf", snprintfType);
+                    cg_.builder_->CreateCall(
+                        snprintfFunc,
+                        {msgBuf,
+                         llvm::ConstantInt::get(llvm::Type::getInt64Ty(*cg_.context_),
+                                                Sad::Compiler::kFileErrorMessageBufferBytes),
+                         msg, path});
+
+                    emitRecoverablePanicToHandler(cg_, msgBuf);
+                    auto *printfType = llvm::FunctionType::get(
+                        llvm::Type::getInt32Ty(*cg_.context_), {ptrTy}, true);
+                    auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
+                    // (AR) `%s` ثابتًا: المخزنُ نصٌّ منسَّقٌ لا قالب — ولو مُرِّر قالبًا
+                    //      لأُعيد تفسيرُ أيِّ `%` في **مسارِ المستخدم** توجيهَ تنسيق.
+                    // (EN) A constant "%s": the buffer is formatted text, not a template —
+                    //      passing it as one would reinterpret any '%' in the USER'S PATH
+                    //      as a format directive.
+                    llvm::Value *passThrough = cg_.builder_->CreateGlobalStringPtr(
+                        Sad::Compiler::kPlainStringFormat, std::string(tag) + ".passthru");
+                    cg_.builder_->CreateCall(printfFunc, {passThrough, msgBuf});
+                    auto *exitType = llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(*cg_.context_),
+                        {llvm::Type::getInt32Ty(*cg_.context_)}, false);
+                    auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+                    cg_.builder_->CreateCall(
+                        exitFunc,
+                        {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*cg_.context_), 1)});
+                }
+                cg_.builder_->CreateUnreachable();
+            }
+            else
+            {
+                cg_.builder_->CreateBr(mergeBB);
+            }
 
             // (AR) نُهيّئ PHI في كتلة الالتقاء الآن، ويضيف المستدعي طرفَ النجاح.
+            //      ومع الرمي لا سلفَ لكتلةِ الفشل: تنتهي بـ`unreachable` فلا تُضاف.
             llvm::IRBuilder<> mergeBuilder(mergeBB);
             phi = mergeBuilder.CreatePHI(failValue->getType(), 2, std::string(tag) + ".result");
-            phi->addIncoming(failValue, failBB);
+            if (!failMsg)
+                phi->addIncoming(failValue, failBB);
 
             cg_.builder_->SetInsertPoint(okBB);
             return file;
@@ -93,12 +191,18 @@ namespace Sad
             auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
             auto i64Ty = cg_.getInt64Type();
 
-            // (AR) الفشلُ يُنتج نصًّا فارغًا — نظيرُ «لا محتوى» في المفسّر، لا انهيارًا.
-            // (EN) Failure yields the empty string — mirrors the interpreter, not a crash.
+            // (AR) 🔑 كان هنا نصٌّ فارغٌ وتعليقٌ يدّعي أنّه «نظيرُ المفسّر» — وهو
+            //      ادّعاءٌ لم يُقَس: المفسّر يرمي RUN007 (ctx.error في read_file_func).
+            //      فبرنامجُ ص-٢٩ يطبع PASS مفسَّرًا وFAIL مترجَمًا، والرمزان صفرٌ معًا.
+            //      القيمةُ الفارغةُ تبقى نوعَ الـPHI ولا تُنتَج قطُّ (الفشلُ يرمي).
+            // (EN) This used to yield "" with a comment claiming interpreter parity —
+            //      an unmeasured claim: the interpreter throws RUN007, so the p29
+            //      program printed PASS interpreted and FAIL compiled, both exiting 0.
             llvm::Value *emptyStr = cg_.builder_->CreateGlobalStringPtr("", "read.empty");
             llvm::BasicBlock *mergeBB = nullptr;
             llvm::PHINode *phi = nullptr;
-            llvm::Value *file = emitFopenGuarded(filename, "r", "read", emptyStr, mergeBB, phi);
+            llvm::Value *file = emitFopenGuarded(filename, "r", "read", emptyStr, mergeBB, phi,
+                                                 Sad::Compiler::kFileOpenRun007Msg);
 
             // Allocate read buffer (4096 bytes)
             llvm::Value *buf = cg_.emitMalloc(llvm::ConstantInt::get(i64Ty, 4096), "read_buf");
@@ -159,7 +263,9 @@ namespace Sad
             llvm::Value *eofVal = llvm::ConstantInt::get(i32Ty, -1);
             llvm::BasicBlock *mergeBB = nullptr;
             llvm::PHINode *phi = nullptr;
-            llvm::Value *file = emitFopenGuarded(filename, "w", "write", eofVal, mergeBB, phi);
+            // (AR) والمفسّر يرمي RUN007 هنا كذلك (write_file_func) — الأخُ الثاني.
+            llvm::Value *file = emitFopenGuarded(filename, "w", "write", eofVal, mergeBB, phi,
+                                                 Sad::Compiler::kFileOpenRun007Msg);
 
             // fputs(content, file)
             auto *fputsType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
@@ -315,7 +421,9 @@ namespace Sad
             llvm::Value *zeroWritten = llvm::ConstantInt::get(i64Ty, 0);
             llvm::BasicBlock *mergeBB = nullptr;
             llvm::PHINode *phi = nullptr;
-            llvm::Value *file = emitFopenGuarded(filename, "wb", "wb", zeroWritten, mergeBB, phi);
+            // (AR) والمفسّر يرمي RUN007 هنا كذلك (write_bytes_func) — الأخُ الثالث.
+            llvm::Value *file = emitFopenGuarded(filename, "wb", "wb", zeroWritten, mergeBB, phi,
+                                                 Sad::Compiler::kFileOpenRun007Msg);
 
             // fwrite(buf, 1, len, file) — العائد والوسائط size_t
             auto *fwriteType = llvm::FunctionType::get(szTy, {ptrTy, szTy, szTy, ptrTy}, false);
@@ -400,7 +508,9 @@ namespace Sad
 
             llvm::BasicBlock *rbMergeBB = nullptr;
             llvm::PHINode *rbPhi = nullptr;
-            llvm::Value *file = emitFopenGuarded(filename, "rb", "rb", emptyArr, rbMergeBB, rbPhi);
+            // (AR) والمفسّر يرمي RUN007 هنا كذلك (read_bytes_func) — الأخُ الرابع.
+            llvm::Value *file = emitFopenGuarded(filename, "rb", "rb", emptyArr, rbMergeBB, rbPhi,
+                                                 Sad::Compiler::kFileOpenRun007Msg);
 
             // fseek(file, 0, SEEK_END=2) ; ftell(file) ; fseek(file, 0, SEEK_SET=0)
             auto *fseekType = llvm::FunctionType::get(i32Ty, {ptrTy, longTy, i32Ty}, false);
@@ -557,7 +667,10 @@ namespace Sad
             llvm::Value *eofVal = llvm::ConstantInt::get(i32Ty, -1);
             llvm::BasicBlock *mergeBB = nullptr;
             llvm::PHINode *phi = nullptr;
-            llvm::Value *file = emitFopenGuarded(filename, "a", "append", eofVal, mergeBB, phi);
+            // (AR) والمفسّر يرمي هنا كذلك (append_file_func) — الأخُ الخامس. أمّا
+            //      «حجم_ملف» فتُعيد -1 في المحرّكَين معًا فتبقى بلا رمي (المقيسُ لا المفترَض).
+            llvm::Value *file = emitFopenGuarded(filename, "a", "append", eofVal, mergeBB, phi,
+                                                 Sad::Compiler::kFileOpenRun007Msg);
 
             auto *fputsType = llvm::FunctionType::get(i32Ty, {ptrTy, ptrTy}, false);
             auto fputsFunc = cg_.module_->getOrInsertFunction("fputs", fputsType);

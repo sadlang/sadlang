@@ -599,6 +599,15 @@ namespace Sad
                     return BuildResult();
                 }
 
+                // (AR) طرفُ `و`/`أو` شرطٌ كسائرِ الشروط: كائنٌ يُحوَّل بـ`منطقي()`.
+                //      الفرعُ هنا يُبنى من هذا السجلِّ مباشرةً، فبقاؤه مؤشِّرًا يجعل
+                //      `كائن أو س` تختصر دائمًا على اليسار.
+                // (EN) An `and`/`or` operand is a condition like any other: an object is
+                //      converted via its to-bool operator. The branch below is built from
+                //      this register directly, so leaving it a pointer makes
+                //      `obj or x` always short-circuit on the left.
+                b_.coerceObjectToBool(leftResult);
+
 #ifndef NDEBUG
                 std::cout << "[DEBUG] buildShortCircuitLogical: leftReg='"
                           << leftResult.registerName << "'" << std::endl;
@@ -688,6 +697,10 @@ namespace Sad
                 // ================================================================
                 b_.currentBlock_ = evalRightBlock;
                 auto rightResult = buildExpression(binOp->right.get());
+
+                // (AR) والطرفُ الأيمنُ كذلك — يُخزَّن في متغيّرِ النتيجةِ المنطقيّ أدناه.
+                // (EN) The right operand too — it is stored into the boolean result below.
+                b_.coerceObjectToBool(rightResult);
 
                 if (!rightResult.registerName.empty())
                 {
@@ -988,6 +1001,26 @@ namespace Sad
                             return result;
                         }
                     }
+                }
+
+                // ════════════════════════════════════════════════════════════
+                // (AR) `ليس كائن` بلا `عامل !` مخصَّص ⇒ حوِّله بـ`عامل منطقي()` ثمّ انفِه.
+                //      الترتيبُ مقصود: `__op_not__` أعلاه يَعلو التحويلَ (نفيٌ كتبه صاحبُ
+                //      الصنفِ صراحةً)، وهذا احتياطُه — وهو ما يفعله المفسّر.
+                //      بدونه كان `NOT` ينزل على **مؤشِّرِ الكائن**: مؤشِّرٌ غيرُ صفريٍّ
+                //      دائمًا ⇒ `ليس كائن` = «خطأ» أبدًا، مهما قال `منطقي()`.
+                //      ولا رمزَ خطأٍ ولا رسالة: الثنائيُّ يُبنى ويعمل ويكذب.
+                // (EN) `not obj` with no custom `!` operator ⇒ convert via the
+                //      to-bool operator, then negate. The order is deliberate:
+                //      an explicit `__op_not__` above wins; this is its fallback —
+                //      matching the interpreter. Without it, `NOT` was applied to the
+                //      OBJECT POINTER, which is never zero, so `not obj` was always
+                //      false regardless of what `منطقي()` returns — with no error code
+                //      and no message: the binary builds, runs, and lies.
+                // ════════════════════════════════════════════════════════════
+                if (unaryOp->op == Lexer::TokenType::OP_NOT)
+                {
+                    b_.coerceObjectToBool(operandResult);
                 }
 
                 // (AR) إنشاء سجل للنتيجة (sir_builder.h:511 - b_.newTempRegister)

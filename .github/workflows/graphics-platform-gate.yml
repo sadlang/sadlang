@@ -77,6 +77,14 @@ on:
       - '.github/workflows/graphics-platform-gate.yml'
   workflow_dispatch:
 
+# 🔑 (AR) پايثونُ على عدّاءِ ويندوزَ يكتب بترميزِ المحلّيّةِ حين يُوجَّه خرجُه،
+#     فأوّلُ محرفٍ عربيٍّ يُسقِط المقياسَ نفسَه ويُقرأ سقوطُه عطبًا في الشجرة.
+# 🔑 (EN) Python on a Windows runner writes in the locale codepage when its
+#     output is redirected: the first Arabic character kills the instrument.
+env:
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: "1"
+
 permissions:
   contents: read
 
@@ -93,9 +101,11 @@ jobs:
     steps:
       - name: 📥 تحميل الكود / Checkout
         uses: actions/checkout@v4
+        timeout-minutes: 15
 
       - name: 🐍 تهيئة پايثون / Setup Python
         uses: actions/setup-python@v5
+        timeout-minutes: 15
         with:
           python-version: '3.12'
 
@@ -126,9 +136,11 @@ jobs:
     steps:
       - name: 📥 تحميل الكود / Checkout
         uses: actions/checkout@v4
+        timeout-minutes: 15
 
       - name: 🐍 تهيئة پايثون / Setup Python
         uses: actions/setup-python@v5
+        timeout-minutes: 15
         with:
           python-version: '3.12'
 
@@ -199,6 +211,7 @@ jobs:
       - name: 📤 رفعُ اللقطاتِ الفعليّةِ عند الفشل / Upload actual snapshots
         if: failure()
         uses: actions/upload-artifact@v4
+        timeout-minutes: 15
         with:
           name: pixel-actual-${{ matrix.os }}
           path: tests/unit/comprehensive/golden/pixels/*.actual.ppm

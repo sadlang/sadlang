@@ -696,7 +696,7 @@ namespace sad
                         std::cerr << "  الأمر: " << ar_command << "\n";
                     }
 
-                    if (std::system(ar_command.c_str()) != 0)
+                    if (sad::utf8::run_command(ar_command) != 0)
                     {
                         diagnostics_.report_fatal("فشل إنشاء المكتبة الساكنة / Failed to create static library");
                         return false;

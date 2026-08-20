@@ -224,8 +224,27 @@ namespace Sad
                         //      هذا يسمح بالوصول لحقول المعامل (مثل آخر.س) داخل جسم العامل
                         // (EN) If param has no explicit type (UNKNOWN/NONE), assume it's an object of the same class
                         //      This allows member access (e.g. other.x) inside operator body
-                        if (param.type == Types::SadTypeKind::Unknown || param.type == Types::SadTypeKind::Void ||
-                            param.type == Types::SadTypeKind::Class)
+                        //
+                        // (AR) 🔑 لكنّ الافتراضَ لا يصلح لكلِّ عامل: معامِلُ `[]` **فهرسٌ**،
+                        //      ومعامِلا `[]=` فهرسٌ وقيمة، ووسائطُ `()` وسائطُ نداءٍ، وأُسُّ `**`
+                        //      والإزاحتان `<<`/`>>` أعدادٌ — لا أقرانٌ للصنف. وتسجيلُها كائناتٍ
+                        //      يجعل مقارنةً عاديّةً داخلَ الجسمِ (`فهرس == 0`) تُوجَّه إلى
+                        //      `__op_eq__` للصنفِ فيُمرَّر عددٌ مكانَ المستقبِل ⇒ انهيارُ وصولٍ.
+                        //      ولذلك كان الانهيارُ يلزمه أن يعرّف الصنفُ `==` وأن يسبقَ إعلانُه
+                        //      العاملَ المصاب: قبلَ ذلك لا يوجد `__op_eq__` يُوجَّه إليه.
+                        // (EN) The assumption does not hold for every operator: `[]` takes an
+                        //      index, `[]=` an index and a value, `()` call arguments, and `**`,
+                        //      `<<`, `>>` numeric operands — none is a peer of the class.
+                        //      Registering them as instances makes a plain comparison inside the
+                        //      body (`index == 0`) dispatch to the class's `__op_eq__`, passing a
+                        //      number where the receiver is expected ⇒ access violation.
+                        const std::string &opSym = operatorDecl->operatorSymbol;
+                        const bool paramIsClassPeer =
+                            opSym != "[]" && opSym != "[]=" && opSym != "()" &&
+                            opSym != "**" && opSym != "<<" && opSym != ">>";
+                        if (paramIsClassPeer &&
+                            (param.type == Types::SadTypeKind::Unknown || param.type == Types::SadTypeKind::Void ||
+                             param.type == Types::SadTypeKind::Class))
                         {
                             b_.classInstanceTypes_[param.name] = classDecl->name;
                             b_.classInstanceTypes_["%" + param.name] = classDecl->name;

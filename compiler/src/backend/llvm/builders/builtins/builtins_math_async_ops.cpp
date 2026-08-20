@@ -10,6 +10,9 @@
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
+// (AR) تعليبُ حمولةِ المستقبلِ وفكُّها — انظر `emitAsyncResolveFuture`/`emitAsyncGetFuture`
+// (EN) Future payload boxing/unboxing — see emitAsyncResolveFuture / emitAsyncGetFuture
+#include "sad_dyn_repr.h"
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -279,6 +282,26 @@ namespace Sad
             auto eventSlotPtr = cg_.builder_->CreateBitCast(eventSlot, llvm::PointerType::get(i8PtrTy, 0));
             cg_.builder_->CreateStore(eventHandle, eventSlotPtr);
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 خانةُ القيمةِ تُهيَّأ بصندوقِ **عدمٍ موسوم**، لا بصفر. فخانةُ
+            //      القيمةِ صارت مؤشّرَ صندوقٍ (انظر `emitAsyncResolveFuture`)،
+            //      و`احصل` على مستقبلٍ لم يُحلَّ كان سيفكّ العنوانَ صفرًا ⇒ انهيار.
+            //      والتهيئةُ عند المصدرِ تجعل كلَّ قارئٍ آمنًا بلا فرعٍ يتكرّر، وتُطابِق
+            //      المفسّرَ الذي يبدأ بقيمةِ «لاشيء».
+            // (EN) 🔑 The value slot is initialised with a TAGGED NULL box, not zero. The
+            //      value slot is now a box pointer (see emitAsyncResolveFuture), and `get`
+            //      on an unresolved future would have unboxed address zero ⇒ crash.
+            //      Initialising at the source makes every reader safe without a repeated
+            //      branch, and matches the interpreter, which starts at «null».
+            // ════════════════════════════════════════════════════════════════
+            auto nullBox = boxDynToHeap(
+                cg_, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kSadNullSentinel),
+                SadTypeKind::Null);
+            auto nullBoxAsInt = cg_.builder_->CreatePtrToInt(nullBox, i64Ty, "future.nullbox.i64");
+            auto initValueSlot = cg_.builder_->CreateGEP(llvm::Type::getInt8Ty(*cg_.context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 8)});
+            auto initValueSlotPtr = cg_.builder_->CreateBitCast(initValueSlot, llvm::PointerType::get(i64Ty, 0));
+            cg_.builder_->CreateStore(nullBoxAsInt, initValueSlotPtr);
+
             auto result = cg_.builder_->CreatePtrToInt(futurePtr, i64Ty);
             if (inst->result.has_value())
             {
@@ -298,10 +321,28 @@ namespace Sad
             llvm::Value *value = cg_.resolveOperand(inst->operands[1]);
             auto futurePtr = cg_.builder_->CreateIntToPtr(futureId, i8PtrTy);
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 الخانةُ تحمل **مؤشّرَ صندوقٍ موسومٍ** لا القيمةَ الخام. الخانةُ
+            //      ثمانيةُ بايتاتٍ بلا وسم، فحمولةٌ نصّيّةٌ كانت تُخزَّن مؤشّرًا
+            //      عاريًا ويُقرأ عددًا — يُطبَع ‏140699969527808‏ ويقارَن رقمًا.
+            //      والتعليبُ في الكومةِ لا في المكدّس: المُنتِجُ goroutine قد يموت
+            //      إطارُه قبل أن يقرأ `احصل` القيمة. ونظيرُ الفكِّ في
+            //      `emitAsyncGetFuture` — الكاتبُ والقارئُ عقدٌ واحدٌ يتحرّك معًا.
+            // (EN) 🔑 The slot holds a POINTER TO A TAGGED BOX, not the raw value.
+            //      The slot is eight untagged bytes, so a string payload was stored as
+            //      a bare pointer and read back as an integer — printed as
+            //      140699969527808 and compared as a number. Boxed on the heap, not the
+            //      stack: the producing goroutine's frame may die before `get` reads it.
+            //      The unboxing twin is in emitAsyncGetFuture — writer and reader are
+            //      one contract and move together.
+            // ════════════════════════════════════════════════════════════════
+            llvm::Value *box = boxDynToHeap(cg_, value, inst->operands[1].dataType);
+            llvm::Value *boxAsInt = cg_.builder_->CreatePtrToInt(box, i64Ty, "future.box.i64");
+
             // Store value at offset 8
             auto valueSlot = cg_.builder_->CreateGEP(llvm::Type::getInt8Ty(*cg_.context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 8)});
             auto valueSlotPtr = cg_.builder_->CreateBitCast(valueSlot, i64PtrTy);
-            cg_.builder_->CreateStore(value, valueSlotPtr);
+            cg_.builder_->CreateStore(boxAsInt, valueSlotPtr);
 
             // Set state=1 (resolved)
             auto statePtr = cg_.builder_->CreateBitCast(futurePtr, i64PtrTy);
@@ -345,10 +386,21 @@ namespace Sad
             auto waitFunc = cg_.module_->getOrInsertFunction("sad_rt_event_wait", waitTy);
             cg_.builder_->CreateCall(waitFunc, {eventHandle});
 
-            // Load value from offset 8
+            // (AR) الخانةُ مؤشّرُ صندوقٍ موسوم — انظر `emitAsyncResolveFuture`.
+            //      ولا حارسَ عدمٍ هنا **لأنّ الخانةَ لا تكون صفرًا قطّ**: تُهيَّأ عند
+            //      الإنشاءِ بصندوقِ عدمٍ موسوم. والمُنتقي (select) لا يقصر الدائرةَ،
+            //      فحارسٌ به كان سيُنفّذ التحميلَ من العنوانِ صفرٍ رغمَه — والتهيئةُ
+            //      عند المصدرِ تُغني عن فرعٍ في كلِّ قراءة.
+            // (EN) The slot is a tagged-box pointer — see emitAsyncResolveFuture.
+            //      No null guard here because the slot is NEVER zero: it is initialised at
+            //      creation with a tagged null box. A select-based guard would not help —
+            //      select does not short-circuit, so the load from address zero would still
+            //      execute. Initialising at the source removes a branch from every read.
             auto valueSlot = cg_.builder_->CreateGEP(llvm::Type::getInt8Ty(*cg_.context_), futurePtr, {llvm::ConstantInt::get(i64Ty, 8)});
             auto valueSlotPtr = cg_.builder_->CreateBitCast(valueSlot, i64PtrTy);
-            auto result = cg_.builder_->CreateLoad(i64Ty, valueSlotPtr);
+            auto boxAsInt = cg_.builder_->CreateLoad(i64Ty, valueSlotPtr, "future.box.load");
+            auto boxPtr = cg_.builder_->CreateIntToPtr(boxAsInt, i8PtrTy, "future.box.ptr");
+            auto result = unboxDynFromHeap(cg_, boxPtr);
 
             if (inst->result.has_value())
             {

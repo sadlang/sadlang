@@ -4,8 +4,8 @@
 (AR) حارسُ سجلِّ الحمرةِ المقيسة — `tests/behavior/DECLARED_REDS.tsv`.
 
      🔑 **الدَّينُ يُقاس ولا ينمو.** المجلّدان `grammar_gaps` و`_regression`
-     خارجَ كلِّ مستوًى يُشغّلُه CI، ففيهما اليومَ ٦١ ملفًّا أحمرَ لا يراها أحد.
-     ولو صارت ٦٢ غدًا لَما لاحظَ أحد، ولو اخضرَّ أحدُها لَبقيَ موصوفًا عيبًا
+     خارجَ كلِّ مستوًى يُشغّلُه CI، ففيهما اليومَ ٥٤ ملفًّا أحمرَ لا يراها أحد.
+     ولو صارت ٥٥ غدًا لَما لاحظَ أحد، ولو اخضرَّ أحدُها لَبقيَ موصوفًا عيبًا
      وهو مُصلَح. فالحارسُ يُخفِقُ في **الاتّجاهَين**:
 
        ① ملفٌّ في السجلِّ صار أخضرَ  ⇒ إخفاق: احذف صفَّه (العيبُ أُصلِح).
@@ -40,6 +40,7 @@ import json
 import os
 import subprocess
 import sys
+import traceback
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))))
@@ -273,4 +274,20 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except SystemExit:
+        raise
+    except BaseException:
+        # (AR) انهيارُ الأداةِ ليس حكمًا على السجلّ. والرسالةُ ASCII عمدًا:
+        #      العطبُ نفسُه قد يكون عجزَ الخرجِ عن ترميزِ العربيّة، فرسالةٌ
+        #      عربيّةٌ هنا تنهار هي الأخرى وتُخفي سببَها. ورمزُ ٣ يفصل
+        #      «لم يُقَس» عن «انحرف» فلا تُعلِن الخطوةُ حكمًا لم تبلغه.
+        # (EN) An instrument crash is not a verdict on the registry. The
+        #      message is deliberately ASCII: the crash itself may be the
+        #      stream failing to encode Arabic. Exit 3 separates
+        #      "never measured" from "drifted".
+        traceback.print_exc()
+        print("INSTRUMENT CRASH: the declared-reds measurement never ran",
+              flush=True)
+        sys.exit(3)

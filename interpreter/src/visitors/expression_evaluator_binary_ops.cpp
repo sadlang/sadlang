@@ -526,14 +526,31 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_DIVISION_BY_ZERO, pos,
                             {{"a", std::to_string(l)}});
-                    // (AR) حالة الطفحان الوحيدة في القسمة: INT64_MIN / -1 ⇒ ترقية إلى عشري
-                    // (EN) The only overflowing division: INT64_MIN / -1 ⇒ promote to double
+                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي64 ⇒ قسمة لا-موقَّعة، نظيرَ `//`:
+                    //      لا سالب فالاقتطاع والأرضيّة سواء، ويطابق CreateUDiv في المترجم.
+                    // (EN) [Step 7] طبيعي64 surface ⇒ unsigned division (mirrors `//`).
+                    if (wrapU64)
+                        return Value(static_cast<int64_t>(
+                            static_cast<uint64_t>(l) / static_cast<uint64_t>(r)));
+                    // (AR) 🔑 الحالةُ الوحيدةُ التي تفيض i64. في C سلوكٌ غيرُ معرَّف، وعلى x86
+                    //      مصيدةُ #DE تقتل العمليّة. ولغةُ ص لا تخترع قيمةً بلا معنًى: ترمي
+                    //      كما ترمي على القسمة على صفر بدل اللانهاية. وكانت تُرقّي إلى عشريّ
+                    //      حين كانت `/` حقيقيّة — والترقيةُ تُعيد **نوعَ** النتيجة إلى زمنِ
+                    //      التشغيل، وهو بالضبط ما يزيله هذا القرار.
+                    // (EN) The only i64-overflowing division: UB in C, #DE on x86. Sad throws
+                    //      rather than inventing a value, as it does for division by zero. It
+                    //      used to promote to float — and promotion makes the result KIND a
+                    //      runtime fact again, which is exactly what this change removes.
                     if (l == INT64_MIN && r == -1)
-                        return Value(-static_cast<double>(l));
-                    // (AR) ترقية إلى عشري عند وجود باقي (7/2 → 3.5) — سلوك القسمة الحقيقية
-                    // (EN) Promote to double when remainder exists (7/2 → 3.5) — true division
-                    if (l % r != 0)
-                        return Value(static_cast<double>(l) / static_cast<double>(r));
+                        ::Sad::Errors::throwRuntime(
+                            ::Sad::Errors::ErrorCode::RUN_NUMERIC_OVERFLOW, pos,
+                            {{"a", std::to_string(l)}});
+                    // (AR) 🔑 قسمةٌ صحيحةٌ باقتطاعٍ نحو الصفر — دلالةُ C: 7/2=3 و(-7)/2 = -3.
+                    //      وكانت ترقّي إلى عشريّ عند وجودِ باقٍ (7/2=3.5). وتفترق عن الأرضيّة
+                    //      `//` في السالبِ وحدَه: (-7) // 2 = -4 (نحو سالب اللانهاية).
+                    // (EN) C-style truncating integer division: 7/2=3, -7/2=-3 (it used to
+                    //      promote to float on a non-zero remainder). It differs from floor
+                    //      `//` for negatives only: -7 // 2 = -4.
                     return Value(l / r);
                 case TokenType::OP_FLOOR_DIVIDE:
                     if (r == 0)

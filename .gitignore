@@ -249,3 +249,14 @@ sad_m3*
 # ملفّ بايتاتٍ يكتبه برهانُ اكتب_بايتات/اقرأ_بايتات عند تشغيله في الجذر
 sad_parity.bin
 sad_bytes_rt.bin
+
+# Auto Claude data directory
+.auto-claude/
+
+# Auto Claude generated files
+.auto-claude-security.json
+.auto-claude-status
+.claude_settings.json
+.worktrees/
+.security-key
+logs/security/

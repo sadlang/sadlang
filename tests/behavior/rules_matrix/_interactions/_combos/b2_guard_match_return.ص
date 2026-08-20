@@ -1,8 +1,8 @@
 # @rule: gr.decl.function, gr.stmt.if, gr.stmt.match, gr.stmt.return, gr.expr.logical_or
-# @description: حُرّاس + طابق + إرجاع
+# @description: حُرّاس + طابق + إرجاع — `ع / 50` صحيحةٌ الآن فتطابق ذراعًا: 75/50 = 1 ⇒ «متوسط». وكانت 1.5 فلا تطابق 0 ولا 1 فتسقط إلى «مرتفع»، أي أنّ المصنِّفَ كان مكسورًا والتوقّعُ يكرّس كسرَه
 # @priority: P2
 # @requires: اطبع_سطر
-# @expected: مرتفع
+# @expected: متوسط
 
 دالة صنّف(ع)
     إذا (ع < 0 || ع > 100)

@@ -132,9 +132,11 @@ jobs:
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
 
       - name: "🐍 إعداد Python / Setup Python"
         uses: actions/setup-python@v5
+        timeout-minutes: 15
         with:
           python-version: "3.x"
 

@@ -88,6 +88,35 @@ DEFAULT_TOLERANCE = 0.50  # (AR) تسامح افتراضي 50% فوق خط ال�
 #      is applied instead. The probe is 001_hello because it comes from the same
 #      calibration session — any probe measured today would not pair with a June
 #      baseline. The stated cost: 001_hello becomes the yardstick, not a subject.
+#
+# (AR) 🔑 وللمِسبارِ اتّجاهٌ واحدٌ: يُسامِحُ ولا يُضيّق.
+#
+#      أوّلُ صياغةٍ ضربت الحدَّ في العاملِ في الاتّجاهَين، فآلةٌ **أسرعُ** من
+#      آلةِ المعايرةِ يتقلّصُ حدُّها معها. والقياس: على 🍎 macOS (Release) في
+#      ٢٠٢٦-٠٨-٢٠ خرج المِسبارُ ×0.27 فهبط الحدُّ من 65.6ms إلى 17.6ms، وصار
+#      مدى التسامحِ كلُّه 5.9ms — أضيقَ من ضجيجِ القياسِ نفسِه. فأحمرَّ
+#      004_functions عند 19.8ms، و**ذاتُ البصمةِ اجتازت ذاتَ الاختبارِ في
+#      الشوطِ الموازي على المُشغِّلِ الآخر**.
+#
+#      والعاملُ نسبةُ **أرضيّةٍ** لا نسبةُ حساب: `001_hello` زمنُ إطلاقِ
+#      عمليّةٍ في جوهرِه. فأن يرفعَ سقفًا حين تبطؤُ الأرضيّةُ دعوى يحملها،
+#      وأن يخفضَه حين تسرعُ دعوى لم يقِسْها — بل يكذّبها القياسُ المتداخل:
+#      البرامجُ الثلاثةُ تخرج سواءً في حدودِ ±1.5ms بينما تختلف أرضيّتُها
+#      3.7 أضعافٍ بين آلةٍ وأخرى.
+#
+#      والثمنُ مُعلَنٌ في الخرجِ لا مطموس: فوقَ سرعةِ آلةِ المعايرةِ يُحكَمُ
+#      بالسقفِ المطلقِ وتمييزُ البوّابةِ هناك خشِن — أخضرُها «لا تراجعَ
+#      كبيرًا» لا «لا تراجعَ».
+#
+# (EN) The probe forgives; it never tightens. Scaling the ceiling DOWN on a
+#      fast machine shrank the whole tolerance band to 5.9ms — below the
+#      measurement's own noise — and reddened 004_functions at 19.8ms while
+#      the identical SHA passed the identical test on the parallel runner.
+#      The factor is a ratio of process-startup FLOORS, not of compute:
+#      interleaved sampling puts all three programs within ±1.5ms of each
+#      other while their floors differ 3.7× across machines. Cost declared in
+#      the output: above calibration speed the verdict is by absolute ceiling
+#      and its resolution is coarse.
 # ═══════════════════════════════════════════════════════════════════════════════
 PROBE_PROGRAM = "001_hello"
 
@@ -99,25 +128,46 @@ PROBE_PROGRAM = "001_hello"
 PROBE_SANITY_FACTOR = 10.0
 
 
-def measure_median_ms(interp: Path, program: Path) -> float:
-    """(AR) يقيس الوسيط بالمللي ثانية لتشغيل برنامج بالمفسر.
-    (EN) Median wall-clock ms of running a program under the interpreter."""
-    samples = []
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 القياسُ **متداخلٌ** لا كُتَلًا — ولمَ كان لا بدَّ منه
+#
+#      كان يُقاسُ سبعَ مرّاتٍ لبرنامجٍ ثمّ سبعًا للتالي، فيلتقطُ كلُّ برنامجٍ
+#      **شريحةً مختلفةً من حالِ الآلة**: نوبةٌ عارضةٌ في المُشغِّلِ تقع على
+#      كتلةِ برنامجٍ واحدٍ فتضخّمُ وسيطَه وحدَه، ويُقرأُ الفرقُ «تراجعَ أداءٍ»
+#      في ذلك البرنامجِ بعينِه — وهو أثرُ جدولةٍ لا أثرُ كود.
+#
+#      والقياسُ يفصل الدعوى: بالكُتَلِ المتتابعةِ خرج `004_functions` أزيدَ من
+#      المِسبارِ بـ+12.3ms، وبالتداخلِ (25 دورةً تمسُّ الثلاثةَ في كلِّ دورة)
+#      خرج −0.2ms — أي لا يكاد يفترق عن «مرحبا بالعالم». وهو الصوابُ:
+#      الثلاثةُ زمنُ إطلاقِ عمليّةٍ في جوهرِها، وحسابُها ميكرو ثانية.
+#
+# (EN) Interleaved sampling, not per-program blocks. Seven runs of A then seven
+#      of B give each program a different slice of machine weather: one burst
+#      lands entirely inside one block and reads as that program's regression.
+#      Measured: sequential blocks put 004_functions +12.3ms above the probe;
+#      round-robin over 25 rounds put it at −0.2ms — indistinguishable from
+#      "hello world", which is correct: all three are process startup.
+# ═══════════════════════════════════════════════════════════════════════════════
+def measure_all_medians(interp: Path, programs: list) -> dict:
+    """(AR) وسيطُ كلِّ برنامجٍ بدوراتٍ متداخلة — لا كتلةً منفردةً لكلِّ برنامج.
+    (EN) Median wall-clock ms per program, sampled round-robin."""
+    samples = {program.stem: [] for program in programs}
     for _ in range(RUNS_PER_PROGRAM):
-        start = time.perf_counter()
-        proc = subprocess.run(
-            [str(interp), str(program)],
-            capture_output=True,
-            timeout=60,
-            cwd=str(PROJECT_ROOT),
-        )
-        elapsed_ms = (time.perf_counter() - start) * 1000.0
-        if proc.returncode != 0:
-            print(f"  ❌ فشل تنفيذ {program.name} (rc={proc.returncode}) — "
-                  f"بوّابة NFR تتطلب برنامجاً أخضر أولاً")
-            sys.exit(2)
-        samples.append(elapsed_ms)
-    return statistics.median(samples)
+        for program in programs:
+            start = time.perf_counter()
+            proc = subprocess.run(
+                [str(interp), str(program)],
+                capture_output=True,
+                timeout=60,
+                cwd=str(PROJECT_ROOT),
+            )
+            elapsed_ms = (time.perf_counter() - start) * 1000.0
+            if proc.returncode != 0:
+                print(f"  ❌ فشل تنفيذ {program.name} (rc={proc.returncode}) — "
+                      f"بوّابة NFR تتطلب برنامجاً أخضر أولاً")
+                sys.exit(2)
+            samples[program.stem].append(elapsed_ms)
+    return {stem: statistics.median(values) for stem, values in samples.items()}
 
 
 def load_thresholds() -> dict:
@@ -172,17 +222,27 @@ def evaluate(measured: dict, thresholds: dict) -> tuple:
 
     speed = 1.0
     if probe_spec and probe_now:
-        speed = probe_now / probe_spec["baseline_ms"]
+        raw_speed = probe_now / probe_spec["baseline_ms"]
         lines.append(
             f"  🧭 مِسبارُ سرعةِ الآلة ({PROBE_PROGRAM}): {probe_now:.1f}ms ÷ "
-            f"{probe_spec['baseline_ms']:.1f}ms = ×{speed:.2f}"
+            f"{probe_spec['baseline_ms']:.1f}ms = ×{raw_speed:.2f}"
         )
-        if speed > PROBE_SANITY_FACTOR:
+        if raw_speed > PROBE_SANITY_FACTOR:
             lines.append(
                 f"  ⚠️ الآلةُ أبطأُ من ×{PROBE_SANITY_FACTOR:.0f} — القياسُ بلا معنى، "
                 f"لا يُحسَبُ تراجعَ أداء"
             )
             return [], lines
+        # (AR) 🔑 اتّجاهٌ واحد: يرفعُ السقفَ للآلةِ البطيئةِ ولا يخفضُه للسريعة.
+        #      انظر التعليلَ المقيسَ فوقَ PROBE_PROGRAM.
+        # (EN) One direction only: raises the ceiling for a slow machine, never
+        #      lowers it for a fast one. See the measured rationale above.
+        speed = max(raw_speed, 1.0)
+        if raw_speed < 1.0:
+            lines.append(
+                f"  🧭 الآلةُ أسرعُ من آلةِ المعايرة (×{raw_speed:.2f}) — يُحكَمُ "
+                f"بالسقفِ المطلق، وتمييزُ البوّابةِ هنا خشِنٌ لا دقيق"
+            )
     else:
         lines.append(
             f"  ⚠️ لا مِسبارَ ({PROBE_PROGRAM}) — يُحكَمُ بالمُطلَقِ كما كان"
@@ -252,12 +312,36 @@ def self_test() -> int:
     if failures != ["002_arithmetic"]:
         problems.append(f"العاملُ سترَ تراجعًا: {failures}")
 
+    # (AR) ④ آلةٌ **أسرعُ** من آلةِ المعايرة — الاتّجاهُ الذي لم يكن مبذورًا،
+    #      وأرقامُه من الحمرةِ الحقيقيّةِ على 🍎 macOS (Release) في ٢٠٢٦-٠٨-٢٠:
+    #      المِسبارُ ×0.27 قلّص الحدَّ إلى 17.6ms فأحمرَّ 004 عند 19.8ms، وذاتُ
+    #      البصمةِ اجتازت ذاتَ الاختبارِ في الشوطِ الموازي. لا تراجعَ هنا البتّة.
+    fast_machine = {"001_hello": 11.2, "002_arithmetic": 15.2, "004_functions": 19.8}
+    failures, lines = evaluate(fast_machine, thresholds)
+    print("  ── ④ آلةٌ أسرعُ بالتساوي (أرقامُ الحمرةِ الحقيقيّة) ──")
+    for line in lines:
+        print(line)
+    if failures:
+        problems.append(f"آلةٌ أسرعُ عُدَّت تراجعًا: {failures}")
+
+    # (AR) ⑤ والأهمُّ: أنّ التسامحَ لم ينزعْ نابَ البوّابة. آلةٌ سريعةٌ وفوقَها
+    #      تراجعٌ حقيقيٌّ يجب أن تُحمَّر — وإلّا لكانت الرقعةُ إسكاتًا لا إصلاحًا.
+    fast_with_regression = {"001_hello": 11.2, "002_arithmetic": 15.2,
+                            "004_functions": 120.0}
+    failures, lines = evaluate(fast_with_regression, thresholds)
+    print("  ── ⑤ آلةٌ سريعةٌ وفوقَها تراجعٌ حقيقيٌّ في 004_functions ──")
+    for line in lines:
+        print(line)
+    if failures != ["004_functions"]:
+        problems.append(f"السرعةُ سترَت تراجعًا: {failures}")
+
     if problems:
         for problem in problems:
             print(f"  ❌ {problem}")
         print("❌ الاختبارُ الذاتيُّ لبوّابة NFR أخفق")
         return 1
-    print("✅ الاختبارُ الذاتيّ: تسكتُ على الآلةِ البطيئة، وتُخفِقُ على التراجعِ الحقيقيّ")
+    print("✅ الاختبارُ الذاتيّ: تسكتُ على البطيئةِ والسريعة، "
+          "وتُخفِقُ على التراجعِ الحقيقيِّ في كلتَيهما")
     return 0
 
 
@@ -279,15 +363,16 @@ def main() -> int:
         return 0
 
     print("═══ بوّابة NFR — قياس الوسيط لكل برنامج مرجعي ═══")
-    measured = {}
+    programs = []
     for rel in BENCH_PROGRAMS:
         program = PROJECT_ROOT / rel
         if not program.exists():
             print(f"  ❌ برنامج مرجعي مفقود: {rel}")
             return 2
-        ms = measure_median_ms(interp, program)
-        measured[program.stem] = ms
-        print(f"  📏 {program.name}: median = {ms:.1f}ms")
+        programs.append(program)
+    measured = measure_all_medians(interp, programs)
+    for program in programs:
+        print(f"  📏 {program.name}: median = {measured[program.stem]:.1f}ms")
 
     if args.calibrate:
         write_thresholds(measured)

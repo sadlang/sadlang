@@ -619,20 +619,27 @@ namespace Sad
                 {
                     SadTypeKind leftType = inferExprType(bin->left.get());
                     SadTypeKind rightType = inferExprType(bin->right.get());
-                    // (AR) ISSUE-063: دلالة المفسّر للقسمة `/`: معاملٌ عشريّ ⇒ عشريّ؛
-                    //      صحيح/صحيح ⇒ يتقرّر زمنَ التشغيل ⇒ نوعٌ ديناميّ (Any).
-                    // (EN) ISSUE-063: interpreter `/` semantics: a float operand ⇒ Float;
-                    //      int/int ⇒ runtime-dependent ⇒ dynamic (Any).
-                    if (bin->op == Sad::Lexer::TokenType::OP_DIVIDE)
-                        return (leftType == SadTypeKind::Float || rightType == SadTypeKind::Float)
-                                   ? SadTypeKind::Float
-                                   : SadTypeKind::Any;
-                    if (leftType == SadTypeKind::String || rightType == SadTypeKind::String)
-                        return SadTypeKind::String;
-                    if (leftType == SadTypeKind::Float || rightType == SadTypeKind::Float)
-                        return SadTypeKind::Float;
-                    // (AR) عمليات المقارنة تُرجع BOOL
-                    // (EN) Comparison ops return BOOL
+
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 المقارنةُ أوّلًا — قبلَ كلِّ قاعدةٍ تقرأ نوعَ المعامِلات.
+                    //      نتيجتُها منطقيّةٌ مهما كان طرفاها، وكان جدولُها **بعدَ**
+                    //      قاعدةِ الدمجِ النصّيّ (`أحدُهما نصٌّ ⇒ نصّ`) فابتلعته:
+                    //      `مسار == "أ"` تُستنتَج **نصًّا** بينما `1 == 1` منطقيّةً.
+                    //      كذبٌ صامتٌ ما دام لا أحدَ يقارن استنتاجَين؛ فلمّا صارت
+                    //      موافقةُ أنواعِ الوسائطِ عبر مواقعِ النداءِ تقرّر نوعَ
+                    //      المعامِلِ الحرّ، صار خلافًا **كاذبًا** يُنزِله إلى `Any`
+                    //      فيصل `%SadDyn` إلى `إذا` وتسقط الوحدةُ في verifyModule.
+                    // (EN) 🔑 Comparisons first — before any rule that reads operand
+                    //      types. A comparison yields Boolean whatever its operands are,
+                    //      but its table sat AFTER the string-concatenation rule
+                    //      (`either side is a string ⇒ String`), which swallowed it:
+                    //      `path == "a"` inferred String while `1 == 1` inferred Boolean.
+                    //      A silent lie while nobody compares two inferences; once
+                    //      cross-call-site argument agreement began deciding a free
+                    //      parameter's type, it became a FALSE disagreement that demoted
+                    //      the parameter to `Any`, so a %SadDyn reached `if` and the
+                    //      module failed verification.
+                    // ════════════════════════════════════════════════════════════
                     switch (bin->op)
                     {
                     case Sad::Lexer::TokenType::OP_EQUAL:
@@ -647,6 +654,18 @@ namespace Sad
                     default:
                         break;
                     }
+                    // (AR) 🔑 القسمةُ تُطابِقُ ما يُصدِرُه الباني حرفًا بحرف، و`inferReturnTypeFromBody`
+                    //      يقرأ هذا الاستنتاجَ ليُعلِنَ نوعَ عائدِ الطريقة — فافتراقُهما انهيارٌ لا
+                    //      خطأُ نوع. المعينُ الواحد وسببُه عند `divisionResultKind` في template_builder.h.
+                    // (EN) 🔑 Division mirrors the builder byte for byte, and inferReturnTypeFromBody
+                    //      reads this inference to declare a method's return type — a divergence between
+                    //      them is a crash, not a type error. Single source: divisionResultKind.
+                    if (bin->op == Sad::Lexer::TokenType::OP_DIVIDE)
+                        return divisionResultKind(leftType, rightType);
+                    if (leftType == SadTypeKind::String || rightType == SadTypeKind::String)
+                        return SadTypeKind::String;
+                    if (leftType == SadTypeKind::Float || rightType == SadTypeKind::Float)
+                        return SadTypeKind::Float;
                     return SadTypeKind::Integer;
                 }
 

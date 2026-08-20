@@ -35,6 +35,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 #include "compiler_driver.h"
+#include "utf8_utils.h"
 #include "cli_flags_generated.h"
 
 // Windows API for paths
@@ -267,7 +268,7 @@ namespace sad
                           << colors::RESET;
             }
 
-            int result = std::system(command.c_str());
+            int result = sad::utf8::run_command(command);
 
             if (result != 0)
             {
@@ -763,9 +764,9 @@ namespace sad
 // (EN) On Windows, cmd.exe needs the entire command wrapped in quotes
 //       when the executable path contains quotes
 #ifdef _WIN32
-                int result = std::system(("\"" + command + "\"").c_str());
+                int result = sad::utf8::run_command("\"" + command + "\"");
 #else
-                int result = std::system(command.c_str());
+                int result = sad::utf8::run_command(command);
 #endif
 
                 if (result != 0)
@@ -841,7 +842,7 @@ namespace sad
                         std::cerr << "  أمر الربط / Link command: " << command << "\n";
                     }
 
-                    int result = std::system(command.c_str());
+                    int result = sad::utf8::run_command(command);
                     if (result != 0)
                     {
                         diagnostics_.report_fatal(

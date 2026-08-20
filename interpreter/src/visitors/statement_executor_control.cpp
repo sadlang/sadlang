@@ -178,6 +178,38 @@ namespace Sad
                                 currentFunctionSadReturnType_->englishName() + "' but got '" +
                                 valType->englishName() + "'");
                     }
+
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 موافقةُ القيمةِ للنوعِ المصرَّح — بعدَ الفحصِ لا قبلَه.
+                    //      التصريحُ يحكم كما في C: `دالة عشري` تُرجِع صحيحًا ⇒ عشريّ،
+                    //      و`دالة رقم` تُرجِع عشريًّا ⇒ يُقتطَع نحو الصفر. وكان هذا
+                    //      الموضعُ يقرأ النوعَ المصرَّحَ **ليُحذّر فقط**، فيُترَك النوعُ
+                    //      كما هو ويفترق المحرّكان في القيمةِ نفسِها: `ق / 2` في
+                    //      `دالة عشري` كانت 2 مفسَّرةً و2.5 مترجَمةً.
+                    //      والترتيبُ مقصود: لو سبقَ التحويلُ الفحصَ لصار النوعُ مطابقًا
+                    //      دائمًا فيُخرَس تحذيرٌ قائمٌ — يُقال ما وقع، ثمّ يُوافَق.
+                    //      وكشفَ هذا كلَّه قرارُ جعلِ `/` قسمةً صحيحة: قبلَه كانت 5/2
+                    //      عشريّةً أصلًا فلم يُمتحَن التحويلُ قطُّ.
+                    // (EN) Coerce the value to the declared type — after the check, not
+                    //      before. The declaration governs, as in C: a `عشري` (float)
+                    //      function returning an integer yields a float, and a `رقم` (int)
+                    //      function returning a float truncates toward zero. This site read
+                    //      the declared type ONLY to warn, leaving the type as-is, so the two
+                    //      engines differed in the VALUE itself.
+                    //      The order is deliberate: coercing first would make the types always
+                    //      match and silence a real warning — say what happened, then coerce.
+                    //      All of this surfaced when `/` became integer division: before that,
+                    //      5/2 was already a float, so the conversion was never exercised.
+                    // ════════════════════════════════════════════════════════════
+                    const auto declaredKind = currentFunctionSadReturnType_->getKind();
+                    if (declaredKind == Types::SadTypeKind::Float && returnValue_.isInteger())
+                    {
+                        returnValue_ = Data::Value(static_cast<double>(returnValue_.toInt64()));
+                    }
+                    else if (declaredKind == Types::SadTypeKind::Integer && returnValue_.isDouble())
+                    {
+                        returnValue_ = Data::Value(static_cast<int64_t>(returnValue_.toDouble()));
+                    }
                 }
             }
             else

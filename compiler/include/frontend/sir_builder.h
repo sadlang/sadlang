@@ -813,6 +813,41 @@ namespace Sad
                  */
                 void buildFunction(AST::FunctionDeclNode *funcDecl);
 
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 إطارُ التأجيلِ لدالّةٍ واحدة — معينٌ واحدٌ لمسارَي البناء.
+                //      الدالّةُ المتداخلةُ تُبنى بمسارَين: بلا التقاطاتٍ عبر
+                //      `buildFunction`، ومعها عبر بناءِ إغلاقٍ يدويٍّ في
+                //      `statement_main.cpp`. وكانت الآلةُ في الأوّلِ وحدَه فكان
+                //      `أجّل` يُسقَط صامتًا في الثاني — بلا تعليمةٍ وبلا تشخيص.
+                //      كلُّ مسارٍ يبني جسمَ دالّةٍ يلزمه النداءان معًا.
+                // (EN) 🔑 Per-function defer frame — one source for both build paths.
+                //      A nested function is built two ways: without captures via
+                //      buildFunction, with captures via the hand-rolled closure build
+                //      in statement_main.cpp. The machinery lived only in the first, so
+                //      `defer` was dropped silently in the second — no instruction, no
+                //      diagnostic. Every path that builds a function body owes both calls.
+                // ════════════════════════════════════════════════════════════
+                struct DeferFrame
+                {
+                    bool active = false;
+                    std::shared_ptr<SIRBasicBlock> cleanupBlock;
+                };
+
+                DeferFrame emitDeferFrameBegin(const Sad::AST::Statement *body);
+                // (AR) 🔑 الكتلةُ **بالقيمة** لا بمرجع: التابعُ يُعيد إسنادَ
+                //      `currentBlock_` في أثنائه، فمُنادٍ يُمرِّر `currentBlock_`
+                //      نفسَه يجعل المُعامِلَ اسمًا ثانيًا للعضوِ المتغيّر فتُسنَد
+                //      الكتلةُ الميّتةُ إلى نفسِها ويُبتلَع تفريغُ المؤجَّلات صامتًا.
+                //      النسخُ يجعل ذلك مستحيلًا على كلِّ مُنادٍ لا على المنتبِه وحدَه.
+                // (EN) 🔑 The block is taken BY VALUE, not by reference: this method
+                //      reassigns `currentBlock_` while running, so a caller passing
+                //      `currentBlock_` itself would alias the mutating member — the
+                //      dead block gets assigned to itself and the defer flush is
+                //      swallowed silently. A copy makes that impossible for every
+                //      caller, not only the one who noticed.
+                void emitDeferFrameEnd(const DeferFrame &frame,
+                                       std::shared_ptr<SIRBasicBlock> bodyContinuationBlock);
+
                 /**
                  * @brief (AR) بناء دالة قالب (حفظها للإنشاء لاحقاً)
                  * @brief (EN) Build template function (store for later instantiation)
@@ -1204,6 +1239,160 @@ namespace Sad
                 BuildResult buildUnaryOp(Sad::AST::UnaryExpr *unOp)
                 {
                     return expressions_->buildUnaryOp(unOp);
+                }
+
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 التحويلُ الضمنيُّ إلى منطقيّ: `كائن` ⇒ `كائن.منطقي()`.
+                //      كان منسوخًا حرفيًّا في شرطِ `إذا` وشرطِ الحلقةِ فقط، وغائبًا
+                //      عن النفيِ الأحاديِّ وعن طرفَي `و`/`أو`. والنسخُ هو العلّة: كلُّ
+                //      موضعٍ يُضاف يبدأ ناقصًا، ولا حارسَ يكشف نقصَه لأنّ الناتج
+                //      يُترجَم ويعمل — يقارن **مؤشِّرَ الكائنِ** بصفرٍ فيكون «صحيحًا»
+                //      دائمًا. فـ`ليس م2` على مجموعةٍ فارغةٍ كانت تُجيب «خطأ» حيث
+                //      يجيب المفسّرُ «صحيح»، بلا رسالةٍ ولا رمزِ خطأ.
+                //      يُعيد true إن حُوِّل فعلًا، وfalse إن لم يكن كائنًا أو لم
+                //      يُعرِّف صنفُه العامل — وحينئذٍ تبقى القيمةُ كما هي.
+                // (EN) Implicit object→bool conversion: `obj` ⇒ `obj.منطقي()`.
+                //      It was copy-pasted into the `if` and loop conditions only, and
+                //      missing from unary NOT and from both operands of `and`/`or`.
+                //      The copying IS the defect: every new site starts incomplete, and
+                //      no guard catches it because the result still compiles and runs —
+                //      it compares the OBJECT POINTER against zero, which is always
+                //      true. So `not m2` on an empty set answered false where the
+                //      interpreter answered true, with no message and no error code.
+                //      Returns true if a conversion was emitted; false leaves the value
+                //      untouched (not an object, or its class defines no such operator).
+                // ════════════════════════════════════════════════════════════
+                bool coerceObjectToBool(BuildResult &value)
+                {
+                    std::string className = value.className;
+                    if (className.empty() && !value.registerName.empty())
+                    {
+                        auto it = classInstanceTypes_.find(value.registerName);
+                        if (it != classInstanceTypes_.end())
+                            className = it->second;
+                    }
+                    if (className.empty() || !currentBlock_)
+                        return false;
+
+                    // (AR) بحثٌ في سلسلة الوراثة — الصنفُ قد يرث العامل
+                    // (EN) Search the inheritance chain — the operator may be inherited
+                    std::string searchClass = className;
+                    bool found = false;
+                    while (!searchClass.empty())
+                    {
+                        if (functionTable_.find(searchClass + kOpToBoolQualifiedSuffix) != functionTable_.end())
+                        {
+                            found = true;
+                            break;
+                        }
+                        auto classInfo = module_ ? module_->getClass(searchClass) : nullptr;
+                        if (classInfo && !classInfo->parentClass.empty())
+                            searchClass = classInfo->parentClass;
+                        else
+                            break;
+                    }
+                    if (!found)
+                        return false;
+
+                    // ════════════════════════════════════════════════════════
+                    // (AR) 🔑 المستقبِلُ العدميُّ يُفحَص قبل الإرسال. `متغير م = مجموعة(…)`
+                    //      ثمّ `م = لاشيء` يترك الاسمَ مربوطًا بالصنفِ في خريطةٍ مسطّحةٍ
+                    //      بلا نطاق، فيُرسَل `__op_tobool__` على قيمةِ العدم: يُحوَّل
+                    //      العددُ مؤشِّرًا ويُقرأ منه جدولُ الدوالِّ ⇒ **انهيار**.
+                    //      مقيسٌ ٢٠٢٦-٠٨-٢٠: `إذا (م)` و`ليس م` كلاهما rc=139 بينما
+                    //      يُجيب المفسّرُ «خطأ» و«صحيح». والعطبُ **سابقٌ** لتوحيدِ
+                    //      التحويل: كان في موضعَي الشرطِ قبلَه؛ ونشرَه التوحيدُ إلى
+                    //      خمسةٍ — ولأنّه صار في تابعٍ واحدٍ يُسَدُّ مرّةً لخمستِها.
+                    //      والعدمُ كاذبٌ بلا نداء، وهو ما يفعله المفسّر.
+                    //      والدمجُ بخانةِ مكدّسٍ لا بـPHI: قيمةٌ مُعرَّفةٌ في فرعٍ لا
+                    //      تسود كتلةَ الالتقاء — نفسُ نمطِ `buildShortCircuitLogical`.
+                    // (EN) Null-receiver check before dispatch. `var m = Set(…)` then
+                    //      `m = null` leaves the name bound to its class in a flat,
+                    //      scope-less map, so `__op_tobool__` is dispatched on the null
+                    //      value: the integer is turned into a pointer and a vtable is
+                    //      read out of it ⇒ CRASH. Measured 2026-08-20: `if (m)` and
+                    //      `not m` both rc=139 while the interpreter answers false/true.
+                    //      The defect PRE-DATES the coercion unification — it lived at the
+                    //      two condition sites; unifying spread it to five, and because it
+                    //      now lives in one helper it is sealed once for all five.
+                    //      Null is falsy without a call, matching the interpreter.
+                    //      Merged through a stack slot, not a PHI: a value defined inside a
+                    //      branch does not dominate the merge block — the same idiom
+                    //      buildShortCircuitLogical uses.
+                    // ════════════════════════════════════════════════════════
+                    const std::string callLabel = newLabel("tobool_call");
+                    const std::string mergeLabel = newLabel("tobool_merge");
+                    auto callBlock = createBasicBlock(callLabel);
+                    auto mergeBlock = createBasicBlock(mergeLabel);
+                    if (currentFunction_)
+                    {
+                        currentFunction_->addBasicBlock(callBlock);
+                        currentFunction_->addBasicBlock(mergeBlock);
+                    }
+
+                    const std::string slotReg = newTempRegister();
+                    SIRInstruction allocSlot(SIROpcode::ALLOC);
+                    allocSlot.result = SIROperand::Register(slotReg, SadTypeKind::Boolean);
+                    currentBlock_->addInstruction(allocSlot);
+
+                    SIRInstruction storeDefault(SIROpcode::STORE);
+                    storeDefault.operands.push_back(SIROperand::ConstantBool(false));
+                    storeDefault.operands.push_back(SIROperand::Register(slotReg, SadTypeKind::Boolean));
+                    currentBlock_->addInstruction(storeDefault);
+
+                    // (AR) غيرُ عدميٍّ = لا يساوي حارسَ العدم ولا الصفر (مؤشِّرٌ خام غيرُ مهيَّأ).
+                    // (EN) Non-null = neither the null sentinel nor zero (raw uninitialised pointer).
+                    const std::string notSentinelReg = newTempRegister();
+                    SIRInstruction neSentinel(SIROpcode::NE);
+                    neSentinel.result = SIROperand::Register(notSentinelReg, SadTypeKind::Boolean);
+                    neSentinel.operands.push_back(SIROperand::Register(value.registerName, value.type));
+                    neSentinel.operands.push_back(SIROperand::ConstantI64(kSadNullSentinel));
+                    currentBlock_->addInstruction(neSentinel);
+
+                    const std::string notZeroReg = newTempRegister();
+                    SIRInstruction neZero(SIROpcode::NE);
+                    neZero.result = SIROperand::Register(notZeroReg, SadTypeKind::Boolean);
+                    neZero.operands.push_back(SIROperand::Register(value.registerName, value.type));
+                    neZero.operands.push_back(SIROperand::ConstantI64(0));
+                    currentBlock_->addInstruction(neZero);
+
+                    const std::string liveReg = newTempRegister();
+                    SIRInstruction bothLive(SIROpcode::AND);
+                    bothLive.result = SIROperand::Register(liveReg, SadTypeKind::Boolean);
+                    bothLive.operands.push_back(SIROperand::Register(notSentinelReg, SadTypeKind::Boolean));
+                    bothLive.operands.push_back(SIROperand::Register(notZeroReg, SadTypeKind::Boolean));
+                    currentBlock_->addInstruction(bothLive);
+
+                    currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                        SIROperand::Register(liveReg, SadTypeKind::Boolean),
+                        SIROperand::Label(callLabel),
+                        SIROperand::Label(mergeLabel)));
+
+                    currentBlock_ = callBlock;
+                    std::string boolReg = newTempRegister();
+                    SIRInstruction callInst;
+                    callInst.opcode = SIROpcode::OBJECT_CALL;
+                    callInst.result = SIROperand::Register(boolReg, SadTypeKind::Boolean);
+                    callInst.operands.push_back(SIROperand::Register(value.registerName, value.type));
+                    callInst.operands.push_back(SIROperand::ConstantString(kOpToBoolName));
+                    currentBlock_->addInstruction(callInst);
+
+                    SIRInstruction storeCalled(SIROpcode::STORE);
+                    storeCalled.operands.push_back(SIROperand::Register(boolReg, SadTypeKind::Boolean));
+                    storeCalled.operands.push_back(SIROperand::Register(slotReg, SadTypeKind::Boolean));
+                    currentBlock_->addInstruction(storeCalled);
+                    currentBlock_->addInstruction(
+                        SIRInstruction::Branch(SIROperand::Label(mergeLabel)));
+
+                    currentBlock_ = mergeBlock;
+                    const std::string mergedReg = newTempRegister();
+                    SIRInstruction loadMerged(SIROpcode::LOAD);
+                    loadMerged.result = SIROperand::Register(mergedReg, SadTypeKind::Boolean);
+                    loadMerged.operands.push_back(SIROperand::Register(slotReg, SadTypeKind::Boolean));
+                    currentBlock_->addInstruction(loadMerged);
+
+                    value = BuildResult(mergedReg, SadTypeKind::Boolean);
+                    return true;
                 }
 
                 /**

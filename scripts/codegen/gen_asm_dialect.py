@@ -5,17 +5,25 @@
 ----------------------------------------------------------------------------
 (AR) يقرأ:
        • language-truth/dialects/assembly.yaml            (بُنى الكتلة والتلويث واللصائق)
-       • language-truth/dialects/assembly_mnemonics/i686.yaml (معجم المنمنمات والسجلّات)
+       • language-truth/dialects/assembly_mnemonics/<arch>.yaml (لكلّ معماريّة)
      ويُنتج هيدرًا واحدًا constexpr يستهلكه المحلّل والفاحص الدلاليّ والمترجم:
        shared/dialects/generated/asm_dialect_generated.h
+
+     🔑 (AR) الجدول **متعدّد المعماريّات** لا واحد: العلّة المقيسة في ١٩ آب ٢٠٢٦
+        أنّ اللهجة كانت تُعلن `architectures: [i686]` بينما المترجم يخفض كتلة
+        «تجميع» إلى منمنمات i686 لأيّ هدف، فكان مُجمِّع macos-14-arm64 يردّ
+        `cli` و`ltr w9` و`lea 8(%ebx), %eax`. فصار لكلّ معماريّة جدولها ونكهتها
+        في الهيدر نفسه، والاختيار زمن التشغيل من ثالوث الهدف عبر
+        `setActiveArchitecture` — والافتراضيّ معماريّة المضيف تُحسَم بماكروات
+        مصرَّحة في مصدر الحقيقة لا مكتوبة في C++.
 
      كلّ سلسلة عربيّة تُصدَّر \\xHH بايتيًّا (لا حرفيًّا) لتفادي صفحة ترميز MSVC —
      مطابقةً لمولّدات الرسومات. المفتاح القانونيّ **مجرَّد التشكيل** (تُحذَف
      علامات U+064B..U+065F بما فيها الشدّة) ليطابق ما يُصدره المُشكِّل (يجرّد التشكيل).
 
-(EN) Emits a single constexpr header consumed by the parser, semantic checker,
-     and compiler. Arabic strings are byte hex-escaped; canonical keys are
-     diacritic-stripped (U+064B..U+065F, incl. shadda) to match lexer output.
+(EN) Emits a single constexpr header holding one table **per architecture**,
+     consumed by the parser, semantic checker, and compiler. Arabic strings are
+     byte hex-escaped; canonical keys are diacritic-stripped (U+064B..U+065F).
 ============================================================================
 """
 from __future__ import annotations
@@ -64,6 +72,14 @@ def _hex(s: str) -> str:
     return "".join(out)
 
 
+def _cxx_suffix(arch: str) -> str:
+    """(AR) لاحقة معرّف C++ من معرّف المعماريّة (x86_64 ⇒ x86_64، aarch64 ⇒ aarch64)."""
+    out = "".join(ch if (ch.isalnum() or ch == "_") else "_" for ch in arch)
+    if not out or out[0].isdigit():
+        raise SystemExit(f"[gen_asm_dialect] معرّف معماريّة لا يصلح لاحقةَ C++: {arch}")
+    return out
+
+
 # (AR) فاصل قائمة التلويث الضمنيّ (implicitClobbers) — يُصدَّر ثابتًا مولَّدًا
 #      kImplicitClobberSep فيستهلكه الطرفان (المولّد هنا والمحلّل/الخافض) من
 #      مصدر واحد بلا حرفيّة مكرَّرة.
@@ -101,6 +117,14 @@ HEADER_TOP = """\
 // (AR) جدول لهجة التجميع العربيّ (منمنمات/سجلّات/تلويث/كلمات الكتلة) — المفاتيح
 //      القانونيّة مجرَّدة التشكيل (تطابق ما يُصدره المُشكِّل). يستهلكه المحلّل
 //      والفاحص الدلاليّ والمترجم sadc.
+//
+// 🔑 (AR) جدولٌ **لكلّ معماريّة** لا جدولٌ واحد. الاسم العربيّ واحد والعتاد
+//      مختلف: «المركم» eax على i686 وrax على x86_64، ولا نظير له في AArch64
+//      أصلًا؛ و«عطّل_المقاطعات» cli هناك وmsr daifset, #2 هنا. جدولٌ واحد
+//      لمعماريّاتٍ كان يُخرج تعليماتٍ يرفضها المُجمِّع — أو أسوأ: يقبلها بدلالة
+//      أخرى. الاختيار زمن التشغيل بـsetActiveArchitecture من ثالوث الهدف.
+// 🔑 (EN) One table PER ARCHITECTURE. Selected at run time from the target
+//      triple via setActiveArchitecture; the default is the host architecture.
 #pragma once
 
 #include <cstddef>
@@ -124,6 +148,11 @@ namespace Sad
             //      operandWidth: عرض معامل السجلّ بالبتّات حين يخالف الافتراض (0 =
             //      عرض كلمة الهدف الطبيعيّ ⇒ ${N})؛ 16 ⇒ يُصدر الخفض ${N:w} فيُختار
             //      السجلّ الفرعيّ 16-بت (ax لا eax) — لازم لمعامل r/m16 (ltr/str).
+            //      operandHead: معاملات نصّيّة ثابتة **تسبق** معاملات ص، مفصولة
+            //      بالفاصل نفسه (msr vbar_el1، x0 ⇒ "vbar_el1")، أو "". بلا هذا
+            //      لا يستطيع المعجم التعبير عن كتابة سجلّ نظام على AArch64.
+            //      operandTail: معاملات نصّيّة ثابتة تُلحَق بعد معاملات ص، مفصولة
+            //      بالفاصل نفسه (msr ⇒ "daifset,#2"، mrs ⇒ "cntvct_el0")، أو "".
             struct Mnemonic
             {
                 const char *ar;             // (AR) canonical Arabic (diacritic-stripped)
@@ -133,6 +162,8 @@ namespace Sad
                 bool writesSource;          // (AR) المصدر يُكتب أيضًا (بادل) / source is also written (xchg)
                 const char *implicitClobbers; // (AR) تلويث ضمنيّ "~{eax},~{edx}" أو "" / implicit clobbers or empty
                 int operandWidth;           // (AR) عرض معامل السجلّ (0=افتراضيّ، 16=${N:w}) / register operand width
+                const char *operandHead;    // (AR) معاملات نصّيّة ثابتة سابقة أو "" / fixed leading operands
+                const char *operandTail;    // (AR) معاملات نصّيّة ثابتة مُلحَقة أو "" / fixed trailing operands
             };
 
             // (AR) سجلّ واحد: الاسم العربيّ ⇒ الاسم الأصليّ.
@@ -149,28 +180,148 @@ namespace Sad
                 const char *llvm;
             };
 
+            // (AR) نكهة المُجمِّع لمعماريّة — من الحقل syntax في مصدر الحقيقة.
+            //      النموذج الدلاليّ (الوجهة أوّلًا) ملك ص؛ وهذه تصف كيف يُكتب أصليًّا،
+            //      فالخافض يقرأها ولا يحمل حرفيّات معماريّة مبثوثة فيه.
+            //      sourceFirst:   AT&T يعكس ترتيب ص (وجهة، مصدر ⇒ src, dst).
+            //      repeatDest:    الوجهة معامل مستقلّ (add x0, x0, x1) لا ضمنيّ (add eax, ebx).
+            //      bracketMemory: [قاعدة, #إزاحة] لا إزاحة(قاعدة).
+            // (EN) Per-architecture assembler flavour, read from the SoT `syntax` block.
+            struct Syntax
+            {
+                const char *registerPrefix;
+                const char *immediatePrefix;
+                bool sourceFirst;
+                bool repeatDest;
+                bool bracketMemory;
+            };
+
+            // (AR) معماريّة واحدة: معرّفها + جدولاها + نكهتها.
+            struct Architecture
+            {
+                const char *id;
+                const Mnemonic *mnemonics;
+                std::size_t mnemonicCount;
+                const Register *registers;
+                std::size_t registerCount;
+                Syntax syntax;
+            };
+
 """
 
 HEADER_BOTTOM = """\
-            // (AR) بحث عن منمنمة بالاسم العربيّ القانونيّ (مجرَّد التشكيل). / lookup mnemonic.
+            // (AR) بحث عن معماريّة بمعرّفها أو بأحد أسمائها البديلة في ثالوث الهدف.
+            //      يُرجع nullptr لمعماريّة لا معجم لها — وهو **ليس** خطأً هنا: على
+            //      المستدعي أن يبلّغ SEM044 بدل أن يعامل الغياب معجمًا فارغًا فتصير
+            //      كلّ منمنمة «غير معجميّة» بتشخيص يضلّل عن السبب الحقيقيّ.
+            // (EN) Lookup by id or triple alias; nullptr means "no lexicon for this
+            //      architecture" — callers must report SEM044, not treat it as empty.
+            inline const Architecture *findArchitecture(const char *id)
+            {
+                if (!id || !*id)
+                    return nullptr;
+                for (std::size_t i = 0; i < kArchitectureCount; ++i)
+                    if (std::strcmp(kArchitectures[i].id, id) == 0)
+                        return &kArchitectures[i];
+                for (std::size_t i = 0; i < kArchAliasCount; ++i)
+                    if (std::strcmp(kArchAliases[i].alias, id) == 0)
+                        return &kArchitectures[kArchAliases[i].index];
+                return nullptr;
+            }
+
+            // (AR) معماريّة المضيف — تُحسَم زمن ترجمة C++ من ماكروات مصرَّحة في مصدر
+            //      الحقيقة (host_macros)، فلا سلسلة معماريّة مكتوبة في C++ يدويًّا.
+            // (EN) Host architecture, resolved from SoT-declared host_macros.
+            inline const Architecture *hostArchitecture()
+            {
+#if SAD_ASM_HOST_ARCH_INDEX >= 0
+                return &kArchitectures[SAD_ASM_HOST_ARCH_INDEX];
+#else
+                return nullptr;
+#endif
+            }
+
+            // (AR) المعماريّة الفاعلة: حالة عامّة يضبطها سائق المترجم من ثالوث الهدف
+            //      **قبل** التحليل (المحلّل مشترك بين المحرّكين ولا يعرف الهدف)، وقيمتها
+            //      الابتدائيّة معماريّة المضيف — وهو الصواب لمترجم بلا «--هدف» صريح.
+            // ⚠️ (AR) حالة عامّة بقصد: مسار الترجمة أحاديّ الخيط لكلّ ملفّ، وتمريرها
+            //      عبر توقيع المحلّل كان سيُلزم كلّ مستهلكي المحلّل (المفسّر وLSP وأدوات)
+            //      بمعرفة هدف لا يعنيهم.
+            // (EN) Active architecture: process-global, set by the driver from the
+            //      target triple before parsing; defaults to the host architecture.
+            inline const Architecture *&activeArchitectureSlot()
+            {
+                static const Architecture *slot = hostArchitecture();
+                return slot;
+            }
+
+            inline const Architecture *activeArchitecture()
+            {
+                return activeArchitectureSlot();
+            }
+
+            // (AR) يضبط المعماريّة الفاعلة؛ يُرجع false إن لم يكن للمعرّف معجم — ويترك
+            //      الفاعلة nullptr عندئذٍ كي لا يُخفَض كودٌ بمعجم معماريّة أخرى صامتًا.
+            // (EN) Returns false when the id has no lexicon, and clears the active
+            //      architecture so no code is lowered with a foreign lexicon.
+            // (AR) نسخة من المعرّف المطلوب — لأنّ الرفض يجب أن **يسمّي** الهدف الذي
+            //      لا معجم له، والمؤشّر الوارد لا نملك عمره فلا يُخزَّن كما هو.
+            // (EN) A copy of the requested id: the rejection must NAME the target, and
+            //      the incoming pointer's lifetime is not ours to keep.
+            inline char *requestedArchitectureBuffer()
+            {
+                static char buffer[64] = {0};
+                return buffer;
+            }
+
+            inline const char *requestedArchitecture()
+            {
+                const char *buffer = requestedArchitectureBuffer();
+                if (*buffer)
+                    return buffer;
+                const Architecture *arch = activeArchitecture();
+                return arch ? arch->id : "";
+            }
+
+            inline bool setActiveArchitecture(const char *id)
+            {
+                char *buffer = requestedArchitectureBuffer();
+                std::size_t i = 0;
+                if (id)
+                    for (; id[i] && i < 63; ++i)
+                        buffer[i] = id[i];
+                buffer[i] = '\\0';
+                const Architecture *found = findArchitecture(id);
+                activeArchitectureSlot() = found;
+                return found != nullptr;
+            }
+
+            // (AR) بحث عن منمنمة بالاسم العربيّ القانونيّ (مجرَّد التشكيل) في المعماريّة
+            //      الفاعلة. / lookup mnemonic in the active architecture.
             inline const Mnemonic *findMnemonic(const char *ar)
             {
-                for (std::size_t i = 0; i < kMnemonicCount; ++i)
-                    if (std::strcmp(kMnemonics[i].ar, ar) == 0)
-                        return &kMnemonics[i];
+                const Architecture *arch = activeArchitecture();
+                if (!arch)
+                    return nullptr;
+                for (std::size_t i = 0; i < arch->mnemonicCount; ++i)
+                    if (std::strcmp(arch->mnemonics[i].ar, ar) == 0)
+                        return &arch->mnemonics[i];
                 return nullptr;
             }
 
-            // (AR) بحث عن سجلّ بالاسم العربيّ. / lookup register.
+            // (AR) بحث عن سجلّ بالاسم العربيّ في المعماريّة الفاعلة. / lookup register.
             inline const Register *findRegister(const char *ar)
             {
-                for (std::size_t i = 0; i < kRegisterCount; ++i)
-                    if (std::strcmp(kRegisters[i].ar, ar) == 0)
-                        return &kRegisters[i];
+                const Architecture *arch = activeArchitecture();
+                if (!arch)
+                    return nullptr;
+                for (std::size_t i = 0; i < arch->registerCount; ++i)
+                    if (std::strcmp(arch->registers[i].ar, ar) == 0)
+                        return &arch->registers[i];
                 return nullptr;
             }
 
-            // (AR) بحث عن هدف تلويث مخصوص بالاسم العربيّ. / lookup special clobber.
+            // (AR) بحث عن هدف تلويث مخصوص بالاسم العربيّ (مستوى اللهجة لا المعماريّة).
             inline const ClobberSpecial *findClobberSpecial(const char *ar)
             {
                 for (std::size_t i = 0; i < kClobberSpecialCount; ++i)
@@ -184,36 +335,24 @@ HEADER_BOTTOM = """\
 """
 
 
-def build_header(dialect: dict[str, Any], mnem: dict[str, Any]) -> str:
-    lines: list[str] = [HEADER_TOP]
-
-    # (AR) خريطة السجلّات المعجميّة (مجرَّدة التشكيل) — يحتاجها حارس implicit_writes.
-    # (EN) Lexicon register map (diacritic-stripped) — needed by the implicit_writes guard.
-    reg_map: dict[str, str] = {}
-    for _group, regs in mnem["registers"].items():
-        for r in regs:
-            reg_map[_strip_diacritics(r["ar"])] = r["en"]
-
-    # ── ثابت فاصل التلويث الضمنيّ ──
-    lines.append("            // (AR) فاصل قائمة implicitClobbers — يستهلكه المحلّل والخافض بدل حرفيّة مكرَّرة.")
-    lines.append("            // (EN) implicitClobbers list separator, shared by parser and lowering.")
-    lines.append(f"            inline constexpr char kImplicitClobberSep = '{_IMPLICIT_CLOBBER_SEP}';")
-    lines.append("")
-
-    # ── المنمنمات ──
-    lines.append("            // ─── المنمنمات / mnemonics ───")
-    lines.append("            inline constexpr Mnemonic kMnemonics[] = {")
+def _mnemonic_rows(arch_id: str, mnem: dict[str, Any], reg_map: dict[str, str],
+                   syntax: dict[str, Any]) -> list[str]:
+    """(AR) أسطر جدول المنمنمات لمعماريّة واحدة، مع كلّ حرّاس مصدر الحقيقة."""
+    rows: list[str] = []
     seen: set[str] = set()
+    dest_first = syntax["operand_order"] == "destination_first"
     for category, insts in mnem["instructions"].items():
         for it in insts:
             ar_key = _strip_diacritics(it["ar"])
             if ar_key in seen:
-                raise SystemExit(f"[gen_asm_dialect] تكرار منمنمة بعد تجريد التشكيل: {ar_key}")
+                raise SystemExit(
+                    f"[gen_asm_dialect] {arch_id}: تكرار منمنمة بعد تجريد التشكيل: {ar_key}")
             seen.add(ar_key)
             classes = ""
             for op in it["operands"]:
                 if op not in _OPERAND_CLASS:
-                    raise SystemExit(f"[gen_asm_dialect] صنف معامل مجهول '{op}' في المنمنمة {it['ar']}")
+                    raise SystemExit(
+                        f"[gen_asm_dialect] {arch_id}: صنف معامل مجهول '{op}' في المنمنمة {it['ar']}")
                 classes += _OPERAND_CLASS[op]
             # (AR) reads_dest إلزاميّ لكلّ منمنمة لها معامل وجهة (w)، وممنوع لغيرها —
             #      حارس يفرض المراجعة المعماريّة الصريحة في مصدر الحقيقة.
@@ -222,11 +361,11 @@ def build_header(dialect: dict[str, Any], mnem: dict[str, Any]) -> str:
             has_dest = "w" in classes
             if has_dest and "reads_dest" not in it:
                 raise SystemExit(
-                    f"[gen_asm_dialect] المنمنمة {it['ar']} لها معامل «وجهة» بلا حقل reads_dest — صنّفها صراحةً في SoT"
+                    f"[gen_asm_dialect] {arch_id}: المنمنمة {it['ar']} لها معامل «وجهة» بلا حقل reads_dest — صنّفها صراحةً في SoT"
                 )
             if not has_dest and "reads_dest" in it:
                 raise SystemExit(
-                    f"[gen_asm_dialect] المنمنمة {it['ar']} بلا معامل «وجهة» لكن لها reads_dest — احذف الحقل"
+                    f"[gen_asm_dialect] {arch_id}: المنمنمة {it['ar']} بلا معامل «وجهة» لكن لها reads_dest — احذف الحقل"
                 )
             reads_dest = "true" if it.get("reads_dest", False) else "false"
             # (AR) writes_source (بادل/xchg): مسموح فقط حيث «وجهة» و«مصدر» معًا —
@@ -234,19 +373,17 @@ def build_header(dialect: dict[str, Any], mnem: dict[str, Any]) -> str:
             # (EN) writes_source guard: allowed only with both a dest and a source operand.
             if "writes_source" in it and not (has_dest and "r" in classes):
                 raise SystemExit(
-                    f"[gen_asm_dialect] المنمنمة {it['ar']} لها writes_source بلا معاملَي «وجهة» و«مصدر» معًا — احذف الحقل"
+                    f"[gen_asm_dialect] {arch_id}: المنمنمة {it['ar']} لها writes_source بلا معاملَي «وجهة» و«مصدر» معًا — احذف الحقل"
                 )
             writes_source = "true" if it.get("writes_source", False) else "false"
             # (AR) implicit_writes: سجلّات معجميّة يكتبها العتاد ضمنيًّا — مسموحة فقط
-            #      على منمنمة بلا معامل «وجهة» (كتابات ذات الوجهة يمثّلها reads_dest)،
-            #      وكلّ اسم يجب أن يكون سجلًّا معجميًّا بلا تكرار.
-            # (EN) implicit_writes guard: dest-less mnemonics only; every entry must be
-            #      a lexicon register; duplicates rejected.
+            #      على منمنمة بلا معامل «وجهة»، وكلّ اسم سجلّ معجميّ بلا تكرار.
+            # (EN) implicit_writes guard: dest-less mnemonics only; lexicon registers; no dups.
             implicit_clobbers = ""
             if "implicit_writes" in it:
                 if has_dest:
                     raise SystemExit(
-                        f"[gen_asm_dialect] المنمنمة {it['ar']} لها معامل «وجهة» ومعها implicit_writes — كتابة الوجهة يمثّلها reads_dest، احذف الحقل"
+                        f"[gen_asm_dialect] {arch_id}: المنمنمة {it['ar']} لها معامل «وجهة» ومعها implicit_writes — كتابة الوجهة يمثّلها reads_dest، احذف الحقل"
                     )
                 seen_regs: set[str] = set()
                 parts: list[str] = []
@@ -254,58 +391,109 @@ def build_header(dialect: dict[str, Any], mnem: dict[str, Any]) -> str:
                     reg_key = _strip_diacritics(str(reg_ar))
                     if reg_key not in reg_map:
                         raise SystemExit(
-                            f"[gen_asm_dialect] implicit_writes للمنمنمة {it['ar']} يذكر «{reg_ar}» وليس سجلًّا معجميًّا"
+                            f"[gen_asm_dialect] {arch_id}: implicit_writes للمنمنمة {it['ar']} يذكر «{reg_ar}» وليس سجلًّا معجميًّا"
                         )
                     if reg_key in seen_regs:
                         raise SystemExit(
-                            f"[gen_asm_dialect] implicit_writes للمنمنمة {it['ar']} يكرّر السجلّ «{reg_ar}»"
+                            f"[gen_asm_dialect] {arch_id}: implicit_writes للمنمنمة {it['ar']} يكرّر السجلّ «{reg_ar}»"
                         )
                     seen_regs.add(reg_key)
                     parts.append("~{" + reg_map[reg_key] + "}")
                 implicit_clobbers = _IMPLICIT_CLOBBER_SEP.join(parts)
             # (AR) operand_width: عرض معامل السجلّ (16 وحده مدعوم) — مسموح فقط على
-            #      منمنمة لها معامل سجلّ **واحد** (وجهة w أو مصدر r). المعامل الذاكريّ/
-            #      الفوريّ لا معنى لمُعدِّل ${N:w} فيه (المُجمِّع يستنتج حجم الذاكرة)،
-            #      والعرض لكلّ التعليمة لا لكلّ معامل (statement_asm يمرّره لكلّ المعاملات)
-            #      ⇒ منمنمة ثنائيّة السجلّات ستُصدر :w على كليهما خطأً. حارس يمنع كلَيهما.
-            # (EN) operand_width guard: exactly one register operand (w or r); the width
-            #      applies per-instruction, so a two-register mnemonic would wrongly
-            #      emit :w on both operands.
+            #      منمنمة لها معامل سجلّ **واحد**؛ العرض لكلّ التعليمة لا لكلّ معامل.
+            # (EN) operand_width guard: exactly one register operand.
             operand_width = 0
             if "operand_width" in it:
                 reg_operands = classes.count("w") + classes.count("r")
                 if reg_operands != 1:
                     raise SystemExit(
-                        f"[gen_asm_dialect] المنمنمة {it['ar']} لها operand_width مع {reg_operands} معامل سجلّ — مسموح فقط بمعامل سجلّ واحد (المُعدِّل يسري على كلّ المعاملات)، احذف الحقل أو صحّح المعاملات"
+                        f"[gen_asm_dialect] {arch_id}: المنمنمة {it['ar']} لها operand_width مع {reg_operands} معامل سجلّ — مسموح فقط بمعامل سجلّ واحد (المُعدِّل يسري على كلّ المعاملات)، احذف الحقل أو صحّح المعاملات"
                     )
                 operand_width = int(it["operand_width"])
-            lines.append(
-                f'                {{ "{_hex(ar_key)}", "{_hex(it["en"])}", "{_hex(classes)}", {reads_dest}, {writes_source}, "{_hex(implicit_clobbers)}", {operand_width} }},'
+            # (AR) operand_tail: معاملات نصّيّة ثابتة تُلحَق **بعد** معاملات ص. على
+            #      معماريّة تعكس الترتيب (AT&T) يصير موضع الذيل بعد العكس خطأً صامتًا،
+            #      فيُمنَع هناك بحارس بدل أن يُترَك للمراجعة البشريّة.
+            # (EN) operand_tail is only meaningful where the written order is the Sad
+            #      order; on a source-first (AT&T) flavour the reversal would silently
+            #      misplace it, so it is rejected there.
+            # 🔑 (AR) اللصيقةُ يفرد لها الخافضُ مسارًا مشروطًا بـ`operandClasses == "l"`
+            #      — أي اللصيقةُ **وحدَها معاملًا**. فمنمنمةٌ تخلط لصيقةً بسجلٍّ
+            #      (`cbz x0, لصيقة` ⇒ "rl") تمرُّ هنا ثمّ تُصيَّرُ لصيقتُها في مسارِ
+            #      البيانات نصًّا خامًّا لا مرجعَ قفزٍ — ثقبٌ في **مصدرِ الحقيقةِ**:
+            #      يقبل المعجمُ ما لا يستطيع الخافضُ أداءه. فيُغلَقُ هنا، وفتحُه
+            #      يومًا يلزمه تعديلٌ صريحٌ في الخافضِ يُرى في الفرق.
+            # 🔑 (EN) The lowering's label path is gated on operandClasses == "l"
+            #      exactly; a mixed class string would render the label as raw text
+            #      in the data path. Close the SoT hole rather than trust review.
+            if "l" in classes and classes != "l":
+                raise SystemExit(
+                    f"[gen_asm_dialect] {arch_id}: المنمنمة {it['ar']} تخلط معامل «لصيقة» بغيره ({classes}) — الخافض لا يعرف مسارًا للّصيقة إلّا وحدَها، فتُصيَّر نصًّا خامًّا"
+                )
+            operand_tail = ""
+            if "operand_tail" in it:
+                if not dest_first:
+                    raise SystemExit(
+                        f"[gen_asm_dialect] {arch_id}: المنمنمة {it['ar']} لها operand_tail على نكهة تعكس ترتيب المعاملات (source_first) — الذيل يقع بعد العكس في موضع خاطئ صامت"
+                    )
+                # (AR) والذيل بلا معنى مع لصيقة أو بادئة تكرار: الخافض يفرد لهما
+                #      مسارًا خاصًّا ينتهي قبل المعاملات، فذيلٌ هناك يُسقَط **صامتًا**.
+                # (EN) A tail on a label/prefix mnemonic would be silently dropped: the
+                #      lowering handles those on a separate path that ends earlier.
+                if "l" in classes or "a" in classes:
+                    raise SystemExit(
+                        f"[gen_asm_dialect] {arch_id}: المنمنمة {it['ar']} لها operand_tail مع معامل لصيقة/بادئة — الخافض يُسقطه صامتًا"
+                    )
+                for piece in it["operand_tail"]:
+                    if _IMPLICIT_CLOBBER_SEP in str(piece):
+                        raise SystemExit(
+                            f"[gen_asm_dialect] {arch_id}: عنصر operand_tail «{piece}» يحوي فاصل القائمة نفسه — يفسد التفكيك"
+                        )
+                operand_tail = _IMPLICIT_CLOBBER_SEP.join(
+                    str(p) for p in it["operand_tail"])
+            # (AR) operand_head: نظير الذيل ويسبق معاملات ص — حرّاسه نفسها، فنكهة
+            #      تعكس الترتيب تجعل موضعه بعد العكس خطأً صامتًا، ومسار اللصيقة
+            #      والبادئة ينتهي قبل المعاملات فيُسقطه.
+            # (EN) operand_head mirrors the tail and precedes the Sad operands; the
+            #      same two guards apply for the same two reasons.
+            operand_head = ""
+            if "operand_head" in it:
+                if not dest_first:
+                    raise SystemExit(
+                        f"[gen_asm_dialect] {arch_id}: المنمنمة {it['ar']} لها operand_head على نكهة تعكس ترتيب المعاملات (source_first) — الرأس يقع بعد العكس في موضع خاطئ صامت"
+                    )
+                if "l" in classes or "a" in classes:
+                    raise SystemExit(
+                        f"[gen_asm_dialect] {arch_id}: المنمنمة {it['ar']} لها operand_head مع معامل لصيقة/بادئة — الخافض يُسقطه صامتًا"
+                    )
+                for piece in it["operand_head"]:
+                    if _IMPLICIT_CLOBBER_SEP in str(piece):
+                        raise SystemExit(
+                            f"[gen_asm_dialect] {arch_id}: عنصر operand_head «{piece}» يحوي فاصل القائمة نفسه — يفسد التفكيك"
+                        )
+                operand_head = _IMPLICIT_CLOBBER_SEP.join(
+                    str(p) for p in it["operand_head"])
+            rows.append(
+                f'                {{ "{_hex(ar_key)}", "{_hex(it["en"])}", "{_hex(classes)}", {reads_dest}, {writes_source}, "{_hex(implicit_clobbers)}", {operand_width}, "{_hex(operand_head)}", "{_hex(operand_tail)}" }},'
                 f'  // {it["ar"]} => {it["en"]}'
             )
-    lines.append("            };")
-    lines.append("            inline constexpr std::size_t kMnemonicCount = sizeof(kMnemonics) / sizeof(kMnemonics[0]);")
+    return rows
+
+
+def build_header(dialect: dict[str, Any], arches: list[dict[str, Any]]) -> str:
+    lines: list[str] = [HEADER_TOP]
+
+    # ── ثابت فاصل التلويث الضمنيّ ──
+    lines.append("            // (AR) فاصل قائمتَي implicitClobbers وoperandTail — يستهلكه")
+    lines.append("            //      المحلّل والخافض بدل حرفيّة مكرَّرة.")
+    lines.append("            // (EN) List separator shared by producer and consumers.")
+    lines.append(f"            inline constexpr char kImplicitClobberSep = '{_IMPLICIT_CLOBBER_SEP}';")
     lines.append("")
 
-    # ── السجلّات ──
-    lines.append("            // ─── السجلّات / registers ───")
-    lines.append("            inline constexpr Register kRegisters[] = {")
-    rseen: set[str] = set()
-    for group, regs in mnem["registers"].items():
-        for r in regs:
-            ar_key = _strip_diacritics(r["ar"])
-            if ar_key in rseen:
-                raise SystemExit(f"[gen_asm_dialect] تكرار سجلّ بعد تجريد التشكيل: {ar_key}")
-            rseen.add(ar_key)
-            lines.append(
-                f'                {{ "{_hex(ar_key)}", "{_hex(r["en"])}" }},  // {r["ar"]} => {r["en"]}'
-            )
-    lines.append("            };")
-    lines.append("            inline constexpr std::size_t kRegisterCount = sizeof(kRegisters) / sizeof(kRegisters[0]);")
-    lines.append("")
-
-    # ── أهداف التلويث المخصوصة ──
+    # ── أهداف التلويث المخصوصة (مستوى اللهجة — مشتركة بين المعماريّات) ──
     lines.append("            // ─── أهداف التلويث المخصوصة / special clobber targets ───")
+    lines.append("            // (AR) مستوى اللهجة لا المعماريّة: «الذاكرة» و«الأعلام» قيدان")
+    lines.append("            //      عامّان في LLVM يقبلهما كلّ هدف.")
     lines.append("            inline constexpr ClobberSpecial kClobberSpecials[] = {")
     for t in dialect.get("clobbers", {}).get("special_targets", []):
         lines.append(
@@ -313,6 +501,104 @@ def build_header(dialect: dict[str, Any], mnem: dict[str, Any]) -> str:
         )
     lines.append("            };")
     lines.append("            inline constexpr std::size_t kClobberSpecialCount = sizeof(kClobberSpecials) / sizeof(kClobberSpecials[0]);")
+    lines.append("")
+
+    declared = list(dialect.get("architectures", []))
+    supplied = [a["architecture"] for a in arches]
+    # (AR) حارس التطابق: معماريّة مُعلَنة في اللهجة بلا معجم دعوى بلا سند،
+    #      ومعجم غير مُعلَن ميزة لا يعرف بها أحد. يُحاكَم الاتّجاهان.
+    # (EN) Two-way guard between the dialect's declared architectures and the
+    #      supplied lexicons: a declaration without a lexicon is a claim with no
+    #      backing; a lexicon not declared is a feature nobody knows about.
+    if sorted(declared) != sorted(supplied):
+        raise SystemExit(
+            "[gen_asm_dialect] معماريّات assembly.yaml لا تطابق ملفّات المعجم:\n"
+            f"    مُعلَنة: {sorted(declared)}\n"
+            f"    مُمرَّرة: {sorted(supplied)}"
+        )
+
+    # ── جداول كلّ معماريّة ──
+    alias_rows: list[str] = []
+    arch_rows: list[str] = []
+    seen_ids: dict[str, str] = {}
+    for index, mnem in enumerate(arches):
+        arch_id = mnem["architecture"]
+        suffix = _cxx_suffix(arch_id)
+        syntax = mnem["syntax"]
+
+        reg_map: dict[str, str] = {}
+        rseen: set[str] = set()
+        reg_rows: list[str] = []
+        for _group, regs in mnem["registers"].items():
+            for r in regs:
+                ar_key = _strip_diacritics(r["ar"])
+                if ar_key in rseen:
+                    raise SystemExit(
+                        f"[gen_asm_dialect] {arch_id}: تكرار سجلّ بعد تجريد التشكيل: {ar_key}")
+                rseen.add(ar_key)
+                reg_map[ar_key] = r["en"]
+                reg_rows.append(
+                    f'                {{ "{_hex(ar_key)}", "{_hex(r["en"])}" }},  // {r["ar"]} => {r["en"]}'
+                )
+
+        lines.append(f"            // ═══ المعماريّة {arch_id} / architecture {arch_id} ═══")
+        lines.append(f"            inline constexpr Mnemonic kMnemonics_{suffix}[] = {{")
+        lines.extend(_mnemonic_rows(arch_id, mnem, reg_map, syntax))
+        lines.append("            };")
+        lines.append(f"            inline constexpr Register kRegisters_{suffix}[] = {{")
+        lines.extend(reg_rows)
+        lines.append("            };")
+        lines.append("")
+
+        source_first = "true" if syntax["operand_order"] == "source_first" else "false"
+        repeat_dest = "true" if syntax["dest_operand"] == "explicit" else "false"
+        bracket_mem = "true" if syntax["memory_form"] == "bracket_base_disp" else "false"
+        arch_rows.append(
+            f'                {{ "{_hex(arch_id)}", kMnemonics_{suffix}, sizeof(kMnemonics_{suffix}) / sizeof(kMnemonics_{suffix}[0]),'
+            f' kRegisters_{suffix}, sizeof(kRegisters_{suffix}) / sizeof(kRegisters_{suffix}[0]),'
+            f' {{ "{_hex(syntax["register_prefix"])}", "{_hex(syntax["immediate_prefix"])}", {source_first}, {repeat_dest}, {bracket_mem} }} }},'
+        )
+
+        if arch_id in seen_ids:
+            raise SystemExit(f"[gen_asm_dialect] معماريّة مكرَّرة: {arch_id}")
+        seen_ids[arch_id] = arch_id
+        for alias in mnem.get("triple_aliases", []):
+            if alias in seen_ids:
+                raise SystemExit(
+                    f"[gen_asm_dialect] الاسم البديل «{alias}» يصطدم بمعرّف/بديل قائم — الحلّ سيكون صامتًا")
+            seen_ids[alias] = arch_id
+            alias_rows.append(
+                f'                {{ "{_hex(alias)}", {index} }},  // {alias} => {arch_id}')
+
+    lines.append("            // ─── سجلّ المعماريّات / architecture registry ───")
+    lines.append("            inline constexpr Architecture kArchitectures[] = {")
+    lines.extend(arch_rows)
+    lines.append("            };")
+    lines.append("            inline constexpr std::size_t kArchitectureCount = sizeof(kArchitectures) / sizeof(kArchitectures[0]);")
+    lines.append("")
+    lines.append("            // (AR) أسماء بديلة لحقل المعماريّة في ثالوث الهدف (amd64 ⇒ x86_64…).")
+    lines.append("            struct ArchAlias")
+    lines.append("            {")
+    lines.append("                const char *alias;")
+    lines.append("                std::size_t index;")
+    lines.append("            };")
+    lines.append("            inline constexpr ArchAlias kArchAliases[] = {")
+    lines.extend(alias_rows)
+    lines.append("            };")
+    lines.append("            inline constexpr std::size_t kArchAliasCount = sizeof(kArchAliases) / sizeof(kArchAliases[0]);")
+    lines.append("")
+
+    # ── معماريّة المضيف: سلسلة #if مولَّدة من host_macros في مصدر الحقيقة ──
+    lines.append("            // (AR) معماريّة المضيف — من host_macros في مصدر الحقيقة، فلا سلسلة")
+    lines.append("            //      معماريّة مكتوبة في C++ يدويًّا. مضيفٌ لا معجم له ⇒ (-1).")
+    lines.append("            // (EN) Host architecture index from SoT-declared host_macros.")
+    for index, mnem in enumerate(arches):
+        cond = " || ".join(f"defined({m})" for m in mnem["host_macros"])
+        lines.append(f"#{'if' if index == 0 else 'elif'} {cond}")
+        lines.append(f"#  define SAD_ASM_HOST_ARCH_INDEX {index}   // {mnem['architecture']}")
+    lines.append("#else")
+    lines.append("#  define SAD_ASM_HOST_ARCH_INDEX (-1)")
+    lines.append("#endif")
     lines.append("")
 
     # ── كلمات الكتلة القانونيّة (مجرَّدة التشكيل) ──
@@ -334,7 +620,8 @@ def build_header(dialect: dict[str, Any], mnem: dict[str, Any]) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Generate Arabic assembly dialect header from language-truth")
     ap.add_argument("--dialect", required=True, help="path to dialects/assembly.yaml")
-    ap.add_argument("--mnemonics", required=True, help="path to dialects/assembly_mnemonics/<arch>.yaml")
+    ap.add_argument("--mnemonics", required=True, nargs="+",
+                    help="paths to dialects/assembly_mnemonics/<arch>.yaml (one per architecture)")
     ap.add_argument("--dialect-schema", default=str(_REPO_ROOT / "language-truth" / "_schemas" / "dialect.schema.json"))
     ap.add_argument("--mnemonics-schema", default=str(_REPO_ROOT / "language-truth" / "_schemas" / "assembly_mnemonics.schema.json"))
     ap.add_argument("--header", required=True, help="output header path")
@@ -342,22 +629,29 @@ def main() -> int:
     args = ap.parse_args()
 
     dialect = yaml.safe_load(Path(args.dialect).read_text(encoding="utf-8"))
-    mnem = yaml.safe_load(Path(args.mnemonics).read_text(encoding="utf-8"))
+    arches = [yaml.safe_load(Path(p).read_text(encoding="utf-8")) for p in args.mnemonics]
+    # (AR) ترتيب حتميّ بالمعرّف — فهرس المعماريّة يظهر في الهيدر المولَّد، وترتيبٌ
+    #      يتبع ترتيب سطر الأوامر كان يجعل خلافًا في الخلاف يبدو تعديلًا.
+    # (EN) Deterministic order by id: the index appears in the generated header.
+    arches.sort(key=lambda a: a["architecture"])
 
     if _HAVE_VALIDATION:
         try:
             validate_schema(dialect, load_schema(Path(args.dialect_schema)))
-            validate_schema(mnem, load_schema(Path(args.mnemonics_schema)))
+            mnem_schema = load_schema(Path(args.mnemonics_schema))
+            for one in arches:
+                validate_schema(one, mnem_schema)
         except Exception as e:  # pragma: no cover
             print(f"[gen_asm_dialect] schema validation failed: {e}", file=sys.stderr)
             return 2
 
-    header = build_header(dialect, mnem)
+    header = build_header(dialect, arches)
     out = Path(args.header)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(header, encoding="utf-8", newline="\n")
     if not args.quiet:
-        print(f"[gen_asm_dialect] wrote {out}")
+        print(f"[gen_asm_dialect] wrote {out} — "
+              f"{len(arches)} معماريّة: {', '.join(a['architecture'] for a in arches)}")
     return 0
 
 

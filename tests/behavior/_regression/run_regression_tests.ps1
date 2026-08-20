@@ -18,7 +18,14 @@ param(
     
     [Parameter(Mandatory=$false)]
     [ValidateSet("interpreter", "compiler")]
-    [string]$Mode = "interpreter"
+    [string]$Mode = "interpreter",
+
+    # (AR) مسار المفسّر: حين يُمرَّر في وضع المترجِم يُقاس **تكافؤ** المحرّكَين لا مجرّد
+    #      غياب كلمة FAIL. وبدونه يعمل الحارس كما كان.
+    # (EN) Interpreter path: when supplied in compiler mode, engine PARITY is measured
+    #      instead of merely the absence of a FAIL marker.
+    [Parameter(Mandatory=$false)]
+    [string]$InterpExe = ""
 )
 
 # ======================================================================
@@ -37,10 +44,46 @@ $xfailTests = 0
 $errorTests = 0
 $failedNames = @()
 
-# Known failures (XFAIL -- expected to fail until fixed)
+# ══════════════════════════════════════════════════════════════════════════
+# (AR) الحمرةُ المعروفةُ **تُشتقُّ من السجلِّ ولا تُكتَبُ هنا**.
+#
+#      كانت هذه القائمةُ فارغةً، فيخرج العدّاءُ ١ على أيِّ إخفاقٍ مهما كان
+#      مُعلَنًا — بينما `../DECLARED_REDS.tsv` يُسجِّل تلك الملفّاتِ عينَها
+#      دَينًا مقيسًا. فحكمَت خطوتان في الوظيفةِ الواحدةِ على الشجرةِ ذاتِها
+#      بعقدَين متناقضَين، وأحمرَّ الأخضرُ منهما (٨ صفوفٍ مسجَّلةٍ على ويندوز).
+#
+#      🔑 وليست هذه قائمةَ إذنٍ تبلى: مصدرُها سجلٌّ محروسٌ في الاتّجاهَين
+#      بـ`test_declared_reds_registry.py` — صفٌّ يخضرُّ يُخفِقُ هناك حتّى
+#      يُحذَف، وأحمرُ ليس فيه يُخفِقُ هناك حتّى يُسجَّل. فلا نسخةَ ثانيةً
+#      لحقيقةٍ واحدةٍ تنجرفُ عن أصلِها بلا أن تُخفِق.
+# (EN) Known reds are DERIVED from the registry, never listed here. The list was
+#      empty, so this runner exited 1 on any failure however well declared, while
+#      ../DECLARED_REDS.tsv records those very files as measured debt: two steps
+#      in one job judging the same tree under contradictory contracts. This is not
+#      a rotting allowlist — its source is guarded in BOTH directions by
+#      test_declared_reds_registry.py, so a row that turns green fails there until
+#      deleted and a red absent from it fails there until recorded.
+# ══════════════════════════════════════════════════════════════════════════
+$registryPath = Join-Path $PSScriptRoot "..\DECLARED_REDS.tsv"
+if (-not (Test-Path $registryPath)) {
+    Write-Host "[ERROR] Registry not found: $registryPath"
+    exit 1
+}
 $knownFailures = @(
-    # Add test names here that are expected to fail
+    Get-Content -LiteralPath $registryPath -Encoding UTF8 |
+        Where-Object { $_.Trim() -ne "" -and -not $_.TrimStart().StartsWith("#") } |
+        ForEach-Object { ($_ -split "`t")[0].Trim() } |
+        Where-Object { $_.StartsWith("_regression/") } |
+        ForEach-Object { [System.IO.Path]::GetFileNameWithoutExtension($_) }
 )
+# (AR) قائمةٌ خاويةٌ تعني انكسارَ الاشتقاقِ لا سدادَ الدَّين — وهي تُشدِّد لا
+#      تُرخي، فتمرُّ صامتةً لو تُرِكت. تُعلَن صراحةً.
+# (EN) An empty list means the derivation broke, not that the debt was paid.
+if ($knownFailures.Count -eq 0) {
+    Write-Host "[ERROR] No _regression rows parsed from $registryPath -- derivation broke"
+    exit 1
+}
+$xfailNames = @()
 
 # ======================================================================
 # Start Tests
@@ -76,6 +119,12 @@ foreach ($testFile in $TestFiles) {
                 -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\sad_test_out.txt" `
                 -RedirectStandardError "$env:TEMP\sad_test_err.txt"
             
+            # (AR) المقبضُ يُخزَّن قبلَ الانتظار: بدونه تعود ExitCode فارغةً في PS 5.1
+            #      بعد WaitForExit(<مهلة>)، فيقرأ الحارسُ $null ويحكم بالإخفاقِ دائمًا.
+            # (EN) Cache the handle before waiting: otherwise ExitCode is $null in PS 5.1
+            #      after WaitForExit(<timeout>), so the guard always reports failure.
+            $null = $process.Handle
+
             $completed = $process.WaitForExit(30000)
             
             if (-not $completed) {
@@ -84,6 +133,7 @@ foreach ($testFile in $TestFiles) {
                 
                 if ($knownFailures -contains $testName) {
                     $xfailTests++
+                    $xfailNames += "$testName (timeout)"
                     Write-Host "XFAIL (timeout -- known issue) (${duration}ms)"
                 } else {
                     $failedTests++
@@ -105,12 +155,19 @@ foreach ($testFile in $TestFiles) {
             $compileProcess = Start-Process -FilePath $SadExe -ArgumentList $testFile.FullName, "-o", $outExe `
                 -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\sad_compile_out.txt" `
                 -RedirectStandardError "$env:TEMP\sad_compile_err.txt"
+            # (AR) المقبضُ يُخزَّن قبلَ الانتظار: بدونه تعود ExitCode فارغةً في PS 5.1
+            #      بعد WaitForExit(<مهلة>)، فيقرأ الحارسُ $null ويحكم بالإخفاقِ دائمًا.
+            # (EN) Cache the handle before waiting: otherwise ExitCode is $null in PS 5.1
+            #      after WaitForExit(<timeout>), so the guard always reports failure.
+            $null = $compileProcess.Handle
+
             $compileProcess.WaitForExit(60000)
             
             if ($compileProcess.ExitCode -ne 0 -or -not (Test-Path $outExe)) {
                 $duration = [math]::Round(((Get-Date) - $startTime).TotalMilliseconds)
                 if ($knownFailures -contains $testName) {
                     $xfailTests++
+                    $xfailNames += "$testName (compile)"
                     Write-Host "XFAIL (compile error -- known issue) (${duration}ms)"
                 } else {
                     $failedTests++
@@ -126,6 +183,12 @@ foreach ($testFile in $TestFiles) {
             $process = Start-Process -FilePath $outExe `
                 -NoNewWindow -PassThru -RedirectStandardOutput "$env:TEMP\sad_test_out.txt" `
                 -RedirectStandardError "$env:TEMP\sad_test_err.txt"
+            # (AR) المقبضُ يُخزَّن قبلَ الانتظار: بدونه تعود ExitCode فارغةً في PS 5.1
+            #      بعد WaitForExit(<مهلة>)، فيقرأ الحارسُ $null ويحكم بالإخفاقِ دائمًا.
+            # (EN) Cache the handle before waiting: otherwise ExitCode is $null in PS 5.1
+            #      after WaitForExit(<timeout>), so the guard always reports failure.
+            $null = $process.Handle
+
             $completed = $process.WaitForExit(30000)
             
             if (-not $completed) {
@@ -150,15 +213,76 @@ foreach ($testFile in $TestFiles) {
         $hasFail = $output -match "FAIL:"
         $hasPass = $output -match "PASS:"
         $hasError = $exitCode -ne 0
-        
-        if ($hasError -or $hasFail) {
+
+        # ==================================================================
+        # (AR) معيارُ التكافؤ: غيابُ «FAIL:» ورمزُ خروجٍ صفرٌ لا يعنيان السلامة.
+        #      ص٣٥ كان يطبع مؤشِّرًا خامًا حيث يطبع المفسّرُ الكائنَ، برمزِ صفرٍ
+        #      وبلا الكلمة — فمرّ أخضرَ. نقارن خرجَ المحرّكَين حين يُمرَّر -InterpExe.
+        # (EN) Parity criterion: no "FAIL:" plus exit 0 does not mean correct.
+        #      p35 printed a raw pointer where the interpreter printed the object,
+        #      with exit 0 and no marker, so it passed. Compare both engines'
+        #      output whenever -InterpExe is supplied.
+        # ==================================================================
+        $parityBroken = $false
+        if ($Mode -eq "compiler" -and $InterpExe -ne "" -and -not $hasError) {
+            $parityOut = "$env:TEMP\sad_parity_out.txt"
+            $parityErr = "$env:TEMP\sad_parity_err.txt"
+            # (AR) 🔑 يُمسحان قبل كلّ إطلاق: `SilentlyContinue` تبتلع **غيابَ** الملفّ
+            #      لا **قِدَمَه**، فإخفاقُ إطلاقٍ كان يقارن خرجَ الاختبارِ السابقِ
+            #      ⇒ حكمٌ يتبع ترتيبَ التنفيذِ لا الشيفرة.
+            # (EN) Cleared before every launch: SilentlyContinue swallows a MISSING file,
+            #      not a STALE one, so a failed launch compared the previous test's output,
+            #      making the verdict depend on execution order rather than on the code.
+            Remove-Item $parityOut, $parityErr -Force -ErrorAction SilentlyContinue
+            $ip = Start-Process -FilePath $InterpExe -ArgumentList $testFile.FullName `
+                -NoNewWindow -PassThru -RedirectStandardOutput $parityOut `
+                -RedirectStandardError $parityErr
+            $null = $ip.Handle
+            $ipDone = $ip.WaitForExit(30000)
+            if (-not $ipDone) {
+                # (AR) مهلةٌ ليست تباعدًا: الخرجُ مبتورٌ فلا يُقارَن، ويُسمّى ما وقع.
+                # (EN) A timeout is not a divergence: truncated output is not compared.
+                $ip.Kill()
+                $ip.WaitForExit()
+                $parityBroken = $true
+                $parityDetail = "PARITY: interpreter timed out (not an output difference)"
+            }
+            else {
+                $iOut = Get-Content $parityOut -Raw -Encoding UTF8 -ErrorAction SilentlyContinue
+                if ($null -eq $iOut) { $iOut = "" }
+                $cOut = $output
+                if ($null -eq $cOut) { $cOut = "" }
+                if ($iOut.Trim() -ne $cOut.Trim()) {
+                    $parityBroken = $true
+                    $parityDetail = "PARITY: interpreter and compiler outputs differ"
+                }
+                # (AR) 🔑 ورمزُ الخروجِ كذلك. كان يُلتقَط ولا يُقرَأ، فمحرّكٌ يرمي خطأً
+                #      قابلًا للالتقاطِ وآخرُ يُكمِل يمرّان أخضرَين ما دام المطبوعُ قبلَ
+                #      الرميِ متطابقًا — وهو عينُ صنفِ التباعدِ الذي تُنشئه RUN007/RUN011،
+                #      أي الذي وُضِع هذا الحارسُ ليقيسه.
+                # (EN) And the exit code. It was captured but never read, so one engine
+                #      raising a catchable error while the other carried on passed green
+                #      whenever the pre-error output matched — exactly the divergence class
+                #      RUN007/RUN011 create, i.e. the one this guard exists to measure.
+                elseif ($ip.ExitCode -ne $exitCode) {
+                    $parityBroken = $true
+                    $parityDetail = "PARITY: exit codes differ (interpreter=$($ip.ExitCode) compiler=$exitCode)"
+                }
+            }
+        }
+
+        if ($hasError -or $hasFail -or $parityBroken) {
             if ($knownFailures -contains $testName) {
                 $xfailTests++
+                $xfailNames += $testName
                 Write-Host "XFAIL (${duration}ms)"
             } else {
                 $failedTests++
                 $failedNames += $testName
                 Write-Host "FAIL (${duration}ms)"
+                if ($parityBroken) {
+                    Write-Host "    PARITY: interpreter and compiler outputs differ"
+                }
                 if ($hasFail) {
                     $failLines = ($output -split "`n") | Where-Object { $_ -match "FAIL:" }
                     foreach ($line in $failLines) {
@@ -195,6 +319,16 @@ Write-Host "  Total:     $totalTests"
 Write-Host "  Passed:    $passedTests"
 Write-Host "  Failed:    $failedTests"
 Write-Host "  XFail:     $xfailTests"
+
+# (AR) الأسماءُ تُطبَع دائمًا: عددٌ بلا أسماءٍ لا يكشف تبدُّلَ المجموعة.
+# (EN) Names always printed: a count alone hides a change of membership.
+if ($xfailNames.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  XFail (declared in DECLARED_REDS.tsv):"
+    foreach ($name in $xfailNames) {
+        Write-Host "    ~ $name"
+    }
+}
 
 if ($failedNames.Count -gt 0) {
     Write-Host ""

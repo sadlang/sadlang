@@ -109,49 +109,7 @@ namespace Sad
 
                 // (AR) تحويل تلقائي لـ __op_tobool__ إذا كان الشرط كائناً (مثل buildIfStatement)
                 // (EN) Auto-convert __op_tobool__ if condition is an object (like buildIfStatement)
-                {
-                    std::string condClassName = condResult.className;
-                    if (condClassName.empty() && !condResult.registerName.empty())
-                    {
-                        auto it = b_.classInstanceTypes_.find(condResult.registerName);
-                        if (it != b_.classInstanceTypes_.end())
-                            condClassName = it->second;
-                    }
-                    if (!condClassName.empty())
-                    {
-                        // (AR) بحث في سلسلة الوراثة عن __op_tobool__
-                        // (EN) Search inheritance chain for __op_tobool__
-                        std::string searchClass = condClassName;
-                        std::string toboolName;
-                        bool foundToBool = false;
-                        while (!searchClass.empty())
-                        {
-                            toboolName = searchClass + ".__op_tobool__";
-                            if (b_.functionTable_.find(toboolName) != b_.functionTable_.end())
-                            {
-                                foundToBool = true;
-                                break;
-                            }
-                            auto classInfo = b_.module_->getClass(searchClass);
-                            if (classInfo && !classInfo->parentClass.empty())
-                                searchClass = classInfo->parentClass;
-                            else
-                                break;
-                        }
-                        if (foundToBool)
-                        {
-                            std::string boolReg = b_.newTempRegister();
-                            SIRInstruction callInst;
-                            callInst.opcode = SIROpcode::OBJECT_CALL;
-                            callInst.result = SIROperand::Register(boolReg, SadTypeKind::Boolean);
-                            callInst.operands.push_back(SIROperand::Register(condResult.registerName, condResult.type));
-                            callInst.operands.push_back(SIROperand::ConstantString("__op_tobool__"));
-                            if (b_.currentBlock_)
-                                b_.currentBlock_->addInstruction(callInst);
-                            condResult = BuildResult(boolReg, SadTypeKind::Boolean);
-                        }
-                    }
-                }
+                b_.coerceObjectToBool(condResult);
 
                 // ========================================================================
                 // (AR) الخطوة 4: توليد تعليمة القفز الشرطي

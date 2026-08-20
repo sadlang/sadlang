@@ -296,6 +296,17 @@ namespace Sad
                 case SIROpcode::DIV_I64:
                     if (*rightVal == 0)
                         return false; // Avoid division by zero
+                    // (AR) 🔑 فيضُ INT64_MIN / -1 لا يُطوى: الطيُّ نفسُه سلوكٌ غيرُ
+                    //      معرَّفٍ في مصرّف C++ الذي يبني هذه الأداة، والنتيجةُ المطويّةُ
+                    //      تُدفَن في الثنائيّ بلا حارس. نتركها لحارسِ زمنِ التشغيل (RUN011).
+                    //      كانت خاملةً لأنّ `/` لم تكن تُصدِر DIV_I64 قطُّ؛ فلمّا صارت
+                    //      قسمةً صحيحةً ساكنةً صار هذا المسارُ مطروقًا.
+                    // (EN) INT64_MIN / -1 must not fold: the fold itself is UB in the C++
+                    //      compiler building this tool, and a wrongly folded constant is
+                    //      buried in the binary with no guard. Leave it to the runtime
+                    //      guard (RUN011). Dormant until `/` started emitting DIV_I64.
+                    if (!foldUnsignedU64 && *leftVal == INT64_MIN && *rightVal == -1)
+                        return false;
                     result = foldUnsignedU64
                                  ? static_cast<int64_t>(static_cast<uint64_t>(*leftVal) /
                                                         static_cast<uint64_t>(*rightVal))
@@ -313,6 +324,12 @@ namespace Sad
                                                       static_cast<uint64_t>(*rightVal));
                         break;
                     }
+                    // (AR) والأرضيّةُ نظيرتُها: INT64_MIN // -1 تفيض كذلك — ثغرةٌ
+                    //      كامنةٌ سبقت هذا القرار، تُسدّ معه.
+                    // (EN) Floor division overflows identically — a latent hole
+                    //      that predates this change, sealed with it.
+                    if (*leftVal == INT64_MIN && *rightVal == -1)
+                        return false;
                     int64_t q = *leftVal / *rightVal;
                     if ((*leftVal ^ *rightVal) < 0 && *leftVal % *rightVal != 0)
                         q -= 1;

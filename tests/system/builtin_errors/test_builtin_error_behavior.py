@@ -28,7 +28,15 @@ _CANDIDATES = [
     ROOT / "build" / "bin" / "sad-run.exe",
     ROOT / "build" / "bin" / "Release" / "sad-run.exe",
 ]
-SAD_RUN = next((p for p in _CANDIDATES if p.exists()), None)
+SAD_RUN = max(
+    (p for p in _CANDIDATES if p.exists()),
+    # (AR) أحدثُ الموجودَين لا أوّلُهما: قِيسَ ثنائيُّ Release عمرُه ١٣ يومًا
+    #      يسبق Debug طازجًا في القائمة، فولّدت الأداةُ عطبًا وهميًّا.
+    # (EN) Newest, not first: a 13-day-old Release binary preceded a fresh
+    #      Debug one and the instrument fabricated a defect.
+    key=lambda p: p.stat().st_mtime,
+    default=None,
+)
 
 pytestmark = pytest.mark.skipif(
     SAD_RUN is None,

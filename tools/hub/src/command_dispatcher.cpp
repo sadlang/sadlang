@@ -6,9 +6,20 @@
 #include <cstdlib>
 #include <sstream>
 
+// 🔑 (AR) ترويسةُ المنصّةِ تُضَمُّ هنا — خارجَ `namespace Sad` — لا في فرعِ
+//     `#else` أسفلُ داخلَه: ضمٌّ داخلَ فضاءِ أسماءٍ يُصادِر الترويسةَ إليه
+//     بأسرِها، وحارسُ الضمِّ يجعلها النسخةَ الوحيدةَ في وحدةِ الترجمة، فيغيب
+//     `::getpid` ونظائرُه عن النطاقِ العامّ بحسبِ ترتيبِ الضمِّ وحدَه.
+// 🔑 (EN) Platform headers belong here, outside namespace Sad — never in the
+//     #else branch inside it: an include within a namespace captures the
+//     header into it, and its include guard then makes that the only copy
+//     in the translation unit.
 #ifdef _WIN32
 #include <windows.h>
 #include <process.h>
+#else
+#include <unistd.h>
+#include <sys/wait.h>
 #endif
 
 namespace Sad
@@ -170,9 +181,6 @@ namespace Sad
         }
 
 #else // !_WIN32
-
-#include <unistd.h>
-#include <sys/wait.h>
 
         int CommandDispatcher::runSubprocess(
             const std::string &executable,

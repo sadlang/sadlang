@@ -1,0 +1,174 @@
+# ══════════════════════════════════════════════════════════════════════
+# (AR) كنسُ الخبائثِ الميّتة — لأنّ سقفَ ﭼِتهَب ١٠ ﭼب والطردُ لا يسأل عن الفائدة.
+#
+#      🔑 الدافعُ مقيسٌ (١٩ آب ٢٠٢٦): ١٥ خبيئةً بمجموعِ **١٠٫٧٢ ﭼب** — أي فوقَ
+#      السقفِ أصلًا والطردُ جارٍ. ومنها **سبعٌ ميّتةٌ بيقين**: أربعٌ على فرعٍ
+#      حُذِف (`agent/net-retry-sweep`) وثلاثٌ على PR دُمِج (`refs/pull/417/merge`)
+#      — ٥٫٢١ ﭼب، **٤٩٪ من الشاغل**، لا يمكن أن تُستعادَ أبدًا لأنّ مرجعَها زال.
+#      وهي تطردُ الحيَّ بالأقدميّة: خبيئةُ الفرعِ الافتراضيِّ أوّلُ ما يُطرَد
+#      لأنّه أقلُّ الفروعِ نشاطًا — فيبني كلُّ فرعٍ جديدٍ من الصفر.
+#
+# (EN) Prune dead caches. Measured: 15 caches, 10.72 GB — already over the
+#      10 GB ceiling, so eviction runs continuously. Seven of them (5.21 GB,
+#      49%) belong to a deleted branch and a merged PR and can never be
+#      restored, yet they evict live entries by age.
+#
+# ⚠️ (AR) `delete` و`schedule` لا يُشغَّلان إلّا من **الفرعِ الافتراضيّ** — أمّا
+#      `pull_request` فيعمل من مرجعِ دمجِ الطلبِ فورَ وجودِ الملفِّ في رأسِه.
+#      فكنسُ الطلباتِ المُغلَقةِ يعمل من الآن، وكنسُ الفروعِ المحذوفةِ والكنسُ
+#      الدوريُّ ينتظران بلوغَ `sadlang`. يُقالُ بدقّةٍ ولا يُعمَّم.
+# ⚠️ (EN) delete/schedule only fire from the default branch, so this becomes
+#      live once it reaches `sadlang`. Until then: manual dispatch.
+# ══════════════════════════════════════════════════════════════════════
+name: "🧹 كنسُ الخبائث / Cache cleanup"
+
+on:
+  pull_request:
+    types: [closed]
+  delete:
+  schedule:
+    - cron: "30 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  prune:
+    name: "🧹 كنسُ الخبائثِ الميّتة / Prune dead caches"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: "🧹 كنس / Prune"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          الحدث: ${{ github.event_name }}
+          فرع_محذوف: ${{ github.event.ref }}
+          رقم_الطلب: ${{ github.event.number }}
+          نوع_المرجع: ${{ github.event.ref_type }}
+        run: |
+          set -uo pipefail
+
+          # (AR) أسماءُ متغيّراتِ الصدَفةِ لاتينيّةٌ إلزامًا — bash ينفّذ
+          #      `قائمة=x` **أمرًا** ويترك `$قائمة` نصًّا، و`bash -n` لا يراه.
+          #      (وأسماءُ متغيّراتِ البيئةِ في `env:` أعلاه أمرٌ آخرُ: تُقرأُ
+          #      بـ`printenv` لا بالتوسيع، فالعربيّةُ فيها سليمة.)
+          # (EN) Shell variable names must be ASCII; env names read via printenv.
+          event=$(printenv الحدث)
+          deleted_ref=$(printenv فرع_محذوف || true)
+          pr_number=$(printenv رقم_الطلب || true)
+
+          احذف_مرجعا() {
+              ref="$1"; label="$2"
+              # ⚠️ (AR) يُفرَّقُ بين «لا خبيئةَ» و«تعذّرَ السؤال»: ابتلاعُ الخطأِ
+              #      يجعل إخفاقَ استيثاقٍ أو حدَّ معدّلٍ يُقرأُ «لا شيءَ ليُكنَس».
+              # ⚠️ (EN) Distinguish "no caches" from "could not ask".
+              ids=$(gh cache list --ref "$ref" --limit 100 --json id --jq '.[].id')
+              rc=$?
+              if [ "$rc" -ne 0 ]; then
+                  echo "::warning::تعذّرَ سردُ خبائثِ $label (رمز $rc) — لا يُكنَسُ شيء"
+                  return 0
+              fi
+              if [ -z "$ids" ]; then
+                  echo "ℹ️ لا خبيئةَ على $label ($ref)"
+                  return 0
+              fi
+              # (AR) يُعلَنُ العددُ ويُشتقُّ ولا يُكتَبُ نصًّا — عددٌ منثورٌ ينجرف.
+              echo "🗑️ $(echo "$ids" | grep -c .) خبيئةً على $label ($ref)"
+              for id in $ids; do
+                  if gh cache delete "$id" >/dev/null 2>&1; then
+                      echo "   ✅ $id"
+                  else
+                      echo "   ⚠️ تعذّرَ حذفُ $id"
+                  fi
+              done
+          }
+
+          case "$event" in
+              pull_request)
+                  احذف_مرجعا "refs/pull/${pr_number}/merge" "طلبَ الدمج #${pr_number}"
+                  ;;
+              delete)
+                  # ⚠️ (AR) يُفرَزُ النوع: حدثُ `delete` يقع للوسومِ كما للفروع، وبناءُ
+                  #      `refs/heads/<اسم الوسم>` يكنسُ **فرعًا حيًّا** يشاركُه الاسمَ
+                  #      (release · stable · v1). و`github.event.ref` اسمٌ مجرّد.
+                  # ⚠️ (EN) `delete` fires for tags too; a tag named like a live branch
+                  #      would prune that branch's cache.
+                  if [ "$(printenv نوع_المرجع)" != "branch" ]; then
+                      echo "ℹ️ المحذوفُ ليس فرعًا — لا يُكنَسُ شيء"
+                      exit 0
+                  fi
+                  احذف_مرجعا "refs/heads/${deleted_ref}" "الفرعَ المحذوفَ ${deleted_ref}"
+                  ;;
+              *)
+                  # (AR) الكنسُ الدوريُّ: كلُّ خبيئةٍ مرجعُها لم يعُدْ موجودًا.
+                  #      والحكمُ على **وجودِ المرجع** لا على عمرِ الخبيئة: خبيئةٌ
+                  #      قديمةٌ على فرعٍ حيٍّ نافعةٌ، وخبيئةٌ جديدةٌ على فرعٍ ميّتٍ
+                  #      لا تُستعادُ أبدًا.
+                  # (EN) Judge by whether the ref still exists, not by age.
+                  gh cache list --limit 100 --json id,ref,sizeInBytes \
+                      --jq '.[] | [.id, .ref, .sizeInBytes] | @tsv' > /tmp/caches.tsv
+                  alive=0; dead=0; freed=0
+                  # ⚠️ (AR) `\t` هروبًا لا محرفَ جدولةٍ حرفيًّا: منسِّقٌ يُوسِّعُ
+                  #      الجدولةَ يجعلها `IFS=$''` ⇒ لا تقسيمَ حقولٍ ⇒ كلُّ صفٍّ
+                  #      يسقطُ في `*)` ⇒ كنسٌ يصيرُ لا-عمليّةً **صامتةً خضراء**.
+                  # ⚠️ (EN) Escaped tab, not a literal one: a formatter expanding
+                  #      it turns the whole prune into a silent green no-op.
+                  while IFS=$'\t' read -r id ref size; do
+                      [ -z "${id:-}" ] && continue
+                      case "$ref" in
+                          refs/pull/*/merge)
+                              num=$(echo "$ref" | sed 's|refs/pull/||; s|/merge||')
+                              state=$(gh pr view "$num" --json state --jq .state 2>/dev/null || echo UNKNOWN)
+                              if [ "$state" = "OPEN" ] || [ "$state" = "UNKNOWN" ]; then
+                                  alive=$((alive + 1)); continue
+                              fi
+                              ;;
+                          refs/heads/*)
+                              # 🔑 (AR) العجزُ عن التقريرِ يسقطُ في جهةِ **الحياةِ** لا الإتلاف.
+                              #      كانت هنا `git ls-remote`: والوظيفةُ **بلا `checkout`**،
+                              #      فتعملُ في مجلّدٍ ليس مستودعًا ⇒ رمزُ ١٢٨ ⇒ الشرطُ كاذبٌ ⇒
+                              #      **كلُّ فرعٍ حيٍّ يُحكَمُ عليه بالموتِ ويُحذَف** — ومنه الفرعُ
+                              #      الافتراضيُّ نفسُه، أي عينُ الخبيئةِ التي كُتِبَ هذا السيرُ
+                              #      لحمايتِها. و`gh api` لا يلزمُه سحبٌ، ويُفرَّقُ فيه بين
+                              #      «غيرُ موجود» (404) و«تعذّرَ السؤال» — والثاني «أبقِه».
+                              # 🔑 (EN) Inability to tell must fall on the SAFE side. git
+                              #      ls-remote ran in a job with no checkout, exited 128 for
+                              #      every branch, and the prune would delete every live
+                              #      cache — including the default branch's.
+                              branch=${ref#refs/heads/}
+                              http=$(gh api -i "repos/$GH_REPO/git/ref/heads/$branch" \
+                                     2>/dev/null | head -1 | tr -dc '0-9')
+                              if [ "${http:-000}" != "404" ]; then
+                                  alive=$((alive + 1)); continue
+                              fi
+                              ;;
+                          *) alive=$((alive + 1)); continue ;;
+                      esac
+                      dead=$((dead + 1))
+                      if gh cache delete "$id" >/dev/null 2>&1; then
+                          freed=$((freed + size))
+                          echo "   🗑️ $ref  ($((size / 1000000)) مب)"
+                      fi
+                  done < /tmp/caches.tsv
+                  echo "📊 حيّةٌ: $alive   ·   ميّتةٌ حُذِفت: $dead   ·   حُرِّرَ: $((freed / 1000000)) مب"
+                  ;;
+          esac
+
+      - name: "📊 الشاغلُ بعدَ الكنس / Usage after prune"
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+          total=$(gh cache list --limit 100 --json sizeInBytes --jq '[.[].sizeInBytes] | add // 0')
+          count=$(gh cache list --limit 100 --json id --jq 'length')
+          echo "📦 $count خبيئةً · $((total / 1000000)) مب من سقفِ ١٠٢٤٠ مب"
+          # (AR) تحذيرٌ عند تجاوزِ ٨٠٪ — لا إخفاق: الكنسُ خدمةٌ لا بوّابة.
+          if [ "$total" -gt 8192000000 ]; then
+              echo "::warning::الشاغلُ فوقَ ٨٠٪ من السقف — الطردُ سيبدأ يأكل الحيّ"
+          fi

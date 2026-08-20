@@ -146,15 +146,17 @@ namespace Sad
             //      FCmpOEQ with an %lld message — sdiv/srem crashed with a
             //      0xC0000094 hardware fault on the inferred static path while the
             //      interpreter throws RUN001/RUN009/RUN010.
-            void emitIntDivZeroGuard(LLVMCodeGen &cg, llvm::Value *dividend,
-                                     llvm::Value *divisor, const char *hostedMsg,
+            // (AR) بنيةُ الحارس — مفصولةٌ عن شرطِه لأنّ الشرطَ وحدَه يفترق بين
+            //      «قاسمٌ صفر» و«فيضُ INT64_MIN / -1»، والكتلتان والتشخيصُ والخروجُ سواء.
+            // (EN) The guard's *shape*, split from its condition: only the condition
+            //      differs between a zero divisor and INT64_MIN / -1 overflow.
+            void emitIntDivTrapGuard(LLVMCodeGen &cg, llvm::Value *cond,
+                                     llvm::Value *dividend, const char *hostedMsg,
                                      const char *tag)
             {
                 llvm::IRBuilder<> &b = *cg.builder_;
                 llvm::LLVMContext &ctx = *cg.context_;
-                llvm::Value *isZeroDiv = b.CreateICmpEQ(
-                    divisor, llvm::ConstantInt::get(cg.getInt64Type(), 0),
-                    std::string(tag) + ".iszero");
+                llvm::Value *isZeroDiv = cond;
                 llvm::Function *curFunc = b.GetInsertBlock()->getParent();
                 llvm::BasicBlock *failBB =
                     llvm::BasicBlock::Create(ctx, std::string(tag) + ".fail", curFunc);
@@ -188,6 +190,39 @@ namespace Sad
                 b.CreateUnreachable();
 
                 b.SetInsertPoint(contBB);
+            }
+
+            void emitIntDivZeroGuard(LLVMCodeGen &cg, llvm::Value *dividend,
+                                     llvm::Value *divisor, const char *hostedMsg,
+                                     const char *tag)
+            {
+                emitIntDivTrapGuard(
+                    cg,
+                    cg.builder_->CreateICmpEQ(
+                        divisor, llvm::ConstantInt::get(cg.getInt64Type(), 0),
+                        std::string(tag) + ".iszero"),
+                    dividend, hostedMsg, tag);
+            }
+
+            // (AR) 🔑 حارسُ فيضِ القسمة الصحيحة: INT64_MIN / -1. صار مطلوبًا حين صارت
+            //      `/` قسمةً صحيحةً ساكنة — قبلَها كان المسارُ الديناميّ يرقّيه إلى
+            //      عشريّ فلا تصل sdiv. وبلا هذا الحارس تصل، فتصيد #DE على x86.
+            // (EN) Integer-division overflow guard (INT64_MIN / -1): required once `/`
+            //      became static integer division; without it sdiv traps (#DE) on x86.
+            void emitIntDivOverflowGuard(LLVMCodeGen &cg, llvm::Value *dividend,
+                                         llvm::Value *divisor, const char *hostedMsg,
+                                         const char *tag)
+            {
+                llvm::IRBuilder<> &b = *cg.builder_;
+                llvm::Value *isMin = b.CreateICmpEQ(
+                    dividend, llvm::ConstantInt::get(cg.getInt64Type(), INT64_MIN),
+                    std::string(tag) + ".ismin");
+                llvm::Value *isNegOne = b.CreateICmpEQ(
+                    divisor, llvm::ConstantInt::get(cg.getInt64Type(), -1),
+                    std::string(tag) + ".isneg1");
+                emitIntDivTrapGuard(cg,
+                                    b.CreateAnd(isMin, isNegOne, std::string(tag) + ".ovf"),
+                                    dividend, hostedMsg, tag);
             }
         } // namespace
 
@@ -726,7 +761,26 @@ namespace Sad
                     right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "f64toi64.r");
                 emitIntDivZeroGuard(cg_, left, right,
                                     Sad::Compiler::kDivZeroRun001IntMsg, "idiv.dz");
-                result = cg_.builder_->CreateSDiv(left, right, "divtmp");
+                // (AR) [الخطوة ٧] هيمنةُ طبيعي64 ⇒ UDiv، نظيرَ مسارِ الأرضيّة أعلاه
+                //      ومرآةَ wrapU64 في المفسّر: لا سالب فلا فيضَ ولا حاجةَ لحارسِه،
+                //      والمدى الكامل ٢^٦٤. صارت هذه الفقرةُ مطلوبةً حين صارت `/` صحيحةً:
+                //      قبلَها لم تكن تصل i64 أصلًا (كانت F64 أو ديناميّة).
+                // (EN) [Step 7] طبيعي64 dominance ⇒ UDiv, mirroring the floor path above
+                //      and the interpreter's wrapU64: unsigned has no overflow case.
+                const bool divUnsignedU64 =
+                    inst->operands[0].dataType == SadTypeKind::UInt64 ||
+                    inst->operands[1].dataType == SadTypeKind::UInt64;
+                if (divUnsignedU64)
+                {
+                    result = cg_.builder_->CreateUDiv(left, right, "udivtmp");
+                }
+                else
+                {
+                    emitIntDivOverflowGuard(cg_, left, right,
+                                            Sad::Compiler::kDivOverflowRun011IntMsg,
+                                            "idiv.ovf");
+                    result = cg_.builder_->CreateSDiv(left, right, "divtmp");
+                }
             }
 
             if (inst->result.has_value())

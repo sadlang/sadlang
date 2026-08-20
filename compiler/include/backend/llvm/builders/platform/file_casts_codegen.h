@@ -48,11 +48,14 @@ public:
     // @param failValue القيمةُ المُرجَعة عند الفشل / value produced on failure
     // @param[out] mergeBB كتلةُ الالتقاء — يقفز إليها المستدعي بعد نجاحه
     // @param[out] phi عقدةُ PHI التي يضيف إليها المستدعي قيمةَ النجاح
+    // @param failMsg إن لم يكن فارغًا: يُرمى خطأٌ قابلٌ للالتقاط بدلَ إنتاج
+    //        `failValue` — لأنّ المفسّر (المرجع) يرمي RUN007 عند فشلِ الفتح.
+    //        وحينها لا يُضاف طرفُ الفشلِ إلى PHI: كتلتُه تنتهي بـ`unreachable`.
     // @return مؤشّرُ الملفّ في مسار النجاح (نقطةُ الإدراج تصير كتلةَ النجاح)
     // ====================================================================
     llvm::Value *emitFopenGuarded(llvm::Value *path, const char *mode, const char *tag,
                                   llvm::Value *failValue, llvm::BasicBlock *&mergeBB,
-                                  llvm::PHINode *&phi);
+                                  llvm::PHINode *&phi, const char *failMsg = nullptr);
 
     llvm::Value *emitBuiltinFileRead(std::shared_ptr<SIRInstruction> inst);
     llvm::Value *emitBuiltinFileWrite(std::shared_ptr<SIRInstruction> inst);

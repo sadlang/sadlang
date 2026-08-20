@@ -1,6 +1,7 @@
 # @rule: gr.adv.asm_dialect
 # @description: متغيّر ص في موضع مصدر «بادل» (تكتب مصدرها) يُرفَض SEM034 — لا كود خاطئ صامت
 # @expect_error: SEM034
+# @arch: x86    # «بادل» (xchg) لا نظير لها في AArch64
 
 متغير س = 1
 تجميع

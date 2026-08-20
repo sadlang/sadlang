@@ -44,6 +44,7 @@ jobs:
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
 
       # ── (1) سقف حجم النواة النحيلة ───────────────────────────────────
       - name: "📏 سقف الحجم: copilot-instructions.md ≤ 200 سطر"
@@ -62,6 +63,7 @@ jobs:
       # ── (2) طزاجة الـDigest ─────────────────────────────────────────
       - name: "🐍 تثبيت Python"
         uses: actions/setup-python@v5
+        timeout-minutes: 15
         with:
           python-version: "3.x"
 

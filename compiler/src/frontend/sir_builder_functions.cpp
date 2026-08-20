@@ -232,6 +232,52 @@ namespace Sad
                             }
                         }
                     }
+
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 والمُصرَّحُ كذلك — لا المستنتَجُ وحدَه. الحلقةُ أعلاه تقرأ
+                    //      `paramClassTypes_` وهي **خريطةُ الاستنتاج** من مواقعِ النداء،
+                    //      فمعامِلٌ كُتِب صنفُه صراحةً (`دالة تحقق(متجه القيمة، …)`) لا يمرّ
+                    //      بها ولا يُسجَّل نسخةَ صنفٍ قطُّ. ويُقرأ `param.typeName` في هذا
+                    //      الملفِّ نفسِه أدناه ليُنقَل إلى `sirParam.className` للخلفيّة —
+                    //      فالمعلومةُ حاضرةٌ وموثوقةٌ، ولم تكن تصل إلى الواجهة.
+                    //      الأثرُ المقيس: `القيمة == المتوقع` داخلَ الجسمِ لا تجد صنفًا
+                    //      فتنزل `eq` على مؤشِّرَين، فتُجيب «مختلفان» حيث يقول المفسّرُ
+                    //      «متساويان» — بلا رمزِ خطأٍ ولا رسالةٍ ولا رمزِ خروجٍ مخالف.
+                    //      و`class_operator.cpp` (٢٥٦–٢٥٧) والمُغلِّفاتُ
+                    //      (`expression_functional.cpp` ٢٣٣–٢٣٤) تفعلها، فنجت أجسامُ
+                    //      العواملِ واللامدا وحدَها وسقطت الدوالُّ والطرائقُ كلُّها.
+                    //      وشرطُ `module_->getClass` قيدٌ لازم: `typeName` يُملأ لأسماءٍ
+                    //      ليست أصنافًا مسجَّلةً كذلك، وتسجيلُها يوجّه مقارناتٍ عاديّةً
+                    //      إلى `__op_eq__` غيرِ موجود.
+                    // (EN) Declared class params too — not just inferred ones. The loop
+                    //      above reads `paramClassTypes_`, the CALL-SITE INFERENCE map, so a
+                    //      parameter whose class is written explicitly never passes through
+                    //      it and is never registered as an instance. `param.typeName` is
+                    //      read further down in this same file to seed `sirParam.className`
+                    //      for the backend — the fact was present and trusted, it just never
+                    //      reached the frontend. Measured effect: `a == b` inside the body
+                    //      found no class and lowered to a pointer `eq`, answering
+                    //      "different" where the interpreter said "equal" — with no error
+                    //      code, no message, and no differing exit status.
+                    //      class_operator.cpp (256–257) and lambdas
+                    //      (expression_functional.cpp 233–234) already do this, which is why
+                    //      operator and lambda bodies alone survived.
+                    //      The `module_->getClass` guard is required: `typeName` is also
+                    //      filled for names that are not registered classes, and registering
+                    //      those would route ordinary comparisons to a missing `__op_eq__`.
+                    // ════════════════════════════════════════════════════════════
+                    for (const auto &param : funcDecl->parameters)
+                    {
+                        if (param.typeName.empty() || !module_ || !module_->getClass(param.typeName))
+                        {
+                            continue;
+                        }
+                        if (classInstanceTypes_.find(param.name) == classInstanceTypes_.end())
+                        {
+                            classInstanceTypes_[param.name] = param.typeName;
+                            tempRegisteredParams.push_back(param.name);
+                        }
+                    }
                 }
 
                 // (AR) إذا كان نوع الإرجاع غير محدد (UNKNOWN/NONE)، نستنتجه من جسم الدالة
@@ -431,6 +477,26 @@ namespace Sad
                 // (EN) If no function body (builtin or declaration only), don't build body
                 if (!funcDecl->body)
                 {
+                    // (AR) 🔑 تنظيفُ ما سُجِّل مؤقّتًا قبلَ هذه العودة. حلقةُ التنظيفِ
+                    //      تقع في ذيلِ الدالّةِ ولا تُبلَغ من هنا، فتصريحٌ بلا جسمٍ
+                    //      (`خارجي`، أو إعلانٌ متقدّم) بمعامِلٍ مصرَّحٍ بصنفٍ يترك اسمَه
+                    //      مربوطًا بذلك الصنفِ **لبقيّةِ البناءِ كلِّه**: أيُّ متغيّرٍ
+                    //      لاحقٍ بالاسمِ نفسِه — كائنًا كان أو لا — تُوجَّه مقارناتُه
+                    //      وطرائقُه إلى ذلك الصنف. والخريطةُ مسطّحةٌ بالاسمِ بلا نطاق،
+                    //      فالتصادمُ ليس نادرًا.
+                    // (EN) Undo the temporary registrations before this early return. The
+                    //      cleanup loop sits at the tail of the function and is never reached
+                    //      from here, so a bodiless declaration (extern or a forward
+                    //      declaration) with a class-typed parameter leaves that name bound
+                    //      to the class for the REST OF THE BUILD: any later variable of the
+                    //      same name — object or not — has its comparisons and method calls
+                    //      routed to that class. The map is flat by name with no scoping, so
+                    //      the collision is not rare.
+                    for (const auto &pName : tempRegisteredParams)
+                    {
+                        classInstanceTypes_.erase(pName);
+                    }
+
                     // (AR) مزامنة جدول الدوالّ مع نوع إرجاع SIRFunction الحقيقيّ —
                     //      الخروج المبكّر هنا كان يتخطّى تسجيل النوع أدناه فيبقى
                     //      مدخلُ الطور الأوّل (Integer الافتراضيّ) ويتباعد عن
@@ -595,101 +661,9 @@ namespace Sad
                 //      mode always keep it (dev-identical, no regression) — skipping it
                 //      altered the return-value build path (guarded by currentDeferStackReg_)
                 //      causing compiler/interpreter divergence on some platforms.
-                const bool needsDeferMachinery =
-                    freestandingMode_ ? stmtNeedsDeferMachinery(funcDecl->body.get()) : true;
-
-                std::shared_ptr<SIRBasicBlock> functionCleanupBlock;
-
-                if (needsDeferMachinery)
-                {
-                currentDeferStackReg_ = std::string("%") + kSlotNamespaceSeparator + "defer_stack" + kSlotNamespaceSeparator + std::to_string(nextLabel_++);
-                currentDeferExecutedFlagReg_ = std::string("%") + kSlotNamespaceSeparator + "defer_done" + kSlotNamespaceSeparator + std::to_string(nextLabel_++);
-                currentFunctionCleanupHandlerActive_ = true;
-
-                {
-                    SIRInstruction newArrInst;
-                    newArrInst.opcode = SIROpcode::ARRAY_NEW;
-                    newArrInst.result = SIROperand::Register(currentDeferStackReg_, SadTypeKind::Array);
-                    newArrInst.operands.push_back(SIROperand::ConstantI64(8));
-                    newArrInst.operands.push_back(SIROperand::ConstantI64(0));
-                    newArrInst.comment = "runtime defer stack for function";
-                    currentBlock_->addInstruction(newArrInst);
-                }
-
-                {
-                    SIRInstruction allocDoneInst;
-                    allocDoneInst.opcode = SIROpcode::ALLOC;
-                    allocDoneInst.result = SIROperand::Register(currentDeferExecutedFlagReg_, SadTypeKind::Integer);
-                    allocDoneInst.comment = "alloca defer executed flag";
-                    currentBlock_->addInstruction(allocDoneInst);
-
-                    SIRInstruction initDoneInst;
-                    initDoneInst.opcode = SIROpcode::STORE;
-                    initDoneInst.operands.push_back(SIROperand::ConstantI64(0));
-                    initDoneInst.operands.push_back(SIROperand::Register(currentDeferExecutedFlagReg_, SadTypeKind::Integer));
-                    initDoneInst.comment = "init defer executed flag = 0";
-                    currentBlock_->addInstruction(initDoneInst);
-                }
-
-                std::string functionCleanupJmpbufReg = std::string("%") + kSlotNamespaceSeparator + "defer_jmpbuf" + kSlotNamespaceSeparator + std::to_string(nextLabel_++);
-                std::string functionCleanupSetjmpReg = newTempRegister();
-                std::string functionCleanupCmpReg = newTempRegister();
-                std::string functionBodyLabel = newLabel("function_body");
-                std::string functionCleanupLabel = newLabel("function_defer_cleanup");
-                auto functionBodyBlock = createBasicBlock(functionBodyLabel);
-                functionCleanupBlock = createBasicBlock(functionCleanupLabel);
-                currentFunction_->addBasicBlock(functionBodyBlock);
-                currentFunction_->addBasicBlock(functionCleanupBlock);
-
-                {
-                    SIRInstruction allocJmpbufInst;
-                    allocJmpbufInst.opcode = SIROpcode::CALL;
-                    allocJmpbufInst.result = SIROperand::Register(functionCleanupJmpbufReg, SadTypeKind::Pointer);
-                    allocJmpbufInst.operands.push_back(SIROperand::Function("__sad_alloc_jmpbuf"));
-                    allocJmpbufInst.comment = "allocate function-level defer cleanup jmpbuf";
-                    currentBlock_->addInstruction(allocJmpbufInst);
-
-                    SIRInstruction pushHandlerInst;
-                    pushHandlerInst.opcode = SIROpcode::CALL;
-                    pushHandlerInst.operands.push_back(SIROperand::Function("__sad_push_handler"));
-                    pushHandlerInst.operands.push_back(SIROperand::Register(functionCleanupJmpbufReg, SadTypeKind::Pointer));
-                    pushHandlerInst.comment = "push function-level defer cleanup handler";
-                    currentBlock_->addInstruction(pushHandlerInst);
-
-                    SIRInstruction setjmpInst;
-                    setjmpInst.opcode = SIROpcode::CALL;
-                    setjmpInst.result = SIROperand::Register(functionCleanupSetjmpReg, SadTypeKind::Integer);
-                    setjmpInst.operands.push_back(SIROperand::Function("__sad_setjmp"));
-                    setjmpInst.operands.push_back(SIROperand::Register(functionCleanupJmpbufReg, SadTypeKind::Pointer));
-                    setjmpInst.comment = "setjmp for function-level defer cleanup";
-                    currentBlock_->addInstruction(setjmpInst);
-
-                    SIRInstruction cmpInst = SIRInstruction::Binary(
-                        SIROpcode::NE,
-                        SIROperand::Register(functionCleanupCmpReg, SadTypeKind::Boolean),
-                        SIROperand::Register(functionCleanupSetjmpReg, SadTypeKind::Integer),
-                        SIROperand::ConstantI64(0));
-                    cmpInst.comment = "function-level defer cleanup: did exception escape?";
-                    currentBlock_->addInstruction(cmpInst);
-
-                    currentBlock_->addInstruction(SIRInstruction::BranchCond(
-                        SIROperand::Register(functionCleanupCmpReg, SadTypeKind::Boolean),
-                        SIROperand::Label(functionCleanupLabel),
-                        SIROperand::Label(functionBodyLabel)));
-                }
-
-                currentBlock_ = functionBodyBlock;
-                }
-                else
-                {
-                    // (AR) لا «أجّل» في الجسم — لا مكدّس تأجيل ولا إطار setjmp:
-                    //      صفرُ تخصيصات وصفرُ رموز libc لهذه الدالّة.
-                    // (EN) No defer in body — no defer stack, no setjmp frame:
-                    //      zero allocations and zero libc symbols for this function.
-                    currentDeferStackReg_.clear();
-                    currentDeferExecutedFlagReg_.clear();
-                    currentFunctionCleanupHandlerActive_ = false;
-                }
+                // (AR) إطارُ التأجيل — معينٌ واحدٌ مشتركٌ مع مسارِ الإغلاق.
+                // (EN) Defer frame — one source shared with the closure path.
+                const DeferFrame deferFrame = emitDeferFrameBegin(funcDecl->body.get());
 
                 // (AR) بناء جسم الدالة (declarations.h:46 - body: StmtPtr)
                 // (EN) Build function body
@@ -769,70 +743,7 @@ namespace Sad
                 }
 
                 auto bodyContinuationBlock = currentBlock_;
-
-                // (AR) كتلة التنظيف تُبنى فقط مع الآلة (لا آلة ⇒ لا كتلة تنظيف)
-                // (EN) Cleanup block only exists when the machinery was emitted
-                if (needsDeferMachinery && functionCleanupBlock)
-                {
-                currentBlock_ = functionCleanupBlock;
-                emitPopFunctionCleanupHandler();
-                emitRunDeferredClosures();
-                {
-                    SIRInstruction rethrowInst;
-                    rethrowInst.opcode = SIROpcode::CALL;
-                    rethrowInst.operands.push_back(SIROperand::Function("__sad_raise_current"));
-                    rethrowInst.comment = "run defer then rethrow escaping function exception";
-                    currentBlock_->addInstruction(rethrowInst);
-                }
-                {
-                    std::string deadLabel = newLabel("function_cleanup_dead");
-                    auto deadBlock = createBasicBlock(deadLabel);
-                    currentFunction_->addBasicBlock(deadBlock);
-                    currentBlock_ = deadBlock;
-                }
-                }
-
-                currentBlock_ = bodyContinuationBlock;
-
-                // ================================================================
-                // (AR) تنفيذ الجمل المؤجلة المتبقية (لنهاية الدالة الطبيعية بدون return)
-                //      مهم: نتحقق أولاً أن الكتلة الحالية لا تحتوي على terminator
-                //      إذا كان جسم الدالة ينتهي بـ return، فإن buildReturnStatement
-                //      قد نفّذ الجمل المؤجلة بالفعل وأضاف RET. إضافة كود آخر بعد
-                //      RET يتسبب في خطأ LLVM: "Terminator in middle of basic block"
-                // (EN) Execute remaining deferred statements (for normal function end without return)
-                //      Important: first check that current block doesn't have a terminator.
-                //      If function body ends with return, buildReturnStatement already
-                //      executed deferred statements and emitted RET. Adding code after
-                //      RET causes LLVM error: "Terminator in middle of basic block"
-                // ================================================================
-                bool blockAlreadyTerminated = false;
-                if (currentBlock_ && !currentBlock_->instructions.empty())
-                {
-                    auto lastOp = currentBlock_->instructions.back().opcode;
-                    blockAlreadyTerminated = (lastOp == SIROpcode::RET ||
-                                              lastOp == SIROpcode::RET_VOID ||
-                                              lastOp == SIROpcode::BR ||
-                                              lastOp == SIROpcode::BR_COND ||
-                                              lastOp == SIROpcode::CORO_RETURN);
-                }
-
-                if (!blockAlreadyTerminated && !currentDeferStackReg_.empty())
-                {
-                    emitRunDeferredClosures();
-                    emitPopFunctionCleanupHandler();
-                }
-
-                if (!blockAlreadyTerminated && currentDeferStackReg_.empty() && !deferredStatements_.empty())
-                {
-                    for (auto it = deferredStatements_.rbegin(); it != deferredStatements_.rend(); ++it)
-                    {
-                        if (*it)
-                        {
-                            buildStatement(*it);
-                        }
-                    }
-                }
+                emitDeferFrameEnd(deferFrame, bodyContinuationBlock);
 
                 // (AR) استعادة مكدس التأجيل السابق (للدوال المتداخلة)
                 // (EN) Restore previous defer stack (for nested functions)
@@ -1594,6 +1505,199 @@ namespace Sad
                 // (AR) إضافة المتغير العام للوحدة (sir_module.h:591 - addGlobalVariable)
                 // (EN) Add global variable to module
                 module_->addGlobalVariable(sirGlobal);
+            }
+
+            // ══════════════════════════════════════════════════════════════
+            // (AR) 🔑 إصدارُ إطارِ التأجيلِ — معينٌ واحدٌ يُناديه مسارا البناء.
+            //      الدالّةُ المتداخلةُ تُبنى بمسارَين: بلا التقاطاتٍ عبر `buildFunction`،
+            //      ومعها عبر بناءِ إغلاقٍ يدويٍّ في `statement_main.cpp`. وكانت هذه الآلةُ
+            //      في الأوّلِ وحدَه، فـ`أجّل` داخلَ دالّةٍ ذاتِ التقاطاتٍ يُسقَط **صامتًا**:
+            //      لا تعليمةَ في الـIR ولا تشخيص. مقيسٌ ٢٠٢٦-٠٨-٢٠: الدالّةُ نفسُها تُنفِّذ
+            //      مؤجَّلَها في المستوى الأعلى وتُسقِطه داخلَ `أطلق`، لأنّ العامَّ يصير
+            //      محلّيًّا مُلتقَطًا للإغلاقِ الخارجيّ فتتبدّل الشعبة.
+            //      ولذلك انتُزِعت هنا بدل نسخِها: نسخةٌ ثانيةٌ تبدأ ناقصةً ولا حارسَ لها.
+            // (EN) 🔑 Defer-frame emission — one source called by both build paths.
+            //      A nested function is built two ways: without captures via buildFunction,
+            //      with captures via the hand-rolled closure build in statement_main.cpp.
+            //      This machinery lived only in the first, so `defer` inside a capturing
+            //      function was dropped SILENTLY — no instruction in the IR, no diagnostic.
+            //      Measured 2026-08-20: the same function runs its defer at top level and
+            //      drops it inside a spawn block, because the global becomes a captured
+            //      local of the outer closure and the branch flips.
+            //      Extracted rather than copied: a second copy starts incomplete, unguarded.
+            // ══════════════════════════════════════════════════════════════
+            SIRBuilder::DeferFrame SIRBuilder::emitDeferFrameBegin(const Sad::AST::Statement *body)
+            {
+                const bool needsDeferMachinery =
+                    freestandingMode_ ? stmtNeedsDeferMachinery(body) : true;
+
+                std::shared_ptr<SIRBasicBlock> functionCleanupBlock;
+
+                if (needsDeferMachinery)
+                {
+                currentDeferStackReg_ = std::string("%") + kSlotNamespaceSeparator + "defer_stack" + kSlotNamespaceSeparator + std::to_string(nextLabel_++);
+                currentDeferExecutedFlagReg_ = std::string("%") + kSlotNamespaceSeparator + "defer_done" + kSlotNamespaceSeparator + std::to_string(nextLabel_++);
+                currentFunctionCleanupHandlerActive_ = true;
+
+                {
+                    SIRInstruction newArrInst;
+                    newArrInst.opcode = SIROpcode::ARRAY_NEW;
+                    newArrInst.result = SIROperand::Register(currentDeferStackReg_, SadTypeKind::Array);
+                    newArrInst.operands.push_back(SIROperand::ConstantI64(8));
+                    newArrInst.operands.push_back(SIROperand::ConstantI64(0));
+                    newArrInst.comment = "runtime defer stack for function";
+                    currentBlock_->addInstruction(newArrInst);
+                }
+
+                {
+                    SIRInstruction allocDoneInst;
+                    allocDoneInst.opcode = SIROpcode::ALLOC;
+                    allocDoneInst.result = SIROperand::Register(currentDeferExecutedFlagReg_, SadTypeKind::Integer);
+                    allocDoneInst.comment = "alloca defer executed flag";
+                    currentBlock_->addInstruction(allocDoneInst);
+
+                    SIRInstruction initDoneInst;
+                    initDoneInst.opcode = SIROpcode::STORE;
+                    initDoneInst.operands.push_back(SIROperand::ConstantI64(0));
+                    initDoneInst.operands.push_back(SIROperand::Register(currentDeferExecutedFlagReg_, SadTypeKind::Integer));
+                    initDoneInst.comment = "init defer executed flag = 0";
+                    currentBlock_->addInstruction(initDoneInst);
+                }
+
+                std::string functionCleanupJmpbufReg = std::string("%") + kSlotNamespaceSeparator + "defer_jmpbuf" + kSlotNamespaceSeparator + std::to_string(nextLabel_++);
+                std::string functionCleanupSetjmpReg = newTempRegister();
+                std::string functionCleanupCmpReg = newTempRegister();
+                std::string functionBodyLabel = newLabel("function_body");
+                std::string functionCleanupLabel = newLabel("function_defer_cleanup");
+                auto functionBodyBlock = createBasicBlock(functionBodyLabel);
+                functionCleanupBlock = createBasicBlock(functionCleanupLabel);
+                currentFunction_->addBasicBlock(functionBodyBlock);
+                currentFunction_->addBasicBlock(functionCleanupBlock);
+
+                {
+                    SIRInstruction allocJmpbufInst;
+                    allocJmpbufInst.opcode = SIROpcode::CALL;
+                    allocJmpbufInst.result = SIROperand::Register(functionCleanupJmpbufReg, SadTypeKind::Pointer);
+                    allocJmpbufInst.operands.push_back(SIROperand::Function("__sad_alloc_jmpbuf"));
+                    allocJmpbufInst.comment = "allocate function-level defer cleanup jmpbuf";
+                    currentBlock_->addInstruction(allocJmpbufInst);
+
+                    SIRInstruction pushHandlerInst;
+                    pushHandlerInst.opcode = SIROpcode::CALL;
+                    pushHandlerInst.operands.push_back(SIROperand::Function("__sad_push_handler"));
+                    pushHandlerInst.operands.push_back(SIROperand::Register(functionCleanupJmpbufReg, SadTypeKind::Pointer));
+                    pushHandlerInst.comment = "push function-level defer cleanup handler";
+                    currentBlock_->addInstruction(pushHandlerInst);
+
+                    SIRInstruction setjmpInst;
+                    setjmpInst.opcode = SIROpcode::CALL;
+                    setjmpInst.result = SIROperand::Register(functionCleanupSetjmpReg, SadTypeKind::Integer);
+                    setjmpInst.operands.push_back(SIROperand::Function("__sad_setjmp"));
+                    setjmpInst.operands.push_back(SIROperand::Register(functionCleanupJmpbufReg, SadTypeKind::Pointer));
+                    setjmpInst.comment = "setjmp for function-level defer cleanup";
+                    currentBlock_->addInstruction(setjmpInst);
+
+                    SIRInstruction cmpInst = SIRInstruction::Binary(
+                        SIROpcode::NE,
+                        SIROperand::Register(functionCleanupCmpReg, SadTypeKind::Boolean),
+                        SIROperand::Register(functionCleanupSetjmpReg, SadTypeKind::Integer),
+                        SIROperand::ConstantI64(0));
+                    cmpInst.comment = "function-level defer cleanup: did exception escape?";
+                    currentBlock_->addInstruction(cmpInst);
+
+                    currentBlock_->addInstruction(SIRInstruction::BranchCond(
+                        SIROperand::Register(functionCleanupCmpReg, SadTypeKind::Boolean),
+                        SIROperand::Label(functionCleanupLabel),
+                        SIROperand::Label(functionBodyLabel)));
+                }
+
+                currentBlock_ = functionBodyBlock;
+                }
+                else
+                {
+                    // (AR) لا «أجّل» في الجسم — لا مكدّس تأجيل ولا إطار setjmp:
+                    //      صفرُ تخصيصات وصفرُ رموز libc لهذه الدالّة.
+                    // (EN) No defer in body — no defer stack, no setjmp frame:
+                    //      zero allocations and zero libc symbols for this function.
+                    currentDeferStackReg_.clear();
+                    currentDeferExecutedFlagReg_.clear();
+                    currentFunctionCleanupHandlerActive_ = false;
+                }
+                DeferFrame frame;
+                frame.active = needsDeferMachinery;
+                frame.cleanupBlock = functionCleanupBlock;
+                return frame;
+            }
+
+            // (AR) خاتمةُ إطارِ التأجيل — انظر التعليقَ عند `emitDeferFrameBegin`.
+            // (EN) Defer-frame epilogue — see the comment at emitDeferFrameBegin.
+            void SIRBuilder::emitDeferFrameEnd(const DeferFrame &frame,
+                                               std::shared_ptr<SIRBasicBlock> bodyContinuationBlock)
+            {
+
+                // (AR) كتلة التنظيف تُبنى فقط مع الآلة (لا آلة ⇒ لا كتلة تنظيف)
+                // (EN) Cleanup block only exists when the machinery was emitted
+                if (frame.active && frame.cleanupBlock)
+                {
+                currentBlock_ = frame.cleanupBlock;
+                emitPopFunctionCleanupHandler();
+                emitRunDeferredClosures();
+                {
+                    SIRInstruction rethrowInst;
+                    rethrowInst.opcode = SIROpcode::CALL;
+                    rethrowInst.operands.push_back(SIROperand::Function("__sad_raise_current"));
+                    rethrowInst.comment = "run defer then rethrow escaping function exception";
+                    currentBlock_->addInstruction(rethrowInst);
+                }
+                {
+                    std::string deadLabel = newLabel("function_cleanup_dead");
+                    auto deadBlock = createBasicBlock(deadLabel);
+                    currentFunction_->addBasicBlock(deadBlock);
+                    currentBlock_ = deadBlock;
+                }
+                }
+
+                currentBlock_ = bodyContinuationBlock;
+
+                // ================================================================
+                // (AR) تنفيذ الجمل المؤجلة المتبقية (لنهاية الدالة الطبيعية بدون return)
+                //      مهم: نتحقق أولاً أن الكتلة الحالية لا تحتوي على terminator
+                //      إذا كان جسم الدالة ينتهي بـ return، فإن buildReturnStatement
+                //      قد نفّذ الجمل المؤجلة بالفعل وأضاف RET. إضافة كود آخر بعد
+                //      RET يتسبب في خطأ LLVM: "Terminator in middle of basic block"
+                // (EN) Execute remaining deferred statements (for normal function end without return)
+                //      Important: first check that current block doesn't have a terminator.
+                //      If function body ends with return, buildReturnStatement already
+                //      executed deferred statements and emitted RET. Adding code after
+                //      RET causes LLVM error: "Terminator in middle of basic block"
+                // ================================================================
+                bool blockAlreadyTerminated = false;
+                if (currentBlock_ && !currentBlock_->instructions.empty())
+                {
+                    auto lastOp = currentBlock_->instructions.back().opcode;
+                    blockAlreadyTerminated = (lastOp == SIROpcode::RET ||
+                                              lastOp == SIROpcode::RET_VOID ||
+                                              lastOp == SIROpcode::BR ||
+                                              lastOp == SIROpcode::BR_COND ||
+                                              lastOp == SIROpcode::CORO_RETURN);
+                }
+
+                if (!blockAlreadyTerminated && !currentDeferStackReg_.empty())
+                {
+                    emitRunDeferredClosures();
+                    emitPopFunctionCleanupHandler();
+                }
+
+                if (!blockAlreadyTerminated && currentDeferStackReg_.empty() && !deferredStatements_.empty())
+                {
+                    for (auto it = deferredStatements_.rbegin(); it != deferredStatements_.rend(); ++it)
+                    {
+                        if (*it)
+                        {
+                            buildStatement(*it);
+                        }
+                    }
+                }
             }
 
         } // namespace SIR

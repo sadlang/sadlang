@@ -42,6 +42,96 @@ namespace Sad
             //      الكشف والتخطّي (تفاديًا لانحراف سلسلتين نصّيّتين مباشرتين).
             static const std::string kByteBlobBuiltin = "\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa\xd8\xa7\xd8\xaa"; // «بايتات»
 
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) صنفُ عنصرٍ من شكلِه في الشجرة — يقينًا أو لا شيء.
+            //      تُرجِع Void لكلِّ ما لا يُصنَّف بيقين (نداءٌ، متغيّرٌ، عمليّةٌ ثنائيّة…)،
+            //      إذ نوعُها لا يُعرَف إلّا بالبناء، والادّعاءُ هنا كذبٌ يسري إلى كلِّ
+            //      دالّةٍ تقرأ العامّ.
+            // (EN) Classify an element from its AST shape — with certainty or not at all.
+            //      Returns Void for anything not certain (calls, variables, binary ops…):
+            //      their type is only known once built, and guessing here would propagate
+            //      a falsehood into every function that reads the global.
+            // ════════════════════════════════════════════════════════════════════
+            static SadTypeKind classifyLiteralElementKind(const Sad::AST::Expression *element)
+            {
+                if (!element)
+                    return SadTypeKind::Void;
+
+                if (auto *literal = dynamic_cast<const Sad::AST::LiteralExpr *>(element))
+                {
+                    switch (literal->token.getType())
+                    {
+                    case Lexer::TokenType::STRING_LITERAL:
+                        return SadTypeKind::String;
+                    case Lexer::TokenType::NUMBER_INTEGER:
+                        return SadTypeKind::Integer;
+                    case Lexer::TokenType::NUMBER_DOUBLE:
+                        return SadTypeKind::Float;
+                    case Lexer::TokenType::LITERAL_TRUE:
+                    case Lexer::TokenType::LITERAL_FALSE:
+                        return SadTypeKind::Boolean;
+                    default:
+                        return SadTypeKind::Void;
+                    }
+                }
+                if (dynamic_cast<const Sad::AST::ArrayExpr *>(element))
+                    return SadTypeKind::Array;
+                if (dynamic_cast<const Sad::AST::MapExpr *>(element))
+                    return SadTypeKind::Map;
+
+                return SadTypeKind::Void;
+            }
+
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) نوعُ عنصرِ مصفوفةٍ حرفيّةٍ عامّة — نظيرُ القرارِ في باني المصفوفة
+            //      (expression_collections.cpp) على مستوى الشجرة، لأنّ أجسامَ الدوالِّ
+            //      تُبنى قبلَ جملِ المستوى الأعلى فلا تجد سواه.
+            //      متجانسةٌ ⇒ نوعُها · مختلطةٌ كلُّ عناصرِها قابلةُ التعليب ⇒ Any (وهي
+            //      تُبنى موسومةً فعلًا) · عنصرٌ واحدٌ غيرُ مصنَّفٍ ⇒ Void للمصفوفةِ كلِّها.
+            // (EN) Element kind of a global array literal — the AST-level twin of the
+            //      decision in the array builder (expression_collections.cpp), because
+            //      function bodies are built before top-level statements and see nothing
+            //      else. Homogeneous ⇒ its kind · heterogeneous with every element boxable
+            //      ⇒ Any (which is how it is actually built, tagged) · a single unclassified
+            //      element ⇒ Void for the whole array.
+            // ════════════════════════════════════════════════════════════════════
+            static SadTypeKind inferArrayLiteralElementKind(const Sad::AST::ArrayExpr &arrayExpr)
+            {
+                if (arrayExpr.elements.empty())
+                    return SadTypeKind::Void;
+
+                // (AR) القابلُ للتعليب: يُخزَّن في خانةِ ثمانيةِ بايتاتٍ ويحمل وسمَه — نصٌّ
+                //      ومصفوفةٌ وخريطةٌ مؤشّراتٌ، والباقي قيمٌ. نظيرُ isBoxableScalar هناك.
+                // (EN) Boxable: fits an 8-byte slot and carries its tag — string/array/map
+                //      are pointers, the rest are values. Twin of isBoxableScalar there.
+                auto isBoxable = [](SadTypeKind kind) {
+                    return kind == SadTypeKind::Integer || kind == SadTypeKind::Float ||
+                           kind == SadTypeKind::String || kind == SadTypeKind::Boolean ||
+                           kind == SadTypeKind::Array || kind == SadTypeKind::Map;
+                };
+
+                SadTypeKind firstKind = SadTypeKind::Void;
+                bool homogeneous = true;
+                bool allBoxable = true;
+
+                for (size_t index = 0; index < arrayExpr.elements.size(); ++index)
+                {
+                    const SadTypeKind kind = classifyLiteralElementKind(arrayExpr.elements[index].get());
+                    if (kind == SadTypeKind::Void)
+                        return SadTypeKind::Void; // (AR) عنصرٌ مجهولٌ ⇒ لا دعوى
+                    if (index == 0)
+                        firstKind = kind;
+                    else if (kind != firstKind)
+                        homogeneous = false;
+                    if (!isBoxable(kind))
+                        allBoxable = false;
+                }
+
+                if (homogeneous)
+                    return firstKind;
+                return allBoxable ? SadTypeKind::Any : SadTypeKind::Void;
+            }
+
             // ============================================================================
             // المنشئ / Constructor
             // ============================================================================
@@ -653,34 +743,42 @@ namespace Sad
                         globalVarInfo.isMutable = !varDecl->isConst;
                         globalVarInfo.scopeLevel = 0;
 
-                        // (AR) استنتاج نوع عنصر المصفوفة من ArrayExpr لدعم foreach
-                        //      مثال: متغير الفواكه = ["تفاح"، "موز"] → elementType = STRING
-                        //      هذا يُمكّن ARRAY_GET من استخدام النوع الصحيح عند التكرار
-                        // (EN) Infer array element type from ArrayExpr for foreach support
+                        // ════════════════════════════════════════════════════════════
+                        // (AR) نوعُ عنصرِ المصفوفةِ العامّة. وهذه ليست رفاهيّةً لـforeach
+                        //      وحدَه: أجسامُ الدوالِّ تُبنى **قبلَ** جملِ المستوى الأعلى،
+                        //      فما يُسجَّل هنا هو كلُّ ما تعرفه دالّةٌ عن عامٍّ تقرؤه.
+                        //      وكان الاستنتاجُ محصورًا في عنصرٍ أوّلَ من صنفِ LiteralExpr
+                        //      نصًّا أو عشريًّا أو منطقيًّا، فالخريطةُ والمصفوفةُ المتداخلةُ
+                        //      تخرجان Void ⇒ يتنازلُ `resultType` في فهرسةِ المصفوفات إلى
+                        //      Integer ⇒ `خرائط[ف]` «رقمٌ» داخلَ الدالّةِ و«خريطةٌ» خارجَها،
+                        //      وتُرفَضُ `خرائط[ف]["ك"]` بـSEM011 ثمّ ينهار التوليد.
+                        //      (مقيسًا بـ`نوع()`: متداخلة⇒رقم، خرائط⇒رقم، عشريّات⇒عشري.)
+                        //
+                        //      🔑 والرقعةُ لا تُضيف رأيًا ثالثًا: تُعيد القرارَ **الثلاثيَّ
+                        //      نفسَه** الذي يتّخذه باني المصفوفةِ الحرفيّة في
+                        //      expression_collections.cpp — متجانسةٌ ⇒ نوعُها، ومختلطةٌ
+                        //      قابلةُ التعليب ⇒ Any (وهو ما تُبنى به فعلًا فتُقرأ موسومةً)،
+                        //      وما لا يُصنَّف يقينًا يبقى Void كما كان. فتتّفق النسختان.
+                        // (EN) Global array element type. Not a foreach nicety: function
+                        //      bodies are built BEFORE top-level statements, so whatever is
+                        //      recorded here is ALL a function knows about a global it reads.
+                        //      The old inference only fired for a LiteralExpr first element
+                        //      that was a string, double or bool, so maps and nested arrays
+                        //      came out Void ⇒ array indexing falls back to Integer ⇒
+                        //      `maps[i]` is «رقم» inside a function and «خريطة» outside, and
+                        //      `maps[i]["k"]` is rejected with SEM011, then codegen collapses.
+                        //      🔑 This does not add a third opinion: it reproduces the SAME
+                        //      three-way decision the array-literal builder makes — homogeneous
+                        //      ⇒ its kind, boxable-heterogeneous ⇒ Any (which is how the array
+                        //      is actually built, hence read tagged), anything not classified
+                        //      with certainty stays Void. The two copies now agree.
+                        // ════════════════════════════════════════════════════════════
                         if (varDecl->initializer)
                         {
                             if (auto *arrayExpr = dynamic_cast<Sad::AST::ArrayExpr *>(varDecl->initializer.get()))
                             {
-                                if (!arrayExpr->elements.empty())
-                                {
-                                    if (auto *litElem = dynamic_cast<Sad::AST::LiteralExpr *>(arrayExpr->elements[0].get()))
-                                    {
-                                        auto elemTokenType = litElem->token.getType();
-                                        if (elemTokenType == Lexer::TokenType::STRING_LITERAL)
-                                        {
-                                            globalVarInfo.elementType = SadTypeKind::String;
-                                        }
-                                        else if (elemTokenType == Lexer::TokenType::NUMBER_DOUBLE)
-                                        {
-                                            globalVarInfo.elementType = SadTypeKind::Float;
-                                        }
-                                        else if (elemTokenType == Lexer::TokenType::LITERAL_TRUE ||
-                                                 elemTokenType == Lexer::TokenType::LITERAL_FALSE)
-                                        {
-                                            globalVarInfo.elementType = SadTypeKind::Boolean;
-                                        }
-                                    }
-                                }
+                                globalVarInfo.elementType =
+                                    inferArrayLiteralElementKind(*arrayExpr);
                             }
                         }
 

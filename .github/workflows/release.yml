@@ -81,6 +81,7 @@ jobs:
     steps:
       - name: "استنساخ المصدر / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
         with:
           submodules: recursive
 
@@ -96,6 +97,7 @@ jobs:
 
       - name: "إعداد CMake / Setup CMake"
         uses: lukka/get-cmake@latest
+        timeout-minutes: 15
         with:
           cmakeVersion: ${{ env.CMAKE_VERSION }}
 
@@ -193,6 +195,7 @@ jobs:
 
       - name: "رفع الحزمة / Upload Artifact"
         uses: actions/upload-artifact@v4
+        timeout-minutes: 15
         with:
           name: "sad-interpreter-${{ matrix.os }}-${{ matrix.arch }}"
           path: sad-v${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.${{ matrix.archive_ext }}
@@ -229,6 +232,7 @@ jobs:
     steps:
       - name: "استنساخ المصدر / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
         with:
           submodules: recursive
 
@@ -302,6 +306,7 @@ jobs:
       - name: "بناء المترجم / Build Compiler (Windows)"
         if: matrix.os == 'windows'
         continue-on-error: true
+        timeout-minutes: 30
         shell: pwsh
         run: |
           $maxAttempts = 3  # first try + two retries
@@ -316,7 +321,14 @@ jobs:
               pwsh -NoProfile -File scripts/ci/net_retry.ps1 `
                 -Uri $url -OutFile $installer -TimeoutSec 900
               if ($LASTEXITCODE -ne 0) { throw "تعذّر تنزيل مثبّت LLVM" }
-              Start-Process -FilePath $installer -ArgumentList "/S" -Wait
+              # (AR) نظيرُ ci.yml: الانتظارُ كما قِيس، والحدُّ على الخطوةِ،
+              #      و`-PassThru` تجعل رمزَ الخروجِ مقروءًا ومُحاكَمًا.
+              # (EN) Same as ci.yml: measured wait, step-level bound, judged code.
+              $عملية = Start-Process -FilePath $installer `
+                -ArgumentList "/S" -Wait -PassThru
+              if ($عملية.ExitCode -ne 0) {
+                throw "تعذّر تثبيت LLVM (رمز $($عملية.ExitCode))"
+              }
 
               $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
               if ($null -eq $llvmConfig) {
@@ -427,6 +439,7 @@ jobs:
 
       - name: "رفع حزمة المترجم / Upload Compiler"
         uses: actions/upload-artifact@v4
+        timeout-minutes: 15
         with:
           name: "sadc-${{ matrix.os }}-${{ matrix.arch }}"
           path: sadc-v${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.${{ matrix.archive_ext }}
@@ -435,6 +448,7 @@ jobs:
 
       - name: "رفع الحزمة الكاملة / Upload Full"
         uses: actions/upload-artifact@v4
+        timeout-minutes: 15
         with:
           name: "sad-full-${{ matrix.os }}-${{ matrix.arch }}"
           path: sad-full-v${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.arch }}.${{ matrix.archive_ext }}
@@ -456,6 +470,7 @@ jobs:
     steps:
       - name: "استنساخ المصدر / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
 
       - name: "تحديد الإصدار / Determine Version"
         id: version
@@ -470,6 +485,7 @@ jobs:
 
       - name: "تحميل جميع الحزم / Download All Artifacts"
         uses: actions/download-artifact@v4
+        timeout-minutes: 15
         with:
           path: release-artifacts/
 
@@ -550,6 +566,7 @@ jobs:
 
       - name: "نشر الإصدار / Create GitHub Release"
         uses: softprops/action-gh-release@v2
+        timeout-minutes: 15
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: "لغة ص v${{ steps.version.outputs.version }}"
@@ -575,6 +592,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        timeout-minutes: 15
         with:
           ref: main
 

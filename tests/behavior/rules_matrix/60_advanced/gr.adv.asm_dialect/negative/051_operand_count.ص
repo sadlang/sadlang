@@ -1,6 +1,7 @@
 # @rule: gr.adv.asm_dialect
 # @description: عدد معاملات أقلّ من المعجم (انقل يتطلّب معاملين) يُرفَض بـSEM026
 # @expect_error: SEM026
+# @arch: x86    # «المركم» اسم سجلّ x86 — على AArch64 يسبقه SEM033
 
 تجميع
     انقل المركم

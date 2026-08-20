@@ -41,9 +41,11 @@ jobs:
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
 
       - name: "📦 تهيئة Node.js / Setup Node.js"
         uses: actions/setup-node@v4
+        timeout-minutes: 15
         with:
           node-version: '20'
           cache: 'npm'
@@ -69,6 +71,7 @@ jobs:
 
       - name: "💾 رفع VSIX / Upload VSIX Artifact"
         uses: actions/upload-artifact@v4
+        timeout-minutes: 15
         with:
           name: sad-language-vsix
           path: tools/vscode-extension/*.vsix
@@ -88,9 +91,11 @@ jobs:
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
 
       - name: "📦 تهيئة Node.js / Setup Node.js"
         uses: actions/setup-node@v4
+        timeout-minutes: 15
         with:
           node-version: '20'
           cache: 'npm'

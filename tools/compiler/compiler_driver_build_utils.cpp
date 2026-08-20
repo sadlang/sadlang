@@ -715,7 +715,7 @@ namespace sad
             for (const char *comp : {"cc", "gcc", "clang"})
             {
                 std::string cmd = std::string("which ") + comp + " > /dev/null 2>&1";
-                if (std::system(cmd.c_str()) == 0)
+                if (sad::utf8::run_command(cmd) == 0)
                 {
                     if (options_.verbose)
                     {
@@ -794,9 +794,9 @@ namespace sad
             }
 
 #ifdef _WIN32
-            int result = std::system(("\"" + command + "\"").c_str());
+            int result = sad::utf8::run_command("\"" + command + "\"");
 #else
-            int result = std::system(command.c_str());
+            int result = sad::utf8::run_command(command);
 #endif
 
             return result == 0;
@@ -896,9 +896,16 @@ namespace sad
             return temp_obj.string();
         }
 
+#endif // HAS_EMBEDDED_LLD
+
         // ────────────────────────────────────────────────────────────────────────
         // (AR) البحث عن مسارات مكتبات MSVC و Windows SDK
-        // (EN) Find MSVC and Windows SDK library paths for linking
+        // 🔑 خارجَ حارسِ LLD: ينادي هذه الدالّةَ مسارُ الربطِ بمترجمِ C تحتَ
+        //    `_WIN32` وحدَه، وبقاؤها داخلَ الحارسِ كان يمنع ترجمةَ `sad-build`
+        //    على ويندوزَ كلَّها عند إطفائه (C3861 في compiler_driver_linker.cpp).
+        // (EN) Find MSVC and Windows SDK library paths for linking.
+        // 🔑 Outside the LLD guard: the C-compiler link path calls it under
+        //    _WIN32 alone, and keeping it inside broke the whole Windows build.
         // ────────────────────────────────────────────────────────────────────────
         std::vector<std::string> CompilerDriver::find_msvc_lib_paths()
         {
@@ -928,7 +935,7 @@ namespace sad
             std::string vswhere = "\"C:\\Program Files (x86)\\Microsoft Visual Studio\\Installer\\vswhere.exe\"";
             vswhere += " -latest -property installationPath";
 
-            FILE *pipe = _popen((vswhere + " 2>nul").c_str(), "r");
+            FILE *pipe = sad::utf8::open_pipe_read(vswhere + " 2>nul");
             if (pipe)
             {
                 char buffer[512];
@@ -1024,8 +1031,6 @@ namespace sad
         //   - Linux:   lld::elf::link()  — produces ELF executables
         //   - macOS:   lld::macho::link() — produces Mach-O executables
         // ────────────────────────────────────────────────────────────────────────
-
-#endif // HAS_EMBEDDED_LLD
 
     } // namespace driver
 } // namespace sad

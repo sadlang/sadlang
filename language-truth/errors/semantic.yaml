@@ -424,8 +424,8 @@ errors:
   - mnemonic
   - suggestions
   fix_hint:
-    ar: 'استعمل منمنمة معجميّة من معجم i686 (انقل/اجمع/قارن/اقفز/عطّل_المقاطعات/أوقف …)، أو أضِفها بقرار لغويّ في language-truth/dialects/assembly_mnemonics/i686.yaml.'
-    en: 'Use a mnemonic from the i686 lexicon (انقل/اجمع/قارن/اقفز/عطّل_المقاطعات/أوقف …), or add it by a language decision in language-truth/dialects/assembly_mnemonics/i686.yaml.'
+    ar: 'استعمل منمنمة من معجم معماريّة الهدف (انقل/اجمع/قارن/اقفز/عطّل_المقاطعات/أوقف محمولة على المعماريّات كلّها)، أو أضِفها بقرار لغويّ في language-truth/dialects/assembly_mnemonics/<المعماريّة>.yaml. وقد تكون المنمنمة معجميّة على معماريّة أخرى ولا نظير لها هنا — مدّ_الإشارة_للبيانات وحمّل_سجل_المهمة وبادئة كرّر لا وجود لها في AArch64.'
+    en: 'Use a mnemonic from the target architecture''s lexicon (انقل/اجمع/قارن/اقفز/عطّل_المقاطعات/أوقف are portable across all architectures), or add it by a language decision in language-truth/dialects/assembly_mnemonics/<arch>.yaml. The mnemonic may exist on another architecture and have no counterpart here — مدّ_الإشارة_للبيانات, حمّل_سجل_المهمة and the كرّر prefix do not exist on AArch64.'
   detailed:
     ar: كتلة «تجميع … نهاية» تفحص كلّ منمنمة مقابل معجم المنمنمات العربيّ المولَّد من مصدر الحقيقة. منمنمة غير معجميّة تُرفَض هنا بخطأ كتالوج (مع أقرب البدائل) بدل تمريرها صامتةً إلى الخلفيّة — وهو تشخيص يستحيل مع سلاسل الأسمبلي الخام المعتمة.
     en: An "تجميع … نهاية" block validates every mnemonic against the Arabic mnemonic lexicon generated from the SoT. A non-lexicon mnemonic is rejected here with a catalog error (plus nearest suggestions) instead of being passed opaquely to the backend — a diagnostic impossible with raw asm strings.
@@ -761,3 +761,21 @@ errors:
   detailed:
     ar: 'صياغةُ الخلفيّةِ للنداءِ الآمنِ تفحص المستقبِلَ ثمّ تُعيد بناءَه في فرعِ النداء، فتقرؤه **مرّتَين**. وذلك سليمٌ لقراءةِ متغيّرٍ أو «هذا» أو عضوٍ منهما — لا أثرَ جانبيَّ لها — وغيرُ سليمٍ لمستقبِلٍ هو نداءٌ أو إسناد: يقع أثرُه مرّتَين. 🔑 والرفضُ هنا أصدقُ من البناء: أثرٌ جانبيٌّ مضاعَفٌ **عطبٌ لا يُرى في مخرَجٍ صحيح** — يعطي البرنامجُ الجوابَ المتوقَّعَ ويكتب في السجلِّ سطرَين أو يزيد عدّادًا مرّتَين، فلا بذرةَ تُخفِق ولا مستعمِلَ يشكّ. وهو الصنفُ نفسُه الذي يُحذِّر منه هذا الكتالوجُ في SEM041: تشخيصٌ صادقُ الرفضِ خيرٌ من قبولٍ صامتٍ يكذب. ⚠️ وهذا حدُّ **صياغةٍ** لا حدُّ لغة: يُرفَع يومَ تُخزَّن نتيجةُ المستقبِلِ في سجلٍّ يُعاد استعمالُه في الفرعَين بدل إعادةِ بنائِه. والمفسّرُ لا يحمل هذا الحدَّ أصلًا — يُقيّم المستقبِلَ مرّةً واحدةً — فالحدُّ في المترجِّمِ وحدَه، وهو تباعُدٌ **مُعلَنٌ** لا مسكوتٌ عنه.'
     en: 'The backend lowering for a safe call tests the receiver and then rebuilds it inside the call branch, reading it TWICE. That is sound for a variable, «this», or a member of them (no side effects) and unsound for a call or assignment receiver, whose effect would happen twice. Rejecting is more honest than building: a duplicated side effect is a defect NO correct output reveals — the program returns the expected value while writing two log lines or incrementing a counter twice, so no seed fails and no user suspects. This is a LOWERING limit, not a language limit: it is retired the day the receiver is materialised into a register reused by both branches. The interpreter does not carry this limit (it evaluates the receiver once), so the divergence is DECLARED, not silent.'
+- code: SEM_ASM_ARCH_UNSUPPORTED
+  id: SEM044
+  category: semantic
+  title:
+    ar: لهجة التجميع لا معجم لها على معماريّة الهدف
+    en: assembly dialect has no lexicon for the target architecture
+  brief:
+    ar: 'كتلة «تجميع … نهاية» على هدف معماريّته «{arch}» ولا معجم منمنمات لها — المعماريّات المدعومة: {supported}'
+    en: 'An "تجميع … نهاية" block targets architecture "{arch}", which has no mnemonic lexicon — supported: {supported}'
+  placeholders:
+  - arch
+  - supported
+  fix_hint:
+    ar: 'صرّف لهدف من {supported}، أو استبدل بالكتلة مدمجات ص الأصيلة (فهي مُخفَّضة لكلّ الأهداف)، أو أضِف معجم المعماريّة في language-truth/dialects/assembly_mnemonics/{arch}.yaml وأدرجها في architectures بـassembly.yaml.'
+    en: 'Compile for one of {supported}, or replace the block with native Sad builtins (they lower for every target), or add language-truth/dialects/assembly_mnemonics/{arch}.yaml and list it under architectures in assembly.yaml.'
+  detailed:
+    ar: '🔑 هذا الرمز وُلد من عطب مقيس (١٩ آب ٢٠٢٦): اللهجة كانت تُعلن «architectures: [i686]» بينما المترجّم يخفض كتلة «تجميع» إلى منمنمات i686 **لأيّ هدف** بلا بوّابة معماريّة واحدة — صفرُ ذكرٍ للمعماريّة في خافض الكتلة كلّه. فعلى macos-14-arm64 كانت ثمانية اختبارات موجبة تموت في المُجمِّع بـ«unrecognized instruction mnemonic» على «cli» و«ltr w9» و«lea 8(%ebx), %eax»، بينما تمرّ الاثنا عشر اختبارًا السالبة **بحقّ** لأنّ مرساة كلٍّ منها رمزُ خطأ دلاليّ يسبق التوليد. أي أنّ الأخضر كان يقيس الطبقة الدلاليّة وحدها والأحمر يأتي من طبقة لم يحرسها أحد. والرفض هنا أصدق من الخفض: منمنمة معماريّة تُخفَض لمعماريّة أخرى إمّا يرفضها المُجمِّع — وهو المخرج الرحيم — أو **يقبلها بدلالة أخرى**، وهو كودٌ خاطئ صامت.'
+    en: 'This code was born from a measured defect (2026-08-19): the dialect declared «architectures: [i686]» while the compiler lowered «تجميع» blocks to i686 mnemonics for ANY target, with not a single architecture reference in the whole block lowering. On macos-14-arm64 eight positive tests died in the assembler with "unrecognized instruction mnemonic" on cli, ltr w9 and lea 8(%ebx), %eax, while the twelve negative tests passed LEGITIMATELY because each is anchored to a semantic error code that precedes codegen — green measured only the semantic layer, and red came from a layer no guard covered. Rejecting is more honest than lowering: a mnemonic of one architecture emitted for another is either rejected by the assembler (the merciful outcome) or ACCEPTED WITH A DIFFERENT MEANING, which is silent wrong code.'

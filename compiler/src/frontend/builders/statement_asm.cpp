@@ -38,23 +38,50 @@ namespace Sad
                 // (EN) SOH prefix tells the backend to skip its GCC->LLVM conversion —
                 //      shared constant kRawLlvmAsmMarker in sir_constants.h.
 
-                // (AR) يصيّر معامل سجلّ/عدد إلى نصّ AT&T. العنونة تُعالَج في المستدعي
-                //      (renderMemory) لأنّها تحتاج ربط {متغيّر} ⇒ $N والإبلاغ عن الأخطاء.
-                // (EN) Renders a register/immediate operand to AT&T text. Memory is handled
-                //      by the caller (needs {var}->$N binding and error reporting).
-                std::string renderStaticOperand(const ::Sad::AST::AsmOperand &op)
+                // (AR) يصيّر معامل سجلّ/عدد بنكهة المعماريّة الفاعلة. العنونة تُعالَج في
+                //      المستدعي (renderMemory) لأنّها تحتاج ربط {متغيّر} ⇒ $N والإبلاغ.
+                // 🔑 (AR) البادئتان من المعجم المولَّد لا من حرفيّة: «%eax» و«$5» اصطلاحُ
+                //      AT&T وحدَه؛ وAArch64 يكتب «x0» و«#5». وكانت الحرفيّتان مبثوثتَين
+                //      هنا فيخرج «%x0» و«$5» على arm64 — نصٌّ يرفضه المُجمِّع.
+                // (EN) Prefixes come from the generated lexicon, not from literals: the
+                //      "%reg"/"$imm" pair is AT&T only; AArch64 writes "x0" and "#5".
+                std::string renderStaticOperand(const ::Sad::AST::AsmOperand &op,
+                                                const ::Sad::Dialects::Asm::Syntax &syntax)
                 {
                     using Kind = ::Sad::AST::AsmOperand::Kind;
                     switch (op.kind)
                     {
                     case Kind::Register:
-                        return "%" + op.loweredText;
+                        return std::string(syntax.registerPrefix) + op.loweredText;
                     case Kind::Immediate:
-                        // (AR) ثابت AT&T ‎$imm‎ ⇒ يُهرَّب ‎$$‎ في نصّ LLVM.
-                        return "$$" + op.loweredText;
+                        // (AR) ثابت AT&T ‎$imm‎ ⇒ يُهرَّب ‎$$‎ في نصّ LLVM؛ وAArch64 ‎#imm‎
+                        //      بلا تهريب (‎$‎ وحدها ذات معنى في قالب LLVM).
+                        return std::string(syntax.immediatePrefix) + op.loweredText;
                     default:
                         return std::string();
                     }
+                }
+
+                // (AR) يفكّ قائمة نصّيّة بفاصل المعجم المولَّد (implicitClobbers/operandTail).
+                // (EN) Splits a lexicon list on the generated separator.
+                std::vector<std::string> splitLexiconList(const std::string &list)
+                {
+                    std::vector<std::string> out;
+                    std::string cur;
+                    for (char c : list)
+                    {
+                        if (c == ::Sad::Dialects::Asm::kImplicitClobberSep)
+                        {
+                            if (!cur.empty())
+                                out.push_back(cur);
+                            cur.clear();
+                        }
+                        else
+                            cur += c;
+                    }
+                    if (!cur.empty())
+                        out.push_back(cur);
+                    return out;
                 }
             } // namespace
 
@@ -65,6 +92,17 @@ namespace Sad
 
                 using namespace ::Sad::Dialects::Asm;
                 using Kind = ::Sad::AST::AsmOperand::Kind;
+
+                // 🔑 (AR) نكهة المُجمِّع للمعماريّة الفاعلة — يضبطها سائق المترجم من
+                //      ثالوث الهدف قبل التحليل. وغيابها يعني هدفًا لا معجم له، وقد
+                //      أبلغ المحلّل SEM044 عنه ورجّع كتلةً فارغة؛ فالخروج هنا صمتٌ
+                //      بعد بلاغ لا صمتٌ عن عطب.
+                // (EN) Active architecture flavour, set by the driver from the target
+                //      triple. Absent ⇒ the parser already reported SEM044.
+                const Architecture *arch = activeArchitecture();
+                if (!arch)
+                    return;
+                const Syntax &syntax = arch->syntax;
 
                 // (AR) بلاغ كتالوج ثنائيّ اللغة يُدفَع إلى errors_ ليُفشِل البناء عبر
                 //      hasErrors() (نمط reportDuplicateExportSymbol/SEM024).
@@ -242,7 +280,7 @@ namespace Sad
                     {
                         if (p.kind == Kind::Register)
                         {
-                            base = "%" + p.loweredText;
+                            base = std::string(syntax.registerPrefix) + p.loweredText;
                             ++baseCount;
                         }
                         else if (p.kind == Kind::SadVariable)
@@ -274,7 +312,17 @@ namespace Sad
                         emitAsmError(::Sad::Errors::ErrorCode::SEM_ASM_MEMORY_FORM, {});
                         return false;
                     }
-                    out = (haveDisp ? disp : std::string()) + "(" + base + ")";
+                    // 🔑 (AR) شكل العنونة من النكهة: «8(%rbx)» في AT&T و«[x1, #8]» في
+                    //      AArch64. والإزاحة الصفريّة تُحذَف في الشكل المربّع فيبقى «[x1]».
+                    // (EN) Memory form from the flavour; a zero displacement is dropped
+                    //      in the bracket form.
+                    if (syntax.bracketMemory)
+                        out = "[" + base +
+                              (haveDisp ? (", " + std::string(syntax.immediatePrefix) + disp)
+                                        : std::string()) +
+                              "]";
+                    else
+                        out = (haveDisp ? disp : std::string()) + "(" + base + ")";
                     return true;
                 };
 
@@ -300,7 +348,7 @@ namespace Sad
                         }
                         return out;
                     }
-                    return renderStaticOperand(op);
+                    return renderStaticOperand(op, syntax);
                 };
 
                 for (const auto &item : asmBlock->items)
@@ -353,10 +401,11 @@ namespace Sad
                         continue;
                     }
 
-                    // (AR) معاملات بيانات: تُعكس إلى ترتيب AT&T (مصدر ثمّ وجهة).
-                    if (!item.operands.empty())
+                    // (AR) معاملات بيانات: تُصيَّر ثمّ تُرتَّب بحسب نكهة المعماريّة.
                     {
                         std::vector<std::string> rendered;
+                        bool haveDest = false;
+                        std::size_t destIndex = 0;
                         for (std::size_t i = 0; i < item.operands.size(); ++i)
                         {
                             const char cls = (i < item.operandClasses.size())
@@ -366,15 +415,64 @@ namespace Sad
                             std::string r = operandRef(item.operands[i], cls, item.operandWidth, ok);
                             if (!ok)
                                 asmFailed = true;
+                            if (cls == 'w' && !haveDest)
+                            {
+                                haveDest = true;
+                                destIndex = rendered.size();
+                            }
                             rendered.push_back(r);
                         }
-                        // (AR) وجهة أوّلًا في المصدر العربيّ ⇒ نعكس لصيغة AT&T.
-                        tmpl << " ";
-                        for (std::size_t i = 0; i < rendered.size(); ++i)
+
+                        // 🔑 (AR) الوجهة معامل **مستقلّ** على AArch64: «add x0, x0, x1»
+                        //      لا «add x0, x1». فمنمنمة تقرأ وجهتها تُكرَّر وجهتها هنا،
+                        //      ولا تُكرَّر على x86 حيث الوجهة مصدرٌ ضمنيّ. ولولا هذا كان
+                        //      الخافض يُصدر «add x0, x1» — يرفضها المُجمِّع، أو أسوأ:
+                        //      يقبلها بدلالة أخرى.
+                        // (EN) On AArch64 the destination is an explicit operand; a
+                        //      dest-reading mnemonic repeats it. On x86 it is implicit.
+                        if (syntax.repeatDest && item.readsDest && haveDest)
                         {
-                            if (i)
-                                tmpl << ", ";
-                            tmpl << rendered[rendered.size() - 1 - i];
+                            // (AR) نسخةٌ قبل الإدراج: تمريرُ مرجعٍ إلى عنصرٍ من المتّجه
+                            //      نفسِه يعتمد على ضمانةٍ دقيقةٍ في المعيار، والنسخةُ
+                            //      أرخص من الاعتماد عليها.
+                            const std::string destCopy = rendered[destIndex];
+                            rendered.insert(
+                                rendered.begin() + static_cast<std::ptrdiff_t>(destIndex) + 1,
+                                destCopy);
+                        }
+
+                        // 🔑 (AR) الرأس النصّيّ الثابت — **بعد** تكرار الوجهة لا قبله،
+                        //      لأنّ موضع الوجهة يُحسَب على معاملات ص وحدها. وكتابة
+                        //      سجلّ نظام على AArch64 تكتب المُسجَّل أوّلًا
+                        //      («msr vbar_el1, x0»)، فبلا الرأس لا يعبّر المعجم عنها.
+                        // 🔑 (EN) Insert the fixed head AFTER the dest repetition, since
+                        //      destIndex is computed over the Sad operands alone.
+                        {
+                            const std::vector<std::string> heads =
+                                splitLexiconList(item.operandHead);
+                            rendered.insert(rendered.begin(), heads.begin(), heads.end());
+                        }
+
+                        // (AR) الذيل النصّيّ الثابت من المعجم (msr ⇒ daifset، #2). المولّد
+                        //      يمنعه على نكهة تعكس الترتيب، فلا يقع بعد العكس في موضع خاطئ.
+                        // (EN) Fixed trailing operands from the lexicon; the generator
+                        //      forbids them on a source-first flavour.
+                        for (const auto &tail : splitLexiconList(item.operandTail))
+                            rendered.push_back(tail);
+
+                        if (!rendered.empty())
+                        {
+                            tmpl << " ";
+                            for (std::size_t i = 0; i < rendered.size(); ++i)
+                            {
+                                if (i)
+                                    tmpl << ", ";
+                                // (AR) AT&T يعكس ترتيب ص (وجهة، مصدر ⇒ src, dst)؛
+                                //      وAArch64 يكتبه كما هو.
+                                tmpl << (syntax.sourceFirst
+                                             ? rendered[rendered.size() - 1 - i]
+                                             : rendered[i]);
+                            }
                         }
                     }
                 }

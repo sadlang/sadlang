@@ -147,6 +147,100 @@ namespace Sad
                 }
             }
 
+            // ========================================================================
+            // (AR) إجماعُ مواقعِ النداءِ للدوالِّ الحرّة — نظيرُ applyAgreedMemberParamTypes.
+            //      لا نُعيد بناءَ الترقيةِ (فروعُها كثيرةٌ ومختبَرة)، بل نَنقُضها حيث بُنيت
+            //      على موقعٍ واحدٍ خالفَه غيرُه: تعودُ الخانةُ عامّةً (Any) فتُقرأ موسومةً
+            //      زمنَ التشغيل كما يفعل المفسّرُ (المرجع).
+            //      ويقتصر النقضُ على الأنواعِ «الحادّة» — نصّ/عشريّ/منطقيّ/مصفوفة — التي
+            //      يُفسِد تثبيتُها الخاطئُ القراءةَ. والصحيحُ هو الافتراضيُّ غيرُ المُرقَّى
+            //      فلا يُنقَض هنا كي لا تُعلَّب خاناتٌ لا حاجةَ بها إلى التعليب.
+            //      ولا يُمَسّ معامِلٌ صرّح الكاتبُ نوعَه: التصريحُ عقدٌ لا يُخمَّن فوقه.
+            // (EN) Call-site unanimity for free functions — the counterpart of
+            //      applyAgreedMemberParamTypes. Rather than rebuilding the promotion (whose
+            //      branches are many and well-tested), we revoke it where it rested on a
+            //      single site that other sites contradict: the slot returns to Any and is
+            //      read runtime-tagged, as the interpreter (the reference) does.
+            //      Revocation is limited to the "sharp" kinds — String/Float/Boolean/Array —
+            //      whose wrong pinning corrupts the read. Integer is the unpromoted default
+            //      and is left alone so slots that need no boxing are not boxed. A parameter
+            //      whose type the author declared is never touched.
+            // ========================================================================
+            void TemplateBuilder::applyAgreedFreeParamTypes()
+            {
+                // (AR) نقضُ الربطِ بالصنفِ أوّلًا: خانةٌ اختلفت أصنافُ وسائطِها تفقده.
+                // (EN) Revoke class bindings first: a slot whose sites disagree loses it.
+                for (const auto &[funcName, slots] : scanFreeArgClasses_)
+                {
+                    auto fnIt = b_.functionTable_.find(funcName);
+                    if (fnIt == b_.functionTable_.end())
+                        continue;
+                    auto pctIt = b_.paramClassTypes_.find(funcName);
+                    if (pctIt == b_.paramClassTypes_.end())
+                        continue;
+                    for (const auto &[index, classes] : slots)
+                    {
+                        if (classes.size() < 2 || index >= fnIt->second.parameters.size())
+                            continue;
+                        pctIt->second.erase(fnIt->second.parameters[index].name);
+                    }
+                }
+
+                for (const auto &[funcName, slots] : scanFreeArgKinds_)
+                {
+                    auto fnIt = b_.functionTable_.find(funcName);
+                    if (fnIt == b_.functionTable_.end())
+                        continue;
+                    const Sad::AST::FunctionDecl *decl = fnIt->second.astDecl;
+
+                    for (const auto &[index, kinds] : slots)
+                    {
+                        if (kinds.size() < 2)
+                            continue;
+                        if (index >= fnIt->second.parameters.size())
+                            continue;
+
+                        // (AR) المعامِلُ غيرُ المُصرَّحِ يبلغُ الشجرةَ بـ«مجهول» أو بـ«صنف»
+                        //      واسمِ نوعٍ فارغ — كما هو مقيسٌ في recordMemberParamArgs.
+                        // (EN) An undeclared parameter reaches the AST as Unknown, or as Class
+                        //      with an empty type name — as measured in recordMemberParamArgs.
+                        if (decl && index < decl->parameters.size())
+                        {
+                            const auto &p = decl->parameters[index];
+                            const bool isUndeclared =
+                                p.type == Types::SadTypeKind::Unknown ||
+                                (p.type == Types::SadTypeKind::Class && p.typeName.empty());
+                            if (!isUndeclared)
+                                continue;
+                        }
+
+                        // (AR) و«صحيح» يُنقَض كذلك. كان مستثنًى لأنّه الافتراضيُّ غيرُ
+                        //      المُرقَّى فبدا نقضُه تعليبًا بلا داعٍ — لكنّ القياسَ نقضَ
+                        //      الظنَّ: خانةٌ بقيت «صحيحًا» ووصلَها كائنٌ تُقارَن **مؤشِّرَين
+                        //      عدديًّا**، فتُجيب «مختلفان» حيث يقول المفسّرُ «متساويان»
+                        //      بلا رمزِ خطأٍ ولا رسالة — جوابٌ خاطئٌ صامتٌ يمرّ أخضرَ،
+                        //      وهو أخطرُ من الانهيارِ الذي سبقَ سدُّه.
+                        //      والشرطُ نفسُه يحمي من التعليبِ العابث: لا يُنقَض إلّا ما
+                        //      **اختلفت** مواقعُه فعلًا (kinds.size() >= 2).
+                        // (EN) Integer is revoked too. It was excluded as the unpromoted
+                        //      default — revoking it looked like needless boxing — but the
+                        //      measurement refuted that: a slot left Integer that receives an
+                        //      object compares two POINTERS numerically, answering "different"
+                        //      where the interpreter says "equal", with no error code and no
+                        //      message — a silent wrong answer that passes green, worse than
+                        //      the crash already sealed. The disagreement gate still applies:
+                        //      only slots whose sites actually differ are revoked.
+                        SadTypeKind &slot = fnIt->second.parameters[index].type;
+                        if (slot == SadTypeKind::String || slot == SadTypeKind::Float ||
+                            slot == SadTypeKind::Boolean || slot == SadTypeKind::Array ||
+                            slot == SadTypeKind::Integer)
+                        {
+                            slot = SadTypeKind::Any;
+                        }
+                    }
+                }
+            }
+
             void TemplateBuilder::refineCalledMember(
                 const Sad::AST::Expression *objectExpr,
                 const std::string &methodName,
@@ -533,6 +627,16 @@ namespace Sad
                             {
                                 SadTypeKind argType = inferExprType(call->arguments[i].get());
                                 SadTypeKind &paramType = funcInfo.parameters[i + paramOffset].type;
+
+                                // (AR) تسجيلُ نوعِ الوسيطِ في هذا الموقع — لا يُغيّر شيئًا هنا؛
+                                //      الحكمُ يقع في applyAgreedFreeParamTypes بعد مسحِ المواقع
+                                //      كلِّها، فخانةٌ اختلفت مواقعُها تُترَك على عمومِها.
+                                // (EN) Record this site's argument kind. Nothing changes here;
+                                //      the ruling happens in applyAgreedFreeParamTypes once every
+                                //      site has been scanned, so a slot whose sites disagree is
+                                //      left general.
+                                scanFreeArgKinds_[funcName][i + paramOffset]
+                                    .insert(static_cast<int>(argType));
 
                                 // (AR) [GAP 3b] وسيطٌ متغيّرٌ يحمل مصفوفةً سُجِّل نوعُ عنصرها
                                 //      في المسح المُسبَق عند تصريحه (مختلطٌ قياسيّ ⇒ Any، أو
@@ -962,6 +1066,7 @@ namespace Sad
                             for (size_t i = 0; i < call->arguments.size() && (i + paramOffset) < funcInfo.parameters.size(); i++)
                             {
                                 const auto &arg = call->arguments[i];
+                                std::string argClass;
                                 if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(arg.get()))
                                 {
                                     // (AR) تحقق: هل هذا المتغير كائن مسجل في b_.classInstanceTypes_?
@@ -969,9 +1074,57 @@ namespace Sad
                                     auto ciIt = b_.classInstanceTypes_.find(varExpr->name);
                                     if (ciIt != b_.classInstanceTypes_.end())
                                     {
-                                        b_.paramClassTypes_[funcName][funcInfo.parameters[i + paramOffset].name] = ciIt->second;
+                                        argClass = ciIt->second;
+                                    }
+                                    // ════════════════════════════════════════════════
+                                    // (AR) 🔑 وإلّا فخريطةُ المسحِ نفسِها. `classInstanceTypes_`
+                                    //      خريطةُ **زمنِ البناء**: تُملأ عند بناءِ
+                                    //      `متغير أ = متجه(1)` — أي بعدَ هذا المسحِ كلِّه.
+                                    //      فالبحثُ أعلاه يُخفِق دائمًا للمتغيّراتِ العامّة
+                                    //      و`paramClassTypes_` تبقى فارغةً، فلا يُسجَّل صنفُ
+                                    //      المعامِلِ ولا يجد جسمُ الدالّةِ صنفًا، فتنزل
+                                    //      `القيمة == المتوقع` مقارنةَ **مؤشِّرَين**: جوابٌ
+                                    //      خاطئٌ صامتٌ بلا رمزٍ ولا رسالة.
+                                    //      والمسحُ يملك الجوابَ أصلًا: `scanClassOfVariable_`
+                                    //      تُبنى في `scanCallSitesInStmt` من `جديد` ومن نداءِ
+                                    //      الباني في جملةِ التصريحِ نفسِها.
+                                    //      وهي مسطَّحةٌ بالاسمِ بلا نطاقٍ — قيدٌ مُعلَنٌ عندها،
+                                    //      ونحن نرِثُه هنا ولا نزيده.
+                                    // (EN) Otherwise consult the scan's own map.
+                                    //      `classInstanceTypes_` is the BUILD-time map, filled
+                                    //      when `var a = Vec(1)` is built — after this whole
+                                    //      scan. So the lookup above always missed for globals,
+                                    //      `paramClassTypes_` stayed empty, the parameter's class
+                                    //      was never recorded, the function body found no class,
+                                    //      and `value == expected` lowered to a POINTER compare:
+                                    //      a silent wrong answer with no code and no message.
+                                    //      The scan already knows: `scanClassOfVariable_` is built
+                                    //      in `scanCallSitesInStmt` from `new` and from the
+                                    //      constructor call in the declaration itself.
+                                    //      It is flat by name with no scoping — a limitation
+                                    //      declared at its definition, inherited here, not widened.
+                                    // ════════════════════════════════════════════════
+                                    else
+                                    {
+                                        auto scanIt = scanClassOfVariable_.find(varExpr->name);
+                                        if (scanIt != scanClassOfVariable_.end() && scanIt->second)
+                                        {
+                                            argClass = scanIt->second->name;
+                                        }
+                                    }
+                                    if (!argClass.empty())
+                                    {
+                                        b_.paramClassTypes_[funcName][funcInfo.parameters[i + paramOffset].name] = argClass;
                                     }
                                 }
+                                // (AR) يُسجَّل في كلِّ موقعٍ — ولو لم يكن الوسيطُ كائنًا — كي
+                                //      يَظهر الاختلاف. وتسجيلُ المطابقِ وحدَه يجعل موقعًا واحدًا
+                                //      «إجماعًا» فيبقى الربطُ بالصنفِ ويصيبُه الموقعُ العدديّ.
+                                // (EN) Recorded at EVERY site, non-object args included, so the
+                                //      disagreement is visible. Recording only the matching sites
+                                //      would make one site a "unanimity", the class binding would
+                                //      survive, and the numeric site would hit it.
+                                scanFreeArgClasses_[funcName][i + paramOffset].insert(argClass);
                             }
                         }
                     }
@@ -1850,6 +2003,21 @@ namespace Sad
                 scanClassOfVariable_.clear();
                 b_.paramClassBindings_.clear();
                 scanMemberArgKinds_.clear();
+                // (AR) 🔑 ونظيرتاهما للدوالِّ الحرّة. المسحُ يجري ثلاثةَ أشواط، و
+                //      `inferExprType` يتغيّر بينها عمدًا (وهو ما يقوده
+                //      `reinferReturnTypes`). فبلا مسحٍ يتراكم كِنْهانِ لخانةٍ لم
+                //      يختلف عليها موقعانِ قطُّ — أوضحُها معامِلٌ تعاوديّ: يُسجَّل
+                //      كِنْهُه قبلَ الترقيةِ في الشوطِ الأوّلِ وبعدَها في الثاني من
+                //      **موقعٍ واحد** — فيُقرَأ ذلك «خلافًا» ويُنقَض إلى «أي» بلا خلاف.
+                // (EN) Their free-function counterparts. The scan runs three passes and
+                //      inferExprType deliberately changes between them (that is what
+                //      reinferReturnTypes drives). Without clearing, two kinds accumulate
+                //      for a slot no two sites ever disagreed on — clearest with a
+                //      recursive parameter, which records its pre-promotion kind on pass 1
+                //      and its promoted kind on pass 2 from a SINGLE site, and is then
+                //      revoked to Any on a disagreement that never happened.
+                scanFreeArgKinds_.clear();
+                scanFreeArgClasses_.clear();
                 {
                     std::function<void(Sad::AST::StmtList *)> indexClasses =
                         [&](Sad::AST::StmtList *stmts)
@@ -2031,6 +2199,7 @@ namespace Sad
                     for (Sad::AST::StmtList *body : b_.importedModuleBodies_)
                         scanStmtList(body);
                     applyAgreedMemberParamTypes();
+                    applyAgreedFreeParamTypes();
                     const bool changed = reinferReturnTypes();
                     if (!changed && pass >= 1)
                         break;

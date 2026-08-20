@@ -717,4 +717,68 @@ namespace Sad::Compiler
     inline constexpr const char *kModZeroRun010IntMsg =
         "خطأ [RUN010]: محاولة حساب باقي %lld %% 0\n";
 
+    // (AR) 🔑 فيضُ القسمة الصحيحة: INT64_MIN / -1 وحدَها تخرج عن مدى i64. صارت
+    //      ذاتَ أثرٍ حين صارت `/` قسمةً صحيحةً ساكنة: قبلَها كانت النتيجةُ تُرقَّى
+    //      إلى عشريّ زمنَ التشغيل فلا تصل sdiv. وتركُها للعتاد يعني #DE على x86 —
+    //      انهيارًا لا تشخيصًا. فنرفضها كما نرفض القسمة على صفر، ويطابق المفسّر.
+    // (EN) Integer-division overflow: INT64_MIN / -1 is the only i64-range escape.
+    //      It became reachable when `/` became static integer division; leaving it
+    //      to the hardware means #DE on x86 — a crash, not a diagnostic.
+    // (AR) 🔑 فشلُ فتحِ ملفّ: المفسّر يرمي RUN007 والمترجَمُ كان يُعيد قيمةَ فشلٍ
+    //      صامتة (نصًّا فارغًا · EOF · مصفوفةً فارغة). فبرنامجٌ يلفّ القراءةَ بـ
+    //      «حاول/امسك» يطبع في المفسّر PASS ومترجَمًا FAIL — والاثنان يخرجان بصفر،
+    //      فالتباعدُ لا يُرى إلّا في النصّ المطبوع. `%s` تحمل المسار.
+    // (EN) File-open failure: the interpreter throws RUN007 while the compiled side
+    //      silently returned a sentinel, so a حاول/امسك program printed PASS
+    //      interpreted and FAIL compiled — both exiting 0, hiding the divergence.
+    inline constexpr const char *kFileOpenRun007Msg =
+        "خطأ [RUN007]: تعذّر الوصول إلى الملف '%s'\n";
+
+    // (AR) سعةُ مخزنِ تنسيقِ رسالةِ خطأِ الملفّ زمنَ التشغيل. الرسالةُ تُنسَّق مرّةً
+    //      ويُغذّى منها الرافعُ والطابعُ معًا، فلا تفترق نسختاهما. والقصُّ عند
+    //      السعةِ مقصودٌ: `snprintf` يُنهي بصفرٍ دائمًا، ومسارٌ أطولُ يُقصّ ولا يفيض.
+    // (EN) Capacity of the runtime buffer used to format a file-error message once,
+    //      feeding both the raiser and the printer so their texts cannot diverge.
+    //      Truncation at capacity is intended: snprintf always NUL-terminates, so an
+    //      over-long path is cut rather than overflowing.
+    inline constexpr int kFileErrorMessageBufferBytes = 512;
+
+    // (AR) اسمُ المخزنِ العامِّ الذي تُنسَّق فيه رسالةُ خطأِ الملفّ. عامٌّ لا مكدّسٌ
+    //      لأنّ المُمسِكَ يقرأ المؤشّرَ بعد الانفلاتِ من إطارِ الرفع.
+    // (EN) Symbol of the module-level buffer holding the formatted file-error message.
+    //      Global, not stack, because the catch site reads the pointer after unwinding
+    //      out of the raising frame.
+    inline constexpr const char *kFileErrorMessageBufferSymbol = "__sad_file_error_msg";
+
+    // (AR) قالبُ تمريرِ نصٍّ **منسَّقٍ سلفًا** إلى printf. لازمٌ لأنّ تمريرَ النصِّ
+    //      قالبًا يجعل أيَّ `%` في مسارِ المستخدمِ توجيهَ تنسيقٍ يقرأ وسيطًا غيرَ موجود.
+    // (EN) Format template for handing ALREADY-FORMATTED text to printf. Required
+    //      because passing that text as the template itself would make any '%' in the
+    //      user's path a directive reading a non-existent argument.
+    inline constexpr const char *kPlainStringFormat = "%s";
+
+    // (AR) 🔑 فيضُ القسمة الصحيحة: INT64_MIN / -1 وحدَها تخرج عن مدى i64 (RUN011).
+    //      كان شرحُها معلَّقًا فوقَ ثابتِ RUN007 وثابتُها بلا تعليقٍ مجاور، فيُقرَأ
+    //      الشرحُ للثابتِ الخطأ.
+    // (EN) Integer-division overflow: INT64_MIN / -1 (RUN011). Its rationale used to
+    //      sit above the RUN007 constant, leaving this one undocumented and attributing
+    //      the explanation to the wrong constant.
+    inline constexpr const char *kDivOverflowRun011IntMsg =
+        "خطأ [RUN011]: تجاوز عددي — قسمة %lld على -1 تتجاوز مدى رقم\n";
+
+    // (AR) الاسمُ المُهجَّأ لعامل التحويل الضمنيّ إلى منطقيّ (`عامل منطقي()`).
+    //      كان مكتوبًا حرفيًّا في أربعةِ مواضعَ متفرّقةٍ من الواجهة؛ وتجميعُه هنا
+    //      شرطُ أن يبقى موضعُ البحثِ وموضعُ الإصدارِ متطابقَين. والبادئةُ نقطةٌ
+    //      لأنّ البحثَ يجري باسمِ الصنفِ موصولًا: `الصنف.__op_tobool__`.
+    // (EN) Mangled name of the implicit-to-bool conversion operator
+    //      (`عامل منطقي()`). It was spelled literally at four separate frontend
+    //      sites; centralising it is what keeps the lookup name and the emitted
+    //      name identical. The dotted form is the qualified lookup key.
+    inline constexpr const char *kOpToBoolName = "__op_tobool__";
+    // (AR) تُشتَقُّ ولا تُهجَّأ ثانيةً: حرفيّتان مستقلّتان تنجرفان، وهو عينُ ما وُجِد
+    //      هذا الثابتُ ليمنعه. النقطةُ فاصلُ التأهيل: `الصنف.__op_tobool__`.
+    // (EN) Derived, not respelled: two independent literals can drift, which is exactly
+    //      what this constant exists to prevent. The dot is the qualification separator.
+    inline const std::string kOpToBoolQualifiedSuffix = std::string(".") + kOpToBoolName;
+
 } // namespace Sad::Compiler

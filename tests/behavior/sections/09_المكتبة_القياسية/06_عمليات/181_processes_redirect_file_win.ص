@@ -39,4 +39,27 @@
 اغلق(و٢)
 اطبع(اقرأ_ملف(مسار))
 
+
+# (AR) تنظيفٌ صريح: مشغّلُ الاختباراتِ يعزلُ مجلّدَ عملٍ لكلِّ تشغيلةٍ ويمسحُه،
+#      فلا يُلوَّثُ الجذرُ من CI. أمّا التشغيلُ اليدويُّ من جذرِ المستودعِ —
+#      وهو كيف يُطوَّرُ هذا الملفُّ أصلًا — فلا عزلَ فيه، وقد ترك ستّةَ آثارٍ
+#      في الجذرِ من ١٥ آب بلا صاحب. والاسمُ المجرّدُ هنا مقصودٌ: نظيرُه
+#      البوسيكسيُّ يكتبُ في `/tmp` ولا نظيرَ لها هنا — `متغير_بيئة` مُعلَنةٌ
+#      `stable` **ولا يُصرِّفُها المترجمُ** (قيس ١٩ آب)، فالحذفُ هو السدّ.
+# (EN) Explicit cleanup: the runner isolates a per-run work dir, so CI never
+#      pollutes. A manual run from the repo root does — it left six orphans.
+# ⚠️ (AR) التنظيفُ مشروطٌ بالوجود، ولسببٍ مقيسٍ لا احتياطًا: `احذف_ملف` في
+#      المفسّرِ تنادي `std::filesystem::remove` **الرامية**، وترمي كذلك حين
+#      يغيبُ الملفّ (وبرمزٍ مضلِّلٍ: «وسائط ناقصة»). أمّا المترجمُ فيُخفِّضها
+#      إلى `remove()` سِيِّ ونتيجتُه مُهمَلة — **فلا يُخفِقُ أبدًا**. فمسارُ
+#      الإخفاقِ غيرُ متناظرٍ بين المحرّكَين: رِجْلُ المفسّرِ تموت ورِجْلُ المترجمِ
+#      تمرّ ⇒ `FAIL_PARITY` **من صنعِ سطرِ التنظيفِ نفسِه** لا من المقيس.
+# ⚠️ (EN) Guarded on purpose: the interpreter's delete calls the throwing
+#      filesystem::remove (and throws on a missing file too), while the
+#      compiler lowers it to C remove() with the result discarded and never
+#      fails — an asymmetry that would manufacture a parity failure.
+إذا (هل_موجود(مسار))
+    احذف_ملف(مسار)
+نهاية
+
 اطبع_سطر("تم")

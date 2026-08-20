@@ -165,6 +165,35 @@ namespace Sad
 
                 void collectFreeVarsStmt(Sad::AST::Statement *stmt, std::set<std::string> &boundNames, std::set<std::string> &freeVars);
 
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 نوعُ ناتجِ `/` — معينٌ **واحد**. كانت الحقيقةُ منسوخةً ثلاثًا:
+                //      الباني (`expression_binary_op.cpp`)، و`inferExprType`،
+                //      و`inferReturnTypeFromBody`. غُيِّرت الأولى إلى القسمةِ الصحيحةِ
+                //      فبقيت الأخريان تقولان `Any`، فأعلنَ استنتاجُ العائدِ أنّ الطريقةَ
+                //      تُرجِع `%SadDyn` بينما جسمُها يُرجِع `i64` خامًّا ⇒ يفكُّ النداءُ
+                //      صندوقًا لا وجودَ له ⇒ **انهيار** (مقيسٌ: صنفٌ فيه `ارجع 12 / 2`
+                //      ثمّ `"م:" + م.مساحة()` ⇒ rc=139؛ ويعمل بـ`ارجع 6` وبـ`/ 2.0`).
+                //      ولأنّ نسختَين تُصلَحان وتبقى ثالثة، جُمِعن في معينٍ واحد.
+                //      الدلالة: عشريٌّ في طرفٍ ⇒ عشريّ · «أي»/مجهولٌ ⇒ ديناميّ (نوعُه
+                //      حقيقةُ تشغيل) · وما عداهما ⇒ صحيحٌ باقتطاعٍ نحو الصفر كما في C.
+                // (EN) 🔑 Result kind of `/` — a SINGLE source. The fact used to be copied
+                //      three times: the builder, inferExprType, and inferReturnTypeFromBody.
+                //      The first was changed to integer division while the other two kept
+                //      answering Any, so return inference declared a method as returning
+                //      %SadDyn while its body returned a raw i64 — the call site unboxed a
+                //      non-box and crashed. Two of three could be fixed and the third left
+                //      behind, so they are now one function.
+                // ════════════════════════════════════════════════════════════════
+                static SadTypeKind divisionResultKind(SadTypeKind left, SadTypeKind right)
+                {
+                    if (left == SadTypeKind::Float || right == SadTypeKind::Float)
+                        return SadTypeKind::Float;
+                    if (left == SadTypeKind::Any || right == SadTypeKind::Any ||
+                        left == SadTypeKind::Unknown || right == SadTypeKind::Unknown)
+                        return SadTypeKind::Any;
+                    return SadTypeKind::Integer;
+                }
+
                 SadTypeKind inferExprType(const Sad::AST::Expression *expr);
 
                 // (AR) تحويل نوع إرجاع مدمجة من مصدر الحقيقة (BuiltinMeta::returnType)
@@ -222,6 +251,31 @@ namespace Sad
                 //      was promoted to string and then reached by `null` from another call.
                 std::map<Sad::AST::Parameter *, std::set<int>> scanMemberArgKinds_;
 
+                // (AR) نظيرُها للدوالِّ الحرّة: اسمُ الدالّة ⇒ رقمُ الخانة ⇒ أنواعُ الوسائط
+                //      المسجَّلةُ من مواقعِ النداء. الأعضاءُ كان لهم إجماعٌ والحرّةُ لا،
+                //      فسياستُها «الموقعُ الأوّل يفوز» — وهي تُثبِّت خانةً نصًّا ثمّ يصلها
+                //      وسيطٌ معلَّبٌ فتُقارَن مؤشِّرَ نصٍّ: انهيارٌ، أو جوابٌ خاطئٌ صامتٌ حين
+                //      لا تنهار. مرتَّبةٌ (map/set) لا مبعثرة: ترتيبُ التطبيقِ يجب أن يكون
+                //      حتميًّا وإلّا تغيّر مخرَجُ الترجمةِ بلا تغيُّرِ مصدر.
+                // (EN) Free-function counterpart: function name ⇒ slot index ⇒ the argument
+                //      kinds recorded at call sites. Members had unanimity, free functions did
+                //      not — their policy was "first call site wins", which pins a slot to e.g.
+                //      String and then a boxed argument is compared as a string pointer: a
+                //      crash, or a silent wrong answer when it does not crash. Ordered
+                //      containers on purpose: application order must be deterministic.
+                std::map<std::string, std::map<size_t, std::set<int>>> scanFreeArgKinds_;
+
+                // (AR) ونظيرُها لأسماءِ الأصناف: خانةٌ يصلها كائنٌ في موقعٍ وعددٌ في آخر
+                //      لا يجوز أن تحتفظ بربطِها بالصنف، وإلّا وُجِّهت مقارنتُها إلى
+                //      `__op_eq__` فمُرِّر العددُ مكانَ المستقبِل. والنصُّ الفارغُ يعني
+                //      «وسيطٌ ليس كائنًا» وهو مخالِفٌ يمنع الإجماع، لا غيابٌ يُغفَل.
+                // (EN) Class-name counterpart: a slot fed an object at one site and a number
+                //      at another must not keep its class binding, or its comparison is routed
+                //      to `__op_eq__` and the number is passed where the receiver belongs. An
+                //      empty string means "argument is not an object" — a disagreeing entry
+                //      that blocks unanimity, not an absence to be skipped.
+                std::map<std::string, std::map<size_t, std::set<std::string>>> scanFreeArgClasses_;
+
                 /// (AR) يُسجّل أنواعَ وسائطِ موقعِ نداءٍ لخاناتِ معامِلاتِ عضو
                 /// (EN) Records one call site's argument kinds against a member's parameter slots
                 void recordMemberParamArgs(std::vector<Sad::AST::Parameter> &params,
@@ -231,6 +285,7 @@ namespace Sad
                 /// (AR) يُطبّق الترقياتِ التي اتّفقت عليها مواقعُ النداءِ كلُّها
                 /// (EN) Applies the promotions every call site agreed on
                 void applyAgreedMemberParamTypes();
+                void applyAgreedFreeParamTypes();
 
                 /// (AR) يُرقّي معاملاتِ عضوٍ بلغَه نداءٌ — بانيًا كان أو طريقة
                 /// (EN) Refines a called member's parameters — constructor or method

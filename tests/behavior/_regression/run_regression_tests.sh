@@ -40,8 +40,35 @@ if [ ! -x "$SAD_EXE" ]; then
     exit 1
 fi
 
-# مشاكل معروفة (XFAIL)
-KNOWN_FAILURES=""
+# ══════════════════════════════════════════════════════════════════════
+# (AR) الحمرةُ المعروفةُ **تُشتقُّ من السجلِّ ولا تُكتَبُ هنا** — توأمُ ما في
+#      `run_regression_tests.ps1`. وسُدَّ معها فخّان:
+#        ① قائمةٌ فارغةٌ تجعل كلَّ دَينٍ مُعلَنٍ إخفاقًا. وهي أحمرَّت على
+#           ويندوز يومَ صار مترجمُها يُبنى فعلًا؛ وهذا التوأمُ لم يُشغَّل
+#           بوضعِ المترجمِ بعدُ، فسُدَّ اليومَ **قبلَ أن يكلّف**.
+#        ② والمطابقةُ كانت **جزئيّةً**: `grep -q "$name"` يجعل `test_p3`
+#           يطابق `test_p30`، فتبتلع القائمةُ اسمًا لم يُسجَّل قطُّ. صارت
+#           `-qxF`: سطرٌ كاملٌ حرفيّ.
+#      🔑 والمصدرُ سجلٌّ محروسٌ في الاتّجاهَين بـ`test_declared_reds_registry.py`،
+#      فليست قائمةَ إذنٍ تبلى: صفٌّ يخضرُّ يُخفِقُ هناك حتّى يُحذَف، وأحمرُ
+#      ليس فيه يُخفِقُ هناك حتّى يُسجَّل.
+# (EN) Known reds are DERIVED from the registry, twin of the .ps1. Two traps
+#      sealed: an empty list turned every declared debt into a failure, and the
+#      match was a SUBSTRING (test_p3 matched test_p30) — now -qxF, exact line.
+# ══════════════════════════════════════════════════════════════════════
+REGISTRY_PATH="$SCRIPT_DIR/../DECLARED_REDS.tsv"
+if [ ! -f "$REGISTRY_PATH" ]; then
+    echo -e "${RED}Registry not found: $REGISTRY_PATH${RESET}"
+    exit 1
+fi
+KNOWN_FAILURES="$(grep '^_regression/' "$REGISTRY_PATH" | cut -f1 | sed -e 's#^_regression/##' -e 's#[.][^.]*$##' || true)"
+# (AR) قائمةٌ خاويةٌ تعني انكسارَ الاشتقاقِ لا سدادَ الدَّين.
+# (EN) An empty list means the derivation broke, not that the debt was paid.
+if [ -z "$KNOWN_FAILURES" ]; then
+    echo -e "${RED}No _regression rows parsed from $REGISTRY_PATH${RESET}"
+    exit 1
+fi
+xfail_names=()
 
 echo ""
 echo -e "${BOLD}╔════════════════════════════════════════════════════════╗${RESET}"
@@ -81,8 +108,10 @@ for test_file in $test_files; do
         if [ $compile_exit -ne 0 ] || [ ! -x "$out_exe" ]; then
             end_time=$(date +%s%N 2>/dev/null || date +%s)
             
-            if echo "$KNOWN_FAILURES" | grep -q "$test_name"; then
+            if printf "%s
+" "$KNOWN_FAILURES" | grep -qxF "$test_name"; then
                 xfail=$((xfail + 1))
+                xfail_names+=("$test_name (compile)")
                 echo -e "${YELLOW}XFAIL (compile error)${RESET}"
             else
                 failed=$((failed + 1))
@@ -108,8 +137,10 @@ for test_file in $test_files; do
     has_timeout=$( [ $exit_code -eq 124 ] && echo "1" || echo "0")
     
     if [ "$has_timeout" = "1" ]; then
-        if echo "$KNOWN_FAILURES" | grep -q "$test_name"; then
+        if printf "%s
+" "$KNOWN_FAILURES" | grep -qxF "$test_name"; then
             xfail=$((xfail + 1))
+            xfail_names+=("$test_name (timeout)")
             echo -e "${YELLOW}XFAIL (timeout)${RESET}"
         else
             failed=$((failed + 1))
@@ -117,8 +148,10 @@ for test_file in $test_files; do
             echo -e "${RED}FAIL (timeout — infinite loop?)${RESET}"
         fi
     elif [ "$has_fail" -gt 0 ] || [ $exit_code -ne 0 ]; then
-        if echo "$KNOWN_FAILURES" | grep -q "$test_name"; then
+        if printf "%s
+" "$KNOWN_FAILURES" | grep -qxF "$test_name"; then
             xfail=$((xfail + 1))
+            xfail_names+=("$test_name")
             echo -e "${YELLOW}XFAIL${RESET}"
         else
             failed=$((failed + 1))
@@ -148,6 +181,16 @@ echo -e "${CYAN}  المجموع / Total:     ${RESET}$total"
 echo -e "${GREEN}  نجح / Passed:        ${RESET}$passed"
 echo -e "${RED}  فشل / Failed:        ${RESET}$failed"
 echo -e "${YELLOW}  فشل متوقع / XFail:   ${RESET}$xfail"
+
+# (AR) الأسماءُ تُطبَع دائمًا: عددٌ بلا أسماءٍ لا يكشف تبدُّلَ المجموعة.
+# (EN) Names always printed: a count alone hides a change of membership.
+if [ ${#xfail_names[@]} -gt 0 ]; then
+    echo ""
+    echo -e "${YELLOW}${BOLD}  حمرةٌ مسجَّلةٌ في DECLARED_REDS.tsv / XFail:${RESET}"
+    for name in "${xfail_names[@]}"; do
+        echo -e "${YELLOW}    ~ $name${RESET}"
+    done
+fi
 
 if [ ${#failed_names[@]} -gt 0 ]; then
     echo ""

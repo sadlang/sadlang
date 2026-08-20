@@ -30,6 +30,20 @@ set -uo pipefail
 
 ATTEMPTS="${SAD_APT_ATTEMPTS:-3}"
 PER_ATTEMPT_SECONDS="${SAD_APT_TIMEOUT:-300}"
+BACKOFF_SECONDS="${SAD_APT_BACKOFF:-10}"
+
+# (AR) 🔑 مقابضُ **القياس** لا مقابضُ السلوك: قيمُها الافتراضيّةُ هي
+#      سلوكُ الإنتاجِ حرفًا بحرف، ووجودُها وحدَه هو ما يجعل فرعَ إسقاطِ
+#      المرآةِ قابلًا للتشغيلِ خارجَ عطبٍ حقيقيّ. وقبلَها كان الفرعُ
+#      **غيرَ مقيسٍ البتّة**: لا يُنادى إلّا حين تُخفِقُ `apt` فعلًا، وما
+#      لا يُشغَّلُ لا يُعرَفُ أسليمٌ هو أم ميّت — وقد كان ميّتًا مرّةً بالفعل.
+# (EN) Measurement seams, not behaviour switches: the defaults reproduce
+#      production byte-for-byte. Their only purpose is to make the mirror
+#      drop runnable without a real outage — it was never exercised, and
+#      an unexercised branch was already dead once.
+MIRROR_LIST="${SAD_APT_MIRROR_LIST:-/etc/apt/apt-mirrors.txt}"
+APT_BIN="${SAD_APT_BIN:-apt-get}"
+SUDO="${SAD_APT_SUDO-sudo}"
 
 if [ "$#" -eq 0 ]; then
     echo "::error::apt_retry.sh: لا أمر — المتوقّع update أو install" >&2
@@ -60,7 +74,7 @@ fi
 # ⚠️ (EN) Announce the decision on every branch; a silent decline reads as
 #      "not needed" when it may be "not possible".
 اسقط_المرآة_العالقة() {
-    mirror_list=/etc/apt/apt-mirrors.txt
+    mirror_list="$MIRROR_LIST"
     if [ ! -f "$mirror_list" ]; then
         echo "ℹ️ لا $mirror_list — لا مرآةَ تُسقَط"
         return 0
@@ -77,7 +91,7 @@ fi
         return 0
     fi
     echo "🔀 إسقاطُ مرآةِ azure ($remaining مرآةً تبقى) — المحاولةُ التالية عليها"
-    if sudo sed -i '/azure\.archive\.ubuntu\.com/d' "$mirror_list"; then
+    if $SUDO sed -i '/azure\.archive\.ubuntu\.com/d' "$mirror_list"; then
         echo "✅ أُسقِطت · القائمةُ الآن:"
         sed 's/^/     /' "$mirror_list"
     else
@@ -97,7 +111,7 @@ while [ "$attempt" -le "$ATTEMPTS" ]; do
     # ⚠️ (EN) Capture the status from the command itself: `status=$?` after an
     #      `if` block reads the `if` statement's own status — always 0 on the
     #      failure path — which killed the 124 branch and printed "code 0".
-    sudo timeout "$PER_ATTEMPT_SECONDS" apt-get "$@"
+    $SUDO timeout "$PER_ATTEMPT_SECONDS" "$APT_BIN" "$@"
     status=$?
     if [ "$status" -eq 0 ]; then
         echo "✅ apt $1 — نجحت في المحاولة $attempt"
@@ -110,7 +124,7 @@ while [ "$attempt" -le "$ATTEMPTS" ]; do
     fi
     اسقط_المرآة_العالقة
     attempt=$((attempt + 1))
-    [ "$attempt" -le "$ATTEMPTS" ] && sleep 10
+    [ "$attempt" -le "$ATTEMPTS" ] && sleep "$BACKOFF_SECONDS"
 done
 
 # (AR) الإخفاقُ بعدَ استنفادِ المحاولاتِ يُعلَنُ ولا يُبتلَع.

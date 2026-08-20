@@ -164,8 +164,14 @@ namespace Sad
                         std::cerr << "[ERROR] get_future requires 1 argument (future_id)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
+                    // (AR) العائدُ «أي» لا «رقم» — الحمولةُ موسومةٌ زمنَ التشغيل.
+                    //      السببُ الكاملُ عند `buildFutureMethodCall` في
+                    //      `method_call_concurrency.cpp`؛ النظيران يتحرّكان معًا.
+                    // (EN) Result is «any», not «int» — the payload is runtime-tagged.
+                    //      Full rationale at buildFutureMethodCall in
+                    //      method_call_concurrency.cpp; the two twins move together.
                     std::string resultReg = b_.newTempRegister();
-                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Any);
                     SIRInstruction inst(SIROpcode::ASYNC_GET_FUTURE);
                     inst.result = resultOp;
                     inst.operands.push_back(argOperands[0]);
@@ -174,7 +180,7 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] get_future() -> " << resultReg << std::endl;
 #endif
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    return BuildResult(resultReg, SadTypeKind::Any);
                 }
 
                 // 8. create_channel

@@ -104,9 +104,11 @@ jobs:
     steps:
     - name: 📥 Checkout
       uses: actions/checkout@v4
+      timeout-minutes: 15
     
     - name: 📦 Cache ccache
       uses: actions/cache@v4
+      timeout-minutes: 15
       with:
         path: ~/.ccache
         key: ccache-linux-${{ github.sha }}
@@ -115,6 +117,7 @@ jobs:
     
     - name: 📦 Cache CMake build
       uses: actions/cache@v4
+      timeout-minutes: 15
       with:
         path: |
           build
@@ -161,6 +164,7 @@ jobs:
 
     - name: 📤 Upload Artifacts
       uses: actions/upload-artifact@v4
+      timeout-minutes: 15
       with:
         name: sad-linux
         path: build/bin/sad-run
@@ -181,9 +185,11 @@ jobs:
     steps:
     - name: 📥 Checkout
       uses: actions/checkout@v4
+      timeout-minutes: 15
     
     - name: 📦 Cache Xcode DerivedData
       uses: actions/cache@v4
+      timeout-minutes: 15
       with:
         path: ~/Library/Developer/Xcode/DerivedData
         key: xcode-ios-${{ hashFiles('platform/ios/xcode/**') }}-${{ github.sha }}
@@ -226,6 +232,7 @@ jobs:
     
     - name: 📤 Upload iOS App
       uses: actions/upload-artifact@v4
+      timeout-minutes: 15
       with:
         name: sad-ios
         path: platform/ios/xcode/build/Build/Products/Release-iphonesimulator/SadNotes.app
@@ -241,15 +248,18 @@ jobs:
     steps:
     - name: 📥 Checkout
       uses: actions/checkout@v4
+      timeout-minutes: 15
     
     - name: ☕ Setup Java 17
       uses: actions/setup-java@v4
+      timeout-minutes: 15
       with:
         distribution: 'temurin'
         java-version: '17'
     
     - name: 📦 Cache Gradle
       uses: actions/cache@v4
+      timeout-minutes: 15
       with:
         path: |
           ~/.gradle/caches
@@ -260,6 +270,7 @@ jobs:
     
     - name: 📦 Cache Android SDK
       uses: actions/cache@v4
+      timeout-minutes: 15
       with:
         path: |
           ~/.android/cache
@@ -267,6 +278,7 @@ jobs:
     
     - name: 📦 Setup Android SDK
       uses: android-actions/setup-android@v3
+      timeout-minutes: 15
     
     - name: 🔧 Accept Licenses
       run: yes | sdkmanager --licenses || true
@@ -288,12 +300,14 @@ jobs:
     
     - name: 📤 Upload Debug APK
       uses: actions/upload-artifact@v4
+      timeout-minutes: 15
       with:
         name: sad-android-debug
         path: platform/android/app/build/outputs/apk/debug/app-debug.apk
     
     - name: 📤 Upload Release APK (if exists)
       uses: actions/upload-artifact@v4
+      timeout-minutes: 15
       if: success()
       continue-on-error: true
       with:
@@ -314,6 +328,7 @@ jobs:
     steps:
     - name: 📥 Download all artifacts
       uses: actions/download-artifact@v4
+      timeout-minutes: 15
       with:
         path: artifacts
     
@@ -328,6 +343,7 @@ jobs:
     
     - name: 🚀 Create Draft Release
       uses: softprops/action-gh-release@v1
+      timeout-minutes: 15
       with:
         draft: true
         generate_release_notes: true

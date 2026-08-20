@@ -10,6 +10,14 @@
 // (AR) جدول لهجة التجميع العربيّ (منمنمات/سجلّات/تلويث/كلمات الكتلة) — المفاتيح
 //      القانونيّة مجرَّدة التشكيل (تطابق ما يُصدره المُشكِّل). يستهلكه المحلّل
 //      والفاحص الدلاليّ والمترجم sadc.
+//
+// 🔑 (AR) جدولٌ **لكلّ معماريّة** لا جدولٌ واحد. الاسم العربيّ واحد والعتاد
+//      مختلف: «المركم» eax على i686 وrax على x86_64، ولا نظير له في AArch64
+//      أصلًا؛ و«عطّل_المقاطعات» cli هناك وmsr daifset, #2 هنا. جدولٌ واحد
+//      لمعماريّاتٍ كان يُخرج تعليماتٍ يرفضها المُجمِّع — أو أسوأ: يقبلها بدلالة
+//      أخرى. الاختيار زمن التشغيل بـsetActiveArchitecture من ثالوث الهدف.
+// 🔑 (EN) One table PER ARCHITECTURE. Selected at run time from the target
+//      triple via setActiveArchitecture; the default is the host architecture.
 #pragma once
 
 #include <cstddef>
@@ -33,6 +41,11 @@ namespace Sad
             //      operandWidth: عرض معامل السجلّ بالبتّات حين يخالف الافتراض (0 =
             //      عرض كلمة الهدف الطبيعيّ ⇒ ${N})؛ 16 ⇒ يُصدر الخفض ${N:w} فيُختار
             //      السجلّ الفرعيّ 16-بت (ax لا eax) — لازم لمعامل r/m16 (ltr/str).
+            //      operandHead: معاملات نصّيّة ثابتة **تسبق** معاملات ص، مفصولة
+            //      بالفاصل نفسه (msr vbar_el1، x0 ⇒ "vbar_el1")، أو "". بلا هذا
+            //      لا يستطيع المعجم التعبير عن كتابة سجلّ نظام على AArch64.
+            //      operandTail: معاملات نصّيّة ثابتة تُلحَق بعد معاملات ص، مفصولة
+            //      بالفاصل نفسه (msr ⇒ "daifset,#2"، mrs ⇒ "cntvct_el0")، أو "".
             struct Mnemonic
             {
                 const char *ar;             // (AR) canonical Arabic (diacritic-stripped)
@@ -42,6 +55,8 @@ namespace Sad
                 bool writesSource;          // (AR) المصدر يُكتب أيضًا (بادل) / source is also written (xchg)
                 const char *implicitClobbers; // (AR) تلويث ضمنيّ "~{eax},~{edx}" أو "" / implicit clobbers or empty
                 int operandWidth;           // (AR) عرض معامل السجلّ (0=افتراضيّ، 16=${N:w}) / register operand width
+                const char *operandHead;    // (AR) معاملات نصّيّة ثابتة سابقة أو "" / fixed leading operands
+                const char *operandTail;    // (AR) معاملات نصّيّة ثابتة مُلحَقة أو "" / fixed trailing operands
             };
 
             // (AR) سجلّ واحد: الاسم العربيّ ⇒ الاسم الأصليّ.
@@ -58,88 +73,270 @@ namespace Sad
                 const char *llvm;
             };
 
+            // (AR) نكهة المُجمِّع لمعماريّة — من الحقل syntax في مصدر الحقيقة.
+            //      النموذج الدلاليّ (الوجهة أوّلًا) ملك ص؛ وهذه تصف كيف يُكتب أصليًّا،
+            //      فالخافض يقرأها ولا يحمل حرفيّات معماريّة مبثوثة فيه.
+            //      sourceFirst:   AT&T يعكس ترتيب ص (وجهة، مصدر ⇒ src, dst).
+            //      repeatDest:    الوجهة معامل مستقلّ (add x0, x0, x1) لا ضمنيّ (add eax, ebx).
+            //      bracketMemory: [قاعدة, #إزاحة] لا إزاحة(قاعدة).
+            // (EN) Per-architecture assembler flavour, read from the SoT `syntax` block.
+            struct Syntax
+            {
+                const char *registerPrefix;
+                const char *immediatePrefix;
+                bool sourceFirst;
+                bool repeatDest;
+                bool bracketMemory;
+            };
 
-            // (AR) فاصل قائمة implicitClobbers — يستهلكه المحلّل والخافض بدل حرفيّة مكرَّرة.
-            // (EN) implicitClobbers list separator, shared by parser and lowering.
+            // (AR) معماريّة واحدة: معرّفها + جدولاها + نكهتها.
+            struct Architecture
+            {
+                const char *id;
+                const Mnemonic *mnemonics;
+                std::size_t mnemonicCount;
+                const Register *registers;
+                std::size_t registerCount;
+                Syntax syntax;
+            };
+
+
+            // (AR) فاصل قائمتَي implicitClobbers وoperandTail — يستهلكه
+            //      المحلّل والخافض بدل حرفيّة مكرَّرة.
+            // (EN) List separator shared by producer and consumers.
             inline constexpr char kImplicitClobberSep = ',';
 
-            // ─── المنمنمات / mnemonics ───
-            inline constexpr Mnemonic kMnemonics[] = {
-                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84", "mov", "wr", false, false, "", 0 },  // انقل => mov
-                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xb5\xd9\x81\xd9\x8a\xd8\xb1", "movzx", "wr", false, false, "", 0 },  // انقل_بتصفير => movzx
-                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd8\xa8\xd9\x85\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "movsx", "wr", false, false, "", 0 },  // انقل_بمدّ_الإشارة => movsx
-                { "\xd8\xa8\xd8\xa7\xd8\xaf\xd9\x84", "xchg", "wr", true, true, "", 0 },  // بادل => xchg
-                { "\xd8\xad\xd9\x85\xd9\x84_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86", "lea", "wm", false, false, "", 0 },  // حمّل_عنوان => lea
-                { "\xd8\xa7\xd8\xaf\xd9\x81\xd8\xb9", "push", "r", false, false, "", 0 },  // ادفع => push
-                { "\xd8\xa7\xd8\xb3\xd8\xad\xd8\xa8", "pop", "w", false, false, "", 0 },  // اسحب => pop
-                { "\xd8\xa7\xd8\xaf\xd9\x81\xd8\xb9_\xd8\xa7\xd9\x84\xd9\x83\xd9\x84", "pusha", "", false, false, "", 0 },  // ادفع_الكلّ => pusha
-                { "\xd8\xa7\xd8\xb3\xd8\xad\xd8\xa8_\xd8\xa7\xd9\x84\xd9\x83\xd9\x84", "popa", "", false, false, "~{eax},~{ebx},~{ecx},~{edx},~{esi},~{edi},~{ebp}", 0 },  // اسحب_الكلّ => popa
-                { "\xd8\xa7\xd8\xaf\xd9\x81\xd8\xb9_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85", "pushf", "", false, false, "", 0 },  // ادفع_الأعلام => pushf
-                { "\xd8\xa7\xd8\xb3\xd8\xad\xd8\xa8_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85", "popf", "", false, false, "", 0 },  // اسحب_الأعلام => popf
-                { "\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9", "add", "wr", true, false, "", 0 },  // اجمع => add
-                { "\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9_\xd8\xa8\xd8\xa7\xd9\x84\xd8\xad\xd9\x85\xd9\x84", "adc", "wr", true, false, "", 0 },  // اجمع_بالحمل => adc
-                { "\xd8\xa7\xd8\xb7\xd8\xb1\xd8\xad", "sub", "wr", true, false, "", 0 },  // اطرح => sub
-                { "\xd8\xa7\xd8\xb7\xd8\xb1\xd8\xad_\xd8\xa8\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x84\xd8\xa7\xd9\x81", "sbb", "wr", true, false, "", 0 },  // اطرح_بالاستلاف => sbb
-                { "\xd8\xa7\xd8\xb6\xd8\xb1\xd8\xa8", "mul", "r", false, false, "~{eax},~{edx}", 0 },  // اضرب => mul
-                { "\xd8\xa7\xd8\xb6\xd8\xb1\xd8\xa8_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "imul", "wr", true, false, "", 0 },  // اضرب_بإشارة => imul
-                { "\xd8\xa7\xd9\x82\xd8\xb3\xd9\x85", "div", "r", false, false, "~{eax},~{edx}", 0 },  // اقسم => div
-                { "\xd8\xa7\xd9\x82\xd8\xb3\xd9\x85_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "idiv", "r", false, false, "~{eax},~{edx}", 0 },  // اقسم_بإشارة => idiv
-                { "\xd9\x85\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9_\xd9\x84\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa", "cdq", "", false, false, "~{edx}", 0 },  // مدّ_الإشارة_للبيانات => cdq
-                { "\xd8\xb2\xd8\xaf", "inc", "w", true, false, "", 0 },  // زد => inc
-                { "\xd8\xa3\xd9\x86\xd9\x82\xd8\xb5", "dec", "w", true, false, "", 0 },  // أنقص => dec
-                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "neg", "w", true, false, "", 0 },  // اعكس_الإشارة => neg
-                { "\xd9\x88\xd8\xa7\xd9\x81\xd9\x82", "and", "wr", true, false, "", 0 },  // وافق => and
-                { "\xd8\xb6\xd9\x85", "or", "wr", true, false, "", 0 },  // ضمّ => or
-                { "\xd8\xae\xd8\xa7\xd9\x84\xd9\x81", "xor", "wr", true, false, "", 0 },  // خالف => xor
-                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xaa\xd8\xa7\xd8\xaa", "not", "w", true, false, "", 0 },  // اعكس_البتّات => not
-                { "\xd8\xa7\xd9\x81\xd8\xad\xd8\xb5", "test", "rr", false, false, "", 0 },  // افحص => test
-                { "\xd9\x82\xd8\xa7\xd8\xb1\xd9\x86", "cmp", "rr", false, false, "", 0 },  // قارن => cmp
-                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xa7", "shl", "wr", true, false, "", 0 },  // أزح_يسارًا => shl
-                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7", "shr", "wr", true, false, "", 0 },  // أزح_يمينًا => shr
-                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "sar", "wr", true, false, "", 0 },  // أزح_يمينًا_بإشارة => sar
-                { "\xd8\xaf\xd9\x88\xd8\xb1_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xa7", "rol", "wr", true, false, "", 0 },  // دوّر_يسارًا => rol
-                { "\xd8\xaf\xd9\x88\xd8\xb1_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7", "ror", "wr", true, false, "", 0 },  // دوّر_يمينًا => ror
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2", "jmp", "l", false, false, "", 0 },  // اقفز => jmp
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "je", "l", false, false, "", 0 },  // اقفز_إذا_ساوى => je
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb3\xd8\xa7\xd9\x88", "jne", "l", false, false, "", 0 },  // اقفز_إذا_لم_يساوِ => jne
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb5\xd9\x81\xd8\xb1", "jz", "l", false, false, "", 0 },  // اقفز_إذا_صفر => jz
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb5\xd9\x81\xd8\xb1", "jnz", "l", false, false, "", 0 },  // اقفز_إذا_لم_يصفر => jnz
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd8\xb5\xd8\xba\xd8\xb1", "jl", "l", false, false, "", 0 },  // اقفز_إذا_أصغر => jl
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd8\xb5\xd8\xba\xd8\xb1_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jle", "l", false, false, "", 0 },  // اقفز_إذا_أصغر_أو_ساوى => jle
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd9\x83\xd8\xa8\xd8\xb1", "jg", "l", false, false, "", 0 },  // اقفز_إذا_أكبر => jg
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd9\x83\xd8\xa8\xd8\xb1_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jge", "l", false, false, "", 0 },  // اقفز_إذا_أكبر_أو_ساوى => jge
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xaf\xd9\x88\xd9\x86", "jb", "l", false, false, "", 0 },  // اقفز_إذا_دون => jb
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xaf\xd9\x88\xd9\x86_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jbe", "l", false, false, "", 0 },  // اقفز_إذا_دون_أو_ساوى => jbe
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd9\x88\xd9\x82", "ja", "l", false, false, "", 0 },  // اقفز_إذا_فوق => ja
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd9\x88\xd9\x82_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jae", "l", false, false, "", 0 },  // اقفز_إذا_فوق_أو_ساوى => jae
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xad\xd9\x85\xd9\x84", "jc", "l", false, false, "", 0 },  // اقفز_إذا_حمل => jc
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd8\xa7\xd8\xb6", "jo", "l", false, false, "", 0 },  // اقفز_إذا_فاض => jo
-                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa8", "js", "l", false, false, "", 0 },  // اقفز_إذا_سالب => js
-                { "\xd8\xa3\xd9\x86\xd9\x82\xd8\xb5_\xd9\x88\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd9\x86_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb5\xd9\x81\xd8\xb1", "loop", "l", false, false, "~{ecx}", 0 },  // أنقص_واقفز_إن_لم_يصفر => loop
-                { "\xd9\x86\xd8\xa7\xd8\xaf", "call", "l", false, false, "", 0 },  // نادِ => call
-                { "\xd8\xb9\xd8\xaf", "ret", "", false, false, "", 0 },  // عُد => ret
-                { "\xd8\xb9\xd8\xaf_\xd9\x85\xd9\x86_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa9", "iret", "", false, false, "", 0 },  // عُد_من_المقاطعة => iret
-                { "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9_\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa9", "int", "i", false, false, "", 0 },  // استدعِ_مقاطعة => int
-                { "\xd8\xb9\xd8\xb7\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "cli", "", false, false, "", 0 },  // عطّل_المقاطعات => cli
-                { "\xd9\x81\xd8\xb9\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "sti", "", false, false, "", 0 },  // فعّل_المقاطعات => sti
-                { "\xd8\xa3\xd9\x88\xd9\x82\xd9\x81", "hlt", "", false, false, "", 0 },  // أوقف => hlt
-                { "\xd9\x84\xd8\xa7_\xd8\xb9\xd9\x85\xd9\x84", "nop", "", false, false, "", 0 },  // لا_عمل => nop
-                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_\xd8\xa7\xd9\x84\xd9\x88\xd8\xa7\xd8\xb5\xd9\x81\xd8\xa7\xd8\xaa", "sgdt", "m", false, false, "", 0 },  // خزّن_جدول_الواصفات => sgdt
-                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "sidt", "m", false, false, "", 0 },  // خزّن_جدول_المقاطعات => sidt
-                { "\xd8\xad\xd9\x85\xd9\x84_\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x87\xd9\x85\xd8\xa9", "ltr", "r", false, false, "", 16 },  // حمّل_سجل_المهمة => ltr
-                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x87\xd9\x85\xd8\xa9", "str", "w", false, false, "", 16 },  // خزّن_سجل_المهمة => str
-                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa7\xd8\xaa", "rdtsc", "", false, false, "~{eax},~{edx}", 0 },  // اقرأ_عدّاد_الدورات => rdtsc
-                { "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xae\xd8\xa8\xd8\xb1_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb9\xd8\xa7\xd9\x84\xd8\xac", "cpuid", "", false, false, "~{eax},~{ebx},~{ecx},~{edx}", 0 },  // استخبر_المعالج => cpuid
-                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", "movsb", "", false, false, "~{esi},~{edi}", 0 },  // انقل_بايت => movsb
-                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd9\x85\xd8\xb1\xd8\xa8\xd8\xb9\xd8\xa7", "movsd", "", false, false, "~{esi},~{edi}", 0 },  // انقل_مربّعًا => movsd
-                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", "stosb", "", false, false, "~{edi}", 0 },  // خزّن_بايت => stosb
-                { "\xd8\xae\xd8\xb2\xd9\x86_\xd9\x85\xd8\xb1\xd8\xa8\xd8\xb9\xd8\xa7", "stosd", "", false, false, "~{edi}", 0 },  // خزّن_مربّعًا => stosd
-                { "\xd9\x83\xd8\xb1\xd8\xb1", "rep", "a", false, false, "~{ecx},~{esi},~{edi}", 0 },  // كرّر => rep
+            // ─── أهداف التلويث المخصوصة / special clobber targets ───
+            // (AR) مستوى اللهجة لا المعماريّة: «الذاكرة» و«الأعلام» قيدان
+            //      عامّان في LLVM يقبلهما كلّ هدف.
+            inline constexpr ClobberSpecial kClobberSpecials[] = {
+                { "\xd8\xa7\xd9\x84\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9", "~{memory}" },  // الذاكرة => ~{memory}
+                { "\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85", "~{cc}" },  // الأعلام => ~{cc}
             };
-            inline constexpr std::size_t kMnemonicCount = sizeof(kMnemonics) / sizeof(kMnemonics[0]);
+            inline constexpr std::size_t kClobberSpecialCount = sizeof(kClobberSpecials) / sizeof(kClobberSpecials[0]);
 
-            // ─── السجلّات / registers ───
-            inline constexpr Register kRegisters[] = {
+            // ═══ المعماريّة aarch64 / architecture aarch64 ═══
+            inline constexpr Mnemonic kMnemonics_aarch64[] = {
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84", "mov", "wr", false, false, "", 0, "", "" },  // انقل => mov
+                { "\xd8\xad\xd9\x85\xd9\x84", "ldr", "wm", false, false, "", 0, "", "" },  // حمّل => ldr
+                { "\xd8\xae\xd8\xb2\xd9\x86", "str", "rm", false, false, "", 0, "", "" },  // خزّن => str
+                { "\xd8\xad\xd9\x85\xd9\x84_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", "ldrb", "wm", false, false, "", 0, "", "" },  // حمّل_بايت => ldrb
+                { "\xd8\xad\xd9\x85\xd9\x84_\xd9\x86\xd8\xb5\xd9\x81_\xd9\x83\xd9\x84\xd9\x85\xd8\xa9", "ldrh", "wm", false, false, "", 0, "", "" },  // حمّل_نصف_كلمة => ldrh
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", "strb", "rm", false, false, "", 0, "", "" },  // خزّن_بايت => strb
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd9\x86\xd8\xb5\xd9\x81_\xd9\x83\xd9\x84\xd9\x85\xd8\xa9", "strh", "rm", false, false, "", 0, "", "" },  // خزّن_نصف_كلمة => strh
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd8\xa8\xd9\x85\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "sxtw", "wr", false, false, "", 0, "", "" },  // انقل_بمدّ_الإشارة => sxtw
+                { "\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9", "add", "wr", true, false, "", 0, "", "" },  // اجمع => add
+                { "\xd8\xa7\xd8\xb7\xd8\xb1\xd8\xad", "sub", "wr", true, false, "", 0, "", "" },  // اطرح => sub
+                { "\xd8\xa7\xd8\xb6\xd8\xb1\xd8\xa8", "mul", "wr", true, false, "", 0, "", "" },  // اضرب => mul
+                { "\xd8\xa7\xd9\x82\xd8\xb3\xd9\x85", "udiv", "wr", true, false, "", 0, "", "" },  // اقسم => udiv
+                { "\xd8\xa7\xd9\x82\xd8\xb3\xd9\x85_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "sdiv", "wr", true, false, "", 0, "", "" },  // اقسم_بإشارة => sdiv
+                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "neg", "w", true, false, "", 0, "", "" },  // اعكس_الإشارة => neg
+                { "\xd8\xb2\xd8\xaf", "add", "w", true, false, "", 0, "", "#1" },  // زد => add
+                { "\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9_\xd8\xa8\xd8\xa7\xd9\x84\xd8\xad\xd9\x85\xd9\x84", "adc", "wr", true, false, "", 0, "", "" },  // اجمع_بالحمل => adc
+                { "\xd8\xa7\xd8\xb7\xd8\xb1\xd8\xad_\xd8\xa8\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x84\xd8\xa7\xd9\x81", "sbc", "wr", true, false, "", 0, "", "" },  // اطرح_بالاستلاف => sbc
+                { "\xd8\xa3\xd9\x86\xd9\x82\xd8\xb5", "sub", "w", true, false, "", 0, "", "#1" },  // أنقص => sub
+                { "\xd9\x88\xd8\xa7\xd9\x81\xd9\x82", "and", "wr", true, false, "", 0, "", "" },  // وافق => and
+                { "\xd8\xb6\xd9\x85", "orr", "wr", true, false, "", 0, "", "" },  // ضمّ => orr
+                { "\xd8\xae\xd8\xa7\xd9\x84\xd9\x81", "eor", "wr", true, false, "", 0, "", "" },  // خالف => eor
+                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xaa\xd8\xa7\xd8\xaa", "mvn", "w", true, false, "", 0, "", "" },  // اعكس_البتّات => mvn
+                { "\xd8\xa7\xd9\x81\xd8\xad\xd8\xb5", "tst", "rr", false, false, "", 0, "", "" },  // افحص => tst
+                { "\xd9\x82\xd8\xa7\xd8\xb1\xd9\x86", "cmp", "rr", false, false, "", 0, "", "" },  // قارن => cmp
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xa7", "lsl", "wr", true, false, "", 0, "", "" },  // أزح_يسارًا => lsl
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7", "lsr", "wr", true, false, "", 0, "", "" },  // أزح_يمينًا => lsr
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "asr", "wr", true, false, "", 0, "", "" },  // أزح_يمينًا_بإشارة => asr
+                { "\xd8\xa7\xd9\x85\xd8\xb3\xd8\xad_\xd8\xa8\xd8\xaa\xd8\xa7\xd8\xaa", "bic", "wr", true, false, "", 0, "", "" },  // امسح_بتّات => bic
+                { "\xd8\xb9\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb5\xd9\x81\xd8\xa7\xd8\xb1_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xa7\xd8\xaf\xd8\xa6\xd8\xa9", "clz", "wr", false, false, "", 0, "", "" },  // عُدّ_الأصفار_البادئة => clz
+                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa\xd8\xa7\xd8\xaa", "rev", "wr", false, false, "", 0, "", "" },  // اعكس_البايتات => rev
+                { "\xd8\xaf\xd9\x88\xd8\xb1_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7", "ror", "wr", true, false, "", 0, "", "" },  // دوّر_يمينًا => ror
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2", "b", "l", false, false, "", 0, "", "" },  // اقفز => b
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "b.eq", "l", false, false, "", 0, "", "" },  // اقفز_إذا_ساوى => b.eq
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb3\xd8\xa7\xd9\x88", "b.ne", "l", false, false, "", 0, "", "" },  // اقفز_إذا_لم_يساوِ => b.ne
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb5\xd9\x81\xd8\xb1", "b.eq", "l", false, false, "", 0, "", "" },  // اقفز_إذا_صفر => b.eq
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb5\xd9\x81\xd8\xb1", "b.ne", "l", false, false, "", 0, "", "" },  // اقفز_إذا_لم_يصفر => b.ne
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd8\xb5\xd8\xba\xd8\xb1", "b.lt", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أصغر => b.lt
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd8\xb5\xd8\xba\xd8\xb1_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "b.le", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أصغر_أو_ساوى => b.le
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd9\x83\xd8\xa8\xd8\xb1", "b.gt", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أكبر => b.gt
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd9\x83\xd8\xa8\xd8\xb1_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "b.ge", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أكبر_أو_ساوى => b.ge
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xaf\xd9\x88\xd9\x86", "b.lo", "l", false, false, "", 0, "", "" },  // اقفز_إذا_دون => b.lo
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xaf\xd9\x88\xd9\x86_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "b.ls", "l", false, false, "", 0, "", "" },  // اقفز_إذا_دون_أو_ساوى => b.ls
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd9\x88\xd9\x82", "b.hi", "l", false, false, "", 0, "", "" },  // اقفز_إذا_فوق => b.hi
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd9\x88\xd9\x82_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "b.hs", "l", false, false, "", 0, "", "" },  // اقفز_إذا_فوق_أو_ساوى => b.hs
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xad\xd9\x85\xd9\x84", "b.cs", "l", false, false, "", 0, "", "" },  // اقفز_إذا_حمل => b.cs
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd8\xa7\xd8\xb6", "b.vs", "l", false, false, "", 0, "", "" },  // اقفز_إذا_فاض => b.vs
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa8", "b.mi", "l", false, false, "", 0, "", "" },  // اقفز_إذا_سالب => b.mi
+                { "\xd9\x86\xd8\xa7\xd8\xaf", "bl", "l", false, false, "", 0, "", "" },  // نادِ => bl
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd9\x84\xd9\x89_\xd8\xb3\xd8\xac\xd9\x84", "br", "r", false, false, "", 0, "", "" },  // اقفز_إلى_سجل => br
+                { "\xd9\x86\xd8\xa7\xd8\xaf_\xd8\xb3\xd8\xac\xd9\x84\xd8\xa7", "blr", "r", false, false, "", 0, "", "" },  // نادِ_سجلًّا => blr
+                { "\xd8\xb9\xd8\xaf", "ret", "", false, false, "", 0, "", "" },  // عُد => ret
+                { "\xd8\xb9\xd8\xaf_\xd9\x85\xd9\x86_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa9", "eret", "", false, false, "", 0, "", "" },  // عُد_من_المقاطعة => eret
+                { "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9_\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa9", "svc", "i", false, false, "", 0, "", "" },  // استدعِ_مقاطعة => svc
+                { "\xd8\xb9\xd8\xb7\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "msr", "", false, false, "", 0, "", "daifset,#2" },  // عطّل_المقاطعات => msr
+                { "\xd9\x81\xd8\xb9\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "msr", "", false, false, "", 0, "", "daifclr,#2" },  // فعّل_المقاطعات => msr
+                { "\xd8\xa3\xd9\x88\xd9\x82\xd9\x81", "wfi", "", false, false, "", 0, "", "" },  // أوقف => wfi
+                { "\xd9\x84\xd8\xa7_\xd8\xb9\xd9\x85\xd9\x84", "nop", "", false, false, "", 0, "", "" },  // لا_عمل => nop
+                { "\xd8\xa3\xd9\x88\xd9\x82\xd9\x81_\xd8\xad\xd8\xaa\xd9\x89_\xd8\xad\xd8\xaf\xd8\xab", "wfe", "", false, false, "", 0, "", "" },  // أوقف_حتّى_حدث => wfe
+                { "\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84_\xd8\xad\xd8\xaf\xd8\xab\xd8\xa7", "sev", "", false, false, "", 0, "", "" },  // أرسل_حدثًا => sev
+                { "\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86_\xd8\xa7\xd9\x84\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9", "dmb", "", false, false, "", 0, "", "sy" },  // زامِن_الذاكرة => dmb
+                { "\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86_\xd8\xa7\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa", "dsb", "", false, false, "", 0, "", "sy" },  // زامِن_البيانات => dsb
+                { "\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb9\xd9\x84\xd9\x8a\xd9\x85\xd8\xa7\xd8\xaa", "isb", "", false, false, "", 0, "", "" },  // زامِن_التعليمات => isb
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa7\xd8\xaa", "mrs", "w", false, false, "", 0, "", "cntvct_el0" },  // اقرأ_عدّاد_الدورات => mrs
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xaa\xd8\xb1\xd8\xaf\xd8\xaf_\xd8\xa7\xd9\x84\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa", "mrs", "w", false, false, "", 0, "", "cntfrq_el0" },  // اقرأ_تردّد_المؤقّت => mrs
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd9\x85\xd8\xb9\xd8\xb1\xd9\x81_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb9\xd8\xa7\xd9\x84\xd8\xac", "mrs", "w", false, false, "", 0, "", "midr_el1" },  // اقرأ_معرّف_المعالج => mrs
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb1\xd9\x82\xd9\x85_\xd8\xa7\xd9\x84\xd9\x86\xd9\x88\xd8\xa7\xd8\xa9", "mrs", "w", false, false, "", 0, "", "mpidr_el1" },  // اقرأ_رقم_النواة => mrs
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x88\xd9\x89_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xab\xd9\x86\xd8\xa7\xd8\xa1", "mrs", "w", false, false, "", 0, "", "currentel" },  // اقرأ_مستوى_الاستثناء => mrs
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb3\xd8\xa8\xd8\xa8_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xab\xd9\x86\xd8\xa7\xd8\xa1", "mrs", "w", false, false, "", 0, "", "esr_el1" },  // اقرأ_سبب_الاستثناء => mrs
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_\xd8\xa7\xd9\x84\xd8\xb9\xd8\xb7\xd8\xa8", "mrs", "w", false, false, "", 0, "", "far_el1" },  // اقرأ_عنوان_العطب => mrs
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_\xd8\xa7\xd9\x84\xd8\xb9\xd9\x88\xd8\xaf\xd8\xa9", "mrs", "w", false, false, "", 0, "", "elr_el1" },  // اقرأ_عنوان_العودة => mrs
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd8\xaa\xd8\xac\xd9\x87\xd8\xa7\xd8\xaa", "mrs", "w", false, false, "", 0, "", "vbar_el1" },  // اقرأ_جدول_المتّجهات => mrs
+                { "\xd8\xa7\xd8\xb6\xd8\xa8\xd8\xb7_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd8\xaa\xd8\xac\xd9\x87\xd8\xa7\xd8\xaa", "msr", "r", false, false, "", 0, "vbar_el1", "" },  // اضبط_جدول_المتّجهات => msr
+                { "\xd8\xa7\xd8\xb6\xd8\xa8\xd8\xb7_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_\xd8\xa7\xd9\x84\xd8\xb9\xd9\x88\xd8\xaf\xd8\xa9", "msr", "r", false, false, "", 0, "elr_el1", "" },  // اضبط_عنوان_العودة => msr
+                { "\xd8\xa7\xd8\xb6\xd8\xa8\xd8\xb7_\xd8\xad\xd8\xa7\xd9\x84\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xb9\xd9\x88\xd8\xaf\xd8\xa9", "msr", "r", false, false, "", 0, "spsr_el1", "" },  // اضبط_حالة_العودة => msr
+                { "\xd8\xa7\xd8\xb6\xd8\xa8\xd8\xb7_\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa_\xd8\xa7\xd9\x84\xd8\xb9\xd8\xaf", "msr", "r", false, false, "", 0, "cntv_tval_el0", "" },  // اضبط_مؤقّت_العدّ => msr
+                { "\xd8\xa7\xd8\xb6\xd8\xa8\xd8\xb7_\xd8\xaa\xd8\xad\xd9\x83\xd9\x85_\xd8\xa7\xd9\x84\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa", "msr", "r", false, false, "", 0, "cntv_ctl_el0", "" },  // اضبط_تحكّم_المؤقّت => msr
+            };
+            inline constexpr Register kRegisters_aarch64[] = {
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa0", "x0" },  // سجل_٠ => x0
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1", "x1" },  // سجل_١ => x1
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2", "x2" },  // سجل_٢ => x2
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa3", "x3" },  // سجل_٣ => x3
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa4", "x4" },  // سجل_٤ => x4
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa5", "x5" },  // سجل_٥ => x5
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa6", "x6" },  // سجل_٦ => x6
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa7", "x7" },  // سجل_٧ => x7
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa8", "x8" },  // سجل_٨ => x8
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa9", "x9" },  // سجل_٩ => x9
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa0", "x10" },  // سجل_١٠ => x10
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa1", "x11" },  // سجل_١١ => x11
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa2", "x12" },  // سجل_١٢ => x12
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa3", "x13" },  // سجل_١٣ => x13
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa4", "x14" },  // سجل_١٤ => x14
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa5", "x15" },  // سجل_١٥ => x15
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa6", "x16" },  // سجل_١٦ => x16
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa7", "x17" },  // سجل_١٧ => x17
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa8", "x18" },  // سجل_١٨ => x18
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa9", "x19" },  // سجل_١٩ => x19
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa0", "x20" },  // سجل_٢٠ => x20
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa1", "x21" },  // سجل_٢١ => x21
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa2", "x22" },  // سجل_٢٢ => x22
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa3", "x23" },  // سجل_٢٣ => x23
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa4", "x24" },  // سجل_٢٤ => x24
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa5", "x25" },  // سجل_٢٥ => x25
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa6", "x26" },  // سجل_٢٦ => x26
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa7", "x27" },  // سجل_٢٧ => x27
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa8", "x28" },  // سجل_٢٨ => x28
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa9", "x29" },  // سجل_٢٩ => x29
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa3\xd9\xa0", "x30" },  // سجل_٣٠ => x30
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa0_\xd9\xa3\xd9\xa2", "w0" },  // سجل_٠_٣٢ => w0
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1_\xd9\xa3\xd9\xa2", "w1" },  // سجل_١_٣٢ => w1
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2_\xd9\xa3\xd9\xa2", "w2" },  // سجل_٢_٣٢ => w2
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa3_\xd9\xa3\xd9\xa2", "w3" },  // سجل_٣_٣٢ => w3
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa4_\xd9\xa3\xd9\xa2", "w4" },  // سجل_٤_٣٢ => w4
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa5_\xd9\xa3\xd9\xa2", "w5" },  // سجل_٥_٣٢ => w5
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa6_\xd9\xa3\xd9\xa2", "w6" },  // سجل_٦_٣٢ => w6
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa7_\xd9\xa3\xd9\xa2", "w7" },  // سجل_٧_٣٢ => w7
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa8_\xd9\xa3\xd9\xa2", "w8" },  // سجل_٨_٣٢ => w8
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa9_\xd9\xa3\xd9\xa2", "w9" },  // سجل_٩_٣٢ => w9
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa0_\xd9\xa3\xd9\xa2", "w10" },  // سجل_١٠_٣٢ => w10
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa1_\xd9\xa3\xd9\xa2", "w11" },  // سجل_١١_٣٢ => w11
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa2_\xd9\xa3\xd9\xa2", "w12" },  // سجل_١٢_٣٢ => w12
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa3_\xd9\xa3\xd9\xa2", "w13" },  // سجل_١٣_٣٢ => w13
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa4_\xd9\xa3\xd9\xa2", "w14" },  // سجل_١٤_٣٢ => w14
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa5_\xd9\xa3\xd9\xa2", "w15" },  // سجل_١٥_٣٢ => w15
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa6_\xd9\xa3\xd9\xa2", "w16" },  // سجل_١٦_٣٢ => w16
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa7_\xd9\xa3\xd9\xa2", "w17" },  // سجل_١٧_٣٢ => w17
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa8_\xd9\xa3\xd9\xa2", "w18" },  // سجل_١٨_٣٢ => w18
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa9_\xd9\xa3\xd9\xa2", "w19" },  // سجل_١٩_٣٢ => w19
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa0_\xd9\xa3\xd9\xa2", "w20" },  // سجل_٢٠_٣٢ => w20
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa1_\xd9\xa3\xd9\xa2", "w21" },  // سجل_٢١_٣٢ => w21
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa2_\xd9\xa3\xd9\xa2", "w22" },  // سجل_٢٢_٣٢ => w22
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa3_\xd9\xa3\xd9\xa2", "w23" },  // سجل_٢٣_٣٢ => w23
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa4_\xd9\xa3\xd9\xa2", "w24" },  // سجل_٢٤_٣٢ => w24
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa5_\xd9\xa3\xd9\xa2", "w25" },  // سجل_٢٥_٣٢ => w25
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa6_\xd9\xa3\xd9\xa2", "w26" },  // سجل_٢٦_٣٢ => w26
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa7_\xd9\xa3\xd9\xa2", "w27" },  // سجل_٢٧_٣٢ => w27
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa8_\xd9\xa3\xd9\xa2", "w28" },  // سجل_٢٨_٣٢ => w28
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa9_\xd9\xa3\xd9\xa2", "w29" },  // سجل_٢٩_٣٢ => w29
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa3\xd9\xa0_\xd9\xa3\xd9\xa2", "w30" },  // سجل_٣٠_٣٢ => w30
+                { "\xd8\xb1\xd8\xa3\xd8\xb3_\xd8\xa7\xd9\x84\xd9\x85\xd9\x83\xd8\xaf\xd8\xb3", "sp" },  // رأس_المكدّس => sp
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd8\xb1\xd8\xa7\xd8\xa8\xd8\xb7", "lr" },  // سجلّ_الرابط => lr
+                { "\xd8\xa7\xd9\x84\xd8\xb5\xd9\x81\xd8\xb1", "xzr" },  // الصفر => xzr
+                { "\xd8\xa7\xd9\x84\xd8\xb5\xd9\x81\xd8\xb1_\xd9\xa3\xd9\xa2", "wzr" },  // الصفر_٣٢ => wzr
+            };
+
+            // ═══ المعماريّة i686 / architecture i686 ═══
+            inline constexpr Mnemonic kMnemonics_i686[] = {
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84", "mov", "wr", false, false, "", 0, "", "" },  // انقل => mov
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xb5\xd9\x81\xd9\x8a\xd8\xb1", "movzx", "wr", false, false, "", 0, "", "" },  // انقل_بتصفير => movzx
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd8\xa8\xd9\x85\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "movsx", "wr", false, false, "", 0, "", "" },  // انقل_بمدّ_الإشارة => movsx
+                { "\xd8\xa8\xd8\xa7\xd8\xaf\xd9\x84", "xchg", "wr", true, true, "", 0, "", "" },  // بادل => xchg
+                { "\xd8\xad\xd9\x85\xd9\x84_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86", "lea", "wm", false, false, "", 0, "", "" },  // حمّل_عنوان => lea
+                { "\xd8\xa7\xd8\xaf\xd9\x81\xd8\xb9", "push", "r", false, false, "", 0, "", "" },  // ادفع => push
+                { "\xd8\xa7\xd8\xb3\xd8\xad\xd8\xa8", "pop", "w", false, false, "", 0, "", "" },  // اسحب => pop
+                { "\xd8\xa7\xd8\xaf\xd9\x81\xd8\xb9_\xd8\xa7\xd9\x84\xd9\x83\xd9\x84", "pusha", "", false, false, "", 0, "", "" },  // ادفع_الكلّ => pusha
+                { "\xd8\xa7\xd8\xb3\xd8\xad\xd8\xa8_\xd8\xa7\xd9\x84\xd9\x83\xd9\x84", "popa", "", false, false, "~{eax},~{ebx},~{ecx},~{edx},~{esi},~{edi},~{ebp}", 0, "", "" },  // اسحب_الكلّ => popa
+                { "\xd8\xa7\xd8\xaf\xd9\x81\xd8\xb9_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85", "pushf", "", false, false, "", 0, "", "" },  // ادفع_الأعلام => pushf
+                { "\xd8\xa7\xd8\xb3\xd8\xad\xd8\xa8_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85", "popf", "", false, false, "", 0, "", "" },  // اسحب_الأعلام => popf
+                { "\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9", "add", "wr", true, false, "", 0, "", "" },  // اجمع => add
+                { "\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9_\xd8\xa8\xd8\xa7\xd9\x84\xd8\xad\xd9\x85\xd9\x84", "adc", "wr", true, false, "", 0, "", "" },  // اجمع_بالحمل => adc
+                { "\xd8\xa7\xd8\xb7\xd8\xb1\xd8\xad", "sub", "wr", true, false, "", 0, "", "" },  // اطرح => sub
+                { "\xd8\xa7\xd8\xb7\xd8\xb1\xd8\xad_\xd8\xa8\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x84\xd8\xa7\xd9\x81", "sbb", "wr", true, false, "", 0, "", "" },  // اطرح_بالاستلاف => sbb
+                { "\xd8\xa7\xd8\xb6\xd8\xb1\xd8\xa8", "mul", "r", false, false, "~{eax},~{edx}", 0, "", "" },  // اضرب => mul
+                { "\xd8\xa7\xd8\xb6\xd8\xb1\xd8\xa8_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "imul", "wr", true, false, "", 0, "", "" },  // اضرب_بإشارة => imul
+                { "\xd8\xa7\xd9\x82\xd8\xb3\xd9\x85", "div", "r", false, false, "~{eax},~{edx}", 0, "", "" },  // اقسم => div
+                { "\xd8\xa7\xd9\x82\xd8\xb3\xd9\x85_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "idiv", "r", false, false, "~{eax},~{edx}", 0, "", "" },  // اقسم_بإشارة => idiv
+                { "\xd9\x85\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9_\xd9\x84\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa", "cdq", "", false, false, "~{edx}", 0, "", "" },  // مدّ_الإشارة_للبيانات => cdq
+                { "\xd8\xb2\xd8\xaf", "inc", "w", true, false, "", 0, "", "" },  // زد => inc
+                { "\xd8\xa3\xd9\x86\xd9\x82\xd8\xb5", "dec", "w", true, false, "", 0, "", "" },  // أنقص => dec
+                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "neg", "w", true, false, "", 0, "", "" },  // اعكس_الإشارة => neg
+                { "\xd9\x88\xd8\xa7\xd9\x81\xd9\x82", "and", "wr", true, false, "", 0, "", "" },  // وافق => and
+                { "\xd8\xb6\xd9\x85", "or", "wr", true, false, "", 0, "", "" },  // ضمّ => or
+                { "\xd8\xae\xd8\xa7\xd9\x84\xd9\x81", "xor", "wr", true, false, "", 0, "", "" },  // خالف => xor
+                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xaa\xd8\xa7\xd8\xaa", "not", "w", true, false, "", 0, "", "" },  // اعكس_البتّات => not
+                { "\xd8\xa7\xd9\x81\xd8\xad\xd8\xb5", "test", "rr", false, false, "", 0, "", "" },  // افحص => test
+                { "\xd9\x82\xd8\xa7\xd8\xb1\xd9\x86", "cmp", "rr", false, false, "", 0, "", "" },  // قارن => cmp
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xa7", "shl", "wr", true, false, "", 0, "", "" },  // أزح_يسارًا => shl
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7", "shr", "wr", true, false, "", 0, "", "" },  // أزح_يمينًا => shr
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "sar", "wr", true, false, "", 0, "", "" },  // أزح_يمينًا_بإشارة => sar
+                { "\xd8\xaf\xd9\x88\xd8\xb1_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xa7", "rol", "wr", true, false, "", 0, "", "" },  // دوّر_يسارًا => rol
+                { "\xd8\xaf\xd9\x88\xd8\xb1_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7", "ror", "wr", true, false, "", 0, "", "" },  // دوّر_يمينًا => ror
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2", "jmp", "l", false, false, "", 0, "", "" },  // اقفز => jmp
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "je", "l", false, false, "", 0, "", "" },  // اقفز_إذا_ساوى => je
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb3\xd8\xa7\xd9\x88", "jne", "l", false, false, "", 0, "", "" },  // اقفز_إذا_لم_يساوِ => jne
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb5\xd9\x81\xd8\xb1", "jz", "l", false, false, "", 0, "", "" },  // اقفز_إذا_صفر => jz
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb5\xd9\x81\xd8\xb1", "jnz", "l", false, false, "", 0, "", "" },  // اقفز_إذا_لم_يصفر => jnz
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd8\xb5\xd8\xba\xd8\xb1", "jl", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أصغر => jl
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd8\xb5\xd8\xba\xd8\xb1_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jle", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أصغر_أو_ساوى => jle
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd9\x83\xd8\xa8\xd8\xb1", "jg", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أكبر => jg
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd9\x83\xd8\xa8\xd8\xb1_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jge", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أكبر_أو_ساوى => jge
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xaf\xd9\x88\xd9\x86", "jb", "l", false, false, "", 0, "", "" },  // اقفز_إذا_دون => jb
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xaf\xd9\x88\xd9\x86_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jbe", "l", false, false, "", 0, "", "" },  // اقفز_إذا_دون_أو_ساوى => jbe
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd9\x88\xd9\x82", "ja", "l", false, false, "", 0, "", "" },  // اقفز_إذا_فوق => ja
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd9\x88\xd9\x82_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jae", "l", false, false, "", 0, "", "" },  // اقفز_إذا_فوق_أو_ساوى => jae
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xad\xd9\x85\xd9\x84", "jc", "l", false, false, "", 0, "", "" },  // اقفز_إذا_حمل => jc
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd8\xa7\xd8\xb6", "jo", "l", false, false, "", 0, "", "" },  // اقفز_إذا_فاض => jo
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa8", "js", "l", false, false, "", 0, "", "" },  // اقفز_إذا_سالب => js
+                { "\xd8\xa3\xd9\x86\xd9\x82\xd8\xb5_\xd9\x88\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd9\x86_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb5\xd9\x81\xd8\xb1", "loop", "l", false, false, "~{ecx}", 0, "", "" },  // أنقص_واقفز_إن_لم_يصفر => loop
+                { "\xd9\x86\xd8\xa7\xd8\xaf", "call", "l", false, false, "", 0, "", "" },  // نادِ => call
+                { "\xd8\xb9\xd8\xaf", "ret", "", false, false, "", 0, "", "" },  // عُد => ret
+                { "\xd8\xb9\xd8\xaf_\xd9\x85\xd9\x86_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa9", "iret", "", false, false, "", 0, "", "" },  // عُد_من_المقاطعة => iret
+                { "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9_\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa9", "int", "i", false, false, "", 0, "", "" },  // استدعِ_مقاطعة => int
+                { "\xd8\xb9\xd8\xb7\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "cli", "", false, false, "", 0, "", "" },  // عطّل_المقاطعات => cli
+                { "\xd9\x81\xd8\xb9\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "sti", "", false, false, "", 0, "", "" },  // فعّل_المقاطعات => sti
+                { "\xd8\xa3\xd9\x88\xd9\x82\xd9\x81", "hlt", "", false, false, "", 0, "", "" },  // أوقف => hlt
+                { "\xd9\x84\xd8\xa7_\xd8\xb9\xd9\x85\xd9\x84", "nop", "", false, false, "", 0, "", "" },  // لا_عمل => nop
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_\xd8\xa7\xd9\x84\xd9\x88\xd8\xa7\xd8\xb5\xd9\x81\xd8\xa7\xd8\xaa", "sgdt", "m", false, false, "", 0, "", "" },  // خزّن_جدول_الواصفات => sgdt
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "sidt", "m", false, false, "", 0, "", "" },  // خزّن_جدول_المقاطعات => sidt
+                { "\xd8\xad\xd9\x85\xd9\x84_\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x87\xd9\x85\xd8\xa9", "ltr", "r", false, false, "", 16, "", "" },  // حمّل_سجل_المهمة => ltr
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x87\xd9\x85\xd8\xa9", "str", "w", false, false, "", 16, "", "" },  // خزّن_سجل_المهمة => str
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa7\xd8\xaa", "rdtsc", "", false, false, "~{eax},~{edx}", 0, "", "" },  // اقرأ_عدّاد_الدورات => rdtsc
+                { "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xae\xd8\xa8\xd8\xb1_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb9\xd8\xa7\xd9\x84\xd8\xac", "cpuid", "", false, false, "~{eax},~{ebx},~{ecx},~{edx}", 0, "", "" },  // استخبر_المعالج => cpuid
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", "movsb", "", false, false, "~{esi},~{edi}", 0, "", "" },  // انقل_بايت => movsb
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd9\x85\xd8\xb1\xd8\xa8\xd8\xb9\xd8\xa7", "movsd", "", false, false, "~{esi},~{edi}", 0, "", "" },  // انقل_مربّعًا => movsd
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", "stosb", "", false, false, "~{edi}", 0, "", "" },  // خزّن_بايت => stosb
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd9\x85\xd8\xb1\xd8\xa8\xd8\xb9\xd8\xa7", "stosd", "", false, false, "~{edi}", 0, "", "" },  // خزّن_مربّعًا => stosd
+                { "\xd9\x83\xd8\xb1\xd8\xb1", "rep", "a", false, false, "~{ecx},~{esi},~{edi}", 0, "", "" },  // كرّر => rep
+            };
+            inline constexpr Register kRegisters_i686[] = {
                 { "\xd8\xa7\xd9\x84\xd9\x85\xd8\xb1\xd9\x83\xd9\x85", "eax" },  // المركم => eax
                 { "\xd8\xa7\xd9\x84\xd9\x82\xd8\xa7\xd8\xb9\xd8\xaf\xd8\xa9", "ebx" },  // القاعدة => ebx
                 { "\xd8\xa7\xd9\x84\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf", "ecx" },  // العدّاد => ecx
@@ -163,14 +360,254 @@ namespace Sad
                 { "\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85_\xd9\xa2", "cr2" },  // سجلّ_التحكّم_٢ => cr2
                 { "\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85_\xd9\xa3", "cr3" },  // سجلّ_التحكّم_٣ => cr3
             };
-            inline constexpr std::size_t kRegisterCount = sizeof(kRegisters) / sizeof(kRegisters[0]);
 
-            // ─── أهداف التلويث المخصوصة / special clobber targets ───
-            inline constexpr ClobberSpecial kClobberSpecials[] = {
-                { "\xd8\xa7\xd9\x84\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9", "~{memory}" },  // الذاكرة => ~{memory}
-                { "\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85", "~{cc}" },  // الأعلام => ~{cc}
+            // ═══ المعماريّة riscv64 / architecture riscv64 ═══
+            inline constexpr Mnemonic kMnemonics_riscv64[] = {
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84", "mv", "wr", false, false, "", 0, "", "" },  // انقل => mv
+                { "\xd8\xad\xd9\x85\xd9\x84", "ld", "wm", false, false, "", 0, "", "" },  // حمّل => ld
+                { "\xd8\xae\xd8\xb2\xd9\x86", "sd", "rm", false, false, "", 0, "", "" },  // خزّن => sd
+                { "\xd8\xad\xd9\x85\xd9\x84_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", "lbu", "wm", false, false, "", 0, "", "" },  // حمّل_بايت => lbu
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", "sb", "rm", false, false, "", 0, "", "" },  // خزّن_بايت => sb
+                { "\xd8\xad\xd9\x85\xd9\x84_\xd9\x86\xd8\xb5\xd9\x81_\xd9\x83\xd9\x84\xd9\x85\xd8\xa9", "lhu", "wm", false, false, "", 0, "", "" },  // حمّل_نصف_كلمة => lhu
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd9\x86\xd8\xb5\xd9\x81_\xd9\x83\xd9\x84\xd9\x85\xd8\xa9", "sh", "rm", false, false, "", 0, "", "" },  // خزّن_نصف_كلمة => sh
+                { "\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9", "add", "wr", true, false, "", 0, "", "" },  // اجمع => add
+                { "\xd8\xa7\xd8\xb7\xd8\xb1\xd8\xad", "sub", "wr", true, false, "", 0, "", "" },  // اطرح => sub
+                { "\xd8\xa7\xd8\xb6\xd8\xb1\xd8\xa8", "mul", "wr", true, false, "", 0, "", "" },  // اضرب => mul
+                { "\xd8\xa7\xd9\x82\xd8\xb3\xd9\x85", "divu", "wr", true, false, "", 0, "", "" },  // اقسم => divu
+                { "\xd8\xa7\xd9\x82\xd8\xb3\xd9\x85_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "div", "wr", true, false, "", 0, "", "" },  // اقسم_بإشارة => div
+                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "neg", "w", true, false, "", 0, "", "" },  // اعكس_الإشارة => neg
+                { "\xd8\xb2\xd8\xaf", "addi", "w", true, false, "", 0, "", "1" },  // زد => addi
+                { "\xd8\xa3\xd9\x86\xd9\x82\xd8\xb5", "addi", "w", true, false, "", 0, "", "-1" },  // أنقص => addi
+                { "\xd9\x88\xd8\xa7\xd9\x81\xd9\x82", "and", "wr", true, false, "", 0, "", "" },  // وافق => and
+                { "\xd8\xb6\xd9\x85", "or", "wr", true, false, "", 0, "", "" },  // ضمّ => or
+                { "\xd8\xae\xd8\xa7\xd9\x84\xd9\x81", "xor", "wr", true, false, "", 0, "", "" },  // خالف => xor
+                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xaa\xd8\xa7\xd8\xaa", "not", "w", true, false, "", 0, "", "" },  // اعكس_البتّات => not
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xa7", "sll", "wr", true, false, "", 0, "", "" },  // أزح_يسارًا => sll
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7", "srl", "wr", true, false, "", 0, "", "" },  // أزح_يمينًا => srl
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "sra", "wr", true, false, "", 0, "", "" },  // أزح_يمينًا_بإشارة => sra
+                { "\xd9\x82\xd8\xa7\xd8\xb1\xd9\x86_\xd8\xa3\xd8\xb5\xd8\xba\xd8\xb1", "slt", "wr", true, false, "", 0, "", "" },  // قارن_أصغر => slt
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2", "j", "l", false, false, "", 0, "", "" },  // اقفز => j
+                { "\xd9\x86\xd8\xa7\xd8\xaf", "call", "l", false, false, "", 0, "", "" },  // نادِ => call
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd9\x84\xd9\x89_\xd8\xb3\xd8\xac\xd9\x84", "jr", "r", false, false, "", 0, "", "" },  // اقفز_إلى_سجل => jr
+                { "\xd9\x86\xd8\xa7\xd8\xaf_\xd8\xb3\xd8\xac\xd9\x84\xd8\xa7", "jalr", "r", false, false, "", 0, "", "" },  // نادِ_سجلًّا => jalr
+                { "\xd8\xb9\xd8\xaf", "ret", "", false, false, "", 0, "", "" },  // عُد => ret
+                { "\xd8\xb9\xd8\xaf_\xd9\x85\xd9\x86_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa9", "mret", "", false, false, "", 0, "", "" },  // عُد_من_المقاطعة => mret
+                { "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9_\xd8\xa7\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa6\xd8\xa9", "ecall", "", false, false, "", 0, "", "" },  // استدعِ_البيئة => ecall
+                { "\xd9\x84\xd8\xa7_\xd8\xb9\xd9\x85\xd9\x84", "nop", "", false, false, "", 0, "", "" },  // لا_عمل => nop
+                { "\xd8\xa3\xd9\x88\xd9\x82\xd9\x81", "wfi", "", false, false, "", 0, "", "" },  // أوقف => wfi
+                { "\xd8\xb9\xd8\xb7\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "csri", "", false, false, "", 0, "mstatus", "8" },  // عطّل_المقاطعات => csri
+                { "\xd9\x81\xd8\xb9\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "csrsi", "", false, false, "", 0, "mstatus", "8" },  // فعّل_المقاطعات => csrsi
+                { "\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86_\xd8\xa7\xd9\x84\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9", "fence", "", false, false, "", 0, "", "" },  // زامِن_الذاكرة => fence
+                { "\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xb9\xd9\x84\xd9\x8a\xd9\x85\xd8\xa7\xd8\xaa", "fence.i", "", false, false, "", 0, "", "" },  // زامِن_التعليمات => fence.i
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa7\xd8\xaa", "rdcycle", "w", false, false, "", 0, "", "" },  // اقرأ_عدّاد_الدورات => rdcycle
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb1\xd9\x82\xd9\x85_\xd8\xa7\xd9\x84\xd9\x86\xd9\x88\xd8\xa7\xd8\xa9", "csrr", "w", false, false, "", 0, "", "mhartid" },  // اقرأ_رقم_النواة => csrr
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb3\xd8\xa8\xd8\xa8_\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xab\xd9\x86\xd8\xa7\xd8\xa1", "csrr", "w", false, false, "", 0, "", "mcause" },  // اقرأ_سبب_الاستثناء => csrr
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_\xd8\xa7\xd9\x84\xd8\xb9\xd9\x88\xd8\xaf\xd8\xa9", "csrr", "w", false, false, "", 0, "", "mepc" },  // اقرأ_عنوان_العودة => csrr
+                { "\xd8\xa7\xd8\xb6\xd8\xa8\xd8\xb7_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd8\xaa\xd8\xac\xd9\x87\xd8\xa7\xd8\xaa", "csrw", "r", false, false, "", 0, "mtvec", "" },  // اضبط_جدول_المتّجهات => csrw
+                { "\xd8\xa7\xd8\xb6\xd8\xa8\xd8\xb7_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86_\xd8\xa7\xd9\x84\xd8\xb9\xd9\x88\xd8\xaf\xd8\xa9", "csrw", "r", false, false, "", 0, "mepc", "" },  // اضبط_عنوان_العودة => csrw
             };
-            inline constexpr std::size_t kClobberSpecialCount = sizeof(kClobberSpecials) / sizeof(kClobberSpecials[0]);
+            inline constexpr Register kRegisters_riscv64[] = {
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa0", "x0" },  // سجل_٠ => x0
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1", "x1" },  // سجل_١ => x1
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2", "x2" },  // سجل_٢ => x2
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa3", "x3" },  // سجل_٣ => x3
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa4", "x4" },  // سجل_٤ => x4
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa5", "x5" },  // سجل_٥ => x5
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa6", "x6" },  // سجل_٦ => x6
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa7", "x7" },  // سجل_٧ => x7
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa8", "x8" },  // سجل_٨ => x8
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa9", "x9" },  // سجل_٩ => x9
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa0", "x10" },  // سجل_١٠ => x10
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa1", "x11" },  // سجل_١١ => x11
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa2", "x12" },  // سجل_١٢ => x12
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa3", "x13" },  // سجل_١٣ => x13
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa4", "x14" },  // سجل_١٤ => x14
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa5", "x15" },  // سجل_١٥ => x15
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa6", "x16" },  // سجل_١٦ => x16
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa7", "x17" },  // سجل_١٧ => x17
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa8", "x18" },  // سجل_١٨ => x18
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa9", "x19" },  // سجل_١٩ => x19
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa0", "x20" },  // سجل_٢٠ => x20
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa1", "x21" },  // سجل_٢١ => x21
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa2", "x22" },  // سجل_٢٢ => x22
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa3", "x23" },  // سجل_٢٣ => x23
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa4", "x24" },  // سجل_٢٤ => x24
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa5", "x25" },  // سجل_٢٥ => x25
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa6", "x26" },  // سجل_٢٦ => x26
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa7", "x27" },  // سجل_٢٧ => x27
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa8", "x28" },  // سجل_٢٨ => x28
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa2\xd9\xa9", "x29" },  // سجل_٢٩ => x29
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa3\xd9\xa0", "x30" },  // سجل_٣٠ => x30
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa3\xd9\xa1", "x31" },  // سجل_٣١ => x31
+                { "\xd8\xa7\xd9\x84\xd8\xb5\xd9\x81\xd8\xb1", "zero" },  // الصفر => zero
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd8\xb1\xd8\xa7\xd8\xa8\xd8\xb7", "ra" },  // سجلّ_الرابط => ra
+                { "\xd8\xb1\xd8\xa3\xd8\xb3_\xd8\xa7\xd9\x84\xd9\x85\xd9\x83\xd8\xaf\xd8\xb3", "sp" },  // رأس_المكدّس => sp
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd8\xb9\xd8\xa7\xd9\x84\xd9\x85\xd9\x8a", "gp" },  // سجل_عالميّ => gp
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd8\xae\xd9\x8a\xd8\xb7", "tp" },  // سجل_خيط => tp
+                { "\xd8\xa7\xd9\x84\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7_\xd9\xa0", "a0" },  // الوسيط_٠ => a0
+                { "\xd8\xa7\xd9\x84\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7_\xd9\xa1", "a1" },  // الوسيط_١ => a1
+                { "\xd8\xa7\xd9\x84\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7_\xd9\xa2", "a2" },  // الوسيط_٢ => a2
+                { "\xd8\xa7\xd9\x84\xd9\x88\xd8\xb3\xd9\x8a\xd8\xb7_\xd9\xa3", "a3" },  // الوسيط_٣ => a3
+                { "\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa_\xd9\xa0", "t0" },  // مؤقّت_٠ => t0
+                { "\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa_\xd9\xa1", "t1" },  // مؤقّت_١ => t1
+                { "\xd9\x85\xd8\xa4\xd9\x82\xd8\xaa_\xd9\xa2", "t2" },  // مؤقّت_٢ => t2
+                { "\xd9\x85\xd8\xad\xd9\x81\xd9\x88\xd8\xb8_\xd9\xa0", "s0" },  // محفوظ_٠ => s0
+                { "\xd9\x85\xd8\xad\xd9\x81\xd9\x88\xd8\xb8_\xd9\xa1", "s1" },  // محفوظ_١ => s1
+            };
+
+            // ═══ المعماريّة x86_64 / architecture x86_64 ═══
+            inline constexpr Mnemonic kMnemonics_x86_64[] = {
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84", "mov", "wr", false, false, "", 0, "", "" },  // انقل => mov
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xb5\xd9\x81\xd9\x8a\xd8\xb1", "movzx", "wr", false, false, "", 0, "", "" },  // انقل_بتصفير => movzx
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd8\xa8\xd9\x85\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "movsx", "wr", false, false, "", 0, "", "" },  // انقل_بمدّ_الإشارة => movsx
+                { "\xd8\xa8\xd8\xa7\xd8\xaf\xd9\x84", "xchg", "wr", true, true, "", 0, "", "" },  // بادل => xchg
+                { "\xd8\xad\xd9\x85\xd9\x84_\xd8\xb9\xd9\x86\xd9\x88\xd8\xa7\xd9\x86", "lea", "wm", false, false, "", 0, "", "" },  // حمّل_عنوان => lea
+                { "\xd8\xa7\xd8\xaf\xd9\x81\xd8\xb9", "push", "r", false, false, "", 0, "", "" },  // ادفع => push
+                { "\xd8\xa7\xd8\xb3\xd8\xad\xd8\xa8", "pop", "w", false, false, "", 0, "", "" },  // اسحب => pop
+                { "\xd8\xa7\xd8\xaf\xd9\x81\xd8\xb9_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85", "pushfq", "", false, false, "", 0, "", "" },  // ادفع_الأعلام => pushfq
+                { "\xd8\xa7\xd8\xb3\xd8\xad\xd8\xa8_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb9\xd9\x84\xd8\xa7\xd9\x85", "popfq", "", false, false, "", 0, "", "" },  // اسحب_الأعلام => popfq
+                { "\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9", "add", "wr", true, false, "", 0, "", "" },  // اجمع => add
+                { "\xd8\xa7\xd8\xac\xd9\x85\xd8\xb9_\xd8\xa8\xd8\xa7\xd9\x84\xd8\xad\xd9\x85\xd9\x84", "adc", "wr", true, false, "", 0, "", "" },  // اجمع_بالحمل => adc
+                { "\xd8\xa7\xd8\xb7\xd8\xb1\xd8\xad", "sub", "wr", true, false, "", 0, "", "" },  // اطرح => sub
+                { "\xd8\xa7\xd8\xb7\xd8\xb1\xd8\xad_\xd8\xa8\xd8\xa7\xd9\x84\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x84\xd8\xa7\xd9\x81", "sbb", "wr", true, false, "", 0, "", "" },  // اطرح_بالاستلاف => sbb
+                { "\xd8\xa7\xd8\xb6\xd8\xb1\xd8\xa8", "mul", "r", false, false, "~{rax},~{rdx}", 0, "", "" },  // اضرب => mul
+                { "\xd8\xa7\xd8\xb6\xd8\xb1\xd8\xa8_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "imul", "wr", true, false, "", 0, "", "" },  // اضرب_بإشارة => imul
+                { "\xd8\xa7\xd9\x82\xd8\xb3\xd9\x85", "div", "r", false, false, "~{rax},~{rdx}", 0, "", "" },  // اقسم => div
+                { "\xd8\xa7\xd9\x82\xd8\xb3\xd9\x85_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "idiv", "r", false, false, "~{rax},~{rdx}", 0, "", "" },  // اقسم_بإشارة => idiv
+                { "\xd9\x85\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9_\xd9\x84\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa", "cqto", "", false, false, "~{rdx}", 0, "", "" },  // مدّ_الإشارة_للبيانات => cqto
+                { "\xd8\xb2\xd8\xaf", "inc", "w", true, false, "", 0, "", "" },  // زد => inc
+                { "\xd8\xa3\xd9\x86\xd9\x82\xd8\xb5", "dec", "w", true, false, "", 0, "", "" },  // أنقص => dec
+                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "neg", "w", true, false, "", 0, "", "" },  // اعكس_الإشارة => neg
+                { "\xd9\x88\xd8\xa7\xd9\x81\xd9\x82", "and", "wr", true, false, "", 0, "", "" },  // وافق => and
+                { "\xd8\xb6\xd9\x85", "or", "wr", true, false, "", 0, "", "" },  // ضمّ => or
+                { "\xd8\xae\xd8\xa7\xd9\x84\xd9\x81", "xor", "wr", true, false, "", 0, "", "" },  // خالف => xor
+                { "\xd8\xa7\xd8\xb9\xd9\x83\xd8\xb3_\xd8\xa7\xd9\x84\xd8\xa8\xd8\xaa\xd8\xa7\xd8\xaa", "not", "w", true, false, "", 0, "", "" },  // اعكس_البتّات => not
+                { "\xd8\xa7\xd9\x81\xd8\xad\xd8\xb5", "test", "rr", false, false, "", 0, "", "" },  // افحص => test
+                { "\xd9\x82\xd8\xa7\xd8\xb1\xd9\x86", "cmp", "rr", false, false, "", 0, "", "" },  // قارن => cmp
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xa7", "shl", "wr", true, false, "", 0, "", "" },  // أزح_يسارًا => shl
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7", "shr", "wr", true, false, "", 0, "", "" },  // أزح_يمينًا => shr
+                { "\xd8\xa3\xd8\xb2\xd8\xad_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7_\xd8\xa8\xd8\xa5\xd8\xb4\xd8\xa7\xd8\xb1\xd8\xa9", "sar", "wr", true, false, "", 0, "", "" },  // أزح_يمينًا_بإشارة => sar
+                { "\xd8\xaf\xd9\x88\xd8\xb1_\xd9\x8a\xd8\xb3\xd8\xa7\xd8\xb1\xd8\xa7", "rol", "wr", true, false, "", 0, "", "" },  // دوّر_يسارًا => rol
+                { "\xd8\xaf\xd9\x88\xd8\xb1_\xd9\x8a\xd9\x85\xd9\x8a\xd9\x86\xd8\xa7", "ror", "wr", true, false, "", 0, "", "" },  // دوّر_يمينًا => ror
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2", "jmp", "l", false, false, "", 0, "", "" },  // اقفز => jmp
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "je", "l", false, false, "", 0, "", "" },  // اقفز_إذا_ساوى => je
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb3\xd8\xa7\xd9\x88", "jne", "l", false, false, "", 0, "", "" },  // اقفز_إذا_لم_يساوِ => jne
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb5\xd9\x81\xd8\xb1", "jz", "l", false, false, "", 0, "", "" },  // اقفز_إذا_صفر => jz
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb5\xd9\x81\xd8\xb1", "jnz", "l", false, false, "", 0, "", "" },  // اقفز_إذا_لم_يصفر => jnz
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd8\xb5\xd8\xba\xd8\xb1", "jl", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أصغر => jl
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd8\xb5\xd8\xba\xd8\xb1_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jle", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أصغر_أو_ساوى => jle
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd9\x83\xd8\xa8\xd8\xb1", "jg", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أكبر => jg
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xa3\xd9\x83\xd8\xa8\xd8\xb1_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jge", "l", false, false, "", 0, "", "" },  // اقفز_إذا_أكبر_أو_ساوى => jge
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xaf\xd9\x88\xd9\x86", "jb", "l", false, false, "", 0, "", "" },  // اقفز_إذا_دون => jb
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xaf\xd9\x88\xd9\x86_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jbe", "l", false, false, "", 0, "", "" },  // اقفز_إذا_دون_أو_ساوى => jbe
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd9\x88\xd9\x82", "ja", "l", false, false, "", 0, "", "" },  // اقفز_إذا_فوق => ja
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd9\x88\xd9\x82_\xd8\xa3\xd9\x88_\xd8\xb3\xd8\xa7\xd9\x88\xd9\x89", "jae", "l", false, false, "", 0, "", "" },  // اقفز_إذا_فوق_أو_ساوى => jae
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xad\xd9\x85\xd9\x84", "jc", "l", false, false, "", 0, "", "" },  // اقفز_إذا_حمل => jc
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd9\x81\xd8\xa7\xd8\xb6", "jo", "l", false, false, "", 0, "", "" },  // اقفز_إذا_فاض => jo
+                { "\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd8\xb0\xd8\xa7_\xd8\xb3\xd8\xa7\xd9\x84\xd8\xa8", "js", "l", false, false, "", 0, "", "" },  // اقفز_إذا_سالب => js
+                { "\xd8\xa3\xd9\x86\xd9\x82\xd8\xb5_\xd9\x88\xd8\xa7\xd9\x82\xd9\x81\xd8\xb2_\xd8\xa5\xd9\x86_\xd9\x84\xd9\x85_\xd9\x8a\xd8\xb5\xd9\x81\xd8\xb1", "loop", "l", false, false, "~{rcx}", 0, "", "" },  // أنقص_واقفز_إن_لم_يصفر => loop
+                { "\xd9\x86\xd8\xa7\xd8\xaf", "call", "l", false, false, "", 0, "", "" },  // نادِ => call
+                { "\xd8\xb9\xd8\xaf", "ret", "", false, false, "", 0, "", "" },  // عُد => ret
+                { "\xd8\xb9\xd8\xaf_\xd9\x85\xd9\x86_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa9", "iretq", "", false, false, "", 0, "", "" },  // عُد_من_المقاطعة => iretq
+                { "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xaf\xd8\xb9_\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa9", "int", "i", false, false, "", 0, "", "" },  // استدعِ_مقاطعة => int
+                { "\xd8\xb9\xd8\xb7\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "cli", "", false, false, "", 0, "", "" },  // عطّل_المقاطعات => cli
+                { "\xd9\x81\xd8\xb9\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "sti", "", false, false, "", 0, "", "" },  // فعّل_المقاطعات => sti
+                { "\xd8\xa3\xd9\x88\xd9\x82\xd9\x81", "hlt", "", false, false, "", 0, "", "" },  // أوقف => hlt
+                { "\xd9\x84\xd8\xa7_\xd8\xb9\xd9\x85\xd9\x84", "nop", "", false, false, "", 0, "", "" },  // لا_عمل => nop
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_\xd8\xa7\xd9\x84\xd9\x88\xd8\xa7\xd8\xb5\xd9\x81\xd8\xa7\xd8\xaa", "sgdt", "m", false, false, "", 0, "", "" },  // خزّن_جدول_الواصفات => sgdt
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xac\xd8\xaf\xd9\x88\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x82\xd8\xa7\xd8\xb7\xd8\xb9\xd8\xa7\xd8\xaa", "sidt", "m", false, false, "", 0, "", "" },  // خزّن_جدول_المقاطعات => sidt
+                { "\xd8\xad\xd9\x85\xd9\x84_\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x87\xd9\x85\xd8\xa9", "ltr", "r", false, false, "", 16, "", "" },  // حمّل_سجل_المهمة => ltr
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd9\x85\xd9\x87\xd9\x85\xd8\xa9", "str", "w", false, false, "", 16, "", "" },  // خزّن_سجل_المهمة => str
+                { "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xaf\xd9\x88\xd8\xb1\xd8\xa7\xd8\xaa", "rdtsc", "", false, false, "~{rax},~{rdx}", 0, "", "" },  // اقرأ_عدّاد_الدورات => rdtsc
+                { "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xae\xd8\xa8\xd8\xb1_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb9\xd8\xa7\xd9\x84\xd8\xac", "cpuid", "", false, false, "~{rax},~{rbx},~{rcx},~{rdx}", 0, "", "" },  // استخبر_المعالج => cpuid
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", "movsb", "", false, false, "~{rsi},~{rdi}", 0, "", "" },  // انقل_بايت => movsb
+                { "\xd8\xa7\xd9\x86\xd9\x82\xd9\x84_\xd9\x85\xd8\xb1\xd8\xa8\xd8\xb9\xd8\xa7", "movsl", "", false, false, "~{rsi},~{rdi}", 0, "", "" },  // انقل_مربّعًا => movsl
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa", "stosb", "", false, false, "~{rdi}", 0, "", "" },  // خزّن_بايت => stosb
+                { "\xd8\xae\xd8\xb2\xd9\x86_\xd9\x85\xd8\xb1\xd8\xa8\xd8\xb9\xd8\xa7", "stosl", "", false, false, "~{rdi}", 0, "", "" },  // خزّن_مربّعًا => stosl
+                { "\xd9\x83\xd8\xb1\xd8\xb1", "rep", "a", false, false, "~{rcx},~{rsi},~{rdi}", 0, "", "" },  // كرّر => rep
+            };
+            inline constexpr Register kRegisters_x86_64[] = {
+                { "\xd8\xa7\xd9\x84\xd9\x85\xd8\xb1\xd9\x83\xd9\x85", "rax" },  // المركم => rax
+                { "\xd8\xa7\xd9\x84\xd9\x82\xd8\xa7\xd8\xb9\xd8\xaf\xd8\xa9", "rbx" },  // القاعدة => rbx
+                { "\xd8\xa7\xd9\x84\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf", "rcx" },  // العدّاد => rcx
+                { "\xd8\xa7\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa", "rdx" },  // البيانات => rdx
+                { "\xd9\x81\xd9\x87\xd8\xb1\xd8\xb3_\xd8\xa7\xd9\x84\xd9\x85\xd8\xb5\xd8\xaf\xd8\xb1", "rsi" },  // فهرس_المصدر => rsi
+                { "\xd9\x81\xd9\x87\xd8\xb1\xd8\xb3_\xd8\xa7\xd9\x84\xd9\x88\xd8\xac\xd9\x87\xd8\xa9", "rdi" },  // فهرس_الوجهة => rdi
+                { "\xd9\x82\xd8\xa7\xd8\xb9\xd8\xaf\xd8\xa9_\xd8\xa7\xd9\x84\xd8\xa5\xd8\xb7\xd8\xa7\xd8\xb1", "rbp" },  // قاعدة_الإطار => rbp
+                { "\xd8\xb1\xd8\xa3\xd8\xb3_\xd8\xa7\xd9\x84\xd9\x85\xd9\x83\xd8\xaf\xd8\xb3", "rsp" },  // رأس_المكدّس => rsp
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa8", "r8" },  // سجل_٨ => r8
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa9", "r9" },  // سجل_٩ => r9
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa0", "r10" },  // سجل_١٠ => r10
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa1", "r11" },  // سجل_١١ => r11
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa2", "r12" },  // سجل_١٢ => r12
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa3", "r13" },  // سجل_١٣ => r13
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa4", "r14" },  // سجل_١٤ => r14
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd9\xa1\xd9\xa5", "r15" },  // سجل_١٥ => r15
+                { "\xd8\xa7\xd9\x84\xd9\x85\xd8\xb1\xd9\x83\xd9\x85_\xd9\xa3\xd9\xa2", "eax" },  // المركم_٣٢ => eax
+                { "\xd8\xa7\xd9\x84\xd9\x82\xd8\xa7\xd8\xb9\xd8\xaf\xd8\xa9_\xd9\xa3\xd9\xa2", "ebx" },  // القاعدة_٣٢ => ebx
+                { "\xd8\xa7\xd9\x84\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd9\xa3\xd9\xa2", "ecx" },  // العدّاد_٣٢ => ecx
+                { "\xd8\xa7\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa_\xd9\xa3\xd9\xa2", "edx" },  // البيانات_٣٢ => edx
+                { "\xd8\xa7\xd9\x84\xd9\x85\xd8\xb1\xd9\x83\xd9\x85_\xd9\xa1\xd9\xa6", "ax" },  // المركم_١٦ => ax
+                { "\xd8\xa7\xd9\x84\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd9\xa1\xd9\xa6", "cx" },  // العدّاد_١٦ => cx
+                { "\xd8\xa7\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa_\xd9\xa1\xd9\xa6", "dx" },  // البيانات_١٦ => dx
+                { "\xd8\xa7\xd9\x84\xd9\x85\xd8\xb1\xd9\x83\xd9\x85_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89", "al" },  // المركم_الأدنى => al
+                { "\xd8\xa7\xd9\x84\xd9\x85\xd8\xb1\xd9\x83\xd9\x85_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xb9\xd9\x84\xd9\x89", "ah" },  // المركم_الأعلى => ah
+                { "\xd8\xa7\xd9\x84\xd8\xb9\xd8\xaf\xd8\xa7\xd8\xaf_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89", "cl" },  // العدّاد_الأدنى => cl
+                { "\xd8\xa7\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa_\xd8\xa7\xd9\x84\xd8\xa3\xd8\xaf\xd9\x86\xd9\x89", "dl" },  // البيانات_الأدنى => dl
+                { "\xd9\x85\xd9\x82\xd8\xb7\xd8\xb9_\xd8\xa7\xd9\x84\xd9\x83\xd9\x88\xd8\xaf", "cs" },  // مقطع_الكود => cs
+                { "\xd9\x85\xd9\x82\xd8\xb7\xd8\xb9_\xd8\xa7\xd9\x84\xd8\xa8\xd9\x8a\xd8\xa7\xd9\x86\xd8\xa7\xd8\xaa", "ds" },  // مقطع_البيانات => ds
+                { "\xd9\x85\xd9\x82\xd8\xb7\xd8\xb9_\xd8\xa7\xd9\x84\xd9\x85\xd9\x83\xd8\xaf\xd8\xb3", "ss" },  // مقطع_المكدّس => ss
+                { "\xd9\x85\xd9\x82\xd8\xb7\xd8\xb9_\xd8\xa7\xd9\x84\xd9\x88\xd8\xac\xd9\x87\xd8\xa9", "es" },  // مقطع_الوجهة => es
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85_\xd9\xa0", "cr0" },  // سجلّ_التحكّم_٠ => cr0
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85_\xd9\xa2", "cr2" },  // سجلّ_التحكّم_٢ => cr2
+                { "\xd8\xb3\xd8\xac\xd9\x84_\xd8\xa7\xd9\x84\xd8\xaa\xd8\xad\xd9\x83\xd9\x85_\xd9\xa3", "cr3" },  // سجلّ_التحكّم_٣ => cr3
+            };
+
+            // ─── سجلّ المعماريّات / architecture registry ───
+            inline constexpr Architecture kArchitectures[] = {
+                { "aarch64", kMnemonics_aarch64, sizeof(kMnemonics_aarch64) / sizeof(kMnemonics_aarch64[0]), kRegisters_aarch64, sizeof(kRegisters_aarch64) / sizeof(kRegisters_aarch64[0]), { "", "#", false, true, true } },
+                { "i686", kMnemonics_i686, sizeof(kMnemonics_i686) / sizeof(kMnemonics_i686[0]), kRegisters_i686, sizeof(kRegisters_i686) / sizeof(kRegisters_i686[0]), { "%", "$$", true, false, false } },
+                { "riscv64", kMnemonics_riscv64, sizeof(kMnemonics_riscv64) / sizeof(kMnemonics_riscv64[0]), kRegisters_riscv64, sizeof(kRegisters_riscv64) / sizeof(kRegisters_riscv64[0]), { "", "", false, true, false } },
+                { "x86_64", kMnemonics_x86_64, sizeof(kMnemonics_x86_64) / sizeof(kMnemonics_x86_64[0]), kRegisters_x86_64, sizeof(kRegisters_x86_64) / sizeof(kRegisters_x86_64[0]), { "%", "$$", true, false, false } },
+            };
+            inline constexpr std::size_t kArchitectureCount = sizeof(kArchitectures) / sizeof(kArchitectures[0]);
+
+            // (AR) أسماء بديلة لحقل المعماريّة في ثالوث الهدف (amd64 ⇒ x86_64…).
+            struct ArchAlias
+            {
+                const char *alias;
+                std::size_t index;
+            };
+            inline constexpr ArchAlias kArchAliases[] = {
+                { "arm64", 0 },  // arm64 => aarch64
+                { "arm64e", 0 },  // arm64e => aarch64
+                { "aarch64_be", 0 },  // aarch64_be => aarch64
+                { "i386", 1 },  // i386 => i686
+                { "i486", 1 },  // i486 => i686
+                { "i586", 1 },  // i586 => i686
+                { "riscv64gc", 2 },  // riscv64gc => riscv64
+                { "rv64", 2 },  // rv64 => riscv64
+                { "rv64gc", 2 },  // rv64gc => riscv64
+                { "amd64", 3 },  // amd64 => x86_64
+                { "x64", 3 },  // x64 => x86_64
+                { "x86-64", 3 },  // x86-64 => x86_64
+            };
+            inline constexpr std::size_t kArchAliasCount = sizeof(kArchAliases) / sizeof(kArchAliases[0]);
+
+            // (AR) معماريّة المضيف — من host_macros في مصدر الحقيقة، فلا سلسلة
+            //      معماريّة مكتوبة في C++ يدويًّا. مضيفٌ لا معجم له ⇒ (-1).
+            // (EN) Host architecture index from SoT-declared host_macros.
+#if defined(__aarch64__) || defined(_M_ARM64)
+#  define SAD_ASM_HOST_ARCH_INDEX 0   // aarch64
+#elif defined(__i386__) || defined(_M_IX86)
+#  define SAD_ASM_HOST_ARCH_INDEX 1   // i686
+#elif defined(__riscv)
+#  define SAD_ASM_HOST_ARCH_INDEX 2   // riscv64
+#elif defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64)
+#  define SAD_ASM_HOST_ARCH_INDEX 3   // x86_64
+#else
+#  define SAD_ASM_HOST_ARCH_INDEX (-1)
+#endif
 
             // ─── كلمات الكتلة القانونيّة (مجرَّدة التشكيل) / canonical block keywords ───
             inline constexpr const char *kBlockOpener = "\xd8\xaa\xd8\xac\xd9\x85\xd9\x8a\xd8\xb9";   // تجميع
@@ -178,25 +615,118 @@ namespace Sad
             inline constexpr const char *kBlockVolatile = "\xd9\x85\xd8\xaa\xd8\xb7\xd8\xa7\xd9\x8a\xd8\xb1"; // متطاير
             inline constexpr const char *kClobberKeyword = "\xd9\x8a\xd9\x84\xd9\x88\xd8\xab";  // يلوّث
 
-            // (AR) بحث عن منمنمة بالاسم العربيّ القانونيّ (مجرَّد التشكيل). / lookup mnemonic.
+            // (AR) بحث عن معماريّة بمعرّفها أو بأحد أسمائها البديلة في ثالوث الهدف.
+            //      يُرجع nullptr لمعماريّة لا معجم لها — وهو **ليس** خطأً هنا: على
+            //      المستدعي أن يبلّغ SEM044 بدل أن يعامل الغياب معجمًا فارغًا فتصير
+            //      كلّ منمنمة «غير معجميّة» بتشخيص يضلّل عن السبب الحقيقيّ.
+            // (EN) Lookup by id or triple alias; nullptr means "no lexicon for this
+            //      architecture" — callers must report SEM044, not treat it as empty.
+            inline const Architecture *findArchitecture(const char *id)
+            {
+                if (!id || !*id)
+                    return nullptr;
+                for (std::size_t i = 0; i < kArchitectureCount; ++i)
+                    if (std::strcmp(kArchitectures[i].id, id) == 0)
+                        return &kArchitectures[i];
+                for (std::size_t i = 0; i < kArchAliasCount; ++i)
+                    if (std::strcmp(kArchAliases[i].alias, id) == 0)
+                        return &kArchitectures[kArchAliases[i].index];
+                return nullptr;
+            }
+
+            // (AR) معماريّة المضيف — تُحسَم زمن ترجمة C++ من ماكروات مصرَّحة في مصدر
+            //      الحقيقة (host_macros)، فلا سلسلة معماريّة مكتوبة في C++ يدويًّا.
+            // (EN) Host architecture, resolved from SoT-declared host_macros.
+            inline const Architecture *hostArchitecture()
+            {
+#if SAD_ASM_HOST_ARCH_INDEX >= 0
+                return &kArchitectures[SAD_ASM_HOST_ARCH_INDEX];
+#else
+                return nullptr;
+#endif
+            }
+
+            // (AR) المعماريّة الفاعلة: حالة عامّة يضبطها سائق المترجم من ثالوث الهدف
+            //      **قبل** التحليل (المحلّل مشترك بين المحرّكين ولا يعرف الهدف)، وقيمتها
+            //      الابتدائيّة معماريّة المضيف — وهو الصواب لمترجم بلا «--هدف» صريح.
+            // ⚠️ (AR) حالة عامّة بقصد: مسار الترجمة أحاديّ الخيط لكلّ ملفّ، وتمريرها
+            //      عبر توقيع المحلّل كان سيُلزم كلّ مستهلكي المحلّل (المفسّر وLSP وأدوات)
+            //      بمعرفة هدف لا يعنيهم.
+            // (EN) Active architecture: process-global, set by the driver from the
+            //      target triple before parsing; defaults to the host architecture.
+            inline const Architecture *&activeArchitectureSlot()
+            {
+                static const Architecture *slot = hostArchitecture();
+                return slot;
+            }
+
+            inline const Architecture *activeArchitecture()
+            {
+                return activeArchitectureSlot();
+            }
+
+            // (AR) يضبط المعماريّة الفاعلة؛ يُرجع false إن لم يكن للمعرّف معجم — ويترك
+            //      الفاعلة nullptr عندئذٍ كي لا يُخفَض كودٌ بمعجم معماريّة أخرى صامتًا.
+            // (EN) Returns false when the id has no lexicon, and clears the active
+            //      architecture so no code is lowered with a foreign lexicon.
+            // (AR) نسخة من المعرّف المطلوب — لأنّ الرفض يجب أن **يسمّي** الهدف الذي
+            //      لا معجم له، والمؤشّر الوارد لا نملك عمره فلا يُخزَّن كما هو.
+            // (EN) A copy of the requested id: the rejection must NAME the target, and
+            //      the incoming pointer's lifetime is not ours to keep.
+            inline char *requestedArchitectureBuffer()
+            {
+                static char buffer[64] = {0};
+                return buffer;
+            }
+
+            inline const char *requestedArchitecture()
+            {
+                const char *buffer = requestedArchitectureBuffer();
+                if (*buffer)
+                    return buffer;
+                const Architecture *arch = activeArchitecture();
+                return arch ? arch->id : "";
+            }
+
+            inline bool setActiveArchitecture(const char *id)
+            {
+                char *buffer = requestedArchitectureBuffer();
+                std::size_t i = 0;
+                if (id)
+                    for (; id[i] && i < 63; ++i)
+                        buffer[i] = id[i];
+                buffer[i] = '\0';
+                const Architecture *found = findArchitecture(id);
+                activeArchitectureSlot() = found;
+                return found != nullptr;
+            }
+
+            // (AR) بحث عن منمنمة بالاسم العربيّ القانونيّ (مجرَّد التشكيل) في المعماريّة
+            //      الفاعلة. / lookup mnemonic in the active architecture.
             inline const Mnemonic *findMnemonic(const char *ar)
             {
-                for (std::size_t i = 0; i < kMnemonicCount; ++i)
-                    if (std::strcmp(kMnemonics[i].ar, ar) == 0)
-                        return &kMnemonics[i];
+                const Architecture *arch = activeArchitecture();
+                if (!arch)
+                    return nullptr;
+                for (std::size_t i = 0; i < arch->mnemonicCount; ++i)
+                    if (std::strcmp(arch->mnemonics[i].ar, ar) == 0)
+                        return &arch->mnemonics[i];
                 return nullptr;
             }
 
-            // (AR) بحث عن سجلّ بالاسم العربيّ. / lookup register.
+            // (AR) بحث عن سجلّ بالاسم العربيّ في المعماريّة الفاعلة. / lookup register.
             inline const Register *findRegister(const char *ar)
             {
-                for (std::size_t i = 0; i < kRegisterCount; ++i)
-                    if (std::strcmp(kRegisters[i].ar, ar) == 0)
-                        return &kRegisters[i];
+                const Architecture *arch = activeArchitecture();
+                if (!arch)
+                    return nullptr;
+                for (std::size_t i = 0; i < arch->registerCount; ++i)
+                    if (std::strcmp(arch->registers[i].ar, ar) == 0)
+                        return &arch->registers[i];
                 return nullptr;
             }
 
-            // (AR) بحث عن هدف تلويث مخصوص بالاسم العربيّ. / lookup special clobber.
+            // (AR) بحث عن هدف تلويث مخصوص بالاسم العربيّ (مستوى اللهجة لا المعماريّة).
             inline const ClobberSpecial *findClobberSpecial(const char *ar)
             {
                 for (std::size_t i = 0; i < kClobberSpecialCount; ++i)

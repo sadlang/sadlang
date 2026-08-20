@@ -8,6 +8,7 @@
 #include "llvm_linker.h"
 #include "llvm_bare_metal_linker.h"
 #include "toolchain_detection.h"
+#include "utf8_utils.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -573,9 +574,14 @@ bool LLVMLinker::executeLinker(const std::string& command) {
     }
     
 #ifdef _WIN32
-    // على Windows، نستخدم CreateProcess للتعامل بشكل أفضل مع المسارات
-    // On Windows, use CreateProcess for better path handling
-    STARTUPINFOA si;
+    // 🔑 (AR) النسخةُ العريضةُ لا الضيّقة: `CreateProcessA` تُعيد تفسيرَ بايتاتِ
+    //      UTF-8 بترميزِ النظامِ (ACP)، فمسارٌ عربيٌّ تحت ترميزٍ لاتينيٍّ يجعل
+    //      الرابطَ **ينجح** ويكتب المخرَجَ باسمٍ مشوَّه — بلا خطأٍ ولا رمزِ عائد.
+    // 🔑 (EN) Wide, not narrow: CreateProcessA reinterprets the UTF-8 bytes via
+    //      the system ANSI codepage, so an Arabic path under a Latin codepage
+    //      makes the linker SUCCEED while writing to a mangled name — with no
+    //      error and no exit code to show for it.
+    STARTUPINFOW si;
     PROCESS_INFORMATION pi;
     
     ZeroMemory(&si, sizeof(si));
@@ -584,9 +590,9 @@ bool LLVMLinker::executeLinker(const std::string& command) {
     
     // نسخ الأمر لأن CreateProcess يحتاج لمؤشر قابل للتعديل
     // Copy command because CreateProcess needs modifiable pointer
-    std::string cmd_copy = command;
+    std::wstring cmd_copy = sad::utf8::to_wstring(command);
     
-    if (!CreateProcessA(
+    if (!CreateProcessW(
         NULL,                           // No module name (use command line)
         &cmd_copy[0],                   // Command line
         NULL,                           // Process handle not inheritable
@@ -621,7 +627,7 @@ bool LLVMLinker::executeLinker(const std::string& command) {
     
     return true;
 #else
-    int result = std::system(command.c_str());
+    int result = sad::utf8::run_command(command);
     
     if (result != 0) {
         info_.errors.push_back("Linker exited with code " + std::to_string(result));

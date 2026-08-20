@@ -2,6 +2,7 @@
 # @description: حمّل_سجل_المهمة/خزّن_سجل_المهمة (ltr/str) — معامل منتقٍ 16-بت (operand_width) — فحص ترجمة
 # @requires: اطبع_سطر
 # @skip_interpreter
+# @arch: x86    # سجلّ المهمة (ltr/str) بنية x86 محضة — لا TSS في AArch64
 # @expected: ok
 
 # (AR) ltr/str معاملهما r/m16: المُجمِّع يرفض الصيغة 32-بت، فالمعجم يعلن

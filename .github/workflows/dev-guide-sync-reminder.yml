@@ -30,6 +30,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/setup-python@v5
+        timeout-minutes: 15
         with:
           python-version: "3.12"
       - run: pip install pyyaml

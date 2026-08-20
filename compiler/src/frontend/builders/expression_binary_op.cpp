@@ -713,23 +713,32 @@ namespace Sad
                     break;
 
                 case Lexer::TokenType::OP_DIVIDE:
-                    // (AR) ISSUE-063: دلالة المفسّر (المرجع) للقسمة `/`:
-                    //      صحيح/صحيح ⇒ صحيح عند انعدام الباقي (6/3=2) وعشريّ عند وجوده
-                    //      (7/2=3.5) — أي أنّ نوع النتيجة يتقرّر زمنَ التشغيل ⇒ نتيجةٌ
-                    //      ديناميّة (Any) يفكّها الخلف (dynBinOp يفحص الباقي ويَسِم النتيجة).
-                    //      معاملٌ عشريّ صريح ⇒ عشريّ ساكن (fdiv) كالمفسّر (useDouble).
-                    // (EN) ISSUE-063: interpreter (reference) semantics for `/`:
-                    //      int/int ⇒ int when the remainder is zero (6/3=2), float otherwise
-                    //      (7/2=3.5) — the result kind is runtime-dependent ⇒ a dynamic (Any)
-                    //      result decoded by the backend (dynBinOp checks the remainder and
-                    //      tags the result). An explicit float operand ⇒ static Float (fdiv),
-                    //      matching the interpreter's useDouble path.
-                    opcode = SIROpcode::DIV_F64;
-                    if (resultType != SadTypeKind::Float)
-                        resultType = SadTypeKind::Any;
+                    // (AR) 🔑 قرارُ المالك: `/` على صحيحَين **قسمةٌ صحيحةٌ باقتطاعٍ نحو الصفر**
+                    //      كـC — 7/2=3 و(-7)/2 = -3. وكانت (ISSUE-063) «حقيقيّةً» تحاكي المفسّر:
+                    //      صحيحٌ عند انعدام الباقي وعشريٌّ عند وجوده، فنوعُ النتيجةِ يتقرّر زمنَ
+                    //      التشغيل ⇒ Any ومسارٌ ديناميّ لكلِّ قسمةِ صحيحَين. والدلالةُ الجديدةُ
+                    //      **ساكنة**: صحيحٌ × صحيحٌ ⇒ Integer (sdiv مباشرةً، بلا صندوقٍ ولا فحصِ
+                    //      باقٍ زمنَ التشغيل)، ومعاملٌ عشريٌّ ⇒ Float (fdiv) كما كان. والأرضيّةُ
+                    //      `//` تبقى أرضيّةً ((-7) // 2 = -4) — وهو الفارقُ الوحيدُ بينهما الآن.
+                    //      ومعاملٌ ديناميّ (Any) يبقى ديناميًّا: الخلفُ يفكّه بالدلالة نفسِها.
+                    //      ونمطُ التثبيت هنا نسخةٌ من `%` أدناه — العمليّتان صارتا متناظرتَين.
+                    // (EN) Owner's decision: `/` on two integers is C-style truncating integer
+                    //      division (7/2=3, -7/2=-3). It used to be "true division" (ISSUE-063)
+                    //      mirroring the interpreter, whose result KIND was runtime-dependent
+                    //      ⇒ Any and a dynamic path for every int/int divide. Now it is static:
+                    //      int/int ⇒ Integer (a plain sdiv, no box, no runtime remainder test);
+                    //      a float operand ⇒ Float (fdiv) as before. `//` stays floor
+                    //      (-7 // 2 = -4) — now the only difference between the two. A dynamic
+                    //      (Any) operand stays dynamic with the same semantics. The pinning
+                    //      below mirrors `%`: the two operations are now symmetric.
+                    opcode = (resultType == SadTypeKind::Float) ? SIROpcode::DIV_F64
+                                                                : SIROpcode::DIV_I64;
+                    if (resultType != SadTypeKind::Any && resultType != SadTypeKind::Float)
+                        resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية قسمة (/) → "
-                              << (resultType == SadTypeKind::Float ? "F64" : "ديناميكية (باقي زمن التشغيل)")
+                              << (resultType == SadTypeKind::Float ? "F64"
+                                  : (resultType == SadTypeKind::Any ? "ديناميكية" : "I64"))
                               << std::endl;
 #endif
                     break;

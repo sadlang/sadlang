@@ -730,6 +730,85 @@ namespace Sad
                         retInst.operands.push_back(retOperand);
                     }
 
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 موافقةُ القيمةِ المُرجَعةِ للنوعِ المصرَّح. كان يُصرَّح عائدُ
+                    //      الدالّةِ بنوعٍ ويُسلَّم إليه سجلٌّ بنوعٍ آخرَ بلا تحويل، فيقع
+                    //      عطبان من جذرٍ واحد:
+                    //        `دالة عشري` تُرجِع `ق // 2` ⇒ يُطبَع `2` لا `2.0`؛
+                    //        `دالة رقم`  تُرجِع `ق / 2.0` ⇒ يُطبَع 4612811918334230528،
+                    //      وهي **بتّاتُ** الـdouble تُقرَأ عددًا صحيحًا: لا اقتطاعٌ ولا
+                    //      تقريبٌ ولا خطأ — رقمٌ لا معنى له يُطبَع بثقة.
+                    //      والموضعُ مقصود: بعدَ اكتمالِ معامِلِ RET (وقد حُمِّل من alloca إن
+                    //      لزم) وقبلَ إضافتِه، فالمساراتُ الثلاثةُ — ثابتٌ ومحمَّلٌ ومؤقّتٌ —
+                    //      تمرّ بهذه النقطةِ وحدَها. ولو وُضِعت قبلَ التفريعِ لَحُوِّل
+                    //      **عنوانُ** alloca بدل محتواه.
+                    //      والثابتُ يُطوى في مكانه: تحويلُ ثابتٍ تعليمةٌ لا داعيَ لها،
+                    //      وبعضُ المسارات لا تقبل معامِلًا ثابتًا للتحويل أصلًا.
+                    // (EN) Coerce the returned value to the DECLARED return type. The SIR
+                    //      function declared one type while a register of another was handed
+                    //      to it with no conversion, producing two defects from one root:
+                    //        a `عشري` (float) function returning `x // 2` printed `2`, not `2.0`;
+                    //        a `رقم` (int) function returning `x / 2.0` printed
+                    //        4612811918334230528 — the double's BITS read as an integer: not a
+                    //        truncation, not a rounding, not an error — a meaningless number
+                    //        printed with confidence.
+                    //      The placement is deliberate: after the RET operand is final (loaded
+                    //      from its alloca where needed) and before it is added, so all three
+                    //      paths — constant, loaded, temporary — pass through this one point.
+                    //      Placed before the branching, it would have converted the alloca
+                    //      ADDRESS instead of its contents.
+                    //      Constants are folded in place: converting a constant is a needless
+                    //      instruction, and some paths do not accept a constant operand for it.
+                    // ════════════════════════════════════════════════════════════
+                    if (b_.currentFunction_ && retInst.operands.size() == 1)
+                    {
+                        const SadTypeKind declaredKind = b_.currentFunction_->returnType;
+                        SIROperand &retValue = retInst.operands[0];
+                        // (AR) و`Any` مع التصريحِ `عشري`: `//` على صحيحَينِ نوعُها Any عمدًا
+                        //      (كِنْهُ نتيجتِها حقيقةُ زمنِ تشغيل — `INT64_MIN // -1` يفيض
+                        //      فيُرقّى عشريًّا)، فكانت تُسلَّم i64 خامًا لدالّةٍ موقَّعةٍ f64
+                        //      فتُطبَع `2` حيث يطبع المفسّرُ `2.0`. و`I64_TO_F64` يفكّ الوسمَ
+                        //      زمنَ التشغيل — نفسُ ما تفعله المدمجاتُ لوسيطٍ ديناميّ — فيخرج
+                        //      فرعا `//` كلاهما عشريَّين صحيحَين.
+                        //      والعكسُ (`Any` مع `رقم`) متروكٌ عمدًا: الحمولةُ الموسومةُ قد
+                        //      تكون نصًّا أو مصفوفةً، وقصرُها على i64 يُفسِدها.
+                        // (EN) `Any` under a declared float: `//` on two ints is deliberately
+                        //      typed Any (its result KIND is a runtime fact — INT64_MIN // -1
+                        //      overflows and is promoted to float), so a raw i64 was handed to
+                        //      an f64-signed function and printed `2` where the interpreter
+                        //      printed `2.0`. I64_TO_F64 decodes the tag at runtime — the same
+                        //      mechanism the builtins use for a dynamic argument — so both
+                        //      branches of `//` come out correctly as floats.
+                        //      The converse (`Any` under a declared int) is deliberately left
+                        //      alone: a tagged payload may be a string or an array, and forcing
+                        //      it into an i64 would corrupt it.
+                        const bool needWiden = (declaredKind == SadTypeKind::Float &&
+                                                (retValue.dataType == SadTypeKind::Integer ||
+                                                 retValue.dataType == SadTypeKind::Any));
+                        const bool needNarrow = (declaredKind == SadTypeKind::Integer &&
+                                                 retValue.dataType == SadTypeKind::Float);
+                        if (needWiden || needNarrow)
+                        {
+                            if (retValue.type == SIROperandType::CONSTANT)
+                            {
+                                retValue = needWiden
+                                               ? SIROperand::ConstantF64(static_cast<double>(retValue.intValue))
+                                               : SIROperand::ConstantI64(static_cast<int64_t>(retValue.floatValue));
+                            }
+                            else if (b_.currentBlock_)
+                            {
+                                std::string convReg = b_.newTempRegister();
+                                SIRInstruction convInst(needWiden ? SIROpcode::I64_TO_F64
+                                                                  : SIROpcode::F64_TO_I64);
+                                convInst.result = SIROperand::Register(convReg, declaredKind);
+                                convInst.operands.push_back(retValue);
+                                convInst.comment = "coerce return value to declared type";
+                                b_.currentBlock_->addInstruction(convInst);
+                                retValue = SIROperand::Register(convReg, declaredKind);
+                            }
+                        }
+                    }
+
                     if (b_.currentBlock_)
                     {
                         if (b_.finallyStack_.empty())

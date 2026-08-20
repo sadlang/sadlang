@@ -312,9 +312,21 @@ namespace Sad
                         //      هذا يمنع اطبع_سطر من محاولة __op_tostring__ على قيمة بدائية مثل رقم
                         // (EN) Only propagate className if return type represents an object (not primitive)
                         //      This prevents اطبع_سطر from attempting __op_tostring__ on a primitive like int
+                        // (AR) 🔑 و`Any`/`Unknown` كذلك: قيمةٌ معلَّبة (%SadDyn) نوعُها يُقرَأ من
+                        //      وسمها زمنَ التشغيل، فليست مؤشِّرَ كائنٍ من صنفِ المستقبِل. ووسمُها
+                        //      به يجعل أيَّ استعمالٍ لاحقٍ يقرأ جدولَ الدوالِّ الافتراضيّة من داخلِ
+                        //      العلبة: getelementptr %"class.س", %SadDyn %__op_index___virt, …
+                        //      وتنشأ حين لا يُصرَّح حقلُ الصنفِ ويُسنَد في الباني فقط، فيُستنتَج
+                        //      عائدُ عاملِ الفهرسة ديناميًّا لا بدائيًّا.
+                        // (EN) `Any`/`Unknown` too: a boxed value (%SadDyn) carries its type in a
+                        //      runtime tag — it is not an object pointer of the receiver's class,
+                        //      and tagging it as one makes every later use read a vtable out of
+                        //      the box. Arises when a class field is never declared and is only
+                        //      assigned in the constructor.
                         if (returnType != SadTypeKind::Integer && returnType != SadTypeKind::Float &&
                             returnType != SadTypeKind::String && returnType != SadTypeKind::Boolean &&
-                            returnType != SadTypeKind::Array)
+                            returnType != SadTypeKind::Array && returnType != SadTypeKind::Any &&
+                            returnType != SadTypeKind::Unknown)
                         {
                             result.className = objClassName;
                         }
@@ -762,9 +774,21 @@ namespace Sad
                         BuildResult result(resultReg, returnType);
                         // (AR) نقل className فقط إذا كان نوع الإرجاع يمثل كائناً (ليس نوعاً بدائياً)
                         // (EN) Only propagate className if return type represents an object (not primitive)
+                        // (AR) 🔑 و`Any`/`Unknown` كذلك: قيمةٌ معلَّبة (%SadDyn) نوعُها يُقرَأ من
+                        //      وسمها زمنَ التشغيل، فليست مؤشِّرَ كائنٍ من صنفِ المستقبِل. ووسمُها
+                        //      به يجعل أيَّ استعمالٍ لاحقٍ يقرأ جدولَ الدوالِّ الافتراضيّة من داخلِ
+                        //      العلبة: getelementptr %"class.س", %SadDyn %__op_index___virt, …
+                        //      وتنشأ حين لا يُصرَّح حقلُ الصنفِ ويُسنَد في الباني فقط، فيُستنتَج
+                        //      عائدُ عاملِ الفهرسة ديناميًّا لا بدائيًّا.
+                        // (EN) `Any`/`Unknown` too: a boxed value (%SadDyn) carries its type in a
+                        //      runtime tag — it is not an object pointer of the receiver's class,
+                        //      and tagging it as one makes every later use read a vtable out of
+                        //      the box. Arises when a class field is never declared and is only
+                        //      assigned in the constructor.
                         if (returnType != SadTypeKind::Integer && returnType != SadTypeKind::Float &&
                             returnType != SadTypeKind::String && returnType != SadTypeKind::Boolean &&
-                            returnType != SadTypeKind::Array)
+                            returnType != SadTypeKind::Array && returnType != SadTypeKind::Any &&
+                            returnType != SadTypeKind::Unknown)
                         {
                             result.className = objClassName;
                         }

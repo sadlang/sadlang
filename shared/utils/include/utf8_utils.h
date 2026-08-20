@@ -13,6 +13,8 @@
 #pragma once
 
 #include <string>
+#include <cstdio>
+#include <cstdlib>
 #include <fstream>
 #include <filesystem>
 #include <vector>
@@ -41,6 +43,27 @@
 #undef BLUE
 #undef MAGENTA
 #undef WHITE
+#endif
+
+// 🔑 (AR) ترويسةُ نظامٍ تُضَمُّ **داخلَ** فضاءِ أسماءٍ تُصادَر إليه بأسرِها، ولا
+//     يقف الأثرُ عند هذا الملفّ: حارسُ الضمِّ يجعل أوّلَ ضمٍّ هو الوحيد، فيصير
+//     `<unistd.h>` المضمومُ داخلَ `sad::utf8` هو النسخةَ الوحيدةَ في وحدةِ
+//     الترجمةِ كلِّها، ويُبتلَع ضمٌّ لاحقٌ في النطاقِ العامِّ صامتًا بحارسِه.
+//     فيغيب `::getpid` و`::readlink` عن العالَمِ كلِّه — لا بعطبٍ في المُنادي
+//     بل بحسبِ **ترتيبِ** الضمِّ عنده. ولذلك تُضَمُّ ترويساتُ المنصّةِ هنا
+//     وحدَها، خارجَ كلِّ فضاءِ أسماء.
+// 🔑 (EN) A system header included INSIDE a namespace is captured whole, and
+//     the damage is not local: the include guard makes the first inclusion
+//     the only one, so a later global #include is silently swallowed and
+//     ::getpid / ::readlink vanish from global scope — not from a bug in the
+//     includer, but from its include ORDER. Platform headers belong here,
+//     outside every namespace.
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#include <limits.h>
+#elif !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+#include <unistd.h>
+#include <limits.h>
 #endif
 
 namespace sad {
@@ -224,6 +247,49 @@ inline std::string get_parent(const std::string& utf8_path) {
 }
 
 // ============================================================================
+// تشغيل الأوامر الخارجيّة / External command execution
+// ============================================================================
+
+/**
+ * @brief تشغيل أمرٍ خارجيٍّ بمسارٍ آمنِ الترميز
+ *        Run an external command with encoding-safe paths.
+ *
+ * 🔑 (AR) `std::system` تأخذ `char*`، فيُعيد ويندوز تفسيرَ بايتاتِ UTF-8 بترميزِ
+ *      النظامِ (ACP). فإن حوى الأمرُ مسارًا عربيًّا وكان الترميزُ لاتينيًّا أو
+ *      عبريًّا، **نجح** الأمرُ ورمزُ عائدِه صفرٌ، وكُتِب المخرَجُ باسمٍ مشوَّه.
+ *      لا خطأَ ولا تشخيصَ يشي بذلك — يغيب التنفيذيُّ عن موضعِه وحسب. لذلك
+ *      يُمرَّرُ الأمرُ هنا UTF-16 فلا يمرُّ بترميزٍ ضيّقٍ أصلًا.
+ * 🔑 (EN) std::system takes char*, so Windows reinterprets the UTF-8 bytes
+ *      through the system ANSI codepage. With an Arabic path under a Latin or
+ *      Hebrew ACP the command SUCCEEDS with exit code 0 and the output lands
+ *      under a mangled name — no error, no diagnostic; the executable simply
+ *      is not where it was asked for. So the command goes out as UTF-16 and
+ *      never passes through a narrow encoding at all.
+ */
+inline int run_command(const std::string& utf8_command) {
+#ifdef _WIN32
+    return _wsystem(to_wstring(utf8_command).c_str());
+#else
+    return std::system(utf8_command.c_str());
+#endif
+}
+
+
+/**
+ * @brief فتحُ أنبوبِ قراءةٍ لأمرٍ خارجيٍّ بمسارٍ آمنِ الترميز
+ *        Open a read pipe for an external command with encoding-safe paths.
+ *
+ * (AR) نظيرُ `run_command` للأوامرِ التي يُقرأ خرجُها. العلّةُ واحدةٌ: `_popen`
+ *      ضيّقةٌ فتمرّ بايتاتُ UTF-8 عبرَ ترميزِ النظام.
+ * (EN) The read-output twin of run_command; _popen is narrow the same way.
+ *      Windows-only: its only caller is, and popen() is not portable.
+ */
+#ifdef _WIN32
+inline FILE* open_pipe_read(const std::string& utf8_command) {
+    return _wpopen(to_wstring(utf8_command).c_str(), L"r");
+}
+#endif
+// ============================================================================
 // سطر الأوامر / Command Line Arguments
 // ============================================================================
 
@@ -280,9 +346,6 @@ inline std::filesystem::path get_executable_dir() {
 
 #elif defined(__APPLE__)
 
-#include <mach-o/dyld.h>
-#include <limits.h>
-
 /**
  * @brief الحصول على مسار البرنامج التنفيذي على macOS
  * Get executable directory path (macOS).
@@ -301,9 +364,6 @@ inline std::filesystem::path get_executable_dir() {
 }
 
 #else
-
-#include <unistd.h>
-#include <limits.h>
 
 /**
  * @brief الحصول على مسار البرنامج التنفيذي على Linux

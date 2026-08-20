@@ -30,6 +30,11 @@
 #include "lexer_core.h"
 #include "parser_core.h"
 
+// (AR) جدول لهجة التجميع المولَّد — منه setActiveArchitecture: المحلّل مشترك بين
+//      المحرّكين ولا يعرف الهدف، فالسائق يضبط المعماريّة الفاعلة قبل التحليل.
+// (EN) Generated assembly-dialect table — setActiveArchitecture lives there.
+#include "asm_dialect_generated.h"
+
 // SIR Builder
 #include "../../compiler/include/frontend/sir_builder.h"
 #include "../../compiler/include/frontend/sir_module.h"
@@ -384,6 +389,20 @@ namespace sad
             }
 
             lexer_ = std::make_unique<Lexer>(source);
+
+            // 🔑 (AR) المعماريّة الفاعلة للهجة التجميع — **قبل** التحليل، لأنّ المحلّل
+            //      هو الذي يفحص المنمنمات مقابل المعجم. والحدّ المقيس (١٩ آب ٢٠٢٦):
+            //      بلا هذا السطر كانت كتلة «تجميع» تُخفَض بمعجم i686 لأيّ هدف، فتموت
+            //      على macos-14-arm64 في المُجمِّع لا في تشخيص ص. ونتيجة الضبط
+            //      **لا تُفحَص هنا**: هدفٌ لا معجم له ليس خطأً إلّا إن استُعملت اللهجة
+            //      فعلًا، وعندها يبلّغ المحلّل SEM044 باسم الهدف — ورفعُه هنا كان
+            //      سيُفشِل كلّ ترجمة لهدفٍ كذاك ولو لم تذكر «تجميع» أصلًا.
+            // (EN) Set the dialect's active architecture BEFORE parsing (the parser is
+            //      what validates mnemonics). The result is deliberately unchecked: a
+            //      target with no lexicon is only an error if the dialect is actually
+            //      used, and the parser reports SEM044 by name then.
+            ::Sad::Dialects::Asm::setActiveArchitecture(
+                options_.target.architecture.c_str());
 
             // Parse tokens
             if (options_.verbose)

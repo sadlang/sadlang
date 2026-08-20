@@ -108,6 +108,27 @@ COMMENT_PREFIXES = ("//", "*", "/*")
 #        + objects_arrays_ops.cpp     ٠ ⇒ ١   ثلاثةُ مواضعَ لنوعٍ واحدٍ يُسدَّد
 #                                            كلُّها في م‑هـ دفعةً واحدة.
 #
+# (AR) [٣] ٢٤ ملفًّا · ٥٦ موضعًا — ٢٠٢٦-٠٨-٢٠ (PR ‏#418‏). والبوّابةُ أخفقت
+#      أوّلًا فأدَّت عملَها ثانيةً، وحركتان اثنتان لا غير:
+#
+#        + sir_builder.h              ٠ ⇒ ١   فحصُ اللاعدميّةِ حين يعبر العامُّ
+#                                            حدَّ الدالّة: «غيرُ عدميٍّ» =
+#                                            لا يساوي الحارسَ ولا الصفرَ
+#                                            (مؤشِّرٌ خامٌّ غيرُ مهيَّأ). موضعُ
+#                                            **مقارنةٍ** لا إنتاج — والتعدادُ
+#                                            لا يفرّق بينهما عمدًا.
+#        + builtins_math_async_ops    ٠ ⇒ ١   خانةُ قيمةِ المستقبلِ تُهيَّأ عند
+#                                            الإنشاءِ بصندوقِ **عدمٍ موسوم**
+#                                            في الكومة، فلا تكون صفرًا قطُّ
+#                                            ولا يلزمها حارسُ قراءة.
+#
+#      🔑 والثاني **توأمٌ ثالثٌ** لنمطٍ قائمٍ لا نمطٌ جديد: `mem_alloca.cpp`
+#      و`objects_arrays_ops.cpp` يُعلِّبان العدمَ بالحمولةِ عينِها منذ م‑ز.
+#      وكان يسعُني تمريرُ `0` حمولةً فلا يرتفع العدد — والوسمُ وحدَه يحمل
+#      العدميّةَ فالنتيجةُ سواء. ورُفِض: يجعل الثالثَ يخالف توأمَيه **لأجلِ
+#      رقمِ حارسٍ**، وهو عينُ ابتلاعِ البوّابةِ الذي كُتِبت هذه لمنعِه.
+#      وتُسدَّد المواضعُ الثلاثةُ في م‑هـ دفعةً واحدةً كما كان مُسجَّلًا.
+#
 #      🔑 والدرسُ المُسجَّل: **المجموعُ وحدَه يُخفي التركيز**. لو قِيس العددُ
 #      إجماليًّا لَبدا +٥ زيادةً خالصة، والحقيقةُ أنّ منها نقلًا (‑٢/+١) وأنّ
 #      الزيادةَ الصافيةَ الحقيقيّةَ ستّةُ مواضعَ لسببَين مُسمَّيَين.
@@ -122,12 +143,14 @@ COMMENT_PREFIXES = ("//", "*", "/*")
 CENSUS = {
     "compiler/include/frontend/sir_constants.h": 2,
     "compiler/include/frontend/sir_module.h": 3,
+    "compiler/include/frontend/sir_builder.h": 1,
     "compiler/src/backend/llvm/llvm_codegen_string_safety.cpp": 5,
     "compiler/src/backend/llvm/sad_dyn_repr.cpp": 2,
     "compiler/src/backend/llvm/builders/arithmetic/arith_cmp.cpp": 3,
     "compiler/src/backend/llvm/builders/arithmetic/arith_main.cpp": 2,
     "compiler/src/backend/llvm/builders/arithmetic/arith_type_conv.cpp": 2,
     "compiler/src/backend/llvm/builders/arithmetic/cf_branch_call.cpp": 1,
+    "compiler/src/backend/llvm/builders/builtins/builtins_math_async_ops.cpp": 1,
     "compiler/src/backend/llvm/builders/builtins/io_builtins_ops.cpp": 1,
     "compiler/src/backend/llvm/builders/collections/string_ops.cpp": 3,
     "compiler/src/backend/llvm/builders/memory/mem_alloca.cpp": 1,

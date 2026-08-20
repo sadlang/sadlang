@@ -10,6 +10,7 @@
 // ════════════════════════════════════════════════════════════════════════════════
 
 #include "backend/llvm/llvm_bare_metal_linker.h"
+#include "utf8_utils.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -333,15 +334,17 @@ std::string LLVMBareMetalLinker::buildCommandLine(const BareMetalLinkOptions& op
 bool LLVMBareMetalLinker::executeLinker(const std::string& command) {
 #ifdef _WIN32
     // تنفيذ على Windows باستخدام CreateProcess
-    STARTUPINFOA si;
+    STARTUPINFOW si;
     PROCESS_INFORMATION pi;
     ZeroMemory(&si, sizeof(si));
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
     
-    std::string cmdCopy = command;
+    // 🔑 (AR) عريضةٌ لا ضيّقة: الضيّقةُ تُشوّه المسارَ العربيَّ وتنجح صامتةً.
+    // 🔑 (EN) Wide, not narrow: the narrow one mangles Arabic paths silently.
+    std::wstring cmdCopy = sad::utf8::to_wstring(command);
     
-    if (!CreateProcessA(
+    if (!CreateProcessW(
         NULL,
         cmdCopy.data(),
         NULL, NULL, FALSE,
@@ -352,9 +355,9 @@ bool LLVMBareMetalLinker::executeLinker(const std::string& command) {
         // محاولة مع clang كبديل / Try clang as fallback
         std::string fallback = "clang -target " + options_.target_triple 
             + " -nostdlib -fuse-ld=lld " + command.substr(6);  // skip "ld.lld"
-        cmdCopy = fallback;
+        cmdCopy = sad::utf8::to_wstring(fallback);
         
-        if (!CreateProcessA(
+        if (!CreateProcessW(
             NULL,
             cmdCopy.data(),
             NULL, NULL, FALSE,
@@ -376,7 +379,7 @@ bool LLVMBareMetalLinker::executeLinker(const std::string& command) {
     return exitCode == 0;
 #else
     // تنفيذ على Unix باستخدام system()
-    int ret = std::system(command.c_str());
+    int ret = sad::utf8::run_command(command);
     return WIFEXITED(ret) && WEXITSTATUS(ret) == 0;
 #endif
 }
@@ -555,7 +558,7 @@ bool LLVMBareMetalLinker::convertToFlatBinary(const std::string& elfPath, const 
     std::ostringstream cmd;
     cmd << "llvm-objcopy -O binary \"" << elfPath << "\" \"" << binPath << "\"";
     
-    int ret = std::system(cmd.str().c_str());
+    int ret = sad::utf8::run_command(cmd.str());
     return ret == 0;
 }
 
@@ -564,7 +567,7 @@ bool LLVMBareMetalLinker::convertToHex(const std::string& elfPath, const std::st
     std::ostringstream cmd;
     cmd << "llvm-objcopy -O ihex \"" << elfPath << "\" \"" << hexPath << "\"";
     
-    int ret = std::system(cmd.str().c_str());
+    int ret = sad::utf8::run_command(cmd.str());
     return ret == 0;
 }
 

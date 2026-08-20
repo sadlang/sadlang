@@ -1,27 +1,34 @@
 # تقرير مطابقة قواعد لغة ص — مقارنة المفسر والمترجم
 
 > **مُولَّد آلياً** بـ`scripts/codegen/check_grammar_conformance.py --run`. لا يُحرَّر يدوياً.
-> التوليد: 2026-08-19 01:30:12
+> التوليد: 2026-08-20 12:05:36
 
 كل اختبار يُشغَّل عبر **المفسر** (sad-run) و**المترجم** (sadc) ويُقارَن مخرجاهما:
 `تطابق` = المخرجان متطابقان؛ `تباعد` = اختلفا (هنا يظهر ما يجب تصحيحه).
 
 ## الملخص
 
-- إجمالي الاختبارات: **3003** — تطابق مزدوج: **3002** — تباعد/إخفاق: **0** — متخطًّى: **1**
+- إجمالي الاختبارات: **3021** — تطابق مزدوج: **3013** — تباعد/إخفاق: **0** — متخطًّى: **8**
 - القواعد: 107 — مطلقة: **105** · فجوة مترجم: 0 · مكسورة: 0 · بلا اختبارات: 2
 - الأزمنة: في أثر البناء `build/_grammar_conformance.json` (غير متعقَّب) — لا تُودَع لأنّ العدّاء يتوازى فلا يُعاد إنتاجها.
 - التفصيل الكامل لكل اختبار: [`CONFORMANCE_REPORT_detail.md`](./CONFORMANCE_REPORT_detail.md)
 
 ## التباعدات والإخفاقات (للتصحيح)
 
-✅ **لا تباعد** — كل اختبار **شُغِّل** أعطى مخرجاً متطابقاً في المفسر والمترجم (و**1** لم يُشغَّل — انظر «المتخطّى» أدناه).
+✅ **لا تباعد** — كل اختبار **شُغِّل** أعطى مخرجاً متطابقاً في المفسر والمترجم (و**8** لم يُشغَّل — انظر «المتخطّى» أدناه).
 
 ## المتخطّى (لم يُشغَّل — غيرُ مقيسٍ لا ناجح)
 
 | الاختبار | سببُ التخطّي |
 |---|---|
 | `tests/behavior/rules_matrix/20_declarations/gr.decl.reexport/basic/وحدة_مصدر.ص` | تخطي: skip_compiler + skip_interpreter |
+| `tests/behavior/rules_matrix/60_advanced/gr.adv.asm_dialect/basic/005_aarch64_three_operand.ص` | تخطي: @arch aarch64 riscv64 والمضيف x86_64 |
+| `tests/behavior/rules_matrix/60_advanced/gr.adv.asm_dialect/basic/006_aarch64_bit_ops.ص` | تخطي: @arch aarch64 والمضيف x86_64 |
+| `tests/behavior/rules_matrix/60_advanced/gr.adv.asm_dialect/edge/054_aarch64_memory_addressing.ص` | تخطي: @arch aarch64 riscv64 والمضيف x86_64 |
+| `tests/behavior/rules_matrix/60_advanced/gr.adv.asm_dialect/edge/055_aarch64_operand_tail.ص` | تخطي: @arch aarch64 riscv64 والمضيف x86_64 |
+| `tests/behavior/rules_matrix/60_advanced/gr.adv.asm_dialect/edge/057_aarch64_barriers.ص` | تخطي: @arch aarch64 والمضيف x86_64 |
+| `tests/behavior/rules_matrix/60_advanced/gr.adv.asm_dialect/negative/062_arch_lexicon_rejects_foreign_mnemonic.ص` | تخطي: @arch aarch64 والمضيف x86_64 |
+| `tests/behavior/rules_matrix/60_advanced/gr.adv.asm_dialect/negative/063_arch_lexicon_rejects_foreign_register.ص` | تخطي: @arch aarch64 والمضيف x86_64 |
 
 ## اختبارات كاشفة للثغرات (Gaps) — غير مُبوَّبة (لا تُفشِل البناء)
 
@@ -149,7 +156,7 @@
 
 | القاعدة | الطبقة | اختبارات | الحُكم |
 |---|---|---|---|
-| `gr.adv.asm_dialect` | advanced | 20 | مطلقة (مفسر≡مترجم) |
+| `gr.adv.asm_dialect` | advanced | 30 | مطلقة (مفسر≡مترجم) |
 | `gr.adv.await` | advanced | 4 | مطلقة (مفسر≡مترجم) |
 | `gr.adv.contract` | advanced | 5 | مطلقة (مفسر≡مترجم) |
 | `gr.adv.defer` | advanced | 4 | مطلقة (مفسر≡مترجم) |
@@ -180,23 +187,23 @@
 | `gr.decl.arg_list` | declarations | 17 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.export` | declarations | 28 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.extern` | declarations | 22 | مطلقة (مفسر≡مترجم) |
-| `gr.decl.function` | declarations | 190 | مطلقة (مفسر≡مترجم) |
+| `gr.decl.function` | declarations | 192 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.import` | declarations | 38 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.parameters` | declarations | 56 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.reexport` | declarations | 8 | مطلقة (مفسر≡مترجم) |
 | `gr.decl.type_ref` | declarations | 7 | مطلقة (مفسر≡مترجم) |
-| `gr.decl.variable` | declarations | 216 | مطلقة (مفسر≡مترجم) |
-| `gr.expr.array_literal` | expressions | 55 | مطلقة (مفسر≡مترجم) |
+| `gr.decl.variable` | declarations | 217 | مطلقة (مفسر≡مترجم) |
+| `gr.expr.array_literal` | expressions | 57 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.assignment` | expressions | 36 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.bitwise_and` | expressions | 22 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.bitwise_or` | expressions | 20 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.bitwise_xor` | expressions | 21 | مطلقة (مفسر≡مترجم) |
-| `gr.expr.comparison` | expressions | 56 | مطلقة (مفسر≡مترجم) |
+| `gr.expr.comparison` | expressions | 57 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.decorator` | expressions | 12 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.directive` | expressions | 12 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.equality` | expressions | 36 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.expression` | expressions | 20 | مطلقة (مفسر≡مترجم) |
-| `gr.expr.factor` | expressions | 52 | مطلقة (مفسر≡مترجم) |
+| `gr.expr.factor` | expressions | 54 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.fstring` | expressions | 20 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.lambda` | expressions | 35 | مطلقة (مفسر≡مترجم) |
 | `gr.expr.logical_and` | expressions | 32 | مطلقة (مفسر≡مترجم) |
@@ -230,7 +237,7 @@
 | `gr.oop.method` | oop | 47 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.modifiers` | oop | 25 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.new` | oop | 14 | مطلقة (مفسر≡مترجم) |
-| `gr.oop.operator` | oop | 16 | مطلقة (مفسر≡مترجم) |
+| `gr.oop.operator` | oop | 18 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.property` | oop | 16 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.struct` | oop | 44 | مطلقة (مفسر≡مترجم) |
 | `gr.oop.this_super` | oop | 11 | مطلقة (مفسر≡مترجم) |
@@ -255,4 +262,4 @@
 | `gr.stmt.switch` | statements | 37 | مطلقة (مفسر≡مترجم) |
 | `gr.stmt.throw` | statements | 27 | مطلقة (مفسر≡مترجم) |
 | `gr.stmt.try` | statements | 55 | مطلقة (مفسر≡مترجم) |
-| `gr.stmt.while` | statements | 202 | مطلقة (مفسر≡مترجم) |
+| `gr.stmt.while` | statements | 203 | مطلقة (مفسر≡مترجم) |

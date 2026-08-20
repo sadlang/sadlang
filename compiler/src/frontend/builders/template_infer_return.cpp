@@ -228,16 +228,11 @@ namespace Sad
                         default:
                             break;
                         }
-                        // (AR) ISSUE-063: دلالة المفسّر للقسمة `/`: معاملٌ عشريّ ⇒ عشريّ؛
-                        //      صحيح/صحيح ⇒ يتقرّر زمنَ التشغيل (صحيح بلا باقٍ، عشريّ مع باقٍ)
-                        //      ⇒ نوعٌ ديناميّ (Any = %SadDyn عبر حدود الدوال).
-                        // (EN) ISSUE-063: interpreter semantics for `/`: a float operand ⇒
-                        //      Float; int/int ⇒ runtime-dependent (int iff no remainder) ⇒
-                        //      dynamic (Any = %SadDyn across function boundaries).
+                        // (AR) المعينُ الواحد لنوعِ ناتجِ `/` — انظر التعليقَ عند
+                        //      `divisionResultKind` في template_builder.h.
+                        // (EN) Single source for the kind of `/` — see divisionResultKind.
                         if (bin->op == Sad::Lexer::TokenType::OP_DIVIDE)
-                            return (left == SadTypeKind::Float || right == SadTypeKind::Float)
-                                       ? SadTypeKind::Float
-                                       : SadTypeKind::Any;
+                            return divisionResultKind(left, right);
                         // (AR) إذا كان الطرفان نصاً أو أحدهما، النتيجة نص (جمع نصوص)
                         if (left == SadTypeKind::String || right == SadTypeKind::String)
                             return SadTypeKind::String;

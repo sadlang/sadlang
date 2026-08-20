@@ -80,7 +80,7 @@ operators:
 
   # ── ضرب وقسمة وباقي ────────────────────────────────────────────────────
   - { id: op.multiply,     symbol: "*",  name_ar: "ضرب",          name_en: multiplication, category: arithmetic, arity: binary, precedence: 4, associativity: left, since: "1.0.0", status: stable }
-  - { id: op.divide,       symbol: "/",  name_ar: "قسمة (عشري)", name_en: division,        category: arithmetic, arity: binary, precedence: 4, associativity: left, since: "1.0.0", status: stable }
+  - { id: op.divide,       symbol: "/",  name_ar: "قسمة", name_en: division,        category: arithmetic, arity: binary, precedence: 4, associativity: left, since: "1.0.0", status: stable }
   - { id: op.floor_divide, symbol: "//", name_ar: "قسمة صحيحة",  name_en: floor_division,  category: arithmetic, arity: binary, precedence: 4, associativity: left, since: "1.0.0", status: stable }
   - { id: op.modulo,       symbol: "%",  name_ar: "باقي القسمة",  name_en: modulo,          category: arithmetic, arity: binary, precedence: 4, associativity: left, since: "1.0.0", status: stable }
 

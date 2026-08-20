@@ -39,9 +39,23 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# 🔑 (AR) خرجُ پايثونَ في CI مُوجَّهٌ لا طرفيّة، فيأخذ على ويندوز ترميزَ
+#     المحلّيّة (cp1252) لا UTF-8: أوّلُ محرفٍ عربيٍّ أو `═` يرمي
+#     UnicodeEncodeError فتنهار **أداةُ القياس** لا الشجرة. وقع ذلك حرفيًّا
+#     في ٢٠ آب ٢٠٢٦: خطوةُ سجلِّ الحمرةِ سقطت عند `print` فأعلنت الخطوةُ
+#     «انحرافٌ عن المقيس» — حكمًا في مجالٍ لم تقِسْه أصلًا. و٣٢ مقياسًا في
+#     الشجرةِ تطبع غيرَ ASCII بلا إعادةِ تهيئةٍ ذاتيّة، فالإعلانُ هنا مرّةً
+#     يعمُّ كلَّ وظيفةٍ وكلَّ خطوةٍ ولا يترك أخًا بلا رقعة.
+# 🔑 (EN) Python stdout in CI is redirected, so on Windows it takes the
+#     locale codepage (cp1252): the first Arabic character or `═` raises
+#     UnicodeEncodeError and the INSTRUMENT dies, not the tree. Declared
+#     once here so every job and step inherits it — 32 harness scripts
+#     print non-ASCII without reconfiguring their own streams.
 env:
   BUILD_TYPE: Debug
   CMAKE_BUILD_PARALLEL_LEVEL: 4
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: "1"
 
 jobs:
   # ======================================================================
@@ -54,6 +68,7 @@ jobs:
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
         with:
           submodules: recursive
 
@@ -102,19 +117,94 @@ jobs:
           fi
           echo "✅ فحص حجم الملفات اكتمل / File size check completed"
 
-      - name: "🧹 فحص ملفات مؤقتة في الجذر / Check Root Temp Files"
+      # (AR) 🔑 هذه الخطوةُ كانت فحصَ عتبةٍ على **جذرِ سحبٍ نظيف** — أي على
+      #      الطبقةِ التي لا يظهر فيها العطبُ أصلًا. وقد كان في الجذرِ ستّةُ
+      #      آثارٍ من ١٥ آب لم تُحمِّرْه ولا كان يمكن أن تُحمِّرَه: العتبةُ ١٠
+      #      والآثارُ ٦، والنمطُ `*.txt` والنصفُ منها `*.tmp`، والحكمُ
+      #      `::warning::` لا إخفاق، و**السحبُ نظيفٌ دائمًا** فلا أثرَ فيه.
+      #      «موجودٌ» ليس «مقيسًا». فالحارسُ نُقِلَ إلى حيثُ يسكنُ العطبُ:
+      #      **مصدرِ الاختبار** — أينشئُ أثرًا ولا يحذفه؟
+      # (EN) This step checked a threshold on a clean checkout — the one layer
+      #      where the defect can never appear. Six real orphans sat in the
+      #      root and it could not have reddened: threshold 10 vs 6, pattern
+      #      *.txt vs half of them *.tmp, warning-only, and the checkout is
+      #      always clean. Moved to where the defect lives: the test source.
+      - name: "🧹 حارسُ آثارِ الاختبارات / Test-artifact guard"
         shell: bash
-        run: |
-          # (AR) عتبة تحذيريّة فقط (>10 ملفّات .txt في الجذر) — لا تُفشِل الوظيفة.
-          # (EN) Warning-only threshold (>10 root .txt files) — never fails the job.
-          count=$(find . -maxdepth 1 -name '*.txt' -not -name 'CMakeLists*.txt' | wc -l)
-          if [ "$count" -gt 10 ]; then
-            echo "::warning::Found $count .txt files in root directory — cleanup recommended"
-          fi
+        run: python3 scripts/ci/check_test_artifacts.py
+
+      # (AR) 🔑 حارسُ بوّابةِ المعماريّة للهجةِ التجميع. العلّةُ المقيسةُ (١٩ آب
+      #      ٢٠٢٦): اللهجةُ تُعلن معماريّةً واحدةً والمترجّمُ يخفض بها لأيِّ هدف،
+      #      فماتت ثمانيةُ اختباراتٍ موجبةٍ في مُجمِّعِ macos-14-arm64 بينما مرّ
+      #      اثنا عشرَ سالبًا **بحقّ** — مراسيها رموزُ أخطاءٍ دلاليّةٍ تسبق التوليد.
+      #      فالحارسُ يقيس الوسمَ على المعجمِ **بشكلِ المعاملاتِ** لا بوجودِ الاسم،
+      #      ويحاكمُ الاتّجاهين: وسمٌ أضيقُ يُخفي تغطيةً، وأوسعُ يُحمِّر منصّةً.
+      # (EN) Assembly-dialect architecture-gate guard: @arch tags are measured
+      #      against the SoT lexicons by operand shape, in both directions.
+      - name: "🎯 حارسُ بوّابةِ معماريّةِ لهجةِ التجميع / Asm dialect arch gate"
+        shell: bash
+        run: python3 scripts/ci/check_asm_dialect_arch.py
+
+      # 🔑 (AR) حارسٌ ساكنٌ لعطبٍ لا يراه أيُّ بناءٍ يُشغِّل الحارسَ المفحوص:
+      #      `find_msvc_lib_paths` كانت مُصرَّحةً ومُعرَّفةً داخلَ
+      #      `#ifdef HAS_EMBEDDED_LLD` ومُستعمَلةً خارجَه، فلم يكن `sad-build`
+      #      يُصرَّف على ويندوزَ **البتّةَ** حين يُطفأ (C3861) — وظلَّ مستورًا
+      #      لأنّ خطوةَ بنائه كانت تنتهي بـ`exit 0` غيرِ مشروط. والبناءُ المحلّيُّ
+      #      ولينكسُ وماكُ كلُّها تُشغِّل الحارسَ فتُصرَّف خضراء.
+      # 🔑 (EN) A static check for a defect no build that ENABLES the guard can
+      #      see: a member declared inside #ifdef HAS_EMBEDDED_LLD but used
+      #      outside it broke the entire Windows compiler build when LLD was off.
+      - name: "🧩 حارسُ اتّساقِ حرّاسِ الترجمة / Conditional-guard consistency"
+        shell: bash
+        run: python3 scripts/ci/check_conditional_guard_consistency.py
 
       - name: "🔁 حارسُ صمودِ CI — جلبٌ مُعادٌ ووظيفةٌ محدودة / CI resilience guard"
         shell: bash
         run: python3 scripts/ci/check_ci_resilience.py
+
+      # (AR) 🔑 العلّةُ المقيسة (٢٠ آب ٢٠٢٦): `std::system` و`CreateProcessA`
+      #      تأخذان `char*`، فيُعيدُ ويندوز تفسيرَ بايتاتِ UTF-8 بترميزِ النظام.
+      #      فمسارٌ عربيٌّ تحت ترميزٍ لاتينيٍّ يجعل الرابطَ **ينجح** ورمزُ عائدِه
+      #      صفرٌ ويكتب المخرَجَ باسمٍ مشوَّه — بلا خطأٍ ولا تشخيص. ظهر أوّلَ ما
+      #      قِيست مصفوفةُ القواعدِ على ويندوز: ٩٣ ملفًّا اسمُه عربيٌّ أخفق،
+      #      و٢٩٢٧ اسمُها ASCII نجحت. ويندوزُ CI يسلك المسارَ الخارجيَّ دائمًا
+      #      (لا LLD مضمَّنَ في حزمتِه)، فالحارسُ ساكنٌ كي يُحمِّرَ على المنصّاتِ
+      #      الثلاثِ لا حيث صادفَ أن يُبنى بلا LLD.
+      # (EN) Measured defect (2026-08-20): narrow spawn APIs reinterpret UTF-8
+      #      through the ANSI codepage, so an Arabic path makes the linker
+      #      SUCCEED while writing to a mangled name. Static, so it fires on
+      #      every platform rather than only where LLD happens to be absent.
+      - name: "🔤 حارسُ إطلاقِ العمليّاتِ في مسارِ الربط / Link-path spawn encoding"
+        shell: bash
+        run: python3 tests/system/harness/test_no_narrow_spawn_in_link_path.py
+
+      # (AR) 🔑 العلّةُ المقيسة (٢٠ آب ٢٠٢٦): `<unistd.h>` كان مضمومًا **داخلَ**
+      #      `namespace sad::utf8`، فصُودِرت الترويسةُ بأسرِها إليه، وحارسُ
+      #      الضمِّ جعلها النسخةَ الوحيدةَ في وحدةِ الترجمة. فلمّا ضُمَّ
+      #      `utf8_utils.h` في `compiler_driver_linker.cpp` **قبلَ** ضمِّه
+      #      العامَّ لـ`<unistd.h>`، غاب `::getpid` و`::readlink` عن النطاقِ
+      #      العامّ وسقط بناءُ لينكسَ بالمترجمَين — وماكُ وويندوزُ خضراوان في
+      #      الشوطِ نفسِه. منصّتان من ثلاثٍ تُخفيان العطب، فالحارسُ ساكن.
+      # (EN) Measured defect (2026-08-20): <unistd.h> included INSIDE
+      #      namespace sad::utf8 captured the header, and its include guard
+      #      made that the only copy in the TU — so ::getpid/::readlink
+      #      vanished from global scope and the Linux build failed while
+      #      macOS and Windows stayed green. Static: fires on all platforms.
+      - name: "🧩 حارسُ الضمِّ داخلَ فضاءِ الأسماء / No include inside a namespace"
+        shell: bash
+        run: python3 tests/system/harness/test_no_include_inside_namespace.py
+
+      # (AR) 🔑 المُغلِّفُ نفسُه يُقاس، لا يُفترَضُ سليمًا. وفرعُ إسقاطِ
+      #      المرآةِ خاصّةً: لا يُنادى إلّا حين تُخفِقُ `apt` فعلًا، فبقيَ
+      #      غيرَ مقيسٍ بعدَ شحنِه — وقد كان **ميّتًا** قبلَ ذلك بعلّةِ
+      #      اسمٍ عربيٍّ لمتغيّرِ صدَفة. هنا يُشغَّلُ بـ`apt-get` زائفٍ
+      #      يُقادُ إلى كلِّ فرع، فلا ينتظرُ برهانُه انقطاعًا حقيقيًّا.
+      # (EN) The wrapper is measured, not assumed — above all the mirror
+      #      drop, which only runs when apt actually fails and shipped
+      #      unexercised (and was silently dead before that).
+      - name: "🧪 قياسُ مُغلِّفِ apt (وفرعُ إسقاطِ المرآة) / apt wrapper proof"
+        shell: bash
+        run: bash scripts/ci/test_apt_retry.sh
 
   # ======================================================================
   # 1.5. تحليل ساكن / Static Analysis (clang-tidy + cppcheck)
@@ -128,6 +218,7 @@ jobs:
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
         with:
           submodules: recursive
 
@@ -215,7 +306,16 @@ jobs:
     #      17 2022"). windows-latest moved to an image without VS2022 under that
     #      name, causing "could not find any instance of Visual Studio".
     runs-on: windows-2022
-    timeout-minutes: 60
+    # ⚠️ (AR) ٦٠ لم تعُدْ تسعُ ما في الوظيفة: البناءُ وحدَه ٩٤٧ ث، وأُضيفت
+    #      ثلاثُ خطواتٍ حدُّ كلٍّ منها ٣٠ د — أي ٩٠ د من الحدودِ داخلَ سقفٍ
+    #      ٦٠. فحدُّ الوظيفةِ يقع أوّلًا ويُقرأُ «أُلغِيَ» بلا اسمِ الجاني،
+    #      وهو نصُّ العطبِ الذي كُتِبَ حارسُ الحدودِ لإزالته. وبعدَ أن صار
+    #      `sad-build` يُبنى فعلًا هنا تنتقل الثلاثُ من مفسّرٍ-فقط إلى
+    #      تنفيذٍ مزدوجٍ كامل. و١٢٠ هو سقفُ الحارسِ المتّفَقُ لا رقمٌ مُرتجَل.
+    # ⚠️ (EN) 60 no longer fits: the build alone is 947 s and three new
+    #      steps carry 30-minute bounds each. The job bound would fire
+    #      first and log "cancelled" without naming the culprit.
+    timeout-minutes: 120
     needs: code-quality
     strategy:
       fail-fast: false
@@ -225,11 +325,19 @@ jobs:
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
         with:
           submodules: recursive
 
+      # (AR) م-٥/م-٦: فعلُ طرفٍ ثالثٍ **أولى** بالحدِّ من `actions/*` لا أدنى:
+      #      لا نملك شفرتَه ولا سلوكَه عند تعذُّرِ الشبكة. وكان بلا حدٍّ البتّةَ
+      #      في قلبِ وظيفةِ ويندوز، فتعليقُه يُقرأ «أُلغِيَ» بلا اسمِ الجاني.
+      # (EN) m-5/m-6: a third-party action deserves a step bound MORE than an
+      #      actions/* one, not less — we own neither its code nor its behaviour
+      #      when the network stalls.
       - name: "⚙️ إعداد MSVC / Setup MSVC"
         uses: ilammy/msvc-dev-cmd@v1
+        timeout-minutes: 15
 
       - name: "🐍 حزم Python للتوليد / Python codegen deps"
         shell: pwsh
@@ -263,31 +371,234 @@ jobs:
         if: matrix.config == 'Release'
         id: llvm-toolchain-cache
         uses: actions/cache/restore@v4
+        timeout-minutes: 15
         with:
           path: C:\LLVM
-          key: win-llvm-toolchain-18.1.8
+          key: win-llvm-18.1.8-conda-llvmdev-h2a44499_3-zlib-1.3.1-zstd-1.5.6-exports-stripped
 
+      # 🔑 (AR) التثبيتُ يعمل **في صدَفةِ الخطوةِ نفسِها** لا في `pwsh` ابنٍ.
+      #      قِيسَ ذلك مرّتَين: صياغةٌ بـ`-PassThru` + `WaitForExit(ms)`
+      #      (الشوط 32245148740) وصياغةٌ بـ`-Wait` داخلَ `Start-Job` محدودةٍ
+      #      بـ`Wait-Job` (الشوط 32247505993) — **كلتاهما بلغت حدَّ ٦٠٠ ثانيةٍ
+      #      كاملةً**، والمُثبِّتُ نفسُه ينتهي في ٦١ ثانيةً تحت هذا السطرِ
+      #      بعينِه في عشراتِ الأشواطِ (الليليُّ 32213409509: 03:48:32←03:49:33).
+      #      فالمشترَكُ بين الإخفاقَين ليس آليّةَ الانتظارِ بل **أنّ المُثبِّتَ
+      #      أُطلِقَ من عمليّةِ `pwsh` ابنةٍ**. والسببُ الدقيقُ لم يُشخَّصْ بعدُ،
+      #      فيُشحَنُ ما قِيسَ أنّه يعمل لا ما يُظَنّ.
+      # ⚠️ (AR) والحدُّ لم يُلغَ بل نُقِلَ إلى طبقةٍ **لا تُبدِّلُ الآليّة**:
+      #      `timeout-minutes` على الخطوةِ يفرضُه ﭼِتهَب من خارجِ العمليّة،
+      #      فلا يمكن لدقيقةٍ من دقائقِه أن تُغيِّرَ كيف يُنتظَرُ المُثبِّت.
+      #      و`-PassThru` مع `-Wait` تُبقي رمزَ الخروجِ مقروءًا ومُحاكَمًا —
+      #      وهو نصفُ العطبِ الأصليِّ: `-Wait` وحدَها لا تُعيدُ رمزًا البتّة.
+      # 🔑 (EN) Install in the step's own shell, not a child pwsh. Two
+      #      variants (PassThru+WaitForExit, and -Wait inside Start-Job) each
+      #      burned the full 600 s bound, while this exact line installs in
+      #      61 s across dozens of runs. The shared factor is the child pwsh,
+      #      not the wait mechanism. Root cause not yet diagnosed, so ship
+      #      what is measured to work. The bound moves to the step level,
+      #      where GitHub enforces it from outside the process and cannot
+      #      change how the installer is awaited; -PassThru keeps the exit
+      #      code judged, which -Wait alone never provided.
       - name: "📦 تحميل LLVM 18 (عند غياب الخبيئة) / Download LLVM 18 (on cache miss)"
         if: matrix.config == 'Release' && steps.llvm-toolchain-cache.outputs.cache-hit != 'true'
+        timeout-minutes: 15
         shell: pwsh
         run: |
+          # 🔑 (AR) المُثبِّتُ الرسميُّ `LLVM-18.1.8-win64.exe` **لا يحوي
+          #      مكتباتِ التطوير**: يُنشئُ `C:\LLVM\lib\cmake\llvm` وليس فيه
+          #      `LLVMConfig.cmake`، فيُخفِقُ `find_package(LLVM CONFIG)` ويُطبَعُ
+          #      «⊘ المترجم sad-build معطّل» ثمّ `MSB1009` على هدفٍ لم يُولَّدْ.
+          #      وفحصُنا القديمُ كان يفحصُ **المجلّدَ** فيمرُّ أخضرَ على غيابٍ تامّ.
+          #      وحزمةُ `llvmdev` من conda-forge تحوي ما ينقص، وقِيست محلّيًّا
+          #      ١٩ آب ٢٠٢٦ بفكِّها: `LLVMConfig.cmake` موجود · **١٩٦** مكتبةً
+          #      ساكنةً · **١٩٠٧** ترويسةً · ٩٦ مب تنزيلًا و٠٫٧١ ﭼب مفكوكةً —
+          #      أصغرُ من المُثبِّتِ (٣٥٧ مب) الذي لا يحوي شيئًا من ذلك.
+          # 🔑 (EN) The official Windows installer ships no dev libs: it creates
+          #      lib/cmake/llvm without LLVMConfig.cmake, so find_package fails,
+          #      sad-build is never generated, and MSB1009 follows. conda-forge
+          #      llvmdev has them — measured by unpacking it: LLVMConfig.cmake,
+          #      196 static libs, 1907 headers, 96 MB download / 0.71 GB unpacked.
+          # 🔑 (AR) وحزمةٌ واحدةٌ تكفي — ومطاردةُ الحزمِ كانت طريقًا مسدودًا:
+          #      جولةٌ أولى سقطت على `llvm-tblgen.exe`، فأُضيفت `llvm-tools`
+          #      (٣٥٣ ﻣﺐ)، فسقطت الجولةُ الثانيةُ على `LLVM-C.lib`. وقياسُ
+          #      ١٩ آب ٢٠٢٦ أنهى المطاردة: **لا حزمةَ conda لويندوز تشحنُ
+          #      `LLVM-C`** — `libllvm18` هناك حزمةُ بيانٍ ٠٫١ ﻣﺐ لا مكتبةٌ
+          #      مشتركة. فالعلّةُ ليست نقصَ حزمةٍ بل حلقةَ تحقّقٍ في ملفِّ
+          #      البائع: `LLVMExports` يفحصُ وجودَ ٢٧٩ مرجعًا وتشحنُ الحزمةُ
+          #      ٢١٢. و`cmake/llvm.cmake` **يستثني `LLVM-C.lib` صراحةً** أصلًا.
+          #      فيُنزَعُ تسجيلُ الفحصِ عن الغائبِ وحدَه، ويبقى تعريفُ الهدفِ
+          #      فمَن ربطَه يومًا يحصلُ على خطأِ رابطٍ يُسمّيه لا على صمت.
+          # 🔑 (EN) One package suffices; package-chasing was a dead end. Round
+          #      one died on llvm-tblgen.exe, so llvm-tools (353 MB) was added;
+          #      round two died on LLVM-C.lib — which NO win-64 conda package
+          #      ships (libllvm18 there is a 0.1 MB meta package). The defect
+          #      is a vendor existence loop, not a missing package.
           $llvmVer = "18.1.8"
-          $llvmUrl = "https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvmVer}/LLVM-${llvmVer}-win64.exe"
-          $installer = "$env:TEMP\LLVM-${llvmVer}-win64.exe"
-          Write-Host "Downloading LLVM ${llvmVer}..."
-          pwsh -NoProfile -File scripts/ci/net_retry.ps1 `
-            -Uri $llvmUrl -OutFile $installer -TimeoutSec 900
+          $llvmBuild = "h2a44499_3"
+          $stage = "$env:TEMP\llvm_stage"
+          Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force C:\LLVM -ErrorAction SilentlyContinue
+
+          # 🔑 (AR) وzlib معها — والسببُ في **ملفِّ البائع** لا في حاجتِنا. قُرِئ
+          #      `LLVMConfig.cmake.in` لإصدارِ 18.x عند المنبع: السطرُ ٧٤ يكتب
+          #      `set(ZLIB_ROOT @ZLIB_ROOT@)` — أي مسارَ آلةِ بناءِ conda — ثمّ
+          #      `find_package(ZLIB)` **بلا `REQUIRED`**. فالبحثُ يخفق صامتًا
+          #      على المُشغِّل، ولا يُعرَّفُ الهدفُ `ZLIB::ZLIB`، فتتدلّى واجهةُ
+          #      ربطِ `LLVMSupport` وقتَ التوليد:
+          #        CMake Error at C:/LLVM/lib/cmake/llvm/LLVMExports.cmake:64
+          #          The link interface of target "LLVMSupport" contains:
+          #            ZLIB::ZLIB  but the target was not found.
+          # 🔑 (AR) ومعها zstd — وهذا موضعُ خطأٍ وقعتُ فيه فأُثبِتُه: قرأتُ السجلَّ
+          #      فوجدتُ سطرَ ZLIB وحدَه فحكمتُ أنّ zstd سليم. والحقيقةُ أنّ CMake
+          #      يُبلِغ عن **أوّلِ** هدفٍ متدلٍّ في شوطِ التوليدِ ويقف — فلمّا سقطَ
+          #      جدارُ ZLIB ظهرَ `zstd::libzstd_shared` في موضعِه بعينِه
+          #      (LLVMExports.cmake:64 نفسُه). فـ«خطأٌ واحدٌ في السجلّ» ليس
+          #      «تبعيّةٌ ناقصةٌ واحدة». والعدُّ الصحيحُ من **المصدرِ**: يستدعي
+          #      `LLVMConfig.cmake` دالّةَ `find_package` لكلٍّ من ZLIB وzstd،
+          #      فهما جداران لا جدار.
+          # 🔑 (EN) CMake reports only the FIRST dangling target per generate pass
+          #      and stops, so "one error in the log" is not "one missing
+          #      dependency" — count the walls from the SOURCE (LLVMConfig calls
+          #      find_package for both ZLIB and zstd), not from the log.
+          # ⚠️ (AR) ولأنّه `set` عاديٌّ فهو **يدهس** أيَّ `-DZLIB_ROOT=` نمرّره،
+          #      فالطريقُ ليس ذلك المتغيّر بل تمريرُ نتيجةِ البحثِ جاهزةً.
+          # 🔑 (EN) The vendor config bakes the conda BUILD machine's ZLIB_ROOT
+          #      then calls a non-REQUIRED find_package(ZLIB); it fails silently
+          #      on the runner and the exported link interface dangles. A plain
+          #      set() also overrides any -DZLIB_ROOT we pass, so we hand the
+          #      find its answer instead.
+          $packages = @(
+            @{ name = "llvmdev"; version = $llvmVer; build = $llvmBuild },
+            @{ name = "zlib";    version = "1.3.1";  build = "h2466b09_2" },
+            @{ name = "zstd";    version = "1.5.6";  build = "h0ea2cb4_0" }
+          )
+          foreach ($spec in $packages) {
+            $name = $spec.name
+            $pkg = "$($spec.name)-$($spec.version)-$($spec.build).conda"
+            $llvmUrl = "https://conda.anaconda.org/conda-forge/win-64/${pkg}"
+            # (AR) `.conda` صيغةُ zip، فيلزمُ الامتدادُ ليقبلَها `Expand-Archive`.
+            $archive = "$env:TEMP\${name}.zip"
+            Write-Host "Downloading ${pkg}..."
+            pwsh -NoProfile -File scripts/ci/net_retry.ps1 `
+              -Uri $llvmUrl -OutFile $archive -TimeoutSec 900
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            $sub = "$stage\${name}"
+            Expand-Archive -Path $archive -DestinationPath $sub -Force
+            $inner = Get-ChildItem "$sub\pkg-*.tar.zst" | Select-Object -First 1
+            if (-not $inner) {
+              Write-Host "::error::لا pkg-*.tar.zst داخل ${pkg} — تغيّرت بنيتُها"
+              exit 1
+            }
+          # ⚠️ (AR) `zstd` موجودٌ في `C:\tools\zstd` على مُشغِّلِ ﭼِتهَب ومُدرَجٌ
+          #      في PATH. ولا يُفترَضُ وجودُه: غيابُه يُعلَنُ ولا يُبتلَع.
+          # ⚠️ (EN) zstd ships in the runner image; its absence is reported.
+            if (-not (Get-Command zstd -ErrorAction SilentlyContinue)) {
+              Write-Host "::error::zstd غيرُ موجودٍ على هذا المُشغِّل"
+              exit 1
+            }
+            zstd -d $inner.FullName -o "$sub\pkg.tar"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            New-Item -ItemType Directory -Force -Path "$sub\tree" | Out-Null
+            tar -xf "$sub\pkg.tar" -C "$sub\tree"
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            # (AR) جذرُ كلِّ حزمةٍ `Library/` — تُدمَجان في `C:\LLVM` معًا.
+            # (EN) Both packages root at Library/ and merge into C:\LLVM.
+            robocopy "$sub\tree\Library" C:\LLVM /E /NFL /NDL /NJH /NJS /NP | Out-Null
+            if ($LASTEXITCODE -ge 8) {
+              Write-Host "::error::تعذّرَ دمجُ ${name} في C:\LLVM (robocopy $LASTEXITCODE)"
+              exit 1
+            }
+            $global:LASTEXITCODE = 0
+          }
+
+          # 🔑 (AR) الفحصُ على **الملفِّ** لا على المجلّد: المجلّدُ كان موجودًا
+          #      طوالَ الوقتِ والملفُّ غائبًا، فمرَّ الحارسُ أخضرَ سنةً.
+          # 🔑 (EN) Assert the FILE, not the directory — the directory always
+          #      existed while the file that matters never did.
+          if (-not (Test-Path 'C:\LLVM\lib\cmake\llvm\LLVMConfig.cmake')) {
+            Write-Host "::error::LLVMConfig.cmake غيرُ موجودٍ بعدَ الفكّ"
+            exit 1
+          }
+          # 🔑 (AR) والمكتبةُ **الساكنةُ** بالاسم، لا أيَّ zlib. قِيسَ بفكِّ الحزمةِ
+          #      محلّيًّا ١٩ آب ٢٠٢٦: فيها `zlibstatic.lib` (١٨٩ كب) و`zlib.lib`
+          #      و`z.lib` و`zdll.lib` (١٦٫٦ كب لكلٍّ — **مكتباتُ استيراد**)،
+          #      ⚠️ **ولا DLL فيها البتّةَ** (هو في حزمةِ `libzlib` المنفصلة).
+          #      وقائمةُ `FindZLIB` الافتراضيّةُ تبدأ بـ`z zlib zdll`، فكانت
+          #      ستلتقط مكتبةَ استيرادٍ بلا DLL ⇒ `0xC0000135` وقتَ التشغيل —
+          #      وهو صنفُ الإخفاقِ نفسُه الذي استُثنيت `LLVM-C.lib` لأجلِه.
+          #      والربطُ الساكنُ سليمٌ: `zconf.h` لا يُعلن `dllimport` إلّا تحت
+          #      `ZLIB_DLL`، وconda لا تُعرِّفُها، فرموزُ LLVMSupport عاديّة.
+          # 🔑 (EN) Assert the STATIC lib by name. Measured by unpacking: the
+          #      package ships zlibstatic.lib plus three 16 KB IMPORT libs and
+          #      NO DLL (that lives in the separate libzlib package), while
+          #      FindZLIB's default name list starts with z/zlib/zdll — it would
+          #      have picked an import lib whose DLL is absent.
+          if (-not (Test-Path 'C:\LLVM\lib\zlibstatic.lib')) {
+            Write-Host "::error::zlibstatic.lib غيرُ موجودٍ بعدَ الفكّ — تغيّرت بنيةُ حزمةِ zlib"
+            exit 1
+          }
+          if (-not (Test-Path 'C:\LLVM\include\zlib.h')) {
+            Write-Host "::error::zlib.h غيرُ موجودٍ بعدَ الفكّ"
+            exit 1
+          }
+          # 🔑 (AR) وzstd على العكسِ من zlib تمامًا: الهدفُ المطلوبُ في التصديرِ
+          #      اسمُه `zstd::libzstd_shared` — **المشترَكُ** صراحةً. وقُرِئ
+          #      `Findzstd.cmake` لإصدارِ 18.x: إن انتهى `zstd_LIBRARY` بـ
+          #      `_static.lib` فالفرعُ الأوّلُ يُنفَّذ و**لا يُعرَّفُ الهدفُ
+          #      المشترَكُ أبدًا**. وقِيسَ بفكِّ حزمةِ conda: فيها `zstd.lib`
+          #      و`libzstd.lib` (استيرادٌ، ٤٥ كب) و`zstd.dll` (٦٥٤ كب)
+          #      **ولا `zstd_static.lib` البتّةَ** — فالفرعُ المشترَكُ هو الذي
+          #      يقع، وهو المطلوب. فالساكنُ هنا خطأٌ والمشترَكُ صواب، عكسَ zlib.
+          # 🔑 (EN) zstd is the exact opposite of zlib: the exported interface
+          #      names the SHARED target, and Findzstd defines it only when the
+          #      found library is NOT a *_static.lib. The conda package ships no
+          #      static lib at all, so the shared branch is the one that fires.
+          if (-not (Test-Path 'C:\LLVM\lib\zstd.lib')) {
+            Write-Host "::error::zstd.lib غيرُ موجودٍ بعدَ الفكّ — تغيّرت بنيةُ حزمةِ zstd"
+            exit 1
+          }
+          if (-not (Test-Path 'C:\LLVM\bin\zstd.dll')) {
+            Write-Host "::error::zstd.dll غيرُ موجودٍ — الهدفُ المشترَكُ بلا مكتبةٍ وقتَ التشغيل"
+            exit 1
+          }
+          # ⚠️ (AR) و`Findzstd` يشتقُّ `IMPORTED_LOCATION` من مجلّدِ المكتبةِ
+          #      باستبدالِ `${CMAKE_INSTALL_LIBDIR}` بـ`${CMAKE_INSTALL_BINDIR}`
+          #      في ذيلِ المسار. وهذان المتغيّران قد يكونان **فارغَين** (لا
+          #      يُعرَّفان إلّا بـ`GNUInstallDirs`)، فيبقى المسارُ `lib` ويُشار
+          #      إلى `lib\zstd.dll`. نسخةٌ هناك تُنهي الشرطَ بلا افتراض.
+          # ⚠️ (EN) Findzstd derives IMPORTED_LOCATION by rewriting the lib dir to
+          #      the bin dir using CMAKE_INSTALL_LIBDIR/BINDIR, which may be empty
+          #      (they only exist with GNUInstallDirs) — leaving lib\zstd.dll. A
+          #      copy there settles it without assuming.
+          Copy-Item C:\LLVM\bin\zstd.dll C:\LLVM\lib\zstd.dll -Force
+          # 🔑 (AR) والنزعُ يُبرهَنُ بشرطٍ لاحقٍ مقيس: يُعادُ المسحُ بعدَه
+          #      ويُشترَطُ **صفرُ مرجعٍ غائب**، فلا يمرُّ شكلٌ نحويٌّ أفلتَ
+          #      المُحلِّل. وقِيسَ محلّيًّا على الشجرةِ نفسِها: قبلَه يسقطُ
+          #      `find_package(LLVM REQUIRED CONFIG)`، وبعدَه يمرّ.
+          # 🔑 (EN) The strip has a measured post-condition: re-scan and require
+          #      zero missing refs. Proven locally on this very tree with cmake.
+          $env:PYTHONIOENCODING = "utf-8"
+          $env:PYTHONUTF8 = "1"
+          python scripts/ci/strip_missing_llvm_exports.py C:\LLVM
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          Write-Host "Installing LLVM silently..."
-          Start-Process -FilePath $installer -ArgumentList "/S","/D=C:\LLVM" -Wait
-          Write-Host "LLVM ${llvmVer} installed at C:\LLVM"
+          $libs = (Get-ChildItem C:\LLVM\lib -Filter *.lib | Measure-Object).Count
+          $hdrs = (Get-ChildItem C:\LLVM\include -Recurse -Filter *.h | Measure-Object).Count
+          Write-Host "✅ LLVM ${llvmVer}: $libs مكتبةً ساكنةً و$hdrs ترويسة"
 
       - name: "📦 حفظُ خبيئةِ LLVM / Save LLVM cache"
         if: matrix.config == 'Release' && steps.llvm-toolchain-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
+        # (AR) م-٤: الخبيئةُ تسريعٌ لا شرطُ صحّة. إخفاقُ حفظٍ (حصّةٌ أو سباقٌ
+        #      على المفتاحِ نفسِه) كان يقتل وظيفةً بناؤها واختباراتُها ناجحة —
+        #      أي حمرةٌ لا تدلُّ على عطبٍ في الكود. والشرطُ الضمنيُّ باقٍ:
+        #      خطوةٌ بلا `if` لا تعمل إن أخفقَ سابقُها، فبناءٌ فاشلٌ لا يُخبَّأ.
+        # (EN) m-4: the cache is a speed-up, not a correctness precondition;
+        #      a failed save used to kill a job whose build and tests passed.
+        continue-on-error: true
+        timeout-minutes: 15
         with:
           path: C:\LLVM
-          key: win-llvm-toolchain-18.1.8
+          key: win-llvm-18.1.8-conda-llvmdev-h2a44499_3-zlib-1.3.1-zstd-1.5.6-exports-stripped
 
       # (AR) البيئةُ تُصدَّرُ في الحالَين: الخبيئةُ توفّرُ التنزيلَ لا الإسناد.
       # (EN) Export env in both cases: the cache spares the download, not the wiring.
@@ -295,16 +606,69 @@ jobs:
         if: matrix.config == 'Release'
         shell: pwsh
         run: |
-          if (-not (Test-Path 'C:\LLVM\lib\cmake\llvm')) {
-            Write-Host "::error::C:\LLVM\lib\cmake\llvm غيرُ موجود — خبيئةٌ ناقصةٌ أو تثبيتٌ أخفق"
+          if (-not (Test-Path 'C:\LLVM\lib\cmake\llvm\LLVMConfig.cmake')) {
+            Write-Host "::error::LLVMConfig.cmake غيرُ موجود — خبيئةٌ ناقصةٌ أو فكٌّ أخفق"
+            exit 1
+          }
+          # ⚠️ (AR) ولا يُعادُ النزعُ هنا: على شجرةٍ **مبتورةٍ** يَنزعُ فحصَ ما
+          #      بُتِرَ فيُصادِقُ على العطب. فيُقاسُ العددُ بدلَه — والعددُ ثابتٌ
+          #      لأنّ نسخةَ الحزمةِ مثبَّتةٌ في مفتاحِ الخبيئة. خبيئةٌ حُفِظَت
+          #      نصفَها تُحمِّرُ هنا باسمِها لا في رابطٍ بعدَ عشرِ دقائق.
+          # ⚠️ (EN) Do NOT re-run the strip here: on a truncated tree it would
+          #      strip the checks for what was truncated and bless the damage.
+          #      Count instead — the count is fixed by the pinned package.
+          # (AR) ١٩٦ من `llvmdev` + ٤ من `zlib` (z · zdll · zlib · zlibstatic)
+          #      + ٢ من `zstd` (zstd · libzstd).
+          # (EN) 196 llvmdev + 4 zlib + 2 zstd.
+          $libs = (Get-ChildItem C:\LLVM\lib -Filter *.lib | Measure-Object).Count
+          if ($libs -ne 202) {
+            Write-Host "::error::خبيئةُ LLVM مبتورة: $libs مكتبةً لا ٢٠٢ (١٩٦ llvmdev + ٤ zlib + ٢ zstd)"
+            exit 1
+          }
+          if (-not (Test-Path 'C:\LLVM\lib\zlibstatic.lib')) {
+            Write-Host "::error::خبيئةٌ بلا zlibstatic.lib — مفتاحٌ قديمٌ أُصيب"
             exit 1
           }
           echo "LLVM_DIR=C:\LLVM\lib\cmake\llvm" >> $env:GITHUB_ENV
           echo "C:\LLVM\bin" >> $env:GITHUB_PATH
+          # 🔑 (AR) تُمرَّرُ نتيجةُ البحثِ **جاهزةً** فلا يخمّنُ `FindZLIB` اسمًا:
+          #      `ZLIB_INCLUDE_DIR` و`ZLIB_LIBRARY_RELEASE` خانتا خبيئةٍ يقرؤهما
+          #      المُوجِدُ قبلَ أيِّ `find_library`، فيصير الالتقاطُ حتميًّا على
+          #      المكتبةِ الساكنةِ لا احتماليًّا على أوّلِ اسمٍ في قائمة.
+          # 🔑 (EN) Hand FindZLIB its answer: these two cache entries short-circuit
+          #      find_library, making the static pick deterministic.
+          echo "ZLIB_INCLUDE_DIR=C:\LLVM\include" >> $env:GITHUB_ENV
+          echo "ZLIB_LIBRARY_RELEASE=C:\LLVM\lib\zlibstatic.lib" >> $env:GITHUB_ENV
+          # (AR) وzstd بالحروف الصغيرة — `find_package(zstd)` لا `ZSTD`، وأسماءُ
+          #      خاناتِ `Findzstd.cmake` تتبع اسمَ الحزمةِ حرفًا بحرف.
+          # (EN) Lower-case: the module is Findzstd.cmake and its cache entries
+          #      follow the package name exactly.
+          echo "SAD_ZSTD_INCLUDE_DIR=C:\LLVM\include" >> $env:GITHUB_ENV
+          echo "SAD_ZSTD_LIBRARY=C:\LLVM\lib\zstd.lib" >> $env:GITHUB_ENV
           Write-Host "LLVM_DIR=C:\LLVM\lib\cmake\llvm"
 
-      - name: "📦 خبيئة بناء CMake / Cache CMake Build"
-        uses: actions/cache@v4
+      # (AR) 🔑 `restore`/`save` منفصلان — والسببُ مقيسٌ لا مُفترَض: خطوةُ
+      #      `actions/cache` الموحّدةُ تحفظُ في مرحلةِ `Post` **وتتخطّى الحفظَ
+      #      إذا أخفقت الوظيفة**. ووظيفةُ ويندوز (Release) أخفقت في الشوطِ
+      #      الليليِّ **عشرَ ليالٍ متتاليةً** (٩–١٩ آب) على خطوةِ التنفيذِ
+      #      المزدوج — فما كُتِبت لها خبيئةٌ قطُّ. ولمّا كان الشوطُ الليليُّ هو
+      #      الشيءَ الوحيدَ الذي يعمل على الفرعِ الافتراضيِّ `sadlang`، وكانت
+      #      الخبيئةُ تُستعادُ من فرعِ الشوطِ أو من الافتراضيِّ وحدَهما، فالنتيجةُ
+      #      المقيسةُ: **صفرُ خبيئةٍ على `sadlang`** وكلُّ فرعٍ جديدٍ يبني من الصفر.
+      #
+      #      والحفظُ هنا يقع **فورَ انتهاءِ البناء**، فيُكتَبُ وإن سقطَ ما بعدَه.
+      #      وشرطُه الضمنيُّ صحيحٌ بذاته: خطوةٌ بلا `if` لا تعمل إن أخفقَ سابقُها،
+      #      فبناءٌ فاشلٌ لا يُخبَّأُ ولا تُسمَّمُ الخبيئةُ بشجرةٍ نصفِ مبنيّة.
+      # (EN) Split restore/save, measured: the unified action saves in Post and
+      #      skips it when the job fails. Windows Release failed ten consecutive
+      #      nightlies — and the nightly is the only thing that runs on the
+      #      default branch `sadlang`, so that branch held zero caches and every
+      #      new branch rebuilt from scratch. Saving right after the build also
+      #      inherits the right condition: a failed build never gets cached.
+      - name: "📦 استرجاعُ خبيئةِ البناء / Restore CMake build cache"
+        id: win-build-cache
+        uses: actions/cache/restore@v4
+        timeout-minutes: 15
         with:
           path: build
           key: win-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
@@ -320,11 +684,31 @@ jobs:
           # (AR) تثبيت مفسّر Python نفسه الذي ثُبّتت فيه حزم التوليد (يطابق خطوة pip).
           # (EN) Pin the same Python interpreter the codegen deps were installed into.
           $pyArg = if ($env:PYTHON3_EXECUTABLE) { "-DPython3_EXECUTABLE=$env:PYTHON3_EXECUTABLE" } else { "" }
+          # 🔑 (AR) وسائطُ zlib تُمرَّرُ **إجابةً** لا مساعدةً على البحث: يستدعي
+          #      `LLVMConfig.cmake` دالّةَ `find_package(ZLIB)` بنفسِه، فإن وجدت
+          #      الخانتَين معبّأتَين لم تُشغِّل `find_library` أصلًا. وبلا ذلك
+          #      تلتقطُ القائمةُ الافتراضيّةُ `z`/`zlib`/`zdll` — وهنّ مكتباتُ
+          #      استيرادٍ بلا DLL في هذه الحزمة.
+          # 🔑 (EN) Pass zlib as an ANSWER, not a hint: LLVMConfig calls
+          #      find_package(ZLIB) itself, and prefilled cache entries skip the
+          #      name search that would otherwise grab a DLL-less import lib.
+          $zlibReady = ("${{ matrix.config }}" -eq "Release") -and $env:ZLIB_LIBRARY_RELEASE
+          $zlibIncArg = if ($zlibReady) { "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE_DIR" } else { "" }
+          $zlibLibArg = if ($zlibReady) { "-DZLIB_LIBRARY_RELEASE=$env:ZLIB_LIBRARY_RELEASE" } else { "" }
+          $zlibStaticArg = if ($zlibReady) { "-DZLIB_USE_STATIC_LIBS=ON" } else { "" }
+          $zstdReady = ("${{ matrix.config }}" -eq "Release") -and $env:SAD_ZSTD_LIBRARY
+          $zstdIncArg = if ($zstdReady) { "-Dzstd_INCLUDE_DIR=$env:SAD_ZSTD_INCLUDE_DIR" } else { "" }
+          $zstdLibArg = if ($zstdReady) { "-Dzstd_LIBRARY=$env:SAD_ZSTD_LIBRARY" } else { "" }
           cmake -B build -G "Visual Studio 17 2022" `
             -DBUILD_TESTS=ON `
             -DENABLE_LLVM_BACKEND=$useLlvm `
             $(if ($llvmArg) { $llvmArg }) `
             $(if ($pyArg) { $pyArg }) `
+            $(if ($zlibIncArg) { $zlibIncArg }) `
+            $(if ($zlibLibArg) { $zlibLibArg }) `
+            $(if ($zlibStaticArg) { $zlibStaticArg }) `
+            $(if ($zstdIncArg) { $zstdIncArg }) `
+            $(if ($zstdLibArg) { $zstdLibArg }) `
             -DCMAKE_BUILD_TYPE=${{ matrix.config }}
 
       - name: "🏗️ بناء المشروع / Build Project"
@@ -334,21 +718,46 @@ jobs:
         if: matrix.config == 'Release'
         shell: pwsh
         run: |
-          # (AR) بناء المترجم اختياريّ على CI: مثبّت LLVM-win64.exe لا يوفّر مكتبات
-          #      التطوير (LLVMConfig.cmake/headers)، فقد لا يُولَّد هدف sad-build
-          #      (MSB1009). نجعل الخطوة غير قاتلة صراحةً (exit 0) — إعداد LLVM-dev
-          #      على Windows مهمّة بنية تحتية منفصلة.
-          # (EN) Compiler build is optional on CI: the LLVM-win64.exe installer ships
-          #      no dev libs (LLVMConfig.cmake/headers), so the sad-build target may
-          #      not be generated (MSB1009). Make the step explicitly non-fatal —
-          #      a proper Windows LLVM-dev setup is a separate infra task.
+          # 🔑 (AR) الخطوةُ صارت **قاتلةً**، وكانت تنتهي بـ`exit 0` غيرِ مشروط.
+          #      وذلك العذرُ («مثبّتُ LLVM لويندوز بلا مكتباتِ تطوير») سقطَ بشحنِ
+          #      `llvmdev` من conda-forge ثمّ بسدِّ جدارِ `ZLIB::ZLIB`. وما كان
+          #      يفعلُه `exit 0` أنّه يُخفي إخفاقَ بناءِ المترجمِ، فتتفرّعُ عنه
+          #      **ثمانيةُ مواضعَ** لاحقةٍ تتراجعُ إلى المفسّرِ وحدَه أو تتخطّى
+          #      وتطبعُ أخضر: أخضرُها يعني «لم يُقَسْ» لا «سليم».
+          #      وغيابُ الثنائيِّ بعدَ بناءٍ ناجحٍ يُفحَصُ صراحةً: هدفٌ لم يُولَّد
+          #      يخرج بصفرٍ من MSBuild أحيانًا، فالحكمُ على **الأثرِ** لا الرمز.
+          # 🔑 (EN) This step is fatal now. The `exit 0` used to hide a failed
+          #      compiler build, and eight downstream sites then degraded to
+          #      interpreter-only or skipped — printing green for "unmeasured".
+          #      The binary's existence is asserted separately because an
+          #      ungenerated target can still leave MSBuild's exit code at zero.
           cmake --build build --config Release --target sad-build --parallel 4
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "⚠️ sad-build (compiler) skipped — LLVM dev libs unavailable on this runner" -ForegroundColor Yellow
-          } else {
-            Write-Host "✅ sad-build (compiler) built successfully" -ForegroundColor Green
+            Write-Host "::error::فشل بناءُ sad-build — والمترجمُ ليس اختياريًّا على هذا المُشغِّل بعدَ وصلِ مكتباتِ LLVM"
+            exit $LASTEXITCODE
           }
-          exit 0
+          if (-not (Test-Path "build/bin/Release/sad-build.exe")) {
+            Write-Host "::error::sad-build.exe غيرُ موجودٍ بعدَ بناءٍ رمزُ خروجِه صفر — هدفٌ لم يُولَّد"
+            exit 1
+          }
+          Write-Host "✅ sad-build (compiler) built successfully" -ForegroundColor Green
+      # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
+      #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
+      # (EN) Save right after the build, not in Post. Skipped on an exact hit.
+      - name: "📦 حفظُ خبيئةِ البناء / Save CMake build cache"
+        if: steps.win-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        # (AR) م-٤: الخبيئةُ تسريعٌ لا شرطُ صحّة. إخفاقُ حفظٍ (حصّةٌ أو سباقٌ
+        #      على المفتاحِ نفسِه) كان يقتل وظيفةً بناؤها واختباراتُها ناجحة —
+        #      أي حمرةٌ لا تدلُّ على عطبٍ في الكود. والشرطُ الضمنيُّ باقٍ:
+        #      خطوةٌ بلا `if` لا تعمل إن أخفقَ سابقُها، فبناءٌ فاشلٌ لا يُخبَّأ.
+        # (EN) m-4: the cache is a speed-up, not a correctness precondition;
+        #      a failed save used to kill a job whose build and tests passed.
+        continue-on-error: true
+        timeout-minutes: 15
+        with:
+          path: build
+          key: win-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
 
       - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors, Utils/Modules)"
         shell: pwsh
@@ -401,12 +810,20 @@ jobs:
             exit 1
           }
 
-      - name: "🧪 اختبارات المترجم / Compiler & VM Tests"
+      - name: "🧪 اختبارات المترجم / Compiler Tests"
         shell: pwsh
         run: |
           $failed = 0
+          # 🔑 (AR) حُذِف «test_vm_compiler_comprehensive» — اسمٌ بلا مصدرٍ ولا هدفٍ
+          #      في الشجرة. والآلةُ الافتراضيّةُ حُذِفت بقرارٍ في الإيداع
+          #      `bcf0a746` («ستُعاد كتابتها من الصفر — RFC sadlang-rfcs#10»)
+          #      ومعها اختبارُها، وبقيَ اسمُها هنا يطبع «⚠️ SKIP» في **ثلاثِ
+          #      وظائفَ** منذ ذلك الحين. ولم يُكشَف إلّا حين كفَّت الخطوةُ عن
+          #      ابتلاعِ الغياب. وحين تعود الآلةُ يعود اسمُها مع هدفٍ يُبنى.
+          # 🔑 (EN) Removed a ghost: the VM was deleted by decision in bcf0a746
+          #      and its test with it, but the name lingered here printing SKIP
+          #      in three jobs until the step stopped swallowing absences.
           $tests = @(
-            "test_vm_compiler_comprehensive",
             "test_compiler_comprehensive"
           )
           foreach ($test in $tests) {
@@ -415,8 +832,13 @@ jobs:
               Write-Host "▶️ Running $test..." -ForegroundColor Cyan
               & $exe
               if ($LASTEXITCODE -ne 0) { $failed++ }
+            } elseif ("${{ matrix.config }}" -eq "Release") {
+              # (AR) في Release المترجمُ مبنيٌّ إلزامًا، فغيابُ ثنائيِّ اختبارِه عطبٌ.
+              Write-Host "::error::MISSING: $exe — إلزاميٌّ في Release"
+              $failed++
             } else {
-              Write-Host "⚠️ SKIP: $exe not built (may require LLVM)" -ForegroundColor Yellow
+              # (AR) في Debug خلفيّةُ LLVM مُطفأةٌ **عمدًا** (تعارضُ _ITERATOR_DEBUG_LEVEL).
+              Write-Host "⚠️ SKIP: $exe not built (Debug: LLVM backend off by design)" -ForegroundColor Yellow
             }
           }
           if ($failed -gt 0) {
@@ -432,8 +854,11 @@ jobs:
             Write-Host "▶️ Running E2E tests..." -ForegroundColor Cyan
             & $exe
             if ($LASTEXITCODE -ne 0) { exit 1 }
+          } elseif ("${{ matrix.config }}" -eq "Release") {
+            Write-Host "::error::MISSING: $exe — اختباراتُ الطرفِ إلى الطرفِ إلزاميّةٌ في Release"
+            exit 1
           } else {
-            Write-Host "⚠️ SKIP: E2E tests not built" -ForegroundColor Yellow
+            Write-Host "⚠️ SKIP: E2E tests not built (Debug)" -ForegroundColor Yellow
           }
 
       - name: "🧪 اختبارات Regression (المفسّر) / Regression Tests (Interpreter)"
@@ -463,7 +888,8 @@ jobs:
               Write-Host "⚠️ SKIP: Regression test runner not found" -ForegroundColor Yellow
             }
           } else {
-            Write-Host "⚠️ SKIP: sad-build.exe not built (LLVM required)" -ForegroundColor Yellow
+            Write-Host "::error::MISSING: $sadc — الخطوةُ Release وحدَها والمترجمُ مبنيٌّ إلزامًا"
+            exit 1
           }
 
       - name: "🧪 CTest / Run CTest"
@@ -490,10 +916,25 @@ jobs:
           #      push → P0 (دخان، 100% مطلوب) · pull_request → P1 · schedule → P2.
           # (EN) Pick hierarchical level by CI event (ADR-002 / TEST-006):
           #      push → P0 (smoke, 100% required) · pull_request → P1 · schedule → P2.
+          # 🔑 (AR) لا تقسيمَ بالحدثِ بعدَ اليوم. كان: دفعٌ→P0 · طلبٌ→P1 ·
+          #      ليليٌّ→P2، و`--level` تختارُ **بالمجلّدِ لا بوسمِ `@priority`**
+          #      (`tests/config.yaml`)، فكانت النتيجةُ المقيسة: **٥ اختباراتٍ**
+          #      عند الدفعِ و**٢٨٣** عند الطلب — من ٣٩٣١ في `tests/behavior`.
+          #      والاسمُ نفسُه كان يخدع: `--level P1` ليست «اختباراتِ P1»؛ في
+          #      الشجرةِ ٢٠٦١ ملفًّا موسومًا `@priority P1` لا علاقةَ لها بها.
+          # 🔑 (EN) No per-event level any more. --level selects by DIRECTORY,
+          #      not by the @priority tag, so push measured 5 files and a PR 283
+          #      out of 3931. `--level P1` never meant "the P1-tagged tests".
+          # (AR) وتبقى هذه خطوةَ **دخانٍ** بـP0 كما في لينكس وماك — لا `full`:
+          #      الثقلُ انتقلَ إلى الخطواتِ الثلاثِ التالية، وتشغيلُ `full` هنا
+          #      وهناك معًا إنفاقُ الزمنِ مرّتَين على الشيءِ نفسِه. والبوّابةُ
+          #      (`--gate`) تعملُ هنا وحدَها لأنّ P0 دخانٌ صرفٌ بلا أرضيّةِ نسبة.
+          # (EN) This stays a P0 smoke gate like Linux and macOS; the weight
+          #      moved to the three steps below. Running `full` in both would
+          #      spend the same time twice.
           $ev = "${{ github.event_name }}"
-          if ($ev -eq 'pull_request') { $level = 'P1'; $floor = '86.0' }
-          elseif ($ev -eq 'schedule') { $level = 'P2'; $floor = '86.0' }
-          else { $level = 'P0'; $floor = $null }
+          $level = 'P0'
+          $floor = $null
           # (AR) أهداف المحرّكات: المفسّر دائمًا؛ المترجم إن بُني على هذا الـrunner.
           #      حين يغيب المترجم (مثلًا ويندوز بلا مكتبات LLVM-dev) **لا نتخطّى** بل
           #      نشغّل وضع المفسّر-فقط (يقارن runner.py مخرجَ المفسّر بـ@expected)،
@@ -508,7 +949,10 @@ jobs:
             $engineArgs += @('--compiler', $sadc)
             Write-Host "▶️ تنفيذ مزدوج كامل (مفسّر + مترجم) — المستوى: $level (حدث: $ev)" -ForegroundColor Cyan
           } else {
-            Write-Host "▶️ وضع المفسّر-فقط (المترجم غير مبنيّ على هذا الـrunner) — المستوى: $level (حدث: $ev)" -ForegroundColor Yellow
+            # 🔑 (AR) التراجعُ إلى المفسّرِ وحدَه كان يطبع «PASS» لخطوةٍ اسمُها
+            #      «التنفيذ المزدوج» — أي شهادةً بما لم يُقَسْ. وقد صار عطبًا.
+            Write-Host "::error::MISSING: $sadc — «التنفيذُ المزدوجُ» لا يُقاسُ بمحرّكٍ واحد"
+            exit 1
           }
           # (AR) --gate يُصدر PASS/CONCERNS/FAIL؛ --gate-floor يمنع التراجع تحت الأساس (86%).
           #      P0 بلا أرضية: أي فشل دخان = FAIL.
@@ -521,6 +965,104 @@ jobs:
           }
           Write-Host "✅ بوّابة القرار: PASS/CONCERNS — لا تراجع حرج" -ForegroundColor Green
 
+      # (AR) 🔑 هاتان الخطوتان كانتا على **لينكس وحدَها**، وفيهما ثقلُ الشجرةِ
+      #      كلُّه: ٣٠٠٣ + ٧٢١ من ٣٩٣١. فكان انحدارٌ يخصُّ ويندوزَ لا يُرى إلّا
+      #      إن أصابَ الخمسةَ الدخانيّةَ أو الـ٢٨٣. والكلفةُ مقيسةٌ لا مُقدَّرة:
+      #      على لينكس ١٨٩ ث للمصفوفةِ و٥١ ث للمستوى الكامل، والبناءُ وحدَه
+      #      ٩٤٧ ث على ويندوز — فالتغطيةُ أرخصُ من البناءِ الذي يسبقُها.
+      # (EN) Both steps used to run on Linux only, and they hold 3724 of the
+      #      3931 tests. Measured cost on Linux: 189 s and 51 s, against a
+      #      947 s build on Windows — coverage is cheaper than the build.
+      - name: "🧮 مصفوفة القواعد / Rules Matrix Parity"
+        if: matrix.config == 'Release'
+        timeout-minutes: 30
+        shell: pwsh
+        run: |
+          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
+          $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
+          if (-not (Test-Path $sad)) {
+            Write-Host "::error::MISSING: $sad — المفسّر إلزاميّ"
+            exit 1
+          }
+          $engineArgs = @('--interp', $sad)
+          if (Test-Path $sadc) { $engineArgs += @('--compiler', $sadc) }
+          else {
+            Write-Host "::error::MISSING: $sadc — التكافؤُ لا يُقاسُ بمحرّكٍ واحد"
+            exit 1
+          }
+          # (AR) بلا `--gate` عمدًا: `rules_matrix` لا يحوي ملفَّ دخانٍ واحدًا،
+          #      فالبوّابةُ تُخرِجُ CONCERNS بصفرٍ ولو أخفقَ الثلاثةُ آلاف.
+          # (EN) No --gate on purpose: rules_matrix holds no smoke file, so the
+          #      gate would exit 0 even if all 3002 failed.
+          python tests/runner.py --dir rules_matrix --timeout 30 @engineArgs --report
+          if ($LASTEXITCODE -ne 0) {
+            python tests/system/harness/print_parity_failures.py build/_dual_report.json
+            Write-Host "::error::مصفوفةُ القواعد على ويندوز: FAIL"
+            exit 1
+          }
+          Write-Host "✅ مصفوفةُ القواعد على ويندوز: PASS"
+
+      - name: "📚 المستوى الكامل / Full Level Parity"
+        if: matrix.config == 'Release'
+        timeout-minutes: 30
+        shell: pwsh
+        run: |
+          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
+          $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
+          if (-not (Test-Path $sad)) {
+            Write-Host "::error::MISSING: $sad — المفسّر إلزاميّ"
+            exit 1
+          }
+          $engineArgs = @('--interp', $sad)
+          if (Test-Path $sadc) { $engineArgs += @('--compiler', $sadc) }
+          else {
+            Write-Host "::error::MISSING: $sadc — التكافؤُ لا يُقاسُ بمحرّكٍ واحد"
+            exit 1
+          }
+          python tests/runner.py --level full --timeout 60 @engineArgs --report
+          if ($LASTEXITCODE -ne 0) {
+            python tests/system/harness/print_parity_failures.py build/_dual_report.json
+            Write-Host "::error::المستوى الكامل على ويندوز: FAIL"
+            exit 1
+          }
+          Write-Host "✅ المستوى الكامل على ويندوز: PASS"
+
+      # ⚠️ (AR) سجلُّ الحمرةِ **يلزمُه المحرّكان**: ١٢ صفًّا من ٥٤ صنفُ إخفاقِها
+      #      `FAIL_COMPILE`، فقياسُه بالمفسّرِ وحدَه يُبدِّلُ صنفَ إخفاقِها
+      #      فيُحمِّرُ الحارسَ **بعطبٍ من صنعِ المِقياسِ لا من الشجرة**. فحين
+      #      يغيبُ المترجمُ لا يُقاسُ ويُعلَنُ ذلك — ولا يُقرأُ الصمتُ اجتيازًا.
+      # ⚠️ (EN) The registry needs both engines: 12 of its 54 rows are
+      #      FAIL_COMPILE, so an interpreter-only measurement would flip their
+      #      kind and redden the guard with a defect the instrument invented.
+      - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
+        if: matrix.config == 'Release'
+        timeout-minutes: 30
+        shell: pwsh
+        run: |
+          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
+          $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
+          if (-not (Test-Path $sadc)) {
+            Write-Host "::error::سجلُّ الحمرةِ يلزمُه المحرّكان — و sad-build.exe مبنيٌّ إلزامًا هنا الآن"
+            exit 1
+          }
+          # (AR) 🔑 انهيارُ الأداةِ ليس انحرافَ السجلّ: رمزُ خروجٍ واحدٌ
+          #      لحالتَين يجعل الخطوةَ تُعلِن حكمًا في مجالٍ لم تقِسْه.
+          #      رمزُ ٣ = المقياسُ نفسُه سقط، فلا حكمَ على السجلّ.
+          # (EN) An instrument crash is not a registry drift; exit 3 means
+          #      the measurement never ran, so no verdict is owed.
+          python tests/system/harness/test_declared_reds_registry.py `
+            --measure --interp $sad --compiler $sadc
+          $redsCode = $LASTEXITCODE
+          if ($redsCode -eq 3) {
+            Write-Host "::error::أداةُ سجلِّ الحمرةِ انهارت — لا حكمَ على السجلّ: لم يُقَس"
+            exit 1
+          }
+          if ($redsCode -ne 0) {
+            python tests/system/harness/print_parity_failures.py build/_dual_report.json
+            Write-Host "::error::سجلُّ الحمرة على ويندوز: انحرافٌ عن المقيس"
+            exit 1
+          }
+          Write-Host "✅ سجلُّ الحمرة على ويندوز: PASS"
       - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
         shell: pwsh
         if: matrix.config == 'Release'
@@ -531,20 +1073,16 @@ jobs:
           #      الانحدارَ يعود صامتًا كما جاء أوّلَ مرّة.
           # (EN) These guard defects that break neither build nor link — only the
           #      boot, on other hardware, in another repository, days later.
-          # (AR) ⚠️ التغطيةُ الحقيقيّةُ على لينكس لا هنا. مثبّتُ LLVM-win64.exe لا
-          #      يوفّر مكتباتِ التطوير، فهدفُ sad-build **قد لا يُولَّد أصلًا**
-          #      (انظر خطوة «بناء المترجم» أعلاه، وهي تُنهي نفسَها بـexit 0).
-          #      فهذه الخطوةُ انتهازيّة: تعمل إن وُجد الثنائيّ، وإلّا أعلنت غيابَها
-          #      بـ::warning:: — لا تدّعي حراسةً لا تؤدّيها. وغيابُ الثنائيّ أُبلغ
-          #      عنه أصلًا في خطوة البناء، فلا يضيع صامتًا.
-          # (EN) Real coverage lives in the Linux job. The LLVM-win64 installer
-          #      ships no dev libs, so sad-build may never be generated here. This
-          #      step is opportunistic and announces its own absence as a warning
-          #      instead of claiming a guard it does not provide.
+          # (AR) كانت هذه الخطوةُ **انتهازيّةً** تُعلن غيابَها بـ::warning:: لأنّ
+          #      هدفَ sad-build قد لا يُولَّد. وقد سقطَ ذلك الشرطُ: المترجمُ يُبنى
+          #      إلزامًا هنا الآن، فغيابُه عطبٌ يُحمِّر لا تحذيرٌ يُقرأ نجاحًا.
+          # (EN) This step used to be opportunistic, announcing its own absence
+          #      as a warning. The compiler is now built mandatorily here, so its
+          #      absence is a failure rather than a warning that reads as success.
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (-not (Test-Path $sadc)) {
-            Write-Host "::warning::sad-build.exe غير مبنيّ على runner ويندوز — لم تُشغَّل اختباراتُ الوضع الحرّ ولا بوّابةُ حجمِ الخانةِ العدميّة ولا مجموعةُ أخطاءِ المدمجات هنا (التغطية على لينكس)"
-            exit 0
+            Write-Host "::error::MISSING: $sadc — اختباراتُ الوضعِ الحرِّ تلزمُها المترجمُ، وهو مبنيٌّ إلزامًا"
+            exit 1
           }
           python -m pip install --quiet pytest
           # (AR) ‎-rs‎ يطبع سببَ كلِّ تخطٍّ: تخطٍّ غيرُ مرئيٍّ يُقرأ نجاحًا.
@@ -582,7 +1120,6 @@ jobs:
           #      test, no CI step. Strict mode was not green — it was UNMEASURED.
           python -m pytest tests/system/any_type -q -rs
           if ($LASTEXITCODE -ne 0) { exit 1 }
-
 
       # (AR) 🔑 **بوّابةُ صيغةِ مقاطعِ ص خارجَ ملفّات `.ص`** (ISSUE-150).
       #      المقيس: مِجَسُّ `test_bounds_diag_sovereign.py` كان يكتب مصدرَه
@@ -634,7 +1171,10 @@ jobs:
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
-          if (-not ((Test-Path $sad) -and (Test-Path $sadc))) { exit 0 }
+          if (-not ((Test-Path $sad) -and (Test-Path $sadc))) {
+            Write-Host "::error::MISSING: sad-run.exe أو sad-build.exe — burn-in لا يُقاسُ بمحرّكٍ واحد"
+            exit 1
+          }
           # (AR) كشف ملفات .ص الجديدة/المعدَّلة في الـPR وتشغيلها 5× لاكتشاف الرفرفة (R6).
           # (EN) Detect new/modified .ص test files in the PR and run them 5× to catch flakiness (R6).
           git fetch origin $env:GITHUB_BASE_REF --depth=1 2>$null
@@ -652,6 +1192,7 @@ jobs:
 
       - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
         uses: actions/upload-artifact@v4
+        timeout-minutes: 15
         with:
           name: sad-windows-${{ matrix.config }}
           path: build/bin/${{ matrix.config }}/
@@ -682,6 +1223,7 @@ jobs:
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
         with:
           submodules: recursive
 
@@ -721,8 +1263,28 @@ jobs:
           bash scripts/ci/apt_retry.sh install -y llvm-18-dev libclang-18-dev lld-18 clang-18
           echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
 
-      - name: "📦 خبيئة بناء CMake / Cache CMake Build"
-        uses: actions/cache@v4
+      # (AR) 🔑 `restore`/`save` منفصلان — والسببُ مقيسٌ لا مُفترَض: خطوةُ
+      #      `actions/cache` الموحّدةُ تحفظُ في مرحلةِ `Post` **وتتخطّى الحفظَ
+      #      إذا أخفقت الوظيفة**. ووظيفةُ ويندوز (Release) أخفقت في الشوطِ
+      #      الليليِّ **عشرَ ليالٍ متتاليةً** (٩–١٩ آب) على خطوةِ التنفيذِ
+      #      المزدوج — فما كُتِبت لها خبيئةٌ قطُّ. ولمّا كان الشوطُ الليليُّ هو
+      #      الشيءَ الوحيدَ الذي يعمل على الفرعِ الافتراضيِّ `sadlang`، وكانت
+      #      الخبيئةُ تُستعادُ من فرعِ الشوطِ أو من الافتراضيِّ وحدَهما، فالنتيجةُ
+      #      المقيسةُ: **صفرُ خبيئةٍ على `sadlang`** وكلُّ فرعٍ جديدٍ يبني من الصفر.
+      #
+      #      والحفظُ هنا يقع **فورَ انتهاءِ البناء**، فيُكتَبُ وإن سقطَ ما بعدَه.
+      #      وشرطُه الضمنيُّ صحيحٌ بذاته: خطوةٌ بلا `if` لا تعمل إن أخفقَ سابقُها،
+      #      فبناءٌ فاشلٌ لا يُخبَّأُ ولا تُسمَّمُ الخبيئةُ بشجرةٍ نصفِ مبنيّة.
+      # (EN) Split restore/save, measured: the unified action saves in Post and
+      #      skips it when the job fails. Windows Release failed ten consecutive
+      #      nightlies — and the nightly is the only thing that runs on the
+      #      default branch `sadlang`, so that branch held zero caches and every
+      #      new branch rebuilt from scratch. Saving right after the build also
+      #      inherits the right condition: a failed build never gets cached.
+      - name: "📦 استرجاعُ خبيئةِ البناء / Restore CMake build cache"
+        id: linux-build-cache
+        uses: actions/cache/restore@v4
+        timeout-minutes: 15
         with:
           path: build
           key: linux-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
@@ -746,11 +1308,31 @@ jobs:
           # (EN) Record whether THIS run built it: the cache restores build/ under a
           #      prefix key, so the file's mere existence may mean a stale binary
           #      from an earlier run rather than one containing the pushed code.
-          if cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc); then
-            echo "SAD_BUILD_FRESH=1" >> $GITHUB_ENV
-          else
-            echo "⚠️ sad-build build failed (LLVM linking issue) — continuing"
-          fi
+          # 🔑 (AR) الإخفاقُ قاتلٌ (م-٣). كان يُبتلَع بـ«continuing» ثمّ تُحفَظ
+          #      الشجرةُ خبيئةً **كأنّها سليمة**، فيرث شوطٌ تالٍ شجرةً بلا مترجم.
+          #      وهو ح-٣ نفسُه بصيغةٍ أخرى: أخضرُ يعني «لم يُقَسْ» لا «سليم».
+          #      وقد كشفَ سدُّه على ويندوزَ أنّ المترجمَ لم يكن يُصرَّف هناك أصلًا.
+          # 🔑 (EN) Fatal now: the failure used to be swallowed and the tree cached
+          #      as healthy, so a later run inherited a compiler-less tree.
+          cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc)
+          echo "SAD_BUILD_FRESH=1" >> $GITHUB_ENV
+      # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
+      #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
+      # (EN) Save right after the build, not in Post. Skipped on an exact hit.
+      - name: "📦 حفظُ خبيئةِ البناء / Save CMake build cache"
+        if: steps.linux-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        # (AR) م-٤: الخبيئةُ تسريعٌ لا شرطُ صحّة. إخفاقُ حفظٍ (حصّةٌ أو سباقٌ
+        #      على المفتاحِ نفسِه) كان يقتل وظيفةً بناؤها واختباراتُها ناجحة —
+        #      أي حمرةٌ لا تدلُّ على عطبٍ في الكود. والشرطُ الضمنيُّ باقٍ:
+        #      خطوةٌ بلا `if` لا تعمل إن أخفقَ سابقُها، فبناءٌ فاشلٌ لا يُخبَّأ.
+        # (EN) m-4: the cache is a speed-up, not a correctness precondition;
+        #      a failed save used to kill a job whose build and tests passed.
+        continue-on-error: true
+        timeout-minutes: 15
+        with:
+          path: build
+          key: linux-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
 
       - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors, Utils/Modules)"
         run: |
@@ -790,17 +1372,33 @@ jobs:
             exit 1
           fi
 
-      - name: "🧪 اختبارات المترجم / Compiler & VM Tests"
+      - name: "🧪 اختبارات المترجم / Compiler Tests"
         run: |
-          for test in test_vm_compiler_comprehensive test_compiler_comprehensive; do
+          # 🔑 (AR) كانت هذه الخطوةُ **لا يمكنها أن تُحمِّر**: `|| true` تبتلع
+          #      إخفاقَ المجموعةِ نفسِها، والغيابُ يُطبَع «SKIP»، ولا عدّادَ ولا
+          #      `exit` في الخطوةِ كلِّها. فاسمُها شهادةُ تغطيةٍ وسلوكُها لا شيء —
+          #      وهي أخطرُ من نظيرتِها على ويندوز، تلك كانت تعدّ على الأقلّ.
+          # 🔑 (EN) This step could not fail: `|| true` swallowed the suite's own
+          #      failure, absence printed SKIP, and the step had no counter and no
+          #      exit at all — its name claimed coverage its behaviour never gave.
+          failed=0
+          # 🔑 (AR) «test_vm_compiler_comprehensive» شبحٌ حُذِف: الآلةُ الافتراضيّةُ
+          #      أُزيلت بقرارٍ في `bcf0a746` (RFC sadlang-rfcs#10) ومعها اختبارُها،
+          #      وبقيَ الاسمُ يطبع «SKIP» حتّى كفَّت الخطوةُ عن ابتلاعِ الغياب.
+          for test in test_compiler_comprehensive; do
             exe="build/bin/$test"
             if [ -x "$exe" ]; then
               echo "▶️ Running $test..."
-              "$exe" || true
+              "$exe" || failed=$((failed + 1))
             else
-              echo "⚠️ SKIP: $test not built"
+              echo "::error::MISSING: $exe — مجموعةُ اختبارِ المترجمِ لم تُبنَ"
+              failed=$((failed + 1))
             fi
           done
+          if [ $failed -gt 0 ]; then
+            echo "::error::$failed مجموعةَ اختبارِ مترجمٍ أخفقت أو غابت"
+            exit 1
+          fi
 
       - name: "🧪 اختبارات Regression / Regression Tests"
         run: |
@@ -810,7 +1408,9 @@ jobs:
               chmod +x tests/behavior/_regression/run_regression_tests.sh
               tests/behavior/_regression/run_regression_tests.sh "$sad" interpreter
             else
-              echo "⚠️ SKIP: Regression test runner not found"
+              # (AR) الملفُّ مُودَعٌ في المستودع، فغيابُه سحبٌ ناقصٌ لا حالةٌ مشروعة.
+              echo "::error::MISSING: tests/behavior/_regression/run_regression_tests.sh"
+              exit 1
             fi
           else
             echo "❌ MISSING: sad-run not built"
@@ -956,8 +1556,8 @@ jobs:
       - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
         if: matrix.config == 'Release'
         run: |
-          # (AR) 🔑 grammar_gaps و_regression خارجَ كلِّ مستوًى — ٦١ ملفًّا أحمرَ لا
-          #      يراها أحد. ولو صارت ٦٢ غدًا لَما لاحظَ أحدٌ، ولو اخضرَّ أحدُها
+          # (AR) 🔑 grammar_gaps و_regression خارجَ كلِّ مستوًى — ٥٤ ملفًّا أحمرَ لا
+          #      يراها أحد. ولو صارت ٥٥ غدًا لَما لاحظَ أحدٌ، ولو اخضرَّ أحدُها
           #      لَبقيَ موصوفًا عيبًا وهو مُصلَح. فالحكمُ يُخفِقُ في الاتّجاهَين:
           #      اخضرارٌ مسجَّلٌ · احمرارٌ غيرُ مسجَّلٍ · تغيُّرُ صنفِ الإخفاق.
           # (EN) Both directions: a registered row that turns green, an unregistered
@@ -968,8 +1568,18 @@ jobs:
             echo "::error::MISSING: المحرّكان إلزاميّان لسجلِّ الحمرة"
             exit 1
           fi
-          if ! python3 tests/system/harness/test_declared_reds_registry.py \
-                 --measure --interp "$sad" --compiler "$sadc"; then
+          # (AR) 🔑 رمزُ ٣ = انهيارُ الأداةِ لا انحرافُ السجلّ. و`||` تُخرِج
+          #      النداءَ من قبضةِ `-e` كي يُقرأَ رمزُه بدل أن يُجهَض.
+          # (EN) Exit 3 = instrument crash, not drift; `||` keeps the call
+          #      out of `-e` so its code can be read instead of aborting.
+          reds_code=0
+          python3 tests/system/harness/test_declared_reds_registry.py \
+            --measure --interp "$sad" --compiler "$sadc" || reds_code=$?
+          if [ "$reds_code" -eq 3 ]; then
+            echo "::error::أداةُ سجلِّ الحمرةِ انهارت — لا حكمَ على السجلّ: لم يُقَس"
+            exit 1
+          fi
+          if [ "$reds_code" -ne 0 ]; then
             # (AR) 🔑 يُعرَضُ **ما** انحرفَ لا أنّهُ انحرف: الحارسُ يقولُ اسمَ
             #      الملفِّ وصنفَ إخفاقِه ولا يقولُ بمَ افترقَ المحرّكان، فيُلزِمُ
             #      شوطًا ثانيًا لرؤيةِ ما رآهُ الأوّل. و`_regression` آخِرُ ما
@@ -1072,7 +1682,6 @@ jobs:
           #      test, no CI step. Strict mode was not green — it was UNMEASURED.
           python3 -m pytest tests/system/any_type -q -rs
 
-
       # (AR) 🔑 **بوّابةُ صيغةِ مقاطعِ ص خارجَ ملفّات `.ص`** (ISSUE-150).
       #      المقيس: مِجَسُّ `test_bounds_diag_sovereign.py` كان يكتب مصدرَه
       #      بصيغةٍ حُذِفت من اللغة، فصار يُخفِق بـSYN001 و**ثلاثةُ حرّاسٍ لعقدِ
@@ -1144,6 +1753,7 @@ jobs:
 
       - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
         uses: actions/upload-artifact@v4
+        timeout-minutes: 15
         with:
           name: sad-linux-${{ matrix.config }}
           path: build/bin/
@@ -1159,7 +1769,9 @@ jobs:
     # (EN) Pinned to macos-14 (Apple Silicon/arm64) for a stable image, mirroring
     #      the windows-2022 pin above (avoid "latest" image drift).
     runs-on: macos-14
-    timeout-minutes: 60
+    # ⚠️ (AR) نظيرُ ويندوز: ثلاثُ خطواتٍ ×٣٠ د لا تسعُها ٦٠.
+    # (EN) Same as Windows: three 30-minute steps do not fit in 60.
+    timeout-minutes: 120
     needs: code-quality
     strategy:
       fail-fast: false
@@ -1169,6 +1781,7 @@ jobs:
     steps:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v4
+        timeout-minutes: 15
         with:
           submodules: recursive
 
@@ -1182,8 +1795,28 @@ jobs:
         run: |
           echo "LLVM_DIR=$(brew --prefix llvm@18)/lib/cmake/llvm" >> $GITHUB_ENV
 
-      - name: "📦 خبيئة بناء CMake / Cache CMake Build"
-        uses: actions/cache@v4
+      # (AR) 🔑 `restore`/`save` منفصلان — والسببُ مقيسٌ لا مُفترَض: خطوةُ
+      #      `actions/cache` الموحّدةُ تحفظُ في مرحلةِ `Post` **وتتخطّى الحفظَ
+      #      إذا أخفقت الوظيفة**. ووظيفةُ ويندوز (Release) أخفقت في الشوطِ
+      #      الليليِّ **عشرَ ليالٍ متتاليةً** (٩–١٩ آب) على خطوةِ التنفيذِ
+      #      المزدوج — فما كُتِبت لها خبيئةٌ قطُّ. ولمّا كان الشوطُ الليليُّ هو
+      #      الشيءَ الوحيدَ الذي يعمل على الفرعِ الافتراضيِّ `sadlang`، وكانت
+      #      الخبيئةُ تُستعادُ من فرعِ الشوطِ أو من الافتراضيِّ وحدَهما، فالنتيجةُ
+      #      المقيسةُ: **صفرُ خبيئةٍ على `sadlang`** وكلُّ فرعٍ جديدٍ يبني من الصفر.
+      #
+      #      والحفظُ هنا يقع **فورَ انتهاءِ البناء**، فيُكتَبُ وإن سقطَ ما بعدَه.
+      #      وشرطُه الضمنيُّ صحيحٌ بذاته: خطوةٌ بلا `if` لا تعمل إن أخفقَ سابقُها،
+      #      فبناءٌ فاشلٌ لا يُخبَّأُ ولا تُسمَّمُ الخبيئةُ بشجرةٍ نصفِ مبنيّة.
+      # (EN) Split restore/save, measured: the unified action saves in Post and
+      #      skips it when the job fails. Windows Release failed ten consecutive
+      #      nightlies — and the nightly is the only thing that runs on the
+      #      default branch `sadlang`, so that branch held zero caches and every
+      #      new branch rebuilt from scratch. Saving right after the build also
+      #      inherits the right condition: a failed build never gets cached.
+      - name: "📦 استرجاعُ خبيئةِ البناء / Restore CMake build cache"
+        id: macos-build-cache
+        uses: actions/cache/restore@v4
+        timeout-minutes: 15
         with:
           path: build
           key: macos-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
@@ -1200,8 +1833,26 @@ jobs:
 
       - name: "🏗️ بناء المترجم sad-build / Build sad-build Compiler"
         run: |
-          cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4 || \
-            echo "⚠️ sad-build build failed (LLVM linking issue) — continuing"
+          # 🔑 (AR) الإخفاقُ قاتلٌ (م-٣) — انظر تعليلَ نظيرتِها في وظيفةِ لينكس.
+          # 🔑 (EN) Fatal now — see the Linux counterpart for the reasoning.
+          cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4
+      # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
+      #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
+      # (EN) Save right after the build, not in Post. Skipped on an exact hit.
+      - name: "📦 حفظُ خبيئةِ البناء / Save CMake build cache"
+        if: steps.macos-build-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        # (AR) م-٤: الخبيئةُ تسريعٌ لا شرطُ صحّة. إخفاقُ حفظٍ (حصّةٌ أو سباقٌ
+        #      على المفتاحِ نفسِه) كان يقتل وظيفةً بناؤها واختباراتُها ناجحة —
+        #      أي حمرةٌ لا تدلُّ على عطبٍ في الكود. والشرطُ الضمنيُّ باقٍ:
+        #      خطوةٌ بلا `if` لا تعمل إن أخفقَ سابقُها، فبناءٌ فاشلٌ لا يُخبَّأ.
+        # (EN) m-4: the cache is a speed-up, not a correctness precondition;
+        #      a failed save used to kill a job whose build and tests passed.
+        continue-on-error: true
+        timeout-minutes: 15
+        with:
+          path: build
+          key: macos-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
 
       - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors, Utils/Modules)"
         run: |
@@ -1316,17 +1967,33 @@ jobs:
             exit 1
           fi
 
-      - name: "🧪 اختبارات المترجم / Compiler & VM Tests"
+      - name: "🧪 اختبارات المترجم / Compiler Tests"
         run: |
-          for test in test_vm_compiler_comprehensive test_compiler_comprehensive; do
+          # 🔑 (AR) كانت هذه الخطوةُ **لا يمكنها أن تُحمِّر**: `|| true` تبتلع
+          #      إخفاقَ المجموعةِ نفسِها، والغيابُ يُطبَع «SKIP»، ولا عدّادَ ولا
+          #      `exit` في الخطوةِ كلِّها. فاسمُها شهادةُ تغطيةٍ وسلوكُها لا شيء —
+          #      وهي أخطرُ من نظيرتِها على ويندوز، تلك كانت تعدّ على الأقلّ.
+          # 🔑 (EN) This step could not fail: `|| true` swallowed the suite's own
+          #      failure, absence printed SKIP, and the step had no counter and no
+          #      exit at all — its name claimed coverage its behaviour never gave.
+          failed=0
+          # 🔑 (AR) «test_vm_compiler_comprehensive» شبحٌ حُذِف: الآلةُ الافتراضيّةُ
+          #      أُزيلت بقرارٍ في `bcf0a746` (RFC sadlang-rfcs#10) ومعها اختبارُها،
+          #      وبقيَ الاسمُ يطبع «SKIP» حتّى كفَّت الخطوةُ عن ابتلاعِ الغياب.
+          for test in test_compiler_comprehensive; do
             exe="build/bin/$test"
             if [ -x "$exe" ]; then
               echo "▶️ Running $test..."
-              "$exe" || true
+              "$exe" || failed=$((failed + 1))
             else
-              echo "⚠️ SKIP: $test not built"
+              echo "::error::MISSING: $exe — مجموعةُ اختبارِ المترجمِ لم تُبنَ"
+              failed=$((failed + 1))
             fi
           done
+          if [ $failed -gt 0 ]; then
+            echo "::error::$failed مجموعةَ اختبارِ مترجمٍ أخفقت أو غابت"
+            exit 1
+          fi
 
       - name: "🧪 اختبارات Regression / Regression Tests"
         run: |
@@ -1336,7 +2003,9 @@ jobs:
               chmod +x tests/behavior/_regression/run_regression_tests.sh
               tests/behavior/_regression/run_regression_tests.sh "$sad" interpreter
             else
-              echo "⚠️ SKIP: Regression test runner not found"
+              # (AR) الملفُّ مُودَعٌ في المستودع، فغيابُه سحبٌ ناقصٌ لا حالةٌ مشروعة.
+              echo "::error::MISSING: tests/behavior/_regression/run_regression_tests.sh"
+              exit 1
             fi
           else
             echo "❌ MISSING: sad-run not built"
@@ -1385,8 +2054,78 @@ jobs:
           fi
           echo "✅ بوّابةُ القرار: PASS — لا تراجعَ تكافُؤ"
 
+      # (AR) 🔑 ماك كانت تقيسُ **خمسةَ ملفّاتِ دخانٍ** من ٣٩٣١. والمحرّكان
+      #      مبنيّان هنا، فلا عذرَ: التغطيةُ الكاملةُ بكلفةٍ مقيسةٍ ٢٤٠ ثانيةً
+      #      تقريبًا مقابلَ بناءٍ ٤٩٣ ثانية.
+      # (EN) macOS measured five smoke files out of 3931 while both engines are
+      #      built here. Full coverage costs ~240 s against a 493 s build.
+      - name: "🧮 مصفوفة القواعد / Rules Matrix Parity"
+        if: matrix.config == 'Release'
+        timeout-minutes: 30
+        run: |
+          sad="build/bin/sad-run"
+          sadc="build/bin/sad-build"
+          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: المحرّكان إلزاميّان لمصفوفة القواعد"
+            exit 1
+          fi
+          # (AR) بلا `--gate` عمدًا — `rules_matrix` بلا ملفِّ دخانٍ واحد.
+          if ! python3 tests/runner.py --dir rules_matrix --timeout 30 \
+                 --interp "$sad" --compiler "$sadc" --report; then
+            python3 tests/system/harness/print_parity_failures.py build/_dual_report.json || true
+            echo "::error::مصفوفةُ القواعد على ماك: FAIL"
+            exit 1
+          fi
+          echo "✅ مصفوفةُ القواعد على ماك: PASS"
+
+      - name: "📚 المستوى الكامل / Full Level Parity"
+        if: matrix.config == 'Release'
+        timeout-minutes: 30
+        run: |
+          sad="build/bin/sad-run"
+          sadc="build/bin/sad-build"
+          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: المحرّكان إلزاميّان للمستوى الكامل"
+            exit 1
+          fi
+          if ! python3 tests/runner.py --level full --timeout 60 \
+                 --interp "$sad" --compiler "$sadc" --report; then
+            python3 tests/system/harness/print_parity_failures.py build/_dual_report.json || true
+            echo "::error::المستوى الكامل على ماك: FAIL"
+            exit 1
+          fi
+          echo "✅ المستوى الكامل على ماك: PASS"
+
+      - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
+        if: matrix.config == 'Release'
+        timeout-minutes: 30
+        run: |
+          sad="build/bin/sad-run"
+          sadc="build/bin/sad-build"
+          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: المحرّكان إلزاميّان لسجلِّ الحمرة"
+            exit 1
+          fi
+          # (AR) 🔑 رمزُ ٣ = انهيارُ الأداةِ لا انحرافُ السجلّ. و`||` تُخرِج
+          #      النداءَ من قبضةِ `-e` كي يُقرأَ رمزُه بدل أن يُجهَض.
+          # (EN) Exit 3 = instrument crash, not drift; `||` keeps the call
+          #      out of `-e` so its code can be read instead of aborting.
+          reds_code=0
+          python3 tests/system/harness/test_declared_reds_registry.py \
+            --measure --interp "$sad" --compiler "$sadc" || reds_code=$?
+          if [ "$reds_code" -eq 3 ]; then
+            echo "::error::أداةُ سجلِّ الحمرةِ انهارت — لا حكمَ على السجلّ: لم يُقَس"
+            exit 1
+          fi
+          if [ "$reds_code" -ne 0 ]; then
+            python3 tests/system/harness/print_parity_failures.py build/_dual_report.json || true
+            echo "::error::سجلُّ الحمرة على ماك: انحرافٌ عن المقيس"
+            exit 1
+          fi
+          echo "✅ سجلُّ الحمرة على ماك: PASS"
       - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
         uses: actions/upload-artifact@v4
+        timeout-minutes: 15
         with:
           name: sad-macos-${{ matrix.config }}
           path: build/bin/

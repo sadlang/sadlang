@@ -1,0 +1,146 @@
+# معجم منمنمات التجميع العربيّ — معماريّة riscv64 (RISC-V ٦٤-بت)
+# مصدر الحقيقة الوحيد لتقابل المنمنمة العربيّة ⇒ تعليمة العتاد على هذه المعماريّة.
+#
+# 🔑 لماذا هذا الملفّ رابعًا: البنية صارت تقبل معماريّةً بملفّ YAML وحده بلا
+#   تعديل C++، وهذا الملفّ **يقيس تلك الدعوى** لا يعلنها. ونكهة RISC-V تركيبة
+#   لم تظهر في الثلاثة السابقة:
+#     • الوجهة أوّلًا وصريحة  — كـAArch64 لا كـAT&T
+#     • العنونة `8(a1)`       — كـAT&T لا كـAArch64
+#     • ولا بادئة لسجلّ ولا لثابت — لا `%` ولا `$` ولا `#`
+#   فلو كان المحوران مقترنَين في الخافض (وجهة-أوّلًا ⇒ أقواس مربّعة) لظهر هنا.
+#
+# مبادئ التسمية (نفسها في كلّ ملفّات المعجم):
+#   ١. فعل أمر أوّلًا. ٢. الصفة تلي الموصوف وتطابقه جنسًا. ٣. التغطية بالحاجة
+#   الفعليّة لا بالشموليّة. ٤. منمنمة غير معجميّة = خطأ كتالوج لا تمرير صامت.
+#   ٥. الصيغة المعتمدة مشكولة بالشدّة، والمرادف المجرّد يولَّد آليًّا.
+
+version: "1.0"
+architecture: riscv64
+status: experimental
+
+# ─── نكهة المُجمِّع ────────────────────────────────────────
+syntax:
+  register_prefix: ""
+  immediate_prefix: ""
+  operand_order: destination_first
+  dest_operand: explicit
+  memory_form: disp_paren_base
+host_macros: ["__riscv"]
+# ⚠️ `__riscv` تصدق على riscv32 كذلك. ولا معجمَ لها اليوم، فالتضييق يُؤجَّل إلى
+#   يوم يُضاف فيه — وحينها يلزم `__riscv_xlen == 64` ولا يكفي `defined`.
+triple_aliases: [riscv64gc, rv64, rv64gc]
+
+registers:
+  general:
+    - { ar: سجل_٠,     en: x0 }
+    - { ar: سجل_١,     en: x1 }
+    - { ar: سجل_٢,     en: x2 }
+    - { ar: سجل_٣,     en: x3 }
+    - { ar: سجل_٤,     en: x4 }
+    - { ar: سجل_٥,     en: x5 }
+    - { ar: سجل_٦,     en: x6 }
+    - { ar: سجل_٧,     en: x7 }
+    - { ar: سجل_٨,     en: x8 }
+    - { ar: سجل_٩,     en: x9 }
+    - { ar: سجل_١٠,    en: x10 }
+    - { ar: سجل_١١,    en: x11 }
+    - { ar: سجل_١٢,    en: x12 }
+    - { ar: سجل_١٣,    en: x13 }
+    - { ar: سجل_١٤,    en: x14 }
+    - { ar: سجل_١٥,    en: x15 }
+    - { ar: سجل_١٦,    en: x16 }
+    - { ar: سجل_١٧,    en: x17 }
+    - { ar: سجل_١٨,    en: x18 }
+    - { ar: سجل_١٩,    en: x19 }
+    - { ar: سجل_٢٠,    en: x20 }
+    - { ar: سجل_٢١,    en: x21 }
+    - { ar: سجل_٢٢,    en: x22 }
+    - { ar: سجل_٢٣,    en: x23 }
+    - { ar: سجل_٢٤,    en: x24 }
+    - { ar: سجل_٢٥,    en: x25 }
+    - { ar: سجل_٢٦,    en: x26 }
+    - { ar: سجل_٢٧,    en: x27 }
+    - { ar: سجل_٢٨,    en: x28 }
+    - { ar: سجل_٢٩,    en: x29 }
+    - { ar: سجل_٣٠,    en: x30 }
+    - { ar: سجل_٣١,    en: x31 }
+  special:
+    - { ar: الصفر,         en: zero, role: "x0 — يقرأ صفرًا دائمًا ويبتلع ما يُكتب فيه" }
+    - { ar: سجلّ_الرابط,   en: ra,   role: "x1 — عنوان العودة، تكتبه «نادِ»" }
+    - { ar: رأس_المكدّس,   en: sp,   role: "x2 — رأس المكدّس" }
+    - { ar: سجل_عالميّ,    en: gp,   role: "x3 — مؤشّر عامّ" }
+    - { ar: سجل_خيط,       en: tp,   role: "x4 — مؤشّر خيط" }
+    - { ar: الوسيط_٠,      en: a0,   role: "x10 — الوسيط الأوّل وقيمة العائد" }
+    - { ar: الوسيط_١,      en: a1,   role: "x11" }
+    - { ar: الوسيط_٢,      en: a2,   role: "x12" }
+    - { ar: الوسيط_٣,      en: a3,   role: "x13" }
+    - { ar: مؤقّت_٠,       en: t0,   role: "x5 — سجلّ عمل لا يحفظه المُنادى" }
+    - { ar: مؤقّت_١,       en: t1,   role: "x6" }
+    - { ar: مؤقّت_٢,       en: t2,   role: "x7" }
+    - { ar: محفوظ_٠,       en: s0,   role: "x8 — يحفظه المُنادى" }
+    - { ar: محفوظ_١,       en: s1,   role: "x9" }
+
+addressing_note: "الترتيب: الوجهة أوّلًا ثمّ المصدر — نموذج ص واحد على المعماريّات كلّها، والفرق في syntax وحده. والعنونة «إزاحة(قاعدة)» كـAT&T رغم أنّ الترتيب كـAArch64: المحوران مستقلّان."
+
+# ─── التعليمات ──────────────────────────────────────────────
+instructions:
+
+  نقل_وبيانات:
+    - { ar: انقل,  en: mv, operands: [وجهة, مصدر], reads_dest: false, note: "مرادف مُجمِّع لـ«addi rd, rs, 0» — والاسم مشترك مع المعماريّات الثلاث" }
+    - { ar: حمّل,  en: ld, operands: [وجهة, ذاكرة], reads_dest: false, note: "كلمة مضاعفة ٦٤-بت" }
+    - { ar: خزّن,  en: sd, operands: [مصدر, ذاكرة], note: "لا وجهة سجلّ فلا reads_dest" }
+    - { ar: حمّل_بايت,     en: lbu, operands: [وجهة, ذاكرة], reads_dest: false, note: "بايت بتصفير الأعلى" }
+    - { ar: خزّن_بايت,     en: sb,  operands: [مصدر, ذاكرة] }
+    - { ar: حمّل_نصف_كلمة, en: lhu, operands: [وجهة, ذاكرة], reads_dest: false }
+    - { ar: خزّن_نصف_كلمة, en: sh,  operands: [مصدر, ذاكرة] }
+
+  حساب:
+    - { ar: اجمع,          en: add,  operands: [وجهة, مصدر], reads_dest: true }
+    - { ar: اطرح,          en: sub,  operands: [وجهة, مصدر], reads_dest: true }
+    - { ar: اضرب,          en: mul,  operands: [وجهة, مصدر], reads_dest: true, note: "امتداد M" }
+    - { ar: اقسم,          en: divu, operands: [وجهة, مصدر], reads_dest: true, note: "قسمة بلا إشارة — امتداد M" }
+    - { ar: اقسم_بإشارة,   en: div,  operands: [وجهة, مصدر], reads_dest: true }
+    - { ar: اعكس_الإشارة,  en: neg,  operands: [وجهة], reads_dest: true, note: "مرادف مُجمِّع لـ«sub rd, x0, rs»" }
+    - { ar: زد,            en: addi, operands: [وجهة], reads_dest: true, operand_tail: ["1"], note: "لا تعليمة زيادة مفردة في RISC-V — الثابت معامل ثالث بلا بادئة" }
+    - { ar: أنقص,          en: addi, operands: [وجهة], reads_dest: true, operand_tail: ["-1"] }
+
+  منطق_وبتّات:
+    - { ar: وافق,                 en: and,  operands: [وجهة, مصدر], reads_dest: true }
+    - { ar: ضمّ,                  en: or,   operands: [وجهة, مصدر], reads_dest: true }
+    - { ar: خالف,                 en: xor,  operands: [وجهة, مصدر], reads_dest: true }
+    - { ar: اعكس_البتّات,         en: not,  operands: [وجهة], reads_dest: true, note: "مرادف مُجمِّع لـ«xori rd, rs, -1»" }
+    - { ar: أزح_يسارًا,           en: sll,  operands: [وجهة, مقدار], reads_dest: true }
+    - { ar: أزح_يمينًا,           en: srl,  operands: [وجهة, مقدار], reads_dest: true }
+    - { ar: أزح_يمينًا_بإشارة,    en: sra,  operands: [وجهة, مقدار], reads_dest: true }
+    - { ar: قارن_أصغر,            en: slt,  operands: [وجهة, مصدر], reads_dest: true, note: "لا «قارن» في RISC-V: المقارنة تُنتج قيمةً أو تُدمَج في القفز" }
+
+  قفز_وتحكّم:
+    - { ar: اقفز,          en: j,    operands: [لصيقة], note: "مرادف مُجمِّع لـ«jal x0, لصيقة»" }
+    - { ar: نادِ,          en: call, operands: [هدف], note: "يكتب عنوان العودة في سجلّ الرابط" }
+    - { ar: اقفز_إلى_سجل,  en: jr,   operands: [مصدر], note: "قفز غير مباشر" }
+    - { ar: نادِ_سجلًّا,    en: jalr, operands: [مصدر], note: "نداء غير مباشر" }
+    - { ar: عُد,           en: ret,  operands: [], note: "«عُد» لا «ارجع» — الأخيرة كلمة ص محجوزة" }
+    - { ar: عُد_من_المقاطعة, en: mret, operands: [], note: "عودة من رتبة الآلة" }
+    - { ar: استدعِ_البيئة,  en: ecall, operands: [], note: "نداء البيئة — نظير svc/int لكن بلا رقم معامل، فاسمه مختلف عمدًا" }
+
+  مقاطعات_ونظام:
+    - { ar: لا_عمل,          en: nop,     operands: [] }
+    - { ar: أوقف,            en: wfi,     operands: [], note: "انتظر مقاطعة" }
+    - { ar: عطّل_المقاطعات,  en: csri,    operands: [], operand_head: ["mstatus"], operand_tail: ["8"], note: "لا cli: تُمسح بتّة MIE في mstatus. الرأس اسم المُسجَّل والذيل القناع" }
+    - { ar: فعّل_المقاطعات,  en: csrsi,   operands: [], operand_head: ["mstatus"], operand_tail: ["8"] }
+    - { ar: زامِن_الذاكرة,   en: fence,   operands: [], note: "حاجز ترتيب الوصول" }
+    - { ar: زامِن_التعليمات, en: fence.i, operands: [], note: "يُفرغ ذاكرة التعليمات المخبوءة" }
+    - { ar: اقرأ_عدّاد_الدورات, en: rdcycle, operands: [وجهة], reads_dest: false, note: "عدّاد الدورات — شكله شكل نظيرته على AArch64 فهما محمولتان معًا" }
+    - { ar: اقرأ_رقم_النواة,    en: csrr, operands: [وجهة], reads_dest: false, operand_tail: ["mhartid"] }
+    - { ar: اقرأ_سبب_الاستثناء, en: csrr, operands: [وجهة], reads_dest: false, operand_tail: ["mcause"] }
+    - { ar: اقرأ_عنوان_العودة,  en: csrr, operands: [وجهة], reads_dest: false, operand_tail: ["mepc"] }
+    - { ar: اضبط_جدول_المتّجهات, en: csrw, operands: [مصدر], operand_head: ["mtvec"], note: "المُسجَّل أوّلًا ⇒ رأس. وهي المعماريّة الثانية التي تُثبت الحاجة إليه" }
+    - { ar: اضبط_عنوان_العودة,   en: csrw, operands: [مصدر], operand_head: ["mepc"] }
+
+# ─── خارج المعجم عمدًا ─────────────────────────────────────
+# قارن (cmp) وأخواتها من قفزٍ مشروط: قفز RISC-V المشروط يأخذ **سجلَّين ولصيقةً
+#   معًا** («beq rs1, rs2, لصيقة») — وهو شكلٌ يخلط اللصيقة بمعاملات بيانات،
+#   يمنعه حارس المولّد لأنّ مسار اللصيقة في الخافض مشروط بأن تكون وحدَها.
+#   يُضاف حين يُمثَّل الشكل، لا قبله — والمنع صريح لا سهو.
+# ادفع/اسحب (push/pop) واستخبر_المعالج (cpuid) وبادئة كرّر (rep): لا نظير
+#   معماريًّا لها. وامتدادات C وV وF/D: تُضاف بحاجة مقيسة وفق المبدأ ٣.

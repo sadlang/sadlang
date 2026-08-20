@@ -122,6 +122,8 @@ namespace Sad
             bool readsDest = false;      ///< (AR) الوجهة تُقرأ قبل الكتابة (من المعجم) ⇒ ربط inout / dest read before written
             std::string implicitClobbers; ///< (AR) تلويث ضمنيّ من المعجم ("~{eax},~{edx}" أو فارغ) / implicit clobbers from the lexicon
             int operandWidth = 0;        ///< (AR) عرض معامل السجلّ من المعجم (0=افتراضيّ الهدف، 16=${N:w}⇒سجلّ فرعيّ 16-بت لـltr/str) / register operand width (0=target default, 16=${N:w})
+            std::string operandHead;     ///< (AR) معاملات نصّيّة ثابتة تسبق معاملات ص، بفاصل المعجم (msr ⇒ "vbar_el1")
+    std::string operandTail;     ///< (AR) معاملات نصّيّة ثابتة تُلحَق بعد معاملات ص، بفاصل المعجم (msr ⇒ "daifset,#2") / fixed trailing operands from the lexicon
             std::vector<AsmOperand> operands;
             Lexer::Position pos;
         };

@@ -33,6 +33,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 #include "compiler_driver.h"
+#include "utf8_utils.h"
 
 #include <iostream>
 #include <fstream>
@@ -2032,9 +2033,9 @@ const char *sad_security_aead_decrypt(const char *hex, const char *key) {
 // (EN) Step 5: Execute link command
 // ================================================================
 #ifdef _WIN32
-            int result = std::system(("\"" + command + "\"").c_str());
+            int result = sad::utf8::run_command("\"" + command + "\"");
 #else
-            int result = std::system(command.c_str());
+            int result = sad::utf8::run_command(command);
 #endif
 
             if (result != 0)

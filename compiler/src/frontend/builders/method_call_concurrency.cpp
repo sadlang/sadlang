@@ -374,15 +374,36 @@ namespace Sad
                 }
 
                 // احصل / get — الحصول على النتيجة (حجب)
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 حمولةُ المستقبلِ **موسومةٌ** فالعائدُ «أي» لا «رقم». كان
+                //      يُصرَّح `Integer` مهما كانت الحمولة، فالنصُّ يُطبَع **مؤشّرًا
+                //      خامًا** (‏140699969527808‏)، والأسوأُ أنّ قصرَ النوعِ الصارمَ
+                //      يطوي `رقم == نصّ` إلى `خطأ` **ثابتًا بلا تعليمة**: المؤشّرُ
+                //      يُحمَّل صحيحًا في الـIR ثمّ يُهمَل. مقيسٌ ٢٠٢٦-٠٨-٢٠ في ثلاثةِ
+                //      أسطر. و«أي» يصل الحمولةَ بالمسارِ الديناميِّ الذي يقرأ الوسمَ
+                //      زمنَ التشغيل، فيوافق المفسّرَ في الطباعةِ والمقارنةِ معًا.
+                //      والنظيرُ الدالّيُّ `احصل_مستقبل` في `builtins_async.cpp` غُيِّر
+                //      معه: مُنتِجان لحقيقةٍ واحدةٍ يجب أن يتحرّكا معًا.
+                // (EN) 🔑 A future's payload is TAGGED, so the result is «any», not «int».
+                //      It was declared Integer whatever the payload, so a string printed
+                //      as a RAW POINTER (140699969527808) — and worse, the strict-type
+                //      short-circuit folded `int == string` to a CONSTANT false with no
+                //      instruction emitted: the pointer is loaded correctly in the IR and
+                //      then discarded. Measured 2026-08-20 in three lines. «any» routes
+                //      the payload through the dynamic path that reads the tag at runtime,
+                //      matching the interpreter for both printing and comparison.
+                //      The function-form twin `احصل_مستقبل` in builtins_async.cpp moved
+                //      with it: two producers of one fact must move together.
+                // ════════════════════════════════════════════════════════════
                 if (methodName == "\xD8\xA7\xD8\xAD\xD8\xB5\xD9\x84" || methodName == "get")
                 {
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::ASYNC_GET_FUTURE);
-                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
+                    inst.result = SIROperand::Register(resultReg, SadTypeKind::Any);
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    return BuildResult(resultReg, SadTypeKind::Any);
                 }
 
                 // جاهز / is_ready — هل النتيجة متوفرة

@@ -1,6 +1,6 @@
 # @rule: gr.expr.factor
-# @description: f_float
+# @description: عاملٌ ناتجُ قسمةٍ صحيحة: `/` تقتطع نحو الصفر كـC (7/2=3)
 # @priority: P1
 # @requires: اطبع_سطر
-# @expected: 3.5
+# @expected: 3
 اطبع_سطر(7 / 2)

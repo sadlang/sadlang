@@ -51,6 +51,41 @@ if(NOT LLVM_DIR)
     endforeach()
 endif()
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 قبلَ `find_package(LLVM)` لا بعدَه. حين تُبنى LLVM بدعمِ zstd يستدعي
+#      `LLVMConfig.cmake` وحدةَ `Findzstd.cmake`، وفيها على MSVC:
+#          string(REGEX REPLACE "${CMAKE_INSTALL_LIBDIR}$" "${CMAKE_INSTALL_BINDIR}" …)
+#      فإن كان `CMAKE_INSTALL_LIBDIR` **غيرَ معرَّفٍ** صار النمطُ `"$"` مجرَّدًا،
+#      و CMake يرفضه خطأً صريحًا: «regex "$" matched an empty string» — فيسقط
+#      التكوينُ كلُّه قبلَ أن يُصرَّف سطرٌ واحد.
+#      وهذان المتغيّران لا يُعرَّفان إلّا بـ`GNUInstallDirs`، وكان تضمينُه في
+#      `cmake/install.cmake` وحدَه — أي **بعدَ** هذا الملفِّ في ترتيب الإدراج.
+#      فمجلّدُ بناءٍ قائمٌ ينجو لأنّ القيمتَين محفوظتان في `CMakeCache.txt` من
+#      تكوينٍ سابق، **ومجلّدٌ نظيفٌ يسقط**. ولذلك ظلّ الأمرُ مستورًا ما دامت
+#      **خبيئةُ البناء** في CI تُصاب — فهي التي تحمل `CMakeCache.txt` — وأوّلُ
+#      إخفاقِ إصابةٍ كشفَه. ولا يشفى ذاتيًّا: حفظُ خبيئةِ البناءِ يقع **بعدَ**
+#      البناء، والبناءُ متخطًّى لأنّ التكوينَ سقط. (وخبيئةُ LLVM تُحفَظ قبلَ
+#      التكوينِ فتنجو، وليست موضعَ العطب.)
+#      وعلى ويندوز يُعطي `GNUInstallDirs` القيمتَين `lib` و`bin`، فيصير النمطُ
+#      `"lib$"` ويفعل الاستبدالُ ما وُضِع له: مجلّدُ المكتبةِ ⇒ مجلّدُ الثنائيّات.
+# (EN) 🔑 BEFORE find_package(LLVM), not after. When LLVM is built with zstd,
+#      LLVMConfig.cmake pulls in Findzstd.cmake, whose MSVC branch does
+#          string(REGEX REPLACE "${CMAKE_INSTALL_LIBDIR}$" …)
+#      With CMAKE_INSTALL_LIBDIR UNDEFINED the pattern degenerates to a bare "$"
+#      and CMake hard-errors — `regex "$" matched an empty string` — killing
+#      configuration before a single file is compiled. Those variables come only
+#      from GNUInstallDirs, which was included solely by cmake/install.cmake, i.e.
+#      AFTER this file. An existing build dir survives because the values persist
+#      in CMakeCache.txt from an earlier configure; a CLEAN one dies. That is why
+#      it stayed hidden while the CI BUILD cache kept hitting — that is the cache
+#      carrying CMakeCache.txt — and the first miss exposed it. It cannot self-heal:
+#      the build cache is saved AFTER the build, and the build is skipped because
+#      configure died. (The LLVM cache is saved before configure, so it survives
+#      and is not where the defect lives.) On Windows GNUInstallDirs yields lib/bin, so
+#      the pattern becomes "lib$" and the rewrite does what it was meant to do.
+# ═══════════════════════════════════════════════════════════════════════════════
+include(GNUInstallDirs)
+
 # البحث عن LLVM / Find LLVM
 find_package(LLVM QUIET CONFIG)
 
@@ -358,6 +393,29 @@ if(_lld_all_found)
             message(STATUS "   LLD LLVM dependency not found: ${_dep}")
         endif()
     endforeach()
+endif()
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🔑 (AR) بوّابةُ قياسٍ: الرابطُ الخارجيُّ ليس مسارًا نادرًا — يسلكه **كلُّ** بناءٍ لا
+#      يجد LLD، ومنه بناءُ ويندوز في CI. وكان لا يُقاسُ حيث نطوّر لأنّ LLD موجودٌ
+#      عندنا، وبذلك بقي عطبُ الأسماءِ العربيّةِ فيه مستورًا حتّى قِيست مصفوفةُ
+#      القواعدِ على ويندوز فأخفق ٩٣ ملفًّا اسمُه عربيّ. هذا المفتاحُ يجعل المسارَ
+#      الثانيَ مقيسًا بأمرٍ واحدٍ على أيِّ آلة.
+# 🔑 (EN) Measurement gate: the external linker is not a rare path — every build
+#      that cannot find LLD takes it, Windows CI included. It went unmeasured
+#      where we develop because LLD is present here, which is exactly how its
+#      Arabic-filename defect stayed hidden until the rules matrix ran on
+#      Windows and 93 Arabic-named files failed. This switch makes the second
+#      path measurable anywhere with one flag.
+# ═══════════════════════════════════════════════════════════════════════════════
+option(SAD_FORCE_EXTERNAL_LINKER
+       "Force the external-linker path (ignore embedded LLD) — measures that path"
+       OFF)
+
+if(SAD_FORCE_EXTERNAL_LINKER)
+    set(_lld_all_found FALSE)
+    set(LLD_LIBS "")
+    message(STATUS "   LLD متجاهَلٌ عمدًا / ignored on purpose (SAD_FORCE_EXTERNAL_LINKER=ON)")
 endif()
 
 if(_lld_all_found)

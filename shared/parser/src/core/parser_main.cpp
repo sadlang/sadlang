@@ -1916,14 +1916,25 @@ namespace Sad
             std::string asmNearestNames(const std::string &name, AsmNamePos pos)
             {
                 using namespace ::Sad::Dialects::Asm;
+                // 🔑 (AR) المرشّحون من **المعماريّة الفاعلة** لا من جدول وحيد: اقتراحُ
+                //      «المركم» لهدفٍ AArch64 أسوأُ من لا اقتراح — يرسل القارئَ إلى اسمٍ
+                //      لا وجودَ له هناك. وهدفٌ بلا معجم يُبلَّغ SEM044 قبل الوصول إلى هنا،
+                //      فالقائمة الفارغة هنا احتياطٌ لا مسارٌ متوقَّع.
+                // (EN) Candidates come from the ACTIVE architecture; suggesting a name
+                //      that does not exist on the target is worse than none.
+                const Architecture *arch = activeArchitecture();
                 std::vector<std::pair<std::size_t, const char *>> ranked;
-                ranked.reserve(kMnemonicCount + kRegisterCount + kClobberSpecialCount);
+                const std::size_t mnemonicCount = arch ? arch->mnemonicCount : 0;
+                const std::size_t registerCount = arch ? arch->registerCount : 0;
+                ranked.reserve(mnemonicCount + registerCount + kClobberSpecialCount);
                 if (pos == AsmNamePos::Mnemonic)
-                    for (std::size_t i = 0; i < kMnemonicCount; ++i)
-                        ranked.emplace_back(asmEditDistance(name, kMnemonics[i].ar), kMnemonics[i].ar);
+                    for (std::size_t i = 0; i < mnemonicCount; ++i)
+                        ranked.emplace_back(asmEditDistance(name, arch->mnemonics[i].ar),
+                                            arch->mnemonics[i].ar);
                 else
-                    for (std::size_t i = 0; i < kRegisterCount; ++i)
-                        ranked.emplace_back(asmEditDistance(name, kRegisters[i].ar), kRegisters[i].ar);
+                    for (std::size_t i = 0; i < registerCount; ++i)
+                        ranked.emplace_back(asmEditDistance(name, arch->registers[i].ar),
+                                            arch->registers[i].ar);
                 if (pos == AsmNamePos::Clobber)
                     for (std::size_t i = 0; i < kClobberSpecialCount; ++i)
                         ranked.emplace_back(asmEditDistance(name, kClobberSpecials[i].ar),
@@ -2191,6 +2202,35 @@ namespace Sad
             if (checkContextual(TT::KEYWORD_VOLATILE))
                 advance();
 
+            // 🔑 ① بوّابة المعماريّة — قبل أيّ منمنمة (SEM044).
+            //   (AR) الحدّ المقيس (١٩ آب ٢٠٢٦): اللهجة كانت تُخفَض بمعجم i686 لأيّ هدف،
+            //        فتموت الكتلة في المُجمِّع بـ«unrecognized instruction mnemonic» على
+            //        macos-14-arm64. وبلا هذه البوّابة يصير هدفٌ لا معجم له معجمًا
+            //        **فارغًا**، فتُبلَّغ كلّ منمنمة SEM025 «غير معجميّة» — تشخيصٌ صادقُ
+            //        الحرفِ يضلّل عن السبب: العلّة في الهدف لا في المنمنمة.
+            //   (EN) Gate before any mnemonic: without it, a target with no lexicon
+            //        degenerates into an EMPTY lexicon and every mnemonic is reported
+            //        as unknown — literally true, and misleading about the cause.
+            if (!activeArchitecture())
+            {
+                std::string supported;
+                for (std::size_t i = 0; i < kArchitectureCount; ++i)
+                {
+                    if (i)
+                        supported += "\xd8\x8c "; // (AR) فاصلة عربيّة / Arabic comma
+                    supported += kArchitectures[i].id;
+                }
+                errorCatalog(Errors::ErrorCode::SEM_ASM_ARCH_UNSUPPORTED,
+                             {{"arch", requestedArchitecture()},
+                              {"supported", supported}});
+                while (!check(TT::KEYWORD_END) && !check(TT::END_OF_FILE))
+                    advance();
+                match(TT::KEYWORD_END);
+                pendingDoc_ = DocBuffer{};
+                nextDoc_ = DocBuffer{};
+                return block;
+            }
+
             // (AR) متتبِّعات فحص بنيويّ زمن التحليل (تفعل في المحرّكين معًا كـSEM025/026):
             //      لصائق معرَّفة، مراجع قفز، متغيّرات ص مكتوبة.
             // (EN) Parse-time structural trackers (dual-engine, like SEM025/026):
@@ -2299,6 +2339,8 @@ namespace Sad
                 item.readsDest = info->readsDest;
                 item.implicitClobbers = info->implicitClobbers;
                 item.operandWidth = info->operandWidth;
+                item.operandHead = info->operandHead;
+                item.operandTail = info->operandTail;
                 item.pos = mnemonicPos;
 
                 const std::size_t expected = std::strlen(info->operandClasses);

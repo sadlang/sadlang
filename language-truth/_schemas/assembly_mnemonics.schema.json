@@ -5,10 +5,46 @@
   "description": "مخطط JSON لمعجم منمنمات التجميع العربيّ لكلّ معماريّة — language-truth/dialects/assembly_mnemonics/<arch>.yaml. الموضع الوحيد الذي تُذكَر فيه المنمنمات اللاتينيّة (توثيقًا للتقابل وخفضًا).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "architecture", "status", "registers", "instructions"],
+  "required": ["version", "architecture", "status", "syntax", "host_macros", "registers", "instructions"],
   "properties": {
     "version": { "type": "string" },
     "architecture": { "type": "string", "minLength": 1 },
+    "syntax": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["register_prefix", "immediate_prefix", "operand_order", "dest_operand", "memory_form"],
+      "description": "نكهة المُجمِّع لهذه المعماريّة — يقرأها الخافض بدل حرفيّات مبثوثة فيه. النموذج الدلاليّ (وجهة أوّلًا) ملك ص، وهذه الحقول تصف كيف يُكتب ذلك في نصّ المُجمِّع الأصليّ.",
+      "properties": {
+        "register_prefix": { "type": "string", "description": "بادئة اسم السجلّ في نصّ المُجمِّع: «%» في AT&T، وفارغة في AArch64" },
+        "immediate_prefix": { "type": "string", "description": "بادئة الثابت المباشر: «$$» في AT&T (‏$ مُهرَّبة لقالب LLVM)، و«#» في AArch64" },
+        "operand_order": {
+          "type": "string",
+          "enum": ["source_first", "destination_first"],
+          "description": "ترتيب المعاملات في النصّ المُصدَر: source_first ⇒ يُعكَس ترتيب ص (AT&T)، destination_first ⇒ يُكتب كما في ص"
+        },
+        "dest_operand": {
+          "type": "string",
+          "enum": ["implicit", "explicit"],
+          "description": "implicit ⇒ الوجهة مصدرٌ ضمنيّ (x86: add dst, src)؛ explicit ⇒ الوجهة تُكرَّر معاملًا مستقلًّا حين reads_dest (AArch64: add dst, dst, src)"
+        },
+        "memory_form": {
+          "type": "string",
+          "enum": ["disp_paren_base", "bracket_base_disp"],
+          "description": "disp_paren_base ⇒ «8(%ebx)» (AT&T)؛ bracket_base_disp ⇒ «[x1, #8]» (AArch64)"
+        }
+      }
+    },
+    "host_macros": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "ماكروات المترجم التي تدلّ على أنّ **المضيف** هذه المعماريّة (__x86_64__ / _M_X64 …) — منها يولَّد اختيار المعماريّة الافتراضيّة في الهيدر المولَّد، فلا تُكتَب سلسلة معماريّة في C++ يدويًّا"
+    },
+    "triple_aliases": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "أسماء بديلة لحقل المعماريّة في ثالوث الهدف تُحلّ إلى هذه المعماريّة (amd64/x64 ⇒ x86_64، arm64 ⇒ aarch64)"
+    },
     "status": { "type": "string", "enum": ["experimental", "stable", "deprecated", "draft"] },
     "addressing_note": { "type": "string" },
     "registers": {
@@ -68,6 +104,19 @@
           "type": "integer",
           "enum": [16],
           "description": "عرض معامل السجلّ بالبتّات حين يخالف عرض الكلمة الافتراضيّ للهدف (32 على i686). القيمة 16 ⇒ يُصدر الخفض مُعدِّل الحجم ${N:w} فيختار العتادُ السجلَّ الفرعيّ 16-بت (ax لا eax) — إلزاميّ لتعليمات المنتقيات ذات المعامل r/m16 (ltr/str) التي يرفض المُجمِّع صيغتها 32-بت. القيمة الوحيدة المدعومة الآن 16؛ يوسَّع عند الحاجة"
+        },
+        "operand_head": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "معاملات نصّيّة ثابتة تسبق معاملات ص (msr vbar_el1، x0 ⇒ المُسجَّل أوّلًا). نظير operand_head لـoperand_tail، وبحرّاسه نفسِها: destination_first وحدها، ولا مع لصيقة/بادئة",
+          "$comment": "كتابة سجلّ نظام على AArch64 تكتب المُسجَّل أوّلًا، والذيل يُلحِق بعدُ لا قبلُ — فبلا هذا الحقل لا يستطيع المعجم التعبير عن أيّ كتابة سجلّ نظام"
+        },
+        "operand_tail": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "description": "معاملات نصّيّة ثابتة تُلحَق بعد معاملات ص (mrs الوجهة، cntvct_el0 / msr daifset، #2). مسموحة فقط (يفرضها المولّد) على معماريّة operand_order=destination_first — على AT&T يُعكَس الترتيب فيصير موضع الذيل خطأً صامتًا"
         },
         "note": { "type": "string" }
       }

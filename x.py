@@ -435,7 +435,14 @@ CODEGEN_DOMAINS = (
         "outputs": ("asm_dialect_generated.h",),
         "args": lambda d: [
             "--dialect", "language-truth/dialects/assembly.yaml",
-            "--mnemonics", "language-truth/dialects/assembly_mnemonics/i686.yaml",
+            # (AR) معجم لكلّ معماريّة — والمولّد يرفض أيّ خلاف بين هذه القائمة
+            #      وحقل architectures في assembly.yaml، فلا تُضاف معماريّة في
+            #      موضع وتُنسى في الآخر.
+            "--mnemonics",
+            "language-truth/dialects/assembly_mnemonics/aarch64.yaml",
+            "language-truth/dialects/assembly_mnemonics/i686.yaml",
+            "language-truth/dialects/assembly_mnemonics/riscv64.yaml",
+            "language-truth/dialects/assembly_mnemonics/x86_64.yaml",
             "--dialect-schema", "language-truth/_schemas/dialect.schema.json",
             "--mnemonics-schema", "language-truth/_schemas/assembly_mnemonics.schema.json",
             "--header", f"{d}/asm_dialect_generated.h",

@@ -177,6 +177,7 @@ namespace Sad
             SEM_IMPLICIT_CTOR_REQUIRES_ARGS, ///< SEM041: (AR) إنشاءٌ ضمنيٌّ لصنفٍ بانيه يشترط وسائط — «شخص ك» بلا تهيئة / (EN) implicit construction of a class whose constructor requires arguments
             SEM_COMPILER_FIELD_TYPE_UNSUPPORTED, ///< SEM042: (AR) حقلٌ نوعُه صنفٌ لا يخفضه المترجّمُ بعد — رفضٌ صريحٌ بدل بناءٍ ينهار / (EN) class-typed field not lowered yet — explicit rejection instead of a crashing build
             SEM_OPTIONAL_CALL_RECEIVER_NOT_SIMPLE, ///< SEM043: (AR) الوصولُ الآمنُ بنداءِ طريقةٍ يلزمه مستقبِلٌ بسيطٌ — أثرٌ جانبيٌّ مضاعَفٌ لا يُرى في مخرَجٍ صحيح / (EN) safe method call needs a simple receiver — a duplicated side effect no correct output reveals
+            SEM_ASM_ARCH_UNSUPPORTED,     ///< SEM044: (AR) كتلةُ «تجميع» على هدفٍ لا معجمَ لمعماريّتِه — رفضٌ صريحٌ بدل خفضٍ بمعجمِ معماريّةٍ أخرى / (EN) assembly block on a target whose architecture has no lexicon — explicit rejection instead of lowering with a foreign one
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors

@@ -30,7 +30,15 @@ _CANDIDATES = [
     ROOT / "build" / "bin" / "Debug" / "sad-build",
     ROOT / "build" / "bin" / "sad-build",
 ]
-SAD_BUILD = next((p for p in _CANDIDATES if p.exists()), None)
+SAD_BUILD = max(
+    (p for p in _CANDIDATES if p.exists()),
+    # (AR) أحدثُ الموجودَين لا أوّلُهما: قِيسَ ثنائيُّ Release عمرُه ١٣ يومًا
+    #      يسبق Debug طازجًا في القائمة، فولّدت الأداةُ عطبًا وهميًّا.
+    # (EN) Newest, not first: a 13-day-old Release binary preceded a fresh
+    #      Debug one and the instrument fabricated a defect.
+    key=lambda p: p.stat().st_mtime,
+    default=None,
+)
 
 pytestmark = pytest.mark.skipif(
     SAD_BUILD is None,

@@ -4,8 +4,8 @@
 #      🔑 لِمَ سجلٌّ لا وسمُ `@known_red`؟ لأنّ الوسمَ يبتلعُ **فرقَ المخرَجِ
 #      وحدَه** عمدًا، وتعليقُ `tests/runner.py` يوثّقُ سببَه مقيسًا: نسخةٌ أولى
 #      ابتلعت كلَّ ما ليس PASS، فصارَ ملفٌّ بخطأِ تحليلٍ وملفٌّ بحلقةٍ لانهائيّةٍ
-#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ٦١ هنا **٢٥
-#      فقط** صنفُها FAIL_OUTPUT، والـ٣٦ الباقيةُ انهياراتٌ وتعليقاتٌ ورفضُ
+#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ٥٤ هنا **٢٢
+#      فقط** صنفُها FAIL_OUTPUT، والـ٣٢ الباقيةُ انهياراتٌ وتعليقاتٌ ورفضُ
 #      ترجمةٍ — وتوسيعُ الوسمِ ليشملَها إعادةٌ لعطبٍ مُصلَح.
 #
 #      ⚠️ وهذا السجلُّ **دَينٌ موصوفٌ محروسٌ في الاتّجاهَين**، لا قائمةَ إذنٍ
@@ -16,11 +16,27 @@
 #      والصفوفُ **مولَّدةٌ من شوطٍ حقيقيٍّ** لا مكتوبةٌ يدويًّا:
 #      شوطُ ٢٠٢٦-٠٨-١٨ على `3333d4d5` — grammar_gaps ٣٣/١١٥ · _regression ٢٨/٩١.
 #
+#      ── سجلُّ التحديثات ─────────────────────────────────────────────────
+#      [١] ٦١ صفًّا — التوليدُ الأوّل أعلاه.
+#      [٢] ٥٤ صفًّا — ٢٠٢٦-٠٨-٢٠ على `9030a59f` (PR ‏#418‏). سبعةُ صفوفٍ
+#          اخضرَّت فحُذِفت، **والحارسُ هو من سمّاها** لا مراجعةٌ بالعين:
+#            test_bug1_advanced · test_bug1_chained_index ·
+#            test_p01_array_key_access · test_p29_filesystem_invalid_input ·
+#            test_p33_operator_overloading · test_p34_conversion_operators ·
+#            test_p36_compiler_operators
+#          وعلّتُها **واحدةٌ مُسمّاةٌ لا سبعٌ**: جدولُ المقارناتِ في
+#          `inferExprType` صار قبلَ كلِّ قاعدةٍ تقرأ المعامِلات، فكفَّ
+#          `س == "نصّ"` عن أن يُستنتَجَ **نصًّا**.
+#          🔑 وقِيست الخُضرةُ على **المنصّاتِ الثلاثِ** بالمجموعةِ نفسِها
+#          (لينكس · ماك · ويندوز) قبلَ الحذف: صفٌّ يخضرُّ على منصّتَين وقد
+#          يبقى أحمرَ على الثالثة، وحذفُه حينئذٍ يُحمِّر السجلَّ من الطرفِ
+#          الآخَر — «احمرَّ ملفٌّ ليس في السجلّ».
+#
 # (EN) Registry of MEASURED reds outside every CI level. Why a registry and not
 #      @known_red? Because that marker deliberately swallows OUTPUT MISMATCH
 #      only — widening it to crashes/hangs/compile-failures would re-open a
 #      measured defect (a single header line once disabled the P0 smoke gate).
-#      Only 25 of these 61 are FAIL_OUTPUT. This file is guarded in BOTH
+#      Only 22 of these 54 are FAIL_OUTPUT. This file is guarded in BOTH
 #      directions by test_declared_reds_registry.py: a row that turns green, a
 #      new red that is absent, or a changed failure kind all fail the guard.
 #
@@ -42,27 +58,20 @@ _regression/test_bug11_diag2.ص	FAIL_OUTPUT
 _regression/test_bug11_exact.ص	FAIL_OUTPUT
 _regression/test_bug18_exact.ص	FAIL_OUTPUT
 _regression/test_bug18_this_method.ص	FAIL_OUTPUT
-_regression/test_bug1_advanced.ص	FAIL_COMPILE
-_regression/test_bug1_chained_index.ص	FAIL_COMPILE
 _regression/test_bug1_exact.ص	FAIL_COMPILE
 _regression/test_bug3_length_depth.ص	FAIL_INTERP
 _regression/test_function_type.ص	FAIL_INTERP
 _regression/test_optional_null_advanced.ص	FAIL_COMPILE
 _regression/test_optional_null_coalesce.ص	FAIL_OUTPUT
-_regression/test_p01_array_key_access.ص	FAIL_COMPILE
 _regression/test_p07_array_pluseq.ص	FAIL_COMPILE
 _regression/test_p24_json_unified_builtin.ص	FAIL_COMPILE
 _regression/test_p25_xml_unified_builtin.ص	FAIL_COMPILE
 _regression/test_p26_json_invalid_input.ص	FAIL_COMPILE
 _regression/test_p27_xml_invalid_input.ص	FAIL_COMPILE
-_regression/test_p29_filesystem_invalid_input.ص	FAIL_OUTPUT
 _regression/test_p30_database_availability.ص	FAIL_COMPILE
 _regression/test_p31_json_unicode_parse.ص	FAIL_COMPILE
 _regression/test_p32_json_unicode_stringify.ص	FAIL_COMPILE
-_regression/test_p33_operator_overloading.ص	FAIL_OUTPUT
-_regression/test_p34_conversion_operators.ص	FAIL_RUNTIME
 _regression/test_p35_print_operator.ص	FAIL_OUTPUT
-_regression/test_p36_compiler_operators.ص	FAIL_OUTPUT
 grammar_gaps/باني_يستدعي_طريقة/001_ctor_calls_method.ص	FAIL_OUTPUT
 grammar_gaps/بنى_بيانات/003_flatten.ص	FAIL_COMPILE
 grammar_gaps/بنى_بيانات/006_multi_assign.ص	FAIL_INTERP

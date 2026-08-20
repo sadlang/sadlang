@@ -234,12 +234,36 @@ namespace Sad
                             b_.addVariable(capVar);
                         }
 
+                        // ════════════════════════════════════════════════════
+                        // (AR) 🔑 إطارُ التأجيلِ لهذا الإغلاق. هذا المسارُ كان يبني
+                        //      الجسمَ ويُلحِق `RET_VOID` بلا آلةِ تأجيلٍ قطّ، فـ`أجّل`
+                        //      داخلَ دالّةٍ ذاتِ التقاطاتٍ يُسقَط **صامتًا**: لا تعليمةَ
+                        //      في الـIR ولا تشخيص. والشعبةُ أعلاه هي ما يقرّر المصير —
+                        //      الدالّةُ نفسُها تُنفِّذ مؤجَّلَها في المستوى الأعلى (بلا
+                        //      التقاطاتٍ ⇒ `buildFunction`) وتُسقِطه داخلَ `أطلق` لأنّ
+                        //      العامَّ يصير محلّيًّا مُلتقَطًا للإغلاقِ الخارجيّ.
+                        //      والمعينُ واحدٌ عمدًا: نسخةٌ ثانيةٌ تبدأ ناقصةً ولا حارسَ لها.
+                        // (EN) 🔑 Defer frame for this closure. This path built the body
+                        //      and appended RET_VOID with no defer machinery at all, so
+                        //      `defer` inside a capturing function was dropped SILENTLY —
+                        //      no instruction in the IR, no diagnostic. The branch above
+                        //      decides the outcome: the same function runs its defer at
+                        //      top level (no captures ⇒ buildFunction) and drops it inside
+                        //      a spawn block, because the global becomes a captured local
+                        //      of the outer closure. One source on purpose: a second copy
+                        //      starts incomplete and nothing guards it.
+                        // ════════════════════════════════════════════════════
+                        const SIRBuilder::DeferFrame deferFrame =
+                            b_.emitDeferFrameBegin(funcDecl->body.get());
+
                         // (AR) بناء جسم الدالة
                         // (EN) Build function body
                         if (funcDecl->body)
                         {
                             buildStatement(funcDecl->body.get());
                         }
+
+                        b_.emitDeferFrameEnd(deferFrame, b_.currentBlock_);
 
                         // (AR) تحديث نوع الإرجاع من تعليمات RET الفعلية
                         // (EN) Update return type from actual RET instructions

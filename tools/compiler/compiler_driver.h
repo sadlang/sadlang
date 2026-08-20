@@ -726,6 +726,25 @@ namespace sad
              */
             void cleanup_temp_files();
 
+            /**
+             * @brief (AR) البحث عن مسارات مكتبات MSVC و Windows SDK
+             * @brief (EN) Find MSVC and Windows SDK library paths for linking
+             *
+             * 🔑 (AR) **خارجَ** حارسِ `HAS_EMBEDDED_LLD` عمدًا: اكتشافُ مسارات
+             *      MSVC ليس من شأنِ LLD، ومسارُ الربطِ بمترجمِ C ينادي هذه
+             *      الدالّةَ تحتَ `_WIN32` وحدَه. وحين كانت داخلَ الحارسِ لم
+             *      يُصرَّف `sad-build` على ويندوزَ البتّةَ عند إطفائه:
+             *        compiler_driver_linker.cpp(686): error C3861:
+             *          'find_msvc_lib_paths': identifier not found
+             *      وظلَّ ذلك مستورًا لأنّ خطوةَ بنائِه في CI كانت تنتهي بـexit 0.
+             * 🔑 (EN) Deliberately OUTSIDE the HAS_EMBEDDED_LLD guard: MSVC path
+             *      discovery is not an LLD concern, and the C-compiler link path
+             *      calls it under _WIN32 alone. Inside the guard, sad-build did
+             *      not compile at all on Windows when LLD was off — hidden by an
+             *      unconditional exit 0 in the CI build step.
+             */
+            std::vector<std::string> find_msvc_lib_paths();
+
 #ifdef HAS_EMBEDDED_LLD
             /**
              * @brief (AR) ربط ملف كائن باستخدام LLD المدمج داخل sadc
@@ -739,12 +758,6 @@ namespace sad
             bool link_with_embedded_lld(const std::string &obj_path,
                                         const std::string &runtime_obj_path,
                                         const std::string &output_file);
-
-            /**
-             * @brief (AR) البحث عن مسارات مكتبات MSVC و Windows SDK
-             * @brief (EN) Find MSVC and Windows SDK library paths for linking
-             */
-            std::vector<std::string> find_msvc_lib_paths();
 
             /**
              * @brief (AR) البحث عن مترجم C في النظام

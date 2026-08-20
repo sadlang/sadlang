@@ -102,6 +102,10 @@ class TestMetadata:
     skip_interpreter: bool = False
     posix_only: bool = False
     windows_only: bool = False
+    # (AR) @arch: قائمة معماريّات يصلح عليها الاختبار (i686/x86_64/aarch64، والاسم
+    #      العائليّ x86 يعني i686+x86_64). فارغة = محمول على المعماريّات كلّها.
+    # (EN) @arch: architectures this test applies to; empty = portable.
+    architectures: list[str] = field(default_factory=list)
     description: str = ""
     priority: str = "P1"
     expect_error: str = ""  # (AR) إذا غير فارغ: الاختبار يتوقع خطأ يحتوي هذا النص
@@ -188,6 +192,65 @@ _RE_POSIX_ONLY = re.compile(r"^#\s*@posix_only\b")
 #      (‏cmd.exe) بدل /bin/sh. الوسمانِ للبرنامجِ الخارجيِّ لا للبدائيّة نفسِها.
 # (EN) @windows_only: the mirror gate, for tests needing a Windows program.
 _RE_WINDOWS_ONLY = re.compile(r"^#\s*@windows_only\b")
+# 🔑 (AR) @arch: بوّابة **معماريّة** لا بوّابة نظام. وُجدت من عطب مقيس (١٩ آب ٢٠٢٦):
+#      لهجة «تجميع» كانت تُخفَض بمعجم i686 لأيّ هدف، فماتت ثمانية اختبارات موجبة في
+#      مُجمِّع macos-14-arm64 بينما مرّ اثنا عشر اختبارًا سالبًا **بحقّ** — مرساةُ كلٍّ
+#      منها رمزُ خطأ دلاليّ يسبق التوليد. أي أنّ الأخضر كان يقيس الطبقة الدلاليّة
+#      وحدها. وللمشغّل بوّابتا نظامٍ (@posix_only/@windows_only) ولا بوّابة عتاد،
+#      فاختبار يقيس تعليمة عتاد بعينها لم يكن له وسم يقوله.
+#      والوسم **لا يُخفي عطبًا**: ما هو محمول يبقى بلا وسم فيُقاس على المنصّات كلّها،
+#      والموسوم يُتخطّى تخطّيًا مرئيًّا على غير معماريّته لا يُشطب من العدّ.
+# (EN) @arch: a HARDWARE gate (the runner had OS gates only). Portable tests stay
+#      untagged and run everywhere; a tagged test is skipped VISIBLY elsewhere.
+_RE_ARCH = re.compile(r"^#\s*@arch:?\s+(.+)$")
+
+# (AR) أسماء المعماريّات كما يعرفها مصدر الحقيقة، وتطبيع ما تقوله المنصّة.
+#      platform.machine() يقول AMD64 على ويندوز وx86_64 على لينكس وarm64 على ماك.
+# (EN) SoT architecture ids, and normalisation of what the platform reports.
+_ARCH_ALIASES = {
+    "amd64": "x86_64", "x64": "x86_64", "x86-64": "x86_64", "x86_64": "x86_64",
+    "arm64": "aarch64", "aarch64": "aarch64", "arm64e": "aarch64",
+    "i386": "i686", "i486": "i686", "i586": "i686", "i686": "i686",
+}
+# (AR) أسماء عائليّة يقبلها الوسم وحده (لا تخرج من platform.machine()).
+_ARCH_FAMILIES = {"x86": ("i686", "x86_64")}
+
+
+def host_architecture() -> str:
+    """(AR) معماريّة المضيف بأسماء مصدر الحقيقة (أو الاسم الخام إن كانت مجهولة)."""
+    import platform
+    raw = platform.machine().lower()
+    return _ARCH_ALIASES.get(raw, raw)
+
+
+# (AR) المعماريّات المعروفة — تُقرأ من مصدر الحقيقة لا من قائمة مكتوبة هنا،
+#      فمعجمٌ جديد يصير مقبولًا في الوسم بلا تعديل المشغّل.
+# (EN) Known architectures come from the SoT, not a hand-written list here.
+def _known_architectures() -> set[str]:
+    root = Path(__file__).resolve().parent.parent / "language-truth" / "dialects" / "assembly_mnemonics"
+    return {p.stem for p in root.glob("*.yaml")} if root.is_dir() else set()
+
+
+def _expand_architectures(raw: str) -> list[str]:
+    """(AR) يفكّ «x86_64, aarch64» و«x86» إلى معرّفات مصدر الحقيقة.
+
+    🔑 ويقطع عند «#» أوّلًا. قِيس (١٩ آب ٢٠٢٦): الوسمُ كان يبتلع تعليقَ سطرِه،
+       فاختبارٌ موسومٌ «@arch: aarch64  # ... على i686 وx86_64 ...» صارت قائمتُه
+       تحوي «x86_64» فطابقت المضيفَ **ونُفِّذ الاختبارُ على معماريّةٍ لا يصلح
+       لها** — بوّابةٌ تُعطَّل بتعليقٍ لا برقعة. والأسوأ أنّ حارسَ CI كان أخضرَ
+       لأنّه يقرأ `[^#]+` فرأى الوسمَ صحيحًا: طبقتان تقرآن السطرَ نفسَه بقاعدتَين.
+    (EN) Cuts at '#' first: the tag used to swallow its own trailing comment, and
+         a comment mentioning the host silently disabled the gate — while the CI
+         guard stayed green because it parses the same line by a different rule.
+    """
+    out: list[str] = []
+    for piece in raw.split("#", 1)[0].replace(",", " ").split():
+        key = piece.strip().lower()
+        if key in _ARCH_FAMILIES:
+            out.extend(_ARCH_FAMILIES[key])
+        else:
+            out.append(_ARCH_ALIASES.get(key, key))
+    return out
 
 
 def parse_metadata(filepath: Path) -> TestMetadata:
@@ -271,6 +334,10 @@ def parse_metadata(filepath: Path) -> TestMetadata:
                     continue
                 if _RE_WINDOWS_ONLY.match(line):
                     meta.windows_only = True
+                    continue
+                m = _RE_ARCH.match(line)
+                if m:
+                    meta.architectures = _expand_architectures(m.group(1))
                     continue
                 if _RE_NONDET.match(line):
                     # (AR) @nondeterministic يستلزم فرز الخرج (مقارنة كمجموعة)
@@ -870,6 +937,27 @@ def _run_single_test_raw(
     if meta.windows_only and os.name != "nt":
         return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
                           error_message="تخطي: @windows_only على منصّة غير ويندوز")
+
+    # (AR) بوّابة المعماريّة: الاختبار الموسوم يقيس تعليمة عتاد بعينها لا مفهومًا
+    #      محمولًا، فيُتخطّى تخطّيًا **مرئيًّا** على غير معماريّته — والاسمُ في الرسالة
+    #      كي لا يُقرأ التخطّي «لا شيء هنا».
+    # (EN) Architecture gate: a visible skip naming both sides, never a silent pass.
+    if meta.architectures:
+        # (AR) اسمٌ لا معجمَ له في الوسم = عطبٌ في الاختبار لا في المنصّة، ويجب أن
+        #      **يُفشِل**: إهمالُه بصمتٍ يجعل «@arch: aarch46» بوّابةً لا تُغلق أبدًا.
+        # (EN) An unknown name in the tag must FAIL the test: ignoring it silently
+        #      turns a typo into a gate that never closes.
+        مجهولة = [a for a in meta.architectures if a not in _known_architectures()]
+        if مجهولة:
+            return TestResult(
+                file=rel_path, status=Status.FAIL_COMPILE, metadata=meta,
+                error_message="@arch يذكر معماريّةً لا معجمَ لها: " + " ".join(مجهولة))
+        host = host_architecture()
+        if host not in meta.architectures:
+            return TestResult(
+                file=rel_path, status=Status.SKIP, metadata=meta,
+                error_message="تخطي: @arch " + " ".join(meta.architectures) +
+                              " والمضيف " + host)
 
     # (AR) التحقق من @skip
     if meta.skip_compiler and meta.skip_interpreter:

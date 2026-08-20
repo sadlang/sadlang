@@ -333,6 +333,17 @@ namespace Sad
                         return false; // (AR) قسمة صحيحة بمعامل عشريّ — اتركها للخلف / (EN) leave to backend
                     if (rhs.intValue == 0)
                         return false;
+                    // (AR) 🔑 فيضُ INT64_MIN / -1 لا يُطوى: الطيُّ نفسُه سلوكٌ غيرُ
+                    //      معرَّفٍ في مصرّف C++ الذي يبني هذه الأداة، والنتيجةُ المطويّةُ
+                    //      تُدفَن في الثنائيّ بلا حارس. نتركها لحارسِ زمنِ التشغيل (RUN011).
+                    //      كانت خاملةً لأنّ `/` لم تكن تُصدِر DIV_I64 قطُّ؛ فلمّا صارت
+                    //      قسمةً صحيحةً ساكنةً صار هذا المسارُ مطروقًا.
+                    // (EN) INT64_MIN / -1 must not fold: the fold itself is UB in the C++
+                    //      compiler building this tool, and a wrongly folded constant is
+                    //      buried in the binary with no guard. Leave it to the runtime
+                    //      guard (RUN011). Dormant until `/` started emitting DIV_I64.
+                    if (lhs.intValue == INT64_MIN && rhs.intValue == -1)
+                        return false;
                     constants[resultName] = SIROperand::ConstantI64(lhs.intValue / rhs.intValue);
                     return true;
                 case SIROpcode::FLOOR_DIV_I64:
@@ -351,6 +362,10 @@ namespace Sad
                         return true;
                     }
                     if (rhs.intValue == 0)
+                        return false;
+                    // (AR) والأرضيّةُ نظيرتُها في الفيض — ثغرةٌ كامنةٌ تُسدّ هنا كذلك.
+                    // (EN) Floor division overflows identically — latent hole sealed here too.
+                    if (lhs.intValue == INT64_MIN && rhs.intValue == -1)
                         return false;
                     int64_t q = lhs.intValue / rhs.intValue;
                     if ((lhs.intValue ^ rhs.intValue) < 0 && lhs.intValue % rhs.intValue != 0)

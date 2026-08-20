@@ -960,18 +960,25 @@ namespace Sad
                                     Sad::Compiler::kDivZeroRun001IntMsg, "dyn.idiv.dz");
                 fRes = b.CreateFDiv(lD, rD, "dyn.fdiv");
                 iRes = b.CreateSDiv(lI, safeRI, "dyn.idiv");
-                llvm::Value *rem = b.CreateSRem(lI, safeRI, "dyn.div.rem");
-                llvm::Value *inexact = b.CreateICmpNE(
-                    rem, llvm::ConstantInt::get(i64, 0), "dyn.div.inexact");
-                // (AR) INT64_MIN / -1 يفيض i64 ⇒ المفسّر (المرجع) يرقّيه إلى عشريّ
-                //      (-(double)INT64_MIN = 9223372036854775808.0). fRes = fdiv(lD,rD) يحسبه
-                //      أصلًا؛ نضمّ minOverflow لوسم النتيجة عشريّةً بدل إرجاع INT64_MIN صحيحًا.
-                // (EN) INT64_MIN / -1 overflows i64 ⇒ the interpreter (reference) promotes it
-                //      to a float (-(double)INT64_MIN = 9223372036854775808.0). fRes = fdiv(lD,rD)
-                //      already yields it; OR in minOverflow to tag the result float instead of
-                //      returning the wrapped integer INT64_MIN.
-                isFloatRes = b.CreateOr(b.CreateOr(eitherF, inexact, "dyn.div.isf0"),
-                                        minOverflow, "dyn.div.isf");
+                // (AR) 🔑 `/` صارت قسمةً صحيحةً باقتطاعٍ نحو الصفر (كـC): النتيجةُ صحيحةٌ
+                //      ما لم يكن أحدُ المعاملَين عشريًّا. فسقطَ فحصُ الباقي (srem) ووسمُه
+                //      النتيجةَ عشريّةً عند 7/2 — وهو الفحصُ الذي كان يجعل **نوعَ** النتيجة
+                //      حقيقةَ زمنِ تشغيل. و`isFloatRes` تبقى `eitherF` كما هُيّئت.
+                // (EN) `/` is now C-style truncating integer division: the result is an
+                //      integer unless an operand is a float. The remainder test that tagged
+                //      7/2 as float is gone — it was what made the result KIND a runtime fact.
+                // (AR) وفيضُ INT64_MIN / -1 على الفرعِ الصحيحِ يُرمى RUN011 بدلَ ترقيتِه إلى
+                //      عشريّ: الترقيةُ تُعيد النوعَ إلى زمنِ التشغيل، وهي ما أُزيل هنا.
+                //      ويُقيَّد بـ`!eitherF` لأنّ lI على الفرعِ العشريّ حمولةٌ مفكوكةٌ قد
+                //      تصادف القيمتَين بلا أن تكون قسمةً صحيحةً أصلًا.
+                // (EN) INT64_MIN / -1 on the integer branch throws RUN011 instead of being
+                //      promoted; gated on !eitherF because lI on the float branch is an
+                //      unpacked payload that could coincidentally match.
+                emitDynDivZeroGuard(
+                    cg,
+                    b.CreateAnd(b.CreateNot(eitherF, "dyn.idiv.notf"), minOverflow,
+                                "dyn.idiv.ovfc"),
+                    lI, Sad::Compiler::kDivOverflowRun011IntMsg, "dyn.idiv.ovf");
                 break;
             }
             case SIROpcode::MOD_I64:
