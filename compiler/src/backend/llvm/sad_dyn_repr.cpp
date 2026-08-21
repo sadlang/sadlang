@@ -161,6 +161,17 @@ namespace Sad
                     {
                         if (op.dataType == SadTypeKind::Any)
                             return true;
+                        // (AR) SEM045 (دَين الخانة المجرَّدة): ثابتُ الفراغِ (ConstantVoid) لا
+                        //      يُمثَّل إلّا في خانةِ %SadDyn — وسمُ Void لا نظيرَ له في خانةٍ
+                        //      خامٍ i64، فحمولتُه الصفريّةُ تُقرأ رقمًا كاذبًا. يُقصَر على
+                        //      CONSTANT عمدًا: معاملُ LABEL يحمل dataType=Void وليس قيمةً.
+                        // (EN) SEM045 (bare-slot debt): the Void constant is representable only
+                        //      in a %SadDyn slot — a raw i64 slot has no Void tag, so its zero
+                        //      payload reads back as a lying number. Restricted to CONSTANT on
+                        //      purpose: LABEL operands carry dataType=Void without being values.
+                        if (op.dataType == SadTypeKind::Void &&
+                            op.type == SIROperandType::CONSTANT)
+                            return true;
                         if (op.type != SIROperandType::REGISTER)
                             return false;
                         return dynRegs.count(op.name) != 0 || isDynSlotName(op.name);

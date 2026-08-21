@@ -316,9 +316,26 @@ namespace Sad
 
                     // (AR) تمرير القيمة الافتراضية عند إضافة الحقل
                     // (EN) Pass default value when adding field
-                    classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic, defaultValue,
-                                        deferredConstructClass, deferredConstructLine,
-                                        deferredConstructColumn);
+                    // (AR) SEM045 (حقول الأصناف): التصنيفُ المُصرَّح يُدوَّن ليقرأه حارسُ
+                    //      «الفراغُ لا يعبر إلى خانةٍ مصنَّفة» في إسناد الأعضاء —
+                    //      `type` يُمرَّر nullptr أعلاه فلا طريقَ آخرَ للنوع.
+                    //      ⚠️ الملءُ مشروطٌ بنجاح addField: عند فشلِه (اسمٌ مكرَّر)
+                    //      يمشي findField سلسلةَ الوراثة فيطمسُ تصنيفَ حقلِ **الأب**
+                    //      (رصدُ مراجعة الجودة).
+                    // (EN) SEM045 (class fields): record the declared kind for the
+                    //      member-assign Void guard — `type` is nullptr above, so no
+                    //      other route carries it. Gated on addField succeeding: on a
+                    //      duplicate name findField walks the inheritance chain and
+                    //      would clobber the PARENT's field kind (quality review).
+                    if (classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic, defaultValue,
+                                            deferredConstructClass, deferredConstructLine,
+                                            deferredConstructColumn))
+                    {
+                        if (Data::ClassField *addedField = classType->findField(fieldDecl->name))
+                        {
+                            addedField->declaredKind = fieldDecl->type;
+                        }
+                    }
 
                     // Initialize static fields with their values
                     if (fieldDecl->isStatic)
@@ -769,9 +786,22 @@ namespace Sad
 
                 // (AR) تمرير القيمة الافتراضية عند إضافة الحقل
                 // (EN) Pass default value when adding field
-                classType->addField(field->name, nullptr, vis, field->isStatic, defaultValue,
-                                    deferredConstructClass, deferredConstructLine,
-                                    deferredConstructColumn);
+                // (AR) SEM045: نظيرُ موضعِ التسجيل الأوّل — التصنيفُ المُصرَّح يُدوَّن هنا
+                //      أيضًا وإلّا بقيت حقولُ هذا المسارِ عمياءَ عن الحارس (درسُ
+                //      «الرقعة تسدّ في ملفٍّ وتترك الأشقاء»). الملءُ مشروطٌ بنجاح
+                //      addField (انظر الموضعَ الأوّل).
+                // (EN) SEM045: twin of the first registration site — record here too or
+                //      this path's fields stay invisible to the guard. Gated on
+                //      addField succeeding (see the first site).
+                if (classType->addField(field->name, nullptr, vis, field->isStatic, defaultValue,
+                                        deferredConstructClass, deferredConstructLine,
+                                        deferredConstructColumn))
+                {
+                    if (Data::ClassField *addedField = classType->findField(field->name))
+                    {
+                        addedField->declaredKind = field->type;
+                    }
+                }
 
                 if (field->isStatic)
                 {

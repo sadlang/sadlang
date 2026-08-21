@@ -920,7 +920,23 @@ namespace Sad
                     if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(indexAssignExpr->object.get()))
                     {
                         VariableInfo *mapVar = b_.lookupVariable(varExpr->name);
-                        if (mapVar && valResult.type != SadTypeKind::Void)
+                        // (AR) SEM045 (الكتابة المفهرسة): قيمةٌ «فراغٌ» (ناتجُ دالّةٍ بلا
+                        //      قيمة) تُخزَّن بوسم Void — فتنقلب القراءةُ إلى المسارِ
+                        //      الموسومِ (Any) وإلّا قرأت الخانةَ خامًا فطبعت صفرًا
+                        //      كاذبًا والمرجعُ «لاشيء» (مقيس). الشرطُ != Void أدناه
+                        //      يستثني الفراغَ من ترقيةِ النوعِ عمدًا لعلّةٍ أخرى، فهذه
+                        //      الذراعُ المستقلّة تتولّاه.
+                        // (EN) SEM045 (indexed writes): a Void value (value-less call)
+                        //      is stored under the Void tag — reads must switch to the
+                        //      tagged (Any) path, else the raw read prints a lying 0
+                        //      where the reference says «لاشيء» (measured). The != Void
+                        //      condition below deliberately excludes Void for another
+                        //      reason; this separate arm handles it.
+                        if (mapVar && valResult.type == SadTypeKind::Void)
+                        {
+                            mapVar->elementType = SadTypeKind::Any;
+                        }
+                        else if (mapVar)
                         {
                             if (mapVar->elementType == SadTypeKind::Void)
                                 mapVar->elementType = valResult.type;
@@ -977,7 +993,13 @@ namespace Sad
 
                     // (AR) تخزين مطبوع: نُرسل القيمة كـ i64 مع علامة النوع
                     // (EN) Typed storage: send value as i64 with type tag
-                    SIROperand valOp = SIROperand::Register(valResult.registerName, valResult.type);
+                    // (AR) SEM045: سجلُّ الفراغِ لا يقابله شيءٌ في LLVM — ثابتُ الفراغِ
+                    //      (حمولة 0) مع وسم kMapValueTagVoid القائم في الخلفيّة.
+                    // (EN) SEM045: a Void register has no LLVM value — use the Void
+                    //      constant (payload 0) with the backend's existing Void tag.
+                    SIROperand valOp = (valResult.type == SadTypeKind::Void)
+                                           ? SIROperand::ConstantVoid()
+                                           : SIROperand::Register(valResult.registerName, valResult.type);
 
                     SIRInstruction setInst;
                     setInst.opcode = SIROpcode::CALL;
@@ -1016,7 +1038,17 @@ namespace Sad
                 arrSetOp.elementType = objResult.elementType;
                 storeInst.operands.push_back(arrSetOp);
                 storeInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
-                storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+                // (AR) SEM045 (الكتابة المفهرسة في مصفوفة): «فراغٌ» يُخزَّن ثابتَ فراغٍ
+                //      (سجلُّه بلا قيمةِ LLVM) — التمثيلُ الموسومُ يتطلّب عناصرَ معلَّبة،
+                //      فحدُّ المصفوفةِ المتجانسةِ (عناصرُ خام) يبقى على حاله المقيس.
+                // (EN) SEM045 (array indexed write): Void is stored as the Void constant
+                //      (its register has no LLVM value) — the tagged representation
+                //      needs boxed elements, so the homogeneous-array (raw slots) limit
+                //      stays as measured.
+                storeInst.operands.push_back(
+                    (valResult.type == SadTypeKind::Void)
+                        ? SIROperand::ConstantVoid()
+                        : SIROperand::Register(valResult.registerName, valResult.type));
                 storeInst.comment = "array element set";
 
                 if (b_.currentBlock_)

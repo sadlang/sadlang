@@ -238,6 +238,16 @@ namespace Sad
                             }
                         }
                     }
+                    else if (valueResult.type == SadTypeKind::Void)
+                    {
+                        // (AR) SEM045 (دَين الخانة المجرَّدة): إسنادُ ناتجِ دالّةٍ بلا قيمةٍ —
+                        //      سجلُّ الفراغِ لا يقابله شيءٌ في LLVM، فيُخزَّن ثابتُ الفراغِ
+                        //      وتُوسَم الخانةُ الديناميّةُ Void (نظيرُ مسارِ التصريح).
+                        // (EN) SEM045 (bare-slot debt): assigning a value-less call's result —
+                        //      the Void register has no LLVM value; store the Void constant so
+                        //      the dynamic slot is tagged Void (mirror of the declaration path).
+                        valueOp = SIROperand::ConstantVoid();
+                    }
                     else
                     {
                         valueOp.type = SIROperandType::REGISTER;
@@ -295,6 +305,19 @@ namespace Sad
                         valueResult.type != varInfo->type)
                     {
                         varInfo->type = valueResult.type;
+                    }
+                    // (AR) SEM045 (دَين الخانة المجرَّدة): إسنادُ فراغٍ يجعل الخانةَ ديناميّةً —
+                    //      بلا هذا يبقى النوعُ السابقُ (رقمًا مثلًا) فتقرأ الطباعةُ حمولةَ
+                    //      الفراغِ صفرًا كاذبًا بدل «لاشيء» (مقيس). الشرطُ أعلاه يستثني
+                    //      Void عمدًا لعلّةِ elementType، فالتحويلُ إلى Any هنا لا هناك.
+                    // (EN) SEM045 (bare-slot debt): a Void assignment makes the slot dynamic —
+                    //      otherwise the stale type (e.g. Integer) makes print read the Void
+                    //      payload as a lying 0 instead of «لاشيء» (measured). The condition
+                    //      above excludes Void for elementType reasons; the Any switch lives here.
+                    else if (valueResult.type == SadTypeKind::Void &&
+                             varInfo->type != SadTypeKind::Any)
+                    {
+                        varInfo->type = SadTypeKind::Any;
                     }
 
                     // (AR) حدّث وسم «مرجع دالّة مولّدة» عند إعادة الإسناد (بلا شرط، ليُصفَّر
@@ -652,7 +675,14 @@ namespace Sad
                     // (EN) Infer type from expression if type is unknown
                     if (needsTypeInference)
                     {
-                        varType = initResult.type;
+                        // (AR) SEM045 (دَين الخانة المجرَّدة): الاستنتاجُ يمرّ بسلطةِ الخانةِ
+                        //      نفسِها — مُهيِّئٌ «فراغٌ» (نداءُ دالّةٍ بلا قيمة) ⇒ خانةٌ
+                        //      ديناميّةٌ Any لا خانةُ Void (عقد ISSUE-138 المقيس).
+                        // (EN) SEM045 (bare-slot debt): inference goes through the storage
+                        //      authority — a Void initializer (value-less call) ⇒ a dynamic
+                        //      Any slot, never a Void slot (measured ISSUE-138 contract).
+                        varType = b_.resolveBareSlotStorageKind(
+                            varDecl->type, /*hasInitializer=*/true, initResult.type);
                         varInfo.type = varType;
 
                         // ================================================================
@@ -953,6 +983,19 @@ namespace Sad
                             storeInst.operands.push_back(SIROperand::Register(initResult.registerName, initResult.type));
                             break;
                         }
+                    }
+                    else if (initResult.type == SadTypeKind::Void)
+                    {
+                        // (AR) SEM045 (دَين الخانة المجرَّدة): نداءٌ بلا قيمةٍ لا يملك سجلًّا
+                        //      يُقرأ — سجلُّه لا يقابله شيءٌ في LLVM. النداءُ نفسُه صدر أعلاه
+                        //      (أثرُه الجانبيُّ باقٍ)، والمخزونُ ثابتُ الفراغِ فتُوسَم الخانةُ
+                        //      الديناميّةُ Void — فتطبع «لاشيء» و«نوع()» فراغًا كالمفسّر.
+                        // (EN) SEM045 (bare-slot debt): a value-less call has no readable
+                        //      result register in LLVM. The call itself was emitted above
+                        //      (side effect preserved); store the Void constant so the
+                        //      dynamic slot is tagged Void — printing «لاشيء» and نوع()
+                        //      «فراغ», matching the interpreter.
+                        storeInst.operands.push_back(SIROperand::ConstantVoid());
                     }
                     else
                     {

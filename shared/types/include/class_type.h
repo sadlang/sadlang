@@ -67,6 +67,23 @@ namespace Sad
             bool isStatic;              ///< (AR) هل ثابتة؟ / (EN) is static?
 
             // ──────────────────────────────────────────────────────────────
+            // (AR) SEM045 (عقد الغياب — حقول الأصناف): تصنيفُ الحقلِ المُصرَّح
+            //      («رقم قيمة» ⇒ Integer). قِيس أنّ `type` أعلاه يُمرَّر nullptr
+            //      في **كلِّ** مواضعِ التسجيل، فالنوعُ المُصرَّح لا يبلغ زمنَ
+            //      التشغيل أصلًا — وحارسُ «الفراغُ لا يعبر إلى خانةٍ مصنَّفة»
+            //      يحتاجه. يُملأ بعد addField في مواضعِ التسجيل (لا تغييرَ
+            //      لتوقيع addField)؛ Unknown = حقلٌ مجرَّدٌ (خانةٌ ديناميّة).
+            // (EN) SEM045 (absence contract — class fields): the field's DECLARED
+            //      kind («رقم قيمة» ⇒ Integer). Measured: `type` above is passed
+            //      nullptr at every registration site, so the declared type never
+            //      reaches runtime — and the "Void must not cross into a typed
+            //      slot" guard needs it. Populated after addField at registration
+            //      sites (no addField signature change); Unknown = a bare
+            //      (dynamic) field.
+            // ──────────────────────────────────────────────────────────────
+            Sad::Types::SadTypeKind declaredKind = Sad::Types::SadTypeKind::Unknown;
+
+            // ──────────────────────────────────────────────────────────────
             // (AR) 🔑 مُهيّئٌ يُقيَّم **عند كلِّ إنشاء** لا مرّةً عند تصريحِ الصنف.
             //      `defaultValue` قيمةٌ مُقيَّمةٌ سلفًا تُستنسَخ لكلِّ كائن، وذلك
             //      يكفي للقيمِ البسيطة. أمّا حقلٌ نوعُه صنفٌ فقيمتُه كائنٌ،

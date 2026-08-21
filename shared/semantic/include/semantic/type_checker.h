@@ -452,6 +452,31 @@ namespace Sad
             std::unordered_set<std::string> userClassNames_;
 
             // ==================================================================
+            // (AR) SEM045 (حقول الأصناف): تصنيفُ كلِّ حقلٍ مُصرَّحٍ — صنف ← (حقل ←
+            //      SadTypeKind). قِيس أنّ StructRegistry **لا يملؤه أحد** (لا نداءَ
+            //      لـregisterStruct خارج بانيه الميّت)، فقراءةُ أنواعِ الحقول منه
+            //      شرطٌ لا يصدق أبدًا — «أخضر لأنّ الشرط لا يمكن أن يكون صادقًا».
+            //      هذا الجدولُ يُملأ من تصريحِ الصنفِ نفسِه في المسارَين
+            //      (ClassDeclStmt وClassDecl) ويقرؤه حارسُ إسنادِ الأعضاء.
+            // (EN) SEM045 (class fields): declared kind of every field — class →
+            //      (field → SadTypeKind). Measured: StructRegistry is NEVER
+            //      populated (no registerStruct call outside its dead builder), so
+            //      reading field types from it is a condition that can never hold.
+            //      Filled from the class declaration itself on BOTH AST shapes and
+            //      read by the member-assign Void guard.
+            // ==================================================================
+            std::unordered_map<std::string,
+                               std::unordered_map<std::string, Types::SadTypeKind>>
+                classFieldKinds_;
+
+            // (AR) اسمُ الصنفِ الجاري فحصُ أعضائه — لحسم `هذا.حقل`؛
+            //      currentFunction_ داخل الطريقةِ اسمُ الطريقةِ لا الصنفِ (مقيس).
+            // (EN) Name of the class whose members are being checked — resolves
+            //      `this.field`; inside a method currentFunction_ is the METHOD
+            //      name, not the class (measured).
+            std::string currentCheckedClassName_;
+
+            // ==================================================================
             // (AR) [Phase 5c] تتبّع أسماء أصناف المتغيرات للاستدلال النوعي
             //      مكدس متوازٍ مع scopeStack_ — كل نطاق يحوي خريطة
             //      متغير → اسم الصنف. يُملأ من VarDeclStmt حين تكون

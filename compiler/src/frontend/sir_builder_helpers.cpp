@@ -533,8 +533,10 @@ namespace Sad
             }
 
             // ================================================================
-            // (AR) خانةٌ بلا نوعٍ وبلا تهيئة — بابُ ISSUE-138 الواحد
-            // (EN) Typeless, initializer-less slot — the single ISSUE-138 door
+            // (AR) بابُ الخانةِ الديناميّةِ الواحد (ISSUE-138 + SEM045): خانةٌ بلا
+            //      نوعٍ — بلا تهيئةٍ، أو بمُهيِّئٍ استُنتج «فراغًا»
+            // (EN) The single dynamic-slot door (ISSUE-138 + SEM045): a typeless
+            //      slot — with no initializer, or with a Void-inferred one
             // ================================================================
             SadTypeKind SIRBuilder::resolveBareSlotStorageKind(
                 const Sad::Types::SadTypeKind &declaredKind,
@@ -546,6 +548,24 @@ namespace Sad
                 // (EN) Both clauses are required: Unknown WITH an initializer really is
                 //      overwritten by inference, so it is left alone.
                 if (declaredKind == Types::SadTypeKind::Unknown && !hasInitializer)
+                {
+                    return SadTypeKind::Any;
+                }
+                // ════════════════════════════════════════════════════════════════
+                // (AR) SEM045 (دَين الخانة المجرَّدة): مُهيِّئٌ استُنتج «فراغًا» — نداءُ
+                //      دالّةٍ لا تُرجِع قيمةً — لا يصلح نوعَ خانةٍ ساكنًا: خانةُ Void
+                //      عامّةً تُفجّر LLVM («null constant»)، ومحلّيّةً تُقرأ صفرًا كاذبًا.
+                //      والمفسّرُ (المقيس) يجعل الخانةَ ديناميّةً تحمل الفراغَ:
+                //      «نوع()» = فراغ، الطباعةُ «لاشيء»، و`== لاشيء` خطأ — وهي بعينِها
+                //      دلالةُ خانةِ ISSUE-138 الديناميّة، فتُوسَم Any (%SadDyn).
+                // (EN) SEM045 (bare-slot debt): an initializer inferred Void — a call to a
+                //      value-less function — cannot type a slot statically: a Void GLOBAL
+                //      trips LLVM's "null constant" UNREACHABLE and a Void LOCAL reads back
+                //      a lying zero. The measured interpreter makes the slot dynamic,
+                //      holding Void (نوع()=فراغ, prints «لاشيء», ==null false) — exactly
+                //      the ISSUE-138 dynamic-slot contract, so it becomes Any (%SadDyn).
+                if (declaredKind == Types::SadTypeKind::Unknown &&
+                    resolvedKind == SadTypeKind::Void)
                 {
                     return SadTypeKind::Any;
                 }

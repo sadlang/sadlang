@@ -649,6 +649,37 @@ namespace Sad
             // (EN) Register class name locally for type inference fallback.
             userClassNames_.insert(stmt.name);
 
+            // (AR) SEM045 (حقول الأصناف): دوّن تصنيفَ الحقول وحدّد الصنفَ الجاري
+            //      فحصُه — يقرؤهما حارسُ «الفراغُ لا يعبر إلى حقلٍ مصنَّف» في
+            //      visitMemberAssignExpr. الاستعادةُ بعد الأعضاء تحفظ التداخل.
+            // (EN) SEM045 (class fields): record field kinds and the class under
+            //      check — read by the member-assign Void guard. Restored after
+            //      the members so nesting stays correct.
+            std::string prevCheckedClass = currentCheckedClassName_;
+            currentCheckedClassName_ = stmt.name;
+            for (auto &field : stmt.fields)
+            {
+                if (field)
+                    classFieldKinds_[stmt.name][field->name] = field->type;
+            }
+            // (AR) الحقولُ الموروثة تدخل الجدولَ أيضًا (insert لا يطمس تظليلَ
+            //      الابن) — وإلّا أفلت `هذا.حقل_موروث = فراغية()` من الحارس
+            //      الساكن (رصدُ مراجعة الجودة). الأبُ غيرُ المُصرَّح بعدُ حدٌّ
+            //      طبيعيّ: جدولُه فارغٌ فلا شيءَ يُدمَج.
+            // (EN) Inherited fields enter the table too (insert never clobbers a
+            //      child override) — else `this.inheritedField = void()` escapes
+            //      the static guard (quality review). A base declared later is a
+            //      natural limit: its table is empty, nothing merges.
+            for (const auto &baseName : stmt.baseClasses)
+            {
+                auto baseIt = classFieldKinds_.find(baseName);
+                if (baseIt != classFieldKinds_.end())
+                {
+                    classFieldKinds_[stmt.name].insert(baseIt->second.begin(),
+                                                       baseIt->second.end());
+                }
+            }
+
             enterScope();
 
             // تسجيل الحقول / Register fields
@@ -678,6 +709,7 @@ namespace Sad
             }
 
             exitScope();
+            currentCheckedClassName_ = prevCheckedClass;
         }
 
         // ============================================================================
@@ -780,6 +812,31 @@ namespace Sad
                                            ? registry_.internPrimitiveType(SadTypeKind::Class)
                                            : registry_.getUnknownType());
 
+            // (AR) SEM045 (حقول الأصناف): الشقيقُ الثاني لتصريحِ الصنف — يُدوَّن هنا
+            //      أيضًا وإلّا بقيت حقولُ هذا الشكلِ خارجَ الحارس (درسُ الأشقاء).
+            // (EN) SEM045 (class fields): the second class-declaration shape —
+            //      record here too or its fields stay outside the guard.
+            std::string prevCheckedClass = currentCheckedClassName_;
+            currentCheckedClassName_ = decl.name;
+            for (auto &member : decl.members)
+            {
+                if (auto *fieldDecl = dynamic_cast<AST::FieldDecl *>(member.get()))
+                {
+                    classFieldKinds_[decl.name][fieldDecl->name] = fieldDecl->type;
+                }
+            }
+            // (AR) الحقولُ الموروثة — نظيرُ الشكل الأوّل (insert يحفظ تظليلَ الابن).
+            // (EN) Inherited fields — twin of the first shape (insert keeps overrides).
+            for (const auto &baseName : decl.superclasses)
+            {
+                auto baseIt = classFieldKinds_.find(baseName);
+                if (baseIt != classFieldKinds_.end())
+                {
+                    classFieldKinds_[decl.name].insert(baseIt->second.begin(),
+                                                       baseIt->second.end());
+                }
+            }
+
             // فحص الأعضاء / Check members
             for (auto &member : decl.members)
             {
@@ -788,6 +845,7 @@ namespace Sad
             }
 
             exitScope();
+            currentCheckedClassName_ = prevCheckedClass;
         }
 
         void TypeChecker::visitFieldDecl(AST::FieldDecl &decl)

@@ -123,9 +123,19 @@ namespace Sad
                         templateConstructLine = newObjectInitializer->position.line;
                         templateConstructColumn = newObjectInitializer->position.column;
                     }
-                    classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic,
-                                        templateFieldDefault, templateConstructClass,
-                                        templateConstructLine, templateConstructColumn);
+                    // (AR) SEM045 (حقول الأصناف): الشقيقُ الرابع — حقولُ الأصناف
+                    //      القالبيّة تُدوَّن موافقةً لأشقائها (مشروطةً بنجاح addField).
+                    // (EN) SEM045 (class fields): the fourth sibling — template-class
+                    //      fields recorded like their siblings (gated on addField).
+                    if (classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic,
+                                            templateFieldDefault, templateConstructClass,
+                                            templateConstructLine, templateConstructColumn))
+                    {
+                        if (Data::ClassField *addedField = classType->findField(fieldDecl->name))
+                        {
+                            addedField->declaredKind = fieldDecl->type;
+                        }
+                    }
                 }
                 else if (auto *methodDecl = dynamic_cast<MethodDecl *>(member.get()))
                 {

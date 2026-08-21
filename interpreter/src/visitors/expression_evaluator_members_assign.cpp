@@ -32,6 +32,8 @@
 #include <set>
 
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "null_safety/null_safety_analyzer.h" // (AR) محور الصرامة D6 لحارس SEM045 / (EN) D6 strictness axis for the SEM045 guard
+#include "sad_type_utils.h"                   // (AR) kindToArabic لرسالة SEM045 / (EN) kindToArabic for the SEM045 message
 namespace Sad
 {
     namespace Interpreter
@@ -288,6 +290,56 @@ namespace Sad
             // (AR) معالجة الحقل العادي
             // (EN) Handle regular field
             checkMemberAccess(field->visibility, node.member, classType);
+
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) SEM045 (RFC عقد الغياب — حقول الأصناف): «فراغ» لا يعبر إلى
+            //      حقلٍ مصنَّف («رقم قيمة») — نفس عقد خانات التصريح وإعادة
+            //      الإسناد والمعاملات، على محور الصرامة D6 نفسِه. الحقلُ
+            //      المجرَّد (declaredKind=Unknown) خانةٌ ديناميّةٌ تقبل الفراغَ
+            //      كما تقبله الخانةُ المجرَّدة — لا حراسةَ عليه.
+            // (EN) SEM045 (absence-contract RFC — class fields): Void must not
+            //      cross into a TYPED field — same D6 contract as the
+            //      declaration/reassignment/parameter guards. A bare field
+            //      (declaredKind=Unknown) is a dynamic slot and accepts Void
+            //      like any bare slot — unguarded on purpose.
+            // ═══════════════════════════════════════════════════════════════
+            if (newValue.getKind() == Types::SadTypeKind::Void &&
+                field->declaredKind != Types::SadTypeKind::Unknown &&
+                field->declaredKind != Types::SadTypeKind::Any &&
+                field->declaredKind != Types::SadTypeKind::Void &&
+                field->declaredKind != Types::SadTypeKind::Null)
+            {
+                auto strictness = Sad::NullSafety::strictnessFromOwnershipMode(
+                    statementExecutor_.getMemoryPolicy().ownershipMode);
+                if (strictness != Sad::NullSafety::Strictness::Ignore)
+                {
+                    std::map<std::string, std::string> ph{
+                        {"name", node.member},
+                        {"type_name", Sad::Types::kindToArabic(field->declaredKind)},
+                        {"void_word", "فراغ"}};
+                    if (strictness == Sad::NullSafety::Strictness::Fatal)
+                    {
+                        std::cerr << "[خطأ نوع SEM045] سطر " << node.position.line
+                                  << ": الخانة '" << node.member
+                                  << "' أُسند إليها 'فراغ'" << std::endl;
+                        Sad::Errors::throwRuntime(
+                            Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
+                            node.position, std::move(ph));
+                    }
+                    std::cerr << "[تحذير نوع SEM045] سطر " << node.position.line
+                              << ": الخانة '" << node.member
+                              << "' أُسند إليها 'فراغ'" << std::endl;
+                    Sad::Errors::RenderContext rcV(
+                        Sad::Errors::SourceLocation("", node.position.line,
+                                                    node.position.column),
+                        std::move(ph));
+                    Sad::Errors::ErrorManager::getInstance().reportWarningFromCatalog(
+                        Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
+                        Sad::Errors::SourceLocation("", node.position.line,
+                                                    node.position.column),
+                        rcV);
+                }
+            }
 
             if (isRealObject && objPtr)
             {
