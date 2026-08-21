@@ -172,7 +172,18 @@ namespace Sad
         static ValPtr makeNum(double v) { return std::make_shared<Data::Value>(v); }
         static ValPtr makeStr(const std::string &s) { return std::make_shared<Data::Value>(s); }
         static ValPtr makeBool(bool b) { return std::make_shared<Data::Value>(b); }
-        static ValPtr makeNull() { return std::make_shared<Data::Value>(); }
+        // (AR) 🔑 «فراغٌ» باسمِه الصادقِ لا «عدم»: هذه القيمةُ وسمُها Void، وهي
+        //      عائدُ «بحثٍ بلا مطابقة» (dht_بحث، dns_حل، استرجاع_ملف، cdn_محتوى)
+        //      — وهو بنصِّ مصدرِ الحقيقةِ (type.void) فراغٌ لا عدم، وبعُرفِ وحداتِ
+        //      الخرائطِ الخمسِ (makeVoidVal). كان الاسمُ makeNull فيوهم قارئَه
+        //      أنّ العائدَ يساوي «لاشيء» بالمقارنة — والحقُّ أنّ فراغ == لاشيء
+        //      «خطأ»، والفحصُ الصادقُ صِدقيّةُ القيمةِ أو نوع().
+        // (EN) Void under its honest name, not "null": this value's tag is Void —
+        //      the return of a no-match lookup, which the SoT (type.void) and the
+        //      five maps modules (makeVoidVal) both define as void, not null. The
+        //      old name makeNull misled readers into expecting `== لاشيء` to hold;
+        //      it does not (Void == Null is false). Test truthiness or نوع().
+        static ValPtr makeVoidVal() { return std::make_shared<Data::Value>(); }
 
         static std::string nodeIdToHex(const sad::net::NodeId &id)
         {
@@ -303,15 +314,15 @@ namespace Sad
                 };
             }
 
-            // ─── dht_بحث(عقدة، مفتاح_نص) → نص|لاشيء ──────────────────────
+            // ─── dht_بحث(عقدة، مفتاح_نص) → نص|فراغ ──────────────────────
             {
                 auto f = [](const Args &args) -> ValPtr
                 {
                     if (args.size() < 2)
-                        return makeNull();
+                        return makeVoidVal();
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
                     if (!node)
-                        return makeNull();
+                        return makeVoidVal();
                     node->ensure_dht();
 
                     std::string key_str = args[1]->toString();
@@ -326,7 +337,7 @@ namespace Sad
                         auto &val = result.value.value();
                         return makeStr(std::string(val.data.begin(), val.data.end()));
                     }
-                    return makeNull();
+                    return makeVoidVal();
                 };
             }
 
@@ -359,15 +370,15 @@ namespace Sad
                 fm.registerBuiltinFunction(std::string(Bn::STORE_FILE), f); // تخزين_ملف
             }
 
-            // ─── استرجاع_ملف(عقدة، معرّف_hex) → نص|لاشيء ──────────────────
+            // ─── استرجاع_ملف(عقدة، معرّف_hex) → نص|فراغ ──────────────────
             {
                 auto f = [](const Args &args) -> ValPtr
                 {
                     if (args.size() < 2)
-                        return makeNull();
+                        return makeVoidVal();
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
                     if (!node)
-                        return makeNull();
+                        return makeVoidVal();
                     node->ensure_storage();
 
                     std::string id_hex = args[1]->toString();
@@ -378,7 +389,7 @@ namespace Sad
                     {
                         return makeStr(std::string(result.value.begin(), result.value.end()));
                     }
-                    return makeNull();
+                    return makeVoidVal();
                 };
                 fm.registerBuiltinFunction(std::string(Bn::RETRIEVE_FILE), f); // استرجاع_ملف
             }
@@ -405,15 +416,15 @@ namespace Sad
                 };
             }
 
-            // ─── dns_حل(عقدة، اسم) → نص|لاشيء ───────────────────────────
+            // ─── dns_حل(عقدة، اسم) → نص|فراغ ───────────────────────────
             {
                 auto f = [](const Args &args) -> ValPtr
                 {
                     if (args.size() < 2)
-                        return makeNull();
+                        return makeVoidVal();
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
                     if (!node)
-                        return makeNull();
+                        return makeVoidVal();
                     node->ensure_dns();
 
                     std::string name = args[1]->toString();
@@ -422,7 +433,7 @@ namespace Sad
                     {
                         return makeStr(records[0].value);
                     }
-                    return makeNull();
+                    return makeVoidVal();
                 };
             }
 
@@ -635,15 +646,15 @@ namespace Sad
                 };
             }
 
-            // ─── cdn_محتوى(عقدة، معرّف_hex) → نص|لاشيء ───────────────────
+            // ─── cdn_محتوى(عقدة، معرّف_hex) → نص|فراغ ───────────────────
             {
                 auto f = [](const Args &args) -> ValPtr
                 {
                     if (args.size() < 2)
-                        return makeNull();
+                        return makeVoidVal();
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
                     if (!node)
-                        return makeNull();
+                        return makeVoidVal();
                     node->ensure_cdn();
 
                     std::string id_hex = args[1]->toString();
@@ -654,7 +665,7 @@ namespace Sad
                     {
                         return makeStr(std::string(result.value.begin(), result.value.end()));
                     }
-                    return makeNull();
+                    return makeVoidVal();
                 };
             }
 
