@@ -19,6 +19,7 @@
 #include "class_manager.h"
 #include "channel.h"
 #include "sad_type_system.h"
+#include "null_safety/null_safety_analyzer.h" // (AR) محور الصرامة D6 لحارس SEM045 / (EN) D6 strictness axis for the SEM045 guard
 #include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 #include <iostream>
 #include <sstream>
@@ -176,8 +177,77 @@ namespace Sad
                             Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, locN, wAr, wEn);
                     }
 
+                    // ═══════════════════════════════════════════════════════════
+                    // (AR) [SEM045 / RFC عقد الغياب — المرحلة أ] الفراغُ لا يعبر
+                    //      إلى خانةٍ مصنَّفة. قِيس (٢٠٢٦-٠٨-٢١) أنّ «متغير نص اسم =
+                    //      <فراغ>» كان يمضي بتحذيرٍ استشاريٍّ وexit=0 — جدارُ
+                    //      الأنواعِ مؤجَّلٌ إلى موضعِ الاستعمال. الدرجةُ تتبع محورَ
+                    //      الصرامةِ القائم (D6): إنتاج=إيقاف، تعلم=تحذير، جامع=صمت.
+                    //      والاختياريّةُ (Optional) **ليست** مستثناة: نطاقُها
+                    //      {T، عدم} ولا يسع فراغًا — لا بابَ خلفيًّا. الصرامةُ
+                    //      تُقرأ من سياسةِ الذاكرة (افتراضيّها Warnings) لا من
+                    //      OwnershipManager الذي افتراضيُّ عضوِه Strict ولا يُضبط
+                    //      إلا عند تمريرِ علمٍ — وإلا صار «بلا أعلام» = إنتاج.
+                    //      نظيرُ إعادةِ الإسناد: expression_evaluator_core.cpp
+                    //      (visitAssignExpr) — نفسُ العقدِ في المسارَين.
+                    // (EN) [SEM045 / absence-contract RFC, stage A] Void does not
+                    //      cross into a typed slot. Enforcement follows the D6
+                    //      strictness axis; optionals are NOT exempt. Strictness
+                    //      is read from the memory policy (default Warnings), not
+                    //      OwnershipManager whose member defaults to Strict.
+                    //      Reassignment peer: visitAssignExpr.
+                    // ═══════════════════════════════════════════════════════════
+                    bool voidCrossingHandled = false;
+                    if (value.getKind() == Types::SadTypeKind::Void &&
+                        node.type != Types::SadTypeKind::Any)
+                    {
+                        // (AR) لا استثناءَ آخر يلزم: الشرطُ الخارجيّ (السطر أعلاه)
+                        //      يستبعد Unknown، وخانةُ «فراغ» يرفضها SEM040 قبل الوصول.
+                        // (EN) No further exemption needed: the outer condition
+                        //      excludes Unknown; a Void slot is rejected by SEM040.
+                        voidCrossingHandled = true;
+                        auto strictness = Sad::NullSafety::strictnessFromOwnershipMode(
+                            memoryPolicy_.ownershipMode);
+                        if (strictness != Sad::NullSafety::Strictness::Ignore)
+                        {
+                            std::map<std::string, std::string> ph{
+                                {"name", node.name},
+                                {"type_name", node.sadType->arabicName()},
+                                {"void_word", "فراغ"}};
+                            if (strictness == Sad::NullSafety::Strictness::Fatal)
+                            {
+                                std::cerr << "[خطأ نوع SEM045] سطر "
+                                          << node.position.line
+                                          << ": الخانة '" << node.name
+                                          << "' أُسند إليها 'فراغ'" << std::endl;
+                                // (AR) يبلّغ الكتالوج ثم يرمي RuntimeAbort — فيتوقف
+                                //      التنفيذ موضعيًّا حتى داخل أجسام الدوال، لا عند
+                                //      فحصِ hasErrors في الحلقة العلوية فقط.
+                                // (EN) Reports from catalog then throws RuntimeAbort —
+                                //      stops locally even inside function bodies.
+                                Sad::Errors::throwRuntime(
+                                    Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
+                                    node.position, std::move(ph));
+                            }
+                            std::cerr << "[تحذير نوع SEM045] سطر "
+                                      << node.position.line
+                                      << ": الخانة '" << node.name
+                                      << "' أُسند إليها 'فراغ'" << std::endl;
+                            Sad::Errors::RenderContext rcV(
+                                Sad::Errors::SourceLocation(
+                                    "", node.position.line, node.position.column),
+                                std::move(ph));
+                            Sad::Errors::ErrorManager::getInstance().reportWarningFromCatalog(
+                                Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
+                                Sad::Errors::SourceLocation(
+                                    "", node.position.line, node.position.column),
+                                rcV);
+                        }
+                    }
+
                     auto valueType = Types::SadType::fromValueType(value.getType());
-                    if (valueType && !valueType->isAssignableTo(node.sadType.get()))
+                    if (!voidCrossingHandled && valueType &&
+                        !valueType->isAssignableTo(node.sadType.get()))
                     {
                         // (AR) تحذير: عدم توافق الأنواع
                         // (EN) Warning: type mismatch

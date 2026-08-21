@@ -23,6 +23,8 @@
 #include "ownership_manager.h"
 #include "runtime_throw.h"
 #include "user_thrown.h"
+#include "null_safety/null_safety_analyzer.h" // (AR) محور الصرامة D6 لحارس SEM045 / (EN) D6 strictness axis for the SEM045 guard
+#include "sad_type_utils.h"                   // (AR) kindToArabic لرسالة SEM045 / (EN) kindToArabic for SEM045 message
 #include "async_runtime.h" // (AR) نظام التنفيذ غير المتزامن / (EN) Async runtime system
 #include "suggestions.h"   // (AR) نظام الاقتراحات الذكية / (EN) Smart suggestion engine
 #include <atomic>
@@ -690,6 +692,61 @@ namespace Sad
                     value.getKind() == Types::SadTypeKind::Integer)
                 {
                     value = Data::Value(value.toInt64() & 0xFF);
+                }
+
+                // ═══════════════════════════════════════════════════════════
+                // (AR) [SEM045 / RFC عقد الغياب — المرحلة أ] الفراغُ لا يعبر إلى
+                //      خانةٍ مصنَّفة **عند إعادةِ الإسناد أيضًا** — الـRFC ينصّ:
+                //      «يشمل الإسنادَ عند التصريح وإعادةَ الإسناد». نظيرُ التصريح:
+                //      statement_executor.cpp (visitVarDeclStmt). hasDeclaredType
+                //      واجبٌ هنا: getDeclaredType يُرجع Integer محايدًا لغيرِ
+                //      المُصرَّح فيُفبرك حارسًا على خاناتٍ ديناميكية.
+                // (EN) [SEM045 / absence-contract RFC, stage A] Void must not cross
+                //      into a typed slot on REASSIGNMENT either. Declaration peer:
+                //      visitVarDeclStmt. hasDeclaredType is mandatory: the neutral
+                //      Integer fallback would fabricate a guard on dynamic slots.
+                // ═══════════════════════════════════════════════════════════
+                if (value.getKind() == Types::SadTypeKind::Void &&
+                    variableManager_.hasDeclaredType(node.name))
+                {
+                    auto declaredKind = variableManager_.getDeclaredType(node.name);
+                    if (declaredKind != Types::SadTypeKind::Any &&
+                        declaredKind != Types::SadTypeKind::Void &&
+                        declaredKind != Types::SadTypeKind::Unknown)
+                    {
+                        auto strictness = Sad::NullSafety::strictnessFromOwnershipMode(
+                            statementExecutor_.getMemoryPolicy().ownershipMode);
+                        if (strictness != Sad::NullSafety::Strictness::Ignore)
+                        {
+                            std::map<std::string, std::string> ph{
+                                {"name", node.name},
+                                {"type_name", Types::kindToArabic(declaredKind)},
+                                {"void_word", "فراغ"}};
+                            if (strictness == Sad::NullSafety::Strictness::Fatal)
+                            {
+                                std::cerr << "[خطأ نوع SEM045] سطر "
+                                          << node.position.line
+                                          << ": الخانة '" << node.name
+                                          << "' أُسند إليها 'فراغ'" << std::endl;
+                                Sad::Errors::throwRuntime(
+                                    Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
+                                    node.position, std::move(ph));
+                            }
+                            std::cerr << "[تحذير نوع SEM045] سطر "
+                                      << node.position.line
+                                      << ": الخانة '" << node.name
+                                      << "' أُسند إليها 'فراغ'" << std::endl;
+                            Sad::Errors::RenderContext rcV(
+                                Sad::Errors::SourceLocation(
+                                    "", node.position.line, node.position.column),
+                                std::move(ph));
+                            Sad::Errors::ErrorManager::getInstance().reportWarningFromCatalog(
+                                Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
+                                Sad::Errors::SourceLocation(
+                                    "", node.position.line, node.position.column),
+                                rcV);
+                        }
+                    }
                 }
 
                 // إسناد للمتغير الموجود / Assign to existing variable

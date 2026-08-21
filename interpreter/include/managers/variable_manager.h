@@ -206,6 +206,17 @@ namespace Sad
             Types::SadTypeKind getDeclaredType(const std::string &name) const;
 
             /**
+             * @brief (AR) هل سُجِّل نوعٌ مُصرَّح لهذا المتغير في نطاق قيمته؟
+             * @brief (EN) Was a declared type recorded for this variable in its value's scope?
+             *
+             * (AR) يميّز «مُصرَّحًا رقمًا» عن «غيرِ مُصرَّح» — getDeclaredType يُرجع
+             *      Integer محايدًا للحالتين معًا فلا يصلح وحده حارسًا (SEM045).
+             * (EN) Distinguishes «declared رقم» from «undeclared»; getDeclaredType
+             *      returns neutral Integer for both, so it alone cannot guard (SEM045).
+             */
+            bool hasDeclaredType(const std::string &name) const;
+
+            /**
              * @brief (AR) تعيين قيمة جديدة لمتغير موجود
              * @brief (EN) Assign new value to existing variable
              *

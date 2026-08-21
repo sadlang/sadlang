@@ -637,6 +637,19 @@ namespace Sad
             return Types::SadTypeKind::Integer;
         }
 
+        bool VariableManager::hasDeclaredType(const std::string &name) const
+        {
+            // (AR) نفسُ رباطِ نطاقِ القيمة الذي يعتمده getDeclaredType (فجوة التظليل).
+            // (EN) Same value-scope binding getDeclaredType relies on (shadowing gap).
+            Scope *scope = findVariableScope(name);
+            if (scope == nullptr)
+                return false;
+            auto scopeIt = declaredTypes_.find(scope);
+            if (scopeIt == declaredTypes_.end())
+                return false;
+            return scopeIt->second.find(name) != scopeIt->second.end();
+        }
+
         std::unordered_map<std::string, Value> VariableManager::captureVisibleVariables() const
         {
             // (AR) التقاط لقطة من جميع المتغيرات المرئية في سلسلة النطاقات

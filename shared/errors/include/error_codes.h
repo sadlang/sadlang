@@ -178,6 +178,7 @@ namespace Sad
             SEM_COMPILER_FIELD_TYPE_UNSUPPORTED, ///< SEM042: (AR) حقلٌ نوعُه صنفٌ لا يخفضه المترجّمُ بعد — رفضٌ صريحٌ بدل بناءٍ ينهار / (EN) class-typed field not lowered yet — explicit rejection instead of a crashing build
             SEM_OPTIONAL_CALL_RECEIVER_NOT_SIMPLE, ///< SEM043: (AR) الوصولُ الآمنُ بنداءِ طريقةٍ يلزمه مستقبِلٌ بسيطٌ — أثرٌ جانبيٌّ مضاعَفٌ لا يُرى في مخرَجٍ صحيح / (EN) safe method call needs a simple receiver — a duplicated side effect no correct output reveals
             SEM_ASM_ARCH_UNSUPPORTED,     ///< SEM044: (AR) كتلةُ «تجميع» على هدفٍ لا معجمَ لمعماريّتِه — رفضٌ صريحٌ بدل خفضٍ بمعجمِ معماريّةٍ أخرى / (EN) assembly block on a target whose architecture has no lexicon — explicit rejection instead of lowering with a foreign one
+            SEM_VOID_ASSIGNED_TO_TYPED_SLOT, ///< SEM045: (AR) «فراغ» أُسند إلى خانةٍ مصنّفة — غيابُ نتيجةٍ يعبر جدارَ الأنواع (RFC عقد الغياب، المرحلة أ) / (EN) Void assigned to a typed slot — an absent result crossing the type wall (absence-contract RFC, stage A)
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors
