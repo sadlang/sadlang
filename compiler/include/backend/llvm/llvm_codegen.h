@@ -427,6 +427,21 @@ namespace Sad
             ///      shadowing a global, since `dynGlobalSlots_` is bare-name-keyed module-wide.
             std::map<std::string, std::set<std::string>> funcLocalNames_;
 
+            /// (AR) SEM045 (أ٢): الخاناتُ المصرَّحُ نوعُها صراحةً لكلّ دالّة (منسوخة عن
+            ///      `SIRFunction::declaredTypedSlots`) — بها يميّز حارسُ STORE الخانةَ
+            ///      المعلنةَ (تُحرَس من «فراغ») من المستنتَجة (تقبله بحرّيّة). المفتاحُ
+            ///      اسمٌ مجرَّدٌ بلا بادئة %.
+            /// (EN) SEM045 (stage أ٢): explicitly-declared typed slots per function
+            ///      (copied from `SIRFunction::declaredTypedSlots`) — how the STORE
+            ///      guard tells a declared slot (guarded) from an inferred one (free).
+            std::map<std::string, std::map<std::string, Sad::Types::SadTypeKind>>
+                declaredTypedSlots_;
+
+            /// (AR) النوعُ المصرَّحُ للخانة في الدالّة، أو Unknown لغير المصرَّحة.
+            /// (EN) The slot's declared kind in funcName, or Unknown when not declared.
+            Sad::Types::SadTypeKind declaredSlotKind(const std::string &funcName,
+                                                     const std::string &slotName) const;
+
             /**
              * الحصول على الوحدة الحالية
              * Get current module
@@ -844,6 +859,26 @@ namespace Sad
              * @param mode (AR) صحيح لتفعيل الوضع المستقل / (EN) true to enable freestanding
              */
             void setFreestanding(bool mode) { freestanding_ = mode; }
+
+            /**
+             * (AR) SEM045 (RFC عقد الغياب — أ٢): درجة الحارس الزمنيّ «فراغ ⇒ خانة
+             *      مصنَّفة» قبل STORE. تُشتقّ في السائق من سياسة الذاكرة **زمنَ
+             *      التوليد** — لا عَلَمَ سياسةٍ في الكود المولَّد أصلًا. الافتراضيّ
+             *      (بلا أعلام) تحذيرٌ لا إيقاف — درسُ أ١ المقيس: قراءةُ الصرامة من
+             *      بنيةٍ افتراضيُّها Strict جعلت «بلا أعلام» إنتاجًا صامتًا.
+             * (EN) SEM045 (stage أ٢): strictness of the pre-STORE Void-crossing
+             *      guard, derived from the memory policy AT CODEGEN TIME (no policy
+             *      flag exists in generated code). Default is Warn, not Fatal — the
+             *      measured أ١ lesson about silent default tightening.
+             */
+            enum class VoidStoreGuard
+            {
+                None, ///< (AR) بلا حارس (نظير --جامع) / (EN) no guard (≈ --gc)
+                Warn, ///< (AR) تحذير ويستمرّ (الافتراضيّ، نظير --تعلم) / (EN) warn
+                Fatal ///< (AR) تشخيص وإيقاف موضعيّ (نظير --إنتاج) / (EN) fatal
+            };
+            void setVoidStoreGuard(VoidStoreGuard g) { voidStoreGuard_ = g; }
+            VoidStoreGuard voidStoreGuard() const { return voidStoreGuard_; }
 
             /**
              * (AR) نوعُ سجلّ الأغراض العامّة للهدف (i32 على i686 وi64 على x86_64).
@@ -1995,6 +2030,10 @@ namespace Sad
             CodeGenContext context_info_;
 
         private:
+            // (AR) SEM045 (أ٢): درجة حارس «فراغ ⇒ خانة مصنّفة» — انظر setVoidStoreGuard.
+            // (EN) SEM045 (stage أ٢): Void-crossing store-guard level.
+            VoidStoreGuard voidStoreGuard_ = VoidStoreGuard::Warn;
+
             // (AR) Phase 7 Step 1: مكوّن فرعي للعمليات الحسابية والمقارنات والتحويلات
             // (EN) Phase 7 Step 1: sub-codegen for arithmetic, comparisons & conversions
             std::unique_ptr<ArithmeticCodeGen> arith_;

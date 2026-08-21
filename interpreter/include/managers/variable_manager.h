@@ -216,6 +216,11 @@ namespace Sad
              */
             bool hasDeclaredType(const std::string &name) const;
 
+            /// (AR) SEM045: محوُ التصنيفِ المسجَّل عند إعادةِ تصريحٍ غيرِ مصنَّفة —
+            ///      انظر التعليق في التنفيذ.
+            /// (EN) SEM045: clear recorded typedness on an untyped re-declaration.
+            void clearDeclaredType(const std::string &name);
+
             /**
              * @brief (AR) تعيين قيمة جديدة لمتغير موجود
              * @brief (EN) Assign new value to existing variable

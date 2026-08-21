@@ -319,6 +319,17 @@ namespace Sad
                 {
                     variableManager_.setDeclaredType(node.name, node.type);
                 }
+                else
+                {
+                    // (AR) SEM045: إعادةُ تصريحٍ غيرِ مصنَّفةٍ لاسمٍ كان مصنَّفًا تمحو
+                    //      تصنيفَه — وإلّا حَكَم حارسُ إعادةِ الإسنادِ خانةً مجرّدةً
+                    //      بنوعِ تصريحٍ بائدٍ (قِيس؛ المحلّلُ الساكنُ يصمت هنا بحقّ).
+                    // (EN) SEM045: an untyped re-declaration clears stale typedness —
+                    //      otherwise the reassignment guard judged a now-bare slot by
+                    //      a dead declared type (measured; the static analyzer is
+                    //      rightly silent here).
+                    variableManager_.clearDeclaredType(node.name);
+                }
 
                 // (AR) خطاف مصحح الأداء — تتبع إنشاء المتغيرات
                 // (EN) Profiler hook — track variable creation

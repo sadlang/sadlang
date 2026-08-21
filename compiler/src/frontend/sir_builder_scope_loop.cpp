@@ -95,6 +95,31 @@ namespace Sad
                 if (!varInfo.isGlobal && currentFunction_)
                 {
                     currentFunction_->localSlotNames.insert(varInfo.name);
+
+                    // (AR) SEM045 (أ٢): تسجيلُ الخانةِ **المصرَّحِ نوعُها صراحةً** —
+                    //      `declaredSurfaceType` يبقى Unknown للمستنتَعة، وهو المميّزُ
+                    //      الوحيدُ بين خانةٍ أعلنت نوعَها وخانةٍ ورثته من مُهيِّئها.
+                    //      «أي» المصرَّحةُ ليست خانةً مصنَّفةً (تقبل الفراغ عقدًا).
+                    // (EN) SEM045 (stage أ٢): record explicitly-typed slots. Declared
+                    //      «any» is not a typed slot (it accepts Void by contract).
+                    if (varInfo.declaredSurfaceType != SadTypeKind::Unknown &&
+                        varInfo.declaredSurfaceType != SadTypeKind::Any &&
+                        varInfo.declaredSurfaceType != SadTypeKind::Void &&
+                        varInfo.declaredSurfaceType != SadTypeKind::Null)
+                    {
+                        currentFunction_->declaredTypedSlots[varInfo.name] =
+                            varInfo.declaredSurfaceType;
+                    }
+                    else
+                    {
+                        // (AR) إعادةُ تصريحٍ غيرِ مصنَّفةٍ تمحو تصنيفًا سابقًا للاسم —
+                        //      المرآةُ الدقيقةُ لسلوك المفسّر (clearDeclaredType) والمحلّل
+                        //      الساكن (شاهد الحجب): آخِرُ تصريحٍ هو الحاكم.
+                        // (EN) An untyped re-declaration erases prior typedness — the
+                        //      exact mirror of the interpreter and the static analyzer:
+                        //      the last declaration rules.
+                        currentFunction_->declaredTypedSlots.erase(varInfo.name);
+                    }
                 }
             }
 

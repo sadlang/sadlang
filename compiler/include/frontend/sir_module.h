@@ -658,6 +658,22 @@ namespace Sad
                 ///      variable's name alone decided it; renaming it fixed the build.
                 std::set<std::string> localSlotNames;
 
+                /// (AR) SEM045 (أ٢): الخاناتُ المحلّيةُ **المصرَّحُ نوعُها صراحةً**
+                ///      (اسم مجرَّد ⇒ النوع السطحيّ المصرَّح). يسجّلها الوجهُ الأماميُّ
+                ///      في `addVariable` — كسجلِّ `localSlotNames` تمامًا: SIR لا
+                ///      تعليمةَ تصريحٍ فيها، فالخلفيّةُ لا تملك تمييزَ خانةٍ **أعلنت
+                ///      نوعَها** من خانةٍ اُستُنتجَ نوعُها من مُهيِّئها — والفرقُ هو
+                ///      عقدُ SEM045 كلُّه: المستنتَجةُ تقبل «فراغ» بحرّيّة، والمعلنةُ
+                ///      تُحرَس قبل STORE. (تصريحاتُ المستوى الأعلى تُسجَّل هنا أيضًا —
+                ///      الوجهُ الأماميُّ يبنيها محلّيّاتٍ لـmain بالباني نفسِه.)
+                /// (EN) SEM045 (stage أ٢): locally-declared slots with an EXPLICIT
+                ///      surface type (bare name ⇒ declared kind). Recorded by the
+                ///      front end in addVariable, mirroring localSlotNames: SIR has
+                ///      no declaration instruction, and declared-vs-inferred is the
+                ///      whole SEM045 contract. Top-level decls land here too (built
+                ///      as main's locals by the same builder).
+                std::map<std::string, SadTypeKind> declaredTypedSlots;
+
                 /**
                  * @brief (AR) منشئ الدالة
                  * @brief (EN) Function constructor

@@ -71,11 +71,27 @@ namespace Sad
             return dynGlobalSlots_.count(n) != 0;
         }
 
+        // (AR) SEM045 (أ٢): النوع المصرَّح للخانة — Unknown لغير المصرَّحة.
+        // (EN) SEM045 (stage أ٢): the slot's declared kind; Unknown when undeclared.
+        Sad::Types::SadTypeKind LLVMCodeGen::declaredSlotKind(
+            const std::string &funcName, const std::string &slotName) const
+        {
+            const std::string n = cleanSlotName(slotName);
+            auto it = declaredTypedSlots_.find(funcName);
+            if (it == declaredTypedSlots_.end())
+                return Sad::Types::SadTypeKind::Unknown;
+            auto found = it->second.find(n);
+            if (found == it->second.end())
+                return Sad::Types::SadTypeKind::Unknown;
+            return found->second;
+        }
+
         void LLVMCodeGen::collectDynSlots(std::shared_ptr<SIRModule> sirModule)
         {
             dynGlobalSlots_.clear();
             dynLocalSlots_.clear();
             funcLocalNames_.clear();
+            declaredTypedSlots_.clear();
             if (!sirModule)
                 return;
 
@@ -83,7 +99,11 @@ namespace Sad
             // (EN) Copy the per-function local-name record from SIR for isDynSlot at emit time
             for (const auto &fn : sirModule->getFunctions())
                 if (fn)
+                {
                     funcLocalNames_[fn->getName()] = fn->localSlotNames;
+                    // (AR) SEM045 (أ٢): سجلُّ الخانات المصرَّحة — لحارس STORE.
+                    declaredTypedSlots_[fn->getName()] = fn->declaredTypedSlots;
+                }
 
             // (AR) أسماء المتغيّرات العامّة + العامّ المصرَّح Any أصلًا (المستوى الأعلى)
             // (EN) global names + globals the frontend already declared Any (top level)
@@ -834,6 +854,86 @@ namespace Sad
                              {llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 1)});
             }
             b.CreateUnreachable();
+
+            b.SetInsertPoint(contBB);
+        }
+
+        // ====================================================================
+        // (AR) SEM045 (أ٢): الحارس الزمنيّ قبل STORE «فراغ ⇒ خانة مصنّفة».
+        //      على نمط emitDynDivZeroGuard: فحص وسمٍ + فرعا فشل/استمرار. الرسالة
+        //      تُطبع بـ«%s» لا كنسق مباشرةً — اسمُ الخانةِ نصُّ مستخدمٍ وقد يحمل
+        //      محارفَ نسقِ printf (ثغرةُ نسقٍ لا مجردُ تشويه).
+        // (EN) SEM045 (stage أ٢): pre-STORE guard, mirroring emitDynDivZeroGuard.
+        //      The message is printed via "%s", never as a format string — the
+        //      slot name is user text and may contain printf specifiers.
+        // ====================================================================
+        void emitDynVoidStoreGuard(LLVMCodeGen &cg, llvm::Value *dynValue,
+                                   const std::string &slotName,
+                                   const std::string &typeName, bool fatal)
+        {
+            auto &b = *cg.builder_;
+            auto &ctx = *cg.context_;
+            llvm::Function *curFunc = b.GetInsertBlock()->getParent();
+            llvm::BasicBlock *failBB =
+                llvm::BasicBlock::Create(ctx, "sem045.fail", curFunc);
+            llvm::BasicBlock *contBB =
+                llvm::BasicBlock::Create(ctx, "sem045.ok", curFunc);
+            llvm::Value *kind = dynKindByte(cg, dynValue);
+            llvm::Value *isVoid = b.CreateICmpEQ(
+                kind, b.getInt8(static_cast<uint8_t>(DynKind::Void)), "sem045.isvoid");
+            b.CreateCondBr(isVoid, failBB, contBB);
+
+            b.SetInsertPoint(failBB);
+            const std::string tag = fatal ? "[خطأ نوع SEM045] " : "[تحذير نوع SEM045] ";
+            // (AR) اسم السجلّ يحمل بادئة % — تُجرَّد قبل العرض للمستخدم.
+            const std::string bareName = cleanSlotName(slotName);
+            const std::string msgText =
+                tag + "الخانة '" + bareName + "' من نوع '" + typeName +
+                "' أُسند إليها 'فراغ' وقت التشغيل — غيابُ نتيجةٍ لا قيمة، فلا يصلح حشوًا لخانةٍ أعلنت نوعَها\n";
+            if (cg.freestanding_)
+            {
+                // (AR) حرًّا لا printf — والتحذيرُ الحرّ يُسقَط (لا قناةَ تشخيصٍ غيرُ الهلع).
+                // (EN) Freestanding: no printf; the warn flavor is dropped (panic is
+                //      the only diagnostic channel).
+                if (fatal)
+                    cg.emitFreestandingPanicCall(Sad::Compiler::kSadPanicDynTypeMismatch);
+                else
+                    b.CreateBr(contBB);
+            }
+            else
+            {
+                auto *ptrTy = llvm::PointerType::getUnqual(ctx);
+                auto *printfType = llvm::FunctionType::get(
+                    llvm::Type::getInt32Ty(ctx), {ptrTy}, true);
+                auto printfFunc = cg.module_->getOrInsertFunction("printf", printfType);
+                llvm::Value *fmt = b.CreateGlobalStringPtr("%s", "sem045.fmt");
+                llvm::Value *msg = b.CreateGlobalStringPtr(msgText, "sem045.msg");
+                if (fatal)
+                {
+                    // (AR) الطباعةُ **قبل** حاجزِ «حاول»: القفزُ إلى الماسكِ كان يسبق
+                    //      printf فيختفي التشخيصُ متى وُجد ماسك — والمفسّرُ يطبع قبل
+                    //      الرمي، فالترتيبُ هنا يحفظ تكافؤَ حضورِ التشخيص (قِيس).
+                    // (EN) Print BEFORE the try-handler barrier: the longjmp used to
+                    //      precede printf, hiding the diagnostic whenever a handler
+                    //      existed — the interpreter prints before throwing (measured).
+                    b.CreateCall(printfFunc, {fmt, msg});
+                    // (AR) الحاجز ٧: إن كان ثمّة «حاول» نشط ارفع استثناءً قابلًا للالتقاط
+                    // (EN) Barrier 7: if a «try» is active, raise a catchable exception
+                    emitRecoverablePanicToHandler(cg, msg);
+                    auto *exitType = llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(ctx), {llvm::Type::getInt32Ty(ctx)}, false);
+                    auto exitFunc = cg.module_->getOrInsertFunction("exit", exitType);
+                    b.CreateCall(exitFunc,
+                                 {llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 1)});
+                }
+                else
+                {
+                    b.CreateCall(printfFunc, {fmt, msg});
+                    b.CreateBr(contBB);
+                }
+            }
+            if (fatal)
+                b.CreateUnreachable();
 
             b.SetInsertPoint(contBB);
         }

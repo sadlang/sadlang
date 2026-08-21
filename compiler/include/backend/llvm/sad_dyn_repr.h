@@ -237,5 +237,19 @@ namespace Sad
         ///      (arith_main) and dynamic (dynBinOp) paths.
         void emitRecoverablePanicToHandler(LLVMCodeGen &cg, llvm::Value *msgPtr);
 
+        /**
+         * (AR) SEM045 (RFC عقد الغياب — أ٢): الحارس الزمنيّ قبل STORE — قيمةٌ
+         *      ديناميّةٌ وسمُها «فراغ» (DynKind::Void) تُكتَب في خانةٍ مصنَّفة.
+         *      `fatal=true` (نظير --إنتاج): تشخيصٌ ثم إيقافٌ موضعيّ (exit(1)
+         *      مستضافًا، __sad_panic(kSadPanicDynTypeMismatch) حرًّا)؛
+         *      `fatal=false` (نظير --تعلم): تحذيرٌ ثم يستمرّ التنفيذ.
+         * (EN) SEM045 (absence-contract RFC, stage أ٢): pre-STORE runtime guard —
+         *      a dyn value tagged Void written into a typed slot. fatal ⇒ diagnose
+         *      and stop locally; warn ⇒ diagnose and continue.
+         */
+        void emitDynVoidStoreGuard(LLVMCodeGen &cg, llvm::Value *dynValue,
+                                   const std::string &slotName,
+                                   const std::string &typeName, bool fatal);
+
     } // namespace LLVM
 } // namespace Sad

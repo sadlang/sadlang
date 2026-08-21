@@ -26,6 +26,9 @@
 #include "error_manager.h"
 #include "runtime_throw.h"
 #include "ownership_manager.h"
+// (AR) SEM045 (RFC عقد الغياب): مابِع الصرامة المشترك strictnessFromOwnershipMode
+// (EN) SEM045 (absence-contract RFC): shared strictness mapper
+#include "null_safety/null_safety_analyzer.h"
 #include "runtime_throw.h"
 #include "user_thrown.h"
 #include "async_runtime.h"
@@ -233,10 +236,78 @@ namespace Sad
                 }
 
                 // ═══════════════════════════════════════════════════════════════
+                // (AR) SEM045 (RFC عقد الغياب — أ١): «فراغ» لا يعبر إلى معاملٍ
+                //      مصنَّف — نفس عقد خانتَي التصريح وإعادة الإسناد، على محور
+                //      الصرامة D6. الحارس يحكم على القيمة لا مصدرها، والاختياريّ
+                //      `ت؟` مشمول (مجاله {ت، عدم} لا فراغ). عند الالتقاط تُتخطّى
+                //      فحوصُ النوع العامّة أدناه (لا تشخيص مزدوج لعبورٍ واحد).
+                // (EN) SEM045 (absence-contract RFC, stage أ١): Void must not cross
+                //      into a typed parameter slot — same D6 contract as the
+                //      declaration/reassignment guards. Skips the generic type
+                //      checks below once handled (no double diagnostic).
+                // ═══════════════════════════════════════════════════════════════
+                bool voidParamHandled = false;
+                if (arguments[i].getKind() == Types::SadTypeKind::Void)
+                {
+                    std::string typedParamName;
+                    if (!params[i].typeName.empty())
+                    {
+                        typedParamName = params[i].typeName;
+                    }
+                    else if (astFuncDecl && i < astFuncDecl->parameters.size())
+                    {
+                        const auto &astParam = astFuncDecl->parameters[i];
+                        if (astParam.type != Types::SadTypeKind::Unknown &&
+                            astParam.sadType &&
+                            astParam.sadType->getKind() != Types::SadTypeKind::Unknown &&
+                            astParam.sadType->getKind() != Types::SadTypeKind::Any &&
+                            astParam.sadType->getKind() != Types::SadTypeKind::Void &&
+                            astParam.sadType->getKind() != Types::SadTypeKind::Null)
+                        {
+                            typedParamName = astParam.sadType->arabicName();
+                        }
+                    }
+                    if (!typedParamName.empty())
+                    {
+                        voidParamHandled = true;
+                        auto strictness = Sad::NullSafety::strictnessFromOwnershipMode(
+                            statementExecutor_.getMemoryPolicy().ownershipMode);
+                        if (strictness != Sad::NullSafety::Strictness::Ignore)
+                        {
+                            std::map<std::string, std::string> ph{
+                                {"name", params[i].name},
+                                {"type_name", typedParamName},
+                                {"void_word", "فراغ"}};
+                            if (strictness == Sad::NullSafety::Strictness::Fatal)
+                            {
+                                std::cerr << "[خطأ نوع SEM045] سطر " << node.position.line
+                                          << ": الخانة '" << params[i].name
+                                          << "' أُسند إليها 'فراغ'" << std::endl;
+                                Sad::Errors::throwRuntime(
+                                    Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
+                                    node.position, std::move(ph));
+                            }
+                            std::cerr << "[تحذير نوع SEM045] سطر " << node.position.line
+                                      << ": الخانة '" << params[i].name
+                                      << "' أُسند إليها 'فراغ'" << std::endl;
+                            Sad::Errors::RenderContext rcV(
+                                Sad::Errors::SourceLocation("", node.position.line,
+                                                            node.position.column),
+                                std::move(ph));
+                            Sad::Errors::ErrorManager::getInstance().reportWarningFromCatalog(
+                                Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
+                                Sad::Errors::SourceLocation("", node.position.line,
+                                                            node.position.column),
+                                rcV);
+                        }
+                    }
+                }
+
+                // ═══════════════════════════════════════════════════════════════
                 // (AR) التحقق من نوع المعامل في وقت التشغيل لأنواع الأصناف
                 // (EN) Runtime type checking for class-typed parameters
                 // ═══════════════════════════════════════════════════════════════
-                if (!params[i].typeName.empty())
+                if (!voidParamHandled && !params[i].typeName.empty())
                 {
                     const std::string &expectedClass = params[i].typeName;
                     const Value &argVal = arguments[i];
@@ -302,7 +373,7 @@ namespace Sad
                 // (AR) فحص توافقية الأنواع البدائية عبر النظام الموحد
                 // (EN) Primitive type compatibility check via unified type system
                 // ═══════════════════════════════════════════════════════════════
-                if (params[i].typeName.empty() && astFuncDecl &&
+                if (!voidParamHandled && params[i].typeName.empty() && astFuncDecl &&
                     i < astFuncDecl->parameters.size())
                 {
                     const auto &astParam = astFuncDecl->parameters[i];
