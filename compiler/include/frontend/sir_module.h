@@ -317,6 +317,19 @@ namespace Sad
                 ///      cannot reach them).
                 std::string className;
 
+                /// (AR) SEM045: النوع السطحيّ **المصرَّح** للمعامل من تعليق الـAST خامًّا —
+                ///      لا `type` الذي قد يُرقّى بالاستنتاج. حارسُ المعامل في موضع النداء
+                ///      يقرأ هذا الحقلَ لا سجلَّ `declaredTypedSlots`: ذاك فضاءٌ مسطّحٌ
+                ///      يخلط المحلّيّات بالمعاملات، فمحلّيٌّ مصنَّفٌ باسم معاملٍ مجرّدٍ كان
+                ///      يُحرَس كذبًا، ومحلّيٌّ مجرّدٌ باسم معاملٍ مصنَّفٍ كان يمحو حراستَه
+                ///      (إيجابيٌّ كاذبٌ وسالبٌ كاذبٌ قِيسا معًا — المراجعة العدائية).
+                /// (EN) SEM045: the parameter's RAW declared surface type from the AST
+                ///      annotation (not the inference-promoted `type`). The call-site
+                ///      param guard reads THIS, not declaredTypedSlots — that record's
+                ///      flat namespace mixes locals with params, producing a measured
+                ///      false-positive/false-negative pair under name collision.
+                SadTypeKind declaredSurfaceType = SadTypeKind::Unknown;
+
                 SIRParameter(const std::string &paramName, SadTypeKind paramType)
                     : name(paramName), type(paramType), elementType(SadTypeKind::Void) {}
 

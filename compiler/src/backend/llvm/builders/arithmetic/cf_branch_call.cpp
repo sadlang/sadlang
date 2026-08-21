@@ -25,6 +25,7 @@
 #include "builders/arithmetic/controlflow_codegen.h" // (Phase 7 Step 3)
 #include "llvm_codegen.h"
 #include "sad_dyn_repr.h"
+#include "sad_type_utils.h" // (AR) SEM045: kindToArabic لرسالة حارس معامل الدالة / (EN) SEM045: Arabic type name for the param guard
 // (AR) منافذُ النصِّ الهابطةُ نداءً — لتردَّ مستقبِلَها العدميَّ إلى بابِ الرفع
 #include "string_runtime_ports.h"
 
@@ -662,8 +663,63 @@ namespace Sad
             //      كان هنا نسخةٌ ثالثةٌ تفكّ الموسومَ إلى i64 بالحمولةِ الخامّ، فقيمةٌ وسمُها
             //      عشريٌّ تعبر هذا الحدَّ بنمطِ بتّاتِها عددًا صحيحًا — جوابٌ خاطئٌ صامت.
             //      ونوعُ SIR للوسيطِ يُمرَّر ليحمل وسمَ التعليبِ الصحيحَ في الاتّجاهِ المقابل.
+            // ════════════════════════════════════════════════════════════════
+            // (AR) SEM045 (RFC عقد الغياب): حارس معامل الدالة المصنَّف في المسار
+            //      المترجَم — **هنا** لا داخل الدالة: معاملُ «نص» نوعُه LLVM هو
+            //      i8* لا %SadDyn، فبعد `coerceToParamType` (unpackPtr) يزول
+            //      الوسمُ ويعبر «فراغ» مؤشّرًا خرِبًا بصمت. الفحصُ قبل الفكّ
+            //      حيث الوسمُ ما زال موجودًا، وفي درجة القاتل يسبق التشخيصُ
+            //      والإيقافُ دخولَ جسم الدالة (نظير المفسّر: voidParamHandled
+            //      يُحسَم قبل الربط). الفيصلُ سجلُّ `declaredTypedSlots` نفسُه —
+            //      `addVariable` يسجّل المعاملات المصنَّفة أيضًا — فالمعاملُ
+            //      المجرَّد و«أي» ليسا في السجلّ ولا يُحرَسان (عقد SEM045).
+            //      الفحصُ وسمٌ زمنَ التشغيل لا `operands[i+1].dataType`: نوعُ
+            //      SIR الساكن للوسيط «أي» والفراغُ لا يظهر إلا وقتَ التشغيل.
+            // (EN) SEM045 compiled-path typed-param guard — at the CALL SITE,
+            //      not the callee: a «نص» param is i8* (no %SadDyn), so after
+            //      coerceToParamType the tag is gone and Void crosses as a
+            //      garbage pointer silently. Guard BEFORE unpacking, while the
+            //      tag still exists; in Fatal mode the stop precedes entering
+            //      the body (mirrors the interpreter). Discriminator is the
+            //      per-param declaredSurfaceType record on SIRParameter — NOT
+            //      declaredTypedSlots: that flat namespace mixes locals with
+            //      params, so a typed local colliding with a bare param fired
+            //      falsely, and a bare local redeclaration erased a typed
+            //      param's guard (both measured by the adversarial review).
+            //      Declared limit: calls through variables/closures resolve no
+            //      SIR callee here and pass unguarded (the interpreter still
+            //      guards them) — closure-ABI wave.
+            // ════════════════════════════════════════════════════════════════
+            const Compiler::SIR::SIRFunction *sem045Callee = nullptr;
+            if (cg_.voidStoreGuard() != Sad::LLVM::LLVMCodeGen::VoidStoreGuard::None &&
+                cg_.sirModule_)
+            {
+                if (auto sirFn = cg_.sirModule_->getFunction(funcName))
+                    sem045Callee = sirFn.get();
+            }
+
             for (size_t i = 0; i < args.size() && i < funcType->getNumParams(); ++i)
             {
+                if (sem045Callee && args[i] && isSadDyn(args[i]) &&
+                    i < sem045Callee->getParameters().size())
+                {
+                    const auto &sirParam = sem045Callee->getParameters()[i];
+                    const std::string &paramName = sirParam.name;
+                    // (AR) نفس مرشّح addVariable: المجرّد و«أي» والفراغ والعدم لا تُحرَس.
+                    // (EN) Same filter as addVariable: bare/Any/Void/Null are unguarded.
+                    const auto declaredKind = sirParam.declaredSurfaceType;
+                    if (declaredKind != SadTypeKind::Unknown &&
+                        declaredKind != SadTypeKind::Any &&
+                        declaredKind != SadTypeKind::Void &&
+                        declaredKind != SadTypeKind::Null)
+                    {
+                        emitDynVoidStoreGuard(
+                            cg_, args[i], paramName,
+                            Sad::Types::kindToArabic(declaredKind),
+                            cg_.voidStoreGuard() ==
+                                Sad::LLVM::LLVMCodeGen::VoidStoreGuard::Fatal);
+                    }
+                }
                 const SadTypeKind argSir = ((i + 1) < inst->operands.size())
                                                ? inst->operands[i + 1].dataType
                                                : SadTypeKind::Integer;

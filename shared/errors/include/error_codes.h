@@ -300,6 +300,7 @@ namespace Sad
             RUN_PROC_REDIRECT_FAILED,       ///< RUN071: (AR) فشل توجيه المجاري في الابن / (EN) Child redirection failed
             RUN_PROC_CLOSE_FAILED,          ///< RUN072: (AR) فشل إغلاق الوصف / (EN) Closing the descriptor failed
             RUN_PROC_HANDLE_KIND,           ///< RUN073: (AR) نوع المقبض غير متوقّع / (EN) Wrong handle kind
+            RUN_MAP_FETCH_TYPE_MISMATCH,    ///< RUN074: (AR) الجلب المصنَّف وجد قيمةً بنوعٍ مغاير أو عدمًا مخزَّنًا / (EN) Typed map fetch found a value of a different type or a stored null
 
             // ════════════════════════════════════════════════════════════════
             // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.

@@ -371,6 +371,20 @@ namespace Sad::Compiler
     //      A new contract with map_ops.cpp closing card م-٠٠١ criterion ق٣.
     inline constexpr const char *kRuntimeMapGetDyn = "__sad_map_get_dyn";
 
+    // (AR) الجلب المصنَّف (RFC عقد الغياب — المرحلة ب): الغيابُ «لاشيء» حصرًا،
+    //      والحضورُ بنوعٍ مغايرٍ أو بعدمٍ مخزَّنٍ خطأُ تشغيلٍ صريح (RUN074).
+    //      النصّيّ والرقميّ يُرجعان قيمتَهما المحسوسة (والغيابُ حارسُ kSadNullSentinel
+    //      القائم)، والمنطقيُّ %SadDyn (وسم Bool/Null) لأنّ «منطقي؟» خارجُ النطاق
+    //      البِتّيّ (sirNullableNeedsOutOfBandTag) — لا تمثيلَ جديدًا في المرحلتين.
+    // (EN) Typed fetch (absence-contract RFC, stage ب): absence is Null exclusively;
+    //      presence with a different type or a stored null is an explicit runtime
+    //      error (RUN074). Str/Int return concrete values (absence = the existing
+    //      kSadNullSentinel guard); Bool returns %SadDyn (Bool/Null kinds) since
+    //      `bool?` needs the out-of-band tag. No new representation.
+    inline constexpr const char *kRuntimeMapFetchStr = "__sad_map_fetch_str";
+    inline constexpr const char *kRuntimeMapFetchInt = "__sad_map_fetch_int";
+    inline constexpr const char *kRuntimeMapFetchBool = "__sad_map_fetch_bool";
+
     // (AR) إزالةُ التشكيلِ العربيِّ من نصّ — نظيرُ `ازل_تشكيل` في المفسّر.
     // (EN) Strip Arabic diacritics from a string — the compiler counterpart of
     //      the interpreter's `ازل_تشكيل`.

@@ -18,6 +18,8 @@
 #include "class_nodes.h"
 #include "pattern_nodes.h"    // (AR) [أ-م٢] MatchStmt / CaseClause / ConstructorPattern / أنماط
 #include "types/composite_type_classes.h"
+// (AR) SEM045 (D8): قاعدة «الفراغ اليقيني» المشتركة — لا نسخة ثالثة في الفاحص
+#include "null_safety/null_safety_analyzer.h"
 #include "types/enum_types.h"
 #include "types/struct_types.h"
 
@@ -700,6 +702,23 @@ namespace Sad
                     // (AR) الدوال الخارجية بدون نوع إرجاع تُفترض رقم (I64)
                     // (EN) Extern functions without return type default to integer
                     expectedReturnType_ = registry_.getIntegerType();
+                }
+                else if (!decl.is_async && !decl.isGenerator && !decl.isNoReturn &&
+                         Sad::NullSafety::NullSafetyAnalyzer::bodyCertainlyReturnsNothing(
+                             decl.body.get()))
+                {
+                    // (AR) SEM045 (D8): دالةٌ جسدُها بلا `ارجع` بقيمةٍ ولا `ارمِ` ولا
+                    //      `أنتج` نوعُ إرجاعها «فراغ» يقينًا — لا «رقم» الضمنيُّ أدناه.
+                    //      كان الافتراضُ يجعل `نص س = لا_شيء()` يُرفَض بتشخيصٍ كاذبِ
+                    //      التعليل («وُجد 'رقم'») ويجعل `رقم س = لا_شيء()` يمرُّ صامتًا
+                    //      (النوعُ المختلَقُ يطابق الخانة) — قِيس كلاهما. القاعدةُ نفسُها
+                    //      المشتركةُ مع محلّل أمان null، لا نسخة ثالثة.
+                    // (EN) SEM045 (D8): a certainly-void body types as Void, not the
+                    //      implicit-int fallback below. The fabricated «رقم» both
+                    //      falsely rejected `نص س = لا_شيء()` and silently passed
+                    //      `رقم س = لا_شيء()` (measured). Same shared rule as the
+                    //      null-safety analyzer — no third copy.
+                    expectedReturnType_ = registry_.getVoidType();
                 }
                 else
                 {

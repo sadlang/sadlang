@@ -155,7 +155,7 @@ namespace Sad
         //      لا يكتمل نداؤها فلا يقع الإسنادُ أصلًا (درءُ إيجابيٍّ كاذب).
         // (EN) Does the body contain a value-return, raise, or yield? The naive
         //      descent into nested bodies errs in the safe D5 direction.
-        bool NullSafetyAnalyzer::bodyHasValueReturnOrRaise(AST::Statement *stmt) const
+        bool NullSafetyAnalyzer::bodyHasValueReturnOrRaise(AST::Statement *stmt)
         {
             if (!stmt)
                 return false;
@@ -203,8 +203,19 @@ namespace Sad
                 return bodyHasValueReturnOrRaise(df->body.get());
             if (auto *go = dynamic_cast<AST::GoStmt *>(stmt))
                 return bodyHasValueReturnOrRaise(go->blockBody.get());
-            if (auto *fn = dynamic_cast<AST::FunctionDecl *>(stmt))
-                return bodyHasValueReturnOrRaise(fn->body.get());
+            // (AR) دالةٌ متداخلة: «ارجع» داخلَها يعود **منها** لا من الخارجية —
+            //      فوجودُها لا يُبطل يقينَ فراغِ الخارجية. الهبوطُ فيها (الصياغةُ
+            //      الأولى) بدا «متحفّظًا» لمستهلكِ SEM045 (رصدٌ أقلّ)، لكنّه انقلب
+            //      لمستهلكِ فاحصِ الأنواع: خارجيةٌ فراغيةٌ بمغلاقٍ داخليٍّ يُرجع
+            //      قيمةً كانت تسقط إلى «رقم» الضمنيّ فيمرّ إسنادُها صامتًا (قِيس —
+            //      المراجعة العدائية). والاستبعادُ أدقُّ للمستهلكَين معًا.
+            // (EN) Nested function: its `return` exits IT, not the outer function,
+            //      so it must not defeat the outer's void certainty. Descending
+            //      (the first spelling) looked conservative for SEM045 but
+            //      inverted for the type checker (measured silent pass). Excluding
+            //      nested bodies is strictly more accurate for both consumers.
+            if (dynamic_cast<AST::FunctionDecl *>(stmt))
+                return false;
             // (AR) جملٌ غير معروفة: نعدّها حاملةً لقيمة (لا رصد) — اتجاه D5 الآمن.
             // (EN) Unknown statements: treated as value-bearing (no detection) — D5.
             return dynamic_cast<AST::ExprStmt *>(stmt) == nullptr &&

@@ -244,6 +244,20 @@ namespace Sad
             NullSafetyResult analyze(
                 const std::vector<std::unique_ptr<AST::Statement>> &program);
 
+            /// (AR) SEM045 (D8 — نقطة حقيقة واحدة): «فراغٌ يقينيّ» — جسدٌ بلا `ارجع`
+            ///      بقيمةٍ ولا `ارمِ` ولا `أنتج`. يقرؤها فاحصُ الأنواع أيضًا كي لا
+            ///      يختلق نوعَ إرجاعٍ («رقم» ضمنيّ) لدالةٍ لا تُرجع شيئًا — نسخةٌ
+            ///      ثالثةٌ من القاعدة كانت ستتباعد (درسُ «ثلاث نسخ» المقيس).
+            ///      لا تستثني async/مولّد/خارجيّ/لا_ترجع — ذلك شأنُ المستهلِك.
+            /// (EN) SEM045 (D8 single truth): certainly-void body test, shared with
+            ///      the type checker so it stops fabricating an implicit «رقم»
+            ///      return for value-less functions. Exclusions (async/generator/
+            ///      extern/noreturn) are the caller's responsibility.
+            static bool bodyCertainlyReturnsNothing(AST::Statement *body)
+            {
+                return !bodyHasValueReturnOrRaise(body);
+            }
+
         private:
             // (AR) ماشٍ متدرّج مركّز (NS-02): يهبط في كلّ الجُمل الحاملة للكتل
             //      ويفحص تصريحات المتغيرات. سليم-متحفّظ (D5): الإغفال = رصد أقلّ لا خطأ.
@@ -304,9 +318,9 @@ namespace Sad
 
             // ── SEM045 (أ٢): قاعدة «فراغ ساكن ⇒ خانة مصنّفة» ────────────────────
             // (AR) الوسمُ «فراغ» يقينيٌّ سكونيًّا لدالةٍ لا تحوي `ارجع` بقيمة ولا
-            //      `ارمِ` ولا `أنتج` (المسحُ يهبط في الأجساد المتداخلة أيضًا — اتجاهُه
-            //      المتحفّظُ آمن: عدُّ إرجاعِ مغلاقٍ داخليٍّ يُخرج الدالةَ من المجموعة،
-            //      أي رصدٌ أقلُّ لا خطأ، وفقَ D5). دوالُّ async/مولّد/خارجيّ/لا_ترجع
+            //      `ارمِ` ولا `أنتج`. الدوالُّ المتداخلةُ مستبعَدةٌ من المسح: «ارجع»
+            //      داخلَها يعود منها لا من الخارجية — الهبوطُ فيها (الصياغة الأولى)
+            //      انقلب على مستهلكِ فاحص الأنواع (قِيس). دوالُّ async/مولّد/خارجيّ/لا_ترجع
             //      مستثناة. والاسمُ المحجوبُ بمتغيّرٍ لا يُحكَم عليه (تصادمُ الاسم
             //      يحلّ صامتًا — نتجنّبه بتتبّع أسماءِ التصريحات كلِّها).
             // (EN) SEM045 (stage أ٢): a function containing no value-return, no raise
@@ -314,7 +328,7 @@ namespace Sad
             //      nested bodies errs in the safe direction (fewer detections, D5).
             //      Names shadowed by variables are never judged (name-collision trap).
             void collectVoidFunctions(const std::vector<std::unique_ptr<AST::Statement>> &program);
-            bool bodyHasValueReturnOrRaise(AST::Statement *stmt) const;
+            static bool bodyHasValueReturnOrRaise(AST::Statement *stmt);
             bool isStaticVoidCall(const AST::Expression *expr, std::string &calleeOut) const;
             void reportVoidCrossing(const std::string &slotName,
                                     const std::string &typeName,

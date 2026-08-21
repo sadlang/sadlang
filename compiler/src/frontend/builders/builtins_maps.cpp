@@ -210,6 +210,58 @@ namespace Sad
                 }
 
                 // ────────────────────────────────────────────────────────────
+                // (AR) خريطة_اجلب_نص/رقم/منطقي(م، ك) — الجلبُ المصنَّف (RFC عقد
+                //      الغياب — المرحلة ب): الغيابُ «لاشيء» حصرًا (لا «فراغ»)،
+                //      والحضورُ بنوعٍ مغايرٍ أو بعدمٍ مخزَّنٍ خطأُ تشغيلٍ صريح
+                //      (RUN074). لا وسيطَ بديلًا ثالثًا — التحصيلُ بـ«؟؟» هو
+                //      الطريقُ الواحد. النصّيّ والرقميّ يُرجعان نوعَهما المحسوس
+                //      (الغيابُ بحارس kSadNullSentinel القائم)، والمنطقيُّ «أي»
+                //      (%SadDyn بوسم Bool/Null) لأنّ «منطقي؟» خارجُ النطاق البِتّيّ.
+                // (EN) Typed fetch (stage ب): absence is Null exclusively; presence
+                //      with a different type or a stored null is an explicit RUN074
+                //      runtime error. No third default argument — «؟؟» is the way.
+                //      Str/Int return their concrete kinds (absence = the existing
+                //      sentinel guard); Bool returns «أي» (out-of-band tag).
+                // ────────────────────────────────────────────────────────────
+                if (funcName == Bn::Maps::MAP_FETCH_STR ||
+                    funcName == Bn::Maps::MAP_FETCH_NUM ||
+                    funcName == Bn::Maps::MAP_FETCH_BOOL)
+                {
+                    // (AR) العدّة اثنان حصرًا: وسيطٌ ثالثٌ كان يُبتلَع صامتًا في المترجَم
+                    //      بينما يرفضه المفسّر (قِيس — المراجعة العدائية)؛ والعقدُ ينصّ:
+                    //      لا بديلَ ثالثًا، التحصيلُ بـ«؟؟» هو الطريقُ الواحد.
+                    // (EN) Arity is exactly two: a third argument was silently swallowed
+                    //      compiled while the interpreter rejects it (measured). The
+                    //      contract forbids a third default — «؟؟» is the only path.
+                    if (argResults.size() != kArityMapAndKey)
+                    {
+                        b_.errors_.push_back(
+                            std::string("Error: ") + funcName +
+                            " تقبل وسيطَين حصرًا (خريطة، مفتاح) — لا وسيطَ بديلًا ثالثًا، التحصيلُ بـ«؟؟»");
+                        return BuildResult();
+                    }
+                    const char *runtimeName = kRuntimeMapFetchStr;
+                    SadTypeKind resultKind = SadTypeKind::String;
+                    const char *note = "maps: typed fetch (str)";
+                    if (funcName == Bn::Maps::MAP_FETCH_NUM)
+                    {
+                        runtimeName = kRuntimeMapFetchInt;
+                        resultKind = SadTypeKind::Integer;
+                        note = "maps: typed fetch (int)";
+                    }
+                    else if (funcName == Bn::Maps::MAP_FETCH_BOOL)
+                    {
+                        runtimeName = kRuntimeMapFetchBool;
+                        resultKind = SadTypeKind::Any;
+                        note = "maps: typed fetch (bool, out-of-band)";
+                    }
+                    BuildResult result = emitRuntimeCall(
+                        runtimeName, {kArgMap, kArgKey}, resultKind, note);
+                    result.isDirectValue = true;
+                    return result;
+                }
+
+                // ────────────────────────────────────────────────────────────
                 // (AR) خريطة_عين(م، ك، ق) — تعيينٌ **نقيٌّ**: خريطةٌ جديدةٌ والأصلُ
                 //      سالمٌ، مطابقةً للمفسّر. والوسمُ يُشتقُّ من نوعِ القيمةِ سكونيًّا،
                 //      وللقيمِ الموسومةِ زمنَ التشغيل تشتقُّه الخلفيّةُ من وسمِها.

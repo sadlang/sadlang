@@ -17,6 +17,8 @@
 #include "builtins.h"
 #include "interpreter_core.h"
 #include "builtin_registry.h"
+// (AR) kindToArabic: اسم النوع من مصدره الواحد لرسالة RUN074 (لا سلاسل مباشرة)
+#include "sad_type_utils.h"
 #include <algorithm>
 #include <unordered_set>
 
@@ -101,6 +103,63 @@ namespace Sad
                 return makeVoidVal();
             };
             fm.registerBuiltinFunction(std::string(Bmp::MAP_GET), map_get_fn);
+
+            // ═══════════════════════════════════════════════════════════════════
+            // (AR) الجلب المصنَّف (RFC عقد الغياب — المرحلة ب): خريطة_اجلب_نص/رقم/منطقي.
+            //      الغيابُ «لاشيء» حصرًا (لا «فراغ» — عكس خريطة_احصل الديناميكيّة)؛
+            //      والحضورُ بنوعٍ مغايرٍ **أو بعدمٍ مخزَّن** خطأُ تشغيلٍ صريح (RUN074)
+            //      كي لا تكون للعدمِ قناتان مُنتِجتان. لا وسيطَ بديلًا ثالثًا —
+            //      التحصيلُ بـ«؟؟» هو الطريقُ الواحد.
+            // (EN) Typed fetch (absence-contract RFC, stage ب): absence returns Null
+            //      exclusively (not Void); presence with a different type OR a stored
+            //      null is an explicit runtime error (RUN074) so null never has two
+            //      producing channels. No third default argument — «؟؟» is the way.
+            // ═══════════════════════════════════════════════════════════════════
+            auto make_typed_fetch = [](std::string funcName,
+                                       bool (Data::Value::*matches)() const,
+                                       ::Sad::Types::SadTypeKind expectedKind)
+            {
+                const std::string expectedName = ::Sad::Types::kindToArabic(expectedKind);
+                return [funcName, matches, expectedName](Sad::Interpreter::BuiltinContext &ctx)
+                           -> std::shared_ptr<Data::Value>
+                {
+                    const auto &args = ctx.args();
+                    if (args.size() != 2)
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG,
+                                  {{"func", funcName}});
+                    if (!args[0]->isMap())
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG,
+                                  {{"func", funcName}});
+                    const auto &map = args[0]->toMapRef();
+                    const std::string key = args[1]->toString();
+                    auto it = map.find(key);
+                    if (it == map.end())
+                        return std::make_shared<Data::Value>(Data::Value::makeNull());
+                    if (!((it->second).*matches)())
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_MAP_FETCH_TYPE_MISMATCH,
+                                  {{"func", funcName},
+                                   {"key", key},
+                                   {"expected", expectedName},
+                                   // (AR) الاسمُ من مصدره الواحد — getTypeName تُرجع
+                                   //      «NULL» الإنجليزيّة للعدم (قِيس).
+                                   // (EN) Single-source name — getTypeName returns the
+                                   //      English "NULL" for null (measured).
+                                   {"found", ::Sad::Types::kindToArabic(it->second.getType())}});
+                    return std::make_shared<Data::Value>(it->second);
+                };
+            };
+            fm.registerBuiltinFunction(
+                std::string(Bmp::MAP_FETCH_STR),
+                make_typed_fetch(std::string(Bmp::MAP_FETCH_STR), &Data::Value::isString,
+                                 ::Sad::Types::SadTypeKind::String));
+            fm.registerBuiltinFunction(
+                std::string(Bmp::MAP_FETCH_NUM),
+                make_typed_fetch(std::string(Bmp::MAP_FETCH_NUM), &Data::Value::isInteger,
+                                 ::Sad::Types::SadTypeKind::Integer));
+            fm.registerBuiltinFunction(
+                std::string(Bmp::MAP_FETCH_BOOL),
+                make_typed_fetch(std::string(Bmp::MAP_FETCH_BOOL), &Data::Value::isBoolean,
+                                 ::Sad::Types::SadTypeKind::Boolean));
 
             // map_set / خريطة_عيّن — تعيين قيمة في خريطة (يرجع خريطة جديدة)
             auto map_set_fn = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>

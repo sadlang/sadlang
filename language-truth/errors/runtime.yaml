@@ -1255,3 +1255,23 @@ errors:
   detailed:
     ar: 'كان العدّادان يبدآن من ١ في فضاءٍ واحد، فأوّلُ وصفٍ وأوّلُ عمليّةٍ كلاهما ١: تمريرُ وصفٍ إلى انتظر_عملية كان يحصد عمليّةً أجنبيّة ويُرجع رمز خروجها، وتمريرُ عمليّةٍ إلى اغلق كان يُغلق وصفًا أجنبيًّا — ونجاحٌ في اليد بلا تحذير. وهو بعينه النجاحُ الكاذب الذي وُضعت هذه الوحدة لمحاربته، ونقضٌ لشرط المقترح أنّ المقبضين مبهمان. صار لكلّ نوعٍ وسمٌ في البتّات العليا، فالخلط يُكشف عند المدخل لا يُنفَّذ.'
     en: 'Both counters started at 1 in a shared space, so the first descriptor and the first process were both 1: passing a descriptor to انتظر_عملية reaped an unrelated process and returned its exit code, and passing a process to اغلق closed an unrelated descriptor — a silent false success, the exact failure this module exists to prevent. Each kind now carries a tag in its high bits, so the mix-up is detected at entry rather than executed.'
+- code: RUN_MAP_FETCH_TYPE_MISMATCH
+  id: RUN074
+  category: runtime
+  title:
+    ar: الجلب المصنف وجد نوعا مغايرا
+    en: Typed map fetch found a different type
+  brief:
+    ar: الجلب المصنف '{func}' وجد المفتاح '{key}' حاضرا بقيمة من نوع '{found}' لا '{expected}' — الحضور بنوع مغاير أو بعدم مخزن خطأ صريح لا عدم صامت
+    en: Typed fetch '{func}' found key '{key}' present with a '{found}' value, not '{expected}' — presence with a different type or a stored null is an explicit error, never a silent null
+  placeholders:
+  - func
+  - key
+  - expected
+  - found
+  fix_hint:
+    ar: استعمل مدمج الجلب المطابق لنوع القيمة المخزنة، أو 'خريطة_احصل' للجلب الديناميكي. العدم في ناتج الجلب المصنف يعني الغياب حصرا.
+    en: Use the typed fetch matching the stored value's type, or 'خريطة_احصل' for dynamic fetch. Null in a typed fetch result means absence exclusively.
+  detailed:
+    ar: مدمجات الجلب المصنف (خريطة_اجلب_نص/رقم/منطقي) ترجع القيمة عند الحضور بنوع مطابق، وعدما عند الغياب حصرا. الحضور بنوع مغاير او بعدم مخزن يرفع هذا الخطأ كي لا تنتج قناتان للعدم (عقد الغياب في الجلب — RFC 58).
+    en: Typed fetch builtins (خريطة_اجلب_نص/رقم/منطقي) return the value on a type-matching hit and null exclusively on absence. Presence with a different type or a stored null raises this error so null never has two producing channels (absence-contract RFC 58).

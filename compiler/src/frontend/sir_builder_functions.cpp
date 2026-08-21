@@ -459,6 +459,13 @@ namespace Sad
                     }
 
                     SIRParameter sirParam(param.name, paramType);
+                    // (AR) SEM045: النوع السطحيّ المصرَّح خامًّا من الـAST (نظير
+                    //      paramInfo.declaredSurfaceType أدناه) — يقرؤه حارسُ معامل
+                    //      النداء، معزولًا عن فضاء declaredTypedSlots المسطّح.
+                    // (EN) SEM045: raw declared surface type from the AST (mirror of
+                    //      paramInfo.declaredSurfaceType below) — read by the call-site
+                    //      param guard, isolated from the flat declaredTypedSlots space.
+                    sirParam.declaredSurfaceType = param.type;
                     // (AR) معامل مصرَّح بصنفٍ مسجَّل («حدث ح» أو صنف مستخدم): انقل اسم
                     //      الصنف إلى SIR كي تبذره الخلفيّة في objectClassMap — التصريح
                     //      أوثق من تخمين الصنف بالاسم، ومعالِج الحدث لا مواقعَ استدعاء له.

@@ -42,6 +42,8 @@ target_include_directories(sad_semantic_shared
 target_compile_features(sad_semantic_shared PUBLIC cxx_std_17)
 
 # (AR) يعتمد على نظام الأنواع المشترك / (EN) Depends on shared type system
-target_link_libraries(sad_semantic_shared PUBLIC sad_shared sad_type_system)
+# (AR) sad_null_safety: قاعدة SEM045 «الفراغ اليقيني» المشتركة (اتجاه الربط آمن —
+#      محلّل null لا يربط الطبقة الدلالية). / (EN) shared certainly-void rule; safe direction.
+target_link_libraries(sad_semantic_shared PUBLIC sad_shared sad_type_system sad_null_safety)
 
 message(STATUS "✓ مكتبة الفحص الدلالي المشتركة / Shared semantic: sad_semantic_shared")

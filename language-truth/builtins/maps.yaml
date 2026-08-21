@@ -684,6 +684,51 @@ functions:
   - مفتاح — المفتاح المطلوب.
   - "بديل — اختياريّ: يُرجَع عند غياب المفتاح بدل «فراغ» (منفَّذ في المحرّكين معًا)."
   lookup_table: name_only
+- cpp_id: MAP_FETCH_STR
+  canonical: خريطة_اجلب_نص
+  namespace: Maps
+  category: MODULE_FUNCTION
+  require_import: true
+  module: MAPS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: جلب مصنف نصي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)
+  description_en: Typed string fetch; absence returns Null exclusively, presence with a different type or a stored null is an explicit runtime error (RUN074)
+  params:
+  - خريطة — الخريطة المقروءة.
+  - مفتاح — المفتاح المطلوب.
+  lookup_table: name_only
+- cpp_id: MAP_FETCH_NUM
+  canonical: خريطة_اجلب_رقم
+  namespace: Maps
+  category: MODULE_FUNCTION
+  require_import: true
+  module: MAPS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: جلب مصنف رقمي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)
+  description_en: Typed integer fetch; absence returns Null exclusively, presence with a different type or a stored null is an explicit runtime error (RUN074)
+  params:
+  - خريطة — الخريطة المقروءة.
+  - مفتاح — المفتاح المطلوب.
+  lookup_table: name_only
+- cpp_id: MAP_FETCH_BOOL
+  canonical: خريطة_اجلب_منطقي
+  namespace: Maps
+  category: MODULE_FUNCTION
+  require_import: true
+  module: MAPS
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: جلب مصنف منطقي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)
+  description_en: Typed boolean fetch; absence returns Null exclusively, presence with a different type or a stored null is an explicit runtime error (RUN074)
+  params:
+  - خريطة — الخريطة المقروءة.
+  - مفتاح — المفتاح المطلوب.
+  lookup_table: name_only
 - cpp_id: MAP_SET
   canonical: خريطة_عين
   namespace: Maps

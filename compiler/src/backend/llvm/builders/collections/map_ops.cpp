@@ -12,6 +12,7 @@
 #include "llvm_codegen.h"
 #include "builders/collections/map_ops_codegen.h"
 #include "sad_dyn_repr.h" // (AR) DynKind لتهيئة الحقل ٤ homogKind / (EN) DynKind for field 4 homogKind init
+#include "sad_type_utils.h" // (AR) kindToArabic لرسالة RUN074 (الجلب المصنَّف) / (EN) Arabic type name for RUN074
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
@@ -588,7 +589,8 @@ namespace Sad
             }
 
             if (funcName == kRuntimeMapGet || funcName == kRuntimeMapGetI64 ||
-                funcName == kRuntimeMapGetDyn)
+                funcName == kRuntimeMapGetDyn || funcName == kRuntimeMapFetchStr ||
+                funcName == kRuntimeMapFetchInt || funcName == kRuntimeMapFetchBool)
             {
                 // (AR) قراءة قيمة من الخريطة بالمفتاح — ذكية حسب type tag
                 //      __sad_map_get: يُرجع ptr (نص) — إذا القيمة رقم يُحوّلها لنص عبر sprintf
@@ -741,6 +743,129 @@ namespace Sad
                     }
 
                     llvm::Value *result = Sad::LLVM::makeDyn(cg_, kind, payload);
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = result;
+                    return result;
+                }
+
+                // ════════════════════════════════════════════════════════════
+                // (AR) الجلبُ المصنَّف (RFC عقد الغياب — المرحلة ب):
+                //      خريطة_اجلب_نص/رقم/منطقي. العقد: الغيابُ «لاشيء» حصرًا؛
+                //      والحضورُ بوسمٍ مغايرٍ للمطلوب — والعدمُ/الفراغُ المخزَّنان
+                //      مغايران بالتعريف — خطأُ تشغيلٍ صريح (RUN074) كي لا تكون
+                //      للعدمِ قناتان مُنتِجتان. النصّيّ يُرجع ptr والرقميُّ i64
+                //      (الغيابُ بحارس kSadNullSentinel القائم — لا تمثيلَ جديدًا)،
+                //      والمنطقيُّ %SadDyn بوسم Bool/Null («منطقي؟» خارجُ النطاق
+                //      البِتّيّ: لاشيء وصحيح كانا سيتطابقان بِتًّا). الرسالةُ تُطبع
+                //      بنسق «%s» الثابت (المفتاحُ نصُّ مستخدمٍ — ثغرةُ نسق).
+                // (EN) Typed fetch (stage ب): absence returns Null exclusively;
+                //      presence with a non-matching tag (stored null/void included)
+                //      is an explicit RUN074 runtime error so null never has two
+                //      producing channels. Str ⇒ ptr, Int ⇒ i64 (absence = the
+                //      existing sentinel guard), Bool ⇒ %SadDyn Bool/Null. The
+                //      message prints via a fixed "%s" format (key is user text).
+                // ════════════════════════════════════════════════════════════
+                if (funcName == kRuntimeMapFetchStr || funcName == kRuntimeMapFetchInt ||
+                    funcName == kRuntimeMapFetchBool)
+                {
+                    auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                    const bool wantsStr = (funcName == kRuntimeMapFetchStr);
+                    const bool wantsInt = (funcName == kRuntimeMapFetchInt);
+                    const int64_t expectedTag = wantsStr   ? kMapValueTagString
+                                                : wantsInt ? kMapValueTagInteger
+                                                           : kMapValueTagBoolean;
+                    const auto expectedKind = wantsStr   ? SadTypeKind::String
+                                              : wantsInt ? SadTypeKind::Integer
+                                                         : SadTypeKind::Boolean;
+
+                    llvm::Value *slotKeyGep = cg_.builder_->CreateGEP(
+                        ptrTy, keysArr, {slotIdx}, "mfetch.slot.key.gep");
+                    llvm::Value *slotKey =
+                        cg_.builder_->CreateLoad(ptrTy, slotKeyGep, "mfetch.slot.key");
+                    llvm::Value *isPresent = cg_.builder_->CreateICmpNE(
+                        slotKey,
+                        llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)),
+                        "mfetch.present");
+                    llvm::Value *tagMatches = cg_.builder_->CreateICmpEQ(
+                        typeTag, llvm::ConstantInt::get(i64Ty, expectedTag),
+                        "mfetch.tag.ok");
+                    // (AR) الانتهاك = حاضرٌ بوسمٍ مغاير (يشمل عدمًا/فراغًا مخزَّنَين).
+                    // (EN) Violation = present with a non-matching tag.
+                    llvm::Value *violation = cg_.builder_->CreateAnd(
+                        isPresent, cg_.builder_->CreateNot(tagMatches, "mfetch.tag.no"),
+                        "mfetch.violation");
+
+                    llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                    llvm::BasicBlock *failBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "run074.fail", curFunc);
+                    llvm::BasicBlock *contBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "run074.ok", curFunc);
+                    cg_.builder_->CreateCondBr(violation, failBB, contBB);
+
+                    cg_.builder_->SetInsertPoint(failBB);
+                    const std::string expectedName = Sad::Types::kindToArabic(expectedKind);
+                    const std::string msgPre =
+                        "[خطأ تشغيل RUN074] الجلبُ المصنَّف وجد المفتاح '";
+                    const std::string msgPost =
+                        "' حاضرًا بقيمةٍ من نوعٍ مغايرٍ لا '" + expectedName +
+                        "' — الحضورُ بنوعٍ مغايرٍ أو بعدمٍ مخزَّنٍ خطأٌ صريحٌ لا عدمٌ صامت\n";
+                    if (cg_.freestanding_)
+                    {
+                        cg_.emitFreestandingPanicCall(
+                            Sad::Compiler::kSadPanicDynTypeMismatch);
+                    }
+                    else
+                    {
+                        auto *printfType = llvm::FunctionType::get(
+                            llvm::Type::getInt32Ty(*cg_.context_), {ptrTy}, true);
+                        auto printfFunc =
+                            cg_.module_->getOrInsertFunction("printf", printfType);
+                        llvm::Value *fmt =
+                            cg_.builder_->CreateGlobalStringPtr("%s%s%s", "run074.fmt");
+                        llvm::Value *pre =
+                            cg_.builder_->CreateGlobalStringPtr(msgPre, "run074.pre");
+                        llvm::Value *post =
+                            cg_.builder_->CreateGlobalStringPtr(msgPost, "run074.post");
+                        cg_.builder_->CreateCall(printfFunc, {fmt, pre, key, post});
+                        // (AR) الطباعةُ قبل حاجزِ «حاول» — درسُ SEM045 المقيس: القفزُ
+                        //      إلى الماسكِ قبل printf يُخفي التشخيص.
+                        // (EN) Print BEFORE the try barrier (measured SEM045 lesson).
+                        llvm::Value *handlerMsg = cg_.builder_->CreateGlobalStringPtr(
+                            msgPre + "…" + msgPost, "run074.msg");
+                        Sad::LLVM::emitRecoverablePanicToHandler(cg_, handlerMsg);
+                        auto *exitType = llvm::FunctionType::get(
+                            llvm::Type::getVoidTy(*cg_.context_),
+                            {llvm::Type::getInt32Ty(*cg_.context_)}, false);
+                        auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+                        cg_.builder_->CreateCall(
+                            exitFunc, {llvm::ConstantInt::get(
+                                          llvm::Type::getInt32Ty(*cg_.context_), 1)});
+                    }
+                    cg_.builder_->CreateUnreachable();
+
+                    cg_.builder_->SetInsertPoint(contBB);
+                    llvm::Value *result = nullptr;
+                    if (funcName == kRuntimeMapFetchBool)
+                    {
+                        llvm::Value *kind = cg_.builder_->CreateSelect(
+                            isPresent, llvm::ConstantInt::get(i8Ty, DynKind::Bool),
+                            llvm::ConstantInt::get(i8Ty, DynKind::Null), "mfetch.kind");
+                        llvm::Value *payload = cg_.builder_->CreateSelect(
+                            isPresent, valI64, llvm::ConstantInt::get(i64Ty, 0),
+                            "mfetch.payload");
+                        result = Sad::LLVM::makeDyn(cg_, kind, payload);
+                    }
+                    else
+                    {
+                        llvm::Value *sentinel =
+                            llvm::ConstantInt::get(i64Ty, kSadNullSentinel);
+                        llvm::Value *raw = cg_.builder_->CreateSelect(
+                            isPresent, valI64, sentinel, "mfetch.raw");
+                        result = wantsStr
+                                     ? cg_.builder_->CreateIntToPtr(raw, ptrTy,
+                                                                    "mfetch.str.ptr")
+                                     : raw;
+                    }
                     if (inst->result.has_value())
                         cg_.context_info_.namedValues[inst->result->name] = result;
                     return result;
