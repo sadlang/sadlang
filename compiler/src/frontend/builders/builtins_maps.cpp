@@ -298,14 +298,17 @@ namespace Sad
                 //      الغياب — المرحلة ب): الغيابُ «لاشيء» حصرًا (لا «فراغ»)،
                 //      والحضورُ بنوعٍ مغايرٍ أو بعدمٍ مخزَّنٍ خطأُ تشغيلٍ صريح
                 //      (RUN074). لا وسيطَ بديلًا ثالثًا — التحصيلُ بـ«؟؟» هو
-                //      الطريقُ الواحد. النصّيّ والرقميّ يُرجعان نوعَهما المحسوس
-                //      (الغيابُ بحارس kSadNullSentinel القائم)، والمنطقيُّ «أي»
-                //      (%SadDyn بوسم Bool/Null) لأنّ «منطقي؟» خارجُ النطاق البِتّيّ.
+                //      الطريقُ الواحد. والثلاثةُ تُرجع «أي» (%SadDyn بوسمٍ خارجَ
+                //      النطاقِ البِتّيّ): كان النصّيّ والرقميّ يُرمَزان بحارسِ
+                //      kSadNullSentinel داخلَ النطاق، فقيمةٌ مخزَّنةٌ تساويه كانت
+                //      تُقرأ غيابًا (دَينُ التصادمِ المعلَن — سُدّ بتوحيدِ القناة).
                 // (EN) Typed fetch (stage ب): absence is Null exclusively; presence
                 //      with a different type or a stored null is an explicit RUN074
                 //      runtime error. No third default argument — «؟؟» is the way.
-                //      Str/Int return their concrete kinds (absence = the existing
-                //      sentinel guard); Bool returns «أي» (out-of-band tag).
+                //      All three return «أي» (%SadDyn, out-of-band tag): Str/Int
+                //      used the in-band kSadNullSentinel, so a stored value equal
+                //      to it read as absence (the declared collision debt — sealed
+                //      by unifying the channel).
                 // ────────────────────────────────────────────────────────────
                 if (funcName == Bn::Maps::MAP_FETCH_STR ||
                     funcName == Bn::Maps::MAP_FETCH_NUM ||
@@ -324,19 +327,21 @@ namespace Sad
                             " تقبل وسيطَين حصرًا (خريطة، مفتاح) — لا وسيطَ بديلًا ثالثًا، التحصيلُ بـ«؟؟»");
                         return BuildResult();
                     }
+                    // (AR) resultKind واحدٌ (Any) للثلاثة — قناةُ الغيابِ خارجَ النطاقِ
+                    //      البِتّيّ حصرًا (انظر بيانَ التصادمِ أعلاه).
+                    // (EN) One resultKind (Any) for all three — the absence channel is
+                    //      exclusively out-of-band (see the collision note above).
+                    const SadTypeKind resultKind = SadTypeKind::Any;
                     const char *runtimeName = kRuntimeMapFetchStr;
-                    SadTypeKind resultKind = SadTypeKind::String;
-                    const char *note = "maps: typed fetch (str)";
+                    const char *note = "maps: typed fetch (str, out-of-band)";
                     if (funcName == Bn::Maps::MAP_FETCH_NUM)
                     {
                         runtimeName = kRuntimeMapFetchInt;
-                        resultKind = SadTypeKind::Integer;
-                        note = "maps: typed fetch (int)";
+                        note = "maps: typed fetch (int, out-of-band)";
                     }
                     else if (funcName == Bn::Maps::MAP_FETCH_BOOL)
                     {
                         runtimeName = kRuntimeMapFetchBool;
-                        resultKind = SadTypeKind::Any;
                         note = "maps: typed fetch (bool, out-of-band)";
                     }
                     BuildResult result = emitRuntimeCall(

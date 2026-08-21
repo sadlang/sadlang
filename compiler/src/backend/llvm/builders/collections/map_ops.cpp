@@ -753,16 +753,16 @@ namespace Sad
                 //      خريطة_اجلب_نص/رقم/منطقي. العقد: الغيابُ «لاشيء» حصرًا؛
                 //      والحضورُ بوسمٍ مغايرٍ للمطلوب — والعدمُ/الفراغُ المخزَّنان
                 //      مغايران بالتعريف — خطأُ تشغيلٍ صريح (RUN074) كي لا تكون
-                //      للعدمِ قناتان مُنتِجتان. النصّيّ يُرجع ptr والرقميُّ i64
-                //      (الغيابُ بحارس kSadNullSentinel القائم — لا تمثيلَ جديدًا)،
-                //      والمنطقيُّ %SadDyn بوسم Bool/Null («منطقي؟» خارجُ النطاق
-                //      البِتّيّ: لاشيء وصحيح كانا سيتطابقان بِتًّا). الرسالةُ تُطبع
+                //      للعدمِ قناتان مُنتِجتان. والثلاثةُ تُرجع %SadDyn بوسمِ
+                //      نوعِها أو Null — لا حارسَ داخلَ النطاقِ البِتّيّ (انظر
+                //      بيانَ سدِّ التصادمِ عند بناءِ النتيجة). الرسالةُ تُطبع
                 //      بنسق «%s» الثابت (المفتاحُ نصُّ مستخدمٍ — ثغرةُ نسق).
                 // (EN) Typed fetch (stage ب): absence returns Null exclusively;
                 //      presence with a non-matching tag (stored null/void included)
                 //      is an explicit RUN074 runtime error so null never has two
-                //      producing channels. Str ⇒ ptr, Int ⇒ i64 (absence = the
-                //      existing sentinel guard), Bool ⇒ %SadDyn Bool/Null. The
+                //      producing channels. All three return %SadDyn tagged with
+                //      their kind or Null — no in-band sentinel (see the
+                //      collision-seal note at the result construction). The
                 //      message prints via a fixed "%s" format (key is user text).
                 // ════════════════════════════════════════════════════════════
                 if (funcName == kRuntimeMapFetchStr || funcName == kRuntimeMapFetchInt ||
@@ -844,28 +844,27 @@ namespace Sad
                     cg_.builder_->CreateUnreachable();
 
                     cg_.builder_->SetInsertPoint(contBB);
-                    llvm::Value *result = nullptr;
-                    if (funcName == kRuntimeMapFetchBool)
-                    {
-                        llvm::Value *kind = cg_.builder_->CreateSelect(
-                            isPresent, llvm::ConstantInt::get(i8Ty, DynKind::Bool),
-                            llvm::ConstantInt::get(i8Ty, DynKind::Null), "mfetch.kind");
-                        llvm::Value *payload = cg_.builder_->CreateSelect(
-                            isPresent, valI64, llvm::ConstantInt::get(i64Ty, 0),
-                            "mfetch.payload");
-                        result = Sad::LLVM::makeDyn(cg_, kind, payload);
-                    }
-                    else
-                    {
-                        llvm::Value *sentinel =
-                            llvm::ConstantInt::get(i64Ty, kSadNullSentinel);
-                        llvm::Value *raw = cg_.builder_->CreateSelect(
-                            isPresent, valI64, sentinel, "mfetch.raw");
-                        result = wantsStr
-                                     ? cg_.builder_->CreateIntToPtr(raw, ptrTy,
-                                                                    "mfetch.str.ptr")
-                                     : raw;
-                    }
+                    // (AR) [سدّ دَين التصادم] القناةُ الواحدة %SadDyn للثلاثة: الحضورُ
+                    //      بوسمِ نوعِه والغيابُ بوسمِ Null — لا حارسَ kSadNullSentinel
+                    //      داخلَ النطاق. الحارسُ القديمُ جعل قيمةً مخزَّنةً تساويه
+                    //      تُقرأ غيابًا (نص/رقم)، والوسمُ خارجَ النطاقِ لا يتصادمُ
+                    //      مع أيِّ حمولةٍ بالبناء — كما برهنَ المنطقيُّ قبلَه.
+                    // (EN) [collision-debt seal] One %SadDyn channel for all three:
+                    //      presence carries its kind tag, absence the Null tag — no
+                    //      in-band kSadNullSentinel. The old sentinel made a stored
+                    //      value equal to it read as absence (str/int); an
+                    //      out-of-band tag cannot collide with any payload by
+                    //      construction — as the bool variant already proved.
+                    const auto presentKind = wantsStr   ? DynKind::Str
+                                             : wantsInt ? DynKind::Int
+                                                        : DynKind::Bool;
+                    llvm::Value *kind = cg_.builder_->CreateSelect(
+                        isPresent, llvm::ConstantInt::get(i8Ty, presentKind),
+                        llvm::ConstantInt::get(i8Ty, DynKind::Null), "mfetch.kind");
+                    llvm::Value *payload = cg_.builder_->CreateSelect(
+                        isPresent, valI64, llvm::ConstantInt::get(i64Ty, 0),
+                        "mfetch.payload");
+                    llvm::Value *result = Sad::LLVM::makeDyn(cg_, kind, payload);
                     if (inst->result.has_value())
                         cg_.context_info_.namedValues[inst->result->name] = result;
                     return result;

@@ -177,6 +177,13 @@ namespace Sad
                             fieldTypes.push_back(llvm::PointerType::getUnqual(*cg_.context_));
                             break;
                         case SadTypeKind::Any:
+                        // (AR) SEM045 (شبكة أمان): كِيانُ حقلٍ بقي Void (استنتاجٌ من مُهيّئٍ
+                        //      فراغيٍّ لم تلحقه الترقية) يأخذ خانةَ %SadDyn لا i64 خامًا —
+                        //      الخانةُ الخامُ كانت تقرأ «0» صامتةً.
+                        // (EN) SEM045 (safety net): a field kind left as Void (inferred from
+                        //      a void initializer the promotion did not reach) gets a %SadDyn
+                        //      slot, not raw i64 — the raw slot read back a silent «0».
+                        case SadTypeKind::Void:
                             // (AR) ISSUE-076 (%SadDyn): حقلٌ ديناميّ (حمولة ADT غير منمّطة) ⇒ خانة
                             //      واصفة لذاتها %SadDyn = { i8 kind; i64 payload } بدل وسم البتّات.
                             // (EN) ISSUE-076 (%SadDyn): a dynamic field (untyped ADT payload) ⇒ the

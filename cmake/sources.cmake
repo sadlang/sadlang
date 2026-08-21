@@ -112,6 +112,7 @@ set(INTERPRETER_SOURCES
     interpreter/src/visitors/expression_evaluator_calls_macro.cpp
     interpreter/src/visitors/expression_evaluator_calls_user_func.cpp
     interpreter/src/visitors/expression_evaluator_calls_dispatch.cpp
+    interpreter/src/visitors/sem045_report.cpp        # (AR) باب إبلاغ SEM045 الواحد / (EN) single SEM045 reporting door
     interpreter/src/visitors/expression_evaluator_oop.cpp
     interpreter/src/visitors/expression_evaluator_oop_new.cpp
     interpreter/src/visitors/expression_evaluator_oop_array_methods.cpp

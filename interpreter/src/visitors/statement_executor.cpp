@@ -20,6 +20,7 @@
 #include "channel.h"
 #include "sad_type_system.h"
 #include "null_safety/null_safety_analyzer.h" // (AR) محور الصرامة D6 لحارس SEM045 / (EN) D6 strictness axis for the SEM045 guard
+#include "visitors/sem045_report.h"           // (AR) باب إبلاغ SEM045 الواحد / (EN) single SEM045 reporting door
 #include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 #include <iostream>
 #include <sstream>
@@ -199,50 +200,21 @@ namespace Sad
                     // ═══════════════════════════════════════════════════════════
                     bool voidCrossingHandled = false;
                     if (value.getKind() == Types::SadTypeKind::Void &&
-                        node.type != Types::SadTypeKind::Any)
+                        Sad::Interpreter::Sem045::kindIsGuarded(node.type))
                     {
-                        // (AR) لا استثناءَ آخر يلزم: الشرطُ الخارجيّ (السطر أعلاه)
-                        //      يستبعد Unknown، وخانةُ «فراغ» يرفضها SEM040 قبل الوصول.
-                        // (EN) No further exemption needed: the outer condition
-                        //      excludes Unknown; a Void slot is rejected by SEM040.
+                        // (AR) الإبلاغُ عبر البابِ الواحد (sem045_report) — كانت الكتلةُ
+                        //      منسوخةً في أربعةِ مواضع. المسنَدُ kindIsGuarded يوحّد طقمَ
+                        //      الاستثناءِ أيضًا (كان الشرطُ هنا Any فقط — الباقي كان
+                        //      يستبعده الشرطُ الخارجيّ وSEM040).
+                        // (EN) Report through the single door (sem045_report) — the block
+                        //      was copied at four sites. kindIsGuarded also unifies the
+                        //      exemption set (this site tested only Any — the rest were
+                        //      excluded by the outer condition and SEM040).
                         voidCrossingHandled = true;
-                        auto strictness = Sad::NullSafety::strictnessFromOwnershipMode(
-                            memoryPolicy_.ownershipMode);
-                        if (strictness != Sad::NullSafety::Strictness::Ignore)
-                        {
-                            std::map<std::string, std::string> ph{
-                                {"name", node.name},
-                                {"type_name", node.sadType->arabicName()},
-                                {"void_word", "فراغ"}};
-                            if (strictness == Sad::NullSafety::Strictness::Fatal)
-                            {
-                                std::cerr << "[خطأ نوع SEM045] سطر "
-                                          << node.position.line
-                                          << ": الخانة '" << node.name
-                                          << "' أُسند إليها 'فراغ'" << std::endl;
-                                // (AR) يبلّغ الكتالوج ثم يرمي RuntimeAbort — فيتوقف
-                                //      التنفيذ موضعيًّا حتى داخل أجسام الدوال، لا عند
-                                //      فحصِ hasErrors في الحلقة العلوية فقط.
-                                // (EN) Reports from catalog then throws RuntimeAbort —
-                                //      stops locally even inside function bodies.
-                                Sad::Errors::throwRuntime(
-                                    Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
-                                    node.position, std::move(ph));
-                            }
-                            std::cerr << "[تحذير نوع SEM045] سطر "
-                                      << node.position.line
-                                      << ": الخانة '" << node.name
-                                      << "' أُسند إليها 'فراغ'" << std::endl;
-                            Sad::Errors::RenderContext rcV(
-                                Sad::Errors::SourceLocation(
-                                    "", node.position.line, node.position.column),
-                                std::move(ph));
-                            Sad::Errors::ErrorManager::getInstance().reportWarningFromCatalog(
-                                Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
-                                Sad::Errors::SourceLocation(
-                                    "", node.position.line, node.position.column),
-                                rcV);
-                        }
+                        Sad::Interpreter::Sem045::reportVoidCrossing(
+                            node.name, node.sadType->arabicName(), node.position,
+                            Sad::NullSafety::strictnessFromOwnershipMode(
+                                memoryPolicy_.ownershipMode));
                     }
 
                     auto valueType = Types::SadType::fromValueType(value.getType());

@@ -113,6 +113,38 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) شرطٌ موسوم (%SadDyn) — كان يسقط إلى ذراع «عددٍ أو غيره» فيُجري
+            //      ICmp على هيكلٍ ويُجهض LLVM بتأكيد cast (قِيس:
+            //      «إذا (خريطة_اجلب_منطقي(...))» rc=3). الصدقيّةُ من الوسمِ
+            //      والحمولةِ معًا بدلالة المفسّر: العدمُ والفراغُ كاذبان،
+            //      وما عداهما صادقٌ ما لم تكن حمولتُه صفرًا (0/0.0/خطأ/مؤشّر
+            //      عدم — نمطُ بتّاتِ الصفرِ واحدٌ في الأنواعِ كلِّها).
+            // (EN) A tagged (%SadDyn) condition used to fall into the "integer or
+            //      other" arm, running ICmp on a struct and aborting LLVM with a
+            //      cast assert (measured: «إذا (خريطة_اجلب_منطقي(...))» rc=3).
+            //      Truthiness reads tag and payload together, matching the
+            //      interpreter: Null and Void are falsy; anything else is truthy
+            //      unless its payload is zero (0/0.0/false/null ptr — the zero
+            //      bit pattern is shared by every kind).
+            if (Sad::LLVM::isSadDyn(condition))
+            {
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, condition);
+                llvm::Value *payload = Sad::LLVM::dynPayloadI64(cg_, condition);
+                llvm::Value *notNull = cg_.builder_->CreateICmpNE(
+                    kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Null),
+                    "tobool.dyn.nn");
+                llvm::Value *notVoid = cg_.builder_->CreateICmpNE(
+                    kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Void),
+                    "tobool.dyn.nv");
+                llvm::Value *nonZero = cg_.builder_->CreateICmpNE(
+                    payload, llvm::ConstantInt::get(payload->getType(), 0),
+                    "tobool.dyn.nz");
+                condition = cg_.builder_->CreateAnd(
+                    cg_.builder_->CreateAnd(notNull, notVoid, "tobool.dyn.tag"),
+                    nonZero, "tobool.dyn");
+            }
+
             // (AR) التأكد من أن الشرط من نوع i1 — LLVM CreateCondBr يتطلب i1
             //      إذا كان الشرط ptr، نقارنه بـ null لتحويله إلى i1
             //      إذا كان الشرط i64 أو غيره، نقارنه بالصفر لتحويله إلى i1

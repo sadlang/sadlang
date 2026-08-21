@@ -29,6 +29,7 @@
 // (AR) SEM045 (RFC عقد الغياب): مابِع الصرامة المشترك strictnessFromOwnershipMode
 // (EN) SEM045 (absence-contract RFC): shared strictness mapper
 #include "null_safety/null_safety_analyzer.h"
+#include "visitors/sem045_report.h" // (AR) باب إبلاغ SEM045 الواحد / (EN) single SEM045 reporting door
 #include "runtime_throw.h"
 #include "user_thrown.h"
 #include "async_runtime.h"
@@ -257,12 +258,14 @@ namespace Sad
                     else if (astFuncDecl && i < astFuncDecl->parameters.size())
                     {
                         const auto &astParam = astFuncDecl->parameters[i];
+                        // (AR) المسنَدُ الموحَّد kindIsGuarded (البابُ الواحد) بدل
+                        //      سلسلةِ الاستثناءاتِ المنسوخة.
+                        // (EN) The unified kindIsGuarded predicate (single door)
+                        //      instead of the copied exemption chain.
                         if (astParam.type != Types::SadTypeKind::Unknown &&
                             astParam.sadType &&
-                            astParam.sadType->getKind() != Types::SadTypeKind::Unknown &&
-                            astParam.sadType->getKind() != Types::SadTypeKind::Any &&
-                            astParam.sadType->getKind() != Types::SadTypeKind::Void &&
-                            astParam.sadType->getKind() != Types::SadTypeKind::Null)
+                            Sad::Interpreter::Sem045::kindIsGuarded(
+                                astParam.sadType->getKind()))
                         {
                             typedParamName = astParam.sadType->arabicName();
                         }
@@ -270,36 +273,10 @@ namespace Sad
                     if (!typedParamName.empty())
                     {
                         voidParamHandled = true;
-                        auto strictness = Sad::NullSafety::strictnessFromOwnershipMode(
-                            statementExecutor_.getMemoryPolicy().ownershipMode);
-                        if (strictness != Sad::NullSafety::Strictness::Ignore)
-                        {
-                            std::map<std::string, std::string> ph{
-                                {"name", params[i].name},
-                                {"type_name", typedParamName},
-                                {"void_word", "فراغ"}};
-                            if (strictness == Sad::NullSafety::Strictness::Fatal)
-                            {
-                                std::cerr << "[خطأ نوع SEM045] سطر " << node.position.line
-                                          << ": الخانة '" << params[i].name
-                                          << "' أُسند إليها 'فراغ'" << std::endl;
-                                Sad::Errors::throwRuntime(
-                                    Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
-                                    node.position, std::move(ph));
-                            }
-                            std::cerr << "[تحذير نوع SEM045] سطر " << node.position.line
-                                      << ": الخانة '" << params[i].name
-                                      << "' أُسند إليها 'فراغ'" << std::endl;
-                            Sad::Errors::RenderContext rcV(
-                                Sad::Errors::SourceLocation("", node.position.line,
-                                                            node.position.column),
-                                std::move(ph));
-                            Sad::Errors::ErrorManager::getInstance().reportWarningFromCatalog(
-                                Sad::Errors::ErrorCode::SEM_VOID_ASSIGNED_TO_TYPED_SLOT,
-                                Sad::Errors::SourceLocation("", node.position.line,
-                                                            node.position.column),
-                                rcV);
-                        }
+                        Sad::Interpreter::Sem045::reportVoidCrossing(
+                            params[i].name, typedParamName, node.position,
+                            Sad::NullSafety::strictnessFromOwnershipMode(
+                                statementExecutor_.getMemoryPolicy().ownershipMode));
                     }
                 }
 
