@@ -677,9 +677,12 @@ functions:
   compiler_strategy: RUNTIME_CALL
   since: 0.1.0
   status: stable
-  description_ar: احصل على قيمة من الخريطة
-  description_en: Get value from map
-  params: []
+  description_ar: احصل على قيمة من الخريطة؛ غياب المفتاح يرجع «فراغ» (لا «لاشيء») أو البديل الثالث إن أعطي
+  description_en: Get value from map; a missing key returns Void (not Null), or the third default argument if given
+  params:
+  - خريطة — الخريطة المقروءة.
+  - مفتاح — المفتاح المطلوب.
+  - "بديل — اختياريّ: يُرجَع عند غياب المفتاح بدل «فراغ» (منفَّذ في المحرّكين معًا)."
   lookup_table: name_only
 - cpp_id: MAP_SET
   canonical: خريطة_عين

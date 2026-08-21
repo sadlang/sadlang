@@ -473,7 +473,7 @@ namespace Sad
                 inline constexpr std::string_view UNICODE_CODEPOINTS = "نص_يونيكود";
                 // (AR) إنشاء خريطة
                 inline constexpr std::string_view MAP_CTOR = "خريطة";
-                // (AR) احصل على قيمة من الخريطة
+                // (AR) احصل على قيمة من الخريطة؛ غياب المفتاح يرجع «فراغ» (لا «لاشيء») أو البديل الثالث إن أعطي
                 inline constexpr std::string_view MAP_GET = "خريطة_احصل";
                 // (AR) تعيين قيمة في الخريطة
                 inline constexpr std::string_view MAP_SET = "خريطة_عين";
@@ -3354,7 +3354,7 @@ namespace Sad
             {Names::Maps::COMPARE_TEXT, "Maps", "MODULE_FUNCTION", "MAPS", true, "مقارنة نصين", "", ""},
             {Names::Maps::UNICODE_CODEPOINTS, "Maps", "MODULE_FUNCTION", "MAPS", true, "نقاط Unicode", "", ""},
             {Names::Maps::MAP_CTOR, "Maps", "MODULE_FUNCTION", "MAPS", true, "إنشاء خريطة", "", ""},
-            {Names::Maps::MAP_GET, "Maps", "MODULE_FUNCTION", "MAPS", true, "احصل على قيمة من الخريطة", "", ""},
+            {Names::Maps::MAP_GET, "Maps", "MODULE_FUNCTION", "MAPS", true, "احصل على قيمة من الخريطة؛ غياب المفتاح يرجع «فراغ» (لا «لاشيء») أو البديل الثالث إن أعطي", "خريطة — الخريطة المقروءة.، مفتاح — المفتاح المطلوب.، بديل — اختياريّ: يُرجَع عند غياب المفتاح بدل «فراغ» (منفَّذ في المحرّكين معًا).", ""},
             {Names::Maps::MAP_SET, "Maps", "MODULE_FUNCTION", "MAPS", true, "تعيين قيمة في الخريطة", "", ""},
             {Names::Maps::MAP_KEYS, "Maps", "MODULE_FUNCTION", "MAPS", true, "مفاتيح الخريطة", "", ""},
             {Names::Maps::MAP_VALUES, "Maps", "MODULE_FUNCTION", "MAPS", true, "قيم الخريطة", "", ""},
