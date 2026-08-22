@@ -557,7 +557,41 @@ namespace Sad
 
                         FunctionInfo methodInfo;
                         methodInfo.name = fullMethodName;
-                        methodInfo.returnType = astTypeToSIRType(methodDecl->returnType);
+                        // (AR) SEM045 (انحدار t054): التسجيلُ المسبقُ كان يدوّن Void لكلِّ
+                        //      طريقةٍ بلا نوعِ إرجاعٍ مصرَّح، وبعد أن صار Void ذا دلالةٍ
+                        //      هدّامةٍ (أذرعُ STORE تُسقط السجلَّ وتخزّن ثابتَ الفراغ) صار
+                        //      نداءُ طريقةٍ معرَّفةٍ **لاحقًا** في جسم الصنف — من الباني أو
+                        //      من طريقةٍ أسبق — يفقد قيمتَه («هذا.ع = هذا.ضعف(ن)» تطبع
+                        //      «لاشيء»). نستنتج من الجسم هنا كما يفعل البناءُ الفعليُّ في
+                        //      class_main — والبناءُ الفعليُّ يظلُّ يُحدّث المدخلَ لاحقًا.
+                        // (EN) SEM045 (regression t054): pre-registration recorded Void for
+                        //      every method without a declared return type; once Void became
+                        //      destructive (STORE arms drop the register and store the Void
+                        //      constant), calling a method declared LATER in the class body —
+                        //      from the ctor or an earlier method — lost its value. Infer
+                        //      from the body here exactly as the real build in class_main
+                        //      does; the real build still updates the entry afterwards.
+                        // (AR) حدٌّ معلَن: الاستنتاجُ هنا يسبق تسجيلَ الأصنافِ في module_
+                        //      والمرحلةَ 1.7، فطريقةٌ تُرجع «هذا.حقل» أو طريقةً لاحقةً قد
+                        //      تُستنتَج بالافتراضِ العدديّ — أدقُّ من Void المُسقِطة، ويصحّحه
+                        //      تحديثُ البناءِ الفعليِّ للمواضعِ المبنيّةِ بعدَه.
+                        // (EN) Declared limit: this runs before classes enter module_ and
+                        //      before Phase 1.7, so a method returning «هذا.حقل» or a later
+                        //      method may fall to the numeric default — still strictly better
+                        //      than the value-dropping Void; the real build's update corrects
+                        //      call sites built after it.
+                        if (methodDecl->returnType == Sad::Types::SadTypeKind::Unknown ||
+                            methodDecl->returnType == Sad::Types::SadTypeKind::Void)
+                        {
+                            auto savedClassName = currentClassName_;
+                            currentClassName_ = classDecl->name;
+                            methodInfo.returnType = inferReturnTypeFromBody(methodDecl->body.get());
+                            currentClassName_ = savedClassName;
+                        }
+                        else
+                        {
+                            methodInfo.returnType = astTypeToSIRType(methodDecl->returnType);
+                        }
 
                         // (AR) الدوال غير الساكنة تأخذ self كمعامل أول
                         // (EN) Non-static methods take self as first parameter

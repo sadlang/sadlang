@@ -1056,6 +1056,17 @@ namespace Sad
             }
             else
             {
+                // (AR) SEM045 (انحدار t001): نوعُ المستدعى هنا هو نوعُ النداء (تسجيلُ
+                //      القوالب بخانةِ الإرجاع) — وصارت الخانةُ صادقةً في المنبع:
+                //      visitTemplateFunctionDecl يميّز «الفراغَ اليقينيَّ» عن المُغفَلِ
+                //      المُرجِعِ قيمةً (يُدوَّن مجهولًا)، فلا تحويلَ دفاعيًّا هنا — تحويلُ
+                //      Void→Unknown جملةً أضاع D8 عن القالبِ الفراغيِّ حقًّا (قِيس).
+                // (EN) SEM045 (regression t001): the callee type IS the call type here
+                //      (templates register by their return slot) — and the slot is now
+                //      truthful at the source: visitTemplateFunctionDecl distinguishes
+                //      certainly-void from undeclared-value-returning (Unknown), so no
+                //      defensive conversion happens here — a blanket Void→Unknown lost
+                //      D8 for genuinely void templates (measured).
                 lastInferredType_ = calleeType ? calleeType : registry_.getUnknownType();
             }
         }

@@ -1102,7 +1102,34 @@ namespace Sad
             exitScope();
 
             // تسجيل الدالة المعممة / Register generic function
-            declareVariable(decl.name, dataTypeToTypePtr(decl.returnType));
+            // (AR) SEM045 (انحدار t001 وثقب المراجعة العدائية): الخانةُ الخامُ تكون Void
+            //      لغيابِ التصريحِ كما لتصريحِ «فراغ» سواءً، وتسجيلُها كما هي جعل نداءَ
+            //      قالبٍ يُرجع قيمةً («هوية(5)») يُختم فراغًا فتطلق قاعدةُ D8 الحسابيةُ
+            //      كذبًا — وتحويلُ الفرعِ المستهلِكِ Void→Unknown جملةً أضاع D8 عن
+            //      القالبِ الفراغيِّ حقًّا (قِيس: خطأٌ صامتٌ في --إنتاج). الحقيقةُ تُدوَّن
+            //      في المنبع: «الفراغُ اليقينيُّ» (bodyCertainlyReturnsNothing المشتركة)
+            //      يبقى Void فيصيبه D8، وما يُرجع قيمةً بلا تصريحٍ يُدوَّن مجهولًا.
+            // (EN) SEM045 (regression t001 + adversarial-review hole): the raw slot is
+            //      Void both for an omitted return type and an explicit «فراغ»; recording
+            //      it verbatim stamped value-returning template calls Void (false D8),
+            //      while converting Void→Unknown at the consumer lost D8 for genuinely
+            //      void templates (measured: silent wrong result under --إنتاج). Record
+            //      the truth at the source: a certainly-void body (shared
+            //      bodyCertainlyReturnsNothing) stays Void so D8 still fires; an
+            //      undeclared value-returning body registers as Unknown.
+            if (decl.returnType == Types::SadTypeKind::Unknown ||
+                decl.returnType == Types::SadTypeKind::Void)
+            {
+                declareVariable(decl.name,
+                                Sad::NullSafety::NullSafetyAnalyzer::bodyCertainlyReturnsNothing(
+                                    decl.body.get())
+                                    ? registry_.getVoidType()
+                                    : registry_.getUnknownType());
+            }
+            else
+            {
+                declareVariable(decl.name, dataTypeToTypePtr(decl.returnType));
+            }
 
             // (AR) [Phase 8] استعادة سياق الإرجاع السابق
             // (EN) [Phase 8] Restore previous return context
