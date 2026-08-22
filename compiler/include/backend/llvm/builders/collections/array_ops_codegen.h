@@ -72,7 +72,8 @@ namespace Sad
             //      never reached. So the check stays BEFORE and loses only its assert.
             // ============================================================
             llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr",
-                                           bool assertDynTag = true);
+                                           bool assertDynTag = true,
+                                           bool absenceIsIndexing = false);
 
             // ════════════════════════════════════════════════════════════════
             // (AR) 🔑 حارسُ الإسنادِ بالفهرسِ لقيمةٍ **موسومة**: يحكمُ بالوسمِ لا

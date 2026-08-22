@@ -1237,8 +1237,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 5: delegate إلى ArrayOpsCodeGen (تبقى wrappers لأن array_file_coro.cpp يستدعيها)
             llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr",
-                                                       bool assertDynTag = true)
-            { return arr_->normalizeArrayPtr(arrPtr, label, assertDynTag); }
+                                                       bool assertDynTag = true,
+                                                       bool absenceIsIndexing = false)
+            { return arr_->normalizeArrayPtr(arrPtr, label, assertDynTag, absenceIsIndexing); }
             llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx") { return arr_->normalizeArrayIndex(index, arrPtr, label); }
             void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc") { arr_->emitBoundsCheck(index, arrPtr, label); }
 

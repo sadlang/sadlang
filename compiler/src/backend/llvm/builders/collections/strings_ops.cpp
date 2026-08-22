@@ -907,6 +907,8 @@ namespace Sad
             llvm::BasicBlock *flMap = llvm::BasicBlock::Create(*cg_.context_, "fl.map", fn);
             llvm::BasicBlock *flArrayChk = llvm::BasicBlock::Create(*cg_.context_, "fl.arr.chk", fn);
             llvm::BasicBlock *flArray = llvm::BasicBlock::Create(*cg_.context_, "fl.array", fn);
+            llvm::BasicBlock *flObjChk = llvm::BasicBlock::Create(*cg_.context_, "fl.obj.chk", fn);
+            llvm::BasicBlock *flObj = llvm::BasicBlock::Create(*cg_.context_, "fl.obj", fn);
             llvm::BasicBlock *flStr = llvm::BasicBlock::Create(*cg_.context_, "fl.str", fn);
             llvm::BasicBlock *flNext = llvm::BasicBlock::Create(*cg_.context_, "fl.next", fn);
             llvm::BasicBlock *flEnd = llvm::BasicBlock::Create(*cg_.context_, "fl.end", fn);
@@ -1064,7 +1066,9 @@ namespace Sad
             // (AR) [م-٠٠١] غيرُ النصِّ: كانت ٢٤ بايتًا تكفي i64 وأطولَ اسمٍ منطقيّ. ومنذ
             //      صار العشريُّ يُنسَّقُ هنا بـ`__sad_format_double` (‏%.6f‏) صار DBL_MAX
             //      يبلغُ نحوَ ٣١٦ محرفًا ⇒ ٥١٢ حدًّا آمنًا موحَّدًا لكلِّ الأوسامِ غيرِ
-            //      النصّيّة (ثابتٌ مسمًّى لا رقمٌ عارٍ).
+            //      النصّيّة (ثابتٌ مسمًّى لا رقمٌ عارٍ). ووسمُ الكائنِ (٨) يسقطُ
+            //      هنا **عمدًا**: عرضُه الثابتُ `kObjectOpaqueDisplay` أقصرُ من
+            //      الحدِّ بكثيرٍ فلا ذراعَ تقديرٍ خاصّةً به.
             // (EN) [card م-٠٠١] Non-string: 24 bytes used to cover an i64 and the longest boolean
             //      name. Now that floats are formatted here with `__sad_format_double` (%.6f),
             //      DBL_MAX reaches about 316 characters ⇒ 512 is the safe unified bound for every
@@ -1233,10 +1237,26 @@ namespace Sad
 
             B.SetInsertPoint(flArrayChk);
             B.CreateCondBr(B.CreateICmpEQ(flType, C0(Sad::Compiler::kMapValueTagArray), "fl.is.array"),
-                           flArray, flStrChk);
+                           flArray, flObjChk);
 
             B.SetInsertPoint(flArray);
             writeFmt(fmtS, callArrayToString(loadPtrElem(valsArr, fi, "fl.arr.val"), "fl.arr.str"));
+            B.CreateBr(flNext);
+
+            // (AR) [ISSUE-047] الكائن (وسم ٨): عرضٌ مُعتِمٌ من مصدرِ الحقيقة — الكائنُ
+            //      المترجَمُ بنيةٌ بلا ترويسةِ أنواعٍ فلا سبيلَ لاسمِ صنفِه هنا. قبل فكِّ
+            //      تصادمِ الوسمِ ٦ كان يُمشى عليه ترويسةَ خريطةٍ ⇒ SIGSEGV مقيس.
+            // (EN) [ISSUE-047] Object (tag 8): opaque display from the SoT — a compiled
+            //      object is a headerless struct, so its class name is unreachable here.
+            //      Under the old tag-6 collision it was walked as a map header ⇒ a
+            //      measured SIGSEGV.
+            B.SetInsertPoint(flObjChk);
+            B.CreateCondBr(B.CreateICmpEQ(flType, C0(Sad::Compiler::kMapValueTagObject), "fl.is.obj"),
+                           flObj, flStrChk);
+
+            B.SetInsertPoint(flObj);
+            writeFmt(fmtS, B.CreateGlobalStringPtr(::Sad::Types::repr::kObjectOpaqueDisplay,
+                                                   "m2s.objtext"));
             B.CreateBr(flNext);
 
             B.SetInsertPoint(flStrChk);

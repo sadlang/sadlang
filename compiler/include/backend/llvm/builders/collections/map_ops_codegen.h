@@ -39,7 +39,8 @@ public:
     //      runtime: if it is not Map we panic with a distinct code rather than
     //      dereferencing a non-map pointer (a silent SIGSEGV). Mirrors
     //      normalizeStringPtr for strings and normalizeArrayPtr for arrays.
-    llvm::Value *normalizeMapPtr(llvm::Value *mapValue, const char *label);
+    llvm::Value *normalizeMapPtr(llvm::Value *mapValue, const char *label,
+                                 bool absenceIsIndexing = false);
 
     // (AR) تطبيعُ مفتاحِ الخريطة: مفاتيحُ الخريطةِ نصوصٌ دائمًا (تُخزَّن بـstrdup
     //      وتُقارَن بـstrcmp)، فقيمةٌ موسومةٌ زمنَ التشغيل لا تصلح مفتاحًا إلّا إن

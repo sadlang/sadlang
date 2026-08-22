@@ -472,11 +472,25 @@ namespace Sad
                         idxResult.type = SadTypeKind::String;
                     }
 
+                    // (AR) وNull في القائمة سدُّ مستهلكٍ لا منتِج: الخريطةُ الحرفيّةُ
+                    //      `{"أ": لاشيء}` تستنتجُ نوعَ عنصرِها Null من أوّلِ قيمةٍ
+                    //      (expression_collections)، فسقوطُها من هنا كان يُنزِلُ القراءةَ
+                    //      إلى الفرعِ الخامِّ النصّيِّ ⇒ `نوع()` تكذبُ «نص» وحارسُ
+                    //      الوسطِ العدميِّ لا ينطلقُ — والوسمُ مخزَّنٌ صحيحًا أصلًا
+                    //      (قِيس: كشفَته المراجعةُ العدائيّةُ بعد سدِّ مسارِ الإسنادِ وحدَه).
+                    // (EN) Null in this list guards the CONSUMER, not one producer: a map
+                    //      literal `{"أ": لاشيء}` infers element type Null from its first
+                    //      value, and falling out of this list dropped reads to the raw
+                    //      string branch ⇒ `نوع()` lied «نص» and the null-middle guard
+                    //      never fired — while the stored tag was correct all along
+                    //      (measured: adversarial review caught it after only the
+                    //      assignment path was sealed).
                     if (mapElemType == SadTypeKind::Void || mapElemType == SadTypeKind::Any ||
-                        mapElemType == SadTypeKind::Unknown ||
+                        mapElemType == SadTypeKind::Unknown || mapElemType == SadTypeKind::Null ||
                         mapElemType == SadTypeKind::Integer || mapElemType == SadTypeKind::Boolean ||
                         mapElemType == SadTypeKind::Float || mapElemType == SadTypeKind::String ||
-                        mapElemType == SadTypeKind::Map || mapElemType == SadTypeKind::Array)
+                        mapElemType == SadTypeKind::Map || mapElemType == SadTypeKind::Array ||
+                        mapElemType == SadTypeKind::Struct || mapElemType == SadTypeKind::Class)
                     {
                         // ════════════════════════════════════════════════════
                         // (AR) [RFC عقد الغياب] القناةُ الموسومةُ واحدةٌ للمتجانسِ
@@ -539,39 +553,27 @@ namespace Sad
 
                         BuildResult result(resultReg, SadTypeKind::Any);
                         result.isDirectValue = true;
+                        // (AR) [ISSUE-047] عنصرٌ كائنيّ: صار للكائنِ وسمُه المستقلُّ (٨)
+                        //      في فضاءِ وسومِ الخريطةِ بعد فكِّ تصادمِه مع الخريطةِ على
+                        //      الوسمِ ٦، فيمرُّ من القناةِ الموسومةِ نفسِها: الغيابُ
+                        //      محروسٌ (وسمُ Void) و«نوع()» تصدُقُ «كائن» من الوسمِ زمنَ
+                        //      التشغيل. واسمُ الصنفِ يُنشَرُ من عنصرِ الحاويةِ كي يبقى
+                        //      الوصولُ الساكنُ للأعضاءِ (`خ["أ"].حقل`) مستبينًا صنفَه.
+                        // (EN) [ISSUE-047] Object element: objects now own tag 8 in the
+                        //      map value space (the tag-6 collision with maps is split),
+                        //      so they ride the same tagged channel: absence is guarded
+                        //      (Void kind) and نوع() truthfully says «كائن» from the
+                        //      runtime tag. The class name is propagated from the
+                        //      container's element so static member access
+                        //      (`خ["أ"].حقل`) still resolves its class.
+                        if ((mapElemType == SadTypeKind::Struct ||
+                             mapElemType == SadTypeKind::Class) &&
+                            !objResult.elementClassName.empty())
+                        {
+                            result.className = objResult.elementClassName;
+                            b_.classInstanceTypes_[resultReg] = objResult.elementClassName;
+                        }
                         return result;
-                    }
-                    else if (mapElemType == SadTypeKind::Struct ||
-                             mapElemType == SadTypeKind::Class)
-                    {
-                        // (AR) [ISSUE-047] عنصرٌ كائنيّ (Struct من البُناة، وClass احتياطًا
-                        //      كي لا ينزلقَ إلى فرعِ النصّ): فضاءُ وسومِ الخريطةِ يخلطُ الكائنَ
-                        //      بالخريطةِ (Struct وسمُ ٦ عبر mapValueTagFor)، فالقناةُ
-                        //      الموسومةُ تُرجِعُه DynKind::Map و«نوع()» تكذبُ «خريطة».
-                        //      يبقى الكائنُ على القناةِ الخامِّ بنوعِه الساكنِ حتى يُمنَحَ
-                        //      وسمًا مستقلًّا في فضاءِ الخريطة (حدٌّ معلَن: مفتاحٌ غائبٌ
-                        //      لعنصرٍ كائنيٍّ غيرُ محروسٍ في هذه الذراع).
-                        // (EN) [ISSUE-047] Object element: the map tag space conflates
-                        //      objects with maps (both tag 6 via mapValueTagFor), so the
-                        //      tagged channel would return DynKind::Map and نوع() lies
-                        //      «خريطة». Objects stay on the raw channel with their static
-                        //      type until the tag space grants them a distinct tag
-                        //      (declared limit: absent key on an object-valued map is
-                        //      unguarded on this arm).
-                        std::string resultReg = b_.newTempRegister();
-                        SIRInstruction getInst;
-                        getInst.opcode = SIROpcode::CALL;
-                        getInst.result = SIROperand::Register(resultReg, mapElemType);
-                        getInst.operands.push_back(SIROperand::ConstantString(kRuntimeMapGetI64));
-                        getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                        getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
-                        getInst.comment = "map get object raw payload by key";
-                        if (b_.currentBlock_)
-                            b_.currentBlock_->addInstruction(getInst);
-
-                        BuildResult res(resultReg, mapElemType);
-                        res.elementType = SadTypeKind::Void;
-                        return res;
                     }
                     else
                     {
@@ -904,7 +906,17 @@ namespace Sad
                         //      where the reference says «لاشيء» (measured). The != Void
                         //      condition below deliberately excludes Void for another
                         //      reason; this separate arm handles it.
-                        if (mapVar && valResult.type == SadTypeKind::Void)
+                        // (AR) والعدمُ (لاشيء) شقيقُه: وسمُه يُخزَّنُ صحيحًا (kMapValueTagNull)
+                        //      لكنّ تثبيتَ elementType على Null كان يُبقي القراءةَ على القناةِ
+                        //      النصّيّةِ الخام، فيُقرأُ الحارسُ نصًّا ⇒ `نوع()` تكذبُ «نصّ»
+                        //      وحارسُ SEM011 للوسيطِ العدميِّ لا ينطلقُ مُترجَمًا (مقيس).
+                        // (EN) Null (لاشيء) is its sibling: its tag IS stored correctly
+                        //      (kMapValueTagNull), but pinning elementType to Null kept reads
+                        //      on the raw string channel, so the sentinel was read as text ⇒
+                        //      `نوع()` lied «نصّ» and the compiled null-middle SEM011 guard
+                        //      never fired (measured).
+                        if (mapVar && (valResult.type == SadTypeKind::Void ||
+                                       valResult.type == SadTypeKind::Null))
                         {
                             mapVar->elementType = SadTypeKind::Any;
                         }

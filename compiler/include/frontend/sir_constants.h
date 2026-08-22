@@ -626,6 +626,16 @@ namespace Sad::Compiler
     //      assertion. These mirror `DynKind::Map` and `DynKind::Array`.
     inline constexpr int64_t kMapValueTagMap = 6;
     inline constexpr int64_t kMapValueTagArray = 7;
+    // (AR) [ISSUE-047] الكائن — كان يتقاسمُ الوسمَ ٦ مع الخريطةِ فتكذبُ `نوع()`
+    //      «خريطة» على كائنٍ في خانةٍ ديناميّة، ويعاملُه مصيِّرُ الخريطةِ نصًّا
+    //      ترويسةَ خريطةٍ ⇒ SIGSEGV مقيس. وسمٌ مستقلٌّ يقابلُ `DynKind::Obj`،
+    //      فيُميَّزُ الكائنُ في كلِّ قارئٍ ويُحرَسُ غيابُ مفتاحِه كسائرِ الأنواع.
+    // (EN) [ISSUE-047] Object — used to share tag 6 with Map, so نوع() lied
+    //      «خريطة» for an object in a dyn slot, and the map stringifier walked the
+    //      object as a map header ⇒ a measured SIGSEGV. A distinct tag mirroring
+    //      `DynKind::Obj`: every reader can now tell objects apart, and absent-key
+    //      reads on object-valued maps are guarded like every other kind.
+    inline constexpr int64_t kMapValueTagObject = 8;
 
     // ──────────────────────────────────────────────────────────────────
     // (AR) [م-٠٠١] الاشتقاقُ الوحيدُ لوسمِ قيمةِ الخريطةِ من نوعِها الساكن.
@@ -661,8 +671,14 @@ namespace Sad::Compiler
         case TypeKind::Void:
             return kMapValueTagVoid;
         case TypeKind::Map:
-        case TypeKind::Struct:
             return kMapValueTagMap;
+        // (AR) [ISSUE-047] كان `Struct` يسقطُ في وسمِ الخريطةِ و`Class` في وسمِ
+        //      النصِّ (default) — كذبتانِ مختلفتان لنوعٍ واحد. كلاهما كائنٌ.
+        // (EN) [ISSUE-047] Struct used to fall into the Map tag and Class into the
+        //      String default — two different lies for one kind. Both are objects.
+        case TypeKind::Struct:
+        case TypeKind::Class:
+            return kMapValueTagObject;
         case TypeKind::Array:
             return kMapValueTagArray;
         default:

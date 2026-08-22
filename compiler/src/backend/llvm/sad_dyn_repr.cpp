@@ -1587,12 +1587,22 @@ namespace Sad
             //      static printing). Hosted-only, like the array arm: needs malloc/sprintf.
             llvm::BasicBlock *mapBB =
                 cg.freestanding_ ? nullptr : llvm::BasicBlock::Create(ctx, "dyn.ts.map", parent);
+            // (AR) [ISSUE-047] الكائن: كان وسمُه يسقطُ إلى default فيُعرَض «لاشيء» —
+            //      كذبٌ على قيمةٍ موجودة. عرضٌ مُعتِمٌ من مصدرِ الحقيقةِ بدلَه (لا
+            //      ترويسةَ أنواعٍ للكائنِ المترجَمِ فلا سبيلَ لاسمِ صنفِه). بلا
+            //      malloc، فالذراعُ صالحةٌ للوضعِ الحرِّ أيضًا.
+            // (EN) [ISSUE-047] Object: its kind used to fall to default and render
+            //      «لاشيء» — a lie about a present value. Opaque SoT display instead
+            //      (a compiled object has no runtime type header, so its class name
+            //      is unreachable). No malloc, so the arm is freestanding-safe.
+            llvm::BasicBlock *objBB = llvm::BasicBlock::Create(ctx, "dyn.ts.obj", parent);
 
-            llvm::SwitchInst *sw = b.CreateSwitch(kind, nullBB, arrayBB ? 6 : 4);
+            llvm::SwitchInst *sw = b.CreateSwitch(kind, nullBB, arrayBB ? 7 : 5);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Int), intBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Float), floatBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Bool), boolBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Str), strBB);
+            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Obj), objBB);
             if (arrayBB)
                 sw->addCase(llvm::ConstantInt::get(i8, DynKind::Array), arrayBB);
             if (mapBB)
@@ -1757,6 +1767,13 @@ namespace Sad
                 b.CreateBr(mergeBB);
             }
 
+            // (AR) كائن: العرضُ المُعتِمُ الموحَّد / (EN) object: the unified opaque display
+            b.SetInsertPoint(objBB);
+            llvm::Value *objRes = b.CreateGlobalStringPtr(
+                ::Sad::Types::repr::kObjectOpaqueDisplay, "dyn.ts.objstr");
+            b.CreateBr(mergeBB);
+            objBB = b.GetInsertBlock();
+
             // (AR) عدم/غيره: لاشيء / (EN) null/other: لاشيء
             b.SetInsertPoint(nullBB);
             llvm::Value *nullRes = b.CreateGlobalStringPtr(
@@ -1765,11 +1782,12 @@ namespace Sad
             nullBB = b.GetInsertBlock();
 
             b.SetInsertPoint(mergeBB);
-            auto *phi = b.CreatePHI(ptrTy, arrayRes ? 9 : 5, "dyn.ts.result");
+            auto *phi = b.CreatePHI(ptrTy, arrayRes ? 10 : 6, "dyn.ts.result");
             phi->addIncoming(intRes, intBB);
             phi->addIncoming(floatRes, floatBB);
             phi->addIncoming(boolRes, boolBB);
             phi->addIncoming(strRes, strBB);
+            phi->addIncoming(objRes, objBB);
             phi->addIncoming(nullRes, nullBB);
             if (arrayRes)
             {

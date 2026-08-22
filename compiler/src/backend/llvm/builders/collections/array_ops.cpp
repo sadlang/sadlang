@@ -10,6 +10,7 @@
 #include "sad_dyn_repr.h" // (AR) ISSUE-063: حمولة %SadDyn عند خانات المصفوفة / (EN) %SadDyn payload at array slots
 #include "sir_constants.h" // (AR) kSadPanicCheckViolation (رمز سبب الهلع)
 #include "value.h"         // (AR) Value::makeNull().getTypeName() — اسمُ نوعِ العدمِ نفسُه
+#include <map>             // (AR) std::map لحقول قالب SEM011 — تضمينٌ صريحٌ لا عبورًا
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -152,7 +153,7 @@ namespace Sad
         }
 
         llvm::Value *ArrayOpsCodeGen::normalizeArrayPtr(llvm::Value *arrPtr, const char *label,
-                                                        bool assertDynTag)
+                                                        bool assertDynTag, bool absenceIsIndexing)
         {
             if (!arrPtr)
                 return nullptr;
@@ -253,8 +254,64 @@ namespace Sad
                 auto *failBB = llvm::BasicBlock::Create(*cg_.context_, "arr.dyn.fail", parentFn);
                 cg_.builder_->CreateCondBr(isArray, okBB, failBB);
 
+                // (AR) [RFC عقد الغياب] نظيرُ `normalizeMapPtr` حرفًا: فهرسةٌ عدديّةٌ
+                //      على غيابٍ موسومٍ (`خ["غائب"][0]`) تُرفَع SEM011 من الكتالوج
+                //      («النوع 'VOID/NULL' لا يدعم الفهرسة []») مطابِقةً المفسّرَ،
+                //      وسائرُ الأوسامِ على رسالةِ «ليست مصفوفة» المميَّزة.
+                // (EN) [absence-contract RFC] The literal twin of normalizeMapPtr:
+                //      an integer index on tagged absence raises catalog SEM011
+                //      matching the interpreter; other tags keep the distinct
+                //      not-an-array message.
+                //
+                // (AR) ⚠️ والذراعُ مشروطةٌ بموقعِ النداء (absenceIsIndexing) كنظيرِها
+                //      في الخرائط: هذا التطبيعُ تستدعيه مدمجاتُ المصفوفاتِ
+                //      (عكس/رتب/شريحة/…) أيضًا، ورسالةُ «لا يدعم الفهرسة []» على
+                //      مستقبِلِ مدمجٍ كذبةُ صياغة — فتبقى تلك على «ليست مصفوفة».
+                // (EN) ⚠️ Call-site-conditional like its map twin: the array
+                //      builtins (rev/sort/slice/…) also call this normalization,
+                //      and an "does not support indexing []" message on a builtin
+                //      receiver is a wording lie — those keep "not an array".
                 cg_.builder_->SetInsertPoint(failBB);
-                emitDynNotArrayFailure(label);
+                if (absenceIsIndexing)
+                {
+                    llvm::Value *isVoidK = cg_.builder_->CreateICmpEQ(
+                        kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Void),
+                        std::string(label) + ".dyn.is.void");
+                    llvm::Value *isNullK = cg_.builder_->CreateICmpEQ(
+                        kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Null),
+                        std::string(label) + ".dyn.is.null");
+                    auto *absVoidBB = llvm::BasicBlock::Create(
+                        *cg_.context_, "arr.dyn.abs.void", parentFn);
+                    auto *chkNullBB = llvm::BasicBlock::Create(
+                        *cg_.context_, "arr.dyn.abs.chk", parentFn);
+                    auto *absNullBB = llvm::BasicBlock::Create(
+                        *cg_.context_, "arr.dyn.abs.null", parentFn);
+                    auto *mismatchBB = llvm::BasicBlock::Create(
+                        *cg_.context_, "arr.dyn.mismatch", parentFn);
+                    cg_.builder_->CreateCondBr(isVoidK, absVoidBB, chkNullBB);
+
+                    cg_.builder_->SetInsertPoint(chkNullBB);
+                    cg_.builder_->CreateCondBr(isNullK, absNullBB, mismatchBB);
+
+                    auto raiseSem011 = [&](llvm::BasicBlock *bb, const std::string &typeName) {
+                        cg_.builder_->SetInsertPoint(bb);
+                        std::map<std::string, std::string> filled;
+                        filled["type"] = typeName;
+                        cg_.emitNullRaiseBody(
+                            ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED,
+                            filled, std::string(label) + ".sem011");
+                        cg_.builder_->CreateUnreachable();
+                    };
+                    raiseSem011(absVoidBB, Sad::Data::Value().getTypeName());
+                    raiseSem011(absNullBB, Sad::Data::Value::makeNull().getTypeName());
+
+                    cg_.builder_->SetInsertPoint(mismatchBB);
+                    emitDynNotArrayFailure(label);
+                }
+                else
+                {
+                    emitDynNotArrayFailure(label);
+                }
 
                 cg_.builder_->SetInsertPoint(okBB);
                 arrPtr = cg_.builder_->CreateIntToPtr(payload, ptrTy,
@@ -696,7 +753,7 @@ namespace Sad
 
             // (AR) تطبيع مؤشر المصفوفة عبر الدالة الموحّدة
             // (EN) Normalize arrPtr via unified helper
-            arrPtr = normalizeArrayPtr(arrPtr, "arr");
+            arrPtr = normalizeArrayPtr(arrPtr, "arr", /*assertDynTag=*/true, /*absenceIsIndexing=*/true);
 
             // (AR) تطبيع الفهرس: تحويل السالب إلى موجب (مثل م[-1] = آخر عنصر)
             // (EN) Normalize index: convert negative to positive (e.g. м[-1] = last element)
@@ -1049,7 +1106,7 @@ namespace Sad
                 llvm::Value *kindByte = dynKindByte(cg_, dyn);
                 llvm::Value *payload = dynPayloadI64(cg_, dyn);
 
-                arrPtr = normalizeArrayPtr(arrPtr, "arr");
+                arrPtr = normalizeArrayPtr(arrPtr, "arr", /*assertDynTag=*/true, /*absenceIsIndexing=*/true);
                 index = normalizeArrayIndex(index, arrPtr, "set");
                 emitBoundsCheck(index, arrPtr, "set");
                 llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
@@ -1107,7 +1164,7 @@ namespace Sad
 
             // (AR) تطبيع مؤشر المصفوفة عبر الدالة الموحّدة
             // (EN) Normalize arrPtr via unified helper
-            arrPtr = normalizeArrayPtr(arrPtr, "arr");
+            arrPtr = normalizeArrayPtr(arrPtr, "arr", /*assertDynTag=*/true, /*absenceIsIndexing=*/true);
 
             // (AR) تطبيع الفهرس: تحويل السالب إلى موجب (مثل م[-1] = آخر عنصر)
             // (EN) Normalize index: convert negative to positive (e.g. arr[-1] = last element)

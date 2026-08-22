@@ -13,6 +13,7 @@
 #include "builders/collections/map_ops_codegen.h"
 #include "sad_dyn_repr.h" // (AR) DynKind لتهيئة الحقل ٤ homogKind / (EN) DynKind for field 4 homogKind init
 #include "sad_type_utils.h" // (AR) kindToArabic لرسالة RUN074 (الجلب المصنَّف) / (EN) Arabic type name for RUN074
+#include "value.h"          // (AR) getTypeName() — أسماءُ VOID/NULL نفسُها التي يملأ بها المفسّرُ SEM011 / (EN) the very type names the interpreter fills SEM011 with
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
@@ -26,6 +27,7 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/IR/InlineAsm.h>
+#include <map>
 #include <optional>
 #include <iostream>
 #include <fstream>
@@ -201,7 +203,8 @@ namespace Sad
 
         // (AR) انظر التوثيق في map_ops_codegen.h — التطبيعُ الموحَّدُ لمؤشّرِ الخريطة.
         // (EN) See map_ops_codegen.h — the unified map-pointer normalization.
-        llvm::Value *MapOpsCodeGen::normalizeMapPtr(llvm::Value *mapValue, const char *label)
+        llvm::Value *MapOpsCodeGen::normalizeMapPtr(llvm::Value *mapValue, const char *label,
+                                                    bool absenceIsIndexing)
         {
             if (!mapValue)
                 return nullptr;
@@ -236,8 +239,78 @@ namespace Sad
                     llvm::BasicBlock::Create(*cg_.context_, std::string(label) + ".dyn.ok", curFunc);
                 cg_.builder_->CreateCondBr(isMap, okBB, failBB);
 
+                // (AR) [RFC عقد الغياب] فرعُ الفشلِ يُفرَّق بالوسم: غيابٌ (فراغ/عدم)
+                //      يُرفَع SEM011 من الكتالوجِ نفسِه الذي يقرأ منه المفسّرُ —
+                //      «النوع 'VOID/NULL' لا يدعم الفهرسة []» — فيتوحّد التشخيصُ
+                //      المرمَّزُ للوسطِ المفقود (`خ["غائب"]["عميق"]`) بين المحرّكَين.
+                //      كان المسارُ يطبع رسالةَ «طريقة خريطة على قيمة ليست خريطة»
+                //      بلا رمزٍ لكلِّ وسمٍ مخالف. واسمُ النوعِ من `Value` عينِها
+                //      (getTypeName) لا يُهجَّأ هنا. وسائرُ الأوسامِ المخالفةِ تبقى
+                //      على رسالةِ عدمِ التطابقِ العامّة (حدٌّ معلَن: سطحُ الدوالِّ
+                //      المدمجةِ يشخَّص في المفسّر RUN037 — توحيدُه دفعةٌ لاحقة).
+                // (EN) [absence-contract RFC] The fail arm splits by tag: absence
+                //      (Void/Null) raises SEM011 from the same catalog the
+                //      interpreter reads — unifying the coded diagnostic for the
+                //      missing middle (`خ["غائب"]["عميق"]`) across engines. The
+                //      path used to print an uncoded "map method on non-map" line
+                //      for every mismatching tag. Type names come from Value's own
+                //      getTypeName(); other tags keep the generic mismatch message
+                //      (declared limit: the builtin-call surface is RUN037 in the
+                //      interpreter — a later unification batch).
+                //
+                // (AR) ⚠️ والذراعُ **مشروطةٌ بموقعِ النداء** (absenceIsIndexing):
+                //      هذا التطبيعُ طبقةٌ مشتركةٌ تستدعيها الفهرسةُ `[]` **ومدمجاتُ**
+                //      الخرائطِ (خريطة_حجم/وجود/…) معًا — وزرعُ SEM011 هنا بلا
+                //      شرطٍ جعل `خريطة_حجم(غائب)` يشكو «لا يدعم الفهرسة []» ولا
+                //      فهرسةَ في النداءِ أصلًا (قِيس: كسرَ فحصَ ns10). فمستقبِلُ
+                //      المدمجاتِ يبقى على رسالةِ عدمِ التطابقِ العامّة.
+                // (EN) ⚠️ The arm is call-site-conditional (absenceIsIndexing):
+                //      this normalization is a shared layer used by `[]` indexing
+                //      AND the map builtins — raising SEM011 unconditionally made
+                //      `خريطة_حجم(غائب)` complain about indexing with no indexing
+                //      in sight (measured: broke the ns10 check). Builtin receivers
+                //      keep the generic mismatch message.
                 cg_.builder_->SetInsertPoint(failBB);
-                emitDynTypeMismatchFailure(label);
+                if (absenceIsIndexing)
+                {
+                    llvm::Value *isVoidK = cg_.builder_->CreateICmpEQ(
+                        kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Void),
+                        std::string(label) + ".dyn.is.void");
+                    llvm::Value *isNullK = cg_.builder_->CreateICmpEQ(
+                        kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Null),
+                        std::string(label) + ".dyn.is.null");
+                    llvm::BasicBlock *absVoidBB = llvm::BasicBlock::Create(
+                        *cg_.context_, std::string(label) + ".dyn.abs.void", curFunc);
+                    llvm::BasicBlock *chkNullBB = llvm::BasicBlock::Create(
+                        *cg_.context_, std::string(label) + ".dyn.abs.chk", curFunc);
+                    llvm::BasicBlock *absNullBB = llvm::BasicBlock::Create(
+                        *cg_.context_, std::string(label) + ".dyn.abs.null", curFunc);
+                    llvm::BasicBlock *mismatchBB = llvm::BasicBlock::Create(
+                        *cg_.context_, std::string(label) + ".dyn.mismatch", curFunc);
+                    cg_.builder_->CreateCondBr(isVoidK, absVoidBB, chkNullBB);
+
+                    cg_.builder_->SetInsertPoint(chkNullBB);
+                    cg_.builder_->CreateCondBr(isNullK, absNullBB, mismatchBB);
+
+                    auto raiseSem011 = [&](llvm::BasicBlock *bb, const std::string &typeName) {
+                        cg_.builder_->SetInsertPoint(bb);
+                        std::map<std::string, std::string> filled;
+                        filled["type"] = typeName;
+                        cg_.emitNullRaiseBody(
+                            ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED,
+                            filled, std::string(label) + ".sem011");
+                        cg_.builder_->CreateUnreachable();
+                    };
+                    raiseSem011(absVoidBB, Sad::Data::Value().getTypeName());
+                    raiseSem011(absNullBB, Sad::Data::Value::makeNull().getTypeName());
+
+                    cg_.builder_->SetInsertPoint(mismatchBB);
+                    emitDynTypeMismatchFailure(label);
+                }
+                else
+                {
+                    emitDynTypeMismatchFailure(label);
+                }
 
                 cg_.builder_->SetInsertPoint(okBB);
                 return Sad::LLVM::unpackPtr(cg_, mapValue);
@@ -341,7 +414,18 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr — المتغيرات تُخزَن كـ i64
-                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mset.map.ptr");
+                // (AR) الكتابةُ بالقوسِ فهرسةٌ — الوسطُ الغائبُ (`خ["غائب"]["ب"] = ١`)
+                //      يرفعُ SEM011؛ والخريطةُ الحرفيّةُ مستقبِلُها مبنيٌّ للتوّ فلا
+                //      يكونُ غيابًا أصلًا. ⚠️ تباعدُ هُويّةِ رمزٍ معلَنٌ: المفسّرُ يرفعُ
+                //      هنا RUN018 (إسنادٌ بالفهرسِ على غيرِ حاوية) لا SEM011 —
+                //      الخروجُ ١ في الطرفَين، وتوحيدُ الرمزِ دفعةٌ لاحقة (قِيس).
+                // (EN) Bracket writes are indexing — a missing middle raises SEM011;
+                //      a literal's receiver is freshly built and can never be absent.
+                //      ⚠️ Declared code-identity divergence: the interpreter raises
+                //      RUN018 here, not SEM011 — both exit 1; unifying the code is a
+                //      later batch (measured).
+                llvm::Value *mapPtr =
+                    normalizeMapPtr(args[0], "mset.map.ptr", /*absenceIsIndexing=*/true);
 
                 // ════════════════════════════════════════════════════════════════
                 // (AR) 🔑 خريطةٌ عدميّةٌ في مسارِ الإسنادِ بالفهرس ⇒ RUN018 لا انهيار.
@@ -469,17 +553,23 @@ namespace Sad
                     llvm::Value *isVoidKind = kindIs(Sad::LLVM::DynKind::Void, "mset.dyn.is.void");
                     llvm::Value *isMapKind = kindIs(Sad::LLVM::DynKind::Map, "mset.dyn.is.map");
                     llvm::Value *isArrayKind = kindIs(Sad::LLVM::DynKind::Array, "mset.dyn.is.array");
+                    // (AR) [ISSUE-047] والكائنُ صار له وسمُه المستقلُّ (٨) بعد فكِّ
+                    //      تصادمِه مع الخريطةِ على الوسمِ ٦.
+                    // (EN) [ISSUE-047] Objects now carry their own tag (8) after the
+                    //      tag-6 collision with maps was split.
+                    llvm::Value *isObjKind = kindIs(Sad::LLVM::DynKind::Obj, "mset.dyn.is.obj");
 
                     // ════════════════════════════════════════════════════════════
-                    // (AR) حارسُ التمثيل: فضاءُ أوسامِ قيمةِ الخريطةِ أربعةٌ لا غير
-                    //      (نصّ/صحيح/عشريّ/منطقيّ). فقيمةٌ وسمُها عدمٌ أو مصفوفةٌ أو
-                    //      خريطةٌ أو كائنٌ **لا تمثيلَ لها** هنا؛ وكان الفرعُ يسقطها
-                    //      إلى وسمِ النصِّ بحمولةٍ مؤشّرًا خامًا، فأوّلُ قارئٍ يعاملها
-                    //      `char*` ⇒ قمامةٌ أو انهيارٌ صامت. نفشل صاخبًا بدلًا من ذلك.
-                    // (EN) Representation guard: the map value tag space has exactly
-                    //      four members (string/int/float/bool). A value tagged Null,
-                    //      Array, Map or Obj has **no representation** here; the old
-                    //      branch dropped it into the string tag with a raw pointer
+                    // (AR) حارسُ التمثيل: كلُّ وسمٍ له مقابلٌ في فضاءِ أوسامِ قيمةِ
+                    //      الخريطةِ (نصّ/صحيح/عشريّ/منطقيّ/عدم/فراغ/خريطة/مصفوفة/كائن)
+                    //      يُقبَل؛ وما لا مقابلَ له (Adt وما قد يُستحدَث) كان الفرعُ
+                    //      القديمُ يسقطُه إلى وسمِ النصِّ بحمولةٍ مؤشّرًا خامًا، فأوّلُ
+                    //      قارئٍ يعاملُها `char*` ⇒ قمامةٌ أو انهيارٌ صامت. نفشل
+                    //      صاخبًا بدلًا من ذلك.
+                    // (EN) Representation guard: every kind with a counterpart in the
+                    //      map value tag space (str/int/float/bool/null/void/map/array/
+                    //      obj) is accepted; anything without one (Adt, future kinds)
+                    //      used to be dropped into the string tag with a raw pointer
                     //      payload, so the first reader treated it as a `char*` ⇒
                     //      garbage or a silent crash. Fail loudly instead.
                     // ════════════════════════════════════════════════════════════
@@ -490,7 +580,9 @@ namespace Sad
                             "mset.dyn.scalar"),
                         cg_.builder_->CreateOr(
                             cg_.builder_->CreateOr(isNullKind, isVoidKind, "mset.dyn.nullish"),
-                            cg_.builder_->CreateOr(isMapKind, isArrayKind, "mset.dyn.container"),
+                            cg_.builder_->CreateOr(
+                                cg_.builder_->CreateOr(isMapKind, isArrayKind, "mset.dyn.container"),
+                                isObjKind, "mset.dyn.container.obj"),
                             "mset.dyn.rest"),
                         "mset.dyn.representable");
 
@@ -549,9 +641,12 @@ namespace Sad
                     llvm::Value *tagArray = cg_.builder_->CreateSelect(
                         isArrayKind, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kMapValueTagArray),
                         tagMap, "mset.dyn.tag.array");
+                    llvm::Value *tagObj = cg_.builder_->CreateSelect(
+                        isObjKind, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kMapValueTagObject),
+                        tagArray, "mset.dyn.tag.obj");
                     dynDerivedTag = cg_.builder_->CreateSelect(
                         isInt, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kMapValueTagInteger),
-                        tagArray, "mset.dyn.tag");
+                        tagObj, "mset.dyn.tag");
                 }
                 else if (value->getType()->isDoubleTy())
                     // (AR) عشريٌّ ساكنٌ ⇒ بتّاتُه كما هي؛ الوسمُ يأتي من الأمامِ (٢).
@@ -606,7 +701,16 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr — المتغيرات تُخزَن كـ i64
-                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mget.map.ptr");
+                // (AR) قنواتُ get الثلاثُ فهرسةٌ `[]` (الوسطُ الغائبُ ⇒ SEM011)؛
+                //      وقنواتُ الجلبِ المصنَّفِ (خريطة_اجلب_*) مدمجاتٌ فتبقى على
+                //      رسالةِ عدمِ التطابقِ العامّة.
+                // (EN) The three get channels are `[]` indexing (missing middle ⇒
+                //      SEM011); the typed-fetch builtins keep the generic mismatch.
+                const bool receiverIsIndexing =
+                    (funcName == kRuntimeMapGet || funcName == kRuntimeMapGetI64 ||
+                     funcName == kRuntimeMapGetDyn);
+                llvm::Value *mapPtr =
+                    normalizeMapPtr(args[0], "mget.map.ptr", receiverIsIndexing);
                 llvm::Value *key = normalizeMapKey(args[1], "mget.key.ptr");
 
                 // (AR) تحميل capacity, keys, values, types من البنية
@@ -700,6 +804,7 @@ namespace Sad
                     llvm::Value *isVoidTag = tagIs(kMapValueTagVoid, "mgetd.is.void");
                     llvm::Value *isMapTag = tagIs(kMapValueTagMap, "mgetd.is.map");
                     llvm::Value *isArrayTag = tagIs(kMapValueTagArray, "mgetd.is.array");
+                    llvm::Value *isObjTag = tagIs(kMapValueTagObject, "mgetd.is.obj");
 
                     // (AR) الافتراضُ نصّ (وسمُ الخريطةِ ٠) ثمّ نُبدّلُه بالوسمِ المطابق.
                     // (EN) Default to Str (map tag 0), then override with the matching kind.
@@ -718,6 +823,8 @@ namespace Sad
                         isMapTag, llvm::ConstantInt::get(i8Ty, DynKind::Map), kind, "mgetd.k.map");
                     kind = cg_.builder_->CreateSelect(
                         isArrayTag, llvm::ConstantInt::get(i8Ty, DynKind::Array), kind, "mgetd.k.array");
+                    kind = cg_.builder_->CreateSelect(
+                        isObjTag, llvm::ConstantInt::get(i8Ty, DynKind::Obj), kind, "mgetd.k.obj");
                     kind = cg_.builder_->CreateSelect(
                         isPresent, kind, llvm::ConstantInt::get(i8Ty, DynKind::Void), "mgetd.k.final");
 
@@ -1854,6 +1961,9 @@ namespace Sad
             elemKind = b.CreateSelect(mapTagIs(Sad::Compiler::kMapValueTagArray, "t.is.array"),
                                       llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Array),
                                       elemKind, "elem.k.array");
+            elemKind = b.CreateSelect(mapTagIs(Sad::Compiler::kMapValueTagObject, "t.is.obj"),
+                                      llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Obj),
+                                      elemKind, "elem.k.obj");
             llvm::Value *tagIdx = b.CreateSelect(hasTypes, dstIdx,
                                                  llvm::ConstantInt::get(i64Ty, 0), "tag.idx");
             auto *tagDstGep = b.CreateGEP(i8Ty, tagsBuf, {tagIdx}, "tag.dst.gep");
