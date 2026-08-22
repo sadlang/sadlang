@@ -1186,6 +1186,38 @@ namespace Sad
                 isFloatRes = b.CreateOr(eitherF, minOverflow, "dyn.fd.isf");
                 break;
             }
+            case SIROpcode::BUILTIN_POW:
+            {
+                // (AR) الأسُّ يمرُّ بالبابِ الواحدِ كسائرِ الحسابيّات: معاملٌ موسومٌ
+                //      (قراءةُ خريطةٍ بالقوس مثلًا) كان يبلغُ emitBuiltinPow بنيةً
+                //      %SadDyn فيسقطُ CreateSIToFP بتأكيدِ «Invalid cast!».
+                //      unpackDouble يرقّي الحمولةَ الصحيحةَ sitofp، فنداءُ pow واحدٌ
+                //      يكفي الفرعَين؛ الصحيحان يُقتطعان صحيحًا كالمفسّر (5**2=25)
+                //      **داخل مدى i64 فقط**: خارجَه FPToSI سُمٌّ (poison)، والمفسّرُ
+                //      يرقّي الفيضَ عشريًّا (2**100) — فيُوسَّع isFloatRes بفحصِ
+                //      المدى على نمطِ minOverflow في ذراعِ FLOOR_DIV.
+                // (EN) Power routes through the single door like the rest of the
+                //      arithmetic: a tagged operand (e.g. bracket map read) used to
+                //      reach emitBuiltinPow as a %SadDyn struct and CreateSIToFP
+                //      died on the "Invalid cast!" assert. unpackDouble already
+                //      promotes an integer payload via sitofp, so one pow call
+                //      serves both branches; two ints truncate back to i64 like the
+                //      interpreter **inside the i64 range only**: outside it FPToSI
+                //      is poison while the interpreter promotes overflow to float
+                //      (2**100) — so isFloatRes widens with a range check, the
+                //      FLOOR_DIV minOverflow pattern.
+                llvm::FunctionType *powTy = llvm::FunctionType::get(dbl, {dbl, dbl}, false);
+                llvm::FunctionCallee powFn = cg.module_->getOrInsertFunction("pow", powTy);
+                fRes = b.CreateCall(powFn, {lD, rD}, "dyn.fpow");
+                iRes = b.CreateFPToSI(fRes, i64, "dyn.ipow");
+                llvm::Value *powTooBig = b.CreateFCmpOGE(
+                    fRes, llvm::ConstantFP::get(dbl, 9223372036854775808.0), "dyn.pow.hi");
+                llvm::Value *powTooSmall = b.CreateFCmpOLT(
+                    fRes, llvm::ConstantFP::get(dbl, -9223372036854775808.0), "dyn.pow.lo");
+                isFloatRes = b.CreateOr(
+                    eitherF, b.CreateOr(powTooBig, powTooSmall, "dyn.pow.ov"), "dyn.pow.isf");
+                break;
+            }
             default:
                 fRes = b.CreateFAdd(lD, rD, "dyn.fadd.def");
                 iRes = b.CreateAdd(lI, rI, "dyn.iadd.def");

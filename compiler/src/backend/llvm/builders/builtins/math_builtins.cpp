@@ -7,6 +7,7 @@
 #include "builders/builtins/math_builtins_codegen.h"
 #include "llvm_codegen.h"
 #include "sir_constants.h"
+#include "sad_dyn_repr.h" // (AR) تفويض الأس الموسوم إلى dynBinOp / (EN) tagged power delegates to dynBinOp
 
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Constants.h>
@@ -294,6 +295,23 @@ namespace LLVM {
             llvm::Value *exp = cg_.resolveOperand(inst->operands[1]);
             if (!base || !exp)
                 return nullptr;
+            // (AR) معاملٌ موسومٌ %SadDyn (قراءةُ خريطةٍ بالقوس، خانةُ «أي») ⇒ فوّض
+            //      إلى بابِ dynBinOp الواحد: يفكُّ الوسمَ ويحرسُ الغيابَ (RUN053)
+            //      ويعيدُ نتيجةً موسومةً — كان CreateSIToFP على البنيةِ يسقطُ
+            //      بتأكيدِ «Invalid cast!».
+            // (EN) A %SadDyn tagged operand (bracket map read, an «any» slot) ⇒
+            //      delegate to the single dynBinOp door: it unpacks, guards absence
+            //      (RUN053) and returns a tagged result — CreateSIToFP on the
+            //      struct used to die on the "Invalid cast!" assert.
+            if (Sad::LLVM::isSadDyn(base) || Sad::LLVM::isSadDyn(exp))
+            {
+                llvm::Value *dl = Sad::LLVM::toDyn(cg_, base, inst->operands[0].dataType);
+                llvm::Value *dr = Sad::LLVM::toDyn(cg_, exp, inst->operands[1].dataType);
+                llvm::Value *dynRes = Sad::LLVM::dynBinOp(cg_, SIROpcode::BUILTIN_POW, dl, dr);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = dynRes;
+                return dynRes;
+            }
             llvm::Type *dblTy = llvm::Type::getDoubleTy(*cg_.context_);
             llvm::Value *dBase = base->getType()->isDoubleTy() ? base : cg_.builder_->CreateSIToFP(base, dblTy);
             llvm::Value *dExp = exp->getType()->isDoubleTy() ? exp : cg_.builder_->CreateSIToFP(exp, dblTy);
