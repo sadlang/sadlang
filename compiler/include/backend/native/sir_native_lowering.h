@@ -785,12 +785,15 @@ namespace sad
                 return dot == std::string::npos ? qualified : qualified.substr(dot + 1);
             }
             // (AR) هل الاسمُ القصيرُ بانٍ/هادم؟ (مستثنًى من جدولِ الدوالّ — نداءٌ مباشر).
+            //      البانِي بنيويًّا: خانتُه في الفضاءِ الداخليِّ `#` (kConstructorSlotName)،
+            //      لا بقائمةِ تهجئاتٍ كانت تُقصي طرائقَ مستخدمٍ عاديّةً بأسمائها.
+            //      الهادمُ باقٍ بالاسمِ (فكُّه لم يُنقَل — دَينٌ شقيق).
+            // (EN) Constructor detected structurally via the internal `#` namespace;
+            //      destructor stays name-based (its mangling has not moved — sibling debt).
             static bool isCtorOrDtorName(const std::string &n)
             {
-                return n == "\xD8\xA8\xD8\xA7\xD9\x86\xD9\x8A" ||        // باني
-                       n == "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1" ||        // بناء
-                       n == "\xD9\x85\xD9\x86\xD8\xB4\xD8\xA6" ||        // منشئ
-                       n == "__init__" ||
+                return ::Sad::Compiler::startsWithPrefix(
+                           n.c_str(), ::Sad::Compiler::kSlotNamespaceSeparator) ||
                        n == "\xD9\x87\xD8\xAF\xD9\x85" ||                // هدم
                        n == "__del__";
             }

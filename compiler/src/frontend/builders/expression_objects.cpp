@@ -148,7 +148,7 @@ namespace Sad
 
                 // (AR) الخطوة 3: استدعاء دالة البناء (constructor) إن وجدت
                 // (EN) Step 3: Call constructor if exists
-                std::string constructorName = newExpr->className + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
+                std::string constructorName = constructorNameFor(newExpr->className);
                 auto constructor = sirClass->getMethod(constructorName);
 
                 // (AR) لا نُصدر CALL إلا حين يوجد باني فعليّ. تمرير وسائط موضعيّة لبنية بلا باني
@@ -325,7 +325,7 @@ namespace Sad
 
                             // (AR) الحصول على معاملات باني الأب
                             // (EN) Get parent constructor params
-                            std::string parentCtorName = currentClass->parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+                            std::string parentCtorName = constructorNameFor(currentClass->parentClass);
                             auto parentCtor = parentSirClass->getMethod(parentCtorName);
                             if (!parentCtor)
                                 break;

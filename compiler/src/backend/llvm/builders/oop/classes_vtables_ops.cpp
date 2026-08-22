@@ -14,6 +14,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/oop/classes_vtables_codegen.h"
+#include "frontend/sir_constants.h" // (AR) kSlotNamespaceSeparator/startsWithPrefix — استثناء الفضاء الداخلي من vtable / (EN) internal-namespace vtable exclusion
 #include "sad_dyn_repr.h" // (AR) ISSUE-076: النوع الديناميّ %SadDyn لخانات حمولة ADT
 #include "sad_event_layout_generated.h" // (② rfcs#46) اسم صنف «حدث» المضمَّن من SoT — لوسم builtinClassNames
 #include "llvm_optimizer.h"
@@ -786,11 +787,23 @@ namespace Sad
                         fullName = className + "." + methodName;
                     }
 
-                    // تجاهل الباني — ليس في vtable
-                    if (shortMethodName == "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1" || shortMethodName == "بناء" ||
-                        shortMethodName == "__init__" || shortMethodName == "init" ||
-                        shortMethodName == "\xD8\xA8\xD8\xA7\xD9\x86\xD9\x8A" || shortMethodName == "باني" ||
-                        shortMethodName == "\xD9\x85\xD9\x86\xD8\xB4\xD8\xA6" || shortMethodName == "منشئ")
+                    // (AR) تجاهل الفضاء الداخلي `#` — البانِي المفكوك (#بناء) وأمثاله
+                    //      ليسوا في vtable. 🔑 كانت هنا قائمةُ أسماءٍ حرفيّةٍ
+                    //      (بناء/باني/منشئ/init/__init__) تُقصي **طرائقَ مستخدمٍ
+                    //      عاديّةً** بهذه الأسماء من vtable فيَخرِب توزيعُها
+                    //      الافتراضيّ — وهي أسماءٌ مشروعةٌ بعدَ بترِ سلسلةِ
+                    //      الاحتياطِ في objects_arrays_ops.cpp. الفيصلُ الآن
+                    //      بنيويّ: بادئةُ الفضاءِ الداخليِّ لا تهجئةُ الاسم.
+                    // (EN) Skip the internal `#` namespace — the mangled constructor
+                    //      (#بناء) and kin are not vtable members. A literal name
+                    //      list used to also evict ordinary user methods spelled
+                    //      بناء/باني/منشئ/init/__init__ from the vtable, breaking
+                    //      their virtual dispatch — legal names now that the
+                    //      fallback chain in objects_arrays_ops.cpp is gone. The
+                    //      criterion is structural: the internal-namespace prefix,
+                    //      not a spelling.
+                    if (::Sad::Compiler::startsWithPrefix(
+                            shortMethodName.c_str(), ::Sad::Compiler::kSlotNamespaceSeparator))
                     {
                         continue;
                     }

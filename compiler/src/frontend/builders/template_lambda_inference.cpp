@@ -578,12 +578,12 @@ namespace Sad
                         // ═══════════════════════════════════════════════════════════════
                         // (AR) إصلاح: إذا لم نجد الدالة، نتحقق إذا كان استدعاء باني صنف
                         //      بدون كلمة "جديد". في لغة ص، كائن_حي("حي") يُحلَّل كـ CallExpr
-                        //      لكن الباني مسجّل كـ "كائن_حي.باني" في b_.functionTable_
+                        //      لكن الباني مسجّل باسمه المفكوك (constructorNameFor) في b_.functionTable_
                         //      بدون هذا: أنواع معاملات الباني لا تُحدَّث من call-site
                         //      مما يؤدي لبقاء المعاملات كـ Integer بدلاً من String
                         // (EN) Fix: If function not found, check if it's a class constructor
                         //      call without "new" keyword. In Sad, ClassName("arg") is parsed
-                        //      as CallExpr but constructor is registered as "ClassName.باني"
+                        //      as CallExpr but the ctor is registered under its mangled name (constructorNameFor)
                         //      Without this: constructor param types don't get updated from call-site
                         //      causing params to remain Integer instead of String
                         // ═══════════════════════════════════════════════════════════════
@@ -591,12 +591,12 @@ namespace Sad
                         if (it == b_.functionTable_.end())
                         {
                             // (AR) إصلاح: بدلاً من b_.module_->getClass() (غير متاح في Phase 1.7)
-                            //      نبحث مباشرة عن "اسم.باني" في b_.functionTable_
-                            //      مسجّل في Phase 1.35 قبل Phase 1.7
+                            //      نبحث مباشرة عن اسم الباني المفكوك (constructorNameFor) في
+                            //      b_.functionTable_ — مسجّل في Phase 1.35 قبل Phase 1.7
                             // (EN) Fix: Instead of b_.module_->getClass() (unavailable in Phase 1.7)
-                            //      look directly for "name.باني" in b_.functionTable_
-                            //      registered in Phase 1.35 before Phase 1.7
-                            std::string ctorName = funcName + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                            //      look directly for the mangled ctor name (constructorNameFor) in
+                            //      b_.functionTable_ — registered in Phase 1.35 before Phase 1.7
+                            std::string ctorName = constructorNameFor(funcName);
                             it = b_.functionTable_.find(ctorName);
                             isImplicitCtorCall = (it != b_.functionTable_.end());
                         }
@@ -1140,13 +1140,13 @@ namespace Sad
 
                 // ================================================================
                 // (AR) تعبير الإنشاء (NewExpr) — استنتاج أنواع وسائط الباني
-                //      مثل CallExpr لكن الاسم "صنف.بناء" والمعامل الأول هو self
+                //      مثل CallExpr لكن الاسم اسمُ الباني المفكوك (constructorNameFor) والمعامل الأول هو self
                 // (EN) New expression (NewExpr) — infer constructor arg types
-                //      Like CallExpr but name is "class.بناء" and first param is self
+                //      Like CallExpr but the name is the mangled ctor (constructorNameFor) and first param is self
                 // ================================================================
                 if (auto *newExpr = dynamic_cast<const Sad::AST::NewExpr *>(expr))
                 {
-                    std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .بناء
+                    std::string ctorName = constructorNameFor(newExpr->className);
                     auto it = b_.functionTable_.find(ctorName);
                     if (it != b_.functionTable_.end())
                     {

@@ -610,7 +610,7 @@ namespace Sad
                         if (!ctorDecl)
                             continue;
 
-                        std::string fullCtorName = classDecl->name + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                        std::string fullCtorName = constructorNameFor(classDecl->name);
 
                         // (AR) تخطي إذا سبق التسجيل
                         // (EN) Skip if already registered
@@ -1068,7 +1068,7 @@ namespace Sad
                             {
                                 // (AR) البحث عن الباني للحصول على أسماء المعاملات
                                 // (EN) Find constructor to get parameter names
-                                std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                std::string ctorName = constructorNameFor(newExpr->className);
                                 auto ctorFunc = module_->getFunction(ctorName);
                                 if (ctorFunc)
                                 {
@@ -1393,7 +1393,7 @@ namespace Sad
                             auto sirClass = module_->getClass(newExpr->className);
                             if (sirClass && !sirClass->paramToFieldMap_.empty())
                             {
-                                std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                std::string ctorName = constructorNameFor(newExpr->className);
                                 auto ctorFunc = module_->getFunction(ctorName);
                                 auto ctorTableIt = functionTable_.find(ctorName);
                                 if (ctorFunc)
@@ -1456,7 +1456,7 @@ namespace Sad
                                 if (callSirClass && (!callSirClass->paramToFieldMap_.empty() ||
                                                      !callSirClass->fieldFromParamMember_.empty()))
                                 {
-                                    std::string ctorCallName = varExpr->name + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                    std::string ctorCallName = constructorNameFor(varExpr->name);
                                     // (AR) نبحث في functionTable_ (مسجّل في Phase 1.35) بدلاً من module_
                                     //      لأن الباني لم يُضف إلى module_ بعد (يحدث في Phase 2)
                                     // (EN) Look up in functionTable_ (registered in Phase 1.35) instead of module_

@@ -161,6 +161,65 @@ namespace Sad::Compiler
     inline constexpr const char *kThisAliasName = "\xD9\x87\xD8\xB0\xD8\xA7";
 
     // ──────────────────────────────────────────────────────────────────
+    // (AR) اسمُ خانةِ البانِي المفكوك — «‎#بناء‎» داخلَ فضاءِ الأسماءِ الداخليّ.
+    //
+    //      🔑 كان الاسمُ «بناء» عاريًا، فيتصادمُ فكُّ البانِي الحقيقيِّ
+    //      (`صنف.بناء`) مع فكِّ **طريقةٍ عاديّةٍ** اسمُها «بناء» — تهجئةٌ
+    //      مشروعةٌ لمعرِّفِ مستخدمٍ بل بروتوكولٌ حيٌّ في SadUI
+    //      (`دالة بناء()` في كلِّ الودجات). فكانت الخلفيّةُ تجدُ الطريقةَ
+    //      العاديّةَ باسمِ البانِي وتستدعيها بانيًا عندَ الإنشاء — خلافًا
+    //      للمفسّرِ (البانِي عندَه عقدةُ `ConstructorDecl` بنيويّةٌ لا اسم)
+    //      ولمصدرِ الحقيقة (لفظُ البانِي «باني» حصرًا — بذرة VE049).
+    //      السابقةُ `#` تجعلُ التصادمَ مستحيلًا بالبناء: لا معرِّفَ مستخدمٍ
+    //      يحوي `#` (نمطُ kSelfParamName نفسُه، ISSUE-119).
+    // (EN) The constructor's mangled slot name — «#بناء» inside the internal
+    //      slot namespace. It used to be the bare «بناء», so the real
+    //      constructor's mangling (`Class.بناء`) collided with an ordinary
+    //      method named «بناء» — a legal user identifier and a live SadUI
+    //      protocol. The backend would find the ordinary method under the
+    //      constructor's name and invoke it as a constructor at instantiation —
+    //      unlike the interpreter (structural `ConstructorDecl`, not a name)
+    //      and the source of truth (the constructor lexeme is «باني» only,
+    //      seed VE049). The `#` prefix makes the collision impossible by
+    //      construction (same pattern as kSelfParamName, ISSUE-119).
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr const char *kConstructorSlotName = "#\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+
+    // (AR) فاصلُ العضويّةِ في الأسماءِ المفكوكة — «صنف.عضو». مستهلَكُه اليومَ
+    //      برهانُ لاحقةِ البانِي أدناه حصرًا؛ مواضعُ الفكِّ العامّةُ ما تزال
+    //      تكتب `"."` خامًّا (دَينُ توحيدٍ شقيق) — فلا يُغيَّر وحدَه.
+    // (EN) The membership separator in mangled names — «Class.member». Its only
+    //      consumer today is the constructor-suffix proof below; the general
+    //      mangling sites still write a raw "." (sibling unification debt) — do
+    //      not change it alone.
+    inline constexpr const char *kClassMemberSeparator = ".";
+
+    // (AR) اللاحقةُ الكاملةُ لاسمِ البانِي المفكوك: الفاصلُ ثمّ اسمُ الخانة.
+    // (EN) The full mangled-constructor suffix: separator then slot name.
+    inline constexpr const char *kConstructorMangledSuffix = ".#\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+
+    // (AR) الاشتقاقُ الوحيدُ لاسمِ بانِي صنفٍ مفكوكًا — كان العقدُ مكتوبًا يدويًّا
+    //      في ٢١ موضعًا (أمامًا وخلفًا) بسلاسلَ سداسيّةٍ خام؛ كاتبٌ واحدٌ الآن.
+    // (EN) The single derivation of a class's mangled constructor name — the
+    //      contract used to be open-coded at 21 sites (frontend and backend)
+    //      as raw hex literals; one writer now.
+    inline std::string constructorNameFor(const std::string &className)
+    {
+        return className + kConstructorMangledSuffix;
+    }
+
+    // (AR) برهانا زمنِ ترجمة: خانةُ البانِي في الفضاءِ الداخليِّ المحميّ، واللاحقةُ
+    //      هي حرفيًّا الفاصلُ متبوعًا بالخانة — فلا ينشقُّ الطرفان صامتَين.
+    // (EN) Compile-time proofs: the slot lives in the protected internal
+    //      namespace, and the suffix is literally separator + slot name.
+    static_assert(startsWithPrefix(kConstructorSlotName, kSlotNamespaceSeparator),
+                  "constructor slot name must live in the internal slot namespace");
+    static_assert(startsWithPrefix(kConstructorMangledSuffix, kClassMemberSeparator) &&
+                      startsWithPrefix(kConstructorMangledSuffix + 1, kConstructorSlotName) &&
+                      startsWithPrefix(kConstructorSlotName, kConstructorMangledSuffix + 1),
+                  "constructor suffix must be exactly the member separator followed by the slot name");
+
+    // ──────────────────────────────────────────────────────────────────
     // (AR) أسماء وقت التشغيل (runtime) للاستثناءات والمعالجات
     //      تُستخدم في LLVM Codegen لإنشاء/الوصول إلى المتغيرات العمومية
     // (EN) Runtime symbol names for exception handling infrastructure

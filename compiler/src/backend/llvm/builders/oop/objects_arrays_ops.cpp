@@ -26,6 +26,7 @@
 
 #include "llvm_codegen.h"
 #include "sad_dyn_repr.h" // (AR) DynKind لتهيئة الحقل ٤ homogKind / (EN) DynKind for field 4 homogKind init
+#include "frontend/sir_constants.h" // (AR) constructorNameFor — اسم الباني المفكوك الموحَّد / (EN) unified mangled ctor name
 #include "builders/oop/objects_arrays_codegen.h"
 #include "builders/collections/array_ops_codegen.h" // SAD_ARRAY_SLOT_BYTES
 #include "llvm_optimizer.h"
@@ -850,8 +851,8 @@ namespace Sad
                 }
             }
 
-            // (AR) البحث عن دالة الباني: نجرب بناء (SIR builder)، __init__، منشئ، init، باني
-            // (EN) Look for constructor: try بناء (SIR builder), __init__, منشئ, init, باني
+            // (AR) البحث عن دالة الباني بالاسم المفكوك الموحَّد (constructorNameFor)
+            // (EN) Look up the constructor by the unified mangled name (constructorNameFor)
 
             // ═══════════════════════════════════════════════════════════════════════
             // (AR) تطبيق القيم الابتدائية للحقول — إصلاح حرج للأصناف بدون باني
@@ -1101,15 +1102,21 @@ namespace Sad
                 }
             }
 
-            llvm::Function *ctorFunc = cg_.module_->getFunction(className + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"); // بناء
-            if (!ctorFunc)
-                ctorFunc = cg_.module_->getFunction(className + ".__init__");
-            if (!ctorFunc)
-                ctorFunc = cg_.module_->getFunction(className + ".\xd9\x85\xd9\x86\xd8\xb4\xd8\xa6"); // منشئ
-            if (!ctorFunc)
-                ctorFunc = cg_.module_->getFunction(className + ".init");
-            if (!ctorFunc)
-                ctorFunc = cg_.module_->getFunction(className + ".\xD8\xA8\xD8\xA7\xD9\x86\xD9\x8A"); // باني
+            // (AR) 🔑 اسمٌ واحدٌ لا سلسلةَ احتياط: كانت هنا خمسةُ أسماءٍ تُجرَّب
+            //      (بناء/‏__init__/منشئ/init/باني) والوجهُ الأماميُّ لا يُنتج إلا
+            //      واحدًا — فالأربعةُ الباقيةُ إمّا ميتةٌ وإمّا **أبوابُ تصادم**:
+            //      طريقةُ مستخدمٍ عاديّةٌ باسمٍ منها كانت تُستدعى بانيًا عندَ
+            //      الإنشاء (نقض VE049 — المفسّرُ بنيويٌّ لا يفعلها). الاسمُ
+            //      المفكوكُ الآن في الفضاءِ الداخليِّ `#` فلا يطاله معرِّفُ مستخدم.
+            // (EN) 🔑 One name, no fallback chain: five names used to be tried here
+            //      while the frontend only ever emits one — the other four were
+            //      dead or collision doors (an ordinary user method under one of
+            //      those names got invoked as a constructor at instantiation,
+            //      violating VE049; the interpreter is structural and never did).
+            //      The mangled name now lives in the internal `#` namespace, out
+            //      of reach of any user identifier.
+            llvm::Function *ctorFunc =
+                cg_.module_->getFunction(::Sad::Compiler::constructorNameFor(className));
 
             if (ctorFunc)
             {

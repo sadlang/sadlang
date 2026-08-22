@@ -439,12 +439,19 @@ namespace sad
                 const auto dot = qualified.rfind('.');
                 return dot == std::string::npos ? qualified : qualified.substr(dot + 1);
             }
+            // (AR) البانِي يُكشَف بنيويًّا: خانتُه المفكوكةُ في الفضاءِ الداخليِّ `#`
+            //      (kConstructorSlotName) — لا بقائمةِ تهجئاتٍ كانت تُقصي طرائقَ
+            //      مستخدمٍ عاديّةً بأسماءِ (بناء/باني/منشئ/__init__) من التخطيط.
+            //      الهادمُ باقٍ بالاسمِ لأنّ فكَّه لم يُنقَل بعدُ (دَينٌ شقيق).
+            // (EN) The constructor is detected structurally: its mangled slot lives
+            //      in the internal `#` namespace (kConstructorSlotName) — not via a
+            //      spelling list that also evicted ordinary user methods named
+            //      بناء/باني/منشئ/__init__ from the layout. The destructor stays
+            //      name-based because its mangling has not moved yet (sibling debt).
             static bool isCtorOrDtorName(const std::string &n)
             {
-                return n == "\xD8\xA8\xD8\xA7\xD9\x86\xD9\x8A" ||        // باني
-                       n == "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1" ||        // بناء
-                       n == "\xD9\x85\xD9\x86\xD8\xB4\xD8\xA6" ||        // منشئ
-                       n == "__init__" ||
+                return ::Sad::Compiler::startsWithPrefix(
+                           n.c_str(), ::Sad::Compiler::kSlotNamespaceSeparator) ||
                        n == "\xD9\x87\xD8\xAF\xD9\x85" ||                // هدم
                        n == "__del__";
             }

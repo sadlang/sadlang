@@ -619,14 +619,18 @@ namespace Sad
             cg_.context_info_.objectFieldsAccessed.clear();
 
             // ================================================================
-            // كشف الباني: إذا كان اسم الدالة يحتوي ".بناء"
-            // Detect constructor: if function name contains ".بناء"
+            // كشف الباني: إذا كان اسم الدالة يحتوي اللاحقة المفكوكة الموحَّدة kConstructorMangledSuffix
+            // Detect constructor: if function name contains the unified mangled suffix kConstructorMangledSuffix
             // ================================================================
             cg_.context_info_.currentConstructorClass.clear();
             cg_.context_info_.currentMethodClass.clear();
             std::string funcName = sirFunc->getName();
-            // بناء = \xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1
-            std::string ctorSuffix = ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+            // (AR) اللاحقة الموحَّدة من sir_constants.h — في الفضاء الداخلي `#` فلا
+            //      تطابق طريقةَ مستخدمٍ عاديّةً اسمُها «بناء» (كانت تُكشَف بانيًا كذبًا)
+            // (EN) The unified suffix from sir_constants.h — inside the internal `#`
+            //      namespace, so an ordinary user method named «بناء» no longer
+            //      falsely registers as a constructor context
+            const std::string ctorSuffix = ::Sad::Compiler::kConstructorMangledSuffix;
             size_t ctorPos = funcName.find(ctorSuffix);
             if (ctorPos != std::string::npos)
             {

@@ -452,7 +452,7 @@ namespace Sad
                                             {
                                                 if (fieldName == memberExpr->member)
                                                 {
-                                                    std::string ctorName = b_.currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                                    std::string ctorName = constructorNameFor(b_.currentClassName_);
                                                     auto ctorIt = b_.functionTable_.find(ctorName);
                                                     if (ctorIt != b_.functionTable_.end())
                                                     {
@@ -510,7 +510,7 @@ namespace Sad
                                             {
                                                 if (fieldName == memberExpr->member)
                                                 {
-                                                    std::string ctorName = b_.currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                                    std::string ctorName = constructorNameFor(b_.currentClassName_);
                                                     auto ctorIt = b_.functionTable_.find(ctorName);
                                                     if (ctorIt != b_.functionTable_.end())
                                                     {
@@ -544,7 +544,7 @@ namespace Sad
                                                 {
                                                     // (AR) وجدنا المعامل — الآن نبحث عن نوعه في الباني
                                                     // (EN) Found param — now look up its type in constructor
-                                                    std::string ctorName = ciIt->second + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                                                    std::string ctorName = constructorNameFor(ciIt->second);
                                                     auto ctorIt = b_.functionTable_.find(ctorName);
                                                     if (ctorIt != b_.functionTable_.end())
                                                     {
@@ -596,7 +596,7 @@ namespace Sad
                                             {
                                                 if (fieldName == memberAccessExpr->memberName)
                                                 {
-                                                    std::string ctorName = b_.currentClassName_ + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+                                                    std::string ctorName = constructorNameFor(b_.currentClassName_);
                                                     auto ctorIt = b_.functionTable_.find(ctorName);
                                                     if (ctorIt != b_.functionTable_.end())
                                                     {
