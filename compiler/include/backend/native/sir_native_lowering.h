@@ -785,17 +785,15 @@ namespace sad
                 return dot == std::string::npos ? qualified : qualified.substr(dot + 1);
             }
             // (AR) هل الاسمُ القصيرُ بانٍ/هادم؟ (مستثنًى من جدولِ الدوالّ — نداءٌ مباشر).
-            //      البانِي بنيويًّا: خانتُه في الفضاءِ الداخليِّ `#` (kConstructorSlotName)،
-            //      لا بقائمةِ تهجئاتٍ كانت تُقصي طرائقَ مستخدمٍ عاديّةً بأسمائها.
-            //      الهادمُ باقٍ بالاسمِ (فكُّه لم يُنقَل — دَينٌ شقيق).
-            // (EN) Constructor detected structurally via the internal `#` namespace;
-            //      destructor stays name-based (its mangling has not moved — sibling debt).
+            //      كلاهما بنيويًّا: خانتاهما في الفضاءِ الداخليِّ `#`
+            //      (kConstructorSlotName/kDestructorSlotName) — لا بقائمةِ تهجئاتٍ
+            //      كانت تُقصي طرائقَ مستخدمٍ عاديّةً بأسمائها من التخطيط.
+            // (EN) Both are detected structurally via the internal `#` namespace —
+            //      not a spelling list that also evicted ordinary user methods.
             static bool isCtorOrDtorName(const std::string &n)
             {
                 return ::Sad::Compiler::startsWithPrefix(
-                           n.c_str(), ::Sad::Compiler::kSlotNamespaceSeparator) ||
-                       n == "\xD9\x87\xD8\xAF\xD9\x85" ||                // هدم
-                       n == "__del__";
+                    n.c_str(), ::Sad::Compiler::kSlotNamespaceSeparator);
             }
 
             // (AR) سجلٌّ افتراضيٌّ عُرِّف بـ«MOVE %r = سلسلةٌ حرفيّة» ⇒ محتواها. الأمامُ يُخرِج

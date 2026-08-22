@@ -963,6 +963,40 @@ namespace Sad
             llvm::Value *lI = dynPayloadI64(cg, l);
             llvm::Value *rI = dynPayloadI64(cg, r);
 
+            // (AR) حارس الغياب (نظير RUN053، توافق المحرّكين): معاملٌ وسمُه Null أو
+            //      Void كان يُفكُّ حمولتُه صفرًا فيُنتج «غياب + 1 = 1» بخروجِ صفرٍ —
+            //      بينما المفسّر يُبلغ RUN053 ويخرج 1. الفحص هنا في **الباب الواحد**
+            //      لكلّ الحسابيّات الموسومة (+، -، *، /، %، //) لا في مواضع الظهور؛
+            //      والمقارناتُ (== لاشيء) لا تمرّ بهذا الباب فلا يمسّها الحارس.
+            //      وسما Str/Bool يبقيان خارج الحارس عمدًا: لم يُقاسا بعدُ (دَين معلَن).
+            //      مقيس: سلسلةُ نصٍّ مع جلبٍ غائبٍ («غائب + "لاحقة"») لا تمرّ بهذا
+            //      البابِ أصلًا وتبقى مشروعةً في المحرّكين؛ بقيّةُ توليفاتِ الغيابِ
+            //      مع الحاوياتِ غيرُ مقيسةٍ بعد. والسالبُ الأحاديّ على غيابٍ موسومٍ
+            //      يمرّ به (‎-غائب ⇒ RUN053 مترجَمًا) — إعلانُ مرحلةٍ لا قياسُ تكافؤ.
+            // (EN) Absence guard (RUN053 counterpart, engine parity): an operand
+            //      tagged Null or Void had its payload unpacked as zero, producing
+            //      «absence + 1 = 1» with exit 0 — the interpreter reports RUN053 and
+            //      exits 1. The check lives in this single door for all tagged
+            //      arithmetic (+,-,*,/,%,//), not at symptom sites; comparisons
+            //      (== لاشيء) never route here, so they stay legal. Str/Bool tags are
+            //      deliberately outside the guard: unmeasured yet (declared debt).
+            {
+                auto *nullK = llvm::ConstantInt::get(i8, DynKind::Null);
+                auto *voidK = llvm::ConstantInt::get(i8, DynKind::Void);
+                llvm::Value *lK = dynKindByte(cg, l);
+                llvm::Value *rK = dynKindByte(cg, r);
+                llvm::Value *lAbsent = b.CreateOr(
+                    b.CreateICmpEQ(lK, nullK, "dyn.abs.ln"),
+                    b.CreateICmpEQ(lK, voidK, "dyn.abs.lv"), "dyn.abs.l");
+                llvm::Value *rAbsent = b.CreateOr(
+                    b.CreateICmpEQ(rK, nullK, "dyn.abs.rn"),
+                    b.CreateICmpEQ(rK, voidK, "dyn.abs.rv"), "dyn.abs.r");
+                emitDynDivZeroGuard(cg,
+                                    b.CreateOr(lAbsent, rAbsent, "dyn.abs.either"),
+                                    lI, Sad::Compiler::kNumericRequiredRun053Msg,
+                                    "dyn.absence");
+            }
+
             // (AR) === Amelia (ISSUE-076): قاسمٌ آمنٌ للفرع الصحيح المُهمَل ===
             //      الموزِّع بلا فروع: يحسب iRes (صحيح) و fRes (عشريّ) دائمًا ثمّ يختار بالوسم.
             //      لكنّ sdiv/srem على صفرٍ (أو INT_MIN/-1) سلوكٌ غير معرَّف يُطلق #DE (SIGFPE)

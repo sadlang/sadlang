@@ -736,16 +736,19 @@ namespace Sad
                 //      name, not through the vtable.
                 if (cg_.context_info_.cReprClasses.count(className))
                 {
-                    // (AR) سجّل الهدم إن وُجد (يُستدعى بالاسم) دون بناء vtable
-                    // (EN) Still register a destructor (called by name) without a vtable
+                    // (AR) سجّل الهادمَ إن وُجد بخانتِه الداخليّةِ `#هدم` حصرًا — لا
+                    //      بقائمةِ تهجئاتٍ (هدم/‏__del__/‏__destroy__) كانت تلتقطُ
+                    //      طرائقَ مستخدمٍ عاديّةً بهذه الأسماء (باب تصادم «بناء» نفسه).
+                    // (EN) Register the destructor only under its internal `#هدم` slot —
+                    //      not via a spelling list (هدم/__del__/__destroy__) that also
+                    //      captured ordinary user methods (the «بناء» collision door).
                     for (const auto &[methodName, methodFunc] : cls->methods_)
                     {
                         std::string shortName = methodName;
                         size_t dp = methodName.find('.');
                         if (dp != std::string::npos)
                             shortName = methodName.substr(dp + 1);
-                        if (shortName == "\xD9\x87\xD8\xAF\xD9\x85" || shortName == "__del__" ||
-                            shortName == "__destroy__")
+                        if (shortName == ::Sad::Compiler::kDestructorSlotName)
                         {
                             cg_.context_info_.classDestructors[className] =
                                 (methodName.find('.') != std::string::npos) ? methodName
@@ -805,15 +808,15 @@ namespace Sad
                     if (::Sad::Compiler::startsWithPrefix(
                             shortMethodName.c_str(), ::Sad::Compiler::kSlotNamespaceSeparator))
                     {
-                        continue;
-                    }
-
-                    // تجاهل الهدم — يُعالج بشكل منفصل
-                    if (shortMethodName == "\xD9\x87\xD8\xAF\xD9\x85" || shortMethodName == "هدم" ||
-                        shortMethodName == "__del__" || shortMethodName == "__destroy__")
-                    {
-                        // تسجيل الهدم
-                        cg_.context_info_.classDestructors[className] = fullName;
+                        // (AR) خانةُ الهادمِ الداخليّة `#هدم` تُسجَّل قبل الإقصاء — كان
+                        //      التسجيلُ بقائمةِ تهجئاتٍ (هدم/‏__del__/‏__destroy__)
+                        //      تلتقطُ طرائقَ مستخدمٍ عاديّةً وتُقصيها من vtable.
+                        // (EN) The internal `#هدم` destructor slot registers before the
+                        //      skip — registration used to run off a spelling list
+                        //      (هدم/__del__/__destroy__) that also captured ordinary
+                        //      user methods and evicted them from the vtable.
+                        if (shortMethodName == ::Sad::Compiler::kDestructorSlotName)
+                            cg_.context_info_.classDestructors[className] = fullName;
                         continue;
                     }
 

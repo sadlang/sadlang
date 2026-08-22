@@ -220,6 +220,48 @@ namespace Sad::Compiler
                   "constructor suffix must be exactly the member separator followed by the slot name");
 
     // ──────────────────────────────────────────────────────────────────
+    // (AR) اسمُ خانةِ الهادمِ المفكوك — «‎#هدم‎» — العقدُ الشقيقُ لخانةِ البانِي.
+    //
+    //      حقيقتان مقيستان (٢٣ آب ٢٠٢٦): (١) الهادمُ لا يُستدعى قطُّ في
+    //      المحرّكين (لا عند نهايةِ النطاقِ ولا نهايةِ البرنامج) —
+    //      `emitDestructorCall` بلا مستدعٍ واحدٍ، وخفضُ `هدم()` الكلمةِ
+    //      المفتاحيّةِ داخلَ الصنفِ كان يُسقِطها صامتًا. (٢) الكشفُ بالاسمِ
+    //      (هدم/‏__del__/‏__destroy__) كان يلتقطُ **طرائقَ مستخدمٍ عاديّةً**
+    //      بهذه الأسماءِ فيُقصيها من vtable ويسجّلها هوادمَ — بابُ تصادمِ
+    //      «بناء» نفسُه. الثابتُ هنا يُرسي العقدَ ليومِ توصيلِ الهدمِ الفعليّ؛
+    //      والكشفُ البنيويُّ (بادئة `#`) حلَّ محلَّ قائمةِ التهجئات.
+    // (EN) The destructor's mangled slot name — «#هدم» — the constructor
+    //      slot's sibling contract. Two measured facts (2026-08-23): (1) the
+    //      destructor never runs in either engine (emitDestructorCall has no
+    //      caller; the keyword form inside a class was silently dropped), and
+    //      (2) name-based detection (هدم/__del__/__destroy__) captured
+    //      ordinary user methods, evicting them from the vtable and
+    //      registering them as destructors — the same collision door as
+    //      «بناء». This constant pins the contract for the day destruction is
+    //      actually wired; structural detection (the `#` prefix) replaces the
+    //      spelling list.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr const char *kDestructorSlotName = "#\xD9\x87\xD8\xAF\xD9\x85";
+
+    // (AR) اللاحقةُ الكاملةُ لاسمِ الهادمِ المفكوك.
+    // (EN) The full mangled-destructor suffix.
+    inline constexpr const char *kDestructorMangledSuffix = ".#\xD9\x87\xD8\xAF\xD9\x85";
+
+    // (AR) الاشتقاقُ الوحيدُ لاسمِ هادمِ صنفٍ مفكوكًا.
+    // (EN) The single derivation of a class's mangled destructor name.
+    inline std::string destructorNameFor(const std::string &className)
+    {
+        return className + kDestructorMangledSuffix;
+    }
+
+    static_assert(startsWithPrefix(kDestructorSlotName, kSlotNamespaceSeparator),
+                  "destructor slot name must live in the internal slot namespace");
+    static_assert(startsWithPrefix(kDestructorMangledSuffix, kClassMemberSeparator) &&
+                      startsWithPrefix(kDestructorMangledSuffix + 1, kDestructorSlotName) &&
+                      startsWithPrefix(kDestructorSlotName, kDestructorMangledSuffix + 1),
+                  "destructor suffix must be exactly the member separator followed by the slot name");
+
+    // ──────────────────────────────────────────────────────────────────
     // (AR) أسماء وقت التشغيل (runtime) للاستثناءات والمعالجات
     //      تُستخدم في LLVM Codegen لإنشاء/الوصول إلى المتغيرات العمومية
     // (EN) Runtime symbol names for exception handling infrastructure
@@ -665,6 +707,23 @@ namespace Sad::Compiler
     //      replaces it with __sad_panic(kSadPanicCheckViolation).
     inline constexpr const char *kDivZeroRun001Msg =
         "خطأ [RUN001]: محاولة قسمة %g على صفر\n";
+
+    // (AR) تشخيص المطوّر (مستضاف فقط) للحساب على قيمةٍ موسومةٍ غيابًا (Null/Void)
+    //      زمنَ التشغيل — نظيرُ RUN053 في المفسّر. كان الفكُّ يقرأ حمولةَ الغياب
+    //      صفرًا فيُنتج «غياب + 1 = 1» بخروجِ صفرٍ — أخطرُ صنفِ تباعدٍ (المفسّرُ
+    //      يُبلغ RUN053 ويخرج 1). نصُّ العمليّةِ «حسابية / arithmetic» هو حرفيًّا
+    //      ما يضعه المفسّرُ في النائب {op} من رسالة الكتالوج — تكافؤُ صياغة.
+    //      في الوضع الحرّ يُستبدل بنداء __sad_panic(kSadPanicCheckViolation).
+    // (EN) Hosted-only developer diagnostic for arithmetic on a runtime-tagged
+    //      absence (Null/Void) — the compiled counterpart of the interpreter's
+    //      RUN053. The unpack used to read the absent payload as zero, so
+    //      «absence + 1 = 1» exited 0 — the worst divergence class (the
+    //      interpreter reports RUN053 and exits 1). The op text
+    //      «حسابية / arithmetic» is literally what the interpreter puts in the
+    //      catalog's {op} placeholder. Freestanding replaces this with
+    //      __sad_panic(kSadPanicCheckViolation).
+    inline constexpr const char *kNumericRequiredRun053Msg =
+        "خطأ [RUN053]: العملية 'حسابية / arithmetic' تتطلّب قيمة رقمية\n";
 
     // (AR) نصٌّ عدديٌّ يتجاوزُ مدى النوعِ الهدف — `رقم("9223372036854775808")`
     //      و`عشري("1e309")`.

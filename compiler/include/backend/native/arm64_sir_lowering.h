@@ -439,21 +439,18 @@ namespace sad
                 const auto dot = qualified.rfind('.');
                 return dot == std::string::npos ? qualified : qualified.substr(dot + 1);
             }
-            // (AR) البانِي يُكشَف بنيويًّا: خانتُه المفكوكةُ في الفضاءِ الداخليِّ `#`
-            //      (kConstructorSlotName) — لا بقائمةِ تهجئاتٍ كانت تُقصي طرائقَ
-            //      مستخدمٍ عاديّةً بأسماءِ (بناء/باني/منشئ/__init__) من التخطيط.
-            //      الهادمُ باقٍ بالاسمِ لأنّ فكَّه لم يُنقَل بعدُ (دَينٌ شقيق).
-            // (EN) The constructor is detected structurally: its mangled slot lives
-            //      in the internal `#` namespace (kConstructorSlotName) — not via a
-            //      spelling list that also evicted ordinary user methods named
-            //      بناء/باني/منشئ/__init__ from the layout. The destructor stays
-            //      name-based because its mangling has not moved yet (sibling debt).
+            // (AR) البانِي والهادمُ يُكشفانِ بنيويًّا: خانتاهما المفكوكتانِ في
+            //      الفضاءِ الداخليِّ `#` (kConstructorSlotName/kDestructorSlotName) —
+            //      لا بقائمةِ تهجئاتٍ (بناء/باني/منشئ/__init__/هدم/__del__) كانت
+            //      تُقصي طرائقَ مستخدمٍ عاديّةً بهذه الأسماءِ من التخطيط.
+            // (EN) Constructor and destructor are both detected structurally: their
+            //      mangled slots live in the internal `#` namespace — not via a
+            //      spelling list (بناء/باني/منشئ/__init__/هدم/__del__) that also
+            //      evicted ordinary user methods from the layout.
             static bool isCtorOrDtorName(const std::string &n)
             {
                 return ::Sad::Compiler::startsWithPrefix(
-                           n.c_str(), ::Sad::Compiler::kSlotNamespaceSeparator) ||
-                       n == "\xD9\x87\xD8\xAF\xD9\x85" ||                // هدم
-                       n == "__del__";
+                    n.c_str(), ::Sad::Compiler::kSlotNamespaceSeparator);
             }
             // (AR) يبني عنوانَ جدولِ دوالِّ صنفٍ ٦٤-بت في سجلّ (movz+movk×3 نائبٌ) ويسجّل ترقيعًا.
             bool emitVtableAddr(int reg, const std::string &className)
