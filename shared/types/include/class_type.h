@@ -367,6 +367,19 @@ namespace Sad
              */
             ~ClassType() override = default;
 
+            /**
+             * @brief (AR) إسناد نقلي — يستعمله ClassManager لتحديث التسجيل المؤقت
+             *        **في مكانه** (العنوان ثابت لأن الأبناء يحملون baseClass مؤشرًا
+             *        خامًّا إليه). الهادم المصرَّح أعلاه يكبت التوليد الضمني فيُعاد
+             *        طلبه صراحةً. النسخ يبقى محذوفًا (أعضاء unique_ptr).
+             * @brief (EN) Move assignment — used by ClassManager to update a
+             *        temporary registration IN PLACE (stable address: children hold
+             *        baseClass as a raw pointer to it). The user-declared destructor
+             *        above suppresses the implicit one, so it is re-requested
+             *        explicitly. Copying stays deleted (unique_ptr members).
+             */
+            ClassType &operator=(ClassType &&) = default;
+
             // ──────────────────────────────────────────────────────────────────
             // واجهة Type / Type Interface
             // ──────────────────────────────────────────────────────────────────

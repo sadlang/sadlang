@@ -71,6 +71,24 @@ namespace Sad
                 std::cout << "[DEBUG] buildClass: processing class '" << classDecl->name << "'" << std::endl;
 #endif
 
+                // (AR) بناء واحد لكل **عقدة تصريح** لا لكل اسم: الأب المبنيُّ عند
+                //      الطلب (أدناه) يصل إليه المسحُ الرئيسيُّ لاحقًا بالعقدةِ نفسِها
+                //      فيُتخطى، والوسمُ عند الدخول يقطع عودَ دورات الوراثة الفاسدة.
+                //      المفتاحُ العقدةُ عمدًا: تخطٍّ بالاسم وحدَه كان يُسقط بناءَ
+                //      طرائقِ صنفٍ ثانٍ يعيد تعريفَ الاسم فيتحول التصادمُ إلى فشلِ
+                //      ربطٍ مموَّهٍ «ثبّت clang» (رصد المراجعة العدائية — b_dup).
+                // (EN) One build per DECL NODE, not per name: an on-demand-built
+                //      parent is revisited by the main sweep with the same node and
+                //      skipped, and marking on entry breaks recursion on invalid
+                //      cycles. Keying by name alone dropped the method builds of a
+                //      second same-name class, turning the collision into a masked
+                //      LNK2019 (adversarial finding — b_dup).
+                if (b_.builtClassDecls_.count(classDecl) > 0)
+                {
+                    return;
+                }
+                b_.builtClassDecls_.insert(classDecl);
+
                 // (AR) تحديد الصنف الأب (إن وجد)
                 // (EN) Determine parent class (if any)
                 std::string parentClass = "";
@@ -80,11 +98,53 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildClass: parent class = '" << parentClass << "'" << std::endl;
 #endif
+                    // (AR) الأب معرَّفٌ لاحقًا في الملف ولم يُبنَ بعدُ ⇒ يُبنى الآن
+                    //      عودًا، وإلا خرج تخطيطُ الابن بلا الحقولِ الموروثةِ (نسخُها
+                    //      أدناه يقرأ حقولَ الأب) — تأكيدة LLVM المقيسة على بذرة 054.
+                    // (EN) The parent is declared later in the file and not built
+                    //      yet ⇒ build it now recursively; otherwise the child layout
+                    //      misses the inherited fields (the copy below reads the
+                    //      parent's fields) — the measured LLVM assertion (seed 054).
+                    auto pendingIt = b_.pendingClassDecls_.find(parentClass);
+                    if (pendingIt != b_.pendingClassDecls_.end() &&
+                        b_.builtClassDecls_.count(pendingIt->second) == 0)
+                    {
+                        buildClass(pendingIt->second);
+                    }
                 }
 
-                // (AR) إنشاء صنف SIR (SIRClass constructor: sir_module.h:409)
-                // (EN) Create SIR class
-                auto sirClass = std::make_shared<SIRClass>(classDecl->name, parentClass);
+                // (AR) إنشاء صنف SIR (SIRClass constructor: sir_module.h:409) — أو إعادة
+                //      استخدام الصدفة المصرَّحة في المرحلة 1.25: addClass يدفع بلا إزالة
+                //      تكرار وgetClass يرجع الأول، فصنفٌ ثانٍ بالاسم نفسه يجعل الطرائق
+                //      تُضاف إلى كائنٍ لا يراه أحد. الكائن المشترك واحد دائمًا.
+                // (EN) Create SIR class — or reuse the Phase 1.25 shell: addClass pushes
+                //      without dedup and getClass returns the first match, so a second
+                //      object under the same name would receive methods nobody can see.
+                //      There is always exactly one shared object per class name.
+                // (AR) وإعادةُ الاستخدام مقصورةٌ على صدفةِ **هذه العقدةِ** من المرحلة
+                //      1.25: صنفٌ محليٌّ يصادم اسمَ صنفٍ مستورَدٍ (ليس في pending)
+                //      يسلك المسارَ القديم (كائن ثانٍ، والأولُ يفوز في getClass) —
+                //      دمجُ طرائقِه في المستورَد قَلَبَ اختيارَ المحرّكِ (رصد
+                //      المراجعة العدائية — g_import).
+                // (EN) Reuse is limited to THIS node's Phase 1.25 shell: a local
+                //      class colliding with an imported class name (not in pending)
+                //      takes the old path (second object; first wins in getClass) —
+                //      merging its methods into the imported one flipped the
+                //      compiled engine's pick (adversarial finding — g_import).
+                auto pendingSelfIt = b_.pendingClassDecls_.find(classDecl->name);
+                const bool hasOwnShell = (pendingSelfIt != b_.pendingClassDecls_.end() &&
+                                          pendingSelfIt->second == classDecl);
+                auto sirClass = hasOwnShell ? b_.module_->getClass(classDecl->name)
+                                            : std::shared_ptr<SIRClass>{};
+                const bool reusedShell = (sirClass != nullptr);
+                if (!sirClass)
+                {
+                    sirClass = std::make_shared<SIRClass>(classDecl->name, parentClass);
+                }
+                else
+                {
+                    sirClass->parentClass = parentClass;
+                }
 
                 // (AR) تعيين علامة المجرد / (EN) Set abstract flag
                 sirClass->isAbstract = classDecl->isAbstract;
@@ -150,8 +210,13 @@ namespace Sad
                 //      (e.g., return new Vector(...)) searches b_.module_->getClass() — it fails
                 //      if class isn't registered yet. Since sirClass is shared_ptr, later
                 //      modifications (adding fields/methods) auto-reflect in b_.module_.
+                // (AR) الصدفة المعاد استخدامها مسجَّلة سلفًا (المرحلة 1.25) — لا دفع ثانيًا.
+                // (EN) A reused shell is already registered (Phase 1.25) — no second push.
                 // ═══════════════════════════════════════════════════════════════════════
-                b_.module_->addClass(sirClass);
+                if (!reusedShell)
+                {
+                    b_.module_->addClass(sirClass);
+                }
 
                 // (AR) معالجة أعضاء الصنف (members)
                 // (EN) Process class members

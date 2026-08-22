@@ -20,6 +20,7 @@
 #include <limits>
 #include <functional>
 #include <set>
+#include <unordered_set> // (AR) مزورات صعود الوراثة — قطع الدورات الفاسدة
 
 namespace Sad
 {
@@ -139,6 +140,15 @@ namespace Sad
                 //      `pair[0]` and falls through to the Integer default. See the IndexExpr
                 //      arm below.
                 std::unordered_map<std::string, SadTypeKind> localElementTypes;
+
+                // (AR) صنفُ كلِّ مثيلٍ محلّيٍّ («متغير م = محيّي()») — تقرؤه ذراعُ
+                //      MethodCallExpr لتستنتج نوعَ إرجاعِ «م.طريقة()» من جدولِ الطرائق؛
+                //      بدونه سقطت طريقةٌ نصّيّةٌ إلى «رقم» فطُبع مؤشّرٌ (قِيس: بذرة 110).
+                // (EN) The class of each local instance («متغير م = محيّي()») — read by
+                //      the MethodCallExpr arm to resolve «م.method()» return types from
+                //      the method table; without it a string method fell to Integer and
+                //      printed a raw pointer (measured: seed 110).
+                std::unordered_map<std::string, std::string> localClassNames;
 
                 // ═══════════════════════════════════════════════════════════════════
                 // (AR) الخطوة 2: دالة استنتاج نوع تعبير مع دعم المتغيرات المحلية
@@ -282,6 +292,69 @@ namespace Sad
                         TypeMethodReturn tmr = typeMethodReturnKind(objectKind, mcall->methodName);
                         if (tmr.known)
                             return tmr.kind;
+
+                        // (AR) طريقةُ صنفِ مستخدمٍ — كانت الذراعُ تقف هنا فتسقط إلى «رقم»
+                        //      الافتراضيِّ حتى لطريقةٍ نصّيّةٍ توقيعُها في الجدول (المرحلة 1.3)،
+                        //      فدالّةٌ حرّةٌ تُرجع «مصنع.اصنع()» طُبع ناتجُها مؤشّرًا رقمًا
+                        //      (قِيس: عيب e2 من المراجعة العدائية). الاسمُ يُشتقُّ من «هذا»
+                        //      أو سجلِّ المثيلاتِ أو اسمِ الصنفِ ذاتِه (نداءٌ ساكن)، ثم
+                        //      يُصعَدُ في سلسلةِ الوراثةِ — نظيرُ ذراعِ CallExpr+MemberExpr
+                        //      أدناه حرفًا بحرف.
+                        // (EN) User-class method — this arm used to stop here and fall to
+                        //      the Integer default even when the signature is in the table
+                        //      (Phase 1.3), so a free function returning «مصنع.اصنع()»
+                        //      printed its result as a raw pointer number (measured: defect
+                        //      e2, adversarial review). Derive the class from «هذا», the
+                        //      instance registry, or the name itself (static call), then
+                        //      walk the inheritance chain — the exact peer of the
+                        //      CallExpr+MemberExpr arm below.
+                        std::string mcClassName;
+                        if (dynamic_cast<const Sad::AST::ThisExpr *>(mcall->object.get()))
+                        {
+                            mcClassName = b_.currentClassName_;
+                        }
+                        else if (auto varObj = dynamic_cast<const Sad::AST::VariableExpr *>(mcall->object.get()))
+                        {
+                            auto lcIt = localClassNames.find(varObj->name);
+                            auto ciIt = b_.classInstanceTypes_.find(varObj->name);
+                            if (lcIt != localClassNames.end())
+                            {
+                                mcClassName = lcIt->second;
+                            }
+                            else if (ciIt != b_.classInstanceTypes_.end())
+                            {
+                                mcClassName = ciIt->second;
+                            }
+                            else if (b_.functionTable_.count(varObj->name + "." + mcall->methodName) > 0)
+                            {
+                                mcClassName = varObj->name;
+                            }
+                        }
+                        // (AR) مجموعةُ زيارةٍ تقطع دورةَ وراثةٍ فاسدةٍ («أ يرث ب يرث أ»)
+                        //      — عطبُ المصدرِ لا يجوز أن يصيرَ تعليقَ مصرِّفٍ (نظير
+                        //      findMethodInHierarchy — رصد مراجعة الجودة).
+                        // (EN) A visited set breaks an invalid inheritance cycle — a
+                        //      source defect must never hang the compiler (peer of
+                        //      findMethodInHierarchy — quality-review finding).
+                        std::unordered_set<std::string> visitedOwners;
+                        while (!mcClassName.empty() && visitedOwners.insert(mcClassName).second)
+                        {
+                            auto fit = b_.functionTable_.find(mcClassName + "." + mcall->methodName);
+                            if (fit != b_.functionTable_.end())
+                            {
+                                return fit->second.returnType;
+                            }
+                            if (!b_.module_)
+                            {
+                                break;
+                            }
+                            auto ownerClass = b_.module_->getClass(mcClassName);
+                            if (!ownerClass || ownerClass->parentClass.empty())
+                            {
+                                break;
+                            }
+                            mcClassName = ownerClass->parentClass;
+                        }
                     }
 
                     if (auto call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
@@ -325,7 +398,12 @@ namespace Sad
                             if (!className.empty())
                             {
                                 std::string searchClass = className;
-                                while (!searchClass.empty())
+                                // (AR) مزورات تقطع دورة الوراثة الفاسدة — الفخ نفسه
+                                //      المسدود في ذراع MethodCallExpr أعلاه.
+                                // (EN) Visited set breaks an invalid inheritance cycle —
+                                //      same trap sealed in the MethodCallExpr arm above.
+                                std::unordered_set<std::string> visitedSearch;
+                                while (!searchClass.empty() && visitedSearch.insert(searchClass).second)
                                 {
                                     std::string fullMethodName = searchClass + "." + memberCallee->member;
                                     auto fit = b_.functionTable_.find(fullMethodName);
@@ -752,6 +830,28 @@ namespace Sad
                         {
                             SadTypeKind varType = inferExprType(varDecl->initializer.get());
                             localVarTypes[varDecl->name] = varType;
+
+                            // (AR) مثيلُ صنفٍ محلّيٌّ — بالنداء «صنف(…)» أو بـ«جديد»:
+                            //      سجّل صنفَه لذراعِ MethodCallExpr (الأصدافُ 1.25 تجعل
+                            //      getClass يرى حتى الصنفَ المعرَّفَ لاحقًا).
+                            // (EN) Local class instance — via call «Class(…)» or «new»:
+                            //      record its class for the MethodCallExpr arm (the 1.25
+                            //      shells make getClass see even later-declared classes).
+                            if (auto ctorCall = dynamic_cast<const Sad::AST::CallExpr *>(
+                                    varDecl->initializer.get()))
+                            {
+                                if (auto ctorName = dynamic_cast<const Sad::AST::VariableExpr *>(
+                                        ctorCall->callee.get()))
+                                {
+                                    if (b_.module_ && b_.module_->getClass(ctorName->name))
+                                        localClassNames[varDecl->name] = ctorName->name;
+                                }
+                            }
+                            else if (auto newE = dynamic_cast<const Sad::AST::NewExpr *>(
+                                         varDecl->initializer.get()))
+                            {
+                                localClassNames[varDecl->name] = newE->className;
+                            }
 
                             // (AR) تسجيلُ نوعِ العنصرِ للحاوياتِ المحلّيّة:
                             //        · حرفيّةُ مصفوفةٍ ⇒ نوعُ عناصرِها إن تجانست، و«أي» إن اختلفت.

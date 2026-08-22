@@ -21,6 +21,7 @@
 #include "user_thrown.h"
 #include "ui_nodes.h"     // For UIDeclarationNode
 #include <iostream>
+#include <unordered_set> // (AR) مزورات سلسلة baseClass — كشف دورة الوراثة
 
 namespace Sad
 {
@@ -501,6 +502,31 @@ namespace Sad
             }
 
             bool registered = classManager->registerClass(std::move(classType));
+
+            // (AR) كشف دورة الوراثة الفاسدة بعد اكتمال التسجيل: الدورةُ لا تكتمل
+            //      إلا حين يُحدَّث تسجيلٌ مؤقتٌ في مكانه («أ يرث ب» ثم «ب يرث أ»)
+            //      — وقبل هذا الحارس كان أولُ نداءِ طريقةٍ يُعلّق البحثَ في سلسلةِ
+            //      baseClass إلى الأبد بلا تشخيص (رصد المراجعة العدائية — a_cycle).
+            // (EN) Detect an invalid inheritance cycle once registration completes:
+            //      the cycle only closes when a temporary registration is updated
+            //      in place («أ يرث ب» then «ب يرث أ») — and before this guard the
+            //      first method call hung the baseClass-chain lookup forever with
+            //      no diagnostic (adversarial finding — a_cycle).
+            {
+                ClassType *cycleWalker = classManager->getClass(node.name);
+                std::unordered_set<const ClassType *> chainSeen;
+                while (cycleWalker && chainSeen.insert(cycleWalker).second)
+                {
+                    cycleWalker = cycleWalker->baseClass;
+                }
+                if (cycleWalker)
+                {
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_INHERITANCE_CYCLE,
+                        node.position,
+                        {{"class", node.name}, {"base", cycleWalker->name}});
+                }
+            }
 
             if (registered)
             {

@@ -281,6 +281,25 @@ namespace Sad
                 std::unordered_map<std::string, std::string> classInstanceTypes_;
 
                 // ────────────────────────────────────────────────────────────
+                // (AR) بناء الأب عند الطلب (المرحلة 1.25): عقد تصريحات الأصناف
+                //      العلوية بالاسم، ومجموعة الأصناف المبنية فعلًا. حين يُبنى
+                //      ابنٌ قبل أبيه، يبني buildClass الأبَ المعلَّقَ أولًا عودًا
+                //      (وإلا خرج تخطيطُ الابن بلا الحقول الموروثة — تأكيدة LLVM
+                //      «Element number out of range» المقيسة على بذرة 054).
+                // (EN) Build-parent-on-demand (Phase 1.25): top-level class decl
+                //      nodes by name, plus the set of actually-built classes. When
+                //      a child builds before its parent, buildClass recursively
+                //      builds the pending parent first (otherwise the child layout
+                //      lacked the inherited fields — the measured LLVM assertion
+                //      "Element number out of range" on seed 054).
+                std::unordered_map<std::string, Sad::AST::ClassDecl *> pendingClassDecls_;
+                // (AR) بالعقدة لا بالاسم — التخطي بالاسم أسقط طرائق إعادة تعريفٍ
+                //      متصادمةٍ (LNK2019 مموَّه). انظر buildClass.
+                // (EN) By node, not by name — name-keyed skipping dropped the method
+                //      builds of a colliding redefinition (masked LNK2019). See buildClass.
+                std::unordered_set<const Sad::AST::ClassDecl *> builtClassDecls_;
+
+                // ────────────────────────────────────────────────────────────
                 // (AR) استنتاج نوع المرميّ لكلّ «حاول» فعّال — لربط متغيّر «امسك»
                 //      بنوعه الساكن الصحيح (كائن/رقم/نص) فيطابق نوع() المفسّرَ ويعمل
                 //      وصولُ الحقل. تُدفَع خانةٌ عند دخول «حاول»، وتُسجّل كلُّ «ارمي»

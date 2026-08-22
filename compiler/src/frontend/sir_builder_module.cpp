@@ -520,6 +520,83 @@ namespace Sad
                 preRegisterFunctionSignatures(program);
 
                 // ═══════════════════════════════════════════════════════════════════
+                // (AR) المرحلة 1.25: تصريح أصداف الأصناف مسبقًا في module_ — بالاسم
+                //      والأب والأعلام فقط، والحقولُ والطرائقُ يملؤها البناءُ الفعليُّ
+                //      لاحقًا على الكائنِ المشترَكِ نفسِه (shared_ptr). بدونها كان
+                //      «منتج(…)» داخلَ طريقةِ صنفٍ أسبقَ يسقط إلى «استدعاء دالة غير
+                //      معرّفة» لأنّ getClass لا يرى صنفًا لم يُبنَ بعدُ — بينما
+                //      المفسّرُ يقبل المرجعَ الأماميَّ (قِيس: عيب a2 من المراجعة
+                //      العدائية). ولا صدفةَ لصنفٍ سبق تسجيلُه (وحدات مستورَدة).
+                // (EN) Phase 1.25: pre-declare class shells in module_ — name, parent,
+                //      and flags only; fields and methods are filled by the real build
+                //      on the SAME shared object. Without it, «منتج(…)» inside an
+                //      earlier class's method fell to "undefined function" because
+                //      getClass cannot see a class not yet built — while the
+                //      interpreter accepts the forward reference (measured: defect a2,
+                //      adversarial review). Never shadows an already-registered class
+                //      (imported modules).
+                // ═══════════════════════════════════════════════════════════════════
+                for (const auto &stmt : *program)
+                {
+                    if (!stmt)
+                        continue;
+                    auto *classDecl = dynamic_cast<Sad::AST::ClassDecl *>(stmt.get());
+                    if (!classDecl)
+                        continue;
+                    if (module_->getClass(classDecl->name))
+                        continue;
+                    std::string shellParent = classDecl->superclasses.empty()
+                                                  ? std::string{}
+                                                  : classDecl->superclasses.front();
+                    auto shell = std::make_shared<SIRClass>(classDecl->name, shellParent);
+                    shell->isAbstract = classDecl->isAbstract;
+                    shell->isSealed = classDecl->isSealed;
+                    shell->sourceFile = classDecl->sourceFile;
+                    module_->addClass(shell);
+                    // (AR) عقدة التصريح تُحفظ لبناء الأب عند الطلب (انظر buildClass).
+                    // (EN) Keep the decl node for build-parent-on-demand (see buildClass).
+                    pendingClassDecls_[classDecl->name] = classDecl;
+                }
+
+                // (AR) كشف دورة الوراثة الفاسدة فورَ اكتمال الأصداف: قبل الأصداف كانت
+                //      «أ يرث ب يرث أ» تموت بـ«الأب غير موجود»، وبعدها صار getClass
+                //      يرى الحلقةَ فتعلّق مماشي سلسلةِ الوراثة (التوزيع/الاستنتاج)
+                //      إلى الأبد بلا تشخيص (رصد المراجعة العدائية — a_cycle). عطبُ
+                //      المصدر يُشخَّص خطأً قاطعًا، وتُقطع الحافةُ الغالقةُ في الصدفةِ
+                //      وعقدةِ AST معًا كي لا يبقى في الرسم ما يُعلِّق أيَّ ماشٍ لاحق.
+                // (EN) Detect invalid inheritance cycles the moment the shells exist:
+                //      before them «أ يرث ب يرث أ» died with "base not found"; with
+                //      them getClass sees the loop and every inheritance-chain walker
+                //      (dispatch/inference) hangs with no diagnostic (adversarial
+                //      finding — a_cycle). A source defect becomes a hard error, and
+                //      the closing edge is severed in both the shell and the AST node
+                //      so no later walker can hang on the graph.
+                for (const auto &entry : pendingClassDecls_)
+                {
+                    std::unordered_set<std::string> chainVisited;
+                    std::string walker = entry.first;
+                    while (!walker.empty() && chainVisited.insert(walker).second)
+                    {
+                        auto walkClass = module_->getClass(walker);
+                        walker = walkClass ? walkClass->parentClass : std::string{};
+                    }
+                    if (!walker.empty())
+                    {
+                        auto cycleClass = module_->getClass(walker);
+                        auto cycleDeclIt = pendingClassDecls_.find(walker);
+                        std::string cycleMsg =
+                            "خطأ: دورة وراثة فاسدة عند الصنف '" + walker +
+                            "' — الصنف يرث نفسه عبر سلسلة آبائه (inheritance cycle)";
+                        std::cerr << cycleMsg << std::endl;
+                        errors_.push_back(cycleMsg);
+                        if (cycleClass)
+                            cycleClass->parentClass.clear();
+                        if (cycleDeclIt != pendingClassDecls_.end() && cycleDeclIt->second)
+                            cycleDeclIt->second->superclasses.clear();
+                    }
+                }
+
+                // ═══════════════════════════════════════════════════════════════════
                 // (AR) المرحلة 1.3: تسجيل توقيعات دوال الأصناف مسبقاً (خاصة الساكنة)
                 //      حتى تتوفر في functionTable_ قبل المرحلة 1.7 (استنتاج الأنواع)
                 //      بدون هذا: استدعاءات مثل سجل.سجّل("أول") لا تُحدّث أنواع المعاملات
@@ -549,6 +626,18 @@ namespace Sad
                             continue;
 
                         std::string fullMethodName = classDecl->name + "." + methodDecl->name;
+
+                        // (AR) الساكنة تدخل سجلّ staticMethods_ هنا أيضًا — اعتراضُ
+                        //      «صنف.طريقة()» في call_method_dispatch يقرؤه، وكان يُملأ
+                        //      وقتَ بناء الطريقة فقط فيفشل النداءُ الساكنُ على صنفٍ
+                        //      معرَّفٍ لاحقًا بـ«متغير غير معرّف» (قِيس: مسبار q2).
+                        // (EN) Statics enter staticMethods_ here too — the
+                        //      «Class.method()» intercept in call_method_dispatch reads
+                        //      it, and it used to be filled only at method-build time,
+                        //      so a static call on a later-declared class failed with
+                        //      "undefined variable" (measured: probe q2).
+                        if (methodDecl->isStatic)
+                            staticMethods_.insert(fullMethodName);
 
                         // (AR) تخطي إذا سبق التسجيل
                         // (EN) Skip if already registered
@@ -598,12 +687,26 @@ namespace Sad
                         if (!methodDecl->isStatic)
                         {
                             methodInfo.parameters.push_back(SIRParameter(kSelfParamName, SadTypeKind::Integer));
+                            methodInfo.paramDefaulted.push_back(false);
                         }
 
                         for (const auto &param : methodDecl->parameters)
                         {
                             SadTypeKind paramType = astTypeToSIRType(param.type);
                             methodInfo.parameters.push_back(SIRParameter(param.name, paramType));
+                            // (AR) «بلا تصريح» ⇒ قابل للتوسيع من موقع نداء أمامي. محلّل
+                            //      الطرائق يسم المعاملَ العاري Class (ديناميكي) لا Unknown
+                            //      — والفيصل عن معاملٍ مصنَّفٍ بصنفٍ حقيقيٍّ هو typeName
+                            //      الفارغ (parser_oop: الفرع العاري لا يملؤه والفرع
+                            //      المصنَّف يملؤه).
+                            // (EN) "Undeclared" ⇒ widenable from a forward call site. The
+                            //      method parser tags a bare param as Class (dynamic), not
+                            //      Unknown — distinguished from a genuinely class-typed
+                            //      param by the EMPTY typeName (parser_oop fills it only
+                            //      in the typed branch).
+                            methodInfo.paramDefaulted.push_back(
+                                param.type == Types::SadTypeKind::Unknown ||
+                                (param.type == Types::SadTypeKind::Class && param.typeName.empty()));
                         }
 
                         methodInfo.sirFunction = nullptr;

@@ -413,6 +413,16 @@ namespace Sad
                 std::string name;                         ///< (AR) الاسم / (EN) Name
                 SadTypeKind returnType;                   ///< (AR) نوع الإرجاع / (EN) Return type
                 std::vector<SIRParameter> parameters;     ///< (AR) المعاملات / (EN) Parameters
+                // (AR) فهارس المعاملات التي نوعُها **افتراضٌ** لا تصريحُ مستخدمٍ (المرحلة
+                //      1.3 تسجّل Unknown رقمًا فيستحيل تمييزُهما من النوع وحده) — توسيعُ
+                //      النداءِ الأماميِّ يقتصر عليها كي لا يدهس تصريحًا صريحًا (رصد
+                //      مراجعة الجودة). فارغةٌ = لا معلومة (سلوك متحفظ: لا توسيع).
+                // (EN) Indices of parameters whose kind is a DEFAULT, not a user
+                //      declaration (Phase 1.3 lowers Unknown to Integer, so the kind
+                //      alone cannot tell) — forward-call widening is limited to these
+                //      so it never clobbers an explicit declaration (quality-review
+                //      finding). Empty = no info (conservative: no widening).
+                std::vector<bool> paramDefaulted;         ///< (AR) معامل بنوع افتراضي؟ / (EN) defaulted param kind?
                 std::shared_ptr<SIRFunction> sirFunction; ///< (AR) مؤشر لدالة SIR / (EN) Pointer to SIR function
                 bool isGenerator = false;                 ///< (AR) دالة مولّد / (EN) Generator function
 
