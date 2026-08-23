@@ -4,7 +4,7 @@
 #      🔑 لِمَ سجلٌّ لا وسمُ `@known_red`؟ لأنّ الوسمَ يبتلعُ **فرقَ المخرَجِ
 #      وحدَه** عمدًا، وتعليقُ `tests/runner.py` يوثّقُ سببَه مقيسًا: نسخةٌ أولى
 #      ابتلعت كلَّ ما ليس PASS، فصارَ ملفٌّ بخطأِ تحليلٍ وملفٌّ بحلقةٍ لانهائيّةٍ
-#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ٥٥ هنا **٢٣
+#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ٥٤ هنا **٢٢
 #      فقط** صنفُها FAIL_OUTPUT، والـ٣٢ الباقيةُ انهياراتٌ وتعليقاتٌ ورفضُ
 #      ترجمةٍ — وتوسيعُ الوسمِ ليشملَها إعادةٌ لعطبٍ مُصلَح.
 #
@@ -51,12 +51,23 @@
 #          في RFC عقدِ الغياب). سُكِّنت `_regression/` عمدًا: السجلُّ
 #          لا يقبل إلّا مجلّدَيه، وبذرةٌ حمراءُ في `sections/` تُحمِّرُ
 #          مستوى CI.
+#      [٦] ٥٤ صفًّا — ٢٠٢٦-٠٨-٢٣: حُذف صفُّ
+#          `void_into_typed_param_arith_run053.ص` بعد اخضرارِه مقيسًا
+#          (ويندوز Debug، والحارسُ هو من سمّاه): موجةُ وسمِ حدِّ المعاملِ
+#          أُنجزت من طبقةِ **الاستنتاج** لا الـABI — ذراعُ IndexExpr في
+#          `inferExprType` صارت تُجيب «أي» للقراءةِ بالقوسِ (الجوابُ يتبع
+#          التمثيلَ المبعوث: العنصرُ يُقرأ موسومًا)، فيرقّي موقعُ النداءِ
+#          المعاملَ المصنَّفَ «رقم» إلى «أي» (بوّابةُ الترقيةِ القائمة)
+#          ويعبرُ الوسمُ الحدَّ ويحرسُه بابُ dynBinOp (RUN053) عندَ
+#          الاستهلاكِ لا عندَ النداء — فالعرضُ «لاشيء» والحسابُ يرفع،
+#          كلاهما مطابقٌ للمفسّرِ مقيسًا. وأُعيدت البذرةُ إلى قسمِها
+#          `sections/…/108_…` وفاءً بنصِّها.
 #
 # (EN) Registry of MEASURED reds outside every CI level. Why a registry and not
 #      @known_red? Because that marker deliberately swallows OUTPUT MISMATCH
 #      only — widening it to crashes/hangs/compile-failures would re-open a
 #      measured defect (a single header line once disabled the P0 smoke gate).
-#      Only 23 of these 55 are FAIL_OUTPUT. This file is guarded in BOTH
+#      Only 22 of these 54 are FAIL_OUTPUT. This file is guarded in BOTH
 #      directions by test_declared_reds_registry.py: a row that turns green, a
 #      new red that is absent, or a changed failure kind all fail the guard.
 #
@@ -92,7 +103,6 @@ _regression/test_p30_database_availability.ص	FAIL_COMPILE
 _regression/test_p31_json_unicode_parse.ص	FAIL_COMPILE
 _regression/test_p32_json_unicode_stringify.ص	FAIL_COMPILE
 _regression/test_p35_print_operator.ص	FAIL_OUTPUT
-_regression/void_into_typed_param_arith_run053.ص	FAIL_OUTPUT
 grammar_gaps/باني_يستدعي_طريقة/001_ctor_calls_method.ص	FAIL_OUTPUT
 grammar_gaps/بنى_بيانات/003_flatten.ص	FAIL_COMPILE
 grammar_gaps/بنى_بيانات/006_multi_assign.ص	FAIL_INTERP

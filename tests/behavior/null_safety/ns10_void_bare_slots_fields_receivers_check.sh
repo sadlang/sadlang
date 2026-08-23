@@ -237,7 +237,15 @@ fi
 bld recv_dyn_nonmap
 if [ $? -eq 0 ]; then
   out=$("$TMP/recv_dyn_nonmap.exe" 2>&1)
-  check "مستقبِل موسوم غير خريطة ⇒ خطأ تشغيل نظيف لا SIGSEGV" "$(echo "$out" | grep -q "ليست خريطة" && echo 1 || echo 0)"
+  # (AR) 2026-08-23 — توحيد RUN037: المستقبِلُ هنا **غيابٌ موسومٌ** (مفتاحٌ
+  #      غائبٌ من خريطة_احصل)، والمفسّرُ يرفع عليه RUN037 باسمِ المدمجة —
+  #      فصار المترجَمُ يطابقه بدل رسالةِ «ليست خريطة» غيرِ المرمَّزةِ التي
+  #      كان هذا الفحصُ يثبّتها. مقصدُ الفحصِ باقٍ: خطأٌ نظيفٌ لا SIGSEGV.
+  # (EN) RUN037 unification: the receiver is TAGGED ABSENCE, and the
+  #      interpreter raises RUN037 with the builtin's name — the compiled
+  #      binary now matches it instead of the uncoded "not a map" line this
+  #      check used to pin. The intent stands: a clean error, no SIGSEGV.
+  check "مستقبِل موسوم غائب ⇒ RUN037 باسم المدمجة (مطابقة المفسّر) لا SIGSEGV" "$(echo "$out" | grep -q "خريطة_حجم" && echo "$out" | grep -q "بوسائط ناقصة أو من نوع خاطئ" && echo 1 || echo 0)"
 else
   bad "مستقبِل موسوم — فشلت الترجمة"
 fi

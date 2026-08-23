@@ -811,6 +811,37 @@ namespace Sad
                     return inferExprType(unary->operand.get());
                 }
 
+                // (AR) [RFC عقد الغياب — موجةُ وسمِ حدِّ المعامل] القراءةُ بالقوسِ
+                //      `و[ف]`: الجوابُ يتبعُ **التمثيلَ المبعوث** لا التخمين — فهرسةُ
+                //      نصٍّ تُعطي نصًّا (محرفًا)، وعنصرُ حاويةٍ يُقرأُ **موسومًا** زمنَ
+                //      التشغيل (mget_dyn / القراءةُ الموسومةُ للمصفوفات) ⇒ «أي».
+                //      كانت الذراعُ غائبةً بالكلّيّة فسقطت القراءةُ إلى «رقم»
+                //      الافتراضيّ: `متغير غ = خ["غائب"]` يُسجَّل عامًّا «رقم»، وموقعُ
+                //      النداءِ `ضاعف(غ)` يشهد «رقم» فلا يُرقّي المعاملَ المصنَّفَ —
+                //      ويُفَكُّ الفراغُ **صفرًا** عند حدِّ «رقم» (قناعُ الصفرِ خلفَ حدِّ
+                //      المعامل — قِيس في بذرة RUN053 المسجَّلةِ حمراء). بعدَها يشهد
+                //      الموقعُ «أي» فيُرقّى المعاملُ (بوّابةُ الترقيةِ في
+                //      sir_builder_functions تقبل Any للمصرَّح «رقم») ويعبرُ الوسمُ
+                //      الحدَّ ويحرسُه بابُ dynBinOp (نظيرُ RUN053). النمطُ عينُ ذراعِ
+                //      حقلِ ADT أدناه — «يُوسَم عند الاستدعاء ويُفَكّ عند الاستهلاك».
+                // (EN) [absence-contract RFC — param-boundary tag wave] Bracket read
+                //      `c[i]`: the answer follows the EMITTED representation — string
+                //      indexing yields a string; a container element is read TAGGED
+                //      at runtime ⇒ Any. The arm was entirely absent, so bracket
+                //      reads fell to the Integer default: the call site then saw
+                //      «رقم» and never widened the typed param, and absence was
+                //      unpacked to ZERO at the «رقم» boundary (the zero mask behind
+                //      the param boundary — measured by the registered-red RUN053
+                //      seed). With Any the widening gate fires, the tag crosses the
+                //      boundary, and the dynBinOp door guards it — the very pattern
+                //      of the ADT-field arm below.
+                if (auto *idxExpr = dynamic_cast<const Sad::AST::IndexExpr *>(expr))
+                {
+                    if (inferExprType(idxExpr->object.get()) == SadTypeKind::String)
+                        return SadTypeKind::String;
+                    return SadTypeKind::Any;
+                }
+
                 // (AR) ISSUE-076/084 (ب″): وصولٌ مباشرٌ لحقل ADT (X.حقل حيث «حقل» اسمُ حقلٍ في
                 //      حالةٍ ضمن adtEnumTable_) ⇒ حمولةٌ ديناميّةٌ موسومة ⇒ Any، فيُرقّى معامِلُ
                 //      دالةٍ تتلقّاه إلى Any (يُوسَم عند الاستدعاء ويُفكّ عند الاستهلاك) ⇒ يُصلح

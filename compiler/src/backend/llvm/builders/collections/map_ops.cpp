@@ -14,6 +14,7 @@
 #include "sad_dyn_repr.h" // (AR) DynKind لتهيئة الحقل ٤ homogKind / (EN) DynKind for field 4 homogKind init
 #include "sad_type_utils.h" // (AR) kindToArabic لرسالة RUN074 (الجلب المصنَّف) / (EN) Arabic type name for RUN074
 #include "value.h"          // (AR) getTypeName() — أسماءُ VOID/NULL نفسُها التي يملأ بها المفسّرُ SEM011 / (EN) the very type names the interpreter fills SEM011 with
+#include "builtin_registry.h" // (AR) Names::Maps — اسمُ {func} في RUN037 من السجلِّ المولَّدِ لا مهجًّى هنا / (EN) RUN037 {func} from the generated registry, not spelled here
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
@@ -204,7 +205,8 @@ namespace Sad
         // (AR) انظر التوثيق في map_ops_codegen.h — التطبيعُ الموحَّدُ لمؤشّرِ الخريطة.
         // (EN) See map_ops_codegen.h — the unified map-pointer normalization.
         llvm::Value *MapOpsCodeGen::normalizeMapPtr(llvm::Value *mapValue, const char *label,
-                                                    bool absenceIsIndexing)
+                                                    std::optional<Sad::Errors::ErrorCode> absenceCode,
+                                                    const char *builtinFunc)
         {
             if (!mapValue)
                 return nullptr;
@@ -240,72 +242,34 @@ namespace Sad
                 cg_.builder_->CreateCondBr(isMap, okBB, failBB);
 
                 // (AR) [RFC عقد الغياب] فرعُ الفشلِ يُفرَّق بالوسم: غيابٌ (فراغ/عدم)
-                //      يُرفَع SEM011 من الكتالوجِ نفسِه الذي يقرأ منه المفسّرُ —
-                //      «النوع 'VOID/NULL' لا يدعم الفهرسة []» — فيتوحّد التشخيصُ
-                //      المرمَّزُ للوسطِ المفقود (`خ["غائب"]["عميق"]`) بين المحرّكَين.
-                //      كان المسارُ يطبع رسالةَ «طريقة خريطة على قيمة ليست خريطة»
-                //      بلا رمزٍ لكلِّ وسمٍ مخالف. واسمُ النوعِ من `Value` عينِها
-                //      (getTypeName) لا يُهجَّأ هنا. وسائرُ الأوسامِ المخالفةِ تبقى
-                //      على رسالةِ عدمِ التطابقِ العامّة (حدٌّ معلَن: سطحُ الدوالِّ
-                //      المدمجةِ يشخَّص في المفسّر RUN037 — توحيدُه دفعةٌ لاحقة).
+                //      يُرفَع برمزِ **موقعِ النداءِ** (`absenceCode`) من الكتالوجِ
+                //      نفسِه الذي يقرأ منه المفسّر: القراءةُ بالفهرس SEM011،
+                //      والإسنادُ بالفهرس RUN018، ومستقبِلُ مدمجٍ مسمًّى RUN037 —
+                //      لأنّ المفسّرَ يفرّق بين السطوحِ مقيسًا (درسُ البذرة 082:
+                //      الرمزُ جزءٌ من التكافؤِ لا زينةٌ فوقَه). كان المسارُ يطبع
+                //      «طريقة خريطة على قيمة ليست خريطة» بلا رمزٍ لكلِّ وسمٍ مخالف.
+                //      وسائرُ الأوسامِ المخالفةِ على رسالةِ عدمِ التطابقِ العامّة،
+                //      والذراعُ نفسُها مصدرُها الواحدُ `emitTaggedAbsenceRaise`.
+                //      (⚠️ درسُ ns10 باقٍ: nullopt للمواقعِ التي لا يصحّ فيها
+                //      اسمُ سطحٍ واحد — انظر الترويسة.)
                 // (EN) [absence-contract RFC] The fail arm splits by tag: absence
-                //      (Void/Null) raises SEM011 from the same catalog the
-                //      interpreter reads — unifying the coded diagnostic for the
-                //      missing middle (`خ["غائب"]["عميق"]`) across engines. The
-                //      path used to print an uncoded "map method on non-map" line
-                //      for every mismatching tag. Type names come from Value's own
-                //      getTypeName(); other tags keep the generic mismatch message
-                //      (declared limit: the builtin-call surface is RUN037 in the
-                //      interpreter — a later unification batch).
-                //
-                // (AR) ⚠️ والذراعُ **مشروطةٌ بموقعِ النداء** (absenceIsIndexing):
-                //      هذا التطبيعُ طبقةٌ مشتركةٌ تستدعيها الفهرسةُ `[]` **ومدمجاتُ**
-                //      الخرائطِ (خريطة_حجم/وجود/…) معًا — وزرعُ SEM011 هنا بلا
-                //      شرطٍ جعل `خريطة_حجم(غائب)` يشكو «لا يدعم الفهرسة []» ولا
-                //      فهرسةَ في النداءِ أصلًا (قِيس: كسرَ فحصَ ns10). فمستقبِلُ
-                //      المدمجاتِ يبقى على رسالةِ عدمِ التطابقِ العامّة.
-                // (EN) ⚠️ The arm is call-site-conditional (absenceIsIndexing):
-                //      this normalization is a shared layer used by `[]` indexing
-                //      AND the map builtins — raising SEM011 unconditionally made
-                //      `خريطة_حجم(غائب)` complain about indexing with no indexing
-                //      in sight (measured: broke the ns10 check). Builtin receivers
-                //      keep the generic mismatch message.
+                //      (Void/Null) raises the CALL SITE's code (`absenceCode`) from
+                //      the same catalog the interpreter reads — indexed read SEM011,
+                //      indexed assign RUN018, named-builtin receiver RUN037 — because
+                //      the interpreter distinguishes surfaces (measured; seed 082's
+                //      lesson: the code is part of the parity contract). Other tags
+                //      keep the generic mismatch message; the arm itself lives once
+                //      in emitTaggedAbsenceRaise. (The ns10 lesson stands: nullopt
+                //      for sites where no single surface name is truthful.)
                 cg_.builder_->SetInsertPoint(failBB);
-                if (absenceIsIndexing)
+                if (absenceCode)
                 {
-                    llvm::Value *isVoidK = cg_.builder_->CreateICmpEQ(
-                        kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Void),
-                        std::string(label) + ".dyn.is.void");
-                    llvm::Value *isNullK = cg_.builder_->CreateICmpEQ(
-                        kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Null),
-                        std::string(label) + ".dyn.is.null");
-                    llvm::BasicBlock *absVoidBB = llvm::BasicBlock::Create(
-                        *cg_.context_, std::string(label) + ".dyn.abs.void", curFunc);
-                    llvm::BasicBlock *chkNullBB = llvm::BasicBlock::Create(
-                        *cg_.context_, std::string(label) + ".dyn.abs.chk", curFunc);
-                    llvm::BasicBlock *absNullBB = llvm::BasicBlock::Create(
-                        *cg_.context_, std::string(label) + ".dyn.abs.null", curFunc);
-                    llvm::BasicBlock *mismatchBB = llvm::BasicBlock::Create(
-                        *cg_.context_, std::string(label) + ".dyn.mismatch", curFunc);
-                    cg_.builder_->CreateCondBr(isVoidK, absVoidBB, chkNullBB);
-
-                    cg_.builder_->SetInsertPoint(chkNullBB);
-                    cg_.builder_->CreateCondBr(isNullK, absNullBB, mismatchBB);
-
-                    auto raiseSem011 = [&](llvm::BasicBlock *bb, const std::string &typeName) {
-                        cg_.builder_->SetInsertPoint(bb);
-                        std::map<std::string, std::string> filled;
-                        filled["type"] = typeName;
-                        cg_.emitNullRaiseBody(
-                            ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED,
-                            filled, std::string(label) + ".sem011");
-                        cg_.builder_->CreateUnreachable();
-                    };
-                    raiseSem011(absVoidBB, Sad::Data::Value().getTypeName());
-                    raiseSem011(absNullBB, Sad::Data::Value::makeNull().getTypeName());
-
-                    cg_.builder_->SetInsertPoint(mismatchBB);
-                    emitDynTypeMismatchFailure(label);
+                    std::map<std::string, std::string> absPlaceholders;
+                    if (builtinFunc)
+                        absPlaceholders["func"] = builtinFunc;
+                    cg_.emitTaggedAbsenceRaise(
+                        kind, *absenceCode, absPlaceholders, std::string(label),
+                        [&] { emitDynTypeMismatchFailure(label); });
                 }
                 else
                 {
@@ -414,18 +378,19 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr — المتغيرات تُخزَن كـ i64
-                // (AR) الكتابةُ بالقوسِ فهرسةٌ — الوسطُ الغائبُ (`خ["غائب"]["ب"] = ١`)
-                //      يرفعُ SEM011؛ والخريطةُ الحرفيّةُ مستقبِلُها مبنيٌّ للتوّ فلا
-                //      يكونُ غيابًا أصلًا. ⚠️ تباعدُ هُويّةِ رمزٍ معلَنٌ: المفسّرُ يرفعُ
-                //      هنا RUN018 (إسنادٌ بالفهرسِ على غيرِ حاوية) لا SEM011 —
-                //      الخروجُ ١ في الطرفَين، وتوحيدُ الرمزِ دفعةٌ لاحقة (قِيس).
-                // (EN) Bracket writes are indexing — a missing middle raises SEM011;
-                //      a literal's receiver is freshly built and can never be absent.
-                //      ⚠️ Declared code-identity divergence: the interpreter raises
-                //      RUN018 here, not SEM011 — both exit 1; unifying the code is a
-                //      later batch (measured).
-                llvm::Value *mapPtr =
-                    normalizeMapPtr(args[0], "mset.map.ptr", /*absenceIsIndexing=*/true);
+                // (AR) الكتابةُ بالقوسِ **إسنادٌ** بالفهرس — الوسطُ الغائبُ الموسومُ
+                //      (`خ["غائب"]["ب"] = ١`) يرفعُ RUN018 «الإسناد بالفهرس مدعوم
+                //      للمصفوفات والقواميس فقط…» مطابقًا المفسّرَ حرفًا (قِيس
+                //      2026-08-23 — كان يرفعُ SEM011 رمزَ **القراءةِ** فتباعدَ
+                //      الرمزان مع اتّفاقِ الخروج ١، والبذرةُ 082 دستورُ التفريق:
+                //      إسنادٌ RUN018 وقراءةٌ SEM011 وليسا واحدًا).
+                // (EN) Bracket WRITES are indexed assignment — a tagged absent middle
+                //      raises RUN018, matching the interpreter verbatim (measured
+                //      2026-08-23; it used to raise the READ code SEM011: same exit,
+                //      diverging codes — seed 082 is the charter of the distinction).
+                llvm::Value *mapPtr = normalizeMapPtr(
+                    args[0], "mset.map.ptr",
+                    ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID);
 
                 // ════════════════════════════════════════════════════════════════
                 // (AR) 🔑 خريطةٌ عدميّةٌ في مسارِ الإسنادِ بالفهرس ⇒ RUN018 لا انهيار.
@@ -709,8 +674,11 @@ namespace Sad
                 const bool receiverIsIndexing =
                     (funcName == kRuntimeMapGet || funcName == kRuntimeMapGetI64 ||
                      funcName == kRuntimeMapGetDyn);
-                llvm::Value *mapPtr =
-                    normalizeMapPtr(args[0], "mget.map.ptr", receiverIsIndexing);
+                llvm::Value *mapPtr = normalizeMapPtr(
+                    args[0], "mget.map.ptr",
+                    receiverIsIndexing
+                        ? std::optional(::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED)
+                        : std::nullopt);
                 llvm::Value *key = normalizeMapKey(args[1], "mget.key.ptr");
 
                 // (AR) تحميل capacity, keys, values, types من البنية
@@ -1107,8 +1075,24 @@ namespace Sad
 
                 auto *i64Ty = cg_.getInt64Type();
 
-                // (AR) تحويل map من i64 إلى ptr
-                llvm::Value *mapArg = normalizeMapPtr(args[0], "msize.map.ptr");
+                // (AR) تحويل map من i64 إلى ptr — الغيابُ الموسومُ على مستقبِلِ
+                //      المدمجةِ المسمّاةِ يرفعُ RUN037 باسمِها من السجلِّ المولَّد
+                //      (المفسّرُ: «الدالة المدمجة 'خريطة_حجم' استُدعيت بوسائط
+                //      ناقصة أو من نوع خاطئ» — قِيس 2026-08-23). والاسمُ آمنٌ هنا:
+                //      طريقةُ `.حجم()` لا تصل بمستقبِلٍ موسومٍ (بوّابتُها النوعُ
+                //      الساكنُ Map حصرًا).
+                // (EN) Tagged absence on the named builtin's receiver raises RUN037
+                //      with the SoT-generated name (measured against the
+                //      interpreter). Safe here: the `.حجم()` method surface only
+                //      routes static-Map receivers, never a tagged one.
+                // (AR) `.data()` آمنة: الثوابتُ المولَّدةُ مُعرَّفةٌ من سلاسلَ حرفيّةٍ
+                //      منتهيةٍ بالصفرِ وذاتِ عمرٍ ساكن.
+                // (EN) .data() is safe: the generated constants are static,
+                //      NUL-terminated literals.
+                llvm::Value *mapArg = normalizeMapPtr(
+                    args[0], "msize.map.ptr",
+                    ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG,
+                    Sad::Builtins::Names::Maps::MAP_SIZE.data());
                 llvm::Value *countGep = cg_.builder_->CreateGEP(i64Ty, mapArg,
                                                             {llvm::ConstantInt::get(i64Ty, 0)}, "msize.count.gep");
                 llvm::Value *result = cg_.builder_->CreateLoad(i64Ty, countGep, "msize.count");
@@ -1128,8 +1112,15 @@ namespace Sad
                 auto *i64Ty = cg_.getInt64Type();
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
-                // (AR) تحويل map من i64 إلى ptr
-                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mhas.map.ptr");
+                // (AR) تحويل map من i64 إلى ptr — الغيابُ الموسومُ ⇒ RUN037 باسمِ
+                //      «خريطة_تحتوي» (نظيرُ msize؛ طريقةُ `.يحتوي()` لا تصل
+                //      بمستقبِلٍ موسومٍ فالاسمُ صادقٌ دائمًا هنا).
+                // (EN) Tagged absence ⇒ RUN037 named «خريطة_تحتوي» (msize's twin;
+                //      the method surface never routes a tagged receiver here).
+                llvm::Value *mapPtr = normalizeMapPtr(
+                    args[0], "mhas.map.ptr",
+                    ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG,
+                    Sad::Builtins::Names::Maps::MAP_HAS_KEY.data());
                 llvm::Value *key = normalizeMapKey(args[1], "mhas.key.ptr");
 
                 llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,

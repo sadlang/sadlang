@@ -619,6 +619,26 @@ namespace Sad
                 std::string name;                                        ///< (AR) اسم الدالة / (EN) Function name
                 std::string linkName;                                    ///< (AR) اسم الربط الخارجي (FFI) / (EN) FFI link name (empty = use function name)
                 SadTypeKind returnType;                                  ///< (AR) نوع الإرجاع / (EN) Return type
+
+                /// (AR) [RFC عقد الغياب — موجة وسم حدّ المعامل] هل نوعُ الإرجاعِ **مصرَّحٌ
+                ///      في المصدر** (`دالة رقم ضاعف(...)`) لا مستنتَجٌ؟ التصريحُ عقدُ
+                ///      الكاتبِ: ممرُّ الخاناتِ الديناميّةِ في الخلفيّةِ يرقّي عائدَ دالّةٍ
+                ///      تُرجِع قيمةً موسومةً إلى «أي» (%SadDyn) كي لا يُقتطَع الوسمُ عند
+                ///      الحدّ — وذلك صوابٌ للعائدِ المستنتَجِ وكذبٌ على المصرَّح: عشريٌّ
+                ///      موسومٌ عائدًا من «دالة رقم» كان يفلت 5.0 بينما يقسره المفسّرُ
+                ///      إلى 5 عند الحدِّ المصرَّح (قِيس — كشفُ المراجعةِ العدائيّة).
+                ///      فالممرُّ يحترم هذا العلَمَ ويُبقي العائدَ المصرَّحَ على تمثيلِه،
+                ///      وبابُ RET يفكُّ الموسومَ بوسمِه (unpackI64: عشريّ⇒fptosi).
+                /// (EN) Is the return type SOURCE-DECLARED (author's contract) rather than
+                ///      inferred? The backend dyn-slot pass promotes a function returning
+                ///      a tagged value to an Any (%SadDyn) return so the tag is not
+                ///      stripped at the boundary — right for inferred returns, a lie for
+                ///      declared ones: a Float-tagged value escaping a declared «رقم»
+                ///      printed 5.0 where the interpreter coerces to 5 (measured,
+                ///      adversarial review). The pass honours this flag; the RET door
+                ///      unpacks by tag (unpackI64: Float⇒fptosi).
+                bool returnTypeIsDeclared = false;
+
                 bool isConstructor = false;                              ///< (AR) بانٍ — يملك خانات حقول الكائن فلا يُدمج سطريًّا / (EN) Constructor — owns object field slots, never inlined
                 // ════════════════════════════════════════════════════════════
                 // (AR) 🔑 نوعُ **القيمةِ** التي يحملُها وعدُ الكوروتين — لا نوعُ ما

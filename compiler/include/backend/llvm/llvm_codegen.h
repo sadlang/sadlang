@@ -51,6 +51,7 @@
 #ifndef SAD_LLVM_CODEGEN_H
 #define SAD_LLVM_CODEGEN_H
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -725,6 +726,46 @@ namespace Sad
                                    const std::map<std::string, std::string> &placeholders,
                                    const std::string &tag);
 
+            /**
+             * (AR) [RFC عقد الغياب] ذراعُ رفعِ الغيابِ الموسومِ الموحَّدةُ — المصدرُ
+             *      الواحدُ بعد أن تكرّرت الذراعُ حرفًا في `normalizeMapPtr`
+             *      و`normalizeArrayPtr` (دَينُ مراجعةِ الجودةِ ٢٠٢٦-٠٨-٢٢).
+             *
+             *      تُستدعى ونقطةُ الإدراجِ على كتلةِ فشلِ حارسِ الوسم: تفرّع على
+             *      بايتِ الوسمِ — فراغٌ (Void) أو عدمٌ (Null) يرفعان `raisedCode`
+             *      من الكتالوجِ نفسِه الذي يقرأ منه المفسّرُ، والرمزُ **معاملٌ**
+             *      لأنّ المفسّرَ يفرّق مقيسًا بين السطوح: القراءةُ بالفهرس SEM011،
+             *      والإسنادُ بالفهرس RUN018، ومستقبِلُ مدمجٍ مسمًّى RUN037 —
+             *      وتوحيدُها على رمزٍ واحدٍ يخالف المرجع (درسُ البذرة 082).
+             *
+             *      فراغاتُ المستدعي (`placeholders` — مثل `{func}` لـRUN037) تُدمَج،
+             *      و`{type}` يملؤه الذراعُ بنفسِه من **الوسمِ** (VOID/NULL) بالدالّةِ
+             *      عينِها التي يملأ بها المفسّرُ (getTypeName) — والرمزُ الذي لا
+             *      يسأل عن `{type}` يتجاهله المصيّرُ بلا ضرر. وسائرُ الأوسامِ
+             *      المخالفةِ تسقط إلى `emitMismatch` — رسالةُ المستدعي الخاصّة.
+             *
+             *      🔑 كلُّ الأذرعِ تُنهي كتلتَها بنفسِها (رفعٌ فـUnreachable، أو
+             *      `emitMismatch` المُنهي ذاتيًّا) — فلا يضبط المستدعي نقطةَ إدراجٍ
+             *      بعدها إلّا على كتلةِ النجاح.
+             * (EN) [absence-contract RFC] The unified tagged-absence raise arm —
+             *      single source after verbatim duplication in normalizeMapPtr and
+             *      normalizeArrayPtr. Called with the insert point on the tag
+             *      guard's fail block: Void/Null raise `raisedCode` from the same
+             *      catalog the interpreter reads. The code is a PARAMETER because
+             *      the interpreter distinguishes surfaces (measured): indexed read
+             *      SEM011, indexed assign RUN018, named-builtin receiver RUN037 —
+             *      collapsing them diverges from the reference (seed 082's lesson).
+             *      Caller placeholders (e.g. {func} for RUN037) are merged; {type}
+             *      is filled here from the TAG via the very Value the interpreter
+             *      uses; codes that don't ask for {type} ignore it harmlessly.
+             *      Other tags fall to emitMismatch. All arms terminate their blocks.
+             */
+            void emitTaggedAbsenceRaise(llvm::Value *kindByte,
+                                        Sad::Errors::ErrorCode raisedCode,
+                                        const std::map<std::string, std::string> &placeholders,
+                                        const std::string &tag,
+                                        const std::function<void()> &emitMismatch);
+
             /// (AR) «طول» ⇒ «.طول()» — اسمُ العمليّةِ بصيغةِ عرضِ المفسّر.
             /// (EN) «طول» ⇒ «.طول()» — the interpreter's operation label spelling.
             static std::string stringMethodOperationLabel(std::string_view methodName);
@@ -1238,8 +1279,8 @@ namespace Sad
             // (AR) Phase 7 Step 5: delegate إلى ArrayOpsCodeGen (تبقى wrappers لأن array_file_coro.cpp يستدعيها)
             llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr",
                                                        bool assertDynTag = true,
-                                                       bool absenceIsIndexing = false)
-            { return arr_->normalizeArrayPtr(arrPtr, label, assertDynTag, absenceIsIndexing); }
+                                                       std::optional<Sad::Errors::ErrorCode> absenceCode = std::nullopt)
+            { return arr_->normalizeArrayPtr(arrPtr, label, assertDynTag, absenceCode); }
             llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx") { return arr_->normalizeArrayIndex(index, arrPtr, label); }
             void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc") { arr_->emitBoundsCheck(index, arrPtr, label); }
 

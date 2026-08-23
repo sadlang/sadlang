@@ -32,6 +32,7 @@
 #include "value_repr_generated.h" // (AR) kNullDisplay — لفظُ العدمِ من مصدرِ الحقيقة
 #include "error_manager.h"        // (AR) تصييرُ RUN033 من الكتالوجِ لا من سلسلةٍ توأم
 #include "value.h"                // (AR) Value::makeNull().getTypeName() — اسمُ النوعِ نفسُه
+#include "sad_dyn_repr.h"         // (AR) DynKind — بايتُ الوسمِ لذراعِ SEM011 الموحَّدة
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/IRBuilder.h>
@@ -253,6 +254,57 @@ namespace Sad
             auto exitFunc = module_->getOrInsertFunction("exit", exitType);
             builder_->CreateCall(exitFunc,
                                  {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context_), 1)});
+        }
+
+        // (AR) ذراعُ رفعِ الغيابِ الموسومِ الموحَّدةُ — التعليلُ الكاملُ عند
+        //      الإعلانِ في `llvm_codegen.h`. نقطةُ الإدراجِ عند الدخولِ على
+        //      كتلةِ فشلِ حارسِ الوسم، وكلُّ الأذرعِ تُنهي كتلتَها بنفسِها.
+        // (EN) The unified tagged-absence raise arm — rationale at the
+        //      declaration. Insert point on entry: the tag-guard's fail block;
+        //      every arm terminates its own block.
+        void LLVMCodeGen::emitTaggedAbsenceRaise(llvm::Value *kindByte,
+                                                 Sad::Errors::ErrorCode raisedCode,
+                                                 const std::map<std::string, std::string> &placeholders,
+                                                 const std::string &tag,
+                                                 const std::function<void()> &emitMismatch)
+        {
+            auto *i8Ty = llvm::Type::getInt8Ty(*context_);
+            llvm::Function *curFunc = builder_->GetInsertBlock()->getParent();
+
+            llvm::Value *isVoidK = builder_->CreateICmpEQ(
+                kindByte, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Void),
+                tag + ".dyn.is.void");
+            llvm::Value *isNullK = builder_->CreateICmpEQ(
+                kindByte, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Null),
+                tag + ".dyn.is.null");
+            auto *absVoidBB =
+                llvm::BasicBlock::Create(*context_, tag + ".dyn.abs.void", curFunc);
+            auto *chkNullBB =
+                llvm::BasicBlock::Create(*context_, tag + ".dyn.abs.chk", curFunc);
+            auto *absNullBB =
+                llvm::BasicBlock::Create(*context_, tag + ".dyn.abs.null", curFunc);
+            auto *mismatchBB =
+                llvm::BasicBlock::Create(*context_, tag + ".dyn.mismatch", curFunc);
+            builder_->CreateCondBr(isVoidK, absVoidBB, chkNullBB);
+
+            builder_->SetInsertPoint(chkNullBB);
+            builder_->CreateCondBr(isNullK, absNullBB, mismatchBB);
+
+            // (AR) اسمُ النوعِ من `Value` عينِها التي يملأ بها المفسّرُ الفراغَ —
+            //      فلا توأمَ نصّيًّا ينحرف (VOID للفراغ، NULL للعدم).
+            // (EN) Type names come from the very Value the interpreter uses.
+            auto raiseAbsence = [&](llvm::BasicBlock *bb, const std::string &typeName) {
+                builder_->SetInsertPoint(bb);
+                std::map<std::string, std::string> filled = placeholders;
+                filled["type"] = typeName;
+                emitNullRaiseBody(raisedCode, filled, tag + ".abs.raise");
+                builder_->CreateUnreachable();
+            };
+            raiseAbsence(absVoidBB, Sad::Data::Value().getTypeName());
+            raiseAbsence(absNullBB, Sad::Data::Value::makeNull().getTypeName());
+
+            builder_->SetInsertPoint(mismatchBB);
+            emitMismatch();
         }
 
         llvm::Value *LLVMCodeGen::emitStringPtrOrRaise(llvm::Value *value,

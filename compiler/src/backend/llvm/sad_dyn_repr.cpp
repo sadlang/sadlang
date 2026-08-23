@@ -324,12 +324,27 @@ namespace Sad
                             }
 
                             // (AR) 4) إرجاعُ قيمةٍ ديناميّة ⇒ نوع إرجاع الدالّة Any (%SadDyn)
-                            //         — كان dynPayloadI64 يقتطع الوسم عند حدود الدالّة
+                            //         — كان dynPayloadI64 يقتطع الوسم عند حدود الدالّة.
+                            //
+                            //         ⚠️ إلّا العائدَ **المصرَّحَ في المصدر**: التصريحُ عقدُ
+                            //         الكاتبِ والمفسّرُ (المرجعُ) يقسر الموسومَ عند حدِّه —
+                            //         ترقيتُه هنا جعلت «دالة رقم» تُرجِع عشريًّا موسومًا
+                            //         يفلت 5.0 حيث يطبع المفسّرُ 5 (قِيس — كشفُ المراجعةِ
+                            //         العدائيّةِ لموجةِ وسمِ حدِّ المعامل). العائدُ المصرَّحُ
+                            //         يبقى على تمثيلِه وبابُ RET يفكُّ الموسومَ بوسمِه
+                            //         (unpackI64: عشريّ⇒fptosi، cf_return_switch.cpp).
                             // (EN) 4) returning a dynamic value ⇒ Any (%SadDyn) return type —
-                            //         dynPayloadI64 used to strip the kind at the boundary
+                            //         dynPayloadI64 used to strip the kind at the boundary.
+                            //         EXCEPT a source-declared return: the declaration is the
+                            //         author's contract and the interpreter coerces at it —
+                            //         promoting it let a Float-tagged value escape a declared
+                            //         «رقم» as 5.0 where the interpreter prints 5 (measured;
+                            //         adversarial review of the param-boundary tag wave).
+                            //         The RET door unpacks by tag (unpackI64).
                             if (inst.opcode == SIROpcode::RET && !inst.operands.empty() &&
                                 fn->returnType != SadTypeKind::Any &&
                                 fn->returnType != SadTypeKind::Void &&
+                                !fn->returnTypeIsDeclared &&
                                 valueIsDyn(inst.operands[0]))
                             {
                                 fn->returnType = SadTypeKind::Any;

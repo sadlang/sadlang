@@ -14,6 +14,7 @@
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Function.h>
 #include "sir_instruction.h"
+#include "error_codes.h" // (AR) رمزُ ذراعِ الغيابِ الموسومِ لكلِّ سطحِ نداء / (EN) per-surface absence code
 
 namespace Sad { namespace LLVM {
 
@@ -39,8 +40,30 @@ public:
     //      runtime: if it is not Map we panic with a distinct code rather than
     //      dereferencing a non-map pointer (a silent SIGSEGV). Mirrors
     //      normalizeStringPtr for strings and normalizeArrayPtr for arrays.
+    // (AR) [RFC عقد الغياب] `absenceCode`: رمزُ الكتالوجِ الذي يُرفَع حين يكون
+    //      الوسمُ غيابًا (فراغ/عدم) — يمرّره **موقعُ النداء** لأنّ المفسّرَ يفرّق
+    //      مقيسًا بين السطوح: القراءةُ بالفهرس SEM011، والإسنادُ بالفهرس RUN018،
+    //      ومستقبِلُ مدمجٍ مسمًّى RUN037 (ويملأ `{func}` من `builtinFunc`).
+    //      وnullopt ⇒ الغيابُ كسائرِ الأوسامِ المخالفةِ على رسالةِ عدمِ التطابقِ
+    //      العامّة — **ونطاقُ RUN037 المعلَنُ msize وmhas حصرًا**:
+    //        · mkvs يخدم الواجهةَ المسمّاةَ وطريقةَ `.مفاتيح()` وحلقةَ «لكل»
+    //          معًا، وملؤه باسمِ سطحٍ واحدٍ كذبةُ صياغةٍ على الآخرَين (درسُ ns10)؛
+    //        · mcopy تصله `خريطة_احذف` و`خريطة_دمج` كلتاهما (خطوةُ النسخِ
+    //          النقيّ) فاسمُه ملتبس؛ وmdel لا يصله الغيابُ أصلًا عبر الواجهةِ
+    //          المسمّاةِ (يجري على النسخة) — فتباعدُ RUN037 عليها **معلَنٌ لا
+    //          مسكوتٌ عنه**: المفسّرُ يرفع RUN037 وتبقى رسالةُ المترجَمِ عامّةً.
+    // (EN) [absence-contract RFC] `absenceCode`: the catalog code raised when the
+    //      tag is absence (Void/Null) — supplied by the CALL SITE because the
+    //      interpreter distinguishes surfaces (measured): indexed read SEM011,
+    //      indexed assign RUN018, named-builtin receiver RUN037 (with {func}
+    //      from `builtinFunc`). nullopt ⇒ absence falls with all other
+    //      mismatching tags to the generic message (declared limit for
+    //      shared-surface sites: mkvs serves the named interface, the
+    //      `.مفاتيح()` method AND the «لكل» loop at once — naming one surface
+    //      would lie about the others; the ns10 lesson).
     llvm::Value *normalizeMapPtr(llvm::Value *mapValue, const char *label,
-                                 bool absenceIsIndexing = false);
+                                 std::optional<Sad::Errors::ErrorCode> absenceCode = std::nullopt,
+                                 const char *builtinFunc = nullptr);
 
     // (AR) تطبيعُ مفتاحِ الخريطة: مفاتيحُ الخريطةِ نصوصٌ دائمًا (تُخزَّن بـstrdup
     //      وتُقارَن بـstrcmp)، فقيمةٌ موسومةٌ زمنَ التشغيل لا تصلح مفتاحًا إلّا إن

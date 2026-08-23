@@ -11,9 +11,11 @@
 #define SAD_LLVM_ARRAY_OPS_CODEGEN_H
 
 #include <memory>
+#include <optional>
 #include <llvm/IR/Value.h>
 #include <llvm/IR/BasicBlock.h>
 #include "sir_instruction.h"
+#include "error_codes.h" // (AR) رمزُ ذراعِ الغيابِ الموسومِ لكلِّ سطحِ نداء / (EN) per-surface absence code
 
 namespace Sad
 {
@@ -71,9 +73,16 @@ namespace Sad
             //      restore the rc=139 crash on a null container — the array branch is
             //      never reached. So the check stays BEFORE and loses only its assert.
             // ============================================================
+            // (AR) [RFC عقد الغياب] `absenceCode`: رمزُ الكتالوجِ لغيابٍ موسومٍ —
+            //      يمرّره موقعُ النداءِ لأنّ الرمزَ سطحيٌّ: قراءةٌ بالفهرس SEM011،
+            //      وإسنادٌ بالفهرس RUN018، وnullopt للمدمجاتِ (رسالةُ «ليست
+            //      مصفوفة» العامّة). النظيرُ الكاملُ في `normalizeMapPtr`.
+            // (EN) [absence-contract RFC] `absenceCode`: per-surface catalog code
+            //      for tagged absence — indexed read SEM011, indexed assign RUN018,
+            //      nullopt for builtins. Full twin of normalizeMapPtr.
             llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr",
                                            bool assertDynTag = true,
-                                           bool absenceIsIndexing = false);
+                                           std::optional<Sad::Errors::ErrorCode> absenceCode = std::nullopt);
 
             // ════════════════════════════════════════════════════════════════
             // (AR) 🔑 حارسُ الإسنادِ بالفهرسِ لقيمةٍ **موسومة**: يحكمُ بالوسمِ لا
