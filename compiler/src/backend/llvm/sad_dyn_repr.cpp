@@ -123,6 +123,12 @@ namespace Sad
                 if (fn)
                     dynReturnFuncs[fn->getName()] = (fn->returnType == SadTypeKind::Any);
 
+            // (AR) [بذرة [٨]] الدوالُّ المصرَّحةُ «رقم» التي رُقّي عائدُها إلى
+            //      %SadDyn — يُدرَجُ لها قاسرُ RET في التمريرةِ اللاحقةِ أدناه.
+            // (EN) [seed [٨]] Declared-«رقم» functions whose return was promoted
+            //      to %SadDyn — the RET coercer is inserted for them below.
+            std::set<std::string> declaredNumRetFuncs;
+
             bool changed = true;
             for (int iter = 0; changed && iter < kDynScanMaxIterations; ++iter)
             {
@@ -341,16 +347,89 @@ namespace Sad
                             //         «رقم» as 5.0 where the interpreter prints 5 (measured;
                             //         adversarial review of the param-boundary tag wave).
                             //         The RET door unpacks by tag (unpackI64).
-                            if (inst.opcode == SIROpcode::RET && !inst.operands.empty() &&
-                                fn->returnType != SadTypeKind::Any &&
-                                fn->returnType != SadTypeKind::Void &&
-                                !fn->returnTypeIsDeclared &&
-                                valueIsDyn(inst.operands[0]))
+                            // (AR) [بذرة [٨] — تعديلُ الاستثناء] المصرَّحُ «رقم» يُرقّى
+                            //      **هو أيضًا** حين يُرجِعُ موسومًا — لكنْ مع قاسرِ RET
+                            //      (kRuntimeDeclaredNumRetCoerce، يُدرَجُ أدناه): العشريُّ
+                            //      يُقسَرُ رقمًا داخلَ الوسمِ فلا يفلت 5.0، وسائرُ الأوسامِ
+                            //      تعبرُ بوسمِها كما يمرّرها المفسّرُ (كانت بذرةُ العدمِ
+                            //      الواحدةُ تُسوّي فراغًا بعدمٍ وتُدخِلُ الحسابَ بذرةً).
+                            //      وغيرُ «رقم» المصرَّحُ باقٍ على تمثيلِه المحسوس.
+                            // (EN) [seed [٨] — the exception refined] A declared «رقم»
+                            //      return is promoted TOO when it returns tagged — but
+                            //      with the RET coercer inserted below: Float is coerced
+                            //      to Int inside the tag (5.0 cannot escape) and every
+                            //      other kind crosses tagged as the interpreter passes
+                            //      it (the single null sentinel conflated Void with Null
+                            //      and fed the sentinel into arithmetic). Non-«رقم»
+                            //      declared returns keep their concrete representation.
                             {
-                                fn->returnType = SadTypeKind::Any;
-                                dynReturnFuncs[fn->getName()] = true;
-                                changed = true;
+                                const bool declaredNumeric =
+                                    fn->returnTypeIsDeclared &&
+                                    fn->returnType == SadTypeKind::Integer;
+                                if (inst.opcode == SIROpcode::RET && !inst.operands.empty() &&
+                                    fn->returnType != SadTypeKind::Any &&
+                                    fn->returnType != SadTypeKind::Void &&
+                                    (!fn->returnTypeIsDeclared || declaredNumeric) &&
+                                    valueIsDyn(inst.operands[0]))
+                                {
+                                    if (declaredNumeric)
+                                        declaredNumRetFuncs.insert(fn->getName());
+                                    fn->returnType = SadTypeKind::Any;
+                                    dynReturnFuncs[fn->getName()] = true;
+                                    changed = true;
+                                }
                             }
+                        }
+                    }
+                }
+            }
+
+            // (AR) [بذرة [٨] — التمريرةُ اللاحقة] إدراجُ قاسرِ RET في كلِّ دالّةٍ
+            //      مصرَّحةٍ «رقم» رُقّي عائدُها: قبلَ **كلِّ** RET بقيمةٍ يُدرَجُ
+            //      نداءُ kRuntimeDeclaredNumRetCoerce ويُستبدَلُ معاملُ RET
+            //      بنتيجتِه — فالمساراتُ المحسوسةُ (ارجع 2.5 الحرفيّة) تُقسَرُ
+            //      كالموسومةِ سواءً، ولا مسارَ يفلتُ من العقد. بعدَ اكتمالِ
+            //      النقطةِ الثابتةِ عمدًا: الإدراجُ أثناءَها يبطلُ المكرّرات.
+            // (EN) [seed [٨] — the post-pass] Insert the RET coercer into every
+            //      promoted declared-«رقم» function: before EVERY value-carrying
+            //      RET a kRuntimeDeclaredNumRetCoerce call is inserted and the
+            //      RET operand replaced with its result — concrete paths (a
+            //      literal `ارجع 2.5`) are coerced exactly like tagged ones, so
+            //      no path escapes the contract. Deliberately after the fixed
+            //      point: inserting mid-iteration would invalidate iterators.
+            {
+                size_t coerceCounter = 0;
+                for (const auto &fn : sirModule->getFunctions())
+                {
+                    if (!fn || declaredNumRetFuncs.count(fn->getName()) == 0)
+                        continue;
+                    for (const auto &bb : fn->getBasicBlocks())
+                    {
+                        if (!bb)
+                            continue;
+                        for (size_t i = 0; i < bb->instructions.size(); ++i)
+                        {
+                            SIRInstruction &retInst = bb->instructions[i];
+                            if (retInst.opcode != SIROpcode::RET ||
+                                retInst.operands.empty())
+                                continue;
+                            const std::string coerceReg =
+                                std::string("%ret.coerce.") +
+                                std::to_string(coerceCounter++);
+                            SIRInstruction coerceCall(SIROpcode::CALL);
+                            coerceCall.result =
+                                SIROperand::Register(coerceReg, SadTypeKind::Any);
+                            coerceCall.operands.push_back(
+                                SIROperand::ConstantString(
+                                    Sad::Compiler::kRuntimeDeclaredNumRetCoerce));
+                            coerceCall.operands.push_back(retInst.operands[0]);
+                            retInst.operands[0] =
+                                SIROperand::Register(coerceReg, SadTypeKind::Any);
+                            bb->instructions.insert(
+                                bb->instructions.begin() +
+                                    static_cast<std::ptrdiff_t>(i),
+                                coerceCall);
+                            ++i;
                         }
                     }
                 }
@@ -484,6 +563,39 @@ namespace Sad
                 // (AR) `unpackI64` لا `dynPayloadI64`: الأولى تحترم الوسمَ (عشريّ⇒fptosi)،
                 //      والثانيةُ تُعيد الحمولةَ خامًّا فتُقرَأ بتّاتُ الـdouble عددًا صحيحًا.
                 llvm::Value *raw = unpackI64(cg, v);
+                // (AR) [عقدُ الغياب — حدُّ الوسيط] وسمُ الغيابِ (فراغ/عدم) لا يُفكُّ
+                //      حمولةً صفريّةً تتنكّرُ رقمًا، بل يُهجَّأُ ببذرةِ العدمِ
+                //      `kSadNullSentinel` — نظيرُ بابِ RET حرفيًّا: المستهلكُ يعرضُ
+                //      «لاشيء» كما يمرّرُ المفسّرُ الغيابَ إلى المعاملِ ويعرضُه
+                //      (قِيس 2026-08-23: عائدٌ غائبٌ موسومٌ مُرِّرَ لمعاملِ i64
+                //      فطُبع 0 حيث يطبع المفسّرُ «لاشيء»).
+                // (EN) [absence contract — the argument boundary] An absence tag
+                //      (Void/Null) is not unpacked as a zero masquerading as a
+                //      number but spelled with the null sentinel — the RET door's
+                //      exact twin: the consumer displays «لاشيء» as the
+                //      interpreter does when it passes absence into the parameter
+                //      (measured 2026-08-23: a tagged absent return passed to an
+                //      i64 parameter printed 0 where the interpreter prints
+                //      «لاشيء»).
+                if (want->isIntegerTy(64))
+                {
+                    auto *i8Ty = llvm::Type::getInt8Ty(*cg.context_);
+                    llvm::Value *kindByte = dynKindByte(cg, v);
+                    llvm::Value *isVoidK = cg.builder_->CreateICmpEQ(
+                        kindByte, llvm::ConstantInt::get(i8Ty, DynKind::Void),
+                        "arg.dyn.is.void");
+                    llvm::Value *isNullK = cg.builder_->CreateICmpEQ(
+                        kindByte, llvm::ConstantInt::get(i8Ty, DynKind::Null),
+                        "arg.dyn.is.null");
+                    llvm::Value *isAbsent = cg.builder_->CreateOr(
+                        isVoidK, isNullK, "arg.dyn.absent");
+                    raw = cg.builder_->CreateSelect(
+                        isAbsent,
+                        llvm::ConstantInt::get(
+                            cg.getInt64Type(),
+                            static_cast<uint64_t>(Sad::Compiler::kSadNullSentinel)),
+                        raw, "arg.dyn.i64");
+                }
                 return (want->isIntegerTy() && !want->isIntegerTy(64))
                            ? cg.builder_->CreateTrunc(raw, want, "arg.dyn.trunc")
                            : raw;

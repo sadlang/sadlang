@@ -89,7 +89,19 @@ namespace Sad
                     const bool isUndeclared =
                         param.type == Types::SadTypeKind::Unknown ||
                         (param.type == Types::SadTypeKind::Class && param.typeName.empty());
-                    if (!isUndeclared)
+                    // (AR) استثناءٌ واحدٌ مقيس (نظيرُ دَين #258 في الدوالِّ الحرّة):
+                    //      المصرَّحُ «رقم» يقبلُ العشريَّ في المفسّرِ (المرجعُ لا يقسر
+                    //      معاملَ الطريقة — بذرة [٧])، فتُسجَّلُ وسائطُه ليُرقَّى عشريًّا
+                    //      **بالإجماعِ حصرًا** في applyAgreedMemberParamTypes. وبقيّةُ
+                    //      الأنواعِ المصرَّحةِ عقدُ الكاتبِ ولا تُخمَّنُ فوقه.
+                    // (EN) One measured exception (mirror of free-function debt #258): a
+                    //      declared «رقم» accepts floats in the interpreter (the reference
+                    //      does not coerce method params — red seed [٧]), so its arguments
+                    //      are recorded and may be widened to Float ONLY on unanimity in
+                    //      applyAgreedMemberParamTypes. Every other declared type is the
+                    //      author's contract and is never guessed over.
+                    const bool isDeclaredInteger = param.type == Types::SadTypeKind::Integer;
+                    if (!isUndeclared && !isDeclaredInteger)
                         continue;
 
                     // (AR) خانةٌ لم يبلغْها وسيطٌ في هذا الموقع: قيمتُها **عدم** بنصِّ
@@ -137,9 +149,20 @@ namespace Sad
                         continue;
 
                     const auto agreed = static_cast<SadTypeKind>(*kinds.begin());
-                    if (agreed != SadTypeKind::String &&
-                        agreed != SadTypeKind::Float &&
-                        agreed != SadTypeKind::Boolean)
+                    // (AR) الخانةُ المصرَّحةُ «رقم» (سُجِّلت باستثناءِ بذرة [٧] أعلاه):
+                    //      توسيعُها **عشريٌّ حصرًا** — التوسيعُ العدديُّ الذي يقبله
+                    //      المفسّرُ — ولا يُكتَبُ فوقَ تصريحِ الكاتبِ نصٌّ أو منطقيّ.
+                    // (EN) A declared-«رقم» slot (recorded via the seed-[٧] exception above)
+                    //      widens to Float ONLY — the numeric widening the interpreter
+                    //      accepts; String/Boolean never overwrite the author's declaration.
+                    if (param->type == Types::SadTypeKind::Integer)
+                    {
+                        if (agreed != SadTypeKind::Float)
+                            continue;
+                    }
+                    else if (agreed != SadTypeKind::String &&
+                             agreed != SadTypeKind::Float &&
+                             agreed != SadTypeKind::Boolean)
                         continue;
 
                     param->type = agreed;

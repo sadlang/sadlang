@@ -589,6 +589,44 @@ namespace Sad
                         else
                         {
                             returnType = b_.astTypeToSIRType(methodDecl->returnType);
+                            // (AR) توسيعُ عائدِ الطريقةِ المصرَّحِ «رقم» عشريًّا (بذرة [٧]):
+                            //      المفسّرُ — العقدُ — **لا يقسر** عائدَ الطريقةِ (بخلافِ
+                            //      الدالّةِ العليا)، فجسمٌ يُستنتَجُ عشريًّا عبرَ بابِ i64
+                            //      المصرَّحِ كان يُبتَرُ (5.0⇒5) حيثُ يمرّره المفسّرُ سليمًا.
+                            //      التوسيعُ عدديٌّ حصرًا — كقاعدةِ المعاملِ أعلاه — ولا
+                            //      يُمَسُّ تصريحٌ غيرُ «رقم».
+                            // (EN) Widen a method's declared-«رقم» return to Float (seed [٧]):
+                            //      the interpreter — the contract — does NOT coerce method
+                            //      returns (unlike toplevel functions), so a body inferred
+                            //      Float through the declared i64 door was truncated (5.0⇒5)
+                            //      where the interpreter passes it through. Numeric widening
+                            //      only, mirroring the parameter rule; no other declaration
+                            //      is touched.
+                            if (methodDecl->returnType == Types::SadTypeKind::Integer &&
+                                methodDecl->body)
+                            {
+                                // (AR) صدفةُ تصريحٍ مؤقّتةٌ تحملُ معاملاتِ الطريقةِ
+                                //      **بأنواعِها الموسَّعةِ في الشجرة** إلى الاستنتاج
+                                //      (فبِلا funcDecl لا يعرفُ الاستنتاجُ «س» أصلًا).
+                                //      اسمُها فارغٌ عمدًا كي لا يلتقطَ الجدولُ توقيعَ
+                                //      المرحلةِ 1.3 غيرَ الموسَّع بدلَ أنواعِ الشجرة.
+                                // (EN) A temporary declaration shell carries the method's
+                                //      AST-widened parameter types into the inference
+                                //      (without a funcDecl the inference does not know the
+                                //      parameter at all). Its name is deliberately empty so
+                                //      the table lookup misses and the AST types — not the
+                                //      unwidened Phase 1.3 signature — are used.
+                                Sad::AST::FunctionDecl paramShell(
+                                    std::string(), methodDecl->parameters,
+                                    methodDecl->returnType, nullptr);
+                                auto savedClassName = b_.currentClassName_;
+                                b_.currentClassName_ = classDecl->name;
+                                const SadTypeKind bodyKind = b_.inferReturnTypeFromBody(
+                                    methodDecl->body.get(), &paramShell);
+                                b_.currentClassName_ = savedClassName;
+                                if (bodyKind == SadTypeKind::Float)
+                                    returnType = SadTypeKind::Float;
+                            }
                         }
                         std::string fullMethodName = classDecl->name + "." + methodDecl->name;
                         auto sirMethod = std::make_shared<SIRFunction>(fullMethodName, returnType);

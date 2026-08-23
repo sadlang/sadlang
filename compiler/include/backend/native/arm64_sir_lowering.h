@@ -2805,6 +2805,23 @@ namespace sad
                     handled = true;
                     return true;
                 }
+                // (AR) [الموجةُ الثانية] مُطبِّعُ «لكل» ومفكِّكُ الأحرف: هويّةٌ
+                //      معلَنةً — مرآةُ نظيرِه في x86 (درسُ «ثلاث نسخ»: لا-عمليّةٌ
+                //      بنتيجةٍ مطلوبةٍ = سجلٌّ شبحيٌّ يكسر ما بعدَه).
+                // (EN) [wave 2] Foreach normalizer and chars decomposer: a declared
+                //      identity — mirror of the x86 twin (three-copies lesson: a
+                //      no-op with a required result is a phantom register).
+                if (fname == Sad::Compiler::kRuntimeForeachNormalize ||
+                    fname == Sad::Compiler::kRuntimeForeachNormalizeValues ||
+                    fname == Sad::Compiler::kRuntimeStringChars)
+                {
+                    handled = true;
+                    if (!inst.result || inst.operands.size() < 2)
+                        return true;
+                    int dst;
+                    return allocReg(inst.result->name, dst) &&
+                           loadArgInto(dst, inst.operands[1]);
+                }
                 const bool isCreate = (fname == Sad::Compiler::kRuntimeMapCreate);
                 const bool isSize = (fname == Sad::Compiler::kRuntimeMapSize);
                 const bool isSet = (fname == Sad::Compiler::kRuntimeMapSetTyped ||

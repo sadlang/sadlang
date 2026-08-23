@@ -502,6 +502,73 @@ namespace Sad::Compiler
     //      a declared limit).
     inline constexpr const char *kRuntimeForeachAbsenceGuard = "__sad_foreach_absence_guard";
 
+    // (AR) [RFC عقد الغياب — سطحُ «لكل»، الموجةُ الثانية] **مُطبِّعُ** مصدرِ
+    //      التكرارِ الموسوم: خلَفُ الحارسِ أعلاه وقد صار مُنتِجًا — يرفعُ RUN055
+    //      لكلِّ وسمٍ غيرِ قابلٍ للتكرارِ (كالحارس)، ويعيدُ النصَّ الموسومَ
+    //      مصفوفةَ أحرفِ UTF-8، والخريطةَ الموسومةَ مصفوفةَ مفاتيحِها — كلاهما
+    //      %SadDyn بوسمِ مصفوفةٍ — ويمرِّرُ المصفوفةَ والكائنَ كما هما، فتعملُ
+    //      آلةُ التكرارِ المصفوفيّةُ القائمةُ (المسارُ الأخضرُ للمصفوفةِ
+    //      الموسومة) على الناتجِ الموحَّد. يطابقُ تكرارَ المفسّرِ المقيس
+    //      (2026-08-23): النصُّ أحرفًا والخريطةُ مفاتيح.
+    // (EN) [absence-contract RFC — foreach surface, wave 2] The tagged-source
+    //      NORMALIZER: the guard above turned producer — raises RUN055 for
+    //      every non-iterable kind (as the guard did), returns a tagged string
+    //      as its UTF-8 chars array and a tagged map as its keys array (both
+    //      %SadDyn, Array kind), and passes arrays/objects through unchanged,
+    //      so the existing array iteration machinery (the tagged-array green
+    //      path) runs on the unified result. Matches the interpreter's
+    //      measured iteration (2026-08-23): string by chars, map by keys.
+    inline constexpr const char *kRuntimeForeachNormalize = "__sad_foreach_normalize";
+
+    // (AR) قناةُ **القيمِ** لصيغةِ الزوجِ «لكل مفتاح، قيمة» على مصدرٍ موسوم:
+    //      خريطةٌ موسومةٌ تعيدُ مصفوفةَ قيمِها بأوسامِها (مخزنُ أوسامٍ لكلِّ
+    //      عنصر)، وغيرُ الخريطةِ مصفوفةً فارغةً — فالمفسّرُ يتركُ متغيّرَ
+    //      القيمةِ بلا ربطٍ لغيرِ الخريطةِ (حدٌّ معلَنٌ موازٍ لفرعِ الخريطةِ
+    //      الساكنة). تُبَثُّ بعدَ المُطبِّعِ أعلاه فلا تبلغُها الأوسامُ غيرُ
+    //      القابلةِ للتكرارِ (رُفعت قبلَها RUN055).
+    // (EN) The VALUES channel for the pair form «for key, value» on a tagged
+    //      source: a tagged map returns its values array with per-element tags,
+    //      any other kind an empty array — the interpreter leaves the value
+    //      variable unbound for non-maps (a declared limit mirroring the
+    //      static-map branch). Emitted after the normalizer above, so
+    //      non-iterable kinds never reach it (RUN055 already raised).
+    inline constexpr const char *kRuntimeForeachNormalizeValues =
+        "__sad_foreach_normalize_values";
+
+    // (AR) مصدرُ «لكل» نصٌّ **ساكنُ النوع**: تفكيكُه مصفوفةَ أحرفٍ عبرَ عائلةِ
+    //      «تقسيم» (فاصلٌ فارغٌ = أحرفُ UTF-8). كان النصُّ الساكنُ يسقطُ إلى
+    //      آلةِ المصفوفةِ فينهارُ SIGSEGV بلا تشخيصٍ (قِيس 2026-08-23) بينما
+    //      يكرّره المفسّرُ أحرفًا.
+    // (EN) A STATICALLY-typed string foreach source: decomposed into a chars
+    //      array via the split family (empty delimiter = UTF-8 chars). A static
+    //      string used to fall into the array machinery and SIGSEGV with no
+    //      diagnostic (measured 2026-08-23) where the interpreter iterates
+    //      its characters.
+    inline constexpr const char *kRuntimeStringChars = "__sad_string_chars";
+
+    // (AR) [عقدُ الغياب — بذرة [٨]] قاسرُ عائدِ الدالّةِ المصرَّحةِ «رقم» الذي
+    //      يعبرُ موسومًا (%SadDyn): يقرأُ الوسمَ زمنَ التشغيلِ — عشريٌّ يُقسَرُ
+    //      رقمًا داخلَ الوسمِ (fptosi، كقسرِ المفسّرِ المقيس 2.5⇒2)، وسائرُ
+    //      الأوسامِ (فراغ/عدم/منطقي/نص) تعبرُ **بوسمِها** إلى المستهلكِ كما
+    //      يمرّرها المفسّرُ (قِيس 2026-08-23: «صحيح»/«منطقي» للمنطقيِّ،
+    //      و«فراغ» لا «عدم» للغياب، و==لاشيء ⇒ «خطأ»، والحسابُ ⇒ RUN053).
+    //      يُدرِجُه ممرُّ الخاناتِ الديناميّةِ قبلَ كلِّ RET في دالّةٍ مصرَّحةٍ
+    //      «رقم» رُقّي عائدُها إلى %SadDyn — فتُستبدَلُ بذرةُ العدمِ الواحدةُ
+    //      (التي لا تفرّقُ فراغًا من عدمٍ ولا تحرسُ الحساب) بالوسمِ الكامل.
+    // (EN) [absence contract — seed [٨]] The declared-«رقم» return coercer for
+    //      returns that now travel tagged (%SadDyn): reads the runtime kind —
+    //      Float is coerced to Int inside the tag (fptosi, the interpreter's
+    //      measured 2.5⇒2 coercion) while every other kind (Void/Null/Bool/
+    //      Str) crosses WITH its tag exactly as the interpreter passes it
+    //      (measured 2026-08-23: «صحيح»/«منطقي» for bool, «فراغ» not «عدم»
+    //      for absence, ==لاشيء ⇒ «خطأ», arithmetic ⇒ RUN053). The dyn-slot
+    //      pass inserts it before every RET of a declared-«رقم» function whose
+    //      return was promoted to %SadDyn — replacing the single null sentinel
+    //      (which cannot tell Void from Null nor guard arithmetic) with the
+    //      full tag.
+    inline constexpr const char *kRuntimeDeclaredNumRetCoerce =
+        "__sad_declared_num_ret_coerce";
+
     // (AR) عبارةُ `{type}` التي يملأ بها المفسّرُ RUN055 **حرفيًّا** لكلِّ مصدرٍ
     //      غيرِ قابلٍ للتكرار (statement_executor.cpp — القيمةُ مهجّأةٌ هناك
     //      بلا تمييزِ نوعٍ). نسخةٌ ثانيةٌ من لفظِ المفسّرِ بالضرورة: تغييرُ

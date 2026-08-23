@@ -4,7 +4,7 @@
 #      🔑 لِمَ سجلٌّ لا وسمُ `@known_red`؟ لأنّ الوسمَ يبتلعُ **فرقَ المخرَجِ
 #      وحدَه** عمدًا، وتعليقُ `tests/runner.py` يوثّقُ سببَه مقيسًا: نسخةٌ أولى
 #      ابتلعت كلَّ ما ليس PASS، فصارَ ملفٌّ بخطأِ تحليلٍ وملفٌّ بحلقةٍ لانهائيّةٍ
-#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ٥٦ هنا **٢٤
+#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ٥٤ هنا **٢٢
 #      فقط** صنفُها FAIL_OUTPUT، والـ٣٢ الباقيةُ انهياراتٌ وتعليقاتٌ ورفضُ
 #      ترجمةٍ — وتوسيعُ الوسمِ ليشملَها إعادةٌ لعطبٍ مُصلَح.
 #
@@ -85,12 +85,28 @@
 #          عدمٌ والمفسّرُ فراغ)؛ ومنطقيٌّ موسومٌ عبر عائدٍ مصرَّحٍ «رقم»
 #          يُطبَع 1 لا «صحيح» — كلُّها حدُّ التمثيلِ البِتّيِّ i64 عينُه،
 #          وسدُّها الجذريُّ واحد.
+#      [٩] ٥٤ صفًّا — ٢٠٢٦-٠٨-٢٣: حُذف الصفّان [٧] و[٨] بعد اخضرارِهما
+#          مقيسًا (ويندوز Debug):
+#          · [٧] سُدَّ بتعميمِ توسيعِ «عشري⇒رقم» (بالإجماعِ حصرًا) على
+#            معاملاتِ **وعوائدِ** طرائقِ الأصنافِ المصرَّحةِ «رقم»
+#            (recordMemberParamArgs/applyAgreedMemberParamTypes + توسيعُ
+#            العائدِ في class_main) — `ح.ضاعف(2.5)` ⇒ 5.0/«عشري» مطابقًا.
+#          · [٨] سُدَّ جذريًّا لا بالبذرة: العائدُ المصرَّحُ «رقم» الذي
+#            يُرجِعُ موسومًا رُقّي إلى %SadDyn (القاعدةُ ٤ في ممرِّ الخاناتِ
+#            الديناميّة) مع قاسرِ RET (kRuntimeDeclaredNumRetCoerce —
+#            عشريٌّ يُقسَرُ رقمًا داخلَ الوسم، وسائرُ الأوسامِ تعبرُ
+#            بوسمِها) وتهجئةِ الغيابِ ببذرةِ العدمِ عندَ حدِّ وسيطِ i64
+#            (coerceToParamType). فالحسابُ يرفعُ RUN053 بخروجٍ ١،
+#            و`نوع()` «فراغ»، و`== لاشيء` «خطأ»، والمنطقيُّ «صحيح»/«منطقي»
+#            — الأشقّاءُ الأربعةُ معًا، والمفسّرُ هو العقد.
+#          وأُعيد الملفّان إلى قسمِهما (146/147 في 05_لاشيء_والفراغ)
+#          وفاءً بنصَّيهما.
 #
 # (EN) Registry of MEASURED reds outside every CI level. Why a registry and not
 #      @known_red? Because that marker deliberately swallows OUTPUT MISMATCH
 #      only — widening it to crashes/hangs/compile-failures would re-open a
 #      measured defect (a single header line once disabled the P0 smoke gate).
-#      Only 24 of these 56 are FAIL_OUTPUT. This file is guarded in BOTH
+#      Only 22 of these 54 are FAIL_OUTPUT. This file is guarded in BOTH
 #      directions by test_declared_reds_registry.py: a row that turns green, a
 #      new red that is absent, or a changed failure kind all fail the guard.
 #
@@ -105,9 +121,7 @@
 #
 # الصيغة / format:  <المسار من tests/behavior><TAB><صنف الإخفاق>
 # ═══════════════════════════════════════════════════════════════════════════
-_regression/declared_return_absence_arith_diverges.ص	FAIL_OUTPUT
 _regression/m1_imported_module_parity.ص	FAIL_COMPILE
-_regression/method_literal_float_param_truncated.ص	FAIL_OUTPUT
 _regression/scan_bug16.ص	FAIL_OUTPUT
 _regression/test_bug11_diag.ص	FAIL_OUTPUT
 _regression/test_bug11_diag2.ص	FAIL_OUTPUT

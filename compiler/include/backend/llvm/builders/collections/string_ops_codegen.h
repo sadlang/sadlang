@@ -108,7 +108,10 @@ public:
     llvm::Value *emitBuiltinStringEndsWith(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitBuiltinStringContains(std::shared_ptr<SIRInstruction>);
 
-private:
+    // (AR) عامّةٌ لا خاصّة: يطلبها مُطبِّعُ «لكل» في MapOpsCodeGen (تفكيكُ النصِّ
+    //      الموسومِ أحرفًا عبرَ الفاصلِ الفارغ) إلى جانبِ باعثِ «تقسيم» هنا.
+    // (EN) Public, not private: the foreach normalizer in MapOpsCodeGen needs it
+    //      (tagged-string chars via the empty delimiter) besides the split emitter.
     // (AR) مساعد «تقسيم» الموحَّد: يُصدَر مرّة، بدلالة السلسلة الفرعيّة الكاملة
     //      المطابِقة للمفسّر (str.find/substr)، ذاتيّ الاحتواء (malloc/memcpy/
     //      strlen/realloc فقط) فيعمل مستضافًا وحرًّا معًا. يعيد @__sad_string_split.

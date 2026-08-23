@@ -126,6 +126,14 @@ public:
     llvm::Function *getOrCreateStripDiacritics();
 
 private:
+    // (AR) مؤشّرُ نصِّ الفاصلِ الفارغِ لعائلةِ «تقسيم» في مسارَي «لكل»
+    //      (تفكيكُ الأحرف) — عامٌّ واحدٌ مُسمًّى يُعادُ استعمالُه بدلَ عامٍّ
+    //      جديدٍ لكلِّ موضعِ بثّ.
+    // (EN) The empty-delimiter string pointer for the split family in the two
+    //      foreach paths (char decomposition) — one named global reused instead
+    //      of a fresh global per emission site.
+    llvm::Value *emitForeachEmptyDelim();
+
     // (AR) يبعثُ كتلةَ فشلٍ لعدمِ تطابقِ وسمِ قيمةٍ ديناميكيّةٍ مع المتوقَّع، وينتهي
     //      بـunreachable: مستضاف ⇒ تشخيصٌ عربيٌّ + exit(1)؛ حرّ ⇒ __sad_panic برمزٍ
     //      مميَّز. مُستخرَجٌ كي لا يُكرَّر في كلِّ حارسِ وسم.

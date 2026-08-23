@@ -612,27 +612,101 @@ namespace Sad
                 //      (2) a valueVar on a non-map (array) is not allocated here, so it surfaces as
                 //      an undefined symbol at build time — mirroring the interpreter (which leaves
                 //      valueVar undefined for arrays).
-                // (AR) [RFC عقد الغياب — سطحُ «لكل»] مصدرٌ موسومٌ زمنَ التشغيل («أي»):
-                //      حارسُ الغيابِ يُبَثُّ قبلَ آلةِ التكرار — فراغٌ/عدمٌ يرفعُ RUN055
-                //      بعبارةِ المفسّرِ الحرفيّةِ وخروجٍ ١ (قِيس 2026-08-23: كان يصلُ
-                //      حارسَ المصفوفةِ فيُرفَعُ بنصٍّ بلا رمزٍ يكذبُ عن السطح)، وسائرُ
-                //      الأوسامِ تمرُّ إلى الحرّاسِ القائمين بلا أثر.
-                // (EN) [absence contract — foreach surface] A runtime-tagged source:
-                //      emit the absence guard ahead of the iteration machinery —
-                //      Void/Null raises RUN055 with the interpreter's literal phrase
-                //      and exit 1 (measured 2026-08-23: it used to reach the array
-                //      guard and raise an uncoded text lying about the surface);
-                //      every other kind passes through to the existing guards.
+                // (AR) [RFC عقد الغياب — سطحُ «لكل»، الموجةُ الثانية] مصدرٌ موسومٌ
+                //      زمنَ التشغيل («أي»): **المُطبِّعُ** يُبَثُّ قبلَ آلةِ التكرار —
+                //      خلَفُ حارسِ الغيابِ وقد صار مُنتِجًا. الوسمُ غيرُ القابلِ
+                //      للتكرارِ (فراغ/عدم/رقم/عشري/منطقي/كائن) يرفعُ RUN055 بعبارةِ
+                //      المفسّرِ الحرفيّةِ وخروجٍ ١؛ والنصُّ الموسومُ يعودُ مصفوفةَ
+                //      أحرفِه والخريطةُ الموسومةُ مصفوفةَ مفاتيحِها (كتكرارِ المفسّرِ
+                //      المقيس 2026-08-23)؛ والمصفوفةُ تمرُّ كما هي — فتعملُ آلةُ
+                //      التكرارِ المصفوفيّةُ الخضراءُ على الناتجِ الموحَّدِ دومًا.
+                // (EN) [absence contract — foreach surface, wave 2] A runtime-tagged
+                //      source: emit the NORMALIZER ahead of the iteration machinery —
+                //      the absence guard turned producer. A non-iterable kind raises
+                //      RUN055 with the interpreter's literal phrase and exit 1; a
+                //      tagged string comes back as its chars array and a tagged map
+                //      as its keys array (the interpreter's measured iteration,
+                //      2026-08-23); an array passes through unchanged — so the green
+                //      array machinery always runs on the unified result.
                 if (iterableResult.type == SadTypeKind::Any && b_.currentBlock_)
                 {
+                    std::string normalizedReg = b_.newTempRegister();
                     SIRInstruction guardInst;
                     guardInst.opcode = SIROpcode::CALL;
+                    guardInst.result = SIROperand::Register(normalizedReg, SadTypeKind::Any);
                     guardInst.operands.push_back(
-                        SIROperand::ConstantString(Sad::Compiler::kRuntimeForeachAbsenceGuard));
+                        SIROperand::ConstantString(Sad::Compiler::kRuntimeForeachNormalize));
                     guardInst.operands.push_back(SIROperand::Register(
                         iterableResult.registerName, iterableResult.type));
-                    guardInst.comment = "foreach absence guard (RUN055)";
+                    guardInst.comment = "foreach normalize (RUN055 / chars / keys)";
                     b_.currentBlock_->addInstruction(guardInst);
+
+                    // (AR) صيغةُ الزوجِ «لكل مفتاح، قيمة» على مصدرٍ موسوم: مصفوفةُ
+                    //      القيمِ تُستَلُّ من المصدرِ **الأصليِّ** (قبلَ استبدالِه
+                    //      بالمطبَّع) بقناةٍ ثانية — خريطةٌ موسومةٌ تعيدُ قيمَها
+                    //      موسومةً، وغيرُها مصفوفةً فارغةً (المفسّرُ يتركُ متغيّرَ
+                    //      القيمةِ بلا ربطٍ لغيرِ الخريطة — حدٌّ معلَن). كان النداءُ
+                    //      يفشلُ ترجمةً بـ«متغيّر غير معرّف» (قِيس 2026-08-23).
+                    // (EN) The pair form «for key, value» on a tagged source: the
+                    //      values array is drawn from the ORIGINAL register (before
+                    //      it is replaced by the normalized one) through a second
+                    //      channel — a tagged map returns its values tagged, any
+                    //      other kind an empty array (the interpreter leaves the
+                    //      value variable unbound for non-maps — a declared limit).
+                    //      This used to fail compilation with an undefined-variable
+                    //      diagnostic (measured 2026-08-23).
+                    if (!forRange->valueVar.empty())
+                    {
+                        mapValuesReg = b_.newTempRegister();
+                        SIRInstruction valuesInst(SIROpcode::CALL);
+                        valuesInst.result =
+                            SIROperand::Register(mapValuesReg, SadTypeKind::Array);
+                        valuesInst.operands.push_back(SIROperand::ConstantString(
+                            Sad::Compiler::kRuntimeForeachNormalizeValues));
+                        valuesInst.operands.push_back(SIROperand::Register(
+                            iterableResult.registerName, iterableResult.type));
+                        valuesInst.comment = "foreach normalize values (pair form)";
+                        b_.currentBlock_->addInstruction(valuesInst);
+                        mapValueType = SadTypeKind::Any;
+                    }
+
+                    iterableResult.registerName = normalizedReg;
+                    // (AR) عنصرُ المصدرِ المطبَّعِ موسومٌ («أي») — بدونِه كان متغيّرُ
+                    //      الحلقةِ يسقطُ إلى «رقم» فتفشلُ مقارنتُه بنصٍّ ترجمةً
+                    //      (قِيس 2026-08-23: «إذا (م == "ب")» على حرفِ نصٍّ موسوم).
+                    // (EN) The normalized source's element is tagged (Any) — without
+                    //      this the loop variable fell to Integer and comparing it
+                    //      with a string failed to compile (measured 2026-08-23).
+                    iterableResult.elementType = SadTypeKind::Any;
+                    iterableResult.className.clear();
+                    iterableResult.elementClassName.clear();
+                }
+
+                // (AR) مصدرٌ نصّيٌّ **ساكنُ النوع**: يُفكَّكُ مصفوفةَ أحرفِ UTF-8
+                //      قبلَ الآلةِ (نظيرُ فرعِ الخريطةِ أدناه). كان يسقطُ إلى آلةِ
+                //      المصفوفةِ فينهارُ SIGSEGV بلا تشخيصٍ (قِيس 2026-08-23) حيثُ
+                //      يكرّرُه المفسّرُ أحرفًا.
+                // (EN) A STATICALLY-typed string source: decomposed into its UTF-8
+                //      chars array ahead of the machinery (mirror of the map branch
+                //      below). It used to fall into the array machinery and SIGSEGV
+                //      with no diagnostic (measured 2026-08-23) where the
+                //      interpreter iterates characters.
+                if (iterableResult.type == SadTypeKind::String && b_.currentBlock_)
+                {
+                    std::string charsReg = b_.newTempRegister();
+                    SIRInstruction charsInst(SIROpcode::CALL);
+                    charsInst.result = SIROperand::Register(charsReg, SadTypeKind::Array);
+                    charsInst.operands.push_back(
+                        SIROperand::ConstantString(Sad::Compiler::kRuntimeStringChars));
+                    charsInst.operands.push_back(SIROperand::Register(
+                        iterableResult.registerName, iterableResult.type));
+                    charsInst.comment = "foreach string chars";
+                    b_.currentBlock_->addInstruction(charsInst);
+                    iterableResult.registerName = charsReg;
+                    iterableResult.type = SadTypeKind::Array;
+                    iterableResult.elementType = SadTypeKind::String;
+                    iterableResult.className.clear();
+                    iterableResult.elementClassName.clear();
                 }
 
                 if (iterableResult.type == SadTypeKind::Map)

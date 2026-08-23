@@ -1190,6 +1190,7 @@ namespace Sad
             llvm::Value *emitBuiltinStringSubstring(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringSubstring(inst); }
             llvm::Value *emitBuiltinStringTrim(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringTrim(inst); }
             llvm::Value *emitBuiltinStringSplit(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringSplit(inst); }
+            llvm::Function *ensureStringSplitHelper() { return strops_->ensureStringSplitHelper(); } // (AR) عائلة «تقسيم» — يطلبها مُطبِّع «لكل» / (EN) split family — needed by the foreach normalizer
             llvm::Value *emitBuiltinStringJoin(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringJoin(inst); }
             llvm::Value *emitBuiltinStringStartsWith(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringStartsWith(inst); }
             llvm::Value *emitBuiltinStringEndsWith(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringEndsWith(inst); }

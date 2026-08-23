@@ -3230,6 +3230,28 @@ namespace sad
                     handled = true;
                     return true;
                 }
+                // (AR) [الموجةُ الثانية] مُطبِّعُ «لكل» ومفكِّكُ أحرفِ النصِّ:
+                //      **هويّةٌ** معلَنةً في هذه الخلفيّة — المسارُ غيرُ موسومٍ فلا
+                //      تفكيكَ يُجرى، وتمريرُ الوسيطِ كما هو يُبقي دلالةَ المصفوفةِ
+                //      القائمةَ ولا يتركُ سجلَّ النتيجةِ بلا تعريفٍ (درسُ «ثلاث نسخ»:
+                //      لا-عمليّةٌ بنتيجةٍ مطلوبةٍ = سجلٌّ شبحيٌّ يكسر ما بعدَه).
+                // (EN) [wave 2] The foreach normalizer and string-chars decomposer:
+                //      a declared IDENTITY on this backend — the path is untagged so
+                //      nothing decomposes; passing the operand through preserves the
+                //      existing array semantics and never leaves the result register
+                //      undefined (three-copies lesson: a no-op with a required
+                //      result is a phantom register that breaks what follows).
+                if (fname == Sad::Compiler::kRuntimeForeachNormalize ||
+                    fname == Sad::Compiler::kRuntimeForeachNormalizeValues ||
+                    fname == Sad::Compiler::kRuntimeStringChars)
+                {
+                    handled = true;
+                    if (!inst.result || inst.operands.size() < 2)
+                        return true;
+                    int dst;
+                    return allocReg(inst.result->name, dst) &&
+                           loadArgInto(dst, inst.operands[1]);
+                }
                 const bool isCreate = (fname == Sad::Compiler::kRuntimeMapCreate);
                 const bool isSize = (fname == Sad::Compiler::kRuntimeMapSize);
                 const bool isSet = (fname == Sad::Compiler::kRuntimeMapSetTyped ||
