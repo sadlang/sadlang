@@ -535,10 +535,10 @@ namespace Sad
                     }
                     prepared.push_back(value);
                 }
-                if (prepared.size() > expectedTotal)
-                {
-                    prepared.resize(expectedTotal);
-                }
+                // (AR) الفائض خطأ صريح لا قص صامت — القص كان يناقض قاعدة
+                //      «يبلغ ولا يلتف» المدونة أعلاه مباشرة (رصدته المراجعة)
+                // (EN) Excess args are an explicit error, not a silent resize —
+                //      the resize contradicted the rule documented right above
                 if (prepared.size() != expectedTotal)
                 {
                     cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
@@ -683,9 +683,21 @@ namespace Sad
                 llvm::FunctionCallee trampoline = cg_.module_->getOrInsertFunction(
                     "sad_http_route_trampoline", trampolineTy);
 
+                // (AR) فحص حل المعاملين — nullptr كان يصل بناء النداء (بخلاف
+                //      المحضر الذي يفحص؛ رصدته المراجعة)
+                // (EN) Check both operand resolutions — nullptr used to reach
+                //      call construction (unlike the checking preparer)
+                llvm::Value *serverVal = cg_.resolveOperand(inst->operands[0]);
+                llvm::Value *pathVal = cg_.resolveOperand(inst->operands[1]);
+                if (!serverVal || !pathVal)
+                {
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR,
+                                    {{"detail", cFuncName}});
+                    return nullptr;
+                }
                 std::vector<llvm::Value *> prepared = {
-                    cg_.resolveOperand(inst->operands[0]),
-                    cg_.resolveOperand(inst->operands[1]),
+                    serverVal,
+                    pathVal,
                     trampoline.getCallee(),
                     thunk};
                 return emitPreparedVoidSuccess(cFuncName, prepared, {ptr, i8p, ptr, ptr});

@@ -219,6 +219,25 @@ namespace Sad
                     return result;
                 }
 
+                // (AR) وضع حر بلا مطابقة (دالة غير محلولة أو عدد مختل): خطأ
+                //      صريح — السقوط للمسار المستضاف كان يبث sad_rt_thread_spawn
+                //      غير الموجود في ring-0 (حارس أعرج رصدته مراجعة أميليا).
+                // (EN) Freestanding with no match (unresolved function or arity
+                //      mismatch): explicit error — falling through emitted the
+                //      hosted sad_rt_thread_spawn, absent in ring-0.
+                if (cg_.freestanding_)
+                {
+                    cg_.reportError(
+                        ::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                        {{"detail",
+                          std::string("ASYNC_SPAWN freestanding: ") +
+                              inst->operands[0].name +
+                              " — لا مسار متزامنا مطابقا في الوضع الحر / no "
+                              "matching synchronous lowering in freestanding "
+                              "mode"}});
+                    return cg_.builtinErrorSentinel(inst);
+                }
+
                 if (directFn && directFn->arg_size() == spawnArgCount)
                 {
                     // (AR) ع-16 (تعليب الوسائط): الثانك يأخذ حزمة كومة من فتحات
@@ -376,6 +395,30 @@ namespace Sad
                     auto spawnTy = llvm::FunctionType::get(i8PtrTy, {i8PtrTy, i8PtrTy}, false);
                     auto spawnFn = cg_.module_->getOrInsertFunction("sad_rt_thread_spawn", spawnTy);
                     auto handle = cg_.builder_->CreateCall(spawnFn, {thunk, packArg});
+
+                    // (AR) فشل الإنشاء (مقبض null): لا خيط سيحرر الحزمة —
+                    //      المطلق يحررها هنا (عقد الملكية في زمن التشغيل؛
+                    //      تسريب رصدته المراجعة). free(null) مأمونة فلا فرع.
+                    // (EN) Creation failure (null handle): no thread will free
+                    //      the pack — the spawner frees it here (runtime
+                    //      ownership contract; leak caught in review).
+                    if (spawnArgCount > 0)
+                    {
+                        auto freeTy = llvm::FunctionType::get(
+                            llvm::Type::getVoidTy(*cg_.context_), {i8PtrTy}, false);
+                        auto freeFn = cg_.module_->getOrInsertFunction("free", freeTy);
+                        auto nullHandle = cg_.builder_->CreateICmpEQ(
+                            handle,
+                            llvm::ConstantPointerNull::get(
+                                llvm::cast<llvm::PointerType>(handle->getType())),
+                            "spawn.failed");
+                        auto packOrNull = cg_.builder_->CreateSelect(
+                            nullHandle, packArg,
+                            llvm::ConstantPointerNull::get(
+                                llvm::cast<llvm::PointerType>(packArg->getType())),
+                            "spawn.pack.orphan");
+                        cg_.builder_->CreateCall(freeFn, {packOrNull});
+                    }
                     llvm::Value *result = cg_.builder_->CreatePtrToInt(handle, i64Ty);
                     if (inst->result.has_value())
                     {
@@ -443,6 +486,37 @@ namespace Sad
                         ? closureVal
                         : cg_.builder_->CreateIntToPtr(closureVal, i8PtrTy,
                                                        "spawn.closure.ptr");
+
+                // (AR) الوضع الحر: sad_rt_thread_spawn_closure غير موجود في
+                //      ring-0 (رمز مفقود عند الربط — رصدته المراجعة). ننادي
+                //      الإغلاق متزامنا هنا: فك الزوج {fn, env} ونداء fn(env)
+                //      بعائد i64 (بروتوكول الإغلاق الموحد).
+                // (EN) Freestanding: sad_rt_thread_spawn_closure does not exist
+                //      in ring-0 (missing symbol at link). Invoke the closure
+                //      synchronously: unpack the {fn, env} pair and call
+                //      fn(env) with the uniform i64-return closure protocol.
+                if (cg_.freestanding_)
+                {
+                    auto i64PtrTy = llvm::PointerType::get(i64Ty, 0);
+                    auto pairPtr = cg_.builder_->CreateBitCast(closurePtr, i64PtrTy,
+                                                               "spawn.sync.pair");
+                    auto fnInt = cg_.builder_->CreateLoad(i64Ty, pairPtr,
+                                                          "spawn.sync.fn");
+                    auto envSlot = cg_.builder_->CreateGEP(
+                        i64Ty, pairPtr, {llvm::ConstantInt::get(i64Ty, 1)});
+                    auto envInt = cg_.builder_->CreateLoad(i64Ty, envSlot,
+                                                           "spawn.sync.env");
+                    auto callTy = llvm::FunctionType::get(i64Ty, {i64Ty}, false);
+                    auto fnPtr = cg_.builder_->CreateIntToPtr(
+                        fnInt, llvm::PointerType::get(callTy, 0));
+                    cg_.builder_->CreateCall(callTy, fnPtr, {envInt});
+                    llvm::Value *result = llvm::ConstantInt::get(i64Ty, 1);
+                    if (inst->result.has_value())
+                    {
+                        cg_.context_info_.namedValues[inst->result->name] = result;
+                    }
+                    return result;
+                }
                 auto spawnClosureTy =
                     llvm::FunctionType::get(i8PtrTy, {i8PtrTy}, false);
                 auto spawnClosureFn = cg_.module_->getOrInsertFunction(
@@ -454,6 +528,21 @@ namespace Sad
                     cg_.context_info_.namedValues[inst->result->name] = result;
                 }
                 return result;
+            }
+
+            // (AR) المسار العام الأخير مستضاف حصرا — في الوضع الحر خطأ صريح
+            //      بدل بث رمز مفقود (مراجعة أميليا)
+            // (EN) The generic tail path is hosted-only — explicit error in
+            //      freestanding instead of emitting a missing symbol
+            if (cg_.freestanding_)
+            {
+                cg_.reportError(
+                    ::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                    {{"detail",
+                      std::string("ASYNC_SPAWN freestanding generic: ") +
+                          (inst->operands.empty() ? std::string("<بلا معامل>")
+                                                  : inst->operands[0].name)}});
+                return cg_.builtinErrorSentinel(inst);
             }
 
             // (EN) Spawn a real thread via cross-platform wrapper (Win32/pthread):

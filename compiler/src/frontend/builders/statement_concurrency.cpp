@@ -339,6 +339,17 @@ namespace Sad
                             //      the runtime closure entry. Parameterized
                             //      lambdas stay synchronous.
                         }
+                        // (AR) لا بوابة وضع حر هنا عمدا: ASYNC_SPAWN بسجل إغلاق
+                        //      تعالجه الخلفية في الوضع الحر بنداء متزامن يفك
+                        //      الزوج {fn, env} (emitAsyncSpawn) — بوابة أمامية
+                        //      كانت ستسقط إلى «بناء اللامدا بلا نداء» أي
+                        //      لا-عملية صامتة (رصدته مراجعة أميليا).
+                        // (EN) Deliberately NOT freestanding-gated: the backend
+                        //      lowers a closure-register ASYNC_SPAWN to a
+                        //      synchronous {fn, env} unpack-and-call in
+                        //      freestanding mode; a frontend gate would fall to
+                        //      "build the lambda, never call it" — a silent
+                        //      no-op (Amelia review).
                         else if (auto *lambdaExpr = dynamic_cast<Sad::AST::LambdaExpr *>(
                                      goStmt->expression.get()))
                         {
