@@ -762,21 +762,42 @@ namespace Sad
             auto *i32Type = llvm::Type::getInt32Ty(ctx);
             auto *i64Type = cg.getInt64Type();
 
+            // (AR) ع-16: كل مواضع إنشاء حالة الاستثناء تضبط TLS في الوضع المستضاف
+            //      — هذا الملف كان **النسخة الثالثة** غير المرقعة (نمط «ثلاث نسخ:
+            //      أصلحت اثنتين وبقيت واحدة»): من ينشئ أولا يحسم، فبرنامج أول
+            //      قسمة ديناميكية فيه تسبق أول «حاول» كان يخرج بحالة غير معزولة.
+            // (EN) ع-16: every exception-state creation site sets TLS when hosted
+            //      — this file was the unpatched THIRD COPY (the "fixed two,
+            //      left one" pattern): first creator wins, so a program whose
+            //      first dynamic division precedes its first «try» kept the
+            //      state shared across threads.
+            auto applyExceptionTls = [&](llvm::GlobalVariable *g)
+            {
+                if (g && !cg.freestanding_)
+                    g->setThreadLocal(true);
+            };
+
             auto ensurePtrGlobal = [&](const char *name) -> llvm::GlobalVariable *
             {
                 auto *g = cg.module_->getNamedGlobal(name);
                 if (!g)
+                {
                     g = new llvm::GlobalVariable(
                         *cg.module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantPointerNull::get(ptrType), name);
+                    applyExceptionTls(g);
+                }
                 return g;
             };
 
             auto *handlerCount = cg.module_->getNamedGlobal(SC::kRuntimeHandlerCount);
             if (!handlerCount)
+            {
                 handlerCount = new llvm::GlobalVariable(
                     *cg.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
                     llvm::ConstantInt::get(i32Type, 0), SC::kRuntimeHandlerCount);
+                applyExceptionTls(handlerCount);
+            }
             auto *handlerStack = cg.module_->getNamedGlobal(SC::kRuntimeHandlerStack);
             if (!handlerStack)
             {
@@ -784,6 +805,7 @@ namespace Sad
                 handlerStack = new llvm::GlobalVariable(
                     *cg.module_, arrTy, false, llvm::GlobalValue::InternalLinkage,
                     llvm::ConstantAggregateZero::get(arrTy), SC::kRuntimeHandlerStack);
+                applyExceptionTls(handlerStack);
             }
             // (AR) القرار على عدّاد «حاول» النشطة لا على handlerCount: كلُّ دالّة تدفع
             //      معالِجَ تنظيفٍ فيصبح handlerCount ≥ 1 دائمًا. نرفع فقط إن كانت ثمّة
@@ -793,11 +815,21 @@ namespace Sad
             //      pushes a cleanup handler so handlerCount is always ≥ 1. Raise only if a
             //      real «try» is active; otherwise keep the old behaviour (diagnostic +
             //      exit), so no regression for a division outside any «try».
+            // (AR) ع-16: عداد «حاول» النشطة TLS أيضا — قرار مشترك فوق مكدس TLS
+            //      كان يجعل «حاول» في الرئيسي تحول هلع خيط آخر إلى قفزة longjmp
+            //      إلى مكدسه هو (والعكس)
+            // (EN) ع-16: the active-try counter is TLS too — a shared decision
+            //      flag over a TLS stack let a main-thread «try» turn another
+            //      thread's panic into a longjmp within that other thread's own
+            //      stack (and vice versa)
             auto *tryActive = cg.module_->getNamedGlobal(SC::kRuntimeTryActive);
             if (!tryActive)
+            {
                 tryActive = new llvm::GlobalVariable(
                     *cg.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
                     llvm::ConstantInt::get(i32Type, 0), SC::kRuntimeTryActive);
+                applyExceptionTls(tryActive);
+            }
 
             llvm::Function *curFunc = b.GetInsertBlock()->getParent();
             auto *raiseBB = llvm::BasicBlock::Create(ctx, "panic.raise", curFunc);

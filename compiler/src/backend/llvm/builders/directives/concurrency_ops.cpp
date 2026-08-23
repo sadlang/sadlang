@@ -355,6 +355,16 @@ namespace Sad
 
             if (inst->operands.empty())
             {
+                // (AR) ع-16: «انتظر_الكل()» بلا وسائط كانت لا-عملية بينما جملة
+                //      «أطلق» لا تسمي مقبضها — الآن تضم كل الخيوط الحية من سجل
+                //      زمن التشغيل (sad_rt_thread_join_all) فيملك البرنامج
+                //      سبيلا لانتظار ما أطلقه قبل خروج main.
+                // (EN) ع-16: argument-less «انتظر_الكل()» was a no-op while
+                //      «أطلق» never names its handle — it now joins every live
+                //      thread from the runtime registry.
+                auto joinAllTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {}, false);
+                auto joinAllFn = cg_.module_->getOrInsertFunction("sad_rt_thread_join_all", joinAllTy);
+                cg_.builder_->CreateCall(joinAllFn, {});
                 auto result = llvm::ConstantInt::get(i64Ty, 0);
                 if (inst->result.has_value())
                 {

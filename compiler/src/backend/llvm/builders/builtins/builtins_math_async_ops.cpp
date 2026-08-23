@@ -130,20 +130,87 @@ namespace Sad
             auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
             auto i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0);
 
-            // (AR) إصلاح جذري للاستقرار:
-            //      عند تمرير دالة مباشرة (go block/lambda) ننفذها فوراً بشكل متزامن
-            //      ثم نرجع handle رمزي غير صفري. هذا يمنع انهيارات ABI الخاصة بـ CreateThread
-            //      لأن تواقيع دوال Sad (void()) لا تطابق LPTHREAD_START_ROUTINE.
-            // (EN) Stability fix:
-            //      when operand is a direct function (go block/lambda), execute it synchronously
-            //      and return a non-zero symbolic handle. This avoids CreateThread ABI crashes
-            //      because Sad function signatures (void()) don't match LPTHREAD_START_ROUTINE.
+            // (AR) ع-16: دالة مباشرة بلا معاملات ⇒ خيط OS حقيقي عبر ثانك سليم
+            //      الـABI. كان هذا المسار ينفذ متزامنا («إصلاح استقرار» قديم)
+            //      فيحجب «أطلق» البرنامج على النداءات الحاجبة (ابدأ_الاستماع).
+            //      علة الـABI الأصلية كانت تمرير عنوان دالة ص خاما إلى
+            //      CreateThread: عائد %SadDyn (16 بايت) يخفض إلى sret خفي في
+            //      السجل الأول فتكتب الدالة عائدها عبر معامل الخيط ⇒ فساد
+            //      ذاكرة. الثانك i64(ptr) يطابق روتين البدء في المنصتين
+            //      (LPTHREAD_START_ROUTINE وpthread) وينادي الدالة نداء LLVM
+            //      بنوعها الحقيقي فيتكفل المخفض بالـABI — نمط ثانك مسار
+            //      خادم HTTP عينه (emitRouteRegistration).
+            // (EN) ع-16: a direct zero-parameter function ⇒ a REAL OS thread via
+            //      an ABI-safe thunk. This path used to execute synchronously
+            //      (old "stability fix"), which deadlocked «أطلق» on blocking
+            //      callees. The original ABI hazard was handing CreateThread a
+            //      raw Sad function address: a %SadDyn (16-byte) return demotes
+            //      to a hidden sret pointer in the first register, so the
+            //      callee stores its return through the thread parameter ⇒
+            //      memory corruption. The i64(ptr) thunk matches the start
+            //      routine on both platforms and calls the function with its
+            //      true LLVM type — same thunk pattern as the HTTP route path.
             if (!inst->operands.empty() && inst->operands[0].type == SIROperandType::FUNCTION)
             {
                 llvm::Function *directFn = cg_.module_->getFunction(inst->operands[0].name);
-                if (directFn)
+                size_t spawnArgCount = inst->operands.size() - 1;
+
+                // (AR) تحويل الوسيط إلى نوع معامل الدالة قبل التعليب/النداء —
+                //      الاختيار بنوع القيمة وحده كان يفك بتات i64 على أنها
+                //      double (قمامة). يعيد nullptr للتحويل غير المسنود.
+                // (EN) Coerce an argument to the callee's parameter type before
+                //      boxing/calling — choosing by value type alone unboxed
+                //      i64 bit patterns as double (garbage). Returns nullptr
+                //      for unsupported conversions.
+                auto coerceToParamType = [&](llvm::Value *v,
+                                             llvm::Type *t) -> llvm::Value *
                 {
-                    cg_.builder_->CreateCall(directFn, {});
+                    if (!v || !t || v->getType() == t)
+                        return v;
+                    if (t->isDoubleTy() && v->getType()->isIntegerTy())
+                        return cg_.builder_->CreateSIToFP(v, t, "spawn.coerce.i2f");
+                    if (t->isIntegerTy() && v->getType()->isDoubleTy())
+                        return cg_.builder_->CreateFPToSI(v, t, "spawn.coerce.f2i");
+                    if (t->isPointerTy() && v->getType()->isIntegerTy())
+                        return cg_.builder_->CreateIntToPtr(v, t, "spawn.coerce.i2p");
+                    if (t->isIntegerTy() && v->getType()->isPointerTy())
+                        return cg_.builder_->CreatePtrToInt(v, t, "spawn.coerce.p2i");
+                    if (t->isIntegerTy() && v->getType()->isIntegerTy())
+                        return cg_.builder_->CreateZExtOrTrunc(v, t, "spawn.coerce.int");
+                    if (t->isPointerTy() && v->getType()->isPointerTy())
+                        return v;
+                    return nullptr;
+                };
+
+                // (AR) الوضع الحر: لا زمن تشغيل مستضاف (لا خيوط/malloc/free في
+                //      ring-0) — يبقى النداء المتزامن المباشر بوسائط محولة.
+                //      بوابة الواجهة الأمامية تمنع الإصدار أصلا؛ هذا حارس ثان
+                //      لمسار مدمجة أنشئ_مهمة.
+                // (EN) Freestanding: no hosted runtime (no threads/malloc/free
+                //      in ring-0) — keep the direct synchronous call with
+                //      coerced arguments. The frontend gate already avoids
+                //      emitting this; second guard for the spawn builtin path.
+                if (cg_.freestanding_ && directFn &&
+                    directFn->arg_size() == spawnArgCount)
+                {
+                    std::vector<llvm::Value *> syncArgs;
+                    for (size_t i = 0; i < spawnArgCount; ++i)
+                    {
+                        llvm::Value *argVal = cg_.resolveOperand(inst->operands[i + 1]);
+                        argVal = coerceToParamType(
+                            argVal, directFn->getFunctionType()->getParamType(
+                                        static_cast<unsigned>(i)));
+                        if (!argVal)
+                        {
+                            cg_.reportError(
+                                ::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE,
+                                {{"detail", std::string("ASYNC_SPAWN freestanding arg: ") +
+                                                inst->operands[i + 1].name}});
+                            return cg_.builtinErrorSentinel(inst);
+                        }
+                        syncArgs.push_back(argVal);
+                    }
+                    cg_.builder_->CreateCall(directFn->getFunctionType(), directFn, syncArgs);
                     auto result = llvm::ConstantInt::get(i64Ty, 1);
                     if (inst->result.has_value())
                     {
@@ -151,6 +218,242 @@ namespace Sad
                     }
                     return result;
                 }
+
+                if (directFn && directFn->arg_size() == spawnArgCount)
+                {
+                    // (AR) ع-16 (تعليب الوسائط): الثانك يأخذ حزمة كومة من فتحات
+                    //      8 بايت — يفكها بنوع كل معامل (i64/double/ptr/i1) ثم
+                    //      ينادي الدالة بنوعها الحقيقي ويحرر الحزمة. الوسائط
+                    //      تقيم في خيط المطلق وتعلب قبل الإطلاق. حزمة فارغة
+                    //      (nullptr) للدوال عديمة المعاملات.
+                    // (EN) ع-16 (argument boxing): the thunk takes a heap pack of
+                    //      8-byte slots — unboxes each by the callee's parameter
+                    //      type, calls the function with its true type, then
+                    //      frees the pack. Arguments evaluate on the spawner's
+                    //      thread and box before the spawn; a null pack for
+                    //      zero-parameter functions.
+                    std::string thunkName = "__sad_spawn_thunk_" + inst->operands[0].name;
+                    llvm::Function *thunk = cg_.module_->getFunction(thunkName);
+                    if (!thunk)
+                    {
+                        auto *thunkTy = llvm::FunctionType::get(i64Ty, {i8PtrTy}, false);
+                        thunk = llvm::Function::Create(thunkTy,
+                                                       llvm::Function::InternalLinkage,
+                                                       thunkName, cg_.module_.get());
+                        llvm::BasicBlock *entry =
+                            llvm::BasicBlock::Create(*cg_.context_, "entry", thunk);
+                        llvm::IRBuilder<> thunkBuilder(entry);
+
+                        bool packOk = true;
+                        std::vector<llvm::Value *> callArgs;
+                        for (size_t i = 0; i < spawnArgCount && packOk; ++i)
+                        {
+                            llvm::Value *slotPtr = thunkBuilder.CreateGEP(
+                                i64Ty, thunk->getArg(0),
+                                llvm::ConstantInt::get(i64Ty, static_cast<int64_t>(i)),
+                                "spawn.arg.slot");
+                            llvm::Type *paramTy =
+                                directFn->getFunctionType()->getParamType(
+                                    static_cast<unsigned>(i));
+                            if (paramTy->isDoubleTy())
+                            {
+                                callArgs.push_back(thunkBuilder.CreateLoad(
+                                    llvm::Type::getDoubleTy(*cg_.context_), slotPtr,
+                                    "spawn.arg.f64"));
+                            }
+                            else if (paramTy->isPointerTy())
+                            {
+                                llvm::Value *raw = thunkBuilder.CreateLoad(
+                                    i64Ty, slotPtr, "spawn.arg.raw");
+                                callArgs.push_back(thunkBuilder.CreateIntToPtr(
+                                    raw, paramTy, "spawn.arg.ptr"));
+                            }
+                            else if (paramTy->isIntegerTy())
+                            {
+                                llvm::Value *raw = thunkBuilder.CreateLoad(
+                                    i64Ty, slotPtr, "spawn.arg.raw");
+                                callArgs.push_back(
+                                    paramTy->isIntegerTy(64)
+                                        ? raw
+                                        : thunkBuilder.CreateTrunc(raw, paramTy,
+                                                                   "spawn.arg.trunc"));
+                            }
+                            else
+                            {
+                                packOk = false;
+                            }
+                        }
+                        if (!packOk)
+                        {
+                            // (AR) نوع معامل غير مسنود (بنية %SadDyn) — يحرسه حارس
+                            //      الأهلية الأمامي؛ خطأ صريح احتياطا لا IR فاسد
+                            // (EN) Unsupported (struct) param type — the frontend
+                            //      gate guards this; explicit backstop error
+                            thunk->eraseFromParent();
+                            cg_.reportError(
+                                ::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                {{"detail", std::string("ASYNC_SPAWN pack: ") +
+                                                inst->operands[0].name}});
+                            return cg_.builtinErrorSentinel(inst);
+                        }
+                        thunkBuilder.CreateCall(directFn->getFunctionType(), directFn,
+                                                callArgs);
+                        if (spawnArgCount > 0)
+                        {
+                            auto freeTy = llvm::FunctionType::get(
+                                llvm::Type::getVoidTy(*cg_.context_), {i8PtrTy}, false);
+                            auto freeFn = cg_.module_->getOrInsertFunction("free", freeTy);
+                            thunkBuilder.CreateCall(freeFn, {thunk->getArg(0)});
+                        }
+                        thunkBuilder.CreateRet(llvm::ConstantInt::get(i64Ty, 0));
+                    }
+
+                    // (AR) تعليب الوسائط في خيط المطلق
+                    // (EN) Box the arguments on the spawner's thread
+                    llvm::Value *packArg = llvm::ConstantPointerNull::get(
+                        llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0));
+                    if (spawnArgCount > 0)
+                    {
+                        llvm::Value *pack = cg_.emitMalloc(
+                            llvm::ConstantInt::get(
+                                i64Ty, static_cast<int64_t>(spawnArgCount * 8)),
+                            "spawn.pack");
+                        for (size_t i = 0; i < spawnArgCount; ++i)
+                        {
+                            llvm::Value *argVal = cg_.resolveOperand(inst->operands[i + 1]);
+                            // (AR) التحويل إلى نوع المعامل أولا — التمثيل في
+                            //      الفتحة يقرره نوع المعامل والثانك يفك به عينه
+                            // (EN) Coerce to the PARAM type first — the slot
+                            //      representation follows the param type, and
+                            //      the thunk unboxes with that same type
+                            llvm::Type *paramTy = directFn->getFunctionType()->getParamType(
+                                static_cast<unsigned>(i));
+                            argVal = coerceToParamType(argVal, paramTy);
+                            if (!argVal)
+                            {
+                                cg_.reportError(
+                                    ::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE,
+                                    {{"detail", std::string("ASYNC_SPAWN arg: ") +
+                                                    inst->operands[i + 1].name}});
+                                return cg_.builtinErrorSentinel(inst);
+                            }
+                            llvm::Value *slotPtr = cg_.builder_->CreateGEP(
+                                i64Ty, pack,
+                                llvm::ConstantInt::get(i64Ty, static_cast<int64_t>(i)),
+                                "spawn.pack.slot");
+                            if (paramTy->isDoubleTy())
+                            {
+                                cg_.builder_->CreateStore(argVal, slotPtr);
+                            }
+                            else if (paramTy->isPointerTy())
+                            {
+                                cg_.builder_->CreateStore(
+                                    cg_.builder_->CreatePtrToInt(argVal, i64Ty,
+                                                                 "spawn.pack.p2i"),
+                                    slotPtr);
+                            }
+                            else if (paramTy->isIntegerTy())
+                            {
+                                cg_.builder_->CreateStore(
+                                    argVal->getType()->isIntegerTy(64)
+                                        ? argVal
+                                        : cg_.builder_->CreateZExt(argVal, i64Ty,
+                                                                   "spawn.pack.zext"),
+                                    slotPtr);
+                            }
+                            else
+                            {
+                                cg_.reportError(
+                                    ::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                    {{"detail", std::string("ASYNC_SPAWN arg type: ") +
+                                                    inst->operands[i + 1].name}});
+                                return cg_.builtinErrorSentinel(inst);
+                            }
+                        }
+                        packArg = pack;
+                    }
+
+                    auto spawnTy = llvm::FunctionType::get(i8PtrTy, {i8PtrTy, i8PtrTy}, false);
+                    auto spawnFn = cg_.module_->getOrInsertFunction("sad_rt_thread_spawn", spawnTy);
+                    auto handle = cg_.builder_->CreateCall(spawnFn, {thunk, packArg});
+                    llvm::Value *result = cg_.builder_->CreatePtrToInt(handle, i64Ty);
+                    if (inst->result.has_value())
+                    {
+                        cg_.context_info_.namedValues[inst->result->name] = result;
+                    }
+                    return result;
+                }
+                // (AR) عدد وسائط لا يطابق معاملات الدالة (نداء بافتراضية ناقصة
+                //      عبر مدمجة أنشئ_مهمة): خطأ صريح — النداء القديم بلا وسائط
+                //      كان IR فاسدا، وتوليف أصفار مكانها قيمة خاطئة صامتة تخالف
+                //      «يبلغ ولا يلتف».
+                // (EN) Argument count not matching the function's parameters
+                //      (defaulted-arity spawn builtin call): explicit error —
+                //      the old zero-argument call was invalid IR, and zero-fill
+                //      would be a silent wrong value.
+                if (directFn)
+                {
+                    cg_.reportError(
+                        ::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                        {{"detail",
+                          std::string("ASYNC_SPAWN: ") + inst->operands[0].name +
+                              " — عدد الوسائط لا يطابق معاملات الدالة / argument "
+                              "count does not match the function's parameters"}});
+                    return cg_.builtinErrorSentinel(inst);
+                }
+
+                // (AR) معامل دالة بلا دالة LLVM مبنية: خطأ صريح وتوقف — السقوط
+                //      إلى المسار العام كان يبلغ ثم يصدر مع ذلك
+                //      sad_rt_thread_spawn(null, null) في الـIR (خيط ببداية
+                //      قمامة). لا IR خطر بعد خطأ.
+                // (EN) A FUNCTION operand with no built LLVM function: explicit
+                //      error and stop — falling through used to report and then
+                //      still emit sad_rt_thread_spawn(null, null) (a thread
+                //      with a garbage start routine). No dangerous IR after an
+                //      error.
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF,
+                                {{"detail", std::string("ASYNC_SPAWN: ") +
+                                                inst->operands[0].name}});
+                return cg_.builtinErrorSentinel(inst);
+            }
+
+            // (AR) ع-16: سجل بنوع «دالة» = قيمة إغلاق ({fn_ptr, env_ptr} معبأة
+            //      i64) — تطلق عبر مدخل الإغلاق في زمن التشغيل
+            //      sad_rt_thread_spawn_closure الذي ينادي fn(env) في الخيط
+            //      الجديد. يغطي «أطلق لامدا» الحرفية و«أطلق ف()» لمتغير إغلاق.
+            // (EN) ع-16: a Function-typed REGISTER operand is a closure value
+            //      (packed i64 {fn_ptr, env_ptr}) — spawned through the runtime
+            //      closure entry sad_rt_thread_spawn_closure, which calls
+            //      fn(env) on the new thread. Covers spawned lambda literals and
+            //      closure variables.
+            if (!inst->operands.empty() &&
+                inst->operands[0].type == SIROperandType::REGISTER &&
+                inst->operands[0].dataType == SadTypeKind::Function)
+            {
+                llvm::Value *closureVal = cg_.resolveOperand(inst->operands[0]);
+                if (!closureVal)
+                {
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE,
+                                    {{"detail", std::string("ASYNC_SPAWN closure: ") +
+                                                    inst->operands[0].name}});
+                    return cg_.builtinErrorSentinel(inst);
+                }
+                llvm::Value *closurePtr =
+                    closureVal->getType()->isPointerTy()
+                        ? closureVal
+                        : cg_.builder_->CreateIntToPtr(closureVal, i8PtrTy,
+                                                       "spawn.closure.ptr");
+                auto spawnClosureTy =
+                    llvm::FunctionType::get(i8PtrTy, {i8PtrTy}, false);
+                auto spawnClosureFn = cg_.module_->getOrInsertFunction(
+                    "sad_rt_thread_spawn_closure", spawnClosureTy);
+                auto handle = cg_.builder_->CreateCall(spawnClosureFn, {closurePtr});
+                llvm::Value *result = cg_.builder_->CreatePtrToInt(handle, i64Ty);
+                if (inst->result.has_value())
+                {
+                    cg_.context_info_.namedValues[inst->result->name] = result;
+                }
+                return result;
             }
 
             // (EN) Spawn a real thread via cross-platform wrapper (Win32/pthread):

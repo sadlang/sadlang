@@ -214,6 +214,14 @@ namespace Sad
                     handlerStack = new llvm::GlobalVariable(
                         *cg_.module_, arrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantAggregateZero::get(arrType), kRuntimeHandlerStack);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        handlerStack->setThreadLocal(true);
+                    }
                 }
 
                 auto *handlerCount = cg_.module_->getNamedGlobal(kRuntimeHandlerCount);
@@ -222,6 +230,14 @@ namespace Sad
                     handlerCount = new llvm::GlobalVariable(
                         *cg_.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantInt::get(i32Type, 0), kRuntimeHandlerCount);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        handlerCount->setThreadLocal(true);
+                    }
                 }
 
                 llvm::Value *count = cg_.builder_->CreateLoad(i32Type, handlerCount, "handler_count");
@@ -357,6 +373,14 @@ namespace Sad
                     handlerCount = new llvm::GlobalVariable(
                         *cg_.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantInt::get(i32Type, 0), kRuntimeHandlerCount);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        handlerCount->setThreadLocal(true);
+                    }
                 }
 
                 llvm::Value *count = cg_.builder_->CreateLoad(i32Type, handlerCount, "handler_count");
@@ -416,6 +440,14 @@ namespace Sad
                     exceptionType = new llvm::GlobalVariable(
                         *cg_.module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantPointerNull::get(ptrType), kRuntimeExceptionType);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        exceptionType->setThreadLocal(true);
+                    }
                 }
                 if (excType)
                 {
@@ -439,6 +471,14 @@ namespace Sad
                     exceptionMsg = new llvm::GlobalVariable(
                         *cg_.module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantPointerNull::get(ptrType), kRuntimeExceptionMsg);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        exceptionMsg->setThreadLocal(true);
+                    }
                 }
                 auto *i64Type = cg_.getInt64Type();
                 auto *exceptionValue = cg_.module_->getNamedGlobal(kRuntimeExceptionValue);
@@ -447,6 +487,14 @@ namespace Sad
                     exceptionValue = new llvm::GlobalVariable(
                         *cg_.module_, i64Type, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantInt::get(i64Type, 0), kRuntimeExceptionValue);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        exceptionValue->setThreadLocal(true);
+                    }
                 }
                 if (msg)
                 {
@@ -489,6 +537,14 @@ namespace Sad
                     handlerStack = new llvm::GlobalVariable(
                         *cg_.module_, arrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantAggregateZero::get(arrType), kRuntimeHandlerStack);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        handlerStack->setThreadLocal(true);
+                    }
                 }
 
                 auto *handlerCount = cg_.module_->getNamedGlobal(kRuntimeHandlerCount);
@@ -497,6 +553,14 @@ namespace Sad
                     handlerCount = new llvm::GlobalVariable(
                         *cg_.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantInt::get(i32Type, 0), kRuntimeHandlerCount);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        handlerCount->setThreadLocal(true);
+                    }
                 }
 
                 llvm::Value *count = cg_.builder_->CreateLoad(i32Type, handlerCount, "handler_count");
@@ -597,6 +661,14 @@ namespace Sad
                     handlerStack = new llvm::GlobalVariable(
                         *cg_.module_, arrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantAggregateZero::get(arrType), kRuntimeHandlerStack);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        handlerStack->setThreadLocal(true);
+                    }
                 }
 
                 auto *handlerCount = cg_.module_->getNamedGlobal(kRuntimeHandlerCount);
@@ -605,6 +677,14 @@ namespace Sad
                     handlerCount = new llvm::GlobalVariable(
                         *cg_.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantInt::get(i32Type, 0), kRuntimeHandlerCount);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        handlerCount->setThreadLocal(true);
+                    }
                 }
 
                 llvm::Value *count = cg_.builder_->CreateLoad(i32Type, handlerCount, "handler_count");
@@ -692,6 +772,14 @@ namespace Sad
                     exceptionMsg = new llvm::GlobalVariable(
                         *cg_.module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantPointerNull::get(ptrType), kRuntimeExceptionMsg);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        exceptionMsg->setThreadLocal(true);
+                    }
                 }
 
                 llvm::Value *result = cg_.builder_->CreateLoad(ptrType, exceptionMsg, "exception_msg");
@@ -714,6 +802,14 @@ namespace Sad
                     exceptionType = new llvm::GlobalVariable(
                         *cg_.module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantPointerNull::get(ptrType), kRuntimeExceptionType);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        exceptionType->setThreadLocal(true);
+                    }
                 }
 
                 llvm::Value *result = cg_.builder_->CreateLoad(ptrType, exceptionType, "exception_type");
@@ -733,9 +829,20 @@ namespace Sad
                 auto *i32Type = llvm::Type::getInt32Ty(*cg_.context_);
                 auto *tryActive = cg_.module_->getNamedGlobal(kRuntimeTryActive);
                 if (!tryActive)
+                {
                     tryActive = new llvm::GlobalVariable(
                         *cg_.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantInt::get(i32Type, 0), kRuntimeTryActive);
+                    // (AR) ع-16: TLS مع بقية حالة الاستثناء — علم قرار مشترك فوق
+                    //      مكدس TLS كان يخلط هلع الخيوط (انظر sad_dyn_repr.cpp)
+                    // (EN) ع-16: TLS with the rest of the exception state — a
+                    //      shared decision flag over a TLS stack mixed threads'
+                    //      panics (see sad_dyn_repr.cpp)
+                    if (!cg_.freestanding_)
+                    {
+                        tryActive->setThreadLocal(true);
+                    }
+                }
                 llvm::Value *cur = cg_.builder_->CreateLoad(i32Type, tryActive, "try_active");
                 llvm::Value *next = (funcName == "__sad_try_enter")
                                         ? cg_.builder_->CreateAdd(cur, cg_.builder_->getInt32(1), "try_active_inc")
@@ -761,6 +868,14 @@ namespace Sad
                     exceptionValue = new llvm::GlobalVariable(
                         *cg_.module_, i64Type, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantInt::get(i64Type, 0), kRuntimeExceptionValue);
+                    // (AR) ع-16: حالة الاستثناء لكل خيط في الوضع المستضاف — مكدس setjmp/longjmp العام
+                    //      كان يجعل «ارفع» من خيط مطلق يقفز إلى إطار مكدس main. الوضع الحر بلا TLS (ring-0).
+                    // (EN) ع-16: per-thread exception state when hosted — the global handler
+                    //      stack let a spawned-thread raise longjmp into main's stack frame.
+                    if (!cg_.freestanding_)
+                    {
+                        exceptionValue->setThreadLocal(true);
+                    }
                 }
 
                 llvm::Value *raw = cg_.builder_->CreateLoad(i64Type, exceptionValue, "exception_value");

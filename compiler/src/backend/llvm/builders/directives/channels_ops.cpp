@@ -126,8 +126,22 @@ namespace Sad
             auto capPtr = cg_.builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 0)});
             auto capacity = cg_.builder_->CreateLoad(i64Ty, capPtr);
 
+            // (AR) ع-16: تحميل العد ذريا (acquire) — منذ صارت «أطلق» تطلق خيطا
+            //      حقيقيا يتقاسم المرسل والمستقبل هذا العداد عبر خيطين، وكانت
+            //      الأحمال العادية سباق بيانات. الترتيب acquire/release يجعل
+            //      الحلقة صحيحة قفليا لنمط منتج واحد/مستهلك واحد (نمط أطلق):
+            //      الرأس ملك المستهلك والذيل ملك المنتج والعداد وحده مشترك.
+            // (EN) ع-16: atomic (acquire) count load — «أطلق» now spawns a real
+            //      thread, so producer and consumer share this counter across
+            //      threads and the plain loads were a data race. Acquire/release
+            //      ordering makes the ring lock-free-correct for the SPSC
+            //      pattern (the أطلق shape): head is consumer-owned, tail is
+            //      producer-owned, only the counter is shared.
             auto cntPtr = cg_.builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 1)});
-            auto count = cg_.builder_->CreateLoad(i64Ty, cntPtr);
+            auto countLoad = cg_.builder_->CreateLoad(i64Ty, cntPtr);
+            countLoad->setAtomic(llvm::AtomicOrdering::Acquire);
+            countLoad->setAlignment(llvm::Align(8));
+            llvm::Value *count = countLoad;
 
             // (AR) فحص: count < capacity
             auto closedPtr = cg_.builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 4)});
@@ -181,9 +195,14 @@ namespace Sad
             auto newTail = cg_.builder_->CreateURem(nextTail, capacity);
             cg_.builder_->CreateStore(newTail, tailPtr);
 
-            // (AR) count++
-            auto newCount = cg_.builder_->CreateAdd(count, llvm::ConstantInt::get(i64Ty, 1));
-            cg_.builder_->CreateStore(newCount, cntPtr);
+            // (AR) count++ ذريا (release): ينشر تخزين القيمة والوسم أعلاه قبل
+            //      أن يرى المستهلك العد الجديد بحمل acquire
+            // (EN) Atomic count++ (release): publishes the value/tag stores
+            //      above before the consumer's acquire load observes the count
+            cg_.builder_->CreateAtomicRMW(llvm::AtomicRMWInst::Add, cntPtr,
+                                          llvm::ConstantInt::get(i64Ty, 1),
+                                          llvm::MaybeAlign(8),
+                                          llvm::AtomicOrdering::Release);
 
             cg_.builder_->CreateBr(sendDoneBB);
 
@@ -225,18 +244,57 @@ namespace Sad
             auto capacity = cg_.builder_->CreateLoad(i64Ty, capPtr);
 
             auto cntPtr = cg_.builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 1)});
-            auto count = cg_.builder_->CreateLoad(i64Ty, cntPtr);
+            auto closedFlagPtr = cg_.builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 4)});
 
-            // (AR) فحص: count > 0
-            auto hasData = cg_.builder_->CreateICmpUGT(count, llvm::ConstantInt::get(i64Ty, 0));
-
-            // (AR) كتل الشرط
+            // (AR) ع-16: الاستقبال حاجب — منذ صارت «أطلق» خيطا حقيقيا، الاستقبال
+            //      غير الحاجب (حارس عدمي فورا) كان يسبق المرسل فيسابقه (اختبار
+            //      098 كان أخضر لأن أطلق كانت متزامنة — «أخضر لأن الشرط لا يكون
+            //      خاطئا»). الآن: حلقة انتظار — عد ذري acquire؛ إن وجدت بيانات
+            //      خرجنا، وإلا فحصنا الإغلاق (قناة مغلقة فارغة ⇒ الحارس العدمي)،
+            //      وإلا نمنا 1م وأعدنا. يطابق دلالة المفسر (الاستقبال يحجب).
+            //      المسارات غير الحاجبة لها معالجاتها المستقلة (TRY_RECV/
+            //      RECV_TIMEOUT) و«اختر» تفحص HAS_DATA قبل الاستقبال فلا تحجب.
+            // (EN) ع-16: recv now BLOCKS — with «أطلق» a real thread, the old
+            //      non-blocking recv (immediate null sentinel) raced the sender
+            //      (test 098 was green only because أطلق was synchronous). Wait
+            //      loop: atomic acquire count; data ⇒ proceed; else closed &&
+            //      empty ⇒ null sentinel; else sleep 1ms and retry. Matches the
+            //      interpreter's blocking semantics. Non-blocking paths keep
+            //      their own emitters (TRY_RECV/RECV_TIMEOUT), and «اختر»
+            //      checks HAS_DATA before recv so it never blocks here.
             auto parentFunc = cg_.builder_->GetInsertBlock()->getParent();
+            auto recvWaitBB = llvm::BasicBlock::Create(*cg_.context_, "chan_recv_wait", parentFunc);
+            auto recvCheckClosedBB = llvm::BasicBlock::Create(*cg_.context_, "chan_recv_chkclosed", parentFunc);
+            auto recvSleepBB = llvm::BasicBlock::Create(*cg_.context_, "chan_recv_sleep", parentFunc);
             auto recvOkBB = llvm::BasicBlock::Create(*cg_.context_, "chan_recv_ok", parentFunc);
             auto recvEmptyBB = llvm::BasicBlock::Create(*cg_.context_, "chan_recv_empty", parentFunc);
             auto recvDoneBB = llvm::BasicBlock::Create(*cg_.context_, "chan_recv_done", parentFunc);
 
-            cg_.builder_->CreateCondBr(hasData, recvOkBB, recvEmptyBB);
+            cg_.builder_->CreateBr(recvWaitBB);
+
+            cg_.builder_->SetInsertPoint(recvWaitBB);
+            auto countLoad = cg_.builder_->CreateLoad(i64Ty, cntPtr, "chan.count");
+            countLoad->setAtomic(llvm::AtomicOrdering::Acquire);
+            countLoad->setAlignment(llvm::Align(8));
+            llvm::Value *count = countLoad;
+            auto hasData = cg_.builder_->CreateICmpUGT(count, llvm::ConstantInt::get(i64Ty, 0));
+            cg_.builder_->CreateCondBr(hasData, recvOkBB, recvCheckClosedBB);
+
+            cg_.builder_->SetInsertPoint(recvCheckClosedBB);
+            auto closedLoad = cg_.builder_->CreateLoad(i64Ty, closedFlagPtr, "chan.closed");
+            closedLoad->setAtomic(llvm::AtomicOrdering::Acquire);
+            closedLoad->setAlignment(llvm::Align(8));
+            auto isClosed = cg_.builder_->CreateICmpNE(closedLoad, llvm::ConstantInt::get(i64Ty, 0));
+            cg_.builder_->CreateCondBr(isClosed, recvEmptyBB, recvSleepBB);
+
+            cg_.builder_->SetInsertPoint(recvSleepBB);
+            {
+                auto i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
+                auto sleepTy = llvm::FunctionType::get(llvm::Type::getVoidTy(*cg_.context_), {i32Ty}, false);
+                auto sleepFn = cg_.module_->getOrInsertFunction("sad_rt_sleep_ms", sleepTy);
+                cg_.builder_->CreateCall(sleepFn, {llvm::ConstantInt::get(i32Ty, 1)});
+            }
+            cg_.builder_->CreateBr(recvWaitBB);
 
             // ─── كتلة recv_ok: قراءة data[head] ───
             cg_.builder_->SetInsertPoint(recvOkBB);
@@ -272,9 +330,12 @@ namespace Sad
             auto newHead = cg_.builder_->CreateURem(nextHead, capacity);
             cg_.builder_->CreateStore(newHead, headPtr);
 
-            // (AR) count--
-            auto newCount = cg_.builder_->CreateSub(count, llvm::ConstantInt::get(i64Ty, 1));
-            cg_.builder_->CreateStore(newCount, cntPtr);
+            // (AR) count-- ذريا (release) — نظير زيادة المرسل
+            // (EN) Atomic count-- (release) — mirror of the sender's increment
+            cg_.builder_->CreateAtomicRMW(llvm::AtomicRMWInst::Sub, cntPtr,
+                                          llvm::ConstantInt::get(i64Ty, 1),
+                                          llvm::MaybeAlign(8),
+                                          llvm::AtomicOrdering::Release);
 
             cg_.builder_->CreateBr(recvDoneBB);
 
@@ -342,9 +403,14 @@ namespace Sad
             auto chanPtr = cg_.builder_->CreateIntToPtr(chanId, i8PtrTy);
             auto chanI64Ptr = cg_.builder_->CreateBitCast(chanPtr, i64PtrTy);
 
-            // (AR) تخزين 1 في الموقع [4] (closed)
+            // (AR) تخزين 1 في الموقع [4] (closed) — ذريا (release) ليقابل حمل
+            //      acquire في حلقة انتظار الاستقبال الحاجب (ع-16)
+            // (EN) Store 1 at slot [4] (closed) — atomic release, pairing with
+            //      the acquire load in the blocking-recv wait loop (ع-16)
             auto closedPtr = cg_.builder_->CreateGEP(i64Ty, chanI64Ptr, {llvm::ConstantInt::get(i64Ty, 4)});
-            cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 1), closedPtr);
+            auto closedStore = cg_.builder_->CreateStore(llvm::ConstantInt::get(i64Ty, 1), closedPtr);
+            closedStore->setAtomic(llvm::AtomicOrdering::Release);
+            closedStore->setAlignment(llvm::Align(8));
 
             auto result = llvm::ConstantInt::get(i64Ty, 0);
             if (inst->result.has_value())
