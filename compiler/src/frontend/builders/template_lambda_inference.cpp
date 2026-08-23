@@ -146,7 +146,42 @@ namespace Sad
                     // (EN) Unanimity or no promotion. A single disagreeing kind — null included
                     //      — is enough to leave the slot general, which is the safe side.
                     if (kinds.size() != 1)
+                    {
+                        // (AR) استثناءُ الاختلافِ العدديِّ الخالص: خانةٌ مصرَّحةٌ «رقم»
+                        //      بلغَها صحيحٌ **وعشريٌّ** معًا لا غير. تركُها «رقمًا» يجعل
+                        //      الموقعَ العشريَّ يبتُر (بذرة [٧] المختلطة)، وتثبيتُها عشريًّا
+                        //      يُحرّف الموقعَ الصحيحَ (3 ⇒ 3.0) — بل قِيسَ أسوأُ من ذلك:
+                        //      خانةُ بانٍ تبِعت موقعَها الأوّلَ الصحيحَ فكتبَ الموقعُ العشريُّ
+                        //      بتاتِ double في i64 وقُرِئت قمامةً صامتة. والمفسّرُ (المرجع)
+                        //      يُمرّر كلَّ موقعٍ بوسمِه — فالخانةُ تعمُّ إلى Any لتُقرأ
+                        //      موسومةً زمنَ التشغيل، نظيرَ نقضِ الدوالِّ الحرّةِ في
+                        //      applyAgreedFreeParamTypes (ولذلك المسارُ الحرُّ أخضرُ أصلًا).
+                        //      وأيُّ مخالفٍ غيرِ عدديٍّ — عدمُ الإغفالِ أو نصٌّ — يُبقي
+                        //      البابَ مغلقًا كما كان: الجانبُ الآمن.
+                        // (EN) The pure-numeric disagreement exception: a declared-«رقم» slot
+                        //      whose sites carried Integer AND Float and nothing else. Leaving
+                        //      it Integer truncates the float site (mixed seed [٧]); pinning it
+                        //      Float distorts the integer site (3 ⇒ 3.0) — and worse was
+                        //      measured: a constructor slot followed its first (int) site and
+                        //      the float site wrote double BITS into an i64, read back as
+                        //      silent garbage. The interpreter (the reference) passes each
+                        //      site through with its own tag — so the slot generalizes to Any
+                        //      and is read runtime-tagged, mirroring the free-function
+                        //      revocation in applyAgreedFreeParamTypes (which is why the free
+                        //      path is already green). Any non-numeric disagreeing kind —
+                        //      an omission's null, a string — keeps the door shut as before:
+                        //      the safe side.
+                        const bool purelyNumericSplit =
+                            param->type == Types::SadTypeKind::Integer &&
+                            kinds.size() == 2 &&
+                            kinds.count(static_cast<int>(SadTypeKind::Integer)) &&
+                            kinds.count(static_cast<int>(SadTypeKind::Float));
+                        if (!purelyNumericSplit)
+                            continue;
+                        param->type = SadTypeKind::Any;
+                        param->sadType = Types::SadType::fromValueType(SadTypeKind::Any);
                         continue;
+                    }
 
                     const auto agreed = static_cast<SadTypeKind>(*kinds.begin());
                     // (AR) الخانةُ المصرَّحةُ «رقم» (سُجِّلت باستثناءِ بذرة [٧] أعلاه):

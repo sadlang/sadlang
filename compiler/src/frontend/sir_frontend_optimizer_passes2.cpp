@@ -246,6 +246,34 @@ namespace Sad
                 if (callee.getBasicBlocks().size() > 2)
                     return false;
 
+                // ================================================================
+                // (AR) لا يُدمَجُ مستدعًى موسومُ الحدِّ — معاملٌ أو عائدٌ نوعُه Any.
+                //      عقدُ Any أنّ القيمةَ تعبرُ الحدَّ **موسومةً** (%SadDyn)، والوسمُ
+                //      تصنعُه آلةُ النداءِ (تعليبُ الوسيطِ في coerceToParamType وفكُّه
+                //      في الجسم). والدمجُ يستبدلُ الوسيطَ الخامَّ بالمعاملِ استبدالًا
+                //      نصّيًّا فلا يمرُّ على تلك الآلةِ أصلًا: طويَ `ضاعف(3)` — معاملُها
+                //      عمَّمه اختلافُ مواقعِها العدديُّ إلى Any — إلى ثابتِ i64 خامٍّ
+                //      في سجلٍّ نوعُه Any، فبثَّت الخلفيّةُ «خطأ مترجم داخلي:
+                //      PRINT_ANY_RAW_I64» (المقيس). والمنعُ يُعيدُ الحالةَ إلى النداءِ
+                //      الحقيقيِّ — وهو ما ينفّذه المفسّرُ (المرجعُ) في كلِّ نداء.
+                // (EN) Never inline a callee with a tagged boundary — a parameter or
+                //      return typed Any. The Any contract is that the value crosses the
+                //      boundary TAGGED (%SadDyn), and the tag is produced by the call
+                //      machinery (packing in coerceToParamType, unpacking in the body).
+                //      Inlining substitutes the raw argument for the parameter textually
+                //      and never passes through that machinery: folding `ضاعف(3)` —
+                //      whose parameter the numeric call-site split generalized to Any —
+                //      produced a raw i64 constant in an Any-typed register, and the
+                //      backend raised "internal compiler error: PRINT_ANY_RAW_I64"
+                //      (measured). Refusing restores the real call — which is what the
+                //      interpreter (the reference) executes every time.
+                // ================================================================
+                if (callee.returnType == SadTypeKind::Any)
+                    return false;
+                for (const auto &param : callee.getParameters())
+                    if (param.type == SadTypeKind::Any)
+                        return false;
+
                 return true;
             }
 

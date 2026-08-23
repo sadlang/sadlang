@@ -584,6 +584,42 @@ namespace Sad
                             auto savedClassName = b_.currentClassName_;
                             b_.currentClassName_ = classDecl->name;
                             returnType = b_.inferReturnTypeFromBody(methodDecl->body.get());
+
+                            // (AR) معاملٌ عُمِّم إلى Any (اختلافٌ عدديٌّ خالصٌ بين مواقعِ
+                            //      النداء — applyAgreedMemberParamTypes): الجسمُ يحسب موسومًا،
+                            //      والاستنتاجُ بلا صدفةِ معاملاتٍ لا يعرف «س» فيسقط إلى «رقم»
+                            //      ويُبتَر العائدُ العشريُّ (5.0⇒5) حيث يمرّره المفسّرُ بوسمه.
+                            //      يُعاد الاستنتاجُ بصدفةٍ فارغةِ الاسمِ تحمل أنواعَ الشجرةِ
+                            //      الموسَّعة (نظيرُ صدفةِ العائدِ المصرَّحِ أدناه)، ويُؤخَذ
+                            //      حكمُها **موسومًا فقط**: عائدٌ Any يُبقي الوسمَ حتى
+                            //      الاستهلاك؛ وسائرُ الأنواعِ تبقى على الاستنتاجِ الأصليِّ
+                            //      كي لا يتبدّل سلوكٌ قائمٌ لم تمسَّه الترقية.
+                            // (EN) A parameter generalized to Any (pure-numeric call-site split
+                            //      — applyAgreedMemberParamTypes): the body computes tagged,
+                            //      but the shell-less inference does not know the parameter and
+                            //      falls to Integer, truncating a float return (5.0⇒5) where
+                            //      the interpreter passes it through with its tag. Re-infer
+                            //      with an empty-named shell carrying the AST-widened types
+                            //      (mirror of the declared-return shell below), and take its
+                            //      ruling ONLY when it is Any: an Any return keeps the tag to
+                            //      the consumer; every other kind keeps the original inference
+                            //      so behavior untouched by the promotion stays untouched.
+                            {
+                                bool anyPromotedParam = false;
+                                for (const auto &param : methodDecl->parameters)
+                                    if (param.type == Types::SadTypeKind::Any)
+                                        anyPromotedParam = true;
+                                if (anyPromotedParam)
+                                {
+                                    Sad::AST::FunctionDecl paramShell(
+                                        std::string(), methodDecl->parameters,
+                                        methodDecl->returnType, nullptr);
+                                    const SadTypeKind shelledKind = b_.inferReturnTypeFromBody(
+                                        methodDecl->body.get(), &paramShell);
+                                    if (shelledKind == SadTypeKind::Any)
+                                        returnType = SadTypeKind::Any;
+                                }
+                            }
                             b_.currentClassName_ = savedClassName;
                         }
                         else
