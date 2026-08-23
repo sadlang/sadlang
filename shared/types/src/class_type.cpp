@@ -595,21 +595,45 @@ namespace Data
 
 Value defaultValueForTypeKind(Types::SadTypeKind kind)
 {
-    // (AR) البايتُ والطبيعيُّ٦٤ عددان أيضًا، فصفرُهما صفر. وما سوى المذكورِ
-    //      يبقى «لاشيء»: غيابُ قيمةٍ معروفةٍ يُعلَن ولا يُختلَق له بديل.
-    // (EN) Byte and UInt64 are numbers too. Anything else stays null —
-    //      an unknown default is declared, not invented.
-    switch (kind)
+    // ════════════════════════════════════════════════════════════════
+    // (AR) 🔑 القرارُ من مصدرِ الحقيقة، والتمثيلُ وحدَه من هنا
+    // ════════════════════════════════════════════════════════════════
+    //
+    // (AR) كان هنا جدولٌ يدويٌّ يوزّع على اثنين وخمسين نوعًا، وله خمسُ شقيقاتٍ
+    //      في المترجمِ ووقتِ التشغيل. وجدولٌ يُعدَّل يدويًّا في ستّةِ مواضعَ
+    //      ينجرف في الموضعِ الذي يُنسى: «طبيعي64» أُضيفت هنا وغابت عن نسخةِ
+    //      المترجمِ وحدَها، فبقيت خانتُها تُقرأ على ما تركه المكدَّس — مقيسةً
+    //      تتبدّل في كلِّ تشغيلٍ للثنائيِّ نفسِه.
+    //
+    //      فصار القرارُ حقلًا في language-truth/types.yaml (default_init)
+    //      يُولَّد منه SAD_TYPE_DEFAULT_INIT_TABLE، وبقي هنا **التمثيلُ وحدَه**:
+    //      سبعُ مفرداتٍ لا اثنتان وخمسون — وهو ما يجعل الشمولَ قابلًا للفحصِ أصلًا.
+    //
+    //      و«Unspecified» ليست ثغرةً بل **إعلان**: مصدرُ الحقيقةِ لا يُقرّر
+    //      افتراضيًّا لذلك النوع (مصفوفةٌ وخريطةٌ اليوم، بنصِّ الحدِّ المُعلَنِ في
+    //      20_declarations.yaml)، فيُبقي المفسّرُ احتياطَه المعلومَ — «فراغًا» —
+    //      بدل أن يخترعَ قيمة. وحين يُحسَم الحدُّ، يُحسَم في صفٍّ واحدٍ من YAML.
+    // (EN) The decision now lives in language-truth/types.yaml (default_init) and
+    //      is generated into SAD_TYPE_DEFAULT_INIT_TABLE. What remains here is only
+    //      the REPRESENTATION: seven words instead of fifty-two kinds, which is what
+    //      makes exhaustiveness checkable at all. «Unspecified» is a declaration,
+    //      not a hole: the SoT decides no default for that kind, so the engine keeps
+    //      its known fallback instead of inventing a value.
+    // ════════════════════════════════════════════════════════════════
+    static_assert(Types::SAD_DEFAULT_INIT_COUNT == 8,
+                  "(AR) تغيّرت مفرداتُ default_init — قرّرْ تمثيلَ المفردةِ الجديدةِ هنا "
+                  "صراحةً. (EN) The default_init vocabulary changed — decide the new "
+                  "word's representation here explicitly.");
+
+    switch (Types::sadTypeKindDefaultInit(kind))
     {
-    case Types::SadTypeKind::Integer:
-    case Types::SadTypeKind::Byte:
-    case Types::SadTypeKind::UInt64:
+    case Types::SadDefaultInit::IntZero:
         return Value(0);
-    case Types::SadTypeKind::Float:
+    case Types::SadDefaultInit::FloatZero:
         return Value(0.0);
-    case Types::SadTypeKind::String:
+    case Types::SadDefaultInit::EmptyString:
         return Value("");
-    case Types::SadTypeKind::Boolean:
+    case Types::SadDefaultInit::BoolFalse:
         return Value(false);
     // ════════════════════════════════════════════════════════════════
     // (AR) 🔑 النوعُ العدميُّ يبدأ **عدمًا** لا **فراغًا** — وهما متمايزان
@@ -635,12 +659,31 @@ Value defaultValueForTypeKind(Types::SadTypeKind kind)
     //      as «لاشيء», which is exactly why this hid: the interpreter showed
     //      the slot as null and then denied it was null under «== لاشيء».
     // ════════════════════════════════════════════════════════════════
-    case Types::SadTypeKind::Optional:
-    case Types::SadTypeKind::Null:
+    case Types::SadDefaultInit::Null:
         return Value::makeNull();
-    default:
+    // (AR) «فراغ» صريحًا، و«غيرُ مُعلَن» احتياطًا — القيمةُ واحدةٌ والمعنى مختلف:
+    //      الأولى قرارٌ في مصدرِ الحقيقة، والثانيةُ إعلانُ غيابِ قرار.
+    // (EN) Explicit void, and undeclared-fallback — same value, different meaning:
+    //      the first is a decision in the SoT, the second declares its absence.
+    case Types::SadDefaultInit::Void:
+    case Types::SadDefaultInit::Unspecified:
+        return Value();
+    // (AR) لا خانةَ تحمل هذا النوعَ أصلًا — يرفضه المحلّلُ المشترك بـSEM040
+    //      قبلَ أن يبلغَ هنا. فالذراعُ **دفاعيّةٌ مُعلَنة**: بلوغُها يعني أنّ
+    //      رفضًا في طبقةٍ أعلى انثقب، والجوابُ حينَها «لا قيمة» لا قيمةٌ
+    //      تُختلَق. ولا تُدمَج مع Unspecified: تلك دَينٌ وهذه استحالة.
+    // (EN) No slot can hold this kind — the shared parser rejects it (SEM040)
+    //      before this point. The arm is a declared defensive one: reaching it
+    //      means an upper-layer rejection was breached. Kept separate from
+    //      Unspecified: that one is a debt, this one is an impossibility.
+    case Types::SadDefaultInit::NotASlot:
         return Value();
     }
+
+    // (AR) غيرُ قابلٍ للبلوغ: الأذرعُ السبعُ تغطّي التعدادَ كلَّه — يُبقيه
+    //      المترجّمُ راضيًا عن كلِّ مسارٍ يعيد قيمة.
+    // (EN) Unreachable — the seven arms cover the enum; keeps every path returning.
+    return Value();
 }
 
 } // namespace Data

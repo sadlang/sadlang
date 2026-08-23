@@ -1155,10 +1155,25 @@ namespace Sad
                     }
                     else
                     {
-                        switch (varType)
-                        {
-                        case SadTypeKind::Integer:
-                        case SadTypeKind::Byte:
+                        // ════════════════════════════════════════════════════
+                        // (AR) 🔑 القرارُ من مصدرِ الحقيقة، والتمثيلُ وحدَه هنا
+                        // ════════════════════════════════════════════════════
+                        //
+                        // (AR) كان هذا الجدولُ يوزّع على أنواعِ اللغةِ كلِّها بيدِه،
+                        //      وله خمسُ شقيقاتٍ في المفسّرِ ووقتِ التشغيل. صار يوزّع
+                        //      على **سبعِ مفرداتٍ** يُقرّرها
+                        //      language-truth/types.yaml في حقلِ default_init،
+                        //      ويُولَّد منها SAD_TYPE_DEFAULT_INIT_TABLE. فالقرارُ
+                        //      واحدٌ في مكانٍ واحد، والتمثيلُ (SIROperand) يبقى هنا.
+                        //
+                        //      🔑 وهذا بعينُه ما كان يمنع علّةَ «طبيعي64» المُدوَّنةَ
+                        //      أدناه: لم تكن غيابَ فهمٍ بل غيابَ سطرٍ في نسخةٍ من ستّ.
+                        // (EN) This table used to enumerate the language's kinds by hand,
+                        //      with five siblings elsewhere. It now switches on SEVEN
+                        //      words decided by language-truth/types.yaml (default_init)
+                        //      and generated into SAD_TYPE_DEFAULT_INIT_TABLE: one
+                        //      decision in one place, representation stays local.
+                        // ════════════════════════════════════════════════════
                         // (AR) 🔑 «طبيعي64» كان غائبًا عن هذا الجدولِ وحدَه بينما
                         //      أُضيف إلى نظائرِه الثلاثةِ في المفسّرِ ومصدرِ الحقيقة.
                         //      قِيس أثرُ غيابِه (٤ تشغيلاتٍ للثنائيِّ نفسِه):
@@ -1169,16 +1184,24 @@ namespace Sad
                         // (EN) UInt64 was missing HERE only, while its three siblings
                         //      got it — so the "fixed" uninitialized-stack read stayed
                         //      alive for exactly one type, measured changing every run.
-                        case SadTypeKind::UInt64:
+                        static_assert(Sad::Types::SAD_DEFAULT_INIT_COUNT == 8,
+                                      "(AR) تغيّرت مفرداتُ default_init — قرّرْ تمثيلَ "
+                                      "المفردةِ الجديدةِ هنا صراحةً. (EN) The default_init "
+                                      "vocabulary changed — decide the new word's "
+                                      "representation here explicitly.");
+
+                        switch (Sad::Types::sadTypeKindDefaultInit(varType))
+                        {
+                        case Sad::Types::SadDefaultInit::IntZero:
                             defaultValue = SIROperand::ConstantI64(0);
                             break;
-                        case SadTypeKind::Float:
+                        case Sad::Types::SadDefaultInit::FloatZero:
                             defaultValue = SIROperand::ConstantF64(0.0);
                             break;
-                        case SadTypeKind::Boolean:
+                        case Sad::Types::SadDefaultInit::BoolFalse:
                             defaultValue = SIROperand::ConstantBool(false);
                             break;
-                        case SadTypeKind::String:
+                        case Sad::Types::SadDefaultInit::EmptyString:
                             defaultValue = SIROperand::ConstantString(std::string());
                             break;
                         // ════════════════════════════════════════════════════
@@ -1201,10 +1224,42 @@ namespace Sad
                         // (EN) A bare `أي` slot is VOID — not zero, not null. It used to
                         //      fall through with no store at all, so نوع() answered three
                         //      different things depending on position, none of them «فراغ».
-                        case SadTypeKind::Any:
+                        case Sad::Types::SadDefaultInit::Void:
                             defaultValue = SIROperand::ConstantVoid();
                             break;
-                        default:
+                        // ════════════════════════════════════════════════════
+                        // (AR) العدمُ لا يُقرَّر هنا — قرارُه في الفرعِ الذي فوق
+                        // ════════════════════════════════════════════════════
+                        //
+                        // (AR) هذا الفرعُ هو `else` لـ`declaredNullable`، والخانةُ
+                        //      العدميّةُ يقرّر تمثيلَها الفرعُ الأوّلُ (وسمُ `Null` في
+                        //      `%SadDyn` أو الحارسُ داخلَ النطاق). فبلوغُ العدمِ هنا
+                        //      يعني نوعًا اسمُه «عدم» بلا لاحقةِ `عدمي` — ولا تخزينَ
+                        //      له اليومَ، كما كان قبلَ التوحيدِ حرفًا بحرف.
+                        //      ⚠️ **دَينٌ مُعلَنٌ لا مسدود**: المفسّرُ يُعطيه «لاشيء»،
+                        //      وسدُّه تغييرُ سلوكٍ يلزمه بذرةٌ تُحمِّر أوّلًا — فلا
+                        //      يُدَسّ في رقعةٍ غايتُها **ألّا تُغيّر شيئًا**.
+                        // (EN) This is the `else` of `declaredNullable`; the nullable slot's
+                        //      representation is decided by the branch above. Reaching Null
+                        //      here means a type literally named «عدم» without the `عدمي`
+                        //      suffix — no store today, byte-for-byte as before this
+                        //      unification. Declared debt: the interpreter yields null here.
+                        //      Closing it is a behaviour change that needs its own reddening
+                        //      seed, so it is NOT smuggled into a no-op refactor.
+                        // ════════════════════════════════════════════════════
+                        case Sad::Types::SadDefaultInit::Null:
+                        // (AR) «غيرُ مُعلَن»: مصدرُ الحقيقةِ لا يُقرّر افتراضيًّا لهذا
+                        //      النوع (مصفوفةٌ وخريطةٌ اليوم) ⇒ لا تخزين، كما كان.
+                        // (EN) Undeclared: the SoT decides no default (array/map today).
+                        case Sad::Types::SadDefaultInit::Unspecified:
+                        // (AR) لا خانةَ تحمله — مرفوضٌ في المحلّلِ المشترك
+                        //      (SEM040) قبلَ بلوغِ البناء. ذراعٌ دفاعيّةٌ مُعلَنة،
+                        //      ولا تُدمَج مع Unspecified: تلك دَينٌ وهذه استحالة.
+                        // (EN) No slot can hold it — rejected in the shared parser
+                        //      before building. Declared defensive arm; kept apart
+                        //      from Unspecified, which is a debt rather than an
+                        //      impossibility.
+                        case Sad::Types::SadDefaultInit::NotASlot:
                             break;
                         }
                     }

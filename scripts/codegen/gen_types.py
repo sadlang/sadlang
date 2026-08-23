@@ -79,6 +79,43 @@ CATEGORY_SECTION = {
 }
 
 
+# =====================================================================
+# (AR) مفرداتُ القيمةِ الافتراضيّةِ للتهيئة (default_init) — الترتيبُ حرجٌ:
+#      «Unspecified» أوّلُها فقيمتُها صفرٌ، فخانةٌ مُصفَّرةٌ تعني «لا افتراضيَّ
+#      مُعلَنًا» لا قيمةً مُخترَعة. وكلُّ لفظٍ في types.yaml لا يَرِد هنا **يكسر
+#      البناء**: فلا يُضاف لفظٌ إلى مصدرِ الحقيقةِ ويسقط صامتًا في احتياطٍ.
+#      ⚠️ ولا يُكتَب اللفظ null عاريًا في YAML: يحوّله المُحمِّل إلى العدم
+#      فيصير الحقلُ None ويسقط الصفُّ صامتًا — ولذلك اللفظ null_value.
+# (EN) default_init vocabulary — order is critical: «Unspecified» is first so
+#      its value is 0, meaning a zeroed slot reads as "no declared default"
+#      rather than an invented value. Any word in types.yaml missing from this
+#      map BREAKS THE BUILD instead of falling silently into a fallback.
+#      Never write a bare `null` in YAML — the loader turns it into None.
+# =====================================================================
+# (AR) (لفظ YAML، اسم C++، وصف عربي، وصف إنجليزي)
+# (EN) (YAML word, C++ enumerator, Arabic doc, English doc)
+DEFAULT_INIT_VOCAB: list[tuple[str, str, str, str]] = [
+    ("unspecified",  "Unspecified", "لا افتراضيَّ مُعلَنًا — يُبقي كلُّ محرّكٍ احتياطَه",
+     "no declared default - each engine keeps its own fallback"),
+    ("int_zero",     "IntZero",     "صفرٌ صحيح", "integer zero"),
+    ("float_zero",   "FloatZero",   "صفرٌ عشريّ", "float zero"),
+    ("bool_false",   "BoolFalse",   "خطأ", "boolean false"),
+    ("empty_string", "EmptyString", "نصٌّ فارغ", "empty string"),
+    ("null_value",   "Null",        "لاشيء — العدمُ الصريح", "the explicit null value"),
+    ("void",         "Void",        "فراغٌ — لم تُسنَدْ بعدُ، متمايزٌ عن العدم",
+     "void - never assigned, distinct from null"),
+    # (AR) 🔑 «لا محلَّ للسؤال» ليست «لم يُحسَمْ بعدُ». النوعُ الموسومُ بهذه لا
+    #      تحمله خانةٌ أصلًا فيرفضه المحلّلُ المشترك — فلا قيمةَ افتراضيّةَ له
+    #      لأنّه لا خانةَ له، لا لأنّ القرارَ مؤجَّل. وخلطُها بـUnspecified
+    #      يجعل قارئًا يحسب على «فراغ» دَينًا ولا دَينَ عليه.
+    # (EN) «no slot can hold it» is NOT «undecided». A kind marked this way is
+    #      rejected by the shared parser, so it has no default because it has no
+    #      slot — not because a decision is pending.
+    ("not_a_slot",   "NotASlot",    "لا خانةَ تحمله — يرفضه المحلّل (SEM040)",
+     "no slot can hold it - rejected by the parser (SEM040)"),
+]
+
+
 def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | None = None) -> str:
     """
     (AR) يُنتج محتوى sad_type_kind_generated.h من قائمة الأنواع المُرتّبة.
@@ -94,6 +131,7 @@ def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | Non
     lines.append("#pragma once")
     lines.append("")
     lines.append("#include <array>")
+    lines.append("#include <cstddef>")
     lines.append("#include <string_view>")
     lines.append("")
     lines.append("namespace Sad")
@@ -140,6 +178,105 @@ def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | Non
     lines.append("         *             kind fall silently into a guessing default branch.")
     lines.append("         */")
     lines.append(f"        inline constexpr int SAD_TYPE_KIND_COUNT = {len(types)};")
+    lines.append("")
+
+    # ========================================================================
+    # (AR) 🔑 القيمةُ الافتراضيّةُ لخانةٍ صُرِّح نوعُها ولم تُهيَّأ — جدولٌ **واحدٌ
+    #      مُولَّد** بدلَ ستِّ نسخٍ يدويّة. كان لكلِّ موضعٍ جدولُه، فانجرفَ الجدولُ
+    #      في الموضعِ الذي يُنسى: «طبيعي64» غابت عن نسخةِ المترجمِ وحدَها فبقيت
+    #      خانتُها تُقرأ على ما تركه المكدَّس، مقيسةً تتبدّل في كلِّ تشغيل.
+    #
+    #      والقيمةُ **رمزيّةٌ لا تعبيرَ C++**: كلُّ محرّكٍ يترجمها إلى تمثيلِه
+    #      (Value في المفسّر، SIROperand في المترجم)، فيبقى القرارُ واحدًا
+    #      والتمثيلُ لكلٍّ. ولذلك يوزّع المستهلكُ على **سبعِ** قيمٍ لا اثنتَين
+    #      وخمسين — وهو ما يجعل الشمولَ قابلًا للفحصِ أصلًا.
+    #
+    #      والجدولُ **مصفوفةٌ مفهرسةٌ بقيمةِ التعداد** لا switch: فطولُها مربوطٌ
+    #      بـSAD_TYPE_KIND_COUNT بنيويًّا، ولا ذراعَ يمكن أن تُنسى.
+    # (EN) Default value of a declared-but-uninitialised slot - ONE generated
+    #      table replacing six hand-written copies. The value is symbolic, not a
+    #      C++ expression: each engine lowers it to its own representation, so the
+    #      decision is single and the representation is local. Consumers switch on
+    #      SEVEN values instead of fifty-two, which is what makes exhaustiveness
+    #      checkable at all. An enum-indexed array, not a switch: its length is
+    #      tied to SAD_TYPE_KIND_COUNT structurally and no arm can be forgotten.
+    # ========================================================================
+    known_words = {word for word, _cxx, _ar, _en in DEFAULT_INIT_VOCAB}
+    for entry in types:
+        seen = entry.get("default_init")
+        if seen not in known_words:
+            raise ValueError(
+                f"types.yaml: {entry.get('id', '?')} has default_init={seen!r}, "
+                f"which is not in DEFAULT_INIT_VOCAB ({sorted(known_words)}). "
+                "Add it to gen_types.py AND to every consumer that switches on it."
+            )
+
+    lines.append("        /**")
+    lines.append("         * @brief (AR) مفرداتُ القيمةِ الافتراضيّةِ للتهيئة — مُولَّدة من types.yaml")
+    lines.append("         * @brief (EN) Default-initialisation vocabulary — generated from types.yaml")
+    lines.append("         *")
+    lines.append("         * (AR) رمزيّةٌ لا تمثيليّة: يترجمها كلُّ محرّكٍ إلى قيمتِه الخاصّة.")
+    lines.append("         *      «Unspecified» صفرٌ عمدًا: خانةٌ مُصفَّرةٌ تعني «غيرُ مُعلَن».")
+    lines.append("         * (EN) Symbolic, not representational — each engine lowers it itself.")
+    lines.append("         *      «Unspecified» is 0 on purpose: a zeroed slot reads as undeclared.")
+    lines.append("         */")
+    lines.append("        enum class SadDefaultInit : int")
+    lines.append("        {")
+    _max_cxx = max(len(cxx) for _w, cxx, _ar, _en in DEFAULT_INIT_VOCAB)
+    for _word, cxx, desc_ar, desc_en in DEFAULT_INIT_VOCAB:
+        pad = " " * (_max_cxx - len(cxx))
+        lines.append(f"            {cxx},{pad} ///< {desc_ar} / {desc_en}")
+    lines.append("        };")
+    lines.append("")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) عددُ مفرداتِ SadDefaultInit — تستهلكه static_assert في كلِّ")
+    lines.append("         *             مستهلكٍ يوزّع عليها، فإضافةُ مفردةٍ جديدةٍ **تكسر البناءَ**")
+    lines.append("         *             عند كلِّ مَن يقرّر تمثيلَها، بدل أن تسقط في احتياطٍ صامت.")
+    lines.append("         * @brief (EN) SadDefaultInit cardinality — consumed by static_assert at every")
+    lines.append("         *             consumer, so adding a vocabulary word BREAKS THE BUILD at each")
+    lines.append("         *             site that must decide its representation.")
+    lines.append("         */")
+    lines.append(
+        f"        inline constexpr int SAD_DEFAULT_INIT_COUNT = {len(DEFAULT_INIT_VOCAB)};"
+    )
+    lines.append("")
+    _cxx_of = {word: cxx for word, cxx, _ar, _en in DEFAULT_INIT_VOCAB}
+    lines.append("        /**")
+    lines.append("         * @brief (AR) جدولُ القيمِ الافتراضيّةِ مفهرسًا بقيمةِ SadTypeKind — مُولَّد")
+    lines.append("         * @brief (EN) Default-init table indexed by SadTypeKind value — generated")
+    lines.append("         */")
+    lines.append(
+        "        inline constexpr std::array<SadDefaultInit, SAD_TYPE_KIND_COUNT> "
+        "SAD_TYPE_DEFAULT_INIT_TABLE = {{"
+    )
+    _max_entry = max(len(_cxx_of[entry["default_init"]]) for entry in types)
+    for entry in types:
+        entry_cxx = _cxx_of[entry["default_init"]]
+        pad = " " * (_max_entry - len(entry_cxx))
+        lines.append(
+            f"            SadDefaultInit::{entry_cxx},{pad} // "
+            f"{entry['kind']} \u2014 {entry.get('word', '')}"
+        )
+    lines.append("        }};")
+    lines.append("")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) القيمةُ الافتراضيّةُ الرمزيّةُ لنوعٍ ما — مُولَّدة من types.yaml")
+    lines.append("         * @brief (EN) Symbolic default-init of a kind — generated from types.yaml")
+    lines.append("         *")
+    lines.append("         * (AR) دالّةٌ كلّيّةٌ بنيويًّا: الفهرسةُ بقيمةِ التعدادِ الكثيفة، وقيمةٌ")
+    lines.append("         *      خارجَ المدى تُرجِع «Unspecified» — أي «لا أعرف» لا قيمةً مُخترَعة.")
+    lines.append("         * (EN) Structurally total: dense enum indexing; an out-of-range value")
+    lines.append("         *      yields «Unspecified» - never an invented value.")
+    lines.append("         */")
+    lines.append("        inline constexpr SadDefaultInit sadTypeKindDefaultInit(SadTypeKind kind)")
+    lines.append("        {")
+    lines.append("            const int index = static_cast<int>(kind);")
+    lines.append("            if (index < 0 || index >= SAD_TYPE_KIND_COUNT)")
+    lines.append("            {")
+    lines.append("                return SadDefaultInit::Unspecified;")
+    lines.append("            }")
+    lines.append("            return SAD_TYPE_DEFAULT_INIT_TABLE[static_cast<std::size_t>(index)];")
+    lines.append("        }")
     lines.append("")
 
     # ========================================================================

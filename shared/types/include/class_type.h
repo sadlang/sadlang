@@ -340,6 +340,23 @@ namespace Sad
             std::unordered_set<std::string> uiStateFields;         ///< (AR) أسماء حقول @حالة (للتفاعلية) / (EN) @state field names (for reactivity)
             std::string sourceFile;                                ///< (AR) مسار الملف المصدري (لفحص الوراثة المحكمة) / (EN) source file path (for sealed inheritance check)
 
+            // (AR) 🔑 ثوابتُ/متغيّراتُ وحدةِ التعريفِ الملتقطةُ وقتَ تنفيذِها (ع-1).
+            //      قِيس أنّ الدوالَّ الحرّةَ المُصدَّرةَ تلتقط متغيّراتِ وحدتِها عبر
+            //      FunctionDefinition::setCaptures بينما طرقُ الأصنافِ لا التقاطَ
+            //      لها، فثابتُ الوحدةِ يُقرأ «لاشيء» داخلَ الطريقةِ عند الاستيراد
+            //      (SEM001 غيرُ قاتلٍ ثمّ تسرّبٌ هدّام). تُملأ في المرحلةِ ٣ من
+            //      executeModuleAST وتُحقَن في نطاقِ كلِّ تنفيذٍ لجسمِ طريقةٍ قبل
+            //      ربطِ «هذا» والحقولِ والمعاملاتِ كي تتغلّبَ هذه عليها عند
+            //      تصادمِ الأسماء. فارغةٌ لصنفٍ عُرِّف في الملفِّ المُشغَّلِ نفسِه.
+            // (EN) Module-level variables/constants captured when the defining
+            //      module executed (defect ع-1). Free exported functions get this
+            //      via FunctionDefinition captures; class methods had none, so a
+            //      module constant read as null inside an imported class method.
+            //      Filled in executeModuleAST phase 3; injected into every method
+            //      body scope BEFORE «هذا»/fields/parameters so those win on name
+            //      collisions. Empty for classes defined in the main script.
+            std::unordered_map<std::string, Value> moduleCaptures;
+
             // ──────────────────────────────────────────────────────────────────
             // المنشئات / Constructors
             // ──────────────────────────────────────────────────────────────────

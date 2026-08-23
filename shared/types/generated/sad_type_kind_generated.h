@@ -7,6 +7,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <string_view>
 
 namespace Sad
@@ -101,6 +102,115 @@ namespace Sad
          *             kind fall silently into a guessing default branch.
          */
         inline constexpr int SAD_TYPE_KIND_COUNT = 52;
+
+        /**
+         * @brief (AR) مفرداتُ القيمةِ الافتراضيّةِ للتهيئة — مُولَّدة من types.yaml
+         * @brief (EN) Default-initialisation vocabulary — generated from types.yaml
+         *
+         * (AR) رمزيّةٌ لا تمثيليّة: يترجمها كلُّ محرّكٍ إلى قيمتِه الخاصّة.
+         *      «Unspecified» صفرٌ عمدًا: خانةٌ مُصفَّرةٌ تعني «غيرُ مُعلَن».
+         * (EN) Symbolic, not representational — each engine lowers it itself.
+         *      «Unspecified» is 0 on purpose: a zeroed slot reads as undeclared.
+         */
+        enum class SadDefaultInit : int
+        {
+            Unspecified, ///< لا افتراضيَّ مُعلَنًا — يُبقي كلُّ محرّكٍ احتياطَه / no declared default - each engine keeps its own fallback
+            IntZero,     ///< صفرٌ صحيح / integer zero
+            FloatZero,   ///< صفرٌ عشريّ / float zero
+            BoolFalse,   ///< خطأ / boolean false
+            EmptyString, ///< نصٌّ فارغ / empty string
+            Null,        ///< لاشيء — العدمُ الصريح / the explicit null value
+            Void,        ///< فراغٌ — لم تُسنَدْ بعدُ، متمايزٌ عن العدم / void - never assigned, distinct from null
+            NotASlot,    ///< لا خانةَ تحمله — يرفضه المحلّل (SEM040) / no slot can hold it - rejected by the parser (SEM040)
+        };
+
+        /**
+         * @brief (AR) عددُ مفرداتِ SadDefaultInit — تستهلكه static_assert في كلِّ
+         *             مستهلكٍ يوزّع عليها، فإضافةُ مفردةٍ جديدةٍ **تكسر البناءَ**
+         *             عند كلِّ مَن يقرّر تمثيلَها، بدل أن تسقط في احتياطٍ صامت.
+         * @brief (EN) SadDefaultInit cardinality — consumed by static_assert at every
+         *             consumer, so adding a vocabulary word BREAKS THE BUILD at each
+         *             site that must decide its representation.
+         */
+        inline constexpr int SAD_DEFAULT_INIT_COUNT = 8;
+
+        /**
+         * @brief (AR) جدولُ القيمِ الافتراضيّةِ مفهرسًا بقيمةِ SadTypeKind — مُولَّد
+         * @brief (EN) Default-init table indexed by SadTypeKind value — generated
+         */
+        inline constexpr std::array<SadDefaultInit, SAD_TYPE_KIND_COUNT> SAD_TYPE_DEFAULT_INIT_TABLE = {{
+            SadDefaultInit::NotASlot,    // Void — فراغ
+            SadDefaultInit::IntZero,     // Integer — رقم
+            SadDefaultInit::FloatZero,   // Float — عشري
+            SadDefaultInit::BoolFalse,   // Boolean — منطقي
+            SadDefaultInit::EmptyString, // String — نص
+            SadDefaultInit::IntZero,     // Byte — بايت
+            SadDefaultInit::Unspecified, // Int8 — عدد8
+            SadDefaultInit::Unspecified, // Int16 — عدد16
+            SadDefaultInit::Unspecified, // Int32 — عدد32
+            SadDefaultInit::Unspecified, // Int64 — عدد64
+            SadDefaultInit::Unspecified, // UInt8 — طبيعي8
+            SadDefaultInit::Unspecified, // UInt16 — طبيعي16
+            SadDefaultInit::Unspecified, // UInt32 — طبيعي32
+            SadDefaultInit::IntZero,     // UInt64 — طبيعي64
+            SadDefaultInit::Unspecified, // Float32 — عشري32
+            SadDefaultInit::Unspecified, // Float64 — عشري64
+            SadDefaultInit::Unspecified, // Char — حرف
+            SadDefaultInit::Unspecified, // Array — مصفوفة
+            SadDefaultInit::Unspecified, // Map — خريطة
+            SadDefaultInit::Unspecified, // Tuple — صف
+            SadDefaultInit::Unspecified, // Slice — شريحة
+            SadDefaultInit::Unspecified, // Class — صنف
+            SadDefaultInit::Unspecified, // Struct — بنية
+            SadDefaultInit::Unspecified, // Enum — تعداد
+            SadDefaultInit::Unspecified, // Trait — سمة
+            SadDefaultInit::Unspecified, // Function — دالة
+            SadDefaultInit::Unspecified, // Closure — إغلاق
+            SadDefaultInit::Unspecified, // Union — اتحاد
+            SadDefaultInit::Unspecified, // Intersection — تقاطع
+            SadDefaultInit::Null,        // Optional — اختياري
+            SadDefaultInit::Unspecified, // Result — نتيجة
+            SadDefaultInit::Unspecified, // Generic — نوع_عام
+            SadDefaultInit::Unspecified, // TypeParameter — معامل_نوع
+            SadDefaultInit::Unspecified, // TypeAlias — اسم_مستعار
+            SadDefaultInit::Unspecified, // Pointer — مؤشر
+            SadDefaultInit::Unspecified, // Reference — مرجع
+            SadDefaultInit::Unspecified, // MutableRef — مرجع_متغير
+            SadDefaultInit::Void,        // Any — أي
+            SadDefaultInit::Unspecified, // Never — أبدا
+            SadDefaultInit::Unspecified, // Unknown — مجهول
+            SadDefaultInit::Unspecified, // Error — خطأ
+            SadDefaultInit::Unspecified, // Future — مستقبل
+            SadDefaultInit::Unspecified, // Generator — مولد
+            SadDefaultInit::Unspecified, // Comprehension — استيعاب
+            SadDefaultInit::Unspecified, // Color — لون
+            SadDefaultInit::Unspecified, // Widget — عنصر_واجهة
+            SadDefaultInit::Unspecified, // Window — نافذة
+            SadDefaultInit::Unspecified, // Event — حدث
+            SadDefaultInit::Unspecified, // Vector — متجه
+            SadDefaultInit::Null,        // Null — عدم
+            SadDefaultInit::Unspecified, // Point — نقطة
+            SadDefaultInit::Unspecified, // Rect — مستطيل
+        }};
+
+        /**
+         * @brief (AR) القيمةُ الافتراضيّةُ الرمزيّةُ لنوعٍ ما — مُولَّدة من types.yaml
+         * @brief (EN) Symbolic default-init of a kind — generated from types.yaml
+         *
+         * (AR) دالّةٌ كلّيّةٌ بنيويًّا: الفهرسةُ بقيمةِ التعدادِ الكثيفة، وقيمةٌ
+         *      خارجَ المدى تُرجِع «Unspecified» — أي «لا أعرف» لا قيمةً مُخترَعة.
+         * (EN) Structurally total: dense enum indexing; an out-of-range value
+         *      yields «Unspecified» - never an invented value.
+         */
+        inline constexpr SadDefaultInit sadTypeKindDefaultInit(SadTypeKind kind)
+        {
+            const int index = static_cast<int>(kind);
+            if (index < 0 || index >= SAD_TYPE_KIND_COUNT)
+            {
+                return SadDefaultInit::Unspecified;
+            }
+            return SAD_TYPE_DEFAULT_INIT_TABLE[static_cast<std::size_t>(index)];
+        }
 
         /**
          * @brief (AR) الاسم العربي الذي تُرجعه نوع() لنوعٍ ما — مُولَّد من types.yaml
