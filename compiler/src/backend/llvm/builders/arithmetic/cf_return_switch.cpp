@@ -7,6 +7,7 @@
 #include "builders/arithmetic/controlflow_codegen.h"
 #include "llvm_codegen.h"
 #include "sad_dyn_repr.h"
+#include "sir_constants.h" // (AR) kSadNullSentinel — بذرةُ العدمِ داخلَ النطاقِ البِتّيّ لبابِ RET / (EN) in-band null sentinel for the RET door
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/BasicBlock.h>
@@ -131,6 +132,7 @@ namespace Sad
                             retValue = cg_.builder_->CreateTrunc(
                                 dynPayloadI64(cg_, retValue), llvm::Type::getInt1Ty(*cg_.context_), "ret_dyn_i1");
                         else
+                        {
                             // (AR) [م-٠٠١] `unpackI64` لا `dynPayloadI64`: الأخيرةُ تُعيدُ
                             //      الحمولةَ خامًّا، فقيمةٌ وسمُها عشريٌّ تُرجَعُ بتّاتِ الـdouble
                             //      عددًا صحيحًا. و`unpackI64` تحترمُ الوسمَ (عشريّ⇒fptosi،
@@ -139,7 +141,43 @@ namespace Sad
                             //      returns the raw payload, so a Float-tagged value comes back
                             //      as the double's bit pattern read as an integer. `unpackI64`
                             //      honours the tag (Float⇒fptosi, else⇒raw payload), branchless.
-                            retValue = unpackI64(cg_, retValue);
+                            //
+                            // (AR) [عقدُ الغياب] وسمُ الغيابِ (فراغ/عدم) لا يُفكُّ حمولةً
+                            //      (صفرًا صامتًا) بل يُهجَّأ ببذرةِ العدمِ داخلَ النطاقِ
+                            //      البِتّيِّ `kSadNullSentinel` — فيطبعُ المستهلكُ «لاشيء»
+                            //      كما يفعلُ المفسّرُ لدالّةٍ مصرَّحةٍ «رقم» تُرجِعُ غيابًا
+                            //      (يحذّرُ على stderr ويُمرّرُ الغياب — قِيس 2026-08-23:
+                            //      كان المترجَمُ يطبع 0 حيث يطبع المفسّرُ «لاشيء»، rc=0
+                            //      كلاهما: كذبٌ صامت). خاصٌّ ببابِ RET — لا يُعمَّم على
+                            //      `unpackI64` نفسِها (مواضعُ الحسابِ تحرسُ الغيابَ قبلَه
+                            //      بـRUN053 ولا تتوقّع البذرة).
+                            // (EN) [absence contract] An absence tag (Void/Null) is not
+                            //      unpacked as a silent zero payload but spelled with the
+                            //      in-band null sentinel, so consumers print «لاشيء»
+                            //      exactly as the interpreter does for a declared-«رقم»
+                            //      function returning absence (measured 2026-08-23: the
+                            //      compiled path printed 0 where the interpreter prints
+                            //      «لاشيء», both rc=0 — a silent lie). RET-door local on
+                            //      purpose: arithmetic sites guard absence with RUN053
+                            //      before unpackI64 and do not expect the sentinel.
+                            auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                            llvm::Value *kind = dynKindByte(cg_, retValue);
+                            llvm::Value *isVoidK = cg_.builder_->CreateICmpEQ(
+                                kind, llvm::ConstantInt::get(i8Ty, DynKind::Void),
+                                "ret.dyn.is.void");
+                            llvm::Value *isNullK = cg_.builder_->CreateICmpEQ(
+                                kind, llvm::ConstantInt::get(i8Ty, DynKind::Null),
+                                "ret.dyn.is.null");
+                            llvm::Value *isAbsent = cg_.builder_->CreateOr(
+                                isVoidK, isNullK, "ret.dyn.absent");
+                            llvm::Value *unpacked = unpackI64(cg_, retValue);
+                            retValue = cg_.builder_->CreateSelect(
+                                isAbsent,
+                                llvm::ConstantInt::get(
+                                    llvm::Type::getInt64Ty(*cg_.context_),
+                                    static_cast<uint64_t>(Sad::Compiler::kSadNullSentinel)),
+                                unpacked, "ret.dyn.i64");
+                        }
                     }
                     else if (retType->isDoubleTy() && retValue->getType()->isIntegerTy())
                     {

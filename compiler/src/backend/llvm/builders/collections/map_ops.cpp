@@ -206,7 +206,8 @@ namespace Sad
         // (EN) See map_ops_codegen.h — the unified map-pointer normalization.
         llvm::Value *MapOpsCodeGen::normalizeMapPtr(llvm::Value *mapValue, const char *label,
                                                     std::optional<Sad::Errors::ErrorCode> absenceCode,
-                                                    const char *builtinFunc)
+                                                    const char *builtinFunc,
+                                                    const char *operationName)
         {
             if (!mapValue)
                 return nullptr;
@@ -267,6 +268,12 @@ namespace Sad
                     std::map<std::string, std::string> absPlaceholders;
                     if (builtinFunc)
                         absPlaceholders["func"] = builtinFunc;
+                    // (AR) [سطحُ الطريقة] `{operation}` في RUN033 — لفظُ `.احصل()`/`.عين()`
+                    //      كما يركّبه المفسّرُ من الاسمِ المطبَّع.
+                    // (EN) [method surface] {operation} in RUN033 — the `.احصل()`/`.عين()`
+                    //      label as the interpreter composes it from the normalized name.
+                    if (operationName)
+                        absPlaceholders["operation"] = operationName;
                     cg_.emitTaggedAbsenceRaise(
                         kind, *absenceCode, absPlaceholders, std::string(label),
                         [&] { emitDynTypeMismatchFailure(label); });
@@ -304,6 +311,84 @@ namespace Sad
             //      Memory layout: {count:i64, capacity:i64, keys:ptr*, values:i64*, types:i64*}
             //      Search: linear scan with strcmp — suitable for small maps (<100 elements)
             // ================================================================
+
+            // (AR) [RFC عقد الغياب — سطحُ «لكل»] حارسُ الغيابِ قبلَ آلةِ التكرار:
+            //      مصدرٌ موسومٌ (%SadDyn) وسمُه فراغٌ أو عدمٌ ⇒ RUN055 بملءِ
+            //      `{type}` بعبارةِ المفسّرِ الحرفيّةِ («غير معروف/unknown» —
+            //      statement_executor.cpp يملؤها بلا تمييزِ نوعٍ)، وخروجٌ ١.
+            //      قبل السدِّ كان الغيابُ يصلُ `normalizeArrayPtr` فيُرفَعُ بنصِّ
+            //      «ليست مصفوفة» بلا رمزٍ — سطحٌ كاذبٌ. وسائرُ الأوسامِ تمرُّ بلا
+            //      أثرٍ إلى الحارسِ القائمِ (حدٌّ معلَن: خريطةٌ موسومةٌ مصدرَ
+            //      «لكل» تباعدٌ قائمٌ قبل هذه الموجة، لم يُمَسّ).
+            // (EN) [absence contract — foreach surface] Absence guard ahead of the
+            //      iteration machinery: a tagged source whose kind is Void/Null
+            //      raises RUN055 with the interpreter's literal {type} phrase and
+            //      exit 1. Before this seal, absence reached normalizeArrayPtr and
+            //      was raised as uncoded "not an array" — a lying surface. Every
+            //      other kind passes through untouched to the existing guard (a
+            //      declared limit: a tagged-map foreach source diverged before
+            //      this wave and is not touched here).
+            if (funcName == kRuntimeForeachAbsenceGuard)
+            {
+                llvm::Value *handledSentinel =
+                    llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+                if (args.empty() || !args[0] || !cg_.builder_->GetInsertBlock())
+                    return handledSentinel;
+
+                llvm::Value *source = Sad::LLVM::loadDynSlot(cg_, args[0]);
+                if (!Sad::LLVM::isSadDyn(source))
+                    return handledSentinel; // (AR) غيرُ موسومٍ — لا شأنَ للحارس / (EN) untagged — not this guard's business
+
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, source);
+                // (AR) عقدُ المفسّرِ المقيس: RUN055 لكلِّ وسمٍ **غيرِ قابلٍ للتكرار**
+                //      — الغيابُ (فراغ/عدم) والعدديّاتُ (صحيح/عشريّ/منطقيّ) سواء
+                //      (كشفت المراجعةُ العدائيّةُ أنّ قصرَه على الغيابِ يُبقي الرقمَ
+                //      الموسومَ على نصِّ «ليست مصفوفة» بلا رمز). والقابلُ للتكرارِ
+                //      (نصّ/خريطة/مصفوفة/كائن) يمرُّ إلى الخفضِ القائمِ — وتكرارُ
+                //      النصِّ والخريطةِ الموسومَين مترجَمًا تباعدٌ موروثٌ معلَنٌ
+                //      (المفسّرُ يكرّرهما والخفضُ لا يعرف إلّا المصفوفات).
+                // (EN) The interpreter's measured contract: RUN055 for every
+                //      NON-ITERABLE kind — absence and numerics alike (adversarial
+                //      review showed absence-only left tagged ints on the uncoded
+                //      "not an array" text). Iterable kinds (str/map/array/obj) pass
+                //      to the existing lowering — tagged string/map iteration remains
+                //      an inherited declared divergence.
+                auto kindIs = [&](uint8_t k, const char *nm) {
+                    return cg_.builder_->CreateICmpEQ(
+                        kind, llvm::ConstantInt::get(i8Ty, k), nm);
+                };
+                llvm::Value *isAbsent = kindIs(Sad::LLVM::DynKind::Void, "foreach.abs.is.void");
+                isAbsent = cg_.builder_->CreateOr(
+                    isAbsent, kindIs(Sad::LLVM::DynKind::Null, "foreach.abs.is.null"),
+                    "foreach.abs.or.null");
+                isAbsent = cg_.builder_->CreateOr(
+                    isAbsent, kindIs(Sad::LLVM::DynKind::Int, "foreach.abs.is.int"),
+                    "foreach.abs.or.int");
+                isAbsent = cg_.builder_->CreateOr(
+                    isAbsent, kindIs(Sad::LLVM::DynKind::Float, "foreach.abs.is.float"),
+                    "foreach.abs.or.float");
+                isAbsent = cg_.builder_->CreateOr(
+                    isAbsent, kindIs(Sad::LLVM::DynKind::Bool, "foreach.abs.is.bool"),
+                    "foreach.abs.any");
+
+                llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *raiseBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "foreach.abs.raise", curFunc);
+                llvm::BasicBlock *okBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "foreach.abs.ok", curFunc);
+                cg_.builder_->CreateCondBr(isAbsent, raiseBB, okBB);
+
+                cg_.builder_->SetInsertPoint(raiseBB);
+                std::map<std::string, std::string> filled;
+                filled["type"] = kNotIterableTypeLabel;
+                cg_.emitNullRaiseBody(::Sad::Errors::ErrorCode::RUN_NOT_ITERABLE,
+                                      filled, "foreach.abs");
+                cg_.builder_->CreateUnreachable();
+
+                cg_.builder_->SetInsertPoint(okBB);
+                return handledSentinel;
+            }
 
             if (funcName == "__sad_map_create")
             {
@@ -364,7 +449,7 @@ namespace Sad
                 return mapPtr;
             }
 
-            if (funcName == "__sad_map_set_typed")
+            if (funcName == kRuntimeMapSetTyped || funcName == kRuntimeMapSetTypedMethod)
             {
                 // (AR) إدراج/تحديث زوج (مفتاح، قيمة) في الخريطة
                 //      args: [0]=map, [1]=key(ptr), [2]=value(i64/ptr), [3]=typeTag(i64)
@@ -388,9 +473,27 @@ namespace Sad
                 //      raises RUN018, matching the interpreter verbatim (measured
                 //      2026-08-23; it used to raise the READ code SEM011: same exit,
                 //      diverging codes — seed 082 is the charter of the distinction).
+                // (AR) [RFC عقد الغياب — سطحان] القوسان إسنادٌ بالفهرس ⇒ RUN018؛
+                //      وسطحُ الطريقةِ `.عين()` (القناةُ `_method`) ⇒ RUN033 بلفظِ
+                //      العمليّةِ — كلاهما مطابقٌ للمفسّرِ مقيسًا (2026-08-23).
+                // (EN) [absence contract — two surfaces] Brackets are indexed
+                //      assignment ⇒ RUN018; the `.عين()` method surface (the
+                //      `_method` channel) ⇒ RUN033 with the operation label —
+                //      both matching the interpreter (measured 2026-08-23).
+                // (AR) اللفظُ من المعينِ الواحدِ القائمِ stringMethodOperationLabel —
+                //      لا نسخةَ ثانيةً لصيغةِ «.اسم()» (ملاحظةُ مراجعةِ الجودة).
+                // (EN) Label from the existing single source stringMethodOperationLabel
+                //      — no second copy of the «.name()» formatting.
+                const bool setViaMethodSurface = (funcName == kRuntimeMapSetTypedMethod);
+                const std::string setOpLabel = LLVMCodeGen::stringMethodOperationLabel(
+                    Sad::Builtins::Names::TypeMethods::Map::SET);
                 llvm::Value *mapPtr = normalizeMapPtr(
                     args[0], "mset.map.ptr",
-                    ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID);
+                    setViaMethodSurface
+                        ? ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID
+                        : ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID,
+                    nullptr,
+                    setViaMethodSurface ? setOpLabel.c_str() : nullptr);
 
                 // ════════════════════════════════════════════════════════════════
                 // (AR) 🔑 خريطةٌ عدميّةٌ في مسارِ الإسنادِ بالفهرس ⇒ RUN018 لا انهيار.
@@ -413,9 +516,30 @@ namespace Sad
                 //      showed __sad_map_find_slot: maps have their own path. The layer is
                 //      READ from the output, not inferred from the architecture.
                 // ════════════════════════════════════════════════════════════════
-                cg_.emitRaiseIfNull(
-                    mapPtr, ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID, {},
-                    "map.set");
+                // (AR) [سطحان] مستقبِلٌ عدميٌّ **غيرُ موسومٍ** (خانةٌ صفريّة/بذرةُ
+                //      العدم): القوسان RUN018 كما كان، وسطحُ الطريقةِ RUN033 بلفظِ
+                //      `.عين()` — قِيس 2026-08-23: المفسّرُ يرفع RUN033 'VOID' لـ
+                //      `خريطة س` ثمّ `س.عين(…)`، وكانت القناةُ الموحَّدةُ ترفع RUN018
+                //      عن السطحَين معًا. و{type} يملؤه البابُ من شكلِ العدم.
+                // (EN) [two surfaces] An UNTAGGED null receiver: brackets keep RUN018;
+                //      the method surface raises RUN033 with the `.عين()` label
+                //      (measured: the interpreter raises RUN033 'VOID' for a null map
+                //      through the method), {type} filled by the door from the null's
+                //      shape.
+                if (setViaMethodSurface)
+                {
+                    std::map<std::string, std::string> nullRecvPlaceholders;
+                    nullRecvPlaceholders["operation"] = setOpLabel;
+                    cg_.emitRaiseIfNull(
+                        mapPtr, ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                        nullRecvPlaceholders, "map.set");
+                }
+                else
+                {
+                    cg_.emitRaiseIfNull(
+                        mapPtr, ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID, {},
+                        "map.set");
+                }
 
                 llvm::Value *key = normalizeMapKey(args[1], "mset.key.ptr");
                 llvm::Value *value = args[2];
@@ -649,7 +773,8 @@ namespace Sad
             }
 
             if (funcName == kRuntimeMapGet || funcName == kRuntimeMapGetI64 ||
-                funcName == kRuntimeMapGetDyn || funcName == kRuntimeMapFetchStr ||
+                funcName == kRuntimeMapGetDyn || funcName == kRuntimeMapGetDynMethod ||
+                funcName == kRuntimeMapFetchStr ||
                 funcName == kRuntimeMapFetchInt || funcName == kRuntimeMapFetchBool)
             {
                 // (AR) قراءة قيمة من الخريطة بالمفتاح — ذكية حسب type tag
@@ -674,11 +799,52 @@ namespace Sad
                 const bool receiverIsIndexing =
                     (funcName == kRuntimeMapGet || funcName == kRuntimeMapGetI64 ||
                      funcName == kRuntimeMapGetDyn);
+                // (AR) [سطحُ الطريقة] `.احصل()` (القناةُ `_method`) ⇒ RUN033 بلفظِ
+                //      العمليّةِ، مطابقًا المفسّرَ مقيسًا (2026-08-23) — لا SEM011
+                //      رمزَ الفهرسةِ الذي كان يكذبُ عن السطح.
+                // (EN) [method surface] `.احصل()` (the `_method` channel) ⇒ RUN033
+                //      with the operation label, matching the interpreter (measured
+                //      2026-08-23) — not the indexing code SEM011.
+                const bool receiverIsMethodSurface = (funcName == kRuntimeMapGetDynMethod);
+                const std::string getOpLabel = LLVMCodeGen::stringMethodOperationLabel(
+                    Sad::Builtins::Names::TypeMethods::Map::GET);
+                std::optional<::Sad::Errors::ErrorCode> getAbsenceCode = std::nullopt;
+                if (receiverIsIndexing)
+                    getAbsenceCode = ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED;
+                else if (receiverIsMethodSurface)
+                    getAbsenceCode = ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID;
                 llvm::Value *mapPtr = normalizeMapPtr(
-                    args[0], "mget.map.ptr",
-                    receiverIsIndexing
-                        ? std::optional(::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED)
-                        : std::nullopt);
+                    args[0], "mget.map.ptr", getAbsenceCode, nullptr,
+                    receiverIsMethodSurface ? getOpLabel.c_str() : nullptr);
+
+                // (AR) مستقبِلٌ عدميٌّ **غيرُ موسومٍ**: كانت القراءةُ تُفكّ مؤشّرًا
+                //      صفريًّا ⇒ SIGSEGV صامتٌ على القناتين (قِيس 2026-08-23).
+                //      القوسان SEM011 «لا يدعم الفهرسة» وسطحُ الطريقةِ RUN033
+                //      بلفظِ `.احصل()` — كلاهما لفظُ المفسّرِ ورمزُه؛ و{type}
+                //      يملؤه البابُ من شكلِ العدم. وقناتا الجلبِ المصنَّفِ
+                //      (خريطة_اجلب_*) خارجَ هذا الحارسِ حدًّا معلَنًا (سطحُها
+                //      مدمجةٌ مسمّاةٌ ولم يُقَس عقدُها العدميُّ بعد).
+                // (EN) An UNTAGGED null receiver used to dereference a null pointer —
+                //      a silent SIGSEGV on both channels (measured). Brackets raise
+                //      SEM011, the method surface RUN033 with the `.احصل()` label —
+                //      the interpreter's codes verbatim; {type} filled by the door.
+                //      The typed-fetch channels stay outside this guard (declared
+                //      limit: their null-receiver contract is unmeasured).
+                if (receiverIsIndexing)
+                {
+                    cg_.emitRaiseIfNull(
+                        mapPtr, ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED, {},
+                        "map.get");
+                }
+                else if (receiverIsMethodSurface)
+                {
+                    std::map<std::string, std::string> nullRecvPlaceholders;
+                    nullRecvPlaceholders["operation"] = getOpLabel;
+                    cg_.emitRaiseIfNull(
+                        mapPtr, ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                        nullRecvPlaceholders, "map.get");
+                }
+
                 llvm::Value *key = normalizeMapKey(args[1], "mget.key.ptr");
 
                 // (AR) تحميل capacity, keys, values, types من البنية
@@ -749,7 +915,7 @@ namespace Sad
                 //      null value — which is also how "absent key" becomes
                 //      distinguishable from "empty value" in the compiler.
                 // ════════════════════════════════════════════════════════════
-                if (funcName == kRuntimeMapGetDyn)
+                if (funcName == kRuntimeMapGetDyn || funcName == kRuntimeMapGetDynMethod)
                 {
                     auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
 

@@ -776,21 +776,19 @@ namespace Sad
                     // ================================================================
                     if (auto idx = dynamic_cast<const Sad::AST::IndexExpr *>(expr))
                     {
+                        // (AR) الدلالةُ في المعينِ الواحدِ `bracketReadResultKind`؛ هذا
+                        //      المسارُ وحدَه يملك سجلَّ أنواعِ العناصرِ المحلّيَّ فيمرّره.
+                        // (EN) Semantics live in the single source bracketReadResultKind;
+                        //      only this path owns the local element-type registry.
+                        SadTypeKind knownElem = SadTypeKind::Void;
                         if (auto obj = dynamic_cast<const Sad::AST::VariableExpr *>(idx->object.get()))
                         {
                             auto elemIt = localElementTypes.find(obj->name);
-                            if (elemIt != localElementTypes.end() &&
-                                elemIt->second != SadTypeKind::Void &&
-                                elemIt->second != SadTypeKind::Unknown)
-                            {
-                                return elemIt->second;
-                            }
+                            if (elemIt != localElementTypes.end())
+                                knownElem = elemIt->second;
                         }
-                        // (AR) فهرسةُ نصٍّ تُعطي نصًّا (محرفًا واحدًا) لا عنصرَ حاوية.
-                        // (EN) Indexing a string yields a string (one character), not a container element.
-                        if (inferExprType(idx->object.get()) == SadTypeKind::String)
-                            return SadTypeKind::String;
-                        return SadTypeKind::Any;
+                        return TemplateBuilder::bracketReadResultKind(
+                            inferExprType(idx->object.get()), knownElem);
                     }
 
                     // (AR) فحص DataType من التعبير نفسه (إذا توفر)

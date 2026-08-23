@@ -837,9 +837,12 @@ namespace Sad
                 //      of the ADT-field arm below.
                 if (auto *idxExpr = dynamic_cast<const Sad::AST::IndexExpr *>(expr))
                 {
-                    if (inferExprType(idxExpr->object.get()) == SadTypeKind::String)
-                        return SadTypeKind::String;
-                    return SadTypeKind::Any;
+                    // (AR) الدلالةُ في المعينِ الواحدِ `bracketReadResultKind` — هذا
+                    //      المسارُ لا يملك سجلَّ أنواعِ عناصرَ محلّيًّا فيمرّر «فراغ».
+                    // (EN) Semantics live in the single source bracketReadResultKind;
+                    //      this path has no local element-type registry, so Void.
+                    return bracketReadResultKind(inferExprType(idxExpr->object.get()),
+                                                 SadTypeKind::Void);
                 }
 
                 // (AR) ISSUE-076/084 (ب″): وصولٌ مباشرٌ لحقل ADT (X.حقل حيث «حقل» اسمُ حقلٍ في

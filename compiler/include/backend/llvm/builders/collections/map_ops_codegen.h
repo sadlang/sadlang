@@ -61,9 +61,18 @@ public:
     //      shared-surface sites: mkvs serves the named interface, the
     //      `.مفاتيح()` method AND the «لكل» loop at once — naming one surface
     //      would lie about the others; the ns10 lesson).
+    // (AR) [سطحُ الطريقة] `operationName`: لفظُ العمليّةِ `.احصل()`/`.عين()` الذي
+    //      يملأ `{operation}` في RUN033 حين يكون `absenceCode` رمزَ سطحِ الطريقة —
+    //      المفسّرُ يركّبه «"." + الاسم + "()"» من الاسمِ المطبَّعِ (الشدّةُ
+    //      تُجرَّد في المعجم)، فثابتُ TypeMethods المولَّدُ هو عينُ ما يُطبَع.
+    // (EN) [method surface] `operationName`: the operation label filling
+    //      {operation} in RUN033 when absenceCode is the method-surface code —
+    //      the interpreter composes it from the normalized name, so the
+    //      generated TypeMethods constant is exactly what gets printed.
     llvm::Value *normalizeMapPtr(llvm::Value *mapValue, const char *label,
                                  std::optional<Sad::Errors::ErrorCode> absenceCode = std::nullopt,
-                                 const char *builtinFunc = nullptr);
+                                 const char *builtinFunc = nullptr,
+                                 const char *operationName = nullptr);
 
     // (AR) تطبيعُ مفتاحِ الخريطة: مفاتيحُ الخريطةِ نصوصٌ دائمًا (تُخزَّن بـstrdup
     //      وتُقارَن بـstrcmp)، فقيمةٌ موسومةٌ زمنَ التشغيل لا تصلح مفتاحًا إلّا إن

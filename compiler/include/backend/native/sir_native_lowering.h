@@ -441,7 +441,8 @@ namespace sad
                 for (const auto &block : fn.getBasicBlocks())
                     for (const auto &inst : block->instructions)
                         if (inst.opcode == sir::SIROpcode::CALL && !inst.operands.empty() &&
-                            inst.operands[0].name == Sad::Compiler::kRuntimeMapSetTyped)
+                            (inst.operands[0].name == Sad::Compiler::kRuntimeMapSetTyped ||
+                             inst.operands[0].name == Sad::Compiler::kRuntimeMapSetTypedMethod))
                             ++n;
                 return n;
             }
@@ -3212,9 +3213,27 @@ namespace sad
                 namespace rep = types::repr;
                 handled = false;
                 const std::string &fname = inst.operands[0].name;
+                // (AR) [RFC عقد الغياب — درسُ «ثلاث نسخ»] قناةُ سطحِ الطريقةِ
+                //      (`_method`) مرادفٌ تنفيذيٌّ تامٌّ للقناةِ الفهرسيّةِ هنا:
+                //      الفرقُ رمزُ تشخيصِ الغيابِ في خلفيّةِ LLVM، ولا حارسَ وسمٍ
+                //      في هذا المسارِ أصلًا. وإسقاطُها كان يُسقط `.عيّن()` إلى
+                //      النداءِ العامِّ برمزٍ لا يُحلّ. وحارسُ «لكل» لا-عمليّةَ
+                //      معلَنةً: هذا المسارُ غيرُ موسومٍ فلا غيابَ يُحرَس.
+                // (EN) [absence contract — the three-copies lesson] The method-surface
+                //      channel is an exact execution synonym here: the difference is
+                //      the LLVM backend's absence diagnostic, and this path has no tag
+                //      guard at all. Dropping it made `.عيّن()` fall to the generic
+                //      call with an unresolvable symbol. The foreach guard is a
+                //      declared no-op: this path is untagged, nothing to guard.
+                if (fname == Sad::Compiler::kRuntimeForeachAbsenceGuard)
+                {
+                    handled = true;
+                    return true;
+                }
                 const bool isCreate = (fname == Sad::Compiler::kRuntimeMapCreate);
                 const bool isSize = (fname == Sad::Compiler::kRuntimeMapSize);
-                const bool isSet = (fname == Sad::Compiler::kRuntimeMapSetTyped);
+                const bool isSet = (fname == Sad::Compiler::kRuntimeMapSetTyped ||
+                                    fname == Sad::Compiler::kRuntimeMapSetTypedMethod);
                 const bool isGet = (fname == Sad::Compiler::kRuntimeMapGetI64);
                 const bool isHas = (fname == Sad::Compiler::kRuntimeMapHas);
                 if (!isCreate && !isSize && !isSet && !isGet && !isHas)

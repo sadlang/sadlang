@@ -612,6 +612,29 @@ namespace Sad
                 //      (2) a valueVar on a non-map (array) is not allocated here, so it surfaces as
                 //      an undefined symbol at build time — mirroring the interpreter (which leaves
                 //      valueVar undefined for arrays).
+                // (AR) [RFC عقد الغياب — سطحُ «لكل»] مصدرٌ موسومٌ زمنَ التشغيل («أي»):
+                //      حارسُ الغيابِ يُبَثُّ قبلَ آلةِ التكرار — فراغٌ/عدمٌ يرفعُ RUN055
+                //      بعبارةِ المفسّرِ الحرفيّةِ وخروجٍ ١ (قِيس 2026-08-23: كان يصلُ
+                //      حارسَ المصفوفةِ فيُرفَعُ بنصٍّ بلا رمزٍ يكذبُ عن السطح)، وسائرُ
+                //      الأوسامِ تمرُّ إلى الحرّاسِ القائمين بلا أثر.
+                // (EN) [absence contract — foreach surface] A runtime-tagged source:
+                //      emit the absence guard ahead of the iteration machinery —
+                //      Void/Null raises RUN055 with the interpreter's literal phrase
+                //      and exit 1 (measured 2026-08-23: it used to reach the array
+                //      guard and raise an uncoded text lying about the surface);
+                //      every other kind passes through to the existing guards.
+                if (iterableResult.type == SadTypeKind::Any && b_.currentBlock_)
+                {
+                    SIRInstruction guardInst;
+                    guardInst.opcode = SIROpcode::CALL;
+                    guardInst.operands.push_back(
+                        SIROperand::ConstantString(Sad::Compiler::kRuntimeForeachAbsenceGuard));
+                    guardInst.operands.push_back(SIROperand::Register(
+                        iterableResult.registerName, iterableResult.type));
+                    guardInst.comment = "foreach absence guard (RUN055)";
+                    b_.currentBlock_->addInstruction(guardInst);
+                }
+
                 if (iterableResult.type == SadTypeKind::Map)
                 {
                     // (AR) بانٍ حرفيّ الخريطة يحفظ نوع القيمة الموحَّد في elementType (Void إن مختلطًا)

@@ -1,0 +1,42 @@
+# @description عشريٌّ **حرفيٌّ مباشرٌ** إلى معاملِ طريقةِ صنفٍ مصرَّحٍ «رقم» ⇒ المفسّرُ يمرّره (5.0 «عشري») والمترجَمُ يبتره سكونيًّا (4 «رقم») — rc=0 كلاهما: كذبٌ صامت.
+# @expected 5.0\nعشري
+# @priority P1
+
+# ============================================================
+# (AR) 🔴 حمراءُ معلنةٌ (٢٠٢٦-٠٨-٢٣، ويندوز Debug، FAIL_OUTPUT) — صفُّها
+#      في DECLARED_REDS.tsv (سجلُّ التحديثات [٧])، وتُحذَفُ منه ويُعادُ
+#      هذا الملفُّ إلى قسمِه يومَ يخضرّ.
+#
+#      المقيس: `ح.ضاعف(2.5)` — المفسّرُ لا يقسر معاملَ الطريقةِ المصرَّحَ
+#      «رقم» فيمرُّ العشريُّ ويطبع `5.0`/«عشري»؛ والمترجَمُ يقسره سكونيًّا
+#      عند موقعِ النداءِ (fptosi ‏2.5⇒2) فيطبع `4`/«رقم».
+#
+#      وليست أختَ البذرةِ 126: هناك الوسيطُ **قراءةُ قوسٍ موسومةٌ** («أي»)
+#      فترقّي بوّابةُ الترقيةِ المعاملَ ويعبرُ الوسمُ سليمًا — متطابقان.
+#      العطبُ هنا في الوسيطِ **الحرفيِّ** المعلومِ سكونيًّا: قاعدةُ توسيعِ
+#      «عشري⇒أي» للمعاملِ المصنَّفِ تعملُ للدوالِّ العليا (بوّابةُ
+#      sir_builder_functions) ولا نظيرَ لها في طبقةِ تواقيعِ طرائقِ
+#      الأصنافِ (class_main) — فالسدُّ الجذريُّ تعميمُ التوسيعِ على
+#      تواقيعِ الطرائق، لا قسرُ المفسّرِ (المفسّرُ هو العقد).
+# (EN) Declared red (2026-08-23, FAIL_OUTPUT): a LITERAL float into a class
+#      method's declared «رقم» param — the interpreter passes it through
+#      (5.0/عشري) while the compiler truncates at the call site (4/رقم),
+#      both rc=0. Not seed 126's case: there the argument is a tagged
+#      bracket read and the widening gate promotes the param — they match.
+#      The gap is the statically-known literal: the Float⇒Any widening rule
+#      exists for toplevel functions and has no counterpart in the class
+#      method-signature layer. The radical seal is widening method
+#      signatures, not coercing the interpreter (the interpreter is the
+#      contract).
+# ============================================================
+
+صنف حاسبة
+    دالة رقم ضاعف(رقم س)
+        ارجع س * 2
+    نهاية
+نهاية
+
+متغير ح = حاسبة()
+متغير ق = ح.ضاعف(2.5)
+اطبع_سطر(ق)
+اطبع_سطر(نوع(ق))

@@ -472,6 +472,46 @@ namespace Sad::Compiler
     //      A new contract with map_ops.cpp closing card م-٠٠١ criterion ق٣.
     inline constexpr const char *kRuntimeMapGetDyn = "__sad_map_get_dyn";
 
+    // (AR) [RFC عقد الغياب — سطحُ الطريقة] القناتان نفساهما (قراءةٌ موسومةٌ
+    //      وكتابةٌ مصنَّفة) لكن من **سطحِ الطريقة** `.احصل()`/`.عين()` لا من
+    //      القوسَين. الاسمُ هو ناقلُ السطحِ إلى الخلفيّة — وهي طريقةُ التمييزِ
+    //      القائمةُ أصلًا (`receiverIsIndexing` يُشتَقُّ من اسمِ القناة) —
+    //      فيرفعُ الغيابُ الموسومُ RUN033 «نوع المعامل 'VOID' غير مدعوم في
+    //      العملية '.احصل()'» مطابقًا المفسّرَ (قِيس 2026-08-23)، بدل رمزَي
+    //      الفهرسةِ SEM011/RUN018 اللذين كانا يكذبان عن السطح.
+    // (EN) [absence-contract RFC — method surface] The same two channels
+    //      (tagged read, typed write) but entered from the METHOD surface
+    //      `.احصل()`/`.عين()` rather than brackets. The name carries the
+    //      surface to the backend — the discrimination mechanism already in
+    //      use — so tagged absence raises RUN033 with the interpreter's
+    //      operation label (measured 2026-08-23) instead of the indexing
+    //      codes SEM011/RUN018 which lied about the surface.
+    inline constexpr const char *kRuntimeMapGetDynMethod = "__sad_map_get_dyn_method";
+    inline constexpr const char *kRuntimeMapSetTypedMethod = "__sad_map_set_typed_method";
+
+    // (AR) [RFC عقد الغياب — سطحُ «لكل»] حارسُ الغيابِ قبل آلةِ التكرار:
+    //      يفحصُ وسمَ المصدرِ الموسومِ (%SadDyn)؛ إن كان فراغًا أو عدمًا رفعَ
+    //      RUN055 بملءِ `{type}` بعبارةِ المفسّرِ الحرفيّةِ أدناه — وإلّا مرَّ
+    //      بلا أثر. لا يتوسّعُ لغيرِ الغياب: وسمٌ آخرُ غيرُ قابلٍ للتكرار يبقى
+    //      على حارسِ `normalizeArrayPtr` القائمِ (حدٌّ معلَن).
+    // (EN) [absence-contract RFC — foreach surface] Absence guard ahead of the
+    //      iteration machinery: inspects the tagged source's kind; Void/Null
+    //      raises RUN055 with {type} filled with the interpreter's literal
+    //      phrase below — anything else passes through untouched (other
+    //      non-iterable tags stay on the existing normalizeArrayPtr guard;
+    //      a declared limit).
+    inline constexpr const char *kRuntimeForeachAbsenceGuard = "__sad_foreach_absence_guard";
+
+    // (AR) عبارةُ `{type}` التي يملأ بها المفسّرُ RUN055 **حرفيًّا** لكلِّ مصدرٍ
+    //      غيرِ قابلٍ للتكرار (statement_executor.cpp — القيمةُ مهجّأةٌ هناك
+    //      بلا تمييزِ نوعٍ). نسخةٌ ثانيةٌ من لفظِ المفسّرِ بالضرورة: تغييرُ
+    //      أحدِهما دون الآخرِ يفكُّ التكافؤَ المقيس.
+    // (EN) The literal {type} phrase the interpreter fills into RUN055 for any
+    //      non-iterable source (statement_executor.cpp spells it with no type
+    //      discrimination). Necessarily a second copy of the interpreter's
+    //      wording: changing one without the other breaks the measured parity.
+    inline constexpr const char *kNotIterableTypeLabel = "غير معروف/unknown";
+
     // (AR) الجلب المصنَّف (RFC عقد الغياب — المرحلة ب): الغيابُ «لاشيء» حصرًا،
     //      والحضورُ بنوعٍ مغايرٍ أو بعدمٍ مخزَّنٍ خطأُ تشغيلٍ صريح (RUN074).
     //      النصّيّ والرقميّ يُرجعان قيمتَهما المحسوسة (والغيابُ حارسُ kSadNullSentinel

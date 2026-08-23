@@ -367,10 +367,29 @@ namespace Sad
                     SIRInstruction inst;
                     inst.opcode = SIROpcode::CALL;
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Any);
-                    inst.operands.push_back(SIROperand::ConstantString(kRuntimeMapGetDyn));
+                    // (AR) [RFC عقد الغياب] قناةُ **سطحِ الطريقة**: التنفيذُ عينُه في
+                    //      الخلفيّة، والاسمُ يحملُ السطحَ كي يرفعَ الغيابُ الموسومُ
+                    //      RUN033 بلفظِ `.احصل()` لا SEM011 رمزَ الفهرسةِ (قِيس).
+                    // (EN) [absence contract] METHOD-surface channel: same backend
+                    //      implementation; the name carries the surface so tagged
+                    //      absence raises RUN033 with the `.احصل()` label instead of
+                    //      the indexing code SEM011 (measured).
+                    inst.operands.push_back(SIROperand::ConstantString(kRuntimeMapGetDynMethod));
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     if (args.size() > 1)
                         inst.operands.push_back(args[1]);
+                    // (AR) الوسيطُ الثالثُ — البديلُ عند غيابِ المفتاح: مصدرُ الحقيقةِ
+                    //      (maps.yaml) والمفسّرُ يقرّانه، والخلفيّةُ تعلّبه بنوعِه من
+                    //      معامِلِ التعليمةِ (`mgetd.k.def`). كان يُسقَط هنا صامتًا
+                    //      فيطبع المترجَمُ «لاشيء» حيث يطبع المفسّرُ البديلَ (قِيس —
+                    //      كشفته المراجعةُ العدائيّة).
+                    // (EN) Third argument — the absent-key default: the SoT and the
+                    //      interpreter honour it and the backend packs it by the
+                    //      operand's type (mgetd.k.def). It was silently dropped here,
+                    //      so the compiled path printed «لاشيء» where the interpreter
+                    //      prints the default (measured — adversarial review).
+                    if (args.size() > 2)
+                        inst.operands.push_back(args[2]);
                     inst.comment = "map get (tagged)";
                     if (b_.currentBlock_)
                         b_.currentBlock_->addInstruction(inst);
@@ -400,7 +419,12 @@ namespace Sad
                     inst.opcode = SIROpcode::CALL;
                     std::string resultReg = b_.newTempRegister();
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
-                    inst.operands.push_back(SIROperand::ConstantString(kRuntimeMapSetTyped));
+                    // (AR) [RFC عقد الغياب] قناةُ سطحِ الطريقة — الغيابُ الموسومُ يرفعُ
+                    //      RUN033 بلفظِ `.عين()` لا RUN018 رمزَ الإسنادِ بالفهرس (قِيس).
+                    // (EN) [absence contract] Method-surface channel — tagged absence
+                    //      raises RUN033 with the `.عين()` label, not the indexed-assign
+                    //      code RUN018 (measured).
+                    inst.operands.push_back(SIROperand::ConstantString(kRuntimeMapSetTypedMethod));
                     inst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                     inst.operands.push_back(args[1]); // (AR) المفتاح / key
                     inst.operands.push_back(args[2]); // (AR) القيمة / value
@@ -409,7 +433,15 @@ namespace Sad
                     inst.comment = "map set typed";
                     if (b_.currentBlock_)
                         b_.currentBlock_->addInstruction(inst);
-                    return BuildResult(resultReg, SadTypeKind::Integer);
+                    // (AR) عائدُ `.عين()` هو **المستقبِلُ نفسُه** (التعديلُ في المكان)
+                    //      كما في المفسّر — فـ`نوع(خ.عين(…))` «خريطة» والنداءُ يتسلسل.
+                    //      كان يُعادُ سجلُّ نتيجةِ النداءِ (i64 صفر) فيكذب «رقم» (قِيس —
+                    //      كشفته المراجعةُ العدائيّة).
+                    // (EN) `.عين()` returns THE RECEIVER (in-place mutation) as the
+                    //      interpreter does — نوع() says «خريطة» and calls chain. It
+                    //      used to return the call's i64 result register, lying «رقم»
+                    //      (measured — adversarial review).
+                    return BuildResult(objResult.registerName, objResult.type);
                 }
 
                 // ================================================================
