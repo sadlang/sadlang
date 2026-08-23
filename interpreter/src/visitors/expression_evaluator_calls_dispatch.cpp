@@ -33,6 +33,7 @@
 // (EN) The generated import gate + the loaded-module registry
 #include "builtin_registry.h"
 #include "builtin_module_registry.h"
+#include "utils/class_module_captures.h"
 #include <iostream>
 #include <unordered_map>
 #include <algorithm>
@@ -159,6 +160,17 @@ namespace Sad
             // (AR) ندفع نطاق فقط للمعاملات - الحقول موروثة من النطاق الأب
             // (EN) Push scope only for parameters - fields inherited from parent scope
             variableManager_.enterScope(Data::ScopeType::FUNCTION, funcName);
+
+            // (AR) ع-1: حقن التقاطات وحدة التعريف هنا أيضا — كان هذا الموضع
+            //      يعتمد على رؤية نطاق الأب (طريقة محقونة) عبر سلسلة الآباء،
+            //      وهو اعتماد هش رصدته المراجعة؛ الحقن الصريح قبل ربط
+            //      المعاملات يوحده مع بقية مواضع تنفيذ أجسام الطرق.
+            // (EN) ع-1: inject the defining module's captures here too — this
+            //      site used to lean on parent-scope visibility (an injected
+            //      caller method), a fragile chain; explicit injection before
+            //      parameter binding unifies it with every other method-body
+            //      execution site.
+            Utils::injectClassModuleCaptures(thisClassType, variableManager_);
 
             for (size_t i = 0; i < method->parameters.size(); ++i)
             {

@@ -379,6 +379,14 @@ void sad_http_server_listen(void *server)
     }
 }
 
+// (AR) دلالة العائد: listen حاجبة — العائد 1 يعني «اكتملت حلقة الخدمة
+//      وتوقفت سويا» ويصل الحامل **بعد** أوقف_الخادم، لا فحصا فوريا لنجاح
+//      الربط. فشل الربط نفسه يعود 0 فورا (الاستثناء يهرب من listen).
+//      (توضيح رصدته المراجعة: التوثيق السابق أوحى بفحص فوري.)
+// (EN) Return semantics: listen BLOCKS — a return of 1 means "the serve loop
+//      completed and stopped cleanly" and reaches the caller only AFTER
+//      أوقف_الخادم, not as an immediate bind-success probe. A bind failure
+//      itself returns 0 immediately (the exception escapes listen).
 int sad_http_server_listen_on(void *server, int port)
 {
     if (!server)

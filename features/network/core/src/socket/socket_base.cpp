@@ -189,11 +189,29 @@ void SocketBase::set_reuse_address(bool reuse) {
     }
     
     int opt = reuse ? 1 : 0;
+#ifdef _WIN32
+    // (AR) 🔑 دلالة Winsock تخالف POSIX: SO_REUSEADDR على ويندوز يسمح لمقبس
+    //      ثان بالربط على منفذ **قيد الاستماع النشط** — اختطاف منفذ محلي
+    //      (رصدته المراجعة الأمنية). البديل SO_EXCLUSIVEADDRUSE: يمنع
+    //      الاختطاف ولا يمنع إعادة الربط بعد إغلاق سليم للمستمع — وهي غاية
+    //      «إعادة الاستخدام» المقصودة هنا (أزواج TIME_WAIT).
+    // (EN) 🔑 Winsock semantics differ from POSIX: SO_REUSEADDR on Windows
+    //      lets a second socket bind a port that is ACTIVELY LISTENING —
+    //      local port hijacking. SO_EXCLUSIVEADDRUSE blocks hijacking while
+    //      still allowing rebind after a clean listener close (the TIME_WAIT
+    //      reuse this API is for).
+    if (setsockopt(m_socket, SOL_SOCKET, SO_EXCLUSIVEADDRUSE,
+                   reinterpret_cast<const char*>(&opt), sizeof(opt)) != 0) {
+        throw create_network_exception_from_system_error(
+            NetworkErrorCode::SET_OPTION_FAILED);
+    }
+#else
     if (setsockopt(m_socket, SOL_SOCKET, SO_REUSEADDR,
                    reinterpret_cast<const char*>(&opt), sizeof(opt)) != 0) {
         throw create_network_exception_from_system_error(
             NetworkErrorCode::SET_OPTION_FAILED);
     }
+#endif
 }
 
 SocketAddress SocketBase::get_local_address() const {

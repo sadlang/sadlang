@@ -25,6 +25,7 @@
 
 #include "class_type.h"
 #include "variable_manager.h"
+#include <shared_mutex>
 
 namespace Sad
 {
@@ -33,24 +34,47 @@ namespace Sad
         namespace Utils
         {
 
-            inline void injectClassModuleCaptures(const Data::ClassType *cls,
-                                                  Data::VariableManager &variables)
+            // (AR) قفل قارئ/كاتب لخرائط moduleCaptures كلها: الكاتب هو تنفيذ
+            //      الاستيراد (وإعادته)، والقارئ كل تنفيذ لجسم طريقة — وقد
+            //      يجريان في خيطين (استيراد في الرئيسي بينما خيط «أطلق» ينفذ
+            //      طريقة صنف مستورد) فكانت unordered_map تقرأ وتكتب متزامنة
+            //      بلا حماية (سلوك غير معرف — رصدته المراجعة).
+            // (EN) Reader/writer lock over every moduleCaptures map: import
+            //      execution writes, every method-body execution reads — and
+            //      the two can race across threads (a main-thread import while
+            //      a spawned thread runs an imported class method), which was
+            //      an unguarded concurrent unordered_map access (UB).
+            inline std::shared_mutex &moduleCapturesMutex()
+            {
+                static std::shared_mutex mutex;
+                return mutex;
+            }
+
+            inline void injectClassModuleCapturesLocked(const Data::ClassType *cls,
+                                                        Data::VariableManager &variables)
             {
                 if (!cls)
                     return;
 
                 // (AR) الأساس أولًا كي يتغلب المشتق عند تصادم الأسماء
                 // (EN) Base first so the derived class wins on name collisions
-                injectClassModuleCaptures(cls->getBaseClass(), variables);
+                injectClassModuleCapturesLocked(cls->getBaseClass(), variables);
                 for (const auto *additionalBase : cls->getAdditionalBases())
                 {
-                    injectClassModuleCaptures(additionalBase, variables);
+                    injectClassModuleCapturesLocked(additionalBase, variables);
                 }
 
                 for (const auto &[capturedName, capturedValue] : cls->moduleCaptures)
                 {
                     variables.define(capturedName, capturedValue);
                 }
+            }
+
+            inline void injectClassModuleCaptures(const Data::ClassType *cls,
+                                                  Data::VariableManager &variables)
+            {
+                std::shared_lock<std::shared_mutex> readGuard(moduleCapturesMutex());
+                injectClassModuleCapturesLocked(cls, variables);
             }
 
         } // namespace Utils

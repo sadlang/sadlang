@@ -840,9 +840,31 @@ namespace Sad
             //     evaluator path) so closure-mutated state persists across calls. ───
             if (func->hasCaptures())
             {
+                // (AR) حارس التظليل: معامل باسم ملتقط عرف بعد حقن الالتقاطات —
+                //      قراءته هنا كانت تكتب قيمة المعامل إلى الإغلاق (تلوث
+                //      دائم عبر الاستدعاءات — رصدته المراجعة). المظلل يحتفظ
+                //      بقيمته الملتقطة.
+                // (EN) Shadowing guard: a parameter named after a capture is
+                //      defined after injection — reading it here wrote the
+                //      parameter's value into the closure (permanent pollution
+                //      across calls). Shadowed names keep their capture.
                 std::unordered_map<std::string, Data::Value> updatedCaptures;
                 for (const auto &[capName, capVal] : func->getCaptures())
                 {
+                    bool shadowed = false;
+                    for (const auto &param : params)
+                    {
+                        if (param.name == capName)
+                        {
+                            shadowed = true;
+                            break;
+                        }
+                    }
+                    if (shadowed)
+                    {
+                        updatedCaptures[capName] = capVal;
+                        continue;
+                    }
                     const Data::Value *currentVal = variableManager_->tryGet(capName);
                     updatedCaptures[capName] = currentVal ? *currentVal : capVal;
                 }
@@ -1107,9 +1129,45 @@ namespace Sad
             //     so closure-mutated state persists across calls ───
             if (func->hasCaptures())
             {
+                // (AR) حارس التظليل: «هذا» والحقول والمعاملات عرفت في هذا
+                //      النطاق بعد حقن الالتقاطات — قراءة اسم ملتقط ظلله أحدها
+                //      كانت تكتب قيمة الظل إلى الإغلاق (تلوث دائم عبر
+                //      الاستدعاءات — رصدته المراجعة). المظلل يحتفظ بالتقاطه.
+                // (EN) Shadowing guard: «هذا», fields, and parameters are
+                //      defined after capture injection — reading a shadowed
+                //      captured name wrote the shadow into the closure
+                //      (permanent pollution). Shadowed names keep their capture.
                 std::unordered_map<std::string, Data::Value> updatedCaptures;
                 for (const auto &[capName, capVal] : func->getCaptures())
                 {
+                    bool shadowed = capName == "هذا";
+                    if (!shadowed)
+                    {
+                        for (const auto &fieldName : fieldNames)
+                        {
+                            if (fieldName == capName)
+                            {
+                                shadowed = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!shadowed)
+                    {
+                        for (const auto &param : params)
+                        {
+                            if (param.name == capName)
+                            {
+                                shadowed = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (shadowed)
+                    {
+                        updatedCaptures[capName] = capVal;
+                        continue;
+                    }
                     const Data::Value *currentVal = variableManager_->tryGet(capName);
                     updatedCaptures[capName] = currentVal ? *currentVal : capVal;
                 }
