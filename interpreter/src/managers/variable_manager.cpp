@@ -396,6 +396,20 @@ namespace Sad
             // (EN) Delete all variables in this scope after successful pop
             scopeVariables_.erase(currentScope);
             declaredTypes_.erase(currentScope);
+            // (AR) 🔑 ومحو تسجيلات الثوابت أيضا: كانت تبقى مفهرسة بمؤشر النطاق
+            //      الميت، فإذا أعيد استخدام العنوان لنطاق دالة لاحق ورث «ثبات»
+            //      أسماء لم يصرح بها — فيسكت حارس «إعادة الاستيراد» في define
+            //      تعريفات مشروعة بصمت (المقيس: معامل طريقة باسم ثابت وحدة
+            //      ملتقط كان يخسر أمام الالتقاط لأن اسم الثابت بقي مسجلا على
+            //      عنوان النطاق المعاد استخدامه).
+            // (EN) 🔑 Purge const registrations too: they stayed keyed by the
+            //      dead scope's pointer, so a later function scope reusing the
+            //      address inherited constness for names it never declared —
+            //      define()'s re-import guard then silently dropped legitimate
+            //      definitions (measured: a method parameter named after a
+            //      captured module const lost to the capture because the const
+            //      name was still registered against the recycled address).
+            constVariables_.erase(currentScope);
         }
 
         // ========================================

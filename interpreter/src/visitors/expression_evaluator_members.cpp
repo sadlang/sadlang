@@ -17,6 +17,7 @@
 #include "expressions.h"
 #include "advanced_expr_nodes.h" // For AwaitExpr
 #include "class_manager.h"
+#include "utils/class_module_captures.h" // (AR) ع-1: حقن ثوابت وحدة التعريف
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
@@ -311,6 +312,10 @@ namespace Sad
                 // ═══════════════════════════════════════════════════════════════
                 variableManager_.enterScope(Data::ScopeType::FUNCTION, "get_" + node.member);
 
+                // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والحقول
+                // (EN) ع-1: defining module's constants before «هذا» and fields
+                Utils::injectClassModuleCaptures(classType, variableManager_);
+
                 // (AR) ربط 'هذا' بالكائن / (EN) Bind 'this' to object
                 variableManager_.define("هذا", objectValue);
                 variableManager_.define("this", objectValue);
@@ -579,6 +584,11 @@ namespace Sad
                 }
 
                 variableManager_.enterScope(Data::ScopeType::FUNCTION, "get_" + node.memberName);
+
+                // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والحقول
+                // (EN) ع-1: defining module's constants before «هذا» and fields
+                Utils::injectClassModuleCaptures(classType, variableManager_);
+
                 variableManager_.define("هذا", objectValue);
                 variableManager_.define("this", objectValue);
 

@@ -15,6 +15,7 @@
 #include "advanced_expr_nodes.h" // For AwaitExpr
 #include "directive_nodes.h"     // For SizeofExpr, AtomicExpr
 #include "class_manager.h"
+#include "utils/class_module_captures.h" // (AR) ع-1: حقن ثوابت وحدة التعريف
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
@@ -69,6 +70,17 @@ namespace Sad
 
             // (AR) إنشاء نطاق جديد لتنفيذ العامل / (EN) Create new scope for operator execution
             variableManager_.enterScope(Data::ScopeType::FUNCTION, "operator" + overload.operatorSymbol);
+
+            // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والحقول
+            // (EN) ع-1: defining module's constants before «هذا» and fields
+            if (left.isObject())
+            {
+                auto leftObjectForCaptures = left.toObject();
+                if (leftObjectForCaptures)
+                {
+                    Utils::injectClassModuleCaptures(leftObjectForCaptures->getClass(), variableManager_);
+                }
+            }
 
             // (AR) ربط 'هذا' بالكائن الأيسر / (EN) Bind 'this' to left object
             variableManager_.define("هذا", left);
@@ -160,6 +172,17 @@ namespace Sad
             // (AR) إنشاء نطاق جديد لتنفيذ العامل / (EN) Create new scope for operator execution
             variableManager_.enterScope(Data::ScopeType::FUNCTION, "operator" + overload.operatorSymbol);
 
+            // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والحقول
+            // (EN) ع-1: defining module's constants before «هذا» and fields
+            if (operand.isObject())
+            {
+                auto operandObjectForCaptures = operand.toObject();
+                if (operandObjectForCaptures)
+                {
+                    Utils::injectClassModuleCaptures(operandObjectForCaptures->getClass(), variableManager_);
+                }
+            }
+
             // (AR) ربط 'هذا' بالكائن / (EN) Bind 'this' to operand object
             variableManager_.define("هذا", operand);
 
@@ -229,6 +252,18 @@ namespace Sad
             }
 
             variableManager_.enterScope(Data::ScopeType::FUNCTION, "operator[]=");
+
+            // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والحقول
+            // (EN) ع-1: defining module's constants before «هذا» and fields
+            if (obj.isObject())
+            {
+                auto objForCaptures = obj.toObject();
+                if (objForCaptures)
+                {
+                    Utils::injectClassModuleCaptures(objForCaptures->getClass(), variableManager_);
+                }
+            }
+
             variableManager_.define("هذا", obj);
 
             // (AR) ربط حقول الكائن كمتغيرات محلية

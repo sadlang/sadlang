@@ -14,6 +14,7 @@
 #include "expressions.h"
 #include "advanced_expr_nodes.h" // For AwaitExpr
 #include "class_manager.h"
+#include "utils/class_module_captures.h" // (AR) ع-1: حقن ثوابت وحدة التعريف
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
@@ -214,6 +215,10 @@ namespace Sad
                 //      and bind fields for direct access
                 // ═══════════════════════════════════════════════════════════════
                 variableManager_.enterScope(Data::ScopeType::FUNCTION, "set_" + node.member);
+
+                // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والقيمة والحقول
+                // (EN) ع-1: defining module's constants before «هذا», value and fields
+                Utils::injectClassModuleCaptures(classType, variableManager_);
 
                 // (AR) ربط 'هذا' و 'قيمة' / (EN) Bind 'this' and 'value'
                 variableManager_.define("هذا", objectValue);

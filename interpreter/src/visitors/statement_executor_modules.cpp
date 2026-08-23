@@ -465,6 +465,41 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
                     }
                 }
             }
+
+            // (AR) ع-1: الربط نفسه لأصناف هذه الوحدة — كانت الطرق بلا التقاطٍ
+            //      فيُقرأ ثابتُ الوحدةِ «لاشيء» داخلها عند الاستيراد بينما تراه
+            //      الدوالُّ الحرّة. تُحقَن moduleCaptures في نطاق كل تنفيذ لجسم
+            //      طريقة عبر utils/class_module_captures.h.
+            // (EN) ع-1: same attachment for this module's classes — methods had
+            //      no captures, so module constants read as null inside imported
+            //      class methods while free functions saw them. Injected into
+            //      every method body scope via utils/class_module_captures.h.
+            {
+                // (AR) المعيار «ملف المصدر» لا «لقطة الأسماء قبل التنفيذ»: تسجيل
+                //      الصنف يقع في تمريرة رفع التصريحات **قبل** أخذ اللقطة،
+                //      فكانت اللقطة تتخطى أصناف الوحدة كلها (قِيس بالتشخيص).
+                //      sourceFile يُملأ عند التسجيل من currentFilePath_ وهو هنا
+                //      مسار الوحدة نفسها.
+                // (EN) Criterion is the class's sourceFile, not a names-before
+                //      snapshot: class registration happens in the declaration
+                //      hoisting pass BEFORE the snapshot, so the snapshot skipped
+                //      every module class (measured). sourceFile is filled at
+                //      registration from currentFilePath_, which here is the
+                //      module's own path.
+                auto* classManagerForCaptures = Data::ClassManager::getInstance();
+                if (classManagerForCaptures) {
+                    for (const auto& className : classManagerForCaptures->getAllClassNames()) {
+                        auto* classDefinition = classManagerForCaptures->getClass(className);
+                        if (!classDefinition) {
+                            continue;
+                        }
+                        if (classDefinition->sourceFile != currentFilePath_) {
+                            continue;
+                        }
+                        classDefinition->moduleCaptures = moduleVars;
+                    }
+                }
+            }
         }
     }
     

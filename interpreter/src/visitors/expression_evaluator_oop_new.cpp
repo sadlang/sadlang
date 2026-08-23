@@ -38,6 +38,7 @@
 #include "class_manager.h"
 #include "object_instance.h"
 #include "error_manager.h"
+#include "utils/class_module_captures.h" // (AR) ع-1: حقن ثوابت وحدة التعريف في نطاق الباني
 #include "runtime_throw.h"
 #include "user_thrown.h"
 #include "profiler_hooks.h"
@@ -368,6 +369,10 @@ namespace Sad
                 // (AR) إنشاء scope جديد للباني
                 // (EN) Create new scope for constructor
                 variableManager_.enterScope(Data::ScopeType::FUNCTION, "constructor");
+
+                // (AR) ع-1: ثوابت وحدة التعريف قبل المعاملات و«هذا» والحقول
+                // (EN) ع-1: defining module's constants before params, «هذا» and fields
+                Utils::injectClassModuleCaptures(classType, variableManager_);
 
                 // (AR) ربط المعاملات بالقيم (مكانية ← مسماة ← افتراضية)
                 // (EN) Bind parameters (positional → named → default)

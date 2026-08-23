@@ -703,6 +703,12 @@ namespace Sad
 
             auto classType = std::make_unique<ClassType>(node.name);
 
+            // (AR) مسار التسجيل الثاني يجب أن يعبئ sourceFile أيضا — معيار
+            //      ربط moduleCaptures في المرحلة 3 (ع-1) يقارن به
+            // (EN) Second registration path must also fill sourceFile — the
+            //      moduleCaptures attachment criterion (ع-1) compares against it
+            classType->sourceFile = currentFilePath_;
+
             // (AR) معالجة الوراثة / (EN) Handle inheritance
             if (!node.baseClasses.empty())
             {

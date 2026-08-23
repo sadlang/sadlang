@@ -31,6 +31,7 @@
 // (EN) Phase 2-A: inversion seam — no sad_ui include in the core; WidgetBuilder logic
 //      moved to sad_graphics_bridge behind IUIEvalBridge::tryWidgetMethodCall.
 #include "ui/ui_eval_bridge.h" // (AR) بادئة ui/ كي تَحلّ في sad_core وsad_interpreter معًا
+#include "utils/class_module_captures.h" // (AR) ع-1: حقن ثوابت وحدة التعريف في نطاق الطرق
 #include <atomic>
 #include <cmath>
 #include <climits>
@@ -315,6 +316,12 @@ namespace Sad
 
             // إنشاء scope جديد للطريقة
             variableManager_.enterScope(Data::ScopeType::FUNCTION, node.methodName);
+
+            // (AR) ع-1: ثوابت وحدة التعريف أولًا — قبل «هذا» والحقول والمعاملات
+            //      كي تتغلب هذه عليها عند تصادم الأسماء
+            // (EN) ع-1: defining module's constants first — before «هذا», fields
+            //      and parameters so those win on name collisions
+            Utils::injectClassModuleCaptures(classType, variableManager_);
 
             // ═══════════════════════════════════════════════════════════════════════
             // (AR) إضافة حقول الكائن للـ scope أولاً (محاكاة 'this') - فقط للطرق غير الثابتة
