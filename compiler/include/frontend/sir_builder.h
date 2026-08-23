@@ -397,6 +397,23 @@ namespace Sad
                 //      generator's yields into an array at call time.
                 bool isGeneratorFuncRef = false;
 
+                // (AR) [موجة ABI المغاليق] أصلُ مرجعِ الدالّةِ المسمّاةِ: «متغير د = اسم_دالة»
+                //      يحمل الاسمَ هنا، فينزعُ buildFunctionCall الوساطةَ (نداءٌ مباشرٌ لا
+                //      CLOSURE_CALL) متى ثبتَ أنّ الاسمَ لا يُعادُ إسنادُه في البرنامج كلِّه
+                //      (scanAssignedNames_ — برهانٌ غيرُ حسّاسٍ للتدفّق، فحلقةٌ تُعيدُ الإسنادَ
+                //      تُسمِّمُ كلَّ المواقع). النداءُ المباشرُ يرثُ آلاتِ الوسمِ كلَّها —
+                //      ترقيةَ العائدِ المصرَّحِ «رقم» الموسومةَ وتوسيعَ المعاملِ — التي يفقدُها
+                //      عقدُ المغاليقِ i64 (وهو عقدُ UEFI بحرفِه فلا يُمَسّ).
+                // (EN) [Closure-ABI wave] Provenance of a named function reference:
+                //      «متغير د = funcName» carries the name here, and buildFunctionCall
+                //      devirtualizes (direct CALL, not CLOSURE_CALL) once the name is proven
+                //      never reassigned anywhere (scanAssignedNames_ — flow-INsensitive, so a
+                //      loop that reassigns poisons every site). The direct call inherits the
+                //      full tagging machinery — declared-«رقم» dyn return promotion and param
+                //      widening — which the i64 closure ABI (UEFI's contract verbatim,
+                //      untouchable) cannot carry.
+                std::string funcRefProvenance;
+
                 /**
                  * @brief (AR) منشئ افتراضي
                  * @brief (EN) Default constructor

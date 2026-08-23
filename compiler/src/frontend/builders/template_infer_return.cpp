@@ -366,6 +366,59 @@ namespace Sad
                             {
                                 return it->second.returnType;
                             }
+                            // (AR) [موجة ABI المغاليق] نداءٌ غيرُ مباشرٍ عبرَ مرجعٍ نظيفِ
+                            //      الأصل: عائدُ الدالّةِ الحاضنةِ يُستنتَجُ من عائدِ
+                            //      الدالّةِ المحلولةِ — وإلّا حُسم Integer قبل نزعِ
+                            //      الوساطةِ فبُترَ العشريُّ عند «ارجع» (مقيس: 5.0 صارت
+                            //      5 والموقعُ نفسُه سليم). الحرّاسُ حرّاسُ المسحِ بحرفِهم:
+                            //      لا اسمَ مُسنَدًا، لا مفتاحَ مسمومًا، والسقوطُ للمفتاحِ
+                            //      الأعلى فقط حيث لا تصريحَ محلّيًّا.
+                            // (EN) [Closure-ABI wave] Indirect call through a clean-provenance
+                            //      ref: the enclosing function's return is inferred from the
+                            //      resolved callee's return — otherwise it froze as Integer
+                            //      before devirtualization and «ارجع» truncated the float
+                            //      (measured: 5.0 became 5 while the call site itself was
+                            //      sound). Guards mirror the scan verbatim: no assigned name,
+                            //      no poisoned key, top-level fallback only where no local
+                            //      declaration exists.
+                            if (b_.scanAssignedNames_.count(varExpr->name) == 0)
+                            {
+                                // (AR) نطاقُ المفتاحِ من اسمِ الدالّةِ المستنتَجةِ نفسِها لا
+                                //      من حالةِ المسح: هذا المسارُ يُنادى أيضًا وقتَ البناءِ
+                                //      (تجميدُ التوقيع) والحالةُ فارغةٌ حينها — فسقطَ
+                                //      المفتاحُ إلى الأعلى وجُمِّد Integer رغم تبنّي
+                                //      التمريراتِ للعائمِ (مقيس). وصدفةُ paramShell باسمِها
+                                //      الفارغِ تسقطُ للحالةِ عمدًا.
+                                // (EN) Scope the key by the very function being inferred, not
+                                //      by scan state: this path is also called at build time
+                                //      (signature freeze) when the scan state is empty — the
+                                //      key fell to top-level and Integer froze even though
+                                //      the passes had adopted Float (measured). The
+                                //      empty-named paramShell falls to the state on purpose.
+                                const std::string scopeName =
+                                    (funcDecl && !funcDecl->name.empty())
+                                        ? funcDecl->name
+                                        : b_.currentScanFuncName_;
+                                std::string bindKey = scopeName + "#" + varExpr->name;
+                                if (b_.scanFuncRefBindings_.find(bindKey) ==
+                                        b_.scanFuncRefBindings_.end() &&
+                                    b_.scanFuncRefDeclNode_.find(bindKey) ==
+                                        b_.scanFuncRefDeclNode_.end())
+                                {
+                                    bindKey = "#" + varExpr->name;
+                                }
+                                if (b_.scanFuncRefPoisoned_.count(bindKey) == 0)
+                                {
+                                    auto bindIt = b_.scanFuncRefBindings_.find(bindKey);
+                                    if (bindIt != b_.scanFuncRefBindings_.end())
+                                    {
+                                        auto boundIt =
+                                            b_.functionTable_.find(bindIt->second);
+                                        if (boundIt != b_.functionTable_.end())
+                                            return boundIt->second.returnType;
+                                    }
+                                }
+                            }
                             // (AR) §9 الجذر2: مدمجة معروفة (ليست دالة مستخدم) ⇒ نوع إرجاعها
                             //      من السجلّ المشترك (حقل returns في language-truth). «كائن»
                             //      = مقبض عنصر واجهة ⇒ Pointer (نظير نوع()=«كائن»). هكذا

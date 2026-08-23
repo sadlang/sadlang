@@ -134,6 +134,72 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildFunctionCall: function name = '" << funcName << "'" << std::endl;
 #endif
+
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) [موجة ABI المغاليق] نزعُ وساطةِ مرجعِ الدالّةِ المسمّاة:
+                    //      «متغير د = اجلب؛ د(...)» كان يمرُّ CLOSURE_CALL بعقدِ i64
+                    //      الخامِّ (عقدُ UEFI بحرفِه — لا يُمَسّ)، فيفقدُ آلاتِ الوسمِ
+                    //      كلَّها: عائدُ «رقم» المصرَّحُ الحاملُ غيابًا يُقرأ «رقمًا» لا
+                    //      «فراغًا»، والعشريُّ الوسيطُ يعبرُ بتّاتِه قمامةً صامتةً —
+                    //      كلاهما مقيس. متى ثبتَ الأصلُ (تصريحٌ واحدٌ بمرجعِ دالّةٍ
+                    //      عليا) ونظُفَ الاسمُ من الإسنادِ في البرنامجِ كلِّه ومن
+                    //      الظلِّ المعامليِّ، يُستبدَلُ الاسمُ فيسلكُ النداءُ المسارَ
+                    //      المباشرَ بآلاتِه — وهو عينُ ما ينفّذه المفسّرُ (المرجع).
+                    //      واللامدا خارجُه (بيئةٌ ملتقَطة)، والمُظلَّلُ والمُعادُ
+                    //      إسنادُه خارجُه (تسميمُ المسحِ غيرُ الحسّاسِ للتدفّق).
+                    // (EN) [Closure-ABI wave] Devirtualize a named function reference:
+                    //      «متغير د = اجلب؛ د(...)» used to go through CLOSURE_CALL on
+                    //      the raw-i64 contract (UEFI's contract verbatim — untouchable),
+                    //      losing the entire tagging machinery: a declared-«رقم» return
+                    //      carrying absence read back as «رقم» instead of «فراغ», and a
+                    //      float argument crossed as its raw bits — silent garbage. Both
+                    //      measured. When provenance is proven (a single declaration from
+                    //      a top-level function ref) and the name is assignment-clean
+                    //      program-wide and not parameter-shadowed, rewrite the name so
+                    //      the call takes the direct path with its machinery — exactly
+                    //      what the interpreter (the reference) executes. Lambdas are
+                    //      excluded (captured environment); shadowed or reassigned names
+                    //      are excluded by the scan's flow-insensitive poisoning.
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) قفلُ اقترانٍ مع مسحِ الأنواع: نزعُ الوساطةِ يصحُّ فقط حيث
+                    //      استطاعَ المسحُ إطعامَ الدالّةِ أنواعَ مواقعِها. مفتاحٌ مسمومٌ
+                    //      (تصريحان لاسمٍ واحدٍ في نطاقِ مسحٍ واحد) يعني أنّ المسحَ رفضَ
+                    //      التسجيلَ — فنداءٌ مباشرٌ حينها يبترُ العشريَّ بترًا صامتًا
+                    //      (مقيس: 7.5 صارت 6). المفتاحان يُحسَبان بعُرفِ المسحِ نفسِه:
+                    //      المُنطاقُ باسمِ الدالّةِ الحاضنةِ، والأعلى للمستوى الأعلى
+                    //      (نطاقُه في المسحِ اسمُه الفارغ).
+                    // (EN) Coupling lock with the type scan: devirtualization is valid only
+                    //      where the scan could feed the callee its site types. A poisoned
+                    //      key (two declarations of one name within one scan scope) means
+                    //      the scan refused to record — a direct call there silently
+                    //      truncates floats (measured: 7.5 became 6). Both keys follow the
+                    //      scan's own convention: scoped by the enclosing function's name,
+                    //      and the top-level key (whose scan scope is the empty name).
+                    const std::string devirtScopedKey =
+                        (b_.currentFunction_ ? b_.currentFunction_->name : std::string()) +
+                        "#" + funcName;
+                    const std::string devirtTopKey = "#" + funcName;
+                    if (b_.functionTable_.find(funcName) == b_.functionTable_.end() &&
+                        b_.lambdaAliases_.find(funcName) == b_.lambdaAliases_.end() &&
+                        b_.templateFunctions_.find(funcName) == b_.templateFunctions_.end() &&
+                        b_.scanAssignedNames_.count(funcName) == 0 &&
+                        b_.scanFuncRefPoisoned_.count(devirtScopedKey) == 0 &&
+                        b_.scanFuncRefPoisoned_.count(devirtTopKey) == 0)
+                    {
+                        VariableInfo *refInfo = b_.lookupVariable(funcName);
+                        if (refInfo && !refInfo->isParameter &&
+                            !refInfo->funcRefProvenance.empty() &&
+                            b_.functionTable_.find(refInfo->funcRefProvenance) !=
+                                b_.functionTable_.end())
+                        {
+#ifndef NDEBUG
+                            std::cout << "[DEBUG] buildFunctionCall: devirtualized '"
+                                      << funcName << "' -> '"
+                                      << refInfo->funcRefProvenance << "'" << std::endl;
+#endif
+                            funcName = refInfo->funcRefProvenance;
+                        }
+                    }
                 }
                 // ================================================================
                 // (AR) [Phase 4 — Monomorphization] callee هو TemplateInstantiation

@@ -774,6 +774,19 @@ namespace Sad
                     {
                         varInfo.closureLambdaName = initResult.closureLambdaName;
                     }
+                    // (AR) [موجة ABI المغاليق] أصلُ مرجعِ الدالّةِ المسمّاةِ («متغير د =
+                    //      اسم_دالة») — يقرؤه buildFunctionCall لنزعِ الوساطةِ متى كان
+                    //      الاسمُ نظيفًا من الإسناد. اللامدا خارجُ هذا عمدًا: نداؤها
+                    //      المباشرُ يُسقِط بيئتَها الملتقَطة، فتبقى على CLOSURE_CALL.
+                    // (EN) [Closure-ABI wave] Named function-ref provenance («متغير د =
+                    //      funcName») — read by buildFunctionCall to devirtualize when the
+                    //      name is assignment-clean. Lambdas are excluded on purpose: a
+                    //      direct call would drop their captured environment, so they stay
+                    //      on CLOSURE_CALL.
+                    if (!initResult.funcRefName.empty())
+                    {
+                        varInfo.funcRefProvenance = initResult.funcRefName;
+                    }
                     // (AR) تتبّع مرجع الدالّة المولّدة (لإصدار CONSUME عند الاستدعاء غير المباشر)
                     // (EN) Track generator func-ref (to emit CONSUME on indirect call)
                     varInfo.isGeneratorFuncRef = initResult.isGeneratorFuncRef;

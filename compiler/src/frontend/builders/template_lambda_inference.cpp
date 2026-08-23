@@ -527,6 +527,21 @@ namespace Sad
                 if (!expr)
                     return;
 
+                // (AR) [موجة ABI المغاليق] هدفُ إسنادٍ ⇒ تسميمُ الاسمِ لنزعِ الوساطة.
+                //      لا يُنزَل في القيمةِ عمدًا: النداءاتُ داخلَ قيمةِ الإسنادِ خارجُ
+                //      المسحِ اليومَ أصلًا (دَينٌ قائمٌ)، وضمُّها هنا يُبدِّلُ ترقياتٍ
+                //      مستقرّةً في غيرِ موضعِ هذه الموجةِ — فيُترَكُ لموجتِه بقياسِه.
+                // (EN) [Closure-ABI wave] An assignment target ⇒ poison the name for
+                //      devirtualization. Deliberately does NOT recurse into the value:
+                //      calls inside assignment values are outside the scan today (an
+                //      existing debt), and pulling them in here would shift settled
+                //      promotions far beyond this wave — left to its own measured wave.
+                if (auto *assign = dynamic_cast<const Sad::AST::AssignExpr *>(expr))
+                {
+                    b_.scanAssignedNames_.insert(assign->name);
+                    return;
+                }
+
                 // (AR) استدعاء دالة — استنتاج أنواع الوسائط وتحديث b_.functionTable_
                 // (EN) Function call — infer arg types and update b_.functionTable_
                 if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
@@ -537,6 +552,49 @@ namespace Sad
                     if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
                     {
                         funcName = varExpr->name;
+                    }
+
+                    // (AR) [موجة ABI المغاليق] حلُّ النداءِ غيرِ المباشرِ إلى دالّتِه:
+                    //      اسمٌ ليس دالّةً لكنّه مربوطٌ ببرهانِ أصلٍ نظيفٍ ⇒ تُسجَّلُ
+                    //      وسائطُه تحتَ الدالّةِ الحقيقيّةِ فيبلغُها توحيدُ int⊔float
+                    //      وترقياتُ المعاملات. من التمريرةِ الثانيةِ فصاعدًا حصرًا:
+                    //      التسميمُ (إسنادٌ لاحقٌ نصًّا، تظليلٌ) يكتملُ في الأولى، فلا
+                    //      يُسجَّلُ موقعٌ عبرَ ربطٍ سيسقط.
+                    // (EN) [Closure-ABI wave] Resolve an indirect call to its function: a
+                    //      name that is not a function but carries clean provenance ⇒ its
+                    //      arguments are recorded under the real function, so int⊔float
+                    //      unification and param promotions reach it. Second pass onward
+                    //      ONLY: poisoning (a textually later assignment, shadowing)
+                    //      completes in the first pass, so no site is recorded through a
+                    //      binding that is about to fall.
+                    if (!funcName.empty() && b_.scanPassIndex_ >= 1 &&
+                        b_.functionTable_.find(funcName) == b_.functionTable_.end() &&
+                        b_.scanAssignedNames_.count(funcName) == 0)
+                    {
+                        // (AR) المفتاحُ المُنطاقُ أوّلًا؛ فإن لم يكن للاسمِ **تصريحٌ**
+                        //      محلّيٌّ أصلًا سقطنا إلى مفتاحِ المستوى الأعلى — يحاكي
+                        //      lookupVariable في البناءِ الذي يرى العامَّ عبرَ النطاقات.
+                        //      ووجودُ تصريحٍ محلّيٍّ (ولو غيرَ مرجعيٍّ) يمنعُ السقوطَ:
+                        //      الظلُّ المحلّيُّ يملك الاسم.
+                        // (EN) Scoped key first; if the name has no LOCAL declaration at
+                        //      all, fall back to the top-level key — mirroring the build's
+                        //      lookupVariable, which sees globals through scopes. Any local
+                        //      declaration (even a non-ref one) blocks the fallback: the
+                        //      local shadow owns the name.
+                        std::string bindKey = b_.currentScanFuncName_ + "#" + funcName;
+                        if (b_.scanFuncRefBindings_.find(bindKey) ==
+                                b_.scanFuncRefBindings_.end() &&
+                            b_.scanFuncRefDeclNode_.find(bindKey) ==
+                                b_.scanFuncRefDeclNode_.end())
+                        {
+                            bindKey = "#" + funcName;
+                        }
+                        if (b_.scanFuncRefPoisoned_.count(bindKey) == 0)
+                        {
+                            auto bindIt = b_.scanFuncRefBindings_.find(bindKey);
+                            if (bindIt != b_.scanFuncRefBindings_.end())
+                                funcName = bindIt->second;
+                        }
                     }
 
                     bindFunctionParamsToArgumentClasses(funcName, call->arguments);
@@ -1525,6 +1583,38 @@ namespace Sad
                         if (auto *lam = dynamic_cast<const Sad::AST::LambdaExpr *>(varDecl->initializer.get()))
                             b_.scanLambdaVar_[b_.currentScanFuncName_ + "#" + varDecl->name] = lam;
 
+                        // (AR) [موجة ABI المغاليق] ربطُ أصلِ مرجعِ الدالّةِ المسمّاة:
+                        //      «متغير د = اسم_دالّة» يُسجَّل بمفتاحٍ مُنطاقٍ. وأيُّ تصريحٍ
+                        //      ثانٍ بالمفتاحِ نفسِه من عقدةٍ مختلفةٍ — مرجعًا آخرَ كان أو
+                        //      مُهيِّئًا من غيرِ جنسِه — يُسمِّمُ المفتاحَ، فلا يُنزَعُ
+                        //      توسُّطُ اسمٍ مُظلَّلٍ أو مُعادٍ. (التفصيلُ عند تعريفِ
+                        //      الخرائطِ في sir_builder_context.h.)
+                        // (EN) [Closure-ABI wave] Bind named function-ref provenance:
+                        //      «متغير د = funcName» records under a scoped key. Any second
+                        //      declaration of the same key from a different node — another
+                        //      ref or a non-ref initializer alike — poisons the key, so a
+                        //      shadowed or redeclared name is never devirtualized. (Details
+                        //      at the map definitions in sir_builder_context.h.)
+                        {
+                            const std::string bindKey =
+                                b_.currentScanFuncName_ + "#" + varDecl->name;
+                            auto declIt = b_.scanFuncRefDeclNode_.find(bindKey);
+                            if (declIt != b_.scanFuncRefDeclNode_.end() &&
+                                declIt->second != static_cast<const void *>(varDecl))
+                            {
+                                b_.scanFuncRefPoisoned_.insert(bindKey);
+                            }
+                            b_.scanFuncRefDeclNode_[bindKey] = varDecl;
+
+                            auto *refVar = dynamic_cast<const Sad::AST::VariableExpr *>(
+                                varDecl->initializer.get());
+                            if (refVar &&
+                                b_.functionTable_.find(refVar->name) != b_.functionTable_.end())
+                            {
+                                b_.scanFuncRefBindings_[bindKey] = refVar->name;
+                            }
+                        }
+
                         // (AR) [ز.٢٠] سجّل نوعَ المُهيّئ القياسيّ كي يحلَّ `inferExprType`
                         //      المتغيّرَ المحلّيَّ بدل السقوط إلى `Integer` الافتراضيّ.
                         //      النوعُ المصرَّح يسبق المستنتَجَ (`نص س = ...` قاطع).
@@ -2228,7 +2318,13 @@ namespace Sad
                         if (decl->returnType != Types::SadTypeKind::Unknown &&
                             decl->returnType != Types::SadTypeKind::Void)
                             continue;
+                        // (AR) [موجة ABI المغاليق] اسمُ النطاقِ يُضبَطُ كما في المسحِ كي
+                        //      تُصيبَ مفاتيحُ حلِّ الأصلِ المُنطاقةُ في استنتاجِ العائد.
+                        // (EN) [Closure-ABI wave] Scope name set as during scanning, so the
+                        //      scoped provenance keys resolve inside return inference.
+                        b_.currentScanFuncName_ = decl->name;
                         const SadTypeKind fresh = inferReturnTypeFromBody(decl->body.get(), decl);
+                        b_.currentScanFuncName_.clear();
                         if (fresh != SadTypeKind::Void && fresh != entry.second.returnType)
                             pending.emplace_back(entry.first, fresh);
                     }
@@ -2253,6 +2349,12 @@ namespace Sad
                 //      picks up their effect.
                 for (int pass = 0; pass < 3; pass++)
                 {
+                    // (AR) [موجة ABI المغاليق] تُعلِمُ التمريرةُ حلَّ النداءِ غيرِ المباشرِ
+                    //      في scanCallSitesInExpr — يُفعَّلُ من الثانيةِ بعد اكتمالِ التسميم.
+                    // (EN) [Closure-ABI wave] Informs the indirect-call resolution in
+                    //      scanCallSitesInExpr — active from the second pass, once
+                    //      poisoning is complete.
+                    b_.scanPassIndex_ = pass;
                     scanStmtList(program);
                     for (Sad::AST::StmtList *body : b_.importedModuleBodies_)
                         scanStmtList(body);

@@ -276,6 +276,47 @@ namespace Sad
                 std::unordered_map<std::string, const Sad::AST::LambdaExpr *> scanLambdaVar_;
                 std::unordered_map<const Sad::AST::LambdaExpr *, std::unordered_set<size_t>> scanLambdaParamAny_;
 
+                // (AR) [موجة ABI المغاليق] ثلاث خرائطِ مسحٍ لأصلِ مرجعِ الدالّةِ المسمّاة:
+                //   (١) scanFuncRefBindings_: «دالّة#متغيّر» (نظيرُ نطاقِ scanLambdaVar_) →
+                //       اسمُ الدالّةِ العليا المسنَدةِ إليه («متغير د = اجلب»). يقرؤها موقعُ
+                //       النداءِ في المسحِ (من التمريرةِ الثانيةِ فصاعدًا، بعد اكتمالِ التسميم)
+                //       ليُسجِّلَ وسائطَ النداءِ غيرِ المباشرِ تحت الدالّةِ الحقيقيّةِ —
+                //       فيبلغُها توحيدُ int⊔float (عشريٌّ عبر «د(2.5)» كان يعبرُ بتّاتِه
+                //       قمامةً صامتة — مقيس).
+                //   (٢) scanFuncRefDeclNode_: المفتاحُ نفسُه → عقدةُ التصريحِ التي ربطتْه.
+                //       تصريحٌ ثانٍ بالمفتاحِ نفسِه من عقدةٍ **مختلفةٍ** (تظليلٌ في نطاقٍ
+                //       داخليٍّ أو إعادةُ تصريح) يُسمِّمُ المفتاحَ — والمقارنةُ بالعقدةِ لا
+                //       بالوجودِ كي لا تُسمِّمَ التمريراتُ المتكرّرةُ تصريحًا واحدًا.
+                //   (٣) scanAssignedNames_: كلُّ اسمٍ وقعَ هدفَ إسنادٍ (AssignExpr) في
+                //       البرنامجِ كلِّه — تسميمٌ غيرُ حسّاسٍ للتدفّق: «د = آخر؛» في أيِّ
+                //       موضعٍ (ولو داخلَ حلقةٍ بعد النداء) يمنعُ نزعَ الوساطةِ في كلِّ
+                //       المواقع، لأنّ SIR يُبثُّ مرّةً واحدةً ولا يعرفُ الزمن.
+                // (EN) [Closure-ABI wave] Three scan maps for named function-ref provenance:
+                //   (1) scanFuncRefBindings_: "func#var" (scoped like scanLambdaVar_) → the
+                //       top-level function assigned to it («متغير د = اجلب»). Read by the
+                //       scan's call-site handler (from the second pass on, once poisoning is
+                //       complete) to record indirect-call arguments under the real function —
+                //       so int⊔float unification reaches it (a float through «د(2.5)» used to
+                //       cross as its raw bits: silent garbage, measured).
+                //   (2) scanFuncRefDeclNode_: same key → the declaring AST node. A second
+                //       declaration of the same key from a DIFFERENT node (inner-scope shadow
+                //       or redeclaration) poisons the key; comparing by node — not by mere
+                //       presence — keeps repeated scan passes from poisoning a single
+                //       declaration.
+                //   (3) scanAssignedNames_: every name that is ever an assignment target
+                //       (AssignExpr) anywhere — flow-INsensitive poisoning: «د = آخر؛» at any
+                //       point (even inside a loop after the call) blocks devirtualization at
+                //       every site, because SIR is emitted once and knows no timeline.
+                std::unordered_map<std::string, std::string> scanFuncRefBindings_;
+                std::unordered_map<std::string, const void *> scanFuncRefDeclNode_;
+                std::unordered_set<std::string> scanFuncRefPoisoned_;
+                std::unordered_set<std::string> scanAssignedNames_;
+                // (AR) رقمُ تمريرةِ المسحِ الحاليّة — الحلُّ عبرَ (١) يُفعَّل من التمريرةِ
+                //      الثانيةِ (بعد اكتمالِ التسميمِ في الأولى).
+                // (EN) Current scan pass index — resolution via (1) activates from the
+                //      second pass (poisoning completes in the first).
+                int scanPassIndex_ = 0;
+
                 // (AR) خريطة أسماء المتغيرات → أسماء الأصناف التي هي كائنات منها
                 // (EN) Variable names → class names they are instances of
                 std::unordered_map<std::string, std::string> classInstanceTypes_;
