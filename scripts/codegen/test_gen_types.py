@@ -194,11 +194,21 @@ def test_prose_type_count_matches_row_count():
        «49» while the rows were 52. Guarded by counting, not by review."""
     data = load_yaml(YAML_PATH)
     rows = len(data["types"])
-    for key in ("description_ar", "description_en"):
-        numbers = [int(n) for n in re.findall(r"\d+", data[key])]
-        assert numbers, f"{key} لا يحمل عددًا يُقارَن"
-        assert all(n == rows for n in numbers), (
-            f"{key} يقول {numbers} والصفوفُ {rows} — أعد ضبطَ النثر"
+    # (AR) نقيد المطابقة بعدد الأنواع المقوس «(N نوعًا)/(N)» لا بكل رقم في
+    #      النثر — اشتراط «كل رقم = عدد الصفوف» كان يحمر زورا لأي رقم آخر
+    #      مستقبلي (مثل «64») في الوصف (هشاشة رصدتها المراجعة).
+    # (EN) Match only the parenthesized type count, not every number in the
+    #      prose — requiring ALL numbers to equal the row count falsely
+    #      reddened any future unrelated number (e.g. «64») in the text.
+    patterns = {
+        "description_ar": r"\((\d+)\s*نوعًا\)",
+        "description_en": r"kinds \((\d+)\)",
+    }
+    for key, pattern in patterns.items():
+        matches = [int(n) for n in re.findall(pattern, data[key])]
+        assert matches, f"{key} لا يحمل عددَ الأنواعِ المقوسَ يُقارَن"
+        assert all(n == rows for n in matches), (
+            f"{key} يقول {matches} والصفوفُ {rows} — أعد ضبطَ النثر"
         )
 
 
