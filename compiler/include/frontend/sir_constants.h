@@ -97,6 +97,56 @@ namespace Sad::Compiler
     inline constexpr const char *kEntryBlockName = "entry";
 
     // ──────────────────────────────────────────────────────────────────
+    // (AR) تخطيطُ بنيةِ الإغلاقِ على الكومةِ — ثلاثُ خاناتٍ i64:
+    //      [0] مؤشّرُ الدالّةِ الخام، [1] مؤشّرُ بيئةِ الالتقاط — **عقدُ i64
+    //      التاريخيُّ لا يُمَسّ** (نواةُ النحلة/UEFI تقرأ الخانتَين الأوليَين
+    //      بحرفِهما)، [2] مؤشّرُ **جسرِ البروتوكولِ الموسوم**: غلافٌ يقبل
+    //      وسائطَ %SadDyn ويُعيد %SadDyn، تنتقيه مواقعُ النداءِ مجهولةُ
+    //      الهدفِ (مرجعُ دالّةٍ معاملًا) الموسومةُ `dynproto` — القياس:
+    //      نداءٌ غيرُ مباشرٍ بعشريٍّ عبرَ معاملٍ طبعَ قمامةَ i64 (t01/t03)
+    //      لأنّ الموقعَ بنى التوقيعَ من أنواعِه الساكنةِ وغلافُ المرجعِ
+    //      يُعيدُ double خامًّا.
+    // (EN) Heap closure struct layout — three i64 slots:
+    //      [0] raw fn pointer, [1] capture env pointer — the historical i64
+    //      contract, UNTOUCHED (nahla/UEFI kernels read the first two slots
+    //      byte-for-byte), [2] the TAGGED-PROTOCOL BRIDGE pointer: a wrapper
+    //      taking %SadDyn args and returning %SadDyn, selected by
+    //      unknown-target call sites (a func-ref as a parameter) marked
+    //      `dynproto` — measured: an indirect float call through a parameter
+    //      printed i64 garbage (t01/t03) because the site built the signature
+    //      from its static types while the func-ref wrapper returns raw double.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr int64_t kClosureFnSlotIndex = 0;
+    inline constexpr int64_t kClosureEnvSlotIndex = 1;
+    inline constexpr int64_t kClosureDynBridgeSlotIndex = 2;
+    inline constexpr int64_t kClosureStructBytes = 24;
+    // (AR) وسمُ تعليقِ CLOSURE_CALL الذي ينتقي بروتوكولَ الجسرِ الموسوم.
+    // (EN) CLOSURE_CALL comment marker selecting the tagged-bridge protocol.
+    inline constexpr const char *kClosureDynProtoMarker = "dynproto";
+    // (AR) لاحقةُ تعليقِ CLOSURE_CREATE الحاملةُ نوعَ عائدِ الهدفِ (رقمَ SadTypeKind)
+    //      — الجسرُ يحتاجُه ليَسِمَ العائدَ (مؤشّرُ ptr وحدَه لا يفرّق نصًّا عن مصفوفة).
+    // (EN) CLOSURE_CREATE comment suffix carrying the target's return kind
+    //      (SadTypeKind number) — the bridge needs it to tag the return value
+    //      (a bare ptr cannot distinguish a string from an array).
+    inline constexpr const char *kClosureRetKindMarker = ";ret:";
+    // (AR) بادئةُ اسمِ دالّةِ الجسرِ الموسومِ المولَّدة.
+    // (EN) Generated tagged-bridge function name prefix.
+    inline constexpr const char *kClosureDynBridgePrefix = "__dynbr_";
+    // (AR) وسمُ تعليقِ CLOSURE_CREATE لهدفٍ **مولِّد**: جسرُه لا يُغلِّفُ المقبضَ
+    //      (كان يُطبَعُ قمامةً صامتةً حيث كان الأساسُ ينهار AV — مقيس) بل يرفعُ
+    //      خطأً تشغيليًّا صريحًا بالنصَّين أدناه.
+    // (EN) CLOSURE_CREATE marker for a GENERATOR target: its bridge does not box
+    //      the raw handle (it printed silent garbage where the baseline crashed
+    //      with an AV — measured) but raises an explicit runtime error with the
+    //      two texts below.
+    inline constexpr const char *kClosureGenMarker = ";gen:1";
+    // (AR) نصّا فراغَي رسالةِ RUN033 لحارسِ جسرِ المولِّد ({type} و{operation}).
+    // (EN) RUN033 placeholder texts for the generator-bridge guard.
+    inline constexpr const char *kGeneratorDynCallTypeText = "\xD9\x85\xD9\x88\xD9\x84\xD9\x91\xD8\xAF"; // مولّد
+    inline constexpr const char *kGeneratorDynCallOperationText =
+        "\xD9\x86\xD8\xAF\xD8\xA7\xD8\xA1 \xD8\xBA\xD9\x8A\xD8\xB1 \xD9\x85\xD8\xA8\xD8\xA7\xD8\xB4\xD8\xB1 \xD8\xB9\xD8\xA8\xD8\xB1 \xD9\x85\xD8\xB9\xD8\xA7\xD9\x85\xD9\x84"; // نداء غير مباشر عبر معامل
+
+    // ──────────────────────────────────────────────────────────────────
     // (AR) فاصلُ فضاءِ أسماءِ المواقعِ الداخليّة (ISSUE-110/119). موطنُه هنا
     //      لا في `sir_builder.h` كي تبلغَه الخلفيّاتُ بلا جرِّ الباني كلِّه.
     //      تفصيلُ لماذا `#` وحدَه آمنٌ: انظر تعليقَ الفاصلِ في `sir_builder.h`.

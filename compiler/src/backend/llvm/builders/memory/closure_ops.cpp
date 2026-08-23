@@ -9,6 +9,7 @@
 #include "builders/memory/closure_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
+#include "sad_dyn_repr.h"
 #include "sir_constants.h"
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
@@ -22,6 +23,8 @@
 #include <llvm/IR/InlineAsm.h>
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
+#include <cstring>
 
 using namespace Sad::Compiler::SIR;
 
@@ -184,9 +187,10 @@ namespace Sad
 
         // ============================================================================
         // (AR) emitClosureCreate — إنشاء بنية إغلاق على الكومة
-        //      البنية: { fn_ptr: i64, env_ptr: i64 }
-        //      - fn_ptr: مؤشر لدالة اللامدا (ptrtoint)
+        //      البنية: { fn_ptr: i64, env_ptr: i64, dynbr_ptr: i64 } (sir_constants.h)
+        //      - fn_ptr: مؤشر لدالة اللامدا (ptrtoint) — عقد i64 التاريخي بحرفه
         //      - env_ptr: مؤشر لمصفوفة المتغيرات الملتقطة (0 إن لم تكن)
+        //      - dynbr_ptr: جسر البروتوكول الموسوم (%SadDyn) — 0 في الوضع الحر
         //
         //      المعاملات:
         //      - operands[0]: Function (@fn_name) — اسم اللامدا
@@ -195,17 +199,18 @@ namespace Sad
         //      الخطوات:
         //      1. إذا كانت هناك التقاطات: تخصيص مصفوفة env على الكومة
         //         وتخزين قيم الالتقاطات فيها
-        //      2. تخصيص بنية الإغلاق (16 بايت) على الكومة
-        //      3. تخزين fn_ptr في offset 0 و env_ptr في offset 1
-        //      4. إرجاع مؤشر البنية كـ i64
+        //      2. توليد جسر البروتوكول الموسوم (خارج الوضع الحر)
+        //      3. تخصيص بنية الإغلاق (kClosureStructBytes) على الكومة
+        //      4. تخزين fn_ptr@0 وenv_ptr@1 وdynbr_ptr@2 وإرجاع المؤشر كـ i64
         //
         // (EN) emitClosureCreate — Create closure struct on heap
-        //      Struct layout: { fn_ptr: i64, env_ptr: i64 }
+        //      Struct layout: { fn_ptr: i64, env_ptr: i64, dynbr_ptr: i64 }
+        //      (see sir_constants.h; slots 0/1 are the historical i64 contract)
         //      Steps:
         //      1. If captures: allocate env array, store capture values
-        //      2. Allocate closure struct (16 bytes)
-        //      3. Store fn_ptr at [0], env_ptr at [1]
-        //      4. Return closure pointer as i64
+        //      2. Synthesize the tagged-protocol bridge (skipped when freestanding)
+        //      3. Allocate closure struct (kClosureStructBytes)
+        //      4. Store fn_ptr@0, env_ptr@1, dynbr_ptr@2; return pointer as i64
         // ============================================================================
         llvm::Value *ClosureCodeGen::emitClosureCreate(std::shared_ptr<SIRInstruction> inst)
         {
@@ -472,23 +477,186 @@ namespace Sad
                 envI64 = cg_.builder_->CreatePtrToInt(envPtr, cg_.getInt64Type(), "env.i64");
             }
 
-            // (AR) تخصيص بنية الإغلاق: 2 * i64 = 16 بايت
-            // (EN) Allocate closure struct: 2 * i64 = 16 bytes
-            llvm::Value *closureSize = llvm::ConstantInt::get(cg_.getInt64Type(), 16);
+            // ════════════════════════════════════════════════════════════════
+            // (AR) [موجة الجسر الموسوم] توليدُ جسرِ البروتوكولِ الموسوم للهدف:
+            //      غلافٌ يقبل N×%SadDyn + i64 __env ويُعيد %SadDyn — يفكُّ كلَّ
+            //      وسيطٍ إلى نوعِ معاملِ الهدفِ الساكنِ (جدولُ التحويلِ الموحَّد
+            //      coerceToParamType يحترمُ الوسمَ: عشريٌّ⇒fptosi/بتّات، غيابٌ⇒بذرة
+            //      العدم)، ينادي الهدفَ الخام، ثم يُغلِّفُ العائدَ بوسمِه الحقيقيِّ
+            //      (نوعُ العائدِ يُمرَّرُ من الواجهةِ في لاحقةِ التعليقِ «;ret:» —
+            //      فمؤشّرُ ptr وحدَه لا يفرّقُ نصًّا عن مصفوفة). مواقعُ النداءِ
+            //      مجهولةُ الهدفِ (مرجعُ دالّةٍ معاملًا — وسمُ dynproto) وحدَها
+            //      تسلكُه؛ ومسارُ i64 الخامُّ (خانتا 0/1) لا يُمَسُّ بحرفِه.
+            // (EN) [Tagged-bridge wave] Synthesize the target's tagged-protocol
+            //      bridge: a wrapper taking N×%SadDyn + i64 __env and returning
+            //      %SadDyn — unboxes each argument to the target's static param
+            //      type via the single conversion table (tag-respecting), calls
+            //      the raw target, and boxes the return with its true kind
+            //      (carried from the frontend in the «;ret:» comment suffix,
+            //      since a bare ptr cannot tell a string from an array). Only
+            //      unknown-target call sites (func-ref as a parameter — the
+            //      dynproto marker) take it; the raw i64 path (slots 0/1) is
+            //      byte-for-byte untouched.
+            // ════════════════════════════════════════════════════════════════
+            llvm::Value *dynBridgeI64 = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+            // (AR) الوضعُ الحرُّ (نواةُ النحلة/UEFI): لا جسرَ يُولَّد — درسُ «ميزانيّةِ
+            //      الحافةِ»: نموُّ كودٍ صامتٌ لكلِّ مغلاقٍ يجرُّ آلاتِ SadDyn إلى ring-0،
+            //      والواجهةُ لا تَسِمُ dynproto في هذا الوضعِ أصلًا فالخانةُ لا تُقرأ.
+            // (EN) Freestanding (nahla/UEFI kernels): no bridge is synthesized — the
+            //      edge-budget lesson: silent per-closure code growth would drag the
+            //      SadDyn machinery into ring-0, and the frontend never marks dynproto
+            //      in this mode, so the slot is never read.
+            if (!cg_.freestanding_)
+            {
+                // (AR) نوعُ عائدِ الهدفِ من لاحقةِ التعليق (إن وُجدت).
+                // (EN) Target return kind from the comment suffix (if present).
+                SadTypeKind bridgeRetKind = SadTypeKind::Unknown;
+                const size_t retMarkPos =
+                    inst->comment.find(Sad::Compiler::kClosureRetKindMarker);
+                if (retMarkPos != std::string::npos)
+                {
+                    const std::string retNum = inst->comment.substr(
+                        retMarkPos + std::strlen(Sad::Compiler::kClosureRetKindMarker));
+                    if (!retNum.empty())
+                        bridgeRetKind = static_cast<SadTypeKind>(std::atoi(retNum.c_str()));
+                }
+
+                // (AR) العدّةُ المرئيّةُ للمستخدم: لامدا تحملُ __env أخيرًا فتُستثنى؛
+                //      ومرجعُ الدالّةِ العاديُّ لا يعرفُ __env أصلًا.
+                // (EN) User-visible arity: a lambda carries __env last (excluded);
+                //      a plain func-ref never takes __env.
+                const bool bridgeTargetTakesEnv = !isFuncRefWrapper;
+                const size_t bridgeUserArity =
+                    (bridgeTargetTakesEnv && lambdaFn->arg_size() > 0)
+                        ? lambdaFn->arg_size() - 1
+                        : lambdaFn->arg_size();
+
+                const std::string bridgeName =
+                    std::string(Sad::Compiler::kClosureDynBridgePrefix) + fnName;
+                llvm::Function *bridgeFn = cg_.module_->getFunction(bridgeName);
+                if (!bridgeFn)
+                {
+                    llvm::StructType *dynTy = getSadDynType(*cg_.context_);
+                    std::vector<llvm::Type *> bridgeParams(bridgeUserArity,
+                                                           static_cast<llvm::Type *>(dynTy));
+                    bridgeParams.push_back(cg_.getInt64Type()); // __env
+                    auto *bridgeFnType = llvm::FunctionType::get(dynTy, bridgeParams, false);
+                    bridgeFn = llvm::Function::Create(bridgeFnType,
+                                                      llvm::Function::InternalLinkage,
+                                                      bridgeName, cg_.module_.get());
+                    auto *bridgeEntry = llvm::BasicBlock::Create(
+                        *cg_.context_, Sad::Compiler::kEntryBlockName, bridgeFn);
+                    // (AR) جدولُ التحويلِ الموحَّدُ يبثُّ عبرَ باني cg_ — نُحوِّلُ نقطةَ
+                    //      الإدراجِ مؤقّتًا إلى جسمِ الجسرِ ثم نُعيدُها.
+                    // (EN) The unified conversion table emits through cg_'s builder —
+                    //      temporarily retarget the insert point into the bridge body.
+                    auto savedIP = cg_.builder_->saveIP();
+                    cg_.builder_->SetInsertPoint(bridgeEntry);
+
+                    // (AR) [حارسُ المولِّد] هدفٌ مولِّدٌ لا يُنادى عبرَ الجسرِ: مقبضُه
+                    //      الخامُّ ليس قيمةً تُغلَّفُ، وتغليفُه كان يطبعُ قمامةً بايتيّةً
+                    //      **بنجاحٍ ظاهريٍّ** حيث كان الأساسُ ينهار AV — انحدارُ قابليّةِ
+                    //      اكتشافٍ مقيس. نرفعُ RUN033 صريحًا (المفسّرُ يدعمُ الحالةَ —
+                    //      تباعُدٌ معلَنٌ صاخبٌ لا كذبةٌ صامتة).
+                    // (EN) [Generator guard] A generator target must not be called
+                    //      through the bridge: its raw handle is not a boxable value,
+                    //      and boxing it printed byte garbage with a green exit code
+                    //      where the baseline crashed with an AV — a measured
+                    //      detectability regression. Raise RUN033 explicitly (the
+                    //      interpreter supports the case — a declared LOUD divergence,
+                    //      not a silent lie).
+                    if (inst->comment.find(Sad::Compiler::kClosureGenMarker) !=
+                        std::string::npos)
+                    {
+                        cg_.emitNullRaiseBody(
+                            ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                            {{"type", Sad::Compiler::kGeneratorDynCallTypeText},
+                             {"operation", Sad::Compiler::kGeneratorDynCallOperationText}},
+                            bridgeName);
+                        cg_.builder_->CreateUnreachable();
+                    }
+                    else
+                    {
+                        std::vector<llvm::Value *> bridgeCallArgs;
+                        for (size_t i = 0; i < bridgeUserArity; ++i)
+                        {
+                            llvm::Type *want =
+                                lambdaFn->getFunctionType()->getParamType(static_cast<unsigned>(i));
+                            bridgeCallArgs.push_back(coerceToParamType(
+                                cg_, bridgeFn->getArg(static_cast<unsigned>(i)), want,
+                                SadTypeKind::Any));
+                        }
+                        if (bridgeTargetTakesEnv && lambdaFn->arg_size() > 0)
+                            bridgeCallArgs.push_back(
+                                bridgeFn->getArg(static_cast<unsigned>(bridgeUserArity)));
+
+                        llvm::Type *bridgeTargetRet = lambdaFn->getReturnType();
+                        llvm::Value *rawRet = cg_.builder_->CreateCall(
+                            lambdaFn, bridgeCallArgs,
+                            bridgeTargetRet->isVoidTy() ? "" : "dynbr.call");
+
+                        llvm::Value *boxedRet = nullptr;
+                        if (bridgeTargetRet->isVoidTy())
+                        {
+                            boxedRet = makeDyn(
+                                cg_,
+                                llvm::ConstantInt::get(llvm::Type::getInt8Ty(*cg_.context_),
+                                                       DynKind::Void),
+                                llvm::ConstantInt::get(cg_.getInt64Type(), 0));
+                        }
+                        else
+                        {
+                            SadTypeKind boxKind = bridgeRetKind;
+                            if (boxKind == SadTypeKind::Unknown || boxKind == SadTypeKind::Void)
+                            {
+                                // (AR) احتياطٌ بلا لاحقة: الاستدلالُ من نوع LLVM وحدَه.
+                                // (EN) Fallback without a suffix: infer from the LLVM type alone.
+                                if (bridgeTargetRet->isDoubleTy())
+                                    boxKind = SadTypeKind::Float;
+                                else if (bridgeTargetRet->isIntegerTy(1))
+                                    boxKind = SadTypeKind::Boolean;
+                                else if (bridgeTargetRet->isPointerTy())
+                                    boxKind = SadTypeKind::String;
+                                else
+                                    boxKind = SadTypeKind::Integer;
+                            }
+                            boxedRet = toDyn(cg_, rawRet, boxKind);
+                        }
+                        cg_.builder_->CreateRet(boxedRet);
+                    }
+                    cg_.builder_->restoreIP(savedIP);
+                }
+                dynBridgeI64 = cg_.builder_->CreatePtrToInt(bridgeFn, cg_.getInt64Type(),
+                                                            "dynbr.ptr.i64");
+            }
+
+            // (AR) تخصيص بنية الإغلاق: ثلاث خانات i64 (انظر sir_constants.h —
+            //      الخانتان 0/1 عقدُ i64 التاريخيُّ بحرفِه، و[2] جسرُ البروتوكولِ الموسوم).
+            // (EN) Allocate closure struct: three i64 slots (see sir_constants.h —
+            //      slots 0/1 are the historical i64 contract byte-for-byte; [2] is
+            //      the tagged-protocol bridge).
+            llvm::Value *closureSize = llvm::ConstantInt::get(
+                cg_.getInt64Type(), Sad::Compiler::kClosureStructBytes);
 
             llvm::Value *closurePtr = cg_.emitMalloc(closureSize, "closure.alloc");
 
             // (AR) تخزين fn_ptr في offset 0
             // (EN) Store fn_ptr at offset 0
             llvm::Value *slot0 = cg_.builder_->CreateGEP(cg_.getInt64Type(), closurePtr,
-                                                     llvm::ConstantInt::get(cg_.getInt64Type(), 0), "closure.fn.slot");
+                                                     llvm::ConstantInt::get(cg_.getInt64Type(), Sad::Compiler::kClosureFnSlotIndex), "closure.fn.slot");
             cg_.builder_->CreateStore(fnPtrI64, slot0);
 
             // (AR) تخزين env_ptr في offset 1
             // (EN) Store env_ptr at offset 1
             llvm::Value *slot1 = cg_.builder_->CreateGEP(cg_.getInt64Type(), closurePtr,
-                                                     llvm::ConstantInt::get(cg_.getInt64Type(), 1), "closure.env.slot");
+                                                     llvm::ConstantInt::get(cg_.getInt64Type(), Sad::Compiler::kClosureEnvSlotIndex), "closure.env.slot");
             cg_.builder_->CreateStore(envI64, slot1);
+
+            // (AR) تخزين جسر البروتوكول الموسوم في offset 2
+            // (EN) Store the tagged-protocol bridge at offset 2
+            llvm::Value *slot2 = cg_.builder_->CreateGEP(cg_.getInt64Type(), closurePtr,
+                                                     llvm::ConstantInt::get(cg_.getInt64Type(), Sad::Compiler::kClosureDynBridgeSlotIndex), "closure.dynbr.slot");
+            cg_.builder_->CreateStore(dynBridgeI64, slot2);
 
             // (AR) إرجاع مؤشر بنية الإغلاق كـ i64
             // (EN) Return closure struct pointer as i64
@@ -551,6 +719,66 @@ namespace Sad
             llvm::Value *envSlot = cg_.builder_->CreateGEP(cg_.getInt64Type(), closurePtr,
                                                        llvm::ConstantInt::get(cg_.getInt64Type(), 1), "env.slot");
             llvm::Value *envI64 = cg_.builder_->CreateLoad(cg_.getInt64Type(), envSlot, "env.ptr.i64");
+
+            // ════════════════════════════════════════════════════════════════
+            // (AR) [موجة الجسر الموسوم] موقعُ نداءٍ مجهولُ الهدفِ (وسمُ dynproto —
+            //      مرجعُ دالّةٍ وصلَ معاملًا): البروتوكولُ الخامُّ كان يبني التوقيعَ
+            //      من أنواعِ الوسائطِ الساكنةِ بينما الهدفُ الحقيقيُّ بأنواعٍ أخرى —
+            //      double عائدًا يُقرأ من RAX قمامةً (t01/t03 مقيس). نسلكُ جسرَ
+            //      البروتوكولِ الموسومِ من الخانةِ [2]: كلُّ وسيطٍ يُغلَّفُ %SadDyn
+            //      بوسمِ نوعِه الساكنِ، والعائدُ %SadDyn موسومٌ يستهلكه المصبُّ
+            //      (نتيجةُ SIR منمَّطةٌ Any في الواجهة).
+            // (EN) [Tagged-bridge wave] Unknown-target call site (the dynproto
+            //      marker — a func-ref that arrived as a parameter): the raw
+            //      protocol built the signature from the site's static arg types
+            //      while the real target differs — a double return read from RAX
+            //      as garbage (measured, t01/t03). Take the tagged bridge from
+            //      slot [2]: each argument is boxed %SadDyn with its static kind,
+            //      and the %SadDyn return carries its tag downstream (the SIR
+            //      result is typed Any in the frontend).
+            // ════════════════════════════════════════════════════════════════
+            if (inst->comment.find(Sad::Compiler::kClosureDynProtoMarker) != std::string::npos)
+            {
+                llvm::StructType *dynTy = getSadDynType(*cg_.context_);
+                llvm::Value *dynSlot = cg_.builder_->CreateGEP(
+                    cg_.getInt64Type(), closurePtr,
+                    llvm::ConstantInt::get(cg_.getInt64Type(),
+                                           Sad::Compiler::kClosureDynBridgeSlotIndex),
+                    "dynbr.slot");
+                llvm::Value *dynPtrI64 =
+                    cg_.builder_->CreateLoad(cg_.getInt64Type(), dynSlot, "dynbr.ptr.i64");
+                llvm::Value *dynFnPtr = cg_.builder_->CreateIntToPtr(
+                    dynPtrI64, llvm::PointerType::getUnqual(*cg_.context_), "dynbr.ptr");
+
+                std::vector<llvm::Value *> dynArgs;
+                std::vector<llvm::Type *> dynArgTypes;
+                for (size_t i = 1; i < inst->operands.size(); i++)
+                {
+                    llvm::Value *rawArg = cg_.resolveOperand(inst->operands[i]);
+                    if (!rawArg)
+                    {
+                        cg_.reportError(
+                            ::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE,
+                            {{"detail",
+                              std::string("CLOSURE_CALL(dyn): failed to resolve argument:") +
+                                  inst->operands[i].name}});
+                        return nullptr;
+                    }
+                    dynArgs.push_back(toDyn(cg_, rawArg, inst->operands[i].dataType));
+                    dynArgTypes.push_back(dynTy);
+                }
+                dynArgs.push_back(envI64);
+                dynArgTypes.push_back(cg_.getInt64Type());
+
+                auto *dynFnType = llvm::FunctionType::get(dynTy, dynArgTypes, false);
+                llvm::Value *dynResult = cg_.builder_->CreateCall(
+                    dynFnType, dynFnPtr, dynArgs, "closure.dyn.call");
+                if (inst->result.has_value())
+                {
+                    cg_.context_info_.namedValues[inst->result->name] = dynResult;
+                }
+                return dynResult;
+            }
 
             // (AR) بناء قائمة الوسائط: الوسائط الصريحة + env_ptr
             //      [إصلاح] نبحث عن الدالة الهدف من comment لمعرفة أنواع المعاملات المتوقعة
@@ -619,6 +847,26 @@ namespace Sad
                                 {
                                     // (AR) ptr → ptr: لا حاجة للتحويل (opaque pointers)
                                     // (EN) ptr → ptr: no conversion needed (opaque pointers)
+                                }
+                                else
+                                {
+                                    // (AR) [موجة الجسر الموسوم] بقيّةُ الأزواجِ إلى جدولِ
+                                    //      التحويلِ الموحَّد — وأهمُّها: معاملُ لامدا وُسِّعَ
+                                    //      إلى %SadDyn (مواقعُ نداءٍ عدديّةٌ مختلطة) فيُغلَّفُ
+                                    //      الوسيطُ بوسمِه، وعشريٌّ↔صحيحٌ يُحوَّلُ قيمةً لا
+                                    //      بتّاتٍ. السلسلةُ القديمةُ كانت تُسقِطُ الزوجَ غيرَ
+                                    //      المغطّى فيمرُّ double إلى معاملِ i64 خامًّا —
+                                    //      قمامةٌ صامتةٌ (t05 مقيس).
+                                    // (EN) [Tagged-bridge wave] Every remaining pair goes to
+                                    //      the unified conversion table — foremost: a lambda
+                                    //      param widened to %SadDyn (mixed numeric call
+                                    //      sites) gets the argument boxed with its tag, and
+                                    //      float↔int converts by value, not bits. The old
+                                    //      chain dropped uncovered pairs, letting a double
+                                    //      reach an i64 param raw — silent garbage
+                                    //      (measured, t05).
+                                    arg = coerceToParamType(cg_, arg, expectedType,
+                                                            inst->operands[i].dataType);
                                 }
                             }
                         }

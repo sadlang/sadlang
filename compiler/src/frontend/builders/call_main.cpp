@@ -1126,6 +1126,37 @@ namespace Sad
                             closureRetType = SadTypeKind::Integer;
                         }
 
+                        // ════════════════════════════════════════════════════════
+                        // (AR) [موجة الجسر الموسوم] هدفٌ مجهولٌ (لا اسمَ لامدا مربوطًا
+                        //      ولا مقبضَ مولّد) — مرجعُ دالّةٍ وصلَ معاملًا أو عبرَ
+                        //      مسارٍ لا يحفظُ الأصل: البروتوكولُ الخامُّ كان يبني
+                        //      التوقيعَ من أنواعِ الموقعِ الساكنةِ فيقرأ عائدَ double
+                        //      قمامةَ i64 (t01/t03 مقيس). نُوسَمُ النداءُ dynproto
+                        //      فيسلكُ جسرَ %SadDyn في الخلفيّةِ، والنتيجةُ تُنمَّطُ
+                        //      Any فتُستهلكُ موسومةً (طباعةً وحسابًا وعائدًا).
+                        // (EN) [Tagged-bridge wave] Unknown target (no bound lambda
+                        //      name, not a generator handle) — a func-ref that
+                        //      arrived as a parameter or through a provenance-less
+                        //      path: the raw protocol built the signature from the
+                        //      site's static types, reading a double return as i64
+                        //      garbage (measured, t01/t03). Mark the call dynproto
+                        //      so the backend takes the %SadDyn bridge, and type
+                        //      the result Any so it is consumed tagged (printing,
+                        //      arithmetic, returns).
+                        // ════════════════════════════════════════════════════════
+                        // (AR) الوضعُ الحرُّ مستثنًى: لا جسرَ يُولَّدُ هناك (ميزانيّةُ
+                        //      الحافة — انظر emitClosureCreate) فيبقى البروتوكولُ الخام.
+                        // (EN) Freestanding is excluded: no bridge is synthesized there
+                        //      (edge budget — see emitClosureCreate), so the raw
+                        //      protocol stays.
+                        const bool useDynProto = varInfo->closureLambdaName.empty() &&
+                                                 !varInfo->isGeneratorFuncRef &&
+                                                 !b_.isFreestandingMode();
+                        if (useDynProto)
+                        {
+                            closureRetType = SadTypeKind::Any;
+                        }
+
                         // (AR) إنشاء تعليمة CLOSURE_CALL
                         //      المعامل الأول = مؤشر بنية الإغلاق
                         //      الباقي = وسائط الاستدعاء الصريحة
@@ -1150,6 +1181,12 @@ namespace Sad
                         if (!varInfo->closureLambdaName.empty())
                         {
                             closureCallInst.comment = "lambda:" + varInfo->closureLambdaName;
+                        }
+                        else if (useDynProto)
+                        {
+                            // (AR) وسمُ بروتوكولِ الجسرِ الموسوم — تقرؤه الخلفيّة.
+                            // (EN) The tagged-bridge protocol marker — read by the backend.
+                            closureCallInst.comment = Sad::Compiler::kClosureDynProtoMarker;
                         }
                         if (b_.currentBlock_)
                             b_.currentBlock_->addInstruction(closureCallInst);

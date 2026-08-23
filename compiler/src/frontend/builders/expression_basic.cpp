@@ -322,8 +322,33 @@ namespace Sad
                         SIRInstruction closureInst;
                         closureInst.opcode = SIROpcode::CLOSURE_CREATE;
                         closureInst.result = SIROperand::Register(closureReg, SadTypeKind::Function);
-                        closureInst.operands.push_back(SIROperand::Register(var->name, SadTypeKind::Function));
-                        closureInst.comment = "func-ref:" + var->name;
+                        // (AR) معاملُ الهدفِ **دالّةٌ** لا سجلٌّ (نظيرُ مُصدِرِ اللامدا):
+                        //      بثُّه سجلًّا جعل المضمِّنَ الأماميَّ يُعيدُ تسميتَه
+                        //      `_inlN_<دالة>` عند تضمينِ جسمٍ يحوي «د = دالة؛» —
+                        //      دالّةً لا وجودَ لها، فخطأً داخليًّا يمرُّ بخروجِ صفرٍ
+                        //      وثنائيًّا أبكمَ (q5 مقيس: segfault ثم صمتٌ تامّ).
+                        // (EN) The target operand is a FUNCTION, not a register
+                        //      (mirroring the lambda emitter): emitting it as a
+                        //      register made the frontend inliner rename it to
+                        //      `_inlN_<fn>` when inlining a body containing
+                        //      «د = دالة؛» — a function that does not exist, so an
+                        //      internal error passed with exit zero and a mute
+                        //      binary (measured, q5: segfault then total silence).
+                        closureInst.operands.push_back(SIROperand::Function(var->name));
+                        // (AR) لاحقةُ «;ret:» تحملُ نوعَ عائدِ الهدفِ إلى جسرِ البروتوكولِ
+                        //      الموسومِ في الخلفيّةِ (يَسِمُ بها العائدَ المُغلَّف).
+                        // (EN) The «;ret:» suffix carries the target's return kind to the
+                        //      backend's tagged-protocol bridge (it tags the boxed return).
+                        closureInst.comment =
+                            "func-ref:" + var->name +
+                            Sad::Compiler::kClosureRetKindMarker +
+                            std::to_string(static_cast<int>(funcIt->second.returnType));
+                        // (AR) هدفٌ مولِّدٌ: جسرُه يرفعُ خطأً صريحًا بدل تغليفِ المقبضِ
+                        //      قمامةً صامتة (انظر kClosureGenMarker).
+                        // (EN) Generator target: its bridge raises an explicit error
+                        //      instead of boxing the raw handle as silent garbage.
+                        if (funcIt->second.isGenerator)
+                            closureInst.comment += Sad::Compiler::kClosureGenMarker;
                         if (b_.currentBlock_)
                             b_.currentBlock_->addInstruction(closureInst);
 

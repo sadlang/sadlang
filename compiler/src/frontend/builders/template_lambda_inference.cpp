@@ -101,7 +101,19 @@ namespace Sad
                     //      applyAgreedMemberParamTypes. Every other declared type is the
                     //      author's contract and is never guessed over.
                     const bool isDeclaredInteger = param.type == Types::SadTypeKind::Integer;
-                    if (!isUndeclared && !isDeclaredInteger)
+                    // (AR) والمصرَّحُ «عشري» يُسجَّلُ كذلك — لا ليُرقَّى عدديًّا (عقدُه
+                    //      قائمٌ) بل ليُكشَفَ موقعٌ **غيرُ عدديٍّ** (نصٌّ) يبلغُه: كان
+                    //      المضمِّنُ يستبدلُه في جسمٍ منمَّطٍ double فينفجرُ LLVM
+                    //      «Invalid cast» — شقيقُ t06 المقيسُ (درسُ «الرقعةُ تُسدُّ في
+                    //      ملفٍّ وتتركُ أشقّاءَه»).
+                    // (EN) A declared «عشري» (Float) is recorded too — not for numeric
+                    //      promotion (its contract stands) but to detect a NON-numeric
+                    //      site (a string) reaching it: the inliner substituted it into
+                    //      a double-typed body and LLVM asserted «Invalid cast» — the
+                    //      measured sibling of t06 (the "patch sealed in one file
+                    //      leaves siblings" lesson).
+                    const bool isDeclaredFloat = param.type == Types::SadTypeKind::Float;
+                    if (!isUndeclared && !isDeclaredInteger && !isDeclaredFloat)
                         continue;
 
                     // (AR) خانةٌ لم يبلغْها وسيطٌ في هذا الموقع: قيمتُها **عدم** بنصِّ
@@ -176,7 +188,53 @@ namespace Sad
                             kinds.size() == 2 &&
                             kinds.count(static_cast<int>(SadTypeKind::Integer)) &&
                             kinds.count(static_cast<int>(SadTypeKind::Float));
-                        if (!purelyNumericSplit)
+                        // (AR) توسيعُ البابِ المقيس: خانةٌ مصرَّحةٌ «رقم» بلغَها خليطٌ
+                        //      يشملُ غيرَ العدديِّ (نصٌّ مثلًا) — المفسّرُ (المرجعُ) يحذّرُ
+                        //      ويُمرِّرُ كلَّ موقعٍ بوسمِه، بينما كان المضمِّنُ الأماميُّ
+                        //      يستبدلُ الثابتَ النصّيَّ في جسمٍ منمَّطٍ i64 فينفجرُ LLVM
+                        //      «Invalid cast» (ICE مقيس — t06). التعميمُ إلى Any يُطابقُ
+                        //      المفسّرَ، والمضمِّنُ يرفضُ الحدودَ الموسومةَ أصلًا فلا ICE.
+                        //      وعدمُ الإغفالِ (Void — بابُ الباني وحدَه) يبقى مانعًا كما
+                        //      كان: دلالةُ تبطينِه بالعدمِ لا تُمَسّ.
+                        // (EN) Widen the measured door: a declared-«رقم» slot whose sites
+                        //      mix in a non-numeric kind (e.g. String) — the interpreter
+                        //      (the reference) warns and passes each site through with its
+                        //      own tag, while the frontend inliner substituted the string
+                        //      constant into an i64-typed body and LLVM asserted
+                        //      «Invalid cast» (measured ICE — t06). Generalizing to Any
+                        //      matches the interpreter, and the inliner already refuses
+                        //      tagged boundaries, so no ICE. An omission's Void (the
+                        //      constructor-only door) keeps blocking: its null-padding
+                        //      semantics are untouched.
+                        const bool declaredNumberMixed =
+                            param->type == Types::SadTypeKind::Integer &&
+                            kinds.count(static_cast<int>(SadTypeKind::Void)) == 0;
+                        // (AR) والمصرَّحُ «عشري» يعمُّ فقط إذا خالطَه **غيرُ عدديٍّ**
+                        //      (نصٌّ مثلًا): الخليطُ العدديُّ الخالصُ {صحيح، عشريّ} يبقى
+                        //      على عقدِه double (التكييفُ sitofp قائمٌ ومقيس) — التعميمُ
+                        //      هنا يسدُّ ICE المضمِّنِ لا يغيّرُ الدلالةَ العدديّة.
+                        // (EN) A declared «عشري» generalizes ONLY when a NON-numeric
+                        //      kind mixes in (e.g. String): a purely numeric
+                        //      {Int, Float} mix keeps its double contract (the sitofp
+                        //      coercion stands, measured) — the generalization here
+                        //      seals the inliner ICE without changing numeric
+                        //      semantics.
+                        bool declaredFloatNonNumericMixed = false;
+                        if (param->type == Types::SadTypeKind::Float &&
+                            kinds.count(static_cast<int>(SadTypeKind::Void)) == 0)
+                        {
+                            for (const int kd : kinds)
+                            {
+                                if (kd != static_cast<int>(SadTypeKind::Integer) &&
+                                    kd != static_cast<int>(SadTypeKind::Float))
+                                {
+                                    declaredFloatNonNumericMixed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!purelyNumericSplit && !declaredNumberMixed &&
+                            !declaredFloatNonNumericMixed)
                             continue;
                         param->type = SadTypeKind::Any;
                         param->sadType = Types::SadType::fromValueType(SadTypeKind::Any);
@@ -192,8 +250,47 @@ namespace Sad
                     //      accepts; String/Boolean never overwrite the author's declaration.
                     if (param->type == Types::SadTypeKind::Integer)
                     {
+                        // (AR) إجماعٌ غيرُ عدديٍّ على خانةٍ مصرَّحةٍ «رقم» (نصٌّ وحيدُ
+                        //      المواقعِ مثلًا): لا يُكتَبُ فوقَ التصريحِ نصًّا بل تعمُّ
+                        //      الخانةُ إلى Any — نظيرُ ذراعِ الخليطِ أعلاه وبالقياسِ
+                        //      نفسِه (ICE المضمِّن t06a)؛ والعدمُ يبقى مانعًا.
+                        // (EN) A non-numeric unanimity on a declared-«رقم» slot (e.g. a
+                        //      single all-String site): never overwrite the declaration
+                        //      with String — generalize to Any, mirroring the mixed arm
+                        //      above under the same measurement (inliner ICE t06a);
+                        //      Void keeps blocking.
                         if (agreed != SadTypeKind::Float)
+                        {
+                            if (agreed != SadTypeKind::Integer &&
+                                agreed != SadTypeKind::Void)
+                            {
+                                param->type = SadTypeKind::Any;
+                                param->sadType =
+                                    Types::SadType::fromValueType(SadTypeKind::Any);
+                            }
                             continue;
+                        }
+                    }
+                    else if (param->type == Types::SadTypeKind::Float)
+                    {
+                        // (AR) إجماعٌ غيرُ عدديٍّ على خانةٍ مصرَّحةٍ «عشري» (نصٌّ وحيدُ
+                        //      المواقعِ): تعمُّ Any — لا يُكتَبُ نصٌّ فوقَ عقدِ الكاتبِ
+                        //      ولا يُترَكُ ICE المضمِّنِ حيًّا. والعدديُّ الخالصُ
+                        //      (صحيحٌ وحيدُ المواقعِ) يبقى على العقدِ double.
+                        // (EN) A non-numeric unanimity on a declared-«عشري» slot (an
+                        //      all-String site): generalize to Any — never overwrite
+                        //      the author's contract with String, never leave the
+                        //      inliner ICE alive. A purely numeric unanimity (an
+                        //      all-Integer site) keeps the double contract.
+                        if (agreed != SadTypeKind::Integer &&
+                            agreed != SadTypeKind::Float &&
+                            agreed != SadTypeKind::Void)
+                        {
+                            param->type = SadTypeKind::Any;
+                            param->sadType =
+                                Types::SadType::fromValueType(SadTypeKind::Any);
+                        }
+                        continue;
                     }
                     else if (agreed != SadTypeKind::String &&
                              agreed != SadTypeKind::Float &&
@@ -292,6 +389,59 @@ namespace Sad
                         if (slot == SadTypeKind::String || slot == SadTypeKind::Float ||
                             slot == SadTypeKind::Boolean || slot == SadTypeKind::Array ||
                             slot == SadTypeKind::Integer)
+                        {
+                            slot = SadTypeKind::Any;
+                        }
+                    }
+                }
+            }
+
+            // ========================================================================
+            // (AR) [موجة الجسر الموسوم] الدالّةُ الهاربةُ مرجعًا إلى دالّةِ مستخدمٍ:
+            //      مواقعُ ندائِها عبرَ المرجعِ غيرُ مرئيّةٍ للمسحِ، فإجماعُ المواقعِ
+            //      المرئيّةِ ادّعاءٌ ناقصٌ. تُوسَّعُ خاناتُها **الرقميّةُ الصحيحةُ
+            //      والعشريّةُ وغيرُ المصرَّحةُ** إلى Any فتُقرأُ موسومةً زمنَ التشغيل
+            //      (جسرُ %SadDyn يفكُّها بوسمِها) — القياس: «نفذ(ثلاثي)» ثم
+            //      «ارجع د(2.5)» بترَ العشريَّ إلى 2 داخلَ الجسمِ الموقَّعِ i64
+            //      (t01: المفسّرُ 7.5). والمصرَّحُ الحادُّ (نصٌّ/منطقيٌّ/مصفوفة)
+            //      عقدُ الكاتبِ لا يُمَسّ — يفكُّه الجسرُ إلى نوعِه مباشرةً.
+            // (EN) [Tagged-bridge wave] A function escaping as a reference into a
+            //      user function: its call sites through the reference are invisible
+            //      to the scan, so visible-site unanimity is an incomplete claim.
+            //      Its Integer/Float/undeclared slots widen to Any and read
+            //      runtime-tagged (the %SadDyn bridge unboxes by tag) — measured:
+            //      «نفذ(ثلاثي)» then «ارجع د(2.5)» truncated the float to 2 inside
+            //      the i64-typed body (t01: interpreter says 7.5). Sharp declared
+            //      kinds (String/Boolean/Array) are the author's contract and stay —
+            //      the bridge unboxes straight to them.
+            // ========================================================================
+            void TemplateBuilder::applyEscapedFuncParamWidening()
+            {
+                for (const auto &escName : b_.scanEscapedFuncs_)
+                {
+                    auto fnIt = b_.functionTable_.find(escName);
+                    if (fnIt == b_.functionTable_.end())
+                        continue;
+                    const Sad::AST::FunctionDecl *decl = fnIt->second.astDecl;
+                    for (size_t index = 0; index < fnIt->second.parameters.size(); ++index)
+                    {
+                        bool widenable = true;
+                        if (decl && index < decl->parameters.size())
+                        {
+                            const auto &p = decl->parameters[index];
+                            const bool isUndeclared =
+                                p.type == Types::SadTypeKind::Unknown ||
+                                (p.type == Types::SadTypeKind::Class && p.typeName.empty());
+                            const bool isDeclaredNumeric =
+                                p.type == Types::SadTypeKind::Integer ||
+                                p.type == Types::SadTypeKind::Float;
+                            widenable = isUndeclared || isDeclaredNumeric;
+                        }
+                        if (!widenable)
+                            continue;
+                        SadTypeKind &slot = fnIt->second.parameters[index].type;
+                        if (slot == SadTypeKind::Integer || slot == SadTypeKind::Float ||
+                            slot == SadTypeKind::Unknown)
                         {
                             slot = SadTypeKind::Any;
                         }
@@ -683,6 +833,131 @@ namespace Sad
                             {
                                 if (argWantsAny(call->arguments[ai].get()))
                                     b_.scanLambdaParamAny_[lam].insert(ai);
+                                // (AR) [موجة الجسر الموسوم — t05] وسيطٌ عشريٌّ لموقعِ
+                                //      نداءِ لامدا: معاملُ اللامدا يُبنى i64 افتراضًا
+                                //      فتعبرُ 2.5 بتّاتِها قمامةً (والمفسّرُ يُجيب 5.0).
+                                //      يُوسَّعُ المعاملُ إلى Any فيُغلَّفُ الوسيطُ بوسمِه
+                                //      وموقعُ الصحيحِ يبقى صادقًا عبرَ الوسمِ نفسِه.
+                                // (EN) [Tagged-bridge wave — t05] A float argument at a
+                                //      lambda call site: the lambda param builds as
+                                //      default i64, so 2.5 crosses as raw bits (the
+                                //      interpreter answers 5.0). Widen the param to Any:
+                                //      the argument is boxed with its tag, and an
+                                //      integer site stays truthful through the same tag.
+                                else if (inferExprType(call->arguments[ai].get()) ==
+                                         SadTypeKind::Float)
+                                    b_.scanLambdaParamDynAny_[lam].insert(ai);
+                            }
+                        }
+                    }
+
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) [موجة الجسر الموسوم] تسجيلُ الهروبِ: مرجعُ دالّةٍ يُمرَّرُ
+                    //      وسيطًا إلى دالّةِ مستخدمٍ («نفذ(ثلاثي)»، أو «طبق(د)» حيث د
+                    //      ببرهانِ أصلٍ نظيف) — مواقعُ نداءِ الهاربةِ داخلَ المستقبِلةِ
+                    //      غيرُ مرئيّةٍ للمسحِ فتُوسَّعُ خاناتُها الرقميّةُ إلى Any في
+                    //      applyEscapedFuncParamWidening. من التمريرةِ الثانيةِ (بعدَ
+                    //      اكتمالِ الجدولِ والتسميم)، ودوالُّ المستخدمِ حصرًا: تمريرُ
+                    //      مرجعٍ لطرائقِ المدمجاتِ يسلكُ مسارَه المعلومَ القائمَ.
+                    // (EN) [Tagged-bridge wave] Escape recording: a func-ref passed as
+                    //      an argument into a USER function («نفذ(ثلاثي)», or «طبق(د)»
+                    //      with clean provenance) — the escapee's call sites inside the
+                    //      receiver are invisible to the scan, so its numeric slots
+                    //      widen to Any in applyEscapedFuncParamWidening. Second pass
+                    //      onward (table and poisoning complete), USER functions only:
+                    //      refs passed to builtin methods keep their known path.
+                    // ════════════════════════════════════════════════════════════
+                    if (!funcName.empty() && b_.scanPassIndex_ >= 1 &&
+                        b_.functionTable_.find(funcName) != b_.functionTable_.end())
+                    {
+                        // (AR) معاملاتُ الدالّةِ الماسحةِ نفسِها تحجبُ أسماءَ الدوالِّ
+                        //      العليا — بها يُحرَسُ الذراعُ المباشرُ أدناه.
+                        // (EN) The scanning function's own parameters shadow top-level
+                        //      function names — used to guard the direct arm below.
+                        auto isScanFuncParam = [&](const std::string &argName) -> bool {
+                            auto scanFnIt = b_.functionTable_.find(b_.currentScanFuncName_);
+                            if (scanFnIt == b_.functionTable_.end() ||
+                                !scanFnIt->second.astDecl)
+                                return false;
+                            for (const auto &p : scanFnIt->second.astDecl->parameters)
+                                if (p.name == argName)
+                                    return true;
+                            return false;
+                        };
+                        for (const auto &escArg : call->arguments)
+                        {
+                            // (AR) لامدا حرفيّةً وسيطًا: هروبٌ يجعل هدفَها مجهولًا داخلَ
+                            //      المستقبِلةِ (dynproto) — تُوسَّعُ معاملاتُها كلُّها
+                            //      قيمًا Any كي يفكَّها الجسرُ بوسومِها (كان العشريُّ
+                            //      يُبترُ على توقيعِ i64 — مقيس عدائيًّا).
+                            // (EN) A lambda literal as an argument: an escape that makes
+                            //      its target unknown inside the receiver (dynproto) —
+                            //      all its params widen to value-Any so the bridge
+                            //      unboxes by tag (the float used to truncate on an
+                            //      i64 signature — adversarially measured).
+                            if (const auto *argLam =
+                                    dynamic_cast<const Sad::AST::LambdaExpr *>(escArg.get()))
+                            {
+                                for (size_t pi = 0; pi < argLam->parameters.size(); ++pi)
+                                    b_.scanLambdaParamDynAny_[argLam].insert(pi);
+                                continue;
+                            }
+                            const auto *argVar =
+                                dynamic_cast<const Sad::AST::VariableExpr *>(escArg.get());
+                            if (!argVar)
+                                continue;
+                            // (AR) حرّاسُ التظليلِ يسبقون الذراعَين معًا: اسمٌ وقعَ هدفَ
+                            //      إسنادٍ، أو له تصريحٌ محلّيٌّ، أو هو معاملُ الماسحةِ —
+                            //      لا يُسجَّلُ هروبُه باسمِ الدالّةِ العليا المظلَّلة.
+                            // (EN) Shadow guards precede BOTH arms: an assigned name, a
+                            //      local declaration, or the scanner's own parameter
+                            //      never records an escape under the shadowed
+                            //      top-level function's name.
+                            if (b_.scanAssignedNames_.count(argVar->name) != 0 ||
+                                isScanFuncParam(argVar->name))
+                                continue;
+                            const std::string scopedEscKey =
+                                b_.currentScanFuncName_ + "#" + argVar->name;
+                            const bool hasLocalDecl =
+                                b_.scanFuncRefDeclNode_.find(scopedEscKey) !=
+                                b_.scanFuncRefDeclNode_.end();
+                            if (b_.functionTable_.find(argVar->name) !=
+                                    b_.functionTable_.end() &&
+                                !hasLocalDecl)
+                            {
+                                b_.scanEscapedFuncs_.insert(argVar->name);
+                                continue;
+                            }
+                            // (AR) متغيّرٌ مربوطٌ بلامدا يهربُ وسيطًا — التوسيعُ نفسُه.
+                            // (EN) A lambda-bound variable escaping as an argument —
+                            //      the same widening.
+                            {
+                                std::string lamKey = scopedEscKey;
+                                auto lamEscIt = b_.scanLambdaVar_.find(lamKey);
+                                if (lamEscIt == b_.scanLambdaVar_.end())
+                                    lamEscIt = b_.scanLambdaVar_.find("#" + argVar->name);
+                                if (lamEscIt != b_.scanLambdaVar_.end())
+                                {
+                                    const Sad::AST::LambdaExpr *escLam = lamEscIt->second;
+                                    for (size_t pi = 0; pi < escLam->parameters.size(); ++pi)
+                                        b_.scanLambdaParamDynAny_[escLam].insert(pi);
+                                    continue;
+                                }
+                            }
+                            // (AR) عبرَ ربطِ برهانِ الأصلِ — بحرّاسِ المسحِ نفسِها.
+                            // (EN) Through the provenance binding — same scan guards.
+                            std::string escKey = scopedEscKey;
+                            if (b_.scanFuncRefBindings_.find(escKey) ==
+                                    b_.scanFuncRefBindings_.end() &&
+                                !hasLocalDecl)
+                            {
+                                escKey = "#" + argVar->name;
+                            }
+                            if (b_.scanFuncRefPoisoned_.count(escKey) == 0)
+                            {
+                                auto escIt = b_.scanFuncRefBindings_.find(escKey);
+                                if (escIt != b_.scanFuncRefBindings_.end())
+                                    b_.scanEscapedFuncs_.insert(escIt->second);
                             }
                         }
                     }
@@ -2360,6 +2635,14 @@ namespace Sad
                         scanStmtList(body);
                     applyAgreedMemberParamTypes();
                     applyAgreedFreeParamTypes();
+                    // (AR) [موجة الجسر الموسوم] بعدَ الإجماعَين وقبلَ إعادةِ استنتاجِ
+                    //      العائدِ: التوسيعُ يغلبُ إجماعَ المواقعِ المرئيّةِ (الهروبُ
+                    //      يعني مواقعَ غيرَ مرئيّة)، وإعادةُ الاستنتاجِ تلتقطُ أثرَه.
+                    // (EN) [Tagged-bridge wave] After both unanimity passes and before
+                    //      return re-inference: widening overrides visible-site
+                    //      unanimity (escape means invisible sites exist), and the
+                    //      re-inference picks up its effect.
+                    applyEscapedFuncParamWidening();
                     const bool changed = reinferReturnTypes();
                     if (!changed && pass >= 1)
                         break;

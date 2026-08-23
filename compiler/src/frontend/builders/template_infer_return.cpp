@@ -361,6 +361,25 @@ namespace Sad
                     {
                         if (auto varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
                         {
+                            // (AR) [موجة الجسر الموسوم] معاملُ الدالّةِ الحاضنةِ يحجبُ
+                            //      اسمَ دالّةٍ عليا مطابقًا — **قبل** بحثِ الجدولِ، وإلّا
+                            //      أُخذ عائدُ الدالّةِ المظلَّلةِ بينما البناءُ يَسِمُ
+                            //      الموقعَ نفسَه dynproto بنتيجةِ Any (تنميطانِ
+                            //      متعارضانِ للنداءِ الواحد — رصدُ مراجعة).
+                            // (EN) [Tagged-bridge wave] A parameter of the enclosing
+                            //      function shadows a same-named top-level function —
+                            //      checked BEFORE the table lookup; otherwise the
+                            //      shadowed function's return is taken while the build
+                            //      marks the same site dynproto with an Any result
+                            //      (two conflicting typings of one call — review find).
+                            if (funcDecl)
+                            {
+                                for (const auto &p : funcDecl->parameters)
+                                {
+                                    if (p.name == varExpr->name)
+                                        return SadTypeKind::Any;
+                                }
+                            }
                             auto it = b_.functionTable_.find(varExpr->name);
                             if (it != b_.functionTable_.end())
                             {

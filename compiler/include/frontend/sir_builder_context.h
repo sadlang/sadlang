@@ -275,6 +275,18 @@ namespace Sad
                 //   The AST-node pointer key is stable across scan passes and body build.
                 std::unordered_map<std::string, const Sad::AST::LambdaExpr *> scanLambdaVar_;
                 std::unordered_map<const Sad::AST::LambdaExpr *, std::unordered_set<size_t>> scanLambdaParamAny_;
+                // (AR) [موجة الجسر الموسوم — t05] نظيرُ scanLambdaParamAny_ للقيمةِ
+                //      **العدديّةِ** الموسومة: معاملُ لامدا بلغَه وسيطٌ عشريٌّ في موقعِ
+                //      نداءٍ ⇒ يُوسَّعُ **قيمةً Any** (%SadDyn) لا مصفوفةً — فدلالةُ
+                //      الخريطةِ الأولى «مصفوفةٌ عناصرُها موسومة» وأعادَ استعمالُها
+                //      للعدديِّ جسمَ «س+س» ضمَّ مصفوفاتٍ (segfault مقيس).
+                // (EN) [Tagged-bridge wave — t05] The SCALAR counterpart of
+                //      scanLambdaParamAny_: a lambda param that received a float
+                //      argument at a call site widens to a tagged VALUE Any
+                //      (%SadDyn), not an Array — the first map's meaning is
+                //      "array of tagged elements", and reusing it for scalars
+                //      turned «س+س» into array.concat (measured segfault).
+                std::unordered_map<const Sad::AST::LambdaExpr *, std::unordered_set<size_t>> scanLambdaParamDynAny_;
 
                 // (AR) [موجة ABI المغاليق] ثلاث خرائطِ مسحٍ لأصلِ مرجعِ الدالّةِ المسمّاة:
                 //   (١) scanFuncRefBindings_: «دالّة#متغيّر» (نظيرُ نطاقِ scanLambdaVar_) →
@@ -311,6 +323,18 @@ namespace Sad
                 std::unordered_map<std::string, const void *> scanFuncRefDeclNode_;
                 std::unordered_set<std::string> scanFuncRefPoisoned_;
                 std::unordered_set<std::string> scanAssignedNames_;
+                // (AR) [موجة الجسر الموسوم] الدوالُّ الهاربةُ مرجعًا إلى دالّةِ مستخدمٍ
+                //      أخرى («نفذ(ثلاثي)» أو «طبق(د)» حيث د مربوطٌ ببرهانِ أصل):
+                //      مواقعُ نداءِ الهاربةِ غيرُ مرئيّةٍ للمسحِ، فتُوسَّعُ معاملاتُها
+                //      الرقميّةُ/غيرُ المصرَّحةِ إلى Any لتُقرأَ موسومةً زمنَ التشغيل —
+                //      القياس: «ارجع د(2.5)» عبرَ معاملٍ بترَ العشريَّ (t01: 7.5⇒قمامة).
+                // (EN) [Tagged-bridge wave] Functions escaping as references into another
+                //      USER function («نفذ(ثلاثي)», or «طبق(د)» where د carries clean
+                //      provenance): the escapee's call sites are invisible to the scan,
+                //      so its numeric/undeclared parameter slots widen to Any and read
+                //      runtime-tagged — measured: an indirect float call through a
+                //      parameter truncated/garbled the float (t01).
+                std::unordered_set<std::string> scanEscapedFuncs_;
                 // (AR) رقمُ تمريرةِ المسحِ الحاليّة — الحلُّ عبرَ (١) يُفعَّل من التمريرةِ
                 //      الثانيةِ (بعد اكتمالِ التسميمِ في الأولى).
                 // (EN) Current scan pass index — resolution via (1) activates from the

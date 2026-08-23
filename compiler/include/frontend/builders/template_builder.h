@@ -313,6 +313,13 @@ namespace Sad
                 /// (EN) Applies the promotions every call site agreed on
                 void applyAgreedMemberParamTypes();
                 void applyAgreedFreeParamTypes();
+                // (AR) [موجة الجسر الموسوم] توسيعُ الخاناتِ الرقميّةِ/غيرِ المصرَّحةِ
+                //      للدوالِّ الهاربةِ مرجعًا (scanEscapedFuncs_) إلى Any — مواقعُها
+                //      عبرَ المرجعِ غيرُ مرئيّةٍ للمسح.
+                // (EN) [Tagged-bridge wave] Widen the numeric/undeclared slots of
+                //      functions escaping as references (scanEscapedFuncs_) to Any —
+                //      their call sites through the reference are invisible to the scan.
+                void applyEscapedFuncParamWidening();
 
                 /// (AR) يُرقّي معاملاتِ عضوٍ بلغَه نداءٌ — بانيًا كان أو طريقة
                 /// (EN) Refines a called member's parameters — constructor or method

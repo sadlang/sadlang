@@ -224,12 +224,20 @@ namespace Sad
                 return false;
             }
 
-            // (AR) نبحث عن هذا في النطاق لتحديد الصنف الحالي
-            // (EN) Look for this in scope to determine current class
+            // (AR) نبحث عن هذا في النطاق لتحديد الصنف الحالي.
+            //      خارجَ الطرائق (لا «هذا») الاسمُ ليس نداءَ باني الأبِ بل معرِّفٌ
+            //      عاديٌّ — صنفُ مستخدمٍ باسم «أساس» مثلًا — فنُفسِح للتوزيعِ العاديّ.
+            //      الابتلاعُ القديمُ (فراغٌ + true) جعل «أساس()» أعلى الملفِّ يُنشئ
+            //      فراغًا صامتًا بينما المصرِّفُ يحصرُ الادّعاءَ بداخلِ صنفٍ — مقيس.
+            // (EN) Look for «هذا» in scope to determine current class. Outside
+            //      methods (no «هذا») the name is NOT a super call but an ordinary
+            //      identifier — e.g. a user class literally named «أساس» — so fall
+            //      through to normal dispatch. The old swallow (void + true) made a
+            //      top-level «أساس()» silently yield void while the compiler claims
+            //      the call only inside a class — measured divergence.
             if (!variableManager_.exists("هذا"))
             {
-                lastResult_ = Value();
-                return true;
+                return false;
             }
 
             Value thisValue = variableManager_.get("هذا");

@@ -691,6 +691,26 @@ namespace Sad
                                 for (const auto &param : methodDecl->parameters)
                                 {
                                     SadTypeKind paramType = b_.astTypeToSIRType(param.type);
+                                    // (AR) ترقيةُ الشجرةِ إلى Any حكمُ إجماعِ المواقعِ
+                                    //      (applyAgreedMemberParamTypes) وهو لاحقٌ وأعلمُ من
+                                    //      تسجيلِ 1.3 المسبقِ — كان جدولُ 1.3 يكتبُ Float
+                                    //      المسجَّلةَ فوقَها («عشري» + موقعٌ نصّيٌّ) فيَبني
+                                    //      التوقيعَ f64 بينما موقعُ النداءِ يُغلِّفُ Any ⇒
+                                    //      «Calling a function with a bad signature» (مقيس).
+                                    //      «رقم» نجت مصادفةً: مسجَّلتُها Integer يستثنيها
+                                    //      الشرطُ أدناه — درسُ «التصريحُ بلغَ طبقةً واحدة».
+                                    // (EN) The AST's Any promotion is the site-unanimity
+                                    //      verdict (applyAgreedMemberParamTypes) — later and
+                                    //      better informed than the Phase-1.3 pre-registration.
+                                    //      That table wrote its recorded Float back over it
+                                    //      («عشري» + a string site), building an f64 signature
+                                    //      while the call site boxes Any ⇒ "Calling a function
+                                    //      with a bad signature" (measured). «رقم» survived by
+                                    //      accident: its recorded Integer is excluded by the
+                                    //      condition below — the "declared fact reaches one
+                                    //      layer" lesson.
+                                    if (paramType != SadTypeKind::Any)
+                                    {
                                     // (AR) ابحث عن النوع المُستنتج للمعامل
                                     for (const auto &ip : inferredParams)
                                     {
@@ -705,6 +725,7 @@ namespace Sad
                                             paramType = ip.type;
                                             break;
                                         }
+                                    }
                                     }
                                     // (AR) بذر صنف المعامل المصرَّح («حدث ح» في طريقة) — نظير
                                     //      الدوالّ الحرّة في sir_builder_functions (جولة أميليا ٢)
@@ -1219,12 +1240,20 @@ namespace Sad
                         for (const auto &param : methodDecl->parameters)
                         {
                             SadTypeKind paramType = b_.astTypeToSIRType(param.type);
+                            // (AR) ترقيةُ الشجرةِ إلى Any لا يُكتَبُ فوقَها جدولُ 1.3 —
+                            //      النسخةُ الثانيةُ من الموضعِ نفسِه أعلاه (درسُ النسخِ الثلاث).
+                            // (EN) The AST's Any promotion is never overwritten by the
+                            //      Phase-1.3 table — second copy of the site above (the
+                            //      three-copies lesson).
+                            if (paramType != SadTypeKind::Any)
+                            {
                             for (const auto &ip : inferredParams)
                             {
                                 if (ip.name == param.name && ip.type != SadTypeKind::Integer)
                                 { paramType = ip.type; break; }
                                 if (ip.name == param.name && param.type == Types::SadTypeKind::Unknown && ip.type != paramType)
                                 { paramType = ip.type; break; }
+                            }
                             }
                             // (AR) بذر صنف المعامل المصرَّح (جولة أميليا ٢)
                             // (EN) Seed declared param class (Amelia round 2)
