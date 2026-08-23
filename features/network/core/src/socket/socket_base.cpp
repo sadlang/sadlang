@@ -6,6 +6,8 @@
 #include "socket_base.h"
 #include "network_error.h"
 
+#include <mutex>
+
 #ifdef _WIN32
     #include <winsock2.h>
     #include <ws2tcpip.h>
@@ -23,6 +25,17 @@ namespace network {
 bool SocketBase::s_winsock_initialized = false;
 int SocketBase::s_winsock_ref_count = 0;
 
+#ifdef _WIN32
+// (AR) قفل عداد Winsock: الزيادات تقع في خيط القبول (منشئ النقل) والإنقاصات
+//      في خيوط العمال (هدامات handle_client) — عد غير محمي = سباق بيانات
+//      يضيع زيادة فيعبر العداد الصفر مبكرا ويطلق WSACleanup وسط العمل.
+// (EN) Winsock counter lock: increments happen on the accept thread (move
+//      ctor) and decrements on worker threads (handle_client destructors) —
+//      unguarded ++/-- is a data race that can lose an increment, cross zero
+//      early, and fire WSACleanup mid-flight.
+static std::mutex s_winsock_mutex;
+#endif
+
 SocketBase::SocketBase()
     : m_socket(INVALID_SOCKET_VALUE)
 {
@@ -34,9 +47,34 @@ SocketBase::~SocketBase() {
     cleanup_winsock();
 }
 
+// (AR) 🔑 ع-14: الناقل يزيد عداد Winsock المرجعي — القاعدة «كل كائن حي = مرجع
+//      واحد» لا «كل مقبس = مرجع»: الهدام ينقص العداد لكل كائن (حتى المنقول
+//      منه)، فكان كل اتصال مقبول يمر بثلاثة هدامات (نسخة حلقة القبول
+//      المنقولة + مخزن الخيط + معامل handle_client) مقابل زيادة واحدة —
+//      صافي −2 فيبلغ العداد صفرا بعد أول طلب ويستدعي WSACleanup الذي يهدم
+//      كل مقابس العملية ومنها المستمع (مقيس على التنفيذي المصرف؛ المفسر
+//      كان ناجيا مصادفة لأن WSAStartup ينادى فيه من مكون آخر فيرتفع عداد
+//      النظام فوق الواحد).
+// (EN) 🔑 ع-14: the move constructor must take a Winsock reference — the
+//      invariant is "one live object = one ref", not "one socket = one ref",
+//      because the destructor decrements for EVERY object, moved-from ones
+//      included. Each accepted connection ran three destructors (the moved
+//      accept-loop copy + the thread's stored copy + the handle_client
+//      parameter) against a single increment — net −2, so the counter hit
+//      zero after the first request and WSACleanup() tore down every socket
+//      in the process, listener included (measured on compiled executables;
+//      the interpreter merely survived because another component there calls
+//      WSAStartup, keeping the OS-level count above one).
+// (AR) أمان noexcept: فرع الرمي في initialize_winsock هو فشل WSAStartup، وهو
+//      غير قابل للبلوغ هنا — وجود مصدر حي للنقل يضمن أن Winsock مهيأ مسبقا
+//      فلا يُنادى WSAStartup بل يزاد العداد فقط.
+// (EN) noexcept safety: initialize_winsock's only throwing branch is a failed
+//      WSAStartup, unreachable here — a live move source guarantees Winsock is
+//      already initialized, so only the counter increment runs.
 SocketBase::SocketBase(SocketBase&& other) noexcept
     : m_socket(other.m_socket)
 {
+    initialize_winsock();
     other.m_socket = INVALID_SOCKET_VALUE;
 }
 
@@ -204,6 +242,7 @@ void SocketBase::create_socket(int domain, int type, int protocol) {
 
 void SocketBase::initialize_winsock() {
 #ifdef _WIN32
+    std::lock_guard<std::mutex> lock(s_winsock_mutex);
     if (!s_winsock_initialized) {
         WSADATA wsa_data;
         int result = WSAStartup(MAKEWORD(2, 2), &wsa_data);
@@ -220,7 +259,15 @@ void SocketBase::initialize_winsock() {
 
 void SocketBase::cleanup_winsock() {
 #ifdef _WIN32
-    --s_winsock_ref_count;
+    std::lock_guard<std::mutex> lock(s_winsock_mutex);
+    // (AR) حارس القاع: عداد سالب يعني اختلال توازن — لا ننقص تحت الصفر كي لا
+    //      يعود فيمر بالصفر مرة أخرى مستدعيا WSACleanup في منتصف عمل المقابس.
+    // (EN) Floor guard: a negative count means an imbalance — never go below
+    //      zero, or a later decrement could cross zero again and fire
+    //      WSACleanup mid-flight.
+    if (s_winsock_ref_count > 0) {
+        --s_winsock_ref_count;
+    }
     if (s_winsock_ref_count == 0 && s_winsock_initialized) {
         WSACleanup();
         s_winsock_initialized = false;

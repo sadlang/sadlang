@@ -379,6 +379,40 @@ void sad_http_server_listen(void *server)
     }
 }
 
+int sad_http_server_listen_on(void *server, int port)
+{
+    if (!server)
+        return 0;
+
+    try
+    {
+        HttpServer *http_server = static_cast<HttpServer *>(server);
+        // (AR) خادمٌ عاملٌ مسبقًا: listen تعود فورًا دون تكريم المنفذ — فشل صريح
+        //      لا «نجاح» كاذب. والاستثناء الهارب (فشل bind مثلًا) فشلٌ كذلك.
+        // (EN) Already-running server: listen returns immediately without
+        //      honoring the port — report failure, not a false success. An
+        //      escaping exception (e.g. bind failure) is a failure too.
+        if (http_server->is_running())
+            return 0;
+        // (AR) توحيد دلالة المنفذ ≤ 0 هنا (طبقة واحدة للمحركين): غير الموجب
+        //      يسقط إلى منفذ الإنشاء بدل محاولة ربط منفذ 0 — يطابق حارس
+        //      المفسر فلا يتباعد المصرف عنه.
+        // (EN) Port ≤ 0 semantics unified HERE (one layer for both engines):
+        //      non-positive falls back to the creation-time port instead of
+        //      binding port 0 — matches the interpreter's guard so the
+        //      compiled path cannot diverge.
+        if (port > 0)
+            http_server->listen(port);
+        else
+            http_server->listen();
+        return 1;
+    }
+    catch (...)
+    {
+        return 0;
+    }
+}
+
 void sad_http_server_stop(void *server)
 {
     if (!server)
@@ -410,6 +444,85 @@ void sad_http_server_enable_cors(void *server, const char *origin)
 }
 
 // ==========================================
+// (AR) ع-14: سياق المعالج للمسار المصرَّف — thread-local للطلب/الرد الحاليين.
+//      المفسر يمرر مؤشري الطلب/الرد عبر thread-local خاص به داخل
+//      builtin_module_http.cpp، أما التنفيذي المصرف فمعالجه دالة ص بلا
+//      معاملات تنادي دوال الطلب/الرد بلا سياق — فيوفر هذا الزوج السياق،
+//      ودوال الطلب/الرد أدناه تسقط إليه عند تمرير nullptr.
+// (EN) ع-14: handler context for the COMPILED path — thread-local current
+//      request/response. The interpreter keeps its own thread-locals in
+//      builtin_module_http.cpp; a compiled Sad handler is a zero-parameter
+//      function calling the request/response functions with no context, so
+//      this pair supplies it and the functions below fall back to it when
+//      passed nullptr.
+static thread_local void *t_currentRequest = nullptr;
+static thread_local void *t_currentResponse = nullptr;
+
+void *sad_http_current_request(void)
+{
+    return t_currentRequest;
+}
+
+void *sad_http_current_response(void)
+{
+    return t_currentResponse;
+}
+
+// (AR) ع-14: ترامبولين المسار المصرف — user_data هو مؤشر دالة ص المصرفة
+//      (بلا معاملات). يثبت السياق في thread-local ثم يناديها ثم يمسحه.
+// (EN) ع-14: compiled-route trampoline — user_data is the compiled Sad
+//      handler (zero-parameter function pointer). Pins the context in the
+//      thread-locals, calls it, clears them.
+namespace
+{
+    // (AR) حارس RAII لسياق المسار: يحفظ السابق ويستعيده فتصمد الاستعادة أمام
+    //      أي مسار خروج ولا تفقد إعادة الدخول المتداخلة سياق الخارج.
+    // (EN) RAII route-context guard: saves and restores the previous values so
+    //      restoration survives every exit path and nested re-entry keeps the
+    //      outer context.
+    struct RouteContextGuard
+    {
+        void *previousRequest;
+        void *previousResponse;
+
+        RouteContextGuard(void *request, void *response)
+            : previousRequest(t_currentRequest), previousResponse(t_currentResponse)
+        {
+            t_currentRequest = request;
+            t_currentResponse = response;
+        }
+
+        ~RouteContextGuard()
+        {
+            t_currentRequest = previousRequest;
+            t_currentResponse = previousResponse;
+        }
+    };
+} // namespace
+
+void sad_http_route_trampoline(void *request, void *response, void *user_data)
+{
+    if (!user_data)
+        return;
+    RouteContextGuard contextGuard(request, response);
+    // (AR) حد الالتقاط: catch(...) يلتقط استثناءات C++ فقط لا SEH (انتهاك
+    //      وصول في الكود المصرف يظل قاتلا)، واستثناء C++ يرمى من مساعد وقت
+    //      تشغيل عبر إطارات IR بلا جداول unwind على Win64 غير معرف السلوك
+    //      قبل بلوغ الالتقاط أصلا — فهذا صمام تحسيني لا ضمان أمان شامل.
+    // (EN) Catch limits: catch(...) takes C++ exceptions only, not SEH (an
+    //      access violation in compiled code is still fatal), and a C++
+    //      exception thrown through unwind-table-less IR frames on Win64 is
+    //      UB before ever reaching the catch — this is a best-effort valve,
+    //      not a blanket safety guarantee.
+    try
+    {
+        reinterpret_cast<void (*)(void)>(user_data)();
+    }
+    catch (...)
+    {
+    }
+}
+
 // Callback-based Route Registration
 // (AR) تسجيل مسارات بمعالجات أصلية — تلتقط callback + user_data في lambda
 // ==========================================
@@ -485,6 +598,8 @@ void sad_http_server_delete_cb(void *server, const char *path,
 char *sad_http_request_method(void *request)
 {
     if (!request)
+        request = t_currentRequest; // (AR) ع-14: سقوط إلى سياق المسار المصرّف
+    if (!request)
         return nullptr;
 
     try
@@ -500,6 +615,8 @@ char *sad_http_request_method(void *request)
 
 char *sad_http_request_path(void *request)
 {
+    if (!request)
+        request = t_currentRequest; // (AR) ع-14: سقوط إلى سياق المسار المصرّف
     if (!request)
         return nullptr;
 
@@ -517,6 +634,8 @@ char *sad_http_request_path(void *request)
 char *sad_http_request_body(void *request)
 {
     if (!request)
+        request = t_currentRequest; // (AR) ع-14: سقوط إلى سياق المسار المصرّف
+    if (!request)
         return nullptr;
 
     try
@@ -532,6 +651,8 @@ char *sad_http_request_body(void *request)
 
 char *sad_http_request_header(void *request, const char *key)
 {
+    if (!request)
+        request = t_currentRequest; // (AR) ع-14: سقوط إلى سياق المسار المصرّف
     if (!request || !key)
         return nullptr;
 
@@ -548,6 +669,8 @@ char *sad_http_request_header(void *request, const char *key)
 
 char *sad_http_request_query_param(void *request, const char *key)
 {
+    if (!request)
+        request = t_currentRequest; // (AR) ع-14: سقوط إلى سياق المسار المصرّف
     if (!request || !key)
         return nullptr;
 
@@ -569,6 +692,8 @@ char *sad_http_request_query_param(void *request, const char *key)
 void sad_http_response_set_status(void *response, int status)
 {
     if (!response)
+        response = t_currentResponse; // (AR) ع-14: سقوط إلى سياق المسار المصرّف
+    if (!response)
         return;
 
     try
@@ -583,6 +708,8 @@ void sad_http_response_set_status(void *response, int status)
 
 void sad_http_response_set_body(void *response, const char *body)
 {
+    if (!response)
+        response = t_currentResponse; // (AR) ع-14: سقوط إلى سياق المسار المصرّف
     if (!response || !body)
         return;
 
@@ -598,6 +725,8 @@ void sad_http_response_set_body(void *response, const char *body)
 
 void sad_http_response_set_json(void *response, const char *json)
 {
+    if (!response)
+        response = t_currentResponse; // (AR) ع-14: سقوط إلى سياق المسار المصرّف
     if (!response || !json)
         return;
 
@@ -613,6 +742,8 @@ void sad_http_response_set_json(void *response, const char *json)
 
 void sad_http_response_set_html(void *response, const char *html)
 {
+    if (!response)
+        response = t_currentResponse; // (AR) ع-14: سقوط إلى سياق المسار المصرّف
     if (!response || !html)
         return;
 
@@ -628,6 +759,8 @@ void sad_http_response_set_html(void *response, const char *html)
 
 void sad_http_response_set_header(void *response, const char *key, const char *value)
 {
+    if (!response)
+        response = t_currentResponse; // (AR) ع-14: سقوط إلى سياق المسار المصرّف
     if (!response || !key || !value)
         return;
 
