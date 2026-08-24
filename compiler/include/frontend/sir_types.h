@@ -1452,6 +1452,35 @@ namespace Sad
                 //      via %s instead of %lld. Defaults to Void ⇒ integer behavior (back-compatible).
                 SadTypeKind elementType = SadTypeKind::Void;
 
+                // (AR) 🔑 حضورٌ نصّيٌّ مثبَتٌ بنيويًّا — عقدُ «نص» غيرِ العدميّ:
+                //      قرارُ المالك (2026-08-23): متغيّرٌ من نوعِ «نص» لا يحمل عدمًا؛
+                //      القابلُ للعدمِ يُصرَّح «نص عدمي» ونوعُه السطحيُّ Optional لا
+                //      String. فحارسُ عدمٍ يزرعه المصرّفُ على «نص» صريحٍ انحدارٌ —
+                //      مقيسٌ حيًّا: حارسُ `char_at.str.null_fail` على معاملِ
+                //      «اطبع_خام(نص)» أدخل `__sad_panic` إغلاقَ لافتةِ الهلعِ في
+                //      نواة النحلة فأحمرَّ حارسُ مسارِ الهلع على المستودعِ كلِّه.
+                //      ⚠️ الافتراضُ الغافرُ: false ⇒ يبقى الحارسُ. لا يرفعه إلّا
+                //      موضعُ بناءٍ **أثبت** التصريحَ الصريحَ (declaredSurfaceType ==
+                //      String لمحلّيٍّ أو معاملٍ غيرِ عامّ) — فمَن فقد العلمَ في
+                //      تحويلةٍ ما يهبط إلى الحارسِ لا إلى قراءةٍ خام.
+                //      ⚠️ والمستهلكُ لا ينزع الحارسَ به إلّا في **الوضعِ الحرّ**:
+                //      مقيسٌ أنّ العدمَ يبلغ «نص» مصرَّحًا مستضافًا بطريقَين
+                //      مشروعَين بعدُ (إسنادٌ صريحٌ يمرّ تحذيرًا، وتبطينُ النداءِ
+                //      الأقصر) — فالإثباتُ تصريحيٌّ لا تدفّقيٌّ حتّى تُسَدّا.
+                //      ⚠️ والعلمُ خارجُ `toString` وكلِّ مفاتيحِ الدمج: أيُّ ممرٍّ
+                //      مستقبليٍّ يقارن تعليماتِ المدمجاتِ للدمج (CSE ونحوه) عليه
+                //      إدخالُه في مفتاحه وإلّا دمج محروسًا بغيرِ محروس.
+                // (EN) 🔑 Structurally-proven string presence — the non-nullable «نص»
+                //      contract (owner decision 2026-08-23): a plain «نص» cannot hold
+                //      null; nullable strings are declared «نص عدمي» whose surface kind
+                //      is Optional, not String. A compiler-planted null guard on an
+                //      explicit «نص» is therefore a regression (measured: the char_at
+                //      guard pulled __sad_panic into nahla's panic-banner closure).
+                //      Forgiving default: false keeps the guard; only a build site that
+                //      PROVED the explicit declaration raises it, so losing the flag in
+                //      any rewrite degrades to the guard, never to an unguarded read.
+                bool structurallyPresentString = false;
+
                 // القيمة / Value (based on type)
                 union
                 {

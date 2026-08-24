@@ -161,6 +161,35 @@ namespace Sad
 #endif
                     }
 
+                    // ================================================================
+                    // (AR) 🔑 إثباتُ الحضورِ النصّيِّ البنيويِّ — هنا حصرًا، حيث يجتمع
+                    //      تعبيرُ AST وجدولُ الرموز: وسيطٌ هو قراءةُ متغيّرٍ/معاملٍ
+                    //      **مُصرَّحٍ** «نص» (declaredSurfaceType == String — والعدميُّ
+                    //      نوعُه السطحيُّ Optional فلا يجتاز)، أو حرفيٌّ نصّيٌّ ثابت.
+                    //      والعامُّ مُستثنًى عمدًا: خانتُه تبدأ صفرًا قبل مُهيِّئها،
+                    //      فالحارسُ عليه ما زال يصطاد قراءةً سابقةً للتهيئة.
+                    //      (انظر عقدَ الحقلِ في sir_types.h — الافتراضُ الغافرُ false.)
+                    // (EN) 🔑 The single proof site — where the AST argument and the
+                    //      symbol table meet: a read of a local/parameter EXPLICITLY
+                    //      declared «نص» (nullable strings surface as Optional and do
+                    //      not pass), or a constant string literal. Globals are
+                    //      deliberately excluded: their slot is zero before the
+                    //      initializer runs, so the guard still catches a pre-init
+                    //      read. (Field contract in sir_types.h — forgiving default.)
+                    // ================================================================
+                    if (argResult.isConstant && argResult.type == SadTypeKind::String)
+                    {
+                        argOp.structurallyPresentString = true;
+                    }
+                    else if (auto *varExpr =
+                                 dynamic_cast<const Sad::AST::VariableExpr *>(arg.get()))
+                    {
+                        auto *varInfo = b_.lookupVariable(varExpr->name);
+                        if (varInfo && !varInfo->isGlobal &&
+                            varInfo->declaredSurfaceType == SadTypeKind::String)
+                            argOp.structurallyPresentString = true;
+                    }
+
                     outArgOperands.push_back(argOp);
                 }
 

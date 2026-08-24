@@ -693,6 +693,33 @@ namespace Sad
                     Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID);
 
             /**
+             * (AR) بابُ الحضورِ **المثبَتِ بنيويًّا** — لا فحصَ ولا رفعَ، تحويلُ
+             *      تمثيلٍ فقط (i64 مُعلَّب ⇒ مؤشّر، ومؤشّرٌ يمرّ كما هو).
+             *
+             *      🔑 لا يُنادى إلّا حيث حمل معاملُ SIR علمَ
+             *      `structurallyPresentString` — أي حيث **أثبت** الأماميُّ أنّ
+             *      القيمةَ قراءةُ «نص» صريحٍ غيرِ عدميٍّ (قرارُ المالك 2026-08-23:
+             *      «نص» لا يحمل عدمًا؛ العدميُّ يُصرَّح «نص عدمي»). زرعُ حارسِ
+             *      عدمٍ هنا انحدارٌ مقيس: حارسُ `char_at` على معاملِ
+             *      «اطبع_خام(نص)» أدخل `__sad_panic` إغلاقَ لافتةِ الهلعِ في
+             *      نواة النحلة فأحمرَّ حارسُ مسارِ الهلع.
+             *      ⚠️ ويُنادى في **الوضعِ الحرِّ حصرًا** (freestanding_): مستضافًا
+             *      يبقى بابُ الرفعِ حتّى على المثبَت، لأنّ العدمَ ما زال يبلغ
+             *      «نص» مصرَّحًا بطريقَين مشروعَين (انظر عقدَ العلمِ في
+             *      sir_types.h) — فنزعُ الحارسِ هناك انهيارُ تجزئةٍ أصمُّ
+             *      مكانَ RUN033 المُصيَّر.
+             * (EN) The STRUCTURALLY-PROVEN presence door — no check, no raise;
+             *      representation coercion only (boxed i64 ⇒ ptr, ptr passes
+             *      through). Call it only where the SIR operand carries
+             *      `structurallyPresentString`, i.e. where the frontend PROVED the
+             *      value reads an explicit non-nullable «نص» (owner decision
+             *      2026-08-23). Planting a null guard there is a measured
+             *      regression: the char_at guard pulled __sad_panic into nahla's
+             *      panic-banner closure.
+             */
+            llvm::Value *emitStringPtrStructural(llvm::Value *value, const char *label);
+
+            /**
              * (AR) البابُ العامُّ للرفع — لكلِّ عائلةِ قيمٍ لا للنصِّ وحدَه.
              *
              *      `emitStringPtrOrRaise` أعلاه بابٌ نصّيٌّ يُعيد مؤشّرًا، فلا يصلح

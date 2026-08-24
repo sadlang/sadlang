@@ -857,12 +857,34 @@ static llvm::Function *getOrCreateSplitHelper(
             //      وهي على بُعدِ أسطر).
             // (EN) Through the single door, not a raw inttoptr.
             // (AR) بابُ العمليّة: المفسّرُ يرفعُ RUN033 على «.حرف_عند» لقيمةٍ عدميّة.
-            // (EN) Operation door: the interpreter raises RUN033 here.
-            str = cg_.emitStringPtrOrRaise(
-                str,
-                LLVMCodeGen::stringMethodOperationLabel(
-                    Sad::Builtins::Names::TypeMethods::String::CHAR_AT),
-                "char_at.str");
+            //      🔑 إلّا الحضورَ المثبَتَ بنيويًّا («نص» صريحٌ غيرُ عدميٍّ — العلمُ
+            //      يثبته الأماميُّ في buildCallArgumentsList) **في الوضعِ الحرِّ
+            //      حصرًا**: هناك يستحيل الرفعُ أصلًا إلى `__sad_panic`، وزرعُه على
+            //      «نص» صريحٍ أدخل الهلعَ إغلاقَ لافتةِ الهلعِ في نواة النحلة فأحمرَّ
+            //      حارسُ مسارِها (العقدُ الكاملُ عند إعلانِ العلمِ في sir_types.h).
+            //      ⚠️ والمسارُ المستضافُ يُبقي الحارسَ حتّى على المثبَت: مراجعةٌ
+            //      خصميّةٌ قاست أنّ العدمَ يبلغ «نص» مصرَّحًا بطريقَين مشروعَين اليومَ
+            //      (إسنادٌ صريحٌ يمرّ بتحذيرٍ لا خطأ، وتبطينُ النداءِ الأقصرِ عدمًا)،
+            //      فنزعُ الحارسِ هناك يُبدل RUN033 المُصيَّرَ بانهيارِ تجزئةٍ أصمّ.
+            //      سدُّ الطريقَين في طبقةِ الدلالةِ (تشديدُ الإسنادِ إلى خطأٍ وإلزامُ
+            //      الوسيطِ النصّيّ) هو ما يفتح البابَ البنيويَّ مستضافًا — دَينٌ مُعلَن.
+            // (EN) Operation door: the interpreter raises RUN033 here — except for a
+            //      structurally-proven present string (explicit non-nullable «نص»,
+            //      flagged by the frontend) in FREESTANDING mode only, where the raise
+            //      can only lower to __sad_panic — the very cycle nahla's panic-path
+            //      guard forbids. Hosted keeps the guard even on proven operands: an
+            //      adversarial review measured two still-legal routes for null to reach
+            //      a declared «نص» (explicit store passes as a warning; omitted-argument
+            //      padding), so dropping the guard there trades a rendered RUN033 for a
+            //      mute segfault. Closing both routes at the semantic layer is the
+            //      declared debt that would open this door for hosted builds too.
+            str = (cg_.freestanding_ && inst->operands[0].structurallyPresentString)
+                      ? cg_.emitStringPtrStructural(str, "char_at.str")
+                      : cg_.emitStringPtrOrRaise(
+                            str,
+                            LLVMCodeGen::stringMethodOperationLabel(
+                                Sad::Builtins::Names::TypeMethods::String::CHAR_AT),
+                            "char_at.str");
 
             // (AR) [بذرة [٨] — أثرُ الترقية] فهرسٌ موسومٌ (%SadDyn) يُفَكُّ بوسمِه
             //      قبلَ الاستعمالِ الخامّ — نظيرُ بابِ «جزء» أعلاه.

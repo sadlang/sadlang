@@ -307,6 +307,39 @@ namespace Sad
             emitMismatch();
         }
 
+        // ====================================================================
+        // (AR) بابُ الحضورِ المثبَتِ بنيويًّا — العقدُ عند الإعلانِ في
+        //      llvm_codegen.h. تحويلُ تمثيلٍ فقط، ولا كتلةَ فشلٍ تُبنى أصلًا.
+        // (EN) The structurally-proven presence door — contract at the
+        //      declaration. Representation coercion only; no fail block exists.
+        // ====================================================================
+        llvm::Value *LLVMCodeGen::emitStringPtrStructural(llvm::Value *value, const char *label)
+        {
+            const std::string tag = (label && *label) ? std::string(label) : std::string("str");
+            llvm::Type *ptrTy = llvm::PointerType::getUnqual(*context_);
+
+            if (!value)
+                return llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy));
+            if (value->getType()->isPointerTy())
+                return value;
+            if (value->getType()->isIntegerTy())
+            {
+                llvm::Type *i64Ty = llvm::Type::getInt64Ty(*context_);
+                llvm::Value *asI64 =
+                    value->getType() == i64Ty
+                        ? value
+                        : builder_->CreateIntCast(value, i64Ty, false, tag + ".i64");
+                return builder_->CreateIntToPtr(asI64, ptrTy, tag + ".ptr");
+            }
+            // (AR) نوعٌ لا يُقرأ نصًّا: يُعاد كما هو — ذيلُ `emitStringPtrOrRaise`
+            //      حرفًا بحرف («لا يمثّل عدمًا أصلًا»)، لا مؤشّرٌ صفريٌّ يضمن
+            //      الانهيارَ إن بلغه أحد. فالبابان البديلان لا يفترقان في الذيل.
+            // (EN) Not readable as a string: returned as-is — the exact tail of
+            //      emitStringPtrOrRaise ("cannot be null"), not a guaranteed-crash
+            //      null pointer. The two sibling doors share one tail behaviour.
+            return value;
+        }
+
         llvm::Value *LLVMCodeGen::emitStringPtrOrRaise(llvm::Value *value,
                                                        const std::string &operationArabic,
                                                        const char *label,
