@@ -6,6 +6,9 @@ functions:
 - cpp_id: EMBED_0
   canonical: تسلسلي_هيئ
   namespace: CompilerEmbed
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -19,6 +22,9 @@ functions:
 - cpp_id: EMBED_1
   canonical: تسلسلي_ارسل
   namespace: CompilerEmbed
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -32,6 +38,9 @@ functions:
 - cpp_id: EMBED_2
   canonical: تسلسلي_استقبل
   namespace: CompilerEmbed
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -45,6 +54,9 @@ functions:
 - cpp_id: EMBED_3
   canonical: تسلسلي_جاهز
   namespace: CompilerEmbed
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -58,6 +70,9 @@ functions:
 - cpp_id: EMBED_4
   canonical: مؤقت_هيئ
   namespace: CompilerEmbed
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -71,6 +86,9 @@ functions:
 - cpp_id: EMBED_5
   canonical: نقل_مباشر_هيئ
   namespace: CompilerEmbed
+  arity:
+    min: 4
+    max: 4
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

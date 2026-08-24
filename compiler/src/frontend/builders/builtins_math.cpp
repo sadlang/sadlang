@@ -8,6 +8,7 @@
 
 #include "sir_builder.h"
 #include "builders/builtin_builder.h"
+#include "builders/builtin_arity_check.h"
 #include "sir_builder.h"
 #include "builtin_registry.h"
 #include <stdexcept>
@@ -16,6 +17,7 @@
 
 // (AR) اختصار لأسماء الدوال المركزية — مصدر حقيقة واحد
 namespace Bm = Sad::Builtins::Names::Math;
+namespace Ar = Sad::Builtins::Arity;
 
 namespace Sad
 {
@@ -38,11 +40,8 @@ namespace Sad
                 // الأسماء المدعومة: جذر, sqrt, الجذر_التربيعي
                 if (funcName == Bm::SQRT)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة جذر تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::SQRT, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
@@ -67,11 +66,8 @@ namespace Sad
                 // الأسماء المدعومة: لوغ, log, ln, لوغاريتم
                 if (funcName == Bm::LOG)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة لوغ تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::LOG, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
@@ -96,11 +92,8 @@ namespace Sad
                 // الأسماء المدعومة: إشارة, اشارة, sign, signum
                 if (funcName == Bm::SIGN)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة إشارة تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::SIGN, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
 
                     std::string resultPtrReg = b_.newTempRegister();
                     SIRInstruction allocInst(SIROpcode::ALLOC);
@@ -204,11 +197,8 @@ namespace Sad
                 // الأسماء المدعومة: أس, power, pow
                 if (funcName == Bm::POWER)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة أس تتطلب معاملين (الأساس والأس)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::POWER, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
@@ -234,11 +224,8 @@ namespace Sad
                 // الأسماء المدعومة: مطلق, abs, القيمة_المطلقة, absolute
                 if (funcName == Bm::ABS)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة مطلق تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::ABS, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SadTypeKind resultType = argResults[0].type; // preserve type (I64 or F64)
@@ -264,11 +251,8 @@ namespace Sad
                 // الأسماء المدعومة: تقريب, round
                 if (funcName == Bm::ROUND)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة تقريب تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::ROUND, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -293,11 +277,8 @@ namespace Sad
                 // الأسماء المدعومة: أرضية, floor
                 if (funcName == Bm::FLOOR)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة أرضية تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::FLOOR, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -322,11 +303,8 @@ namespace Sad
                 // الأسماء المدعومة: سقف, ceil, ceiling
                 if (funcName == Bm::CEIL)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة سقف تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::CEIL, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -351,11 +329,8 @@ namespace Sad
                 // الأسماء المدعومة: مربع, square
                 if (funcName == Bm::SQUARE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة مربع تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::SQUARE, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
 
@@ -414,11 +389,8 @@ namespace Sad
                 // الأسماء المدعومة: جيب, sin, sine
                 if (funcName == Bm::SIN)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة جيب تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::SIN, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
@@ -443,11 +415,8 @@ namespace Sad
                 // الأسماء المدعومة: جيب_تمام, cos, cosine
                 if (funcName == Bm::COS)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة جيب_تمام تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::COS, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
@@ -472,11 +441,8 @@ namespace Sad
                 // الأسماء المدعومة: ظل, tan, tangent
                 if (funcName == Bm::TAN)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة ظل تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::TAN, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
@@ -503,11 +469,8 @@ namespace Sad
                 // أكبر / max - الأكبر من قيمتين
                 if (funcName == Bm::MAX)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة أكبر تتطلب معاملين" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::MAX, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     // (AR) نوعُ النتيجة من نوعِ المعامِلَين بعدَ بوّابةِ النوعِ السطحيّ (call_main): عشريٌّ إن
                     //      كان أحدُهما عشريًّا؛ طبيعي64 إن كان كلاهما طبيعي64 صريحًا (⇒ طباعةٌ لا-موقَّعةٌ للنتيجة
                     //      + مقارنةٌ لا-موقَّعةٌ في الخلفيّة)؛ وإلّا صحيح. المفسّرُ يعيدُ نوعَ الفائزِ (يتجاهلُ SIR)،
@@ -534,11 +497,8 @@ namespace Sad
                 // أصغر / min - الأصغر من قيمتين
                 if (funcName == Bm::MIN)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة أصغر تتطلب معاملين" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::MIN, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     // (AR) نوعُ النتيجة: كنظيرِ أكبر — عشريّ/طبيعي64/صحيح من نوعِ المعامِلَين بعدَ البوّابة.
                     SadTypeKind minType =
                         (argOperands[0].dataType == SadTypeKind::Float ||
@@ -562,11 +522,8 @@ namespace Sad
                 // جمع / sum - مجموع عناصر مصفوفة
                 if (funcName == Bm::SUM)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة جمع تتطلب معامل واحد (مصفوفة)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::SUM, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_SUM);
@@ -586,11 +543,8 @@ namespace Sad
                 // (EN) log10() function - Base-10 logarithm
                 if (funcName == Bm::LOG10)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة لوغ10 تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::LOG10, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_LOG10);
@@ -605,11 +559,8 @@ namespace Sad
                 // (EN) log2() function - Base-2 logarithm
                 if (funcName == Bm::LOG2)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة لوغ2 تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::LOG2, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_LOG2);
@@ -624,11 +575,8 @@ namespace Sad
                 // (EN) asin() function - Arc sine
                 if (funcName == Bm::ASIN)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة قوس_جيب تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::ASIN, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_ASIN);
@@ -643,11 +591,8 @@ namespace Sad
                 // (EN) acos() function - Arc cosine
                 if (funcName == Bm::ACOS)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة قوس_جيب_تمام تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::ACOS, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_ACOS);
@@ -662,11 +607,8 @@ namespace Sad
                 // (EN) atan() function - Arc tangent
                 if (funcName == Bm::ATAN)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة قوس_ظل تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::ATAN, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_ATAN);
@@ -681,11 +623,8 @@ namespace Sad
                 // (EN) trunc() function - Truncate toward zero
                 if (funcName == Bm::TRUNCATE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة اقتطاع تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::TRUNCATE, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
                     // (AR) مطابقة المفسّر (AdvancedMath::trunc = std::trunc): النتيجة عددٌ عشريّ
                     //      (قطعٌ نحو الصفر يُبقي النوع عشريًّا)، فـاقتطاع(3.7) ⇒ «3.0» لا «3».
                     //      السلوك السابق كان يُصلّب Integer (FPToSI في الخلف) فيُخرج «3».
@@ -707,11 +646,8 @@ namespace Sad
                 // (EN) mod() function - integer remainder
                 if (funcName == Bm::FMOD)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة باقي تتطلب معاملين (البسط والمقام)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::FMOD, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     // (AR) مطابقة المفسّر (AdvancedMath::mod = a % b على عددين صحيحين): «باقي»
                     //      باقٍ صحيح لا عشريّ. لذا نُصدر MOD_I64 (نظير عامل «%») الذي يطبّع
                     //      المعاملات إلى i64 (اقتطاعٌ نحو الصفر مطابقٌ لـtoInt) ثم SRem، فتُطبع
@@ -740,11 +676,8 @@ namespace Sad
                 // (EN) clamp() function - Clamp value between min and max
                 if (funcName == Bm::CLAMP)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        std::cerr << "[Error] دالة حصر تتطلب 3 معاملات (القيمة، الحد_الأدنى، الحد_الأعلى)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::CLAMP, argResults.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::BUILTIN_CLAMP);

@@ -8,6 +8,7 @@
 
 #include "sir_builder.h"
 #include "builders/builtin_builder.h"
+#include "builders/builtin_arity_check.h"
 #include "sir_builder.h"
 #include <iostream>
 
@@ -42,22 +43,6 @@ namespace Sad
             //      error catalog (SEM005), pushed to errors_ so the build fails.
             //      (errors_ خاصّةٌ في SIRBuilder وBuiltinBuilder صديقتُها؛ الدالّةُ
             //      الحرّةُ هنا تتلقّى المرجعَ من موضعِ النداءِ العضويِّ الصديق.)
-            [[nodiscard]] static bool checkOsCoreArity(std::vector<std::string> &errors,
-                                         const std::string &name,
-                                         const Ar::Range &range, size_t found)
-            {
-                if (found >= range.min && found <= range.max)
-                    return true;
-                Sad::Errors::RenderContext ectx;
-                ectx.placeholders = {
-                    {"name", name},
-                    {"expected", std::to_string(found < range.min ? range.min : range.max)},
-                    {"found", std::to_string(found)}};
-                errors.push_back(
-                    Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                        Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ectx));
-                return false;
-            }
 
             std::optional<BuildResult> BuiltinBuilder::buildBuiltinSystem_OsCore(
                 const std::string &funcName,
@@ -69,7 +54,7 @@ namespace Sad
                 // ─── 15a. وحدة المعالج المتقدمة / Advanced CPU Module ───
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_0)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_0, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_0, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_GET_INFO);
@@ -80,7 +65,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_1)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_1, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_1, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_GET_FEATURES);
@@ -91,7 +76,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_2)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_2, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_2, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_READ_MSR);
@@ -103,7 +88,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_3)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_3, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_3, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_WRITE_MSR);
                     inst.operands.push_back(argOperands[0]);
@@ -114,7 +99,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_4)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_4, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_4, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_READ_CR);
@@ -126,7 +111,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_5)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_5, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_5, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_WRITE_CR);
                     inst.operands.push_back(argOperands[0]);
@@ -137,7 +122,7 @@ namespace Sad
                 }
                 if (funcName == Bn::KernelCpu::CPU_7)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::KernelCpu::CPU_7, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_7, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_INVLPG);
                     inst.operands.push_back(argOperands[0]);
@@ -147,7 +132,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_6)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_6, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_6, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_CPU_GET_REPORT);
@@ -162,7 +147,7 @@ namespace Sad
                 //      خارجيّ. الوسيط غير الثابت يُرفَض في الخفض (خطأ SEM).
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_20)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_20, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_20, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SYMBOL_ADDR);
@@ -176,7 +161,7 @@ namespace Sad
                 // ─── 15b. وحدة GDT ───
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_7)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_7, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_7, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_INIT);
                     if (b_.currentBlock_)
@@ -187,7 +172,7 @@ namespace Sad
                 {
                     // (AR) وسيط اختياريّ: مؤشّر واصف الجدول (limit+base). في الوضع
                     //      الحرّ يلزم لإصدار lgdt؛ المستضاف يتجاهله (sad_ll_gdt_load).
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_8, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_8, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_LOAD);
                     if (!argResults.empty())
@@ -203,7 +188,7 @@ namespace Sad
                 //      selector — the gate for the IST stacks interrupt handlers need.
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_21)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_21, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_21, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     // (AR) بوّابةُ الوضع: `ltr` تعليمةُ حلقةٍ صفريّةٍ تُصدرها الخلفيّةُ
                     //      أسمبليًّا خامًّا بلا ذراعٍ مستضافةٍ (خلافَ lgdt/lidt اللتين
@@ -233,7 +218,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_9)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_9, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_9, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_GDT_GET_REPORT);
@@ -246,7 +231,7 @@ namespace Sad
                 // ─── 15c. وحدة الترحيل / Paging ───
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_10)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_10, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_10, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_INIT);
                     if (b_.currentBlock_)
@@ -256,7 +241,7 @@ namespace Sad
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_11)
                 {
                     // (AR) الوسيط الثالث (الأعلام) اختياريٌّ معلَن ⇒ المدى [2, 3].
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_11, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_11, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_MAP);
                     inst.operands.push_back(argOperands[0]); // virtual address
@@ -269,7 +254,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_12)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_12, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_12, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_UNMAP);
                     inst.operands.push_back(argOperands[0]); // virtual address
@@ -279,7 +264,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_13)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_13, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_13, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_FLUSH_TLB);
                     if (b_.currentBlock_)
@@ -288,7 +273,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_14)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_14, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_14, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PAGING_GET_REPORT);
@@ -301,7 +286,7 @@ namespace Sad
                 // ─── 15d. وحدة المقاطعات المتقدمة / Advanced Interrupts (IDT) ───
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_15)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_15, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_15, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_INIT);
                     if (b_.currentBlock_)
@@ -312,7 +297,7 @@ namespace Sad
                 {
                     // (AR) وسيط اختياريّ: مؤشّر واصف الجدول (limit+base). في الوضع
                     //      الحرّ يلزم لإصدار lidt؛ المستضاف يتجاهله (sad_ll_idt_load).
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_16, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_16, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_LOAD);
                     if (!argResults.empty())
@@ -323,7 +308,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_17)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_17, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_17, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_REGISTER_ISR);
                     inst.operands.push_back(argOperands[0]); // ISR number
@@ -334,7 +319,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_18)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_18, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_18, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_ENABLE_IRQ);
                     inst.operands.push_back(argOperands[0]); // IRQ number
@@ -344,7 +329,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_19)
                 {
-                    if (!checkOsCoreArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_19, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerCpuCtl::CPUCTL_19, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_IDT_GET_REPORT);

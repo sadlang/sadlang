@@ -657,6 +657,9 @@ functions:
 - cpp_id: CPU_8
   canonical: اقرأ_منفذ
   namespace: KernelCpu
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -670,6 +673,9 @@ functions:
 - cpp_id: CPU_9
   canonical: اكتب_منفذ
   namespace: KernelCpu
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -683,6 +689,9 @@ functions:
 - cpp_id: CPU_24
   canonical: اقرأ_ذاكرة
   namespace: KernelCpu
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -696,6 +705,9 @@ functions:
 - cpp_id: CPU_25
   canonical: اكتب_ذاكرة
   namespace: KernelCpu
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

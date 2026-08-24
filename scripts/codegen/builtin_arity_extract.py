@@ -36,7 +36,15 @@ BUILDERS = ROOT / "compiler" / "src" / "frontend" / "builders"
 # (AR) التعليقاتُ تُمحى بمسافاتٍ تحفظُ المواضع — تعليقٌ يذكرُ مقارنةَ اسمٍ ليس
 #      مقارنة، واحتسابُه يربطُ الرتبةَ بمدمجٍ لا علاقةَ له بها.
 _COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
-_NAME_COMPARE = re.compile(r"funcName\s*==\s*Bn::(\w+)::(\w+)")
+# (AR) المقارنةُ تُكتَب باسمٍ مستعارٍ يختارُه كلُّ ملفّ: `Bn::NS::ID` حيث
+#      `Bn = Sad::Builtins::Names`، أو `Bm::ID` حيث `Bm = …::Names::Math`.
+#      🔑 وكان هذا المستخرِجُ يعرفُ `Bn` وحدَه، فمئةُ ذراعٍ في الرياضيّاتِ
+#         والنصوصِ والمصفوفاتِ والخرائطِ كانت **خارجَ بصرِه** — لا يراها
+#         مفروضةً فيَعدُّها دَينًا، ويربطُ مقارنةً معلَّقةً بفحصٍ ليس لها.
+#         فصارت الأسماءُ المستعارةُ **تُقرأ من الملفِّ نفسِه** لا تُسرَد هنا.
+_ALIAS_DECL = re.compile(
+    r"namespace\s+(\w+)\s*=\s*Sad::Builtins::Names(?:::(\w+))?\s*;")
+_NAME_COMPARE = re.compile(r"funcName\s*==\s*(\w+)::(\w+)(?:::(\w+))?")
 _LITERAL_CALL = re.compile(
     r"check\w*Arity\(\s*[\w.\->_]+\s*,\s*\w+\s*,\s*(\d+)\s*,\s*(\d+)")
 _CONSTANT_CALL = re.compile(
@@ -62,9 +70,24 @@ def arity_checks() -> list[ArityCheck]:
     sites: list[ArityCheck] = []
     for path in sorted(BUILDERS.glob("*.cpp")):
         text = _strip_comments(path.read_text(encoding="utf-8"))
+        # (AR) خريطةُ الأسماءِ المستعارةِ لهذا الملفِّ: المستعارُ ⇒ فضاءٌ ثابتٌ
+        #      (`Bm ⇒ Math`) أو None حين يكون جذرًا (`Bn` فالفضاءُ في المقارنة).
+        aliases = {m.group(1): m.group(2) for m in _ALIAS_DECL.finditer(text)}
         events: list[tuple[int, str, object, object]] = []
         for m in _NAME_COMPARE.finditer(text):
-            events.append((m.start(), "name", m.group(1), m.group(2)))
+            head, second, third = m.group(1), m.group(2), m.group(3)
+            if head not in aliases:
+                continue
+            fixed = aliases[head]
+            if fixed is None:
+                if third is None:      # `Bn::ID` بلا فضاءٍ ليس مدمجًا مسمًّى
+                    continue
+                namespace, ident = second, third
+            else:
+                if third is not None:  # `Bm::NS::ID` لا معنى له
+                    continue
+                namespace, ident = fixed, second
+            events.append((m.start(), "name", namespace, ident))
         for m in _LITERAL_CALL.finditer(text):
             events.append((m.start(), "literal", int(m.group(1)), int(m.group(2))))
         for m in _CONSTANT_CALL.finditer(text):
@@ -74,9 +97,18 @@ def arity_checks() -> list[ArityCheck]:
         events.sort(key=lambda e: (e[0], e[1] != "name"))
         pending: list[tuple[str, str]] = []
         seen_positions: set[int] = set()
+        # (AR) 🔑 المقارنةُ المعلَّقةُ تُلغى عند حدِّ الذراع. ذراعٌ بلا فحصِ رتبةٍ
+        #      كانت تتركُ اسمَها معلَّقًا فيلتصقُ بفحصِ الذراعِ التالية، فيُقرأ
+        #      مدمجٌ لا رتبةَ له مفروضَ الرتبةِ برتبةِ جارِه. والحدُّ يُقاس: نصٌّ
+        #      بين مقارنتين فيه `{` أو `;` يعني ذراعًا جديدةً لا `||` في شرطٍ واحد.
+        last_name_end = 0
         for pos, kind, a, b in events:
             if kind == "name":
+                between = text[last_name_end:pos]
+                if pending and ("{" in between or ";" in between):
+                    pending = []
                 pending.append((str(a), str(b)))
+                last_name_end = pos
                 continue
             if pos in seen_positions:
                 continue

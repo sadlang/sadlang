@@ -84,6 +84,9 @@ functions:
 - cpp_id: MEM_6
   canonical: املأ_ذاكرة32
   namespace: CompilerMem
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -97,6 +100,9 @@ functions:
 - cpp_id: MEM_7
   canonical: انسخ_ذاكرة32
   namespace: CompilerMem
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

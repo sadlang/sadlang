@@ -5,6 +5,7 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "builders/builtin_arity_check.h"
 #include "builders/builtin_builder.h"
 #include "sir_builder.h"
 #include "module_nodes.h"
@@ -20,6 +21,7 @@
 
 #include "builtin_registry.h"
 namespace Bn = Sad::Builtins::Names;
+namespace Ar = Sad::Builtins::Arity;
 
 namespace Sad
 {
@@ -52,11 +54,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (!isUserDefinedFunction && (funcName == Bn::CompilerEmbed::EMBED_0))
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة تسلسلي_هيئ تتطلب 2 معاملات: منفذ، سرعة" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerEmbed::EMBED_0, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_INIT);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -74,11 +73,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (!isUserDefinedFunction && (funcName == Bn::CompilerEmbed::EMBED_1))
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة تسلسلي_ارسل تتطلب 2 معاملات: منفذ، بايت" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerEmbed::EMBED_1, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_WRITE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -95,11 +91,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (!isUserDefinedFunction && (funcName == Bn::CompilerEmbed::EMBED_2))
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة تسلسلي_استقبل تتطلب معامل: منفذ" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerEmbed::EMBED_2, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_READ);
@@ -119,11 +112,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (!isUserDefinedFunction && (funcName == Bn::CompilerEmbed::EMBED_3))
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة تسلسلي_جاهز تتطلب معامل: منفذ" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerEmbed::EMBED_3, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_SERIAL_READY);
@@ -143,11 +133,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::Kernel::GPIO_WRITE)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة منفذ_رقمي_اكتب تتطلب 2 معاملات: رقم_المنفذ، قيمة" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::GPIO_WRITE, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_GPIO_WRITE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -165,11 +152,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::Kernel::GPIO_READ)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة منفذ_رقمي_اقرأ تتطلب معامل: رقم_المنفذ" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::GPIO_READ, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_GPIO_READ);
@@ -189,11 +173,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::Kernel::GPIO_MODE)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة حدد_وضع_منفذ تتطلب 2 معاملات: رقم_المنفذ، الوضع" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::GPIO_MODE, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_GPIO_MODE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -211,11 +192,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::CompilerEmbed::EMBED_4)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة مؤقت_هيئ تتطلب معامل: التردد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerEmbed::EMBED_4, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_TIMER_INIT);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -250,11 +228,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::Kernel::EMBED_TIMER_WAIT)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة مؤقت_انتظر تتطلب معامل: ميكروثوان" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::EMBED_TIMER_WAIT, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_TIMER_WAIT);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -369,11 +344,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::CompilerEmbed::EMBED_5)
                 {
-                    if (argResults.size() < 4)
-                    {
-                        std::cerr << "[خطأ] دالة نقل_مباشر_هيئ تتطلب 4 معاملات: قناة، مصدر، وجهة، حجم" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerEmbed::EMBED_5, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_DMA_INIT);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -391,11 +363,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::Kernel::DMA_START)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة نقل_مباشر_ابدأ تتطلب معامل: رقم_القناة" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::DMA_START, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_DMA_START);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)

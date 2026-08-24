@@ -24,6 +24,98 @@ namespace Sad
                 std::size_t max;
             };
 
+            namespace Arrays
+            {
+                // (AR) إضافة_عنصر
+                inline constexpr Range ADD{2, 2};
+                // (AR) يحتوي_عنصر
+                inline constexpr Range ARRAY_CONTAINS{2, 2};
+                // (AR) الأول
+                inline constexpr Range FIRST{1, 1};
+                // (AR) فهرس_مصفوفة
+                inline constexpr Range INDEX_OF{2, 2};
+                // (AR) الأخير
+                inline constexpr Range LAST{1, 1};
+                // (AR) إزالة_عنصر
+                inline constexpr Range REMOVE{2, 2};
+                // (AR) قلب
+                inline constexpr Range REVERSE{1, 1};
+                // (AR) حجم_مصفوفة
+                inline constexpr Range SIZE{1, 1};
+                // (AR) شريحة
+                inline constexpr Range SLICE{2, 3};
+                // (AR) رتب
+                inline constexpr Range SORT{1, 1};
+            } // namespace Arrays
+
+            namespace Assertions
+            {
+                // (AR) تأكد_يساوي
+                inline constexpr Range ASSERT_EQ{2, 2};
+                // (AR) تأكد_خطأ
+                inline constexpr Range ASSERT_FALSE{1, 2};
+                // (AR) تأكد_أكبر
+                inline constexpr Range ASSERT_GT{2, 2};
+                // (AR) تأكد_صحيح
+                inline constexpr Range ASSERT_TRUE{1, 2};
+                // (AR) تأكد_نوع
+                inline constexpr Range ASSERT_TYPE{2, 2};
+                // (AR) ترميز_64
+                inline constexpr Range BASE64_ENCODE{1, 1};
+                // (AR) فك_تشفير
+                inline constexpr Range DECRYPT{2, 2};
+                // (AR) شفر
+                inline constexpr Range ENCRYPT{2, 2};
+                // (AR) هاش
+                inline constexpr Range HASH{1, 1};
+                // (AR) آمن
+                inline constexpr Range SAFE_CHECK{1, 1};
+                // (AR) نظف
+                inline constexpr Range SANITIZE{1, 1};
+                // (AR) عشوائي_آمن
+                inline constexpr Range SECURE_RANDOM{2, 2};
+            } // namespace Assertions
+
+            namespace Basics
+            {
+                // (AR) المسار_المطلق
+                inline constexpr Range ABS_PATH{1, 1};
+                // (AR) أضف_إلى_ملف
+                inline constexpr Range APPEND_FILE{2, 2};
+                // (AR) تأكد
+                inline constexpr Range ASSERT{1, 2};
+                // (AR) انسخ_ملف
+                inline constexpr Range COPY_FILE{2, 2};
+                // (AR) احذف_ملف
+                inline constexpr Range DELETE_FILE{1, 1};
+                // (AR) هل_موجود
+                inline constexpr Range FILE_EXISTS{1, 1};
+                // (AR) هل_مجلد
+                inline constexpr Range IS_DIR{1, 1};
+                // (AR) هل_ملف
+                inline constexpr Range IS_FILE{1, 1};
+                // (AR) هل_رابط_رمزي
+                inline constexpr Range IS_SYMLINK{1, 1};
+                // (AR) اسرد_مجلد
+                inline constexpr Range LIST_DIR{1, 1};
+                // (AR) أنشئ_مجلد
+                inline constexpr Range MKDIR{1, 1};
+                // (AR) انقل_ملف
+                inline constexpr Range MOVE_FILE{2, 2};
+                // (AR) اقرأ_بايتات
+                inline constexpr Range READ_BYTES{1, 1};
+                // (AR) اقرأ_ملف
+                inline constexpr Range READ_FILE{1, 1};
+                // (AR) المسار_الحقيقي
+                inline constexpr Range REAL_PATH{1, 1};
+                // (AR) احذف_مجلد
+                inline constexpr Range REMOVE_DIR{1, 1};
+                // (AR) اكتب_بايتات
+                inline constexpr Range WRITE_BYTES{2, 2};
+                // (AR) اكتب_ملف
+                inline constexpr Range WRITE_FILE{2, 2};
+            } // namespace Basics
+
             namespace CompilerCpuCtl
             {
                 // (AR) معلومات_المعالج
@@ -71,6 +163,22 @@ namespace Sad
                 // (AR) تقرير_واصفات
                 inline constexpr Range CPUCTL_9{0, 0};
             } // namespace CompilerCpuCtl
+
+            namespace CompilerEmbed
+            {
+                // (AR) تسلسلي_هيئ
+                inline constexpr Range EMBED_0{2, 2};
+                // (AR) تسلسلي_ارسل
+                inline constexpr Range EMBED_1{2, 2};
+                // (AR) تسلسلي_استقبل
+                inline constexpr Range EMBED_2{1, 1};
+                // (AR) تسلسلي_جاهز
+                inline constexpr Range EMBED_3{1, 1};
+                // (AR) مؤقت_هيئ
+                inline constexpr Range EMBED_4{1, 1};
+                // (AR) نقل_مباشر_هيئ
+                inline constexpr Range EMBED_5{4, 4};
+            } // namespace CompilerEmbed
 
             namespace CompilerHw
             {
@@ -129,6 +237,28 @@ namespace Sad
                 // (AR) هيئ_شاشة
                 inline constexpr Range HW_9{2, 3};
             } // namespace CompilerHw
+
+            namespace CompilerIo
+            {
+                // (AR) نم
+                inline constexpr Range IO_0{1, 1};
+            } // namespace CompilerIo
+
+            namespace CompilerMem
+            {
+                // (AR) املأ_ذاكرة32
+                inline constexpr Range MEM_6{3, 3};
+                // (AR) انسخ_ذاكرة32
+                inline constexpr Range MEM_7{3, 3};
+            } // namespace CompilerMem
+
+            namespace CompilerSec
+            {
+                // (AR) تحقق
+                inline constexpr Range SEC_0{1, 1};
+                // (AR) تأكد_مساواة
+                inline constexpr Range SEC_1{2, 2};
+            } // namespace CompilerSec
 
             namespace CompilerSys
             {
@@ -346,11 +476,151 @@ namespace Sad
                 inline constexpr Range UEFI_9{0, 0};
             } // namespace CompilerUefi
 
+            namespace Core
+            {
+                // (AR) نوع
+                inline constexpr Range TYPE{1, 1};
+            } // namespace Core
+
+            namespace Kernel
+            {
+                // (AR) نقل_مباشر_ابدأ
+                inline constexpr Range DMA_START{1, 1};
+                // (AR) مؤقت_انتظر
+                inline constexpr Range EMBED_TIMER_WAIT{1, 1};
+                // (AR) حدد_وضع_منفذ
+                inline constexpr Range GPIO_MODE{2, 2};
+                // (AR) منفذ_رقمي_اقرأ
+                inline constexpr Range GPIO_READ{1, 1};
+                // (AR) منفذ_رقمي_اكتب
+                inline constexpr Range GPIO_WRITE{2, 2};
+                // (AR) مقاطعة
+                inline constexpr Range INTERRUPT{1, 1};
+                // (AR) انسخ_ذاكرة
+                inline constexpr Range MEMCPY{3, 3};
+                // (AR) املأ_ذاكرة
+                inline constexpr Range MEMSET{3, 3};
+                // (AR) شاشة_اكتب
+                inline constexpr Range VGA_WRITE{4, 4};
+            } // namespace Kernel
+
             namespace KernelCpu
             {
+                // (AR) اقرأ_ذاكرة
+                inline constexpr Range CPU_24{1, 1};
+                // (AR) اكتب_ذاكرة
+                inline constexpr Range CPU_25{2, 2};
                 // (AR) ابطل_صفحة
                 inline constexpr Range CPU_7{1, 1};
+                // (AR) اقرأ_منفذ
+                inline constexpr Range CPU_8{1, 1};
+                // (AR) اكتب_منفذ
+                inline constexpr Range CPU_9{2, 2};
             } // namespace KernelCpu
+
+            namespace Maps
+            {
+                // (AR) حجم_ملف
+                inline constexpr Range FILE_SIZE{1, 1};
+                // (AR) تعبير_مطابقة
+                inline constexpr Range REGEX{2, 3};
+                // (AR) تعبير_بحث
+                inline constexpr Range REGEX_SEARCH{2, 3};
+            } // namespace Maps
+
+            namespace Math
+            {
+                // (AR) مطلق
+                inline constexpr Range ABS{1, 1};
+                // (AR) معكوس_جتا
+                inline constexpr Range ACOS{1, 1};
+                // (AR) معكوس_جيب
+                inline constexpr Range ASIN{1, 1};
+                // (AR) معكوس_ظل
+                inline constexpr Range ATAN{1, 1};
+                // (AR) سقف
+                inline constexpr Range CEIL{1, 1};
+                // (AR) حصر
+                inline constexpr Range CLAMP{3, 3};
+                // (AR) جتا
+                inline constexpr Range COS{1, 1};
+                // (AR) أرضية
+                inline constexpr Range FLOOR{1, 1};
+                // (AR) باقي
+                inline constexpr Range FMOD{2, 2};
+                // (AR) لوغ
+                inline constexpr Range LOG{1, 1};
+                // (AR) لوغ10
+                inline constexpr Range LOG10{1, 1};
+                // (AR) لوغ2
+                inline constexpr Range LOG2{1, 1};
+                // (AR) أكبر
+                inline constexpr Range MAX{2, 2};
+                // (AR) أصغر
+                inline constexpr Range MIN{2, 2};
+                // (AR) أس
+                inline constexpr Range POWER{2, 2};
+                // (AR) تقريب
+                inline constexpr Range ROUND{1, 1};
+                // (AR) إشارة
+                inline constexpr Range SIGN{1, 1};
+                // (AR) جيب
+                inline constexpr Range SIN{1, 1};
+                // (AR) جذر
+                inline constexpr Range SQRT{1, 1};
+                // (AR) مربع
+                inline constexpr Range SQUARE{1, 1};
+                // (AR) جمع
+                inline constexpr Range SUM{1, 1};
+                // (AR) ظل
+                inline constexpr Range TAN{1, 1};
+                // (AR) اقتطاع
+                inline constexpr Range TRUNCATE{1, 1};
+            } // namespace Math
+
+            namespace Strings
+            {
+                // (AR) رمز_حرف
+                inline constexpr Range CHAR_CODE{2, 2};
+                // (AR) يحتوي_على
+                inline constexpr Range CONTAINS{2, 2};
+                // (AR) ينتهي_ب
+                inline constexpr Range ENDS_WITH{2, 2};
+                // (AR) بحث
+                inline constexpr Range FIND{2, 2};
+                // (AR) هو_مصفوفة
+                inline constexpr Range IS_ARRAY{1, 1};
+                // (AR) هو_رقم_عشري
+                inline constexpr Range IS_FLOAT{1, 1};
+                // (AR) هو_رقم_صحيح
+                inline constexpr Range IS_INT{1, 1};
+                // (AR) هو_نص
+                inline constexpr Range IS_STRING{1, 1};
+                // (AR) دمج
+                inline constexpr Range JOIN{2, 2};
+                // (AR) استبدل
+                inline constexpr Range REPLACE{3, 3};
+                // (AR) تقسيم
+                inline constexpr Range SPLIT{2, 3};
+                // (AR) يبدأ_ب
+                inline constexpr Range STARTS_WITH{2, 2};
+                // (AR) طول_نص
+                inline constexpr Range STR_LENGTH{1, 1};
+                // (AR) استخراج
+                inline constexpr Range SUBSTRING{2, 3};
+                // (AR) تحويل_صغير
+                inline constexpr Range TO_LOWER{1, 1};
+                // (AR) تحويل_كبير
+                inline constexpr Range TO_UPPER{1, 1};
+                // (AR) قص_أطراف
+                inline constexpr Range TRIM{1, 1};
+            } // namespace Strings
+
+            namespace TypeCtor
+            {
+                // (AR) منطقي
+                inline constexpr Range TO_BOOL{1, 1};
+            } // namespace TypeCtor
 
             namespace UIPlatform
             {

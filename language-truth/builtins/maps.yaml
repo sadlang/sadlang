@@ -71,6 +71,9 @@ functions:
 - cpp_id: REGEX
   canonical: تعبير_مطابقة
   namespace: Maps
+  arity:
+    min: 2
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: MAPS
@@ -91,6 +94,9 @@ functions:
 - cpp_id: REGEX_SEARCH
   canonical: تعبير_بحث
   namespace: Maps
+  arity:
+    min: 2
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: MAPS
@@ -343,6 +349,9 @@ functions:
 - cpp_id: FILE_SIZE
   canonical: حجم_ملف
   namespace: Maps
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MAPS

@@ -18,6 +18,7 @@
 
 #include "sir_builder.h"
 #include "builders/builtin_builder.h"
+#include "builders/builtin_arity_check.h"
 #include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -35,6 +36,7 @@
 #include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (د-2) / (EN) catalog bilingual messages (D-2)
 #include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
 namespace Bn = Sad::Builtins::Names;
+namespace Ar = Sad::Builtins::Arity;
 
 namespace Sad
 {
@@ -62,11 +64,8 @@ namespace Sad
 
                 if (funcName == Bn::KernelCpu::CPU_9)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة اكتب_منفذ تتطلب معاملين: رقم المنفذ والقيمة" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_9, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_WRITE);
                     inst.operands.push_back(argOperands[0]); // (AR) رقم المنفذ / (EN) port number
                     inst.operands.push_back(argOperands[1]); // (AR) القيمة المكتوبة / (EN) value to write
@@ -108,11 +107,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::KernelCpu::CPU_8)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة اقرأ_منفذ تتطلب معامل واحد: رقم المنفذ" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_8, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_READ);
@@ -347,11 +343,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::KernelCpu::CPU_25)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة اكتب_ذاكرة تتطلب معاملين: العنوان والقيمة" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_25, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_WRITE_8);
                     inst.operands.push_back(argOperands[0]); // (AR) عنوان الذاكرة / (EN) memory address
                     inst.operands.push_back(argOperands[1]); // (AR) القيمة / (EN) value
@@ -404,11 +397,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::KernelCpu::CPU_24)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة اقرأ_ذاكرة تتطلب معامل واحد: العنوان" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_24, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_READ_8);
@@ -467,11 +457,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::Kernel::INTERRUPT)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة مقاطعة تتطلب معامل واحد: رقم المقاطعة" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::INTERRUPT, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_INTERRUPT);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -536,11 +523,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::Kernel::VGA_WRITE)
                 {
-                    if (argResults.size() < 4)
-                    {
-                        std::cerr << "[خطأ] دالة شاشة_اكتب تتطلب 4 معاملات: صف، عمود، حرف، لون" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::VGA_WRITE, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_VGA_WRITE);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -575,11 +559,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::Kernel::MEMCPY)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        std::cerr << "[خطأ] دالة انسخ_ذاكرة تتطلب 3 معاملات: وجهة، مصدر، حجم" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::MEMCPY, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_COPY);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -597,11 +578,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::Kernel::MEMSET)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        std::cerr << "[خطأ] دالة املأ_ذاكرة تتطلب 3 معاملات: وجهة، قيمة، حجم" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Kernel::MEMSET, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_SET);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -619,11 +597,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::CompilerMem::MEM_6)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        std::cerr << "[خطأ] دالة املأ_ذاكرة32 تتطلب 3 معاملات: عنوان، قيمة، عدد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerMem::MEM_6, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_FILL_32);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
@@ -638,11 +613,8 @@ namespace Sad
                 // ──────────────────────────────────────────────
                 if (funcName == Bn::CompilerMem::MEM_7)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        std::cerr << "[خطأ] دالة انسخ_ذاكرة32 تتطلب 3 معاملات: وجهة، مصدر، عدد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerMem::MEM_7, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_COPY_32);
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);
