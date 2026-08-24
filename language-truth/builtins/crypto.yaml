@@ -6,6 +6,9 @@ functions:
 - cpp_id: BLAKE3_HASH
   canonical: بلايك3
   namespace: Crypto
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -41,6 +44,9 @@ functions:
 - cpp_id: BLAKE3_KEYED_HASH
   canonical: هاش_مفتاح
   namespace: Crypto
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -73,6 +79,9 @@ functions:
 - cpp_id: KDF_PBKDF2
   canonical: اشتق_مفتاح_مرور
   namespace: Crypto
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -119,6 +128,9 @@ functions:
 - cpp_id: KDF_HKDF
   canonical: اشتق_مفتاح
   namespace: Crypto
+  arity:
+    min: 4
+    max: 4
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -166,6 +178,9 @@ functions:
 - cpp_id: AEAD_ENCRYPT
   canonical: شفر_موثق
   namespace: Crypto
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -218,6 +233,9 @@ functions:
 - cpp_id: AEAD_DECRYPT
   canonical: فك_تشفير_موثق
   namespace: Crypto
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -269,6 +287,9 @@ functions:
 - cpp_id: KDF_ARGON2ID
   canonical: أرجون2
   namespace: Crypto
+  arity:
+    min: 4
+    max: 4
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -366,6 +387,9 @@ functions:
 - cpp_id: X25519_DERIVE_PUB
   canonical: اشتق_مفتاح_عام_x25519
   namespace: Crypto
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -396,6 +420,9 @@ functions:
 - cpp_id: X25519_EXCHANGE
   canonical: تبادل_مفتاح
   namespace: Crypto
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -470,6 +497,9 @@ functions:
 - cpp_id: ED25519_DERIVE_PUB
   canonical: اشتق_مفتاح_عام_توقيع
   namespace: Crypto
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -500,6 +530,9 @@ functions:
 - cpp_id: ED25519_SIGN
   canonical: وقع
   namespace: Crypto
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO
@@ -534,6 +567,9 @@ functions:
 - cpp_id: ED25519_VERIFY
   canonical: تحقق_توقيع
   namespace: Crypto
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: CRYPTO

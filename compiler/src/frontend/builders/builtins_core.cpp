@@ -21,6 +21,7 @@
 #include "sir_builder.h"
 // (AR) ثوابت أسماء الدوال المُولَّدة من language-truth/builtins/*.yaml
 #include "builtin_registry.h"
+#include "builders/builtin_arity_check.h" // (AR) حارسُ الرتبةِ الواحدُ + ثوابتُ مصدرِ الحقيقة
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -34,6 +35,7 @@
 
 // (AR) اختصارات أسماء الدوال المركزية — مصدر حقيقة واحد
 namespace Bn = Sad::Builtins::Names;
+namespace Ar = Sad::Builtins::Arity;
 
 namespace Sad
 {
@@ -62,11 +64,8 @@ namespace Sad
 
                 if (funcName == Bn::Core::LENGTH)
                 {
-                    if (argResults.size() != 1)
-                    {
-                        b_.errors_.push_back("Error: طول() requires exactly 1 argument");
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Core::LENGTH, argResults.size()))
                         return BuildResult();
-                    }
 
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -105,11 +104,8 @@ namespace Sad
                 // الأسماء المدعومة: لرقم, حول_رقم, to_int, int, إلى_رقم, رقم
                 if (funcName == Bn::TypeCtor::TO_INT)
                 {
-                    if (argResults.size() != 1)
-                    {
-                        b_.errors_.push_back("Error: لرقم() requires exactly 1 argument");
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::TypeCtor::TO_INT, argResults.size()))
                         return BuildResult();
-                    }
 
                     if (argResults[0].type == SadTypeKind::Integer)
                     {
@@ -157,11 +153,8 @@ namespace Sad
                 // الأسماء المدعومة: لعشري, to_float, float, عشري
                 if (funcName == Bn::TypeCtor::TO_FLOAT)
                 {
-                    if (argResults.size() != 1)
-                    {
-                        b_.errors_.push_back("Error: لعشري() requires exactly 1 argument");
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::TypeCtor::TO_FLOAT, argResults.size()))
                         return BuildResult();
-                    }
 
                     if (argResults[0].type == SadTypeKind::Float)
                     {
@@ -206,11 +199,8 @@ namespace Sad
                 // الأسماء المدعومة: لنص, نص, to_string, str, string, إلى_نص
                 if (funcName == Bn::TypeCtor::TO_STRING)
                 {
-                    if (argResults.size() != 1)
-                    {
-                        b_.errors_.push_back("Error: لنص() requires exactly 1 argument");
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::TypeCtor::TO_STRING, argResults.size()))
                         return BuildResult();
-                    }
 
                     // (AR) إذا كان المعامل نصاً بالفعل — لا حاجة للتحويل، أرجعه مباشرة
                     //      يحدث مع f-strings: ص"مرحبا {الاسم}" → str(الاسم) حيث الاسم نص
@@ -548,11 +538,8 @@ namespace Sad
                         // (EN) Don't treat as builtin — will be handled as user function → clear error
                         return std::nullopt;
                     }
-                    if (argResults.empty() || argResults.size() > 3)
-                    {
-                        b_.errors_.push_back("Error: مدى() requires 1-3 arguments (stop) or (start, stop) or (start, stop, step)");
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Basics::RANGE, argResults.size()))
                         return BuildResult();
-                    }
 
                     // (AR) تحديد المعاملات: مدى(stop), مدى(start, stop), مدى(start, stop, step)
                     // (EN) Determine args: range(stop), range(start, stop), range(start, stop, step)

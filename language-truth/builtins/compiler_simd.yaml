@@ -19,6 +19,9 @@ functions:
 - cpp_id: SIMD_1
   canonical: متجه_بث
   namespace: CompilerSimd
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -32,6 +35,9 @@ functions:
 - cpp_id: SIMD_2
   canonical: متجه_ضرب_جمع
   namespace: CompilerSimd
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -45,6 +51,9 @@ functions:
 - cpp_id: SIMD_3
   canonical: متجه_جداء_قياسي
   namespace: CompilerSimd
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -58,6 +67,9 @@ functions:
 - cpp_id: SIMD_4
   canonical: متجه_عنصر
   namespace: CompilerSimd
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -71,6 +83,9 @@ functions:
 - cpp_id: SIMD_5
   canonical: متجه_ضع
   namespace: CompilerSimd
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

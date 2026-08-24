@@ -102,6 +102,8 @@ namespace Sad
                 inline constexpr Range MKDIR{1, 1};
                 // (AR) انقل_ملف
                 inline constexpr Range MOVE_FILE{2, 2};
+                // (AR) مدى
+                inline constexpr Range RANGE{1, 3};
                 // (AR) اقرأ_بايتات
                 inline constexpr Range READ_BYTES{1, 1};
                 // (AR) اقرأ_ملف
@@ -259,6 +261,20 @@ namespace Sad
                 // (AR) تأكد_مساواة
                 inline constexpr Range SEC_1{2, 2};
             } // namespace CompilerSec
+
+            namespace CompilerSimd
+            {
+                // (AR) متجه_بث
+                inline constexpr Range SIMD_1{2, 2};
+                // (AR) متجه_ضرب_جمع
+                inline constexpr Range SIMD_2{3, 3};
+                // (AR) متجه_جداء_قياسي
+                inline constexpr Range SIMD_3{2, 2};
+                // (AR) متجه_عنصر
+                inline constexpr Range SIMD_4{2, 2};
+                // (AR) متجه_ضع
+                inline constexpr Range SIMD_5{3, 3};
+            } // namespace CompilerSimd
 
             namespace CompilerSys
             {
@@ -476,11 +492,85 @@ namespace Sad
                 inline constexpr Range UEFI_9{0, 0};
             } // namespace CompilerUefi
 
+            namespace CompilerUi
+            {
+                // (AR) أضف_ابن
+                inline constexpr Range UI_20{2, 2};
+                // (AR) أزل_ابن
+                inline constexpr Range UI_21{2, 2};
+                // (AR) امسح_الأبناء
+                inline constexpr Range UI_22{1, 1};
+                // (AR) عين_النص
+                inline constexpr Range UI_23{2, 2};
+                // (AR) عين_الحجم
+                inline constexpr Range UI_24{3, 3};
+                // (AR) عين_المرونة
+                inline constexpr Range UI_25{2, 2};
+                // (AR) عين_الخلفية
+                inline constexpr Range UI_26{5, 5};
+                // (AR) عين_اللون
+                inline constexpr Range UI_27{5, 5};
+                // (AR) عين_التباعد
+                inline constexpr Range UI_28{2, 2};
+                // (AR) عين_الحشوة
+                inline constexpr Range UI_29{5, 5};
+                // (AR) عين_المحاذاة
+                inline constexpr Range UI_30{3, 3};
+                // (AR) عين_الحدود
+                inline constexpr Range UI_31{2, 2};
+                // (AR) عين_الارتفاع
+                inline constexpr Range UI_32{2, 2};
+                // (AR) عين_الشفافية
+                inline constexpr Range UI_33{2, 2};
+                // (AR) عين_الظهور
+                inline constexpr Range UI_34{2, 2};
+                // (AR) عين_الجذر
+                inline constexpr Range UI_36{2, 2};
+                // (AR) خطط
+                inline constexpr Range UI_37{3, 3};
+                // (AR) ارسم
+                inline constexpr Range UI_38{1, 1};
+                // (AR) دمر_تطبيق
+                inline constexpr Range UI_39{1, 1};
+                // (AR) دمر_عنصر
+                inline constexpr Range UI_40{1, 1};
+            } // namespace CompilerUi
+
             namespace Core
             {
+                // (AR) طول
+                inline constexpr Range LENGTH{1, 1};
                 // (AR) نوع
                 inline constexpr Range TYPE{1, 1};
             } // namespace Core
+
+            namespace Crypto
+            {
+                // (AR) فك_تشفير_موثق
+                inline constexpr Range AEAD_DECRYPT{2, 2};
+                // (AR) شفر_موثق
+                inline constexpr Range AEAD_ENCRYPT{2, 2};
+                // (AR) بلايك3
+                inline constexpr Range BLAKE3_HASH{1, 1};
+                // (AR) هاش_مفتاح
+                inline constexpr Range BLAKE3_KEYED_HASH{2, 2};
+                // (AR) اشتق_مفتاح_عام_توقيع
+                inline constexpr Range ED25519_DERIVE_PUB{1, 1};
+                // (AR) وقع
+                inline constexpr Range ED25519_SIGN{2, 2};
+                // (AR) تحقق_توقيع
+                inline constexpr Range ED25519_VERIFY{3, 3};
+                // (AR) أرجون2
+                inline constexpr Range KDF_ARGON2ID{4, 4};
+                // (AR) اشتق_مفتاح
+                inline constexpr Range KDF_HKDF{4, 4};
+                // (AR) اشتق_مفتاح_مرور
+                inline constexpr Range KDF_PBKDF2{3, 3};
+                // (AR) اشتق_مفتاح_عام_x25519
+                inline constexpr Range X25519_DERIVE_PUB{1, 1};
+                // (AR) تبادل_مفتاح
+                inline constexpr Range X25519_EXCHANGE{2, 2};
+            } // namespace Crypto
 
             namespace Kernel
             {
@@ -620,7 +710,39 @@ namespace Sad
             {
                 // (AR) منطقي
                 inline constexpr Range TO_BOOL{1, 1};
+                // (AR) عشري
+                inline constexpr Range TO_FLOAT{1, 1};
+                // (AR) رقم
+                inline constexpr Range TO_INT{1, 1};
+                // (AR) نص
+                inline constexpr Range TO_STRING{1, 1};
             } // namespace TypeCtor
+
+            namespace UICore
+            {
+                // (AR) توليد_أندرويد
+                inline constexpr Range GEN_ANDROID{1, 2};
+                // (AR) توليد_آي_أو_إس
+                inline constexpr Range GEN_IOS{1, 2};
+                // (AR) توليد_ماك
+                inline constexpr Range GEN_MACOS{1, 2};
+                // (AR) توليد_ويب
+                inline constexpr Range GEN_WEB{1, 2};
+                // (AR) انتقل
+                inline constexpr Range NAVIGATE{1, 1};
+                // (AR) انتقل_بتحريك_كامل
+                inline constexpr Range NAVIGATE_EXIT_TRANSITION{3, 4};
+                // (AR) انتقل_بتحريك
+                inline constexpr Range NAVIGATE_TRANSITION{2, 3};
+                // (AR) طباعة_شجرة
+                inline constexpr Range PRINT_TREE{1, 1};
+                // (AR) استبدل
+                inline constexpr Range REPLACE_PAGE{1, 1};
+                // (AR) تشغيل_تطبيق
+                inline constexpr Range RUN_APP{1, 1};
+                // (AR) عنوان_النافذة
+                inline constexpr Range SET_TITLE{1, 1};
+            } // namespace UICore
 
             namespace UIPlatform
             {

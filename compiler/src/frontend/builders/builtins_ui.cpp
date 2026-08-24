@@ -21,6 +21,7 @@
 #include <optional>
 
 #include "builtin_registry.h"
+#include "builders/builtin_arity_check.h" // (AR) حارسُ الرتبةِ الواحدُ + الثوابتُ المُولَّدة
 #include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (مصدر الحقيقة)
 #include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
 #include "error_codes.h"   // (AR) ErrorCode::SEM_WRONG_ARG_COUNT
@@ -34,6 +35,9 @@
 #include <unordered_map>
 #include <algorithm> // (AR) std::min — حدُّ أريّةِ المصنع
 namespace Bn = Sad::Builtins::Names;
+// (AR) رتبةُ المدمجِ من حقلِ `arity` في مصدرِ الحقيقةِ — ثابتٌ مُولَّدٌ لا رقمٌ
+//      يُكتَب عند الفحص. وكانت الواجهةُ آخرَ من بقي يكتبُ الرقمَ بيدِه.
+namespace Ar = Sad::Builtins::Arity;
 namespace uiprops = Sad::Compiler::Frontend::UIProps;
 
 namespace Sad
@@ -43,34 +47,20 @@ namespace Sad
         namespace SIR
         {
 
-            // (AR) يُبلّغ عن «عدد معاملات خاطئ» (SEM005). الرسالة من كتالوج
-            //      language-truth/errors (مصدر الحقيقة الوحيد — لا نصوصَ يدويّة).
+            // (AR) كانت ههنا نسخةٌ خامسةٌ من حارسِ الرتبة (`reportUiWrongArgCount`).
+            //      وحّدت التبعةَ فصارت تدفعُ إلى `errors_` كأشقائها — لكنّها بقيت
+            //      تأخذُ العددَ **رقمًا حرفيًّا** في موضعِ النداء، والاسمَ نسخةً
+            //      عربيّةً ثانيةً مكتوبةً باليد (وبعضُها بايتاتٌ مهرَّبةٌ \xd8…).
             //
-            // 🔑 كانت تُطبَع على stderr **ويمضي البناءُ ناجحًا**: المصرّفُ يقول
-            //    «الوسائط خطأ» ثمّ يخرج بصفرٍ ويُنتج ثنائيًّا **بلا النداء**
-            //    (مقيس: `عين_النص(1)` ⇒ رسالةٌ ورمزُ خروج 0). وهو صنفُ الفجوة ح٤
-            //    عينُه في جرد نواة 64-بت: سطرٌ «يُنفَّذ» وهو غيرُ موجود، ولا
-            //    يُخفِق فلا يُرى. ورمزُ خطأٍ واحدٌ بتبعتين — يُفشِل البناءَ في
-            //    مدمجات النظام ويُطبَع وحدَه ههنا — انحرافُ دلالةٍ لا فرقُ طبقة.
-            //
-            //    فصار الدفعُ إلى `errors_` كأشقائه (checkOsCoreArity ونظائرها):
-            //    التبعةُ من الرمزِ لا من الملفِّ الذي وقع فيه.
-            //    name=اسم المُدمَجة، expected=العدد المطلوب، found=المُمرَّر فعلًا.
-            // (EN) SEM005 now fails the build here as it does in every sibling
-            //      builder; it used to print and let the call vanish silently.
-            static void reportUiWrongArgCount(std::vector<std::string> &errors,
-                                              const std::string &name, int expected,
-                                              size_t found)
-            {
-                Sad::Errors::RenderContext ctx;
-                ctx.placeholders = {
-                    {"name", name},
-                    {"expected", std::to_string(expected)},
-                    {"found", std::to_string(found)}};
-                errors.push_back(
-                    Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                        Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx));
-            }
+            // 🔑    وحارسُ مصدرِ الحقيقةِ كان يعلنُ «لا رقمَ حرفيًّا» وهو صادقٌ في
+            //       حدودِ ما يرى: مرساتُه `check\w*Arity\(` واسمُ هذه لا يطابقُها.
+            //       فسبعةٌ وعشرون رقمًا مرّت من تحتِ بصرِه — أخضرُ لأنّ الشرطَ لا
+            //       يمكنُ أن يكونَ خطأً، لا لأنّ الموضعَ سليم. حُذِفت النسخةُ إلى
+            //       `checkBuiltinArity`، ووُسِّعت مرساةُ الحارسِ لتلحقَ بأيِّ حارسٍ
+            //       يقبلُ عددًا — فالمرساةُ على الفعلِ لا على هجائِه.
+            // (EN) The fifth arity helper: it failed the build correctly but took
+            //      its count as a literal and escaped the SoT guard's anchor.
+            //      Folded into checkBuiltinArity; the anchor was widened.
 
             // (AR) وسيط التنقّل (انتقل/استبدل/انتقل_بتحريك) يجب أن يكون **عنصرًا** (لقطة،
             //      Pointer) أو **دالّة بناء صفحة** (Function). أيّ نوعٍ آخر (عدد/نص/لاشيء…)
@@ -917,11 +907,8 @@ namespace Sad
                 // ─── أضف_ابن(أب, ابن) / sad_add_child(parent, child) ───
                 if (funcName == Bn::CompilerUi::UI_20)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "أضف_ابن", 2, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_20, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_ADD_CHILD);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -933,11 +920,8 @@ namespace Sad
                 // ─── أزل_ابن(أب, ابن) / sad_remove_child(parent, child) ───
                 if (funcName == Bn::CompilerUi::UI_21)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "أزل_ابن", 2, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_21, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_REMOVE_CHILD);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -949,11 +933,8 @@ namespace Sad
                 // ─── امسح_الأبناء(عنصر) / sad_clear_children(widget) ───
                 if (funcName == Bn::CompilerUi::UI_22)
                 {
-                    if (argResults.empty())
-                    {
-                        reportUiWrongArgCount(b_.errors_, "امسح_الأبناء", 1, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_22, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CLEAR_CHILDREN);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -968,11 +949,8 @@ namespace Sad
                 // ─── عين_النص(عنصر, نص) / sad_set_text(widget, text) ───
                 if (funcName == Bn::CompilerUi::UI_23)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_النص", 2, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_23, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_TEXT);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -984,11 +962,8 @@ namespace Sad
                 // ─── عين_الحجم(عنصر, عرض, ارتفاع) / sad_set_size(widget, w, h) ───
                 if (funcName == Bn::CompilerUi::UI_24)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_الحجم", 3, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_24, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_SIZE);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
@@ -1000,11 +975,8 @@ namespace Sad
                 // ─── عين_المرونة(عنصر, مرونة) / sad_set_flex(widget, flex) ───
                 if (funcName == Bn::CompilerUi::UI_25)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_المرونة", 2, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_25, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_FLEX);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -1016,11 +988,8 @@ namespace Sad
                 // ─── عين_الخلفية(عنصر, أحمر, أخضر, أزرق, شفافية) / sad_set_background(w, r,g,b,a) ───
                 if (funcName == Bn::CompilerUi::UI_26)
                 {
-                    if (argResults.size() < 5)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_الخلفية", 5, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_26, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_BACKGROUND);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
@@ -1032,11 +1001,8 @@ namespace Sad
                 // ─── عين_اللون(عنصر, أحمر, أخضر, أزرق, شفافية) / sad_set_foreground(w, r,g,b,a) ───
                 if (funcName == Bn::CompilerUi::UI_27)
                 {
-                    if (argResults.size() < 5)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_اللون", 5, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_27, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_FOREGROUND);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
@@ -1048,11 +1014,8 @@ namespace Sad
                 // ─── عين_التباعد(عنصر, تباعد) / sad_set_spacing(w, spacing) ───
                 if (funcName == Bn::CompilerUi::UI_28)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_التباعد", 2, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_28, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_SPACING);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -1064,11 +1027,8 @@ namespace Sad
                 // ─── عين_الحشوة(عنصر, فوق, يمين, تحت, يسار) / sad_set_padding(w, t,r,b,l) ───
                 if (funcName == Bn::CompilerUi::UI_29)
                 {
-                    if (argResults.size() < 5)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_الحشوة", 5, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_29, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_PADDING);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
@@ -1080,11 +1040,8 @@ namespace Sad
                 // ─── عين_المحاذاة(عنصر, رئيسية, فرعية) / sad_set_alignment(w, main, cross) ───
                 if (funcName == Bn::CompilerUi::UI_30)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_المحاذاة", 3, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_30, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_ALIGNMENT);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
@@ -1096,11 +1053,8 @@ namespace Sad
                 // ─── عين_الحدود(عنصر, سمك, أحمر, أخضر, أزرق, شفافية) / sad_set_border(...) ───
                 if (funcName == Bn::CompilerUi::UI_31)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_الحدود", 2, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_31, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_BORDER);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
@@ -1112,11 +1066,8 @@ namespace Sad
                 // ─── عين_الارتفاع(عنصر, ارتفاع) / sad_set_elevation(w, elev) ───
                 if (funcName == Bn::CompilerUi::UI_32)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_الارتفاع", 2, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_32, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_ELEVATION);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -1128,11 +1079,8 @@ namespace Sad
                 // ─── عين_الشفافية(عنصر, شفافية) / sad_set_opacity(w, opacity) ───
                 if (funcName == Bn::CompilerUi::UI_33)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_الشفافية", 2, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_33, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_OPACITY);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -1144,11 +1092,8 @@ namespace Sad
                 // ─── عين_الظهور(عنصر, مرئي) / sad_set_visibility(w, visible) ───
                 if (funcName == Bn::CompilerUi::UI_34)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_الظهور", 2, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_34, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_VISIBILITY);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -1175,11 +1120,8 @@ namespace Sad
                 // ─── عين_الجذر(تطبيق, عنصر) / sad_app_set_root(app, widget) ───
                 if (funcName == Bn::CompilerUi::UI_36)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "عين_الجذر", 2, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_36, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_SET_ROOT);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -1191,11 +1133,8 @@ namespace Sad
                 // ─── خطط(تطبيق, عرض, ارتفاع) / sad_app_layout(app, w, h) ───
                 if (funcName == Bn::CompilerUi::UI_37)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "خطط", 3, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_37, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_LAYOUT);
                     for (auto &a : argOperands)
                         inst.operands.push_back(a);
@@ -1207,11 +1146,8 @@ namespace Sad
                 // ─── ارسم(تطبيق) / sad_app_render(app) ───
                 if (funcName == Bn::CompilerUi::UI_38)
                 {
-                    if (argResults.empty())
-                    {
-                        reportUiWrongArgCount(b_.errors_, "ارسم", 1, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_38, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_RENDER);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -1224,11 +1160,8 @@ namespace Sad
                 //      المكتبة (DesktopWindow) ويُرسِل الأحداث إلى ردود النداء المُترجَمة.
                 if (funcName == Bn::UICore::RUN_APP)
                 {
-                    if (argResults.empty())
-                    {
-                        reportUiWrongArgCount(b_.errors_, "تشغيل_تطبيق", 1, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::UICore::RUN_APP, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_RUN);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -1239,11 +1172,8 @@ namespace Sad
                 // ─── طباعة_شجرة(عنصر) / sad_print_tree(root) — تصحيح ───
                 if (funcName == Bn::UICore::PRINT_TREE)
                 {
-                    if (argResults.empty())
-                    {
-                        reportUiWrongArgCount(b_.errors_, "طباعة_شجرة", 1, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::UICore::PRINT_TREE, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_PRINT_TREE);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -1295,14 +1225,8 @@ namespace Sad
                 //      (مقبض العنصر)؛ عودة/عودة_للبداية بلا وسائط؛ عدد_الصفحات يُرجع i64.
                 if (funcName == Bn::UICore::NAVIGATE || funcName == Bn::UICore::REPLACE_PAGE)
                 {
-                    if (argResults.empty())
-                    {
-                        reportUiWrongArgCount(b_.errors_,
-                            funcName == Bn::UICore::NAVIGATE ? "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84"   // انتقل
-                                                             : "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x84", // استبدل
-                            1, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), (funcName == Bn::UICore::NAVIGATE ? Ar::UICore::NAVIGATE : Ar::UICore::REPLACE_PAGE), argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     // (AR) الوسيط قد يكون **لقطة عنصر** (ptr) أو **بانِي صفحة** (دالّة ص
                     //      تُرجع عنصرًا ⇒ إغلاق i64). يميّزهما الخافض (emitUiNavigate/
                     //      ReplacePage) بنوع المُعامل: إغلاق ⇒ sad_navigate_builder (م1-ج،
@@ -1324,11 +1248,8 @@ namespace Sad
                 // (م2) انتقل_بتحريك(صفحة, نوع, مدة؟) — تنقّل + انتقال بصريّ.
                 if (funcName == Bn::UICore::NAVIGATE_TRANSITION)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        reportUiWrongArgCount(b_.errors_, "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83", 2, argResults.size()); // انتقل_بتحريك
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::UICore::NAVIGATE_TRANSITION, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     // (AR) حارس نوع (HIGH-2): الصفحة عنصر أو دالّة بناء (منع انهيار المترجم).
                     if (!checkUiNavArgType(b_.errors_, "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83", argResults[0].type)) // انتقل_بتحريك
                         return BuildResult("", SadTypeKind::Void);
@@ -1390,11 +1311,8 @@ namespace Sad
                 // (إكمال) انتقل_بتحريك_كامل(صفحة, دخول, خروج, مدة؟) — تنقّل + دخول/خروج.
                 if (funcName == Bn::UICore::NAVIGATE_EXIT_TRANSITION)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        reportUiWrongArgCount(b_.errors_, std::string(Bn::UICore::NAVIGATE_EXIT_TRANSITION), 3, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::UICore::NAVIGATE_EXIT_TRANSITION, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     // (HIGH-2) حارس نوع: الصفحة عنصر أو دالّة بناء (منع انهيار المترجم).
                     if (!checkUiNavArgType(b_.errors_, std::string(Bn::UICore::NAVIGATE_EXIT_TRANSITION), argResults[0].type))
                         return BuildResult("", SadTypeKind::Void);
@@ -1446,11 +1364,8 @@ namespace Sad
                 // (إكمال) عنوان_النافذة(نص) — يطلب تغيير عنوان النافذة عبر المتحكّم المشترك.
                 if (funcName == Bn::UICore::SET_TITLE)
                 {
-                    if (argResults.empty())
-                    {
-                        reportUiWrongArgCount(b_.errors_, std::string(Bn::UICore::SET_TITLE), 1, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::UICore::SET_TITLE, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     // (Amelia M2) حارس نوع نصّ (تكافؤ مع المفسّر !isString): يرفض العنوان
                     //   العدديّ/المنطقيّ (وإلّا مرّ non-pointer فتحوّل إلى null صامتًا).
                     if (!checkUiTitleArgType(b_.errors_, std::string(Bn::UICore::SET_TITLE), argResults[0].type))
@@ -1473,21 +1388,27 @@ namespace Sad
                 //   (عنصر, اسم؟) ⇒ نصٌّ (String). أربعتُها متطابقةُ الشكلِ والحراسة،
                 //   ولا تفترق إلّا في الأوپكود ⇒ جدولٌ واحدٌ بدل أربعِ نسخٍ متباعدة.
                 {
-                    static const std::pair<std::string_view, SIROpcode> kPlatformCodegens[] = {
-                        {Bn::UICore::GEN_WEB, SIROpcode::BUILTIN_UI_GEN_WEB},
-                        {Bn::UICore::GEN_ANDROID, SIROpcode::BUILTIN_UI_GEN_ANDROID},
-                        {Bn::UICore::GEN_IOS, SIROpcode::BUILTIN_UI_GEN_IOS},
-                        {Bn::UICore::GEN_MACOS, SIROpcode::BUILTIN_UI_GEN_MACOS},
+                    // (AR) الرتبةُ تُحمَل في الجدولِ نفسِه لا تُكتَب رقمًا عند الفحص:
+                    //      الأربعةُ متطابقةُ المدى اليومَ، وحملُها هنا يجعلُ افتراقَ
+                    //      أحدِها غدًا سطرًا في مصدرِ الحقيقةِ لا رقمًا يسهو عنه القارئ.
+                    struct PlatformCodegen
+                    {
+                        std::string_view name;
+                        SIROpcode opcode;
+                        Sad::Builtins::Arity::Range arity;
                     };
-                    for (const auto &[name, opcode] : kPlatformCodegens)
+                    static const PlatformCodegen kPlatformCodegens[] = {
+                        {Bn::UICore::GEN_WEB, SIROpcode::BUILTIN_UI_GEN_WEB, Ar::UICore::GEN_WEB},
+                        {Bn::UICore::GEN_ANDROID, SIROpcode::BUILTIN_UI_GEN_ANDROID, Ar::UICore::GEN_ANDROID},
+                        {Bn::UICore::GEN_IOS, SIROpcode::BUILTIN_UI_GEN_IOS, Ar::UICore::GEN_IOS},
+                        {Bn::UICore::GEN_MACOS, SIROpcode::BUILTIN_UI_GEN_MACOS, Ar::UICore::GEN_MACOS},
+                    };
+                    for (const auto &[name, opcode, arity] : kPlatformCodegens)
                     {
                         if (funcName != name)
                             continue;
-                        if (argResults.empty())
-                        {
-                            reportUiWrongArgCount(b_.errors_, std::string(name), 1, argResults.size());
+                        if (!checkBuiltinArity(b_.errors_, std::string(funcName), arity, argResults.size()))
                             return BuildResult("", SadTypeKind::Void);
-                        }
                         // (Amelia مراجعة2، MEDIUM) حارس نوع الوسيط: عنصر (Pointer) أو دالّة بناء
                         //   (Function) فقط. بدونه يُصنّف bridgeUiPageBuilder أيّ i64 (عدد) بانيًا
                         //   ⇒ inttoptr لقيمةٍ عدديّة ثمّ قراءة {fn,env} من عنوانٍ باطل ⇒ انهيار
@@ -1520,11 +1441,8 @@ namespace Sad
                 // ─── دمر_تطبيق(تطبيق) / sad_app_destroy(app) ───
                 if (funcName == Bn::CompilerUi::UI_39)
                 {
-                    if (argResults.empty())
-                    {
-                        reportUiWrongArgCount(b_.errors_, "دمر_تطبيق", 1, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_39, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_DESTROY);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -1535,11 +1453,8 @@ namespace Sad
                 // ─── دمر_عنصر(عنصر) / sad_widget_destroy(widget) ───
                 if (funcName == Bn::CompilerUi::UI_40)
                 {
-                    if (argResults.empty())
-                    {
-                        reportUiWrongArgCount(b_.errors_, "دمر_عنصر", 1, argResults.size());
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerUi::UI_40, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_WIDGET_DESTROY);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)

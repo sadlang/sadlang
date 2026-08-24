@@ -6,6 +6,9 @@ functions:
 - cpp_id: RANGE
   canonical: مدى
   namespace: Basics
+  arity:
+    min: 1
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS

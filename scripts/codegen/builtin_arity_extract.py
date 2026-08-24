@@ -45,10 +45,23 @@ _COMMENT = re.compile(r"//[^\n]*|/\*.*?\*/", re.S)
 _ALIAS_DECL = re.compile(
     r"namespace\s+(\w+)\s*=\s*Sad::Builtins::Names(?:::(\w+))?\s*;")
 _NAME_COMPARE = re.compile(r"funcName\s*==\s*(\w+)::(\w+)(?:::(\w+))?")
+# (AR) 🔑 مرساةُ الرقمِ الحرفيِّ كانت `check\w*Arity\(` وحدَها، فحارسٌ سُمّي
+#      `reportUiWrongArgCount` مرّ من تحتِها بسبعةٍ وعشرين رقمًا حرفيًّا
+#      والحارسُ يعلنُ «✗ لا رقمَ حرفيًّا» صادقًا في حدودِ ما يرى. المرساةُ
+#      على **الفعلِ** — حارسُ رتبةٍ أو عددِ وسائطَ أيًّا سُمّي — لا على هجاءٍ
+#      واحدٍ منه؛ وإلّا كفى اسمٌ جديدٌ ليعودَ الأخضرُ كذبًا.
+_ARITY_HELPER = r"(?:check|report|assert|verify|ensure)\w*(?:Arity|ArgCount|ArgsCount)"
 _LITERAL_CALL = re.compile(
-    r"check\w*Arity\(\s*[\w.\->_]+\s*,\s*\w+\s*,\s*(\d+)\s*,\s*(\d+)")
+    _ARITY_HELPER + r"\(\s*[\w.\->_]+\s*,\s*[^,()]+\s*,\s*(\d+)\s*,\s*(?:(\d+)|[\w.\->_]+\s*\()")
 _CONSTANT_CALL = re.compile(
-    r"check\w*Arity\([^;]*?(?:Ar|Sad::Builtins::Arity)::(\w+)::(\w+)")
+    _ARITY_HELPER + r"\([^;]*?(?:Ar|Sad::Builtins::Arity)::(\w+)::(\w+)")
+# (AR) صيغةٌ ثانيةٌ للفرض: **جدولٌ** يقرن الاسمَ بالأوپكودِ وبالمدى في مدخلٍ واحد
+#      (`{Bn::UICore::GEN_WEB, …, Ar::UICore::GEN_WEB}`) ثمّ تدورُ عليه حلقةٌ
+#      تفحصُ رتبةَ ما طابق. لا `funcName ==` فيها، فكانت أربعةُ مدمجاتٍ تُقرأ
+#      **مُعلَنةً غيرَ مفروضة** وهي مفروضةٌ فعلًا — مسحٌ ميكانيكيٌّ يفوته الشكلُ
+#      الثاني للصيغةِ نفسِها. والقرانُ ههنا صريحٌ في سطرٍ واحد فيُقرأ مباشرةً.
+_TABLE_ROW = re.compile(
+    r"\{\s*\w+::(\w+)::(\w+)\s*,[^{}]*?(?:Ar|Sad::Builtins::Arity)::(\w+)::(\w+)\s*\}")
 
 
 @dataclass
@@ -89,11 +102,23 @@ def arity_checks() -> list[ArityCheck]:
                 namespace, ident = fixed, second
             events.append((m.start(), "name", namespace, ident))
         for m in _LITERAL_CALL.finditer(text):
-            events.append((m.start(), "literal", int(m.group(1)), int(m.group(2))))
+            # (AR) الطرفُ الثاني قد يكونَ نداءً (`argResults.size()`) لا رقمًا —
+            #      والحكمُ لا يتعلّقُ به: ظهورُ رقمٍ حرفيٍّ واحدٍ في موضعِ المدى
+            #      كافٍ ليكونَ العددُ مكتوبًا في السطرِ لا مقروءًا من مصدرِ الحقيقة.
+            lo = int(m.group(1))
+            events.append((m.start(), "literal", lo,
+                           int(m.group(2)) if m.group(2) else lo))
         for m in _CONSTANT_CALL.finditer(text):
             events.append((m.start(), "constant", m.group(1), m.group(2)))
         # (AR) الموضعُ الواحدُ قد يطابقُ الصيغتين لو تداخلت التعابير؛ الأسبقُ
         #      بدايةً يُحتسَب مرّةً واحدةً بحسبِ موضعِه.
+        # (AR) مدخلُ الجدولِ موضعُ فرضٍ قائمٌ بذاتِه: اسمُه ومداه في المدخلِ نفسِه،
+        #      فلا يُعلَّق ولا يُلغى بحدِّ ذراع. ويُسجَّل قبل الفرزِ ليأخذَ موضعَه.
+        for m in _TABLE_ROW.finditer(text):
+            sites.append(ArityCheck(file=str(path.relative_to(ROOT)),
+                                    line=text[:m.start()].count("\n") + 1,
+                                    names=[(m.group(1), m.group(2))],
+                                    constant=(m.group(3), m.group(4))))
         events.sort(key=lambda e: (e[0], e[1] != "name"))
         pending: list[tuple[str, str]] = []
         seen_positions: set[int] = set()

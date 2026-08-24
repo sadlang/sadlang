@@ -17,30 +17,17 @@
 #include <optional>
 
 #include "builtin_registry.h"
+#include "builders/builtin_arity_check.h"
 namespace Bn = Sad::Builtins::Names;
+// (AR) رتبةُ المدمجِ من حقلِ `arity` في مصدرِ الحقيقةِ — ثابتٌ مُولَّدٌ لا رقمٌ
+//      يُكتَب عند الفحص.
+namespace Ar = Sad::Builtins::Arity;
 
-namespace
-{
-    // (AR) رسائل خطأ عدد الوسائط لدوال وحدة تشفير — ثوابت مسمّاة بدل نصوص حرفيّة
-    //      مكرَّرة داخل الجسم؛ اسم الدالّة نفسه يُؤخَذ من معامل funcName (مطابق
-    //      لثابت Bn::Crypto::* المُستعمَل في المقارنة أعلاه) لا يُكتَب حرفيًّا مرّتين.
-    // (EN) Argument-count error messages for crypto builtins — named constants
-    //      instead of literals duplicated in the body; the function name itself
-    //      comes from the funcName parameter (same value as the Bn::Crypto::*
-    //      constant used in the comparison above), not re-typed as a literal.
-    constexpr const char *kErrBlake3Hash = "تتطلب معامل واحد (النص)";
-    constexpr const char *kErrKeyedHash = "تتطلب معاملين (النص، المفتاح)";
-    constexpr const char *kErrKdfPbkdf2 = "تتطلب ثلاثة معاملات (كلمة_المرور، ملح، عدد_التكرارات)";
-    constexpr const char *kErrKdfHkdf = "تتطلب أربعة معاملات (سرّ، ملح، سياق، الطول)";
-    constexpr const char *kErrAeadEncrypt = "تتطلب معاملين (النص، المفتاح)";
-    constexpr const char *kErrAeadDecrypt = "تتطلب معاملين (المغلّف، المفتاح)";
-    constexpr const char *kErrKdfArgon2id = "تتطلب أربعة معاملات (كلمة_المرور، ملح، تكلفة_الذاكرة، عدد_التكرارات)";
-    constexpr const char *kErrX25519DerivePub = "تتطلب معاملاً واحداً (المفتاح الخاصّ)";
-    constexpr const char *kErrX25519Exchange = "تتطلب معاملين (المفتاح الخاصّ، المفتاح العامّ للطرف الآخر)";
-    constexpr const char *kErrEd25519DerivePub = "تتطلب معاملاً واحداً (المفتاح الخاصّ)";
-    constexpr const char *kErrEd25519Sign = "تتطلب معاملين (الرسالة، المفتاح الخاصّ)";
-    constexpr const char *kErrEd25519Verify = "تتطلب ثلاثة معاملات (الرسالة، التوقيع، المفتاح العامّ)";
-} // namespace
+// (AR) كانت ههنا اثنتا عشرةَ رسالةَ خطأٍ لعددِ الوسائطِ، كلُّ واحدةٍ نصٌّ عربيٌّ
+//      مكتوبٌ باليدِ يصفُ الرتبةَ وصفًا («تتطلب ثلاثة معاملات …») — أي **نسخةٌ
+//      ثانيةٌ من العددِ منثورةً**، لا يقيسُها أحدٌ ولا تحمرُّ إن خالفت العقد.
+//      صار العددُ يُقرأ من `Ar::Crypto::*`، والرسالةُ تُبنى من كتالوجِ الأخطاء،
+//      فماتت الثوابتُ كلُّها ولم يبقَ لها موضعُ نداءٍ واحد.
 
 namespace Sad
 {
@@ -60,11 +47,8 @@ namespace Sad
                 // 1. بلايك3 / blake3 - هاش BLAKE3 (256 بت، ذاتيّ التنفيذ، مطابق للمفسّر)
                 if (funcName == Bn::Crypto::BLAKE3_HASH)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrBlake3Hash << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::BLAKE3_HASH, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_BLAKE3_HASH);
@@ -81,11 +65,8 @@ namespace Sad
                 // 2. هاش_مفتاح / keyed_hash - مصادقة رسالة عبر نمط BLAKE3 المُفتاح
                 if (funcName == Bn::Crypto::BLAKE3_KEYED_HASH)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrKeyedHash << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::BLAKE3_KEYED_HASH, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_BLAKE3_KEYED_HASH);
@@ -103,11 +84,8 @@ namespace Sad
                 // 3. اشتق_مفتاح_مرور / derive_password_key - PBKDF2-HMAC-SHA256
                 if (funcName == Bn::Crypto::KDF_PBKDF2)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrKdfPbkdf2 << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::KDF_PBKDF2, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_KDF_PBKDF2);
@@ -126,11 +104,8 @@ namespace Sad
                 // 4. اشتق_مفتاح / derive_key - HKDF-SHA256
                 if (funcName == Bn::Crypto::KDF_HKDF)
                 {
-                    if (argResults.size() < 4)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrKdfHkdf << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::KDF_HKDF, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_KDF_HKDF);
@@ -150,11 +125,8 @@ namespace Sad
                 // 5. شفّر_موثّق / aead_encrypt - ChaCha20-Poly1305 AEAD (RFC 8439)
                 if (funcName == Bn::Crypto::AEAD_ENCRYPT)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrAeadEncrypt << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::AEAD_ENCRYPT, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_AEAD_ENCRYPT);
@@ -172,11 +144,8 @@ namespace Sad
                 // 6. فك_تشفير_موثّق / aead_decrypt - ChaCha20-Poly1305 AEAD (fail-closed)
                 if (funcName == Bn::Crypto::AEAD_DECRYPT)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrAeadDecrypt << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::AEAD_DECRYPT, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_AEAD_DECRYPT);
@@ -194,11 +163,8 @@ namespace Sad
                 // 7. أرجون2 / argon2id - Argon2id (RFC 9106)
                 if (funcName == Bn::Crypto::KDF_ARGON2ID)
                 {
-                    if (argResults.size() < 4)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrKdfArgon2id << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::KDF_ARGON2ID, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_KDF_ARGON2ID);
@@ -233,11 +199,8 @@ namespace Sad
                 // 7. اشتق_مفتاح_عام_x25519 / X25519 derive public (1 arg)
                 if (funcName == Bn::Crypto::X25519_DERIVE_PUB)
                 {
-                    if (argResults.size() < 1)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrX25519DerivePub << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::X25519_DERIVE_PUB, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_X25519_DERIVE_PUB);
@@ -254,11 +217,8 @@ namespace Sad
                 // 7. تبادل_مفتاح / X25519 exchange (2 args)
                 if (funcName == Bn::Crypto::X25519_EXCHANGE)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrX25519Exchange << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::X25519_EXCHANGE, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_X25519_EXCHANGE);
@@ -291,11 +251,8 @@ namespace Sad
                 // 9. اشتق_مفتاح_عام_توقيع / Ed25519 derive public (1 arg)
                 if (funcName == Bn::Crypto::ED25519_DERIVE_PUB)
                 {
-                    if (argResults.size() < 1)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrEd25519DerivePub << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::ED25519_DERIVE_PUB, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_ED25519_DERIVE_PUB);
@@ -312,11 +269,8 @@ namespace Sad
                 // 10. وقّع / Ed25519 sign (2 args)
                 if (funcName == Bn::Crypto::ED25519_SIGN)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrEd25519Sign << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::ED25519_SIGN, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_ED25519_SIGN);
@@ -334,11 +288,8 @@ namespace Sad
                 // 11. تحقق_توقيع / Ed25519 verify (3 args) — returns Boolean
                 if (funcName == Bn::Crypto::ED25519_VERIFY)
                 {
-                    if (argResults.size() < 3)
-                    {
-                        std::cerr << "[خطأ] دالة " << funcName << " " << kErrEd25519Verify << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::Crypto::ED25519_VERIFY, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_CRYPTO_ED25519_VERIFY);
