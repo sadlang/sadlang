@@ -12,6 +12,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/platform/lowlevel_codegen.h"
+#include "sad_dyn_repr.h" // (AR) جدولُ التحويلِ الوحيد: coerceToParamType
 #include <llvm/IR/InlineAsm.h>
 #include <llvm/IR/Intrinsics.h>
 
@@ -37,7 +38,31 @@ static llvm::Value* emitRuntimeCall(
         llvm::FunctionType* ft = llvm::FunctionType::get(retType, argTypes, false);
         fn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, funcName, module);
     }
-    return builder.CreateCall(fn, argValues);
+    // (AR) [عقد وقت التشغيل الحرّ — نظيرُ lowlevel_ops] لاءِمْ كلَّ وسيطٍ لنوعِ
+    //      معاملِه المصرَّح؛ التوثيقُ والقياسُ هناك (تعارضُ i64/i32 يُسقط verifyModule،
+    //      و%SadDyn يُفَكُّ بوسمِه). جدولُ التحويلِ واحدٌ: `coerceToParamType`.
+    // (EN) [Freestanding runtime contract — mirror of lowlevel_ops] coerce each
+    //      argument to its declared parameter type through the single cast table.
+    std::vector<llvm::Value*> coerced;
+    coerced.reserve(argValues.size());
+    llvm::FunctionType* ft = fn->getFunctionType();
+    for (size_t i = 0; i < argValues.size(); ++i) {
+        llvm::Value* v = argValues[i];
+        // (AR) الملاءمةُ **ضيّقةٌ عمدًا**: توسيعُ/قصُّ عرضٍ بين عددَين، أو فكُّ قيمةٍ
+        //      موسومةٍ %SadDyn إلى نوعِ المعامل. وما عدا ذلك يُترَك كما هو ليردَّه
+        //      المُصادِق: ملاءمةٌ واسعةٌ كانت تحوّلُ عددًا إلى مؤشّرٍ بـinttoptr
+        //      فتقبلُ `uefi_قراءة_متغير(5)` صامتةً وتسلّمُ النواةَ مؤشّرًا برّيًّا
+        //      قيمتُه 5 — بناءٌ أخضرُ مكانَ خطأِ توقيعٍ كان يُسقطه verifyModule.
+        // (EN) Deliberately narrow: integer width adjustment, or unboxing a tagged
+        //      %SadDyn. Anything else is left for the verifier to reject — a wide
+        //      coercion silently turned an integer into a pointer (inttoptr).
+        const bool coercible =
+            v && i < ft->getNumParams() &&
+            (isSadDyn(v) ||
+             (v->getType()->isIntegerTy() && ft->getParamType(i)->isIntegerTy()));
+        coerced.push_back(coercible ? coerceToParamType(*cg, v, ft->getParamType(i)) : v);
+    }
+    return builder.CreateCall(fn, coerced);
 }
 //
 // (AR) جميع عمليات UEFI تُترجم إلى استدعاءات دوال runtime خارجية

@@ -612,6 +612,16 @@ SOT_CHECK_GUARDS = (
         "args": (),
     },
     {
+        # (AR) الاسم القانونيّ للمدمجة قابلٌ للنداء: المُشكِّل يجرّد التشكيلَ من
+        #      المعرّفات بينما يفهرس السجلُّ بالاسم حرفيًّا، فاسمٌ يحملُ شدّةً لا
+        #      يُنادى أبدًا (قِيس: ثلاثُ مدمجات APIC معلَنة stable كانت ميتة).
+        # (EN) A builtin's canonical name must be callable: the lexer strips
+        #      harakat from identifiers while the registry keys the literal name.
+        "name": "builtins_canonical_callable",
+        "script": "check_builtins_canonical_callable.py",
+        "args": (),
+    },
+    {
         # (AR) لا نصَّ تشخيصٍ مكتوبًا يدويًّا في المحلّل النحويّ — كلّ رسالة تُركَّب
         #      من كتالوج الأخطاء المولَّد. حارسٌ بنيويّ (لا نصّيّ) بخطّ أساسٍ ينحدر.
         # (EN) No hand-written diagnostic text in the parser — every message renders

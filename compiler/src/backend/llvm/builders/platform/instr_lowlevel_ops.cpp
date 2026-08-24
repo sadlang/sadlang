@@ -35,6 +35,45 @@ namespace Sad
          */
         llvm::Value *InstrLowlevelCodeGen::emitInstructionLowlevel(std::shared_ptr<SIRInstruction> inst)
         {
+            llvm::Value *value = dispatchLowlevel(inst);
+            // (AR) [عقد UEFI — ح٥/أ] ربطُ الناتجِ بسجلِّه هنا: طبقةُ الإرسالِ ترى كلَّ
+            //      الباعثين، فلا يتكرّرُ الربطُ نسخةً في كلِّ باعثٍ ولا يُنسى في سبعين
+            //      منها ([[three-copies-fix-two-leave-one]]). الشروطُ الثلاثةُ ضروريّة:
+            //      قيمةٌ موجودة، وسجلٌّ ناتجٌ مصرَّحٌ في التعليمة، ونوعٌ غيرُ void
+            //      (باعثو الأوامرِ الصامتةِ يعيدون نداءَ void — لا يُخزَّن في الجدول).
+            //      والربطُ لا يدهسُ ما ربطَه الباعثُ: القيمةُ نفسُها في كلتا الحالتين.
+            //
+            //      **ولا يُربَط عرضٌ أضيقُ خامًّا**: ثمانيةَ عشرَ رمزًا تشغيليًّا تعيدُ
+            //      i32 (عدّادات ACPI/APIC، وأعلامُ «هل هُيّئ»، وإصدارُ البرنامجِ الثابت)
+            //      بينما سجلُّ الناتجِ في SIR عرضُه i64، فمستهلكُه يُخصِّصُ خانةً 64-بتّيّةً
+            //      ويقرأُ ثمانيةَ بايتاتٍ ممّا كُتب منه أربعةٌ ⇒ **نصفٌ أعلى غيرُ مهيّأ**:
+            //      جوابٌ خاطئٌ صامتٌ لا يمسكه المُصادِق (قِيس على `apic_معرف()` و
+            //      `acpi_إصدار()`). فيُوسَّعُ العددُ بإشارتِه إلى عرضِ السجلِّ المصرَّح —
+            //      بإشارتِه لأنّ هذه الرموزَ تعيدُ `int` من لغةِ سي ورموزُ الخطأِ فيها
+            //      سالبةٌ (نمطُ توسيعِ عوائدِ printf/strcmp/fclose القائم).
+            // (EN) [UEFI contract — gap ح٥/a] bind at the dispatch layer; never bind a
+            //      narrower integer raw: 18 runtime symbols return i32 while the SIR
+            //      result register is i64, so the consumer's 8-byte load reads 4
+            //      uninitialised bytes — a silent wrong answer the verifier accepts.
+            //      Sign-extend (these are C `int` returns whose error codes are negative).
+            if (value && inst->result.has_value() && !value->getType()->isVoidTy())
+            {
+                llvm::Value *bound = value;
+                if (value->getType()->isIntegerTy() &&
+                    inst->result->dataType == SadTypeKind::Integer)
+                {
+                    auto *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+                    if (value->getType() != i64Ty)
+                        bound = cg_.builder_->CreateIntCast(value, i64Ty, /*isSigned=*/true,
+                                                           "lowlevel.ret.ext");
+                }
+                cg_.context_info_.namedValues[inst->result->name] = bound;
+            }
+            return value;
+        }
+
+        llvm::Value *InstrLowlevelCodeGen::dispatchLowlevel(std::shared_ptr<SIRInstruction> inst)
+        {
             switch (inst->opcode)
             {
 

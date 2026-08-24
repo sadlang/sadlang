@@ -66,10 +66,10 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "dma_init"}});
                 return nullptr;
             }
-            llvm::Value *ch = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *src = cg_.resolveOperand(inst->operands[1]);
-            llvm::Value *dest = cg_.resolveOperand(inst->operands[2]);
-            llvm::Value *cnt = cg_.resolveOperand(inst->operands[3]);
+            llvm::Value *ch = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *src = resolveUnboxedIntOperand(cg_, inst->operands[1]);
+            llvm::Value *dest = resolveUnboxedIntOperand(cg_, inst->operands[2]);
+            llvm::Value *cnt = resolveUnboxedIntOperand(cg_, inst->operands[3]);
             if (!ch || !src || !dest || !cnt)
                 return nullptr;
             llvm::Type *i16 = llvm::Type::getInt16Ty(*cg_.context_);
@@ -103,7 +103,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "dma_start"}});
                 return nullptr;
             }
-            llvm::Value *ch = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *ch = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!ch)
                 return nullptr;
             llvm::Type *i16 = llvm::Type::getInt16Ty(*cg_.context_);
@@ -138,6 +138,11 @@ namespace Sad
             std::vector<llvm::Value *> args;
             for (auto &op : inst->operands)
             {
+                // (AR) [استثناءٌ مقصودٌ من سدِّ %SadDyn] printf متغيّرُ الرتبة: فكُّ
+                //      الوسمِ إلى i64 هنا يحيلُ وسيطًا نصيًّا موسومًا عددًا فيفسدُ %s.
+                //      الوسائطُ الديناميكيّةُ تُطبَع عبر مسارِ الطباعةِ الموسومِ لا هنا.
+                // (EN) Deliberate exclusion: variadic printf — unboxing a Str-tagged
+                //      dyn to i64 would break %s. Dynamic printing has its own path.
                 llvm::Value *v = cg_.resolveOperand(op);
                 if (v)
                     args.push_back(v);
@@ -158,7 +163,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "malloc"}});
                 return nullptr;
             }
-            llvm::Value *size = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *size = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!size)
                 return nullptr;
 
@@ -175,7 +180,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "free"}});
                 return nullptr;
             }
-            llvm::Value *ptr = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *ptr = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!ptr)
                 return nullptr;
 
@@ -198,8 +203,8 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "realloc"}});
                 return nullptr;
             }
-            llvm::Value *ptr = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *size = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *ptr = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *size = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!ptr || !size)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
@@ -219,8 +224,8 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "calloc"}});
                 return nullptr;
             }
-            llvm::Value *count = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *size = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *count = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *size = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!count || !size)
                 return nullptr;
             llvm::Value *result = cg_.emitCalloc(count, size, "calloc.ptr");
@@ -650,8 +655,8 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *dst = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *src = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *dst = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *src = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!dst || !src)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
@@ -671,8 +676,8 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *s1 = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *s2 = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *s1 = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *s2 = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!s1 || !s2)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
@@ -692,8 +697,8 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *dst = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *src = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *dst = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *src = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!dst || !src)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
@@ -713,9 +718,9 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
                 return nullptr;
-            llvm::Value *dst = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *src = cg_.resolveOperand(inst->operands[1]);
-            llvm::Value *sz = cg_.resolveOperand(inst->operands[2]);
+            llvm::Value *dst = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *src = resolveUnboxedIntOperand(cg_, inst->operands[1]);
+            llvm::Value *sz = resolveUnboxedIntOperand(cg_, inst->operands[2]);
             if (!dst || !src || !sz)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
@@ -739,9 +744,9 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
                 return nullptr;
-            llvm::Value *dst = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *val = cg_.resolveOperand(inst->operands[1]);
-            llvm::Value *sz = cg_.resolveOperand(inst->operands[2]);
+            llvm::Value *dst = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *val = resolveUnboxedIntOperand(cg_, inst->operands[1]);
+            llvm::Value *sz = resolveUnboxedIntOperand(cg_, inst->operands[2]);
             if (!dst || !val || !sz)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
@@ -764,13 +769,22 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *name = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *mode = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *name = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *mode = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!name || !mode)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
             llvm::FunctionType *ft = llvm::FunctionType::get(i8p, {i8p, i8p}, false);
             llvm::FunctionCallee fn = cg_.module_->getOrInsertFunction("fopen", ft);
+            // (AR) جسرُ المؤشّرِ الذي كان غائبًا وحدَه بين أشقائِه (strcmp/strcpy/fputs/
+            //      fread كلُّها تحمله): معاملا fopen مؤشّرانِ i8*، والقيمةُ الواصلةُ قد
+            //      تكون عددًا (وسمُ نصٍّ مفكوكٌ حمولةً، أو عنوانًا خامًّا) فيلزمُ ردُّها
+            //      مؤشّرًا قبل النداء وإلّا اختلف نوعُ الوسيطِ عن توقيعِ الدالّة.
+            // (EN) The pointer bridge that was missing here alone among its siblings.
+            if (!name->getType()->isPointerTy())
+                name = cg_.builder_->CreateIntToPtr(name, i8p);
+            if (!mode->getType()->isPointerTy())
+                mode = cg_.builder_->CreateIntToPtr(mode, i8p);
             llvm::Value *result = cg_.builder_->CreateCall(fn, {name, mode}, "fopen.ret");
             if (inst->result.has_value())
                 cg_.context_info_.namedValues[inst->result->name] = result;
@@ -781,7 +795,7 @@ namespace Sad
         {
             if (!inst || inst->operands.empty())
                 return nullptr;
-            llvm::Value *fp = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *fp = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!fp)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
@@ -799,8 +813,8 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 2)
                 return nullptr;
-            llvm::Value *str = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *fp = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *str = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *fp = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!str || !fp)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
@@ -820,9 +834,9 @@ namespace Sad
         {
             if (!inst || inst->operands.size() < 3)
                 return nullptr;
-            llvm::Value *buf = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *sz = cg_.resolveOperand(inst->operands[1]);
-            llvm::Value *fp = cg_.resolveOperand(inst->operands[2]);
+            llvm::Value *buf = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *sz = resolveUnboxedIntOperand(cg_, inst->operands[1]);
+            llvm::Value *fp = resolveUnboxedIntOperand(cg_, inst->operands[2]);
             if (!buf || !sz || !fp)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();

@@ -2588,8 +2588,8 @@ namespace Sad
                 inline constexpr std::string_view UEFI_50 = "apic_مدعوم";
                 // (AR) apic_x2_مدعوم
                 inline constexpr std::string_view UEFI_51 = "apic_x2_مدعوم";
-                // (AR) apic_معرّف
-                inline constexpr std::string_view UEFI_52 = "apic_معرّف";
+                // (AR) apic_معرف
+                inline constexpr std::string_view UEFI_52 = "apic_معرف";
                 // (AR) apic_عدد_io
                 inline constexpr std::string_view UEFI_53 = "apic_عدد_io";
                 // (AR) apic_تهيئة_مؤقت
@@ -2604,14 +2604,14 @@ namespace Sad
                 inline constexpr std::string_view UEFI_58 = "apic_معايرة_مؤقت";
                 // (AR) apic_أولوية_مهمة
                 inline constexpr std::string_view UEFI_59 = "apic_أولوية_مهمة";
-                // (AR) apic_عطّل_pic
-                inline constexpr std::string_view UEFI_60 = "apic_عطّل_pic";
+                // (AR) apic_عطل_pic
+                inline constexpr std::string_view UEFI_60 = "apic_عطل_pic";
                 // (AR) apic_قناع_irq
                 inline constexpr std::string_view UEFI_61 = "apic_قناع_irq";
                 // (AR) apic_إلغاء_قناع_irq
                 inline constexpr std::string_view UEFI_62 = "apic_إلغاء_قناع_irq";
-                // (AR) apic_وجّه_irq
-                inline constexpr std::string_view UEFI_63 = "apic_وجّه_irq";
+                // (AR) apic_وجه_irq
+                inline constexpr std::string_view UEFI_63 = "apic_وجه_irq";
                 // (AR) apic_أرسل_للكل
                 inline constexpr std::string_view UEFI_64 = "apic_أرسل_للكل";
                 // (AR) apic_أرسل_init
@@ -4353,7 +4353,7 @@ namespace Sad
             {Names::CompilerUefi::UEFI_49, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "acpi_ecam_قاعدة", "", ""},
             {Names::CompilerUefi::UEFI_50, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_مدعوم", "", ""},
             {Names::CompilerUefi::UEFI_51, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_x2_مدعوم", "", ""},
-            {Names::CompilerUefi::UEFI_52, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_معرّف", "", ""},
+            {Names::CompilerUefi::UEFI_52, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_معرف", "", ""},
             {Names::CompilerUefi::UEFI_53, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_عدد_io", "", ""},
             {Names::CompilerUefi::UEFI_54, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_تهيئة_مؤقت", "", ""},
             {Names::CompilerUefi::UEFI_55, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_بدء_مؤقت", "", ""},
@@ -4361,10 +4361,10 @@ namespace Sad
             {Names::CompilerUefi::UEFI_57, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_عداد_مؤقت", "", ""},
             {Names::CompilerUefi::UEFI_58, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_معايرة_مؤقت", "", ""},
             {Names::CompilerUefi::UEFI_59, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_أولوية_مهمة", "", ""},
-            {Names::CompilerUefi::UEFI_60, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_عطّل_pic", "", ""},
+            {Names::CompilerUefi::UEFI_60, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_عطل_pic", "", ""},
             {Names::CompilerUefi::UEFI_61, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_قناع_irq", "", ""},
             {Names::CompilerUefi::UEFI_62, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_إلغاء_قناع_irq", "", ""},
-            {Names::CompilerUefi::UEFI_63, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_وجّه_irq", "", ""},
+            {Names::CompilerUefi::UEFI_63, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_وجه_irq", "", ""},
             {Names::CompilerUefi::UEFI_64, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_أرسل_للكل", "", ""},
             {Names::CompilerUefi::UEFI_65, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_أرسل_init", "", ""},
             {Names::CompilerUefi::UEFI_66, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_أرسل_sipi", "", ""},

@@ -16,6 +16,20 @@
 
 #include "llvm_codegen.h"
 #include "builders/platform/lowlevel_codegen.h"
+// (AR) [علة قسمة العام — نحلة · شقيقُ hardware_ffi_ops] كلُّ معاملٍ في هذا الملفِّ
+//      سياقُه عدديٌّ: إمّا يُمرَّر i64 إلى نداءِ وقتِ تشغيلٍ حرٍّ، وإمّا يُقصُّ إلى
+//      عرضِ سجلِّ الهدفِ قبل أسمبليٍّ سطريّ. فإن حُلَّ المعاملُ `%SadDyn` (عامٌّ
+//      رُقّي بإسنادِ ناتجِ `//` الديناميكيِّ) انفجرَ الطرفان: `CreateIntCast` يُصدر
+//      `zext %SadDyn to i64` ونداءُ وقتِ التشغيلِ يمرِّرُ بنيةً لمعاملٍ i64 — كلاهما
+//      يُسقط verifyModule. قِيس على `اكتب_سجل_تحكم(3، عامٌّ_ديناميكيّ)` و
+//      `ابطل_صفحة(عامٌّ_ديناميكيّ)` — وهما بوّابتا إدارةِ الذاكرةِ في نواةِ النحلة.
+//      لذا يُحلُّ كلُّ معاملٍ هنا بـ`resolveUnboxedIntOperand` (فكٌّ بوسمِه: عشريٌّ
+//      قيمةً لا بتّاتٍ)، وهي هويّةٌ على القيمِ غيرِ الديناميكيّة فلا تغيّرُ IR القائم.
+// (EN) [Global-division bug — nahla · sibling of hardware_ffi_ops] every operand in
+//      this file is integer-context (i64 runtime-call arg, or a width cast before
+//      inline asm), so all resolve through the tag-respecting unbox helper; it is
+//      the identity on non-dynamic values.
+#include "sad_dyn_repr.h"
 #include <llvm/IR/InlineAsm.h>
 #include <llvm/IR/Intrinsics.h>
 #include <llvm/IR/Constants.h>
@@ -27,6 +41,19 @@ namespace LLVM {
 using SIRInstruction = Compiler::SIR::SIRInstruction;
 using SIROperand = Compiler::SIR::SIROperand;
 using SIROpcode = Compiler::SIR::SIROpcode;
+
+// ============================================================================
+// (AR) [علة قسمة العام — نحلة] فكُّ قيمةٍ محلولةٍ سلفًا إن كانت %SadDyn، بوسمِها
+//      (عشريٌّ قيمةً لا بتّاتٍ). يُستعمَل حيثُ يُحَلُّ المعاملُ مرّةً ثمّ تفترقُ
+//      ذراعُ الأسمبليِّ (تقصُّ فتلزمُها قيمةٌ عدديّة) عن ذراعِ نداءِ وقتِ التشغيل
+//      (تمرُّ بـcoerceToParamType فتحفظُ ذراعَ الغيابِ الموسوم). هويّةٌ على غيرِه.
+// (EN) Unbox an already-resolved value if it is %SadDyn (tag-respecting). Used
+//      where one resolve feeds both an inline-asm arm (needs an integer) and a
+//      runtime-call arm (whose single cast table must keep the absent-tag arm).
+// ============================================================================
+static llvm::Value* unpackIfDyn(LLVMCodeGen& cg, llvm::Value* v) {
+    return (v && isSadDyn(v)) ? unpackI64(cg, v) : v;
+}
 
 // ============================================================================
 // Helper: emit a call to a freestanding runtime C function
@@ -45,7 +72,33 @@ static llvm::Value* emitRuntimeCall(
         llvm::FunctionType* ft = llvm::FunctionType::get(retType, argTypes, false);
         fn = llvm::Function::Create(ft, llvm::Function::ExternalLinkage, funcName, module);
     }
-    return builder.CreateCall(fn, argValues);
+    // (AR) [عقد وقت التشغيل الحرّ] لاءِمْ كلَّ وسيطٍ لنوعِ معاملِه المصرَّحِ قبل
+    //      النداء. الباعثُ قد يبني قيمًا i64 بينما توقيعُ الرمزِ يُصرَّح i32 (قِيس:
+    //      `apic_تهيئة_مؤقت(32، 0، 3)` ⇒ `call void @sad_ll_apic_init_timer(i64…)`
+    //      على تصريحٍ i32 ⇒ verifyModule يسقط). و`coerceToParamType` هي جدولُ
+    //      التحويلِ الوحيدُ في الخلفيّة (يحترمُ وسمَ %SadDyn) فلا نسخةَ ثانيةً هنا.
+    // (EN) [Freestanding runtime contract] coerce each argument to its declared
+    //      parameter type via the backend's single cast table before the call.
+    std::vector<llvm::Value*> coerced;
+    coerced.reserve(argValues.size());
+    llvm::FunctionType* ft = fn->getFunctionType();
+    for (size_t i = 0; i < argValues.size(); ++i) {
+        llvm::Value* v = argValues[i];
+        // (AR) الملاءمةُ **ضيّقةٌ عمدًا**: توسيعُ/قصُّ عرضٍ بين عددَين، أو فكُّ قيمةٍ
+        //      موسومةٍ %SadDyn إلى نوعِ المعامل. وما عدا ذلك يُترَك كما هو ليردَّه
+        //      المُصادِق: ملاءمةٌ واسعةٌ كانت تحوّلُ عددًا إلى مؤشّرٍ بـinttoptr
+        //      فتقبلُ `uefi_قراءة_متغير(5)` صامتةً وتسلّمُ النواةَ مؤشّرًا برّيًّا
+        //      قيمتُه 5 — بناءٌ أخضرُ مكانَ خطأِ توقيعٍ كان يُسقطه verifyModule.
+        // (EN) Deliberately narrow: integer width adjustment, or unboxing a tagged
+        //      %SadDyn. Anything else is left for the verifier to reject — a wide
+        //      coercion silently turned an integer into a pointer (inttoptr).
+        const bool coercible =
+            v && i < ft->getNumParams() &&
+            (isSadDyn(v) ||
+             (v->getType()->isIntegerTy() && ft->getParamType(i)->isIntegerTy()));
+        coerced.push_back(coercible ? coerceToParamType(*cg, v, ft->getParamType(i)) : v);
+    }
+    return builder.CreateCall(fn, coerced);
 }
 
 // ============================================================================
@@ -85,7 +138,9 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuReadMSR(std::shared_ptr<SIRInstruct
     // (EN) rdmsr instruction via inline assembly: ecx=reg -> edx:eax
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
     auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
-    llvm::Value* reg = cg_.resolveOperand(inst->operands[0]);
+    // (AR) [علة قسمة العام] ذراعا rdmsr كلتاهما أسمبليّتان (لا نداءَ وقتِ تشغيلٍ
+    //      يلائمُ الوسائط)، فالفكُّ بالوسمِ هنا لا في حدِّ النداء.
+    llvm::Value* reg = resolveUnboxedIntOperand(cg_, inst->operands[0]);
     reg = cg_.builder_->CreateIntCast(reg, i32Ty, false);
 
     if (cg_.freestanding_) {
@@ -125,8 +180,9 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuWriteMSR(std::shared_ptr<SIRInstruc
     auto* i32Ty = llvm::Type::getInt32Ty(*cg_.context_);
     auto* i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
     
-    llvm::Value* reg = cg_.resolveOperand(inst->operands[0]);
-    llvm::Value* val = cg_.resolveOperand(inst->operands[1]);
+    // (AR) [علة قسمة العام] wrmsr أسمبليٌّ صرف: الفكُّ بالوسمِ قبلَ القصِّ والبتر.
+    llvm::Value* reg = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+    llvm::Value* val = resolveUnboxedIntOperand(cg_, inst->operands[1]);
     reg = cg_.builder_->CreateIntCast(reg, i32Ty, false);
     
     // Split value: eax = low 32, edx = high 32
@@ -201,7 +257,13 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuWriteCR(std::shared_ptr<SIRInstruct
         unsigned n = 0;
         if (!extractConstCrNum(cg_, crNum, "اكتب_سجل_تحكم", n)) return nullptr;
         auto* gprTy = cg_.getTargetGprType();
-        llvm::Value* valGpr = cg_.builder_->CreateIntCast(val, gprTy, false);
+        // (AR) [علة قسمة العام] الذراعُ الحرّةُ تقصُّ للأسمبلي فيلزمُها الفكُّ بالوسم؛
+        //      والذراعُ المستضافةُ تمرُّ بـemitRuntimeCall فتلائمُها طاولةُ التحويلِ
+        //      الوحيدةُ (وفيها ذراعُ الغيابِ الموسومِ — فلا يُفَكُّ مبكّرًا هنا).
+        // (EN) Only the freestanding arm casts for inline asm and needs the unbox;
+        //      the hosted arm goes through emitRuntimeCall's single cast table.
+        llvm::Value* valGpr = cg_.builder_->CreateIntCast(
+            unpackIfDyn(cg_, val), gprTy, false);
         auto* asmTy = llvm::FunctionType::get(voidTy, {gprTy}, false);
         auto* inlineAsm = llvm::InlineAsm::get(asmTy,
             "mov $0, %cr" + std::to_string(n), "r,~{memory}",
@@ -223,7 +285,9 @@ llvm::Value* LowlevelCodeGen::emitLowlevelCpuInvlpg(std::shared_ptr<SIRInstructi
         // (AR) العنوان بعرض سجلّ الهدف: قيدُ r بنوع i64 يطلب سجلًّا 64-بت لا وجود
         //      له على i686، وقصُّه إلى 32-بت على x86_64 يُبطل الصفحةَ الخطأ.
         auto* gprTy = cg_.getTargetGprType();
-        llvm::Value* addrGpr = cg_.builder_->CreateIntCast(addr, gprTy, false);
+        // (AR) [علة قسمة العام] الذراعُ الحرّةُ وحدَها تُفَكُّ (كما في اكتب_سجل_تحكم).
+        llvm::Value* addrGpr = cg_.builder_->CreateIntCast(
+            unpackIfDyn(cg_, addr), gprTy, false);
         auto* asmTy = llvm::FunctionType::get(voidTy, {gprTy}, false);
         auto* inlineAsm = llvm::InlineAsm::get(asmTy,
             "invlpg ($0)", "r,~{memory}", true, false, llvm::InlineAsm::AD_ATT);
@@ -314,7 +378,8 @@ static llvm::Value* emitFreestandingTableLoad(LLVMCodeGen& cg,
         return nullptr;
     }
     auto* gprTy = cg.getTargetGprType();
-    llvm::Value* ptr = cg.resolveOperand(inst->operands[0]);
+    // (AR) [علة قسمة العام] المسارُ حرٌّ صرف: الفكُّ بالوسمِ قبل قصِّ عرضِ السجلّ.
+    llvm::Value* ptr = resolveUnboxedIntOperand(cg, inst->operands[0]);
     llvm::Value* ptrGpr = cg.builder_->CreateIntCast(ptr, gprTy, false);
     auto* asmTy = llvm::FunctionType::get(voidTy, {gprTy}, false);
     auto* inlineAsm = llvm::InlineAsm::get(asmTy,

@@ -680,7 +680,7 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: UEFI_52
-  canonical: apic_معرّف
+  canonical: apic_معرف
   namespace: CompilerUefi
   category: MODULE_FUNCTION
   require_import: false
@@ -688,7 +688,7 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: apic_معرّف
+  description_ar: apic_معرف
   description_en: compiler builtin (builtins_uefi)
   params: []
   lookup_table: name_only
@@ -784,7 +784,7 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: UEFI_60
-  canonical: apic_عطّل_pic
+  canonical: apic_عطل_pic
   namespace: CompilerUefi
   category: MODULE_FUNCTION
   require_import: false
@@ -792,7 +792,7 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: apic_عطّل_pic
+  description_ar: apic_عطل_pic
   description_en: compiler builtin (builtins_uefi)
   params: []
   lookup_table: name_only
@@ -823,7 +823,7 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: UEFI_63
-  canonical: apic_وجّه_irq
+  canonical: apic_وجه_irq
   namespace: CompilerUefi
   category: MODULE_FUNCTION
   require_import: false
@@ -831,7 +831,7 @@ functions:
   compiler_strategy: INLINE
   since: 0.1.0
   status: stable
-  description_ar: apic_وجّه_irq
+  description_ar: apic_وجه_irq
   description_en: compiler builtin (builtins_uefi)
   params: []
   lookup_table: name_only
