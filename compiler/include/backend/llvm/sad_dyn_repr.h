@@ -152,6 +152,20 @@ namespace Sad
         ///      payload while this one honours the tag, so a Float-tagged value crossed that
         ///      boundary as its bit pattern — a silent wrong answer. `sirType` is used only
         ///      in the packing direction to carry the correct tag.
+        /// (AR) [علة قسمة العام — نحلة] حلُّ معاملٍ **عدديِّ السياق** (جسورُ العتاد:
+        ///      منافذ/ذاكرة/VGA): إن حُلَّ `%SadDyn` (عامٌّ رُقّي بإسنادِ ناتجِ `//`
+        ///      الديناميكيِّ) فُكَّ i64 بوسمِه — كان `CreateIntCast` يعمى عنه فيُصدِر
+        ///      `zext %SadDyn to i32` ويفشلُ verifyModule (قِيس على وحدةِ النواةِ
+        ///      المدموجة: `اكتب_ذاكرة32(عنوان، ارتفاع_الشاشة)`).
+        /// (EN) [Global-division bug — nahla] Resolve an INTEGER-context operand
+        ///      (hardware bridges: ports/memory/VGA): when it resolves to `%SadDyn`
+        ///      (a global promoted by storing a dynamic `//` result), unpack i64
+        ///      tag-respecting — `CreateIntCast` was blind to it and emitted
+        ///      `zext %SadDyn to i32`, failing verifyModule (measured on the merged
+        ///      kernel unit: `اكتب_ذاكرة32(addr, screen_height)`).
+        llvm::Value *resolveUnboxedIntOperand(LLVMCodeGen &cg,
+                                              const Compiler::SIR::SIROperand &op);
+
         llvm::Value *coerceToParamType(LLVMCodeGen &cg, llvm::Value *v, llvm::Type *want,
                                        Compiler::SIR::SadTypeKind sirType =
                                            Compiler::SIR::SadTypeKind::Unknown);

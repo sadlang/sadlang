@@ -546,6 +546,20 @@ namespace Sad
             return makeDyn(cg, llvm::ConstantInt::get(i8, kind), payload);
         }
 
+        llvm::Value *resolveUnboxedIntOperand(LLVMCodeGen &cg,
+                                              const Compiler::SIR::SIROperand &op)
+        {
+            // (AR) التوثيق والقياس في الترويسة — الفكُّ بوسمِه (unpackI64: عشريٌّ ⇒
+            //      fptosi قيمةً لا بتّاتٍ) لا الحمولةُ الخام.
+            // (EN) Docs and measurement in the header — tag-respecting unpack
+            //      (unpackI64: Float ⇒ fptosi by value, not bits), never the raw
+            //      payload.
+            llvm::Value *v = cg.resolveOperand(op);
+            if (v && isSadDyn(v))
+                return unpackI64(cg, v);
+            return v;
+        }
+
         llvm::Value *coerceToParamType(LLVMCodeGen &cg, llvm::Value *v, llvm::Type *want,
                                        SadTypeKind sirType)
         {

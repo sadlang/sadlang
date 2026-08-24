@@ -132,6 +132,16 @@ public:
     void emitFreestandingPrintf(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingSprintf(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingPow(llvm::Type *dblTy);
+    // (AR) [علة قسمة العام — نحلة] `floor` حرّة: ذراعُ «//» الديناميكيّةُ تبثُّ
+    //      llvm.floor.f64 فيخفَّضُ نداءَ libm — ولا libm في الوضعِ الحرِّ، فكان
+    //      الربطُ يفشلُ «undefined symbol: floor» (قِيس على وحدةِ نواةِ النحلةِ
+    //      المدموجة). اقتطاعٌ فتسويةُ سالبٍ؛ حدُّ |x|≥2^63 خارجَ العقدِ كسابقةِ pow.
+    // (EN) [Global-division bug — nahla] Freestanding `floor`: the dynamic «//»
+    //      arm emits llvm.floor.f64, lowered to a libm call — absent when
+    //      freestanding, so linking failed with "undefined symbol: floor"
+    //      (measured on the merged nahla kernel unit). Truncate then adjust for
+    //      negatives; |x|≥2^63 is outside the contract, as with pow.
+    void emitFreestandingFloor(llvm::Type *dblTy);
     void emitFreestandingSerialPuts(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingSerialPutInt(llvm::Type *i8Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);
     void emitFreestandingItoa(llvm::Type *i8Ty, llvm::Type *i32Ty, llvm::Type *i64Ty, llvm::Type *ptrTy);

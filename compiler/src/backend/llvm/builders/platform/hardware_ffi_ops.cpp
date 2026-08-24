@@ -28,6 +28,12 @@
 #include "builders/platform/hardware_ffi_codegen.h"
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
+// (AR) [علة قسمة العام — نحلة] resolveUnboxedIntOperand: فكُّ %SadDyn بوسمِه قبل
+//      قصِّ عرضِ جسورِ العتاد (كان zext %SadDyn to i32 يفشلُ verifyModule — مقيس).
+// (EN) [Global-division bug — nahla] resolveUnboxedIntOperand: tag-respecting
+//      %SadDyn unpack before hardware-bridge width casts (zext %SadDyn to i32
+//      used to fail verifyModule — measured).
+#include "sad_dyn_repr.h"
 #include <llvm/Support/TargetSelect.h>
 // Source: LLVM 14+ API - llvm/MC/TargetRegistry.h بدلاً من llvm/Support/TargetRegistry.h
 #include <llvm/MC/TargetRegistry.h>
@@ -57,8 +63,8 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "port_write"}});
                 return nullptr;
             }
-            llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *value = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *port = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *value = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!port || !value)
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "port_write"}});
@@ -97,7 +103,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "port_read"}});
                 return nullptr;
             }
-            llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *port = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!port)
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "port_read"}});
@@ -138,8 +144,8 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_write"}});
                 return nullptr;
             }
-            llvm::Value *addr = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *value = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *addr = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *value = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!addr || !value)
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "mem_write"}});
@@ -174,7 +180,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_read"}});
                 return nullptr;
             }
-            llvm::Value *addr = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *addr = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!addr)
             {
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_SIR_OPERAND_RESOLVE, {{"detail", "mem_read"}});
@@ -209,7 +215,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "interrupt"}});
                 return nullptr;
             }
-            llvm::Value *intNum = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *intNum = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!intNum)
                 return nullptr;
             llvm::Value *num8 = cg_.builder_->CreateIntCast(intNum, llvm::Type::getInt8Ty(*cg_.context_), false);
@@ -274,10 +280,10 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "vga_write"}});
                 return nullptr;
             }
-            llvm::Value *row = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *col = cg_.resolveOperand(inst->operands[1]);
-            llvm::Value *ch = cg_.resolveOperand(inst->operands[2]);
-            llvm::Value *color = cg_.resolveOperand(inst->operands[3]);
+            llvm::Value *row = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *col = resolveUnboxedIntOperand(cg_, inst->operands[1]);
+            llvm::Value *ch = resolveUnboxedIntOperand(cg_, inst->operands[2]);
+            llvm::Value *color = resolveUnboxedIntOperand(cg_, inst->operands[3]);
             if (!row || !col || !ch || !color)
                 return nullptr;
             llvm::Type *i16 = llvm::Type::getInt16Ty(*cg_.context_);
@@ -307,7 +313,7 @@ namespace Sad
             llvm::Value *color = llvm::ConstantInt::get(llvm::Type::getInt8Ty(*cg_.context_), 0x07);
             if (inst && !inst->operands.empty())
             {
-                llvm::Value *c = cg_.resolveOperand(inst->operands[0]);
+                llvm::Value *c = resolveUnboxedIntOperand(cg_, inst->operands[0]);
                 if (c)
                     color = cg_.builder_->CreateIntCast(c, llvm::Type::getInt8Ty(*cg_.context_), false);
             }
@@ -350,6 +356,13 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "addr_of"}});
                 return nullptr;
             }
+            // (AR) «خذ_عنوان» يُبقي الحلَّ الخامَّ عمدًا (لا فكَّ %SadDyn): دلالتُه
+            //      عنوانُ **القيمةِ كما هي** — والفكُّ كان يُعيدُ عنوانَ نسخةِ الحمولةِ
+            //      المفكوكةِ فيغيّرُ الدلالةَ لقيمةٍ ديناميّة (رصدُ مراجعة).
+            // (EN) «خذ_عنوان» keeps the RAW resolve on purpose (no %SadDyn unbox):
+            //      its meaning is the address of the value AS-IS — unboxing returned
+            //      the address of an unboxed payload copy, changing the semantics
+            //      for a dynamic value (review find).
             llvm::Value *val = cg_.resolveOperand(inst->operands[0]);
             if (!val)
                 return nullptr;
@@ -368,9 +381,9 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_copy"}});
                 return nullptr;
             }
-            llvm::Value *dest = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *src = cg_.resolveOperand(inst->operands[1]);
-            llvm::Value *size = cg_.resolveOperand(inst->operands[2]);
+            llvm::Value *dest = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *src = resolveUnboxedIntOperand(cg_, inst->operands[1]);
+            llvm::Value *size = resolveUnboxedIntOperand(cg_, inst->operands[2]);
             if (!dest || !src || !size)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
@@ -393,9 +406,9 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_set"}});
                 return nullptr;
             }
-            llvm::Value *dest = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *val = cg_.resolveOperand(inst->operands[1]);
-            llvm::Value *size = cg_.resolveOperand(inst->operands[2]);
+            llvm::Value *dest = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *val = resolveUnboxedIntOperand(cg_, inst->operands[1]);
+            llvm::Value *size = resolveUnboxedIntOperand(cg_, inst->operands[2]);
             if (!dest || !val || !size)
                 return nullptr;
             llvm::Type *i8p = llvm::Type::getInt8Ty(*cg_.context_)->getPointerTo();
@@ -422,9 +435,9 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_fill32"}});
                 return nullptr;
             }
-            llvm::Value *dest = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *val = cg_.resolveOperand(inst->operands[1]);
-            llvm::Value *count = cg_.resolveOperand(inst->operands[2]);
+            llvm::Value *dest = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *val = resolveUnboxedIntOperand(cg_, inst->operands[1]);
+            llvm::Value *count = resolveUnboxedIntOperand(cg_, inst->operands[2]);
             if (!dest || !val || !count)
                 return nullptr;
 
@@ -479,9 +492,9 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "mem_copy32"}});
                 return nullptr;
             }
-            llvm::Value *dest = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *src = cg_.resolveOperand(inst->operands[1]);
-            llvm::Value *count = cg_.resolveOperand(inst->operands[2]);
+            llvm::Value *dest = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *src = resolveUnboxedIntOperand(cg_, inst->operands[1]);
+            llvm::Value *count = resolveUnboxedIntOperand(cg_, inst->operands[2]);
             if (!dest || !src || !count)
                 return nullptr;
 
@@ -517,8 +530,8 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "serial_init"}});
                 return nullptr;
             }
-            llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *baud = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *port = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *baud = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!port || !baud)
                 return nullptr;
             llvm::Type *i16 = llvm::Type::getInt16Ty(*cg_.context_);
@@ -558,8 +571,8 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "serial_write"}});
                 return nullptr;
             }
-            llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *byte = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *port = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *byte = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!port || !byte)
                 return nullptr;
             llvm::Type *i16 = llvm::Type::getInt16Ty(*cg_.context_);
@@ -596,7 +609,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "serial_read"}});
                 return nullptr;
             }
-            llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *port = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!port)
                 return nullptr;
             llvm::Type *i16 = llvm::Type::getInt16Ty(*cg_.context_);
@@ -627,7 +640,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "serial_ready"}});
                 return nullptr;
             }
-            llvm::Value *port = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *port = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!port)
                 return nullptr;
             llvm::Type *i16 = llvm::Type::getInt16Ty(*cg_.context_);
@@ -650,8 +663,8 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "gpio_write"}});
                 return nullptr;
             }
-            llvm::Value *addr = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *val = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *addr = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *val = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!addr || !val)
                 return nullptr;
             llvm::Type *i32 = llvm::Type::getInt32Ty(*cg_.context_);
@@ -674,7 +687,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "gpio_read"}});
                 return nullptr;
             }
-            llvm::Value *addr = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *addr = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!addr)
                 return nullptr;
             llvm::Type *i32 = llvm::Type::getInt32Ty(*cg_.context_);
@@ -694,8 +707,8 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "gpio_mode"}});
                 return nullptr;
             }
-            llvm::Value *addr = cg_.resolveOperand(inst->operands[0]);
-            llvm::Value *mode = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *addr = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+            llvm::Value *mode = resolveUnboxedIntOperand(cg_, inst->operands[1]);
             if (!addr || !mode)
                 return nullptr;
             llvm::Type *i32 = llvm::Type::getInt32Ty(*cg_.context_);
@@ -719,7 +732,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "timer_init"}});
                 return nullptr;
             }
-            llvm::Value *freq = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *freq = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!freq)
                 return nullptr;
             llvm::Type *i16 = llvm::Type::getInt16Ty(*cg_.context_);
@@ -797,7 +810,7 @@ namespace Sad
                 cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS, {{"detail", "timer_wait"}});
                 return nullptr;
             }
-            llvm::Value *us = cg_.resolveOperand(inst->operands[0]);
+            llvm::Value *us = resolveUnboxedIntOperand(cg_, inst->operands[0]);
             if (!us)
                 return nullptr;
             llvm::Type *i64 = llvm::Type::getInt64Ty(*cg_.context_);
@@ -853,7 +866,7 @@ namespace Sad
             llvm::Value *leaf = llvm::ConstantInt::get(i32, 0);
             if (inst && !inst->operands.empty())
             {
-                llvm::Value *op = cg_.resolveOperand(inst->operands[0]);
+                llvm::Value *op = resolveUnboxedIntOperand(cg_, inst->operands[0]);
                 if (op)
                     leaf = cg_.builder_->CreateIntCast(op, i32, false);
             }
