@@ -795,9 +795,10 @@ namespace Sad
             // (AR) محاولة العثور على الدالة الهدف لمعرفة أنواع المعاملات
             // (EN) Try to find target function to know parameter types
             llvm::Function *targetLambdaFn = nullptr;
-            if (!inst->comment.empty() && inst->comment.find("lambda:") == 0)
+            if (inst->comment.rfind(Sad::Compiler::kClosureLambdaCommentPrefix, 0) == 0)
             {
-                std::string lambdaName = inst->comment.substr(7);
+                const std::string lambdaName = inst->comment.substr(
+                    std::strlen(Sad::Compiler::kClosureLambdaCommentPrefix));
                 targetLambdaFn = cg_.module_->getFunction(lambdaName);
             }
 

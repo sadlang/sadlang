@@ -368,6 +368,17 @@ namespace Sad
                         funcInfo.sirFunction = innerFunc;
                         b_.functionTable_[innerFuncName] = funcInfo;
 
+                        // (AR) جسرُ SIR الموسومُ للدالّةِ المتداخلةِ (المعاملُ الأخيرُ
+                        //      __env يُستثنى من عدِّ المستخدمِ ويُمرَّرُ للهدف).
+                        // (EN) The nested function's tagged SIR bridge (the trailing
+                        //      __env parameter is excluded from the user arity and
+                        //      forwarded to the target).
+                        if (!funcInfo.parameters.empty())
+                            b_.emitDynBridgeFunction(innerFuncName,
+                                                     funcInfo.parameters.size() - 1,
+                                                     true,
+                                                     returnType);
+
                         // (AR) استعادة السياق السابق
                         // (EN) Restore previous context
                         b_.restoreContext(std::move(savedCtx));

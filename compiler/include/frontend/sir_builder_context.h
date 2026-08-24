@@ -725,6 +725,13 @@ namespace Sad
                 // (EN) Freestanding mode (--freestanding) — consulted by the frontend
                 //      builtin import gate (no stdlib to import in this mode)
                 bool freestandingMode_ = false;
+                // (AR) [موجة الجسر الموسوم] تفعيلُ جسرِ البروتوكولِ الموسومِ — مستقلٌّ
+                //      عن شكلِ SIR الحرِّ: يُطفَأُ بالحرِّ **الخامِّ** وحدَه (انظر
+                //      setTaggedBridgeEnabled في sir_builder.h).
+                // (EN) [Tagged-bridge wave] Tagged-bridge enablement — independent of
+                //      the freestanding SIR shape: switched off only by RAW
+                //      freestanding (see setTaggedBridgeEnabled in sir_builder.h).
+                bool taggedBridgeEnabled_ = true;
 
                 // (AR) الوحدات التي تمت معالجتها / (EN) Processed modules
                 std::unordered_set<std::string> processedModules_;

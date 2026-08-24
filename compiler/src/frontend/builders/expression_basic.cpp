@@ -349,6 +349,13 @@ namespace Sad
                         //      instead of boxing the raw handle as silent garbage.
                         if (funcIt->second.isGenerator)
                             closureInst.comment += Sad::Compiler::kClosureGenMarker;
+                        else
+                            // (AR) جسرُ SIR الموسومُ للهدفِ — تربطه الخلفيّاتُ بخانةِ [16].
+                            // (EN) The target's tagged SIR bridge — backends wire slot [16].
+                            b_.emitDynBridgeFunction(var->name,
+                                                     funcIt->second.parameters.size(),
+                                                     false,
+                                                     funcIt->second.returnType);
                         if (b_.currentBlock_)
                             b_.currentBlock_->addInstruction(closureInst);
 

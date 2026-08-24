@@ -481,6 +481,16 @@ namespace Sad
                 closureInst.comment =
                     std::string(Sad::Compiler::kClosureRetKindMarker) +
                     std::to_string(static_cast<int>(lambdaInfo.returnType));
+                // (AR) جسرُ SIR الموسومُ للامدا (المعاملُ الأخيرُ __env يُستثنى من
+                //      عدِّ المستخدمِ ويُمرَّرُ للهدفِ) — تربطه الخلفيّاتُ بخانةِ [16].
+                // (EN) The lambda's tagged SIR bridge (the trailing __env parameter
+                //      is excluded from the user arity and forwarded to the target)
+                //      — backends wire slot [16].
+                if (!lambdaInfo.parameters.empty())
+                    b_.emitDynBridgeFunction(lambdaName,
+                                             lambdaInfo.parameters.size() - 1,
+                                             true,
+                                             lambdaInfo.returnType);
                 // (AR) المعامل الأول: مؤشر الدالة
                 // (EN) First operand: function pointer
                 closureInst.operands.push_back(SIROperand::Function(lambdaName));

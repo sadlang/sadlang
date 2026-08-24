@@ -612,6 +612,16 @@ namespace sad
             //      see freestanding_sir_shape() in compiler_driver.h for why it is kept
             //      distinct from the raw flag.
             sir_builder_->setFreestanding(options_.freestanding_sir_shape());
+            // (AR) [موجة الجسر الموسوم] الجسرُ يُطفَأُ بالحرِّ **الخامِّ** وحدَه (نواةُ
+            //      النحلة/UEFI — ميزانيّةُ الحافة)، لا بشكلِ SIR الحرِّ الذي يشملُ
+            //      المسارَ الأصليَّ المستضافَ (لينكس ELF) — البوّابةُ على الشكلِ كانت
+            //      تُطفئُه هناك فيسلكُ نداءُ المرجعِ البروتوكولَ الخامَّ وينهار (مقيس).
+            // (EN) [Tagged-bridge wave] The bridge is disabled only by RAW
+            //      freestanding (nahla/UEFI kernels — edge budget), not by the
+            //      freestanding SIR shape, which also covers the hosted native path
+            //      (Linux ELF) — gating on the shape switched it off there, so the
+            //      ref call took the raw protocol and crashed (measured).
+            sir_builder_->setTaggedBridgeEnabled(!options_.freestanding);
             sir_module_ = sir_builder_->buildModule(&current_ast_);
 
             // (AR) سجّل تحذيرات بناء SIR (غير قاتلة) قبل الحكم على الأخطاء — تُسجَّل سواءٌ نجح

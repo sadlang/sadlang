@@ -141,6 +141,15 @@ namespace sad
                 // (AR) ابنِ جداولَ الدوالّ (vtables) + احجزْ خاناتِها في مقدّمةِ rodata_. (الدفعة ٦)
                 buildVtableLayouts(module);
 
+                // (AR) [موجة الجسر الموسوم] فهرسُ الدوالِّ بالاسم (مرآةُ x86) — حدودُ
+                //      نداء Any وربطُ خانةِ الجسر [16].
+                // (EN) [Tagged-bridge wave] Function index by name (x86 mirror) — the
+                //      Any call boundaries and the [16] bridge slot wiring.
+                moduleFuncs_.clear();
+                for (const auto &f : module.getFunctions())
+                    if (f)
+                        moduleFuncs_[f->getName()] = f.get();
+
                 // (AR) ترتيبُ الإصدار: الدالّةُ الداخلة أوّلًا (نقطةُ دخول ELF = code_[0])،
                 //      ثمّ البقيّة. النداءاتُ للدوالّ اللاحقة مراجعُ أماميّةٌ تُرقَّع لاحقًا.
                 std::vector<const sir::SIRFunction *> ordered{entry};
@@ -242,6 +251,10 @@ namespace sad
             std::string entryName_;
             std::string currentFn_;
             bool curIsEntry_ = false;
+            // (AR) [موجة الجسر الموسوم] هل عائدُ الدالّةِ الجاريةِ Any؟ (زوجُ x0/x1)
+            bool curRetIsAny_ = false;
+            // (AR) فهرسُ دوالِّ الوحدةِ بالاسم — يُبنى في lowerModule (مرآةُ x86).
+            std::unordered_map<std::string, const sir::SIRFunction *> moduleFuncs_;
 
             // (AR) سجلّاتُ وسائط AAPCS64 بالترتيب (الوسائطُ الثمانية الأولى الصحيحة).
             const int abiArg_[8]{0, 1, 2, 3, 4, 5, 6, 7};
@@ -856,6 +869,89 @@ namespace sad
                 if (!scvtf(kD2, dst) || !fmovFromFp(dst, kD2))
                     return false;
                 return patchBranchFwd(isFloat, 23, 5);
+            }
+
+            // ══════════════════════════════════════════════════════════════
+            // (AR) [موجة الجسر الموسوم — حدودُ النداء] مرآةُ مساعداتِ x86 (الحجّةُ
+            //      والقياسُ هناك): الفكُّ بوسمٍ محترمٍ وبخدشَي x8/kD2 (خارجَ سجلّاتِ
+            //      الوسائطِ والحوض)، والتعليبُ قبلَ تحميلِ سجلّاتِ ABI.
+            // (EN) [Tagged-bridge wave — call boundary] Mirrors of the x86 helpers
+            //      (rationale and measurement there): tag-respecting unboxing with
+            //      the x8/kD2 scratches (outside the ABI-arg and pool registers),
+            //      and boxing before ABI registers are loaded.
+            // ══════════════════════════════════════════════════════════════
+            bool unboxAnyToIntArgArm64(int dst, const sir::SIROperand &op)
+            {
+                if (!loadArgInto(dst, op) ||
+                    !ldrBase(a64reg::kX8, dst, kSadDynKindOff / kArrSlotBytes) ||
+                    !ldrBase(dst, dst, kSadDynPayloadOff / kArrSlotBytes) ||
+                    !subImm(a64reg::kX8, a64reg::kX8, kDynKindFloat) ||
+                    !cmp(a64reg::kX8, a64reg::kXzr))
+                    return false;
+                size_t notFloat;
+                if (!emitBranchFwd(a64::mnem::kBne, "rel19", notFloat))
+                    return false;
+                if (!fmovToFp(kD2, dst) || !fcvtzs(dst, kD2))
+                    return false;
+                return patchBranchFwd(notFloat, 23, 5);
+            }
+            bool unboxAnyToFloatArgArm64(int dst, const sir::SIROperand &op)
+            {
+                if (!loadArgInto(dst, op) ||
+                    !ldrBase(a64reg::kX8, dst, kSadDynKindOff / kArrSlotBytes) ||
+                    !ldrBase(dst, dst, kSadDynPayloadOff / kArrSlotBytes) ||
+                    !subImm(a64reg::kX8, a64reg::kX8, kDynKindFloat) ||
+                    !cmp(a64reg::kX8, a64reg::kXzr))
+                    return false;
+                size_t isFloat;
+                if (!emitBranchFwd(a64::mnem::kBeq, "rel19", isFloat))
+                    return false;
+                if (!scvtf(kD2, dst) || !fmovFromFp(dst, kD2))
+                    return false;
+                return patchBranchFwd(isFloat, 23, 5);
+            }
+            // (AR) تعليبُ وسيطٍ غيرِ Any في خانةِ dyn محجوزة — يُعيدُ **فهرسَ** الخانةِ
+            //      (عنوانُها sp + فهرس×8 يُوضَع لاحقًا بـaddImm). خدشاه x8/x17.
+            // (EN) Box a non-Any argument into a reserved dyn slot — returns the slot
+            //      INDEX (its address is sp + index×8, formed later via addImm).
+            //      Scratches x8/x17.
+            bool boxOperandToDynSlotArm64(const sir::SIROperand &op, int &outSlot)
+            {
+                // (AR) ثابتُ العدمِ: isConstInt يرفضُ Null — البذرةُ مباشرةً بوسمِها
+                //      (مرآةُ x86، رصدُ مراجعة).
+                // (EN) A Null constant: isConstInt rejects Null — load the sentinel
+                //      directly with its tag (x86 mirror, review find).
+                if (op.type == sir::SIROperandType::CONSTANT &&
+                    op.dataType == types::SadTypeKind::Null)
+                {
+                    if (!movConst(a64reg::kScratch1, Sad::Compiler::kSadNullSentinel) ||
+                        !movz(a64reg::kX8, kDynKindNull))
+                        return false;
+                    if (!takeDynSlot(outSlot))
+                        return false;
+                    return strSlot(a64reg::kX8, outSlot) &&
+                           strSlot(a64reg::kScratch1, outSlot + 1);
+                }
+                // (AR) النصُّ خارجَ dynTagForType عمدًا: وسمُه Str وحمولتُه واصفُه —
+                //      وما لا وسمَ له فشلٌ صريحٌ لا Int كاذبٌ صامت.
+                // (EN) String is deliberately outside dynTagForType: tag Str, payload
+                //      its descriptor — an untaggable kind fails explicitly, never a
+                //      silent lying Int.
+                long long tag = kDynKindInt;
+                if (op.dataType == types::SadTypeKind::String)
+                    tag = kDynKindStr;
+                else if (op.dataType != types::SadTypeKind::Unknown &&
+                         !dynTagForType(op.dataType, tag))
+                    return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                diag::kConstType +
+                                    std::to_string(static_cast<int>(op.dataType)));
+                if (!loadArgInto(a64reg::kScratch1, op) ||
+                    !movz(a64reg::kX8, tag))
+                    return false;
+                if (!takeDynSlot(outSlot))
+                    return false;
+                return strSlot(a64reg::kX8, outSlot) &&
+                       strSlot(a64reg::kScratch1, outSlot + 1);
             }
             // (AR) يضع عنوانَ عنصرِ المصفوفة في x16 مع فحصِ حدٍّ زمنَ التشغيل، ويُعيد عبر outIdx الإزاحةَ
             //      المقيسةَ لـldr/str. أوّلًا الفحص: x17=idx، x16=len=[arr+0]، cmp+b.lo. ثمّ يُعادُ
@@ -1885,6 +1981,77 @@ namespace sad
                         {
                             hasBoxing = true;
                             ++dynGetCount_;
+                        }
+                        // (AR) [موجة الجسر الموسوم — عدُّ خاناتِ حدودِ النداء] مرآةُ x86
+                        //      شرطًا بشرطٍ مع الاستهلاك (عقدُ takeDynSlot): تعليبُ وسيطٍ
+                        //      غيرِ Any لمعاملِ Any، وتجسيدُ زوجِ عائدِ Any.
+                        // (EN) [Tagged-bridge wave — call-boundary slot counting] x86
+                        //      mirror, condition-for-condition with consumption (the
+                        //      takeDynSlot contract): boxing a non-Any argument for an
+                        //      Any parameter, and materializing an Any return pair.
+                        if (inst.opcode == sir::SIROpcode::CALL &&
+                            !inst.operands.empty() &&
+                            inst.operands[0].type == sir::SIROperandType::FUNCTION)
+                        {
+                            auto calleeIt = moduleFuncs_.find(inst.operands[0].name);
+                            if (calleeIt != moduleFuncs_.end())
+                            {
+                                const auto &calleeParams = calleeIt->second->getParameters();
+                                for (size_t ai = 0; ai + 1 < inst.operands.size(); ++ai)
+                                    if (ai < calleeParams.size() &&
+                                        calleeParams[ai].type == types::SadTypeKind::Any &&
+                                        inst.operands[ai + 1].dataType != types::SadTypeKind::Any)
+                                    {
+                                        hasBoxing = true;
+                                        ++dynGetCount_;
+                                    }
+                                if (calleeIt->second->returnType == types::SadTypeKind::Any &&
+                                    inst.result)
+                                {
+                                    hasBoxing = true;
+                                    ++dynGetCount_;
+                                }
+                            }
+                        }
+                        if (inst.opcode == sir::SIROpcode::CLOSURE_CALL &&
+                            inst.comment.find(Sad::Compiler::kClosureDynProtoMarker) !=
+                                std::string::npos)
+                        {
+                            for (size_t ai = 1; ai < inst.operands.size(); ++ai)
+                                if (inst.operands[ai].dataType != types::SadTypeKind::Any)
+                                {
+                                    hasBoxing = true;
+                                    ++dynGetCount_;
+                                }
+                            if (inst.result)
+                            {
+                                hasBoxing = true;
+                                ++dynGetCount_; // (AR) تجسيدُ زوجِ العائد
+                            }
+                        }
+                        if (inst.opcode == sir::SIROpcode::CLOSURE_CALL &&
+                            inst.comment.rfind(Sad::Compiler::kClosureLambdaCommentPrefix, 0) == 0)
+                        {
+                            auto lamIt = moduleFuncs_.find(inst.comment.substr(
+                                std::string(Sad::Compiler::kClosureLambdaCommentPrefix).size()));
+                            if (lamIt != moduleFuncs_.end())
+                            {
+                                const auto &lamParams = lamIt->second->getParameters();
+                                for (size_t ai = 1; ai < inst.operands.size(); ++ai)
+                                    if (ai - 1 < lamParams.size() &&
+                                        lamParams[ai - 1].type == types::SadTypeKind::Any &&
+                                        inst.operands[ai].dataType != types::SadTypeKind::Any)
+                                    {
+                                        hasBoxing = true;
+                                        ++dynGetCount_;
+                                    }
+                                if (lamIt->second->returnType == types::SadTypeKind::Any &&
+                                    inst.result)
+                                {
+                                    hasBoxing = true;
+                                    ++dynGetCount_;
+                                }
+                            }
                         }
                     }
                 // (AR) القيمُ العابرةُ للكتل (تُعرَّف في كتلةٍ وتُقرأ في أخرى، عدا PHI/ALLOC/السلاسل):
@@ -5062,11 +5229,79 @@ namespace sad
                         if (common::usedAfterInBlock(block, instIdx, kv.first) || common::isPoolArgOfCall(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
                             if (!spillReg(kv.second))
                                 return false;
+                    // (AR) [موجة الجسر الموسوم] حدودُ Any بتوقيعِ المستدعى (مرآةُ x86):
+                    //      تعليبُ غيرِ Any لمعاملِ Any، فكٌّ بوسمٍ محترمٍ للعكس، وزوجُ
+                    //      عائدِ Any (x0=وسم، x1=حمولة) يُجسَّد في خانةِ المُنادي.
+                    // (EN) [Tagged-bridge wave] The Any boundary driven by the callee
+                    //      signature (x86 mirror): box non-Any for Any params,
+                    //      tag-respecting unbox for the reverse, and the Any return
+                    //      pair (x0=tag, x1=payload) materialized in the caller.
+                    const sir::SIRFunction *callee = nullptr;
+                    {
+                        auto calleeIt = moduleFuncs_.find(inst.operands[0].name);
+                        if (calleeIt != moduleFuncs_.end())
+                            callee = calleeIt->second;
+                    }
+                    std::vector<int> boxedSlot(argc, 0);
+                    std::vector<bool> boxedArg(argc, false);
+                    if (callee)
+                    {
+                        const auto &calleeParams = callee->getParameters();
+                        for (size_t i = 0; i < argc; ++i)
+                            if (i < calleeParams.size() &&
+                                calleeParams[i].type == types::SadTypeKind::Any &&
+                                inst.operands[i + 1].dataType != types::SadTypeKind::Any)
+                            {
+                                if (!boxOperandToDynSlotArm64(inst.operands[i + 1], boxedSlot[i]))
+                                    return false;
+                                boxedArg[i] = true;
+                            }
+                    }
+                    auto calleeParamKind = [&](size_t i) -> types::SadTypeKind {
+                        if (!callee)
+                            return types::SadTypeKind::Unknown;
+                        const auto &ps = callee->getParameters();
+                        return i < ps.size() ? ps[i].type : types::SadTypeKind::Unknown;
+                    };
+                    auto argNeedsUnbox = [&](size_t i) -> bool {
+                        const types::SadTypeKind pk = calleeParamKind(i);
+                        return pk != types::SadTypeKind::Any &&
+                               pk != types::SadTypeKind::Unknown &&
+                               inst.operands[i + 1].dataType == types::SadTypeKind::Any;
+                    };
                     // (AR) الوسائطُ ٠..٧ ⇒ x0..x7؛ ٨+ ⇒ منطقةُ الوسائطِ الصادرةِ (x16 سجلُّ النقل؛ النداءُ
                     //      المباشرُ bl لا يستعملُه). النصُّ يُجسَّد (حرفيّةُ rodata/مؤشّرُ كومة).
                     for (size_t i = 0; i < argc; ++i)
+                    {
+                        if (boxedArg[i])
+                        {
+                            if (i < 8)
+                            {
+                                if (!addImm(abiArg_[i], 31, static_cast<long long>(boxedSlot[i]) * 8))
+                                    return false;
+                            }
+                            else if (!addImm(a64reg::kScratch0, 31, static_cast<long long>(boxedSlot[i]) * 8) ||
+                                     !strSlot(a64reg::kScratch0, static_cast<int>(i - 8)))
+                                return false;
+                            continue;
+                        }
+                        if (argNeedsUnbox(i))
+                        {
+                            const types::SadTypeKind pk = calleeParamKind(i);
+                            const int dstReg = i < 8 ? abiArg_[i] : a64reg::kScratch0;
+                            const bool ok =
+                                pk == types::SadTypeKind::Float
+                                    ? unboxAnyToFloatArgArm64(dstReg, inst.operands[i + 1])
+                                    : unboxAnyToIntArgArm64(dstReg, inst.operands[i + 1]);
+                            if (!ok)
+                                return false;
+                            if (i >= 8 && !strSlot(a64reg::kScratch0, static_cast<int>(i - 8)))
+                                return false;
+                            continue;
+                        }
                         if (!passAbiArg(i, inst.operands[i + 1], a64reg::kScratch0))
                             return false;
+                    }
                     if (!emitBranchTo(a64::mnem::kBl, "rel26", inst.operands[0].name, /*isCall=*/true))
                         return false;
                     for (const auto &kv : regOf_)
@@ -5078,6 +5313,8 @@ namespace sad
                         int dst;
                         if (!allocReg(inst.result->name, dst))
                             return false;
+                        if (callee && callee->returnType == types::SadTypeKind::Any)
+                            return boxScalarIntoArm64(dst, a64reg::kX0, a64reg::kX1);
                         return movReg(dst, a64reg::kX0); // (AR) قيمةُ الإرجاع من x0
                     }
                     return true;
@@ -5160,7 +5397,11 @@ namespace sad
                         inst.operands[0].type != sir::SIROperandType::FUNCTION)
                         return fail(EC::INT_COMPILER_INVALID_OPERANDS, detailOpcode(inst));
                     const long long numCaptures = static_cast<long long>(inst.operands.size()) - 1;
-                    const long long allocSize = 16 + numCaptures * 8;
+                    // (AR) [موجة الجسر الموسوم] {fn@0، env@8، dynbr@16} والملتقطاتُ من
+                    //      base+24 — مرآةُ x86 (الخانتان 0/8 بدلالتهما القديمة حرفًا).
+                    // (EN) [Tagged-bridge wave] {fn@0, env@8, dynbr@16} with captures
+                    //      from base+24 — x86 mirror (slots 0/8 keep their meaning).
+                    const long long allocSize = 24 + numCaptures * 8;
                     for (const auto &kv : regOf_)
                         if (common::usedAfterInBlock(block, instIdx, kv.first) ||
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
@@ -5172,16 +5413,28 @@ namespace sad
                     if (!emitFuncAddr(a64reg::kScratch0, inst.operands[0].name) ||
                         !strBase(a64reg::kScratch0, a64reg::kX0, 0))
                         return false;
+                    // (AR) [base+16] = عنوانُ الجسرِ الموسومِ (إن وُجد) وإلّا صفرُ mmap.
+                    {
+                        const std::string bridgeName =
+                            std::string(Sad::Compiler::kClosureDynBridgePrefix) +
+                            inst.operands[0].name;
+                        if (moduleFuncs_.find(bridgeName) != moduleFuncs_.end())
+                        {
+                            if (!emitFuncAddr(a64reg::kScratch0, bridgeName) ||
+                                !strBase(a64reg::kScratch0, a64reg::kX0, 2))
+                                return false;
+                        }
+                    }
                     if (numCaptures > 0)
                     {
-                        // (AR) [base+8] = البيئة = base + 16 (الفهرسُ المقيسُ ١).
-                        if (!addImm(a64reg::kScratch0, a64reg::kX0, 16) ||
+                        // (AR) [base+8] = البيئة = base + 24 (الفهرسُ المقيسُ ١).
+                        if (!addImm(a64reg::kScratch0, a64reg::kX0, 24) ||
                             !strBase(a64reg::kScratch0, a64reg::kX0, 1))
                             return false;
-                        // (AR) [base+16+i×8] = الملتقَطُ i (الفهرسُ المقيسُ ٢+i؛ يُقرأ من خانةِ انسكابه).
+                        // (AR) [base+24+i×8] = الملتقَطُ i (الفهرسُ المقيسُ ٣+i؛ يُقرأ من خانةِ انسكابه).
                         for (long long i = 0; i < numCaptures; ++i)
                             if (!loadArgInto(a64reg::kScratch0, inst.operands[static_cast<size_t>(i + 1)]) ||
-                                !strBase(a64reg::kScratch0, a64reg::kX0, 2 + i))
+                                !strBase(a64reg::kScratch0, a64reg::kX0, 3 + i))
                                 return false;
                     }
                     else if (!strBase(a64reg::kXzr, a64reg::kX0, 1))
@@ -5208,13 +5461,139 @@ namespace sad
                             common::isPoolOperandOf(inst, kv.first, [this](const std::string &n){ return isMemName(n); }))
                             if (!spillReg(kv.second))
                                 return false;
+                    // (AR) [موجة الجسر الموسوم] مسارُ dynproto (مرآةُ x86 — الحجّةُ
+                    //      والقياسُ هناك): كلُّ وسيطٍ مؤشّرُ خانةِ dyn، البيئةُ أخيرًا،
+                    //      النداءُ عبرَ جسرِ [c+16]، والعائدُ زوجُ (x0، x1) يُجسَّد.
+                    // (EN) [Tagged-bridge wave] The dynproto path (x86 mirror): every
+                    //      argument is a dyn-slot pointer, env last, the call goes
+                    //      through the [c+16] bridge, and the (x0, x1) return pair is
+                    //      materialized.
+                    if (inst.comment.find(Sad::Compiler::kClosureDynProtoMarker) !=
+                        std::string::npos)
+                    {
+                        std::vector<int> dynArgSlot(argc, 0);
+                        std::vector<bool> dynArgBoxed(argc, false);
+                        for (size_t i = 0; i < argc; ++i)
+                            if (inst.operands[i + 1].dataType != types::SadTypeKind::Any)
+                            {
+                                if (!boxOperandToDynSlotArm64(inst.operands[i + 1], dynArgSlot[i]))
+                                    return false;
+                                dynArgBoxed[i] = true;
+                            }
+                        for (size_t i = 8; i < argc; ++i)
+                        {
+                            if (dynArgBoxed[i])
+                            {
+                                if (!addImm(a64reg::kScratch0, 31,
+                                            static_cast<long long>(dynArgSlot[i]) * 8))
+                                    return false;
+                            }
+                            else if (!loadArgInto(a64reg::kScratch0, inst.operands[i + 1]))
+                                return false;
+                            if (!strSlot(a64reg::kScratch0, static_cast<int>(i - 8)))
+                                return false;
+                        }
+                        if (!loadArgInto(a64reg::kScratch0, inst.operands[0]))
+                            return false;
+                        if (argc < 8)
+                        {
+                            if (!ldrBase(abiArg_[argc], a64reg::kScratch0, 1))
+                                return false;
+                        }
+                        else if (!ldrBase(a64reg::kScratch1, a64reg::kScratch0, 1) ||
+                                 !strSlot(a64reg::kScratch1, static_cast<int>(argc - 8)))
+                            return false;
+                        for (size_t i = 0; i < argc && i < 8; ++i)
+                        {
+                            if (dynArgBoxed[i])
+                            {
+                                if (!addImm(abiArg_[i], 31,
+                                            static_cast<long long>(dynArgSlot[i]) * 8))
+                                    return false;
+                            }
+                            else if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                                return false;
+                        }
+                        if (!loadArgInto(a64reg::kScratch0, inst.operands[0]) ||
+                            !ldrBase(a64reg::kScratch0, a64reg::kScratch0, 2)) // (AR) الجسرُ من [c+16]
+                            return false;
+                        // (AR) جسرٌ صفريٌّ (مولِّدٌ عبرَ معامل — بلا جسرٍ عمدًا): خروجٌ
+                        //      صاخبٌ برمزِ x86 نفسِه (133) بدل SIGSEGV نداءِ الصفر.
+                        // (EN) A zero bridge (a generator through a parameter —
+                        //      deliberately bridgeless): loud exit with the same
+                        //      code as x86 (133) instead of the call-zero SIGSEGV.
+                        {
+                            if (!cmp(a64reg::kScratch0, a64reg::kXzr))
+                                return false;
+                            size_t bridgeOk;
+                            if (!emitBranchFwd(a64::mnem::kBne, "rel19", bridgeOk))
+                                return false;
+                            if (!movz(a64reg::kX0, kNullDynBridgePanicCode) ||
+                                !movz(a64reg::kX8, kSysExitArm64) ||
+                                !emit(a64::mnem::kSvc, "", {}))
+                                return false;
+                            if (!patchBranchFwd(bridgeOk, 23, 5))
+                                return false;
+                        }
+                        if (!emitBlr(a64reg::kScratch0))
+                            return false;
+                        for (const auto &kv : regOf_)
+                            if (common::usedAfterInBlock(block, instIdx, kv.first))
+                                if (!reloadReg(kv.second))
+                                    return false;
+                        if (inst.result)
+                        {
+                            int dst;
+                            if (!allocReg(inst.result->name, dst))
+                                return false;
+                            return boxScalarIntoArm64(dst, a64reg::kX0, a64reg::kX1);
+                        }
+                        return true;
+                    }
+                    // (AR) [موجة الجسر الموسوم] المسارُ المعلومُ (lambda:…) — توقيعُ
+                    //      الهدفِ يقودُ التكييفَ (مرآةُ x86: t05).
+                    // (EN) [Tagged-bridge wave] The known path (lambda:…) — the target
+                    //      signature drives coercion (x86 mirror: t05).
+                    const sir::SIRFunction *closureTarget = nullptr;
+                    if (inst.comment.rfind(Sad::Compiler::kClosureLambdaCommentPrefix, 0) == 0)
+                    {
+                        auto lamIt = moduleFuncs_.find(inst.comment.substr(
+                            std::string(Sad::Compiler::kClosureLambdaCommentPrefix).size()));
+                        if (lamIt != moduleFuncs_.end())
+                            closureTarget = lamIt->second;
+                    }
+                    auto closureParamKind = [&](size_t i) -> types::SadTypeKind {
+                        if (!closureTarget)
+                            return types::SadTypeKind::Unknown;
+                        const auto &ps = closureTarget->getParameters();
+                        return i < ps.size() ? ps[i].type : types::SadTypeKind::Unknown;
+                    };
+                    std::vector<int> clArgSlot(argc, 0);
+                    std::vector<bool> clArgBoxed(argc, false);
+                    for (size_t i = 0; i < argc; ++i)
+                        if (closureParamKind(i) == types::SadTypeKind::Any &&
+                            inst.operands[i + 1].dataType != types::SadTypeKind::Any)
+                        {
+                            if (!boxOperandToDynSlotArm64(inst.operands[i + 1], clArgSlot[i]))
+                                return false;
+                            clArgBoxed[i] = true;
+                        }
                     // (AR) البيئةُ هي الوسيطُ المنطقيُّ الأخيرُ (الفتحةُ argc). الترتيبُ الآمن (مرآةُ x86):
                     //      (١) الوسائطُ الصريحةُ المكدّسةُ عبر x16 (نقلٌ حرٌّ الآن)؛ (٢) مؤشّرُ الإغلاق → x16؛
                     //      (٣) البيئةُ من [الإغلاق+8] إلى سجلٍّ (argc<8) أو المكدّس عبر x17؛ (٤) الوسائطُ
                     //      السجليّةُ (٠..٧)؛ (٥) أعِد مؤشّرَ الإغلاق (قد دهسته الوسائطُ السجليّة) ثمّ الدالّةَ.
                     for (size_t i = 8; i < argc; ++i)
-                        if (!passAbiArg(i, inst.operands[i + 1], a64reg::kScratch0))
+                    {
+                        if (clArgBoxed[i])
+                        {
+                            if (!addImm(a64reg::kScratch0, 31,
+                                        static_cast<long long>(clArgSlot[i]) * 8) ||
+                                !strSlot(a64reg::kScratch0, static_cast<int>(i - 8)))
+                                return false;
+                        }
+                        else if (!passAbiArg(i, inst.operands[i + 1], a64reg::kScratch0))
                             return false;
+                    }
                     if (!loadArgInto(a64reg::kScratch0, inst.operands[0]))
                         return false;
                     if (argc < 8)
@@ -5226,8 +5605,16 @@ namespace sad
                              !strSlot(a64reg::kScratch1, static_cast<int>(argc - 8)))
                         return false;
                     for (size_t i = 0; i < argc && i < 8; ++i)
-                        if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
+                    {
+                        if (clArgBoxed[i])
+                        {
+                            if (!addImm(abiArg_[i], 31,
+                                        static_cast<long long>(clArgSlot[i]) * 8))
+                                return false;
+                        }
+                        else if (!loadArgInto(abiArg_[i], inst.operands[i + 1]))
                             return false;
+                    }
                     if (!loadArgInto(a64reg::kScratch0, inst.operands[0]) || // (AR) أعِد الإغلاق (قد دُهس)
                         !ldrBase(a64reg::kScratch0, a64reg::kScratch0, 0))    // (AR) مؤشّرُ الدالّة = [الإغلاق+0]
                         return false;
@@ -5242,6 +5629,9 @@ namespace sad
                         int dst;
                         if (!allocReg(inst.result->name, dst))
                             return false;
+                        if (closureTarget &&
+                            closureTarget->returnType == types::SadTypeKind::Any)
+                            return boxScalarIntoArm64(dst, a64reg::kX0, a64reg::kX1);
                         return movReg(dst, a64reg::kX0);
                     }
                     return true;
@@ -5390,6 +5780,47 @@ namespace sad
                         return loadScalarInto(a64reg::kX0, inst.operands[0]) &&
                                movz(a64reg::kX8, kSysExitArm64) &&
                                emit(a64::mnem::kSvc, "", {});
+                    // (AR) [موجة الجسر الموسوم] عائدُ Any زوجٌ (x0=وسم، x1=حمولة) — مرآةُ
+                    //      x86 حرفًا (الحجّةُ والقياسُ هناك: مؤشّرُ إطارٍ ميّتٍ أو وسمٌ ساقط).
+                    //      و`materialize` لا `loadArgInto`: لا انسكابَ عند RET.
+                    // (EN) [Tagged-bridge wave] An Any return is a pair (x0=tag,
+                    //      x1=payload) — the x86 mirror verbatim (rationale and
+                    //      measurement there). `materialize`, not `loadArgInto`: RET
+                    //      spills nothing.
+                    if (curRetIsAny_)
+                    {
+                        const sir::SIROperand &rv = inst.operands[0];
+                        if (rv.dataType == types::SadTypeKind::Any)
+                        {
+                            if (!materialize(a64reg::kScratch0, rv) ||
+                                !ldrBase(a64reg::kX0, a64reg::kScratch0, kSadDynKindOff / kArrSlotBytes) ||
+                                !ldrBase(a64reg::kX1, a64reg::kScratch0, kSadDynPayloadOff / kArrSlotBytes))
+                                return false;
+                        }
+                        else if (rv.type == sir::SIROperandType::CONSTANT &&
+                                 rv.dataType == types::SadTypeKind::Null)
+                        {
+                            // (AR) بذرةُ العدمِ (جسرُ الهدفِ فراغيِّ العائد) — مرآةُ x86.
+                            // (EN) The null sentinel (void-target bridge) — x86 mirror.
+                            if (!movConst(a64reg::kX1, Sad::Compiler::kSadNullSentinel) ||
+                                !movz(a64reg::kX0, kDynKindNull))
+                                return false;
+                        }
+                        else
+                        {
+                            long long tag = kDynKindInt;
+                            if (rv.dataType == types::SadTypeKind::String)
+                                tag = kDynKindStr;
+                            else if (rv.dataType != types::SadTypeKind::Unknown &&
+                                     !dynTagForType(rv.dataType, tag))
+                                return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                            diag::kConstType +
+                                                std::to_string(static_cast<int>(rv.dataType)));
+                            if (!materialize(a64reg::kX1, rv) || !movz(a64reg::kX0, tag))
+                                return false;
+                        }
+                        return emitEpilogue();
+                    }
                     return loadScalarInto(a64reg::kX0, inst.operands[0]) && emitEpilogue();
                 }
                 case OP::RET_VOID:
@@ -6468,6 +6899,9 @@ namespace sad
                 mapSetCount_ = countMapSets(fn);
                 currentFn_ = fn.getName();
                 curIsEntry_ = (currentFn_ == entryName_);
+                // (AR) [موجة الجسر الموسوم] عائدُ Any يعبرُ الحدَّ زوجًا (x0=وسم، x1=حمولة) — مرآةُ x86.
+                // (EN) [Tagged-bridge wave] An Any return crosses as a pair (x0=tag, x1=payload) — x86 mirror.
+                curRetIsAny_ = (fn.returnType == types::SadTypeKind::Any);
                 memSlot_.clear();
                 // (AR) استنتاجُ صنفِ الكائن يُصفَّر لكلّ دالّة؛ %self داخل «صنف.طريقة» صنفُه الجزءُ قبل النقطة.
                 objClassOf_.clear();

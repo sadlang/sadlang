@@ -123,6 +123,12 @@ namespace Sad::Compiler
     // (AR) وسمُ تعليقِ CLOSURE_CALL الذي ينتقي بروتوكولَ الجسرِ الموسوم.
     // (EN) CLOSURE_CALL comment marker selecting the tagged-bridge protocol.
     inline constexpr const char *kClosureDynProtoMarker = "dynproto";
+    // (AR) بادئةُ تعليقِ CLOSURE_CALL معلومِ الهدف: «lambda:<اسم الدالّة>» — تبثّها
+    //      الواجهةُ وتستهلكها الخلفيّتان (LLVM والأصليّة) لحلِّ توقيعِ الهدف.
+    // (EN) Known-target CLOSURE_CALL comment prefix: «lambda:<function name>» —
+    //      emitted by the frontend, consumed by both backends (LLVM and native)
+    //      to resolve the target signature.
+    inline constexpr const char *kClosureLambdaCommentPrefix = "lambda:";
     // (AR) لاحقةُ تعليقِ CLOSURE_CREATE الحاملةُ نوعَ عائدِ الهدفِ (رقمَ SadTypeKind)
     //      — الجسرُ يحتاجُه ليَسِمَ العائدَ (مؤشّرُ ptr وحدَه لا يفرّق نصًّا عن مصفوفة).
     // (EN) CLOSURE_CREATE comment suffix carrying the target's return kind
@@ -132,6 +138,11 @@ namespace Sad::Compiler
     // (AR) بادئةُ اسمِ دالّةِ الجسرِ الموسومِ المولَّدة.
     // (EN) Generated tagged-bridge function name prefix.
     inline constexpr const char *kClosureDynBridgePrefix = "__dynbr_";
+    // (AR) أسماءُ معاملاتِ الجسرِ وسجلِّ نتيجتِه (مولّد emitDynBridgeFunction).
+    // (EN) The bridge's parameter names and result register (emitDynBridgeFunction).
+    inline constexpr const char *kClosureDynBridgeArgPrefix = "__dynbr_a";
+    inline constexpr const char *kClosureDynBridgeEnvParamName = "__dynbr_env";
+    inline constexpr const char *kClosureDynBridgeResultReg = "%__dynbr_r";
     // (AR) وسمُ تعليقِ CLOSURE_CREATE لهدفٍ **مولِّد**: جسرُه لا يُغلِّفُ المقبضَ
     //      (كان يُطبَعُ قمامةً صامتةً حيث كان الأساسُ ينهار AV — مقيس) بل يرفعُ
     //      خطأً تشغيليًّا صريحًا بالنصَّين أدناه.

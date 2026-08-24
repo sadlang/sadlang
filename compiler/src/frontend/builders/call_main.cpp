@@ -1151,7 +1151,7 @@ namespace Sad
                         //      protocol stays.
                         const bool useDynProto = varInfo->closureLambdaName.empty() &&
                                                  !varInfo->isGeneratorFuncRef &&
-                                                 !b_.isFreestandingMode();
+                                                 b_.isTaggedBridgeEnabled();
                         if (useDynProto)
                         {
                             closureRetType = SadTypeKind::Any;
@@ -1180,7 +1180,9 @@ namespace Sad
                         //      to look up real signature and convert argument types
                         if (!varInfo->closureLambdaName.empty())
                         {
-                            closureCallInst.comment = "lambda:" + varInfo->closureLambdaName;
+                            closureCallInst.comment =
+                                Sad::Compiler::kClosureLambdaCommentPrefix +
+                                varInfo->closureLambdaName;
                         }
                         else if (useDynProto)
                         {

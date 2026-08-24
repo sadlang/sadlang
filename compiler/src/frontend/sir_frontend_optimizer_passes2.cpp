@@ -458,6 +458,17 @@ namespace Sad
                 {
                     if (!func)
                         continue;
+                    // (AR) [موجة الجسر الموسوم] جسورُ `__dynbr_*` لا يُضمَّنُ فيها:
+                    //      تضمينُ الهدفِ المنمَّطِ يستبدلُ وسائطَ Any في جسمِه المنمَّطِ
+                    //      — عائلةُ استبدالِ المضمِّنِ المقيسةُ نفسُها (ICE «رقم»+نص).
+                    //      نداءُ الجسرِ هو **حدُّ** التكييفِ ويجب أن يبقى نداءً.
+                    // (EN) [Tagged-bridge wave] Never inline INTO a `__dynbr_*`
+                    //      bridge: inlining the typed target substitutes Any
+                    //      arguments into its typed body — the same measured inliner
+                    //      substitution family (the «رقم»+string ICE). The bridge's
+                    //      call IS the coercion boundary and must remain a call.
+                    if (func->getName().rfind(Sad::Compiler::kClosureDynBridgePrefix, 0) == 0)
+                        continue;
                     for (auto &block : func->basicBlocks)
                     {
                         if (!block)
