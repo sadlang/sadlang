@@ -473,8 +473,14 @@ namespace Sad
                 inline constexpr std::string_view UNICODE_CODEPOINTS = "نص_يونيكود";
                 // (AR) إنشاء خريطة
                 inline constexpr std::string_view MAP_CTOR = "خريطة";
-                // (AR) احصل على قيمة من الخريطة
+                // (AR) احصل على قيمة من الخريطة؛ غياب المفتاح يرجع «فراغ» (لا «لاشيء») أو البديل الثالث إن أعطي
                 inline constexpr std::string_view MAP_GET = "خريطة_احصل";
+                // (AR) جلب مصنف نصي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)
+                inline constexpr std::string_view MAP_FETCH_STR = "خريطة_اجلب_نص";
+                // (AR) جلب مصنف رقمي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)
+                inline constexpr std::string_view MAP_FETCH_NUM = "خريطة_اجلب_رقم";
+                // (AR) جلب مصنف منطقي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)
+                inline constexpr std::string_view MAP_FETCH_BOOL = "خريطة_اجلب_منطقي";
                 // (AR) تعيين قيمة في الخريطة
                 inline constexpr std::string_view MAP_SET = "خريطة_عين";
                 // (AR) مفاتيح الخريطة
@@ -3162,7 +3168,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1174> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1177> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3307,7 +3313,7 @@ namespace Sad
             {Names::Crypto::ED25519_DERIVE_PUB, "Crypto", "MODULE_FUNCTION", "CRYPTO", true, "يشتقّ المفتاح العامّ لتوقيع Ed25519 من بذرة مفتاح خاصّ (RFC 8032 §5.1.5): SHA-512 للبذرة ثمّ تقييد ثمّ ضرب بالنقطة الأساس وضغط النقطة. المدخل بذرة خاصّة ست عشريّة (64 حرفًا = 32 بايت)؛ المخرَج مفتاح عامّ ست عشريّ (64 حرفًا). مدخل غير صالح خطأ صريح. مُتحقَّق مقابل شعاعات RFC 8032 §7.1 (TEST 1/2/3). مطابق حرفيًّا بين المفسّر والمترجم.", "مفتاح_خاص — بذرة المفتاح الخاصّ الست عشريّة (64 حرفًا = 32 بايت).", ""},
             {Names::Crypto::ED25519_SIGN, "Crypto", "MODULE_FUNCTION", "CRYPTO", true, "يوقّع رسالة بمفتاح Ed25519 خاصّ (RFC 8032 §5.1.6): توقيع حتميّ (النتر مشتقّ من هاش المفتاح والرسالة، لا عشوائيّة) طوله 64 بايت (سلسلة ست عشريّة 128 حرفًا). التوقيع نفسه لنفس (الرسالة، المفتاح) في كلّ مرّة. المدخلان: الرسالة (نصّ) والمفتاح الخاصّ الست عشريّ (64 حرفًا)؛ مفتاح غير صالح خطأ صريح. يُتحقَّق منه عبر تحقق_توقيع بالمفتاح العامّ المقابل. مُتحقَّق مقابل شعاعات RFC 8032 §7.1. مطابق حرفيًّا بين المفسّر والمترجم.", "رسالة — الرسالة المراد توقيعها.، مفتاح_خاص — بذرة المفتاح الخاصّ الست عشريّة (64 حرفًا = 32 بايت).", ""},
             {Names::Crypto::ED25519_VERIFY, "Crypto", "MODULE_FUNCTION", "CRYPTO", true, "يتحقّق من توقيع Ed25519 (RFC 8032 §5.1.7): يُرجع صحيح إن كان التوقيع صالحًا للرسالة والمفتاح العامّ، وخطأ خلاف ذلك. **دالّة استعلام لا بوّابة: لا ترمي استثناءً ولا تنهي البرنامج على الفشل** — التوقيع الفاسد أو المدخل المشوَّه (طول خاطئ، حروف غير ست عشريّة، توقيع غير قانونيّ S≥L) كلّها تُرجِع خطأ، إذ غرض الدالّة أصلًا فحص مدخلات غير موثوقة. المدخلات: الرسالة، والتوقيع الست عشريّ (128 حرفًا)، والمفتاح العامّ الست عشريّ (64 حرفًا). مُتحقَّق مقابل شعاعات RFC 8032 §7.1 وحالات رفض (رسالة/توقيع/مفتاح مُعبَث بها). مطابق سلوكيًّا بين المفسّر والمترجم (كلاهما يُرجع منطقيًّا، لا تباعد آليّة فشل هنا).", "رسالة — الرسالة الأصليّة.، توقيع — التوقيع الست عشريّ (128 حرفًا = 64 بايت).، مفتاح_عام — المفتاح العامّ الست عشريّ (64 حرفًا = 32 بايت).", "منطقي"},
-            // ─── Maps (90) ───
+            // ─── Maps (93) ───
             {Names::Maps::JSON_PARSE, "Maps", "MODULE_FUNCTION", "MAPS", true, "تحليل JSON", "", ""},
             {Names::Maps::JSON_STRINGIFY, "Maps", "MODULE_FUNCTION", "MAPS", true, "تحويل لـ JSON", "", ""},
             {Names::Maps::JSON_PRETTY, "Maps", "MODULE_FUNCTION", "MAPS", true, "JSON منسَّق", "", ""},
@@ -3354,7 +3360,10 @@ namespace Sad
             {Names::Maps::COMPARE_TEXT, "Maps", "MODULE_FUNCTION", "MAPS", true, "مقارنة نصين", "", ""},
             {Names::Maps::UNICODE_CODEPOINTS, "Maps", "MODULE_FUNCTION", "MAPS", true, "نقاط Unicode", "", ""},
             {Names::Maps::MAP_CTOR, "Maps", "MODULE_FUNCTION", "MAPS", true, "إنشاء خريطة", "", ""},
-            {Names::Maps::MAP_GET, "Maps", "MODULE_FUNCTION", "MAPS", true, "احصل على قيمة من الخريطة", "", ""},
+            {Names::Maps::MAP_GET, "Maps", "MODULE_FUNCTION", "MAPS", true, "احصل على قيمة من الخريطة؛ غياب المفتاح يرجع «فراغ» (لا «لاشيء») أو البديل الثالث إن أعطي", "خريطة — الخريطة المقروءة.، مفتاح — المفتاح المطلوب.، بديل — اختياريّ: يُرجَع عند غياب المفتاح بدل «فراغ» (منفَّذ في المحرّكين معًا).", ""},
+            {Names::Maps::MAP_FETCH_STR, "Maps", "MODULE_FUNCTION", "MAPS", true, "جلب مصنف نصي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)", "خريطة — الخريطة المقروءة.، مفتاح — المفتاح المطلوب.", ""},
+            {Names::Maps::MAP_FETCH_NUM, "Maps", "MODULE_FUNCTION", "MAPS", true, "جلب مصنف رقمي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)", "خريطة — الخريطة المقروءة.، مفتاح — المفتاح المطلوب.", ""},
+            {Names::Maps::MAP_FETCH_BOOL, "Maps", "MODULE_FUNCTION", "MAPS", true, "جلب مصنف منطقي؛ الغياب «لاشيء» حصرا، والحضور بنوع مغاير أو بعدم مخزن خطأ تشغيل صريح (RUN074)", "خريطة — الخريطة المقروءة.، مفتاح — المفتاح المطلوب.", ""},
             {Names::Maps::MAP_SET, "Maps", "MODULE_FUNCTION", "MAPS", true, "تعيين قيمة في الخريطة", "", ""},
             {Names::Maps::MAP_KEYS, "Maps", "MODULE_FUNCTION", "MAPS", true, "مفاتيح الخريطة", "", ""},
             {Names::Maps::MAP_VALUES, "Maps", "MODULE_FUNCTION", "MAPS", true, "قيم الخريطة", "", ""},
@@ -4393,7 +4402,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", false, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1174, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1177, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة
@@ -4430,7 +4439,7 @@ namespace Sad
             ModuleId         requiredModule; /// (AR) الوحدة اللازمة / (EN) Required module
         };
 
-        inline constexpr std::array<ImportGateEntry, 306> IMPORT_GATE = {{
+        inline constexpr std::array<ImportGateEntry, 309> IMPORT_GATE = {{
             {Names::Assertions::SAFE_CHECK, ModuleId::ASSERTIONS},
             {Names::Maps::SHAPE, ModuleId::MAPS},
             {Names::Crypto::KDF_ARGON2ID, ModuleId::CRYPTO},
@@ -4600,6 +4609,9 @@ namespace Sad
             {Names::Maps::TAKE, ModuleId::MAPS},
             {Names::Basics::EXIT, ModuleId::BASICS},
             {Names::Maps::MAP_CTOR, ModuleId::MAPS},
+            {Names::Maps::MAP_FETCH_NUM, ModuleId::MAPS},
+            {Names::Maps::MAP_FETCH_BOOL, ModuleId::MAPS},
+            {Names::Maps::MAP_FETCH_STR, ModuleId::MAPS},
             {Names::Maps::MAP_DELETE, ModuleId::MAPS},
             {Names::Maps::MAP_GET, ModuleId::MAPS},
             {Names::Maps::MAP_HAS_KEY, ModuleId::MAPS},

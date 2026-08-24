@@ -396,6 +396,20 @@ namespace Sad
             // (EN) Delete all variables in this scope after successful pop
             scopeVariables_.erase(currentScope);
             declaredTypes_.erase(currentScope);
+            // (AR) 🔑 ومحو تسجيلات الثوابت أيضا: كانت تبقى مفهرسة بمؤشر النطاق
+            //      الميت، فإذا أعيد استخدام العنوان لنطاق دالة لاحق ورث «ثبات»
+            //      أسماء لم يصرح بها — فيسكت حارس «إعادة الاستيراد» في define
+            //      تعريفات مشروعة بصمت (المقيس: معامل طريقة باسم ثابت وحدة
+            //      ملتقط كان يخسر أمام الالتقاط لأن اسم الثابت بقي مسجلا على
+            //      عنوان النطاق المعاد استخدامه).
+            // (EN) 🔑 Purge const registrations too: they stayed keyed by the
+            //      dead scope's pointer, so a later function scope reusing the
+            //      address inherited constness for names it never declared —
+            //      define()'s re-import guard then silently dropped legitimate
+            //      definitions (measured: a method parameter named after a
+            //      captured module const lost to the capture because the const
+            //      name was still registered against the recycled address).
+            constVariables_.erase(currentScope);
         }
 
         // ========================================
@@ -635,6 +649,36 @@ namespace Sad
                 }
             }
             return Types::SadTypeKind::Integer;
+        }
+
+        bool VariableManager::hasDeclaredType(const std::string &name) const
+        {
+            // (AR) نفسُ رباطِ نطاقِ القيمة الذي يعتمده getDeclaredType (فجوة التظليل).
+            // (EN) Same value-scope binding getDeclaredType relies on (shadowing gap).
+            Scope *scope = findVariableScope(name);
+            if (scope == nullptr)
+                return false;
+            auto scopeIt = declaredTypes_.find(scope);
+            if (scopeIt == declaredTypes_.end())
+                return false;
+            return scopeIt->second.find(name) != scopeIt->second.end();
+        }
+
+        void VariableManager::clearDeclaredType(const std::string &name)
+        {
+            // (AR) SEM045: إعادةُ التصريحِ **غيرَ المصنَّفةِ** تمحو تصنيفَ الاسمِ المسجَّل —
+            //      الإبقاءُ عليه كان يجعل حارسَ إعادةِ الإسنادِ يشخّص خانةً صارت مجرّدةً
+            //      بنوعِ تصريحٍ بائد (تباعدٌ عن المحلّل الساكن، قِيس).
+            // (EN) SEM045: an UNTYPED re-declaration clears the recorded typedness —
+            //      keeping it made the reassignment guard judge a now-bare slot by a
+            //      stale declared type (measured divergence from the static analyzer).
+            Scope *scope = findVariableScope(name);
+            if (scope == nullptr)
+                return;
+            auto scopeIt = declaredTypes_.find(scope);
+            if (scopeIt == declaredTypes_.end())
+                return;
+            scopeIt->second.erase(name);
         }
 
         std::unordered_map<std::string, Value> VariableManager::captureVisibleVariables() const

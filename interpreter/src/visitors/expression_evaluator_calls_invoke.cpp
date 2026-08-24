@@ -14,6 +14,7 @@
 #include "expressions.h"
 #include "advanced_expr_nodes.h" // For AwaitExpr
 #include "class_manager.h"
+#include "utils/class_module_captures.h" // (AR) ع-1: حقن ثوابت وحدة التعريف
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
@@ -231,6 +232,9 @@ namespace Sad
                                             callArgs.push_back(lastResult_);
                                         }
                                         variableManager_.enterScope(Data::ScopeType::FUNCTION, "__call__");
+                                        // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والحقول
+                                        // (EN) ع-1: module constants before «هذا» and fields
+                                        Utils::injectClassModuleCaptures(classType, variableManager_);
                                         variableManager_.define("هذا", varValue);
                                         for (const auto &[fn, fv] : objPtr->fields)
                                         {
@@ -272,6 +276,9 @@ namespace Sad
                                             callArgs.push_back(lastResult_);
                                         }
                                         variableManager_.enterScope(Data::ScopeType::FUNCTION, "operator()");
+                                        // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والحقول
+                                        // (EN) ع-1: module constants before «هذا» and fields
+                                        Utils::injectClassModuleCaptures(classType, variableManager_);
                                         variableManager_.define("هذا", varValue);
                                         for (const auto &[fn, fv] : objPtr->fields)
                                         {
@@ -595,6 +602,9 @@ namespace Sad
                                         // (AR) تنفيذ __call__ كطريقة الكائن
                                         // (EN) Execute __call__ as the object's method
                                         variableManager_.enterScope(Data::ScopeType::FUNCTION, "__call__");
+                                        // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والحقول
+                                        // (EN) ع-1: module constants before «هذا» and fields
+                                        Utils::injectClassModuleCaptures(classType, variableManager_);
                                         variableManager_.define("هذا", calleeValue);
                                         variableManager_.define("this", calleeValue);
                                         for (const auto &[fname, fval] : objPtr->fields)
@@ -651,6 +661,9 @@ namespace Sad
                                         }
 
                                         variableManager_.enterScope(Data::ScopeType::FUNCTION, "operator()");
+                                        // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والحقول
+                                        // (EN) ع-1: module constants before «هذا» and fields
+                                        Utils::injectClassModuleCaptures(classType, variableManager_);
                                         variableManager_.define("هذا", calleeValue);
                                         for (const auto &[fname, fval] : objPtr->fields)
                                         {

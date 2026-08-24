@@ -97,6 +97,67 @@ namespace Sad::Compiler
     inline constexpr const char *kEntryBlockName = "entry";
 
     // ──────────────────────────────────────────────────────────────────
+    // (AR) تخطيطُ بنيةِ الإغلاقِ على الكومةِ — ثلاثُ خاناتٍ i64:
+    //      [0] مؤشّرُ الدالّةِ الخام، [1] مؤشّرُ بيئةِ الالتقاط — **عقدُ i64
+    //      التاريخيُّ لا يُمَسّ** (نواةُ النحلة/UEFI تقرأ الخانتَين الأوليَين
+    //      بحرفِهما)، [2] مؤشّرُ **جسرِ البروتوكولِ الموسوم**: غلافٌ يقبل
+    //      وسائطَ %SadDyn ويُعيد %SadDyn، تنتقيه مواقعُ النداءِ مجهولةُ
+    //      الهدفِ (مرجعُ دالّةٍ معاملًا) الموسومةُ `dynproto` — القياس:
+    //      نداءٌ غيرُ مباشرٍ بعشريٍّ عبرَ معاملٍ طبعَ قمامةَ i64 (t01/t03)
+    //      لأنّ الموقعَ بنى التوقيعَ من أنواعِه الساكنةِ وغلافُ المرجعِ
+    //      يُعيدُ double خامًّا.
+    // (EN) Heap closure struct layout — three i64 slots:
+    //      [0] raw fn pointer, [1] capture env pointer — the historical i64
+    //      contract, UNTOUCHED (nahla/UEFI kernels read the first two slots
+    //      byte-for-byte), [2] the TAGGED-PROTOCOL BRIDGE pointer: a wrapper
+    //      taking %SadDyn args and returning %SadDyn, selected by
+    //      unknown-target call sites (a func-ref as a parameter) marked
+    //      `dynproto` — measured: an indirect float call through a parameter
+    //      printed i64 garbage (t01/t03) because the site built the signature
+    //      from its static types while the func-ref wrapper returns raw double.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr int64_t kClosureFnSlotIndex = 0;
+    inline constexpr int64_t kClosureEnvSlotIndex = 1;
+    inline constexpr int64_t kClosureDynBridgeSlotIndex = 2;
+    inline constexpr int64_t kClosureStructBytes = 24;
+    // (AR) وسمُ تعليقِ CLOSURE_CALL الذي ينتقي بروتوكولَ الجسرِ الموسوم.
+    // (EN) CLOSURE_CALL comment marker selecting the tagged-bridge protocol.
+    inline constexpr const char *kClosureDynProtoMarker = "dynproto";
+    // (AR) بادئةُ تعليقِ CLOSURE_CALL معلومِ الهدف: «lambda:<اسم الدالّة>» — تبثّها
+    //      الواجهةُ وتستهلكها الخلفيّتان (LLVM والأصليّة) لحلِّ توقيعِ الهدف.
+    // (EN) Known-target CLOSURE_CALL comment prefix: «lambda:<function name>» —
+    //      emitted by the frontend, consumed by both backends (LLVM and native)
+    //      to resolve the target signature.
+    inline constexpr const char *kClosureLambdaCommentPrefix = "lambda:";
+    // (AR) لاحقةُ تعليقِ CLOSURE_CREATE الحاملةُ نوعَ عائدِ الهدفِ (رقمَ SadTypeKind)
+    //      — الجسرُ يحتاجُه ليَسِمَ العائدَ (مؤشّرُ ptr وحدَه لا يفرّق نصًّا عن مصفوفة).
+    // (EN) CLOSURE_CREATE comment suffix carrying the target's return kind
+    //      (SadTypeKind number) — the bridge needs it to tag the return value
+    //      (a bare ptr cannot distinguish a string from an array).
+    inline constexpr const char *kClosureRetKindMarker = ";ret:";
+    // (AR) بادئةُ اسمِ دالّةِ الجسرِ الموسومِ المولَّدة.
+    // (EN) Generated tagged-bridge function name prefix.
+    inline constexpr const char *kClosureDynBridgePrefix = "__dynbr_";
+    // (AR) أسماءُ معاملاتِ الجسرِ وسجلِّ نتيجتِه (مولّد emitDynBridgeFunction).
+    // (EN) The bridge's parameter names and result register (emitDynBridgeFunction).
+    inline constexpr const char *kClosureDynBridgeArgPrefix = "__dynbr_a";
+    inline constexpr const char *kClosureDynBridgeEnvParamName = "__dynbr_env";
+    inline constexpr const char *kClosureDynBridgeResultReg = "%__dynbr_r";
+    // (AR) وسمُ تعليقِ CLOSURE_CREATE لهدفٍ **مولِّد**: جسرُه لا يُغلِّفُ المقبضَ
+    //      (كان يُطبَعُ قمامةً صامتةً حيث كان الأساسُ ينهار AV — مقيس) بل يرفعُ
+    //      خطأً تشغيليًّا صريحًا بالنصَّين أدناه.
+    // (EN) CLOSURE_CREATE marker for a GENERATOR target: its bridge does not box
+    //      the raw handle (it printed silent garbage where the baseline crashed
+    //      with an AV — measured) but raises an explicit runtime error with the
+    //      two texts below.
+    inline constexpr const char *kClosureGenMarker = ";gen:1";
+    // (AR) نصّا فراغَي رسالةِ RUN033 لحارسِ جسرِ المولِّد ({type} و{operation}).
+    // (EN) RUN033 placeholder texts for the generator-bridge guard.
+    inline constexpr const char *kGeneratorDynCallTypeText = "\xD9\x85\xD9\x88\xD9\x84\xD9\x91\xD8\xAF"; // مولّد
+    inline constexpr const char *kGeneratorDynCallOperationText =
+        "\xD9\x86\xD8\xAF\xD8\xA7\xD8\xA1 \xD8\xBA\xD9\x8A\xD8\xB1 \xD9\x85\xD8\xA8\xD8\xA7\xD8\xB4\xD8\xB1 \xD8\xB9\xD8\xA8\xD8\xB1 \xD9\x85\xD8\xB9\xD8\xA7\xD9\x85\xD9\x84"; // نداء غير مباشر عبر معامل
+
+    // ──────────────────────────────────────────────────────────────────
     // (AR) فاصلُ فضاءِ أسماءِ المواقعِ الداخليّة (ISSUE-110/119). موطنُه هنا
     //      لا في `sir_builder.h` كي تبلغَه الخلفيّاتُ بلا جرِّ الباني كلِّه.
     //      تفصيلُ لماذا `#` وحدَه آمنٌ: انظر تعليقَ الفاصلِ في `sir_builder.h`.
@@ -159,6 +220,107 @@ namespace Sad::Compiler
     // (AR) اسم المرادف العربي لـ this — "هذا" — يُسجَّل كمرادف لـ self
     // (EN) Arabic alias for "this" — "هذا" — registered as alias for self
     inline constexpr const char *kThisAliasName = "\xD9\x87\xD8\xB0\xD8\xA7";
+
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) اسمُ خانةِ البانِي المفكوك — «‎#بناء‎» داخلَ فضاءِ الأسماءِ الداخليّ.
+    //
+    //      🔑 كان الاسمُ «بناء» عاريًا، فيتصادمُ فكُّ البانِي الحقيقيِّ
+    //      (`صنف.بناء`) مع فكِّ **طريقةٍ عاديّةٍ** اسمُها «بناء» — تهجئةٌ
+    //      مشروعةٌ لمعرِّفِ مستخدمٍ بل بروتوكولٌ حيٌّ في SadUI
+    //      (`دالة بناء()` في كلِّ الودجات). فكانت الخلفيّةُ تجدُ الطريقةَ
+    //      العاديّةَ باسمِ البانِي وتستدعيها بانيًا عندَ الإنشاء — خلافًا
+    //      للمفسّرِ (البانِي عندَه عقدةُ `ConstructorDecl` بنيويّةٌ لا اسم)
+    //      ولمصدرِ الحقيقة (لفظُ البانِي «باني» حصرًا — بذرة VE049).
+    //      السابقةُ `#` تجعلُ التصادمَ مستحيلًا بالبناء: لا معرِّفَ مستخدمٍ
+    //      يحوي `#` (نمطُ kSelfParamName نفسُه، ISSUE-119).
+    // (EN) The constructor's mangled slot name — «#بناء» inside the internal
+    //      slot namespace. It used to be the bare «بناء», so the real
+    //      constructor's mangling (`Class.بناء`) collided with an ordinary
+    //      method named «بناء» — a legal user identifier and a live SadUI
+    //      protocol. The backend would find the ordinary method under the
+    //      constructor's name and invoke it as a constructor at instantiation —
+    //      unlike the interpreter (structural `ConstructorDecl`, not a name)
+    //      and the source of truth (the constructor lexeme is «باني» only,
+    //      seed VE049). The `#` prefix makes the collision impossible by
+    //      construction (same pattern as kSelfParamName, ISSUE-119).
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr const char *kConstructorSlotName = "#\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+
+    // (AR) فاصلُ العضويّةِ في الأسماءِ المفكوكة — «صنف.عضو». مستهلَكُه اليومَ
+    //      برهانُ لاحقةِ البانِي أدناه حصرًا؛ مواضعُ الفكِّ العامّةُ ما تزال
+    //      تكتب `"."` خامًّا (دَينُ توحيدٍ شقيق) — فلا يُغيَّر وحدَه.
+    // (EN) The membership separator in mangled names — «Class.member». Its only
+    //      consumer today is the constructor-suffix proof below; the general
+    //      mangling sites still write a raw "." (sibling unification debt) — do
+    //      not change it alone.
+    inline constexpr const char *kClassMemberSeparator = ".";
+
+    // (AR) اللاحقةُ الكاملةُ لاسمِ البانِي المفكوك: الفاصلُ ثمّ اسمُ الخانة.
+    // (EN) The full mangled-constructor suffix: separator then slot name.
+    inline constexpr const char *kConstructorMangledSuffix = ".#\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+
+    // (AR) الاشتقاقُ الوحيدُ لاسمِ بانِي صنفٍ مفكوكًا — كان العقدُ مكتوبًا يدويًّا
+    //      في ٢١ موضعًا (أمامًا وخلفًا) بسلاسلَ سداسيّةٍ خام؛ كاتبٌ واحدٌ الآن.
+    // (EN) The single derivation of a class's mangled constructor name — the
+    //      contract used to be open-coded at 21 sites (frontend and backend)
+    //      as raw hex literals; one writer now.
+    inline std::string constructorNameFor(const std::string &className)
+    {
+        return className + kConstructorMangledSuffix;
+    }
+
+    // (AR) برهانا زمنِ ترجمة: خانةُ البانِي في الفضاءِ الداخليِّ المحميّ، واللاحقةُ
+    //      هي حرفيًّا الفاصلُ متبوعًا بالخانة — فلا ينشقُّ الطرفان صامتَين.
+    // (EN) Compile-time proofs: the slot lives in the protected internal
+    //      namespace, and the suffix is literally separator + slot name.
+    static_assert(startsWithPrefix(kConstructorSlotName, kSlotNamespaceSeparator),
+                  "constructor slot name must live in the internal slot namespace");
+    static_assert(startsWithPrefix(kConstructorMangledSuffix, kClassMemberSeparator) &&
+                      startsWithPrefix(kConstructorMangledSuffix + 1, kConstructorSlotName) &&
+                      startsWithPrefix(kConstructorSlotName, kConstructorMangledSuffix + 1),
+                  "constructor suffix must be exactly the member separator followed by the slot name");
+
+    // ──────────────────────────────────────────────────────────────────
+    // (AR) اسمُ خانةِ الهادمِ المفكوك — «‎#هدم‎» — العقدُ الشقيقُ لخانةِ البانِي.
+    //
+    //      حقيقتان مقيستان (٢٣ آب ٢٠٢٦): (١) الهادمُ لا يُستدعى قطُّ في
+    //      المحرّكين (لا عند نهايةِ النطاقِ ولا نهايةِ البرنامج) —
+    //      `emitDestructorCall` بلا مستدعٍ واحدٍ، وخفضُ `هدم()` الكلمةِ
+    //      المفتاحيّةِ داخلَ الصنفِ كان يُسقِطها صامتًا. (٢) الكشفُ بالاسمِ
+    //      (هدم/‏__del__/‏__destroy__) كان يلتقطُ **طرائقَ مستخدمٍ عاديّةً**
+    //      بهذه الأسماءِ فيُقصيها من vtable ويسجّلها هوادمَ — بابُ تصادمِ
+    //      «بناء» نفسُه. الثابتُ هنا يُرسي العقدَ ليومِ توصيلِ الهدمِ الفعليّ؛
+    //      والكشفُ البنيويُّ (بادئة `#`) حلَّ محلَّ قائمةِ التهجئات.
+    // (EN) The destructor's mangled slot name — «#هدم» — the constructor
+    //      slot's sibling contract. Two measured facts (2026-08-23): (1) the
+    //      destructor never runs in either engine (emitDestructorCall has no
+    //      caller; the keyword form inside a class was silently dropped), and
+    //      (2) name-based detection (هدم/__del__/__destroy__) captured
+    //      ordinary user methods, evicting them from the vtable and
+    //      registering them as destructors — the same collision door as
+    //      «بناء». This constant pins the contract for the day destruction is
+    //      actually wired; structural detection (the `#` prefix) replaces the
+    //      spelling list.
+    // ──────────────────────────────────────────────────────────────────
+    inline constexpr const char *kDestructorSlotName = "#\xD9\x87\xD8\xAF\xD9\x85";
+
+    // (AR) اللاحقةُ الكاملةُ لاسمِ الهادمِ المفكوك.
+    // (EN) The full mangled-destructor suffix.
+    inline constexpr const char *kDestructorMangledSuffix = ".#\xD9\x87\xD8\xAF\xD9\x85";
+
+    // (AR) الاشتقاقُ الوحيدُ لاسمِ هادمِ صنفٍ مفكوكًا.
+    // (EN) The single derivation of a class's mangled destructor name.
+    inline std::string destructorNameFor(const std::string &className)
+    {
+        return className + kDestructorMangledSuffix;
+    }
+
+    static_assert(startsWithPrefix(kDestructorSlotName, kSlotNamespaceSeparator),
+                  "destructor slot name must live in the internal slot namespace");
+    static_assert(startsWithPrefix(kDestructorMangledSuffix, kClassMemberSeparator) &&
+                      startsWithPrefix(kDestructorMangledSuffix + 1, kDestructorSlotName) &&
+                      startsWithPrefix(kDestructorSlotName, kDestructorMangledSuffix + 1),
+                  "destructor suffix must be exactly the member separator followed by the slot name");
 
     // ──────────────────────────────────────────────────────────────────
     // (AR) أسماء وقت التشغيل (runtime) للاستثناءات والمعالجات
@@ -371,6 +533,127 @@ namespace Sad::Compiler
     //      A new contract with map_ops.cpp closing card م-٠٠١ criterion ق٣.
     inline constexpr const char *kRuntimeMapGetDyn = "__sad_map_get_dyn";
 
+    // (AR) [RFC عقد الغياب — سطحُ الطريقة] القناتان نفساهما (قراءةٌ موسومةٌ
+    //      وكتابةٌ مصنَّفة) لكن من **سطحِ الطريقة** `.احصل()`/`.عين()` لا من
+    //      القوسَين. الاسمُ هو ناقلُ السطحِ إلى الخلفيّة — وهي طريقةُ التمييزِ
+    //      القائمةُ أصلًا (`receiverIsIndexing` يُشتَقُّ من اسمِ القناة) —
+    //      فيرفعُ الغيابُ الموسومُ RUN033 «نوع المعامل 'VOID' غير مدعوم في
+    //      العملية '.احصل()'» مطابقًا المفسّرَ (قِيس 2026-08-23)، بدل رمزَي
+    //      الفهرسةِ SEM011/RUN018 اللذين كانا يكذبان عن السطح.
+    // (EN) [absence-contract RFC — method surface] The same two channels
+    //      (tagged read, typed write) but entered from the METHOD surface
+    //      `.احصل()`/`.عين()` rather than brackets. The name carries the
+    //      surface to the backend — the discrimination mechanism already in
+    //      use — so tagged absence raises RUN033 with the interpreter's
+    //      operation label (measured 2026-08-23) instead of the indexing
+    //      codes SEM011/RUN018 which lied about the surface.
+    inline constexpr const char *kRuntimeMapGetDynMethod = "__sad_map_get_dyn_method";
+    inline constexpr const char *kRuntimeMapSetTypedMethod = "__sad_map_set_typed_method";
+
+    // (AR) [RFC عقد الغياب — سطحُ «لكل»] حارسُ الغيابِ قبل آلةِ التكرار:
+    //      يفحصُ وسمَ المصدرِ الموسومِ (%SadDyn)؛ إن كان فراغًا أو عدمًا رفعَ
+    //      RUN055 بملءِ `{type}` بعبارةِ المفسّرِ الحرفيّةِ أدناه — وإلّا مرَّ
+    //      بلا أثر. لا يتوسّعُ لغيرِ الغياب: وسمٌ آخرُ غيرُ قابلٍ للتكرار يبقى
+    //      على حارسِ `normalizeArrayPtr` القائمِ (حدٌّ معلَن).
+    // (EN) [absence-contract RFC — foreach surface] Absence guard ahead of the
+    //      iteration machinery: inspects the tagged source's kind; Void/Null
+    //      raises RUN055 with {type} filled with the interpreter's literal
+    //      phrase below — anything else passes through untouched (other
+    //      non-iterable tags stay on the existing normalizeArrayPtr guard;
+    //      a declared limit).
+    inline constexpr const char *kRuntimeForeachAbsenceGuard = "__sad_foreach_absence_guard";
+
+    // (AR) [RFC عقد الغياب — سطحُ «لكل»، الموجةُ الثانية] **مُطبِّعُ** مصدرِ
+    //      التكرارِ الموسوم: خلَفُ الحارسِ أعلاه وقد صار مُنتِجًا — يرفعُ RUN055
+    //      لكلِّ وسمٍ غيرِ قابلٍ للتكرارِ (كالحارس)، ويعيدُ النصَّ الموسومَ
+    //      مصفوفةَ أحرفِ UTF-8، والخريطةَ الموسومةَ مصفوفةَ مفاتيحِها — كلاهما
+    //      %SadDyn بوسمِ مصفوفةٍ — ويمرِّرُ المصفوفةَ والكائنَ كما هما، فتعملُ
+    //      آلةُ التكرارِ المصفوفيّةُ القائمةُ (المسارُ الأخضرُ للمصفوفةِ
+    //      الموسومة) على الناتجِ الموحَّد. يطابقُ تكرارَ المفسّرِ المقيس
+    //      (2026-08-23): النصُّ أحرفًا والخريطةُ مفاتيح.
+    // (EN) [absence-contract RFC — foreach surface, wave 2] The tagged-source
+    //      NORMALIZER: the guard above turned producer — raises RUN055 for
+    //      every non-iterable kind (as the guard did), returns a tagged string
+    //      as its UTF-8 chars array and a tagged map as its keys array (both
+    //      %SadDyn, Array kind), and passes arrays/objects through unchanged,
+    //      so the existing array iteration machinery (the tagged-array green
+    //      path) runs on the unified result. Matches the interpreter's
+    //      measured iteration (2026-08-23): string by chars, map by keys.
+    inline constexpr const char *kRuntimeForeachNormalize = "__sad_foreach_normalize";
+
+    // (AR) قناةُ **القيمِ** لصيغةِ الزوجِ «لكل مفتاح، قيمة» على مصدرٍ موسوم:
+    //      خريطةٌ موسومةٌ تعيدُ مصفوفةَ قيمِها بأوسامِها (مخزنُ أوسامٍ لكلِّ
+    //      عنصر)، وغيرُ الخريطةِ مصفوفةً فارغةً — فالمفسّرُ يتركُ متغيّرَ
+    //      القيمةِ بلا ربطٍ لغيرِ الخريطةِ (حدٌّ معلَنٌ موازٍ لفرعِ الخريطةِ
+    //      الساكنة). تُبَثُّ بعدَ المُطبِّعِ أعلاه فلا تبلغُها الأوسامُ غيرُ
+    //      القابلةِ للتكرارِ (رُفعت قبلَها RUN055).
+    // (EN) The VALUES channel for the pair form «for key, value» on a tagged
+    //      source: a tagged map returns its values array with per-element tags,
+    //      any other kind an empty array — the interpreter leaves the value
+    //      variable unbound for non-maps (a declared limit mirroring the
+    //      static-map branch). Emitted after the normalizer above, so
+    //      non-iterable kinds never reach it (RUN055 already raised).
+    inline constexpr const char *kRuntimeForeachNormalizeValues =
+        "__sad_foreach_normalize_values";
+
+    // (AR) مصدرُ «لكل» نصٌّ **ساكنُ النوع**: تفكيكُه مصفوفةَ أحرفٍ عبرَ عائلةِ
+    //      «تقسيم» (فاصلٌ فارغٌ = أحرفُ UTF-8). كان النصُّ الساكنُ يسقطُ إلى
+    //      آلةِ المصفوفةِ فينهارُ SIGSEGV بلا تشخيصٍ (قِيس 2026-08-23) بينما
+    //      يكرّره المفسّرُ أحرفًا.
+    // (EN) A STATICALLY-typed string foreach source: decomposed into a chars
+    //      array via the split family (empty delimiter = UTF-8 chars). A static
+    //      string used to fall into the array machinery and SIGSEGV with no
+    //      diagnostic (measured 2026-08-23) where the interpreter iterates
+    //      its characters.
+    inline constexpr const char *kRuntimeStringChars = "__sad_string_chars";
+
+    // (AR) [عقدُ الغياب — بذرة [٨]] قاسرُ عائدِ الدالّةِ المصرَّحةِ «رقم» الذي
+    //      يعبرُ موسومًا (%SadDyn): يقرأُ الوسمَ زمنَ التشغيلِ — عشريٌّ يُقسَرُ
+    //      رقمًا داخلَ الوسمِ (fptosi، كقسرِ المفسّرِ المقيس 2.5⇒2)، وسائرُ
+    //      الأوسامِ (فراغ/عدم/منطقي/نص) تعبرُ **بوسمِها** إلى المستهلكِ كما
+    //      يمرّرها المفسّرُ (قِيس 2026-08-23: «صحيح»/«منطقي» للمنطقيِّ،
+    //      و«فراغ» لا «عدم» للغياب، و==لاشيء ⇒ «خطأ»، والحسابُ ⇒ RUN053).
+    //      يُدرِجُه ممرُّ الخاناتِ الديناميّةِ قبلَ كلِّ RET في دالّةٍ مصرَّحةٍ
+    //      «رقم» رُقّي عائدُها إلى %SadDyn — فتُستبدَلُ بذرةُ العدمِ الواحدةُ
+    //      (التي لا تفرّقُ فراغًا من عدمٍ ولا تحرسُ الحساب) بالوسمِ الكامل.
+    // (EN) [absence contract — seed [٨]] The declared-«رقم» return coercer for
+    //      returns that now travel tagged (%SadDyn): reads the runtime kind —
+    //      Float is coerced to Int inside the tag (fptosi, the interpreter's
+    //      measured 2.5⇒2 coercion) while every other kind (Void/Null/Bool/
+    //      Str) crosses WITH its tag exactly as the interpreter passes it
+    //      (measured 2026-08-23: «صحيح»/«منطقي» for bool, «فراغ» not «عدم»
+    //      for absence, ==لاشيء ⇒ «خطأ», arithmetic ⇒ RUN053). The dyn-slot
+    //      pass inserts it before every RET of a declared-«رقم» function whose
+    //      return was promoted to %SadDyn — replacing the single null sentinel
+    //      (which cannot tell Void from Null nor guard arithmetic) with the
+    //      full tag.
+    inline constexpr const char *kRuntimeDeclaredNumRetCoerce =
+        "__sad_declared_num_ret_coerce";
+
+    // (AR) عبارةُ `{type}` التي يملأ بها المفسّرُ RUN055 **حرفيًّا** لكلِّ مصدرٍ
+    //      غيرِ قابلٍ للتكرار (statement_executor.cpp — القيمةُ مهجّأةٌ هناك
+    //      بلا تمييزِ نوعٍ). نسخةٌ ثانيةٌ من لفظِ المفسّرِ بالضرورة: تغييرُ
+    //      أحدِهما دون الآخرِ يفكُّ التكافؤَ المقيس.
+    // (EN) The literal {type} phrase the interpreter fills into RUN055 for any
+    //      non-iterable source (statement_executor.cpp spells it with no type
+    //      discrimination). Necessarily a second copy of the interpreter's
+    //      wording: changing one without the other breaks the measured parity.
+    inline constexpr const char *kNotIterableTypeLabel = "غير معروف/unknown";
+
+    // (AR) الجلب المصنَّف (RFC عقد الغياب — المرحلة ب): الغيابُ «لاشيء» حصرًا،
+    //      والحضورُ بنوعٍ مغايرٍ أو بعدمٍ مخزَّنٍ خطأُ تشغيلٍ صريح (RUN074).
+    //      النصّيّ والرقميّ يُرجعان قيمتَهما المحسوسة (والغيابُ حارسُ kSadNullSentinel
+    //      القائم)، والمنطقيُّ %SadDyn (وسم Bool/Null) لأنّ «منطقي؟» خارجُ النطاق
+    //      البِتّيّ (sirNullableNeedsOutOfBandTag) — لا تمثيلَ جديدًا في المرحلتين.
+    // (EN) Typed fetch (absence-contract RFC, stage ب): absence is Null exclusively;
+    //      presence with a different type or a stored null is an explicit runtime
+    //      error (RUN074). Str/Int return concrete values (absence = the existing
+    //      kSadNullSentinel guard); Bool returns %SadDyn (Bool/Null kinds) since
+    //      `bool?` needs the out-of-band tag. No new representation.
+    inline constexpr const char *kRuntimeMapFetchStr = "__sad_map_fetch_str";
+    inline constexpr const char *kRuntimeMapFetchInt = "__sad_map_fetch_int";
+    inline constexpr const char *kRuntimeMapFetchBool = "__sad_map_fetch_bool";
+
     // (AR) إزالةُ التشكيلِ العربيِّ من نصّ — نظيرُ `ازل_تشكيل` في المفسّر.
     // (EN) Strip Arabic diacritics from a string — the compiler counterpart of
     //      the interpreter's `ازل_تشكيل`.
@@ -511,6 +794,16 @@ namespace Sad::Compiler
     //      assertion. These mirror `DynKind::Map` and `DynKind::Array`.
     inline constexpr int64_t kMapValueTagMap = 6;
     inline constexpr int64_t kMapValueTagArray = 7;
+    // (AR) [ISSUE-047] الكائن — كان يتقاسمُ الوسمَ ٦ مع الخريطةِ فتكذبُ `نوع()`
+    //      «خريطة» على كائنٍ في خانةٍ ديناميّة، ويعاملُه مصيِّرُ الخريطةِ نصًّا
+    //      ترويسةَ خريطةٍ ⇒ SIGSEGV مقيس. وسمٌ مستقلٌّ يقابلُ `DynKind::Obj`،
+    //      فيُميَّزُ الكائنُ في كلِّ قارئٍ ويُحرَسُ غيابُ مفتاحِه كسائرِ الأنواع.
+    // (EN) [ISSUE-047] Object — used to share tag 6 with Map, so نوع() lied
+    //      «خريطة» for an object in a dyn slot, and the map stringifier walked the
+    //      object as a map header ⇒ a measured SIGSEGV. A distinct tag mirroring
+    //      `DynKind::Obj`: every reader can now tell objects apart, and absent-key
+    //      reads on object-valued maps are guarded like every other kind.
+    inline constexpr int64_t kMapValueTagObject = 8;
 
     // ──────────────────────────────────────────────────────────────────
     // (AR) [م-٠٠١] الاشتقاقُ الوحيدُ لوسمِ قيمةِ الخريطةِ من نوعِها الساكن.
@@ -546,8 +839,14 @@ namespace Sad::Compiler
         case TypeKind::Void:
             return kMapValueTagVoid;
         case TypeKind::Map:
-        case TypeKind::Struct:
             return kMapValueTagMap;
+        // (AR) [ISSUE-047] كان `Struct` يسقطُ في وسمِ الخريطةِ و`Class` في وسمِ
+        //      النصِّ (default) — كذبتانِ مختلفتان لنوعٍ واحد. كلاهما كائنٌ.
+        // (EN) [ISSUE-047] Struct used to fall into the Map tag and Class into the
+        //      String default — two different lies for one kind. Both are objects.
+        case TypeKind::Struct:
+        case TypeKind::Class:
+            return kMapValueTagObject;
         case TypeKind::Array:
             return kMapValueTagArray;
         default:
@@ -592,6 +891,23 @@ namespace Sad::Compiler
     //      replaces it with __sad_panic(kSadPanicCheckViolation).
     inline constexpr const char *kDivZeroRun001Msg =
         "خطأ [RUN001]: محاولة قسمة %g على صفر\n";
+
+    // (AR) تشخيص المطوّر (مستضاف فقط) للحساب على قيمةٍ موسومةٍ غيابًا (Null/Void)
+    //      زمنَ التشغيل — نظيرُ RUN053 في المفسّر. كان الفكُّ يقرأ حمولةَ الغياب
+    //      صفرًا فيُنتج «غياب + 1 = 1» بخروجِ صفرٍ — أخطرُ صنفِ تباعدٍ (المفسّرُ
+    //      يُبلغ RUN053 ويخرج 1). نصُّ العمليّةِ «حسابية / arithmetic» هو حرفيًّا
+    //      ما يضعه المفسّرُ في النائب {op} من رسالة الكتالوج — تكافؤُ صياغة.
+    //      في الوضع الحرّ يُستبدل بنداء __sad_panic(kSadPanicCheckViolation).
+    // (EN) Hosted-only developer diagnostic for arithmetic on a runtime-tagged
+    //      absence (Null/Void) — the compiled counterpart of the interpreter's
+    //      RUN053. The unpack used to read the absent payload as zero, so
+    //      «absence + 1 = 1» exited 0 — the worst divergence class (the
+    //      interpreter reports RUN053 and exits 1). The op text
+    //      «حسابية / arithmetic» is literally what the interpreter puts in the
+    //      catalog's {op} placeholder. Freestanding replaces this with
+    //      __sad_panic(kSadPanicCheckViolation).
+    inline constexpr const char *kNumericRequiredRun053Msg =
+        "خطأ [RUN053]: العملية 'حسابية / arithmetic' تتطلّب قيمة رقمية\n";
 
     // (AR) نصٌّ عدديٌّ يتجاوزُ مدى النوعِ الهدف — `رقم("9223372036854775808")`
     //      و`عشري("1e309")`.

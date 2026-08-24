@@ -757,6 +757,50 @@ namespace Sad
                         args.back().elementType = argResult.elementType;
                 }
 
+                // ================================================================
+                // (AR) نداءٌ أماميٌّ على طريقةٍ لم تُبنَ بعدُ (sirFunction فارغ):
+                //      توقيعُ المرحلة 1.3 معاملاتُه افتراضُ «رقم»، وبناءُ الطريقةِ
+                //      لاحقًا يقرأ الجدولَ — فيُوسَّع الافتراضُ هنا بنوعِ الوسيطِ
+                //      الفعليِّ كي يتطابق التعريفُ مع النداءِ المبكِّر (كان «هذا.
+                //      نصّف(5.0)» من الباني يُسقط LLVM بتأكيدةِ «bad signature» —
+                //      قِيس: بذرة 132). مرآةُ استنتاجِ باني buildNewObject، وبنفس
+                //      عقدِ class_main: ما ليس «رقمًا» في الجدول هو المعتمَد.
+                // (EN) Forward call to a not-yet-built method (null sirFunction):
+                //      the Phase 1.3 signature defaults params to Integer, and the
+                //      later method build reads the table — so widen the default
+                //      here with the actual argument kind, keeping the definition
+                //      consistent with the early call («هذا.نصّف(5.0)» from the
+                //      ctor hit LLVM's "bad signature" assertion — measured: seed
+                //      132). Mirrors buildNewObject's ctor inference under the
+                //      same class_main contract: non-Integer table entries win.
+                // ================================================================
+                {
+                    auto fwdIt = b_.functionTable_.find(fullMethodName);
+                    if (fwdIt != b_.functionTable_.end() && fwdIt->second.sirFunction == nullptr)
+                    {
+                        auto &fwdParams = fwdIt->second.parameters;
+                        const auto &fwdDefaulted = fwdIt->second.paramDefaulted;
+                        for (size_t i = 1; i < fwdParams.size() && i < args.size(); ++i)
+                        {
+                            // (AR) التوسيع للمعاملات **غير المصرَّحة** حصرًا (رصد مراجعة
+                            //      الجودة): معامل مصرَّح «رقم» يُنادى بنص يبقى رقمًا —
+                            //      خطأ النوع يُشخَّص لا يُقنَّع بإعادة كتابة التوقيع.
+                            // (EN) Widen ONLY undeclared params (quality-review finding):
+                            //      a declared «رقم» called with a string stays Integer —
+                            //      the type error gets diagnosed, not masked by silently
+                            //      rewriting the signature.
+                            if (i < fwdDefaulted.size() && fwdDefaulted[i] &&
+                                fwdParams[i].type == SadTypeKind::Integer &&
+                                args[i].dataType != SadTypeKind::Integer &&
+                                args[i].dataType != SadTypeKind::Void &&
+                                args[i].dataType != SadTypeKind::Unknown)
+                            {
+                                fwdParams[i].type = args[i].dataType;
+                            }
+                        }
+                    }
+                }
+
                 // ========================================================================
                 // (AR) الخطوة 3.5: فحص طرق المصفوفات المدمجة
                 //      ⚠ نتخطى فحوص المدمجات إذا كان الكائن نسخة صنف يملك طريقة مطابقة

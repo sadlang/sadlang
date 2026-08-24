@@ -14,6 +14,7 @@
 #include "expressions.h"
 #include "advanced_expr_nodes.h" // For AwaitExpr
 #include "class_manager.h"
+#include "utils/class_module_captures.h" // (AR) ع-1: حقن ثوابت وحدة التعريف
 #include "object_instance.h"
 #include "error_manager.h"
 #include "ownership_manager.h"
@@ -32,6 +33,9 @@
 #include <set>
 
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "null_safety/null_safety_analyzer.h" // (AR) محور الصرامة D6 لحارس SEM045 / (EN) D6 strictness axis for the SEM045 guard
+#include "visitors/sem045_report.h"           // (AR) باب إبلاغ SEM045 الواحد / (EN) single SEM045 reporting door
+#include "sad_type_utils.h"                   // (AR) kindToArabic لرسالة SEM045 / (EN) kindToArabic for the SEM045 message
 namespace Sad
 {
     namespace Interpreter
@@ -212,6 +216,10 @@ namespace Sad
                 // ═══════════════════════════════════════════════════════════════
                 variableManager_.enterScope(Data::ScopeType::FUNCTION, "set_" + node.member);
 
+                // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والقيمة والحقول
+                // (EN) ع-1: defining module's constants before «هذا», value and fields
+                Utils::injectClassModuleCaptures(classType, variableManager_);
+
                 // (AR) ربط 'هذا' و 'قيمة' / (EN) Bind 'this' and 'value'
                 variableManager_.define("هذا", objectValue);
                 variableManager_.define("this", objectValue);
@@ -288,6 +296,30 @@ namespace Sad
             // (AR) معالجة الحقل العادي
             // (EN) Handle regular field
             checkMemberAccess(field->visibility, node.member, classType);
+
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) SEM045 (RFC عقد الغياب — حقول الأصناف): «فراغ» لا يعبر إلى
+            //      حقلٍ مصنَّف («رقم قيمة») — نفس عقد خانات التصريح وإعادة
+            //      الإسناد والمعاملات، على محور الصرامة D6 نفسِه. الحقلُ
+            //      المجرَّد (declaredKind=Unknown) خانةٌ ديناميّةٌ تقبل الفراغَ
+            //      كما تقبله الخانةُ المجرَّدة — لا حراسةَ عليه.
+            // (EN) SEM045 (absence-contract RFC — class fields): Void must not
+            //      cross into a TYPED field — same D6 contract as the
+            //      declaration/reassignment/parameter guards. A bare field
+            //      (declaredKind=Unknown) is a dynamic slot and accepts Void
+            //      like any bare slot — unguarded on purpose.
+            // ═══════════════════════════════════════════════════════════════
+            if (newValue.getKind() == Types::SadTypeKind::Void &&
+                Sad::Interpreter::Sem045::kindIsGuarded(field->declaredKind))
+            {
+                // (AR) الإبلاغُ والمسنَدُ عبر البابِ الواحد (sem045_report).
+                // (EN) Reporting and predicate through the single door (sem045_report).
+                Sad::Interpreter::Sem045::reportVoidCrossing(
+                    node.member, Sad::Types::kindToArabic(field->declaredKind),
+                    node.position,
+                    Sad::NullSafety::strictnessFromOwnershipMode(
+                        statementExecutor_.getMemoryPolicy().ownershipMode));
+            }
 
             if (isRealObject && objPtr)
             {

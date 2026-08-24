@@ -232,7 +232,7 @@ namespace Sad
 
                                 // (AR) نسخ دوال SIR الفعلية في الوحدة (مطلوب للربط)
                                 //      نستنسخ كل دالة من الصنف الأصلي باسم الصنف المستعار
-                                //      هذا يضمن أن الرابط يجد حيوان_أليف.بناء / حيوان_أليف.وصف
+                                //      هذا يضمن أن الرابط يجد باني المستعار المفكوك (constructorNameFor) وطرائقه (حيوان_أليف.وصف)
                                 // (EN) Clone actual SIR functions in module (required for linking)
                                 //      Clone each function from original class with alias class name
                                 if (b_.module_)

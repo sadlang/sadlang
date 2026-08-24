@@ -71,11 +71,27 @@ namespace Sad
             return dynGlobalSlots_.count(n) != 0;
         }
 
+        // (AR) SEM045 (أ٢): النوع المصرَّح للخانة — Unknown لغير المصرَّحة.
+        // (EN) SEM045 (stage أ٢): the slot's declared kind; Unknown when undeclared.
+        Sad::Types::SadTypeKind LLVMCodeGen::declaredSlotKind(
+            const std::string &funcName, const std::string &slotName) const
+        {
+            const std::string n = cleanSlotName(slotName);
+            auto it = declaredTypedSlots_.find(funcName);
+            if (it == declaredTypedSlots_.end())
+                return Sad::Types::SadTypeKind::Unknown;
+            auto found = it->second.find(n);
+            if (found == it->second.end())
+                return Sad::Types::SadTypeKind::Unknown;
+            return found->second;
+        }
+
         void LLVMCodeGen::collectDynSlots(std::shared_ptr<SIRModule> sirModule)
         {
             dynGlobalSlots_.clear();
             dynLocalSlots_.clear();
             funcLocalNames_.clear();
+            declaredTypedSlots_.clear();
             if (!sirModule)
                 return;
 
@@ -83,7 +99,11 @@ namespace Sad
             // (EN) Copy the per-function local-name record from SIR for isDynSlot at emit time
             for (const auto &fn : sirModule->getFunctions())
                 if (fn)
+                {
                     funcLocalNames_[fn->getName()] = fn->localSlotNames;
+                    // (AR) SEM045 (أ٢): سجلُّ الخانات المصرَّحة — لحارس STORE.
+                    declaredTypedSlots_[fn->getName()] = fn->declaredTypedSlots;
+                }
 
             // (AR) أسماء المتغيّرات العامّة + العامّ المصرَّح Any أصلًا (المستوى الأعلى)
             // (EN) global names + globals the frontend already declared Any (top level)
@@ -102,6 +122,12 @@ namespace Sad
             for (const auto &fn : sirModule->getFunctions())
                 if (fn)
                     dynReturnFuncs[fn->getName()] = (fn->returnType == SadTypeKind::Any);
+
+            // (AR) [بذرة [٨]] الدوالُّ المصرَّحةُ «رقم» التي رُقّي عائدُها إلى
+            //      %SadDyn — يُدرَجُ لها قاسرُ RET في التمريرةِ اللاحقةِ أدناه.
+            // (EN) [seed [٨]] Declared-«رقم» functions whose return was promoted
+            //      to %SadDyn — the RET coercer is inserted for them below.
+            std::set<std::string> declaredNumRetFuncs;
 
             bool changed = true;
             for (int iter = 0; changed && iter < kDynScanMaxIterations; ++iter)
@@ -140,6 +166,17 @@ namespace Sad
                     auto valueIsDyn = [&](const SIROperand &op)
                     {
                         if (op.dataType == SadTypeKind::Any)
+                            return true;
+                        // (AR) SEM045 (دَين الخانة المجرَّدة): ثابتُ الفراغِ (ConstantVoid) لا
+                        //      يُمثَّل إلّا في خانةِ %SadDyn — وسمُ Void لا نظيرَ له في خانةٍ
+                        //      خامٍ i64، فحمولتُه الصفريّةُ تُقرأ رقمًا كاذبًا. يُقصَر على
+                        //      CONSTANT عمدًا: معاملُ LABEL يحمل dataType=Void وليس قيمةً.
+                        // (EN) SEM045 (bare-slot debt): the Void constant is representable only
+                        //      in a %SadDyn slot — a raw i64 slot has no Void tag, so its zero
+                        //      payload reads back as a lying number. Restricted to CONSTANT on
+                        //      purpose: LABEL operands carry dataType=Void without being values.
+                        if (op.dataType == SadTypeKind::Void &&
+                            op.type == SIROperandType::CONSTANT)
                             return true;
                         if (op.type != SIROperandType::REGISTER)
                             return false;
@@ -293,18 +330,106 @@ namespace Sad
                             }
 
                             // (AR) 4) إرجاعُ قيمةٍ ديناميّة ⇒ نوع إرجاع الدالّة Any (%SadDyn)
-                            //         — كان dynPayloadI64 يقتطع الوسم عند حدود الدالّة
+                            //         — كان dynPayloadI64 يقتطع الوسم عند حدود الدالّة.
+                            //
+                            //         ⚠️ إلّا العائدَ **المصرَّحَ في المصدر**: التصريحُ عقدُ
+                            //         الكاتبِ والمفسّرُ (المرجعُ) يقسر الموسومَ عند حدِّه —
+                            //         ترقيتُه هنا جعلت «دالة رقم» تُرجِع عشريًّا موسومًا
+                            //         يفلت 5.0 حيث يطبع المفسّرُ 5 (قِيس — كشفُ المراجعةِ
+                            //         العدائيّةِ لموجةِ وسمِ حدِّ المعامل). العائدُ المصرَّحُ
+                            //         يبقى على تمثيلِه وبابُ RET يفكُّ الموسومَ بوسمِه
+                            //         (unpackI64: عشريّ⇒fptosi، cf_return_switch.cpp).
                             // (EN) 4) returning a dynamic value ⇒ Any (%SadDyn) return type —
-                            //         dynPayloadI64 used to strip the kind at the boundary
-                            if (inst.opcode == SIROpcode::RET && !inst.operands.empty() &&
-                                fn->returnType != SadTypeKind::Any &&
-                                fn->returnType != SadTypeKind::Void &&
-                                valueIsDyn(inst.operands[0]))
+                            //         dynPayloadI64 used to strip the kind at the boundary.
+                            //         EXCEPT a source-declared return: the declaration is the
+                            //         author's contract and the interpreter coerces at it —
+                            //         promoting it let a Float-tagged value escape a declared
+                            //         «رقم» as 5.0 where the interpreter prints 5 (measured;
+                            //         adversarial review of the param-boundary tag wave).
+                            //         The RET door unpacks by tag (unpackI64).
+                            // (AR) [بذرة [٨] — تعديلُ الاستثناء] المصرَّحُ «رقم» يُرقّى
+                            //      **هو أيضًا** حين يُرجِعُ موسومًا — لكنْ مع قاسرِ RET
+                            //      (kRuntimeDeclaredNumRetCoerce، يُدرَجُ أدناه): العشريُّ
+                            //      يُقسَرُ رقمًا داخلَ الوسمِ فلا يفلت 5.0، وسائرُ الأوسامِ
+                            //      تعبرُ بوسمِها كما يمرّرها المفسّرُ (كانت بذرةُ العدمِ
+                            //      الواحدةُ تُسوّي فراغًا بعدمٍ وتُدخِلُ الحسابَ بذرةً).
+                            //      وغيرُ «رقم» المصرَّحُ باقٍ على تمثيلِه المحسوس.
+                            // (EN) [seed [٨] — the exception refined] A declared «رقم»
+                            //      return is promoted TOO when it returns tagged — but
+                            //      with the RET coercer inserted below: Float is coerced
+                            //      to Int inside the tag (5.0 cannot escape) and every
+                            //      other kind crosses tagged as the interpreter passes
+                            //      it (the single null sentinel conflated Void with Null
+                            //      and fed the sentinel into arithmetic). Non-«رقم»
+                            //      declared returns keep their concrete representation.
                             {
-                                fn->returnType = SadTypeKind::Any;
-                                dynReturnFuncs[fn->getName()] = true;
-                                changed = true;
+                                const bool declaredNumeric =
+                                    fn->returnTypeIsDeclared &&
+                                    fn->returnType == SadTypeKind::Integer;
+                                if (inst.opcode == SIROpcode::RET && !inst.operands.empty() &&
+                                    fn->returnType != SadTypeKind::Any &&
+                                    fn->returnType != SadTypeKind::Void &&
+                                    (!fn->returnTypeIsDeclared || declaredNumeric) &&
+                                    valueIsDyn(inst.operands[0]))
+                                {
+                                    if (declaredNumeric)
+                                        declaredNumRetFuncs.insert(fn->getName());
+                                    fn->returnType = SadTypeKind::Any;
+                                    dynReturnFuncs[fn->getName()] = true;
+                                    changed = true;
+                                }
                             }
+                        }
+                    }
+                }
+            }
+
+            // (AR) [بذرة [٨] — التمريرةُ اللاحقة] إدراجُ قاسرِ RET في كلِّ دالّةٍ
+            //      مصرَّحةٍ «رقم» رُقّي عائدُها: قبلَ **كلِّ** RET بقيمةٍ يُدرَجُ
+            //      نداءُ kRuntimeDeclaredNumRetCoerce ويُستبدَلُ معاملُ RET
+            //      بنتيجتِه — فالمساراتُ المحسوسةُ (ارجع 2.5 الحرفيّة) تُقسَرُ
+            //      كالموسومةِ سواءً، ولا مسارَ يفلتُ من العقد. بعدَ اكتمالِ
+            //      النقطةِ الثابتةِ عمدًا: الإدراجُ أثناءَها يبطلُ المكرّرات.
+            // (EN) [seed [٨] — the post-pass] Insert the RET coercer into every
+            //      promoted declared-«رقم» function: before EVERY value-carrying
+            //      RET a kRuntimeDeclaredNumRetCoerce call is inserted and the
+            //      RET operand replaced with its result — concrete paths (a
+            //      literal `ارجع 2.5`) are coerced exactly like tagged ones, so
+            //      no path escapes the contract. Deliberately after the fixed
+            //      point: inserting mid-iteration would invalidate iterators.
+            {
+                size_t coerceCounter = 0;
+                for (const auto &fn : sirModule->getFunctions())
+                {
+                    if (!fn || declaredNumRetFuncs.count(fn->getName()) == 0)
+                        continue;
+                    for (const auto &bb : fn->getBasicBlocks())
+                    {
+                        if (!bb)
+                            continue;
+                        for (size_t i = 0; i < bb->instructions.size(); ++i)
+                        {
+                            SIRInstruction &retInst = bb->instructions[i];
+                            if (retInst.opcode != SIROpcode::RET ||
+                                retInst.operands.empty())
+                                continue;
+                            const std::string coerceReg =
+                                std::string("%ret.coerce.") +
+                                std::to_string(coerceCounter++);
+                            SIRInstruction coerceCall(SIROpcode::CALL);
+                            coerceCall.result =
+                                SIROperand::Register(coerceReg, SadTypeKind::Any);
+                            coerceCall.operands.push_back(
+                                SIROperand::ConstantString(
+                                    Sad::Compiler::kRuntimeDeclaredNumRetCoerce));
+                            coerceCall.operands.push_back(retInst.operands[0]);
+                            retInst.operands[0] =
+                                SIROperand::Register(coerceReg, SadTypeKind::Any);
+                            bb->instructions.insert(
+                                bb->instructions.begin() +
+                                    static_cast<std::ptrdiff_t>(i),
+                                coerceCall);
+                            ++i;
                         }
                     }
                 }
@@ -421,6 +546,20 @@ namespace Sad
             return makeDyn(cg, llvm::ConstantInt::get(i8, kind), payload);
         }
 
+        llvm::Value *resolveUnboxedIntOperand(LLVMCodeGen &cg,
+                                              const Compiler::SIR::SIROperand &op)
+        {
+            // (AR) التوثيق والقياس في الترويسة — الفكُّ بوسمِه (unpackI64: عشريٌّ ⇒
+            //      fptosi قيمةً لا بتّاتٍ) لا الحمولةُ الخام.
+            // (EN) Docs and measurement in the header — tag-respecting unpack
+            //      (unpackI64: Float ⇒ fptosi by value, not bits), never the raw
+            //      payload.
+            llvm::Value *v = cg.resolveOperand(op);
+            if (v && isSadDyn(v))
+                return unpackI64(cg, v);
+            return v;
+        }
+
         llvm::Value *coerceToParamType(LLVMCodeGen &cg, llvm::Value *v, llvm::Type *want,
                                        SadTypeKind sirType)
         {
@@ -438,6 +577,39 @@ namespace Sad
                 // (AR) `unpackI64` لا `dynPayloadI64`: الأولى تحترم الوسمَ (عشريّ⇒fptosi)،
                 //      والثانيةُ تُعيد الحمولةَ خامًّا فتُقرَأ بتّاتُ الـdouble عددًا صحيحًا.
                 llvm::Value *raw = unpackI64(cg, v);
+                // (AR) [عقدُ الغياب — حدُّ الوسيط] وسمُ الغيابِ (فراغ/عدم) لا يُفكُّ
+                //      حمولةً صفريّةً تتنكّرُ رقمًا، بل يُهجَّأُ ببذرةِ العدمِ
+                //      `kSadNullSentinel` — نظيرُ بابِ RET حرفيًّا: المستهلكُ يعرضُ
+                //      «لاشيء» كما يمرّرُ المفسّرُ الغيابَ إلى المعاملِ ويعرضُه
+                //      (قِيس 2026-08-23: عائدٌ غائبٌ موسومٌ مُرِّرَ لمعاملِ i64
+                //      فطُبع 0 حيث يطبع المفسّرُ «لاشيء»).
+                // (EN) [absence contract — the argument boundary] An absence tag
+                //      (Void/Null) is not unpacked as a zero masquerading as a
+                //      number but spelled with the null sentinel — the RET door's
+                //      exact twin: the consumer displays «لاشيء» as the
+                //      interpreter does when it passes absence into the parameter
+                //      (measured 2026-08-23: a tagged absent return passed to an
+                //      i64 parameter printed 0 where the interpreter prints
+                //      «لاشيء»).
+                if (want->isIntegerTy(64))
+                {
+                    auto *i8Ty = llvm::Type::getInt8Ty(*cg.context_);
+                    llvm::Value *kindByte = dynKindByte(cg, v);
+                    llvm::Value *isVoidK = cg.builder_->CreateICmpEQ(
+                        kindByte, llvm::ConstantInt::get(i8Ty, DynKind::Void),
+                        "arg.dyn.is.void");
+                    llvm::Value *isNullK = cg.builder_->CreateICmpEQ(
+                        kindByte, llvm::ConstantInt::get(i8Ty, DynKind::Null),
+                        "arg.dyn.is.null");
+                    llvm::Value *isAbsent = cg.builder_->CreateOr(
+                        isVoidK, isNullK, "arg.dyn.absent");
+                    raw = cg.builder_->CreateSelect(
+                        isAbsent,
+                        llvm::ConstantInt::get(
+                            cg.getInt64Type(),
+                            static_cast<uint64_t>(Sad::Compiler::kSadNullSentinel)),
+                        raw, "arg.dyn.i64");
+                }
                 return (want->isIntegerTy() && !want->isIntegerTy(64))
                            ? cg.builder_->CreateTrunc(raw, want, "arg.dyn.trunc")
                            : raw;
@@ -716,21 +888,42 @@ namespace Sad
             auto *i32Type = llvm::Type::getInt32Ty(ctx);
             auto *i64Type = cg.getInt64Type();
 
+            // (AR) ع-16: كل مواضع إنشاء حالة الاستثناء تضبط TLS في الوضع المستضاف
+            //      — هذا الملف كان **النسخة الثالثة** غير المرقعة (نمط «ثلاث نسخ:
+            //      أصلحت اثنتين وبقيت واحدة»): من ينشئ أولا يحسم، فبرنامج أول
+            //      قسمة ديناميكية فيه تسبق أول «حاول» كان يخرج بحالة غير معزولة.
+            // (EN) ع-16: every exception-state creation site sets TLS when hosted
+            //      — this file was the unpatched THIRD COPY (the "fixed two,
+            //      left one" pattern): first creator wins, so a program whose
+            //      first dynamic division precedes its first «try» kept the
+            //      state shared across threads.
+            auto applyExceptionTls = [&](llvm::GlobalVariable *g)
+            {
+                if (g && !cg.freestanding_)
+                    g->setThreadLocal(true);
+            };
+
             auto ensurePtrGlobal = [&](const char *name) -> llvm::GlobalVariable *
             {
                 auto *g = cg.module_->getNamedGlobal(name);
                 if (!g)
+                {
                     g = new llvm::GlobalVariable(
                         *cg.module_, ptrType, false, llvm::GlobalValue::InternalLinkage,
                         llvm::ConstantPointerNull::get(ptrType), name);
+                    applyExceptionTls(g);
+                }
                 return g;
             };
 
             auto *handlerCount = cg.module_->getNamedGlobal(SC::kRuntimeHandlerCount);
             if (!handlerCount)
+            {
                 handlerCount = new llvm::GlobalVariable(
                     *cg.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
                     llvm::ConstantInt::get(i32Type, 0), SC::kRuntimeHandlerCount);
+                applyExceptionTls(handlerCount);
+            }
             auto *handlerStack = cg.module_->getNamedGlobal(SC::kRuntimeHandlerStack);
             if (!handlerStack)
             {
@@ -738,6 +931,7 @@ namespace Sad
                 handlerStack = new llvm::GlobalVariable(
                     *cg.module_, arrTy, false, llvm::GlobalValue::InternalLinkage,
                     llvm::ConstantAggregateZero::get(arrTy), SC::kRuntimeHandlerStack);
+                applyExceptionTls(handlerStack);
             }
             // (AR) القرار على عدّاد «حاول» النشطة لا على handlerCount: كلُّ دالّة تدفع
             //      معالِجَ تنظيفٍ فيصبح handlerCount ≥ 1 دائمًا. نرفع فقط إن كانت ثمّة
@@ -747,11 +941,21 @@ namespace Sad
             //      pushes a cleanup handler so handlerCount is always ≥ 1. Raise only if a
             //      real «try» is active; otherwise keep the old behaviour (diagnostic +
             //      exit), so no regression for a division outside any «try».
+            // (AR) ع-16: عداد «حاول» النشطة TLS أيضا — قرار مشترك فوق مكدس TLS
+            //      كان يجعل «حاول» في الرئيسي تحول هلع خيط آخر إلى قفزة longjmp
+            //      إلى مكدسه هو (والعكس)
+            // (EN) ع-16: the active-try counter is TLS too — a shared decision
+            //      flag over a TLS stack let a main-thread «try» turn another
+            //      thread's panic into a longjmp within that other thread's own
+            //      stack (and vice versa)
             auto *tryActive = cg.module_->getNamedGlobal(SC::kRuntimeTryActive);
             if (!tryActive)
+            {
                 tryActive = new llvm::GlobalVariable(
                     *cg.module_, i32Type, false, llvm::GlobalValue::InternalLinkage,
                     llvm::ConstantInt::get(i32Type, 0), SC::kRuntimeTryActive);
+                applyExceptionTls(tryActive);
+            }
 
             llvm::Function *curFunc = b.GetInsertBlock()->getParent();
             auto *raiseBB = llvm::BasicBlock::Create(ctx, "panic.raise", curFunc);
@@ -838,6 +1042,86 @@ namespace Sad
             b.SetInsertPoint(contBB);
         }
 
+        // ====================================================================
+        // (AR) SEM045 (أ٢): الحارس الزمنيّ قبل STORE «فراغ ⇒ خانة مصنّفة».
+        //      على نمط emitDynDivZeroGuard: فحص وسمٍ + فرعا فشل/استمرار. الرسالة
+        //      تُطبع بـ«%s» لا كنسق مباشرةً — اسمُ الخانةِ نصُّ مستخدمٍ وقد يحمل
+        //      محارفَ نسقِ printf (ثغرةُ نسقٍ لا مجردُ تشويه).
+        // (EN) SEM045 (stage أ٢): pre-STORE guard, mirroring emitDynDivZeroGuard.
+        //      The message is printed via "%s", never as a format string — the
+        //      slot name is user text and may contain printf specifiers.
+        // ====================================================================
+        void emitDynVoidStoreGuard(LLVMCodeGen &cg, llvm::Value *dynValue,
+                                   const std::string &slotName,
+                                   const std::string &typeName, bool fatal)
+        {
+            auto &b = *cg.builder_;
+            auto &ctx = *cg.context_;
+            llvm::Function *curFunc = b.GetInsertBlock()->getParent();
+            llvm::BasicBlock *failBB =
+                llvm::BasicBlock::Create(ctx, "sem045.fail", curFunc);
+            llvm::BasicBlock *contBB =
+                llvm::BasicBlock::Create(ctx, "sem045.ok", curFunc);
+            llvm::Value *kind = dynKindByte(cg, dynValue);
+            llvm::Value *isVoid = b.CreateICmpEQ(
+                kind, b.getInt8(static_cast<uint8_t>(DynKind::Void)), "sem045.isvoid");
+            b.CreateCondBr(isVoid, failBB, contBB);
+
+            b.SetInsertPoint(failBB);
+            const std::string tag = fatal ? "[خطأ نوع SEM045] " : "[تحذير نوع SEM045] ";
+            // (AR) اسم السجلّ يحمل بادئة % — تُجرَّد قبل العرض للمستخدم.
+            const std::string bareName = cleanSlotName(slotName);
+            const std::string msgText =
+                tag + "الخانة '" + bareName + "' من نوع '" + typeName +
+                "' أُسند إليها 'فراغ' وقت التشغيل — غيابُ نتيجةٍ لا قيمة، فلا يصلح حشوًا لخانةٍ أعلنت نوعَها\n";
+            if (cg.freestanding_)
+            {
+                // (AR) حرًّا لا printf — والتحذيرُ الحرّ يُسقَط (لا قناةَ تشخيصٍ غيرُ الهلع).
+                // (EN) Freestanding: no printf; the warn flavor is dropped (panic is
+                //      the only diagnostic channel).
+                if (fatal)
+                    cg.emitFreestandingPanicCall(Sad::Compiler::kSadPanicDynTypeMismatch);
+                else
+                    b.CreateBr(contBB);
+            }
+            else
+            {
+                auto *ptrTy = llvm::PointerType::getUnqual(ctx);
+                auto *printfType = llvm::FunctionType::get(
+                    llvm::Type::getInt32Ty(ctx), {ptrTy}, true);
+                auto printfFunc = cg.module_->getOrInsertFunction("printf", printfType);
+                llvm::Value *fmt = b.CreateGlobalStringPtr("%s", "sem045.fmt");
+                llvm::Value *msg = b.CreateGlobalStringPtr(msgText, "sem045.msg");
+                if (fatal)
+                {
+                    // (AR) الطباعةُ **قبل** حاجزِ «حاول»: القفزُ إلى الماسكِ كان يسبق
+                    //      printf فيختفي التشخيصُ متى وُجد ماسك — والمفسّرُ يطبع قبل
+                    //      الرمي، فالترتيبُ هنا يحفظ تكافؤَ حضورِ التشخيص (قِيس).
+                    // (EN) Print BEFORE the try-handler barrier: the longjmp used to
+                    //      precede printf, hiding the diagnostic whenever a handler
+                    //      existed — the interpreter prints before throwing (measured).
+                    b.CreateCall(printfFunc, {fmt, msg});
+                    // (AR) الحاجز ٧: إن كان ثمّة «حاول» نشط ارفع استثناءً قابلًا للالتقاط
+                    // (EN) Barrier 7: if a «try» is active, raise a catchable exception
+                    emitRecoverablePanicToHandler(cg, msg);
+                    auto *exitType = llvm::FunctionType::get(
+                        llvm::Type::getVoidTy(ctx), {llvm::Type::getInt32Ty(ctx)}, false);
+                    auto exitFunc = cg.module_->getOrInsertFunction("exit", exitType);
+                    b.CreateCall(exitFunc,
+                                 {llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 1)});
+                }
+                else
+                {
+                    b.CreateCall(printfFunc, {fmt, msg});
+                    b.CreateBr(contBB);
+                }
+            }
+            if (fatal)
+                b.CreateUnreachable();
+
+            b.SetInsertPoint(contBB);
+        }
+
         llvm::Value *dynBinOp(LLVMCodeGen &cg, SIROpcode op, llvm::Value *l, llvm::Value *r)
         {
             auto &b = *cg.builder_;
@@ -851,6 +1135,40 @@ namespace Sad
             llvm::Value *rD = unpackDouble(cg, r);
             llvm::Value *lI = dynPayloadI64(cg, l);
             llvm::Value *rI = dynPayloadI64(cg, r);
+
+            // (AR) حارس الغياب (نظير RUN053، توافق المحرّكين): معاملٌ وسمُه Null أو
+            //      Void كان يُفكُّ حمولتُه صفرًا فيُنتج «غياب + 1 = 1» بخروجِ صفرٍ —
+            //      بينما المفسّر يُبلغ RUN053 ويخرج 1. الفحص هنا في **الباب الواحد**
+            //      لكلّ الحسابيّات الموسومة (+، -، *، /، %، //) لا في مواضع الظهور؛
+            //      والمقارناتُ (== لاشيء) لا تمرّ بهذا الباب فلا يمسّها الحارس.
+            //      وسما Str/Bool يبقيان خارج الحارس عمدًا: لم يُقاسا بعدُ (دَين معلَن).
+            //      مقيس: سلسلةُ نصٍّ مع جلبٍ غائبٍ («غائب + "لاحقة"») لا تمرّ بهذا
+            //      البابِ أصلًا وتبقى مشروعةً في المحرّكين؛ بقيّةُ توليفاتِ الغيابِ
+            //      مع الحاوياتِ غيرُ مقيسةٍ بعد. والسالبُ الأحاديّ على غيابٍ موسومٍ
+            //      يمرّ به (‎-غائب ⇒ RUN053 مترجَمًا) — إعلانُ مرحلةٍ لا قياسُ تكافؤ.
+            // (EN) Absence guard (RUN053 counterpart, engine parity): an operand
+            //      tagged Null or Void had its payload unpacked as zero, producing
+            //      «absence + 1 = 1» with exit 0 — the interpreter reports RUN053 and
+            //      exits 1. The check lives in this single door for all tagged
+            //      arithmetic (+,-,*,/,%,//), not at symptom sites; comparisons
+            //      (== لاشيء) never route here, so they stay legal. Str/Bool tags are
+            //      deliberately outside the guard: unmeasured yet (declared debt).
+            {
+                auto *nullK = llvm::ConstantInt::get(i8, DynKind::Null);
+                auto *voidK = llvm::ConstantInt::get(i8, DynKind::Void);
+                llvm::Value *lK = dynKindByte(cg, l);
+                llvm::Value *rK = dynKindByte(cg, r);
+                llvm::Value *lAbsent = b.CreateOr(
+                    b.CreateICmpEQ(lK, nullK, "dyn.abs.ln"),
+                    b.CreateICmpEQ(lK, voidK, "dyn.abs.lv"), "dyn.abs.l");
+                llvm::Value *rAbsent = b.CreateOr(
+                    b.CreateICmpEQ(rK, nullK, "dyn.abs.rn"),
+                    b.CreateICmpEQ(rK, voidK, "dyn.abs.rv"), "dyn.abs.r");
+                emitDynDivZeroGuard(cg,
+                                    b.CreateOr(lAbsent, rAbsent, "dyn.abs.either"),
+                                    lI, Sad::Compiler::kNumericRequiredRun053Msg,
+                                    "dyn.absence");
+            }
 
             // (AR) === Amelia (ISSUE-076): قاسمٌ آمنٌ للفرع الصحيح المُهمَل ===
             //      الموزِّع بلا فروع: يحسب iRes (صحيح) و fRes (عشريّ) دائمًا ثمّ يختار بالوسم.
@@ -1039,6 +1357,38 @@ namespace Sad
                 //      (9223372036854775808.0) like `/`. fRes = floor(fdiv(lD,rD)) yields it;
                 //      OR in minOverflow to tag the result float.
                 isFloatRes = b.CreateOr(eitherF, minOverflow, "dyn.fd.isf");
+                break;
+            }
+            case SIROpcode::BUILTIN_POW:
+            {
+                // (AR) الأسُّ يمرُّ بالبابِ الواحدِ كسائرِ الحسابيّات: معاملٌ موسومٌ
+                //      (قراءةُ خريطةٍ بالقوس مثلًا) كان يبلغُ emitBuiltinPow بنيةً
+                //      %SadDyn فيسقطُ CreateSIToFP بتأكيدِ «Invalid cast!».
+                //      unpackDouble يرقّي الحمولةَ الصحيحةَ sitofp، فنداءُ pow واحدٌ
+                //      يكفي الفرعَين؛ الصحيحان يُقتطعان صحيحًا كالمفسّر (5**2=25)
+                //      **داخل مدى i64 فقط**: خارجَه FPToSI سُمٌّ (poison)، والمفسّرُ
+                //      يرقّي الفيضَ عشريًّا (2**100) — فيُوسَّع isFloatRes بفحصِ
+                //      المدى على نمطِ minOverflow في ذراعِ FLOOR_DIV.
+                // (EN) Power routes through the single door like the rest of the
+                //      arithmetic: a tagged operand (e.g. bracket map read) used to
+                //      reach emitBuiltinPow as a %SadDyn struct and CreateSIToFP
+                //      died on the "Invalid cast!" assert. unpackDouble already
+                //      promotes an integer payload via sitofp, so one pow call
+                //      serves both branches; two ints truncate back to i64 like the
+                //      interpreter **inside the i64 range only**: outside it FPToSI
+                //      is poison while the interpreter promotes overflow to float
+                //      (2**100) — so isFloatRes widens with a range check, the
+                //      FLOOR_DIV minOverflow pattern.
+                llvm::FunctionType *powTy = llvm::FunctionType::get(dbl, {dbl, dbl}, false);
+                llvm::FunctionCallee powFn = cg.module_->getOrInsertFunction("pow", powTy);
+                fRes = b.CreateCall(powFn, {lD, rD}, "dyn.fpow");
+                iRes = b.CreateFPToSI(fRes, i64, "dyn.ipow");
+                llvm::Value *powTooBig = b.CreateFCmpOGE(
+                    fRes, llvm::ConstantFP::get(dbl, 9223372036854775808.0), "dyn.pow.hi");
+                llvm::Value *powTooSmall = b.CreateFCmpOLT(
+                    fRes, llvm::ConstantFP::get(dbl, -9223372036854775808.0), "dyn.pow.lo");
+                isFloatRes = b.CreateOr(
+                    eitherF, b.CreateOr(powTooBig, powTooSmall, "dyn.pow.ov"), "dyn.pow.isf");
                 break;
             }
             default:
@@ -1410,12 +1760,22 @@ namespace Sad
             //      static printing). Hosted-only, like the array arm: needs malloc/sprintf.
             llvm::BasicBlock *mapBB =
                 cg.freestanding_ ? nullptr : llvm::BasicBlock::Create(ctx, "dyn.ts.map", parent);
+            // (AR) [ISSUE-047] الكائن: كان وسمُه يسقطُ إلى default فيُعرَض «لاشيء» —
+            //      كذبٌ على قيمةٍ موجودة. عرضٌ مُعتِمٌ من مصدرِ الحقيقةِ بدلَه (لا
+            //      ترويسةَ أنواعٍ للكائنِ المترجَمِ فلا سبيلَ لاسمِ صنفِه). بلا
+            //      malloc، فالذراعُ صالحةٌ للوضعِ الحرِّ أيضًا.
+            // (EN) [ISSUE-047] Object: its kind used to fall to default and render
+            //      «لاشيء» — a lie about a present value. Opaque SoT display instead
+            //      (a compiled object has no runtime type header, so its class name
+            //      is unreachable). No malloc, so the arm is freestanding-safe.
+            llvm::BasicBlock *objBB = llvm::BasicBlock::Create(ctx, "dyn.ts.obj", parent);
 
-            llvm::SwitchInst *sw = b.CreateSwitch(kind, nullBB, arrayBB ? 6 : 4);
+            llvm::SwitchInst *sw = b.CreateSwitch(kind, nullBB, arrayBB ? 7 : 5);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Int), intBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Float), floatBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Bool), boolBB);
             sw->addCase(llvm::ConstantInt::get(i8, DynKind::Str), strBB);
+            sw->addCase(llvm::ConstantInt::get(i8, DynKind::Obj), objBB);
             if (arrayBB)
                 sw->addCase(llvm::ConstantInt::get(i8, DynKind::Array), arrayBB);
             if (mapBB)
@@ -1580,6 +1940,13 @@ namespace Sad
                 b.CreateBr(mergeBB);
             }
 
+            // (AR) كائن: العرضُ المُعتِمُ الموحَّد / (EN) object: the unified opaque display
+            b.SetInsertPoint(objBB);
+            llvm::Value *objRes = b.CreateGlobalStringPtr(
+                ::Sad::Types::repr::kObjectOpaqueDisplay, "dyn.ts.objstr");
+            b.CreateBr(mergeBB);
+            objBB = b.GetInsertBlock();
+
             // (AR) عدم/غيره: لاشيء / (EN) null/other: لاشيء
             b.SetInsertPoint(nullBB);
             llvm::Value *nullRes = b.CreateGlobalStringPtr(
@@ -1588,11 +1955,12 @@ namespace Sad
             nullBB = b.GetInsertBlock();
 
             b.SetInsertPoint(mergeBB);
-            auto *phi = b.CreatePHI(ptrTy, arrayRes ? 9 : 5, "dyn.ts.result");
+            auto *phi = b.CreatePHI(ptrTy, arrayRes ? 10 : 6, "dyn.ts.result");
             phi->addIncoming(intRes, intBB);
             phi->addIncoming(floatRes, floatBB);
             phi->addIncoming(boolRes, boolBB);
             phi->addIncoming(strRes, strBB);
+            phi->addIncoming(objRes, objBB);
             phi->addIncoming(nullRes, nullBB);
             if (arrayRes)
             {

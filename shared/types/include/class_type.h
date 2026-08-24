@@ -67,6 +67,23 @@ namespace Sad
             bool isStatic;              ///< (AR) هل ثابتة؟ / (EN) is static?
 
             // ──────────────────────────────────────────────────────────────
+            // (AR) SEM045 (عقد الغياب — حقول الأصناف): تصنيفُ الحقلِ المُصرَّح
+            //      («رقم قيمة» ⇒ Integer). قِيس أنّ `type` أعلاه يُمرَّر nullptr
+            //      في **كلِّ** مواضعِ التسجيل، فالنوعُ المُصرَّح لا يبلغ زمنَ
+            //      التشغيل أصلًا — وحارسُ «الفراغُ لا يعبر إلى خانةٍ مصنَّفة»
+            //      يحتاجه. يُملأ بعد addField في مواضعِ التسجيل (لا تغييرَ
+            //      لتوقيع addField)؛ Unknown = حقلٌ مجرَّدٌ (خانةٌ ديناميّة).
+            // (EN) SEM045 (absence contract — class fields): the field's DECLARED
+            //      kind («رقم قيمة» ⇒ Integer). Measured: `type` above is passed
+            //      nullptr at every registration site, so the declared type never
+            //      reaches runtime — and the "Void must not cross into a typed
+            //      slot" guard needs it. Populated after addField at registration
+            //      sites (no addField signature change); Unknown = a bare
+            //      (dynamic) field.
+            // ──────────────────────────────────────────────────────────────
+            Sad::Types::SadTypeKind declaredKind = Sad::Types::SadTypeKind::Unknown;
+
+            // ──────────────────────────────────────────────────────────────
             // (AR) 🔑 مُهيّئٌ يُقيَّم **عند كلِّ إنشاء** لا مرّةً عند تصريحِ الصنف.
             //      `defaultValue` قيمةٌ مُقيَّمةٌ سلفًا تُستنسَخ لكلِّ كائن، وذلك
             //      يكفي للقيمِ البسيطة. أمّا حقلٌ نوعُه صنفٌ فقيمتُه كائنٌ،
@@ -323,6 +340,23 @@ namespace Sad
             std::unordered_set<std::string> uiStateFields;         ///< (AR) أسماء حقول @حالة (للتفاعلية) / (EN) @state field names (for reactivity)
             std::string sourceFile;                                ///< (AR) مسار الملف المصدري (لفحص الوراثة المحكمة) / (EN) source file path (for sealed inheritance check)
 
+            // (AR) 🔑 ثوابتُ/متغيّراتُ وحدةِ التعريفِ الملتقطةُ وقتَ تنفيذِها (ع-1).
+            //      قِيس أنّ الدوالَّ الحرّةَ المُصدَّرةَ تلتقط متغيّراتِ وحدتِها عبر
+            //      FunctionDefinition::setCaptures بينما طرقُ الأصنافِ لا التقاطَ
+            //      لها، فثابتُ الوحدةِ يُقرأ «لاشيء» داخلَ الطريقةِ عند الاستيراد
+            //      (SEM001 غيرُ قاتلٍ ثمّ تسرّبٌ هدّام). تُملأ في المرحلةِ ٣ من
+            //      executeModuleAST وتُحقَن في نطاقِ كلِّ تنفيذٍ لجسمِ طريقةٍ قبل
+            //      ربطِ «هذا» والحقولِ والمعاملاتِ كي تتغلّبَ هذه عليها عند
+            //      تصادمِ الأسماء. فارغةٌ لصنفٍ عُرِّف في الملفِّ المُشغَّلِ نفسِه.
+            // (EN) Module-level variables/constants captured when the defining
+            //      module executed (defect ع-1). Free exported functions get this
+            //      via FunctionDefinition captures; class methods had none, so a
+            //      module constant read as null inside an imported class method.
+            //      Filled in executeModuleAST phase 3; injected into every method
+            //      body scope BEFORE «هذا»/fields/parameters so those win on name
+            //      collisions. Empty for classes defined in the main script.
+            std::unordered_map<std::string, Value> moduleCaptures;
+
             // ──────────────────────────────────────────────────────────────────
             // المنشئات / Constructors
             // ──────────────────────────────────────────────────────────────────
@@ -349,6 +383,19 @@ namespace Sad
              * @brief (EN) Default destructor
              */
             ~ClassType() override = default;
+
+            /**
+             * @brief (AR) إسناد نقلي — يستعمله ClassManager لتحديث التسجيل المؤقت
+             *        **في مكانه** (العنوان ثابت لأن الأبناء يحملون baseClass مؤشرًا
+             *        خامًّا إليه). الهادم المصرَّح أعلاه يكبت التوليد الضمني فيُعاد
+             *        طلبه صراحةً. النسخ يبقى محذوفًا (أعضاء unique_ptr).
+             * @brief (EN) Move assignment — used by ClassManager to update a
+             *        temporary registration IN PLACE (stable address: children hold
+             *        baseClass as a raw pointer to it). The user-declared destructor
+             *        above suppresses the implicit one, so it is re-requested
+             *        explicitly. Copying stays deleted (unique_ptr members).
+             */
+            ClassType &operator=(ClassType &&) = default;
 
             // ──────────────────────────────────────────────────────────────────
             // واجهة Type / Type Interface

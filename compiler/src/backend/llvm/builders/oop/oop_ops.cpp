@@ -514,6 +514,19 @@ namespace Sad
             const std::string &recvName = inst->operands[0].name;
             const std::string &operation = inst->operands[1].name;
 
+            // (AR) 🔑 قيمةُ «عولِجت» — لا `nullptr`: الموزّعُ يقرأ `nullptr` علامةَ
+            //      «لم تُعالَج ⇒ جرّب الطبقةَ التالية» فيسقط عبرَ الطبقاتِ كلِّها
+            //      ويبلّغ «Unsupported opcode:70» زائفًا فوقَ حارسٍ أُصدر بنجاح —
+            //      على **كلِّ** نداءِ طريقةٍ مستقبِلُه عامٌّ (قِيس: `ح.ضاعف(3)`
+            //      يطبع 6 صحيحًا والبلاغُ الداخليُّ يعلوه). نمطُ اطبع/#185 عينُه.
+            // (EN) A "handled" sentinel — never nullptr: the dispatcher reads
+            //      nullptr as "unhandled ⇒ try the next tier", falls through every
+            //      tier, and spuriously reports "Unsupported opcode:70" on top of a
+            //      successfully emitted guard — on EVERY method call with a global
+            //      receiver (measured). The print/#185 pattern.
+            llvm::Value *handledSentinel =
+                llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+
             auto it = cg_.context_info_.namedValues.find(recvName);
             if (it == cg_.context_info_.namedValues.end() || !it->second)
             {
@@ -524,12 +537,12 @@ namespace Sad
                 //      nothing. The guard is an addition to a working path, not a
                 //      precondition of it; an internal diagnostic here would turn a
                 //      working program into a compile failure.
-                return nullptr;
+                return handledSentinel;
             }
 
             llvm::Value *objPtr = Sad::LLVM::loadDynSlot(cg_, it->second);
             raiseIfObjectReceiverIsNull(objPtr, "obj.callchk", operation.c_str());
-            return nullptr;
+            return handledSentinel;
         }
 
         llvm::Value *OOPOpsCodeGen::emitObjectGet(std::shared_ptr<SIRInstruction> inst)

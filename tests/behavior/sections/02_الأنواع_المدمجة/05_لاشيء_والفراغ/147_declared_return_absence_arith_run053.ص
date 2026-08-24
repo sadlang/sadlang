@@ -1,0 +1,28 @@
+# @description حسابٌ على عائدِ دالّةٍ مصرَّحةٍ «رقم» أرجعت غيابًا ⇒ RUN053 بخروجٍ ١ على المحرّكَين — العائدُ المصرَّحُ يعبرُ موسومًا (%SadDyn) حتى الاستهلاكِ فيحرسُه بابُ الحسابِ الموسوم (كان أحمرَ [٨]: المترجَمُ حسبَ على بذرةِ العدمِ وخرجَ 0).
+# @requires: اطبع_سطر, خرائط
+# @priority P1
+# @expect_error العملية 'حسابية / arithmetic' تتطلّب قيمة رقمية
+# @expect_error_compiled العملية 'حسابية / arithmetic' تتطلّب قيمة رقمية
+
+# (AR) كانت بذرةً حمراءَ معلنةً في DECLARED_REDS.tsv (سجلّ [٨])، وأُعيدت إلى
+#      قسمِها بعد السدِّ الجذريِّ (سجلّ [٩]، 2026-08-23): العائدُ المصرَّحُ
+#      «رقم» الذي يُرجِعُ موسومًا يُرقّى إلى %SadDyn مع قاسرِ RET
+#      (kRuntimeDeclaredNumRetCoerce): العشريُّ يُقسَرُ رقمًا داخلَ الوسمِ
+#      وسائرُ الأوسامِ — الغيابُ والمنطقيُّ — تعبرُ **بوسمِها** إلى المستهلك،
+#      فيرفعُ بابُ dynBinOp هنا RUN053 كما يرفعُ المفسّر.
+# (EN) Was a declared red seed (registry entry [٨]); returned to its section
+#      after the radical seal (entry [٩], 2026-08-23): a declared-«رقم» return
+#      carrying a tagged value is promoted to %SadDyn with the RET coercer —
+#      Float coerces to Int inside the tag, every other kind (absence, bool)
+#      crosses tagged — so the tagged-arith door raises RUN053 exactly as the
+#      interpreter does.
+
+استورد خرائط
+متغير خ = خريطة()
+خ["أ"] = 1
+
+دالة رقم اقرأ()
+    ارجع خ["غائب"]
+نهاية
+
+اطبع_سطر(اقرأ() + 1)

@@ -426,6 +426,14 @@ void FreestandingCodeGen::emitFreestandingRuntime() {
     emitFreestandingPow(dblTy);
 
     // ========================================================================
+    // (AR) 13ب. floor — تبثّها ذراعُ «//» الديناميكيّة (llvm.floor ⇒ نداء libm)
+    //      ولا libm حرًّا — التوثيق في الترويسة.
+    // (EN) 13b. floor — emitted by the dynamic «//» arm (llvm.floor ⇒ libm
+    //      call) and freestanding has no libm — docs in the header.
+    // ========================================================================
+    emitFreestandingFloor(dblTy);
+
+    // ========================================================================
     // 14. __sad_serial_puts — Direct serial string output (for freestanding print)
     // ========================================================================
     emitFreestandingSerialPuts(i8Ty, i64Ty, ptrTy);

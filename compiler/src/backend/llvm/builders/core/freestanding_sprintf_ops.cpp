@@ -438,6 +438,37 @@ namespace Sad
         }
 
         // ============================================================================
+        // (AR) 13ب. floor — أرضيّة عشريّة حرّة (التوثيق والقياس في الترويسة):
+        //      i = fptosi(x)؛ di = sitofp(i)؛ الناتج = di - (di > x ? 1.0 : 0.0).
+        // (EN) 13b. floor — freestanding double floor (docs in the header):
+        //      truncate toward zero, then subtract one when truncation rounded up
+        //      (negative non-integers).
+        // ============================================================================
+        void FreestandingCodeGen::emitFreestandingFloor(llvm::Type *dblTy)
+        {
+            llvm::FunctionType *ft = llvm::FunctionType::get(dblTy, {dblTy}, false);
+            llvm::Function *fn = getOrCreateFreestandingFunc(cg_.module_.get(), *cg_.context_, "floor", ft);
+            if (!fn)
+                return;
+
+            auto savedIP = cg_.builder_->saveIP();
+            llvm::Type *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+
+            llvm::BasicBlock *entry = llvm::BasicBlock::Create(*cg_.context_, "entry", fn);
+            cg_.builder_->SetInsertPoint(entry);
+            llvm::Value *x = fn->getArg(0);
+            llvm::Value *ti = cg_.builder_->CreateFPToSI(x, i64Ty, "floor.i");
+            llvm::Value *td = cg_.builder_->CreateSIToFP(ti, dblTy, "floor.d");
+            llvm::Value *roundedUp = cg_.builder_->CreateFCmpOGT(td, x, "floor.up");
+            llvm::Value *adj = cg_.builder_->CreateSelect(
+                roundedUp, llvm::ConstantFP::get(dblTy, 1.0),
+                llvm::ConstantFP::get(dblTy, 0.0), "floor.adj");
+            cg_.builder_->CreateRet(cg_.builder_->CreateFSub(td, adj, "floor.ret"));
+
+            cg_.builder_->restoreIP(savedIP);
+        }
+
+        // ============================================================================
         // 14. __sad_serial_puts — Output a null-terminated string to serial port 0x3F8
         // ============================================================================
     } // namespace LLVM

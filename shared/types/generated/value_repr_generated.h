@@ -16,6 +16,7 @@ namespace Sad { namespace Types { namespace repr {
     inline constexpr long long kDynKindStr = 3;  // نصّ (مؤشّرٌ/واصفٌ حسب السياق)
     inline constexpr long long kDynKindBool = 4;  // منطقيّ (٠/١)
     inline constexpr long long kDynKindArray = 5;  // مصفوفة (مؤشّرٌ مُدار) — homogKind لناتجِ ZIP
+    inline constexpr long long kDynKindVoid = 9;  // فراغ (Void) — «لا قيمةَ هنا» (مفتاحُ خريطةٍ غائب)، متمايزٌ عن «عدم» القيمةِ الصريحة؛ كلاهما يُعرَض «لاشيء»
 
     // ── map_layout (runtime map memory layout) ──
     inline constexpr long long kMapFieldCount = 0;  // فهرسُ حقلِ عددِ العناصرِ في الترويسة
@@ -32,6 +33,7 @@ namespace Sad { namespace Types { namespace repr {
     inline const std::string kNullDisplay = "لاشيء";  // عرضُ قيمةِ العدم/الفراغ (Null/Void) — يطابق Value::toString والمفسّر وdynToString
     inline const std::string kBoolTrueDisplay = "صحيح";  // عرضُ القيمةِ المنطقيّةِ الصادقة
     inline const std::string kBoolFalseDisplay = "خطأ";  // عرضُ القيمةِ المنطقيّةِ الكاذبة
+    inline const std::string kObjectOpaqueDisplay = "<كائن>";  // عرضُ كائنٍ مُعتِمٍ داخلَ حاويةٍ مترجَمة — المفسّرُ أغنى (تباعُدٌ معلَن)
     inline const std::string kArrayOpen = "[";  // قوسُ فتحِ عرضِ المصفوفة
     inline const std::string kArrayClose = "]";  // قوسُ إغلاقِ عرضِ المصفوفة
     inline const std::string kArrayElemSep = ", ";  // فاصلُ عناصرِ عرضِ المصفوفة (لاتينيٌّ — يطابق المفسّر)

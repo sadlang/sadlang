@@ -42,7 +42,7 @@ namespace Sad
                 std::cout << "[DEBUG] buildClass: found constructor" << std::endl;
 #endif
 
-                std::string fullCtorName = classDecl->name + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
+                std::string fullCtorName = constructorNameFor(classDecl->name);
                 auto sirCtor = std::make_shared<SIRFunction>(fullCtorName, SadTypeKind::Void);
                 sirCtor->isConstructor = true;
                 sirCtor->addParameter(SIRParameter(kSelfParamName, SadTypeKind::Integer));
@@ -434,7 +434,7 @@ namespace Sad
                         {
                             parentDeclaresConstructor =
                                 parentSirClass->getMethod(
-                                    parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1") != nullptr;
+                                    constructorNameFor(parentClass)) != nullptr;
                         }
                     }
 
@@ -442,7 +442,7 @@ namespace Sad
                     {
                         // (AR) بناء معاملات استدعاء باني الأب
                         // (EN) Build parent constructor call arguments
-                        std::string parentCtorName = parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
+                        std::string parentCtorName = constructorNameFor(parentClass);
 
                         std::vector<SIROperand> superArgOperands;
                         superArgOperands.push_back(SIROperand::Register(kSelfRegisterName, SadTypeKind::Integer)); // self
@@ -568,7 +568,7 @@ namespace Sad
                             {
                                 // (AR) الحصول على معاملات باني الأب
                                 // (EN) Get parent constructor params
-                                std::string parentCtorMethodName = parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+                                std::string parentCtorMethodName = constructorNameFor(parentClass);
                                 auto parentCtor = parentSirClass->getMethod(parentCtorMethodName);
                                 if (parentCtor)
                                 {

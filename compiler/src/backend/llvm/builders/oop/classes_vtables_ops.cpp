@@ -14,6 +14,7 @@
 
 #include "llvm_codegen.h"
 #include "builders/oop/classes_vtables_codegen.h"
+#include "frontend/sir_constants.h" // (AR) kSlotNamespaceSeparator/startsWithPrefix — استثناء الفضاء الداخلي من vtable / (EN) internal-namespace vtable exclusion
 #include "sad_dyn_repr.h" // (AR) ISSUE-076: النوع الديناميّ %SadDyn لخانات حمولة ADT
 #include "sad_event_layout_generated.h" // (② rfcs#46) اسم صنف «حدث» المضمَّن من SoT — لوسم builtinClassNames
 #include "llvm_optimizer.h"
@@ -177,6 +178,13 @@ namespace Sad
                             fieldTypes.push_back(llvm::PointerType::getUnqual(*cg_.context_));
                             break;
                         case SadTypeKind::Any:
+                        // (AR) SEM045 (شبكة أمان): كِيانُ حقلٍ بقي Void (استنتاجٌ من مُهيّئٍ
+                        //      فراغيٍّ لم تلحقه الترقية) يأخذ خانةَ %SadDyn لا i64 خامًا —
+                        //      الخانةُ الخامُ كانت تقرأ «0» صامتةً.
+                        // (EN) SEM045 (safety net): a field kind left as Void (inferred from
+                        //      a void initializer the promotion did not reach) gets a %SadDyn
+                        //      slot, not raw i64 — the raw slot read back a silent «0».
+                        case SadTypeKind::Void:
                             // (AR) ISSUE-076 (%SadDyn): حقلٌ ديناميّ (حمولة ADT غير منمّطة) ⇒ خانة
                             //      واصفة لذاتها %SadDyn = { i8 kind; i64 payload } بدل وسم البتّات.
                             // (EN) ISSUE-076 (%SadDyn): a dynamic field (untyped ADT payload) ⇒ the
@@ -728,16 +736,19 @@ namespace Sad
                 //      name, not through the vtable.
                 if (cg_.context_info_.cReprClasses.count(className))
                 {
-                    // (AR) سجّل الهدم إن وُجد (يُستدعى بالاسم) دون بناء vtable
-                    // (EN) Still register a destructor (called by name) without a vtable
+                    // (AR) سجّل الهادمَ إن وُجد بخانتِه الداخليّةِ `#هدم` حصرًا — لا
+                    //      بقائمةِ تهجئاتٍ (هدم/‏__del__/‏__destroy__) كانت تلتقطُ
+                    //      طرائقَ مستخدمٍ عاديّةً بهذه الأسماء (باب تصادم «بناء» نفسه).
+                    // (EN) Register the destructor only under its internal `#هدم` slot —
+                    //      not via a spelling list (هدم/__del__/__destroy__) that also
+                    //      captured ordinary user methods (the «بناء» collision door).
                     for (const auto &[methodName, methodFunc] : cls->methods_)
                     {
                         std::string shortName = methodName;
                         size_t dp = methodName.find('.');
                         if (dp != std::string::npos)
                             shortName = methodName.substr(dp + 1);
-                        if (shortName == "\xD9\x87\xD8\xAF\xD9\x85" || shortName == "__del__" ||
-                            shortName == "__destroy__")
+                        if (shortName == ::Sad::Compiler::kDestructorSlotName)
                         {
                             cg_.context_info_.classDestructors[className] =
                                 (methodName.find('.') != std::string::npos) ? methodName
@@ -779,21 +790,33 @@ namespace Sad
                         fullName = className + "." + methodName;
                     }
 
-                    // تجاهل الباني — ليس في vtable
-                    if (shortMethodName == "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1" || shortMethodName == "بناء" ||
-                        shortMethodName == "__init__" || shortMethodName == "init" ||
-                        shortMethodName == "\xD8\xA8\xD8\xA7\xD9\x86\xD9\x8A" || shortMethodName == "باني" ||
-                        shortMethodName == "\xD9\x85\xD9\x86\xD8\xB4\xD8\xA6" || shortMethodName == "منشئ")
+                    // (AR) تجاهل الفضاء الداخلي `#` — البانِي المفكوك (#بناء) وأمثاله
+                    //      ليسوا في vtable. 🔑 كانت هنا قائمةُ أسماءٍ حرفيّةٍ
+                    //      (بناء/باني/منشئ/init/__init__) تُقصي **طرائقَ مستخدمٍ
+                    //      عاديّةً** بهذه الأسماء من vtable فيَخرِب توزيعُها
+                    //      الافتراضيّ — وهي أسماءٌ مشروعةٌ بعدَ بترِ سلسلةِ
+                    //      الاحتياطِ في objects_arrays_ops.cpp. الفيصلُ الآن
+                    //      بنيويّ: بادئةُ الفضاءِ الداخليِّ لا تهجئةُ الاسم.
+                    // (EN) Skip the internal `#` namespace — the mangled constructor
+                    //      (#بناء) and kin are not vtable members. A literal name
+                    //      list used to also evict ordinary user methods spelled
+                    //      بناء/باني/منشئ/init/__init__ from the vtable, breaking
+                    //      their virtual dispatch — legal names now that the
+                    //      fallback chain in objects_arrays_ops.cpp is gone. The
+                    //      criterion is structural: the internal-namespace prefix,
+                    //      not a spelling.
+                    if (::Sad::Compiler::startsWithPrefix(
+                            shortMethodName.c_str(), ::Sad::Compiler::kSlotNamespaceSeparator))
                     {
-                        continue;
-                    }
-
-                    // تجاهل الهدم — يُعالج بشكل منفصل
-                    if (shortMethodName == "\xD9\x87\xD8\xAF\xD9\x85" || shortMethodName == "هدم" ||
-                        shortMethodName == "__del__" || shortMethodName == "__destroy__")
-                    {
-                        // تسجيل الهدم
-                        cg_.context_info_.classDestructors[className] = fullName;
+                        // (AR) خانةُ الهادمِ الداخليّة `#هدم` تُسجَّل قبل الإقصاء — كان
+                        //      التسجيلُ بقائمةِ تهجئاتٍ (هدم/‏__del__/‏__destroy__)
+                        //      تلتقطُ طرائقَ مستخدمٍ عاديّةً وتُقصيها من vtable.
+                        // (EN) The internal `#هدم` destructor slot registers before the
+                        //      skip — registration used to run off a spelling list
+                        //      (هدم/__del__/__destroy__) that also captured ordinary
+                        //      user methods and evicted them from the vtable.
+                        if (shortMethodName == ::Sad::Compiler::kDestructorSlotName)
+                            cg_.context_info_.classDestructors[className] = fullName;
                         continue;
                     }
 

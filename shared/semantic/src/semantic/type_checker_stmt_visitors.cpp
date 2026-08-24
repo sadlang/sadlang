@@ -18,6 +18,8 @@
 #include "class_nodes.h"
 #include "pattern_nodes.h"    // (AR) [أ-م٢] MatchStmt / CaseClause / ConstructorPattern / أنماط
 #include "types/composite_type_classes.h"
+// (AR) SEM045 (D8): قاعدة «الفراغ اليقيني» المشتركة — لا نسخة ثالثة في الفاحص
+#include "null_safety/null_safety_analyzer.h"
 #include "types/enum_types.h"
 #include "types/struct_types.h"
 
@@ -647,6 +649,37 @@ namespace Sad
             // (EN) Register class name locally for type inference fallback.
             userClassNames_.insert(stmt.name);
 
+            // (AR) SEM045 (حقول الأصناف): دوّن تصنيفَ الحقول وحدّد الصنفَ الجاري
+            //      فحصُه — يقرؤهما حارسُ «الفراغُ لا يعبر إلى حقلٍ مصنَّف» في
+            //      visitMemberAssignExpr. الاستعادةُ بعد الأعضاء تحفظ التداخل.
+            // (EN) SEM045 (class fields): record field kinds and the class under
+            //      check — read by the member-assign Void guard. Restored after
+            //      the members so nesting stays correct.
+            std::string prevCheckedClass = currentCheckedClassName_;
+            currentCheckedClassName_ = stmt.name;
+            for (auto &field : stmt.fields)
+            {
+                if (field)
+                    classFieldKinds_[stmt.name][field->name] = field->type;
+            }
+            // (AR) الحقولُ الموروثة تدخل الجدولَ أيضًا (insert لا يطمس تظليلَ
+            //      الابن) — وإلّا أفلت `هذا.حقل_موروث = فراغية()` من الحارس
+            //      الساكن (رصدُ مراجعة الجودة). الأبُ غيرُ المُصرَّح بعدُ حدٌّ
+            //      طبيعيّ: جدولُه فارغٌ فلا شيءَ يُدمَج.
+            // (EN) Inherited fields enter the table too (insert never clobbers a
+            //      child override) — else `this.inheritedField = void()` escapes
+            //      the static guard (quality review). A base declared later is a
+            //      natural limit: its table is empty, nothing merges.
+            for (const auto &baseName : stmt.baseClasses)
+            {
+                auto baseIt = classFieldKinds_.find(baseName);
+                if (baseIt != classFieldKinds_.end())
+                {
+                    classFieldKinds_[stmt.name].insert(baseIt->second.begin(),
+                                                       baseIt->second.end());
+                }
+            }
+
             enterScope();
 
             // تسجيل الحقول / Register fields
@@ -676,6 +709,7 @@ namespace Sad
             }
 
             exitScope();
+            currentCheckedClassName_ = prevCheckedClass;
         }
 
         // ============================================================================
@@ -700,6 +734,23 @@ namespace Sad
                     // (AR) الدوال الخارجية بدون نوع إرجاع تُفترض رقم (I64)
                     // (EN) Extern functions without return type default to integer
                     expectedReturnType_ = registry_.getIntegerType();
+                }
+                else if (!decl.is_async && !decl.isGenerator && !decl.isNoReturn &&
+                         Sad::NullSafety::NullSafetyAnalyzer::bodyCertainlyReturnsNothing(
+                             decl.body.get()))
+                {
+                    // (AR) SEM045 (D8): دالةٌ جسدُها بلا `ارجع` بقيمةٍ ولا `ارمِ` ولا
+                    //      `أنتج` نوعُ إرجاعها «فراغ» يقينًا — لا «رقم» الضمنيُّ أدناه.
+                    //      كان الافتراضُ يجعل `نص س = لا_شيء()` يُرفَض بتشخيصٍ كاذبِ
+                    //      التعليل («وُجد 'رقم'») ويجعل `رقم س = لا_شيء()` يمرُّ صامتًا
+                    //      (النوعُ المختلَقُ يطابق الخانة) — قِيس كلاهما. القاعدةُ نفسُها
+                    //      المشتركةُ مع محلّل أمان null، لا نسخة ثالثة.
+                    // (EN) SEM045 (D8): a certainly-void body types as Void, not the
+                    //      implicit-int fallback below. The fabricated «رقم» both
+                    //      falsely rejected `نص س = لا_شيء()` and silently passed
+                    //      `رقم س = لا_شيء()` (measured). Same shared rule as the
+                    //      null-safety analyzer — no third copy.
+                    expectedReturnType_ = registry_.getVoidType();
                 }
                 else
                 {
@@ -761,6 +812,31 @@ namespace Sad
                                            ? registry_.internPrimitiveType(SadTypeKind::Class)
                                            : registry_.getUnknownType());
 
+            // (AR) SEM045 (حقول الأصناف): الشقيقُ الثاني لتصريحِ الصنف — يُدوَّن هنا
+            //      أيضًا وإلّا بقيت حقولُ هذا الشكلِ خارجَ الحارس (درسُ الأشقاء).
+            // (EN) SEM045 (class fields): the second class-declaration shape —
+            //      record here too or its fields stay outside the guard.
+            std::string prevCheckedClass = currentCheckedClassName_;
+            currentCheckedClassName_ = decl.name;
+            for (auto &member : decl.members)
+            {
+                if (auto *fieldDecl = dynamic_cast<AST::FieldDecl *>(member.get()))
+                {
+                    classFieldKinds_[decl.name][fieldDecl->name] = fieldDecl->type;
+                }
+            }
+            // (AR) الحقولُ الموروثة — نظيرُ الشكل الأوّل (insert يحفظ تظليلَ الابن).
+            // (EN) Inherited fields — twin of the first shape (insert keeps overrides).
+            for (const auto &baseName : decl.superclasses)
+            {
+                auto baseIt = classFieldKinds_.find(baseName);
+                if (baseIt != classFieldKinds_.end())
+                {
+                    classFieldKinds_[decl.name].insert(baseIt->second.begin(),
+                                                       baseIt->second.end());
+                }
+            }
+
             // فحص الأعضاء / Check members
             for (auto &member : decl.members)
             {
@@ -769,6 +845,7 @@ namespace Sad
             }
 
             exitScope();
+            currentCheckedClassName_ = prevCheckedClass;
         }
 
         void TypeChecker::visitFieldDecl(AST::FieldDecl &decl)
@@ -1025,7 +1102,34 @@ namespace Sad
             exitScope();
 
             // تسجيل الدالة المعممة / Register generic function
-            declareVariable(decl.name, dataTypeToTypePtr(decl.returnType));
+            // (AR) SEM045 (انحدار t001 وثقب المراجعة العدائية): الخانةُ الخامُ تكون Void
+            //      لغيابِ التصريحِ كما لتصريحِ «فراغ» سواءً، وتسجيلُها كما هي جعل نداءَ
+            //      قالبٍ يُرجع قيمةً («هوية(5)») يُختم فراغًا فتطلق قاعدةُ D8 الحسابيةُ
+            //      كذبًا — وتحويلُ الفرعِ المستهلِكِ Void→Unknown جملةً أضاع D8 عن
+            //      القالبِ الفراغيِّ حقًّا (قِيس: خطأٌ صامتٌ في --إنتاج). الحقيقةُ تُدوَّن
+            //      في المنبع: «الفراغُ اليقينيُّ» (bodyCertainlyReturnsNothing المشتركة)
+            //      يبقى Void فيصيبه D8، وما يُرجع قيمةً بلا تصريحٍ يُدوَّن مجهولًا.
+            // (EN) SEM045 (regression t001 + adversarial-review hole): the raw slot is
+            //      Void both for an omitted return type and an explicit «فراغ»; recording
+            //      it verbatim stamped value-returning template calls Void (false D8),
+            //      while converting Void→Unknown at the consumer lost D8 for genuinely
+            //      void templates (measured: silent wrong result under --إنتاج). Record
+            //      the truth at the source: a certainly-void body (shared
+            //      bodyCertainlyReturnsNothing) stays Void so D8 still fires; an
+            //      undeclared value-returning body registers as Unknown.
+            if (decl.returnType == Types::SadTypeKind::Unknown ||
+                decl.returnType == Types::SadTypeKind::Void)
+            {
+                declareVariable(decl.name,
+                                Sad::NullSafety::NullSafetyAnalyzer::bodyCertainlyReturnsNothing(
+                                    decl.body.get())
+                                    ? registry_.getVoidType()
+                                    : registry_.getUnknownType());
+            }
+            else
+            {
+                declareVariable(decl.name, dataTypeToTypePtr(decl.returnType));
+            }
 
             // (AR) [Phase 8] استعادة سياق الإرجاع السابق
             // (EN) [Phase 8] Restore previous return context

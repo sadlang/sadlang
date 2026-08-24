@@ -815,16 +815,22 @@ namespace Sad
                     opcode = SIROpcode::BUILTIN_POW;
                     // (AR) لا نُعدّل resultType — تركها كما حُدِّدت من المعاملين أعلاه
                     // (EN) Do NOT override resultType — keep what was inferred from operands above
-                    // (AR) ISSUE-076/084 (ب″): BUILTIN_POW لا يعالج نتيجة Any الديناميّة ⇒ ثبِّتها
-                    //      عشريّة (نظير معاملٍ عشريّ) بدل تسريب Any إلى مسارٍ لا يفكّ وسمها.
-                    // (EN) ISSUE-076/084 (ب″): BUILTIN_POW has no dynamic-Any result path ⇒ pin it
-                    //      to Float (as if a float operand) rather than leaking Any to a path that
-                    //      would not decode the tag.
-                    if (resultType == SadTypeKind::Any)
-                        resultType = SadTypeKind::Float;
+                    // (AR) ISSUE-076/084 (ب″) ثم RFC عقد الغياب: معاملٌ ديناميّ (Any) ⇒
+                    //      النتيجةُ ديناميّةٌ تبقى Any — emitBuiltinPow يفوّض إلى باب
+                    //      dynBinOp الواحد (فكُّ الوسم + حارس الغياب RUN053 + وسمُ
+                    //      النتيجة صحيحًا/عشريًّا زمنَ التشغيل). التثبيتُ القديمُ على
+                    //      Float كان يكذبُ على الصحيحَين (5**2 كان يُطبَع 25.0).
+                    // (EN) ISSUE-076/084 (ب″) then the absence-contract RFC: a dynamic
+                    //      (Any) operand ⇒ the result stays Any — emitBuiltinPow
+                    //      delegates to the single dynBinOp door (unpack + RUN053
+                    //      absence guard + runtime int/float result tag). The old
+                    //      Float pin lied for two ints (5**2 printed 25.0).
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildBinaryOp: عملية الأس (**) — resultType="
-                              << (resultType == SadTypeKind::Float ? "Float" : "Integer") << std::endl;
+                              << (resultType == SadTypeKind::Float   ? "Float"
+                                  : resultType == SadTypeKind::Any   ? "Any"
+                                                                     : "Integer")
+                              << std::endl;
 #endif
                     break;
 

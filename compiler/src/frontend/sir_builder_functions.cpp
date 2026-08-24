@@ -303,6 +303,15 @@ namespace Sad
                 // (AR) إنشاء دالة SIR جديدة (sir_module.h:235 - SIRFunction constructor)
                 // (EN) Create new SIR function
                 auto sirFunction = std::make_shared<SIRFunction>(funcDecl->name, returnType);
+                // (AR) [موجة وسم حدّ المعامل] علَمُ تصريحِ العائد: الشرطُ عينُ شرطِ
+                //      الاستنتاجِ أعلاه معكوسًا — ما لم يُستنتَج فهو عقدُ الكاتب،
+                //      وممرُّ الخاناتِ الديناميّةِ لا يرقّيه إلى «أي» (انظر sir_module.h).
+                // (EN) Declared-return flag: the exact inverse of the inference gate
+                //      above — what was not inferred is the author's contract; the
+                //      dyn-slot pass must not promote it to Any (see sir_module.h).
+                sirFunction->returnTypeIsDeclared =
+                    (funcDecl->returnType != Types::SadTypeKind::Unknown &&
+                     funcDecl->returnType != Types::SadTypeKind::Void);
 
                 // (AR) نقل سمات الدالة [[سمة]] من AST إلى SIR لتُترجم لاحقاً
                 //      إلى LLVM function attributes في codegen.
@@ -459,6 +468,13 @@ namespace Sad
                     }
 
                     SIRParameter sirParam(param.name, paramType);
+                    // (AR) SEM045: النوع السطحيّ المصرَّح خامًّا من الـAST (نظير
+                    //      paramInfo.declaredSurfaceType أدناه) — يقرؤه حارسُ معامل
+                    //      النداء، معزولًا عن فضاء declaredTypedSlots المسطّح.
+                    // (EN) SEM045: raw declared surface type from the AST (mirror of
+                    //      paramInfo.declaredSurfaceType below) — read by the call-site
+                    //      param guard, isolated from the flat declaredTypedSlots space.
+                    sirParam.declaredSurfaceType = param.type;
                     // (AR) معامل مصرَّح بصنفٍ مسجَّل («حدث ح» أو صنف مستخدم): انقل اسم
                     //      الصنف إلى SIR كي تبذره الخلفيّة في objectClassMap — التصريح
                     //      أوثق من تخمين الصنف بالاسم، ومعالِج الحدث لا مواقعَ استدعاء له.

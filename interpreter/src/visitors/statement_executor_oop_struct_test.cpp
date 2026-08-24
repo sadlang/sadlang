@@ -74,8 +74,21 @@ namespace Sad
                     defaultVal = Data::defaultValueForTypeKind(field.type);
                 }
 
-                classType->addField(field.name, nullptr, AST::Visibility::PUBLIC, false, defaultVal,
-                                    fieldConstructClass, node.position.line, node.position.column);
+                // (AR) SEM045 (حقول الأصناف): الشقيقُ الثالث لمواضع التسجيل — حقولُ
+                //      البُنى المصنَّفةُ تُدوَّن هي الأخرى وإلّا أفلتت من حارسِ
+                //      «الفراغُ لا يعبر إلى خانةٍ مصنَّفة» (رصدُ مراجعة الجودة).
+                //      الملءُ مشروطٌ بنجاح addField (فشلُه يُمشّي findField الوراثةَ).
+                // (EN) SEM045 (class fields): the third registration sibling — typed
+                //      STRUCT fields are recorded too, else they escape the Void
+                //      guard (quality review). Gated on addField succeeding.
+                if (classType->addField(field.name, nullptr, AST::Visibility::PUBLIC, false, defaultVal,
+                                        fieldConstructClass, node.position.line, node.position.column))
+                {
+                    if (Data::ClassField *addedField = classType->findField(field.name))
+                    {
+                        addedField->declaredKind = field.type;
+                    }
+                }
             }
 
             // ═══════════════════════════════════════════════════════════════════

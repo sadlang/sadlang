@@ -12,6 +12,9 @@
 #include "llvm_codegen.h"
 #include "builders/collections/map_ops_codegen.h"
 #include "sad_dyn_repr.h" // (AR) DynKind لتهيئة الحقل ٤ homogKind / (EN) DynKind for field 4 homogKind init
+#include "sad_type_utils.h" // (AR) kindToArabic لرسالة RUN074 (الجلب المصنَّف) / (EN) Arabic type name for RUN074
+#include "value.h"          // (AR) getTypeName() — أسماءُ VOID/NULL نفسُها التي يملأ بها المفسّرُ SEM011 / (EN) the very type names the interpreter fills SEM011 with
+#include "builtin_registry.h" // (AR) Names::Maps — اسمُ {func} في RUN037 من السجلِّ المولَّدِ لا مهجًّى هنا / (EN) RUN037 {func} from the generated registry, not spelled here
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
 #include "sir_constants.h"
@@ -25,6 +28,7 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/IR/InlineAsm.h>
+#include <map>
 #include <optional>
 #include <iostream>
 #include <fstream>
@@ -200,7 +204,10 @@ namespace Sad
 
         // (AR) انظر التوثيق في map_ops_codegen.h — التطبيعُ الموحَّدُ لمؤشّرِ الخريطة.
         // (EN) See map_ops_codegen.h — the unified map-pointer normalization.
-        llvm::Value *MapOpsCodeGen::normalizeMapPtr(llvm::Value *mapValue, const char *label)
+        llvm::Value *MapOpsCodeGen::normalizeMapPtr(llvm::Value *mapValue, const char *label,
+                                                    std::optional<Sad::Errors::ErrorCode> absenceCode,
+                                                    const char *builtinFunc,
+                                                    const char *operationName)
         {
             if (!mapValue)
                 return nullptr;
@@ -235,8 +242,46 @@ namespace Sad
                     llvm::BasicBlock::Create(*cg_.context_, std::string(label) + ".dyn.ok", curFunc);
                 cg_.builder_->CreateCondBr(isMap, okBB, failBB);
 
+                // (AR) [RFC عقد الغياب] فرعُ الفشلِ يُفرَّق بالوسم: غيابٌ (فراغ/عدم)
+                //      يُرفَع برمزِ **موقعِ النداءِ** (`absenceCode`) من الكتالوجِ
+                //      نفسِه الذي يقرأ منه المفسّر: القراءةُ بالفهرس SEM011،
+                //      والإسنادُ بالفهرس RUN018، ومستقبِلُ مدمجٍ مسمًّى RUN037 —
+                //      لأنّ المفسّرَ يفرّق بين السطوحِ مقيسًا (درسُ البذرة 082:
+                //      الرمزُ جزءٌ من التكافؤِ لا زينةٌ فوقَه). كان المسارُ يطبع
+                //      «طريقة خريطة على قيمة ليست خريطة» بلا رمزٍ لكلِّ وسمٍ مخالف.
+                //      وسائرُ الأوسامِ المخالفةِ على رسالةِ عدمِ التطابقِ العامّة،
+                //      والذراعُ نفسُها مصدرُها الواحدُ `emitTaggedAbsenceRaise`.
+                //      (⚠️ درسُ ns10 باقٍ: nullopt للمواقعِ التي لا يصحّ فيها
+                //      اسمُ سطحٍ واحد — انظر الترويسة.)
+                // (EN) [absence-contract RFC] The fail arm splits by tag: absence
+                //      (Void/Null) raises the CALL SITE's code (`absenceCode`) from
+                //      the same catalog the interpreter reads — indexed read SEM011,
+                //      indexed assign RUN018, named-builtin receiver RUN037 — because
+                //      the interpreter distinguishes surfaces (measured; seed 082's
+                //      lesson: the code is part of the parity contract). Other tags
+                //      keep the generic mismatch message; the arm itself lives once
+                //      in emitTaggedAbsenceRaise. (The ns10 lesson stands: nullopt
+                //      for sites where no single surface name is truthful.)
                 cg_.builder_->SetInsertPoint(failBB);
-                emitDynTypeMismatchFailure(label);
+                if (absenceCode)
+                {
+                    std::map<std::string, std::string> absPlaceholders;
+                    if (builtinFunc)
+                        absPlaceholders["func"] = builtinFunc;
+                    // (AR) [سطحُ الطريقة] `{operation}` في RUN033 — لفظُ `.احصل()`/`.عين()`
+                    //      كما يركّبه المفسّرُ من الاسمِ المطبَّع.
+                    // (EN) [method surface] {operation} in RUN033 — the `.احصل()`/`.عين()`
+                    //      label as the interpreter composes it from the normalized name.
+                    if (operationName)
+                        absPlaceholders["operation"] = operationName;
+                    cg_.emitTaggedAbsenceRaise(
+                        kind, *absenceCode, absPlaceholders, std::string(label),
+                        [&] { emitDynTypeMismatchFailure(label); });
+                }
+                else
+                {
+                    emitDynTypeMismatchFailure(label);
+                }
 
                 cg_.builder_->SetInsertPoint(okBB);
                 return Sad::LLVM::unpackPtr(cg_, mapValue);
@@ -266,6 +311,500 @@ namespace Sad
             //      Memory layout: {count:i64, capacity:i64, keys:ptr*, values:i64*, types:i64*}
             //      Search: linear scan with strcmp — suitable for small maps (<100 elements)
             // ================================================================
+
+            // (AR) [RFC عقد الغياب — سطحُ «لكل»] حارسُ الغيابِ قبلَ آلةِ التكرار:
+            //      مصدرٌ موسومٌ (%SadDyn) وسمُه فراغٌ أو عدمٌ ⇒ RUN055 بملءِ
+            //      `{type}` بعبارةِ المفسّرِ الحرفيّةِ («غير معروف/unknown» —
+            //      statement_executor.cpp يملؤها بلا تمييزِ نوعٍ)، وخروجٌ ١.
+            //      قبل السدِّ كان الغيابُ يصلُ `normalizeArrayPtr` فيُرفَعُ بنصِّ
+            //      «ليست مصفوفة» بلا رمزٍ — سطحٌ كاذبٌ. وسائرُ الأوسامِ تمرُّ بلا
+            //      أثرٍ إلى الحارسِ القائمِ (حدٌّ معلَن: خريطةٌ موسومةٌ مصدرَ
+            //      «لكل» تباعدٌ قائمٌ قبل هذه الموجة، لم يُمَسّ).
+            // (EN) [absence contract — foreach surface] Absence guard ahead of the
+            //      iteration machinery: a tagged source whose kind is Void/Null
+            //      raises RUN055 with the interpreter's literal {type} phrase and
+            //      exit 1. Before this seal, absence reached normalizeArrayPtr and
+            //      was raised as uncoded "not an array" — a lying surface. Every
+            //      other kind passes through untouched to the existing guard (a
+            //      declared limit: a tagged-map foreach source diverged before
+            //      this wave and is not touched here).
+            if (funcName == kRuntimeForeachAbsenceGuard)
+            {
+                llvm::Value *handledSentinel =
+                    llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+                if (args.empty() || !args[0] || !cg_.builder_->GetInsertBlock())
+                    return handledSentinel;
+
+                llvm::Value *source = Sad::LLVM::loadDynSlot(cg_, args[0]);
+                if (!Sad::LLVM::isSadDyn(source))
+                    return handledSentinel; // (AR) غيرُ موسومٍ — لا شأنَ للحارس / (EN) untagged — not this guard's business
+
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, source);
+                // (AR) عقدُ المفسّرِ المقيس: RUN055 لكلِّ وسمٍ **غيرِ قابلٍ للتكرار**
+                //      — الغيابُ (فراغ/عدم) والعدديّاتُ (صحيح/عشريّ/منطقيّ) سواء
+                //      (كشفت المراجعةُ العدائيّةُ أنّ قصرَه على الغيابِ يُبقي الرقمَ
+                //      الموسومَ على نصِّ «ليست مصفوفة» بلا رمز). والقابلُ للتكرارِ
+                //      (نصّ/خريطة/مصفوفة/كائن) يمرُّ إلى الخفضِ القائمِ — وتكرارُ
+                //      النصِّ والخريطةِ الموسومَين مترجَمًا تباعدٌ موروثٌ معلَنٌ
+                //      (المفسّرُ يكرّرهما والخفضُ لا يعرف إلّا المصفوفات).
+                // (EN) The interpreter's measured contract: RUN055 for every
+                //      NON-ITERABLE kind — absence and numerics alike (adversarial
+                //      review showed absence-only left tagged ints on the uncoded
+                //      "not an array" text). Iterable kinds (str/map/array/obj) pass
+                //      to the existing lowering — tagged string/map iteration remains
+                //      an inherited declared divergence.
+                auto kindIs = [&](uint8_t k, const char *nm) {
+                    return cg_.builder_->CreateICmpEQ(
+                        kind, llvm::ConstantInt::get(i8Ty, k), nm);
+                };
+                llvm::Value *isAbsent = kindIs(Sad::LLVM::DynKind::Void, "foreach.abs.is.void");
+                isAbsent = cg_.builder_->CreateOr(
+                    isAbsent, kindIs(Sad::LLVM::DynKind::Null, "foreach.abs.is.null"),
+                    "foreach.abs.or.null");
+                isAbsent = cg_.builder_->CreateOr(
+                    isAbsent, kindIs(Sad::LLVM::DynKind::Int, "foreach.abs.is.int"),
+                    "foreach.abs.or.int");
+                isAbsent = cg_.builder_->CreateOr(
+                    isAbsent, kindIs(Sad::LLVM::DynKind::Float, "foreach.abs.is.float"),
+                    "foreach.abs.or.float");
+                isAbsent = cg_.builder_->CreateOr(
+                    isAbsent, kindIs(Sad::LLVM::DynKind::Bool, "foreach.abs.is.bool"),
+                    "foreach.abs.any");
+
+                llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *raiseBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "foreach.abs.raise", curFunc);
+                llvm::BasicBlock *okBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "foreach.abs.ok", curFunc);
+                cg_.builder_->CreateCondBr(isAbsent, raiseBB, okBB);
+
+                cg_.builder_->SetInsertPoint(raiseBB);
+                std::map<std::string, std::string> filled;
+                filled["type"] = kNotIterableTypeLabel;
+                cg_.emitNullRaiseBody(::Sad::Errors::ErrorCode::RUN_NOT_ITERABLE,
+                                      filled, "foreach.abs");
+                cg_.builder_->CreateUnreachable();
+
+                cg_.builder_->SetInsertPoint(okBB);
+                return handledSentinel;
+            }
+
+            // (AR) [الموجةُ الثانية] مُطبِّعُ مصدرِ «لكل» الموسوم — خلَفُ الحارسِ
+            //      أعلاه وقد صار مُنتِجًا (الأمامُ الحاليُّ يبعثُه بدلَه؛ الحارسُ
+            //      يبقى لعقودِ SIR الأقدم). العقدُ المقيس (2026-08-23):
+            //      • وسمٌ غيرُ قابلٍ للتكرار — الغيابُ والعدديّاتُ **والكائنُ**
+            //        (قِيس: المفسّرُ يرفع RUN055 على كائنٍ موسومٍ أيضًا) ⇒ RUN055
+            //        بعبارةِ المفسّرِ الحرفيّة.
+            //      • نصٌّ موسومٌ ⇒ مصفوفةُ أحرفِ UTF-8 (عائلةُ «تقسيم» بالفاصلِ
+            //        الفارغ) — %SadDyn بوسمِ مصفوفة.
+            //      • خريطةٌ موسومةٌ ⇒ مصفوفةُ مفاتيحِها (getOrCreateMapCollect،
+            //        عينُ مسارِ __sad_map_keys) — %SadDyn بوسمِ مصفوفة.
+            //      • مصفوفةٌ موسومةٌ ⇒ تمرُّ كما هي (المسارُ الأخضرُ القائم).
+            // (EN) [wave 2] The tagged foreach-source normalizer — the guard above
+            //      turned producer (the current frontend emits this instead; the
+            //      guard stays for older SIR contracts). Measured contract:
+            //      non-iterables — absence, numerics AND objects (the interpreter
+            //      raises RUN055 on a tagged object too) — raise RUN055 with the
+            //      interpreter's literal phrase; a tagged string yields its UTF-8
+            //      chars array, a tagged map its keys array (both %SadDyn, Array
+            //      kind); a tagged array passes through unchanged.
+            if (funcName == kRuntimeForeachNormalize)
+            {
+                llvm::Value *handledSentinel =
+                    llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+                if (args.empty() || !args[0] || !cg_.builder_->GetInsertBlock())
+                {
+                    // (AR) ربطُ سجلِّ النتيجةِ حتى في مسارِ الدفاعِ — سجلٌّ بلا
+                    //      تعريفٍ يكسرُ قارئَه لاحقًا بتشخيصٍ مُعتِم.
+                    // (EN) Bind the result register even on the defensive path — an
+                    //      undefined register breaks its reader with an opaque error.
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = handledSentinel;
+                    return handledSentinel;
+                }
+
+                llvm::Value *source = Sad::LLVM::loadDynSlot(cg_, args[0]);
+                if (!Sad::LLVM::isSadDyn(source))
+                {
+                    // (AR) غيرُ موسومٍ — هويّةٌ: لا يبلغُ هذا المسارَ إلّا «أي»،
+                    //      لكنّ الدفاعَ يمرِّرُ القيمةَ كما هي بدلَ إسقاطِها.
+                    // (EN) Untagged — identity: only Any reaches this path, but the
+                    //      defensive arm passes the value through rather than drop it.
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = source;
+                    return source;
+                }
+
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                auto *i64Ty = cg_.getInt64Type();
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, source);
+                llvm::Value *payload = Sad::LLVM::dynPayloadI64(cg_, source);
+                llvm::Value *arrayKindByte =
+                    llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Array);
+
+                llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *raiseBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "foreach.norm.raise", curFunc);
+                llvm::BasicBlock *strBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "foreach.norm.str", curFunc);
+                llvm::BasicBlock *mapBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "foreach.norm.map", curFunc);
+                llvm::BasicBlock *passBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "foreach.norm.pass", curFunc);
+                llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "foreach.norm.merge", curFunc);
+
+                // (AR) الافتراضيُّ الرفعُ: وسمٌ لم يُسمَّ قابلًا للتكرارِ صراحةً
+                //      يخطئُ كما يخطئُ المفسّرُ — لا يمرُّ صامتًا إلى آلةِ المصفوفة.
+                // (EN) Default = raise: a kind not explicitly named iterable errors
+                //      as the interpreter does — it never slips into the machinery.
+                llvm::SwitchInst *dispatch = cg_.builder_->CreateSwitch(kind, raiseBB, 3);
+                dispatch->addCase(
+                    llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Str), strBB);
+                dispatch->addCase(
+                    llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Map), mapBB);
+                dispatch->addCase(
+                    llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Array), passBB);
+
+                cg_.builder_->SetInsertPoint(raiseBB);
+                std::map<std::string, std::string> filled;
+                filled["type"] = kNotIterableTypeLabel;
+                cg_.emitNullRaiseBody(::Sad::Errors::ErrorCode::RUN_NOT_ITERABLE,
+                                      filled, "foreach.norm");
+                cg_.builder_->CreateUnreachable();
+
+                // (AR) نصٌّ ⇒ أحرف: «تقسيم» بفاصلٍ فارغٍ وبلا سقفٍ (‏-1) — عينُ
+                //      دلالةِ أحرفِ UTF-8 المطابِقةِ للمفسّرِ في عائلةِ التقسيم.
+                // (EN) String ⇒ chars: split with the empty delimiter and no cap
+                //      (-1) — the family's interpreter-matching UTF-8 semantics.
+                cg_.builder_->SetInsertPoint(strBB);
+                llvm::Function *splitFn = cg_.ensureStringSplitHelper();
+                llvm::Value *strPtr =
+                    cg_.builder_->CreateIntToPtr(payload, ptrTy, "foreach.norm.str.ptr");
+                llvm::Value *emptyDelim = emitForeachEmptyDelim();
+                llvm::Value *charsArr = cg_.builder_->CreateCall(
+                    splitFn,
+                    {strPtr, emptyDelim, llvm::ConstantInt::get(i64Ty, -1)},
+                    "foreach.norm.chars");
+                llvm::Value *charsDyn = Sad::LLVM::makeDyn(
+                    cg_, arrayKindByte,
+                    cg_.builder_->CreatePtrToInt(charsArr, i64Ty, "foreach.norm.chars.i64"));
+                llvm::BasicBlock *strEndBB = cg_.builder_->GetInsertBlock();
+                cg_.builder_->CreateBr(mergeBB);
+
+                // (AR) خريطةٌ ⇒ مفاتيح: عينُ تجميعِ __sad_map_keys (المفاتيحُ نصوصٌ
+                //      قطعًا ⇒ متجانسةٌ بوسمِ Str بلا مصفوفةِ أوسام).
+                // (EN) Map ⇒ keys: the exact __sad_map_keys collection (keys are
+                //      always strings ⇒ homogeneous Str, no tags array).
+                cg_.builder_->SetInsertPoint(mapBB);
+                llvm::Value *mapPtr =
+                    cg_.builder_->CreateIntToPtr(payload, ptrTy, "foreach.norm.map.ptr");
+                llvm::Value *mCountGep = cg_.builder_->CreateGEP(
+                    i64Ty, mapPtr, {llvm::ConstantInt::get(i64Ty, 0)}, "foreach.norm.count.gep");
+                llvm::Value *mCount =
+                    cg_.builder_->CreateLoad(i64Ty, mCountGep, "foreach.norm.count");
+                llvm::Value *mCapGep = cg_.builder_->CreateGEP(
+                    i64Ty, mapPtr, {llvm::ConstantInt::get(i64Ty, 1)}, "foreach.norm.cap.gep");
+                llvm::Value *mCap =
+                    cg_.builder_->CreateLoad(i64Ty, mCapGep, "foreach.norm.cap");
+                llvm::Value *mKeysGep = cg_.builder_->CreateGEP(
+                    i64Ty, mapPtr, {llvm::ConstantInt::get(i64Ty, 2)}, "foreach.norm.keys.gep");
+                llvm::Value *mKeysI64 =
+                    cg_.builder_->CreateLoad(i64Ty, mKeysGep, "foreach.norm.keys.i64");
+                llvm::Value *mKeysArr = cg_.builder_->CreateIntToPtr(
+                    mKeysI64, ptrTy, "foreach.norm.keys.ptr");
+                llvm::Function *collectFn = getOrCreateMapCollect();
+                llvm::Value *keysArrOut = cg_.builder_->CreateCall(
+                    collectFn,
+                    {mKeysArr, mKeysArr, mCap, mCount,
+                     llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Str),
+                     llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy))},
+                    "foreach.norm.keysarr");
+                llvm::Value *keysDyn = Sad::LLVM::makeDyn(
+                    cg_, arrayKindByte,
+                    cg_.builder_->CreatePtrToInt(keysArrOut, i64Ty, "foreach.norm.keysarr.i64"));
+                llvm::BasicBlock *mapEndBB = cg_.builder_->GetInsertBlock();
+                cg_.builder_->CreateBr(mergeBB);
+
+                cg_.builder_->SetInsertPoint(passBB);
+                cg_.builder_->CreateBr(mergeBB);
+
+                cg_.builder_->SetInsertPoint(mergeBB);
+                llvm::PHINode *normalized = cg_.builder_->CreatePHI(
+                    source->getType(), 3, "foreach.norm.result");
+                normalized->addIncoming(charsDyn, strEndBB);
+                normalized->addIncoming(keysDyn, mapEndBB);
+                normalized->addIncoming(source, passBB);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = normalized;
+                return normalized;
+            }
+
+            // (AR) [صيغةُ الزوج] قناةُ **قيمِ** المصدرِ الموسومِ لـ«لكل مفتاح، قيمة»:
+            //      خريطةٌ موسومةٌ ⇒ مصفوفةُ قيمِها بأوسامِها (getOrCreateMapCollect
+            //      بمصفوفةِ الأوسام — عينُ مسارِ __sad_map_values)؛ وغيرُها ⇒
+            //      مصفوفةٌ فارغةٌ (المفسّرُ يتركُ متغيّرَ القيمةِ بلا ربطٍ لغيرِ
+            //      الخريطةِ — حدٌّ معلَن). تُبَثُّ بعدَ المُطبِّعِ فلا يبلغُها وسمٌ
+            //      غيرُ قابلٍ للتكرار. كانت صيغةُ الزوجِ على خريطةٍ موسومةٍ تفشلُ
+            //      **ترجمةً** بـ«متغيّر غير معرّف» (قِيس 2026-08-23).
+            // (EN) [pair form] The tagged-source VALUES channel for «for key,
+            //      value»: a tagged map ⇒ its values array with per-element tags
+            //      (getOrCreateMapCollect with the tags array — the exact
+            //      __sad_map_values path); anything else ⇒ an empty array (the
+            //      interpreter leaves the value variable unbound for non-maps —
+            //      a declared limit). Emitted after the normalizer, so no
+            //      non-iterable kind reaches it. The pair form on a tagged map
+            //      used to FAIL COMPILATION with an undefined-variable
+            //      diagnostic (measured 2026-08-23).
+            if (funcName == kRuntimeForeachNormalizeValues)
+            {
+                auto *i64Ty = cg_.getInt64Type();
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                llvm::Value *handledSentinel = llvm::ConstantInt::get(i64Ty, 0);
+                if (args.empty() || !args[0] || !cg_.builder_->GetInsertBlock())
+                {
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = handledSentinel;
+                    return handledSentinel;
+                }
+
+                // (AR) المصفوفةُ الفارغةُ القانونيّةُ {len=0, cap=1, data, tags=عدم,
+                //      homogKind=رقم} — قراءةُ عنصرٍ منها تسقطُ في حارسِ الحدودِ
+                //      القائمِ لا في قمامة.
+                // (EN) The canonical empty array {len=0, cap=1, data, tags=null,
+                //      homogKind=Int} — reading an element from it lands in the
+                //      existing bounds guard, not in garbage.
+                auto emitEmptyArray = [&]() -> llvm::Value * {
+                    auto *sadArrTy = llvm::StructType::get(
+                        *cg_.context_, {i64Ty, i64Ty, ptrTy, ptrTy, i8Ty});
+                    uint64_t arrSz =
+                        cg_.module_->getDataLayout().getTypeAllocSize(sadArrTy);
+                    llvm::Value *arr = cg_.emitMalloc(
+                        llvm::ConstantInt::get(i64Ty, arrSz), "fnv.empty.arr");
+                    llvm::Value *data = cg_.emitMalloc(
+                        llvm::ConstantInt::get(i64Ty, 8), "fnv.empty.data");
+                    cg_.builder_->CreateStore(
+                        llvm::ConstantInt::get(i64Ty, 0),
+                        cg_.builder_->CreateStructGEP(sadArrTy, arr, 0, "fnv.len"));
+                    cg_.builder_->CreateStore(
+                        llvm::ConstantInt::get(i64Ty, 1),
+                        cg_.builder_->CreateStructGEP(sadArrTy, arr, 1, "fnv.cap"));
+                    cg_.builder_->CreateStore(
+                        data, cg_.builder_->CreateStructGEP(sadArrTy, arr, 2, "fnv.data"));
+                    cg_.builder_->CreateStore(
+                        llvm::ConstantPointerNull::get(
+                            llvm::cast<llvm::PointerType>(ptrTy)),
+                        cg_.builder_->CreateStructGEP(sadArrTy, arr, 3, "fnv.tags"));
+                    cg_.builder_->CreateStore(
+                        llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Int),
+                        cg_.builder_->CreateStructGEP(sadArrTy, arr, 4, "fnv.homog"));
+                    return arr;
+                };
+
+                llvm::Value *source = Sad::LLVM::loadDynSlot(cg_, args[0]);
+                if (!Sad::LLVM::isSadDyn(source))
+                {
+                    llvm::Value *empty = emitEmptyArray();
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = empty;
+                    return empty;
+                }
+
+                llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, source);
+                llvm::Value *payload = Sad::LLVM::dynPayloadI64(cg_, source);
+                llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                llvm::BasicBlock *mapBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "fnv.map", curFunc);
+                llvm::BasicBlock *elseBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "fnv.else", curFunc);
+                llvm::BasicBlock *mergeBB = llvm::BasicBlock::Create(
+                    *cg_.context_, "fnv.merge", curFunc);
+                llvm::Value *isMap = cg_.builder_->CreateICmpEQ(
+                    kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Map),
+                    "fnv.is.map");
+                cg_.builder_->CreateCondBr(isMap, mapBB, elseBB);
+
+                cg_.builder_->SetInsertPoint(mapBB);
+                llvm::Value *mapPtr =
+                    cg_.builder_->CreateIntToPtr(payload, ptrTy, "fnv.map.ptr");
+                llvm::Value *vCount = cg_.builder_->CreateLoad(
+                    i64Ty,
+                    cg_.builder_->CreateGEP(i64Ty, mapPtr,
+                                            {llvm::ConstantInt::get(i64Ty, 0)},
+                                            "fnv.count.gep"),
+                    "fnv.count");
+                llvm::Value *vCap = cg_.builder_->CreateLoad(
+                    i64Ty,
+                    cg_.builder_->CreateGEP(i64Ty, mapPtr,
+                                            {llvm::ConstantInt::get(i64Ty, 1)},
+                                            "fnv.cap.gep"),
+                    "fnv.cap.val");
+                llvm::Value *vKeysArr = cg_.builder_->CreateIntToPtr(
+                    cg_.builder_->CreateLoad(
+                        i64Ty,
+                        cg_.builder_->CreateGEP(i64Ty, mapPtr,
+                                                {llvm::ConstantInt::get(i64Ty, 2)},
+                                                "fnv.keys.gep"),
+                        "fnv.keys.i64"),
+                    ptrTy, "fnv.keys.ptr");
+                llvm::Value *vValsArr = cg_.builder_->CreateIntToPtr(
+                    cg_.builder_->CreateLoad(
+                        i64Ty,
+                        cg_.builder_->CreateGEP(i64Ty, mapPtr,
+                                                {llvm::ConstantInt::get(i64Ty, 3)},
+                                                "fnv.vals.gep"),
+                        "fnv.vals.i64"),
+                    ptrTy, "fnv.vals.ptr");
+                llvm::Value *vTypesArr = cg_.builder_->CreateIntToPtr(
+                    cg_.builder_->CreateLoad(
+                        i64Ty,
+                        cg_.builder_->CreateGEP(i64Ty, mapPtr,
+                                                {llvm::ConstantInt::get(i64Ty, 4)},
+                                                "fnv.types.gep"),
+                        "fnv.types.i64"),
+                    ptrTy, "fnv.types.ptr");
+                llvm::Function *collectFn = getOrCreateMapCollect();
+                llvm::Value *valuesOut = cg_.builder_->CreateCall(
+                    collectFn,
+                    {vKeysArr, vValsArr, vCap, vCount,
+                     llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Int), vTypesArr},
+                    "fnv.values.arr");
+                llvm::BasicBlock *mapEndBB = cg_.builder_->GetInsertBlock();
+                cg_.builder_->CreateBr(mergeBB);
+
+                cg_.builder_->SetInsertPoint(elseBB);
+                llvm::Value *emptyOut = emitEmptyArray();
+                llvm::BasicBlock *elseEndBB = cg_.builder_->GetInsertBlock();
+                cg_.builder_->CreateBr(mergeBB);
+
+                cg_.builder_->SetInsertPoint(mergeBB);
+                llvm::PHINode *valuesArr =
+                    cg_.builder_->CreatePHI(ptrTy, 2, "fnv.result");
+                valuesArr->addIncoming(valuesOut, mapEndBB);
+                valuesArr->addIncoming(emptyOut, elseEndBB);
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = valuesArr;
+                return valuesArr;
+            }
+
+            // (AR) تفكيكُ نصٍّ **ساكنِ النوعِ** مصفوفةَ أحرفِ UTF-8 لمصدرِ «لكل» —
+            //      عائلةُ «تقسيم» نفسُها (فاصلٌ فارغٌ، بلا سقف). كان النصُّ الساكنُ
+            //      يسقطُ إلى آلةِ المصفوفةِ فينهارُ SIGSEGV (قِيس 2026-08-23).
+            // (EN) Decompose a STATICALLY-typed string into its UTF-8 chars array
+            //      for a foreach source — the same split family (empty delimiter,
+            //      no cap). A static string used to fall into the array machinery
+            //      and SIGSEGV (measured 2026-08-23).
+            if (funcName == kRuntimeStringChars)
+            {
+                if (args.empty() || !args[0] || !cg_.builder_->GetInsertBlock())
+                {
+                    llvm::Value *sentinel = llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = sentinel;
+                    return sentinel;
+                }
+
+                auto *i64Ty = cg_.getInt64Type();
+                auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+                llvm::Value *str = Sad::LLVM::loadDynSlot(cg_, args[0]);
+                if (Sad::LLVM::isSadDyn(str))
+                    str = Sad::LLVM::dynPayloadI64(cg_, str);
+                if (str->getType() == i64Ty)
+                    str = cg_.builder_->CreateIntToPtr(str, ptrTy, "str.chars.ptr");
+                llvm::Function *splitFn = cg_.ensureStringSplitHelper();
+                llvm::Value *emptyDelim = emitForeachEmptyDelim();
+                llvm::Value *charsArr = cg_.builder_->CreateCall(
+                    splitFn, {str, emptyDelim, llvm::ConstantInt::get(i64Ty, -1)},
+                    "str.chars.arr");
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = charsArr;
+                return charsArr;
+            }
+
+            // (AR) [بذرة [٨]] قاسرُ عائدِ «رقم» المصرَّحِ العابرِ موسومًا — يُدرِجُه
+            //      ممرُّ الخاناتِ الديناميّةِ قبلَ RET (انظر sir_constants.h):
+            //      موسومٌ عشريٌّ ⇒ يُقسَرُ رقمًا داخلَ الوسمِ (fptosi — قسرُ
+            //      المفسّرِ المقيس 2.5⇒2)؛ وسائرُ الأوسامِ تعبرُ بوسمِها.
+            //      والمحسوسُ يُغلَّفُ بوسمِه: العشريُّ الخامُّ يُقسَرُ رقمًا،
+            //      والمنطقيُّ i1 وسمُ منطقيٍّ، وi64 وسمُ رقم.
+            // (EN) [seed [٨]] The declared-«رقم» tagged-return coercer, inserted
+            //      by the dyn-slot pass ahead of RET: a Float-tagged value is
+            //      coerced to Int inside the tag (fptosi — the interpreter's
+            //      measured 2.5⇒2); every other tag crosses unchanged. Concrete
+            //      values are packed with their kind: a raw double coerces to
+            //      Int, an i1 packs Bool, an i64 packs Int.
+            if (funcName == kRuntimeDeclaredNumRetCoerce)
+            {
+                if (args.empty() || !args[0] || !cg_.builder_->GetInsertBlock())
+                    return llvm::ConstantInt::get(cg_.getInt64Type(), 0);
+
+                auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                auto *i64Ty = cg_.getInt64Type();
+                auto *dblTy = llvm::Type::getDoubleTy(*cg_.context_);
+                llvm::Value *value = Sad::LLVM::loadDynSlot(cg_, args[0]);
+                llvm::Value *result = nullptr;
+
+                if (!Sad::LLVM::isSadDyn(value))
+                {
+                    if (value->getType()->isDoubleTy())
+                    {
+                        result = Sad::LLVM::makeDyn(
+                            cg_, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Int),
+                            cg_.builder_->CreateFPToSI(value, i64Ty, "ret.coerce.f2i"));
+                    }
+                    else if (value->getType()->isIntegerTy(1))
+                    {
+                        result = Sad::LLVM::makeDyn(
+                            cg_, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Bool),
+                            cg_.builder_->CreateZExt(value, i64Ty, "ret.coerce.b2i"));
+                    }
+                    else if (value->getType()->isPointerTy())
+                    {
+                        // (AR) نصٌّ محسوسٌ عبرَ «رقم» مصرَّح: المفسّرُ يحذّرُ ويمرّره
+                        //      نصًّا — فيُغلَّفُ بوسمِ نصٍّ لا يُقرأُ مؤشّرُه رقمًا.
+                        // (EN) A concrete string through a declared «رقم»: the
+                        //      interpreter warns and passes it as a string — pack
+                        //      Str so its pointer is never read as a number.
+                        result = Sad::LLVM::makeDyn(
+                            cg_, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Str),
+                            cg_.builder_->CreatePtrToInt(value, i64Ty, "ret.coerce.p2i"));
+                    }
+                    else
+                    {
+                        llvm::Value *asI64 = value;
+                        if (asI64->getType() != i64Ty && asI64->getType()->isIntegerTy())
+                            asI64 = cg_.builder_->CreateZExt(asI64, i64Ty, "ret.coerce.zext");
+                        result = Sad::LLVM::makeDyn(
+                            cg_, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Int),
+                            asI64);
+                    }
+                }
+                else
+                {
+                    llvm::Value *kind = Sad::LLVM::dynKindByte(cg_, value);
+                    llvm::Value *payload = Sad::LLVM::dynPayloadI64(cg_, value);
+                    llvm::Value *isFloat = cg_.builder_->CreateICmpEQ(
+                        kind, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Float),
+                        "ret.coerce.is.float");
+                    llvm::Value *asDouble = cg_.builder_->CreateBitCast(
+                        payload, dblTy, "ret.coerce.f.bits");
+                    llvm::Value *truncated = cg_.builder_->CreateFPToSI(
+                        asDouble, i64Ty, "ret.coerce.f.trunc");
+                    llvm::Value *coercedPayload = cg_.builder_->CreateSelect(
+                        isFloat, truncated, payload, "ret.coerce.payload");
+                    llvm::Value *coercedKind = cg_.builder_->CreateSelect(
+                        isFloat, llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Int),
+                        kind, "ret.coerce.kind");
+                    result = Sad::LLVM::makeDyn(cg_, coercedKind, coercedPayload);
+                }
+
+                if (inst->result.has_value())
+                    cg_.context_info_.namedValues[inst->result->name] = result;
+                return result;
+            }
 
             if (funcName == "__sad_map_create")
             {
@@ -326,7 +865,7 @@ namespace Sad
                 return mapPtr;
             }
 
-            if (funcName == "__sad_map_set_typed")
+            if (funcName == kRuntimeMapSetTyped || funcName == kRuntimeMapSetTypedMethod)
             {
                 // (AR) إدراج/تحديث زوج (مفتاح، قيمة) في الخريطة
                 //      args: [0]=map, [1]=key(ptr), [2]=value(i64/ptr), [3]=typeTag(i64)
@@ -340,7 +879,37 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr — المتغيرات تُخزَن كـ i64
-                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mset.map.ptr");
+                // (AR) الكتابةُ بالقوسِ **إسنادٌ** بالفهرس — الوسطُ الغائبُ الموسومُ
+                //      (`خ["غائب"]["ب"] = ١`) يرفعُ RUN018 «الإسناد بالفهرس مدعوم
+                //      للمصفوفات والقواميس فقط…» مطابقًا المفسّرَ حرفًا (قِيس
+                //      2026-08-23 — كان يرفعُ SEM011 رمزَ **القراءةِ** فتباعدَ
+                //      الرمزان مع اتّفاقِ الخروج ١، والبذرةُ 082 دستورُ التفريق:
+                //      إسنادٌ RUN018 وقراءةٌ SEM011 وليسا واحدًا).
+                // (EN) Bracket WRITES are indexed assignment — a tagged absent middle
+                //      raises RUN018, matching the interpreter verbatim (measured
+                //      2026-08-23; it used to raise the READ code SEM011: same exit,
+                //      diverging codes — seed 082 is the charter of the distinction).
+                // (AR) [RFC عقد الغياب — سطحان] القوسان إسنادٌ بالفهرس ⇒ RUN018؛
+                //      وسطحُ الطريقةِ `.عين()` (القناةُ `_method`) ⇒ RUN033 بلفظِ
+                //      العمليّةِ — كلاهما مطابقٌ للمفسّرِ مقيسًا (2026-08-23).
+                // (EN) [absence contract — two surfaces] Brackets are indexed
+                //      assignment ⇒ RUN018; the `.عين()` method surface (the
+                //      `_method` channel) ⇒ RUN033 with the operation label —
+                //      both matching the interpreter (measured 2026-08-23).
+                // (AR) اللفظُ من المعينِ الواحدِ القائمِ stringMethodOperationLabel —
+                //      لا نسخةَ ثانيةً لصيغةِ «.اسم()» (ملاحظةُ مراجعةِ الجودة).
+                // (EN) Label from the existing single source stringMethodOperationLabel
+                //      — no second copy of the «.name()» formatting.
+                const bool setViaMethodSurface = (funcName == kRuntimeMapSetTypedMethod);
+                const std::string setOpLabel = LLVMCodeGen::stringMethodOperationLabel(
+                    Sad::Builtins::Names::TypeMethods::Map::SET);
+                llvm::Value *mapPtr = normalizeMapPtr(
+                    args[0], "mset.map.ptr",
+                    setViaMethodSurface
+                        ? ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID
+                        : ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID,
+                    nullptr,
+                    setViaMethodSurface ? setOpLabel.c_str() : nullptr);
 
                 // ════════════════════════════════════════════════════════════════
                 // (AR) 🔑 خريطةٌ عدميّةٌ في مسارِ الإسنادِ بالفهرس ⇒ RUN018 لا انهيار.
@@ -363,9 +932,30 @@ namespace Sad
                 //      showed __sad_map_find_slot: maps have their own path. The layer is
                 //      READ from the output, not inferred from the architecture.
                 // ════════════════════════════════════════════════════════════════
-                cg_.emitRaiseIfNull(
-                    mapPtr, ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID, {},
-                    "map.set");
+                // (AR) [سطحان] مستقبِلٌ عدميٌّ **غيرُ موسومٍ** (خانةٌ صفريّة/بذرةُ
+                //      العدم): القوسان RUN018 كما كان، وسطحُ الطريقةِ RUN033 بلفظِ
+                //      `.عين()` — قِيس 2026-08-23: المفسّرُ يرفع RUN033 'VOID' لـ
+                //      `خريطة س` ثمّ `س.عين(…)`، وكانت القناةُ الموحَّدةُ ترفع RUN018
+                //      عن السطحَين معًا. و{type} يملؤه البابُ من شكلِ العدم.
+                // (EN) [two surfaces] An UNTAGGED null receiver: brackets keep RUN018;
+                //      the method surface raises RUN033 with the `.عين()` label
+                //      (measured: the interpreter raises RUN033 'VOID' for a null map
+                //      through the method), {type} filled by the door from the null's
+                //      shape.
+                if (setViaMethodSurface)
+                {
+                    std::map<std::string, std::string> nullRecvPlaceholders;
+                    nullRecvPlaceholders["operation"] = setOpLabel;
+                    cg_.emitRaiseIfNull(
+                        mapPtr, ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                        nullRecvPlaceholders, "map.set");
+                }
+                else
+                {
+                    cg_.emitRaiseIfNull(
+                        mapPtr, ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID, {},
+                        "map.set");
+                }
 
                 llvm::Value *key = normalizeMapKey(args[1], "mset.key.ptr");
                 llvm::Value *value = args[2];
@@ -468,17 +1058,23 @@ namespace Sad
                     llvm::Value *isVoidKind = kindIs(Sad::LLVM::DynKind::Void, "mset.dyn.is.void");
                     llvm::Value *isMapKind = kindIs(Sad::LLVM::DynKind::Map, "mset.dyn.is.map");
                     llvm::Value *isArrayKind = kindIs(Sad::LLVM::DynKind::Array, "mset.dyn.is.array");
+                    // (AR) [ISSUE-047] والكائنُ صار له وسمُه المستقلُّ (٨) بعد فكِّ
+                    //      تصادمِه مع الخريطةِ على الوسمِ ٦.
+                    // (EN) [ISSUE-047] Objects now carry their own tag (8) after the
+                    //      tag-6 collision with maps was split.
+                    llvm::Value *isObjKind = kindIs(Sad::LLVM::DynKind::Obj, "mset.dyn.is.obj");
 
                     // ════════════════════════════════════════════════════════════
-                    // (AR) حارسُ التمثيل: فضاءُ أوسامِ قيمةِ الخريطةِ أربعةٌ لا غير
-                    //      (نصّ/صحيح/عشريّ/منطقيّ). فقيمةٌ وسمُها عدمٌ أو مصفوفةٌ أو
-                    //      خريطةٌ أو كائنٌ **لا تمثيلَ لها** هنا؛ وكان الفرعُ يسقطها
-                    //      إلى وسمِ النصِّ بحمولةٍ مؤشّرًا خامًا، فأوّلُ قارئٍ يعاملها
-                    //      `char*` ⇒ قمامةٌ أو انهيارٌ صامت. نفشل صاخبًا بدلًا من ذلك.
-                    // (EN) Representation guard: the map value tag space has exactly
-                    //      four members (string/int/float/bool). A value tagged Null,
-                    //      Array, Map or Obj has **no representation** here; the old
-                    //      branch dropped it into the string tag with a raw pointer
+                    // (AR) حارسُ التمثيل: كلُّ وسمٍ له مقابلٌ في فضاءِ أوسامِ قيمةِ
+                    //      الخريطةِ (نصّ/صحيح/عشريّ/منطقيّ/عدم/فراغ/خريطة/مصفوفة/كائن)
+                    //      يُقبَل؛ وما لا مقابلَ له (Adt وما قد يُستحدَث) كان الفرعُ
+                    //      القديمُ يسقطُه إلى وسمِ النصِّ بحمولةٍ مؤشّرًا خامًا، فأوّلُ
+                    //      قارئٍ يعاملُها `char*` ⇒ قمامةٌ أو انهيارٌ صامت. نفشل
+                    //      صاخبًا بدلًا من ذلك.
+                    // (EN) Representation guard: every kind with a counterpart in the
+                    //      map value tag space (str/int/float/bool/null/void/map/array/
+                    //      obj) is accepted; anything without one (Adt, future kinds)
+                    //      used to be dropped into the string tag with a raw pointer
                     //      payload, so the first reader treated it as a `char*` ⇒
                     //      garbage or a silent crash. Fail loudly instead.
                     // ════════════════════════════════════════════════════════════
@@ -489,7 +1085,9 @@ namespace Sad
                             "mset.dyn.scalar"),
                         cg_.builder_->CreateOr(
                             cg_.builder_->CreateOr(isNullKind, isVoidKind, "mset.dyn.nullish"),
-                            cg_.builder_->CreateOr(isMapKind, isArrayKind, "mset.dyn.container"),
+                            cg_.builder_->CreateOr(
+                                cg_.builder_->CreateOr(isMapKind, isArrayKind, "mset.dyn.container"),
+                                isObjKind, "mset.dyn.container.obj"),
                             "mset.dyn.rest"),
                         "mset.dyn.representable");
 
@@ -548,9 +1146,12 @@ namespace Sad
                     llvm::Value *tagArray = cg_.builder_->CreateSelect(
                         isArrayKind, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kMapValueTagArray),
                         tagMap, "mset.dyn.tag.array");
+                    llvm::Value *tagObj = cg_.builder_->CreateSelect(
+                        isObjKind, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kMapValueTagObject),
+                        tagArray, "mset.dyn.tag.obj");
                     dynDerivedTag = cg_.builder_->CreateSelect(
                         isInt, llvm::ConstantInt::get(i64Ty, Sad::Compiler::kMapValueTagInteger),
-                        tagArray, "mset.dyn.tag");
+                        tagObj, "mset.dyn.tag");
                 }
                 else if (value->getType()->isDoubleTy())
                     // (AR) عشريٌّ ساكنٌ ⇒ بتّاتُه كما هي؛ الوسمُ يأتي من الأمامِ (٢).
@@ -588,7 +1189,9 @@ namespace Sad
             }
 
             if (funcName == kRuntimeMapGet || funcName == kRuntimeMapGetI64 ||
-                funcName == kRuntimeMapGetDyn)
+                funcName == kRuntimeMapGetDyn || funcName == kRuntimeMapGetDynMethod ||
+                funcName == kRuntimeMapFetchStr ||
+                funcName == kRuntimeMapFetchInt || funcName == kRuntimeMapFetchBool)
             {
                 // (AR) قراءة قيمة من الخريطة بالمفتاح — ذكية حسب type tag
                 //      __sad_map_get: يُرجع ptr (نص) — إذا القيمة رقم يُحوّلها لنص عبر sprintf
@@ -604,7 +1207,60 @@ namespace Sad
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
                 // (AR) تحويل map من i64 إلى ptr — المتغيرات تُخزَن كـ i64
-                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mget.map.ptr");
+                // (AR) قنواتُ get الثلاثُ فهرسةٌ `[]` (الوسطُ الغائبُ ⇒ SEM011)؛
+                //      وقنواتُ الجلبِ المصنَّفِ (خريطة_اجلب_*) مدمجاتٌ فتبقى على
+                //      رسالةِ عدمِ التطابقِ العامّة.
+                // (EN) The three get channels are `[]` indexing (missing middle ⇒
+                //      SEM011); the typed-fetch builtins keep the generic mismatch.
+                const bool receiverIsIndexing =
+                    (funcName == kRuntimeMapGet || funcName == kRuntimeMapGetI64 ||
+                     funcName == kRuntimeMapGetDyn);
+                // (AR) [سطحُ الطريقة] `.احصل()` (القناةُ `_method`) ⇒ RUN033 بلفظِ
+                //      العمليّةِ، مطابقًا المفسّرَ مقيسًا (2026-08-23) — لا SEM011
+                //      رمزَ الفهرسةِ الذي كان يكذبُ عن السطح.
+                // (EN) [method surface] `.احصل()` (the `_method` channel) ⇒ RUN033
+                //      with the operation label, matching the interpreter (measured
+                //      2026-08-23) — not the indexing code SEM011.
+                const bool receiverIsMethodSurface = (funcName == kRuntimeMapGetDynMethod);
+                const std::string getOpLabel = LLVMCodeGen::stringMethodOperationLabel(
+                    Sad::Builtins::Names::TypeMethods::Map::GET);
+                std::optional<::Sad::Errors::ErrorCode> getAbsenceCode = std::nullopt;
+                if (receiverIsIndexing)
+                    getAbsenceCode = ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED;
+                else if (receiverIsMethodSurface)
+                    getAbsenceCode = ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID;
+                llvm::Value *mapPtr = normalizeMapPtr(
+                    args[0], "mget.map.ptr", getAbsenceCode, nullptr,
+                    receiverIsMethodSurface ? getOpLabel.c_str() : nullptr);
+
+                // (AR) مستقبِلٌ عدميٌّ **غيرُ موسومٍ**: كانت القراءةُ تُفكّ مؤشّرًا
+                //      صفريًّا ⇒ SIGSEGV صامتٌ على القناتين (قِيس 2026-08-23).
+                //      القوسان SEM011 «لا يدعم الفهرسة» وسطحُ الطريقةِ RUN033
+                //      بلفظِ `.احصل()` — كلاهما لفظُ المفسّرِ ورمزُه؛ و{type}
+                //      يملؤه البابُ من شكلِ العدم. وقناتا الجلبِ المصنَّفِ
+                //      (خريطة_اجلب_*) خارجَ هذا الحارسِ حدًّا معلَنًا (سطحُها
+                //      مدمجةٌ مسمّاةٌ ولم يُقَس عقدُها العدميُّ بعد).
+                // (EN) An UNTAGGED null receiver used to dereference a null pointer —
+                //      a silent SIGSEGV on both channels (measured). Brackets raise
+                //      SEM011, the method surface RUN033 with the `.احصل()` label —
+                //      the interpreter's codes verbatim; {type} filled by the door.
+                //      The typed-fetch channels stay outside this guard (declared
+                //      limit: their null-receiver contract is unmeasured).
+                if (receiverIsIndexing)
+                {
+                    cg_.emitRaiseIfNull(
+                        mapPtr, ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED, {},
+                        "map.get");
+                }
+                else if (receiverIsMethodSurface)
+                {
+                    std::map<std::string, std::string> nullRecvPlaceholders;
+                    nullRecvPlaceholders["operation"] = getOpLabel;
+                    cg_.emitRaiseIfNull(
+                        mapPtr, ::Sad::Errors::ErrorCode::RUN_OPERAND_TYPE_INVALID,
+                        nullRecvPlaceholders, "map.get");
+                }
+
                 llvm::Value *key = normalizeMapKey(args[1], "mget.key.ptr");
 
                 // (AR) تحميل capacity, keys, values, types من البنية
@@ -675,7 +1331,7 @@ namespace Sad
                 //      null value — which is also how "absent key" becomes
                 //      distinguishable from "empty value" in the compiler.
                 // ════════════════════════════════════════════════════════════
-                if (funcName == kRuntimeMapGetDyn)
+                if (funcName == kRuntimeMapGetDyn || funcName == kRuntimeMapGetDynMethod)
                 {
                     auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
 
@@ -698,6 +1354,7 @@ namespace Sad
                     llvm::Value *isVoidTag = tagIs(kMapValueTagVoid, "mgetd.is.void");
                     llvm::Value *isMapTag = tagIs(kMapValueTagMap, "mgetd.is.map");
                     llvm::Value *isArrayTag = tagIs(kMapValueTagArray, "mgetd.is.array");
+                    llvm::Value *isObjTag = tagIs(kMapValueTagObject, "mgetd.is.obj");
 
                     // (AR) الافتراضُ نصّ (وسمُ الخريطةِ ٠) ثمّ نُبدّلُه بالوسمِ المطابق.
                     // (EN) Default to Str (map tag 0), then override with the matching kind.
@@ -716,6 +1373,8 @@ namespace Sad
                         isMapTag, llvm::ConstantInt::get(i8Ty, DynKind::Map), kind, "mgetd.k.map");
                     kind = cg_.builder_->CreateSelect(
                         isArrayTag, llvm::ConstantInt::get(i8Ty, DynKind::Array), kind, "mgetd.k.array");
+                    kind = cg_.builder_->CreateSelect(
+                        isObjTag, llvm::ConstantInt::get(i8Ty, DynKind::Obj), kind, "mgetd.k.obj");
                     kind = cg_.builder_->CreateSelect(
                         isPresent, kind, llvm::ConstantInt::get(i8Ty, DynKind::Void), "mgetd.k.final");
 
@@ -740,6 +1399,128 @@ namespace Sad
                             isPresent, payload, fallbackPayload, "mgetd.payload.def");
                     }
 
+                    llvm::Value *result = Sad::LLVM::makeDyn(cg_, kind, payload);
+                    if (inst->result.has_value())
+                        cg_.context_info_.namedValues[inst->result->name] = result;
+                    return result;
+                }
+
+                // ════════════════════════════════════════════════════════════
+                // (AR) الجلبُ المصنَّف (RFC عقد الغياب — المرحلة ب):
+                //      خريطة_اجلب_نص/رقم/منطقي. العقد: الغيابُ «لاشيء» حصرًا؛
+                //      والحضورُ بوسمٍ مغايرٍ للمطلوب — والعدمُ/الفراغُ المخزَّنان
+                //      مغايران بالتعريف — خطأُ تشغيلٍ صريح (RUN074) كي لا تكون
+                //      للعدمِ قناتان مُنتِجتان. والثلاثةُ تُرجع %SadDyn بوسمِ
+                //      نوعِها أو Null — لا حارسَ داخلَ النطاقِ البِتّيّ (انظر
+                //      بيانَ سدِّ التصادمِ عند بناءِ النتيجة). الرسالةُ تُطبع
+                //      بنسق «%s» الثابت (المفتاحُ نصُّ مستخدمٍ — ثغرةُ نسق).
+                // (EN) Typed fetch (stage ب): absence returns Null exclusively;
+                //      presence with a non-matching tag (stored null/void included)
+                //      is an explicit RUN074 runtime error so null never has two
+                //      producing channels. All three return %SadDyn tagged with
+                //      their kind or Null — no in-band sentinel (see the
+                //      collision-seal note at the result construction). The
+                //      message prints via a fixed "%s" format (key is user text).
+                // ════════════════════════════════════════════════════════════
+                if (funcName == kRuntimeMapFetchStr || funcName == kRuntimeMapFetchInt ||
+                    funcName == kRuntimeMapFetchBool)
+                {
+                    auto *i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+                    const bool wantsStr = (funcName == kRuntimeMapFetchStr);
+                    const bool wantsInt = (funcName == kRuntimeMapFetchInt);
+                    const int64_t expectedTag = wantsStr   ? kMapValueTagString
+                                                : wantsInt ? kMapValueTagInteger
+                                                           : kMapValueTagBoolean;
+                    const auto expectedKind = wantsStr   ? SadTypeKind::String
+                                              : wantsInt ? SadTypeKind::Integer
+                                                         : SadTypeKind::Boolean;
+
+                    llvm::Value *slotKeyGep = cg_.builder_->CreateGEP(
+                        ptrTy, keysArr, {slotIdx}, "mfetch.slot.key.gep");
+                    llvm::Value *slotKey =
+                        cg_.builder_->CreateLoad(ptrTy, slotKeyGep, "mfetch.slot.key");
+                    llvm::Value *isPresent = cg_.builder_->CreateICmpNE(
+                        slotKey,
+                        llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(ptrTy)),
+                        "mfetch.present");
+                    llvm::Value *tagMatches = cg_.builder_->CreateICmpEQ(
+                        typeTag, llvm::ConstantInt::get(i64Ty, expectedTag),
+                        "mfetch.tag.ok");
+                    // (AR) الانتهاك = حاضرٌ بوسمٍ مغاير (يشمل عدمًا/فراغًا مخزَّنَين).
+                    // (EN) Violation = present with a non-matching tag.
+                    llvm::Value *violation = cg_.builder_->CreateAnd(
+                        isPresent, cg_.builder_->CreateNot(tagMatches, "mfetch.tag.no"),
+                        "mfetch.violation");
+
+                    llvm::Function *curFunc = cg_.builder_->GetInsertBlock()->getParent();
+                    llvm::BasicBlock *failBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "run074.fail", curFunc);
+                    llvm::BasicBlock *contBB =
+                        llvm::BasicBlock::Create(*cg_.context_, "run074.ok", curFunc);
+                    cg_.builder_->CreateCondBr(violation, failBB, contBB);
+
+                    cg_.builder_->SetInsertPoint(failBB);
+                    const std::string expectedName = Sad::Types::kindToArabic(expectedKind);
+                    const std::string msgPre =
+                        "[خطأ تشغيل RUN074] الجلبُ المصنَّف وجد المفتاح '";
+                    const std::string msgPost =
+                        "' حاضرًا بقيمةٍ من نوعٍ مغايرٍ لا '" + expectedName +
+                        "' — الحضورُ بنوعٍ مغايرٍ أو بعدمٍ مخزَّنٍ خطأٌ صريحٌ لا عدمٌ صامت\n";
+                    if (cg_.freestanding_)
+                    {
+                        cg_.emitFreestandingPanicCall(
+                            Sad::Compiler::kSadPanicDynTypeMismatch);
+                    }
+                    else
+                    {
+                        auto *printfType = llvm::FunctionType::get(
+                            llvm::Type::getInt32Ty(*cg_.context_), {ptrTy}, true);
+                        auto printfFunc =
+                            cg_.module_->getOrInsertFunction("printf", printfType);
+                        llvm::Value *fmt =
+                            cg_.builder_->CreateGlobalStringPtr("%s%s%s", "run074.fmt");
+                        llvm::Value *pre =
+                            cg_.builder_->CreateGlobalStringPtr(msgPre, "run074.pre");
+                        llvm::Value *post =
+                            cg_.builder_->CreateGlobalStringPtr(msgPost, "run074.post");
+                        cg_.builder_->CreateCall(printfFunc, {fmt, pre, key, post});
+                        // (AR) الطباعةُ قبل حاجزِ «حاول» — درسُ SEM045 المقيس: القفزُ
+                        //      إلى الماسكِ قبل printf يُخفي التشخيص.
+                        // (EN) Print BEFORE the try barrier (measured SEM045 lesson).
+                        llvm::Value *handlerMsg = cg_.builder_->CreateGlobalStringPtr(
+                            msgPre + "…" + msgPost, "run074.msg");
+                        Sad::LLVM::emitRecoverablePanicToHandler(cg_, handlerMsg);
+                        auto *exitType = llvm::FunctionType::get(
+                            llvm::Type::getVoidTy(*cg_.context_),
+                            {llvm::Type::getInt32Ty(*cg_.context_)}, false);
+                        auto exitFunc = cg_.module_->getOrInsertFunction("exit", exitType);
+                        cg_.builder_->CreateCall(
+                            exitFunc, {llvm::ConstantInt::get(
+                                          llvm::Type::getInt32Ty(*cg_.context_), 1)});
+                    }
+                    cg_.builder_->CreateUnreachable();
+
+                    cg_.builder_->SetInsertPoint(contBB);
+                    // (AR) [سدّ دَين التصادم] القناةُ الواحدة %SadDyn للثلاثة: الحضورُ
+                    //      بوسمِ نوعِه والغيابُ بوسمِ Null — لا حارسَ kSadNullSentinel
+                    //      داخلَ النطاق. الحارسُ القديمُ جعل قيمةً مخزَّنةً تساويه
+                    //      تُقرأ غيابًا (نص/رقم)، والوسمُ خارجَ النطاقِ لا يتصادمُ
+                    //      مع أيِّ حمولةٍ بالبناء — كما برهنَ المنطقيُّ قبلَه.
+                    // (EN) [collision-debt seal] One %SadDyn channel for all three:
+                    //      presence carries its kind tag, absence the Null tag — no
+                    //      in-band kSadNullSentinel. The old sentinel made a stored
+                    //      value equal to it read as absence (str/int); an
+                    //      out-of-band tag cannot collide with any payload by
+                    //      construction — as the bool variant already proved.
+                    const auto presentKind = wantsStr   ? DynKind::Str
+                                             : wantsInt ? DynKind::Int
+                                                        : DynKind::Bool;
+                    llvm::Value *kind = cg_.builder_->CreateSelect(
+                        isPresent, llvm::ConstantInt::get(i8Ty, presentKind),
+                        llvm::ConstantInt::get(i8Ty, DynKind::Null), "mfetch.kind");
+                    llvm::Value *payload = cg_.builder_->CreateSelect(
+                        isPresent, valI64, llvm::ConstantInt::get(i64Ty, 0),
+                        "mfetch.payload");
                     llvm::Value *result = Sad::LLVM::makeDyn(cg_, kind, payload);
                     if (inst->result.has_value())
                         cg_.context_info_.namedValues[inst->result->name] = result;
@@ -876,8 +1657,24 @@ namespace Sad
 
                 auto *i64Ty = cg_.getInt64Type();
 
-                // (AR) تحويل map من i64 إلى ptr
-                llvm::Value *mapArg = normalizeMapPtr(args[0], "msize.map.ptr");
+                // (AR) تحويل map من i64 إلى ptr — الغيابُ الموسومُ على مستقبِلِ
+                //      المدمجةِ المسمّاةِ يرفعُ RUN037 باسمِها من السجلِّ المولَّد
+                //      (المفسّرُ: «الدالة المدمجة 'خريطة_حجم' استُدعيت بوسائط
+                //      ناقصة أو من نوع خاطئ» — قِيس 2026-08-23). والاسمُ آمنٌ هنا:
+                //      طريقةُ `.حجم()` لا تصل بمستقبِلٍ موسومٍ (بوّابتُها النوعُ
+                //      الساكنُ Map حصرًا).
+                // (EN) Tagged absence on the named builtin's receiver raises RUN037
+                //      with the SoT-generated name (measured against the
+                //      interpreter). Safe here: the `.حجم()` method surface only
+                //      routes static-Map receivers, never a tagged one.
+                // (AR) `.data()` آمنة: الثوابتُ المولَّدةُ مُعرَّفةٌ من سلاسلَ حرفيّةٍ
+                //      منتهيةٍ بالصفرِ وذاتِ عمرٍ ساكن.
+                // (EN) .data() is safe: the generated constants are static,
+                //      NUL-terminated literals.
+                llvm::Value *mapArg = normalizeMapPtr(
+                    args[0], "msize.map.ptr",
+                    ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG,
+                    Sad::Builtins::Names::Maps::MAP_SIZE.data());
                 llvm::Value *countGep = cg_.builder_->CreateGEP(i64Ty, mapArg,
                                                             {llvm::ConstantInt::get(i64Ty, 0)}, "msize.count.gep");
                 llvm::Value *result = cg_.builder_->CreateLoad(i64Ty, countGep, "msize.count");
@@ -897,8 +1694,15 @@ namespace Sad
                 auto *i64Ty = cg_.getInt64Type();
                 auto *ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
 
-                // (AR) تحويل map من i64 إلى ptr
-                llvm::Value *mapPtr = normalizeMapPtr(args[0], "mhas.map.ptr");
+                // (AR) تحويل map من i64 إلى ptr — الغيابُ الموسومُ ⇒ RUN037 باسمِ
+                //      «خريطة_تحتوي» (نظيرُ msize؛ طريقةُ `.يحتوي()` لا تصل
+                //      بمستقبِلٍ موسومٍ فالاسمُ صادقٌ دائمًا هنا).
+                // (EN) Tagged absence ⇒ RUN037 named «خريطة_تحتوي» (msize's twin;
+                //      the method surface never routes a tagged receiver here).
+                llvm::Value *mapPtr = normalizeMapPtr(
+                    args[0], "mhas.map.ptr",
+                    ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG,
+                    Sad::Builtins::Names::Maps::MAP_HAS_KEY.data());
                 llvm::Value *key = normalizeMapKey(args[1], "mhas.key.ptr");
 
                 llvm::Value *capGep = cg_.builder_->CreateGEP(i64Ty, mapPtr,
@@ -1542,6 +2346,16 @@ namespace Sad
          * (AR) بنية SadArray: {i64 length, i64 capacity, ptr data}
          *      تخصص المصفوفة + بيانات، ثم تنسخ العناصر غير الفارغة
          */
+        llvm::Value *MapOpsCodeGen::emitForeachEmptyDelim()
+        {
+            // (AR) عامٌّ واحدٌ مُسمًّى للفاصلِ الفارغِ — يُنشأُ مرّةً ويُعادُ بعدَها.
+            // (EN) One named global for the empty delimiter — created once, reused after.
+            static const char *kName = "__sad_foreach_empty_delim";
+            if (auto *existing = cg_.module_->getNamedGlobal(kName))
+                return existing;
+            return cg_.builder_->CreateGlobalStringPtr("", kName);
+        }
+
         llvm::Function *MapOpsCodeGen::getOrCreateMapCollect()
         {
             const char *fnName = "__sad_map_collect";
@@ -1730,6 +2544,9 @@ namespace Sad
             elemKind = b.CreateSelect(mapTagIs(Sad::Compiler::kMapValueTagArray, "t.is.array"),
                                       llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Array),
                                       elemKind, "elem.k.array");
+            elemKind = b.CreateSelect(mapTagIs(Sad::Compiler::kMapValueTagObject, "t.is.obj"),
+                                      llvm::ConstantInt::get(i8Ty, Sad::LLVM::DynKind::Obj),
+                                      elemKind, "elem.k.obj");
             llvm::Value *tagIdx = b.CreateSelect(hasTypes, dstIdx,
                                                  llvm::ConstantInt::get(i64Ty, 0), "tag.idx");
             auto *tagDstGep = b.CreateGEP(i8Ty, tagsBuf, {tagIdx}, "tag.dst.gep");

@@ -71,6 +71,24 @@ namespace Sad
                 std::cout << "[DEBUG] buildClass: processing class '" << classDecl->name << "'" << std::endl;
 #endif
 
+                // (AR) بناء واحد لكل **عقدة تصريح** لا لكل اسم: الأب المبنيُّ عند
+                //      الطلب (أدناه) يصل إليه المسحُ الرئيسيُّ لاحقًا بالعقدةِ نفسِها
+                //      فيُتخطى، والوسمُ عند الدخول يقطع عودَ دورات الوراثة الفاسدة.
+                //      المفتاحُ العقدةُ عمدًا: تخطٍّ بالاسم وحدَه كان يُسقط بناءَ
+                //      طرائقِ صنفٍ ثانٍ يعيد تعريفَ الاسم فيتحول التصادمُ إلى فشلِ
+                //      ربطٍ مموَّهٍ «ثبّت clang» (رصد المراجعة العدائية — b_dup).
+                // (EN) One build per DECL NODE, not per name: an on-demand-built
+                //      parent is revisited by the main sweep with the same node and
+                //      skipped, and marking on entry breaks recursion on invalid
+                //      cycles. Keying by name alone dropped the method builds of a
+                //      second same-name class, turning the collision into a masked
+                //      LNK2019 (adversarial finding — b_dup).
+                if (b_.builtClassDecls_.count(classDecl) > 0)
+                {
+                    return;
+                }
+                b_.builtClassDecls_.insert(classDecl);
+
                 // (AR) تحديد الصنف الأب (إن وجد)
                 // (EN) Determine parent class (if any)
                 std::string parentClass = "";
@@ -80,11 +98,53 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildClass: parent class = '" << parentClass << "'" << std::endl;
 #endif
+                    // (AR) الأب معرَّفٌ لاحقًا في الملف ولم يُبنَ بعدُ ⇒ يُبنى الآن
+                    //      عودًا، وإلا خرج تخطيطُ الابن بلا الحقولِ الموروثةِ (نسخُها
+                    //      أدناه يقرأ حقولَ الأب) — تأكيدة LLVM المقيسة على بذرة 054.
+                    // (EN) The parent is declared later in the file and not built
+                    //      yet ⇒ build it now recursively; otherwise the child layout
+                    //      misses the inherited fields (the copy below reads the
+                    //      parent's fields) — the measured LLVM assertion (seed 054).
+                    auto pendingIt = b_.pendingClassDecls_.find(parentClass);
+                    if (pendingIt != b_.pendingClassDecls_.end() &&
+                        b_.builtClassDecls_.count(pendingIt->second) == 0)
+                    {
+                        buildClass(pendingIt->second);
+                    }
                 }
 
-                // (AR) إنشاء صنف SIR (SIRClass constructor: sir_module.h:409)
-                // (EN) Create SIR class
-                auto sirClass = std::make_shared<SIRClass>(classDecl->name, parentClass);
+                // (AR) إنشاء صنف SIR (SIRClass constructor: sir_module.h:409) — أو إعادة
+                //      استخدام الصدفة المصرَّحة في المرحلة 1.25: addClass يدفع بلا إزالة
+                //      تكرار وgetClass يرجع الأول، فصنفٌ ثانٍ بالاسم نفسه يجعل الطرائق
+                //      تُضاف إلى كائنٍ لا يراه أحد. الكائن المشترك واحد دائمًا.
+                // (EN) Create SIR class — or reuse the Phase 1.25 shell: addClass pushes
+                //      without dedup and getClass returns the first match, so a second
+                //      object under the same name would receive methods nobody can see.
+                //      There is always exactly one shared object per class name.
+                // (AR) وإعادةُ الاستخدام مقصورةٌ على صدفةِ **هذه العقدةِ** من المرحلة
+                //      1.25: صنفٌ محليٌّ يصادم اسمَ صنفٍ مستورَدٍ (ليس في pending)
+                //      يسلك المسارَ القديم (كائن ثانٍ، والأولُ يفوز في getClass) —
+                //      دمجُ طرائقِه في المستورَد قَلَبَ اختيارَ المحرّكِ (رصد
+                //      المراجعة العدائية — g_import).
+                // (EN) Reuse is limited to THIS node's Phase 1.25 shell: a local
+                //      class colliding with an imported class name (not in pending)
+                //      takes the old path (second object; first wins in getClass) —
+                //      merging its methods into the imported one flipped the
+                //      compiled engine's pick (adversarial finding — g_import).
+                auto pendingSelfIt = b_.pendingClassDecls_.find(classDecl->name);
+                const bool hasOwnShell = (pendingSelfIt != b_.pendingClassDecls_.end() &&
+                                          pendingSelfIt->second == classDecl);
+                auto sirClass = hasOwnShell ? b_.module_->getClass(classDecl->name)
+                                            : std::shared_ptr<SIRClass>{};
+                const bool reusedShell = (sirClass != nullptr);
+                if (!sirClass)
+                {
+                    sirClass = std::make_shared<SIRClass>(classDecl->name, parentClass);
+                }
+                else
+                {
+                    sirClass->parentClass = parentClass;
+                }
 
                 // (AR) تعيين علامة المجرد / (EN) Set abstract flag
                 sirClass->isAbstract = classDecl->isAbstract;
@@ -150,8 +210,13 @@ namespace Sad
                 //      (e.g., return new Vector(...)) searches b_.module_->getClass() — it fails
                 //      if class isn't registered yet. Since sirClass is shared_ptr, later
                 //      modifications (adding fields/methods) auto-reflect in b_.module_.
+                // (AR) الصدفة المعاد استخدامها مسجَّلة سلفًا (المرحلة 1.25) — لا دفع ثانيًا.
+                // (EN) A reused shell is already registered (Phase 1.25) — no second push.
                 // ═══════════════════════════════════════════════════════════════════════
-                b_.module_->addClass(sirClass);
+                if (!reusedShell)
+                {
+                    b_.module_->addClass(sirClass);
+                }
 
                 // (AR) معالجة أعضاء الصنف (members)
                 // (EN) Process class members
@@ -519,11 +584,85 @@ namespace Sad
                             auto savedClassName = b_.currentClassName_;
                             b_.currentClassName_ = classDecl->name;
                             returnType = b_.inferReturnTypeFromBody(methodDecl->body.get());
+
+                            // (AR) معاملٌ عُمِّم إلى Any (اختلافٌ عدديٌّ خالصٌ بين مواقعِ
+                            //      النداء — applyAgreedMemberParamTypes): الجسمُ يحسب موسومًا،
+                            //      والاستنتاجُ بلا صدفةِ معاملاتٍ لا يعرف «س» فيسقط إلى «رقم»
+                            //      ويُبتَر العائدُ العشريُّ (5.0⇒5) حيث يمرّره المفسّرُ بوسمه.
+                            //      يُعاد الاستنتاجُ بصدفةٍ فارغةِ الاسمِ تحمل أنواعَ الشجرةِ
+                            //      الموسَّعة (نظيرُ صدفةِ العائدِ المصرَّحِ أدناه)، ويُؤخَذ
+                            //      حكمُها **موسومًا فقط**: عائدٌ Any يُبقي الوسمَ حتى
+                            //      الاستهلاك؛ وسائرُ الأنواعِ تبقى على الاستنتاجِ الأصليِّ
+                            //      كي لا يتبدّل سلوكٌ قائمٌ لم تمسَّه الترقية.
+                            // (EN) A parameter generalized to Any (pure-numeric call-site split
+                            //      — applyAgreedMemberParamTypes): the body computes tagged,
+                            //      but the shell-less inference does not know the parameter and
+                            //      falls to Integer, truncating a float return (5.0⇒5) where
+                            //      the interpreter passes it through with its tag. Re-infer
+                            //      with an empty-named shell carrying the AST-widened types
+                            //      (mirror of the declared-return shell below), and take its
+                            //      ruling ONLY when it is Any: an Any return keeps the tag to
+                            //      the consumer; every other kind keeps the original inference
+                            //      so behavior untouched by the promotion stays untouched.
+                            {
+                                bool anyPromotedParam = false;
+                                for (const auto &param : methodDecl->parameters)
+                                    if (param.type == Types::SadTypeKind::Any)
+                                        anyPromotedParam = true;
+                                if (anyPromotedParam)
+                                {
+                                    Sad::AST::FunctionDecl paramShell(
+                                        std::string(), methodDecl->parameters,
+                                        methodDecl->returnType, nullptr);
+                                    const SadTypeKind shelledKind = b_.inferReturnTypeFromBody(
+                                        methodDecl->body.get(), &paramShell);
+                                    if (shelledKind == SadTypeKind::Any)
+                                        returnType = SadTypeKind::Any;
+                                }
+                            }
                             b_.currentClassName_ = savedClassName;
                         }
                         else
                         {
                             returnType = b_.astTypeToSIRType(methodDecl->returnType);
+                            // (AR) توسيعُ عائدِ الطريقةِ المصرَّحِ «رقم» عشريًّا (بذرة [٧]):
+                            //      المفسّرُ — العقدُ — **لا يقسر** عائدَ الطريقةِ (بخلافِ
+                            //      الدالّةِ العليا)، فجسمٌ يُستنتَجُ عشريًّا عبرَ بابِ i64
+                            //      المصرَّحِ كان يُبتَرُ (5.0⇒5) حيثُ يمرّره المفسّرُ سليمًا.
+                            //      التوسيعُ عدديٌّ حصرًا — كقاعدةِ المعاملِ أعلاه — ولا
+                            //      يُمَسُّ تصريحٌ غيرُ «رقم».
+                            // (EN) Widen a method's declared-«رقم» return to Float (seed [٧]):
+                            //      the interpreter — the contract — does NOT coerce method
+                            //      returns (unlike toplevel functions), so a body inferred
+                            //      Float through the declared i64 door was truncated (5.0⇒5)
+                            //      where the interpreter passes it through. Numeric widening
+                            //      only, mirroring the parameter rule; no other declaration
+                            //      is touched.
+                            if (methodDecl->returnType == Types::SadTypeKind::Integer &&
+                                methodDecl->body)
+                            {
+                                // (AR) صدفةُ تصريحٍ مؤقّتةٌ تحملُ معاملاتِ الطريقةِ
+                                //      **بأنواعِها الموسَّعةِ في الشجرة** إلى الاستنتاج
+                                //      (فبِلا funcDecl لا يعرفُ الاستنتاجُ «س» أصلًا).
+                                //      اسمُها فارغٌ عمدًا كي لا يلتقطَ الجدولُ توقيعَ
+                                //      المرحلةِ 1.3 غيرَ الموسَّع بدلَ أنواعِ الشجرة.
+                                // (EN) A temporary declaration shell carries the method's
+                                //      AST-widened parameter types into the inference
+                                //      (without a funcDecl the inference does not know the
+                                //      parameter at all). Its name is deliberately empty so
+                                //      the table lookup misses and the AST types — not the
+                                //      unwidened Phase 1.3 signature — are used.
+                                Sad::AST::FunctionDecl paramShell(
+                                    std::string(), methodDecl->parameters,
+                                    methodDecl->returnType, nullptr);
+                                auto savedClassName = b_.currentClassName_;
+                                b_.currentClassName_ = classDecl->name;
+                                const SadTypeKind bodyKind = b_.inferReturnTypeFromBody(
+                                    methodDecl->body.get(), &paramShell);
+                                b_.currentClassName_ = savedClassName;
+                                if (bodyKind == SadTypeKind::Float)
+                                    returnType = SadTypeKind::Float;
+                            }
                         }
                         std::string fullMethodName = classDecl->name + "." + methodDecl->name;
                         auto sirMethod = std::make_shared<SIRFunction>(fullMethodName, returnType);
@@ -552,6 +691,26 @@ namespace Sad
                                 for (const auto &param : methodDecl->parameters)
                                 {
                                     SadTypeKind paramType = b_.astTypeToSIRType(param.type);
+                                    // (AR) ترقيةُ الشجرةِ إلى Any حكمُ إجماعِ المواقعِ
+                                    //      (applyAgreedMemberParamTypes) وهو لاحقٌ وأعلمُ من
+                                    //      تسجيلِ 1.3 المسبقِ — كان جدولُ 1.3 يكتبُ Float
+                                    //      المسجَّلةَ فوقَها («عشري» + موقعٌ نصّيٌّ) فيَبني
+                                    //      التوقيعَ f64 بينما موقعُ النداءِ يُغلِّفُ Any ⇒
+                                    //      «Calling a function with a bad signature» (مقيس).
+                                    //      «رقم» نجت مصادفةً: مسجَّلتُها Integer يستثنيها
+                                    //      الشرطُ أدناه — درسُ «التصريحُ بلغَ طبقةً واحدة».
+                                    // (EN) The AST's Any promotion is the site-unanimity
+                                    //      verdict (applyAgreedMemberParamTypes) — later and
+                                    //      better informed than the Phase-1.3 pre-registration.
+                                    //      That table wrote its recorded Float back over it
+                                    //      («عشري» + a string site), building an f64 signature
+                                    //      while the call site boxes Any ⇒ "Calling a function
+                                    //      with a bad signature" (measured). «رقم» survived by
+                                    //      accident: its recorded Integer is excluded by the
+                                    //      condition below — the "declared fact reaches one
+                                    //      layer" lesson.
+                                    if (paramType != SadTypeKind::Any)
+                                    {
                                     // (AR) ابحث عن النوع المُستنتج للمعامل
                                     for (const auto &ip : inferredParams)
                                     {
@@ -566,6 +725,7 @@ namespace Sad
                                             paramType = ip.type;
                                             break;
                                         }
+                                    }
                                     }
                                     // (AR) بذر صنف المعامل المصرَّح («حدث ح» في طريقة) — نظير
                                     //      الدوالّ الحرّة في sir_builder_functions (جولة أميليا ٢)
@@ -1080,12 +1240,20 @@ namespace Sad
                         for (const auto &param : methodDecl->parameters)
                         {
                             SadTypeKind paramType = b_.astTypeToSIRType(param.type);
+                            // (AR) ترقيةُ الشجرةِ إلى Any لا يُكتَبُ فوقَها جدولُ 1.3 —
+                            //      النسخةُ الثانيةُ من الموضعِ نفسِه أعلاه (درسُ النسخِ الثلاث).
+                            // (EN) The AST's Any promotion is never overwritten by the
+                            //      Phase-1.3 table — second copy of the site above (the
+                            //      three-copies lesson).
+                            if (paramType != SadTypeKind::Any)
+                            {
                             for (const auto &ip : inferredParams)
                             {
                                 if (ip.name == param.name && ip.type != SadTypeKind::Integer)
                                 { paramType = ip.type; break; }
                                 if (ip.name == param.name && param.type == Types::SadTypeKind::Unknown && ip.type != paramType)
                                 { paramType = ip.type; break; }
+                            }
                             }
                             // (AR) بذر صنف المعامل المصرَّح (جولة أميليا ٢)
                             // (EN) Seed declared param class (Amelia round 2)

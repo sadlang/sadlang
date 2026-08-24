@@ -629,6 +629,42 @@ namespace Sad
             TypePtr leftType = inferExprType(expr.left.get());
             TypePtr rightType = inferExprType(expr.right.get());
 
+            // (AR) SEM045 (D8): «فراغ» ناتجَ **نداءٍ** طرفًا في عملية **حسابية**
+            //      يُرفض هنا لا في الإسناد وحده — `رقم س = لا_شيء() + 1` كانت تمرّ
+            //      صامتةً (الجمعُ يُسوّي الفراغَ Unknown فيطابق الخانة — قِيس في
+            //      المراجعة العدائية) بينما المفسّر يرفضها وقت التشغيل. الرفضُ
+            //      مقصورٌ على `CallExpr`: وصولُ العضو (`هذا.س`) قد يُستنتَج «فراغًا»
+            //      أثريًّا فأطلق الصياغةَ الأولى كذبًا على بذرة تحميل العوامل (قِيس).
+            //      والمقارناتُ خارجُ الرفض (عقد `فراغ == لاشيء` ⇒ «خطأ»، البذرة 100).
+            // (EN) SEM045 (D8): a CALL result typed Void as an ARITHMETIC operand is
+            //      rejected here — `رقم س = لا_شيء() + 1` compiled silently
+            //      (measured). Restricted to CallExpr: member access may infer Void
+            //      as an artifact (measured false positive on the operator-overload
+            //      seed). Comparisons stay out (seed 100 pins `فراغ == لاشيء`).
+            {
+                const bool arithmeticOp =
+                    expr.op == TT::OP_PLUS || expr.op == TT::OP_MINUS ||
+                    expr.op == TT::OP_MULTIPLY || expr.op == TT::OP_DIVIDE ||
+                    expr.op == TT::OP_FLOOR_DIVIDE || expr.op == TT::OP_MODULO;
+                const bool voidOperand =
+                    (leftType && leftType->getKind() == Types::SadTypeKind::Void &&
+                     dynamic_cast<AST::CallExpr *>(expr.left.get()) != nullptr) ||
+                    (rightType && rightType->getKind() == Types::SadTypeKind::Void &&
+                     dynamic_cast<AST::CallExpr *>(expr.right.get()) != nullptr);
+                if (arithmeticOp && voidOperand)
+                {
+                    // (AR) الرسالة الافتراضية «متوقع … وُجد …» (الوسيط الخامس يطغى
+                    //      على العربية — قِيس، فتُرك فارغًا).
+                    recordTypeError("", useArabicMessages_ ? "قيمة" : "a value",
+                                    leftType && leftType->getKind() == Types::SadTypeKind::Void
+                                        ? leftType->toString()
+                                        : rightType->toString(),
+                                    &expr);
+                    lastInferredType_ = registry_.getUnknownType();
+                    return;
+                }
+            }
+
             switch (expr.op)
             {
             // عمليات حسابية / Arithmetic
@@ -1020,6 +1056,17 @@ namespace Sad
             }
             else
             {
+                // (AR) SEM045 (انحدار t001): نوعُ المستدعى هنا هو نوعُ النداء (تسجيلُ
+                //      القوالب بخانةِ الإرجاع) — وصارت الخانةُ صادقةً في المنبع:
+                //      visitTemplateFunctionDecl يميّز «الفراغَ اليقينيَّ» عن المُغفَلِ
+                //      المُرجِعِ قيمةً (يُدوَّن مجهولًا)، فلا تحويلَ دفاعيًّا هنا — تحويلُ
+                //      Void→Unknown جملةً أضاع D8 عن القالبِ الفراغيِّ حقًّا (قِيس).
+                // (EN) SEM045 (regression t001): the callee type IS the call type here
+                //      (templates register by their return slot) — and the slot is now
+                //      truthful at the source: visitTemplateFunctionDecl distinguishes
+                //      certainly-void from undeclared-value-returning (Unknown), so no
+                //      defensive conversion happens here — a blanket Void→Unknown lost
+                //      D8 for genuinely void templates (measured).
                 lastInferredType_ = calleeType ? calleeType : registry_.getUnknownType();
             }
         }

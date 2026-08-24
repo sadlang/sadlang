@@ -864,6 +864,12 @@ static llvm::Function *getOrCreateSplitHelper(
                     Sad::Builtins::Names::TypeMethods::String::CHAR_AT),
                 "char_at.str");
 
+            // (AR) [بذرة [٨] — أثرُ الترقية] فهرسٌ موسومٌ (%SadDyn) يُفَكُّ بوسمِه
+            //      قبلَ الاستعمالِ الخامّ — نظيرُ بابِ «جزء» أعلاه.
+            // (EN) [seed [٨] — promotion fallout] A tagged (%SadDyn) index is
+            //      unpacked by its tag before raw use — the «جزء» door's twin.
+            if (isSadDyn(index))
+                index = unpackI64(cg_, index);
             // Ensure index is i64
             if (index->getType() != llvm::Type::getInt64Ty(*cg_.context_))
             {
@@ -1837,6 +1843,19 @@ static llvm::Function *getOrCreateSplitHelper(
             llvm::Value *rawLength = hasLength ? cg_.resolveOperand(inst->operands[2]) : nullptr;
             if (!rawStart || (hasLength && !rawLength))
                 return nullptr;
+            // (AR) [بذرة [٨] — أثرُ الترقية] موضعٌ موسومٌ (%SadDyn): عائدُ دالّةٍ
+            //      مصرَّحةٍ «رقم» صار يعبرُ موسومًا، والمواضعُ تُغذّى منه (مقيس:
+            //      «جزء» في مكتبةِ جيسون). يُفَكُّ بوسمِه (عشريّ⇒fptosi) قبلَ
+            //      حسابِ القصِّ الخامِّ — كان CreateAdd على البنيةِ يؤكِّدُ إجهاضًا.
+            // (EN) [seed [٨] — promotion fallout] A tagged (%SadDyn) position:
+            //      declared-«رقم» returns now travel tagged and positions are fed
+            //      from them (measured: جيسون's «جزء»). Unpack by tag (Float ⇒
+            //      fptosi) before the raw clamp arithmetic — CreateAdd on the
+            //      struct used to abort with an LLVM assertion.
+            if (isSadDyn(rawStart))
+                rawStart = unpackI64(cg_, rawStart);
+            if (rawLength && isSadDyn(rawLength))
+                rawLength = unpackI64(cg_, rawLength);
 
             auto i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
             llvm::IRBuilder<> &b = *cg_.builder_;

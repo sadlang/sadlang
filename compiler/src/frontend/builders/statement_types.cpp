@@ -586,12 +586,13 @@ namespace Sad
                     b_.classTable_[structDecl->name] = sirClass;
 
                     // (AR) ISSUE-060: البنية تحصل على آليّة أعضاء الصنف الكاملة — الباني عبر
-                    //      buildClassConstructor (يربط self/هذا ويسجّل «بنية.باني» فيُستدعى عند
-                    //      الإنشاء)، والطرق عبر buildClassMethod (تخطيط الحقول وربط هذا).
+                    //      buildClassConstructor (يربط self/هذا ويسجّل الاسم المفكوك
+                    //      constructorNameFor فيُستدعى عند الإنشاء)، والطرق عبر buildClassMethod
+                    //      (تخطيط الحقول وربط هذا).
                     //      كان buildStatement العامّ يُسقطهما بلا سياق صنف ⇒ يعيدان 0.
                     // (EN) ISSUE-060: give the struct the full class-member machinery — the
                     //      constructor via buildClassConstructor (binds self/this and registers
-                    //      "Struct.باني" so it's called on construction), and methods via
+                    //      the mangled name constructorNameFor, called on construction), and methods via
                     //      buildClassMethod (field layout + this binding). The generic
                     //      buildStatement dropped both without class context ⇒ they returned 0.
                     {

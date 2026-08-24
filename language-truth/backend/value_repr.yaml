@@ -31,6 +31,18 @@ dyn_kinds:
   - { name: kDynKindStr,   value: 3, ar: "نصّ (مؤشّرٌ/واصفٌ حسب السياق)" }
   - { name: kDynKindBool,  value: 4, ar: "منطقيّ (٠/١)" }
   - { name: kDynKindArray, value: 5, ar: "مصفوفة (مؤشّرٌ مُدار) — homogKind لناتجِ ZIP" }
+  # (AR) ⚠️ القيمُ 6–8 محجوزةٌ عمدًا: خلفيّةُ LLVM تشغلها بوسومها الخاصّة (Map=6،
+  #      Obj=7، Adt=8 في sad_dyn_repr.h) ولمّا تُرفَع (مستهلِكُها واحد). فالفراغُ
+  #      يُرفَع بقيمةِ LLVM عينِها (9) لا بأوّلِ خانةٍ شاغرةٍ هنا — رفعُه بـ6 كان
+  #      يجعل «فراغًا» في الخلفيّةِ الأصليّةِ «خريطةً» في LLVM: انجرافُ فضاءِ وسومٍ
+  #      صامتٌ هو بعينِه ما وُجد هذا الملفُّ لسدّه. يحرسه static_assert هناك.
+  # (EN) Values 6–8 are deliberately reserved: the LLVM backend occupies them with
+  #      its own tags (Map/Obj/Adt in sad_dyn_repr.h, single-consumer, not lifted
+  #      yet). Void is lifted with LLVM's own value (9), not the first free slot
+  #      here — lifting it as 6 would make native's Void read as LLVM's Map, the
+  #      exact silent tag-space drift this file exists to prevent (static_assert
+  #      guards it there).
+  - { name: kDynKindVoid, value: 9, ar: "فراغ (Void) — «لا قيمةَ هنا» (مفتاحُ خريطةٍ غائب)، متمايزٌ عن «عدم» القيمةِ الصريحة؛ كلاهما يُعرَض «لاشيء»" }
 
 # (AR) نصوصُ عرضِ القيم (ما تُنتجه «نص()»/الطباعة لقيمةٍ) — قيمٌ مرئيّةٌ للمستخدم.
 #      «عدم»/«فراغ» أسماءُ أنواعٍ لا عرضُ قيمة ⇒ لا تُدرَج هنا.
@@ -39,6 +51,18 @@ display_texts:
   - { name: kNullDisplay,      value: "لاشيء", ar: "عرضُ قيمةِ العدم/الفراغ (Null/Void) — يطابق Value::toString والمفسّر وdynToString" }
   - { name: kBoolTrueDisplay,  value: "صحيح",  ar: "عرضُ القيمةِ المنطقيّةِ الصادقة" }
   - { name: kBoolFalseDisplay, value: "خطأ",   ar: "عرضُ القيمةِ المنطقيّةِ الكاذبة" }
+# (AR) عرضٌ مُعتِمٌ لكائنٍ داخلَ حاويةٍ في **المسار المترجَم وحدَه**: الكائنُ المترجَمُ
+#      بنيةٌ خامٌ بلا ترويسةِ أنواعٍ زمنَ التشغيل، فلا سبيلَ لاسمِ صنفِه وحقولِه من
+#      داخلِ مساعدِ التصييرِ المولَّد. المفسّرُ يعرضُ الأغنى «<شخص#1: اسم=علي>» —
+#      تباعُدٌ معلَنٌ محلُّه عرضُ الكائنِ المتداخلِ لا وسومُه (كان البديلُ المقيسُ
+#      انهيارَ SIGSEGV حين يُعامَلُ الكائنُ خريطةً، أو طباعةَ مؤشّرِه عددًا).
+# (EN) Opaque display for an object inside a container on the COMPILED path only:
+#      a compiled object is a raw struct with no runtime type header, so the
+#      generated stringifier cannot recover its class name or fields. The
+#      interpreter shows the richer «<شخص#1: اسم=علي>» — a declared divergence in
+#      nested-object display (the measured alternatives were a SIGSEGV or a raw
+#      pointer printed as a number).
+  - { name: kObjectOpaqueDisplay, value: "<كائن>", ar: "عرضُ كائنٍ مُعتِمٍ داخلَ حاويةٍ مترجَمة — المفسّرُ أغنى (تباعُدٌ معلَن)" }
 
 # (AR) محدِّداتُ عرضِ المصفوفة — كانت حرفيّاتٍ خامّةً في مسارين مستقلَّين (المفسّر
 #      value.cpp:483-491، ومساعِدُ LLVM المولَّد __sad_array_to_string_dyn)، وهو
@@ -78,14 +102,14 @@ map_layout:
 
 # (AR) ⚠️ وسومُ **قيمِ** الخريطةِ لا تُرفَع هنا عمدًا. مصدرُها الحيُّ الوحيدُ
 #      `Sad::Compiler::kMapValueTag*` في `compiler/include/frontend/sir_constants.h`
-#      وفيه **ثمانيةُ** أعضاءَ (نصّ٠ صحيح١ عشريّ٢ منطقيّ٣ عدم٤ فراغ٥ خريطة٦ مصفوفة٧)،
+#      وفيه **تسعةُ** أعضاءَ (نصّ٠ صحيح١ عشريّ٢ منطقيّ٣ عدم٤ فراغ٥ خريطة٦ مصفوفة٧ كائن٨)،
 #      كلٌّ منها موثَّقٌ بالعيبِ الذي وُلد لسدّه. وأوّلُ صياغةٍ هنا أعلنت أربعةً فقط
 #      بلا مستهلِك — أي **نسخةً ثانيةً ناقصةً** لمساحةِ الوسوم، وهي بعينِها الفجوةُ
 #      التي وُجد هذا الملفُّ ليمنعها: قارئٌ يبني على الأربعةِ يُعيد إسقاطَ عدم/خريطة/
 #      مصفوفةٍ في وسمِ النصّ. فالمرفوعُ هنا **التخطيطُ** وحدَه (له مستهلِكان فعليّان)،
 #      ورفعُ الوسومِ يلزمه نقلُ الثمانيةِ ونقلُ مستهلِكِها معًا — دفعةٌ مستقلّة.
 # (EN) Map VALUE tags are deliberately not lifted here: their single live source is
-#      Sad::Compiler::kMapValueTag* (eight members, each documented by the defect it
+#      Sad::Compiler::kMapValueTag* (nine members, each documented by the defect it
 #      closed). A first draft declared four of them with no consumer — a second,
 #      incomplete copy of the tag space, exactly the drift this file exists to
 #      prevent. Only the LAYOUT is lifted (it has two real consumers); lifting the

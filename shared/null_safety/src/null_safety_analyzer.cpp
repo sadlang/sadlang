@@ -146,6 +146,165 @@ namespace Sad
         }
 
         // ====================================================================
+        // (AR) SEM045 (أ٢) — جمع دوالِّ «الفراغ اليقينيّ» / Collect certainly-void fns
+        // ====================================================================
+        // (AR) هل يحوي الجسمُ `ارجع` بقيمة أو `ارمِ` أو `أنتج`؟ المسحُ يهبط في كلّ
+        //      الجُمل الحاملة للكتل **وفي الأجساد المتداخلة أيضًا** — وذلك متعمَّد:
+        //      عدُّ إرجاعِ دالةٍ داخليةٍ يُخرج الخارجيةَ من مجموعة الفراغ، أي رصدٌ
+        //      أقلُّ لا خطأ (اتجاه D5 الآمن). الرمي يُستبعَد لأن دالةً ترمي دومًا
+        //      لا يكتمل نداؤها فلا يقع الإسنادُ أصلًا (درءُ إيجابيٍّ كاذب).
+        // (EN) Does the body contain a value-return, raise, or yield? The naive
+        //      descent into nested bodies errs in the safe D5 direction.
+        bool NullSafetyAnalyzer::bodyHasValueReturnOrRaise(AST::Statement *stmt)
+        {
+            if (!stmt)
+                return false;
+            if (auto *rt = dynamic_cast<AST::ReturnStmt *>(stmt))
+                return rt->value != nullptr;
+            if (dynamic_cast<AST::RaiseStmt *>(stmt) ||
+                dynamic_cast<AST::YieldStmt *>(stmt))
+                return true;
+            if (auto *blk = dynamic_cast<AST::BlockStmt *>(stmt))
+            {
+                for (auto &s : blk->statements)
+                    if (bodyHasValueReturnOrRaise(s.get()))
+                        return true;
+                return false;
+            }
+            if (auto *iff = dynamic_cast<AST::IfStmt *>(stmt))
+                return bodyHasValueReturnOrRaise(iff->thenBranch.get()) ||
+                       bodyHasValueReturnOrRaise(iff->elseBranch.get());
+            if (auto *wh = dynamic_cast<AST::WhileStmt *>(stmt))
+                return bodyHasValueReturnOrRaise(wh->body.get());
+            if (auto *fr = dynamic_cast<AST::ForStmt *>(stmt))
+                return bodyHasValueReturnOrRaise(fr->body.get());
+            if (auto *frr = dynamic_cast<AST::ForRangeStmt *>(stmt))
+                return bodyHasValueReturnOrRaise(frr->body.get());
+            if (auto *tr = dynamic_cast<AST::TryStmt *>(stmt))
+            {
+                if (bodyHasValueReturnOrRaise(tr->tryBlock.get()) ||
+                    bodyHasValueReturnOrRaise(tr->finallyBlock.get()))
+                    return true;
+                for (auto &cc : tr->catchClauses)
+                    if (bodyHasValueReturnOrRaise(cc.body.get()))
+                        return true;
+                return false;
+            }
+            if (auto *sw = dynamic_cast<AST::SwitchStmt *>(stmt))
+            {
+                for (auto &cb : sw->cases)
+                    if (bodyHasValueReturnOrRaise(cb.body.get()))
+                        return true;
+                return bodyHasValueReturnOrRaise(sw->defaultCase.get());
+            }
+            if (auto *wt = dynamic_cast<AST::WithStmt *>(stmt))
+                return bodyHasValueReturnOrRaise(wt->body.get());
+            if (auto *df = dynamic_cast<AST::DeferStmt *>(stmt))
+                return bodyHasValueReturnOrRaise(df->body.get());
+            if (auto *go = dynamic_cast<AST::GoStmt *>(stmt))
+                return bodyHasValueReturnOrRaise(go->blockBody.get());
+            // (AR) دالةٌ متداخلة: «ارجع» داخلَها يعود **منها** لا من الخارجية —
+            //      فوجودُها لا يُبطل يقينَ فراغِ الخارجية. الهبوطُ فيها (الصياغةُ
+            //      الأولى) بدا «متحفّظًا» لمستهلكِ SEM045 (رصدٌ أقلّ)، لكنّه انقلب
+            //      لمستهلكِ فاحصِ الأنواع: خارجيةٌ فراغيةٌ بمغلاقٍ داخليٍّ يُرجع
+            //      قيمةً كانت تسقط إلى «رقم» الضمنيّ فيمرّ إسنادُها صامتًا (قِيس —
+            //      المراجعة العدائية). والاستبعادُ أدقُّ للمستهلكَين معًا.
+            // (EN) Nested function: its `return` exits IT, not the outer function,
+            //      so it must not defeat the outer's void certainty. Descending
+            //      (the first spelling) looked conservative for SEM045 but
+            //      inverted for the type checker (measured silent pass). Excluding
+            //      nested bodies is strictly more accurate for both consumers.
+            if (dynamic_cast<AST::FunctionDecl *>(stmt))
+                return false;
+            // (AR) جملٌ غير معروفة: نعدّها حاملةً لقيمة (لا رصد) — اتجاه D5 الآمن.
+            // (EN) Unknown statements: treated as value-bearing (no detection) — D5.
+            return dynamic_cast<AST::ExprStmt *>(stmt) == nullptr &&
+                   dynamic_cast<AST::VarDeclStmt *>(stmt) == nullptr &&
+                   dynamic_cast<AST::MultiVarDeclStmt *>(stmt) == nullptr &&
+                   dynamic_cast<AST::BreakStmt *>(stmt) == nullptr &&
+                   dynamic_cast<AST::ContinueStmt *>(stmt) == nullptr;
+        }
+
+        // (AR) دوالُّ المستوى الأعلى فقط: هي المرئيّة للنداء العلويّ، والاقتصارُ عليها
+        //      متحفّظٌ (دالةٌ متداخلة لا تدخل المجموعة = رصدٌ أقلّ لا خطأ).
+        // (EN) Top-level functions only — conservative (fewer detections, never wrong).
+        void NullSafetyAnalyzer::collectVoidFunctions(
+            const std::vector<std::unique_ptr<AST::Statement>> &program)
+        {
+            voidReturningFunctions_.clear();
+            for (const auto &stmt : program)
+            {
+                auto *fn = dynamic_cast<AST::FunctionDecl *>(stmt.get());
+                if (!fn)
+                    continue;
+                if (fn->is_async || fn->isGenerator || fn->isExtern || fn->isNoReturn)
+                {
+                    voidReturningFunctions_.erase(fn->name);
+                    continue;
+                }
+                // (AR) التعريفُ الأخيرُ يغلب: إعادةُ تعريفِ الاسمِ بجسمٍ حاملٍ لقيمةٍ
+                //      تُخرِجه من المجموعة — الإبقاءُ عليه كان يشخّص إسنادًا سليمًا
+                //      (إيجابيٌّ كاذبٌ قِيس على دالةٍ مُعادٍ تعريفُها).
+                // (EN) Last definition wins: a later value-bearing redefinition must
+                //      remove the name (measured false positive otherwise).
+                if (!bodyHasValueReturnOrRaise(fn->body.get()))
+                    voidReturningFunctions_.insert(fn->name);
+                else
+                    voidReturningFunctions_.erase(fn->name);
+            }
+        }
+
+        // (AR) هل التعبيرُ نداءٌ مباشرٌ لدالةِ فراغٍ يقينيّ؟ الاسمُ المحجوبُ بتصريحِ
+        //      متغيّرٍ لا يُحكَم عليه — تصادمُ الاسمِ يحلّ صامتًا فنتجنّبه صراحةً.
+        // (EN) Is the expression a direct call to a certainly-void function? Names
+        //      shadowed by a variable declaration are never judged.
+        bool NullSafetyAnalyzer::isStaticVoidCall(const AST::Expression *expr,
+                                                  std::string &calleeOut) const
+        {
+            auto *call = dynamic_cast<const AST::CallExpr *>(expr);
+            if (!call || call->isMacroCall)
+                return false;
+            auto *callee = dynamic_cast<const AST::VariableExpr *>(call->callee.get());
+            if (!callee)
+                return false;
+            if (voidReturningFunctions_.count(callee->name) == 0)
+                return false;
+            if (isDeclaredName(callee->name))
+                return false;
+            calleeOut = callee->name;
+            return true;
+        }
+
+        // (AR) SEM045: بناء التشخيص وإبلاغه (الوسم «SEM045» في النصّ ليُقاس في
+        //      مخرجات المحرّكين كليهما — المفسّرُ يطبع messageAr كما هي).
+        // (EN) SEM045: build and report the diagnostic; the "SEM045" marker in the
+        //      text makes it measurable in both engines' output.
+        void NullSafetyAnalyzer::reportVoidCrossing(const std::string &slotName,
+                                                    const std::string &typeName,
+                                                    const std::string &calleeName,
+                                                    int line, int column,
+                                                    NullSafetyResult &result)
+        {
+            if (strictness_ == Strictness::Ignore)
+                return;
+            NullSafetyDiagnostic d;
+            d.kind = NullSafetyErrorKind::VoidResultAssignedToTypedSlot;
+            d.line = line;
+            d.column = column;
+            d.symbol = slotName;
+            d.fatal = (strictness_ == Strictness::Fatal);
+            d.messageAr =
+                "SEM045: الخانة '" + slotName + "' من نوع '" + typeName +
+                "' أُسند إليها ناتجُ الدالة '" + calleeName +
+                "' وهي لا تُرجِع قيمةً ('فراغ') — غيابُ نتيجةٍ لا قيمة، فلا يصلح حشوًا لخانةٍ أعلنت نوعَها";
+            d.messageEn =
+                "SEM045: slot '" + slotName + "' of type '" + typeName +
+                "' is assigned the result of function '" + calleeName +
+                "' which returns no value (void) — the absence of a result is not a value";
+            result.addDiagnostic(d);
+        }
+
+        // ====================================================================
         // (AR) فحص تصريح متغير واحد لحالة P9 / Check one var decl for P9
         // ====================================================================
         void NullSafetyAnalyzer::checkVarDecl(AST::VarDeclStmt &decl,
@@ -345,6 +504,16 @@ namespace Sad
             }
             if (auto *asn = dynamic_cast<AST::AssignExpr *>(expr))
             {
+                // ── SEM045 (أ٢): «فراغ ساكن ⇒ خانة مصنّفة» عند إعادة الإسناد ────
+                // (AR) نصُّ الـRFC يشمل إعادةَ الإسناد نصًّا — الثقبُ الذي صادته
+                //      المراجعةُ في أ١ يُسدّ هنا سكونيًّا أيضًا.
+                std::string voidCallee;
+                const std::string *slotType = findTypedSlot(asn->name);
+                if (slotType && isStaticVoidCall(asn->value.get(), voidCallee))
+                {
+                    reportVoidCrossing(asn->name, *slotType, voidCallee,
+                                       asn->position.line, asn->position.column, result);
+                }
                 analyzeExpr(asn->value.get(), result);
                 narrowed_.erase(asn->name); // D2: التحوّر يُبطل التضييق
                 return;
@@ -383,6 +552,8 @@ namespace Sad
             if (auto *wal = dynamic_cast<AST::WalrusExpr *>(expr))
             {
                 analyzeExpr(wal->value.get(), result);
+                declareName(wal->variable); // (AR) الحائطُ يصرّح — يُسجَّل درءًا للحجب
+                declareTypedSlot(wal->variable, std::string()); // (AR) ربطٌ غير مصنّف
                 narrowed_.erase(wal->variable); // D2: التحوّر يُبطل التضييق
                 return;
             }
@@ -405,6 +576,28 @@ namespace Sad
             if (auto *vd = dynamic_cast<AST::VarDeclStmt *>(stmt))
             {
                 checkVarDecl(*vd, result);
+                // ── SEM045 (أ٢): «فراغ ساكن ⇒ خانة مصنّفة» عند التصريح ──────────
+                // (AR) الاختياريّ `ت؟` مشمولٌ قصدًا: مجالُه {ت، عدم} لا فراغ (لا بابَ
+                //      خلفيًّا). الفحصُ قبل تسجيل الاسم كي لا يحجب التصريحُ نفسُه
+                //      دالةً بالاسم ذاتِه في مُهيِّئه.
+                // (EN) SEM045 (stage أ٢): static void-call into a typed slot at
+                //      declaration. Optionals included by design (no backdoor).
+                const bool typedSlot =
+                    vd->sadType && vd->type != Types::SadTypeKind::Unknown &&
+                    vd->type != Types::SadTypeKind::Any &&
+                    vd->type != Types::SadTypeKind::Void &&
+                    vd->type != Types::SadTypeKind::Null;
+                std::string voidCallee;
+                if (typedSlot && isStaticVoidCall(vd->initializer.get(), voidCallee))
+                {
+                    reportVoidCrossing(vd->name, vd->sadType->arabicName(), voidCallee,
+                                       vd->position.line, vd->position.column, result);
+                }
+                declareName(vd->name);
+                // (AR) الربطُ غيرُ المصنَّف يُسجَّل شاهدَ حجبٍ (سلسلة فارغة) لا مسحًا —
+                //      المسحُ المحلّيُّ كان يُبقي تصنيفَ النطاقِ الخارجيّ حاكمًا (قِيس).
+                declareTypedSlot(vd->name,
+                                 typedSlot ? vd->sadType->arabicName() : std::string());
                 // (NS-04) سجّل المتغيّر إن كان نوعه اختياريًّا `T؟`.
                 if (vd->type == Types::SadTypeKind::Optional)
                     declareOptional(vd->name);
@@ -558,8 +751,20 @@ namespace Sad
                 const std::set<std::string> savedNarrow = narrowed_;
                 narrowed_.clear(); // (NS-03) تدفّق مستقلّ لكلّ دالّة (لا تسرّب)
                 for (const auto &p : fn->parameters)
+                {
+                    declareName(p.name); // (AR) درءُ حجبِ اسمِ دالةِ فراغٍ بمعامل
                     if (p.type == Types::SadTypeKind::Optional)
                         declareOptional(p.name);
+                    // (AR) SEM045: المعاملُ المصنّفُ خانةٌ — إعادةُ إسنادِه تُفحَص؛
+                    //      وغيرُ المصنّفِ شاهدُ حجبٍ يقطع تصنيفَ النطاق الخارجيّ.
+                    const bool typedParam =
+                        p.sadType && p.type != Types::SadTypeKind::Unknown &&
+                        p.type != Types::SadTypeKind::Any &&
+                        p.type != Types::SadTypeKind::Void &&
+                        p.type != Types::SadTypeKind::Null;
+                    declareTypedSlot(p.name,
+                                     typedParam ? p.sadType->arabicName() : std::string());
+                }
                 analyzeStmt(fn->body.get(), result);
                 narrowed_ = savedNarrow;
                 popScope();
@@ -571,8 +776,18 @@ namespace Sad
                 const std::set<std::string> savedNarrow = narrowed_;
                 narrowed_.clear(); // (NS-03) تدفّق مستقلّ لكلّ طريقة
                 for (const auto &p : md->parameters)
+                {
+                    declareName(p.name);
                     if (p.type == Types::SadTypeKind::Optional)
                         declareOptional(p.name);
+                    const bool typedParam =
+                        p.sadType && p.type != Types::SadTypeKind::Unknown &&
+                        p.type != Types::SadTypeKind::Any &&
+                        p.type != Types::SadTypeKind::Void &&
+                        p.type != Types::SadTypeKind::Null;
+                    declareTypedSlot(p.name,
+                                     typedParam ? p.sadType->arabicName() : std::string());
+                }
                 analyzeStmt(md->body.get(), result);
                 narrowed_ = savedNarrow;
                 popScope();
@@ -605,7 +820,13 @@ namespace Sad
             (void)useArabicMessages_; // (AR) الرسالتان تُبنيان دائمًا؛ المحرّك يختار.
 
             optionalScopes_.clear();
+            typedSlotScopes_.clear();
+            declaredNameScopes_.clear();
             narrowed_.clear(); // (NS-03) لا تضييق في البداية
+            // (AR) SEM045 (أ٢): تمريرةٌ سابقة تجمع دوالَّ الفراغ اليقينيّ — قبل المشي
+            //      لأن أجسامَ الدوالِّ تُبنى قبل الكود العلويّ (النداءُ قبل التصريح صالح).
+            // (EN) SEM045 pre-pass: functions are hoisted, so calls may precede decls.
+            collectVoidFunctions(program);
             pushScope(); // (AR) النطاق العامّ (NS-04)
             for (const auto &stmt : program)
                 analyzeStmt(stmt.get(), result);

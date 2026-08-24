@@ -45,9 +45,62 @@ namespace Sad
                         std::cerr << "[ERROR] spawn requires at least 1 argument (function name)" << std::endl;
                         return BuildResult("", SadTypeKind::Integer);
                     }
+                    // (AR) بوابة الأنواع المصرحة — نظيرة بوابة «أطلق» حرفا:
+                    //      كانت هذه المدمجة تمرر الوسائط إلى ASYNC_SPAWN بلا
+                    //      فحص فتعيد فئة انحدار 099 من الباب الخلفي (معامل
+                    //      افتراضي النوع يعلب i64 فيطبع المؤشر رقما) — رصدته
+                    //      المراجعة. غير المؤهل ينفذ متزامنا بنداء CALL عادي
+                    //      (سلوك «أطلق» الاحتياطي عينه)، لا إسقاطا صامتا.
+                    // (EN) Declared-types gate — the exact «أطلق» gate: this
+                    //      builtin used to forward args into ASYNC_SPAWN
+                    //      unchecked, reintroducing the 099 regression class
+                    //      through the back door. Ineligible calls run
+                    //      synchronously via a plain CALL (same fallback as
+                    //      «أطلق»), never a silent drop.
+                    //      (وملاحظة أميليا: فحص المولد يشمل عديمة الوسائط أيضا،
+                    //      والسقوط المتزامن يعيد قيمة الدالة لا مقبض خيط —
+                    //      مأمون لأن «انتظر» تشترط انتزاعا ناجحا من السجل.)
+                    bool spawnEligible = true;
+                    if (argOperands.size() == 1 &&
+                        argOperands[0].type == SIROperandType::FUNCTION)
+                    {
+                        // (AR) دالة بلا وسائط: المولدات تستثنى كبوابة «أطلق»
+                        auto ftIt = b_.functionTable_.find(argOperands[0].name);
+                        if (ftIt != b_.functionTable_.end() && ftIt->second.isGenerator)
+                            spawnEligible = false;
+                    }
+                    else if (argOperands.size() > 1 &&
+                             argOperands[0].type == SIROperandType::FUNCTION)
+                    {
+                        auto ftIt = b_.functionTable_.find(argOperands[0].name);
+                        spawnEligible =
+                            ftIt != b_.functionTable_.end() &&
+                            !ftIt->second.isGenerator &&
+                            ftIt->second.parameters.size() == argOperands.size() - 1 &&
+                            ftIt->second.paramDefaulted.size() ==
+                                ftIt->second.parameters.size();
+                        if (spawnEligible)
+                        {
+                            for (size_t pi = 0; pi < ftIt->second.parameters.size(); ++pi)
+                            {
+                                const auto &param = ftIt->second.parameters[pi];
+                                if (ftIt->second.paramDefaulted[pi] ||
+                                    (param.type != SadTypeKind::Integer &&
+                                     param.type != SadTypeKind::Float &&
+                                     param.type != SadTypeKind::Boolean &&
+                                     param.type != SadTypeKind::String &&
+                                     param.type != SadTypeKind::Pointer))
+                                {
+                                    spawnEligible = false;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
-                    SIRInstruction inst(SIROpcode::ASYNC_SPAWN);
+                    SIRInstruction inst(spawnEligible ? SIROpcode::ASYNC_SPAWN
+                                                      : SIROpcode::CALL);
                     inst.result = resultOp;
                     for (auto &op : argOperands)
                         inst.operands.push_back(op);

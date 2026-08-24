@@ -89,7 +89,31 @@ namespace Sad
                     const bool isUndeclared =
                         param.type == Types::SadTypeKind::Unknown ||
                         (param.type == Types::SadTypeKind::Class && param.typeName.empty());
-                    if (!isUndeclared)
+                    // (AR) استثناءٌ واحدٌ مقيس (نظيرُ دَين #258 في الدوالِّ الحرّة):
+                    //      المصرَّحُ «رقم» يقبلُ العشريَّ في المفسّرِ (المرجعُ لا يقسر
+                    //      معاملَ الطريقة — بذرة [٧])، فتُسجَّلُ وسائطُه ليُرقَّى عشريًّا
+                    //      **بالإجماعِ حصرًا** في applyAgreedMemberParamTypes. وبقيّةُ
+                    //      الأنواعِ المصرَّحةِ عقدُ الكاتبِ ولا تُخمَّنُ فوقه.
+                    // (EN) One measured exception (mirror of free-function debt #258): a
+                    //      declared «رقم» accepts floats in the interpreter (the reference
+                    //      does not coerce method params — red seed [٧]), so its arguments
+                    //      are recorded and may be widened to Float ONLY on unanimity in
+                    //      applyAgreedMemberParamTypes. Every other declared type is the
+                    //      author's contract and is never guessed over.
+                    const bool isDeclaredInteger = param.type == Types::SadTypeKind::Integer;
+                    // (AR) والمصرَّحُ «عشري» يُسجَّلُ كذلك — لا ليُرقَّى عدديًّا (عقدُه
+                    //      قائمٌ) بل ليُكشَفَ موقعٌ **غيرُ عدديٍّ** (نصٌّ) يبلغُه: كان
+                    //      المضمِّنُ يستبدلُه في جسمٍ منمَّطٍ double فينفجرُ LLVM
+                    //      «Invalid cast» — شقيقُ t06 المقيسُ (درسُ «الرقعةُ تُسدُّ في
+                    //      ملفٍّ وتتركُ أشقّاءَه»).
+                    // (EN) A declared «عشري» (Float) is recorded too — not for numeric
+                    //      promotion (its contract stands) but to detect a NON-numeric
+                    //      site (a string) reaching it: the inliner substituted it into
+                    //      a double-typed body and LLVM asserted «Invalid cast» — the
+                    //      measured sibling of t06 (the "patch sealed in one file
+                    //      leaves siblings" lesson).
+                    const bool isDeclaredFloat = param.type == Types::SadTypeKind::Float;
+                    if (!isUndeclared && !isDeclaredInteger && !isDeclaredFloat)
                         continue;
 
                     // (AR) خانةٌ لم يبلغْها وسيطٌ في هذا الموقع: قيمتُها **عدم** بنصِّ
@@ -134,12 +158,143 @@ namespace Sad
                     // (EN) Unanimity or no promotion. A single disagreeing kind — null included
                     //      — is enough to leave the slot general, which is the safe side.
                     if (kinds.size() != 1)
+                    {
+                        // (AR) استثناءُ الاختلافِ العدديِّ الخالص: خانةٌ مصرَّحةٌ «رقم»
+                        //      بلغَها صحيحٌ **وعشريٌّ** معًا لا غير. تركُها «رقمًا» يجعل
+                        //      الموقعَ العشريَّ يبتُر (بذرة [٧] المختلطة)، وتثبيتُها عشريًّا
+                        //      يُحرّف الموقعَ الصحيحَ (3 ⇒ 3.0) — بل قِيسَ أسوأُ من ذلك:
+                        //      خانةُ بانٍ تبِعت موقعَها الأوّلَ الصحيحَ فكتبَ الموقعُ العشريُّ
+                        //      بتاتِ double في i64 وقُرِئت قمامةً صامتة. والمفسّرُ (المرجع)
+                        //      يُمرّر كلَّ موقعٍ بوسمِه — فالخانةُ تعمُّ إلى Any لتُقرأ
+                        //      موسومةً زمنَ التشغيل، نظيرَ نقضِ الدوالِّ الحرّةِ في
+                        //      applyAgreedFreeParamTypes (ولذلك المسارُ الحرُّ أخضرُ أصلًا).
+                        //      وأيُّ مخالفٍ غيرِ عدديٍّ — عدمُ الإغفالِ أو نصٌّ — يُبقي
+                        //      البابَ مغلقًا كما كان: الجانبُ الآمن.
+                        // (EN) The pure-numeric disagreement exception: a declared-«رقم» slot
+                        //      whose sites carried Integer AND Float and nothing else. Leaving
+                        //      it Integer truncates the float site (mixed seed [٧]); pinning it
+                        //      Float distorts the integer site (3 ⇒ 3.0) — and worse was
+                        //      measured: a constructor slot followed its first (int) site and
+                        //      the float site wrote double BITS into an i64, read back as
+                        //      silent garbage. The interpreter (the reference) passes each
+                        //      site through with its own tag — so the slot generalizes to Any
+                        //      and is read runtime-tagged, mirroring the free-function
+                        //      revocation in applyAgreedFreeParamTypes (which is why the free
+                        //      path is already green). Any non-numeric disagreeing kind —
+                        //      an omission's null, a string — keeps the door shut as before:
+                        //      the safe side.
+                        const bool purelyNumericSplit =
+                            param->type == Types::SadTypeKind::Integer &&
+                            kinds.size() == 2 &&
+                            kinds.count(static_cast<int>(SadTypeKind::Integer)) &&
+                            kinds.count(static_cast<int>(SadTypeKind::Float));
+                        // (AR) توسيعُ البابِ المقيس: خانةٌ مصرَّحةٌ «رقم» بلغَها خليطٌ
+                        //      يشملُ غيرَ العدديِّ (نصٌّ مثلًا) — المفسّرُ (المرجعُ) يحذّرُ
+                        //      ويُمرِّرُ كلَّ موقعٍ بوسمِه، بينما كان المضمِّنُ الأماميُّ
+                        //      يستبدلُ الثابتَ النصّيَّ في جسمٍ منمَّطٍ i64 فينفجرُ LLVM
+                        //      «Invalid cast» (ICE مقيس — t06). التعميمُ إلى Any يُطابقُ
+                        //      المفسّرَ، والمضمِّنُ يرفضُ الحدودَ الموسومةَ أصلًا فلا ICE.
+                        //      وعدمُ الإغفالِ (Void — بابُ الباني وحدَه) يبقى مانعًا كما
+                        //      كان: دلالةُ تبطينِه بالعدمِ لا تُمَسّ.
+                        // (EN) Widen the measured door: a declared-«رقم» slot whose sites
+                        //      mix in a non-numeric kind (e.g. String) — the interpreter
+                        //      (the reference) warns and passes each site through with its
+                        //      own tag, while the frontend inliner substituted the string
+                        //      constant into an i64-typed body and LLVM asserted
+                        //      «Invalid cast» (measured ICE — t06). Generalizing to Any
+                        //      matches the interpreter, and the inliner already refuses
+                        //      tagged boundaries, so no ICE. An omission's Void (the
+                        //      constructor-only door) keeps blocking: its null-padding
+                        //      semantics are untouched.
+                        const bool declaredNumberMixed =
+                            param->type == Types::SadTypeKind::Integer &&
+                            kinds.count(static_cast<int>(SadTypeKind::Void)) == 0;
+                        // (AR) والمصرَّحُ «عشري» يعمُّ فقط إذا خالطَه **غيرُ عدديٍّ**
+                        //      (نصٌّ مثلًا): الخليطُ العدديُّ الخالصُ {صحيح، عشريّ} يبقى
+                        //      على عقدِه double (التكييفُ sitofp قائمٌ ومقيس) — التعميمُ
+                        //      هنا يسدُّ ICE المضمِّنِ لا يغيّرُ الدلالةَ العدديّة.
+                        // (EN) A declared «عشري» generalizes ONLY when a NON-numeric
+                        //      kind mixes in (e.g. String): a purely numeric
+                        //      {Int, Float} mix keeps its double contract (the sitofp
+                        //      coercion stands, measured) — the generalization here
+                        //      seals the inliner ICE without changing numeric
+                        //      semantics.
+                        bool declaredFloatNonNumericMixed = false;
+                        if (param->type == Types::SadTypeKind::Float &&
+                            kinds.count(static_cast<int>(SadTypeKind::Void)) == 0)
+                        {
+                            for (const int kd : kinds)
+                            {
+                                if (kd != static_cast<int>(SadTypeKind::Integer) &&
+                                    kd != static_cast<int>(SadTypeKind::Float))
+                                {
+                                    declaredFloatNonNumericMixed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!purelyNumericSplit && !declaredNumberMixed &&
+                            !declaredFloatNonNumericMixed)
+                            continue;
+                        param->type = SadTypeKind::Any;
+                        param->sadType = Types::SadType::fromValueType(SadTypeKind::Any);
                         continue;
+                    }
 
                     const auto agreed = static_cast<SadTypeKind>(*kinds.begin());
-                    if (agreed != SadTypeKind::String &&
-                        agreed != SadTypeKind::Float &&
-                        agreed != SadTypeKind::Boolean)
+                    // (AR) الخانةُ المصرَّحةُ «رقم» (سُجِّلت باستثناءِ بذرة [٧] أعلاه):
+                    //      توسيعُها **عشريٌّ حصرًا** — التوسيعُ العدديُّ الذي يقبله
+                    //      المفسّرُ — ولا يُكتَبُ فوقَ تصريحِ الكاتبِ نصٌّ أو منطقيّ.
+                    // (EN) A declared-«رقم» slot (recorded via the seed-[٧] exception above)
+                    //      widens to Float ONLY — the numeric widening the interpreter
+                    //      accepts; String/Boolean never overwrite the author's declaration.
+                    if (param->type == Types::SadTypeKind::Integer)
+                    {
+                        // (AR) إجماعٌ غيرُ عدديٍّ على خانةٍ مصرَّحةٍ «رقم» (نصٌّ وحيدُ
+                        //      المواقعِ مثلًا): لا يُكتَبُ فوقَ التصريحِ نصًّا بل تعمُّ
+                        //      الخانةُ إلى Any — نظيرُ ذراعِ الخليطِ أعلاه وبالقياسِ
+                        //      نفسِه (ICE المضمِّن t06a)؛ والعدمُ يبقى مانعًا.
+                        // (EN) A non-numeric unanimity on a declared-«رقم» slot (e.g. a
+                        //      single all-String site): never overwrite the declaration
+                        //      with String — generalize to Any, mirroring the mixed arm
+                        //      above under the same measurement (inliner ICE t06a);
+                        //      Void keeps blocking.
+                        if (agreed != SadTypeKind::Float)
+                        {
+                            if (agreed != SadTypeKind::Integer &&
+                                agreed != SadTypeKind::Void)
+                            {
+                                param->type = SadTypeKind::Any;
+                                param->sadType =
+                                    Types::SadType::fromValueType(SadTypeKind::Any);
+                            }
+                            continue;
+                        }
+                    }
+                    else if (param->type == Types::SadTypeKind::Float)
+                    {
+                        // (AR) إجماعٌ غيرُ عدديٍّ على خانةٍ مصرَّحةٍ «عشري» (نصٌّ وحيدُ
+                        //      المواقعِ): تعمُّ Any — لا يُكتَبُ نصٌّ فوقَ عقدِ الكاتبِ
+                        //      ولا يُترَكُ ICE المضمِّنِ حيًّا. والعدديُّ الخالصُ
+                        //      (صحيحٌ وحيدُ المواقعِ) يبقى على العقدِ double.
+                        // (EN) A non-numeric unanimity on a declared-«عشري» slot (an
+                        //      all-String site): generalize to Any — never overwrite
+                        //      the author's contract with String, never leave the
+                        //      inliner ICE alive. A purely numeric unanimity (an
+                        //      all-Integer site) keeps the double contract.
+                        if (agreed != SadTypeKind::Integer &&
+                            agreed != SadTypeKind::Float &&
+                            agreed != SadTypeKind::Void)
+                        {
+                            param->type = SadTypeKind::Any;
+                            param->sadType =
+                                Types::SadType::fromValueType(SadTypeKind::Any);
+                        }
+                        continue;
+                    }
+                    else if (agreed != SadTypeKind::String &&
+                             agreed != SadTypeKind::Float &&
+                             agreed != SadTypeKind::Boolean)
                         continue;
 
                     param->type = agreed;
@@ -234,6 +389,59 @@ namespace Sad
                         if (slot == SadTypeKind::String || slot == SadTypeKind::Float ||
                             slot == SadTypeKind::Boolean || slot == SadTypeKind::Array ||
                             slot == SadTypeKind::Integer)
+                        {
+                            slot = SadTypeKind::Any;
+                        }
+                    }
+                }
+            }
+
+            // ========================================================================
+            // (AR) [موجة الجسر الموسوم] الدالّةُ الهاربةُ مرجعًا إلى دالّةِ مستخدمٍ:
+            //      مواقعُ ندائِها عبرَ المرجعِ غيرُ مرئيّةٍ للمسحِ، فإجماعُ المواقعِ
+            //      المرئيّةِ ادّعاءٌ ناقصٌ. تُوسَّعُ خاناتُها **الرقميّةُ الصحيحةُ
+            //      والعشريّةُ وغيرُ المصرَّحةُ** إلى Any فتُقرأُ موسومةً زمنَ التشغيل
+            //      (جسرُ %SadDyn يفكُّها بوسمِها) — القياس: «نفذ(ثلاثي)» ثم
+            //      «ارجع د(2.5)» بترَ العشريَّ إلى 2 داخلَ الجسمِ الموقَّعِ i64
+            //      (t01: المفسّرُ 7.5). والمصرَّحُ الحادُّ (نصٌّ/منطقيٌّ/مصفوفة)
+            //      عقدُ الكاتبِ لا يُمَسّ — يفكُّه الجسرُ إلى نوعِه مباشرةً.
+            // (EN) [Tagged-bridge wave] A function escaping as a reference into a
+            //      user function: its call sites through the reference are invisible
+            //      to the scan, so visible-site unanimity is an incomplete claim.
+            //      Its Integer/Float/undeclared slots widen to Any and read
+            //      runtime-tagged (the %SadDyn bridge unboxes by tag) — measured:
+            //      «نفذ(ثلاثي)» then «ارجع د(2.5)» truncated the float to 2 inside
+            //      the i64-typed body (t01: interpreter says 7.5). Sharp declared
+            //      kinds (String/Boolean/Array) are the author's contract and stay —
+            //      the bridge unboxes straight to them.
+            // ========================================================================
+            void TemplateBuilder::applyEscapedFuncParamWidening()
+            {
+                for (const auto &escName : b_.scanEscapedFuncs_)
+                {
+                    auto fnIt = b_.functionTable_.find(escName);
+                    if (fnIt == b_.functionTable_.end())
+                        continue;
+                    const Sad::AST::FunctionDecl *decl = fnIt->second.astDecl;
+                    for (size_t index = 0; index < fnIt->second.parameters.size(); ++index)
+                    {
+                        bool widenable = true;
+                        if (decl && index < decl->parameters.size())
+                        {
+                            const auto &p = decl->parameters[index];
+                            const bool isUndeclared =
+                                p.type == Types::SadTypeKind::Unknown ||
+                                (p.type == Types::SadTypeKind::Class && p.typeName.empty());
+                            const bool isDeclaredNumeric =
+                                p.type == Types::SadTypeKind::Integer ||
+                                p.type == Types::SadTypeKind::Float;
+                            widenable = isUndeclared || isDeclaredNumeric;
+                        }
+                        if (!widenable)
+                            continue;
+                        SadTypeKind &slot = fnIt->second.parameters[index].type;
+                        if (slot == SadTypeKind::Integer || slot == SadTypeKind::Float ||
+                            slot == SadTypeKind::Unknown)
                         {
                             slot = SadTypeKind::Any;
                         }
@@ -469,6 +677,21 @@ namespace Sad
                 if (!expr)
                     return;
 
+                // (AR) [موجة ABI المغاليق] هدفُ إسنادٍ ⇒ تسميمُ الاسمِ لنزعِ الوساطة.
+                //      لا يُنزَل في القيمةِ عمدًا: النداءاتُ داخلَ قيمةِ الإسنادِ خارجُ
+                //      المسحِ اليومَ أصلًا (دَينٌ قائمٌ)، وضمُّها هنا يُبدِّلُ ترقياتٍ
+                //      مستقرّةً في غيرِ موضعِ هذه الموجةِ — فيُترَكُ لموجتِه بقياسِه.
+                // (EN) [Closure-ABI wave] An assignment target ⇒ poison the name for
+                //      devirtualization. Deliberately does NOT recurse into the value:
+                //      calls inside assignment values are outside the scan today (an
+                //      existing debt), and pulling them in here would shift settled
+                //      promotions far beyond this wave — left to its own measured wave.
+                if (auto *assign = dynamic_cast<const Sad::AST::AssignExpr *>(expr))
+                {
+                    b_.scanAssignedNames_.insert(assign->name);
+                    return;
+                }
+
                 // (AR) استدعاء دالة — استنتاج أنواع الوسائط وتحديث b_.functionTable_
                 // (EN) Function call — infer arg types and update b_.functionTable_
                 if (auto *call = dynamic_cast<const Sad::AST::CallExpr *>(expr))
@@ -479,6 +702,49 @@ namespace Sad
                     if (auto *varExpr = dynamic_cast<const Sad::AST::VariableExpr *>(call->callee.get()))
                     {
                         funcName = varExpr->name;
+                    }
+
+                    // (AR) [موجة ABI المغاليق] حلُّ النداءِ غيرِ المباشرِ إلى دالّتِه:
+                    //      اسمٌ ليس دالّةً لكنّه مربوطٌ ببرهانِ أصلٍ نظيفٍ ⇒ تُسجَّلُ
+                    //      وسائطُه تحتَ الدالّةِ الحقيقيّةِ فيبلغُها توحيدُ int⊔float
+                    //      وترقياتُ المعاملات. من التمريرةِ الثانيةِ فصاعدًا حصرًا:
+                    //      التسميمُ (إسنادٌ لاحقٌ نصًّا، تظليلٌ) يكتملُ في الأولى، فلا
+                    //      يُسجَّلُ موقعٌ عبرَ ربطٍ سيسقط.
+                    // (EN) [Closure-ABI wave] Resolve an indirect call to its function: a
+                    //      name that is not a function but carries clean provenance ⇒ its
+                    //      arguments are recorded under the real function, so int⊔float
+                    //      unification and param promotions reach it. Second pass onward
+                    //      ONLY: poisoning (a textually later assignment, shadowing)
+                    //      completes in the first pass, so no site is recorded through a
+                    //      binding that is about to fall.
+                    if (!funcName.empty() && b_.scanPassIndex_ >= 1 &&
+                        b_.functionTable_.find(funcName) == b_.functionTable_.end() &&
+                        b_.scanAssignedNames_.count(funcName) == 0)
+                    {
+                        // (AR) المفتاحُ المُنطاقُ أوّلًا؛ فإن لم يكن للاسمِ **تصريحٌ**
+                        //      محلّيٌّ أصلًا سقطنا إلى مفتاحِ المستوى الأعلى — يحاكي
+                        //      lookupVariable في البناءِ الذي يرى العامَّ عبرَ النطاقات.
+                        //      ووجودُ تصريحٍ محلّيٍّ (ولو غيرَ مرجعيٍّ) يمنعُ السقوطَ:
+                        //      الظلُّ المحلّيُّ يملك الاسم.
+                        // (EN) Scoped key first; if the name has no LOCAL declaration at
+                        //      all, fall back to the top-level key — mirroring the build's
+                        //      lookupVariable, which sees globals through scopes. Any local
+                        //      declaration (even a non-ref one) blocks the fallback: the
+                        //      local shadow owns the name.
+                        std::string bindKey = b_.currentScanFuncName_ + "#" + funcName;
+                        if (b_.scanFuncRefBindings_.find(bindKey) ==
+                                b_.scanFuncRefBindings_.end() &&
+                            b_.scanFuncRefDeclNode_.find(bindKey) ==
+                                b_.scanFuncRefDeclNode_.end())
+                        {
+                            bindKey = "#" + funcName;
+                        }
+                        if (b_.scanFuncRefPoisoned_.count(bindKey) == 0)
+                        {
+                            auto bindIt = b_.scanFuncRefBindings_.find(bindKey);
+                            if (bindIt != b_.scanFuncRefBindings_.end())
+                                funcName = bindIt->second;
+                        }
                     }
 
                     bindFunctionParamsToArgumentClasses(funcName, call->arguments);
@@ -567,6 +833,131 @@ namespace Sad
                             {
                                 if (argWantsAny(call->arguments[ai].get()))
                                     b_.scanLambdaParamAny_[lam].insert(ai);
+                                // (AR) [موجة الجسر الموسوم — t05] وسيطٌ عشريٌّ لموقعِ
+                                //      نداءِ لامدا: معاملُ اللامدا يُبنى i64 افتراضًا
+                                //      فتعبرُ 2.5 بتّاتِها قمامةً (والمفسّرُ يُجيب 5.0).
+                                //      يُوسَّعُ المعاملُ إلى Any فيُغلَّفُ الوسيطُ بوسمِه
+                                //      وموقعُ الصحيحِ يبقى صادقًا عبرَ الوسمِ نفسِه.
+                                // (EN) [Tagged-bridge wave — t05] A float argument at a
+                                //      lambda call site: the lambda param builds as
+                                //      default i64, so 2.5 crosses as raw bits (the
+                                //      interpreter answers 5.0). Widen the param to Any:
+                                //      the argument is boxed with its tag, and an
+                                //      integer site stays truthful through the same tag.
+                                else if (inferExprType(call->arguments[ai].get()) ==
+                                         SadTypeKind::Float)
+                                    b_.scanLambdaParamDynAny_[lam].insert(ai);
+                            }
+                        }
+                    }
+
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) [موجة الجسر الموسوم] تسجيلُ الهروبِ: مرجعُ دالّةٍ يُمرَّرُ
+                    //      وسيطًا إلى دالّةِ مستخدمٍ («نفذ(ثلاثي)»، أو «طبق(د)» حيث د
+                    //      ببرهانِ أصلٍ نظيف) — مواقعُ نداءِ الهاربةِ داخلَ المستقبِلةِ
+                    //      غيرُ مرئيّةٍ للمسحِ فتُوسَّعُ خاناتُها الرقميّةُ إلى Any في
+                    //      applyEscapedFuncParamWidening. من التمريرةِ الثانيةِ (بعدَ
+                    //      اكتمالِ الجدولِ والتسميم)، ودوالُّ المستخدمِ حصرًا: تمريرُ
+                    //      مرجعٍ لطرائقِ المدمجاتِ يسلكُ مسارَه المعلومَ القائمَ.
+                    // (EN) [Tagged-bridge wave] Escape recording: a func-ref passed as
+                    //      an argument into a USER function («نفذ(ثلاثي)», or «طبق(د)»
+                    //      with clean provenance) — the escapee's call sites inside the
+                    //      receiver are invisible to the scan, so its numeric slots
+                    //      widen to Any in applyEscapedFuncParamWidening. Second pass
+                    //      onward (table and poisoning complete), USER functions only:
+                    //      refs passed to builtin methods keep their known path.
+                    // ════════════════════════════════════════════════════════════
+                    if (!funcName.empty() && b_.scanPassIndex_ >= 1 &&
+                        b_.functionTable_.find(funcName) != b_.functionTable_.end())
+                    {
+                        // (AR) معاملاتُ الدالّةِ الماسحةِ نفسِها تحجبُ أسماءَ الدوالِّ
+                        //      العليا — بها يُحرَسُ الذراعُ المباشرُ أدناه.
+                        // (EN) The scanning function's own parameters shadow top-level
+                        //      function names — used to guard the direct arm below.
+                        auto isScanFuncParam = [&](const std::string &argName) -> bool {
+                            auto scanFnIt = b_.functionTable_.find(b_.currentScanFuncName_);
+                            if (scanFnIt == b_.functionTable_.end() ||
+                                !scanFnIt->second.astDecl)
+                                return false;
+                            for (const auto &p : scanFnIt->second.astDecl->parameters)
+                                if (p.name == argName)
+                                    return true;
+                            return false;
+                        };
+                        for (const auto &escArg : call->arguments)
+                        {
+                            // (AR) لامدا حرفيّةً وسيطًا: هروبٌ يجعل هدفَها مجهولًا داخلَ
+                            //      المستقبِلةِ (dynproto) — تُوسَّعُ معاملاتُها كلُّها
+                            //      قيمًا Any كي يفكَّها الجسرُ بوسومِها (كان العشريُّ
+                            //      يُبترُ على توقيعِ i64 — مقيس عدائيًّا).
+                            // (EN) A lambda literal as an argument: an escape that makes
+                            //      its target unknown inside the receiver (dynproto) —
+                            //      all its params widen to value-Any so the bridge
+                            //      unboxes by tag (the float used to truncate on an
+                            //      i64 signature — adversarially measured).
+                            if (const auto *argLam =
+                                    dynamic_cast<const Sad::AST::LambdaExpr *>(escArg.get()))
+                            {
+                                for (size_t pi = 0; pi < argLam->parameters.size(); ++pi)
+                                    b_.scanLambdaParamDynAny_[argLam].insert(pi);
+                                continue;
+                            }
+                            const auto *argVar =
+                                dynamic_cast<const Sad::AST::VariableExpr *>(escArg.get());
+                            if (!argVar)
+                                continue;
+                            // (AR) حرّاسُ التظليلِ يسبقون الذراعَين معًا: اسمٌ وقعَ هدفَ
+                            //      إسنادٍ، أو له تصريحٌ محلّيٌّ، أو هو معاملُ الماسحةِ —
+                            //      لا يُسجَّلُ هروبُه باسمِ الدالّةِ العليا المظلَّلة.
+                            // (EN) Shadow guards precede BOTH arms: an assigned name, a
+                            //      local declaration, or the scanner's own parameter
+                            //      never records an escape under the shadowed
+                            //      top-level function's name.
+                            if (b_.scanAssignedNames_.count(argVar->name) != 0 ||
+                                isScanFuncParam(argVar->name))
+                                continue;
+                            const std::string scopedEscKey =
+                                b_.currentScanFuncName_ + "#" + argVar->name;
+                            const bool hasLocalDecl =
+                                b_.scanFuncRefDeclNode_.find(scopedEscKey) !=
+                                b_.scanFuncRefDeclNode_.end();
+                            if (b_.functionTable_.find(argVar->name) !=
+                                    b_.functionTable_.end() &&
+                                !hasLocalDecl)
+                            {
+                                b_.scanEscapedFuncs_.insert(argVar->name);
+                                continue;
+                            }
+                            // (AR) متغيّرٌ مربوطٌ بلامدا يهربُ وسيطًا — التوسيعُ نفسُه.
+                            // (EN) A lambda-bound variable escaping as an argument —
+                            //      the same widening.
+                            {
+                                std::string lamKey = scopedEscKey;
+                                auto lamEscIt = b_.scanLambdaVar_.find(lamKey);
+                                if (lamEscIt == b_.scanLambdaVar_.end())
+                                    lamEscIt = b_.scanLambdaVar_.find("#" + argVar->name);
+                                if (lamEscIt != b_.scanLambdaVar_.end())
+                                {
+                                    const Sad::AST::LambdaExpr *escLam = lamEscIt->second;
+                                    for (size_t pi = 0; pi < escLam->parameters.size(); ++pi)
+                                        b_.scanLambdaParamDynAny_[escLam].insert(pi);
+                                    continue;
+                                }
+                            }
+                            // (AR) عبرَ ربطِ برهانِ الأصلِ — بحرّاسِ المسحِ نفسِها.
+                            // (EN) Through the provenance binding — same scan guards.
+                            std::string escKey = scopedEscKey;
+                            if (b_.scanFuncRefBindings_.find(escKey) ==
+                                    b_.scanFuncRefBindings_.end() &&
+                                !hasLocalDecl)
+                            {
+                                escKey = "#" + argVar->name;
+                            }
+                            if (b_.scanFuncRefPoisoned_.count(escKey) == 0)
+                            {
+                                auto escIt = b_.scanFuncRefBindings_.find(escKey);
+                                if (escIt != b_.scanFuncRefBindings_.end())
+                                    b_.scanEscapedFuncs_.insert(escIt->second);
                             }
                         }
                     }
@@ -578,12 +969,12 @@ namespace Sad
                         // ═══════════════════════════════════════════════════════════════
                         // (AR) إصلاح: إذا لم نجد الدالة، نتحقق إذا كان استدعاء باني صنف
                         //      بدون كلمة "جديد". في لغة ص، كائن_حي("حي") يُحلَّل كـ CallExpr
-                        //      لكن الباني مسجّل كـ "كائن_حي.باني" في b_.functionTable_
+                        //      لكن الباني مسجّل باسمه المفكوك (constructorNameFor) في b_.functionTable_
                         //      بدون هذا: أنواع معاملات الباني لا تُحدَّث من call-site
                         //      مما يؤدي لبقاء المعاملات كـ Integer بدلاً من String
                         // (EN) Fix: If function not found, check if it's a class constructor
                         //      call without "new" keyword. In Sad, ClassName("arg") is parsed
-                        //      as CallExpr but constructor is registered as "ClassName.باني"
+                        //      as CallExpr but the ctor is registered under its mangled name (constructorNameFor)
                         //      Without this: constructor param types don't get updated from call-site
                         //      causing params to remain Integer instead of String
                         // ═══════════════════════════════════════════════════════════════
@@ -591,12 +982,12 @@ namespace Sad
                         if (it == b_.functionTable_.end())
                         {
                             // (AR) إصلاح: بدلاً من b_.module_->getClass() (غير متاح في Phase 1.7)
-                            //      نبحث مباشرة عن "اسم.باني" في b_.functionTable_
-                            //      مسجّل في Phase 1.35 قبل Phase 1.7
+                            //      نبحث مباشرة عن اسم الباني المفكوك (constructorNameFor) في
+                            //      b_.functionTable_ — مسجّل في Phase 1.35 قبل Phase 1.7
                             // (EN) Fix: Instead of b_.module_->getClass() (unavailable in Phase 1.7)
-                            //      look directly for "name.باني" in b_.functionTable_
-                            //      registered in Phase 1.35 before Phase 1.7
-                            std::string ctorName = funcName + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .باني
+                            //      look directly for the mangled ctor name (constructorNameFor) in
+                            //      b_.functionTable_ — registered in Phase 1.35 before Phase 1.7
+                            std::string ctorName = constructorNameFor(funcName);
                             it = b_.functionTable_.find(ctorName);
                             isImplicitCtorCall = (it != b_.functionTable_.end());
                         }
@@ -1140,13 +1531,13 @@ namespace Sad
 
                 // ================================================================
                 // (AR) تعبير الإنشاء (NewExpr) — استنتاج أنواع وسائط الباني
-                //      مثل CallExpr لكن الاسم "صنف.بناء" والمعامل الأول هو self
+                //      مثل CallExpr لكن الاسم اسمُ الباني المفكوك (constructorNameFor) والمعامل الأول هو self
                 // (EN) New expression (NewExpr) — infer constructor arg types
-                //      Like CallExpr but name is "class.بناء" and first param is self
+                //      Like CallExpr but the name is the mangled ctor (constructorNameFor) and first param is self
                 // ================================================================
                 if (auto *newExpr = dynamic_cast<const Sad::AST::NewExpr *>(expr))
                 {
-                    std::string ctorName = newExpr->className + "." + "\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // .بناء
+                    std::string ctorName = constructorNameFor(newExpr->className);
                     auto it = b_.functionTable_.find(ctorName);
                     if (it != b_.functionTable_.end())
                     {
@@ -1466,6 +1857,38 @@ namespace Sad
                         //      a later call site.
                         if (auto *lam = dynamic_cast<const Sad::AST::LambdaExpr *>(varDecl->initializer.get()))
                             b_.scanLambdaVar_[b_.currentScanFuncName_ + "#" + varDecl->name] = lam;
+
+                        // (AR) [موجة ABI المغاليق] ربطُ أصلِ مرجعِ الدالّةِ المسمّاة:
+                        //      «متغير د = اسم_دالّة» يُسجَّل بمفتاحٍ مُنطاقٍ. وأيُّ تصريحٍ
+                        //      ثانٍ بالمفتاحِ نفسِه من عقدةٍ مختلفةٍ — مرجعًا آخرَ كان أو
+                        //      مُهيِّئًا من غيرِ جنسِه — يُسمِّمُ المفتاحَ، فلا يُنزَعُ
+                        //      توسُّطُ اسمٍ مُظلَّلٍ أو مُعادٍ. (التفصيلُ عند تعريفِ
+                        //      الخرائطِ في sir_builder_context.h.)
+                        // (EN) [Closure-ABI wave] Bind named function-ref provenance:
+                        //      «متغير د = funcName» records under a scoped key. Any second
+                        //      declaration of the same key from a different node — another
+                        //      ref or a non-ref initializer alike — poisons the key, so a
+                        //      shadowed or redeclared name is never devirtualized. (Details
+                        //      at the map definitions in sir_builder_context.h.)
+                        {
+                            const std::string bindKey =
+                                b_.currentScanFuncName_ + "#" + varDecl->name;
+                            auto declIt = b_.scanFuncRefDeclNode_.find(bindKey);
+                            if (declIt != b_.scanFuncRefDeclNode_.end() &&
+                                declIt->second != static_cast<const void *>(varDecl))
+                            {
+                                b_.scanFuncRefPoisoned_.insert(bindKey);
+                            }
+                            b_.scanFuncRefDeclNode_[bindKey] = varDecl;
+
+                            auto *refVar = dynamic_cast<const Sad::AST::VariableExpr *>(
+                                varDecl->initializer.get());
+                            if (refVar &&
+                                b_.functionTable_.find(refVar->name) != b_.functionTable_.end())
+                            {
+                                b_.scanFuncRefBindings_[bindKey] = refVar->name;
+                            }
+                        }
 
                         // (AR) [ز.٢٠] سجّل نوعَ المُهيّئ القياسيّ كي يحلَّ `inferExprType`
                         //      المتغيّرَ المحلّيَّ بدل السقوط إلى `Integer` الافتراضيّ.
@@ -2170,7 +2593,13 @@ namespace Sad
                         if (decl->returnType != Types::SadTypeKind::Unknown &&
                             decl->returnType != Types::SadTypeKind::Void)
                             continue;
+                        // (AR) [موجة ABI المغاليق] اسمُ النطاقِ يُضبَطُ كما في المسحِ كي
+                        //      تُصيبَ مفاتيحُ حلِّ الأصلِ المُنطاقةُ في استنتاجِ العائد.
+                        // (EN) [Closure-ABI wave] Scope name set as during scanning, so the
+                        //      scoped provenance keys resolve inside return inference.
+                        b_.currentScanFuncName_ = decl->name;
                         const SadTypeKind fresh = inferReturnTypeFromBody(decl->body.get(), decl);
+                        b_.currentScanFuncName_.clear();
                         if (fresh != SadTypeKind::Void && fresh != entry.second.returnType)
                             pending.emplace_back(entry.first, fresh);
                     }
@@ -2195,11 +2624,25 @@ namespace Sad
                 //      picks up their effect.
                 for (int pass = 0; pass < 3; pass++)
                 {
+                    // (AR) [موجة ABI المغاليق] تُعلِمُ التمريرةُ حلَّ النداءِ غيرِ المباشرِ
+                    //      في scanCallSitesInExpr — يُفعَّلُ من الثانيةِ بعد اكتمالِ التسميم.
+                    // (EN) [Closure-ABI wave] Informs the indirect-call resolution in
+                    //      scanCallSitesInExpr — active from the second pass, once
+                    //      poisoning is complete.
+                    b_.scanPassIndex_ = pass;
                     scanStmtList(program);
                     for (Sad::AST::StmtList *body : b_.importedModuleBodies_)
                         scanStmtList(body);
                     applyAgreedMemberParamTypes();
                     applyAgreedFreeParamTypes();
+                    // (AR) [موجة الجسر الموسوم] بعدَ الإجماعَين وقبلَ إعادةِ استنتاجِ
+                    //      العائدِ: التوسيعُ يغلبُ إجماعَ المواقعِ المرئيّةِ (الهروبُ
+                    //      يعني مواقعَ غيرَ مرئيّة)، وإعادةُ الاستنتاجِ تلتقطُ أثرَه.
+                    // (EN) [Tagged-bridge wave] After both unanimity passes and before
+                    //      return re-inference: widening overrides visible-site
+                    //      unanimity (escape means invisible sites exist), and the
+                    //      re-inference picks up its effect.
+                    applyEscapedFuncParamWidening();
                     const bool changed = reinferReturnTypes();
                     if (!changed && pass >= 1)
                         break;

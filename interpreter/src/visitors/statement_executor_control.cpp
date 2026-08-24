@@ -16,6 +16,7 @@
 #include "object_instance.h"
 #include "debug_server.h"
 #include "class_manager.h"
+#include "utils/class_module_captures.h" // (AR) ع-1: حقن ثوابت وحدة التعريف
 #include "channel.h"
 #include "sad_type_system.h"
 #include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
@@ -350,6 +351,9 @@ namespace Sad
                     if (enterMethod && enterMethod->getBody())
                     {
                         variableManager_.enterScope(Data::ScopeType::FUNCTION, enterName);
+                        // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا»
+                        // (EN) ع-1: defining module's constants before «هذا»
+                        Utils::injectClassModuleCaptures(obj->getClass(), variableManager_);
                         variableManager_.define("هذا", resource);
                         enterMethod->getBody()->accept(*this);
                         contextValue = returnValue_;
@@ -400,6 +404,9 @@ namespace Sad
                         try
                         {
                             variableManager_.enterScope(Data::ScopeType::FUNCTION, exitName);
+                            // (AR) ع-1: ثوابت وحدة التعريف قبل «هذا»
+                            // (EN) ع-1: defining module's constants before «هذا»
+                            Utils::injectClassModuleCaptures(obj->getClass(), variableManager_);
                             variableManager_.define("هذا", resource);
                             // (AR) تمرير معلومات الاستثناء إن وجد
                             // (EN) Pass exception info if any

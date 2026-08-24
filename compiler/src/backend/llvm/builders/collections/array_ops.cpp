@@ -10,6 +10,7 @@
 #include "sad_dyn_repr.h" // (AR) ISSUE-063: حمولة %SadDyn عند خانات المصفوفة / (EN) %SadDyn payload at array slots
 #include "sir_constants.h" // (AR) kSadPanicCheckViolation (رمز سبب الهلع)
 #include "value.h"         // (AR) Value::makeNull().getTypeName() — اسمُ نوعِ العدمِ نفسُه
+#include <map>             // (AR) std::map لحقول قالب SEM011 — تضمينٌ صريحٌ لا عبورًا
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -152,7 +153,8 @@ namespace Sad
         }
 
         llvm::Value *ArrayOpsCodeGen::normalizeArrayPtr(llvm::Value *arrPtr, const char *label,
-                                                        bool assertDynTag)
+                                                        bool assertDynTag,
+                                                        std::optional<Sad::Errors::ErrorCode> absenceCode)
         {
             if (!arrPtr)
                 return nullptr;
@@ -253,8 +255,30 @@ namespace Sad
                 auto *failBB = llvm::BasicBlock::Create(*cg_.context_, "arr.dyn.fail", parentFn);
                 cg_.builder_->CreateCondBr(isArray, okBB, failBB);
 
+                // (AR) [RFC عقد الغياب] نظيرُ `normalizeMapPtr` حرفًا: الغيابُ الموسومُ
+                //      يُرفَع برمزِ **موقعِ النداء** (`absenceCode`): القراءةُ بالفهرس
+                //      SEM011 والإسنادُ بالفهرس RUN018 (تفريقُ المفسّرِ المقيس —
+                //      دستورُ البذرة 082)، وسائرُ الأوسامِ على رسالةِ «ليست مصفوفة».
+                //      وnullopt للمدمجاتِ (عكس/رتب/شريحة/…): اسمُ سطحٍ واحدٍ عليها
+                //      كذبةُ صياغة (درسُ ns10). والذراعُ نفسُها مصدرُها الواحدُ
+                //      `emitTaggedAbsenceRaise`.
+                // (EN) [absence-contract RFC] normalizeMapPtr's literal twin: tagged
+                //      absence raises the CALL SITE's code — indexed read SEM011,
+                //      indexed assign RUN018 (the interpreter's measured distinction;
+                //      seed 082's charter); other tags keep "not an array"; nullopt
+                //      for builtins (naming one surface would lie — the ns10 lesson).
+                //      The arm lives once in emitTaggedAbsenceRaise.
                 cg_.builder_->SetInsertPoint(failBB);
-                emitDynNotArrayFailure(label);
+                if (absenceCode)
+                {
+                    cg_.emitTaggedAbsenceRaise(
+                        kind, *absenceCode, {}, std::string(label),
+                        [&] { emitDynNotArrayFailure(label); });
+                }
+                else
+                {
+                    emitDynNotArrayFailure(label);
+                }
 
                 cg_.builder_->SetInsertPoint(okBB);
                 arrPtr = cg_.builder_->CreateIntToPtr(payload, ptrTy,
@@ -694,9 +718,10 @@ namespace Sad
             DynIndexDispatch dispatch =
                 beginDynMapDispatch(inst, arrPtr, index, nullptr, /*isSet=*/false);
 
-            // (AR) تطبيع مؤشر المصفوفة عبر الدالة الموحّدة
-            // (EN) Normalize arrPtr via unified helper
-            arrPtr = normalizeArrayPtr(arrPtr, "arr");
+            // (AR) تطبيع مؤشر المصفوفة عبر الدالة الموحّدة — قراءةٌ بالفهرس ⇒ SEM011 للغياب
+            // (EN) Normalize arrPtr via unified helper — indexed READ ⇒ SEM011 on absence
+            arrPtr = normalizeArrayPtr(arrPtr, "arr", /*assertDynTag=*/true,
+                                       ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED);
 
             // (AR) تطبيع الفهرس: تحويل السالب إلى موجب (مثل م[-1] = آخر عنصر)
             // (EN) Normalize index: convert negative to positive (e.g. м[-1] = last element)
@@ -1049,7 +1074,14 @@ namespace Sad
                 llvm::Value *kindByte = dynKindByte(cg_, dyn);
                 llvm::Value *payload = dynPayloadI64(cg_, dyn);
 
-                arrPtr = normalizeArrayPtr(arrPtr, "arr");
+                // (AR) إسنادٌ بالفهرس ⇒ RUN018 للغيابِ الموسوم (مطابقةُ المفسّر؛
+                //      حارسُ `emitDynIndexAssignGuard` الأسبقُ يرفعُه عادةً قبلَنا
+                //      وهذه الذراعُ سندٌ متّسقُ الرمزِ لا متناقضُه).
+                // (EN) Indexed ASSIGN ⇒ RUN018 on tagged absence (interpreter match;
+                //      the earlier emitDynIndexAssignGuard usually fires first —
+                //      this arm is a code-consistent backstop).
+                arrPtr = normalizeArrayPtr(arrPtr, "arr", /*assertDynTag=*/true,
+                                           ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID);
                 index = normalizeArrayIndex(index, arrPtr, "set");
                 emitBoundsCheck(index, arrPtr, "set");
                 llvm::StructType *arrTy = getArrayStructType(*cg_.context_);
@@ -1105,9 +1137,10 @@ namespace Sad
                 value = dynPayloadI64(cg_, value);
             }
 
-            // (AR) تطبيع مؤشر المصفوفة عبر الدالة الموحّدة
-            // (EN) Normalize arrPtr via unified helper
-            arrPtr = normalizeArrayPtr(arrPtr, "arr");
+            // (AR) إسنادٌ بالفهرس ⇒ RUN018 للغيابِ الموسوم (نظيرُ ذراعِ المسارِ Any أعلاه)
+            // (EN) Indexed ASSIGN ⇒ RUN018 on tagged absence (twin of the Any-path arm above)
+            arrPtr = normalizeArrayPtr(arrPtr, "arr", /*assertDynTag=*/true,
+                                       ::Sad::Errors::ErrorCode::RUN_INDEX_ASSIGN_TYPE_INVALID);
 
             // (AR) تطبيع الفهرس: تحويل السالب إلى موجب (مثل م[-1] = آخر عنصر)
             // (EN) Normalize index: convert negative to positive (e.g. arr[-1] = last element)

@@ -26,6 +26,10 @@
 #include "error_manager.h"
 #include "runtime_throw.h"
 #include "ownership_manager.h"
+// (AR) SEM045 (RFC عقد الغياب): مابِع الصرامة المشترك strictnessFromOwnershipMode
+// (EN) SEM045 (absence-contract RFC): shared strictness mapper
+#include "null_safety/null_safety_analyzer.h"
+#include "visitors/sem045_report.h" // (AR) باب إبلاغ SEM045 الواحد / (EN) single SEM045 reporting door
 #include "runtime_throw.h"
 #include "user_thrown.h"
 #include "async_runtime.h"
@@ -233,10 +237,54 @@ namespace Sad
                 }
 
                 // ═══════════════════════════════════════════════════════════════
+                // (AR) SEM045 (RFC عقد الغياب — أ١): «فراغ» لا يعبر إلى معاملٍ
+                //      مصنَّف — نفس عقد خانتَي التصريح وإعادة الإسناد، على محور
+                //      الصرامة D6. الحارس يحكم على القيمة لا مصدرها، والاختياريّ
+                //      `ت؟` مشمول (مجاله {ت، عدم} لا فراغ). عند الالتقاط تُتخطّى
+                //      فحوصُ النوع العامّة أدناه (لا تشخيص مزدوج لعبورٍ واحد).
+                // (EN) SEM045 (absence-contract RFC, stage أ١): Void must not cross
+                //      into a typed parameter slot — same D6 contract as the
+                //      declaration/reassignment guards. Skips the generic type
+                //      checks below once handled (no double diagnostic).
+                // ═══════════════════════════════════════════════════════════════
+                bool voidParamHandled = false;
+                if (arguments[i].getKind() == Types::SadTypeKind::Void)
+                {
+                    std::string typedParamName;
+                    if (!params[i].typeName.empty())
+                    {
+                        typedParamName = params[i].typeName;
+                    }
+                    else if (astFuncDecl && i < astFuncDecl->parameters.size())
+                    {
+                        const auto &astParam = astFuncDecl->parameters[i];
+                        // (AR) المسنَدُ الموحَّد kindIsGuarded (البابُ الواحد) بدل
+                        //      سلسلةِ الاستثناءاتِ المنسوخة.
+                        // (EN) The unified kindIsGuarded predicate (single door)
+                        //      instead of the copied exemption chain.
+                        if (astParam.type != Types::SadTypeKind::Unknown &&
+                            astParam.sadType &&
+                            Sad::Interpreter::Sem045::kindIsGuarded(
+                                astParam.sadType->getKind()))
+                        {
+                            typedParamName = astParam.sadType->arabicName();
+                        }
+                    }
+                    if (!typedParamName.empty())
+                    {
+                        voidParamHandled = true;
+                        Sad::Interpreter::Sem045::reportVoidCrossing(
+                            params[i].name, typedParamName, node.position,
+                            Sad::NullSafety::strictnessFromOwnershipMode(
+                                statementExecutor_.getMemoryPolicy().ownershipMode));
+                    }
+                }
+
+                // ═══════════════════════════════════════════════════════════════
                 // (AR) التحقق من نوع المعامل في وقت التشغيل لأنواع الأصناف
                 // (EN) Runtime type checking for class-typed parameters
                 // ═══════════════════════════════════════════════════════════════
-                if (!params[i].typeName.empty())
+                if (!voidParamHandled && !params[i].typeName.empty())
                 {
                     const std::string &expectedClass = params[i].typeName;
                     const Value &argVal = arguments[i];
@@ -302,7 +350,7 @@ namespace Sad
                 // (AR) فحص توافقية الأنواع البدائية عبر النظام الموحد
                 // (EN) Primitive type compatibility check via unified type system
                 // ═══════════════════════════════════════════════════════════════
-                if (params[i].typeName.empty() && astFuncDecl &&
+                if (!voidParamHandled && params[i].typeName.empty() && astFuncDecl &&
                     i < astFuncDecl->parameters.size())
                 {
                     const auto &astParam = astFuncDecl->parameters[i];

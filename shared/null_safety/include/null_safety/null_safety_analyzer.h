@@ -46,6 +46,7 @@
 // (EN) NS-02: needs OwnershipMode to map memory policy → strictness via a free
 //      mapper (kept outside the class to preserve D6 axis separation).
 #include "../../../memory_policy/include/memory/policy/gc_mode.h"
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -130,7 +131,13 @@ namespace Sad
             NullAssignedToNonOptional,
             /// (AR) وصول خام (`.عضو`/`.طريقة()`) على متغير اختياريّ `T؟` غير مُضيَّق [NS-04]
             /// (EN) Raw access (`.member`/`.method()`) on a non-narrowed optional `T?` [NS-04]
-            UnsafeAccessOnOptional
+            UnsafeAccessOnOptional,
+            /// (AR) SEM045 (RFC عقد الغياب — أ٢): ناتجُ دالةٍ «فراغ» يقينًا سكونيًّا
+            ///      يُسنَد إلى خانةٍ مصنَّفة (تصريحًا أو إعادةَ إسناد). الاختياريّ `ت؟`
+            ///      مشمول — مجالُه {ت، عدم} لا فراغ.
+            /// (EN) SEM045 (absence-contract RFC, stage أ٢): a statically-certain
+            ///      Void call result assigned to a typed slot (decl or reassign).
+            VoidResultAssignedToTypedSlot
         };
 
         // ====================================================================
@@ -237,6 +244,20 @@ namespace Sad
             NullSafetyResult analyze(
                 const std::vector<std::unique_ptr<AST::Statement>> &program);
 
+            /// (AR) SEM045 (D8 — نقطة حقيقة واحدة): «فراغٌ يقينيّ» — جسدٌ بلا `ارجع`
+            ///      بقيمةٍ ولا `ارمِ` ولا `أنتج`. يقرؤها فاحصُ الأنواع أيضًا كي لا
+            ///      يختلق نوعَ إرجاعٍ («رقم» ضمنيّ) لدالةٍ لا تُرجع شيئًا — نسخةٌ
+            ///      ثالثةٌ من القاعدة كانت ستتباعد (درسُ «ثلاث نسخ» المقيس).
+            ///      لا تستثني async/مولّد/خارجيّ/لا_ترجع — ذلك شأنُ المستهلِك.
+            /// (EN) SEM045 (D8 single truth): certainly-void body test, shared with
+            ///      the type checker so it stops fabricating an implicit «رقم»
+            ///      return for value-less functions. Exclusions (async/generator/
+            ///      extern/noreturn) are the caller's responsibility.
+            static bool bodyCertainlyReturnsNothing(AST::Statement *body)
+            {
+                return !bodyHasValueReturnOrRaise(body);
+            }
+
         private:
             // (AR) ماشٍ متدرّج مركّز (NS-02): يهبط في كلّ الجُمل الحاملة للكتل
             //      ويفحص تصريحات المتغيرات. سليم-متحفّظ (D5): الإغفال = رصد أقلّ لا خطأ.
@@ -265,11 +286,20 @@ namespace Sad
             // (AR) مكدّس نطاقات: كلّ نطاق مجموعة أسماء متغيرات اختيارية. يمنع تسرّب
             //      تعريف من دالّة إلى أخرى (تفادي إيجابيّ كاذب). لا تضييق هنا (D5).
             // (EN) Scope stack of optional-variable names; prevents cross-scope leakage.
-            void pushScope() { optionalScopes_.emplace_back(); }
+            void pushScope()
+            {
+                optionalScopes_.emplace_back();
+                typedSlotScopes_.emplace_back();
+                declaredNameScopes_.emplace_back();
+            }
             void popScope()
             {
                 if (!optionalScopes_.empty())
                     optionalScopes_.pop_back();
+                if (!typedSlotScopes_.empty())
+                    typedSlotScopes_.pop_back();
+                if (!declaredNameScopes_.empty())
+                    declaredNameScopes_.pop_back();
             }
             void declareOptional(const std::string &name)
             {
@@ -285,6 +315,71 @@ namespace Sad
             }
 
             std::vector<std::set<std::string>> optionalScopes_; ///< (AR) مكدّس النطاقات
+
+            // ── SEM045 (أ٢): قاعدة «فراغ ساكن ⇒ خانة مصنّفة» ────────────────────
+            // (AR) الوسمُ «فراغ» يقينيٌّ سكونيًّا لدالةٍ لا تحوي `ارجع` بقيمة ولا
+            //      `ارمِ` ولا `أنتج`. الدوالُّ المتداخلةُ مستبعَدةٌ من المسح: «ارجع»
+            //      داخلَها يعود منها لا من الخارجية — الهبوطُ فيها (الصياغة الأولى)
+            //      انقلب على مستهلكِ فاحص الأنواع (قِيس). دوالُّ async/مولّد/خارجيّ/لا_ترجع
+            //      مستثناة. والاسمُ المحجوبُ بمتغيّرٍ لا يُحكَم عليه (تصادمُ الاسم
+            //      يحلّ صامتًا — نتجنّبه بتتبّع أسماءِ التصريحات كلِّها).
+            // (EN) SEM045 (stage أ٢): a function containing no value-return, no raise
+            //      and no yield returns Void with static certainty. The naive scan of
+            //      nested bodies errs in the safe direction (fewer detections, D5).
+            //      Names shadowed by variables are never judged (name-collision trap).
+            void collectVoidFunctions(const std::vector<std::unique_ptr<AST::Statement>> &program);
+            static bool bodyHasValueReturnOrRaise(AST::Statement *stmt);
+            bool isStaticVoidCall(const AST::Expression *expr, std::string &calleeOut) const;
+            void reportVoidCrossing(const std::string &slotName,
+                                    const std::string &typeName,
+                                    const std::string &calleeName,
+                                    int line, int column,
+                                    NullSafetyResult &result);
+            void declareName(const std::string &name)
+            {
+                if (!declaredNameScopes_.empty())
+                    declaredNameScopes_.back().insert(name);
+            }
+            bool isDeclaredName(const std::string &name) const
+            {
+                for (auto it = declaredNameScopes_.rbegin(); it != declaredNameScopes_.rend(); ++it)
+                    if (it->count(name))
+                        return true;
+                return false;
+            }
+            /// (AR) يسجّل ربطًا في النطاق الحاليّ: اسمُ نوعٍ للخانة المصنّفة، أو
+            ///      **سلسلةٌ فارغةٌ = شاهدُ حجبٍ** لربطٍ غيرِ مصنَّف. الشاهدُ ضروريّ:
+            ///      المسحُ من النطاق الأخير وحدَه كان يترك تصنيفَ النطاقِ الخارجيّ
+            ///      حيًّا، فيُرفَض برنامجٌ سليمٌ خانتُه الداخليةُ مجرّدةٌ فعلًا
+            ///      (إيجابيٌّ كاذبٌ قِيس — نقضٌ لاتجاه D5).
+            /// (EN) Records a binding in the current scope: a type name for a typed
+            ///      slot, or an EMPTY string as a shadowing tombstone for an untyped
+            ///      binding. Without the tombstone, an outer typed record leaked
+            ///      through an inner bare declaration (measured false positive).
+            void declareTypedSlot(const std::string &name, const std::string &typeName)
+            {
+                if (!typedSlotScopes_.empty())
+                    typedSlotScopes_.back()[name] = typeName;
+            }
+            /// (AR) يعيد اسم النوع العربيّ للخانة المصنّفة، أو nullptr لغير المصنّفة.
+            ///      يتوقّف عند **أقرب** نطاقٍ يحوي الاسمَ أيًّا كانت قيمتُه — فالربطُ
+            ///      الأقربُ هو الحاكم، وشاهدُ الحجبِ الفارغُ يعني «غير مصنّفة».
+            /// (EN) Stops at the NEAREST scope containing the name — the innermost
+            ///      binding rules; an empty tombstone means "not typed".
+            const std::string *findTypedSlot(const std::string &name) const
+            {
+                for (auto it = typedSlotScopes_.rbegin(); it != typedSlotScopes_.rend(); ++it)
+                {
+                    auto found = it->find(name);
+                    if (found != it->end())
+                        return found->second.empty() ? nullptr : &found->second;
+                }
+                return nullptr;
+            }
+
+            std::set<std::string> voidReturningFunctions_; ///< (AR) دوالُّ الفراغِ اليقينيّ
+            std::vector<std::map<std::string, std::string>> typedSlotScopes_; ///< (AR) اسم⇒نوع عربيّ
+            std::vector<std::set<std::string>> declaredNameScopes_; ///< (AR) كلُّ أسماء التصريحات (درء الحجب)
 
             // ── NS-03: تحليل التدفّق (smart narrowing) ─────────────────────────
             // (AR) المتغيّرات الاختيارية المُثبَت أنها **غير عدم** عند نقطة التدفّق

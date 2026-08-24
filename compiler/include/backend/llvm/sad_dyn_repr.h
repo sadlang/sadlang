@@ -65,13 +65,15 @@ namespace Sad
 
         // (AR) حارسُ انجرافٍ زمنَ الترجمة: الوسومُ المشترَكةُ (٠–٥) يجب أن تطابق مصدرَ الحقيقة
         //      الموحَّد (Sad::Types::repr، مُولَّد من value_repr.yaml) الذي تشترك فيه الخلفيّةُ الأصليّة
-        //      والمفسّر — أيُّ انجرافٍ يصير خطأَ ترجمة. (Map/Obj/Adt خاصّةٌ بـLLVM فلا تُوحَّد بعد.)
+        //      والمفسّر — أيُّ انجرافٍ يصير خطأَ ترجمة. (Map/Obj/Adt خاصّةٌ بـLLVM فلا تُوحَّد بعد،
+        //      وقيمُها 6–8 محجوزةٌ في المصدرِ الموحَّد؛ Void رُفع بقيمةِ LLVM عينِها 9.)
         static_assert(DynKind::Null == ::Sad::Types::repr::kDynKindNull, "DynKind drift: Null");
         static_assert(DynKind::Int == ::Sad::Types::repr::kDynKindInt, "DynKind drift: Int");
         static_assert(DynKind::Float == ::Sad::Types::repr::kDynKindFloat, "DynKind drift: Float");
         static_assert(DynKind::Str == ::Sad::Types::repr::kDynKindStr, "DynKind drift: Str");
         static_assert(DynKind::Bool == ::Sad::Types::repr::kDynKindBool, "DynKind drift: Bool");
         static_assert(DynKind::Array == ::Sad::Types::repr::kDynKindArray, "DynKind drift: Array");
+        static_assert(DynKind::Void == ::Sad::Types::repr::kDynKindVoid, "DynKind drift: Void");
 
         /// (AR) نوع المقارنة لموزِّع dynCompare / (EN) comparison kind for dynCompare
         enum class DynCmp
@@ -152,6 +154,20 @@ namespace Sad
         ///      payload while this one honours the tag, so a Float-tagged value crossed that
         ///      boundary as its bit pattern — a silent wrong answer. `sirType` is used only
         ///      in the packing direction to carry the correct tag.
+        /// (AR) [علة قسمة العام — نحلة] حلُّ معاملٍ **عدديِّ السياق** (جسورُ العتاد:
+        ///      منافذ/ذاكرة/VGA): إن حُلَّ `%SadDyn` (عامٌّ رُقّي بإسنادِ ناتجِ `//`
+        ///      الديناميكيِّ) فُكَّ i64 بوسمِه — كان `CreateIntCast` يعمى عنه فيُصدِر
+        ///      `zext %SadDyn to i32` ويفشلُ verifyModule (قِيس على وحدةِ النواةِ
+        ///      المدموجة: `اكتب_ذاكرة32(عنوان، ارتفاع_الشاشة)`).
+        /// (EN) [Global-division bug — nahla] Resolve an INTEGER-context operand
+        ///      (hardware bridges: ports/memory/VGA): when it resolves to `%SadDyn`
+        ///      (a global promoted by storing a dynamic `//` result), unpack i64
+        ///      tag-respecting — `CreateIntCast` was blind to it and emitted
+        ///      `zext %SadDyn to i32`, failing verifyModule (measured on the merged
+        ///      kernel unit: `اكتب_ذاكرة32(addr, screen_height)`).
+        llvm::Value *resolveUnboxedIntOperand(LLVMCodeGen &cg,
+                                              const Compiler::SIR::SIROperand &op);
+
         llvm::Value *coerceToParamType(LLVMCodeGen &cg, llvm::Value *v, llvm::Type *want,
                                        Compiler::SIR::SadTypeKind sirType =
                                            Compiler::SIR::SadTypeKind::Unknown);
@@ -236,6 +252,20 @@ namespace Sad
         ///      keeps its old path (print diagnostic + exit(1)). Shared by the static
         ///      (arith_main) and dynamic (dynBinOp) paths.
         void emitRecoverablePanicToHandler(LLVMCodeGen &cg, llvm::Value *msgPtr);
+
+        /**
+         * (AR) SEM045 (RFC عقد الغياب — أ٢): الحارس الزمنيّ قبل STORE — قيمةٌ
+         *      ديناميّةٌ وسمُها «فراغ» (DynKind::Void) تُكتَب في خانةٍ مصنَّفة.
+         *      `fatal=true` (نظير --إنتاج): تشخيصٌ ثم إيقافٌ موضعيّ (exit(1)
+         *      مستضافًا، __sad_panic(kSadPanicDynTypeMismatch) حرًّا)؛
+         *      `fatal=false` (نظير --تعلم): تحذيرٌ ثم يستمرّ التنفيذ.
+         * (EN) SEM045 (absence-contract RFC, stage أ٢): pre-STORE runtime guard —
+         *      a dyn value tagged Void written into a typed slot. fatal ⇒ diagnose
+         *      and stop locally; warn ⇒ diagnose and continue.
+         */
+        void emitDynVoidStoreGuard(LLVMCodeGen &cg, llvm::Value *dynValue,
+                                   const std::string &slotName,
+                                   const std::string &typeName, bool fatal);
 
     } // namespace LLVM
 } // namespace Sad

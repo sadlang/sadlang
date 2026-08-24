@@ -134,6 +134,72 @@ namespace Sad
 #ifndef NDEBUG
                     std::cout << "[DEBUG] buildFunctionCall: function name = '" << funcName << "'" << std::endl;
 #endif
+
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) [موجة ABI المغاليق] نزعُ وساطةِ مرجعِ الدالّةِ المسمّاة:
+                    //      «متغير د = اجلب؛ د(...)» كان يمرُّ CLOSURE_CALL بعقدِ i64
+                    //      الخامِّ (عقدُ UEFI بحرفِه — لا يُمَسّ)، فيفقدُ آلاتِ الوسمِ
+                    //      كلَّها: عائدُ «رقم» المصرَّحُ الحاملُ غيابًا يُقرأ «رقمًا» لا
+                    //      «فراغًا»، والعشريُّ الوسيطُ يعبرُ بتّاتِه قمامةً صامتةً —
+                    //      كلاهما مقيس. متى ثبتَ الأصلُ (تصريحٌ واحدٌ بمرجعِ دالّةٍ
+                    //      عليا) ونظُفَ الاسمُ من الإسنادِ في البرنامجِ كلِّه ومن
+                    //      الظلِّ المعامليِّ، يُستبدَلُ الاسمُ فيسلكُ النداءُ المسارَ
+                    //      المباشرَ بآلاتِه — وهو عينُ ما ينفّذه المفسّرُ (المرجع).
+                    //      واللامدا خارجُه (بيئةٌ ملتقَطة)، والمُظلَّلُ والمُعادُ
+                    //      إسنادُه خارجُه (تسميمُ المسحِ غيرُ الحسّاسِ للتدفّق).
+                    // (EN) [Closure-ABI wave] Devirtualize a named function reference:
+                    //      «متغير د = اجلب؛ د(...)» used to go through CLOSURE_CALL on
+                    //      the raw-i64 contract (UEFI's contract verbatim — untouchable),
+                    //      losing the entire tagging machinery: a declared-«رقم» return
+                    //      carrying absence read back as «رقم» instead of «فراغ», and a
+                    //      float argument crossed as its raw bits — silent garbage. Both
+                    //      measured. When provenance is proven (a single declaration from
+                    //      a top-level function ref) and the name is assignment-clean
+                    //      program-wide and not parameter-shadowed, rewrite the name so
+                    //      the call takes the direct path with its machinery — exactly
+                    //      what the interpreter (the reference) executes. Lambdas are
+                    //      excluded (captured environment); shadowed or reassigned names
+                    //      are excluded by the scan's flow-insensitive poisoning.
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) قفلُ اقترانٍ مع مسحِ الأنواع: نزعُ الوساطةِ يصحُّ فقط حيث
+                    //      استطاعَ المسحُ إطعامَ الدالّةِ أنواعَ مواقعِها. مفتاحٌ مسمومٌ
+                    //      (تصريحان لاسمٍ واحدٍ في نطاقِ مسحٍ واحد) يعني أنّ المسحَ رفضَ
+                    //      التسجيلَ — فنداءٌ مباشرٌ حينها يبترُ العشريَّ بترًا صامتًا
+                    //      (مقيس: 7.5 صارت 6). المفتاحان يُحسَبان بعُرفِ المسحِ نفسِه:
+                    //      المُنطاقُ باسمِ الدالّةِ الحاضنةِ، والأعلى للمستوى الأعلى
+                    //      (نطاقُه في المسحِ اسمُه الفارغ).
+                    // (EN) Coupling lock with the type scan: devirtualization is valid only
+                    //      where the scan could feed the callee its site types. A poisoned
+                    //      key (two declarations of one name within one scan scope) means
+                    //      the scan refused to record — a direct call there silently
+                    //      truncates floats (measured: 7.5 became 6). Both keys follow the
+                    //      scan's own convention: scoped by the enclosing function's name,
+                    //      and the top-level key (whose scan scope is the empty name).
+                    const std::string devirtScopedKey =
+                        (b_.currentFunction_ ? b_.currentFunction_->name : std::string()) +
+                        "#" + funcName;
+                    const std::string devirtTopKey = "#" + funcName;
+                    if (b_.functionTable_.find(funcName) == b_.functionTable_.end() &&
+                        b_.lambdaAliases_.find(funcName) == b_.lambdaAliases_.end() &&
+                        b_.templateFunctions_.find(funcName) == b_.templateFunctions_.end() &&
+                        b_.scanAssignedNames_.count(funcName) == 0 &&
+                        b_.scanFuncRefPoisoned_.count(devirtScopedKey) == 0 &&
+                        b_.scanFuncRefPoisoned_.count(devirtTopKey) == 0)
+                    {
+                        VariableInfo *refInfo = b_.lookupVariable(funcName);
+                        if (refInfo && !refInfo->isParameter &&
+                            !refInfo->funcRefProvenance.empty() &&
+                            b_.functionTable_.find(refInfo->funcRefProvenance) !=
+                                b_.functionTable_.end())
+                        {
+#ifndef NDEBUG
+                            std::cout << "[DEBUG] buildFunctionCall: devirtualized '"
+                                      << funcName << "' -> '"
+                                      << refInfo->funcRefProvenance << "'" << std::endl;
+#endif
+                            funcName = refInfo->funcRefProvenance;
+                        }
+                    }
                 }
                 // ================================================================
                 // (AR) [Phase 4 — Monomorphization] callee هو TemplateInstantiation
@@ -1060,6 +1126,37 @@ namespace Sad
                             closureRetType = SadTypeKind::Integer;
                         }
 
+                        // ════════════════════════════════════════════════════════
+                        // (AR) [موجة الجسر الموسوم] هدفٌ مجهولٌ (لا اسمَ لامدا مربوطًا
+                        //      ولا مقبضَ مولّد) — مرجعُ دالّةٍ وصلَ معاملًا أو عبرَ
+                        //      مسارٍ لا يحفظُ الأصل: البروتوكولُ الخامُّ كان يبني
+                        //      التوقيعَ من أنواعِ الموقعِ الساكنةِ فيقرأ عائدَ double
+                        //      قمامةَ i64 (t01/t03 مقيس). نُوسَمُ النداءُ dynproto
+                        //      فيسلكُ جسرَ %SadDyn في الخلفيّةِ، والنتيجةُ تُنمَّطُ
+                        //      Any فتُستهلكُ موسومةً (طباعةً وحسابًا وعائدًا).
+                        // (EN) [Tagged-bridge wave] Unknown target (no bound lambda
+                        //      name, not a generator handle) — a func-ref that
+                        //      arrived as a parameter or through a provenance-less
+                        //      path: the raw protocol built the signature from the
+                        //      site's static types, reading a double return as i64
+                        //      garbage (measured, t01/t03). Mark the call dynproto
+                        //      so the backend takes the %SadDyn bridge, and type
+                        //      the result Any so it is consumed tagged (printing,
+                        //      arithmetic, returns).
+                        // ════════════════════════════════════════════════════════
+                        // (AR) الوضعُ الحرُّ مستثنًى: لا جسرَ يُولَّدُ هناك (ميزانيّةُ
+                        //      الحافة — انظر emitClosureCreate) فيبقى البروتوكولُ الخام.
+                        // (EN) Freestanding is excluded: no bridge is synthesized there
+                        //      (edge budget — see emitClosureCreate), so the raw
+                        //      protocol stays.
+                        const bool useDynProto = varInfo->closureLambdaName.empty() &&
+                                                 !varInfo->isGeneratorFuncRef &&
+                                                 b_.isTaggedBridgeEnabled();
+                        if (useDynProto)
+                        {
+                            closureRetType = SadTypeKind::Any;
+                        }
+
                         // (AR) إنشاء تعليمة CLOSURE_CALL
                         //      المعامل الأول = مؤشر بنية الإغلاق
                         //      الباقي = وسائط الاستدعاء الصريحة
@@ -1083,7 +1180,15 @@ namespace Sad
                         //      to look up real signature and convert argument types
                         if (!varInfo->closureLambdaName.empty())
                         {
-                            closureCallInst.comment = "lambda:" + varInfo->closureLambdaName;
+                            closureCallInst.comment =
+                                Sad::Compiler::kClosureLambdaCommentPrefix +
+                                varInfo->closureLambdaName;
+                        }
+                        else if (useDynProto)
+                        {
+                            // (AR) وسمُ بروتوكولِ الجسرِ الموسوم — تقرؤه الخلفيّة.
+                            // (EN) The tagged-bridge protocol marker — read by the backend.
+                            closureCallInst.comment = Sad::Compiler::kClosureDynProtoMarker;
                         }
                         if (b_.currentBlock_)
                             b_.currentBlock_->addInstruction(closureCallInst);

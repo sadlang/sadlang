@@ -28,6 +28,7 @@ format:
 # (AR) وسومٌ نقيّةٌ (بلا قيمةٍ لاحقة) — تصفُ نوعَ البنيةِ غيرِ المدعومة.
 pure:
   - { name: kMoveKind,            value: "move-kind",            ar: "نوعُ معامل MOVE غيرُ مدعوم" }
+  - { name: kBoxComputedString,   value: "box-computed-string",  ar: "تعليبُ نصٍّ محسوبٍ (مؤشّرِ كومةٍ لا حرفيّة) في خانةِ Any مؤجَّل — الواصفُ الطوليُّ يُبنى زمنَ الترجمة للحرفيّاتِ فقط" }
   - { name: kArrayGetBoxed,       value: "array-get-boxed",      ar: "ARRAY_GET لعنصرٍ معلَّب (elementType=Any) مؤجَّل" }
   - { name: kArraySetBoxed,       value: "array-set-boxed",      ar: "ARRAY_SET لعنصرٍ معلَّب (elementType=Any) مؤجَّل" }
   - { name: kArrayAppendBoxed,    value: "array-append-boxed",   ar: "BUILTIN_ARRAY_APPEND لعنصرٍ معلَّب (elementType=Any) مؤجَّل — يلزمه تعليبُ SadDyn" }
@@ -97,6 +98,11 @@ vreg:
 # (AR) وسومٌ يوحّدها مساعِدٌ ساكنٌ في المخفّض (detailOpcode/detailBlocks/detailNoRet).
 helper:
   - { name: kOpcode,          value: "opcode=",           ar: "الأوپكود المتضمَّن (يتبعه رقمُ SIROpcode)" }
+  # (AR) عددُ المعاملات في تشخيصِ الشكل: «opcode=30» وحدَها كانت تُخفي أيَّ شكلٍ
+  #      وصل فعلًا (قِيس: نداءُ مساعِدِ الخريطةِ بصيغةِ البديل احتاج جولةَ تنقيبٍ
+  #      كاملةً لمعرفةِ العدد) — فالتشخيصُ يحمل العددَ ووجودَ النتيجةِ معه.
+  - { name: kOperandCount,    value: " ops=",             ar: "عددُ معاملاتِ التعليمةِ المخالفة (يلي الأوپكود)" }
+  - { name: kHasResult,       value: " result=",          ar: "هل للتعليمةِ نتيجةٌ (0/1) — يكمل تشخيصَ الشكل" }
   # (AR) قرارٌ معماريٌّ مُعلَن (ث١): الخلفيّةُ السياديّةُ لا تخفّض أوپكوداتِ الواجهة.
   #      مسارُ الواجهةِ يستدعي مكتبةَ وقتِ تشغيلٍ (sad_ui_runtime) بعشراتِ الرموزِ
   #      الخارجيّةِ ونموذجِ حلقةِ أحداثٍ وردودِ نداء؛ دعمُه في المخفّضِ الأصليِّ

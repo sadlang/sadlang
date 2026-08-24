@@ -202,9 +202,9 @@ namespace Sad
                 auto sirClass = b_.module_->getClass(b_.currentClassName_);
                 if (sirClass && !sirClass->parentClass.empty())
                 {
-                    // (AR) اسم باني الأب: اسم_الصنف.بناء
-                    // (EN) Parent constructor name: ClassName.بناء
-                    std::string parentCtorName = sirClass->parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
+                    // (AR) اسم باني الأب — الاشتقاق الموحَّد من sir_constants.h
+                    // (EN) Parent constructor name — the unified derivation from sir_constants.h
+                    std::string parentCtorName = constructorNameFor(sirClass->parentClass);
 
                     // (AR) بناء الوسائط: self أولاً ثم وسائط المستدعي
                     // (EN) Build arguments: self first then caller arguments

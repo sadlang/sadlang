@@ -656,6 +656,17 @@ namespace Sad
 
             case ::Sad::Types::SadTypeKind::Void:
                 return false;
+
+            // (AR) العدمُ كاذبٌ **بقرارٍ مُعلَنٍ** لا بسقوطٍ في احتياطِ الدالّة:
+            //      كان يهبط إلى `return false` الختاميّةِ فتصحُّ الإجابةُ ويغيبُ
+            //      القرار — وأيُّ تعديلٍ مستقبليٍّ للاحتياطِ كان سيُبدِّل دلالةَ
+            //      العدمِ صامتًا. والحكمُ على الوسمِ لا على التمثيل (S-TS-P1).
+            // (EN) Null is falsy by an EXPLICIT arm, not by falling into the
+            //      function's trailing fallback: the answer was right but the
+            //      decision was absent, so any future fallback change would have
+            //      silently altered null semantics. Judged by tag, not shape.
+            case ::Sad::Types::SadTypeKind::Null:
+                return false;
             }
             return false;
         }

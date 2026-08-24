@@ -19,6 +19,8 @@
 #include "class_manager.h"
 #include "channel.h"
 #include "sad_type_system.h"
+#include "null_safety/null_safety_analyzer.h" // (AR) محور الصرامة D6 لحارس SEM045 / (EN) D6 strictness axis for the SEM045 guard
+#include "visitors/sem045_report.h"           // (AR) باب إبلاغ SEM045 الواحد / (EN) single SEM045 reporting door
 #include "profiler_hooks.h" // (AR) خطافات مصحح الأداء / (EN) Profiler hooks
 #include <iostream>
 #include <sstream>
@@ -176,8 +178,48 @@ namespace Sad
                             Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, locN, wAr, wEn);
                     }
 
+                    // ═══════════════════════════════════════════════════════════
+                    // (AR) [SEM045 / RFC عقد الغياب — المرحلة أ] الفراغُ لا يعبر
+                    //      إلى خانةٍ مصنَّفة. قِيس (٢٠٢٦-٠٨-٢١) أنّ «متغير نص اسم =
+                    //      <فراغ>» كان يمضي بتحذيرٍ استشاريٍّ وexit=0 — جدارُ
+                    //      الأنواعِ مؤجَّلٌ إلى موضعِ الاستعمال. الدرجةُ تتبع محورَ
+                    //      الصرامةِ القائم (D6): إنتاج=إيقاف، تعلم=تحذير، جامع=صمت.
+                    //      والاختياريّةُ (Optional) **ليست** مستثناة: نطاقُها
+                    //      {T، عدم} ولا يسع فراغًا — لا بابَ خلفيًّا. الصرامةُ
+                    //      تُقرأ من سياسةِ الذاكرة (افتراضيّها Warnings) لا من
+                    //      OwnershipManager الذي افتراضيُّ عضوِه Strict ولا يُضبط
+                    //      إلا عند تمريرِ علمٍ — وإلا صار «بلا أعلام» = إنتاج.
+                    //      نظيرُ إعادةِ الإسناد: expression_evaluator_core.cpp
+                    //      (visitAssignExpr) — نفسُ العقدِ في المسارَين.
+                    // (EN) [SEM045 / absence-contract RFC, stage A] Void does not
+                    //      cross into a typed slot. Enforcement follows the D6
+                    //      strictness axis; optionals are NOT exempt. Strictness
+                    //      is read from the memory policy (default Warnings), not
+                    //      OwnershipManager whose member defaults to Strict.
+                    //      Reassignment peer: visitAssignExpr.
+                    // ═══════════════════════════════════════════════════════════
+                    bool voidCrossingHandled = false;
+                    if (value.getKind() == Types::SadTypeKind::Void &&
+                        Sad::Interpreter::Sem045::kindIsGuarded(node.type))
+                    {
+                        // (AR) الإبلاغُ عبر البابِ الواحد (sem045_report) — كانت الكتلةُ
+                        //      منسوخةً في أربعةِ مواضع. المسنَدُ kindIsGuarded يوحّد طقمَ
+                        //      الاستثناءِ أيضًا (كان الشرطُ هنا Any فقط — الباقي كان
+                        //      يستبعده الشرطُ الخارجيّ وSEM040).
+                        // (EN) Report through the single door (sem045_report) — the block
+                        //      was copied at four sites. kindIsGuarded also unifies the
+                        //      exemption set (this site tested only Any — the rest were
+                        //      excluded by the outer condition and SEM040).
+                        voidCrossingHandled = true;
+                        Sad::Interpreter::Sem045::reportVoidCrossing(
+                            node.name, node.sadType->arabicName(), node.position,
+                            Sad::NullSafety::strictnessFromOwnershipMode(
+                                memoryPolicy_.ownershipMode));
+                    }
+
                     auto valueType = Types::SadType::fromValueType(value.getType());
-                    if (valueType && !valueType->isAssignableTo(node.sadType.get()))
+                    if (!voidCrossingHandled && valueType &&
+                        !valueType->isAssignableTo(node.sadType.get()))
                     {
                         // (AR) تحذير: عدم توافق الأنواع
                         // (EN) Warning: type mismatch
@@ -248,6 +290,17 @@ namespace Sad
                 if (node.type != Types::SadTypeKind::Unknown)
                 {
                     variableManager_.setDeclaredType(node.name, node.type);
+                }
+                else
+                {
+                    // (AR) SEM045: إعادةُ تصريحٍ غيرِ مصنَّفةٍ لاسمٍ كان مصنَّفًا تمحو
+                    //      تصنيفَه — وإلّا حَكَم حارسُ إعادةِ الإسنادِ خانةً مجرّدةً
+                    //      بنوعِ تصريحٍ بائدٍ (قِيس؛ المحلّلُ الساكنُ يصمت هنا بحقّ).
+                    // (EN) SEM045: an untyped re-declaration clears stale typedness —
+                    //      otherwise the reassignment guard judged a now-bare slot by
+                    //      a dead declared type (measured; the static analyzer is
+                    //      rightly silent here).
+                    variableManager_.clearDeclaredType(node.name);
                 }
 
                 // (AR) خطاف مصحح الأداء — تتبع إنشاء المتغيرات

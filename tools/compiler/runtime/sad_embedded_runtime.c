@@ -870,14 +870,148 @@ int sad_rt_mutex_trylock(void *h)
 #endif
 }
 
+/* (AR) ع-16: سجل مقابض الخيوط الحية — جملة «أطلق» تهمل المقبض العائد، فكان
+ *      كل إطلاق حقيقي يسرب HANDLE (وعلى POSIX يسرب pthread_t المخصص ويترك
+ *      خيطا غير مضموم)، ولا سبيل لانتظار الخيوط قبل خروج main. السجل يقيد
+ *      كل مقبض عند الإطلاق، والضم (join/wait_all) ينزعه ذريا قبل الإغلاق
+ *      فلا إغلاق مزدوج بين ضام متزامنين. */
+/* (EN) ع-16: live thread-handle registry — the «أطلق» statement discards the
+ *      returned handle, so every real spawn leaked a HANDLE (and on POSIX the
+ *      malloc'd pthread_t plus an unjoined thread), and nothing could wait for
+ *      spawned threads before main exits. Handles register at spawn; join and
+ *      wait_all CLAIM a handle out of the registry before closing it, so two
+ *      concurrent joiners can never double-close. */
+/* (AR) السجل ديناميكي — السقف الثابت 1024 كان يجعل «انتظر(مقبض)» لخيط فاض
+ *      عن السعة لا-عملية صامتة على خيط حي (الضم مشروط بالانتزاع من السجل)،
+ *      لا انتظر_الكل وحدها كما وثق أولا. النمو بمضاعفة السعة، وفشل التخصيص
+ *      يبلغ على stderr مرة (لا التفاف صامت). */
+/* (EN) Dynamic registry — the fixed 1024 cap silently no-op'ed join on any
+ *      overflowed live thread (join requires a successful claim), not just
+ *      wait_all. Grows by doubling; allocation failure reports once. */
+#define SAD_RT_THREAD_REGISTRY_INITIAL_CAP 1024
+static void **g_sadThreadRegistry = 0;
+static int g_sadThreadRegistryCap = 0;
+static int g_sadThreadRegistryCount = 0;
+static int g_sadThreadRegistryGrowFailed = 0;
+#ifdef _WIN32
+static SRWLOCK g_sadThreadRegistryLock = SRWLOCK_INIT;
+#define SAD_RT_THREADS_LOCK() AcquireSRWLockExclusive(&g_sadThreadRegistryLock)
+#define SAD_RT_THREADS_UNLOCK() ReleaseSRWLockExclusive(&g_sadThreadRegistryLock)
+#else
+static pthread_mutex_t g_sadThreadRegistryLock = PTHREAD_MUTEX_INITIALIZER;
+#define SAD_RT_THREADS_LOCK() pthread_mutex_lock(&g_sadThreadRegistryLock)
+#define SAD_RT_THREADS_UNLOCK() pthread_mutex_unlock(&g_sadThreadRegistryLock)
+#endif
+
+static void sad_rt_thread_registry_add(void *h)
+{
+    if ((uintptr_t)h <= 1)
+        return;
+    SAD_RT_THREADS_LOCK();
+    if (g_sadThreadRegistryCount >= g_sadThreadRegistryCap)
+    {
+        int newCap = g_sadThreadRegistryCap > 0
+                         ? g_sadThreadRegistryCap * 2
+                         : SAD_RT_THREAD_REGISTRY_INITIAL_CAP;
+        void **grown = (void **)realloc(g_sadThreadRegistry,
+                                        (size_t)newCap * sizeof(void *));
+        if (grown)
+        {
+            g_sadThreadRegistry = grown;
+            g_sadThreadRegistryCap = newCap;
+        }
+        else if (!g_sadThreadRegistryGrowFailed)
+        {
+            /* (AR) إبلاغ لا التفاف: خيط غير مسجل لا يضمه انتظر/انتظر_الكل */
+            g_sadThreadRegistryGrowFailed = 1;
+            fprintf(stderr,
+                    "تحذير: تعذر توسيع سجل الخيوط — خيوط جديدة لن تضم / "
+                    "warning: thread registry growth failed — new threads "
+                    "cannot be joined\n");
+        }
+    }
+    if (g_sadThreadRegistryCount < g_sadThreadRegistryCap)
+        g_sadThreadRegistry[g_sadThreadRegistryCount++] = h;
+    SAD_RT_THREADS_UNLOCK();
+}
+
+/* (AR) هل المقبض للخيط النادي نفسه؟ — خيط مطلق ينادي انتظر/انتظر_الكل كان
+ *      ينتظر نفسه إلى الأبد (توقف تام رصدته المراجعة). */
+/* (EN) Is this handle the calling thread itself? A spawned thread calling
+ *      join/wait_all used to deadlock waiting on itself. */
+static int sad_rt_thread_is_self(void *h)
+{
+#ifdef _WIN32
+    DWORD id = GetThreadId((HANDLE)h);
+    return id != 0 && id == GetCurrentThreadId();
+#else
+    return pthread_equal(*(pthread_t *)h, pthread_self());
+#endif
+}
+
+/* (AR) ينزع المقبض من السجل؛ يعيد 1 إن كان هذا النداء هو من امتلكه */
+/* (EN) Claims the handle out of the registry; returns 1 if this caller owns it */
+static int sad_rt_thread_registry_claim(void *h)
+{
+    int claimed = 0;
+    int i;
+    SAD_RT_THREADS_LOCK();
+    for (i = 0; i < g_sadThreadRegistryCount; ++i)
+    {
+        if (g_sadThreadRegistry[i] == h)
+        {
+            g_sadThreadRegistry[i] = g_sadThreadRegistry[--g_sadThreadRegistryCount];
+            claimed = 1;
+            break;
+        }
+    }
+    SAD_RT_THREADS_UNLOCK();
+    return claimed;
+}
+
+static void sad_rt_thread_join_claimed(void *h)
+{
+    /* (AR) الضم الذاتي = انتظار أبدي — نغلق المورد بلا انتظار بدلا منه */
+    /* (EN) Self-join would wait forever — release the resource instead */
+    if (sad_rt_thread_is_self(h))
+    {
+#ifdef _WIN32
+        CloseHandle((HANDLE)h);
+#else
+        pthread_detach(*(pthread_t *)h);
+        free(h);
+#endif
+        return;
+    }
+#ifdef _WIN32
+    WaitForSingleObject((HANDLE)h, 0xFFFFFFFF);
+    CloseHandle((HANDLE)h);
+#else
+    pthread_join(*(pthread_t *)h, NULL);
+    free(h);
+#endif
+}
+
+/* (AR) عقد الملكية: arg ملك الخيط الجديد (ثانك التعليب يحرر حزمته). عند فشل
+ *      الإنشاء يعاد NULL والمطلق (باعث الـIR) يحرر حزمته — لا free هنا لأن
+ *      المسار العام القديم قد يمرر مؤشرا غير كومي. */
+/* (EN) Ownership: arg belongs to the new thread (the boxing thunk frees its
+ *      pack). On creation failure NULL returns and the SPAWNER (IR emitter)
+ *      frees its pack — no free here because the legacy generic path may pass
+ *      a non-heap pointer. */
 void *sad_rt_thread_spawn(void *fn, void *arg)
 {
 #ifdef _WIN32
-    return (void *)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)fn, arg, 0, NULL);
+    void *h = (void *)CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)fn, arg, 0, NULL);
+    sad_rt_thread_registry_add(h);
+    return h;
 #else
     pthread_t *t = (pthread_t *)malloc(sizeof(pthread_t));
     if (t && pthread_create(t, NULL, (void *(*)(void *))fn, arg) == 0)
+    {
+        sad_rt_thread_registry_add((void *)t);
         return (void *)t;
+    }
     if (t)
         free(t);
     return (void *)0;
@@ -888,13 +1022,110 @@ void sad_rt_thread_join(void *h)
 {
     if ((uintptr_t)h <= 1)
         return; /* مقبض رمزيّ من التنفيذ المتزامن */
+    /* (AR) الضم فقط لمن انتزع المقبض من السجل — ضام ثان (أو wait_all متزامن)
+     *      يجد المقبض منزوعا فيعود بلا انتظار على مقبض قد أغلق (لا UB) */
+    /* (EN) Join only after claiming the handle — a second joiner (or a
+     *      concurrent wait_all) finds it already claimed and returns instead
+     *      of waiting on a possibly-closed handle */
+    if (sad_rt_thread_registry_claim(h))
+        sad_rt_thread_join_claimed(h);
+}
+
+/* (AR) ع-16: إطلاق إغلاق خيطا — القيمة {fn_ptr, env_ptr} فتحتا i64 على
+ *      الكومة (بروتوكول CLOSURE_CREATE)، واللامدا تأخذ __env معاملا أخيرا
+ *      وترجع i64 دائما. المدخل ينادي fn(env) في الخيط الجديد ويسجل المقبض. */
+/* (EN) ع-16: spawn a closure on a thread — the value is a heap pair of i64
+ *      slots {fn_ptr, env_ptr} (CLOSURE_CREATE protocol); a lambda takes
+ *      __env as its last parameter and always returns i64. The entry calls
+ *      fn(env) on the new thread; the handle registers like any spawn. */
+typedef long long (*sad_rt_closure_fn0)(long long env);
+
+/* (AR) المدخل يستلم **نسخة كومية** من الزوج يملكها ويحررها بعد النداء —
+ *      تمرير الزوج الأصلي كان يسربه كل إطلاق (لا يحرر أبدا)، وتحرير الأصل
+ *      في المدخل كان سيقع UAF على قيمة إغلاق يعاد استخدامها بعد الإطلاق
+ *      (أطلق م() ثم ناد م()). النسخ يفصل عمر الإطلاق عن عمر القيمة. */
+/* (EN) The entry receives a HEAP COPY of the pair, owns it, and frees it
+ *      after the call — passing the original leaked it per spawn, while
+ *      freeing the original would UAF a closure value reused after the
+ *      spawn. Copying decouples spawn lifetime from value lifetime.
+ *      حد معلن: النسخ يفصل عمر الزوج لا عمر بيئة env نفسها (copy[1] مؤشر
+ *      لبيئة يملكها المطلق) — إغلاق تتحرر بيئته قبل جدولة الخيط UAF كامن.
+ *      Declared limit: the copy decouples the PAIR, not the env buffer the
+ *      spawner owns — an env freed before the thread runs is a latent UAF. */
 #ifdef _WIN32
-    WaitForSingleObject((HANDLE)h, 0xFFFFFFFF);
-    CloseHandle((HANDLE)h);
+static DWORD WINAPI sad_rt_closure_thread_entry(LPVOID p)
+{
+    long long *slots = (long long *)p;
+    if (slots && slots[0])
+        ((sad_rt_closure_fn0)(uintptr_t)slots[0])(slots[1]);
+    free(slots);
+    return 0;
+}
 #else
-    pthread_join(*(pthread_t *)h, NULL);
-    free(h);
+static void *sad_rt_closure_thread_entry(void *p)
+{
+    long long *slots = (long long *)p;
+    if (slots && slots[0])
+        ((sad_rt_closure_fn0)(uintptr_t)slots[0])(slots[1]);
+    free(slots);
+    return (void *)0;
+}
 #endif
+
+void *sad_rt_thread_spawn_closure(void *closure)
+{
+    long long *copy;
+    if (!closure)
+        return (void *)0;
+    copy = (long long *)malloc(2 * sizeof(long long));
+    if (!copy)
+        return (void *)0;
+    copy[0] = ((long long *)closure)[0];
+    copy[1] = ((long long *)closure)[1];
+#ifdef _WIN32
+    {
+        void *h = (void *)CreateThread(NULL, 0, sad_rt_closure_thread_entry, copy, 0, NULL);
+        if (!h)
+        {
+            free(copy);
+            return (void *)0;
+        }
+        sad_rt_thread_registry_add(h);
+        return h;
+    }
+#else
+    {
+        pthread_t *t = (pthread_t *)malloc(sizeof(pthread_t));
+        if (t && pthread_create(t, NULL, sad_rt_closure_thread_entry, copy) == 0)
+        {
+            sad_rt_thread_registry_add((void *)t);
+            return (void *)t;
+        }
+        if (t)
+            free(t);
+        free(copy);
+        return (void *)0;
+    }
+#endif
+}
+
+/* (AR) ع-16: ضم كل الخيوط الحية — «انتظر_الكل()» بلا وسائط كانت لا-عملية
+ *      بينما جملة «أطلق» لا تسمي مقبضها، فلم يكن ثمة سبيل لانتظار الخيوط. */
+/* (EN) ع-16: join every live thread — argument-less «انتظر_الكل()» was a
+ *      no-op while «أطلق» never names its handle, so nothing could wait. */
+void sad_rt_thread_join_all(void)
+{
+    for (;;)
+    {
+        void *h = (void *)0;
+        SAD_RT_THREADS_LOCK();
+        if (g_sadThreadRegistryCount > 0)
+            h = g_sadThreadRegistry[--g_sadThreadRegistryCount];
+        SAD_RT_THREADS_UNLOCK();
+        if (!h)
+            break;
+        sad_rt_thread_join_claimed(h);
+    }
 }
 
 /* (AR) النوم بالمللي ثانية — Win32 Sleep أو POSIX nanosleep. */

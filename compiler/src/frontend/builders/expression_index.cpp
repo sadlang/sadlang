@@ -472,56 +472,46 @@ namespace Sad
                         idxResult.type = SadTypeKind::String;
                     }
 
-                    if (mapElemType == SadTypeKind::Integer || mapElemType == SadTypeKind::Boolean)
-                    {
-                        // (AR) القيم رقمية/منطقية — نستدعي __sad_map_get_i64 ونُرجع i64
-                        // (EN) Numeric/boolean values — call __sad_map_get_i64, return i64
-                        std::string resultReg = b_.newTempRegister();
-                        SIRInstruction getInst;
-                        getInst.opcode = SIROpcode::CALL;
-                        getInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
-                        getInst.operands.push_back(SIROperand::ConstantString("__sad_map_get_i64"));
-                        getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                        getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
-                        getInst.comment = "map get i64 by key";
-                        if (b_.currentBlock_)
-                            b_.currentBlock_->addInstruction(getInst);
-
-                        BuildResult res(resultReg, mapElemType);
-                        res.isDirectValue = true;
-                        return res;
-                    }
-                    else if (mapElemType == SadTypeKind::Float)
-                    {
-                        // (AR) [م-٠٠١] القيمُ عشريّةٌ — تُخزَّنُ اليومَ ببتّاتِها بوسمِ
-                        //      العشريّ، فتُقرأُ خامًّا وتُعيدُها الخلفيّةُ double وفقَ
-                        //      نوعِ سجلِّ النتيجة. كان المسارُ يمرُّ بالنصِّ ذهابًا
-                        //      وإيابًا (نصٌّ ثمّ STRING_TO_F64): تخصيصٌ وفقدُ دقّةٍ
-                        //      عندَ كلِّ قراءة.
-                        // (EN) [card م-٠٠١] Float values are stored as raw bits under the
-                        //      float tag, so they are read raw and the backend hands them
-                        //      back as a double per the result register's type. The path
-                        //      used to round-trip through a string (get + STRING_TO_F64):
-                        //      an allocation and a precision loss on every read.
-                        std::string resultReg = b_.newTempRegister();
-                        SIRInstruction getInst;
-                        getInst.opcode = SIROpcode::CALL;
-                        getInst.result = SIROperand::Register(resultReg, SadTypeKind::Float);
-                        getInst.operands.push_back(SIROperand::ConstantString(kRuntimeMapGetI64));
-                        getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                        getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
-                        getInst.comment = "map get float bits by key";
-                        if (b_.currentBlock_)
-                            b_.currentBlock_->addInstruction(getInst);
-
-                        BuildResult res(resultReg, SadTypeKind::Float);
-                        res.isDirectValue = true;
-                        return res;
-                    }
-                    else if (mapElemType == SadTypeKind::Void || mapElemType == SadTypeKind::Any)
+                    // (AR) وNull في القائمة سدُّ مستهلكٍ لا منتِج: الخريطةُ الحرفيّةُ
+                    //      `{"أ": لاشيء}` تستنتجُ نوعَ عنصرِها Null من أوّلِ قيمةٍ
+                    //      (expression_collections)، فسقوطُها من هنا كان يُنزِلُ القراءةَ
+                    //      إلى الفرعِ الخامِّ النصّيِّ ⇒ `نوع()` تكذبُ «نص» وحارسُ
+                    //      الوسطِ العدميِّ لا ينطلقُ — والوسمُ مخزَّنٌ صحيحًا أصلًا
+                    //      (قِيس: كشفَته المراجعةُ العدائيّةُ بعد سدِّ مسارِ الإسنادِ وحدَه).
+                    // (EN) Null in this list guards the CONSUMER, not one producer: a map
+                    //      literal `{"أ": لاشيء}` infers element type Null from its first
+                    //      value, and falling out of this list dropped reads to the raw
+                    //      string branch ⇒ `نوع()` lied «نص» and the null-middle guard
+                    //      never fired — while the stored tag was correct all along
+                    //      (measured: adversarial review caught it after only the
+                    //      assignment path was sealed).
+                    if (mapElemType == SadTypeKind::Void || mapElemType == SadTypeKind::Any ||
+                        mapElemType == SadTypeKind::Unknown || mapElemType == SadTypeKind::Null ||
+                        mapElemType == SadTypeKind::Integer || mapElemType == SadTypeKind::Boolean ||
+                        mapElemType == SadTypeKind::Float || mapElemType == SadTypeKind::String ||
+                        mapElemType == SadTypeKind::Map || mapElemType == SadTypeKind::Array ||
+                        mapElemType == SadTypeKind::Struct || mapElemType == SadTypeKind::Class)
                     {
                         // ════════════════════════════════════════════════════
-                        // (AR) [م-٠٠١ ق٣] خريطةٌ نوعُ قيمِها مجهولٌ سكونيًّا — معامِلٌ
+                        // (AR) [RFC عقد الغياب] القناةُ الموسومةُ واحدةٌ للمتجانسِ
+                        //      والمختلطِ معًا: القنواتُ الخامُّ (`__sad_map_get`/`_i64`)
+                        //      لا تحرسُ حضورَ المفتاحِ — مصفوفتا القيمِ والوسومِ غيرُ
+                        //      مصفَّرتَين، فمفتاحٌ غائبٌ في خريطةٍ متجانسةٍ كان يُرجِعُ
+                        //      قمامةً بوسمِ «رقم» حيثُ يصدُقُ المفسّرُ «لاشيء». القناةُ
+                        //      الموسومةُ تحرسُ الغيابَ (وسمُ Void) وتحفظُ نوعَ الحاضرِ،
+                        //      وسلاسلُ الاستهلاكِ تفكُّ التعليبَ عندَ الحاجة.
+                        // (EN) [absence-contract RFC] One tagged channel for homogeneous
+                        //      and heterogeneous maps alike: the raw channels do not
+                        //      guard key presence (values/types arrays are not zeroed),
+                        //      so an absent key in a homogeneous map returned garbage
+                        //      tagged «رقم» where the interpreter truthfully says
+                        //      «لاشيء». The tagged channel guards absence (Void kind)
+                        //      and preserves the present value's type.
+                        // ════════════════════════════════════════════════════
+                        // (AR) [م-٠٠١ ق٣] السياقُ التأسيسيُّ للقناة — كُتب حين كانت
+                        //      مقصورةً على المجهولِ سكونيًّا، وصارت بعد التوحيدِ أعلاه
+                        //      تغطي المتجانسَ المعلومَ أيضًا:
+                        //      خريطةٌ نوعُ قيمِها مجهولٌ سكونيًّا — معامِلٌ
                         //      مصرَّحٌ `خريطة`، أو ناتجُ دالّةٍ، أو قيمةٌ متداخلة.
                         //
                         //      كان المسارُ يُسوّي كلَّ قيمةٍ إلى نصٍّ ثمّ يُسلّمُها بنوعٍ
@@ -557,58 +547,42 @@ namespace Sad
                         getInst.operands.push_back(SIROperand::ConstantString(kRuntimeMapGetDyn));
                         getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                         getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
-                        getInst.comment = "map get (heterogeneous, runtime-tagged) by key";
+                        getInst.comment = "map get (runtime-tagged, absence-guarded) by key";
                         if (b_.currentBlock_)
                             b_.currentBlock_->addInstruction(getInst);
 
                         BuildResult result(resultReg, SadTypeKind::Any);
                         result.isDirectValue = true;
+                        // (AR) [ISSUE-047] عنصرٌ كائنيّ: صار للكائنِ وسمُه المستقلُّ (٨)
+                        //      في فضاءِ وسومِ الخريطةِ بعد فكِّ تصادمِه مع الخريطةِ على
+                        //      الوسمِ ٦، فيمرُّ من القناةِ الموسومةِ نفسِها: الغيابُ
+                        //      محروسٌ (وسمُ Void) و«نوع()» تصدُقُ «كائن» من الوسمِ زمنَ
+                        //      التشغيل. واسمُ الصنفِ يُنشَرُ من عنصرِ الحاويةِ كي يبقى
+                        //      الوصولُ الساكنُ للأعضاءِ (`خ["أ"].حقل`) مستبينًا صنفَه.
+                        // (EN) [ISSUE-047] Object element: objects now own tag 8 in the
+                        //      map value space (the tag-6 collision with maps is split),
+                        //      so they ride the same tagged channel: absence is guarded
+                        //      (Void kind) and نوع() truthfully says «كائن» from the
+                        //      runtime tag. The class name is propagated from the
+                        //      container's element so static member access
+                        //      (`خ["أ"].حقل`) still resolves its class.
+                        if ((mapElemType == SadTypeKind::Struct ||
+                             mapElemType == SadTypeKind::Class) &&
+                            !objResult.elementClassName.empty())
+                        {
+                            result.className = objResult.elementClassName;
+                            b_.classInstanceTypes_[resultReg] = objResult.elementClassName;
+                        }
                         return result;
-                    }
-                    else if (mapElemType == SadTypeKind::Map ||
-                             mapElemType == SadTypeKind::Array ||
-                             mapElemType == SadTypeKind::Struct)
-                    {
-                        // (AR) [ISSUE-047] قيمة مركّبة متداخلة (خريطة/مصفوفة/بنية): القيمة
-                        //      مخزَّنة typeTag=0 فيُرجِعها `__sad_map_get` مؤشّرًا سليمًا
-                        //      (inttoptr بلا نسخ). نُعيدها بنوعها المركّب — لا كنصّ — كي تعمل
-                        //      الفهرسة التالية «خ["أ"]["ب"]». نوع عنصر المتداخل مجهول وقت
-                        //      الترجمة ⇒ Void فيستعمل الوصولُ التالي `__sad_map_get` الذكيّ.
-                        // (EN) [ISSUE-047] Nested composite value (map/array/struct): stored with
-                        //      typeTag=0 so `__sad_map_get` returns the intact pointer (inttoptr,
-                        //      no copy). Return it with its composite type — not String — so a
-                        //      following index `m["a"]["b"]` works. Inner element type is unknown
-                        //      at compile time ⇒ Void so the next access uses the smart get.
-                        std::string resultReg = b_.newTempRegister();
-                        SIRInstruction getInst;
-                        getInst.opcode = SIROpcode::CALL;
-                        getInst.result = SIROperand::Register(resultReg, mapElemType);
-                        // (AR) [م-٠٠١] `__sad_map_get_i64` لا `__sad_map_get`: الأخيرةُ تُنسّقُ
-                        //      كلَّ وسمٍ غيرِ نصّيٍّ نصًّا، ولمّا صارتِ الحاويةُ تُخزَّنُ بوسمِها
-                        //      (٦/٧) بدل وسمِ النصّ عادت منها **نصًّا** لا مؤشّرًا، فتُفهرَسُ
-                        //      قمامةً ⇒ SIGSEGV. الحمولةُ الخامُّ هي المطلوبةُ هنا، ويُطبّعُها
-                        //      `normalizeMapPtr` مؤشّرًا.
-                        // (EN) [card م-٠٠١] `__sad_map_get_i64`, not `__sad_map_get`: the latter
-                        //      formats every non-string tag as text, and once a container was
-                        //      stored under its own tag (6/7) instead of the string tag it came
-                        //      back as **text** rather than a pointer, and indexing that garbage
-                        //      crashed. The raw payload is what is wanted here, and
-                        //      `normalizeMapPtr` turns it into a pointer.
-                        getInst.operands.push_back(SIROperand::ConstantString(kRuntimeMapGetI64));
-                        getInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
-                        getInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
-                        getInst.comment = "map get composite (map/array/struct) raw payload by key";
-                        if (b_.currentBlock_)
-                            b_.currentBlock_->addInstruction(getInst);
-
-                        BuildResult res(resultReg, mapElemType);
-                        res.elementType = SadTypeKind::Void;
-                        return res;
                     }
                     else
                     {
-                        // (AR) نصوص — نستدعي __sad_map_get (يُرجع نصاً)
-                        // (EN) Strings — call __sad_map_get (returns string)
+                        // (AR) فرعٌ احتياطيٌّ للأنواعِ غيرِ المعدَّدةِ أعلاه (Byte/UInt64/
+                        //      Char/…) — النصُّ نفسُه صار في القناةِ الموسومة. يستدعي
+                        //      __sad_map_get (يُرجع نصًّا، بلا حارسِ غياب — حدٌّ معلَن).
+                        // (EN) Fallback for kinds not enumerated above (Byte/UInt64/Char/…)
+                        //      — String itself moved to the tagged channel. Calls
+                        //      __sad_map_get (returns text, no absence guard — declared limit).
                         std::string resultReg = b_.newTempRegister();
                         SIRInstruction getInst;
                         getInst.opcode = SIROpcode::CALL;
@@ -920,7 +894,33 @@ namespace Sad
                     if (auto *varExpr = dynamic_cast<AST::VariableExpr *>(indexAssignExpr->object.get()))
                     {
                         VariableInfo *mapVar = b_.lookupVariable(varExpr->name);
-                        if (mapVar && valResult.type != SadTypeKind::Void)
+                        // (AR) SEM045 (الكتابة المفهرسة): قيمةٌ «فراغٌ» (ناتجُ دالّةٍ بلا
+                        //      قيمة) تُخزَّن بوسم Void — فتنقلب القراءةُ إلى المسارِ
+                        //      الموسومِ (Any) وإلّا قرأت الخانةَ خامًا فطبعت صفرًا
+                        //      كاذبًا والمرجعُ «لاشيء» (مقيس). الشرطُ != Void أدناه
+                        //      يستثني الفراغَ من ترقيةِ النوعِ عمدًا لعلّةٍ أخرى، فهذه
+                        //      الذراعُ المستقلّة تتولّاه.
+                        // (EN) SEM045 (indexed writes): a Void value (value-less call)
+                        //      is stored under the Void tag — reads must switch to the
+                        //      tagged (Any) path, else the raw read prints a lying 0
+                        //      where the reference says «لاشيء» (measured). The != Void
+                        //      condition below deliberately excludes Void for another
+                        //      reason; this separate arm handles it.
+                        // (AR) والعدمُ (لاشيء) شقيقُه: وسمُه يُخزَّنُ صحيحًا (kMapValueTagNull)
+                        //      لكنّ تثبيتَ elementType على Null كان يُبقي القراءةَ على القناةِ
+                        //      النصّيّةِ الخام، فيُقرأُ الحارسُ نصًّا ⇒ `نوع()` تكذبُ «نصّ»
+                        //      وحارسُ SEM011 للوسيطِ العدميِّ لا ينطلقُ مُترجَمًا (مقيس).
+                        // (EN) Null (لاشيء) is its sibling: its tag IS stored correctly
+                        //      (kMapValueTagNull), but pinning elementType to Null kept reads
+                        //      on the raw string channel, so the sentinel was read as text ⇒
+                        //      `نوع()` lied «نصّ» and the compiled null-middle SEM011 guard
+                        //      never fired (measured).
+                        if (mapVar && (valResult.type == SadTypeKind::Void ||
+                                       valResult.type == SadTypeKind::Null))
+                        {
+                            mapVar->elementType = SadTypeKind::Any;
+                        }
+                        else if (mapVar)
                         {
                             if (mapVar->elementType == SadTypeKind::Void)
                                 mapVar->elementType = valResult.type;
@@ -977,7 +977,13 @@ namespace Sad
 
                     // (AR) تخزين مطبوع: نُرسل القيمة كـ i64 مع علامة النوع
                     // (EN) Typed storage: send value as i64 with type tag
-                    SIROperand valOp = SIROperand::Register(valResult.registerName, valResult.type);
+                    // (AR) SEM045: سجلُّ الفراغِ لا يقابله شيءٌ في LLVM — ثابتُ الفراغِ
+                    //      (حمولة 0) مع وسم kMapValueTagVoid القائم في الخلفيّة.
+                    // (EN) SEM045: a Void register has no LLVM value — use the Void
+                    //      constant (payload 0) with the backend's existing Void tag.
+                    SIROperand valOp = (valResult.type == SadTypeKind::Void)
+                                           ? SIROperand::ConstantVoid()
+                                           : SIROperand::Register(valResult.registerName, valResult.type);
 
                     SIRInstruction setInst;
                     setInst.opcode = SIROpcode::CALL;
@@ -1016,7 +1022,17 @@ namespace Sad
                 arrSetOp.elementType = objResult.elementType;
                 storeInst.operands.push_back(arrSetOp);
                 storeInst.operands.push_back(SIROperand::Register(idxResult.registerName, idxResult.type));
-                storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+                // (AR) SEM045 (الكتابة المفهرسة في مصفوفة): «فراغٌ» يُخزَّن ثابتَ فراغٍ
+                //      (سجلُّه بلا قيمةِ LLVM) — التمثيلُ الموسومُ يتطلّب عناصرَ معلَّبة،
+                //      فحدُّ المصفوفةِ المتجانسةِ (عناصرُ خام) يبقى على حاله المقيس.
+                // (EN) SEM045 (array indexed write): Void is stored as the Void constant
+                //      (its register has no LLVM value) — the tagged representation
+                //      needs boxed elements, so the homogeneous-array (raw slots) limit
+                //      stays as measured.
+                storeInst.operands.push_back(
+                    (valResult.type == SadTypeKind::Void)
+                        ? SIROperand::ConstantVoid()
+                        : SIROperand::Register(valResult.registerName, valResult.type));
                 storeInst.comment = "array element set";
 
                 if (b_.currentBlock_)

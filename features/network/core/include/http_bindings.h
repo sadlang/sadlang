@@ -157,6 +157,20 @@ extern "C"
     void sad_http_server_listen(void *server);
 
     /**
+     * @brief (AR) بدء الاستماع على منفذ صريح — ع-10: كان منفذ «ابدأ_الاستماع(م، منفذ)»
+     *        يُتجاهل صامتًا فيستمع الخادم على منفذ الإنشاء (وغالبًا 0).
+     *        تحجب حتى توقف الخادم. تعيد 1 عند خروج حلقة الاستماع سويًّا،
+     *        و0 عند خادم فارغ أو عامل مسبقًا (المنفذ لن يكرم) أو فشل الربط.
+     * @brief (EN) Start listening on an explicit port — ع-10: the port passed to
+     *        ابدأ_الاستماع was silently ignored, leaving the creation-time port.
+     *        Blocks until the server stops. Returns 1 on clean loop exit, 0 for
+     *        a null or already-running server (port not honored) or bind failure.
+     *        (AR) منفذ ≤ 0 يسقط إلى منفذ الإنشاء — دلالة موحدة للمحركين هنا.
+     *        (EN) Port ≤ 0 falls back to the creation-time port — unified here.
+     */
+    int sad_http_server_listen_on(void *server, int port);
+
+    /**
      * @brief Stop server
      */
     void sad_http_server_stop(void *server);
@@ -167,6 +181,25 @@ extern "C"
     void sad_http_server_enable_cors(void *server, const char *origin);
 
     // ==========================================
+    /**
+     * @brief (AR) ع-14: ترامبولين المسار المصرَّف — يمرر إلى نظائر _cb أدناه
+     *        معالجًا، وuser_data مؤشر دالة ص مصرفة بلا معاملات. يثبت الطلب
+     *        والرد في thread-local ثم يناديها — فتصل دوال الطلب/الرد أدناه
+     *        إلى السياق عبر السقوط إليه عند تمرير nullptr.
+     * @brief (EN) ع-14: compiled-route trampoline — pass it as the handler to
+     *        the _cb registrars with user_data = a zero-parameter compiled Sad
+     *        function pointer. Pins request/response in thread-locals so the
+     *        request/response functions below fall back to them on nullptr.
+     */
+    void sad_http_route_trampoline(void *request, void *response, void *user_data);
+
+    /**
+     * @brief (AR) الطلب/الرد الحاليان لخيط المعالج المصرف (nullptr خارج معالج)
+     * @brief (EN) Current request/response of the compiled handler thread
+     */
+    void *sad_http_current_request(void);
+    void *sad_http_current_response(void);
+
     // Callback-based Route Registration
     // (AR) تسجيل مسارات بمعالجات أصلية تدعم بيانات سياق
     // ==========================================

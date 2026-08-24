@@ -33,6 +33,7 @@
 // (EN) The generated import gate + the loaded-module registry
 #include "builtin_registry.h"
 #include "builtin_module_registry.h"
+#include "utils/class_module_captures.h"
 #include <iostream>
 #include <unordered_map>
 #include <algorithm>
@@ -160,6 +161,17 @@ namespace Sad
             // (EN) Push scope only for parameters - fields inherited from parent scope
             variableManager_.enterScope(Data::ScopeType::FUNCTION, funcName);
 
+            // (AR) ع-1: حقن التقاطات وحدة التعريف هنا أيضا — كان هذا الموضع
+            //      يعتمد على رؤية نطاق الأب (طريقة محقونة) عبر سلسلة الآباء،
+            //      وهو اعتماد هش رصدته المراجعة؛ الحقن الصريح قبل ربط
+            //      المعاملات يوحده مع بقية مواضع تنفيذ أجسام الطرق.
+            // (EN) ع-1: inject the defining module's captures here too — this
+            //      site used to lean on parent-scope visibility (an injected
+            //      caller method), a fragile chain; explicit injection before
+            //      parameter binding unifies it with every other method-body
+            //      execution site.
+            Utils::injectClassModuleCaptures(thisClassType, variableManager_);
+
             for (size_t i = 0; i < method->parameters.size(); ++i)
             {
                 variableManager_.define(method->parameters[i].name, arguments[i]);
@@ -212,12 +224,20 @@ namespace Sad
                 return false;
             }
 
-            // (AR) نبحث عن هذا في النطاق لتحديد الصنف الحالي
-            // (EN) Look for this in scope to determine current class
+            // (AR) نبحث عن هذا في النطاق لتحديد الصنف الحالي.
+            //      خارجَ الطرائق (لا «هذا») الاسمُ ليس نداءَ باني الأبِ بل معرِّفٌ
+            //      عاديٌّ — صنفُ مستخدمٍ باسم «أساس» مثلًا — فنُفسِح للتوزيعِ العاديّ.
+            //      الابتلاعُ القديمُ (فراغٌ + true) جعل «أساس()» أعلى الملفِّ يُنشئ
+            //      فراغًا صامتًا بينما المصرِّفُ يحصرُ الادّعاءَ بداخلِ صنفٍ — مقيس.
+            // (EN) Look for «هذا» in scope to determine current class. Outside
+            //      methods (no «هذا») the name is NOT a super call but an ordinary
+            //      identifier — e.g. a user class literally named «أساس» — so fall
+            //      through to normal dispatch. The old swallow (void + true) made a
+            //      top-level «أساس()» silently yield void while the compiler claims
+            //      the call only inside a class — measured divergence.
             if (!variableManager_.exists("هذا"))
             {
-                lastResult_ = Value();
-                return true;
+                return false;
             }
 
             Value thisValue = variableManager_.get("هذا");

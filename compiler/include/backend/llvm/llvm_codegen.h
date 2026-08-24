@@ -51,6 +51,7 @@
 #ifndef SAD_LLVM_CODEGEN_H
 #define SAD_LLVM_CODEGEN_H
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -427,6 +428,21 @@ namespace Sad
             ///      shadowing a global, since `dynGlobalSlots_` is bare-name-keyed module-wide.
             std::map<std::string, std::set<std::string>> funcLocalNames_;
 
+            /// (AR) SEM045 (أ٢): الخاناتُ المصرَّحُ نوعُها صراحةً لكلّ دالّة (منسوخة عن
+            ///      `SIRFunction::declaredTypedSlots`) — بها يميّز حارسُ STORE الخانةَ
+            ///      المعلنةَ (تُحرَس من «فراغ») من المستنتَجة (تقبله بحرّيّة). المفتاحُ
+            ///      اسمٌ مجرَّدٌ بلا بادئة %.
+            /// (EN) SEM045 (stage أ٢): explicitly-declared typed slots per function
+            ///      (copied from `SIRFunction::declaredTypedSlots`) — how the STORE
+            ///      guard tells a declared slot (guarded) from an inferred one (free).
+            std::map<std::string, std::map<std::string, Sad::Types::SadTypeKind>>
+                declaredTypedSlots_;
+
+            /// (AR) النوعُ المصرَّحُ للخانة في الدالّة، أو Unknown لغير المصرَّحة.
+            /// (EN) The slot's declared kind in funcName, or Unknown when not declared.
+            Sad::Types::SadTypeKind declaredSlotKind(const std::string &funcName,
+                                                     const std::string &slotName) const;
+
             /**
              * الحصول على الوحدة الحالية
              * Get current module
@@ -710,6 +726,46 @@ namespace Sad
                                    const std::map<std::string, std::string> &placeholders,
                                    const std::string &tag);
 
+            /**
+             * (AR) [RFC عقد الغياب] ذراعُ رفعِ الغيابِ الموسومِ الموحَّدةُ — المصدرُ
+             *      الواحدُ بعد أن تكرّرت الذراعُ حرفًا في `normalizeMapPtr`
+             *      و`normalizeArrayPtr` (دَينُ مراجعةِ الجودةِ ٢٠٢٦-٠٨-٢٢).
+             *
+             *      تُستدعى ونقطةُ الإدراجِ على كتلةِ فشلِ حارسِ الوسم: تفرّع على
+             *      بايتِ الوسمِ — فراغٌ (Void) أو عدمٌ (Null) يرفعان `raisedCode`
+             *      من الكتالوجِ نفسِه الذي يقرأ منه المفسّرُ، والرمزُ **معاملٌ**
+             *      لأنّ المفسّرَ يفرّق مقيسًا بين السطوح: القراءةُ بالفهرس SEM011،
+             *      والإسنادُ بالفهرس RUN018، ومستقبِلُ مدمجٍ مسمًّى RUN037 —
+             *      وتوحيدُها على رمزٍ واحدٍ يخالف المرجع (درسُ البذرة 082).
+             *
+             *      فراغاتُ المستدعي (`placeholders` — مثل `{func}` لـRUN037) تُدمَج،
+             *      و`{type}` يملؤه الذراعُ بنفسِه من **الوسمِ** (VOID/NULL) بالدالّةِ
+             *      عينِها التي يملأ بها المفسّرُ (getTypeName) — والرمزُ الذي لا
+             *      يسأل عن `{type}` يتجاهله المصيّرُ بلا ضرر. وسائرُ الأوسامِ
+             *      المخالفةِ تسقط إلى `emitMismatch` — رسالةُ المستدعي الخاصّة.
+             *
+             *      🔑 كلُّ الأذرعِ تُنهي كتلتَها بنفسِها (رفعٌ فـUnreachable، أو
+             *      `emitMismatch` المُنهي ذاتيًّا) — فلا يضبط المستدعي نقطةَ إدراجٍ
+             *      بعدها إلّا على كتلةِ النجاح.
+             * (EN) [absence-contract RFC] The unified tagged-absence raise arm —
+             *      single source after verbatim duplication in normalizeMapPtr and
+             *      normalizeArrayPtr. Called with the insert point on the tag
+             *      guard's fail block: Void/Null raise `raisedCode` from the same
+             *      catalog the interpreter reads. The code is a PARAMETER because
+             *      the interpreter distinguishes surfaces (measured): indexed read
+             *      SEM011, indexed assign RUN018, named-builtin receiver RUN037 —
+             *      collapsing them diverges from the reference (seed 082's lesson).
+             *      Caller placeholders (e.g. {func} for RUN037) are merged; {type}
+             *      is filled here from the TAG via the very Value the interpreter
+             *      uses; codes that don't ask for {type} ignore it harmlessly.
+             *      Other tags fall to emitMismatch. All arms terminate their blocks.
+             */
+            void emitTaggedAbsenceRaise(llvm::Value *kindByte,
+                                        Sad::Errors::ErrorCode raisedCode,
+                                        const std::map<std::string, std::string> &placeholders,
+                                        const std::string &tag,
+                                        const std::function<void()> &emitMismatch);
+
             /// (AR) «طول» ⇒ «.طول()» — اسمُ العمليّةِ بصيغةِ عرضِ المفسّر.
             /// (EN) «طول» ⇒ «.طول()» — the interpreter's operation label spelling.
             static std::string stringMethodOperationLabel(std::string_view methodName);
@@ -844,6 +900,26 @@ namespace Sad
              * @param mode (AR) صحيح لتفعيل الوضع المستقل / (EN) true to enable freestanding
              */
             void setFreestanding(bool mode) { freestanding_ = mode; }
+
+            /**
+             * (AR) SEM045 (RFC عقد الغياب — أ٢): درجة الحارس الزمنيّ «فراغ ⇒ خانة
+             *      مصنَّفة» قبل STORE. تُشتقّ في السائق من سياسة الذاكرة **زمنَ
+             *      التوليد** — لا عَلَمَ سياسةٍ في الكود المولَّد أصلًا. الافتراضيّ
+             *      (بلا أعلام) تحذيرٌ لا إيقاف — درسُ أ١ المقيس: قراءةُ الصرامة من
+             *      بنيةٍ افتراضيُّها Strict جعلت «بلا أعلام» إنتاجًا صامتًا.
+             * (EN) SEM045 (stage أ٢): strictness of the pre-STORE Void-crossing
+             *      guard, derived from the memory policy AT CODEGEN TIME (no policy
+             *      flag exists in generated code). Default is Warn, not Fatal — the
+             *      measured أ١ lesson about silent default tightening.
+             */
+            enum class VoidStoreGuard
+            {
+                None, ///< (AR) بلا حارس (نظير --جامع) / (EN) no guard (≈ --gc)
+                Warn, ///< (AR) تحذير ويستمرّ (الافتراضيّ، نظير --تعلم) / (EN) warn
+                Fatal ///< (AR) تشخيص وإيقاف موضعيّ (نظير --إنتاج) / (EN) fatal
+            };
+            void setVoidStoreGuard(VoidStoreGuard g) { voidStoreGuard_ = g; }
+            VoidStoreGuard voidStoreGuard() const { return voidStoreGuard_; }
 
             /**
              * (AR) نوعُ سجلّ الأغراض العامّة للهدف (i32 على i686 وi64 على x86_64).
@@ -1114,6 +1190,7 @@ namespace Sad
             llvm::Value *emitBuiltinStringSubstring(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringSubstring(inst); }
             llvm::Value *emitBuiltinStringTrim(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringTrim(inst); }
             llvm::Value *emitBuiltinStringSplit(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringSplit(inst); }
+            llvm::Function *ensureStringSplitHelper() { return strops_->ensureStringSplitHelper(); } // (AR) عائلة «تقسيم» — يطلبها مُطبِّع «لكل» / (EN) split family — needed by the foreach normalizer
             llvm::Value *emitBuiltinStringJoin(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringJoin(inst); }
             llvm::Value *emitBuiltinStringStartsWith(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringStartsWith(inst); }
             llvm::Value *emitBuiltinStringEndsWith(std::shared_ptr<SIRInstruction> inst) { return strops_->emitBuiltinStringEndsWith(inst); }
@@ -1202,8 +1279,9 @@ namespace Sad
 
             // (AR) Phase 7 Step 5: delegate إلى ArrayOpsCodeGen (تبقى wrappers لأن array_file_coro.cpp يستدعيها)
             llvm::Value *normalizeArrayPtr(llvm::Value *arrPtr, const char *label = "arr",
-                                                       bool assertDynTag = true)
-            { return arr_->normalizeArrayPtr(arrPtr, label, assertDynTag); }
+                                                       bool assertDynTag = true,
+                                                       std::optional<Sad::Errors::ErrorCode> absenceCode = std::nullopt)
+            { return arr_->normalizeArrayPtr(arrPtr, label, assertDynTag, absenceCode); }
             llvm::Value *normalizeArrayIndex(llvm::Value *index, llvm::Value *arrPtr, const char *label = "idx") { return arr_->normalizeArrayIndex(index, arrPtr, label); }
             void emitBoundsCheck(llvm::Value *index, llvm::Value *arrPtr, const char *label = "bc") { arr_->emitBoundsCheck(index, arrPtr, label); }
 
@@ -1995,6 +2073,10 @@ namespace Sad
             CodeGenContext context_info_;
 
         private:
+            // (AR) SEM045 (أ٢): درجة حارس «فراغ ⇒ خانة مصنّفة» — انظر setVoidStoreGuard.
+            // (EN) SEM045 (stage أ٢): Void-crossing store-guard level.
+            VoidStoreGuard voidStoreGuard_ = VoidStoreGuard::Warn;
+
             // (AR) Phase 7 Step 1: مكوّن فرعي للعمليات الحسابية والمقارنات والتحويلات
             // (EN) Phase 7 Step 1: sub-codegen for arithmetic, comparisons & conversions
             std::unique_ptr<ArithmeticCodeGen> arith_;

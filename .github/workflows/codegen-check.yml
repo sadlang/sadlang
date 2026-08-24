@@ -146,10 +146,19 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyyaml jsonschema pytest
 
-      # ── (AR) اختبار عقد الحارس (جدول النطاقات + التطبيع + تمرير الشجرة النظيفة).
-      # (EN) Guard-contract test (domain table + EOL normalization + clean-tree pass).
-      - name: "🧪 اختبار عقد الحارس / Guard contract test"
-        run: python -m pytest scripts/codegen/test_xpy_codegen_guard.py -q
+      # ── (AR) اختباراتُ المُولِّدات **كلُّها** لا ملفٌّ واحد.
+      #    🔑 كانت الخطوةُ تسمّي `test_xpy_codegen_guard.py` وحدَه، وفي المجلَّدِ
+      #    ستّةُ ملفّاتٍ — فخمسةٌ منها (منها `test_gen_types.py` الذي يحرس
+      #    مصدرَ حقيقةِ الأنواعِ نفسَه) كانت **موجودةً غيرَ مقيسة**: تمرّ محلّيًّا
+      #    ولا يشغّلها شوطٌ واحد. و«موجودٌ» ليس «مقيسًا»: حارسٌ لا يُشغَّل لا
+      #    يمكنه أن يُحمِّر، فوجودُه يُطمئن ولا يحرس.
+      #    المقيسُ عند الوصل: ٦٦ اختبارًا خضراء في المجلَّدِ كلِّه.
+      # (EN) ALL generator tests, not one file. The step named a single file while
+      #    the directory held six, so five — including test_gen_types.py, which
+      #    guards the type SoT itself — were present but never measured. A guard
+      #    that is never run cannot redden. Measured at wiring: 66 green.
+      - name: "🧪 اختبارات المُولِّدات / Codegen test suite"
+        run: python -m pytest scripts/codegen/ -q -rs
 
       # ── (AR) البوّابة الواحدة: يعيد التوليد إلى مجلّد مؤقّت ويقارن بالمتعقَّب.
       #         يفشل إن انحرف أيّ من النطاقات الاثني عشر (types/keywords/builtins/

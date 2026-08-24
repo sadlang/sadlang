@@ -14,6 +14,9 @@
 #include "error_codes.h" // (AR) ErrorCode::INT_SIR_FIELD_LAYOUT لبوّابة التوليد المُنمَّطة / (EN) code-scoped codegen gate
 #include "../../compiler/include/frontend/sir_module.h"
 #include "../../compiler/include/backend/llvm/llvm_codegen.h"
+// (AR) SEM045 (أ٢): مابِع الصرامة المشترك — نفس نقطة الحقيقة في المحرّكين (D6)
+// (EN) SEM045 (stage أ٢): shared strictness mapper — single source of truth (D6)
+#include "null_safety/null_safety_analyzer.h"
 #include "../../compiler/include/backend/llvm/arabic_optimizer.h"
 #include "../../compiler/include/sir_optimizer/optimizer.h"
 #include <llvm/Support/FileSystem.h>
@@ -252,6 +255,38 @@ namespace sad
                 // (AR) تمرير الوضع المستقل لإصدار وقت تشغيل مدمج
                 // (EN) Pass freestanding mode to emit built-in runtime
                 llvm_codegen_->setFreestanding(options_.freestanding);
+
+                // ════════════════════════════════════════════════════════════
+                // (AR) SEM045 (RFC عقد الغياب — أ٢): درجة الحارس الزمنيّ «فراغ ⇒
+                //      خانة مصنّفة» تُشتقّ من سياسة الذاكرة **زمنَ التوليد** (لا
+                //      عَلَمَ سياسةٍ في الكود المولَّد). وعند غياب الأعلام لا نقرأ
+                //      بنيةَ السياسة الافتراضيّةَ (UltraStrict) — درسُ أ١ المقيس:
+                //      افتراضيٌّ صارمٌ صامتٌ يجعل «بلا أعلام» إنتاجًا — بل نُبقي
+                //      افتراضيَّ المولِّد (تحذير)، وهو نظيرُ افتراضيِّ المفسّر.
+                // (EN) SEM045 (stage أ٢): derive the pre-STORE guard level from the
+                //      memory policy AT CODEGEN TIME. With no flags we deliberately
+                //      keep the codegen default (Warn) instead of the policy
+                //      struct's UltraStrict default — the measured أ١ lesson.
+                // ════════════════════════════════════════════════════════════
+                if (options_.memory_policy_set)
+                {
+                    switch (Sad::NullSafety::strictnessFromOwnershipMode(
+                        options_.memory_policy.ownershipMode))
+                    {
+                    case Sad::NullSafety::Strictness::Ignore:
+                        llvm_codegen_->setVoidStoreGuard(
+                            Sad::LLVM::LLVMCodeGen::VoidStoreGuard::None);
+                        break;
+                    case Sad::NullSafety::Strictness::Warn:
+                        llvm_codegen_->setVoidStoreGuard(
+                            Sad::LLVM::LLVMCodeGen::VoidStoreGuard::Warn);
+                        break;
+                    case Sad::NullSafety::Strictness::Fatal:
+                        llvm_codegen_->setVoidStoreGuard(
+                            Sad::LLVM::LLVMCodeGen::VoidStoreGuard::Fatal);
+                        break;
+                    }
+                }
 
                 // (AR) حجم الكومة الساكنة الحرّة: 0 يعني الافتراضيّ المحافظ في
                 //      مُولِّد ‎malloc‎. يُحوَّل من ميغابايت إلى بايت هنا كي يبقى

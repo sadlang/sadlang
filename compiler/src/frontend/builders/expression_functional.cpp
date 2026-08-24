@@ -160,6 +160,30 @@ namespace Sad
                             }
                         }
                     }
+                    // (AR) [موجة الجسر الموسوم — t05] النظيرُ العدديُّ: معاملٌ بلغَه
+                    //      وسيطٌ عشريٌّ في موقعِ نداءٍ يُوسَّعُ **قيمةً** Any (%SadDyn)
+                    //      فيُغلَّفُ الوسيطُ بوسمِه ويحسبُ الجسمُ ديناميًّا — لا مصفوفةً
+                    //      (خريطةُ GAP 4 أعلاه). بوّابةُ Integer تُبقي أولويّةَ المصفوفةِ
+                    //      إن وُسِمَ الفهرسُ في الخريطتَين معًا.
+                    // (EN) [Tagged-bridge wave — t05] The scalar counterpart: a param
+                    //      that received a float argument at a call site widens to a
+                    //      tagged VALUE Any (%SadDyn) — the argument is boxed with its
+                    //      tag and the body computes dynamically — not to an Array
+                    //      (GAP 4's map above). The Integer gate keeps the Array
+                    //      priority if an index is flagged in both maps.
+                    auto dynIt = b_.scanLambdaParamDynAny_.find(lambdaExpr);
+                    if (dynIt != b_.scanLambdaParamDynAny_.end())
+                    {
+                        for (size_t i = 0; i < lambdaExpr->parameters.size() && i < sirParams.size(); ++i)
+                        {
+                            if (dynIt->second.count(i) > 0 &&
+                                lambdaExpr->parameters[i].type == Types::SadTypeKind::Unknown &&
+                                sirParams[i].type == SadTypeKind::Integer)
+                            {
+                                sirParams[i].type = SadTypeKind::Any;
+                            }
+                        }
+                    }
                 }
                 // (AR) إضافة معامل __env كمعامل أخير (دائماً — حتى بدون التقاطات)
                 // (EN) Add __env as last parameter (always — even without captures)
@@ -450,6 +474,23 @@ namespace Sad
                 SIRInstruction closureInst;
                 closureInst.opcode = SIROpcode::CLOSURE_CREATE;
                 closureInst.result = SIROperand::Register(closureReg, SadTypeKind::Function);
+                // (AR) لاحقةُ «;ret:» تحملُ نوعَ عائدِ اللامدا إلى جسرِ البروتوكولِ
+                //      الموسومِ في الخلفيّةِ (يَسِمُ بها العائدَ المُغلَّف).
+                // (EN) The «;ret:» suffix carries the lambda's return kind to the
+                //      backend's tagged-protocol bridge (it tags the boxed return).
+                closureInst.comment =
+                    std::string(Sad::Compiler::kClosureRetKindMarker) +
+                    std::to_string(static_cast<int>(lambdaInfo.returnType));
+                // (AR) جسرُ SIR الموسومُ للامدا (المعاملُ الأخيرُ __env يُستثنى من
+                //      عدِّ المستخدمِ ويُمرَّرُ للهدفِ) — تربطه الخلفيّاتُ بخانةِ [16].
+                // (EN) The lambda's tagged SIR bridge (the trailing __env parameter
+                //      is excluded from the user arity and forwarded to the target)
+                //      — backends wire slot [16].
+                if (!lambdaInfo.parameters.empty())
+                    b_.emitDynBridgeFunction(lambdaName,
+                                             lambdaInfo.parameters.size() - 1,
+                                             true,
+                                             lambdaInfo.returnType);
                 // (AR) المعامل الأول: مؤشر الدالة
                 // (EN) First operand: function pointer
                 closureInst.operands.push_back(SIROperand::Function(lambdaName));

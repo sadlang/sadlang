@@ -107,11 +107,24 @@ namespace Sad
         // ═══════════════════════════════════════════════════════════════════════
 
         // ─── تخزين مؤشرات العملاء والاستجابات ───
+        // (AR) ع-11: فضاءا المعرّفات كانا متصادمين — عدّادا العميل والاستجابة
+        //      يبدآن كلاهما من 1، وقارئات الرد (نص_الرد...) تتوقع معرّف استجابة
+        //      بينما stdlib شبكات.ص تمرر معرّف العميل. فكان «عميل 1 + طلب أول»
+        //      يصادف الصواب، وكل طلب لاحق على العميل نفسه يعيد **الرد الأول**
+        //      بصمت. الفصل: الاستجابات تبدأ من مليار، والقارئات تحل المعرّف
+        //      استجابةً أولًا ثم عميلًا (آخر استجابة له) داخل withResponse.
+        // (EN) ع-11: the id spaces collided — both counters started at 1 while the
+        //      response readers expect a response id and stdlib passes the client
+        //      id. First client + first request happened to match; every later
+        //      request silently returned the FIRST body. Fix: responses start at
+        //      one billion, readers resolve response-first then client-last
+        //      inside withResponse.
         static std::mutex s_httpMutex;
         static std::unordered_map<int64_t, void *> s_httpClients;
         static std::unordered_map<int64_t, void *> s_httpResponses;
+        static std::unordered_map<int64_t, int64_t> s_clientLastResponse;
         static std::atomic<int64_t> s_nextClientId{1};
-        static std::atomic<int64_t> s_nextResponseId{1};
+        static std::atomic<int64_t> s_nextResponseId{1000000001};
 
         static int64_t storeClient(void *client)
         {
@@ -136,11 +149,105 @@ namespace Sad
             return id;
         }
 
-        static void *getResponse(int64_t id)
+        // (AR) قراءة استجابة تحت القفل من أولها لآخرها: نمط «حل المعرف ثم
+        //      getResponse ثم استعمال المؤشر خارج القفل» كان يفتح نافذة
+        //      use-after-free — طلب ثان على العميل نفسه من خيط آخر يحرر
+        //      الاستجابة السابقة (recordClientResponse) بين الجلب والاستعمال
+        //      (رصدته المراجعة). هنا الحل والجلب والقراءة كلها تحت القفل،
+        //      والمحرران يمحوان من الخريطة تحت القفل نفسه قبل التحرير، فلا
+        //      يتقاطعان مع قارئ ممسك بالمؤشر.
+        // (EN) Read a response entirely under the lock: the old resolve-then-
+        //      get-then-use-outside-the-lock pattern opened a use-after-free
+        //      window — a second request on the same client from another
+        //      thread frees the previous response between fetch and use. The
+        //      freers erase from the map under this same lock before freeing,
+        //      so they can never overlap a reader holding the pointer.
+        template <typename Fn>
+        static auto withResponse(int64_t rawId, Fn &&fn)
+            -> decltype(fn(static_cast<void *>(nullptr)))
         {
             std::lock_guard<std::mutex> lock(s_httpMutex);
-            auto it = s_httpResponses.find(id);
-            return (it != s_httpResponses.end()) ? it->second : nullptr;
+            int64_t responseId = rawId;
+            if (s_httpResponses.find(responseId) == s_httpResponses.end())
+            {
+                auto clientIt = s_clientLastResponse.find(rawId);
+                responseId = (clientIt != s_clientLastResponse.end())
+                                 ? clientIt->second
+                                 : -1;
+            }
+            auto it = s_httpResponses.find(responseId);
+            return fn(it != s_httpResponses.end() ? it->second : nullptr);
+        }
+
+        // (AR) تسجيل آخر استجابة لعميل مع تحرير السابقة: stdlib شبكات.ص تتجاهل
+        //      المعرّف الخام العائد من مدمجات الطلب، فبقاء السابقة في الخريطة
+        //      تسريبٌ بلا سقف (استجابة لكل طلب في خادمٍ طويل العمر). من يريد
+        //      ردّين معًا يستعمل عميلين أو معرّفي الاستجابة الخامّين قبل الطلب
+        //      التالي. التحرير خارج القفل.
+        // (EN) Record a client's last response and free the previous one:
+        //      stdlib شبكات.ص discards the raw ids returned by the request
+        //      builtins, so keeping the old response leaks one response per
+        //      request on a long-lived client. Two-responses patterns must use
+        //      two clients or consume the raw id before the next request.
+        //      The free happens outside the lock.
+        static void recordClientResponse(int64_t clientId, int64_t responseId)
+        {
+            void *previous = nullptr;
+            {
+                std::lock_guard<std::mutex> lock(s_httpMutex);
+                auto lastIt = s_clientLastResponse.find(clientId);
+                if (lastIt != s_clientLastResponse.end())
+                {
+                    auto respIt = s_httpResponses.find(lastIt->second);
+                    if (respIt != s_httpResponses.end())
+                    {
+                        previous = respIt->second;
+                        s_httpResponses.erase(respIt);
+                    }
+                }
+                s_clientLastResponse[clientId] = responseId;
+            }
+            if (previous)
+                sad_http_response_free(previous);
+        }
+
+        // (AR) انتزاع استجابة ذريًّا للتحرير: يحلّ المعرّف (استجابة أو عميل)
+        //      ويمحوه من الخريطتين تحت قفلٍ واحد ثم يعيد المؤشر ليُحرَّر خارج
+        //      القفل — يسدّ نافذة التحرير المزدوج بين خيطين يتجاهلان الرد نفسه.
+        // (EN) Atomically take a response for freeing: resolve the id (response
+        //      or client), erase it from both maps under a single lock, and
+        //      return the pointer to be freed outside the lock — closes the
+        //      double-free window between two threads discarding the same
+        //      response.
+        static void *takeResponse(int64_t id)
+        {
+            std::lock_guard<std::mutex> lock(s_httpMutex);
+            int64_t responseId = id;
+            auto respIt = s_httpResponses.find(responseId);
+            if (respIt == s_httpResponses.end())
+            {
+                auto clientIt = s_clientLastResponse.find(id);
+                if (clientIt == s_clientLastResponse.end())
+                    return nullptr;
+                responseId = clientIt->second;
+                respIt = s_httpResponses.find(responseId);
+                if (respIt == s_httpResponses.end())
+                    return nullptr;
+            }
+            void *resp = respIt->second;
+            s_httpResponses.erase(respIt);
+            // (AR) محو مداخل «آخر استجابة» المشيرة إلى المعرّف المحرَّر كي لا
+            //      يبقى مؤشرٌ خامل إليه (خطرٌ لو أعيد استخدام المعرّفات يومًا)
+            // (EN) Drop last-response entries pointing at the freed id so no
+            //      stale reference survives (latent risk if ids ever recycle)
+            for (auto it = s_clientLastResponse.begin(); it != s_clientLastResponse.end();)
+            {
+                if (it->second == responseId)
+                    it = s_clientLastResponse.erase(it);
+                else
+                    ++it;
+            }
+            return resp;
         }
 
         // ═══════════════════════════════════════════════════════════════════════
@@ -334,14 +441,42 @@ namespace Sad
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
-                    void *client = getClient(id);
-                    if (!client)
-                        return std::make_shared<Data::Value>(false);
-                    sad_http_client_free(client);
+                    // (AR) الانتزاع من الخريطة تحت القفل **قبل** التحرير خارجه
+                    //      (نمط takeResponse عينه): التحرير قبل المحو كان يفتح
+                    //      نافذة use-after-free لخيط ينادي اجلب بين الاثنين —
+                    //      شقيق نافذة الاستجابة المسدودة (مراجعة أميليا).
+                    //      ومع إغلاق العميل تحرَّر آخر استجاباته أيضًا (ع-11)
+                    //      وإلا سربت استجابة واحدة لكل عميل مغلق.
+                    // (EN) Claim out of the map under the lock BEFORE freeing
+                    //      outside it (the takeResponse pattern): freeing before
+                    //      erasing opened a use-after-free window for a thread
+                    //      calling اجلب in between — the client-side sibling of
+                    //      the sealed response window (Amelia review). Closing
+                    //      the client also frees its last response (ع-11).
+                    void *client = nullptr;
+                    void *lastResp = nullptr;
                     {
                         std::lock_guard<std::mutex> lock(s_httpMutex);
-                        s_httpClients.erase(id);
+                        auto clientIt = s_httpClients.find(id);
+                        if (clientIt == s_httpClients.end())
+                            return std::make_shared<Data::Value>(false);
+                        client = clientIt->second;
+                        s_httpClients.erase(clientIt);
+                        auto lastIt = s_clientLastResponse.find(id);
+                        if (lastIt != s_clientLastResponse.end())
+                        {
+                            auto respIt = s_httpResponses.find(lastIt->second);
+                            if (respIt != s_httpResponses.end())
+                            {
+                                lastResp = respIt->second;
+                                s_httpResponses.erase(respIt);
+                            }
+                            s_clientLastResponse.erase(lastIt);
+                        }
                     }
+                    sad_http_client_free(client);
+                    if (lastResp)
+                        sad_http_response_free(lastResp);
                     return std::make_shared<Data::Value>(true);
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::FREE_CLIENT), f);
@@ -363,7 +498,9 @@ namespace Sad
                     void *resp = sad_http_client_get(client, url.c_str());
                     if (!resp)
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
-                    return std::make_shared<Data::Value>(static_cast<double>(storeResponse(resp)));
+                    int64_t respId = storeResponse(resp);
+                    recordClientResponse(clientId, respId); // (AR) ع-11
+                    return std::make_shared<Data::Value>(static_cast<double>(respId));
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::GET), f);
             }
@@ -385,7 +522,9 @@ namespace Sad
                     void *resp = sad_http_client_post(client, url.c_str(), body.c_str());
                     if (!resp)
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
-                    return std::make_shared<Data::Value>(static_cast<double>(storeResponse(resp)));
+                    int64_t respId = storeResponse(resp);
+                    recordClientResponse(clientId, respId); // (AR) ع-11
+                    return std::make_shared<Data::Value>(static_cast<double>(respId));
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::POST), f);
             }
@@ -407,7 +546,9 @@ namespace Sad
                     void *resp = sad_http_client_put(client, url.c_str(), body.c_str());
                     if (!resp)
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
-                    return std::make_shared<Data::Value>(static_cast<double>(storeResponse(resp)));
+                    int64_t respId = storeResponse(resp);
+                    recordClientResponse(clientId, respId); // (AR) ع-11
+                    return std::make_shared<Data::Value>(static_cast<double>(respId));
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::PUT), f);
             }
@@ -428,7 +569,9 @@ namespace Sad
                     void *resp = sad_http_client_delete(client, url.c_str());
                     if (!resp)
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
-                    return std::make_shared<Data::Value>(static_cast<double>(storeResponse(resp)));
+                    int64_t respId = storeResponse(resp);
+                    recordClientResponse(clientId, respId); // (AR) ع-11
+                    return std::make_shared<Data::Value>(static_cast<double>(respId));
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::DELETE_REQ), f);
             }
@@ -450,7 +593,9 @@ namespace Sad
                     void *resp = sad_http_client_patch(client, url.c_str(), body.c_str());
                     if (!resp)
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
-                    return std::make_shared<Data::Value>(static_cast<double>(storeResponse(resp)));
+                    int64_t respId = storeResponse(resp);
+                    recordClientResponse(clientId, respId); // (AR) ع-11
+                    return std::make_shared<Data::Value>(static_cast<double>(respId));
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::PATCH), f);
             }
@@ -582,15 +727,12 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
-                    int64_t id = static_cast<int64_t>(args[0]->toDouble());
-                    void *resp = getResponse(id);
+                    // (AR) ع-11: يقبل معرّف استجابة أو عميل — انتزاع ذري ثم تحرير خارج القفل
+                    // (EN) ع-11: accepts a response or client id — atomic take, free outside lock
+                    void *resp = takeResponse(static_cast<int64_t>(args[0]->toDouble()));
                     if (!resp)
                         return std::make_shared<Data::Value>(false);
                     sad_http_response_free(resp);
-                    {
-                        std::lock_guard<std::mutex> lock(s_httpMutex);
-                        s_httpResponses.erase(id);
-                    }
                     return std::make_shared<Data::Value>(true);
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::RESP_FREE), f);
@@ -604,11 +746,16 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(static_cast<double>(-1));
-                    int64_t id = static_cast<int64_t>(args[0]->toDouble());
-                    void *resp = getResponse(id);
-                    if (!resp)
-                        return std::make_shared<Data::Value>(static_cast<double>(-1));
-                    return std::make_shared<Data::Value>(static_cast<double>(sad_http_response_status(resp)));
+                    // (AR) ع-11: يقبل معرّف استجابة أو عميل — والقراءة كلها تحت القفل (سد UAF)
+                    return withResponse(
+                        static_cast<int64_t>(args[0]->toDouble()),
+                        [](void *resp) -> std::shared_ptr<Data::Value>
+                        {
+                            if (!resp)
+                                return std::make_shared<Data::Value>(static_cast<double>(-1));
+                            return std::make_shared<Data::Value>(
+                                static_cast<double>(sad_http_response_status(resp)));
+                        });
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::RESP_STATUS), f);
             }
@@ -621,15 +768,19 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>("");
-                    int64_t id = static_cast<int64_t>(args[0]->toDouble());
-                    void *resp = getResponse(id);
-                    if (!resp)
-                        return std::make_shared<Data::Value>("");
-                    char *body = sad_http_response_body(resp);
-                    std::string result = body ? body : "";
-                    if (body)
-                        sad_http_free_string(body);
-                    return std::make_shared<Data::Value>(result);
+                    // (AR) ع-11: يقبل معرّف استجابة أو عميل — والقراءة كلها تحت القفل (سد UAF)
+                    return withResponse(
+                        static_cast<int64_t>(args[0]->toDouble()),
+                        [](void *resp) -> std::shared_ptr<Data::Value>
+                        {
+                            if (!resp)
+                                return std::make_shared<Data::Value>("");
+                            char *body = sad_http_response_body(resp);
+                            std::string result = body ? body : "";
+                            if (body)
+                                sad_http_free_string(body);
+                            return std::make_shared<Data::Value>(result);
+                        });
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::RESP_BODY), f);
             }
@@ -642,16 +793,20 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
                         return std::make_shared<Data::Value>("");
-                    int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     std::string key = args[1]->toString();
-                    void *resp = getResponse(id);
-                    if (!resp)
-                        return std::make_shared<Data::Value>("");
-                    char *val = sad_http_response_header(resp, key.c_str());
-                    std::string result = val ? val : "";
-                    if (val)
-                        sad_http_free_string(val);
-                    return std::make_shared<Data::Value>(result);
+                    // (AR) ع-11: يقبل معرّف استجابة أو عميل — والقراءة كلها تحت القفل (سد UAF)
+                    return withResponse(
+                        static_cast<int64_t>(args[0]->toDouble()),
+                        [&key](void *resp) -> std::shared_ptr<Data::Value>
+                        {
+                            if (!resp)
+                                return std::make_shared<Data::Value>("");
+                            char *val = sad_http_response_header(resp, key.c_str());
+                            std::string result = val ? val : "";
+                            if (val)
+                                sad_http_free_string(val);
+                            return std::make_shared<Data::Value>(result);
+                        });
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::RESP_HEADER), f);
             }
@@ -664,11 +819,16 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
                         return std::make_shared<Data::Value>(false);
-                    int64_t id = static_cast<int64_t>(args[0]->toDouble());
-                    void *resp = getResponse(id);
-                    if (!resp)
-                        return std::make_shared<Data::Value>(false);
-                    return std::make_shared<Data::Value>(sad_http_response_is_success(resp) != 0);
+                    // (AR) ع-11: يقبل معرّف استجابة أو عميل — والقراءة كلها تحت القفل (سد UAF)
+                    return withResponse(
+                        static_cast<int64_t>(args[0]->toDouble()),
+                        [](void *resp) -> std::shared_ptr<Data::Value>
+                        {
+                            if (!resp)
+                                return std::make_shared<Data::Value>(false);
+                            return std::make_shared<Data::Value>(
+                                sad_http_response_is_success(resp) != 0);
+                        });
                 };
                 fm.registerBuiltinFunction(std::string(Bhc::RESP_SUCCESS), f);
             }
@@ -744,7 +904,7 @@ namespace Sad
                 fm.registerBuiltinFunction(std::string(Bhs::FREE_SERVER), f);
             }
 
-            // ─── ابدأ_الاستماع(معرّف) ───
+            // ─── ابدأ_الاستماع(معرّف، [منفذ]) — المنفذ الاختياري يتغلب على منفذ الإنشاء ───
             {
                 auto f = [&getServer](Sad::Interpreter::BuiltinContext &ctx)
                     -> std::shared_ptr<Data::Value>
@@ -756,6 +916,23 @@ namespace Sad
                     void *server = getServer(id);
                     if (!server)
                         return std::make_shared<Data::Value>(false);
+                    // (AR) ع-10: المنفذ الثاني كان يُتجاهل صامتًا فيستمع الخادم على
+                    //      منفذ الإنشاء (وغالبًا 0) — الآن يُكرَّم إن مُرِّر موجبًا،
+                    //      وهو ما تعتمده stdlib شبكات.ص في «خادم_ويب.ابدأ(منفذ)».
+                    // (EN) ع-10: the optional second port argument was silently
+                    //      ignored (server kept the creation-time port, often 0) —
+                    //      now honored when positive; stdlib شبكات.ص relies on it.
+                    if (args.size() >= 2)
+                    {
+                        int explicitPort = static_cast<int>(args[1]->toDouble());
+                        if (explicitPort > 0)
+                        {
+                            // (AR) نجاح صادق: 0 عند خادم عامل مسبقًا أو فشل الربط
+                            // (EN) Honest success: 0 for already-running or bind failure
+                            int ok = sad_http_server_listen_on(server, explicitPort);
+                            return std::make_shared<Data::Value>(ok != 0);
+                        }
+                    }
                     sad_http_server_listen(server);
                     return std::make_shared<Data::Value>(true);
                 };

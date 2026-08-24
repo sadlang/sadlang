@@ -14,6 +14,7 @@
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Function.h>
 #include "sir_instruction.h"
+#include "error_codes.h" // (AR) رمزُ ذراعِ الغيابِ الموسومِ لكلِّ سطحِ نداء / (EN) per-surface absence code
 
 namespace Sad { namespace LLVM {
 
@@ -39,7 +40,39 @@ public:
     //      runtime: if it is not Map we panic with a distinct code rather than
     //      dereferencing a non-map pointer (a silent SIGSEGV). Mirrors
     //      normalizeStringPtr for strings and normalizeArrayPtr for arrays.
-    llvm::Value *normalizeMapPtr(llvm::Value *mapValue, const char *label);
+    // (AR) [RFC عقد الغياب] `absenceCode`: رمزُ الكتالوجِ الذي يُرفَع حين يكون
+    //      الوسمُ غيابًا (فراغ/عدم) — يمرّره **موقعُ النداء** لأنّ المفسّرَ يفرّق
+    //      مقيسًا بين السطوح: القراءةُ بالفهرس SEM011، والإسنادُ بالفهرس RUN018،
+    //      ومستقبِلُ مدمجٍ مسمًّى RUN037 (ويملأ `{func}` من `builtinFunc`).
+    //      وnullopt ⇒ الغيابُ كسائرِ الأوسامِ المخالفةِ على رسالةِ عدمِ التطابقِ
+    //      العامّة — **ونطاقُ RUN037 المعلَنُ msize وmhas حصرًا**:
+    //        · mkvs يخدم الواجهةَ المسمّاةَ وطريقةَ `.مفاتيح()` وحلقةَ «لكل»
+    //          معًا، وملؤه باسمِ سطحٍ واحدٍ كذبةُ صياغةٍ على الآخرَين (درسُ ns10)؛
+    //        · mcopy تصله `خريطة_احذف` و`خريطة_دمج` كلتاهما (خطوةُ النسخِ
+    //          النقيّ) فاسمُه ملتبس؛ وmdel لا يصله الغيابُ أصلًا عبر الواجهةِ
+    //          المسمّاةِ (يجري على النسخة) — فتباعدُ RUN037 عليها **معلَنٌ لا
+    //          مسكوتٌ عنه**: المفسّرُ يرفع RUN037 وتبقى رسالةُ المترجَمِ عامّةً.
+    // (EN) [absence-contract RFC] `absenceCode`: the catalog code raised when the
+    //      tag is absence (Void/Null) — supplied by the CALL SITE because the
+    //      interpreter distinguishes surfaces (measured): indexed read SEM011,
+    //      indexed assign RUN018, named-builtin receiver RUN037 (with {func}
+    //      from `builtinFunc`). nullopt ⇒ absence falls with all other
+    //      mismatching tags to the generic message (declared limit for
+    //      shared-surface sites: mkvs serves the named interface, the
+    //      `.مفاتيح()` method AND the «لكل» loop at once — naming one surface
+    //      would lie about the others; the ns10 lesson).
+    // (AR) [سطحُ الطريقة] `operationName`: لفظُ العمليّةِ `.احصل()`/`.عين()` الذي
+    //      يملأ `{operation}` في RUN033 حين يكون `absenceCode` رمزَ سطحِ الطريقة —
+    //      المفسّرُ يركّبه «"." + الاسم + "()"» من الاسمِ المطبَّعِ (الشدّةُ
+    //      تُجرَّد في المعجم)، فثابتُ TypeMethods المولَّدُ هو عينُ ما يُطبَع.
+    // (EN) [method surface] `operationName`: the operation label filling
+    //      {operation} in RUN033 when absenceCode is the method-surface code —
+    //      the interpreter composes it from the normalized name, so the
+    //      generated TypeMethods constant is exactly what gets printed.
+    llvm::Value *normalizeMapPtr(llvm::Value *mapValue, const char *label,
+                                 std::optional<Sad::Errors::ErrorCode> absenceCode = std::nullopt,
+                                 const char *builtinFunc = nullptr,
+                                 const char *operationName = nullptr);
 
     // (AR) تطبيعُ مفتاحِ الخريطة: مفاتيحُ الخريطةِ نصوصٌ دائمًا (تُخزَّن بـstrdup
     //      وتُقارَن بـstrcmp)، فقيمةٌ موسومةٌ زمنَ التشغيل لا تصلح مفتاحًا إلّا إن
@@ -93,6 +126,14 @@ public:
     llvm::Function *getOrCreateStripDiacritics();
 
 private:
+    // (AR) مؤشّرُ نصِّ الفاصلِ الفارغِ لعائلةِ «تقسيم» في مسارَي «لكل»
+    //      (تفكيكُ الأحرف) — عامٌّ واحدٌ مُسمًّى يُعادُ استعمالُه بدلَ عامٍّ
+    //      جديدٍ لكلِّ موضعِ بثّ.
+    // (EN) The empty-delimiter string pointer for the split family in the two
+    //      foreach paths (char decomposition) — one named global reused instead
+    //      of a fresh global per emission site.
+    llvm::Value *emitForeachEmptyDelim();
+
     // (AR) يبعثُ كتلةَ فشلٍ لعدمِ تطابقِ وسمِ قيمةٍ ديناميكيّةٍ مع المتوقَّع، وينتهي
     //      بـunreachable: مستضاف ⇒ تشخيصٌ عربيٌّ + exit(1)؛ حرّ ⇒ __sad_panic برمزٍ
     //      مميَّز. مُستخرَجٌ كي لا يُكرَّر في كلِّ حارسِ وسم.

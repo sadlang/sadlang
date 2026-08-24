@@ -555,6 +555,20 @@ namespace Sad
                 auto objResult = buildExpression(memberAssignExpr->object.get());
                 auto valResult = buildExpression(memberAssignExpr->value.get());
 
+                // (AR) SEM045 (دَين وسم الفراغ في حقول الكائن): لا ترقيةَ هنا عمدًا —
+                //      المسحُ المسبقُ في الخلفيّة (sad_dyn_repr، القاعدة 3) يرقّي حقلَ
+                //      كلِّ STORE عضويٍّ قيمتُه ديناميّةٌ (وثابتُ الفراغِ منها) إلى Any
+                //      في **كلِّ** الأصنافِ المطابقةِ مع استثناءِ «حدث» المضمَّن
+                //      (انحدار #251). ترقيةٌ أماميّةٌ ثانيةٌ كانت نسخةً منحرفةَ الطقمِ
+                //      لحقيقةٍ واحدة (رصدُ المراجعة) — يكفي عبورُ ثابتِ الفراغِ أدناه.
+                // (EN) SEM045 (object-field void-tagging debt): no promotion here on
+                //      purpose — the backend pre-scan (sad_dyn_repr, rule 3) already
+                //      raises the field of every member STORE with a dynamic value
+                //      (ConstantVoid included) to Any across ALL matching classes,
+                //      skipping the builtin «حدث» (#251). A second frontend promotion
+                //      was a drifted-set copy of the same fact (review finding) — the
+                //      ConstantVoid crossing below is all that is needed.
+
                 // (AR) تجسيد القيمة إذا كانت ثابتة
                 // (EN) Materialize value if constant
                 if (valResult.isConstant && b_.currentBlock_)
@@ -597,7 +611,21 @@ namespace Sad
                 // (EN) STORE instruction to store value in member
                 SIRInstruction storeInst;
                 storeInst.opcode = SIROpcode::STORE;
-                storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+                // (AR) SEM045: قيمةُ «فراغ» تعبرُ ثابتًا فراغيًّا (ConstantVoid) لا
+                //      سجلًّا ميتًا — الخلفيّةُ تُعلّبُه بوسمِ Void في خانةِ %SadDyn
+                //      (toDyn يقرأُ dataType المعامل) — نظيرُ ذراعِ STORE المحلّيّ.
+                // (EN) SEM045: a Void value crosses as ConstantVoid, not as a dead
+                //      register — the backend packs it with the Void tag into the
+                //      %SadDyn slot (toDyn reads the operand dataType) — the peer
+                //      of the local-slot STORE arm.
+                if (valResult.type == SadTypeKind::Void)
+                {
+                    storeInst.operands.push_back(SIROperand::ConstantVoid());
+                }
+                else
+                {
+                    storeInst.operands.push_back(SIROperand::Register(valResult.registerName, valResult.type));
+                }
                 storeInst.operands.push_back(SIROperand::Register(objResult.registerName, objResult.type));
                 storeInst.operands.push_back(SIROperand::ConstantString(memberAssignExpr->member));
                 storeInst.comment = "member assign: " + memberAssignExpr->member;

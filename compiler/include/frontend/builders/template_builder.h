@@ -194,6 +194,33 @@ namespace Sad
                     return SadTypeKind::Integer;
                 }
 
+                // (AR) 🔑 نوعُ ناتجِ القراءةِ بالقوسِ `و[ف]` — معينٌ **واحد** على نمطِ
+                //      `divisionResultKind` أعلاه. كانت الحقيقةُ منسوخةً مرّتين:
+                //      ذراعُ IndexExpr في `inferExprType` وذراعُها التوأمُ داخلَ
+                //      `inferReturnTypeFromBody` — والنسختان بدأتا تفترقان (الثانيةُ
+                //      وحدَها تقرأ نوعَ العنصرِ المسجَّل). الدلالةُ تتبعُ **التمثيلَ
+                //      المبعوث**: نوعُ العنصرِ متى عُلِم يقينًا، وفهرسةُ نصٍّ نصٌّ
+                //      (محرفٌ)، وإلّا «أي» — العنصرُ يُقرأ موسومًا زمنَ التشغيل
+                //      (mget_dyn / القراءةُ الموسومةُ للمصفوفات).
+                // (EN) 🔑 Result kind of a bracket read `c[i]` — a SINGLE source, the
+                //      divisionResultKind pattern. The fact lived in two copies (the
+                //      IndexExpr arm of inferExprType and its twin inside
+                //      inferReturnTypeFromBody) that had already started to drift.
+                //      The answer follows the EMITTED representation: the element
+                //      type when certainly known, String for string indexing (one
+                //      character), otherwise Any — the element is read tagged at
+                //      runtime.
+                static SadTypeKind bracketReadResultKind(SadTypeKind objectType,
+                                                         SadTypeKind knownElementType)
+                {
+                    if (knownElementType != SadTypeKind::Void &&
+                        knownElementType != SadTypeKind::Unknown)
+                        return knownElementType;
+                    if (objectType == SadTypeKind::String)
+                        return SadTypeKind::String;
+                    return SadTypeKind::Any;
+                }
+
                 SadTypeKind inferExprType(const Sad::AST::Expression *expr);
 
                 // (AR) تحويل نوع إرجاع مدمجة من مصدر الحقيقة (BuiltinMeta::returnType)
@@ -286,6 +313,13 @@ namespace Sad
                 /// (EN) Applies the promotions every call site agreed on
                 void applyAgreedMemberParamTypes();
                 void applyAgreedFreeParamTypes();
+                // (AR) [موجة الجسر الموسوم] توسيعُ الخاناتِ الرقميّةِ/غيرِ المصرَّحةِ
+                //      للدوالِّ الهاربةِ مرجعًا (scanEscapedFuncs_) إلى Any — مواقعُها
+                //      عبرَ المرجعِ غيرُ مرئيّةٍ للمسح.
+                // (EN) [Tagged-bridge wave] Widen the numeric/undeclared slots of
+                //      functions escaping as references (scanEscapedFuncs_) to Any —
+                //      their call sites through the reference are invisible to the scan.
+                void applyEscapedFuncParamWidening();
 
                 /// (AR) يُرقّي معاملاتِ عضوٍ بلغَه نداءٌ — بانيًا كان أو طريقة
                 /// (EN) Refines a called member's parameters — constructor or method

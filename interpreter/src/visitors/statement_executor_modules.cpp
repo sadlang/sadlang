@@ -48,6 +48,7 @@
 #include "parser_core.h"
 #include "class_manager.h"
 #include "builtin_module_registry.h"
+#include "utils/class_module_captures.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -465,6 +466,47 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
                     }
                 }
             }
+
+            // (AR) ع-1: الربط نفسه لأصناف هذه الوحدة — كانت الطرق بلا التقاطٍ
+            //      فيُقرأ ثابتُ الوحدةِ «لاشيء» داخلها عند الاستيراد بينما تراه
+            //      الدوالُّ الحرّة. تُحقَن moduleCaptures في نطاق كل تنفيذ لجسم
+            //      طريقة عبر utils/class_module_captures.h.
+            // (EN) ع-1: same attachment for this module's classes — methods had
+            //      no captures, so module constants read as null inside imported
+            //      class methods while free functions saw them. Injected into
+            //      every method body scope via utils/class_module_captures.h.
+            {
+                // (AR) المعيار «ملف المصدر» لا «لقطة الأسماء قبل التنفيذ»: تسجيل
+                //      الصنف يقع في تمريرة رفع التصريحات **قبل** أخذ اللقطة،
+                //      فكانت اللقطة تتخطى أصناف الوحدة كلها (قِيس بالتشخيص).
+                //      sourceFile يُملأ عند التسجيل من currentFilePath_ وهو هنا
+                //      مسار الوحدة نفسها.
+                // (EN) Criterion is the class's sourceFile, not a names-before
+                //      snapshot: class registration happens in the declaration
+                //      hoisting pass BEFORE the snapshot, so the snapshot skipped
+                //      every module class (measured). sourceFile is filled at
+                //      registration from currentFilePath_, which here is the
+                //      module's own path.
+                auto* classManagerForCaptures = Data::ClassManager::getInstance();
+                if (classManagerForCaptures) {
+                    // (AR) كتابة تحت القفل الحصري — القارئ (حقن الطرق) قد يعمل
+                    //      في خيط «أطلق» متزامن (سباق unordered_map — المراجعة)
+                    // (EN) Write under the exclusive lock — the reader (method
+                    //      injection) may run on a concurrent spawned thread
+                    std::unique_lock<std::shared_mutex> writeGuard(
+                        Utils::moduleCapturesMutex());
+                    for (const auto& className : classManagerForCaptures->getAllClassNames()) {
+                        auto* classDefinition = classManagerForCaptures->getClass(className);
+                        if (!classDefinition) {
+                            continue;
+                        }
+                        if (classDefinition->sourceFile != currentFilePath_) {
+                            continue;
+                        }
+                        classDefinition->moduleCaptures = moduleVars;
+                    }
+                }
+            }
         }
     }
     
@@ -514,9 +556,19 @@ Data::Value StatementExecutor::executeModuleAndExtractExports(Modules::Module* m
         }
     }
 
-    // (AR) الخروج من نطاق الوحدة
-    // (EN) Exit module scope
+    // (AR) الخروج من نطاق الوحدة — مع تطهير خرائط مدير المتغيرات لهذا النطاق:
+    //      popScope وحدها كانت تترك scopeVariables_/constVariables_/declaredTypes_
+    //      مفهرسة بمؤشر نطاق يعود إلى المجمع، فنطاق لاحق يعيد استخدام العنوان
+    //      يرث ثوابت الوحدة الميتة **وقيمها** — عين العيب الذي سده exitScope
+    //      وبقي هذا المسار الشقيق مفتوحا (رصدته المراجعة؛ المرشح الأرجح لع-19).
+    // (EN) Exit module scope — and purge the variable manager's per-scope maps:
+    //      a bare popScope left them keyed by a pooled scope pointer, so a
+    //      later scope reusing the address inherited the dead module's consts
+    //      AND values — the exact defect exitScope fixed, alive in this
+    //      sibling path (review finding; prime suspect for ع-19).
+    Data::Scope *moduleScope = scopeManager_.getCurrentScope();
     scopeManager_.popScope();
+    variableManager_.cleanupScope(moduleScope);
 
     // (AR) استعادة الحالة السابقة
     // (EN) Restore previous state

@@ -22,6 +22,7 @@
 #include "sir_builder.h"
 #include "builders/builtin_builder.h"
 #include "sir_constants.h"
+#include "sad_type_utils.h" // (AR) kindToArabic لرسالة حارس المستقبِل / (EN) Arabic kind name for the receiver guard
 
 #include <optional>
 #include <string>
@@ -84,6 +85,89 @@ namespace Sad
                         b_.currentBlock_->addInstruction(inst);
                     return BuildResult(resultReg, resultType);
                 };
+
+                // ════════════════════════════════════════════════════════════
+                // (AR) حارسُ المستقبِل — الدَّينُ الموروث «مستقبِلٌ غيرُ خريطةٍ يُسقط
+                //      الثنائيَّ المترجَم»: القيمةُ الموسومةُ (%SadDyn) تحرسها الخلفيّةُ
+                //      أصلًا (normalizeMapPtr يفحص وسمَ Map)، أمّا i64 الخامُ فلا وسمَ
+                //      له فيُحوَّل عنوانًا ويُفَكُّ ⇒ SIGSEGV. ما **يثبُت سكونيًّا** أنّه
+                //      ليس خريطةً يُرفَض هنا رفضَ ترجمةٍ (نظيرُ سابقةِ الوسيطِ الثالث
+                //      في الجلب المصنَّف: المفسّرُ يرفض زمنَ التشغيل RUN037 والمترجمُ
+                //      زمنَ الترجمة).
+                //
+                //      🔑 والحدُّ مقصودٌ ضيّقًا اتّقاءَ الإيجابيِّ الكاذب (درسُ D1):
+                //      سجلُّ Integer **غيرُ الثابت** يبقى مسموحًا — معاملُ دالّةٍ بلا
+                //      تصنيفٍ نوعُه الافتراضيُّ Integer وقد يحمل خريطةً حقيقيّةً
+                //      (ptrtoint)، فرفضُه يقتل برامجَ سليمة. فيبقى المستقبِلُ العدديُّ
+                //      المتغيّرُ غيرَ المحروسِ في المسارِ المترجَم حدًّا مُعلَنًا
+                //      (التمثيلُ الخامُ بلا وسمٍ يُفحَص).
+                // (EN) Receiver guard — the inherited "non-map receiver segfaults the
+                //      compiled binary" debt: tagged values are already guarded by the
+                //      backend (normalizeMapPtr checks the Map tag); a raw i64 has no tag,
+                //      gets int-to-ptr'd and dereferenced ⇒ SIGSEGV. Whatever is PROVABLY
+                //      not a map statically is rejected here at compile time (same
+                //      precedent as the typed-fetch third argument: interpreter rejects at
+                //      runtime with RUN037, the compiler at compile time).
+                //      Deliberately narrow to avoid false positives (the D1 lesson): a
+                //      NON-constant Integer register stays allowed — an untyped parameter
+                //      defaults to Integer and may hold a real (ptrtoint'd) map. The
+                //      variable numeric receiver remains a declared, unguardable limit of
+                //      the untagged representation.
+                // ════════════════════════════════════════════════════════════
+                // (AR) ⚠️ هذا الباني يُستدعى لكلِّ اسمِ نداءٍ مرشَّحٍ ويُرجع nullopt
+                //      لغير أسماء الوحدة في **آخره** — فالحارسُ يُقيَّد بأسماء
+                //      مدمجات الخرائط ذات المستقبِل حصرًا، وإلّا رفض نداءَ أيِّ
+                //      اسمٍ آخرَ يمرّ به (قِيس: ٨٥ فشلَ ترجمةٍ في المسح الكامل —
+                //      نداءُ معاملِ لامدا «دالة_» رُفض «ليس خريطةً»).
+                // (EN) ⚠️ This builder is called for EVERY candidate call name and
+                //      only returns nullopt for non-Maps names at its END — so the
+                //      guard must be gated on the map-receiver builtin names
+                //      explicitly, else it rejects any other call passing through
+                //      (measured: 85 compile failures — a lambda-parameter call
+                //      «دالة_» rejected as "not a map").
+                const bool takesMapReceiver =
+                    funcName == Bn::Maps::MAP_SIZE ||
+                    funcName == Bn::Maps::MAP_HAS_KEY ||
+                    funcName == Bn::Maps::MAP_DELETE ||
+                    funcName == Bn::Maps::MAP_KEYS ||
+                    funcName == Bn::Maps::MAP_VALUES ||
+                    funcName == Bn::Maps::MAP_GET ||
+                    funcName == Bn::Maps::MAP_FETCH_STR ||
+                    funcName == Bn::Maps::MAP_FETCH_NUM ||
+                    funcName == Bn::Maps::MAP_FETCH_BOOL ||
+                    funcName == Bn::Maps::MAP_SET;
+                if (takesMapReceiver && !argResults.empty())
+                {
+                    const BuildResult &receiver = argResults[kArgMap];
+                    // (AR) العشريُّ والمنطقيُّ والنصّيُّ يرفضهما `shapedNonMap` أدناه
+                    //      ثابتَين ومتغيّرَين — فلا يُكرَّران هنا.
+                    // (EN) Float/Boolean/String are rejected by shapedNonMap below,
+                    //      constant or not — no need to repeat them here.
+                    const bool literalNonMap =
+                        receiver.isConstant &&
+                        (receiver.type == SadTypeKind::Integer ||
+                         receiver.type == SadTypeKind::Null);
+                    // (AR) الأنواعُ التي لا يسكنُها مؤشّرُ خريطةٍ ولو عبر سجلّ: العشريُّ
+                    //      (تمثيله double)، والمنطقيُّ (بِتّ)، والنصُّ (مؤشّرُ محتوًى نصّيّ)،
+                    //      والفراغُ (لا قيمةَ أصلًا).
+                    // (EN) Kinds a map pointer can never inhabit, register or not: Float
+                    //      (double repr), Boolean (a bit), String (text-content pointer),
+                    //      and Void (no value at all).
+                    const bool shapedNonMap =
+                        receiver.type == SadTypeKind::Float ||
+                        receiver.type == SadTypeKind::Boolean ||
+                        receiver.type == SadTypeKind::String ||
+                        receiver.type == SadTypeKind::Void;
+                    if (literalNonMap || shapedNonMap)
+                    {
+                        b_.errors_.push_back(
+                            std::string("Error: ") + funcName +
+                            " استقبلت وسيطًا أوّل ليس خريطةً (نوعُه '" +
+                            Sad::Types::kindToArabic(receiver.type) +
+                            "') — مدمجاتُ الخرائطِ تتطلّب خريطةً مستقبِلًا");
+                        return BuildResult();
+                    }
+                }
 
                 // ────────────────────────────────────────────────────────────
                 // (AR) خريطة_حجم(م) — عددُ الأزواج
@@ -205,6 +289,63 @@ namespace Sad
                         callArgs.push_back(kArgDefault);
                     BuildResult result = emitRuntimeCall(
                         kRuntimeMapGetDyn, callArgs, SadTypeKind::Any, "maps: get (tagged)");
+                    result.isDirectValue = true;
+                    return result;
+                }
+
+                // ────────────────────────────────────────────────────────────
+                // (AR) خريطة_اجلب_نص/رقم/منطقي(م، ك) — الجلبُ المصنَّف (RFC عقد
+                //      الغياب — المرحلة ب): الغيابُ «لاشيء» حصرًا (لا «فراغ»)،
+                //      والحضورُ بنوعٍ مغايرٍ أو بعدمٍ مخزَّنٍ خطأُ تشغيلٍ صريح
+                //      (RUN074). لا وسيطَ بديلًا ثالثًا — التحصيلُ بـ«؟؟» هو
+                //      الطريقُ الواحد. والثلاثةُ تُرجع «أي» (%SadDyn بوسمٍ خارجَ
+                //      النطاقِ البِتّيّ): كان النصّيّ والرقميّ يُرمَزان بحارسِ
+                //      kSadNullSentinel داخلَ النطاق، فقيمةٌ مخزَّنةٌ تساويه كانت
+                //      تُقرأ غيابًا (دَينُ التصادمِ المعلَن — سُدّ بتوحيدِ القناة).
+                // (EN) Typed fetch (stage ب): absence is Null exclusively; presence
+                //      with a different type or a stored null is an explicit RUN074
+                //      runtime error. No third default argument — «؟؟» is the way.
+                //      All three return «أي» (%SadDyn, out-of-band tag): Str/Int
+                //      used the in-band kSadNullSentinel, so a stored value equal
+                //      to it read as absence (the declared collision debt — sealed
+                //      by unifying the channel).
+                // ────────────────────────────────────────────────────────────
+                if (funcName == Bn::Maps::MAP_FETCH_STR ||
+                    funcName == Bn::Maps::MAP_FETCH_NUM ||
+                    funcName == Bn::Maps::MAP_FETCH_BOOL)
+                {
+                    // (AR) العدّة اثنان حصرًا: وسيطٌ ثالثٌ كان يُبتلَع صامتًا في المترجَم
+                    //      بينما يرفضه المفسّر (قِيس — المراجعة العدائية)؛ والعقدُ ينصّ:
+                    //      لا بديلَ ثالثًا، التحصيلُ بـ«؟؟» هو الطريقُ الواحد.
+                    // (EN) Arity is exactly two: a third argument was silently swallowed
+                    //      compiled while the interpreter rejects it (measured). The
+                    //      contract forbids a third default — «؟؟» is the only path.
+                    if (argResults.size() != kArityMapAndKey)
+                    {
+                        b_.errors_.push_back(
+                            std::string("Error: ") + funcName +
+                            " تقبل وسيطَين حصرًا (خريطة، مفتاح) — لا وسيطَ بديلًا ثالثًا، التحصيلُ بـ«؟؟»");
+                        return BuildResult();
+                    }
+                    // (AR) resultKind واحدٌ (Any) للثلاثة — قناةُ الغيابِ خارجَ النطاقِ
+                    //      البِتّيّ حصرًا (انظر بيانَ التصادمِ أعلاه).
+                    // (EN) One resultKind (Any) for all three — the absence channel is
+                    //      exclusively out-of-band (see the collision note above).
+                    const SadTypeKind resultKind = SadTypeKind::Any;
+                    const char *runtimeName = kRuntimeMapFetchStr;
+                    const char *note = "maps: typed fetch (str, out-of-band)";
+                    if (funcName == Bn::Maps::MAP_FETCH_NUM)
+                    {
+                        runtimeName = kRuntimeMapFetchInt;
+                        note = "maps: typed fetch (int, out-of-band)";
+                    }
+                    else if (funcName == Bn::Maps::MAP_FETCH_BOOL)
+                    {
+                        runtimeName = kRuntimeMapFetchBool;
+                        note = "maps: typed fetch (bool, out-of-band)";
+                    }
+                    BuildResult result = emitRuntimeCall(
+                        runtimeName, {kArgMap, kArgKey}, resultKind, note);
                     result.isDirectValue = true;
                     return result;
                 }

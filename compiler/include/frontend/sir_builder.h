@@ -397,6 +397,23 @@ namespace Sad
                 //      generator's yields into an array at call time.
                 bool isGeneratorFuncRef = false;
 
+                // (AR) [موجة ABI المغاليق] أصلُ مرجعِ الدالّةِ المسمّاةِ: «متغير د = اسم_دالة»
+                //      يحمل الاسمَ هنا، فينزعُ buildFunctionCall الوساطةَ (نداءٌ مباشرٌ لا
+                //      CLOSURE_CALL) متى ثبتَ أنّ الاسمَ لا يُعادُ إسنادُه في البرنامج كلِّه
+                //      (scanAssignedNames_ — برهانٌ غيرُ حسّاسٍ للتدفّق، فحلقةٌ تُعيدُ الإسنادَ
+                //      تُسمِّمُ كلَّ المواقع). النداءُ المباشرُ يرثُ آلاتِ الوسمِ كلَّها —
+                //      ترقيةَ العائدِ المصرَّحِ «رقم» الموسومةَ وتوسيعَ المعاملِ — التي يفقدُها
+                //      عقدُ المغاليقِ i64 (وهو عقدُ UEFI بحرفِه فلا يُمَسّ).
+                // (EN) [Closure-ABI wave] Provenance of a named function reference:
+                //      «متغير د = funcName» carries the name here, and buildFunctionCall
+                //      devirtualizes (direct CALL, not CLOSURE_CALL) once the name is proven
+                //      never reassigned anywhere (scanAssignedNames_ — flow-INsensitive, so a
+                //      loop that reassigns poisons every site). The direct call inherits the
+                //      full tagging machinery — declared-«رقم» dyn return promotion and param
+                //      widening — which the i64 closure ABI (UEFI's contract verbatim,
+                //      untouchable) cannot carry.
+                std::string funcRefProvenance;
+
                 /**
                  * @brief (AR) منشئ افتراضي
                  * @brief (EN) Default constructor
@@ -413,6 +430,16 @@ namespace Sad
                 std::string name;                         ///< (AR) الاسم / (EN) Name
                 SadTypeKind returnType;                   ///< (AR) نوع الإرجاع / (EN) Return type
                 std::vector<SIRParameter> parameters;     ///< (AR) المعاملات / (EN) Parameters
+                // (AR) فهارس المعاملات التي نوعُها **افتراضٌ** لا تصريحُ مستخدمٍ (المرحلة
+                //      1.3 تسجّل Unknown رقمًا فيستحيل تمييزُهما من النوع وحده) — توسيعُ
+                //      النداءِ الأماميِّ يقتصر عليها كي لا يدهس تصريحًا صريحًا (رصد
+                //      مراجعة الجودة). فارغةٌ = لا معلومة (سلوك متحفظ: لا توسيع).
+                // (EN) Indices of parameters whose kind is a DEFAULT, not a user
+                //      declaration (Phase 1.3 lowers Unknown to Integer, so the kind
+                //      alone cannot tell) — forward-call widening is limited to these
+                //      so it never clobbers an explicit declaration (quality-review
+                //      finding). Empty = no info (conservative: no widening).
+                std::vector<bool> paramDefaulted;         ///< (AR) معامل بنوع افتراضي؟ / (EN) defaulted param kind?
                 std::shared_ptr<SIRFunction> sirFunction; ///< (AR) مؤشر لدالة SIR / (EN) Pointer to SIR function
                 bool isGenerator = false;                 ///< (AR) دالة مولّد / (EN) Generator function
 
@@ -1004,6 +1031,105 @@ namespace Sad
                  */
                 void setFreestanding(bool mode) { freestandingMode_ = mode; }
                 bool isFreestandingMode() const { return freestandingMode_; }
+
+                // (AR) [موجة الجسر الموسوم] تفعيلُ الجسرِ **علمٌ مستقلٌّ** عن شكلِ SIR
+                //      الحرِّ: المسارُ الأصليُّ (--خلفية-أصلية) يبني بشكلِ الحرِّ
+                //      (freestanding_sir_shape = حرّ ∨ أصليّ) لكنّ أهدافَه المستضافةَ
+                //      (لينكس ELF) تُريدُ الجسرَ — والحرُّ الخامُّ وحدَه (نواةُ النحلة/
+                //      UEFI) يُعطِّلُه (ميزانيّةُ الحافة). البوّابةُ على شكلِ SIR كانت
+                //      تُطفئُ الجسرَ في المسارِ الأصليِّ كلِّه — مقيس: نداءُ dynproto
+                //      لم يُوسَمْ قطّ فسلكَ البروتوكولَ الخامَّ وانهار.
+                // (EN) [Tagged-bridge wave] Bridge enablement is a flag SEPARATE from
+                //      the freestanding SIR shape: the native path builds with the
+                //      freestanding shape (freestanding_sir_shape = raw ∨ native) yet
+                //      its hosted targets (Linux ELF) want the bridge — only RAW
+                //      freestanding (nahla/UEFI kernels) disables it (edge budget).
+                //      Gating on the SIR shape silently switched the bridge off for
+                //      the whole native path — measured: the dynproto site was never
+                //      marked, took the raw protocol, and crashed.
+                void setTaggedBridgeEnabled(bool enabled) { taggedBridgeEnabled_ = enabled; }
+                bool isTaggedBridgeEnabled() const { return taggedBridgeEnabled_; }
+
+                // ==================================================================
+                // (AR) [موجة الجسر الموسوم] توليدُ جسرِ البروتوكولِ الموسومِ دالّةَ SIR:
+                //      `__dynbr_<هدف>` بمعاملاتِ Any وعائدِ Any — جسمُها نداءٌ للهدفِ
+                //      (تكييفُ الوسائطِ عملُ خفضِ CALL في كلِّ خلفيّة) ثمّ إرجاعُ
+                //      نتيجتِه (تغليفُها عملُ خفضِ RET). بهذا تحصلُ **كلُّ** الخلفيّاتِ
+                //      على الجسرِ عبرَ أنبوبِها العاديِّ بلا توليدِ آلةٍ يدويٍّ لكلٍّ —
+                //      خلفيّةُ LLVM تجدُها بالاسمِ في emitClosureCreate فتُعيدُ
+                //      استعمالَها بدلَ توليدِها، والأصليّةُ تربطُها بخانةِ [16].
+                //      لا تُولَّدُ في الوضعِ الحرِّ (ميزانيّةُ الحافة) ولا لمولِّدٍ
+                //      (جسرُ المولِّدِ حارسُ رفعٍ تصنعه خلفيّةُ LLVM بنفسِها).
+                // (EN) [Tagged-bridge wave] Synthesize the tagged-protocol bridge as a
+                //      SIR function: `__dynbr_<target>` with Any params and an Any
+                //      return — its body is a CALL to the target (argument coercion
+                //      is each backend's CALL lowering) then a RET of its result
+                //      (boxing is each backend's RET lowering). Every backend thus
+                //      gets the bridge through its normal pipeline with no per-arch
+                //      hand-written machine code — the LLVM backend finds it by name
+                //      in emitClosureCreate and reuses it, and the native backend
+                //      wires it into slot [16]. Not synthesized in freestanding
+                //      mode (edge budget) nor for generators (the generator bridge
+                //      is a raise guard the LLVM backend builds itself).
+                // ==================================================================
+                void emitDynBridgeFunction(const std::string &targetName,
+                                           size_t userArity,
+                                           bool targetTakesEnv,
+                                           SadTypeKind targetRet)
+                {
+                    if (!taggedBridgeEnabled_ || !module_)
+                        return;
+                    const std::string bridgeName =
+                        std::string(Sad::Compiler::kClosureDynBridgePrefix) + targetName;
+                    if (module_->getFunction(bridgeName))
+                        return;
+                    auto bridgeFn =
+                        std::make_shared<SIRFunction>(bridgeName, SadTypeKind::Any);
+                    for (size_t i = 0; i < userArity; ++i)
+                        bridgeFn->addParameter(SIRParameter(
+                            std::string(Sad::Compiler::kClosureDynBridgeArgPrefix) + std::to_string(i), SadTypeKind::Any));
+                    bridgeFn->addParameter(
+                        SIRParameter(Sad::Compiler::kClosureDynBridgeEnvParamName, SadTypeKind::Integer));
+                    auto bridgeEntry = std::make_shared<SIRBasicBlock>(
+                        Sad::Compiler::kEntryBlockName);
+
+                    SIRInstruction bridgeCall(SIROpcode::CALL);
+                    const bool targetReturnsValue =
+                        targetRet != SadTypeKind::Void;
+                    const std::string bridgeResultReg = Sad::Compiler::kClosureDynBridgeResultReg;
+                    if (targetReturnsValue)
+                        bridgeCall.result =
+                            SIROperand::Register(bridgeResultReg, targetRet);
+                    bridgeCall.operands.push_back(SIROperand::Function(targetName));
+                    for (size_t i = 0; i < userArity; ++i)
+                        bridgeCall.operands.push_back(SIROperand::Register(
+                            std::string("%") + Sad::Compiler::kClosureDynBridgeArgPrefix + std::to_string(i), SadTypeKind::Any));
+                    if (targetTakesEnv)
+                        bridgeCall.operands.push_back(SIROperand::Register(
+                            std::string("%") + Sad::Compiler::kClosureDynBridgeEnvParamName, SadTypeKind::Integer));
+                    bridgeEntry->addInstruction(bridgeCall);
+
+                    SIRInstruction bridgeRet(SIROpcode::RET);
+                    if (targetReturnsValue)
+                        bridgeRet.operands.push_back(
+                            SIROperand::Register(bridgeResultReg, targetRet));
+                    else
+                    {
+                        // (AR) هدفٌ فراغيُّ العائد: يُعادُ الغيابُ ببذرةِ العدمِ موسومةً
+                        //      Null — المفسّرُ يطبعُ «لاشيء» لهذه الحالةِ (مقيس).
+                        // (EN) A void-returning target: return absence as the null
+                        //      sentinel tagged Null — the interpreter prints
+                        //      «لاشيء» for this case (measured).
+                        SIROperand voidSentinel =
+                            SIROperand::ConstantI64(Sad::Compiler::kSadNullSentinel);
+                        voidSentinel.dataType = SadTypeKind::Null;
+                        bridgeRet.operands.push_back(voidSentinel);
+                    }
+                    bridgeEntry->addInstruction(bridgeRet);
+
+                    bridgeFn->addBasicBlock(bridgeEntry);
+                    module_->addFunction(bridgeFn);
+                }
 
                 // ==================================================================
                 // بناء الجمل / Building Statements

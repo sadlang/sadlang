@@ -21,6 +21,7 @@
 #include <fstream>
 #include "builders/memory/memory_codegen.h" // (Phase 7 Step 2)
 #include "sad_dyn_repr.h" // (AR) ISSUE-063: ترقية الخانات إلى %SadDyn وتعليب المحسوس / (EN) ISSUE-063: %SadDyn slot promotion + packing
+#include "sad_type_utils.h" // (AR) SEM045 (أ٢): kindToArabic لرسالة حارس الفراغ / (EN) SEM045: Arabic type name for the Void guard
 #include "llvm_codegen.h"
 
 using namespace Sad::Compiler::SIR;
@@ -598,6 +599,48 @@ namespace Sad
                     slotTy = ai->getAllocatedType();
                 else if (auto *g = llvm::dyn_cast<llvm::GlobalVariable>(ptr))
                     slotTy = g->getValueType();
+
+                // ════════════════════════════════════════════════════════════
+                // (AR) SEM045 (RFC عقد الغياب — أ٢): الحارس الزمنيّ قبل STORE —
+                //      قيمةٌ ديناميّةٌ تُكتَب في خانةٍ **أعلنت نوعَها**. الفيصلُ سجلُّ
+                //      `declaredTypedSlots` من الوجه الأماميّ لا نوعُ خانة LLVM:
+                //      المسحُ المسبقُ (collectDynSlots) يجعل الخانةَ المصنّفةَ
+                //      %SadDyn **منذ الحجز** حين يمرّ بها ديناميٌّ، ففرعُ الترقية
+                //      أدناه لا يراها أصلًا (رقعةٌ في تلك الطبقة حارسٌ ميّت —
+                //      قِيس). والخانةُ المستنتَجةُ (بلا تصريح) ليست في السجلّ فلا
+                //      تُحرَس — عقدُ SEM045 نفسُه في المفسّر (hasDeclaredType).
+                //      يُفحَص وسمُ القيمة: «فراغ» ⇒ تشخيصٌ بدرجةٍ مُشتقّةٍ من سياسة
+                //      الذاكرة زمنَ التوليد. حدّان معلَنان: معاملاتُ الدوالّ ليست في
+                //      السجلّ (موجة لاحقة)، والعامُّ المكتوبُ من دالّةٍ أخرى يُبحَث
+                //      في سجلّ تلك الدالّة فيفلت (التصريحُ العلويّ محلّيُّ main).
+                // (EN) SEM045 (stage أ٢): pre-STORE runtime guard — a dyn value
+                //      written into an EXPLICITLY-declared slot. The discriminator
+                //      is the frontend's declaredTypedSlots record, not the LLVM
+                //      slot type: the pre-scan allocates typed-but-tainted slots as
+                //      %SadDyn from the start, so the promotion branch below never
+                //      sees them (measured dead chokepoint). Declared limits:
+                //      function parameters and cross-function global stores.
+                // ════════════════════════════════════════════════════════════
+                if (isSadDyn(value) &&
+                    cg_.voidStoreGuard() != Sad::LLVM::LLVMCodeGen::VoidStoreGuard::None)
+                {
+                    llvm::Function *curFn = cg_.builder_->GetInsertBlock()
+                                                ? cg_.builder_->GetInsertBlock()->getParent()
+                                                : nullptr;
+                    if (curFn)
+                    {
+                        const auto declaredKind = cg_.declaredSlotKind(
+                            curFn->getName().str(), inst->operands[1].name);
+                        if (declaredKind != Sad::Types::SadTypeKind::Unknown)
+                        {
+                            emitDynVoidStoreGuard(
+                                cg_, value, inst->operands[1].name,
+                                Sad::Types::kindToArabic(declaredKind),
+                                cg_.voidStoreGuard() ==
+                                    Sad::LLVM::LLVMCodeGen::VoidStoreGuard::Fatal);
+                        }
+                    }
+                }
 
                 if (slotTy && isSadDyn(value) && slotTy != dynTy)
                 {

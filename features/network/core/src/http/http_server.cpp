@@ -292,6 +292,19 @@ namespace sad
 
                 // Create server socket
                 pImpl->server_socket_ = std::make_unique<TcpSocket>();
+                // (AR) 🔑 SO_REUSEADDR قبل الربط: خادم سابق على المنفذ نفسه يترك
+                //      أزواج TIME_WAIT بعد ردوده، وويندوز يرفض الربط حينها بلا
+                //      هذا الخيار — فيفشل bind صامتا (يبتلعه غلاف C) ويولد خادما
+                //      بلا مستمع (المقيس: طور المفسر في عداء الاختبارات يسبق طور
+                //      المصرف على المنفذ ذاته فيعلق الثاني).
+                // (EN) 🔑 SO_REUSEADDR before bind: a previous server on the same
+                //      port leaves TIME_WAIT pairs behind its responses, and
+                //      Windows then refuses the bind without this option — the
+                //      bind failure is swallowed by the C wrapper, yielding a
+                //      listener-less server (measured: the test runner's
+                //      interpreter phase precedes the compiled phase on the same
+                //      port, hanging the latter).
+                pImpl->server_socket_->set_reuse_address(true);
                 pImpl->server_socket_->bind(port);
                 pImpl->server_socket_->listen(100);
 

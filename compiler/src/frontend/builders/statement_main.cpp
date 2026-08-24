@@ -171,6 +171,22 @@ namespace Sad
                         // (AR) إنشاء دالة SIR
                         // (EN) Create SIR function
                         auto innerFunc = std::make_shared<SIRFunction>(innerFuncName, returnType);
+                        // (AR) [عقدُ الغياب — عائدُ الإغلاقِ المصرَّح] المفسّرُ **يقسر**
+                        //      عائدَ الدالّةِ المتداخلةِ المصرَّحةِ «رقم» (يحذّر على stderr
+                        //      ويطبع 2 لا 2.5 — قِيس 2026-08-23)، فالعلَمُ يمنع ممرَّ
+                        //      الترقيةِ الخلفيَّ (sad_dyn_repr القاعدة ٤) من دهسِ التصريحِ
+                        //      ويُبقي بابَ RET يفكُّ الوسمَ إلى i64 (fptosi للعشريّ) —
+                        //      عينُ سدِّ الدوالِّ العليا في sir_builder_functions.
+                        // (EN) [absence contract — declared closure return] The
+                        //      interpreter COERCES a nested function's declared «رقم»
+                        //      return (warns on stderr, prints 2 not 2.5 — measured
+                        //      2026-08-23), so the flag keeps the backend promotion pass
+                        //      (sad_dyn_repr rule 4) from trampling the declaration and
+                        //      lets the RET door unpack the tag to i64 (fptosi for
+                        //      floats) — the same seal as toplevel functions.
+                        innerFunc->returnTypeIsDeclared =
+                            (funcDecl->returnType != Types::SadTypeKind::Unknown &&
+                             funcDecl->returnType != Types::SadTypeKind::Void);
                         for (const auto &sp : sirParams)
                             innerFunc->addParameter(sp);
 
@@ -265,9 +281,16 @@ namespace Sad
 
                         b_.emitDeferFrameEnd(deferFrame, b_.currentBlock_);
 
-                        // (AR) تحديث نوع الإرجاع من تعليمات RET الفعلية
-                        // (EN) Update return type from actual RET instructions
-                        if (innerFunc)
+                        // (AR) تحديث نوع الإرجاع من تعليمات RET الفعلية — **للمستنتَجِ
+                        //      وحدَه**: النوعُ المصرَّحُ («دالة رقم …») عقدٌ لا يُدهَس
+                        //      بما أرجعته RET فعلًا؛ الدهسُ كان يحوّل المصرَّحَ «رقم»
+                        //      إلى عشريٍّ فيُفلت 2.5 حيث يقسر المفسّرُ 2 (قِيس).
+                        // (EN) Update return type from actual RET instructions — for
+                        //      INFERRED returns only: a declared type is a contract not
+                        //      to be trampled by what RET happened to carry; trampling
+                        //      let 2.5 escape a declared «رقم» where the interpreter
+                        //      coerces to 2 (measured).
+                        if (innerFunc && !innerFunc->returnTypeIsDeclared)
                         {
                             for (const auto &block : innerFunc->basicBlocks)
                             {
@@ -344,6 +367,17 @@ namespace Sad
                         funcInfo.parameters = innerFunc->getParameters();
                         funcInfo.sirFunction = innerFunc;
                         b_.functionTable_[innerFuncName] = funcInfo;
+
+                        // (AR) جسرُ SIR الموسومُ للدالّةِ المتداخلةِ (المعاملُ الأخيرُ
+                        //      __env يُستثنى من عدِّ المستخدمِ ويُمرَّرُ للهدف).
+                        // (EN) The nested function's tagged SIR bridge (the trailing
+                        //      __env parameter is excluded from the user arity and
+                        //      forwarded to the target).
+                        if (!funcInfo.parameters.empty())
+                            b_.emitDynBridgeFunction(innerFuncName,
+                                                     funcInfo.parameters.size() - 1,
+                                                     true,
+                                                     returnType);
 
                         // (AR) استعادة السياق السابق
                         // (EN) Restore previous context

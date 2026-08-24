@@ -5,7 +5,7 @@
   "description": "مخطط JSON لكل أنواع لغة ص — types.yaml (سطحية وداخلية). يُولّد منه SadTypeKind.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["id", "kind", "word", "name_en", "category", "surface", "since", "status"],
+  "required": ["id", "kind", "word", "name_en", "category", "surface", "since", "status", "default_init"],
   "properties": {
     "id": {
       "type": "string",
@@ -58,6 +58,20 @@
     "can_be_identifier": {
       "type": "boolean",
       "description": "هل يمكن استخدام الكلمة كاسم متغير؟ (للسطحية)"
+    },
+    "default_init": {
+      "type": "string",
+      "enum": [
+        "unspecified",
+        "int_zero",
+        "float_zero",
+        "bool_false",
+        "empty_string",
+        "null_value",
+        "void",
+        "not_a_slot"
+      ],
+      "description": "القيمة الافتراضية لخانةٍ صُرِّح نوعُها ولم تُهيَّأ — رمزيّةٌ لا تعبيرَ C++: يترجمها كلُّ محرّكٍ إلى تمثيله. «unspecified» تعني أنّ مصدرَ الحقيقةِ لا يُقرّر افتراضيًّا لهذا النوع، فيُبقي كلُّ محرّكٍ احتياطَه المعلوم. «not_a_slot» ليست «unspecified»: الأولى تعني أنّ النوعَ **لا تحمله خانةٌ أصلًا** فيرفضه المحلّل (فراغ ⇒ SEM040) — فالسؤالُ لا محلَّ له؛ والثانيةُ دَينٌ ينتظر قرارًا. وخلطُهما يجعل قارئًا يظنّ على «فراغ» دَينًا ولا دَينَ عليه. ⚠️ ولا تُكتَب null عاريةً: يحوّلها YAML إلى العدمِ فيسقط الحقلُ صامتًا — ولذلك اللفظ null_value."
     },
     "since": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
     "status": {

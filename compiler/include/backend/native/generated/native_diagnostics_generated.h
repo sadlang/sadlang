@@ -18,6 +18,7 @@ namespace sad { namespace native { namespace diag {
 
     // ── pure ──
     inline const std::string kMoveKind = "move-kind";  // نوعُ معامل MOVE غيرُ مدعوم
+    inline const std::string kBoxComputedString = "box-computed-string";  // تعليبُ نصٍّ محسوبٍ (مؤشّرِ كومةٍ لا حرفيّة) في خانةِ Any مؤجَّل — الواصفُ الطوليُّ يُبنى زمنَ الترجمة للحرفيّاتِ فقط
     inline const std::string kArrayGetBoxed = "array-get-boxed";  // ARRAY_GET لعنصرٍ معلَّب (elementType=Any) مؤجَّل
     inline const std::string kArraySetBoxed = "array-set-boxed";  // ARRAY_SET لعنصرٍ معلَّب (elementType=Any) مؤجَّل
     inline const std::string kArrayAppendBoxed = "array-append-boxed";  // BUILTIN_ARRAY_APPEND لعنصرٍ معلَّب (elementType=Any) مؤجَّل — يلزمه تعليبُ SadDyn
@@ -83,6 +84,8 @@ namespace sad { namespace native { namespace diag {
 
     // ── helper ──
     inline const std::string kOpcode = "opcode=";  // الأوپكود المتضمَّن (يتبعه رقمُ SIROpcode)
+    inline const std::string kOperandCount = " ops=";  // عددُ معاملاتِ التعليمةِ المخالفة (يلي الأوپكود)
+    inline const std::string kHasResult = " result=";  // هل للتعليمةِ نتيجةٌ (0/1) — يكمل تشخيصَ الشكل
     inline const std::string kUiRequiresLlvm = "ui-requires-llvm=";  // أوپكودُ واجهةٍ في المسار الأصليّ — الواجهةُ تتطلّب خلفيّةَ LLVM (يتبعه رقمُ SIROpcode)
     inline const std::string kBlocksZero = "blocks=0";  // الوحدةُ بلا أيّ كتلةٍ أساسيّة
     inline const std::string kNoRetTerminator = "no-ret-terminator";  // الكتلةُ الأخيرةُ بلا مُنهٍ RET

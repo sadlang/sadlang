@@ -148,7 +148,7 @@ namespace Sad
 
                 // (AR) الخطوة 3: استدعاء دالة البناء (constructor) إن وجدت
                 // (EN) Step 3: Call constructor if exists
-                std::string constructorName = newExpr->className + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1"; // بناء
+                std::string constructorName = constructorNameFor(newExpr->className);
                 auto constructor = sirClass->getMethod(constructorName);
 
                 // (AR) لا نُصدر CALL إلا حين يوجد باني فعليّ. تمرير وسائط موضعيّة لبنية بلا باني
@@ -156,7 +156,29 @@ namespace Sad
                 // (EN) Only emit CALL when a real constructor exists. Passing positional args to a
                 //      struct with no constructor is ignored by the interpreter (uses defaults);
                 //      so we avoid emitting a CALL to an undefined symbol.
+                // (AR) مرجع أمامي (المرحلة 1.25): الصنف قد يكون صدفةً لم يُبنَ بانيها بعدُ
+                //      — توقيعُ الباني المسجَّل في المرحلة 1.35 يكفي لإصدار النداء وتبطين
+                //      الوسائط، والرمز يتعرّف عند بناء الصنف لاحقًا. بدونه كان الكائن
+                //      يُنشأ صامتًا بلا باني (الوسائط تُهمل) — أسوأ من الخطأ القديم.
+                // (EN) Forward reference (Phase 1.25): the class may be a shell whose ctor
+                //      is not built yet — the Phase 1.35 registered signature suffices to
+                //      emit the CALL and pad arguments; the symbol resolves when the class
+                //      builds later. Without this the object was silently constructed
+                //      WITHOUT its ctor (args dropped) — worse than the old hard error.
+                const std::vector<SIRParameter> *ctorParams = nullptr;
                 if (constructor)
+                {
+                    ctorParams = &constructor->getParameters();
+                }
+                else
+                {
+                    auto preCtorIt = b_.functionTable_.find(constructorName);
+                    if (preCtorIt != b_.functionTable_.end())
+                    {
+                        ctorParams = &preCtorIt->second.parameters;
+                    }
+                }
+                if (ctorParams)
                 {
                     // (AR) بناء وسائط الباني
                     // (EN) Build constructor arguments
@@ -231,7 +253,7 @@ namespace Sad
                     //      pin the field to the pad's tag, which a later call that does pass the
                     //      argument can no longer correct.
                     const size_t passedArgCount = args.size();
-                    padOmittedArgsWithNull(constructor->getParameters(), args);
+                    padOmittedArgsWithNull(*ctorParams, args);
                     // (AR) إبقاءُ أسماءِ الأصنافِ متوازيةً مع الوسائط — المُبطَّنُ بلا صنف.
                     // (EN) Keep class names parallel to args — a padded slot has no class.
                     argClassNames.resize(args.size());
@@ -255,9 +277,8 @@ namespace Sad
                     // (AR) استنتاج أنواع الحقول من أنواع الوسائط الفعلية في موضع الاستدعاء
                     // (EN) Infer field types from actual argument types at call site
                     // ───────────────────────────────────────────────────────────────
-                    if (constructor)
                     {
-                        const auto &params = constructor->getParameters();
+                        const auto &params = *ctorParams;
                         // params[0] = self, params[1..N] = user params
                         // args[0] = self, args[1..N] = user args
 
@@ -325,7 +346,7 @@ namespace Sad
 
                             // (AR) الحصول على معاملات باني الأب
                             // (EN) Get parent constructor params
-                            std::string parentCtorName = currentClass->parentClass + ".\xD8\xA8\xD9\x86\xD8\xA7\xD8\xA1";
+                            std::string parentCtorName = constructorNameFor(currentClass->parentClass);
                             auto parentCtor = parentSirClass->getMethod(parentCtorName);
                             if (!parentCtor)
                                 break;

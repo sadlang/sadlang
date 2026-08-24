@@ -78,7 +78,18 @@ bool ClassManager::registerClass(std::unique_ptr<ClassType> classType) {
             #ifdef DEBUG_OOP
 std::cout << "[ClassManager] تحديث التسجيل المؤقت للصنف: " << className << "\n";
 #endif
-            classes_[className] = std::move(classType);
+            // (AR) 🔑 التحديث بنقل المحتوى لا باستبدال الكائن — العنوان ثابت:
+            //      صنفٌ ابنٌ سُجّل قبل أبيه يحمل baseClass مؤشرًا خامًّا إلى هذا
+            //      التسجيل المؤقت، واستبدالُ unique_ptr كان يهدمه فيتدلّى المؤشر
+            //      وينهار نداءُ أول طريقة موروثة (segfault مقيس: عيب e3 من
+            //      المراجعة العدائية — «صنف ابن يرث أب» قبل تعريف «أب»).
+            // (EN) Update by moving CONTENT, not by swapping the object — the
+            //      address must stay stable: a child registered before its parent
+            //      holds baseClass as a raw pointer to this temporary entry, and
+            //      replacing the unique_ptr destroyed it, leaving a dangling
+            //      pointer that segfaulted on the first inherited-method call
+            //      (measured: defect e3, adversarial review).
+            *it->second = std::move(*classType);
             return true;
         }
         

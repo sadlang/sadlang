@@ -779,3 +779,22 @@ errors:
   detailed:
     ar: '🔑 هذا الرمز وُلد من عطب مقيس (١٩ آب ٢٠٢٦): اللهجة كانت تُعلن «architectures: [i686]» بينما المترجّم يخفض كتلة «تجميع» إلى منمنمات i686 **لأيّ هدف** بلا بوّابة معماريّة واحدة — صفرُ ذكرٍ للمعماريّة في خافض الكتلة كلّه. فعلى macos-14-arm64 كانت ثمانية اختبارات موجبة تموت في المُجمِّع بـ«unrecognized instruction mnemonic» على «cli» و«ltr w9» و«lea 8(%ebx), %eax»، بينما تمرّ الاثنا عشر اختبارًا السالبة **بحقّ** لأنّ مرساة كلٍّ منها رمزُ خطأ دلاليّ يسبق التوليد. أي أنّ الأخضر كان يقيس الطبقة الدلاليّة وحدها والأحمر يأتي من طبقة لم يحرسها أحد. والرفض هنا أصدق من الخفض: منمنمة معماريّة تُخفَض لمعماريّة أخرى إمّا يرفضها المُجمِّع — وهو المخرج الرحيم — أو **يقبلها بدلالة أخرى**، وهو كودٌ خاطئ صامت.'
     en: 'This code was born from a measured defect (2026-08-19): the dialect declared «architectures: [i686]» while the compiler lowered «تجميع» blocks to i686 mnemonics for ANY target, with not a single architecture reference in the whole block lowering. On macos-14-arm64 eight positive tests died in the assembler with "unrecognized instruction mnemonic" on cli, ltr w9 and lea 8(%ebx), %eax, while the twelve negative tests passed LEGITIMATELY because each is anchored to a semantic error code that precedes codegen — green measured only the semantic layer, and red came from a layer no guard covered. Rejecting is more honest than lowering: a mnemonic of one architecture emitted for another is either rejected by the assembler (the merciful outcome) or ACCEPTED WITH A DIFFERENT MEANING, which is silent wrong code.'
+- code: SEM_VOID_ASSIGNED_TO_TYPED_SLOT
+  id: SEM045
+  category: semantic
+  title:
+    ar: الفراغُ لا يعبر إلى خانةٍ مصنَّفة
+    en: Void does not cross into a typed slot
+  brief:
+    ar: 'الخانة «{name}» من نوع «{type_name}» أُسند إليها «{void_word}» — غيابُ نتيجةٍ لا قيمة، فلا يصلح حشوًا لخانةٍ أعلنت نوعَها'
+    en: 'Slot «{name}» of type «{type_name}» was assigned «{void_word}» — an absent result, not a value, so it cannot fill a slot that declared its type'
+  placeholders:
+  - name
+  - type_name
+  - void_word
+  fix_hint:
+    ar: 'افحص الغيابَ قبل الإسناد: «إذا (القيمة)» أو «نوع(القيمة)». وإن كان المصدرُ «خريطة_احصل» فمرّر البديلَ وسيطًا ثالثًا: خريطة_احصل(السجل، المفتاح، البديل).'
+    en: 'Check for absence before assigning: «إذا (value)» or «نوع(value)». If the source is خريطة_احصل, pass a default third argument: خريطة_احصل(map, key, default).'
+  detailed:
+    ar: 'قِيس (٢١ آب ٢٠٢٦) أنّ خانةً معلنةً «نص» تُسنَد إليها نتيجةُ بحثٍ غائبٍ فتحمل «{void_word}» والتنفيذُ يمضي برمز خروجٍ صفر — تحذيرٌ استشاريٌّ حيث وعدت اللغةُ جدارًا. وهذا نقضُ الضمانةِ الجوهريّة «خانةُ نصٍّ تحمل نصًّا دائمًا»: الجدارُ كان مؤجَّلًا إلى موضعِ الاستعمالِ وقتَ التشغيل بدل حدودِ النوع. فيُرقّى التحذيرُ إلى هذا الرمز، ودرجةُ فرضِه تتبع محورَ الصرامةِ القائم (قرار D6): «--إنتاج» خطأٌ يوقف، و«--تعلم» تحذيرٌ مُدرِّس، و«--جامع» صامت. ⚠️ والاختياريّةُ ليست بابًا خلفيًّا: نطاقُ «نص عدمي» هو {نصٌّ، عدمٌ} ولا يسع «{void_word}» — وقبولُه فيها إمّا تحويلٌ صامتٌ فراغ→عدم (فبركةُ عدمٍ لم يكتبه أحد) وإمّا الكسرُ ذاتُه بثوبٍ جديد. والعقدُ الديناميكيُّ لم يُمسّ: غيابُ البحثِ في خانة «أي» يبقى «{void_word}» لا «لاشيء» (بذرة 100_lookup_miss محروسة). المرجع: RFC «عقدُ الغياب في الجلب» (sadlang/rfcs#58)، المرحلة أ.'
+    en: 'Measured (2026-08-21): a slot declared «نص» assigned the result of a missing lookup ends up holding «{void_word}» while execution continues with exit code zero — an advisory warning where the language promised a wall. That breaks the core guarantee that a string slot always holds a string: the wall was deferred to the use site at runtime instead of the type boundary. The warning is therefore promoted to this code, enforced along the existing strictness axis (decision D6): --prod stops, --learn teaches with a warning, --gc stays silent. Optionals are no backdoor: the domain of «نص عدمي» is {string, null} and has no room for Void — accepting it would either silently convert Void into a null nobody wrote, or reintroduce the same breach in a new guise. The dynamic contract is untouched: a missing lookup into an «أي» slot still yields Void, never null (guarded by seed 100_lookup_miss). Reference: the absence-contract RFC (sadlang/rfcs#58), stage A.'

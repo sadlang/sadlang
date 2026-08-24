@@ -1,0 +1,25 @@
+# @description عشريٌّ **حرفيٌّ مباشرٌ** إلى معاملِ طريقةِ صنفٍ مصرَّحٍ «رقم» ⇒ يمرُّ على المحرّكَين (5.0/«عشري») — توسيعُ «عشري⇒رقم» بالإجماعِ عُمِّم على معاملاتِ وعوائدِ تواقيعِ الطرائق (كان أحمرَ [٧]: المترجَمُ يبتره سكونيًّا 4/«رقم»).
+# @expected 5.0\nعشري
+# @priority P1
+
+# (AR) كانت بذرةً حمراءَ معلنةً في DECLARED_REDS.tsv (سجلّ [٧])، وأُعيدت إلى
+#      قسمِها بعد اخضرارِها (سجلّ [٩]، 2026-08-23): قاعدةُ recordMemberParamArgs
+#      صارت تسجّلُ وسائطَ المعاملِ المصرَّحِ «رقم» فتُرقّيه عشريًّا بالإجماعِ
+#      حصرًا، وعائدُ الطريقةِ المصرَّحُ «رقم» يتّسعُ عشريًّا حين يستنتجُ الجسمُ
+#      عشريًّا (class_main) — فلا يبترُ بابُ i64 ما يمرّره المفسّرُ سليمًا.
+# (EN) Was a declared red seed (registry entry [٧]); returned to its section
+#      after turning green (entry [٩], 2026-08-23): member-param recording now
+#      includes declared-«رقم» slots (Float widening on unanimity only) and a
+#      method's declared-«رقم» return widens to Float when the body infers
+#      Float — so the i64 door no longer truncates what the interpreter passes.
+
+صنف حاسبة
+    دالة رقم ضاعف(رقم س)
+        ارجع س * 2
+    نهاية
+نهاية
+
+متغير ح = حاسبة()
+متغير ق = ح.ضاعف(2.5)
+اطبع_سطر(ق)
+اطبع_سطر(نوع(ق))

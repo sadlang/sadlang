@@ -17,6 +17,7 @@
 #include "types/composite_type_classes.h"
 #include "types/enum_types.h"
 #include "types/struct_types.h"
+#include "sad_type_utils.h" // (AR) kindToArabic لرسالة حارس SEM045 / (EN) Arabic kind name for the SEM045 guard
 
 #include <iostream>
 #include <algorithm>
@@ -106,6 +107,59 @@ namespace Sad
             currentResult_.totalExpressions++;
             TypePtr objType = inferExprType(expr.object.get());
             TypePtr valType = inferExprType(expr.value.get());
+
+            // ════════════════════════════════════════════════════════════════
+            // (AR) SEM045 (عقد الغياب — حقول الأصناف): «فراغ» ناتجُ نداءٍ لا يعبر
+            //      إلى حقلٍ مصنَّف — نظيرُ رفضِ «رقم س = فراغية()» القائم حرفًا.
+            //      حسمُ الصنف: `هذا.` عبر currentCheckedClassName_ — وكائنُ
+            //      المتغيّرِ لا اسمَ صنفٍ له في هذه الطبقة فيُترَك لحارسِ
+            //      المفسّرِ زمنَ التشغيل (حدٌّ مُعلَن).
+            //      الحقلُ المجرَّدُ خانةٌ ديناميّةٌ تقبل الفراغَ — لا رفضَ عليه.
+            // (EN) SEM045 (absence contract — class fields): a call's Void must not
+            //      cross into a TYPED field — literal sibling of the existing
+            //      «رقم س = فراغية()» rejection. Class resolution: `this.` via
+            //      currentCheckedClassName_; a variable
+            //      object carries no class name at this layer and is left to the
+            //      interpreter's runtime guard (declared limit). A bare field is a
+            //      dynamic slot and accepts Void — never rejected.
+            // ════════════════════════════════════════════════════════════════
+            if (valType && valType->getKind() == SadTypeKind::Void &&
+                dynamic_cast<AST::CallExpr *>(expr.value.get()) != nullptr)
+            {
+                std::string voidClassName;
+                if (auto *newExpr = dynamic_cast<AST::NewExpr *>(expr.object.get()))
+                {
+                    voidClassName = newExpr->className;
+                }
+                else if (dynamic_cast<AST::ThisExpr *>(expr.object.get()) != nullptr)
+                {
+                    // (AR) currentFunction_ داخل الطريقة اسمُ الطريقة لا الصنف —
+                    //      الاسمُ الصادق currentCheckedClassName_ (مقيس).
+                    // (EN) Inside a method currentFunction_ is the METHOD name;
+                    //      the truthful source is currentCheckedClassName_.
+                    voidClassName = currentCheckedClassName_;
+                }
+                if (!voidClassName.empty())
+                {
+                    auto classIt = classFieldKinds_.find(voidClassName);
+                    if (classIt != classFieldKinds_.end())
+                    {
+                        auto fieldIt = classIt->second.find(expr.member);
+                        if (fieldIt != classIt->second.end() &&
+                            fieldIt->second != SadTypeKind::Unknown &&
+                            fieldIt->second != SadTypeKind::Any &&
+                            fieldIt->second != SadTypeKind::Void &&
+                            fieldIt->second != SadTypeKind::Null)
+                        {
+                            recordTypeError(expr.member,
+                                            Sad::Types::kindToArabic(fieldIt->second),
+                                            valType->toString(), &expr);
+                            lastInferredType_ = valType;
+                            return;
+                        }
+                    }
+                }
+            }
 
             // (AR) تحقق من توافق نوع العضو مع القيمة المُسندة / (EN) Check member type compatibility with assigned value
             if (strictMode_ && objType && (objType->getKind() == SadTypeKind::Class))

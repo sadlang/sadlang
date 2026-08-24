@@ -1045,7 +1045,7 @@ namespace Sad
                 {
                     return std::make_shared<Data::Value>(std::string(val));
                 }
-                return std::make_shared<Data::Value>(); // لاشيء
+                return std::make_shared<Data::Value>(); // (AR) فراغ — بحث بلا مطابقة (type.void)، لا «لاشيء/عدم»
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bffi::C_GETENV), ffi_getenv_func);
 

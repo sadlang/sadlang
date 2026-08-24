@@ -494,6 +494,215 @@ namespace Sad
                 return result;
             };
 
+            // (AR) ع-14: معاملات بسياق ضمني — دوال الطلب/الرد على مستوى ص بلا
+            //      معامل سياق (المفسر يمرره thread-local)، بينما توقيع C يبدأ
+            //      بمؤشر الطلب/الرد. الحشو القديم كان يحاذي النص إلى خانة
+            //      السياق ويحشو البقية بـnull فيصير النداء لاعملًا صامتًا.
+            //      هنا يُحقن nullptr في الصدارة (فيسقط C إلى thread-local
+            //      الترامبولين) وتحاذى معاملات ص إلى خاناتها الصحيحة.
+            // (EN) ع-14: implicit-context arguments — Sad-level request/response
+            //      functions carry no context parameter (the interpreter passes
+            //      it via thread-local) while the C signatures start with the
+            //      request/response pointer. The old end-padding aligned the
+            //      text into the context slot, turning the call into a silent
+            //      no-op. Here nullptr is prepended (C falls back to the
+            //      trampoline's thread-local) and Sad args align correctly.
+            // (AR) يبلغ ولا يلتف: فشل حل معامل أو نقصان العدد خطأ صريح ومتجه
+            //      فارغ (تفحصه أغلفة emitImplicitCtx* أدناه) — لا حشو null
+            //      صامت يحول رمز حالة إلى صفر.
+            // (EN) Report, never mask: a failed operand resolution or an arity
+            //      shortfall is an explicit error and an empty vector (checked
+            //      by the emitImplicitCtx* wrappers below) — never a silent
+            //      null that would turn a status code into zero.
+            auto prepareArgsWithImplicitContext = [&](const char *cFuncName,
+                                                      size_t expectedTotal) -> std::vector<llvm::Value *>
+            {
+                std::vector<llvm::Value *> prepared;
+                llvm::Constant *nullCtx = llvm::ConstantPointerNull::get(
+                    llvm::cast<llvm::PointerType>(ptr));
+                if (inst->operands.size() + 1 == expectedTotal)
+                {
+                    prepared.push_back(nullCtx);
+                }
+                for (const auto &operand : inst->operands)
+                {
+                    llvm::Value *value = cg_.resolveOperand(operand);
+                    if (!value)
+                    {
+                        cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR,
+                                        {{"detail", cFuncName}});
+                        return {};
+                    }
+                    prepared.push_back(value);
+                }
+                // (AR) الفائض خطأ صريح لا قص صامت — القص كان يناقض قاعدة
+                //      «يبلغ ولا يلتف» المدونة أعلاه مباشرة (رصدته المراجعة)
+                // (EN) Excess args are an explicit error, not a silent resize —
+                //      the resize contradicted the rule documented right above
+                if (prepared.size() != expectedTotal)
+                {
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                    {{"detail", cFuncName}});
+                    return {};
+                }
+                return prepared;
+            };
+
+            auto emitImplicitCtxCString = [&](const char *cFuncName, size_t expectedTotal,
+                                              const std::vector<llvm::Type *> &paramTypes) -> llvm::Value *
+            {
+                auto prepared = prepareArgsWithImplicitContext(cFuncName, expectedTotal);
+                if (prepared.size() != expectedTotal)
+                {
+                    // (AR) الخطأ أبلغ داخل المحضر — حارس الموزع يكفي
+                    // (EN) Error already reported by the preparer
+                    return nullptr;
+                }
+                return emitPreparedCStringCall(cFuncName, prepared, paramTypes);
+            };
+
+            auto emitPreparedVoidSuccess = [&](const char *cFuncName,
+                                               const std::vector<llvm::Value *> &preparedArgs,
+                                               const std::vector<llvm::Type *> &paramTypes) -> llvm::Value *
+            {
+                llvm::Value *ignored = emitPreparedCall(cFuncName, voidTy, preparedArgs, paramTypes);
+                if (!ignored)
+                {
+                    return nullptr;
+                }
+                llvm::Value *result = llvm::ConstantInt::get(i64, 1);
+                if (inst->result.has_value())
+                {
+                    cg_.context_info_.namedValues[inst->result->name] = result;
+                }
+                return result;
+            };
+
+            auto emitImplicitCtxVoidSuccess = [&](const char *cFuncName, size_t expectedTotal,
+                                                  const std::vector<llvm::Type *> &paramTypes) -> llvm::Value *
+            {
+                auto prepared = prepareArgsWithImplicitContext(cFuncName, expectedTotal);
+                if (prepared.size() != expectedTotal)
+                {
+                    return nullptr;
+                }
+                return emitPreparedVoidSuccess(cFuncName, prepared, paramTypes);
+            };
+
+            // (AR) ع-14: تسجيل مسار الخادم في المسار المصرف — المعالج ص يُحل
+            //      اسمه إلى دالة LLVM وقت الترجمة ويُمرر user_data للترامبولين
+            //      sad_http_route_trampoline (الذي يثبت الطلب/الرد thread-local
+            //      ثم يناديه بلا معاملات). كان اسم الدالة يُمرر نصًا في خانة
+            //      مؤشر الدالة فيرفضه حارس _cb ولا يسجل شيء — بصمت.
+            //      اسم غير قابل للحل وقت الترجمة (سجل لا حرفية) خطأ صريح —
+            //      قاعدة «يبلغ ولا يلتف»: لا تسجيل صامت اللافعل.
+            // (EN) ع-14: compiled-path route registration — the Sad handler name
+            //      is resolved to an LLVM function at compile time and passed as
+            //      user_data to sad_http_route_trampoline (which pins the
+            //      request/response thread-locals then calls it with no args).
+            //      Previously the name STRING was passed in the function-pointer
+            //      slot, so the _cb guard rejected it and nothing was ever
+            //      registered — silently. A name that cannot be resolved at
+            //      compile time (a register, not a literal) is a hard error.
+            auto emitRouteRegistration = [&](const char *cFuncName) -> llvm::Value *
+            {
+                if (inst->operands.size() < 3)
+                {
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                    {{"detail", cFuncName}});
+                    return nullptr;
+                }
+
+                const SIROperand &handlerOp = inst->operands[2];
+                std::string handlerName;
+                if ((handlerOp.type == SIROperandType::CONSTANT &&
+                     handlerOp.dataType == SadTypeKind::String) ||
+                    handlerOp.type == SIROperandType::FUNCTION)
+                {
+                    handlerName = handlerOp.name;
+                }
+
+                llvm::Function *handlerFn =
+                    handlerName.empty() ? nullptr : cg_.module_->getFunction(handlerName);
+                if (!handlerFn)
+                {
+                    cg_.reportError(
+                        ::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                        {{"detail", std::string(cFuncName) +
+                                        ": معالج المسار في المصرَّف يجب أن يكون اسم دالة "
+                                        "معرَّفة حرفيًّا / route handler must be a literal "
+                                        "name of a defined function; got '" +
+                                        (handlerName.empty() ? handlerOp.name : handlerName) +
+                                        "'"}});
+                    return nullptr;
+                }
+
+                if (handlerFn->arg_size() != 0)
+                {
+                    cg_.reportError(
+                        ::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                        {{"detail", std::string(cFuncName) +
+                                        ": معالج المسار '" + handlerName +
+                                        "' يجب ألا يأخذ معاملات / route handler must "
+                                        "take no parameters"}});
+                    return nullptr;
+                }
+
+                // (AR) 🔑 لا يُمرر عنوان دالة ص خامًا: عائدها قد يكون %SadDyn
+                //      (16 بايت) وWin64 يخفضه إلى مؤشر sret خفي في السجل الأول —
+                //      فنداؤها من C كـ void() يجعل الدالة تكتب عائدها عبر سجل
+                //      مهمل ⇒ فساد ذاكرة يقتل العملية بعد إرسال الرد (مقيس).
+                //      يولد بدلها ثانك void() ينادي المعالج نداء LLVM بنوعه
+                //      الحقيقي (فيتكفل المخفض بالـABI) ويهمل العائد.
+                // (EN) 🔑 Never hand C the raw Sad function address: its return
+                //      may be %SadDyn (16 bytes), which Win64 demotes to a hidden
+                //      sret pointer in the first register — calling it as void()
+                //      makes it store its return through a garbage register ⇒
+                //      heap corruption that kills the process right after the
+                //      response is sent (measured). Emit a void() thunk instead
+                //      that calls the handler with its true LLVM type (the
+                //      lowering handles the ABI) and discards the result.
+                std::string thunkName = "__sad_route_thunk_" + handlerName;
+                llvm::Function *thunk = cg_.module_->getFunction(thunkName);
+                if (!thunk)
+                {
+                    llvm::FunctionType *thunkTy =
+                        llvm::FunctionType::get(voidTy, {}, false);
+                    thunk = llvm::Function::Create(thunkTy,
+                                                   llvm::Function::InternalLinkage,
+                                                   thunkName, cg_.module_.get());
+                    llvm::BasicBlock *entry =
+                        llvm::BasicBlock::Create(*cg_.context_, "entry", thunk);
+                    llvm::IRBuilder<> thunkBuilder(entry);
+                    thunkBuilder.CreateCall(handlerFn->getFunctionType(), handlerFn, {});
+                    thunkBuilder.CreateRetVoid();
+                }
+
+                llvm::FunctionType *trampolineTy =
+                    llvm::FunctionType::get(voidTy, {ptr, ptr, ptr}, false);
+                llvm::FunctionCallee trampoline = cg_.module_->getOrInsertFunction(
+                    "sad_http_route_trampoline", trampolineTy);
+
+                // (AR) فحص حل المعاملين — nullptr كان يصل بناء النداء (بخلاف
+                //      المحضر الذي يفحص؛ رصدته المراجعة)
+                // (EN) Check both operand resolutions — nullptr used to reach
+                //      call construction (unlike the checking preparer)
+                llvm::Value *serverVal = cg_.resolveOperand(inst->operands[0]);
+                llvm::Value *pathVal = cg_.resolveOperand(inst->operands[1]);
+                if (!serverVal || !pathVal)
+                {
+                    cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR,
+                                    {{"detail", cFuncName}});
+                    return nullptr;
+                }
+                std::vector<llvm::Value *> prepared = {
+                    serverVal,
+                    pathVal,
+                    trampoline.getCallee(),
+                    thunk};
+                return emitPreparedVoidSuccess(cFuncName, prepared, {ptr, i8p, ptr, ptr});
+            };
+
             auto getPreparedCStringLength = [&](llvm::Value *rawString) -> llvm::Value *
             {
                 llvm::Value *stringValue = adaptNetworkArgument(cg_.builder_.get(), *cg_.context_, rawString, i8p);
@@ -707,18 +916,24 @@ namespace Sad
                 return emitVoidSuccess("sad_http_server_free", {ptr});
 
             case SIROpcode::BUILTIN_NET_SRV_ON_GET:
-                return emitVoidSuccess("sad_http_server_get_cb", {ptr, i8p, ptr, ptr});
+                return emitRouteRegistration("sad_http_server_get_cb");
 
             case SIROpcode::BUILTIN_NET_SRV_ON_POST:
-                return emitVoidSuccess("sad_http_server_post_cb", {ptr, i8p, ptr, ptr});
+                return emitRouteRegistration("sad_http_server_post_cb");
 
             case SIROpcode::BUILTIN_NET_SRV_ON_PUT:
-                return emitVoidSuccess("sad_http_server_put_cb", {ptr, i8p, ptr, ptr});
+                return emitRouteRegistration("sad_http_server_put_cb");
 
             case SIROpcode::BUILTIN_NET_SRV_ON_DELETE:
-                return emitVoidSuccess("sad_http_server_delete_cb", {ptr, i8p, ptr, ptr});
+                return emitRouteRegistration("sad_http_server_delete_cb");
 
             case SIROpcode::BUILTIN_NET_SRV_LISTEN:
+                // (AR) ع-10 (نظير المفسر): المنفذ الثاني الاختياري يُكرم إن مُرر
+                // (EN) ع-10 (compiler counterpart): honor the optional second port
+                if (inst->operands.size() >= 2)
+                {
+                    return emitNetworkCall(inst, "sad_http_server_listen_on", i32, {ptr, i32});
+                }
                 return emitVoidSuccess("sad_http_server_listen", {ptr});
 
             case SIROpcode::BUILTIN_NET_SRV_STOP:
@@ -731,39 +946,43 @@ namespace Sad
                 // --- (AR) بيانات الطلب / (EN) Request Data ---
                 // ================================================================
 
+            // (AR) ع-14: دوال الطلب تقبل السياق الضمني (nullptr → thread-local)
+            // (EN) ع-14: request functions accept the implicit context
             case SIROpcode::BUILTIN_NET_REQ_METHOD:
-                return emitCStringCall("sad_http_request_method", {ptr});
+                return emitImplicitCtxCString("sad_http_request_method", 1, {ptr});
 
             case SIROpcode::BUILTIN_NET_REQ_PATH:
-                return emitCStringCall("sad_http_request_path", {ptr});
+                return emitImplicitCtxCString("sad_http_request_path", 1, {ptr});
 
             case SIROpcode::BUILTIN_NET_REQ_BODY:
-                return emitCStringCall("sad_http_request_body", {ptr});
+                return emitImplicitCtxCString("sad_http_request_body", 1, {ptr});
 
             case SIROpcode::BUILTIN_NET_REQ_HEADER:
-                return emitCStringCall("sad_http_request_header", {ptr, i8p});
+                return emitImplicitCtxCString("sad_http_request_header", 2, {ptr, i8p});
 
             case SIROpcode::BUILTIN_NET_REQ_QUERY:
-                return emitCStringCall("sad_http_request_query_param", {ptr, i8p});
+                return emitImplicitCtxCString("sad_http_request_query_param", 2, {ptr, i8p});
 
                 // ================================================================
                 // --- (AR) بناء الاستجابة / (EN) Response Building ---
                 // ================================================================
 
+            // (AR) ع-14: دوال بناء الرد تقبل السياق الضمني (nullptr → thread-local)
+            // (EN) ع-14: response-building functions accept the implicit context
             case SIROpcode::BUILTIN_NET_RESP_SET_STATUS:
-                return emitVoidSuccess("sad_http_response_set_status", {ptr, i32});
+                return emitImplicitCtxVoidSuccess("sad_http_response_set_status", 2, {ptr, i32});
 
             case SIROpcode::BUILTIN_NET_RESP_SET_BODY:
-                return emitVoidSuccess("sad_http_response_set_body", {ptr, i8p});
+                return emitImplicitCtxVoidSuccess("sad_http_response_set_body", 2, {ptr, i8p});
 
             case SIROpcode::BUILTIN_NET_RESP_SET_JSON:
-                return emitVoidSuccess("sad_http_response_set_json", {ptr, i8p});
+                return emitImplicitCtxVoidSuccess("sad_http_response_set_json", 2, {ptr, i8p});
 
             case SIROpcode::BUILTIN_NET_RESP_SET_HTML:
-                return emitVoidSuccess("sad_http_response_set_html", {ptr, i8p});
+                return emitImplicitCtxVoidSuccess("sad_http_response_set_html", 2, {ptr, i8p});
 
             case SIROpcode::BUILTIN_NET_RESP_SET_HEADER:
-                return emitVoidSuccess("sad_http_response_set_header", {ptr, i8p, i8p});
+                return emitImplicitCtxVoidSuccess("sad_http_response_set_header", 3, {ptr, i8p, i8p});
 
                 // ================================================================
                 // --- (AR) أدوات الشبكة / (EN) Network Utilities ---

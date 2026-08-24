@@ -132,6 +132,31 @@ COMMENT_PREFIXES = ("//", "*", "/*")
 #      🔑 والدرسُ المُسجَّل: **المجموعُ وحدَه يُخفي التركيز**. لو قِيس العددُ
 #      إجماليًّا لَبدا +٥ زيادةً خالصة، والحقيقةُ أنّ منها نقلًا (‑٢/+١) وأنّ
 #      الزيادةَ الصافيةَ الحقيقيّةَ ستّةُ مواضعَ لسببَين مُسمَّيَين.
+# (AR) [٤] ٢٧ ملفًّا · ٦٤ موضعًا — ٢٠٢٦-٠٨-٢٤ (PR ‏#422‏، موجةُ اتفاقيّةِ Any
+#      الأصليّةِ وجسرِ dynproto). والبوّابةُ أخفقت أوّلًا فأدَّت عملَها ثالثةً:
+#
+#        + sir_native_lowering.h      ٠ ⇒ ٢   [x86-64] الخلفيّةُ الأصليّةُ بلا
+#        + arm64_sir_lowering.h       ٠ ⇒ ٢   LLVM صارت مُستهلِكًا للحارس: وسمُ
+#                                            ثابتِ العدمِ عند RET (isConstInt
+#                                            يرفض الحارسَ فيُقاس نصًّا) وفكُّ
+#                                            العلبةِ الموسومةِ على حدودِ النداء.
+#                                            **مقارنةٌ لا إنتاج** — خلفيّةٌ
+#                                            جديدةٌ تقرأ العقدَ القائمَ، لا
+#                                            مسارَ عدمٍ جديدًا.
+#        + cf_return_switch.cpp       ٠ ⇒ ٢   عائدُ Any في LLVM: وسمُ الحارسِ
+#                                            عند عبورِ حدِّ الدالّةِ — نظيرُ
+#                                            موضعَي المُخفِّضَين الأصليَّين في
+#                                            الطبقةِ الموازية.
+#        ↑ sir_builder.h              ١ ⇒ ٢   جسرُ `__dynbr_*` المولَّدُ أماميًّا
+#                                            يفحص اللاعدميّةَ كموضعِ [٣] عينِه.
+#        ↑ sad_dyn_repr.cpp           ٢ ⇒ ٣   قناةُ القوسِ الموسومةُ للمفتاحِ
+#                                            الغائبِ (4d105c4d) تَسِمُ الغيابَ
+#                                            بالحارسِ بدل قمامةِ الخانة.
+#
+#      🔑 الزيادةُ كلُّها **قراءةٌ للعقدِ القائمِ من طبقاتٍ جديدة** (خلفيّتانِ
+#      أصليّتانِ وقناةُ غياب) لا مُنتِجَ عدمٍ جديدًا — وتُسدَّد مع م‑هـ حين
+#      يُهاجَر `رقم؟`/`نص؟` فيتقلّص سطحُ التعايشِ في الطبقاتِ الثلاثِ معًا.
+#
 # (EN) The pinned map — updated DELIBERATELY, with the reason recorded. The
 #      gate fired first and did its job. Every move is justified because a
 #      number that moves without a reason turns the update into a ritual
@@ -143,13 +168,16 @@ COMMENT_PREFIXES = ("//", "*", "/*")
 CENSUS = {
     "compiler/include/frontend/sir_constants.h": 2,
     "compiler/include/frontend/sir_module.h": 3,
-    "compiler/include/frontend/sir_builder.h": 1,
+    "compiler/include/frontend/sir_builder.h": 2,
+    "compiler/include/backend/native/sir_native_lowering.h": 2,
+    "compiler/include/backend/native/arm64_sir_lowering.h": 2,
     "compiler/src/backend/llvm/llvm_codegen_string_safety.cpp": 5,
-    "compiler/src/backend/llvm/sad_dyn_repr.cpp": 2,
+    "compiler/src/backend/llvm/sad_dyn_repr.cpp": 3,
     "compiler/src/backend/llvm/builders/arithmetic/arith_cmp.cpp": 3,
     "compiler/src/backend/llvm/builders/arithmetic/arith_main.cpp": 2,
     "compiler/src/backend/llvm/builders/arithmetic/arith_type_conv.cpp": 2,
     "compiler/src/backend/llvm/builders/arithmetic/cf_branch_call.cpp": 1,
+    "compiler/src/backend/llvm/builders/arithmetic/cf_return_switch.cpp": 2,
     "compiler/src/backend/llvm/builders/builtins/builtins_math_async_ops.cpp": 1,
     "compiler/src/backend/llvm/builders/builtins/io_builtins_ops.cpp": 1,
     "compiler/src/backend/llvm/builders/collections/string_ops.cpp": 3,

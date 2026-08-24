@@ -42,6 +42,7 @@
 // (AR) مدير الأصناف — للوصول إلى عامل نص() من الـ callback
 // (EN) Class manager — for accessing نص() operator from callback
 #include "class_manager.h"
+#include "utils/class_module_captures.h" // (AR) ع-1: حقن ثوابت وحدة التعريف
 
 // (AR) Phase B-step3/B-step4 → DEF-002: جسر تطبيق سياسة الذاكرة الموحَّد.
 //      استبدل الكتلة المنسوخة سابقاً (pause/resume + تركيب hooks) باستدعاء
@@ -839,9 +840,31 @@ namespace Sad
             //     evaluator path) so closure-mutated state persists across calls. ───
             if (func->hasCaptures())
             {
+                // (AR) حارس التظليل: معامل باسم ملتقط عرف بعد حقن الالتقاطات —
+                //      قراءته هنا كانت تكتب قيمة المعامل إلى الإغلاق (تلوث
+                //      دائم عبر الاستدعاءات — رصدته المراجعة). المظلل يحتفظ
+                //      بقيمته الملتقطة.
+                // (EN) Shadowing guard: a parameter named after a capture is
+                //      defined after injection — reading it here wrote the
+                //      parameter's value into the closure (permanent pollution
+                //      across calls). Shadowed names keep their capture.
                 std::unordered_map<std::string, Data::Value> updatedCaptures;
                 for (const auto &[capName, capVal] : func->getCaptures())
                 {
+                    bool shadowed = false;
+                    for (const auto &param : params)
+                    {
+                        if (param.name == capName)
+                        {
+                            shadowed = true;
+                            break;
+                        }
+                    }
+                    if (shadowed)
+                    {
+                        updatedCaptures[capName] = capVal;
+                        continue;
+                    }
                     const Data::Value *currentVal = variableManager_->tryGet(capName);
                     updatedCaptures[capName] = currentVal ? *currentVal : capVal;
                 }
@@ -895,6 +918,10 @@ namespace Sad
             // ─── (EN) Create new scope for method ───
             variableManager_->enterScope(Data::ScopeType::FUNCTION,
                                          obj->getClassName() + "." + methodName);
+
+            // ─── (AR) ع-1: ثوابت وحدة التعريف قبل «هذا» والحقول والمعاملات ───
+            // ─── (EN) ع-1: defining module's constants before «هذا», fields, params ───
+            Utils::injectClassModuleCaptures(obj->getClass(), *variableManager_);
 
             // ─── (AR) تعريف هذا (this) في النطاق ───
             // ─── (EN) Define this in scope ───
@@ -1009,6 +1036,22 @@ namespace Sad
             // ─── (EN) Create new scope with object context ───
             variableManager_->enterScope(Data::ScopeType::FUNCTION, funcName);
 
+            // ─── (AR) ع-1: ثوابت وحدة تعريف الصنف قبل «هذا» والحقول والمعاملات ───
+            // ─── (EN) ع-1: class module's constants before «هذا», fields, params ───
+            Utils::injectClassModuleCaptures(obj->getClass(), *variableManager_);
+
+            // ─── (AR) حقن المتغيرات الملتقطة للدالة (تكافؤ مع callUserFunction):
+            //     رد نداء واجهة معرف في وحدة مستوردة يحتاج بيئة إغلاقه هنا أيضا ───
+            // ─── (EN) Inject the function's own captures (parity with
+            //     callUserFunction) so imported UI callbacks see their closure ───
+            if (func->hasCaptures())
+            {
+                for (const auto &[capName, capVal] : func->getCaptures())
+                {
+                    variableManager_->define(capName, capVal);
+                }
+            }
+
             // ─── (AR) تعريف هذا (this) في النطاق ───
             // ─── (EN) Define this in scope ───
             Data::Value thisValue(obj);
@@ -1078,6 +1121,57 @@ namespace Sad
                 {
                     // (AR) الحقل لم يُعدّل — متوقع
                 }
+            }
+
+            // ─── (AR) تحديث المتغيرات الملتقطة بعد التنفيذ (تكافؤ مع
+            //     callUserFunction) كي يبقى تعديل الإغلاق للاستدعاء التالي ───
+            // ─── (EN) Write updated captures back (parity with callUserFunction)
+            //     so closure-mutated state persists across calls ───
+            if (func->hasCaptures())
+            {
+                // (AR) حارس التظليل: «هذا» والحقول والمعاملات عرفت في هذا
+                //      النطاق بعد حقن الالتقاطات — قراءة اسم ملتقط ظلله أحدها
+                //      كانت تكتب قيمة الظل إلى الإغلاق (تلوث دائم عبر
+                //      الاستدعاءات — رصدته المراجعة). المظلل يحتفظ بالتقاطه.
+                // (EN) Shadowing guard: «هذا», fields, and parameters are
+                //      defined after capture injection — reading a shadowed
+                //      captured name wrote the shadow into the closure
+                //      (permanent pollution). Shadowed names keep their capture.
+                std::unordered_map<std::string, Data::Value> updatedCaptures;
+                for (const auto &[capName, capVal] : func->getCaptures())
+                {
+                    bool shadowed = capName == "هذا";
+                    if (!shadowed)
+                    {
+                        for (const auto &fieldName : fieldNames)
+                        {
+                            if (fieldName == capName)
+                            {
+                                shadowed = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!shadowed)
+                    {
+                        for (const auto &param : params)
+                        {
+                            if (param.name == capName)
+                            {
+                                shadowed = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (shadowed)
+                    {
+                        updatedCaptures[capName] = capVal;
+                        continue;
+                    }
+                    const Data::Value *currentVal = variableManager_->tryGet(capName);
+                    updatedCaptures[capName] = currentVal ? *currentVal : capVal;
+                }
+                func->setCaptures(updatedCaptures);
             }
 
             variableManager_->exitScope();

@@ -317,6 +317,19 @@ namespace Sad
                 ///      cannot reach them).
                 std::string className;
 
+                /// (AR) SEM045: النوع السطحيّ **المصرَّح** للمعامل من تعليق الـAST خامًّا —
+                ///      لا `type` الذي قد يُرقّى بالاستنتاج. حارسُ المعامل في موضع النداء
+                ///      يقرأ هذا الحقلَ لا سجلَّ `declaredTypedSlots`: ذاك فضاءٌ مسطّحٌ
+                ///      يخلط المحلّيّات بالمعاملات، فمحلّيٌّ مصنَّفٌ باسم معاملٍ مجرّدٍ كان
+                ///      يُحرَس كذبًا، ومحلّيٌّ مجرّدٌ باسم معاملٍ مصنَّفٍ كان يمحو حراستَه
+                ///      (إيجابيٌّ كاذبٌ وسالبٌ كاذبٌ قِيسا معًا — المراجعة العدائية).
+                /// (EN) SEM045: the parameter's RAW declared surface type from the AST
+                ///      annotation (not the inference-promoted `type`). The call-site
+                ///      param guard reads THIS, not declaredTypedSlots — that record's
+                ///      flat namespace mixes locals with params, producing a measured
+                ///      false-positive/false-negative pair under name collision.
+                SadTypeKind declaredSurfaceType = SadTypeKind::Unknown;
+
                 SIRParameter(const std::string &paramName, SadTypeKind paramType)
                     : name(paramName), type(paramType), elementType(SadTypeKind::Void) {}
 
@@ -606,6 +619,26 @@ namespace Sad
                 std::string name;                                        ///< (AR) اسم الدالة / (EN) Function name
                 std::string linkName;                                    ///< (AR) اسم الربط الخارجي (FFI) / (EN) FFI link name (empty = use function name)
                 SadTypeKind returnType;                                  ///< (AR) نوع الإرجاع / (EN) Return type
+
+                /// (AR) [RFC عقد الغياب — موجة وسم حدّ المعامل] هل نوعُ الإرجاعِ **مصرَّحٌ
+                ///      في المصدر** (`دالة رقم ضاعف(...)`) لا مستنتَجٌ؟ التصريحُ عقدُ
+                ///      الكاتبِ: ممرُّ الخاناتِ الديناميّةِ في الخلفيّةِ يرقّي عائدَ دالّةٍ
+                ///      تُرجِع قيمةً موسومةً إلى «أي» (%SadDyn) كي لا يُقتطَع الوسمُ عند
+                ///      الحدّ — وذلك صوابٌ للعائدِ المستنتَجِ وكذبٌ على المصرَّح: عشريٌّ
+                ///      موسومٌ عائدًا من «دالة رقم» كان يفلت 5.0 بينما يقسره المفسّرُ
+                ///      إلى 5 عند الحدِّ المصرَّح (قِيس — كشفُ المراجعةِ العدائيّة).
+                ///      فالممرُّ يحترم هذا العلَمَ ويُبقي العائدَ المصرَّحَ على تمثيلِه،
+                ///      وبابُ RET يفكُّ الموسومَ بوسمِه (unpackI64: عشريّ⇒fptosi).
+                /// (EN) Is the return type SOURCE-DECLARED (author's contract) rather than
+                ///      inferred? The backend dyn-slot pass promotes a function returning
+                ///      a tagged value to an Any (%SadDyn) return so the tag is not
+                ///      stripped at the boundary — right for inferred returns, a lie for
+                ///      declared ones: a Float-tagged value escaping a declared «رقم»
+                ///      printed 5.0 where the interpreter coerces to 5 (measured,
+                ///      adversarial review). The pass honours this flag; the RET door
+                ///      unpacks by tag (unpackI64: Float⇒fptosi).
+                bool returnTypeIsDeclared = false;
+
                 bool isConstructor = false;                              ///< (AR) بانٍ — يملك خانات حقول الكائن فلا يُدمج سطريًّا / (EN) Constructor — owns object field slots, never inlined
                 // ════════════════════════════════════════════════════════════
                 // (AR) 🔑 نوعُ **القيمةِ** التي يحملُها وعدُ الكوروتين — لا نوعُ ما
@@ -657,6 +690,22 @@ namespace Sad
                 ///      dynamic, emitting `sext %SadDyn` and failing `verifyModule`. The
                 ///      variable's name alone decided it; renaming it fixed the build.
                 std::set<std::string> localSlotNames;
+
+                /// (AR) SEM045 (أ٢): الخاناتُ المحلّيةُ **المصرَّحُ نوعُها صراحةً**
+                ///      (اسم مجرَّد ⇒ النوع السطحيّ المصرَّح). يسجّلها الوجهُ الأماميُّ
+                ///      في `addVariable` — كسجلِّ `localSlotNames` تمامًا: SIR لا
+                ///      تعليمةَ تصريحٍ فيها، فالخلفيّةُ لا تملك تمييزَ خانةٍ **أعلنت
+                ///      نوعَها** من خانةٍ اُستُنتجَ نوعُها من مُهيِّئها — والفرقُ هو
+                ///      عقدُ SEM045 كلُّه: المستنتَجةُ تقبل «فراغ» بحرّيّة، والمعلنةُ
+                ///      تُحرَس قبل STORE. (تصريحاتُ المستوى الأعلى تُسجَّل هنا أيضًا —
+                ///      الوجهُ الأماميُّ يبنيها محلّيّاتٍ لـmain بالباني نفسِه.)
+                /// (EN) SEM045 (stage أ٢): locally-declared slots with an EXPLICIT
+                ///      surface type (bare name ⇒ declared kind). Recorded by the
+                ///      front end in addVariable, mirroring localSlotNames: SIR has
+                ///      no declaration instruction, and declared-vs-inferred is the
+                ///      whole SEM045 contract. Top-level decls land here too (built
+                ///      as main's locals by the same builder).
+                std::map<std::string, SadTypeKind> declaredTypedSlots;
 
                 /**
                  * @brief (AR) منشئ الدالة

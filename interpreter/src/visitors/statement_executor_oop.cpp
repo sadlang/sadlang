@@ -21,6 +21,7 @@
 #include "user_thrown.h"
 #include "ui_nodes.h"     // For UIDeclarationNode
 #include <iostream>
+#include <unordered_set> // (AR) مزورات سلسلة baseClass — كشف دورة الوراثة
 
 namespace Sad
 {
@@ -316,9 +317,26 @@ namespace Sad
 
                     // (AR) تمرير القيمة الافتراضية عند إضافة الحقل
                     // (EN) Pass default value when adding field
-                    classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic, defaultValue,
-                                        deferredConstructClass, deferredConstructLine,
-                                        deferredConstructColumn);
+                    // (AR) SEM045 (حقول الأصناف): التصنيفُ المُصرَّح يُدوَّن ليقرأه حارسُ
+                    //      «الفراغُ لا يعبر إلى خانةٍ مصنَّفة» في إسناد الأعضاء —
+                    //      `type` يُمرَّر nullptr أعلاه فلا طريقَ آخرَ للنوع.
+                    //      ⚠️ الملءُ مشروطٌ بنجاح addField: عند فشلِه (اسمٌ مكرَّر)
+                    //      يمشي findField سلسلةَ الوراثة فيطمسُ تصنيفَ حقلِ **الأب**
+                    //      (رصدُ مراجعة الجودة).
+                    // (EN) SEM045 (class fields): record the declared kind for the
+                    //      member-assign Void guard — `type` is nullptr above, so no
+                    //      other route carries it. Gated on addField succeeding: on a
+                    //      duplicate name findField walks the inheritance chain and
+                    //      would clobber the PARENT's field kind (quality review).
+                    if (classType->addField(fieldDecl->name, nullptr, vis, fieldDecl->isStatic, defaultValue,
+                                            deferredConstructClass, deferredConstructLine,
+                                            deferredConstructColumn))
+                    {
+                        if (Data::ClassField *addedField = classType->findField(fieldDecl->name))
+                        {
+                            addedField->declaredKind = fieldDecl->type;
+                        }
+                    }
 
                     // Initialize static fields with their values
                     if (fieldDecl->isStatic)
@@ -484,6 +502,31 @@ namespace Sad
             }
 
             bool registered = classManager->registerClass(std::move(classType));
+
+            // (AR) كشف دورة الوراثة الفاسدة بعد اكتمال التسجيل: الدورةُ لا تكتمل
+            //      إلا حين يُحدَّث تسجيلٌ مؤقتٌ في مكانه («أ يرث ب» ثم «ب يرث أ»)
+            //      — وقبل هذا الحارس كان أولُ نداءِ طريقةٍ يُعلّق البحثَ في سلسلةِ
+            //      baseClass إلى الأبد بلا تشخيص (رصد المراجعة العدائية — a_cycle).
+            // (EN) Detect an invalid inheritance cycle once registration completes:
+            //      the cycle only closes when a temporary registration is updated
+            //      in place («أ يرث ب» then «ب يرث أ») — and before this guard the
+            //      first method call hung the baseClass-chain lookup forever with
+            //      no diagnostic (adversarial finding — a_cycle).
+            {
+                ClassType *cycleWalker = classManager->getClass(node.name);
+                std::unordered_set<const ClassType *> chainSeen;
+                while (cycleWalker && chainSeen.insert(cycleWalker).second)
+                {
+                    cycleWalker = cycleWalker->baseClass;
+                }
+                if (cycleWalker)
+                {
+                    ::Sad::Errors::throwRuntime(
+                        ::Sad::Errors::ErrorCode::RUN_INHERITANCE_CYCLE,
+                        node.position,
+                        {{"class", node.name}, {"base", cycleWalker->name}});
+                }
+            }
 
             if (registered)
             {
@@ -660,6 +703,12 @@ namespace Sad
 
             auto classType = std::make_unique<ClassType>(node.name);
 
+            // (AR) مسار التسجيل الثاني يجب أن يعبئ sourceFile أيضا — معيار
+            //      ربط moduleCaptures في المرحلة 3 (ع-1) يقارن به
+            // (EN) Second registration path must also fill sourceFile — the
+            //      moduleCaptures attachment criterion (ع-1) compares against it
+            classType->sourceFile = currentFilePath_;
+
             // (AR) معالجة الوراثة / (EN) Handle inheritance
             if (!node.baseClasses.empty())
             {
@@ -769,9 +818,22 @@ namespace Sad
 
                 // (AR) تمرير القيمة الافتراضية عند إضافة الحقل
                 // (EN) Pass default value when adding field
-                classType->addField(field->name, nullptr, vis, field->isStatic, defaultValue,
-                                    deferredConstructClass, deferredConstructLine,
-                                    deferredConstructColumn);
+                // (AR) SEM045: نظيرُ موضعِ التسجيل الأوّل — التصنيفُ المُصرَّح يُدوَّن هنا
+                //      أيضًا وإلّا بقيت حقولُ هذا المسارِ عمياءَ عن الحارس (درسُ
+                //      «الرقعة تسدّ في ملفٍّ وتترك الأشقاء»). الملءُ مشروطٌ بنجاح
+                //      addField (انظر الموضعَ الأوّل).
+                // (EN) SEM045: twin of the first registration site — record here too or
+                //      this path's fields stay invisible to the guard. Gated on
+                //      addField succeeding (see the first site).
+                if (classType->addField(field->name, nullptr, vis, field->isStatic, defaultValue,
+                                        deferredConstructClass, deferredConstructLine,
+                                        deferredConstructColumn))
+                {
+                    if (Data::ClassField *addedField = classType->findField(field->name))
+                    {
+                        addedField->declaredKind = field->type;
+                    }
+                }
 
                 if (field->isStatic)
                 {
