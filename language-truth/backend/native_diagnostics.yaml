@@ -28,6 +28,7 @@ format:
 # (AR) وسومٌ نقيّةٌ (بلا قيمةٍ لاحقة) — تصفُ نوعَ البنيةِ غيرِ المدعومة.
 pure:
   - { name: kMoveKind,            value: "move-kind",            ar: "نوعُ معامل MOVE غيرُ مدعوم" }
+  - { name: kBoxComputedString,   value: "box-computed-string",  ar: "تعليبُ نصٍّ محسوبٍ (مؤشّرِ كومةٍ لا حرفيّة) في خانةِ Any مؤجَّل — الواصفُ الطوليُّ يُبنى زمنَ الترجمة للحرفيّاتِ فقط" }
   - { name: kArrayGetBoxed,       value: "array-get-boxed",      ar: "ARRAY_GET لعنصرٍ معلَّب (elementType=Any) مؤجَّل" }
   - { name: kArraySetBoxed,       value: "array-set-boxed",      ar: "ARRAY_SET لعنصرٍ معلَّب (elementType=Any) مؤجَّل" }
   - { name: kArrayAppendBoxed,    value: "array-append-boxed",   ar: "BUILTIN_ARRAY_APPEND لعنصرٍ معلَّب (elementType=Any) مؤجَّل — يلزمه تعليبُ SadDyn" }

@@ -932,16 +932,31 @@ namespace sad
                     return strSlot(a64reg::kX8, outSlot) &&
                            strSlot(a64reg::kScratch1, outSlot + 1);
                 }
-                // (AR) النصُّ خارجَ dynTagForType عمدًا: وسمُه Str وحمولتُه واصفُه —
-                //      وما لا وسمَ له فشلٌ صريحٌ لا Int كاذبٌ صامت.
-                // (EN) String is deliberately outside dynTagForType: tag Str, payload
-                //      its descriptor — an untaggable kind fails explicitly, never a
-                //      silent lying Int.
-                long long tag = kDynKindInt;
+                // (AR) النصُّ خارجَ dynTagForType عمدًا: وسمُ Str وحمولتُه **عنوانُ واصفِه**
+                //      {len@0، bytes@8} — اتفاقيّةُ الحمولةِ الموسومةِ القانونيّةُ (مرآةُ x86؛
+                //      char* خامٌ يجعل الطباعةَ المعلَّبةَ تقرأ الحروفَ طولًا). الحرفيّةُ
+                //      وحدَها؛ النصُّ المحسوبُ فشلٌ صريحٌ مُعلَن.
+                // (EN) String is deliberately outside dynTagForType: tag Str with its
+                //      DESCRIPTOR address {len@0, bytes@8} as payload — the canonical
+                //      boxed convention (x86 mirror; a raw char* makes boxed print read
+                //      characters as a length). Literal only; a computed string fails
+                //      explicitly.
                 if (op.dataType == types::SadTypeKind::String)
-                    tag = kDynKindStr;
-                else if (op.dataType != types::SadTypeKind::Unknown &&
-                         !dynTagForType(op.dataType, tag))
+                {
+                    std::string content;
+                    if (!resolveBoxedStringLiteral(op, content))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kBoxComputedString);
+                    if (!emitLoadStrDescAddr(a64reg::kScratch1, content) ||
+                        !movz(a64reg::kX8, kDynKindStr))
+                        return false;
+                    if (!takeDynSlot(outSlot))
+                        return false;
+                    return strSlot(a64reg::kX8, outSlot) &&
+                           strSlot(a64reg::kScratch1, outSlot + 1);
+                }
+                long long tag = kDynKindInt;
+                if (op.dataType != types::SadTypeKind::Unknown &&
+                    !dynTagForType(op.dataType, tag))
                     return fail(EC::INT_NATIVE_UNSUPPORTED,
                                 diag::kConstType +
                                     std::to_string(static_cast<int>(op.dataType)));
@@ -6600,10 +6615,44 @@ namespace sad
                     for (long long i = 0; i < nPayload; ++i)
                     {
                         const long long slotOff = kAdtPayloadBase + i * kSadDynBytes;
+                        const auto &po = inst.operands[static_cast<size_t>(2 + i)];
+                        // (AR) [موجة الجسر الموسوم] حمولةُ Any في **خانةِ ذاكرةٍ** (علبةُ
+                        //      مؤشّرِ خانةِ dyn) ⇒ انسخْ {الوسم، الحمولة} زمنَ التشغيل، ووسمُ
+                        //      Str واصفُه يُزاحُ +8 إلى char* (منتهٍ بـNUL بعقدِ
+                        //      makeStrDescriptor)؛ سجلُّ الحوضِ Any الخامُ على المسارِ
+                        //      الموروثِ — دَينٌ مُعلَن (مرآةُ x86؛ رصدُ enumstr: ٧ مكانَ ٤٢).
+                        // (EN) [Tagged-bridge wave] A MEMORY-slot Any payload (a
+                        //      dyn-slot-pointer box) ⇒ copy {tag, payload} at runtime;
+                        //      a Str descriptor advances +8 to its char* (NUL-terminated
+                        //      per makeStrDescriptor); a raw pool-register Any stays on
+                        //      the inherited path — declared debt (x86 mirror; enumstr
+                        //      proof: 7 instead of 42).
+                        int mvSlot;
+                        if (po.dataType == types::SadTypeKind::Any && isMemVar(po, mvSlot))
+                        {
+                            if (!loadArgInto(9, po) ||
+                                !ldrBase(a64reg::kScratch1, 9, kSadDynKindOff / kArrSlotBytes) ||
+                                !strBase(a64reg::kScratch1, a64reg::kX0,
+                                         (slotOff + kSadDynKindOff) / kArrSlotBytes) ||
+                                !ldrBase(9, 9, kSadDynPayloadOff / kArrSlotBytes))
+                                return false;
+                            if (!movz(a64reg::kScratch0, kDynKindStr) ||
+                                !cmp(a64reg::kScratch1, a64reg::kScratch0))
+                                return false;
+                            size_t notStr;
+                            if (!emitBranchFwd(a64::mnem::kBne, "rel19", notStr) ||
+                                !addImm(9, 9, kSadDynPayloadOff))
+                                return false;
+                            if (!patchBranchFwd(notStr, 23, 5))
+                                return false;
+                            if (!strBase(9, a64reg::kX0,
+                                         (slotOff + kSadDynPayloadOff) / kArrSlotBytes))
+                                return false;
+                            continue;
+                        }
                         if (!movz(9, kinds[static_cast<size_t>(i)]) ||
                             !strBase(9, a64reg::kX0, (slotOff + kSadDynKindOff) / kArrSlotBytes))
                             return false;
-                        const auto &po = inst.operands[static_cast<size_t>(2 + i)];
                         // (AR) نصّ ⇒ جسِّد المؤشّرَ في x9 (حرفيّةُ rodata أو مؤشّرُ كومةٍ من الانسكاب)؛
                         //      غيرُه (عشريّ/صحيح/منطقيّ) ⇒ i64 مباشرةً (loadArgInto يقرأ من الانسكاب).
                         if (po.dataType == types::SadTypeKind::String)

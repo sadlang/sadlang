@@ -191,6 +191,13 @@ namespace sad
             for (int i = 0; i < 8; ++i)
                 desc.push_back(static_cast<char>((len >> (8 * i)) & 0xFF));
             desc += s;
+            // (AR) خاتمةُ NUL بعد البايتات (خارجَ الطول): تُتيح تحويلَ الواصفِ إلى char*
+            //      (desc+8) عند عبورِ حمولةِ Str المعلَّبةِ إلى خانةِ تعدادٍ — مستهلكو
+            //      الطولِ يقرؤون len@0 فلا يرونها.
+            // (EN) Trailing NUL after the bytes (outside the length): lets the
+            //      descriptor convert to a char* (desc+8) when a boxed Str payload
+            //      crosses into an enum slot — length readers see len@0 and ignore it.
+            desc.push_back('\0');
             return desc;
         }
 
@@ -2260,18 +2267,33 @@ namespace sad
                         return false;
                     return storeMem(outDisp, x86::RDI) && storeMem(outDisp + 8, x86::RDX);
                 }
-                // (AR) النصُّ خارجَ dynTagForType عمدًا (يُعالَجُ خصّيصًا هناك): وسمُه Str
-                //      وحمولتُه واصفُه — وما لا وسمَ له (مصفوفة/خريطة/كائن) **فشلٌ صريحٌ**
-                //      لا وسمُ Int كاذبٌ صامتٌ (نظيرُ ذراعِ ARRAY_SET القديمة).
-                // (EN) String is deliberately outside dynTagForType (handled specially
-                //      there): tag Str with its descriptor as payload — and an
-                //      untaggable kind (array/map/object) is an EXPLICIT failure, not
-                //      a silent lying Int tag (mirroring the old ARRAY_SET arm).
-                long long tag = kDynKindInt;
+                // (AR) النصُّ خارجَ dynTagForType عمدًا: وسمُ Str وحمولتُه **عنوانُ واصفِه**
+                //      {len@0، bytes@8} — اتفاقيّةُ الحمولةِ الموسومةِ القانونيّةُ (نظيرُ
+                //      ARRAY_SET والطباعةِ المعلَّبة؛ مؤشّرُ char* خامٌ هنا يجعل الطباعةَ
+                //      تقرأ الحروفَ طولًا — رصدُ مراجعة). الحرفيّةُ وحدَها تملك واصفًا زمنَ
+                //      الترجمة؛ النصُّ المحسوبُ (مؤشّرُ كومة) فشلٌ صريحٌ مُعلَن — وما لا
+                //      وسمَ له (مصفوفة/خريطة/كائن) فشلٌ صريحٌ لا وسمُ Int كاذب.
+                // (EN) String is deliberately outside dynTagForType: tag Str with its
+                //      DESCRIPTOR address {len@0, bytes@8} as payload — the canonical
+                //      boxed convention (ARRAY_SET/boxed-print peers; a raw char* here
+                //      makes boxed print read characters as a length — review find).
+                //      Only a literal has a compile-time descriptor; a computed string
+                //      (heap pointer) fails explicitly — as does any untaggable kind.
                 if (op.dataType == types::SadTypeKind::String)
-                    tag = kDynKindStr;
-                else if (op.dataType != types::SadTypeKind::Unknown &&
-                         !dynTagForType(op.dataType, tag))
+                {
+                    std::string content;
+                    if (!resolveBoxedStringLiteral(op, content))
+                        return fail(EC::INT_NATIVE_UNSUPPORTED, diag::kBoxComputedString);
+                    if (!emitLoadStrDescAddr(x86::RDX, content) ||
+                        !movImm(x86::RDI, kDynKindStr))
+                        return false;
+                    if (!takeDynSlot(outDisp))
+                        return false;
+                    return storeMem(outDisp, x86::RDI) && storeMem(outDisp + 8, x86::RDX);
+                }
+                long long tag = kDynKindInt;
+                if (op.dataType != types::SadTypeKind::Unknown &&
+                    !dynTagForType(op.dataType, tag))
                     return fail(EC::INT_NATIVE_UNSUPPORTED,
                                 diag::kConstType +
                                     std::to_string(static_cast<int>(op.dataType)));
@@ -7401,10 +7423,45 @@ namespace sad
                     for (long long i = 0; i < nPayload; ++i)
                     {
                         const long long slotOff = kAdtPayloadBase + i * kSadDynBytes;
+                        const auto &po = inst.operands[static_cast<size_t>(2 + i)];
+                        // (AR) [موجة الجسر الموسوم] حمولةُ Any في **خانةِ ذاكرةٍ** (معاملُ/
+                        //      متغيّرُ Any = علبةُ مؤشّرِ خانةِ dyn) ⇒ انسخْ {الوسم، الحمولة}
+                        //      منها زمنَ التشغيل — تخزينُ المؤشّرِ خامًا بوسمِ Int جعل «طول»
+                        //      تعدُّ بايتَ الوسم (رصدُ برهانِ enumstr: ٧ مكانَ ٤٢). حمولةُ
+                        //      الوسمِ Str واصفٌ {len@0، bytes@8} بينما اتفاقيّةُ خانةِ التعدادِ
+                        //      char* ⇒ تُزاحُ +8 (الواصفُ منتهٍ بـNUL بعقدِ makeStrDescriptor).
+                        //      سجلُّ الحوضِ Any (ناتجُ ENUM_GET_PAYLOAD الخامُ) يبقى على
+                        //      المسارِ الخامِ الموروثِ — دَينٌ مُعلَنٌ لا فكُّ مؤشّرٍ أعمى.
+                        // (EN) [Tagged-bridge wave] A MEMORY-slot Any payload (an Any
+                        //      param/var = a dyn-slot-pointer box) ⇒ copy {tag, payload}
+                        //      from it at runtime — storing the raw pointer under an Int
+                        //      tag made strlen count the tag byte (enumstr proof: 7
+                        //      instead of 42). A Str payload is a descriptor
+                        //      {len@0, bytes@8} while the enum-slot convention is char*
+                        //      ⇒ advance +8 (NUL-terminated per makeStrDescriptor). A
+                        //      pool-register Any (raw ENUM_GET_PAYLOAD result) stays on
+                        //      the inherited raw path — declared debt, not a blind deref.
+                        long long mvDisp;
+                        if (po.dataType == types::SadTypeKind::Any && isMemVar(po, mvDisp))
+                        {
+                            if (!loadArgInto(x86::RDI, po) ||
+                                !loadMemBase(x86::R11, x86::RDI, kSadDynKindOff) ||
+                                !storeMemBase(x86::RAX, slotOff + kSadDynKindOff, x86::R11) ||
+                                !loadMemBase(x86::RDI, x86::RDI, kSadDynPayloadOff))
+                                return false;
+                            size_t notStr;
+                            if (!cmpImm8(x86::R11, kDynKindStr) ||
+                                !emitJccFwd(x86::mnem::kJne, notStr) ||
+                                !addImm(x86::RDI, kSadDynPayloadOff))
+                                return false;
+                            patchFwd(notStr);
+                            if (!storeMemBase(x86::RAX, slotOff + kSadDynPayloadOff, x86::RDI))
+                                return false;
+                            continue;
+                        }
                         if (!movImm(x86::RDI, kinds[static_cast<size_t>(i)]) ||
                             !storeMemBase(x86::RAX, slotOff + kSadDynKindOff, x86::RDI))
                             return false;
-                        const auto &po = inst.operands[static_cast<size_t>(2 + i)];
                         // (AR) نصّ ⇒ جسِّد المؤشّرَ (حرفيّةُ rodata أو مؤشّرُ كومةٍ من الانسكاب)؛
                         //      غيرُه (عشريّ/صحيح/منطقيّ) ⇒ i64 مباشرةً (loadArgInto يقرأ من الانسكاب).
                         if (po.dataType == types::SadTypeKind::String)

@@ -18,6 +18,7 @@ namespace sad { namespace native { namespace diag {
 
     // ── pure ──
     inline const std::string kMoveKind = "move-kind";  // نوعُ معامل MOVE غيرُ مدعوم
+    inline const std::string kBoxComputedString = "box-computed-string";  // تعليبُ نصٍّ محسوبٍ (مؤشّرِ كومةٍ لا حرفيّة) في خانةِ Any مؤجَّل — الواصفُ الطوليُّ يُبنى زمنَ الترجمة للحرفيّاتِ فقط
     inline const std::string kArrayGetBoxed = "array-get-boxed";  // ARRAY_GET لعنصرٍ معلَّب (elementType=Any) مؤجَّل
     inline const std::string kArraySetBoxed = "array-set-boxed";  // ARRAY_SET لعنصرٍ معلَّب (elementType=Any) مؤجَّل
     inline const std::string kArrayAppendBoxed = "array-append-boxed";  // BUILTIN_ARRAY_APPEND لعنصرٍ معلَّب (elementType=Any) مؤجَّل — يلزمه تعليبُ SadDyn
