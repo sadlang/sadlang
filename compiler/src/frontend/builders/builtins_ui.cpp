@@ -15,7 +15,8 @@
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
 #include <stdexcept>
-#include <iostream>
+// (AR) لا <iostream> ههنا عمدًا: الملفُّ لم يعد يطبعُ تشخيصًا، والتشخيصُ كلُّه
+//      يُدفَع إلى `errors_`. وبقاءُ الترويسةِ يُبقي البابَ مفتوحًا لعودةِ النمط.
 #include <filesystem>
 #include <optional>
 
@@ -42,23 +43,33 @@ namespace Sad
         namespace SIR
         {
 
-            // (AR) يُبلّغ عن «عدد معاملات خاطئ» (SEM005): الرسالة تُبنى من كتالوج
-            //      language-truth/errors (مصدر الحقيقة الوحيد — لا نصوصَ يدويّة) عبر
-            //      buildBilingualMessage، ثمّ تُطبَع فورًا. هذا **نفس نمط الواجهة
-            //      الخلفيّة** (llvm_codegen_context.cpp:47: reportError(
-            //      buildBilingualMessage(code, ctx)) الذي يطبع على stderr). لا نستعمل
-            //      reportFromCatalog (الـbatch) لأنّ المترجم لا يفرّغه (لا printAll).
-            //      name=اسم المُدمَجة، expected=العدد المطلوب، found=المُمرَّر فعلًا.
-            static void reportUiWrongArgCount(const std::string &name, int expected, size_t found)
+            // (AR) يُبلّغ عن «عدد معاملات خاطئ» (SEM005). الرسالة من كتالوج
+            //      language-truth/errors (مصدر الحقيقة الوحيد — لا نصوصَ يدويّة).
+            //
+            // 🔑 كانت تُطبَع على stderr **ويمضي البناءُ ناجحًا**: المصرّفُ يقول
+            //    «الوسائط خطأ» ثمّ يخرج بصفرٍ ويُنتج ثنائيًّا **بلا النداء**
+            //    (مقيس: `عين_النص(1)` ⇒ رسالةٌ ورمزُ خروج 0). وهو صنفُ الفجوة ح٤
+            //    عينُه في جرد نواة 64-بت: سطرٌ «يُنفَّذ» وهو غيرُ موجود، ولا
+            //    يُخفِق فلا يُرى. ورمزُ خطأٍ واحدٌ بتبعتين — يُفشِل البناءَ في
+            //    مدمجات النظام ويُطبَع وحدَه ههنا — انحرافُ دلالةٍ لا فرقُ طبقة.
+            //
+            //    فصار الدفعُ إلى `errors_` كأشقائه (checkOsCoreArity ونظائرها):
+            //    التبعةُ من الرمزِ لا من الملفِّ الذي وقع فيه.
+            //    name=اسم المُدمَجة، expected=العدد المطلوب، found=المُمرَّر فعلًا.
+            // (EN) SEM005 now fails the build here as it does in every sibling
+            //      builder; it used to print and let the call vanish silently.
+            static void reportUiWrongArgCount(std::vector<std::string> &errors,
+                                              const std::string &name, int expected,
+                                              size_t found)
             {
                 Sad::Errors::RenderContext ctx;
                 ctx.placeholders = {
                     {"name", name},
                     {"expected", std::to_string(expected)},
                     {"found", std::to_string(found)}};
-                std::cerr << Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                 Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx)
-                          << std::endl;
+                errors.push_back(
+                    Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                        Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx));
             }
 
             // (AR) وسيط التنقّل (انتقل/استبدل/انتقل_بتحريك) يجب أن يكون **عنصرًا** (لقطة،
@@ -67,7 +78,9 @@ namespace Sad
             //      عدديّة ⇒ قراءة {fn,env} من مؤشّرٍ باطل ⇒ انهيار)، أو كلقطةٍ باطلة. نرفضه
             //      هنا بتشخيصٍ من الكتالوج (نظير المفسّر الذي يرفضه أيضًا) ⇒ تكافؤٌ لا انهيار.
             //      — إصلاح مراجعة Amelia (HIGH-2). يُرجع true إن كان الوسيط صالحًا.
-            [[nodiscard]] static bool checkUiNavArgType(const std::string &name, SadTypeKind t)
+            //      والتشخيصُ يُدفَع إلى `errors_` لا يُطبَع: رفضٌ يمضي بناؤه ليس رفضًا.
+            [[nodiscard]] static bool checkUiNavArgType(std::vector<std::string> &errors,
+                                            const std::string &name, SadTypeKind t)
             {
                 if (t == SadTypeKind::Pointer || t == SadTypeKind::Function)
                     return true;
@@ -75,9 +88,9 @@ namespace Sad
                 ctx.placeholders = {
                     {"expected", name + ": \xd8\xb9\xd9\x86\xd8\xb5\xd8\xb1 \xd9\x88\xd8\xa7\xd8\xac\xd9\x87\xd8\xa9 \xd8\xa3\xd9\x88 \xd8\xaf\xd8\xa7\xd9\x84\xd9\x91\xd8\xa9 \xd8\xa8\xd9\x86\xd8\xa7\xd8\xa1 \xd8\xb5\xd9\x81\xd8\xad\xd8\xa9"}, // عنصر واجهة أو دالّة بناء صفحة
                     {"found", std::string(Sad::Compiler::SIR::sirTypeToString(t))}};
-                std::cerr << Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                 Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, ctx)
-                          << std::endl;
+                errors.push_back(
+                    Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                        Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, ctx));
                 return false;
             }
 
@@ -115,7 +128,8 @@ namespace Sad
             //      يُستنتَج أبدًا عددًا/منطقيًّا ⇒ لا رفضٌ زائف على نصّ صحيح)؛ ما عداها
             //      (نص/مؤشّر/غير محدَّد) يُقبَل. المتوقَّع مشتقٌّ من sirTypeToString(String)
             //      لا نصًّا حرفيًّا. يُرجع true إن كان الوسيط مقبولًا.
-            [[nodiscard]] static bool checkUiTitleArgType(const std::string &name, SadTypeKind t)
+            [[nodiscard]] static bool checkUiTitleArgType(std::vector<std::string> &errors,
+                                            const std::string &name, SadTypeKind t)
             {
                 if (t != SadTypeKind::Integer && t != SadTypeKind::Float && t != SadTypeKind::Boolean)
                     return true;
@@ -123,9 +137,9 @@ namespace Sad
                 ctx.placeholders = {
                     {"expected", name + ": " + std::string(Sad::Compiler::SIR::sirTypeToString(SadTypeKind::String))},
                     {"found", std::string(Sad::Compiler::SIR::sirTypeToString(t))}};
-                std::cerr << Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                 Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, ctx)
-                          << std::endl;
+                errors.push_back(
+                    Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                        Sad::Errors::ErrorCode::SEM_TYPE_MISMATCH, ctx));
                 return false;
             }
 
@@ -905,7 +919,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("أضف_ابن", 2, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "أضف_ابن", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_ADD_CHILD);
@@ -921,7 +935,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("أزل_ابن", 2, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "أزل_ابن", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_REMOVE_CHILD);
@@ -937,7 +951,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        reportUiWrongArgCount("امسح_الأبناء", 1, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "امسح_الأبناء", 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_CLEAR_CHILDREN);
@@ -956,7 +970,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("عين_النص", 2, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_النص", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_TEXT);
@@ -972,7 +986,7 @@ namespace Sad
                 {
                     if (argResults.size() < 3)
                     {
-                        reportUiWrongArgCount("عين_الحجم", 3, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_الحجم", 3, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_SIZE);
@@ -988,7 +1002,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("عين_المرونة", 2, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_المرونة", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_FLEX);
@@ -1004,7 +1018,7 @@ namespace Sad
                 {
                     if (argResults.size() < 5)
                     {
-                        reportUiWrongArgCount("عين_الخلفية", 5, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_الخلفية", 5, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_BACKGROUND);
@@ -1020,7 +1034,7 @@ namespace Sad
                 {
                     if (argResults.size() < 5)
                     {
-                        reportUiWrongArgCount("عين_اللون", 5, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_اللون", 5, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_FOREGROUND);
@@ -1036,7 +1050,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("عين_التباعد", 2, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_التباعد", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_SPACING);
@@ -1052,7 +1066,7 @@ namespace Sad
                 {
                     if (argResults.size() < 5)
                     {
-                        reportUiWrongArgCount("عين_الحشوة", 5, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_الحشوة", 5, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_PADDING);
@@ -1068,7 +1082,7 @@ namespace Sad
                 {
                     if (argResults.size() < 3)
                     {
-                        reportUiWrongArgCount("عين_المحاذاة", 3, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_المحاذاة", 3, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_ALIGNMENT);
@@ -1084,7 +1098,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("عين_الحدود", 2, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_الحدود", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_BORDER);
@@ -1100,7 +1114,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("عين_الارتفاع", 2, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_الارتفاع", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_ELEVATION);
@@ -1116,7 +1130,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("عين_الشفافية", 2, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_الشفافية", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_OPACITY);
@@ -1132,7 +1146,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("عين_الظهور", 2, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_الظهور", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_VISIBILITY);
@@ -1163,7 +1177,7 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("عين_الجذر", 2, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "عين_الجذر", 2, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_SET_ROOT);
@@ -1179,7 +1193,7 @@ namespace Sad
                 {
                     if (argResults.size() < 3)
                     {
-                        reportUiWrongArgCount("خطط", 3, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "خطط", 3, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_LAYOUT);
@@ -1195,7 +1209,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        reportUiWrongArgCount("ارسم", 1, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "ارسم", 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_RENDER);
@@ -1212,7 +1226,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        reportUiWrongArgCount("تشغيل_تطبيق", 1, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "تشغيل_تطبيق", 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_RUN);
@@ -1227,7 +1241,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        reportUiWrongArgCount("طباعة_شجرة", 1, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "طباعة_شجرة", 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_PRINT_TREE);
@@ -1283,7 +1297,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        reportUiWrongArgCount(
+                        reportUiWrongArgCount(b_.errors_,
                             funcName == Bn::UICore::NAVIGATE ? "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84"   // انتقل
                                                              : "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x84", // استبدل
                             1, argResults.size());
@@ -1295,7 +1309,7 @@ namespace Sad
                     //      تفاعليّة عبر buildCurrent)؛ عنصر ⇒ sad_navigate (لقطة). دوال ص
                     //      تُرجع widgets فعلًا (ارجع زر(..) ⇒ define ptr) فالبانِي مدعوم.
                     // (AR) حارس نوع (HIGH-2): ارفض ما ليس عنصرًا/دالّة (منع انهيار المترجم).
-                    if (!checkUiNavArgType(
+                    if (!checkUiNavArgType(b_.errors_,
                             funcName == Bn::UICore::NAVIGATE ? "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84"    // انتقل
                                                              : "\xd8\xa7\xd8\xb3\xd8\xaa\xd8\xa8\xd8\xaf\xd9\x84", // استبدل
                             argResults[0].type))
@@ -1312,11 +1326,11 @@ namespace Sad
                 {
                     if (argResults.size() < 2)
                     {
-                        reportUiWrongArgCount("\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83", 2, argResults.size()); // انتقل_بتحريك
+                        reportUiWrongArgCount(b_.errors_, "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83", 2, argResults.size()); // انتقل_بتحريك
                         return BuildResult("", SadTypeKind::Void);
                     }
                     // (AR) حارس نوع (HIGH-2): الصفحة عنصر أو دالّة بناء (منع انهيار المترجم).
-                    if (!checkUiNavArgType("\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83", argResults[0].type)) // انتقل_بتحريك
+                    if (!checkUiNavArgType(b_.errors_, "\xd8\xa7\xd9\x86\xd8\xaa\xd9\x82\xd9\x84_\xd8\xa8\xd8\xaa\xd8\xad\xd8\xb1\xd9\x8a\xd9\x83", argResults[0].type)) // انتقل_بتحريك
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_NAVIGATE_TRANSITION);
                     inst.operands.push_back(argOperands[0]); // الصفحة
@@ -1378,11 +1392,11 @@ namespace Sad
                 {
                     if (argResults.size() < 3)
                     {
-                        reportUiWrongArgCount(std::string(Bn::UICore::NAVIGATE_EXIT_TRANSITION), 3, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, std::string(Bn::UICore::NAVIGATE_EXIT_TRANSITION), 3, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     // (HIGH-2) حارس نوع: الصفحة عنصر أو دالّة بناء (منع انهيار المترجم).
-                    if (!checkUiNavArgType(std::string(Bn::UICore::NAVIGATE_EXIT_TRANSITION), argResults[0].type))
+                    if (!checkUiNavArgType(b_.errors_, std::string(Bn::UICore::NAVIGATE_EXIT_TRANSITION), argResults[0].type))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_NAVIGATE_EXIT_TRANSITION);
                     inst.operands.push_back(argOperands[0]); // الصفحة (عنصر أو بانٍ)
@@ -1434,12 +1448,12 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        reportUiWrongArgCount(std::string(Bn::UICore::SET_TITLE), 1, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, std::string(Bn::UICore::SET_TITLE), 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     // (Amelia M2) حارس نوع نصّ (تكافؤ مع المفسّر !isString): يرفض العنوان
                     //   العدديّ/المنطقيّ (وإلّا مرّ non-pointer فتحوّل إلى null صامتًا).
-                    if (!checkUiTitleArgType(std::string(Bn::UICore::SET_TITLE), argResults[0].type))
+                    if (!checkUiTitleArgType(b_.errors_, std::string(Bn::UICore::SET_TITLE), argResults[0].type))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_SET_TITLE);
                     inst.operands.push_back(argOperands[0]); // العنوان (نص)
@@ -1471,14 +1485,14 @@ namespace Sad
                             continue;
                         if (argResults.empty())
                         {
-                            reportUiWrongArgCount(std::string(name), 1, argResults.size());
+                            reportUiWrongArgCount(b_.errors_, std::string(name), 1, argResults.size());
                             return BuildResult("", SadTypeKind::Void);
                         }
                         // (Amelia مراجعة2، MEDIUM) حارس نوع الوسيط: عنصر (Pointer) أو دالّة بناء
                         //   (Function) فقط. بدونه يُصنّف bridgeUiPageBuilder أيّ i64 (عدد) بانيًا
                         //   ⇒ inttoptr لقيمةٍ عدديّة ثمّ قراءة {fn,env} من عنوانٍ باطل ⇒ انهيار
                         //   (بينما المفسّر يرفضه بأمان). نظير حرّاس انتقل/انتقل_بتحريك.
-                        if (!checkUiNavArgType(std::string(name), argResults[0].type))
+                        if (!checkUiNavArgType(b_.errors_, std::string(name), argResults[0].type))
                             return BuildResult("", SadTypeKind::Void);
                         std::string r = b_.newTempRegister();
                         SIRInstruction inst(opcode);
@@ -1508,7 +1522,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        reportUiWrongArgCount("دمر_تطبيق", 1, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "دمر_تطبيق", 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_APP_DESTROY);
@@ -1523,7 +1537,7 @@ namespace Sad
                 {
                     if (argResults.empty())
                     {
-                        reportUiWrongArgCount("دمر_عنصر", 1, argResults.size());
+                        reportUiWrongArgCount(b_.errors_, "دمر_عنصر", 1, argResults.size());
                         return BuildResult("", SadTypeKind::Void);
                     }
                     SIRInstruction inst(SIROpcode::BUILTIN_UI_WIDGET_DESTROY);
