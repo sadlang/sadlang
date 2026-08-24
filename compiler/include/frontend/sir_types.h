@@ -653,6 +653,7 @@ namespace Sad
                 // --- 15b. وحدة GDT / GDT Module (3) ---
                 LOWLEVEL_GDT_INIT,       ///< هيئ_جدول_واصفات / gdt_init — initialize GDT
                 LOWLEVEL_GDT_LOAD,       ///< حمل_جدول_واصفات / gdt_load — load GDT register (lgdt)
+                LOWLEVEL_TASK_REGISTER_LOAD, ///< حمل_سجل_المهمة / ltr — load the task register from a TSS selector (RFC 0059)
                 LOWLEVEL_GDT_GET_REPORT, ///< تقرير_واصفات / gdt_report — GDT diagnostic report
 
                 // --- 15c. وحدة الترحيل / Paging Module (5) ---

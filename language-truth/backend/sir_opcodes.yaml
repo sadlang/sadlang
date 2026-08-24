@@ -20,7 +20,7 @@ description_ar: "كتالوج أوپكودات SIR — الاسم، المنمن
 description_en: "SIR opcode catalog — name, mnemonic, and native lowering"
 
 stats:
-  total: 779
+  total: 780
   with_mnemonic: 345
   natively_lowered: 104
   native_lowered_arm64: 104
@@ -1624,6 +1624,11 @@ opcodes:
     native_lowered: []
     isel_declared: []
   - name: LOWLEVEL_GDT_LOAD
+    mnemonic: ""
+    section: "التكامل مع C/C++ — FFI Functions (15)"
+    native_lowered: []
+    isel_declared: []
+  - name: LOWLEVEL_TASK_REGISTER_LOAD
     mnemonic: ""
     section: "التكامل مع C/C++ — FFI Functions (15)"
     native_lowered: []

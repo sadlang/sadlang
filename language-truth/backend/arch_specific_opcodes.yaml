@@ -164,3 +164,9 @@ opcodes:
   - name: LOWLEVEL_IDT_LOAD
     family: x86
     witness: "lidt"
+  # (AR) [RFC 0059] ltr: تعليمةُ x86 تحمّلُ سجلَّ المهمّة. بلا هذا القيدِ لا تُفتَح
+  #      بوّابةُ SEM038 أصلًا (البوّابةُ مبنيّةٌ على findArchConstraint) فتُصدَر
+  #      المنمنمةُ لهدفٍ aarch64 برمزِ خروجٍ صفر — درسُ SEM044 حرفيًّا.
+  - name: LOWLEVEL_TASK_REGISTER_LOAD
+    family: x86
+    witness: "ltr"

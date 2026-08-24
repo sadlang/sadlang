@@ -397,6 +397,33 @@ llvm::Value* LowlevelCodeGen::emitLowlevelGdtLoad(std::shared_ptr<SIRInstruction
         "sad_ll_gdt_load", voidTy, {}, {});
 }
 
+// ============================================================================
+// (AR) [RFC 0059] حمل_سجل_المهمة ⇒ ltr. قالبٌ مستقلٌّ لا إعادةُ استعمالِ
+//      emitFreestandingTableLoad: المعامل هنا **منتقٍ 16-بتّيّ** (r/m16) لا
+//      مؤشّرُ واصفٍ بعرضِ سجلٍّ كامل — والمُجمِّعُ يردُّ `ltr %eax`، فيلزمُ القيدُ
+//      المعدَّلُ `${0:w}` ليطبعَ نصفَ السجلِّ: `ltr %ax`. و`~{memory}` **لازم**:
+//      `ltr` يقرأ واصفَ TSS من الـGDT ويكتبُه (يضبطُ بتَّ الانشغال 0x9⇒0xB)، فبدونه
+//      يجوزُ لـLLVM أن يُغرِقَ مخازنَ بناءِ الواصفِ تحت التعليمة — و`sideeffect`
+//      وحدَه يرتّبُ الأسمبليّاتِ بعضَها مع بعضٍ لا مع المخازن (نظيرُ lgdt/lidt حرفيًّا).
+// (EN) [RFC 0059] load-task-register ⇒ ltr with an r/m16 operand: the assembler
+//      rejects `ltr %eax`, so the `${0:w}` modifier prints the 16-bit half.
+// ============================================================================
+llvm::Value* LowlevelCodeGen::emitLowlevelTaskRegisterLoad(std::shared_ptr<SIRInstruction> inst) {
+    auto* voidTy = llvm::Type::getVoidTy(*cg_.context_);
+    auto* i16Ty = llvm::Type::getInt16Ty(*cg_.context_);
+    if (inst->operands.empty()) {
+        cg_.reportError(::Sad::Errors::ErrorCode::SEM_FREESTANDING_SYS_BUILTIN_ARG,
+            {{"detail", "حمل_سجل_المهمة: يتطلّب منتقي واصف TSS (16 بتًّا)"}});
+        return nullptr;
+    }
+    llvm::Value* sel = resolveUnboxedIntOperand(cg_, inst->operands[0]);
+    llvm::Value* sel16 = cg_.builder_->CreateIntCast(sel, i16Ty, false);
+    auto* asmTy = llvm::FunctionType::get(voidTy, {i16Ty}, false);
+    auto* inlineAsm = llvm::InlineAsm::get(asmTy,
+        "ltr ${0:w}", "r,~{memory}", true, false, llvm::InlineAsm::AD_ATT);
+    return cg_.builder_->CreateCall(asmTy, inlineAsm, {sel16});
+}
+
 llvm::Value* LowlevelCodeGen::emitLowlevelGdtGetReport(std::shared_ptr<SIRInstruction> inst) {
     auto* i8PtrTy = llvm::PointerType::get(llvm::Type::getInt8Ty(*cg_.context_), 0);
     return emitRuntimeCall(&cg_, *cg_.builder_, cg_.module_.get(),

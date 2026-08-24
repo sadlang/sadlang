@@ -77,6 +77,38 @@ namespace Sad
             }
 
             // ─────────────────────────────────────────────────────────────────────
+            // (AR) RFC 0059: مُعدِّل «مقاطعة» يلي «دالة» قبل الاسم (نظير «لا_ترجع»):
+            //      دالة مقاطعة عالج(رقم إطار) — بوّابةُ عتادٍ تُخفَّض بـx86_intrcc
+            //      فيتولّد لها كعبُ الدخولِ والخروجِ كاملًا (حفظُ السجلّاتِ ثمّ iretq).
+            //      كلمةٌ سياقيّةٌ فقد تصلُ IDENTIFIER — تُقبَل الحالتان، ويُلتقَط
+            //      الترتيبُ المعكوسُ («دالة مقاطعة لا_ترجع») كي يُشخَّصَ تنافرُهما
+            //      لاحقًا لا أن يُبتلَعَ الرمزُ اسمًا للدالّة.
+            // (EN) RFC 0059: 'مقاطعة' modifier after 'دالة' — an interrupt gate lowered
+            //      through x86_intrcc. Contextual keyword; both token forms accepted,
+            //      and the reversed order is captured so the clash can be diagnosed.
+            // ─────────────────────────────────────────────────────────────────────
+            bool isInterruptHandler = false;
+            // (AR) تمييزٌ لازم: «دالة مقاطعة(...)» دالّةٌ *اسمُها* مقاطعة (استعمالُ
+            //      الكلمةِ الناعمةِ اسمًا — مشروعٌ ويبقى)، فلا نبتلعُ الرمزَ مُعدِّلًا
+            //      إلّا إذا لم يتلُه قوسُ فتحٍ (نظيرُ تمييزِ «خارجية» أعلاه).
+            // (EN) Required disambiguation: 'دالة مقاطعة(...)' is a function *named*
+            //      مقاطعة — only treat it as a modifier when '(' does not follow.
+            if ((check(TT::KEYWORD_INTERRUPT) ||
+                 (check(TT::IDENTIFIER) &&
+                  current_.getValue() == kw(TT::KEYWORD_INTERRUPT))) &&
+                peekNext().getType() != TT::PAREN_LEFT)
+            {
+                advance();
+                isInterruptHandler = true;
+                if (check(TT::KEYWORD_NORETURN) ||
+                    (check(TT::IDENTIFIER) && current_.getValue() == "لا_ترجع"))
+                {
+                    advance();
+                    isNoReturn = true;
+                }
+            }
+
+            // ─────────────────────────────────────────────────────────────────────
             // (AR) RFC 0034: 'دالة خارجية' — الصيغة المفردة الوحيدة لتصريح الربط الخارجيّ:
             //      دالة خارجية [ ("اسم_الربط") ] [نوع] اسم(معاملات)
             // (EN) RFC 0034: 'function extern' — the only single-decl extern form:
@@ -150,6 +182,7 @@ namespace Sad
                         if (fd->docComment.empty())
                             fd->docComment = std::move(docComment);
                         fd->isNoReturn = isNoReturn; // (AR) دالة لا_ترجع خارجية (مثل abort)
+                        fd->isInterruptHandler = isInterruptHandler; // (AR) RFC 0059 (يُرفَض دلاليًّا: لا جسم)
                     }
                     return externDecl;
                 }
@@ -435,6 +468,7 @@ namespace Sad
                 // (EN) Set main function flag
                 funcDecl->isMainFunction = isMain;
                 funcDecl->isNoReturn = isNoReturn; // (AR) اللبنة 3.15: دالة لا_ترجع
+                funcDecl->isInterruptHandler = isInterruptHandler; // (AR) RFC 0059: دالة مقاطعة
                 funcDecl->lifetimeParams = std::move(lifetimeParams);
                 funcDecl->preconditions = std::move(preconditions);
                 funcDecl->postconditions = std::move(postconditions);
@@ -464,6 +498,7 @@ namespace Sad
             // (EN) Set main function flag
             funcDecl->isMainFunction = isMain;
             funcDecl->isNoReturn = isNoReturn; // (AR) اللبنة 3.15: دالة لا_ترجع
+            funcDecl->isInterruptHandler = isInterruptHandler; // (AR) RFC 0059: دالة مقاطعة
             funcDecl->lifetimeParams = std::move(lifetimeParams);
             funcDecl->preconditions = std::move(preconditions);
             funcDecl->postconditions = std::move(postconditions);

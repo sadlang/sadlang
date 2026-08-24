@@ -12,6 +12,7 @@
 
 #include "semantic/type_checker.h"
 #include "token.h"
+#include "lexer_keywords.h" // (AR) [RFC 0059] لفظُ «مقاطعة» من الجدولِ لا حرفيًّا
 #include "class_nodes.h"
 #include "pattern_nodes.h"    // (AR) [أ-م٢] ConstructorPattern / MatchStmt / CaseClause
 #include "error_manager.h"    // (AR) [أ-م٢] بناء رسالة الكتالوج ثنائيّة اللغة
@@ -115,6 +116,20 @@ namespace Sad
                 return currentResult_;
             }
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) [RFC 0059] مرورٌ تمهيديٌّ يجمعُ أسماءَ معالِجاتِ المقاطعةِ قبلَ فحصِ
+            //      الأجسام. بدونَه يعتمدُ حارسُ منعِ النداءِ **ترتيبَ التصريح**: نداءٌ
+            //      يسبقُ تعريفَ المعالجِ يمرُّ صامتًا (قِيس: EXIT=0 ونداءُ ccc إلى دالّةٍ
+            //      x86_intrcc بإطارٍ `ptr null` — الانهيارُ الثلاثيُّ الذي وُضع الحارسُ
+            //      لمنعِه). حارسٌ يعتمدُ الترتيبَ حارسٌ نصفُ مشتعل.
+            // (EN) [RFC 0059] Pre-pass collecting interrupt-handler names before bodies
+            //      are checked: without it the call ban depends on declaration order and
+            //      a call placed before the handler slips through silently (measured).
+            // ════════════════════════════════════════════════════════════════
+            interruptHandlerNames_.clear();
+            interruptWordShadowedByClass_ = false;
+            collectInterruptHandlers(ast);
+
             try
             {
                 ast->accept(*this);
@@ -135,6 +150,65 @@ namespace Sad
             }
 
             return currentResult_;
+        }
+
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) [RFC 0059] يجمعُ أسماءَ معالِجاتِ المقاطعةِ المصرَّحةِ في الوحدة. المسحُ
+        //      يشملُ الكتلَ المتداخلةَ لأنّ التصريحاتِ العليا تصلُ كتلةً واحدةً كبرى؛
+        //      ومعالِجُ المقاطعةِ دالّةٌ حرّةٌ لا طريقةَ صنفٍ (الطرائقُ تُرفَض في المحلّل).
+        // (EN) [RFC 0059] Collect declared interrupt-handler names, descending into
+        //      nested blocks (top-level declarations arrive as one outer block).
+        // ════════════════════════════════════════════════════════════════════
+        void TypeChecker::collectInterruptHandlers(AST::ASTNode *node)
+        {
+            if (!node)
+                return;
+            if (auto *fn = dynamic_cast<AST::FunctionDecl *>(node))
+            {
+                if (fn->isInterruptHandler)
+                    interruptHandlerNames_.insert(fn->name);
+                return;
+            }
+            // (AR) [RFC 0059] التباسٌ بنيويّ: «دالة مقاطعة اسم(...)» تحتملُ قراءتين —
+            //      مُعدِّلَ بوّابةٍ، أو **نوعَ عائدٍ** صنفًا اسمُه «مقاطعة» (وقاعدةُ
+            //      «معرِّفٌ يتلوه معرِّف» في المحلّل واحدةٌ في الحالتين). فإن صُرِّح في
+            //      الوحدةِ صنفٌ بهذا الاسمِ صارت القراءةُ الصامتةُ خطرًا: دالّةٌ قصد
+            //      كاتبُها إرجاعَ كائنٍ تصيرُ بوّابةَ عتادٍ تعودُ بـiretq (قِيس: EXIT=0
+            //      وصفرُ تشخيص). فيُرصَد التصادمُ هنا ويُشخَّص بدل أن يُحسَم صامتًا.
+            // (EN) [RFC 0059] Structural ambiguity: «دالة مقاطعة name(...)» reads either
+            //      as the gate modifier or as a user-class return type named «مقاطعة».
+            //      If such a class is declared, diagnose instead of silently choosing.
+            // (AR) للصنفِ عقدتان في الشجرة: `ClassDecl` (ما يبنيه المحلّلُ فعلًا)
+            //      و`ClassDeclStmt`. رصدُ إحداهما وحدَها حارسٌ لا يشتعل — قِيس:
+            //      الالتباسُ مرَّ صامتًا لأنّ المرورَ كان يسألُ العقدةَ الأخرى.
+            // (EN) Classes have two node types; checking only one made the guard dead.
+            {
+                std::string className;
+                bool isClass = false;
+                if (auto *cls = dynamic_cast<AST::ClassDecl *>(node))
+                {
+                    className = cls->name;
+                    isClass = true;
+                }
+                else if (auto *clsStmt = dynamic_cast<AST::ClassDeclStmt *>(node))
+                {
+                    className = clsStmt->name;
+                    isClass = true;
+                }
+                if (isClass)
+                {
+                    const auto *intrEntry =
+                        Lexer::KeywordTable::getEntry(Lexer::TokenType::KEYWORD_INTERRUPT);
+                    if (intrEntry && className == intrEntry->primaryWord)
+                        interruptWordShadowedByClass_ = true;
+                    return;
+                }
+            }
+            if (auto *block = dynamic_cast<AST::BlockStmt *>(node))
+            {
+                for (auto &stmt : block->statements)
+                    collectInterruptHandlers(stmt.get());
+            }
         }
 
         void TypeChecker::printSummary() const
@@ -597,6 +671,23 @@ namespace Sad
         {
             currentResult_.totalExpressions++;
 
+            // (AR) [RFC 0059] المعالجُ لا يُؤخَذ **قيمةً** أيضًا، لا نداءً فحسب: قِيس أنّ
+            //      `متغير م = عالج` ثمّ `م(0)` يُنزَّل نداءً مباشرًا للبوّابةِ بإطارٍ
+            //      `ptr null` (إزالةُ الافتراضيّةِ تعيدُ النداءَ اسميًّا) — فحارسُ موضعِ
+            //      النداءِ وحدَه بابٌ نصفُ مغلق. العنوانُ يُؤخَذ بـ«عنوان_رمز» حصرًا
+            //      (وهو نصٌّ حرفيٌّ لا مرجعُ دالّةٍ فلا يمرُّ من هنا).
+            // (EN) [RFC 0059] A handler may not be taken as a value either: measured
+            //      that binding it then calling devirtualises back into a direct call.
+            if (interruptHandlerNames_.count(expr.name) > 0)
+            {
+                reportCatalogError(
+                    Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT,
+                    {{"detail",
+                      "«" + expr.name + "»: معالجُ المقاطعةِ لا يُؤخَذ قيمةً ولا يُنادى — "
+                      "خذ عنوانَه بـ«عنوان_رمز» وسجّله في جدولِ المقاطعات"}},
+                    &expr);
+            }
+
             auto type = lookupVariable(expr.name);
             if (type)
             {
@@ -906,6 +997,28 @@ namespace Sad
             //      the payload (arity/types), set the inferred type, and return early.
             //      Actual value building (tagged union) is in interpreter/codegen (A-M3/A-M4).
             // ============================================================
+            // ════════════════════════════════════════════════════════════════
+            // (AR) [RFC 0059 — ح٢] لا تُنادى دالّةُ المقاطعة. بوّابةُ المقاطعةِ تُدخَل
+            //      بإطارٍ يدفعُه العتادُ وتُغادَر بـiretq، فنداؤها كدالّةٍ عاديّةٍ يدخلُها
+            //      بإطارٍ لم يوجد ثمّ يخرجُ على مكدّسٍ مكسور: انهيارٌ صامتٌ لا يمسكُه
+            //      اختبار. عنوانُها يُؤخَذ بـ«عنوان_رمز» ويُسجَّل في جدولِ المقاطعات.
+            //      الحارسُ هنا في موضعِ النداءِ الاسميّ — والنداءُ غيرُ المباشرِ عبر
+            //      مرجعِ دالّةٍ دَينٌ معلَنٌ (لا يُلتقَط اسمًا في هذه الطبقة).
+            // (EN) [RFC 0059] An interrupt handler is never called from Sad.
+            // ════════════════════════════════════════════════════════════════
+            if (auto *intrCallee = dynamic_cast<AST::VariableExpr *>(expr.callee.get()))
+            {
+                if (interruptHandlerNames_.count(intrCallee->name) > 0)
+                {
+                    reportCatalogError(
+                        Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT,
+                        {{"detail",
+                          "«" + intrCallee->name + "»: معالجُ المقاطعةِ لا يُنادى — "
+                          "خذ عنوانَه بـ«عنوان_رمز» وسجّله في جدولِ المقاطعات"}},
+                        &expr);
+                }
+            }
+
             if (auto *calleeVar = dynamic_cast<AST::VariableExpr *>(expr.callee.get()))
             {
                 // (AR) المُعامِل يخسر التنازع أمام دالّة/رمزٍ مُصرَّحٍ صراحةً (🔴-٢ من مراجعة أميليا):

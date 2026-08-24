@@ -23,7 +23,7 @@ struct ArchConstrainedOpcode
     std::string_view witness;  ///< (AR) منمنمةٌ شاهدةٌ على القيد
 };
 
-inline constexpr std::array<ArchConstrainedOpcode, 34> ARCH_CONSTRAINED_OPCODES = {{
+inline constexpr std::array<ArchConstrainedOpcode, 35> ARCH_CONSTRAINED_OPCODES = {{
     {"BUILTIN_CLI", "x86", "عائلة x86 (i686 وx86_64)", "cli"},
     {"BUILTIN_CPUID", "x86", "عائلة x86 (i686 وx86_64)", "cpuid"},
     {"BUILTIN_DMA_INIT", "x86", "عائلة x86 (i686 وx86_64)", "outb"},
@@ -58,6 +58,7 @@ inline constexpr std::array<ArchConstrainedOpcode, 34> ARCH_CONSTRAINED_OPCODES 
     {"LOWLEVEL_GDT_LOAD", "x86", "عائلة x86 (i686 وx86_64)", "lgdt"},
     {"LOWLEVEL_IDT_LOAD", "x86", "عائلة x86 (i686 وx86_64)", "lidt"},
     {"LOWLEVEL_PAGING_FLUSH_TLB", "x86", "عائلة x86 (i686 وx86_64)", "mov %cr3"},
+    {"LOWLEVEL_TASK_REGISTER_LOAD", "x86", "عائلة x86 (i686 وx86_64)", "ltr"},
 }};
 
 // (AR) أسماءُ llvm::Triple::ArchType المقبولةُ لعائلة x86.
@@ -115,6 +116,7 @@ inline const ArchConstrainedOpcode* findArchConstraint(::Sad::Compiler::SIR::SIR
     case Op::LOWLEVEL_GDT_LOAD: return &ARCH_CONSTRAINED_OPCODES[31];
     case Op::LOWLEVEL_IDT_LOAD: return &ARCH_CONSTRAINED_OPCODES[32];
     case Op::LOWLEVEL_PAGING_FLUSH_TLB: return &ARCH_CONSTRAINED_OPCODES[33];
+    case Op::LOWLEVEL_TASK_REGISTER_LOAD: return &ARCH_CONSTRAINED_OPCODES[34];
     default: return nullptr;
     }
 }

@@ -452,6 +452,26 @@ namespace Sad
             std::unordered_set<std::string> userClassNames_;
 
             // ==================================================================
+            // (AR) [RFC 0059] أسماءُ معالِجاتِ المقاطعةِ المصرَّحةِ في وحدةِ الترجمة.
+            //      تُجمَع عند التصريحِ ليُمنَع نداؤها في مواضعِ النداء: بوّابةُ المقاطعةِ
+            //      تُدخَل بإطارٍ يدفعُه العتادُ وتُغادَر بـiretq، فنداؤها كدالّةٍ عاديّةٍ
+            //      يعودُ على مكدّسٍ مكسورٍ — انهيارٌ صامتٌ لا يمسكه اختبار.
+            // (EN) [RFC 0059] Declared interrupt-handler names, collected so calls to
+            //      them can be rejected: an interrupt gate must be entered by hardware.
+            // ==================================================================
+            std::unordered_set<std::string> interruptHandlerNames_;
+
+            /// (AR) [RFC 0059] مرورٌ تمهيديٌّ يملأ `interruptHandlerNames_` قبل فحصِ
+            ///      الأجسام، فلا يعتمدُ حارسُ منعِ النداءِ ترتيبَ التصريح.
+            /// (EN) [RFC 0059] Pre-pass filling interruptHandlerNames_ before bodies.
+            void collectInterruptHandlers(AST::ASTNode *node);
+
+            /// (AR) [RFC 0059] هل صُرِّح في الوحدةِ صنفٌ اسمُه «مقاطعة»؟ حينَها يلتبسُ
+            ///      المُعدِّلُ بنوعِ العائدِ فيُشخَّص التصادمُ بدل حسمِه صامتًا.
+            /// (EN) [RFC 0059] A class named «مقاطعة» makes the modifier ambiguous.
+            bool interruptWordShadowedByClass_ = false;
+
+            // ==================================================================
             // (AR) SEM045 (حقول الأصناف): تصنيفُ كلِّ حقلٍ مُصرَّحٍ — صنف ← (حقل ←
             //      SadTypeKind). قِيس أنّ StructRegistry **لا يملؤه أحد** (لا نداءَ
             //      لـregisterStruct خارج بانيه الميّت)، فقراءةُ أنواعِ الحقول منه

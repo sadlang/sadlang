@@ -2283,6 +2283,8 @@ namespace Sad
                 inline constexpr std::string_view CPUCTL_19 = "تقرير_مقاطعات";
                 // (AR) عنوان رمز رابط خارجيّ (address-of-symbol) — يعيد العنوان كـرقم
                 inline constexpr std::string_view CPUCTL_20 = "عنوان_رمز";
+                // (AR) يحمّل سجلّ المهمّة TR بمنتقي واصف TSS (ltr) — بوّابة مكدّسات IST لمعالجات المقاطعة (RFC 0059)
+                inline constexpr std::string_view CPUCTL_21 = "حمل_سجل_المهمة";
             }
 
             // ─────────── CompilerHw ───────────
@@ -3168,7 +3170,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1177> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1178> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -4189,7 +4191,7 @@ namespace Sad
             {Names::CompilerIo::IO_0, "CompilerIo", "MODULE_FUNCTION", "NONE", false, "نم", "", ""},
             {Names::CompilerIo::IO_1, "CompilerIo", "MODULE_FUNCTION", "NONE", false, "قراءة_سطر", "", ""},
             {Names::CompilerIo::IO_2, "CompilerIo", "MODULE_FUNCTION", "NONE", false, "مسح_الشاشة", "", ""},
-            // ─── CompilerCpuCtl (21) ───
+            // ─── CompilerCpuCtl (22) ───
             {Names::CompilerCpuCtl::CPUCTL_0, "CompilerCpuCtl", "MODULE_FUNCTION", "NONE", false, "معلومات_المعالج", "", ""},
             {Names::CompilerCpuCtl::CPUCTL_1, "CompilerCpuCtl", "MODULE_FUNCTION", "NONE", false, "ميزات_المعالج", "", ""},
             {Names::CompilerCpuCtl::CPUCTL_2, "CompilerCpuCtl", "MODULE_FUNCTION", "NONE", false, "اقرأ_سجل_نموذج", "", ""},
@@ -4211,6 +4213,7 @@ namespace Sad
             {Names::CompilerCpuCtl::CPUCTL_18, "CompilerCpuCtl", "MODULE_FUNCTION", "NONE", false, "فعل_طلب_مقاطعة", "", ""},
             {Names::CompilerCpuCtl::CPUCTL_19, "CompilerCpuCtl", "MODULE_FUNCTION", "NONE", false, "تقرير_مقاطعات", "", ""},
             {Names::CompilerCpuCtl::CPUCTL_20, "CompilerCpuCtl", "MODULE_FUNCTION", "NONE", false, "عنوان رمز رابط خارجيّ (address-of-symbol) — يعيد العنوان كـرقم", "", ""},
+            {Names::CompilerCpuCtl::CPUCTL_21, "CompilerCpuCtl", "MODULE_FUNCTION", "NONE", false, "يحمّل سجلّ المهمّة TR بمنتقي واصف TSS (ltr) — بوّابة مكدّسات IST لمعالجات المقاطعة (RFC 0059)", "", ""},
             // ─── CompilerHw (27) ───
             {Names::CompilerHw::HW_0, "CompilerHw", "MODULE_FUNCTION", "NONE", false, "عدد_أجهزة_ناقل", "", ""},
             {Names::CompilerHw::HW_1, "CompilerHw", "MODULE_FUNCTION", "NONE", false, "اقرأ_اعدادات_ناقل", "", ""},
@@ -4402,7 +4405,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", false, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1177, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1178, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

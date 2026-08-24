@@ -60,7 +60,7 @@ const std::vector<KeywordEntry>& allEntries() {
         { "و", TokenType::OP_AND, KeywordCategory::OPERATOR, true, {}, {}, "and" },
         { "أو", TokenType::OP_OR, KeywordCategory::OPERATOR, true, {}, {}, "or" },
         { "ليس", TokenType::OP_NOT, KeywordCategory::OPERATOR, true, {}, {}, "not" },
-        // ─── contextual (43) ───
+        // ─── contextual (44) ───
         { "مؤكد", TokenType::OP_NULL_ASSERT, KeywordCategory::CONTEXTUAL, false, {"مؤكدة"}, {}, "asserted" },
         { "خاصية", TokenType::KEYWORD_PROPERTY, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "property" },
         { "احصل", TokenType::KEYWORD_GET, KeywordCategory::CONTEXTUAL, false, {}, {}, "get" },
@@ -95,6 +95,7 @@ const std::vector<KeywordEntry>& allEntries() {
         { "متطاير", TokenType::KEYWORD_VOLATILE, KeywordCategory::CONTEXTUAL, false, {}, {}, "volatile" },
         { "تجميع", TokenType::KEYWORD_ASM, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "asm" },
         { "لا_ترجع", TokenType::KEYWORD_NORETURN, KeywordCategory::CONTEXTUAL, false, {}, {}, "noreturn" },
+        { "مقاطعة", TokenType::KEYWORD_INTERRUPT, KeywordCategory::CONTEXTUAL, false, {}, {}, "interrupt" },
         { "اعطِ", TokenType::KEYWORD_GIVE_DEPRECATED, KeywordCategory::CONTEXTUAL, false, {}, {}, "give_deprecated" },
         { "ثم", TokenType::KEYWORD_THEN, KeywordCategory::CONTEXTUAL, false, {}, {}, "then" },
         { "انشر", TokenType::KEYWORD_PROPAGATE, KeywordCategory::CONTEXTUAL, false, {}, {}, "propagate" },

@@ -192,6 +192,41 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     return BuildResult("", SadTypeKind::Void);
                 }
+                // (AR) [RFC 0059] حمل_سجل_المهمة (ltr): منتقي واصفِ TSS إلزاميّ —
+                //      نظيرُ lgdt/lidt لكن معاملُه منتقٍ 16-بتّيّ لا مؤشّرُ واصف.
+                //      بوّابةُ مكدّساتِ IST التي تعتمدُها معالجاتُ المقاطعةِ الجادّة.
+                // (EN) [RFC 0059] load-task-register (ltr): a mandatory 16-bit TSS
+                //      selector — the gate for the IST stacks interrupt handlers need.
+                if (funcName == Bn::CompilerCpuCtl::CPUCTL_21)
+                {
+                    if (!checkOsCoreArity(b_.errors_, funcName, 1, 1, argResults.size()))
+                        return BuildResult("", SadTypeKind::Void);
+                    // (AR) بوّابةُ الوضع: `ltr` تعليمةُ حلقةٍ صفريّةٍ تُصدرها الخلفيّةُ
+                    //      أسمبليًّا خامًّا بلا ذراعٍ مستضافةٍ (خلافَ lgdt/lidt اللتين
+                    //      تنادِيان رمزَ وقتِ تشغيلٍ مستضافًا). فإصدارُها في وحدةِ
+                    //      حلقةٍ ثالثةٍ يعني ‎#GP‎ عند التنفيذ — رفضٌ زمنَ الترجمةِ
+                    //      أصدقُ من ثنائيٍّ ينهارُ عند أوّلِ نداء.
+                    // (EN) Mode gate: ltr is a ring-0 instruction emitted as raw inline
+                    //      asm with no hosted arm — emitting it into a ring-3 module
+                    //      means #GP at run time, so reject at compile time.
+                    if (!b_.isFreestandingMode())
+                    {
+                        Sad::Errors::RenderContext ltrCtx;
+                        ltrCtx.placeholders = {
+                            {"detail",
+                             "«" + funcName + "»: تعليمةُ حلقةٍ صفريّة (ltr) لا تُصدَر في "
+                             "وحدةٍ مستضافةٍ فوقَ نظامِ تشغيل — صرّف بالوضعِ الحرّ"}};
+                        b_.errors_.push_back(
+                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Sad::Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT, ltrCtx));
+                        return BuildResult("", SadTypeKind::Void);
+                    }
+                    SIRInstruction inst(SIROpcode::LOWLEVEL_TASK_REGISTER_LOAD);
+                    inst.operands.push_back(argOperands[0]);
+                    if (b_.currentBlock_)
+                        b_.currentBlock_->instructions.push_back(inst);
+                    return BuildResult("", SadTypeKind::Void);
+                }
                 if (funcName == Bn::CompilerCpuCtl::CPUCTL_9)
                 {
                     if (!checkOsCoreArity(b_.errors_, funcName, 0, 0, argResults.size()))

@@ -92,6 +92,7 @@ public:
     llvm::Value *emitLowlevelFbInit(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitLowlevelFbSetPixel(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitLowlevelGdtGetReport(std::shared_ptr<SIRInstruction>);
+    llvm::Value *emitLowlevelTaskRegisterLoad(std::shared_ptr<SIRInstruction>); ///< (AR) [RFC 0059] ltr
     llvm::Value *emitLowlevelGdtInit(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitLowlevelGdtLoad(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitLowlevelHpetGetReport(std::shared_ptr<SIRInstruction>);

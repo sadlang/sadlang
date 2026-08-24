@@ -233,6 +233,7 @@ namespace Sad
             KEYWORD_UNSAFE,   ///< غير_آمن / unsafe (كتلة غير آمنة - unsafe block for raw ops)
             KEYWORD_PACKED,   ///< محزوم / packed (بنية محزومة بلا حشو - packed struct without padding)
             KEYWORD_NORETURN, ///< بلا_رجوع / noreturn (دالة لا ترجع أبداً - function never returns)
+            KEYWORD_INTERRUPT, ///< مقاطعة / interrupt (RFC 0059: بوّابة مقاطعة — خفض x86_intrcc)
             KEYWORD_NAKED,    ///< عارية / naked (دالة بدون مقدمة/خاتمة - no prologue/epilogue)
             KEYWORD_REGISTER, ///< سجل / register (تخزين في سجل المعالج - store in CPU register)
             KEYWORD_SECTION,  ///< قسم / section (تحديد قسم في الذاكرة - memory section)

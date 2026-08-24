@@ -168,7 +168,13 @@ categories:
       - { id: "KW-CTX-041", subcategory: "low_level", since: "1.0.0", word: "تجميع", tokenType: KEYWORD_ASM, english: asm, roles: [block_opener] }
 
       # ── مُعدِّل الدوال: لا تعود أبداً (اللبنة 3.15) — يلي «دالة» قبل الاسم ──
-      - { id: "KW-CTX-040", subcategory: "low_level", since: "1.0.0", word: "لا_ترجع", tokenType: KEYWORD_NORETURN, english: noreturn }
+      - { id: "KW-CTX-043", subcategory: "low_level", since: "1.0.0", word: "لا_ترجع", tokenType: KEYWORD_NORETURN, english: noreturn }
+
+      # ── مُعدِّل الدوال: بوّابةُ مقاطعةٍ (RFC 0059) — يلي «دالة» قبل الاسم ──
+      #    «دالة مقاطعة عالج(رقم إطار)»: يخفَّض باتّفاقيّة x86_intrcc فيتولّد
+      #    prologue/epilogue بوّابةٍ كاملان (حفظُ السجلّات والعودةُ بـiretq).
+      #    كلمةٌ سياقيّةٌ كنظائرها فتبقى صالحةً اسمًا خارج موضعِها بعد «دالة».
+      - { id: "KW-CTX-044", subcategory: "low_level", since: "1.0.0", word: "مقاطعة", tokenType: KEYWORD_INTERRUPT, english: interrupt }
 
       # ── مهجور / Deprecated ──
       - { id: "KW-CTX-032", subcategory: "deprecated", since: "1.0.0", word: "اعطِ", tokenType: KEYWORD_GIVE_DEPRECATED, english: give_deprecated }

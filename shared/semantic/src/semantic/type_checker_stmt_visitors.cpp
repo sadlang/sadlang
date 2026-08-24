@@ -720,6 +720,81 @@ namespace Sad
         {
             currentResult_.totalFunctions++;
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) [RFC 0059 — ح٢] عقدُ «دالة مقاطعة» يُفرَض في الطبقةِ الدلاليّةِ
+            //      المشتركةِ لا في الخفض، فيبلغُ المحرّكاتِ كلَّها بدلالةٍ واحدةٍ
+            //      (درسُ توحيد SEM018). الشروطُ مطالبُ عتادٍ ومُصادِقٍ لا اختيارات:
+            //      إطارُ المقاطعةِ معاملٌ أوّلُ إلزاميّ، ورمزُ الخطأِ ثانٍ اختياريّ،
+            //      والعائدُ فراغٌ (لا مكانَ لقيمةِ عائدٍ في iretq)، والمعالجُ يلزمُه
+            //      جسمٌ (فلا يجتمعُ مع «خارجية») ولا حالةَ معلَّقةً في بوّابةِ عتادٍ
+            //      (فلا يجتمعُ مع غيرِ المتزامنةِ ولا المولّد). وأسماءُ المعالِجات
+            //      تُجمَع هنا كي يُمنَع نداؤها في مواضعِ النداء.
+            // (EN) [RFC 0059] The interrupt-handler contract is enforced in the shared
+            //      semantic layer so every engine sees one meaning.
+            // ════════════════════════════════════════════════════════════════
+            if (decl.isInterruptHandler)
+            {
+                interruptHandlerNames_.insert(decl.name);
+
+                if (decl.parameters.empty() || decl.parameters.size() > 2)
+                {
+                    reportCatalogError(
+                        Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT,
+                        {{"detail",
+                          "«" + decl.name + "»: معالجُ المقاطعةِ يأخذ إطارَ المقاطعةِ "
+                          "معاملًا أوّلَ إلزاميًّا، ورمزَ الخطأِ معاملًا ثانيًا اختياريًّا "
+                          "لا أكثر (وُجد " + std::to_string(decl.parameters.size()) + ")"}},
+                        &decl);
+                }
+                if (decl.returnType != Types::SadTypeKind::Unknown &&
+                    decl.returnType != Types::SadTypeKind::Void)
+                {
+                    reportCatalogError(
+                        Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT,
+                        {{"detail",
+                          "«" + decl.name + "»: عائدُ معالجِ المقاطعةِ فراغٌ حصرًا — "
+                          "العودةُ بـiretq لا تحمل قيمةً"}},
+                        &decl);
+                }
+                if (decl.isExtern)
+                {
+                    reportCatalogError(
+                        Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT,
+                        {{"detail",
+                          "«" + decl.name + "»: معالجُ المقاطعةِ يلزمُه جسمٌ — "
+                          "لا يجتمعُ المُعدِّلُ مع التصريحِ الخارجيّ"}},
+                        &decl);
+                }
+                if (decl.is_async || decl.isGenerator)
+                {
+                    reportCatalogError(
+                        Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT,
+                        {{"detail",
+                          "«" + decl.name + "»: لا حالةَ معلَّقةً داخلَ بوّابةِ عتادٍ — "
+                          "المُعدِّلُ لا يجتمعُ مع غيرِ المتزامنةِ ولا مع المولّد"}},
+                        &decl);
+                }
+                if (decl.isNoReturn)
+                {
+                    reportCatalogError(
+                        Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT,
+                        {{"detail",
+                          "«" + decl.name + "»: تنافرٌ تصريفيّ — المقاطعةُ تعودُ بـiretq "
+                          "بينما «لا_ترجع» تُعلن أنّها لا تعودُ أبدًا"}},
+                        &decl);
+                }
+                if (interruptWordShadowedByClass_)
+                {
+                    reportCatalogError(
+                        Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT,
+                        {{"detail",
+                          "«" + decl.name + "»: التباسٌ — صنفٌ اسمُه «مقاطعة» مصرَّحٌ في "
+                          "الوحدةِ نفسِها، فالصيغةُ «دالة مقاطعة اسم(...)» تحتملُ مُعدِّلَ "
+                          "البوّابةِ ونوعَ العائدِ سواءً. أعِد تسميةَ الصنف"}},
+                        &decl);
+                }
+            }
+
             std::string prevFunction = currentFunction_;
             TypePtr prevReturnType = expectedReturnType_;
 

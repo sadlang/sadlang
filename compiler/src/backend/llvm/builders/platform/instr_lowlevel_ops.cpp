@@ -102,6 +102,8 @@ namespace Sad
                 return cg_.emitLowlevelGdtInit(inst);
             case SIROpcode::LOWLEVEL_GDT_LOAD:
                 return cg_.emitLowlevelGdtLoad(inst);
+            case SIROpcode::LOWLEVEL_TASK_REGISTER_LOAD:
+                return cg_.emitLowlevelTaskRegisterLoad(inst);
             case SIROpcode::LOWLEVEL_GDT_GET_REPORT:
                 return cg_.emitLowlevelGdtGetReport(inst);
 

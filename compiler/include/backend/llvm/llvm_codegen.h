@@ -1573,6 +1573,7 @@ namespace Sad
             // 15b. وحدة GDT (3)
             llvm::Value *emitLowlevelGdtInit(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelGdtInit(inst); }           // هيئ_جدول_واصفات
             llvm::Value *emitLowlevelGdtLoad(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelGdtLoad(inst); }           // حمل_جدول_واصفات
+            llvm::Value *emitLowlevelTaskRegisterLoad(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelTaskRegisterLoad(inst); } // حمل_سجل_المهمة (ltr — RFC 0059)
             llvm::Value *emitLowlevelGdtGetReport(std::shared_ptr<SIRInstruction> inst) { return ll_->emitLowlevelGdtGetReport(inst); } // تقرير_واصفات
 
             // 15c. وحدة الترحيل / Paging (5)

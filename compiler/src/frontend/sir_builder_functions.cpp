@@ -321,6 +321,31 @@ namespace Sad
                 // (AR) اللبنة 3.15: مُعدِّل «دالة لا_ترجع» ⇒ سمة LLVM NoReturn في codegen.
                 // (EN) Brick 3.15: 'دالة لا_ترجع' modifier ⇒ LLVM NoReturn attribute in codegen.
                 sirFunction->isNoReturn = funcDecl->isNoReturn;
+                // (AR) RFC 0059: مُعدِّل «مقاطعة» يعبرُ إلى SIR علمًا بوليانيًّا مطبوعًا
+                //      لا سلسلةَ سمةٍ نصّيّةً (فلا يقعُ في فخِّ «السمةُ المجهولةُ تُقبَل بلا أثر»).
+                // (EN) RFC 0059: the interrupt modifier crosses into SIR as a typed flag.
+                sirFunction->isInterruptHandler = funcDecl->isInterruptHandler;
+                // (AR) بوّابةُ الوضعِ (حارسُ RFC 0059 رقم ٥) **هنا** لا في الخفض: قِيس
+                //      أنّ خطأَ الخلفيّةِ يُفشِلُ البناءَ في الوضعِ الحرِّ وحدَه (بوّابةُ
+                //      hasErrors الحرّة في السائق) ويُبتلَع مستضافًا ⇒ بلاغٌ برمزِ خروجٍ
+                //      صفرٍ: حارسٌ لا يحرس. والأماميّةُ تعرفُ الوضعَ ودفعُها إلى errors_
+                //      يُفشِل البناءَ في الحالين. (بوّابةُ المعماريّةِ تبقى في الخفضِ لأنّ
+                //      ثالوثَ الهدفِ لا يبلغُ هذه الطبقة — وهي حرّيّةُ المسارِ أصلًا.)
+                // (EN) Mode gate lives here, not in lowering: a backend error only fails
+                //      the build in freestanding mode and is swallowed hosted (exit 0) —
+                //      a guard that cannot fire. The frontend knows the mode and pushing
+                //      to errors_ fails the build either way.
+                if (funcDecl->isInterruptHandler && !isFreestandingMode())
+                {
+                    Sad::Errors::RenderContext intrCtx;
+                    intrCtx.placeholders = {
+                        {"detail",
+                         "«" + funcDecl->name + "»: بوّابةُ المقاطعةِ لا معنى لها في وحدةٍ "
+                         "مستضافةٍ فوقَ نظامِ تشغيل — صرّف بالوضعِ الحرّ"}};
+                    errors_.push_back(
+                        Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                            Sad::Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT, intrCtx));
+                }
                 // (AR) [RFC #53 F2-ج] راية الدالّة الخارجيّة (FFI) + اسم صنف العائد: تفعّل
                 //      الخلفيّةُ بهما تمريرَ/إرجاعَ بنية @تمثيل_سي **بالقيمة** حسب تصنيف ABI
                 //      للهدف (على حدّ FFI حصرًا؛ نداءات ص↔ص تُبقي البنى مؤشِّرات كائنيّة).

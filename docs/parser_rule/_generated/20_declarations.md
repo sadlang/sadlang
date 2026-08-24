@@ -252,12 +252,12 @@ flowchart LR
 
 #### 📐 BNF
 ```bnf
-FunctionDeclaration = 'دالة' [ Type ] Identifier '(' [ Parameters ] ')'
-                      [ 'غير_متزامن' ] Block ;
+FunctionDeclaration = 'دالة' [ 'لا_ترجع' ] [ 'مقاطعة' ] [ Type ] Identifier
+                      '(' [ Parameters ] ')' [ 'غير_متزامن' ] Block ;
 ```
 
 #### 🧩 تفصيل البدائل
-- `«دالة» [ type_ref ] «IDENTIFIER» «(» [ parameters ] «)» [ «غير_متزامن» ] block`
+- `«دالة» [ «لا_ترجع» ] [ «مقاطعة» ] [ type_ref ] «IDENTIFIER» «(» [ parameters ] «)» [ «غير_متزامن» ] block`
 
 #### 🔻 المسار إلى المحلل (دوال التحليل) ⇒ AST
 **دالة (دوال) الدخول:**
@@ -265,7 +265,7 @@ FunctionDeclaration = 'دالة' [ Type ] Identifier '(' [ Parameters ] ')'
 - **عقدة AST المُنتَجة:** `FunctionDecl`
 - **يستدعي دوال:** [`parseVarDecl`](20_declarations.md#gr.decl.type_ref)، [`parseBlockStmt`](00_program.md#gr.program.block)
 - **مُستدعى من:** [`parseDeclaration`](00_program.md#gr.program.declaration)، [`parseImplDecl`](30_oop.md#gr.oop.impl)، [`parseExtensionDecl`](30_oop.md#gr.oop.extension)، [`parseTemplateDecl`](60_advanced.md#gr.adv.template_decl)، [`parseUIDeclaration`](60_advanced.md#gr.adv.ui_decl)
-- **روابط المعجم:** كلمات: «دالة»
+- **روابط المعجم:** كلمات: «دالة»، «لا_ترجع»، «مقاطعة»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -286,36 +286,50 @@ flowchart LR
   n2["«دالة»"]
   n3{"◇"}
   n4{"◇"}
-  n5["type_ref"]
+  n5["«لا_ترجع»"]
   n3 --> n5
   n5 --> n4
   n3 -- "تخطّي" --> n4
   n2 --> n3
-  n6["«IDENTIFIER»"]
+  n6{"◇"}
+  n7{"◇"}
+  n8["«مقاطعة»"]
+  n6 --> n8
+  n8 --> n7
+  n6 -- "تخطّي" --> n7
   n4 --> n6
-  n7["«(»"]
-  n6 --> n7
-  n8{"◇"}
   n9{"◇"}
-  n10["parameters"]
-  n8 --> n10
-  n10 --> n9
-  n8 -- "تخطّي" --> n9
-  n7 --> n8
-  n11["«)»"]
+  n10{"◇"}
+  n11["type_ref"]
   n9 --> n11
-  n12{"◇"}
-  n13{"◇"}
-  n14["«غير_متزامن»"]
-  n12 --> n14
-  n14 --> n13
-  n12 -- "تخطّي" --> n13
-  n11 --> n12
-  n15["block"]
-  n13 --> n15
+  n11 --> n10
+  n9 -- "تخطّي" --> n10
+  n7 --> n9
+  n12["«IDENTIFIER»"]
+  n10 --> n12
+  n13["«(»"]
+  n12 --> n13
+  n14{"◇"}
+  n15{"◇"}
+  n16["parameters"]
+  n14 --> n16
+  n16 --> n15
+  n14 -- "تخطّي" --> n15
+  n13 --> n14
+  n17["«)»"]
+  n15 --> n17
+  n18{"◇"}
+  n19{"◇"}
+  n20["«غير_متزامن»"]
+  n18 --> n20
+  n20 --> n19
+  n18 -- "تخطّي" --> n19
+  n17 --> n18
+  n21["block"]
+  n19 --> n21
   n1 --> n2
-  n16(["⇒ FunctionDecl"])
-  n15 --> n16
+  n22(["⇒ FunctionDecl"])
+  n21 --> n22
 ```
 
 #### مثال

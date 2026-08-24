@@ -379,6 +379,39 @@ namespace Sad
             //      misleading cascade. A method *named* خارجي/خارجية ('(' followed
             //      by a non-string) stays legal as before RFC 0034.
             // ─────────────────────────────────────────────────────────────────
+            // ─────────────────────────────────────────────────────────────────
+            // (AR) [RFC 0059] مُعدِّلُ «مقاطعة» لا يصحُّ على طريقةِ صنف: بوّابةُ المقاطعةِ
+            //      تُدخَل بإطارٍ يدفعُه العتادُ ولا مستقبِلَ لها («هذا» لا وجودَ له في
+            //      إطارِ العتاد)، وعنوانُها يُسجَّل في جدولِ المقاطعاتِ رمزًا حرًّا.
+            //      وقبل هذا الرفضِ كان المُعدِّلُ **يُسقَط صامتًا**: الكاتبُ يظنُّ أنّه
+            //      صرّح بوّابةً فيحصلُ على طريقةٍ عاديّةٍ بلا اتّفاقيّةٍ ولا byval
+            //      (قِيس: EXIT=0 وصفرُ تشخيص) — قبولٌ-وتجاهلٌ أسوأُ من الرفض.
+            //      وطريقةٌ *اسمُها* «مقاطعة» ('(' تليها) تبقى مشروعةً كما كانت.
+            // (EN) [RFC 0059] The interrupt modifier is invalid on a class method: an
+            //      interrupt gate has no receiver and is installed by symbol address.
+            //      It used to be silently dropped (accept-and-ignore) — worse than a
+            //      rejection. A method *named* «مقاطعة» stays legal.
+            // ─────────────────────────────────────────────────────────────────
+            if ((check(TT::KEYWORD_INTERRUPT) ||
+                 (check(TT::IDENTIFIER) &&
+                  current_.getValue() == kw(TT::KEYWORD_INTERRUPT))) &&
+                peekNext().getType() != TT::PAREN_LEFT)
+            {
+                errorCatalog(Errors::ErrorCode::SYN_DECL_NOT_ALLOWED_HERE,
+                             {{"decl_ar", "مُعدِّلُ '" + kw(TT::KEYWORD_FUNCTION) + " " +
+                                              kw(TT::KEYWORD_INTERRUPT) +
+                                              "' (بوّابةُ عتادٍ بلا مستقبِل)"},
+                              {"decl_en", "the '" + kw(TT::KEYWORD_FUNCTION) + " " +
+                                              kw(TT::KEYWORD_INTERRUPT) +
+                                              "' modifier (a hardware gate has no receiver)"},
+                              {"where_ar", "صنف"},
+                              {"where_en", "a class"},
+                              {"example", kw(TT::KEYWORD_FUNCTION) + " " +
+                                              kw(TT::KEYWORD_INTERRUPT) + " عالج(" +
+                                              kw(TT::TYPE_INTEGER) + " إطار)"}});
+                advance(); // (AR) تعافٍ: استهلاك المُعدِّل ومتابعةُ التوقيع (لا تعاقب)
+            }
+
             bool namePinned = false;
             if (check(TT::KEYWORD_EXTERN))
             {

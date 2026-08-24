@@ -66,6 +66,7 @@ namespace Sad
             bool isGenerator;                        ///< Is generator function? / دالة مولد؟ (Phase 7)
             bool isExtern;                           ///< Is external function? / دالة خارجية؟ (FFI)
             bool isNoReturn = false;                 ///< (AR) دالة لا_ترجع — لا تعود أبداً / (EN) noreturn modifier → LLVM NoReturn
+            bool isInterruptHandler = false;         ///< (AR) دالة مقاطعة — بوّابةُ عتادٍ تُخفَّض بـx86_intrcc (RFC 0059) / (EN) interrupt modifier → x86_intrcc
             std::string linkName;                    ///< FFI link name (empty = use function name) / اسم الربط الخارجي
             ExprList decorators;                     ///< Decorators (@decorator) / المُزخرِفات
             std::vector<std::string> lifetimeParams; ///< Lifetime parameters <'أ, 'ب> / معاملات العمر

@@ -262,14 +262,35 @@ namespace Sad
                     // Create alloca for parameter
                     llvm::IRBuilder<> tmpBuilder(&llvmFunc->getEntryBlock(),
                                                  llvmFunc->getEntryBlock().begin());
+
+                    // (AR) [RFC 0059] جسرُ إطارِ المقاطعة: المعاملُ الأوّلُ لدالّةِ
+                    //      المقاطعةِ يُخفَّض مؤشّرًا بسمةِ byval (شرطُ مُصادِقِ LLVM
+                    //      لاتّفاقيّةِ x86_intrcc، لا خيار)، بينما يُصرَّحُ سطحيًّا
+                    //      `رقم` ويقرؤه كاتبُ ص عنوانًا خامًّا كما اعتادَ في مدمجاتِ
+                    //      العتاد. فنجسّرُه هنا بـptrtoint في المقدّمةِ ونخزّنُه في
+                    //      خانةٍ عدديّةٍ — فلا يرى الجسمُ مؤشّرًا لا يعرفُ نوعَه.
+                    // (EN) [RFC 0059] Interrupt-frame bridge: the first parameter is
+                    //      lowered as a byval pointer (an LLVM verifier requirement for
+                    //      x86_intrcc) while the surface type is `رقم`; bridge it with
+                    //      ptrtoint into an integer slot in the prologue.
+                    llvm::Value *incoming = &arg;
+                    llvm::Type *slotType = arg.getType();
+                    if (sirFunc->isInterruptHandler && idx == 0 &&
+                        arg.getType()->isPointerTy())
+                    {
+                        slotType = llvm::Type::getInt64Ty(*context_);
+                        incoming = tmpBuilder.CreatePtrToInt(&arg, slotType,
+                                                             "intr.frame.addr");
+                    }
+
                     llvm::AllocaInst *alloca = tmpBuilder.CreateAlloca(
-                        arg.getType(),
+                        slotType,
                         nullptr,
                         paramName);
 
                     // تخزين قيمة المعامل
                     // Store parameter value
-                    tmpBuilder.CreateStore(&arg, alloca);
+                    tmpBuilder.CreateStore(incoming, alloca);
 
                     // حفظ في القيم المسماة
                     // Save to named values

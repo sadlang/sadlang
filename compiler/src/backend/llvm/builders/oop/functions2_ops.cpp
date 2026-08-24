@@ -21,6 +21,7 @@
 #include <llvm/IR/Verifier.h>
 #include <llvm/IR/Attributes.h>
 #include <llvm/Support/Alignment.h>
+#include <llvm/TargetParser/Triple.h> // (AR) بوّابةُ معماريّةِ RFC 0059
 #include <llvm/Support/ModRef.h>
 #include <llvm/Support/raw_ostream.h>
 #include <iostream>
@@ -341,6 +342,50 @@ namespace Sad
                 cg_.context_info_.functionParamSirTypes[sirFunc->name] = sirParamTypes;
             }
 
+            // ════════════════════════════════════════════════════════════════════
+            // (AR) [RFC 0059 — ح٢] عقدُ بوّابةِ المقاطعة: اتّفاقيّةُ `x86_intrcc` تفرضُ
+            //      على المُصادِقِ أن يكونَ **المعاملُ الأوّلُ مؤشّرًا بسمةِ byval**
+            //      (بنيةُ إطارِ المقاطعةِ التي يدفعُها العتاد)، وأن يكونَ العائدُ فراغًا.
+            //      التصريحُ السطحيُّ `رقم` يُجسَّرُ في المقدّمةِ بـptrtoint (انظر
+            //      emitFunctionParameters) فيرى كاتبُ ص عنوانًا خامًّا كما اعتاد.
+            //      بنيةُ الإطارِ الدنيا: خمسُ كلماتٍ 64-بتّيّة (RIP، CS، RFLAGS، RSP، SS).
+            //      والمعاملُ الثاني — إن وُجد — رمزُ الخطأِ الذي تدفعُه بعضُ الاستثناءات.
+            // (EN) [RFC 0059 — gap ح٢] Interrupt-gate contract: x86_intrcc requires the
+            //      first parameter to be a byval pointer to the hardware-pushed frame and
+            //      a void return; the surface `رقم` is bridged with ptrtoint in the
+            //      prologue. Minimal frame: five 64-bit words (RIP, CS, RFLAGS, RSP, SS).
+            // ════════════════════════════════════════════════════════════════════
+            llvm::StructType *interruptFrameTy = nullptr;
+            if (sirFunc->isInterruptHandler)
+            {
+                // (AR) بوّابةُ المعماريّةِ (حارسُ RFC 0059 رقم ٤) — وهي وحدَها هنا لأنّ
+                //      ثالوثَ الهدفِ لا يبلغُ الأماميّة. أمّا بوّابةُ الوضعِ (رقم ٥) فمكانُها
+                //      الأماميّةُ: خطأُ الخلفيّةِ يُفشِلُ البناءَ حرًّا ويُبتلَع مستضافًا،
+                //      فحارسٌ هنا على المستضافِ بلاغٌ برمزِ خروجٍ صفر. والرفضُ أصدقُ من
+                //      خفضٍ باتّفاقيّةٍ لا يفهمُها الهدف.
+                // (EN) Architecture gate only (the triple never reaches the frontend);
+                //      the mode gate lives in the frontend because a backend error is
+                //      swallowed in hosted mode.
+                const llvm::Triple triple(
+                    llvm::Triple::normalize(cg_.module_->getTargetTriple()));
+                if (triple.getArch() != llvm::Triple::x86_64)
+                {
+                    cg_.reportError(
+                        ::Sad::Errors::ErrorCode::SEM_INTERRUPT_HANDLER_CONTRACT,
+                        {{"detail",
+                          "«" + sirFunc->name + "»: بوّابةُ المقاطعةِ تُخفَّض على "
+                          "x86_64 حصرًا في المرحلةِ الأولى — عقدُ i386 مختلفٌ (رمزُ "
+                          "خطأٍ i32 وعودةٌ بـiret) والهدفُ هنا: " + triple.str()}});
+                }
+
+                auto *i64Ty = llvm::Type::getInt64Ty(*cg_.context_);
+                interruptFrameTy = llvm::StructType::get(
+                    *cg_.context_, {i64Ty, i64Ty, i64Ty, i64Ty, i64Ty});
+                returnType = llvm::Type::getVoidTy(*cg_.context_);
+                if (!paramTypes.empty())
+                    paramTypes[0] = llvm::PointerType::getUnqual(*cg_.context_);
+            }
+
             // إنشاء نوع الدالة
             // Create function type
             llvm::FunctionType *funcType = llvm::FunctionType::get(
@@ -487,6 +532,22 @@ namespace Sad
             if (sirFunc->isNoReturn)
             {
                 llvmFunc->addFnAttr(llvm::Attribute::NoReturn);
+            }
+
+            // (AR) [RFC 0059 — ح٢] تطبيقُ الاتّفاقيّةِ وسماتِها. الترتيبُ مقصود:
+            //      الاتّفاقيّةُ أوّلًا ثمّ byval (شرطُ المُصادِق)، وnoredzone لأنّ
+            //      الاتّفاقيّةَ لا تضبطُها ومعالجٌ يعتمدُ المنطقةَ الحمراءَ يُفسِدُه
+            //      تداخلُ NMI. وuwtable لا معنى لها هنا (لا فكَّ مكدّسٍ عبر بوّابة).
+            // (EN) [RFC 0059] Apply the calling convention and its mandatory attributes:
+            //      byval on the frame pointer (verifier requirement) and noredzone
+            //      (the convention does not set it; an NMI would corrupt the red zone).
+            if (sirFunc->isInterruptHandler && interruptFrameTy)
+            {
+                llvmFunc->setCallingConv(llvm::CallingConv::X86_INTR);
+                if (llvmFunc->arg_size() > 0)
+                    llvmFunc->addParamAttr(
+                        0, llvm::Attribute::getWithByValType(*cg_.context_, interruptFrameTy));
+                llvmFunc->addFnAttr(llvm::Attribute::NoRedZone);
             }
 
             // ═══════════════════════════════════════════════════════════════════

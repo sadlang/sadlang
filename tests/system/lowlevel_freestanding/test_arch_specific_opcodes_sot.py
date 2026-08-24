@@ -47,6 +47,11 @@ BUILDERS = ROOT / "compiler" / "src" / "backend" / "llvm" / "builders"
 _X86_MNEMONICS = (
     "cli", "sti", "hlt", "cpuid", "rdtsc", "rdmsr", "wrmsr",
     "invlpg", "lgdt", "lidt", "sgdt", "sidt", "iret",
+    # (AR) منمنماتُ جداولِ النظام: `ltr` تُحمّل سجلَّ المهمّة (TSS) وهي x86 محضة.
+    #      لا تُدرَج `str` — كلمةٌ تقع في سلاسلَ كثيرةٍ لا علاقةَ لها بالأسمبلي،
+    #      فتصير الأداةُ مُوَلِّدةَ بلاغاتٍ كاذبة (درسُ `inline`/`inl`).
+    # (EN) System-table mnemonics; `str` deliberately excluded (false positives).
+    "ltr", "lldt", "sldt",
     "inb", "outb", "inw", "outw", "inl", "outl",
     "mfence", "lfence", "sfence", "wbinvd", "pause",
     "pushfl", "popfl", "pushfq", "popfq",

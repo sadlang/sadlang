@@ -276,3 +276,16 @@ functions:
   description_en: address-of external linker symbol — returns address as integer
   params: []
   lookup_table: name_only
+- cpp_id: CPUCTL_21
+  canonical: حمل_سجل_المهمة
+  namespace: CompilerCpuCtl
+  category: MODULE_FUNCTION
+  require_import: false
+  module: NONE
+  compiler_strategy: INLINE
+  since: 0.1.0
+  status: stable
+  description_ar: يحمّل سجلّ المهمّة TR بمنتقي واصف TSS (ltr) — بوّابة مكدّسات IST لمعالجات المقاطعة (RFC 0059)
+  description_en: load the task register (TR) with a TSS descriptor selector (ltr) — the gate for IST stacks (RFC 0059)
+  params: []
+  lookup_table: name_only

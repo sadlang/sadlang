@@ -342,11 +342,14 @@ productions:
   - id: gr.decl.function
     lhs: { nonterminal: FunctionDeclaration, name_ar: "تصريح دالة", name_en: function_declaration }
     ebnf: >
-      FunctionDeclaration = 'دالة' [ Type ] Identifier '(' [ Parameters ] ')'
-                            [ 'غير_متزامن' ] Block ;
+      FunctionDeclaration = 'دالة' [ 'لا_ترجع' ] [ 'مقاطعة' ] [ Type ] Identifier
+                            '(' [ Parameters ] ')' [ 'غير_متزامن' ] Block ;
     alternatives:
       - symbols:
           - { kind: terminal, ref: KEYWORD_FUNCTION, value: "دالة" }
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_NORETURN, value: "لا_ترجع" } ] }
+          # (AR) [RFC 0059] مُعدِّلُ بوّابةِ المقاطعة — يلي «دالة» قبل النوعِ والاسم.
+          - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_INTERRUPT, value: "مقاطعة" } ] }
           - { kind: optional, children: [ { kind: nonterminal, ref: gr.decl.type_ref } ] }
           - { kind: terminal, ref: IDENTIFIER }
           - { kind: terminal, ref: PAREN_LEFT, value: "(" }
@@ -354,7 +357,7 @@ productions:
           - { kind: terminal, ref: PAREN_RIGHT, value: ")" }
           - { kind: optional, children: [ { kind: terminal, ref: KEYWORD_ASYNC, value: "غير_متزامن" } ] }
           - { kind: nonterminal, ref: gr.program.block }
-    references: { keywords: ["KW-RES-001"] }
+    references: { keywords: ["KW-RES-001", "KW-CTX-043", "KW-CTX-044"] }
     maps_to:
       - { file: shared/parser/src/declarations/parser_declarations.cpp, function: "ParserCore::parseFunctionDecl" }
     ast_node: "FunctionDecl"
