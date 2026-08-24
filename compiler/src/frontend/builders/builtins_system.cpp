@@ -80,7 +80,7 @@ namespace Sad
                 // (AR) اكتب_منفذ16 / اكتب_منفذ32
                 if (funcName == Bn::KernelCpu::CPU_11)
                 {
-                    if (argResults.size() < 2)
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_11, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_WRITE_16);
                     inst.operands.push_back(argOperands[0]);
@@ -91,7 +91,7 @@ namespace Sad
                 }
                 if (funcName == Bn::KernelCpu::CPU_13)
                 {
-                    if (argResults.size() < 2)
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_13, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_WRITE_32);
                     inst.operands.push_back(argOperands[0]);
@@ -276,7 +276,7 @@ namespace Sad
                     // وافق(أ، ب) — AND بتّيّ
                     if (funcName == Bn::KernelCpu::CPU_14)
                     {
-                        if (argResults.size() < 2)
+                        if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_14, argResults.size()))
                             return BuildResult("", SadTypeKind::Integer);
                         if (rejectNonNumericArgs(2))
                             return BuildResult("", SadTypeKind::Integer);
@@ -285,7 +285,7 @@ namespace Sad
                     // ضمّ(أ، ب) — OR بتّيّ
                     if (funcName == Bn::KernelCpu::CPU_15)
                     {
-                        if (argResults.size() < 2)
+                        if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_15, argResults.size()))
                             return BuildResult("", SadTypeKind::Integer);
                         if (rejectNonNumericArgs(2))
                             return BuildResult("", SadTypeKind::Integer);
@@ -294,7 +294,7 @@ namespace Sad
                     // خالف(أ، ب) — XOR بتّيّ
                     if (funcName == Bn::KernelCpu::CPU_16)
                     {
-                        if (argResults.size() < 2)
+                        if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_16, argResults.size()))
                             return BuildResult("", SadTypeKind::Integer);
                         if (rejectNonNumericArgs(2))
                             return BuildResult("", SadTypeKind::Integer);
@@ -304,7 +304,7 @@ namespace Sad
                     // يسلك emitNot مسار النفي المنطقيّ)
                     if (funcName == Bn::KernelCpu::CPU_17)
                     {
-                        if (argResults.empty())
+                        if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_17, argResults.size()))
                             return BuildResult("", SadTypeKind::Integer);
                         if (rejectNonNumericArgs(1))
                             return BuildResult("", SadTypeKind::Integer);
@@ -319,7 +319,7 @@ namespace Sad
                     // أزح_يسارًا(أ، عدّاد) — SHL بعدّاد مُقنَّع
                     if (funcName == Bn::KernelCpu::CPU_18)
                     {
-                        if (argResults.size() < 2)
+                        if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_18, argResults.size()))
                             return BuildResult("", SadTypeKind::Integer);
                         if (rejectNonNumericArgs(2))
                             return BuildResult("", SadTypeKind::Integer);
@@ -328,7 +328,7 @@ namespace Sad
                     // أزح_يمينًا(أ، عدّاد) — إزاحة يمنى حسابيّة بعدّاد مُقنَّع
                     if (funcName == Bn::KernelCpu::CPU_19)
                     {
-                        if (argResults.size() < 2)
+                        if (!checkBuiltinArity(b_.errors_, funcName, Ar::KernelCpu::CPU_19, argResults.size()))
                             return BuildResult("", SadTypeKind::Integer);
                         if (rejectNonNumericArgs(2))
                             return BuildResult("", SadTypeKind::Integer);
@@ -359,7 +359,7 @@ namespace Sad
                 // (AR) اكتب_ذاكرة16 / اكتب_ذاكرة32 / اكتب_ذاكرة64
                 if (funcName == Bn::CompilerMem::MEM_0)
                 {
-                    if (argResults.size() < 2)
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerMem::MEM_0, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_WRITE_16);
                     inst.operands.push_back(argOperands[0]);
@@ -370,7 +370,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerMem::MEM_1)
                 {
-                    if (argResults.size() < 2)
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerMem::MEM_1, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_WRITE_32);
                     inst.operands.push_back(argOperands[0]);
@@ -381,7 +381,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerMem::MEM_2)
                 {
-                    if (argResults.size() < 2)
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerMem::MEM_2, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_WRITE_64);
                     inst.operands.push_back(argOperands[0]);

@@ -18,6 +18,15 @@
 #include <filesystem>
 #include <optional>
 
+#include "builtin_registry.h"
+#include "builders/builtin_arity_check.h"
+// (AR) كانت أسماءُ هذه المدمجاتِ تُقارَن **بايتاتٍ مهرَّبةً** (`"\xd8\xad…"`)
+//      لا بثوابتِ مصدرِ الحقيقة — نسخةٌ ثانيةٌ للاسمِ لا يقرؤها بشرٌ ولا يقيسُها
+//      حارس. صارت المقارنةُ بالثابتِ المُولَّد، والهجاءانِ الإنجليزيّانِ باقيان
+//      كما كانا (لا تُمَسّ الأسماءُ المقبولة، فذاك قرارُ دلالةٍ لا تنظيف).
+namespace Bn = Sad::Builtins::Names;
+namespace Ar = Sad::Builtins::Arity;
+
 namespace Sad
 {
     namespace Compiler
@@ -62,13 +71,10 @@ namespace Sad
                 }
 
                 // 2. حجز / malloc — allocate memory
-                if (funcName == "\xd8\xad\xd8\xac\xd8\xb2" || funcName == "malloc" || funcName == "c_malloc")
+                if (funcName == Bn::FFI::C_MALLOC || funcName == "malloc" || funcName == "c_malloc")
                 {
-                    if (argOperands.size() != 1)
-                    {
-                        std::cerr << "[ERROR] malloc requires 1 argument (size)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_MALLOC, argOperands.size()))
                         return BuildResult("", SadTypeKind::Pointer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_MALLOC);
@@ -83,13 +89,10 @@ namespace Sad
                 }
 
                 // 3. حرر / free — free memory
-                if (funcName == "\xd8\xad\xd8\xb1\xd8\xb1" || funcName == "free" || funcName == "c_free")
+                if (funcName == Bn::FFI::C_FREE || funcName == "free" || funcName == "c_free")
                 {
-                    if (argOperands.size() != 1)
-                    {
-                        std::cerr << "[ERROR] free requires 1 argument (pointer)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_FREE, argOperands.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::FFI_FREE);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -101,13 +104,10 @@ namespace Sad
                 }
 
                 // 4. اعد_حجز / realloc
-                if (funcName == "\xd8\xa7\xd8\xb9\xd8\xaf_\xd8\xad\xd8\xac\xd8\xb2" || funcName == "realloc" || funcName == "c_realloc")
+                if (funcName == Bn::FFI::C_REALLOC || funcName == "realloc" || funcName == "c_realloc")
                 {
-                    if (argOperands.size() != 2)
-                    {
-                        std::cerr << "[ERROR] realloc requires 2 arguments (ptr, size)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_REALLOC, argOperands.size()))
                         return BuildResult("", SadTypeKind::Pointer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_REALLOC);
@@ -120,13 +120,10 @@ namespace Sad
                 }
 
                 // 5. حجز_صفري / calloc
-                if (funcName == "\xd8\xad\xd8\xac\xd8\xb2_\xd8\xb5\xd9\x81\xd8\xb1\xd9\x8a" || funcName == "calloc" || funcName == "c_calloc")
+                if (funcName == Bn::FFI::C_CALLOC || funcName == "calloc" || funcName == "c_calloc")
                 {
-                    if (argOperands.size() != 2)
-                    {
-                        std::cerr << "[ERROR] calloc requires 2 arguments (count, size)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_CALLOC, argOperands.size()))
                         return BuildResult("", SadTypeKind::Pointer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_CALLOC);
@@ -139,13 +136,10 @@ namespace Sad
                 }
 
                 // 6. طول_نص_س / strlen
-                if (funcName == "\xd8\xb7\xd9\x88\xd9\x84_\xd9\x86\xd8\xb5_\xd8\xb3" || funcName == "strlen" || funcName == "c_strlen")
+                if (funcName == Bn::FFI::C_STRLEN || funcName == "strlen" || funcName == "c_strlen")
                 {
-                    if (argOperands.size() != 1)
-                    {
-                        std::cerr << "[ERROR] strlen requires 1 argument (string)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_STRLEN, argOperands.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_STRLEN);
@@ -157,13 +151,10 @@ namespace Sad
                 }
 
                 // 7. انسخ_نص_س / strcpy
-                if (funcName == "\xd8\xa7\xd9\x86\xd8\xb3\xd8\xae_\xd9\x86\xd8\xb5_\xd8\xb3" || funcName == "strcpy" || funcName == "c_strcpy")
+                if (funcName == Bn::FFI::C_STRCPY || funcName == "strcpy" || funcName == "c_strcpy")
                 {
-                    if (argOperands.size() != 2)
-                    {
-                        std::cerr << "[ERROR] strcpy requires 2 arguments (dest, src)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_STRCPY, argOperands.size()))
                         return BuildResult("", SadTypeKind::Pointer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_STRCPY);
@@ -176,13 +167,10 @@ namespace Sad
                 }
 
                 // 8. قارن_نص_س / strcmp
-                if (funcName == "\xd9\x82\xd8\xa7\xd8\xb1\xd9\x86_\xd9\x86\xd8\xb5_\xd8\xb3" || funcName == "strcmp" || funcName == "c_strcmp")
+                if (funcName == Bn::FFI::C_STRCMP || funcName == "strcmp" || funcName == "c_strcmp")
                 {
-                    if (argOperands.size() != 2)
-                    {
-                        std::cerr << "[ERROR] strcmp requires 2 arguments (s1, s2)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_STRCMP, argOperands.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_STRCMP);
@@ -195,13 +183,10 @@ namespace Sad
                 }
 
                 // 9. الحق_نص_س / strcat
-                if (funcName == "\xd8\xa7\xd9\x84\xd8\xad\xd9\x82_\xd9\x86\xd8\xb5_\xd8\xb3" || funcName == "strcat" || funcName == "c_strcat")
+                if (funcName == Bn::FFI::C_STRCAT || funcName == "strcat" || funcName == "c_strcat")
                 {
-                    if (argOperands.size() != 2)
-                    {
-                        std::cerr << "[ERROR] strcat requires 2 arguments (dest, src)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_STRCAT, argOperands.size()))
                         return BuildResult("", SadTypeKind::Pointer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_STRCAT);
@@ -216,9 +201,20 @@ namespace Sad
                 // 10. انسخ_ذاكرة_س / memcpy
                 if (funcName == "\xd8\xa7\xd9\x86\xd8\xb3\xd8\xae_\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xb3" || funcName == "memcpy" || funcName == "c_memcpy")
                 {
+                    // (AR) لا يُختَم بمصدرِ الحقيقة: `انسخ_ذاكرة_س` **غيرُ معلَنٍ
+                    //      في `ffi.yaml` أصلًا** — مدمجٌ تقبلُه الأماميّةُ ولا
+                    //      يعرفُه المصدر. إعلانُه توسيعٌ لسطحِ اللغةِ يقرّرُه
+                    //      مالكُه، لا تنظيفٌ يُدَسّ في رقعةِ رتبة. والذي يُصلَح
+                    //      ههنا هو الخطر: كان يطبعُ إلى `cerr` **ويمضي البناء**.
                     if (argOperands.size() != 3)
                     {
-                        std::cerr << "[ERROR] memcpy requires 3 arguments (dest, src, size)" << std::endl;
+                        Sad::Errors::RenderContext ctx;
+                        ctx.placeholders = {{"name", funcName},
+                                            {"expected", "3"},
+                                            {"found", std::to_string(argOperands.size())}};
+                        b_.errors_.push_back(
+                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx));
                         return BuildResult("", SadTypeKind::Pointer);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -236,9 +232,16 @@ namespace Sad
                 // 11. عبئ_ذاكرة_س / memset
                 if (funcName == "\xd8\xb9\xd8\xa8\xd8\xa6_\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xb3" || funcName == "memset" || funcName == "c_memset")
                 {
+                    // (AR) كسابقتِه: `عبئ_ذاكرة_س` غيرُ معلَنٍ في مصدرِ الحقيقة.
                     if (argOperands.size() != 3)
                     {
-                        std::cerr << "[ERROR] memset requires 3 arguments (ptr, value, size)" << std::endl;
+                        Sad::Errors::RenderContext ctx;
+                        ctx.placeholders = {{"name", funcName},
+                                            {"expected", "3"},
+                                            {"found", std::to_string(argOperands.size())}};
+                        b_.errors_.push_back(
+                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx));
                         return BuildResult("", SadTypeKind::Pointer);
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -254,13 +257,10 @@ namespace Sad
                 }
 
                 // 12. افتح_ملف_س / fopen
-                if (funcName == "\xd8\xa7\xd9\x81\xd8\xaa\xd8\xad_\xd9\x85\xd9\x84\xd9\x81_\xd8\xb3" || funcName == "fopen" || funcName == "c_fopen")
+                if (funcName == Bn::FFI::C_FOPEN || funcName == "fopen" || funcName == "c_fopen")
                 {
-                    if (argOperands.size() != 2)
-                    {
-                        std::cerr << "[ERROR] fopen requires 2 arguments (filename, mode)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_FOPEN, argOperands.size()))
                         return BuildResult("", SadTypeKind::Pointer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_FOPEN);
@@ -273,13 +273,10 @@ namespace Sad
                 }
 
                 // 13. اغلق_ملف_س / fclose
-                if (funcName == "\xd8\xa7\xd8\xba\xd9\x84\xd9\x82_\xd9\x85\xd9\x84\xd9\x81_\xd8\xb3" || funcName == "fclose" || funcName == "c_fclose")
+                if (funcName == Bn::FFI::C_FCLOSE || funcName == "fclose" || funcName == "c_fclose")
                 {
-                    if (argOperands.size() != 1)
-                    {
-                        std::cerr << "[ERROR] fclose requires 1 argument (file pointer)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_FCLOSE, argOperands.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_FCLOSE);
@@ -291,13 +288,10 @@ namespace Sad
                 }
 
                 // 14. اكتب_ملف_س / fputs — write string to file
-                if (funcName == "\xd8\xa7\xd9\x83\xd8\xaa\xd8\xa8_\xd9\x85\xd9\x84\xd9\x81_\xd8\xb3" || funcName == "fputs" || funcName == "c_fputs")
+                if (funcName == Bn::FFI::C_FPUTS || funcName == "fputs" || funcName == "c_fputs")
                 {
-                    if (argOperands.size() != 2)
-                    {
-                        std::cerr << "[ERROR] fputs requires 2 arguments (string, file)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_FPUTS, argOperands.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_FWRITE);
@@ -310,13 +304,10 @@ namespace Sad
                 }
 
                 // 15. اقرأ_ملف_س / fgets — read line from file
-                if (funcName == "\xd8\xa7\xd9\x82\xd8\xb1\xd8\xa3_\xd9\x85\xd9\x84\xd9\x81_\xd8\xb3" || funcName == "fgets" || funcName == "c_fgets")
+                if (funcName == Bn::FFI::C_FGETS || funcName == "fgets" || funcName == "c_fgets")
                 {
-                    if (argOperands.size() != 3)
-                    {
-                        std::cerr << "[ERROR] fgets requires 3 arguments (buffer, size, file)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_FGETS, argOperands.size()))
                         return BuildResult("", SadTypeKind::Pointer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_FREAD);
@@ -330,13 +321,10 @@ namespace Sad
                 }
 
                 // 16. نفذ_امر / system — execute system command
-                if (funcName == "\xd9\x86\xd9\x81\xd8\xb0_\xd8\xa7\xd9\x85\xd8\xb1" || funcName == "system" || funcName == "c_system")
+                if (funcName == Bn::FFI::C_SYSTEM || funcName == "system" || funcName == "c_system")
                 {
-                    if (argOperands.size() != 1)
-                    {
-                        std::cerr << "[ERROR] system requires 1 argument (command)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_SYSTEM, argOperands.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_SYSTEM);
@@ -348,13 +336,10 @@ namespace Sad
                 }
 
                 // 17. قيمة_بيئة / getenv
-                if (funcName == "\xd9\x82\xd9\x8a\xd9\x85\xd8\xa9_\xd8\xa8\xd9\x8a\xd8\xa6\xd8\xa9" || funcName == "getenv" || funcName == "c_getenv")
+                if (funcName == Bn::FFI::C_GETENV || funcName == "getenv" || funcName == "c_getenv")
                 {
-                    if (argOperands.size() != 1)
-                    {
-                        std::cerr << "[ERROR] getenv requires 1 argument (name)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_GETENV, argOperands.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::FFI_GETENV);
@@ -366,13 +351,10 @@ namespace Sad
                 }
 
                 // 18. نص_لعدد / atoi
-                if (funcName == "\xd9\x86\xd8\xb5_\xd9\x84\xd8\xb9\xd8\xaf\xd8\xaf" || funcName == "atoi" || funcName == "c_atoi")
+                if (funcName == Bn::FFI::C_ATOI || funcName == "atoi" || funcName == "c_atoi")
                 {
-                    if (argOperands.size() != 1)
-                    {
-                        std::cerr << "[ERROR] atoi requires 1 argument (string)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_ATOI, argOperands.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_ATOI);
@@ -384,13 +366,10 @@ namespace Sad
                 }
 
                 // 19. نص_لعشري / atof
-                if (funcName == "\xd9\x86\xd8\xb5_\xd9\x84\xd8\xb9\xd8\xb4\xd8\xb1\xd9\x8a" || funcName == "atof" || funcName == "c_atof")
+                if (funcName == Bn::FFI::C_ATOF || funcName == "atof" || funcName == "c_atof")
                 {
-                    if (argOperands.size() != 1)
-                    {
-                        std::cerr << "[ERROR] atof requires 1 argument (string)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_ATOF, argOperands.size()))
                         return BuildResult("", SadTypeKind::Float);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Float);
                     SIRInstruction inst(SIROpcode::FFI_ATOF);
@@ -404,9 +383,20 @@ namespace Sad
                 // 20. تنسيق_نص / snprintf — format to buffer (variadic)
                 if (funcName == "\xd8\xaa\xd9\x86\xd8\xb3\xd9\x8a\xd9\x82_\xd9\x86\xd8\xb5" || funcName == "snprintf" || funcName == "c_snprintf")
                 {
+                    // (AR) لا يُختَم بمصدرِ الحقيقة لسببٍ آخر: رتبتُه **مفتوحةٌ**
+                    //      (buf، size، fmt ثمّ ما شاء المنسِّق)، وحقلُ `arity`
+                    //      يعرفُ `min` و`max` عددَين فحسب — لا عُرفَ فيه للأقصى
+                    //      المفتوح. اختراعُ سقفٍ ٢٥٥ كذبٌ مقيسٌ يرفضُ ما يصحّ،
+                    //      فالعقدُ يبقى معلَنَ الغياب حتّى يُقرَّر العُرف.
                     if (argOperands.size() < 3)
                     {
-                        std::cerr << "[ERROR] snprintf requires at least 3 arguments (buf, size, fmt)" << std::endl;
+                        Sad::Errors::RenderContext ctx;
+                        ctx.placeholders = {{"name", funcName},
+                                            {"expected", "3"},
+                                            {"found", std::to_string(argOperands.size())}};
+                        b_.errors_.push_back(
+                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx));
                         return BuildResult("", SadTypeKind::Integer);
                     }
                     std::string resultReg = b_.newTempRegister();

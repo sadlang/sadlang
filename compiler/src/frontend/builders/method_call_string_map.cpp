@@ -12,6 +12,7 @@
 #include "sir_constants.h" // (AR) أسماءُ زمنِ تشغيلِ الخريطة — عقدٌ مشترَكٌ مع الخلفيّة
 // (AR) ثوابت أسماء طرق الأنواع المُولَّدة
 #include "builtin_registry.h"
+#include "error_manager.h"
 // (AR) رموزُ زمنِ تشغيلِ النصِّ ومقابلُها العربيُّ — عقدٌ واحدٌ مع الخلفيّة
 #include "string_runtime_ports.h"
 
@@ -412,8 +413,24 @@ namespace Sad
                 // ================================================================
                 if (methodName == TM::Map::SET)
                 {
+                    // (AR) كان الرفضُ ههنا **عودةً صامتة**: `خ.عين("ك")` بوسيطٍ
+                    //      ناقصٍ يخرجُ بصفرٍ ويُنتجُ ثنائيًّا بلا التعيين — صنفُ
+                    //      ح٤ عينُه في طبقةِ الطرائق. والعددُ يبقى محلّيًّا لأنّ
+                    //      `type_methods.yaml` **لا حقلَ `arity` فيه البتّة**؛
+                    //      ذاك سطحٌ يُقاس على حدةٍ لا يُوسَّع في رقعةِ مدمجات.
+                    //      المعروضُ عددُ وسائطِ المستخدمِ لا الموضوعَ معها.
                     if (args.size() < 3)
+                    {
+                        Sad::Errors::RenderContext ctx;
+                        ctx.placeholders = {
+                            {"name", std::string(TM::Map::SET)},
+                            {"expected", "2"},
+                            {"found", std::to_string(args.empty() ? 0 : args.size() - 1)}};
+                        b_.errors_.push_back(
+                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx));
                         return BuildResult("", SadTypeKind::Integer);
+                    }
 
                     SIRInstruction inst;
                     inst.opcode = SIROpcode::CALL;

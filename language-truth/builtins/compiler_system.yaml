@@ -4,6 +4,9 @@ description_ar: دوال مترجم CompilerMem (8 دالة)
 description_en: Compiler builtins CompilerMem (8)
 functions:
 - cpp_id: MEM_0
+  arity:
+    min: 2
+    max: 2
   canonical: اكتب_ذاكرة16
   namespace: CompilerMem
   category: MODULE_FUNCTION
@@ -17,6 +20,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: MEM_1
+  arity:
+    min: 2
+    max: 2
   canonical: اكتب_ذاكرة32
   namespace: CompilerMem
   category: MODULE_FUNCTION
@@ -30,6 +36,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: MEM_2
+  arity:
+    min: 2
+    max: 2
   canonical: اكتب_ذاكرة64
   namespace: CompilerMem
   category: MODULE_FUNCTION

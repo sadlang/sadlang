@@ -62,6 +62,62 @@ _CONSTANT_CALL = re.compile(
 #      الثاني للصيغةِ نفسِها. والقرانُ ههنا صريحٌ في سطرٍ واحد فيُقرأ مباشرةً.
 _TABLE_ROW = re.compile(
     r"\{\s*\w+::(\w+)::(\w+)\s*,[^{}]*?(?:Ar|Sad::Builtins::Arity)::(\w+)::(\w+)\s*\}")
+# (AR) صيغةٌ ثالثةٌ للفرض — وهي الأكثرُ عددًا: الرفضُ مكتوبٌ **في الشرطِ نفسِه**
+#      (`if (argResults.size() < 2) { errors_.push_back(…); return …; }`) فالعددُ
+#      لا يُمرَّر إلى حارسٍ بل يسكنُ المقارنة. هذه مواضعُ فرضٍ قائمةٌ فعلًا —
+#      لا خطرَ تجاوزِ حدودٍ فيها — لكنّ عددَها خارجَ مصدرِ الحقيقة.
+#
+# 🔑    وكان الحارسُ لا يراها فيعدُّها **دَينًا**، فرقمُ الدَّينِ يبالغُ في السوء:
+#       يخلطُ «لا أحدَ يفرض» بـ«يُفرَض برقمٍ محلّيّ». وهما حالان مختلفتان في
+#       الخطرِ وفي العلاج، فتُفصَلان.
+_INLINE_COMPARE = re.compile(
+    r"\b(?:argResults|argOperands|args|arguments)\.size\(\)\s*"
+    r"(<=|>=|<|>|!=|==)\s*(\d+)")
+# (AR) لا يُقرَأ الشرطُ نقصًا إلّا بهذه المقارنات. و`>` نقيضُها: معالجةُ وسيطٍ
+#      زائدٍ اختياريّ، وقراءتُها رفضًا هي عينُ الخطأِ الذي اختلق عقدَ
+#      `معرف_المعالج`. والتمييزُ بالمعنى لا بوجودِ `return`.
+_DEFICIENCY_OPS = {"<", "<=", "!="}
+
+
+def _is_silent_rejection(op: str, block: str) -> bool:
+    """(AR) هل هذه ذراعُ رفضٍ لا تسجّلُ خطأً فيتبخّرُ النداءُ صامتًا؟
+
+    الشرطان معًا: مقارنةُ نقصٍ، وتبعةٌ **لا تُصدر عملًا** — لا تعليمةَ ولا
+    نداءً لباني. ذراعٌ تُصدر عملًا ليست رفضًا مهما بدا شكلُها.
+    """
+    if op not in _DEFICIENCY_OPS or "return" not in block:
+        return False
+    # (AR) `return std::nullopt` **تفويضٌ لا رفض**: الذراعُ تقول «ليست لي»
+    #      فيتلقّفُها مَن بعدَها في سلسلةِ الإرسال، والتشخيصُ يقعُ هناك. عدُّها
+    #      تبخّرًا يتّهمُ موضعًا سليمًا — والأداةُ التي تُحمِّرُ الصحيحَ تُهجَر.
+    if "std::nullopt" in block:
+        return False
+    emits = ("instructions.push_back", "SIRInstruction", "emit", "build")
+    return not any(token in block for token in emits)
+
+
+def _consequence_body(text: str, start: int) -> str:
+    """(AR) جسمُ التبعةِ الذي يلي المقارنة: كتلةٌ بين قوسين أو جملةٌ واحدة.
+
+    🔑 التصنيفُ **بالتبعةِ لا بالهجاء**: `if (!argOperands.empty())` يشبهُ
+       الرفضَ شكلًا وهو معالجةُ وسيطٍ اختياريّ — وقراءتُه رفضًا اختلقت لمدمجٍ
+       عقدَ رتبةٍ كان سيرفضُ نداءَه الصحيح. فلا يُقرأ الشرطُ رفضًا إلّا إن
+       **دفعت تبعتُه خطأً**. ولا نفترضُ حدًّا: البحثُ محدودُ المدى صراحةً.
+    """
+    window = text[start:start + 800]
+    brace = window.find("{")
+    semi = window.find(";")
+    if brace == -1 or (semi != -1 and semi < brace):
+        return window[:semi + 1] if semi != -1 else ""
+    depth = 0
+    for offset in range(brace, len(window)):
+        if window[offset] == "{":
+            depth += 1
+        elif window[offset] == "}":
+            depth -= 1
+            if depth == 0:
+                return window[brace:offset + 1]
+    return ""  # (AR) كتلةٌ لم تُغلَق داخلَ المدى ⇒ لا حكم، ولا يُخمَّن
 
 
 @dataclass
@@ -72,6 +128,12 @@ class ArityCheck:
     names: list[tuple[str, str]] = field(default_factory=list)
     literal: tuple[int, int] | None = None
     constant: tuple[str, str] | None = None
+    # (AR) رفضٌ مكتوبٌ في الشرطِ نفسِه: مفروضٌ فعلًا، بعددٍ خارجَ مصدرِ الحقيقة.
+    #      يُفصَل عن `literal` لأنّ ذاك انحدارٌ يجبُ أن يحمرَّ، وهذا دَينٌ مؤرَّخ.
+    inline: bool = False
+    # (AR) رفضٌ **لا يسجّلُ خطأً**: النداءُ يتبخّرُ والمصرّفُ يخرجُ بصفر. أخطرُ
+    #      الأصنافِ لأنّه لا يُخفق فلا يُرى — وقيمتُه تسمّي وجهَ الصمت.
+    silent: str | None = None
 
 
 def _strip_comments(text: str) -> str:
@@ -110,6 +172,18 @@ def arity_checks() -> list[ArityCheck]:
                            int(m.group(2)) if m.group(2) else lo))
         for m in _CONSTANT_CALL.finditer(text):
             events.append((m.start(), "constant", m.group(1), m.group(2)))
+        for m in _INLINE_COMPARE.finditer(text):
+            blk = _consequence_body(text, m.end())
+            if "errors_.push_back" in blk or "errors_.emplace_back" in blk:
+                events.append((m.start(), "inline", int(m.group(2)), None))
+                continue
+            # (AR) 🔑 التبعةُ تعودُ بلا تسجيلِ خطأ ⇒ النداءُ **يتبخّرُ صامتًا**
+            #      والمصرّفُ يخرجُ بصفرٍ ويُنتجُ ثنائيًّا بلا العمل. وهذا هو
+            #      صنفُ ح٤ عينُه: سطرٌ «يُنفَّذ» وهو غيرُ موجود. والكتابةُ إلى
+            #      `std::cerr` لا تُنجّي: لا رمزَ خروجٍ يحملُها ولا أداةَ تقرؤها.
+            if _is_silent_rejection(m.group(1), blk):
+                events.append((m.start(), "silent", int(m.group(2)),
+                               "cerr" if "std::cerr" in blk else "صامت"))
         # (AR) الموضعُ الواحدُ قد يطابقُ الصيغتين لو تداخلت التعابير؛ الأسبقُ
         #      بدايةً يُحتسَب مرّةً واحدةً بحسبِ موضعِه.
         # (AR) مدخلُ الجدولِ موضعُ فرضٍ قائمٌ بذاتِه: اسمُه ومداه في المدخلِ نفسِه،
@@ -141,6 +215,19 @@ def arity_checks() -> list[ArityCheck]:
             site = ArityCheck(file=str(path.relative_to(ROOT)),
                               line=text[:pos].count("\n") + 1,
                               names=list(pending))
+            if kind == "silent":
+                # (AR) كالرفضِ في الشرط: لا يستهلكُ المقارنةَ المعلَّقة.
+                site.silent = str(b)
+                sites.append(site)
+                continue
+            if kind == "inline":
+                # (AR) الرفضُ في الشرطِ **لا يستهلكُ** المقارنةَ المعلَّقة: الذراعُ
+                #      قد تجمعُه وفحصًا بثابتٍ مُولَّد، فلو ابتلع الاسمَ لقُرئ
+                #      المدمجُ غيرَ مفروضٍ وهو مفروضٌ — أي لأحمرَّ الحارسُ على
+                #      موضعٍ سليمٍ بسببِ أداةِ القياسِ وحدَها.
+                site.inline = True
+                sites.append(site)
+                continue
             if kind == "literal":
                 site.literal = (int(a), int(b))
             else:
@@ -151,11 +238,25 @@ def arity_checks() -> list[ArityCheck]:
 
 
 def enforced_names() -> set[tuple[str, str]]:
-    """(AR) كلُّ مدمجٍ تفرضُ الأماميّةُ رتبتَه (بأيِّ صيغة)."""
+    """(AR) كلُّ مدمجٍ تفرضُ الأماميّةُ رتبتَه **من مصدرِ الحقيقة**.
+
+    الرفضُ في الشرطِ مستثنًى قصدًا: هو فرضٌ قائمٌ لكنّ عددَه محلّيّ، فعدُّه
+    ههنا يُقرأ ختمًا وليس بختم. يُقاس على حدةٍ بـ`inline_names()`.
+    """
     guarded: set[tuple[str, str]] = set()
     for site in arity_checks():
-        guarded.update(site.names)
+        if not site.inline and not site.silent:
+            guarded.update(site.names)
     return guarded
+
+
+def inline_names() -> set[tuple[str, str]]:
+    """(AR) مدمجاتٌ رتبتُها مفروضةٌ برقمٍ في الشرطِ لا من مصدرِ الحقيقة."""
+    named: set[tuple[str, str]] = set()
+    for site in arity_checks():
+        if site.inline:
+            named.update(site.names)
+    return named
 
 
 if __name__ == "__main__":

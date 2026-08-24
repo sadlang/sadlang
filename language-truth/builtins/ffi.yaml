@@ -212,6 +212,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_MALLOC
+  arity:
+    min: 1
+    max: 1
   canonical: حجز
   namespace: FFI
   category: MODULE_FUNCTION
@@ -225,6 +228,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_FREE
+  arity:
+    min: 1
+    max: 1
   canonical: حرر
   namespace: FFI
   category: MODULE_FUNCTION
@@ -238,6 +244,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_REALLOC
+  arity:
+    min: 2
+    max: 2
   canonical: اعد_حجز
   namespace: FFI
   category: MODULE_FUNCTION
@@ -251,6 +260,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_CALLOC
+  arity:
+    min: 2
+    max: 2
   canonical: حجز_صفري
   namespace: FFI
   category: MODULE_FUNCTION
@@ -264,6 +276,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_STRLEN
+  arity:
+    min: 1
+    max: 1
   canonical: طول_نص_س
   namespace: FFI
   category: MODULE_FUNCTION
@@ -277,6 +292,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_STRCPY
+  arity:
+    min: 2
+    max: 2
   canonical: انسخ_نص_س
   namespace: FFI
   category: MODULE_FUNCTION
@@ -290,6 +308,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_STRCMP
+  arity:
+    min: 2
+    max: 2
   canonical: قارن_نص_س
   namespace: FFI
   category: MODULE_FUNCTION
@@ -303,6 +324,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_STRCAT
+  arity:
+    min: 2
+    max: 2
   canonical: الحق_نص_س
   namespace: FFI
   category: MODULE_FUNCTION
@@ -316,6 +340,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_FOPEN
+  arity:
+    min: 2
+    max: 2
   canonical: افتح_ملف_س
   namespace: FFI
   category: MODULE_FUNCTION
@@ -329,6 +356,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_FCLOSE
+  arity:
+    min: 1
+    max: 1
   canonical: اغلق_ملف_س
   namespace: FFI
   category: MODULE_FUNCTION
@@ -342,6 +372,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_FPUTS
+  arity:
+    min: 2
+    max: 2
   canonical: اكتب_ملف_س
   namespace: FFI
   category: MODULE_FUNCTION
@@ -355,6 +388,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_FGETS
+  arity:
+    min: 3
+    max: 3
   canonical: اقرأ_ملف_س
   namespace: FFI
   category: MODULE_FUNCTION
@@ -368,6 +404,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_SYSTEM
+  arity:
+    min: 1
+    max: 1
   canonical: نفذ_امر
   namespace: FFI
   category: MODULE_FUNCTION
@@ -381,6 +420,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_GETENV
+  arity:
+    min: 1
+    max: 1
   canonical: قيمة_بيئة
   namespace: FFI
   category: MODULE_FUNCTION
@@ -394,6 +436,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_ATOI
+  arity:
+    min: 1
+    max: 1
   canonical: نص_لعدد
   namespace: FFI
   category: MODULE_FUNCTION
@@ -407,6 +452,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_ATOF
+  arity:
+    min: 1
+    max: 1
   canonical: نص_لعشري
   namespace: FFI
   category: MODULE_FUNCTION

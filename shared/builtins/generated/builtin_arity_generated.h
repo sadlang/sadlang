@@ -76,6 +76,20 @@ namespace Sad
                 inline constexpr Range SECURE_RANDOM{2, 2};
             } // namespace Assertions
 
+            namespace AsyncAdvanced
+            {
+                // (AR) أضف_ذري
+                inline constexpr Range ATOMIC_ADD{2, 2};
+                // (AR) قارن_وبدل
+                inline constexpr Range ATOMIC_CAS{3, 3};
+                // (AR) خزن_ذري
+                inline constexpr Range ATOMIC_STORE{2, 2};
+                // (AR) أرسل_قناة
+                inline constexpr Range CHANNEL_SEND{2, 2};
+                // (AR) أوف_مستقبل
+                inline constexpr Range FUTURE_OFF{2, 2};
+            } // namespace AsyncAdvanced
+
             namespace Basics
             {
                 // (AR) المسار_المطلق
@@ -248,6 +262,12 @@ namespace Sad
 
             namespace CompilerMem
             {
+                // (AR) اكتب_ذاكرة16
+                inline constexpr Range MEM_0{2, 2};
+                // (AR) اكتب_ذاكرة32
+                inline constexpr Range MEM_1{2, 2};
+                // (AR) اكتب_ذاكرة64
+                inline constexpr Range MEM_2{2, 2};
                 // (AR) املأ_ذاكرة32
                 inline constexpr Range MEM_6{3, 3};
                 // (AR) انسخ_ذاكرة32
@@ -572,6 +592,42 @@ namespace Sad
                 inline constexpr Range X25519_EXCHANGE{2, 2};
             } // namespace Crypto
 
+            namespace FFI
+            {
+                // (AR) نص_لعشري
+                inline constexpr Range C_ATOF{1, 1};
+                // (AR) نص_لعدد
+                inline constexpr Range C_ATOI{1, 1};
+                // (AR) حجز_صفري
+                inline constexpr Range C_CALLOC{2, 2};
+                // (AR) اغلق_ملف_س
+                inline constexpr Range C_FCLOSE{1, 1};
+                // (AR) اقرأ_ملف_س
+                inline constexpr Range C_FGETS{3, 3};
+                // (AR) افتح_ملف_س
+                inline constexpr Range C_FOPEN{2, 2};
+                // (AR) اكتب_ملف_س
+                inline constexpr Range C_FPUTS{2, 2};
+                // (AR) حرر
+                inline constexpr Range C_FREE{1, 1};
+                // (AR) قيمة_بيئة
+                inline constexpr Range C_GETENV{1, 1};
+                // (AR) حجز
+                inline constexpr Range C_MALLOC{1, 1};
+                // (AR) اعد_حجز
+                inline constexpr Range C_REALLOC{2, 2};
+                // (AR) الحق_نص_س
+                inline constexpr Range C_STRCAT{2, 2};
+                // (AR) قارن_نص_س
+                inline constexpr Range C_STRCMP{2, 2};
+                // (AR) انسخ_نص_س
+                inline constexpr Range C_STRCPY{2, 2};
+                // (AR) طول_نص_س
+                inline constexpr Range C_STRLEN{1, 1};
+                // (AR) نفذ_امر
+                inline constexpr Range C_SYSTEM{1, 1};
+            } // namespace FFI
+
             namespace Kernel
             {
                 // (AR) نقل_مباشر_ابدأ
@@ -596,6 +652,22 @@ namespace Sad
 
             namespace KernelCpu
             {
+                // (AR) اكتب_منفذ16
+                inline constexpr Range CPU_11{2, 2};
+                // (AR) اكتب_منفذ32
+                inline constexpr Range CPU_13{2, 2};
+                // (AR) وافق
+                inline constexpr Range CPU_14{2, 2};
+                // (AR) ضم
+                inline constexpr Range CPU_15{2, 2};
+                // (AR) خالف
+                inline constexpr Range CPU_16{2, 2};
+                // (AR) اعكس_البتات
+                inline constexpr Range CPU_17{1, 1};
+                // (AR) أزح_يسارا
+                inline constexpr Range CPU_18{2, 2};
+                // (AR) أزح_يمينا
+                inline constexpr Range CPU_19{2, 2};
                 // (AR) اقرأ_ذاكرة
                 inline constexpr Range CPU_24{1, 1};
                 // (AR) اكتب_ذاكرة

@@ -82,6 +82,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: FUTURE_OFF
+  arity:
+    min: 2
+    max: 2
   canonical: أوف_مستقبل
   namespace: AsyncAdvanced
   category: MODULE_FUNCTION
@@ -134,6 +137,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CHANNEL_SEND
+  arity:
+    min: 2
+    max: 2
   canonical: أرسل_قناة
   namespace: AsyncAdvanced
   category: MODULE_FUNCTION
@@ -303,6 +309,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ATOMIC_STORE
+  arity:
+    min: 2
+    max: 2
   canonical: خزن_ذري
   namespace: AsyncAdvanced
   category: MODULE_FUNCTION
@@ -316,6 +325,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ATOMIC_ADD
+  arity:
+    min: 2
+    max: 2
   canonical: أضف_ذري
   namespace: AsyncAdvanced
   category: MODULE_FUNCTION
@@ -329,6 +341,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ATOMIC_CAS
+  arity:
+    min: 3
+    max: 3
   canonical: قارن_وبدل
   namespace: AsyncAdvanced
   category: MODULE_FUNCTION

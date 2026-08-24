@@ -96,6 +96,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_11
+  arity:
+    min: 2
+    max: 2
   canonical: اكتب_منفذ16
   namespace: KernelCpu
   category: MODULE_FUNCTION
@@ -122,6 +125,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_13
+  arity:
+    min: 2
+    max: 2
   canonical: اكتب_منفذ32
   namespace: KernelCpu
   category: MODULE_FUNCTION
@@ -135,6 +141,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_14
+  arity:
+    min: 2
+    max: 2
   canonical: وافق
   namespace: KernelCpu
   category: MODULE_FUNCTION
@@ -148,6 +157,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_15
+  arity:
+    min: 2
+    max: 2
   canonical: ضم
   namespace: KernelCpu
   category: MODULE_FUNCTION
@@ -161,6 +173,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_16
+  arity:
+    min: 2
+    max: 2
   canonical: خالف
   namespace: KernelCpu
   category: MODULE_FUNCTION
@@ -174,6 +189,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_17
+  arity:
+    min: 1
+    max: 1
   canonical: اعكس_البتات
   namespace: KernelCpu
   category: MODULE_FUNCTION
@@ -187,6 +205,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_18
+  arity:
+    min: 2
+    max: 2
   canonical: أزح_يسارا
   namespace: KernelCpu
   category: MODULE_FUNCTION
@@ -200,6 +221,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CPU_19
+  arity:
+    min: 2
+    max: 2
   canonical: أزح_يمينا
   namespace: KernelCpu
   category: MODULE_FUNCTION
