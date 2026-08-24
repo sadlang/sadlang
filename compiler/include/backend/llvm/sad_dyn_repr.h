@@ -65,13 +65,15 @@ namespace Sad
 
         // (AR) حارسُ انجرافٍ زمنَ الترجمة: الوسومُ المشترَكةُ (٠–٥) يجب أن تطابق مصدرَ الحقيقة
         //      الموحَّد (Sad::Types::repr، مُولَّد من value_repr.yaml) الذي تشترك فيه الخلفيّةُ الأصليّة
-        //      والمفسّر — أيُّ انجرافٍ يصير خطأَ ترجمة. (Map/Obj/Adt خاصّةٌ بـLLVM فلا تُوحَّد بعد.)
+        //      والمفسّر — أيُّ انجرافٍ يصير خطأَ ترجمة. (Map/Obj/Adt خاصّةٌ بـLLVM فلا تُوحَّد بعد،
+        //      وقيمُها 6–8 محجوزةٌ في المصدرِ الموحَّد؛ Void رُفع بقيمةِ LLVM عينِها 9.)
         static_assert(DynKind::Null == ::Sad::Types::repr::kDynKindNull, "DynKind drift: Null");
         static_assert(DynKind::Int == ::Sad::Types::repr::kDynKindInt, "DynKind drift: Int");
         static_assert(DynKind::Float == ::Sad::Types::repr::kDynKindFloat, "DynKind drift: Float");
         static_assert(DynKind::Str == ::Sad::Types::repr::kDynKindStr, "DynKind drift: Str");
         static_assert(DynKind::Bool == ::Sad::Types::repr::kDynKindBool, "DynKind drift: Bool");
         static_assert(DynKind::Array == ::Sad::Types::repr::kDynKindArray, "DynKind drift: Array");
+        static_assert(DynKind::Void == ::Sad::Types::repr::kDynKindVoid, "DynKind drift: Void");
 
         /// (AR) نوع المقارنة لموزِّع dynCompare / (EN) comparison kind for dynCompare
         enum class DynCmp

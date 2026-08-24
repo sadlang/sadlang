@@ -16,6 +16,7 @@ namespace Sad { namespace Types { namespace repr {
     inline constexpr long long kDynKindStr = 3;  // نصّ (مؤشّرٌ/واصفٌ حسب السياق)
     inline constexpr long long kDynKindBool = 4;  // منطقيّ (٠/١)
     inline constexpr long long kDynKindArray = 5;  // مصفوفة (مؤشّرٌ مُدار) — homogKind لناتجِ ZIP
+    inline constexpr long long kDynKindVoid = 9;  // فراغ (Void) — «لا قيمةَ هنا» (مفتاحُ خريطةٍ غائب)، متمايزٌ عن «عدم» القيمةِ الصريحة؛ كلاهما يُعرَض «لاشيء»
 
     // ── map_layout (runtime map memory layout) ──
     inline constexpr long long kMapFieldCount = 0;  // فهرسُ حقلِ عددِ العناصرِ في الترويسة

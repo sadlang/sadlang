@@ -84,6 +84,8 @@ namespace sad { namespace native { namespace diag {
 
     // ── helper ──
     inline const std::string kOpcode = "opcode=";  // الأوپكود المتضمَّن (يتبعه رقمُ SIROpcode)
+    inline const std::string kOperandCount = " ops=";  // عددُ معاملاتِ التعليمةِ المخالفة (يلي الأوپكود)
+    inline const std::string kHasResult = " result=";  // هل للتعليمةِ نتيجةٌ (0/1) — يكمل تشخيصَ الشكل
     inline const std::string kUiRequiresLlvm = "ui-requires-llvm=";  // أوپكودُ واجهةٍ في المسار الأصليّ — الواجهةُ تتطلّب خلفيّةَ LLVM (يتبعه رقمُ SIROpcode)
     inline const std::string kBlocksZero = "blocks=0";  // الوحدةُ بلا أيّ كتلةٍ أساسيّة
     inline const std::string kNoRetTerminator = "no-ret-terminator";  // الكتلةُ الأخيرةُ بلا مُنهٍ RET

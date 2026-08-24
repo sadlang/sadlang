@@ -2028,6 +2028,24 @@ namespace sad
                                 }
                             }
                         }
+                        // (AR) [عقد الغياب] القراءةُ الموسومةُ من الخريطة (__sad_map_get_dyn
+                        //      وقناتُها الطريقيّة) — مرآةُ x86: نداءُ مساعِدٍ (المعامِلُ الأوّلُ
+                        //      ثابتٌ نصّيٌّ لا FUNCTION) ناتجُه Any يُعلَّب في خانةِ dyn ⇒
+                        //      خانةٌ لكلّ قراءة، شرطًا بشرطٍ مع الاستهلاك (عقدُ takeDynSlot).
+                        // (EN) [absence contract] The tagged map read — x86 mirror: a helper
+                        //      call (string-constant callee, not FUNCTION) whose Any result
+                        //      boxes into a dyn slot — one slot per read, condition-for-
+                        //      condition with consumption (the takeDynSlot contract).
+                        if (inst.opcode == sir::SIROpcode::CALL &&
+                            !inst.operands.empty() &&
+                            inst.operands[0].type != sir::SIROperandType::FUNCTION &&
+                            (inst.operands[0].name == Sad::Compiler::kRuntimeMapGetDyn ||
+                             inst.operands[0].name == Sad::Compiler::kRuntimeMapGetDynMethod) &&
+                            inst.result)
+                        {
+                            hasBoxing = true;
+                            ++dynGetCount_;
+                        }
                         if (inst.opcode == sir::SIROpcode::CLOSURE_CALL &&
                             inst.comment.find(Sad::Compiler::kClosureDynProtoMarker) !=
                                 std::string::npos)
@@ -3010,7 +3028,11 @@ namespace sad
                                     fname == Sad::Compiler::kRuntimeMapSetTypedMethod);
                 const bool isGet = (fname == Sad::Compiler::kRuntimeMapGetI64);
                 const bool isHas = (fname == Sad::Compiler::kRuntimeMapHas);
-                if (!isCreate && !isSize && !isSet && !isGet && !isHas)
+                // (AR) [عقد الغياب] القراءةُ الموسومة — قناةُ `_method` مرادفٌ تنفيذيٌّ
+                //      تامٌّ (درسُ «ثلاث نسخ»؛ الحجّةُ عند نظيرِه في x86).
+                const bool isGetDyn = (fname == Sad::Compiler::kRuntimeMapGetDyn ||
+                                       fname == Sad::Compiler::kRuntimeMapGetDynMethod);
+                if (!isCreate && !isSize && !isSet && !isGet && !isHas && !isGetDyn)
                     return true;
                 handled = true;
                 // (AR) الإسنادُ وحدَه بلا نتيجة؛ وما عداه يجب أن يُنتج قيمة.
@@ -3106,6 +3128,84 @@ namespace sad
                             return false;
                     }
                     return reloadLive() && deliver();
+                }
+
+                // (AR) [عقد الغياب] القراءةُ الموسومة خ[م] ⇒ Any — مرآةُ x86 (العقدُ
+                //      الكاملُ منصوصٌ هناك): الغائبُ {فراغ، ٠}، والحاضرُ وسمُه يُترجَم
+                //      من فضاءِ kMapValueTag* إلى فضاءِ kDynKind* زمنَ التشغيل، وما لا
+                //      نظيرَ له إجهاضٌ صاخبٌ ١٣٧. الخانةُ محجوزةٌ في المسحِ المسبق.
+                // (EN) [absence contract] The tagged read — x86 mirror (full contract
+                //      documented there): absent ⇒ {Void, 0}; present translates the
+                //      map-value tag space to the dyn-kind space at runtime; anything
+                //      unrepresentable aborts loudly (137). Slot pre-reserved by prescan.
+                if (isGetDyn)
+                {
+                    // (AR) صيغةُ البديل (٤ معاملات) — مرآةُ x86: فشلٌ مسمًّى «غيرُ مدعومٍ
+                    //      بعد» لا «عطبٌ داخليّ» (رصدُ مراجعة؛ الحجّةُ الكاملةُ هناك).
+                    if (inst.operands.size() == 4)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                    diag::kRuntimeHelper + fname);
+                    if (!requireArity(inst, 3))
+                        return false;
+                    int ts = 0;
+                    if (!takeDynSlot(ts))
+                        return false;
+                    if (!spillLive() || !materialize(0, inst.operands[1]) ||
+                        !materializeString(inst.operands[2], 1, true) ||
+                        !emitMapFindSlotArm64(/*panicWhenFull=*/false) || !cmp(5, a64reg::kXzr))
+                        return false;
+                    size_t hit;
+                    if (!emitBranchFwd(a64::mnem::kBne, "rel19", hit))
+                        return false;
+                    // (AR) الغائب ⇒ x7=فراغ، x6=٠
+                    if (!movz(7, kDynKindVoid) || !movz(6, 0))
+                        return false;
+                    size_t missBoxed;
+                    if (!emitBranchFwd(a64::mnem::kB, "rel26", missBoxed))
+                        return false;
+                    if (!patchBranchFwd(hit, 23, 5))
+                        return false;
+                    // (AR) الحاضر: x6 = القيمة values[x4]، ثمّ x7 = وسمُها types[x4]
+                    if (!ldrBase(3, 0, rep::kMapFieldValues) ||
+                        !addLsl3(a64reg::kScratch0, 3, 4) || !ldrBase(6, a64reg::kScratch0, 0))
+                        return false;
+                    if (!ldrBase(3, 0, rep::kMapFieldTypes) ||
+                        !addLsl3(a64reg::kScratch0, 3, 4) || !ldrBase(7, a64reg::kScratch0, 0))
+                        return false;
+                    // (AR) ترجمةُ الوسم x7: خمسةُ أذرعٍ صريحةٍ كلُّها (لا اتّكاءَ على
+                    //      مصادفةِ قيمتَين في فضاءَين مستقلَّين)، وما عداها إجهاضٌ ١٣٧.
+                    std::vector<size_t> toBox;
+                    auto remapArm = [&](long long mapTag, long long dynKind) -> bool {
+                        size_t skip, done;
+                        if (!movz(10, mapTag) || !cmp(7, 10) ||
+                            !emitBranchFwd(a64::mnem::kBne, "rel19", skip))
+                            return false;
+                        if (!movz(7, dynKind) || !emitBranchFwd(a64::mnem::kB, "rel26", done))
+                            return false;
+                        toBox.push_back(done);
+                        return patchBranchFwd(skip, 23, 5);
+                    };
+                    if (!remapArm(Sad::Compiler::kMapValueTagInteger, kDynKindInt) ||
+                        !remapArm(Sad::Compiler::kMapValueTagFloat, kDynKindFloat) ||
+                        !remapArm(Sad::Compiler::kMapValueTagBoolean, kDynKindBool) ||
+                        !remapArm(Sad::Compiler::kMapValueTagNull, kDynKindNull) ||
+                        !remapArm(Sad::Compiler::kMapValueTagVoid, kDynKindVoid))
+                        return false;
+                    if (!movz(a64reg::kX0, kMapValueTagPanicCode) ||
+                        !movz(a64reg::kX8, kSysExitArm64) || !emit(a64::mnem::kSvc, "", {}))
+                        return false;
+                    if (!patchBranchFwd(missBoxed, 25, 0))
+                        return false;
+                    for (size_t j : toBox)
+                        if (!patchBranchFwd(j, 25, 0))
+                            return false;
+                    // (AR) التعليب في الخانة المحجوزة ثمّ التسليم مؤشّرًا (sp + الفهرس×٨) —
+                    //      x6/x7 خارجَ الحوضِ فيصمدان عبر إعادةِ تحميلِ الحيّ.
+                    if (!strSlot(7, ts) || !strSlot(6, ts + 1) || !reloadLive())
+                        return false;
+                    int dst;
+                    return allocReg(inst.result->name, dst) &&
+                           addImm(dst, 31, static_cast<long long>(ts) * 8);
                 }
 
                 if (isSize)

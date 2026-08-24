@@ -306,9 +306,14 @@ namespace sad
                     return false;
                 }
 
+                // (AR) التشخيصُ يحمل الشكلَ كاملًا (العددَ ووجودَ النتيجة) لا الأوپكودَ
+                //      وحدَه: «opcode=30» المجرّدةُ أخفت أيَّ شكلٍ وصل فعلًا (قِيس —
+                //      صيغةُ بديلِ الخريطةِ احتاجت جولةَ تنقيبٍ لمعرفةِ العدد).
                 static std::string detailOpcode(const sir::SIRInstruction &i)
                 {
-                    return diag::kOpcode + std::to_string(static_cast<int>(i.opcode));
+                    return diag::kOpcode + std::to_string(static_cast<int>(i.opcode)) +
+                           diag::kOperandCount + std::to_string(i.operands.size()) +
+                           diag::kHasResult + std::to_string(i.result ? 1 : 0);
                 }
 
                 // (AR) تشخيصُ أوپكودِ واجهةٍ في المسار الأصليّ: الخلفيّةُ السياديّةُ لا تخفّض

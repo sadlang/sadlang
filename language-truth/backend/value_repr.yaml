@@ -31,6 +31,18 @@ dyn_kinds:
   - { name: kDynKindStr,   value: 3, ar: "نصّ (مؤشّرٌ/واصفٌ حسب السياق)" }
   - { name: kDynKindBool,  value: 4, ar: "منطقيّ (٠/١)" }
   - { name: kDynKindArray, value: 5, ar: "مصفوفة (مؤشّرٌ مُدار) — homogKind لناتجِ ZIP" }
+  # (AR) ⚠️ القيمُ 6–8 محجوزةٌ عمدًا: خلفيّةُ LLVM تشغلها بوسومها الخاصّة (Map=6،
+  #      Obj=7، Adt=8 في sad_dyn_repr.h) ولمّا تُرفَع (مستهلِكُها واحد). فالفراغُ
+  #      يُرفَع بقيمةِ LLVM عينِها (9) لا بأوّلِ خانةٍ شاغرةٍ هنا — رفعُه بـ6 كان
+  #      يجعل «فراغًا» في الخلفيّةِ الأصليّةِ «خريطةً» في LLVM: انجرافُ فضاءِ وسومٍ
+  #      صامتٌ هو بعينِه ما وُجد هذا الملفُّ لسدّه. يحرسه static_assert هناك.
+  # (EN) Values 6–8 are deliberately reserved: the LLVM backend occupies them with
+  #      its own tags (Map/Obj/Adt in sad_dyn_repr.h, single-consumer, not lifted
+  #      yet). Void is lifted with LLVM's own value (9), not the first free slot
+  #      here — lifting it as 6 would make native's Void read as LLVM's Map, the
+  #      exact silent tag-space drift this file exists to prevent (static_assert
+  #      guards it there).
+  - { name: kDynKindVoid, value: 9, ar: "فراغ (Void) — «لا قيمةَ هنا» (مفتاحُ خريطةٍ غائب)، متمايزٌ عن «عدم» القيمةِ الصريحة؛ كلاهما يُعرَض «لاشيء»" }
 
 # (AR) نصوصُ عرضِ القيم (ما تُنتجه «نص()»/الطباعة لقيمةٍ) — قيمٌ مرئيّةٌ للمستخدم.
 #      «عدم»/«فراغ» أسماءُ أنواعٍ لا عرضُ قيمة ⇒ لا تُدرَج هنا.

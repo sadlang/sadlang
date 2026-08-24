@@ -163,6 +163,10 @@ namespace sad
         inline constexpr long long kDynKindStr = types::repr::kDynKindStr;
         inline constexpr long long kDynKindBool = types::repr::kDynKindBool;
         inline constexpr long long kDynKindArray = types::repr::kDynKindArray;
+        // (AR) الفراغ (Void=9): «لا قيمةَ هنا» — وسمُ ناتجِ قراءةِ مفتاحٍ غائبٍ من الخريطة
+        //      الموسومة (__sad_map_get_dyn). القيمُ 6–8 محجوزةٌ لوسومِ LLVM الخاصّة (Map/Obj/Adt)
+        //      — التسويغُ الكاملُ في value_repr.yaml. يُعرَض «لاشيء» (ذراعُ default في emitPrintBoxed).
+        inline constexpr long long kDynKindVoid = types::repr::kDynKindVoid;
 
         // (AR) تخطيطُ التعداد الجبريّ (ADT، الدفعة ٥؛ يُطابق مسارَ LLVM enum_ops.cpp): قيمةُ التعداد =
         //      مؤشّرُ كومة [i64 tag@0 | SadDyn f0@8 | SadDyn f1@24 | …]. SadDyn = {i8 kind@0، i64 payload@8}
@@ -248,6 +252,20 @@ namespace sad
         //      خريطةً ناقصةً بلا أثر. فالإخفاقُ صريحٌ برمزٍ مميّزٍ يُقرأ من الخروجِ وحدَه.
         //      القيمةُ ١٣٥ = ‎128+SIGBUS‎ (عرفُ عطبِ الذاكرة)، متمايزةٌ عن ١٣٣/١٣٤/١٣٦.
         inline constexpr long long kMapOverflowPanicCode = 135;
+
+        // (AR) رمزُ خروجِ الهلع عند **وسمِ قيمةِ خريطةٍ لا نظيرَ له في فضاءِ dyn**: القراءةُ
+        //      الموسومةُ (__sad_map_get_dyn) تُترجِم وسومَ قيمِ الخريطة (kMapValueTag*) إلى
+        //      وسومِ dyn (kDynKind*) زمنَ التشغيل، والمُترجَمُ منها {صحيح، عشريّ، منطقيّ، عدم،
+        //      فراغ} حصرًا — فوسمٌ خارجَها (خريطة/مصفوفة/كائنٌ قيمةً داخلَ خريطة، دَينٌ معلَن)
+        //      يُجهِضُ صاخبًا بدل تعليبِه بوسمٍ كاذبٍ يقرؤه المستهلِكُ قمامةً صامتة (درسُ
+        //      «ما لا وسمَ له فشلٌ صريحٌ لا Int كاذب»). ١٣٧ متمايزٌ عن ١٣٢–١٣٦ ليُقرأ
+        //      السببُ من رمزِ الخروجِ وحدَه.
+        // (EN) Panic exit code for a map VALUE tag with no dyn-space counterpart: the
+        //      tagged read translates kMapValueTag* → kDynKind* at runtime; anything
+        //      outside {Int, Float, Bool, Null, Void} (map/array/object values — a
+        //      declared debt) aborts loudly instead of boxing under a lying tag.
+        //      137 is distinct from 132–136 so the cause reads from the exit code alone.
+        inline constexpr long long kMapValueTagPanicCode = 137;
 
         // (AR) رمزُ خروجِ الهلع عند **نداءِ طريقةٍ على مُستقبِلٍ عدميّ**: `OBJECT_NULL_CHECK`
         //      يُصدِرُه المُنتِجُ قبلَ كلِّ نداءِ طريقةٍ على مُستقبِلٍ ليس `هذا`/`الأصل`. المرجعُ
@@ -2468,6 +2486,27 @@ namespace sad
                                     }
                                 }
                             }
+                            // (AR) [عقد الغياب] القراءةُ الموسومةُ من الخريطة (__sad_map_get_dyn
+                            //      وقناتُها الطريقيّةُ) نداءُ مساعِدٍ (معامِلُه الأوّلُ ثابتٌ نصّيٌّ
+                            //      لا FUNCTION فلا يلتقطه عدُّ حدودِ التوقيع أعلاه) وناتجُه Any
+                            //      يُعلَّب في خانةِ dyn ⇒ خانةٌ لكلّ قراءة، شرطًا بشرطٍ مع
+                            //      الاستهلاك في emitMapHelper (عقدُ takeDynSlot).
+                            // (EN) [absence contract] The tagged map read (and its method
+                            //      channel) is a helper call (first operand a string constant,
+                            //      not FUNCTION, so the signature-boundary counting above never
+                            //      sees it) whose Any result boxes into a dyn slot — one slot
+                            //      per read, condition-for-condition with the consumption in
+                            //      emitMapHelper (the takeDynSlot contract).
+                            if (inst.opcode == sir::SIROpcode::CALL &&
+                                !inst.operands.empty() &&
+                                inst.operands[0].type != sir::SIROperandType::FUNCTION &&
+                                (inst.operands[0].name == Sad::Compiler::kRuntimeMapGetDyn ||
+                                 inst.operands[0].name == Sad::Compiler::kRuntimeMapGetDynMethod) &&
+                                inst.result)
+                            {
+                                hasBoxing = true;
+                                ++dynGetCount_;
+                            }
                             if (inst.opcode == sir::SIROpcode::CLOSURE_CALL &&
                                 inst.comment.find(Sad::Compiler::kClosureDynProtoMarker) !=
                                     std::string::npos)
@@ -3489,7 +3528,12 @@ namespace sad
                                     fname == Sad::Compiler::kRuntimeMapSetTypedMethod);
                 const bool isGet = (fname == Sad::Compiler::kRuntimeMapGetI64);
                 const bool isHas = (fname == Sad::Compiler::kRuntimeMapHas);
-                if (!isCreate && !isSize && !isSet && !isGet && !isHas)
+                // (AR) [عقد الغياب] القراءةُ الموسومة: قناةُ `_method` مرادفٌ تنفيذيٌّ
+                //      تامٌّ (درسُ «ثلاث نسخ» أعلاه — إسقاطُها يُسقط سطحَ الطريقةِ إلى
+                //      النداءِ العامّ برمزٍ لا يُحلّ).
+                const bool isGetDyn = (fname == Sad::Compiler::kRuntimeMapGetDyn ||
+                                       fname == Sad::Compiler::kRuntimeMapGetDynMethod);
+                if (!isCreate && !isSize && !isSet && !isGet && !isHas && !isGetDyn)
                     return true; // (AR) ليس منها ⇒ يتولّاه المُنادي بتشخيصِه المُسمّى
                 handled = true;
                 // (AR) الإسنادُ وحدَه بلا نتيجة؛ وما عداه يجب أن يُنتج قيمة.
@@ -3609,6 +3653,101 @@ namespace sad
                         patchFwd(end);
                     }
                     return reloadLive() && deliver();
+                }
+
+                // (AR) [عقد الغياب] القراءةُ الموسومة خ[م] ⇒ Any: تُعيد مؤشّرَ خانةِ dyn
+                //      {tag@0، payload@8} — الغائبُ وسمُه **فراغ** (لا صفرَ قمامةٍ يتنكّر
+                //      قيمةً: هذا بعينِه ما وُجدت القناةُ الموسومةُ لسدّه)، والحاضرُ
+                //      وسمُه يُترجَم من فضاءِ وسومِ قيمِ الخريطة (kMapValueTag*) إلى فضاءِ
+                //      dyn (kDynKind*) زمنَ التشغيل — فضاءان مستقلّان لا يجوز خلطُهما
+                //      (منطقيٌّ ٣ هناك و٤ هنا). خانةُ dyn محجوزةٌ سلفًا في المسحِ المسبق
+                //      (شرطًا بشرطٍ — عقدُ takeDynSlot).
+                // (EN) [absence contract] The tagged read خ[م] ⇒ Any: returns a dyn-slot
+                //      pointer {tag@0, payload@8} — an absent key is tagged Void (never a
+                //      garbage zero posing as a value, the exact defect the tagged channel
+                //      exists to close), and a present value's map-value tag translates to
+                //      the dyn-kind space at runtime (two independent tag spaces: Bool is
+                //      3 there, 4 here). The dyn slot is pre-reserved by the prescan,
+                //      condition-for-condition (the takeDynSlot contract).
+                if (isGetDyn)
+                {
+                    // (AR) صيغةُ البديل (٤ معاملات: خ، م، بديل — `خ.احصل(م، بديل)`) غيرُ
+                    //      منفَّذةٍ بعدُ هنا: فشلٌ مسمًّى («غيرُ مدعومٍ بعد» باسمِ المساعد،
+                    //      كما كانت تسقط قبلَ هذه الذراع) لا «عطبٌ داخليٌّ يُرجى الإبلاغ»
+                    //      يُرسِل صاحبَ برنامجٍ مشروعٍ يطاردُ علّةً لا وجودَ لها — عقدُ
+                    //      هذا الملفِّ نفسِه في ذراعِ النداءِ العامّ (رصدُ مراجعة).
+                    // (EN) The default-value form (4 operands — `خ.احصل(م، بديل)`) is not
+                    //      implemented here yet: a NAMED not-supported failure (as it
+                    //      failed before this arm), never an "internal bug, please
+                    //      report" for a legitimate user program (review find).
+                    if (inst.operands.size() == 4)
+                        return fail(EC::INT_NATIVE_UNSUPPORTED,
+                                    diag::kRuntimeHelper + fname);
+                    if (!requireArity(inst, 3))
+                        return false;
+                    namespace rp = types::repr;
+                    long long sd = 0;
+                    if (!takeDynSlot(sd))
+                        return false;
+                    if (!spillLive() || !loadInto(x86::RAX, inst.operands[1]) ||
+                        !materializeString(inst.operands[2], x86::RDI, true) ||
+                        !emitMapFindSlot(/*panicWhenFull=*/false) || !cmpZero(x86::R8))
+                        return false;
+                    size_t hit;
+                    if (!emitJccFwd(x86::mnem::kJne, hit))
+                        return false;
+                    // (AR) الغائب ⇒ {فراغ، ٠}
+                    if (!movImm(x86::R8, kDynKindVoid) || !movImm(x86::R9, 0))
+                        return false;
+                    size_t missBoxed;
+                    if (!emitJccFwd(x86::mnem::kJmp, missBoxed))
+                        return false;
+                    patchFwd(hit);
+                    // (AR) الحاضر: R9 = القيمة values[RSI]، ثمّ R8 = وسمُها types[RSI]
+                    if (!loadMemBase(x86::RCX, x86::RAX, rp::kMapFieldValues * rp::kMapSlotBytes) ||
+                        !movReg(x86::R9, x86::RSI) || !shlImm(x86::R9, 3) ||
+                        !addReg(x86::R9, x86::RCX) || !loadMemBase(x86::R9, x86::R9, 0))
+                        return false;
+                    if (!loadMemBase(x86::RCX, x86::RAX, rp::kMapFieldTypes * rp::kMapSlotBytes) ||
+                        !movReg(x86::R8, x86::RSI) || !shlImm(x86::R8, 3) ||
+                        !addReg(x86::R8, x86::RCX) || !loadMemBase(x86::R8, x86::R8, 0))
+                        return false;
+                    // (AR) ترجمةُ الوسم R8: خمسةُ أذرعٍ صريحةٍ كلُّها (حتّى المتطابقُ عدديًّا —
+                    //      لا اتّكاءَ على مصادفةِ قيمتَين في فضاءَين مستقلَّين)، وما عداها
+                    //      (نصّ/خريطة/مصفوفة/كائنٌ قيمةً — دَينٌ معلَن) إجهاضٌ صاخبٌ ١٣٧:
+                    //      ما لا وسمَ له فشلٌ صريحٌ لا وسمٌ كاذب.
+                    std::vector<size_t> toBox;
+                    auto remapArm = [&](long long mapTag, long long dynKind) -> bool {
+                        size_t skip, done;
+                        if (!cmpImm8(x86::R8, mapTag) || !emitJccFwd(x86::mnem::kJne, skip))
+                            return false;
+                        if (!movImm(x86::R8, dynKind) || !emitJccFwd(x86::mnem::kJmp, done))
+                            return false;
+                        toBox.push_back(done);
+                        patchFwd(skip);
+                        return true;
+                    };
+                    if (!remapArm(Sad::Compiler::kMapValueTagInteger, kDynKindInt) ||
+                        !remapArm(Sad::Compiler::kMapValueTagFloat, kDynKindFloat) ||
+                        !remapArm(Sad::Compiler::kMapValueTagBoolean, kDynKindBool) ||
+                        !remapArm(Sad::Compiler::kMapValueTagNull, kDynKindNull) ||
+                        !remapArm(Sad::Compiler::kMapValueTagVoid, kDynKindVoid))
+                        return false;
+                    if (!movImm(x86::RDI, kMapValueTagPanicCode) ||
+                        !movImm(x86::RAX, kSysExitX86) || !emit(x86::mnem::kSyscall, "", {}))
+                        return false;
+                    patchFwd(missBoxed);
+                    for (size_t j : toBox)
+                        patchFwd(j);
+                    // (AR) التعليب في الخانة المحجوزة **قبل** إعادةِ تحميلِ الحيّ — وهذا
+                    //      الترتيبُ شرطُ صحّةٍ لا تجميل: R8/R9 من حوضِ التخصيصِ نفسِه
+                    //      (pool_)، وإعادةُ التحميلِ تدهسهما لمتغيّرٍ حيٍّ ⇒ تقديمُها
+                    //      يُخزِّن وسمًا/حمولةً مدهوسَين (رصدُ مراجعة — التعليقُ الأوّلُ
+                    //      ادّعى العكسَ كذبًا).
+                    if (!storeMem(sd, x86::R8) || !storeMem(sd + 8, x86::R9) || !reloadLive())
+                        return false;
+                    int dst;
+                    return allocReg(inst.result->name, dst) && leaFrame(dst, sd);
                 }
 
                 if (isSize)
