@@ -981,6 +981,7 @@ functions:
 - cpp_id: DRAW_LINE
   canonical: ارسم_خط
   namespace: UIPlatform
+  arity: {min: 5, max: 5}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1007,6 +1008,7 @@ functions:
 - cpp_id: DRAW_RECT
   canonical: ارسم_مستطيل
   namespace: UIPlatform
+  arity: {min: 5, max: 5}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

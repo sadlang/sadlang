@@ -6,6 +6,7 @@ functions:
 - cpp_id: CPUCTL_0
   canonical: معلومات_المعالج
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -19,6 +20,7 @@ functions:
 - cpp_id: CPUCTL_1
   canonical: ميزات_المعالج
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -32,6 +34,7 @@ functions:
 - cpp_id: CPUCTL_2
   canonical: اقرأ_سجل_نموذج
   namespace: CompilerCpuCtl
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -45,6 +48,7 @@ functions:
 - cpp_id: CPUCTL_3
   canonical: اكتب_سجل_نموذج
   namespace: CompilerCpuCtl
+  arity: {min: 2, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -58,6 +62,7 @@ functions:
 - cpp_id: CPUCTL_4
   canonical: اقرأ_سجل_تحكم
   namespace: CompilerCpuCtl
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -71,6 +76,7 @@ functions:
 - cpp_id: CPUCTL_5
   canonical: اكتب_سجل_تحكم
   namespace: CompilerCpuCtl
+  arity: {min: 2, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -84,6 +90,7 @@ functions:
 - cpp_id: CPUCTL_6
   canonical: تقرير_المعالج
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -97,6 +104,7 @@ functions:
 - cpp_id: CPUCTL_7
   canonical: هيئ_جدول_واصفات
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -110,6 +118,7 @@ functions:
 - cpp_id: CPUCTL_8
   canonical: حمل_جدول_واصفات
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -123,6 +132,7 @@ functions:
 - cpp_id: CPUCTL_9
   canonical: تقرير_واصفات
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -136,6 +146,7 @@ functions:
 - cpp_id: CPUCTL_10
   canonical: هيئ_ترحيل
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -149,6 +160,7 @@ functions:
 - cpp_id: CPUCTL_11
   canonical: رحل_صفحة
   namespace: CompilerCpuCtl
+  arity: {min: 2, max: 3}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -162,6 +174,7 @@ functions:
 - cpp_id: CPUCTL_12
   canonical: الغ_ترحيل
   namespace: CompilerCpuCtl
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -175,6 +188,7 @@ functions:
 - cpp_id: CPUCTL_13
   canonical: افرغ_ذاكرة_ترجمة
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -188,6 +202,7 @@ functions:
 - cpp_id: CPUCTL_14
   canonical: تقرير_ترحيل
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -201,6 +216,7 @@ functions:
 - cpp_id: CPUCTL_15
   canonical: هيئ_جدول_مقاطعات
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -214,6 +230,7 @@ functions:
 - cpp_id: CPUCTL_16
   canonical: حمل_جدول_مقاطعات
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -227,6 +244,7 @@ functions:
 - cpp_id: CPUCTL_17
   canonical: سجل_معالج_مقاطعة
   namespace: CompilerCpuCtl
+  arity: {min: 2, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -240,6 +258,7 @@ functions:
 - cpp_id: CPUCTL_18
   canonical: فعل_طلب_مقاطعة
   namespace: CompilerCpuCtl
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -253,6 +272,7 @@ functions:
 - cpp_id: CPUCTL_19
   canonical: تقرير_مقاطعات
   namespace: CompilerCpuCtl
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -266,6 +286,7 @@ functions:
 - cpp_id: CPUCTL_20
   canonical: عنوان_رمز
   namespace: CompilerCpuCtl
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -279,6 +300,7 @@ functions:
 - cpp_id: CPUCTL_21
   canonical: حمل_سجل_المهمة
   namespace: CompilerCpuCtl
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

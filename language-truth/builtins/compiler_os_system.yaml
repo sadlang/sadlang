@@ -6,6 +6,7 @@ functions:
 - cpp_id: SYS_0
   canonical: هيئ_مجدول
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -19,6 +20,7 @@ functions:
 - cpp_id: SYS_1
   canonical: انشئ_عملية
   namespace: CompilerSys
+  arity: {min: 1, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -32,6 +34,7 @@ functions:
 - cpp_id: SYS_2
   canonical: انشئ_خيط_نواة
   namespace: CompilerSys
+  arity: {min: 2, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -45,6 +48,7 @@ functions:
 - cpp_id: SYS_3
   canonical: تنازل
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -58,6 +62,7 @@ functions:
 - cpp_id: SYS_4
   canonical: نوم_مجدول
   namespace: CompilerSys
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -71,6 +76,7 @@ functions:
 - cpp_id: SYS_5
   canonical: تقرير_مجدول
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -84,6 +90,7 @@ functions:
 - cpp_id: SYS_6
   canonical: معلومات_اقلاع
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -97,6 +104,7 @@ functions:
 - cpp_id: SYS_7
   canonical: خريطة_ذاكرة_اقلاع
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -110,6 +118,7 @@ functions:
 - cpp_id: SYS_8
   canonical: تقرير_اقلاع
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -123,6 +132,7 @@ functions:
 - cpp_id: SYS_9
   canonical: حمل_قرص
   namespace: CompilerSys
+  arity: {min: 2, max: 3}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -136,6 +146,7 @@ functions:
 - cpp_id: SYS_10
   canonical: افصل_قرص
   namespace: CompilerSys
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -149,6 +160,7 @@ functions:
 - cpp_id: SYS_11
   canonical: افتح_ملف_نواة
   namespace: CompilerSys
+  arity: {min: 1, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -162,6 +174,7 @@ functions:
 - cpp_id: SYS_12
   canonical: اقرأ_ملف_نواة
   namespace: CompilerSys
+  arity: {min: 2, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -175,6 +188,7 @@ functions:
 - cpp_id: SYS_13
   canonical: اكتب_ملف_نواة
   namespace: CompilerSys
+  arity: {min: 2, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -188,6 +202,7 @@ functions:
 - cpp_id: SYS_14
   canonical: اغلق_ملف_نواة
   namespace: CompilerSys
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -201,6 +216,7 @@ functions:
 - cpp_id: SYS_15
   canonical: تقرير_ملفات
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -214,6 +230,7 @@ functions:
 - cpp_id: SYS_16
   canonical: هيئ_متحكم_مقاطعات
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -227,6 +244,7 @@ functions:
 - cpp_id: SYS_17
   canonical: ارسل_نهاية_مقاطعة
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -240,6 +258,7 @@ functions:
 - cpp_id: SYS_18
   canonical: ارسل_مقاطعة_معالج
   namespace: CompilerSys
+  arity: {min: 2, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -253,6 +272,7 @@ functions:
 - cpp_id: SYS_19
   canonical: اضبط_مؤقت_متحكم
   namespace: CompilerSys
+  arity: {min: 2, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -266,6 +286,7 @@ functions:
 - cpp_id: SYS_20
   canonical: تقرير_متحكم_مقاطعات
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -279,6 +300,7 @@ functions:
 - cpp_id: SYS_21
   canonical: هيئ_مؤقت_دقيق
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -292,6 +314,7 @@ functions:
 - cpp_id: SYS_22
   canonical: اقرأ_مؤقت_دقيق
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -305,6 +328,7 @@ functions:
 - cpp_id: SYS_23
   canonical: نوم_دقيق
   namespace: CompilerSys
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -318,6 +342,7 @@ functions:
 - cpp_id: SYS_24
   canonical: تقرير_مؤقت_دقيق
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -331,6 +356,7 @@ functions:
 - cpp_id: SYS_25
   canonical: هيئ_استدعاءات
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -344,6 +370,7 @@ functions:
 - cpp_id: SYS_26
   canonical: سجل_استدعاء
   namespace: CompilerSys
+  arity: {min: 2, max: 2}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -357,6 +384,7 @@ functions:
 - cpp_id: SYS_27
   canonical: نفذ_استدعاء
   namespace: CompilerSys
+  arity: {min: 1, max: 7}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -370,6 +398,7 @@ functions:
 - cpp_id: SYS_28
   canonical: تقرير_استدعاءات
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -383,6 +412,7 @@ functions:
 - cpp_id: SYS_29
   canonical: خصص_فيزيائي
   namespace: CompilerSys
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -396,6 +426,7 @@ functions:
 - cpp_id: SYS_30
   canonical: حرر_فيزيائي
   namespace: CompilerSys
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -409,6 +440,7 @@ functions:
 - cpp_id: SYS_31
   canonical: رحل_منطقة
   namespace: CompilerSys
+  arity: {min: 3, max: 4}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -422,6 +454,7 @@ functions:
 - cpp_id: SYS_32
   canonical: تقرير_ذاكرة_نواة
   namespace: CompilerSys
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

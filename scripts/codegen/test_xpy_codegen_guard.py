@@ -113,6 +113,12 @@ EXPECTED_OUTPUTS = {
     # (EN) Architecture-family constraint for low-level builtins — which opcodes
     #      lower to family-specific instructions, so SEM038 rejects other targets.
     "compiler/include/backend/generated/arch_specific_opcodes_generated.h",
+    # (AR) رتبةُ المدمجِ (أدنى/أقصى عددِ وسائط) من حقلِ `arity` في
+    #      language-truth/builtins/*.yaml — العددُ يُعلَن مرّةً في مصدرِ الحقيقة
+    #      وتقرؤه الأماميّةُ ثابتًا مُولَّدًا، فلا رقمَ حرفيًّا في موضعِ الفحص.
+    # (EN) Builtin arity (min/max args) from the SoT `arity` field — declared once,
+    #      read by the frontend as a generated constant, never a literal at the check.
+    "shared/builtins/generated/builtin_arity_generated.h",
 }
 
 

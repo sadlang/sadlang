@@ -6,6 +6,7 @@ functions:
 - cpp_id: HW_0
   canonical: عدد_أجهزة_ناقل
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -19,6 +20,7 @@ functions:
 - cpp_id: HW_1
   canonical: اقرأ_اعدادات_ناقل
   namespace: CompilerHw
+  arity: {min: 4, max: 4}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -32,6 +34,7 @@ functions:
 - cpp_id: HW_2
   canonical: اكتب_اعدادات_ناقل
   namespace: CompilerHw
+  arity: {min: 5, max: 5}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -45,6 +48,7 @@ functions:
 - cpp_id: HW_3
   canonical: عدد_الأجهزة
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -58,6 +62,7 @@ functions:
 - cpp_id: HW_4
   canonical: تقرير_ناقل
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -71,6 +76,7 @@ functions:
 - cpp_id: HW_5
   canonical: هيئ_نقل_مباشر
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -84,6 +90,7 @@ functions:
 - cpp_id: HW_6
   canonical: ابدأ_نقل
   namespace: CompilerHw
+  arity: {min: 3, max: 3}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -97,6 +104,7 @@ functions:
 - cpp_id: HW_7
   canonical: حالة_نقل
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -110,6 +118,7 @@ functions:
 - cpp_id: HW_8
   canonical: تقرير_نقل
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -123,6 +132,7 @@ functions:
 - cpp_id: HW_9
   canonical: هيئ_شاشة
   namespace: CompilerHw
+  arity: {min: 2, max: 3}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -136,6 +146,7 @@ functions:
 - cpp_id: HW_10
   canonical: ارسم_نقطة
   namespace: CompilerHw
+  arity: {min: 3, max: 3}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -149,6 +160,7 @@ functions:
 - cpp_id: HW_11
   canonical: املأ_مستطيل
   namespace: CompilerHw
+  arity: {min: 5, max: 5}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -162,6 +174,7 @@ functions:
 - cpp_id: HW_12
   canonical: ارسم_نص
   namespace: CompilerHw
+  arity: {min: 3, max: 3}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -175,6 +188,7 @@ functions:
 - cpp_id: HW_13
   canonical: امسح_شاشة
   namespace: CompilerHw
+  arity: {min: 0, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -188,6 +202,7 @@ functions:
 - cpp_id: HW_14
   canonical: تقرير_شاشة
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -201,6 +216,7 @@ functions:
 - cpp_id: HW_15
   canonical: هيئ_طاقة
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -214,6 +230,7 @@ functions:
 - cpp_id: HW_16
   canonical: ابحث_جدول_طاقة
   namespace: CompilerHw
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -227,6 +244,7 @@ functions:
 - cpp_id: HW_17
   canonical: اطفئ
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -240,6 +258,7 @@ functions:
 - cpp_id: HW_18
   canonical: تقرير_طاقة
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -253,6 +272,7 @@ functions:
 - cpp_id: HW_19
   canonical: هيئ_قفل_دوار
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -266,6 +286,7 @@ functions:
 - cpp_id: HW_20
   canonical: اقفل_دوار
   namespace: CompilerHw
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -279,6 +300,7 @@ functions:
 - cpp_id: HW_21
   canonical: افتح_قفل_دوار
   namespace: CompilerHw
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -292,6 +314,7 @@ functions:
 - cpp_id: HW_22
   canonical: هيئ_كابح
   namespace: CompilerHw
+  arity: {min: 0, max: 0}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -305,6 +328,7 @@ functions:
 - cpp_id: HW_23
   canonical: اقفل_كابح
   namespace: CompilerHw
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -318,6 +342,7 @@ functions:
 - cpp_id: HW_24
   canonical: افتح_كابح
   namespace: CompilerHw
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -331,6 +356,7 @@ functions:
 - cpp_id: HW_25
   canonical: هيئ_اشارة
   namespace: CompilerHw
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -344,6 +370,7 @@ functions:
 - cpp_id: HW_26
   canonical: هيئ_حاجز
   namespace: CompilerHw
+  arity: {min: 1, max: 1}
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

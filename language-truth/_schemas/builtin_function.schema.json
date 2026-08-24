@@ -76,7 +76,9 @@
     },
     "params": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "معاملات الدالّة موصوفةً؛ الأوّل لعنصرٍ ذي primary_prop = مفتاحه العربيّ + وصف"
     },
     "stability": {
@@ -86,6 +88,25 @@
         "experimental",
         "deprecated"
       ]
+    },
+    "arity": {
+      "type": "object",
+      "description": "الرتبةُ المفروضةُ: أقلُّ عددِ وسائطَ وأكثرُه. عقدٌ آليٌّ يُولَّد منه الفحصُ في الأماميّة — لا نثرَ params الوصفيّ.",
+      "required": [
+        "min",
+        "max"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "min": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
     }
   }
 }

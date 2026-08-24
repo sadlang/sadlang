@@ -176,6 +176,20 @@ CODEGEN_DOMAINS = (
         ],
     },
     {
+        # (AR) رتبُ المدمجاتِ التي يفرضُها المترجم: كانت أرقامًا حرفيّةً في أذرعِ
+        #      الأماميّة ومصدرُ الحقيقةِ لا يعرفُها — عقدٌ لا يقيسُه أحد. صارت
+        #      تُعلَن بحقل `arity` ويُولَّد منها الجدول، فالرقمُ نسخةٌ واحدة.
+        "name": "builtins_arity",
+        "script": "gen_builtins_arity.py",
+        "out_dir": "shared/builtins/generated",
+        "outputs": ("builtin_arity_generated.h",),
+        "args": lambda d: [
+            "--yaml-dir", "language-truth/builtins",
+            "--out-h", f"{d}/builtin_arity_generated.h",
+            "--quiet",
+        ],
+    },
+    {
         # (AR) أوپكودات SIR المقيَّدة بعائلة معالج (تبثّ `cli`/`outb`/`mov %crN`…).
         #      كان المترجم يبثّها لأيّ هدفٍ بخروجٍ صفريّ، فيخفق المُجمِّعُ برسالةٍ
         #      لا تدلّ — أو يخرج ثنائيٌّ لا يعمل. الجدول يجعل القيد مُعلَنًا.
@@ -619,6 +633,15 @@ SOT_CHECK_GUARDS = (
         #      harakat from identifiers while the registry keys the literal name.
         "name": "builtins_canonical_callable",
         "script": "check_builtins_canonical_callable.py",
+        "args": (),
+    },
+    {
+        # (AR) رتبةُ المدمجِ تُعلَن مرّةً واحدةً في مصدرِ الحقيقة: لا رقمَ حرفيًّا في
+        #      ذراعِ الأماميّة (نسخةٌ ثانيةٌ للحقيقة تنجرفُ بلا احمرار)، ولا ثابتَ
+        #      مدمجٍ آخر، ولا إعلانًا لا تفرضُه ذراع، ولا فرضًا غيرَ مُعلَن.
+        # (EN) Builtin arity is declared once in SoT and measured from both ends.
+        "name": "builtin_arity_sot",
+        "script": "check_builtin_arity_sot.py",
         "args": (),
     },
     {

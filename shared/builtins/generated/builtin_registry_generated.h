@@ -2624,6 +2624,10 @@ namespace Sad
                 inline constexpr std::string_view UEFI_67 = "apic_انتظر_تسليم";
                 // (AR) apic_تهيئة_io
                 inline constexpr std::string_view UEFI_68 = "apic_تهيئة_io";
+                // (AR) نقل كتلة بكسلات عبر GOP Blt (عازل، عمليّة، س/ص المصدر، س/ص الوجهة، عرض، ارتفاع)
+                inline constexpr std::string_view UEFI_69 = "uefi_gop_blt";
+                // (AR) نقل كتلة بكسلات عبر GOP Blt (عازل، عمليّة، س/ص المصدر، س/ص الوجهة، عرض، ارتفاع)
+                inline constexpr std::string_view UEFI_70 = "uefi_blt";
             }
 
             // ─────────── CompilerUi ───────────
@@ -3170,7 +3174,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1178> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1180> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -4303,7 +4307,7 @@ namespace Sad
             {Names::CompilerEmbed::EMBED_3, "CompilerEmbed", "MODULE_FUNCTION", "NONE", false, "تسلسلي_جاهز", "", ""},
             {Names::CompilerEmbed::EMBED_4, "CompilerEmbed", "MODULE_FUNCTION", "NONE", false, "مؤقت_هيئ", "", ""},
             {Names::CompilerEmbed::EMBED_5, "CompilerEmbed", "MODULE_FUNCTION", "NONE", false, "نقل_مباشر_هيئ", "", ""},
-            // ─── CompilerUefi (69) ───
+            // ─── CompilerUefi (71) ───
             {Names::CompilerUefi::UEFI_0, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "uefi_تهيئة", "", ""},
             {Names::CompilerUefi::UEFI_1, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "uefi_إنهاء_خدمات_إقلاع", "", ""},
             {Names::CompilerUefi::UEFI_2, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "uefi_هل_مهيأ", "", ""},
@@ -4373,6 +4377,8 @@ namespace Sad
             {Names::CompilerUefi::UEFI_66, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_أرسل_sipi", "", ""},
             {Names::CompilerUefi::UEFI_67, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_انتظر_تسليم", "", ""},
             {Names::CompilerUefi::UEFI_68, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "apic_تهيئة_io", "", ""},
+            {Names::CompilerUefi::UEFI_69, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "نقل كتلة بكسلات عبر GOP Blt (عازل، عمليّة، س/ص المصدر، س/ص الوجهة، عرض، ارتفاع)", "", ""},
+            {Names::CompilerUefi::UEFI_70, "CompilerUefi", "MODULE_FUNCTION", "NONE", false, "نقل كتلة بكسلات عبر GOP Blt (عازل، عمليّة، س/ص المصدر، س/ص الوجهة، عرض، ارتفاع)", "", ""},
             // ─── CompilerUi (29) ───
             {Names::CompilerUi::UI_2, "CompilerUi", "MODULE_FUNCTION", "NONE", false, "مكدس", "", ""},
             {Names::CompilerUi::UI_4, "CompilerUi", "MODULE_FUNCTION", "NONE", false, "نص_عرض", "", ""},
@@ -4405,7 +4411,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", false, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1178, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1180, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة
