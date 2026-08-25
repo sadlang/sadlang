@@ -645,6 +645,18 @@ SOT_CHECK_GUARDS = (
         "args": (),
     },
     {
+        # (AR) تباعدُ تغطيةِ المحرّكَين مقيسٌ بسقفٍ مُودَع: مدمَجٌ معلَنٌ في مصدرِ
+        #      الحقيقةِ بلا ذراعِ إرسالٍ في المترجّم يعملُ مُفسَّرًا ويُخفقُ مُصرَّفًا.
+        #      والسقفُ يمنعُ نموَّ التباعدِ لا وجودَه — إذ العددُ (٥٥٧) دَينٌ موروثٌ
+        #      يُقاسُ وينكمش، وكلُّ إعلانٍ جديدٍ بلا ذراعٍ يُحمِّرُ الشوط.
+        # (EN) Two-engine coverage divergence measured against a committed ceiling:
+        #      declared-but-unlowered builtins run interpreted and fail compiled.
+        #      The ceiling blocks growth, not existence — a shrinking inherited debt.
+        "name": "builtin_engine_coverage",
+        "script": "check_builtin_engine_coverage.py",
+        "args": (),
+    },
+    {
         # (AR) لا نصَّ تشخيصٍ مكتوبًا يدويًّا في المحلّل النحويّ — كلّ رسالة تُركَّب
         #      من كتالوج الأخطاء المولَّد. حارسٌ بنيويّ (لا نصّيّ) بخطّ أساسٍ ينحدر.
         # (EN) No hand-written diagnostic text in the parser — every message renders

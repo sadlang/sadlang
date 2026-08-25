@@ -56,6 +56,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ADDR_NEW
+  arity:
+    min: 2
+    max: 2
   canonical: عنوان
   namespace: NetworkUtils
   category: MODULE_FUNCTION
@@ -69,6 +72,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ADDR_NEW_V6
+  arity:
+    min: 2
+    max: 2
   canonical: عنوان_حديث
   namespace: NetworkUtils
   category: MODULE_FUNCTION
@@ -82,6 +88,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ADDR_FREE
+  arity:
+    min: 1
+    max: 1
   canonical: حرر_عنوان
   namespace: NetworkUtils
   category: MODULE_FUNCTION
@@ -95,6 +104,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ADDR_IP
+  arity:
+    min: 1
+    max: 1
   canonical: رقم_الجهاز
   namespace: NetworkUtils
   category: MODULE_FUNCTION
@@ -108,6 +120,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ADDR_PORT
+  arity:
+    min: 1
+    max: 1
   canonical: رقم_المنفذ
   namespace: NetworkUtils
   category: MODULE_FUNCTION
@@ -121,6 +136,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ADDR_IS_V4
+  arity:
+    min: 1
+    max: 1
   canonical: هل_عنوان_قديم
   namespace: NetworkUtils
   category: MODULE_FUNCTION
@@ -134,6 +152,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ADDR_IS_V6
+  arity:
+    min: 1
+    max: 1
   canonical: هل_عنوان_حديث
   namespace: NetworkUtils
   category: MODULE_FUNCTION
@@ -147,6 +168,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ADDR_STR
+  arity:
+    min: 1
+    max: 1
   canonical: العنوان_كنص
   namespace: NetworkUtils
   category: MODULE_FUNCTION

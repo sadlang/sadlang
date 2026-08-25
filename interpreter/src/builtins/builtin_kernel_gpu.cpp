@@ -76,7 +76,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 5) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 5)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             uint64_t addr = static_cast<uint64_t>(args[0]->toDouble());
             uint32_t w = static_cast<uint32_t>(args[1]->toInt());
             uint32_t h = static_cast<uint32_t>(args[2]->toInt());
@@ -159,7 +161,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 2) return std::make_shared<Data::Value>(0);
+            if (args.size() < 2)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             int32_t x = args[0]->toInt();
             int32_t y = args[1]->toInt();
             auto& fb = LowLevel::FramebufferManager::getInstance();
@@ -173,7 +177,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 6) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 6)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             int32_t x = args[0]->toInt();
             int32_t y = args[1]->toInt();
             uint8_t r = static_cast<uint8_t>(args[2]->toInt());
@@ -194,7 +200,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 6) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 6)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             int32_t cx = args[0]->toInt(), cy = args[1]->toInt();
             int32_t r = args[2]->toInt();
             uint8_t cr = static_cast<uint8_t>(args[3]->toInt());
@@ -211,7 +219,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 9) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 9)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             auto& fb = LowLevel::FramebufferManager::getInstance();
             LowLevel::Point p1{args[0]->toInt(), args[1]->toInt()};
             LowLevel::Point p2{args[2]->toInt(), args[3]->toInt()};
@@ -229,7 +239,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 9) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 9)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             auto& fb = LowLevel::FramebufferManager::getInstance();
             LowLevel::Point p1{args[0]->toInt(), args[1]->toInt()};
             LowLevel::Point p2{args[2]->toInt(), args[3]->toInt()};
@@ -247,7 +259,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 8) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 8)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             int32_t cx = args[0]->toInt(), cy = args[1]->toInt();
             int32_t r = args[2]->toInt();
             float start = static_cast<float>(args[3]->toDouble());
@@ -266,7 +280,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 8) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 8)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             LowLevel::Rect rect(args[0]->toInt(), args[1]->toInt(),
                                 static_cast<uint32_t>(args[2]->toInt()), static_cast<uint32_t>(args[3]->toInt()));
             int32_t radius = args[4]->toInt();
@@ -284,7 +300,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 8) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 8)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             LowLevel::Rect rect(args[0]->toInt(), args[1]->toInt(),
                                 static_cast<uint32_t>(args[2]->toInt()), static_cast<uint32_t>(args[3]->toInt()));
             int32_t radius = args[4]->toInt();
@@ -305,7 +323,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 6) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 6)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             int32_t x = args[0]->toInt(), y = args[1]->toInt();
             char ch = args[2]->toString()[0];
             LowLevel::Color fg{static_cast<uint8_t>(args[3]->toInt()),
@@ -328,7 +348,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 6) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 6)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             int32_t x = args[0]->toInt(), y = args[1]->toInt();
             std::string text = args[2]->toString();
             LowLevel::Color fg{static_cast<uint8_t>(args[3]->toInt()),
@@ -349,7 +371,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 4) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 4)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             LowLevel::Rect rect(args[0]->toInt(), args[1]->toInt(),
                                 static_cast<uint32_t>(args[2]->toInt()), static_cast<uint32_t>(args[3]->toInt()));
             auto& fb = LowLevel::FramebufferManager::getInstance();
@@ -439,7 +463,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 2) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 2)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             auto& fb = LowLevel::FramebufferManager::getInstance();
             fb.moveCursor(args[0]->toInt(), args[1]->toInt());
             return std::make_shared<Data::Value>(0);
@@ -478,7 +504,9 @@ void registerBuiltinsKernelGPU(Interpreter& interpreter) {
     {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 10) return std::make_shared<Data::Value>(-1);
+            if (args.size() < 10)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             LowLevel::Rect rect(args[0]->toInt(), args[1]->toInt(),
                                 static_cast<uint32_t>(args[2]->toInt()), static_cast<uint32_t>(args[3]->toInt()));
             LowLevel::Color c1{static_cast<uint8_t>(args[4]->toInt()),

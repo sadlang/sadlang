@@ -6,6 +6,9 @@ functions:
 - cpp_id: INTERRUPT
   canonical: مقاطعة
   namespace: Kernel
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -32,6 +35,9 @@ functions:
 - cpp_id: VGA_WRITE
   canonical: شاشة_اكتب
   namespace: Kernel
+  arity:
+    min: 4
+    max: 4
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -58,6 +64,9 @@ functions:
 - cpp_id: MEMCPY
   canonical: انسخ_ذاكرة
   namespace: Kernel
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -71,6 +80,9 @@ functions:
 - cpp_id: MEMSET
   canonical: املأ_ذاكرة
   namespace: Kernel
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -136,6 +148,9 @@ functions:
 - cpp_id: GPIO_WRITE
   canonical: منفذ_رقمي_اكتب
   namespace: Kernel
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -149,6 +164,9 @@ functions:
 - cpp_id: GPIO_READ
   canonical: منفذ_رقمي_اقرأ
   namespace: Kernel
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -162,6 +180,9 @@ functions:
 - cpp_id: GPIO_MODE
   canonical: حدد_وضع_منفذ
   namespace: Kernel
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -201,6 +222,9 @@ functions:
 - cpp_id: EMBED_TIMER_WAIT
   canonical: مؤقت_انتظر
   namespace: Kernel
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -305,6 +329,9 @@ functions:
 - cpp_id: DMA_START
   canonical: نقل_مباشر_ابدأ
   namespace: Kernel
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

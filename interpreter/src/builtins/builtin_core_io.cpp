@@ -118,7 +118,10 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                 // (AR) متوقع(شرط) → يُرجع الشرط (no-op في المفسر)
                 if (args.empty())
-                    return std::make_shared<Data::Value>(false);
+                    // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                    //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                    //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return args[0];
             };
             // (AR) متوقع/غير_متوقع — تلميحات فروع (Branch hints) — غير مُدرجَتَين في YAML بعد
@@ -130,7 +133,10 @@ namespace Sad
                 const auto &args = ctx.args(); (void)args;
                 // (AR) غير_متوقع(شرط) → يُرجع الشرط (no-op في المفسر)
                 if (args.empty())
-                    return std::make_shared<Data::Value>(false);
+                    // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                    //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                    //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return args[0];
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bn::Core::EXPECT_FALSE), expect_false_func);

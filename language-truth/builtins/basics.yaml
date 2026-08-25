@@ -6,6 +6,9 @@ functions:
 - cpp_id: RANGE
   canonical: مدى
   namespace: Basics
+  arity:
+    min: 1
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -32,6 +35,9 @@ functions:
 - cpp_id: ASSERT
   canonical: تأكد
   namespace: Basics
+  arity:
+    min: 1
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -45,6 +51,9 @@ functions:
 - cpp_id: READ_FILE
   canonical: اقرأ_ملف
   namespace: Basics
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -59,6 +68,9 @@ functions:
 - cpp_id: WRITE_FILE
   canonical: اكتب_ملف
   namespace: Basics
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -72,6 +84,9 @@ functions:
 - cpp_id: WRITE_BYTES
   canonical: اكتب_بايتات
   namespace: Basics
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -89,6 +104,9 @@ functions:
 - cpp_id: READ_BYTES
   canonical: اقرأ_بايتات
   namespace: Basics
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -104,6 +122,9 @@ functions:
 - cpp_id: FILE_EXISTS
   canonical: هل_موجود
   namespace: Basics
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -118,6 +139,9 @@ functions:
 - cpp_id: IS_FILE
   canonical: هل_ملف
   namespace: Basics
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -132,6 +156,9 @@ functions:
 - cpp_id: REAL_PATH
   canonical: المسار_الحقيقي
   namespace: Basics
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -154,6 +181,9 @@ functions:
 - cpp_id: ABS_PATH
   canonical: المسار_المطلق
   namespace: Basics
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -172,6 +202,9 @@ functions:
 - cpp_id: IS_SYMLINK
   canonical: هل_رابط_رمزي
   namespace: Basics
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -190,6 +223,9 @@ functions:
 - cpp_id: IS_DIR
   canonical: هل_مجلد
   namespace: Basics
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -212,6 +248,9 @@ functions:
 - cpp_id: MKDIR
   canonical: أنشئ_مجلد
   namespace: Basics
+  arity:
+    min: 1
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -225,6 +264,9 @@ functions:
 - cpp_id: DELETE_FILE
   canonical: احذف_ملف
   namespace: Basics
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -264,6 +306,9 @@ functions:
 - cpp_id: APPEND_FILE
   canonical: أضف_إلى_ملف
   namespace: Basics
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -277,6 +322,9 @@ functions:
 - cpp_id: COPY_FILE
   canonical: انسخ_ملف
   namespace: Basics
+  arity:
+    min: 2
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -290,6 +338,9 @@ functions:
 - cpp_id: MOVE_FILE
   canonical: انقل_ملف
   namespace: Basics
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -303,6 +354,9 @@ functions:
 - cpp_id: LIST_DIR
   canonical: اسرد_مجلد
   namespace: Basics
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS
@@ -316,6 +370,9 @@ functions:
 - cpp_id: REMOVE_DIR
   canonical: احذف_مجلد
   namespace: Basics
+  arity:
+    min: 1
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: BASICS

@@ -71,6 +71,9 @@ functions:
 - cpp_id: REGEX
   canonical: تعبير_مطابقة
   namespace: Maps
+  arity:
+    min: 2
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: MAPS
@@ -91,6 +94,9 @@ functions:
 - cpp_id: REGEX_SEARCH
   canonical: تعبير_بحث
   namespace: Maps
+  arity:
+    min: 2
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: MAPS
@@ -343,6 +349,9 @@ functions:
 - cpp_id: FILE_SIZE
   canonical: حجم_ملف
   namespace: Maps
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MAPS
@@ -576,6 +585,9 @@ functions:
   returns: رقم
   lookup_table: name_only
 - cpp_id: FROM_CHAR_CODE
+  arity:
+    min: 1
+    max: 1
   canonical: حرف_من_رمز
   namespace: Maps
   category: MODULE_FUNCTION
@@ -616,6 +628,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: STRIP_DIACRITICS
+  arity:
+    min: 1
+    max: 1
   canonical: ازل_تشكيل
   namespace: Maps
   category: MODULE_FUNCTION
@@ -669,6 +684,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: MAP_GET
+  arity:
+    min: 2
+    max: 3
   canonical: خريطة_احصل
   namespace: Maps
   category: MODULE_FUNCTION
@@ -685,6 +703,9 @@ functions:
   - "بديل — اختياريّ: يُرجَع عند غياب المفتاح بدل «فراغ» (منفَّذ في المحرّكين معًا)."
   lookup_table: name_only
 - cpp_id: MAP_FETCH_STR
+  arity:
+    min: 2
+    max: 2
   canonical: خريطة_اجلب_نص
   namespace: Maps
   category: MODULE_FUNCTION
@@ -700,6 +721,9 @@ functions:
   - مفتاح — المفتاح المطلوب.
   lookup_table: name_only
 - cpp_id: MAP_FETCH_NUM
+  arity:
+    min: 2
+    max: 2
   canonical: خريطة_اجلب_رقم
   namespace: Maps
   category: MODULE_FUNCTION
@@ -715,6 +739,9 @@ functions:
   - مفتاح — المفتاح المطلوب.
   lookup_table: name_only
 - cpp_id: MAP_FETCH_BOOL
+  arity:
+    min: 2
+    max: 2
   canonical: خريطة_اجلب_منطقي
   namespace: Maps
   category: MODULE_FUNCTION
@@ -730,6 +757,9 @@ functions:
   - مفتاح — المفتاح المطلوب.
   lookup_table: name_only
 - cpp_id: MAP_SET
+  arity:
+    min: 3
+    max: 3
   canonical: خريطة_عين
   namespace: Maps
   category: MODULE_FUNCTION
@@ -743,6 +773,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: MAP_KEYS
+  arity:
+    min: 1
+    max: 1
   canonical: خريطة_مفاتيح
   namespace: Maps
   category: MODULE_FUNCTION
@@ -756,6 +789,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: MAP_VALUES
+  arity:
+    min: 1
+    max: 1
   canonical: خريطة_قيم
   namespace: Maps
   category: MODULE_FUNCTION
@@ -769,6 +805,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: MAP_HAS_KEY
+  arity:
+    min: 2
+    max: 2
   canonical: خريطة_تحتوي
   namespace: Maps
   category: MODULE_FUNCTION
@@ -783,6 +822,9 @@ functions:
   returns: منطقي
   lookup_table: name_only
 - cpp_id: MAP_DELETE
+  arity:
+    min: 2
+    max: 2
   canonical: خريطة_احذف
   namespace: Maps
   category: MODULE_FUNCTION
@@ -796,6 +838,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: MAP_SIZE
+  arity:
+    min: 1
+    max: 1
   canonical: خريطة_حجم
   namespace: Maps
   category: MODULE_FUNCTION
@@ -901,6 +946,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ZIP
+  arity:
+    min: 2
+    max: 2
   canonical: زاوج
   namespace: Maps
   category: MODULE_FUNCTION

@@ -46,7 +46,9 @@
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
 
 #include "builtin_registry.h"
+#include "builders/builtin_arity_check.h" // (AR) حارسُ الرتبةِ الواحدُ + ثوابتُ مصدرِ الحقيقة
 namespace Bn = Sad::Builtins::Names;
+namespace Ar = Sad::Builtins::Arity;
 
 namespace Sad
 {
@@ -162,11 +164,8 @@ namespace Sad
                 // ─────────────────────────────────────────────────────────────
                 if (funcName == Bn::CompilerSimd::SIMD_1)
                 {
-                    if (argResults.size() != 2)
-                    {
-                        b_.errors_.push_back("Error: متجه_بث(قيمة، N) requires exactly 2 arguments");
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerSimd::SIMD_1, argResults.size()))
                         return BuildResult();
-                    }
                     // (AR) المعامل الثاني يجب أن يكون ثابتاً صحيحاً (لتحديد عدد lanes وقت الترجمة)
                     // (EN) Second arg must be integer constant for compile-time lane count
                     if (argOperands[1].type != SIROperandType::CONSTANT ||
@@ -284,11 +283,8 @@ namespace Sad
                 // ─────────────────────────────────────────────────────────────
                 if (funcName == Bn::CompilerSimd::SIMD_2)
                 {
-                    if (argResults.size() != 3)
-                    {
-                        b_.errors_.push_back("Error: متجه_ضرب_جمع(أ،ب،ج) requires 3 vector arguments");
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerSimd::SIMD_2, argResults.size()))
                         return BuildResult();
-                    }
                     for (int i = 0; i < 3; ++i)
                     {
                         if (argResults[i].type != SadTypeKind::Vector)
@@ -352,11 +348,8 @@ namespace Sad
                 // ─────────────────────────────────────────────────────────────
                 if (funcName == Bn::CompilerSimd::SIMD_3)
                 {
-                    if (argResults.size() != 2)
-                    {
-                        b_.errors_.push_back("Error: متجه_جداء_قياسي(أ،ب) requires 2 vector arguments");
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerSimd::SIMD_3, argResults.size()))
                         return BuildResult();
-                    }
                     if (argResults[0].type != SadTypeKind::Vector ||
                         argResults[1].type != SadTypeKind::Vector)
                     {
@@ -377,11 +370,8 @@ namespace Sad
                 // ─────────────────────────────────────────────────────────────
                 if (funcName == Bn::CompilerSimd::SIMD_4)
                 {
-                    if (argResults.size() != 2)
-                    {
-                        b_.errors_.push_back("Error: متجه_عنصر(م، فهرس) requires 2 arguments");
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerSimd::SIMD_4, argResults.size()))
                         return BuildResult();
-                    }
                     if (argResults[0].type != SadTypeKind::Vector)
                     {
                         b_.errors_.push_back("Error: متجه_عنصر() first argument must be a vector");
@@ -402,11 +392,8 @@ namespace Sad
                 // ─────────────────────────────────────────────────────────────
                 if (funcName == Bn::CompilerSimd::SIMD_5)
                 {
-                    if (argResults.size() != 3)
-                    {
-                        b_.errors_.push_back("Error: متجه_ضع(م، فهرس، ق) requires 3 arguments");
+                    if (!checkBuiltinArity(b_.errors_, std::string(funcName), Ar::CompilerSimd::SIMD_5, argResults.size()))
                         return BuildResult();
-                    }
                     if (argResults[0].type != SadTypeKind::Vector)
                     {
                         b_.errors_.push_back("Error: متجه_ضع() first argument must be a vector");

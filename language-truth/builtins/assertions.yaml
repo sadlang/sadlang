@@ -6,6 +6,9 @@ functions:
 - cpp_id: ASSERT_EQ
   canonical: تأكد_يساوي
   namespace: Assertions
+  arity:
+    min: 2
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -32,6 +35,9 @@ functions:
 - cpp_id: ASSERT_TRUE
   canonical: تأكد_صحيح
   namespace: Assertions
+  arity:
+    min: 1
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -45,6 +51,9 @@ functions:
 - cpp_id: ASSERT_FALSE
   canonical: تأكد_خطأ
   namespace: Assertions
+  arity:
+    min: 1
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -58,6 +67,9 @@ functions:
 - cpp_id: HASH
   canonical: هاش
   namespace: Assertions
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -83,6 +95,9 @@ functions:
 - cpp_id: SAFE_CHECK
   canonical: آمن
   namespace: Assertions
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -94,6 +109,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: PANIC
+  arity:
+    min: 0
+    max: 1
   canonical: ذعر
   namespace: Assertions
   category: MODULE_FUNCTION
@@ -148,6 +166,9 @@ functions:
 - cpp_id: ASSERT_GT
   canonical: تأكد_أكبر
   namespace: Assertions
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -161,6 +182,9 @@ functions:
 - cpp_id: ASSERT_TYPE
   canonical: تأكد_نوع
   namespace: Assertions
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -174,6 +198,9 @@ functions:
 - cpp_id: ENCRYPT
   canonical: شفر
   namespace: Assertions
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -207,6 +234,9 @@ functions:
 - cpp_id: DECRYPT
   canonical: فك_تشفير
   namespace: Assertions
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -241,6 +271,9 @@ functions:
 - cpp_id: SANITIZE
   canonical: نظف
   namespace: Assertions
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -254,6 +287,9 @@ functions:
 - cpp_id: SECURE_RANDOM
   canonical: عشوائي_آمن
   namespace: Assertions
+  arity:
+    min: 0
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS
@@ -287,6 +323,9 @@ functions:
 - cpp_id: BASE64_ENCODE
   canonical: ترميز_64
   namespace: Assertions
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: ASSERTIONS

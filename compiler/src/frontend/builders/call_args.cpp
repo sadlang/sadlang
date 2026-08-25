@@ -23,6 +23,9 @@
 
 #include "sir_builder.h"
 #include "builders/call_builder.h"
+#include "error_manager.h" // (AR) buildBilingualMessage من كتالوج الأخطاء (مصدر الحقيقة)
+#include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
+#include "error_codes.h"   // (AR) ErrorCode::INT_COMPILER_NULL_IR
 #include <string>
 #include <cstdio>
 #include "sir_builder.h"
@@ -67,6 +70,7 @@ namespace Sad
                 {
                     // (AR) بناء كل وسيط باستخدام b_.buildExpression
                     // (EN) Build each argument using b_.buildExpression
+                    const std::size_t errorsBefore = b_.errors_.size();
                     BuildResult argResult = b_.buildExpression(arg.get());
 
                     // (AR) فحص الفشل: إذا كان فارغاً وليس ثابتاً
@@ -76,7 +80,26 @@ namespace Sad
 #ifndef NDEBUG
                         std::cout << "[DEBUG] buildCallArgumentsList: failed to build argument" << std::endl;
 #endif
-                        b_.errors_.push_back("Error: Failed to build function argument");
+                        // (AR) 🔑 إن كان بناءُ الوسيطِ قد سجّل تشخيصَه فالتشخيصُ
+                        //      قائمٌ يسمّي العلّةَ باسمِها (رتبةٌ خاطئةٌ، نوعٌ لا
+                        //      يلائم…). وإضافةُ رسالةٍ عامّةٍ فوقَه تُغرِق الحقيقيَّ
+                        //      بضجيجٍ لا يدلُّ على شيء — والمستعمِلُ يقرأ الأخيرَ.
+                        //      فلا نتكلّمُ إلّا حين لا يكونُ أحدٌ قد تكلّم.
+                        // (EN) Only speak when nothing else did: a generic message
+                        //      stacked on a precise one buries the precise one.
+                        if (b_.errors_.size() == errorsBefore)
+                        {
+                            // (AR) فشلٌ صامتٌ في بناءِ وسيطٍ خللٌ في المصرّفِ نفسِه
+                            //      (ICE) لا علّةٌ في برنامجِ المستعمِل — ومن الكتالوج
+                            //      لا سلسلةً خامّةً بلا رمزٍ ولا ترجمة. وحمولةُ
+                            //      {detail} رتبةُ الوسيطِ عددًا: بيانٌ لا نثر.
+                            Sad::Errors::RenderContext ctx;
+                            ctx.placeholders = {
+                                {"detail", std::to_string(outArgResults.size() + 1)}};
+                            b_.errors_.push_back(
+                                Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                    Sad::Errors::ErrorCode::INT_COMPILER_NULL_IR, ctx));
+                        }
                         return false;
                     }
 

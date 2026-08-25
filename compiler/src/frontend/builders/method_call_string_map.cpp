@@ -12,10 +12,14 @@
 #include "sir_constants.h" // (AR) أسماءُ زمنِ تشغيلِ الخريطة — عقدٌ مشترَكٌ مع الخلفيّة
 // (AR) ثوابت أسماء طرق الأنواع المُولَّدة
 #include "builtin_registry.h"
+#include "error_manager.h"
+#include "builders/builtin_arity_check.h"
 // (AR) رموزُ زمنِ تشغيلِ النصِّ ومقابلُها العربيُّ — عقدٌ واحدٌ مع الخلفيّة
 #include "string_runtime_ports.h"
 
 namespace TM = Sad::Builtins::Names::TypeMethods;
+// (AR) رتبةُ الطريقةِ من `arity` في `type_methods.yaml` — ثابتٌ مُولَّد.
+namespace Ar = Sad::Builtins::Arity;
 
 // (AR) فاصلُ «قسم» حين لا يُعطى فاصل — المسافةُ، كما يقرؤها المفسّرُ حرفًا:
 //      `std::string sep = args.empty() ? " " : args[0].toString();`
@@ -412,7 +416,18 @@ namespace Sad
                 // ================================================================
                 if (methodName == TM::Map::SET)
                 {
-                    if (args.size() < 3)
+                    // (AR) كان الرفضُ ههنا **عودةً صامتة**: `خ.عين("ك")` بوسيطٍ
+                    //      ناقصٍ يخرجُ بصفرٍ ويُنتجُ ثنائيًّا بلا التعيين — صنفُ
+                    //      ح٤ عينُه في طبقةِ الطرائق. وصار العددُ في مصدرِ الحقيقةِ
+                    //      (`type_methods.yaml`) بعدَ أن فُتِح فيه حقلُ `arity`.
+                    //
+                    //      🔑 والعدُّ **دونَ المستقبِل**: العقدُ يصفُ ما يكتبُه
+                    //      المستخدمُ بين القوسين (٢)، ومتّجهُ المترجّمِ يُدرجُ
+                    //      الموضوعَ أوّلًا فيُطرَح — وإلّا قرأ العقدُ رتبةً وقاسَ
+                    //      أخرى، وهو انحرافٌ لا يحمرُّ لأنّ الطرفين رقمان.
+                    const std::size_t userArgs = args.empty() ? 0 : args.size() - 1;
+                    if (!checkBuiltinArity(b_.errors_, std::string(TM::Map::SET),
+                                           Ar::TypeMethods::Map::SET, userArgs))
                         return BuildResult("", SadTypeKind::Integer);
 
                     SIRInstruction inst;

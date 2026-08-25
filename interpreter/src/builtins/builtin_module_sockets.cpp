@@ -235,9 +235,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 3)
-                    {
-                        return std::make_shared<Data::Value>(false);
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     std::string host = args[1]->toString();
                     uint16_t port = static_cast<uint16_t>(args[2]->toDouble());
@@ -270,9 +271,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                    {
-                        return std::make_shared<Data::Value>(static_cast<double>(-1));
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     std::string data = args[1]->toString();
 
@@ -295,9 +297,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
-                    {
-                        return std::make_shared<Data::Value>(std::string(""));
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     int maxSize = 4096;
                     if (args.size() >= 2)
@@ -330,9 +333,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                    {
-                        return std::make_shared<Data::Value>(false);
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     uint16_t port = static_cast<uint16_t>(args[1]->toDouble());
 
@@ -365,9 +369,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
-                    {
-                        return std::make_shared<Data::Value>(false);
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     int backlog = 10;
                     if (args.size() >= 2)
@@ -393,9 +398,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
-                    {
-                        return std::make_shared<Data::Value>(static_cast<double>(-1));
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
 
                     auto *entry = getSocket(id);
@@ -434,9 +440,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
-                    {
-                        return std::make_shared<Data::Value>(false);
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     return std::make_shared<Data::Value>(removeSocket(id));
                 };
@@ -450,9 +457,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
-                    {
-                        return std::make_shared<Data::Value>(false);
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     auto *entry = getSocket(id);
                     if (!entry || entry->proto != SocketProto::TCP)
@@ -471,9 +479,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
-                    {
-                        return std::make_shared<Data::Value>(std::string(""));
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
 
                     auto *entry = getSocket(id);
@@ -530,9 +539,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                    {
-                        return std::make_shared<Data::Value>(false);
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     uint16_t port = static_cast<uint16_t>(args[1]->toDouble());
 
@@ -561,9 +571,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 4)
-                    {
-                        return std::make_shared<Data::Value>(static_cast<double>(-1));
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     std::string data = args[1]->toString();
                     std::string host = args[2]->toString();
@@ -596,9 +607,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
-                    {
-                        return std::make_shared<Data::Value>(std::string(""));
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     int maxSize = 4096;
                     if (args.size() >= 2)
@@ -657,9 +669,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
-                    {
-                        return std::make_shared<Data::Value>(false);
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     return std::make_shared<Data::Value>(removeSocket(id));
                 };
@@ -677,9 +690,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                    {
-                        return std::make_shared<Data::Value>(false);
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     int ms = static_cast<int>(args[1]->toDouble());
 
@@ -710,9 +724,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                    {
-                        return std::make_shared<Data::Value>(false);
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     int ms = static_cast<int>(args[1]->toDouble());
 
@@ -744,9 +759,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                    {
-                        return std::make_shared<Data::Value>(false);
-                    }
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     bool enable = args[1]->toBool();
 
@@ -773,7 +789,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 1)
-                        return std::make_shared<Data::Value>(static_cast<double>(-1));
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     auto *entry = getSocket(id);
                     if (!entry)

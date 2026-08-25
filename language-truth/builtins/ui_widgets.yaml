@@ -1004,6 +1004,9 @@ functions:
 - cpp_id: RUN_APP
   canonical: تشغيل_تطبيق
   namespace: UICore
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1018,6 +1021,9 @@ functions:
 - cpp_id: PRINT_TREE
   canonical: طباعة_شجرة
   namespace: UICore
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1032,6 +1038,9 @@ functions:
 - cpp_id: NAVIGATE
   canonical: انتقل
   namespace: UICore
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1046,6 +1055,9 @@ functions:
 - cpp_id: NAVIGATE_TRANSITION
   canonical: انتقل_بتحريك
   namespace: UICore
+  arity:
+    min: 2
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1062,6 +1074,9 @@ functions:
 - cpp_id: NAVIGATE_EXIT_TRANSITION
   canonical: انتقل_بتحريك_كامل
   namespace: UICore
+  arity:
+    min: 3
+    max: 4
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1120,6 +1135,9 @@ functions:
 - cpp_id: REPLACE_PAGE
   canonical: استبدل
   namespace: UICore
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1225,6 +1243,9 @@ functions:
 - cpp_id: SET_TITLE
   canonical: عنوان_النافذة
   namespace: UICore
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1292,6 +1313,9 @@ functions:
 - cpp_id: GEN_WEB
   canonical: توليد_ويب
   namespace: UICore
+  arity:
+    min: 1
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1315,6 +1339,9 @@ functions:
 - cpp_id: GEN_ANDROID
   canonical: توليد_أندرويد
   namespace: UICore
+  arity:
+    min: 1
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1330,6 +1357,9 @@ functions:
 - cpp_id: GEN_IOS
   canonical: توليد_آي_أو_إس
   namespace: UICore
+  arity:
+    min: 1
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -1345,6 +1375,9 @@ functions:
 - cpp_id: GEN_MACOS
   canonical: توليد_ماك
   namespace: UICore
+  arity:
+    min: 1
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

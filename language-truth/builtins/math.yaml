@@ -6,6 +6,9 @@ functions:
 - cpp_id: SQRT
   canonical: جذر
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -20,6 +23,9 @@ functions:
 - cpp_id: POWER
   canonical: أس
   namespace: Math
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -34,6 +40,9 @@ functions:
 - cpp_id: ABS
   canonical: مطلق
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -48,6 +57,9 @@ functions:
 - cpp_id: ROUND
   canonical: تقريب
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -62,6 +74,9 @@ functions:
 - cpp_id: FLOOR
   canonical: أرضية
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -76,6 +91,9 @@ functions:
 - cpp_id: CEIL
   canonical: سقف
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -90,6 +108,9 @@ functions:
 - cpp_id: SQUARE
   canonical: مربع
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -104,6 +125,9 @@ functions:
 - cpp_id: MAX
   canonical: أكبر
   namespace: Math
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -118,6 +142,9 @@ functions:
 - cpp_id: MIN
   canonical: أصغر
   namespace: Math
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -132,6 +159,9 @@ functions:
 - cpp_id: SUM
   canonical: جمع
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -145,6 +175,9 @@ functions:
 - cpp_id: SIN
   canonical: جيب
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -159,6 +192,9 @@ functions:
 - cpp_id: COS
   canonical: جتا
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -173,6 +209,9 @@ functions:
 - cpp_id: TAN
   canonical: ظل
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -187,6 +226,9 @@ functions:
 - cpp_id: ASIN
   canonical: معكوس_جيب
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -201,6 +243,9 @@ functions:
 - cpp_id: ACOS
   canonical: معكوس_جتا
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -215,6 +260,9 @@ functions:
 - cpp_id: ATAN
   canonical: معكوس_ظل
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -242,6 +290,9 @@ functions:
 - cpp_id: LOG
   canonical: لوغ
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -256,6 +307,9 @@ functions:
 - cpp_id: LOG2
   canonical: لوغ2
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -270,6 +324,9 @@ functions:
 - cpp_id: LOG10
   canonical: لوغ10
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -391,6 +448,9 @@ functions:
 - cpp_id: CLAMP
   canonical: حصر
   namespace: Math
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -405,6 +465,9 @@ functions:
 - cpp_id: TRUNCATE
   canonical: اقتطاع
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -419,6 +482,9 @@ functions:
 - cpp_id: FMOD
   canonical: باقي
   namespace: Math
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: true
   module: MATH
@@ -433,6 +499,9 @@ functions:
 - cpp_id: SIGN
   canonical: إشارة
   namespace: Math
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: true
   module: MATH

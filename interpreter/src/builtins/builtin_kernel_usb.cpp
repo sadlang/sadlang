@@ -318,7 +318,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                        return std::make_shared<Data::Value>(0);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int ctrl = args[0]->toInt(), port = args[1]->toInt();
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBPortStatus(ctrl, port));
@@ -335,7 +338,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                        return std::make_shared<Data::Value>(0);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int ctrl = args[0]->toInt(), port = args[1]->toInt();
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBPortConnected(ctrl, port));
@@ -352,7 +358,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                        return std::make_shared<Data::Value>(-1);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int ctrl = args[0]->toInt(), port = args[1]->toInt();
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehUSBResetPort(ctrl, port));
@@ -470,7 +479,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
-                        return std::make_shared<Data::Value>(0);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     uint8_t keycode = static_cast<uint8_t>(args[0]->toInt());
                     auto &usb = LowLevel::USBManager::getInstance();
                     return std::make_shared<Data::Value>(usb.isKeyPressed(keycode) ? 1 : 0);
@@ -520,7 +532,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
-                        return std::make_shared<Data::Value>(0);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     uint8_t keycode = static_cast<uint8_t>(args[0]->toInt());
                     bool shift = (args.size() > 1) ? (args[1]->toInt() != 0) : false;
                     auto &usb = LowLevel::USBManager::getInstance();
@@ -667,7 +682,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                        return std::make_shared<Data::Value>(-1);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     int32_t maxX = args[0]->toInt(), maxY = args[1]->toInt();
                     auto &usb = LowLevel::USBManager::getInstance();
                     usb.setMouseBounds(0, 0, maxX, maxY);
@@ -722,7 +740,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
-                        return std::make_shared<Data::Value>(0);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     std::string name = args[0]->toString();
                     // Map common key names to HID keycodes
                     if (name == "ENTER" || name == "ادخال")

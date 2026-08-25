@@ -308,7 +308,10 @@ namespace Sad
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    return makeVal(std::string(""));
+                    // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                    //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                    //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string result = args[0]->toString();
                 for (size_t i = 1; i < args.size(); i++)
                 {

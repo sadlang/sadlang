@@ -30,6 +30,7 @@
 #include "sir_builder.h"
 #include "builders/builtin_builder.h"
 #include "builtin_registry.h"
+#include "builders/builtin_arity_check.h"
 #include <optional>
 
 namespace Sad
@@ -40,6 +41,8 @@ namespace Sad
         {
 
             namespace Bpr = Sad::Builtins::Names::Processes;
+            // (AR) رتبةُ المدمجِ من حقلِ `arity` في مصدرِ الحقيقةِ — ثابتٌ مُولَّد.
+            namespace Ar = Sad::Builtins::Arity;
 
             std::optional<BuildResult> BuiltinBuilder::buildBuiltinCallProcesses(
                 const std::string &funcName,
@@ -47,7 +50,6 @@ namespace Sad
                 std::vector<BuildResult> &argResults,
                 std::vector<SIROperand> &argOperands)
             {
-                (void)argResults;
 
                 // (AR) دالّةُ المستخدمِ تحجبُ المدمجَ — نفسُ حارسِ سائرِ الوحدات.
                 // (EN) A user-defined function shadows the builtin.
@@ -79,15 +81,25 @@ namespace Sad
                 // (EN) شغل_برنامجا(path, args, redirect?) → process handle (integer)
                 // ─────────────────────────────────────────────────────────────
                 if (funcName == Bpr::PROC_SPAWN)
+                {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Processes::PROC_SPAWN, argResults.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return emit(SIROpcode::BUILTIN_PROC_SPAWN, SadTypeKind::Integer,
                                 "شغل_برنامجا / fork+execvp");
+                }
 
                 // ─────────────────────────────────────────────────────────────
                 // (AR) انتظر_عملية(عملية) → رمزُ الخروج (صحيح)
                 // ─────────────────────────────────────────────────────────────
                 if (funcName == Bpr::PROC_WAIT)
+                {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Processes::PROC_WAIT, argResults.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return emit(SIROpcode::BUILTIN_PROC_WAIT, SadTypeKind::Integer,
                                 "انتظر_عملية / waitpid");
+                }
 
                 // ─────────────────────────────────────────────────────────────
                 // (AR) انبوب() → خريطة {«قراءة»: وصف، «كتابة»: وصف}
@@ -101,15 +113,25 @@ namespace Sad
                 // (EN) اغلق(fd) → true, exactly as the interpreter returns
                 // ─────────────────────────────────────────────────────────────
                 if (funcName == Bpr::PROC_CLOSE)
+                {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Processes::PROC_CLOSE, argResults.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return emit(SIROpcode::BUILTIN_PROC_CLOSE, SadTypeKind::Boolean,
                                 "اغلق / close");
+                }
 
                 // ─────────────────────────────────────────────────────────────
                 // (AR) افتح_وصفا(مسار، وضع) → وصف (صحيح)
                 // ─────────────────────────────────────────────────────────────
                 if (funcName == Bpr::PROC_OPEN_FD)
+                {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Processes::PROC_OPEN_FD, argResults.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return emit(SIROpcode::BUILTIN_PROC_OPEN_FD, SadTypeKind::Integer,
                                 "افتح_وصفا / open(O_CLOEXEC)");
+                }
 
                 return std::nullopt;
             }

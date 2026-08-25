@@ -6,6 +6,7 @@
 
 #include "sir_builder.h"
 #include "builders/builtin_builder.h"
+#include "builders/builtin_arity_check.h"
 #include "sir_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -20,6 +21,7 @@
 
 #include "builtin_registry.h"
 namespace Bn = Sad::Builtins::Names;
+namespace Ar = Sad::Builtins::Arity;
 
 namespace Sad
 {
@@ -51,11 +53,8 @@ namespace Sad
                 // 1. تأكد / assert - يتحقق من شرط ويوقف البرنامج إذا كان خاطئاً
                 if (funcName == Bn::Basics::ASSERT)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة تأكد تتطلب معامل واحد على الأقل (الشرط)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::ASSERT, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT);
                     inst.operands.push_back(argOperands[0]); // condition
                     if (argOperands.size() > 1)
@@ -77,11 +76,8 @@ namespace Sad
                 //       انحرافُ SoT↔تنفيذ لا غيابُ قدرة. هنا نصلها بما هو قائم.
                 if (funcName == Bn::Assertions::ASSERT_TRUE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة تأكد_صحيح تتطلب معامل واحد (الشرط)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ASSERT_TRUE, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT);
                     inst.operands.push_back(argOperands[0]);
                     if (argOperands.size() > 1)
@@ -95,11 +91,8 @@ namespace Sad
                 // التأكيد واحدةً، ولا يتباعد مسارا «صحيح» و«خطأ» عند أيّ تعديلٍ لاحق.
                 if (funcName == Bn::Assertions::ASSERT_FALSE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة تأكد_خطأ تتطلب معامل واحد (الشرط)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ASSERT_FALSE, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     std::string negReg = b_.newTempRegister();
                     SIRInstruction negInst(SIROpcode::NOT);
                     negInst.result = SIROperand::Register(negReg, SadTypeKind::Boolean);
@@ -118,11 +111,8 @@ namespace Sad
 
                 if (funcName == Bn::Assertions::ASSERT_EQ)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة تأكد_يساوي تتطلب معاملين" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ASSERT_EQ, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_EQUAL);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -134,11 +124,8 @@ namespace Sad
                 // 2. تحقق / verify - يعيد صحيح أو خطأ دون إيقاف البرنامج
                 if (funcName == Bn::CompilerSec::SEC_0)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة تحقق تتطلب معامل واحد (الشرط)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerSec::SEC_0, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_VERIFY);
@@ -155,11 +142,8 @@ namespace Sad
                 // 3. آمن / is_safe - يتحقق من أمان القيمة
                 if (funcName == Bn::Assertions::SAFE_CHECK)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة آمن تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::SAFE_CHECK, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_IS_SAFE);
@@ -176,6 +160,9 @@ namespace Sad
                 // 4. ذعر / panic - إيقاف طارئ مع رسالة خطأ
                 if (funcName == Bn::Assertions::PANIC)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Assertions::PANIC, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_PANIC);
                     if (!argOperands.empty())
                     {
@@ -193,11 +180,8 @@ namespace Sad
                 //    التوثيق الرسميّ في language-truth/stdlib/functions.yaml)
                 if (funcName == Bn::Assertions::HASH)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة هاش تتطلب معامل واحد (النص)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::HASH, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_HASH);
@@ -214,11 +198,8 @@ namespace Sad
                 // 6. شفّر / encrypt - تشفير-تيار SHA-256-CTR (يطابق المفسّر)
                 if (funcName == Bn::Assertions::ENCRYPT)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة شفّر تتطلب معاملين (النص، المفتاح)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ENCRYPT, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ENCRYPT);
@@ -236,11 +217,8 @@ namespace Sad
                 // 7. فك_تشفير / decrypt - فك تشفير-تيار SHA-256-CTR (يطابق المفسّر)
                 if (funcName == Bn::Assertions::DECRYPT)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة فك_تشفير تتطلب معاملين (النص، المفتاح)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::DECRYPT, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_DECRYPT);
@@ -258,11 +236,8 @@ namespace Sad
                 // 8. تأكد_نوع / assert_type - التحقق من نوع القيمة
                 if (funcName == Bn::Assertions::ASSERT_TYPE)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة تأكد_نوع تتطلب معاملين (القيمة، النوع_المتوقع)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ASSERT_TYPE, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_TYPE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -277,11 +252,8 @@ namespace Sad
                 // 9. تأكد_مساواة / assert_equal - التحقق من تساوي قيمتين
                 if (funcName == Bn::CompilerSec::SEC_1)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة تأكد_مساواة تتطلب معاملين" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerSec::SEC_1, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_EQUAL);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -296,11 +268,8 @@ namespace Sad
                 // 10. تأكد_أكبر / assert_greater - التحقق من أن القيمة الأولى أكبر
                 if (funcName == Bn::Assertions::ASSERT_GT)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة تأكد_أكبر تتطلب معاملين" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::ASSERT_GT, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_ASSERT_GREATER);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -315,11 +284,8 @@ namespace Sad
                 // 11. نظّف / sanitize - تنظيف نص من HTML
                 if (funcName == Bn::Assertions::SANITIZE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة نظّف تتطلب معامل واحد (النص)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::SANITIZE, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_SANITIZE);
@@ -353,11 +319,8 @@ namespace Sad
                 // 13. عشوائي_آمن / secure_random - رقم عشوائي آمن
                 if (funcName == Bn::Assertions::SECURE_RANDOM)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[خطأ] دالة عشوائي_آمن تتطلب معاملين (الحد_الأدنى، الحد_الأقصى)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::SECURE_RANDOM, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_SECURE_RANDOM);
@@ -375,11 +338,8 @@ namespace Sad
                 // 14. ترميز_64 / base64_encode - ترميز Base64
                 if (funcName == Bn::Assertions::BASE64_ENCODE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[خطأ] دالة ترميز_64 تتطلب معامل واحد (النص)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Assertions::BASE64_ENCODE, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_BASE64_ENCODE);

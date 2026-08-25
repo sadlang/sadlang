@@ -56,7 +56,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.empty()) return std::make_shared<Data::Value>(-1.0);
+            if (args.empty())
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             size_t size = static_cast<size_t>(args[0]->toDouble());
             uintptr_t addr = g_nextAddr;
             g_nextAddr += size;
@@ -76,7 +78,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.empty()) return std::make_shared<Data::Value>(false);
+            if (args.empty())
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             uintptr_t addr = static_cast<uintptr_t>(args[0]->toDouble());
             auto it = g_allocMap.find(addr);
             if (it != g_allocMap.end()) {
@@ -135,7 +139,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 2) return std::make_shared<Data::Value>(false);
+            if (args.size() < 2)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             // Stub: in real impl would zero memory at address
             return std::make_shared<Data::Value>(true);
         };
@@ -147,7 +153,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 3) return std::make_shared<Data::Value>(false);
+            if (args.size() < 3)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             // Stub: in real impl would copy memory
             return std::make_shared<Data::Value>(true);
         };
@@ -159,7 +167,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 2) return std::make_shared<Data::Value>(-1.0);
+            if (args.size() < 2)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             size_t newSize = static_cast<size_t>(args[1]->toDouble());
             uintptr_t addr = g_nextAddr;
             g_nextAddr += newSize;
@@ -179,7 +189,9 @@ void registerBuiltinsKernelMemory(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 2) return std::make_shared<Data::Value>(-1.0);
+            if (args.size() < 2)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             size_t size = static_cast<size_t>(args[0]->toDouble());
             size_t alignment = static_cast<size_t>(args[1]->toDouble());
             uintptr_t addr = (g_nextAddr + alignment - 1) & ~(alignment - 1);

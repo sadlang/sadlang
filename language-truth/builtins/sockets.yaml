@@ -17,6 +17,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: TCP_CONNECT
+  arity:
+    min: 3
+    max: 3
   canonical: اتصل_بـ
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -30,6 +33,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: TCP_SEND
+  arity:
+    min: 2
+    max: 2
   canonical: أرسل_عبر_وصلة
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -43,6 +49,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: TCP_RECV
+  arity:
+    min: 1
+    max: 2
   canonical: استقبل_عبر_وصلة
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -56,6 +65,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: TCP_CLOSE
+  arity:
+    min: 1
+    max: 1
   canonical: أغلق_وصلة
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -69,6 +81,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: TCP_BIND
+  arity:
+    min: 2
+    max: 2
   canonical: خصص_منفذ
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -82,6 +97,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: TCP_LISTEN
+  arity:
+    min: 1
+    max: 2
   canonical: انتظر_اتصالات
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -95,6 +113,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: TCP_ACCEPT
+  arity:
+    min: 1
+    max: 1
   canonical: اقبل_متصل
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -108,6 +129,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: TCP_CONNECTED
+  arity:
+    min: 1
+    max: 1
   canonical: هل_متصلة
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -121,6 +145,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: TCP_REMOTE_ADDR
+  arity:
+    min: 1
+    max: 1
   canonical: عنوان_الطرف_الآخر
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -147,6 +174,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: UDP_BIND
+  arity:
+    min: 2
+    max: 2
   canonical: خصص_منفذ_رسائل
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -160,6 +190,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: UDP_SEND
+  arity:
+    min: 4
+    max: 4
   canonical: أرسل_رسالة
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -173,6 +206,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: UDP_RECV
+  arity:
+    min: 1
+    max: 2
   canonical: استقبل_رسالة
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -186,6 +222,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: UDP_CLOSE
+  arity:
+    min: 1
+    max: 1
   canonical: أغلق_مرسال
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -199,6 +238,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RECV_TIMEOUT
+  arity:
+    min: 2
+    max: 2
   canonical: حدد_انتظار_الاستقبال
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -212,6 +254,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: SEND_TIMEOUT
+  arity:
+    min: 2
+    max: 2
   canonical: حدد_انتظار_الإرسال
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -225,6 +270,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: NO_DELAY
+  arity:
+    min: 2
+    max: 2
   canonical: أرسل_فورا
   namespace: Sockets
   category: MODULE_FUNCTION
@@ -238,6 +286,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: LOCAL_PORT
+  arity:
+    min: 1
+    max: 1
   canonical: منفذ_محلي
   namespace: Sockets
   category: MODULE_FUNCTION

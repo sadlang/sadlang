@@ -91,7 +91,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.empty()) return std::make_shared<Data::Value>(-1.0);
+            if (args.empty())
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             std::string path = args[0]->toString();
             try {
                 auto lib = std::make_shared<StubLibrary>(path);
@@ -111,7 +113,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.empty()) return std::make_shared<Data::Value>(false);
+            if (args.empty())
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             uint64_t id = static_cast<uint64_t>(args[0]->toDouble());
             return std::make_shared<Data::Value>(g_libraries.erase(id) > 0);
         };
@@ -123,7 +127,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 2) return std::make_shared<Data::Value>(false);
+            if (args.size() < 2)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
             std::string funcName = args[1]->toString();
             auto it = g_libraries.find(libId);
@@ -174,7 +180,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.size() < 2) return std::make_shared<Data::Value>(false);
+            if (args.size() < 2)
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
             std::string symbol = args[1]->toString();
             auto it = g_libraries.find(libId);
@@ -189,7 +197,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.empty()) return std::make_shared<Data::Value>(std::string(""));
+            if (args.empty())
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             uint64_t libId = static_cast<uint64_t>(args[0]->toDouble());
             auto it = g_libraries.find(libId);
             if (it == g_libraries.end()) return std::make_shared<Data::Value>(std::string(""));
@@ -241,7 +251,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.empty()) return std::make_shared<Data::Value>(0.0);
+            if (args.empty())
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             std::string typeName = args[0]->toString();
             size_t size = 0;
             if (typeName == "int" || typeName == "عدد_صحيح") size = sizeof(int);
@@ -261,7 +273,9 @@ void registerBuiltinsFFI(Interpreter& interpreter) {
         auto f = [](Sad::Interpreter::BuiltinContext &ctx)
             -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
-            if (args.empty()) return std::make_shared<Data::Value>(0.0);
+            if (args.empty())
+                // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+                ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
             std::string typeName = args[0]->toString();
             size_t align = 0;
             if (typeName == "int") align = alignof(int);

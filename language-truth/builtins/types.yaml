@@ -6,6 +6,9 @@ functions:
 - cpp_id: TO_INT
   canonical: رقم
   namespace: TypeCtor
+  arity:
+    min: 1
+    max: 1
   category: TYPE_CONSTRUCTOR
   require_import: false
   module: NONE
@@ -21,6 +24,9 @@ functions:
 - cpp_id: TO_FLOAT
   canonical: عشري
   namespace: TypeCtor
+  arity:
+    min: 1
+    max: 1
   category: TYPE_CONSTRUCTOR
   require_import: false
   module: NONE
@@ -36,6 +42,9 @@ functions:
 - cpp_id: TO_STRING
   canonical: نص
   namespace: TypeCtor
+  arity:
+    min: 1
+    max: 1
   category: TYPE_CONSTRUCTOR
   require_import: false
   module: NONE
@@ -51,6 +60,9 @@ functions:
 - cpp_id: TO_BOOL
   canonical: منطقي
   namespace: TypeCtor
+  arity:
+    min: 1
+    max: 1
   category: TYPE_CONSTRUCTOR
   require_import: false
   module: NONE

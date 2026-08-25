@@ -8,6 +8,7 @@
 
 #include "sir_builder.h"
 #include "builders/builtin_builder.h"
+#include "builders/builtin_arity_check.h"
 #include "sir_builder.h"
 #include <iostream>
 
@@ -42,22 +43,6 @@ namespace Sad
             //      error catalog (SEM005), pushed to errors_ so the build fails.
             //      (errors_ خاصّةٌ في SIRBuilder وBuiltinBuilder صديقتُها؛ الدالّةُ
             //      الحرّةُ هنا تتلقّى المرجعَ من موضعِ النداءِ العضويِّ الصديق.)
-            [[nodiscard]] static bool checkOsHardwareArity(std::vector<std::string> &errors,
-                                         const std::string &name,
-                                         const Ar::Range &range, size_t found)
-            {
-                if (found >= range.min && found <= range.max)
-                    return true;
-                Sad::Errors::RenderContext ectx;
-                ectx.placeholders = {
-                    {"name", name},
-                    {"expected", std::to_string(found < range.min ? range.min : range.max)},
-                    {"found", std::to_string(found)}};
-                errors.push_back(
-                    Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                        Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ectx));
-                return false;
-            }
 
             std::optional<BuildResult> BuiltinBuilder::buildBuiltinSystem_OsHardware(
                 const std::string &funcName,
@@ -69,7 +54,7 @@ namespace Sad
                 // ─── 15e. وحدة PCI ───
                 if (funcName == Bn::CompilerHw::HW_0)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_0, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_0, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_ENUMERATE);
@@ -80,7 +65,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_1)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_1, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_1, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_READ_CONFIG);
@@ -95,7 +80,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_2)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_2, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_2, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_WRITE_CONFIG);
                     inst.operands.push_back(argOperands[0]); // bus
@@ -109,7 +94,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_3)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_3, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_3, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_GET_DEVICE_COUNT);
@@ -120,7 +105,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_4)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_4, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_4, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_PCI_GET_REPORT);
@@ -133,7 +118,7 @@ namespace Sad
                 // ─── 15f. وحدة DMA المتقدمة ───
                 if (funcName == Bn::CompilerHw::HW_5)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_5, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_5, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_INIT);
                     if (b_.currentBlock_)
@@ -142,7 +127,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_6)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_6, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_6, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_TRANSFER);
                     inst.operands.push_back(argOperands[0]); // source
@@ -154,7 +139,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_7)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_7, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_7, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_STATUS);
@@ -165,7 +150,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_8)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_8, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_8, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_DMA_GET_REPORT);
@@ -179,7 +164,7 @@ namespace Sad
                 if (funcName == Bn::CompilerHw::HW_9)
                 {
                     // (AR) الوسيط الثالث (عمق البكسل bpp) اختياريٌّ معلَن ⇒ المدى [2, 3].
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_9, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_9, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_INIT);
                     inst.operands.push_back(argOperands[0]); // width
@@ -192,7 +177,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_10)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_10, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_10, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_SET_PIXEL);
                     inst.operands.push_back(argOperands[0]); // x
@@ -204,7 +189,7 @@ namespace Sad
                 }
                 if (funcName == Bn::UIPlatform::DRAW_RECT)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::UIPlatform::DRAW_RECT, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::UIPlatform::DRAW_RECT, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_DRAW_RECT);
                     for (auto &op : argOperands)
@@ -215,7 +200,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_11)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_11, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_11, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_FILL_RECT);
                     for (auto &op : argOperands)
@@ -226,7 +211,7 @@ namespace Sad
                 }
                 if (funcName == Bn::UIPlatform::DRAW_LINE)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::UIPlatform::DRAW_LINE, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::UIPlatform::DRAW_LINE, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_DRAW_LINE);
                     for (auto &op : argOperands)
@@ -238,7 +223,7 @@ namespace Sad
                 if (funcName == Bn::CompilerHw::HW_12)
                 {
                     // (AR) توقيع زمن التشغيل sad_ll_fb_draw_string(x، y، نص) ثلاثيٌّ حصرًا.
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_12, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_12, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_DRAW_STRING);
                     for (auto &op : argOperands)
@@ -250,7 +235,7 @@ namespace Sad
                 if (funcName == Bn::CompilerHw::HW_13)
                 {
                     // (AR) اللون اختياريٌّ معلَن (optional في تعليق الذراع) ⇒ المدى [0, 1].
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_13, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_13, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_CLEAR);
                     if (!argOperands.empty())
@@ -261,7 +246,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_14)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_14, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_14, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_FB_GET_REPORT);
@@ -274,7 +259,7 @@ namespace Sad
                 // ─── 15h. وحدة ACPI ───
                 if (funcName == Bn::CompilerHw::HW_15)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_15, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_15, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_INIT);
                     if (b_.currentBlock_)
@@ -283,7 +268,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_16)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_16, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_16, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_FIND_TABLE);
@@ -295,7 +280,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_17)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_17, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_17, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_SHUTDOWN);
                     if (b_.currentBlock_)
@@ -304,7 +289,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_18)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_18, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_18, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_ACPI_GET_REPORT);
@@ -317,7 +302,7 @@ namespace Sad
                 // ─── 15i. وحدة التزامن / Sync ───
                 if (funcName == Bn::CompilerHw::HW_19)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_19, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_19, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SPINLOCK_INIT);
@@ -328,7 +313,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_20)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_20, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_20, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SPINLOCK_LOCK);
                     inst.operands.push_back(argOperands[0]); // lock ptr
@@ -338,7 +323,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_21)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_21, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_21, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SPINLOCK_UNLOCK);
                     inst.operands.push_back(argOperands[0]); // lock ptr
@@ -348,7 +333,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_22)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_22, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_22, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_MUTEX_INIT);
@@ -359,7 +344,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_23)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_23, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_23, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_MUTEX_LOCK);
                     inst.operands.push_back(argOperands[0]); // mutex ptr
@@ -369,7 +354,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_24)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_24, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_24, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::LOWLEVEL_MUTEX_UNLOCK);
                     inst.operands.push_back(argOperands[0]); // mutex ptr
@@ -379,7 +364,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_25)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_25, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_25, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_SEMAPHORE_INIT);
@@ -391,7 +376,7 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerHw::HW_26)
                 {
-                    if (!checkOsHardwareArity(b_.errors_, funcName, Ar::CompilerHw::HW_26, argResults.size()))
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerHw::HW_26, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string r = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::LOWLEVEL_BARRIER_INIT);

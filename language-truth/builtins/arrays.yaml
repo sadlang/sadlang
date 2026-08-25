@@ -6,6 +6,9 @@ functions:
 - cpp_id: ADD
   canonical: إضافة_عنصر
   namespace: Arrays
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -19,6 +22,9 @@ functions:
 - cpp_id: REMOVE
   canonical: إزالة_عنصر
   namespace: Arrays
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -32,6 +38,9 @@ functions:
 - cpp_id: SIZE
   canonical: حجم_مصفوفة
   namespace: Arrays
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -46,6 +55,9 @@ functions:
 - cpp_id: INDEX_OF
   canonical: فهرس_مصفوفة
   namespace: Arrays
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -60,6 +72,9 @@ functions:
 - cpp_id: ARRAY_CONTAINS
   canonical: يحتوي_عنصر
   namespace: Arrays
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -74,6 +89,9 @@ functions:
 - cpp_id: REVERSE
   canonical: قلب
   namespace: Arrays
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -87,6 +105,9 @@ functions:
 - cpp_id: SORT
   canonical: رتب
   namespace: Arrays
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -100,6 +121,9 @@ functions:
 - cpp_id: FIRST
   canonical: الأول
   namespace: Arrays
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -113,6 +137,9 @@ functions:
 - cpp_id: LAST
   canonical: الأخير
   namespace: Arrays
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -126,6 +153,9 @@ functions:
 - cpp_id: SLICE
   canonical: شريحة
   namespace: Arrays
+  arity:
+    min: 2
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

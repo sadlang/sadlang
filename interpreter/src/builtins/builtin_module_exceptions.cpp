@@ -48,7 +48,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
-                        return std::make_shared<Data::Value>(std::string(""));
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     return std::make_shared<Data::Value>(args[0]->toString());
                 };
                 fm.registerBuiltinFunction(std::string(Bexc::EXC_MESSAGE), f); // استثناء_رسالة
@@ -88,7 +91,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
-                        return std::make_shared<Data::Value>(std::string("غير محدد"));
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     std::string code = args[0]->toString();
                     if (code.find("خارج الحدود") != std::string::npos || code.find("OutOfBounds") != std::string::npos)
                         return std::make_shared<Data::Value>(std::string("خارج_الحدود"));
@@ -110,7 +116,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
-                        return std::make_shared<Data::Value>(false);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     std::string permission = args[0]->toString();
                     if (permission == "fs" || permission == "ملفات")
                         return std::make_shared<Data::Value>(true);
@@ -160,7 +169,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
-                        return std::make_shared<Data::Value>(false);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     bool condition = args[0]->toBool();
                     if (!condition)
                     {

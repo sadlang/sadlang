@@ -509,7 +509,10 @@ namespace Sad
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    return std::make_shared<Data::Value>(-1);
+                    // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                    //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                    //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 int64_t taskId = args[0]->toInt();
                 std::cout << "[ASYNC-SIM] First task #" << taskId << " completed (wait_any)" << std::endl;
                 return std::make_shared<Data::Value>(0);
@@ -520,13 +523,14 @@ namespace Sad
             auto channel_select_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
                 const auto &args = ctx.args(); (void)args;
+                // (AR) كان الانتقاءُ على صفرِ قنواتٍ يعودُ بالقناةِ «٠» — رقمٌ صالحُ
+                //      الشكلِ يُقرأ معرِّفَ قناةٍ، فيتفرّعُ الكاتبُ على غيابٍ متنكّرٍ
+                //      في هيئةِ نتيجة. والانتقاءُ بلا قناةٍ نداءٌ ناقصٌ لا حالةٌ صفرية.
+                if (args.empty())
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::cout << "[ASYNC-SIM] Select on " << args.size() << " channels" << std::endl;
-                if (!args.empty())
-                {
-                    int64_t chanId = args[0]->toInt();
-                    return std::make_shared<Data::Value>(static_cast<int>(chanId));
-                }
-                return std::make_shared<Data::Value>(0);
+                int64_t chanId = args[0]->toInt();
+                return std::make_shared<Data::Value>(static_cast<int>(chanId));
             };
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Basync::CHANNEL_SELECT), channel_select_func);
 
@@ -541,7 +545,10 @@ namespace Sad
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.size() < 2)
-                    return std::make_shared<Data::Value>(0);
+                    // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                    //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                    //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (!args[0]->isObject())
                     return std::make_shared<Data::Value>(0);
 
@@ -563,7 +570,10 @@ namespace Sad
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    return std::make_shared<Data::Value>(std::string(""));
+                    // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                    //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                    //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 if (!args[0]->isObject())
                 {
                     // (AR) نُرجع نوع القيمة إذا لم يكن كائناً
@@ -610,7 +620,12 @@ namespace Sad
             auto get_fields_func = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value>
             {
                 const auto &args = ctx.args(); (void)args;
-                if (args.empty() || !args[0]->isObject())
+                // (AR) الغيابُ والنوعُ الخاطئُ كانا يشتركان في مخرجٍ واحدٍ عدميّ،
+                //      فيُقرأُ «كائنٌ بلا حقول». والنداءُ الناقصُ يُسمّى، وأمّا
+                //      قيمةٌ ليست كائنًا فعدمٌ عن قصدٍ يبقى على حالِه.
+                if (args.empty())
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
+                if (!args[0]->isObject())
                     return std::make_shared<Data::Value>();
                 auto obj = args[0]->toObject();
                 if (!obj)

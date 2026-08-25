@@ -18,6 +18,14 @@
 #include <filesystem>
 #include <optional>
 
+#include "builtin_registry.h"
+#include "error_manager.h"
+#include "builders/builtin_arity_check.h"
+// (AR) الأسماءُ من مصدرِ الحقيقةِ بدل بايتاتٍ مهرَّبة، والرتبةُ من حقلِ `arity`
+//      بدل رقمٍ في الشرطِ وتشخيصٍ يذهبُ إلى `std::cerr` لا يراه أحد.
+namespace Bn = Sad::Builtins::Names;
+namespace Ar = Sad::Builtins::Arity;
+
 namespace Sad
 {
     namespace Compiler
@@ -40,11 +48,11 @@ namespace Sad
                 // 1. spawn - async task
                 if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x85\xd9\x87\xd9\x85\xd8\xa9" || funcName == "spawn" || funcName == "async_spawn")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] spawn requires at least 1 argument (function name)" << std::endl;
+                                        // (AR) رتبةٌ مفتوحةُ الأعلى (وسائطُ المهمّةِ تتبعُ اسمَها) — العقدُ الآن في مصدرِ الحقيقةِ
+                    //      بـ`variadic: true`، والأدنى يُقرَأ من الثابتِ المُولَّدِ لا من رقمٍ
+                    //      يُكتَب. والحدُّ الأعلى قائمٌ شكلًا (UNBOUNDED) فلا يمنعُ نداءً صحيحًا.
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::ASYNC_SPAWN, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     // (AR) بوابة الأنواع المصرحة — نظيرة بوابة «أطلق» حرفا:
                     //      كانت هذه المدمجة تمرر الوسائط إلى ASYNC_SPAWN بلا
                     //      فحص فتعيد فئة انحدار 099 من الباب الخلفي (معامل
@@ -115,11 +123,10 @@ namespace Sad
                 // 2. await - wait for future/task
                 if (funcName == "\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1_\xd9\x85\xd9\x87\xd9\x85\xd8\xa9" || funcName == "await" || funcName == "async_await" || funcName == "\xd8\xa7\xd9\x86\xd8\xaa\xd8\xb8\xd8\xb1")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] await requires 1 argument (task/future id)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::AsyncAdvanced::ASYNC_AWAIT_TASK,
+                                           argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_AWAIT);
@@ -150,11 +157,10 @@ namespace Sad
                 // 4. async_sleep - non-blocking sleep
                 if (funcName == "\xd9\x86\xd9\x88\xd9\x85_\xd8\xba\xd9\x8a\xd8\xb1_\xd9\x85\xd8\xaa\xd8\xb2\xd8\xa7\xd9\x85\xd9\x86" || funcName == "async_sleep" || funcName == "sleep_async")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] async_sleep requires 1 argument (milliseconds)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::AsyncAdvanced::ASYNC_SLEEP,
+                                           argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::ASYNC_SLEEP);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -191,13 +197,10 @@ namespace Sad
                 }
 
                 // 6. resolve_future
-                if (funcName == "\xd8\xa3\xd9\x88\xd9\x81_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84" || funcName == "resolve_future" || funcName == "\xd8\xad\xd9\x82\xd9\x82_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84")
+                if (funcName == Bn::AsyncAdvanced::FUTURE_OFF || funcName == "resolve_future" || funcName == "\xd8\xad\xd9\x82\xd9\x82_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84")
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[ERROR] resolve_future requires 2 args (future_id, value)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::FUTURE_OFF, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::ASYNC_RESOLVE_FUTURE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -212,11 +215,10 @@ namespace Sad
                 // 7. get_future
                 if (funcName == "\xd8\xa7\xd8\xad\xd8\xb5\xd9\x84_\xd9\x85\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84" || funcName == "get_future")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] get_future requires 1 argument (future_id)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::AsyncAdvanced::FUTURE_GET,
+                                           argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     // (AR) العائدُ «أي» لا «رقم» — الحمولةُ موسومةٌ زمنَ التشغيل.
                     //      السببُ الكاملُ عند `buildFutureMethodCall` في
                     //      `method_call_concurrency.cpp`؛ النظيران يتحرّكان معًا.
@@ -258,13 +260,10 @@ namespace Sad
                 }
 
                 // 9. channel_send
-                if (funcName == "\xd8\xa3\xd8\xb1\xd8\xb3\xd9\x84_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "channel_send")
+                if (funcName == Bn::AsyncAdvanced::CHANNEL_SEND || funcName == "channel_send")
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[ERROR] channel_send requires 2 args (channel_id, value)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::CHANNEL_SEND, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_SEND);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -281,11 +280,10 @@ namespace Sad
                 // 10. channel_recv
                 if (funcName == "\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "channel_recv" || funcName == "\xd8\xa7\xd8\xb3\xd8\xaa\xd9\x82\xd8\xa8\xd9\x84")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] channel_recv requires 1 argument (channel_id)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::AsyncAdvanced::CHANNEL_RECV,
+                                           argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_RECV);
@@ -302,11 +300,10 @@ namespace Sad
                 // 11. channel_close
                 if (funcName == "\xd8\xa3\xd8\xba\xd9\x84\xd9\x82_\xd9\x82\xd9\x86\xd8\xa7\xd8\xa9" || funcName == "channel_close")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] channel_close requires 1 argument (channel_id)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::AsyncAdvanced::CHANNEL_CLOSE,
+                                           argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::ASYNC_CHANNEL_CLOSE);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -339,11 +336,10 @@ namespace Sad
                 // 13. mutex_lock
                 if (funcName == "\xd8\xa7\xd9\x82\xd9\x81\xd9\x84" || funcName == "mutex_lock" || funcName == "lock")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] mutex_lock requires 1 argument (mutex_id)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::AsyncAdvanced::MUTEX_LOCK,
+                                           argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_LOCK);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -357,11 +353,10 @@ namespace Sad
                 // 14. mutex_unlock
                 if (funcName == "\xd8\xa7\xd9\x81\xd8\xaa\xd8\xad_\xd9\x82\xd9\x81\xd9\x84" || funcName == "mutex_unlock" || funcName == "unlock")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] mutex_unlock requires 1 argument (mutex_id)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::AsyncAdvanced::MUTEX_UNLOCK,
+                                           argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::ASYNC_MUTEX_UNLOCK);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -375,11 +370,11 @@ namespace Sad
                 // 15. thread_spawn
                 if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd8\xae\xd9\x8a\xd8\xb7" || funcName == "thread_spawn" || funcName == "\xd8\xae\xd9\x8a\xd8\xb7")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] thread_spawn requires at least 1 argument" << std::endl;
+                                        // (AR) رتبةٌ مفتوحةُ الأعلى (وسائطُ الخيطِ تتبعُ اسمَه) — العقدُ الآن في مصدرِ الحقيقةِ
+                    //      بـ`variadic: true`، والأدنى يُقرَأ من الثابتِ المُولَّدِ لا من رقمٍ
+                    //      يُكتَب. والحدُّ الأعلى قائمٌ شكلًا (UNBOUNDED) فلا يمنعُ نداءً صحيحًا.
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::CREATE_THREAD, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_THREAD_SPAWN);
@@ -397,11 +392,10 @@ namespace Sad
                 // 16. thread_join
                 if (funcName == "\xd8\xa7\xd9\x86\xd8\xb6\xd9\x85_\xd8\xae\xd9\x8a\xd8\xb7" || funcName == "thread_join")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] thread_join requires 1 argument (thread_id)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::AsyncAdvanced::THREAD_JOIN,
+                                           argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_THREAD_JOIN);
@@ -418,11 +412,10 @@ namespace Sad
                 // 17. atomic_load
                 if (funcName == "\xd8\xad\xd9\x85\xd9\x84_\xd8\xb0\xd8\xb1\xd9\x8a" || funcName == "atomic_load")
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[ERROR] atomic_load requires 1 argument (address)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::AsyncAdvanced::ATOMIC_LOAD,
+                                           argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_LOAD);
@@ -437,13 +430,10 @@ namespace Sad
                 }
 
                 // 18. atomic_store
-                if (funcName == "\xd8\xae\xd8\xb2\xd9\x86_\xd8\xb0\xd8\xb1\xd9\x8a" || funcName == "atomic_store")
+                if (funcName == Bn::AsyncAdvanced::ATOMIC_STORE || funcName == "atomic_store")
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[ERROR] atomic_store requires 2 args (address, value)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::ATOMIC_STORE, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_STORE);
                     inst.operands.push_back(argOperands[0]);
                     inst.operands.push_back(argOperands[1]);
@@ -456,13 +446,10 @@ namespace Sad
                 }
 
                 // 19. atomic_add
-                if (funcName == "\xd8\xa3\xd8\xb6\xd9\x81_\xd8\xb0\xd8\xb1\xd9\x8a" || funcName == "atomic_add")
+                if (funcName == Bn::AsyncAdvanced::ATOMIC_ADD || funcName == "atomic_add")
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[ERROR] atomic_add requires 2 args (address, value)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::ATOMIC_ADD, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_ADD);
@@ -478,13 +465,10 @@ namespace Sad
                 }
 
                 // 20. compare_and_swap / CAS
-                if (funcName == "\xd9\x82\xd8\xa7\xd8\xb1\xd9\x86_\xd9\x88\xd8\xa8\xd8\xaf\xd9\x84" || funcName == "compare_and_swap" || funcName == "cas")
+                if (funcName == Bn::AsyncAdvanced::ATOMIC_CAS || funcName == "compare_and_swap" || funcName == "cas")
                 {
-                    if (argResults.size() < 3)
-                    {
-                        std::cerr << "[ERROR] CAS requires 3 args (addr, expected, desired)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::ATOMIC_CAS, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_ATOMIC_CAS);

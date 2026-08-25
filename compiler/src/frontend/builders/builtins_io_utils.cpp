@@ -8,6 +8,7 @@
 
 #include "sir_builder.h"
 #include "builders/builtin_builder.h"
+#include "builders/builtin_arity_check.h"
 #include "sir_builder.h"
 #include <stdexcept>
 #include <iostream>
@@ -15,6 +16,7 @@
 
 #include "builtin_registry.h"
 namespace Bn = Sad::Builtins::Names;
+namespace Ar = Sad::Builtins::Arity;
 
 namespace Sad
 {
@@ -34,11 +36,8 @@ namespace Sad
                 // 1. اقرأ_ملف / read_file
                 if (funcName == Bn::Basics::READ_FILE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة اقرأ_ملف تتطلب معامل واحد (مسار الملف)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::READ_FILE, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_READ);
@@ -55,11 +54,8 @@ namespace Sad
                 // 2. اكتب_ملف / write_file
                 if (funcName == Bn::Basics::WRITE_FILE)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة اكتب_ملف تتطلب معاملين (مسار, محتوى)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::WRITE_FILE, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_WRITE);
@@ -77,11 +73,8 @@ namespace Sad
                 // 2ب. اكتب_بايتات / write_bytes — كتابة بايتات خام (fwrite، تكتب الصفريّة)
                 if (funcName == Bn::Basics::WRITE_BYTES)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة اكتب_بايتات تتطلب معاملين (مسار, مصفوفة بايتات)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::WRITE_BYTES, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_WRITE_BYTES);
@@ -99,11 +92,8 @@ namespace Sad
                 // 2ج. اقرأ_بايتات / read_bytes — قراءة بايتات خام إلى مصفوفة أعداد
                 if (funcName == Bn::Basics::READ_BYTES)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة اقرأ_بايتات تتطلب معامل واحد (مسار الملف)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::READ_BYTES, argResults.size()))
                         return BuildResult("", SadTypeKind::Array);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Array);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_READ_BYTES);
@@ -120,11 +110,8 @@ namespace Sad
                 // 3. أضف_إلى_ملف / append_to_file
                 if (funcName == Bn::Basics::APPEND_FILE)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة أضف_إلى_ملف تتطلب معاملين (مسار, محتوى)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::APPEND_FILE, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_APPEND);
@@ -142,11 +129,8 @@ namespace Sad
                 // 4. احذف_ملف / delete_file
                 if (funcName == Bn::Basics::DELETE_FILE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة احذف_ملف تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::DELETE_FILE, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_DELETE);
@@ -163,11 +147,8 @@ namespace Sad
                 // 5. انسخ_ملف / copy_file
                 if (funcName == Bn::Basics::COPY_FILE)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة انسخ_ملف تتطلب معاملين (مصدر, وجهة)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::COPY_FILE, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_COPY);
@@ -185,11 +166,8 @@ namespace Sad
                 // 6. انقل_ملف / move_file
                 if (funcName == Bn::Basics::MOVE_FILE)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة انقل_ملف تتطلب معاملين (مصدر, وجهة)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::MOVE_FILE, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_MOVE);
@@ -207,11 +185,8 @@ namespace Sad
                 // 7. أنشئ_مجلد / create_dir
                 if (funcName == Bn::Basics::MKDIR)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة أنشئ_مجلد تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::MKDIR, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_CREATE_DIR);
@@ -228,11 +203,8 @@ namespace Sad
                 // 8. اسرد_مجلد / list_dir
                 if (funcName == Bn::Basics::LIST_DIR)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة اسرد_مجلد تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::LIST_DIR, argResults.size()))
                         return BuildResult("", SadTypeKind::Array);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Array);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_LIST_DIR);
@@ -249,11 +221,8 @@ namespace Sad
                 // 9. هل_مجلد / is_dir — فحص إن كان المسار مجلدًا (stat)
                 if (funcName == Bn::Basics::IS_DIR)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة هل_مجلد تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::IS_DIR, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_IS_DIR);
@@ -270,11 +239,8 @@ namespace Sad
                 // 9-أ. احذف_مجلد / remove_dir — يحذف مجلّدًا فارغًا (نظير rmdir).
                 if (funcName == Bn::Basics::REMOVE_DIR)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة احذف_مجلد تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::REMOVE_DIR, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_REMOVE_DIR);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
@@ -287,11 +253,8 @@ namespace Sad
                 // 9-ب. هل_موجود / exists — أيُّ مدخلٍ موجود (ملفًّا كان أو مجلّدًا).
                 if (funcName == Bn::Basics::FILE_EXISTS)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة هل_موجود تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::FILE_EXISTS, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_EXISTS);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
@@ -304,11 +267,8 @@ namespace Sad
                 // 9-ج. هل_ملف / is_file — ملفٌّ عاديّ (يتبع الرابطَ فيصف هدفه، كنظيره في المفسّر).
                 if (funcName == Bn::Basics::IS_FILE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة هل_ملف تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::IS_FILE, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_IS_FILE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
@@ -334,11 +294,8 @@ namespace Sad
                 // ────────────────────────────────────────────────────────────────
                 if (funcName == Bn::Maps::FILE_SIZE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة حجم_ملف تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Maps::FILE_SIZE, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_SIZE);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
@@ -352,11 +309,8 @@ namespace Sad
                 // المطابقة (نظير المفسّر: match[0].str() أو قيمةُ فراغ).
                 if (funcName == Bn::Maps::REGEX_SEARCH)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة تعبير_بحث تتطلب معاملين (نص، نمط)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Maps::REGEX_SEARCH, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_REGEX_SEARCH);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::String);
@@ -373,11 +327,8 @@ namespace Sad
                 // تعبير_مطابقة / regex_match — مطابقةُ النصّ كاملًا ⇒ منطقيّ.
                 if (funcName == Bn::Maps::REGEX)
                 {
-                    if (argResults.size() < 2)
-                    {
-                        std::cerr << "[Error] دالة تعبير_مطابقة تتطلب معاملين (نص، نمط)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Maps::REGEX, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_REGEX_MATCH);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
@@ -394,11 +345,8 @@ namespace Sad
                 //     (AR) هل_ملف/هل_مجلد يتبعان الرابطَ فيصفان الهدف ⇒ لا يكشفان الرابط.
                 if (funcName == Bn::Basics::IS_SYMLINK)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة هل_رابط_رمزي تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::IS_SYMLINK, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_IS_SYMLINK);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::Boolean);
@@ -413,11 +361,8 @@ namespace Sad
                 //     رمزيّ يشير خارج الجذر. يُرجع نصًّا، أو عدمًا إن تعذّر الحلّ.
                 if (funcName == Bn::Basics::REAL_PATH)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة المسار_الحقيقي تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::REAL_PATH, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_REAL_PATH);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::String);
@@ -432,11 +377,8 @@ namespace Sad
                 //     لفرض الاحتواء الأمنيّ: رابطٌ رمزيّ يخترق التطبيعَ النصّيّ.
                 if (funcName == Bn::Basics::ABS_PATH)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة المسار_المطلق تتطلب معامل واحد (مسار)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Basics::ABS_PATH, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_FILE_ABS_PATH);
                     inst.result = SIROperand::Register(resultReg, SadTypeKind::String);
@@ -468,11 +410,8 @@ namespace Sad
                 // 2. نم / sleep
                 if (funcName == Bn::CompilerIo::IO_0)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة نم تتطلب معامل واحد (مدة بالثواني)" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::CompilerIo::IO_0, argResults.size()))
                         return BuildResult("", SadTypeKind::Void);
-                    }
                     SIRInstruction inst(SIROpcode::BUILTIN_SLEEP);
                     inst.operands.push_back(argOperands[0]);
                     if (b_.currentBlock_)
@@ -502,11 +441,8 @@ namespace Sad
                 // 4. النوع / type_of
                 if (funcName == Bn::Core::TYPE)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة النوع تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Core::TYPE, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_TYPE_OF);
@@ -591,11 +527,8 @@ namespace Sad
                 // هو_رقم / هو_رقم_صحيح / is_int
                 if (funcName == Bn::Strings::IS_INT)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة هو_رقم تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Strings::IS_INT, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_IS_INTEGER);
@@ -609,11 +542,8 @@ namespace Sad
                 // هو_عشري / هو_رقم_عشري / is_float
                 if (funcName == Bn::Strings::IS_FLOAT)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة هو_عشري تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Strings::IS_FLOAT, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_IS_FLOAT);
@@ -627,11 +557,8 @@ namespace Sad
                 // هو_نص / is_string / isString
                 if (funcName == Bn::Strings::IS_STRING)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة هو_نص تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Strings::IS_STRING, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_IS_STRING);
@@ -645,11 +572,8 @@ namespace Sad
                 // هو_مصفوفة / is_array / isArray
                 if (funcName == Bn::Strings::IS_ARRAY)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة هو_مصفوفة تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::Strings::IS_ARRAY, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_IS_ARRAY);
@@ -667,11 +591,8 @@ namespace Sad
                 // لمنطقي / to_bool / منطقي
                 if (funcName == Bn::TypeCtor::TO_BOOL)
                 {
-                    if (argResults.empty())
-                    {
-                        std::cerr << "[Error] دالة لمنطقي تتطلب معامل واحد" << std::endl;
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::TypeCtor::TO_BOOL, argResults.size()))
                         return BuildResult("", SadTypeKind::Boolean);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Boolean);
                     SIRInstruction inst(SIROpcode::BUILTIN_TO_BOOL);

@@ -34,6 +34,7 @@
 #include "error_catalog.h" // (AR) RenderContext (حاملُ placeholders)
 #include "error_codes.h"   // (AR) ErrorCode::RUN_METHOD_NOT_FOUND
 #include "types/type.h"    // (AR) typeKindToArabic — اسمُ النوعِ بالعربيّة في التشخيص
+#include "builders/builtin_arity_check.h" // (AR) فحصُ رتبةِ طريقةِ النوعِ من مصدرِ الحقيقة
                            //      (‏sirTypeToString يُرجع اسمًا خلفيًّا إنجليزيًّا كـ«i64»)
 #include <stdexcept>
 #include <iostream>
@@ -818,6 +819,33 @@ namespace Sad
 
                 if (!isRegisteredClassMethod)
                 {
+                    // ════════════════════════════════════════════════════════════════
+                    // (AR) رتبةُ طريقةِ النوع — تُفرَضُ ههنا **مرّةً واحدة** قبلَ
+                    //      عائلاتِ البُناة. كان كلُّ فرعٍ يفحصُ برقمٍ محلّيٍّ أو لا
+                    //      يفحص، فتبخّرَ `خ.عين("ك")` صامتًا. والمدى مُعلَنٌ في
+                    //      `language-truth/type_methods.yaml` ومُشتَقٌّ من أذرعِ
+                    //      المفسّرِ نفسِها (`type_method_arity_derive.py`)، لا مُخترَع.
+                    //      و`args` تُدرِجُ المستقبِلَ أوّلًا فيُطرَح: العدُّ في مصدرِ
+                    //      الحقيقةِ عدُّ الوسائطِ وحدَها، منصوصًا عليه في المخطَّط.
+                    // (EN) Enforce type-method arity once, before the builder families.
+                    // ════════════════════════════════════════════════════════════════
+                    const char *arityTarget =
+                        objResult.type == SadTypeKind::Array    ? "ARRAY"
+                        : objResult.type == SadTypeKind::String ? "STRING"
+                        : objResult.type == SadTypeKind::Map    ? "MAP"
+                                                               : nullptr;
+                    // (AR) ولا «قناة» ههنا: لا وسمَ لها في `SadTypeKind` أصلًا —
+                    //      فطرائقُها تُعلَنُ رتبتُها ولا يفرضُها موضعُ الإرسالِ هذا.
+                    if (arityTarget)
+                    {
+                        const std::size_t userArgs = args.size() ? args.size() - 1 : 0;
+                        const auto *range =
+                            Sad::Builtins::Arity::TypeMethods::lookup(arityTarget, methodName);
+                        if (range &&
+                            !checkBuiltinArity(b_.errors_, methodName, *range, userArgs))
+                            return BuildResult("", objResult.type);
+                    }
+
                     // ════════════════════════════════════════════════════════════════
                     // (AR) توجيهٌ بنوع الكائن قبل الترتيب التاريخيّ. أسماءُ طرقٍ تتصادم
                     //      بين الأنواع المدمجة (عكس · يحتوي · احذف · نسخ · عد · فارغة)،

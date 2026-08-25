@@ -815,3 +815,20 @@ errors:
   detailed:
     ar: 'بوّابةُ المقاطعةِ خاصيّةُ دالّةٍ لا تعليمةٌ في جسمها: المُعدِّل «مقاطعة» يخفّض الدالّة باتّفاقيّة x86_intrcc فيولّد المصرّفُ كعبَ الدخولِ والخروجِ كاملًا (حفظ السجلّات المتطايرة، وتسويةُ المكدّس لرمز الخطأ، والعودةُ بـiretq). ولهذا العقدِ شروطٌ ليست اختياراتٍ بل مطالبُ مُصادِقِ LLVM والعتاد: المعاملُ الأوّلُ إطارُ المقاطعةِ الذي يدفعه العتاد (يُخفَّض مؤشّرًا بسمة byval)، والعائدُ فراغٌ حصرًا (لا مكانَ لقيمةِ عائدٍ في iretq)، والدالّةُ لا تُنادى من ص — يُؤخَذ عنوانُها بـ«عنوان_رمز» ويُسجَّل في جدول المقاطعات؛ فنداؤها مباشرةً يدخلها بإطارٍ لم يدفعه العتادُ ثمّ يخرج بـiretq على مكدّسٍ مكسور: انهيارٌ صامتٌ لا يمسكه اختبار. والمرحلةُ الأولى مقصورةٌ على x86_64 في الوضع الحرّ (قرارُ نحلة «64-بت فقط»؛ وi386 عقدُه مختلف: رمزُ خطأٍ i32 وعودةٌ بـiret). ويتنافى المُعدِّلُ مع «خارجية» (المعالجُ يلزمه جسم) ومع «غير_متزامن»/المولّد (لا حالةَ معلَّقةً داخل بوّابةِ عتاد). المرجع: RFC 0059.'
     en: 'An interrupt gate is a property of the function, not an instruction in its body: the «مقاطعة» modifier lowers the function through the x86_intrcc calling convention so the compiler emits the full entry/exit stub (volatile register save, error-code stack adjustment, and an iretq return). Its terms are LLVM-verifier and hardware requirements rather than choices: the first parameter is the hardware-pushed interrupt frame (lowered as a byval pointer), the return type is void only (iretq has nowhere to put a return value), and the function is never called from Sad — its address is taken with «عنوان_رمز» and installed in the IDT. Calling it directly enters with a frame the hardware never pushed and leaves through iretq on a broken stack: a silent crash no test catches. Stage one is x86_64 freestanding only (the "64-bit only" owner decision; i386 has a different contract — an i32 error code and an iret return). The modifier clashes with «خارجية» (a handler needs a body) and with async/generator functions (no suspended state inside a hardware gate). Reference: RFC 0059.'
+- code: SEM_BUILTIN_ABSENT_IN_COMPILER
+  id: SEM047
+  category: semantic
+  title:
+    ar: مدمَجة معلَنة بلا نظير في المترجم
+    en: Declared builtin has no compiler counterpart
+  brief:
+    ar: المدمَجة '{name}' معلَنة في مصدر الحقيقة ومسجَّلة في المفسّر، ولا توزيع لها في المترجم
+    en: Builtin '{name}' is declared in the SoT and registered in the interpreter, but the compiler has no dispatch for it
+  placeholders:
+  - name
+  fix_hint:
+    ar: 'شغّل البرنامج بالمفسّر (sad-run) ريثما يُوصَل هذا المدمَج بالمترجم، أو استبدله بمدمَج مصرَّف يؤدّي الغرض نفسه.'
+    en: 'Run the program with the interpreter (sad-run) until this builtin is wired into the compiler, or use a compiled builtin that serves the same purpose.'
+  detailed:
+    ar: 'هذا ليس اسمًا مجهولًا: المدمَجة معلَنة في language-truth/builtins/ ومسجَّلة في المفسّر وتعمل هناك، لكنّ الأماميّة لا تحمل لها ذراع توزيع ولا الخلفيّة أوپكودًا. وكان التشخيص السابق يقول «استدعاء دالة غير معرّفة» فيرسل الكاتب يبحث عن خطأ إملائيّ لا وجود له، أو يعرّفها بنفسه فيصطدم بالاسم المحجوز. والسبب الحقيقيّ تباعد تغطية بين المحرّكَين يُقاس ويُعلَن عدده، لا خطأ في البرنامج. راجع حارس scripts/codegen/check_builtin_arity_sot.py لعدد ما لم يُوصَل بعد.'
+    en: 'This is not an unknown name: the builtin is declared in language-truth/builtins/, registered in the interpreter, and works there — but the frontend has no dispatch arm and the backend no opcode. The previous diagnostic said "call to undefined function", sending the author hunting for a typo that does not exist, or defining it themselves and colliding with the reserved name. The real cause is a measured coverage divergence between the two engines, not a defect in the program.'

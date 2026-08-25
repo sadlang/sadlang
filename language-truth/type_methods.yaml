@@ -13,6 +13,9 @@ methods:
 - target: مصفوفة
   method: أضف
   method_en: push
+  arity:
+    min: 1
+    variadic: true
   description_ar: إضافة عنصر للنهاية
   since: 1.0.0
   status: stable
@@ -31,6 +34,9 @@ methods:
 - target: مصفوفة
   method: احذف
   method_en: delete
+  arity:
+    min: 1
+    max: 1
   description_ar: حذف عنصر بالفهرس
   since: 1.0.0
   status: stable
@@ -40,6 +46,9 @@ methods:
 - target: مصفوفة
   method: احذف_اخير
   method_en: pop
+  arity:
+    min: 0
+    max: 0
   description_ar: حذف وإرجاع آخر عنصر
   since: 1.0.0
   status: stable
@@ -49,6 +58,9 @@ methods:
 - target: مصفوفة
   method: رتب
   method_en: sort
+  arity:
+    min: 0
+    max: 1
   description_ar: ترتيب المصفوفة تصاعدياً
   since: 1.0.0
   status: stable
@@ -67,6 +79,9 @@ methods:
 - target: مصفوفة
   method: عكس
   method_en: reverse
+  arity:
+    min: 0
+    max: 0
   description_ar: عكس ترتيب العناصر
   since: 1.0.0
   status: stable
@@ -76,6 +91,9 @@ methods:
 - target: مصفوفة
   method: يحتوي
   method_en: contains
+  arity:
+    min: 1
+    max: 1
   description_ar: هل تحوي العنصر؟
   since: 1.0.0
   status: stable
@@ -85,6 +103,9 @@ methods:
 - target: مصفوفة
   method: فهرس
   method_en: index_of
+  arity:
+    min: 1
+    max: 1
   description_ar: فهرس أول ظهور للعنصر
   since: 1.0.0
   status: stable
@@ -94,6 +115,9 @@ methods:
 - target: مصفوفة
   method: شريحة
   method_en: slice
+  arity:
+    min: 0
+    max: 2
   description_ar: استخراج جزء من المصفوفة
   since: 1.0.0
   status: stable
@@ -103,6 +127,9 @@ methods:
 - target: مصفوفة
   method: خريطة
   method_en: map
+  arity:
+    min: 1
+    max: 1
   description_ar: تحويل كل عنصر بدالة
   since: 1.0.0
   status: stable
@@ -112,6 +139,9 @@ methods:
 - target: مصفوفة
   method: رشح
   method_en: filter
+  arity:
+    min: 1
+    max: 1
   description_ar: تصفية العناصر بشرط
   since: 1.0.0
   status: stable
@@ -121,6 +151,9 @@ methods:
 - target: مصفوفة
   method: اختزل
   method_en: reduce
+  arity:
+    min: 1
+    max: 2
   description_ar: اختزال المصفوفة لقيمة واحدة
   since: 1.0.0
   status: stable
@@ -130,6 +163,9 @@ methods:
 - target: مصفوفة
   method: لكل
   method_en: for_each
+  arity:
+    min: 1
+    max: 1
   description_ar: تنفيذ دالة على كل عنصر
   since: 1.0.0
   status: stable
@@ -139,6 +175,9 @@ methods:
 - target: مصفوفة
   method: أول
   method_en: first
+  arity:
+    min: 0
+    max: 0
   description_ar: إرجاع أول عنصر
   since: 1.0.0
   status: stable
@@ -148,6 +187,9 @@ methods:
 - target: مصفوفة
   method: آخر
   method_en: last
+  arity:
+    min: 0
+    max: 0
   description_ar: إرجاع آخر عنصر
   since: 1.0.0
   status: stable
@@ -157,6 +199,9 @@ methods:
 - target: مصفوفة
   method: فارغة
   method_en: is_empty
+  arity:
+    min: 0
+    max: 0
   description_ar: هل المصفوفة فارغة؟
   since: 1.0.0
   status: stable
@@ -166,6 +211,9 @@ methods:
 - target: مصفوفة
   method: الطول
   method_en: length
+  arity:
+    min: 0
+    max: 0
   description_ar: عدد العناصر
   since: 1.0.0
   status: stable
@@ -175,6 +223,9 @@ methods:
 - target: مصفوفة
   method: مسطح
   method_en: flatten
+  arity:
+    min: 0
+    max: 1
   description_ar: تسطيح مصفوفة متداخلة
   since: 1.0.0
   status: stable
@@ -184,6 +235,9 @@ methods:
 - target: مصفوفة
   method: جد
   method_en: find
+  arity:
+    min: 1
+    max: 1
   description_ar: أول عنصر يطابق شرطاً
   since: 1.0.0
   status: stable
@@ -193,6 +247,9 @@ methods:
 - target: مصفوفة
   method: جد_فهرس
   method_en: find_index
+  arity:
+    min: 1
+    max: 1
   description_ar: فهرس أول عنصر يطابق شرطاً
   since: 1.0.0
   status: stable
@@ -202,6 +259,9 @@ methods:
 - target: مصفوفة
   method: جميع
   method_en: every
+  arity:
+    min: 1
+    max: 1
   description_ar: هل جميع العناصر تطابق الشرط؟
   since: 1.0.0
   status: stable
@@ -211,6 +271,9 @@ methods:
 - target: مصفوفة
   method: أي
   method_en: some
+  arity:
+    min: 1
+    max: 1
   description_ar: هل يوجد عنصر يطابق الشرط؟
   since: 1.0.0
   status: stable
@@ -220,6 +283,9 @@ methods:
 - target: مصفوفة
   method: فريد
   method_en: unique
+  arity:
+    min: 0
+    max: 0
   description_ar: إزالة العناصر المكررة
   since: 1.0.0
   status: stable
@@ -247,6 +313,9 @@ methods:
 - target: مصفوفة
   method: صل
   method_en: join
+  arity:
+    min: 0
+    max: 1
   description_ar: دمج العناصر كنص بفاصل
   since: 1.0.0
   status: stable
@@ -265,6 +334,9 @@ methods:
 - target: مصفوفة
   method: ازدوج
   method_en: zip
+  arity:
+    min: 1
+    max: 1
   description_ar: جمع مصفوفتين في أزواج
   since: 1.0.0
   status: stable
@@ -274,6 +346,9 @@ methods:
 - target: مصفوفة
   method: حد_ادنى
   method_en: min
+  arity:
+    min: 0
+    max: 0
   description_ar: القيمة الدنيا في المصفوفة
   since: 1.0.0
   status: stable
@@ -283,6 +358,9 @@ methods:
 - target: مصفوفة
   method: حد_اقصى
   method_en: max
+  arity:
+    min: 0
+    max: 0
   description_ar: القيمة القصوى في المصفوفة
   since: 1.0.0
   status: stable
@@ -292,6 +370,9 @@ methods:
 - target: مصفوفة
   method: مجموع
   method_en: sum
+  arity:
+    min: 0
+    max: 0
   description_ar: مجموع عناصر المصفوفة
   since: 1.0.0
   status: stable
@@ -301,6 +382,9 @@ methods:
 - target: مصفوفة
   method: متوسط
   method_en: average
+  arity:
+    min: 0
+    max: 0
   description_ar: متوسط عناصر المصفوفة
   since: 1.0.0
   status: stable
@@ -310,6 +394,9 @@ methods:
 - target: مصفوفة
   method: امسح
   method_en: clear
+  arity:
+    min: 0
+    max: 0
   description_ar: مسح جميع العناصر
   since: 1.0.0
   status: stable
@@ -328,6 +415,9 @@ methods:
 - target: نص
   method: طول
   method_en: length
+  arity:
+    min: 0
+    max: 0
   description_ar: طول النص بعدد الأحرف
   since: 1.0.0
   status: stable
@@ -337,6 +427,9 @@ methods:
 - target: نص
   method: يحتوي
   method_en: contains
+  arity:
+    min: 1
+    max: 1
   description_ar: هل يحوي النص الفرعي؟
   since: 1.0.0
   status: stable
@@ -346,6 +439,9 @@ methods:
 - target: نص
   method: يبدأ_بـ
   method_en: starts_with
+  arity:
+    min: 1
+    max: 1
   description_ar: هل يبدأ بالنص المعطى؟
   since: 1.0.0
   status: stable
@@ -355,6 +451,9 @@ methods:
 - target: نص
   method: ينتهي_بـ
   method_en: ends_with
+  arity:
+    min: 1
+    max: 1
   description_ar: هل ينتهي بالنص المعطى؟
   since: 1.0.0
   status: stable
@@ -364,6 +463,9 @@ methods:
 - target: نص
   method: استبدل
   method_en: replace
+  arity:
+    min: 2
+    max: 2
   description_ar: استبدال نص فرعي بآخر
   since: 1.0.0
   status: stable
@@ -373,6 +475,9 @@ methods:
 - target: نص
   method: قسم
   method_en: split
+  arity:
+    min: 0
+    max: 1
   description_ar: تقسيم النص بفاصل
   since: 1.0.0
   status: stable
@@ -382,6 +487,9 @@ methods:
 - target: نص
   method: قص
   method_en: trim
+  arity:
+    min: 0
+    max: 0
   description_ar: حذف المسافات البيضاء
   since: 1.0.0
   status: stable
@@ -391,6 +499,9 @@ methods:
 - target: نص
   method: جزء
   method_en: substring
+  arity:
+    min: 0
+    max: 2
   description_ar: استخراج جزء بالفهرس
   since: 1.0.0
   status: stable
@@ -400,6 +511,9 @@ methods:
 - target: نص
   method: تحويل_كبير
   method_en: to_upper
+  arity:
+    min: 0
+    max: 0
   description_ar: تحويل للحروف الكبيرة
   since: 1.0.0
   status: stable
@@ -409,6 +523,9 @@ methods:
 - target: نص
   method: تحويل_صغير
   method_en: to_lower
+  arity:
+    min: 0
+    max: 0
   description_ar: تحويل للحروف الصغيرة
   since: 1.0.0
   status: stable
@@ -418,6 +535,9 @@ methods:
 - target: نص
   method: كرر
   method_en: repeat
+  arity:
+    min: 1
+    max: 1
   description_ar: تكرار النص N مرة
   since: 1.0.0
   status: stable
@@ -427,6 +547,9 @@ methods:
 - target: نص
   method: حرف_عند
   method_en: char_at
+  arity:
+    min: 1
+    max: 1
   description_ar: الحرف في موضع محدد
   since: 1.0.0
   status: stable
@@ -436,6 +559,9 @@ methods:
 - target: نص
   method: عكس
   method_en: reverse
+  arity:
+    min: 0
+    max: 0
   description_ar: عكس ترتيب الأحرف
   since: 1.0.0
   status: stable
@@ -445,6 +571,9 @@ methods:
 - target: نص
   method: بحث
   method_en: find
+  arity:
+    min: 1
+    max: 1
   description_ar: إيجاد موضع نص فرعي
   since: 1.0.0
   status: stable
@@ -463,6 +592,9 @@ methods:
 - target: خريطة
   method: احصل
   method_en: get
+  arity:
+    min: 1
+    max: 2
   description_ar: الحصول على قيمة بمفتاح
   since: 1.0.0
   status: stable
@@ -472,6 +604,9 @@ methods:
 - target: خريطة
   method: عين
   method_en: set
+  arity:
+    min: 2
+    max: 2
   description_ar: تعيين قيمة بمفتاح
   since: 1.0.0
   status: stable
@@ -481,6 +616,9 @@ methods:
 - target: خريطة
   method: احذف
   method_en: delete
+  arity:
+    min: 1
+    max: 1
   description_ar: حذف مفتاح وقيمته
   since: 1.0.0
   status: stable
@@ -490,6 +628,9 @@ methods:
 - target: خريطة
   method: يحتوي
   method_en: contains
+  arity:
+    min: 1
+    max: 1
   description_ar: هل الخريطة تحوي هذا المفتاح؟
   since: 1.0.0
   status: stable
@@ -499,6 +640,9 @@ methods:
 - target: خريطة
   method: مفاتيح
   method_en: keys
+  arity:
+    min: 0
+    max: 0
   description_ar: قائمة بجميع المفاتيح
   since: 1.0.0
   status: stable
@@ -508,6 +652,9 @@ methods:
 - target: خريطة
   method: قيم
   method_en: values
+  arity:
+    min: 0
+    max: 0
   description_ar: قائمة بجميع القيم
   since: 1.0.0
   status: stable
@@ -517,6 +664,9 @@ methods:
 - target: خريطة
   method: حجم
   method_en: size
+  arity:
+    min: 0
+    max: 0
   description_ar: عدد الأزواج (مفتاح، قيمة)
   since: 1.0.0
   status: stable
@@ -526,6 +676,9 @@ methods:
 - target: خريطة
   method: فارغة
   method_en: is_empty
+  arity:
+    min: 0
+    max: 0
   description_ar: هل الخريطة فارغة؟
   since: 1.0.0
   status: stable
@@ -535,6 +688,9 @@ methods:
 - target: خريطة
   method: امسح
   method_en: clear
+  arity:
+    min: 0
+    max: 0
   description_ar: مسح جميع العناصر
   since: 1.0.0
   status: stable
@@ -544,6 +700,9 @@ methods:
 - target: خريطة
   method: دمج
   method_en: merge
+  arity:
+    min: 1
+    max: 1
   description_ar: دمج مع خريطة أخرى
   since: 1.0.0
   status: stable
@@ -553,6 +712,9 @@ methods:
 - target: خريطة
   method: عناصر
   method_en: entries
+  arity:
+    min: 0
+    max: 0
   description_ar: قائمة الأزواج (مفتاح، قيمة)
   since: 1.0.0
   status: stable
@@ -562,6 +724,9 @@ methods:
 - target: قناة
   method: أرسل
   method_en: send
+  arity:
+    min: 1
+    max: 1
   description_ar: إرسال قيمة — يحجب حتى استقبال
   since: 1.0.0
   status: stable
@@ -571,6 +736,9 @@ methods:
 - target: قناة
   method: استقبل
   method_en: receive
+  arity:
+    min: 0
+    max: 0
   description_ar: استقبال قيمة — يحجب حتى توفر
   since: 1.0.0
   status: stable
@@ -580,6 +748,9 @@ methods:
 - target: قناة
   method: أغلق
   method_en: close
+  arity:
+    min: 0
+    max: 0
   description_ar: إغلاق القناة
   since: 1.0.0
   status: stable
@@ -589,6 +760,9 @@ methods:
 - target: قناة
   method: حاول_ارسل
   method_en: try_send
+  arity:
+    min: 1
+    max: 1
   description_ar: محاولة إرسال بدون حجب
   since: 1.0.0
   status: stable
@@ -598,6 +772,9 @@ methods:
 - target: قناة
   method: حاول_استقبل
   method_en: try_receive
+  arity:
+    min: 0
+    max: 0
   description_ar: محاولة استقبال بدون حجب
   since: 1.0.0
   status: stable
@@ -607,6 +784,9 @@ methods:
 - target: قناة
   method: أرسل_بمهلة
   method_en: send_timeout
+  arity:
+    min: 2
+    max: 2
   description_ar: إرسال مع مهلة (مللي ثانية)
   since: 1.0.0
   status: stable
@@ -616,6 +796,9 @@ methods:
 - target: قناة
   method: استقبل_بمهلة
   method_en: recv_timeout
+  arity:
+    min: 1
+    max: 1
   description_ar: استقبال مع مهلة (مللي ثانية)
   since: 1.0.0
   status: stable
@@ -625,6 +808,9 @@ methods:
 - target: قناة
   method: الحجم
   method_en: size
+  arity:
+    min: 0
+    max: 0
   description_ar: عدد العناصر الحالي في القناة
   since: 1.0.0
   status: stable
@@ -634,6 +820,9 @@ methods:
 - target: قناة
   method: السعة
   method_en: capacity
+  arity:
+    min: 0
+    max: 0
   description_ar: السعة القصوى للقناة
   since: 1.0.0
   status: stable
@@ -643,6 +832,9 @@ methods:
 - target: قناة
   method: فارغة
   method_en: is_empty
+  arity:
+    min: 0
+    max: 0
   description_ar: هل القناة فارغة؟
   since: 1.0.0
   status: stable
@@ -652,6 +844,9 @@ methods:
 - target: قناة
   method: مغلقة
   method_en: is_closed
+  arity:
+    min: 0
+    max: 0
   description_ar: هل القناة مغلقة؟
   since: 1.0.0
   status: stable
@@ -661,6 +856,9 @@ methods:
 - target: قفل
   method: اقفل
   method_en: lock
+  arity:
+    min: 0
+    max: 0
   description_ar: قفل Mutex — يحجب حتى الحصول
   since: 1.0.0
   status: stable
@@ -670,6 +868,9 @@ methods:
 - target: قفل
   method: افتح
   method_en: unlock
+  arity:
+    min: 0
+    max: 0
   description_ar: فتح القفل
   since: 1.0.0
   status: stable
@@ -679,6 +880,9 @@ methods:
 - target: قفل
   method: حاول_قفل
   method_en: try_lock
+  arity:
+    min: 0
+    max: 0
   description_ar: محاولة قفل بدون حجب
   since: 1.0.0
   status: stable
@@ -688,6 +892,9 @@ methods:
 - target: قفل
   method: مقفل
   method_en: is_locked
+  arity:
+    min: 0
+    max: 0
   description_ar: هل القفل مُغلَق حالياً؟
   since: 1.0.0
   status: stable
@@ -697,6 +904,9 @@ methods:
 - target: مجموعة_انتظار
   method: أضف
   method_en: add
+  arity:
+    min: 0
+    max: 1
   description_ar: إضافة N مهمة للعداد
   since: 1.0.0
   status: stable
@@ -706,6 +916,9 @@ methods:
 - target: مجموعة_انتظار
   method: أنهي
   method_en: done
+  arity:
+    min: 0
+    max: 0
   description_ar: إنهاء مهمة واحدة (العداد - 1)
   since: 1.0.0
   status: stable
@@ -715,6 +928,9 @@ methods:
 - target: مجموعة_انتظار
   method: انتظر
   method_en: wait
+  arity:
+    min: 0
+    max: 1
   description_ar: حجب حتى يصبح العداد = 0
   since: 1.0.0
   status: stable
@@ -724,6 +940,9 @@ methods:
 - target: مجموعة_انتظار
   method: العداد
   method_en: count
+  arity:
+    min: 0
+    max: 0
   description_ar: قراءة العداد الحالي
   since: 1.0.0
   status: stable
@@ -733,6 +952,9 @@ methods:
 - target: مستقبل
   method: احصل
   method_en: get
+  arity:
+    min: 0
+    max: 1
   description_ar: الحصول على النتيجة — يحجب حتى جاهزة
   since: 1.0.0
   status: stable
@@ -742,6 +964,9 @@ methods:
 - target: مستقبل
   method: جاهز
   method_en: is_ready
+  arity:
+    min: 0
+    max: 0
   description_ar: هل النتيجة جاهزة؟
   since: 1.0.0
   status: stable
@@ -751,6 +976,9 @@ methods:
 - target: مستقبل
   method: عين
   method_en: set
+  arity:
+    min: 1
+    max: 1
   description_ar: تعيين النتيجة من goroutine
   since: 1.0.0
   status: stable
@@ -832,6 +1060,9 @@ methods:
 - target: مصفوفة
   method: ادخل
   method_en: insert_alt
+  arity:
+    min: 2
+    max: 2
   description_ar: ادخل
   since: 1.0.0
   status: stable
@@ -850,6 +1081,9 @@ methods:
 - target: مصفوفة
   method: نسخ
   method_en: copy_alt
+  arity:
+    min: 0
+    max: 0
   description_ar: نسخ
   since: 1.0.0
   status: stable
@@ -868,6 +1102,9 @@ methods:
 - target: مصفوفة
   method: معكوس
   method_en: inverse
+  arity:
+    min: 0
+    max: 0
   description_ar: معكوس
   since: 1.0.0
   status: stable
@@ -877,6 +1114,9 @@ methods:
 - target: مصفوفة
   method: املأ
   method_en: fill
+  arity:
+    min: 1
+    max: 1
   description_ar: املأ
   since: 1.0.0
   status: stable
@@ -886,6 +1126,9 @@ methods:
 - target: مصفوفة
   method: أبعاد
   method_en: shape
+  arity:
+    min: 0
+    max: 0
   description_ar: أبعاد
   since: 1.0.0
   status: stable
@@ -895,6 +1138,9 @@ methods:
 - target: مصفوفة
   method: صفوف
   method_en: rows
+  arity:
+    min: 0
+    max: 0
   description_ar: صفوف
   since: 1.0.0
   status: stable
@@ -904,6 +1150,9 @@ methods:
 - target: مصفوفة
   method: أعمدة
   method_en: columns
+  arity:
+    min: 0
+    max: 0
   description_ar: أعمدة
   since: 1.0.0
   status: stable
@@ -913,6 +1162,9 @@ methods:
 - target: مصفوفة
   method: قلب_محوري
   method_en: transpose
+  arity:
+    min: 0
+    max: 0
   description_ar: قلب_محوري
   since: 1.0.0
   status: stable
@@ -922,6 +1174,9 @@ methods:
 - target: مصفوفة
   method: أعد_تشكيل
   method_en: reshape
+  arity:
+    min: 2
+    max: 3
   description_ar: أعد_تشكيل
   since: 1.0.0
   status: stable
@@ -931,6 +1186,9 @@ methods:
 - target: مصفوفة
   method: ضرب_مصفوفات
   method_en: matmul
+  arity:
+    min: 1
+    max: 1
   description_ar: ضرب_مصفوفات
   since: 1.0.0
   status: stable
@@ -940,6 +1198,9 @@ methods:
 - target: مصفوفة
   method: عنصر
   method_en: element
+  arity:
+    min: 0
+    variadic: true
   description_ar: عنصر
   since: 1.0.0
   status: stable
@@ -949,6 +1210,9 @@ methods:
 - target: مصفوفة
   method: عمود
   method_en: column
+  arity:
+    min: 1
+    max: 1
   description_ar: عمود
   since: 1.0.0
   status: stable
@@ -958,6 +1222,9 @@ methods:
 - target: مصفوفة
   method: صف
   method_en: row
+  arity:
+    min: 1
+    max: 1
   description_ar: صف
   since: 1.0.0
   status: stable
@@ -967,6 +1234,9 @@ methods:
 - target: مصفوفة
   method: مصفوفة_وحدة
   method_en: identity
+  arity:
+    min: 0
+    max: 1
   description_ar: مصفوفة_وحدة
   since: 1.0.0
   status: stable
@@ -976,6 +1246,9 @@ methods:
 - target: مصفوفة
   method: البعد
   method_en: dimension
+  arity:
+    min: 0
+    max: 0
   description_ar: البُعد
   since: 1.0.0
   status: stable
@@ -1003,6 +1276,9 @@ methods:
 - target: خريطة
   method: نسخ
   method_en: copy
+  arity:
+    min: 0
+    max: 0
   description_ar: نسخ
   since: 1.0.0
   status: stable

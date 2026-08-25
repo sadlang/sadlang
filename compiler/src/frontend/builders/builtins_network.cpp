@@ -33,6 +33,7 @@
 #include "builders/builtin_builder.h"
 #include "sir_builder.h"
 #include "builtin_registry.h"
+#include "builders/builtin_arity_check.h"
 #include <optional>
 #include <iostream>
 
@@ -53,6 +54,13 @@ namespace Sad
             namespace Bnu = Sad::Builtins::Names::NetworkUtils;
             namespace Bwsc = Sad::Builtins::Names::WebSocketClient;
             namespace Bwss = Sad::Builtins::Names::WebSocketServer;
+
+            // (AR) رتبةُ المدمجِ من حقلِ `arity` في مصدرِ الحقيقةِ — ثابتٌ مُولَّدٌ لا
+            //      رقمٌ يُكتَب. وكانت أذرعُ هذا الملفِّ تمرّرُ `argOperands` جملةً بلا
+            //      فحصِ رتبةٍ البتّة، فالنداءُ الناقصُ يُترجَمُ ويقرأُ خانةً غيرَ
+            //      موجودة. ولا أساسَ ههنا يُشتقُّ منه العقد — فاشتُقَّ من المفسّرِ
+            //      حيث الشرطُ مكتوبٌ صراحةً، ثمّ بُذِر في مصدرِ الحقيقة.
+            namespace Ar = Sad::Builtins::Arity;
 
             // ============================================================================
             // (AR) دالة مساعدة: بناء تعليمة SIR بسيطة لدالة شبكة
@@ -127,6 +135,9 @@ namespace Sad
                 // (EN) Connect TCP socket to server — returns i64 (0=ok, -1=error)
                 if (funcName == Bsk::TCP_CONNECT)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::TCP_CONNECT, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_CONNECT, argOperands,
                         SadTypeKind::Boolean, "اتصل_بـ / tcp_connect");
@@ -136,6 +147,9 @@ namespace Sad
                 // (EN) Send data through TCP socket — returns bytes sent (i64)
                 if (funcName == Bsk::TCP_SEND)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::TCP_SEND, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_SEND, argOperands,
                         SadTypeKind::Integer, "أرسل_عبر_وصلة / tcp_send");
@@ -145,6 +159,9 @@ namespace Sad
                 // (EN) Receive data from TCP socket — returns string
                 if (funcName == Bsk::TCP_RECV)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::TCP_RECV, argOperands.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_RECV, argOperands,
                         SadTypeKind::String, "استقبل_عبر_وصلة / tcp_recv");
@@ -154,6 +171,9 @@ namespace Sad
                 // (EN) Close TCP socket
                 if (funcName == Bsk::TCP_CLOSE)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::TCP_CLOSE, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_CLOSE, argOperands,
                         SadTypeKind::Boolean, "أغلق_وصلة / tcp_close");
@@ -163,6 +183,9 @@ namespace Sad
                 // (EN) Bind TCP socket to address and port
                 if (funcName == Bsk::TCP_BIND)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::TCP_BIND, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_BIND, argOperands,
                         SadTypeKind::Boolean, "خصص_منفذ / tcp_bind");
@@ -172,6 +195,9 @@ namespace Sad
                 // (EN) Start listening for connections
                 if (funcName == Bsk::TCP_LISTEN)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::TCP_LISTEN, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_LISTEN, argOperands,
                         SadTypeKind::Boolean, "انتظر_اتصالات / tcp_listen");
@@ -181,6 +207,9 @@ namespace Sad
                 // (EN) Accept incoming connection — returns new socket handle
                 if (funcName == Bsk::TCP_ACCEPT)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::TCP_ACCEPT, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_ACCEPT, argOperands,
                         SadTypeKind::Integer, "اقبل_متصل / tcp_accept");
@@ -190,6 +219,9 @@ namespace Sad
                 // (EN) Is TCP socket connected — returns boolean (i64: 0/1)
                 if (funcName == Bsk::TCP_CONNECTED)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::TCP_CONNECTED, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_CONNECTED, argOperands,
                         SadTypeKind::Boolean, "هل_متصلة / tcp_is_connected");
@@ -199,6 +231,9 @@ namespace Sad
                 // (EN) Get remote peer address — returns string
                 if (funcName == Bsk::TCP_REMOTE_ADDR)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::TCP_REMOTE_ADDR, argOperands.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_TCP_REMOTE_ADDR, argOperands,
                         SadTypeKind::String, "عنوان_الطرف_الآخر / tcp_remote_addr");
@@ -217,6 +252,9 @@ namespace Sad
 
                 if (funcName == Bsk::UDP_BIND)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::UDP_BIND, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_UDP_BIND, argOperands,
                         SadTypeKind::Boolean, "خصص_منفذ_رسائل / udp_bind");
@@ -224,6 +262,9 @@ namespace Sad
 
                 if (funcName == Bsk::UDP_SEND)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::UDP_SEND, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_UDP_SEND, argOperands,
                         SadTypeKind::Integer, "أرسل_رسالة / udp_send_to");
@@ -231,6 +272,9 @@ namespace Sad
 
                 if (funcName == Bsk::UDP_RECV)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::UDP_RECV, argOperands.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_UDP_RECV, argOperands,
                         SadTypeKind::String, "استقبل_رسالة / udp_recv_from");
@@ -238,6 +282,9 @@ namespace Sad
 
                 if (funcName == Bsk::UDP_CLOSE)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::UDP_CLOSE, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_UDP_CLOSE, argOperands,
                         SadTypeKind::Boolean, "أغلق_مرسال / udp_close");
@@ -249,6 +296,9 @@ namespace Sad
 
                 if (funcName == Bsk::RECV_TIMEOUT)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::RECV_TIMEOUT, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RECV_TIMEOUT, argOperands,
                         SadTypeKind::Boolean, "حدد_انتظار_الاستقبال / set_recv_timeout");
@@ -256,6 +306,9 @@ namespace Sad
 
                 if (funcName == Bsk::SEND_TIMEOUT)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::SEND_TIMEOUT, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SEND_TIMEOUT, argOperands,
                         SadTypeKind::Boolean, "حدد_انتظار_الإرسال / set_send_timeout");
@@ -263,6 +316,9 @@ namespace Sad
 
                 if (funcName == Bsk::NO_DELAY)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::NO_DELAY, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_NO_DELAY, argOperands,
                         SadTypeKind::Boolean, "أرسل_فوراً / set_nodelay");
@@ -270,6 +326,9 @@ namespace Sad
 
                 if (funcName == Bsk::LOCAL_PORT)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Sockets::LOCAL_PORT, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_LOCAL_PORT, argOperands,
                         SadTypeKind::Integer, "منفذ_محلي / local_port");
@@ -288,6 +347,9 @@ namespace Sad
 
                 if (funcName == Bhc::FREE_CLIENT)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::FREE_CLIENT, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_FREE_CLIENT, argOperands,
                         SadTypeKind::Boolean, "أغلق_متصفح / http_client_free");
@@ -295,6 +357,9 @@ namespace Sad
 
                 if (funcName == Bhc::GET)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::GET, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_GET, argOperands,
                         SadTypeKind::Integer, "اجلب / http_get");
@@ -302,6 +367,9 @@ namespace Sad
 
                 if (funcName == Bhc::POST)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::POST, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_POST, argOperands,
                         SadTypeKind::Integer, "أرسل / http_post");
@@ -309,6 +377,9 @@ namespace Sad
 
                 if (funcName == Bhc::PUT)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::PUT, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_PUT, argOperands,
                         SadTypeKind::Integer, "استبدل / http_put");
@@ -316,6 +387,9 @@ namespace Sad
 
                 if (funcName == Bhc::DELETE_REQ)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::DELETE_REQ, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_DELETE, argOperands,
                         SadTypeKind::Integer, "احذف_مورد / http_delete");
@@ -323,6 +397,9 @@ namespace Sad
 
                 if (funcName == Bhc::PATCH)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::PATCH, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_PATCH, argOperands,
                         SadTypeKind::Integer, "عدّل_مورد / http_patch");
@@ -330,6 +407,9 @@ namespace Sad
 
                 if (funcName == Bhc::SET_BASE_URL)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::SET_BASE_URL, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_SET_BASE, argOperands,
                         SadTypeKind::Boolean, "حدد_الموقع / set_base_url");
@@ -337,6 +417,9 @@ namespace Sad
 
                 if (funcName == Bhc::SET_HEADER)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::SET_HEADER, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_SET_HEADER, argOperands,
                         SadTypeKind::Boolean, "أضف_ترويسة / set_header");
@@ -344,6 +427,9 @@ namespace Sad
 
                 if (funcName == Bhc::SET_TIMEOUT)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::SET_TIMEOUT, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_SET_TIMEOUT, argOperands,
                         SadTypeKind::Boolean, "حدد_الانتظار / set_timeout");
@@ -351,6 +437,9 @@ namespace Sad
 
                 if (funcName == Bhc::SET_BEARER)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::SET_BEARER, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_SET_BEARER, argOperands,
                         SadTypeKind::Boolean, "سجّل_دخول_برمز / set_bearer_token");
@@ -358,6 +447,9 @@ namespace Sad
 
                 if (funcName == Bhc::LAST_ERROR)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::LAST_ERROR, argOperands.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_LAST_ERROR, argOperands,
                         SadTypeKind::String, "سبب_الفشل / last_error");
@@ -365,6 +457,9 @@ namespace Sad
 
                 if (funcName == Bhc::IS_OK)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::IS_OK, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_HTTP_IS_OK, argOperands,
                         SadTypeKind::Boolean, "هل_نجح / is_ok");
@@ -376,6 +471,9 @@ namespace Sad
 
                 if (funcName == Bhc::RESP_FREE)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::RESP_FREE, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_FREE, argOperands,
                         SadTypeKind::Boolean, "تجاهل_الرد / response_free");
@@ -383,6 +481,9 @@ namespace Sad
 
                 if (funcName == Bhc::RESP_STATUS)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::RESP_STATUS, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_STATUS, argOperands,
                         SadTypeKind::Integer, "رمز_الحالة / response_status");
@@ -390,6 +491,9 @@ namespace Sad
 
                 if (funcName == Bhc::RESP_BODY)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::RESP_BODY, argOperands.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_BODY, argOperands,
                         SadTypeKind::String, "نص_الرد / response_body");
@@ -397,6 +501,9 @@ namespace Sad
 
                 if (funcName == Bhc::RESP_HEADER)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::RESP_HEADER, argOperands.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_HEADER, argOperands,
                         SadTypeKind::String, "معلومة_الرد / response_header");
@@ -404,6 +511,9 @@ namespace Sad
 
                 if (funcName == Bhc::RESP_SUCCESS)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpClient::RESP_SUCCESS, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SUCCESS, argOperands,
                         SadTypeKind::Boolean, "هل_الرد_ناجح / response_is_success");
@@ -415,6 +525,9 @@ namespace Sad
 
                 if (funcName == Bhs::NEW_SERVER)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::NEW_SERVER, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_NEW, argOperands,
                         SadTypeKind::Integer, "أنشئ_خادم / http_server_new");
@@ -422,6 +535,9 @@ namespace Sad
 
                 if (funcName == Bhs::FREE_SERVER)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::FREE_SERVER, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_FREE, argOperands,
                         SadTypeKind::Boolean, "أزل_خادم / http_server_free");
@@ -429,6 +545,9 @@ namespace Sad
 
                 if (funcName == Bhs::ON_GET)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::ON_GET, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_ON_GET, argOperands,
                         SadTypeKind::Boolean, "عند_طلب_جلب / server_get_cb");
@@ -457,6 +576,9 @@ namespace Sad
 
                 if (funcName == Bhs::LISTEN)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::LISTEN, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_LISTEN, argOperands,
                         SadTypeKind::Boolean, "ابدأ_الاستماع / server_listen");
@@ -464,6 +586,9 @@ namespace Sad
 
                 if (funcName == Bhs::STOP)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::STOP, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_STOP, argOperands,
                         SadTypeKind::Boolean, "أوقف_الخادم / server_stop");
@@ -471,6 +596,9 @@ namespace Sad
 
                 if (funcName == Bhs::ENABLE_CORS)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::ENABLE_CORS, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_SRV_CORS, argOperands,
                         SadTypeKind::Boolean, "اسمح_بالوصول_الخارجي / server_enable_cors");
@@ -503,6 +631,9 @@ namespace Sad
 
                 if (funcName == Bhs::REQ_HEADER)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::REQ_HEADER, argOperands.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_REQ_HEADER, argOperands,
                         SadTypeKind::String, "معلومة_الطلب / request_header");
@@ -510,6 +641,9 @@ namespace Sad
 
                 if (funcName == Bhs::REQ_QUERY)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::REQ_QUERY, argOperands.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_REQ_QUERY, argOperands,
                         SadTypeKind::String, "قيمة_من_الرابط / request_query_param");
@@ -521,6 +655,9 @@ namespace Sad
 
                 if (funcName == Bhs::RESP_SET_STATUS)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::RESP_SET_STATUS, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SET_STATUS, argOperands,
                         SadTypeKind::Boolean, "عيّن_حالة_الرد / response_set_status");
@@ -528,6 +665,9 @@ namespace Sad
 
                 if (funcName == Bhs::RESP_SET_BODY)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::RESP_SET_BODY, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SET_BODY, argOperands,
                         SadTypeKind::Boolean, "عيّن_نص_الرد / response_set_body");
@@ -535,6 +675,9 @@ namespace Sad
 
                 if (funcName == Bhs::RESP_SET_JSON)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::RESP_SET_JSON, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SET_JSON, argOperands,
                         SadTypeKind::Boolean, "عيّن_رد_جيسون / response_set_json");
@@ -542,6 +685,9 @@ namespace Sad
 
                 if (funcName == Bhs::RESP_SET_HTML)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::RESP_SET_HTML, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SET_HTML, argOperands,
                         SadTypeKind::Boolean, "عيّن_رد_صفحة / response_set_html");
@@ -549,6 +695,9 @@ namespace Sad
 
                 if (funcName == Bhs::RESP_SET_HEADER)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::HttpServer::RESP_SET_HEADER, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_RESP_SET_HEADER, argOperands,
                         SadTypeKind::Boolean, "عيّن_ترويسة_الرد / response_set_header");
@@ -592,6 +741,9 @@ namespace Sad
 
                 if (funcName == Bnu::ADDR_NEW)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::NetworkUtils::ADDR_NEW, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_NEW, argOperands,
                         SadTypeKind::Integer, "عنوان / address_new");
@@ -599,6 +751,9 @@ namespace Sad
 
                 if (funcName == Bnu::ADDR_NEW_V6)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::NetworkUtils::ADDR_NEW_V6, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_NEW_V6, argOperands,
                         SadTypeKind::Integer, "عنوان_حديث / address_new_v6");
@@ -606,6 +761,9 @@ namespace Sad
 
                 if (funcName == Bnu::ADDR_FREE)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::NetworkUtils::ADDR_FREE, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_FREE, argOperands,
                         SadTypeKind::Boolean, "حرر_عنوان / address_free");
@@ -613,6 +771,9 @@ namespace Sad
 
                 if (funcName == Bnu::ADDR_IP)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::NetworkUtils::ADDR_IP, argOperands.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_IP, argOperands,
                         SadTypeKind::String, "رقم_الجهاز / address_ip");
@@ -620,6 +781,9 @@ namespace Sad
 
                 if (funcName == Bnu::ADDR_PORT)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::NetworkUtils::ADDR_PORT, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_PORT, argOperands,
                         SadTypeKind::Integer, "رقم_المنفذ / address_port");
@@ -627,6 +791,9 @@ namespace Sad
 
                 if (funcName == Bnu::ADDR_IS_V4)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::NetworkUtils::ADDR_IS_V4, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_IS_V4, argOperands,
                         SadTypeKind::Boolean, "هل_عنوان_قديم / address_is_v4");
@@ -634,6 +801,9 @@ namespace Sad
 
                 if (funcName == Bnu::ADDR_IS_V6)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::NetworkUtils::ADDR_IS_V6, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_IS_V6, argOperands,
                         SadTypeKind::Boolean, "هل_عنوان_حديث / address_is_v6");
@@ -641,6 +811,9 @@ namespace Sad
 
                 if (funcName == Bnu::ADDR_STR)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::NetworkUtils::ADDR_STR, argOperands.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return b_.buildNetworkBuiltinInstruction(
                         SIROpcode::BUILTIN_NET_ADDR_STR, argOperands,
                         SadTypeKind::String, "العنوان_كنص / address_to_string");

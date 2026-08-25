@@ -110,6 +110,9 @@ functions:
 - cpp_id: UI_20
   canonical: أضف_ابن
   namespace: CompilerUi
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -123,6 +126,9 @@ functions:
 - cpp_id: UI_21
   canonical: أزل_ابن
   namespace: CompilerUi
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -136,6 +142,9 @@ functions:
 - cpp_id: UI_22
   canonical: امسح_الأبناء
   namespace: CompilerUi
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -149,6 +158,9 @@ functions:
 - cpp_id: UI_23
   canonical: عين_النص
   namespace: CompilerUi
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -162,6 +174,9 @@ functions:
 - cpp_id: UI_24
   canonical: عين_الحجم
   namespace: CompilerUi
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -175,6 +190,9 @@ functions:
 - cpp_id: UI_25
   canonical: عين_المرونة
   namespace: CompilerUi
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -188,6 +206,9 @@ functions:
 - cpp_id: UI_26
   canonical: عين_الخلفية
   namespace: CompilerUi
+  arity:
+    min: 5
+    max: 5
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -201,6 +222,9 @@ functions:
 - cpp_id: UI_27
   canonical: عين_اللون
   namespace: CompilerUi
+  arity:
+    min: 5
+    max: 5
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -214,6 +238,9 @@ functions:
 - cpp_id: UI_28
   canonical: عين_التباعد
   namespace: CompilerUi
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -227,6 +254,9 @@ functions:
 - cpp_id: UI_29
   canonical: عين_الحشوة
   namespace: CompilerUi
+  arity:
+    min: 5
+    max: 5
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -240,6 +270,9 @@ functions:
 - cpp_id: UI_30
   canonical: عين_المحاذاة
   namespace: CompilerUi
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -253,6 +286,9 @@ functions:
 - cpp_id: UI_31
   canonical: عين_الحدود
   namespace: CompilerUi
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -266,6 +302,9 @@ functions:
 - cpp_id: UI_32
   canonical: عين_الارتفاع
   namespace: CompilerUi
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -279,6 +318,9 @@ functions:
 - cpp_id: UI_33
   canonical: عين_الشفافية
   namespace: CompilerUi
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -292,6 +334,9 @@ functions:
 - cpp_id: UI_34
   canonical: عين_الظهور
   namespace: CompilerUi
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -318,6 +363,9 @@ functions:
 - cpp_id: UI_36
   canonical: عين_الجذر
   namespace: CompilerUi
+  arity:
+    min: 2
+    max: 2
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -331,6 +379,9 @@ functions:
 - cpp_id: UI_37
   canonical: خطط
   namespace: CompilerUi
+  arity:
+    min: 3
+    max: 3
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -344,6 +395,9 @@ functions:
 - cpp_id: UI_38
   canonical: ارسم
   namespace: CompilerUi
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -357,6 +411,9 @@ functions:
 - cpp_id: UI_39
   canonical: دمر_تطبيق
   namespace: CompilerUi
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE
@@ -370,6 +427,9 @@ functions:
 - cpp_id: UI_40
   canonical: دمر_عنصر
   namespace: CompilerUi
+  arity:
+    min: 1
+    max: 1
   category: MODULE_FUNCTION
   require_import: false
   module: NONE

@@ -23,16 +23,20 @@
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
 import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from builtin_arity_extract import arity_checks  # noqa: E402
+from builtin_arity_extract import ArityCheck, arity_checks  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 SOT_DIR = ROOT / "language-truth" / "builtins"
+TYPE_METHODS = ROOT / "language-truth" / "type_methods.yaml"
+_TARGET_LABEL = {"ARRAY": "Array", "STRING": "String", "MAP": "Map",
+                 "CHANNEL": "Channel", "ANY": "Any"}
 
 
 def _sot_arities() -> tuple[dict[tuple[str, str], tuple[int, int]], int]:
@@ -44,9 +48,73 @@ def _sot_arities() -> tuple[dict[tuple[str, str], tuple[int, int]], int]:
             total += 1
             arity = fn.get("arity")
             if arity:
-                table[(fn["namespace"], fn["cpp_id"])] = (
-                    int(arity["min"]), int(arity["max"]))
+                # (AR) الرتبةُ المفتوحةُ أعلاها تُعلَن بـ`variadic: true` بلا
+                #      `max`؛ ويقابلُها في الرأسِ المُولَّدِ `UNBOUNDED`.
+                top = (sys.maxsize if arity.get("variadic")
+                       else int(arity["max"]))
+                table[(fn["namespace"], fn["cpp_id"])] = (int(arity["min"]), top)
+    # (AR) وطرائقُ الأنواعِ سطحٌ ثانٍ لعقودِ الرتبة، فتُقرَأ ههنا أيضًا؛ وإلّا
+    #      قُرئت حراستُها «فرضًا غيرَ مُعلَن» وهي معلَنةٌ في ملفِّها.
+    #      🔑 والمعرِّفُ يُشتَقُّ بالخوارزميّةِ **نفسِها** التي في المولِّد،
+    #      وإلّا سمّى كلٌّ الشيءَ باسمٍ وانحرفا بلا أن يحمرَّ شيء.
+    for target, cpp_id, arity in _type_method_arities():
+        total += 1
+        if arity:
+            top = sys.maxsize if arity.get("variadic") else int(arity["max"])
+            table[(f"TypeMethods::{target}", cpp_id)] = (int(arity["min"]), top)
     return table, total
+
+
+def _type_method_arities():
+    if not TYPE_METHODS.exists():
+        return
+    doc = yaml.safe_load(TYPE_METHODS.read_text(encoding="utf-8")) or {}
+    by_target: dict[str, list[dict]] = {}
+    for method in doc.get("methods") or []:
+        by_target.setdefault(method.get("target_type", "ANY"), []).append(method)
+    for target, methods in by_target.items():
+        used: dict[str, int] = {}
+        for method in methods:
+            base = re.sub(r"[^a-zA-Z0-9]", "_",
+                          str(method.get("method_en", ""))).upper().strip("_")
+            if not base or base[0].isdigit() or not any(c.isalpha() for c in base):
+                base = "METHOD"
+            if base not in used:
+                used[base] = 1
+                cpp_id = base
+            else:
+                cpp_id = f"{base}_{used[base]}"
+                used[base] += 1
+            yield _TARGET_LABEL.get(target, target), cpp_id, method.get("arity")
+
+
+_GENERATED_ARITY = (ROOT / "shared" / "builtins" / "generated"
+                    / "builtin_arity_generated.h")
+_BUILDERS = ROOT / "compiler" / "src" / "frontend" / "builders"
+_TABLE_ROW = re.compile(r'\{"(\w+)",\s*"([^"]+)",\s*\{')
+
+
+def _table_enforced() -> tuple[set[tuple[str, str]], set[str]]:
+    """(AR) يُعيد ما يفرضُه الجدولُ المُولَّد، ثمّ الأهدافَ التي **لا يبلغُها**
+       موضعُ الإرسال. والوصولُ يُقاسُ من أثرين: صفٌّ في الجدول، وربطُ الهدفِ
+       بوسمِ نوعٍ في الملفِّ الذي ينادي `lookup`. فقائمةُ الإذنِ ليست نثرًا
+       يتعفّن — تُشتَقُّ من الشيفرةِ فتتبعُها في الاتّجاهين."""
+    reachable: set[str] = set()
+    if _GENERATED_ARITY.exists():
+        for path in _BUILDERS.glob("*.cpp"):
+            text = path.read_text(encoding="utf-8")
+            if "TypeMethods::lookup(" not in text:
+                continue
+            reachable |= set(re.findall(r'"([A-Z]{3,})"', text))
+        header = _GENERATED_ARITY.read_text(encoding="utf-8")
+        reachable &= {t for t, _ in _TABLE_ROW.findall(header)}
+    enforced = {(f"TypeMethods::{target}", cpp_id)
+                for target, cpp_id, arity in _type_method_arities()
+                if arity and target in {_TARGET_LABEL.get(t, t) for t in reachable}}
+    declared_targets = {target for target, _, arity in _type_method_arities()
+                        if arity}
+    unreachable = declared_targets - {_TARGET_LABEL.get(t, t) for t in reachable}
+    return enforced, unreachable
 
 
 def main() -> int:
@@ -57,8 +125,31 @@ def main() -> int:
     literals: list[str] = []
     foreign: list[str] = []
     enforced: set[tuple[str, str]] = set()
+    inline_sites: list[ArityCheck] = []
+    inline_named: set[tuple[str, str]] = set()
+    silent_sites: list[ArityCheck] = []
     for site in sites:
+        # (AR) الرفضُ في الشرطِ يُعزَل قبلَ كلِّ حكم: ليس رقمًا حرفيًّا يُمرَّر
+        #      إلى حارسٍ (فلا يُحمِّر)، وليس ختمًا من مصدرِ الحقيقةِ (فلا يُحتسَب
+        #      مفروضًا). صنفٌ ثالثٌ يُعدّ ويُعلَن على حدة.
+        if site.silent:
+            silent_sites.append(site)
+            continue
+        if site.inline:
+            inline_sites.append(site)
+            inline_named.update(site.names)
+            continue
         enforced.update(site.names)
+        # (AR) ثابتُ الرتبةِ المُنتقى لأخٍ في الذراعِ نفسِها فرضٌ له باسمِه —
+        #      وإغفالُه يُحمِّرُ الحارسَ بـ«إعلانٌ ميّت» على عقدٍ مفروضٍ فعلًا.
+        enforced.update(site.also_constants)
+        # (AR) وثابتُ الرتبةِ المُمرَّرُ إلى الحارسِ فرضٌ لصاحبِه **مهما كانت
+        #      صيغةُ مقارنةِ الاسمِ في الذراع**: أذرعُ اللاتزامنِ تقارنُ بايتاتٍ
+        #      مهرَّبةً لا ثوابتَ أسماءٍ، فلا يرى المستخرِجُ لها اسمًا — وقراءةُ
+        #      ذلك «عقدًا لا يُطبَّق» تُحمِّرُ على حراسةٍ قائمةٍ فعلًا. وبقاءُ
+        #      المقارنةِ بالبايتاتِ دَينٌ آخرُ يُسمّى على حدة.
+        if site.constant:
+            enforced.add(site.constant)
         if site.literal:
             literals.append(f"{site.file}:{site.line}")
             continue
@@ -70,6 +161,13 @@ def main() -> int:
                 f"{site.file}:{site.line} — الذراعُ تحرسُ [{names}] وتقيسُ بثابتِ "
                 f"{site.constant[0]}::{site.constant[1]}")
 
+    # (AR) طرائقُ الأنواعِ تُفرَضُ بجدولٍ مُولَّدٍ في موضعِ إرسالٍ واحد، لا بثابتٍ
+    #      في كلِّ فرع. فالفرضُ يُقاسُ من **الأثرَين معًا**: صفٌّ في الجدولِ
+    #      المُولَّد، ونداءُ `lookup` قائمٌ في بانياتِ الأماميّة. وسقوطُ أيِّهما
+    #      يُعيدُ العقدَ إعلانًا ميّتًا فيحمرّ — وهو المطلوب.
+    table_enforced, unreachable_targets = _table_enforced()
+    enforced.update(table_enforced)
+
     problems: list[str] = []
     if literals:
         problems.append(
@@ -78,8 +176,25 @@ def main() -> int:
     if foreign:
         problems.append(
             "مواضعُ تقيسُ بثابتِ مدمجٍ آخر:\n    " + "\n    ".join(foreign))
+    if silent_sites:
+        # (AR) 🔑 الذراعُ الخامسة: رفضٌ لا يسجّلُ خطأً. المصرّفُ يخرجُ بصفرٍ
+        #      ويُنتجُ ثنائيًّا **بلا النداء** — سطرٌ في كودِ نواةٍ «يُنفَّذ»
+        #      وهو غيرُ موجود. لا يُخفق فلا يُرى، وهو أخطرُ من الرقمِ الحرفيّ
+        #      بمراتب: ذاك عقدٌ ينجرف، وهذا عملٌ يتبخّر.
+        problems.append(
+            f"أذرعُ رفضٍ لا تسجّلُ خطأً ({len(silent_sites)}) ⇒ النداءُ يتبخّرُ "
+            "والمصرّفُ يخرجُ بصفر:\n    "
+            + "\n    ".join(f"{s.file}:{s.line} — {s.silent}"
+                            for s in silent_sites[:25]))
 
-    dead = sorted(declared.keys() - enforced)
+    # (AR) عقدٌ يفرضُه المفسّرُ ولا يبلغُه المترجّم: طرائقُ «أي» و«قناة» لا وسمَ
+    #      لهما يُميَّزُ به المستقبِلُ عند التصريف — و«أي» تتصادمُ هجاءً بِرتبٍ
+    #      مختلفة (`عين` ٢ للخريطةِ و١ لِـ«مستقبل») ففرضُها يردُّ نداءً صحيحًا.
+    #      يُعَدُّ ويُعلَن، ولا يُحمِّر: الإعلانُ صادقٌ والفرضُ نصفُ بالغ.
+    unreachable = {(ns, cid) for ns, cid in declared.keys() - enforced
+                   if ns.startswith("TypeMethods::")
+                   and ns.split("::", 1)[1] in unreachable_targets}
+    dead = sorted((declared.keys() - enforced) - unreachable)
     if dead:
         problems.append(
             f"إعلاناتُ `arity` لا تفرضُها ذراعٌ ({len(dead)}) ⇒ عقدٌ لا يُطبَّق:\n    "
@@ -97,11 +212,24 @@ def main() -> int:
             print("  " + problem)
         return 1
 
+    # (AR) الدَّينُ يُقسَم قسمين لأنّهما مختلفان في الخطرِ وفي العلاج:
+    #      ما يُرفَض برقمٍ محلّيّ (الرتبةُ مفروضةٌ، والعلاجُ رفعُ العددِ إلى
+    #      مصدرِ الحقيقة)، وما لا يفرضُه أحدٌ (النداءُ يتبخّرُ صامتًا، والعلاجُ
+    #      اشتقاقُ عقدٍ من الشيفرةِ لا اختراعُه). جمعُهما رقمًا واحدًا يُقرأ
+    #      أسوأَ من الواقعِ ويخفي أيَّهما يلزمُ العملُ عليه أوّلًا.
+    sealed_sites = [s for s in sites if not s.inline]
+    inline_only = sorted(inline_named - declared.keys())
     print("حارس «رتبةُ المدمجِ من مصدرِ الحقيقة»:")
-    print(f"  مُعلَنةٌ ومفروضة: {len(declared)} مدمجًا · مواضعُ فحص: {len(sites)}"
-          " (كلُّها بثوابتَ مُولَّدة)")
-    print(f"  دَينٌ معلَن: {total - len(declared)} من {total} مدمجًا لا رتبةَ "
-          "مفروضةً لها في الأماميّة بعدُ — تُختَم عند فرضِها.")
+    print(f"  مُعلَنةٌ ومفروضة: {len(declared)} مدمجًا · مواضعُ فحص: "
+          f"{len(sealed_sites)} (كلُّها بثوابتَ مُولَّدة)")
+    print(f"  مفروضةٌ برقمٍ في الشرطِ لا من مصدرِ الحقيقة: {len(inline_only)} مدمجًا "
+          f"في {len(inline_sites)} موضعَ رفض — الرتبةُ محروسةٌ والعددُ منفلت.")
+    if unreachable:
+        print(f"  يفرضُها المفسّرُ ولا يبلغُها المترجّم: {len(unreachable)} طريقةً "
+              f"({'، '.join(sorted(unreachable_targets))}) — لا وسمَ نوعٍ يميّزُ "
+              "المستقبِلَ عند التصريف. مُعلَنٌ ومقيسٌ لا مسكوتٌ عنه.")
+    print(f"  لا يفرضُها أحد: {total - len(declared) - len(inline_only)} من {total} "
+          "مدمجًا — النداءُ الناقصُ يمرّ صامتًا. لا يُخترَع لها عقد، بل يُشتقّ.")
     print("  ✓ لا رقمَ حرفيًّا، ولا ثابتًا غريبًا، ولا إعلانًا ميّتًا، ولا فرضًا "
           "غيرَ مُعلَن.")
     return 0

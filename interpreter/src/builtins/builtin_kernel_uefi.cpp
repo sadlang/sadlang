@@ -82,7 +82,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_alloc_pages = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 3) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 3)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int allocType = args[0]->toInt();
         int memType = args[1]->toInt();
         uint64_t pages = static_cast<uint64_t>(args[2]->toInt());
@@ -101,7 +103,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_free_pages = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 2) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 2)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t address = static_cast<uint64_t>(args[0]->toDouble());
         uint64_t pages = static_cast<uint64_t>(args[1]->toInt());
         auto status = mgr.freePages(address, pages);
@@ -112,7 +116,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_alloc_pool = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 2) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 2)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int memType = args[0]->toInt();
         uint64_t size = static_cast<uint64_t>(args[1]->toInt());
         uint64_t buffer = 0;
@@ -129,7 +135,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_free_pool = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 1) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 1)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint64_t buffer = static_cast<uint64_t>(args[0]->toDouble());
         auto status = mgr.freePool(buffer);
         return std::make_shared<Data::Value>(static_cast<int>(status));
@@ -192,7 +200,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_set_gop = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 1) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 1)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint32_t mode = static_cast<uint32_t>(args[0]->toInt());
         auto status = mgr.setGOPMode(mode);
         return std::make_shared<Data::Value>(static_cast<int>(status));
@@ -202,7 +212,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_query_gop = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 1) return std::make_shared<Data::Value>("خطأ: يجب تحديد رقم الوضع");
+        if (args.size() < 1)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint32_t modeNum = static_cast<uint32_t>(args[0]->toInt());
         LowLevel::UefiGopModeInfo info;
         auto status = mgr.queryGOPMode(modeNum, info);
@@ -254,7 +266,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_fill = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 3) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 3)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         LowLevel::UefiGopBltPixel pixel;
         pixel.red   = static_cast<uint8_t>(args[0]->toInt());
         pixel.green = static_cast<uint8_t>(args[1]->toInt());
@@ -275,7 +289,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
         // args: x, y, width, height, red, green, blue
-        if (args.size() < 7) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 7)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         uint32_t x = static_cast<uint32_t>(args[0]->toInt());
         uint32_t y = static_cast<uint32_t>(args[1]->toInt());
         uint32_t w = static_cast<uint32_t>(args[2]->toInt());
@@ -313,7 +329,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_get_var = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 1) return std::make_shared<Data::Value>("خطأ: يجب تحديد اسم المتغير");
+        if (args.size() < 1)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string name = args[0]->toString();
         LowLevel::EFI_GUID guid = {0, 0, 0, {0}};
         std::vector<uint8_t> data;
@@ -330,7 +348,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_set_var = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 2) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 2)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string name = args[0]->toString();
         std::string value = args[1]->toString();
         LowLevel::EFI_GUID guid = {0, 0, 0, {0}};
@@ -358,7 +378,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_open_file = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 2) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 2)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int64_t parentFd = static_cast<int64_t>(args[0]->toInt());
         std::string filename = args[1]->toString();
         uint64_t mode = LowLevel::EfiFileMode::READ;
@@ -371,7 +393,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_read = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 1) return std::make_shared<Data::Value>("");
+        if (args.size() < 1)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int64_t fd = static_cast<int64_t>(args[0]->toInt());
         uint64_t size = 4096; // حجم افتراضي
         if (args.size() >= 2) size = static_cast<uint64_t>(args[1]->toInt());
@@ -388,7 +412,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_write = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 2) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 2)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int64_t fd = static_cast<int64_t>(args[0]->toInt());
         std::string data = args[1]->toString();
         std::vector<uint8_t> buffer(data.begin(), data.end());
@@ -400,7 +426,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_close = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 1) return std::make_shared<Data::Value>(-1);
+        if (args.size() < 1)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int64_t fd = static_cast<int64_t>(args[0]->toInt());
         auto status = mgr.closeFile(fd);
         return std::make_shared<Data::Value>(static_cast<int>(status));
@@ -410,7 +438,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_finfo = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 1) return std::make_shared<Data::Value>("خطأ: يجب تحديد واصف الملف");
+        if (args.size() < 1)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         int64_t fd = static_cast<int64_t>(args[0]->toInt());
         auto info = mgr.getFileInfo(fd);
         std::ostringstream oss;
@@ -427,7 +457,9 @@ void registerBuiltinsKernelUEFI(Interpreter& interpreter) {
     auto uefi_locate = [](Sad::Interpreter::BuiltinContext &ctx) -> std::shared_ptr<Data::Value> {
                 const auto &args = ctx.args(); (void)args;
         auto& mgr = LowLevel::UefiManager::getInstance();
-        if (args.size() < 1) return std::make_shared<Data::Value>(0);
+        if (args.size() < 1)
+            // (AR) عودةٌ بقيمةٍ زائفةٍ صامتة ⇒ إجابةٌ معقولةُ الشكلِ خاطئةٌ يقينًا.
+            ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
         std::string guidName = args[0]->toString();
         // تحويل اسم مألوف إلى GUID
         LowLevel::EFI_GUID guid = {0, 0, 0, {0}};
