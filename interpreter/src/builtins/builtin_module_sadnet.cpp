@@ -30,6 +30,7 @@
 
 #include "interpreter_core.h"
 #include "builtin_registry.h"
+#include "builtins/builtin_context.h"
 #include "value.h"
 
 #ifdef HAS_SADNET
@@ -109,7 +110,7 @@ namespace Sad
             void ensure_discovery()
             {
                 if (!discovery)
-                    discovery = std::make_unique<sad::net::discovery::DiscoveryManager>(id);
+                    discovery = std::make_unique<sad::net::discovery::DiscoveryManager>(id, 7654);
             }
             void ensure_messaging()
             {
@@ -119,7 +120,7 @@ namespace Sad
             void ensure_storage()
             {
                 if (!storage)
-                    storage = std::make_unique<sad::net::storage::StorageManager>(id);
+                    storage = std::make_unique<sad::net::storage::StorageManager>(id, keys);
             }
             void ensure_dns()
             {
@@ -144,12 +145,12 @@ namespace Sad
             void ensure_identity()
             {
                 if (!identity)
-                    identity = std::make_unique<sad::net::identity::IdentityManager>(id, keys);
+                    identity = std::make_unique<sad::net::identity::IdentityManager>(keys);
             }
             void ensure_onion()
             {
                 if (!onion)
-                    onion = std::make_unique<sad::net::routing::OnionRouter>(id);
+                    onion = std::make_unique<sad::net::routing::OnionRouter>(keys);
             }
         };
 
@@ -157,6 +158,16 @@ namespace Sad
         static std::unordered_map<int64_t, std::unique_ptr<SadNetNode>> g_nodes;
         static std::mutex g_nodes_mtx;
         static std::atomic<int64_t> g_next_node_id{1};
+
+        // (AR) 🔑 سجلُّ بياناتِ الملفّات. تغيّر عقدُ التخزين: `store_file` يُرجعُ
+        //      `FileManifest` كاملًا، و`retrieve_file` يطلبُه كاملًا — لا معرّفًا
+        //      وحدَه (storage.h:113,122). وسطحُ اللغةِ يُعطي المستخدمَ نصًّا
+        //      واحدًا، فيُحفَظُ البيانُ ههنا مفهرسًا بـhex الجذرِ ويُستردُّ به.
+        //      وبلا هذا السجلِّ لا يمكنُ لـ`استرجاع_ملف` أن تعملَ البتّة.
+        // (EN) Manifest registry: retrieve_file needs the whole manifest, but the
+        //      language surface hands the user only the root id string.
+        static std::unordered_map<std::string, sad::net::storage::FileManifest> g_manifests;
+        static std::mutex g_manifests_mtx;
 
         static SadNetNode *getNode(int64_t id)
         {
@@ -199,6 +210,18 @@ namespace Sad
         {
             auto &fm = interpreter.getFunctionManager();
 
+            // (AR) 🔑 كُتبت أذرعُ هذه الوحدةِ كلُّها على التوقيعِ القديمِ
+            //      `(const Args&)`، وقد **حُذف** من `FunctionManager` عند هجرةِ
+            //      ADR-EM-CPP-1 إلى `BuiltinContext&` (راجع function_manager.h:200).
+            //      ولم يحمرَّ شيءٌ لأنّ الملفَّ كلَّه كان خلفَ `#ifdef HAS_SADNET`
+            //      لم يصدُقْ قطّ — فالهجرةُ الشاملةُ مرّت عليه ولم تمسَّه، إذ
+            //      **لا يُهاجَرُ ما لا يُترجَم**. فلمّا أُحييَ البناءُ ظهرت
+            //      ٤٤ عطبًا دفعةً واحدة (C2664 لكلِّ لامبدا وتسجيلِها).
+            //      وجُسِر ههنا بنفسِ نسقِ أختِها المهاجَرةِ builtin_module_http.cpp:419.
+            // (EN) All arms here were written against the removed `(const Args&)`
+            //      signature; the ADR-EM-CPP-1 migration skipped this TU because a
+            //      dead #ifdef meant it never compiled. Bridged like the HTTP module.
+
             // (AR) اختصار لأسماء ثوابت الشبكة اللامركزية
             namespace Bn = Builtins::Names::SadNet;
 
@@ -208,8 +231,10 @@ namespace Sad
 
             // ─── عقدة_جديدة() → رقم (معرّف العقدة) ───────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     (void)args;
                     auto node = std::make_unique<SadNetNode>();
                     int64_t id = g_next_node_id.fetch_add(1);
@@ -217,13 +242,15 @@ namespace Sad
                     g_nodes[id] = std::move(node);
                     return makeNum(static_cast<double>(id));
                 };
-                fm.registerBuiltinFunction(std::string(Bn::NEW_NODE), f); // عقدة_جديدة
+                fm.registerBuiltinFunction(std::string(Bn::NODE_NEW), f); // عقدة_جديدة
             }
 
             // ─── معرّف_العقدة(عقدة) → نص ───────────────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.empty())
                         return makeStr("");
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -240,8 +267,10 @@ namespace Sad
 
             // ─── تشفير_sha256(نص) → نص (hex) ───────────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.empty())
                         return makeStr("");
                     std::string input = args[0]->toString();
@@ -262,14 +291,20 @@ namespace Sad
 
             // ─── بايتات_عشوائية(عدد) → نص (hex) ─────────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.empty())
                         return makeStr("");
                     size_t n = static_cast<size_t>(args[0]->toDouble());
                     if (n > 1024)
                         n = 1024; // حد أقصى
-                    auto bytes = sad::net::crypto::random_bytes(n);
+                    // (AR) العقدُ الحاليّ: `bool random_bytes(uint8_t*, size_t)`
+                    //      يملأُ مخزنًا ويُرجعُ نجاحَه — لا يُرجعُ المتّجه.
+                    std::vector<uint8_t> bytes(n);
+                    if (n && !sad::net::crypto::random_bytes(bytes.data(), n))
+                        return makeStr("");
                     std::string hex;
                     for (uint8_t b : bytes)
                     {
@@ -288,8 +323,10 @@ namespace Sad
 
             // ─── dht_تخزين(عقدة، مفتاح_نص، قيمة_نص) → منطقي ─────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 3)
                         return makeBool(false);
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -306,18 +343,20 @@ namespace Sad
                     sad::net::NodeId key;
                     std::memcpy(key.data.data(), key_hash.data(), std::min(key_hash.size(), (size_t)32));
 
-                    sad::net::dht::DHTValue val;
-                    val.data.assign(val_str.begin(), val_str.end());
-                    val.timestamp = sad::net::now_ms();
-
-                    return makeBool(node->dht->store(key, val));
+                    // (AR) `store` يأخذُ `Buffer` مباشرةً لا `DHTValue`؛ والطابعُ
+                    //      الزمنيُّ يضعُه المحرّكُ نفسُه عند التخزين.
+                    sad::net::Buffer val(val_str);
+                    return makeBool(node->dht->store(key, val).ok());
                 };
+                fm.registerBuiltinFunction(std::string(Bn::DHT_STORE), f); // dht_تخزين
             }
 
             // ─── dht_بحث(عقدة، مفتاح_نص) → نص|فراغ ──────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 2)
                         return makeVoidVal();
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -331,14 +370,14 @@ namespace Sad
                     sad::net::NodeId key;
                     std::memcpy(key.data.data(), key_hash.data(), std::min(key_hash.size(), (size_t)32));
 
+                    // (AR) `Result<Buffer>` بحقلَي `ok()`/`value` — لا `success`
+                    //      ولا `optional`. راجع core/types.h:263.
                     auto result = node->dht->find_value(key);
-                    if (result.success && result.value.has_value())
-                    {
-                        auto &val = result.value.value();
-                        return makeStr(std::string(val.data.begin(), val.data.end()));
-                    }
+                    if (result.ok())
+                        return makeStr(std::string(result.value.begin(), result.value.end()));
                     return makeVoidVal();
                 };
+                fm.registerBuiltinFunction(std::string(Bn::DHT_LOOKUP), f); // dht_بحث
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -347,8 +386,10 @@ namespace Sad
 
             // ─── تخزين_ملف(عقدة، اسم، محتوى) → نص (معرّف المحتوى hex) ──────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 3)
                         return makeStr("");
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -358,12 +399,17 @@ namespace Sad
 
                     std::string name = args[1]->toString();
                     std::string content = args[2]->toString();
-                    sad::net::Buffer data(content.begin(), content.end());
+                    sad::net::Buffer data(content);
 
                     auto result = node->storage->store_file(name, data);
-                    if (result.success)
+                    if (result.ok())
                     {
-                        return makeStr(result.value.to_hex());
+                        std::string root = result.value.root_id.to_hex();
+                        {
+                            std::lock_guard<std::mutex> lock(g_manifests_mtx);
+                            g_manifests[root] = result.value;
+                        }
+                        return makeStr(root);
                     }
                     return makeStr("");
                 };
@@ -372,8 +418,10 @@ namespace Sad
 
             // ─── استرجاع_ملف(عقدة، معرّف_hex) → نص|فراغ ──────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 2)
                         return makeVoidVal();
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -382,10 +430,17 @@ namespace Sad
                     node->ensure_storage();
 
                     std::string id_hex = args[1]->toString();
-                    sad::net::NodeId content_id = sad::net::NodeId::from_hex(id_hex);
+                    sad::net::storage::FileManifest manifest;
+                    {
+                        std::lock_guard<std::mutex> lock(g_manifests_mtx);
+                        auto it = g_manifests.find(id_hex);
+                        if (it == g_manifests.end())
+                            return makeVoidVal();
+                        manifest = it->second;
+                    }
 
-                    auto result = node->storage->retrieve_file(content_id);
-                    if (result.success)
+                    auto result = node->storage->retrieve_file(manifest);
+                    if (result.ok())
                     {
                         return makeStr(std::string(result.value.begin(), result.value.end()));
                     }
@@ -400,8 +455,10 @@ namespace Sad
 
             // ─── dns_تسجيل(عقدة، اسم، عنوان_ip) → منطقي ─────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 3)
                         return makeBool(false);
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -412,14 +469,21 @@ namespace Sad
                     std::string name = args[1]->toString();
                     std::string ip = args[2]->toString();
 
-                    return makeBool(node->dns->register_name(name, ip));
+                    // (AR) العقدُ يطلبُ نوعَ السجلِّ صراحةً: A لعنوانِ IPv4
+                    //      (dns.h:89). والقيمةُ الافتراضيّةُ للـttl تكفي.
+                    return makeBool(node->dns
+                                        ->register_name(name, sad::net::dns::RecordType::A, ip)
+                                        .ok());
                 };
+                fm.registerBuiltinFunction(std::string(Bn::DNS_NAME_REGISTER), f); // dns_تسجيل
             }
 
             // ─── dns_حل(عقدة، اسم) → نص|فراغ ───────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 2)
                         return makeVoidVal();
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -435,6 +499,7 @@ namespace Sad
                     }
                     return makeVoidVal();
                 };
+                fm.registerBuiltinFunction(std::string(Bn::DNS_RESOLVE), f); // dns_حل
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -443,8 +508,10 @@ namespace Sad
 
             // ─── رسالة_مشفرة(عقدة، مستقبل_hex، نص_الرسالة) → نص (hex) ────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 3)
                         return makeStr("");
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -457,11 +524,11 @@ namespace Sad
 
                     sad::net::NodeId recipient = sad::net::NodeId::from_hex(recipient_hex);
 
-                    auto result = node->messaging->send_message(
-                        recipient, sad::net::messaging::MessageType::TEXT,
-                        sad::net::Buffer(message_text.begin(), message_text.end()));
+                    // (AR) لا `send_message` في العقدِ الحاليّ؛ الإرسالُ النصّيُّ
+                    //      المشفَّرُ هو `send_text` (messaging.h:181).
+                    auto result = node->messaging->send_text(recipient, message_text);
 
-                    if (result.success)
+                    if (result.ok())
                     {
                         return makeStr("ok");
                     }
@@ -476,8 +543,10 @@ namespace Sad
 
             // ─── إثبات_عمل(عقدة) → منطقي ─────────────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.empty())
                         return makeBool(false);
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -493,8 +562,10 @@ namespace Sad
 
             // ─── سمعة_قرين(عقدة، قرين_hex) → رقم ─────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 2)
                         return makeNum(0);
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -512,8 +583,10 @@ namespace Sad
 
             // ─── حظر_قرين(عقدة، قرين_hex) → منطقي ────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 2)
                         return makeBool(false);
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -526,13 +599,15 @@ namespace Sad
                     node->security->ban(peer);
                     return makeBool(true);
                 };
-                fm.registerBuiltinFunction(std::string(Bn::BLOCK_PEER), f); // حظر_قرين
+                fm.registerBuiltinFunction(std::string(Bn::PEER_BAN), f); // حظر_قرين
             }
 
             // ─── قرين_موثوق(عقدة، قرين_hex) → منطقي ─────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 2)
                         return makeBool(false);
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -544,7 +619,7 @@ namespace Sad
                     sad::net::NodeId peer = sad::net::NodeId::from_hex(peer_hex);
                     return makeBool(node->security->is_trusted(peer));
                 };
-                fm.registerBuiltinFunction(std::string(Bn::TRUSTED_PEER), f); // قرين_موثوق
+                fm.registerBuiltinFunction(std::string(Bn::PEER_TRUSTED), f); // قرين_موثوق
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -553,8 +628,10 @@ namespace Sad
 
             // ─── هوية_جديدة(عقدة) → نص (DID) ─────────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.empty())
                         return makeStr("");
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -562,14 +639,12 @@ namespace Sad
                         return makeStr("");
                     node->ensure_identity();
 
-                    auto result = node->identity->create_identity();
-                    if (result.success)
-                    {
-                        return makeStr(result.value.id);
-                    }
-                    return makeStr("");
+                    // (AR) `create_identity` تُرجعُ `DIDDocument` مباشرةً لا
+                    //      `Result<…>`، وحقلُ المعرّفِ اسمُه `did` (identity.h:78,134).
+                    auto doc = node->identity->create_identity();
+                    return makeStr(doc.did);
                 };
-                fm.registerBuiltinFunction(std::string(Bn::NEW_IDENTITY), f); // هوية_جديدة
+                fm.registerBuiltinFunction(std::string(Bn::IDENTITY_NEW), f); // هوية_جديدة
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -578,8 +653,10 @@ namespace Sad
 
             // ─── بث_جديد(عقدة، عنوان) → رقم (معرّف البث) ─────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 2)
                         return makeNum(-1);
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -600,13 +677,15 @@ namespace Sad
                     uint64_t sid = node->streaming->create_stream(title, levels);
                     return makeNum(static_cast<double>(sid));
                 };
-                fm.registerBuiltinFunction(std::string(Bn::NEW_BROADCAST), f); // بث_جديد
+                fm.registerBuiltinFunction(std::string(Bn::BROADCAST_NEW), f); // بث_جديد
             }
 
             // ─── بث_إيقاف(عقدة، معرّف_البث) → منطقي ─────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 2)
                         return makeBool(false);
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -618,7 +697,7 @@ namespace Sad
                     node->streaming->stop_stream(sid);
                     return makeBool(true);
                 };
-                fm.registerBuiltinFunction(std::string(Bn::STOP_BROADCAST), f); // بث_إيقاف
+                fm.registerBuiltinFunction(std::string(Bn::BROADCAST_STOP), f); // بث_إيقاف
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -627,8 +706,10 @@ namespace Sad
 
             // ─── cdn_نشر(عقدة، اسم، نوع_mime، محتوى) → نص (معرّف hex) ────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 4)
                         return makeStr("");
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -639,17 +720,20 @@ namespace Sad
                     std::string name = args[1]->toString();
                     std::string mime = args[2]->toString();
                     std::string content = args[3]->toString();
-                    sad::net::Buffer data(content.begin(), content.end());
+                    sad::net::Buffer data(content);
 
                     auto id = node->cdn->publish_content(name, mime, data);
                     return makeStr(id.to_hex());
                 };
+                fm.registerBuiltinFunction(std::string(Bn::CDN_PUBLISH), f); // cdn_نشر
             }
 
             // ─── cdn_محتوى(عقدة، معرّف_hex) → نص|فراغ ───────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.size() < 2)
                         return makeVoidVal();
                     auto *node = getNode(static_cast<int64_t>(args[0]->toDouble()));
@@ -667,6 +751,7 @@ namespace Sad
                     }
                     return makeVoidVal();
                 };
+                fm.registerBuiltinFunction(std::string(Bn::CDN_CONTENT), f); // cdn_محتوى
             }
 
             // ═════════════════════════════════════════════════════════════════
@@ -675,24 +760,29 @@ namespace Sad
 
             // ─── snet_إصدار() → نص ──────────────────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     (void)args;
                     return makeStr("sadnet 1.0.0");
                 };
+                fm.registerBuiltinFunction(std::string(Bn::NET_VERSION), f); // snet_إصدار
             }
 
             // ─── تدمير_عقدة(عقدة) → منطقي ──────────────────────────────
             {
-                auto f = [](const Args &args) -> ValPtr
+                auto f = [](Sad::Interpreter::BuiltinContext &ctx) -> ValPtr
                 {
+                    const Args &args = ctx.args();
+                    (void)args;
                     if (args.empty())
                         return makeBool(false);
                     int64_t id = static_cast<int64_t>(args[0]->toDouble());
                     std::lock_guard<std::mutex> lock(g_nodes_mtx);
                     return makeBool(g_nodes.erase(id) > 0);
                 };
-                fm.registerBuiltinFunction(std::string(Bn::DESTROY_NODE), f); // تدمير_عقدة
+                fm.registerBuiltinFunction(std::string(Bn::NODE_DESTROY), f); // تدمير_عقدة
             }
         }
 

@@ -38,7 +38,19 @@ INTERP = ROOT / "interpreter" / "src" / "builtins"
 
 # (AR) السقفُ المُودَع — يُخفَّض كلّما وُصِل مدمجٌ، ولا يُرفَع إلّا بقرارٍ مكتوب.
 # (AR) عُويِر بعشرةِ مجسّاتٍ منفَّذة (٥ متوقَّعةً بلا ذراعٍ و٥ بذراع): ١٠/١٠.
-CEILING_COMPILER_MISSING = 557
+#
+# (AR) رفعٌ مُوثَّقٌ واحد: ٥٥٧ ← ٥٦٤ (+٧). والسبعُ دوالُّ SadNet كانت **منفَّذةً
+#      في المفسّرِ وغيرَ معلَنة**: لامبداتٌ مكتملةٌ تموتُ محلّيّةً بلا تسجيل،
+#      خلفَ `#ifdef HAS_SADNET` لم يصدُقْ قطّ. فالتباعدُ لم ينمُ بإعلانِها بل
+#      **صار مقيسًا**: كان قائمًا في المحرّكِ وغيرَ مرئيٍّ لأيّ حارس. ولا ذراعَ
+#      لها في المترجّمِ اليوم — كحالِ الخمسَ عشرةَ المعلَنةِ قبلَها (صفرُ ذكرٍ
+#      لـSadNet في compiler/src)، فتُخفِقُ مُصرَّفةً بـSEM047 المسمّى لا تتبخّر.
+#      🔑 والقاعدةُ التي يحرسُها هذا السقفُ سليمةٌ ههنا: الرفعُ **بقرارٍ مكتوبٍ
+#         يُسمّي الأسماءَ السبعةَ وسببَها**، لا بتسكينِ أحمرَ.
+# (EN) One documented raise: 557 → 564 (+7) — SadNet builtins that were already
+#      implemented in the interpreter but undeclared (dead #ifdef). Declaring them
+#      made an existing divergence measurable rather than creating a new one.
+CEILING_COMPILER_MISSING = 564
 
 
 

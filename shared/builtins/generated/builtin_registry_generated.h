@@ -1062,6 +1062,20 @@ namespace Sad
                 inline constexpr std::string_view BROADCAST_STOP = "بث_إيقاف";
                 // (AR) تدمير_عقدة
                 inline constexpr std::string_view NODE_DESTROY = "تدمير_عقدة";
+                // (AR) تخزين قيمة في الجدول الموزع مقابل مفتاح
+                inline constexpr std::string_view DHT_STORE = "dht_تخزين";
+                // (AR) البحث عن قيمة في الجدول الموزع بمفتاحها
+                inline constexpr std::string_view DHT_LOOKUP = "dht_بحث";
+                // (AR) تسجيل اسم لامركزي مقابل عنوان
+                inline constexpr std::string_view DNS_NAME_REGISTER = "dns_تسجيل";
+                // (AR) حل اسم لامركزي إلى عنوان
+                inline constexpr std::string_view DNS_RESOLVE = "dns_حل";
+                // (AR) نشر محتوى في الشبكة اللامركزية وإرجاع معرفه
+                inline constexpr std::string_view CDN_PUBLISH = "cdn_نشر";
+                // (AR) طلب محتوى من الشبكة اللامركزية بمعرفه
+                inline constexpr std::string_view CDN_CONTENT = "cdn_محتوى";
+                // (AR) إصدار مكتبة الشبكة اللامركزية
+                inline constexpr std::string_view NET_VERSION = "snet_إصدار";
             }
 
             // ─────────── UIWidgets ───────────
@@ -3178,7 +3192,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1182> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1189> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3629,22 +3643,29 @@ namespace Sad
             {Names::KernelUSB::MOUSE_WHEEL, "KernelUSB", "MODULE_FUNCTION", "NONE", false, "فأرة_عجلة", "", ""},
             {Names::KernelUSB::MOUSE_CONNECTED, "KernelUSB", "MODULE_FUNCTION", "NONE", false, "فأرة_متصلة", "", ""},
             {Names::KernelUSB::MOUSE_BOUNDS, "KernelUSB", "MODULE_FUNCTION", "NONE", false, "فأرة_حدود", "", ""},
-            // ─── SadNet (15) ───
-            {Names::SadNet::NODE_NEW, "SadNet", "MODULE_FUNCTION", "NONE", false, "عقدة_جديدة", "", ""},
-            {Names::SadNet::NODE_ID, "SadNet", "MODULE_FUNCTION", "NONE", false, "معرف_العقدة", "", ""},
-            {Names::SadNet::SHA256, "SadNet", "MODULE_FUNCTION", "NONE", false, "تشفير_sha256", "", ""},
-            {Names::SadNet::RANDOM_BYTES, "SadNet", "MODULE_FUNCTION", "NONE", false, "بايتات_عشوائية", "", ""},
-            {Names::SadNet::STORE_FILE, "SadNet", "MODULE_FUNCTION", "NONE", false, "تخزين_ملف", "", ""},
-            {Names::SadNet::RETRIEVE_FILE, "SadNet", "MODULE_FUNCTION", "NONE", false, "استرجاع_ملف", "", ""},
-            {Names::SadNet::ENCRYPTED_MSG, "SadNet", "MODULE_FUNCTION", "NONE", false, "رسالة_مشفرة", "", ""},
-            {Names::SadNet::PROOF_OF_WORK, "SadNet", "MODULE_FUNCTION", "NONE", false, "إثبات_عمل", "", ""},
-            {Names::SadNet::PEER_REPUTATION, "SadNet", "MODULE_FUNCTION", "NONE", false, "سمعة_قرين", "", ""},
-            {Names::SadNet::PEER_BAN, "SadNet", "MODULE_FUNCTION", "NONE", false, "حظر_قرين", "", ""},
-            {Names::SadNet::PEER_TRUSTED, "SadNet", "MODULE_FUNCTION", "NONE", false, "قرين_موثوق", "", ""},
-            {Names::SadNet::IDENTITY_NEW, "SadNet", "MODULE_FUNCTION", "NONE", false, "هوية_جديدة", "", ""},
-            {Names::SadNet::BROADCAST_NEW, "SadNet", "MODULE_FUNCTION", "NONE", false, "بث_جديد", "", ""},
-            {Names::SadNet::BROADCAST_STOP, "SadNet", "MODULE_FUNCTION", "NONE", false, "بث_إيقاف", "", ""},
-            {Names::SadNet::NODE_DESTROY, "SadNet", "MODULE_FUNCTION", "NONE", false, "تدمير_عقدة", "", ""},
+            // ─── SadNet (22) ───
+            {Names::SadNet::NODE_NEW, "SadNet", "MODULE_FUNCTION", "NONE", true, "عقدة_جديدة", "", ""},
+            {Names::SadNet::NODE_ID, "SadNet", "MODULE_FUNCTION", "NONE", true, "معرف_العقدة", "", ""},
+            {Names::SadNet::SHA256, "SadNet", "MODULE_FUNCTION", "NONE", true, "تشفير_sha256", "", ""},
+            {Names::SadNet::RANDOM_BYTES, "SadNet", "MODULE_FUNCTION", "NONE", true, "بايتات_عشوائية", "", ""},
+            {Names::SadNet::STORE_FILE, "SadNet", "MODULE_FUNCTION", "NONE", true, "تخزين_ملف", "", ""},
+            {Names::SadNet::RETRIEVE_FILE, "SadNet", "MODULE_FUNCTION", "NONE", true, "استرجاع_ملف", "", ""},
+            {Names::SadNet::ENCRYPTED_MSG, "SadNet", "MODULE_FUNCTION", "NONE", true, "رسالة_مشفرة", "", ""},
+            {Names::SadNet::PROOF_OF_WORK, "SadNet", "MODULE_FUNCTION", "NONE", true, "إثبات_عمل", "", ""},
+            {Names::SadNet::PEER_REPUTATION, "SadNet", "MODULE_FUNCTION", "NONE", true, "سمعة_قرين", "", ""},
+            {Names::SadNet::PEER_BAN, "SadNet", "MODULE_FUNCTION", "NONE", true, "حظر_قرين", "", ""},
+            {Names::SadNet::PEER_TRUSTED, "SadNet", "MODULE_FUNCTION", "NONE", true, "قرين_موثوق", "", ""},
+            {Names::SadNet::IDENTITY_NEW, "SadNet", "MODULE_FUNCTION", "NONE", true, "هوية_جديدة", "", ""},
+            {Names::SadNet::BROADCAST_NEW, "SadNet", "MODULE_FUNCTION", "NONE", true, "بث_جديد", "", ""},
+            {Names::SadNet::BROADCAST_STOP, "SadNet", "MODULE_FUNCTION", "NONE", true, "بث_إيقاف", "", ""},
+            {Names::SadNet::NODE_DESTROY, "SadNet", "MODULE_FUNCTION", "NONE", true, "تدمير_عقدة", "", ""},
+            {Names::SadNet::DHT_STORE, "SadNet", "MODULE_FUNCTION", "NONE", true, "تخزين قيمة في الجدول الموزع مقابل مفتاح", "", ""},
+            {Names::SadNet::DHT_LOOKUP, "SadNet", "MODULE_FUNCTION", "NONE", true, "البحث عن قيمة في الجدول الموزع بمفتاحها", "", ""},
+            {Names::SadNet::DNS_NAME_REGISTER, "SadNet", "MODULE_FUNCTION", "NONE", true, "تسجيل اسم لامركزي مقابل عنوان", "", ""},
+            {Names::SadNet::DNS_RESOLVE, "SadNet", "MODULE_FUNCTION", "NONE", true, "حل اسم لامركزي إلى عنوان", "", ""},
+            {Names::SadNet::CDN_PUBLISH, "SadNet", "MODULE_FUNCTION", "NONE", true, "نشر محتوى في الشبكة اللامركزية وإرجاع معرفه", "", ""},
+            {Names::SadNet::CDN_CONTENT, "SadNet", "MODULE_FUNCTION", "NONE", true, "طلب محتوى من الشبكة اللامركزية بمعرفه", "", ""},
+            {Names::SadNet::NET_VERSION, "SadNet", "MODULE_FUNCTION", "NONE", true, "إصدار مكتبة الشبكة اللامركزية", "", ""},
             // ─── UIWidgets (112) ───
             {Names::UIWidgets::TEXT_WIDGET, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "نص_عنصر", "محتوى: نصّ العنصر المعروض", "كائن"},
             {Names::UIWidgets::IMAGE, "UIWidgets", "MODULE_FUNCTION", "NONE", false, "صورة", "مصدر: مسار الصورة أو رابطها", "كائن"},
@@ -4417,7 +4438,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", false, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1182, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1189, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

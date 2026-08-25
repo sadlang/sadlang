@@ -242,14 +242,24 @@ include(${CMAKE_SOURCE_DIR}/cmake/codegen.cmake)
 # 4. تعريفات ملفات المصدر / Source File Definitions
 include(${CMAKE_SOURCE_DIR}/cmake/sources.cmake)
 
+# 4.5. صNet — مكتبة الشبكات اللامركزيّة / SadNet Decentralized Networking
+# (AR) 🔑 **يجب أن يسبق libraries.cmake.** كان يُدرَج بعده (خطوة ٦٫٥)، وفيه
+#      `if(TARGET sadnet)` تُسأل في libraries.cmake:205 قبل `add_library(sadnet …)`
+#      هنا — فالشرطُ كاذبٌ دائمًا، فلا يُعرَّف `HAS_SADNET` قطّ، فيُترجَم
+#      builtin_module_sadnet.cpp من فرعِه الفارغِ `#else` أبدًا. النتيجةُ أنّ
+#      خمس عشرة دالّةً معلَنةً `stable` في language-truth/builtins/sadnet.yaml
+#      لم يكن لها وجودٌ في أيّ ثنائيّ. والترتيبُ ههنا **جزءٌ من العقد**: هدفٌ
+#      يُسأل عن وجودِه يجب أن يُعرَّف قبل السؤال.
+# (EN) MUST precede libraries.cmake: it asks `if(TARGET sadnet)` at line 205,
+#      which was always false when sadnet.cmake ran afterwards — so HAS_SADNET
+#      was never defined and all 15 declared SadNet builtins were unreachable.
+include(${CMAKE_SOURCE_DIR}/cmake/sadnet.cmake)
+
 # 5. المكتبات الأساسية / Core Libraries (sad_interp, sad_runtime, graphics)
 include(${CMAKE_SOURCE_DIR}/cmake/libraries.cmake)
 
 # 6. مكتبات الشبكات / Networking Libraries (TCP/UDP, HTTP, WebSocket)
 include(${CMAKE_SOURCE_DIR}/cmake/network.cmake)
-
-# 6.5. صNet — مكتبة الشبكات اللامركزيّة / SadNet Decentralized Networking
-include(${CMAKE_SOURCE_DIR}/cmake/sadnet.cmake)
 
 # 7. مكتبات الدعم التنفيذيّة / Executable-support libs (sad_mobile, flush_smoke)
 include(${CMAKE_SOURCE_DIR}/cmake/executables.cmake)
