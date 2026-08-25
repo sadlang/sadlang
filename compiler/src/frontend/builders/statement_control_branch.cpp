@@ -785,7 +785,23 @@ namespace Sad
                         const bool needWiden = (declaredKind == SadTypeKind::Float &&
                                                 (retValue.dataType == SadTypeKind::Integer ||
                                                  retValue.dataType == SadTypeKind::Any));
-                        const bool needNarrow = (declaredKind == SadTypeKind::Integer &&
+                        // (AR) 🔑 و«بايت» مع عائدٍ عشريٍّ كان يقعُ خارجَ هذا الحارسِ
+                        //      فتُسلَّمُ بتّاتُ الـdouble خامًّا لدالّةٍ موقَّعةٍ i64:
+                        //      `دالة بايت ص() ارجع 300.0` كانت تطبع 4643985272004935680
+                        //      مترجَمةً — وهي بتّاتُ 300.0 مقروءةً صحيحًا، أي العطبُ
+                        //      نفسُه الذي تصفُه هذه الكتلةُ أعلاه وتدّعي سدَّه. والسببُ
+                        //      أنّ الحارسَ سُمّي بنوعٍ واحدٍ (`Integer`) لا بالفعلِ
+                        //      (تسليمُ عشريٍّ لخانةٍ صحيحة)، فكلُّ نوعٍ صحيحٍ آخرَ
+                        //      يسقطُ منه. ثمّ يقتطعُ قناعُ «بايت» أدناه الناتجَ الصحيح.
+                        // (EN) Byte under a float return fell outside this guard, handing
+                        //      a double's raw BITS to an i64-signed function: a `بايت`
+                        //      function returning 300.0 printed 4643985272004935680 — the
+                        //      very defect this block claims to seal. The guard was named
+                        //      after one type (Integer) rather than after the act (handing
+                        //      a float to an integer slot), so every other integer kind
+                        //      fell through. The Byte mask below then truncates the result.
+                        const bool needNarrow = ((declaredKind == SadTypeKind::Integer ||
+                                                  declaredKind == SadTypeKind::Byte) &&
                                                  retValue.dataType == SadTypeKind::Float);
                         if (needWiden || needNarrow)
                         {
@@ -805,6 +821,63 @@ namespace Sad
                                 convInst.comment = "coerce return value to declared type";
                                 b_.currentBlock_->addInstruction(convInst);
                                 retValue = SIROperand::Register(convReg, declaredKind);
+                            }
+                        }
+
+                        // ════════════════════════════════════════════════════════════
+                        // (AR) 🔑 «بايت» عائدًا — المعبَرُ الثالثُ الذي كان يكذبُ العقد.
+                        //      مصدرُ الحقيقةِ يُعلن «بايت» u8 مدىً 0–255، والاقتطاعُ كان
+                        //      مسدودًا عند التصريحِ وإعادةِ الإسنادِ وحدَهما، فكانت
+                        //      `دالة بايت ص() ارجع 300` تُخرِج 300 في المحرّكَين معًا —
+                        //      لا تباعُدَ بينهما بل عقدٌ غيرُ مصونٍ في كليهما.
+                        //      والقناعُ نفسُ قناعِ إعادةِ الإسناد (`AND 0xFF` للسجلّ،
+                        //      وطيٌّ للثابت، و`TRUNCATE_U8` للموسوم) — فيبقى معنى النوعِ
+                        //      واحدًا مهما كان المعبَر.
+                        // (AR) و`Any` تُفرَد بـTRUNCATE_U8 لا بـAND: حمولةُ `/` و`//`
+                        //      الموسومةُ قد تكون عشريّةً زمنَ التشغيل، وقناعٌ غيرُ مشروطٍ
+                        //      يُفسِد بتّاتِها. TRUNCATE_U8 يقنّع **إن كان الوسمُ صحيحًا
+                        //      فقط** — وهو نفسُ ما استُعمل في مسارِ إعادةِ الإسناد.
+                        // (EN) Byte as a return value — the third crossing that broke the
+                        //      contract. The SoT declares Byte as u8 (0-255), yet truncation
+                        //      was sealed only at declaration and reassignment, so a `بايت`
+                        //      function returning 300 emitted 300 in BOTH engines — not a
+                        //      divergence between them but a contract unhonoured by both.
+                        //      Same masks as the reassignment path: AND 0xFF for a register,
+                        //      constant folding for a constant, TRUNCATE_U8 for a tagged Any
+                        //      (an unconditional mask would corrupt a float payload's bits).
+                        // ════════════════════════════════════════════════════════════
+                        if (declaredKind == SadTypeKind::Byte)
+                        {
+                            const bool intLike = (retValue.dataType == SadTypeKind::Integer ||
+                                                  retValue.dataType == SadTypeKind::Byte ||
+                                                  retValue.dataType == SadTypeKind::UInt64);
+                            if (intLike && retValue.type == SIROperandType::CONSTANT)
+                            {
+                                retValue = SIROperand::ConstantI64(
+                                    static_cast<int64_t>(static_cast<uint64_t>(retValue.intValue) & 0xFFULL));
+                            }
+                            else if (intLike && b_.currentBlock_)
+                            {
+                                std::string maskedReg = b_.newTempRegister();
+                                SIRInstruction andInst(SIROpcode::AND);
+                                andInst.result = SIROperand::Register(maskedReg, SadTypeKind::Integer);
+                                andInst.operands.push_back(retValue);
+                                andInst.operands.push_back(SIROperand::ConstantI64(0xFF));
+                                andInst.comment = "truncate returned value to declared بايت (u8)";
+                                b_.currentBlock_->addInstruction(andInst);
+                                retValue = SIROperand::Register(maskedReg, SadTypeKind::Integer);
+                            }
+                            else if (retValue.dataType == SadTypeKind::Any &&
+                                     retValue.type != SIROperandType::CONSTANT &&
+                                     b_.currentBlock_)
+                            {
+                                std::string truncReg = b_.newTempRegister();
+                                SIRInstruction truncInst(SIROpcode::TRUNCATE_U8);
+                                truncInst.result = SIROperand::Register(truncReg, SadTypeKind::Any);
+                                truncInst.operands.push_back(retValue);
+                                truncInst.comment = "truncate tagged return to declared بايت (u8)";
+                                b_.currentBlock_->addInstruction(truncInst);
+                                retValue = SIROperand::Register(truncReg, SadTypeKind::Any);
                             }
                         }
                     }

@@ -1824,6 +1824,65 @@ static llvm::Function *getOrCreateSplitHelper(
 
 
 
+
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) البابُ الواحدُ لاستخراجِ مدًى محرفيٍّ مقصوصٍ سلفًا — يُنظر إلى
+        //      حُجّتِه في الترويسة. لا يَقُصُّ: القصُّ عند المُنادي.
+        // (EN) The single door for extracting an already-clamped character range.
+        // ════════════════════════════════════════════════════════════════════
+        llvm::Value *StringOpsCodeGen::emitStringCharRangeCopy(llvm::Value *str,
+                                                               llvm::Value *start,
+                                                               llvm::Value *length)
+        {
+            if (!str || !start || !length)
+                return nullptr;
+            auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
+            auto i64Ty = cg_.getInt64Type();
+            auto i8Ty = llvm::Type::getInt8Ty(*cg_.context_);
+            llvm::IRBuilder<> &b = *cg_.builder_;
+
+            // (AR) تحويل فهرس الحرف والطول إلى إزاحات بايت باستخدام UTF-8
+            // (EN) Convert character start index and length to byte offsets using UTF-8
+            llvm::Function *charToByteFn = cg_.getOrCreateUtf8CharToByte();
+
+            // (AR) موقع البايت لبداية الاستخراج
+            // (EN) Byte offset of start character
+            llvm::Value *byteStart = b.CreateCall(charToByteFn, {str, start}, "byte.start");
+
+            // (AR) موقع البايت لنهاية الاستخراج — والمدى مقصوصٌ سلفًا، فـ`start+length`
+            //      لا يتجاوزُ عددَ المحارفِ بحال، ولا يُسأل التحويلُ عمّا لا عقدَ له فيه.
+            // (EN) End byte; the range is already clamped, so start+length never exceeds the
+            //      character count and the char→byte conversion is never asked out of range.
+            llvm::Value *charEnd = b.CreateAdd(start, length, "char.end");
+            llvm::Value *byteEnd = b.CreateCall(charToByteFn, {str, charEnd}, "byte.end");
+
+            // (AR) طول البايتات = byteEnd - byteStart
+            // (EN) Byte length = byteEnd - byteStart
+            llvm::Value *byteLen = cg_.builder_->CreateSub(byteEnd, byteStart, "byte.len");
+
+            // (AR) حجز ذاكرة: byteLen + 1
+            llvm::Value *bufSize = cg_.builder_->CreateAdd(byteLen, llvm::ConstantInt::get(i64Ty, 1));
+            llvm::Value *buf = cg_.emitMalloc(bufSize, "substr_buf");
+
+            // (AR) مؤشر المصدر: str + byteStart
+            llvm::Value *srcPtr = cg_.builder_->CreateGEP(i8Ty, str, {byteStart}, "substr.src");
+
+            // memcpy(buf, srcPtr, byteLen)
+            // (AR) طول ‎memcpy‎ بنوع ‎size_t‎ الهدف (i32 على 32-بت) — يطابق
+            //      النداء المكتبيّ الذي تولّده الخلفيّة وتعريفَ وقت التشغيل الحرّ.
+            llvm::Type *szTy = cg_.getSizeType();
+            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, szTy}, false);
+            auto memcpyFunc = cg_.module_->getOrInsertFunction("memcpy", memcpyType);
+            cg_.builder_->CreateCall(memcpyFunc, {buf, srcPtr,
+                cg_.builder_->CreateZExtOrTrunc(byteLen, szTy, "substr.len.sz")});
+
+            // (AR) إنهاء النص بـ null
+            llvm::Value *endPtr = cg_.builder_->CreateGEP(i8Ty, buf, {byteLen}, "substr.end");
+            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), endPtr);
+
+            return buf;
+        }
+
         llvm::Value *StringOpsCodeGen::emitBuiltinStringSubstring(std::shared_ptr<SIRInstruction> inst)
         {
             // (AR) 🔑 الوسائطُ **اختياريّةٌ في اللغة**، وكان اشتراطُ ثلاثةٍ هنا يجعل
@@ -1920,45 +1979,9 @@ static llvm::Function *getOrCreateSplitHelper(
             length = signedMin(length, b.CreateSub(charCount, start, "substr.len.max"),
                                "substr.len");
 
-            // (AR) تحويل فهرس الحرف والطول إلى إزاحات بايت باستخدام UTF-8
-            // (EN) Convert character start index and length to byte offsets using UTF-8
-            llvm::Function *charToByteFn = cg_.getOrCreateUtf8CharToByte();
-
-            // (AR) موقع البايت لبداية الاستخراج
-            // (EN) Byte offset of start character
-            llvm::Value *byteStart = b.CreateCall(charToByteFn, {str, start}, "byte.start");
-
-            // (AR) موقع البايت لنهاية الاستخراج — والمدى مقصوصٌ سلفًا، فـ`start+length`
-            //      لا يتجاوزُ عددَ المحارفِ بحال، ولا يُسأل التحويلُ عمّا لا عقدَ له فيه.
-            // (EN) End byte; the range is already clamped, so start+length never exceeds the
-            //      character count and the char→byte conversion is never asked out of range.
-            llvm::Value *charEnd = b.CreateAdd(start, length, "char.end");
-            llvm::Value *byteEnd = b.CreateCall(charToByteFn, {str, charEnd}, "byte.end");
-
-            // (AR) طول البايتات = byteEnd - byteStart
-            // (EN) Byte length = byteEnd - byteStart
-            llvm::Value *byteLen = cg_.builder_->CreateSub(byteEnd, byteStart, "byte.len");
-
-            // (AR) حجز ذاكرة: byteLen + 1
-            llvm::Value *bufSize = cg_.builder_->CreateAdd(byteLen, llvm::ConstantInt::get(i64Ty, 1));
-            llvm::Value *buf = cg_.emitMalloc(bufSize, "substr_buf");
-
-            // (AR) مؤشر المصدر: str + byteStart
-            llvm::Value *srcPtr = cg_.builder_->CreateGEP(i8Ty, str, {byteStart}, "substr.src");
-
-            // memcpy(buf, srcPtr, byteLen)
-            // (AR) طول ‎memcpy‎ بنوع ‎size_t‎ الهدف (i32 على 32-بت) — يطابق
-            //      النداء المكتبيّ الذي تولّده الخلفيّة وتعريفَ وقت التشغيل الحرّ.
-            llvm::Type *szTy = cg_.getSizeType();
-            auto *memcpyType = llvm::FunctionType::get(ptrTy, {ptrTy, ptrTy, szTy}, false);
-            auto memcpyFunc = cg_.module_->getOrInsertFunction("memcpy", memcpyType);
-            cg_.builder_->CreateCall(memcpyFunc, {buf, srcPtr,
-                cg_.builder_->CreateZExtOrTrunc(byteLen, szTy, "substr.len.sz")});
-
-            // (AR) إنهاء النص بـ null
-            llvm::Value *endPtr = cg_.builder_->CreateGEP(i8Ty, buf, {byteLen}, "substr.end");
-            cg_.builder_->CreateStore(llvm::ConstantInt::get(i8Ty, 0), endPtr);
-
+            llvm::Value *buf = emitStringCharRangeCopy(str, start, length);
+            if (!buf)
+                return nullptr;
             if (inst->result.has_value())
             {
                 cg_.context_info_.namedValues[inst->result->name] = buf;
@@ -1967,6 +1990,98 @@ static llvm::Function *getOrCreateSplitHelper(
         }
 
 
+
+        // ════════════════════════════════════════════════════════════════════
+        // (AR) 🔑 شريحةُ نصٍّ بالقوس `ن[أ:ب]`. وكانت تُوجَّهُ إلى ذراعِ المصفوفةِ
+        //      فيُطبَّعُ `char*` بوصفِه `SadArray*` وتُقرأُ قمامةٌ حقلًا حقلًا:
+        //      انهيارٌ segfault حين تقعُ القمامةُ على طولٍ ضخم، و`[]` مطبوعةً
+        //      حين تقعُ على صفرٍ — والصامتةُ أسوأُ من المنهارة. والمفسّرُ يُجيبُ
+        //      الصيغَ الأربعَ صحيحًا، فالعقدُ يُشتقُّ منه لا يُخترَع.
+        //
+        // (AR) والقصُّ ههنا **بنهايةٍ لا بطول**، وهو عقدٌ مغايرٌ لعقدِ «جزء»:
+        //        ① الحارسُ INT64_MIN («لا نهاية») ⇒ عددُ المحارف — لا ‎-١‎،
+        //           وإلّا بُتِر الذيلُ حرفًا (نفسُ زلّةِ ISSUE-063 في المصفوفات).
+        //        ② نهايةٌ سالبةٌ صريحةٌ ⇒ عددُ المحارفِ + النهاية.
+        //        ③ ثمّ يُحصَرُ الطرفان في [٠، عددِ المحارف]، والطولُ فرقٌ **لا
+        //           يسلُب** — `ن[٤:١]` صفرٌ لا سالبٌ يصيرُ malloc ضخمًا.
+        //      والاستخراجُ بعدَها يمرُّ من البابِ الواحدِ نفسِه الذي يمرُّ منه «جزء».
+        // (EN) Bracket slice on a string. It used to reach the array arm, where a
+        //      char* was normalized as a SadArray* — segfault, or a printed [] when
+        //      the garbage read as length zero. Clamping here is by END, not length:
+        //      the INT64_MIN sentinel means «to the end», an explicit negative end
+        //      counts from the end, both ends clamp to [0, charCount], and the length
+        //      is a difference that never goes negative. Extraction then goes through
+        //      the same single door as «جزء».
+        // ════════════════════════════════════════════════════════════════════
+        llvm::Value *StringOpsCodeGen::emitStringSliceRange(std::shared_ptr<SIRInstruction> inst)
+        {
+            if (!inst || inst->operands.size() < 3)
+            {
+                cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
+                                {{"detail", "STRING_SLICE"}});
+                return nullptr;
+            }
+
+            llvm::Value *str = cg_.emitStringPtrOrRaise(
+                cg_.resolveOperand(inst->operands[0]),
+                LLVMCodeGen::stringMethodOperationLabel(
+                    Sad::Builtins::Names::TypeMethods::String::SUBSTRING),
+                "strslice.src");
+            llvm::Value *rawStart = cg_.resolveOperand(inst->operands[1]);
+            llvm::Value *rawEnd = cg_.resolveOperand(inst->operands[2]);
+            if (!str || !rawStart || !rawEnd)
+                return nullptr;
+
+            // (AR) موضعٌ موسومٌ (%SadDyn) يُفَكُّ بوسمِه قبلَ الحساب — كما في «جزء».
+            // (EN) A tagged (%SadDyn) position is unpacked before the arithmetic.
+            if (isSadDyn(rawStart))
+                rawStart = unpackI64(cg_, rawStart);
+            if (isSadDyn(rawEnd))
+                rawEnd = unpackI64(cg_, rawEnd);
+
+            auto i64Ty = cg_.getInt64Type();
+            llvm::IRBuilder<> &b = *cg_.builder_;
+            auto constant = [&](int64_t value) { return llvm::ConstantInt::get(i64Ty, value); };
+
+            llvm::Value *charCount =
+                b.CreateCall(cg_.getOrCreateUtf8Strlen(), {str}, "strslice.chars");
+
+            // (AR) ① الحارس ② السالب الصريح — بالترتيبِ نفسِه الذي في ذراعِ المصفوفة.
+            llvm::Value *sentinel = llvm::ConstantInt::get(
+                i64Ty, static_cast<uint64_t>(std::numeric_limits<int64_t>::min()), true);
+            llvm::Value *endIsSentinel = b.CreateICmpEQ(rawEnd, sentinel, "strslice.end.sentinel");
+            llvm::Value *endFromEnd = b.CreateAdd(charCount, rawEnd, "strslice.end.wrap");
+            llvm::Value *endResolved = b.CreateSelect(
+                b.CreateICmpSLT(rawEnd, constant(0)), endFromEnd, rawEnd, "strslice.end.neg.pick");
+            llvm::Value *end = b.CreateSelect(endIsSentinel, charCount, endResolved, "strslice.end.final");
+
+            llvm::Value *startFromEnd = b.CreateAdd(charCount, rawStart, "strslice.start.wrap");
+            llvm::Value *start = b.CreateSelect(
+                b.CreateICmpSLT(rawStart, constant(0)), startFromEnd, rawStart, "strslice.start.pick");
+
+            // (AR) ③ حصرُ الطرفَين في [٠، عددِ المحارف].
+            auto clamp = [&](llvm::Value *v, const char *tag) {
+                v = b.CreateSelect(b.CreateICmpSLT(v, constant(0)), constant(0), v,
+                                   std::string(tag) + ".lo");
+                return b.CreateSelect(b.CreateICmpSGT(v, charCount), charCount, v,
+                                      std::string(tag) + ".hi");
+            };
+            start = clamp(start, "strslice.start");
+            end = clamp(end, "strslice.end");
+
+            // (AR) الطولُ فرقٌ لا يسلُب — `ن[٤:١]` نصٌّ فارغٌ لا حجزٌ ضخم.
+            llvm::Value *lenRaw = b.CreateSub(end, start, "strslice.len.raw");
+            llvm::Value *length = b.CreateSelect(
+                b.CreateICmpSLT(lenRaw, constant(0)), constant(0), lenRaw, "strslice.len");
+
+            llvm::Value *buf = emitStringCharRangeCopy(str, start, length);
+            if (!buf)
+                return nullptr;
+
+            if (inst->result.has_value())
+                cg_.context_info_.namedValues[inst->result->name] = buf;
+            return buf;
+        }
 
         llvm::Value *StringOpsCodeGen::emitBuiltinStringTrim(std::shared_ptr<SIRInstruction> inst)
         {

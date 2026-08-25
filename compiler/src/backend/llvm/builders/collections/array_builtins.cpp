@@ -658,6 +658,21 @@ namespace Sad
                 return nullptr;
             }
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 المستقبِلُ يُسأَلُ عن نوعِه **قبل** أن يُطبَّعَ مؤشّرًا لمصفوفة.
+            //      كان `ن[أ:ب]` على نصٍّ يصلُ إلى ههنا فيُطبَّعُ `char*` بوصفِه
+            //      `SadArray*` وتُقرأُ قمامةٌ حقلًا حقلًا: انهيارٌ segfault، أو
+            //      `[]` مطبوعةً حين تقعُ القمامةُ على طولٍ صفرٍ — والصامتةُ أسوأُ.
+            //      والوسمُ يصلُ من الواجهةِ (`buildExprSlice`) على المعاملِ الأوّل،
+            //      فالتوزيعُ ههنا لا يلزمُه أوپكودٌ جديدٌ في مصدرِ الحقيقة.
+            // (EN) Ask the receiver's type BEFORE normalizing it as an array pointer:
+            //      a string used to be normalized as a SadArray* here — segfault, or a
+            //      printed [] when the garbage read as length zero. The operand carries
+            //      its type from the frontend, so no new SoT opcode is needed.
+            // ════════════════════════════════════════════════════════════════
+            if (inst->operands[0].dataType == SadTypeKind::String)
+                return cg_.emitStringSliceRange(inst);
+
             llvm::Value *arrPtr = cg_.context_info_.namedValues[inst->operands[0].name];
             if (!arrPtr)
                 arrPtr = cg_.resolveOperand(inst->operands[0]);
@@ -712,6 +727,39 @@ namespace Sad
                 end = cg_.builder_->CreateSelect(isSentinel, srcLen, negResolved, "end.final");
             }
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 حصرُ الطرفَين إلى [٠، الطول] — عقدٌ مُشتَقٌّ من المحرّكِ الآخر.
+            //      كان الطرفان يمرّان خامَين إلى `end - start` ثمّ إلى malloc/memcpy،
+            //      فقِيس على `[١٠،٢٠،٣٠،٤٠،٥٠]`: `م[٠:١٠٠٠]` يُخصِّصُ ٨٠٠٠ بايتٍ
+            //      ويَنسخُ إليها من مصدرٍ طولُه ٤٠ — **قراءةٌ خارجَ الحدودِ تمرُّ
+            //      صامتةً** ويُبنى عليها طولٌ كاذبٌ يُطبَع؛ و`م[٢:٠]` يُعطي طولًا
+            //      سالبًا فينهارُ الثنائيُّ segfault. والمفسّرُ يُرجعُ ٥ و٠ سليمًا.
+            //      والعقدُ المقيسُ منه (ثمانيةُ مجسّاتٍ على مصفوفةِ خمسة):
+            //        م[٠:١٠٠٠]=٥ · م[٢:٠]=٠ · م[-١٠٠:٢]=٢ · م[٣:١٠٠٠]=٢
+            //        م[-١٠٠:-٥٠]=٠ · م[١٠٠٠:٢٠٠٠]=٠ · م[-٢:]=٢ · م[:١٠٠٠]=٥
+            //      أي: طبِّعِ السالبَ بـ+الطول، ثمّ **احصُرْ**، ثمّ الطولُ فرقٌ لا يسلُب.
+            //      ولا يُستدعى `emitBoundsCheck` ههنا عمدًا: الاقتطاعُ **يحصُرُ ولا
+            //      يُجهِض** — هذا ما يفعلُه المحرّكُ الآخر، والعقدُ يُشتقُّ منه لا يُخترَع.
+            // (EN) Clamp both ends to [0, len] — contract derived from the other engine.
+            //      Raw ends reached malloc/memcpy: arr[0:1000] read 7960 bytes past the
+            //      source and printed a fabricated length; arr[2:0] segfaulted. Slicing
+            //      clamps (it does not abort), so emitBoundsCheck is deliberately not used.
+            // ════════════════════════════════════════════════════════════════
+            {
+                llvm::Value *zero64 = llvm::ConstantInt::get(i64Ty, 0);
+                auto clampToLen = [&](llvm::Value *v, const char *tag) -> llvm::Value *
+                {
+                    llvm::Value *lowOk = cg_.builder_->CreateICmpSLT(v, zero64,
+                                                                     std::string(tag) + ".below.zero");
+                    v = cg_.builder_->CreateSelect(lowOk, zero64, v, std::string(tag) + ".clamped.low");
+                    llvm::Value *highOk = cg_.builder_->CreateICmpSGT(v, srcLen,
+                                                                      std::string(tag) + ".above.len");
+                    return cg_.builder_->CreateSelect(highOk, srcLen, v, std::string(tag) + ".clamped");
+                };
+                start = clampToLen(start, "slice.start");
+                end = clampToLen(end, "slice.end");
+            }
+
             // (AR) إذا لم يُحدد step أو كان الافتراضي = 1
             // (EN) If step not specified or default = 1
             if (!step)
@@ -737,7 +785,15 @@ namespace Sad
             // ============================================================
             cg_.builder_->SetInsertPoint(fastBB);
 
-            llvm::Value *fastLen = cg_.builder_->CreateSub(end, start, "fast.len");
+            // (AR) الطرفان محصوران في [٠، الطول]، ويبقى `end < start` ممكنًا (م[٢:٠])
+            //      ⇒ فرقٌ سالبٌ يصيرُ `malloc` بحجمٍ ضخمٍ بعد تمدُّدِ الإشارة. يُصفَّر.
+            // (EN) Both ends are clamped, but end < start is still reachable (arr[2:0])
+            //      ⇒ a negative difference becomes a huge malloc after sign extension.
+            llvm::Value *fastLenRaw = cg_.builder_->CreateSub(end, start, "fast.len.raw");
+            llvm::Value *fastLenNeg = cg_.builder_->CreateICmpSLT(
+                fastLenRaw, llvm::ConstantInt::get(i64Ty, 0), "fast.len.is.neg");
+            llvm::Value *fastLen = cg_.builder_->CreateSelect(
+                fastLenNeg, llvm::ConstantInt::get(i64Ty, 0), fastLenRaw, "fast.len");
 
             auto *arrSize = llvm::ConstantExpr::getSizeOf(arrTy);
             llvm::Value *fastArr = cg_.emitMalloc(arrSize, "fast.arr");

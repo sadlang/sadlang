@@ -764,8 +764,13 @@ namespace Sad
                 // (AR) إنشاء تعليمة BUILTIN_ARRAY_SLICE: (array, start, end)
                 // (EN) Create BUILTIN_ARRAY_SLICE instruction: (array, start, end)
                 std::string resultReg = b_.newTempRegister();
+                // (AR) نوعُ الشريحةِ نوعُ مستقبِلِها — والحُجّةُ كاملةٌ عند المُرجَعِ أدناه.
+                // (EN) The slice's type is its receiver's; the full rationale is at the return.
+                const SadTypeKind sliceKind = (objResult.type == SadTypeKind::String)
+                                                  ? SadTypeKind::String
+                                                  : SadTypeKind::Array;
                 SIRInstruction sliceInst(SIROpcode::BUILTIN_ARRAY_SLICE);
-                sliceInst.result = SIROperand::Register(resultReg, SadTypeKind::Array);
+                sliceInst.result = SIROperand::Register(resultReg, sliceKind);
                 // (AR) المعامل الأول: المصفوفة المصدر
                 if (objResult.isConstant)
                     sliceInst.operands.push_back(SIROperand::ConstantString(objResult.constantValue));
@@ -810,6 +815,31 @@ namespace Sad
                 //      copies box pointers from a single source ⇒ a consistently-boxed result
                 //      that unboxes correctly (no boxing mismatch like concat). A non-boxed
                 //      source keeps its type.
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 والشريحةُ **تُوسَمُ بنوعِ مستقبِلِها لا بنوعٍ واحدٍ مفترَض**.
+                //      كان النوعُ `Array` دائمًا مهما كان المستقبِل، فشريحةُ نصٍّ
+                //      تعبرُ إلى ذراعِ المصفوفةِ فيُطبَّعُ `char*` بوصفِه `SadArray*`
+                //      وتُقرأُ قمامةٌ حقلًا حقلًا. وقِيس على المترجّمِ وحدَه:
+                //        `ن[1:4]` · `ن[2:]` · `ن[:3]` · `ن[-3:]` ⇒ انهيارٌ segfault
+                //        `"مرحبا بالعالم"[0:5]`             ⇒ يطبع `[]` جوابًا مختلَقًا
+                //      والمفسّرُ يُجيبُ الأربعةَ صحيحًا. أي وجهان لعلّةٍ واحدة:
+                //      انهيارٌ حين تقعُ القمامةُ على طولٍ ضخم، وكذبةٌ صامتةٌ حين تقعُ
+                //      على صفر — والصامتةُ أسوأُ.
+                //
+                // (AR) ولا يُصنَعُ لها أوپكودٌ جديد: `BUILTIN_ARRAY_SLICE` يحملُ نوعَ
+                //      معاملِه الأوّلِ، فالخلفيّةُ تُوزِّعُ عليه إلى ذراعِ النصِّ التي
+                //      تُعيدُ استعمالَ قصِّ `جزء` نفسِه — فلا نسخةَ ثالثةً من قاعدةِ
+                //      القصّ، ولا توسيعَ لمصدرِ حقيقةِ الأوپكودات.
+                // (EN) The slice is typed by its RECEIVER, not by a single assumed type.
+                //      It was always Array, so a string slice reached the array arm and a
+                //      char* was normalized as a SadArray* — segfault, or a fabricated []
+                //      when the garbage happened to read as length zero. No new opcode:
+                //      the backend dispatches on the first operand's type and reuses the
+                //      existing جزء clamping, so the clamp rule keeps exactly two copies.
+                // ════════════════════════════════════════════════════════════
+                if (objResult.type == SadTypeKind::String)
+                    return BuildResult(resultReg, SadTypeKind::String);
+
                 BuildResult sliceResult(resultReg, SadTypeKind::Array);
                 sliceResult.elementType = objResult.elementType;
                 return sliceResult;

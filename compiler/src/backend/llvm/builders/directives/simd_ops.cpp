@@ -23,8 +23,10 @@
 #include <iostream>
 #include <vector>
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "builtin_registry.h" // (AR) أسماءُ المدمجاتِ من مصدرِ الحقيقةِ لا سلاسلَ خامّة
 
 using namespace Sad::Compiler::SIR;
+namespace Bn = Sad::Builtins::Names;
 
 namespace Sad
 {
@@ -252,10 +254,30 @@ namespace Sad
                 llvm::Value *c = cg_.resolveOperand(inst->operands[2]);
                 if (!a || !b || !c)
                     return nullptr;
-                // (AR) llvm.fma.<vectorType> — تعليمة واحدة fma على CPU حديث
-                llvm::Function *fmaFn = llvm::Intrinsic::getDeclaration(
-                    cg_.module_.get(), llvm::Intrinsic::fma, {a->getType()});
-                result = cg_.builder_->CreateCall(fmaFn, {a, b, c}, "vfma");
+                // (AR) 🔑 `llvm.fma` **عشريٌّ حصرًا** — لا صورةَ صحيحةً له البتّة.
+                //      وكانت هذه الذراعُ وحدَها (مع VECTOR_SQRT) بلا فرعِ
+                //      `isFloatVector` الذي لأخواتِها كلِّها (ABS/MIN/MAX/HSUM/HMUL)،
+                //      فحزمةٌ صحيحةٌ تُصدِرُ `llvm.fma.v4i64` ⇒ `verifyModule` يحمرّ
+                //      ويُفقَدُ التصريفُ بخطأٍ داخليٍّ يطلبُ من المستخدمِ «أبلِغ».
+                //      والدلالةُ المطلوبةُ `أ*ب+ج` تُعبَّرُ عنها في الصحيحِ تعبيرًا
+                //      **دقيقًا** بـ`mul` ثمّ `add` — لا دمجَ في تعليمةٍ واحدةٍ وحسب،
+                //      ولا فقدَ دقّةٍ لأنّ الصحيحَ لا وسطَ فيه يُقرَّب. فالسدُّ دعمٌ
+                //      لا رفض.
+                // (EN) llvm.fma is float-only — there is no integer overload. This arm
+                //      (and VECTOR_SQRT) lacked the isFloatVector branch every sibling
+                //      has, so an integer pack emitted llvm.fma.v4i64 and verifyModule
+                //      rejected the module. a*b+c on integers is exactly mul+add.
+                if (isFloatVector(a))
+                {
+                    llvm::Function *fmaFn = llvm::Intrinsic::getDeclaration(
+                        cg_.module_.get(), llvm::Intrinsic::fma, {a->getType()});
+                    result = cg_.builder_->CreateCall(fmaFn, {a, b, c}, "vfma");
+                }
+                else
+                {
+                    llvm::Value *prod = cg_.builder_->CreateMul(a, b, "vfma.mul");
+                    result = cg_.builder_->CreateAdd(prod, c, "vfma.add");
+                }
                 break;
             }
             case SIROpcode::VECTOR_SQRT:
@@ -263,6 +285,30 @@ namespace Sad
                 llvm::Value *a = cg_.resolveOperand(inst->operands[0]);
                 if (!a)
                     return nullptr;
+                // (AR) 🔑 و`llvm.sqrt` عشريٌّ حصرًا كذلك، لكنّ الجذرَ — خلافًا لـFMA —
+                //      **لا تعبيرَ صحيحًا دقيقًا له**: جذرُ ٢ ليس عددًا صحيحًا، وأيُّ
+                //      تقريبٍ نختارُه اختراعُ دلالةٍ لا اشتقاقُها. فالصوابُ **رفضٌ
+                //      مشخَّصٌ مسمًّى** لا تخفيضٌ يكذب. وكان يُصدِرُ `llvm.sqrt.v4i64`
+                //      فيُفقَدُ التصريفُ بخطأٍ داخليٍّ يتّهمُ المترجّمَ ويطلبُ الإبلاغ،
+                //      والعيبُ عيبُ برنامجٍ لا عيبُ مترجّم.
+                // (EN) llvm.sqrt is float-only too, and unlike FMA there is no exact
+                //      integer expression for it — so this is a named rejection, not a
+                //      lowering that invents semantics. It used to emit llvm.sqrt.v4i64
+                //      and fail as an internal compiler error blaming the compiler.
+                // (AR) 🔑 والرفضُ **يربطُ صفرًا ولا يُرجعُ عدمًا** (نمطُ lowlevel_ops):
+                //      إرجاعُ nullptr يترُكُ سجلَّ النتيجةِ بلا رابطٍ فيتتالى
+                //      «Undefined register» خطأً داخليًّا يتّهمُ المترجّم. قِيس حيًّا.
+                // (EN) The rejection binds zero rather than returning null: a null
+                //      leaves the result register unbound and cascades into an
+                //      "Undefined register" internal error that blames the compiler.
+                if (!isFloatVector(a))
+                {
+                    cg_.reportError(::Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
+                                    {{"op", std::string(Bn::CompilerSimd::SIMD_15)},
+                                     {"type", std::string(sadTypeKindArabicName(SadTypeKind::Integer))}});
+                    result = llvm::Constant::getNullValue(a->getType());
+                    break;
+                }
                 llvm::Function *fn = llvm::Intrinsic::getDeclaration(
                     cg_.module_.get(), llvm::Intrinsic::sqrt, {a->getType()});
                 result = cg_.builder_->CreateCall(fn, {a}, "vsqrt");

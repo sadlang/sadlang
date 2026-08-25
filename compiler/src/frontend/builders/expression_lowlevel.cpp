@@ -7,6 +7,11 @@
 #include "builders/expression_builder.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+// (AR) الحجمُ واسمُ التوجيهِ كلاهما من مصدرِ الحقيقةِ المولَّد — لا سلاسلَ خامّة.
+// (EN) Both the size and the directive name come from generated SoT.
+#include "sad_type_kind_generated.h"
+#include "directive_names_generated.h"
+#include "error_manager.h"
 
 #include <iostream>
 
@@ -224,49 +229,40 @@ namespace Sad
                           << sizeofExpr->typeName << std::endl;
 #endif
 
-                // (AR) تحديد الحجم بناءً على اسم النوع
-                // (EN) Determine size based on type name
-                std::string typeName = sizeofExpr->typeName;
-                int64_t typeSize = 8; // (AR) القيمة الافتراضية / (EN) Default value
-
-                if (typeName == "رقم" || typeName == "عدد" || typeName == "صحيح" ||
-                    typeName == "i64" || typeName == "int" || typeName == "integer")
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 الحجمُ **يُشتَقُّ من مصدرِ الحقيقةِ ولا يُكتَبُ ههنا**.
+                //      كان هذا الموضعُ سلسلةَ `if/else if` بسلاسلَ عربيّةٍ خامّةٍ —
+                //      نسخةً ثانيةً من جدولِ الأنواعِ يقابلُها ثالثةٌ في المفسّر.
+                //      فتباعدتا في **٦ من ١١** نوعًا قِيست حيًّا:
+                //        خريطة ٤٨/٢٤ · بايت ٠/٨ · حرف ٠/١ · أي ٧٢/٨ · فراغ ٠/٨ · عدم ٠/٨
+                //      و«بايت» مسجَّلٌ في مصدرِ الحقيقةِ وغائبٌ عن الجدولَين، فسقط
+                //      إلى الافتراضِ ٨ — **حالةٌ ناقصةٌ تسقطُ إلى افتراضٍ يكذب**.
+                //
+                // (AR) والافتراضُ نفسُه هو العلّةُ الثانية: نوعٌ لا يعرفُه الجدولُ
+                //      كان يُخرِجُ ٨ صامتًا (و٠ في المفسّر) بلا تشخيص، فيُحجَزُ به
+                //      أو يُقسَمُ عليه. صار الجهلُ **يُشخَّصُ باسمِه**: ما لا حجمَ
+                //      ثابتَ له (صنفٌ حجمُه حقولُه، متّجهٌ حجمُه خاناتُه) يُرفَض.
+                // (EN) The size is DERIVED from the SoT, never written here. This was a
+                //      raw-literal if/else chain — a second copy of the type table facing
+                //      a third in the interpreter; they disagreed on 6 of 11 measured
+                //      types, and both lying defaults answered silently.
+                // ════════════════════════════════════════════════════════════
+                const std::string &typeName = sizeofExpr->typeName;
+                const SadTypeKind kind = ::Sad::Types::sadTypeKindFromArabicName(typeName);
+                const int declaredSize = ::Sad::Types::sadTypeKindSizeBytes(kind);
+                if (kind == SadTypeKind::Unknown ||
+                    declaredSize == ::Sad::Types::kSadTypeSizeUnknown)
                 {
-                    typeSize = 8;
+                    Sad::Errors::RenderContext ctx;
+                    ctx.placeholders = {
+                        {"op", std::string(::Sad::Directives::Names::SIZEOF)},
+                        {"type", typeName}};
+                    b_.errors_.push_back(
+                        Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                            Sad::Errors::ErrorCode::SEM_INVALID_OPERATION, ctx));
+                    return BuildResult();
                 }
-                else if (typeName == "عشري" || typeName == "مضاعف" || typeName == "حقيقي" ||
-                         typeName == "f64" || typeName == "float" || typeName == "double")
-                {
-                    typeSize = 8;
-                }
-                else if (typeName == "منطقي" || typeName == "bool" || typeName == "boolean")
-                {
-                    typeSize = 1;
-                }
-                else if (typeName == "نص" || typeName == "string" || typeName == "str")
-                {
-                    typeSize = 32; // (AR) حجم بنية النص / (EN) String struct size
-                }
-                else if (typeName == "مصفوفة" || typeName == "array")
-                {
-                    typeSize = 24; // (AR) حجم بنية المصفوفة / (EN) Array struct size
-                }
-                else if (typeName == "خريطة" || typeName == "map")
-                {
-                    typeSize = 24; // (AR) حجم بنية الخريطة / (EN) Map struct size
-                }
-                else if (typeName == "i8" || typeName == "char" || typeName == "حرف")
-                {
-                    typeSize = 1;
-                }
-                else if (typeName == "i16" || typeName == "short")
-                {
-                    typeSize = 2;
-                }
-                else if (typeName == "i32" || typeName == "f32")
-                {
-                    typeSize = 4;
-                }
+                const int64_t typeSize = static_cast<int64_t>(declaredSize);
 
                 // (AR) إنشاء تعليمة Sizeof
                 // (EN) Create Sizeof instruction
@@ -276,7 +272,12 @@ namespace Sad
                 sizeofInst.result = SIROperand::Register(resultReg, SadTypeKind::Integer);
                 sizeofInst.operands.push_back(SIROperand::ConstantI64(typeSize));
                 sizeofInst.operands.push_back(SIROperand::ConstantString(typeName));
-                sizeofInst.comment = "@حجم(" + typeName + ") = " + std::to_string(typeSize);
+                // (AR) وحتّى تعليقُ SIR يأخذُ اسمَ التوجيهِ من مصدرِ الحقيقة: لفظٌ
+                //      عربيٌّ خامٌّ ههنا ينجرفُ عن مصدرِه صامتًا، ويُعمي حارسَ
+                //      «الحجمُ يُشتَقُّ ولا يُكتَب» عن التمييزِ بينه وبين جدولٍ عائد.
+                // (EN) Even the SIR comment takes the directive name from the SoT.
+                sizeofInst.comment = std::string(::Sad::Directives::Names::SIZEOF) + "(" +
+                                     typeName + ") = " + std::to_string(typeSize);
 
                 if (b_.currentBlock_)
                 {

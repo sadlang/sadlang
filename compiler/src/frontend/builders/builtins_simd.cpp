@@ -76,6 +76,27 @@ namespace Sad
             }
 
             // ────────────────────────────────────────────────────────────────────
+            // (AR) 🔑 «ليس متّجهًا» يُشخَّصُ من كتالوجِ الأخطاءِ بـSEM006 المسمّى،
+            //      لا بسلسلةٍ إنجليزيّةٍ مكتوبةٍ باليدِ ههنا. وكانت سبعُ مواضعَ
+            //      تدفعُ «Error: … must be a vector» — إنجليزيّةً وحدَها في لغةٍ
+            //      عربيّةٍ أوّلًا، ولا رمزَ لها يُقتَبَسُ في اختبارٍ أو توثيق.
+            //      والصياغةُ مطابقةٌ لِما تُصدِرُه الخلفيّةُ عند رفضِ «متجه_جذر»
+            //      على حزمةٍ صحيحة، فالمحرّكُ الواحدُ يتكلّمُ لسانًا واحدًا.
+            // (EN) "not a vector" is diagnosed as the named SEM006 from the error
+            //      catalog — not a hand-written English string. Seven sites used to
+            //      push English-only text with no code to cite in a test or a doc.
+            // ────────────────────────────────────────────────────────────────────
+            static std::string vectorOperandTypeError(std::string_view opName, SadTypeKind found)
+            {
+                Sad::Errors::RenderContext ctx;
+                ctx.placeholders = {
+                    {"op", std::string(opName)},
+                    {"type", std::string(sadTypeKindArabicName(found))}};
+                return Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION, ctx);
+            }
+
+            // ────────────────────────────────────────────────────────────────────
             // (AR) دالة مساعدة: تحديد عدد lanes قانوني
             //      القيم المسموحة: 2, 4, 8, 16, 32, 64
             // (EN) Helper: validate lane count (must be power of 2 in [2,64])
@@ -196,36 +217,44 @@ namespace Sad
                 // (AR) العمليات الثنائية على متجهين: جمع/طرح/ضرب/قسمة/min/max
                 // (EN) Binary vector operations: add/sub/mul/div/min/max
                 // ─────────────────────────────────────────────────────────────
+                // (AR) 🔑 الأسماءُ تُؤخَذُ من ثوابتِ مصدرِ الحقيقةِ المولَّدةِ لا من
+                //      سلاسلَ خامّةٍ ههنا. وكانت خامّةً فوقع أثران معًا: انجرافُ
+                //      اسمٍ لا يُمسَك، و**حارسُ تغطيةِ المحرّكَين لا يرى الذراع**
+                //      لأنّه يعُدُّ الأذرعَ بالبحثِ عن ثابتِ الاسمِ المولَّد.
+                // (EN) Names come from the generated SoT constants, not raw literals:
+                //      raw literals both allow silent drift and hide these arms from
+                //      the engine-coverage guard, which counts arms by constant use.
                 struct BinaryOp
                 {
-                    const char *arabic;
+                    std::string_view arabic;
                     const char *english;
                     SIROpcode opcode;
+                    const Ar::Range &arity;
                 };
                 static const BinaryOp kBinaryOps[] = {
-                    {"متجه_جمع", "vec_add", SIROpcode::VECTOR_ADD},
-                    {"متجه_طرح", "vec_sub", SIROpcode::VECTOR_SUB},
-                    {"متجه_ضرب", "vec_mul", SIROpcode::VECTOR_MUL},
-                    {"متجه_قسمة", "vec_div", SIROpcode::VECTOR_DIV},
-                    {"متجه_أصغر", "vec_min", SIROpcode::VECTOR_MIN},
-                    {"متجه_أكبر", "vec_max", SIROpcode::VECTOR_MAX},
-                    {"متجه_و", "vec_and", SIROpcode::VECTOR_AND},
-                    {"متجه_أو", "vec_or", SIROpcode::VECTOR_OR},
-                    {"متجه_حصري", "vec_xor", SIROpcode::VECTOR_XOR},
+                    {Bn::CompilerSimd::SIMD_6, "vec_add", SIROpcode::VECTOR_ADD, Ar::CompilerSimd::SIMD_6},
+                    {Bn::CompilerSimd::SIMD_7, "vec_sub", SIROpcode::VECTOR_SUB, Ar::CompilerSimd::SIMD_7},
+                    {Bn::CompilerSimd::SIMD_8, "vec_mul", SIROpcode::VECTOR_MUL, Ar::CompilerSimd::SIMD_8},
+                    {Bn::CompilerSimd::SIMD_9, "vec_div", SIROpcode::VECTOR_DIV, Ar::CompilerSimd::SIMD_9},
+                    {Bn::CompilerSimd::SIMD_10, "vec_min", SIROpcode::VECTOR_MIN, Ar::CompilerSimd::SIMD_10},
+                    {Bn::CompilerSimd::SIMD_11, "vec_max", SIROpcode::VECTOR_MAX, Ar::CompilerSimd::SIMD_11},
+                    {Bn::CompilerSimd::SIMD_12, "vec_and", SIROpcode::VECTOR_AND, Ar::CompilerSimd::SIMD_12},
+                    {Bn::CompilerSimd::SIMD_13, "vec_or", SIROpcode::VECTOR_OR, Ar::CompilerSimd::SIMD_13},
+                    {Bn::CompilerSimd::SIMD_14, "vec_xor", SIROpcode::VECTOR_XOR, Ar::CompilerSimd::SIMD_14},
                 };
                 for (const auto &bop : kBinaryOps)
                 {
                     if (funcName == bop.arabic || funcName == bop.english)
                     {
-                        if (argResults.size() != 2)
-                        {
-                            b_.errors_.push_back(std::string("Error: ") + bop.arabic + "() requires 2 vector arguments");
+                        if (!checkBuiltinArity(b_.errors_, std::string(funcName), bop.arity, argResults.size()))
                             return BuildResult();
-                        }
                         if (argResults[0].type != SadTypeKind::Vector ||
                             argResults[1].type != SadTypeKind::Vector)
                         {
-                            b_.errors_.push_back(std::string("Error: ") + bop.arabic + "() arguments must be vectors");
+                            b_.errors_.push_back(vectorOperandTypeError(
+                                bop.arabic,
+                                argResults[0].type != SadTypeKind::Vector ? argResults[0].type
+                                                                          : argResults[1].type));
                             return BuildResult();
                         }
 
@@ -245,27 +274,25 @@ namespace Sad
                 // ─────────────────────────────────────────────────────────────
                 struct UnaryOp
                 {
-                    const char *arabic;
+                    std::string_view arabic;
                     const char *english;
                     SIROpcode opcode;
+                    const Ar::Range &arity;
                 };
                 static const UnaryOp kUnaryOps[] = {
-                    {"متجه_جذر", "vec_sqrt", SIROpcode::VECTOR_SQRT},
-                    {"متجه_مطلق", "vec_abs", SIROpcode::VECTOR_ABS},
-                    {"متجه_سالب", "vec_neg", SIROpcode::VECTOR_NEG},
+                    {Bn::CompilerSimd::SIMD_15, "vec_sqrt", SIROpcode::VECTOR_SQRT, Ar::CompilerSimd::SIMD_15},
+                    {Bn::CompilerSimd::SIMD_16, "vec_abs", SIROpcode::VECTOR_ABS, Ar::CompilerSimd::SIMD_16},
+                    {Bn::CompilerSimd::SIMD_17, "vec_neg", SIROpcode::VECTOR_NEG, Ar::CompilerSimd::SIMD_17},
                 };
                 for (const auto &uop : kUnaryOps)
                 {
                     if (funcName == uop.arabic || funcName == uop.english)
                     {
-                        if (argResults.size() != 1)
-                        {
-                            b_.errors_.push_back(std::string("Error: ") + uop.arabic + "() requires 1 vector argument");
+                        if (!checkBuiltinArity(b_.errors_, std::string(funcName), uop.arity, argResults.size()))
                             return BuildResult();
-                        }
                         if (argResults[0].type != SadTypeKind::Vector)
                         {
-                            b_.errors_.push_back(std::string("Error: ") + uop.arabic + "() argument must be a vector");
+                            b_.errors_.push_back(vectorOperandTypeError(uop.arabic, argResults[0].type));
                             return BuildResult();
                         }
                         std::string resultReg = b_.newTempRegister();
@@ -289,7 +316,7 @@ namespace Sad
                     {
                         if (argResults[i].type != SadTypeKind::Vector)
                         {
-                            b_.errors_.push_back("Error: متجه_ضرب_جمع() all arguments must be vectors");
+                            b_.errors_.push_back(vectorOperandTypeError(Bn::CompilerSimd::SIMD_2, argResults[i].type));
                             return BuildResult();
                         }
                     }
@@ -307,28 +334,26 @@ namespace Sad
                 // ─────────────────────────────────────────────────────────────
                 struct ReduceOp
                 {
-                    const char *arabic;
+                    std::string_view arabic;
                     const char *english;
                     SIROpcode opcode;
+                    const Ar::Range &arity;
                 };
                 static const ReduceOp kReduceOps[] = {
-                    {"متجه_جمع_عرضي", "vec_hsum", SIROpcode::VECTOR_HSUM},
-                    {"متجه_ضرب_عرضي", "vec_hmul", SIROpcode::VECTOR_HMUL},
-                    {"متجه_أدنى_عرضي", "vec_hmin", SIROpcode::VECTOR_HMIN},
-                    {"متجه_أقصى_عرضي", "vec_hmax", SIROpcode::VECTOR_HMAX},
+                    {Bn::CompilerSimd::SIMD_18, "vec_hsum", SIROpcode::VECTOR_HSUM, Ar::CompilerSimd::SIMD_18},
+                    {Bn::CompilerSimd::SIMD_19, "vec_hmul", SIROpcode::VECTOR_HMUL, Ar::CompilerSimd::SIMD_19},
+                    {Bn::CompilerSimd::SIMD_20, "vec_hmin", SIROpcode::VECTOR_HMIN, Ar::CompilerSimd::SIMD_20},
+                    {Bn::CompilerSimd::SIMD_21, "vec_hmax", SIROpcode::VECTOR_HMAX, Ar::CompilerSimd::SIMD_21},
                 };
                 for (const auto &rop : kReduceOps)
                 {
                     if (funcName == rop.arabic || funcName == rop.english)
                     {
-                        if (argResults.size() != 1)
-                        {
-                            b_.errors_.push_back(std::string("Error: ") + rop.arabic + "() requires 1 vector argument");
+                        if (!checkBuiltinArity(b_.errors_, std::string(funcName), rop.arity, argResults.size()))
                             return BuildResult();
-                        }
                         if (argResults[0].type != SadTypeKind::Vector)
                         {
-                            b_.errors_.push_back(std::string("Error: ") + rop.arabic + "() argument must be a vector");
+                            b_.errors_.push_back(vectorOperandTypeError(rop.arabic, argResults[0].type));
                             return BuildResult();
                         }
                         // (AR) النتيجة عشري (نفترض متجهات عشرية في الغالب — LLVM codegen سيتعامل مع الأنواع)
@@ -353,7 +378,10 @@ namespace Sad
                     if (argResults[0].type != SadTypeKind::Vector ||
                         argResults[1].type != SadTypeKind::Vector)
                     {
-                        b_.errors_.push_back("Error: متجه_جداء_قياسي() arguments must be vectors");
+                        b_.errors_.push_back(vectorOperandTypeError(
+                            Bn::CompilerSimd::SIMD_3,
+                            argResults[0].type != SadTypeKind::Vector ? argResults[0].type
+                                                                      : argResults[1].type));
                         return BuildResult();
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -374,7 +402,7 @@ namespace Sad
                         return BuildResult();
                     if (argResults[0].type != SadTypeKind::Vector)
                     {
-                        b_.errors_.push_back("Error: متجه_عنصر() first argument must be a vector");
+                        b_.errors_.push_back(vectorOperandTypeError(Bn::CompilerSimd::SIMD_4, argResults[0].type));
                         return BuildResult();
                     }
                     std::string resultReg = b_.newTempRegister();
@@ -396,7 +424,7 @@ namespace Sad
                         return BuildResult();
                     if (argResults[0].type != SadTypeKind::Vector)
                     {
-                        b_.errors_.push_back("Error: متجه_ضع() first argument must be a vector");
+                        b_.errors_.push_back(vectorOperandTypeError(Bn::CompilerSimd::SIMD_5, argResults[0].type));
                         return BuildResult();
                     }
                     std::string resultReg = b_.newTempRegister();

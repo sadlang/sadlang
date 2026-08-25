@@ -548,6 +548,22 @@ CODEGEN_DOMAINS = (
             "--quiet",
         ],
     },
+    {
+        # (AR) أسماءُ التوجيهاتِ (@): يحتاجُها التشخيصُ ليُسمّيَ التوجيهَ الذي رُفِض
+        #      («لا يمكن تطبيق 'حجم النوع' على 'صنف'»). وكتابتُها سلسلةً خامّةً في
+        #      المترجّمِ وأخرى في المفسّرِ هي العلّةُ نفسُها التي وُلد `size_bytes`
+        #      لسدِّها: حقيقةٌ واحدةٌ في مواضعَ كثيرةٍ تنجرف.
+        # (EN) Directive (@) names, needed by diagnostics that name a directive.
+        "name": "directive_names",
+        "script": "gen_directives.py",
+        "out_dir": "shared/types/generated",
+        "outputs": ("directive_names_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/directives.yaml",
+            "--header", f"{d}/directive_names_generated.h",
+            "--quiet",
+        ],
+    },
 )
 
 # (AR) حرّاس فحص خالصون (لا مخرجات مولَّدة) يعملون ضمن `x.py gen --check` فقط —
@@ -704,6 +720,21 @@ SOT_CHECK_GUARDS = (
         #      drifted, still listing «مضاعف» after the language removed it.
         "name": "type_words_sot",
         "script": "check_type_words_sot.py",
+        "args": (),
+    },
+    {
+        # (AR) `@حجم(نوع)` يُشتَقُّ من `types.yaml` (حقل `size_bytes`) ولا يُكتَبُ في
+        #      المحرّكَين. كان جدولَين مكتوبَين باليدِ تباعدا — قياسًا حيًّا — في
+        #      ستّةٍ من أحدَ عشرَ نوعًا (خريطة ٤٨/٢٤ · بايت ٠/٨ · حرف ٠/١ ·
+        #      أي ٧٢/٨ · فراغ ٠/٨ · عدم ٠/٨)، وافتراضاهما يكذبان: نوعٌ مجهولٌ
+        #      يُخرِجُ ٨ في المترجّمِ و٠ في المفسّرِ بلا تشخيص. والحارسُ يقيسُ
+        #      جسمَ الدالّةِ وحدَه (بموازنةِ الأقواس) لا الملفَّ، فلا يحمرُّ كذبًا
+        #      على تشخيصاتٍ عربيّةٍ مشروعةٍ في الملفِّ نفسِه.
+        # (EN) @حجم must derive from types.yaml's size_bytes. It used to be two
+        #      hand-written tables disagreeing on 6 of 11 measured types with two
+        #      lying defaults. The guard measures the function body only.
+        "name": "sizeof_from_sot",
+        "script": "check_sizeof_from_sot.py",
         "args": (),
     },
     {

@@ -9,7 +9,12 @@
        • **معلَنٌ بلا ذراعٍ في المترجم** ⇒ يُخفقُ مُصرَّفًا بـSEM047 المسمّى.
          سطحُ لغةٍ نصفُه موجود، ومن قرأ `status: stable` وحدَه ظنّه كاملًا.
 
-     ⚠️ **ولا يُقاس ههنا الجانبُ المقابل** (مسجَّلٌ في المترجمِ بلا المفسّر):
+       • **ذراعٌ في المترجمِ بلا إعلانٍ في مصدرِ الحقيقة** ⇒ سطحُ لغةٍ يعملُ
+         ولا يُعلَن: لا توثيقَ، ولا رتبةَ مفحوصة، ولا حارسَ تغطيةٍ يراه —
+         وكان الحارسُ **أُحاديَّ الاتّجاه** فلم يقُلْ عنه شيئًا. قِيس: ستّةَ
+         عشرَ مدمجَ متجهاتٍ حيّةً في المترجمِ وغائبةً عن مصدرِ الحقيقة.
+
+     ⚠️ **ولا يُقاس ههنا الجانبُ الثالث** (مسجَّلٌ في المترجمِ بلا المفسّر):
         مسحُ `registerBuiltinFunction` **لا يراه كلَّه** — قِيس أنّ `خروج`
         يعملُ مُفسَّرًا وهو غيرُ مسجَّلٍ بهذا الشكل، فالمفسّرُ يحلُّ أسماءً
         بطرقٍ أخرى. ونشرُ رقمٍ من أداةٍ لم تُعايَر أسوأُ من السكوت:
@@ -70,23 +75,71 @@ def _dispatched_in_compiler(declared: set[tuple[str, str]]) -> set[tuple[str, st
     return {(ns, cid) for ns, cid in declared if cid in present}
 
 
+def _canonical_names() -> set[str]:
+    """(AR) كلُّ الأسماءِ القانونيّةِ المعلَنةِ في مصدرِ الحقيقة."""
+    names: set[str] = set()
+    for path in sorted(SOT_DIR.glob("*.yaml")):
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for fn in doc.get("functions") or []:
+            names.add(fn["canonical"])
+            for alias in fn.get("aliases") or []:
+                names.add(alias)
+    return names
+
+
+# (AR) صيغتا الإرسالِ المقيستان — والمِسبارُ **يضيّقُ ولا يوسّع**: يلتقطُ
+#      المقارنةَ الصريحةَ باسمِ الدالّةِ وحدَها، وصفَّ جدولٍ يعقبُه ترجمةٌ
+#      لاتينيّةٌ ثمّ SIROpcode. فأيُّ نصٍّ عربيٍّ آخرَ في البانياتِ (رسائلُ
+#      خطأٍ، أسماءُ أنواع) لا يُعَدُّ اسمَ مدمجٍ فيُفتَرى عليه.
+# (EN) Two measured dispatch forms only. The probe narrows, never widens:
+#      other Arabic text in the builders is not mistaken for a builtin name.
+_ARABIC_LITERAL = r'"([؀-ۿ][؀-ۿ_٠-٩]*)"'
+_DISPATCH_FORMS = (
+    re.compile(r"funcName\s*==\s*" + _ARABIC_LITERAL),
+    re.compile(r"\{\s*" + _ARABIC_LITERAL + r"\s*,\s*\"[a-z0-9_]+\"\s*,\s*SIROpcode::"),
+)
+
+# (AR) سقفُ الاتّجاهِ المقابل: ذراعٌ حيّةٌ بلا إعلان.
+CEILING_UNDECLARED_ARMS = 0
+
+
+def _undeclared_arms(canonical: set[str]) -> set[str]:
+    blob = "\n".join(p.read_text(encoding="utf-8") for p in BUILDERS.glob("*.cpp"))
+    found: set[str] = set()
+    for form in _DISPATCH_FORMS:
+        found.update(form.findall(blob))
+    return {name for name in found if name not in canonical}
+
+
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
     declared = _declared()
     comp = _dispatched_in_compiler(declared)
     missing = sorted(declared - comp)
+    undeclared = sorted(_undeclared_arms(_canonical_names()))
 
     print("حارس «تغطيةُ المترجمِ تُقاس»:")
     print(f"  معلَنٌ في مصدرِ الحقيقة: {len(declared)}")
     print(f"  له ذراعُ إرسالٍ في المترجم: {len(comp)}")
     print(f"  معلَنٌ بلا ذراع: {len(missing)} (السقف {CEILING_COMPILER_MISSING})"
           " — يُخفقُ مُصرَّفًا بـSEM047 المسمّى، لا يتبخّر")
+    print(f"  ذراعٌ بلا إعلان: {len(undeclared)} (السقف {CEILING_UNDECLARED_ARMS})"
+          " — سطحُ لغةٍ يعملُ ولا يُعلَن")
 
+    failed = False
     if len(missing) > CEILING_COMPILER_MISSING:
         print(f"  ✗ التباعدُ نما: {len(missing)} > {CEILING_COMPILER_MISSING} —"
               " مدمجٌ معلَنٌ جديدٌ بلا نظيرٍ في المترجم.")
+        failed = True
+    if len(undeclared) > CEILING_UNDECLARED_ARMS:
+        print(f"  ✗ ذراعٌ بلا إعلان: {len(undeclared)} > {CEILING_UNDECLARED_ARMS} —"
+              " أُرسِلَ اسمٌ لا يعرفُه مصدرُ الحقيقة:")
+        for name in undeclared:
+            print(f"      · {name}")
+        failed = True
+    if failed:
         return 1
-    print("  ✓ لم ينمُ التباعدُ عن السقفِ المُودَع.")
+    print("  ✓ لم ينمُ التباعدُ في أيٍّ من الاتّجاهَين.")
     return 0
 
 

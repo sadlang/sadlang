@@ -411,7 +411,22 @@ namespace sad
                 // (EN) SEM_TARGET_ARCH_UNSUPPORTED_BUILTIN joins for the same reason and
                 //      is NOT freestanding-specific, so the gate above never sees it:
                 //      measured, a hosted aarch64 target printed two errors and exited 0.
+                // (AR) وأُلحِق SEM_INVALID_OPERATION بالحجّةِ نفسِها: `متجه_جذر` على حزمةٍ
+                //      صحيحةٍ **لا تعبيرَ دقيقًا له** (جذرُ ٢ ليس صحيحًا)، فالذراعُ ترفضُه
+                //      بتشخيصٍ مسمًّى وتربطُ صفرًا. ولولا البوّابةُ لخرج ‎0‎ ومعه ثنائيٌّ
+                //      **يطبعُ كأنّ شيئًا لم يكن** — إخفاقٌ صامت. قِيس قبل هذا السطر:
+                //      خطآن مطبوعان، رمزُ خروجٍ ‎0‎، وثنائيٌّ عامل. والرمزُ مقصورٌ فعليًّا
+                //      لأنّه **لا يُصدَرُ من أيِّ موضعٍ آخرَ في الخلفيّة** (مقيسٌ: موضعٌ
+                //      واحدٌ في simd_ops.cpp)، فلا يكشفُ عللَ ISSUE-073 الخمس المؤجَّلة.
+                // (EN) SEM_INVALID_OPERATION joins for the same reason: متجه_جذر on an
+                //      integer pack has no exact expression, so the arm rejects it by
+                //      name and binds zero. Without this gate the build exits 0 with a
+                //      binary that prints as if nothing happened. Measured before this
+                //      line: two printed errors, exit 0, working binary. The code is
+                //      effectively scoped — it is emitted from exactly one backend site.
                 if (llvm_codegen_->hasErrorCode(
+                        ::Sad::Errors::ErrorCode::SEM_INVALID_OPERATION) ||
+                    llvm_codegen_->hasErrorCode(
                         ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT) ||
                     llvm_codegen_->hasErrorCode(
                         ::Sad::Errors::ErrorCode::SEM_INDEXING_NOT_SUPPORTED) ||

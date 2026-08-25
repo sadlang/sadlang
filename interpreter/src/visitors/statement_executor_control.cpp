@@ -212,6 +212,46 @@ namespace Sad
                         returnValue_ = Data::Value(static_cast<int64_t>(returnValue_.toDouble()));
                     }
                 }
+
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 «بايت» عائدًا — معبَرٌ ثالثٌ كان يكذبُ العقد. مصدرُ
+                //      الحقيقةِ يُعلن «بايت» u8 مدىً 0–255، والاقتطاعُ كان مسدودًا
+                //      عند التصريحِ وإعادةِ الإسنادِ وحدَهما: `دالة بايت ص() ارجع 300`
+                //      كانت تُخرِج 300 في المحرّكَين معًا — لا تباعُدَ بينهما بل
+                //      عقدٌ غيرُ مصونٍ في كليهما. والقناعُ `& 0xFF` هو نفسُه المطبَّق
+                //      في `visitVarDecl` و`visitAssignExpr`، فيبقى معنى النوعِ واحدًا
+                //      مهما كان المعبَر. ونظيرُه في المترجّم TRUNCATE_U8 عند `ارجع`.
+                // (AR) والمرساةُ `currentFunctionReturnType_` لا `currentFunctionSadReturnType_`:
+                //      الثاني يُحفَظ ويُستعاد في `executeFunctionBodyWithReturnType` ولا
+                //      يُسنَد إليه قطُّ — فحارسٌ عليه حارسٌ لا يُطلَق. الأوّلُ يُسنَد من
+                //      `functionReturnTypes_` فعلًا، فهو الطبقةُ التي تحملُ الواقع.
+                // (EN) Byte as a return value — the third crossing that broke the
+                //      contract. The SoT declares Byte as u8 (0-255), yet truncation
+                //      was sealed only at declaration and reassignment: a `بايت`
+                //      function returning 300 printed 300 in BOTH engines — not a
+                //      divergence between them but a contract unhonoured by both.
+                //      Anchored on currentFunctionReturnType_, NOT the SadType pointer:
+                //      the latter is saved and restored but never assigned, so a guard
+                //      hung on it could never fire.
+                // ════════════════════════════════════════════════════════════
+                if (currentFunctionReturnType_ == Types::SadTypeKind::Byte)
+                {
+                    // (AR) والعشريُّ يُقصَرُ نحوَ الصفرِ ثمّ يُقنَّع — نظيرُ ذراعِ
+                    //      `رقم` أعلاه ونظيرُ `needNarrow` في المترجّم. ولولاه
+                    //      لبقيَ `دالة بايت ص() ارجع 300.0` عشريًّا في المفسّرِ
+                    //      بينما يقتطعُه المترجّم — تباعُدٌ في القيمةِ نفسِها.
+                    // (EN) A float is truncated toward zero then masked — the sibling
+                    //      of the `رقم` arm above and of needNarrow in the compiler.
+                    if (returnValue_.getKind() == Types::SadTypeKind::Integer)
+                    {
+                        returnValue_ = Data::Value(returnValue_.toInt64() & 0xFF);
+                    }
+                    else if (returnValue_.isDouble())
+                    {
+                        returnValue_ =
+                            Data::Value(static_cast<int64_t>(returnValue_.toDouble()) & 0xFF);
+                    }
+                }
             }
             else
             {

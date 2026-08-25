@@ -324,14 +324,46 @@ namespace Sad
             {
                 // (AR) متجه_بث
                 inline constexpr Range SIMD_1{2, 2};
+                // (AR) متجه_أصغر
+                inline constexpr Range SIMD_10{2, 2};
+                // (AR) متجه_أكبر
+                inline constexpr Range SIMD_11{2, 2};
+                // (AR) متجه_و
+                inline constexpr Range SIMD_12{2, 2};
+                // (AR) متجه_أو
+                inline constexpr Range SIMD_13{2, 2};
+                // (AR) متجه_حصري
+                inline constexpr Range SIMD_14{2, 2};
+                // (AR) متجه_جذر
+                inline constexpr Range SIMD_15{1, 1};
+                // (AR) متجه_مطلق
+                inline constexpr Range SIMD_16{1, 1};
+                // (AR) متجه_سالب
+                inline constexpr Range SIMD_17{1, 1};
+                // (AR) متجه_جمع_عرضي
+                inline constexpr Range SIMD_18{1, 1};
+                // (AR) متجه_ضرب_عرضي
+                inline constexpr Range SIMD_19{1, 1};
                 // (AR) متجه_ضرب_جمع
                 inline constexpr Range SIMD_2{3, 3};
+                // (AR) متجه_أدنى_عرضي
+                inline constexpr Range SIMD_20{1, 1};
+                // (AR) متجه_أقصى_عرضي
+                inline constexpr Range SIMD_21{1, 1};
                 // (AR) متجه_جداء_قياسي
                 inline constexpr Range SIMD_3{2, 2};
                 // (AR) متجه_عنصر
                 inline constexpr Range SIMD_4{2, 2};
                 // (AR) متجه_ضع
                 inline constexpr Range SIMD_5{3, 3};
+                // (AR) متجه_جمع
+                inline constexpr Range SIMD_6{2, 2};
+                // (AR) متجه_طرح
+                inline constexpr Range SIMD_7{2, 2};
+                // (AR) متجه_ضرب
+                inline constexpr Range SIMD_8{2, 2};
+                // (AR) متجه_قسمة
+                inline constexpr Range SIMD_9{2, 2};
             } // namespace CompilerSimd
 
             namespace CompilerSys

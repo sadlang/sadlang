@@ -775,6 +775,45 @@ namespace Sad
             };
 
             /**
+             * @brief (AR) نطاقُ نوعِ الإرجاعِ المُصرَّحِ لجسمِ طريقة
+             * @brief (EN) Declared-return-type scope for a method body
+             *
+             * (AR) 🔑 جسمُ الطريقةِ يُنفَّذ بـ`methodBody->accept(...)` مباشرةً لا عبر
+             *      `executeFunctionBodyWithReturnType`، فكان `currentFunctionReturnType_`
+             *      يبقى على قيمةِ المستدعِي (`Unknown` في المستوى الأعلى) — فتُلغى
+             *      موافقةُ النوعِ المُصرَّحِ في `visitReturnStmt` **داخلَ الطرائقِ
+             *      وحدَها**: `دالة بايت هات() ارجع 300` كانت تُخرِج 300 في المفسّرِ
+             *      و44 في المترجّم. والمفتاحُ `صنف.طريقة` يُبذَر في `visitClassDecl`.
+             * (EN) A method body runs via a direct accept(), not through
+             *      executeFunctionBodyWithReturnType, so currentFunctionReturnType_ kept
+             *      the caller's value and the declared-type coercion in visitReturnStmt was
+             *      disabled inside methods only. The `Class.method` key is seeded in
+             *      visitClassDecl.
+             */
+            class DeclaredReturnTypeScope
+            {
+            public:
+                DeclaredReturnTypeScope(StatementExecutor &executor,
+                                        const std::string &qualifiedName)
+                    : executor_(executor), saved_(executor.currentFunctionReturnType_)
+                {
+                    auto it = executor_.functionReturnTypes_.find(qualifiedName);
+                    if (it != executor_.functionReturnTypes_.end())
+                    {
+                        executor_.currentFunctionReturnType_ = it->second;
+                    }
+                }
+                ~DeclaredReturnTypeScope() { executor_.currentFunctionReturnType_ = saved_; }
+
+                DeclaredReturnTypeScope(const DeclaredReturnTypeScope &) = delete;
+                DeclaredReturnTypeScope &operator=(const DeclaredReturnTypeScope &) = delete;
+
+            private:
+                StatementExecutor &executor_;
+                Types::SadTypeKind saved_;
+            };
+
+            /**
              * @brief (AR) تنفيذ جسم دالة
              * @brief (EN) Execute function body
              * @param body (AR) جسم الدالة / (EN) Function body

@@ -2461,6 +2461,38 @@ namespace Sad
                 inline constexpr std::string_view SIMD_4 = "متجه_عنصر";
                 // (AR) متجه_ضع
                 inline constexpr std::string_view SIMD_5 = "متجه_ضع";
+                // (AR) جمع متجهين عنصرًا بعنصر
+                inline constexpr std::string_view SIMD_6 = "متجه_جمع";
+                // (AR) طرح متجهين عنصرًا بعنصر
+                inline constexpr std::string_view SIMD_7 = "متجه_طرح";
+                // (AR) ضرب متجهين عنصرًا بعنصر
+                inline constexpr std::string_view SIMD_8 = "متجه_ضرب";
+                // (AR) قسمة متجهين عنصرًا بعنصر
+                inline constexpr std::string_view SIMD_9 = "متجه_قسمة";
+                // (AR) أصغر القيمتين في كل عنصر من متجهين
+                inline constexpr std::string_view SIMD_10 = "متجه_أصغر";
+                // (AR) أكبر القيمتين في كل عنصر من متجهين
+                inline constexpr std::string_view SIMD_11 = "متجه_أكبر";
+                // (AR) «و» على البتات بين متجهين
+                inline constexpr std::string_view SIMD_12 = "متجه_و";
+                // (AR) «أو» على البتات بين متجهين
+                inline constexpr std::string_view SIMD_13 = "متجه_أو";
+                // (AR) «أو» الحصرية على البتات بين متجهين
+                inline constexpr std::string_view SIMD_14 = "متجه_حصري";
+                // (AR) الجذر التربيعي لكل عنصر — متجه عشري حصرًا
+                inline constexpr std::string_view SIMD_15 = "متجه_جذر";
+                // (AR) القيمة المطلقة لكل عنصر
+                inline constexpr std::string_view SIMD_16 = "متجه_مطلق";
+                // (AR) نفي كل عنصر
+                inline constexpr std::string_view SIMD_17 = "متجه_سالب";
+                // (AR) جمع كل عناصر المتجه في قيمة واحدة
+                inline constexpr std::string_view SIMD_18 = "متجه_جمع_عرضي";
+                // (AR) ضرب كل عناصر المتجه في قيمة واحدة
+                inline constexpr std::string_view SIMD_19 = "متجه_ضرب_عرضي";
+                // (AR) أصغر عناصر المتجه
+                inline constexpr std::string_view SIMD_20 = "متجه_أدنى_عرضي";
+                // (AR) أكبر عناصر المتجه
+                inline constexpr std::string_view SIMD_21 = "متجه_أقصى_عرضي";
             }
 
             // ─────────── CompilerMem ───────────
@@ -3192,7 +3224,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1189> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1205> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -4311,13 +4343,29 @@ namespace Sad
             {Names::CompilerSec::SEC_0, "CompilerSec", "MODULE_FUNCTION", "NONE", false, "تحقق", "", ""},
             {Names::CompilerSec::SEC_1, "CompilerSec", "MODULE_FUNCTION", "NONE", false, "تأكد_مساواة", "", ""},
             {Names::CompilerSec::SEC_2, "CompilerSec", "MODULE_FUNCTION", "NONE", false, "تاكد_مساواة", "", ""},
-            // ─── CompilerSimd (6) ───
+            // ─── CompilerSimd (22) ───
             {Names::CompilerSimd::SIMD_0, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "متجه", "", ""},
             {Names::CompilerSimd::SIMD_1, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "متجه_بث", "", ""},
             {Names::CompilerSimd::SIMD_2, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "متجه_ضرب_جمع", "", ""},
             {Names::CompilerSimd::SIMD_3, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "متجه_جداء_قياسي", "", ""},
             {Names::CompilerSimd::SIMD_4, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "متجه_عنصر", "", ""},
             {Names::CompilerSimd::SIMD_5, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "متجه_ضع", "", ""},
+            {Names::CompilerSimd::SIMD_6, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "جمع متجهين عنصرًا بعنصر", "", ""},
+            {Names::CompilerSimd::SIMD_7, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "طرح متجهين عنصرًا بعنصر", "", ""},
+            {Names::CompilerSimd::SIMD_8, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "ضرب متجهين عنصرًا بعنصر", "", ""},
+            {Names::CompilerSimd::SIMD_9, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "قسمة متجهين عنصرًا بعنصر", "", ""},
+            {Names::CompilerSimd::SIMD_10, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "أصغر القيمتين في كل عنصر من متجهين", "", ""},
+            {Names::CompilerSimd::SIMD_11, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "أكبر القيمتين في كل عنصر من متجهين", "", ""},
+            {Names::CompilerSimd::SIMD_12, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "«و» على البتات بين متجهين", "", ""},
+            {Names::CompilerSimd::SIMD_13, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "«أو» على البتات بين متجهين", "", ""},
+            {Names::CompilerSimd::SIMD_14, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "«أو» الحصرية على البتات بين متجهين", "", ""},
+            {Names::CompilerSimd::SIMD_15, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "الجذر التربيعي لكل عنصر — متجه عشري حصرًا", "", ""},
+            {Names::CompilerSimd::SIMD_16, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "القيمة المطلقة لكل عنصر", "", ""},
+            {Names::CompilerSimd::SIMD_17, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "نفي كل عنصر", "", ""},
+            {Names::CompilerSimd::SIMD_18, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "جمع كل عناصر المتجه في قيمة واحدة", "", ""},
+            {Names::CompilerSimd::SIMD_19, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "ضرب كل عناصر المتجه في قيمة واحدة", "", ""},
+            {Names::CompilerSimd::SIMD_20, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "أصغر عناصر المتجه", "", ""},
+            {Names::CompilerSimd::SIMD_21, "CompilerSimd", "MODULE_FUNCTION", "NONE", false, "أكبر عناصر المتجه", "", ""},
             // ─── CompilerMem (8) ───
             {Names::CompilerMem::MEM_0, "CompilerMem", "MODULE_FUNCTION", "NONE", false, "اكتب_ذاكرة16", "", ""},
             {Names::CompilerMem::MEM_1, "CompilerMem", "MODULE_FUNCTION", "NONE", false, "اكتب_ذاكرة32", "", ""},
@@ -4438,7 +4486,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", false, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1189, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1205, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

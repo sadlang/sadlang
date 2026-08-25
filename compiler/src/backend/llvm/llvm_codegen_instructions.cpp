@@ -283,6 +283,56 @@ namespace Sad
                                                              "intr.frame.addr");
                     }
 
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 «بايت» معاملًا — المعبَرُ الرابعُ الذي كان يكذبُ العقد.
+                    //      مصدرُ الحقيقةِ يُعلن «بايت» u8 مدىً 0–255، والاقتطاعُ كان
+                    //      مسدودًا عند التصريحِ وإعادةِ الإسنادِ وحدَهما، فكانت
+                    //      `دالة ت(بايت ب)` تستقبل 300 وتطبعها 300 في المحرّكَين معًا —
+                    //      لا تباعُدَ بينهما بل عقدٌ غيرُ مصونٍ في كليهما.
+                    // (AR) والموضعُ هو المقدّمةُ لا موقعُ الاستدعاء: مواقعُ الاستدعاءِ
+                    //      كثيرةٌ (نداءٌ مباشرٌ، وغيرُ مباشرٍ عبر مرجعِ دالّة، ووسيطٌ
+                    //      دالّةٌ يُنادى) فيُسَدُّ أحدُها وتبقى إخوتُه — وقد قِيست
+                    //      الثلاثةُ فمرّت كلُّها بالمقدّمةِ ومُنعت.
+                    // (AR) ⚠️ **ولا يشملُ ذلك الطرائق**: قِيس أنّ جسمَ الطريقةِ
+                    //      يُضمَّن في موقعِ الاستدعاءِ فلا يمرُّ بمقدّمتِه — والقناعُ
+                    //      يُصدَر في `define` الطريقةِ ولا يُنفَّذ. فمعاملُ الطريقةِ
+                    //      ثقبٌ باقٍ في العقدِ (متّفقٌ عليه في المحرّكَين)، سدُّه في
+                    //      الأماميّةِ لا ههنا.
+                    // (EN) Masked in the PROLOGUE, not at the call sites: call sites are
+                    //      many (direct, indirect via a function ref, a function passed as
+                    //      an argument) — all three were measured and all pass through the
+                    //      prologue. NOTE this does NOT cover methods: a method body is
+                    //      inlined at the call site and never reaches its own prologue, so
+                    //      the emitted mask is dead there. A `بايت` method parameter is a
+                    //      remaining hole (both engines agree on it); sealing it belongs in
+                    //      the frontend, not here.
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) ⚠️ والمعاملُ الأوّلُ لمعالجِ المقاطعةِ مُستثنًى صراحةً:
+                    //      جسرُ `ptrtoint` أعلاه حوّلَه للتوّ إلى i64، فيمرُّ حارسَ
+                    //      `isIntegerTy()` ويُبتَرُ **عنوانُ إطارِ المقاطعةِ** إلى
+                    //      بايتِه الأدنى — إفسادٌ صامتٌ لعنوانٍ في ring‑0. ولا بوّابةَ
+                    //      نوعٍ في الأماميّةِ تمنعُ `دالة مقاطعة معالج(بايت إطار)`
+                    //      (بوّابتا `isInterruptHandler` تفحصانِ المعماريّةَ والوضعَ لا
+                    //      النوعَ)، فالتصريحُ الخاطئُ كان لاغيًا قبلَ القناعِ ويصيرُ
+                    //      بعدَه إفسادًا. والحارسُ ههنا لا في الأماميّةِ لأنّ هذا هو
+                    //      الموضعُ الذي يعرفُ أنّ الخانةَ جسرٌ لا قيمةٌ مُصرَّحة.
+                    // (EN) The first parameter of an interrupt handler is explicitly
+                    //      exempt: the ptrtoint bridge above just made it an i64, so it
+                    //      passes isIntegerTy() and the mask would truncate the interrupt
+                    //      FRAME ADDRESS to its low byte — a silent ring-0 corruption.
+                    //      No frontend type gate rejects a `بايت` first parameter on an
+                    //      interrupt handler, so the mask must exempt it here, where the
+                    //      slot is known to be a bridge rather than a declared value.
+                    if (params[idx].type == Sad::Types::SadTypeKind::Byte &&
+                        slotType->isIntegerTy() &&
+                        !(sirFunc->isInterruptHandler && idx == 0))
+                    {
+                        incoming = tmpBuilder.CreateAnd(
+                            incoming,
+                            llvm::ConstantInt::get(slotType, 0xFFULL),
+                            "byte.param.trunc");
+                    }
+
                     llvm::AllocaInst *alloca = tmpBuilder.CreateAlloca(
                         slotType,
                         nullptr,

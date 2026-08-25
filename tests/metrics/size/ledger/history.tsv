@@ -1,0 +1,2 @@
+date	programs	llvm_accepted	llvm_rejected	native_accepted	native_rejected	ir_lines	native_elf_bytes	distinct_external_symbols
+2026-08-25	15	12	3	5	10	19352	12145	17

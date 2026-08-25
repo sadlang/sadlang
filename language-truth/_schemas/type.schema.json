@@ -21,6 +21,12 @@
       "type": "string",
       "description": "الاسم العربي للعرض (وللأنواع السطحية: الكلمة المفتاحية)"
     },
+    "size_bytes": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "العرضُ الدلاليُّ لقيمةٍ من هذا النوعِ في عتادِ الهدف، بالبايتات — مصدرُ `@حجم(نوع)` في المحرّكَين معًا. يُحذَفُ الحقلُ عمدًا لكلِّ نوعٍ لا حجمَ ثابتَ له (صنفٌ يعتمدُ على حقولِه، متّجهٌ يعتمدُ على خاناتِه، نوعٌ عامٌّ لم يُستبدَل)، فيُشخَّصُ `@حجم` عليه باسمِه بدل أن يخترعَ رقمًا. وليس حجمَ البنيةِ المُشار إليها: «مصفوفة» مؤشّرٌ (٨) لا ترويسةُ SadArray. ⚠️ **وليس عرضَ الخانةِ المحجوزةِ داخليًّا**: «بايت» عرضُه ١ وخانتُه ٨ («الخيار ب» — توسيعُ الخانةِ للتعاملِ الموحَّدِ وإسقاطُ وسمِ القيمة)، و«منطقي» مثلُه. والعرضُ الدلاليُّ هو المطلوبُ لأنّ `@حجم` يُسأل للتسلسلِ وحدِّ FFI وحسابِ المدى.",
+      "$comment": "The type's SEMANTIC width in the target ABI — not the internally reserved slot, which may be wider (Byte: 1 semantic, i64 slot). Deliberately absent for kinds whose size depends on a declaration — @حجم then diagnoses by name instead of inventing a number."
+    },
     "typeof_ar": {
       "type": "string",
       "description": "اسم النوع الذي تُرجعه نوع() زمن التشغيل — عند اختلافه عن word (مثل Class: word=صنف لكن نوع(كائن)=كائن). افتراضيًّا = word."

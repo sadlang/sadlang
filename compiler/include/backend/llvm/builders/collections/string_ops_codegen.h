@@ -99,6 +99,11 @@ public:
     llvm::Value *emitBuiltinStringFind(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitBuiltinStringReplace(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitBuiltinStringSubstring(std::shared_ptr<SIRInstruction>);
+    // (AR) شريحةُ نصٍّ بالقوس: `ن[أ:ب]`. تُنادى من ذراعِ `BUILTIN_ARRAY_SLICE`
+    //      حين يكونُ المعاملُ الأوّلُ نصًّا — فلا أوپكودَ جديدٌ في مصدرِ الحقيقة.
+    // (EN) Bracket slice on a string; called from the ARRAY_SLICE arm when the
+    //      first operand is a string, so no new SoT opcode is required.
+    llvm::Value *emitStringSliceRange(std::shared_ptr<SIRInstruction>);
     llvm::Value *emitBuiltinStringTrim(std::shared_ptr<SIRInstruction>);
 
     // (AR) builtins (ops2.cpp)
@@ -119,6 +124,19 @@ public:
     //      contained (only malloc/memcpy/strlen/realloc) so it works hosted AND
     //      freestanding. Emitted once; returns @__sad_string_split.
     llvm::Function *ensureStringSplitHelper();
+
+    // (AR) 🔑 النسخُ بمدًى محرفيٍّ **مقصوصٍ سلفًا**: يُحوّلُ [بداية، بداية+طول)
+    //      إلى إزاحاتِ بايتٍ بـUTF-8 ثمّ يحجزُ وينسخُ ويُنهي بصفر. استُخرِج ليكونَ
+    //      البابَ الواحدَ لِـ«جزء» ولشريحةِ القوس، فقاعدةُ الاستخراجِ **نسخةٌ واحدةٌ
+    //      لا نسختان**. ولا يَقُصُّ هو: القصُّ عقدٌ يختلفُ بين الاثنَين (طولٌ مقابلَ
+    //      نهاية) ويقعُ عند المُنادي، ويصلُ ههنا مضمونًا داخلَ [٠، عددِ المحارف].
+    // (EN) Copies an ALREADY-CLAMPED character range: converts [start, start+length)
+    //      to UTF-8 byte offsets, allocates, copies, null-terminates. Extracted so
+    //      «جزء» and the bracket slice share ONE extraction rule. It does not clamp:
+    //      clamping differs between them (length vs end) and belongs to the caller.
+    llvm::Value *emitStringCharRangeCopy(llvm::Value *str,
+                                         llvm::Value *start,
+                                         llvm::Value *length);
 };
 
 }} // namespace Sad::LLVM

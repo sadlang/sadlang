@@ -796,6 +796,56 @@ namespace Sad
                         // (AR) لا حاجة لتحويل — القيمة double والمتغير الآن double
                         // (EN) No conversion needed — value is double and global is now double
                     }
+                    // ================================================================
+                    // (AR) 🔑 ترقيةُ المتغيّرِ العامِّ إلى نوعِ المتجه — نظيرُ ترقيةِ
+                    //      الـalloca أدناه، وكان **مفقودًا** فبقيَ نصفُ العلّةِ حيًّا.
+                    //      قِيس: `متجه(١٫٠، ٢٫٠)` في الفضاءِ الأعلى يُنتج
+                    //        @م = internal global i64 0
+                    //        store <2 x double> …, ptr @م, align 16
+                    //      أي **ستّةَ عشرَ بايتًا تُكتَبُ في ثمانية** بمحاذاةِ ١٦ على
+                    //      عامٍّ محاذاتُه ٨ ⇒ انهيارُ الثنائيِّ segfault؛ ثمّ تُقرَأُ
+                    //      الخانةُ بنوعِها المُعلَنِ فيصلُ المعاملُ سُلَّميًّا إلى ذراعِ
+                    //      SIMD. وداخلَ دالّةٍ يعملُ الأمرُ سليمًا لأنّ الخانةَ alloca
+                    //      وترقيتُها مكتوبة — **الرقعةُ سُدَّت في صنفِ تخزينٍ وتركت أخاه**.
+                    //      🔑 ولم يحمرَّ `verifyModule` لأنّ المؤشّرَ مُبهَمٌ (ptr) منذ
+                    //         LLVM 15: لا نوعَ في المؤشّرِ يُكذِّبُ حجمَ المخزون.
+                    // (EN) Promote a GLOBAL to the vector type — the twin of the alloca
+                    //      promotion below, which was missing: a 16-byte <2 x double>
+                    //      was stored into an 8-byte i64 global (align 16 on an 8-aligned
+                    //      global) ⇒ segfault. Opaque pointers keep verifyModule silent.
+                    // ================================================================
+                    else if (value->getType()->isVectorTy() && !gv->getValueType()->isVectorTy())
+                    {
+                        std::string globalName = gv->getName().str();
+                        llvm::Type *vecTy = value->getType();
+                        auto *newGV = new llvm::GlobalVariable(
+                            *cg_.module_, vecTy, false,
+                            llvm::GlobalValue::InternalLinkage,
+                            llvm::ConstantAggregateZero::get(vecTy),
+                            globalName + ".vec");
+                        // (AR) محاذاةٌ صريحةٌ بعرضِ المتجه — تعليماتُ SIMD تشترطُها،
+                        //      والقيمةُ القديمةُ **لا تُرحَّل**: خانةٌ كانت i64 ثمّ صارت
+                        //      متجهًا لا معنًى لمحتواها السابقِ في التمثيلِ الجديد.
+                        // (EN) Explicit vector-width alignment; the old scalar content is
+                        //      deliberately NOT migrated (no meaning in the new representation).
+                        unsigned alignBytes = vecTy->getPrimitiveSizeInBits() / 8;
+                        if (alignBytes >= 16)
+                            newGV->setAlignment(llvm::Align(alignBytes));
+
+                        for (auto &kv : cg_.context_info_.globalValues)
+                            if (kv.second == gv)
+                            {
+                                kv.second = newGV;
+                                break;
+                            }
+                        for (auto &kv : cg_.context_info_.namedValues)
+                            if (kv.second == gv)
+                            {
+                                kv.second = newGV;
+                                break;
+                            }
+                        ptr = newGV;
+                    }
                     // (AR) تخزين i64 في متغير عام double — تحويل i64→double (SIToFP)
                     // (EN) Storing i64 into global double variable — convert i64→double (SIToFP)
                     else if (value->getType()->isIntegerTy(64) && gv->getValueType()->isDoubleTy())

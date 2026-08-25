@@ -280,6 +280,59 @@ def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | Non
     lines.append("")
 
     # ========================================================================
+    # (AR) 🔑 جدولُ أحجامِ الخاناتِ — مصدرُ `@حجم(نوع)` في المحرّكَين معًا.
+    #      كان جدولَين مكتوبَين باليدِ تباعدا في ٦ من ١١ نوعًا وافتراضاهما
+    #      يكذبان (٠ في المفسّرِ و٨ في المترجّم للنوعِ المجهول). والغيابُ ههنا
+    #      **مُعلَنٌ لا مسكوتٌ عنه**: `kSadTypeSizeUnknown` قيمةٌ مميّزةٌ سالبةٌ
+    #      تُلزِمُ المُنادي أن يُشخِّصَ، فلا يستطيعُ أن يقرأَها رقمًا صحيحًا سهوًا.
+    # (EN) Slot-size table — the single source for `@حجم` in both engines. The
+    #      absence is DECLARED, not silent: kSadTypeSizeUnknown is a distinct
+    #      negative value that forces the caller to diagnose.
+    # ========================================================================
+    lines.append("        /**")
+    lines.append("         * @brief (AR) قيمةُ «لا حجمَ ثابتَ لهذا النوع» — تُشخَّصُ ولا تُطبَع")
+    lines.append("         * @brief (EN) Sentinel: this kind has no fixed slot size — diagnose, never print")
+    lines.append("         */")
+    lines.append("        inline constexpr int kSadTypeSizeUnknown = -1;")
+    lines.append("")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) جدولُ حجمِ الخانةِ بالبايتات مفهرسًا بـSadTypeKind — مُولَّد")
+    lines.append("         * @brief (EN) Slot size in bytes indexed by SadTypeKind — generated")
+    lines.append("         */")
+    lines.append(
+        "        inline constexpr std::array<int, SAD_TYPE_KIND_COUNT> "
+        "SAD_TYPE_SIZE_BYTES_TABLE = {{"
+    )
+    for entry in types:
+        raw = entry.get("size_bytes")
+        cell = "kSadTypeSizeUnknown" if raw is None else str(int(raw))
+        lines.append(
+            f"            {cell}," + " " * max(0, 20 - len(cell)) + " // "
+            f"{entry['kind']} — {entry.get('word', '')}"
+        )
+    lines.append("        }};")
+    lines.append("")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) حجمُ خانةِ نوعٍ بالبايتات — مُولَّد من types.yaml")
+    lines.append("         * @brief (EN) Slot size of a kind in bytes — generated from types.yaml")
+    lines.append("         *")
+    lines.append("         * (AR) يُرجِعُ kSadTypeSizeUnknown لِما لا حجمَ ثابتَ له (صنفٌ، متّجهٌ،")
+    lines.append("         *      نوعٌ عامّ) ولِقيمةٍ خارجَ المدى — «لا أعرف» لا رقمًا مُخترَعًا.")
+    lines.append("         * (EN) Returns kSadTypeSizeUnknown for kinds without a fixed size and")
+    lines.append("         *      for out-of-range values — «unknown», never an invented number.")
+    lines.append("         */")
+    lines.append("        inline constexpr int sadTypeKindSizeBytes(SadTypeKind kind)")
+    lines.append("        {")
+    lines.append("            const int index = static_cast<int>(kind);")
+    lines.append("            if (index < 0 || index >= SAD_TYPE_KIND_COUNT)")
+    lines.append("            {")
+    lines.append("                return kSadTypeSizeUnknown;")
+    lines.append("            }")
+    lines.append("            return SAD_TYPE_SIZE_BYTES_TABLE[static_cast<std::size_t>(index)];")
+    lines.append("        }")
+    lines.append("")
+
+    # ========================================================================
     # (AR) دالة الاسم العربي لـنوع() — مصدر حقيقة واحد للمحرّكين (مفسّر + مترجم).
     #      تُرجع typeof_ar إن وُجد، وإلا word، وإلا «مجهول». تُرمَّز القيم بـ\xHH
     #      (بايتات UTF-8) لضمان صحّتها في MSVC بغضّ النظر عن ترميز الملف المصدر.

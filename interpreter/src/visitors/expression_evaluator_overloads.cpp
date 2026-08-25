@@ -18,6 +18,9 @@
 #include "utils/class_module_captures.h" // (AR) ع-1: حقن ثوابت وحدة التعريف
 #include "object_instance.h"
 #include "error_manager.h"
+// (AR) الحجمُ واسمُ التوجيهِ من مصدرِ الحقيقةِ المولَّد — لا جدولَ يدويًّا ههنا.
+#include "sad_type_kind_generated.h"
+#include "directive_names_generated.h"
 #include "ownership_manager.h"
 #include "runtime_throw.h"
 #include "user_thrown.h"
@@ -436,43 +439,36 @@ namespace Sad
          */
         void ExpressionEvaluator::visitSizeofExpr(AST::SizeofExpr &expr)
         {
-            // (AR) خريطة أحجام الأنواع الأساسية
-            // (EN) Basic type size map
-            static const std::unordered_map<std::string, int64_t> typeSizes = {
-                {"رقم", 8},     // int64_t = 8 bytes
-                {"عشري", 8},    // double = 8 bytes
-                {"نص", 32},     // std::string (approx)
-                {"منطقي", 1},   // bool = 1 byte
-                {"فراغ", 0},    // void = 0
-                {"عدم", 0},     // null = 0
-                {"مصفوفة", 24}, // vector (approx)
-                {"خريطة", 48},  // map (approx)
-                {"أي", 72},     // Value variant (approx)
-                // Sized integer types
-                {"u8", 1},
-                {"i8", 1},
-                {"u16", 2},
-                {"i16", 2},
-                {"u32", 4},
-                {"i32", 4},
-                {"u64", 8},
-                {"i64", 8},
-                {"usize", 8},
-                {"isize", 8},
-                {"ptr", 8},
-            };
-
-            auto it = typeSizes.find(expr.typeName);
-            if (it != typeSizes.end())
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 الحجمُ **يُشتَقُّ من مصدرِ الحقيقةِ ولا يُكتَبُ ههنا**.
+            //      كان هذا الموضعُ `unordered_map` ساكنةً بسلاسلَ عربيّةٍ خامّةٍ —
+            //      نسخةً من جدولِ الأنواعِ تقابلُها أخرى في المترجّم. فتباعدتا في
+            //      **٦ من ١١** نوعًا قِيست حيًّا (مفسّر/مترجّم):
+            //        خريطة ٤٨/٢٤ · بايت ٠/٨ · حرف ٠/١ · أي ٧٢/٨ · فراغ ٠/٨ · عدم ٠/٨
+            //      وأرقامُ هذا الجدولِ كانت أحجامَ بنى C++ الخاصّةِ بالمفسّرِ نفسِه
+            //      (٣٢ لـstd::string، ٧٢ لـValue) — وهي **لا تعني شيئًا للمستخدم**:
+            //      `@حجم` سؤالٌ عن عتادِ الهدفِ لا عن ذاكرةِ المفسّر.
+            //
+            // (AR) والافتراضُ كان يكذبُ صامتًا: نوعٌ مجهولٌ يُخرِجُ ٠ — رقمًا قد
+            //      يُقسَمُ عليه. صار الجهلُ **يُرفَعُ خطأً مسمًّى** كما في المترجّم.
+            // (EN) The size is DERIVED from the SoT. This static map held the
+            //      interpreter's own C++ struct sizes, which say nothing about the
+            //      target ABI the user is asking about; and its default answered 0
+            //      silently. Unknown is now a named error, as in the compiler.
+            // ════════════════════════════════════════════════════════════════
+            const Sad::Types::SadTypeKind kind =
+                Sad::Types::sadTypeKindFromArabicName(expr.typeName);
+            const int declaredSize = Sad::Types::sadTypeKindSizeBytes(kind);
+            if (kind == Sad::Types::SadTypeKind::Unknown ||
+                declaredSize == Sad::Types::kSadTypeSizeUnknown)
             {
-                lastResult_ = Data::Value(it->second);
+                Sad::Errors::throwRuntime(
+                    Sad::Errors::ErrorCode::SEM_INVALID_OPERATION,
+                    expr.position,
+                    {{"op", std::string(Sad::Directives::Names::SIZEOF)},
+                     {"type", expr.typeName}});
             }
-            else
-            {
-                // (AR) نوع غير معروف — نرجع 0
-                // (EN) Unknown type — return 0
-                lastResult_ = Data::Value(static_cast<int64_t>(0));
-            }
+            lastResult_ = Data::Value(static_cast<int64_t>(declaredSize));
         }
 
         /**

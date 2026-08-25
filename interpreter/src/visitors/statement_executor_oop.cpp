@@ -399,6 +399,31 @@ namespace Sad
                         methodDecl->isAbstract);
 
                     // ═══════════════════════════════════════════════════════════════
+                    // (AR) 🔑 نوعُ إرجاعِ الطريقةِ المُصرَّحُ يُسجَّل باسمٍ مؤهَّلٍ
+                    //      `صنف.طريقة`. و`addMethod` أعلاه يمرّرُ `nullptr` لنوعِ
+                    //      الإرجاع (حقلُ `ClassMethod::returnType` من نوعِ `Type*`
+                    //      القديمِ ولا يُملأ قطُّ)، فكان جسمُ الطريقةِ يُنفَّذ بنوعِ
+                    //      إرجاعٍ `Unknown` — فلا تُطبَّق عليه موافقةُ النوعِ المُصرَّح
+                    //      (`عشري`/`رقم`/`بايت`) التي تُطبَّق على الدوالِّ الحرّة.
+                    //      فكانت `دالة بايت هات() ارجع 300` تُخرِج 300 في المفسّرِ و44
+                    //      في المترجّم. والسجلُّ هنا لا يُغيّرُ بنيةَ `ClassMethod`،
+                    //      ويقرؤه `executeFunctionBodyWithFuncName` بالمفتاحِ نفسِه.
+                    // (AR) ⚠️ وطريقةٌ مورَّثةٌ تُنادى على كائنِ الصنفِ المشتقِّ لا
+                    //      يجدُها المفتاحُ (اسمُ الصنفِ يخالفُ صنفَ التعريف)، فتسقطُ
+                    //      إلى `Unknown` كما كانت — نقصٌ معلومٌ لا انحدار.
+                    // (EN) The method's declared return kind, recorded under a qualified
+                    //      `Class.method` key. addMethod above passes nullptr for the
+                    //      return type (ClassMethod::returnType is the legacy Type* and is
+                    //      never filled), so method bodies ran with an Unknown return type
+                    //      and never got the declared-type coercion free functions get —
+                    //      a `بايت` method returning 300 printed 300 in the interpreter and
+                    //      44 in the compiler. An inherited method invoked on a derived
+                    //      object still misses the key and falls back to Unknown as before.
+                    // ═══════════════════════════════════════════════════════════════
+                    functionReturnTypes_[node.name + "." + methodDecl->name] =
+                        methodDecl->returnType;
+
+                    // ═══════════════════════════════════════════════════════════════
                     // (AR) نقل العقود البرمجية (يتطلب/يضمن) إلى ClassMethod
                     // (EN) Transfer Design by Contract (requires/ensures) to ClassMethod
                     // ═══════════════════════════════════════════════════════════════

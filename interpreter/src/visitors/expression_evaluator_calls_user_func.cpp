@@ -217,6 +217,30 @@ namespace Sad
             // (AR) تعريف المعاملات كمتغيرات محلية / (EN) Define parameters as local variables
             for (size_t i = 0; i < params.size(); ++i)
             {
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) 🔑 «بايت» معاملًا — معبَرٌ رابعٌ كان يكذبُ العقد. الاقتطاعُ
+                //      إلى u8 كان مسدودًا عند التصريحِ وإعادةِ الإسنادِ وحدَهما،
+                //      فكان `دالة ت(بايت ب)` تستقبل 300 وتطبعها 300 في المحرّكَين
+                //      معًا. والاقتطاعُ **قبلَ** `define` لا بعدَه: القيمةُ المخزَّنةُ
+                //      هي ما يقرؤه الجسمُ كلُّه، فلو قُنِّعت بعدَ التعريفِ لبقيت
+                //      نسخةٌ غيرُ مقنَّعةٍ لحظةً — ولوجدَها أيُّ قارئٍ يسبق التقنيع.
+                //      والحارسُ على `getKind()==Integer` مطابقةً لنظيرَيه في
+                //      `visitVarDecl` و`visitAssignExpr`: عشريٌّ أو نصٌّ يعبرُ إلى
+                //      معاملِ بايتٍ شأنُه شأنُ فحصِ الأنواعِ أدناه، لا شأنُ القناع.
+                // (EN) Byte as a parameter — the fourth crossing that broke the
+                //      contract. u8 truncation was sealed only at declaration and
+                //      reassignment, so a `بايت` parameter received 300 and printed
+                //      300 in BOTH engines. Masked BEFORE define, not after: the
+                //      stored value is what the whole body reads. The getKind()==
+                //      Integer guard mirrors visitVarDecl and visitAssignExpr.
+                // ═══════════════════════════════════════════════════════════════
+                if (astFuncDecl && i < astFuncDecl->parameters.size() &&
+                    astFuncDecl->parameters[i].type == Types::SadTypeKind::Byte &&
+                    arguments[i].getKind() == Types::SadTypeKind::Integer)
+                {
+                    arguments[i] = Data::Value(arguments[i].toInt64() & 0xFF);
+                }
+
                 variableManager_.define(params[i].name, arguments[i]);
 
                 // ═══════════════════════════════════════════════════════════════

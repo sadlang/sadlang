@@ -572,4 +572,98 @@ if(Python3_FOUND AND TARGET sad-build
     message(STATUS "✓ بوّابة الخلفيّة الأصليّة / native-backend flag gate enabled")
 endif()
 
+# ─────────────────────────────────────────────────────────────────────
+# (AR) مِقياسُ سطحِ اللغة — يشتقُّ عددَ كلِّ سطحٍ لغويٍّ من language-truth/
+#      ويقارنُه بالسِّجلِّ المُودَع. أيُّ توسُّعٍ في اللغةِ لم يُودَع في السِّجلِّ
+#      يُفشِلُ هذه البوّابة — فيصيرُ «كم توسَّعت اللغة؟» جوابًا مقيسًا لا نثرًا.
+#      ⚠️ ولا يحرسُ أسطرَ الكودِ ولا عددَ الاختبارات: تلك تتغيّرُ كلَّ إيداعٍ،
+#      فحارسٌ عليها يحمرُّ دائمًا ثمّ يُعطَّل ثمّ يخضرُّ بلا قياس.
+#      التحديثُ قرارٌ بشريّ: python tests/metrics/surface/surface_map.py --update
+# (EN) Language-surface meter: derives every countable surface from the SoT and
+#      fails on any drift from the committed ledger. LOC/test counts are
+#      deliberately NOT guarded (they change every commit).
+# ─────────────────────────────────────────────────────────────────────
+if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/metrics/surface/surface_map.py")
+    add_test(
+        NAME Lang_Surface_Check
+        COMMAND ${CMAKE_COMMAND} -E env
+            "PYTHONIOENCODING=utf-8"
+            "PYTHONUTF8=1"
+            ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tests/metrics/surface/surface_map.py"
+                --check
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    set_tests_properties(Lang_Surface_Check PROPERTIES
+        TIMEOUT 120 LABELS "System;metrics;contract")
+
+    # (AR) الاختبارُ الذاتيُّ للمِقياس: بذورٌ متعاكسةٌ على دالّةِ الحكمِ الخالصة —
+    #      سكوتٌ على التطابق، وإخفاقٌ على كلِّ صورةٍ من صورِ الانجرافِ الستّ.
+    #      فحارسٌ لا تُبرهَنُ عضّتُه حارسٌ لا يعضّ.
+    # (EN) Meter self-test: opposite seeds on the pure verdict function.
+    add_test(
+        NAME Lang_Surface_SelfTest
+        COMMAND ${CMAKE_COMMAND} -E env
+            "PYTHONIOENCODING=utf-8"
+            "PYTHONUTF8=1"
+            ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tests/metrics/surface/surface_map.py"
+                --self-test
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    set_tests_properties(Lang_Surface_SelfTest PROPERTIES
+        TIMEOUT 60 LABELS "System;metrics;contract")
+    message(STATUS "✓ مِقياسُ سطحِ اللغة / language-surface meter enabled")
+endif()
+
+# ─────────────────────────────────────────────────────────────────────
+# (AR) مِقياسُ الحجمِ الحتميّ — يقيسُ لكلِّ برنامجٍ مرجعيٍّ الرموزَ الخارجيّةَ
+#      المجرورة (سطورُ `declare` في IR) وعددَ سطورِ IR وحجمَ ELF الأصليِّ
+#      بالبايت، ويقارنُها بالسِّجلِّ المُودَع. رمزٌ خارجيٌّ يُجَرُّ حديثًا — `pow`
+#      أو `floor` مثلًا — يُفشِلُ البوّابة، فجرُّ مكتبةٍ كاملةٍ لا يمرُّ صامتًا.
+#      🔑 الهدفُ مثبَّتٌ في الأداة (x86_64-unknown-linux-gnu) فلا يقيسُ الرقمُ
+#         آلةَ العدّاء، وحجمُ الثنائيِّ بعدَ رابطِ النظامِ خارجَ النطاقِ عمدًا.
+#      ⚠️ ملاحظةٌ معلنة: تطابقُ المخرَجِ بين تهيئتَي Debug وRelease **غيرُ
+#         مقيسٍ بعد**؛ كتلُ NDEBUG في مولّد الشيفرةِ المفحوصةُ طباعةٌ فقط، فلا
+#         آليّةَ معروفةً للاختلاف. إن احمرَّت البوّابةُ في تهيئةٍ دونَ أخرى فذاك
+#         نفسُه اكتشافٌ يستحقُّ المعالجة لا كتمَ الحارس.
+#      التحديثُ قرارٌ بشريّ: --update --compiler <sad-build>
+# (EN) Deterministic size meter: per-program dragged external symbols, IR line
+#      count and native ELF byte size, compared against a committed ledger. A
+#      newly dragged symbol (pow/floor) fails the gate. Target triple is pinned
+#      inside the tool; final linked binary size is deliberately out of scope.
+# ─────────────────────────────────────────────────────────────────────
+if(Python3_FOUND AND TARGET sad-build
+   AND EXISTS "${CMAKE_SOURCE_DIR}/tests/metrics/size/size_map.py")
+    add_test(
+        NAME Lang_Size_Check
+        COMMAND ${CMAKE_COMMAND} -E env
+            "PYTHONIOENCODING=utf-8"
+            "PYTHONUTF8=1"
+            ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tests/metrics/size/size_map.py"
+                --check --compiler "$<TARGET_FILE:sad-build>"
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    set_tests_properties(Lang_Size_Check PROPERTIES
+        TIMEOUT 900 LABELS "System;metrics;contract")
+    message(STATUS "✓ مِقياسُ الحجمِ الحتميّ / deterministic size meter enabled")
+endif()
+
+# (AR) الاختبارُ الذاتيُّ لمِقياسِ الحجم — لا يحتاجُ مترجمًا مبنيًّا: يُغذّي
+#      الحكمَ الخالصَ ببذورٍ متعاكسة. فبوّابةٌ لا تُبرهَنُ عضّتُها إلّا بترجمةٍ
+#      كاملةٍ لا تُبرهِنُها على عدّاءٍ بلا مترجم.
+# (EN) Size-meter self-test: opposite seeds on the pure verdict; no compiler
+#      needed, so the bite is proven even where sad-build was not built.
+if(Python3_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/tests/metrics/size/size_map.py")
+    add_test(
+        NAME Lang_Size_SelfTest
+        COMMAND ${CMAKE_COMMAND} -E env
+            "PYTHONIOENCODING=utf-8"
+            "PYTHONUTF8=1"
+            ${Python3_EXECUTABLE} "${CMAKE_SOURCE_DIR}/tests/metrics/size/size_map.py"
+                --self-test
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    )
+    set_tests_properties(Lang_Size_SelfTest PROPERTIES
+        TIMEOUT 60 LABELS "System;metrics;contract")
+endif()
+
 message(STATUS "✓ الاختبارات مفعلة / Tests enabled")

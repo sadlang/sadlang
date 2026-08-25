@@ -435,6 +435,13 @@ namespace Sad
                         // (AR) حدُّ الاستدعاء: حلقاتُ المستدعِي لا تُرى داخلَ جسمِ الطريقة
                         // (EN) Call boundary: the caller's loops are invisible in the method body
                         StatementExecutor::CallBoundaryScope callBoundary(statementExecutor_);
+                        // (AR) ونوعُ الإرجاعِ المُصرَّحُ للطريقةِ يُنصَبُ للجسمِ ثمّ
+                        //      يُستعاد — وإلّا نُفِّذ الجسمُ بنوعِ إرجاعِ المستدعِي.
+                        // (EN) The method's declared return type is installed for the body
+                        //      and restored after; otherwise the body runs with the
+                        //      caller's return type.
+                        StatementExecutor::DeclaredReturnTypeScope declaredReturn(
+                            statementExecutor_, className + "." + node.methodName);
                         methodBody->accept(statementExecutor_);
                     }
 

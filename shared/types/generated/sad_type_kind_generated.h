@@ -213,6 +213,90 @@ namespace Sad
         }
 
         /**
+         * @brief (AR) قيمةُ «لا حجمَ ثابتَ لهذا النوع» — تُشخَّصُ ولا تُطبَع
+         * @brief (EN) Sentinel: this kind has no fixed slot size — diagnose, never print
+         */
+        inline constexpr int kSadTypeSizeUnknown = -1;
+
+        /**
+         * @brief (AR) جدولُ حجمِ الخانةِ بالبايتات مفهرسًا بـSadTypeKind — مُولَّد
+         * @brief (EN) Slot size in bytes indexed by SadTypeKind — generated
+         */
+        inline constexpr std::array<int, SAD_TYPE_KIND_COUNT> SAD_TYPE_SIZE_BYTES_TABLE = {{
+            0,                    // Void — فراغ
+            8,                    // Integer — رقم
+            8,                    // Float — عشري
+            1,                    // Boolean — منطقي
+            8,                    // String — نص
+            1,                    // Byte — بايت
+            1,                    // Int8 — عدد8
+            2,                    // Int16 — عدد16
+            4,                    // Int32 — عدد32
+            8,                    // Int64 — عدد64
+            1,                    // UInt8 — طبيعي8
+            2,                    // UInt16 — طبيعي16
+            4,                    // UInt32 — طبيعي32
+            8,                    // UInt64 — طبيعي64
+            4,                    // Float32 — عشري32
+            8,                    // Float64 — عشري64
+            kSadTypeSizeUnknown,  // Char — حرف
+            8,                    // Array — مصفوفة
+            8,                    // Map — خريطة
+            kSadTypeSizeUnknown,  // Tuple — صف
+            kSadTypeSizeUnknown,  // Slice — شريحة
+            kSadTypeSizeUnknown,  // Class — صنف
+            kSadTypeSizeUnknown,  // Struct — بنية
+            kSadTypeSizeUnknown,  // Enum — تعداد
+            kSadTypeSizeUnknown,  // Trait — سمة
+            8,                    // Function — دالة
+            8,                    // Closure — إغلاق
+            kSadTypeSizeUnknown,  // Union — اتحاد
+            kSadTypeSizeUnknown,  // Intersection — تقاطع
+            kSadTypeSizeUnknown,  // Optional — اختياري
+            kSadTypeSizeUnknown,  // Result — نتيجة
+            kSadTypeSizeUnknown,  // Generic — نوع_عام
+            kSadTypeSizeUnknown,  // TypeParameter — معامل_نوع
+            kSadTypeSizeUnknown,  // TypeAlias — اسم_مستعار
+            8,                    // Pointer — مؤشر
+            8,                    // Reference — مرجع
+            8,                    // MutableRef — مرجع_متغير
+            16,                   // Any — أي
+            kSadTypeSizeUnknown,  // Never — أبدا
+            kSadTypeSizeUnknown,  // Unknown — مجهول
+            8,                    // Error — خطأ
+            kSadTypeSizeUnknown,  // Future — مستقبل
+            kSadTypeSizeUnknown,  // Generator — مولد
+            kSadTypeSizeUnknown,  // Comprehension — استيعاب
+            kSadTypeSizeUnknown,  // Color — لون
+            kSadTypeSizeUnknown,  // Widget — عنصر_واجهة
+            kSadTypeSizeUnknown,  // Window — نافذة
+            kSadTypeSizeUnknown,  // Event — حدث
+            kSadTypeSizeUnknown,  // Vector — متجه
+            8,                    // Null — عدم
+            kSadTypeSizeUnknown,  // Point — نقطة
+            kSadTypeSizeUnknown,  // Rect — مستطيل
+        }};
+
+        /**
+         * @brief (AR) حجمُ خانةِ نوعٍ بالبايتات — مُولَّد من types.yaml
+         * @brief (EN) Slot size of a kind in bytes — generated from types.yaml
+         *
+         * (AR) يُرجِعُ kSadTypeSizeUnknown لِما لا حجمَ ثابتَ له (صنفٌ، متّجهٌ،
+         *      نوعٌ عامّ) ولِقيمةٍ خارجَ المدى — «لا أعرف» لا رقمًا مُخترَعًا.
+         * (EN) Returns kSadTypeSizeUnknown for kinds without a fixed size and
+         *      for out-of-range values — «unknown», never an invented number.
+         */
+        inline constexpr int sadTypeKindSizeBytes(SadTypeKind kind)
+        {
+            const int index = static_cast<int>(kind);
+            if (index < 0 || index >= SAD_TYPE_KIND_COUNT)
+            {
+                return kSadTypeSizeUnknown;
+            }
+            return SAD_TYPE_SIZE_BYTES_TABLE[static_cast<std::size_t>(index)];
+        }
+
+        /**
          * @brief (AR) الاسم العربي الذي تُرجعه نوع() لنوعٍ ما — مُولَّد من types.yaml
          * @brief (EN) Arabic name returned by نوع()/typeof for a kind — generated
          */

@@ -1,0 +1,203 @@
+# سِجلُّ سطحِ لغة ص — مُشتَقٌّ آليًّا من language-truth/
+# ⚠️ لا يُحرَّرُ باليد: python tests/metrics/surface/surface_map.py --update
+# آخرُ اشتقاق / last derivation: 2026-08-25
+sections:
+  01_core:
+    name_ar: النواةُ اللغويّة
+    name_en: Core language
+    is_language_surface: true
+    total: 401
+    counts:
+      كلماتٌ محجوزة (categories.reserved.keywords): 40
+      كلماتٌ سياقيّة (categories.contextual.keywords): 44
+      كلماتٌ عاملة (categories.operators.keywords): 3
+      أسماءُ أنواعٍ مدمجة (categories.builtin_types.keywords): 11
+      عوامل (operators): 43
+      قواعدُ نحويّة (productions): 107
+      قواعدُ خفض (rules): 107
+      تراكيبُ تعبير (constructs): 8
+      تراكيبُ قواعد (constructs): 12
+      تراكيبُ كائنيّة (constructs): 10
+      أنماطُ مطابقة (patterns): 9
+      موجِّهات (directives): 7
+  02_types:
+    name_ar: نظامُ الأنواع
+    name_en: Type system
+    is_language_surface: true
+    total: 184
+    counts:
+      أنواعٌ معرَّفة (types): 52
+      تصنيفاتٌ عربيّة (categories_ar): 11
+      طرائقُ أنواع (methods): 114
+      أنواعٌ هدفٌ للطرائق (targets): 7
+  03a_builtins_hardware:
+    name_ar: مدمجات · عتادٌ ونواةُ نظام
+    name_en: Builtins / hardware & kernel
+    is_language_surface: true
+    total: 438
+    counts:
+      مدمجاتُ النواة (functions): 312
+      عتادُ النظام (functions): 27
+      UEFI (functions): 71
+      مضمَّنة (functions): 6
+      SIMD (functions): 22
+  03b_builtins_ui:
+    name_ar: مدمجات · واجهةٌ رسوميّة
+    name_en: Builtins / UI
+    is_language_surface: true
+    total: 264
+    counts:
+      ودجات (functions): 138
+      منصّةُ الواجهة (functions): 97
+      واجهةُ المترجم (functions): 29
+  03c_builtins_core:
+    name_ar: مدمجات · أساسيّاتٌ لغويّة
+    name_en: Builtins / language core
+    is_language_surface: true
+    total: 218
+    counts:
+      أساسيّات (functions): 22
+      قلب (functions): 8
+      أنواع (functions): 4
+      نصوص (functions): 21
+      مصفوفات (functions): 10
+      خرائط (functions): 93
+      رياضيّات (functions): 33
+      استثناءات (functions): 10
+      تأكيدات (functions): 17
+  03d_builtins_system:
+    name_ar: مدمجات · نظامٌ ومنصّةٌ وأمن
+    name_en: Builtins / system, platform, security
+    is_language_surface: true
+    total: 132
+    counts:
+      جسرُ الأجنبيّ (functions): 35
+      قلبُ النظام (functions): 22
+      خدماتُ النظام (functions): 33
+      نظامُ المترجم (functions): 8
+      أدواتُ دخل/خرج (functions): 3
+      أمنُ المترجم (functions): 3
+      تشفير (functions): 14
+      منصّة (functions): 9
+      عمليّات (functions): 5
+  03e_builtins_network:
+    name_ar: مدمجات · شبكة
+    name_en: Builtins / network
+    is_language_surface: true
+    total: 115
+    counts:
+      عميلُ HTTP (functions): 18
+      خادمُ HTTP (functions): 19
+      مقابس (functions): 19
+      شبكةُ ص (functions): 22
+      عميلُ WebSocket (functions): 13
+      خادمُ WebSocket (functions): 12
+      أدواتُ الشبكة (functions): 12
+  03f_builtins_concurrency:
+    name_ar: مدمجات · تزامن
+    name_en: Builtins / concurrency
+    is_language_surface: true
+    total: 38
+    counts:
+      تزامنٌ متقدّم (functions): 32
+      تزامن (functions): 6
+  04_ui:
+    name_ar: الواجهةُ الرسوميّة
+    name_en: UI surface
+    is_language_surface: true
+    total: 342
+    counts:
+      عُقَد (nodes): 110
+      مفاتيحُ خصائص (keys): 94
+      قيَمُ خصائص (values): 10
+      أحداث (entries): 33
+      ألوانٌ مسمّاة (colors): 34
+      حركات (entries): 27
+      مُعدِّلات (modifiers): 9
+      مُنحنيات (entries): 7
+      قواعدُ انتشار (entries): 4
+      مُصيِّراتُ منصّات (platform_renderers): 6
+      أهدافُ تصيير (render_targets): 5
+      دعمُ الخلفيّات (backend_support): 3
+      إعفاءاتُ تصيير (render_exemptions): 0
+  05_stdlib:
+    name_ar: المكتبةُ القياسيّة
+    name_en: Standard library
+    is_language_surface: true
+    total: 203
+    counts:
+      وحداتٌ معلنة (modules): 10
+      دوالٌّ معلنة (functions): 193
+  06_backend:
+    name_ar: الخلفيّةُ الأصليّة
+    name_en: Native backend
+    is_language_surface: false
+    total: 1025
+    counts:
+      أوپكودات SIR (opcodes): 780
+      أوپكوداتُ معماريّة (opcodes): 35
+      عائلاتُ معماريّة (families): 1
+      أهدافُ ترجمة (targets): 5
+      مراحل (stages): 1
+      خارجَ النطاق (out_of_scope): 2
+      أنواعُ القيمةِ الديناميّة (dyn_kinds): 7
+      نصوصُ العرض (display_texts): 7
+      تخطيطُ الخريطة (map_layout): 9
+      تعليماتُ المعماريّات (instructions): 137
+      أصنافُ المسجّلات (classes): 3
+      أنماطُ اختيارِ التعليمات (patterns): 6
+      عقدُ النداء (call): 19
+      عقدُ نداءِ النظام (syscall): 13
+  07_diagnostics:
+    name_ar: التشخيصُ والأخطاء
+    name_en: Diagnostics
+    is_language_surface: false
+    total: 250
+    counts:
+      مداخلُ كتالوجِ الأخطاء (errors): 181
+      وسومُ تشخيصِ الخلفيّة (tag): 28
+      تشخيصاتٌ خالصة (pure): 18
+      أصنافُ التشخيص (kind): 8
+      صِيَغُ التشخيص (format): 5
+      مسجّلاتٌ افتراضيّة (vreg): 4
+      مُعينات (helper): 6
+  08_tooling:
+    name_ar: سطحُ الأدوات
+    name_en: Tooling surface
+    is_language_surface: false
+    total: 581
+    counts:
+      أعلامُ سطرِ الأوامر (flags): 68
+      أعلامٌ مختصرة (short_flags): 16
+      ثوابتُ قيَم (value_constants): 8
+      رسائلُ الأدوات (messages): 11
+      أُصيلاتُ الصدفة (applets): 410
+      أوامرُ الصدفة (commands): 13
+      أخطاءُ الصدفة (errors): 19
+      رسائلُ الصدفة (messages): 25
+      أيّامُ الأسبوع (weekdays): 7
+      أسماءُ العرض (display_name): 2
+      قواعدُ التنسيق (formatting): 2
+  09_dialects:
+    name_ar: اللهجات
+    name_en: Dialects
+    is_language_surface: true
+    total: 96
+    counts:
+      معماريّاتُ لهجةِ التجميع (architectures): 4
+      أصنافُ المعاملات (operand_kinds): 5
+      مفاتيحُ الكتلة (block): 3
+      مفاتيحُ سطرِ التعليمة (instruction_line): 2
+      مفاتيحُ الإتلاف (clobbers): 2
+      مفاتيحُ اللافتة (label): 1
+      مستهلكون (consumers): 1
+      مُختصراتُ التعليمات (instructions): 22
+      أصنافُ المسجّلات (registers): 16
+      مفاتيحُ الصياغة (syntax): 20
+      ماكرو المضيف (host_macros): 8
+      مرادفاتُ الثُّلاثيّ (triple_aliases): 12
+totals:
+  language_surface: 2431
+  all_sections: 4287
+  sot_files_counted: 106
+  sot_files_ignored: 7

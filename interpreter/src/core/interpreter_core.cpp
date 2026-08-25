@@ -958,7 +958,15 @@ namespace Sad
 
                 if (bodyNode)
                 {
-                    result = statementExecutor_->executeFunctionBody(*bodyNode);
+                    // (AR) بالاسمِ المؤهَّلِ `صنف.طريقة` لا بجسمٍ مجرَّد: النسخةُ
+                    //      العاريةُ تُمرّرُ نوعَ إرجاعٍ `Unknown` فتُلغى موافقةُ النوعِ
+                    //      المُصرَّح داخلَ الطرائقِ وحدَها — والمفتاحُ يُبذَر في
+                    //      `visitClassDecl` عند تسجيلِ الطريقة.
+                    // (EN) Qualified `Class.method` name rather than a bare body: the bare
+                    //      overload passes an Unknown return type, disabling declared-type
+                    //      coercion inside methods only. The key is seeded in visitClassDecl.
+                    result = statementExecutor_->executeFunctionBodyWithFuncName(
+                        *bodyNode, obj->getClassName() + "." + methodName);
                 }
             }
             catch (...)

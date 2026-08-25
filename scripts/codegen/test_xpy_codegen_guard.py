@@ -119,6 +119,14 @@ EXPECTED_OUTPUTS = {
     # (EN) Builtin arity (min/max args) from the SoT `arity` field — declared once,
     #      read by the frontend as a generated constant, never a literal at the check.
     "shared/builtins/generated/builtin_arity_generated.h",
+    # (AR) أسماءُ التوجيهاتِ العربيّةُ (`@حجم`, `@ذرّي`, `@غير_آمن`…) من
+    #      language-truth/directives.yaml — يقرؤها المحرّكانِ ثوابتَ مولَّدةً بدل
+    #      لفظٍ عربيٍّ خامٍّ في موضعِ التشخيصِ أو في تعليقِ SIR، فلا تنجرفُ التسميةُ
+    #      عن مصدرِ الحقيقةِ ولا يُكتَبُ اللفظُ مرّتين.
+    # (EN) Arabic directive names (`@حجم`, `@ذرّي`, `@غير_آمن`…) from the SoT, read
+    #      by both engines as generated constants instead of raw Arabic literals at
+    #      the diagnostic site — so the spelling never drifts from the SoT.
+    "shared/types/generated/directive_names_generated.h",
 }
 
 
