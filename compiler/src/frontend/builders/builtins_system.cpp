@@ -125,7 +125,12 @@ namespace Sad
                 // (AR) اقرأ_منفذ16 / اقرأ_منفذ32
                 if (funcName == Bn::KernelCpu::CPU_10)
                 {
-                    if (argResults.empty())
+                    // (AR) كان الرفضُ ههنا **صامتًا**: عودةٌ بسجلٍّ فارغٍ بلا
+                    //      خطأٍ مسجَّل ⇒ النداءُ يتبخّرُ والمصرّفُ يخرجُ بصفر.
+                    //      ولم يرَه الحارسُ لأنّ ذراعَه الخامسةَ تقرأ `size()`
+                    //      ولا تقرأ `empty()` — وقد وُسِّعت.
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::KernelCpu::CPU_10, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_READ_16);
@@ -137,7 +142,12 @@ namespace Sad
                 }
                 if (funcName == Bn::KernelCpu::CPU_12)
                 {
-                    if (argResults.empty())
+                    // (AR) كان الرفضُ ههنا **صامتًا**: عودةٌ بسجلٍّ فارغٍ بلا
+                    //      خطأٍ مسجَّل ⇒ النداءُ يتبخّرُ والمصرّفُ يخرجُ بصفر.
+                    //      ولم يرَه الحارسُ لأنّ ذراعَه الخامسةَ تقرأ `size()`
+                    //      ولا تقرأ `empty()` — وقد وُسِّعت.
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::KernelCpu::CPU_12, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_PORT_READ_32);
@@ -415,7 +425,8 @@ namespace Sad
                 // (AR) اقرأ_ذاكرة16 / اقرأ_ذاكرة32 / اقرأ_ذاكرة64
                 if (funcName == Bn::CompilerMem::MEM_3)
                 {
-                    if (argResults.empty())
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::CompilerMem::MEM_3, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_READ_16);
@@ -427,7 +438,8 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerMem::MEM_4)
                 {
-                    if (argResults.empty())
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::CompilerMem::MEM_4, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_READ_32);
@@ -439,7 +451,8 @@ namespace Sad
                 }
                 if (funcName == Bn::CompilerMem::MEM_5)
                 {
-                    if (argResults.empty())
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::CompilerMem::MEM_5, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     std::string resultReg = b_.newTempRegister();
                     SIRInstruction inst(SIROpcode::BUILTIN_MEM_READ_64);

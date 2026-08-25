@@ -72,6 +72,16 @@ def main() -> int:
             inline_named.update(site.names)
             continue
         enforced.update(site.names)
+        # (AR) ثابتُ الرتبةِ المُنتقى لأخٍ في الذراعِ نفسِها فرضٌ له باسمِه —
+        #      وإغفالُه يُحمِّرُ الحارسَ بـ«إعلانٌ ميّت» على عقدٍ مفروضٍ فعلًا.
+        enforced.update(site.also_constants)
+        # (AR) وثابتُ الرتبةِ المُمرَّرُ إلى الحارسِ فرضٌ لصاحبِه **مهما كانت
+        #      صيغةُ مقارنةِ الاسمِ في الذراع**: أذرعُ اللاتزامنِ تقارنُ بايتاتٍ
+        #      مهرَّبةً لا ثوابتَ أسماءٍ، فلا يرى المستخرِجُ لها اسمًا — وقراءةُ
+        #      ذلك «عقدًا لا يُطبَّق» تُحمِّرُ على حراسةٍ قائمةٍ فعلًا. وبقاءُ
+        #      المقارنةِ بالبايتاتِ دَينٌ آخرُ يُسمّى على حدة.
+        if site.constant:
+            enforced.add(site.constant)
         if site.literal:
             literals.append(f"{site.file}:{site.line}")
             continue

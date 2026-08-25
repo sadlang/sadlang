@@ -49,9 +49,20 @@ namespace Sad
                 // 1. طباعة_تنسيق / printf — formatted print (variadic)
                 if (funcName == "\xd8\xb7\xd8\xa8\xd8\xa7\xd8\xb9\xd8\xa9_\xd8\xaa\xd9\x86\xd8\xb3\xd9\x8a\xd9\x82" || funcName == "printf" || funcName == "c_printf")
                 {
+                    // (AR) رتبةٌ مفتوحةٌ أعلاها (تنسيقٌ ثمّ ما شاء المنادي) ولا
+                    //      اصطلاحَ لِلا-نهايةٍ في `arity` بعدُ — قرارُ مالكٍ مُعلَن.
+                    //      والخطرُ مع ذلك يُسَدّ: كان الرفضُ سطرًا إلى `std::cerr`
+                    //      لا يحملُه رمزُ خروج، فيتبخّرُ النداءُ ويخرجُ المصرّفُ
+                    //      بصفر. صار خطأً كتالوجيًّا يُخفقُ البناء.
                     if (argOperands.empty())
                     {
-                        std::cerr << "[ERROR] printf requires at least 1 argument (format string)" << std::endl;
+                        Sad::Errors::RenderContext ectx;
+                        ectx.placeholders = {{"name", funcName},
+                                             {"expected", "1"},
+                                             {"found", "0"}};
+                        b_.errors_.push_back(
+                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ectx));
                         return BuildResult("", SadTypeKind::Integer);
                     }
                     std::string resultReg = b_.newTempRegister();

@@ -83,17 +83,11 @@ namespace Sad
                 //      عملِ مكتبةِ جيسون مصرَّفةً بعد دعمِ هروبِ يونيكود.
                 if (funcName == Bmp::FROM_CHAR_CODE)
                 {
-                    if (argResults.empty())
-                    {
-                        Sad::Errors::RenderContext ectx;
-                        ectx.placeholders = {{"name", std::string(Bmp::FROM_CHAR_CODE)},
-                                             {"expected", "1"},
-                                             {"found", std::to_string(argResults.size())}};
-                        b_.errors_.push_back(
-                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ectx));
+                    // (AR) كان المتوقَّعُ ههنا رقمًا حرفيًّا («1») ينجرفُ بلا أن
+                    //      يحمرَّ شيء؛ صار من مصدرِ الحقيقة.
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Maps::FROM_CHAR_CODE, argResults.size()))
                         return BuildResult("", SadTypeKind::String);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::String);
                     SIRInstruction inst(SIROpcode::BUILTIN_STRING_CHAR_FROM_CODE);
@@ -552,17 +546,9 @@ namespace Sad
                     // (EN) Amelia (M-2): explicit compile rejection — the silent return
                     //      produced an empty BuildResult ⇒ segfault on consumption.
                     //      Catalog message (SEM005) pushed to errors_ fails the build.
-                    if (argResults.size() < 2)
-                    {
-                        Sad::Errors::RenderContext ectx;
-                        ectx.placeholders = {{"name", std::string(Bmp::ZIP)},
-                                             {"expected", "2"},
-                                             {"found", std::to_string(argResults.size())}};
-                        b_.errors_.push_back(
-                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ectx));
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Maps::ZIP, argResults.size()))
                         return BuildResult("", SadTypeKind::Array);
-                    }
                     // (AR) حارس نوع بزمن الترجمة: معاملٌ معلومُ النوع سكونيًّا وليس مصفوفةً
                     //      (عدد/عشريّ/منطقيّ/نصّ) ⇒ SEM002 — زاوج(5، [1، 2]) كانت تنهار
                     //      segfault مترجَمةً بينما يرفضها المفسّر بخطأ نظيف. عند الجهل

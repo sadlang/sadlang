@@ -68,6 +68,8 @@ namespace Sad
                 inline constexpr Range ENCRYPT{2, 2};
                 // (AR) هاش
                 inline constexpr Range HASH{1, 1};
+                // (AR) ذعر
+                inline constexpr Range PANIC{1, 1};
                 // (AR) آمن
                 inline constexpr Range SAFE_CHECK{1, 1};
                 // (AR) نظف
@@ -78,16 +80,34 @@ namespace Sad
 
             namespace AsyncAdvanced
             {
+                // (AR) انتظر_مهمة
+                inline constexpr Range ASYNC_AWAIT_TASK{1, 1};
+                // (AR) نوم_غير_متزامن
+                inline constexpr Range ASYNC_SLEEP{1, 1};
                 // (AR) أضف_ذري
                 inline constexpr Range ATOMIC_ADD{2, 2};
                 // (AR) قارن_وبدل
                 inline constexpr Range ATOMIC_CAS{3, 3};
+                // (AR) حمل_ذري
+                inline constexpr Range ATOMIC_LOAD{1, 1};
                 // (AR) خزن_ذري
                 inline constexpr Range ATOMIC_STORE{2, 2};
+                // (AR) أغلق_قناة
+                inline constexpr Range CHANNEL_CLOSE{1, 1};
+                // (AR) استقبل_قناة
+                inline constexpr Range CHANNEL_RECV{1, 1};
                 // (AR) أرسل_قناة
                 inline constexpr Range CHANNEL_SEND{2, 2};
+                // (AR) احصل_مستقبل
+                inline constexpr Range FUTURE_GET{1, 1};
                 // (AR) أوف_مستقبل
                 inline constexpr Range FUTURE_OFF{2, 2};
+                // (AR) اقفل
+                inline constexpr Range MUTEX_LOCK{1, 1};
+                // (AR) افتح_قفل
+                inline constexpr Range MUTEX_UNLOCK{1, 1};
+                // (AR) انضم_خيط
+                inline constexpr Range THREAD_JOIN{1, 1};
             } // namespace AsyncAdvanced
 
             namespace Basics
@@ -268,6 +288,12 @@ namespace Sad
                 inline constexpr Range MEM_1{2, 2};
                 // (AR) اكتب_ذاكرة64
                 inline constexpr Range MEM_2{2, 2};
+                // (AR) اقرأ_ذاكرة16
+                inline constexpr Range MEM_3{1, 1};
+                // (AR) اقرأ_ذاكرة32
+                inline constexpr Range MEM_4{1, 1};
+                // (AR) اقرأ_ذاكرة64
+                inline constexpr Range MEM_5{1, 1};
                 // (AR) املأ_ذاكرة32
                 inline constexpr Range MEM_6{3, 3};
                 // (AR) انسخ_ذاكرة32
@@ -628,6 +654,74 @@ namespace Sad
                 inline constexpr Range C_SYSTEM{1, 1};
             } // namespace FFI
 
+            namespace HttpClient
+            {
+                // (AR) احذف_مورد
+                inline constexpr Range DELETE_REQ{2, 2};
+                // (AR) أغلق_متصفح
+                inline constexpr Range FREE_CLIENT{1, 1};
+                // (AR) اجلب
+                inline constexpr Range GET{2, 2};
+                // (AR) هل_نجح
+                inline constexpr Range IS_OK{1, 1};
+                // (AR) سبب_الفشل
+                inline constexpr Range LAST_ERROR{1, 1};
+                // (AR) عدل_مورد
+                inline constexpr Range PATCH{3, 3};
+                // (AR) أرسل
+                inline constexpr Range POST{3, 3};
+                // (AR) استبدل
+                inline constexpr Range PUT{3, 3};
+                // (AR) نص_الرد
+                inline constexpr Range RESP_BODY{1, 1};
+                // (AR) تجاهل_الرد
+                inline constexpr Range RESP_FREE{1, 1};
+                // (AR) معلومة_الرد
+                inline constexpr Range RESP_HEADER{2, 2};
+                // (AR) رمز_الحالة
+                inline constexpr Range RESP_STATUS{1, 1};
+                // (AR) هل_الرد_ناجح
+                inline constexpr Range RESP_SUCCESS{1, 1};
+                // (AR) حدد_الموقع
+                inline constexpr Range SET_BASE_URL{2, 2};
+                // (AR) سجل_دخول_برمز
+                inline constexpr Range SET_BEARER{2, 2};
+                // (AR) أضف_ترويسة
+                inline constexpr Range SET_HEADER{3, 3};
+                // (AR) حدد_الانتظار
+                inline constexpr Range SET_TIMEOUT{2, 2};
+            } // namespace HttpClient
+
+            namespace HttpServer
+            {
+                // (AR) اسمح_بالوصول_الخارجي
+                inline constexpr Range ENABLE_CORS{2, 2};
+                // (AR) أزل_خادم
+                inline constexpr Range FREE_SERVER{1, 1};
+                // (AR) ابدأ_الاستماع
+                inline constexpr Range LISTEN{1, 2};
+                // (AR) أنشئ_خادم
+                inline constexpr Range NEW_SERVER{1, 1};
+                // (AR) عند_طلب_جلب
+                inline constexpr Range ON_GET{3, 3};
+                // (AR) معلومة_الطلب
+                inline constexpr Range REQ_HEADER{1, 1};
+                // (AR) قيمة_من_الرابط
+                inline constexpr Range REQ_QUERY{1, 1};
+                // (AR) عين_نص_الرد
+                inline constexpr Range RESP_SET_BODY{1, 1};
+                // (AR) عين_ترويسة_الرد
+                inline constexpr Range RESP_SET_HEADER{2, 2};
+                // (AR) عين_رد_صفحة
+                inline constexpr Range RESP_SET_HTML{1, 1};
+                // (AR) عين_رد_جيسون
+                inline constexpr Range RESP_SET_JSON{1, 1};
+                // (AR) عين_حالة_الرد
+                inline constexpr Range RESP_SET_STATUS{1, 1};
+                // (AR) أوقف_الخادم
+                inline constexpr Range STOP{1, 1};
+            } // namespace HttpServer
+
             namespace Kernel
             {
                 // (AR) نقل_مباشر_ابدأ
@@ -652,8 +746,12 @@ namespace Sad
 
             namespace KernelCpu
             {
+                // (AR) اقرأ_منفذ16
+                inline constexpr Range CPU_10{1, 1};
                 // (AR) اكتب_منفذ16
                 inline constexpr Range CPU_11{2, 2};
+                // (AR) اقرأ_منفذ32
+                inline constexpr Range CPU_12{1, 1};
                 // (AR) اكتب_منفذ32
                 inline constexpr Range CPU_13{2, 2};
                 // (AR) وافق
@@ -684,10 +782,36 @@ namespace Sad
             {
                 // (AR) حجم_ملف
                 inline constexpr Range FILE_SIZE{1, 1};
+                // (AR) حرف_من_رمز
+                inline constexpr Range FROM_CHAR_CODE{1, 1};
+                // (AR) خريطة_احذف
+                inline constexpr Range MAP_DELETE{2, 2};
+                // (AR) خريطة_اجلب_منطقي
+                inline constexpr Range MAP_FETCH_BOOL{2, 2};
+                // (AR) خريطة_اجلب_رقم
+                inline constexpr Range MAP_FETCH_NUM{2, 2};
+                // (AR) خريطة_اجلب_نص
+                inline constexpr Range MAP_FETCH_STR{2, 2};
+                // (AR) خريطة_احصل
+                inline constexpr Range MAP_GET{2, 3};
+                // (AR) خريطة_تحتوي
+                inline constexpr Range MAP_HAS_KEY{2, 2};
+                // (AR) خريطة_مفاتيح
+                inline constexpr Range MAP_KEYS{1, 1};
+                // (AR) خريطة_عين
+                inline constexpr Range MAP_SET{3, 3};
+                // (AR) خريطة_حجم
+                inline constexpr Range MAP_SIZE{1, 1};
+                // (AR) خريطة_قيم
+                inline constexpr Range MAP_VALUES{1, 1};
                 // (AR) تعبير_مطابقة
                 inline constexpr Range REGEX{2, 3};
                 // (AR) تعبير_بحث
                 inline constexpr Range REGEX_SEARCH{2, 3};
+                // (AR) ازل_تشكيل
+                inline constexpr Range STRIP_DIACRITICS{1, 1};
+                // (AR) زاوج
+                inline constexpr Range ZIP{2, 2};
             } // namespace Maps
 
             namespace Math
@@ -739,6 +863,76 @@ namespace Sad
                 // (AR) اقتطاع
                 inline constexpr Range TRUNCATE{1, 1};
             } // namespace Math
+
+            namespace NetworkUtils
+            {
+                // (AR) حرر_عنوان
+                inline constexpr Range ADDR_FREE{1, 1};
+                // (AR) رقم_الجهاز
+                inline constexpr Range ADDR_IP{1, 1};
+                // (AR) هل_عنوان_قديم
+                inline constexpr Range ADDR_IS_V4{1, 1};
+                // (AR) هل_عنوان_حديث
+                inline constexpr Range ADDR_IS_V6{1, 1};
+                // (AR) عنوان
+                inline constexpr Range ADDR_NEW{2, 2};
+                // (AR) عنوان_حديث
+                inline constexpr Range ADDR_NEW_V6{2, 2};
+                // (AR) رقم_المنفذ
+                inline constexpr Range ADDR_PORT{1, 1};
+                // (AR) العنوان_كنص
+                inline constexpr Range ADDR_STR{1, 1};
+            } // namespace NetworkUtils
+
+            namespace Processes
+            {
+                // (AR) اغلق
+                inline constexpr Range PROC_CLOSE{1, 1};
+                // (AR) افتح_وصفا
+                inline constexpr Range PROC_OPEN_FD{2, 2};
+                // (AR) شغل_برنامجا
+                inline constexpr Range PROC_SPAWN{1, 3};
+                // (AR) انتظر_عملية
+                inline constexpr Range PROC_WAIT{1, 1};
+            } // namespace Processes
+
+            namespace Sockets
+            {
+                // (AR) منفذ_محلي
+                inline constexpr Range LOCAL_PORT{1, 1};
+                // (AR) أرسل_فورا
+                inline constexpr Range NO_DELAY{2, 2};
+                // (AR) حدد_انتظار_الاستقبال
+                inline constexpr Range RECV_TIMEOUT{2, 2};
+                // (AR) حدد_انتظار_الإرسال
+                inline constexpr Range SEND_TIMEOUT{2, 2};
+                // (AR) اقبل_متصل
+                inline constexpr Range TCP_ACCEPT{1, 1};
+                // (AR) خصص_منفذ
+                inline constexpr Range TCP_BIND{2, 2};
+                // (AR) أغلق_وصلة
+                inline constexpr Range TCP_CLOSE{1, 1};
+                // (AR) اتصل_بـ
+                inline constexpr Range TCP_CONNECT{3, 3};
+                // (AR) هل_متصلة
+                inline constexpr Range TCP_CONNECTED{1, 1};
+                // (AR) انتظر_اتصالات
+                inline constexpr Range TCP_LISTEN{1, 2};
+                // (AR) استقبل_عبر_وصلة
+                inline constexpr Range TCP_RECV{1, 2};
+                // (AR) عنوان_الطرف_الآخر
+                inline constexpr Range TCP_REMOTE_ADDR{1, 1};
+                // (AR) أرسل_عبر_وصلة
+                inline constexpr Range TCP_SEND{2, 2};
+                // (AR) خصص_منفذ_رسائل
+                inline constexpr Range UDP_BIND{2, 2};
+                // (AR) أغلق_مرسال
+                inline constexpr Range UDP_CLOSE{1, 1};
+                // (AR) استقبل_رسالة
+                inline constexpr Range UDP_RECV{1, 2};
+                // (AR) أرسل_رسالة
+                inline constexpr Range UDP_SEND{4, 4};
+            } // namespace Sockets
 
             namespace Strings
             {

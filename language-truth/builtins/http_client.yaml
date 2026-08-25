@@ -17,6 +17,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: FREE_CLIENT
+  arity:
+    min: 1
+    max: 1
   canonical: أغلق_متصفح
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -30,6 +33,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: GET
+  arity:
+    min: 2
+    max: 2
   canonical: اجلب
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -43,6 +49,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: POST
+  arity:
+    min: 3
+    max: 3
   canonical: أرسل
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -56,6 +65,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: PUT
+  arity:
+    min: 3
+    max: 3
   canonical: استبدل
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -69,6 +81,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: DELETE_REQ
+  arity:
+    min: 2
+    max: 2
   canonical: احذف_مورد
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -82,6 +97,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: PATCH
+  arity:
+    min: 3
+    max: 3
   canonical: عدل_مورد
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -95,6 +113,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: SET_BASE_URL
+  arity:
+    min: 2
+    max: 2
   canonical: حدد_الموقع
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -108,6 +129,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: SET_HEADER
+  arity:
+    min: 3
+    max: 3
   canonical: أضف_ترويسة
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -121,6 +145,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: SET_TIMEOUT
+  arity:
+    min: 2
+    max: 2
   canonical: حدد_الانتظار
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -134,6 +161,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: SET_BEARER
+  arity:
+    min: 2
+    max: 2
   canonical: سجل_دخول_برمز
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -147,6 +177,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: LAST_ERROR
+  arity:
+    min: 1
+    max: 1
   canonical: سبب_الفشل
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -160,6 +193,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: IS_OK
+  arity:
+    min: 1
+    max: 1
   canonical: هل_نجح
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -173,6 +209,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RESP_FREE
+  arity:
+    min: 1
+    max: 1
   canonical: تجاهل_الرد
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -186,6 +225,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RESP_STATUS
+  arity:
+    min: 1
+    max: 1
   canonical: رمز_الحالة
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -199,6 +241,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RESP_BODY
+  arity:
+    min: 1
+    max: 1
   canonical: نص_الرد
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -212,6 +257,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RESP_HEADER
+  arity:
+    min: 2
+    max: 2
   canonical: معلومة_الرد
   namespace: HttpClient
   category: MODULE_FUNCTION
@@ -225,6 +273,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RESP_SUCCESS
+  arity:
+    min: 1
+    max: 1
   canonical: هل_الرد_ناجح
   namespace: HttpClient
   category: MODULE_FUNCTION

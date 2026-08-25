@@ -62,6 +62,16 @@ _CONSTANT_CALL = re.compile(
 #      الثاني للصيغةِ نفسِها. والقرانُ ههنا صريحٌ في سطرٍ واحد فيُقرأ مباشرةً.
 _TABLE_ROW = re.compile(
     r"\{\s*\w+::(\w+)::(\w+)\s*,[^{}]*?(?:Ar|Sad::Builtins::Arity)::(\w+)::(\w+)\s*\}")
+# (AR) صيغةٌ ثالثةٌ: ذراعٌ واحدةٌ لعدّةِ أسماءٍ **تنتقي** ثابتَ المنادى بشرطٍ ثمّ
+#      تمرّرُ المنتقى. والمداةُ لا تعبرُ الفاصلةَ المنقوطةَ فلا ترى الانتقاءَ،
+#      فتُقرأ عقودُ الإخوةِ **إعلاناتٍ ميّتة** وهي مفروضةٌ باسمِها. والقرانُ
+#      يُقرأ من الرابطِ نفسِه: مرجعٌ يُسنَد إليه ثوابتُ الرتبةِ ثمّ يُمرَّر.
+_SELECTED_CONST = re.compile(
+    r"(?:const\s+auto\s*&|auto\s*&&?)\s*(\w+)\s*=\s*([^;]*?"
+    r"(?:Ar|Sad::Builtins::Arity)::\w+::\w+[^;]*?);")
+_SELECTED_USE = re.compile(_ARITY_HELPER + r"\([^;]*?\b{}\b")
+_CONST_IN_SELECTION = re.compile(
+    r"(?:Ar|Sad::Builtins::Arity)::(\w+)::(\w+)")
 # (AR) صيغةٌ ثالثةٌ للفرض — وهي الأكثرُ عددًا: الرفضُ مكتوبٌ **في الشرطِ نفسِه**
 #      (`if (argResults.size() < 2) { errors_.push_back(…); return …; }`) فالعددُ
 #      لا يُمرَّر إلى حارسٍ بل يسكنُ المقارنة. هذه مواضعُ فرضٍ قائمةٌ فعلًا —
@@ -77,6 +87,12 @@ _INLINE_COMPARE = re.compile(
 #      زائدٍ اختياريّ، وقراءتُها رفضًا هي عينُ الخطأِ الذي اختلق عقدَ
 #      `معرف_المعالج`. والتمييزُ بالمعنى لا بوجودِ `return`.
 _DEFICIENCY_OPS = {"<", "<=", "!="}
+# 🔑 (AR) و`empty()` صيغةٌ ثانيةٌ للنقصِ نفسِه لا تذكرُ `size()` أصلًا، فكانت
+#         الذراعُ الخامسةُ **عمياءَ عنها** — وقِيس تبخّرانِ حقيقيّانِ في
+#         `اقرأ_منفذ16/32` تحتَ خضرةِ الحارس. أداةٌ لا ترى إلّا هجاءً واحدًا
+#         للفعلِ تشهدُ بالسلامةِ حيثُ لم تنظر.
+_EMPTY_COMPARE = re.compile(
+    r"\b(?:argResults|argOperands|args|arguments)\.empty\(\)")
 
 
 def _is_silent_rejection(op: str, block: str) -> bool:
@@ -93,7 +109,14 @@ def _is_silent_rejection(op: str, block: str) -> bool:
     if "std::nullopt" in block:
         return False
     emits = ("instructions.push_back", "SIRInstruction", "emit", "build")
-    return not any(token in block for token in emits)
+    if any(token in block for token in emits):
+        return False
+    # (AR) 🔑 والعودةُ بقيمةٍ **صالحة** عند الفراغِ ليست رفضًا بل افتراضًا:
+    #      `if (args.empty()) return SadTypeKind::Float;` استنتاجُ نوعٍ لا
+    #      رفضُ نداء. التبخّرُ يُعرَف بأثرِه: سجلٌّ **فارغُ الاسمِ** أو عودةٌ
+    #      عارية — وهو ما يجعلُ النداءَ بلا قيمةٍ ولا خطأ.
+    vanishes = ('BuildResult("",', "BuildResult();", "return;")
+    return any(token in block for token in vanishes)
 
 
 def _consequence_body(text: str, start: int) -> str:
@@ -128,6 +151,9 @@ class ArityCheck:
     names: list[tuple[str, str]] = field(default_factory=list)
     literal: tuple[int, int] | None = None
     constant: tuple[str, str] | None = None
+    # (AR) ذراعٌ واحدةٌ لاسمَين تنتقي ثابتَ المنادى بشرطٍ ⇒ الثوابتُ الأخرى في
+    #      النداءِ نفسِه فرضٌ لأصحابِها، وقراءةُ الأوّلِ وحدَه تجعلُ عقدَهم ميّتًا.
+    also_constants: list[tuple[str, str]] = field(default_factory=list)
     # (AR) رفضٌ مكتوبٌ في الشرطِ نفسِه: مفروضٌ فعلًا، بعددٍ خارجَ مصدرِ الحقيقة.
     #      يُفصَل عن `literal` لأنّ ذاك انحدارٌ يجبُ أن يحمرَّ، وهذا دَينٌ مؤرَّخ.
     inline: bool = False
@@ -171,7 +197,21 @@ def arity_checks() -> list[ArityCheck]:
             events.append((m.start(), "literal", lo,
                            int(m.group(2)) if m.group(2) else lo))
         for m in _CONSTANT_CALL.finditer(text):
-            events.append((m.start(), "constant", m.group(1), m.group(2)))
+            # (AR) قد تحملُ وسائطُ النداءِ الواحدِ ثابتَين بشرطٍ ثلاثيٍّ لاسمَين
+            #      اثنين؛ فالقراءةُ لأوّلِهما وحدَه تجعلُ عقدَ الثاني ميّتًا وهو
+            #      محروسٌ باسمِه. تُقرَأ وسائطُ النداءِ كلُّها إلى فاصلتِه المنقوطة.
+            for c in _CONST_IN_SELECTION.finditer(
+                    text[m.start():text.find(";", m.end()) + 1 or m.end()]):
+                events.append((m.start(), "constant", c.group(1), c.group(2)))
+        for m in _SELECTED_CONST.finditer(text):
+            # (AR) لا يُحتسَب الانتقاءُ فرضًا إلّا إن مُرِّرَ المرجعُ فعلًا إلى
+            #      حارسٍ بعدَه — رابطٌ لا يُقرأ ليس حراسة.
+            after = text[m.end():m.end() + 600]
+            if not re.search(_SELECTED_USE.pattern.format(re.escape(m.group(1))),
+                             after):
+                continue
+            for c in _CONST_IN_SELECTION.finditer(m.group(2)):
+                events.append((m.start(), "constant", c.group(1), c.group(2)))
         for m in _INLINE_COMPARE.finditer(text):
             blk = _consequence_body(text, m.end())
             if "errors_.push_back" in blk or "errors_.emplace_back" in blk:
@@ -184,6 +224,18 @@ def arity_checks() -> list[ArityCheck]:
             if _is_silent_rejection(m.group(1), blk):
                 events.append((m.start(), "silent", int(m.group(2)),
                                "cerr" if "std::cerr" in blk else "صامت"))
+        for m in _EMPTY_COMPARE.finditer(text):
+            # (AR) `!empty()` معالجةُ وسيطٍ اختياريٍّ لا رفضًا — والنفيُ يسبقُ
+            #      الاسمَ مباشرةً، فيُقرَأ من الحرفِ الذي قبلَه.
+            if text[max(0, m.start() - 1):m.start()].strip().endswith("!"):
+                continue
+            blk = _consequence_body(text, m.end())
+            if "errors_.push_back" in blk or "errors_.emplace_back" in blk:
+                events.append((m.start(), "inline", 1, None))
+                continue
+            if _is_silent_rejection("<", blk):
+                events.append((m.start(), "silent", 1,
+                               "cerr" if "std::cerr" in blk else "صامت (empty)"))
         # (AR) الموضعُ الواحدُ قد يطابقُ الصيغتين لو تداخلت التعابير؛ الأسبقُ
         #      بدايةً يُحتسَب مرّةً واحدةً بحسبِ موضعِه.
         # (AR) مدخلُ الجدولِ موضعُ فرضٍ قائمٌ بذاتِه: اسمُه ومداه في المدخلِ نفسِه،
@@ -193,6 +245,10 @@ def arity_checks() -> list[ArityCheck]:
                                     line=text[:m.start()].count("\n") + 1,
                                     names=[(m.group(1), m.group(2))],
                                     constant=(m.group(3), m.group(4))))
+        extra_constants: dict[int, list[tuple[str, str]]] = {}
+        for pos, kind, a, b in events:
+            if kind == "constant":
+                extra_constants.setdefault(pos, []).append((str(a), str(b)))
         events.sort(key=lambda e: (e[0], e[1] != "name"))
         pending: list[tuple[str, str]] = []
         seen_positions: set[int] = set()
@@ -232,6 +288,8 @@ def arity_checks() -> list[ArityCheck]:
                 site.literal = (int(a), int(b))
             else:
                 site.constant = (str(a), str(b))
+                site.also_constants = [c for c in extra_constants.get(pos, [])
+                                       if c != site.constant]
             sites.append(site)
             pending = []
     return sites
@@ -246,6 +304,9 @@ def enforced_names() -> set[tuple[str, str]]:
     guarded: set[tuple[str, str]] = set()
     for site in arity_checks():
         if not site.inline and not site.silent:
+            guarded.update(site.also_constants)
+            if site.constant:
+                guarded.add(site.constant)
             guarded.update(site.names)
     return guarded
 

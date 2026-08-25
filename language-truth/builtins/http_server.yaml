@@ -4,6 +4,9 @@ description_ar: وحدة شبكة خادم HTTP (19 دالة)
 description_en: HTTP server module (19 functions)
 functions:
 - cpp_id: NEW_SERVER
+  arity:
+    min: 1
+    max: 1
   canonical: أنشئ_خادم
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -17,6 +20,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: FREE_SERVER
+  arity:
+    min: 1
+    max: 1
   canonical: أزل_خادم
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -30,6 +36,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ON_GET
+  arity:
+    min: 3
+    max: 3
   canonical: عند_طلب_جلب
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -82,6 +91,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: LISTEN
+  arity:
+    min: 1
+    max: 2
   canonical: ابدأ_الاستماع
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -95,6 +107,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: STOP
+  arity:
+    min: 1
+    max: 1
   canonical: أوقف_الخادم
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -108,6 +123,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: ENABLE_CORS
+  arity:
+    min: 2
+    max: 2
   canonical: اسمح_بالوصول_الخارجي
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -160,6 +178,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: REQ_HEADER
+  arity:
+    min: 1
+    max: 1
   canonical: معلومة_الطلب
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -173,6 +194,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: REQ_QUERY
+  arity:
+    min: 1
+    max: 1
   canonical: قيمة_من_الرابط
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -186,6 +210,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RESP_SET_STATUS
+  arity:
+    min: 1
+    max: 1
   canonical: عين_حالة_الرد
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -199,6 +226,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RESP_SET_BODY
+  arity:
+    min: 1
+    max: 1
   canonical: عين_نص_الرد
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -212,6 +242,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RESP_SET_JSON
+  arity:
+    min: 1
+    max: 1
   canonical: عين_رد_جيسون
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -225,6 +258,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RESP_SET_HTML
+  arity:
+    min: 1
+    max: 1
   canonical: عين_رد_صفحة
   namespace: HttpServer
   category: MODULE_FUNCTION
@@ -238,6 +274,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: RESP_SET_HEADER
+  arity:
+    min: 2
+    max: 2
   canonical: عين_ترويسة_الرد
   namespace: HttpServer
   category: MODULE_FUNCTION

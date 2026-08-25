@@ -160,6 +160,9 @@ namespace Sad
                 // 4. ذعر / panic - إيقاف طارئ مع رسالة خطأ
                 if (funcName == Bn::Assertions::PANIC)
                 {
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Assertions::PANIC, argOperands.size()))
+                        return BuildResult("", SadTypeKind::Void);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_PANIC);
                     if (!argOperands.empty())
                     {

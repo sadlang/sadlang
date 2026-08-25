@@ -29,7 +29,13 @@
 #include <vector>
 
 #include "builtin_registry.h"
+#include "builders/builtin_arity_check.h"
 namespace Bn = Sad::Builtins::Names;
+
+// (AR) رتبةُ المدمجِ من حقلِ `arity` في مصدرِ الحقيقةِ — ثابتٌ مُولَّدٌ لا رقمٌ
+//      يُكتَب. وكانت ههنا أربعةُ ثوابتَ محلّيّةٍ (`kArityMapOnly` وأخواتُها)
+//      تحملُ العددَ نسخةً ثانيةً لا يقيسُها أحد.
+namespace Ar = Sad::Builtins::Arity;
 
 namespace Sad
 {
@@ -39,13 +45,6 @@ namespace Sad
         {
             namespace
             {
-                // (AR) أدنى عددِ وسائطَ لكلِّ شكلٍ من أشكالِ النداء — أسماءٌ بدل أرقامٍ عارية.
-                // (EN) Minimum argument count per call shape — named instead of bare numbers.
-                constexpr size_t kArityMapOnly = 1;
-                constexpr size_t kArityMapAndKey = 2;
-                constexpr size_t kArityMapKeyValue = 3;
-                constexpr size_t kArityTextOnly = 1;
-
                 // (AR) مواضعُ الوسائطِ في نداءِ الواجهةِ المسمّاة.
                 // (EN) Argument positions in a named-interface call.
                 constexpr size_t kArgMap = 0;
@@ -175,8 +174,9 @@ namespace Sad
                 // ────────────────────────────────────────────────────────────
                 if (funcName == Bn::Maps::MAP_SIZE)
                 {
-                    if (argResults.size() < kArityMapOnly)
-                        return std::nullopt;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Maps::MAP_SIZE, argResults.size()))
+                        return BuildResult("", SadTypeKind::Integer);
                     BuildResult result = emitRuntimeCall(
                         kRuntimeMapSize, {kArgMap}, SadTypeKind::Integer, "maps: size");
                     result.isDirectValue = true;
@@ -189,8 +189,9 @@ namespace Sad
                 // ────────────────────────────────────────────────────────────
                 if (funcName == Bn::Maps::MAP_HAS_KEY)
                 {
-                    if (argResults.size() < kArityMapAndKey)
-                        return std::nullopt;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Maps::MAP_HAS_KEY, argResults.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
                     BuildResult result = emitRuntimeCall(
                         kRuntimeMapHas, {kArgMap, kArgKey}, SadTypeKind::Boolean, "maps: has key");
                     result.isDirectValue = true;
@@ -223,8 +224,9 @@ namespace Sad
                 // ────────────────────────────────────────────────────────────
                 if (funcName == Bn::Maps::MAP_DELETE)
                 {
-                    if (argResults.size() < kArityMapAndKey)
-                        return std::nullopt;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Maps::MAP_DELETE, argResults.size()))
+                        return BuildResult("", SadTypeKind::Boolean);
 
                     SIROperand copyOperand = emitMapCopy();
                     SIRInstruction inst(SIROpcode::CALL);
@@ -247,9 +249,15 @@ namespace Sad
                 // ────────────────────────────────────────────────────────────
                 if (funcName == Bn::Maps::MAP_KEYS || funcName == Bn::Maps::MAP_VALUES)
                 {
-                    if (argResults.size() < kArityMapOnly)
-                        return std::nullopt;
                     const bool wantsKeys = (funcName == Bn::Maps::MAP_KEYS);
+                    // (AR) ذراعٌ واحدةٌ لاسمَين ⇒ الرتبةُ تُقرأ من ثابتِ **الاسمِ
+                    //      المنادى** لا من أحدِهما، وإلّا صار عقدُ «خريطة_قيم»
+                    //      إعلانًا ميّتًا يحرسه ثابتُ غيرِه.
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           wantsKeys ? Ar::Maps::MAP_KEYS
+                                                     : Ar::Maps::MAP_VALUES,
+                                           argResults.size()))
+                        return BuildResult("", SadTypeKind::Array);
                     BuildResult result = emitRuntimeCall(
                         wantsKeys ? kRuntimeMapKeys : kRuntimeMapValues,
                         {kArgMap}, SadTypeKind::Array,
@@ -278,14 +286,15 @@ namespace Sad
                 // ────────────────────────────────────────────────────────────
                 if (funcName == Bn::Maps::MAP_GET)
                 {
-                    if (argResults.size() < kArityMapAndKey)
-                        return std::nullopt;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Maps::MAP_GET, argResults.size()))
+                        return BuildResult("", SadTypeKind::Any);
                     // (AR) الوسيطُ الثالثُ اختياريٌّ: قيمةٌ افتراضيّةٌ تُرجَعُ عندَ غيابِ
                     //      المفتاح (وبدونِه يُرجَعُ «لاشيء») — كما في المفسّر.
                     // (EN) The third argument is optional: a default returned when the
                     //      key is absent (without it, «لاشيء») — as in the interpreter.
                     std::vector<size_t> callArgs = {kArgMap, kArgKey};
-                    if (argResults.size() >= kArityMapKeyValue)
+                    if (argResults.size() >= Ar::Maps::MAP_GET.max)
                         callArgs.push_back(kArgDefault);
                     BuildResult result = emitRuntimeCall(
                         kRuntimeMapGetDyn, callArgs, SadTypeKind::Any, "maps: get (tagged)");
@@ -320,13 +329,16 @@ namespace Sad
                     // (EN) Arity is exactly two: a third argument was silently swallowed
                     //      compiled while the interpreter rejects it (measured). The
                     //      contract forbids a third default — «؟؟» is the only path.
-                    if (argResults.size() != kArityMapAndKey)
-                    {
-                        b_.errors_.push_back(
-                            std::string("Error: ") + funcName +
-                            " تقبل وسيطَين حصرًا (خريطة، مفتاح) — لا وسيطَ بديلًا ثالثًا، التحصيلُ بـ«؟؟»");
-                        return BuildResult();
-                    }
+                    //      🔑 وكان العددُ ههنا ثابتًا محلّيًّا ورسالتُه نصًّا مكتوبًا
+                    //      باليد — نسختان ثانيتان للحقيقةِ لا يقيسُهما أحد. الرتبةُ
+                    //      الآن من مصدرِ الحقيقةِ لكلِّ اسمٍ من الثلاثةِ باسمِه.
+                    const auto &fetchArity =
+                        funcName == Bn::Maps::MAP_FETCH_NUM  ? Ar::Maps::MAP_FETCH_NUM
+                        : funcName == Bn::Maps::MAP_FETCH_BOOL ? Ar::Maps::MAP_FETCH_BOOL
+                                                               : Ar::Maps::MAP_FETCH_STR;
+                    if (!checkBuiltinArity(b_.errors_, funcName, fetchArity,
+                                           argResults.size()))
+                        return BuildResult("", SadTypeKind::Any);
                     // (AR) resultKind واحدٌ (Any) للثلاثة — قناةُ الغيابِ خارجَ النطاقِ
                     //      البِتّيّ حصرًا (انظر بيانَ التصادمِ أعلاه).
                     // (EN) One resultKind (Any) for all three — the absence channel is
@@ -361,8 +373,9 @@ namespace Sad
                 // ────────────────────────────────────────────────────────────
                 if (funcName == Bn::Maps::MAP_SET)
                 {
-                    if (argResults.size() < kArityMapKeyValue)
-                        return std::nullopt;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Maps::MAP_SET, argResults.size()))
+                        return BuildResult("", SadTypeKind::Map);
 
                     const int64_t valueTag = mapValueTagFor(argResults[kArgValue].type);
 
@@ -391,8 +404,9 @@ namespace Sad
                 // ────────────────────────────────────────────────────────────
                 if (funcName == Bn::Maps::STRIP_DIACRITICS)
                 {
-                    if (argResults.size() < kArityTextOnly)
-                        return std::nullopt;
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::Maps::STRIP_DIACRITICS, argResults.size()))
+                        return BuildResult("", SadTypeKind::String);
                     return emitRuntimeCall(
                         kRuntimeStripDiacritics, {kArgText}, SadTypeKind::String,
                         "maps: strip diacritics");
