@@ -104,33 +104,68 @@ class Verdict:
     COMPILER_MISSING = "المترجّم_لا_يبنيه"
 
 
-def read_string_methods(sot_path: Path) -> list[str]:
+def read_string_methods(sot_path: Path) -> list[dict[str, object]]:
     """
-    (AR) يقرأُ أسماءَ الطرائقِ النصّيّةِ من مصدرِ الحقيقة. القراءةُ سطريّةٌ عمدًا
-         (لا PyYAML) لأنّ بقيّةَ حرّاسِ المستودعِ لا تفترضُ حزمةً خارجيّة.
-    (EN) Reads string method names from the SoT; line-wise on purpose (no PyYAML
-         dependency, matching the repo's other guards).
+    (AR) يقرأُ الطرائقَ النصّيّةَ من مصدرِ الحقيقةِ باسمِها **ورتبتِها**. القراءةُ
+         سطريّةٌ عمدًا (لا PyYAML) لأنّ بقيّةَ حرّاسِ المستودعِ لا تفترضُ حزمةً
+         خارجيّة.
+
+    (AR) 🔑 والرتبةُ ليست زينةً ههنا: مُكتشِفُ الصيغِ كان يسألُ **المفسّرَ**
+         أيُّ صيغةٍ تصحّ، والمفسّرُ متساهلٌ يبتلعُ الوسائطَ الزائدةَ صامتًا —
+         فكان الحارسُ يقيسُ ٤٢ صيغةً ليست من اللغةِ أصلًا (`.عكس(٠، ١)` لطريقةٍ
+         رتبتُها صفر). ولمّا صار المترجّمُ يفرضُ الرتبةَ انقلبت تلك الصيغُ
+         «لا يبنيها المترجّم» فاحمرَّ الحارسُ على **صوابٍ** لا عطب. والمحرّكُ
+         المتساهلُ مِعيارٌ رديءٌ لِما يصحّ؛ الصوابُ يُشتقُّ من مصدرِ الحقيقة.
+    (EN) Reads string methods with their arity; line-wise on purpose. The arity is
+         load-bearing: shape discovery used to ask the permissive interpreter what
+         is valid, so 42 out-of-arity shapes were being measured as if they were
+         language. Validity comes from the SoT, not from the lenient engine.
     """
     if not sot_path.exists():
         raise SystemExit(f"❌ مصدرُ الحقيقةِ مفقود / SoT missing: {sot_path}")
 
     text = sot_path.read_text(encoding="utf-8")
-    methods: list[str] = []
+    methods: list[dict[str, object]] = []
+    seen: set[str] = set()
     current: str | None = None
+    minimum: int | None = None
+    maximum: int | None = None
+    variadic = False
     for raw in text.splitlines():
         line = raw.strip()
         if line.startswith("- target:"):
-            current = None
+            current, minimum, maximum, variadic = None, None, None, False
         matched = re.match(r"^-?\s*method:\s*(\S+)\s*$", line)
         if matched:
             current = matched.group(1)
+            minimum, maximum, variadic = None, None, False
             continue
+        if current is not None:
+            if re.match(r"^min:\s*(\d+)$", line):
+                minimum = int(line.split(":", 1)[1])
+            elif re.match(r"^max:\s*(\d+)$", line):
+                maximum = int(line.split(":", 1)[1])
+            elif line == "variadic: true":
+                variadic = True
         if line.startswith("target_type:") and current is not None:
             if line.split(":", 1)[1].strip() == SOT_TARGET_TYPE_STRING:
-                if current not in methods:
-                    methods.append(current)
-            current = None
+                if current not in seen:
+                    seen.add(current)
+                    methods.append({
+                        "name": current,
+                        # (AR) بلا رتبةٍ مُعلَنةٍ لا يُخترَعُ حدّ: تُقاسُ كلُّ الصيغِ
+                        #      كما كان قبلَ هذا الحارس. الأداةُ لا تخترعُ عقدًا.
+                        "min": minimum,
+                        "max": None if variadic else maximum,
+                        "declared": minimum is not None,
+                    })
+            current, minimum, maximum, variadic = None, None, None, False
     return methods
+
+
+def shape_arity(shape: str) -> int:
+    """(AR) عددُ وسائطِ صيغةٍ نصّيّة. / (EN) Argument count of a call shape."""
+    return 0 if not shape.strip() else shape.count("،") + 1
 
 
 def run_program(binary: Path, source: Path, extra: list[str] | None = None) -> tuple[int, str]:
@@ -201,24 +236,43 @@ def program_output(output: str) -> str:
     return "\n".join(kept)
 
 
-def discover_call_shapes(interpreter: Path, method: str, workdir: Path) -> list[str]:
+def discover_call_shapes(
+    interpreter: Path, method: dict[str, object], workdir: Path
+) -> list[str]:
     """
-    (AR) يكتشفُ صيغَ النداءِ بالقياس: **كلَّ** صيغةٍ تنجحُ على نصٍّ حقيقيّ، لا أوّلَها.
+    (AR) يكتشفُ صيغَ النداءِ بالقياس: **كلَّ** صيغةٍ تنجحُ على نصٍّ حقيقيّ، لا أوّلَها —
+         من بينِ ما تسمحُ به الرتبةُ المُعلَنةُ في مصدرِ الحقيقة. فالمفسّرُ يُسأَلُ
+         عن الأنواعِ لا عن العدد: هو متساهلٌ في العددِ فلا يصلحُ مِعيارًا له.
          والقائمةُ الفارغةُ تعني أنّ اللغةَ لا تعرفُ هذه الطريقةَ اليومَ أصلًا.
-    (EN) Measures EVERY working call shape; an empty list means the method does not
-         exist in the language today.
+    (EN) Measures EVERY working call shape within the SoT-declared arity. The
+         interpreter is asked about types, not counts — it is lenient about counts.
     """
+    name = str(method["name"])
+    minimum = method["min"]
+    maximum = method["max"]
     shapes: list[str] = []
+    lenient: list[str] = []
     for shape in ARGUMENT_SHAPES:
+        count = shape_arity(shape)
+        out_of_arity = ((minimum is not None and count < int(minimum))
+                        or (maximum is not None and count > int(maximum)))
         source = workdir / f"shape_{uuid.uuid4().hex[:8]}.ص"
         source.write_text(
-            REAL_SUBJECT_PROGRAM.format(subject=PROBE_SUBJECT, method=method, args=shape),
+            REAL_SUBJECT_PROGRAM.format(subject=PROBE_SUBJECT, method=name, args=shape),
             encoding="utf-8",
         )
         code, _ = run_program(interpreter, source)
         source.unlink(missing_ok=True)
-        if code == 0:
-            shapes.append(shape)
+        if code != 0:
+            continue
+        # (AR) صيغةٌ خارجَ الرتبةِ يقبلُها المفسّرُ **تباعدٌ قائم** لا شيءٌ يُحذَف:
+        #      المترجّمُ يفرضُ رتبةَ طرائقِ الأنواعِ والمفسّرُ لا يفرضُها بعدُ.
+        #      تُعَدُّ وتُعلَنُ ولا تُقاسُ عليها الأحكام — إذ ليست من اللغة.
+        # (EN) An out-of-arity shape the interpreter accepts is a live divergence,
+        #      not something to delete: the compiler enforces type-method arity and
+        #      the interpreter does not yet. Counted and named, never judged upon.
+        (lenient if out_of_arity else shapes).append(shape)
+    method["lenient"] = lenient
     return shapes
 
 
@@ -321,16 +375,17 @@ def probe_shape(
 
 
 def probe_method(
-    interpreter: Path, compiler: Path, method: str, workdir: Path
+    interpreter: Path, compiler: Path, method: dict[str, object], workdir: Path
 ) -> list[dict[str, object]]:
     """
     (AR) يقيسُ **كلَّ** صيغِ نداءِ الطريقةِ التي تصحُّ في اللغة، لا صيغةً منها.
     (EN) Measures EVERY valid call shape of the method, not one of them.
     """
+    name = str(method["name"])
     shapes = discover_call_shapes(interpreter, method, workdir)
     if not shapes:
-        return [{"port": f".{method}()", "verdict": Verdict.NOT_IN_LANGUAGE, "detail": ""}]
-    return [probe_shape(interpreter, compiler, method, shape, workdir) for shape in shapes]
+        return [{"port": f".{name}()", "verdict": Verdict.NOT_IN_LANGUAGE, "detail": ""}]
+    return [probe_shape(interpreter, compiler, name, shape, workdir) for shape in shapes]
 
 
 def resolve_binary(build_dir: Path, stem: str) -> Path:
@@ -368,9 +423,17 @@ def main() -> int:
         print("❌ لم تُقرأ أيُّ طريقةٍ نصّيّةٍ من مصدرِ الحقيقة — القارئُ مكسور.")
         return 1
 
-    print(f"🔍 طرائقُ العائلةِ من مصدرِ الحقيقة: {len(methods)}")
+    # (AR) ما لا رتبةَ له يُعَدُّ ويُذكَر: صمتُ الأداةِ عمّا لم تحدَّهُ يُقرأ
+    #      «حُدَّ الكلُّ»، وهو عينُ الادّعاءِ الذي تحرسُ منه هذه الأداة.
+    # (EN) Methods without a declared arity are counted and named, never silent.
+    undeclared = [str(m["name"]) for m in methods if not m["declared"]]
+    print(f"🔍 طرائقُ العائلةِ من مصدرِ الحقيقة: {len(methods)}"
+          f" · بلا رتبةٍ مُعلَنة: {len(undeclared)}")
     print(f"   المفسّر:  {interpreter}")
     print(f"   المترجّم: {compiler}")
+    if undeclared:
+        print("   بلا حدٍّ من مصدرِ الحقيقة (تُقاسُ صيغُها كلُّها): "
+              + "، ".join(undeclared))
     print("")
 
     marks = {
@@ -399,6 +462,9 @@ def main() -> int:
     print("═" * 70)
     print(f"  متطابق: {len(matched)}   متباعد: {len(divergent)}")
     print(f"  خارجَ اللغةِ اليوم: {len(unsupported)}   لا يبنيه المترجّم: {len(uncompiled)}")
+    lenient_total = sum(len(m.get("lenient", [])) for m in methods)
+    if lenient_total:
+        print(f"  يقبلُها المفسّرُ خارجَ الرتبةِ المُعلَنة: {lenient_total} صيغة")
     print("═" * 70)
 
     # (AR) ما لم يُقَس يُذكَر: بوّابةٌ تصمتُ عمّا أسقطته تُقرأ «غطّيتُ الكلَّ».
