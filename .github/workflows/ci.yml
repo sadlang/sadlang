@@ -67,7 +67,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: "📥 تحميل الكود / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
         with:
           submodules: recursive
@@ -217,7 +217,7 @@ jobs:
 
     steps:
       - name: "📥 تحميل الكود / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
         with:
           submodules: recursive
@@ -324,7 +324,7 @@ jobs:
 
     steps:
       - name: "📥 تحميل الكود / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
         with:
           submodules: recursive
@@ -370,7 +370,7 @@ jobs:
       - name: "📦 استرجاعُ خبيئةِ LLVM (Release فقط) / Restore LLVM cache"
         if: matrix.config == 'Release'
         id: llvm-toolchain-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         timeout-minutes: 15
         with:
           path: C:\LLVM
@@ -587,7 +587,7 @@ jobs:
 
       - name: "📦 حفظُ خبيئةِ LLVM / Save LLVM cache"
         if: matrix.config == 'Release' && steps.llvm-toolchain-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         # (AR) م-٤: الخبيئةُ تسريعٌ لا شرطُ صحّة. إخفاقُ حفظٍ (حصّةٌ أو سباقٌ
         #      على المفتاحِ نفسِه) كان يقتل وظيفةً بناؤها واختباراتُها ناجحة —
         #      أي حمرةٌ لا تدلُّ على عطبٍ في الكود. والشرطُ الضمنيُّ باقٍ:
@@ -667,7 +667,7 @@ jobs:
       #      inherits the right condition: a failed build never gets cached.
       - name: "📦 استرجاعُ خبيئةِ البناء / Restore CMake build cache"
         id: win-build-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         timeout-minutes: 15
         with:
           path: build
@@ -746,7 +746,7 @@ jobs:
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
       - name: "📦 حفظُ خبيئةِ البناء / Save CMake build cache"
         if: steps.win-build-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         # (AR) م-٤: الخبيئةُ تسريعٌ لا شرطُ صحّة. إخفاقُ حفظٍ (حصّةٌ أو سباقٌ
         #      على المفتاحِ نفسِه) كان يقتل وظيفةً بناؤها واختباراتُها ناجحة —
         #      أي حمرةٌ لا تدلُّ على عطبٍ في الكود. والشرطُ الضمنيُّ باقٍ:
@@ -1191,7 +1191,7 @@ jobs:
           Write-Host "✅ Burn-in نظيف لكل الاختبارات الجديدة" -ForegroundColor Green
 
       - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         timeout-minutes: 15
         with:
           name: sad-windows-${{ matrix.config }}
@@ -1222,7 +1222,7 @@ jobs:
 
     steps:
       - name: "📥 تحميل الكود / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
         with:
           submodules: recursive
@@ -1283,7 +1283,7 @@ jobs:
       #      inherits the right condition: a failed build never gets cached.
       - name: "📦 استرجاعُ خبيئةِ البناء / Restore CMake build cache"
         id: linux-build-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         timeout-minutes: 15
         with:
           path: build
@@ -1321,7 +1321,7 @@ jobs:
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
       - name: "📦 حفظُ خبيئةِ البناء / Save CMake build cache"
         if: steps.linux-build-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         # (AR) م-٤: الخبيئةُ تسريعٌ لا شرطُ صحّة. إخفاقُ حفظٍ (حصّةٌ أو سباقٌ
         #      على المفتاحِ نفسِه) كان يقتل وظيفةً بناؤها واختباراتُها ناجحة —
         #      أي حمرةٌ لا تدلُّ على عطبٍ في الكود. والشرطُ الضمنيُّ باقٍ:
@@ -1752,7 +1752,7 @@ jobs:
             "${COMPILER_ARG[@]}"
 
       - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         timeout-minutes: 15
         with:
           name: sad-linux-${{ matrix.config }}
@@ -1780,7 +1780,7 @@ jobs:
 
     steps:
       - name: "📥 تحميل الكود / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
         with:
           submodules: recursive
@@ -1815,7 +1815,7 @@ jobs:
       #      inherits the right condition: a failed build never gets cached.
       - name: "📦 استرجاعُ خبيئةِ البناء / Restore CMake build cache"
         id: macos-build-cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         timeout-minutes: 15
         with:
           path: build
@@ -1841,7 +1841,7 @@ jobs:
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
       - name: "📦 حفظُ خبيئةِ البناء / Save CMake build cache"
         if: steps.macos-build-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         # (AR) م-٤: الخبيئةُ تسريعٌ لا شرطُ صحّة. إخفاقُ حفظٍ (حصّةٌ أو سباقٌ
         #      على المفتاحِ نفسِه) كان يقتل وظيفةً بناؤها واختباراتُها ناجحة —
         #      أي حمرةٌ لا تدلُّ على عطبٍ في الكود. والشرطُ الضمنيُّ باقٍ:
@@ -2124,7 +2124,7 @@ jobs:
           fi
           echo "✅ سجلُّ الحمرة على ماك: PASS"
       - name: "💾 حفظ الملفات التنفيذيّة / Upload Artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         timeout-minutes: 15
         with:
           name: sad-macos-${{ matrix.config }}

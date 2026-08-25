@@ -35,7 +35,7 @@ jobs:
     # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ ٠٫٢د — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
     timeout-minutes: 15
     steps:
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         timeout-minutes: 15
         with:
           python-version: "3.12"

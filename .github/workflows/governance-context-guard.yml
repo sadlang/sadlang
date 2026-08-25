@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: "📥 تحميل الكود / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
 
       # ── (1) سقف حجم النواة النحيلة ───────────────────────────────────
@@ -62,7 +62,7 @@ jobs:
 
       # ── (2) طزاجة الـDigest ─────────────────────────────────────────
       - name: "🐍 تثبيت Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         timeout-minutes: 15
         with:
           python-version: "3.x"

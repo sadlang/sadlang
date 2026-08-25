@@ -100,11 +100,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: 📥 تحميل الكود / Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
 
       - name: 🐍 تهيئة پايثون / Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         timeout-minutes: 15
         with:
           python-version: '3.12'
@@ -135,11 +135,11 @@ jobs:
           - { os: windows-latest, label: '🪟 Windows' }
     steps:
       - name: 📥 تحميل الكود / Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
 
       - name: 🐍 تهيئة پايثون / Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         timeout-minutes: 15
         with:
           python-version: '3.12'
@@ -210,7 +210,7 @@ jobs:
       #      العدّاءِ فتضيعُ حيث تلزمُ أكثرَ ما تلزم.
       - name: 📤 رفعُ اللقطاتِ الفعليّةِ عند الفشل / Upload actual snapshots
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         timeout-minutes: 15
         with:
           name: pixel-actual-${{ matrix.os }}

@@ -80,7 +80,7 @@ jobs:
 
     steps:
       - name: "استنساخ المصدر / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
         with:
           submodules: recursive
@@ -194,7 +194,7 @@ jobs:
           echo "ARCHIVE=${PKG_DIR}.zip" >> $env:GITHUB_ENV
 
       - name: "رفع الحزمة / Upload Artifact"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         timeout-minutes: 15
         with:
           name: "sad-interpreter-${{ matrix.os }}-${{ matrix.arch }}"
@@ -231,7 +231,7 @@ jobs:
 
     steps:
       - name: "استنساخ المصدر / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
         with:
           submodules: recursive
@@ -438,7 +438,7 @@ jobs:
           echo "FULL_ARCHIVE=${FULL_DIR}.zip" >> $env:GITHUB_ENV
 
       - name: "رفع حزمة المترجم / Upload Compiler"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         timeout-minutes: 15
         with:
           name: "sadc-${{ matrix.os }}-${{ matrix.arch }}"
@@ -447,7 +447,7 @@ jobs:
           retention-days: 5
 
       - name: "رفع الحزمة الكاملة / Upload Full"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         timeout-minutes: 15
         with:
           name: "sad-full-${{ matrix.os }}-${{ matrix.arch }}"
@@ -469,7 +469,7 @@ jobs:
 
     steps:
       - name: "استنساخ المصدر / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
 
       - name: "تحديد الإصدار / Determine Version"
@@ -484,7 +484,7 @@ jobs:
           fi
 
       - name: "تحميل جميع الحزم / Download All Artifacts"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         timeout-minutes: 15
         with:
           path: release-artifacts/
@@ -565,7 +565,7 @@ jobs:
           NOTES
 
       - name: "نشر الإصدار / Create GitHub Release"
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         timeout-minutes: 15
         with:
           tag_name: ${{ steps.version.outputs.tag }}
@@ -591,7 +591,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         timeout-minutes: 15
         with:
           ref: main

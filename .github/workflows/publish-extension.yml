@@ -40,11 +40,11 @@ jobs:
     
     steps:
       - name: "📥 تحميل الكود / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
 
       - name: "📦 تهيئة Node.js / Setup Node.js"
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         timeout-minutes: 15
         with:
           node-version: '20'
@@ -70,7 +70,7 @@ jobs:
           echo "VSIX_PATH=$(ls *.vsix)" >> $GITHUB_ENV
 
       - name: "💾 رفع VSIX / Upload VSIX Artifact"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         timeout-minutes: 15
         with:
           name: sad-language-vsix
@@ -90,11 +90,11 @@ jobs:
     
     steps:
       - name: "📥 تحميل الكود / Checkout"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         timeout-minutes: 15
 
       - name: "📦 تهيئة Node.js / Setup Node.js"
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         timeout-minutes: 15
         with:
           node-version: '20'
