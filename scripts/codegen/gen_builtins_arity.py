@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -35,6 +36,8 @@ HEADER = """// =================================================================
 #pragma once
 
 #include <cstddef>
+#include <cstring>
+#include <string>
 
 namespace Sad
 {
@@ -43,11 +46,17 @@ namespace Sad
         namespace Arity
         {
             /// (AR) مدًى مغلقٌ لعددِ الوسائطِ المقبول. (EN) Closed argument-count range.
+            /// (AR) والرتبةُ المفتوحةُ أعلاها (`variadic: true` في مصدرِ الحقيقة)
+            ///      تُخفَّض بأقصى ما يسعُه العدّاد: الحدُّ قائمٌ شكلًا ولا يمنعُ نداءً
+            ///      صحيحًا، فيبقى فاحصُ الرتبةِ واحدًا لا فرعَ فيه.
             struct Range
             {
                 std::size_t min;
                 std::size_t max;
             };
+
+            /// (AR) لا حدَّ أعلى. (EN) No upper bound.
+            inline constexpr std::size_t UNBOUNDED = static_cast<std::size_t>(-1);
 
 """
 
@@ -57,21 +66,99 @@ FOOTER = """        } // namespace Arity
 """
 
 
-def collect(sot_dir: Path) -> dict[str, list[tuple[str, int, int, str]]]:
+
+# (AR) طرائقُ الأنواع (`م.عين(ك، ق)`) سطحٌ ثانٍ لا يقلُّ عن المدمجاتِ خطرًا:
+#      قِيس تبخّرُ `خ.عين("ك")` صامتًا. ومعرِّفاتُها تُشتَقُّ من `method_en`
+#      بالخوارزميّةِ **نفسِها** التي يستعملها مولِّدُ الأسماء، وإلّا سمّى كلُّ
+#      مولِّدٍ الشيءَ باسم — وهو انحرافٌ لا يحمرُّ.
+TYPE_METHODS = ROOT / "language-truth" / "type_methods.yaml"
+_TARGET_LABEL = {"ARRAY": "Array", "STRING": "String", "MAP": "Map",
+                 "CHANNEL": "Channel", "ANY": "Any"}
+
+
+def _method_cpp_id(method: dict, used: dict[str, int]) -> str:
+    base = re.sub(r"[^a-zA-Z0-9]", "_", str(method.get("method_en", ""))).upper().strip("_")
+    if not base or base[0].isdigit() or not any(c.isalpha() for c in base):
+        base = "METHOD"
+    if base not in used:
+        used[base] = 1
+        return base
+    count = used[base]
+    used[base] = count + 1
+    return f"{base}_{count}"
+
+
+# (AR) الأنواعُ التي تُفرَضُ رتبتُها في موضعِ الإرسالِ الواحد. و«أي» **مستثناةٌ
+#      عن قياس**: طرائقُها تتصادمُ بالهجاءِ مع طرائقِ الأنواعِ المحدَّدة برتبٍ
+#      مختلفة (`عين` للخريطةِ ٢ ولِـ«مستقبل» ١)، ونوعُ المستقبِلِ الحقيقيُّ
+#      مجهولٌ عند التصريف — ففرضُ عقدٍ هناك يردُّ نداءً صحيحًا. تُعلَنُ رتبتُها
+#      ولا تُفرَض، وذلك مصرَّحٌ به لا مسكوتٌ عنه.
+#      ولا «قناة» كذلك: لا وسمَ لها في `SadTypeKind` فلا يبلغُها موضعُ الإرسال.
+#      ووجودُ صفٍّ لا يستطيعُ أحدٌ الوصولَ إليه يُقرأُ حراسةً وليس بحراسة.
+_ENFORCED_TARGETS = ("ARRAY", "STRING", "MAP")
+
+
+def collect_lookup(path: Path) -> list[tuple[str, str, int, str]]:
+    """(AR) [(الهدف، الاسم، الأدنى، الأعلى)] لكلِّ هجاءٍ يُنادى به."""
+    if not path.exists():
+        return []
+    doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    rows: list[tuple[str, str, int, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for method in doc.get("methods") or []:
+        target = method.get("target_type", "ANY")
+        arity = method.get("arity")
+        if target not in _ENFORCED_TARGETS or not arity:
+            continue
+        top = "UNBOUNDED" if arity.get("variadic") else str(int(arity["max"]))
+        for spelling in (method.get("method"), method.get("method_en")):
+            if not spelling or (target, spelling) in seen:
+                continue
+            seen.add((target, spelling))
+            rows.append((target, str(spelling), int(arity["min"]), top))
+    return rows
+
+
+def collect_type_methods(path: Path) -> dict[str, list[tuple[str, int, str, str]]]:
+    """(AR) {الهدف: [(المعرّف، الأدنى، الأعلى، الاسمُ العربيّ)]} لِما له `arity`."""
+    if not path.exists():
+        return {}
+    doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    by_target: dict[str, list[dict]] = {}
+    for method in doc.get("methods") or []:
+        by_target.setdefault(method.get("target_type", "ANY"), []).append(method)
+    table: dict[str, list[tuple[str, int, str, str]]] = {}
+    for target, methods in by_target.items():
+        used: dict[str, int] = {}
+        for method in methods:
+            cpp_id = _method_cpp_id(method, used)  # (AR) يُستهلَك للجميعِ لِيتطابقَ الترقيم
+            arity = method.get("arity")
+            if not arity:
+                continue
+            top = "UNBOUNDED" if arity.get("variadic") else str(int(arity["max"]))
+            table.setdefault(_TARGET_LABEL.get(target, target), []).append(
+                (cpp_id, int(arity["min"]), top, method["method"]))
+    return table
+
+
+def collect(sot_dir: Path) -> dict[str, list[tuple[str, int, str, str]]]:
     """(AR) {الفضاء: [(المعرّف، الأدنى، الأقصى، الاسمُ القانونيّ)]}"""
-    table: dict[str, list[tuple[str, int, int, str]]] = {}
+    table: dict[str, list[tuple[str, int, str, str]]] = {}
     for path in sorted(sot_dir.glob("*.yaml")):
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         for fn in doc.get("functions") or []:
             arity = fn.get("arity")
             if not arity:
                 continue
+            # (AR) `variadic: true` تعني «لا حدَّ أعلى» ويُمنَع معها `max` —
+            #      فالعلمُ يُقرَأ ولا يُخمَّن معنى رقمٍ سحريّ.
+            top = "UNBOUNDED" if arity.get("variadic") else str(int(arity["max"]))
             table.setdefault(fn["namespace"], []).append(
-                (fn["cpp_id"], int(arity["min"]), int(arity["max"]), fn["canonical"]))
+                (fn["cpp_id"], int(arity["min"]), top, fn["canonical"]))
     return table
 
 
-def render(table: dict[str, list[tuple[str, int, int, str]]]) -> str:
+def render(table: dict[str, list[tuple[str, int, str, str]]]) -> str:
     parts = [HEADER]
     for namespace in sorted(table):
         parts.append(f"            namespace {namespace}\n            {{\n")
@@ -80,6 +167,42 @@ def render(table: dict[str, list[tuple[str, int, int, str]]]) -> str:
             parts.append(
                 f"                inline constexpr Range {cpp_id}{{{lo}, {hi}}};\n")
         parts.append(f"            }} // namespace {namespace}\n\n")
+    methods = collect_type_methods(TYPE_METHODS)
+    if methods:
+        parts.append("            namespace TypeMethods\n            {\n")
+        for target in sorted(methods):
+            parts.append(f"                namespace {target}\n                {{\n")
+            for cpp_id, lo, hi, canonical in sorted(methods[target]):
+                parts.append(f"                    // (AR) {canonical}\n")
+                parts.append(
+                    f"                    inline constexpr Range {cpp_id}"
+                    f"{{{lo}, {hi}}};\n")
+            parts.append(f"                }} // namespace {target}\n\n")
+        rows = collect_lookup(TYPE_METHODS)
+        parts.append(
+            "                /// (AR) جدولُ البحثِ بالهجاءِ والنوع — يُستهلَك في\n"
+            "                ///      موضعِ الإرسالِ الواحدِ فيُفرَضُ العقدُ مرّةً لا\n"
+            "                ///      في كلِّ فرعٍ على حِدة. و«أي» ليست فيه عن قصد.\n"
+            "                struct Entry\n                {\n"
+            "                    const char *target;\n"
+            "                    const char *name;\n"
+            "                    Range range;\n                };\n\n"
+            "                inline constexpr Entry TABLE[] = {\n")
+        for target, name, lo, hi in sorted(rows):
+            parts.append(f'                    {{"{target}", "{name}", {{{lo}, {hi}}}}},\n')
+        parts.append(
+            "                };\n\n"
+            "                /// (AR) يُعيد nullptr لِما لا عقدَ له — فالسكوتُ عن\n"
+            "                ///      غيرِ المقيسِ أصدقُ من فرضِ رتبةٍ مُخترَعة.\n"
+            "                inline const Range *lookup(const char *target,\n"
+            "                                           const std::string &name) noexcept\n"
+            "                {\n"
+            "                    for (const Entry &e : TABLE)\n"
+            "                        if (name == e.name && std::strcmp(target, e.target) == 0)\n"
+            "                            return &e.range;\n"
+            "                    return nullptr;\n"
+            "                }\n\n")
+        parts.append("            } // namespace TypeMethods\n\n")
     parts.append(FOOTER)
     return "".join(parts)
 

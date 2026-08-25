@@ -49,22 +49,11 @@ namespace Sad
                 // 1. طباعة_تنسيق / printf — formatted print (variadic)
                 if (funcName == "\xd8\xb7\xd8\xa8\xd8\xa7\xd8\xb9\xd8\xa9_\xd8\xaa\xd9\x86\xd8\xb3\xd9\x8a\xd9\x82" || funcName == "printf" || funcName == "c_printf")
                 {
-                    // (AR) رتبةٌ مفتوحةٌ أعلاها (تنسيقٌ ثمّ ما شاء المنادي) ولا
-                    //      اصطلاحَ لِلا-نهايةٍ في `arity` بعدُ — قرارُ مالكٍ مُعلَن.
-                    //      والخطرُ مع ذلك يُسَدّ: كان الرفضُ سطرًا إلى `std::cerr`
-                    //      لا يحملُه رمزُ خروج، فيتبخّرُ النداءُ ويخرجُ المصرّفُ
-                    //      بصفر. صار خطأً كتالوجيًّا يُخفقُ البناء.
-                    if (argOperands.empty())
-                    {
-                        Sad::Errors::RenderContext ectx;
-                        ectx.placeholders = {{"name", funcName},
-                                             {"expected", "1"},
-                                             {"found", "0"}};
-                        b_.errors_.push_back(
-                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ectx));
+                    // (AR) رتبةٌ مفتوحةُ الأعلى (تنسيقٌ ثمّ ما شاء المنادي) — العقدُ الآن في مصدرِ الحقيقةِ
+                    //      بـ`variadic: true`، والأدنى يُقرَأ من الثابتِ المُولَّدِ لا من رقمٍ
+                    //      يُكتَب. والحدُّ الأعلى قائمٌ شكلًا (UNBOUNDED) فلا يمنعُ نداءً صحيحًا.
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::FFI::C_PRINTF, argOperands.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_PRINTF);
@@ -212,22 +201,12 @@ namespace Sad
                 // 10. انسخ_ذاكرة_س / memcpy
                 if (funcName == "\xd8\xa7\xd9\x86\xd8\xb3\xd8\xae_\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xb3" || funcName == "memcpy" || funcName == "c_memcpy")
                 {
-                    // (AR) لا يُختَم بمصدرِ الحقيقة: `انسخ_ذاكرة_س` **غيرُ معلَنٍ
-                    //      في `ffi.yaml` أصلًا** — مدمجٌ تقبلُه الأماميّةُ ولا
-                    //      يعرفُه المصدر. إعلانُه توسيعٌ لسطحِ اللغةِ يقرّرُه
-                    //      مالكُه، لا تنظيفٌ يُدَسّ في رقعةِ رتبة. والذي يُصلَح
-                    //      ههنا هو الخطر: كان يطبعُ إلى `cerr` **ويمضي البناء**.
-                    if (argOperands.size() != 3)
-                    {
-                        Sad::Errors::RenderContext ctx;
-                        ctx.placeholders = {{"name", funcName},
-                                            {"expected", "3"},
-                                            {"found", std::to_string(argOperands.size())}};
-                        b_.errors_.push_back(
-                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx));
+                    // (AR) صار معلَنًا في `ffi.yaml` برتبتِه، والمقارنةُ بالثابتِ
+                    //      المُولَّدِ لا ببايتاتٍ مهرَّبة. ولا نظيرَ له في المفسّرِ —
+                    //      تباعدٌ **يُقاس** في الحارسِ ولا يُدَّعى في نثر.
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::FFI::C_MEMCPY, argOperands.size()))
                         return BuildResult("", SadTypeKind::Pointer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_MEMCPY);
@@ -243,18 +222,10 @@ namespace Sad
                 // 11. عبئ_ذاكرة_س / memset
                 if (funcName == "\xd8\xb9\xd8\xa8\xd8\xa6_\xd8\xb0\xd8\xa7\xd9\x83\xd8\xb1\xd8\xa9_\xd8\xb3" || funcName == "memset" || funcName == "c_memset")
                 {
-                    // (AR) كسابقتِه: `عبئ_ذاكرة_س` غيرُ معلَنٍ في مصدرِ الحقيقة.
-                    if (argOperands.size() != 3)
-                    {
-                        Sad::Errors::RenderContext ctx;
-                        ctx.placeholders = {{"name", funcName},
-                                            {"expected", "3"},
-                                            {"found", std::to_string(argOperands.size())}};
-                        b_.errors_.push_back(
-                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx));
+                    // (AR) كسابقتِه.
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::FFI::C_MEMSET, argOperands.size()))
                         return BuildResult("", SadTypeKind::Pointer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Pointer);
                     SIRInstruction inst(SIROpcode::FFI_MEMSET);
@@ -394,22 +365,12 @@ namespace Sad
                 // 20. تنسيق_نص / snprintf — format to buffer (variadic)
                 if (funcName == "\xd8\xaa\xd9\x86\xd8\xb3\xd9\x8a\xd9\x82_\xd9\x86\xd8\xb5" || funcName == "snprintf" || funcName == "c_snprintf")
                 {
-                    // (AR) لا يُختَم بمصدرِ الحقيقة لسببٍ آخر: رتبتُه **مفتوحةٌ**
-                    //      (buf، size، fmt ثمّ ما شاء المنسِّق)، وحقلُ `arity`
-                    //      يعرفُ `min` و`max` عددَين فحسب — لا عُرفَ فيه للأقصى
-                    //      المفتوح. اختراعُ سقفٍ ٢٥٥ كذبٌ مقيسٌ يرفضُ ما يصحّ،
-                    //      فالعقدُ يبقى معلَنَ الغياب حتّى يُقرَّر العُرف.
-                    if (argOperands.size() < 3)
-                    {
-                        Sad::Errors::RenderContext ctx;
-                        ctx.placeholders = {{"name", funcName},
-                                            {"expected", "3"},
-                                            {"found", std::to_string(argOperands.size())}};
-                        b_.errors_.push_back(
-                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ctx));
+                    // (AR) رتبةٌ مفتوحةُ الأعلى (buf وsize وfmt ثمّ ما شاء المنسِّق)
+                    //      — صار لها عُرفٌ في مصدرِ الحقيقة: `variadic: true` بلا
+                    //      `max`. والأدنى ٣ مقيسٌ من الذراعِ نفسِها، لا سقفٌ يُخترَع.
+                    if (!checkBuiltinArity(b_.errors_, funcName,
+                                           Ar::FFI::C_SNPRINTF, argOperands.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::FFI_SNPRINTF);

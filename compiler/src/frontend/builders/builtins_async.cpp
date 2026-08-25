@@ -48,17 +48,11 @@ namespace Sad
                 // 1. spawn - async task
                 if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd9\x85\xd9\x87\xd9\x85\xd8\xa9" || funcName == "spawn" || funcName == "async_spawn")
                 {
-                    if (argResults.empty())
-                    {
-                        Sad::Errors::RenderContext ectx;
-                        ectx.placeholders = {{"name", funcName},
-                                             {"expected", "1"},
-                                             {"found", "0"}};
-                        b_.errors_.push_back(
-                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ectx));
+                                        // (AR) رتبةٌ مفتوحةُ الأعلى (وسائطُ المهمّةِ تتبعُ اسمَها) — العقدُ الآن في مصدرِ الحقيقةِ
+                    //      بـ`variadic: true`، والأدنى يُقرَأ من الثابتِ المُولَّدِ لا من رقمٍ
+                    //      يُكتَب. والحدُّ الأعلى قائمٌ شكلًا (UNBOUNDED) فلا يمنعُ نداءً صحيحًا.
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::ASYNC_SPAWN, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     // (AR) بوابة الأنواع المصرحة — نظيرة بوابة «أطلق» حرفا:
                     //      كانت هذه المدمجة تمرر الوسائط إلى ASYNC_SPAWN بلا
                     //      فحص فتعيد فئة انحدار 099 من الباب الخلفي (معامل
@@ -376,17 +370,11 @@ namespace Sad
                 // 15. thread_spawn
                 if (funcName == "\xd8\xa3\xd9\x86\xd8\xb4\xd8\xa6_\xd8\xae\xd9\x8a\xd8\xb7" || funcName == "thread_spawn" || funcName == "\xd8\xae\xd9\x8a\xd8\xb7")
                 {
-                    if (argResults.empty())
-                    {
-                        Sad::Errors::RenderContext ectx;
-                        ectx.placeholders = {{"name", funcName},
-                                             {"expected", "1"},
-                                             {"found", "0"}};
-                        b_.errors_.push_back(
-                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
-                                Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT, ectx));
+                                        // (AR) رتبةٌ مفتوحةُ الأعلى (وسائطُ الخيطِ تتبعُ اسمَه) — العقدُ الآن في مصدرِ الحقيقةِ
+                    //      بـ`variadic: true`، والأدنى يُقرَأ من الثابتِ المُولَّدِ لا من رقمٍ
+                    //      يُكتَب. والحدُّ الأعلى قائمٌ شكلًا (UNBOUNDED) فلا يمنعُ نداءً صحيحًا.
+                    if (!checkBuiltinArity(b_.errors_, funcName, Ar::AsyncAdvanced::CREATE_THREAD, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    }
                     std::string resultReg = b_.newTempRegister();
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::ASYNC_THREAD_SPAWN);

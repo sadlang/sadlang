@@ -63,9 +63,10 @@ namespace Sad
                 Data::Value::MapType map;
                 // إذا لم تُعطَ وسائط، أرجع خريطة فارغة
                 if (args.empty())
-                {
-                    return makeMapVal(map);
-                }
+                    // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                    //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                    //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 // إذا أُعطيت وسائط زوجية (مفتاح، قيمة، مفتاح، قيمة...)
                 if (args.size() % 2 == 0)
                 {

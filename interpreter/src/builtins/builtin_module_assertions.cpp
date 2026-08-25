@@ -58,7 +58,10 @@ namespace Sad
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    return std::make_shared<Data::Value>(false);
+                    // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                    //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                    //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 auto &val = args[0];
                 if (!val)
                     return std::make_shared<Data::Value>(false);

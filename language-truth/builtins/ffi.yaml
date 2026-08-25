@@ -199,6 +199,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_PRINTF
+  arity:
+    min: 1
+    variadic: true
   canonical: طباعة_تنسيق
   namespace: FFI
   category: MODULE_FUNCTION
@@ -291,6 +294,14 @@ functions:
   description_en: C strlen
   params: []
   lookup_table: name_only
+# (AR) ⚠️ ثلاثةُ عقودٍ ههنا (`انسخ_نص_س` و`اقرأ_ملف_س` و`تنسيق_نص`) **تخالفُ
+#      عمدًا** ما يشتقُّه `builtin_arity_derive.py` من المفسّر — والمخالفةُ مقيسةٌ
+#      لا سهو: أذرعُ المفسّرِ لهذه الثلاثةِ **محاكاةٌ ناقصةٌ** لا تنفيذ («In
+#      interpreted mode, just return a copy of the string») فتقرأ `args[0]` وحدَه
+#      وتُهمِلُ الوجهةَ والحجم. والاشتقاقُ من المحرّكِ الآخرِ يفترضُ أنّ المحرّكَين
+#      يُنفّذان الشيءَ نفسَه؛ وحيث يكون أحدُهما جِذمورًا سقط الافتراضُ ولزم العقدُ
+#      من مصدرِه: توقيعُ C نفسُه، وهو ما تفرضُه ذراعُ المترجّم.
+#      فلا تُضيَّق هذه الثلاثةُ إلى ما يشتقُّه المُشتَقُّ — المُشتَقُّ يقيسُ جِذمورًا.
 - cpp_id: C_STRCPY
   arity:
     min: 2
@@ -337,6 +348,38 @@ functions:
   status: stable
   description_ar: C strcat
   description_en: C strcat
+  params: []
+  lookup_table: name_only
+- cpp_id: C_MEMCPY
+  arity:
+    min: 3
+    max: 3
+  canonical: انسخ_ذاكرة_س
+  namespace: FFI
+  category: MODULE_FUNCTION
+  require_import: false
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: C memcpy
+  description_en: C memcpy
+  params: []
+  lookup_table: name_only
+- cpp_id: C_MEMSET
+  arity:
+    min: 3
+    max: 3
+  canonical: عبئ_ذاكرة_س
+  namespace: FFI
+  category: MODULE_FUNCTION
+  require_import: false
+  module: NONE
+  compiler_strategy: RUNTIME_CALL
+  since: 0.1.0
+  status: stable
+  description_ar: C memset
+  description_en: C memset
   params: []
   lookup_table: name_only
 - cpp_id: C_FOPEN
@@ -468,6 +511,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: C_SNPRINTF
+  arity:
+    min: 3
+    variadic: true
   canonical: تنسيق_نص
   namespace: FFI
   category: MODULE_FUNCTION

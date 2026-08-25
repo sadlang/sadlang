@@ -685,7 +685,10 @@ namespace Sad
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    return makeVal(std::string("null"));
+                    // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                    //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                    //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 return makeVal(jsonStringifyValue(*args[0]));
             };
             fm.registerBuiltinFunction(std::string(Bmp::JSON_STRINGIFY), json_stringify_fn);
@@ -696,7 +699,10 @@ namespace Sad
             {
                 const auto &args = ctx.args(); (void)args;
                 if (args.empty())
-                    return makeVal(std::string("null"));
+                    // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                    //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                    //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                    ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 std::string raw = jsonStringifyValue(*args[0]);
                 // (AR) تنسيق بسيط: نضيف سطر جديد بعد { و [ و , ومسافات بادئة
                 std::string result;

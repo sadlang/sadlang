@@ -4,6 +4,9 @@ description_ar: وحدة تزامن_متقدم (32 دالة)
 description_en: async_advanced module (37 functions)
 functions:
 - cpp_id: ASYNC_SPAWN
+  arity:
+    min: 1
+    variadic: true
   canonical: أنشئ_مهمة
   namespace: AsyncAdvanced
   category: MODULE_FUNCTION
@@ -265,6 +268,9 @@ functions:
   params: []
   lookup_table: name_only
 - cpp_id: CREATE_THREAD
+  arity:
+    min: 1
+    variadic: true
   canonical: أنشئ_خيط
   namespace: AsyncAdvanced
   category: MODULE_FUNCTION

@@ -1071,6 +1071,23 @@ namespace Sad
                                 std::string_view(funcName),
                                 [this](std::string_view moduleName)
                                 { return b_.isStdlibModuleImported(std::string(moduleName)); }));
+                        // (AR) 🔑 وصنفٌ ثالثٌ كان يُقرَأ «غيرَ معرّفة» وهو ليس بذلك:
+                        //      اسمٌ **معلَنٌ في مصدرِ الحقيقةِ ومسجَّلٌ في المفسّرِ**
+                        //      ويعملُ هناك، بلا ذراعِ توزيعٍ في الأماميّةِ ولا أوپكودٍ
+                        //      في الخلفيّة. فالتشخيصُ القديمُ يُرسلُ الكاتبَ يبحثُ عن
+                        //      خطأٍ إملائيٍّ لا وجودَ له، أو يعرّفُها بنفسِه فيصطدمُ
+                        //      بالاسمِ المحجوز. والسببُ الحقيقيُّ **تباعدُ تغطيةٍ بين
+                        //      المحرّكَين** يُقاس ويُعلَن، لا عطبٌ في البرنامج.
+                        if (gatedModule.empty() &&
+                            Sad::Builtins::isKnownBuiltin(std::string_view(funcName)))
+                        {
+                            Sad::Errors::RenderContext ctx;
+                            ctx.placeholders = {{"name", funcName}};
+                            b_.errors_.push_back(
+                                Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                    Sad::Errors::ErrorCode::SEM_BUILTIN_ABSENT_IN_COMPILER, ctx));
+                            return BuildResult();
+                        }
                         std::string undefMsg =
                             gatedModule.empty()
                                 ? ("خطأ: استدعاء دالة غير معرّفة '" + funcName +

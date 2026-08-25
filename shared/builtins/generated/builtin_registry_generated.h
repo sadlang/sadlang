@@ -1734,6 +1734,10 @@ namespace Sad
                 inline constexpr std::string_view C_STRCMP = "قارن_نص_س";
                 // (AR) C strcat
                 inline constexpr std::string_view C_STRCAT = "الحق_نص_س";
+                // (AR) C memcpy
+                inline constexpr std::string_view C_MEMCPY = "انسخ_ذاكرة_س";
+                // (AR) C memset
+                inline constexpr std::string_view C_MEMSET = "عبئ_ذاكرة_س";
                 // (AR) C fopen
                 inline constexpr std::string_view C_FOPEN = "افتح_ملف_س";
                 // (AR) C fclose
@@ -3174,7 +3178,7 @@ namespace Sad
             std::string_view returnType;     /// (AR) نوع الإرجاع (فارغ مؤقتاً) / (EN) Return type (empty for now)
         };
 
-        inline constexpr std::array<BuiltinMeta, 1180> ALL_BUILTINS = {{
+        inline constexpr std::array<BuiltinMeta, 1182> ALL_BUILTINS = {{
             // ─── Core (8) ───
             {Names::Core::PRINT, "Core", "CORE_IO", "NONE", false, "طباعة قيمة على الشاشة بدون سطر جديد", "قيمة", ""},
             {Names::Core::PRINTLN, "Core", "CORE_IO", "NONE", false, "طباعة قيمة مع سطر جديد", "قيمة", ""},
@@ -3931,7 +3935,7 @@ namespace Sad
             {Names::Exceptions::SECURITY_MODE, "Exceptions", "MODULE_FUNCTION", "NONE", false, "security mode", "", ""},
             {Names::Exceptions::ASSERT_ERROR, "Exceptions", "MODULE_FUNCTION", "NONE", false, "assertion error", "", ""},
             {Names::Exceptions::LAST_ERROR, "Exceptions", "MODULE_FUNCTION", "NONE", false, "last error", "", ""},
-            // ─── FFI (33) ───
+            // ─── FFI (35) ───
             {Names::FFI::LIB_LOAD, "FFI", "MODULE_FUNCTION", "NONE", false, "load library", "", ""},
             {Names::FFI::LIB_FREE, "FFI", "MODULE_FUNCTION", "NONE", false, "free library", "", ""},
             {Names::FFI::LIB_FUNC, "FFI", "MODULE_FUNCTION", "NONE", false, "library function", "", ""},
@@ -3956,6 +3960,8 @@ namespace Sad
             {Names::FFI::C_STRCPY, "FFI", "MODULE_FUNCTION", "NONE", false, "C strcpy", "", ""},
             {Names::FFI::C_STRCMP, "FFI", "MODULE_FUNCTION", "NONE", false, "C strcmp", "", ""},
             {Names::FFI::C_STRCAT, "FFI", "MODULE_FUNCTION", "NONE", false, "C strcat", "", ""},
+            {Names::FFI::C_MEMCPY, "FFI", "MODULE_FUNCTION", "NONE", false, "C memcpy", "", ""},
+            {Names::FFI::C_MEMSET, "FFI", "MODULE_FUNCTION", "NONE", false, "C memset", "", ""},
             {Names::FFI::C_FOPEN, "FFI", "MODULE_FUNCTION", "NONE", false, "C fopen", "", ""},
             {Names::FFI::C_FCLOSE, "FFI", "MODULE_FUNCTION", "NONE", false, "C fclose", "", ""},
             {Names::FFI::C_FPUTS, "FFI", "MODULE_FUNCTION", "NONE", false, "C fputs", "", ""},
@@ -4411,7 +4417,7 @@ namespace Sad
             {Names::CompilerUi::UI_40, "CompilerUi", "MODULE_FUNCTION", "NONE", false, "دمر_عنصر", "", ""},
         }};
 
-        static_assert(ALL_BUILTINS.size() == 1180, "ALL_BUILTINS count mismatch");
+        static_assert(ALL_BUILTINS.size() == 1182, "ALL_BUILTINS count mismatch");
 
         // ─── دوال بحث شاملة للأدوات / Comprehensive tooling lookups ───
         // (AR) ملاحظة: بعض الأسماء الأساسية مشتركة بين فضاءات مختلفة

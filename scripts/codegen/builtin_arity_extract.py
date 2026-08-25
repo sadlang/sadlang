@@ -53,8 +53,12 @@ _NAME_COMPARE = re.compile(r"funcName\s*==\s*(\w+)::(\w+)(?:::(\w+))?")
 _ARITY_HELPER = r"(?:check|report|assert|verify|ensure)\w*(?:Arity|ArgCount|ArgsCount)"
 _LITERAL_CALL = re.compile(
     _ARITY_HELPER + r"\(\s*[\w.\->_]+\s*,\s*[^,()]+\s*,\s*(\d+)\s*,\s*(?:(\d+)|[\w.\->_]+\s*\()")
+# (AR) وثوابتُ **طرائقِ الأنواعِ** ثلاثيّةُ المستوى (`Ar::TypeMethods::Map::SET`)
+#      لأنّ سطحَها مقسومٌ بالهدف. وقراءةُ مستويَين منها تُنتِج اسمًا لا وجودَ له
+#      (`TypeMethods::Map`) فيحمرُّ الحارسُ «فرضٌ غيرُ مُعلَن» على حراسةٍ سليمة.
 _CONSTANT_CALL = re.compile(
-    _ARITY_HELPER + r"\([^;]*?(?:Ar|Sad::Builtins::Arity)::(\w+)::(\w+)")
+    _ARITY_HELPER + r"\([^;]*?(?:Ar|Sad::Builtins::Arity)::"
+    r"(?:TypeMethods::(?P<tm_target>\w+)::(?P<tm_id>\w+)|(\w+)::(\w+))")
 # (AR) صيغةٌ ثانيةٌ للفرض: **جدولٌ** يقرن الاسمَ بالأوپكودِ وبالمدى في مدخلٍ واحد
 #      (`{Bn::UICore::GEN_WEB, …, Ar::UICore::GEN_WEB}`) ثمّ تدورُ عليه حلقةٌ
 #      تفحصُ رتبةَ ما طابق. لا `funcName ==` فيها، فكانت أربعةُ مدمجاتٍ تُقرأ
@@ -71,7 +75,16 @@ _SELECTED_CONST = re.compile(
     r"(?:Ar|Sad::Builtins::Arity)::\w+::\w+[^;]*?);")
 _SELECTED_USE = re.compile(_ARITY_HELPER + r"\([^;]*?\b{}\b")
 _CONST_IN_SELECTION = re.compile(
-    r"(?:Ar|Sad::Builtins::Arity)::(\w+)::(\w+)")
+    r"(?:Ar|Sad::Builtins::Arity)::"
+    r"(?:TypeMethods::(?P<tm_target>\w+)::(?P<tm_id>\w+)|(\w+)::(\w+))")
+
+
+def _const_pair(m: "re.Match") -> tuple[str, str]:
+    """(AR) زوجُ (الفضاء، المعرّف) من ثابتٍ ثنائيِّ المستوى أو ثلاثيّه."""
+    if m.groupdict().get("tm_target"):
+        return (f"TypeMethods::{m.group('tm_target')}", m.group("tm_id"))
+    groups = [g for g in m.groups() if g is not None]
+    return (groups[-2], groups[-1])
 # (AR) صيغةٌ ثالثةٌ للفرض — وهي الأكثرُ عددًا: الرفضُ مكتوبٌ **في الشرطِ نفسِه**
 #      (`if (argResults.size() < 2) { errors_.push_back(…); return …; }`) فالعددُ
 #      لا يُمرَّر إلى حارسٍ بل يسكنُ المقارنة. هذه مواضعُ فرضٍ قائمةٌ فعلًا —
@@ -197,12 +210,14 @@ def arity_checks() -> list[ArityCheck]:
             events.append((m.start(), "literal", lo,
                            int(m.group(2)) if m.group(2) else lo))
         for m in _CONSTANT_CALL.finditer(text):
+            _ = m  # (AR) القراءةُ الفعليّةُ أدناه على وسائطِ النداءِ كلِّها
             # (AR) قد تحملُ وسائطُ النداءِ الواحدِ ثابتَين بشرطٍ ثلاثيٍّ لاسمَين
             #      اثنين؛ فالقراءةُ لأوّلِهما وحدَه تجعلُ عقدَ الثاني ميّتًا وهو
             #      محروسٌ باسمِه. تُقرَأ وسائطُ النداءِ كلُّها إلى فاصلتِه المنقوطة.
             for c in _CONST_IN_SELECTION.finditer(
                     text[m.start():text.find(";", m.end()) + 1 or m.end()]):
-                events.append((m.start(), "constant", c.group(1), c.group(2)))
+                ns, ident = _const_pair(c)
+                events.append((m.start(), "constant", ns, ident))
         for m in _SELECTED_CONST.finditer(text):
             # (AR) لا يُحتسَب الانتقاءُ فرضًا إلّا إن مُرِّرَ المرجعُ فعلًا إلى
             #      حارسٍ بعدَه — رابطٌ لا يُقرأ ليس حراسة.
@@ -211,7 +226,8 @@ def arity_checks() -> list[ArityCheck]:
                              after):
                 continue
             for c in _CONST_IN_SELECTION.finditer(m.group(2)):
-                events.append((m.start(), "constant", c.group(1), c.group(2)))
+                ns, ident = _const_pair(c)
+                events.append((m.start(), "constant", ns, ident))
         for m in _INLINE_COMPARE.finditer(text):
             blk = _consequence_body(text, m.end())
             if "errors_.push_back" in blk or "errors_.emplace_back" in blk:

@@ -284,7 +284,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
-                        return std::make_shared<Data::Value>(-1);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     uint64_t addr = static_cast<uint64_t>(args[0]->toDouble());
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehACPIInitRSDP(addr));
@@ -302,7 +305,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.empty())
-                        return std::make_shared<Data::Value>(0);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
 #ifdef _WIN32
                     return std::make_shared<Data::Value>(sehACPIFindTable(args[0]->toString().c_str()));
 #else
@@ -572,7 +578,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 2)
-                        return std::make_shared<Data::Value>(-1);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     uint8_t dest = static_cast<uint8_t>(args[0]->toInt());
                     uint8_t page = static_cast<uint8_t>(args[1]->toInt());
                     auto &a = LowLevel::APICManager::getInstance();
@@ -642,7 +651,10 @@ namespace Sad
                 {
                 const auto &args = ctx.args(); (void)args;
                     if (args.size() < 3)
-                        return std::make_shared<Data::Value>(-1);
+                        // (AR) كانت ههنا عودةٌ بقيمةٍ زائفةٍ صامتة: النداءُ
+                        //      الناقصُ يُجيبُ إجابةً معقولةَ الشكلِ خاطئةً يقينًا،
+                        //      فلا يُخفِقُ فلا يُرى. الرتبةُ عقدٌ يُرفَض خرقُه.
+                        ctx.error(::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                     uint8_t id = static_cast<uint8_t>(args[0]->toInt());
                     uint64_t base = static_cast<uint64_t>(args[1]->toDouble());
                     uint32_t gsib = static_cast<uint32_t>(args[2]->toInt());

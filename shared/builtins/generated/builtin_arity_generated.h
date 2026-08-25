@@ -10,6 +10,8 @@
 #pragma once
 
 #include <cstddef>
+#include <cstring>
+#include <string>
 
 namespace Sad
 {
@@ -18,11 +20,17 @@ namespace Sad
         namespace Arity
         {
             /// (AR) مدًى مغلقٌ لعددِ الوسائطِ المقبول. (EN) Closed argument-count range.
+            /// (AR) والرتبةُ المفتوحةُ أعلاها (`variadic: true` في مصدرِ الحقيقة)
+            ///      تُخفَّض بأقصى ما يسعُه العدّاد: الحدُّ قائمٌ شكلًا ولا يمنعُ نداءً
+            ///      صحيحًا، فيبقى فاحصُ الرتبةِ واحدًا لا فرعَ فيه.
             struct Range
             {
                 std::size_t min;
                 std::size_t max;
             };
+
+            /// (AR) لا حدَّ أعلى. (EN) No upper bound.
+            inline constexpr std::size_t UNBOUNDED = static_cast<std::size_t>(-1);
 
             namespace Arrays
             {
@@ -51,7 +59,7 @@ namespace Sad
             namespace Assertions
             {
                 // (AR) تأكد_يساوي
-                inline constexpr Range ASSERT_EQ{2, 2};
+                inline constexpr Range ASSERT_EQ{2, 3};
                 // (AR) تأكد_خطأ
                 inline constexpr Range ASSERT_FALSE{1, 2};
                 // (AR) تأكد_أكبر
@@ -69,13 +77,13 @@ namespace Sad
                 // (AR) هاش
                 inline constexpr Range HASH{1, 1};
                 // (AR) ذعر
-                inline constexpr Range PANIC{1, 1};
+                inline constexpr Range PANIC{0, 1};
                 // (AR) آمن
                 inline constexpr Range SAFE_CHECK{1, 1};
                 // (AR) نظف
                 inline constexpr Range SANITIZE{1, 1};
                 // (AR) عشوائي_آمن
-                inline constexpr Range SECURE_RANDOM{2, 2};
+                inline constexpr Range SECURE_RANDOM{0, 2};
             } // namespace Assertions
 
             namespace AsyncAdvanced
@@ -84,6 +92,8 @@ namespace Sad
                 inline constexpr Range ASYNC_AWAIT_TASK{1, 1};
                 // (AR) نوم_غير_متزامن
                 inline constexpr Range ASYNC_SLEEP{1, 1};
+                // (AR) أنشئ_مهمة
+                inline constexpr Range ASYNC_SPAWN{1, UNBOUNDED};
                 // (AR) أضف_ذري
                 inline constexpr Range ATOMIC_ADD{2, 2};
                 // (AR) قارن_وبدل
@@ -98,6 +108,8 @@ namespace Sad
                 inline constexpr Range CHANNEL_RECV{1, 1};
                 // (AR) أرسل_قناة
                 inline constexpr Range CHANNEL_SEND{2, 2};
+                // (AR) أنشئ_خيط
+                inline constexpr Range CREATE_THREAD{1, UNBOUNDED};
                 // (AR) احصل_مستقبل
                 inline constexpr Range FUTURE_GET{1, 1};
                 // (AR) أوف_مستقبل
@@ -119,7 +131,7 @@ namespace Sad
                 // (AR) تأكد
                 inline constexpr Range ASSERT{1, 2};
                 // (AR) انسخ_ملف
-                inline constexpr Range COPY_FILE{2, 2};
+                inline constexpr Range COPY_FILE{2, 3};
                 // (AR) احذف_ملف
                 inline constexpr Range DELETE_FILE{1, 1};
                 // (AR) هل_موجود
@@ -133,7 +145,7 @@ namespace Sad
                 // (AR) اسرد_مجلد
                 inline constexpr Range LIST_DIR{1, 1};
                 // (AR) أنشئ_مجلد
-                inline constexpr Range MKDIR{1, 1};
+                inline constexpr Range MKDIR{1, 2};
                 // (AR) انقل_ملف
                 inline constexpr Range MOVE_FILE{2, 2};
                 // (AR) مدى
@@ -145,7 +157,7 @@ namespace Sad
                 // (AR) المسار_الحقيقي
                 inline constexpr Range REAL_PATH{1, 1};
                 // (AR) احذف_مجلد
-                inline constexpr Range REMOVE_DIR{1, 1};
+                inline constexpr Range REMOVE_DIR{1, 2};
                 // (AR) اكتب_بايتات
                 inline constexpr Range WRITE_BYTES{2, 2};
                 // (AR) اكتب_ملف
@@ -640,8 +652,16 @@ namespace Sad
                 inline constexpr Range C_GETENV{1, 1};
                 // (AR) حجز
                 inline constexpr Range C_MALLOC{1, 1};
+                // (AR) انسخ_ذاكرة_س
+                inline constexpr Range C_MEMCPY{3, 3};
+                // (AR) عبئ_ذاكرة_س
+                inline constexpr Range C_MEMSET{3, 3};
+                // (AR) طباعة_تنسيق
+                inline constexpr Range C_PRINTF{1, UNBOUNDED};
                 // (AR) اعد_حجز
                 inline constexpr Range C_REALLOC{2, 2};
+                // (AR) تنسيق_نص
+                inline constexpr Range C_SNPRINTF{3, UNBOUNDED};
                 // (AR) الحق_نص_س
                 inline constexpr Range C_STRCAT{2, 2};
                 // (AR) قارن_نص_س
@@ -1017,6 +1037,378 @@ namespace Sad
                 // (AR) ارسم_مستطيل
                 inline constexpr Range DRAW_RECT{5, 5};
             } // namespace UIPlatform
+
+            namespace TypeMethods
+            {
+                namespace Any
+                {
+                    // (AR) أضف
+                    inline constexpr Range ADD{0, 1};
+                    // (AR) العداد
+                    inline constexpr Range COUNT{0, 0};
+                    // (AR) أنهي
+                    inline constexpr Range DONE{0, 0};
+                    // (AR) احصل
+                    inline constexpr Range GET{0, 1};
+                    // (AR) مقفل
+                    inline constexpr Range IS_LOCKED{0, 0};
+                    // (AR) جاهز
+                    inline constexpr Range IS_READY{0, 0};
+                    // (AR) اقفل
+                    inline constexpr Range LOCK{0, 0};
+                    // (AR) عين
+                    inline constexpr Range SET{1, 1};
+                    // (AR) حاول_قفل
+                    inline constexpr Range TRY_LOCK{0, 0};
+                    // (AR) افتح
+                    inline constexpr Range UNLOCK{0, 0};
+                    // (AR) انتظر
+                    inline constexpr Range WAIT{0, 1};
+                } // namespace Any
+
+                namespace Array
+                {
+                    // (AR) متوسط
+                    inline constexpr Range AVERAGE{0, 0};
+                    // (AR) امسح
+                    inline constexpr Range CLEAR{0, 0};
+                    // (AR) عمود
+                    inline constexpr Range COLUMN{1, 1};
+                    // (AR) أعمدة
+                    inline constexpr Range COLUMNS{0, 0};
+                    // (AR) يحتوي
+                    inline constexpr Range CONTAINS{1, 1};
+                    // (AR) نسخ
+                    inline constexpr Range COPY_ALT{0, 0};
+                    // (AR) احذف
+                    inline constexpr Range DELETE{1, 1};
+                    // (AR) البعد
+                    inline constexpr Range DIMENSION{0, 0};
+                    // (AR) عنصر
+                    inline constexpr Range ELEMENT{0, UNBOUNDED};
+                    // (AR) جميع
+                    inline constexpr Range EVERY{1, 1};
+                    // (AR) املأ
+                    inline constexpr Range FILL{1, 1};
+                    // (AR) رشح
+                    inline constexpr Range FILTER{1, 1};
+                    // (AR) جد
+                    inline constexpr Range FIND{1, 1};
+                    // (AR) جد_فهرس
+                    inline constexpr Range FIND_INDEX{1, 1};
+                    // (AR) أول
+                    inline constexpr Range FIRST{0, 0};
+                    // (AR) مسطح
+                    inline constexpr Range FLATTEN{0, 1};
+                    // (AR) لكل
+                    inline constexpr Range FOR_EACH{1, 1};
+                    // (AR) مصفوفة_وحدة
+                    inline constexpr Range IDENTITY{0, 1};
+                    // (AR) فهرس
+                    inline constexpr Range INDEX_OF{1, 1};
+                    // (AR) ادخل
+                    inline constexpr Range INSERT_ALT{2, 2};
+                    // (AR) معكوس
+                    inline constexpr Range INVERSE{0, 0};
+                    // (AR) فارغة
+                    inline constexpr Range IS_EMPTY{0, 0};
+                    // (AR) صل
+                    inline constexpr Range JOIN{0, 1};
+                    // (AR) آخر
+                    inline constexpr Range LAST{0, 0};
+                    // (AR) الطول
+                    inline constexpr Range LENGTH{0, 0};
+                    // (AR) خريطة
+                    inline constexpr Range MAP{1, 1};
+                    // (AR) ضرب_مصفوفات
+                    inline constexpr Range MATMUL{1, 1};
+                    // (AR) حد_اقصى
+                    inline constexpr Range MAX{0, 0};
+                    // (AR) حد_ادنى
+                    inline constexpr Range MIN{0, 0};
+                    // (AR) احذف_اخير
+                    inline constexpr Range POP{0, 0};
+                    // (AR) أضف
+                    inline constexpr Range PUSH{1, UNBOUNDED};
+                    // (AR) اختزل
+                    inline constexpr Range REDUCE{1, 2};
+                    // (AR) أعد_تشكيل
+                    inline constexpr Range RESHAPE{2, 3};
+                    // (AR) عكس
+                    inline constexpr Range REVERSE{0, 0};
+                    // (AR) صف
+                    inline constexpr Range ROW{1, 1};
+                    // (AR) صفوف
+                    inline constexpr Range ROWS{0, 0};
+                    // (AR) أبعاد
+                    inline constexpr Range SHAPE{0, 0};
+                    // (AR) شريحة
+                    inline constexpr Range SLICE{0, 2};
+                    // (AR) أي
+                    inline constexpr Range SOME{1, 1};
+                    // (AR) رتب
+                    inline constexpr Range SORT{0, 1};
+                    // (AR) مجموع
+                    inline constexpr Range SUM{0, 0};
+                    // (AR) قلب_محوري
+                    inline constexpr Range TRANSPOSE{0, 0};
+                    // (AR) فريد
+                    inline constexpr Range UNIQUE{0, 0};
+                    // (AR) ازدوج
+                    inline constexpr Range ZIP{1, 1};
+                } // namespace Array
+
+                namespace Channel
+                {
+                    // (AR) السعة
+                    inline constexpr Range CAPACITY{0, 0};
+                    // (AR) أغلق
+                    inline constexpr Range CLOSE{0, 0};
+                    // (AR) مغلقة
+                    inline constexpr Range IS_CLOSED{0, 0};
+                    // (AR) فارغة
+                    inline constexpr Range IS_EMPTY{0, 0};
+                    // (AR) استقبل
+                    inline constexpr Range RECEIVE{0, 0};
+                    // (AR) استقبل_بمهلة
+                    inline constexpr Range RECV_TIMEOUT{1, 1};
+                    // (AR) أرسل
+                    inline constexpr Range SEND{1, 1};
+                    // (AR) أرسل_بمهلة
+                    inline constexpr Range SEND_TIMEOUT{2, 2};
+                    // (AR) الحجم
+                    inline constexpr Range SIZE{0, 0};
+                    // (AR) حاول_استقبل
+                    inline constexpr Range TRY_RECEIVE{0, 0};
+                    // (AR) حاول_ارسل
+                    inline constexpr Range TRY_SEND{1, 1};
+                } // namespace Channel
+
+                namespace Map
+                {
+                    // (AR) امسح
+                    inline constexpr Range CLEAR{0, 0};
+                    // (AR) يحتوي
+                    inline constexpr Range CONTAINS{1, 1};
+                    // (AR) نسخ
+                    inline constexpr Range COPY{0, 0};
+                    // (AR) احذف
+                    inline constexpr Range DELETE{1, 1};
+                    // (AR) عناصر
+                    inline constexpr Range ENTRIES{0, 0};
+                    // (AR) احصل
+                    inline constexpr Range GET{1, 2};
+                    // (AR) فارغة
+                    inline constexpr Range IS_EMPTY{0, 0};
+                    // (AR) مفاتيح
+                    inline constexpr Range KEYS{0, 0};
+                    // (AR) دمج
+                    inline constexpr Range MERGE{1, 1};
+                    // (AR) عين
+                    inline constexpr Range SET{2, 2};
+                    // (AR) حجم
+                    inline constexpr Range SIZE{0, 0};
+                    // (AR) قيم
+                    inline constexpr Range VALUES{0, 0};
+                } // namespace Map
+
+                namespace String
+                {
+                    // (AR) حرف_عند
+                    inline constexpr Range CHAR_AT{1, 1};
+                    // (AR) يحتوي
+                    inline constexpr Range CONTAINS{1, 1};
+                    // (AR) ينتهي_بـ
+                    inline constexpr Range ENDS_WITH{1, 1};
+                    // (AR) بحث
+                    inline constexpr Range FIND{1, 1};
+                    // (AR) طول
+                    inline constexpr Range LENGTH{0, 0};
+                    // (AR) كرر
+                    inline constexpr Range REPEAT{1, 1};
+                    // (AR) استبدل
+                    inline constexpr Range REPLACE{2, 2};
+                    // (AR) عكس
+                    inline constexpr Range REVERSE{0, 0};
+                    // (AR) قسم
+                    inline constexpr Range SPLIT{0, 1};
+                    // (AR) يبدأ_بـ
+                    inline constexpr Range STARTS_WITH{1, 1};
+                    // (AR) جزء
+                    inline constexpr Range SUBSTRING{0, 2};
+                    // (AR) تحويل_صغير
+                    inline constexpr Range TO_LOWER{0, 0};
+                    // (AR) تحويل_كبير
+                    inline constexpr Range TO_UPPER{0, 0};
+                    // (AR) قص
+                    inline constexpr Range TRIM{0, 0};
+                } // namespace String
+
+                /// (AR) جدولُ البحثِ بالهجاءِ والنوع — يُستهلَك في
+                ///      موضعِ الإرسالِ الواحدِ فيُفرَضُ العقدُ مرّةً لا
+                ///      في كلِّ فرعٍ على حِدة. و«أي» ليست فيه عن قصد.
+                struct Entry
+                {
+                    const char *target;
+                    const char *name;
+                    Range range;
+                };
+
+                inline constexpr Entry TABLE[] = {
+                    {"ARRAY", "average", {0, 0}},
+                    {"ARRAY", "clear", {0, 0}},
+                    {"ARRAY", "column", {1, 1}},
+                    {"ARRAY", "columns", {0, 0}},
+                    {"ARRAY", "contains", {1, 1}},
+                    {"ARRAY", "copy_alt", {0, 0}},
+                    {"ARRAY", "delete", {1, 1}},
+                    {"ARRAY", "dimension", {0, 0}},
+                    {"ARRAY", "element", {0, UNBOUNDED}},
+                    {"ARRAY", "every", {1, 1}},
+                    {"ARRAY", "fill", {1, 1}},
+                    {"ARRAY", "filter", {1, 1}},
+                    {"ARRAY", "find", {1, 1}},
+                    {"ARRAY", "find_index", {1, 1}},
+                    {"ARRAY", "first", {0, 0}},
+                    {"ARRAY", "flatten", {0, 1}},
+                    {"ARRAY", "for_each", {1, 1}},
+                    {"ARRAY", "identity", {0, 1}},
+                    {"ARRAY", "index_of", {1, 1}},
+                    {"ARRAY", "insert_alt", {2, 2}},
+                    {"ARRAY", "inverse", {0, 0}},
+                    {"ARRAY", "is_empty", {0, 0}},
+                    {"ARRAY", "join", {0, 1}},
+                    {"ARRAY", "last", {0, 0}},
+                    {"ARRAY", "length", {0, 0}},
+                    {"ARRAY", "map", {1, 1}},
+                    {"ARRAY", "matmul", {1, 1}},
+                    {"ARRAY", "max", {0, 0}},
+                    {"ARRAY", "min", {0, 0}},
+                    {"ARRAY", "pop", {0, 0}},
+                    {"ARRAY", "push", {1, UNBOUNDED}},
+                    {"ARRAY", "reduce", {1, 2}},
+                    {"ARRAY", "reshape", {2, 3}},
+                    {"ARRAY", "reverse", {0, 0}},
+                    {"ARRAY", "row", {1, 1}},
+                    {"ARRAY", "rows", {0, 0}},
+                    {"ARRAY", "shape", {0, 0}},
+                    {"ARRAY", "slice", {0, 2}},
+                    {"ARRAY", "some", {1, 1}},
+                    {"ARRAY", "sort", {0, 1}},
+                    {"ARRAY", "sum", {0, 0}},
+                    {"ARRAY", "transpose", {0, 0}},
+                    {"ARRAY", "unique", {0, 0}},
+                    {"ARRAY", "zip", {1, 1}},
+                    {"ARRAY", "آخر", {0, 0}},
+                    {"ARRAY", "أبعاد", {0, 0}},
+                    {"ARRAY", "أضف", {1, UNBOUNDED}},
+                    {"ARRAY", "أعد_تشكيل", {2, 3}},
+                    {"ARRAY", "أعمدة", {0, 0}},
+                    {"ARRAY", "أول", {0, 0}},
+                    {"ARRAY", "أي", {1, 1}},
+                    {"ARRAY", "احذف", {1, 1}},
+                    {"ARRAY", "احذف_اخير", {0, 0}},
+                    {"ARRAY", "اختزل", {1, 2}},
+                    {"ARRAY", "ادخل", {2, 2}},
+                    {"ARRAY", "ازدوج", {1, 1}},
+                    {"ARRAY", "البعد", {0, 0}},
+                    {"ARRAY", "الطول", {0, 0}},
+                    {"ARRAY", "امسح", {0, 0}},
+                    {"ARRAY", "املأ", {1, 1}},
+                    {"ARRAY", "جد", {1, 1}},
+                    {"ARRAY", "جد_فهرس", {1, 1}},
+                    {"ARRAY", "جميع", {1, 1}},
+                    {"ARRAY", "حد_ادنى", {0, 0}},
+                    {"ARRAY", "حد_اقصى", {0, 0}},
+                    {"ARRAY", "خريطة", {1, 1}},
+                    {"ARRAY", "رتب", {0, 1}},
+                    {"ARRAY", "رشح", {1, 1}},
+                    {"ARRAY", "شريحة", {0, 2}},
+                    {"ARRAY", "صف", {1, 1}},
+                    {"ARRAY", "صفوف", {0, 0}},
+                    {"ARRAY", "صل", {0, 1}},
+                    {"ARRAY", "ضرب_مصفوفات", {1, 1}},
+                    {"ARRAY", "عكس", {0, 0}},
+                    {"ARRAY", "عمود", {1, 1}},
+                    {"ARRAY", "عنصر", {0, UNBOUNDED}},
+                    {"ARRAY", "فارغة", {0, 0}},
+                    {"ARRAY", "فريد", {0, 0}},
+                    {"ARRAY", "فهرس", {1, 1}},
+                    {"ARRAY", "قلب_محوري", {0, 0}},
+                    {"ARRAY", "لكل", {1, 1}},
+                    {"ARRAY", "متوسط", {0, 0}},
+                    {"ARRAY", "مجموع", {0, 0}},
+                    {"ARRAY", "مسطح", {0, 1}},
+                    {"ARRAY", "مصفوفة_وحدة", {0, 1}},
+                    {"ARRAY", "معكوس", {0, 0}},
+                    {"ARRAY", "نسخ", {0, 0}},
+                    {"ARRAY", "يحتوي", {1, 1}},
+                    {"MAP", "clear", {0, 0}},
+                    {"MAP", "contains", {1, 1}},
+                    {"MAP", "copy", {0, 0}},
+                    {"MAP", "delete", {1, 1}},
+                    {"MAP", "entries", {0, 0}},
+                    {"MAP", "get", {1, 2}},
+                    {"MAP", "is_empty", {0, 0}},
+                    {"MAP", "keys", {0, 0}},
+                    {"MAP", "merge", {1, 1}},
+                    {"MAP", "set", {2, 2}},
+                    {"MAP", "size", {0, 0}},
+                    {"MAP", "values", {0, 0}},
+                    {"MAP", "احذف", {1, 1}},
+                    {"MAP", "احصل", {1, 2}},
+                    {"MAP", "امسح", {0, 0}},
+                    {"MAP", "حجم", {0, 0}},
+                    {"MAP", "دمج", {1, 1}},
+                    {"MAP", "عناصر", {0, 0}},
+                    {"MAP", "عين", {2, 2}},
+                    {"MAP", "فارغة", {0, 0}},
+                    {"MAP", "قيم", {0, 0}},
+                    {"MAP", "مفاتيح", {0, 0}},
+                    {"MAP", "نسخ", {0, 0}},
+                    {"MAP", "يحتوي", {1, 1}},
+                    {"STRING", "char_at", {1, 1}},
+                    {"STRING", "contains", {1, 1}},
+                    {"STRING", "ends_with", {1, 1}},
+                    {"STRING", "find", {1, 1}},
+                    {"STRING", "length", {0, 0}},
+                    {"STRING", "repeat", {1, 1}},
+                    {"STRING", "replace", {2, 2}},
+                    {"STRING", "reverse", {0, 0}},
+                    {"STRING", "split", {0, 1}},
+                    {"STRING", "starts_with", {1, 1}},
+                    {"STRING", "substring", {0, 2}},
+                    {"STRING", "to_lower", {0, 0}},
+                    {"STRING", "to_upper", {0, 0}},
+                    {"STRING", "trim", {0, 0}},
+                    {"STRING", "استبدل", {2, 2}},
+                    {"STRING", "بحث", {1, 1}},
+                    {"STRING", "تحويل_صغير", {0, 0}},
+                    {"STRING", "تحويل_كبير", {0, 0}},
+                    {"STRING", "جزء", {0, 2}},
+                    {"STRING", "حرف_عند", {1, 1}},
+                    {"STRING", "طول", {0, 0}},
+                    {"STRING", "عكس", {0, 0}},
+                    {"STRING", "قسم", {0, 1}},
+                    {"STRING", "قص", {0, 0}},
+                    {"STRING", "كرر", {1, 1}},
+                    {"STRING", "يبدأ_بـ", {1, 1}},
+                    {"STRING", "يحتوي", {1, 1}},
+                    {"STRING", "ينتهي_بـ", {1, 1}},
+                };
+
+                /// (AR) يُعيد nullptr لِما لا عقدَ له — فالسكوتُ عن
+                ///      غيرِ المقيسِ أصدقُ من فرضِ رتبةٍ مُخترَعة.
+                inline const Range *lookup(const char *target,
+                                           const std::string &name) noexcept
+                {
+                    for (const Entry &e : TABLE)
+                        if (name == e.name && std::strcmp(target, e.target) == 0)
+                            return &e.range;
+                    return nullptr;
+                }
+
+            } // namespace TypeMethods
 
         } // namespace Arity
     } // namespace Builtins

@@ -40,10 +40,27 @@ _REGISTER = re.compile(
 _INDEX = re.compile(r"\bargs\s*\[\s*(\d+)\s*\]")
 _SIZE_GUARD = re.compile(r"\bargs\s*\.\s*size\(\)\s*<\s*(\d+)\b")
 _SIZE_EQ = re.compile(r"\bargs\s*\.\s*size\(\)\s*(?:!=|==)\s*(\d+)\b")
-_EMPTY = re.compile(r"\bargs\s*\.\s*empty\(\)")
+_EMPTY = re.compile(r"(?<![!\w])args\s*\.\s*empty\(\)")
 # (AR) `args.size() > k` قبلَ الفهرسِ **يجعلُه اختياريًّا**: يرفعُ الأعلى ولا
 #      يرفعُ الأدنى. ومن خلطَ الاثنين اخترعَ إلزامًا حيث كان تخييرٌ مقيس.
-_OPTIONAL = re.compile(r"\bargs\s*\.\s*size\(\)\s*>=?\s*\d+")
+#
+# (AR) 🔑 وأُلحِقت بها ثلاثُ صيغٍ بعدَ أن قِيس أثرُ إغفالِها: `ذعر` بُذِرت
+#      `min: 1` وذراعُها `if (!args.empty()) message = args[0]` — تخييرٌ محض،
+#      فردَّ المصرّفُ `ذعر()` وهو نداءٌ صحيحٌ يقبلُه المحرّكان. أي أنّ عقدًا
+#      وُضِع ليمنعَ التبخّرَ صار يمنعُ الصواب. والقاعدةُ: **يُصنَّفُ بالتبعةِ لا
+#      بالشكل** — شرطٌ لا تكون تبعتُه رفضًا فهو مدًى لا حارس.
+_OPTIONAL = re.compile(
+    r"!\s*args\s*\.\s*empty\(\)"
+    r"|\bargs\s*\.\s*empty\(\)\s*\?"
+    r"|\bargs\s*\.\s*size\(\)\s*>=?\s*\d+"
+    r"|\bargs\s*\.\s*size\(\)\s*<\s*\d+[^;]*\?")
+_REJECTS = re.compile(r"\bthrowRuntime\b|\bctx\s*\.\s*error\b|\breturn\b"
+                      r"|\berror\s*\(|\bthrow\b")
+
+
+def _is_rejection(body: str, at: int) -> bool:
+    """(AR) الشرطُ حارسُ نقصٍ متى كانت تبعتُه رفضًا — رميًا أو عودةً مبكّرة."""
+    return bool(_REJECTS.search(body[at:at + 240]))
 
 
 @dataclass(frozen=True)
@@ -79,17 +96,38 @@ def derive() -> tuple[list[Derived], list[tuple[str, str]]]:
             cpp_id = mark.group(2)
             required: list[int] = []
             indices: list[int] = []
+            # (AR) والاختياريّةُ تسري على **الكتلةِ** لا على سطرِ الشرطِ وحدَه.
+            depth = 0
+            optional_depth: int | None = None
+            pending = False
             for line in body.splitlines():
+                opened = depth
+                inside = optional_depth is not None and depth > optional_depth
+                guarded = pending or inside or bool(_OPTIONAL.search(line))
                 hits = [int(m.group(1)) for m in _INDEX.finditer(line)]
+                depth += line.count("{") - line.count("}")
+                if _OPTIONAL.search(line):
+                    if line.count("{") > line.count("}"):
+                        optional_depth, pending = opened, False
+                    else:
+                        pending = True
+                elif pending:
+                    if line.strip().startswith("{"):
+                        optional_depth = opened
+                    pending = False
+                elif optional_depth is not None and depth <= optional_depth:
+                    optional_depth = None
                 if not hits:
                     continue
                 indices += hits
-                if not _OPTIONAL.search(line):
+                if not guarded:
                     required += hits
-            guards = [int(m.group(1)) for m in _SIZE_GUARD.finditer(body)]
-            guards += [int(m.group(1)) for m in _SIZE_EQ.finditer(body)]
-            if _EMPTY.search(body):
-                guards.append(1)
+            guards = [int(m.group(1)) for m in _SIZE_GUARD.finditer(body)
+                      if _is_rejection(body, m.end())]
+            guards += [int(m.group(1)) for m in _SIZE_EQ.finditer(body)
+                       if _is_rejection(body, m.end())]
+            guards += [1 for m in _EMPTY.finditer(body)
+                       if _is_rejection(body, m.end())]
             if not indices and not guards:
                 baseless.append((namespace, cpp_id))
                 continue

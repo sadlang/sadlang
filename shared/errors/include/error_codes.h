@@ -180,6 +180,7 @@ namespace Sad
             SEM_ASM_ARCH_UNSUPPORTED,     ///< SEM044: (AR) كتلةُ «تجميع» على هدفٍ لا معجمَ لمعماريّتِه — رفضٌ صريحٌ بدل خفضٍ بمعجمِ معماريّةٍ أخرى / (EN) assembly block on a target whose architecture has no lexicon — explicit rejection instead of lowering with a foreign one
             SEM_VOID_ASSIGNED_TO_TYPED_SLOT, ///< SEM045: (AR) «فراغ» أُسند إلى خانةٍ مصنّفة — غيابُ نتيجةٍ يعبر جدارَ الأنواع (RFC عقد الغياب، المرحلة أ) / (EN) Void assigned to a typed slot — an absent result crossing the type wall (absence-contract RFC, stage A)
             SEM_INTERRUPT_HANDLER_CONTRACT, ///< SEM046: (AR) عقدُ «دالة مقاطعة» غير مستوفى — توقيعٌ أو نداءٌ أو بوّابةُ هدفٍ (RFC 0059) / (EN) interrupt-handler contract violated — signature, call, or target gate (RFC 0059)
+            SEM_BUILTIN_ABSENT_IN_COMPILER, ///< SEM047: (AR) مدمَجةٌ معلَنةٌ في مصدرِ الحقيقةِ ومسجَّلةٌ في المفسّرِ بلا توزيعٍ في المترجم — تباعدُ تغطيةٍ لا اسمٌ مجهول / (EN) builtin declared in the SoT and registered in the interpreter with no compiler dispatch — a coverage divergence, not an unknown name
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors
