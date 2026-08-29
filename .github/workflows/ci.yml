@@ -946,6 +946,16 @@ jobs:
             Write-Host "⚠️ غير مبنيّ: اختباراتُ الطرفِ إلى الطرف في Debug — يُقاسُ سببُه في هذا الشوط" -ForegroundColor Yellow
           }
 
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "🧪 اختبارات Regression (المفسّر) / Regression Tests (Interpreter)"
         shell: pwsh
         run: |
@@ -963,7 +973,7 @@ jobs:
 
       - name: "🧪 اختبارات Regression (المترجم) / Regression Tests (Compiler)"
         shell: pwsh
-        if: matrix.config == 'Release'
+        timeout-minutes: 30
         run: |
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (Test-Path $sadc) {
@@ -977,6 +987,16 @@ jobs:
             exit 1
           }
 
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "🧪 CTest / Run CTest"
         shell: pwsh
         run: |
@@ -985,9 +1005,19 @@ jobs:
           # (EN) ctest selects config via -C/--build-config, not --config (that's a cmake --build flag)
           ctest -C ${{ matrix.config }} --output-on-failure --timeout 120 -j4
 
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "🔄 اختبارات التنفيذ المزدوج (مستوى هرميّ + بوّابة) / Dual Execution Tests (level + gate)"
         shell: pwsh
-        if: matrix.config == 'Release'
+        timeout-minutes: 30
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
@@ -1058,8 +1088,17 @@ jobs:
       # (EN) Both steps used to run on Linux only, and they hold 3724 of the
       #      3931 tests. Measured cost on Linux: 189 s and 51 s, against a
       #      947 s build on Windows — coverage is cheaper than the build.
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "🧮 مصفوفة القواعد / Rules Matrix Parity"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         shell: pwsh
         run: |
@@ -1087,8 +1126,17 @@ jobs:
           }
           Write-Host "✅ مصفوفةُ القواعد على ويندوز: PASS"
 
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "📚 المستوى الكامل / Full Level Parity"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         shell: pwsh
         run: |
@@ -1120,7 +1168,6 @@ jobs:
       #      FAIL_COMPILE, so an interpreter-only measurement would flip their
       #      kind and redden the guard with a defect the instrument invented.
       - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         shell: pwsh
         run: |
@@ -1244,6 +1291,16 @@ jobs:
       #      green having measured nothing. What it guards fails no build and no
       #      behavioural test: a new in-band-sentinel producer silently widens the
       #      contract-(a) debt.
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "🧮 تعدادُ حارسِ العدمِ داخلَ النطاق / In-band null-sentinel census"
         shell: pwsh
         run: |
@@ -1253,7 +1310,7 @@ jobs:
 
       - name: "🔥 Burn-in للاختبارات الجديدة في الـPR / Burn-in changed PR tests"
         shell: pwsh
-        if: matrix.config == 'Release' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
@@ -1546,8 +1603,19 @@ jobs:
           # (EN) Linux uses a single-config generator; ctest rejects --config here.
           ctest --output-on-failure --timeout 120 -j$(nproc)
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
-        if: matrix.config == 'Release'
+        timeout-minutes: 45
         run: |
           sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
@@ -1581,8 +1649,19 @@ jobs:
           fi
           echo "✅ بوّابةُ القرار: PASS — لا تراجعَ تكافُؤ"
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "🧮 مصفوفة القواعد — ٣٠٠٢ تكافُؤ / Rules Matrix Parity"
-        if: matrix.config == 'Release'
+        timeout-minutes: 45
         run: |
           # (AR) 🔑 هذه الـ٣٠٠٢ لم تُشغَّلْ في CI قطّ — في أيِّ عصرٍ وعلى أيِّ منصّة.
           #      ومُناديها الوحيدُ `check_grammar_conformance.py --run` لا تستدعيه
@@ -1632,8 +1711,19 @@ jobs:
           fi
           echo "✅ مصفوفةُ القواعد: PASS"
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "📚 المستوى الكامل / Full Level Parity"
-        if: matrix.config == 'Release'
+        timeout-minutes: 45
         run: |
           # (AR) 🔑 كان CI يقيسُ التكافؤَ على **P0 وحدَه** — خمسةُ ملفّاتِ دخان.
           #      و`full` = `P0_smoke` + `sections` ⇒ **٧٢٠** ملفًّا (٥ + ٧١٥).
@@ -1672,8 +1762,19 @@ jobs:
           fi
           echo "✅ المستوى الكامل: PASS"
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
-        if: matrix.config == 'Release'
+        timeout-minutes: 45
         run: |
           # (AR) 🔑 grammar_gaps و_regression خارجَ كلِّ مستوًى — ٥٤ ملفًّا أحمرَ لا
           #      يراها أحد. ولو صارت ٥٥ غدًا لَما لاحظَ أحدٌ، ولو اخضرَّ أحدُها
@@ -2224,8 +2325,19 @@ jobs:
           # (EN) Single-config generator like Linux; ctest rejects --config here.
           ctest --output-on-failure --timeout 120 -j4
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
-        if: matrix.config == 'Release'
+        timeout-minutes: 45
         run: |
           sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
@@ -2264,8 +2376,18 @@ jobs:
       #      تقريبًا مقابلَ بناءٍ ٤٩٣ ثانية.
       # (EN) macOS measured five smoke files out of 3931 while both engines are
       #      built here. Full coverage costs ~240 s against a 493 s build.
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "🧮 مصفوفة القواعد / Rules Matrix Parity"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         run: |
           sad="build/bin/sad-run"
@@ -2283,8 +2405,18 @@ jobs:
           fi
           echo "✅ مصفوفةُ القواعد على ماك: PASS"
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "📚 المستوى الكامل / Full Level Parity"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         run: |
           sad="build/bin/sad-run"
@@ -2301,8 +2433,18 @@ jobs:
           fi
           echo "✅ المستوى الكامل على ماك: PASS"
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         run: |
           sad="build/bin/sad-run"
