@@ -1266,28 +1266,35 @@ def _run_single_test_raw(
 
     # (AR) مقارنة المخرجات — عبر وضع التطبيع (ADR-004: فرز @unordered + تساهل عائم)
     # ═══════════════════════════════════════════════════════════════════════
-    # (AR) 🔑 **تكافؤُ رمزِ الخروجِ — قبلَ مقارنةِ المخرجات.**
-    #      المخرَجُ وحدَه لا يصفُ التشغيلة: برنامجٌ يطبعُ كلَّ ما يجبُ ثمّ ينهار
-    #      كان يمرُّ أخضرَ، وانهيارٌ صامتٌ قبلَ الطباعةِ كان يُقرَأُ «اختلافَ
-    #      مخرجات». والرمزُ يُقارَنُ بين المحرّكَينِ لا يُشتَرَطُ صفرًا: برنامجٌ
-    #      ينادي `اخرج(3)` يخرجُ بـ٣ في المحرّكَين وذلك تكافؤٌ تامّ.
-    #      ويُتخطّى الحكمُ إن لم يُقَس أحدُ الرمزَين (مهلةٌ أو محرّكٌ متخطًّى).
-    # (EN) Exit-code parity, judged before the output comparison. Output alone
-    #      does not describe a run: printing everything and then crashing passed
-    #      green, and a silent crash before printing read as a mere output
-    #      mismatch. The codes are compared between engines, not required to be
-    #      zero — `اخرج(3)` returns 3 on both, which is exact parity. Skipped
-    #      whenever either code is unmeasured (timeout, or a skipped engine).
+    # (AR) 🔑 **تكافؤُ رمزِ الخروجِ — بعدَ المخرجاتِ لا قبلَها.**
+    #      كان الرمزُ يُطرَحُ صامتًا، فبرنامجٌ يطبعُ كلَّ ما يجبُ **ثمّ** ينهار
+    #      يمرُّ أخضرَ، وانهيارٌ صامتٌ (‎0xC0000005‎ لا يكتبُ في stderr حرفًا)
+    #      يُبلَّغُ «اختلافَ مخرجات» بلا سببٍ مذكور.
+    #
+    #      وموضعُ الحكمِ مقيسٌ لا مُختار: أطلقتُه أوّلَ مرّةٍ **قبلَ** مقارنةِ
+    #      المخرجات، فحوَّلَ ثلاثةَ اختلافاتِ مخرجاتٍ مسجَّلةٍ في سجلِّ الحمرةِ
+    #      إلى «تباعُدِ رمز» — أي **أفقدَ التشخيصَ معلومةً** بدلَ أن يضيفَها،
+    #      وأحمرَ حارسُ «تغيُّرِ طبقةِ الإخفاق» بحقّ. فالترتيبُ الصحيح:
+    #      • المخرجاتُ تختلف ⇒ الحكمُ `FAIL_OUTPUT` كما كان، **والرمزُ يُذكَرُ**
+    #        في الرسالةِ إن تباعدَ — تشخيصٌ أدقُّ بلا تغييرِ طبقة.
+    #      • المخرجاتُ تتطابق ⇒ هنا وحدَه يصيرُ تباعُدُ الرمزِ هو الخبرَ، وهو
+    #        الثقبُ الذي كان يمرُّ أخضرَ.
+    #      ولا يُشتَرَطُ الرمزُ صفرًا: `اخرج(3)` يخرجُ بـ٣ في المحرّكَينِ وذلك
+    #      تكافؤٌ تامّ. ويُتخطّى الحكمُ إن لم يُقَس أحدُ الرمزَين.
+    # (EN) Exit-code parity, judged AFTER the outputs — measured, not chosen:
+    #      firing it first demoted three registered output divergences into
+    #      "exit divergence", losing information and rightly reddening the
+    #      failure-layer guard. So: outputs differ → FAIL_OUTPUT as before, with
+    #      the codes NAMED in the message; outputs match → an exit divergence is
+    #      the news, and that is the hole that used to pass green. Never required
+    #      to be zero, and skipped when either code is unmeasured.
     # ═══════════════════════════════════════════════════════════════════════
-    if (interp_code is not _EXIT_UNKNOWN and compiler_code is not _EXIT_UNKNOWN
-            and interp_code != compiler_code):
-        return TestResult(file=rel_path, status=Status.FAIL_RUNTIME,
-                          interp_output=interp_out, compiler_output=compiler_out,
-                          interp_time_ms=interp_time, compiler_time_ms=compiler_time,
-                          metadata=meta,
-                          error_message=("تباعُدُ رمزِ الخروج — "
-                                         f"مفسّر: {_exit_code_note(interp_code)} · "
-                                         f"مترجم: {_exit_code_note(compiler_code)}"))
+    exit_codes_diverge = (interp_code is not _EXIT_UNKNOWN
+                          and compiler_code is not _EXIT_UNKNOWN
+                          and interp_code != compiler_code)
+    exit_note = (" · رمزُ الخروج — "
+                 f"مفسّر: {_exit_code_note(interp_code)} · "
+                 f"مترجم: {_exit_code_note(compiler_code)}") if exit_codes_diverge else ""
 
     if compare_outputs(interp_out, compiler_out, meta):
         # (AR) تحقق إضافي من @expected إن وُجد
@@ -1299,6 +1306,15 @@ def _run_single_test_raw(
                                   interp_time_ms=interp_time, compiler_time_ms=compiler_time,
                                   metadata=meta,
                                   error_message=f"متطابقان لكن ≠ المتوقع")
+        # (AR) المخرجاتُ متطابقةٌ — فإن تباعدَ الرمزُ فالتشغيلتانِ مختلفتان
+        #      رغمَ تطابقِ الطباعة: أحدُهما انهارَ بعدَ أن طبع.
+        if exit_codes_diverge:
+            return TestResult(file=rel_path, status=Status.FAIL_RUNTIME,
+                              interp_output=interp_out, compiler_output=compiler_out,
+                              interp_time_ms=interp_time, compiler_time_ms=compiler_time,
+                              metadata=meta,
+                              error_message=("المخرجاتُ متطابقةٌ لكنّ رمزَ الخروجِ تباعد"
+                                             + exit_note))
         return TestResult(file=rel_path, status=Status.PASS,
                           interp_output=interp_out, compiler_output=compiler_out,
                           interp_time_ms=interp_time, compiler_time_ms=compiler_time,
@@ -1308,7 +1324,7 @@ def _run_single_test_raw(
                           interp_output=interp_out, compiler_output=compiler_out,
                           interp_time_ms=interp_time, compiler_time_ms=compiler_time,
                           metadata=meta,
-                          error_message="مخرجات المفسر ≠ مخرجات المترجم")
+                          error_message="مخرجات المفسر ≠ مخرجات المترجم" + exit_note)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════
