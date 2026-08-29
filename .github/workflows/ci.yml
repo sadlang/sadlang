@@ -911,19 +911,23 @@ jobs:
               Write-Host "▶️ Running $test..." -ForegroundColor Cyan
               & $exe
               if ($LASTEXITCODE -ne 0) { $failed++ }
-            } elseif ("${{ matrix.config }}" -eq "Release") {
-              # (AR) في Release المترجمُ مبنيٌّ إلزامًا، فغيابُ ثنائيِّ اختبارِه عطبٌ.
-              Write-Host "::error::MISSING: $exe — إلزاميٌّ في Release"
-              $failed++
             } else {
-              # (AR) ⚠️ العذرُ القديمُ هنا كان «في Debug خلفيّةُ LLVM مُطفأةٌ عمدًا»،
-              #      وقد **بطلَ**: LLVM مُفعَّلٌ في التكوينَين الآن. ولا يُرقَّى هذا
-              #      إلى قاتلٍ قبلَ أن يُقاس — البناءُ الذي أثبتَ الربطَ كان
-              #      بـ`BUILD_TESTS=OFF`، فلا شهادةَ بعدُ على هذه الثنائيّاتِ
-              #      بعينِها. يبقى تحذيرًا **مُعلَنَ السببِ** شوطًا واحدًا، ثمّ
-              #      يُقفَلُ بما يُظهرُه هذا الشوط. تركُ عذرٍ كاذبٍ أخطرُ من غيابٍ
-              #      يُرى: الأوّلُ يبتلعُ العطبَ باسمِ التصميم.
-              Write-Host "⚠️ غير مبنيّ: $exe — والسببُ المُعلَنُ سابقًا (إطفاءُ LLVM في Debug) لم يعد قائمًا" -ForegroundColor Yellow
+              # (AR) 🔑 **العذرُ كان كاذبًا مرّتَين، والقياسُ ساكنٌ لا انتظارُ شوط.**
+              #      قيل «في Debug خلفيّةُ LLVM مُطفأةٌ عمدًا» — وتعريفُ الهدفِ في
+              #      `cmake/tests_comprehensive.cmake` لا يذكرُ LLVM أصلًا ولا
+              #      `EXCLUDE_FROM_ALL` ولا شرطَ تكوين: `add_executable` عارٍ يرتبطُ
+              #      بـ`sad_shared`. فالهدفُ في ALL في التكوينَين، وذراعُ Debug
+              #      هذه لم يكن لها أن تُنفَّذَ إلّا على عطبٍ حقيقيّ. وشُوهِدَ
+              #      الثنائيّانِ في `build/bin/Debug/` محلّيًّا.
+              #      فالشرطُ يُحذَفُ لا يُنقَل: الغيابُ عطبٌ في أيِّ تكوين.
+              # (EN) The excuse was false twice over, proven statically: the target
+              #      definition names no LLVM, no EXCLUDE_FROM_ALL and no config
+              #      condition — a bare add_executable linking sad_shared, in ALL
+              #      for every config. Both binaries were observed in the local
+              #      Debug tree. So the config arm is deleted, not moved: a missing
+              #      binary is a defect in any config.
+              Write-Host "::error::MISSING: $exe — الهدفُ في ALL بلا شرطِ تكوينٍ ولا LLVM، فغيابُه عطبٌ"
+              $failed++
             }
           }
           if ($failed -gt 0) {
@@ -939,11 +943,13 @@ jobs:
             Write-Host "▶️ Running E2E tests..." -ForegroundColor Cyan
             & $exe
             if ($LASTEXITCODE -ne 0) { exit 1 }
-          } elseif ("${{ matrix.config }}" -eq "Release") {
-            Write-Host "::error::MISSING: $exe — اختباراتُ الطرفِ إلى الطرفِ إلزاميّةٌ في Release"
-            exit 1
           } else {
-            Write-Host "⚠️ غير مبنيّ: اختباراتُ الطرفِ إلى الطرف في Debug — يُقاسُ سببُه في هذا الشوط" -ForegroundColor Yellow
+            # (AR) نفسُ الحكمِ ونفسُ الدليل: `test_e2e_comprehensive` هدفٌ عارٍ في
+            #      ALL بلا شرطِ تكوينٍ ولا LLVM. فلا ذراعَ عذرٍ في Debug.
+            # (EN) Same judgement, same proof: a bare ALL target with no config
+            #      condition and no LLVM — so no Debug excuse arm.
+            Write-Host "::error::MISSING: $exe — الهدفُ في ALL بلا شرطِ تكوينٍ ولا LLVM، فغيابُه عطبٌ"
+            exit 1
           }
 
       # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
