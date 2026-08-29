@@ -70,6 +70,14 @@
 #include <cstdlib>
 #include <filesystem>
 #include <system_error>
+// (AR) 🔑 ضمٌّ صريحٌ لكلِّ مورِّد. حذفُ ترويسةٍ «ميّتةٍ» بمقياسِ الاستعمالِ
+//      المباشرِ يحذفُ معها ما كانت تُورِّدُه نقلًا؛ فيُصرَّحُ بالمورِّدِ لا يُورَّث.
+// (EN) Explicit include for every supplier: removing a header that is "dead" by
+//      direct-use count also removes what it transitively supplied.
+#include <cstdint>
+#include <utility>
+#include <string>
+#include <vector>
 
 namespace sad
 {

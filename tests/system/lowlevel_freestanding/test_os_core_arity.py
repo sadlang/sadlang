@@ -47,6 +47,14 @@ pytestmark = pytest.mark.skipif(
 FREESTANDING = "--حرّ"
 EMIT_LLVM = "--أظهر-llvm"
 TARGET_X64 = "--هدف=x86_64-unknown-elf"
+# (AR) 🔑 الهدفُ المُستضافُ مُصَرَّحٌ أيضاً. هذه الحالةُ تحرُسُ المسارَ المُستضاف،
+#      لكنَّ دعواها تخُصُّ عائلةَ x86 لا محالة، وبلا «--هدف» تقعُ على ثالوثِ
+#      المُشَغِّل. فتُصَرَّحُ بثالوثٍ مُستضافٍ x86_64 كي يبقى المقيسُ مُستضافاً
+#      والمعماريّةُ مُصَرَّحةً — لا مُورَثةً من الآلة.
+# (EN) The hosted target is declared too: the case guards the hosted path but its
+#      claim is x86-family, so it declares a hosted x86_64 triple instead of
+#      inheriting the runner's.
+TARGET_X64_HOSTED = "--هدف=x86_64-unknown-linux-gnu"
 
 
 def _compile(source: str, *extra_flags: str) -> tuple[int, str, str]:
@@ -117,7 +125,7 @@ def test_write_cr_correct_arity_still_compiles():
 
 def test_gdt_load_optional_arg_stays_optional_hosted():
     """(AR) حمل_جدول_واصفات() بلا وسيطٍ مستضافًا: الاختياريُّ المعلَن يبقى مقبولًا."""
-    code, out, _ = _compile("حمل_جدول_واصفات()\n")
+    code, out, _ = _compile("حمل_جدول_واصفات()\n", TARGET_X64_HOSTED)
     assert code == 0, "الوسيط الاختياري صار إلزاميًّا (كسر عقد معلَن):\n" + out
 
 

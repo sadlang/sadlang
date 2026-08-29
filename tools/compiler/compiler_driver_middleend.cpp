@@ -30,6 +30,11 @@
 #include "../../compiler/include/sir_optimizer/optimizer.h"
 
 #include <iostream>
+// (AR) 🔑 ضمٌّ صريحٌ لكلِّ مورِّد. حذفُ ترويسةٍ «ميّتةٍ» بمقياسِ الاستعمالِ
+//      المباشرِ يحذفُ معها ما كانت تُورِّدُه نقلًا؛ فيُصرَّحُ بالمورِّدِ لا يُورَّث.
+// (EN) Explicit include for every supplier: removing a header that is "dead" by
+//      direct-use count also removes what it transitively supplied.
+#include <exception>
 
 namespace sad
 {
