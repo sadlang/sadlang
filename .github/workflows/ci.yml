@@ -823,6 +823,85 @@ jobs:
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **بوّابةُ برنامجِ الواجهةِ المترجَم — تشخيصٌ يُسمّي نفسَه.**
+      #      قِيسَ على ‎6ef6ad97‎ ثمّ ‎758db4fa‎: ستّةُ برامجِ واجهةٍ في ويندوز
+      #      Debug تُترجَمُ بنجاحٍ وتعملُ وتخرجُ بالرمزِ **صفر** وتطبعُ **لا
+      #      شيء**، بينما المفسّرُ يطبعُ الصحيح. وليس انهيارًا: حكمُ تكافؤِ
+      #      رمزِ الخروجِ لم يُطلَق، أي أنّ الرمزَينِ متساويان.
+      #      ولا يُعادُ إنتاجُه محلّيًّا: بناءٌ بـ‎/MD + NDEBUG + /Od + /RTC1‎ —
+      #      أي عينُ دلالةِ Debug‑التوافقِ — يمرُّ أخضرَ على المِلفَّاتِ الستّةِ
+      #      وعلى P1 كلِّها (٧٤٠/٧٤٧). فالفارقُ ليس عَلَمَ تصريفٍ بل شيءٌ في
+      #      بيئةِ CI أو في ما يلتقطُه السائقُ من مكتباتٍ هناك.
+      #      وحكمُ «٧٤٧ ملفًّا فيها ستّةٌ فارغة» لا يقولُ أيَّ شيءٍ عن السبب،
+      #      فهذه البوّابةُ تعزلُ برنامجًا واحدًا وتطبعُ عندَ الفراغِ ما يلزمُ
+      #      للحكم: سجلَّ الترجمةِ المُسهَبَ (أيَّ مكتباتٍ ربَط) وتبعيّاتِ
+      #      الثنائيِّ (أيَّ DLL يطلب). وتقعُ **قبلَ** CTest فتُحمِّرُ في دقيقةٍ
+      #      لا في ذيلِ مسحٍ من ٢٠٠ ثانية.
+      # (EN) Compiled-UI gate that diagnoses itself. Measured twice: six UI
+      #      programs compile, run, exit 0 and print nothing on Windows Debug —
+      #      not a crash (the exit-parity judgement never fired). Not reproducible
+      #      locally: /MD + NDEBUG + /Od + /RTC1 — the exact semantics of the
+      #      compat Debug build — is green on all six and on all of P1 (740/747).
+      #      So the difference is not a compile flag but something in the CI
+      #      environment or in what the driver picks up there. "Six empty files
+      #      out of 747" says nothing about the cause, so this gate isolates one
+      #      program and, on empty output, prints what is needed to judge: the
+      #      verbose compile log (which libraries it linked) and the binary's
+      #      imports (which DLLs it wants). It runs BEFORE CTest, so it reds in a
+      #      minute instead of at the tail of a 200-second sweep.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🖼️ بوّابةُ برنامجِ الواجهةِ المترجَم / Compiled UI program gate"
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
+          $src  = "tests/behavior/sections/12_تكامل/03_برامج_كاملة/133_ui_primary_prop_sot.ص"
+          if (-not (Test-Path $src)) {
+            Write-Host "::error::مصدرُ البوّابةِ مفقود: $src — البوّابةُ تقيسُ ملفًّا بعينِه"
+            exit 1
+          }
+          $work = "build/_ui_gate"
+          Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $work | Out-Null
+          $exe = "$work/ui_gate.exe"
+          # (AR) `-v` دائمًا: السجلُّ يُطبَعُ عندَ الفشلِ وحدَه، وإعادةُ الترجمةِ
+          #      لالتقاطِه كانت ستقيسُ تشغيلةً أخرى لا التي فشلت.
+          # (EN) Always -v: the log is printed only on failure, but recompiling to
+          #      capture it would measure a different run than the one that failed.
+          $log = & $sadc $src -v -o $exe 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host $log
+            Write-Host "::error::بوّابةُ الواجهة: الترجمةُ أخفقت (رمز $LASTEXITCODE)"
+            exit 1
+          }
+          if (-not (Test-Path $exe)) {
+            Write-Host $log
+            Write-Host "::error::بوّابةُ الواجهة: لم يُنتَج ثنائيّ رغمَ رمزِ نجاح"
+            exit 1
+          }
+          $out = & $exe 2>&1 | Out-String
+          $code = $LASTEXITCODE
+          $expected = 'ترقيم_صفحات(قيمة: 3)'
+          if ($out.Trim().Length -eq 0) {
+            Write-Host "── سجلُّ الترجمةِ المُسهَب / verbose compile log ──"
+            Write-Host $log
+            Write-Host "── تبعيّاتُ الثنائيّ / binary imports ──"
+            $dumpbin = (Get-Command dumpbin.exe -ErrorAction SilentlyContinue)
+            if ($dumpbin) { & $dumpbin.Source /dependents $exe } else { Write-Host "dumpbin غيرُ متاح" }
+            Write-Host "── مكتباتُ الرسومِ الموجودة / graphics libs present ──"
+            Get-ChildItem -Recurse -Filter "sad_graphics*.lib" build/lib -ErrorAction SilentlyContinue |
+              ForEach-Object { Write-Host $_.FullName }
+            Write-Host "::error::بوّابةُ الواجهة: الثنائيُّ خرجَ بالرمز $code وطبعَ لا شيء — المتوقَّعُ يبدأُ بـ'$expected'"
+            exit 1
+          }
+          if ($out -notmatch [regex]::Escape($expected)) {
+            Write-Host $out
+            Write-Host "::error::بوّابةُ الواجهة: المخرَجُ لا يحوي '$expected'"
+            exit 1
+          }
+          Write-Host "✅ بوّابةُ برنامجِ الواجهةِ المترجَم: PASS (رمزُ الخروج $code)"
+
       - name: "📦 حفظُ خبيئةِ البناء / Save CMake build cache"
         if: steps.win-build-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
