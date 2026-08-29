@@ -142,6 +142,25 @@ include(${CMAKE_SOURCE_DIR}/cmake/platform.cmake)
 #      حتى لا تظهر رموز Debug CRT مثل __imp__calloc_dbg أثناء الربط.
 # (EN) In compatibility mode, force /MD runtime for all targets
 #      to avoid Debug CRT symbols like __imp__calloc_dbg at link time.
+# (AR) 🔑 **العَلَمُ الذي لم يكن مُعلَنًا.** كانت هذه الكتلةُ كلُّها شيفرةً ميّتة:
+#      `SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT` يُسأَلُ عنه هنا **ولا يُعرَّفُ في
+#      المستودعِ كلِّه** — لا `option()` ولا قيمةَ افتراضيّةَ ولا مُمرِّرَ واحد.
+#      فالشرطُ لا يمكنُ أن يصيرَ صادقًا، والعلاجُ مكتوبٌ ومُعطَّل. وثمنُ ذلك مقيس:
+#      خانةُ ويندوز Debug بقيت خارجَ قياسِ مسارِ LLVM كلِّه لأنّ `sad-build` لا
+#      يُبنى فيها، وكُتِبَ ذلك في التوثيقِ «حدًّا تقنيًّا» — وهو في الحقيقةِ
+#      مِفتاحٌ لم يُوصَل.
+#      قِيسَ بعدَ الإعلان: البناءُ يرتبطُ فعلًا (sad-build.exe في Debug ضدّ LLVM
+#      إصداريّ) ومجموعةُ الوضعِ الحرِّ ٢٢٦/٢٢٩ خضراء.
+#      ⚠️ **الثمنُ يُقالُ لا يُخفى**: `NDEBUG` في Debug يُطفئُ `assert()`. فـ«Debug»
+#      في وضعِ التوافقِ يعني ‎/Od‎ ومعلوماتِ تنقيحٍ **بلا توكيدات** — لا Debug
+#      كاملًا. ولذلك يبقى افتراضيًّا OFF ولا يُفعَّلُ إلّا حيثُ لا Debug LLVM.
+# (EN) The flag this whole block guards on was declared nowhere in the repo, so
+#      the block never executed. Measured after declaring it: sad-build links in
+#      Debug against Release LLVM and 226/229 freestanding tests pass. Cost stated
+#      plainly: NDEBUG disables assert() in that configuration.
+option(SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT
+       "MSVC: build Debug against a Release-only LLVM (/MD + NDEBUG; disables assert)" OFF)
+
 if(MSVC AND ENABLE_LLVM_BACKEND AND SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL" CACHE STRING "MSVC runtime library" FORCE)
 

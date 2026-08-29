@@ -315,7 +315,13 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     #      sad-build is not excluded from ALL. On non-MSVC, Debug build is ABI-safe.
     #      ⚠️ This exclusion is about sad-build only; sad-build-native above is
     #      unaffected because it links no LLVM.
-    if(SAD_LLVM_HAS_DEBUG OR NOT MSVC)
+    # (AR) والطرفُ الثالثُ `SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT`: كانت البوّابةُ
+    #      تسألُ عن **وجودِ** Debug LLVM ولا تعرفُ أنّ في الجذرِ علاجًا يُغني عنه
+    #      (‎/MD‎ + ‎_ITERATOR_DEBUG_LEVEL=0‎). فكانت تستثني الهدفَ ولو كان قابلًا
+    #      للبناءِ فعلًا — وهو ما قِيس.
+    # (EN) Third arm: the gate asked only whether a Debug LLVM exists, unaware of
+    #      the root-level compat path that makes one unnecessary.
+    if(SAD_LLVM_HAS_DEBUG OR NOT MSVC OR SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT)
         add_executable(sad-build
             ${SAD_DRIVER_COMMON_SOURCES}
             ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_backend.cpp)

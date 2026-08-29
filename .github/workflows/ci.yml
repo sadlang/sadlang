@@ -367,8 +367,15 @@ jobs:
       # ⚠️ (EN) Split restore/save on purpose: the unified cache action saves in
       #      Post and skips it when the job fails — and the failing job was
       #      exactly this one, so the entry would never be written.
-      - name: "📦 استرجاعُ خبيئةِ LLVM (Release فقط) / Restore LLVM cache"
-        if: matrix.config == 'Release'
+      # (AR) 🔑 سقطَ `matrix.config == 'Release'` عن التزويد. كان يُقرأ حدًّا
+      #      تقنيًّا (جدارُ `_ITERATOR_DEBUG_LEVEL`)، وهو في الحقيقةِ مِفتاحٌ لم
+      #      يُوصَل: العلاجُ مكتوبٌ في الجذرِ منذ زمنٍ خلفَ عَلَمٍ لم يُعلَن.
+      #      وثمنُ عدمِ التزويدِ أنّ `sad-build` لا يُعرَّفُ أصلًا في Debug،
+      #      فستُّ خطواتٍ لاحقةٍ تُشترَط بـRelease وتُقاسُ في خانةٍ واحدةٍ لا ستّ.
+      # (EN) The Release-only condition is gone from provisioning: what read as a
+      #      hard technical wall was an unwired flag. Without LLVM here sad-build
+      #      is never even defined, which is why six later steps are Release-only.
+      - name: "📦 استرجاعُ خبيئةِ LLVM / Restore LLVM cache"
         id: llvm-toolchain-cache
         uses: actions/cache/restore@v6
         timeout-minutes: 15
@@ -400,7 +407,7 @@ jobs:
       #      change how the installer is awaited; -PassThru keeps the exit
       #      code judged, which -Wait alone never provided.
       - name: "📦 تحميل LLVM 18 (عند غياب الخبيئة) / Download LLVM 18 (on cache miss)"
-        if: matrix.config == 'Release' && steps.llvm-toolchain-cache.outputs.cache-hit != 'true'
+        if: steps.llvm-toolchain-cache.outputs.cache-hit != 'true'
         timeout-minutes: 15
         shell: pwsh
         run: |
@@ -677,10 +684,23 @@ jobs:
       - name: "🔨 تكوين CMake / Configure CMake"
         shell: pwsh
         run: |
-          # (AR) على Windows: LLVM متوفّر فقط في Release بسبب عدم تطابق _ITERATOR_DEBUG_LEVEL.
-          # (EN) On Windows LLVM is Release-only due to the _ITERATOR_DEBUG_LEVEL mismatch.
-          $useLlvm = if ("${{ matrix.config }}" -eq "Release") { "ON" } else { "OFF" }
-          $llvmArg = if ("${{ matrix.config }}" -eq "Release" -and $env:LLVM_DIR) { "-DLLVM_DIR=$env:LLVM_DIR" } else { "" }
+          # (AR) 🔑 LLVM في التكوينَين. وجدارُ `_ITERATOR_DEBUG_LEVEL` حقيقيٌّ —
+          #      حزمةُ LLVM المُزوَّدةُ إصداريّةٌ (‎/MD‎، IDL=0) وبناءُ Debug بـ‎/MDd‎
+          #      (IDL=2) — لكنّ عبورَه مكتوبٌ في الجذرِ منذ زمنٍ خلفَ
+          #      `SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT`، وكان العَلَمُ **بلا إعلان**
+          #      فما نُفِّذَ قطّ. قِيسَ بعدَ إعلانِه محلّيًّا بهذه التهيئةِ بعينِها:
+          #      `sad-build.exe` يرتبط، ومجموعةُ الوضعِ الحرِّ ٢٢٦/٢٢٩ خضراء.
+          #      ⚠️ والثمنُ مُعلَن: العَلَمُ يُعرِّفُ `NDEBUG` في Debug فيُطفئُ
+          #      `assert()`. فهذه الخانةُ تقيسُ مسارَ LLVM بلا توكيدات — وذلك
+          #      أوسعُ ممّا كانت تقيسُه (لا شيء).
+          # (EN) LLVM in both configs. The IDL wall is real, but the escape has
+          #      existed in the root CMakeLists behind a flag that was declared
+          #      nowhere and therefore never ran. Measured locally with this exact
+          #      configuration: sad-build links, 226/229 freestanding tests pass.
+          #      Stated cost: NDEBUG disables assert() in this cell.
+          $useLlvm = "ON"
+          $llvmArg = if ($env:LLVM_DIR) { "-DLLVM_DIR=$env:LLVM_DIR" } else { "" }
+          $compatArg = if ("${{ matrix.config }}" -eq "Debug") { "-DSAD_FORCE_MSVC_LLVM_RELEASE_COMPAT=ON" } else { "" }
           # (AR) تثبيت مفسّر Python نفسه الذي ثُبّتت فيه حزم التوليد (يطابق خطوة pip).
           # (EN) Pin the same Python interpreter the codegen deps were installed into.
           $pyArg = if ($env:PYTHON3_EXECUTABLE) { "-DPython3_EXECUTABLE=$env:PYTHON3_EXECUTABLE" } else { "" }
@@ -692,17 +712,20 @@ jobs:
           # 🔑 (EN) Pass zlib as an ANSWER, not a hint: LLVMConfig calls
           #      find_package(ZLIB) itself, and prefilled cache entries skip the
           #      name search that would otherwise grab a DLL-less import lib.
-          $zlibReady = ("${{ matrix.config }}" -eq "Release") -and $env:ZLIB_LIBRARY_RELEASE
+          # (AR) شرطُ التكوينِ سقطَ هنا أيضًا: `LLVMConfig.cmake` يستدعي
+          #      `find_package(ZLIB)` في أيِّ تكوينٍ يُوجَدُ فيه، لا في Release وحدَه.
+          $zlibReady = [bool]$env:ZLIB_LIBRARY_RELEASE
           $zlibIncArg = if ($zlibReady) { "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE_DIR" } else { "" }
           $zlibLibArg = if ($zlibReady) { "-DZLIB_LIBRARY_RELEASE=$env:ZLIB_LIBRARY_RELEASE" } else { "" }
           $zlibStaticArg = if ($zlibReady) { "-DZLIB_USE_STATIC_LIBS=ON" } else { "" }
-          $zstdReady = ("${{ matrix.config }}" -eq "Release") -and $env:SAD_ZSTD_LIBRARY
+          $zstdReady = [bool]$env:SAD_ZSTD_LIBRARY
           $zstdIncArg = if ($zstdReady) { "-Dzstd_INCLUDE_DIR=$env:SAD_ZSTD_INCLUDE_DIR" } else { "" }
           $zstdLibArg = if ($zstdReady) { "-Dzstd_LIBRARY=$env:SAD_ZSTD_LIBRARY" } else { "" }
           cmake -B build -G "Visual Studio 17 2022" `
             -DBUILD_TESTS=ON `
             -DENABLE_LLVM_BACKEND=$useLlvm `
             $(if ($llvmArg) { $llvmArg }) `
+            $(if ($compatArg) { $compatArg }) `
             $(if ($pyArg) { $pyArg }) `
             $(if ($zlibIncArg) { $zlibIncArg }) `
             $(if ($zlibLibArg) { $zlibLibArg }) `
@@ -753,8 +776,7 @@ jobs:
           python scripts/native_backend/prove_elf_emit_fingerprint.py --مترجم "$thin"
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
-      - name: "🏗️ بناء المترجم sad-build (Release فقط) / Build sad-build Compiler (Release only)"
-        if: matrix.config == 'Release'
+      - name: "🏗️ بناء المترجم sad-build / Build sad-build Compiler"
         shell: pwsh
         run: |
           # 🔑 (AR) الخطوةُ صارت **قاتلةً**، وكانت تنتهي بـ`exit 0` غيرِ مشروط.
@@ -770,12 +792,12 @@ jobs:
           #      interpreter-only or skipped — printing green for "unmeasured".
           #      The binary's existence is asserted separately because an
           #      ungenerated target can still leave MSBuild's exit code at zero.
-          cmake --build build --config Release --target sad-build --parallel 4
+          cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4
           if ($LASTEXITCODE -ne 0) {
             Write-Host "::error::فشل بناءُ sad-build — والمترجمُ ليس اختياريًّا على هذا المُشغِّل بعدَ وصلِ مكتباتِ LLVM"
             exit $LASTEXITCODE
           }
-          if (-not (Test-Path "build/bin/Release/sad-build.exe")) {
+          if (-not (Test-Path "build/bin/${{ matrix.config }}/sad-build.exe")) {
             Write-Host "::error::sad-build.exe غيرُ موجودٍ بعدَ بناءٍ رمزُ خروجِه صفر — هدفٌ لم يُولَّد"
             exit 1
           }
@@ -876,8 +898,14 @@ jobs:
               Write-Host "::error::MISSING: $exe — إلزاميٌّ في Release"
               $failed++
             } else {
-              # (AR) في Debug خلفيّةُ LLVM مُطفأةٌ **عمدًا** (تعارضُ _ITERATOR_DEBUG_LEVEL).
-              Write-Host "⚠️ SKIP: $exe not built (Debug: LLVM backend off by design)" -ForegroundColor Yellow
+              # (AR) ⚠️ العذرُ القديمُ هنا كان «في Debug خلفيّةُ LLVM مُطفأةٌ عمدًا»،
+              #      وقد **بطلَ**: LLVM مُفعَّلٌ في التكوينَين الآن. ولا يُرقَّى هذا
+              #      إلى قاتلٍ قبلَ أن يُقاس — البناءُ الذي أثبتَ الربطَ كان
+              #      بـ`BUILD_TESTS=OFF`، فلا شهادةَ بعدُ على هذه الثنائيّاتِ
+              #      بعينِها. يبقى تحذيرًا **مُعلَنَ السببِ** شوطًا واحدًا، ثمّ
+              #      يُقفَلُ بما يُظهرُه هذا الشوط. تركُ عذرٍ كاذبٍ أخطرُ من غيابٍ
+              #      يُرى: الأوّلُ يبتلعُ العطبَ باسمِ التصميم.
+              Write-Host "⚠️ غير مبنيّ: $exe — والسببُ المُعلَنُ سابقًا (إطفاءُ LLVM في Debug) لم يعد قائمًا" -ForegroundColor Yellow
             }
           }
           if ($failed -gt 0) {
@@ -897,7 +925,7 @@ jobs:
             Write-Host "::error::MISSING: $exe — اختباراتُ الطرفِ إلى الطرفِ إلزاميّةٌ في Release"
             exit 1
           } else {
-            Write-Host "⚠️ SKIP: E2E tests not built (Debug)" -ForegroundColor Yellow
+            Write-Host "⚠️ غير مبنيّ: اختباراتُ الطرفِ إلى الطرف في Debug — يُقاسُ سببُه في هذا الشوط" -ForegroundColor Yellow
           }
 
       - name: "🧪 اختبارات Regression (المفسّر) / Regression Tests (Interpreter)"
@@ -1102,9 +1130,10 @@ jobs:
             exit 1
           }
           Write-Host "✅ سجلُّ الحمرة على ويندوز: PASS"
+      # (AR) 🔑 سقطَ الشرطُ: المترجمُ صار يُبنى في التكوينَين، فالمجموعةُ التي
+      #      تحرسُ مخرَجَ مسارِ LLVM تُقاسُ في الخانتَين لا في واحدة.
       - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
         shell: pwsh
-        if: matrix.config == 'Release'
         run: |
           # (AR) هذه الاختبارات تحرس عيوبًا **لا تُخفق البناءَ ولا الربط** — تُخفق
           #      الإقلاعَ على عتادٍ آخر وفي مستودعٍ آخر بعد أيّام (حجمُ الكومة،
