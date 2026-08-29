@@ -609,8 +609,16 @@ jobs:
 
       # (AR) البيئةُ تُصدَّرُ في الحالَين: الخبيئةُ توفّرُ التنزيلَ لا الإسناد.
       # (EN) Export env in both cases: the cache spares the download, not the wiring.
-      - name: "⚙️ بيئةُ LLVM (Release فقط) / LLVM env (Release only)"
-        if: matrix.config == 'Release'
+      # (AR) 🔑 **النسخةُ الثالثةُ من الشرطِ نفسِه.** أُسقِطَ شرطُ Release عن
+      #      استرجاعِ الخبيئةِ وعن التنزيل، وبقيَ هنا — فالخبيئةُ تُستعادُ في
+      #      Debug ثمّ لا يُصدَّرُ `LLVM_DIR` فيسقطُ التكوين. والقياسُ حصلَ:
+      #      شوطُ ‎1cddedeb‎ أحمرُ على «تكوين CMake» بعدَ ‎1m21s‎ وكلُّ ما بعدَه
+      #      متخطًّى. **رقعةٌ تسدُّ موضعَينِ وتتركُ الثالثَ ميّتةٌ في الثالث.**
+      # (EN) The third copy of the same gate. Release-only was dropped from the
+      #      cache restore and the download but survived here, so Debug restored
+      #      the cache and then never exported LLVM_DIR — configure failed at
+      #      1m21s and every later step skipped.
+      - name: "⚙️ بيئةُ LLVM / LLVM env"
         shell: pwsh
         run: |
           if (-not (Test-Path 'C:\LLVM\lib\cmake\llvm\LLVMConfig.cmake')) {
@@ -699,7 +707,17 @@ jobs:
           #      configuration: sad-build links, 226/229 freestanding tests pass.
           #      Stated cost: NDEBUG disables assert() in this cell.
           $useLlvm = "ON"
-          $llvmArg = if ($env:LLVM_DIR) { "-DLLVM_DIR=$env:LLVM_DIR" } else { "" }
+          # (AR) 🔑 غيابُ `LLVM_DIR` **يُحمِّرُ هنا باسمِه** ولا يمرُّ صامتًا:
+          #      `useLlvm` صارت `ON` قسرًا، فبلا دليلٍ يسقطُ `find_package(LLVM)`
+          #      في وسطِ التكوينِ برسالةٍ لا تُسمّي السببَ الحقيقيَّ — وهي بعينِها
+          #      الرسالةُ التي كلّفت شوطًا كاملًا.
+          # (EN) A missing LLVM_DIR reds here by name instead of drowning inside
+          #      find_package's message — that indirection cost a full CI round.
+          if (-not $env:LLVM_DIR) {
+            Write-Host "::error::LLVM_DIR غيرُ مُصدَّر — خطوةُ «بيئةُ LLVM» لم تعمل في هذا التكوين"
+            exit 1
+          }
+          $llvmArg = "-DLLVM_DIR=$env:LLVM_DIR"
           $compatArg = if ("${{ matrix.config }}" -eq "Debug") { "-DSAD_FORCE_MSVC_LLVM_RELEASE_COMPAT=ON" } else { "" }
           # (AR) تثبيت مفسّر Python نفسه الذي ثُبّتت فيه حزم التوليد (يطابق خطوة pip).
           # (EN) Pin the same Python interpreter the codegen deps were installed into.
