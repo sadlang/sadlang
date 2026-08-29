@@ -714,6 +714,45 @@ jobs:
       - name: "🏗️ بناء المشروع / Build Project"
         run: cmake --build build --config ${{ matrix.config }} --parallel 4
 
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
+      #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
+      #      هدفِ `sad-build` الذي لا يُعرَّفُ إلّا إذا وُجدت LLVM، فكانت تُبنى
+      #      وتُقاسُ في خانةٍ واحدةٍ من ستّ (`Linux × Release`). وثمنُ ذلك مقيسٌ:
+      #      عيبُ `prove_riscv64_decl_parity.sh` في الطلبِ ‎#434‎ عاشَ **ستَّ
+      #      جولاتِ CI** لأنّ الخانةَ الكاشفةَ واحدةٌ وتقعُ في ذيلِ أطولِ وظيفة.
+      #
+      #      هذه الخطوةُ **غيرُ مشروطةٍ بالتكوين** عمدًا، وتقيسُ الدرجةَ الأولى:
+      #      **التصريف**. كاتبُ ELF64 يكتبُ بايتاتٍ لا تعرفُ مضيفَها، فالبصمةُ
+      #      البايتيّةُ صالحةٌ على المنصّاتِ الثلاثِ وفي التكوينَين — والدعوى
+      #      المحروسةُ أنّ الصورةَ **واحدةٌ بايتًا بايتًا عبرَ المضيفين**.
+      #      أمّا **التنفيذُ** (الدرجةُ الثانية) فيحتاجُ نظامًا يقرأُ ELF، ويبقى
+      #      على لينكسَ في `run_native_proofs.sh`. وخلطُ الدرجتَينِ هو مكمنُ
+      #      الأخضرِ الكاذب: خطوةٌ تُسمّى «براهينَ الخلفيّةِ الأصليّة» ولا تقيسُ
+      #      إلّا وجودَ ملفٍّ أسوأُ من غيابِها.
+      # (EN) The native backend and freestanding mode in all six cells. The
+      #      LLVM-free native backend used to be locked inside a target that only
+      #      exists when LLVM is found, so it was built and measured in one cell
+      #      of six. Deliberately unconditional on `config`: it measures degree ①
+      #      (emission), whose byte fingerprint is valid on every host, while
+      #      degree ② (execution) needs an ELF-reading OS and stays on Linux.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🛡️ المترجمُ النحيلُ + بصمةُ ELF / Thin compiler + ELF fingerprint"
+        shell: pwsh
+        run: |
+          cmake --build build --config ${{ matrix.config }} --target sad-build-native --parallel 4
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::فشل بناءُ sad-build-native — الهدفُ النحيلُ لا يربطُ LLVM، فإخفاقُه ليس عذرَ تكوين"
+            exit $LASTEXITCODE
+          }
+          $thin = "build/bin/${{ matrix.config }}/sad-build-native.exe"
+          if (-not (Test-Path $thin)) {
+            Write-Host "::error::sad-build-native.exe غيرُ موجودٍ بعدَ بناءٍ رمزُ خروجِه صفر — هدفٌ لم يُولَّد"
+            exit 1
+          }
+          python scripts/native_backend/prove_elf_emit_fingerprint.py --مترجم "$thin"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       - name: "🏗️ بناء المترجم sad-build (Release فقط) / Build sad-build Compiler (Release only)"
         if: matrix.config == 'Release'
         shell: pwsh
@@ -1316,6 +1355,39 @@ jobs:
           #      as healthy, so a later run inherited a compiler-less tree.
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc)
           echo "SAD_BUILD_FRESH=1" >> $GITHUB_ENV
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
+      #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
+      #      هدفِ `sad-build` الذي لا يُعرَّفُ إلّا إذا وُجدت LLVM، فكانت تُبنى
+      #      وتُقاسُ في خانةٍ واحدةٍ من ستّ (`Linux × Release`). وثمنُ ذلك مقيسٌ:
+      #      عيبُ `prove_riscv64_decl_parity.sh` في الطلبِ ‎#434‎ عاشَ **ستَّ
+      #      جولاتِ CI** لأنّ الخانةَ الكاشفةَ واحدةٌ وتقعُ في ذيلِ أطولِ وظيفة.
+      #
+      #      هذه الخطوةُ **غيرُ مشروطةٍ بالتكوين** عمدًا، وتقيسُ الدرجةَ الأولى:
+      #      **التصريف**. كاتبُ ELF64 يكتبُ بايتاتٍ لا تعرفُ مضيفَها، فالبصمةُ
+      #      البايتيّةُ صالحةٌ على المنصّاتِ الثلاثِ وفي التكوينَين — والدعوى
+      #      المحروسةُ أنّ الصورةَ **واحدةٌ بايتًا بايتًا عبرَ المضيفين**.
+      #      أمّا **التنفيذُ** (الدرجةُ الثانية) فيحتاجُ نظامًا يقرأُ ELF، ويبقى
+      #      على لينكسَ في `run_native_proofs.sh`. وخلطُ الدرجتَينِ هو مكمنُ
+      #      الأخضرِ الكاذب: خطوةٌ تُسمّى «براهينَ الخلفيّةِ الأصليّة» ولا تقيسُ
+      #      إلّا وجودَ ملفٍّ أسوأُ من غيابِها.
+      # (EN) The native backend and freestanding mode in all six cells. The
+      #      LLVM-free native backend used to be locked inside a target that only
+      #      exists when LLVM is found, so it was built and measured in one cell
+      #      of six. Deliberately unconditional on `config`: it measures degree ①
+      #      (emission), whose byte fingerprint is valid on every host, while
+      #      degree ② (execution) needs an ELF-reading OS and stays on Linux.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🛡️ المترجمُ النحيلُ + بصمةُ ELF / Thin compiler + ELF fingerprint"
+        run: |
+          cmake --build build --config ${{ matrix.config }} --target sad-build-native --parallel 4
+          thin="build/bin/sad-build-native"
+          if [ ! -x "$thin" ]; then
+            echo "::error::MISSING: $thin — الهدفُ النحيلُ لا يربطُ LLVM، فغيابُه ليس عذرَ تكوين"
+            exit 1
+          fi
+          python3 scripts/native_backend/prove_elf_emit_fingerprint.py --مترجم "$thin"
+
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
@@ -1606,8 +1678,16 @@ jobs:
           python3 tests/system/harness/test_map_order_contract.py
 
       - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
-        if: matrix.config == 'Release'
         run: |
+          # (AR) 🔑 سقطَ الشرطُ `matrix.config == 'Release'` عن هذه الخطوة. وسببُ
+          #      وجودِه كان ميزانيّةَ زمنٍ لا حدًّا تقنيًّا: `sad-build` يُبنى على
+          #      لينكس في التكوينَين معًا (لا فصلَ ABI خارجَ MSVC)، فكانت خانةُ
+          #      Debug تملكُ المترجمَ ولا تقيسُ به الوضعَ الحرَّ البتّة. وثمنُ ذلك
+          #      أنّ كلَّ عطبٍ هنا صارَ **متسلسلًا**: لا يُكشَفُ إلّا في خانةٍ
+          #      واحدةٍ تقعُ في ذيلِ أطولِ وظيفةٍ في المصفوفة.
+          # (EN) The Release-only condition is gone. It was a time budget, not a
+          #      technical limit: sad-build builds in both configs on Linux, so the
+          #      Debug cell owned the compiler and measured nothing with it.
           # (AR) هذه الاختبارات تحرس عيوبًا **لا تُخفق البناءَ ولا الربط** — تُخفق
           #      الإقلاعَ على عتادٍ آخر وفي مستودعٍ آخر بعد أيّام (حجمُ الكومة،
           #      ورمزٌ مستضافٌ مبثوثٌ في وضعٍ حرّ). وهذه هي المنصّةُ التي تُبنى فيها
@@ -1722,8 +1802,15 @@ jobs:
           python3 -m pytest tests/system/null_repr/test_null_sentinel_census.py -q -rs
 
       - name: "🔬 براهين الخلفيّة الأصليّة (تنفيذٌ حيّ) / Native Backend Live Proofs"
-        if: matrix.config == 'Release'
         run: |
+          # (AR) 🔑 سقطَ الشرطُ `matrix.config == 'Release'`. وهذه هي الخانةُ التي
+          #      كانت وحدَها تكشفُ عيوبَ الخلفيّةِ الأصليّة، ولذلك عاشَ عيبُ
+          #      `prove_riscv64_decl_parity.sh` ستَّ جولاتٍ في الطلبِ ‎#434‎.
+          #      وبتشغيلِها في التكوينَين يصيرُ كشفُ العطبِ **متوازيًا** لا متسلسلًا.
+          # (EN) The Release-only condition is gone. This was the single cell that
+          #      exposed native-backend defects, which is why the riscv64 defect
+          #      survived six CI rounds in #434. Running it in both configs makes
+          #      detection parallel instead of serial.
           # (AR) الفجوةُ التي تسدّها هذه الخطوة: كان في المستودع ١٧ سكربتَ برهانٍ حيٍّ
           #      للخلفيّةِ الأصليّة **بلا مُنادٍ واحد** — لا وظيفةَ CI تشغّلها ولا مسارَ
           #      عدّاءٍ يمرّر `--خلفية-أصلية`. فكلُّ ما تحرسه كان محروسًا يومَ كُتِب فقط.
@@ -1836,6 +1923,40 @@ jobs:
           # 🔑 (AR) الإخفاقُ قاتلٌ (م-٣) — انظر تعليلَ نظيرتِها في وظيفةِ لينكس.
           # 🔑 (EN) Fatal now — see the Linux counterpart for the reasoning.
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4
+
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
+      #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
+      #      هدفِ `sad-build` الذي لا يُعرَّفُ إلّا إذا وُجدت LLVM، فكانت تُبنى
+      #      وتُقاسُ في خانةٍ واحدةٍ من ستّ (`Linux × Release`). وثمنُ ذلك مقيسٌ:
+      #      عيبُ `prove_riscv64_decl_parity.sh` في الطلبِ ‎#434‎ عاشَ **ستَّ
+      #      جولاتِ CI** لأنّ الخانةَ الكاشفةَ واحدةٌ وتقعُ في ذيلِ أطولِ وظيفة.
+      #
+      #      هذه الخطوةُ **غيرُ مشروطةٍ بالتكوين** عمدًا، وتقيسُ الدرجةَ الأولى:
+      #      **التصريف**. كاتبُ ELF64 يكتبُ بايتاتٍ لا تعرفُ مضيفَها، فالبصمةُ
+      #      البايتيّةُ صالحةٌ على المنصّاتِ الثلاثِ وفي التكوينَين — والدعوى
+      #      المحروسةُ أنّ الصورةَ **واحدةٌ بايتًا بايتًا عبرَ المضيفين**.
+      #      أمّا **التنفيذُ** (الدرجةُ الثانية) فيحتاجُ نظامًا يقرأُ ELF، ويبقى
+      #      على لينكسَ في `run_native_proofs.sh`. وخلطُ الدرجتَينِ هو مكمنُ
+      #      الأخضرِ الكاذب: خطوةٌ تُسمّى «براهينَ الخلفيّةِ الأصليّة» ولا تقيسُ
+      #      إلّا وجودَ ملفٍّ أسوأُ من غيابِها.
+      # (EN) The native backend and freestanding mode in all six cells. The
+      #      LLVM-free native backend used to be locked inside a target that only
+      #      exists when LLVM is found, so it was built and measured in one cell
+      #      of six. Deliberately unconditional on `config`: it measures degree ①
+      #      (emission), whose byte fingerprint is valid on every host, while
+      #      degree ② (execution) needs an ELF-reading OS and stays on Linux.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🛡️ المترجمُ النحيلُ + بصمةُ ELF / Thin compiler + ELF fingerprint"
+        run: |
+          cmake --build build --config ${{ matrix.config }} --target sad-build-native --parallel 4
+          thin="build/bin/sad-build-native"
+          if [ ! -x "$thin" ]; then
+            echo "::error::MISSING: $thin — الهدفُ النحيلُ لا يربطُ LLVM، فغيابُه ليس عذرَ تكوين"
+            exit 1
+          fi
+          python3 scripts/native_backend/prove_elf_emit_fingerprint.py --مترجم "$thin"
+
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
@@ -1853,6 +1974,43 @@ jobs:
         with:
           path: build
           key: macos-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
+
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **الوضعُ الحرُّ على ماك — خانتانِ كانتا بلا أيِّ قياس.**
+      #      لم تكن في وظيفةِ ماك خطوةُ وضعٍ حرٍّ البتّة، في أيِّ تكوين: لا في
+      #      Debug ولا في Release. و`sad-build` يُبنى هنا في التكوينَين معًا،
+      #      فالمترجمُ كانَ حاضرًا والقياسُ غائبًا — وهو «الأخضرُ يعني لم يُقَس»
+      #      بعينِه، لا «سليم».
+      #      وما تحرسُه هذه المجموعةُ **ليس مضيفًا في طبيعتِه**: أكثرُها يؤكّدُ
+      #      على نصِّ التمثيلِ الوسيطِ المبثوثِ وعلى الأسمبليِّ المولَّد لأهدافٍ
+      #      مصرَّحةٍ صراحةً (i686 · aarch64 · riscv64)، وهي أهدافٌ لا علاقةَ لها
+      #      بمعماريّةِ المُشغِّل. فإخفاقُها على ماك — إن وقعَ — عطبٌ حقيقيٌّ في
+      #      اعتمادٍ خفيٍّ على المضيف، وهو بالضبط ما لم يكن أحدٌ يقيسُه.
+      # (EN) Freestanding on macOS — two cells that measured nothing at all. The
+      #      macOS job had no freestanding step in either config, while sad-build
+      #      builds here in both: the compiler was present and the measurement
+      #      absent. Most of this suite asserts on emitted IR text and on assembly
+      #      for explicitly declared targets (i686/aarch64/riscv64), which have
+      #      nothing to do with the runner's architecture — so a failure here is a
+      #      real hidden host dependency, which is precisely what went unmeasured.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
+        run: |
+          sadc="build/bin/sad-build"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — اختباراتُ الوضعِ الحرِّ تلزمُها المترجمُ، وهو مبنيٌّ إلزامًا هنا"
+            exit 1
+          fi
+          python3 -m pip install --user --break-system-packages pytest || python3 -m pip install --user pytest
+          # (AR) ‎SAD_LOWLEVEL_REQUIRE_BUILD‎ يحوّل «تخطٍّ لغيابِ الثنائيّ» إلى إخفاق:
+          #      المترجمُ بُني في هذا الشوطِ نفسِه، فالتخطّي هنا عيبُ اكتشافِ مسارٍ
+          #      لا غيابُ أداة — وهو تخطٍّ يُقرأ نجاحًا.
+          # (EN) The env var turns "skipped: sad-build missing" into a failure —
+          #      the compiler was built in this very run, so a skip means broken
+          #      path discovery, and a silent skip reads as success.
+          SAD_CLANG="$(brew --prefix llvm@18)/bin/clang" SAD_REQUIRE_CLANG=1 \
+            SAD_LOWLEVEL_REQUIRE_BUILD=1 python3 -m pytest tests/system/lowlevel_freestanding -q -rs
+          python3 -m pytest tests/system/null_repr -q -rs
 
       - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors, Utils/Modules)"
         run: |

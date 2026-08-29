@@ -1293,6 +1293,13 @@ const GeneratedErrorEntry kErrorMessages[] = {
       nullptr, nullptr,
       "لمطوّر المترجم: تُبنى وحدةُ SIR في المرحلة التحليليّة (SIRBuilder::buildModule) قبل الخلفيّة؛ بلوغُ الخلفيّة بمؤشّرٍ عدميّ يعني أنّ إخفاقَ البناء لم يوقف الخطّ. تحقّق من بوّابة النجاح بعد buildModule. للمستخدم: علّةُ مترجم — أبلِغ، وليست علّةً في برنامجك.", "Compiler dev: the SIR module is built in the analysis phase (SIRBuilder::buildModule) before the backend; reaching the backend with a null pointer means a build failure did not stop the pipeline. Check the success gate after buildModule. User: a compiler bug — report it; not an error in your code.",
       nullptr },
+    { ErrorCode::INT_LLVM_PATH_ABSENT, "INT023", "internal",
+      "بناءٌ بلا LLVM — مسارٌ غيرُ مبنيٍّ في هذا الثنائيّ", "LLVM-free build — path not built into this binary",
+      "هذا الثنائيّ (sad-build-native) بُنيَ بلا LLVM؛ والمسارُ المطلوب ({detail}) يمرُّ بها", "This binary (sad-build-native) was built without LLVM; the requested path ({detail}) goes through it",
+      "طُلب من ثنائيٍّ بُنيَ بلا LLVM مخرَجٌ أو مسارٌ ({detail}) لا يتحقّق إلّا بها (LLVM IR، أو bitcode، أو تجميع، أو ملفُّ كائنٍ، أو ربطٌ بـlld). لا فرعَ تصريفٍ ميّتٍ هنا ولا سقوطٌ صامتٌ إلى مسارٍ آخر: الأداةُ تُعلن أنّها لا تنفّذ ما قُبِل، لأنّ أداةً تقبل عَلَمًا لا تنفّذه أسوأُ من أداةٍ ترفضه.", "A binary built without LLVM was asked for an output or path ({detail}) that only LLVM provides (LLVM IR, bitcode, assembly, an object file, or an lld link). There is no dead compile branch here and no silent fallback: the tool states that it will not perform what it accepted, because a tool that accepts a flag it does not honour is worse than one that rejects it.",
+      nullptr, nullptr,
+      "للمستخدم: sad-build-native مترجمٌ سياديٌّ لا يحوي LLVM أصلًا، فمسارُه الوحيدُ «ص ⇒ SIR ⇒ شيفرةُ آلة ⇒ ELF64 ساكن». استعمل sad-build (المبنيّ بـLLVM) لهذا المخرَج، أو أسقِط العَلَم ({detail}) واطلب تنفيذيًّا ساكنًا. لمطوّر المترجم: الرفضُ هنا رفضٌ صريحٌ عن قصد؛ قبولُ العَلَمِ ثمّ تجاهلُه هو العطبُ الذي يحرسه هذا الرمز.", "User: sad-build-native is a sovereign compiler with no LLVM in it at all, so its only path is \"ص ⇒ SIR ⇒ machine code ⇒ static ELF64\". Use sad-build (built with LLVM) for this output, or drop the flag ({detail}) and ask for a static executable. Compiler dev: this rejection is deliberate; accepting a flag and then ignoring it is the defect this code guards.",
+      nullptr },
 };
 
 const std::size_t kErrorMessagesCount =

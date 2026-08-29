@@ -9,8 +9,6 @@
 #include "compiler_driver.h"
 #include "utf8_utils.h"
 #include "sad_embedded_runtime_data.h" // (AR) بايتاتُ زمنِ التشغيل — مفتاحُ المخزون
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/raw_ostream.h>
 
 #ifdef _WIN32
 #include <windows.h>

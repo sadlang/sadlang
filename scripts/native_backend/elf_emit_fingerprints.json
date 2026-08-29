@@ -1,0 +1,20 @@
+{
+  "decl_bool|aarch64|-O0": "b6f45f46302bda963ec889556482264f4c732a20ceae1ca8bd907a793ea76af8",
+  "decl_bool|aarch64|-O2": "51ad518a0afc379b5c6dbbc69523f32e3e00bd2bc2fe1758e9e727e17e513dca",
+  "decl_bool|riscv64|-O0": "2354e6c3fe3d082657f53bfa3fd6a9bb73b70d90cabb2cf7c813d81ab0e5b08a",
+  "decl_bool|riscv64|-O2": "b927d7c5b96442498bd2b64d3fca0d8fe09a28b6cbae8ed3987dcc3b1d47f2ec",
+  "decl_bool|x86_64|-O0": "739095bc9367dba9cb7e876b8d47ba95e96740d7d1dbf87e236bc16f6eed93ce",
+  "decl_bool|x86_64|-O2": "00e2cbf12125a247d96a367ee49e695c2e14214f94eb310b9d1d5cb906b47ed1",
+  "decl_print|aarch64|-O0": "4d253e8d589b32087e4eaea625f938cbf46355480c4ad06183de789f853de833",
+  "decl_print|aarch64|-O2": "b6a7f9b449f3d93fb062a2d781fc22ee231c9673b919941dd2fe7fd9e2d86123",
+  "decl_print|riscv64|-O0": "b2e52df8e932bcaa2de5a22a3feeeb70267803ab3039d359d5d6c6ecd06b6557",
+  "decl_print|riscv64|-O2": "46e499e08d0ff50d4a5e26efdfb487c68abc4afac110279ce3697d0b4ee148ca",
+  "decl_print|x86_64|-O0": "f8d290485346b5b14f358c06f713b06d533abd5deb531809668097fb9a576c25",
+  "decl_print|x86_64|-O2": "9ee77d357d4152b49e9fb28800bd62d875ad3851c4b771e3bf22e56794bc20ad",
+  "decl_unsigned|aarch64|-O0": "4eb90c4089e9a8338386cd35be31c39fc6930922e858735a65605d55fb218e4e",
+  "decl_unsigned|aarch64|-O2": "e92c5d49e31bffc3518025fe823dd0d79375567e3c47322fc04359974e119bfc",
+  "decl_unsigned|riscv64|-O0": "2a999715b027665e8ecc26a4708ce0b17f11661c7fd0e271df49cfe72a0347b5",
+  "decl_unsigned|riscv64|-O2": "c2cb034b09ad63995591a390034488baf9dd84eb3d4dae298e960469f38b4f96",
+  "decl_unsigned|x86_64|-O0": "5f9d18ba2a2c370ec62ca67ccfd032405b0a434c96a57a645f58078ef738dd20",
+  "decl_unsigned|x86_64|-O2": "180d6eeb9bb21b7dc16085c33810489e7e5cdbd4376cace8618d7395306848fd"
+}

@@ -13,6 +13,9 @@ build-win/
 build_new/
 build_cov/
 build_release/
+# (AR) بناءُ التحقّقِ بلا LLVM — يُقاسُ به هدفُ sad-build-native ولا يُلتزَم
+# (EN) The LLVM-free verification build — measures sad-build-native; never committed
+build_nollvm/
 # بناء WebAssembly (emcmake) — ٣ م.ب ثنائيّةٌ تنحرف صامتةً عن نسخة اللغة
 build_wasm/
 # (AR) مُرسَيان بالجذر كسطر /build/ أعلاه وللسببِ نفسِه: النمطُ غيرُ المُرسى يبتلع
