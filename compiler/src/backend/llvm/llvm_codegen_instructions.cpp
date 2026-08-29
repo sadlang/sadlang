@@ -323,7 +323,7 @@ namespace Sad
                     //      No frontend type gate rejects a `بايت` first parameter on an
                     //      interrupt handler, so the mask must exempt it here, where the
                     //      slot is known to be a bridge rather than a declared value.
-                    if (params[idx].type == Sad::Types::SadTypeKind::Byte &&
+                    if (params[idx].type == Sad::Types::SadTypeKind::UInt8 &&
                         slotType->isIntegerTy() &&
                         !(sirFunc->isInterruptHandler && idx == 0))
                     {

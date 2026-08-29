@@ -85,18 +85,27 @@ namespace Sad
             // (EN) Type name from the unified SoT (types.yaml) via the generated
             //      sadTypeKindArabicName — same source as the interpreter, so نوع() matches
             //      across engines (no «عدد_صحيح» vs «رقم» divergence).
-            // (AR) [طبقة طبيعي64] طبيعي64/بايت نوعان **سطحيّان** يُخزَّنان int64 زمن التشغيل
+            // (AR) [طبقة طبيعي] طبيعي/بايت نوعان **سطحيّان** يُخزَّنان int64 زمن التشغيل
             //      (Option B، kind=رقم)؛ والمفسّر يعيد لهما «رقم» في نوع(). فنُطبّع الاسم إلى
             //      رقم (Integer) هنا كي يتطابق المساران — بعد أن صيّرت الطبقةُ النوعَ الساكن
             //      UInt64 يصل معامل نوع() (كان Integer قبلها فيطابق تلقائيًّا).
-            // (EN) [طبيعي64 layer] طبيعي64/Byte are SURFACE types stored as int64 at runtime
+            // (EN) [طبيعي layer] طبيعي/Byte are SURFACE types stored as int64 at runtime
             //      (Option B, kind=رقم); the interpreter's نوع() returns «رقم» for them. Normalize
             //      the name to Integer here so both tracks match — now that the layer propagates
             //      the UInt64/Byte static type to نوع()'s operand (it was Integer before, matching
             //      by default).
+            // (AR) 🔑 وقائمةُ الإذنِ اليدويّةُ `UInt64 || Byte ⇒ Integer` حُذفت: كانت
+            //      اسمَينِ من أُسرةٍ من أربعةَ عشرَ نوعًا، فأيُّ نوعِ عرضٍ آخرَ يصلُ
+            //      المُعامِلَ يُجيبُ عنه المترجّمُ باسمِه ويُجيبُ المفسّرُ «رقم» —
+            //      تباعُدٌ كامنٌ لا يُطلِقُه إلّا انتشارُ النوعِ السطحيّ. وصارَ الجوابُ
+            //      مُعلَنًا في types.yaml (`typeof_ar: رقم` على «بايت» و«طبيعي»)
+            //      فيقرؤه المحرّكانِ من مصدرٍ واحدٍ ولا يبقى في الشيفرةِ تعدادُ أسماء.
+            // (EN) The hand-written `UInt64 || Byte ⇒ Integer` allowlist is deleted: two
+            //      names out of a fourteen-type family, so any OTHER width kind reaching the
+            //      operand made the compiler answer its own name while the interpreter said
+            //      «رقم» — a latent divergence. The answer is now declared in types.yaml
+            //      (`typeof_ar: رقم` on Byte and UInt64), read by both engines from one source.
             SadTypeKind typeNameKind = inst->operands[0].dataType;
-            if (typeNameKind == SadTypeKind::UInt64 || typeNameKind == SadTypeKind::Byte)
-                typeNameKind = SadTypeKind::Integer;
             // (AR) ومثلُه التعدادُ الجبريُّ (ISSUE-153): صارت قيمتُه تحملُ `Enum`
             //      ساكنًا ليصدُقَ وسمُها في `%SadDyn`، فلو تُرِكَ لأجابَ `نوع()` «تعداد»
             //      على المسارِ الساكنِ و«خريطة» على الموسوم — جوابانِ لسؤالٍ واحد.
@@ -152,18 +161,18 @@ namespace Sad
                 asI64 = val;
             else if (val && val->getType()->isPointerTy())
                 asI64 = cg_.builder_->CreatePtrToInt(val, i64Ty, "typeof.p2i");
-            // (AR) [إصلاح تصادم kSadNullSentinel] طبيعي64/بايت لا يكونان نوعَ العدم أبدًا
+            // (AR) [إصلاح تصادم kSadNullSentinel] طبيعي/بايت لا يكونان نوعَ العدم أبدًا
             //      (العدمُ يُخزَّن ثابتَ i64 نوعُه Integer)؛ فلا نطبّق فحص الحارس عليهما هنا:
-            //      طبيعي64 شرعيّ = 2^63+1 يساوي الحارس ⇒ كان `نوع()` يُخرج «عدم» بدل «رقم».
+            //      طبيعي شرعيّ = 2^63+1 يساوي الحارس ⇒ كان `نوع()` يُخرج «عدم» بدل «رقم».
             //      Integer مُستثنى (يتصادم جوهريًّا: `رقم؟=لاشيء` عدمُه Integer، لا يُميَّز).
-            // (EN) [kSadNullSentinel collision fix] طبيعي64/Byte are never the null type (null is
+            // (EN) [kSadNullSentinel collision fix] طبيعي/Byte are never the null type (null is
             //      stored as an Integer-typed i64 constant), so the sentinel check is not applied
-            //      to them here: a legitimate طبيعي64 = 2^63+1 equals the sentinel ⇒ `نوع()` used
+            //      to them here: a legitimate طبيعي = 2^63+1 equals the sentinel ⇒ `نوع()` used
             //      to return «عدم» instead of «رقم». Integer is excluded (it collides
             //      intrinsically: `رقم؟=لاشيء`'s null is Integer-typed, indistinguishable).
             const bool typeofNonNullableNum =
                 inst->operands[0].dataType == SadTypeKind::UInt64 ||
-                inst->operands[0].dataType == SadTypeKind::Byte;
+                inst->operands[0].dataType == SadTypeKind::UInt8;
             if (asI64 && !typeofNonNullableNum)
             {
                 llvm::Value *isNull = cg_.builder_->CreateICmpEQ(

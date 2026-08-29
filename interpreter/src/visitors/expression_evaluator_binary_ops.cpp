@@ -201,25 +201,77 @@ namespace Sad
             case TokenType::OP_MODULO:
             case TokenType::OP_POWER:
             {
-                // (AR) [طبقة طبيعي64 — الخطوة ٦] حسابٌ ملتفٌّ (+ − ×) حين يكون النوع
-                //      السطحيّ للعمليّة طبيعي64. المترجم يلتفّ i64 دائمًا (CreateAdd/Sub/Mul
+                // (AR) [طبقة طبيعي — الخطوة ٦] حسابٌ ملتفٌّ (+ − ×) حين يكون النوع
+                //      السطحيّ للعمليّة طبيعي. المترجم يلتفّ i64 دائمًا (CreateAdd/Sub/Mul
                 //      بلا فحص طفح)، بينما المفسّر يرقّي طفح الموقَّع إلى double (safeAdd…).
-                //      لطبيعي64 هذا انفراجٌ (٢^٦٣+٢^٦٣ ⇒ المترجم 0، المفسّر ‎-1.8e19‏). فحين
-                //      يشارك **أيّ** معامل طبيعي64 (هيمنة، بخلاف المقارنة التي تلزم كليهما
+                //      لطبيعي هذا انفراجٌ (٢^٦٣+٢^٦٣ ⇒ المترجم 0، المفسّر ‎-1.8e19‏). فحين
+                //      يشارك **أيّ** معامل طبيعي (هيمنة، بخلاف المقارنة التي تلزم كليهما
                 //      لأنّ إشارة CreateICmp تحتاجهما) نلتفّ بدل الترقية فيطابق المساران.
                 //      Byte مستثنى (قيمه ٠–٢٥٥ لا تطفح i64 في + − ×؛ اقتطاعه خطوةٌ لاحقة).
-                // (EN) [طبيعي64 layer — Step 6] Wrapping arithmetic (+ − ×) when the op's
-                //      surface type is طبيعي64. The compiler always wraps i64 (CreateAdd/Sub/Mul
+                // (EN) [طبيعي layer — Step 6] Wrapping arithmetic (+ − ×) when the op's
+                //      surface type is طبيعي. The compiler always wraps i64 (CreateAdd/Sub/Mul
                 //      with no overflow check), while the interpreter promotes signed overflow to
-                //      double (safeAdd…). For طبيعي64 that diverges (2^63+2^63 ⇒ compiler 0,
-                //      interpreter -1.8e19). So when **any** operand is طبيعي64 (dominance —
+                //      double (safeAdd…). For طبيعي that diverges (2^63+2^63 ⇒ compiler 0,
+                //      interpreter -1.8e19). So when **any** operand is طبيعي (dominance —
                 //      unlike comparison which needs both, since CreateICmp's sign needs both) we
                 //      wrap instead of promoting so both tracks agree. Byte is excluded (its 0–255
                 //      values cannot overflow i64 in + − ×; its truncation is a later step).
-                const bool wrapU64 =
-                    resolveStaticType(node.left.get()) == Types::SadTypeKind::UInt64 ||
-                    resolveStaticType(node.right.get()) == Types::SadTypeKind::UInt64;
+                // (AR) 🔑 والشرطُ كان `== UInt64` حرفيًّا. والالتفافُ صفةُ كلِّ عددٍ
+                //      لا-موقَّعٍ لا خاصّةُ اسمٍ واحد — والجدولُ المولَّدُ يقولُ الصفة.
+                //      و«بايت» يبقى مستثنًى صراحةً كما كان: قيمُه ٠–٢٥٥ لا تطفح i64
+                //      في + − ×، واقتطاعُه معبرٌ آخرُ لم يُسَدَّ بعد؛ فإدخالُه ههنا
+                //      يبدّل سلوكًا مقيسًا بلا أن يُصلِحَ معبرَه.
+                // (EN) This used to be a literal `== UInt64`. Wrapping is a property
+                //      of every unsigned integer, not the privilege of one name — the
+                //      generated table states the property. Byte stays explicitly
+                //      excluded as before: its 0–255 values cannot overflow i64 under
+                //      + − ×, and its truncation is a different, still-open crossing;
+                //      folding it in here would move measured behaviour without
+                //      sealing that crossing.
+                const auto wrapsUnsigned = [](Types::SadTypeKind kind) {
+                    return Types::sadTypeKindIsUnsignedInteger(kind) &&
+                           kind != Types::SadTypeKind::UInt8;
+                };
+                const bool wrapU64 = wrapsUnsigned(resolveStaticType(node.left.get())) ||
+                                     wrapsUnsigned(resolveStaticType(node.right.get()));
                 lastResult_ = evaluateArithmeticOp(left, node.op, right, node.position, wrapU64);
+                // (AR) 🔑 وسمُ الهيمنةِ اللا-موقَّعة: القيمةُ كانت تُحسَبُ بدلالةِ
+                //      «طبيعي» صحيحةً (١٨٤٤٦٧٤٤٠٧٣٧٠٩٥٥١٦١١ لا −٥) ثمّ يقولُ
+                //      `نوع()` عنها «رقم» — وسمٌ يناقضُ قيمةً حسبَها المحرّكُ
+                //      نفسُه صحيحة. والمترجّمُ كان يقولُ «طبيعي» فالتباعُدُ
+                //      **مقيسٌ** في ثماني بذور.
+                //      والشرطُ `UInt64` وحدَه لا «كلُّ لا-موقَّع»: القاعدةُ أنّ
+                //      الأعرضَ يغلبُ وعندَ التساوي يغلبُ اللا-موقَّع، و`UInt64`
+                //      هو اللا-موقَّعُ الوحيدُ الذي يبلغُ العرضَ الأقصى فيسبقُ
+                //      «رقم». أمّا `طبيعي8` فأضيقُ منه فلا يسبقُه — ووسمُه هنا
+                //      يعيدُ إنتاجَ عيبِ المترجّمِ عينِه في الجهةِ المقابلة.
+                // (EN) Unsigned-dominance tag. The value was already computed with
+                //      correct طبيعي semantics while نوع() answered «رقم» — a tag
+                //      contradicting a value the same engine computed right; measured
+                //      divergence against the compiler in eight seeds. The condition is
+                //      UInt64 alone, not "any unsigned": widest wins and ties go to the
+                //      unsigned side, and UInt64 is the only unsigned kind at maximum
+                //      width. طبيعي8 is narrower than رقم so it must NOT win — tagging
+                //      it here would reproduce the compiler's own defect mirrored.
+                // (AR) ⚠️ والعشريُّ يغلبُ الصحيحَ مهما كان عرضُه، فلا يُوسَمُ ناتجٌ
+                //      عشريّ: أوّلُ صياغةٍ لهذا الوسمِ أغفلَت ذلك فصارَ
+                //      `نوع(طبيعي + ٢٫٥)` يقولُ «طبيعي» والقيمةُ ٧٫٥ —
+                //      أي أنّ سدَّ «وسمٍ يناقضُ قيمةً» أنتجَ الوسمَ المناقضَ عينَه
+                //      في موضعٍ آخر. والحارسُ على **القيمةِ الناتجةِ** لا على
+                //      نوعَي المعامِلَين، لأنّ الترقيةَ إلى العشريِّ قد تقعُ في
+                //      أيٍّ منهما.
+                // (EN) Float outranks every integer width, so a float result must not be
+                //      tagged: the first spelling of this tag missed that and made
+                //      نوع(طبيعي + 2.5) answer «طبيعي» for a value of 7.5 — sealing
+                //      "a tag contradicting a value" reintroduced the very same defect
+                //      elsewhere. The guard reads the RESULT, not the operand kinds, since
+                //      the promotion to float can come from either side.
+                if (!lastResult_.isDouble() &&
+                    (resolveStaticType(node.left.get()) == Types::SadTypeKind::UInt64 ||
+                     resolveStaticType(node.right.get()) == Types::SadTypeKind::UInt64))
+                {
+                    lastResult_.tagDeclaredWidth(Types::SadTypeKind::UInt64);
+                }
                 break;
             }
 
@@ -231,8 +283,8 @@ namespace Sad
             case TokenType::OP_GREATER:
             case TokenType::OP_GREATER_EQUAL:
             {
-                // (AR) [طبقة طبيعي64 — الخطوة ٥ · مُنقَّحة بقرارِ المالك 2026-08-16]
-                //      مقارنةُ ترتيبٍ لا-موقَّعةٌ حين يكون **أيُّ** المعامِلَين طبيعي64
+                // (AR) [طبقة طبيعي — الخطوة ٥ · مُنقَّحة بقرارِ المالك 2026-08-16]
+                //      مقارنةُ ترتيبٍ لا-موقَّعةٌ حين يكون **أيُّ** المعامِلَين طبيعي
                 //      (هيمنة، كالحساب) — لا حين يكونان كليهما.
                 //
                 //      🔴 والشرطُ كان `&&`، فانفرجت اللغةُ على نفسِها: `ط > ن` بين
@@ -245,8 +297,8 @@ namespace Sad
                 //      وحكمُ المالك: تَهيمِن كما تَهيمِن في الحساب. والمساواةُ/عدمُها
                 //      متطابقةٌ موقَّعةً ولا-موقَّعةً (مساواةُ بتّات) فلا تتأثّر.
                 //      ⚠️ ولازمُه المُعلَن: `ط > -1` تصير «خطأ» — دلالةُ C، تُقال.
-                // (EN) [طبيعي64 layer — Step 5, revised by owner ruling 2026-08-16]
-                //      Unsigned ordering when EITHER operand is طبيعي64 (dominance, like
+                // (EN) [طبيعي layer — Step 5, revised by owner ruling 2026-08-16]
+                //      Unsigned ordering when EITHER operand is طبيعي (dominance, like
                 //      arithmetic), not when both. The old `&&` made `ط > ن` true but
                 //      `ط > 1` false; both engines agreed, so the equivalence gate passed
                 //      it. Agreement between engines is not proof of correctness.
@@ -270,14 +322,14 @@ namespace Sad
             case TokenType::OP_SHIFT_LEFT:
             case TokenType::OP_SHIFT_RIGHT:
             {
-                // (AR) [طبقة طبيعي64 — الخطوة ٨] إزاحةٌ يمنى منطقيّة (LShr) حين يكون النوع
-                //      السطحيّ **للمعامل الأيسر** (القيمة المُزاحة) طبيعي64. المفسّر يستخدم
-                //      `int64_t >> r` (حسابيّة، تحفظ الإشارة: MAX>>1=MAX) بينما طبيعي64 لا-موقَّع
+                // (AR) [طبقة طبيعي — الخطوة ٨] إزاحةٌ يمنى منطقيّة (LShr) حين يكون النوع
+                //      السطحيّ **للمعامل الأيسر** (القيمة المُزاحة) طبيعي. المفسّر يستخدم
+                //      `int64_t >> r` (حسابيّة، تحفظ الإشارة: MAX>>1=MAX) بينما طبيعي لا-موقَّع
                 //      يلزمه المنطقيّة (MAX>>1=2^63-1). إشارةُ الإزاحة من المعامل الأيسر وحده
                 //      (الأيمن عدّاد لا قيمة)، بخلاف هيمنة //،% . `<<` متطابقةٌ إشارةً فلا تتأثّر.
-                // (EN) [طبيعي64 layer — Step 8] Logical right shift (LShr) when the LEFT operand's
-                //      (the shifted value's) surface type is طبيعي64. The interpreter uses signed
-                //      `int64_t >> r` (arithmetic, sign-preserving: MAX>>1=MAX) while طبيعي64 is
+                // (EN) [طبيعي layer — Step 8] Logical right shift (LShr) when the LEFT operand's
+                //      (the shifted value's) surface type is طبيعي. The interpreter uses signed
+                //      `int64_t >> r` (arithmetic, sign-preserving: MAX>>1=MAX) while طبيعي is
                 //      unsigned and needs the logical shift (MAX>>1=2^63-1). The shift's signedness
                 //      comes from the LEFT operand alone (the right is a count, not a value), unlike
                 //      the //,% dominance. `<<` is signedness-identical so it is unaffected.
@@ -285,6 +337,27 @@ namespace Sad
                     node.op == TokenType::OP_SHIFT_RIGHT &&
                     resolveStaticType(node.left.get()) == Types::SadTypeKind::UInt64;
                 lastResult_ = evaluateBitwiseOp(left, node.op, right, node.position, unsignedShr);
+                // (AR) وسمُ الهيمنةِ اللا-موقَّعة — العلّةُ مشروحةٌ في ذراعِ الحساب أعلاه.
+                // (EN) Unsigned-dominance tag — rationale in the arithmetic arm above.
+                // (AR) ⚠️ والعشريُّ يغلبُ الصحيحَ مهما كان عرضُه، فلا يُوسَمُ ناتجٌ
+                //      عشريّ: أوّلُ صياغةٍ لهذا الوسمِ أغفلَت ذلك فصارَ
+                //      `نوع(طبيعي + ٢٫٥)` يقولُ «طبيعي» والقيمةُ ٧٫٥ —
+                //      أي أنّ سدَّ «وسمٍ يناقضُ قيمةً» أنتجَ الوسمَ المناقضَ عينَه
+                //      في موضعٍ آخر. والحارسُ على **القيمةِ الناتجةِ** لا على
+                //      نوعَي المعامِلَين، لأنّ الترقيةَ إلى العشريِّ قد تقعُ في
+                //      أيٍّ منهما.
+                // (EN) Float outranks every integer width, so a float result must not be
+                //      tagged: the first spelling of this tag missed that and made
+                //      نوع(طبيعي + 2.5) answer «طبيعي» for a value of 7.5 — sealing
+                //      "a tag contradicting a value" reintroduced the very same defect
+                //      elsewhere. The guard reads the RESULT, not the operand kinds, since
+                //      the promotion to float can come from either side.
+                if (!lastResult_.isDouble() &&
+                    (resolveStaticType(node.left.get()) == Types::SadTypeKind::UInt64 ||
+                     resolveStaticType(node.right.get()) == Types::SadTypeKind::UInt64))
+                {
+                    lastResult_.tagDeclaredWidth(Types::SadTypeKind::UInt64);
+                }
                 break;
             }
 
@@ -475,11 +548,11 @@ namespace Sad
                 int64_t r = right.toInt64();
 
                 // (AR) حماية طفحان الأعداد الصحيحة — الترقية إلى double عند الطفحان.
-                //      [الخطوة ٦] استثناء طبيعي64 (wrapU64): يلتفّ متمّمًا اثنينيًّا في
+                //      [الخطوة ٦] استثناء طبيعي (wrapU64): يلتفّ متمّمًا اثنينيًّا في
                 //      uint64_t (سلوك معرَّف؛ التفاف int64_t الموقَّع سلوكٌ غير معرَّف) كي
                 //      يطابق CreateAdd/Sub/Mul في المترجم بدل الترقية.
                 // (EN) Integer overflow protection — promote to double on overflow.
-                //      [Step 6] طبيعي64 exception (wrapU64): wrap two's-complement in uint64_t
+                //      [Step 6] طبيعي exception (wrapU64): wrap two's-complement in uint64_t
                 //      (defined; signed int64_t overflow is UB) to match the compiler's
                 //      CreateAdd/Sub/Mul instead of promoting.
                 auto safeAdd = [wrapU64](int64_t a, int64_t b) -> Value
@@ -526,9 +599,9 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_DIVISION_BY_ZERO, pos,
                             {{"a", std::to_string(l)}});
-                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي64 ⇒ قسمة لا-موقَّعة، نظيرَ `//`:
+                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي ⇒ قسمة لا-موقَّعة، نظيرَ `//`:
                     //      لا سالب فالاقتطاع والأرضيّة سواء، ويطابق CreateUDiv في المترجم.
-                    // (EN) [Step 7] طبيعي64 surface ⇒ unsigned division (mirrors `//`).
+                    // (EN) [Step 7] طبيعي surface ⇒ unsigned division (mirrors `//`).
                     if (wrapU64)
                         return Value(static_cast<int64_t>(
                             static_cast<uint64_t>(l) / static_cast<uint64_t>(r)));
@@ -557,11 +630,11 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_FLOOR_DIVISION_BY_ZERO, pos,
                             {{"a", std::to_string(l)}});
-                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي64 ⇒ قسمة أرضيّة لا-موقَّعة على uint64_t
+                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي ⇒ قسمة أرضيّة لا-موقَّعة على uint64_t
                     //      (لا سالب فالأرضيّة = الاقتطاع) لتطابق CreateUDiv في المترجم بدل SDiv
                     //      الموقَّعة. المقسوم عليه ‎-1‏ يُعاد تفسيره MAX لا-موقَّعًا (MAX//MAX=…)،
                     //      ولا فيض حدّ أدنى (ذاك موقَّع). النطاق الكامل ٢^٦٤.
-                    // (EN) [Step 7] طبيعي64 surface type ⇒ unsigned floor division on uint64_t
+                    // (EN) [Step 7] طبيعي surface type ⇒ unsigned floor division on uint64_t
                     //      (no negatives so floor == truncation) to match the compiler's CreateUDiv
                     //      instead of signed SDiv. A -1 divisor is reinterpreted as unsigned MAX,
                     //      and there is no min-overflow (that is signed). Full 2^64 range.
@@ -583,10 +656,10 @@ namespace Sad
                         ::Sad::Errors::throwRuntime(
                             ::Sad::Errors::ErrorCode::RUN_MODULO_BY_ZERO, pos,
                             {{"a", std::to_string(l)}});
-                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي64 ⇒ باقٍ لا-موقَّع على uint64_t ليطابق
+                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي ⇒ باقٍ لا-موقَّع على uint64_t ليطابق
                     //      CreateURem في المترجم بدل SRem الموقَّعة. المقسوم عليه ‎-1‏ يُعاد تفسيره
                     //      MAX لا-موقَّعًا (لا حالة INT64_MIN%-1 الموقَّعة)، فـMAX%2 = 1 (لا ‎-1‏).
-                    // (EN) [Step 7] طبيعي64 surface type ⇒ unsigned remainder on uint64_t to match
+                    // (EN) [Step 7] طبيعي surface type ⇒ unsigned remainder on uint64_t to match
                     //      the compiler's CreateURem instead of signed SRem. A -1 divisor is
                     //      reinterpreted as unsigned MAX (no signed INT64_MIN%-1 case), so
                     //      MAX%2 = 1 (not -1).
@@ -627,8 +700,8 @@ namespace Sad
         // =========================================================================
 
         // =========================================================================
-        // (AR) [طبقة طبيعي64 — الخطوة ٢] استنتاج النوع الساكن — مرآة انتشار SIR
-        // (EN) [طبيعي64 layer — Step 2] Static type resolution — mirrors SIR propagation
+        // (AR) [طبقة طبيعي — الخطوة ٢] استنتاج النوع الساكن — مرآة انتشار SIR
+        // (EN) [طبيعي layer — Step 2] Static type resolution — mirrors SIR propagation
         // =========================================================================
         Types::SadTypeKind ExpressionEvaluator::resolveStaticType(const AST::Expression *expr) const
         {
@@ -643,13 +716,13 @@ namespace Sad
                 return variableManager_.getDeclaredType(var->name);
 
             // (AR) نداء دالّة → نوع إرجاعها المُصرَّح. المترجم يمرّر نوع إرجاع الدالّة
-            //      (من جدول الدوالّ) على سِجِلّ نتيجة النداء، فدالّةٌ تُرجِع طبيعي64
+            //      (من جدول الدوالّ) على سِجِلّ نتيجة النداء، فدالّةٌ تُرجِع طبيعي
             //      تُقارَن لا-موقَّعةً هناك. نقرأ نفس المصدر — FunctionDecl::returnType
             //      من عقدة الـAST المحفوظة — فيتطابق المساران بالبناء. النداءات غير
             //      المباشرة (طريقة كائن/فهرسة) تبقى Integer موقَّعةً كما في المترجم.
             // (EN) Function call → its declared return type. The compiler stamps the
             //      function's return type (from its function table) onto the call's
-            //      result register, so a طبيعي64-returning function compares unsigned
+            //      result register, so a طبيعي-returning function compares unsigned
             //      there. We read the SAME source — FunctionDecl::returnType from the
             //      stored AST node — so both tracks agree by construction. Indirect
             //      calls (method/index callee) stay signed Integer, matching the compiler.
@@ -659,8 +732,8 @@ namespace Sad
                 {
                     // (AR) أكبر/أصغر المدمَجتان: نوعُ النتيجة يطابق الخلفيّةَ الأصليّة
                     //      (builtins_math.cpp): عائمٌ إن كان أحدُ الوسيطين عائمًا،
-                    //      وطبيعي64 إن كانا معًا طبيعي64، وإلّا Integer موقَّع. هكذا
-                    //      تُطبَع نتيجةُ أكبر(طبيعي64، طبيعي64) لا-موقَّعةً كما في
+                    //      وطبيعي إن كانا معًا طبيعي، وإلّا Integer موقَّع. هكذا
+                    //      تُطبَع نتيجةُ أكبر(طبيعي، طبيعي) لا-موقَّعةً كما في
                     //      المترجم — فيتّحد المساران. [[التوحيد الكامل]]
                     // (EN) أكبر/أصغر builtins: result type mirrors the native backend
                     //      (builtins_math.cpp): Float if either arg is Float, UInt64 if
@@ -700,27 +773,23 @@ namespace Sad
                 }
             }
 
-            // (AR) ثنائيّ → هيمنة قانونيّة تُطبَّق **متطابقةً** في المترجم لاحقًا:
-            //      Float ثمّ UInt64 ثمّ Byte ثمّ Integer. Float يهيمن لأنّ خلط صحيح
-            //      (موقَّع أو لا) بعائم يُرقّى إلى عائم (`طبيعي64 + عائم` ⇒ عائم).
-            //      (المقارنات تُنتج منطقيًّا وقت التشغيل؛ لا يُطبَّق التنسيق اللا-موقَّع إلا
-            //      على قيمة صحيحة، فلا ضرر من إرجاع نوع المعامِلين هنا.)
-            // (EN) Binary → canonical dominance to be applied **identically** in the compiler
-            //      later: Float, then UInt64, then Byte, then Integer. Float dominates because
-            //      mixing any integer (signed or not) with a float promotes to float
-            //      (`طبيعي64 + عائم` ⇒ float). (Comparisons yield Boolean at runtime; unsigned
-            //      formatting applies only to integer values, so the operand type is harmless.)
+            // (AR) ثنائيّ → قاعدةُ الهيمنةِ **المولَّدة** من types.yaml، يقرؤها
+            //      المحرّكانِ معًا. وكانت سُلَّمَ أسماءٍ مكتوبًا ههنا وثانيًا في
+            //      المترجِم، ويقولُ هذا التعليقُ إنّ على المترجِمِ تطبيقَها
+            //      «متطابقةً» — 🔑 وهو شرطٌ مُعلَنٌ لا يقيسُه أحد. والآنَ لا نسخةَ
+            //      ثانيةً تنجرف: الهيمنةُ دالّةٌ واحدةٌ تشتقُّ من الإشارةِ والعرضِ
+            //      المُعلَنَين، فتصحّ لكلِّ نوعٍ عدديٍّ لا لأربعةٍ بأسمائها.
+            // (EN) Binary → the GENERATED dominance rule from types.yaml, read by
+            //      both engines. It used to be a name-bound ladder written here and
+            //      again in the compiler, with this very comment declaring that the
+            //      compiler must apply it «identically» — a contract nobody
+            //      measured. There is no second copy to drift now: dominance derives
+            //      from the declared signedness and width, so it holds for every
+            //      numeric kind rather than for four spelled-out ones.
             if (auto *bin = dynamic_cast<const AST::BinaryExpr *>(expr))
             {
-                const Types::SadTypeKind l = resolveStaticType(bin->left.get());
-                const Types::SadTypeKind r = resolveStaticType(bin->right.get());
-                if (l == Types::SadTypeKind::Float || r == Types::SadTypeKind::Float)
-                    return Types::SadTypeKind::Float;
-                if (l == Types::SadTypeKind::UInt64 || r == Types::SadTypeKind::UInt64)
-                    return Types::SadTypeKind::UInt64;
-                if (l == Types::SadTypeKind::Byte || r == Types::SadTypeKind::Byte)
-                    return Types::SadTypeKind::Byte;
-                return Types::SadTypeKind::Integer;
+                return Types::sadNumericDominantKind(resolveStaticType(bin->left.get()),
+                                                     resolveStaticType(bin->right.get()));
             }
 
             return Types::SadTypeKind::Integer;

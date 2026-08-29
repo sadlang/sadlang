@@ -11,6 +11,7 @@
 #include "sir_builder.h"
 #include "pattern_nodes.h"
 #include "sir_constants.h"
+#include "sad_debug_log.h"
 
 namespace Sad
 {
@@ -34,12 +35,11 @@ namespace Sad
                 case SadTypeKind::Float:
                 case SadTypeKind::Boolean:
                 case SadTypeKind::String:
-                case SadTypeKind::Byte:
                 case SadTypeKind::Int8:  case SadTypeKind::Int16:
-                case SadTypeKind::Int32: case SadTypeKind::Int64:
+                case SadTypeKind::Int32:
                 case SadTypeKind::UInt8: case SadTypeKind::UInt16:
                 case SadTypeKind::UInt32: case SadTypeKind::UInt64:
-                case SadTypeKind::Float32: case SadTypeKind::Float64:
+                case SadTypeKind::Float32:
                 case SadTypeKind::Char:
                     return true;
                 default:
@@ -129,7 +129,7 @@ namespace Sad
                     currentBlock_->instructions.push_back(moveInst);
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i << " is WildcardPattern" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i << " is WildcardPattern");
 #endif
                 }
                 else if (auto *varPat = dynamic_cast<const Sad::AST::VariablePattern *>(pattern))
@@ -195,9 +195,9 @@ namespace Sad
                             currentBlock_->addInstruction(isVariantInst);
 
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildMatchStatement: case " << i
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i
                                   << " is bare UnitVariant(" << bareUnitEnumName << "."
-                                  << varPat->name << ")" << std::endl;
+                                  << varPat->name << ")");
 #endif
                     }
                     else
@@ -224,8 +224,8 @@ namespace Sad
                         addVariable(varInfo);
 
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildMatchStatement: case " << i
-                                  << " is VariablePattern(" << varPat->name << ")" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i
+                                  << " is VariablePattern(" << varPat->name << ")");
 #endif
                     }
                 }
@@ -330,8 +330,8 @@ namespace Sad
                     currentBlock_->instructions.push_back(cmpInst);
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i
-                              << " is LiteralPattern(" << litValue << ")" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i
+                              << " is LiteralPattern(" << litValue << ")");
 #endif
                 }
                 else if (auto *rangePat = dynamic_cast<const Sad::AST::RangePattern *>(pattern))
@@ -416,8 +416,8 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i
-                              << " is RangePattern(" << rangePat->toString() << ")" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i
+                              << " is RangePattern(" << rangePat->toString() << ")");
 #endif
                 }
                 else if (auto *orPat = dynamic_cast<const Sad::AST::OrPattern *>(pattern))
@@ -476,7 +476,7 @@ namespace Sad
                     currentBlock_->instructions.push_back(moveFinal);
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i << " is OrPattern" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i << " is OrPattern");
 #endif
                 }
                 else if (auto *listPat = dynamic_cast<const Sad::AST::ListPattern *>(pattern))
@@ -626,7 +626,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i << " is ListPattern" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i << " is ListPattern");
 #endif
                 }
                 else if (auto *structPat = dynamic_cast<const Sad::AST::StructPattern *>(pattern))
@@ -779,7 +779,7 @@ namespace Sad
                         currentBlock_->addInstruction(moveFinalStruct);
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i << " is StructPattern" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i << " is StructPattern");
 #endif
                 }
                 else if (auto *enumVarPat = dynamic_cast<const Sad::AST::EnumVariantPattern *>(pattern))
@@ -1046,9 +1046,9 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i
                               << " is EnumVariantPattern(" << enumVarPat->enumName
-                              << "." << enumVarPat->variantName << ")" << std::endl;
+                              << "." << enumVarPat->variantName << ")");
 #endif
                 }
                 else if (auto *bindPat = dynamic_cast<const Sad::AST::BindingPattern *>(pattern))
@@ -1188,7 +1188,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i << " is BindingPattern(" << bindPat->name << ")" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i << " is BindingPattern(" << bindPat->name << ")");
 #endif
                 }
                 else if (auto *ctorPat = dynamic_cast<const Sad::AST::ConstructorPattern *>(pattern))
@@ -1394,9 +1394,9 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i
                               << " is ConstructorPattern(" << ctorPat->variantName
-                              << ") resolved enum=" << resolvedEnumName << std::endl;
+                              << ") resolved enum=" << resolvedEnumName);
 #endif
                 }
                 else
@@ -1414,7 +1414,7 @@ namespace Sad
                     errors_.push_back("Error: Unsupported pattern in match: " + pattern->toString());
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: case " << i << " is unsupported pattern" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: case " << i << " is unsupported pattern");
 #endif
                 }
 

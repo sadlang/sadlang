@@ -275,3 +275,122 @@ def test_not_a_slot_is_distinct_from_unspecified():
     assert by_word["\u0641\u0631\u0627\u063a"]["default_init"] == "not_a_slot", (
         "«فراغ» نوعُ إرجاعٍ لا نوعُ خانة — وسمُه unspecified يجعله دَينًا وهو ليس كذلك"
     )
+
+
+# ============================================================================
+# (AR) الصفةُ العدديّة — الإشارةُ والعرضُ مُعلَنَين، وما يُشتَقُّ منهما.
+# (EN) Numeric traits — declared signedness and width, and their derivations.
+# ============================================================================
+
+_NUMERIC_WORDS_EXPECTED = {
+    # (AR) لقطةٌ مكتوبةٌ باليدِ عمدًا — حارسٌ ثنائيُّ الاتّجاه. اشتقاقُها من
+    #      types.yaml يجعلُها تُوافقُه دائمًا فلا تحرسُ شيئًا.
+    # (EN) Hand-written on purpose: deriving it from types.yaml would make it
+    #      agree by construction and guard nothing.
+    # (AR) حُدِّثَت ٢٩ آب ٢٠٢٦ بموجةِ توحيدِ الأسماء: «عدد*» ⇐ «رقم*»،
+    #      «طبيعي64» ⇐ «طبيعي»، وحُذِفَ «بايت» و«عدد64» و«عشري64».
+    "رقم": "signed",                  # رقم
+    "عشري": "float",            # عشري
+    "رقم8": "signed",                 # رقم8
+    "رقم16": "signed",                # رقم16
+    "رقم32": "signed",                # رقم32
+    "طبيعي8": "unsigned",  # طبيعي8
+    "طبيعي16": "unsigned", # طبيعي16
+    "طبيعي32": "unsigned", # طبيعي32
+    "طبيعي": "unsigned",   # طبيعي
+    "عشري32": "float",          # عشري32
+}
+
+
+def test_every_numeric_kind_declares_its_signedness():
+    """(AR) الإشارةُ حقيقةٌ **مُعلَنة**: كلُّ نوعٍ عدديٍّ يقولها في types.yaml،
+       ولا يُستنبَطُ شيءٌ منها من هجاءِ الاسم. واستنباطُها من «UInt» يجعل
+       الحقيقةَ رهنَ التسمية، فيكفي نوعٌ يُسمّى بغيرِ النمطِ ليصمتَ الاستنباط."""
+    by_word = {entry["word"]: entry for entry in _types()}
+    for word, expected in _NUMERIC_WORDS_EXPECTED.items():
+        assert word in by_word, f"«{word}» مفقودٌ من types.yaml"
+        assert by_word[word].get("numeric") == expected, (
+            f"«{word}» يجب أن يُعلِن numeric: {expected}"
+        )
+
+
+def test_numeric_kinds_are_exactly_the_declared_set():
+    """(AR) الحارسُ ثنائيُّ الاتّجاه: لا نوعَ عدديٍّ بلا إعلان، ولا إعلانَ
+       على نوعٍ ليس عددًا. والحارسُ أحاديُّ الاتّجاهِ يمرّ على الزيادةِ صامتًا."""
+    declared = {e["word"] for e in _types() if e.get("numeric")}
+    assert declared == set(_NUMERIC_WORDS_EXPECTED), (
+        f"مجموعةُ الأنواعِ العدديّةِ تغيّرت: زائد={declared - set(_NUMERIC_WORDS_EXPECTED)} "
+        f"ناقص={set(_NUMERIC_WORDS_EXPECTED) - declared}"
+    )
+
+
+def test_numeric_class_table_matches_yaml_row_for_row():
+    """(AR) الجدولُ المولَّدُ صفٌّ بصفٍّ على ترتيبِ types.yaml — لا انزياحَ
+       يخلط إشارةَ نوعٍ بنوع."""
+    from gen_types import NUMERIC_CLASS_VOCAB
+
+    cxx_of = {word: cxx for word, cxx, _ar, _en in NUMERIC_CLASS_VOCAB}
+    types = _types()
+    header = emit_header(types)
+    block = header.split("SAD_TYPE_NUMERIC_CLASS_TABLE = {{", 1)[1].split("}};", 1)[0]
+    cells = re.findall(r"SadNumericClass::(\w+),", block)
+    assert len(cells) == len(types), (
+        f"طولُ الجدولِ {len(cells)} لا يساوي عددَ الأنواعِ {len(types)}"
+    )
+    for cell, entry in zip(cells, types):
+        assert cell == cxx_of[entry.get("numeric", "__absent__")], (
+            f"انزياحٌ عند {entry['kind']}: الجدولُ يقول {cell}"
+        )
+
+
+def test_numeric_without_width_breaks_generation():
+    """(AR) عددٌ بلا عرضٍ مُعلَنٍ لا يُبتَرُ ولا يُحسَبُ مداه — فهو دَينٌ صامت،
+       والمولِّدُ يرفضه بدل أن يولّدَ جدولًا يكذب."""
+    types = [dict(entry) for entry in _types()]
+    victim = next(entry for entry in types if entry.get("numeric"))
+    victim.pop("size_bytes", None)
+    with pytest.raises(ValueError, match="size_bytes"):
+        emit_header(types)
+
+
+def test_unknown_numeric_class_breaks_generation():
+    """(AR) صنفٌ عدديٌّ خارجَ المفردات يكسر التوليد — فلا يسقط في ذراعٍ تُخمِّن."""
+    types = [dict(entry) for entry in _types()]
+    victim = next(entry for entry in types if entry.get("numeric"))
+    victim["numeric"] = "\u0645\u062c\u0647\u0648\u0644"
+    with pytest.raises(ValueError, match="NUMERIC_CLASS_VOCAB"):
+        emit_header(types)
+
+
+def test_dominance_rule_is_generated_and_general():
+    """(AR) 🔑 قاعدةُ الهيمنةِ مولَّدةٌ عامّةٌ لا سُلَّمَ أسماءٍ محصورًا.
+
+       والسُّلَّمُ القديم (`عشري ← طبيعي ← بايت ← رقم`) يحمل خللًا كامنًا:
+       يَسِمُ `بايت + رقم` بـ«بايت»، فلحظةَ تنفيذِ البترِ يصيرُ ٢٠٠ + ١٠٠
+       يساوي ٤٤ بدلَ ٣٠٠ المقيسةِ اليوم — انحدارٌ صامتٌ يولدُ مع الإصلاح.
+       فالقاعدةُ ههنا: الأعرضُ يفوز، وعندَ التساوي يفوزُ اللا-موقَّع."""
+    header = emit_header(_types())
+    assert "sadNumericDominantKind" in header, "قاعدةُ الهيمنةِ غيرُ مولَّدة"
+    body = header.split("sadNumericDominantKind", 1)[1]
+    # (AR) لا سُلَّمَ أسماءٍ: لا ذكرَ لـUInt64 ولا Byte في جسدِ القاعدة
+    rule = body.split("\n        }", 1)[0]
+    for banned in ("SadTypeKind::UInt64", "SadTypeKind::Byte"):
+        assert banned not in rule, (
+            f"القاعدةُ ما زالت محصورةً باسمٍ بعينِه ({banned}) — فهي تعمى عن كلِّ نوعٍ سواه"
+        )
+
+
+def test_normalize_and_range_helpers_are_generated():
+    """(AR) البترُ عمليّةٌ واحدةٌ مولَّدةٌ تُطبَّقُ عندَ كلِّ معبر — لا نسخةٌ لكلِّ معبر.
+       فمعبرٌ واحدٌ منسيٌّ يُبطِلُ عقدَ النوعِ كلَّه (`ك.ح = 300` تُعطي ٣٠٠)."""
+    header = emit_header(_types())
+    for symbol in (
+        "sadTypeKindNumericClass",
+        "sadTypeKindIsUnsignedInteger",
+        "sadTypeKindNumericBits",
+        "sadTypeKindIntegerMin",
+        "sadTypeKindIntegerMax",
+        "sadTypeKindNormalizeInteger",
+        "sadTypeKindIntegerFits",
+    ):
+        assert symbol in header, f"«{symbol}» غيرُ مولَّد"

@@ -18,6 +18,9 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "error_catalog.h" // (AR) getTemplate(code)->id — الرمزُ من الكتالوج لا حرفًا
+#include "error_manager.h" // (AR) reportFromCatalog + buildBilingualMessage
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -28,6 +31,53 @@ namespace Sad
     {
         namespace SIR
         {
+            namespace
+            {
+                // (AR) 🔑 **الوعدُ في التعليقِ ليس مُبلِّغًا.** كانَ مسارُ الحرفيِّ
+                //      فوقَ UINT64_MAX ينتهي إلى تعليقٍ يقول «يبقى النصُّ الأصليُّ
+                //      **ليُبلَّغ** خطأً» — ولا مُبلِّغَ في المسارِ كلِّه. فيمرُّ النصُّ
+                //      الخامُ («18446744073709551616») إلى أوّلِ `std::stoll` غيرِ
+                //      محروسٍ في بناءِ الخزن، فيُرمى `out_of_range` ولا يلتقطُه أحدٌ
+                //      حتّى `main`، فيَقِفُ `sad-build` وقفةً لا تنتهي بدلَ أن يُشخِّص.
+                //      والمفسّرُ يُبلِّغُ SEM012 على المُدخَلِ نفسِه في أجزاءِ الثانية،
+                //      فالتباعُدُ لم يكن في الدلالةِ بل في **مَن يملكُ الحارس**.
+                //      وهذه الدالّةُ هي الحارسُ: تُبلِّغُ من الكتالوجِ بالرمزِ نفسِه
+                //      الذي يُبلِّغُه المفسّر، وتُسقِطُ في `errors_` كي يكونَ رمزُ
+                //      خروجِ البناءِ غيرَ صفريّ. و`errors_` خاصٌّ و`ExpressionBuilder`
+                //      وحدَه صديقُه، فالدالّةُ الحرّةُ تُعيدُ النصَّ ويدفعُه العضوُ.
+                // (EN) 🔑 A comment promising "to be reported" is not a reporter. The
+                //      above-UINT64_MAX path kept the raw literal string and nothing
+                //      ever reported it, so it reached the first unguarded std::stoll
+                //      in store building; the escaping out_of_range was caught nowhere
+                //      up to main and sad-build hung instead of diagnosing. The
+                //      interpreter reports SEM012 on the same input in milliseconds —
+                //      the divergence was about WHO OWNS THE GUARD, not semantics.
+                std::string بلّغ_حرفيًّا_خارجَ_المدى(const std::string &نصُّ_الحرفيّ,
+                                                     int سطر, int عمود)
+                {
+                    Sad::Errors::RenderContext سياق;
+                    سياق.placeholders = {{"detail", نصُّ_الحرفيّ}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                        Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
+                        Sad::Errors::SourceLocation("", سطر, عمود), سياق);
+
+                    // (AR) الرمزُ يُؤخَذُ من الكتالوجِ لا يُكتَبُ حرفًا — وإلّا انجرفَ
+                    //      عن مصدرِ الحقيقةِ صامتًا. / (EN) id comes FROM the catalog.
+                    const auto *قالب = Sad::Errors::ErrorCatalog::instance().getTemplate(
+                        Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL);
+                    std::string نصُّ_الخطأ;
+                    if (قالب)
+                    {
+                        نصُّ_الخطأ = "[" + قالب->id + "] ";
+                    }
+                    نصُّ_الخطأ += Sad::Errors::ErrorManager::getInstance()
+                                      .buildBilingualMessage(
+                                          Sad::Errors::ErrorCode::SEM_INVALID_NUMBER_LITERAL,
+                                          سياق);
+                    return نصُّ_الخطأ;
+                }
+            } // namespace
+
             BuildResult ExpressionBuilder::buildLiteral(AST::LiteralNode *literal)
             {
                 if (!literal)
@@ -86,12 +136,12 @@ namespace Sad
                     }
                     else
                     {
-                        // (AR) عشريّ: طبِّع حرفيّات طبيعي64 فوق INT64_MAX إلى نصّ نمط
+                        // (AR) عشريّ: طبِّع حرفيّات طبيعي فوق INT64_MAX إلى نصّ نمط
                         //      البتّات كـi64 (مثل مسار السِّتّ-عشريّ 0xFFFF…FFFF → "-1")،
                         //      كي يقرأها كلّ مستهلِكي std::stoll(constantValue) اللاحقين
                         //      (المخزَن، وسائط النداء…) بلا رمي out_of_range. اللا-موقَّعيّة
                         //      تُتعقَّب عبر النوع المُصرَّح لا عبر نصّ الحرفيّ.
-                        // (EN) Decimal: normalize طبيعي64 literals above INT64_MAX to the
+                        // (EN) Decimal: normalize طبيعي literals above INT64_MAX to the
                         //      i64 bit-pattern string (like the hex path 0xFFFF…FFFF → "-1")
                         //      so every downstream std::stoll(constantValue) consumer (store,
                         //      call args…) parses without out_of_range. Unsigned-ness is
@@ -108,8 +158,15 @@ namespace Sad
                             }
                             catch (const std::exception &)
                             {
-                                // (AR) فوق UINT64_MAX أيضًا — يبقى النصّ الأصليّ ليُبلَّغ خطأً.
-                                // (EN) Above UINT64_MAX too — keep the original string to be reported.
+                                // (AR) فوق UINT64_MAX أيضًا — يُبلَّغُ SEM012 ويُستبدَلُ
+                                //      بصفرٍ آمنٍ كي لا يُرمى في مستهلِكٍ لا يلتقط.
+                                // (EN) Above UINT64_MAX too — report SEM012 and substitute
+                                //      a safe zero so no downstream consumer throws.
+                                b_.errors_.push_back(بلّغ_حرفيًّا_خارجَ_المدى(
+                                    value,
+                                    static_cast<int>(token.getPosition().line),
+                                    static_cast<int>(token.getPosition().column)));
+                                result.constantValue = "0";
                             }
                         }
                         catch (const std::exception &)
@@ -122,6 +179,26 @@ namespace Sad
                 else if (tokenType == Lexer::TokenType::NUMBER_DOUBLE)
                 {
                     result.type = SadTypeKind::Float;
+
+                    // (AR) الذراعُ العشريّةُ كانت **بلا تحقُّقٍ أصلًا**: لا `std::stod`
+                    //      ولا حارس. فـ`1e309` يمرُّ نصًّا خامًّا إلى أوّلِ `std::stod`
+                    //      غيرِ محروسٍ فيرمي `out_of_range` كأخيه الصحيح. وحيادُ
+                    //      الحارسِ في الذراعِ الأولى لا يُورَثُ لهذه — تُحرَسُ وحدَها.
+                    // (EN) The float arm had NO validation at all — no std::stod, no
+                    //      guard. `1e309` reached the first unguarded std::stod and
+                    //      threw exactly like its integer sibling.
+                    try
+                    {
+                        (void)std::stod(value);
+                    }
+                    catch (const std::exception &)
+                    {
+                        b_.errors_.push_back(بلّغ_حرفيًّا_خارجَ_المدى(
+                            value,
+                            static_cast<int>(token.getPosition().line),
+                            static_cast<int>(token.getPosition().column)));
+                        result.constantValue = "0.0";
+                    }
                 }
                 else if (tokenType == Lexer::TokenType::STRING_LITERAL)
                 {
@@ -243,13 +320,13 @@ namespace Sad
                 if (!var)
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildVariableAccess: var is null!" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildVariableAccess: var is null!");
 #endif
                     return BuildResult();
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildVariableAccess: looking up variable '" << var->name << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildVariableAccess: looking up variable '" << var->name << "'");
 #endif
 
                 // ================================================================
@@ -446,15 +523,15 @@ namespace Sad
                         }
                     }
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildVariableAccess: variable NOT FOUND!" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildVariableAccess: variable NOT FOUND!");
 #endif
                     b_.errors_.push_back("Error: Undefined variable '" + var->name + "'");
                     return BuildResult();
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildVariableAccess: found variable, registerName='"
-                          << varInfo->registerName << "', type=" << static_cast<int>(varInfo->type) << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildVariableAccess: found variable, registerName='"
+                          << varInfo->registerName << "', type=" << static_cast<int>(varInfo->type));
 #endif
 
                 // (AR) إرجاع معلومات المتغير (sir_builder.h:139 - VariableInfo struct)
@@ -501,6 +578,10 @@ namespace Sad
                 }
                 BuildResult result(varInfo->registerName, varInfo->type);
                 result.isParameter = varInfo->isParameter;
+                // (AR) العرضُ المُعلَنُ يُحمَلُ إلى التعبيرِ ولا يُبدِّلُ `type` — يقرؤه
+                //      `نوع()` وحدَه، كما يقرأُ الاقتطاعُ `declaredSurfaceType` نفسَه.
+                // (EN) Carry the declared width onto the expression without touching `type`.
+                result.declaredSurfaceType = varInfo->declaredSurfaceType;
 
                 // ================================================================
                 // (AR) ISSUE-057: المعامل غير المُصرَّح يُخزَّن i64 (حماية null، FIX X04)،
@@ -612,9 +693,9 @@ namespace Sad
                 bool isAnd = (binOp->op == Lexer::TokenType::OP_AND);
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildShortCircuitLogical: بدء بناء "
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildShortCircuitLogical: بدء بناء "
                           << (isAnd ? "AND (و/&&)" : "OR (أو/||)")
-                          << " بتقييم كسول" << std::endl;
+                          << " بتقييم كسول");
 #endif
 
                 // ================================================================
@@ -626,7 +707,7 @@ namespace Sad
                 if (leftResult.registerName.empty())
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildShortCircuitLogical: فشل بناء الطرف الأيسر!" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildShortCircuitLogical: فشل بناء الطرف الأيسر!");
 #endif
                     return BuildResult();
                 }
@@ -641,8 +722,8 @@ namespace Sad
                 b_.coerceObjectToBool(leftResult);
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildShortCircuitLogical: leftReg='"
-                          << leftResult.registerName << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildShortCircuitLogical: leftReg='"
+                          << leftResult.registerName << "'");
 #endif
 
                 // ================================================================
@@ -771,8 +852,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildShortCircuitLogical: النتيجة في سجل '"
-                          << finalReg << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildShortCircuitLogical: النتيجة في سجل '"
+                          << finalReg << "'");
 #endif
 
                 BuildResult result(finalReg, SadTypeKind::Boolean);
@@ -823,15 +904,15 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildUnaryOp: بدء بناء عملية أحادية" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildUnaryOp: بدء بناء عملية أحادية");
 #endif
 
                 // (AR) بناء المعامل (expressions.h:81 - operand: ExprPtr)
                 // (EN) Build operand
                 auto operandResult = buildExpression(unaryOp->operand.get());
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildUnaryOp: operandResult.registerName='" << operandResult.registerName
-                          << "', type=" << static_cast<int>(operandResult.type) << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildUnaryOp: operandResult.registerName='" << operandResult.registerName
+                          << "', type=" << static_cast<int>(operandResult.type));
 #endif
 
                 // ================================================================
@@ -1008,8 +1089,8 @@ namespace Sad
                         if (found)
                         {
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildUnaryOp: dispatching to operator overload '"
-                                      << fullOpName << "'" << std::endl;
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildUnaryOp: dispatching to operator overload '"
+                                      << fullOpName << "'");
 #endif
 
                             std::string resultReg = b_.newTempRegister();
@@ -1062,10 +1143,10 @@ namespace Sad
                 // (AR) تحديد نوع النتيجة
                 // (EN) Determine result type
                 SadTypeKind resultType = operandResult.type;
-                // (AR) [طبيعي64] لا خفضَ نقطيَّ للأحاديّ: بوّابةُ الطباعة الموحَّدة تشتقّ الإشارة من
+                // (AR) [طبيعي] لا خفضَ نقطيَّ للأحاديّ: بوّابةُ الطباعة الموحَّدة تشتقّ الإشارة من
                 //      resolveSurfaceType(argExpr) (يُرجِع Integer لـUnaryExpr كالمفسّر) — نُبقي النوع
                 //      المُنتشَر للحساب.
-                // (EN) [طبيعي64] No point downgrade for unary: the unified print gate derives the sign
+                // (EN) [طبيعي] No point downgrade for unary: the unified print gate derives the sign
                 //      from resolveSurfaceType(argExpr) (returns Integer for a UnaryExpr, like the
                 //      interpreter) — the propagated type is kept for computation.
 
@@ -1080,7 +1161,7 @@ namespace Sad
                     // (AR) السالب: NEG (sir_types.h:115)
                     opcode = SIROpcode::NEG;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildUnaryOp: عملية السالب (-)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildUnaryOp: عملية السالب (-)");
 #endif
                     break;
 
@@ -1089,7 +1170,7 @@ namespace Sad
                     opcode = SIROpcode::NOT;
                     resultType = SadTypeKind::Boolean; // (AR) النفي يُرجع قيمة منطقية
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildUnaryOp: عملية النفي (!)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildUnaryOp: عملية النفي (!)");
 #endif
                     break;
 
@@ -1098,15 +1179,15 @@ namespace Sad
                     opcode = SIROpcode::NOT;
 // (AR) النتيجة بنفس نوع المعامل (عدد صحيح)
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildUnaryOp: عملية النفي البتّي (~)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildUnaryOp: عملية النفي البتّي (~)");
 #endif
                     break;
 
                 default:
 // (AR) عملية غير مدعومة
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildUnaryOp: عملية غير مدعومة: "
-                              << static_cast<int>(unaryOp->op) << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildUnaryOp: عملية غير مدعومة: "
+                              << static_cast<int>(unaryOp->op));
 #endif
                     b_.errors_.push_back("عملية أحادية غير مدعومة / Unsupported unary operation");
                     return BuildResult(resultReg, resultType);
@@ -1150,18 +1231,18 @@ namespace Sad
                 {
                     b_.currentBlock_->addInstruction(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildUnaryOp: تمت إضافة التعليمة للكتلة الحالية" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildUnaryOp: تمت إضافة التعليمة للكتلة الحالية");
 #endif
                 }
                 else
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildUnaryOp: تحذير - لا توجد كتلة حالية!" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildUnaryOp: تحذير - لا توجد كتلة حالية!");
 #endif
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildUnaryOp: النتيجة في سجل " << resultReg << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildUnaryOp: النتيجة في سجل " << resultReg);
 #endif
 
                 return BuildResult(resultReg, resultType);

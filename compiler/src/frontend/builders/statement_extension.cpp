@@ -11,6 +11,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -43,7 +44,7 @@ namespace Sad
                 if (auto extensionDecl = dynamic_cast<Sad::AST::ExtensionDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found ExtensionDecl for type: '" << extensionDecl->targetType << "'" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found ExtensionDecl for type: '" << extensionDecl->targetType << "'");
 #endif
                     // (AR) حفظ اسم الصنف الحالي واستعادته بعد الانتهاء
                     // (EN) Save current class name and restore after finishing
@@ -62,8 +63,8 @@ namespace Sad
                             continue;
 
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] ExtensionDecl: adding method '" << funcDecl->name
-                                  << "' to class '" << extensionDecl->targetType << "'" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] ExtensionDecl: adding method '" << funcDecl->name
+                                  << "' to class '" << extensionDecl->targetType << "'");
 #endif
 
                         // (AR) إنشاء اسم الطريقة الكامل: صنف.اسم_الطريقة
@@ -180,7 +181,7 @@ namespace Sad
                 if (auto typeAliasDecl = dynamic_cast<Sad::AST::TypeAliasDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found TypeAliasDecl: '" << typeAliasDecl->name << "'" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found TypeAliasDecl: '" << typeAliasDecl->name << "'");
 #endif
 
                     // (AR) إذا كان الهدف اسم صنف → نُسجّل الاسم المستعار ككائن بنفس بنية الصنف
@@ -288,15 +289,15 @@ namespace Sad
                                 }
 
 #ifndef NDEBUG
-                                std::cout << "[DEBUG] TypeAlias: registered '" << typeAliasDecl->name
-                                          << "' as alias for class '" << targetName << "'" << std::endl;
+                                SAD_DEBUG_LOG_LINE("[DEBUG] TypeAlias: registered '" << typeAliasDecl->name
+                                          << "' as alias for class '" << targetName << "'");
 #endif
                             }
                             else
                             {
 #ifndef NDEBUG
-                                std::cout << "[DEBUG] TypeAlias: '" << typeAliasDecl->name
-                                          << "' = '" << targetName << "' (primitive alias, no SIR class)" << std::endl;
+                                SAD_DEBUG_LOG_LINE("[DEBUG] TypeAlias: '" << typeAliasDecl->name
+                                          << "' = '" << targetName << "' (primitive alias, no SIR class)");
 #endif
                             }
                         }
@@ -322,14 +323,14 @@ namespace Sad
                     if (reExportStmt->modulePath.empty())
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] ReExportStmt: bare 'صدّر *' (empty path) "
-                                     "→ no-op (current-module symbols) [P0-3]" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] ReExportStmt: bare 'صدّر *' (empty path) "
+                                     "→ no-op (current-module symbols) [P0-3]");
 #endif
                         return true;
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found ReExportStmt from module: ";
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found ReExportStmt from module: ");
                     for (auto &seg : reExportStmt->modulePath)
                         std::cout << seg << ".";
                     std::cout << " wildcard=" << reExportStmt->isWildcard << std::endl;

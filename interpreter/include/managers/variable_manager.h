@@ -180,15 +180,15 @@ namespace Sad
             bool isConst(const std::string &name) const;
 
             /**
-             * @brief (AR) تسجيل النوع السطحيّ المُصرَّح لمتغير (طبيعي64/بايت…)
+             * @brief (AR) تسجيل النوع السطحيّ المُصرَّح لمتغير (طبيعي/بايت…)
              * @brief (EN) Record a variable's declared surface type (UInt64/Byte…)
              *
-             * (AR) [طبقة طبيعي64 — الخطوة ١] Option B يُخزّن القيمة int64 وقت التشغيل
+             * (AR) [طبقة طبيعي — الخطوة ١] Option B يُخزّن القيمة int64 وقت التشغيل
              *      ويُسقط وسم النوع السطحيّ من القيمة؛ نحفظه هنا بموازاة scopeVariables_
              *      (على نطاق المتغيّر) كي يقرأه resolveStaticType لانتقاء العمليّات
              *      اللا-موقَّعة/الطباعة اللا-موقَّعة عند موقع الاستعمال. يُستدعى بعد define
              *      من مُنفِّذ VarDeclStmt بـnode.type. لا يغيّر تمثيل القيمة.
-             * (EN) [طبيعي64 layer — Step 1] Option B stores the value as int64 at runtime
+             * (EN) [طبيعي layer — Step 1] Option B stores the value as int64 at runtime
              *      and drops the surface-type tag from the Value; we keep it here parallel
              *      to scopeVariables_ (on the variable's scope) so resolveStaticType can
              *      read it to select unsigned ops/printing at the use site. Called after
@@ -485,10 +485,10 @@ namespace Sad
             // (EN) Scope-aware const tracking — each scope knows its own constants
             std::unordered_map<Scope *, std::unordered_set<std::string>> constVariables_;
 
-            // (AR) [طبقة طبيعي64 — الخطوة ١] النوع السطحيّ المُصرَّح لكل متغير، مرتبط
+            // (AR) [طبقة طبيعي — الخطوة ١] النوع السطحيّ المُصرَّح لكل متغير، مرتبط
             //      بالنطاق (موازٍ لـscopeVariables_). يُطهَّر مع scopeVariables_ في
             //      exitScope/cleanupScope/clear لتفادي تلوّث إعادة استخدام Scope*.
-            // (EN) [طبيعي64 layer — Step 1] Declared surface type per variable, scope-keyed
+            // (EN) [طبيعي layer — Step 1] Declared surface type per variable, scope-keyed
             //      (parallel to scopeVariables_). Purged alongside scopeVariables_ in
             //      exitScope/cleanupScope/clear to avoid Scope* reuse contamination.
             std::unordered_map<Scope *, std::unordered_map<std::string, Types::SadTypeKind>> declaredTypes_;

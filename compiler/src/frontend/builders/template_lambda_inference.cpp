@@ -16,6 +16,7 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -771,7 +772,7 @@ namespace Sad
                             auto isScalarKind = [](SadTypeKind t) {
                                 return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
                                        t == SadTypeKind::String || t == SadTypeKind::Boolean ||
-                                       t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
+                                       t == SadTypeKind::UInt8 || t == SadTypeKind::UInt64 ||
                                        t == SadTypeKind::Null || t == SadTypeKind::Any;
                             };
                             // (AR) بوّابةُ حرفيّة المصفوفة: مختلطٌ قياسيّ (أو فيه Any) أو
@@ -1168,7 +1169,7 @@ namespace Sad
                                             auto isScalarKind = [](SadTypeKind t) {
                                                 return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
                                                        t == SadTypeKind::String || t == SadTypeKind::Boolean ||
-                                                       t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
+                                                       t == SadTypeKind::UInt8 || t == SadTypeKind::UInt64 ||
                                                        t == SadTypeKind::Null || t == SadTypeKind::Any;
                                             };
                                             SadTypeKind firstElemType = inferExprType(arrExpr->elements[0].get());
@@ -1296,7 +1297,7 @@ namespace Sad
                                                     auto isScalarKind = [](SadTypeKind t) {
                                                         return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
                                                                t == SadTypeKind::String || t == SadTypeKind::Boolean ||
-                                                               t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
+                                                               t == SadTypeKind::UInt8 || t == SadTypeKind::UInt64 ||
                                                                t == SadTypeKind::Null || t == SadTypeKind::Any;
                                                     };
                                                     SadTypeKind firstElemType = inferExprType(retArr->elements[0].get());
@@ -1804,7 +1805,7 @@ namespace Sad
                                 auto isScalarKind = [](SadTypeKind t) {
                                     return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
                                            t == SadTypeKind::String || t == SadTypeKind::Boolean ||
-                                           t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
+                                           t == SadTypeKind::UInt8 || t == SadTypeKind::UInt64 ||
                                            t == SadTypeKind::Null || t == SadTypeKind::Any;
                                 };
                                 SadTypeKind firstElemType = inferExprType(arrExpr->elements[0].get());
@@ -1827,7 +1828,7 @@ namespace Sad
                                 //      للجميع بعد الخيار ٢: قراءةُ Any عند tags=null تقرأ
                                 //      homogKind فتُبوَّب كلُّ مصفوفةٍ متجانسةٍ صحيحةً.
                                 //      لذا نُوسِّع إلى Any عند: مختلطٍ قياسيّ، أو متجانسٍ
-                                //      قياسيٍّ غيرِ صحيحٍ (نصّ/عشريّ/منطقيّ/بايت/طبيعي64/عدم).
+                                //      قياسيٍّ غيرِ صحيحٍ (نصّ/عشريّ/منطقيّ/بايت/طبيعي/عدم).
                                 //      المتجانسُ الصحيحُ لا يُسجَّل (مسارُه العدديُّ الافتراضيّ
                                 //      آمنٌ ومطابق)، وغيرُ القياسيّ (مصفوفةُ مصفوفات) يُترَك
                                 //      لمساره الافتراضيّ (لا تجميدَ نوعٍ محدَّدٍ خطِرٍ).
@@ -2384,8 +2385,8 @@ namespace Sad
 #ifndef NDEBUG
                 for (const auto &kv : result)
                 {
-                    std::cout << "[DEBUG] Lambda param '" << kv.first << "' inferred type: "
-                              << static_cast<int>(kv.second) << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Lambda param '" << kv.first << "' inferred type: "
+                              << static_cast<int>(kv.second));
                 }
 #endif
 

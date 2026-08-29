@@ -12,6 +12,7 @@
 #include "sad_type_kind_generated.h"
 #include "directive_names_generated.h"
 #include "error_manager.h"
+#include "sad_debug_log.h"
 
 #include <iostream>
 
@@ -28,7 +29,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprInlineAsm(AST::InlineAsmExpr *inlineAsm)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found InlineAsmExpr" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found InlineAsmExpr");
 #endif
 
                 // (AR) إصدار تعليمة INLINE_ASM مباشرة — يتحول إلى llvm::InlineAsm في codegen
@@ -225,8 +226,8 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprSizeof(AST::SizeofExpr *sizeofExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found SizeofExpr for type: "
-                          << sizeofExpr->typeName << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found SizeofExpr for type: "
+                          << sizeofExpr->typeName);
 #endif
 
                 // ════════════════════════════════════════════════════════════
@@ -298,8 +299,8 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprAtomic(AST::AtomicExpr *atomicExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found AtomicExpr, operation: "
-                          << atomicExpr->operation << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found AtomicExpr, operation: "
+                          << atomicExpr->operation);
 #endif
 
                 std::string op = atomicExpr->operation;

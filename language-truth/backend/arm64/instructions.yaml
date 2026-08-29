@@ -242,7 +242,7 @@ instructions:
       reads_dest: false
 
   # UDIV Xd, Xn, Xm   ⇒  sf 00 11010110 Rm 000010 Rn Rd   (قسمةٌ لا-موقَّعة؛ كـSDIV لكن fixed2=000010.
-  #   للطباعةِ اللا-موقَّعة لطبيعي64 عبر udiv+msub. متحقَّق: udiv x11,x9,x10 = 0x9ACA092B)
+  #   للطباعةِ اللا-موقَّعة لطبيعي عبر udiv+msub. متحقَّق: udiv x11,x9,x10 = 0x9ACA092B)
   اقسم_غير_موقع:
     - en: udiv
       form: "x, x, x"
@@ -407,7 +407,7 @@ instructions:
           - { name: imm19, hi: 23, lo: 5,  from: op0 }
           - { name: cond,  hi: 4,  lo: 0,  const: 3 }           # 0b0011 = LO (لا-موقَّع)
 
-  # B.hi label  ⇒  cond = 0b1000 = HI (أعلى لا-موقَّع: C=1 و Z=0) — لفرعِ طبيعي64 >
+  # B.hi label  ⇒  cond = 0b1000 = HI (أعلى لا-موقَّع: C=1 و Z=0) — لفرعِ طبيعي >
   #   متحقَّق: b.hi #8 = 0x54000048
   اقفز_إذا_أعلى:
     - en: bhi
@@ -421,7 +421,7 @@ instructions:
           - { name: imm19, hi: 23, lo: 5,  from: op0 }
           - { name: cond,  hi: 4,  lo: 0,  const: 8 }           # 0b1000 = HI (لا-موقَّع)
 
-  # B.ls label  ⇒  cond = 0b1001 = LS (أدنى أو يساوي لا-موقَّع: C=0 أو Z=1) — لفرعِ طبيعي64 ≤
+  # B.ls label  ⇒  cond = 0b1001 = LS (أدنى أو يساوي لا-موقَّع: C=0 أو Z=1) — لفرعِ طبيعي ≤
   #   متحقَّق: b.ls #8 = 0x54000049
   اقفز_إذا_أدنى_أو_ساوى:
     - en: bls
@@ -435,7 +435,7 @@ instructions:
           - { name: imm19, hi: 23, lo: 5,  from: op0 }
           - { name: cond,  hi: 4,  lo: 0,  const: 9 }           # 0b1001 = LS (لا-موقَّع)
 
-  # B.hs label  ⇒  cond = 0b0010 = HS/CS (أعلى أو يساوي لا-موقَّع: C=1) — لفرعِ طبيعي64 ≥
+  # B.hs label  ⇒  cond = 0b0010 = HS/CS (أعلى أو يساوي لا-موقَّع: C=1) — لفرعِ طبيعي ≥
   #   متحقَّق: b.hs #8 = 0x54000042
   اقفز_إذا_أعلى_أو_ساوى:
     - en: bhs

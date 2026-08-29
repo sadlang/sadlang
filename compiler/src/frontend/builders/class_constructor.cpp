@@ -18,6 +18,7 @@
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "sad_debug_log.h"
 
 namespace Sad
 {
@@ -39,7 +40,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildClass: found constructor" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: found constructor");
 #endif
 
                 std::string fullCtorName = constructorNameFor(classDecl->name);
@@ -51,9 +52,9 @@ namespace Sad
                 {
                     SadTypeKind paramType = b_.astTypeToSIRType(param.type);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildClass: constructor param '" << param.name
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: constructor param '" << param.name
                               << "' AST type=" << static_cast<int>(param.type)
-                              << " -> SIR type=" << static_cast<int>(paramType) << std::endl;
+                              << " -> SIR type=" << static_cast<int>(paramType));
 #endif
                     // (AR) بذر صنف المعامل المصرَّح في الباني (جولة أميليا ٢)
                     // (EN) Seed declared param class in the constructor (Amelia round 2)

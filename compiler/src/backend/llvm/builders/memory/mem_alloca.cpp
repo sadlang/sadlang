@@ -25,6 +25,7 @@
 #include "builders/memory/memory_codegen.h" // (Phase 7 Step 2)
 #include "builders/collections/array_ops_codegen.h" // SAD_ARRAY_SLOT_BYTES
 #include "llvm_codegen.h"
+#include "sad_debug_log.h"
 
 using namespace Sad::Compiler::SIR;
 
@@ -165,8 +166,8 @@ namespace Sad
                                     cg_.builder_->CreateStore(arrPtr, objFieldGep);
 
 #ifndef NDEBUG
-                                    std::cout << "[DEBUG] emitAlloca: initialized array field '"
-                                              << fieldName << "' for class '" << className << "'" << std::endl;
+                                    SAD_DEBUG_LOG_LINE("[DEBUG] emitAlloca: initialized array field '"
+                                              << fieldName << "' for class '" << className << "'");
 #endif
                                 }
                                 fieldIdx++;
@@ -513,9 +514,9 @@ namespace Sad
                                 //      Store field GEP under alternative name for this.field access
                                 cg_.context_info_.namedValues["__field__." + fieldName] = gep;
 #ifndef NDEBUG
-                                std::cout << "[DEBUG] emitAlloca: field '" << fieldName
+                                SAD_DEBUG_LOG_LINE("[DEBUG] emitAlloca: field '" << fieldName
                                           << "' conflicts with param — stored as __field__." << fieldName
-                                          << " (class: " << activeClass << ")" << std::endl;
+                                          << " (class: " << activeClass << ")");
 #endif
                             }
                             else
@@ -524,9 +525,9 @@ namespace Sad
                             }
 
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] emitAlloca: class field '" << fieldName
+                            SAD_DEBUG_LOG_LINE("[DEBUG] emitAlloca: class field '" << fieldName
                                       << "' mapped to GEP index " << fieldIndex
-                                      << " (class: " << activeClass << ")" << std::endl;
+                                      << " (class: " << activeClass << ")");
 #endif
 
                             return gep;

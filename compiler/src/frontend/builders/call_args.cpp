@@ -35,6 +35,7 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -78,7 +79,7 @@ namespace Sad
                     if (argResult.registerName.empty() && !argResult.isConstant)
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildCallArgumentsList: failed to build argument" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildCallArgumentsList: failed to build argument");
 #endif
                         // (AR) 🔑 إن كان بناءُ الوسيطِ قد سجّل تشخيصَه فالتشخيصُ
                         //      قائمٌ يسمّي العلّةَ باسمِها (رتبةٌ خاطئةٌ، نوعٌ لا
@@ -122,8 +123,8 @@ namespace Sad
                         case SadTypeKind::String:
                             argOp = SIROperand::ConstantString(argResult.constantValue);
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildCallArgumentsList: STRING constant='"
-                                      << argResult.constantValue << "'" << std::endl;
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildCallArgumentsList: STRING constant='"
+                                      << argResult.constantValue << "'");
 #endif
                             break;
 
@@ -132,8 +133,8 @@ namespace Sad
                             int64_t intVal = std::stoll(argResult.constantValue);
                             argOp = SIROperand::ConstantI64(intVal);
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildCallArgumentsList: I64 constant="
-                                      << intVal << std::endl;
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildCallArgumentsList: I64 constant="
+                                      << intVal);
 #endif
                             break;
                         }
@@ -143,8 +144,8 @@ namespace Sad
                             double floatVal = std::stod(argResult.constantValue);
                             argOp = SIROperand::ConstantF64(floatVal);
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildCallArgumentsList: F64 constant="
-                                      << floatVal << std::endl;
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildCallArgumentsList: F64 constant="
+                                      << floatVal);
 #endif
                             break;
                         }
@@ -154,8 +155,8 @@ namespace Sad
                             bool boolVal = (argResult.constantValue == "true");
                             argOp = SIROperand::ConstantBool(boolVal);
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildCallArgumentsList: BOOL constant="
-                                      << boolVal << std::endl;
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildCallArgumentsList: BOOL constant="
+                                      << boolVal);
 #endif
                             break;
                         }
@@ -165,9 +166,9 @@ namespace Sad
                             // (EN) Other types — fall back to Register
                             argOp = SIROperand::Register(argResult.registerName, argResult.type);
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildCallArgumentsList: register='"
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildCallArgumentsList: register='"
                                       << argResult.registerName << "', type="
-                                      << static_cast<int>(argResult.type) << std::endl;
+                                      << static_cast<int>(argResult.type));
 #endif
                             break;
                         }
@@ -178,9 +179,9 @@ namespace Sad
                         // (EN) Variable or expression — use Register
                         argOp = SIROperand::Register(argResult.registerName, argResult.type);
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildCallArgumentsList: register='"
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildCallArgumentsList: register='"
                                   << argResult.registerName << "', type="
-                                  << static_cast<int>(argResult.type) << std::endl;
+                                  << static_cast<int>(argResult.type));
 #endif
                     }
 

@@ -15,8 +15,8 @@
 
 version: "5.0"
 schema_version: "5.0"
-description_ar: "كل أنواع لغة ص (52 نوعًا) — سطحية وداخلية، مصدر توليد SadTypeKind"
-description_en: "All Sad type kinds (52) — surface + internal, SoT for SadTypeKind"
+description_ar: "كل أنواع لغة ص (49 نوعًا) — سطحية وداخلية، مصدر توليد SadTypeKind"
+description_en: "All Sad type kinds (49) — surface + internal, SoT for SadTypeKind"
 
 # (AR) ⚠️ تصحيحُ ملاحظةٍ بائتة (2026-08-11): كان هنا «النوع السطحي «عدم» ينتظر قيمة
 #      SadTypeKind::Null … حاليًّا لا قيمة enum له» — وهذا لم يعد صحيحًا: القيمة
@@ -109,23 +109,117 @@ types:
 
   # ─── بدائية / Primitive ───
   - { id: type.void,    kind: Void,    word: فراغ,   name_en: void,    category: primitive, size_bytes: 0, surface: true,  token_type: TYPE_VOID,    can_be_identifier: true, default_init: not_a_slot, since: "1.0.0", status: stable, description_ar: "نوع الإرجاع الفارغ — لا قيمة. متمايز عن «عدم» (type.null): «فراغ» ما لم يُرجَع أصلاً (مفتاح غائب، بحثٌ بلا مطابقة)، و«عدم» قيمةُ لاشيء الصريحة. فحصُ أحدهما وحده يمرّ ناقصًا", description_en: "Empty return type — no value. Distinct from «عدم» (type.null): «فراغ» is what was never returned (missing key, no regex match), «عدم» is the explicit null value. Checking only one of them passes incompletely" }
-  - { id: type.integer, kind: Integer, word: رقم,    name_en: integer, category: primitive, size_bytes: 8, surface: true,  token_type: TYPE_INTEGER, can_be_identifier: true, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد صحيح (i64)", description_en: "64-bit integer" }
-  - { id: type.float,   kind: Float,   word: عشري,   name_en: float,   category: primitive, size_bytes: 8, surface: true,  token_type: TYPE_DOUBLE,  can_be_identifier: true, default_init: float_zero, since: "1.0.0", status: stable, description_ar: "عدد عشري (f64)", description_en: "64-bit float" }
+  - { id: type.integer, kind: Integer, word: رقم,    name_en: integer, category: primitive, size_bytes: 8, numeric: signed, surface: true,  token_type: TYPE_INTEGER, can_be_identifier: true, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد صحيح (i64)", description_en: "64-bit integer" }
+  - { id: type.float,   kind: Float,   word: عشري,   name_en: float,   category: primitive, size_bytes: 8, numeric: float, surface: true,  token_type: TYPE_DOUBLE,  can_be_identifier: true, default_init: float_zero, since: "1.0.0", status: stable, description_ar: "عدد عشري (f64)", description_en: "64-bit float" }
   - { id: type.boolean, kind: Boolean, word: منطقي,  name_en: boolean, category: primitive, size_bytes: 1, surface: true,  token_type: TYPE_BOOLEAN, can_be_identifier: true, default_init: bool_false, since: "1.0.0", status: stable, description_ar: "قيمة منطقية (صحيح/خطأ)", description_en: "Boolean (true/false)" }
   - { id: type.string,  kind: String,  word: نص,     name_en: string,  category: primitive, size_bytes: 8, surface: true,  token_type: TYPE_STRING,  can_be_identifier: true, default_init: empty_string, since: "1.0.0", status: stable, description_ar: "نص (UTF-8)", description_en: "UTF-8 string" }
-  - { id: type.byte,    kind: Byte,    word: بايت,   name_en: byte,    category: primitive, size_bytes: 1, surface: true,  token_type: TYPE_U8, can_be_identifier: true, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "بايت (u8، 0–255)", description_en: "Byte (u8, 0-255)" }
 
   # ─── بدائية بحجم محدد / Sized primitives (compiler) ───
-  - { id: type.int8,    kind: Int8,    word: عدد8,   name_en: int8,    category: sized_primitive, size_bytes: 1, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "عدد صحيح 8-بت", description_en: "8-bit signed integer" }
-  - { id: type.int16,   kind: Int16,   word: عدد16,  name_en: int16,   category: sized_primitive, size_bytes: 2, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "عدد صحيح 16-بت", description_en: "16-bit signed integer" }
-  - { id: type.int32,   kind: Int32,   word: عدد32,  name_en: int32,   category: sized_primitive, size_bytes: 4, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "عدد صحيح 32-بت", description_en: "32-bit signed integer" }
-  - { id: type.int64,   kind: Int64,   word: عدد64,  name_en: int64,   category: sized_primitive, size_bytes: 8, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "عدد صحيح 64-بت", description_en: "64-bit signed integer" }
-  - { id: type.uint8,   kind: UInt8,   word: طبيعي8, name_en: uint8,   category: sized_primitive, size_bytes: 1, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 8-بت", description_en: "8-bit unsigned integer" }
-  - { id: type.uint16,  kind: UInt16,  word: طبيعي16, name_en: uint16, category: sized_primitive, size_bytes: 2, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 16-بت", description_en: "16-bit unsigned integer" }
-  - { id: type.uint32,  kind: UInt32,  word: طبيعي32, name_en: uint32, category: sized_primitive, size_bytes: 4, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 32-بت", description_en: "32-bit unsigned integer" }
-  - { id: type.uint64,  kind: UInt64,  word: طبيعي64, name_en: uint64, category: sized_primitive, size_bytes: 8, surface: true,  token_type: TYPE_U64, can_be_identifier: true, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 64-بت", description_en: "64-bit unsigned integer" }
-  - { id: type.float32, kind: Float32, word: عشري32, name_en: float32, category: sized_primitive, size_bytes: 4, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "عشري 32-بت", description_en: "32-bit float" }
-  - { id: type.float64, kind: Float64, word: عشري64, name_en: float64, category: sized_primitive, size_bytes: 8, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "عشري 64-بت", description_en: "64-bit float" }
+  # (AR) 🔑 قرارُ المالك 2026-08-27 — قاعدةُ التسميةِ الواحدة:
+  #      **اللفظُ المجرَّدُ ٦٤ بتًّا، واللاحقةُ تُضيّق.** ثلاثُ عائلاتٍ بقاعدةٍ واحدة:
+  #        موقَّع    : رقم8 · رقم16 · رقم32 · رقم
+  #        لا موقَّع : طبيعي8 · طبيعي16 · طبيعي32 · طبيعي
+  #        عائم     : عشري32 · عشري
+  #      وثلاثةُ تغييراتٍ أنتجتْها:
+  #      ① حُذِفَ `type.int64` (لفظُه يومَها «عدد64») و`type.float64` («عشري64»). كانا نوعَينِ
+  #         داخليَّينِ (`Int64`/`Float64`) بدلالةٍ مطابقةٍ لـ`Integer`/`Float`
+  #         حرفًا بحرف — مقيسًا: `@حجم` ٨ للاثنَين، والإسنادُ بينهما يمرُّ في
+  #         الاتّجاهَين، و`SEM048` يعاملُهما سواءً. والفرقُ **الوحيدُ** المرصودُ
+  #         جوابُ `نوع()`. فبرنامجانِ متطابقانِ في السلوكِ كانا يُخرِجانِ نصَّينِ
+  #         مختلفَينِ لأنّ كاتبَهما اختارَ لفظًا بدلَ لفظ — وهو غموضٌ لا فائدةَ فيه.
+  #      ② «طبيعي64» ← «طبيعي». لولاه لبقيَ صفٌّ واحدٌ من ثلاثةٍ ينتهي بلاحقةٍ
+  #         بينما ينتهي أخواه بلا لاحقة — وهو الشذوذُ عينُه الذي حُذِفَ لأجلِه
+  #         «بايت» أمسِ، فإنشاؤه اليومَ نقضٌ للحُجّةِ التي بُنيَ عليها ذلك الحذف.
+  #      ③ «عدد8/16/32» ← «رقم8/16/32». و«عدد» **جنسٌ** و«طبيعي» **نوعٌ منه**
+  #         (العددُ الطبيعيُّ عددٌ أيضًا)، فتسميةُ الموقَّعِ باسمِ الجنسِ تُسمّي
+  #         أحدَ النوعَينِ بما يشملُهما. ولا شيءَ في لفظِ «عدد» يقولُ «موقَّع».
+  #         والاسمُ الدقيقُ رياضيًّا «صحيح» مسدودٌ: محجوزٌ للحرفيّةِ المنطقيّة
+  #         (`KW-RES-038` ⇒ `LITERAL_TRUE`). فبقيَ المبدأُ الأسلم:
+  #         **الافتراضيُّ لا يُوسَم، والمخالفُ يُوسَم** — «رقم» عددٌ كما يفهمُه
+  #         الحساب، و«طبيعي» يحملُ قيدَه في لفظِه. وهي القاعدةُ التي كانت
+  #         عائلةُ العشريّاتِ تتّبعُها وحدَها، فعُمِّمت.
+  #      ⚠️ و«رقم» مقفولٌ على ٦٤ بتًّا **ثابتًا** لا على عرضِ كلمةِ الآلة. وهذا
+  #         ما يجعلُ «نكتبُ رقم فنفهمُ ضمنًا ٦٤» جملةً صادقةً على كلِّ هدفٍ، لا
+  #         على هذا الحاسوبِ وحدَه — فالضمنيُّ لا يضرُّ ما دامَ ثابتًا معلومًا،
+  #         إنّما يضرُّ حينَ يتغيّرُ خلفَ ظهرِ المطوّر.
+  #      ⚠️ ولا معماريّةَ ١٢٨ بتًّا في السوقِ ولا في الطريق (٦٤ لم تُستنفَدْ
+  #         أصلًا: x86-64 يعنونُ بـ٤٨ بتًّا و٥٧ مع الترقيمِ الخماسيّ). فإن
+  #         أُضيفَ `رقم128` يومًا فبقرارِ اللغةِ لا بظهورِ عتاد — و`i128` في
+  #         LLVM يُركَّبُ من زوجِ سجلَّينِ ٦٤. وحينَها يلزمُ أن تُقرَأَ حُجّةُ
+  #         `SEM048` بـ«الخانةِ العليا» لا بـ«٦٤»، إذ لكلِّ عائلةِ عروضٍ خانةٌ
+  #         عليا لا جوابَ لها — والمشكلةُ تنتقلُ ولا تزول.
+  # (EN) Owner decision 2026-08-27 — one naming rule: THE BARE WORD IS 64 BITS,
+  #      A SUFFIX NARROWS. ① type.int64/type.float64 deleted: internally distinct
+  #      kinds with byte-identical semantics to Integer/Float (measured: same
+  #      @حجم, assignable both ways, identical SEM048 treatment; the ONLY observed
+  #      difference was نوع()'s answer). ② طبيعي64 → طبيعي, else one of three rows
+  #      keeps a suffix its siblings dropped — the very irregularity for which
+  #      «بايت» was deleted the day before. ③ عدد8/16/32 → رقم8/16/32: «عدد» is the
+  #      GENUS that also contains «طبيعي», so it named one species with the word
+  #      covering both, and nothing in it says "signed". The mathematically exact
+  #      «صحيح» is blocked (reserved for the boolean literal). Principle: the
+  #      default is unmarked, the restricted one is marked — the rule the float
+  #      family already followed alone, now generalised.
+  # (AR) 🔑 قرارُ المالك 2026-08-26: كلُّ «رقم*» و«طبيعي*» بلا صفةِ العدميّةِ
+  #      (ولفظُ الصفِّ الموقَّعِ يومَها «عدد*»؛ غُيِّرَ في ٢٧ آب)
+  #      يبتدئُ صفرًا. وكان المصدرُ يقولُ `unspecified` لستٍّ من الثمانيةِ
+  #      و`int_zero` لاثنتَين، فافترقَ المحرّكانِ فعلًا على المتغيّرِ غيرِ
+  #      المُهيَّأ (المفسّرُ «لاشيء» والمترجّمُ ٠) — و«غيرُ محدَّد» في المصدرِ
+  #      لم يكن حياديًّا بل رخصةً لمحرّكَينِ أن يختلفا بلا أن يُخطِئ أحدُهما.
+  # (EN) Owner decision 2026-08-26: every رقم*/طبيعي* (spelled عدد* at the time)
+  #      without the nullable marker
+  #      starts at zero. Six of eight said `unspecified` and two said `int_zero`,
+  #      and the engines genuinely diverged on an uninitialised local («لاشيء» vs 0)
+  #      — "unspecified" in the SoT was not neutral, it was a licence for two engines
+  #      to disagree without either being wrong.
+  - { id: type.int8,    kind: Int8,    word: رقم8,   name_en: int8,    category: sized_primitive, size_bytes: 1, numeric: signed, surface: true,  token_type: TYPE_I8, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد صحيح 8-بت", description_en: "8-bit signed integer" }
+  - { id: type.int16,   kind: Int16,   word: رقم16,  name_en: int16,   category: sized_primitive, size_bytes: 2, numeric: signed, surface: true,  token_type: TYPE_I16, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد صحيح 16-بت", description_en: "16-bit signed integer" }
+  - { id: type.int32,   kind: Int32,   word: رقم32,  name_en: int32,   category: sized_primitive, size_bytes: 4, numeric: signed, surface: true,  token_type: TYPE_I32, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد صحيح 32-بت", description_en: "32-bit signed integer" }
+  # (AR) 🔑 «طبيعي8» ورثَ موضعَ «بايت» ورمزَه `TYPE_U8` كاملًا (قرارُ المالك
+  #      2026-08-26): كان النوعُ الواحدُ ذا مدخلَينِ ونوعَينِ داخليَّينِ
+  #      (`Byte` سطحيٌّ و`UInt8` ميتٌ لا رمزَ له) بدلالةٍ مطابقةٍ حرفًا بحرف.
+  #      والاسمُ الأعجميُّ كان الخانةَ الوحيدةَ الشاذّةَ في شبكةٍ من ثمانٍ:
+  #        موقَّع   : «عدد8 · عدد16 · عدد32 · عدد64»
+  #        غيرُ موقَّع: «طبيعي8 · طبيعي16 · طبيعي32 · طبيعي64»
+  #      ⚠️ الألفاظُ أعلاه ألفاظُ ٢٦ آبَ لا ألفاظُ اليوم، وتُركت كما نُطِقت يومَها
+  #         لأنّ الحُجّةَ لا تُفهَمُ بغيرِها. وقرارُ ٢٧ آبَ حوّلَ الصفَّ الموقَّعَ إلى
+  #         «رقم8 · رقم16 · رقم32 · رقم»، وأسقطَ لاحقةَ «طبيعي64» ⇒ «طبيعي».
+  #         والحُجّةُ باقيةٌ بحرفِها — إنّما الأسماءُ تبدّلت.
+  #      وحُذفَ `Byte` لا `UInt8` رغمَ أنّه الأكثرُ ورودًا، كي يستقيمَ التعدادُ
+  #      الداخليُّ مع إخوتِه `UInt16/32/64` فلا يبقى الشذوذُ منقولًا لا مرفوعًا.
+  # (EN) «طبيعي8» fully inherits «بايت»'s slot and TYPE_U8 token (owner decision
+  #      2026-08-26). One type had two entries and two internal kinds — surface
+  #      `Byte` and dead `UInt8` — with byte-identical semantics, and the loanword
+  #      was the only irregular cell in an otherwise complete 8-cell grid. `Byte`
+  #      was the one deleted, despite being the more widely referenced, so the
+  #      internal enum lines up with its UInt16/32/64 siblings.
+  # (AR) 🔑 كان هذا وحدَه بينَ إخوتِه الثمانيةِ موسومًا `primitive` بينما جارُه
+  #      المباشرُ `طبيعي16` وسائرُ الأعراضِ `sized_primitive`. ولم يُحدِثِ الانجرافُ
+  #      عَرَضًا لأنّ الحقلَ كان يُستهلَكُ للتوثيقِ فقط؛ فلمّا وُلِّدَ منه المُسنَدُ
+  #      `sadTypeKindIsSizedPrimitive` صارَ حامِلًا، وكانَ سيجعلُ أيَّ حارسٍ يسألُ
+  #      «أعرضٌ مُصرَّحٌ به؟» يصمتُ عن `طبيعي8` وحدَه صمتًا لا يُفسَّرُ من قراءةِ
+  #      الشيفرة. صُحِّحَ بقرارِ المالك (٢٦ آب ٢٠٢٦).
+  # (EN) This alone carried `primitive` while its seven siblings carry
+  #      `sized_primitive`. Harmless while the field was documentation-only;
+  #      load-bearing the moment `sadTypeKindIsSizedPrimitive` was generated from it.
+  - { id: type.uint8,   kind: UInt8,   word: طبيعي8, name_en: uint8,   category: sized_primitive, size_bytes: 1, numeric: unsigned, surface: true,  token_type: TYPE_U8, can_be_identifier: true, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 8-بت (0–255)", description_en: "8-bit unsigned integer (0-255)" }
+  - { id: type.uint16,  kind: UInt16,  word: طبيعي16, name_en: uint16, category: sized_primitive, size_bytes: 2, numeric: unsigned, surface: true,  token_type: TYPE_U16, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 16-بت", description_en: "16-bit unsigned integer" }
+  - { id: type.uint32,  kind: UInt32,  word: طبيعي32, name_en: uint32, category: sized_primitive, size_bytes: 4, numeric: unsigned, surface: true,  token_type: TYPE_U32, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 32-بت", description_en: "32-bit unsigned integer" }
+  # (AR) 🔑 ولا `typeof_ar` هنا (قرارُ المالك 2026-08-26): كان «رقم» وسمًا
+  #      وُضِعَ لئلّا يتحرّكَ سلوكٌ مقيسٌ يومَ فُتِحَت أُسرةُ الأعراض، فصارَ —
+  #      بعدَ أن أجابَ إخوتُه الثلاثةُ بأسمائِهم — الخانةَ الشاذّةَ الوحيدةَ في
+  #      ثمانٍ. والحفاظُ على سلوكٍ قائمٍ حجّةٌ تنتهي صلاحيّتُها حينَ يصيرُ
+  #      المحفوظُ هو الاستثناءَ لا القاعدة.
+  #      ⚠️ والنوعُ المقصودُ هنا كانَ اسمُه «طبيعي64» يومَ كُتِبَ هذا، واسمُه اليومَ
+  #         «طبيعي» — سقطت لاحقتُه بقرارِ ٢٧ آبَ ٢٠٢٦، وحُجّةُ إسقاطِ `typeof_ar`
+  #         عنه لم تتغيّر.
+  # (EN) No typeof_ar (owner decision 2026-08-26): «رقم» was a compatibility tag kept
+  #      so nothing measured moved when the width family was opened. Once its three
+  #      siblings answered with their own names it became the sole irregular cell of
+  #      eight — preserving existing behaviour stops being a reason when the thing
+  #      preserved has become the exception rather than the rule.
+  - { id: type.uint64,  kind: UInt64,  word: طبيعي, name_en: uint64, category: sized_primitive, size_bytes: 8, numeric: unsigned, surface: true,  token_type: TYPE_U64, can_be_identifier: true, default_init: int_zero, since: "1.0.0", status: stable, description_ar: "عدد طبيعي 64-بت", description_en: "64-bit unsigned integer" }
+  - { id: type.float32, kind: Float32, word: عشري32, name_en: float32, category: sized_primitive, size_bytes: 4, numeric: float, surface: true,  token_type: TYPE_F32, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "عشري 32-بت", description_en: "32-bit float" }
   - { id: type.char,    kind: Char,    word: حرف,    name_en: char,    category: sized_primitive, surface: false, default_init: unspecified, since: "1.0.0", status: stable, description_ar: "حرف", description_en: "Character" }
 
   # ─── مركّبة / Composite ───

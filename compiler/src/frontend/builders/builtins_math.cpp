@@ -11,6 +11,7 @@
 #include "builders/builtin_arity_check.h"
 #include "sir_builder.h"
 #include "builtin_registry.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <optional>
@@ -56,7 +57,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin جذر() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin جذر() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
@@ -82,7 +83,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin لوغ() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin لوغ() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
@@ -214,7 +215,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin أس() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin أس() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
@@ -241,7 +242,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin مطلق() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin مطلق() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, resultType);
                 }
@@ -267,7 +268,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin تقريب() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin تقريب() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -293,7 +294,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin أرضية() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin أرضية() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -319,7 +320,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin سقف() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin سقف() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -361,7 +362,7 @@ namespace Sad
                             b_.currentBlock_->instructions.push_back(mulInst);
                         }
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildFunctionCall: builtin مربع() [i64] -> " << resultReg << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin مربع() [i64] -> " << resultReg);
 #endif
                         return BuildResult(resultReg, SadTypeKind::Integer);
                     }
@@ -379,7 +380,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin مربع() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin مربع() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
@@ -405,7 +406,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin جيب() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin جيب() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
@@ -431,7 +432,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin جيب_تمام() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin جيب_تمام() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
@@ -457,7 +458,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin ظل() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin ظل() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
@@ -472,7 +473,7 @@ namespace Sad
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::MAX, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
                     // (AR) نوعُ النتيجة من نوعِ المعامِلَين بعدَ بوّابةِ النوعِ السطحيّ (call_main): عشريٌّ إن
-                    //      كان أحدُهما عشريًّا؛ طبيعي64 إن كان كلاهما طبيعي64 صريحًا (⇒ طباعةٌ لا-موقَّعةٌ للنتيجة
+                    //      كان أحدُهما عشريًّا؛ طبيعي إن كان كلاهما طبيعي صريحًا (⇒ طباعةٌ لا-موقَّعةٌ للنتيجة
                     //      + مقارنةٌ لا-موقَّعةٌ في الخلفيّة)؛ وإلّا صحيح. المفسّرُ يعيدُ نوعَ الفائزِ (يتجاهلُ SIR)،
                     //      وLLVM يشتقُّ من نوعِ القيمة؛ فهذا يخدمُ الخلفيّةَ الأصليّةَ بلا أثرٍ عليهما.
                     SadTypeKind maxType =
@@ -499,7 +500,7 @@ namespace Sad
                 {
                     if (!checkBuiltinArity(b_.errors_, funcName, Ar::Math::MIN, argResults.size()))
                         return BuildResult("", SadTypeKind::Integer);
-                    // (AR) نوعُ النتيجة: كنظيرِ أكبر — عشريّ/طبيعي64/صحيح من نوعِ المعامِلَين بعدَ البوّابة.
+                    // (AR) نوعُ النتيجة: كنظيرِ أكبر — عشريّ/طبيعي/صحيح من نوعِ المعامِلَين بعدَ البوّابة.
                     SadTypeKind minType =
                         (argOperands[0].dataType == SadTypeKind::Float ||
                          argOperands[1].dataType == SadTypeKind::Float)

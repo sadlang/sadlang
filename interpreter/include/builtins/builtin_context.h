@@ -53,10 +53,10 @@ namespace Sad
 
             // ─── النوع السطحيّ الساكن للوسيط / Static surface type of an argument ───
             /**
-             * @brief (AR) [طبقة طبيعي64 — الخطوة ٤] النوع الساكن للوسيط i (من resolveStaticType
+             * @brief (AR) [طبقة طبيعي — الخطوة ٤] النوع الساكن للوسيط i (من resolveStaticType
              *        عند موقع النداء) — تستهلكه مدمجات الطباعة/التحويل لانتقاء تنسيق لا-موقَّع.
              *        الافتراض Integer إن لم يُمرَّر (يُبقي التنسيق الموقَّع القائم).
-             * @brief (EN) [طبيعي64 layer — Step 4] Static type of argument i (from resolveStaticType
+             * @brief (EN) [طبيعي layer — Step 4] Static type of argument i (from resolveStaticType
              *        at the call site) — consumed by print/convert built-ins to pick unsigned
              *        formatting. Defaults to Integer if not provided (keeps existing signed formatting).
              */

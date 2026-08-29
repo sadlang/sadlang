@@ -108,28 +108,75 @@ namespace Sad
                 value = evaluateExpression(*node.initializer);
 
                 // (AR) تحويل النوع إذا لزم الأمر / (EN) Type conversion if needed
-                if (node.type == Types::SadTypeKind::Integer && value.getKind() == Types::SadTypeKind::Float)
+                // (AR) 🔑 معبَرُ العشريِّ والصحيحِ يُسأَلُ عن **عائلةِ** النوعِ لا عن
+                //      لفظِه الواحد: كان الشرطُ مكتوبًا على `Integer` و`Float`
+                //      وحدَهما، فلمّا فُتحت الأعراضُ المُسمّاةُ («رقم8/16/32» و
+                //      «طبيعي8/16/32» و«عشري32») لم يعرِفْها المعبَرُ فمرَّت القيمةُ
+                //      كما هي: `عشري32 س = 5` تخزنُ صحيحًا فتطبعُ «5» بينما يطبعُ
+                //      المترجِمُ «5.0»، و`رقم8 أ = 2.7` تخزنُ عشريًّا فتطبعُ «2.7»
+                //      بينما يطبعُ المترجِمُ «2». والسؤالُ بالعائلةِ يشملُ الألفاظَ
+                //      المفتوحةَ اليومَ وما يُفتَحُ غدًا لأنّ المحمولَ مولَّدٌ من
+                //      types.yaml لا مكتوبٌ باليد.
+                // (EN) The int/float crossing must ask the type's FAMILY, not one
+                //      spelling. The test named Integer and Float alone, so the
+                //      newly opened widths (رقم8/16/32, طبيعي8/16/32, عشري32) were
+                //      not recognized and the value passed through unconverted —
+                //      diverging from the compiler in both directions. The family
+                //      predicates are generated from types.yaml, so this also covers
+                //      widths opened later.
+                if (Types::sadTypeKindIsIntegerNumeric(node.type) &&
+                    Types::sadTypeKindIsFloatNumeric(value.getKind()))
                 {
-                    // (AR) تحويل عشري → رقم صحيح (بدقّة 64-بت) / (EN) Convert double → integer (64-bit)
+                    // (AR) تحويل عشري → رقم صحيح بقطعِ الكسرِ فقط، بلا تطبيعٍ على
+                    //      العرضِ المُعلَن. وهذا **وصفُ الواقعِ المقيسِ لا إقرارٌ به**:
+                    //      المترجِمُ يجيبُ `رقم8 أ = 300.7` بـ«300» لا بـ«44»، أي أنّ
+                    //      معبَرَ العشريِّ يفلتُ عندَه من قاعدةِ البتر (ق٢). فلو طبَّعنا
+                    //      هنا لَفتحنا تباعُدًا جديدًا بينَ المحرّكَينِ بدلَ أن نغلقَ
+                    //      واحدًا. وإفلاتُ ق٢ في هذا المعبَرِ ثغرةٌ مقيسةٌ في المحرّكَينِ
+                    //      معًا، تُسَدُّ في الطبقتَينِ معًا لا في واحدةٍ منهما.
+                    // (EN) double → integer by truncating the fraction only, WITHOUT
+                    //      normalizing to the declared width. This DESCRIBES the
+                    //      measured behavior, it does not endorse it: the compiler
+                    //      answers `رقم8 أ = 300.7` with 300, not 44 — the float
+                    //      crossing escapes the truncation rule there too. Normalizing
+                    //      here would open a new divergence instead of closing one.
+                    //      The escape is a defect in BOTH engines and must be sealed
+                    //      in both at once.
                     value = Data::Value(static_cast<int64_t>(value.toDouble()));
                 }
-                else if (node.type == Types::SadTypeKind::Float && value.getKind() == Types::SadTypeKind::Integer)
+                else if (Types::sadTypeKindIsFloatNumeric(node.type) &&
+                         value.getKind() == Types::SadTypeKind::Integer)
                 {
                     // (AR) تحويل رقم صحيح → عشري / (EN) Convert integer → double
                     value = Data::Value(static_cast<double>(value.toInt64()));
                 }
-                else if (node.type == Types::SadTypeKind::Byte &&
+                else if (Types::sadTypeKindIsIntegerNumeric(node.type) &&
                          value.getKind() == Types::SadTypeKind::Integer)
                 {
-                    // (AR) بايت (u8): يُقتطع 0–255 عند إسناد التهيئة — يُطبَّق نظيرُه في
-                    //      المترجم (AND 0xFF في buildLocalVariable) حفظًا للتكافؤ.
-                    //      اقتطاعُ إعادة الإسناد والدلالةُ اللا-موقَّعة الكاملة (طبيعي64:
-                    //      udiv/ult/طباعة، حرفيّات >INT64_MAX) طبقةٌ تاليةٌ مؤجَّلة.
-                    // (EN) Byte (u8): truncate to 0-255 at init assignment — mirrored in the
-                    //      compiler (AND 0xFF in buildLocalVariable) to preserve parity.
-                    //      Reassignment truncation and full unsigned semantics are deferred.
-                    value = Data::Value(value.toInt64() & 0xFF);
+                    // (AR) 🔑 الخزنُ في خانةٍ مُعلَنةِ العرضِ يُطبِّعُ القيمةَ على ذلك
+                    //      العرض: بترٌ ثمّ توسيعٌ بالإشارةِ أو بالصفرِ حسبَ `numeric`
+                    //      المُعلَنِ في types.yaml. وكان الاقتطاعُ مكتوبًا لـ«بايت»
+                    //      وحدَه (`& 0xFF`)، فلمّا فُتحت «رقم8/16/32» و«طبيعي16/32»
+                    //      دخلَتها قيمٌ لا تسعُها فتُخزَنُ كما هي — اسمُ نوعٍ صادقٌ
+                    //      على خانةٍ عرضُها ٦٤. والمُطبِّعُ محايدٌ لِما عرضُه ٦٤
+                    //      («رقم» و«طبيعي») فلا يتغيّرُ به سلوكٌ مقيس.
+                    //      ⚠️ الاقتطاعُ هنا **عندَ الخزنِ لا عندَ الحساب**: نتيجةُ
+                    //      `رقم8 + 1` تبقى «رقم» بقاعدةِ الهيمنة (الأعرضُ يفوز)،
+                    //      وهي دلالةُ الترقيةِ المُعلَنة.
+                    // (EN) Storing into a slot of declared width normalizes to that
+                    //      width — truncate then sign/zero-extend per the declared
+                    //      `numeric` class. Truncation was hand-written for Byte
+                    //      alone; the newly opened widths stored out-of-range values
+                    //      verbatim. Identity for 64-bit kinds, so nothing measured
+                    //      moves. Applies at the STORE, not at the arithmetic.
+                    value = Data::Value(static_cast<int64_t>(
+                        Types::sadTypeKindNormalizeInteger(node.type, value.toInt64())));
                 }
+
+                // (AR) والمعبَرُ الذي يقتطعُ هو نفسُه الذي يَسِمُ: العرضُ المُعلَنُ
+                //      معروفٌ هنا وحدَه، ولا يُستنتَجُ بعدَه من خانةِ التخزين.
+                // (EN) The crossing that truncates is the crossing that tags.
+                value.tagDeclaredWidth(node.type);
 
                 // ═══════════════════════════════════════════════════════════
                 // (AR) التحقق من توافقية الأنواع عبر النظام الموحد
@@ -252,9 +299,9 @@ namespace Sad
                 // ════════════════════════════════════════════════════════════
                 //
                 // (AR) كان هنا نسخةٌ خامسةٌ من جدولِ القيمِ الافتراضيّةِ **بلا
-                //      «بايت» ولا «طبيعي64»**، فيسقطان في `default:` ويصيران
+                //      «بايت» ولا «طبيعي»**، فيسقطان في `default:` ويصيران
                 //      «لاشيء» — نقضًا لقرارِ المالكِ الذي ينصّ عليهما صراحةً.
-                //      قِيس (2026-08-15): «طبيعي64 س» و«بايت ب» داخل دالّةٍ
+                //      قِيس (2026-08-15): «طبيعي س» و«بايت ب» داخل دالّةٍ
                 //      يطبعان «لاشيء» في المفسّر، ومكدّسًا غيرَ مهيّأ في
                 //      المترجّم — أي أنّ **المحرّكَين يخالفان الحكمَ بطريقتَين**.
                 //      وأُضيف النوعان إلى ثلاثةِ جداولَ ونُسيا هنا وفي المترجّم.
@@ -281,10 +328,10 @@ namespace Sad
                     variableManager_.define(node.name, value);
                 }
 
-                // (AR) [طبقة طبيعي64 — الخطوة ١] سجّل النوع السطحيّ المُصرَّح بعد التعريف
+                // (AR) [طبقة طبيعي — الخطوة ١] سجّل النوع السطحيّ المُصرَّح بعد التعريف
                 //      كي يقرأه resolveStaticType لاحقًا (طباعة/عمليّات لا-موقَّعة). محايد:
                 //      لا يمسّ القيمة ولا المخرَج حتّى يُستهلَك في الخطوة ٤+.
-                // (EN) [طبيعي64 layer — Step 1] Record the declared surface type after define
+                // (EN) [طبيعي layer — Step 1] Record the declared surface type after define
                 //      so resolveStaticType can read it later (unsigned printing/ops). Neutral:
                 //      touches neither the value nor the output until consumed in Step 4+.
                 if (node.type != Types::SadTypeKind::Unknown)

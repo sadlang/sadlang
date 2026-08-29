@@ -4,7 +4,7 @@
 #      🔑 لِمَ سجلٌّ لا وسمُ `@known_red`؟ لأنّ الوسمَ يبتلعُ **فرقَ المخرَجِ
 #      وحدَه** عمدًا، وتعليقُ `tests/runner.py` يوثّقُ سببَه مقيسًا: نسخةٌ أولى
 #      ابتلعت كلَّ ما ليس PASS، فصارَ ملفٌّ بخطأِ تحليلٍ وملفٌّ بحلقةٍ لانهائيّةٍ
-#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ٥٤ هنا **٢٢
+#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ٥٣ هنا **٢٢
 #      فقط** صنفُها FAIL_OUTPUT، والـ٣٢ الباقيةُ انهياراتٌ وتعليقاتٌ ورفضُ
 #      ترجمةٍ — وتوسيعُ الوسمِ ليشملَها إعادةٌ لعطبٍ مُصلَح.
 #
@@ -101,12 +101,23 @@
 #            — الأشقّاءُ الأربعةُ معًا، والمفسّرُ هو العقد.
 #          وأُعيد الملفّان إلى قسمِهما (146/147 في 05_لاشيء_والفراغ)
 #          وفاءً بنصَّيهما.
+#      [١٠] ٥٣ صفًّا — ٢٠٢٦-٠٨-٢٩ (PR #434): حُذف صفُّ
+#          `grammar_gaps/قالب_وسيط_نصّ/001_template_string_arg_compiler.ص`
+#          (كان FAIL_TIMEOUT) بعد اخضرارِه مقيسًا. **والحارسُ هو من سمّاه**
+#          لا مراجعةٌ بالعين، وقِيست خُضرتُه على المنصّاتِ الثلاثِ في الشوطِ
+#          الواحد — لينكس · ماك · ويندوز، بناءُ Release (وهذه الخطوةُ لا
+#          تُشغَّلُ في Debug أصلًا، فلا شهادةَ منه تُنتظَر).
+#          ⚠️ وسببُ الخُضرةِ لم يُثبَتْ بعد: الصفُّ كان مهلةً لا إخفاقًا،
+#          والمهلةُ تتبعُ سرعةَ الآلةِ كما تتبعُ الكود. ويُرجَّحُ أنّه أثرُ
+#          موجةِ التسمية/رفعِ فحصِ الأنواعِ التي أنزلت IR البرامجِ إلى نحوِ
+#          الثلثَين وأسقطت جرَّ آلةِ الاستثناءات. فإن عادَ أحمرَ فالحارسُ
+#          يقولُه في الاتّجاهِ الآخَر — وهو ما يجعلُ الحذفَ آمنًا هنا.
 #
 # (EN) Registry of MEASURED reds outside every CI level. Why a registry and not
 #      @known_red? Because that marker deliberately swallows OUTPUT MISMATCH
 #      only — widening it to crashes/hangs/compile-failures would re-open a
 #      measured defect (a single header line once disabled the P0 smoke gate).
-#      Only 22 of these 54 are FAIL_OUTPUT. This file is guarded in BOTH
+#      Only 22 of these 53 are FAIL_OUTPUT. This file is guarded in BOTH
 #      directions by test_declared_reds_registry.py: a row that turns green, a
 #      new red that is absent, or a changed failure kind all fail the guard.
 #
@@ -169,7 +180,6 @@ grammar_gaps/طرق_النصوص/002_str_split.ص	FAIL_INTERP
 grammar_gaps/طرق_النصوص/003_str_trim.ص	FAIL_INTERP
 grammar_gaps/طرق_النصوص/006_str_substr.ص	FAIL_INTERP
 grammar_gaps/قائمة_عنصر_حرفيّ_مسطّح/001_literal_element_unchecked.ص	FAIL_OUTPUT
-grammar_gaps/قالب_وسيط_نصّ/001_template_string_arg_compiler.ص	FAIL_TIMEOUT
 grammar_gaps/متقدمة/001_yield_generator.ص	FAIL_INTERP
 grammar_gaps/متقدمة/002_ffi_extern.ص	FAIL_INTERP
 grammar_gaps/متقدمة/003_property_test_exit.ص	FAIL_OUTPUT

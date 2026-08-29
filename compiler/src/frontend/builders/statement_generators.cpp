@@ -14,6 +14,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -34,7 +35,7 @@ namespace Sad
                 if (auto yieldStmt = dynamic_cast<Sad::AST::YieldStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found YieldStmt" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found YieldStmt");
 #endif
 
                     BuildResult valResult;
@@ -220,7 +221,7 @@ namespace Sad
                 if (auto withStmt = dynamic_cast<Sad::AST::WithStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found WithStmt" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found WithStmt");
 #endif
 
                     b_.enterScope();

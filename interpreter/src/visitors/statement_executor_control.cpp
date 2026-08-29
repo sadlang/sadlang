@@ -234,7 +234,29 @@ namespace Sad
                 //      the latter is saved and restored but never assigned, so a guard
                 //      hung on it could never fire.
                 // ════════════════════════════════════════════════════════════
-                if (currentFunctionReturnType_ == Types::SadTypeKind::Byte)
+                // (AR) عُمِّم من «بايت» إلى كلِّ عرضٍ مُعلَنٍ دونَ ٦٤: مقيسًا كانت
+                //      `دالة رقم8 ك() ارجع 400` تُخرِج ٤٠٠ في المحرّكَين معًا.
+                //      والمُطبِّعُ محايدٌ عندَ عرضِ ٦٤ فلا يتغيّرُ عائدٌ مقيسٌ اليوم.
+                // (EN) Generalized from Byte to every declared sub-64 width; identity
+                //      at 64 bits, so no measured return moves.
+                // (AR) 🔑 والشرطُ «دونَ ٦٤» لا «عددٌ صحيح»: `رقم` عرضُه ٦٤ فالمطبِّعُ
+                //      محايدٌ عليه، لكنّ ذراعَ العشريِّ أدناه ليست محايدة — فتعميمُ
+                //      الشرطِ إلى كلِّ صحيحٍ جعلَ طريقةً مصرَّحةً «رقم» تقصُر عائدَها
+                //      العشريَّ ٥٫٠ إلى ٥، وذلك عقدٌ مقيسٌ عمدًا في البذرتَين
+                //      126/146: المفسّرُ **لا يقسر** عوائدَ الطرائق. فالحارسُ يُشترَط
+                //      على العرضِ المُعلَنِ دونَ ٦٤ حصرًا — وهو مدى «بايت» و«رقم8»
+                //      و«طبيعي16» وأخواتِها لا غير.
+                // (EN) The guard is "sub-64 width", not "any integer": «رقم» is 64-bit
+                //      so the normalizer is identity on it, but the float arm below is
+                //      NOT — widening the guard to every integer made a method declared
+                //      «رقم» truncate its 5.0 return to 5, breaking the deliberately
+                //      measured contract of seeds 126/146 (the interpreter does not
+                //      coerce METHOD returns). Restricted to declared sub-64 widths.
+                const int declaredReturnBits =
+                    Types::sadTypeKindNumericBits(currentFunctionReturnType_);
+                if (Types::sadTypeKindIsIntegerNumeric(currentFunctionReturnType_) &&
+                    declaredReturnBits != Types::kSadTypeSizeUnknown &&
+                    declaredReturnBits > 0 && declaredReturnBits < 64)
                 {
                     // (AR) والعشريُّ يُقصَرُ نحوَ الصفرِ ثمّ يُقنَّع — نظيرُ ذراعِ
                     //      `رقم` أعلاه ونظيرُ `needNarrow` في المترجّم. ولولاه
@@ -244,14 +266,25 @@ namespace Sad
                     //      of the `رقم` arm above and of needNarrow in the compiler.
                     if (returnValue_.getKind() == Types::SadTypeKind::Integer)
                     {
-                        returnValue_ = Data::Value(returnValue_.toInt64() & 0xFF);
+                        returnValue_ = Data::Value(static_cast<int64_t>(
+                            Types::sadTypeKindNormalizeInteger(currentFunctionReturnType_,
+                                                               returnValue_.toInt64())));
                     }
                     else if (returnValue_.isDouble())
                     {
-                        returnValue_ =
-                            Data::Value(static_cast<int64_t>(returnValue_.toDouble()) & 0xFF);
+                        returnValue_ = Data::Value(static_cast<int64_t>(
+                            Types::sadTypeKindNormalizeInteger(
+                                currentFunctionReturnType_,
+                                static_cast<long long>(returnValue_.toDouble()))));
                     }
                 }
+                // (AR) والوسمُ خارجَ حارسِ «دونَ ٦٤»: `دالة رقم` عرضُها ٦٤ فلا
+                //      تُقتطَع، لكنّ `نوع()` عليها يجبُ أن يقولَ «رقم» لا «رقم» —
+                //      فالاقتطاعُ والوسمُ سؤالانِ مختلفانِ لهما شرطانِ مختلفان.
+                // (EN) Tagging sits OUTSIDE the sub-64 guard: a `رقم` return is not
+                //      truncated (64-bit) yet نوع() must still answer «رقم».
+                //      Truncation and tagging are different questions.
+                returnValue_.tagDeclaredWidth(currentFunctionReturnType_);
             }
             else
             {

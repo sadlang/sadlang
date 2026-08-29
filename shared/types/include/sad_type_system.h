@@ -39,6 +39,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════════
 #include "../generated/sad_type_kind_generated.h" // (AR) تعداد SadTypeKind — مُولَّد من language-truth/types.yaml (لا يُحرَّر يدويًّا)
 #include "../generated/value_repr_generated.h"    // (AR) وسومُ SadDyn + نصوصُ عرضِ القيم (لاشيء/صحيح/خطأ) — مُولَّدة من value_repr.yaml؛ مصدرٌ واحدٌ للمفسّر/LLVM/الأصليّ
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -83,16 +84,13 @@ namespace Sad
                 return "منطقي";
             case SadTypeKind::String:
                 return "نص";
-            case SadTypeKind::Byte:
-                return "بايت";
             case SadTypeKind::Int8:
-                return "عدد8";
+                return "رقم8";
             case SadTypeKind::Int16:
-                return "عدد16";
+                return "رقم16";
             case SadTypeKind::Int32:
-                return "عدد32";
-            case SadTypeKind::Int64:
-                return "عدد64";
+                return "رقم32";
+                return "رقم";
             case SadTypeKind::UInt8:
                 return "طبيعي8";
             case SadTypeKind::UInt16:
@@ -100,11 +98,10 @@ namespace Sad
             case SadTypeKind::UInt32:
                 return "طبيعي32";
             case SadTypeKind::UInt64:
-                return "طبيعي64";
+                return "طبيعي";
             case SadTypeKind::Float32:
                 return "عشري32";
-            case SadTypeKind::Float64:
-                return "عشري64";
+                return "عشري";
             case SadTypeKind::Char:
                 return "حرف";
             case SadTypeKind::Array:
@@ -192,15 +189,12 @@ namespace Sad
                 return "Boolean";
             case SadTypeKind::String:
                 return "String";
-            case SadTypeKind::Byte:
-                return "Byte";
             case SadTypeKind::Int8:
                 return "Int8";
             case SadTypeKind::Int16:
                 return "Int16";
             case SadTypeKind::Int32:
                 return "Int32";
-            case SadTypeKind::Int64:
                 return "Int64";
             case SadTypeKind::UInt8:
                 return "UInt8";
@@ -212,7 +206,6 @@ namespace Sad
                 return "UInt64";
             case SadTypeKind::Float32:
                 return "Float32";
-            case SadTypeKind::Float64:
                 return "Float64";
             case SadTypeKind::Char:
                 return "Char";
@@ -287,13 +280,26 @@ namespace Sad
         /** @brief (AR) هل النوع بدائي؟ */
         inline bool isPrimitiveKind(SadTypeKind k)
         {
-            return k == SadTypeKind::Void || k == SadTypeKind::Integer || k == SadTypeKind::Float || k == SadTypeKind::Boolean || k == SadTypeKind::String || k == SadTypeKind::Byte || (k >= SadTypeKind::Int8 && k <= SadTypeKind::Char);
+            return k == SadTypeKind::Void || k == SadTypeKind::Integer || k == SadTypeKind::Float || k == SadTypeKind::Boolean || k == SadTypeKind::String || k == SadTypeKind::UInt8 || (k >= SadTypeKind::Int8 && k <= SadTypeKind::Char);
         }
 
-        /** @brief (AR) هل النوع رقمي؟ */
+        /**
+         * @brief (AR) هل النوع رقمي؟ — يُفوَّضُ إلى الجدولِ المولَّدِ عن types.yaml
+         * @brief (EN) Is the kind numeric? — delegated to the SoT-generated table
+         *
+         * (AR) 🔑 كانَ هنا مدًى على تراتُبِ التعداد: `(k >= Int8 && k <= Float64)`.
+         *      وهو يربطُ دلالةَ «رقميّ» بترتيبِ القيمِ في رأسٍ **مولَّد** — فأيُّ
+         *      إعادةِ ترتيبٍ أو حذفٍ في `types.yaml` تُغيّرُ الجوابَ صامتةً بلا
+         *      خطأِ ترجمة. وقد كادَ حذفُ `Float64` (٢٧ آب ٢٠٢٦) يكشفُه بكسرِ
+         *      البناءِ — والكشفُ صدفةٌ لا تصميم. والحقلُ `numeric` في مصدرِ
+         *      الحقيقةِ يُجيبُ السؤالَ إعلانًا لا تراتُبًا.
+         * (EN) This was an ordinal range over a GENERATED enum, so any reorder or
+         *      deletion in types.yaml would change the answer silently. The
+         *      declared `numeric` field answers the question directly.
+         */
         inline bool isNumericKind(SadTypeKind k)
         {
-            return k == SadTypeKind::Integer || k == SadTypeKind::Float || k == SadTypeKind::Byte || (k >= SadTypeKind::Int8 && k <= SadTypeKind::Float64);
+            return sadTypeKindIsNumeric(k);
         }
 
         /** @brief (AR) هل النوع مركب؟ */
@@ -380,16 +386,13 @@ namespace Sad
                 case SadTypeKind::Int8:
                 case SadTypeKind::Int16:
                 case SadTypeKind::Int32:
-                case SadTypeKind::Int64:
                 case SadTypeKind::UInt8:
                 case SadTypeKind::UInt16:
                 case SadTypeKind::UInt32:
                 case SadTypeKind::UInt64:
                 case SadTypeKind::Float32:
-                case SadTypeKind::Float64:
                 case SadTypeKind::Char:
                 case SadTypeKind::Reference:
-                case SadTypeKind::Byte:
                     return true;
                 default:
                     return false;
@@ -474,7 +477,7 @@ namespace Sad
                     return 8;
                 case SadTypeKind::Boolean:
                     return 1;
-                case SadTypeKind::Byte:
+                case SadTypeKind::UInt8:
                     return 1;
                 case SadTypeKind::Integer:
                     return 8;
@@ -1301,7 +1304,7 @@ namespace Sad
                     return boolean_;
                 case SadTypeKind::String:
                     return string_;
-                case SadTypeKind::Byte:
+                case SadTypeKind::UInt8:
                     return byte_;
                 case SadTypeKind::UInt64:
                     return uint64_;
@@ -1314,6 +1317,14 @@ namespace Sad
                 case SadTypeKind::Error:
                     return error_;
                 default:
+                    // (AR) بقيّةُ الأنواعِ العدديّةِ (رقم8..رقم، طبيعي8..طبيعي32،
+                    //      عشري32/64) تُقرَأ من الجدولِ المُفهرَسِ — فلا يبقى نوعٌ
+                    //      مُعلَنٌ في SoT بلا نوعٍ يُرَدُّ عنه.
+                    // (EN) Remaining numeric kinds come from the indexed table.
+                    if (sadTypeKindIsNumeric(kind))
+                    {
+                        return numericPrimitives_[static_cast<size_t>(kind)];
+                    }
                     return nullptr;
                 }
             }
@@ -1420,7 +1431,7 @@ namespace Sad
             // (AR) [ISSUE-113] حُذفت `fromArabicName` هنا وفي `SadType` — **صفرُ مُنادٍ**
             //      في المستودعِ كلِّه (مقيسٌ ٢٠٢٦-٠٨-١٤). وكانت جدولَ ألفاظٍ مكتوبًا بيدٍ
             //      خارجَ كلِّ نطاقِ حراسة، فانجرف انجرافَين لم يرَهما أحد: طوى «عدم»
-            //      و«لاشيء» في `void_`، وأسقط «طبيعي64» رأسًا. وأوّلُ إصلاحٍ ربطَها
+            //      و«لاشيء» في `void_`، وأسقط «طبيعي» رأسًا. وأوّلُ إصلاحٍ ربطَها
             //      بالمُولَّد، لكنّ ربطَ الميّتِ بمصدرِ الحقيقةِ يُبقي عبئَه ولا يشتري
             //      صحّةً: الصوابُ حذفُه. ولفظُ «لاشيء» الذي كانت تقبله لم يكن لفظَ نوعٍ
             //      أصلًا بل حرفيّةَ القيمة، فقبولُه هنا كان الخطأَ لا فقدُه.
@@ -1443,12 +1454,36 @@ namespace Sad
                 float_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Float);
                 boolean_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Boolean);
                 string_ = std::make_shared<SadPrimitiveType>(SadTypeKind::String);
-                byte_ = std::make_shared<SadPrimitiveType>(SadTypeKind::Byte);
+                byte_ = std::make_shared<SadPrimitiveType>(SadTypeKind::UInt8);
                 uint64_ = std::make_shared<SadPrimitiveType>(SadTypeKind::UInt64);
                 any_ = std::make_shared<SadSpecialType>(SadTypeKind::Any);
                 never_ = std::make_shared<SadSpecialType>(SadTypeKind::Never);
                 unknown_ = std::make_shared<SadSpecialType>(SadTypeKind::Unknown);
                 error_ = std::make_shared<SadSpecialType>(SadTypeKind::Error);
+
+                // (AR) الأنواعُ العدديّةُ محفوظةٌ بجدولٍ مُفهرَسٍ بالنوعِ لا بأعضاءٍ
+                //      مُسمّاةٍ يدًا. والعضوُ اليدويُّ كان يجعلَ نوعًا مُعلَنًا في
+                //      types.yaml بلا عضوٍ يسقطُ إلى nullptr في getByKind، فيَنحَلُّ
+                //      عندَ المُنادي إلى «فراغ» — تصريحٌ سليمٌ يُقاسُ نوعُه فراغًا.
+                //      والأعضاءُ القائمةُ تُبذَرُ هنا أوّلًا كي تبقى **مؤشِّراتُها هي
+                //      نفسَها**: المقارنةُ بالمؤشّرِ معتمَدةٌ في هذا السجلّ (interning).
+                // (EN) Numeric primitives live in a kind-indexed table, not in
+                //      hand-named members: a kind declared in types.yaml with no
+                //      member fell to nullptr in getByKind and decayed to Void at
+                //      the caller. Existing members are seeded first so their
+                //      pointers stay identical — interning relies on pointer equality.
+                numericPrimitives_[static_cast<size_t>(SadTypeKind::Integer)] = integer_;
+                numericPrimitives_[static_cast<size_t>(SadTypeKind::Float)] = float_;
+                numericPrimitives_[static_cast<size_t>(SadTypeKind::UInt8)] = byte_;
+                numericPrimitives_[static_cast<size_t>(SadTypeKind::UInt64)] = uint64_;
+                for (size_t index = 0; index < SAD_TYPE_KIND_COUNT; ++index)
+                {
+                    const auto kind = static_cast<SadTypeKind>(index);
+                    if (sadTypeKindIsNumeric(kind) && !numericPrimitives_[index])
+                    {
+                        numericPrimitives_[index] = std::make_shared<SadPrimitiveType>(kind);
+                    }
+                }
             }
 
             SadTypeRegistry(const SadTypeRegistry &) = delete;
@@ -1456,6 +1491,9 @@ namespace Sad
 
             SadTypePtr void_, null_, integer_, float_, boolean_, string_, byte_, uint64_;
             SadTypePtr any_, never_, unknown_, error_;
+            // (AR) مُفهرَسٌ بـSadTypeKind — يشملُ كلَّ ما يُعلِنُه types.yaml عددًا.
+            // (EN) Indexed by SadTypeKind — covers every kind types.yaml calls numeric.
+            std::array<SadTypePtr, SAD_TYPE_KIND_COUNT> numericPrimitives_{};
             mutable std::mutex mutex_;
             std::unordered_map<std::string, SadTypePtr> classTypes_;
             // (AR) [S-TS-P7] interning للأنواع المركّبة: مفتاح = التوقيع البنيوي (الاسم العربي).
@@ -1561,14 +1599,14 @@ namespace Sad
             auto src = kind_, dst = target->getKind();
             if (src == SadTypeKind::Integer && dst == SadTypeKind::Float)
                 return true; // رقم → عشري
-            if (src == SadTypeKind::Byte && dst == SadTypeKind::Integer)
+            if (src == SadTypeKind::UInt8 && dst == SadTypeKind::Integer)
                 return true; // بايت → رقم
-            if (src == SadTypeKind::Byte && dst == SadTypeKind::Float)
+            if (src == SadTypeKind::UInt8 && dst == SadTypeKind::Float)
                 return true; // بايت → عشري
-            // (AR) رقم → بايت/طبيعي64: إسناد عدديّ للأنواع اللا-موقَّعة السطحيّة.
+            // (AR) رقم → بايت/طبيعي: إسناد عدديّ للأنواع اللا-موقَّعة السطحيّة.
             //      القيمة تبقى int64 على المحرّكين. اقتطاع البايت (0–255) عند التهيئة
             //      مُنفَّذٌ على المسارين (المفسّر `& 0xFF`، المترجم AND 0xFF قبل STORE).
-            //      المؤجَّل حصرًا: اقتطاع إعادة الإسناد، ودلالة `طبيعي64` اللا-موقَّعة
+            //      المؤجَّل حصرًا: اقتطاع إعادة الإسناد، ودلالة `طبيعي` اللا-موقَّعة
             //      الكاملة (udiv/ult، طباعة لا-موقَّعة، حرفيّات >INT64_MAX).
             // (EN) integer → byte/uint64: numeric assignment to surface unsigned types.
             //      Value stays int64 on both engines. Byte truncation (0-255) AT INIT is
@@ -1576,7 +1614,27 @@ namespace Sad
             //      STORE). Deferred only: reassignment truncation, and full `uint64` unsigned
             //      semantics (udiv/ult, unsigned print, >INT64_MAX literals).
             if (src == SadTypeKind::Integer &&
-                (dst == SadTypeKind::Byte || dst == SadTypeKind::UInt64))
+                (dst == SadTypeKind::UInt8 || dst == SadTypeKind::UInt64))
+                return true;
+
+            // (AR) 🔑 القاعدةُ العامّةُ مشتقّةٌ من `numeric` المُعلَنِ في types.yaml،
+            //      لا من سُلَّمِ أسماءٍ يُكتَبُ نوعًا نوعًا. والحالاتُ الأربعُ أعلاه
+            //      تبقى مكتوبةً لأنّها **مقيسةٌ ببذورٍ قائمة**، وهذه تعمّمُها ولا
+            //      تنقضُها: صحيحٌ ⇐ صحيحٌ مقبولٌ (الاقتطاعُ عندَ العبورِ لا عندَ
+            //      المنع، وهي دلالةُ «رقم ⇐ بايت» المُعلَنةُ أصلًا)، وصحيحٌ ⇐ عائمٌ
+            //      مقبول، وعائمٌ ⇐ عائمٌ مقبول. والممنوعُ يبقى ممنوعًا: **عائمٌ ⇐
+            //      صحيحٌ لا يُقبَلُ ضمنًا** كما كان، فلا كسرَ صامتٍ للجزء العشريّ.
+            // (EN) The general rule derives from the declared `numeric` class rather
+            //      than a per-type name ladder. The four cases above stay because
+            //      seeds measure them; this generalizes without contradicting them.
+            //      float ⇐ integer stays disallowed, so no silent fraction loss.
+            const bool srcInt = sadTypeKindIsIntegerNumeric(src);
+            const bool dstInt = sadTypeKindIsIntegerNumeric(dst);
+            const bool srcFloat = sadTypeKindIsFloatNumeric(src);
+            const bool dstFloat = sadTypeKindIsFloatNumeric(dst);
+            if ((srcInt || srcFloat) && dstFloat)
+                return true;
+            if (srcInt && dstInt)
                 return true;
             return false;
         }

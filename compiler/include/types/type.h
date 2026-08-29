@@ -108,18 +108,53 @@ namespace Sad
             bool isError() const { return kind_ == SadTypeKind::Error; }
 
             // التحقق من كون النوع بدائياً / Check if primitive type
+            // (AR) 🔑 وأسرةُ الأعراضِ الثمانيةِ بدائيّةٌ كإخوتِها — وقد أغفلتُها
+            //      أوّلَ مرّةٍ فرمى منشئُ `PrimitiveType` استثناءً على أوّلِ
+            //      `رقم`، فابتلعَه الفاحصُ وأخرجَ «خطأ داخليّ» **على كلِّ
+            //      برنامجٍ فيه عرضٌ مُعلَنٌ** — أي أنّ توسيعَ الرؤيةِ بلا توسيعِ
+            //      الإذنِ حوّلَ العمى إلى عطبٍ شامل. والدرسُ أنّ حارسًا يعتمدُ
+            //      قائمةَ أسماءٍ يُعادُ فتحُه كلَّما اتّسعَ ما يمرُّ عليه.
+            // (EN) The eight-width family is primitive too. Omitting it here made
+            //      PrimitiveType's constructor throw on the first رقم, surfacing
+            //      as "internal type-checker error" on every program with a declared
+            //      width — widening what the checker sees without widening what it
+            //      permits turned blindness into a total failure.
             bool isPrimitive() const
             {
                 return kind_ == SadTypeKind::Integer ||
                        kind_ == SadTypeKind::Float ||
                        kind_ == SadTypeKind::Boolean ||
-                       kind_ == SadTypeKind::String;
+                       kind_ == SadTypeKind::String ||
+                       ::Sad::Types::sadTypeKindIsNumeric(kind_);
             }
 
             // التحقق من كون النوع رقمياً / Check if numeric type
+            // (AR) 🔑 كانت هذه نسخةً خامسةً مكتوبةً باليدِ لسؤالِ «أعدديٌّ هذا؟»
+            //      تعرفُ اسمَين اثنَين ولا تعرفُ أسرةَ الأعراضِ الثمانية. وأثرُها
+            //      أنّ المدقّقَ الدلاليَّ المشتركَ كان يرى `رقم32` **غيرَ عدديّ**،
+            //      فلا يستطيعُ أن يحكمَ على عمليّةٍ حسابيّةٍ بين عرضَين أصلًا —
+            //      وهذا هو الجدارُ الذي منعَ SEM048 من أن يُكتَبَ في طبقةٍ واحدة.
+            //      والسلطةُ الآنَ واحدةٌ مشتقّةٌ من `language-truth/types.yaml`.
+            // (EN) This was a fifth hand-written copy of "is this numeric?" that knew
+            //      two names and not the eight-width family; the shared checker saw
+            //      `رقم32` as non-numeric. Authority now derives from the SoT.
             bool isNumeric() const
             {
-                return kind_ == SadTypeKind::Integer || kind_ == SadTypeKind::Float;
+                return ::Sad::Types::sadTypeKindIsNumeric(kind_);
+            }
+
+            // (AR) أعدديٌّ صحيحٌ بأيِّ عرض / (EN) integer-numeric at any width
+            bool isIntegerNumeric() const
+            {
+                return ::Sad::Types::sadTypeKindIsIntegerNumeric(kind_);
+            }
+
+            // (AR) أعدديٌّ عشريٌّ بأيِّ عرض — و`isFloat()` أعلاه تسألُ عن الاسمِ
+            //      «عشري» وحدَه، فلا تُجيبُ عن `عشري32`. والفرقُ بينهما مقصود.
+            // (EN) float-numeric at any width; isFloat() above is name-exact.
+            bool isFloatNumeric() const
+            {
+                return ::Sad::Types::sadTypeKindIsFloatNumeric(kind_);
             }
 
             // التحقق من كون النوع مركباً / Check if composite type

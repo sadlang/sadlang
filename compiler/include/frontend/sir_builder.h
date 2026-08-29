@@ -271,6 +271,18 @@ namespace Sad
                 std::string funcRefName; ///< (② rfcs#46) اسم دالّة المرجع المسمّاة (لبصمة معالِج الحدث)
                 bool isGeneratorFuncRef = false; ///< (AR) مرجع دالّة مولّدة (يُصدِر CONSUME عند الاستدعاء غير المباشر) / (EN) Reference to a generator function (emits CONSUME on indirect call)
 
+                // (AR) 🔑 العرضُ المُعلَنُ — نظيرُ `VariableInfo::declaredSurfaceType`
+                //      على مستوى التعبير. `type` أعلاه نوعُ **خانة**: «الخيارُ ب»
+                //      يُنزِلُ كلَّ عرضٍ دونَ ٦٤ إلى i64 فيُجيبُ `Integer` عن `رقم8`
+                //      كما عن `رقم`. و`نوع()` سؤالٌ دلاليٌّ فيلزمُه المُعلَن.
+                //      ولا يُرفَعُ إلى `type`: ذاك تغييرُ تمثيلٍ يطالُ كلَّ قارئ.
+                // (EN) The declared width — the expression-level peer of
+                //      VariableInfo::declaredSurfaceType. `type` above is a STORAGE kind
+                //      (Option B lowers every sub-64 width to i64), and نوع() asks a
+                //      semantic question. Never lifted into `type`: that is a
+                //      representation change affecting every reader.
+                SadTypeKind declaredSurfaceType = SadTypeKind::Unknown;
+
 
                 /**
                  * @brief (AR) منشئ افتراضي
@@ -327,14 +339,14 @@ namespace Sad
             {
                 std::string name;             ///< (AR) الاسم / (EN) Name
                 SadTypeKind type;             ///< (AR) النوع / (EN) Type
-                // (AR) [طبقة طبيعي64 — الخطوة ٥] النوع السطحيّ المُصرَّح **صراحةً** (طبيعي64/بايت…)
+                // (AR) [طبقة طبيعي — الخطوة ٥] النوع السطحيّ المُصرَّح **صراحةً** (طبيعي/بايت…)
                 //      من تعليق `متغير <نوع>` أو نوع المعامل — لا المُستنتَج. `type` أعلاه قد
-                //      يُرقّى بالاستنتاج (متغيّر مُسنَد من نداء طبيعي64) بينما هذا يبقى Unknown ما لم
+                //      يُرقّى بالاستنتاج (متغيّر مُسنَد من نداء طبيعي) بينما هذا يبقى Unknown ما لم
                 //      يُصرَّح صراحةً. يُستعمَل حصرًا لقرار إشارة المقارنة (يُرآي resolveStaticType
                 //      بالمفسّر) كي لا يختلف المساران على المُستنتَج. Unknown = لا نوع سطحيّ صريح.
-                // (EN) [طبيعي64 layer — Step 5] The EXPLICITLY-declared surface type (طبيعي64/بايت…)
+                // (EN) [طبيعي layer — Step 5] The EXPLICITLY-declared surface type (طبيعي/بايت…)
                 //      from a `var <type>` annotation or a parameter type — NOT inferred. `type`
-                //      above may be promoted by inference (a var assigned from a طبيعي64 call) while
+                //      above may be promoted by inference (a var assigned from a طبيعي call) while
                 //      this stays Unknown unless explicitly declared. Used ONLY for the comparison
                 //      signedness decision (mirrors the interpreter's resolveStaticType) so the two
                 //      tracks never disagree on inferred values. Unknown = no explicit surface type.
@@ -429,6 +441,20 @@ namespace Sad
             {
                 std::string name;                         ///< (AR) الاسم / (EN) Name
                 SadTypeKind returnType;                   ///< (AR) نوع الإرجاع / (EN) Return type
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 عرضُ الإرجاعِ **المُعلَنُ** — `returnType` أعلاه خانةُ تخزينٍ
+                //      («الخيارُ ب» يُنزِلُ كلَّ عرضٍ دونَ ٦٤ إلى i64) فسؤالُه عن العرضِ
+                //      يُجيبُ «رقم» دائمًا. والدوالُّ الحرّةُ تجدُ التصريحَ في `astDecl`،
+                //      أمّا الطرائقُ فلا `astDecl` لها — فالحقلُ هنا هو طريقُها الوحيد.
+                //      يقرؤه اليومَ رافعُ مُعامِلِ `نوع()` وحدَه؛ ولا يُرفَعُ إلى
+                //      `returnType` لأنّ ذاك تغييرُ تمثيلٍ يطالُ كلَّ قارئٍ للنداء.
+                // (EN) DECLARED return width. returnType above is a STORAGE kind (Option B
+                //      lowers every sub-64 width to i64), so asking it for a width always
+                //      answers «رقم». Free functions recover the declaration from astDecl;
+                //      methods have no astDecl, so this field is their only path. Read today
+                //      only by the نوع() operand lift; never lifted into returnType.
+                // ════════════════════════════════════════════════════════════════
+                SadTypeKind declaredReturnSurfaceType = SadTypeKind::Unknown;
                 std::vector<SIRParameter> parameters;     ///< (AR) المعاملات / (EN) Parameters
                 // (AR) فهارس المعاملات التي نوعُها **افتراضٌ** لا تصريحُ مستخدمٍ (المرحلة
                 //      1.3 تسجّل Unknown رقمًا فيستحيل تمييزُهما من النوع وحده) — توسيعُ
@@ -1310,10 +1336,10 @@ namespace Sad
                     return expressions_->buildExpression(expr);
                 }
 
-                // (AR) [طبقة طبيعي64] مندوب النوع السطحيّ الضحل — يفوّض لباني التعابير.
+                // (AR) [طبقة طبيعي] مندوب النوع السطحيّ الضحل — يفوّض لباني التعابير.
                 //      يُستعمَل في مسار الطباعة (call_main) لاشتقاق إشارة الوسيط من شجرته
                 //      كمرآةٍ لـresolveStaticType بالمفسّر (خطوة ٤).
-                // (EN) [طبيعي64 layer] Shallow surface-type delegate — forwards to the expression
+                // (EN) [طبيعي layer] Shallow surface-type delegate — forwards to the expression
                 //      builder. Used by the print path (call_main) to derive an argument's sign from
                 //      its AST, mirroring the interpreter's resolveStaticType (Step 4).
                 Sad::Types::SadTypeKind resolveSurfaceType(const Sad::AST::Expression *expr)

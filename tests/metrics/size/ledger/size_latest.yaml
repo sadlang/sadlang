@@ -1,22 +1,18 @@
 # سِجلُّ الحجمِ الحتميِّ للغة ص — مقيسٌ لا مُصرَّح
 # ⚠️ لا يُحرَّرُ باليد: python tests/metrics/size/size_map.py --update --compiler <sad-build>
 # الهدفُ مثبَّتٌ عمدًا فلا يقيسُ الرقمُ آلةَ العدّاء
-# آخرُ قياس / last measurement: 2026-08-25
+# آخرُ قياس / last measurement: 2026-08-29
 target: --هدف=x86_64-unknown-linux-gnu
 programs:
   compiler/benchmarks/01_فيبوناتشي.ص:
     llvm_status: مقبول
-    ir_lines: 785
+    ir_lines: 339
     ir_defines: 4
-    ir_globals: 20
+    ir_globals: 13
     external_symbols:
-    - _setjmp
-    - exit
-    - longjmp
     - malloc
     - memcpy
     - printf
-    - sad_report_unhandled_exception
     - setlocale
     - sprintf
     - strlen
@@ -24,18 +20,16 @@ programs:
     native_elf_bytes: 3580
   compiler/benchmarks/02_الترتيب.ص:
     llvm_status: مقبول
-    ir_lines: 2885
+    ir_lines: 2235
     ir_defines: 11
-    ir_globals: 38
+    ir_globals: 32
     external_symbols:
     - __sad_format_double
-    - _setjmp
     - exit
     - llvm.memcpy.p0.p0.i64
     - longjmp
     - malloc
     - printf
-    - sad_report_unhandled_exception
     - setlocale
     - sprintf
     - strcmp
@@ -44,18 +38,16 @@ programs:
     native_elf_bytes: 0
   compiler/benchmarks/03_البحث.ص:
     llvm_status: مقبول
-    ir_lines: 1644
+    ir_lines: 1040
     ir_defines: 5
-    ir_globals: 31
+    ir_globals: 26
     external_symbols:
-    - _setjmp
     - exit
     - llvm.memcpy.p0.p0.i64
     - longjmp
     - malloc
     - memcpy
     - printf
-    - sad_report_unhandled_exception
     - setlocale
     - sprintf
     - strlen
@@ -71,19 +63,16 @@ programs:
     native_elf_bytes: 0
   compiler/benchmarks/05_النصوص.ص:
     llvm_status: مقبول
-    ir_lines: 2944
+    ir_lines: 2125
     ir_defines: 17
-    ir_globals: 57
+    ir_globals: 48
     external_symbols:
     - __sad_format_double
-    - _setjmp
     - exit
-    - longjmp
     - malloc
     - memcpy
     - printf
     - realloc
-    - sad_report_unhandled_exception
     - setlocale
     - sprintf
     - strcmp
@@ -92,12 +81,11 @@ programs:
     native_elf_bytes: 0
   compiler/benchmarks/06_المصفوفات.ص:
     llvm_status: مقبول
-    ir_lines: 4070
+    ir_lines: 2922
     ir_defines: 19
-    ir_globals: 48
+    ir_globals: 39
     external_symbols:
     - __sad_format_double
-    - _setjmp
     - exit
     - llvm.fptosi.sat.i64.f64
     - llvm.memcpy.p0.p0.i64
@@ -106,7 +94,6 @@ programs:
     - memcpy
     - printf
     - realloc
-    - sad_report_unhandled_exception
     - setlocale
     - sprintf
     - strcmp
@@ -115,23 +102,21 @@ programs:
     native_elf_bytes: 0
   compiler/benchmarks/07_الرياضيات.ص:
     llvm_status: مقبول
-    ir_lines: 2561
+    ir_lines: 1055
     ir_defines: 9
-    ir_globals: 37
+    ir_globals: 28
     external_symbols:
-    - _setjmp
     - exit
     - llvm.memcpy.p0.p0.i64
     - longjmp
     - malloc
     - memcpy
     - printf
-    - sad_report_unhandled_exception
     - setlocale
     - sprintf
     - strlen
     native_status: مقبول
-    native_elf_bytes: 6478
+    native_elf_bytes: 6341
   compiler/benchmarks/08_الاستثناءات.ص:
     llvm_status: مرفوض
     ir_lines: 0
@@ -142,18 +127,15 @@ programs:
     native_elf_bytes: 0
   compiler/benchmarks/09_مطابقة_الأنماط.ص:
     llvm_status: مقبول
-    ir_lines: 3210
+    ir_lines: 1673
     ir_defines: 6
-    ir_globals: 47
+    ir_globals: 39
     external_symbols:
     - __sad_format_double
-    - _setjmp
     - exit
-    - longjmp
     - malloc
     - memcpy
     - printf
-    - sad_report_unhandled_exception
     - setlocale
     - sprintf
     - strcmp
@@ -204,19 +186,14 @@ programs:
     native_elf_bytes: 992
   tests/behavior/P0_smoke/004_functions.ص:
     llvm_status: مقبول
-    ir_lines: 650
+    ir_lines: 99
     ir_defines: 5
-    ir_globals: 13
+    ir_globals: 5
     external_symbols:
-    - _setjmp
-    - exit
-    - longjmp
-    - malloc
     - printf
-    - sad_report_unhandled_exception
     - setlocale
     native_status: مقبول
-    native_elf_bytes: 872
+    native_elf_bytes: 903
   tests/behavior/P0_smoke/110_while_loops.ص:
     llvm_status: مقبول
     ir_lines: 241
@@ -237,6 +214,6 @@ totals:
   llvm_rejected: 3
   native_accepted: 5
   native_rejected: 10
-  ir_lines: 19352
-  native_elf_bytes: 12145
-  distinct_external_symbols: 17
+  ir_lines: 12091
+  native_elf_bytes: 12039
+  distinct_external_symbols: 15

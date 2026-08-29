@@ -219,5 +219,11 @@ categories:
       - { id: "KW-TYP-007", subcategory: "composite", since: "1.0.0", word: "مصفوفة",  tokenType: TYPE_ARRAY,   english: array }
       - { id: "KW-TYP-008", subcategory: "composite", since: "1.0.0", word: "خريطة",   tokenType: TYPE_MAP,     english: map }
       - { id: "KW-TYP-009", subcategory: "special", since: "1.0.0", word: "أي",      tokenType: TYPE_ANY,     english: any }
-      - { id: "KW-TYP-010", subcategory: "numeric", since: "1.0.0", word: "طبيعي64", tokenType: TYPE_U64,     english: uint64 }
-      - { id: "KW-TYP-011", subcategory: "numeric", since: "1.0.0", word: "بايت",    tokenType: TYPE_U8,      english: byte }
+      - { id: "KW-TYP-010", subcategory: "numeric", since: "1.0.0", word: "طبيعي", tokenType: TYPE_U64,     english: uint64 }
+      - { id: "KW-TYP-011", subcategory: "numeric", since: "1.0.0", word: "طبيعي8", tokenType: TYPE_U8,      english: uint8 }
+      - { id: "KW-TYP-012", subcategory: "numeric", since: "1.0.0", word: "رقم8", tokenType: TYPE_I8, english: int8 }
+      - { id: "KW-TYP-013", subcategory: "numeric", since: "1.0.0", word: "رقم16", tokenType: TYPE_I16, english: int16 }
+      - { id: "KW-TYP-014", subcategory: "numeric", since: "1.0.0", word: "رقم32", tokenType: TYPE_I32, english: int32 }
+      - { id: "KW-TYP-016", subcategory: "numeric", since: "1.0.0", word: "طبيعي16", tokenType: TYPE_U16, english: uint16 }
+      - { id: "KW-TYP-017", subcategory: "numeric", since: "1.0.0", word: "طبيعي32", tokenType: TYPE_U32, english: uint32 }
+      - { id: "KW-TYP-018", subcategory: "numeric", since: "1.0.0", word: "عشري32", tokenType: TYPE_F32, english: float32 }

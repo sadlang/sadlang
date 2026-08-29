@@ -651,7 +651,7 @@ namespace Sad
                 if (wantBits < haveBits)
                     return cg.builder_->CreateTrunc(v, want, "arg.trunc");
                 const bool unsignedSrc =
-                    haveBits == 1 || sirType == SadTypeKind::Byte ||
+                    haveBits == 1 || sirType == SadTypeKind::UInt8 ||
                     sirType == SadTypeKind::UInt8 || sirType == SadTypeKind::UInt16 ||
                     sirType == SadTypeKind::UInt32 || sirType == SadTypeKind::UInt64 ||
                     sirType == SadTypeKind::Boolean || sirType == SadTypeKind::Char;

@@ -244,6 +244,14 @@ _HTML_TEMPLATE = r"""<!DOCTYPE html>
         <div class="num" style="color: var(--blue);">{{INTERP_ONLY_PASSED}}</div>
         <div class="label">مفسر فقط ✅ (@expected)</div>
     </div>
+    <!-- (AR) الدلوُ الثالث: سالبُ المترجّمِ المنفرد — المفسّرُ لا يُشغَّلُ عليه أصلًا،
+             فعرضُه في دلوِ «تكافؤٍ مزدوج» شهادةُ اتّفاقٍ لم يُقَسْ أحدُ طرفَيه. -->
+    <!-- (EN) Third bucket: compiler-only negatives — the interpreter never runs on
+             them, so showing them as "dual parity" asserts unmeasured agreement. -->
+    <div class="stat-card" style="border-color: var(--yellow);">
+        <div class="num" style="color: var(--yellow);">{{COMPILER_ONLY_PASSED}}</div>
+        <div class="label">مترجم فقط ✅ (سالبٌ مترجَم)</div>
+    </div>
 </div>
 
 <!-- ═══ الرسوم البيانية ═══ -->
@@ -417,6 +425,7 @@ def generate_html_report(
     elapsed: float,
     dual_parity_passed: int = 0,
     interp_only_passed: int = 0,
+    compiler_only_passed: int = 0,
     timestamp: str = "",
 ) -> Path:
     """
@@ -429,6 +438,7 @@ def generate_html_report(
         total, passed, failed, skipped: إحصائيات
         dual_parity_passed: عدد الاختبارات التي نجحت بتكافؤ مزدوج
         interp_only_passed: عدد الاختبارات التي نجحت عبر المفسر فقط
+        compiler_only_passed: عدد الاختبارات التي نجحت عبر المترجم فقط (سالبٌ مترجَم)
         elapsed: الوقت الكلي بالثواني
         timestamp: طابع الوقت (اختياري)
     """
@@ -472,10 +482,18 @@ def generate_html_report(
 
         error_html = f'<span class="error-text">{error}</span>' if error else ""
 
-        # (AR) عمود النمط: تكافؤ مزدوج أو مفسر فقط
+        # (AR) عمود النمط: تكافؤ مزدوج أو مفسر فقط أو مترجم فقط.
+        #      🔑 وكانَ الفرعُ الأخيرُ يبتلعُ كلَّ ما ليس «مفسّرًا فقط» فيَصِمُ
+        #      سالبَ المترجّمِ المنفردَ بـ«تكافؤٍ مزدوج» — وهو المحرّكُ الواحدُ
+        #      بعينِه. والقيمةُ تصلُ من `tests/runner.py` مصنَّفةً بالمُسنَدِ
+        #      المشترَك `interpreter_is_skipped`، فيكفي أن تُعرَض.
+        # (EN) The trailing branch used to swallow everything that was not
+        #      interpreter-only, labelling compiler-only negatives "dual parity".
         mode = t.get("mode", "dual_parity")
         if mode == "interpreter_only":
             mode_html = '<span style="color:var(--blue); font-size:0.85em;">🔵 مفسر فقط</span>'
+        elif mode == "compiler_only":
+            mode_html = '<span style="color:var(--yellow); font-size:0.85em;">🟡 مترجم فقط</span>'
         else:
             mode_html = '<span style="color:var(--green); font-size:0.85em;">🟢 تكافؤ مزدوج</span>'
 
@@ -505,6 +523,7 @@ def generate_html_report(
     html = html.replace("{{BADGE_TEXT}}", badge_text)
     html = html.replace("{{DUAL_PARITY_PASSED}}", str(dual_parity_passed))
     html = html.replace("{{INTERP_ONLY_PASSED}}", str(interp_only_passed))
+    html = html.replace("{{COMPILER_ONLY_PASSED}}", str(compiler_only_passed))
     html = html.replace("{{TABLE_ROWS}}", "\n            ".join(table_rows))
     html = html.replace("{{TEST_DATA_JSON}}", json.dumps(results, ensure_ascii=False))
 

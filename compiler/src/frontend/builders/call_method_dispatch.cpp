@@ -35,6 +35,7 @@
 #include "error_codes.h"   // (AR) ErrorCode::RUN_METHOD_NOT_FOUND
 #include "types/type.h"    // (AR) typeKindToArabic — اسمُ النوعِ بالعربيّة في التشخيص
 #include "builders/builtin_arity_check.h" // (AR) فحصُ رتبةِ طريقةِ النوعِ من مصدرِ الحقيقة
+#include "sad_debug_log.h"
                            //      (‏sirTypeToString يُرجع اسمًا خلفيًّا إنجليزيًّا كـ«i64»)
 #include <stdexcept>
 #include <iostream>
@@ -163,8 +164,8 @@ namespace Sad
                 if (auto qualifiedResult = buildModuleQualifiedCall(methodCallExpr))
                     return *qualifiedResult;
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildMethodCall: calling method '"
-                          << methodCallExpr->methodName << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildMethodCall: calling method '"
+                          << methodCallExpr->methodName << "'");
 #endif
 
                 // ================================================================
@@ -222,8 +223,8 @@ namespace Sad
                         {
                             returnType = ftIt->second.returnType;
                         }
-                        // (AR) [طبيعي64] لا خفضَ نقطيَّ — بوّابةُ الطباعة الموحَّدة تتكفّل بالإشارة.
-                        // (EN) [طبيعي64] No point downgrade — the unified print gate handles the sign.
+                        // (AR) [طبيعي] لا خفضَ نقطيَّ — بوّابةُ الطباعة الموحَّدة تتكفّل بالإشارة.
+                        // (EN) [طبيعي] No point downgrade — the unified print gate handles the sign.
 
                         std::string resultReg = b_.newTempRegister();
                         SIRInstruction callInst(SIROpcode::CALL);
@@ -668,7 +669,7 @@ namespace Sad
                 std::string fullMethodName = className + "." + methodCallExpr->methodName;
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildMethodCall: full method name = '" << fullMethodName << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildMethodCall: full method name = '" << fullMethodName << "'");
 #endif
 
                 // (AR) تحديد نوع الإرجاع
@@ -678,9 +679,9 @@ namespace Sad
                 {
                     returnType = b_.functionTable_[fullMethodName].returnType;
                 }
-                // (AR) [طبيعي64] لا خفضَ نقطيَّ: بوّابةُ الطباعة الموحَّدة تشتقّ إشارة الطباعة من
+                // (AR) [طبيعي] لا خفضَ نقطيَّ: بوّابةُ الطباعة الموحَّدة تشتقّ إشارة الطباعة من
                 //      resolveSurfaceType(argExpr) (يُرجِع Integer لمُنادى الطريقة MemberExpr كالمفسّر).
-                // (EN) [طبيعي64] No point downgrade: the unified print gate derives the sign from
+                // (EN) [طبيعي] No point downgrade: the unified print gate derives the sign from
                 //      resolveSurfaceType(argExpr) (returns Integer for a MemberExpr method callee, like the interpreter).
 
                 // (AR) الخطوة 3: بناء المعاملات
@@ -1651,7 +1652,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildMethodCall: result in register '" << resultReg << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildMethodCall: result in register '" << resultReg << "'");
 #endif
 
                 // ================================================================
@@ -1667,6 +1668,20 @@ namespace Sad
                 //      Works for ADT constructors and regular class methods
                 // ================================================================
                 BuildResult methodResult(resultReg, returnType);
+                // (AR) 🔑 والعرضُ المُعلَنُ للعائدِ يُحمَلُ كما في `call_main` للدوالِّ
+                //      الحرّة: `returnType` أعلاه خانةُ تخزينٍ، فبدونِه كانت
+                //      `دالة رقم8 صغير()` تُجيبُ `نوع()` عنها «رقم» في المترجّمِ
+                //      و«رقم8» في المفسّر — تباعُدٌ **قِيسَ** في المسبارِ الثالث،
+                //      ولم يسدَّه سدُّ الدوالِّ لأنّ الطريقةَ مسارُ تسجيلٍ آخرُ لا
+                //      `astDecl` فيه.
+                // (EN) The declared return width rides on the method-call result exactly as
+                //      in call_main: without it a `رقم8` method answered «رقم» in the compiler
+                //      and «رقم8» in the interpreter — MEASURED; the free-function fix did not
+                //      cover it because methods register through a path with no astDecl.
+                if (ftIt != b_.functionTable_.end())
+                {
+                    methodResult.declaredSurfaceType = ftIt->second.declaredReturnSurfaceType;
+                }
                 // (AR) [وسم زمن-التشغيل] انقل نوعَ عنصر المصفوفة المُرجعة (Any للمختلطة)
                 //      إلى نتيجة نداء الطريقة، فتُقرأ الفهرسةُ اللاحقةُ موسومةً لا عدديًّا
                 //      (نظير call_main للدوالّ الحرّة).

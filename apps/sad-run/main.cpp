@@ -52,6 +52,12 @@
 #include <windows.h>
 #endif
 
+// (AR) تصريحٌ مُسبَقٌ: نصُّ المساعدةِ يقرأُ أسماءَ الأعلامِ من المصدرِ الوحيدِ
+//      كما يفعلُ مُحلِّلُ الأعلامِ نفسُه — والتعريفُ أسفلَ الملفّ.
+// (EN) Forward declaration: the help text reads flag names from the same SoT
+//      helper the parser uses; the definition lives further down.
+static const char *sadCanonical(sad::cli::FlagAction action);
+
 // طباعة المساعدة
 // Print help
 void print_help(const char *program_name)
@@ -94,6 +100,22 @@ void print_help(const char *program_name)
         std::cout << "    " << name << "\n"
                   << "        " << spec.desc_ar << " / " << spec.desc_en << "\n";
     }
+    // ─────────────────────────────────────────────────────────────────────
+    // (AR) 🔑 وصفُ العلمِ وحدَه لا يُخبِرُ عن حالتِه الافتراضيّة. فسطرُ
+    //      `--فحص-الأنواع` يقولُ «تفعيل» فيُقرَأُ أنّ الفحصَ مُطفأٌ حتّى يُطلَب،
+    //      وهو مرفوعٌ ابتداءً منذ ٢٦ آب ٢٠٢٦. **والوصفُ الصادقُ لا يكفي إن
+    //      كانَ ما يسكتُ عنه يُقلَبُ فهمُه.** والاسمانِ يُقرآنِ من المصدرِ
+    //      الوحيدِ لا يُكتَبانِ هنا، كي لا يتباعدَ نصُّ المساعدةِ عن العَلَم.
+    // (EN) A flag's description does not state its default: "--فحص-الأنواع →
+    //      enable" reads as "off until asked", yet it has been on by default
+    //      since 2026-08-26. Flag spellings are read from the SoT, never typed
+    //      here, so help text cannot drift from the flags themselves.
+    // ─────────────────────────────────────────────────────────────────────
+    std::cout << "\n"
+              << "  فحص الأنواع مرفوع افتراضيًّا في المفسّر؛ "
+              << sadCanonical(sad::cli::FlagAction::TypeCheckOff) << " يُطفئه.\n"
+              << "  Type checking is ON by default here; "
+              << sadCanonical(sad::cli::FlagAction::TypeCheckOff) << " turns it off.\n";
     std::cout << "\n"
               << "  توليد الواجهات الرسومية يتم عبر المترجم / UI generation lives in the compiler:\n"
               << "    sad-build --واجهات <ملف.ص>\n"
@@ -281,7 +303,25 @@ int main(int argc, char *argv[])
         // Parse CLI flags
         bool enableOwnership = false;
         bool debugOwnership = false;
-        bool enableTypeCheck = false;
+        // ────────────────────────────────────────────────────────────────────
+        // (AR) 🔑 مرفوعٌ افتراضيًّا بقرارِ المالك (٢٦ آب ٢٠٢٦). وكانَ `false`، فكانَ
+        //      فاحصُ الأنواعِ **كلُّه** — لا حارسًا بعينِه — مُطفَأً في المسارِ
+        //      الافتراضيِّ للمحرّكِ الثاني. وأثرُ ذلك أنّ مصفوفةَ التكافؤِ كانت
+        //      تُقارِنُ مترجّمًا يفحصُ الأنواعَ بمفسّرٍ لا يفحصُها، فتُعلِنُ اتّفاقًا
+        //      عن سؤالٍ لم يُسأَلْ أحدُ الطرفَين عنه أصلًا.
+        //      وقِيسَ الثمنُ قبلَ الرفعِ لا بعدَه: ١٠ بذورٍ من ٤٥٢٣ تتبدّلُ، وكلُّها
+        //      بذورٌ سالبةٌ يُنتظَرُ فشلُها — وصفرُ بذرةٍ خضراءَ تحمرّ.
+        //      ومَن أرادَ المسارَ القديمَ فـ`--بلا-فحص-أنواع` يُنزِلُه.
+        // (EN) 🔑 Default-on by owner ruling (2026-08-26). It was `false`, which left
+        //      the WHOLE type checker — not one guard — off on the interpreter's
+        //      default path, so the parity matrix compared a type-checking compiler
+        //      against a non-type-checking interpreter and reported agreement on a
+        //      question neither side had been asked. Cost measured before the flip:
+        //      10 seeds of 4523 change, all of them negative seeds already expected
+        //      to fail; zero green seeds turn red. `--بلا-فحص-أنواع` restores the
+        //      old path.
+        // ────────────────────────────────────────────────────────────────────
+        bool enableTypeCheck = true;
         bool debugTypeCheck = false;
         bool strictTypeCheck = false;
         bool enableSecurity = false;
@@ -334,6 +374,36 @@ int main(int argc, char *argv[])
             else if (a == sadCanonical(sad::cli::FlagAction::TypeCheckOn))
             {
                 enableTypeCheck = true;
+            }
+            // (AR) 🔑 لم يكن لهذا العلمِ معالجٌ هنا قطُّ، وكانَ مصدرُ الحقيقةِ يحصرُه
+            //      بالمترجّمِ مُعلِّلًا بأنّ الفحصَ مُطفأٌ في المفسّرِ أصلًا. فلمّا رُفِعَ
+            //      الافتراضيُّ صارَ غيابُ المعالجِ حبسًا: لا سبيلَ للنزولِ عن الفحص.
+            //      **وحقلُ المصدرِ النائمُ يصيرُ حامِلًا ساعةَ يتبدّلُ ما حولَه.**
+            // (EN) 🔑 This flag never had a handler here; the SoT scoped it to the
+            //      compiler because the interpreter's check was off anyway. Raising
+            //      the default turned that absence into a trap — no way to opt out.
+            //
+            // (AR) ⚠️ ويُطفئُ معه تابعَيه. فالعلمان `--تنقيح-الأنواع` و`--أنواع-صارمة`
+            //      يرفعان `enableTypeCheck` ضمنًا، فلو تُرِكَ تابعاهما مرفوعَين بعدَ
+            //      الإطفاءِ لَخرجَت حالةٌ متناقضةٌ: «فحصٌ صارمٌ مُنقَّحٌ لا يُشغَّل».
+            //      وهي اليومَ تُهمَلُ في `interpreter_core` لأنّه يسألُ عن
+            //      `enableTypeCheck` أوّلًا — **وحقلٌ متناقضٌ يُهمَلُ اليومَ يصيرُ
+            //      حامِلًا يومَ يُقرَأُ وحدَه**، فيُطفَأُ عندَ منبعِه لا عندَ قارئِه.
+            //      والدلالةُ «آخِرُ علمٍ يغلب»: `--بلا-فحص-أنواع --أنواع-صارمة`
+            //      يرفعُ الفحصَ صارمًا، والعكسُ يُطفئُه بتمامِه.
+            // (EN) ⚠️ Turns its two dependents off with it: --تنقيح-الأنواع and
+            //      --أنواع-صارمة each raise enableTypeCheck implicitly, so leaving
+            //      them set after a disable would yield the contradictory state
+            //      "strict, debugged type-checking that never runs". Today
+            //      interpreter_core ignores them because it tests enableTypeCheck
+            //      first — but a contradictory field ignored today becomes
+            //      load-bearing the day someone reads it alone. Semantics are
+            //      last-flag-wins.
+            else if (a == sadCanonical(sad::cli::FlagAction::TypeCheckOff))
+            {
+                enableTypeCheck = false;
+                debugTypeCheck = false;
+                strictTypeCheck = false;
             }
             else if (a == sadCanonical(sad::cli::FlagAction::DebugTypes))
             {

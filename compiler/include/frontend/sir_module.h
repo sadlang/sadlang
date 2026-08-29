@@ -443,7 +443,7 @@ namespace Sad
                     return true;
                 }
 
-                // (AR) م‑د: `بايت؟` و`طبيعي64؟` — وخانتاهما `i64` تحفظان الحارسَ
+                // (AR) م‑د: `بايت؟` و`طبيعي؟` — وخانتاهما `i64` تحفظان الحارسَ
                 //      بتًّا ببتّ، فليست العلّةُ تكييفًا كما في `منطقي` و`عشري`.
                 //      العلّةُ **تصادمُ قيمةٍ شرعيّة**: `kSadNullSentinel` عددٌ
                 //      صحيحٌ مشروعٌ في كِلا النوعَين، فكان فحصُ الحارسِ **مُستثنًى
@@ -454,7 +454,7 @@ namespace Sad
                 // (AR) 🔑 وهذا الصفُّ يُكمِل قاعدةَ النجاة: العدمُ يموت في ثلاثِ
                 //      صورٍ لا صورتَين — **بترُ عرضٍ** (`منطقي` ⇒ i1) · **تحويلُ
                 //      دلالةٍ** (`عشري` ⇒ sitofp) · و**تصادمُ قيمةٍ شرعيّةٍ**
-                //      (`بايت`/`طبيعي64` ⇒ الخانةُ سليمةٌ والحارسُ غيرُ مميَّز).
+                //      (`بايت`/`طبيعي` ⇒ الخانةُ سليمةٌ والحارسُ غيرُ مميَّز).
                 //      والثالثةُ لا يُصلحها عرضٌ ولا تكييفٌ — **الوسمُ وحدَه**.
                 // (EN) م‑د: `byte?` and `uint64?` — their `i64` slots preserve the
                 //      sentinel bit for bit, so the cause is not coercion as with bool
@@ -466,7 +466,7 @@ namespace Sad
                 //      🔑 This completes the survival rule: null dies in THREE ways, not
                 //      two — width truncation, meaning change, and legal-value collision.
                 //      The third is curable by neither width nor cast — only by a tag.
-                return innerKind == SadTypeKind::Byte ||
+                return innerKind == SadTypeKind::UInt8 ||
                        innerKind == SadTypeKind::UInt64;
             }
 
@@ -639,7 +639,55 @@ namespace Sad
                 ///      unpacks by tag (unpackI64: Float⇒fptosi).
                 bool returnTypeIsDeclared = false;
 
+                /// (AR) النوعُ **السطحيُّ** المُصرَّحُ للعائدِ (رقم8/طبيعي16/…) قبلَ خفضِه
+                ///      إلى نوعِ الخزن. و`returnType` أعلاه نوعُ خزنٍ: «الخيار ب» يجعلُه
+                ///      i64 لكلِّ عرضٍ دونَ ٦٤، فسؤالُه عن العرضِ يُجيبُ دائمًا «٦٤ فلا
+                ///      بترَ» — ومقيسٌ أنّ `دالة رقم8` تُرجِع ٤٠٠ فتُطبَعُ ٤٠٠ في
+                ///      المحرّكَين معًا. وهذا نظيرُ `declaredSurfaceType` على المتغيّر.
+                ///      Unknown = لا تصريحَ سطحيّ (مستنتَج) ⇒ لا تطبيع.
+                /// (EN) The DECLARED SURFACE return kind before lowering to a storage kind.
+                ///      `returnType` above is storage: Option B makes it i64 for every
+                ///      sub-64 width, so asking it for the width always answers "64, no
+                ///      truncation". Sibling of VariableInfo::declaredSurfaceType.
+                SadTypeKind declaredSurfaceReturnType = SadTypeKind::Unknown;
+
                 bool isConstructor = false;                              ///< (AR) بانٍ — يملك خانات حقول الكائن فلا يُدمج سطريًّا / (EN) Constructor — owns object field slots, never inlined
+
+                // ════════════════════════════════════════════════════════════
+                // (AR) 🔑 هل بُنيت هذه الدالّةُ عبرَ مسارِ الدوالِّ العامِّ الذي يمرُّ
+                //      بـ`emitDeferFrameBegin`؟ (الدوالُّ الحرّةُ والمتداخلةُ والإغلاقات
+                //      — لا الطرائقُ ولا البناة.)
+                //
+                //      ولمَ يُسجَّلُ هذا أصلًا: حتّى ٢٦ آب ٢٠٢٦ كانَ ذلك المسارُ يُصدِرُ
+                //      سقّالةَ تأجيلٍ **بلا شرط**، فتزيدُ كتلَ الدالّةِ فوقَ حدِّ
+                //      «كتلتَين» في `FunctionInliningFrontendPass::shouldInline` —
+                //      أي أنّ الدمجَ السطريَّ كانَ **ميتًا** لكلِّ ما بُنيَ بهذا المسار،
+                //      وحيًّا للطرائقِ وحدَها. ثمّ رُفِعَ حارسُ السقّالةِ (مكسبٌ مقيسٌ
+                //      ٢٦ ضعفًا في زمنِ الترجمة) فاشتعلَ المَمَرُّ لهذه الدوالِّ لأوّلِ
+                //      مرّةٍ **فاحمرّت ٢٦ بذرة**.
+                //
+                //      فهذا العلَمُ يفصلُ الأمرَين: يُبقي أهليّةَ الدمجِ **كما كانت
+                //      بالضبط** قبلَ تغييرِ السقّالة، فلا يحملُ مكسبُ الأداءِ معه
+                //      تشغيلَ مُحسِّنٍ لم يُبرهَنْ قطُّ. والتفصيلُ الكاملُ لعائلاتِ
+                //      عطبِه في `shouldInline`.
+                //
+                //      ⚠️ وليسَ علَمَ «فيها أجّل» — إصدارُ السقّالةِ نفسُه صارَ مشروطًا
+                //      بالمسحِ الساكن. هذا علَمُ **المسارِ** لا علَمُ المحتوى.
+                // (EN) 🔑 Was this function built through the general function path that
+                //      goes via `emitDeferFrameBegin` (free/nested functions and closures —
+                //      not methods, not constructors)? Until 2026-08-26 that path emitted a
+                //      defer scaffold unconditionally, pushing the block count past the
+                //      "2 blocks" cutoff in FunctionInliningFrontendPass::shouldInline —
+                //      so frontend inlining was DEAD for everything built that way and live
+                //      only for methods. Lifting the scaffold gate (a measured 26×
+                //      compile-time win) lit that path up for the first time and turned 26
+                //      seeds red. This flag separates the two concerns: inlining eligibility
+                //      stays exactly what it was, so the performance win does not smuggle in
+                //      an optimizer that was never proven. See shouldInline for the fault
+                //      families. NOTE: not a "has defer" flag — scaffold emission is now
+                //      driven by a static scan. This marks the PATH, not the content.
+                // ════════════════════════════════════════════════════════════
+                bool usesFunctionDeferFramePath = false;
                 // ════════════════════════════════════════════════════════════
                 // (AR) 🔑 نوعُ **القيمةِ** التي يحملُها وعدُ الكوروتين — لا نوعُ ما
                 //      تُرجِعه الدالّة. فالكوروتينُ يُرجِعُ مقبضَ إطارٍ (`Pointer`)

@@ -140,7 +140,7 @@ namespace Sad
             // ============================================================================
             SadTypeKind SIRBuilder::astTypeToSIRType(const Sad::Types::SadTypeKind &type)
             {
-                static_assert(Sad::Types::SAD_TYPE_KIND_COUNT == 52,
+                static_assert(Sad::Types::SAD_TYPE_KIND_COUNT == 49,
                               "(AR) تغيّر عددُ أنواع types.yaml — راجع كلَّ فرعٍ أدناه وقرّر "
                               "تمثيلَ النوع الجديد صراحةً. (EN) types.yaml kind count changed — "
                               "revisit the arms below and decide the new kind's representation.");
@@ -159,8 +159,6 @@ namespace Sad
                     return SadTypeKind::Boolean;
                 case Types::SadTypeKind::String:
                     return SadTypeKind::String;
-                case Types::SadTypeKind::Byte:
-                    return SadTypeKind::Byte;
                 case Types::SadTypeKind::UInt64:
                     return SadTypeKind::UInt64;
                 case Types::SadTypeKind::Array:
@@ -181,14 +179,32 @@ namespace Sad
                 case Types::SadTypeKind::Int8:
                 case Types::SadTypeKind::Int16:
                 case Types::SadTypeKind::Int32:
-                case Types::SadTypeKind::Int64:
+                // (AR) 🔑 و`UInt8` هنا مع إخوتِه — وقد أبقيتُها أوّلًا في ذراعِ
+                //      الهُويّةِ أعلاه حجّةً بأنّ ذاك تمثيلُ اللفظِ القائمِ فلا
+                //      يُحرَّك. **والقياسُ نقضَ الحجّة**: بذلك التمثيلِ كان سِجِلُّ
+                //      `طبيعي8` نوعُه `UInt8` لا `Integer`، فيقرأُ `نوع()` نوعَ
+                //      السِّجِلِّ اسمًا ويقولُ عن `طبيعي8 − ٣٠٠` إنّها «طبيعي8»
+                //      بينما القيمةَ المحسوبةَ (−١٠٠) بدلالةِ «رقم» — وسمٌ يناقضُ
+                //      قيمةً حسبَها المحرّكُ نفسُه صحيحة. و«طبيعي16» تُجيبُ صحيحًا
+                //      لأنّها كانت في هذه الذراعِ من الأصل.
+                //      وكان ذلك مستورًا خلفَ قائمةِ إذنٍ يدويّةٍ في `emitBuiltinTypeOf`
+                //      تطوي `Byte` إلى `Integer`؛ فحذفُها كشفَه لا أحدثَه.
+                // (EN) UInt8 belongs here with its siblings. It was first left in the
+                //      identity arm above on the argument that this is the existing lowering
+                //      of a live word and must not move. MEASUREMENT OVERTURNED THAT: under
+                //      identity a طبيعي8 register's kind is UInt8, not Integer, so نوع() read
+                //      the register kind as the answer and called `طبيعي8 - 300` a «طبيعي8»
+                //      while computing its value (-100) with رقم semantics — a tag
+                //      contradicting a value the same engine computed correctly. طبيعي16
+                //      answered correctly because it was in this arm all along. The defect was
+                //      masked by a hand-written allowlist in emitBuiltinTypeOf folding
+                //      Byte ⇒ Integer; deleting that exposed it rather than causing it.
                 case Types::SadTypeKind::UInt8:
                 case Types::SadTypeKind::UInt16:
                 case Types::SadTypeKind::UInt32:
                 case Types::SadTypeKind::Char:
                     return SadTypeKind::Integer;
                 case Types::SadTypeKind::Float32:
-                case Types::SadTypeKind::Float64:
                     return SadTypeKind::Float;
 
                 // ─── مقبضٌ معتِم (i64): أنواعٌ تُمرَّر قيمةً/مؤشّرًا بلا بنيةٍ في SIR ───

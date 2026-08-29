@@ -105,7 +105,7 @@ const std::vector<KeywordEntry>& allEntries() {
         { "عقد", TokenType::KEYWORD_CONTRACT, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "contract" },
         { "اختبر", TokenType::KEYWORD_TEST, KeywordCategory::CONTEXTUAL, false, {}, {"block_opener"}, "test" },
         { "عدمي", TokenType::KEYWORD_NULLABLE, KeywordCategory::CONTEXTUAL, false, {"عدمية"}, {}, "nullable" },
-        // ─── builtin_types (11) ───
+        // ─── builtin_types (17) ───
         { "رقم", TokenType::TYPE_INTEGER, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "integer" },
         { "عشري", TokenType::TYPE_DOUBLE, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "double" },
         { "نص", TokenType::TYPE_STRING, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "string" },
@@ -115,8 +115,14 @@ const std::vector<KeywordEntry>& allEntries() {
         { "مصفوفة", TokenType::TYPE_ARRAY, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "array" },
         { "خريطة", TokenType::TYPE_MAP, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "map" },
         { "أي", TokenType::TYPE_ANY, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "any" },
-        { "طبيعي64", TokenType::TYPE_U64, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "uint64" },
-        { "بايت", TokenType::TYPE_U8, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "byte" },
+        { "طبيعي", TokenType::TYPE_U64, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "uint64" },
+        { "طبيعي8", TokenType::TYPE_U8, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "uint8" },
+        { "رقم8", TokenType::TYPE_I8, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "int8" },
+        { "رقم16", TokenType::TYPE_I16, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "int16" },
+        { "رقم32", TokenType::TYPE_I32, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "int32" },
+        { "طبيعي16", TokenType::TYPE_U16, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "uint16" },
+        { "طبيعي32", TokenType::TYPE_U32, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "uint32" },
+        { "عشري32", TokenType::TYPE_F32, KeywordCategory::BUILTIN_TYPE, false, {}, {}, "float32" },
     };
     return entries;
 }

@@ -256,7 +256,7 @@ namespace ArabicTypeNames {
     // Other
     extern const char* const MANTIQY;   // Arabic UTF-8 for منطقي
     extern const char* const HARF;      // Arabic UTF-8 for حرف
-    extern const char* const BYTE;      // Arabic UTF-8 for بايت
+    extern const char* const TABEEI8;   // Arabic UTF-8 for طبيعي8
     extern const char* const FARAGH;    // Arabic UTF-8 for فراغ
     extern const char* const ABADAN;    // Arabic UTF-8 for أبداً
 }

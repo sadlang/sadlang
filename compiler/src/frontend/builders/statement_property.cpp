@@ -11,6 +11,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -32,7 +33,7 @@ namespace Sad
                 if (auto propDecl = dynamic_cast<Sad::AST::PropertyDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found PropertyDecl: " << propDecl->name << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found PropertyDecl: " << propDecl->name);
 #endif
 
                     SadTypeKind propType = b_.astTypeToSIRType(propDecl->type);

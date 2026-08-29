@@ -299,6 +299,10 @@ namespace Sad
                 return "TYPE_I16";
             case TokenType::TYPE_I32:
                 return "TYPE_I32";
+            case TokenType::TYPE_F32:
+                return "TYPE_F32";
+            case TokenType::TYPE_F64:
+                return "TYPE_F64";
             case TokenType::TYPE_PTR:
                 return "TYPE_PTR";
 

@@ -85,8 +85,8 @@ EMIT_LLVM = "--أظهر-llvm"
 NULLABLE_DECLARATIONS = [
     ("ع", "عشري"),
     ("ن", "منطقي"),
-    ("ب", "بايت"),
-    ("ط", "طبيعي64"),
+    ("ب", "طبيعي8"),  # (AR) كان «بايت» — حُذِفَ اللفظُ ٢٧ آب ٢٠٢٦، وخَلَفُه «طبيعي8»
+    ("ط", "طبيعي"),
     ("ر", "رقم"),
     ("س", "نص"),
 ]
@@ -125,7 +125,7 @@ OUT_OF_BAND_SLOT_BYTES = 16
 #      reverted — the second direction is exactly what a permissive "accepted types"
 #      set, widened whenever it fails, can never catch.
 # ══════════════════════════════════════════════════════════════════════════
-MIGRATED_TO_OUT_OF_BAND = {"منطقي", "عشري", "بايت", "طبيعي64"}  # م‑ب ✅ م‑ج ✅ م‑د ✅
+MIGRATED_TO_OUT_OF_BAND = {"منطقي", "عشري", "طبيعي"}  # م‑ب ✅ م‑ج ✅ م‑د ✅
 
 
 def _utf8_escape(name: str) -> str:

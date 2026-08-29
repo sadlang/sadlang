@@ -235,24 +235,37 @@ namespace Sad
                 //      Integer guard mirrors visitVarDecl and visitAssignExpr.
                 // ═══════════════════════════════════════════════════════════════
                 if (astFuncDecl && i < astFuncDecl->parameters.size() &&
-                    astFuncDecl->parameters[i].type == Types::SadTypeKind::Byte &&
+                    Types::sadTypeKindIsIntegerNumeric(astFuncDecl->parameters[i].type) &&
                     arguments[i].getKind() == Types::SadTypeKind::Integer)
                 {
-                    arguments[i] = Data::Value(arguments[i].toInt64() & 0xFF);
+                    // (AR) عُمِّم من «بايت» إلى كلِّ عرضٍ مُعلَن — المعاملُ خانةٌ
+                    //      مُعلَنةُ العرضِ شأنُها شأنُ المتغيّر. محايدٌ عندَ ٦٤.
+                    // (EN) Generalized from Byte to every declared width; a parameter
+                    //      is a width-declared slot like a variable. Identity at 64.
+                    arguments[i] = Data::Value(static_cast<int64_t>(
+                        Types::sadTypeKindNormalizeInteger(astFuncDecl->parameters[i].type,
+                                                           arguments[i].toInt64())));
                 }
+                // (AR) والوسمُ قبلَ `define` كالاقتطاعِ سواءً بسواء: الجسمُ كلُّه
+                //      يقرأُ القيمةَ المخزَّنةَ، فلو وُسِمَت بعدَه لقرأَ الجسمُ نسخةً
+                //      بلا وسم.
+                // (EN) Tag BEFORE define, exactly as the truncation is: the whole body
+                //      reads the stored value.
+                if (astFuncDecl && i < astFuncDecl->parameters.size())
+                    arguments[i].tagDeclaredWidth(astFuncDecl->parameters[i].type);
 
                 variableManager_.define(params[i].name, arguments[i]);
 
                 // ═══════════════════════════════════════════════════════════════
-                // (AR) [طبقة طبيعي64 — الخطوة ٥] تسجيل النوع الساكن المُصرَّح للمعامل
-                //      (طبيعي64/بايت…) كي يراه resolveStaticType، فتُطابق المقارنة
+                // (AR) [طبقة طبيعي — الخطوة ٥] تسجيل النوع الساكن المُصرَّح للمعامل
+                //      (طبيعي/بايت…) كي يراه resolveStaticType، فتُطابق المقارنة
                 //      اللا-موقَّعة ما يفعله المترجم (نوع المعامل في SIR). بلا هذا
-                //      كان المفسّر يقارن معاملات طبيعي64 موقَّعةً بينما المترجم لا-موقَّعة
+                //      كان المفسّر يقارن معاملات طبيعي موقَّعةً بينما المترجم لا-موقَّعة
                 //      ⇒ انفراج تكافؤ (رصده أميليا). النوع من عقدة الـAST مباشرةً.
-                // (EN) [طبيعي64 layer — Step 5] Register the parameter's declared static
-                //      type (طبيعي64/بايت…) so resolveStaticType sees it, making unsigned
+                // (EN) [طبيعي layer — Step 5] Register the parameter's declared static
+                //      type (طبيعي/بايت…) so resolveStaticType sees it, making unsigned
                 //      comparison mirror the compiler (SIR param type). Without this the
-                //      interpreter compared طبيعي64 params signed while the compiler used
+                //      interpreter compared طبيعي params signed while the compiler used
                 //      unsigned ⇒ parity divergence (found by Amelia). Type from the AST node.
                 if (astFuncDecl && i < astFuncDecl->parameters.size() &&
                     astFuncDecl->parameters[i].type != Types::SadTypeKind::Unknown)

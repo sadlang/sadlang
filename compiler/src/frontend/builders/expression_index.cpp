@@ -6,6 +6,7 @@
 #include "sir_builder.h"
 #include "builders/expression_builder.h"
 #include "sir_constants.h" // (AR) أسماءُ زمنِ تشغيلِ الخريطة — عقدٌ مشترَكٌ مع الخلفيّة
+#include "sad_debug_log.h"
 
 #include <iostream>
 
@@ -22,7 +23,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprTernary(AST::TernaryExpr *ternaryExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found TernaryExpr" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found TernaryExpr");
 #endif
 
                 // (AR) الخطوة 1: بناء الشرط
@@ -214,7 +215,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprIndex(AST::IndexExpr *indexExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found IndexExpr" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found IndexExpr");
 #endif
 
                 // (AR) بناء تعبير الكائن وتعبير الفهرس
@@ -268,8 +269,8 @@ namespace Sad
                     if (found)
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildExpression: dispatching IndexExpr to operator overload '"
-                                  << fullOpName << "'" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: dispatching IndexExpr to operator overload '"
+                                  << fullOpName << "'");
 #endif
 
                         std::string resultReg = b_.newTempRegister();
@@ -660,7 +661,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprIndexAssign(AST::IndexAssignExpr *indexAssignExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found IndexAssignExpr" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found IndexAssignExpr");
 #endif
 
                 // (AR) بناء تعابير الكائن والفهرس والقيمة
@@ -717,8 +718,8 @@ namespace Sad
                     if (found)
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildExpression: dispatching IndexAssignExpr to operator overload '"
-                                  << fullOpName << "'" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: dispatching IndexAssignExpr to operator overload '"
+                                  << fullOpName << "'");
 #endif
 
                         std::string resultReg = b_.newTempRegister();

@@ -154,7 +154,7 @@ namespace sad
             case Sad::Types::SadTypeKind::Function:
             case Sad::Types::SadTypeKind::Class:
             case Sad::Types::SadTypeKind::Enum:
-            case Sad::Types::SadTypeKind::Byte:
+            case Sad::Types::SadTypeKind::UInt8:
             case Sad::Types::SadTypeKind::Error:
             case Sad::Types::SadTypeKind::Null:
                 // (AR) «عدم» (Null) نوع سطحيّ متمايز عن «فراغ» (Void): حرفيّة `لاشيء`

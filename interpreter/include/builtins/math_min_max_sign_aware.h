@@ -8,14 +8,14 @@
 //   كان هذا المنطقُ مكرَّرًا حرفيًّا في مسارَين: stdlib_manager (المسارُ الحيُّ
 //   لـsad-run) وbuiltin_module_strings (مسارُ REPL). وُحِّدا هنا `inline` (بلا
 //   خرقٍ سلوكيٍّ، مصدرٌ واحد). عندما تكون كلُّ الوسائطِ أعدادًا صحيحةً ونوعُها
-//   السطحيُّ «طبيعي64» (UInt64، من ctx.argType = resolveStaticType عند النداء)
+//   السطحيُّ «طبيعي» (UInt64، من ctx.argType = resolveStaticType عند النداء)
 //   تُقارَنُ بلا إشارةٍ (uint64) مطابقةً للخلفيّةِ الأصليّة (cmovb/cmova في x86 ·
 //   csel-hi/lo في ARM64). خلافَ ذلك — عشريّ/موقَّع/خليط — نُفوِّضُ إلى
 //   MathFunctions (int64 موقَّعٌ دقيقٌ للصحيح، double للعشريّ) = الأصليُّ الموقَّع.
 // (EN) This logic was duplicated verbatim in two paths: stdlib_manager (the LIVE
 //   sad-run path) and builtin_module_strings (the REPL path). Unified here as an
 //   `inline` single source (no behavioural change). When every argument is an
-//   integer and its surface type is طبيعي64 (UInt64, from ctx.argType =
+//   integer and its surface type is طبيعي (UInt64, from ctx.argType =
 //   resolveStaticType at the call site) they are compared unsigned (uint64) to
 //   match the native backend; otherwise (float/signed/mixed) we delegate to
 //   MathFunctions (precise signed int64 for integers, double for floats).
@@ -38,7 +38,7 @@ namespace Sad
         {
             const auto &ptrArgs = ctx.args();
 
-            // (AR) هل كلُّ الوسائطِ صحيحةٌ ونوعُها السطحيُّ طبيعي64 صريحٌ؟ ⇒ مقارنةٌ لا-موقَّعة.
+            // (AR) هل كلُّ الوسائطِ صحيحةٌ ونوعُها السطحيُّ طبيعي صريحٌ؟ ⇒ مقارنةٌ لا-موقَّعة.
             bool allUnsigned = !ptrArgs.empty();
             for (std::size_t i = 0; i < ptrArgs.size(); ++i)
             {

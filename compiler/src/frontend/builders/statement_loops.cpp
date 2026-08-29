@@ -20,6 +20,7 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -39,7 +40,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildWhileLoop: starting" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildWhileLoop: starting");
 #endif
 
                 // ========================================================================
@@ -66,8 +67,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildWhileLoop: created blocks cond=" << condLabel
-                          << ", body=" << bodyLabel << ", exit=" << exitLabel << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildWhileLoop: created blocks cond=" << condLabel
+                          << ", body=" << bodyLabel << ", exit=" << exitLabel);
 #endif
 
                 // ========================================================================
@@ -82,7 +83,7 @@ namespace Sad
                 {
                     b_.currentBlock_->instructions.push_back(brCondBlockInst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildWhileLoop: added BR to condition block" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildWhileLoop: added BR to condition block");
 #endif
                 }
 
@@ -97,14 +98,14 @@ namespace Sad
                 if (condResult.registerName.empty())
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildWhileLoop: condition build failed!" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildWhileLoop: condition build failed!");
 #endif
                     b_.errors_.push_back("Error: Failed to build while condition");
                     return;
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildWhileLoop: condition reg=" << condResult.registerName << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildWhileLoop: condition reg=" << condResult.registerName);
 #endif
 
                 // (AR) تحويل تلقائي لـ __op_tobool__ إذا كان الشرط كائناً (مثل buildIfStatement)
@@ -142,7 +143,7 @@ namespace Sad
                 {
                     b_.currentBlock_->instructions.push_back(brCondInst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildWhileLoop: added BR_COND (body/exit)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildWhileLoop: added BR_COND (body/exit)");
 #endif
                 }
 
@@ -193,13 +194,13 @@ namespace Sad
                     {
                         b_.currentBlock_->instructions.push_back(brBackInst);
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildWhileLoop: added BR back to condition" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildWhileLoop: added BR back to condition");
 #endif
                     }
                     else
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildWhileLoop: body block already has terminator, skipping BR" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildWhileLoop: body block already has terminator, skipping BR");
 #endif
                     }
                 }
@@ -207,7 +208,7 @@ namespace Sad
                 {
                     b_.currentBlock_->instructions.push_back(brBackInst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildWhileLoop: added BR back to condition (empty block)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildWhileLoop: added BR back to condition (empty block)");
 #endif
                 }
 
@@ -217,7 +218,7 @@ namespace Sad
                 // ========================================================================
                 b_.currentBlock_ = exitBlock;
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildWhileLoop: completed, now at exit block" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildWhileLoop: completed, now at exit block");
 #endif
             }
 
@@ -256,7 +257,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildForLoop: starting" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildForLoop: starting");
 #endif
 
                 // ========================================================================
@@ -274,7 +275,7 @@ namespace Sad
                 if (forLoop->initializer)
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildForLoop: building initializer" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildForLoop: building initializer");
 #endif
                     buildStatement(forLoop->initializer.get());
                 }
@@ -304,9 +305,9 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildForLoop: created blocks cond=" << condLabel
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildForLoop: created blocks cond=" << condLabel
                           << ", body=" << bodyLabel << ", inc=" << incLabel
-                          << ", exit=" << exitLabel << std::endl;
+                          << ", exit=" << exitLabel);
 #endif
 
                 // ========================================================================
@@ -320,7 +321,7 @@ namespace Sad
                 {
                     b_.currentBlock_->instructions.push_back(brCondBlockInst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildForLoop: added BR to condition block" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildForLoop: added BR to condition block");
 #endif
                 }
 
@@ -363,7 +364,7 @@ namespace Sad
                         {
                             b_.currentBlock_->instructions.push_back(brCondInst);
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildForLoop: added BR_COND (body/exit)" << std::endl;
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildForLoop: added BR_COND (body/exit)");
 #endif
                         }
                     }
@@ -378,7 +379,7 @@ namespace Sad
                     {
                         b_.currentBlock_->instructions.push_back(brBodyInst);
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildForLoop: no condition, added BR to body" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildForLoop: no condition, added BR to body");
 #endif
                     }
                 }
@@ -422,7 +423,7 @@ namespace Sad
                 {
                     b_.currentBlock_->instructions.push_back(brIncInst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildForLoop: added BR to increment block" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildForLoop: added BR to increment block");
 #endif
                 }
 
@@ -436,7 +437,7 @@ namespace Sad
                 {
                     b_.buildExpression(forLoop->increment.get());
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildForLoop: built increment expression" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildForLoop: built increment expression");
 #endif
                 }
 
@@ -448,7 +449,7 @@ namespace Sad
                 {
                     b_.currentBlock_->instructions.push_back(brBackInst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildForLoop: added BR back to condition" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildForLoop: added BR back to condition");
 #endif
                 }
 
@@ -463,7 +464,7 @@ namespace Sad
                 b_.exitScope();
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildForLoop: completed, now at exit block" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildForLoop: completed, now at exit block");
 #endif
             }
 

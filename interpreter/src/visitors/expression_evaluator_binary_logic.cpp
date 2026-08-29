@@ -143,10 +143,10 @@ namespace Sad
             {
                 int64_t l = left.toInt64();
                 int64_t r = right.toInt64();
-                // (AR) [طبقة طبيعي64 — الخطوة ٥] ترتيب لا-موقَّع حين يكون كلا المعامِلين
-                //      طبيعي64: نقارن نمط البتّات كـuint64 (يُطابق المترجم ICmpULT/UGT).
+                // (AR) [طبقة طبيعي — الخطوة ٥] ترتيب لا-موقَّع حين يكون كلا المعامِلين
+                //      طبيعي: نقارن نمط البتّات كـuint64 (يُطابق المترجم ICmpULT/UGT).
                 //      المساواة/عدمها متطابقة على المستويين فتبقى على int64.
-                // (EN) [طبيعي64 layer — Step 5] Unsigned ordering when both operands are طبيعي64:
+                // (EN) [طبيعي layer — Step 5] Unsigned ordering when both operands are طبيعي:
                 //      compare the bit pattern as uint64 (mirrors the compiler's ICmpULT/UGT).
                 //      Equality/inequality is identical either way, so it stays on int64.
                 if (unsignedOrdering)
@@ -514,10 +514,10 @@ namespace Sad
                         pos,
                         {{"offset", std::to_string(r)}});
                 }
-                // (AR) [الخطوة ٨] طبيعي64 ⇒ إزاحةٌ منطقيّة على uint64_t (تُدخِل أصفارًا) لتطابق
+                // (AR) [الخطوة ٨] طبيعي ⇒ إزاحةٌ منطقيّة على uint64_t (تُدخِل أصفارًا) لتطابق
                 //      CreateLShr في المترجم بدل `int64_t >>` الحسابيّة (تمدّ الإشارة). MAX>>1 =
                 //      2^63-1 لا MAX. الافتراض (موقَّع) يبقى للأنواع الأخرى.
-                // (EN) [Step 8] طبيعي64 ⇒ logical shift on uint64_t (shifts in zeros) to match the
+                // (EN) [Step 8] طبيعي ⇒ logical shift on uint64_t (shifts in zeros) to match the
                 //      compiler's CreateLShr instead of arithmetic signed `int64_t >>` (sign-extends).
                 //      MAX>>1 = 2^63-1 not MAX. Default (signed) stays for other types.
                 if (unsignedShr)

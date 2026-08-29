@@ -380,7 +380,7 @@ rules:
     beyond_baseline: [ADD_I64, ARRAY_SET, BUILTIN_PRINT, EQ, GT, LT, MOVE, RET_VOID]
     native_ok: [arm64, x86_64]
     native_missing_riscv64: [ADD_I64, ARRAY_GET, ARRAY_LEN, ARRAY_NEW, ARRAY_SET, BR, BR_COND, CALL, CLOSURE_CALL, EQ, GE, GT, LOAD, LT, MOVE, NE, SUB_I64]
-    evidence: [053_طبيعي64_call_return_unsigned.ص, 001_le.ص, 002_in.ص]
+    evidence: [053_طبيعي_call_return_unsigned.ص, 001_le.ص, 002_in.ص]
   - id: gr.expr.range
     status: derived
     lowers_to: [ADD_I64, ALLOC, BR, BR_COND, BUILTIN_PRINT, LE, LOAD, RET_VOID, STORE]

@@ -20,6 +20,7 @@
 
 #include "builtin_registry.h"
 #include "builders/builtin_arity_check.h"
+#include "sad_debug_log.h"
 // (AR) كانت أسماءُ هذه المدمجاتِ تُقارَن **بايتاتٍ مهرَّبةً** (`"\xd8\xad…"`)
 //      لا بثوابتِ مصدرِ الحقيقة — نسخةٌ ثانيةٌ للاسمِ لا يقرؤها بشرٌ ولا يقيسُها
 //      حارس. صارت المقارنةُ بالثابتِ المُولَّد، والهجاءانِ الإنجليزيّانِ باقيان
@@ -65,7 +66,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin printf() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin printf() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -83,7 +84,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin malloc() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin malloc() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Pointer);
                 }
@@ -98,7 +99,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin free()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin free()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }

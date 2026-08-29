@@ -7,6 +7,7 @@
 #include "builders/expression_builder.h"
 #include "error_catalog.h" // (AR) getTemplate(code)->id — الرمزُ من الكتالوج لا حرفًا
 #include "error_manager.h" // (AR) reportFromCatalog + buildBilingualMessage
+#include "sad_debug_log.h"
 
 #include <iostream>
 #include <limits>
@@ -24,8 +25,8 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprOptionalChain(AST::OptionalChainExpr *optChainExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found OptionalChainExpr for member '"
-                          << optChainExpr->member << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found OptionalChainExpr for member '"
+                          << optChainExpr->member << "'");
 #endif
 
                 // (AR) بناء تعبير الكائن
@@ -408,7 +409,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprNullCoalesce(AST::NullCoalesceExpr *nullCoalExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found NullCoalesceExpr" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found NullCoalesceExpr");
 #endif
 
                 // (AR) بناء التعبير الأيسر
@@ -701,7 +702,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprSlice(AST::SliceExpr *sliceExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found SliceExpr" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found SliceExpr");
 #endif
 
                 // (AR) بناء تعبير المصفوفة الأصلية
@@ -806,7 +807,7 @@ namespace Sad
                     b_.currentBlock_->addInstruction(sliceInst);
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExprSlice -> " << resultReg << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExprSlice -> " << resultReg);
 #endif
                 // (AR) ننشر نوعَ العنصر من المصدر: شريحةُ مصفوفةٍ موسومة (Any) تنسخ مؤشّرات
                 //      الصناديق من مصدرٍ واحدٍ ⇒ النتيجة موسومةٌ متّسقة تُفكّ صحيحًا (لا اختلاطَ

@@ -21,11 +21,11 @@ namespace Sad
         using SIROperand = Compiler::SIR::SIROperand;
 
         // ====================================================================
-        // (AR) هيمنةُ «طبيعي64» في ترتيبِ المقارنة — موضعٌ واحدٌ لأربعةِ مُصدِرين
+        // (AR) هيمنةُ «طبيعي» في ترتيبِ المقارنة — موضعٌ واحدٌ لأربعةِ مُصدِرين
         //
-        //      كان الشرطُ `&&` (كلاهما طبيعي64)، فـ`ط > 1` تُقارَن **موقَّعةً**
+        //      كان الشرطُ `&&` (كلاهما طبيعي)، فـ`ط > 1` تُقارَن **موقَّعةً**
         //      فتُعطي «خطأ» لأكبرِ قيمةٍ لا-موقَّعة، بينما `ط > ن` بين طبيعيَّين
-        //      تُعطي «صحيح». وقضى المالكُ (2026-08-16) بأن تَهيمِن `طبيعي64` في
+        //      تُعطي «صحيح». وقضى المالكُ (2026-08-16) بأن تَهيمِن `طبيعي` في
         //      المقارنةِ كما تَهيمِن في الحسابِ سلفًا — فصار الشرطُ `||`.
         //
         //      🔑 وهو مكتوبٌ **هنا** لا في المُصدِرين: المقارنةُ تُلوَّن في ملفَّين
@@ -37,7 +37,7 @@ namespace Sad
         //      ⚠️ وأثرٌ يُقال ولا يُسكَت عنه: `ط > -1` تصير «خطأ» لأنّ `-1` تُقرَأ
         //      لا-موقَّعةً فتكون أكبرَ ما يكون — وهي دلالةُ C نفسُها، لازمةٌ لهذا
         //      الاختيارِ لا مفاجأةٌ فيه.
-        // (EN) طبيعي64 dominance in comparison ordering — one place, four emitters.
+        // (EN) طبيعي dominance in comparison ordering — one place, four emitters.
         //      Was `&&` (both operands); the owner ruled it `||` (dominance), matching
         //      the arithmetic path. `ط > -1` becomes false (C semantics) — stated, not
         //      hidden. Written here because the four emitters live in two files.
@@ -48,8 +48,19 @@ namespace Sad
             {
                 return false;
             }
-            return inst.operands[0].dataType == Sad::Types::SadTypeKind::UInt64 ||
-                   inst.operands[1].dataType == Sad::Types::SadTypeKind::UInt64;
+            // (AR) 🔑 والشرطُ كان `== UInt64` حرفيًّا — أي مربوطًا باسمِ نوعٍ بعينِه
+            //      لا بصفتِه. فكلُّ نوعٍ لا-موقَّعٍ سواه (بايت، وطبيعي8/16/32) يمرُّ
+            //      من هنا **موقَّعًا** وإن أُعلِن لا-موقَّعًا. والآنَ يُسأل الجدولُ
+            //      المولَّدُ عن الصفةِ لا عن الاسم، فيصحُّ للنوعِ الذي لم يُفتَحْ بعد
+            //      يومَ يُفتَح، بلا لمسِ هذا الموضع.
+            // (EN) The condition used to be a literal `== UInt64` — bound to one
+            //      kind's name rather than to its property, so every OTHER unsigned
+            //      kind (Byte, uint8/16/32) passed through here as SIGNED despite
+            //      being declared unsigned. It now asks the generated table for the
+            //      property, so it will already be correct for a kind the day that
+            //      kind is opened — without touching this site.
+            return Sad::Types::sadTypeKindIsUnsignedInteger(inst.operands[0].dataType) ||
+                   Sad::Types::sadTypeKindIsUnsignedInteger(inst.operands[1].dataType);
         }
 
         class ArithmeticCodeGen

@@ -15,6 +15,7 @@
 #include <optional>
 
 #include "builtin_registry.h"
+#include "sad_debug_log.h"
 namespace Bn = Sad::Builtins::Names;
 namespace Ar = Sad::Builtins::Arity;
 
@@ -46,7 +47,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
@@ -65,7 +66,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -84,7 +85,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -102,7 +103,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Array);
                 }
@@ -121,7 +122,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -139,7 +140,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -158,7 +159,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -177,7 +178,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -195,7 +196,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -213,7 +214,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Array);
                 }
@@ -231,7 +232,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -402,7 +403,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
@@ -417,7 +418,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -433,7 +434,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -487,6 +488,39 @@ namespace Sad
                     // ══════════════════════════════════════════════════════════════
                     SIROperand typeOfOperand = argOperands[0];
                     const std::string &operandClassName = argResults[0].className;
+
+                    // (AR) 🔑 والعرضُ المُعلَنُ يُرفَعُ إلى المُعامِلِ للعلّةِ نفسِها التي
+                    //      رُفعَ لها `Class` أدناه: `astTypeToSIRType` تُنزِلُ كلَّ عرضٍ
+                    //      دونَ ٦٤ إلى i64 («الخيارُ ب» — قرارُ تمثيلٍ صحيحٌ)، فيقرأُ
+                    //      `نوع()` خانةَ التخزينِ جوابًا فيُعلِنُ أنّ `رقم8` «رقم».
+                    //      والرفعُ على المُعامِلِ وحدَه: لا تمثيلَ يتغيّرُ ولا قارئَ آخرَ
+                    //      يتأثّر. ونظيرُه في المفسّرِ وسمُ `tagDeclaredWidth`.
+                    //      و«بايت» و«طبيعي» يُجيبُ عنهما المصدرُ «رقم» (`typeof_ar`)
+                    //      فلا يتحرّكُ جوابٌ مقيسٌ اليوم.
+                    // (EN) The declared width is lifted onto the operand for the same reason
+                    //      Class is lifted below: the type bridge lowers every sub-64 width to
+                    //      i64, so نوع() reads a storage slot as its answer. Operand-only, so no
+                    //      representation changes. Byte/UInt64 answer «رقم» via the SoT's
+                    //      typeof_ar, so nothing measured moves. Interpreter peer: tagDeclaredWidth.
+                    // (AR) 🔑 والمقبضُ الضائعُ مقبضانِ لا واحدٌ: `Integer` تُنزَلُ إليه
+                    //      أعراضُ الصحيحِ، و`Float` تُنزَلُ إليه أعراضُ العشريِّ —
+                    //      فحصرُ الشرطِ في `Integer` تركَ `عشري32` يُجيبُ «عشري»
+                    //      في المترجّمِ و«عشري32» في المفسّر: تباعُدٌ **مقيسٌ**
+                    //      أطلقَه رفعُ الصحيحِ وحدَه. والأُسرتانِ سواءٌ في العلّة.
+                    // (EN) Two lost handles, not one: integer widths lower to Integer and
+                    //      float widths lower to Float. Restricting to Integer left عشري32
+                    //      answering «عشري» in the compiler vs «عشري32» in the interpreter —
+                    //      a MEASURED divergence. Both families share the same cause.
+                    const SadTypeKind declaredWidth = argResults[0].declaredSurfaceType;
+                    if ((argOperands[0].dataType == SadTypeKind::Integer ||
+                         argOperands[0].dataType == SadTypeKind::Float) &&
+                        declaredWidth != SadTypeKind::Unknown &&
+                        declaredWidth != SadTypeKind::Integer &&
+                        declaredWidth != SadTypeKind::Float &&
+                        ::Sad::Types::sadTypeKindIsNumeric(declaredWidth))
+                    {
+                        typeOfOperand.dataType = declaredWidth;
+                    }
                     // (AR) ⚠️ والشرطُ ضيِّقَ مرّتَينِ بقياسٍ، وكلُّ قيدٍ منهما منعَ انحدارًا:
                     //   ① `Integer` وحدَه: هو المقبضُ الذي ضاعَ فيه المعنى. وما وصلَ
                     //     بنوعِه الصحيحِ (Struct · Future · عنصر_واجهة …) لا يُمَسُّ.
@@ -515,7 +549,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::String);
                 }

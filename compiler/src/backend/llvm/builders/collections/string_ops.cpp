@@ -590,13 +590,13 @@ static llvm::Function *getOrCreateSplitHelper(
                 {
                     auto *i64Ty_s = llvm::Type::getInt64Ty(*cg_.context_);
                     auto *sentinelVal = llvm::ConstantInt::get(i64Ty_s, Sad::Compiler::kSadNullSentinel);
-                    // (AR) [إصلاح تصادم kSadNullSentinel] طبيعي64/بايت لا يكونان نوعَ العدم
+                    // (AR) [إصلاح تصادم kSadNullSentinel] طبيعي/بايت لا يكونان نوعَ العدم
                     //      (العدمُ يُخزَّن ثابتَ i64 نوعُه Integer)؛ فالحارس (2^63+1 لا-موقَّعًا) لا
                     //      يُطبَّق عليهما — قيمةٌ شرعيّة قد تساويه فتُحوَّل «لاشيء» خطأً. نُثبّت
                     //      isSentinel=false فيؤخذ المسار العاديّ (تحويل الرقم) دائمًا. Integer
                     //      **مُستثنى** (يتصادم جوهريًّا مع العدم: `نص(لاشيء)` عدمُه Integer)،
                     //      فيبقى له الفحص كالأنواع النِّلابليّة.
-                    // (EN) [kSadNullSentinel collision fix] طبيعي64/Byte are never the null type
+                    // (EN) [kSadNullSentinel collision fix] طبيعي/Byte are never the null type
                     //      (null is stored as an Integer-typed i64 constant); the sentinel (2^63+1
                     //      unsigned) is not applied to them — a legitimate equal value was wrongly
                     //      rendered «لاشيء». Force isSentinel=false so the normal number-conversion
@@ -605,7 +605,7 @@ static llvm::Function *getOrCreateSplitHelper(
                     //      types.
                     const bool isNonNullableNum =
                         op.dataType == SadTypeKind::UInt64 ||
-                        op.dataType == SadTypeKind::Byte;
+                        op.dataType == SadTypeKind::UInt8;
                     llvm::Value *isSentinel = isNonNullableNum
                                                   ? llvm::ConstantInt::getFalse(*cg_.context_)
                                                   : cg_.builder_->CreateICmpEQ(val, sentinelVal, "int.is.null");

@@ -6,6 +6,7 @@
 #include "sir_builder.h"
 #include "builders/expression_builder.h"
 #include "sir_constants.h" // (AR) أوسامُ قيمةِ الخريطة — عقدٌ مشترَكٌ مع الخلفيّة
+#include "sad_debug_log.h"
 
 #include <iostream>
 
@@ -22,8 +23,8 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprArray(AST::ArrayExpr *arrayExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found ArrayExpr with "
-                          << arrayExpr->elements.size() << " elements" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found ArrayExpr with "
+                          << arrayExpr->elements.size() << " elements");
 #endif
 
                 // (AR) تخصيص مصفوفة جديدة
@@ -91,7 +92,7 @@ namespace Sad
                 auto isBoxableScalar = [](SadTypeKind t) {
                     return t == SadTypeKind::Integer || t == SadTypeKind::Float ||
                            t == SadTypeKind::String || t == SadTypeKind::Boolean ||
-                           t == SadTypeKind::Byte || t == SadTypeKind::UInt64 ||
+                           t == SadTypeKind::UInt8 || t == SadTypeKind::UInt64 ||
                            t == SadTypeKind::Null || t == SadTypeKind::Any ||
                            t == SadTypeKind::Array || t == SadTypeKind::Map;
                 };
@@ -240,8 +241,8 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprTuple(AST::TupleExpr *tupleExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found TupleExpr with "
-                          << tupleExpr->elements.size() << " elements" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found TupleExpr with "
+                          << tupleExpr->elements.size() << " elements");
 #endif
 
                 // (AR) تخصيص صف جديد
@@ -328,8 +329,8 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprMap(AST::MapExpr *mapExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found MapExpr with "
-                          << mapExpr->pairs.size() << " pairs" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found MapExpr with "
+                          << mapExpr->pairs.size() << " pairs");
 #endif
 
                 // (AR) إنشاء خريطة عبر استدعاء runtime
@@ -491,7 +492,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprWalrus(AST::WalrusExpr *walrusExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found WalrusExpr: " << walrusExpr->variable << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found WalrusExpr: " << walrusExpr->variable);
 #endif
 
                 // (AR) بناء تعبير القيمة

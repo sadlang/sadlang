@@ -10,6 +10,7 @@
 #include "builders/expression_builder.h"
 #include "sir_constants.h" // (AR) [ISSUE-080] kAdtFieldDispatchSentinel
 #include "class_nodes.h"
+#include "sad_debug_log.h"
 
 #include <iostream>
 
@@ -26,8 +27,8 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprMember(AST::MemberExpr *memberExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found MemberExpr for member '"
-                          << memberExpr->member << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found MemberExpr for member '"
+                          << memberExpr->member << "'");
 #endif
 
                 // ================================================================
@@ -489,7 +490,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprMemberAssign(AST::MemberAssignExpr *memberAssignExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found MemberAssignExpr" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found MemberAssignExpr");
 #endif
 
                 // (AR) فحص مبكر: تعيين حقل ساكن عبر اسم الصنف

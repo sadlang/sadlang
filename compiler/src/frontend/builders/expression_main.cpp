@@ -11,6 +11,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -52,13 +53,13 @@ namespace Sad
                 if (!expr)
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildExpression: expr is null!" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: expr is null!");
 #endif
                     return BuildResult();
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: processing expression of type: " << typeid(*expr).name() << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: processing expression of type: " << typeid(*expr).name());
 #endif
 
                 // (AR) BinaryExpr - تعبير ثنائي (expressions.h:40)
@@ -120,7 +121,7 @@ namespace Sad
                 if (auto varExpr = dynamic_cast<Sad::AST::VariableExpr *>(expr))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildExpression: found VariableExpr" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found VariableExpr");
 #endif
                     return buildVariableAccess(varExpr);
                 }
@@ -272,7 +273,7 @@ namespace Sad
                 if (auto decoratorExpr = dynamic_cast<Sad::AST::DecoratorExpr *>(expr))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildExpression: found DecoratorExpr: " << decoratorExpr->name << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found DecoratorExpr: " << decoratorExpr->name);
 #endif
 
                     // (AR) المُزخرف يُحوّل لاستدعاء دالة بالاسم
@@ -310,7 +311,7 @@ namespace Sad
                 if (auto borrowExpr = dynamic_cast<Sad::AST::BorrowExpr *>(expr))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildExpression: found BorrowExpr: " << borrowExpr->variableName << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found BorrowExpr: " << borrowExpr->variableName);
 #endif
 
                     // (AR) البحث عن المتغير المُستعار
@@ -343,8 +344,8 @@ namespace Sad
                 if (auto templateInst = dynamic_cast<Sad::AST::TemplateInstantiation *>(expr))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildExpression: found TemplateInstantiation: "
-                              << templateInst->templateName << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found TemplateInstantiation: "
+                              << templateInst->templateName);
 #endif
 
                     // (AR) تحويل أنواع القالب إلى SadTypeKind
@@ -386,7 +387,7 @@ namespace Sad
                 if (auto awaitExpr = dynamic_cast<Sad::AST::AwaitExpr *>(expr))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildExpression: found AwaitExpr" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found AwaitExpr");
 #endif
 
                     // ════════════════════════════════════════════════════════
@@ -457,15 +458,12 @@ namespace Sad
                         case SadTypeKind::Integer:
                         case SadTypeKind::Float:
                         case SadTypeKind::Float32:
-                        case SadTypeKind::Float64:
                         case SadTypeKind::Boolean:
                         case SadTypeKind::String:
-                        case SadTypeKind::Byte:
                         case SadTypeKind::Char:
                         case SadTypeKind::Int8:
                         case SadTypeKind::Int16:
                         case SadTypeKind::Int32:
-                        case SadTypeKind::Int64:
                         case SadTypeKind::UInt8:
                         case SadTypeKind::UInt16:
                         case SadTypeKind::UInt32:
@@ -522,7 +520,7 @@ namespace Sad
                 if (auto namedArgExpr = dynamic_cast<Sad::AST::NamedArgExpr *>(expr))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildExpression: found NamedArgExpr name='" << namedArgExpr->name << "'" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found NamedArgExpr name='" << namedArgExpr->name << "'");
 #endif
                     if (namedArgExpr->value)
                     {

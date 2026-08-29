@@ -154,7 +154,7 @@ namespace Sad
 
                 // (AR) [توحيد min/max] إن كانت كلُّ المدخلاتِ صحيحةً نقارنُ ونُرجعُ int64 **دقيقًا** (لا عَوم
                 //      ولا قصَّ ٣٢-بت) ⇒ يطابقُ الخلفيّةَ الأصليّةَ الموقَّعةَ لكلِّ ٦٤-بت. المقارنةُ اللا-موقَّعةُ
-                //      (طبيعي64) تُعالَجُ في مسارِ المفسّرِ الحيِّ (builtin_module_strings) حيثُ يتوفّرُ ctx.argType؛
+                //      (طبيعي) تُعالَجُ في مسارِ المفسّرِ الحيِّ (builtin_module_strings) حيثُ يتوفّرُ ctx.argType؛
                 //      هنا (مسارٌ بلا سياقِ نوع) الموقَّعُ هو الافتراضُ الصحيح. العشريُّ يبقى مقارنةَ double.
                 bool allIntegers = true;
                 for (const auto &a : args)
@@ -195,7 +195,7 @@ namespace Sad
                 validateArguments(args, 1, -1);
 
                 // (AR) [توحيد min/max] كنظيرِ max: int64 دقيقٌ للصحيح (لا عَوم/قصَّ ٣٢-بت)، double للعشريّ.
-                //      اللا-موقَّعُ (طبيعي64) في مسارِ المفسّرِ الحيِّ عبرَ ctx.argType.
+                //      اللا-موقَّعُ (طبيعي) في مسارِ المفسّرِ الحيِّ عبرَ ctx.argType.
                 bool allIntegers = true;
                 for (const auto &a : args)
                     if (a.getKind() != Types::SadTypeKind::Integer)

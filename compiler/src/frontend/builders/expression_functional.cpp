@@ -5,6 +5,7 @@
 // ============================================================================
 #include "sir_builder.h"
 #include "builders/expression_builder.h"
+#include "sad_debug_log.h"
 #include <set>
 #include <functional>
 #include <iostream>
@@ -22,8 +23,8 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprLambda(AST::LambdaExpr *lambdaExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found LambdaExpr with "
-                          << lambdaExpr->parameters.size() << " params" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found LambdaExpr with "
+                          << lambdaExpr->parameters.size() << " params");
 #endif
 
                 // (AR) إنشاء اسم فريد للدالة المجهولة
@@ -74,9 +75,9 @@ namespace Sad
                         ci.elementType = varPtr->elementType;                 // (AR) [GAP 1] نقل نوع عنصر المصفوفة المُلتقَطة (Any للمختلطة)
                         captures.push_back(ci);
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] Lambda capture: " << fv
+                        SAD_DEBUG_LOG_LINE("[DEBUG] Lambda capture: " << fv
                                   << " (reg=" << ci.registerName << ", type="
-                                  << static_cast<int>(ci.type) << ")" << std::endl;
+                                  << static_cast<int>(ci.type) << ")");
 #endif
                     }
                 }
@@ -539,7 +540,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprRange(AST::RangeExpr *rangeExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found RangeExpr" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found RangeExpr");
 #endif
 
                 // (AR) بناء بداية ونهاية المدى

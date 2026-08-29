@@ -217,11 +217,11 @@ namespace Sad
                         return safeToInt64(static_cast<long long>(parsed));
                     }
 
-                    // Decimal: 42 — use stoull to support the full طبيعي64 range
-                    // (AR) نستخدم stoull ليشمل [0، UINT64_MAX] (حرفيّات طبيعي64 فوق
+                    // Decimal: 42 — use stoull to support the full طبيعي range
+                    // (AR) نستخدم stoull ليشمل [0، UINT64_MAX] (حرفيّات طبيعي فوق
                     //      INT64_MAX)؛ الحرفيّ دائمًا غير سالب (السالب عمليّة أحاديّة)،
                     //      ونحفظ نمط البتّات إلى int64 مطابقةً لمسار السِّتّ-عشريّ.
-                    // (EN) Use stoull to cover [0, UINT64_MAX] (طبيعي64 literals above
+                    // (EN) Use stoull to cover [0, UINT64_MAX] (طبيعي literals above
                     //      INT64_MAX); the literal is always non-negative (negation is a
                     //      unary op), and we keep the bit pattern as int64 like the hex path.
                     {
@@ -689,11 +689,22 @@ namespace Sad
                 //      buildAssignment's `AND 0xFF`, keeping both tracks in parity.
                 //      getDeclaredType returns neutral Integer for undeclared vars ⇒ affects
                 //      only an explicitly-declared byte.
-                if (variableManager_.getDeclaredType(node.name) == Types::SadTypeKind::Byte &&
+                const Types::SadTypeKind declaredKind =
+                    variableManager_.getDeclaredType(node.name);
+                if (Types::sadTypeKindIsIntegerNumeric(declaredKind) &&
                     value.getKind() == Types::SadTypeKind::Integer)
                 {
-                    value = Data::Value(value.toInt64() & 0xFF);
+                    // (AR) عمّمَ الاقتطاعُ على كلِّ عرضٍ مُعلَنٍ بدلَ «بايت» وحدَه.
+                    //      و`getDeclaredType` تُرجِعُ Integer محايدًا لغيرِ المُصرَّح،
+                    //      والمُطبِّعُ محايدٌ عندَ عرضِ ٦٤ — فلا أثرَ على غيرِ المُصرَّح.
+                    // (EN) Generalized from Byte to every declared width; neutral for
+                    //      undeclared vars (Integer) since normalize is identity at 64.
+                    value = Data::Value(static_cast<int64_t>(
+                        Types::sadTypeKindNormalizeInteger(declaredKind, value.toInt64())));
                 }
+                // (AR) والمعبَرُ الذي يقتطعُ هو نفسُه الذي يَسِمُ — نظيرُ التصريح.
+                // (EN) The crossing that truncates is the crossing that tags.
+                value.tagDeclaredWidth(declaredKind);
 
                 // ═══════════════════════════════════════════════════════════
                 // (AR) [SEM045 / RFC عقد الغياب — المرحلة أ] الفراغُ لا يعبر إلى

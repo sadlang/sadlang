@@ -26,6 +26,7 @@
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
 #include "builtin_registry.h" // (AR) لثوابت أسماء المدمَجات (أكبر/أصغر) / (EN) builtin name constants
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -51,7 +52,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: بدء بناء عملية ثنائية" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: بدء بناء عملية ثنائية");
 #endif
 
                 // ================================================================
@@ -77,18 +78,18 @@ namespace Sad
                 // (EN) Build left operand
                 auto leftResult = buildExpression(binOp->left.get());
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: leftResult.registerName='" << leftResult.registerName
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: leftResult.registerName='" << leftResult.registerName
                           << "', type=" << static_cast<int>(leftResult.type)
-                          << ", isConstant=" << leftResult.isConstant << std::endl;
+                          << ", isConstant=" << leftResult.isConstant);
 #endif
 
                 // (AR) بناء المعامل الأيمن (expressions.h:44 - right: ExprPtr)
                 // (EN) Build right operand
                 auto rightResult = buildExpression(binOp->right.get());
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: rightResult.registerName='" << rightResult.registerName
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: rightResult.registerName='" << rightResult.registerName
                           << "', type=" << static_cast<int>(rightResult.type)
-                          << ", isConstant=" << rightResult.isConstant << std::endl;
+                          << ", isConstant=" << rightResult.isConstant);
 #endif
 
                 // ================================================================
@@ -206,8 +207,8 @@ namespace Sad
                         if (found)
                         {
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildBinaryOp: dispatching to operator overload '"
-                                      << fullOpName << "'" << std::endl;
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: dispatching to operator overload '"
+                                      << fullOpName << "'");
 #endif
 
                             std::string resultReg = b_.newTempRegister();
@@ -593,8 +594,8 @@ namespace Sad
                         // (AR) النتيجة ثابتة: == بين أنواع مختلفة = false، != = true
                         bool comparisonResult = (binOp->op == Lexer::TokenType::OP_NOT_EQUAL);
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildBinaryOp: مقارنة صارمة بين أنواع مختلفة → "
-                                  << (comparisonResult ? "true" : "false") << " (ثابت)" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: مقارنة صارمة بين أنواع مختلفة → "
+                                  << (comparisonResult ? "true" : "false") << " (ثابت)");
 #endif
                         return BuildResult(comparisonResult ? "true" : "false",
                                            SadTypeKind::Boolean, true);
@@ -634,14 +635,14 @@ namespace Sad
                     leftResult.type == SadTypeKind::String &&
                     rightResult.type == SadTypeKind::String;
 
-                // (AR) [طبقة طبيعي64 — الخطوة ٧] هيمنة السطح الضحل (أيّ معامل طبيعي64 صراحةً)
+                // (AR) [طبقة طبيعي — الخطوة ٧] هيمنة السطح الضحل (أيّ معامل طبيعي صراحةً)
                 //      لقرار لا-موقَّعيّة //،%. مرآةُ wrapU64 بالمفسّر (resolveStaticType، `||`).
-                //      يُستهلَك في تثبيت نوع النتيجة أدناه: طبيعي64 //،% لا تفيض (udiv/urem)
+                //      يُستهلَك في تثبيت نوع النتيجة أدناه: طبيعي //،% لا تفيض (udiv/urem)
                 //      فنتيجتها حتميّةٌ صحيحة ⇒ نثبّتها UInt64 (مسارٌ ساكن + طباعة لا-موقَّعة)
                 //      بدل Any الديناميّ الموقَّع الذي يلزم الموقَّعَ (INT64_MIN//-1 يفيض).
-                // (EN) [طبيعي64 layer — Step 7] Shallow-surface dominance (any operand explicitly
-                //      طبيعي64) for the //,% unsigned decision. Mirrors the interpreter's wrapU64
-                //      (resolveStaticType, `||`). Consumed in result-type pinning below: طبيعي64
+                // (EN) [طبيعي layer — Step 7] Shallow-surface dominance (any operand explicitly
+                //      طبيعي) for the //,% unsigned decision. Mirrors the interpreter's wrapU64
+                //      (resolveStaticType, `||`). Consumed in result-type pinning below: طبيعي
                 //      //,% cannot overflow (udiv/urem) so their result kind is deterministic
                 //      integer ⇒ pin UInt64 (static path + unsigned print) instead of the signed
                 //      dynamic Any that the signed case needs (INT64_MIN//-1 overflows).
@@ -649,17 +650,48 @@ namespace Sad
                     resolveSurfaceType(binOp->left.get()) == SadTypeKind::UInt64 ||
                     resolveSurfaceType(binOp->right.get()) == SadTypeKind::UInt64;
 
-                // (AR) [طبقة طبيعي64 — الخطوة ٨] سطحُ المعامل **الأيسر** وحده للإزاحة `>>`/`<<`:
+                // (AR) [طبقة طبيعي — الخطوة ٨] سطحُ المعامل **الأيسر** وحده للإزاحة `>>`/`<<`:
                 //      إشارةُ الإزاحة من القيمة المُزاحة لا من عدّاد الإزاحة (`5 >> ك` تبقى موقَّعة
-                //      وإن كانت ك طبيعي64). يُستهلَك لتثبيت نتيجة الإزاحة UInt64 (طباعة لا-موقَّعة
+                //      وإن كانت ك طبيعي). يُستهلَك لتثبيت نتيجة الإزاحة UInt64 (طباعة لا-موقَّعة
                 //      لنتيجةٍ عالية البتّ مثل MAX>>0 أو 1<<63) ولمصالحة إشارة `>>` (LShr/AShr).
-                // (EN) [طبيعي64 layer — Step 8] The LEFT operand's surface alone for shifts `>>`/`<<`:
+                // (EN) [طبيعي layer — Step 8] The LEFT operand's surface alone for shifts `>>`/`<<`:
                 //      shift signedness comes from the shifted value, not the shift count (`5 >> ك`
-                //      stays signed even if ك is طبيعي64). Consumed to pin the shift result to UInt64
+                //      stays signed even if ك is طبيعي). Consumed to pin the shift result to UInt64
                 //      (unsigned print for a high-bit result like MAX>>0 or 1<<63) and to reconcile
                 //      the `>>` sign (LShr/AShr).
                 const bool leftU64Surface =
                     resolveSurfaceType(binOp->left.get()) == SadTypeKind::UInt64;
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 هيمنةُ «طبيعي» في + − × ** — والعلّةُ أنّ `resultType`
+                //      يبتدئُ نسخةً من **الطرفِ الأيسرِ وحدَه** (أعلاه)، ثمّ تُصحّحُه
+                //      أذرعُ `/` و`%` والبتّيّاتِ بقاعدةِ الهيمنةِ ولا تُصحّحُه أذرعُ
+                //      الجمعِ والطرحِ والضرب. فكانت الهيمنةُ **غيرَ تبادُليّة**:
+                //        نوع(ك + ط) ⇒ «رقم»      ونوع(ط + ك) ⇒ «طبيعي»
+                //      لعمليّةٍ واحدةٍ قيمتُها واحدةٌ في الحالتَين (١١٠٠) — أي أنّ
+                //      وسمَ النوعِ كان يتبعُ ترتيبَ الكتابةِ لا دلالةَ العملية.
+                //      وهذا مقيسٌ في سبعِ بذورٍ (٠٢٦ لكلِّ نوعٍ من الثمانية).
+                //      ⚠️ والشرطُ `Integer` حصرًا: النصُّ والعشريُّ والمصفوفةُ و«أي»
+                //      لها هيمناتُها الخاصّةُ المقرَّرةُ قبلَ هذا الموضعِ، ورفعُها
+                //      إلى `UInt64` يهدمُها. والعشريُّ يغلبُ الصحيحَ فلا يُمَسّ.
+                // (EN) طبيعي dominance for + − × ** . `resultType` starts as a copy of the
+                //      LEFT operand alone; the /, % and bitwise arms then correct it with the
+                //      dominance rule while +, -, * do not. Dominance was therefore NOT
+                //      COMMUTATIVE: نوع(k + t) gave «رقم» and نوع(t + k) gave «طبيعي» for
+                //      one operation with one value (1100) — the type tag followed writing
+                //      order rather than the operation's meaning. Measured in seven seeds.
+                //      Restricted to Integer: string, float, array and Any have their own
+                //      dominance settled earlier, and float outranks integers regardless.
+                // ════════════════════════════════════════════════════════════════
+                if (anyU64Surface && resultType == SadTypeKind::Integer &&
+                    (binOp->op == Lexer::TokenType::OP_PLUS ||
+                     binOp->op == Lexer::TokenType::OP_MINUS ||
+                     binOp->op == Lexer::TokenType::OP_MULTIPLY ||
+                     binOp->op == Lexer::TokenType::OP_POWER) &&
+                    !isStringOp)
+                {
+                    resultType = SadTypeKind::UInt64;
+                }
 
                 // (AR) العملية من expressions.h:43 - op: Lexer::TokenType
                 // (EN) Operation from expressions.h:43
@@ -673,7 +705,7 @@ namespace Sad
                     {
                         opcode = SIROpcode::STRING_CONCAT;
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildBinaryOp: عملية دمج نصوص (+)" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية دمج نصوص (+)");
 #endif
                     }
                     else if (leftIsArray && rightIsArray)
@@ -683,7 +715,7 @@ namespace Sad
                         opcode = SIROpcode::ARRAY_CONCAT;
                         resultType = SadTypeKind::Array;
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildBinaryOp: عملية دمج مصفوفات (+)" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية دمج مصفوفات (+)");
 #endif
                     }
                     else
@@ -691,7 +723,7 @@ namespace Sad
                         // (AR) جمع: ADD_I64 للأعداد الصحيحة، ADD_F64 للعشرية
                         opcode = (resultType == SadTypeKind::Float) ? SIROpcode::ADD_F64 : SIROpcode::ADD_I64;
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildBinaryOp: عملية جمع (+)" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية جمع (+)");
 #endif
                     }
                     break;
@@ -700,7 +732,7 @@ namespace Sad
                     // (AR) طرح: SUB_I64 للأعداد الصحيحة، SUB_F64 للعشرية
                     opcode = (resultType == SadTypeKind::Float) ? SIROpcode::SUB_F64 : SIROpcode::SUB_I64;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية طرح (-)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية طرح (-)");
 #endif
                     break;
 
@@ -708,7 +740,7 @@ namespace Sad
                     // (AR) ضرب: MUL_I64 للأعداد الصحيحة، MUL_F64 للعشرية
                     opcode = (resultType == SadTypeKind::Float) ? SIROpcode::MUL_F64 : SIROpcode::MUL_I64;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية ضرب (*)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية ضرب (*)");
 #endif
                     break;
 
@@ -736,10 +768,9 @@ namespace Sad
                     if (resultType != SadTypeKind::Any && resultType != SadTypeKind::Float)
                         resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية قسمة (/) → "
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية قسمة (/) → "
                               << (resultType == SadTypeKind::Float ? "F64"
-                                  : (resultType == SadTypeKind::Any ? "ديناميكية" : "I64"))
-                              << std::endl;
+                                  : (resultType == SadTypeKind::Any ? "ديناميكية" : "I64")));
 #endif
                     break;
 
@@ -770,15 +801,15 @@ namespace Sad
                     //      overflow ⇒ #DE). A float operand ⇒ static Float floor(fdiv) (7.5//2=3.0).
                     opcode = SIROpcode::FLOOR_DIV_I64;
                     if (resultType != SadTypeKind::Float)
-                        // (AR) [الخطوة ٧] طبيعي64: udiv لا يفيض ⇒ نتيجةٌ حتميّةٌ صحيحة، نثبّتها
+                        // (AR) [الخطوة ٧] طبيعي: udiv لا يفيض ⇒ نتيجةٌ حتميّةٌ صحيحة، نثبّتها
                         //      UInt64 (مسار emitDiv الساكن اللا-موقَّع + طباعة لا-موقَّعة) بدل Any
-                        //      الديناميّ. غير-طبيعي64: يبقى Any (الموقَّع قد يفيض زمنَ التشغيل).
-                        // (EN) [Step 7] طبيعي64: udiv can't overflow ⇒ deterministic integer result;
+                        //      الديناميّ. غير-طبيعي: يبقى Any (الموقَّع قد يفيض زمنَ التشغيل).
+                        // (EN) [Step 7] طبيعي: udiv can't overflow ⇒ deterministic integer result;
                         //      pin UInt64 (static unsigned emitDiv path + unsigned print) instead of
-                        //      dynamic Any. Non-طبيعي64: stays Any (signed may overflow at runtime).
+                        //      dynamic Any. Non-طبيعي: stays Any (signed may overflow at runtime).
                         resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Any;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية قسمة صحيحة (//)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية قسمة صحيحة (//)");
 #endif
                     break;
 
@@ -793,13 +824,13 @@ namespace Sad
                     //      7.5%2=1.5) instead of pinning Integer (srem-via-truncation gave 1).
                     opcode = SIROpcode::MOD_I64;
                     if (resultType != SadTypeKind::Any && resultType != SadTypeKind::Float)
-                        // (AR) [الخطوة ٧] طبيعي64: urem نتيجته لا-موقَّعة حتميّة ⇒ نثبّتها UInt64
+                        // (AR) [الخطوة ٧] طبيعي: urem نتيجته لا-موقَّعة حتميّة ⇒ نثبّتها UInt64
                         //      (طباعة لا-موقَّعة، مطابقةً للمفسّر) بدل Integer الموقَّع.
-                        // (EN) [Step 7] طبيعي64: urem gives a deterministic unsigned result ⇒ pin
+                        // (EN) [Step 7] طبيعي: urem gives a deterministic unsigned result ⇒ pin
                         //      UInt64 (unsigned print, matching the interpreter) instead of signed Integer.
                         resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية باقي القسمة (%)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية باقي القسمة (%)");
 #endif
                     break;
 
@@ -826,11 +857,10 @@ namespace Sad
                     //      absence guard + runtime int/float result tag). The old
                     //      Float pin lied for two ints (5**2 printed 25.0).
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية الأس (**) — resultType="
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية الأس (**) — resultType="
                               << (resultType == SadTypeKind::Float   ? "Float"
                                   : resultType == SadTypeKind::Any   ? "Any"
-                                                                     : "Integer")
-                              << std::endl;
+                                                                     : "Integer"));
 #endif
                     break;
 
@@ -842,14 +872,14 @@ namespace Sad
                     {
                         opcode = SIROpcode::STRING_CMP;
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildBinaryOp: عملية مقارنة نصوص (==)" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية مقارنة نصوص (==)");
 #endif
                     }
                     else
                     {
                         opcode = SIROpcode::EQ;
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildBinaryOp: عملية يساوي (==)" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية يساوي (==)");
 #endif
                     }
                     isComparison = true;
@@ -863,14 +893,14 @@ namespace Sad
                         // (AR) سيتم معالجة النفي لاحقاً
                         opcode = SIROpcode::STRING_CMP;
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildBinaryOp: عملية عدم تساوي نصوص (!=)" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية عدم تساوي نصوص (!=)");
 #endif
                     }
                     else
                     {
                         opcode = SIROpcode::NE;
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildBinaryOp: عملية لا يساوي (!=)" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية لا يساوي (!=)");
 #endif
                     }
                     isComparison = true;
@@ -881,7 +911,7 @@ namespace Sad
                     opcode = SIROpcode::LT;
                     isComparison = true;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية أصغر من (<)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية أصغر من (<)");
 #endif
                     break;
 
@@ -890,7 +920,7 @@ namespace Sad
                     opcode = SIROpcode::LE;
                     isComparison = true;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية أصغر أو يساوي (<=)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية أصغر أو يساوي (<=)");
 #endif
                     break;
 
@@ -899,7 +929,7 @@ namespace Sad
                     opcode = SIROpcode::GT;
                     isComparison = true;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية أكبر من (>)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية أكبر من (>)");
 #endif
                     break;
 
@@ -908,7 +938,7 @@ namespace Sad
                     opcode = SIROpcode::GE;
                     isComparison = true;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية أكبر أو يساوي (>=)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية أكبر أو يساوي (>=)");
 #endif
                     break;
 
@@ -918,7 +948,7 @@ namespace Sad
                     opcode = SIROpcode::AND;
                     isComparison = true; // (AR) النتيجة منطقية
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية AND (&&)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية AND (&&)");
 #endif
                     break;
 
@@ -927,63 +957,63 @@ namespace Sad
                     opcode = SIROpcode::OR;
                     isComparison = true; // (AR) النتيجة منطقية
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية OR (||)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية OR (||)");
 #endif
                     break;
 
                 // ========== العمليات البتية (token.h) ==========
                 case Lexer::TokenType::OP_XOR:
                     // (AR) XOR بتّي: Xor (sir_opcodes.h)
-                    // (AR) [طبقة طبيعي64 — طباعة البتّ] نوعُ النتيجة UInt64 حين يهيمن السطح الضحل
-                    //      طبيعي64 (anyU64Surface، `||` مطابقةً لـresolveStaticType بالمفسّر) ⇒ طباعةٌ
+                    // (AR) [طبقة طبيعي — طباعة البتّ] نوعُ النتيجة UInt64 حين يهيمن السطح الضحل
+                    //      طبيعي (anyU64Surface، `||` مطابقةً لـresolveStaticType بالمفسّر) ⇒ طباعةٌ
                     //      لا-موقَّعة. العمليّة (XOR) متطابقةٌ بتّيًّا فالقيمة لا تتغيّر — التثبيت للطباعة.
-                    // (EN) [طبيعي64 layer — bitwise print] UInt64 result when the shallow surface is
-                    //      طبيعي64-dominant (anyU64Surface, `||` matching the interpreter's resolveStaticType)
+                    // (EN) [طبيعي layer — bitwise print] UInt64 result when the shallow surface is
+                    //      طبيعي-dominant (anyU64Surface, `||` matching the interpreter's resolveStaticType)
                     //      ⇒ unsigned print. The op (XOR) is bit-identical so the value is unchanged — pin for print.
                     opcode = SIROpcode::XOR;
                     resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية XOR بتي (^)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية XOR بتي (^)");
 #endif
                     break;
 
                 case Lexer::TokenType::OP_BITWISE_AND:
-                    // (AR) AND بتّي: AND — نتيجة UInt64 حين هيمنة السطح طبيعي64 (طباعة لا-موقَّعة).
-                    // (EN) Bitwise AND — UInt64 result under طبيعي64 surface dominance (unsigned print).
+                    // (AR) AND بتّي: AND — نتيجة UInt64 حين هيمنة السطح طبيعي (طباعة لا-موقَّعة).
+                    // (EN) Bitwise AND — UInt64 result under طبيعي surface dominance (unsigned print).
                     opcode = SIROpcode::AND;
                     resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية AND بتي (&)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية AND بتي (&)");
 #endif
                     break;
 
                 case Lexer::TokenType::OP_BITWISE_OR:
-                    // (AR) OR بتّي: OR — نتيجة UInt64 حين هيمنة السطح طبيعي64 (طباعة لا-موقَّعة).
-                    // (EN) Bitwise OR — UInt64 result under طبيعي64 surface dominance (unsigned print).
+                    // (AR) OR بتّي: OR — نتيجة UInt64 حين هيمنة السطح طبيعي (طباعة لا-موقَّعة).
+                    // (EN) Bitwise OR — UInt64 result under طبيعي surface dominance (unsigned print).
                     opcode = SIROpcode::OR;
                     resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية OR بتي (|)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية OR بتي (|)");
 #endif
                     break;
 
                 case Lexer::TokenType::OP_SHIFT_LEFT:
                     // (AR) إزاحة يسار: Shl
                     opcode = SIROpcode::SHL;
-                    // (AR) [طبقة طبيعي64 — طباعة البتّ] الإزاحة اليسرى `<<`: العمليّة (SHL) متطابقةٌ
+                    // (AR) [طبقة طبيعي — طباعة البتّ] الإزاحة اليسرى `<<`: العمليّة (SHL) متطابقةٌ
                     //      إشارةً فلا تتغيّر، لكنّ نتيجةً عالية البتّ (مثل ك<<63 = 2^63) تُطبع لا-موقَّعة
-                    //      حين هيمنة السطح طبيعي64 (anyU64Surface) لتطابق المفسّر (9223372036854775808
+                    //      حين هيمنة السطح طبيعي (anyU64Surface) لتطابق المفسّر (9223372036854775808
                     //      لا INT64_MIN). (سابقًا ظُنّ أنّ تثبيت `<<`=UInt64 يُعطِب التوليد؛ تبيّن أنّ
                     //      العطب كان اسمَ متغيّرٍ محجوزًا `و` في المسبار لا التثبيت — التثبيت آمن.)
-                    // (EN) [طبيعي64 layer — bitwise print] Left shift `<<`: the op (SHL) is signedness-
+                    // (EN) [طبيعي layer — bitwise print] Left shift `<<`: the op (SHL) is signedness-
                     //      identical so it is unchanged, but a high-bit result (e.g. ك<<63 = 2^63) prints
-                    //      unsigned under طبيعي64 surface dominance (anyU64Surface) to match the interpreter
+                    //      unsigned under طبيعي surface dominance (anyU64Surface) to match the interpreter
                     //      (9223372036854775808 not INT64_MIN). (A prior belief that pinning `<<`=UInt64
                     //      broke codegen was wrong — the breakage was a reserved var name `و` in the probe,
                     //      not the pin — pinning is safe.)
                     resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يسار (<<)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية إزاحة يسار (<<)");
 #endif
                     break;
 
@@ -992,7 +1022,7 @@ namespace Sad
                     opcode = SIROpcode::SHR;
                     // (AR) [الخطوة ٨ + طباعة البتّ] نوعُ نتيجة الطباعة بهيمنة السطح anyU64Surface
                     //      (`||`، مطابقةً لـresolveStaticType بالمفسّر الذي يهيمن للطباعة) — فـ
-                    //      `‎-8‏ >> عدّاد_طبيعي64` يُطبع لا-موقَّعًا في المسارين. أمّا **إشارةُ العمليّة**
+                    //      `‎-8‏ >> عدّاد_طبيعي` يُطبع لا-موقَّعًا في المسارين. أمّا **إشارةُ العمليّة**
                     //      (LShr/AShr) فمن المعامل الأيسر وحده (leftU64Surface) عبر مصالحة operands[0]
                     //      أدناه — فالقيمةُ من المعامل الأيسر والطباعةُ من الهيمنة، كالمفسّر تمامًا.
                     // (EN) [Step 8 + bitwise print] Print result type from surface dominance anyU64Surface
@@ -1002,7 +1032,7 @@ namespace Sad
                     //      reconciliation below — value from the left, print from dominance, exactly like the interpreter.
                     resultType = anyU64Surface ? SadTypeKind::UInt64 : SadTypeKind::Integer;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية إزاحة يمين (>>)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية إزاحة يمين (>>)");
 #endif
                     break;
 
@@ -1020,8 +1050,8 @@ namespace Sad
                 case Lexer::TokenType::KEYWORD_IN:
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عامل العضوية (في) — نوع الأيمن: "
-                              << static_cast<int>(rightResult.type) << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عامل العضوية (في) — نوع الأيمن: "
+                              << static_cast<int>(rightResult.type));
 #endif
                     // ─────────────────────────────────────────────────────
                     // (AR) الحالة 1: نص في نص → BUILTIN_STRING_CONTAINS
@@ -1032,7 +1062,7 @@ namespace Sad
                     if (rightResult.type == SadTypeKind::String)
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] في: نص في نص → BUILTIN_STRING_CONTAINS" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] في: نص في نص → BUILTIN_STRING_CONTAINS");
 #endif
                         std::string containsReg = b_.newTempRegister();
                         SIRInstruction inst(SIROpcode::BUILTIN_STRING_CONTAINS);
@@ -1054,7 +1084,7 @@ namespace Sad
                     if (rightResult.type == SadTypeKind::Map)
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] في: مفتاح في خريطة → CALL __sad_map_has" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] في: مفتاح في خريطة → CALL __sad_map_has");
 #endif
                         std::string hasReg = b_.newTempRegister();
                         SIRInstruction inst(SIROpcode::CALL);
@@ -1276,8 +1306,8 @@ namespace Sad
                 default:
 // (AR) عملية غير مدعومة
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: عملية غير مدعومة: "
-                              << static_cast<int>(binOp->op) << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: عملية غير مدعومة: "
+                              << static_cast<int>(binOp->op));
 #endif
                     b_.errors_.push_back("عملية ثنائية غير مدعومة / Unsupported binary operation");
                     return BuildResult(resultReg, resultType);
@@ -1431,10 +1461,10 @@ namespace Sad
                     }
                 }
 
-                // (AR) [طبقة طبيعي64 — الخطوة ٥ · مُنقَّحة بقرارِ المالك 2026-08-16]
+                // (AR) [طبقة طبيعي — الخطوة ٥ · مُنقَّحة بقرارِ المالك 2026-08-16]
                 //      قرارُ إشارةِ مقارنةِ الترتيبِ من النوعِ السطحيِّ **الضحلِ** (لا
                 //      المُنتشَرِ العميق): لا-موقَّعٌ حين يكون **أيُّ** المعامِلَين
-                //      `طبيعي64` سطحًا — **هيمنةٌ لا اشتراط**، كنظيرَتِها للقسمةِ
+                //      `طبيعي` سطحًا — **هيمنةٌ لا اشتراط**، كنظيرَتِها للقسمةِ
                 //      الأرضيّةِ والباقي أسفلَه سواءً بسواء.
                 //
                 //      🔑 **وهذا هو موضعُ القرارِ الحقيقيُّ — لا الخلفيّة.** الشرطُ هنا
@@ -1449,8 +1479,8 @@ namespace Sad
                 //      وسببُ الاشتراطِ الأصليِّ كان مطابقةَ المفسّرِ (`resolveStaticType`
                 //      بـ`&&`) بعد انفراجٍ رصدته أميليا. وقد غُيِّر المفسّرُ معه في
                 //      الرقعةِ نفسِها، فالمطابقةُ قائمةٌ والقاعدةُ تبدّلت في الاثنَين.
-                // (EN) [طبيعي64 layer — Step 5, revised by owner ruling 2026-08-16]
-                //      Unsigned when EITHER operand's shallow surface is طبيعي64 — dominance,
+                // (EN) [طبيعي layer — Step 5, revised by owner ruling 2026-08-16]
+                //      Unsigned when EITHER operand's shallow surface is طبيعي — dominance,
                 //      not conjunction, exactly like the // and % sibling below.
                 //      🔑 THIS is the real decision point, not the backend: this block
                 //      OVERWRITES the operands' dataType before they reach the emitter, so a
@@ -1469,26 +1499,26 @@ namespace Sad
                         if (op.dataType == SadTypeKind::UInt64 && !anyU64Cmp)
                             op.dataType = SadTypeKind::Integer; // (AR) لا طبيعيَّ سطحًا ⇒ موقَّع
                         else if (anyU64Cmp && op.dataType == SadTypeKind::Integer)
-                            op.dataType = SadTypeKind::UInt64; // (AR) هيمنةُ طبيعي64 ⇒ لا-موقَّع
+                            op.dataType = SadTypeKind::UInt64; // (AR) هيمنةُ طبيعي ⇒ لا-موقَّع
                     };
                     adjustSign(leftOp);
                     adjustSign(rightOp);
                 }
 
-                // (AR) [طبقة طبيعي64 — الخطوة ٧] قرار إشارة القسمة الأرضيّة/الباقي (// %) من
+                // (AR) [طبقة طبيعي — الخطوة ٧] قرار إشارة القسمة الأرضيّة/الباقي (// %) من
                 //      النوع السطحيّ **الضحل** — نظيرُ كتلة المقارنة أعلاه لكن **بهيمنة `||`**
-                //      (يكفي معاملٌ واحد طبيعي64) لا `&&`، مطابقةً لـwrapU64 بالمفسّر (الحساب
+                //      (يكفي معاملٌ واحد طبيعي) لا `&&`، مطابقةً لـwrapU64 بالمفسّر (الحساب
                 //      يهيمن، بخلاف المقارنة التي تلزم كليهما لإشارة CreateICmp). بلا هذا كان
-                //      المترجم يقرأ طبيعي64 **المُستنتَج** (نتيجة نداء/متغيّر مُسنَد) فيصدر
+                //      المترجم يقرأ طبيعي **المُستنتَج** (نتيجة نداء/متغيّر مُسنَد) فيصدر
                 //      URem/UDiv بينما المفسّر (resolveStaticType الضحل ⇒ Integer) يصدر
                 //      SRem/SDiv موقَّعين ⇒ انفراج (رصده أميليا). نصحّح dataType لمعاملَي i64
                 //      فقط (قلبٌ آمن العرض UInt64↔Integer، كلاهما i64). Option A: المُصرَّح
                 //      صراحةً ⇒ لا-موقَّع؛ المُستنتَج ⇒ موقَّع.
-                // (EN) [طبيعي64 layer — Step 7] Floor-division/modulo (// %) signedness from the
+                // (EN) [طبيعي layer — Step 7] Floor-division/modulo (// %) signedness from the
                 //      SHALLOW surface type — sibling of the comparison block above but with `||`
-                //      DOMINANCE (one طبيعي64 operand suffices) not `&&`, matching the interpreter's
+                //      DOMINANCE (one طبيعي operand suffices) not `&&`, matching the interpreter's
                 //      wrapU64 (arithmetic dominates, unlike comparison which needs both for
-                //      CreateICmp's sign). Without this the compiler read an INFERRED طبيعي64 type
+                //      CreateICmp's sign). Without this the compiler read an INFERRED طبيعي type
                 //      (a call result or an assigned var) and emitted URem/UDiv while the interpreter
                 //      (shallow resolveStaticType ⇒ Integer) emitted signed SRem/SDiv ⇒ divergence
                 //      (found by Amelia). We only adjust i64 operands' dataType (a width-safe
@@ -1500,9 +1530,9 @@ namespace Sad
                         resolveSurfaceType(binOp->left.get()) == SadTypeKind::UInt64 ||
                         resolveSurfaceType(binOp->right.get()) == SadTypeKind::UInt64;
                     // (AR) تسويةٌ ثنائيّة الاتّجاه من هيمنة السطح الضحل anyU64:
-                    //      • خفض: مُستنتَجٌ UInt64 لكنّ السطح ليس طبيعي64 ⇒ Integer (مطابقةً للمفسّر).
-                    //      • رفع: Integer لكنّ السطح طبيعي64 (هيمنة) ⇒ UInt64. **ضروريٌّ** لأنّ
-                    //        إسنادَ متغيّر طبيعي64 مُصرَّح إلى حرفيّ/نداءٍ نوعُه Integer **يطمس نوعَ
+                    //      • خفض: مُستنتَجٌ UInt64 لكنّ السطح ليس طبيعي ⇒ Integer (مطابقةً للمفسّر).
+                    //      • رفع: Integer لكنّ السطح طبيعي (هيمنة) ⇒ UInt64. **ضروريٌّ** لأنّ
+                    //        إسنادَ متغيّر طبيعي مُصرَّح إلى حرفيّ/نداءٍ نوعُه Integer **يطمس نوعَ
                     //        سِجِلّه إلى Integer** بينما declaredSurfaceType يبقى UInt64؛ فبلا الرفع
                     //        يقرّر إشارةَ العمليّة نوعُ السِجِلّ المطموس (SRem/SDiv موقَّع) بينما
                     //        التثبيت/الطباعة من anyU64Surface لا-موقَّعان ⇒ حسابٌ موقَّع + طبع
@@ -1510,9 +1540,9 @@ namespace Sad
                     //      كان الرفع مُزالًا لتفادي عيب CSE (ثابتا UInt64 مختلفان يُدمَجان) — **وقد
                     //      أُصلح CSE** (يُفتِّح ثوابت UInt64 بقيمتها في cse_pass + passes2) فالرفع آمن.
                     // (EN) Bidirectional reconciliation from the shallow-surface dominance anyU64:
-                    //      • downgrade: inferred UInt64 but surface not طبيعي64 ⇒ Integer (match interp).
-                    //      • upgrade: Integer but surface طبيعي64 (dominance) ⇒ UInt64. REQUIRED because
-                    //        reassigning a declared طبيعي64 var to a literal/Integer-return call CLOBBERS
+                    //      • downgrade: inferred UInt64 but surface not طبيعي ⇒ Integer (match interp).
+                    //      • upgrade: Integer but surface طبيعي (dominance) ⇒ UInt64. REQUIRED because
+                    //        reassigning a declared طبيعي var to a literal/Integer-return call CLOBBERS
                     //        its register type to Integer while declaredSurfaceType stays UInt64; without
                     //        the upgrade the op's sign follows the clobbered register type (signed
                     //        SRem/SDiv) while pinning/print follow anyU64Surface (unsigned) ⇒ signed
@@ -1531,13 +1561,13 @@ namespace Sad
                     adjustDivSign(rightOp);
                 }
 
-                // (AR) [طبقة طبيعي64 — الخطوة ٨] مصالحةُ إشارة معامل الإزاحة اليمنى **الأيسر**
+                // (AR) [طبقة طبيعي — الخطوة ٨] مصالحةُ إشارة معامل الإزاحة اليمنى **الأيسر**
                 //      مع السطح الضحل leftU64Surface (نظير adjustDivSign لكن للمعامل الأيسر وحده،
                 //      إذ إشارةُ `>>` منه لا من العدّاد). رفعٌ عند الطمس بإعادة الإسناد لحرفيّ
                 //      (سِجِلّ ك يصير Integer بينما السطح UInt64) ⇒ LShr؛ خفضٌ للمُستنتَج ⇒ AShr.
                 //      آمنٌ بعد إصلاح CSE (خ٧). لا يمسّ `<<` (إشارته متطابقة). المعامل الأيمن
                 //      (العدّاد) يبقى كما هو.
-                // (EN) [طبيعي64 layer — Step 8] Reconcile the RIGHT-shift's LEFT operand sign with the
+                // (EN) [طبيعي layer — Step 8] Reconcile the RIGHT-shift's LEFT operand sign with the
                 //      shallow surface leftU64Surface (sibling of adjustDivSign but for the left operand
                 //      alone, since `>>` signedness is the value's not the count's). Upgrade on a
                 //      reassign-to-literal clobber (ك's register becomes Integer while its surface is
@@ -1554,7 +1584,7 @@ namespace Sad
                 // (AR) [وسم زمن-التشغيل] لدمج المصفوفات: هل النتيجةُ مصفوفةٌ موسومةٌ
                 //      (واصفةٌ لنفسها)؟ نعم متى كان الدمجُ متنافرًا (طرفٌ Any، أو طرفان
                 //      محدَّدان مختلفان) **و** كان كلا الطرفين قابلًا للوسم القياسيّ. نقصر
-                //      الوسمَ على القياسيّ (عدد/عشريّ/نصّ/منطقيّ/بايت/طبيعي64/عدم) — لا
+                //      الوسمَ على القياسيّ (عدد/عشريّ/نصّ/منطقيّ/بايت/طبيعي/عدم) — لا
                 //      المصفوفات/الخرائط/الكائنات المتداخلة — مطابقةً لبوّابة باني الحرفيّة
                 //      `allElementsScalar` (ISSUE-067/070): آليّةُ وسمِ الدمج (fillRegion
                 //      + قارئ المختلط) تعالج القياسيّ فقط، فتوجيهُ نوعٍ غير-قياسيّ إليها
@@ -1584,7 +1614,7 @@ namespace Sad
                     auto tagScalarOk = [](SadTypeKind t) {
                         return t == SadTypeKind::Void || t == SadTypeKind::Integer ||
                                t == SadTypeKind::Float || t == SadTypeKind::String ||
-                               t == SadTypeKind::Boolean || t == SadTypeKind::Byte ||
+                               t == SadTypeKind::Boolean || t == SadTypeKind::UInt8 ||
                                t == SadTypeKind::UInt64 || t == SadTypeKind::Null ||
                                t == SadTypeKind::Any;
                     };
@@ -1642,13 +1672,13 @@ namespace Sad
                 {
                     b_.currentBlock_->addInstruction(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: تمت إضافة التعليمة للكتلة الحالية" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: تمت إضافة التعليمة للكتلة الحالية");
 #endif
                 }
                 else
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildBinaryOp: تحذير - لا توجد كتلة حالية!" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: تحذير - لا توجد كتلة حالية!");
 #endif
                 }
 
@@ -1670,8 +1700,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildBinaryOp: النتيجة في سجل " << resultReg
-                          << " بنوع " << static_cast<int>(resultType) << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildBinaryOp: النتيجة في سجل " << resultReg
+                          << " بنوع " << static_cast<int>(resultType));
 #endif
 
                 BuildResult binResult(resultReg, resultType);
@@ -1772,10 +1802,10 @@ namespace Sad
             // - الاستخدام: SIRInstruction::Unary(opcode, result, operand)
             // ============================================================================
         // =====================================================================
-        // (AR) [طبقة طبيعي64 — الخطوة ٥] مُحلِّل النوع السطحيّ الضحل — مرآة
+        // (AR) [طبقة طبيعي — الخطوة ٥] مُحلِّل النوع السطحيّ الضحل — مرآة
         //      resolveStaticType بالمفسّر (expression_evaluator_binary_ops.cpp).
         //      يجب أن يبقى منطقُه مطابقًا للمفسّر حرفيًّا كي لا ينفرج المساران.
-        // (EN) [طبيعي64 layer — Step 5] Shallow surface-type resolver — mirror of the
+        // (EN) [طبيعي layer — Step 5] Shallow surface-type resolver — mirror of the
         //      interpreter's resolveStaticType. Its logic MUST stay literally identical
         //      to the interpreter's or the two tracks diverge.
         // =====================================================================
@@ -1816,9 +1846,9 @@ namespace Sad
                 {
                     // (AR) أكبر/أصغر المدمَجتان: نوعُ النتيجة يطابق باعثَ SIR
                     //      (builtins_math.cpp): عائمٌ إن كان أحدُ الوسيطين عائمًا،
-                    //      وطبيعي64 إن كانا معًا طبيعي64، وإلّا Integer موقَّع. **مرآةٌ
+                    //      وطبيعي إن كانا معًا طبيعي، وإلّا Integer موقَّع. **مرآةٌ
                     //      حرفيّةٌ لفرع resolveStaticType بالمفسّر** — فتُقارَنُ وتُطبَعُ
-                    //      نتيجةُ أكبر(طبيعي64،طبيعي64) المتداخلةُ لا-موقَّعةً على
+                    //      نتيجةُ أكبر(طبيعي،طبيعي) المتداخلةُ لا-موقَّعةً على
                     //      المسارين معًا، ويبقى الثابت resolveSurfaceType≡resolveStaticType
                     //      قائمًا. [[التوحيد الكامل]]
                     // (EN) أكبر/أصغر builtins: result type mirrors the SIR emitter
@@ -1846,19 +1876,16 @@ namespace Sad
                 return SadTypeKind::Integer;
             }
 
-            // (AR) ثنائيّ → هيمنة قانونيّة **متطابقة** مع المفسّر: Float>UInt64>Byte>Integer.
-            // (EN) Binary → canonical dominance IDENTICAL to the interpreter: Float>UInt64>Byte>Integer.
+            // (AR) ثنائيّ → قاعدةُ الهيمنةِ **المولَّدة** — الدالّةُ عينُها التي
+            //      يناديها المفسّر. والتطابقُ لم يعدْ دعوى تعليقٍ يُرجى الوفاءُ بها،
+            //      وإنّما بنيةٌ: لا نسخةَ ثانيةً كي تنجرف.
+            // (EN) Binary → the GENERATED dominance rule — the very function the
+            //      interpreter calls. Identity is no longer a comment's promise but
+            //      structure: there is no second copy to drift.
             if (auto *bin = dynamic_cast<const Sad::AST::BinaryExpr *>(expr))
             {
-                const SadTypeKind l = resolveSurfaceType(bin->left.get());
-                const SadTypeKind r = resolveSurfaceType(bin->right.get());
-                if (l == SadTypeKind::Float || r == SadTypeKind::Float)
-                    return SadTypeKind::Float;
-                if (l == SadTypeKind::UInt64 || r == SadTypeKind::UInt64)
-                    return SadTypeKind::UInt64;
-                if (l == SadTypeKind::Byte || r == SadTypeKind::Byte)
-                    return SadTypeKind::Byte;
-                return SadTypeKind::Integer;
+                return Sad::Types::sadNumericDominantKind(resolveSurfaceType(bin->left.get()),
+                                                          resolveSurfaceType(bin->right.get()));
             }
 
             return SadTypeKind::Integer;

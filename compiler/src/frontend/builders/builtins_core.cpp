@@ -28,6 +28,7 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -94,7 +95,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin طول() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin طول() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -143,7 +144,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin لرقم() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin لرقم() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -189,7 +190,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin لعشري() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin لعشري() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Float);
                 }
@@ -273,7 +274,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin لنص() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin لنص() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
@@ -349,7 +350,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin اطبع()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin اطبع()");
 #endif
                     return BuildResult("", SadTypeKind::Void); // (AR) لا قيمة إرجاع
                 }
@@ -432,7 +433,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin اطبع_سطر()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin اطبع_سطر()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -455,7 +456,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: builtin اقرأ() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: builtin اقرأ() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::String);
                 }

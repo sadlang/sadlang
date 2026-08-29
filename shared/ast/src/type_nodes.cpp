@@ -78,7 +78,7 @@ std::string SimpleTypeNode::kindToString(Types::SadTypeKind type) {
         case Types::SadTypeKind::Class:    return "كائن";     // object (class instance)
         case Types::SadTypeKind::Tuple:     return "ثنائي";    // tuple
         case Types::SadTypeKind::Enum:      return "تعداد";    // enum
-        case Types::SadTypeKind::Byte:      return "بايت";     // byte
+        case Types::SadTypeKind::UInt8:      return "بايت";     // byte
         case Types::SadTypeKind::Error:     return "خطأ";      // error
         case Types::SadTypeKind::Unknown:   return "مجهول";    // unknown
         default:                        return "غير_معروف"; // undefined
@@ -113,7 +113,7 @@ Types::SadTypeKind SimpleTypeNode::stringToKind(const std::string& name) {
     if (name == "تعداد" || name == "enum")
         return Types::SadTypeKind::Enum;
     if (name == "بايت" || name == "byte")
-        return Types::SadTypeKind::Byte;
+        return Types::SadTypeKind::UInt8;
     if (name == "خطأ" || name == "error")
         return Types::SadTypeKind::Error;
     

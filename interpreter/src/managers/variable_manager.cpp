@@ -612,8 +612,8 @@ namespace Sad
             declaredTypes_.erase(scope);
         }
 
-        // (AR) [طبقة طبيعي64 — الخطوة ١] تسجيل/قراءة النوع السطحيّ المُصرَّح.
-        // (EN) [طبيعي64 layer — Step 1] Record/read the declared surface type.
+        // (AR) [طبقة طبيعي — الخطوة ١] تسجيل/قراءة النوع السطحيّ المُصرَّح.
+        // (EN) [طبيعي layer — Step 1] Record/read the declared surface type.
         void VariableManager::setDeclaredType(const std::string &name, Types::SadTypeKind kind)
         {
             // (AR) نُسجّله على نطاق المتغيّر إن وُجد (بعد define مباشرةً هو النطاق الحاليّ)،

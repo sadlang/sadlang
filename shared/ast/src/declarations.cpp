@@ -66,7 +66,7 @@ namespace {
             case Types::SadTypeKind::Function:  return "function";
             case Types::SadTypeKind::Class:    return "object";
             case Types::SadTypeKind::Enum:      return "enum";
-            case Types::SadTypeKind::Byte:      return "byte";
+            case Types::SadTypeKind::UInt8:      return "byte";
             default:                        return "unknown";
         }
     }

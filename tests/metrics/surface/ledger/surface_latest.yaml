@@ -1,17 +1,17 @@
 # سِجلُّ سطحِ لغة ص — مُشتَقٌّ آليًّا من language-truth/
 # ⚠️ لا يُحرَّرُ باليد: python tests/metrics/surface/surface_map.py --update
-# آخرُ اشتقاق / last derivation: 2026-08-25
+# آخرُ اشتقاق / last derivation: 2026-08-29
 sections:
   01_core:
     name_ar: النواةُ اللغويّة
     name_en: Core language
     is_language_surface: true
-    total: 401
+    total: 407
     counts:
       كلماتٌ محجوزة (categories.reserved.keywords): 40
       كلماتٌ سياقيّة (categories.contextual.keywords): 44
       كلماتٌ عاملة (categories.operators.keywords): 3
-      أسماءُ أنواعٍ مدمجة (categories.builtin_types.keywords): 11
+      أسماءُ أنواعٍ مدمجة (categories.builtin_types.keywords): 17
       عوامل (operators): 43
       قواعدُ نحويّة (productions): 107
       قواعدُ خفض (rules): 107
@@ -24,9 +24,9 @@ sections:
     name_ar: نظامُ الأنواع
     name_en: Type system
     is_language_surface: true
-    total: 184
+    total: 181
     counts:
-      أنواعٌ معرَّفة (types): 52
+      أنواعٌ معرَّفة (types): 49
       تصنيفاتٌ عربيّة (categories_ar): 11
       طرائقُ أنواع (methods): 114
       أنواعٌ هدفٌ للطرائق (targets): 7
@@ -152,9 +152,9 @@ sections:
     name_ar: التشخيصُ والأخطاء
     name_en: Diagnostics
     is_language_surface: false
-    total: 250
+    total: 251
     counts:
-      مداخلُ كتالوجِ الأخطاء (errors): 181
+      مداخلُ كتالوجِ الأخطاء (errors): 182
       وسومُ تشخيصِ الخلفيّة (tag): 28
       تشخيصاتٌ خالصة (pure): 18
       أصنافُ التشخيص (kind): 8
@@ -197,7 +197,7 @@ sections:
       ماكرو المضيف (host_macros): 8
       مرادفاتُ الثُّلاثيّ (triple_aliases): 12
 totals:
-  language_surface: 2431
-  all_sections: 4287
+  language_surface: 2434
+  all_sections: 4291
   sot_files_counted: 106
   sot_files_ignored: 7

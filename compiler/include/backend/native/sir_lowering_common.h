@@ -160,11 +160,11 @@ namespace sad
                     out = op.intValue;
                     return true;
                 }
-                // (AR) [توسيع اللا-موقَّع] ثابتٌ طبيعي64: نمطُ بتّاته يعيش في intValue (نفسُ اتّحادِ
+                // (AR) [توسيع اللا-موقَّع] ثابتٌ طبيعي: نمطُ بتّاته يعيش في intValue (نفسُ اتّحادِ
                 //      Integer، لا حقلَ منفصل) ⇒ نُرجعه كـi64. آمنٌ في كلِّ مواضعِ الاستدعاء: العرضُ
                 //      الكامل ٦٤-بت يُحمَّل عبر movImm64/movConst، والمقارناتُ اللا-موقَّعةُ محروسةٌ
                 //      ببوّابتِها المستقلّة (bothUInt64/eitherUInt64). بدونه يفشلُ أيُّ معامِلٍ ثابتٍ
-                //      طبيعي64 صراحةً (const-type=13 · operand-kind=CONSTANT) في القسمة/الإزاحة/غيرِها.
+                //      طبيعي صراحةً (const-type=13 · operand-kind=CONSTANT) في القسمة/الإزاحة/غيرِها.
                 if (op.type == sir::SIROperandType::CONSTANT &&
                     op.dataType == types::SadTypeKind::UInt64)
                 {
@@ -196,8 +196,7 @@ namespace sad
             inline bool isSignedIntKind(types::SadTypeKind k)
             {
                 using K = types::SadTypeKind;
-                return k == K::Integer || k == K::Int8 || k == K::Int16 || k == K::Int32 ||
-                       k == K::Int64;
+                return k == K::Integer || k == K::Int8 || k == K::Int16 || k == K::Int32;
             }
 
             // (AR) يجد مقارنةً في الكتلة نتيجتُها condName تُغذّي BR_COND المُنهيَ لها، شرطَ أن

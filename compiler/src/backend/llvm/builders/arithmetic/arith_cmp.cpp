@@ -162,13 +162,13 @@ namespace Sad
             if (right->getType()->isDoubleTy())
                 right = emitF64ToI64Sat(right, "shr.r.f2i.sat");
 
-            // (AR) [طبقة طبيعي64 — الخطوة ٨] إشارةُ الإزاحة اليمنى من النوع السطحيّ للمعامل
-            //      الأيسر (القيمة المُزاحة): طبيعي64 ⇒ منطقيّة LShr (تُدخِل أصفارًا: MAX>>1=2^63-1)
+            // (AR) [طبقة طبيعي — الخطوة ٨] إشارةُ الإزاحة اليمنى من النوع السطحيّ للمعامل
+            //      الأيسر (القيمة المُزاحة): طبيعي ⇒ منطقيّة LShr (تُدخِل أصفارًا: MAX>>1=2^63-1)
             //      مطابقةً للمفسّر اللا-موقَّع؛ غير ذلك ⇒ حسابيّة AShr تحفظ الإشارة (‎-8>>1=-4‏)
             //      مطابقةً للمفسّر الموقَّع `int64_t >>`. الواجهةُ الأماميّة تُصالِح operands[0]
             //      .dataType مع السطح الضحل (رفعٌ عند الطمس بإعادة الإسناد، خفضٌ للمُستنتَج).
-            // (EN) [طبيعي64 layer — Step 8] Right-shift signedness from the LEFT operand's (the
-            //      shifted value's) surface type: طبيعي64 ⇒ logical LShr (shifts in zeros:
+            // (EN) [طبيعي layer — Step 8] Right-shift signedness from the LEFT operand's (the
+            //      shifted value's) surface type: طبيعي ⇒ logical LShr (shifts in zeros:
             //      MAX>>1=2^63-1) matching the unsigned interpreter; otherwise ⇒ arithmetic AShr
             //      (sign-preserving, -8>>1=-4) matching the signed interpreter `int64_t >>`. The
             //      frontend reconciles operands[0].dataType with the shallow surface (upgrade on a
@@ -241,17 +241,14 @@ namespace Sad
                 {
                 case SadTypeKind::Integer:
                 case SadTypeKind::Float:
-                case SadTypeKind::Byte:
                 case SadTypeKind::Int8:
                 case SadTypeKind::Int16:
                 case SadTypeKind::Int32:
-                case SadTypeKind::Int64:
                 case SadTypeKind::UInt8:
                 case SadTypeKind::UInt16:
                 case SadTypeKind::UInt32:
                 case SadTypeKind::UInt64:
                 case SadTypeKind::Float32:
-                case SadTypeKind::Float64:
                     return true;
                 default:
                     return false;
@@ -748,9 +745,9 @@ namespace Sad
             }
             else
             {
-                // (AR) [طبقة طبيعي64 — الخطوة ٥] ترتيب لا-موقَّع حين كلا المعامِلين طبيعي64
+                // (AR) [طبقة طبيعي — الخطوة ٥] ترتيب لا-موقَّع حين كلا المعامِلين طبيعي
                 //      (يُطابق المفسّر). النوع من dataType الساكن للمعامل. لا أوپكود جديد.
-                // (EN) [طبيعي64 layer — Step 5] Unsigned ordering when both operands are طبيعي64
+                // (EN) [طبيعي layer — Step 5] Unsigned ordering when both operands are طبيعي
                 //      (mirrors the interpreter). Type from the operand's static dataType. No new opcode.
                 result = isUnsignedOrderingCmp(*inst)
                              ? cg_.builder_->CreateICmpULT(left, right, "cmpulttmp")
@@ -849,8 +846,8 @@ namespace Sad
             }
             else
             {
-                // (AR) [طبقة طبيعي64 — الخطوة ٥] ترتيب لا-موقَّع حين كلا المعامِلين طبيعي64.
-                // (EN) [طبيعي64 layer — Step 5] Unsigned ordering when both operands are طبيعي64.
+                // (AR) [طبقة طبيعي — الخطوة ٥] ترتيب لا-موقَّع حين كلا المعامِلين طبيعي.
+                // (EN) [طبيعي layer — Step 5] Unsigned ordering when both operands are طبيعي.
                 result = isUnsignedOrderingCmp(*inst)
                              ? cg_.builder_->CreateICmpULE(left, right, "cmpuletmp")
                              : cg_.builder_->CreateICmpSLE(left, right, "cmpletmp");

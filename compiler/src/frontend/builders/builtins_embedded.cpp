@@ -20,6 +20,7 @@
 #include <optional>
 
 #include "builtin_registry.h"
+#include "sad_debug_log.h"
 namespace Bn = Sad::Builtins::Names;
 namespace Ar = Sad::Builtins::Arity;
 
@@ -62,7 +63,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin تسلسلي_هيئ()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin تسلسلي_هيئ()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -101,7 +102,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin تسلسلي_استقبل()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin تسلسلي_استقبل()");
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -122,7 +123,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin تسلسلي_جاهز()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin تسلسلي_جاهز()");
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -141,7 +142,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin منفذ_رقمي_اكتب()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin منفذ_رقمي_اكتب()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -162,7 +163,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin منفذ_رقمي_اقرأ()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin منفذ_رقمي_اقرأ()");
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -181,7 +182,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin حدد_وضع_منفذ()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin حدد_وضع_منفذ()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -199,7 +200,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin مؤقت_هيئ()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin مؤقت_هيئ()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -217,7 +218,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin مؤقت_قراءة()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin مؤقت_قراءة()");
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -235,7 +236,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin مؤقت_انتظر()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin مؤقت_انتظر()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -250,7 +251,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin اعد_تشغيل()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin اعد_تشغيل()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -270,7 +271,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin معرف_المعالج()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin معرف_المعالج()");
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -288,7 +289,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin عداد_الدورات()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin عداد_الدورات()");
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -303,7 +304,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin حاجز_ذاكرة()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin حاجز_ذاكرة()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -318,7 +319,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin حاجز_قراءة()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin حاجز_قراءة()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -333,7 +334,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin حاجز_كتابة()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin حاجز_كتابة()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -352,7 +353,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin نقل_مباشر_هيئ()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin نقل_مباشر_هيئ()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -370,7 +371,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin نقل_مباشر_ابدأ()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin نقل_مباشر_ابدأ()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }

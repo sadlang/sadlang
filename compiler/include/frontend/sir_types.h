@@ -75,7 +75,7 @@ namespace Sad
                     return "map";
                 case SadTypeKind::Tuple:
                     return "tuple";
-                case SadTypeKind::Byte:
+                case SadTypeKind::UInt8:
                     return "byte";
                 case SadTypeKind::Error:
                     return "error";

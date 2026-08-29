@@ -27,6 +27,7 @@
 #include <filesystem>
 #include <optional>
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "sad_debug_log.h"
 
 namespace Sad
 {
@@ -321,9 +322,9 @@ namespace Sad
                                     {
                                         sirClass->fields_[fieldName] = argType;
 #ifndef NDEBUG
-                                        std::cout << "[DEBUG] buildNewObject: inferred field '" << fieldName
+                                        SAD_DEBUG_LOG_LINE("[DEBUG] buildNewObject: inferred field '" << fieldName
                                                   << "' type=" << static_cast<int>(argType)
-                                                  << " from arg '" << paramName << "'" << std::endl;
+                                                  << " from arg '" << paramName << "'");
 #endif
                                     }
                                 }
@@ -394,9 +395,9 @@ namespace Sad
                                             currentClass->fields_[fieldName] = inferredType;
                                         }
 #ifndef NDEBUG
-                                        std::cout << "[DEBUG] buildNewObject: propagated field '" << fieldName
+                                        SAD_DEBUG_LOG_LINE("[DEBUG] buildNewObject: propagated field '" << fieldName
                                                   << "' type=" << static_cast<int>(inferredType)
-                                                  << " to parent '" << parentSirClass->name << "'" << std::endl;
+                                                  << " to parent '" << parentSirClass->name << "'");
 #endif
                                     }
                                 }
@@ -411,7 +412,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildNewObject: object created in register '" << objReg << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildNewObject: object created in register '" << objReg << "'");
 #endif
 
                 // (AR) تتبّع نوع الكائن لدعم إعادة تعريف العوامل
@@ -446,8 +447,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildMemberAccess: accessing member '"
-                          << memberExpr->memberName << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildMemberAccess: accessing member '"
+                          << memberExpr->memberName << "'");
 #endif
 
                 // ================================================================
@@ -710,8 +711,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildMemberAccess: result in register '" << resultReg
-                          << "' with type " << sirTypeToString(memberType) << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildMemberAccess: result in register '" << resultReg
+                          << "' with type " << sirTypeToString(memberType));
 #endif
 
                 BuildResult result(resultReg, memberType);

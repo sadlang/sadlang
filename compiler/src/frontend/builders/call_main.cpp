@@ -35,6 +35,7 @@
 #include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
 #include "builtin_registry.h" // (AR) ثوابت أسماء المدمجات (Bn::Core::PRINT/PRINTLN) / (EN) builtin name constants
 #include "tagged_enum_keys.h" // (AR) تنسيق طبع القيمة الموسومة (SoT) / (EN) tagged-value print format (SoT)
+#include "sad_debug_log.h"
 
 namespace Sad
 {
@@ -132,7 +133,7 @@ namespace Sad
                 {
                     funcName = varExpr->name;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: function name = '" << funcName << "'" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: function name = '" << funcName << "'");
 #endif
 
                     // ════════════════════════════════════════════════════════════
@@ -193,9 +194,9 @@ namespace Sad
                                 b_.functionTable_.end())
                         {
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildFunctionCall: devirtualized '"
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: devirtualized '"
                                       << funcName << "' -> '"
-                                      << refInfo->funcRefProvenance << "'" << std::endl;
+                                      << refInfo->funcRefProvenance << "'");
 #endif
                             funcName = refInfo->funcRefProvenance;
                         }
@@ -516,7 +517,7 @@ namespace Sad
 #endif
                     return simdResult.value();
                 }
-                // (AR) [طبقة طبيعي64 — الطباعة الجذريّة الموحَّدة] لمدمجات الطباعة (اطبع/اطبع_سطر):
+                // (AR) [طبقة طبيعي — الطباعة الجذريّة الموحَّدة] لمدمجات الطباعة (اطبع/اطبع_سطر):
                 //      تُقرَّر إشارةُ تنسيق كلّ وسيطٍ عدديّ من **`resolveSurfaceType(argExpr)`** على
                 //      شجرة الوسيط — مرآةً حرفيّةً لخطوة ٤ بالمفسّر (`renderUnsignedArgs` يستعمل
                 //      `resolveStaticType(argExpr)`) — لا من نوع سِجِلّ الوسيط المُنتشَر. بما أنّ
@@ -526,7 +527,7 @@ namespace Sad
                 //      الفهرسة، الثلاثيّ، النداء، الطريقة — بلا خفوضٍ نقطيّة. القيمةُ int64 لا تتغيّر
                 //      (الإشارةُ للطباعة فقط)، والمتغيّرُ المُسنَد يبقى يأخذ نوعه من تصريحه للحساب.
                 //      نمسّ المعاملات العدديّة فقط (UInt64/Byte/Integer)؛ نصّ/عشريّ/مصفوفة تُترَك.
-                // (EN) [طبيعي64 layer — unified root print gating] For the print builtins (اطبع/اطبع_سطر):
+                // (EN) [طبيعي layer — unified root print gating] For the print builtins (اطبع/اطبع_سطر):
                 //      each numeric argument's format signedness is decided from `resolveSurfaceType(argExpr)`
                 //      over the argument's AST tree — a literal mirror of the interpreter's Step 4
                 //      (`renderUnsignedArgs` uses `resolveStaticType(argExpr)`) — NOT the propagated register
@@ -538,10 +539,10 @@ namespace Sad
                 //      computation. Only numeric operands (UInt64/Byte/Integer) are touched; string/float/array kept.
                 // (AR) البوّابة الثلاثيّة = عقد `renderUnsignedArgs` بالمفسّر بالضبط (اطبع/اطبع_سطر/نص
                 //      — builtin_core_io.cpp سطور ٨٣/٩١/١٦٧). تغطيةُ الثلاثة برهانُ اكتمال: لا مسار
-                //      تحويلٍ/طباعةٍ رابع يقرّر إشارةَ طبيعي64. `نص()` كان يُغفَل فتنفرج `نص(مُستنتَج)`.
+                //      تحويلٍ/طباعةٍ رابع يقرّر إشارةَ طبيعي. `نص()` كان يُغفَل فتنفرج `نص(مُستنتَج)`.
                 // (EN) The triad gate = the interpreter's `renderUnsignedArgs` contract exactly
                 //      (print/println/to_string — builtin_core_io.cpp lines 83/91/167). Covering all
-                //      three is a completeness proof: no fourth conversion/print path decides a طبيعي64
+                //      three is a completeness proof: no fourth conversion/print path decides a طبيعي
                 //      sign. `to_string` was missing, so `نص(inferred)` diverged.
                 if ((funcName == Bn::Core::PRINT || funcName == Bn::Core::PRINTLN ||
                      funcName == Bn::TypeCtor::TO_STRING) &&
@@ -550,7 +551,7 @@ namespace Sad
                     for (size_t i = 0; i < argOperands.size() && i < call->arguments.size(); ++i)
                     {
                         const SadTypeKind dt = argOperands[i].dataType;
-                        if (dt == SadTypeKind::UInt64 || dt == SadTypeKind::Byte ||
+                        if (dt == SadTypeKind::UInt64 || dt == SadTypeKind::UInt8 ||
                             dt == SadTypeKind::Integer)
                         {
                             const SadTypeKind surf = b_.resolveSurfaceType(call->arguments[i].get());
@@ -561,14 +562,14 @@ namespace Sad
                     }
                 }
 
-                // (AR) [طبقة طبيعي64 — أصغر/أكبر] بوّابةُ نوعٍ ضحلةٌ تُرآي بوّابةَ الطباعة أعلاه: تُعيدُ
+                // (AR) [طبقة طبيعي — أصغر/أكبر] بوّابةُ نوعٍ ضحلةٌ تُرآي بوّابةَ الطباعة أعلاه: تُعيدُ
                 //      كتابةَ نوعِ معامِلَي أصغر/أكبر العدديَّين إلى UInt64 حين يكونُ كلا النوعين السطحيَّين
-                //      (resolveSurfaceType) طبيعي64 صريحًا ⇒ مقارنةٌ لا-موقَّعةٌ في الخلفيّةِ الأصليّة (=
+                //      (resolveSurfaceType) طبيعي صريحًا ⇒ مقارنةٌ لا-موقَّعةٌ في الخلفيّةِ الأصليّة (=
                 //      ctx.argType==UInt64 لكلا الوسيطين في المفسّر). غيرُ ذلك Integer (موقَّع). Float يُترَكُ
                 //      (يُعالَجُ بمسارِ minsd/fcmp). المُستنتَجُ (لا الصريح) يبقى موقَّعًا على المسارين — الضحلُ يمنعُ الانفراج.
-                // (EN) [طبيعي64 layer — min/max] Shallow type gate mirroring the print gate above: rewrite
+                // (EN) [طبيعي layer — min/max] Shallow type gate mirroring the print gate above: rewrite
                 //      the numeric operands of أصغر/أكبر to UInt64 iff both surface types (resolveSurfaceType)
-                //      are explicit طبيعي64 ⇒ unsigned compare in the native backend (= ctx.argType==UInt64 for
+                //      are explicit طبيعي ⇒ unsigned compare in the native backend (= ctx.argType==UInt64 for
                 //      both args in the interpreter). Otherwise Integer (signed). Float is left untouched
                 //      (handled by the minsd/fcmp path). Inferred (not explicit) stays signed on both paths.
                 if ((funcName == Bn::Math::MAX || funcName == Bn::Math::MIN) && call &&
@@ -580,7 +581,7 @@ namespace Sad
                     for (size_t i = 0; i < 2; ++i)
                     {
                         const SadTypeKind dt = argOperands[i].dataType;
-                        if (dt == SadTypeKind::UInt64 || dt == SadTypeKind::Byte ||
+                        if (dt == SadTypeKind::UInt64 || dt == SadTypeKind::UInt8 ||
                             dt == SadTypeKind::Integer)
                             argOperands[i].dataType =
                                 bothU64 ? SadTypeKind::UInt64 : SadTypeKind::Integer;
@@ -718,10 +719,10 @@ namespace Sad
                     // (AR) الدالة موجودة - استخدم نوع الإرجاع (sir_builder.h:165)
                     // (EN) Function found - use return type
                     returnType = it->second.returnType;
-                    // (AR) [طبيعي64] لا خفضَ نقطيَّ هنا: بوّابةُ الطباعة الموحَّدة (قبل buildBuiltinCallCore)
+                    // (AR) [طبيعي] لا خفضَ نقطيَّ هنا: بوّابةُ الطباعة الموحَّدة (قبل buildBuiltinCallCore)
                     //      تشتقّ إشارةَ طباعة نتيجة النداء من resolveSurfaceType(CallExpr) = الإرجاع
                     //      المُصرَّح، فتُغني عن خفضِ نوع السِّجِلّ (الذي يبقى المُستنتَج للحساب).
-                    // (EN) [طبيعي64] No point downgrade here: the unified print gate (before
+                    // (EN) [طبيعي] No point downgrade here: the unified print gate (before
                     //      buildBuiltinCallCore) derives the call-result print sign from
                     //      resolveSurfaceType(CallExpr) = the declared return, obviating a register-type
                     //      downgrade (the register keeps the inferred type for computation).
@@ -867,8 +868,8 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: function found, returnType="
-                              << static_cast<int>(returnType) << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: function found, returnType="
+                              << static_cast<int>(returnType));
 #endif
                 }
                 else
@@ -921,8 +922,8 @@ namespace Sad
 // (AR) قد تكون دالة مدمجة غير مسجلة بعد
 // (EN) May be a builtin function not registered yet
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildFunctionCall: function '" << funcName
-                                  << "' not found (no template), assuming VOID return" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: function '" << funcName
+                                  << "' not found (no template), assuming VOID return");
 #endif
                     }
                 }
@@ -1105,8 +1106,8 @@ namespace Sad
                     if (varInfo)
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildFunctionCall: '" << funcName
-                                  << "' is a variable (closure call)" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: '" << funcName
+                                  << "' is a variable (closure call)");
 #endif
                         // (AR) تحميل مؤشر بنية الإغلاق من المتغير
                         // (EN) Load the closure struct pointer from the variable
@@ -1364,10 +1365,10 @@ namespace Sad
                                         {
                                             returnType = lambdaIt->second.returnType;
 #ifndef NDEBUG
-                                            std::cout << "[DEBUG] buildFunctionCall: pass-through detected for '"
+                                            SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: pass-through detected for '"
                                                       << funcName << "', specialized returnType to "
                                                       << static_cast<int>(returnType) << " from lambda '"
-                                                      << argVarInfo->closureLambdaName << "'" << std::endl;
+                                                      << argVarInfo->closureLambdaName << "'");
 #endif
                                             break;
                                         }
@@ -1424,13 +1425,13 @@ namespace Sad
                 {
                     b_.currentBlock_->instructions.push_back(callInst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: added CALL instruction to block" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: added CALL instruction to block");
 #endif
                 }
                 else
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildFunctionCall: WARNING - no current block!" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: WARNING - no current block!");
 #endif
                 }
 
@@ -1471,8 +1472,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildFunctionCall: returning result reg='" << resultReg
-                          << "', type=" << static_cast<int>(returnType) << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildFunctionCall: returning result reg='" << resultReg
+                          << "', type=" << static_cast<int>(returnType));
 #endif
 
                 // ================================================================
@@ -1491,6 +1492,29 @@ namespace Sad
                 //      because compiler didn't know the variable holds an object
                 // ================================================================
                 BuildResult result(resultReg, returnType);
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 والعرضُ المُعلَنُ للعائدِ يُحمَلُ على نتيجةِ النداء: `returnType`
+                //      أعلاه خانةُ تخزينٍ (`دالة رقم8` تُنزَلُ i64) فيقرأُ `نوع()` عليها
+                //      «رقم» بينما المفسّرُ يسمُ العائدَ بعرضِه المُعلَنِ ويقولُ «رقم8» —
+                //      تباعُدٌ **قِيسَ** في مسبارِ المعابر. والمصدرُ هنا `astDecl` أي
+                //      التصريحُ كما كتبَه المستخدِمُ لا كما نزلَ.
+                //      ⚠️ ولا يُرفَعُ إلى `returnType`: ذاك تغييرُ تمثيلٍ يطالُ كلَّ
+                //      قارئٍ للنداءِ — سدٌّ يهدمُ طبقةً تحتَه. والقارئُ الوحيدُ لهذا
+                //      الحقلِ اليومَ هو رافعُ مُعامِلِ `نوع()`.
+                // (EN) The declared return width rides on the call result: returnType above
+                //      is a STORAGE kind (a `رقم8` function lowers to i64), so نوع() answers
+                //      «رقم» while the interpreter tags the return with its declared width
+                //      and says «رقم8» — a MEASURED divergence. Source is astDecl, i.e. the
+                //      declaration as written, not as lowered. Never lifted into returnType:
+                //      that would be a representation change reaching every call reader.
+                // ════════════════════════════════════════════════════════════════
+                {
+                    auto declIt = b_.functionTable_.find(funcName);
+                    if (declIt != b_.functionTable_.end() && declIt->second.astDecl)
+                    {
+                        result.declaredSurfaceType = declIt->second.astDecl->returnType;
+                    }
+                }
                 // (AR) [وسم زمن-التشغيل] انقل نوعَ عنصر المصفوفة المُرجعة (Any للمختلطة)
                 //      إلى نتيجة النداء، فتقرأ الفهرسةُ اللاحقةُ الخانةَ موسومةً لا عدديًّا.
                 //      يُملأ returnElementType في buildReturnStatement (نظير returnClassName).

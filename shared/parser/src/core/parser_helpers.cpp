@@ -1886,7 +1886,7 @@ namespace Sad
             if (match(TT::TYPE_U64))
                 return Types::SadTypeKind::UInt64;
             if (match(TT::TYPE_U8))
-                return Types::SadTypeKind::Byte;
+                return Types::SadTypeKind::UInt8;
             // (AR) «أي» يصله المُعجَمُ رمزًا مخصَّصًا (TYPE_ANY في keywords.yaml)، وكان
             //      المحلّلُ يتجاهله فيسقط إلى مسارِ المُعرّفات. (EN) The lexer emits a
             //      dedicated TYPE_ANY token; the parser ignored it and fell through.
@@ -2063,37 +2063,28 @@ namespace Sad
                 // (EN) The two branches key off the RESOLVED KIND, not the word: the
                 //      structural need is token lookahead, not knowing the spelling.
                 const Types::SadTypeKind wordKind = Types::sadTypeKindFromArabicName(name);
-                switch (wordKind)
+                // (AR) 🔑 سُلَّمُ الحالاتِ كان نسخةً ثالثةً لخريطةِ «النوع ⇒ نوعٌ مُنتَجٌ»:
+                //      لفظٌ يُعلَنُ سطحيًّا في types.yaml يبلغُ `wordKind` سليمًا ثمّ
+                //      يسقطُ في `default:` بلا نوعٍ، فيَنحَلُّ عندَ المُنادي إلى «فراغ»
+                //      — تصريحٌ سليمٌ يُقاسُ نوعُه فراغًا بلا خطأٍ ولا حُمرة.
+                //      و`getByKind` تقرأُ الجدولَ المُفهرَسَ، فتصلُ الأنواعُ الجديدةُ
+                //      إلى هنا بلا تحريرِ هذا الملفّ. و«مصفوفة»/«خريطة» تُستثنَيان
+                //      بعدُ لأنّهما تبتلعان معاملاتٍ عامّةً (تقدُّمٌ في الرموز).
+                // (EN) This ladder was a third copy of the kind⇒type map: a kind
+                //      declared surface in types.yaml fell into `default:` and
+                //      decayed to Void at the caller. getByKind reads the indexed
+                //      table, so new kinds reach here without editing this file.
+                //      ⚠️ و«مجهول» يُستثنى صراحةً: `sadTypeKindFromArabicName` تُرجِعُه
+                //      لكلِّ ما ليس لفظَ نوعٍ — أي لاسمِ الصنف — و`getByKind` تُرجِعُ
+                //      عنه نوعًا **غيرَ فارغ**، فلو مُرِّرَ لاختطفَ مسارَ الأصنافِ كلَّه.
+                // (EN) Unknown is excluded on purpose: it is what the map returns for
+                //      any non-type word (a class name), and getByKind answers it with
+                //      a non-null type that would hijack the class path.
+                if (wordKind != Types::SadTypeKind::Unknown &&
+                    wordKind != Types::SadTypeKind::Array &&
+                    wordKind != Types::SadTypeKind::Map)
                 {
-                case Types::SadTypeKind::Integer:
-                    resolved = reg.getInteger();
-                    break;
-                case Types::SadTypeKind::Float:
-                    resolved = reg.getFloat();
-                    break;
-                case Types::SadTypeKind::String:
-                    resolved = reg.getString();
-                    break;
-                case Types::SadTypeKind::Boolean:
-                    resolved = reg.getBoolean();
-                    break;
-                case Types::SadTypeKind::Void:
-                    resolved = reg.getVoid();
-                    break;
-                case Types::SadTypeKind::Null:
-                    resolved = reg.getNull();
-                    break;
-                case Types::SadTypeKind::Any:
-                    resolved = reg.getAny();
-                    break;
-                case Types::SadTypeKind::Byte:
-                    resolved = reg.getByte();
-                    break;
-                case Types::SadTypeKind::UInt64:
-                    resolved = reg.getUInt64();
-                    break;
-                default:
-                    break;
+                    resolved = reg.getByKind(wordKind);
                 }
 
                 if (name == "مضاعف")
@@ -2555,7 +2546,7 @@ namespace Sad
             case TT::TYPE_U64:
                 return Types::SadTypeKind::UInt64;
             case TT::TYPE_U8:
-                return Types::SadTypeKind::Byte;
+                return Types::SadTypeKind::UInt8;
             case TT::TYPE_ANY:
                 return Types::SadTypeKind::Any;
             default:

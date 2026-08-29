@@ -295,7 +295,7 @@ instructions:
         modrm: { mod: reg, reg: 7, rm: op0 }
 
   # div r/m64  ⇒  REX.W + F7 /6   (قسمةٌ لا-موقَّعة؛ المقسومُ عليه rm، المقسومُ في rdx:rax،
-  #   وrdx يُصفَّر قبلها لا يُمَدُّ بالإشارة. للطباعةِ اللا-موقَّعة لطبيعي64. متحقَّق: div rcx = 48 f7 f1)
+  #   وrdx يُصفَّر قبلها لا يُمَدُّ بالإشارة. للطباعةِ اللا-موقَّعة لطبيعي. متحقَّق: div rcx = 48 f7 f1)
   اقسم_غير_موقع:
     - en: div
       form: "r64"
@@ -721,7 +721,7 @@ instructions:
         opcode: [0x0F, 0x82]
         immediate: { operand: 0, bits: 32, encoding: le }
 
-  # ja rel32 ⇒ 0F 87 cd (أعلى لا-موقَّع: CF=0 و ZF=0) — لفرعِ المقارنةِ اللا-موقَّعة (طبيعي64 >)
+  # ja rel32 ⇒ 0F 87 cd (أعلى لا-موقَّع: CF=0 و ZF=0) — لفرعِ المقارنةِ اللا-موقَّعة (طبيعي >)
   اقفز_إذا_أعلى:
     - en: ja
       form: "rel32"
@@ -731,7 +731,7 @@ instructions:
         opcode: [0x0F, 0x87]
         immediate: { operand: 0, bits: 32, encoding: le }
 
-  # jae rel32 ⇒ 0F 83 cd (أعلى أو يساوي لا-موقَّع: CF=0) — لفرعِ طبيعي64 ≥
+  # jae rel32 ⇒ 0F 83 cd (أعلى أو يساوي لا-موقَّع: CF=0) — لفرعِ طبيعي ≥
   اقفز_إذا_أعلى_أو_ساوى:
     - en: jae
       form: "rel32"
@@ -741,7 +741,7 @@ instructions:
         opcode: [0x0F, 0x83]
         immediate: { operand: 0, bits: 32, encoding: le }
 
-  # jbe rel32 ⇒ 0F 86 cd (أدنى أو يساوي لا-موقَّع: CF=1 أو ZF=1) — لفرعِ طبيعي64 ≤
+  # jbe rel32 ⇒ 0F 86 cd (أدنى أو يساوي لا-موقَّع: CF=1 أو ZF=1) — لفرعِ طبيعي ≤
   اقفز_إذا_أدنى_أو_ساوى:
     - en: jbe
       form: "rel32"

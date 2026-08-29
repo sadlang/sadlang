@@ -28,6 +28,7 @@
 #include "sad_type_utils.h" // (AR) SEM045: kindToArabic لرسالة حارس معامل الدالة / (EN) SEM045: Arabic type name for the param guard
 // (AR) منافذُ النصِّ الهابطةُ نداءً — لتردَّ مستقبِلَها العدميَّ إلى بابِ الرفع
 #include "string_runtime_ports.h"
+#include "sad_debug_log.h"
 
 using namespace Sad::Compiler::SIR;
 using namespace Sad::Compiler; // (AR) للوصول لثوابت sir_constants.h
@@ -98,12 +99,25 @@ namespace Sad
             std::string falseLabel = inst->operands[2].name;
 
 #ifndef NDEBUG
-            std::cout << "[DEBUG] emitCondBranch: looking for trueLabel='" << trueLabel
-                      << "', falseLabel='" << falseLabel << "'" << std::endl;
-            std::cout << "[DEBUG] emitCondBranch: registered blocks count=" << cg_.context_info_.basicBlocks.size() << std::endl;
-            for (const auto &[name, bb] : cg_.context_info_.basicBlocks)
+            SAD_DEBUG_LOG_LINE("[DEBUG] emitCondBranch: looking for trueLabel='" << trueLabel
+                      << "', falseLabel='" << falseLabel << "'");
+            SAD_DEBUG_LOG_LINE("[DEBUG] emitCondBranch: registered blocks count=" << cg_.context_info_.basicBlocks.size());
+            // (AR) 🔑 هذه الحلقةُ **تربيعيّةٌ في حجمِ البرنامج**: تطبعُ كلَّ الكتلِ
+            //      المسجَّلةِ عندَ كلِّ فرعٍ شرطيّ. وقِيسَ في بذرةٍ من ٥٩ سطرًا:
+            //      ٢٦٥ فرعًا × حتّى ٥٧ كتلة = ١٧٣٣١ سطرًا، وهي وحدَها الفرقُ بينَ
+            //      ١٦٫٦ ثانيةً و٠٫٨٠. فيُسأَلُ المِفتاحُ **قبلَ الحلقةِ لا داخلَها**،
+            //      إذ الغرضُ إسقاطُ المرورِ كلِّه لا إسقاطُ الطباعةِ وحدَها.
+            // (EN) 🔑 This loop is quadratic in program size — every registered block
+            //      printed at every conditional branch (measured: 265 × up to 57 =
+            //      17331 lines, the whole 16.6s vs 0.80s gap). Test the switch before
+            //      the loop, not inside it: the point is to skip the walk, not just
+            //      the printing.
+            if (::Sad::Diagnostics::debugLogEnabled())
             {
-                std::cout << "[DEBUG] emitCondBranch: registered block '" << name << "'" << std::endl;
+                for (const auto &[name, bb] : cg_.context_info_.basicBlocks)
+                {
+                    SAD_DEBUG_LOG_LINE("[DEBUG] emitCondBranch: registered block '" << name << "'");
+                }
             }
 #endif
 
@@ -182,22 +196,22 @@ namespace Sad
                     llvm::Value *neZero = cg_.builder_->CreateICmpNE(condition, zeroConst, "tobool.nz");
 
                     // (AR) [إصلاح تصادم kSadNullSentinel] لا نطبّق فحص حارس العدم على شرطٍ
-                    //      نوعُه الساكن طبيعي64/بايت: الحارس قيمةٌ i64 بعينها (2^63+1 لا-موقَّعًا)
-                    //      وطبيعي64 شرعيّ قد يساويها ⇒ كان يُعامَل «عدمًا» (falsy) خطأً. طبيعي64/
+                    //      نوعُه الساكن طبيعي/بايت: الحارس قيمةٌ i64 بعينها (2^63+1 لا-موقَّعًا)
+                    //      وطبيعي شرعيّ قد يساويها ⇒ كان يُعامَل «عدمًا» (falsy) خطأً. طبيعي/
                     //      بايت لا يكونان نوعَ العدم (العدمُ Integer)، فصدقُهما «≠ 0» فقط، مطابقةً
                     //      للمفسّر. Integer **مُستثنى** (يتصادم جوهريًّا مع العدم)، والأنواع
                     //      النِّلابليّة (Any/مجهول) يبقى لها الفحص (عدمٌ حقيقيّ قد يصل i64).
                     // (EN) [kSadNullSentinel collision fix] Do not apply the null-sentinel check
-                    //      to a condition whose static type is طبيعي64/Byte: the sentinel is one
-                    //      specific i64 value (2^63+1 unsigned) a legitimate طبيعي64 can equal ⇒ it
-                    //      was wrongly treated as null (falsy). طبيعي64/Byte are never the null type
+                    //      to a condition whose static type is طبيعي/Byte: the sentinel is one
+                    //      specific i64 value (2^63+1 unsigned) a legitimate طبيعي can equal ⇒ it
+                    //      was wrongly treated as null (falsy). طبيعي/Byte are never the null type
                     //      (null is Integer), so their truth is just «!= 0», matching the
                     //      interpreter. Integer is EXCLUDED (it collides intrinsically with null);
                     //      nullable types (Any/Unknown) keep the check (a real null may arrive i64).
                     const auto condType = inst->operands[0].dataType;
                     const bool condIsNonNullableNum =
                         condType == SadTypeKind::UInt64 ||
-                        condType == SadTypeKind::Byte;
+                        condType == SadTypeKind::UInt8;
 
                     if (condition->getType()->isIntegerTy(64) && !condIsNonNullableNum)
                     {

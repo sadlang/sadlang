@@ -268,13 +268,13 @@ namespace Sad
 
                 int64_t result = 0;
 
-                // (AR) [طبقة طبيعي64 — الخطوة ٧] طيُّ القسمة/الباقي لا-موقَّعًا حين تكون نتيجة
-                //      التعليمة طبيعي64 (ثبّتها الواجهةُ الأماميّة UInt64 لـ//،%). دلالةُ
+                // (AR) [طبقة طبيعي — الخطوة ٧] طيُّ القسمة/الباقي لا-موقَّعًا حين تكون نتيجة
+                //      التعليمة طبيعي (ثبّتها الواجهةُ الأماميّة UInt64 لـ//،%). دلالةُ
                 //      الطيّ من نوع النتيجة (كنمط فرع العشريّ أعلاه) كي يطابق زمنَ الترجمة
                 //      urem/udiv زمنَ التشغيل والمفسّرَ (MAX%2=1 لا ‎-1‏، MAX//2=INT64_MAX لا ‎-1‏)
                 //      لو صار المعامل ثابتًا (نشرُ نسخٍ). ‎-1‏ يُعاد تفسيره MAX لا-موقَّعًا؛ لا فيض.
-                // (EN) [طبيعي64 layer — Step 7] Fold division/modulo unsigned when the instruction's
-                //      result is طبيعي64 (the frontend pins //,% to UInt64). Fold semantics from the
+                // (EN) [طبيعي layer — Step 7] Fold division/modulo unsigned when the instruction's
+                //      result is طبيعي (the frontend pins //,% to UInt64). Fold semantics from the
                 //      result type (as the float branch above) so compile-time urem/udiv matches the
                 //      runtime and the interpreter (MAX%2=1 not -1, MAX//2=INT64_MAX not -1) should an
                 //      operand become constant (copy propagation). -1 reinterprets as unsigned MAX; no overflow.
@@ -612,12 +612,12 @@ namespace Sad
                     result = *leftVal << *rightVal;
                     break;
                 case SIROpcode::SHR:
-                    // (AR) [الخطوة ٨] النتيجة طبيعي64 (ثبّتتها الواجهة UInt64 لإزاحةٍ يسارُها
-                    //      طبيعي64) ⇒ إزاحةٌ منطقيّة على uint64_t (تطابق CreateLShr زمنَ التشغيل:
+                    // (AR) [الخطوة ٨] النتيجة طبيعي (ثبّتتها الواجهة UInt64 لإزاحةٍ يسارُها
+                    //      طبيعي) ⇒ إزاحةٌ منطقيّة على uint64_t (تطابق CreateLShr زمنَ التشغيل:
                     //      MAX>>1 = 2^63-1). غير ذلك: إزاحةٌ حسابيّة موقَّعة (int64_t، تطابق AShr:
                     //      -8>>1=-4). دلالةُ الطيّ من نوع النتيجة كنمط فرع العشريّ/القسمة.
-                    // (EN) [Step 8] طبيعي64 result (the frontend pins UInt64 for a shift whose left is
-                    //      طبيعي64) ⇒ logical shift on uint64_t (matches runtime CreateLShr:
+                    // (EN) [Step 8] طبيعي result (the frontend pins UInt64 for a shift whose left is
+                    //      طبيعي) ⇒ logical shift on uint64_t (matches runtime CreateLShr:
                     //      MAX>>1 = 2^63-1). Otherwise: signed arithmetic shift (int64_t, matches AShr:
                     //      -8>>1=-4). Fold semantics from the result type, as the float/division branches.
                     result = (inst.result.has_value() &&

@@ -23,6 +23,7 @@
 #include <functional>
 #include <unordered_set>
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "sad_debug_log.h"
 
 namespace Sad
 {
@@ -42,8 +43,8 @@ namespace Sad
                     return;
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildTrait: registering trait '" << traitDecl->name
-                          << "' with " << traitDecl->methods.size() << " methods" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildTrait: registering trait '" << traitDecl->name
+                          << "' with " << traitDecl->methods.size() << " methods");
 #endif
 
                 // (AR) بناء بيانات السمة وتسجيلها في الوحدة
@@ -77,9 +78,9 @@ namespace Sad
                 b_.traitDefaultImpls_[traitDecl->name] = traitDecl;
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildTrait: registered trait '" << traitDecl->name
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildTrait: registered trait '" << traitDecl->name
                           << "' with " << sirTrait.methods.size() << " methods, "
-                          << sirTrait.superTraits.size() << " super traits" << std::endl;
+                          << sirTrait.superTraits.size() << " super traits");
 #endif
             }
 
@@ -96,7 +97,7 @@ namespace Sad
 
                 std::string className = implDecl->targetType;
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildImpl: implementing";
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildImpl: implementing");
                 if (!implDecl->traitName.empty())
                 {
                     std::cout << " trait '" << implDecl->traitName << "'";
@@ -127,7 +128,7 @@ namespace Sad
 
                     std::string fullMethodName = className + "." + funcDecl->name;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildImpl: adding method '" << fullMethodName << "'" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildImpl: adding method '" << fullMethodName << "'");
 #endif
 
                     // (AR) تحويل نوع الإرجاع — مع استنتاج تلقائي إذا لم يُحدد
@@ -391,8 +392,8 @@ namespace Sad
                                         if (traitMethod.defaultImpl)
                                         {
 #ifndef NDEBUG
-                                            std::cout << "[DEBUG] buildImpl: generating default method '"
-                                                      << fullName << "' from trait '" << requiredTrait->name << "'" << std::endl;
+                                            SAD_DEBUG_LOG_LINE("[DEBUG] buildImpl: generating default method '"
+                                                      << fullName << "' from trait '" << requiredTrait->name << "'");
 #endif
 
                                             // (AR) تحويل نوع الإرجاع — مع استنتاج تلقائي
@@ -592,7 +593,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildImpl: finished impl for '" << className << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildImpl: finished impl for '" << className << "'");
 #endif
             }
 

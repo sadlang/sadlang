@@ -6,6 +6,7 @@
 #include "sir_builder.h"
 #include "builders/expression_builder.h"
 #include "sir_constants.h"
+#include "sad_debug_log.h"
 #include <set>
 #include <functional>
 #include <iostream>
@@ -254,7 +255,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprListComp(AST::ListComprehensionExpr *listCompExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found ListComprehensionExpr" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found ListComprehensionExpr");
 #endif
 
                 // (AR) تخصيص مصفوفة النتيجة عبر ARRAY_NEW (لا ALLOC) لتتوافق مع ARRAY_APPEND
@@ -500,7 +501,7 @@ namespace Sad
             BuildResult ExpressionBuilder::buildExprDictComp(AST::DictComprehensionExpr *dictCompExpr)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildExpression: found DictComprehensionExpr" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildExpression: found DictComprehensionExpr");
 #endif
 
                 // (AR) إنشاء خريطة النتيجة عبر `__sad_map_create` (نفس مسار الخريطة الحرفيّة العامل)

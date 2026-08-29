@@ -68,7 +68,7 @@ namespace Sad
                 inline bool isScalarKind(SadTypeKind kind)
                 {
                     return kind == SadTypeKind::Integer || kind == SadTypeKind::Float ||
-                           kind == SadTypeKind::Boolean || kind == SadTypeKind::Byte ||
+                           kind == SadTypeKind::Boolean || kind == SadTypeKind::UInt8 ||
                            kind == SadTypeKind::UInt64;
                 }
             } // namespace

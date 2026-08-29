@@ -197,8 +197,19 @@ int main()
     });
 
     SAD_TEST("SIRT15: عدد الأنواع الأساسية", {
-        // SadTypeKind الموحد: Function هو النوع رقم 25 (بعد إضافة الأنواع ذات الحجم المحدد)
-        SAD_ASSERT_TRUE((int)Sad::Compiler::SIR::SadTypeKind::Function == 25);
+        // (AR) 🔑 لا رتبةَ مكتوبةً باليدِ هنا: رتبةُ «دالة» تتغيّرُ كلّما
+        //      أُضيفَ نوعٌ أو حُذِفَ في types.yaml، فتثبيتُها عددًا يجعلُ
+        //      الاختبارَ نسخةً ثانيةً من الحقيقةِ تنجرفُ عنها. والمحروسُ
+        //      هو التطابقُ مع الثابتِ المولَّدِ من مصدرِ الحقيقة: آخرُ عضوٍ
+        //      في التعدادِ رتبتُه COUNT-1، فإن زِيدَ عضوٌ باليدِ بلا إعادةِ
+        //      توليدٍ انكسرَ هذا الشرطُ فورًا.
+        // (EN) No hand-written ordinal: the guarded invariant is that the
+        //      enum agrees with the SoT-generated cardinality — the last
+        //      member sits at COUNT-1. A hand-added member breaks it.
+        SAD_ASSERT_TRUE((int)Sad::Types::SadTypeKind::Rect ==
+                        Sad::Types::SAD_TYPE_KIND_COUNT - 1);
+        SAD_ASSERT_TRUE((int)Sad::Compiler::SIR::SadTypeKind::Function <
+                        Sad::Types::SAD_TYPE_KIND_COUNT);
     });
 
     // ╔══════════════════════════════════════════════════════════════════╗

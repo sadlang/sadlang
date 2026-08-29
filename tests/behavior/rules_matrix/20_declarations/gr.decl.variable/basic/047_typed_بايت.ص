@@ -1,8 +1,0 @@
-# @rule: gr.decl.variable
-# @description: متغير بايت (u8 سطحيّ، 0–255)
-# @priority: P1
-# @requires: اطبع_سطر
-# @expected: 200
-
-متغير بايت ب = 200
-اطبع_سطر(ب)

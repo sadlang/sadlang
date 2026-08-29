@@ -476,7 +476,7 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::ABS), math_abs_func);
 
-            // TODO 4: max / أكبر (Maximum) - Enhanced registration (sign-aware: طبيعي64 ⇒ لا-موقَّع)
+            // TODO 4: max / أكبر (Maximum) - Enhanced registration (sign-aware: طبيعي ⇒ لا-موقَّع)
             auto math_max_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
                 return mathMinMaxSignAware(ctx, /*isMax=*/true);
@@ -484,7 +484,7 @@ namespace Sad
 
             interpreter.getFunctionManager().registerBuiltinFunction(std::string(Bm::MAX), math_max_func);
 
-            // TODO 5: min / أصغر (Minimum) - Enhanced registration (sign-aware: طبيعي64 ⇒ لا-موقَّع)
+            // TODO 5: min / أصغر (Minimum) - Enhanced registration (sign-aware: طبيعي ⇒ لا-موقَّع)
             auto math_min_func = [](Sad::Interpreter::BuiltinContext &ctx)
             {
                 return mathMinMaxSignAware(ctx, /*isMax=*/false);

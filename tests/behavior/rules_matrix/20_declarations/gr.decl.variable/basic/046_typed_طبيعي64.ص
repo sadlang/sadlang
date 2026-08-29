@@ -1,8 +1,0 @@
-# @rule: gr.decl.variable
-# @description: متغير طبيعي64 (عدد صحيح 64-بت لا-موقَّع سطحيّ)
-# @priority: P1
-# @requires: اطبع_سطر
-# @expected: 5
-
-متغير طبيعي64 س = 5
-اطبع_سطر(س)

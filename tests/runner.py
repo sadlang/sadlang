@@ -161,6 +161,44 @@ class TestResult:
     metadata: Optional[TestMetadata] = None
 
 
+def interpreter_is_skipped(meta: TestMetadata) -> bool:
+    """(AR) هل يُترَكُ المفسّرُ دونَ تشغيلٍ لهذه البذرة؟
+
+    (AR) كلُّ توجيهٍ يحكمُ محرّكَه: `@skip_interpreter` صراحةً، أو سالبُ المترجمِ
+         المنفردُ (`@expect_compile_error` أو `@expect_error_compiled`) بلا
+         `@expect_error` يُخاطِبُ المترجمَ وحدَه فلا يُشغَّلُ المفسّر.
+    (AR) 🔑 هذا المُسنَدُ **مرجعُ الحقيقةِ الوحيدُ** لهذا السؤال: يُنادِيه موضعُ
+         التشغيلِ وموضعُ التصنيفِ معًا. وكانَ الشرطُ منشورًا في موضعِ التشغيلِ
+         وحدَه بينما صنَّفَ العدّادُ على `skip_compiler` — فأعلنَ عن محرّكَين
+         وقاسَ واحدًا. فمَن غيَّرَ القاعدةَ هنا غيَّرَها في الموضعَين معًا.
+
+    (EN) Single source of truth for "was the interpreter left unrun?" — called by
+         both the execution site and the summary classifier so the two cannot drift.
+    """
+    if meta.skip_interpreter:
+        return True
+    return bool(meta.expect_compile_error or meta.expect_error_compiled) and not meta.expect_error
+
+
+def execution_mode(meta: Optional[TestMetadata]) -> str:
+    """(AR) دلوُ البذرة: `dual_parity` أو `interpreter_only` أو `compiler_only`.
+
+    (AR) 🔑 وهذا المُسنَدُ مرجعُ الحقيقةِ الوحيدُ للتصنيف: يُنادِيه العدّادُ
+         وتقريرُ JSON ومولّدُ HTML معًا. وكانَ الثلاثةُ يحسبونَه بأيديهم بثلاثِ
+         نسخٍ متطابقةٍ — **وثلاثُ نسخٍ من قاعدةٍ واحدةٍ تفترقُ في النسخةِ التي
+         تُنسى**، وهي عينُ العلّةِ التي وُلِدَ `interpreter_is_skipped` لسدِّها.
+    (EN) Single source of truth for the bucket a seed belongs to — called by the
+         summary counter, the JSON report and the HTML generator alike.
+    """
+    if meta is None:
+        return "dual_parity"
+    if meta.skip_compiler:
+        return "interpreter_only"
+    if interpreter_is_skipped(meta):
+        return "compiler_only"
+    return "dual_parity"
+
+
 # ═══════════════════════════════════════════════════════════════════════════════════
 # الجزء ②: قراءة البيانات الوصفية من ملفات .ص
 # Part ②: Parse test metadata from .ص files
@@ -986,8 +1024,7 @@ def _run_single_test_raw(
     #      (compile-time or runtime) without @expect_error skips the interpreter
     #      — otherwise its result is silently discarded (masking interpreter
     #      regressions) or its timeout spuriously fails the test.
-    if meta.skip_interpreter or ((meta.expect_compile_error or meta.expect_error_compiled)
-                                 and not meta.expect_error):
+    if interpreter_is_skipped(meta):
         interp_out, interp_time, interp_err = "", 0.0, ""
     else:
         interp_work = temp_dir / ("interp_" + uuid.uuid4().hex[:8])
@@ -1399,6 +1436,8 @@ def classify_results(results: list[TestResult]) -> dict:
     dual_parity_failed = 0
     interp_only_passed = 0
     interp_only_failed = 0
+    compiler_only_passed = 0
+    compiler_only_failed = 0
     skipped = 0
     known_red = 0
 
@@ -1417,16 +1456,34 @@ def classify_results(results: list[TestResult]) -> dict:
             known_red += 1
             continue
 
-        is_interp_only = t.metadata and t.metadata.skip_compiler
+        # (AR) 🔑 التصنيفُ كان يسألُ عن تخطّي المترجمِ وحدَه ويُعلِنُ عن المحرّكَين
+        #      معًا. فبذرةُ `@expect_compile_error` المنفردةُ — والمفسّرُ لا يُشغَّلُ
+        #      عليها بنصِّ [interpreter_is_skipped] — كانت تقعُ في دلوِ «تكافؤ
+        #      مزدوج» وتُقرَأُ برهانًا على اتّفاقِ المحرّكَين وهي برهانُ محرّكٍ
+        #      واحد. **عدّادٌ يُعلِنُ اتّفاقَ طرفَين يلزمُه أن يشتقَّ تصنيفَه من
+        #      تشغيلِ الطرفَين فعلًا.** والمُسنَدُ مشتَركٌ مع موضعِ التشغيلِ عمدًا:
+        #      قاعدةٌ تُنسَخُ مرّتَين تفترقُ في المرّةِ التي تُنسى.
+        # (EN) Classification asked only about skip_compiler yet announced both
+        #      engines. A lone `@expect_compile_error` seed — whose interpreter is
+        #      never run, per [interpreter_is_skipped] — landed in the dual-parity
+        #      bucket and read as proof of two-engine agreement while only one ran.
+        #      The predicate is shared with the execution site on purpose.
+        mode = execution_mode(t.metadata)
+        is_interp_only = mode == "interpreter_only"
+        is_compiler_only = mode == "compiler_only"
 
         if t.status == Status.PASS:
             if is_interp_only:
                 interp_only_passed += 1
+            elif is_compiler_only:
+                compiler_only_passed += 1
             else:
                 dual_parity_passed += 1
         elif t.status.value.startswith("FAIL"):
             if is_interp_only:
                 interp_only_failed += 1
+            elif is_compiler_only:
+                compiler_only_failed += 1
             else:
                 dual_parity_failed += 1
 
@@ -1435,11 +1492,13 @@ def classify_results(results: list[TestResult]) -> dict:
         "dual_parity_failed": dual_parity_failed,
         "interp_only_passed": interp_only_passed,
         "interp_only_failed": interp_only_failed,
+        "compiler_only_passed": compiler_only_passed,
+        "compiler_only_failed": compiler_only_failed,
         "skipped": skipped,
         "known_red": known_red,
         "total": len(results),
-        "total_passed": dual_parity_passed + interp_only_passed,
-        "total_failed": dual_parity_failed + interp_only_failed,
+        "total_passed": dual_parity_passed + interp_only_passed + compiler_only_passed,
+        "total_failed": dual_parity_failed + interp_only_failed + compiler_only_failed,
     }
 
 
@@ -1477,12 +1536,16 @@ def print_summary(results: list[TestResult], use_colors: bool, elapsed_total: fl
     print(f"{b}  ── تفصيل النجاح ──{r}")
     print(f"  {g}تكافؤ مزدوج (مفسر+مترجم): {c['dual_parity_passed']}{r}")
     print(f"  {cy}مفسر فقط (@expected):      {c['interp_only_passed']}{r}")
-    if c["dual_parity_failed"] > 0 or c["interp_only_failed"] > 0:
+    print(f"  {cy}مترجم فقط (سالبٌ مترجَم):  {c['compiler_only_passed']}{r}")
+    if (c["dual_parity_failed"] > 0 or c["interp_only_failed"] > 0
+            or c["compiler_only_failed"] > 0):
         print(f"{b}  ── تفصيل الفشل ──{r}")
         if c["dual_parity_failed"] > 0:
-            print(f"  {rd}فشل تكافؤ:    {c['dual_parity_failed']}{r}")
+            print(f"  {rd}فشل تكافؤ:     {c['dual_parity_failed']}{r}")
         if c["interp_only_failed"] > 0:
-            print(f"  {rd}فشل مفسر فقط: {c['interp_only_failed']}{r}")
+            print(f"  {rd}فشل مفسر فقط:  {c['interp_only_failed']}{r}")
+        if c["compiler_only_failed"] > 0:
+            print(f"  {rd}فشل مترجم فقط: {c['compiler_only_failed']}{r}")
     if total > 0:
         pct = (passed / total) * 100
         color = g if pct == 100 else rd
@@ -1504,15 +1567,16 @@ def write_report(results: list[TestResult], report_path: Path, elapsed_total: fl
         "dual_parity_failed": c["dual_parity_failed"],
         "interp_only_passed": c["interp_only_passed"],
         "interp_only_failed": c["interp_only_failed"],
+        "compiler_only_passed": c["compiler_only_passed"],
+        "compiler_only_failed": c["compiler_only_failed"],
         "elapsed_seconds": round(elapsed_total, 2),
         "tests": [],
     }
     for r in results:
-        is_interp_only = r.metadata and r.metadata.skip_compiler
         entry = {
             "file": r.file,
             "status": r.status.value,
-            "mode": "interpreter_only" if is_interp_only else "dual_parity",
+            "mode": execution_mode(r.metadata),
             "interp_time_ms": round(r.interp_time_ms, 1),
             "compiler_time_ms": round(r.compiler_time_ms, 1),
         }
@@ -2078,11 +2142,10 @@ def main():
         # (AR) تحويل TestResult إلى dict لمولد HTML
         test_dicts = []
         for r in results:
-            is_interp_only = r.metadata and r.metadata.skip_compiler
             test_dicts.append({
                 "file": r.file,
                 "status": r.status.value,
-                "mode": "interpreter_only" if is_interp_only else "dual_parity",
+                "mode": execution_mode(r.metadata),
                 "interp_time_ms": round(r.interp_time_ms, 1),
                 "compiler_time_ms": round(r.compiler_time_ms, 1),
                 "error": r.error_message or "",
@@ -2099,6 +2162,7 @@ def main():
             skipped=c["skipped"],
             dual_parity_passed=c["dual_parity_passed"],
             interp_only_passed=c["interp_only_passed"],
+            compiler_only_passed=c["compiler_only_passed"],
             elapsed=elapsed_total,
         )
         print(f"\n🌐 تقرير HTML: {html_path}")

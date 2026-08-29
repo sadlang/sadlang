@@ -31,6 +31,12 @@
       "type": "string",
       "description": "اسم النوع الذي تُرجعه نوع() زمن التشغيل — عند اختلافه عن word (مثل Class: word=صنف لكن نوع(كائن)=كائن). افتراضيًّا = word."
     },
+    "numeric": {
+      "type": "string",
+      "enum": ["signed", "unsigned", "float"],
+      "description": "صنفُ النوعِ العدديّ — الإشارةُ **مُعلَنةً** لا مستنبطةً من اسمِ الـkind. يُحذَفُ الحقلُ لكلِّ نوعٍ ليس عددًا (نص، منطقي، صنف…)، فيقرأُ المستهلكُ «ليس عددًا» صراحةً بدل أن يُخمِّن. ومع `size_bytes` يُشتَقُّ منه كلُّ ما كان مكتوبًا باليد: العرضُ بالبتّات، والمدى، والبترُ عندَ العبور، وقسمةُ الآلةِ ومقارنتُها (udiv/ult) ، وتنسيقُ الطباعة، وقاعدةُ الهيمنةِ عندَ الخلط. ⚠️ ولا يُغني عن `size_bytes`: هذا يقولُ «كيفَ تُقرأُ البتّات» وذاك يقولُ «كم بتًّا».",
+      "$comment": "The numeric class — signedness DECLARED, never inferred from the kind's spelling. Absent for non-numeric kinds so consumers read «not a number» explicitly instead of guessing. Together with size_bytes it derives every hand-written numeric decision: bit width, range, truncation at a crossing, machine div/cmp signedness, print formatting, and the mixing-dominance rule."
+    },
     "name_en": {
       "type": "string",
       "description": "الاسم الإنجليزي"

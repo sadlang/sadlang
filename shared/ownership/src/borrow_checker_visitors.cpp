@@ -668,7 +668,7 @@ namespace Sad
                 return "منطقي";
             case Types::SadTypeKind::String:
                 return "نص";
-            case Types::SadTypeKind::Byte:
+            case Types::SadTypeKind::UInt8:
                 return "بايت";
             case Types::SadTypeKind::Array:
                 return "مصفوفة";

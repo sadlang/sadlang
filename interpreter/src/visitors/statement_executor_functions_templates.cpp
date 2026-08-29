@@ -271,7 +271,7 @@ namespace Sad
                     return "object";
                 case Types::SadTypeKind::Enum:
                     return "enum";
-                case Types::SadTypeKind::Byte:
+                case Types::SadTypeKind::UInt8:
                     return "byte";
                 default:
                     return "unknown";

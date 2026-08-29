@@ -269,7 +269,7 @@ namespace Sad
                 registerBuiltin(std::string(Bm::SQUARE), "square", [](const std::vector<Data::Value> &args) -> Data::Value
                                 { return MathFunctions::square(args); });
                 // (AR) أصغر/أكبر: تسجيلٌ واعٍ بالسياق (لا عبر registerBuiltin
-                //   العديمِ السياق) كي نصلَ إلى ctx.argType ونقارنَ طبيعي64
+                //   العديمِ السياق) كي نصلَ إلى ctx.argType ونقارنَ طبيعي
                 //   بلا إشارةٍ مطابقةً للخلفيّةِ الأصليّة. [[التوحيد الكامل]]
                 functionManager_.registerBuiltinFunction(
                     std::string(Bm::MAX),

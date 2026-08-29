@@ -14,6 +14,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -49,7 +50,7 @@ namespace Sad
                 if (auto atomicDecl = dynamic_cast<Sad::AST::AtomicDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found AtomicDecl: " << atomicDecl->name << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found AtomicDecl: " << atomicDecl->name);
 #endif
 
                     // (AR) تحويل النوع الداخلي إلى SadTypeKind
@@ -99,8 +100,8 @@ namespace Sad
                 if (auto unsafeStmt = dynamic_cast<Sad::AST::UnsafeBlockStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found UnsafeBlockStmt with "
-                              << unsafeStmt->body.size() << " statements" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found UnsafeBlockStmt with "
+                              << unsafeStmt->body.size() << " statements");
 #endif
 
                     // (AR) تنفيذ جميع الجمل داخل الكتلة غير الآمنة
@@ -122,8 +123,8 @@ namespace Sad
                 if (auto comptimeStmt = dynamic_cast<Sad::AST::ComptimeBlockStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found ComptimeBlockStmt with "
-                              << comptimeStmt->body.size() << " statements" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found ComptimeBlockStmt with "
+                              << comptimeStmt->body.size() << " statements");
 #endif
 
                     // (AR) في وقت الترجمة، نقوم فقط بمعالجة الجمل (يمكن توسيعها لاحقاً)
@@ -145,7 +146,7 @@ namespace Sad
                 if (auto volatileDecl = dynamic_cast<Sad::AST::VolatileVarDeclStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found VolatileVarDeclStmt" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found VolatileVarDeclStmt");
 #endif
 
                     // (AR) استخراج VarDeclStmt من declaration
@@ -179,9 +180,9 @@ namespace Sad
                 if (auto macroDecl = dynamic_cast<Sad::AST::MacroDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Registering macro: '" << macroDecl->name
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Registering macro: '" << macroDecl->name
                               << "' with " << macroDecl->params.size() << " params"
-                              << (macroDecl->isVariadic ? " (variadic)" : "") << std::endl;
+                              << (macroDecl->isVariadic ? " (variadic)" : ""));
 #endif
                     // (AR) تخزين مؤشر الماكرو (AST يملك الذاكرة)
                     // (EN) Store macro pointer (AST owns memory)

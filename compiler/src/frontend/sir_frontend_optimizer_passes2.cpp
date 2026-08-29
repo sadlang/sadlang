@@ -137,6 +137,86 @@ namespace Sad
 
             bool FunctionInliningFrontendPass::shouldInline(const SIRFunction &callee) const
             {
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 هذا المَمَرُّ **مُطفَأٌ بقرارٍ صريحٍ** (٢٦ آب ٢٠٢٦) — وكانَ
+                //      مُطفَأً **بالصدفةِ** قبلَ اليوم.
+                //
+                //      كيف: حدُّ «أكثرَ من كتلتَين» أدناه كانَ يردُّ كلَّ مستدعًى في
+                //      الوضعِ المستضاف، لأنّ سقّالةَ التأجيلِ كانت تُصدَرُ لكلِّ دالّةٍ
+                //      بلا شرطٍ فتُنشئُ كتلًا زائدة. فلمّا رُفِعَ حارسُ السقّالةِ
+                //      (‏sir_builder_functions.cpp — مكسبٌ مقيسٌ ٢٦ ضعفًا في زمنِ
+                //      الترجمة) اشتعلَ هذا المَمَرُّ لأوّلِ مرّةٍ فعليًّا، **فاحمرّت
+                //      ٢٦ بذرةً دفعةً واحدة**.
+                //
+                //      والعطبُ ليس واحدًا بل **عائلات**، كلُّها مقيسةٌ ببذرةٍ قائمة:
+                //      ① خانةُ المعامِلِ تُلغى: `LOAD %معامل` تصيرُ قراءةً **من** الوسيط.
+                //         (مُصلَحةٌ في `inlineCallSite` أدناه — إغلاقات/ودجات/خرائط.)
+                //      ② العرضُ المُصرَّحُ على المعامِلِ يضيع: حدُّ النداءِ هو ما يقسر
+                //         `رقم8`/`طبيعي16`/… فيتخطّاه الدمج. ⇒ ٨ بذورِ `013_*_نوع_على_المعامل`
+                //         و`012_طبيعي_معامل_بقيمة_كبيرة` و`086_نوع_يجيب_العرض_المعلن…`.
+                //      ③ العائدُ المُصرَّحُ لا يقسر: `returnTypeIsDeclared` لا يعبرُ الدمج.
+                //         ⇒ `120_declared_return_float_coerced` و`155_…_runtime_…`.
+                //      ④ تلويثُ النطاق: محلّيٌّ يُظلِّلُ عامًّا يُدمَجُ فيكتبُ في العامّ.
+                //         ⇒ `221_var_shadow` و`108_scoping_shadowing` و`109_…_collision_dyn`
+                //         و`test_const_scope_aware`. **وهذه بعينِها العلّةُ الموصوفةُ أسفلَه
+                //         لاستثناءِ `__macro_`** — وُصِفت هناك ولم تُعمَّمْ، لأنّ لا شيءَ
+                //         كانَ يُحمِّرُها ما دامَ المَمَرُّ ميتًا.
+                //      ⑤ عائلاتٌ لم تُشخَّصْ بعد: `031/032_async_await` (انهيارُ تجزئة)،
+                //         `test_bug11_exact`، `test_bug18_*`، `test_p35_print_operator`.
+                //
+                //      🔑 والدرسُ الذي يجبُ ألّا يُنسى: **حارسٌ يستُرُ عطبَ ما وراءَه
+                //      ليس برهانَ سلامتِه.** ثلاثٌ من هذه العائلاتِ موصوفةٌ حرفيًّا في
+                //      تعليقاتِ هذا الملفِّ نفسِه كأسبابٍ لاستثناءاتٍ **ضيّقة** (الماكرو،
+                //      البانِي، Any)، والقاعدةُ العامّةُ وراءَها لم تُعمَّمْ قطُّ لأنّ
+                //      المصفوفةَ لم تكن تقدرُ أن تحمرَّ.
+                //
+                //      ⚠️ والإطفاءُ يشملُ الوضعَ الحرَّ الذي كانَ المَمَرُّ يعملُ فيه فعلًا
+                //      (دوالُّه بلا سقّالةٍ منذُ البداية). وذلك مقصود: خُضرةُ بذورِه اليومَ
+                //      تعني «لا بذرةَ تلمسُ العائلاتِ الستَّ هناك»، لا «الدمجُ سليمٌ هناك».
+                //
+                //      ⚠️⚠️ والإطفاءُ **مقصورٌ على ما اشتعلَ حديثًا** — لا شاملًا.
+                //      وذلك مقيسٌ لا مُقدَّر: إطفاءٌ شاملٌ جرّبتُه أوّلًا فأنقصَ الفشلَ
+                //      من ٧٦ إلى ٥٨ ثمّ **أبقى أربعةً حمراءَ جديدة** كلُّها من بابِ
+                //      الأصناف (`236_static_string_member`، `238_static_boolean_state`،
+                //      `053_forward_class_in_method`، `110_instance_method_return_via_earlier_function`).
+                //      وسببُها موصوفٌ **سلفًا** في استثناءِ البانِي أدناه: منعُ دمجِ
+                //      الطرائقِ يكشفُ ثغرةً قائمةً في استنتاجِ تواقيعِ الأعضاءِ يستُرها
+                //      الدمجُ اليوم. والطرائقُ لا تمرُّ بـ`emitDeferFrameBegin` أصلًا،
+                //      فالدمجُ كانَ — وما يزال — حيًّا لها وحدَها.
+                //      فالشرطُ هنا هو **علَمُ المسار** لا مقدارٌ يُخمَّن.
+                //
+                //      وإعادةُ إشعالِه عملٌ قائمٌ بذاته، شرطُه أن تخضرَّ البذورُ المعدودةُ
+                //      أعلاه — لا أن يُرفَعَ هذا السطر.
+                // (EN) The disable is scoped to what newly lit up, not global. Measured, not
+                //      assumed: a blanket disable took failures 76 → 58 but left four NEW
+                //      reds, all class-related, for the reason already documented in the
+                //      constructor exclusion below — forbidding method inlining exposes the
+                //      member-signature inference gap that inlining masks. Methods never go
+                //      through emitDeferFrameBegin, so inlining was, and remains, live only
+                //      for them. Hence the condition is the path flag, not a guess.
+                // (EN) 🔑 This pass is DELIBERATELY DISABLED (2026-08-26) — it was
+                //      ACCIDENTALLY disabled before. The ">2 blocks" cutoff below rejected
+                //      every hosted-mode callee, because the defer scaffold was emitted
+                //      unconditionally and added blocks. Lifting that scaffold gate (a
+                //      measured 26× compile-time win) lit this pass up for the first time
+                //      and turned 26 seeds red at once. The fault is not one bug but six
+                //      families, each pinned to an existing seed: (1) the parameter slot is
+                //      erased so `LOAD %param` becomes a load FROM the argument (fixed
+                //      below); (2) a declared parameter width is lost because the coercion
+                //      lives at the call boundary the inliner skips; (3) a declared return
+                //      type is not coerced; (4) an inlined local shadowing a global writes
+                //      the global — the very fault documented below as the reason for the
+                //      `__macro_` exclusion, never generalized because nothing could turn
+                //      red; (5)(6) async/await segfaults and several regression seeds, not
+                //      yet diagnosed. The lesson: a guard that hides the fault behind it is
+                //      not proof the fault is absent. Re-enabling is its own piece of work,
+                //      gated on those seeds going green — not on deleting this line.
+                // ════════════════════════════════════════════════════════════════
+                if (callee.usesFunctionDeferFramePath)
+                {
+                    return false;
+                }
+
                 // ================================================================
                 // (AR) [Fix #067] منع تضمين دوال الماكرو (__macro_*):
                 //      دوال الماكرو تُنشأ كدوال منفصلة لضمان عزل النطاق (hygiene).
@@ -373,6 +453,64 @@ namespace Sad
                             moveInst.operands = {retOp};
                             inlinedInsts.push_back(moveInst);
                         }
+                        continue;
+                    }
+
+                    // ════════════════════════════════════════════════════════════
+                    // (AR) 🔑 `load %معامل` تصيرُ **نقلًا** لا قراءةً من الوسيط.
+                    //      في جسمِ المستدعَى، `LOAD %م` معناها «اقرأ خانةَ المعامِلِ م».
+                    //      والدمجُ السطريُّ يُلغي تلك الخانةَ (لا `ALLOC` للمعامِلِ في
+                    //      الشيفرةِ المدموجة)، ثمّ يستبدلُ `%م` في **كلِّ** موضعِ معامِلٍ
+                    //      استبدالًا نصّيًّا — فتصيرُ التعليمةُ `LOAD <الوسيط>`، أي
+                    //      «اقرأ **من** القيمة» بدلَ «اقرأ القيمة».
+                    //
+                    //      وهذا لا ينهارُ مع عددٍ: `load 10` تنطوي إلى الثابتِ ١٠ في
+                    //      الخلفيّةِ فيبدو الدمجُ سليمًا. وينهارُ مع نصٍّ أو أيِّ مؤشّر:
+                    //      المقيسُ ٢٦ آب ٢٠٢٦ — `دالة مصنع(اسم، قيمة) { ارجع لامدا() { ارجع اسم + "=" + قيمة } }`
+                    //      أنتجَ `%_inl0_7 = load "أ"`، فبثّتِ الخلفيّةُ
+                    //      `load [3 x i8], ptr @str.const` — أي أنّها قرأت **بايتاتِ
+                    //      النصِّ قيمةً** وخزّنتها في خانةِ الالتقاط، فقرأتها اللامدا
+                    //      لاحقًا مؤشّرًا ⇒ انهيارُ تجزئة.
+                    //
+                    //      🔑 ولمَ لم يظهرْ هذا قطُّ حتّى اليوم: سقّالةُ التأجيلِ كانت
+                    //      تُصدَرُ لكلِّ دالّةٍ بلا شرطٍ في الوضعِ المستضاف، فتُنشئُ كتلًا
+                    //      إضافيّةً يردُّها حدُّ «أكثرَ من كتلتَين» أدناه — أي أنّ هذا
+                    //      المَمَرَّ كان **ميتًا عمليًّا** في الوضعِ المستضافِ كلِّه.
+                    //      وحينَ رُفِعَ حارسُ السقّالةِ اشتعلَ المَمَرُّ فظهرَ عطبُه.
+                    //      **حارسٌ يُخفي عطبَ ما وراءَه ليس برهانَ سلامتِه.**
+                    // (EN) 🔑 `load %param` becomes a MOVE, not a load FROM the argument.
+                    //      In the callee, `LOAD %p` means "read parameter p's slot". Inlining
+                    //      removes that slot and substitutes `%p` textually in every operand
+                    //      position, turning the instruction into `LOAD <argument>` — "read
+                    //      FROM the value" instead of "read the value". With an integer this
+                    //      folds to the constant and looks fine; with a string or any pointer
+                    //      it dereferences. Measured 2026-08-26: a factory returning a lambda
+                    //      that captures a string parameter produced `%_inl0_7 = load "أ"`,
+                    //      lowered to `load [3 x i8], ptr @str.const` — the string's bytes
+                    //      loaded as a value into the capture slot, read back as a pointer by
+                    //      the lambda ⇒ segfault.
+                    //      Why this never surfaced: the unconditional defer scaffold added
+                    //      basic blocks, so the ">2 blocks" cutoff below rejected virtually
+                    //      every hosted-mode callee — this path was effectively dead. Lifting
+                    //      the scaffold gate lit it up and exposed the defect. A guard that
+                    //      hides the fault behind it is not proof that the fault is absent.
+                    // ════════════════════════════════════════════════════════════
+                    if (calInst.opcode == SIROpcode::LOAD &&
+                        calInst.operands.size() == 1 &&
+                        calInst.operands[0].type == SIROperandType::REGISTER &&
+                        paramMap.find(calInst.operands[0].name) != paramMap.end())
+                    {
+                        SIRInstruction moveInst(SIROpcode::MOVE);
+                        moveInst.result = calInst.result;
+                        if (moveInst.hasResult() &&
+                            moveInst.result->type == SIROperandType::REGISTER &&
+                            globalVarNames_.find(moveInst.result->name) == globalVarNames_.end())
+                        {
+                            moveInst.result->name = renameReg(moveInst.result->name);
+                        }
+                        moveInst.operands = {paramMap.at(calInst.operands[0].name)};
+                        moveInst.comment = calInst.comment;
+                        inlinedInsts.push_back(moveInst);
                         continue;
                     }
 
@@ -623,23 +761,22 @@ namespace Sad
                             else if (op.type == SIROperandType::CONSTANT)
                             {
                                 // Encode constant as string for hashing
-                                // (AR) [إصلاح عيب كامن كشفته طبقة طبيعي64 — نظير cse_pass.cpp]
+                                // (AR) [إصلاح عيب كامن كشفته طبقة طبيعي — نظير cse_pass.cpp]
                                 //      كلّ الثوابت الصحيحة (بأيّ عرض/إشارة) تُرمَّز بقيمتها.
                                 //      UInt64/بايت/الأنواع المحدَّدة كانت تُهمَل تمامًا (لا فرع)
                                 //      ⇒ مفتاحٌ بلا تمييز ⇒ CSE الأماميّ (عند O3) يدمج `ك//2`
                                 //      و`ك//1` (نفس السجلّ، ثابتان مُهمَلان). ضمُّها يصلح الجذر.
-                                // (EN) [Latent-defect fix surfaced by the طبيعي64 layer — sibling
+                                // (EN) [Latent-defect fix surfaced by the طبيعي layer — sibling
                                 //      of cse_pass.cpp] All integer constants (any width/signedness)
                                 //      key by value. UInt64/Byte/sized types were skipped entirely
                                 //      (no branch) ⇒ an undistinguished key ⇒ the frontend CSE (at
                                 //      O3) merged `ك//2` and `ك//1` (same register, both constants dropped).
                                 if (op.dataType == SadTypeKind::Integer ||
                                     op.dataType == SadTypeKind::UInt64 ||
-                                    op.dataType == SadTypeKind::Byte ||
+                                    op.dataType == SadTypeKind::UInt8 ||
                                     op.dataType == SadTypeKind::Int8 ||
                                     op.dataType == SadTypeKind::Int16 ||
                                     op.dataType == SadTypeKind::Int32 ||
-                                    op.dataType == SadTypeKind::Int64 ||
                                     op.dataType == SadTypeKind::UInt8 ||
                                     op.dataType == SadTypeKind::UInt16 ||
                                     op.dataType == SadTypeKind::UInt32)

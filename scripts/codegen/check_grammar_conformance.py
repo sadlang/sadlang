@@ -319,7 +319,16 @@ def _support(status: str, mode: str) -> dict:
     """(AR) حالة runner → دعم كل محرّك."""
     i = c = "?"
     if status == "PASS":
-        i, c = "ok", ("n/a" if mode == "interpreter_only" else "ok")
+        # (AR) 🔑 «نجح» لا يعني «قاسَ المحرّكان». كانَ كلُّ PASS غيرِ
+        #      `interpreter_only` يُسجَّلُ `interpreter: ok` — بما فيه البذرةُ
+        #      السالبةُ للمترجّمِ التي **لا يُشغَّلُ عليها المفسّرُ أصلًا**، فتُقرَأُ
+        #      في مصفوفةِ المطابقةِ دعمًا مُثبَتًا للمفسّرِ وهو غيرُ مُقاس.
+        #      و«غيرُ مُقاسٍ» يُكتَبُ `n/a` لا `ok`.
+        # (EN) PASS ≠ both engines measured. A compiler-only negative never runs
+        #      the interpreter; recording "ok" for it asserts unmeasured support.
+        #      والتصحيحُ نفسُه لا يُكتَبُ ههنا بل بعدَ الأذرعِ كلِّها (أسفلَه)،
+        #      كي لا تُنسَخَ القاعدةُ في ذراعٍ وتُنسى في أختِها.
+        i = c = "ok"
     elif status == "FAIL_OUTPUT":
         i = c = "diverge"
     elif status == "FAIL_INTERP":
@@ -330,6 +339,22 @@ def _support(status: str, mode: str) -> dict:
         i = c = "timeout"
     elif status == "SKIP":
         i = c = "skip"
+    # (AR) 🔑 والسدُّ في ذراعِ `PASS` وحدَها كان يترُكُ إخوتَها مفتوحة: ذراعُ
+    #      `FAIL_COMPILE`/`FAIL_RUNTIME` تكتبُ `interpreter: ok` نصًّا ثابتًا،
+    #      فبذرةٌ «مترجّمٌ فقط» فشلت ترجمتُها تُسجَّلُ **مفسّرًا ناجحًا** وهو لم
+    #      يُشغَّلْ قطُّ. **ورقعةٌ في ذراعٍ واحدةٍ لا تسدُّ حكمًا موزَّعًا على أذرع**،
+    #      فيُطبَّقُ الحكمُ بعدَ الأذرعِ كلِّها: مَن لم يُشغَّلْ يُكتَبُ `n/a`.
+    #      و`SKIP` مستثناةٌ لأنّ طرفَيها لم يُشغَّلا فـ«تخطٍّ» أصدقُ من «غيرِ مُقاس».
+    # (EN) Sealing only the PASS arm left its siblings open: the
+    #      FAIL_COMPILE/FAIL_RUNTIME arm hard-codes interpreter "ok", so a
+    #      compiler-only seed that fails to compile is recorded as a passing
+    #      interpreter that never ran. The verdict is distributed across arms, so
+    #      it is applied after all of them. SKIP is exempt: neither engine ran.
+    if status != "SKIP":
+        if mode == "compiler_only":
+            i = "n/a"
+        elif mode == "interpreter_only":
+            c = "n/a"
     return {"interpreter": i, "compiler": c, "status": status}
 
 

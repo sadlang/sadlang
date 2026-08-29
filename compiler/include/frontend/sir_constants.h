@@ -827,7 +827,7 @@ namespace Sad::Compiler
         switch (valueType)
         {
         case TypeKind::Integer:
-        case TypeKind::Byte:
+        case TypeKind::UInt8:
         case TypeKind::UInt64:
             return kMapValueTagInteger;
         case TypeKind::Float:

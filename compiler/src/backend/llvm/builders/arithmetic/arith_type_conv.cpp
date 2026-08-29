@@ -392,11 +392,11 @@ namespace Sad
             if (!val)
                 return nullptr;
 
-            // (AR) [طبقة طبيعي64 — الخطوة ٤] طباعة لا-موقَّعة: نمط بتّات i64 لقيمة طبيعي64
+            // (AR) [طبقة طبيعي — الخطوة ٤] طباعة لا-موقَّعة: نمط بتّات i64 لقيمة طبيعي
             //      يُنسَّق %llu لا %lld (يُطابق المفسّر renderUnsignedArgs). النوع من المعامل
             //      الساكن (dataType). Byte دائمًا [0،255] فطباعته الموقَّعة صحيحة. الوضع الحرّ
             //      (__sad_itoa) يبقى موقَّعًا مؤقّتًا (لا __sad_utoa بعد) — مؤجَّل موثَّق.
-            // (EN) [طبيعي64 layer — Step 4] Unsigned printing: طبيعي64's i64 bit pattern formats
+            // (EN) [طبيعي layer — Step 4] Unsigned printing: طبيعي's i64 bit pattern formats
             //      with %llu not %lld (mirrors the interpreter's renderUnsignedArgs). Type from the
             //      operand's static dataType. Byte is always [0,255] so its signed print is fine.
             //      Freestanding (__sad_itoa) stays signed for now (no __sad_utoa yet) — documented.
@@ -620,7 +620,7 @@ namespace Sad
             //      الحارسُ منذ زمن، بينما `نص(س)` تُلوَّن I64_TO_STRING وهنا **لم
             //      يكن** — فطبعت الرقعةُ نفسُها «لاشيء» من طريقٍ و
             //      «‎-9223372036854775807» من طريقٍ آخرَ في البرنامجِ الواحد.
-            //      والاستثناءُ منقولٌ حرفًا عن التوأم: طبيعي64/بايت لا يكونان نوعَ
+            //      والاستثناءُ منقولٌ حرفًا عن التوأم: طبيعي/بايت لا يكونان نوعَ
             //      العدمِ أبدًا (العدمُ يُخزَّن i64 نوعُه Integer)، فقيمةٌ شرعيّةٌ
             //      تساوي الرمزَ كانت ستُحوَّل «لاشيء» خطأً.
             //
@@ -634,11 +634,11 @@ namespace Sad
             //      guard for a long time, while `نص(x)` lowers to I64_TO_STRING which
             //      did NOT — so one program printed «لاشيء» via one route and
             //      «-9223372036854775807» via the other. The exception mirrors the
-            //      twin: طبيعي64/Byte are never the null type.
+            //      twin: طبيعي/Byte are never the null type.
             // ================================================================
             if (!cg_.freestanding_ && val->getType()->isIntegerTy(64) &&
                 inst->operands[0].dataType != SadTypeKind::UInt64 &&
-                inst->operands[0].dataType != SadTypeKind::Byte)
+                inst->operands[0].dataType != SadTypeKind::UInt8)
             {
                 auto *sentinelConst = llvm::ConstantInt::get(
                     llvm::Type::getInt64Ty(*cg_.context_), Sad::Compiler::kSadNullSentinel);

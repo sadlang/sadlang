@@ -16,12 +16,15 @@
 #include <sstream>
 #include <string>
 #include "sir_builder.h"
+#include "builders/numeric_width_normalize.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "statements.h"
+#include "class_nodes.h"     // (AR) ClassDeclStmt — ورقةٌ في مسحِ إطارِ التأجيل
+#include "declarations.h"    // (AR) EnumDecl/StructDecl/FunctionDecl/TupleDestructureStmt/ExportStmt
 #include "directive_nodes.h"
 #include "utf8_utils.h"
 #include <stdexcept>
@@ -145,7 +148,55 @@ namespace Sad
                             return true;
                     return false;
                 }
-                return false;
+
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 السقوطُ الأخيرُ **آمِنٌ لا مفتوح**. كانَ هنا `return false`
+                //      مجرَّدًا، أي أنّ كلَّ صنفِ جملةٍ لم يُعدَّدْ أعلاه يُحكَمُ عليه
+                //      بأنّه لا يحملُ «أجّل». وذلك مقبولٌ ما دامَ المسحُ محبوسًا في
+                //      الوضعِ الحرِّ ذي السطحِ الضيّق، **وقاتلٌ صامتًا يومَ يُرفَع**:
+                //      جملةٌ حاويةٌ جديدةٌ تُضافُ إلى الشجرةِ غدًا تُسقِطُ مؤجَّلَها
+                //      بلا تشخيصٍ ولا اختبارٍ أحمر — العطبُ نفسُه الذي وُثّقَ أعلاه.
+                //      فالقاعدةُ تُقلَب: تُعدَّدُ **الأوراقُ** التي يُقطَعُ بأنّها لا
+                //      تحملُ جملةً تابعةً لهذا الإطار، وما عداها يُبقي الآلةَ احتياطًا.
+                //      والثمنُ عند الخطأ صارَ إطارًا زائدًا لا مؤجَّلًا ساقطًا.
+                //
+                //      والدوالُّ واللامدا والأصنافُ المتداخلةُ أوراقٌ هنا عن قصد:
+                //      لكلٍّ منها إطارُ تأجيلٍ خاصٌّ بها يُصدَر عند بنائها، فـ«أجّل»
+                //      في جسمِها لا يخصُّ هذا الإطار.
+                // (EN) 🔑 The final fallback is fail-SAFE, not fail-open. It used to be
+                //      a bare `return false`: any statement class not enumerated above
+                //      was judged defer-free. Acceptable while the scan was confined to
+                //      the narrow freestanding surface; silently fatal once it is lifted
+                //      — a container statement added to the AST tomorrow would drop its
+                //      defer with no diagnostic and no red test. So the rule is inverted:
+                //      enumerate the LEAVES that provably cannot host a statement of this
+                //      frame; everything else keeps the machinery. The cost of being
+                //      wrong is now a redundant frame, not a lost defer.
+                //      Nested functions/lambdas/classes are leaves on purpose: each emits
+                //      its own defer frame, so a defer in their body is not ours.
+                // ════════════════════════════════════════════════════════════════
+                if (dynamic_cast<const ::Sad::AST::ExprStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::ReturnStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::BreakStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::ContinueStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::VarDeclStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::MultiVarDeclStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::VolatileVarDeclStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::TupleDestructureStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::RaiseStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::ImportStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::FromImportStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::ExportStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::ReExportStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::AsmBlockStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::ClassDeclStmt *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::EnumDecl *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::StructDecl *>(stmt) ||
+                    dynamic_cast<const ::Sad::AST::FunctionDecl *>(stmt))
+                {
+                    return false;
+                }
+                return true;
             }
 
             // ============================================================================
@@ -312,6 +363,7 @@ namespace Sad
                 sirFunction->returnTypeIsDeclared =
                     (funcDecl->returnType != Types::SadTypeKind::Unknown &&
                      funcDecl->returnType != Types::SadTypeKind::Void);
+                sirFunction->declaredSurfaceReturnType = funcDecl->returnType;
 
                 // (AR) نقل سمات الدالة [[سمة]] من AST إلى SIR لتُترجم لاحقاً
                 //      إلى LLVM function attributes في codegen.
@@ -613,10 +665,10 @@ namespace Sad
                     VariableInfo paramInfo;
                     paramInfo.name = param.name;
                     paramInfo.type = paramType;
-                    // (AR) [طبقة طبيعي64 — الخطوة ٥] النوع السطحيّ المُصرَّح للمعامل (طبيعي64/بايت…)
+                    // (AR) [طبقة طبيعي — الخطوة ٥] النوع السطحيّ المُصرَّح للمعامل (طبيعي/بايت…)
                     //      من تعليق الـAST مباشرةً — لا paramType الذي قد يُرقَّى بالاستنتاج أعلاه.
                     //      يُطابق تسجيل المفسّر لنوع المعامل، فتتّفق إشارة المقارنة على المسارين.
-                    // (EN) [طبيعي64 layer — Step 5] The parameter's explicitly-declared surface type
+                    // (EN) [طبيعي layer — Step 5] The parameter's explicitly-declared surface type
                     //      from the AST annotation directly — not paramType which may be inference-
                     //      promoted above. Mirrors the interpreter's param declared-type registration
                     //      so the comparison signedness agrees on both tracks.
@@ -675,6 +727,35 @@ namespace Sad
                 // (EN) Add block to function
                 sirFunction->addBasicBlock(entryBlock);
                 currentBlock_ = entryBlock;
+
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) 🔑 المعامَلُ خانةٌ مُعلَنةُ العرضِ — والمعبَرُ الوحيدُ الذي لم
+                //      يكن له موضعٌ أصلًا في المُقدِّمة. مقيسًا: `دالة رقم8 اقتطع(رقم8
+                //      قيمة)` تُنادى بـ٣٠٠ فيقتطعُها المفسّرُ إلى ٤٤ ويمرّرها المترجمُ
+                //      ٣٠٠ — تباعُدُ محرّكَين لا نقصُ عقدٍ في كليهما.
+                //      والتطبيعُ **مرّةً واحدةً عندَ الدخول** ثمّ يُعادُ ربطُ اسمِ
+                //      السجلّ، فيقرأُ الجسمُ كلُّه القيمةَ المطبَّعة — لا موضعَ قراءةٍ
+                //      يفلت. ولا يُصدَرُ شيءٌ لِما عرضُه ٦٤ فلا تتغيّرُ دالّةٌ قائمة.
+                // (EN) A parameter is a width-declared slot — the one crossing with no
+                //      site at all in the frontend. Measured: the interpreter truncated
+                //      300 to 44 while the compiler passed 300 through. Normalized ONCE
+                //      at entry and the register rebound, so every read in the body sees
+                //      the normalized value. Nothing is emitted for 64-bit widths.
+                // ═══════════════════════════════════════════════════════════════
+                for (const auto &param : funcDecl->parameters)
+                {
+                    if (!needsWidthNormalization(param.type))
+                    {
+                        continue;
+                    }
+                    VariableInfo *paramVar = lookupVariable(param.name);
+                    if (!paramVar || paramVar->registerName.empty())
+                    {
+                        continue;
+                    }
+                    paramVar->registerName = emitNormalizeRegisterToDeclaredWidth(
+                        *this, paramVar->registerName, SadTypeKind::Integer, param.type);
+                }
 
                 // (AR) تنظيف مكدس التأجيل (defer) السابق وبدء مكدس جديد لهذه الدالة
                 // (EN) Clear previous defer stack and start fresh for this function
@@ -1569,8 +1650,48 @@ namespace Sad
             // ══════════════════════════════════════════════════════════════
             SIRBuilder::DeferFrame SIRBuilder::emitDeferFrameBegin(const Sad::AST::Statement *body)
             {
-                const bool needsDeferMachinery =
-                    freestandingMode_ ? stmtNeedsDeferMachinery(body) : true;
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 كانَ هذا السطرُ `freestandingMode_ ? stmtNeedsDeferMachinery(body) : true`
+                //      — أي أنّ المسحَ الساكنَ كُتِبَ وبُرهِنَ ثمّ **حُبِسَ في وضعٍ واحد**،
+                //      والوضعُ المستضافُ (وهو وضعُ كلِّ برنامجٍ تقريبًا) يُصدِرُ الإطارَ
+                //      بلا شرط. وثمنُ ذلك قِيسَ ٢٦ آب ٢٠٢٦ ولم يكن نظريًّا:
+                //      دالّةٌ جسمُها `ارجع صحيح` وحدَها تُولِّدُ **١٨٠ سطرَ LLVM IR** —
+                //      ‏`jmpbuf` بـ٢٥٦ بايتًا، ونداءُ `_setjmp` بسمةِ `returns_twice`،
+                //      ونداءَا `malloc` لمكدّسِ التأجيل، وحلقةُ تفريغٍ بنداءٍ غيرِ مباشر.
+                //      و`returns_twice` وحدَها تُعطّلُ أبوابًا واسعةً من تحسينِ LLVM
+                //      وتُجبِرُ السكبَ، فيُدفَعُ الثمنُ مرّتَين: توليدًا وتشغيلًا.
+                //      المقيسُ ببناءِ التنقيح: ٠٫٢٦ ثانيةً لكلِّ دالّةٍ يُعرِّفُها المستخدم،
+                //      وأصلُها كلُّه بينَ إصدارِ الـIR وإصدارِ الكائن — أي في هذه السقّالة.
+                //
+                //      والحُجّةُ التي حبستْه («يؤثّر في الوضع الحرّ فقط») كانت **وصفًا
+                //      لواقعٍ** لا قيدَ دلالةٍ: المسحُ يسألُ سؤالًا واحدًا — أفي الجسمِ
+                //      «أجّل»؟ — وجوابُه لا يتغيّرُ بتغيُّرِ الوضع. فرُفِع.
+                //      والسقوطُ الأخيرُ في المسحِ قُلِبَ آمنًا قبلَ الرفعِ لا بعدَه.
+                // (EN) 🔑 This line was `freestandingMode_ ? stmtNeedsDeferMachinery(body) : true`
+                //      — the static scan was written and proven, then confined to one mode,
+                //      while hosted mode (nearly every program) emitted the frame
+                //      unconditionally. Measured 2026-08-26: a function whose body is only
+                //      `return true` generated 180 lines of LLVM IR — a 256-byte jmpbuf, a
+                //      `returns_twice` _setjmp, two mallocs for the defer stack, and an
+                //      indirect-call drain loop. `returns_twice` alone shuts off large parts
+                //      of LLVM optimization and forces spills, so the cost is paid twice:
+                //      at codegen and at run time. Under a Debug build that was 0.26 s per
+                //      user-defined function, all of it between IR emission and object
+                //      emission — i.e. in this scaffold. The justification that pinned it
+                //      ("only affects freestanding") described a state, it was not a
+                //      semantic constraint: the scan asks one question — is there a `defer`
+                //      in this body? — and the answer does not depend on the mode.
+                // ════════════════════════════════════════════════════════════════
+                // (AR) وسمُ المسارِ يُرفَعُ قبلَ أيِّ شرط: المقصودُ «بُنيت هنا»، لا
+                //      «أُصدِرت لها سقّالة». انظر `usesFunctionDeferFramePath`.
+                // (EN) The path marker is set before any condition: it means "built here",
+                //      not "a scaffold was emitted". See `usesFunctionDeferFramePath`.
+                if (currentFunction_)
+                {
+                    currentFunction_->usesFunctionDeferFramePath = true;
+                }
+
+                const bool needsDeferMachinery = stmtNeedsDeferMachinery(body);
 
                 std::shared_ptr<SIRBasicBlock> functionCleanupBlock;
 

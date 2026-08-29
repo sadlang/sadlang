@@ -14,6 +14,7 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -53,8 +54,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildForRangeLoop: starting, variable='"
-                          << forRange->variable << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildForRangeLoop: starting, variable='"
+                          << forRange->variable << "'");
 #endif
 
                 // ========================================================================
@@ -64,7 +65,7 @@ namespace Sad
                 if (auto *rangeExpr = dynamic_cast<Sad::AST::RangeExpr *>(forRange->iterable.get()))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildForRangeLoop: detected RangeExpr, using while-style loop" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildForRangeLoop: detected RangeExpr, using while-style loop");
 #endif
 
                     b_.enterScope();
@@ -569,7 +570,7 @@ namespace Sad
                 if (iterableResult.registerName.empty())
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildForRangeLoop: failed to build iterable!" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildForRangeLoop: failed to build iterable!");
 #endif
                     b_.errors_.push_back("Error: Failed to build iterable expression in for-range");
                     b_.exitScope();
@@ -577,8 +578,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildForRangeLoop: iterable reg='"
-                          << iterableResult.registerName << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildForRangeLoop: iterable reg='"
+                          << iterableResult.registerName << "'");
 #endif
 
                 // ========================================================================
@@ -762,7 +763,7 @@ namespace Sad
                 if (iterableResult.className == "__channel__")
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildForRangeLoop: detected channel iterable" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildForRangeLoop: detected channel iterable");
 #endif
 
                     // (AR) إنشاء الكتل الأساسية لحلقة القناة
@@ -959,7 +960,7 @@ namespace Sad
                     b_.exitScope();
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildForRangeLoop: channel iteration completed" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildForRangeLoop: channel iteration completed");
 #endif
                     return;
                 }
@@ -1139,8 +1140,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildForRangeLoop: registered loop var '"
-                          << forRange->variable << "' alloc=" << loopVarAllocName << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildForRangeLoop: registered loop var '"
+                          << forRange->variable << "' alloc=" << loopVarAllocName);
 #endif
 
                 // ========================================================================
@@ -1368,7 +1369,7 @@ namespace Sad
                 b_.exitScope();
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildForRangeLoop: completed" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildForRangeLoop: completed");
 #endif
             }
 

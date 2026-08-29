@@ -130,14 +130,14 @@ namespace Sad
                     std::string varName;      ///< (AR) اسم المتغير الملتقط / (EN) Captured variable name
                     std::string registerName; ///< (AR) اسم السجل في النطاق الخارجي / (EN) Register name in outer scope
                     SadTypeKind type;         ///< (AR) نوع المتغير / (EN) Variable type
-                    // (AR) [طبقة طبيعي64 — الخطوة ٧/٥] النوع السطحيّ المُصرَّح صراحةً (طبيعي64/بايت)
+                    // (AR) [طبقة طبيعي — الخطوة ٧/٥] النوع السطحيّ المُصرَّح صراحةً (طبيعي/بايت)
                     //      يُنقَل عبر الالتقاط كي يبقى قرار الإشارة (%،//،مقارنة) على المتغيّر
-                    //      المُلتقَط مطابقًا للمفسّر. بدونه: طبيعي64 مُلتقَط يُرى Integer ⇒ موقَّع
+                    //      المُلتقَط مطابقًا للمفسّر. بدونه: طبيعي مُلتقَط يُرى Integer ⇒ موقَّع
                     //      (رصده أميليا: `1` مفسّر مقابل `-1` مترجم في إغلاق/دالّة متداخلة/أجّل).
-                    // (EN) [طبيعي64 layer — Step 7/5] Explicitly-declared surface type (طبيعي64/Byte)
+                    // (EN) [طبيعي layer — Step 7/5] Explicitly-declared surface type (طبيعي/Byte)
                     //      carried through capture so the signedness decision (%,//,comparison) on the
                     //      captured variable stays identical to the interpreter. Without it a captured
-                    //      طبيعي64 is seen as Integer ⇒ signed (found by Amelia: `1` interp vs `-1`
+                    //      طبيعي is seen as Integer ⇒ signed (found by Amelia: `1` interp vs `-1`
                     //      compiler in a closure/nested-function/defer).
                     SadTypeKind declaredSurfaceType = SadTypeKind::Unknown;
                     // (AR) [GAP 1] نوعُ عنصر المصفوفة المُلتقَطة يُنقَل عبر الالتقاط. مصفوفةٌ

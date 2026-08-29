@@ -263,23 +263,21 @@ namespace Sad
                     {
                         switch (operand.dataType)
                         {
-                        // (AR) [إصلاح عيب كامن كشفته طبقة طبيعي64] كلّ الثوابت الصحيحة (بأيّ
+                        // (AR) [إصلاح عيب كامن كشفته طبقة طبيعي] كلّ الثوابت الصحيحة (بأيّ
                         //      عرض/إشارة) تُفتَّح بقيمتها intValue. كان UInt64/بايت/الأنواع
                         //      المحدَّدة تقع في default فتستعمل operand.name **الفارغ** للثوابت
                         //      ⇒ مفتاحٌ واحد `$c_` لكلّ ثوابت UInt64 ⇒ CSE يدمج `ك%2` و`ك%3`
                         //      (قيمتان مختلفتان، مفتاحٌ واحد). ضمُّها هنا يصلح الجذر.
-                        // (EN) [Latent-defect fix surfaced by the طبيعي64 layer] All integer
+                        // (EN) [Latent-defect fix surfaced by the طبيعي layer] All integer
                         //      constants (any width/signedness) key by their intValue. UInt64/Byte/
                         //      sized types fell into default and used the (empty for constants)
                         //      operand.name ⇒ a single `$c_` key for every UInt64 constant ⇒ CSE
                         //      merged `ك%2` and `ك%3` (distinct values, one key). Grouping them fixes the root.
                         case SIR::SadTypeKind::Integer:
                         case SIR::SadTypeKind::UInt64:
-                        case SIR::SadTypeKind::Byte:
                         case SIR::SadTypeKind::Int8:
                         case SIR::SadTypeKind::Int16:
                         case SIR::SadTypeKind::Int32:
-                        case SIR::SadTypeKind::Int64:
                         case SIR::SadTypeKind::UInt8:
                         case SIR::SadTypeKind::UInt16:
                         case SIR::SadTypeKind::UInt32:

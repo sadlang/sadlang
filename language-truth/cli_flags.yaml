@@ -332,14 +332,22 @@ flags:
     desc_ar: "تفعيل فحص الأنواع المتقدّم"
     desc_en: "Enable advanced type checking"
 
-  # (AR) خاصّ بالمترجم: المفسّر لا يُفعّل فحص الأنواع افتراضيًّا فتعطيلُه بلا معنًى،
-  #      ولا معالج له في sad-run ⇒ نحصره بالمترجم كي لا يُعلَن ولا يُنفَّذ.
-  # (EN) Compiler-only: the interpreter doesn't enable type-checking by default, so
-  #      disabling is meaningless and sad-run has no handler ⇒ scope to compiler.
+  # (AR) 🔑 كان هذا العلمُ محصورًا بالمترجّمِ بحُجّةٍ مكتوبةٍ هنا: «المفسّرُ لا يُفعّلُ
+  #      فحصَ الأنواعِ افتراضيًّا فتعطيلُه بلا معنًى». **وقد سقطت الحُجّةُ بقرارِ المالك
+  #      (٢٦ آب ٢٠٢٦) برفعِ الفحصِ افتراضيًّا في `sad-run`** — فصارَ التعطيلُ ذا معنًى،
+  #      بل صارَ لازمًا: علمٌ يُرفَعُ افتراضيًّا بلا مِفتاحِ إطفاءٍ يحبسُ الكاتبَ.
+  #      وعُومِلَ الحصرُ عندَ كتابتِه وصفًا للواقع، فلمّا تبدّلَ الواقعُ صارَ الوصفُ
+  #      قيدًا يمنعُ إصلاحَه. **والحُجّةُ المكتوبةُ تُراجَعُ كلّما تبدّلَ ما تصفُه.**
+  # (EN) 🔑 This flag was compiler-only on the written grounds that "the interpreter
+  #      does not type-check by default, so disabling is meaningless". The owner's
+  #      2026-08-26 ruling raised that default in `sad-run`, so the grounds fell and
+  #      the off-switch became necessary: a default-on gate with no way off traps
+  #      the writer. A recorded justification must be revisited when what it
+  #      describes changes.
   - id: flag.no_type_check
     canonical: "--بلا-فحص-أنواع"
     kind: bool
-    engines: [compiler]
+    engines: [compiler, interpreter]
     action: TypeCheckOff
     sets: enable_type_check=false
     desc_ar: "تعطيل فحص الأنواع المتقدّم"

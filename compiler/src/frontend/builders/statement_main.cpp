@@ -12,6 +12,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -30,7 +31,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildStatement: processing statement" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildStatement: processing statement");
 #endif
 
                 // (AR) BlockStmt - كتلة من الجمل (statements.h:423)
@@ -38,7 +39,7 @@ namespace Sad
                 if (auto blockStmt = dynamic_cast<Sad::AST::BlockStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found BlockStmt with " << blockStmt->statements.size() << " statements" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found BlockStmt with " << blockStmt->statements.size() << " statements");
 #endif
                     // (AR) معالجة كل جملة في الكتلة
                     // (EN) Process each statement in the block
@@ -187,6 +188,7 @@ namespace Sad
                         innerFunc->returnTypeIsDeclared =
                             (funcDecl->returnType != Types::SadTypeKind::Unknown &&
                              funcDecl->returnType != Types::SadTypeKind::Void);
+                        innerFunc->declaredSurfaceReturnType = funcDecl->returnType;
                         for (const auto &sp : sirParams)
                             innerFunc->addParameter(sp);
 
@@ -448,7 +450,7 @@ namespace Sad
                 if (auto ifStmt = dynamic_cast<Sad::AST::IfStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found IfStmt" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found IfStmt");
 #endif
                     buildIfStatement(ifStmt);
                     return;
@@ -475,7 +477,7 @@ namespace Sad
                 if (auto forRangeStmt = dynamic_cast<Sad::AST::ForRangeStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found ForRangeStmt" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found ForRangeStmt");
 #endif
                     buildForRangeLoop(forRangeStmt);
                     return;
@@ -486,7 +488,7 @@ namespace Sad
                 if (auto returnStmt = dynamic_cast<Sad::AST::ReturnStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found ReturnStmt" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found ReturnStmt");
 #endif
                     buildReturnStatement(returnStmt);
                     return;
@@ -534,7 +536,7 @@ namespace Sad
                 if (auto varDecl = dynamic_cast<Sad::AST::VarDeclStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found VarDeclStmt: " << varDecl->name << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found VarDeclStmt: " << varDecl->name);
 #endif
                     // (AR) اللبنة 3.16: رفض المصفوفة الساكنة داخل دالّة يقع في تعريف
                     //      buildLocalVariable (نقطة تجميع كلّ المسارات) — انظر statement_assign_if.cpp.
@@ -553,7 +555,7 @@ namespace Sad
                 if (auto multiVarDecl = dynamic_cast<Sad::AST::MultiVarDeclStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found MultiVarDeclStmt with " << multiVarDecl->declarations.size() << " declarations" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found MultiVarDeclStmt with " << multiVarDecl->declarations.size() << " declarations");
 #endif
                     for (auto &decl : multiVarDecl->declarations)
                     {
@@ -570,7 +572,7 @@ namespace Sad
                 if (auto tupleDestr = dynamic_cast<Sad::AST::TupleDestructureStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found TupleDestructureStmt with " << tupleDestr->names.size() << " names" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found TupleDestructureStmt with " << tupleDestr->names.size() << " names");
 #endif
                     // (AR) بناء تعبير الصف المصدر
                     // (EN) Build source tuple expression
@@ -627,7 +629,7 @@ namespace Sad
                 if (auto templateDecl = dynamic_cast<Sad::AST::TemplateFunctionDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found TemplateFunctionDecl: " << templateDecl->name << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found TemplateFunctionDecl: " << templateDecl->name);
 #endif
                     b_.buildTemplateFunction(templateDecl);
                     return;
@@ -638,8 +640,8 @@ namespace Sad
                 if (auto templateClassDecl = dynamic_cast<Sad::AST::TemplateClassDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found TemplateClassDecl: " << templateClassDecl->name
-                              << " with " << templateClassDecl->typeParameters.size() << " type params" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found TemplateClassDecl: " << templateClassDecl->name
+                              << " with " << templateClassDecl->typeParameters.size() << " type params");
 #endif
 
                     // (AR) تسجيل صنف القالب — يُنشأ عند TemplateInstantiation
@@ -669,7 +671,7 @@ namespace Sad
                 if (auto matchStmt = dynamic_cast<Sad::AST::MatchStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found MatchStmt" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found MatchStmt");
 #endif
                     buildMatchStatement(matchStmt);
                     return;
@@ -689,7 +691,7 @@ namespace Sad
                 if (auto deferStmt = dynamic_cast<Sad::AST::DeferStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found DeferStmt — registering deferred statement" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found DeferStmt — registering deferred statement");
 #endif
                     if (!b_.currentDeferStackReg_.empty())
                     {
@@ -722,7 +724,7 @@ namespace Sad
                 if (auto switchStmt = dynamic_cast<Sad::AST::SwitchStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found SwitchStmt with " << switchStmt->cases.size() << " cases" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found SwitchStmt with " << switchStmt->cases.size() << " cases");
 #endif
 
                     // (AR) بناء تعبير الحالة
@@ -890,7 +892,7 @@ namespace Sad
                     return;
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] Unknown statement type: " << typeid(*stmt).name() << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] Unknown statement type: " << typeid(*stmt).name());
 #endif
             }
 

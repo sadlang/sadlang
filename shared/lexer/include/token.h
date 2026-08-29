@@ -293,6 +293,13 @@ namespace Sad
             TYPE_I8,  ///< ص8 / i8 (عدد صحيح 8-بت بإشارة / signed 8-bit)
             TYPE_I16, ///< ص16 / i16 (عدد صحيح 16-بت بإشارة / signed 16-bit)
             TYPE_I32, ///< ص32 / i32 (عدد صحيح 32-بت بإشارة / signed 32-bit)
+            // (AR) عائمان مُحدَّدا العرض: «عشري32» و«عشري». أُضيفا لأنّ «عشري» يحتلّ
+            //      TYPE_DOUBLE، فلو شارَكَه «عشري» رمزًا لَما تمايزَ النوعان في خريطة
+            //      «الرمز ⇒ النوع» — وهي خريطةٌ تُشتقُّ من `token_type` في types.yaml.
+            // (EN) Fixed-width floats: عشري32/عشري. Distinct tokens because «عشري»
+            //      already owns TYPE_DOUBLE; sharing it would collapse the token⇒kind map.
+            TYPE_F32, ///< عشري32 / f32 (عائم 32-بت / 32-bit float)
+            TYPE_F64, ///< عشري / f64 (عائم 64-بت / 64-bit float)
             TYPE_PTR, ///< مؤشر / ptr (مؤشر خام - raw pointer for memory addresses)
 
             // ========== [مدمجة] أنواع البيانات — لم تعد محجوزة / [BUILT-IN] Types — No longer reserved ==========

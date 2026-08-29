@@ -32,6 +32,46 @@ namespace Sad
         using namespace TypeSystem;
         using TT = Lexer::TokenType;
 
+        namespace
+        {
+            /**
+             * @brief (AR) هل التعبيرُ حرفيّةٌ عدديّةٌ صحيحةٌ مجرَّدة (بإشارةٍ أحاديّةٍ أو بدونها)؟
+             * @brief (EN) Is the expression a bare integer literal (with or without a unary sign)?
+             *
+             * (AR) 🔑 نوعُ الحرفيّةِ `1` الساكنُ هو «رقم» — لكنّه **افتراضٌ لا نيّة**.
+             *      فمَن كتبَ `ط + 1` لم يُعلِنْ موقَّعيّةً، ومَن كتبَ `متغير رقم ر`
+             *      أعلنَها. وهذا المُسنَدُ هو الحدُّ بين الاثنَين، ومنه يشتقُّ
+             *      `SEM048` مَن يسألُه ومَن يُعفيه.
+             * (EN) A literal's static type is «رقم», but that is a default rather
+             *      than a declaration: `ط + 1` declares nothing while
+             *      `متغير رقم ر` does. SEM048 draws its line here.
+             *
+             * (AR) والإشارةُ الأحاديّةُ تُقشَّرُ عمدًا: `-1` حرفيّةٌ في نيّةِ الكاتبِ
+             *      وإن كانت `UnaryExpr` في الشجرة. **والمرساةُ النيّةُ لا الشكلُ
+             *      النحويّ**، وإلّا لصارَ `ط + 1` يمرُّ و`ط + -1` يُرفَضُ لفرقٍ
+             *      إملائيٍّ محض.
+             */
+            bool isBareIntegerLiteral(const AST::Expression *expression)
+            {
+                if (expression == nullptr)
+                {
+                    return false;
+                }
+                if (const auto *literal = dynamic_cast<const AST::LiteralExpr *>(expression))
+                {
+                    return literal->token.getType() == TT::NUMBER_INTEGER;
+                }
+                if (const auto *unary = dynamic_cast<const AST::UnaryExpr *>(expression))
+                {
+                    if (unary->op == TT::OP_MINUS || unary->op == TT::OP_PLUS)
+                    {
+                        return isBareIntegerLiteral(unary->operand.get());
+                    }
+                }
+                return false;
+            }
+        } // namespace
+
         // ============================================================================
         // TypeCheckError
         // ============================================================================
@@ -77,6 +117,9 @@ namespace Sad
             // (AR) [Phase 5c] هيّئ النطاق العام لأسماء أصناف المتغيرات.
             // (EN) [Phase 5c] Initialize global scope for variable class names.
             variableClassNames_.emplace_back();
+            // (AR) [SEM048] النطاقُ العامُّ لصيغةِ تصريحِ الأسماء.
+            // (EN) [SEM048] Global scope for the declaration-form registry.
+            variableTypeIsInferred_.emplace_back();
 
             // تسجيل الدوال المدمجة / Register built-in functions
             currentEnv_->bind("اطبع", registry_.getVoidType());        // print
@@ -267,6 +310,10 @@ namespace Sad
             // (EN) [Phase 5c] Reset variable class names registry.
             variableClassNames_.clear();
             variableClassNames_.emplace_back();
+            // (AR) [SEM048] يُعادُ تهيئتُه مع أخيه وإلّا تسرّبت أسماءُ تشغيلٍ سابق.
+            // (EN) [SEM048] Reset alongside its sibling, else names leak across runs.
+            variableTypeIsInferred_.clear();
+            variableTypeIsInferred_.emplace_back();
         }
 
         // ============================================================================
@@ -305,8 +352,25 @@ namespace Sad
                 return registry_.getAnyType(); // يُحدد من EnumRegistry عند الوصول
             case K::Tuple:
                 return std::make_shared<TupleType>(TypeList{}); // عناصر الصف تُحدد لاحقاً
-            case K::Byte:
-                return registry_.getIntegerType(); // byte -> int
+            // (AR) 🔑 أسرةُ الأعراضِ الثمانية. وكانت `طبيعي8` وحدَها مذكورةً ههنا
+            //      تُردُّ «رقمًا»، **والسبعُ الباقياتُ تسقطُ في `default` فتُردُّ
+            //      «مجهولًا»** — و«المجهول» تُجيزُه `areTypesCompatible` مع كلِّ
+            //      شيء. فالمدقّقُ لم يكن يُسوّي الأعراضَ بـ«رقم» كما ظننتُ، بل
+            //      كان **يُعميها**: `رقم32 س = "نصّ"` لا يجدُ من يردُّها ههنا.
+            //      وحفظُ الصنفِ الآنَ هو ما يجعلُ حكمَ SEM048 ممكنًا في طبقةٍ
+            //      واحدةٍ يشتركُ فيها المحرّكان بدلَ نسختَين تتباعدان.
+            // (EN) The eight-width family. Only UInt8 was named here (mapped to
+            //      Integer); the other seven fell into `default` → Unknown, which
+            //      areTypesCompatible accepts against everything. The checker was
+            //      not flattening widths — it was blind to them.
+            case K::Int8:
+            case K::Int16:
+            case K::Int32:
+            case K::UInt8:
+            case K::UInt16:
+            case K::UInt32:
+            case K::UInt64:
+                return registry_.internPrimitiveType(kind);
             case K::Error:
                 return registry_.getUnknownType();
             // (AR) [S-TS-P4] أنواع متقدّمة على مستوى الـkind (دون نوع داخلي هنا) → Any
@@ -428,6 +492,7 @@ namespace Sad
             // (AR) [Phase 5c] احفظ نطاق متوازٍ لأسماء أصناف المتغيرات.
             // (EN) [Phase 5c] Push parallel scope for variable class names.
             variableClassNames_.emplace_back();
+            variableTypeIsInferred_.emplace_back();
         }
 
         void TypeChecker::exitScope()
@@ -441,11 +506,64 @@ namespace Sad
             // (EN) [Phase 5c] Pop the parallel scope.
             if (!variableClassNames_.empty())
                 variableClassNames_.pop_back();
+            if (!variableTypeIsInferred_.empty())
+                variableTypeIsInferred_.pop_back();
         }
 
         void TypeChecker::declareVariable(const std::string &name, TypePtr type)
         {
             currentEnv_->bind(name, type);
+            // (AR) [SEM048] كلُّ رباطٍ يمرُّ من هنا يُسجَّلُ **مُصرَّحًا** ابتداءً:
+            //      المعامَلاتُ ومتغيّراتُ الحلقاتِ والمَصائدِ وأسماءُ الدوالِّ. ثمّ
+            //      يُصحِّحُ [[visitVarDeclStmt]] وحدَه ما استُنتِجَ نوعُه من مُهيِّئِه.
+            //      والقصدُ أن يترُكَ كلُّ رباطٍ أثرًا في نطاقِه يوقفُ البحثَ عندَه،
+            //      فلا يعبرُ الظِّلُّ إلى المظلَّل.
+            // (EN) [SEM048] Every binding is recorded as "declared" first —
+            //      parameters, loop and catch variables, function names — and only
+            //      visitVarDeclStmt corrects the entries whose type was inferred.
+            //      Every binding must leave a trace in its own scope so the lookup
+            //      stops at the shadow instead of reaching the shadowed name.
+            if (!variableTypeIsInferred_.empty())
+            {
+                variableTypeIsInferred_.back()[name] = false;
+            }
+        }
+
+        bool TypeChecker::writerDeclaredSignedness(const AST::Expression *expression) const
+        {
+            if (expression == nullptr)
+            {
+                return false;
+            }
+            // (AR) حرفيّةٌ عدديّةٌ مجرّدة: لم تُعلِنْ شيئًا.
+            if (isBareIntegerLiteral(expression))
+            {
+                return false;
+            }
+            // (AR) متغيّرٌ استُنتِجَ نوعُه من مُهيِّئِه: كاتبُه لم يكتبِ اسمَ نوعٍ
+            //      قطُّ، فـ«رقم» افتراضٌ لا إعلان. والبحثُ من أحدثِ نطاقٍ إلى
+            //      أقدمِه، **ويقفُ عند أوّلِ نطاقٍ يعرفُ الاسمَ** مُصرَّحًا كانَ أم
+            //      مُستنتَجًا — وهذا ما يجعلُ التظليلَ صحيحًا: لو لم يُسجَّلِ
+            //      المُصرَّحُ لَعبرَ البحثُ ظِلَّه إلى مستنتَجٍ أقدمَ يحملُ اسمَه.
+            // (EN) Walk innermost-out and stop at the first scope that knows the
+            //      name at all — declared or inferred. That is what makes shadowing
+            //      correct: were declared names unrecorded, the walk would step
+            //      past the shadow onto an older inferred binding of the same name.
+            if (const auto *variable = dynamic_cast<const AST::VariableExpr *>(expression))
+            {
+                for (auto scope = variableTypeIsInferred_.rbegin();
+                     scope != variableTypeIsInferred_.rend(); ++scope)
+                {
+                    const auto entry = scope->find(variable->name);
+                    if (entry != scope->end())
+                    {
+                        return !entry->second;
+                    }
+                }
+            }
+            // (AR) وما عدا ذلكَ — `رقم`، أو «رقم» مُصرَّحٌ بالاسم، أو نداءُ
+            //      دالّةٍ أُعلِنَ عائدُها — إعلانٌ يُسأَلُ عليه.
+            return true;
         }
 
         TypePtr TypeChecker::lookupVariable(const std::string &name) const
@@ -549,11 +667,34 @@ namespace Sad
             const std::string rendered =
                 Errors::ErrorManager::getInstance().buildBilingualMessage(code, ctx);
 
+            // ────────────────────────────────────────────────────────────────
+            // (AR) 🔑 `buildBilingualMessage` تُصيغُ «(AR) … / (EN) …» **بلا رمز**،
+            //      فكانَ كلُّ تشخيصٍ دلاليٍّ يصلُ الكاتبَ بلا هُويّةٍ مستقرّة:
+            //      المحلّلُ يطبعُ `⛔ [SYN010]` وفاحصُ الأنواعِ يطبعُ نثرًا مجرّدًا.
+            //      وأثرُ ذلك أنّ كلَّ بذرةٍ سالبةٍ تُرسي على **نصِّ** الرسالةِ لا
+            //      على رمزِها، فتنكسرُ بأيِّ تحريرٍ للنصِّ وتَخضَرُّ على رسالةٍ
+            //      أخرى تصادفَ أنّها تحملُ العبارةَ نفسَها.
+            //      والوصلُ هنا لا في `buildBilingualMessage`: مستدعوها ثلاثةٌ
+            //      وعشرونَ ملفًّا، وتغييرُها يمسُّ كلَّ تشخيصٍ في المشروعِ دفعةً
+            //      واحدة. **والرقعةُ تُوضَعُ في أضيقِ طبقةٍ تسعُ العلّة.**
+            //      وهي بادئةٌ لا إعادةَ صياغة، فالمراسي النصّيّةُ القائمةُ باقيةٌ
+            //      تعملُ — إذ لا بذرةَ تُرسي على مطلعِ الرسالة.
+            // (EN) 🔑 buildBilingualMessage renders "(AR) … / (EN) …" with no code,
+            //      so every semantic diagnostic reached the writer without a stable
+            //      identity while the parser prints `⛔ [SYN010]`. Seeds therefore
+            //      anchor on prose, which drifts and false-greens. Patched here, not
+            //      in buildBilingualMessage: 23 files call that, and it renders every
+            //      diagnostic in the project. Prefix only — existing prose anchors
+            //      keep matching, since none anchors on the message head.
+            // ────────────────────────────────────────────────────────────────
+            const std::string tagged =
+                "[" + Errors::getErrorCodeString(code) + "] " + rendered;
+
             TypeCheckError err;
             err.line = line;
             err.column = col;
-            err.message = rendered;
-            err.arabicMessage = rendered;
+            err.message = tagged;
+            err.arabicMessage = tagged;
             currentResult_.addError(err);
         }
 
@@ -753,6 +894,101 @@ namespace Sad
                                     &expr);
                     lastInferredType_ = registry_.getUnknownType();
                     return;
+                }
+            }
+
+            // ════════════════════════════════════════════════════════════════
+            // (AR) SEM048 — الخانةُ الثامنةُ وحدَها: «طبيعي» مع موقَّعٍ بعرضِه.
+            //      قاعدةُ الهيمنةِ («الأعرضُ يغلب، وعندَ التساوي اللا-موقَّع»)
+            //      حاسمةٌ في سبعِ خاناتٍ من ثمانٍ لأنّ ما دونَ ٦٤ يُرقَّى إلى
+            //      «رقم» فيسعُ المدَيَين معًا. والثامنةُ لا نوعَ فوقَها: تغليبُ
+            //      اللا-موقَّعِ يجعلُ `طبيعي(١٠) + رقم(−٥٠)` قريبًا من ١٨
+            //      كوينتليون بدلَ «−٤٠»، وتغليبُ الموقَّعِ يجعلُ أكبرَ طبيعيٍّ
+            //      ناقصَ واحدٍ يساوي «−٢». وكلاهما كذبٌ صريح — فالوقوفُ ههنا
+            //      وطلبُ متغيّرٍ وسيطٍ مُعلَنِ النوعِ أصدقُ من اختيارٍ صامتٍ يكذبُ في
+            //      طرف — ولا تعبيرَ تحويلٍ في «ص» يُطلَبُ بدلًا منه.
+            //      ⚠️ والمقارناتُ خارجَ المرحلةِ الأولى قصدًا.
+            // (EN) SEM048 — only the eighth cell: طبيعي mixed with a same-width
+            //      signed operand. Nothing spans both ranges, so either silent
+            //      choice lies; stop and require an intermediate variable of a declared type
+            //      (Sad has no cast expression).
+            //      Comparisons deliberately stay outside stage one.
+            // ════════════════════════════════════════════════════════════════
+            {
+                const bool arithmeticOrBitwise =
+                    expr.op == TT::OP_PLUS || expr.op == TT::OP_MINUS ||
+                    expr.op == TT::OP_MULTIPLY || expr.op == TT::OP_DIVIDE ||
+                    expr.op == TT::OP_FLOOR_DIVIDE || expr.op == TT::OP_MODULO ||
+                    expr.op == TT::OP_POWER;
+                if (arithmeticOrBitwise && leftType && rightType &&
+                    leftType->isIntegerNumeric() && rightType->isIntegerNumeric())
+                {
+                    const Types::SadTypeKind leftKind = leftType->getKind();
+                    const Types::SadTypeKind rightKind = rightType->getKind();
+                    const bool leftUnsigned = Types::sadTypeKindIsUnsignedInteger(leftKind);
+                    const bool rightUnsigned = Types::sadTypeKindIsUnsignedInteger(rightKind);
+                    // (AR) 🔑 المرساةُ **إعلانُ الكاتبِ** لا وسمُ النوعِ في مصدرِ
+                    //      الحقيقة. وقد مرَّت المرساةُ بثلاثِ صيغٍ يُذكَرُ سقوطُ
+                    //      اثنتَين لأنّ سببَ سقوطِهما هو ما يمنعُ إعادتَهما:
+                    //
+                    //      ① «موقَّعٌ بعرضِ ٦٤» مطلقًا — التقطَ «رقم»، وهو نوعُ
+                    //         الحرفيّةِ الساكن، فصارَ `ط + 1` خطأً ورُفِضَ ٢٦ موضعًا
+                    //         في المصفوفةِ ثلاثةٌ منها فقط مقصودة.
+                    //      ② «`sized_primitive` للطرفَين» — سدَّ ① لكنّه أعفى «رقم»
+                    //         **بأَسْرِه**، فمرَّ `طبيعي + رقم` صامتًا مُعطيًا
+                    //         ١٨٤٤٦٧٤٤٠٧٣٧٠٩٥٥١٥٧٦ — عينَ الكذبةِ التي وُجِدَ
+                    //         الحارسُ لأجلِها، وعبرَ **النوعِ الافتراضيِّ للّغة**.
+                    //      ③ (القائمة، قرارُ المالك ٢٦ آب ٢٠٢٦) المتغيّرُ المُصرَّحُ
+                    //         `رقم` يُسأَلُ والحرفيّةُ تُعفى. لأنّ ② أعفى بالوسمِ
+                    //         حيثُ المقصودُ النيّة: مَن كتبَ `متغير رقم ر` أعلنَ
+                    //         موقَّعيّةً ٦٤-بتّيّةً فسؤالُه واجب، ومَن كتبَ `1` لم
+                    //         يُعلِنْ شيئًا فالهيمنةُ تسعُه.
+                    //
+                    //      ⚠️ ولازمُ ③ يُقالُ ولا يُخبَّأ: `ط + 1` يمرُّ و`ط + ر`
+                    //      (حيثُ `ر = 1`) يُرفَض. فإخراجُ حرفيّةٍ إلى متغيّرٍ
+                    //      **يُغيِّرُ الحكم** — وهو فرقُ فعلٍ لا فرقُ إملاء، لكنّه
+                    //      يُفاجئُ في إعادةِ الهيكلة.
+                    // (EN) Anchor on the writer's declaration, not the SoT tag.
+                    //      ① "signed and 64 bits" also caught رقم (the literal's
+                    //         static type): 26 matrix sites, only 3 intended.
+                    //      ② "sized_primitive on both sides" exempted رقم wholesale,
+                    //         letting `طبيعي + رقم` print 18446744073709551576 —
+                    //         the very lie this guard exists to stop, via the
+                    //         language's DEFAULT integer type.
+                    //      ③ (current) a declared رقم variable is questioned; a bare
+                    //         integer literal is exempt. Consequence, stated openly:
+                    //         extracting a literal into a variable changes the verdict.
+                    const bool leftIsUnsignedSide = leftUnsigned;
+                    const Types::SadTypeKind unsignedKind = leftIsUnsignedSide ? leftKind : rightKind;
+                    const Types::SadTypeKind signedKind = leftIsUnsignedSide ? rightKind : leftKind;
+                    const AST::Expression *signedOperand =
+                        leftIsUnsignedSide ? expr.right.get() : expr.left.get();
+
+                    // (AR) الطرفُ اللا-موقَّعُ يلزمُه عرضٌ مُصرَّحٌ دائمًا: لا نوعَ
+                    //      لا-موقَّعٍ افتراضيٍّ في «ص» فلا حرفيّةَ تصلُ من هنا.
+                    const bool unsignedSideQualifies =
+                        Types::sadTypeKindIsSizedPrimitive(unsignedKind) &&
+                        Types::sadTypeKindNumericBits(unsignedKind) == 64;
+
+                    // (AR) والطرفُ الموقَّعُ يُسأَلُ إن أعلنَ عرضَه (`رقم`) أو كانَ
+                    //      «رقم» **أعلنَ كاتبُه إشارتَه** — لا حرفيّةً ولا متغيّرًا
+                    //      استُنتِجَ نوعُه من مُهيِّئِه.
+                    const bool signedSideQualifies =
+                        Types::sadTypeKindNumericBits(signedKind) == 64 &&
+                        (Types::sadTypeKindIsSizedPrimitive(signedKind) ||
+                         writerDeclaredSignedness(signedOperand));
+
+                    if (leftUnsigned != rightUnsigned &&
+                        unsignedSideQualifies && signedSideQualifies)
+                    {
+                        reportCatalogError(
+                            Errors::ErrorCode::SEM_UNSIGNED64_MIXED_WITH_SIGNED,
+                            {{"left_type", Types::sadTypeKindArabicName(leftKind)},
+                             {"right_type", Types::sadTypeKindArabicName(rightKind)}},
+                            &expr);
+                        lastInferredType_ = registry_.getUnknownType();
+                        return;
+                    }
                 }
             }
 

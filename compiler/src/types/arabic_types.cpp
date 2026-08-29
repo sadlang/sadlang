@@ -40,7 +40,10 @@ namespace ArabicTypeNames {
     // Other types
     const char* const MANTIQY = "\xd9\x85\xd9\x86\xd8\xb7\xd9\x82\xd9\x8a";  // منطقي
     const char* const HARF    = "\xd8\xad\xd8\xb1\xd9\x81";  // حرف
-    const char* const BYTE    = "\xd8\xa8\xd8\xa7\xd9\x8a\xd8\xaa";  // بايت
+    // (AR) 🔑 «طبيعي8» ورثَ «بايت» (قرارُ المالك 2026-08-26). وهذا الجدولُ نسخةٌ
+    //      ثالثةٌ مكتوبةٌ باليدِ لمعجمِ الأنواعِ لا تُشتَقُّ من المصدر — وفيه
+    //      اختصاراتٌ («عش32») يمنعُها المصدر. عِلّةٌ بنيويّةٌ مُصرَّحٌ بها لا مسدودة.
+    const char* const TABEEI8 = "\xd8\xb7\xd8\xa8\xd9\x8a\xd8\xb9\xd9\x8a" "8";  // طبيعي8
     const char* const FARAGH  = "\xd9\x81\xd8\xb1\xd8\xa7\xd8\xba";  // فراغ
     const char* const ABADAN  = "\xd8\xa3\xd8\xa8\xd8\xaf\xd8\xa7\xd9\x8b";  // أبداً
 }
@@ -100,7 +103,7 @@ void PrimitiveTypeRegistry::initializeTypes() {
     addType(PrimitiveKind::Char, ArabicTypeNames::HARF, "char", 4, false, false, false);
     
     // Byte
-    addType(PrimitiveKind::Byte, ArabicTypeNames::BYTE, "byte", 1, false, true, false);
+    addType(PrimitiveKind::Byte, ArabicTypeNames::TABEEI8, "uint8", 1, false, true, false);
     
     // Unsigned integers
     addType(PrimitiveKind::UInt8,  ArabicTypeNames::HA8,  "u8",  1, false, true, false);

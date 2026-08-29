@@ -116,6 +116,457 @@ DEFAULT_INIT_VOCAB: list[tuple[str, str, str, str]] = [
 ]
 
 
+# ============================================================================
+# (AR) 🔑 مفرداتُ الصنفِ العدديّ — الإشارةُ **مُعلَنةً** لا مستنبطةً من الهجاء.
+#      استنباطُها من الاسم («UInt» ⇒ لا-موقَّع) يجعل الحقيقةَ رهنَ التسمية،
+#      فيكفي نوعٌ واحدٌ يُسمّى بغيرِ النمطِ ليصمتَ الاستنباطُ عن كذبِه.
+# (EN) Numeric-class vocabulary — signedness DECLARED, never spelling-inferred.
+#      Inferring it from the kind's name makes the truth hostage to naming.
+# ============================================================================
+NUMERIC_CLASS_VOCAB: list[tuple[str, str, str, str]] = [
+    ("__absent__", "NotNumeric", "ليس عددًا", "not a number"),
+    ("signed", "SignedInteger", "عدد صحيح موقَّع", "signed integer"),
+    ("unsigned", "UnsignedInteger", "عدد صحيح لا-موقَّع", "unsigned integer"),
+    ("float", "Float", "عدد عائم", "floating point"),
+]
+
+
+def _emit_numeric_traits(types: list[dict[str, Any]]) -> list[str]:
+    """
+    (AR) يُولّد الجدولَ الموحَّدَ للصفةِ العدديّة (الإشارة + العرض) وما يُشتَقُّ منه.
+
+         🔑 قبلَ هذا الجدولِ كانت الإشارةُ حقيقةً **غيرَ معلنةٍ** تسكن الكودَ في
+         ستّةِ مواضعَ مكرَّرةٍ باليدِ عبرَ المحرّكَين: جدولُ اللفظ⇒النوع، وقاعدةُ
+         الهيمنةِ مرّتَين، ومُسنِدُ المقارنةِ اللا-موقَّعة، وتنسيقُ الطباعة، وعلَمُ
+         الالتفاف. ولم يكن في مصدرِ الحقيقةِ حقلٌ واحدٌ يقولُ «طبيعي لا-موقَّع»
+         — فما لم يُعلَنْ لا يُقاس، وما لا يُقاسُ ينجرفُ في الموضعِ الذي يُنسى.
+
+    (EN) Emits the unified numeric-trait table (signedness + width) and its
+         derivations. Before it, signedness was an UNDECLARED fact living in six
+         hand-duplicated sites across both engines, with no SoT field asserting
+         it. What is not declared is not measured, and what is not measured
+         drifts at the site that gets forgotten.
+    """
+    vocab_words = {word for word, _cxx, _ar, _en in NUMERIC_CLASS_VOCAB}
+    for entry in types:
+        seen = entry.get("numeric", "__absent__")
+        if seen not in vocab_words:
+            raise ValueError(
+                f"types.yaml: {entry.get('id', '?')} has numeric={seen!r}, "
+                f"which is not in NUMERIC_CLASS_VOCAB ({sorted(vocab_words)}). "
+                "Add it to gen_types.py AND to every consumer that switches on it."
+            )
+        # (AR) عددٌ بلا عرضٍ مُعلَنٍ لا يمكن بترُه ولا حسابُ مداه — فهو دَينٌ صامت.
+        # (EN) A numeric kind without a declared width can be neither truncated
+        #      nor range-checked — that is a silent debt, so refuse it here.
+        if seen != "__absent__" and entry.get("size_bytes") is None:
+            raise ValueError(
+                f"types.yaml: {entry.get('id', '?')} declares numeric={seen!r} "
+                "but has no size_bytes. A numeric kind must declare its width; "
+                "otherwise truncation and range are unknowable."
+            )
+
+    cxx_of = {word: cxx for word, cxx, _ar, _en in NUMERIC_CLASS_VOCAB}
+    lines: list[str] = []
+
+    lines.append("        // ─── الصفةُ العدديّة / Numeric traits ───")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) صنفُ النوعِ العدديّ — مُولَّد من حقلِ numeric في types.yaml")
+    lines.append("         * @brief (EN) Numeric class of a kind — generated from types.yaml `numeric`")
+    lines.append("         *")
+    lines.append("         * (AR) «NotNumeric» صفرٌ عمدًا: خانةٌ مُصفَّرةٌ تعني «ليس عددًا»،")
+    lines.append("         *      فالاحتياطُ الصامتُ يقعُ على الجوابِ الآمنِ لا على تخمينِ إشارة.")
+    lines.append("         * (EN) «NotNumeric» is 0 on purpose: a zeroed slot reads as «not a")
+    lines.append("         *      number», so a silent fallback lands on the safe answer.")
+    lines.append("         */")
+    lines.append("        enum class SadNumericClass : int")
+    lines.append("        {")
+    max_cxx = max(len(cxx) for _w, cxx, _ar, _en in NUMERIC_CLASS_VOCAB)
+    for _word, cxx, desc_ar, desc_en in NUMERIC_CLASS_VOCAB:
+        pad = " " * (max_cxx - len(cxx))
+        lines.append(f"            {cxx},{pad} ///< {desc_ar} / {desc_en}")
+    lines.append("        };")
+    lines.append("")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) عددُ مفرداتِ SadNumericClass — تستهلكه static_assert عندَ كلِّ")
+    lines.append("         *             مَن يوزّع عليها، فإضافةُ صنفٍ عدديٍّ جديدٍ **تكسر البناءَ**")
+    lines.append("         *             بدلَ أن تسقطَ في ذراعٍ افتراضيّةٍ تُخمِّن الإشارة.")
+    lines.append("         * @brief (EN) SadNumericClass cardinality — consumed by static_assert at")
+    lines.append("         *             every dispatcher, so a new class BREAKS THE BUILD.")
+    lines.append("         */")
+    lines.append(
+        f"        inline constexpr int SAD_NUMERIC_CLASS_COUNT = {len(NUMERIC_CLASS_VOCAB)};"
+    )
+    lines.append("")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) جدولُ الصنفِ العدديِّ مفهرسًا بقيمةِ SadTypeKind — مُولَّد")
+    lines.append("         * @brief (EN) Numeric-class table indexed by SadTypeKind — generated")
+    lines.append("         */")
+    lines.append(
+        "        inline constexpr std::array<SadNumericClass, SAD_TYPE_KIND_COUNT> "
+        "SAD_TYPE_NUMERIC_CLASS_TABLE = {{"
+    )
+    max_entry = max(len(cxx_of[t.get("numeric", "__absent__")]) for t in types)
+    for entry in types:
+        cell = cxx_of[entry.get("numeric", "__absent__")]
+        pad = " " * (max_entry - len(cell))
+        lines.append(
+            f"            SadNumericClass::{cell},{pad} // "
+            f"{entry['kind']} — {entry.get('word', '')}"
+        )
+    lines.append("        }};")
+    lines.append("")
+
+    # ════════════════════════════════════════════════════════════════════════
+    # (AR) جدولُ «أعرضٌ مُصرَّحٌ به؟» — مشتقٌّ من الحقلِ `category` في types.yaml
+    #      وسببُ توليدِه أنّ الفرقَ بين «رقم» و«رقم» لا يظهرُ في أيِّ جدولٍ
+    #      مولَّدٍ سابق: كلاهما موقَّعٌ وكلاهما ثمانيةُ بايتات، فمن سألَ عن
+    #      الإشارةِ والعرضِ وحدَهما رآهما نوعًا واحدًا. وكان البديلُ أن أكتبَ
+    #      `kind != Integer && kind != Float` بيدي — أي قائمةَ أسماءٍ سادسةً
+    #      تنجرفُ عن مصدرِ الحقيقةِ عندَ أوّلِ نوعٍ يُضاف.
+    # (EN) "Is this a declared-width kind?" — derived from `category`. Neither
+    #      signedness nor bit-width distinguishes رقم from رقم (both signed,
+    #      both 8 bytes), so this is the only SoT field that separates them.
+    # ════════════════════════════════════════════════════════════════════════
+    lines.append("        /**")
+    lines.append("         * @brief (AR) جدولُ «عرضٌ مُصرَّحٌ به» — مُشتقٌّ من category")
+    lines.append("         * @brief (EN) Declared-width table — derived from `category`")
+    lines.append("         */")
+    lines.append(
+        "        inline constexpr std::array<bool, SAD_TYPE_KIND_COUNT> "
+        "SAD_TYPE_SIZED_PRIMITIVE_TABLE = {{"
+    )
+    for entry in types:
+        cell = "true, " if entry.get("category") == "sized_primitive" else "false,"
+        lines.append(
+            f"            {cell} // {entry['kind']} — {entry.get('word', '')}"
+        )
+    lines.append("        }};")
+    lines.append("")
+    lines.append("        /**")
+    lines.append("         * @brief (AR) أهذا نوعٌ عرضُه مُصرَّحٌ به في الشيفرة؟")
+    lines.append("         * @brief (EN) Is this a kind whose width the author declared?")
+    lines.append("         *")
+    lines.append("         * (AR) كلّيّةٌ بنيويًّا: ما خرجَ عن المدى ليس مُصرَّحًا بعرضِه.")
+    lines.append("         * (EN) Structurally total: out-of-range is not declared-width.")
+    lines.append("         */")
+    lines.append("        inline constexpr bool sadTypeKindIsSizedPrimitive(SadTypeKind kind)")
+    lines.append("        {")
+    lines.append("            const int index = static_cast<int>(kind);")
+    lines.append("            if (index < 0 || index >= SAD_TYPE_KIND_COUNT)")
+    lines.append("            {")
+    lines.append("                return false;")
+    lines.append("            }")
+    lines.append("            return SAD_TYPE_SIZED_PRIMITIVE_TABLE[static_cast<std::size_t>(index)];")
+    lines.append("        }")
+    lines.append("")
+
+    body = r"""
+        /**
+         * @brief (AR) صنفُ نوعٍ عدديًّا — مُولَّد من types.yaml
+         * @brief (EN) Numeric class of a kind — generated from types.yaml
+         *
+         * (AR) كلّيّةٌ بنيويًّا: قيمةٌ خارجَ المدى تُرجِع «NotNumeric» — أي
+         *      «ليس عددًا» لا إشارةً مُخترَعة.
+         * (EN) Structurally total: out-of-range yields «NotNumeric», never an
+         *      invented signedness.
+         */
+        inline constexpr SadNumericClass sadTypeKindNumericClass(SadTypeKind kind)
+        {
+            const int index = static_cast<int>(kind);
+            if (index < 0 || index >= SAD_TYPE_KIND_COUNT)
+            {
+                return SadNumericClass::NotNumeric;
+            }
+            return SAD_TYPE_NUMERIC_CLASS_TABLE[static_cast<std::size_t>(index)];
+        }
+
+        /** @brief (AR) هل النوعُ عددٌ أصلًا؟ / (EN) Is the kind numeric at all? */
+        inline constexpr bool sadTypeKindIsNumeric(SadTypeKind kind)
+        {
+            return sadTypeKindNumericClass(kind) != SadNumericClass::NotNumeric;
+        }
+
+        /** @brief (AR) هل هو عددٌ صحيحٌ (موقَّعًا أو لا)؟ / (EN) Integer numeric? */
+        inline constexpr bool sadTypeKindIsIntegerNumeric(SadTypeKind kind)
+        {
+            const SadNumericClass numericClass = sadTypeKindNumericClass(kind);
+            return numericClass == SadNumericClass::SignedInteger ||
+                   numericClass == SadNumericClass::UnsignedInteger;
+        }
+
+        /**
+         * @brief (AR) هل هو عددٌ صحيحٌ **لا-موقَّع**؟ — المُسنِدُ الواحدُ الذي كان
+         *             مكتوبًا باليدِ في المحرّكَين (`== UInt64` حرفيًّا)، فكان
+         *             يعمى عن كلِّ نوعٍ لا-موقَّعٍ آخر.
+         * @brief (EN) Unsigned-integer predicate — the one that used to be
+         *             hand-written as a literal `== UInt64` in both engines, and
+         *             was therefore blind to every other unsigned kind.
+         */
+        inline constexpr bool sadTypeKindIsUnsignedInteger(SadTypeKind kind)
+        {
+            return sadTypeKindNumericClass(kind) == SadNumericClass::UnsignedInteger;
+        }
+
+        /** @brief (AR) هل هو عددٌ عائم؟ / (EN) Floating-point numeric? */
+        inline constexpr bool sadTypeKindIsFloatNumeric(SadTypeKind kind)
+        {
+            return sadTypeKindNumericClass(kind) == SadNumericClass::Float;
+        }
+
+        /**
+         * @brief (AR) عرضُ النوعِ العدديِّ بالبتّات — مشتقٌّ من size_bytes المُعلَن
+         * @brief (EN) Numeric width in bits — derived from the declared size_bytes
+         *
+         * (AR) يُرجِع kSadTypeSizeUnknown لِما ليس عددًا أو لا عرضَ مُعلَنَ له.
+         * (EN) Yields kSadTypeSizeUnknown for non-numeric or width-less kinds.
+         */
+        inline constexpr int sadTypeKindNumericBits(SadTypeKind kind)
+        {
+            if (!sadTypeKindIsNumeric(kind))
+            {
+                return kSadTypeSizeUnknown;
+            }
+            const int bytes = sadTypeKindSizeBytes(kind);
+            return bytes == kSadTypeSizeUnknown ? kSadTypeSizeUnknown : bytes * 8;
+        }
+
+        /**
+         * @brief (AR) أصغرُ قيمةٍ يحملها نوعٌ صحيح — ٠ لِلّا-موقَّع
+         * @brief (EN) Minimum value an integer kind holds — 0 when unsigned
+         */
+        inline constexpr long long sadTypeKindIntegerMin(SadTypeKind kind)
+        {
+            const int bits = sadTypeKindNumericBits(kind);
+            if (!sadTypeKindIsIntegerNumeric(kind) || bits == kSadTypeSizeUnknown)
+            {
+                return 0;
+            }
+            if (sadTypeKindIsUnsignedInteger(kind))
+            {
+                return 0;
+            }
+            if (bits >= 64)
+            {
+                return (-9223372036854775807LL - 1);
+            }
+            return -(1LL << (bits - 1));
+        }
+
+        /**
+         * @brief (AR) أكبرُ قيمةٍ يحملها نوعٌ صحيح — لا-موقَّعةٌ لتسعَ ٢^٦٤−١
+         * @brief (EN) Maximum value an integer kind holds — unsigned so 2^64-1 fits
+         */
+        inline constexpr unsigned long long sadTypeKindIntegerMax(SadTypeKind kind)
+        {
+            const int bits = sadTypeKindNumericBits(kind);
+            if (!sadTypeKindIsIntegerNumeric(kind) || bits == kSadTypeSizeUnknown)
+            {
+                return 0ULL;
+            }
+            if (sadTypeKindIsUnsignedInteger(kind))
+            {
+                return bits >= 64 ? ~0ULL : ((1ULL << bits) - 1ULL);
+            }
+            return bits >= 64 ? 9223372036854775807ULL : ((1ULL << (bits - 1)) - 1ULL);
+        }
+
+        /**
+         * @brief (AR) بترُ قيمةٍ إلى العرضِ المُعلَنِ ثمّ تمديدُها بحسبِ الإشارة —
+         *             العمليّةُ الواحدةُ التي تُطبَّقُ عندَ **كلِّ** معبر: التصريح،
+         *             والمعامل، وحقلُ الصنف، وناتجُ الحساب.
+         *
+         *             🔑 وكانت مكتوبةً في معبرٍ دونَ معبر، فَسُدَّ التصريحُ وبقي
+         *             حقلُ الصنفِ مفتوحًا: `بايت م = 300` تُعطي ٤٤ و`ك.ح = 300`
+         *             تُعطي ٣٠٠. معبرٌ واحدٌ منسيٌّ يُبطِلُ عقدَ النوعِ كلَّه.
+         *
+         * @brief (EN) Truncate a value to the declared width, then extend by
+         *             signedness — the single operation that must be applied at
+         *             EVERY crossing: declaration, parameter, class field, and
+         *             arithmetic result. It used to be written at one crossing
+         *             and not another, which is why `بايت م = 300` yields 44 while
+         *             `obj.field = 300` yields 300. One forgotten crossing voids
+         *             the whole type contract.
+         *
+         * (AR) هُويّةٌ لِما ليس صحيحًا أو لا عرضَ له — لا تخترعُ قيمةً لِما تجهل.
+         * (EN) Identity for non-integer or width-less kinds — never invents.
+         */
+        inline constexpr long long sadTypeKindNormalizeInteger(SadTypeKind kind,
+                                                               long long value)
+        {
+            const int bits = sadTypeKindNumericBits(kind);
+            if (!sadTypeKindIsIntegerNumeric(kind) || bits == kSadTypeSizeUnknown ||
+                bits >= 64)
+            {
+                return value;
+            }
+            const unsigned long long mask = (1ULL << bits) - 1ULL;
+            const unsigned long long masked =
+                static_cast<unsigned long long>(value) & mask;
+            if (sadTypeKindIsUnsignedInteger(kind))
+            {
+                return static_cast<long long>(masked);
+            }
+            const unsigned long long signBit = 1ULL << (bits - 1);
+            if ((masked & signBit) != 0ULL)
+            {
+                return static_cast<long long>(masked | ~mask);
+            }
+            return static_cast<long long>(masked);
+        }
+
+        /**
+         * @brief (AR) هل تسعُ القيمةُ في النوعِ بلا بتر؟ — للتشخيصِ لا للبتر
+         * @brief (EN) Does the value fit the kind without truncation? — for
+         *             diagnostics, not for truncating
+         */
+        inline constexpr bool sadTypeKindIntegerFits(SadTypeKind kind, long long value)
+        {
+            if (!sadTypeKindIsIntegerNumeric(kind))
+            {
+                return false;
+            }
+            if (sadTypeKindIsUnsignedInteger(kind))
+            {
+                return value >= 0 &&
+                       static_cast<unsigned long long>(value) <=
+                           sadTypeKindIntegerMax(kind);
+            }
+            return value >= sadTypeKindIntegerMin(kind) &&
+                   value <= static_cast<long long>(sadTypeKindIntegerMax(kind));
+        }
+
+        /**
+         * @brief (AR) نوعُ ناتجِ الخلطِ بين معامِلَين — قاعدةُ الهيمنةِ **الواحدة**
+         *
+         *             القاعدة: العائمُ يهيمن؛ فإن كانا صحيحَين فالأعرضُ يفوز،
+         *             وعندَ تساوي العرضِ يفوزُ اللا-موقَّع.
+         *
+         *             🔑 وكانت القاعدةُ محصورةً في أسماءٍ بعينِها
+         *             (`عشري ← طبيعي ← بايت ← رقم`) مكتوبةً مرّتَين — مرّةً في
+         *             كلِّ محرّك — ويقولُ تعليقُ المفسّرِ إنّ على المترجِمِ تطبيقَها
+         *             «بالمطابقة»، وهو شرطٌ **مُعلَنٌ لا يقيسُه أحد**. وفيها خللٌ
+         *             كامنٌ يظهرُ لحظةَ تنفيذِ البتر: `بايت + رقم` تُوسَمُ «بايت»،
+         *             فيصيرُ ٢٠٠ + ١٠٠ يساوي ٤٤ بدلَ ٣٠٠. والقاعدةُ العامّةُ ههنا
+         *             تُعطي «رقم» فتحفظُ السلوكَ المقيس.
+         *
+         * @brief (EN) Result kind of mixing two operands — the SINGLE dominance
+         *             rule. Float dominates; otherwise the wider integer wins, and
+         *             on equal width the unsigned one wins.
+         *
+         *             It used to be a name-bound ladder written once per engine,
+         *             with the interpreter's comment declaring that the compiler
+         *             must apply it «identically» — a contract nobody measured.
+         *             It also carried a latent defect that surfaces the moment
+         *             truncation lands: `Byte + Integer` was tagged Byte, which
+         *             would turn 200 + 100 into 44 instead of 300.
+         *
+         * (AR) وإن لم يكن أحدُ المعامِلَين عددًا رجعَ «رقم» — وهو الاحتياطُ الذي
+         *      كان قائمًا قبلَ التوحيد، أُبقيَ كما هو كي لا يتغيّرَ سلوكٌ مقيس.
+         * (EN) If either operand is non-numeric the result is Integer — the
+         *      pre-unification fallback, preserved so no measured behaviour moves.
+         */
+        inline constexpr SadTypeKind sadNumericDominantKind(SadTypeKind left,
+                                                            SadTypeKind right)
+        {
+            const bool leftFloat = sadTypeKindIsFloatNumeric(left);
+            const bool rightFloat = sadTypeKindIsFloatNumeric(right);
+            if (leftFloat || rightFloat)
+            {
+                if (leftFloat && rightFloat)
+                {
+                    return sadTypeKindNumericBits(right) > sadTypeKindNumericBits(left)
+                               ? right
+                               : left;
+                }
+                return leftFloat ? left : right;
+            }
+            if (!sadTypeKindIsIntegerNumeric(left) || !sadTypeKindIsIntegerNumeric(right))
+            {
+                return SadTypeKind::Integer;
+            }
+            const int leftBits = sadTypeKindNumericBits(left);
+            const int rightBits = sadTypeKindNumericBits(right);
+            if (leftBits != rightBits)
+            {
+                return leftBits > rightBits ? left : right;
+            }
+            if (sadTypeKindIsUnsignedInteger(left) != sadTypeKindIsUnsignedInteger(right))
+            {
+                return sadTypeKindIsUnsignedInteger(left) ? left : right;
+            }
+            return left;
+        }
+"""
+    lines.extend(body.split("\n"))
+
+    # ========================================================================
+    # (AR) 🔑 برهانٌ زمن-ترجميٍّ مُولَّد: تحسبُ پايثون المدى والبترَ **استقلالًا**
+    #      عن حسابِ C++، ويُقابَلُ الحسابانِ بـstatic_assert. فإن انجرفَ أحدُهما
+    #      انكسرَ البناءُ عندَ أوّلِ وحدةِ ترجمةٍ تُدرِجُ الترويسة — لا في اختبارٍ
+    #      قد يُستثنى، ولا في بوّابةٍ قد تُتخطّى.
+    #
+    #      وموضعُه الترويسةُ لا ملفَّ اختبارٍ عمدًا: البرهانُ الذي يسكنُ ملفًّا
+    #      منفصلًا يحتاج هدفَ بناءٍ يُوصَلُ به، وما يُوصَلُ يُفصَل. وهذا يُدرَجُ
+    #      حيثما أُدرِجَ الجدولُ، فلا سبيلَ إلى استعمالِ الجدولِ بلا برهانِه.
+    # (EN) Generated compile-time proof: Python computes range/truncation
+    #      INDEPENDENTLY of the C++ constexpr code, and the two are compared by
+    #      static_assert. Drift breaks the build at the first TU that includes
+    #      the header — not in a test that can be excluded or a gate that can be
+    #      skipped. It lives in the header on purpose: a proof in a separate file
+    #      needs a build target wired to it, and what is wired can be unwired.
+    # ========================================================================
+    def py_min(bits: int, is_unsigned: bool) -> int:
+        return 0 if is_unsigned else -(1 << (bits - 1))
+
+    def py_max(bits: int, is_unsigned: bool) -> int:
+        return (1 << bits) - 1 if is_unsigned else (1 << (bits - 1)) - 1
+
+    def py_normalize(bits: int, is_unsigned: bool, value: int) -> int:
+        if bits >= 64:
+            return value
+        masked = value & ((1 << bits) - 1)
+        if is_unsigned:
+            return masked
+        return masked - (1 << bits) if masked >= (1 << (bits - 1)) else masked
+
+    lines.append("        // ─── برهانُ الاشتقاق / Derivation proof ───")
+    lines.append("        // (AR) قيمٌ حسبتها پايثون استقلالًا — التباعدُ يكسرُ البناء")
+    lines.append("        // (EN) Python-computed values — drift breaks the build")
+    probes = (0, 1, 200, 255, 300, -1, 65536, 4294967296)
+    for entry in types:
+        numeric = entry.get("numeric")
+        if numeric in (None, "float"):
+            continue
+        kind = entry["kind"]
+        bits = int(entry["size_bytes"]) * 8
+        is_unsigned = numeric == "unsigned"
+        lines.append(f"        // {kind} — {entry.get('word', '')} ({bits} bit, {numeric})")
+        lines.append(
+            f"        static_assert(sadTypeKindNumericBits(SadTypeKind::{kind}) == {bits});"
+        )
+        lines.append(
+            f"        static_assert(sadTypeKindIsUnsignedInteger(SadTypeKind::{kind}) == "
+            f"{'true' if is_unsigned else 'false'});"
+        )
+        lines.append(
+            f"        static_assert(sadTypeKindIntegerMin(SadTypeKind::{kind}) == "
+            f"{py_min(bits, is_unsigned)}LL);"
+        )
+        lines.append(
+            f"        static_assert(sadTypeKindIntegerMax(SadTypeKind::{kind}) == "
+            f"{py_max(bits, is_unsigned)}ULL);"
+        )
+        for probe in probes:
+            expected = py_normalize(bits, is_unsigned, probe)
+            lines.append(
+                f"        static_assert(sadTypeKindNormalizeInteger(SadTypeKind::{kind}, "
+                f"{probe}LL) == {expected}LL);"
+            )
+    lines.append("")
+    return lines
+
+
 def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | None = None) -> str:
     """
     (AR) يُنتج محتوى sad_type_kind_generated.h من قائمة الأنواع المُرتّبة.
@@ -183,7 +634,7 @@ def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | Non
     # ========================================================================
     # (AR) 🔑 القيمةُ الافتراضيّةُ لخانةٍ صُرِّح نوعُها ولم تُهيَّأ — جدولٌ **واحدٌ
     #      مُولَّد** بدلَ ستِّ نسخٍ يدويّة. كان لكلِّ موضعٍ جدولُه، فانجرفَ الجدولُ
-    #      في الموضعِ الذي يُنسى: «طبيعي64» غابت عن نسخةِ المترجمِ وحدَها فبقيت
+    #      في الموضعِ الذي يُنسى: «طبيعي» غابت عن نسخةِ المترجمِ وحدَها فبقيت
     #      خانتُها تُقرأ على ما تركه المكدَّس، مقيسةً تتبدّل في كلِّ تشغيل.
     #
     #      والقيمةُ **رمزيّةٌ لا تعبيرَ C++**: كلُّ محرّكٍ يترجمها إلى تمثيلِه
@@ -331,6 +782,8 @@ def emit_header(types: list[dict[str, Any]], removed: list[dict[str, Any]] | Non
     lines.append("            return SAD_TYPE_SIZE_BYTES_TABLE[static_cast<std::size_t>(index)];")
     lines.append("        }")
     lines.append("")
+
+    lines.extend(_emit_numeric_traits(types))
 
     # ========================================================================
     # (AR) دالة الاسم العربي لـنوع() — مصدر حقيقة واحد للمحرّكين (مفسّر + مترجم).

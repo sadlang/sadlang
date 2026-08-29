@@ -16,6 +16,7 @@
 #include "error_manager.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -83,8 +84,8 @@ namespace Sad
                 if (auto enumDecl = dynamic_cast<Sad::AST::EnumDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found EnumDecl: " << enumDecl->name
-                              << " (isADT=" << enumDecl->isADT() << ")" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found EnumDecl: " << enumDecl->name
+                              << " (isADT=" << enumDecl->isADT() << ")");
 #endif
 
                     if (enumDecl->isADT())
@@ -144,9 +145,9 @@ namespace Sad
                         }
 
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] ADT enum '" << enumDecl->name
+                        SAD_DEBUG_LOG_LINE("[DEBUG] ADT enum '" << enumDecl->name
                                   << "': " << adtInfo.variants.size() << " variants, maxFields="
-                                  << adtInfo.maxFieldCount << std::endl;
+                                  << adtInfo.maxFieldCount);
 #endif
 
                         // (AR) الخطوة 2: إنشاء بنية SIR للـ tagged union
@@ -327,9 +328,9 @@ namespace Sad
                         b_.adtEnumTable_[enumDecl->name] = std::move(adtInfo);
 
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] ADT enum '" << enumDecl->name
+                        SAD_DEBUG_LOG_LINE("[DEBUG] ADT enum '" << enumDecl->name
                                   << "' fully registered with " << enumDecl->members.size()
-                                  << " variant constructors" << std::endl;
+                                  << " variant constructors");
 #endif
                     }
                     else
@@ -414,7 +415,7 @@ namespace Sad
                 if (auto structDecl = dynamic_cast<Sad::AST::StructDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found StructDecl: " << structDecl->name << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found StructDecl: " << structDecl->name);
 #endif
 
                     // (AR) إنشاء "صنف" SIR بدون وراثة لتمثيل البنية
@@ -449,14 +450,14 @@ namespace Sad
                         case Sad::Types::SadTypeKind::Array:
                             fieldType = SadTypeKind::Array;
                             break;
-                        // (AR) «بايت» و«طبيعي64» كانا يسقطان في `default:` فيصيران «رقم».
+                        // (AR) «بايت» و«طبيعي» كانا يسقطان في `default:` فيصيران «رقم».
                         //      القيمةُ تصادف الصوابَ (صفر) والنوعُ لا — وتصادفُ الصوابِ
                         //      ليست صوابًا، لأنّها تنكسر أوّلَ ما يُسأَل عن العرضِ أو
-                        //      عن التوجيه (طبيعي64 غيرُ موجَّه).
+                        //      عن التوجيه (طبيعي غيرُ موجَّه).
                         // (EN) Byte and UInt64 fell through to Integer: the value happened
                         //      to be right (zero) and the type did not.
-                        case Sad::Types::SadTypeKind::Byte:
-                            fieldType = SadTypeKind::Byte;
+                        case Sad::Types::SadTypeKind::UInt8:
+                            fieldType = SadTypeKind::UInt8;
                             break;
                         case Sad::Types::SadTypeKind::UInt64:
                             fieldType = SadTypeKind::UInt64;
@@ -625,7 +626,7 @@ namespace Sad
                 if (auto nsDecl = dynamic_cast<Sad::AST::NamespaceDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found NamespaceDecl: " << nsDecl->name << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found NamespaceDecl: " << nsDecl->name);
 #endif
 
                     // (AR) بناء أعضاء الفضاء (الدوال، الأصناف، المتغيرات)
@@ -736,7 +737,7 @@ namespace Sad
                 if (auto classDeclStmt = dynamic_cast<Sad::AST::ClassDeclStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found ClassDeclStmt: " << classDeclStmt->name << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found ClassDeclStmt: " << classDeclStmt->name);
 #endif
 
                     // (AR) تحويل ClassDeclStmt إلى SIRClass
@@ -980,7 +981,7 @@ namespace Sad
                 if (auto funcDecl = dynamic_cast<Sad::AST::FunctionDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found nested FunctionDecl: " << funcDecl->name << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found nested FunctionDecl: " << funcDecl->name);
 #endif
                     b_.buildFunction(funcDecl);
                     return true;
@@ -993,7 +994,7 @@ namespace Sad
                 if (auto classDecl = dynamic_cast<Sad::AST::ClassDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found nested ClassDecl: " << classDecl->name << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found nested ClassDecl: " << classDecl->name);
 #endif
                     b_.buildClass(classDecl);
                     return true;
@@ -1006,7 +1007,7 @@ namespace Sad
                 if (auto destructorDecl = dynamic_cast<Sad::AST::DestructorDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found DestructorDecl" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found DestructorDecl");
 #endif
 
                     // (AR) بناء دالة هادم خاصة: __destructor_<className>

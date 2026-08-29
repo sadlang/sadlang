@@ -613,8 +613,22 @@ namespace Sad
                 // (EN) Type name from the unified SoT (types.yaml) via the generated
                 //      sadTypeKindArabicName — no duplicated Arabic literals. Guarantees
                 //      نوع() parity between interpreter and compiler (one source).
+                // (AR) 🔑 والعرضُ المُعلَنُ يسبقُ خانةَ التخزينِ حينَ يكونُ منصوبًا:
+                //      «الخيارُ ب» يُخزِّنُ `رقم8` و`طبيعي16` في int64، فـ`getKind()`
+                //      يُجيبُ `Integer` عن الثلاثةِ جميعًا. والوسمُ يُنصَبُ عندَ المعبَرِ
+                //      وحدَه، فلا يحملُه إلّا ما صُرِّحَ عرضُه فعلًا. وأمّا `بايت`
+                //      و`طبيعي` فيُجيبُ عنهما مصدرُ الحقيقةِ «رقم» عبر `typeof_ar`،
+                //      فلا يتغيّرُ جوابٌ مقيسٌ اليوم.
+                // (EN) The declared width outranks the storage slot when tagged. Under
+                //      Option B every sub-64 width is stored as int64, so getKind() answers
+                //      Integer for all of them; the tag is set only at a crossing where the
+                //      declared width is actually known. Byte/UInt64 keep answering «رقم»
+                //      through their SoT typeof_ar, so no measured answer moves.
+                const Types::SadTypeKind declaredKind = args[0]->getDeclaredNumericKind();
+                const Types::SadTypeKind answeredKind =
+                    declaredKind != Types::SadTypeKind::Unknown ? declaredKind : args[0]->getKind();
                 return std::make_shared<Data::Value>(
-                    std::string(Types::sadTypeKindArabicName(args[0]->getKind())));
+                    std::string(Types::sadTypeKindArabicName(answeredKind)));
             }
 
             std::shared_ptr<Data::Value> to_int(const std::vector<std::shared_ptr<Data::Value>> &args)

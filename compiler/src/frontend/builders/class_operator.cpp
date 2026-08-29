@@ -18,6 +18,7 @@
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "sad_debug_log.h"
 
 namespace Sad
 {
@@ -31,7 +32,7 @@ namespace Sad
                 Sad::AST::OperatorDecl *operatorDecl)
             {
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildClass: found operator overload '" << operatorDecl->operatorSymbol << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: found operator overload '" << operatorDecl->operatorSymbol << "'");
 #endif
 
                 // (AR) تحويل رمز العامل إلى اسم آمن للدالة

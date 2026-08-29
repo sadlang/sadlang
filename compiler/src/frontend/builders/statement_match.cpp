@@ -14,6 +14,7 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -86,8 +87,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildMatchStatement: starting with "
-                          << matchStmt->cases.size() << " cases" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: starting with "
+                          << matchStmt->cases.size() << " cases");
 #endif
 
                 // ========================================================================
@@ -103,8 +104,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildMatchStatement: match value reg="
-                          << matchResult.registerName << ", isConst=" << matchResult.isConstant << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: match value reg="
+                          << matchResult.registerName << ", isConst=" << matchResult.isConstant);
 #endif
 
                 // (AR) إذا كانت القيمة ثابتة، نحتاج تحميلها في سجل
@@ -843,7 +844,7 @@ namespace Sad
                     }
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildMatchStatement: generated case " << i << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: generated case " << i);
 #endif
                 } // end for each case
 
@@ -987,7 +988,7 @@ namespace Sad
                 b_.currentMatchEnumName_ = savedMatchEnumName;
                 b_.currentBlock_ = mergeBlock;
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildMatchStatement: completed" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildMatchStatement: completed");
 #endif
             }
 

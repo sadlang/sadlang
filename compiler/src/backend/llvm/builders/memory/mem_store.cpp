@@ -23,6 +23,7 @@
 #include "sad_dyn_repr.h" // (AR) ISSUE-063: ترقية الخانات إلى %SadDyn وتعليب المحسوس / (EN) ISSUE-063: %SadDyn slot promotion + packing
 #include "sad_type_utils.h" // (AR) SEM045 (أ٢): kindToArabic لرسالة حارس الفراغ / (EN) SEM045: Arabic type name for the Void guard
 #include "llvm_codegen.h"
+#include "sad_debug_log.h"
 
 using namespace Sad::Compiler::SIR;
 
@@ -82,7 +83,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] emitStore: member assign " << objName << "." << fieldName << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] emitStore: member assign " << objName << "." << fieldName);
 #endif
 
                 // البحث عن الكائن في namedValues
@@ -130,7 +131,7 @@ namespace Sad
                         // تحويل i64 إلى ptr
                         objPtr = cg_.builder_->CreateIntToPtr(ptrVal, llvm::PointerType::get(*cg_.context_, 0), objName + ".objptr");
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] emitStore: converted i64 to ptr for " << objName << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] emitStore: converted i64 to ptr for " << objName);
 #endif
                     }
                 }
@@ -141,7 +142,7 @@ namespace Sad
                     llvm::Value *ptrVal = cg_.builder_->CreateLoad(cg_.getInt64Type(), objPtr, objName + ".glob.ptrval");
                     objPtr = cg_.builder_->CreateIntToPtr(ptrVal, llvm::PointerType::get(*cg_.context_, 0), objName + ".glob.objptr");
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] emitStore: converted global i64 to ptr for " << objName << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] emitStore: converted global i64 to ptr for " << objName);
 #endif
                 }
 
@@ -210,8 +211,8 @@ namespace Sad
                                 className = clsName;
                                 cg_.context_info_.objectClassMap[objName] = className;
 #ifndef NDEBUG
-                                std::cout << "[DEBUG] emitStore: inferred class '" << className
-                                          << "' for object '" << objName << "' by field '" << fieldName << "'" << std::endl;
+                                SAD_DEBUG_LOG_LINE("[DEBUG] emitStore: inferred class '" << className
+                                          << "' for object '" << objName << "' by field '" << fieldName << "'");
 #endif
                                 break;
                             }
@@ -366,7 +367,7 @@ namespace Sad
 
                 auto *storeResult = cg_.builder_->CreateStore(value, gep);
 #ifndef NDEBUG
-                std::cout << "[DEBUG] emitStore: field '" << fieldName << "' stored via GEP index " << fieldIndex << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] emitStore: field '" << fieldName << "' stored via GEP index " << fieldIndex);
 #endif
                 return storeResult;
             }
@@ -977,16 +978,16 @@ namespace Sad
                 if (prevIt != cg_.context_info_.objectClassMap.end() &&
                     prevIt->second != cg_.context_info_.objectClassMap[valueOp.name])
                 {
-                    std::cout << "[DEBUG] emitStore: OVERWRITE class '" << prevIt->second
+                    SAD_DEBUG_LOG_LINE("[DEBUG] emitStore: OVERWRITE class '" << prevIt->second
                               << "' -> '" << cg_.context_info_.objectClassMap[valueOp.name]
-                              << "' on " << ptrName << " (from " << valueOp.name << ")" << std::endl;
+                              << "' on " << ptrName << " (from " << valueOp.name << ")");
                 }
 #endif
                 cg_.context_info_.objectClassMap[ptrName] = cg_.context_info_.objectClassMap[valueOp.name];
 #ifndef NDEBUG
-                std::cout << "[DEBUG] emitStore: propagated class '"
+                SAD_DEBUG_LOG_LINE("[DEBUG] emitStore: propagated class '"
                           << cg_.context_info_.objectClassMap[valueOp.name]
-                          << "' from " << valueOp.name << " to " << ptrName << std::endl;
+                          << "' from " << valueOp.name << " to " << ptrName);
 #endif
             }
 

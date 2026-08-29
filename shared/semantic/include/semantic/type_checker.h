@@ -323,6 +323,16 @@ namespace Sad
             void declareVariable(const std::string &name, TypeSystem::TypePtr type);
 
             /**
+             * @brief (AR) هل أعلنَ كاتبُ هذا التعبيرِ إشارتَه صراحةً؟ — مرساةُ SEM048
+             * @brief (EN) Did the writer explicitly declare this operand's signedness?
+             *
+             * (AR) «لا» للحرفيّةِ العدديّةِ المجرّدة (بإشارةٍ أحاديّةٍ أو بدونها)
+             *      وللمتغيّرِ الذي استُنتِجَ نوعُه من مُهيِّئِه؛ و«نعم» لِما عداهما.
+             *      يُنظَر [[variableTypeIsInferred_]].
+             */
+            bool writerDeclaredSignedness(const AST::Expression *expression) const;
+
+            /**
              * @brief (AR) البحث عن نوع متغير
              * @brief (EN) Look up variable type
              */
@@ -509,6 +519,38 @@ namespace Sad
             // ==================================================================
             std::vector<std::unordered_map<std::string, std::string>>
                 variableClassNames_;
+
+            // ==================================================================
+            // (AR) [SEM048] **صيغةُ تصريحِ** كلِّ اسمٍ مربوطٍ في النطاق:
+            //      `true` أي «استُنتِجَ نوعُه من المُهيِّئ»، و`false` أي «أعلنَ
+            //      كاتبُه نوعَه» (وعليه المعامَلاتُ ومتغيّراتُ الحلقاتِ والمَصائدِ
+            //      إذ تُسجَّلُ كلُّها في [[declareVariable]]). مكدّسٌ موازٍ
+            //      لـ`scopeStack_` يُدفَعُ ويُرفَعُ معَه.
+            //
+            //      ⚠️ ويُسجَّلُ **المُصرَّحُ** كما يُسجَّلُ المُستنتَجُ عمدًا، وإلّا
+            //      انكسرَ التظليل: مكدّسٌ يحفظُ المستنتَجَ وحدَه لا يجدُ للظِّلِّ
+            //      المُصرَّحِ أثرًا فيمضي البحثُ إلى النطاقِ الأقدمِ ويقعُ على
+            //      المظلَّلِ المستنتَجِ فيُعفي مَن كانَ يجبُ سؤالُه. **والتظليلُ
+            //      لا يعملُ بترتيبِ البحثِ وحدَه بل بأن يترُكَ الظِّلُّ أثرًا يُوقِفُه.**
+            //
+            //      🔑 ولماذا يلزم؟ قرارُ المالك (٢٦ آب ٢٠٢٦) أنّ مرساةَ `SEM048`
+            //      **إعلانُ الكاتب**: مَن كتبَ `متغير رقم ر` أعلنَ موقَّعيّةً
+            //      فيُسأَل، ومَن كتبَ `1` لم يُعلِنْ فيُعفى. و`متغير مجموع = 0`
+            //      حالةٌ ثالثةٌ لم يُسمِّها الحكم: نوعُها «رقم» **استنتاجًا من
+            //      حرفيّةٍ لا تصريحًا**، فهي في الحكمِ حرفيّةٌ لا مُصرَّح. وكانَ
+            //      إرساءُ الحارسِ على شكلِ العقدةِ النحويِّ وحدَه يرفضُ عدّادَ
+            //      حلقةٍ مشروعًا (`مجموع = مجموع + ع`) — التقطَته البذرةُ
+            //      `022_طبيعي_حلقة_طالما_بعداد_من_النوع`.
+            // (EN) [SEM048] Declaration form of every bound name: true = the type
+            //      was inferred from the initializer, false = the writer declared
+            //      it (parameters, loop and catch variables included, since they
+            //      all pass through declareVariable). Parallel to scopeStack_.
+            //      Declared names are recorded too, on purpose: a stack holding
+            //      only inferred names leaves a declared shadow no trace, so the
+            //      lookup walks past it to the shadowed inferred entry and exempts
+            //      an operand that should have been questioned.
+            // ==================================================================
+            std::vector<std::unordered_map<std::string, bool>> variableTypeIsInferred_;
 
             // ==================================================================
             // [Phase 5] دوال مساعدة للقيود / Constraint helpers

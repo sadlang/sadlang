@@ -93,8 +93,25 @@ int main() {
         SAD_ASSERT_EQ(allEntries().size(), kEntryCount);
     });
 
-    SAD_TEST("G1.02: ״§„״¹״¯״¯ ״§„״¥״¬…״§„ 98 ״¥״¯״®״§„״§‹ (40+3+44+11)", {
-        SAD_ASSERT_EQ(kEntryCount, static_cast<std::size_t>(98));
+    SAD_TEST("G1.02: كلُّ مدخلٍ في فئةٍ واحدةٍ ومجموعُ الفئاتِ هو kEntryCount", {
+        // (AR) 🔑 لا مجموعَ مكتوبًا باليدِ هنا: عددُ المداخلِ يتبعُ
+        //      keywords.yaml، فتثبيتُه عددًا يجعلُ الاختبارَ نسخةً ثانيةً
+        //      من الحقيقةِ تنجرفُ عنها (فعلَها التوحيدُ: BUILTIN_TYPE من
+        //      11 إلى 17). والمحروسُ هو أنّ كلَّ مدخلٍ يقعُ في فئةٍ
+        //      معروفةٍ واحدةٍ — فلا مدخلَ بلا فئةٍ ولا فئةَ خارجَ التعداد.
+        // (EN) No hand-written total: the guarded invariant is that every
+        //      entry falls into exactly one known category, so the sum of
+        //      the four category counts equals kEntryCount.
+        size_t reserved = 0, oper = 0, contextual = 0, builtinType = 0;
+        for (const auto& e : allEntries()) {
+            switch (e.category) {
+                case KeywordCategory::RESERVED:     ++reserved;    break;
+                case KeywordCategory::OPERATOR:     ++oper;        break;
+                case KeywordCategory::CONTEXTUAL:   ++contextual;  break;
+                case KeywordCategory::BUILTIN_TYPE: ++builtinType; break;
+            }
+        }
+        SAD_ASSERT_EQ(reserved + oper + contextual + builtinType, kEntryCount);
     });
 
     SAD_TEST("G1.03: ״¹״¯״¯ ״§„״¦״© RESERVED = 40", {

@@ -10,6 +10,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <iostream>
 #include <set>
 
@@ -26,7 +27,7 @@ namespace Sad
                 if (auto goStmt = dynamic_cast<Sad::AST::GoStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found GoStmt" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found GoStmt");
 #endif
                     if (goStmt->expression)
                     {
@@ -419,7 +420,7 @@ namespace Sad
                 if (auto selectStmt = dynamic_cast<Sad::AST::SelectStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found SelectStmt with " << selectStmt->cases.size() << " cases" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found SelectStmt with " << selectStmt->cases.size() << " cases");
 #endif
                     // (AR) إنشاء تسمية الخروج
                     std::string exitLabel = b_.newLabel("select_exit");

@@ -1218,9 +1218,9 @@ namespace sad
                        emit(a64::mnem::kSvc, "", {});
             }
 
-            // (AR) يطبع عددًا **لا-موقَّعًا** (طبيعي64، في x9): itoa عبر udiv/msub بلا فحصِ إشارةٍ
+            // (AR) يطبع عددًا **لا-موقَّعًا** (طبيعي، في x9): itoa عبر udiv/msub بلا فحصِ إشارةٍ
             //      ولا بادئةِ '-' فيُعطي «18446744073709551615» لا «-1». مرآةُ x86 emitPrintUInt
-            //      ويطابقُ نصَّ المفسّرِ لـطبيعي64. x9=القيمة، x10=١٠، x13=المؤشّر، x14=القمّة،
+            //      ويطابقُ نصَّ المفسّرِ لـطبيعي. x9=القيمة، x10=١٠، x13=المؤشّر، x14=القمّة،
             //      x11=الحاصل، x12=الباقي. لولبٌ واحدٌ (cbnz) يُنفَّذُ مرّةً على الأقلّ فيطبع '0' للصفر.
             bool emitPrintUInt()
             {
@@ -2603,7 +2603,7 @@ namespace sad
                 //      **والمتغيّر** (بخلاف x86 المحدودِ بالثابت وإلّا لزمه CL). SHR منطقيّة.
                 case OP::SHL: return rrr(a64::mnem::kLslv, dst, a64reg::kScratch0, a64reg::kScratch1);
                 case OP::SHR:
-                    // (AR) `>>` إشارتُه من نوعِ المعامل الأيسر (طبيعي64/بايت⇒منطقيّة lsrv، غيرُها⇒حسابيّة
+                    // (AR) `>>` إشارتُه من نوعِ المعامل الأيسر (طبيعي/بايت⇒منطقيّة lsrv، غيرُها⇒حسابيّة
                     //      asrv) مطابقةً للمفسّر ومسارِ LLVM: `-16>>2=-4` لا قيمةً ضخمة.
                     return rrr(isUnsignedType(inst.operands[0].dataType) ? a64::mnem::kLsrv : a64::mnem::kAsrv,
                                dst, a64reg::kScratch0, a64reg::kScratch1);
@@ -2655,7 +2655,7 @@ namespace sad
                 default: return false;
                 }
             }
-            // (AR) حقلُ الشرطِ المقلوب لمقارنةٍ **لا-موقَّعة** (كلا المعامِلَين طبيعي64): كـcset
+            // (AR) حقلُ الشرطِ المقلوب لمقارنةٍ **لا-موقَّعة** (كلا المعامِلَين طبيعي): كـcset
             //      الموقَّع لكنِ الترتيبُ لا-موقَّعٌ (LO/LS/HI/HS بدل LT/LE/GT/GE). الحقلُ=الشرط XOR 1:
             //      LT⇒LO(3)⇒2(HS)، LE⇒LS(9)⇒8(HI)، GT⇒HI(8)⇒9(LS)، GE⇒HS(2)⇒3(LO). ==,!= كالموقَّع.
             static bool csetInvertedFieldUnsigned(sir::SIROpcode op, long long &field)
@@ -2672,7 +2672,7 @@ namespace sad
                 default: return false;
                 }
             }
-            // (AR) هل كلا معامِلَي المقارنة طبيعي64 صريحٌ؟ ⇒ ترتيبٌ لا-موقَّع (مرآةُ x86 bothUInt64
+            // (AR) هل كلا معامِلَي المقارنة طبيعي صريحٌ؟ ⇒ ترتيبٌ لا-موقَّع (مرآةُ x86 bothUInt64
             //      والمفسّر: كلاهما UInt64). الخلطُ/بايت يبقى مرفوضًا كما كان (لا توسيعَ صامتًا).
             static bool bothUInt64(const sir::SIRInstruction &cmp)
             {
@@ -2680,7 +2680,7 @@ namespace sad
                        cmp.operands[0].dataType == types::SadTypeKind::UInt64 &&
                        cmp.operands[1].dataType == types::SadTypeKind::UInt64;
             }
-            // (AR) هل **أيُّ** معامِلٍ طبيعي64؟ ⇒ قسمة/باقٍ لا-موقَّعان (udiv لا sdiv). بوّابةُ
+            // (AR) هل **أيُّ** معامِلٍ طبيعي؟ ⇒ قسمة/باقٍ لا-موقَّعان (udiv لا sdiv). بوّابةُ
             //      الهيمنة (either) لا التطابق (both) — مرآةٌ حرفيّةٌ لبوّابةِ LLVM وx86 eitherUInt64.
             //      تختلفُ عن bothUInt64 قصدًا: القسمةُ دلالتُها هيمنةٌ بينما المقارنةُ تطابُق.
             static bool eitherUInt64(const sir::SIRInstruction &inst)
@@ -2729,7 +2729,7 @@ namespace sad
             // (AR) **خطّافاتُ المقارنة** (م٤، الطورُ الرابع). التتابعُ في
             //   `common::LoweringDriver::driveComparison`؛ وهنا مضمونُه في AArch64.
 
-            // (AR) حلُّ الشرط: كلا المعامِلَين طبيعي64 ⇒ cset بشرطٍ لا-موقَّع؛ وإلّا الموقَّع
+            // (AR) حلُّ الشرط: كلا المعامِلَين طبيعي ⇒ cset بشرطٍ لا-موقَّع؛ وإلّا الموقَّع
             //      مع رفضِ المتبقّي. يفشل قبل تخصيصِ الوجهة (عقدُ التتابع).
             bool resolveCompareCondition(const sir::SIRInstruction &inst)
             {
@@ -2898,12 +2898,10 @@ namespace sad
                     {
                     case types::SadTypeKind::Integer:
                     case types::SadTypeKind::Boolean:
-                    case types::SadTypeKind::Byte:
                     case types::SadTypeKind::UInt64:
                     case types::SadTypeKind::Int8:
                     case types::SadTypeKind::Int16:
                     case types::SadTypeKind::Int32:
-                    case types::SadTypeKind::Int64:
                     case types::SadTypeKind::UInt8:
                     case types::SadTypeKind::UInt16:
                     case types::SadTypeKind::UInt32:
@@ -2912,7 +2910,6 @@ namespace sad
                     //      تُطبّع `Float`⇒`Float64` تجعل `ليس 2.5` فشلَ ترجمةٍ لو غابت.
                     case types::SadTypeKind::Float:
                     case types::SadTypeKind::Float32:
-                    case types::SadTypeKind::Float64:
                         return clearSignBitArm64() && logicalNotArm64(dst);
                     default:
                         return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
@@ -3411,7 +3408,7 @@ namespace sad
                                                                 : fcmp(kD0, kD1); // (a, b)
                         return ok && cselGt(dst, a64reg::kScratch0, dst); // dst = GT ? b : a
                     }
-                    // (AR) صحيحان: cmp + اختيارٌ شرطيّ. كلاهما طبيعي64 (لا-موقَّع) ⇒ csel hi/lo؛ وإلّا موقَّع
+                    // (AR) صحيحان: cmp + اختيارٌ شرطيّ. كلاهما طبيعي (لا-موقَّع) ⇒ csel hi/lo؛ وإلّا موقَّع
                     //      ⇒ csel gt/lt. اللا-موقَّعُ يطابقُ المفسّرَ (ctx.argType==UInt64 للمعامِلَين) ومرآةُ x86.
                     //      أكبر: (dst>x16)؟dst:x16؛ أصغر: (dst<x16)؟dst:x16. النوعُ من الأمامِ عبرَ resolveSurfaceType.
                     const bool bothU64 =
@@ -4245,7 +4242,7 @@ namespace sad
                         return false;
                     if (inst.operands[0].dataType == types::SadTypeKind::UInt64)
                     {
-                        // (AR) طبيعي64: itoa **لا-موقَّع** (udiv/msub بلا فحصِ إشارةٍ ولا '-') ⇒
+                        // (AR) طبيعي: itoa **لا-موقَّع** (udiv/msub بلا فحصِ إشارةٍ ولا '-') ⇒
                         //   «18446744073709551615» لا «-1». مرآةُ x86 ويطابقُ نصَّ المفسّر.
                         const size_t uLoop = code_.size();
                         if (!rrr(a64::mnem::kUdiv, 11, 9, 10) || !msub(12, 11, 10, 9) ||
@@ -5868,7 +5865,7 @@ namespace sad
                         }
                         else if (op.dataType == types::SadTypeKind::UInt64)
                         {
-                            // (AR) طبيعي64: حمّله في x9 ثمّ itoa **لا-موقَّع** (يطابقُ المفسّرَ ومرآةَ x86).
+                            // (AR) طبيعي: حمّله في x9 ثمّ itoa **لا-موقَّع** (يطابقُ المفسّرَ ومرآةَ x86).
                             if (!loadArgInto(9, op) || !emitPrintUInt())
                                 return false;
                         }
@@ -6831,7 +6828,7 @@ namespace sad
             {
                 using K = types::SadTypeKind;
                 return t == K::UInt8 || t == K::UInt16 || t == K::UInt32 ||
-                       t == K::UInt64 || t == K::Byte;
+                       t == K::UInt64 || t == K::UInt8;
             }
 
             // (AR) منمنمةُ الفرع الشرطيّ المطابقة للمقارنة (موقَّعة): «إن صحّ الشرط اقفز لـthen».
@@ -6849,7 +6846,7 @@ namespace sad
                 default: return nullptr;
                 }
             }
-            // (AR) نظائرُ B.cond **لا-موقَّعة** (b.lo/ls/hi/hs) لفرعِ مقارنةِ طبيعي64. المساواة/عدمها
+            // (AR) نظائرُ B.cond **لا-موقَّعة** (b.lo/ls/hi/hs) لفرعِ مقارنةِ طبيعي. المساواة/عدمها
             //      لا-حسّاستان للإشارة. مرآةُ x86 jccForCmpUnsigned ويطابقُ csel-hi/lo ومقارنةَ المفسّر.
             static const std::string *bccForCmpUnsigned(sir::SIROpcode op)
             {
@@ -6940,7 +6937,7 @@ namespace sad
                            emitBranch(a64::mnem::kBne, "rel19", thenLbl) &&
                            emitBranch(a64::mnem::kB, "rel26", elseLbl);
                 }
-                // (AR) كلا المعامِلَين طبيعي64 ⇒ فرعٌ لا-موقَّع (b.lo/ls/hi/hs)؛ وإلّا الموقَّع مع
+                // (AR) كلا المعامِلَين طبيعي ⇒ فرعٌ لا-موقَّع (b.lo/ls/hi/hs)؛ وإلّا الموقَّع مع
                 //      رفضِ أيِّ لا-موقَّعٍ متبقٍّ (خلط/بايت) صراحةً كما كان (مرآةُ x86).
                 const bool unsignedCmp = bothUInt64(*cmpInst);
                 if (!unsignedCmp)

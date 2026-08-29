@@ -32,6 +32,7 @@
 #include "parser_core.h"
 #include "pattern_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -80,8 +81,8 @@ namespace Sad
 
                 auto *macroDef = macroIt->second;
 #ifndef NDEBUG
-                std::cout << "[DEBUG] Expanding macro '" << funcName << "' with "
-                          << call->arguments.size() << " arguments" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] Expanding macro '" << funcName << "' with "
+                          << call->arguments.size() << " arguments");
 #endif
 
                 // ====================================================================
@@ -123,7 +124,7 @@ namespace Sad
                 if (useInlineExpansion)
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Macro '" << funcName << "' using inline expansion (copy-back)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Macro '" << funcName << "' using inline expansion (copy-back)");
 #endif
                     b_.enterScope();
 

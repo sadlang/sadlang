@@ -206,14 +206,14 @@ namespace sad
         }
 
         // (AR) الوسمُ (DynKind) من نوعِ العنصر المحدَّد زمنَ الترجمة (كلُّ ARRAY_SET له نوعُ قيمةٍ محدَّد).
-        //      صحيح/بايت/طبيعي64 ⇒ Int، عشريّ ⇒ Float، منطقيّ ⇒ Bool، عدم ⇒ Null؛ غيرها ⇒ فشلٌ صريح.
+        //      صحيح/بايت/طبيعي ⇒ Int، عشريّ ⇒ Float، منطقيّ ⇒ Bool، عدم ⇒ Null؛ غيرها ⇒ فشلٌ صريح.
         //      دالّةٌ حرّةٌ (يشترك فيها مخفّضا x86 وARM64). النصُّ يُعالَج خصّيصًا (وسمُ Str + عنوانُ واصف).
         inline bool dynTagForType(types::SadTypeKind t, long long &tag)
         {
             switch (t)
             {
             case types::SadTypeKind::Integer:
-            case types::SadTypeKind::Byte:
+            case types::SadTypeKind::UInt8:
             case types::SadTypeKind::UInt64:
                 tag = kDynKindInt; return true;
             case types::SadTypeKind::Float: tag = kDynKindFloat; return true;
@@ -1113,7 +1113,7 @@ namespace sad
                 return emit(x86::mnem::kIdiv, "r64", {x86::Operand::R(divisor)});
             }
             // (AR) قسمةٌ لا-موقَّعة: rdx:rax ÷ divisor ⇒ rax=حاصل، rdx=باقٍ. يجب تصفيرُ rdx قبلها
-            //   (لا cqo) — المستدعي مسؤولٌ عن xor rdx,rdx. للطباعةِ اللا-موقَّعة لطبيعي64.
+            //   (لا cqo) — المستدعي مسؤولٌ عن xor rdx,rdx. للطباعةِ اللا-موقَّعة لطبيعي.
             bool divReg(int divisor)
             {
                 return emit(x86::mnem::kDiv, "r64", {x86::Operand::R(divisor)});
@@ -1668,7 +1668,7 @@ namespace sad
                        emit(x86::mnem::kSyscall, "", {});
             }
 
-            // (AR) طباعةُ عددٍ **لا-موقَّع** (طبيعي64): itoa لا-موقَّعٌ (div لا idiv، بلا فحصِ
+            // (AR) طباعةُ عددٍ **لا-موقَّع** (طبيعي): itoa لا-موقَّعٌ (div لا idiv، بلا فحصِ
             //   إشارةٍ ولا بادئةِ '-') فتُطبَعُ 2^64-1 = «18446744073709551615» لا «-1». يطابقُ
             //   renderUnsignedArgs بالمفسّر (%llu). القيمةُ في RAX عند الدخول. R10=قمّةُ المخزن،
             //   RCX=الأساس. لولبٌ واحدٌ: صفّرْ RDX ثمّ div ⇒ RDX=باقٍ(٠..٩)، الرقم='0'+RDX،
@@ -3181,7 +3181,7 @@ namespace sad
                 return floatCompareToReg(fdst, inst.operands[0], inst.operands[1], inst.opcode);
             }
 
-            // (AR) حلُّ الشرط: كلا المعامِلَين طبيعي64 ⇒ setcc لا-موقَّع؛ وإلّا الموقَّع مع
+            // (AR) حلُّ الشرط: كلا المعامِلَين طبيعي ⇒ setcc لا-موقَّع؛ وإلّا الموقَّع مع
             //      رفضِ المتبقّي. يفشل قبل تخصيصِ الوجهة (عقدُ التتابع).
             bool resolveCompareCondition(const sir::SIRInstruction &inst)
             {
@@ -3363,12 +3363,10 @@ namespace sad
                     {
                     case types::SadTypeKind::Integer:
                     case types::SadTypeKind::Boolean:
-                    case types::SadTypeKind::Byte:
                     case types::SadTypeKind::UInt64:
                     case types::SadTypeKind::Int8:
                     case types::SadTypeKind::Int16:
                     case types::SadTypeKind::Int32:
-                    case types::SadTypeKind::Int64:
                     case types::SadTypeKind::UInt8:
                     case types::SadTypeKind::UInt16:
                     case types::SadTypeKind::UInt32:
@@ -3377,7 +3375,6 @@ namespace sad
                     //      تُطبّع `Float`⇒`Float64` تجعل `ليس 2.5` فشلَ ترجمةٍ لو غابت.
                     case types::SadTypeKind::Float:
                     case types::SadTypeKind::Float32:
-                    case types::SadTypeKind::Float64:
                         return clearSignBit(dst) && logicalNot(dst);
                     default:
                         return fail(EC::INT_NATIVE_UNSUPPORTED, detailOpcode(inst));
@@ -3920,7 +3917,7 @@ namespace sad
                         bool ok = inst.opcode == OP::BUILTIN_MAX ? maxsd(kXmm1, kXmm0) : minsd(kXmm1, kXmm0);
                         return ok && movqFromXmm(dst, kXmm1);
                     }
-                    // (AR) صحيحان: cmp + نقلٌ شرطيّ. كلاهما طبيعي64 (لا-موقَّع) ⇒ cmovb/cmova؛ وإلّا موقَّع
+                    // (AR) صحيحان: cmp + نقلٌ شرطيّ. كلاهما طبيعي (لا-موقَّع) ⇒ cmovb/cmova؛ وإلّا موقَّع
                     //      ⇒ cmovl/cmovg. اللا-موقَّعُ يطابقُ المفسّرَ (ctx.argType==UInt64 للمعامِلَين).
                     //      أكبر: dst=(dst<RAX)?RAX:dst؛ أصغر: dst=(dst>RAX)?RAX:dst. النوعُ من الأمامِ عبرَ
                     //      بوّابةِ resolveSurfaceType (كلاهما UInt64 صريحٌ ⇒ لا-موقَّع؛ المُستنتَجُ موقَّع).
@@ -4823,8 +4820,8 @@ namespace sad
                         return false;
                     if (inst.operands[0].dataType == types::SadTypeKind::UInt64)
                     {
-                        // (AR) طبيعي64: itoa **لا-موقَّع** (div لا idiv، بلا فحصِ إشارةٍ ولا '-')
-                        //   فيُعطي «18446744073709551615» لا «-1». يطابقُ نصَّ المفسّرِ لـطبيعي64.
+                        // (AR) طبيعي: itoa **لا-موقَّع** (div لا idiv، بلا فحصِ إشارةٍ ولا '-')
+                        //   فيُعطي «18446744073709551615» لا «-1». يطابقُ نصَّ المفسّرِ لـطبيعي.
                         const size_t uLoop = code_.size();
                         if (!xorReg(x86::RDX, x86::RDX) || !divReg(x86::RCX) ||
                             !addImm(x86::RDX, kAsciiZero) ||
@@ -5726,9 +5723,9 @@ namespace sad
                     if (!requireArity(inst, 2))
                         return false;
                     // (AR) الإزاحةُ اليمنى الحسابيّة إن SAR صراحةً، أو SHR على معاملٍ **موقَّع** (Integer):
-                    //      `>>` عامٌّ إشارتُه من نوعِ المعامل الأيسر (طبيعي64/بايت⇒منطقيّة، غيرُها⇒حسابيّة)
+                    //      `>>` عامٌّ إشارتُه من نوعِ المعامل الأيسر (طبيعي/بايت⇒منطقيّة، غيرُها⇒حسابيّة)
                     //      مطابقةً للمفسّر ومسارِ LLVM (arith_cmp.cpp) — `-16>>2=-4` لا قيمةً ضخمة.
-                    //      (LLVM يقصر المنطقيّةَ على طبيعي64 وحده، لكنّ الأنواعَ الفرعيّةَ اللا-موقَّعة
+                    //      (LLVM يقصر المنطقيّةَ على طبيعي وحده، لكنّ الأنواعَ الفرعيّةَ اللا-موقَّعة
                     //      <٦٤ ممدَّدةٌ بالصفر ⇒ بتُّ الإشارة ٠ ⇒ sar==shr لها؛ فالمحمولان متكافئان رصدًا.)
                     const bool arithRight =
                         inst.opcode == OP::SAR ||
@@ -5781,7 +5778,7 @@ namespace sad
                     //      لتعليماتٍ لاحقة، فنحفظه في خانةِ خدشِ القسمة ونعيده بعد نقلِ النتيجة ⇒
                     //      لا مؤقّتٌ يُدهَس. الحاصلُ للقسمة، الباقي للباقي.
                     //      • موقَّعة (المسارُ الافتراضيّ): cqo يمدّ الإشارةَ إلى rdx:rax ثمّ idiv.
-                    //      • لا-موقَّعة (أيُّ معاملٍ طبيعي64، هيمنةً كـLLVM): xor rdx,rdx (تصفيرُ
+                    //      • لا-موقَّعة (أيُّ معاملٍ طبيعي، هيمنةً كـLLVM): xor rdx,rdx (تصفيرُ
                     //        النصفِ العالي) ثمّ div — بلا تمديدِ إشارة ⇒ النطاقُ الكامل ٢^٦٤
                     //        (MAX//2=INT64_MAX، MAX%2=1) مطابقةً للمفسّر ومسارِ LLVM.
                     if (!requireArity(inst, 2))
@@ -5798,7 +5795,7 @@ namespace sad
                     const bool unsignedDiv = eitherUInt64(inst);
                     const bool isMod = (inst.opcode == OP::MOD_I64);
                     const bool isFloor = (inst.opcode == OP::FLOOR_DIV_I64);
-                    // (AR) نتيجةٌ Any (قسمةٌ أرضيّةٌ/صحيحةٌ موقَّعةٌ غيرُ طبيعي64) ⇒ تُعلَّب في خانةِ dyn
+                    // (AR) نتيجةٌ Any (قسمةٌ أرضيّةٌ/صحيحةٌ موقَّعةٌ غيرُ طبيعي) ⇒ تُعلَّب في خانةِ dyn
                     //      (مؤشّرٌ لا i64 خام) اتّساقًا مع عقدِ Any (ARRAY_GET(Any)/emitPrintBoxed). MOD
                     //      نوعُه Integer فلا يُعلَّب. الوسمُ في RDI (يُضبَط في كلّ فرع)، الحمولةُ في RAX.
                     const bool boxResult = (inst.result->dataType == types::SadTypeKind::Any);
@@ -6744,7 +6741,7 @@ namespace sad
                         }
                         else if (op.dataType == types::SadTypeKind::UInt64)
                         {
-                            // (AR) طبيعي64: حمّله في RAX ثمّ itoa **لا-موقَّع** (يطابقُ المفسّرَ %llu).
+                            // (AR) طبيعي: حمّله في RAX ثمّ itoa **لا-موقَّع** (يطابقُ المفسّرَ %llu).
                             if (!loadArgInto(x86::RAX, op) || !emitPrintUInt())
                                 return false;
                         }
@@ -7738,7 +7735,7 @@ namespace sad
             }
 
             // (AR) نظائرُ jcc **لا-موقَّعة** (jb/jbe/ja/jae) للمقارنةِ حين يكون كلا المعامِلَين
-            //      طبيعي64. المساواة/عدمها لا-حسّاستان للإشارة (نفسُ je/jne). يطابقُ المفسّرَ
+            //      طبيعي. المساواة/عدمها لا-حسّاستان للإشارة (نفسُ je/jne). يطابقُ المفسّرَ
             //      (ULT/UGT حين يكون كلاهما UInt64) ومرآةَ csel-hi/lo في ARM64.
             static const std::string *jccForCmpUnsigned(sir::SIROpcode op)
             {
@@ -7755,7 +7752,7 @@ namespace sad
                 }
             }
 
-            // (AR) هل كلا معامِلَي المقارنة طبيعي64 صريحٌ؟ ⇒ مقارنةٌ لا-موقَّعة (يطابقُ بوّابةَ
+            // (AR) هل كلا معامِلَي المقارنة طبيعي صريحٌ؟ ⇒ مقارنةٌ لا-موقَّعة (يطابقُ بوّابةَ
             //      resolveSurfaceType ومقارنةَ المفسّر: كلاهما UInt64). الخلطُ/بايت يبقى على
             //      المسار الموقَّع/المرفوض كما كان (لا توسيعَ نطاقٍ صامتًا).
             static bool bothUInt64(const sir::SIRInstruction &cmp)
@@ -7765,7 +7762,7 @@ namespace sad
                        cmp.operands[1].dataType == types::SadTypeKind::UInt64;
             }
 
-            // (AR) هل **أيُّ** معامِلٍ طبيعي64؟ ⇒ قسمة/باقٍ لا-موقَّعان (div لا idiv). بوّابةُ
+            // (AR) هل **أيُّ** معامِلٍ طبيعي؟ ⇒ قسمة/باقٍ لا-موقَّعان (div لا idiv). بوّابةُ
             //      الهيمنة (either) لا التطابق (both) — مرآةٌ حرفيّةٌ لبوّابةِ LLVM
             //      (arith_main.cpp: fdivUnsignedU64/modUnsignedU64 = أيُّ معاملٍ UInt64، مرآةُ
             //      wrapU64 في المفسّر). تختلفُ عن bothUInt64 قصدًا: القسمةُ دلالتُها هيمنةٌ
@@ -7786,7 +7783,7 @@ namespace sad
             {
                 using K = types::SadTypeKind;
                 return t == K::UInt8 || t == K::UInt16 || t == K::UInt32 ||
-                       t == K::UInt64 || t == K::Byte;
+                       t == K::UInt64 || t == K::UInt8;
             }
             bool rejectUnsignedCmp(const sir::SIRInstruction &cmp, const std::string &where)
             {
@@ -7814,7 +7811,7 @@ namespace sad
                 }
             }
 
-            // (AR) نظائرُ setcc **لا-موقَّعة** (setb/setbe/seta/setae) لمقارنةِ طبيعي64 كقيمة.
+            // (AR) نظائرُ setcc **لا-موقَّعة** (setb/setbe/seta/setae) لمقارنةِ طبيعي كقيمة.
             static const std::string *setccForCmpUnsigned(sir::SIROpcode op)
             {
                 using OP = sir::SIROpcode;
@@ -7932,7 +7929,7 @@ namespace sad
                            emitJump(x86::mnem::kJne, thenLbl) &&
                            emitJump(x86::mnem::kJmp, elseLbl);
                 }
-                // (AR) كلا المعامِلَين طبيعي64 ⇒ فرعٌ لا-موقَّع (jb/ja/…)؛ وإلّا الموقَّع، مع
+                // (AR) كلا المعامِلَين طبيعي ⇒ فرعٌ لا-موقَّع (jb/ja/…)؛ وإلّا الموقَّع، مع
                 //      رفضِ أيِّ لا-موقَّعٍ متبقٍّ (خلط/بايت) صراحةً كما كان.
                 const bool unsignedCmp = bothUInt64(*cmp);
                 if (!unsignedCmp && !rejectUnsignedCmp(*cmp, diag::kCmpBranch))

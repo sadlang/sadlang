@@ -21,6 +21,7 @@
 #include "builtin_registry.h"
 #include "error_manager.h"
 #include "builders/builtin_arity_check.h"
+#include "sad_debug_log.h"
 // (AR) الأسماءُ من مصدرِ الحقيقةِ بدل بايتاتٍ مهرَّبة، والرتبةُ من حقلِ `arity`
 //      بدل رقمٍ في الشرطِ وتشخيصٍ يذهبُ إلى `std::cerr` لا يراه أحد.
 namespace Bn = Sad::Builtins::Names;
@@ -115,7 +116,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] async spawn() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] async spawn() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -135,7 +136,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] async await() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] async await() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -149,7 +150,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] async yield()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] async yield()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -166,7 +167,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] async_sleep()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] async_sleep()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -187,7 +188,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] create_future() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] create_future() -> " << resultReg);
 #endif
                     // (AR) [Fix BF-04] تعليم النتيجة بأنها مستقبل لدعم dot-syntax
                     // (EN) [Fix BF-04] Mark result as future for dot-syntax method dispatch
@@ -207,7 +208,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] resolve_future()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] resolve_future()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -233,7 +234,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] get_future() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] get_future() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Any);
                 }
@@ -250,7 +251,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] create_channel() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] create_channel() -> " << resultReg);
 #endif
                     // (AR) نُعلّم النتيجة بأنها قناة لدعم تكرار لكل في
                     // (EN) Mark result as channel to support for-each iteration
@@ -272,7 +273,7 @@ namespace Sad
                         b_.currentBlock_->instructions.push_back(inst);
                     }
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] channel_send()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] channel_send()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -292,7 +293,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] channel_recv() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] channel_recv() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -309,7 +310,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] channel_close()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] channel_close()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -324,7 +325,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] create_mutex() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] create_mutex() -> " << resultReg);
 #endif
                     // (AR) [Fix BF-04] تعليم النتيجة بأنها قفل لدعم dot-syntax
                     // (EN) [Fix BF-04] Mark result as mutex for dot-syntax method dispatch
@@ -345,7 +346,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] mutex_lock()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] mutex_lock()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -362,7 +363,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] mutex_unlock()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] mutex_unlock()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -384,7 +385,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] thread_spawn() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] thread_spawn() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -404,7 +405,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] thread_join() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] thread_join() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -424,7 +425,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] atomic_load() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] atomic_load() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -440,7 +441,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] atomic_store()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] atomic_store()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -459,7 +460,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] atomic_add() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] atomic_add() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -479,7 +480,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] compare_and_swap() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] compare_and_swap() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -496,7 +497,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] wait_all() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] wait_all() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -513,7 +514,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] wait_any() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] wait_any() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -530,7 +531,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] select() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] select() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -549,7 +550,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] waitgroup_create() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] waitgroup_create() -> " << resultReg);
 #endif
                     BuildResult res(resultReg, SadTypeKind::Integer);
                     res.className = "__waitgroup__";

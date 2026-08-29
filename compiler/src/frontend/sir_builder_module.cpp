@@ -28,6 +28,7 @@
 #include "sad_ui/generated/color_table_generated.h" // (AR) تعداد الألوان المدمَج (SoT)
 #include "sad_event_layout_generated.h" // (② rfcs#46) تخطيط «حدث» المولَّد (SAD_EVENT_FIELDS/SAD_EVENT_STRUCT_NAME) — SoT صنف الحدث المضمَّن
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -861,15 +862,15 @@ namespace Sad
                         VariableInfo globalVarInfo;
                         globalVarInfo.name = varDecl->name;
                         globalVarInfo.type = varType;
-                        // (AR) [طبقة طبيعي64 — الخطوة ٧/٥] النوع السطحيّ المُصرَّح صراحةً (طبيعي64/بايت)
+                        // (AR) [طبقة طبيعي — الخطوة ٧/٥] النوع السطحيّ المُصرَّح صراحةً (طبيعي/بايت)
                         //      — Unknown إن كان مُستنتَجًا. نظيرُ statement_assign_if.cpp:350 للمتغيّر
-                        //      المحلّيّ. بدونه: عامّ طبيعي64 مُستعمَل في %،//،مقارنة **داخل دالّة** يُرى
+                        //      المحلّيّ. بدونه: عامّ طبيعي مُستعمَل في %،//،مقارنة **داخل دالّة** يُرى
                         //      Integer (resolveSurfaceType يقرأ declaredSurfaceType=Unknown) ⇒ المترجم
                         //      موقَّع بينما المفسّر (getDeclaredType يجد نوع العامّ) لا-موقَّع ⇒ انفراج
                         //      (رصده أميليا). نُخزّن الخام varDecl->type لا المُستنتَج varType.
-                        // (EN) [طبيعي64 layer — Step 7/5] Explicitly-declared surface type (طبيعي64/Byte)
+                        // (EN) [طبيعي layer — Step 7/5] Explicitly-declared surface type (طبيعي/Byte)
                         //      — Unknown when inferred. Sibling of statement_assign_if.cpp:350 for locals.
-                        //      Without it: a طبيعي64 global used in %,//,comparison INSIDE a function is
+                        //      Without it: a طبيعي global used in %,//,comparison INSIDE a function is
                         //      seen as Integer (resolveSurfaceType reads declaredSurfaceType=Unknown) ⇒ the
                         //      compiler is signed while the interpreter (getDeclaredType finds the global's
                         //      type) is unsigned ⇒ divergence (found by Amelia). Store the raw
@@ -1818,10 +1819,10 @@ namespace Sad
                                     sirClass->fields_[fieldName] = parentFieldIt->second;
                                     anyUpdated = true;
 #ifndef NDEBUG
-                                    std::cout << "[DEBUG] Phase2B2: propagated field '"
+                                    SAD_DEBUG_LOG_LINE("[DEBUG] Phase2B2: propagated field '"
                                               << fieldName << "' type from parent '"
                                               << sirClass->parentClass << "' to child '"
-                                              << sirClass->name << "'" << std::endl;
+                                              << sirClass->name << "'");
 #endif
                                 }
                             }
@@ -2176,8 +2177,8 @@ namespace Sad
                 if (!topLevelStatements.empty() && !hasMainFunction && !moduleMode_)
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildModule: creating __sad_main with "
-                              << topLevelStatements.size() << " top-level statements" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildModule: creating __sad_main with "
+                              << topLevelStatements.size() << " top-level statements");
 #endif
 
                     // (AR) إنشاء دالة __sad_main من نوع void بدون معاملات

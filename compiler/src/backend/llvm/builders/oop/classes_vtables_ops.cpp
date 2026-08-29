@@ -19,6 +19,7 @@
 #include "sad_event_layout_generated.h" // (② rfcs#46) اسم صنف «حدث» المضمَّن من SoT — لوسم builtinClassNames
 #include "llvm_optimizer.h"
 #include "llvm_volatile_ops.h"
+#include "sad_debug_log.h"
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -112,8 +113,8 @@ namespace Sad
                 {
                     cg_.context_info_.classParentMap[className] = sirClass->parentClass;
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] preprocessClasses: '" << className
-                              << "' inherits from '" << sirClass->parentClass << "'" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] preprocessClasses: '" << className
+                              << "' inherits from '" << sirClass->parentClass << "'");
 #endif
                 }
 
@@ -226,8 +227,8 @@ namespace Sad
                     cg_.context_info_.classFieldNames[className] = fieldNames;
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] preprocessClasses: created struct type for class '"
-                              << className << "' with " << fieldNames.size() << " fields" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] preprocessClasses: created struct type for class '"
+                              << className << "' with " << fieldNames.size() << " fields");
 #endif
                 }
             }
@@ -875,8 +876,8 @@ namespace Sad
                     cg_.context_info_.classVtableGlobals[className] = vtableGlobal;
 
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildVtable: '" << className
-                              << "' with " << vtableSlots.size() << " slots" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildVtable: '" << className
+                              << "' with " << vtableSlots.size() << " slots");
 #endif
                 }
             }

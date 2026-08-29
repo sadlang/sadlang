@@ -41,7 +41,7 @@ namespace Sad
                 return reg.getVoid();
             case VT::Integer:
                 return reg.getInteger();
-            case VT::Byte:
+            case VT::UInt8:
                 return reg.getByte();
             case VT::UInt64:
                 return reg.getUInt64();
@@ -88,6 +88,20 @@ namespace Sad
             //      Void — the same silent default that previously caught Any/Optional.
             case VT::Null:
                 return reg.getNull();
+            }
+            // (AR) 🔑 وقعَ العيبُ نفسُه ثالثةً: فُتحت ثمانيةُ ألفاظٍ عدديّةٍ في
+            //      types.yaml (رقم8..رقم، طبيعي16/32، عشري32/64) فبلغَ نوعُها
+            //      المحلّلَ سليمًا، ثمّ سقطَ **هنا** إلى `getVoid()` — فقُرِئ على
+            //      المستعمِلِ «لمتغيّر 'س' من نوع 'فراغ'» وهو كتبَ «رقم32».
+            //      والافتراضُ لا يُخمّنُ بعدَ اليوم: يسألُ الجدولَ المولَّدَ عن
+            //      النوعِ، ولا يبقى «فراغ» إلّا لِما ليس عددًا ولا حالةَ له.
+            // (EN) The same defect a third time: eight numeric words opened in
+            //      types.yaml reached the parser correctly and then fell to
+            //      getVoid() HERE. The default now asks the generated table
+            //      instead of guessing.
+            if (auto numeric = reg.getByKind(vt))
+            {
+                return numeric;
             }
             return reg.getVoid();
         }

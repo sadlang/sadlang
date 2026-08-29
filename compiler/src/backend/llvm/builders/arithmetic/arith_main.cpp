@@ -722,11 +722,11 @@ namespace Sad
                     emitIntDivZeroGuard(cg_, left, right,
                                         Sad::Compiler::kFloorDivZeroRun009IntMsg,
                                         "ifloordiv.dz");
-                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي64 (هيمنة: أيّ معامل UInt64، مرآةُ
+                    // (AR) [الخطوة ٧] النوع السطحيّ طبيعي (هيمنة: أيّ معامل UInt64، مرآةُ
                     //      wrapU64 في المفسّر) ⇒ قسمة أرضيّة لا-موقَّعة UDiv بلا تسوية سالب
                     //      (urem/udiv لا سالب فالأرضيّة = الاقتطاع) لتطابق المفسّر: MAX//2 =
                     //      INT64_MAX (لا ‎-1‏). النطاق الكامل ٢^٦٤.
-                    // (EN) [Step 7] طبيعي64 surface type (dominance: any operand UInt64, mirroring
+                    // (EN) [Step 7] طبيعي surface type (dominance: any operand UInt64, mirroring
                     //      the interpreter's wrapU64) ⇒ unsigned UDiv with no negative floor
                     //      adjustment (unsigned has no negatives so floor == truncation) to match
                     //      the interpreter: MAX//2 = INT64_MAX (not -1). Full 2^64 range.
@@ -761,11 +761,11 @@ namespace Sad
                     right = cg_.builder_->CreateFPToSI(right, cg_.getInt64Type(), "f64toi64.r");
                 emitIntDivZeroGuard(cg_, left, right,
                                     Sad::Compiler::kDivZeroRun001IntMsg, "idiv.dz");
-                // (AR) [الخطوة ٧] هيمنةُ طبيعي64 ⇒ UDiv، نظيرَ مسارِ الأرضيّة أعلاه
+                // (AR) [الخطوة ٧] هيمنةُ طبيعي ⇒ UDiv، نظيرَ مسارِ الأرضيّة أعلاه
                 //      ومرآةَ wrapU64 في المفسّر: لا سالب فلا فيضَ ولا حاجةَ لحارسِه،
                 //      والمدى الكامل ٢^٦٤. صارت هذه الفقرةُ مطلوبةً حين صارت `/` صحيحةً:
                 //      قبلَها لم تكن تصل i64 أصلًا (كانت F64 أو ديناميّة).
-                // (EN) [Step 7] طبيعي64 dominance ⇒ UDiv, mirroring the floor path above
+                // (EN) [Step 7] طبيعي dominance ⇒ UDiv, mirroring the floor path above
                 //      and the interpreter's wrapU64: unsigned has no overflow case.
                 const bool divUnsignedU64 =
                     inst->operands[0].dataType == SadTypeKind::UInt64 ||
@@ -909,11 +909,11 @@ namespace Sad
 
             emitIntDivZeroGuard(cg_, left, right,
                                 Sad::Compiler::kModZeroRun010IntMsg, "imod.dz");
-            // (AR) [الخطوة ٧] النوع السطحيّ طبيعي64 (هيمنة: أيّ معامل UInt64، مرآةُ wrapU64
+            // (AR) [الخطوة ٧] النوع السطحيّ طبيعي (هيمنة: أيّ معامل UInt64، مرآةُ wrapU64
             //      في المفسّر) ⇒ باقٍ لا-موقَّع URem بدل SRem الموقَّعة. لا يلزمه حارس فيض
             //      الحدّ الأدنى (ذاك خاصٌّ بالموقَّع: INT64_MIN%-1)، وurem لا يفيض قطّ. يطابق
             //      المفسّر: MAX%2 = 1 (لا ‎-1‏). النطاق الكامل ٢^٦٤.
-            // (EN) [Step 7] طبيعي64 surface type (dominance: any operand UInt64, mirroring the
+            // (EN) [Step 7] طبيعي surface type (dominance: any operand UInt64, mirroring the
             //      interpreter's wrapU64) ⇒ unsigned URem instead of signed SRem. It needs no
             //      min-overflow guard (that is signed-only: INT64_MIN%-1), and urem never
             //      overflows. Matches the interpreter: MAX%2 = 1 (not -1). Full 2^64 range.

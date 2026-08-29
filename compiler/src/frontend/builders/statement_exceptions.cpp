@@ -14,6 +14,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -35,7 +36,7 @@ namespace Sad
                 if (auto tryStmt = dynamic_cast<Sad::AST::TryStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found TryStmt" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found TryStmt");
 #endif
 
                     bool hasFinally = (tryStmt->finallyBlock != nullptr);
@@ -1031,7 +1032,7 @@ namespace Sad
                 if (auto raiseStmt = dynamic_cast<Sad::AST::RaiseStmt *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found RaiseStmt" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found RaiseStmt");
 #endif
 
                     // (AR) بناء تعبير الاستثناء

@@ -20,6 +20,7 @@
 #include <optional>
 
 #include "builtin_registry.h"
+#include "sad_debug_log.h"
 namespace Bn = Sad::Builtins::Names;
 namespace Ar = Sad::Builtins::Arity;
 
@@ -64,7 +65,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -134,7 +135,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -152,7 +153,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Boolean);
                 }
@@ -171,7 +172,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -190,7 +191,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
@@ -209,7 +210,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
@@ -228,7 +229,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
@@ -244,7 +245,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -260,7 +261,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -276,7 +277,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "()" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "()");
 #endif
                     return BuildResult("", SadTypeKind::Void);
                 }
@@ -294,7 +295,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::String);
                 }
@@ -311,7 +312,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -330,7 +331,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::Integer);
                 }
@@ -348,7 +349,7 @@ namespace Sad
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] builtin " << funcName << "() -> " << resultReg << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] builtin " << funcName << "() -> " << resultReg);
 #endif
                     return BuildResult(resultReg, SadTypeKind::String);
                 }

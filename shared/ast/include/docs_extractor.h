@@ -2225,7 +2225,7 @@ namespace Sad
                     return "كائن";
                 case Types::SadTypeKind::Enum:
                     return "تعداد";
-                case Types::SadTypeKind::Byte:
+                case Types::SadTypeKind::UInt8:
                     return "بايت";
                 case Types::SadTypeKind::Error:
                     return "خطأ";

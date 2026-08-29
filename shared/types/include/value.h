@@ -256,6 +256,47 @@ namespace Sad
              */
             void setSadType(Types::SadTypePtr t);
 
+            // ══════════════════════════════════════════════════════════════════
+            // (AR) 🔑 العرضُ المُعلَنُ — وسمٌ ضيّقٌ لا يمسُّ `type_` ولا `getKind()`
+            // ══════════════════════════════════════════════════════════════════
+            // (AR) «الخيارُ ب» يجعلُ كلَّ عرضٍ دونَ ٦٤ يُخزَّنُ int64، فـ`getKind()`
+            //      يُجيبُ `Integer` لـ`رقم8` كما لـ`رقم` — وذلك تمثيلٌ صحيحٌ في
+            //      موضعِه. لكنّ `نوع()` سؤالٌ **دلاليٌّ** لا تمثيليّ، فكانَ يقرأُ
+            //      خانةَ التخزينِ جوابًا ويُعلِنُ أنّ `رقم8` «رقم» — وذلك خلافُ
+            //      ما يُعلِنُه مصدرُ الحقيقةِ (`typeof_ar` افتراضُه `word`).
+            //      فالوسمُ يُنصَبُ عندَ **المعبَرِ** وحدَه — حيثُ يُعرَفُ العرضُ
+            //      المُعلَنُ ويقعُ الاقتطاعُ أصلًا — ولا يقرؤه سوى `نوع()`.
+            //      ونتيجةُ الحسابِ لا تحملُه، موافقةً لقاعدةِ الهيمنةِ المُعلَنة:
+            //      `رقم8 + ٠` رقمٌ، كما في C.
+            //      ⚠️ ولا يُرفَعُ إلى `setSadType`: ذاك يبدِّلُ `getKind()` فيطالُ
+            //      كلَّ قارئٍ للتمثيلِ — سدٌّ يهدمُ طبقةً تحتَه.
+            // (EN) A narrow tag carrying the DECLARED width, set only at a crossing and
+            //      read only by نوع(). It deliberately does not touch type_/getKind(),
+            //      since lowering every sub-64 width to int64 is a correct REPRESENTATION
+            //      decision; نوع() asks a SEMANTIC question. Arithmetic results do not
+            //      carry it, matching the declared dominance rule (رقم8 + 0 is رقم, as in C).
+            Types::SadTypeKind getDeclaredNumericKind() const { return declaredNumericKind_; }
+            void setDeclaredNumericKind(Types::SadTypeKind kind) { declaredNumericKind_ = kind; }
+
+            /**
+             * @brief (AR) وسمُ القيمةِ بعرضِها المُعلَنِ عندَ معبَر — نسخةٌ واحدةٌ لكلِّ المعابر
+             * @brief (EN) Tag a value with its declared width at a crossing — one copy for all crossings
+             *
+             * (AR) `رقم` و`عشري` مستثنيانِ عمدًا: هما جوابُ `getKind()` أصلًا، فوسمُهما
+             *      نسخةٌ ثانيةٌ من حقيقةٍ واحدة. وما سواهما من أنواعِ العرضِ يُوسَم.
+             * (EN) Integer/Float are deliberately excluded: they are already what getKind()
+             *      answers, so tagging them would be a second copy of one fact.
+             */
+            void tagDeclaredWidth(Types::SadTypeKind declaredKind)
+            {
+                if (declaredKind != Types::SadTypeKind::Integer &&
+                    declaredKind != Types::SadTypeKind::Float &&
+                    Types::sadTypeKindIsNumeric(declaredKind))
+                {
+                    declaredNumericKind_ = declaredKind;
+                }
+            }
+
             // (AR) عدم (Null) نوع متمايز تمامًا عن فراغ (Void) — S-TS-P1.
             // (EN) Null is a fully distinct kind from Void — S-TS-P1.
             bool isNull() const { return type_ == Types::SadTypeKind::Null; }
@@ -542,6 +583,9 @@ namespace Sad
              */
             Types::SadTypePtr sadType_;
             Types::SadTypeKind type_; // (AR) cache للتوافق الخلفي — يُحسب من sadType_ / (EN) Backward-compat cache
+
+            /// (AR) العرضُ المُعلَنُ عندَ المعبَر — `مجهول` ما لم يُنصَبْ / (EN) Declared width at a crossing; Unknown unless set
+            Types::SadTypeKind declaredNumericKind_ = Types::SadTypeKind::Unknown;
 
             /**
              * @brief (AR) التخزين الداخلي — يستخدم std::variant لتخزين القيمة الفعلية

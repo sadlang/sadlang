@@ -27,6 +27,7 @@
 #include <iostream>
 #include <fstream>
 #include "bounds_checker.h" // (AR) فحص حدود موحَّد / (EN) unified bounds checking
+#include "sad_debug_log.h"
 
 using namespace Sad::Compiler::SIR;
 
@@ -121,15 +122,15 @@ namespace Sad
             llvm::Type *returnType = nullptr;
             switch (returnSIRType)
             {
-            // (AR) [طبقة طبيعي64] بايت يُخزَّن int64 زمن التشغيل (Option B: لا وسم قيمة)،
+            // (AR) [طبقة طبيعي] بايت يُخزَّن int64 زمن التشغيل (Option B: لا وسم قيمة)،
             //      فتوقيعُ الإرجاع i64 كـInteger تمامًا — يطابق مسارَ المعاملات
             //      (baseParamType: default→i64). والمُخطِّط يُرجِع i8 لأنّه يصف الخانة
             //      لا سجلَّ الإرجاع، فهذه مخالفةٌ مقصودة. (UInt64 يوافق المُخطِّطَ أصلًا.)
-            // (EN) [طبيعي64 layer] Byte is stored as int64 at runtime (Option B: no value
+            // (EN) [طبيعي layer] Byte is stored as int64 at runtime (Option B: no value
             //      tag), so its return signature is i64 exactly like Integer, mirroring
             //      the param path. The mapper yields i8 because it describes storage, not
             //      the return register — a deliberate deviation. (UInt64 already agrees.)
-            case SadTypeKind::Byte:
+            case SadTypeKind::UInt8:
                 returnType = cg_.getInt64Type();
                 break;
             // (AR) الصفوف تُرجع مؤشّرًا (بنية SadArray نفسها)؛ المُخطِّط لا يعرف Tuple بعد.
@@ -697,8 +698,8 @@ namespace Sad
             {
                 cg_.context_info_.currentConstructorClass = funcName.substr(0, ctorPos);
 #ifndef NDEBUG
-                std::cout << "[DEBUG] emitFunctionBody: detected constructor for class '"
-                          << cg_.context_info_.currentConstructorClass << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] emitFunctionBody: detected constructor for class '"
+                          << cg_.context_info_.currentConstructorClass << "'");
 #endif
                 // (AR) تسجيل %self في objectClassMap للباني
                 // (EN) Register %self in objectClassMap for constructor
@@ -719,8 +720,8 @@ namespace Sad
                     {
                         cg_.context_info_.currentMethodClass = prefix;
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] emitFunctionBody: detected method for class '"
-                                  << cg_.context_info_.currentMethodClass << "'" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] emitFunctionBody: detected method for class '"
+                                  << cg_.context_info_.currentMethodClass << "'");
 #endif
                         // (AR) تسجيل %self في objectClassMap للدالة
                         // (EN) Register %self in objectClassMap for method
@@ -824,7 +825,7 @@ namespace Sad
                 if (labelName == entryBlockName)
                     continue; // already created as entry
 #ifndef NDEBUG
-                std::cout << "[DEBUG] emitFunctionBody: creating block '" << labelName << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] emitFunctionBody: creating block '" << labelName << "'");
 #endif
 
                 llvm::BasicBlock *llvmBlock = llvm::BasicBlock::Create(

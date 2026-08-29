@@ -62,10 +62,18 @@ namespace Sad
             TypePtr finalType = declaredType;
 
             // إذا كان النوع المُصرّح unknown، استخدم المُستنتج
+            // (AR) [SEM048] هل استُنتِجَ نوعُ هذا الاسمِ من مُهيِّئِه؟ يُحفَظُ هنا
+            //      ويُسجَّلُ **بعدَ** [[declareVariable]] لا قبلَه، إذ يُسجِّلُ ذاك
+            //      كلَّ رباطٍ «مُصرَّحًا» ابتداءً فيمحو ما سبقَه.
+            // (EN) [SEM048] Recorded after declareVariable, never before: that call
+            //      marks every binding "declared" first and would erase an earlier
+            //      write.
+            bool typeWasInferred = false;
             if (declaredType && declaredType->isUnknown() && initType && !initType->isUnknown())
             {
                 finalType = initType;
                 currentResult_.totalInferred++;
+                typeWasInferred = true;
             }
 
             // التحقق من التوافق / Check compatibility
@@ -82,6 +90,17 @@ namespace Sad
 
             // تسجيل في البيئة / Register in environment
             declareVariable(stmt.name, finalType);
+
+            // (AR) [SEM048] هذا الاسمُ **لم يُعلِنْ كاتبُه نوعَه**. والفرقُ حاملٌ لا
+            //      توثيقيّ: `SEM048` يُرسي على إعلانِ الكاتب، فمَن كتبَ
+            //      `متغير مجموع = 0` لم يُعلِنْ موقَّعيّةً — نوعُه «رقم» استُنتِجَ من
+            //      الحرفيّة — فيُعفى كما تُعفى الحرفيّةُ نفسُها.
+            // (EN) [SEM048] The writer declared no type here; the inferred «رقم» is
+            //      a default, not a declaration, so it is exempt like a literal.
+            if (typeWasInferred && !variableTypeIsInferred_.empty())
+            {
+                variableTypeIsInferred_.back()[stmt.name] = true;
+            }
 
             // ============================================================
             // (AR) [Phase 5c] إن أمكن، استخرج اسم صنف المُهيِّئ وسجّله
@@ -1850,8 +1869,32 @@ namespace Sad
                 return "نص";
             case K::Boolean:
                 return "منطقي";
-            case K::Byte:
-                return "بايت";
+            // ────────────────────────────────────────────────────────────
+            // (AR) 🔑 أسرةُ الأعراضِ الثمانيةِ تُسأَلُ من الجدولِ المولَّدِ لا من
+            //      هنا. وكانَ هذا الموضعُ يحملُ نسخةً يدويّةً ثانيةً من معجمِ
+            //      الأسماء: `UInt8` وحدَها مذكورةٌ تُجيبُ «بايت» — وقد أسقطَ
+            //      مصدرُ الحقيقةِ هذا اللفظَ وسمّاها «طبيعي8» — والسبعُ الباقياتُ
+            //      تسقطُ في `default` فتُجيبُ باسمٍ فارغ. فنسخةٌ يدويّةٌ ثانيةٌ
+            //      من معجمٍ مولَّدٍ لا تنجو من إعادةِ التسميةِ التي تصيبُ أصلَها.
+            // (EN) The eight-width family answers from the generated table, not
+            //      from a second hand-written copy: UInt8 alone was listed here
+            //      and answered «بايت», a spelling the SoT has since dropped in
+            //      favour of «طبيعي8», while the other seven fell to `default`
+            //      and answered with an empty name.
+            // ────────────────────────────────────────────────────────────
+            case K::Int8:
+            case K::Int16:
+            case K::Int32:
+            case K::UInt8:
+            case K::UInt16:
+            case K::UInt32:
+            case K::UInt64:
+            // (AR) 🔑 و«عشري32» معهنّ: كانَ ساقطًا في `default` فيُجيبُ باسمٍ
+            //      فارغًا في كلِّ تشخيص، وهو نوعٌ سطحيٌّ يكتبُه المطوّر.
+            // (EN) Float32 belongs here too: it fell to `default` and answered with
+            //      an empty name in every diagnostic, though it is a surface type.
+            case K::Float32:
+                return Types::sadTypeKindArabicName(t);
             case K::Array:
                 return "مصفوفة";
             case K::Map:

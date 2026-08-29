@@ -198,10 +198,10 @@ namespace Sad
                 const std::vector<Sad::Types::SadTypeKind> *argTypes = nullptr) const
             {
                 // (AR) EM-CPP: التوقيع الموحَّد (BuiltinContext) — حُذف التوقيع القديم (args).
-                //      argTypes اختياريّ (طبقة طبيعي64 — الخطوة ٤): أنواع الوسائط الساكنة
+                //      argTypes اختياريّ (طبقة طبيعي — الخطوة ٤): أنواع الوسائط الساكنة
                 //      لانتقاء التنسيق اللا-موقَّع في مدمجات الطباعة/التحويل. null ⇒ موقَّع.
                 // (EN) EM-CPP: unified (BuiltinContext) signature — old (args) signature removed.
-                //      argTypes optional (طبيعي64 layer — Step 4): static arg types for unsigned
+                //      argTypes optional (طبيعي layer — Step 4): static arg types for unsigned
                 //      formatting selection in print/convert built-ins. null ⇒ signed.
                 try
                 {

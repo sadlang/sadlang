@@ -12,6 +12,7 @@
 #include "pattern_nodes.h"
 #include "directive_nodes.h"
 #include "utf8_utils.h"
+#include "sad_debug_log.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -41,9 +42,8 @@ namespace Sad
                 if (auto testDecl = dynamic_cast<Sad::AST::TestDecl *>(stmt))
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] Found TestDecl: " << testDecl->testName
-                              << (testDecl->isPropertyTest ? " (property test, iterations=" + std::to_string(testDecl->iterations) + ")" : "")
-                              << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] Found TestDecl: " << testDecl->testName
+                              << (testDecl->isPropertyTest ? " (property test, iterations=" + std::to_string(testDecl->iterations) + ")" : ""));
 #endif
 
                     // (AR) بناء دالة اختبار: __test_<name>

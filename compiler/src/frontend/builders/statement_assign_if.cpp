@@ -8,6 +8,7 @@
 #include <string>
 #include "sir_builder.h"
 #include "builders/statement_builder.h"
+#include "builders/numeric_width_normalize.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -20,6 +21,7 @@
 #include <optional>
 #include <filesystem>
 #include "sir_constants.h" // (AR) kSadNullSentinel — حارسُ العدمِ لا صفرُ المؤشّر
+#include "sad_debug_log.h"
 
 namespace Sad
 {
@@ -81,11 +83,21 @@ namespace Sad
                 //      surface type, NOT varInfo->type — Fix #52 (below) may clobber `type` to
                 //      Integer on a prior reassignment while the surface type stays fixed.
                 //      Constants are folded; registers are masked with an AND instruction.
-                if (varInfo->declaredSurfaceType == SadTypeKind::Byte)
+                // (AR) 🔑 عُمِّم من «بايت» وحدَه إلى كلِّ خانةٍ مُعلَنةِ العرضِ دونَ ٦٤
+                //      (رقم8/16/32، طبيعي8/16/32، بايت). العرضُ والإشارةُ يُقرآن من
+                //      الجدولِ المُولَّدِ عن types.yaml لا من اسمِ النوعِ مكتوبًا يدًا،
+                //      فينالُ كلَّ نوعٍ يُفتَحُ لاحقًا بلا تحريرِ هذا الملفّ.
+                // (EN) Generalized from Byte alone to every declared sub-64 width;
+                //      width and signedness come from the generated table, so any
+                //      later-opened type is covered without editing this file.
+                const SadTypeKind declaredKind = varInfo->declaredSurfaceType;
+                const int declaredBits = Sad::Types::sadTypeKindNumericBits(declaredKind);
+                if (Sad::Types::sadTypeKindIsIntegerNumeric(declaredKind) &&
+                    declaredBits != Sad::Types::kSadTypeSizeUnknown && declaredBits < 64)
                 {
-                    // (AR) الأنواع العدديّة الصحيحة التي يشملها اقتطاعُ المفسّر: قيمةُ طبيعي64
+                    // (AR) الأنواع العدديّة الصحيحة التي يشملها اقتطاعُ المفسّر: قيمةُ طبيعي
                     //      تحمل getKind()==Integer زمن التشغيل (Option B)، فيقتطعها المفسّر؛
-                    //      فلا بدّ أن يقتطعها المترجم أيضًا (وإلا `ب = <متغيّر طبيعي64>` ينفرج).
+                    //      فلا بدّ أن يقتطعها المترجم أيضًا (وإلا `ب = <متغيّر طبيعي>` ينفرج).
                     //      Float/String/Pointer مُستثناة — مطابقةً لحارس المفسّر getKind()==Integer.
                     // (EN) Integer-like numeric types the interpreter's truncation covers: a
                     //      UInt64 value carries getKind()==Integer at runtime (Option B), so the
@@ -93,11 +105,11 @@ namespace Sad
                     //      diverges). Float/String/Pointer excluded — mirrors the interpreter's
                     //      getKind()==Integer guard.
                     const bool intLike = (valueResult.type == SadTypeKind::Integer ||
-                                          valueResult.type == SadTypeKind::Byte ||
+                                          valueResult.type == SadTypeKind::UInt8 ||
                                           valueResult.type == SadTypeKind::UInt64);
                     if (intLike && valueResult.isConstant)
                     {
-                        // (AR) طيّ الثابت: stoull (لا stoll) كي يستوعب حرفيّات طبيعي64 فوق
+                        // (AR) طيّ الثابت: stoull (لا stoll) كي يستوعب حرفيّات طبيعي فوق
                         //      INT64_MAX دون رمي؛ التقنيعُ `& 0xFF` لا يمسّ إلا البايت الأدنى
                         //      فيطابق اقتطاع المفسّر (toInt64() & 0xFF). stoull("-1")=2⁶⁴−1
                         //      ⇒ 255، مطابقًا لـ(-1 & 0xFF) في المفسّر.
@@ -108,8 +120,13 @@ namespace Sad
                         try
                         {
                             unsigned long long uv = std::stoull(valueResult.constantValue);
-                            valueResult.constantValue =
-                                std::to_string(static_cast<long long>(uv & 0xFFULL));
+                            // (AR) المُطبِّعُ المُولَّدُ يقومُ مقامَ `& 0xFF`: يبترُ إلى العرضِ
+                            //      المُعلَنِ ثمّ يوسّعُ بالإشارةِ أو بالصفرِ حسبَ `numeric`.
+                            // (EN) The generated normalizer replaces `& 0xFF`: truncate to
+                            //      the declared width, then sign/zero-extend per `numeric`.
+                            valueResult.constantValue = std::to_string(
+                                static_cast<long long>(Sad::Types::sadTypeKindNormalizeInteger(
+                                    declaredKind, static_cast<long long>(uv))));
                             valueResult.type = SadTypeKind::Integer;
                         }
                         catch (const std::exception &)
@@ -120,15 +137,9 @@ namespace Sad
                     }
                     else if (intLike && !valueResult.registerName.empty() && b_.currentBlock_)
                     {
-                        SIRInstruction andInst;
-                        andInst.opcode = SIROpcode::AND;
-                        std::string maskedReg = b_.newTempRegister();
-                        andInst.result = SIROperand::Register(maskedReg, SadTypeKind::Integer);
-                        andInst.operands.push_back(
-                            SIROperand::Register(valueResult.registerName, valueResult.type));
-                        andInst.operands.push_back(SIROperand::ConstantI64(0xFF));
-                        b_.currentBlock_->addInstruction(andInst);
-                        valueResult.registerName = maskedReg;
+                        valueResult.registerName =
+                            emitNormalizeRegisterToDeclaredWidth(
+                                b_, valueResult.registerName, valueResult.type, declaredKind);
                         valueResult.type = SadTypeKind::Integer;
                     }
                     else if (valueResult.type == SadTypeKind::Any &&
@@ -573,7 +584,7 @@ namespace Sad
                 const bool priorTypeIsScalar =
                     priorType == SadTypeKind::Integer || priorType == SadTypeKind::Float ||
                     priorType == SadTypeKind::Boolean || priorType == SadTypeKind::String ||
-                    priorType == SadTypeKind::UInt64 || priorType == SadTypeKind::Byte;
+                    priorType == SadTypeKind::UInt64 || priorType == SadTypeKind::UInt8;
                 // (AR) ⚠ لا يُبنى الحكمُ على `elementType`/`elementClassName`: الأوّلُ **بلا
                 //      تهيئةٍ افتراضيّةٍ** في VariableInfo ولا يُكتَب إلّا للمصفوفات، فقراءتُه
                 //      لمتغيّرٍ قياسيٍّ قراءةُ قيمةٍ غيرِ معرَّفة. (جرّبتُه فمنعَ إعادةَ
@@ -630,10 +641,10 @@ namespace Sad
                 VariableInfo varInfo;
                 varInfo.name = varDecl->name; // line 76
                 varInfo.type = varType;
-                // (AR) [طبقة طبيعي64 — الخطوة ٥] النوع السطحيّ المُصرَّح صراحةً (طبيعي64/بايت…)
+                // (AR) [طبقة طبيعي — الخطوة ٥] النوع السطحيّ المُصرَّح صراحةً (طبيعي/بايت…)
                 //      من تعليق `متغير <نوع>`؛ Unknown إذا كان النوع مُستنتَجًا. لا نلوّثه
                 //      باستنتاج القيمة الأوّليّة أدناه كي يظلّ قرار الإشارة مطابقًا للمفسّر.
-                // (EN) [طبيعي64 layer — Step 5] Explicitly-declared surface type from the
+                // (EN) [طبيعي layer — Step 5] Explicitly-declared surface type from the
                 //      `var <type>` annotation; Unknown when the type is inferred. Deliberately
                 //      NOT overwritten by initializer inference below so the signedness decision
                 //      stays identical to the interpreter.
@@ -885,7 +896,7 @@ namespace Sad
                 const bool newTypeIsScalar =
                     varType == SadTypeKind::Integer || varType == SadTypeKind::Float ||
                     varType == SadTypeKind::Boolean || varType == SadTypeKind::String ||
-                    varType == SadTypeKind::UInt64 || varType == SadTypeKind::Byte;
+                    varType == SadTypeKind::UInt64 || varType == SadTypeKind::UInt8;
                 const bool newHasNoAggregateShape =
                     varInfo.className.empty() &&
                     b_.classInstanceTypes_.find(varDecl->name) == b_.classInstanceTypes_.end();
@@ -941,22 +952,39 @@ namespace Sad
                     // (EN) Byte (u8) truncation: init assignment truncates to 0-255 — mirrors
                     //      the interpreter's `& 0xFF` to keep both tracks in parity. Constants
                     //      are folded here; registers are masked with an AND instruction.
-                    bool truncateByte = (varType == SadTypeKind::Byte);
-                    if (truncateByte && useConstant && initResult.type == SadTypeKind::Integer)
+                    // (AR) عُمِّم من «بايت» إلى كلِّ عرضٍ مُعلَنٍ دونَ ٦٤؛ العرضُ
+                    //      والإشارةُ من الجدولِ المُولَّد، والتوسيعُ بالإشارةِ في
+                    //      النسخةِ الواحدة (numeric_width_normalize.h).
+                    // (EN) Generalized from Byte to every sub-64 declared width; the
+                    //      sign-extension lives in the single shared copy.
+                    // (AR) 🔑 المصدرُ النوعُ **السطحيُّ المُعلَنُ** لا `varType`: هذا
+                    //      الأخيرُ نوعُ **الخزنِ**، و«الخيار ب» يجعلُه i64 لكلِّ عرضٍ
+                    //      دونَ ٦٤ — فسؤالُه عن العرضِ يُجيبُ دائمًا «٦٤ فلا بترَ»،
+                    //      ومُقيسٌ أنّ `رقم8 = 300` بقيت ٣٠٠ في المترجمِ وحدَه بينما
+                    //      اقتطعَها المفسّر. ومسارُ إعادةِ الإسنادِ يقرأُ السطحيَّ
+                    //      أصلًا (أعلاه)، فالمساران يتّفقان الآن على مصدرٍ واحد.
+                    // (EN) Source is the DECLARED SURFACE type, not `varType`: the latter
+                    //      is the STORAGE kind, which Option B makes i64 for every sub-64
+                    //      width — asking it for the width always answers "64, no truncation".
+                    //      Measured: `رقم8 = 300` stayed 300 in the compiler while the
+                    //      interpreter truncated. The reassignment path already reads the
+                    //      surface type, so both now agree on one source.
+                    const SadTypeKind declaredSurfaceKind = varInfo.declaredSurfaceType;
+                    const bool truncateToWidth =
+                        needsWidthNormalization(declaredSurfaceKind);
+                    if (truncateToWidth && useConstant && initResult.type == SadTypeKind::Integer)
                     {
-                        long long v = std::stoll(initResult.constantValue) & 0xFF;
-                        initResult.constantValue = std::to_string(v);
+                        initResult.constantValue =
+                            std::to_string(static_cast<long long>(
+                                Sad::Types::sadTypeKindNormalizeInteger(
+                                    declaredSurfaceKind, std::stoll(initResult.constantValue))));
                     }
-                    else if (truncateByte && !useConstant && !initResult.registerName.empty())
+                    else if (truncateToWidth && !useConstant && !initResult.registerName.empty())
                     {
-                        SIRInstruction andInst;
-                        andInst.opcode = SIROpcode::AND;
-                        std::string maskedReg = b_.newTempRegister();
-                        andInst.result = SIROperand::Register(maskedReg, SadTypeKind::Integer);
-                        andInst.operands.push_back(SIROperand::Register(initResult.registerName, initResult.type));
-                        andInst.operands.push_back(SIROperand::ConstantI64(0xFF));
-                        b_.currentBlock_->addInstruction(andInst);
-                        initResult.registerName = maskedReg;
+                        initResult.registerName =
+                            emitNormalizeRegisterToDeclaredWidth(
+                                b_, initResult.registerName, initResult.type,
+                                declaredSurfaceKind);
                         initResult.type = SadTypeKind::Integer;
                     }
 
@@ -1081,7 +1109,7 @@ namespace Sad
                         //      أنّ كتابتَه في كلِّ نوعٍ عدميٍّ تسرّبه خامًا في أربعة:
                         //        رقم عدمي     ⇒ «لاشيء»  ✅ (مسارُ الطباعةِ يفحصه)
                         //        نص عدمية     ⇒ «لاشيء»  ✅ (مسارُ النصِّ يفحصه)
-                        //        بايت/طبيعي64 ⇒ -9223372036854775807  🔴 مستثنيان من
+                        //        بايت/طبيعي ⇒ -9223372036854775807  🔴 مستثنيان من
                         //                       فحصِ الحارسِ عمدًا (تصادمُ قيمةٍ شرعيّة)
                         //        منطقي عدمي   ⇒ «صحيح»   🔴 يُبتَر إلى بتٍّ واحد
                         //        عشري عدمي    ⇒ -9.2e18  🔴 يُعاد تفسيرُه عائمًا
@@ -1095,7 +1123,7 @@ namespace Sad
                         //      (قيمةٌ تختلف كلَّ تشغيل)». وقياسُ الثمانِ خاناتٍ
                         //      (أربعةُ أنواعٍ × نطاقَين، خمسُ تشغيلاتٍ لكلٍّ) يقول غيرَ
                         //      ذلك: **ستٌّ من ثمانٍ حتميّة**. داخلَ دالّةٍ يتغيّر
-                        //      «بايت» و«طبيعي64» وحدَهما، أمّا «منطقي» فيعطي «صحيح»
+                        //      «بايت» و«طبيعي» وحدَهما، أمّا «منطقي» فيعطي «صحيح»
                         //      حتميًّا و«عشري» يعطي `0.0` حتميًّا — و`0.0` هي بعينِها
                         //      القيمةُ التي أعلنتُ أعلاه أنّي تراجعتُ عن كتابتِها لأنّها
                         //      «كذبةٌ معقولة». وعلى مستوى الوحدةِ **الثمانِ كلُّها
@@ -1179,7 +1207,7 @@ namespace Sad
                         //      ويُولَّد منها SAD_TYPE_DEFAULT_INIT_TABLE. فالقرارُ
                         //      واحدٌ في مكانٍ واحد، والتمثيلُ (SIROperand) يبقى هنا.
                         //
-                        //      🔑 وهذا بعينُه ما كان يمنع علّةَ «طبيعي64» المُدوَّنةَ
+                        //      🔑 وهذا بعينُه ما كان يمنع علّةَ «طبيعي» المُدوَّنةَ
                         //      أدناه: لم تكن غيابَ فهمٍ بل غيابَ سطرٍ في نسخةٍ من ستّ.
                         // (EN) This table used to enumerate the language's kinds by hand,
                         //      with five siblings elsewhere. It now switches on SEVEN
@@ -1187,7 +1215,7 @@ namespace Sad
                         //      and generated into SAD_TYPE_DEFAULT_INIT_TABLE: one
                         //      decision in one place, representation stays local.
                         // ════════════════════════════════════════════════════
-                        // (AR) 🔑 «طبيعي64» كان غائبًا عن هذا الجدولِ وحدَه بينما
+                        // (AR) 🔑 «طبيعي» كان غائبًا عن هذا الجدولِ وحدَه بينما
                         //      أُضيف إلى نظائرِه الثلاثةِ في المفسّرِ ومصدرِ الحقيقة.
                         //      قِيس أثرُ غيابِه (٤ تشغيلاتٍ للثنائيِّ نفسِه):
                         //      47139388169 · 355351788617 · 129422588889 · 18615432889
@@ -1332,7 +1360,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildIfStatement: starting" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: starting");
 #endif
 
                 // ========================================================================
@@ -1363,8 +1391,8 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildIfStatement: created blocks then=" << thenLabel
-                          << ", else=" << elseLabel << ", merge=" << mergeLabel << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: created blocks then=" << thenLabel
+                          << ", else=" << elseLabel << ", merge=" << mergeLabel);
 #endif
 
                 // ========================================================================
@@ -1377,14 +1405,14 @@ namespace Sad
                 if (condResult.registerName.empty())
                 {
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildIfStatement: condition build failed!" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: condition build failed!");
 #endif
                     b_.errors_.push_back("Error: Failed to build if condition");
                     return;
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildIfStatement: condition reg=" << condResult.registerName << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: condition reg=" << condResult.registerName);
 #endif
 
                 // ========================================================================
@@ -1429,7 +1457,7 @@ namespace Sad
                 {
                     b_.currentBlock_->instructions.push_back(brCondInst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildIfStatement: added BR_COND to current block" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: added BR_COND to current block");
 #endif
                 }
 
@@ -1462,13 +1490,13 @@ namespace Sad
                     {
                         b_.currentBlock_->instructions.push_back(brMergeInst);
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildIfStatement: added BR to merge from then" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: added BR to merge from then");
 #endif
                     }
                     else
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildIfStatement: then block already has terminator, skipping BR" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: then block already has terminator, skipping BR");
 #endif
                     }
                 }
@@ -1476,7 +1504,7 @@ namespace Sad
                 {
                     b_.currentBlock_->instructions.push_back(brMergeInst);
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildIfStatement: added BR to merge from then (empty block)" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: added BR to merge from then (empty block)");
 #endif
                 }
 
@@ -1505,13 +1533,13 @@ namespace Sad
                         {
                             b_.currentBlock_->instructions.push_back(brMergeInst);
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildIfStatement: added BR to merge from else" << std::endl;
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: added BR to merge from else");
 #endif
                         }
                         else
                         {
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildIfStatement: else block already has terminator, skipping BR" << std::endl;
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: else block already has terminator, skipping BR");
 #endif
                         }
                     }
@@ -1519,7 +1547,7 @@ namespace Sad
                     {
                         b_.currentBlock_->instructions.push_back(brMergeInst);
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildIfStatement: added BR to merge from else (empty block)" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: added BR to merge from else (empty block)");
 #endif
                     }
                 }
@@ -1530,7 +1558,7 @@ namespace Sad
                 // ========================================================================
                 b_.currentBlock_ = mergeBlock;
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildIfStatement: completed, now at merge block" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildIfStatement: completed, now at merge block");
 #endif
             }
 

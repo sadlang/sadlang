@@ -269,7 +269,6 @@ namespace Sad
                 switch (inst->result->dataType)
                 {
                 case Sad::Compiler::SIR::SadTypeKind::Float:
-                case Sad::Compiler::SIR::SadTypeKind::Float64:
                     result = cg_.builder_->CreateBitCast(result, cg_.getDoubleType(),
                                                          prefix + ".result.f64");
                     break;

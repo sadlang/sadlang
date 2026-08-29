@@ -7,6 +7,7 @@
 #include <string>
 #include "sir_builder.h"
 #include "builders/statement_builder.h"
+#include "builders/numeric_width_normalize.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
 #include "lexer_core.h"
@@ -801,7 +802,7 @@ namespace Sad
                         //      a float to an integer slot), so every other integer kind
                         //      fell through. The Byte mask below then truncates the result.
                         const bool needNarrow = ((declaredKind == SadTypeKind::Integer ||
-                                                  declaredKind == SadTypeKind::Byte) &&
+                                                  declaredKind == SadTypeKind::UInt8) &&
                                                  retValue.dataType == SadTypeKind::Float);
                         if (needWiden || needNarrow)
                         {
@@ -846,26 +847,34 @@ namespace Sad
                         //      constant folding for a constant, TRUNCATE_U8 for a tagged Any
                         //      (an unconditional mask would corrupt a float payload's bits).
                         // ════════════════════════════════════════════════════════════
-                        if (declaredKind == SadTypeKind::Byte)
+                        // (AR) عُمِّم من «بايت» إلى كلِّ عرضٍ مُعلَنٍ دونَ ٦٤ — والعائدُ
+                        //      خانةٌ مُعلَنةُ العرضِ شأنُه شأنُ المتغيّرِ والمعامل.
+                        // (EN) Generalized from Byte to every sub-64 declared width; a
+                        //      return value is a width-declared slot like any other.
+                        // (AR) المصدرُ النوعُ **السطحيُّ** لا `declaredKind` (نوعُ خزنٍ
+                        //      يصيرُ i64 لكلِّ عرضٍ دونَ ٦٤ بـ«الخيار ب»)؛ عينُ ما وُحِّد
+                        //      عليه مسارا المتغيّر.
+                        // (EN) Source is the SURFACE kind, not the storage kind, matching
+                        //      what both variable paths were unified on.
+                        const SadTypeKind declaredSurfaceReturn =
+                            b_.currentFunction_->declaredSurfaceReturnType;
+                        if (needsWidthNormalization(declaredSurfaceReturn))
                         {
-                            const bool intLike = (retValue.dataType == SadTypeKind::Integer ||
-                                                  retValue.dataType == SadTypeKind::Byte ||
-                                                  retValue.dataType == SadTypeKind::UInt64);
+                            const bool intLike =
+                                isRuntimeIntegerKind(retValue.dataType);
                             if (intLike && retValue.type == SIROperandType::CONSTANT)
                             {
                                 retValue = SIROperand::ConstantI64(
-                                    static_cast<int64_t>(static_cast<uint64_t>(retValue.intValue) & 0xFFULL));
+                                    static_cast<int64_t>(Sad::Types::sadTypeKindNormalizeInteger(
+                                        declaredSurfaceReturn, static_cast<long long>(retValue.intValue))));
                             }
-                            else if (intLike && b_.currentBlock_)
+                            else if (intLike && b_.currentBlock_ &&
+                                     retValue.type == SIROperandType::REGISTER)
                             {
-                                std::string maskedReg = b_.newTempRegister();
-                                SIRInstruction andInst(SIROpcode::AND);
-                                andInst.result = SIROperand::Register(maskedReg, SadTypeKind::Integer);
-                                andInst.operands.push_back(retValue);
-                                andInst.operands.push_back(SIROperand::ConstantI64(0xFF));
-                                andInst.comment = "truncate returned value to declared بايت (u8)";
-                                b_.currentBlock_->addInstruction(andInst);
-                                retValue = SIROperand::Register(maskedReg, SadTypeKind::Integer);
+                                retValue = SIROperand::Register(
+                                    emitNormalizeRegisterToDeclaredWidth(
+                                        b_, retValue.name, retValue.dataType, declaredSurfaceReturn),
+                                    SadTypeKind::Integer);
                             }
                             else if (retValue.dataType == SadTypeKind::Any &&
                                      retValue.type != SIROperandType::CONSTANT &&

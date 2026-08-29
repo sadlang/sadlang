@@ -33,6 +33,7 @@
 #include <functional>
 #include <unordered_set>
 #include "safe_arithmetic.h" // (AR) تحويل آمن مع كشف الفيض / (EN) bounds-checked size_t->int
+#include "sad_debug_log.h"
 
 namespace Sad
 {
@@ -68,7 +69,7 @@ namespace Sad
                 }
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildClass: processing class '" << classDecl->name << "'" << std::endl;
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: processing class '" << classDecl->name << "'");
 #endif
 
                 // (AR) بناء واحد لكل **عقدة تصريح** لا لكل اسم: الأب المبنيُّ عند
@@ -96,7 +97,7 @@ namespace Sad
                 {
                     parentClass = classDecl->superclasses[0]; // دعم وراثة واحدة حالياً
 #ifndef NDEBUG
-                    std::cout << "[DEBUG] buildClass: parent class = '" << parentClass << "'" << std::endl;
+                    SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: parent class = '" << parentClass << "'");
 #endif
                     // (AR) الأب معرَّفٌ لاحقًا في الملف ولم يُبنَ بعدُ ⇒ يُبنى الآن
                     //      عودًا، وإلا خرج تخطيطُ الابن بلا الحقولِ الموروثةِ (نسخُها
@@ -178,8 +179,8 @@ namespace Sad
                     if (parentSirClass)
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildClass: inheriting " << parentSirClass->fields_.size()
-                                  << " fields from parent '" << parentClass << "'" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: inheriting " << parentSirClass->fields_.size()
+                                  << " fields from parent '" << parentClass << "'");
 #endif
                         // (AR) إضافة حقول الأب بالترتيب أولاً
                         // (EN) Add parent fields in order first
@@ -230,8 +231,8 @@ namespace Sad
                     if (auto fieldDecl = dynamic_cast<AST::FieldDecl *>(member.get()))
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildClass: found field '" << fieldDecl->name
-                                  << "' isStatic=" << fieldDecl->isStatic << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: found field '" << fieldDecl->name
+                                  << "' isStatic=" << fieldDecl->isStatic);
 #endif
 
                         // (AR) تحويل النوع وإضافة الحقل
@@ -397,9 +398,9 @@ namespace Sad
                                     }
                                     sirClass->fieldDefaultValues_[fieldDecl->name] = {litVal, defaultKind};
 #ifndef NDEBUG
-                                    std::cout << "[DEBUG] buildClass: field '" << fieldDecl->name
+                                    SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: field '" << fieldDecl->name
                                               << "' default value = '" << litVal
-                                              << "' type=" << static_cast<int>(fieldType) << std::endl;
+                                              << "' type=" << static_cast<int>(fieldType));
 #endif
                                 }
                             }
@@ -543,7 +544,7 @@ namespace Sad
                     else if (auto propDecl = dynamic_cast<Sad::AST::PropertyDecl *>(member.get()))
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildClass: found property '" << propDecl->name << "'" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: found property '" << propDecl->name << "'");
 #endif
                         auto savedClassName = b_.currentClassName_;
                         b_.currentClassName_ = classDecl->name;
@@ -556,7 +557,7 @@ namespace Sad
                     else if (auto methodDecl = dynamic_cast<AST::MethodDecl *>(member.get()))
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildClass: found method '" << methodDecl->name << "'" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: found method '" << methodDecl->name << "'");
 #endif
 
                         // (AR) تخطي الدوال المجردة — لا تملك جسماً يُبنى
@@ -564,7 +565,7 @@ namespace Sad
                         if (methodDecl->isAbstract)
                         {
 #ifndef NDEBUG
-                            std::cout << "[DEBUG] buildClass: skipping abstract method '" << methodDecl->name << "'" << std::endl;
+                            SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: skipping abstract method '" << methodDecl->name << "'");
 #endif
                             continue;
                         }
@@ -945,6 +946,8 @@ namespace Sad
                             FunctionInfo methodInfo;
                             methodInfo.name = fullMethodName;
                             methodInfo.returnType = returnType;
+                            // (AR) العرضُ المُعلَنُ (نظيرُ `astDecl` في الدوالِّ الحرّة).
+                            methodInfo.declaredReturnSurfaceType = methodDecl->returnType;
                             methodInfo.parameters = sirMethod->getParameters();
                             methodInfo.sirFunction = sirMethod;
                             methodInfo.returnClassName = savedReturnClassName1;
@@ -968,7 +971,7 @@ namespace Sad
                     else if (auto funcDecl = dynamic_cast<AST::FunctionDecl *>(member.get()))
                     {
 #ifndef NDEBUG
-                        std::cout << "[DEBUG] buildClass: found function as method '" << funcDecl->name << "'" << std::endl;
+                        SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: found function as method '" << funcDecl->name << "'");
 #endif
 
                         // (AR) استنتاج نوع الإرجاع إذا لم يُحدد
@@ -1152,6 +1155,8 @@ namespace Sad
                             FunctionInfo methodInfo;
                             methodInfo.name = fullMethodName;
                             methodInfo.returnType = returnType;
+                            // (AR) العرضُ المُعلَنُ (نظيرُ `astDecl` في الدوالِّ الحرّة).
+                            methodInfo.declaredReturnSurfaceType = funcDecl->returnType;
                             methodInfo.parameters = sirMethod->getParameters();
                             methodInfo.sirFunction = sirMethod;
                             methodInfo.returnClassName = savedReturnClassName2;
@@ -1187,9 +1192,9 @@ namespace Sad
                 // (EN) Registration was done early (before processing members) — no need to repeat here
 
 #ifndef NDEBUG
-                std::cout << "[DEBUG] buildClass: class '" << classDecl->name << "' completed with "
+                SAD_DEBUG_LOG_LINE("[DEBUG] buildClass: class '" << classDecl->name << "' completed with "
                           << sirClass->fields_.size() << " fields and "
-                          << sirClass->methods_.size() << " methods" << std::endl;
+                          << sirClass->methods_.size() << " methods");
 #endif
             }
 
@@ -1419,6 +1424,9 @@ namespace Sad
                 FunctionInfo methodInfo;
                 methodInfo.name = fullMethodName;
                 methodInfo.returnType = returnType;
+                // (AR) العرضُ المُعلَنُ كما كتبَه المستخدِمُ — لا كما نزلَ (نظيرُ `astDecl`
+                //      في الدوالِّ الحرّة). يقرؤه رافعُ مُعامِلِ `نوع()` وحدَه.
+                methodInfo.declaredReturnSurfaceType = methodDecl->returnType;
                 methodInfo.parameters = sirMethod->getParameters();
                 methodInfo.sirFunction = sirMethod;
                 methodInfo.returnClassName = savedReturnClassName1;

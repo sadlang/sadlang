@@ -87,19 +87,16 @@ namespace Sad
                     case SadTypeKind::Null:
                     case SadTypeKind::Boolean:
                     case SadTypeKind::Integer:
-                    case SadTypeKind::Byte:
                     case SadTypeKind::Char:
                     case SadTypeKind::Int8:
                     case SadTypeKind::Int16:
                     case SadTypeKind::Int32:
-                    case SadTypeKind::Int64:
                     case SadTypeKind::UInt8:
                     case SadTypeKind::UInt16:
                     case SadTypeKind::UInt32:
                     case SadTypeKind::UInt64:
                     case SadTypeKind::Float:
                     case SadTypeKind::Float32:
-                    case SadTypeKind::Float64:
                     case SadTypeKind::Any:
                     case SadTypeKind::Unknown:
                         return false;
@@ -123,12 +120,10 @@ namespace Sad
                     switch (kind)
                     {
                     case SadTypeKind::Integer:
-                    case SadTypeKind::Byte:
                     case SadTypeKind::Char:
                     case SadTypeKind::Int8:
                     case SadTypeKind::Int16:
                     case SadTypeKind::Int32:
-                    case SadTypeKind::Int64:
                     case SadTypeKind::UInt8:
                     case SadTypeKind::UInt16:
                     case SadTypeKind::UInt32:
@@ -136,7 +131,6 @@ namespace Sad
                         return SIROpcode::BUILTIN_UI_SET_PROP_INT;
                     case SadTypeKind::Float:
                     case SadTypeKind::Float32:
-                    case SadTypeKind::Float64:
                         return SIROpcode::BUILTIN_UI_SET_PROP_NUM;
                     case SadTypeKind::Boolean:
                         return SIROpcode::BUILTIN_UI_SET_PROP_BOOL;

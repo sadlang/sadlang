@@ -40,12 +40,12 @@ namespace Sad
 
         using namespace StdLib;
 
-        // (AR) [طبقة طبيعي64 — الخطوة ٤] يُنتج نسخة من وسائط الطباعة/التحويل مع تصيير قيم
-        //      طبيعي64 (UInt64) الصحيحة كنصّ عشريّ لا-موقَّع (نمط بتّاتها int64 مُعاد تفسيره
+        // (AR) [طبقة طبيعي — الخطوة ٤] يُنتج نسخة من وسائط الطباعة/التحويل مع تصيير قيم
+        //      طبيعي (UInt64) الصحيحة كنصّ عشريّ لا-موقَّع (نمط بتّاتها int64 مُعاد تفسيره
         //      uint64). Byte دائمًا موجب [0،255] فطباعته الموقَّعة صحيحة أصلًا. سائر الوسائط
         //      تُمرَّر كما هي (نفس المؤشّر). النوع الساكن من ctx.argType (resolveStaticType
         //      عند موقع النداء). يُطابق نظيرَه في المترجم (%llu في I64_TO_STRING).
-        // (EN) [طبيعي64 layer — Step 4] Produce a copy of print/convert args with طبيعي64
+        // (EN) [طبيعي layer — Step 4] Produce a copy of print/convert args with طبيعي
         //      (UInt64) integer values rendered as unsigned decimal (int64 bits reinterpreted as
         //      uint64). Byte is always in [0,255] so its signed print is already correct. Other
         //      args pass through (same pointer). Static type from ctx.argType (resolveStaticType
@@ -59,9 +59,26 @@ namespace Sad
             for (std::size_t i = 0; i < args.size(); ++i)
             {
                 const auto &a = args[i];
-                if (a && ctx.argType(i) == Sad::Types::SadTypeKind::UInt64 && a->isInteger())
+                // (AR) 🔑 والشرطُ كان `== UInt64` حرفيًّا، فكان التنسيقُ اللا-موقَّعُ
+                //      حِكرًا على اسمِ نوعٍ واحد. والآنَ يُسأل الجدولُ المولَّدُ عن
+                //      **الصفة**، ويُصيَّرُ الرقمُ داخلَ **عرضِه المُعلَن** لا داخلَ
+                //      ٦٤ بتًّا دائمًا — فطبيعي32 يومَ يُفتَحُ يطبعُ مداه لا مدى
+                //      طبيعي. ولطبيعي الناتجُ هو الناتجُ نفسُه المقيسُ اليوم.
+                // (EN) The condition used to be a literal `== UInt64`, so unsigned
+                //      formatting was the privilege of one kind's name. It now asks
+                //      the generated table for the PROPERTY and renders within the
+                //      kind's DECLARED width rather than always 64 bits — so uint32
+                //      will print its own range the day it opens. For طبيعي the
+                //      result is bit-for-bit what is measured today.
+                const Sad::Types::SadTypeKind argKind = ctx.argType(i);
+                if (a && Sad::Types::sadTypeKindIsUnsignedInteger(argKind) && a->isInteger())
                 {
-                    const uint64_t u = static_cast<uint64_t>(a->toInt64());
+                    const int bits = Sad::Types::sadTypeKindNumericBits(argKind);
+                    const uint64_t raw = static_cast<uint64_t>(a->toInt64());
+                    const uint64_t u =
+                        (bits >= 64 || bits == Sad::Types::kSadTypeSizeUnknown)
+                            ? raw
+                            : (raw & ((1ULL << bits) - 1ULL));
                     out.push_back(std::make_shared<Data::Value>(std::to_string(u)));
                 }
                 else

@@ -148,7 +148,7 @@ inline constexpr FlagSpec kFlags[] = {
     { "--استعارة-عربية", FlagKind::Bool, FlagAction::BorrowMsgArabic, "", "رسائل فاحص الاستعارة بالعربيّة", "Borrow-checker messages in Arabic", true, false, false },
     { "--استعارة-إنجليزية", FlagKind::Bool, FlagAction::BorrowMsgEnglish, "", "رسائل فاحص الاستعارة بالإنجليزيّة", "Borrow-checker messages in English", true, false, false },
     { "--فحص-الأنواع", FlagKind::Bool, FlagAction::TypeCheckOn, "", "تفعيل فحص الأنواع المتقدّم", "Enable advanced type checking", true, true, false },
-    { "--بلا-فحص-أنواع", FlagKind::Bool, FlagAction::TypeCheckOff, "", "تعطيل فحص الأنواع المتقدّم", "Disable advanced type checking", true, false, false },
+    { "--بلا-فحص-أنواع", FlagKind::Bool, FlagAction::TypeCheckOff, "", "تعطيل فحص الأنواع المتقدّم", "Disable advanced type checking", true, true, false },
     { "--تنقيح-الأنواع", FlagKind::Bool, FlagAction::DebugTypes, "", "إخراج تنقيح فاحص الأنواع", "Debug type-checker output", true, true, false },
     { "--أنواع-صارمة", FlagKind::Bool, FlagAction::StrictTypes, "", "وضع صارم لفحص الأنواع", "Strict type-checking mode", true, true, false },
     { "--واجهات", FlagKind::Bool, FlagAction::EmitUi, "", "تفعيل وضع توليد الواجهات الرسومية", "Enable UI code generation", true, false, false },
