@@ -599,7 +599,21 @@ function Install-Sad {
         }
 
         New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-        Expand-Archive -Path $tempZip -DestinationPath $InstallDir -Force
+        $مؤقت = Join-Path ([System.IO.Path]::GetTempPath()) ("sad-" + [System.Guid]::NewGuid().ToString("N"))
+        New-Item -ItemType Directory -Path $مؤقت -Force | Out-Null
+        Expand-Archive -Path $tempZip -DestinationPath $مؤقت -Force
+
+        # (AR) الأرشيف يحمل مجلّداً أعلى واحداً (sad-vX-windows-x86_64\) — يُقشَّر.
+        #      وقبل التقشير كان bin ينشأ فارغاً ثم تُنقل إليه كلّ ‎*.exe‎ بالمسح
+        #      المتكرّر — فينجح بالمصادفة ويترك stdlib في مجلّد آخر.
+        # (EN) Strip the single top-level directory the archive carries.
+        $جذر = Get-ChildItem -Path $مؤقت -Directory | Select-Object -First 1
+        if ($null -ne $جذر -and (Test-Path (Join-Path $جذر.FullName "bin"))) {
+            Copy-Item -Path (Join-Path $جذر.FullName "*") -Destination $InstallDir -Recurse -Force
+        } else {
+            Copy-Item -Path (Join-Path $مؤقت "*") -Destination $InstallDir -Recurse -Force
+        }
+        Remove-Item -Path $مؤقت -Recurse -Force -ErrorAction SilentlyContinue
 
         # تحديد مجلد bin
         $binDir = Join-Path $InstallDir "bin"
@@ -607,6 +621,28 @@ function Install-Sad {
             New-Item -ItemType Directory -Path $binDir -Force | Out-Null
             Get-ChildItem -Path $InstallDir -Filter "*.exe" -Recurse | Move-Item -Destination $binDir -ErrorAction SilentlyContinue
             Get-ChildItem -Path $InstallDir -Filter "*.dll" -Recurse | Move-Item -Destination $binDir -ErrorAction SilentlyContinue
+        }
+
+        # (AR) حكمٌ لا وصف: تثبيتٌ بلا أمرٍ واحدٍ قابلٍ للتشغيل إخفاقٌ يُعلَن.
+        # (EN) A judgement, not a description: an install with no runnable
+        #      command is a failure to announce, not a success to be disproved.
+        $مطلوب = switch ($Components) {
+            "interpreter" { @("sad", "sad-run", "sad-lsp", "sad-check") }
+            "compiler"    { @("sadc") }
+            "full"        { @("sad", "sad-run", "sad-lsp", "sad-check", "sadc") }
+            default       { @("sad") }
+        }
+        $ناقص = @()
+        foreach ($أداة in $مطلوب) {
+            $مسار = Join-Path $binDir "$أداة.exe"
+            if (-not (Test-Path $مسار)) { $ناقص += $أداة }
+        }
+        if ($ناقص.Count -gt 0) {
+            Write-Err "الحزمة ناقصة — أدوات موعودة غائبة عن $binDir : $($ناقص -join ' ')"
+            Write-Info "الموجود فعلاً:"
+            Get-ChildItem -Path $binDir -ErrorAction SilentlyContinue |
+                ForEach-Object { Write-Info "  - $($_.Name)" }
+            throw "توقّف التثبيت — لا تُترك أدوات ناقصة على الجهاز بصمت"
         }
 
         Write-OK "تم تثبيت الملفات في: $InstallDir"
