@@ -65,6 +65,14 @@ FREESTANDING = "--حرّ"
 EMIT_LLVM = "--أظهر-llvm"
 # (AR) هدفُ الحالات الحرّة صريحٌ كي تقيس ما يقوله اسمُها (لا ثالوثَ المضيف).
 TARGET_I686 = "--هدف=i686-unknown-elf"
+# (AR) 🔑 الهدفُ المُستضافُ مُصَرَّحٌ أيضاً. هذه الحالةُ تحرُسُ المسارَ المُستضاف،
+#      لكنَّ دعواها تخُصُّ عائلةَ x86 لا محالة، وبلا «--هدف» تقعُ على ثالوثِ
+#      المُشَغِّل. فتُصَرَّحُ بثالوثٍ مُستضافٍ x86_64 كي يبقى المقيسُ مُستضافاً
+#      والمعماريّةُ مُصَرَّحةً — لا مُورَثةً من الآلة.
+# (EN) The hosted target is declared too: the case guards the hosted path but its
+#      claim is x86-family, so it declares a hosted x86_64 triple instead of
+#      inheriting the runner's.
+TARGET_X64_HOSTED = "--هدف=x86_64-unknown-linux-gnu"
 
 
 def _compile(source: str, *extra_flags: str) -> tuple[int, str, str]:
@@ -122,7 +130,7 @@ def test_invlpg_freestanding_i686():
 
 def test_read_cr_hosted_keeps_runtime():
     """(AR) اقرأ_سجل_تحكم(0) مستضافًا يبقى على نداء sad_ll_read_cr (لا تسريب حرّ)."""
-    code, out, ir = _compile("متغير ق = اقرأ_سجل_تحكم(0)\nاطبع(ق)\n")
+    code, out, ir = _compile("متغير ق = اقرأ_سجل_تحكم(0)\nاطبع(ق)\n", TARGET_X64_HOSTED)
     assert code == 0, "اقرأ_سجل_تحكم مستضافًا فشلت (انحدار):\n" + out
     assert "sad_ll_read_cr" in ir, "IR المستضاف فقد sad_ll_read_cr — تغيّر سلوك مستضاف غير مقصود"
     assert "mov %cr0" not in ir, "IR المستضاف يحوي inline asm cr0 — تسريب مسار حرّ للمستضاف"

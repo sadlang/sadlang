@@ -636,39 +636,26 @@ endif()
 # ============================================================================
 # Unified Compiler Library
 # ============================================================================
-add_library(sad_compiler INTERFACE)
+# (AR) ═══════════════════════════════════════════════════════════════════════
+#      نواةُ المترجمِ **بلا LLVM** — القاسمُ المشتركُ الذي لا يلمسُها.
+#      كانَ هذا الطقمُ مكرَّرًا حرفيًّا في فرعَي if/else أدناه، فأيُّ مكتبةٍ تُضاف
+#      إلى فرعٍ وتُنسى في الآخرِ تنجرفُ صامتة. وهو الآن هدفٌ واحدٌ:
+#        • `sad_compiler`            = هذا + خلفيّةُ LLVM (حين تتوفّر)؛
+#        • `sad-build-native`        = هذا وحدَه — فلا تصلُ LLVM إلى سطرِ الربطِ
+#          أصلًا، وهو شرطُ بناءِ المترجمِ النحيلِ في Debug على MSVC (تعارضُ
+#          ‎_ITERATOR_DEBUG_LEVEL‎ لا يقعُ لأنّ لا مكتبةَ LLVM تُربَط).
+# (EN) The LLVM-free compiler core — the common denominator that never touches
+#      LLVM. This set used to be duplicated verbatim in both if/else branches
+#      below, so a library added to one and forgotten in the other drifted
+#      silently. It is now a single target: sad_compiler = this + the LLVM
+#      backend when available; sad-build-native = this alone, so LLVM never
+#      reaches the link line — which is what lets the thin compiler build in
+#      Debug on MSVC (the _ITERATOR_DEBUG_LEVEL clash cannot occur when no LLVM
+#      library is linked at all).
+# ═══════════════════════════════════════════════════════════════════════════
+add_library(sad_compiler_no_llvm INTERFACE)
 
-if(LLVM_FOUND)
- target_link_libraries(sad_compiler
- INTERFACE
- sad_frontend
- sad_optimizer
- sad_llvm_backend
- sad_type_system
- sad_semantic
- sad_memory_gc
- sad_memory_policy
- )
- # (AR) ?????? ??????? ???????? (BoundsChecker/SafeArithmetic/InputSanitizer/...)
- # (EN) Shared security primitives (BoundsChecker/SafeArithmetic/InputSanitizer/...)
- if(TARGET sad_security_core)
- target_link_libraries(sad_compiler INTERFACE sad_security_core)
- endif()
- # - 04: ( Unicode /utf-8)
- if(TARGET sad_security)
- target_link_libraries(sad_compiler INTERFACE sad_security)
- endif()
- if(TARGET sad_tools)
- target_link_libraries(sad_compiler INTERFACE sad_tools)
- endif()
- if(TARGET sad_ui_ir)
- target_link_libraries(sad_compiler INTERFACE sad_ui_ir)
- endif()
- if(TARGET sad_abstraction)
- target_link_libraries(sad_compiler INTERFACE sad_abstraction)
- endif()
-else()
- target_link_libraries(sad_compiler
+target_link_libraries(sad_compiler_no_llvm
  INTERFACE
  sad_frontend
  sad_optimizer
@@ -676,25 +663,25 @@ else()
  sad_semantic
  sad_memory_gc
  sad_memory_policy
- )
- # (AR) ?????? ??????? ???????? (BoundsChecker/SafeArithmetic/InputSanitizer/...)
- # (EN) Shared security primitives (BoundsChecker/SafeArithmetic/InputSanitizer/...)
- if(TARGET sad_security_core)
- target_link_libraries(sad_compiler INTERFACE sad_security_core)
- endif()
- if(TARGET sad_security)
- target_link_libraries(sad_compiler INTERFACE sad_security)
- endif()
- if(TARGET sad_tools)
- target_link_libraries(sad_compiler INTERFACE sad_tools)
- endif()
- if(TARGET sad_ui_ir)
- target_link_libraries(sad_compiler INTERFACE sad_ui_ir)
- endif()
+)
+
+# (AR) ?????? ??????? ???????? (BoundsChecker/SafeArithmetic/InputSanitizer/...)
+# (EN) Shared security primitives (BoundsChecker/SafeArithmetic/InputSanitizer/...)
+if(TARGET sad_security_core)
+ target_link_libraries(sad_compiler_no_llvm INTERFACE sad_security_core)
+endif()
+# - 04: ( Unicode /utf-8)
+if(TARGET sad_security)
+ target_link_libraries(sad_compiler_no_llvm INTERFACE sad_security)
+endif()
+if(TARGET sad_tools)
+ target_link_libraries(sad_compiler_no_llvm INTERFACE sad_tools)
+endif()
+if(TARGET sad_ui_ir)
+ target_link_libraries(sad_compiler_no_llvm INTERFACE sad_ui_ir)
 endif()
 
-#
-target_include_directories(sad_compiler
+target_include_directories(sad_compiler_no_llvm
  INTERFACE
  ${CMAKE_SOURCE_DIR}/compiler/frontend/include
  ${CMAKE_SOURCE_DIR}/compiler/optimizer/include
@@ -703,6 +690,20 @@ target_include_directories(sad_compiler
  ${CMAKE_SOURCE_DIR}/compiler/bytecode/include
  ${CMAKE_SOURCE_DIR}/compiler/type_system/include
 )
+
+# ============================================================================
+# Unified Compiler Library
+# ============================================================================
+add_library(sad_compiler INTERFACE)
+
+target_link_libraries(sad_compiler INTERFACE sad_compiler_no_llvm)
+
+if(LLVM_FOUND)
+ target_link_libraries(sad_compiler INTERFACE sad_llvm_backend)
+ if(TARGET sad_abstraction)
+ target_link_libraries(sad_compiler INTERFACE sad_abstraction)
+ endif()
+endif()
 
 message(STATUS "Configured sad_compiler library (frontend, optimizer, llvm_backend, jit, type_system, semantic, memory)")
 

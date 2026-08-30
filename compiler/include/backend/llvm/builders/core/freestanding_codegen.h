@@ -14,6 +14,9 @@
 
 #include <cstdint>
 
+// (AR) موضعُ القرارِ الوحيد — بلا LLVM / (EN) The single decision site — LLVM-free
+#include "hw_bridge_profile.h"
+
 namespace Sad { namespace LLVM {
 
 class LLVMCodeGen;
@@ -27,30 +30,12 @@ class LLVMCodeGen;
 //      alone is not enough: it describes the *absence of a standard library*,
 //      not the *privilege ring* nor the *architecture*. Bridges differ by all.
 // ============================================================================
-enum class HwBridgeProfile
-{
-    // (AR) معدن عارٍ على x86/x86_64: الحلقة 0 — منافذ الدخل/الخرج وcli/hlt متاحة.
-    // (EN) Bare metal on x86/x86_64: ring 0 — port I/O and cli/hlt are available.
-    BareMetalPortIO,
-    // (AR) معدن عارٍ على معمارية بلا جسر معروف (aarch64/riscv64/...): تعليمات
-    //      inb/outb غير موجودة أصلًا، والمنفذ التسلسليّ يُخاطَب بذاكرة مُهيَّأة
-    //      خاصّة باللوحة. نبثّ أكعابًا ضعيفة محايدة يتجاوزها دعم اللوحة (BSP).
-    // (EN) Bare metal on an architecture with no known bridge: inb/outb do not
-    //      exist and the UART is board-specific MMIO. Emit neutral weak stubs
-    //      for the board support package to override.
-    BareMetalStub,
-    // (AR) لينكس بمعمارية لها نداء نظام مبثوث (x86_64: syscall، i386: int 0x80):
-    //      الحلقة 3 — نخاطب النواة مباشرةً، فيعمل الوضع الحرّ **مع libc وبدونها**.
-    // (EN) Linux on an architecture with an inline syscall (x86_64: syscall,
-    //      i386: int 0x80): ring 3 — talk to the kernel directly, so freestanding
-    //      works both with and without libc.
-    LinuxSyscall,
-    // (AR) نظام تشغيل آخر (ويندوز/ماك) أو لينكس بمعمارية لا نبثّ لها نداء نظام:
-    //      نترك الرموز للمكتبة القياسيّة/CRT يحلّها الرابط.
-    // (EN) Another OS (Windows/macOS), or Linux on an architecture we do not emit
-    //      a syscall for: leave the symbols for the libc/CRT linker resolution.
-    HostedLibc
-};
+// (AR) ⚠️ التعريفُ انتقلَ إلى `shared/utils/include/hw_bridge_profile.h` (بلا LLVM)
+//      كي يبلغَه المترجمُ النحيلُ `sad-build-native`. وما هنا كنيةٌ لا نسخةٌ ثانية.
+// (EN) ⚠️ The definition moved to shared/utils/include/hw_bridge_profile.h (LLVM-free)
+//      so the thin `sad-build-native` compiler can reach it. This is an alias, not a copy.
+using HwBridgeProfile = ::sad::target::HwBridgeProfile;
+
 
 // ============================================================================
 // (AR) نداءات النظام المستعملة في الجسور — التعداد يمنع تناثر الأرقام السحريّة،

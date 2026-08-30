@@ -9,8 +9,6 @@
 #include "compiler_driver.h"
 #include "utf8_utils.h"
 #include "sad_embedded_runtime_data.h" // (AR) بايتاتُ زمنِ التشغيل — مفتاحُ المخزون
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/raw_ostream.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -23,6 +21,19 @@
 #include <sstream>
 #include <cstdlib>
 #include <cstdio>
+// (AR) 🔑 ضمٌّ صريحٌ لا يعتمدُ على وسيط. كانت `std::strlen` تصلُ هنا **عرَضًا**
+//      عبرَ ترويسةِ LLVM مضمومةٍ بلا استعمالِ `llvm::` واحد؛ فلمّا حُذفت — وهي
+//      «ميّتةٌ» بمقياسِ الاستعمالِ المباشر — سقطَ معها مورِّدُها الخفيّ. وMSVC
+//      يُمرِّرُها من ترويسةٍ أخرى فلا يُحمِرُّ، وlibstdc++ لا يفعل: عطبٌ يخصُّ
+//      المضيفَ وحدَه. عدُّ الاستعمالِ يقيسُ التبعيّةَ **الواجهيّة** لا ما تُورِّدُه
+//      الترويسةُ نقلًا؛ والعلاجُ أن يُصرَّحَ بالمورِّدِ لا أن يُورَّثَ.
+// (EN) Explicit include, no reliance on a middleman. std::strlen used to arrive
+//      here transitively through an LLVM header that had zero direct llvm:: uses;
+//      removing that "dead" include removed its hidden supplier too. MSVC still
+//      supplies it from another header, libstdc++ does not — a host-only break.
+//      Counting uses measures the interface dependency, not what a header
+//      transitively supplies.
+#include <cstring>
 #include <filesystem>
 #include <algorithm>
 #include <cctype>

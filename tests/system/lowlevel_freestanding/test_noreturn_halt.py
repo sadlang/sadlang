@@ -48,6 +48,16 @@ pytestmark = pytest.mark.skipif(
 
 FREESTANDING = "--حرّ"
 EMIT_LLVM = "--أظهر-llvm"
+# (AR) 🔑 هدفٌ مُصرَّحٌ لا ثالوثُ المُشَغِّل. الدعوى هنا تخفيضٌ تخُصُّ عائلةَ x86،
+#      والمترجِمُ بلا «--هدف» يقعُ على ثالوثِ المُضيف. فكانت الحالةُ تمُرُّ لا
+#      لأنَّ الدعوى صحيحةٌ بل لأنَّ المُشَغِّلَ صادَفَ أن كانَ x86_64. وعلى ماكٍ
+#      ذراعيٍّ أحمَرَ الحارسُ مُحِقّاً: المدمجةُ لا تُخفَّضُ إلى aarch64.
+#      فالعلاجُ أن يُصَرَّحَ بالهدفِ المقِيسِ لا أن يُورَثَ من الآلة.
+# (EN) Declared target, not the runner's triple. The claim under test is an
+#      x86-family lowering; without --target the compiler falls back to the host
+#      triple, so the case passed because the runner happened to be x86_64. On an
+#      arm64 macOS runner the guard correctly rejects it. Declare what you measure.
+TARGET_X64 = "--هدف=x86_64-unknown-elf"
 
 # (AR) أجسام متطابقة عدا المتغيّر المدروس — لعزل أثر المُعدِّل/المدمج وحده.
 _LOOP_HALT = "دالة قف()\n    بينما (صحيح)\n        أسبت_المعالج()\n    نهاية\nنهاية\n"
@@ -73,8 +83,8 @@ def _compile(source: str, *extra_flags: str) -> tuple[int, str, str]:
 
 def test_halt_cpu_lowers_to_hlt_and_break_does_not():
     """(AR) أسبت_المعالج ⇒ hlt؛ «توقف» (break) لا ⇒ فرق عدّ hlt موجب."""
-    ch, oh, ir_h = _compile(_LOOP_HALT, FREESTANDING)
-    cb, ob, ir_b = _compile(_LOOP_BREAK, FREESTANDING)
+    ch, oh, ir_h = _compile(_LOOP_HALT, FREESTANDING, TARGET_X64)
+    cb, ob, ir_b = _compile(_LOOP_BREAK, FREESTANDING, TARGET_X64)
     assert ch == 0, 'أسبت_المعالج فشلت الترجمة:\n' + oh
     assert cb == 0, '«توقف» كـbreak فشلت الترجمة:\n' + ob
     # (AR) الوضع الحرّ يولّد __sad_panic ضعيفًا بحلقة hlt (خطّ أساس ثابت)؛ فنقيس
@@ -88,8 +98,8 @@ def test_halt_cpu_lowers_to_hlt_and_break_does_not():
 
 def test_noreturn_modifier_adds_exactly_one_noreturn():
     """(AR) نفس الجسم بمُعدِّل «لا_ترجع» يضيف noreturn واحدة بالضبط (السمة على قف)."""
-    c_plain, o_plain, ir_plain = _compile(_LOOP_HALT, FREESTANDING)
-    c_nr, o_nr, ir_nr = _compile(_LOOP_NORETURN, FREESTANDING)
+    c_plain, o_plain, ir_plain = _compile(_LOOP_HALT, FREESTANDING, TARGET_X64)
+    c_nr, o_nr, ir_nr = _compile(_LOOP_NORETURN, FREESTANDING, TARGET_X64)
     assert c_plain == 0, o_plain
     assert c_nr == 0, 'دالة لا_ترجع فشلت الترجمة:\n' + o_nr
     added = ir_nr.count("noreturn") - ir_plain.count("noreturn")
@@ -100,7 +110,7 @@ def test_noreturn_modifier_adds_exactly_one_noreturn():
 
 def test_noreturn_infinite_loop_compiles_clean_with_hlt():
     """(AR) دالة لا_ترجع بحلقة أبديّة (بلا ارجع) تُترجَم نظيفةً وتحوي hlt."""
-    code, out, ir = _compile(_LOOP_NORETURN, FREESTANDING)
+    code, out, ir = _compile(_LOOP_NORETURN, FREESTANDING, TARGET_X64)
     assert code == 0, 'حلقة الإسبات الأبديّة فشلت الترجمة:\n' + out
     assert ir.count("hlt") >= 1, "لا hlt في دالّة الإسبات الأبديّة:\n" + ir[:1500]
 
@@ -108,8 +118,8 @@ def test_noreturn_infinite_loop_compiles_clean_with_hlt():
 def test_plain_function_gets_no_noreturn_over_baseline():
     """(AR) حارس ضدّ التسريب: الجسم العاديّ (بلا مُعدِّل) لا يزيد عدّ noreturn عن
         دالّة تافهة بلا حلقة — أيْ لا يكتسب السمة تلقائيًّا."""
-    c_base, o_base, ir_base = _compile("دالة ت()\n    ارجع\nنهاية\n", FREESTANDING)
-    c_plain, o_plain, ir_plain = _compile(_LOOP_HALT, FREESTANDING)
+    c_base, o_base, ir_base = _compile("دالة ت()\n    ارجع\nنهاية\n", FREESTANDING, TARGET_X64)
+    c_plain, o_plain, ir_plain = _compile(_LOOP_HALT, FREESTANDING, TARGET_X64)
     assert c_base == 0 and c_plain == 0, o_base + o_plain
     assert ir_plain.count("noreturn") == ir_base.count("noreturn"), (
         "الجسم العاديّ اكتسب noreturn دون مُعدِّل (تسريب):\n" + ir_plain[:1500]

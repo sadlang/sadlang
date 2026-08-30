@@ -367,8 +367,15 @@ jobs:
       # ⚠️ (EN) Split restore/save on purpose: the unified cache action saves in
       #      Post and skips it when the job fails — and the failing job was
       #      exactly this one, so the entry would never be written.
-      - name: "📦 استرجاعُ خبيئةِ LLVM (Release فقط) / Restore LLVM cache"
-        if: matrix.config == 'Release'
+      # (AR) 🔑 سقطَ `matrix.config == 'Release'` عن التزويد. كان يُقرأ حدًّا
+      #      تقنيًّا (جدارُ `_ITERATOR_DEBUG_LEVEL`)، وهو في الحقيقةِ مِفتاحٌ لم
+      #      يُوصَل: العلاجُ مكتوبٌ في الجذرِ منذ زمنٍ خلفَ عَلَمٍ لم يُعلَن.
+      #      وثمنُ عدمِ التزويدِ أنّ `sad-build` لا يُعرَّفُ أصلًا في Debug،
+      #      فستُّ خطواتٍ لاحقةٍ تُشترَط بـRelease وتُقاسُ في خانةٍ واحدةٍ لا ستّ.
+      # (EN) The Release-only condition is gone from provisioning: what read as a
+      #      hard technical wall was an unwired flag. Without LLVM here sad-build
+      #      is never even defined, which is why six later steps are Release-only.
+      - name: "📦 استرجاعُ خبيئةِ LLVM / Restore LLVM cache"
         id: llvm-toolchain-cache
         uses: actions/cache/restore@v6
         timeout-minutes: 15
@@ -400,7 +407,7 @@ jobs:
       #      change how the installer is awaited; -PassThru keeps the exit
       #      code judged, which -Wait alone never provided.
       - name: "📦 تحميل LLVM 18 (عند غياب الخبيئة) / Download LLVM 18 (on cache miss)"
-        if: matrix.config == 'Release' && steps.llvm-toolchain-cache.outputs.cache-hit != 'true'
+        if: steps.llvm-toolchain-cache.outputs.cache-hit != 'true'
         timeout-minutes: 15
         shell: pwsh
         run: |
@@ -602,8 +609,16 @@ jobs:
 
       # (AR) البيئةُ تُصدَّرُ في الحالَين: الخبيئةُ توفّرُ التنزيلَ لا الإسناد.
       # (EN) Export env in both cases: the cache spares the download, not the wiring.
-      - name: "⚙️ بيئةُ LLVM (Release فقط) / LLVM env (Release only)"
-        if: matrix.config == 'Release'
+      # (AR) 🔑 **النسخةُ الثالثةُ من الشرطِ نفسِه.** أُسقِطَ شرطُ Release عن
+      #      استرجاعِ الخبيئةِ وعن التنزيل، وبقيَ هنا — فالخبيئةُ تُستعادُ في
+      #      Debug ثمّ لا يُصدَّرُ `LLVM_DIR` فيسقطُ التكوين. والقياسُ حصلَ:
+      #      شوطُ ‎1cddedeb‎ أحمرُ على «تكوين CMake» بعدَ ‎1m21s‎ وكلُّ ما بعدَه
+      #      متخطًّى. **رقعةٌ تسدُّ موضعَينِ وتتركُ الثالثَ ميّتةٌ في الثالث.**
+      # (EN) The third copy of the same gate. Release-only was dropped from the
+      #      cache restore and the download but survived here, so Debug restored
+      #      the cache and then never exported LLVM_DIR — configure failed at
+      #      1m21s and every later step skipped.
+      - name: "⚙️ بيئةُ LLVM / LLVM env"
         shell: pwsh
         run: |
           if (-not (Test-Path 'C:\LLVM\lib\cmake\llvm\LLVMConfig.cmake')) {
@@ -677,10 +692,33 @@ jobs:
       - name: "🔨 تكوين CMake / Configure CMake"
         shell: pwsh
         run: |
-          # (AR) على Windows: LLVM متوفّر فقط في Release بسبب عدم تطابق _ITERATOR_DEBUG_LEVEL.
-          # (EN) On Windows LLVM is Release-only due to the _ITERATOR_DEBUG_LEVEL mismatch.
-          $useLlvm = if ("${{ matrix.config }}" -eq "Release") { "ON" } else { "OFF" }
-          $llvmArg = if ("${{ matrix.config }}" -eq "Release" -and $env:LLVM_DIR) { "-DLLVM_DIR=$env:LLVM_DIR" } else { "" }
+          # (AR) 🔑 LLVM في التكوينَين. وجدارُ `_ITERATOR_DEBUG_LEVEL` حقيقيٌّ —
+          #      حزمةُ LLVM المُزوَّدةُ إصداريّةٌ (‎/MD‎، IDL=0) وبناءُ Debug بـ‎/MDd‎
+          #      (IDL=2) — لكنّ عبورَه مكتوبٌ في الجذرِ منذ زمنٍ خلفَ
+          #      `SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT`، وكان العَلَمُ **بلا إعلان**
+          #      فما نُفِّذَ قطّ. قِيسَ بعدَ إعلانِه محلّيًّا بهذه التهيئةِ بعينِها:
+          #      `sad-build.exe` يرتبط، ومجموعةُ الوضعِ الحرِّ ٢٢٦/٢٢٩ خضراء.
+          #      ⚠️ والثمنُ مُعلَن: العَلَمُ يُعرِّفُ `NDEBUG` في Debug فيُطفئُ
+          #      `assert()`. فهذه الخانةُ تقيسُ مسارَ LLVM بلا توكيدات — وذلك
+          #      أوسعُ ممّا كانت تقيسُه (لا شيء).
+          # (EN) LLVM in both configs. The IDL wall is real, but the escape has
+          #      existed in the root CMakeLists behind a flag that was declared
+          #      nowhere and therefore never ran. Measured locally with this exact
+          #      configuration: sad-build links, 226/229 freestanding tests pass.
+          #      Stated cost: NDEBUG disables assert() in this cell.
+          $useLlvm = "ON"
+          # (AR) 🔑 غيابُ `LLVM_DIR` **يُحمِّرُ هنا باسمِه** ولا يمرُّ صامتًا:
+          #      `useLlvm` صارت `ON` قسرًا، فبلا دليلٍ يسقطُ `find_package(LLVM)`
+          #      في وسطِ التكوينِ برسالةٍ لا تُسمّي السببَ الحقيقيَّ — وهي بعينِها
+          #      الرسالةُ التي كلّفت شوطًا كاملًا.
+          # (EN) A missing LLVM_DIR reds here by name instead of drowning inside
+          #      find_package's message — that indirection cost a full CI round.
+          if (-not $env:LLVM_DIR) {
+            Write-Host "::error::LLVM_DIR غيرُ مُصدَّر — خطوةُ «بيئةُ LLVM» لم تعمل في هذا التكوين"
+            exit 1
+          }
+          $llvmArg = "-DLLVM_DIR=$env:LLVM_DIR"
+          $compatArg = if ("${{ matrix.config }}" -eq "Debug") { "-DSAD_FORCE_MSVC_LLVM_RELEASE_COMPAT=ON" } else { "" }
           # (AR) تثبيت مفسّر Python نفسه الذي ثُبّتت فيه حزم التوليد (يطابق خطوة pip).
           # (EN) Pin the same Python interpreter the codegen deps were installed into.
           $pyArg = if ($env:PYTHON3_EXECUTABLE) { "-DPython3_EXECUTABLE=$env:PYTHON3_EXECUTABLE" } else { "" }
@@ -692,17 +730,20 @@ jobs:
           # 🔑 (EN) Pass zlib as an ANSWER, not a hint: LLVMConfig calls
           #      find_package(ZLIB) itself, and prefilled cache entries skip the
           #      name search that would otherwise grab a DLL-less import lib.
-          $zlibReady = ("${{ matrix.config }}" -eq "Release") -and $env:ZLIB_LIBRARY_RELEASE
+          # (AR) شرطُ التكوينِ سقطَ هنا أيضًا: `LLVMConfig.cmake` يستدعي
+          #      `find_package(ZLIB)` في أيِّ تكوينٍ يُوجَدُ فيه، لا في Release وحدَه.
+          $zlibReady = [bool]$env:ZLIB_LIBRARY_RELEASE
           $zlibIncArg = if ($zlibReady) { "-DZLIB_INCLUDE_DIR=$env:ZLIB_INCLUDE_DIR" } else { "" }
           $zlibLibArg = if ($zlibReady) { "-DZLIB_LIBRARY_RELEASE=$env:ZLIB_LIBRARY_RELEASE" } else { "" }
           $zlibStaticArg = if ($zlibReady) { "-DZLIB_USE_STATIC_LIBS=ON" } else { "" }
-          $zstdReady = ("${{ matrix.config }}" -eq "Release") -and $env:SAD_ZSTD_LIBRARY
+          $zstdReady = [bool]$env:SAD_ZSTD_LIBRARY
           $zstdIncArg = if ($zstdReady) { "-Dzstd_INCLUDE_DIR=$env:SAD_ZSTD_INCLUDE_DIR" } else { "" }
           $zstdLibArg = if ($zstdReady) { "-Dzstd_LIBRARY=$env:SAD_ZSTD_LIBRARY" } else { "" }
           cmake -B build -G "Visual Studio 17 2022" `
             -DBUILD_TESTS=ON `
             -DENABLE_LLVM_BACKEND=$useLlvm `
             $(if ($llvmArg) { $llvmArg }) `
+            $(if ($compatArg) { $compatArg }) `
             $(if ($pyArg) { $pyArg }) `
             $(if ($zlibIncArg) { $zlibIncArg }) `
             $(if ($zlibLibArg) { $zlibLibArg }) `
@@ -714,8 +755,46 @@ jobs:
       - name: "🏗️ بناء المشروع / Build Project"
         run: cmake --build build --config ${{ matrix.config }} --parallel 4
 
-      - name: "🏗️ بناء المترجم sad-build (Release فقط) / Build sad-build Compiler (Release only)"
-        if: matrix.config == 'Release'
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
+      #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
+      #      هدفِ `sad-build` الذي لا يُعرَّفُ إلّا إذا وُجدت LLVM، فكانت تُبنى
+      #      وتُقاسُ في خانةٍ واحدةٍ من ستّ (`Linux × Release`). وثمنُ ذلك مقيسٌ:
+      #      عيبُ `prove_riscv64_decl_parity.sh` في الطلبِ ‎#434‎ عاشَ **ستَّ
+      #      جولاتِ CI** لأنّ الخانةَ الكاشفةَ واحدةٌ وتقعُ في ذيلِ أطولِ وظيفة.
+      #
+      #      هذه الخطوةُ **غيرُ مشروطةٍ بالتكوين** عمدًا، وتقيسُ الدرجةَ الأولى:
+      #      **التصريف**. كاتبُ ELF64 يكتبُ بايتاتٍ لا تعرفُ مضيفَها، فالبصمةُ
+      #      البايتيّةُ صالحةٌ على المنصّاتِ الثلاثِ وفي التكوينَين — والدعوى
+      #      المحروسةُ أنّ الصورةَ **واحدةٌ بايتًا بايتًا عبرَ المضيفين**.
+      #      أمّا **التنفيذُ** (الدرجةُ الثانية) فيحتاجُ نظامًا يقرأُ ELF، ويبقى
+      #      على لينكسَ في `run_native_proofs.sh`. وخلطُ الدرجتَينِ هو مكمنُ
+      #      الأخضرِ الكاذب: خطوةٌ تُسمّى «براهينَ الخلفيّةِ الأصليّة» ولا تقيسُ
+      #      إلّا وجودَ ملفٍّ أسوأُ من غيابِها.
+      # (EN) The native backend and freestanding mode in all six cells. The
+      #      LLVM-free native backend used to be locked inside a target that only
+      #      exists when LLVM is found, so it was built and measured in one cell
+      #      of six. Deliberately unconditional on `config`: it measures degree ①
+      #      (emission), whose byte fingerprint is valid on every host, while
+      #      degree ② (execution) needs an ELF-reading OS and stays on Linux.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🛡️ المترجمُ النحيلُ + بصمةُ ELF / Thin compiler + ELF fingerprint"
+        shell: pwsh
+        run: |
+          cmake --build build --config ${{ matrix.config }} --target sad-build-native --parallel 4
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::فشل بناءُ sad-build-native — الهدفُ النحيلُ لا يربطُ LLVM، فإخفاقُه ليس عذرَ تكوين"
+            exit $LASTEXITCODE
+          }
+          $thin = "build/bin/${{ matrix.config }}/sad-build-native.exe"
+          if (-not (Test-Path $thin)) {
+            Write-Host "::error::sad-build-native.exe غيرُ موجودٍ بعدَ بناءٍ رمزُ خروجِه صفر — هدفٌ لم يُولَّد"
+            exit 1
+          }
+          python scripts/native_backend/prove_elf_emit_fingerprint.py --مترجم "$thin"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      - name: "🏗️ بناء المترجم sad-build / Build sad-build Compiler"
         shell: pwsh
         run: |
           # 🔑 (AR) الخطوةُ صارت **قاتلةً**، وكانت تنتهي بـ`exit 0` غيرِ مشروط.
@@ -731,12 +810,12 @@ jobs:
           #      interpreter-only or skipped — printing green for "unmeasured".
           #      The binary's existence is asserted separately because an
           #      ungenerated target can still leave MSBuild's exit code at zero.
-          cmake --build build --config Release --target sad-build --parallel 4
+          cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4
           if ($LASTEXITCODE -ne 0) {
             Write-Host "::error::فشل بناءُ sad-build — والمترجمُ ليس اختياريًّا على هذا المُشغِّل بعدَ وصلِ مكتباتِ LLVM"
             exit $LASTEXITCODE
           }
-          if (-not (Test-Path "build/bin/Release/sad-build.exe")) {
+          if (-not (Test-Path "build/bin/${{ matrix.config }}/sad-build.exe")) {
             Write-Host "::error::sad-build.exe غيرُ موجودٍ بعدَ بناءٍ رمزُ خروجِه صفر — هدفٌ لم يُولَّد"
             exit 1
           }
@@ -744,6 +823,85 @@ jobs:
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **بوّابةُ برنامجِ الواجهةِ المترجَم — تشخيصٌ يُسمّي نفسَه.**
+      #      قِيسَ على ‎6ef6ad97‎ ثمّ ‎758db4fa‎: ستّةُ برامجِ واجهةٍ في ويندوز
+      #      Debug تُترجَمُ بنجاحٍ وتعملُ وتخرجُ بالرمزِ **صفر** وتطبعُ **لا
+      #      شيء**، بينما المفسّرُ يطبعُ الصحيح. وليس انهيارًا: حكمُ تكافؤِ
+      #      رمزِ الخروجِ لم يُطلَق، أي أنّ الرمزَينِ متساويان.
+      #      ولا يُعادُ إنتاجُه محلّيًّا: بناءٌ بـ‎/MD + NDEBUG + /Od + /RTC1‎ —
+      #      أي عينُ دلالةِ Debug‑التوافقِ — يمرُّ أخضرَ على المِلفَّاتِ الستّةِ
+      #      وعلى P1 كلِّها (٧٤٠/٧٤٧). فالفارقُ ليس عَلَمَ تصريفٍ بل شيءٌ في
+      #      بيئةِ CI أو في ما يلتقطُه السائقُ من مكتباتٍ هناك.
+      #      وحكمُ «٧٤٧ ملفًّا فيها ستّةٌ فارغة» لا يقولُ أيَّ شيءٍ عن السبب،
+      #      فهذه البوّابةُ تعزلُ برنامجًا واحدًا وتطبعُ عندَ الفراغِ ما يلزمُ
+      #      للحكم: سجلَّ الترجمةِ المُسهَبَ (أيَّ مكتباتٍ ربَط) وتبعيّاتِ
+      #      الثنائيِّ (أيَّ DLL يطلب). وتقعُ **قبلَ** CTest فتُحمِّرُ في دقيقةٍ
+      #      لا في ذيلِ مسحٍ من ٢٠٠ ثانية.
+      # (EN) Compiled-UI gate that diagnoses itself. Measured twice: six UI
+      #      programs compile, run, exit 0 and print nothing on Windows Debug —
+      #      not a crash (the exit-parity judgement never fired). Not reproducible
+      #      locally: /MD + NDEBUG + /Od + /RTC1 — the exact semantics of the
+      #      compat Debug build — is green on all six and on all of P1 (740/747).
+      #      So the difference is not a compile flag but something in the CI
+      #      environment or in what the driver picks up there. "Six empty files
+      #      out of 747" says nothing about the cause, so this gate isolates one
+      #      program and, on empty output, prints what is needed to judge: the
+      #      verbose compile log (which libraries it linked) and the binary's
+      #      imports (which DLLs it wants). It runs BEFORE CTest, so it reds in a
+      #      minute instead of at the tail of a 200-second sweep.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🖼️ بوّابةُ برنامجِ الواجهةِ المترجَم / Compiled UI program gate"
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
+          $src  = "tests/behavior/sections/12_تكامل/03_برامج_كاملة/133_ui_primary_prop_sot.ص"
+          if (-not (Test-Path $src)) {
+            Write-Host "::error::مصدرُ البوّابةِ مفقود: $src — البوّابةُ تقيسُ ملفًّا بعينِه"
+            exit 1
+          }
+          $work = "build/_ui_gate"
+          Remove-Item -Recurse -Force $work -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path $work | Out-Null
+          $exe = "$work/ui_gate.exe"
+          # (AR) `-v` دائمًا: السجلُّ يُطبَعُ عندَ الفشلِ وحدَه، وإعادةُ الترجمةِ
+          #      لالتقاطِه كانت ستقيسُ تشغيلةً أخرى لا التي فشلت.
+          # (EN) Always -v: the log is printed only on failure, but recompiling to
+          #      capture it would measure a different run than the one that failed.
+          $log = & $sadc $src -v -o $exe 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host $log
+            Write-Host "::error::بوّابةُ الواجهة: الترجمةُ أخفقت (رمز $LASTEXITCODE)"
+            exit 1
+          }
+          if (-not (Test-Path $exe)) {
+            Write-Host $log
+            Write-Host "::error::بوّابةُ الواجهة: لم يُنتَج ثنائيّ رغمَ رمزِ نجاح"
+            exit 1
+          }
+          $out = & $exe 2>&1 | Out-String
+          $code = $LASTEXITCODE
+          $expected = 'ترقيم_صفحات(قيمة: 3)'
+          if ($out.Trim().Length -eq 0) {
+            Write-Host "── سجلُّ الترجمةِ المُسهَب / verbose compile log ──"
+            Write-Host $log
+            Write-Host "── تبعيّاتُ الثنائيّ / binary imports ──"
+            $dumpbin = (Get-Command dumpbin.exe -ErrorAction SilentlyContinue)
+            if ($dumpbin) { & $dumpbin.Source /dependents $exe } else { Write-Host "dumpbin غيرُ متاح" }
+            Write-Host "── مكتباتُ الرسومِ الموجودة / graphics libs present ──"
+            Get-ChildItem -Recurse -Filter "sad_graphics*.lib" build/lib -ErrorAction SilentlyContinue |
+              ForEach-Object { Write-Host $_.FullName }
+            Write-Host "::error::بوّابةُ الواجهة: الثنائيُّ خرجَ بالرمز $code وطبعَ لا شيء — المتوقَّعُ يبدأُ بـ'$expected'"
+            exit 1
+          }
+          if ($out -notmatch [regex]::Escape($expected)) {
+            Write-Host $out
+            Write-Host "::error::بوّابةُ الواجهة: المخرَجُ لا يحوي '$expected'"
+            exit 1
+          }
+          Write-Host "✅ بوّابةُ برنامجِ الواجهةِ المترجَم: PASS (رمزُ الخروج $code)"
+
       - name: "📦 حفظُ خبيئةِ البناء / Save CMake build cache"
         if: steps.win-build-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
@@ -832,13 +990,23 @@ jobs:
               Write-Host "▶️ Running $test..." -ForegroundColor Cyan
               & $exe
               if ($LASTEXITCODE -ne 0) { $failed++ }
-            } elseif ("${{ matrix.config }}" -eq "Release") {
-              # (AR) في Release المترجمُ مبنيٌّ إلزامًا، فغيابُ ثنائيِّ اختبارِه عطبٌ.
-              Write-Host "::error::MISSING: $exe — إلزاميٌّ في Release"
-              $failed++
             } else {
-              # (AR) في Debug خلفيّةُ LLVM مُطفأةٌ **عمدًا** (تعارضُ _ITERATOR_DEBUG_LEVEL).
-              Write-Host "⚠️ SKIP: $exe not built (Debug: LLVM backend off by design)" -ForegroundColor Yellow
+              # (AR) 🔑 **العذرُ كان كاذبًا مرّتَين، والقياسُ ساكنٌ لا انتظارُ شوط.**
+              #      قيل «في Debug خلفيّةُ LLVM مُطفأةٌ عمدًا» — وتعريفُ الهدفِ في
+              #      `cmake/tests_comprehensive.cmake` لا يذكرُ LLVM أصلًا ولا
+              #      `EXCLUDE_FROM_ALL` ولا شرطَ تكوين: `add_executable` عارٍ يرتبطُ
+              #      بـ`sad_shared`. فالهدفُ في ALL في التكوينَين، وذراعُ Debug
+              #      هذه لم يكن لها أن تُنفَّذَ إلّا على عطبٍ حقيقيّ. وشُوهِدَ
+              #      الثنائيّانِ في `build/bin/Debug/` محلّيًّا.
+              #      فالشرطُ يُحذَفُ لا يُنقَل: الغيابُ عطبٌ في أيِّ تكوين.
+              # (EN) The excuse was false twice over, proven statically: the target
+              #      definition names no LLVM, no EXCLUDE_FROM_ALL and no config
+              #      condition — a bare add_executable linking sad_shared, in ALL
+              #      for every config. Both binaries were observed in the local
+              #      Debug tree. So the config arm is deleted, not moved: a missing
+              #      binary is a defect in any config.
+              Write-Host "::error::MISSING: $exe — الهدفُ في ALL بلا شرطِ تكوينٍ ولا LLVM، فغيابُه عطبٌ"
+              $failed++
             }
           }
           if ($failed -gt 0) {
@@ -854,13 +1022,25 @@ jobs:
             Write-Host "▶️ Running E2E tests..." -ForegroundColor Cyan
             & $exe
             if ($LASTEXITCODE -ne 0) { exit 1 }
-          } elseif ("${{ matrix.config }}" -eq "Release") {
-            Write-Host "::error::MISSING: $exe — اختباراتُ الطرفِ إلى الطرفِ إلزاميّةٌ في Release"
-            exit 1
           } else {
-            Write-Host "⚠️ SKIP: E2E tests not built (Debug)" -ForegroundColor Yellow
+            # (AR) نفسُ الحكمِ ونفسُ الدليل: `test_e2e_comprehensive` هدفٌ عارٍ في
+            #      ALL بلا شرطِ تكوينٍ ولا LLVM. فلا ذراعَ عذرٍ في Debug.
+            # (EN) Same judgement, same proof: a bare ALL target with no config
+            #      condition and no LLVM — so no Debug excuse arm.
+            Write-Host "::error::MISSING: $exe — الهدفُ في ALL بلا شرطِ تكوينٍ ولا LLVM، فغيابُه عطبٌ"
+            exit 1
           }
 
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "🧪 اختبارات Regression (المفسّر) / Regression Tests (Interpreter)"
         shell: pwsh
         run: |
@@ -878,7 +1058,7 @@ jobs:
 
       - name: "🧪 اختبارات Regression (المترجم) / Regression Tests (Compiler)"
         shell: pwsh
-        if: matrix.config == 'Release'
+        timeout-minutes: 30
         run: |
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (Test-Path $sadc) {
@@ -892,6 +1072,16 @@ jobs:
             exit 1
           }
 
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "🧪 CTest / Run CTest"
         shell: pwsh
         run: |
@@ -900,9 +1090,19 @@ jobs:
           # (EN) ctest selects config via -C/--build-config, not --config (that's a cmake --build flag)
           ctest -C ${{ matrix.config }} --output-on-failure --timeout 120 -j4
 
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "🔄 اختبارات التنفيذ المزدوج (مستوى هرميّ + بوّابة) / Dual Execution Tests (level + gate)"
         shell: pwsh
-        if: matrix.config == 'Release'
+        timeout-minutes: 30
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
@@ -973,8 +1173,17 @@ jobs:
       # (EN) Both steps used to run on Linux only, and they hold 3724 of the
       #      3931 tests. Measured cost on Linux: 189 s and 51 s, against a
       #      947 s build on Windows — coverage is cheaper than the build.
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "🧮 مصفوفة القواعد / Rules Matrix Parity"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         shell: pwsh
         run: |
@@ -1002,8 +1211,17 @@ jobs:
           }
           Write-Host "✅ مصفوفةُ القواعد على ويندوز: PASS"
 
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "📚 المستوى الكامل / Full Level Parity"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         shell: pwsh
         run: |
@@ -1035,7 +1253,6 @@ jobs:
       #      FAIL_COMPILE, so an interpreter-only measurement would flip their
       #      kind and redden the guard with a defect the instrument invented.
       - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         shell: pwsh
         run: |
@@ -1063,9 +1280,10 @@ jobs:
             exit 1
           }
           Write-Host "✅ سجلُّ الحمرة على ويندوز: PASS"
+      # (AR) 🔑 سقطَ الشرطُ: المترجمُ صار يُبنى في التكوينَين، فالمجموعةُ التي
+      #      تحرسُ مخرَجَ مسارِ LLVM تُقاسُ في الخانتَين لا في واحدة.
       - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
         shell: pwsh
-        if: matrix.config == 'Release'
         run: |
           # (AR) هذه الاختبارات تحرس عيوبًا **لا تُخفق البناءَ ولا الربط** — تُخفق
           #      الإقلاعَ على عتادٍ آخر وفي مستودعٍ آخر بعد أيّام (حجمُ الكومة،
@@ -1158,6 +1376,16 @@ jobs:
       #      green having measured nothing. What it guards fails no build and no
       #      behavioural test: a new in-band-sentinel producer silently widens the
       #      contract-(a) debt.
+      # (AR) 🔑 شرطُ Release هنا كان **أثرَ الثقبِ لا قرارَ تغطية**: هذه الخطوةُ
+      #      تلزمُها `sad-build.exe` ولم يكن يُبنى في Debug على ويندوز البتّة،
+      #      فحُرِسَت بالتكوينِ بدلَ أن تُحرَسَ بوجودِ ما تحتاج. وقد سُدَّ الثقبُ
+      #      (‎SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT‎)، فسببُ الشرطِ زالَ وبقيَ الشرط.
+      #      وحارسُ الغيابِ أدناه يبقى: هو الذي يمنعُ «الأخضرَ يعني لم يُقَس».
+      # (EN) This Release gate was the hole's shadow, not a coverage decision:
+      #      the step needs sad-build.exe, which never built in Windows Debug, so
+      #      it was gated on the config instead of on what it actually requires.
+      #      The hole is sealed, so the gate's reason is gone. The missing-binary
+      #      guard below stays — that is what stops a silent unmeasured green.
       - name: "🧮 تعدادُ حارسِ العدمِ داخلَ النطاق / In-band null-sentinel census"
         shell: pwsh
         run: |
@@ -1167,7 +1395,7 @@ jobs:
 
       - name: "🔥 Burn-in للاختبارات الجديدة في الـPR / Burn-in changed PR tests"
         shell: pwsh
-        if: matrix.config == 'Release' && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         run: |
           $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
@@ -1316,6 +1544,39 @@ jobs:
           #      as healthy, so a later run inherited a compiler-less tree.
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc)
           echo "SAD_BUILD_FRESH=1" >> $GITHUB_ENV
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
+      #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
+      #      هدفِ `sad-build` الذي لا يُعرَّفُ إلّا إذا وُجدت LLVM، فكانت تُبنى
+      #      وتُقاسُ في خانةٍ واحدةٍ من ستّ (`Linux × Release`). وثمنُ ذلك مقيسٌ:
+      #      عيبُ `prove_riscv64_decl_parity.sh` في الطلبِ ‎#434‎ عاشَ **ستَّ
+      #      جولاتِ CI** لأنّ الخانةَ الكاشفةَ واحدةٌ وتقعُ في ذيلِ أطولِ وظيفة.
+      #
+      #      هذه الخطوةُ **غيرُ مشروطةٍ بالتكوين** عمدًا، وتقيسُ الدرجةَ الأولى:
+      #      **التصريف**. كاتبُ ELF64 يكتبُ بايتاتٍ لا تعرفُ مضيفَها، فالبصمةُ
+      #      البايتيّةُ صالحةٌ على المنصّاتِ الثلاثِ وفي التكوينَين — والدعوى
+      #      المحروسةُ أنّ الصورةَ **واحدةٌ بايتًا بايتًا عبرَ المضيفين**.
+      #      أمّا **التنفيذُ** (الدرجةُ الثانية) فيحتاجُ نظامًا يقرأُ ELF، ويبقى
+      #      على لينكسَ في `run_native_proofs.sh`. وخلطُ الدرجتَينِ هو مكمنُ
+      #      الأخضرِ الكاذب: خطوةٌ تُسمّى «براهينَ الخلفيّةِ الأصليّة» ولا تقيسُ
+      #      إلّا وجودَ ملفٍّ أسوأُ من غيابِها.
+      # (EN) The native backend and freestanding mode in all six cells. The
+      #      LLVM-free native backend used to be locked inside a target that only
+      #      exists when LLVM is found, so it was built and measured in one cell
+      #      of six. Deliberately unconditional on `config`: it measures degree ①
+      #      (emission), whose byte fingerprint is valid on every host, while
+      #      degree ② (execution) needs an ELF-reading OS and stays on Linux.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🛡️ المترجمُ النحيلُ + بصمةُ ELF / Thin compiler + ELF fingerprint"
+        run: |
+          cmake --build build --config ${{ matrix.config }} --target sad-build-native --parallel 4
+          thin="build/bin/sad-build-native"
+          if [ ! -x "$thin" ]; then
+            echo "::error::MISSING: $thin — الهدفُ النحيلُ لا يربطُ LLVM، فغيابُه ليس عذرَ تكوين"
+            exit 1
+          fi
+          python3 scripts/native_backend/prove_elf_emit_fingerprint.py --مترجم "$thin"
+
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
@@ -1427,8 +1688,19 @@ jobs:
           # (EN) Linux uses a single-config generator; ctest rejects --config here.
           ctest --output-on-failure --timeout 120 -j$(nproc)
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
-        if: matrix.config == 'Release'
+        timeout-minutes: 45
         run: |
           sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
@@ -1462,8 +1734,19 @@ jobs:
           fi
           echo "✅ بوّابةُ القرار: PASS — لا تراجعَ تكافُؤ"
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "🧮 مصفوفة القواعد — ٣٠٠٢ تكافُؤ / Rules Matrix Parity"
-        if: matrix.config == 'Release'
+        timeout-minutes: 45
         run: |
           # (AR) 🔑 هذه الـ٣٠٠٢ لم تُشغَّلْ في CI قطّ — في أيِّ عصرٍ وعلى أيِّ منصّة.
           #      ومُناديها الوحيدُ `check_grammar_conformance.py --run` لا تستدعيه
@@ -1513,8 +1796,19 @@ jobs:
           fi
           echo "✅ مصفوفةُ القواعد: PASS"
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "📚 المستوى الكامل / Full Level Parity"
-        if: matrix.config == 'Release'
+        timeout-minutes: 45
         run: |
           # (AR) 🔑 كان CI يقيسُ التكافؤَ على **P0 وحدَه** — خمسةُ ملفّاتِ دخان.
           #      و`full` = `P0_smoke` + `sections` ⇒ **٧٢٠** ملفًّا (٥ + ٧١٥).
@@ -1553,8 +1847,19 @@ jobs:
           fi
           echo "✅ المستوى الكامل: PASS"
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
-        if: matrix.config == 'Release'
+        timeout-minutes: 45
         run: |
           # (AR) 🔑 grammar_gaps و_regression خارجَ كلِّ مستوًى — ٥٤ ملفًّا أحمرَ لا
           #      يراها أحد. ولو صارت ٥٥ غدًا لَما لاحظَ أحدٌ، ولو اخضرَّ أحدُها
@@ -1606,8 +1911,16 @@ jobs:
           python3 tests/system/harness/test_map_order_contract.py
 
       - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
-        if: matrix.config == 'Release'
         run: |
+          # (AR) 🔑 سقطَ الشرطُ `matrix.config == 'Release'` عن هذه الخطوة. وسببُ
+          #      وجودِه كان ميزانيّةَ زمنٍ لا حدًّا تقنيًّا: `sad-build` يُبنى على
+          #      لينكس في التكوينَين معًا (لا فصلَ ABI خارجَ MSVC)، فكانت خانةُ
+          #      Debug تملكُ المترجمَ ولا تقيسُ به الوضعَ الحرَّ البتّة. وثمنُ ذلك
+          #      أنّ كلَّ عطبٍ هنا صارَ **متسلسلًا**: لا يُكشَفُ إلّا في خانةٍ
+          #      واحدةٍ تقعُ في ذيلِ أطولِ وظيفةٍ في المصفوفة.
+          # (EN) The Release-only condition is gone. It was a time budget, not a
+          #      technical limit: sad-build builds in both configs on Linux, so the
+          #      Debug cell owned the compiler and measured nothing with it.
           # (AR) هذه الاختبارات تحرس عيوبًا **لا تُخفق البناءَ ولا الربط** — تُخفق
           #      الإقلاعَ على عتادٍ آخر وفي مستودعٍ آخر بعد أيّام (حجمُ الكومة،
           #      ورمزٌ مستضافٌ مبثوثٌ في وضعٍ حرّ). وهذه هي المنصّةُ التي تُبنى فيها
@@ -1722,8 +2035,15 @@ jobs:
           python3 -m pytest tests/system/null_repr/test_null_sentinel_census.py -q -rs
 
       - name: "🔬 براهين الخلفيّة الأصليّة (تنفيذٌ حيّ) / Native Backend Live Proofs"
-        if: matrix.config == 'Release'
         run: |
+          # (AR) 🔑 سقطَ الشرطُ `matrix.config == 'Release'`. وهذه هي الخانةُ التي
+          #      كانت وحدَها تكشفُ عيوبَ الخلفيّةِ الأصليّة، ولذلك عاشَ عيبُ
+          #      `prove_riscv64_decl_parity.sh` ستَّ جولاتٍ في الطلبِ ‎#434‎.
+          #      وبتشغيلِها في التكوينَين يصيرُ كشفُ العطبِ **متوازيًا** لا متسلسلًا.
+          # (EN) The Release-only condition is gone. This was the single cell that
+          #      exposed native-backend defects, which is why the riscv64 defect
+          #      survived six CI rounds in #434. Running it in both configs makes
+          #      detection parallel instead of serial.
           # (AR) الفجوةُ التي تسدّها هذه الخطوة: كان في المستودع ١٧ سكربتَ برهانٍ حيٍّ
           #      للخلفيّةِ الأصليّة **بلا مُنادٍ واحد** — لا وظيفةَ CI تشغّلها ولا مسارَ
           #      عدّاءٍ يمرّر `--خلفية-أصلية`. فكلُّ ما تحرسه كان محروسًا يومَ كُتِب فقط.
@@ -1836,6 +2156,40 @@ jobs:
           # 🔑 (AR) الإخفاقُ قاتلٌ (م-٣) — انظر تعليلَ نظيرتِها في وظيفةِ لينكس.
           # 🔑 (EN) Fatal now — see the Linux counterpart for the reasoning.
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4
+
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
+      #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
+      #      هدفِ `sad-build` الذي لا يُعرَّفُ إلّا إذا وُجدت LLVM، فكانت تُبنى
+      #      وتُقاسُ في خانةٍ واحدةٍ من ستّ (`Linux × Release`). وثمنُ ذلك مقيسٌ:
+      #      عيبُ `prove_riscv64_decl_parity.sh` في الطلبِ ‎#434‎ عاشَ **ستَّ
+      #      جولاتِ CI** لأنّ الخانةَ الكاشفةَ واحدةٌ وتقعُ في ذيلِ أطولِ وظيفة.
+      #
+      #      هذه الخطوةُ **غيرُ مشروطةٍ بالتكوين** عمدًا، وتقيسُ الدرجةَ الأولى:
+      #      **التصريف**. كاتبُ ELF64 يكتبُ بايتاتٍ لا تعرفُ مضيفَها، فالبصمةُ
+      #      البايتيّةُ صالحةٌ على المنصّاتِ الثلاثِ وفي التكوينَين — والدعوى
+      #      المحروسةُ أنّ الصورةَ **واحدةٌ بايتًا بايتًا عبرَ المضيفين**.
+      #      أمّا **التنفيذُ** (الدرجةُ الثانية) فيحتاجُ نظامًا يقرأُ ELF، ويبقى
+      #      على لينكسَ في `run_native_proofs.sh`. وخلطُ الدرجتَينِ هو مكمنُ
+      #      الأخضرِ الكاذب: خطوةٌ تُسمّى «براهينَ الخلفيّةِ الأصليّة» ولا تقيسُ
+      #      إلّا وجودَ ملفٍّ أسوأُ من غيابِها.
+      # (EN) The native backend and freestanding mode in all six cells. The
+      #      LLVM-free native backend used to be locked inside a target that only
+      #      exists when LLVM is found, so it was built and measured in one cell
+      #      of six. Deliberately unconditional on `config`: it measures degree ①
+      #      (emission), whose byte fingerprint is valid on every host, while
+      #      degree ② (execution) needs an ELF-reading OS and stays on Linux.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🛡️ المترجمُ النحيلُ + بصمةُ ELF / Thin compiler + ELF fingerprint"
+        run: |
+          cmake --build build --config ${{ matrix.config }} --target sad-build-native --parallel 4
+          thin="build/bin/sad-build-native"
+          if [ ! -x "$thin" ]; then
+            echo "::error::MISSING: $thin — الهدفُ النحيلُ لا يربطُ LLVM، فغيابُه ليس عذرَ تكوين"
+            exit 1
+          fi
+          python3 scripts/native_backend/prove_elf_emit_fingerprint.py --مترجم "$thin"
+
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
@@ -1853,6 +2207,43 @@ jobs:
         with:
           path: build
           key: macos-build-${{ matrix.config }}-${{ hashFiles('CMakeLists.txt', 'cmake/**') }}
+
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **الوضعُ الحرُّ على ماك — خانتانِ كانتا بلا أيِّ قياس.**
+      #      لم تكن في وظيفةِ ماك خطوةُ وضعٍ حرٍّ البتّة، في أيِّ تكوين: لا في
+      #      Debug ولا في Release. و`sad-build` يُبنى هنا في التكوينَين معًا،
+      #      فالمترجمُ كانَ حاضرًا والقياسُ غائبًا — وهو «الأخضرُ يعني لم يُقَس»
+      #      بعينِه، لا «سليم».
+      #      وما تحرسُه هذه المجموعةُ **ليس مضيفًا في طبيعتِه**: أكثرُها يؤكّدُ
+      #      على نصِّ التمثيلِ الوسيطِ المبثوثِ وعلى الأسمبليِّ المولَّد لأهدافٍ
+      #      مصرَّحةٍ صراحةً (i686 · aarch64 · riscv64)، وهي أهدافٌ لا علاقةَ لها
+      #      بمعماريّةِ المُشغِّل. فإخفاقُها على ماك — إن وقعَ — عطبٌ حقيقيٌّ في
+      #      اعتمادٍ خفيٍّ على المضيف، وهو بالضبط ما لم يكن أحدٌ يقيسُه.
+      # (EN) Freestanding on macOS — two cells that measured nothing at all. The
+      #      macOS job had no freestanding step in either config, while sad-build
+      #      builds here in both: the compiler was present and the measurement
+      #      absent. Most of this suite asserts on emitted IR text and on assembly
+      #      for explicitly declared targets (i686/aarch64/riscv64), which have
+      #      nothing to do with the runner's architecture — so a failure here is a
+      #      real hidden host dependency, which is precisely what went unmeasured.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🧪 اختبارات الوضع الحرّ (نظام) / Freestanding System Tests"
+        run: |
+          sadc="build/bin/sad-build"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — اختباراتُ الوضعِ الحرِّ تلزمُها المترجمُ، وهو مبنيٌّ إلزامًا هنا"
+            exit 1
+          fi
+          python3 -m pip install --user --break-system-packages pytest || python3 -m pip install --user pytest
+          # (AR) ‎SAD_LOWLEVEL_REQUIRE_BUILD‎ يحوّل «تخطٍّ لغيابِ الثنائيّ» إلى إخفاق:
+          #      المترجمُ بُني في هذا الشوطِ نفسِه، فالتخطّي هنا عيبُ اكتشافِ مسارٍ
+          #      لا غيابُ أداة — وهو تخطٍّ يُقرأ نجاحًا.
+          # (EN) The env var turns "skipped: sad-build missing" into a failure —
+          #      the compiler was built in this very run, so a skip means broken
+          #      path discovery, and a silent skip reads as success.
+          SAD_CLANG="$(brew --prefix llvm@18)/bin/clang" SAD_REQUIRE_CLANG=1 \
+            SAD_LOWLEVEL_REQUIRE_BUILD=1 python3 -m pytest tests/system/lowlevel_freestanding -q -rs
+          python3 -m pytest tests/system/null_repr -q -rs
 
       - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors, Utils/Modules)"
         run: |
@@ -2019,8 +2410,19 @@ jobs:
           # (EN) Single-config generator like Linux; ctest rejects --config here.
           ctest --output-on-failure --timeout 120 -j4
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
-        if: matrix.config == 'Release'
+        timeout-minutes: 45
         run: |
           sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
@@ -2059,8 +2461,18 @@ jobs:
       #      تقريبًا مقابلَ بناءٍ ٤٩٣ ثانية.
       # (EN) macOS measured five smoke files out of 3931 while both engines are
       #      built here. Full coverage costs ~240 s against a 493 s build.
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "🧮 مصفوفة القواعد / Rules Matrix Parity"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         run: |
           sad="build/bin/sad-run"
@@ -2078,8 +2490,18 @@ jobs:
           fi
           echo "✅ مصفوفةُ القواعد على ماك: PASS"
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "📚 المستوى الكامل / Full Level Parity"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         run: |
           sad="build/bin/sad-run"
@@ -2096,8 +2518,18 @@ jobs:
           fi
           echo "✅ المستوى الكامل على ماك: PASS"
 
+      # (AR) 🔑 وشرطُ Release على لينكسَ/ماك كان **ميزانيّةَ زمنٍ لا حدًّا تقنيًّا**:
+      #      المحرّكانِ كلاهما يُبنيانِ هنا في التكوينَين (لا فصلَ ABI خارجَ MSVC)،
+      #      فكانت خانةُ Debug تملكُ ما تحتاجُه الخطوةُ ولا تُشغِّلُها. وثمنُ ذلك
+      #      أنّ عيبًا يظهرُ في Debug وحدَه (توكيدٌ يُطلَق · سلوكُ `/Od`) لا يراه
+      #      أحدٌ إلى أن يُكسَرَ Release. والحدُّ الزمنيُّ مُعلَنٌ صراحةً أدناه بدلَ
+      #      أن يُورَثَ سقفُ الستِّ ساعاتِ صامتًا.
+      # (EN) On Linux/macOS this was a time budget, not a technical limit: both
+      #      engines build in either config, so Debug had everything the step
+      #      needs and ran none of it — a Debug-only defect (a firing assert,
+      #      /Od behaviour) stayed invisible until Release broke. The time bound
+      #      is now declared explicitly instead of inheriting the 6-hour ceiling.
       - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
-        if: matrix.config == 'Release'
         timeout-minutes: 30
         run: |
           sad="build/bin/sad-run"

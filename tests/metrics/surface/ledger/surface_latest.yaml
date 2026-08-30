@@ -152,9 +152,9 @@ sections:
     name_ar: التشخيصُ والأخطاء
     name_en: Diagnostics
     is_language_surface: false
-    total: 251
+    total: 252
     counts:
-      مداخلُ كتالوجِ الأخطاء (errors): 182
+      مداخلُ كتالوجِ الأخطاء (errors): 183
       وسومُ تشخيصِ الخلفيّة (tag): 28
       تشخيصاتٌ خالصة (pure): 18
       أصنافُ التشخيص (kind): 8
@@ -198,6 +198,6 @@ sections:
       مرادفاتُ الثُّلاثيّ (triple_aliases): 12
 totals:
   language_surface: 2434
-  all_sections: 4291
+  all_sections: 4292
   sot_files_counted: 106
   sot_files_ignored: 7

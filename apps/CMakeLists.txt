@@ -127,95 +127,105 @@ message(STATUS "✓ المفسر / Interpreter: sad-run (apps/sad-run)")
 # (EN) The compiler driver (compiler_driver_*.cpp) stays under tools/compiler/ — it
 #      is the sad-build app body (not a main); referenced absolutely, compiled here.
 # ──────────────────────────────────────────────────────────────────────
-if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
+# ================================================================
+# (AR) تضمين ملف runtime كبيانات في C++
+# (EN) Embed runtime C file as C++ data header
+# (AR) ⚠️ خارجَ كتلةِ LLVM عمدًا: `compiler_driver_linker.cpp` و`_build_utils.cpp`
+#      يُضمِّنانِ هذه الترويسةَ المولَّدة، وهما من مصادرِ المترجمِ النحيلِ أيضًا.
+# (EN) ⚠️ Deliberately outside the LLVM block: the linker and build-utils TUs
+#      include this generated header, and both are thin-compiler sources too.
+# ================================================================
+set(SAD_RUNTIME_SOURCE "${CMAKE_SOURCE_DIR}/tools/compiler/runtime/sad_embedded_runtime.c")
+set(SAD_RUNTIME_HEADER "${CMAKE_BINARY_DIR}/generated/sad_embedded_runtime_data.h")
 
-    # ================================================================
-    # (AR) تضمين ملف runtime كبيانات في C++
-    # (EN) Embed runtime C file as C++ data header
-    # ================================================================
-    set(SAD_RUNTIME_SOURCE "${CMAKE_SOURCE_DIR}/tools/compiler/runtime/sad_embedded_runtime.c")
-    set(SAD_RUNTIME_HEADER "${CMAKE_BINARY_DIR}/generated/sad_embedded_runtime_data.h")
+add_custom_command(
+    OUTPUT "${SAD_RUNTIME_HEADER}"
+    COMMAND ${CMAKE_COMMAND}
+        -DRUNTIME_INPUT_FILE=${SAD_RUNTIME_SOURCE}
+        -DRUNTIME_OUTPUT_FILE=${SAD_RUNTIME_HEADER}
+        -P ${CMAKE_SOURCE_DIR}/cmake/embed_runtime.cmake
+    DEPENDS "${SAD_RUNTIME_SOURCE}"
+    COMMENT "(AR) تضمين runtime... / (EN) Embedding runtime..."
+)
 
-    add_custom_command(
-        OUTPUT "${SAD_RUNTIME_HEADER}"
-        COMMAND ${CMAKE_COMMAND}
-            -DRUNTIME_INPUT_FILE=${SAD_RUNTIME_SOURCE}
-            -DRUNTIME_OUTPUT_FILE=${SAD_RUNTIME_HEADER}
-            -P ${CMAKE_SOURCE_DIR}/cmake/embed_runtime.cmake
-        DEPENDS "${SAD_RUNTIME_SOURCE}"
-        COMMENT "(AR) تضمين runtime... / (EN) Embedding runtime..."
-    )
+# (AR) هدف وهمي لضمان التوليد قبل البناء
+# (EN) Custom target to ensure generation before build
+add_custom_target(generate_runtime_header DEPENDS "${SAD_RUNTIME_HEADER}")
 
-    # (AR) هدف وهمي لضمان التوليد قبل البناء
-    # (EN) Custom target to ensure generation before build
-    add_custom_target(generate_runtime_header DEPENDS "${SAD_RUNTIME_HEADER}")
+# ═══════════════════════════════════════════════════════════════════════════
+# (AR) مصادرُ سائقِ المترجمِ المشتركة — **كلُّها بلا LLVM**.
+#      هذه القائمةُ نقطةُ الحقيقةِ الوحيدةُ للمترجمَين: `sad-build` (بـLLVM)
+#      و`sad-build-native` (بلا LLVM). ولا يفترقانِ إلّا في ملفٍّ واحد:
+#        • `sad-build`        ⟵ compiler_driver_backend.cpp             (يلمس LLVM)
+#        • `sad-build-native` ⟵ compiler_driver_backend_llvm_absent.cpp (يرفض صراحةً)
+#      وكِلا الملفَّين **يُصرَّفُ كاملًا في هدفِه**، فلا فرعَ ‎#ifdef‎ ميّتٌ ينجرفُ.
+# (EN) The shared compiler-driver sources — all LLVM-free. This list is the
+#      single source of truth for both compilers; they differ in exactly one TU
+#      (the LLVM backend vs. its explicit-rejection counterpart), and each of
+#      those is compiled in full in its own target — no dead #ifdef branch.
+# ═══════════════════════════════════════════════════════════════════════════
+set(SAD_DRIVER_COMMON_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/sad-build/main.cpp
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_frontend.cpp
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_diagnostics.cpp
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_analysis.cpp
+    # (AR) المرحلةُ الوسطى (SIR ⇒ SIR) — مشتركةٌ كي لا يختلفَ ناتجُ المترجمَين
+    # (EN) Middle end (SIR ⇒ SIR) — shared so both compilers produce the same code
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_middleend.cpp
+    # (AR) الخلفيّة الأصليّة (بلا LLVM): SIR ⇒ شيفرةُ آلة ⇒ ELF64 ساكن
+    # (EN) Native (no-LLVM) backend: SIR ⇒ machine code ⇒ static ELF64
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_native.cpp
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_cli.cpp
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_linker.cpp
+    # (AR) الملفُّ كلُّه داخلَ ‎#ifdef HAS_EMBEDDED_LLD‎ — بلا العَلَمِ لا يُصرَّفُ منه شيء
+    # (EN) The whole file sits inside #ifdef HAS_EMBEDDED_LLD — nothing without it
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_lld.cpp
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_build_utils.cpp
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_ui.cpp
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_android.cpp
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_android_linker.cpp
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_pkg.cpp
+)
 
-    # (AR) مصادر المترجم — main في apps/، والسائق في tools/compiler/ (CW-19 DRY)
-    # (EN) Compiler sources — main in apps/, driver under tools/compiler/ (CW-19 DRY)
-    set(SAD_BUILD_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/sad-build/main.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_frontend.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_diagnostics.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_analysis.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_backend.cpp
-        # (AR) الخلفيّة الأصليّة (بلا LLVM): SIR ⇒ شيفرةُ آلة ⇒ ELF64 ساكن
-        # (EN) Native (no-LLVM) backend: SIR ⇒ machine code ⇒ static ELF64
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_native.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_cli.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_linker.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_lld.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_build_utils.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_ui.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_android.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_android_linker.cpp
-        ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_pkg.cpp
-    )
+# (AR) مسارُ الترويساتِ المشتركُ بين المترجمَين — بلا مسارات LLVM.
+# (EN) The include path shared by both compilers — with no LLVM paths.
+set(SAD_DRIVER_COMMON_INCLUDES
+    ${CMAKE_SOURCE_DIR}/tools/compiler
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/shared/lexer/include
+    ${CMAKE_SOURCE_DIR}/shared/parser/include
+    ${CMAKE_SOURCE_DIR}/shared/ast/include
+    ${CMAKE_SOURCE_DIR}/shared/types/include
+    ${CMAKE_SOURCE_DIR}/shared/errors/include
+    # (AR) كتالوجُ الأخطاءِ المولَّد — الرفضُ الصريحُ في الهدفِ النحيلِ يقرأُ منه
+    # (EN) The generated error catalog — the thin target reads its rejection from it
+    ${CMAKE_SOURCE_DIR}/shared/errors/generated
+    # (AR) Phase 3 (F-01): فاحص الأنواع المشترك / (EN) Shared type checker
+    ${CMAKE_SOURCE_DIR}/shared/semantic/include
+    # (AR) Phase 4 (F-03): utils + modules + hot_reload لتجنب المسارات النسبية
+    # (EN) Phase 4 (F-03): utils + modules + hot_reload to avoid relative paths
+    ${CMAKE_SOURCE_DIR}/shared/utils/include
+    ${CMAKE_SOURCE_DIR}/shared/modules/include
+    ${CMAKE_SOURCE_DIR}/shared/hot_reload/include
+    ${CMAKE_SOURCE_DIR}/compiler/include
+    ${CMAKE_SOURCE_DIR}/compiler/include/frontend
+    ${CMAKE_SOURCE_DIR}/shared/ownership/include
+    ${CMAKE_SOURCE_DIR}/shared/null_safety/include   # (AR) NS-01: رأس محلّل أمان null
+    ${CMAKE_SOURCE_DIR}/shared/program_rules/include # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018)
+    ${CMAKE_SOURCE_DIR}/compiler/include/types
+    ${CMAKE_BINARY_DIR}/generated
+)
 
-    # (AR) تهيئة بناء Debug: عند اكتشاف تثبيت LLVM Debug (SAD_LLVM_HAS_DEBUG) لا يُستثنى
-    #      sad-build من ALL_BUILD. على غير MSVC البناء في Debug آمن (لا فصل ABI).
-    # (EN) Debug-build setup: when a Debug LLVM is detected (SAD_LLVM_HAS_DEBUG),
-    #      sad-build is not excluded from ALL. On non-MSVC, Debug build is ABI-safe.
-    if(SAD_LLVM_HAS_DEBUG OR NOT MSVC)
-        add_executable(sad-build ${SAD_BUILD_SOURCES})
-        message(STATUS "   sad-build: all-config (built in Debug + Release)")
-    else()
-        add_executable(sad-build EXCLUDE_FROM_ALL ${SAD_BUILD_SOURCES})
-        message(STATUS "   sad-build: Release-only (EXCLUDE_FROM_ALL — MSVC, no Debug LLVM)")
-    endif()
-
-    # (AR) استخدام SAD_LLVM_INCLUDES — يُعرّف في cmake/llvm.cmake مع generator expression
-    #      للاختيار بين مسار Debug و Release تلقائياً.
-    # (EN) Use SAD_LLVM_INCLUDES — defined in cmake/llvm.cmake with a generator
-    #      expression to select Debug vs Release include paths automatically.
-    target_include_directories(sad-build PRIVATE
-        ${CMAKE_SOURCE_DIR}/tools/compiler
-        ${CMAKE_SOURCE_DIR}/include
-        ${CMAKE_SOURCE_DIR}/shared/lexer/include
-        ${CMAKE_SOURCE_DIR}/shared/parser/include
-        ${CMAKE_SOURCE_DIR}/shared/ast/include
-        ${CMAKE_SOURCE_DIR}/shared/types/include
-        ${CMAKE_SOURCE_DIR}/shared/errors/include
-        # (AR) Phase 3 (F-01): فاحص الأنواع المشترك / (EN) Shared type checker
-        ${CMAKE_SOURCE_DIR}/shared/semantic/include
-        # (AR) Phase 4 (F-03): utils + modules + hot_reload لتجنب المسارات النسبية
-        # (EN) Phase 4 (F-03): utils + modules + hot_reload to avoid relative paths
-        ${CMAKE_SOURCE_DIR}/shared/utils/include
-        ${CMAKE_SOURCE_DIR}/shared/modules/include
-        ${CMAKE_SOURCE_DIR}/shared/hot_reload/include
-        ${CMAKE_SOURCE_DIR}/compiler/include
-        ${CMAKE_SOURCE_DIR}/compiler/include/frontend
-        ${CMAKE_SOURCE_DIR}/shared/ownership/include
-        ${CMAKE_SOURCE_DIR}/shared/null_safety/include   # (AR) NS-01: رأس محلّل أمان null
-        ${CMAKE_SOURCE_DIR}/shared/program_rules/include # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018)
-        ${CMAKE_SOURCE_DIR}/compiler/include/types
-        ${CMAKE_SOURCE_DIR}/compiler/include/backend/llvm
-        ${SAD_LLVM_INCLUDES}
-        ${CMAKE_BINARY_DIR}/generated
-    )
-
-    # (AR) ضمان توليد الهيدر قبل بناء sad-build
-    # (EN) Ensure runtime header is generated before building sad-build
-    add_dependencies(sad-build generate_runtime_header)
+# ──────────────────────────────────────────────────────────────────────
+# (AR) دالّةٌ تُطبّقُ الخصائصَ المشتركةَ بين المترجمَين على هدفٍ منهما.
+#      وجودُها يمنعُ العطبَ المقيسَ في هذا المستودعِ: «رقعةٌ صحيحةٌ في ملفٍّ
+#      واحدٍ تترك أخاه» — فحجزُ المكدّسِ أو عَلَمُ SDL2 يُضبَطُ للاثنين معًا أو لا.
+# (EN) One function applies every property both compilers share, so a fix cannot
+#      land on one target and miss its sibling.
+# ──────────────────────────────────────────────────────────────────────
+function(sad_configure_compiler_target target_name)
+    target_include_directories(${target_name} PRIVATE ${SAD_DRIVER_COMMON_INCLUDES})
+    add_dependencies(${target_name} generate_runtime_header)
 
     # ═══════════════════════════════════════════════════════════════════════════
     # (AR) حقيقةُ SDL2 على POSIX ⇒ سائقُ الربط. المتغيّراتُ تُضبَط في
@@ -228,15 +238,111 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
     #      macOS failed to link. The path is configure-time knowledge, so pass it in.
     # ═══════════════════════════════════════════════════════════════════════════
     if(SAD_UI_HOST_SDL2)
-        target_compile_definitions(sad-build PRIVATE SAD_UI_HOST_SDL2)
+        target_compile_definitions(${target_name} PRIVATE SAD_UI_HOST_SDL2)
         if(SAD_UI_HOST_SDL2_LIB_DIR)
-            target_compile_definitions(sad-build PRIVATE
+            target_compile_definitions(${target_name} PRIVATE
                 SAD_UI_HOST_SDL2_LIB_DIR="${SAD_UI_HOST_SDL2_LIB_DIR}")
         endif()
         if(SAD_UI_HOST_SDL2_TTF)
-            target_compile_definitions(sad-build PRIVATE SAD_UI_HOST_SDL2_TTF)
+            target_compile_definitions(${target_name} PRIVATE SAD_UI_HOST_SDL2_TTF)
         endif()
     endif()
+
+    if(MSVC)
+        target_compile_options(${target_name} PRIVATE /wd4819 /FS)
+    endif()
+
+    set_target_properties(${target_name} PROPERTIES
+        OUTPUT_NAME "${target_name}"
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+    )
+
+    # (AR) زيادة حجم الـ stack إلى 128 ميغابايت لمعالجة الملفات الكبيرة
+    # (EN) Increase stack size to 128MB for large source files
+    if(MSVC)
+        target_link_options(${target_name} PRIVATE /STACK:134217728)
+    elseif(APPLE)
+        # (AR) رابط macOS (ld64) يستخدم -stack_size لا -z stacksize (خاص بـ GNU ld).
+        # (EN) macOS ld64 uses -stack_size, not the GNU ld -z stacksize option.
+        target_link_options(${target_name} PRIVATE -Wl,-stack_size,0x8000000)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        target_link_options(${target_name} PRIVATE -Wl,-z,stack-size=134217728)
+    endif()
+endfunction()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# (AR) المترجمُ النحيلُ السياديّ sad-build-native — بلا LLVM البتّة
+# (EN) The thin sovereign compiler sad-build-native — no LLVM at all
+# ──────────────────────────────────────────────────────────────────────────────
+# (AR) يُعرَّفُ **خارجَ** كتلةِ ‎if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)‎ عمدًا. كانت
+#      الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ هدفٍ لا يُعرَّفُ
+#      إلّا إذا وُجدت LLVM، فكانَ إطفاءُ LLVM يُسقِطُ المترجمَ كلَّه ومعه المسارُ
+#      الذي لا يحتاجُها. وبهذا الهدفِ يُبنى الوضعُ الحرُّ والخلفيّةُ الأصليّةُ في
+#      الخاناتِ الستِّ كلِّها (ثلاثُ منصّاتٍ × Debug/Release).
+#      ⚠️ لا يربطُ ‎LLVM_LIBS‎ ولا ‎sad_llvm_backend‎ — فتعارضُ
+#      ‎_ITERATOR_DEBUG_LEVEL‎ على MSVC لا يقعُ أصلًا، ويُبنى في Debug بلا شرط.
+# (EN) Defined *outside* the LLVM block deliberately. The native backend — which
+#      has no LLVM in its sources — used to be locked inside a target that only
+#      exists when LLVM is found, so turning LLVM off dropped the whole compiler
+#      and with it the one path that never needed LLVM. With this target the
+#      freestanding mode and the native backend build in all six cells
+#      (three platforms × Debug/Release). It links neither LLVM_LIBS nor
+#      sad_llvm_backend, so the MSVC _ITERATOR_DEBUG_LEVEL clash cannot arise.
+# ══════════════════════════════════════════════════════════════════════════════
+add_executable(sad-build-native
+    ${SAD_DRIVER_COMMON_SOURCES}
+    ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_backend_llvm_absent.cpp
+)
+
+sad_configure_compiler_target(sad-build-native)
+
+target_link_libraries(sad-build-native PRIVATE
+    sad_shared sad_compiler_no_llvm sad_mobile sad_null_safety sad_program_rules
+)
+
+message(STATUS "✓ المترجم النحيل / Thin compiler: sad-build-native (no LLVM, all configs)")
+
+# ──────────────────────────────────────────────────────────────────────
+# المترجم sad-build (يتطلب LLVM) / Compiler sad-build (requires LLVM)
+# ──────────────────────────────────────────────────────────────────────
+if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
+
+    # (AR) تهيئة بناء Debug: عند اكتشاف تثبيت LLVM Debug (SAD_LLVM_HAS_DEBUG) لا يُستثنى
+    #      sad-build من ALL_BUILD. على غير MSVC البناء في Debug آمن (لا فصل ABI).
+    #      ⚠️ هذا الاستثناءُ يخصُّ `sad-build` وحدَه؛ `sad-build-native` أعلاه لا
+    #      يعنيه لأنّه لا يربطُ LLVM.
+    # (EN) Debug-build setup: when a Debug LLVM is detected (SAD_LLVM_HAS_DEBUG),
+    #      sad-build is not excluded from ALL. On non-MSVC, Debug build is ABI-safe.
+    #      ⚠️ This exclusion is about sad-build only; sad-build-native above is
+    #      unaffected because it links no LLVM.
+    # (AR) والطرفُ الثالثُ `SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT`: كانت البوّابةُ
+    #      تسألُ عن **وجودِ** Debug LLVM ولا تعرفُ أنّ في الجذرِ علاجًا يُغني عنه
+    #      (‎/MD‎ + ‎_ITERATOR_DEBUG_LEVEL=0‎). فكانت تستثني الهدفَ ولو كان قابلًا
+    #      للبناءِ فعلًا — وهو ما قِيس.
+    # (EN) Third arm: the gate asked only whether a Debug LLVM exists, unaware of
+    #      the root-level compat path that makes one unnecessary.
+    if(SAD_LLVM_HAS_DEBUG OR NOT MSVC OR SAD_FORCE_MSVC_LLVM_RELEASE_COMPAT)
+        add_executable(sad-build
+            ${SAD_DRIVER_COMMON_SOURCES}
+            ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_backend.cpp)
+        message(STATUS "   sad-build: all-config (built in Debug + Release)")
+    else()
+        add_executable(sad-build EXCLUDE_FROM_ALL
+            ${SAD_DRIVER_COMMON_SOURCES}
+            ${CMAKE_SOURCE_DIR}/tools/compiler/compiler_driver_backend.cpp)
+        message(STATUS "   sad-build: Release-only (EXCLUDE_FROM_ALL — MSVC, no Debug LLVM)")
+    endif()
+
+    sad_configure_compiler_target(sad-build)
+
+    # (AR) استخدام SAD_LLVM_INCLUDES — يُعرّف في cmake/llvm.cmake مع generator expression
+    #      للاختيار بين مسار Debug و Release تلقائياً.
+    # (EN) Use SAD_LLVM_INCLUDES — defined in cmake/llvm.cmake with a generator
+    #      expression to select Debug vs Release include paths automatically.
+    target_include_directories(sad-build PRIVATE
+        ${CMAKE_SOURCE_DIR}/compiler/include/backend/llvm
+        ${SAD_LLVM_INCLUDES}
+    )
 
     target_link_libraries(sad-build PRIVATE
         sad_shared sad_compiler sad_mobile sad_null_safety sad_program_rules ${LLVM_LIBS}
@@ -272,27 +378,6 @@ if(ENABLE_LLVM_BACKEND AND LLVM_FOUND)
         target_link_libraries(sad-build PRIVATE ${LLD_LIBS})
         target_compile_definitions(sad-build PRIVATE HAS_EMBEDDED_LLD)
         message(STATUS "   sad-build: LLD مدمج / embedded LLD enabled")
-    endif()
-
-    if(MSVC)
-        target_compile_options(sad-build PRIVATE /wd4819 /FS)
-    endif()
-
-    set_target_properties(sad-build PROPERTIES
-        OUTPUT_NAME "sad-build"
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-    )
-
-    # (AR) زيادة حجم الـ stack إلى 128 ميغابايت لمعالجة الملفات الكبيرة
-    # (EN) Increase stack size to 128MB for large source files
-    if(MSVC)
-        target_link_options(sad-build PRIVATE /STACK:134217728)
-    elseif(APPLE)
-        # (AR) رابط macOS (ld64) يستخدم -stack_size لا -z stacksize (خاص بـ GNU ld).
-        # (EN) macOS ld64 uses -stack_size, not the GNU ld -z stacksize option.
-        target_link_options(sad-build PRIVATE -Wl,-stack_size,0x8000000)
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-        target_link_options(sad-build PRIVATE -Wl,-z,stack-size=134217728)
     endif()
 
     message(STATUS "✓ المترجم / Compiler: sad-build (LLVM ${LLVM_PACKAGE_VERSION})")

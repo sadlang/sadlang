@@ -24,10 +24,15 @@
 
 #include "compiler_driver.h"
 #include "cli_flags_generated.h"
-// (AR) لتصنيف الهدف بنفس دلالات الخلفيّة (معدن عارٍ مقابل نظام تشغيل)
-// (EN) To classify the target with the backend's own semantics
-#include "backend/llvm/builders/core/freestanding_codegen.h"
-#include <llvm/TargetParser/Triple.h>
+// (AR) لتصنيف الهدف بنفس دلالات الخلفيّة (معدن عارٍ مقابل نظام تشغيل).
+//      الترويسةُ بلا LLVM عمدًا: موضعُ القرارِ واحدٌ يشترك فيه السائقُ ومولّدُ
+//      LLVM معًا، فلا يجرُّ السائقُ LLVM لأجلِ تشخيصٍ — وهو شرطُ بناءِ المترجمِ
+//      النحيلِ `sad-build-native` بلا LLVM البتّة.
+// (EN) To classify the target with the backend's own semantics. The header is
+//      deliberately LLVM-free: one decision site shared by the driver and the
+//      LLVM generator, so the driver does not drag LLVM in for a diagnostic —
+//      the precondition for building the thin, LLVM-free `sad-build-native`.
+#include "hw_bridge_profile.h"
 #include "error_manager.h"
 #include "explanation_level.h"
 // (AR) محلل أعلام سياسة الذاكرة (--gc/--learn/--prod) لتوحيد سلوك الأخطاء
@@ -65,6 +70,14 @@
 #include <cstdlib>
 #include <filesystem>
 #include <system_error>
+// (AR) 🔑 ضمٌّ صريحٌ لكلِّ مورِّد. حذفُ ترويسةٍ «ميّتةٍ» بمقياسِ الاستعمالِ
+//      المباشرِ يحذفُ معها ما كانت تُورِّدُه نقلًا؛ فيُصرَّحُ بالمورِّدِ لا يُورَّث.
+// (EN) Explicit include for every supplier: removing a header that is "dead" by
+//      direct-use count also removes what it transitively supplied.
+#include <cstdint>
+#include <utility>
+#include <string>
+#include <vector>
 
 namespace sad
 {
@@ -1000,19 +1013,18 @@ namespace sad
                 //      pass --هدف). A note, not a warning, so -Werror does not turn
                 //      it into an error that breaks a valid hosted freestanding build.
                 // ════════════════════════════════════════════════════════════════
-                const llvm::Triple effective_target(
-                    llvm::Triple::normalize(options_.target.to_string()));
+                const ::sad::target::HwBridgeProfile profile =
+                    ::sad::target::classifyHwBridgeProfileFromTripleText(
+                        options_.target.to_string());
                 if (!options_.target_explicit)
                 {
-                    const Sad::LLVM::HwBridgeProfile profile =
-                        Sad::LLVM::classifyHwBridgeProfile(effective_target);
-                    if (profile == Sad::LLVM::HwBridgeProfile::HostedLibc)
+                    if (profile == ::sad::target::HwBridgeProfile::HostedLibc)
                     {
                         diagnostics_.report_warning(
                             std::string(::sad::cli::messages::FreestandingHostTargetHosted) +
                             options_.target.to_string());
                     }
-                    else if (profile == Sad::LLVM::HwBridgeProfile::LinuxSyscall)
+                    else if (profile == ::sad::target::HwBridgeProfile::LinuxSyscall)
                     {
                         diagnostics_.report_note(
                             std::string(::sad::cli::messages::FreestandingHostTargetLinux) +
@@ -1031,8 +1043,7 @@ namespace sad
                 //      link, so state the BSP requirement rather than leave a silent
                 //      kernel with no thread to pull. Emitted even for an explicit
                 //      target — the developer chose the architecture deliberately.
-                if (Sad::LLVM::classifyHwBridgeProfile(effective_target) ==
-                    Sad::LLVM::HwBridgeProfile::BareMetalStub)
+                if (profile == ::sad::target::HwBridgeProfile::BareMetalStub)
                 {
                     diagnostics_.report_note(
                         std::string(::sad::cli::messages::FreestandingBareMetalStubBridges) +

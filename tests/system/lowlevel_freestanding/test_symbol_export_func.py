@@ -51,6 +51,16 @@ pytestmark = pytest.mark.skipif(
 )
 
 FREESTANDING = "--حرّ"
+# (AR) 🔑 هدفٌ مُصَرَّحٌ لا ثالوثُ المُشَغِّل. الدعوى هنا تخفيضٌ تخُصُّ عائلةَ x86،
+#      والمترجِمُ بلا «--هدف» يقعُ على ثالوثِ المُضيف. فكانت الحالةُ تمُرُّ لا
+#      لأنَّ الدعوى صحيحةٌ بل لأنَّ المُشَغِّلَ صادَفَ أن كانَ x86_64. وعلى ماكٍ
+#      ذراعيٍّ أحمَرَ الحارسُ مُحِقّاً: المدمجةُ لا تُخفَّضُ إلى aarch64.
+#      فالعلاجُ أن يُصَرَّحَ بالهدفِ المقِيسِ لا أن يُورَثَ من الآلة.
+# (EN) Declared target, not the runner's triple. The claim under test is an
+#      x86-family lowering; without --target the compiler falls back to the host
+#      triple, so the case passed because the runner happened to be x86_64. On an
+#      arm64 macOS runner the guard correctly rejects it. Declare what you measure.
+TARGET_X64 = "--هدف=x86_64-unknown-elf"
 EMIT_LLVM = "--أظهر-llvm"
 NO_MAIN = "--بلا-رئيسية"
 MODULE_MODE = "--وحدة"
@@ -169,7 +179,7 @@ def test_exported_function_external_linkage():
 
 def test_exported_noreturn_combo():
     """(AR) @رمز + دالة لا_ترجع ⇒ رمز مُصدَّر يحمل noreturn (تركيب 3.15+3.17)."""
-    rc, log, ir = _compile(_FUNC_EXPORTED_NORETURN, FREESTANDING, NO_MAIN)
+    rc, log, ir = _compile(_FUNC_EXPORTED_NORETURN, FREESTANDING, TARGET_X64, NO_MAIN)
     assert rc == 0, f"فشل الترجمة: {log}"
     dline = _define_line(ir, _PANIC_SYM)
     assert dline is not None, f"الرمز @{_PANIC_SYM} غائب:\n{ir}"

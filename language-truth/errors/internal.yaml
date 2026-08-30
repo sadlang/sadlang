@@ -411,3 +411,21 @@ errors:
     detailed:
       ar: استُدعيت الخلفيّةُ الأصليّةُ ومؤشّرُ وحدة SIR عدميّ. لا شيفرةَ تُخفَّض من لا شيء؛ الرفضُ الصريحُ خيرٌ من انهيارٍ عند فكِّ المؤشّر.
       en: The native backend was invoked with a null SIR-module pointer. Nothing can be lowered from nothing; failing explicitly beats crashing on dereference.
+
+  - code: INT_LLVM_PATH_ABSENT
+    id: INT023
+    category: internal
+    title:
+      ar: بناءٌ بلا LLVM — مسارٌ غيرُ مبنيٍّ في هذا الثنائيّ
+      en: LLVM-free build — path not built into this binary
+    brief:
+      ar: 'هذا الثنائيّ (sad-build-native) بُنيَ بلا LLVM؛ والمسارُ المطلوب ({detail}) يمرُّ بها'
+      en: 'This binary (sad-build-native) was built without LLVM; the requested path ({detail}) goes through it'
+    placeholders:
+    - detail
+    fix_hint:
+      ar: 'للمستخدم: sad-build-native مترجمٌ سياديٌّ لا يحوي LLVM أصلًا، فمسارُه الوحيدُ «ص ⇒ SIR ⇒ شيفرةُ آلة ⇒ ELF64 ساكن». استعمل sad-build (المبنيّ بـLLVM) لهذا المخرَج، أو أسقِط العَلَم ({detail}) واطلب تنفيذيًّا ساكنًا. لمطوّر المترجم: الرفضُ هنا رفضٌ صريحٌ عن قصد؛ قبولُ العَلَمِ ثمّ تجاهلُه هو العطبُ الذي يحرسه هذا الرمز.'
+      en: 'User: sad-build-native is a sovereign compiler with no LLVM in it at all, so its only path is "ص ⇒ SIR ⇒ machine code ⇒ static ELF64". Use sad-build (built with LLVM) for this output, or drop the flag ({detail}) and ask for a static executable. Compiler dev: this rejection is deliberate; accepting a flag and then ignoring it is the defect this code guards.'
+    detailed:
+      ar: 'طُلب من ثنائيٍّ بُنيَ بلا LLVM مخرَجٌ أو مسارٌ ({detail}) لا يتحقّق إلّا بها (LLVM IR، أو bitcode، أو تجميع، أو ملفُّ كائنٍ، أو ربطٌ بـlld). لا فرعَ تصريفٍ ميّتٍ هنا ولا سقوطٌ صامتٌ إلى مسارٍ آخر: الأداةُ تُعلن أنّها لا تنفّذ ما قُبِل، لأنّ أداةً تقبل عَلَمًا لا تنفّذه أسوأُ من أداةٍ ترفضه.'
+      en: 'A binary built without LLVM was asked for an output or path ({detail}) that only LLVM provides (LLVM IR, bitcode, assembly, an object file, or an lld link). There is no dead compile branch here and no silent fallback: the tool states that it will not perform what it accepted, because a tool that accepts a flag it does not honour is worse than one that rejects it.'

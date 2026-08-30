@@ -806,6 +806,19 @@ namespace sad
                                                   std::vector<std::string> &libraries) const;
 
             /**
+             * @brief (AR) نسخُ الـDLL المُورَّدةِ (SDL2) بجوارَ الثنائيِّ المُنتَج
+             * @brief (EN) Copy vendored runtime DLLs (SDL2) next to the produced binary
+             *
+             * (AR) مُحمِّلُ ويندوزَ يبحثُ في مجلّدِ الثنائيِّ أوّلًا، فبرنامجُ واجهةٍ
+             *      مترجَمٌ بلا `SDL2.dll` بجوارِه **لا يبدأُ العملَ** ويخرجُ بـ
+             *      `0xC0000135` بلا مخرَجٍ ولا خطأ. لا يُفشِلُ الترجمةَ: الربطُ تمّ.
+             * (EN) The Windows loader searches the binary's directory first, so a
+             *      compiled UI program without SDL2.dll beside it never starts and
+             *      exits 0xC0000135 silently. Never fails the build: the link is done.
+             */
+            void copy_vendored_runtime_dlls(const std::string &output_file) const;
+
+            /**
              * @brief (AR) علم توافق CRT الذي يجب تمريره إلى clang على ويندوز
              * @brief (EN) Windows CRT compatibility flag to pass to clang
              */
@@ -846,7 +859,18 @@ namespace sad
             std::shared_ptr<SIRModule> sir_module_; // Store SIR module
             // SIR Frontend Optimizer integrated in compiler_driver_frontend.cpp
             // std::unique_ptr<BytecodeEmitter> bytecode_emitter_;  // Not implemented yet
-            std::unique_ptr<Sad::LLVM::LLVMCodeGen> llvm_codegen_; // Correct namespace
+            // (AR) ⚠️ `shared_ptr` لا `unique_ptr` عن قصد: هادمُ `unique_ptr` يستدعي
+            //      `delete` على النوعِ فيلزمُ تعريفُه التامُّ في كلِّ وحدةٍ تهدمُ
+            //      `CompilerDriver` — فتُجَرُّ LLVM إلى وحداتٍ لا تذكرُها. و`shared_ptr`
+            //      يمحو نوعَ الهادمِ عندَ البناء، فيعملُ على نوعٍ ناقص. هذا شرطُ بناءِ
+            //      `sad-build-native` بلا LLVM؛ والملكيّةُ تبقى واحدةً فعلًا (لا نسخَ).
+            // (EN) ⚠️ shared_ptr, not unique_ptr, deliberately: unique_ptr's deleter
+            //      calls delete on the type, so every TU that destroys CompilerDriver
+            //      needs the complete type — dragging LLVM into TUs that never mention
+            //      it. shared_ptr type-erases its deleter at construction, so it works
+            //      with an incomplete type. This is what lets sad-build-native build
+            //      without LLVM; ownership stays effectively unique (never copied).
+            std::shared_ptr<Sad::LLVM::LLVMCodeGen> llvm_codegen_;
 
             // نظام الملكية / Ownership System
             std::unique_ptr<Sad::Semantic::BorrowChecker> borrow_checker_;

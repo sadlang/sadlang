@@ -40,10 +40,8 @@
 #include "../../compiler/include/frontend/sir_module.h"
 
 // LLVM Backend
-#include "../../compiler/include/backend/llvm/llvm_codegen.h"
 
 // Arabic Optimizer / المحسّن العربي
-#include "../../compiler/include/backend/llvm/arabic_optimizer.h"
 
 // SIR Optimizer / محسّن التمثيل الوسيط
 // (AR) يحتوي على تمريرات التحسين: طي الثوابت، إزالة الكود الميت، CSE، نشر النسخ
@@ -79,11 +77,8 @@
 #include "module_resolver.h"
 
 // LLVM headers for file output
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/raw_ostream.h>
 // (AR) مكتبة كتابة Bitcode - لإخراج ملفات .bc
 // (EN) Bitcode writer - for .bc file output
-#include <llvm/Bitcode/BitcodeWriter.h>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -100,6 +95,15 @@
 
 #include <iostream>
 #include <unordered_set>
+// (AR) 🔑 ضمٌّ صريحٌ لكلِّ مورِّد. حذفُ ترويسةٍ «ميّتةٍ» بمقياسِ الاستعمالِ
+//      المباشرِ يحذفُ معها ما كانت تُورِّدُه نقلًا؛ فيُصرَّحُ بالمورِّدِ لا يُورَّث.
+// (EN) Explicit include for every supplier: removing a header that is "dead" by
+//      direct-use count also removes what it transitively supplied.
+#include <cstdint>
+#include <memory>
+#include <utility>
+#include <exception>
+#include <string>
 
 namespace sad
 {
@@ -107,16 +111,23 @@ namespace sad
     {
 
         // ============================================================================
-        // (AR) الباني والهادم — يحتاجان تعريف LLVMCodeGen الكامل
-        // (EN) Constructor/Destructor — need complete LLVMCodeGen definition
+        // (AR) الباني والهادم. كانا يلزمهما تعريفُ `LLVMCodeGen` الكاملُ لأنّ العضوَ
+        //      `llvm_codegen_` كان `unique_ptr`، وهادمُه يستدعي `delete` على النوعِ
+        //      فيلزمُه تعريفٌ تامّ — فكانت هذه الوحدةُ تُضمِّنُ خمسَ ترويساتِ LLVM
+        //      لأجلِ سطرٍ لا يذكرُ LLVM. صارَ العضوُ `shared_ptr`، وهو يمحو نوعَ
+        //      الهادمِ عندَ البناءِ لا عندَ التصريح، فيعملُ الهادمُ على نوعٍ ناقص.
+        //      وبهذا صارت الوحدةُ نظيفةً من LLVM ويبنيها المترجمانِ معًا.
+        // (EN) Constructor/destructor. They used to need the complete LLVMCodeGen
+        //      type because `llvm_codegen_` was a unique_ptr, whose deleter calls
+        //      delete on the type — so this TU pulled in five LLVM headers for a
+        //      line that never mentions LLVM. The member is a shared_ptr now, which
+        //      type-erases its deleter at construction rather than at declaration,
+        //      so the destructor works with an incomplete type. The TU is now
+        //      LLVM-free and both compilers build it.
         // ============================================================================
 
-        CompilerDriver::CompilerDriver()
-        {
-            // LLVM is always available, no conditional initialization needed
-        }
+        CompilerDriver::CompilerDriver() = default;
 
-        // Destructor - needs to be defined in cpp where LLVMCodeGen is complete
         CompilerDriver::~CompilerDriver() = default;
 
         bool CompilerDriver::run_frontend(const std::string &file)

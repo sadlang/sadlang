@@ -459,11 +459,51 @@ def _resolve_binary(p: Path) -> Path:
     return p
 
 
+# ═══════════════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **رمزُ الخروجِ كان يُطرَحُ صامتًا.** كانت القاعدةُ في المحرّكَين معًا:
+#      `error = stderr إن كان الرمزُ ≠ 0 وإلّا ""`. فبرنامجٌ يسقطُ برمزٍ غيرِ صفريٍّ
+#      **وstderr فارغ** — وهو حالُ انهيارِ ويندوزَ القياسيّ (0xC0000005 لا يكتبُ
+#      حرفًا) — يُقرَأُ ناجحًا، ويظهرُ الانهيارُ «اختلافَ مخرجات» لا انهيارًا.
+#      قِيسَ على ‎6ef6ad97‎: ستّةُ اختباراتِ واجهةٍ في ويندوز Debug تُبلِّغُ
+#      `FAIL_OUTPUT` بمخرَجٍ مترجَمٍ فارغ — تشخيصٌ يُسمّي العَرَضَ ويُخفي السبب.
+#      وأخطرُ منه: برنامجٌ يطبعُ كلَّ مخرجِه **ثمّ** ينهار يمرُّ أخضرَ تمامًا.
+#      فالرمزُ يُنقَلُ الآن من المحرّكَين ويُقارَنُ كما يُقارَنُ المخرَج.
+# (EN) The exit code was silently discarded: both engines used
+#      `error = stderr if returncode else ""`, so a nonzero exit with an empty
+#      stderr — the standard Windows crash, which writes nothing — read as
+#      success, and a crash surfaced as an output mismatch. Worse, a program
+#      that prints everything and *then* crashes passed green. The code is now
+#      threaded out of both engines and compared like the output.
+# ═══════════════════════════════════════════════════════════════════════════════════
+# (AR) رمزٌ يعني «لم يُقَس» (مهلة/استثناء) فلا يُقارَنُ ولا يُقرَأُ تكافؤًا.
+# (EN) "Unmeasured" code (timeout/exception): never compared, never read as parity.
+_EXIT_UNKNOWN = None
+
+
+def _exit_code_note(code) -> str:
+    """(AR) وصفٌ مقروءٌ لرمزِ الخروج — الانهياراتُ الشائعةُ تُسمّى باسمها."""
+    if code is None:
+        return "غير مقيس"
+    if code < 0:
+        return f"{code} (إشارة {-code})"
+    known = {
+        0xC0000005: "انتهاكُ وصولٍ / access violation",
+        0xC0000094: "قسمةٌ صحيحةٌ على صفر",
+        0xC00000FD: "فيضانُ مكدّس / stack overflow",
+        0xC0000374: "تلفُ كومة / heap corruption",
+        0xC000013A: "إنهاءٌ بـCtrl-C",
+    }
+    unsigned = code & 0xFFFFFFFF
+    if unsigned in known:
+        return f"0x{unsigned:08X} — {known[unsigned]}"
+    return str(code)
+
+
 def run_interpreter(sad_exe: Path, test_file: Path, timeout: int,
-                    stdin_data: str = "", work_dir: Path = None) -> tuple[str, float, str]:
+                    stdin_data: str = "", work_dir: Path = None) -> tuple[str, float, str, int]:
     """
-    (AR) تشغيل ملف .ص عبر المفسر وإرجاع (المخرج، الوقت_بالمللي، رسالة_خطأ)
-    (EN) Run .ص file via interpreter, return (output, time_ms, error_msg)
+    (AR) تشغيل ملف .ص عبر المفسر وإرجاع (المخرج، الوقت_بالمللي، رسالة_خطأ، رمز_الخروج)
+    (EN) Run .ص file via interpreter, return (output, time_ms, error_msg, exit_code)
 
     (AR) `work_dir`: مجلّدُ عملٍ خاصٌّ بالتشغيلة. المصرَّفُ يعملُ في مجلّدٍ مؤقّتٍ
          منذ البداية (run_compiler)، والمفسّرُ كان يرثُ مجلّدَ المستدعي — أي
@@ -492,17 +532,17 @@ def run_interpreter(sad_exe: Path, test_file: Path, timeout: int,
         elapsed = (time.perf_counter() - start) * 1000
         output = result.stdout.rstrip("\n")
         error = result.stderr.strip() if result.returncode != 0 else ""
-        return output, elapsed, error
+        return output, elapsed, error, result.returncode
     except subprocess.TimeoutExpired:
         elapsed = (time.perf_counter() - start) * 1000
-        return "", elapsed, "TIMEOUT"
+        return "", elapsed, "TIMEOUT", _EXIT_UNKNOWN
     except Exception as e:
         elapsed = (time.perf_counter() - start) * 1000
-        return "", elapsed, str(e)
+        return "", elapsed, str(e), _EXIT_UNKNOWN
 
 
 def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
-                 stdin_data: str = "", capture_exit: bool = False) -> tuple[str, float, str]:
+                 stdin_data: str = "", capture_exit: bool = False) -> tuple[str, float, str, int]:
     """
     (AR) ترجمة ملف .ص عبر المترجم ثم تشغيل الملف المُنتج
     (EN) Compile .ص file, then run the produced executable
@@ -550,11 +590,11 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
             if not detail:
                 detail = "[ذيل stdout] " + compile_result.stdout.strip()[-600:]
             return "", elapsed, (f"COMPILE_ERROR (رمز {compile_result.returncode}): "
-                                 f"{detail}")
+                                 f"{detail}"), _EXIT_UNKNOWN
 
         if not exe_path.exists():
             elapsed = (time.perf_counter() - start) * 1000
-            return "", elapsed, "COMPILE_ERROR: لم يُنتج ملف تنفيذي"
+            return "", elapsed, "COMPILE_ERROR: لم يُنتج ملف تنفيذي", _EXIT_UNKNOWN
 
         # (AR) خطوة 2: التشغيل
         # (AR) 🔑 `cwd=work_dir` هنا أيضًا — لا في التصريفِ وحدَه. كان التصريفُ
@@ -594,14 +634,14 @@ def run_compiler(sadc_exe: Path, test_file: Path, temp_dir: Path, timeout: int,
         #      success. The default path is unchanged.
         if capture_exit and run_result.returncode != 0 and not error:
             error = f"RUNTIME_EXIT:{run_result.returncode}"
-        return output, elapsed, error
+        return output, elapsed, error, run_result.returncode
 
     except subprocess.TimeoutExpired:
         elapsed = (time.perf_counter() - start) * 1000
-        return "", elapsed, "TIMEOUT"
+        return "", elapsed, "TIMEOUT", _EXIT_UNKNOWN
     except Exception as e:
         elapsed = (time.perf_counter() - start) * 1000
-        return "", elapsed, str(e)
+        return "", elapsed, str(e), _EXIT_UNKNOWN
     finally:
         # (AR) تنظيف الملف التنفيذي المؤقت
         if exe_path.exists():
@@ -675,7 +715,7 @@ def classify_flakiness(sad_exe: Path, test_files: list, n: int, timeout: int) ->
         meta = parse_metadata(tf)
         outs = set()
         for _ in range(n):
-            out, _t, _e = run_interpreter(sad_exe, tf, meta.timeout or timeout,
+            out, _t, _e, _c = run_interpreter(sad_exe, tf, meta.timeout or timeout,
                                           stdin_data=meta.stdin_data)
             outs.add(out)
         (flaky if len(outs) > 1 else deterministic).append(str(tf))
@@ -1025,12 +1065,12 @@ def _run_single_test_raw(
     #      — otherwise its result is silently discarded (masking interpreter
     #      regressions) or its timeout spuriously fails the test.
     if interpreter_is_skipped(meta):
-        interp_out, interp_time, interp_err = "", 0.0, ""
+        interp_out, interp_time, interp_err, interp_code = "", 0.0, "", _EXIT_UNKNOWN
     else:
         interp_work = temp_dir / ("interp_" + uuid.uuid4().hex[:8])
         interp_work.mkdir(parents=True, exist_ok=True)
         try:
-            interp_out, interp_time, interp_err = run_interpreter(
+            interp_out, interp_time, interp_err, interp_code = run_interpreter(
                 sad_exe, Path(test_file).resolve(), timeout,
                 stdin_data=meta.stdin_data, work_dir=interp_work)
         finally:
@@ -1090,7 +1130,7 @@ def _run_single_test_raw(
             #      @skip_compiler — the compile rejection cannot be checked.
             return _half_checked(rel_path, meta, interp_out, interp_time,
                                  "expect_compile_error بلا مترجم")
-        compiler_out, compiler_time, compiler_err = run_compiler(
+        compiler_out, compiler_time, compiler_err, compiler_code = run_compiler(
             sadc_exe, test_file, temp_dir, timeout, stdin_data=meta.stdin_data)
         if compiler_err == "TIMEOUT":
             return TestResult(file=rel_path, status=Status.FAIL_TIMEOUT,
@@ -1131,7 +1171,7 @@ def _run_single_test_raw(
         if meta.skip_compiler:
             return _half_checked(rel_path, meta, interp_out, interp_time,
                                  "expect_error_compiled بلا مترجم")
-        compiler_out, compiler_time, compiler_err = run_compiler(
+        compiler_out, compiler_time, compiler_err, compiler_code = run_compiler(
             sadc_exe, test_file, temp_dir, timeout, stdin_data=meta.stdin_data,
             capture_exit=True)
         if compiler_err == "TIMEOUT":
@@ -1184,7 +1224,7 @@ def _run_single_test_raw(
         return TestResult(file=rel_path, status=Status.SKIP, metadata=meta,
                           error_message="تخطي: skip_compiler بدون @expected")
 
-    compiler_out, compiler_time, compiler_err = run_compiler(sadc_exe, test_file, temp_dir, timeout,
+    compiler_out, compiler_time, compiler_err, compiler_code = run_compiler(sadc_exe, test_file, temp_dir, timeout,
                                                                stdin_data=meta.stdin_data)
 
     if compiler_err == "TIMEOUT":
@@ -1225,6 +1265,37 @@ def _run_single_test_raw(
                           error_message="تخطي: skip_interpreter بدون @expected")
 
     # (AR) مقارنة المخرجات — عبر وضع التطبيع (ADR-004: فرز @unordered + تساهل عائم)
+    # ═══════════════════════════════════════════════════════════════════════
+    # (AR) 🔑 **تكافؤُ رمزِ الخروجِ — بعدَ المخرجاتِ لا قبلَها.**
+    #      كان الرمزُ يُطرَحُ صامتًا، فبرنامجٌ يطبعُ كلَّ ما يجبُ **ثمّ** ينهار
+    #      يمرُّ أخضرَ، وانهيارٌ صامتٌ (‎0xC0000005‎ لا يكتبُ في stderr حرفًا)
+    #      يُبلَّغُ «اختلافَ مخرجات» بلا سببٍ مذكور.
+    #
+    #      وموضعُ الحكمِ مقيسٌ لا مُختار: أطلقتُه أوّلَ مرّةٍ **قبلَ** مقارنةِ
+    #      المخرجات، فحوَّلَ ثلاثةَ اختلافاتِ مخرجاتٍ مسجَّلةٍ في سجلِّ الحمرةِ
+    #      إلى «تباعُدِ رمز» — أي **أفقدَ التشخيصَ معلومةً** بدلَ أن يضيفَها،
+    #      وأحمرَ حارسُ «تغيُّرِ طبقةِ الإخفاق» بحقّ. فالترتيبُ الصحيح:
+    #      • المخرجاتُ تختلف ⇒ الحكمُ `FAIL_OUTPUT` كما كان، **والرمزُ يُذكَرُ**
+    #        في الرسالةِ إن تباعدَ — تشخيصٌ أدقُّ بلا تغييرِ طبقة.
+    #      • المخرجاتُ تتطابق ⇒ هنا وحدَه يصيرُ تباعُدُ الرمزِ هو الخبرَ، وهو
+    #        الثقبُ الذي كان يمرُّ أخضرَ.
+    #      ولا يُشتَرَطُ الرمزُ صفرًا: `اخرج(3)` يخرجُ بـ٣ في المحرّكَينِ وذلك
+    #      تكافؤٌ تامّ. ويُتخطّى الحكمُ إن لم يُقَس أحدُ الرمزَين.
+    # (EN) Exit-code parity, judged AFTER the outputs — measured, not chosen:
+    #      firing it first demoted three registered output divergences into
+    #      "exit divergence", losing information and rightly reddening the
+    #      failure-layer guard. So: outputs differ → FAIL_OUTPUT as before, with
+    #      the codes NAMED in the message; outputs match → an exit divergence is
+    #      the news, and that is the hole that used to pass green. Never required
+    #      to be zero, and skipped when either code is unmeasured.
+    # ═══════════════════════════════════════════════════════════════════════
+    exit_codes_diverge = (interp_code is not _EXIT_UNKNOWN
+                          and compiler_code is not _EXIT_UNKNOWN
+                          and interp_code != compiler_code)
+    exit_note = (" · رمزُ الخروج — "
+                 f"مفسّر: {_exit_code_note(interp_code)} · "
+                 f"مترجم: {_exit_code_note(compiler_code)}") if exit_codes_diverge else ""
+
     if compare_outputs(interp_out, compiler_out, meta):
         # (AR) تحقق إضافي من @expected إن وُجد
         if meta.expected_output:
@@ -1235,6 +1306,15 @@ def _run_single_test_raw(
                                   interp_time_ms=interp_time, compiler_time_ms=compiler_time,
                                   metadata=meta,
                                   error_message=f"متطابقان لكن ≠ المتوقع")
+        # (AR) المخرجاتُ متطابقةٌ — فإن تباعدَ الرمزُ فالتشغيلتانِ مختلفتان
+        #      رغمَ تطابقِ الطباعة: أحدُهما انهارَ بعدَ أن طبع.
+        if exit_codes_diverge:
+            return TestResult(file=rel_path, status=Status.FAIL_RUNTIME,
+                              interp_output=interp_out, compiler_output=compiler_out,
+                              interp_time_ms=interp_time, compiler_time_ms=compiler_time,
+                              metadata=meta,
+                              error_message=("المخرجاتُ متطابقةٌ لكنّ رمزَ الخروجِ تباعد"
+                                             + exit_note))
         return TestResult(file=rel_path, status=Status.PASS,
                           interp_output=interp_out, compiler_output=compiler_out,
                           interp_time_ms=interp_time, compiler_time_ms=compiler_time,
@@ -1244,7 +1324,7 @@ def _run_single_test_raw(
                           interp_output=interp_out, compiler_output=compiler_out,
                           interp_time_ms=interp_time, compiler_time_ms=compiler_time,
                           metadata=meta,
-                          error_message="مخرجات المفسر ≠ مخرجات المترجم")
+                          error_message="مخرجات المفسر ≠ مخرجات المترجم" + exit_note)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════

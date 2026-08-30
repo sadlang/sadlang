@@ -330,7 +330,8 @@ namespace Sad
             INT_NATIVE_OUTPUT_WRITE,        ///< INT019: (AR) تعذّرت كتابة ثنائيّ ELF64 إلى مسار المخرَج / (EN) Could not write the ELF64 binary to the output path
             INT_NATIVE_TARGET_UNSUPPORTED,  ///< INT020: (AR) هدفٌ لا مخفّضَ له أو لا يستعمل ELF / (EN) Target with no lowerer or not ELF-based
             INT_NATIVE_OUTPUT_TYPE,         ///< INT021: (AR) نوعُ مخرَجٍ لا تنتجه الخلفيّة الأصليّة / (EN) Output type the native backend does not produce
-            INT_NATIVE_NO_MODULE            ///< INT022: (AR) بلوغُ الخلفيّة بلا وحدةِ SIR / (EN) Reached the backend with no SIR module
+            INT_NATIVE_NO_MODULE,           ///< INT022: (AR) بلوغُ الخلفيّة بلا وحدةِ SIR / (EN) Reached the backend with no SIR module
+            INT_LLVM_PATH_ABSENT            ///< INT023: (AR) مسارٌ يمرُّ بـLLVM في ثنائيٍّ بُنيَ بلا LLVM / (EN) An LLVM-dependent path in a binary built without LLVM
         };
 
         /**

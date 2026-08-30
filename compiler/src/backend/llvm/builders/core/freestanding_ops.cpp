@@ -107,14 +107,6 @@ const LinuxSyscallAbi *linuxSyscallAbi(const llvm::Triple &triple)
     }
 }
 
-// (AR) هل تملك هذه المعمارية منافذ دخل/خرج معزولة (inb/outb)؟ x86 وحدها.
-// (EN) Does this architecture have isolated port I/O (inb/outb)? x86 only.
-bool archHasPortIO(const llvm::Triple &triple)
-{
-    return triple.getArch() == llvm::Triple::x86 ||
-           triple.getArch() == llvm::Triple::x86_64;
-}
-
 // (AR) هل للمعمارية تعليمة «انتظر مقاطعة» توقف المعالج بلا امتياز حلقة 0 خاصّ؟
 //      تُستعمل في حلقة الهلع على المعدن غير x86 بدل دوران يحرق المعالج.
 // (EN) Does the architecture have a wait-for-interrupt instruction usable in a
@@ -159,15 +151,51 @@ llvm::Triple normalizedTriple(const llvm::Module &mod)
 //      architecture together*: an unknown OS means bare metal, then the arch
 //      splits port-I/O bare metal from bare metal with no known bridge.
 // ============================================================================
-HwBridgeProfile classifyHwBridgeProfile(const llvm::Triple &triple) {
+// (AR) ⚠️ **مُحوِّلٌ لا قرار.** القرارُ انتقلَ إلى
+//      `shared/utils/include/hw_bridge_profile.h` (بلا LLVM) كي يبلغَه المترجمُ
+//      النحيلُ `sad-build-native` أيضًا. وما هنا ترجمةُ تعدادات `llvm::Triple`
+//      إلى الرموزِ القانونيّة: مطابقةُ أسماءٍ صرفة. ولو بقيَ المحكُّ هنا لصارَ
+//      للسائقِ محكٌّ ثانٍ يناقضُ التوليد.
+// (EN) ⚠️ *An adapter, not a decision.* The decision moved to the LLVM-free
+//      shared/utils/include/hw_bridge_profile.h so the thin `sad-build-native`
+//      compiler reaches it too. What remains here maps `llvm::Triple` enums to
+//      the canonical tokens: pure name matching.
+namespace
+{
+
+::sad::target::ArchToken archTokenOf(const llvm::Triple &triple)
+{
+    switch (triple.getArch())
+    {
+    case llvm::Triple::x86_64:     return ::sad::target::ArchToken::X86_64;
+    case llvm::Triple::x86:        return ::sad::target::ArchToken::X86;
+    case llvm::Triple::aarch64:
+    case llvm::Triple::aarch64_be:
+    case llvm::Triple::aarch64_32: return ::sad::target::ArchToken::AArch64;
+    case llvm::Triple::arm:
+    case llvm::Triple::armeb:
+    case llvm::Triple::thumb:
+    case llvm::Triple::thumbeb:    return ::sad::target::ArchToken::Arm;
+    case llvm::Triple::riscv32:    return ::sad::target::ArchToken::Riscv32;
+    case llvm::Triple::riscv64:    return ::sad::target::ArchToken::Riscv64;
+    default:                       return ::sad::target::ArchToken::Other;
+    }
+}
+
+::sad::target::OsToken osTokenOf(const llvm::Triple &triple)
+{
     if (triple.getOS() == llvm::Triple::UnknownOS)
-        return archHasPortIO(triple) ? HwBridgeProfile::BareMetalPortIO
-                                     : HwBridgeProfile::BareMetalStub;
+        return ::sad::target::OsToken::Unknown;
+    if (triple.isOSLinux())
+        return ::sad::target::OsToken::Linux;
+    return ::sad::target::OsToken::OtherHosted;
+}
 
-    if (triple.isOSLinux() && linuxSyscallAbi(triple) != nullptr)
-        return HwBridgeProfile::LinuxSyscall;
+} // namespace
 
-    return HwBridgeProfile::HostedLibc;
+HwBridgeProfile classifyHwBridgeProfile(const llvm::Triple &triple) {
+    return ::sad::target::classifyHwBridgeProfile(archTokenOf(triple),
+                                                  osTokenOf(triple));
 }
 
 HwBridgeProfile FreestandingCodeGen::hwBridgeProfile() const {

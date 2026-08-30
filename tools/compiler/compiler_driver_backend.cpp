@@ -4,9 +4,14 @@
 // مشغّل المترجم — الواجهة الخلفية (المرحلة الوسطى + توليد الكود)
 // ============================================================================
 // هذا الملف يحتوي على:
-//   - run_middleend()         : تحسين SIR الوسيط (O0-O3)
 //   - run_backend()           : توليد LLVM IR/BC/OBJ/ASM/EXE + الربط
-//   - print_ir_if_requested() : طباعة SIR عند الطلب
+//
+// (AR) ⚠️ هذا الملفُّ **وحدَه** من ملفّاتِ السائقِ يلمسُ LLVM، وهو الوحيدُ
+//      المستبعَدُ من هدفِ `sad-build-native`. وقد انتقلت المرحلةُ الوسطى وطباعةُ
+//      SIR إلى `compiler_driver_middleend.cpp` كي يشترك فيهما المترجمان.
+// (EN) ⚠️ This is the *only* driver TU that touches LLVM, and the only one
+//      excluded from the `sad-build-native` target. The middle end and SIR
+//      printing moved to compiler_driver_middleend.cpp so both compilers share them.
 // ============================================================================
 
 #include "compiler_driver.h"
@@ -54,124 +59,6 @@ namespace sad
 {
     namespace driver
     {
-
-        bool CompilerDriver::run_middleend()
-        {
-            if (options_.verbose)
-            {
-                std::cout << "  [5/5] Optimizing... / التحسين...\n";
-            }
-
-            // ========================================================================
-            // (AR) مرحلة التحسين الوسيطة — SIR Optimizer
-            //      هذه المرحلة تطبّق ممرات التحسين على تمثيل SIR الوسيط قبل
-            //      التحويل إلى LLVM IR. الممرات المدعومة حسب مستوى التحسين:
-            //
-            //      O0: بلا تحسين — تُتخطى بالكامل (للتطوير والتنقيح)
-            //      O1: طي الثوابت + إزالة الكود الميت
-            //           - طي الثوابت: حساب التعبيرات الثابتة أثناء الترجمة بدل التنفيذ
-            //             مثال: 2 + 3 → 5 مباشرة في وقت الترجمة بدل تعليمة ADD
-            //           - إزالة الكود الميت: حذف التعليمات التي لا تُستخدم نتائجها
-            //      O2: O1 + نشر النسخ + حذف التعبيرات الجزئية المشتركة (CSE)
-            //           - نشر النسخ: تعقّب %b = %a واستبدال الاستخدامات مباشرة بـ %a
-            //           - CSE: اكتشاف التعبيرات المتكررة وحساب قيمتها مرة واحدة فقط
-            //      O3: O2 + دمج السجلات
-            //           - دمج السجلات: تقليل عدد السجلات الافتراضية المستخدمة
-            //
-            // (EN) Middle-end optimization phase — SIR Optimizer
-            //      Applies optimization passes on SIR intermediate representation before
-            //      converting to LLVM IR. Supported passes per optimization level:
-            //
-            //      O0: No optimization — skipped entirely (for development/debugging)
-            //      O1: Constant folding + Dead code elimination
-            //      O2: O1 + Copy propagation + CSE (Common Subexpression Elimination)
-            //      O3: O2 + Register coalescing
-            // ========================================================================
-
-            // (AR) تخطي التحسين في المستوى O0
-            // (EN) Skip optimization at O0 level
-            if (options_.opt_level == OptimizationLevel::O0)
-            {
-                if (options_.verbose)
-                {
-                    std::cout << "  ✓ Optimization skipped (O0) / تمّ تخطي التحسين (O0)\n";
-                }
-                return true;
-            }
-
-            // (AR) التحقق من وجود وحدة SIR صالحة
-            // (EN) Verify valid SIR module exists
-            if (!sir_module_)
-            {
-                if (options_.verbose)
-                {
-                    std::cout << "  ⚠ No SIR module to optimize / لا توجد وحدة SIR للتحسين\n";
-                }
-                return true;
-            }
-
-            // (AR) تحويل مستوى التحسين من صيغة المشغّل إلى صيغة المحسِّن
-            //      Os و Oz تُعامَلان كـ O2 (تحسينات قياسية، والتركيز على الحجم يتم في مستوى LLVM لاحقاً)
-            // (EN) Convert optimization level from driver format to optimizer format
-            //      Os and Oz are treated as O2 (standard optimizations, size focus at LLVM level later)
-            Sad::Compiler::Optimizer::OptimizationLevel optLevel;
-            switch (options_.opt_level)
-            {
-            case OptimizationLevel::O1:
-                optLevel = Sad::Compiler::Optimizer::OptimizationLevel::O1;
-                break;
-            case OptimizationLevel::O3:
-                optLevel = Sad::Compiler::Optimizer::OptimizationLevel::O3;
-                break;
-            case OptimizationLevel::O2:
-            case OptimizationLevel::Os:
-            case OptimizationLevel::Oz:
-            default:
-                optLevel = Sad::Compiler::Optimizer::OptimizationLevel::O2;
-                break;
-            }
-
-            // (AR) إنشاء المحسِّن وتشغيله على وحدة SIR
-            // (EN) Create optimizer and run on SIR module
-            try
-            {
-                auto optimizer = Sad::Compiler::Optimizer::createOptimizer(optLevel);
-
-                if (options_.verbose)
-                {
-                    optimizer->setDebugMode(true);
-                }
-
-                bool changed = optimizer->optimize(sir_module_);
-
-                if (options_.verbose)
-                {
-                    optimizer->printStats();
-                    if (changed)
-                    {
-                        std::cout << "  ✓ Optimization applied / تمّ تطبيق التحسينات\n";
-                    }
-                    else
-                    {
-                        std::cout << "  ✓ No optimizations needed / لا توجد تحسينات لازمة\n";
-                    }
-                }
-            }
-            catch (const std::exception &e)
-            {
-                // (AR) خطأ في التحسين — نتابع بدون تحسين بدلاً من الفشل الكامل
-                //      هذا أفضل من إيقاف عملية الترجمة بأكملها
-                // (EN) Optimization error — continue without optimization instead of full failure
-                //      This is better than stopping the entire compilation process
-                if (options_.verbose)
-                {
-                    std::cerr << "  ? Optimization error (continuing): " << e.what() << "\n";
-                    std::cerr << "  ⚠ خطأ في التحسين (متابعة): " << e.what() << "\n";
-                }
-            }
-
-            return true;
-        }
 
         bool CompilerDriver::run_backend()
         {
@@ -246,7 +133,7 @@ namespace sad
                 // ================================================================
                 // (EN) Step 1: Create and initialize LLVM code generator
                 // ================================================================
-                llvm_codegen_ = std::make_unique<Sad::LLVM::LLVMCodeGen>();
+                llvm_codegen_ = std::make_shared<Sad::LLVM::LLVMCodeGen>();
 
                 // (AR) تمرير وضع الوحدة لتخطي غلاف main
                 // (EN) Pass module mode to skip main wrapper
@@ -762,16 +649,6 @@ namespace sad
             }
 
             return true;
-        }
-
-        void CompilerDriver::print_ir_if_requested()
-        {
-            if (options_.emit_sir && sir_module_)
-            {
-                std::cout << "\n========== SIR ==========\n";
-                sir_module_->print(); // print() doesn't take ostream parameter
-                std::cout << "=========================\n\n";
-            }
         }
 
     } // namespace driver

@@ -58,6 +58,7 @@
 #include <sstream>
 #include <chrono>
 #include <algorithm>
+#include <filesystem>
 #include <iomanip>
 #include <limits>
 #include <cstdlib>
@@ -77,6 +78,60 @@
 #undef ERROR // Windows defines this
 #undef FATAL // Windows might define this too
 #endif
+
+// ═══════════════════════════════════════════════════════════════════════════
+// (AR) 🔑 **الـDLL المُورَّدةُ تُنسَخُ بجوارِ الثنائيِّ المُنتَج.**
+//      برنامجُ واجهةٍ مترجَمٌ على ويندوز يستوردُ `SDL2.dll`، ومُحمِّلُ ويندوز
+//      يبحثُ عنها في **مجلّدِ الثنائيِّ** أوّلًا ثمّ في مسارِ النظام. فبرنامجٌ
+//      يُنقَلُ إلى أيِّ مجلّدٍ آخرَ **لا يبدأُ العملَ أصلًا**: يخرجُ بالرمز
+//      `0xC0000135` (STATUS_DLL_NOT_FOUND) بلا حرفٍ واحدٍ في stdout ولا stderr.
+//
+//      وقد قِيسَ ذلك على CI: ستّةُ برامجِ واجهةٍ في ويندوز Debug تُترجَمُ
+//      وتُربَطُ بنجاحٍ ثمّ تطبعُ لا شيء — والرمزُ `-1073741515` هو هو.
+//      وخانةُ Release كانت خضراءَ **بالمصادفةِ لا بالصحّة**: `/O2` يُسقِطُ
+//      المرجعَ إلى الراسمِ فيختفي استيرادُ `SDL2.dll` من الثنائيِّ رأسًا،
+//      بينما `/Od` يُبقيه. أي أنّ قابليّةَ تشغيلِ البرنامجِ كانت معلَّقةً على
+//      حادثةِ تحسين — وهو عطبُ منتَجٍ لا عَرَضُ تكامل: أيُّ مستخدمٍ يترجمُ
+//      برنامجَ واجهةٍ وينقلُه يقعُ فيه.
+// (EN) Copy vendored DLLs beside the produced binary. A compiled UI program on
+//      Windows imports SDL2.dll, and the loader looks in the BINARY'S directory
+//      first — so the program fails to start anywhere else, exiting with
+//      0xC0000135 (STATUS_DLL_NOT_FOUND) and writing nothing to stdout/stderr.
+//      Measured on CI: six UI programs link fine and print nothing, exit code
+//      -1073741515. The Release cell was green BY ACCIDENT, not by correctness:
+//      /O2 drops the renderer reference so the SDL2.dll import disappears
+//      entirely, while /Od keeps it. Runnability hung on an optimization
+//      accident — a product defect, not an integration symptom.
+// ═══════════════════════════════════════════════════════════════════════════
+namespace
+{
+#ifdef _WIN32
+    std::filesystem::path find_dll_under(const std::filesystem::path &base,
+                                         const std::string &dll_name)
+    {
+        std::error_code ec;
+        if (base.empty() || !std::filesystem::is_directory(base, ec))
+        {
+            return {};
+        }
+        for (std::filesystem::recursive_directory_iterator it(
+                 base, std::filesystem::directory_options::skip_permission_denied, ec),
+             end;
+             it != end; it.increment(ec))
+        {
+            if (ec)
+            {
+                break;
+            }
+            if (it->is_regular_file(ec) && it->path().filename().string() == dll_name)
+            {
+                return it->path();
+            }
+        }
+        return {};
+    }
+#endif
+} // namespace
 
 namespace sad
 {
@@ -490,6 +545,106 @@ namespace sad
         // needed for basic output. But input functions (اقرأ) need runtime.
         // ============================================================================
 
+        // (AR) نسخُ الـDLL المُورَّدةِ بجوارِ الثنائيِّ المُنتَج — انظرَ التعليقَ
+        //      المطوّلَ فوقَ `find_dll_under`. تُستدعى بعدَ كلِّ ربطٍ ناجحٍ في
+        //      المسارات الثلاثةِ (LLD المدمج · clang · link.exe): ثلاثُ نسخٍ من
+        //      «نجح الربط»، وسدُّ واحدةٍ منها يتركُ الأخرَيَينِ تُنتجانِ ثنائيًّا
+        //      لا يعمل.
+        // (EN) Copy vendored DLLs next to the produced binary — see the long
+        //      comment above find_dll_under. Called from all THREE success paths
+        //      (embedded LLD, clang, link.exe): sealing one would leave the other
+        //      two producing a binary that cannot start.
+        void CompilerDriver::copy_vendored_runtime_dlls(const std::string &output_file) const
+        {
+#ifdef _WIN32
+            // (AR) الشرطُ هو الشرطُ نفسُه الذي ربطَ به: إن لم تُلتقَط مكتبةُ
+            //      الرسومِ فلا استيرادَ لـSDL2 ولا داعيَ لنسخِ شيء.
+            // (EN) Gate on exactly what the link gated on: no graphics runtime
+            //      picked up ⇒ no SDL2 import ⇒ nothing to copy.
+            std::vector<std::string> probe_paths;
+            std::vector<std::string> probe_libs;
+            append_bundled_network_libraries(probe_paths, probe_libs);
+            const bool links_ui =
+                std::find(probe_libs.begin(), probe_libs.end(), "sad_graphics_runtime") != probe_libs.end();
+            if (!links_ui)
+            {
+                return;
+            }
+
+            std::error_code ec;
+            const auto out_dir = std::filesystem::absolute(
+                                     std::filesystem::path(output_file), ec)
+                                     .parent_path();
+            if (ec || out_dir.empty())
+            {
+                return;
+            }
+
+            const auto compiler_dir = std::filesystem::absolute(get_executable_dir(), ec).lexically_normal();
+            std::filesystem::path vendor;
+            if (!ec)
+            {
+                static const std::filesystem::path kVendorRelative =
+                    std::filesystem::path("features") / "graphics" / "third_party";
+                for (auto dir = compiler_dir; !dir.empty(); dir = dir.parent_path())
+                {
+                    std::error_code probe_ec;
+                    if (std::filesystem::is_directory(dir / kVendorRelative, probe_ec))
+                    {
+                        vendor = dir / kVendorRelative;
+                        break;
+                    }
+                    if (dir == dir.parent_path())
+                    {
+                        break;
+                    }
+                }
+            }
+
+            // (AR) SDL2_ttf اختياريّةٌ فعلًا (المُورَّداتُ قد تخلو منها ويُحذَّرُ
+            //      عندَ الربط)، وSDL2 ليست اختياريّة — لكن لا يُحمَّرُ هنا: الربطُ
+            //      نجحَ فعلًا، وسقوطُ النسخِ يُعلَنُ تحذيرًا لا يُفشِلُ ترجمةً تمّت.
+            // (EN) SDL2_ttf really is optional; SDL2 is not — but this never fails
+            //      the build: the link already succeeded, so a failed copy warns.
+            for (const char *dll_name : {"SDL2.dll", "SDL2_ttf.dll"})
+            {
+                const auto target = out_dir / dll_name;
+                std::error_code exists_ec;
+                if (std::filesystem::exists(target, exists_ec))
+                {
+                    continue;
+                }
+                auto source = compiler_dir.empty() ? std::filesystem::path{}
+                                                   : compiler_dir / dll_name;
+                std::error_code src_ec;
+                if (source.empty() || !std::filesystem::exists(source, src_ec))
+                {
+                    source = find_dll_under(vendor, dll_name);
+                }
+                if (source.empty())
+                {
+                    continue;
+                }
+                std::error_code copy_ec;
+                std::filesystem::copy_file(source, target,
+                                           std::filesystem::copy_options::overwrite_existing, copy_ec);
+                if (copy_ec && options_.verbose)
+                {
+                    std::cerr << "  تحذير: تعذّر نسخ " << dll_name << " بجوار المخرَج ("
+                              << copy_ec.message() << ")\n";
+                    std::cerr << "  Warning: could not copy " << dll_name
+                              << " next to the output (" << copy_ec.message() << ")\n";
+                }
+                else if (!copy_ec && options_.verbose)
+                {
+                    std::cerr << "  نُسِخَت " << dll_name << " بجوار المخرَج / copied next to output\n";
+                }
+            }
+#else
+            (void)output_file;
+#endif
+        }
+
         bool CompilerDriver::link_object_to_executable(const std::string &obj_path,
                                                        const std::string &output_file,
                                                        llvm::Module *module)
@@ -551,6 +706,7 @@ namespace sad
                 // (EN) Call embedded LLD
                 if (link_with_embedded_lld(obj_path, runtime_obj_path, output_file))
                 {
+                    copy_vendored_runtime_dlls(output_file);
                     return true;
                 }
 
@@ -780,6 +936,7 @@ namespace sad
                     return false;
                 }
 
+                copy_vendored_runtime_dlls(output_file);
                 return true;
             }
             else
@@ -851,6 +1008,7 @@ namespace sad
                             std::to_string(result) + ")");
                         return false;
                     }
+                    copy_vendored_runtime_dlls(output_file);
                     return true;
                 }
 #endif
