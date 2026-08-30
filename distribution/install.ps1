@@ -626,10 +626,19 @@ function Install-Sad {
         # (AR) حكمٌ لا وصف: تثبيتٌ بلا أمرٍ واحدٍ قابلٍ للتشغيل إخفاقٌ يُعلَن.
         # (EN) A judgement, not a description: an install with no runnable
         #      command is a failure to announce, not a success to be disproved.
+        # (AR) 🔑 هذه القائمةُ نسخةٌ ثالثةٌ من جدولِ الأدواتِ الواحد
+        #      (scripts/ci/release_tools.sh: SAD_REQUIRED_*). المُثبِّتُ يُشحَنُ
+        #      وحدَه فلا يستطيعُ استيرادَه، فيربطُ الطرفَينِ حارسُ
+        #      scripts/ci/check_installer_tool_lists.py. كانت «compiler»
+        #      تطلبُ sadc وحدَه و«full» تُغفِلُ sad-build، فيقبلُ المُثبِّتُ
+        #      حزمةً يرفضُها المُصدِرُ ويقولُ للمستخدمِ «تمّ» وهي ناقصة.
+        # (EN) A third copy of the single tool table; bound to it by
+        #      check_installer_tool_lists.py. It had drifted: "compiler"
+        #      required only sadc and "full" omitted sad-build.
         $مطلوب = switch ($Components) {
             "interpreter" { @("sad", "sad-run", "sad-lsp", "sad-check") }
-            "compiler"    { @("sadc") }
-            "full"        { @("sad", "sad-run", "sad-lsp", "sad-check", "sadc") }
+            "compiler"    { @("sadc", "sad-build") }
+            "full"        { @("sad", "sad-run", "sad-lsp", "sad-check", "sadc", "sad-build") }
             default       { @("sad") }
         }
         $ناقص = @()

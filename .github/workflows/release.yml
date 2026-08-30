@@ -774,26 +774,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ════════════════════════════════════════════════════════════════════
-  # 4. تحديث سكريبتات التثبيت (اختياري)
+  # (AR) 🔑 حُذِفت وظيفةُ «تحديثِ سكريبتاتِ التثبيت». لم تكن تُحدِّثُ شيئًا:
+  #      خطوتُها الوحيدةُ `echo "سكريبتات التثبيت محدّثة"` — وصفٌ يدّعي فعلًا
+  #      لم يقعْ، فيقرأُ القارئُ خانةً خضراءَ فيظنُّ السكريبتاتِ مرفوعةً وهي
+  #      لم تُلمَس. وكانت تسحبُ `contents: write` وتفحصُ `ref: main` — فرعًا
+  #      ليس فرعَ هذا المستودعِ الأساسيَّ — لتفعلَ لا شيء. ونشرُ السكريبتاتِ
+  #      على sad-lang.org عملٌ لم يُبنَ بعدُ؛ فحين يُبنى يُكتَبُ فعلًا يُقاس.
+  # (EN) The "update install scripts" job was deleted: its only step echoed
+  #      "install scripts updated" while updating nothing — a green cell
+  #      asserting an act that never happened. It also took contents: write
+  #      and checked out `ref: main`, not this repo default branch, to do
+  #      nothing. Publishing to sad-lang.org is unbuilt work; when it is
+  #      built it will be written as an act that can be measured.
   # ════════════════════════════════════════════════════════════════════
-  update-install-scripts:
-    name: "تحديث سكريبتات التثبيت / Update Install Scripts"
-    needs: [release]
-    runs-on: ubuntu-latest
-    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ غيرُ مقيس — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
-    timeout-minutes: 20
-    if: github.event_name == 'push'
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v7
-        timeout-minutes: 15
-        with:
-          ref: main
-
-      - name: "نسخ السكريبتات / Copy Scripts"
-        run: |
-          # يمكن رفع السكريبتات لخادم sad-lang.org أو GitHub Pages
-          echo "سكريبتات التثبيت محدّثة ومتاحة في distribution/"
-          echo "للنشر على sad-lang.org، ارفع install.ps1 و install.sh"
