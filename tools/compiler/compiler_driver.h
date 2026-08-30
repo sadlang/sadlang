@@ -806,6 +806,19 @@ namespace sad
                                                   std::vector<std::string> &libraries) const;
 
             /**
+             * @brief (AR) نسخُ الـDLL المُورَّدةِ (SDL2) بجوارَ الثنائيِّ المُنتَج
+             * @brief (EN) Copy vendored runtime DLLs (SDL2) next to the produced binary
+             *
+             * (AR) مُحمِّلُ ويندوزَ يبحثُ في مجلّدِ الثنائيِّ أوّلًا، فبرنامجُ واجهةٍ
+             *      مترجَمٌ بلا `SDL2.dll` بجوارِه **لا يبدأُ العملَ** ويخرجُ بـ
+             *      `0xC0000135` بلا مخرَجٍ ولا خطأ. لا يُفشِلُ الترجمةَ: الربطُ تمّ.
+             * (EN) The Windows loader searches the binary's directory first, so a
+             *      compiled UI program without SDL2.dll beside it never starts and
+             *      exits 0xC0000135 silently. Never fails the build: the link is done.
+             */
+            void copy_vendored_runtime_dlls(const std::string &output_file) const;
+
+            /**
              * @brief (AR) علم توافق CRT الذي يجب تمريره إلى clang على ويندوز
              * @brief (EN) Windows CRT compatibility flag to pass to clang
              */
