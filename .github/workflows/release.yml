@@ -629,9 +629,10 @@ jobs:
   #      وتقعُ **قبلَ** النشرِ لا بعدَه: حزمةٌ لا تعملُ تُوقِفُ الإصدارَ بدل أن
   #      تُنشَرَ ثمّ تُسحَب. و`release` تعتمدُ عليها فلا تمرُّ من فوقِها.
   #
-  #      ⚠️ وما لا تقيسُه معلَنٌ لا مسكوتٌ عنه: خانةُ `linux-aarch64` لا تُشغَّلُ
-  #      هنا لأنّ رَكّاضَها x86_64 ولا يُنفِّذُ ثنائيَّ ARM. فحزمةُ ARM ما زالت
-  #      مفتوحةً لا مُشغَّلة.
+  #      وحزمةُ `linux-aarch64` تُشغَّلُ على رَكّاضِ ARM أصليٍّ (`ubuntu-22.04-arm`)
+  #      وهو الرَّكّاضُ الذي بناها — لا محاكاةً بـQEMU. والفرقُ حُكميٌّ لا ذوقيّ:
+  #      محاكي وضعِ المستخدمِ يُعيرُ الثنائيَّ مُحمِّلَ المضيفِ ومكتباتِه، فيُخفي
+  #      بالضبطِ ما نقيسُه هنا — مكتبةً مفقودةً أو أرضيّةَ glibc أعلى ممّا وُعِد.
   # (EN) "The archive contains it" is not "the binary runs".
   #      The publish job's verification opens the archive and requires members
   #      by name — that stops an empty package, not a binary that cannot start
@@ -659,6 +660,16 @@ jobs:
           - os: linux
             arch: x86_64
             runner: ubuntu-22.04
+          # (AR) ARM أصليٌّ لا مُحاكًى — والرَّكّاضُ هو عينُه الذي بنى الحزمةَ
+          #      في `build-interpreter`. ولا تُبنى حزمةُ مترجمٍ لـaarch64، فالمتاحُ
+          #      هنا حزمةُ المفسّرِ وحدَها والسكريبتُ يشتقُّ ذلك من اسمِ الأرشيف.
+          # (EN) Native ARM, not emulated — the same runner that built the
+          #      package. No aarch64 compiler package is built, so only the
+          #      interpreter archive appears here; the script derives that from
+          #      the archive's own name.
+          - os: linux
+            arch: aarch64
+            runner: ubuntu-22.04-arm
           - os: windows
             arch: x86_64
             runner: windows-2022
@@ -936,8 +947,33 @@ jobs:
   #      وهذه تُحاكِمُ **الطريقَ الذي يسلكُه المستخدمُ حقًّا**: نداءُ الواجهةِ
   #      البرمجيّةِ، وحلُّ رابطِ التنزيل، والفكُّ، وموضعُ `bin/`.
   #
-  #      ⚠️ وما لا تقيسُه معلَن: تُثبِّتُ `interpreter` وحدَه. مكوّنُ `compiler`
-  #      يجرُّ منطقَ تثبيتِ LLVM في المُثبِّتِ وهو طريقٌ أطولُ لم يُقَسْ بعد.
+  #      ⚠️ وما لا تقيسُه معلَنٌ لا مسكوتٌ عنه — وهو **قيدُ المُثبِّتِ لا قيدُنا**:
+  #      مكوّنُ `compiler` مقيسٌ على لينكسَ ولا يُقاسُ على ويندوز، لأنّ
+  #      `install.ps1` **لا سبيلَ فيه إلى طريقٍ غيرِ تفاعليٍّ لهذا المكوّن**:
+  #      لا مُعامِلَ `-LLVMPath` فيه، وإذا لم يَجدْ LLVM سألَ بـ`Read-Host`،
+  #      وقراءةُ نهايةِ الملفِّ في وظيفةٍ بلا طرفيّةٍ تُرجِعُ فراغًا فيقعُ على
+  #      الخيارِ الافتراضيِّ: تنزيلُ LLVM وتثبيتُه. فقياسُه اليومَ يعني إمّا
+  #      شوطًا يُنزِّلُ مئاتِ الميغاباتِ في كلِّ إصدار، وإمّا اتّكالًا على أنّ
+  #      صورةَ الرَّكّاضِ تحملُ LLVM عَرَضًا — وكلاهما قياسٌ لا يُوثَقُ به.
+  #      والعلاجُ الصحيحُ رقعةٌ في `install.ps1` (مُعامِلٌ صريحٌ للمسار) تُكتَبُ
+  #      وحدَها، لا حشوُها في هذا الطلب.
+  #      وعلى لينكسَ لا يقعُ هذا: `find_llvm` يجدُ LLVM المثبَّتةَ فلا يسألُ
+  #      أصلًا، ويُمرَّرُ `--llvm-path` صريحًا فوقَ ذلك. ويبقى **فرعُ التثبيتِ
+  #      التلقائيِّ** في `install.sh` غيرَ مقيسٍ عمدًا للسببِ نفسِه.
+  # (EN) Declared gap — and it is the INSTALLER's constraint, not ours: the
+  #      `compiler` component is measured on Linux and not on Windows, because
+  #      install.ps1 has no non-interactive path for it: there is no -LLVMPath
+  #      parameter, and when it cannot find LLVM it asks via Read-Host. In a
+  #      TTY-less job that read returns empty and falls to the default choice:
+  #      download and install LLVM. Measuring it today would mean either
+  #      hundreds of megabytes per release or relying on the runner image
+  #      happening to ship LLVM — neither is a trustworthy measurement. The
+  #      real remedy is a patch to install.ps1 (an explicit path parameter),
+  #      written on its own rather than stuffed into this PR.
+  #      Linux does not have the problem: find_llvm locates the installed LLVM
+  #      so nothing is asked, and --llvm-path is passed explicitly on top. The
+  #      auto-install branch of install.sh stays deliberately unmeasured for
+  #      the same reason.
   # (EN) The installers had never been executed in any job.
   #      check_installer_tool_lists.py measures their LISTS against the tool
   #      table — that stops name drift, and says nothing about whether the
@@ -952,7 +988,7 @@ jobs:
   #      not yet measured.
   # ════════════════════════════════════════════════════════════════════
   verify-installer:
-    name: "تشغيلُ المُثبِّت / Run the installer (${{ matrix.os }})"
+    name: "تشغيلُ المُثبِّت / Run the installer (${{ matrix.os }} · ${{ matrix.component }})"
     needs: [release]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
@@ -970,8 +1006,17 @@ jobs:
         include:
           - os: linux
             runner: ubuntu-22.04
+            component: interpreter
+          - os: linux
+            runner: ubuntu-22.04
+            component: compiler
+          # (AR) لا خانةَ `windows · compiler` — انظر التعليلَ أعلى الوظيفة:
+          #      المانعُ في `install.ps1` نفسِه لا في هذا المجرى.
+          # (EN) No `windows · compiler` cell — see the note above the job: the
+          #      obstacle is in install.ps1 itself, not in this workflow.
           - os: windows
             runner: windows-2022
+            component: interpreter
 
     steps:
       - name: "استنساخ المصدر / Checkout"
@@ -988,15 +1033,45 @@ jobs:
             echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
           fi
 
+      # (AR) LLVM تُثبَّتُ **قبلَ** المُثبِّتِ عمدًا: عندَها يجدُها `find_llvm`
+      #      فلا يسألُ سؤالًا تفاعليًّا أصلًا، ويُمرَّرُ المسارُ صريحًا فوقَ ذلك.
+      #      والمقيسُ هنا مسارُ «LLVM موجودة» — أي ما يفعلُه مستخدمٌ مُهيَّأٌ
+      #      جهازُه — لا فرعُ التثبيتِ التلقائيِّ الذي يُنزِّلُ ٢٠٠ ميغابايت.
+      # (EN) LLVM is installed BEFORE the installer on purpose: find_llvm then
+      #      locates it and asks nothing interactively, and the path is passed
+      #      explicitly on top. What is measured is the "LLVM present" route —
+      #      a user with a prepared machine — not the 200MB auto-install branch.
+      - name: "تهيئةُ LLVM لمكوّنِ المترجم / LLVM for the compiler component"
+        if: matrix.os != 'windows' && matrix.component == 'compiler'
+        shell: bash
+        run: |
+          CODENAME=$(lsb_release -cs)
+          bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            https://apt.llvm.org/llvm-snapshot.gpg.key
+          sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg \
+            < "$RUNNER_TEMP/llvm-snapshot.gpg.key"
+          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
+          bash scripts/ci/apt_retry.sh update
+          bash scripts/ci/apt_retry.sh install -y llvm-18 clang-18 lld-18
+          echo "SAD_LLVM_PATH=/usr/lib/llvm-18" >> $GITHUB_ENV
+
       - name: "تثبيتٌ حقيقيٌّ / Real install (POSIX)"
         if: matrix.os != 'windows'
         shell: bash
         run: |
+          # (AR) `--llvm-path` يُمرَّرُ لمكوّنِ المترجمِ وحدَه؛ ولمكوّنِ المفسّرِ
+          #      لا معنى له ولا يُمرَّرُ، فلا يُقاسُ إعدادٌ لا يستعملُه المستخدم.
+          # (EN) --llvm-path only for the compiler component; passing it for the
+          #      interpreter would measure a setting no user would use.
+          llvm_args=""
+          if [ -n "${SAD_LLVM_PATH:-}" ]; then
+            llvm_args="--llvm-path $SAD_LLVM_PATH"
+          fi
           sh distribution/install.sh \
-            --components interpreter \
+            --components "${{ matrix.component }}" \
             --version "${{ steps.version.outputs.version }}" \
             --dir "$RUNNER_TEMP/sad-home" \
-            --no-path --no-gui
+            --no-path --no-gui $llvm_args
           echo "SAD_HOME=$RUNNER_TEMP/sad-home" >> $GITHUB_ENV
 
       - name: "تثبيتٌ حقيقيٌّ / Real install (Windows)"
@@ -1004,7 +1079,7 @@ jobs:
         shell: pwsh
         run: |
           & .\distribution\install.ps1 `
-            -Components interpreter `
+            -Components "${{ matrix.component }}" `
             -Version "${{ steps.version.outputs.version }}" `
             -InstallDir "$env:RUNNER_TEMP\sad-home" `
             -NoPath -Force
@@ -1028,6 +1103,24 @@ jobs:
             exit 1
           fi
 
-          sad_smoke_package "$bindir" "$SAD_REQUIRED_INTERPRETER"
-          sad_smoke_lsp "$bindir/sad-lsp"
-          echo "✅ التثبيتُ الحقيقيُّ عملَ من طرفٍ إلى طرف / the real install works end to end"
+          # (AR) القائمةُ تُشتقُّ من المكوّنِ المطلوبِ عبرَ الجدولِ الواحد.
+          #      و`*)` تسقطُ ولا تُسكِتُ: مكوّنٌ جديدٌ يُضافُ إلى المصفوفةِ بلا
+          #      قائمةٍ سيمرُّ أخضرَ وقد قاسَ صفرًا لو كان الفرعُ الافتراضيُّ صامتًا.
+          # (EN) The list is derived from the requested component via the single
+          #      table. The default arm FAILS rather than passing silently: a new
+          #      matrix component with no list would otherwise go green having
+          #      measured nothing.
+          case "${{ matrix.component }}" in
+            interpreter) list="$SAD_REQUIRED_INTERPRETER" ;;
+            compiler)    list="$SAD_REQUIRED_COMPILER" ;;
+            full)        list="$SAD_REQUIRED_FULL" ;;
+            *) echo "::error::مكوّنٌ بلا قائمةٍ في الجدول / component with no list: ${{ matrix.component }}"; exit 1 ;;
+          esac
+
+          sad_smoke_package "$bindir" "$list"
+          # (AR) المُصافحةُ حيثُ وُعِدَ بالخادمِ لا في كلِّ مكوّن.
+          # (EN) Handshake only where the server was promised.
+          case " $list " in
+            *" sad-lsp "*) sad_smoke_lsp "$bindir/sad-lsp" ;;
+          esac
+          echo "✅ التثبيتُ الحقيقيُّ عملَ من طرفٍ إلى طرف / the real install works end to end: ${{ matrix.component }}"
