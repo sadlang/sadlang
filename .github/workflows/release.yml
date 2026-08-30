@@ -686,6 +686,33 @@ jobs:
           pattern: "*-${{ matrix.os }}-${{ matrix.arch }}"
           path: pkgs/
 
+      # (AR) 🔑 **الشرطُ المُعلَنُ يُوفَّرُ؛ وغيرُ المُعلَنِ يُكشَفُ.**
+      #      حزمةُ المترجمِ تُعلِنُ اشتراطَ LLVM 18 في المُثبِّتَينِ وفي وثائقِها،
+      #      فتوفيرُه هنا قياسٌ للعقدِ المكتوبِ لا تحايلٌ عليه. أمّا ما لم
+      #      يُعلَنْ فيبقى مكشوفًا لـ`sad_require_shared_deps` — وهذا هو الفرقُ
+      #      بين مهيّئٍ يقيسُ الوعدَ ومهيّئٍ يُخفي خُلْفَه.
+      #      و`libllvm18` وحدَها: حزمةُ التشغيلِ لا حزمةُ التطوير، فالمستخدمُ
+      #      لا يُثبِّتُ `-dev` ليُشغِّلَ مترجمًا.
+      #      ولا تلزمُ خانةَ aarch64: لا تُبنى لها حزمةُ مترجمٍ أصلًا.
+      # (EN) The DECLARED prerequisite is provided; the undeclared one is
+      #      exposed. The compiler package declares LLVM 18 in both installers
+      #      and its docs, so providing it here measures the written contract
+      #      rather than evading it. Anything undeclared stays exposed to
+      #      sad_require_shared_deps. Runtime package only — a user does not
+      #      install -dev to run a compiler. Not needed on aarch64: no compiler
+      #      package is built for it.
+      - name: "شرطُ المترجمِ المُعلَن / The compiler's declared prerequisite"
+        if: matrix.os == 'linux' && matrix.arch == 'x86_64'
+        run: |
+          CODENAME=$(lsb_release -cs)
+          bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            https://apt.llvm.org/llvm-snapshot.gpg.key
+          sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg \
+            < "$RUNNER_TEMP/llvm-snapshot.gpg.key"
+          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
+          bash scripts/ci/apt_retry.sh update
+          bash scripts/ci/apt_retry.sh install -y libllvm18
+
       - name: "فتحُ كلِّ حزمةٍ وتشغيلُ أدواتِها / Extract every package and run its tools"
         shell: bash
         run: |
@@ -737,9 +764,25 @@ jobs:
             esac
 
             echo "── $base (${bindir})"
+            # (AR) العقدُ الخفيُّ يُنطَقُ قبلَ التشغيل. و`libLLVM-18.so` وحدَها
+            #      مأذونٌ لها: حزمةُ المترجمِ تُعلِنُ اشتراطَ LLVM 18 صراحةً في
+            #      المُثبِّتَينِ وفي وثائقِها، والمُثبِّتُ يُثبِّتُها. وما عداها عقدٌ
+            #      لم يُصرَّحْ به لأحد.
+            # (EN) The hidden contract is stated before execution. Only
+            #      libLLVM-18.so is allowed: the compiler package declares an
+            #      LLVM 18 prerequisite in both installers and its docs, and the
+            #      installer provides it. Anything else was never declared.
+            sad_require_shared_deps "$bindir" "libLLVM-18.so.1 libLLVM-18.so" || exit 1
             sad_smoke_package "$bindir" "$list" || exit 1
             case " $list " in
               *" sad-lsp "*) sad_smoke_lsp "$bindir/sad-lsp" || exit 1 ;;
+            esac
+            # (AR) الهُبُّ يُستنطَقُ عن اكتشافِه لا عن إصدارِه — انظر التعليلَ
+            #      في `sad_smoke_hub_dispatch`: عَلَمُ الإصدارِ ثابتٌ لا يمسُّ
+            #      الاكتشاف، وهُبٌّ وحيدٌ يجتازُه بينما كلُّ أمرٍ موعودٍ غائب.
+            # (EN) The hub is interrogated about its discovery, not its version.
+            case " $list " in
+              *" sad "*) sad_smoke_hub_dispatch "$bindir" "$list" || exit 1 ;;
             esac
             checked=$((checked + 1))
           done
@@ -1122,5 +1165,12 @@ jobs:
           # (EN) Handshake only where the server was promised.
           case " $list " in
             *" sad-lsp "*) sad_smoke_lsp "$bindir/sad-lsp" ;;
+          esac
+          # (AR) وهنا يزيدُ المعنى: المُثبِّتُ هو من وضعَ الشقيقاتِ، فسؤالُ
+          #      الهُبِّ عن اكتشافِه يقيسُ **فعلَ المُثبِّتِ** لا الأرشيفَ وحدَه.
+          # (EN) Here it means more: the installer placed the siblings, so
+          #      asking the hub what it discovers measures the INSTALLER's act.
+          case " $list " in
+            *" sad "*) sad_smoke_hub_dispatch "$bindir" "$list" ;;
           esac
           echo "✅ التثبيتُ الحقيقيُّ عملَ من طرفٍ إلى طرف / the real install works end to end: ${{ matrix.component }}"

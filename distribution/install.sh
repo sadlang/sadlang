@@ -814,9 +814,30 @@ EOF
 
     # التحقق النهائي
     step "التحقق من التثبيت..."
+    # (AR) 🔑 لا إملاءَ واحدًا للجميع. `language-truth/cli_flags.yaml` يجعلُ
+    #      `--إصدار` الاسمَ الطويلَ الوحيدَ للمحرّكَين وقد أُلغيت المرادفاتُ
+    #      الإنجليزيّةُ عمدًا، بينما الهُبُّ خارجَ ذلك الجدولِ ويقبلُ الإنجليزيّة.
+    #      وكان السطرُ يكتبُ `--version` للاثنَين، فـ`sadc --version` لا يُفهَمُ
+    #      عَلَمًا بل يُؤخَذُ **اسمَ ملفٍّ يُترجَم**، فيطبعُ المُثبِّتُ خطأً في
+    #      موضعِ الإصدارِ ويقولُ «تمّ» فوقَه.
+    #      والمُثبِّتُ يُشحَنُ وحدَه فلا يستطيعُ استيرادَ جدولِ الأدوات، ونسخُ
+    #      الجدولِ هنا يصنعُ نسخةً رابعةً تنجرف — فيُجرَّبُ الإملاءانِ ويُؤخَذُ
+    #      ما نجح. والتساهلُ هنا في محلِّه: هذا سطرُ عرضٍ لا حَكَم.
+    # (EN) There is no single spelling. cli_flags.yaml makes --إصدار the only
+    #      long name for the two engines (English synonyms deliberately
+    #      abolished), while the hub sits outside that table and takes English.
+    #      This line wrote --version for both, so `sadc --version` was read not
+    #      as a flag but as a SOURCE FILE TO COMPILE — the installer printed an
+    #      error where the version belongs and called the install done.
+    #      The installer ships standalone and cannot import the tool table, and
+    #      copying it here would create a fourth copy that drifts — so both
+    #      spellings are tried and whichever answers is used. Being forgiving is
+    #      right here: this is a display line, not a judgement.
     for exe in sad sadc; do
         if [ -x "$BIN_DIR/$exe" ]; then
-            V=$("$BIN_DIR/$exe" --version 2>&1 | head -1 || echo "موجود")
+            V=$("$BIN_DIR/$exe" --إصدار 2>/dev/null | head -1) || V=""
+            [ -n "$V" ] || V=$("$BIN_DIR/$exe" --version 2>/dev/null | head -1) || V=""
+            [ -n "$V" ] || V="موجود"
             ok "$exe: $V"
         fi
     done

@@ -335,8 +335,11 @@ sad_require_version_flags() {
 #      حزمةً فارغةً، ولا يمنعُ ثنائيًّا لا يبدأُ العملَ أصلًا: مكتبةٌ مشتركةٌ
 #      مفقودةٌ، أو رمزٌ غيرُ محلول، أو glibc أحدثَ من أرضيّةِ الهدف. ولم
 #      يُشغَّلْ من الحزمةِ المنشورةِ ثنائيٌّ واحدٌ قطُّ قبلَ هذه الدالّة.
-#      و**المخرَجُ الفارغُ مع خروجٍ صفريٍّ أحمرُ هنا**: أداةٌ تُنهي بلا كلمةٍ
-#      لم تُقَسْ، والأخضرُ عندها يعني «لم يُقَسْ» لا «سليم».
+#      و**الصمتُ التامُّ مع خروجٍ صفريٍّ أحمرُ هنا**: أداةٌ تُنهي بلا كلمةٍ
+#      لم تُقَسْ، والأخضرُ عندها يعني «لم يُقَسْ» لا «سليم». ودقّةُ العبارةِ
+#      مقصودة: الالتقاطُ يجمعُ `stderr` إلى `stdout`، فالذراعُ لا تنطلقُ
+#      لأداةٍ تكتبُ في `stderr` وحدَه — تنطلقُ للصامتِ في القناتَينِ معًا.
+#      فلا تُحسَبْ هذه الذراعُ تغطيةً: العملُ الحقيقيُّ على رمزِ الخروج.
 # (EN) The gap between "the archive contains it" and "the binary runs".
 #      sad_require_archive opens the archive and requires members by name,
 #      which stops an empty package but not a binary that cannot start: a
@@ -348,7 +351,7 @@ sad_require_version_flags() {
 # ══════════════════════════════════════════════════════════════════════════
 sad_smoke_package() {
     local bindir="$1" published_list="$2"
-    local published flag bin out rc bad=""
+    local published flag bin out rc snippet bad=""
     for published in $published_list; do
         bin="$bindir/$published"
         [ -f "$bin" ] || bin="$bindir/$published.exe"
@@ -368,11 +371,23 @@ sad_smoke_package() {
         #      into a wordless failure. An `if` condition is exempt from -e.
         if out="$("$bin" "$flag" 2>&1)"; then rc=0; else rc=$?; fi
         if [ "$rc" -ne 0 ]; then
+            # (AR) 🔑 لا `| head` هنا: تحتَ `-eo pipefail` يُغلِقُ `head` القناةَ
+            #      بعدَ ثلاثةِ أسطرٍ فيسقطُ المُنتِجُ بـSIGPIPE (141)، فترجعُ
+            #      الاستبدالةُ 141 ويرجعُ **الإسنادُ** 141، فتموتُ الخطوةُ قبلَ
+            #      سطرِ `::error::` أسفلَه — أي العطبُ الذي يشرحُه التعليقُ فوقَه
+            #      يعودُ من بابِ التشخيصِ نفسِه. والقصُّ يقعُ في الصَّدَفةِ بلا قناة.
+            # (EN) No `| head` here: under -eo pipefail, head closes the pipe
+            #      after three lines, the producer dies with SIGPIPE (141), the
+            #      substitution returns 141 and so does the ASSIGNMENT — killing
+            #      the step before the ::error:: below. The very defect the note
+            #      above describes, re-entering through the diagnostic itself.
+            #      Truncate in the shell, with no pipe involved.
+            snippet="${out%%$'\n'*}"
             bad="$bad
-  $published $flag ⇒ رمزُ خروجٍ / exit $rc :: $(printf '%s' "$out" | head -3 | tr '\n' ' ')"
+  $published $flag ⇒ رمزُ خروجٍ / exit $rc :: ${snippet:0:200}"
         elif [ -z "$out" ]; then
             bad="$bad
-  $published $flag ⇒ خرجَ صفرًا بلا مخرَج / exited 0 with no output"
+  $published $flag ⇒ خرجَ صفرًا وصمتَ في القناتَين / exited 0, silent on both streams"
         else
             echo "✅ $published $flag ⇒ $(printf '%s' "$out" | head -1)"
         fi
@@ -421,4 +436,114 @@ sad_smoke_lsp() {
     echo "::error::خادمُ اللغةِ لم يُجِبْ مُصافحةَ initialize / no initialize response from the language server"
     printf '%s\n' "$resp" | head -20
     return 1
+}
+
+# ══════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **`sad --version` أضعفُ ما يقولُه الهُبُّ عن نفسِه.**
+#      عَلَمُ الإصدارِ في الهُبِّ يطبعُ ثابتًا وقتَ الترجمةِ ثمّ يخرج، ولا
+#      يستشيرُ نتيجةَ الاكتشافِ إطلاقًا. فهُبٌّ لا يعثرُ على شقيقٍ واحدٍ يطبعُ
+#      إصدارَه ويخرجُ صفرًا — وهو **عينُ العطبِ الذي شُحِنَ في v1.0.0**:
+#      حزمةٌ فيها الهُبُّ وليس فيها ما يُنادِيه، فكلُّ أمرٍ موعودٍ غائب.
+#      و`--list` يستنطقُ الاكتشافَ نفسَه، فيُقاسُ ما وُعِدَ به لا ما يُعلَن.
+#      والمطلوبُ من القائمةِ ما يبدأُ بـ`sad-` وحدَه: الهُبُّ يمسحُ الشقيقاتِ
+#      بهذه البادئةِ حصرًا، فـ`sadc` (بلا شَرطة) لا يُسجَّلُ أصلًا — وهو موثَّقٌ
+#      في تعليلِ الجدولِ أعلاه، لا مفاجأةٌ نتغاضى عنها.
+# (EN) `sad --version` is the least the hub can say about itself: the hub's
+#      version flag prints a compile-time constant and exits without ever
+#      consulting the discovery result. A hub that finds zero siblings prints
+#      its version and exits 0 — exactly the v1.0.0 defect: a package with the
+#      hub and nothing for it to dispatch to, so every promised command is
+#      absent. `--list` interrogates discovery itself.
+#      Only `sad-` prefixed names are required: the hub scans for that prefix
+#      alone, so `sadc` (no dash) is never registered — documented in the tool
+#      table's rationale above, not an omission we are glossing over.
+# ══════════════════════════════════════════════════════════════════════════
+sad_smoke_hub_dispatch() {
+    local bindir="$1" published_list="$2"
+    local hub out published missing=""
+    hub="$bindir/sad"
+    [ -f "$hub" ] || hub="$bindir/sad.exe"
+    if [ ! -f "$hub" ]; then
+        echo "::error::الهُبُّ غيرُ موجود / hub absent: $bindir/sad"
+        return 1
+    fi
+    if ! out="$("$hub" --list 2>&1)"; then
+        echo "::error::الهُبُّ سقطَ عندَ سردِ أدواتِه / the hub failed to list its tools"
+        printf '%s\n' "$out" | head -20
+        return 1
+    fi
+    for published in $published_list; do
+        case "$published" in
+            sad-*) ;;
+            *) continue ;;
+        esac
+        printf '%s' "$out" | grep -q -- "$published" || missing="$missing $published"
+    done
+    if [ -n "$missing" ]; then
+        echo "::error::الهُبُّ لا يكتشفُ أدواتٍ موعودةً بجوارِه / the hub does not discover promised siblings:$missing"
+        printf '%s\n' "$out" | head -30
+        return 1
+    fi
+    echo "✅ الهُبُّ اكتشفَ كلَّ شقيقٍ موعودٍ / the hub discovered every promised sibling"
+}
+
+# ══════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **الرابطُ الديناميكيُّ عقدٌ لا يُصرِّحُ به أحد.**
+#      شجرةُ البناءِ تربطُ ما تجدُه: `cmake/llvm.cmake` يربطُ `libLLVM-18.so`
+#      المشتركةَ متى وُجدت، و`sad_graphics` يربطُ `SDL2::SDL2` علنيًّا فيرثُها
+#      `sad-run`. ولا `RPATH` في الشجرةِ كلِّها، والتحزيمُ على يونكسَ لا ينسخُ
+#      مكتبةً مشتركةً واحدة. فالحزمةُ تحملُ عقدًا خفيًّا: «عندَك هذه المكتباتُ
+#      أم لا تعمل» — عقدًا لم يُكتَبْ في وثيقةٍ ولم يقسْه فحص.
+#      و`ldd` يُنطِقُه: كلُّ سطرِ «not found» مكتبةٌ تَعِدُ الحزمةُ ضمنًا بوجودِها
+#      على جهازِ المستخدم. وهذا يُقاسُ **قبلَ** التشغيل، لأنّ التشغيلَ يُخفِقُ
+#      برمزٍ عامٍّ (127) لا يُسمّي المكتبةَ الناقصةَ في كلِّ الأحوال.
+# (EN) The dynamic linker is a contract nobody declares. The build links what
+#      it finds: cmake/llvm.cmake links shared libLLVM-18.so when present, and
+#      sad_graphics links SDL2::SDL2 PUBLICly so sad-run inherits it. There is
+#      no RPATH anywhere in the tree, and Unix packaging copies no shared
+#      library at all. The package therefore ships a hidden contract — "have
+#      these libraries or it will not run" — written in no document and
+#      measured by no check. ldd states it: every "not found" line is a library
+#      the package implicitly promises exists on the user's machine. Measured
+#      BEFORE execution, because execution fails with a generic 127 that does
+#      not always name the missing library.
+# ══════════════════════════════════════════════════════════════════════════
+sad_require_shared_deps() {
+    local bindir="$1" allowed="${2:-}"
+    local bin out line lib missing="" checked=0
+    command -v ldd >/dev/null 2>&1 || {
+        echo "ℹ️ لا ldd على هذه المنصّة — يُتخطّى فحصُ التبعيّاتِ المشتركة / no ldd here, skipping"
+        return 0
+    }
+    for bin in "$bindir"/*; do
+        [ -f "$bin" ] || continue
+        case "$bin" in *.dll|*.so|*.dylib) continue ;; esac
+        if ! out="$(ldd "$bin" 2>/dev/null)"; then continue; fi
+        checked=$((checked + 1))
+        while IFS= read -r line; do
+            case "$line" in
+                *"not found"*)
+                    lib="$(printf '%s' "$line" | awk '{print $1}')"
+                    # (AR) قائمةُ إذنٍ صريحةٌ لمكتبةٍ يَعِدُ بها المُثبِّتُ ووثائقُه.
+                    # (EN) Explicit allowlist for a library the installer and its
+                    #      documentation genuinely promise the user will have.
+                    case " $allowed " in
+                        *" $lib "*) ;;
+                        *) missing="$missing
+  $(basename "$bin") ⇐ $lib" ;;
+                    esac ;;
+            esac
+        done <<< "$out"
+    done
+    if [ "$checked" -eq 0 ]; then
+        echo "::error::لم يُفحَصْ ثنائيٌّ واحدٌ في / no binary examined in: $bindir"
+        return 1
+    fi
+    if [ -n "$missing" ]; then
+        echo "::error::الحزمةُ تشترطُ مكتباتٍ مشتركةً لا تحملُها ولا تُعلِنُها / the package requires shared libraries it neither ships nor declares:$missing"
+        echo "   العلاجُ أحدُ ثلاثة: شحنُ المكتبةِ في الحزمةِ مع RPATH، أو فتحُها"
+        echo "   بـdlopen عندَ الحاجةِ لا ربطُها، أو إعلانُها شرطًا صريحًا يُثبِّتُه المُثبِّت."
+        return 1
+    fi
+    echo "✅ $checked ثنائيًّا: كلُّ تبعيّةٍ مشتركةٍ محلولة / binaries: every shared dependency resolves"
 }

@@ -2787,9 +2787,46 @@ jobs:
   #      SAD_REQUIRED_FULL in scripts/ci/release_tools.sh — the same table the
   #      publisher builds from — rather than hand-copied into a fourth place.
   # ======================================================================
+  # (AR) 🔑 **والأرضيّةُ تكوينان لا تكوينٌ واحد.** مجرى الإصدارِ يبني على
+  #      GCC 11 مرّتَين بإعدادَينِ مختلفَين جوهريًّا:
+  #        • `build-compiler`    ⇐ ENABLE_LLVM_BACKEND=ON
+  #        • `build-interpreter` ⇐ ENABLE_LLVM_BACKEND=OFF + مديرُ الحزمِ
+  #          وخادمُ اللغةِ وصدفةُ REPL
+  #      و`cmake/llvm.cmake` يرجعُ باكرًا حين تُطفَأُ (السطر 29)، وتسقطُ معها
+  #      `add_compile_definitions(ENABLE_LLVM_BACKEND)`، فينقلبُ `#if` في
+  #      `tools/compiler/compiler_driver_cli.cpp` إلى ذراعِه الأخرى. فهما
+  #      شجرتا ترجمةٍ مختلفتان لا تبديلَ عَلَمٍ واحد.
+  #      وخانةٌ تبني إحداهما وتُسمّي نفسَها «مرآةَ الإصدار» تحرسُ نصفَه: كودٌ
+  #      يُرفَضُ في GCC 11 داخلَ الذراعِ الأخرى يمرُّ أخضرَ ويسقطُ في شوطِ
+  #      إصدارٍ — وهو عينُ ما وُضِعت هذه الوظيفةُ لتمنعَه.
+  #      والأدواتُ الثلاثُ الإضافيّةُ (sad-pkg · sad-repl · sad-fmt) تُشحَنُ في
+  #      الحزمِ ويبتلعُ `continue-on-error` إخفاقَ بنائِها في المُصدِر، فلا
+  #      يُصرِّفُها GCC 11 في أيِّ مكانٍ ولا يحكمُ عليها أحد. تُبنى هنا **مُلزِمةً**:
+  #      البوّابةُ تقولُ «يُصرَّفُ» أو «لا يُصرَّف»، وقرارُ التحزيمِ شأنٌ آخر.
+  # (EN) The floor is TWO configurations, not one. The release builds under
+  #      GCC 11 twice with materially different settings: build-compiler with
+  #      ENABLE_LLVM_BACKEND=ON, build-interpreter with it OFF plus the package
+  #      manager, LSP server and REPL. cmake/llvm.cmake returns early when it is
+  #      off (line 29), dropping add_compile_definitions(ENABLE_LLVM_BACKEND),
+  #      which flips the #if in compiler_driver_cli.cpp to its other arm — two
+  #      different compilation trees, not one toggled flag. A cell that builds
+  #      one and calls itself a mirror of the release guards half of it.
+  #      The three extras (sad-pkg, sad-repl, sad-fmt) ship in the packages and
+  #      the publisher swallows their build failure with continue-on-error, so
+  #      GCC 11 compiles them nowhere and nobody judges them. Here they are
+  #      built as REQUIRED: this gate answers "compiles" or "does not compile";
+  #      whether to package them is a separate decision.
   gcc11_floor:
-    name: "🏚️ أرضيّةُ الإصدار / Release floor (GCC 11)"
+    name: "🏚️ أرضيّةُ الإصدار / Release floor (GCC 11 · ${{ matrix.leg }})"
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - leg: compiler
+            llvm: true
+          - leg: interpreter
+            llvm: false
     # (AR) الحدُّ مشتقٌّ من قياس: وظيفةُ المترجمِ في الشوطِ الجافِّ 33302076297
     #      استغرقت ٣١ دقيقةً شاملةً تثبيتَ LLVM والتحزيم. هذه بلا تحزيمٍ ولا
     #      اختبارات، والفائضُ احتياطٌ لبطءِ المرآة لا رقمٌ مُقدَّر.
@@ -2805,11 +2842,27 @@ jobs:
         with:
           submodules: recursive
 
+      # (AR) 🔑 **التبعيّاتُ جزءٌ من التكوينِ المحروس، لا خلفيّةٌ محايدة.**
+      #      وجودُ `libsdl2-dev` يقلبُ `SAD_UI_SDL2_AVAILABLE` فتدخلُ مصادرُ
+      #      خلفيّةِ سطحِ المكتبِ في الترجمةِ أو تسقطُ منها. فخانةٌ تُثبِّتُها
+      #      وتوأمُها في `release.yml` لا يُثبِّتُها تُصرِّفُ شجرةً أخرى —
+      #      وتحجزُ الدمجَ على كودٍ لا يُصرَّفُ في الإصدارِ أصلًا، وتُعمي عن
+      #      كودٍ يُصرَّفُ فيه. ولذا يأخذُ كلُّ ذراعٍ تبعيّاتِ توأمِه حرفًا:
+      #      `build-compiler` بلا SDL2، و`build-interpreter` بها.
+      # (EN) Dependencies are part of the guarded configuration, not neutral
+      #      background: libsdl2-dev flips SAD_UI_SDL2_AVAILABLE, so the desktop
+      #      backend sources enter or leave the compilation. A cell that installs
+      #      it while its twin in release.yml does not compiles a different tree —
+      #      blocking merges on code the release never compiles, and blind to code
+      #      it does. Each leg therefore takes its twin's dependency list verbatim.
       - name: "📦 تثبيت المتطلبات / Install Dependencies"
         run: |
           bash scripts/ci/apt_retry.sh update
-          bash scripts/ci/apt_retry.sh install -y cmake g++ build-essential \
-            libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev libssl-dev
+          bash scripts/ci/apt_retry.sh install -y cmake g++ build-essential libssl-dev
+          if [ "${{ matrix.leg }}" = "interpreter" ]; then
+            bash scripts/ci/apt_retry.sh install -y \
+              libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
+          fi
           python3 -m pip install --user --break-system-packages pyyaml jsonschema \
             || python3 -m pip install --user pyyaml jsonschema
 
@@ -2831,6 +2884,7 @@ jobs:
           echo "✅ أرضيّةُ الإصدارِ مثبَّتة / release floor asserted: GCC $gcc_major"
 
       - name: "📦 تثبيت LLVM 18 / Install LLVM 18"
+        if: matrix.llvm
         run: |
           CODENAME=$(lsb_release -cs)
           bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
@@ -2842,19 +2896,37 @@ jobs:
           bash scripts/ci/apt_retry.sh install -y llvm-18-dev libclang-18-dev lld-18
           echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
 
-      # (AR) التهيئةُ مرآةُ `release.yml` حرفًا: Release · LLVM مُفعَّلة ·
-      #      `BUILD_TESTS=OFF`. أيُّ خلافٍ هنا يجعلُ الحارسَ يحرسُ بناءً آخر.
-      # (EN) Configure mirrors release.yml exactly. Any divergence here would
-      #      make the guard protect a different build than the one that ships.
+      # (AR) كلُّ ذراعٍ مرآةُ نظيرتِها في `release.yml` حرفًا — أعلامُها من
+      #      خطوةِ التهيئةِ هناك لا من اجتهادٍ هنا. أيُّ خلافٍ يجعلُ الحارسَ
+      #      يحرسُ بناءً آخرَ غيرَ الذي يُشحَن.
+      # (EN) Each leg mirrors its twin in release.yml flag for flag, taken from
+      #      that workflow's configure step rather than invented here.
       - name: "🔨 تهيئةُ CMake كما يُهيّئُ المُصدِر / Configure as the publisher does"
-        run: >
-          test -n "$LLVM_DIR" || { echo "::error::LLVM_DIR غيرُ مُصدَّر"; exit 1; } &&
-          cmake -S . -B build
-          -G "Unix Makefiles"
-          -DCMAKE_BUILD_TYPE=Release
-          -DENABLE_LLVM_BACKEND=ON
-          -DLLVM_DIR="$LLVM_DIR"
-          -DBUILD_TESTS=OFF
+        shell: bash
+        run: |
+          if [ "${{ matrix.leg }}" = "compiler" ]; then
+            test -n "$LLVM_DIR" || { echo "::error::LLVM_DIR غيرُ مُصدَّر"; exit 1; }
+            cmake -S . -B build \
+              -G "Unix Makefiles" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DENABLE_LLVM_BACKEND=ON \
+              -DLLVM_DIR="$LLVM_DIR" \
+              -DBUILD_TESTS=OFF
+          else
+            # (AR) لا LLVM_DIR هنا عمدًا: هذه هي الذراعُ التي يرجعُ فيها
+            #      cmake/llvm.cmake باكرًا، وهي التي تبني حزمةَ المفسّرِ.
+            # (EN) Deliberately no LLVM_DIR: this is the arm where
+            #      cmake/llvm.cmake returns early — and it builds the
+            #      interpreter package.
+            cmake -S . -B build \
+              -G "Unix Makefiles" \
+              -DCMAKE_BUILD_TYPE=Release \
+              -DENABLE_LLVM_BACKEND=OFF \
+              -DBUILD_TESTS=OFF \
+              -DBUILD_PKG_MANAGER=ON \
+              -DBUILD_LSP_SERVER=ON \
+              -DBUILD_REPL=ON
+          fi
 
       # (AR) الأهدافُ من الجدولِ لا من اليد — و`sad_build_tools` بلا `|| true`
       #      فإخفاقُ التصريفِ يُسقِطُ الوظيفة. و`sad_require_identity_table`
@@ -2867,8 +2939,18 @@ jobs:
         run: |
           source scripts/ci/release_tools.sh
           sad_require_identity_table
-          sad_build_tools build Release "$SAD_REQUIRED_FULL"
-          echo "✅ صُرِّفت أدواتُ الإصدارِ كلُّها بـGCC 11 / all release tools compiled under GCC 11"
+          if [ "${{ matrix.leg }}" = "compiler" ]; then
+            sad_build_tools build Release "$SAD_REQUIRED_COMPILER"
+          else
+            sad_build_tools build Release "$SAD_REQUIRED_INTERPRETER"
+            # (AR) الإضافيّاتُ مُلزِمةٌ هنا وحدَها — التعليلُ فوقَ الوظيفة.
+            # (EN) The extras are required here alone — rationale above the job.
+            for target in sad-pkg sad-repl sad-fmt; do
+              echo "🔨 $target"
+              cmake --build build --config Release --target "$target" --parallel "$(nproc)"
+            done
+          fi
+          echo "✅ صُرِّفت ذراعُ ${{ matrix.leg }} بـGCC 11 / the ${{ matrix.leg }} leg compiled under GCC 11"
 
   # ======================================================================
   # 5. تقرير الاختبارات / Test Report
