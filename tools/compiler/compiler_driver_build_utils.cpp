@@ -362,10 +362,39 @@ namespace sad
 #endif
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // (AR) 🔑 **مكتبةُ التشغيلِ تُشتَقُّ من هذا الثنائيِّ نفسِه، لا تُفترَض.**
+        //      كان السائقُ يمرّرُ `-fms-runtime-lib=dll` دائمًا — أي CRT
+        //      **الإصداريَّ** — بينما مكتباتُ المشروعِ التي يربطُها في بناءِ
+        //      Debug مُصرَّفةٌ بـ`/MDd`. فالنتيجةُ ربطٌ يسقطُ برموزٍ لا وجودَ
+        //      لها في CRT الإصداريّ: `__imp__CrtDbgReport` و`__imp__calloc_dbg`.
+        //      قِيسَ: بناءُ Debug عاديٌّ على ويندوز ⇒ **كلُّ** برنامجٍ يستوردُ
+        //      مكتبةً من مكتباتِ المشروعِ لا يُربَط.
+        //
+        //      والحقيقةُ المطلوبةُ ليست علمَ بناءٍ جديدًا يُمرَّرُ ويُنسى: هذا
+        //      الثنائيُّ **مُصرَّفٌ بالمكتباتِ نفسِها وفي التكوينِ نفسِه**، فـ
+        //      `_DEBUG` فيه هو بعينِه جوابُ السؤال. وMSVC يُعرِّفُه حصرًا مع
+        //      `/MDd` و`/MTd`. ووضعُ التوافقِ يفرضُ `/U_DEBUG` فيُجيبُ صحيحًا
+        //      أيضًا: مكتباتٌ إصداريّةٌ ⇐ عَلَمٌ إصداريّ.
+        // (EN) Derive the runtime library from THIS binary, never assume it. The
+        //      driver always passed -fms-runtime-lib=dll — the RELEASE CRT —
+        //      while the project libraries it links are built /MDd in a Debug
+        //      build, so every generated program failed to link with
+        //      __imp__CrtDbgReport / __imp__calloc_dbg. The needed fact is not a
+        //      new build flag to pass and forget: this binary is compiled with
+        //      those very libraries in that very config, so its own _DEBUG is
+        //      the answer. MSVC defines it exactly for /MDd and /MTd, and the
+        //      release-compat mode forces /U_DEBUG — which answers correctly too.
+        // ═══════════════════════════════════════════════════════════════════
         std::string CompilerDriver::get_windows_clang_runtime_flag() const
         {
 #ifdef _WIN32
+#ifdef _DEBUG
+            return options_.link_static ? "-fms-runtime-lib=static_dbg"
+                                        : "-fms-runtime-lib=dll_dbg";
+#else
             return options_.link_static ? "-fms-runtime-lib=static" : "-fms-runtime-lib=dll";
+#endif
 #else
             return "";
 #endif
@@ -375,6 +404,34 @@ namespace sad
                                                                      bool include_cpp_runtime) const
         {
 #ifdef _WIN32
+            // (AR) أسماءُ CRT تتبع العَلَمَ أعلاه حرفًا بحرف: خلطُ `msvcrt` مع
+            //      مكتباتٍ بُنِيَت على `msvcrtd` يُنتج رموزًا مفقودةً أو نسختَي
+            //      كومةٍ في عمليّةٍ واحدة. والمصدرُ واحد: `_DEBUG` لهذا الثنائيّ.
+            // (EN) The CRT names follow the flag above exactly: mixing msvcrt with
+            //      libraries built against msvcrtd yields missing symbols or two
+            //      heaps in one process. One source of truth: this binary's _DEBUG.
+#ifdef _DEBUG
+            if (options_.link_static)
+            {
+                if (include_cpp_runtime)
+                {
+                    append_unique_value(libraries, "libcpmtd.lib");
+                }
+                append_unique_value(libraries, "libcmtd.lib");
+                append_unique_value(libraries, "libvcruntimed.lib");
+                append_unique_value(libraries, "libucrtd.lib");
+            }
+            else
+            {
+                if (include_cpp_runtime)
+                {
+                    append_unique_value(libraries, "msvcprtd.lib");
+                }
+                append_unique_value(libraries, "msvcrtd.lib");
+                append_unique_value(libraries, "vcruntimed.lib");
+                append_unique_value(libraries, "ucrtd.lib");
+            }
+#else
             if (options_.link_static)
             {
                 if (include_cpp_runtime)
@@ -395,6 +452,7 @@ namespace sad
                 append_unique_value(libraries, "vcruntime.lib");
                 append_unique_value(libraries, "ucrt.lib");
             }
+#endif
 
             append_unique_value(libraries, "oldnames.lib");
             append_unique_value(libraries, "legacy_stdio_definitions.lib");

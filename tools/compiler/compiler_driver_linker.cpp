@@ -572,8 +572,19 @@ namespace sad
             }
 
             std::error_code ec;
+            // (AR) 🔑 `sad::utf8::make_path` لا `std::filesystem::path` مباشرةً:
+            //      بناءُ المسارِ من نصٍّ **ضيّقٍ** على MSVC يُحوِّلُ بترميزِ النظامِ
+            //      لا بـUTF‑8، فمسارُ مخرَجٍ عربيٌّ يُطلِقُ توكيدًا في بناءِ Debug
+            //      (`0x80000003`) — وNDEBUG يُخفيه فيمرُّ في Release. وهي لغةٌ
+            //      أسماءُ مخرَجاتِها عربيّةٌ بطبيعتِها، فالمسارُ الضيّقُ هنا عطبٌ
+            //      لا احتياط. قِيسَ: `-o رقم1.exe` يسقط، و`-o a1.exe` يمرّ.
+            // (EN) Use sad::utf8::make_path, never a narrow std::filesystem::path:
+            //      MSVC converts narrow strings via the system codepage, not UTF-8,
+            //      so an Arabic output path trips a Debug assertion (0x80000003)
+            //      that NDEBUG hides in Release. Measured: -o رقم1.exe aborts,
+            //      -o a1.exe passes.
             const auto out_dir = std::filesystem::absolute(
-                                     std::filesystem::path(output_file), ec)
+                                     sad::utf8::make_path(output_file), ec)
                                      .parent_path();
             if (ec || out_dir.empty())
             {
