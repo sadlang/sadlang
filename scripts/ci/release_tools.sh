@@ -312,11 +312,16 @@ sad_version_flag() {
     return 1
 }
 
-# (AR) يربطُ الجدولَين: كلُّ أداةٍ موعودةٍ لها إملاءٌ مُعلَن. وبغيرِه تسقطُ
-#      أداةٌ من الفحصِ صامتةً فيبقى الشوطُ أخضرَ وهو لم يقسْها.
-# (EN) Binds the two tables: every promised tool has a declared spelling.
-#      Without it a tool drops out of the smoke test silently and the run
-#      stays green having never measured it.
+# (AR) شرطٌ مسبقٌ لا حارسُ انجراف: يتأكّدُ أنّ كلَّ أداةٍ موعودةٍ لها إملاءٌ،
+#      فلا تسقطُ واحدةٌ من الفحصِ صامتةً ويبقى الشوطُ أخضرَ وهو لم يقسْها.
+#      ⚠️ وطرفاه من هذا الملفِّ نفسِه، فلا يرى انجرافًا عن مصدرِ الحقيقة —
+#      ذاكَ عملُ `scripts/ci/check_version_flags.py`، وهو يقرأُ أربعةَ ملفّاتٍ
+#      بأربعةِ مُحلِّلاتٍ ويشتقُّ قاعدتَه من المصادرِ لا من قائمةٍ مكتوبة.
+# (EN) A precondition, not a drift guard: it checks every promised tool has a
+#      spelling, so none drops out of the smoke test silently. Both its ends
+#      come from THIS file, so it cannot see drift from the source of truth —
+#      that is check_version_flags.py's job, which reads four files with four
+#      parsers and derives its rule from the sources rather than a written list.
 sad_require_version_flags() {
     local published missing=""
     for published in $SAD_REQUIRED_FULL; do

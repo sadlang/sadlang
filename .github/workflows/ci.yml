@@ -173,6 +173,22 @@ jobs:
         shell: bash
         run: python3 scripts/ci/check_installer_tool_lists.py
 
+      # (AR) 🔑 نظيرُه للإملاءِ لا للأسماء. `SAD_VERSION_FLAGS` نسخةٌ ثالثةٌ من
+      #      حقيقةٍ في `language-truth/cli_flags.yaml`، و`sad_require_version_flags`
+      #      يقرأُ طرفَيه من ملفٍّ واحدٍ فلا يرى انجرافًا عن المصدرِ إطلاقًا.
+      #      وهذا يقرأُ أربعةَ ملفّاتٍ بأربعةِ مُحلِّلات، وقاعدتُه **مشتقّةٌ**:
+      #      الأداةُ التي يستشيرُ مصدرُها الجدولَ المولَّدَ ملزَمةٌ بالاسمِ
+      #      القانونيّ، والتي لا تستشيرُه ممنوعةٌ من ادّعائِه.
+      # (EN) The spelling counterpart of the guard above. SAD_VERSION_FLAGS is a
+      #      third copy of a fact in cli_flags.yaml, and sad_require_version_flags
+      #      reads both its ends from one file, so it can never see drift from the
+      #      source. This reads four files with four parsers, and its rule is
+      #      DERIVED: a tool whose source consults the generated table is bound to
+      #      the canonical name; one that does not is forbidden from claiming it.
+      - name: "🏷️ حارسُ إملاءِ عَلَمِ الإصدار / Version-flag spelling guard"
+        shell: bash
+        run: python3 scripts/ci/check_version_flags.py
+
       # (AR) 🔑 العلّةُ المقيسة (٢٠ آب ٢٠٢٦): `std::system` و`CreateProcessA`
       #      تأخذان `char*`، فيُعيدُ ويندوز تفسيرَ بايتاتِ UTF-8 بترميزِ النظام.
       #      فمسارٌ عربيٌّ تحت ترميزٍ لاتينيٍّ يجعل الرابطَ **ينجح** ورمزُ عائدِه
