@@ -1339,6 +1339,20 @@ jobs:
           python -m pytest tests/system/any_type -q -rs
           if ($LASTEXITCODE -ne 0) { exit 1 }
 
+          # (AR) 🔑 **مسارُ مخرَجٍ عربيّ.** لا شيءَ في الشجرةِ كان يكتبُ مخرَجًا
+          #      باسمٍ عربيّ — مجموعةُ P1 كلُّها تُخرِجُ إلى أسماءٍ لاتينيّةٍ
+          #      مولَّدة — فعلّةُ بناءِ `std::filesystem::path` من نصٍّ **ضيّقٍ**
+          #      (تحويلٌ بصفحةِ ترميزِ النظامِ لا بـUTF‑8) نجت من ٧٤٧ برنامجًا.
+          #      والحكمُ هنا لا يتّكئُ على توكيدٍ: `output.exists()` يُحمِّرُ ولو
+          #      كانت التوكيداتُ مُطفأةً، لأنّ الاسمَ المُحوَّلَ خطأً **ملفٌّ آخر**.
+          # (EN) Arabic output path. Nothing in the tree wrote one (P1 generates
+          #      Latin names), so the narrow-string path defect survived 747
+          #      programs. The judgement does not rely on an assertion: a
+          #      wrongly-converted name is a DIFFERENT file, so it reds even with
+          #      assertions disabled.
+          python -m pytest tests/system/output_path -q -rs
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
       # (AR) 🔑 **بوّابةُ صيغةِ مقاطعِ ص خارجَ ملفّات `.ص`** (ISSUE-150).
       #      المقيس: مِجَسُّ `test_bounds_diag_sovereign.py` كان يكتب مصدرَه
       #      بصيغةٍ حُذِفت من اللغة، فصار يُخفِق بـSYN001 و**ثلاثةُ حرّاسٍ لعقدِ
@@ -1576,6 +1590,75 @@ jobs:
             exit 1
           fi
           python3 scripts/native_backend/prove_elf_emit_fingerprint.py --مترجم "$thin"
+
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **بوّابةُ برنامجِ الواجهةِ المترجَم — نظيرةُ بوّابةِ ويندوز.**
+      #      العلّةُ التي ولّدت البوّابةَ الويندوزيّةَ كانت مكتبةً مشتركةً
+      #      (`SDL2.dll`) لا يجدُها المُحمِّلُ بجوارِ الثنائيِّ المُنتَج، فالبرنامجُ
+      #      **لا يبدأُ العملَ**: مخرَجٌ فارغٌ في stdout وstderr معًا. والصنفُ
+      #      نفسُه قائمٌ هنا بمكتبةٍ أخرى (`libSDL2.so` · `libSDL2.dylib`) ومسارِ
+      #      بحثٍ آخرَ (`RPATH`/`LD_LIBRARY_PATH`) — ولم يكن **مقيسًا** إلّا داخلَ
+      #      مسحِ P1 كسطرٍ في ٧٤٧، أي بلا تشخيصٍ يُسمّي السبب.
+      #      وتقعُ **قبلَ** CTest فتُحمِّرُ في دقيقةٍ لا في ذيلِ مسحٍ طويل، وتطبعُ
+      #      عندَ الفراغِ ما يلزمُ للحكم: سجلَّ الترجمةِ المُسهَبَ وتبعيّاتِ
+      #      الثنائيِّ الفعليّة.
+      # (EN) POSIX twin of the Windows compiled-UI gate. The defect that created
+      #      the Windows gate was a shared library the loader could not find next
+      #      to the produced binary, so the program never started: empty stdout
+      #      AND empty stderr. The same class exists here with libSDL2.so /
+      #      libSDL2.dylib and a different search path (RPATH/LD_LIBRARY_PATH),
+      #      and it was only ever measured as one line inside a 747-program sweep
+      #      — i.e. with no diagnostic naming the cause. Runs BEFORE CTest.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🖼️ بوّابةُ برنامجِ الواجهةِ المترجَم / Compiled UI program gate"
+        timeout-minutes: 10
+        run: |
+          sadc="build/bin/sad-build"
+          src="tests/behavior/sections/12_تكامل/03_برامج_كاملة/133_ui_primary_prop_sot.ص"
+          if [ ! -f "$src" ]; then
+            echo "::error::مصدرُ البوّابةِ مفقود: $src — البوّابةُ تقيسُ ملفًّا بعينِه"
+            exit 1
+          fi
+          work="build/_ui_gate"
+          rm -rf "$work" && mkdir -p "$work"
+          exe="$work/ui_gate"
+          # (AR) `-v` دائمًا: السجلُّ يُطبَعُ عندَ الفشلِ وحدَه، وإعادةُ الترجمةِ
+          #      لالتقاطِه كانت ستقيسُ تشغيلةً أخرى لا التي فشلت.
+          # (EN) Always -v; recompiling to capture the log would measure another run.
+          if ! log="$("$sadc" "$src" -v -o "$exe" 2>&1)"; then
+            echo "$log"
+            echo "::error::بوّابةُ الواجهة: الترجمةُ أخفقت"
+            exit 1
+          fi
+          if [ ! -x "$exe" ]; then
+            echo "$log"
+            echo "::error::بوّابةُ الواجهة: لم يُنتَج ثنائيّ رغمَ رمزِ نجاح"
+            exit 1
+          fi
+          set +e
+          out="$("$exe" 2>&1)"
+          code=$?
+          set -e
+          expected='ترقيم_صفحات(قيمة: 3)'
+          if [ -z "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then
+            echo "── سجلُّ الترجمةِ المُسهَب / verbose compile log ──"
+            echo "$log"
+            echo "── تبعيّاتُ الثنائيّ / binary imports ──"
+            ldd "$exe" || echo 'ldd غيرُ متاح'
+            echo "── مكتباتُ الرسومِ الموجودة / graphics libs present ──"
+            find build -name 'libsad_graphics*' -o -name 'libSDL2*' 2>/dev/null | head -40
+            echo "::error::بوّابةُ الواجهة: الثنائيُّ خرجَ بالرمز $code وطبعَ لا شيء — المتوقَّعُ يبدأُ بـ'$expected'"
+            exit 1
+          fi
+          case "$out" in
+            *"$expected"*) ;;
+            *)
+              echo "$out"
+              echo "::error::بوّابةُ الواجهة: المخرَجُ لا يحوي '$expected'"
+              exit 1
+              ;;
+          esac
+          echo "✅ بوّابةُ برنامجِ الواجهةِ المترجَم: PASS (رمزُ الخروج $code)"
 
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
@@ -1995,6 +2078,19 @@ jobs:
           #      test, no CI step. Strict mode was not green — it was UNMEASURED.
           python3 -m pytest tests/system/any_type -q -rs
 
+          # (AR) 🔑 **مسارُ مخرَجٍ عربيّ.** لا شيءَ في الشجرةِ كان يكتبُ مخرَجًا
+          #      باسمٍ عربيّ — مجموعةُ P1 كلُّها تُخرِجُ إلى أسماءٍ لاتينيّةٍ
+          #      مولَّدة — فعلّةُ بناءِ `std::filesystem::path` من نصٍّ **ضيّقٍ**
+          #      (تحويلٌ بصفحةِ ترميزِ النظامِ لا بـUTF‑8) نجت من ٧٤٧ برنامجًا.
+          #      والحكمُ هنا لا يتّكئُ على توكيدٍ: `output.exists()` يُحمِّرُ ولو
+          #      كانت التوكيداتُ مُطفأةً، لأنّ الاسمَ المُحوَّلَ خطأً **ملفٌّ آخر**.
+          # (EN) Arabic output path. Nothing in the tree wrote one (P1 generates
+          #      Latin names), so the narrow-string path defect survived 747
+          #      programs. The judgement does not rely on an assertion: a
+          #      wrongly-converted name is a DIFFERENT file, so it reds even with
+          #      assertions disabled.
+          python3 -m pytest tests/system/output_path -q -rs
+
       # (AR) 🔑 **بوّابةُ صيغةِ مقاطعِ ص خارجَ ملفّات `.ص`** (ISSUE-150).
       #      المقيس: مِجَسُّ `test_bounds_diag_sovereign.py` كان يكتب مصدرَه
       #      بصيغةٍ حُذِفت من اللغة، فصار يُخفِق بـSYN001 و**ثلاثةُ حرّاسٍ لعقدِ
@@ -2190,6 +2286,75 @@ jobs:
           fi
           python3 scripts/native_backend/prove_elf_emit_fingerprint.py --مترجم "$thin"
 
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **بوّابةُ برنامجِ الواجهةِ المترجَم — نظيرةُ بوّابةِ ويندوز.**
+      #      العلّةُ التي ولّدت البوّابةَ الويندوزيّةَ كانت مكتبةً مشتركةً
+      #      (`SDL2.dll`) لا يجدُها المُحمِّلُ بجوارِ الثنائيِّ المُنتَج، فالبرنامجُ
+      #      **لا يبدأُ العملَ**: مخرَجٌ فارغٌ في stdout وstderr معًا. والصنفُ
+      #      نفسُه قائمٌ هنا بمكتبةٍ أخرى (`libSDL2.so` · `libSDL2.dylib`) ومسارِ
+      #      بحثٍ آخرَ (`RPATH`/`LD_LIBRARY_PATH`) — ولم يكن **مقيسًا** إلّا داخلَ
+      #      مسحِ P1 كسطرٍ في ٧٤٧، أي بلا تشخيصٍ يُسمّي السبب.
+      #      وتقعُ **قبلَ** CTest فتُحمِّرُ في دقيقةٍ لا في ذيلِ مسحٍ طويل، وتطبعُ
+      #      عندَ الفراغِ ما يلزمُ للحكم: سجلَّ الترجمةِ المُسهَبَ وتبعيّاتِ
+      #      الثنائيِّ الفعليّة.
+      # (EN) POSIX twin of the Windows compiled-UI gate. The defect that created
+      #      the Windows gate was a shared library the loader could not find next
+      #      to the produced binary, so the program never started: empty stdout
+      #      AND empty stderr. The same class exists here with libSDL2.so /
+      #      libSDL2.dylib and a different search path (RPATH/LD_LIBRARY_PATH),
+      #      and it was only ever measured as one line inside a 747-program sweep
+      #      — i.e. with no diagnostic naming the cause. Runs BEFORE CTest.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🖼️ بوّابةُ برنامجِ الواجهةِ المترجَم / Compiled UI program gate"
+        timeout-minutes: 10
+        run: |
+          sadc="build/bin/sad-build"
+          src="tests/behavior/sections/12_تكامل/03_برامج_كاملة/133_ui_primary_prop_sot.ص"
+          if [ ! -f "$src" ]; then
+            echo "::error::مصدرُ البوّابةِ مفقود: $src — البوّابةُ تقيسُ ملفًّا بعينِه"
+            exit 1
+          fi
+          work="build/_ui_gate"
+          rm -rf "$work" && mkdir -p "$work"
+          exe="$work/ui_gate"
+          # (AR) `-v` دائمًا: السجلُّ يُطبَعُ عندَ الفشلِ وحدَه، وإعادةُ الترجمةِ
+          #      لالتقاطِه كانت ستقيسُ تشغيلةً أخرى لا التي فشلت.
+          # (EN) Always -v; recompiling to capture the log would measure another run.
+          if ! log="$("$sadc" "$src" -v -o "$exe" 2>&1)"; then
+            echo "$log"
+            echo "::error::بوّابةُ الواجهة: الترجمةُ أخفقت"
+            exit 1
+          fi
+          if [ ! -x "$exe" ]; then
+            echo "$log"
+            echo "::error::بوّابةُ الواجهة: لم يُنتَج ثنائيّ رغمَ رمزِ نجاح"
+            exit 1
+          fi
+          set +e
+          out="$("$exe" 2>&1)"
+          code=$?
+          set -e
+          expected='ترقيم_صفحات(قيمة: 3)'
+          if [ -z "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then
+            echo "── سجلُّ الترجمةِ المُسهَب / verbose compile log ──"
+            echo "$log"
+            echo "── تبعيّاتُ الثنائيّ / binary imports ──"
+            otool -L "$exe" || echo 'otool غيرُ متاح'
+            echo "── مكتباتُ الرسومِ الموجودة / graphics libs present ──"
+            find build -name 'libsad_graphics*' -o -name 'libSDL2*' 2>/dev/null | head -40
+            echo "::error::بوّابةُ الواجهة: الثنائيُّ خرجَ بالرمز $code وطبعَ لا شيء — المتوقَّعُ يبدأُ بـ'$expected'"
+            exit 1
+          fi
+          case "$out" in
+            *"$expected"*) ;;
+            *)
+              echo "$out"
+              echo "::error::بوّابةُ الواجهة: المخرَجُ لا يحوي '$expected'"
+              exit 1
+              ;;
+          esac
+          echo "✅ بوّابةُ برنامجِ الواجهةِ المترجَم: PASS (رمزُ الخروج $code)"
+
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
@@ -2244,6 +2409,19 @@ jobs:
           SAD_CLANG="$(brew --prefix llvm@18)/bin/clang" SAD_REQUIRE_CLANG=1 \
             SAD_LOWLEVEL_REQUIRE_BUILD=1 python3 -m pytest tests/system/lowlevel_freestanding -q -rs
           python3 -m pytest tests/system/null_repr -q -rs
+
+          # (AR) 🔑 **مسارُ مخرَجٍ عربيّ.** لا شيءَ في الشجرةِ كان يكتبُ مخرَجًا
+          #      باسمٍ عربيّ — مجموعةُ P1 كلُّها تُخرِجُ إلى أسماءٍ لاتينيّةٍ
+          #      مولَّدة — فعلّةُ بناءِ `std::filesystem::path` من نصٍّ **ضيّقٍ**
+          #      (تحويلٌ بصفحةِ ترميزِ النظامِ لا بـUTF‑8) نجت من ٧٤٧ برنامجًا.
+          #      والحكمُ هنا لا يتّكئُ على توكيدٍ: `output.exists()` يُحمِّرُ ولو
+          #      كانت التوكيداتُ مُطفأةً، لأنّ الاسمَ المُحوَّلَ خطأً **ملفٌّ آخر**.
+          # (EN) Arabic output path. Nothing in the tree wrote one (P1 generates
+          #      Latin names), so the narrow-string path defect survived 747
+          #      programs. The judgement does not rely on an assertion: a
+          #      wrongly-converted name is a DIFFERENT file, so it reds even with
+          #      assertions disabled.
+          python3 -m pytest tests/system/output_path -q -rs
 
       - name: "🧪 اختبارات النواة / Core Tests (Lexer, Parser, Value, Errors, Utils/Modules)"
         run: |
