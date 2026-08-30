@@ -617,11 +617,144 @@ jobs:
           retention-days: 5
 
   # ════════════════════════════════════════════════════════════════════
+  # 2-ب. فتحُ الحزمةِ وتشغيلُها / Open the package and run it
+  # ════════════════════════════════════════════════════════════════════
+  # (AR) 🔑 **«الأرشيفُ يحويه» ليست «الثنائيُّ يعمل».**
+  #      خطوةُ «التحقق من اكتمال الحزم» في وظيفةِ النشرِ تفتحُ الأرشيفَ وتطلبُ
+  #      أعضاءَه بالاسم — وهي تمنعُ حزمةً فارغةً، ولا تمنعُ ثنائيًّا **لا يبدأُ
+  #      العملَ أصلًا**: مكتبةٌ مشتركةٌ لا يجدُها المُحمِّل، رمزٌ غيرُ محلول،
+  #      glibc أحدثُ من أرضيّةِ الهدف. ولم يُشغَّلْ من حزمةٍ منشورةٍ ثنائيٌّ
+  #      واحدٌ قطُّ قبلَ هذه الوظيفة — وهو دَينٌ أُعلِنَ لفريقِ محرابٍ صراحةً.
+  #
+  #      وتقعُ **قبلَ** النشرِ لا بعدَه: حزمةٌ لا تعملُ تُوقِفُ الإصدارَ بدل أن
+  #      تُنشَرَ ثمّ تُسحَب. و`release` تعتمدُ عليها فلا تمرُّ من فوقِها.
+  #
+  #      ⚠️ وما لا تقيسُه معلَنٌ لا مسكوتٌ عنه: خانةُ `linux-aarch64` لا تُشغَّلُ
+  #      هنا لأنّ رَكّاضَها x86_64 ولا يُنفِّذُ ثنائيَّ ARM. فحزمةُ ARM ما زالت
+  #      مفتوحةً لا مُشغَّلة.
+  # (EN) "The archive contains it" is not "the binary runs".
+  #      The publish job's verification opens the archive and requires members
+  #      by name — that stops an empty package, not a binary that cannot start
+  #      (missing shared library, unresolved symbol, glibc newer than the target
+  #      floor). Until this job, not one binary from a published package had
+  #      ever been executed — a debt declared to the Mihrab team.
+  #      It runs BEFORE publishing, and `release` depends on it, so a package
+  #      that does not run stops the release instead of being pulled after.
+  #      ⚠️ What it does NOT measure is stated: linux-aarch64 is not executed
+  #      here because the runner is x86_64. The ARM package is opened, not run.
+  # ════════════════════════════════════════════════════════════════════
+  verify-package:
+    name: "تشغيلُ الحزمة / Run the package (${{ matrix.os }}-${{ matrix.arch }})"
+    needs: [build-interpreter, build-compiler]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # (AR) الرَّكّاضُ هو أرضيّةُ الإصدارِ عينُها — تشغيلٌ على أحدثَ منها
+          #      لا يُثبِتُ أنّ الحزمةَ تعملُ على ما وُعِد.
+          # (EN) The runner IS the release floor; running on anything newer
+          #      would not prove the package works where it was promised.
+          - os: linux
+            arch: x86_64
+            runner: ubuntu-22.04
+          - os: windows
+            arch: x86_64
+            runner: windows-2022
+
+    steps:
+      - name: "استنساخ المصدر / Checkout"
+        uses: actions/checkout@v7
+        timeout-minutes: 15
+
+      - name: "تحميل حزمِ هذه المنصّة / Download this platform's packages"
+        uses: actions/download-artifact@v7
+        timeout-minutes: 15
+        with:
+          pattern: "*-${{ matrix.os }}-${{ matrix.arch }}"
+          path: pkgs/
+
+      - name: "فتحُ كلِّ حزمةٍ وتشغيلُ أدواتِها / Extract every package and run its tools"
+        shell: bash
+        run: |
+          source scripts/ci/release_tools.sh
+          sad_require_identity_table
+          sad_require_version_flags
+          shopt -s nullglob
+
+          # (AR) فكُّ الأرشيف: `unzip` غيرُ مضمونٍ على رَكّاضِ ويندوز، فيُشتقُّ
+          #      الفاكُّ من المتاحِ لا يُفترَض. وصمتُ الفكِّ لا يُبتلَع.
+          # (EN) unzip is not guaranteed on the Windows runner: derive the
+          #      extractor from what exists. A silent extraction is not tolerated.
+          extract() {
+            local archive="$1" dest="$2"
+            case "$archive" in
+              *.tar.gz) tar -xzf "$archive" -C "$dest" ;;
+              *.zip)
+                if command -v unzip >/dev/null 2>&1; then unzip -q "$archive" -d "$dest"
+                elif command -v 7z >/dev/null 2>&1; then 7z x -y -o"$dest" "$archive" >/dev/null
+                else powershell -NoProfile -Command "Expand-Archive -LiteralPath '$archive' -DestinationPath '$dest' -Force"
+                fi ;;
+              *) echo "::error::امتدادٌ لا يُفكُّ / unknown archive extension: $archive"; return 1 ;;
+            esac
+          }
+
+          checked=0
+          for archive in pkgs/*/*.tar.gz pkgs/*/*.zip; do
+            base="$(basename "$archive")"
+            dest="extracted/$checked"
+            mkdir -p "$dest"
+            extract "$archive" "$dest" || exit 1
+
+            bindir="$(find "$dest" -maxdepth 3 -type d -name bin | head -1)"
+            if [ -z "$bindir" ]; then
+              echo "::error::لا مجلّدَ bin/ داخلَ / no bin/ inside: $base"
+              find "$dest" -maxdepth 3 | head -40
+              exit 1
+            fi
+
+            # (AR) القائمةُ المطلوبةُ تُشتقُّ من اسمِ الأرشيفِ نفسِه — والترتيبُ
+            #      مقصود: `sad-full-v*` قبلَ `sad-v*` وإلّا التقطَ الثاني الأوّل.
+            # (EN) The required list is derived from the archive's own name;
+            #      order matters: sad-full-v* before sad-v*.
+            case "$base" in
+              sad-full-v*) list="$SAD_REQUIRED_FULL" ;;
+              sadc-v*)     list="$SAD_REQUIRED_COMPILER" ;;
+              sad-v*)      list="$SAD_REQUIRED_INTERPRETER" ;;
+              *) echo "::error::أرشيفٌ لا يُعرَفُ صنفُه / unclassified archive: $base"; exit 1 ;;
+            esac
+
+            echo "── $base (${bindir})"
+            sad_smoke_package "$bindir" "$list" || exit 1
+            case " $list " in
+              *" sad-lsp "*) sad_smoke_lsp "$bindir/sad-lsp" || exit 1 ;;
+            esac
+            checked=$((checked + 1))
+          done
+
+          # (AR) صفرُ أرشيفٍ ليس نجاحًا: حلقةٌ لا تدورُ تُنهي الخطوةَ خضراءَ
+          #      وهي لم تقسْ شيئًا — وهو الصنفُ نفسُه الذي تسدُّه هذه الوظيفة.
+          # (EN) Zero archives is not success: a loop that never turns ends the
+          #      step green having measured nothing.
+          if [ "$checked" -eq 0 ]; then
+            echo "::error::لم يُفحَصْ أرشيفٌ واحد / no archive was checked"
+            find pkgs -type f | head -40
+            exit 1
+          fi
+          echo "✅ $checked حزمةً فُتِحت وشُغِّلت / packages opened and executed"
+
+  # ════════════════════════════════════════════════════════════════════
   # 3. إنشاء الإصدار على GitHub ورفع جميع الملفات
   # ════════════════════════════════════════════════════════════════════
   release:
     name: "نشر الإصدار / Create Release"
-    needs: [build-interpreter, build-compiler]
+    # (AR) `verify-package` مُدرَجةٌ عمدًا: حزمةٌ لا تعملُ يجبُ أن تُوقِفَ
+    #      النشرَ، لا أن تُنشَرَ ثمّ يُكتشَفَ عطبُها على جهازِ مستخدم.
+    # (EN) verify-package is a dependency on purpose: a package that does not
+    #      run must stop the publish, not be published and found broken on a
+    #      user's machine.
+    needs: [build-interpreter, build-compiler, verify-package]
     runs-on: ubuntu-latest
     # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ غيرُ مقيس — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
     timeout-minutes: 30
@@ -787,3 +920,114 @@ jobs:
   #      nothing. Publishing to sad-lang.org is unbuilt work; when it is
   #      built it will be written as an act that can be measured.
   # ════════════════════════════════════════════════════════════════════
+
+  # ════════════════════════════════════════════════════════════════════
+  # 4. تشغيلُ المُثبِّتَين على المنشورِ فعلًا / Run the installers for real
+  # ════════════════════════════════════════════════════════════════════
+  # (AR) 🔑 **المُثبِّتانِ لم يُشغَّلا قطُّ في أيِّ وظيفة.**
+  #      حارسُ `scripts/ci/check_installer_tool_lists.py` يقيسُ **قوائمَهما**
+  #      مقابلَ جدولِ الأدوات، وهذا يمنعُ انجرافَ الأسماء — ولا يقولُ شيئًا عن
+  #      أنّ المُثبِّتَ ينزّلُ ويفكُّ ويضعُ الأدواتِ حيثُ يعِدُ بها. وقد قيلَ
+  #      للمستخدمِ «تمّ» فوقَ تثبيتٍ ناقصٍ من قبل.
+  #
+  #      وتقعُ **بعدَ** النشرِ اضطرارًا لا اختيارًا: `install.sh` لا يعرفُ إلّا
+  #      التنزيلَ من إصدارٍ منشور — لا مسارَ فيه لأرشيفٍ محلّيّ. فالمنعُ قبلَ
+  #      النشرِ تتولّاه `verify-package` التي تفتحُ الأرشيفَ وتُشغِّلُ أدواتَه؛
+  #      وهذه تُحاكِمُ **الطريقَ الذي يسلكُه المستخدمُ حقًّا**: نداءُ الواجهةِ
+  #      البرمجيّةِ، وحلُّ رابطِ التنزيل، والفكُّ، وموضعُ `bin/`.
+  #
+  #      ⚠️ وما لا تقيسُه معلَن: تُثبِّتُ `interpreter` وحدَه. مكوّنُ `compiler`
+  #      يجرُّ منطقَ تثبيتِ LLVM في المُثبِّتِ وهو طريقٌ أطولُ لم يُقَسْ بعد.
+  # (EN) The installers had never been executed in any job.
+  #      check_installer_tool_lists.py measures their LISTS against the tool
+  #      table — that stops name drift, and says nothing about whether the
+  #      installer downloads, extracts and places the tools where it promises.
+  #      It runs AFTER publishing out of necessity, not choice: install.sh only
+  #      knows how to download from a published release — it has no local-archive
+  #      path. Pre-publish blocking is verify-package's job; this one judges the
+  #      route a user actually takes: the API call, the download URL, the
+  #      extraction, and where bin/ lands.
+  #      ⚠️ Declared gap: only the `interpreter` component is installed. The
+  #      `compiler` component pulls the installer's LLVM logic — a longer route,
+  #      not yet measured.
+  # ════════════════════════════════════════════════════════════════════
+  verify-installer:
+    name: "تشغيلُ المُثبِّت / Run the installer (${{ matrix.os }})"
+    needs: [release]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    # (AR) حارسا التشغيلِ الجافِّ نفسُهما اللذانِ يحرسانِ النشر: بلا إصدارٍ
+    #      منشورٍ لا شيءَ يُثبَّت، فالوظيفةُ ستحمرُّ على غيابٍ متوقَّعٍ لا عطب.
+    # (EN) The same two dry-run guards that protect the publish step: with no
+    #      published release there is nothing to install, and the job would go
+    #      red on an expected absence rather than a defect.
+    if: >-
+      ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+          && github.event.inputs.dry_run != 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-22.04
+          - os: windows
+            runner: windows-2022
+
+    steps:
+      - name: "استنساخ المصدر / Checkout"
+        uses: actions/checkout@v7
+        timeout-minutes: 15
+
+      - name: "تحديد الإصدار / Determine Version"
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: "تثبيتٌ حقيقيٌّ / Real install (POSIX)"
+        if: matrix.os != 'windows'
+        shell: bash
+        run: |
+          sh distribution/install.sh \
+            --components interpreter \
+            --version "${{ steps.version.outputs.version }}" \
+            --dir "$RUNNER_TEMP/sad-home" \
+            --no-path --no-gui
+          echo "SAD_HOME=$RUNNER_TEMP/sad-home" >> $GITHUB_ENV
+
+      - name: "تثبيتٌ حقيقيٌّ / Real install (Windows)"
+        if: matrix.os == 'windows'
+        shell: pwsh
+        run: |
+          & .\distribution\install.ps1 `
+            -Components interpreter `
+            -Version "${{ steps.version.outputs.version }}" `
+            -InstallDir "$env:RUNNER_TEMP\sad-home" `
+            -NoPath -Force
+          "SAD_HOME=$env:RUNNER_TEMP\sad-home" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      # (AR) الحكمُ على ما **ثبَّتَه المُثبِّت**، بالأدواتِ التي وعدَ بها هو —
+      #      `SAD_REQUIRED_INTERPRETER` من الجدولِ الواحد، لا قائمةً تُكتَبُ هنا.
+      # (EN) Judge what the INSTALLER placed, against the list it promised —
+      #      SAD_REQUIRED_INTERPRETER from the single table, not a list retyped here.
+      - name: "تشغيلُ ما ثبَّتَه المُثبِّت / Run what the installer placed"
+        shell: bash
+        run: |
+          source scripts/ci/release_tools.sh
+          sad_require_version_flags
+
+          home="$(printf '%s' "$SAD_HOME" | tr '\' '/')"
+          bindir="$home/bin"
+          if [ ! -d "$bindir" ]; then
+            echo "::error::المُثبِّتُ لم يُنشئْ bin/ حيثُ وعد / installer created no bin/ at: $bindir"
+            find "$home" -maxdepth 3 2>/dev/null | head -40
+            exit 1
+          fi
+
+          sad_smoke_package "$bindir" "$SAD_REQUIRED_INTERPRETER"
+          sad_smoke_lsp "$bindir/sad-lsp"
+          echo "✅ التثبيتُ الحقيقيُّ عملَ من طرفٍ إلى طرف / the real install works end to end"

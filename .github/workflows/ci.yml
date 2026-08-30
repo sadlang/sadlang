@@ -2753,13 +2753,131 @@ jobs:
           retention-days: 7
 
   # ======================================================================
+  # 4-ب. أرضيّةُ الإصدار / Release floor — GCC 11
+  # ======================================================================
+  # (AR) 🔑 **الخانةُ التي تبني ما يُشحَنُ لم تكن مقيسةً في أيِّ بوّابةِ دمج.**
+  #      `release.yml` يبني على `ubuntu-22.04` — وهي أرضيّةُ glibc المقصودةُ
+  #      كي تبقى الحزمةُ صالحةً على توزيعاتٍ أقدم — ومترجمُها `GNU 11.4.0`
+  #      (مقيسٌ في سِجِلِّ الوظيفةِ 99231984061 من الشوطِ 33302076297).
+  #      ووظيفةُ `linux` أعلاه تعمل على `ubuntu-latest`، فمترجمُ C++ الذي
+  #      يُنتِجُ الأثرَ المنشورَ **لا يُصرِّفُ في أيِّ فحصِ طلبِ دمج**.
+  #
+  #      وهذا ليس فرضًا: فريقُ محرابٍ أبلغَ (العطب ٤) أنّ البناءَ ينكسرُ على
+  #      GCC 11 في ترويسةِ SIR بنوعٍ ناقصِ التعريف — يتسامحُ فيه clang وGCC
+  #      الأحدث. وقد قِيسَ أنّ العطبَ **لا يُعادُ إنتاجُه اليوم**، فهو نائمٌ
+  #      لا ميّت: أوّلُ إيداعٍ يُدخِلُ استعمالًا كهذا يمرُّ من كلِّ فحوصِ الطلبِ
+  #      أخضرَ ولا يظهرُ إلّا في شوطِ إصدار — أي بعدَ الدمج، وعندَ أسوأِ لحظة.
+  #
+  #      وهي **تصريفٌ لا اختبار**: العطبُ المحروسُ عطبُ ترجمةٍ لا سلوك،
+  #      والسلوكُ مقيسٌ في وظائفَ أخرى. ولا تُكرِّرُ قائمةَ الأهداف: تشتقُّها
+  #      من `SAD_REQUIRED_FULL` في `scripts/ci/release_tools.sh` — الجدولِ
+  #      عينِه الذي يبني منه المُصدِر — وإلّا لكانت نسخةً رابعةً تنجرف.
+  # (EN) The cell that builds what ships was measured by no merge gate.
+  #      release.yml builds on ubuntu-22.04 (GNU 11.4.0, measured in job
+  #      99231984061 of run 33302076297) — a deliberate glibc floor — while the
+  #      `linux` job above runs on ubuntu-latest. So the C++ compiler that
+  #      produces the published artifact compiles in no PR check.
+  #      Not hypothetical: the Mihrab team reported (defect 4) a GCC 11 build
+  #      break in the SIR header on an incomplete type that clang and newer GCC
+  #      tolerate. It no longer reproduces — dormant, not dead: the next commit
+  #      introducing such a use passes every PR check green and surfaces only in
+  #      a release run, i.e. after merge.
+  #      Compile-only by design: the guarded defect is a compilation defect, and
+  #      behaviour is measured elsewhere. The target list is DERIVED from
+  #      SAD_REQUIRED_FULL in scripts/ci/release_tools.sh — the same table the
+  #      publisher builds from — rather than hand-copied into a fourth place.
+  # ======================================================================
+  gcc11_floor:
+    name: "🏚️ أرضيّةُ الإصدار / Release floor (GCC 11)"
+    runs-on: ubuntu-22.04
+    # (AR) الحدُّ مشتقٌّ من قياس: وظيفةُ المترجمِ في الشوطِ الجافِّ 33302076297
+    #      استغرقت ٣١ دقيقةً شاملةً تثبيتَ LLVM والتحزيم. هذه بلا تحزيمٍ ولا
+    #      اختبارات، والفائضُ احتياطٌ لبطءِ المرآة لا رقمٌ مُقدَّر.
+    # (EN) Derived from measurement: the dry-run compiler job took 31 minutes
+    #      including the LLVM install and packaging. This one packages nothing.
+    timeout-minutes: 75
+    needs: code-quality
+
+    steps:
+      - name: "📥 تحميل الكود / Checkout"
+        uses: actions/checkout@v7
+        timeout-minutes: 15
+        with:
+          submodules: recursive
+
+      - name: "📦 تثبيت المتطلبات / Install Dependencies"
+        run: |
+          bash scripts/ci/apt_retry.sh update
+          bash scripts/ci/apt_retry.sh install -y cmake g++ build-essential \
+            libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev libssl-dev
+          python3 -m pip install --user --break-system-packages pyyaml jsonschema \
+            || python3 -m pip install --user pyyaml jsonschema
+
+      # (AR) الحكمُ على المترجمِ **يُشتقُّ من المترجمِ نفسِه** لا من اسمِ الرَّكّاض.
+      #      لو رفعت ﭼِتهَبُ صورةَ `ubuntu-22.04` إلى مترجمٍ آخرَ لصارت هذه
+      #      الوظيفةُ تحرسُ أرضيّةً لم تعُدْ موجودةً وتقولُ «مطابق».
+      # (EN) The judgement derives from the compiler itself, not the runner
+      #      label: if the image ever ships a different GCC, this job would
+      #      guard a floor that no longer exists while still reporting a match.
+      - name: "🔎 تثبيتُ أرضيّةِ المترجم / Assert the compiler floor"
+        run: |
+          gcc_major=$(g++ -dumpversion | cut -d. -f1)
+          g++ --version | head -1
+          if [ "$gcc_major" != "11" ]; then
+            echo "::error::أرضيّةُ الإصدارِ تحوّلت — المتوقَّعُ GCC 11 والموجودُ $gcc_major / release floor moved: expected GCC 11, found $gcc_major"
+            echo "   إمّا أنّ صورةَ ubuntu-22.04 تغيّرت، وإمّا أنّ release.yml لم يعُدْ يبني عليها."
+            exit 1
+          fi
+          echo "✅ أرضيّةُ الإصدارِ مثبَّتة / release floor asserted: GCC $gcc_major"
+
+      - name: "📦 تثبيت LLVM 18 / Install LLVM 18"
+        run: |
+          CODENAME=$(lsb_release -cs)
+          bash scripts/ci/net_retry.sh wget -q -O "$RUNNER_TEMP/llvm-snapshot.gpg.key" \
+            https://apt.llvm.org/llvm-snapshot.gpg.key
+          sudo gpg --dearmor -o /usr/share/keyrings/llvm-archive-keyring.gpg \
+            < "$RUNNER_TEMP/llvm-snapshot.gpg.key"
+          echo "deb [signed-by=/usr/share/keyrings/llvm-archive-keyring.gpg] http://apt.llvm.org/${CODENAME}/ llvm-toolchain-${CODENAME}-18 main" | sudo tee /etc/apt/sources.list.d/llvm-18.list
+          bash scripts/ci/apt_retry.sh update
+          bash scripts/ci/apt_retry.sh install -y llvm-18-dev libclang-18-dev lld-18
+          echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
+
+      # (AR) التهيئةُ مرآةُ `release.yml` حرفًا: Release · LLVM مُفعَّلة ·
+      #      `BUILD_TESTS=OFF`. أيُّ خلافٍ هنا يجعلُ الحارسَ يحرسُ بناءً آخر.
+      # (EN) Configure mirrors release.yml exactly. Any divergence here would
+      #      make the guard protect a different build than the one that ships.
+      - name: "🔨 تهيئةُ CMake كما يُهيّئُ المُصدِر / Configure as the publisher does"
+        run: >
+          test -n "$LLVM_DIR" || { echo "::error::LLVM_DIR غيرُ مُصدَّر"; exit 1; } &&
+          cmake -S . -B build
+          -G "Unix Makefiles"
+          -DCMAKE_BUILD_TYPE=Release
+          -DENABLE_LLVM_BACKEND=ON
+          -DLLVM_DIR="$LLVM_DIR"
+          -DBUILD_TESTS=OFF
+
+      # (AR) الأهدافُ من الجدولِ لا من اليد — و`sad_build_tools` بلا `|| true`
+      #      فإخفاقُ التصريفِ يُسقِطُ الوظيفة. و`sad_require_identity_table`
+      #      يُحاكِمُ الجدولَ نفسَه قبلَ الاتّكالِ عليه.
+      # (EN) Targets from the table, not by hand. sad_build_tools has no
+      #      `|| true`, and sad_require_identity_table judges the table first.
+      - name: "🏗️ بناءُ ما يُشحَنُ / Compile everything the release ships"
+        timeout-minutes: 60
+        shell: bash
+        run: |
+          source scripts/ci/release_tools.sh
+          sad_require_identity_table
+          sad_build_tools build Release "$SAD_REQUIRED_FULL"
+          echo "✅ صُرِّفت أدواتُ الإصدارِ كلُّها بـGCC 11 / all release tools compiled under GCC 11"
+
+  # ======================================================================
   # 5. تقرير الاختبارات / Test Report
   # ======================================================================
   test-report:
     name: "📊 تقرير الاختبارات / Test Report"
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [windows, linux, macos]
+    needs: [windows, linux, macos, gcc11_floor]
     if: always()
 
     steps:
@@ -2773,10 +2891,12 @@ jobs:
           echo "║  🪟 Windows: ${{ needs.windows.result }}"
           echo "║  🐧 Linux:   ${{ needs.linux.result }}"
           echo "║  🍎 macOS:   ${{ needs.macos.result }}"
+          echo "║  🏚️ GCC 11:  ${{ needs.gcc11_floor.result }}"
           echo "╚════════════════════════════════════════════════════╝"
 
           if [ "${{ needs.windows.result }}" = "failure" ] || \
              [ "${{ needs.linux.result }}" = "failure" ] || \
+             [ "${{ needs.gcc11_floor.result }}" = "failure" ] || \
              [ "${{ needs.macos.result }}" = "failure" ]; then
             echo ""
             echo "::error::❌ فشلت الاختبارات على منصّة واحدة أو أكثر!"
@@ -2789,7 +2909,13 @@ jobs:
     name: "✅ جميع الاختبارات / All Tests Pass"
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [windows, linux, macos]
+    # (AR) 🔑 `gcc11_floor` مُدرَجةٌ هنا عمدًا. خانةٌ خضراءُ لا تحجزُ الدمجَ
+    #      ليست بوّابةً بل زينة: تحمرُّ فلا يمنعُها شيءٌ من المرور، وهو عينُ
+    #      الصنفِ الذي سُدَّ في الطلب #438 (خانةٌ تُعلِنُ فعلًا لا يقعُ أثرُه).
+    # (EN) gcc11_floor is listed deliberately: a green cell that blocks no merge
+    #      is decoration, not a gate — it can go red and still let the merge
+    #      through, the same class sealed in PR #438.
+    needs: [windows, linux, macos, gcc11_floor]
     if: always()
 
     steps:
@@ -2798,15 +2924,17 @@ jobs:
           echo "Windows: ${{ needs.windows.result }}"
           echo "Linux:   ${{ needs.linux.result }}"
           echo "macOS:   ${{ needs.macos.result }}"
+          echo "GCC 11:  ${{ needs.gcc11_floor.result }}"
           echo ""
 
           if [ "${{ needs.windows.result }}" != "success" ] || \
              [ "${{ needs.linux.result }}" != "success" ] || \
+             [ "${{ needs.gcc11_floor.result }}" != "success" ] || \
              [ "${{ needs.macos.result }}" != "success" ]; then
             echo "❌ فشلت بعض الاختبارات! لا يمكن دمج الكود."
             echo "❌ Some tests failed! Code cannot be merged."
             exit 1
           fi
 
-          echo "✅ جميع الاختبارات نجحت على المنصّات الثلاث (Windows + Linux + macOS)!"
-          echo "✅ All tests passed on all three platforms (Windows + Linux + macOS)!"
+          echo "✅ جميع الاختبارات نجحت على المنصّات الثلاث + أرضيّةِ الإصدار (GCC 11)!"
+          echo "✅ All tests passed on all three platforms + the release floor (GCC 11)!"

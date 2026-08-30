@@ -283,3 +283,142 @@ sad_require_archive() {
     fi
     echo "✅ $archive يحوي كلَّ ما وُعد / contains every promised tool"
 }
+
+# ══════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **عَلَمُ الإصدارِ إملاءٌ مُعلَنٌ لا افتراض.**
+#      `language-truth/cli_flags.yaml` يجعلُ `--إصدار` الاسمَ الطويلَ الوحيدَ
+#      للمحرّكَين (`engines: [compiler, interpreter]`) وقد أُلغيت ثمانيةَ عشرَ
+#      مرادفًا إنجليزيًّا عمدًا؛ أمّا الهُبُّ والأدواتُ المساعدةُ فخارجَ الجدولِ
+#      وتبقى إنجليزيّة. وماكرو الدُّخانِ كان يكتبُ `--version` حرفيًّا لكلِّ
+#      أداة، فكان يقيسُ **إملاءَه هو** لا عقدَ الأداة — ستُّ خاناتٍ حمراءُ في
+#      الطلب #438 بعلّةٍ واحدة. فجدولٌ إذًا، لا افتراض.
+# (EN) The version spelling is a DECLARED datum, not an assumption.
+#      cli_flags.yaml makes --إصدار the only long name for the two engines
+#      (18 English synonyms deliberately abolished); the hub and the auxiliary
+#      tools sit outside that table and keep English. A smoke macro that wrote
+#      --version literally was measuring its own spelling, not the tool's
+#      contract — six red cells in PR #438 from one cause.
+# ══════════════════════════════════════════════════════════════════════════
+SAD_VERSION_FLAGS="sad:--version sad-run:--إصدار sadc:--إصدار sad-build:--إصدار sad-check:--version sad-lsp:--version"
+
+sad_version_flag() {
+    local name="$1" pair
+    for pair in $SAD_VERSION_FLAGS; do
+        case "$pair" in
+            "$name:"*) printf '%s' "${pair#*:}"; return 0 ;;
+        esac
+    done
+    echo "::error::لا عَلَمَ إصدارٍ مُعلَنٌ لـ / no declared version flag for: $name" >&2
+    return 1
+}
+
+# (AR) يربطُ الجدولَين: كلُّ أداةٍ موعودةٍ لها إملاءٌ مُعلَن. وبغيرِه تسقطُ
+#      أداةٌ من الفحصِ صامتةً فيبقى الشوطُ أخضرَ وهو لم يقسْها.
+# (EN) Binds the two tables: every promised tool has a declared spelling.
+#      Without it a tool drops out of the smoke test silently and the run
+#      stays green having never measured it.
+sad_require_version_flags() {
+    local published missing=""
+    for published in $SAD_REQUIRED_FULL; do
+        sad_version_flag "$published" >/dev/null 2>&1 || missing="$missing $published"
+    done
+    if [ -n "$missing" ]; then
+        echo "::error::أدواتٌ موعودةٌ بلا إملاءِ إصدارٍ مُعلَن / promised tools with no declared version flag:$missing"
+        return 1
+    fi
+    echo "✅ كلُّ أداةٍ موعودةٍ لها إملاءٌ مُعلَن / every promised tool has a declared spelling"
+}
+
+# ══════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **الفرقُ بين «الأرشيفُ يحويه» و«الثنائيُّ يعمل».**
+#      `sad_require_archive` يفتحُ الأرشيفَ ويطلبُ أعضاءَه بالاسم — وهذا يمنعُ
+#      حزمةً فارغةً، ولا يمنعُ ثنائيًّا لا يبدأُ العملَ أصلًا: مكتبةٌ مشتركةٌ
+#      مفقودةٌ، أو رمزٌ غيرُ محلول، أو glibc أحدثَ من أرضيّةِ الهدف. ولم
+#      يُشغَّلْ من الحزمةِ المنشورةِ ثنائيٌّ واحدٌ قطُّ قبلَ هذه الدالّة.
+#      و**المخرَجُ الفارغُ مع خروجٍ صفريٍّ أحمرُ هنا**: أداةٌ تُنهي بلا كلمةٍ
+#      لم تُقَسْ، والأخضرُ عندها يعني «لم يُقَسْ» لا «سليم».
+# (EN) The gap between "the archive contains it" and "the binary runs".
+#      sad_require_archive opens the archive and requires members by name,
+#      which stops an empty package but not a binary that cannot start: a
+#      missing shared library, an unresolved symbol, a glibc newer than the
+#      target floor. Until this function, not one binary from a published
+#      package had ever been executed.
+#      Empty stdout with exit 0 is RED here: a tool that ends without a word
+#      was not measured, and green would mean "unmeasured", not "healthy".
+# ══════════════════════════════════════════════════════════════════════════
+sad_smoke_package() {
+    local bindir="$1" published_list="$2"
+    local published flag bin out rc bad=""
+    for published in $published_list; do
+        bin="$bindir/$published"
+        [ -f "$bin" ] || bin="$bindir/$published.exe"
+        if [ ! -f "$bin" ]; then
+            bad="$bad
+  غيرُ موجودٍ في bin/ / absent from bin/: $published"
+            continue
+        fi
+        flag="$(sad_version_flag "$published")" || return 1
+        # (AR) 🔑 الالتقاطُ داخلَ `if` لا في إسنادٍ عارٍ: خطواتُ ﭼِتهَب تعملُ
+        #      بـ`bash -eo pipefail`، وإسنادٌ من أمرٍ ساقطٍ يقتلُ الخطوةَ **قبلَ**
+        #      أن يُطبَعَ التشخيص — فيصيرُ العطبُ إخفاقًا بلا كلمةٍ تُسمّيه.
+        #      وشرطُ `if` مستثنًى من `-e` بحكمِ الصَّدَفةِ نفسِها.
+        # (EN) Capture inside an `if`, not a bare assignment: GitHub steps run
+        #      under bash -eo pipefail, where assigning from a failing command
+        #      kills the step BEFORE the diagnostic prints — turning the defect
+        #      into a wordless failure. An `if` condition is exempt from -e.
+        if out="$("$bin" "$flag" 2>&1)"; then rc=0; else rc=$?; fi
+        if [ "$rc" -ne 0 ]; then
+            bad="$bad
+  $published $flag ⇒ رمزُ خروجٍ / exit $rc :: $(printf '%s' "$out" | head -3 | tr '\n' ' ')"
+        elif [ -z "$out" ]; then
+            bad="$bad
+  $published $flag ⇒ خرجَ صفرًا بلا مخرَج / exited 0 with no output"
+        else
+            echo "✅ $published $flag ⇒ $(printf '%s' "$out" | head -1)"
+        fi
+    done
+    if [ -n "$bad" ]; then
+        echo "::error::أدواتٌ من الحزمةِ لا تعمل / tools from the package do not run:$bad"
+        return 1
+    fi
+    echo "✅ كلُّ أداةٍ في الحزمةِ بدأت العملَ وأجابت / every packaged tool started and answered"
+}
+
+# ══════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **خادمُ اللغةِ يُصافَحُ لا يُستدعى بـ`--version` وحدَه.**
+#      `sad-lsp --version` يطبعُ سطرًا ويخرج قبلَ أن يُبنى المحرّكُ أصلًا،
+#      فيمرُّ خادمٌ لا يُجيبُ طلبًا واحدًا. المُصافحةُ تُرسِلُ `initialize`
+#      مؤطَّرًا بـ`Content-Length` وتطلبُ `capabilities` في الجواب — وهي
+#      أقلُّ ما يفعلُه محرّرٌ حقيقيٌّ عندَ أوّلِ فتحِ ملفّ.
+# (EN) The language server is handshaked, not merely asked for its version:
+#      `--version` prints a line and exits before the engine is ever built, so
+#      a server that answers no request would pass. The handshake sends a
+#      Content-Length framed `initialize` and requires `capabilities` back —
+#      the least a real editor does when it opens the first file.
+# ══════════════════════════════════════════════════════════════════════════
+sad_smoke_lsp() {
+    local bin="$1" body resp
+    [ -f "$bin" ] || bin="$1.exe"
+    if [ ! -f "$bin" ]; then
+        echo "::error::خادمُ اللغةِ غيرُ موجود / language server absent: $1"
+        return 1
+    fi
+    body='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"processId":null,"rootUri":null,"capabilities":{}}}'
+    # (AR) خادمٌ يسقطُ عندَ الإقلاعِ يجبُ أن يُشخَّصَ لا أن يقتلَ الخطوةَ صامتًا
+    #      تحتَ `-eo pipefail` — انظرَ التعليلَ في `sad_smoke_package`.
+    # (EN) A server that dies on startup must be diagnosed, not silently kill
+    #      the step under -eo pipefail — see the note in sad_smoke_package.
+    if ! resp="$(printf 'Content-Length: %d\r\n\r\n%s' "${#body}" "$body" | "$bin" --stdio 2>&1)"; then
+        echo "::error::خادمُ اللغةِ سقطَ عندَ الإقلاع / the language server died on startup: $bin"
+        printf '%s\n' "$resp" | head -20
+        return 1
+    fi
+    case "$resp" in
+        *'"capabilities"'*)
+            echo "✅ خادمُ اللغةِ صافحَ وأعادَ قدراتِه / language server handshook and returned capabilities"
+            return 0 ;;
+    esac
+    echo "::error::خادمُ اللغةِ لم يُجِبْ مُصافحةَ initialize / no initialize response from the language server"
+    printf '%s\n' "$resp" | head -20
+    return 1
+}
