@@ -15,7 +15,7 @@
 
 > الآلة الافتراضية ليست جزءاً من المفسر الشجري — هما مساران منفصلان متوازيان، ولا أحد منهما يستورد من الآخر.
 
-## 🎯 الواجهة الموحَّدة (sad-hub)
+## 🎯 الواجهة الموحَّدة (sad)
 
 كل الأدوات تُستدعى عبر نقطة دخول واحدة `sad`:
 
@@ -28,7 +28,7 @@ sad repl             # وضع تفاعلي (← sad-repl)
 sad --list           # عرض كل الأدوات المتاحة
 ```
 
-`sad.exe` نفسه = `sad-hub.exe` (موزّع موحَّد). كل أداة هي تنفيذي مستقل (`sad-<role>.exe`) يمكن استخدامه مباشرة.
+`sad.exe` هو الموزّع الموحَّد نفسه — اسمٌ واحدٌ لا نسخةٌ ولقب. وكل أداة تنفيذيٌّ مستقل (`sad-<role>.exe`) يمكن استخدامه مباشرة.
 
 📖 **[تصميم مركز الأدوات →](docs/architecture-tools-hub.md)**
 
@@ -128,8 +128,8 @@ cmake -S . -B build
 # 🟦 الطبقة المشتركة
 cmake --build build --config Debug --target sad_shared
 
-# 🎯 مركز الأدوات (sad.exe = sad-hub.exe)
-cmake --build build --config Debug --target sad_hub
+# 🎯 مركز الأدوات (sad.exe)
+cmake --build build --config Debug --target sad
 
 # 🟩 المسار 1 — بناء المفسر الشجري (sad-run.exe)
 cmake --build build --config Debug --target sad-run
@@ -141,7 +141,7 @@ cmake --build build --config Debug --target sad_vm
 cmake --build build --config Debug --target sad-build
 
 # ✓ فاحص الملكية الثابت (sad-check.exe)
-cmake --build build --config Debug --target sad_check
+cmake --build build --config Debug --target sad-check
 
 # تشغيل ملف عبر المفسر (مباشرة أو عبر الهب)
 .\build\bin\Debug\sad-run.exe examples\test_simple.ص
@@ -162,7 +162,7 @@ cmake --build build --config Debug --target sad_check
 
 | المكوّن | المحتوى |
 |---|---|
-| `hub` | sad.exe + sad-hub.exe (الواجهة الموحَّدة) |
+| `hub` | sad.exe (الواجهة الموحَّدة) |
 | `runtime` | sad-run.exe + المكتبة القياسية |
 | `compiler` | sad-build.exe (LLVM AOT) |
 | `fmt` | sad-fmt.exe (المنسّق) |

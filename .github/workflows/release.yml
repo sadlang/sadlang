@@ -33,10 +33,31 @@ on:
         required: false
         type: boolean
         default: false
+      # (AR) تشغيلٌ جافّ: يبني ويحزم ويُحاكِم الحزمَ **ولا ينشر**. وبدونه كان
+      #      قياسُ المجرى يعني نشرَ إصدارٍ حقيقيّ، فلم يكن يُقاس إلّا على فرعٍ
+      #      جانبيّ — وهو سببُ بقاءِ أعطابِ التحزيمِ سنةً كاملة.
+      # (EN) Dry run: build, package and JUDGE the packages, publish nothing.
+      #      Without it, measuring the workflow meant publishing a real release,
+      #      so it was only ever measured on a side branch.
+      dry_run:
+        description: "تشغيل جافّ — يبني ويُحاكِم الحزمَ بلا نشر / Dry run (no publish)"
+        required: false
+        type: boolean
+        default: false
 
 env:
   BUILD_TYPE: Release
   CMAKE_VERSION: "3.28"
+  # (AR) پايثونُ يُشغَّلُ على عدّاءِ ويندوزَ في هذا السير (حزمُ التوليدِ ثمّ
+  #      المولِّداتُ وقتَ البناء)، وخرجُه المُوجَّهُ يأخذ cp1252 فيسقطُ عندَ أوّلِ
+  #      محرفٍ عربيّ — فتُقرأُ حمرةُ المقياسِ عطبًا في الشجرة. يفرضُه حارسُ
+  #      scripts/ci/check_ci_resilience.py على مستوى السيرِ لا الخطوة.
+  # (EN) Python runs on a Windows runner here (codegen deps, then the build-time
+  #      generators); its redirected output takes cp1252 and dies on the first
+  #      Arabic character, so the instrument's own red reads as a tree defect.
+  #      Required at workflow level by scripts/ci/check_ci_resilience.py.
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: "1"
 
 # ──────────────────────────────────────────────────────────────────────
 # الوظائف / Jobs
@@ -85,6 +106,34 @@ jobs:
         with:
           submodules: recursive
 
+      # (AR) 🔑 توليدُ الكودِ يعملُ **وقتَ البناء**: الهدفُ `sad_check_codegen_env`
+      #      يستوردُ pyyaml وjsonschema قبلَ أوّلِ مولِّد. وكان مجرى الإصدارِ لا
+      #      يُثبّتُهما إطلاقًا — نجا لينكس ومَك لأنّ صورتَيهما تحملانِ pyyaml
+      #      عَرَضًا، وسقطَت ويندوزُ بـ«No module named 'yaml'». المقيس: شوطُ
+      #      الإصدارِ 33296826705، الخانتانِ windows-x86_64 كلتاهما.
+      #      لا نتّكلُ على ما تحملُه الصورةُ — نُثبِّتُ على المنصّاتِ الثلاث.
+      # (EN) Codegen runs at BUILD time: target sad_check_codegen_env imports
+      #      pyyaml and jsonschema before the first generator. The release
+      #      workflow never installed them — Linux and macOS survived only
+      #      because their images happen to ship pyyaml; Windows failed with
+      #      "No module named 'yaml'". Measured: release run 33296826705, both
+      #      windows-x86_64 cells. Do not rely on the image — install on all.
+      - name: "حزم توليد الكود / Codegen deps (Windows)"
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          python -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
+          $py = (Get-Command python).Source
+          "PYTHON3_EXECUTABLE=$py" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: "حزم توليد الكود / Codegen deps (POSIX)"
+        if: runner.os != 'Windows'
+        shell: bash
+        timeout-minutes: 10
+        run: |
+          python3 -m pip install --user --break-system-packages --quiet pyyaml jsonschema             || python3 -m pip install --user --quiet pyyaml jsonschema
+
       - name: "تحديد الإصدار / Determine Version"
         id: version
         shell: bash
@@ -106,47 +155,87 @@ jobs:
         if: matrix.os == 'linux'
         run: |
           bash scripts/ci/apt_retry.sh update -qq
-          bash scripts/ci/apt_retry.sh install -y -qq build-essential libssl-dev
+          # (AR) SDL2 النظاميّةُ لازمةٌ للإصدارِ لا للاختبارِ فحسب: المُضمَّنُ في
+          #      الشجرةِ صيغةُ MSVC ومحروسٌ بـWIN32، فبلا الحزمةِ النظاميّةِ
+          #      تُشحَنُ حزمةُ لينكسَ **بلا خلفيّةِ سطحِ مكتب** أصلًا. مجرى CI
+          #      يُثبّتُها منذُ زمنٍ؛ مجرى الإصدارِ لم يفعل.
+          # (EN) System SDL2 is a release requirement, not just a test one: the
+          #      in-tree copy is MSVC-format and gated on WIN32, so without the
+          #      system package the Linux artifact ships with no desktop backend
+          #      at all. CI installs it; the release workflow never did.
+          bash scripts/ci/apt_retry.sh install -y -qq build-essential libssl-dev             libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
 
       # ── تهيئة البناء (بدون LLVM) ──
+      # (AR) 🔑 المفسّرُ الذي ثُبّتَت فيه الحزمُ هو الذي يجبُ أن يُشغّلَه CMake.
+      #      `find_package(Python3)` يختارُ ما يجدُه هو، وقد يكونُ غيرَ الذي
+      #      طرقَه pip — فيسقطُ `sad_check_codegen_env` بـ«No module named
+      #      'yaml'» رغمَ نجاحِ التثبيت. نُثبّتُ المسارَ صراحةً حينَ يُصدَّر.
+      # (EN) The interpreter pip installed into must be the one CMake runs.
+      #      find_package(Python3) picks its own, which may differ from pip's, so
+      #      sad_check_codegen_env dies with "No module named 'yaml'" even though
+      #      the install succeeded. Pin the path explicitly when it is exported.
       - name: "تهيئة CMake / Configure"
-        run: >
-          cmake -S . -B build
-          -G "${{ matrix.cmake_generator }}"
-          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-          -DENABLE_LLVM_BACKEND=OFF
-          -DBUILD_TESTS=OFF
-          -DBUILD_PKG_MANAGER=ON
-          -DBUILD_LSP_SERVER=ON
-          -DBUILD_REPL=ON
-
-      # ── بناء المفسّر والأدوات ──
-      - name: "بناء / Build"
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-run
-
-      # ── بناء الأدوات المساعدة ──
-      - name: "بناء الأدوات / Build Tools"
+        shell: bash
         run: |
-          cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-lsp || true
-          cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-pkg || true
+          PY_ARG=""
+          # (AR) مسارُ ويندوزَ يأتي بشُرَطٍ خلفيّةٍ، وCMake يقرؤها هروبًا — تُقلَب.
+          # (EN) The Windows path arrives with backslashes, which CMake reads as
+          #      escapes — flip them to forward slashes.
+          [ -n "$PYTHON3_EXECUTABLE" ] && PY_ARG="-DPython3_EXECUTABLE=$(printf '%s' "$PYTHON3_EXECUTABLE" | tr '\' '/')"
+          cmake -S . -B build             -G "${{ matrix.cmake_generator }}"             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}             -DENABLE_LLVM_BACKEND=OFF             -DBUILD_TESTS=OFF             -DBUILD_PKG_MANAGER=ON             -DBUILD_LSP_SERVER=ON             -DBUILD_REPL=ON             $PY_ARG
+
+      # ── بناء الأدوات الموعودة (من جدولِ الحقيقةِ الواحد) ──
+      # (AR) الأهدافُ تُشتقُّ من `scripts/ci/release_tools.sh` لا تُكتَبُ هنا.
+      #      وكانت تُكتَبُ هنا فانجرفت: `--target sad-lsp` اسمُ مُخرَجٍ لا اسمُ
+      #      هدفٍ، فأخفقَ البناءُ وابتلعَه `|| true`، فغابَ خادمُ اللغةِ عن كلِّ
+      #      حزمةٍ منشورة. ولا `|| true` هنا: أداةٌ موعودةٌ لا تُبنى تُسقِطُ الشوط.
+      # (EN) Targets derived from the single truth table, not typed here. They
+      #      used to be typed here and drifted: `--target sad-lsp` is an OUTPUT
+      #      name, the build failed, `|| true` swallowed it, and the language
+      #      server was absent from every published package.
+      - name: "بناء الأدوات الموعودة / Build promised tools"
+        shell: bash
+        run: |
+          source scripts/ci/release_tools.sh
+          sad_require_identity_table
+          sad_build_tools build "${{ env.BUILD_TYPE }}" "$SAD_REQUIRED_INTERPRETER"
+
+      # (AR) الأدواتُ الإضافيّةُ ليست وعدًا: تُبنى إن أمكنَ ولا تُسقِطُ الشوط.
+      # (EN) Extras are not a promise: best-effort, never fatal.
+      - name: "بناء الأدوات الإضافيّة / Build optional tools"
+        shell: bash
         continue-on-error: true
+        run: |
+          for target in sad-pkg sad-repl sad-fmt; do
+            cmake --build build --config ${{ env.BUILD_TYPE }} --target "$target" ||               echo "⚠️ أداةٌ إضافيّةٌ لم تُبنَ / optional tool not built: $target"
+          done
+
+      # ── نسخُ الأدواتِ ومحاكمتُها (خطوةٌ واحدةٌ للمنصّاتِ الثلاث) ──
+      # (AR) خطوةٌ واحدةٌ بـbash بدلَ نسختَينِ متباعدتَين (bash لِيونكس وpwsh
+      #      لِويندوز). والنسختانِ كانتا مختلفتَينِ فعلًا: يونكس ينسخُ
+      #      «sad-lsp» و«sad-lsp-server»، وويندوز ينسخُ «sad-lsp.exe» وحدَه —
+      #      وهذا صنفُ الانجرافِ الذي يعيشُ في النُّسَخ لا في الأسماء.
+      # (EN) One bash step on all runners instead of two copies that had
+      #      already drifted apart.
+      - name: "نسخُ الأدواتِ إلى الحزمة / Copy tools into package"
+        shell: bash
+        run: |
+          source scripts/ci/release_tools.sh
+          VERSION="${{ steps.version.outputs.version }}"
+          PKG_DIR="sad-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
+          mkdir -p "$PKG_DIR/bin" "$PKG_DIR/stdlib" "$PKG_DIR/docs"
+          sad_copy_tools build "${{ env.BUILD_TYPE }}" "$PKG_DIR/bin" \
+            "$SAD_REQUIRED_INTERPRETER sad-pkg sad-repl sad-fmt"
+          sad_require_tools "$PKG_DIR/bin" "$SAD_REQUIRED_INTERPRETER"
+          echo "PKG_DIR=$PKG_DIR" >> $GITHUB_ENV
 
       # ── تجميع الحزمة ──
       - name: "تجميع الحزمة / Package (Unix)"
         if: matrix.os != 'windows'
         shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          PKG_DIR="sad-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
-          mkdir -p "$PKG_DIR/bin" "$PKG_DIR/stdlib" "$PKG_DIR/docs"
-
-          # نسخ الملفات التنفيذية
-          cp build/bin/sad "$PKG_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sad-lsp "$PKG_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sad-lsp-server "$PKG_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sad-pkg "$PKG_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sad-repl "$PKG_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sad-fmt "$PKG_DIR/bin/" 2>/dev/null || true
+          # (AR) المجلّدُ والأدواتُ من الخطوةِ السابقة — لا تُعادُ كتابتُهما.
+          # (EN) Directory and tools come from the previous step.
 
           # نسخ المكتبة القياسيّة
           cp -r stdlib/* "$PKG_DIR/stdlib/" 2>/dev/null || true
@@ -166,17 +255,23 @@ jobs:
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
-          $VERSION = "${{ steps.version.outputs.version }}"
-          $PKG_DIR = "sad-v${VERSION}-windows-${{ matrix.arch }}"
-          New-Item -ItemType Directory -Path "$PKG_DIR\bin", "$PKG_DIR\stdlib", "$PKG_DIR\docs" -Force
+          # (AR) المجلّدُ والأدواتُ من الخطوةِ المشتركةِ السابقة.
+          # (EN) Directory and tools come from the shared previous step.
+          $PKG_DIR = $env:PKG_DIR
 
-          # نسخ الملفات التنفيذية
-          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad-lsp.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad-pkg.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad-repl.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\sad-fmt.exe" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\SDL2.dll" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
+          # (AR) المكتبةُ المشتركةُ للرسوم: المُحمِّلُ يبحثُ عنها في مجلّدِ
+          #      الثنائيِّ أوّلًا، فغيابُها يجعلُ البرنامجَ لا يبدأُ العملَ.
+          # (EN) The loader searches the binary own directory first.
+          # (AR) غيابُها لا يُبتلَع: برامجُ الواجهةِ في الحزمةِ المنشورةِ لا
+          #      تبدأُ العملَ أصلًا بلا هذه المكتبة، فالصمتُ هنا يُشحَنُ عطبًا.
+          # (EN) Its absence is not swallowed: UI programs in the published
+          #      package do not start without it, so silence here ships a defect.
+          $sdl = "build\bin\${{ env.BUILD_TYPE }}\SDL2.dll"
+          if (-not (Test-Path $sdl)) {
+            Write-Host "::error::SDL2.dll غيرُ موجودةٍ في $sdl — حزمةُ ويندوزَ بلا مكتبةِ الرسوم"
+            exit 1
+          }
+          Copy-Item $sdl "$PKG_DIR\bin\"
 
           # المكتبة القياسيّة
           Copy-Item -Path "stdlib\*" -Destination "$PKG_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
@@ -236,6 +331,34 @@ jobs:
         with:
           submodules: recursive
 
+      # (AR) 🔑 توليدُ الكودِ يعملُ **وقتَ البناء**: الهدفُ `sad_check_codegen_env`
+      #      يستوردُ pyyaml وjsonschema قبلَ أوّلِ مولِّد. وكان مجرى الإصدارِ لا
+      #      يُثبّتُهما إطلاقًا — نجا لينكس ومَك لأنّ صورتَيهما تحملانِ pyyaml
+      #      عَرَضًا، وسقطَت ويندوزُ بـ«No module named 'yaml'». المقيس: شوطُ
+      #      الإصدارِ 33296826705، الخانتانِ windows-x86_64 كلتاهما.
+      #      لا نتّكلُ على ما تحملُه الصورةُ — نُثبِّتُ على المنصّاتِ الثلاث.
+      # (EN) Codegen runs at BUILD time: target sad_check_codegen_env imports
+      #      pyyaml and jsonschema before the first generator. The release
+      #      workflow never installed them — Linux and macOS survived only
+      #      because their images happen to ship pyyaml; Windows failed with
+      #      "No module named 'yaml'". Measured: release run 33296826705, both
+      #      windows-x86_64 cells. Do not rely on the image — install on all.
+      - name: "حزم توليد الكود / Codegen deps (Windows)"
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          python -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
+          $py = (Get-Command python).Source
+          "PYTHON3_EXECUTABLE=$py" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: "حزم توليد الكود / Codegen deps (POSIX)"
+        if: runner.os != 'Windows'
+        shell: bash
+        timeout-minutes: 10
+        run: |
+          python3 -m pip install --user --break-system-packages --quiet pyyaml jsonschema             || python3 -m pip install --user --quiet pyyaml jsonschema
+
       - name: "تحديد الإصدار / Determine Version"
         id: version
         shell: bash
@@ -258,11 +381,70 @@ jobs:
           bash scripts/ci/apt_retry.sh install -y -qq llvm-18-dev libclang-18-dev lld-18 build-essential libssl-dev
           echo "LLVM_DIR=/usr/lib/llvm-18/lib/cmake/llvm" >> $GITHUB_ENV
 
+      # ══════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **المصدرُ مقيسٌ لا مفترَض.** كانت الخطوةُ تطبعُ «skipping» ثمّ
+      #      تُهيّئُ بـ`-DENABLE_LLVM_BACKEND=ON` و`LLVM_DIR` **فارغًا** — أي
+      #      تتخطّى المورِدَ ثمّ تطلبُه. وكان العلاجُ حلقةَ ثلاثِ محاولاتٍ تُنزِّلُ
+      #      `LLVM-18.1.8-win64.exe` وتشغّلُه بـ`/S`.
+      #      والمقيس: ذلك المثبِّتُ سلسلةُ أدواتِ clang **لا شجرةُ تطوير**، ولا
+      #      يحوي `lib/cmake/llvm` إطلاقًا — فيُخفِقُ البحثُ عن
+      #      `LLVMConfig.cmake` **دائمًا**، فينزلقُ المجرى إلى فرعِ «هيّئ بلا
+      #      LLVM_DIR»، فيبني بلا خلفيّةٍ فعليّة. الحزمةُ الوحيدةُ التي تحملُ
+      #      الشجرةَ هي أرشيفُ msvc، وهو المُستعمَلُ هنا.
+      #      والأطوارُ الثلاثةُ مقيسةٌ (تشغيل 30911355461): تنزيلٌ ١٠ث · فكُّ xz
+      #      ١٢ث · فكُّ tar ٤٧ث = **سبعون ثانيةً** بدل سقوطٍ عند أربعينَ دقيقة.
+      #      والفرقُ ثلاثةُ أشياء: `curl.exe` بدل `Invoke-WebRequest`، و`7z` بدل
+      #      `tar -xf` (bsdtar يفكُّ xz بخيطٍ واحد)، واستثناءُ Defender **قبلَ**
+      #      أوّلِ كتابةٍ لأنّه يفحصُ عشراتِ الآلافِ من الملفّاتِ الصغيرة.
+      #      والجذرُ **يُشتقُّ من موضعِ LLVMConfig.cmake** لا يُفترَض: 7z لا
+      #      تقشّرُ الدليلَ الأعلى.
+      # (EN) Measured source, not assumed. The step used to print "skipping" and
+      #      then configure with ENABLE_LLVM_BACKEND=ON and an EMPTY LLVM_DIR —
+      #      skip the resource, then require it. The remedy was a 3-attempt loop
+      #      installing LLVM-18.1.8-win64.exe, which is a clang TOOLCHAIN with no
+      #      lib/cmake/llvm at all, so the LLVMConfig.cmake search always failed
+      #      and the run slid into a "configure without LLVM_DIR" branch. Only
+      #      the msvc archive carries the development tree. Phases measured
+      #      (run 30911355461): download 10s, xz 12s, tar 47s = 70 seconds,
+      #      against a 40-minute timeout. curl.exe over Invoke-WebRequest, 7z
+      #      over bsdtar (single-threaded xz), Defender exclusion BEFORE the
+      #      first write, and the root DERIVED from where LLVMConfig.cmake lands.
+      # ══════════════════════════════════════════════════════════════════
       - name: "تثبيت LLVM / Install LLVM (Windows)"
         if: matrix.os == 'windows'
         shell: pwsh
+        timeout-minutes: 30
         run: |
-          Write-Host "⚠️ skipping LLVM install on Windows (sadc build is optional)"
+          $نسخة = "18.1.8"
+          $اسم = "clang+llvm-$نسخة-x86_64-pc-windows-msvc"
+          $عنوان = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$نسخة/$اسم.tar.xz"
+          $جذر = "C:\llvm18"
+          $أرشيف = Join-Path $env:RUNNER_TEMP "$اسم.tar.xz"
+
+          # (AR) الاستثناءُ **قبلَ** أوّلِ كتابةٍ لا بعدَها.
+          Add-MpPreference -ExclusionPath $env:RUNNER_TEMP, $جذر -ErrorAction SilentlyContinue
+
+          Write-Host "[١] تنزيل / download"
+          & curl.exe -L --fail --retry 3 --retry-delay 5 -o $أرشيف $عنوان
+          if ($LASTEXITCODE -ne 0) { throw "تعذّر تنزيل أرشيف LLVM" }
+
+          New-Item -ItemType Directory -Force -Path $جذر | Out-Null
+          Write-Host "[٢] فكُّ xz / decompress"
+          & 7z x $أرشيف "-o$env:RUNNER_TEMP" -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "تعذّر فكُّ ضغطِ xz" }
+          Write-Host "[٣] فكُّ tar / untar"
+          & 7z x (Join-Path $env:RUNNER_TEMP "$اسم.tar") "-o$جذر" -y | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "تعذّر فكُّ أرشيفِ tar" }
+
+          # (AR) الجذرُ يُشتقُّ من موضعِ الملفِّ لا يُفترَض.
+          $تهيئة = Get-ChildItem -Path $جذر -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue |
+                     Select-Object -First 1
+          if ($null -eq $تهيئة) {
+            Write-Host "::error::LLVMConfig.cmake غيرُ موجودٍ في $جذر — الأرشيفُ ليس شجرةَ تطوير"
+            exit 1
+          }
+          "LLVM_DIR=$($تهيئة.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "✅ LLVM_DIR = $($تهيئة.Directory.FullName)"
 
       - name: "تثبيت LLVM / Install LLVM (macOS)"
         if: matrix.os == 'macos'
@@ -271,128 +453,112 @@ jobs:
           echo "LLVM_DIR=$(brew --prefix llvm@18)/lib/cmake/llvm" >> $GITHUB_ENV
 
       # ── تهيئة البناء (مع LLVM) ──
+      # (AR) حارسٌ قبلَ التهيئة: `-DENABLE_LLVM_BACKEND=ON` مع `LLVM_DIR`
+      #      فارغٍ يُهيّئُ بلا خلفيّةٍ ثمّ يسقطُ متأخّرًا برسالةٍ عن هدفٍ مفقود.
+      # (EN) Guard: ON with an empty LLVM_DIR configures without a backend and
+      #      fails later with a message about a missing target.
       - name: "تهيئة CMake / Configure (Linux/macOS)"
         if: matrix.os != 'windows'
         run: >
+          test -n "$LLVM_DIR" || { echo "::error::LLVM_DIR غيرُ مُصدَّر — خطوةُ تثبيتِ LLVM لم تعمل"; exit 1; } &&
           cmake -S . -B build
           -G "${{ matrix.cmake_generator }}"
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
           -DENABLE_LLVM_BACKEND=ON
           -DLLVM_DIR="$LLVM_DIR"
           -DBUILD_TESTS=OFF
+          ${PYTHON3_EXECUTABLE:+-DPython3_EXECUTABLE=$PYTHON3_EXECUTABLE}
 
       - name: "تهيئة CMake / Configure (Windows)"
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
+          # (AR) حارسٌ قبلَ التهيئة — انظر تعليلَ نظيرِه أعلاه.
+          # (EN) Guard before configure — see the twin above.
+          if (-not $env:LLVM_DIR) {
+            Write-Host "::error::LLVM_DIR غيرُ مُصدَّر — خطوةُ تثبيتِ LLVM لم تعمل"
+            exit 1
+          }
+          $pyArg = if ($env:PYTHON3_EXECUTABLE) { "-DPython3_EXECUTABLE=$env:PYTHON3_EXECUTABLE" } else { "" }
           cmake -S . -B build `
             -G "${{ matrix.cmake_generator }}" `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DENABLE_LLVM_BACKEND=ON `
             -DLLVM_DIR="$env:LLVM_DIR" `
-            -DBUILD_TESTS=OFF
+            -DBUILD_TESTS=OFF $pyArg
 
-      # ── بناء المترجم ──
-      - name: "بناء المترجم / Build Compiler (Unix)"
-        if: matrix.os != 'windows'
+      # ══════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **هدفٌ صريحٌ لأنّ الاستثناءَ مقصود.** `sad-build` مستثنًى من
+      #      `ALL` على MSVC حين لا توجد LLVM تنقيحيّة (apps/CMakeLists.txt) —
+      #      وهو تصميمٌ لا عطب. فقاعدةُ البناءِ هنا تنادي الهدفَ بالاسمِ في
+      #      المنصّتَين، ولا تفترضُ أنّ `ALL` يحويه.
+      #      وأُزيلت حلقةُ المحاولاتِ الثلاث: كانت تُعيدُ تثبيتَ LLVM من مثبِّتٍ
+      #      لا يصلحُ للغرض، فتُكرِّرُ الإخفاقَ ثلاثًا ثمّ تسقط. والمورِدُ الآن
+      #      يُثبَّتُ مرّةً واحدةً من مصدرٍ مقيس، فإخفاقُ البناءِ عطبٌ يُبلَّغ.
+      #      و`continue-on-error` أُسقِط: بناءٌ فاشلٌ كان يمضي إلى التحزيمِ
+      #      فيُنتِجُ حزمةً فارغةً ويُنهي الشوطَ أخضر.
+      # (EN) Explicit target because the exclusion is deliberate: sad-build is
+      #      EXCLUDE_FROM_ALL on MSVC without a Debug LLVM, by design. The
+      #      three-attempt loop is gone — it reinstalled LLVM from an installer
+      #      unfit for the purpose, repeating the same failure three times. And
+      #      continue-on-error is gone: a failed build used to proceed to
+      #      packaging, produce an empty archive and end the run green.
+      # ══════════════════════════════════════════════════════════════════
+      - name: "بناء المترجم / Build Compiler"
+        shell: bash
+        timeout-minutes: 60
+        run: |
+          source scripts/ci/release_tools.sh
+          sad_require_identity_table
+          sad_build_tools build "${{ env.BUILD_TYPE }}" "$SAD_REQUIRED_COMPILER"
+
+      # ── بناء بقيّةِ أدواتِ الحزمةِ الكاملة ──
+      # (AR) كانت تبني `sad-run` وحدَه ثمّ تنسخُ `sad` و`sad-lsp` و`sad-check` —
+      #      أدواتٌ لم يطلبها أحدٌ من البناء. الآن تُشتقُّ الأهدافُ من القائمة.
+      # (EN) It used to build sad-run alone and then copy sad, sad-lsp and
+      #      sad-check — tools nobody asked the build for.
+      - name: "بناء أدواتِ الحزمةِ الكاملة / Build full-package tools"
         shell: bash
         run: |
-          if [ -f "build/build.ninja" ] || [ -f "build/Makefile" ]; then
-            cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-build || echo "⚠️ sadc target not available"
-          else
-            echo "⚠️ build files not found, skipping sadc"
-          fi
+          source scripts/ci/release_tools.sh
+          sad_build_tools build "${{ env.BUILD_TYPE }}" "$SAD_REQUIRED_FULL"
 
-      - name: "بناء المترجم / Build Compiler (Windows)"
-        if: matrix.os == 'windows'
+      - name: "بناء الأدوات الإضافيّة / Build optional tools"
+        shell: bash
         continue-on-error: true
-        timeout-minutes: 30
-        shell: pwsh
         run: |
-          $maxAttempts = 3  # first try + two retries
-          $success = $false
+          for target in sad-pkg sad-repl sad-fmt; do
+            cmake --build build --config ${{ env.BUILD_TYPE }} --target "$target" || \
+              echo "⚠️ أداةٌ إضافيّةٌ لم تُبنَ / optional tool not built: $target"
+          done
 
-          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            if (!(Test-Path "build\sad-build.vcxproj")) {
-              Write-Host "⚠️ sadc target missing (attempt $attempt/$maxAttempts), reinstalling LLVM and reconfiguring"
-              $llvmVersion = "18.1.8"
-              $installer = Join-Path $env:TEMP "LLVM-$llvmVersion-win64.exe"
-              $url = "https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVersion/LLVM-$llvmVersion-win64.exe"
-              pwsh -NoProfile -File scripts/ci/net_retry.ps1 `
-                -Uri $url -OutFile $installer -TimeoutSec 900
-              if ($LASTEXITCODE -ne 0) { throw "تعذّر تنزيل مثبّت LLVM" }
-              # (AR) نظيرُ ci.yml: الانتظارُ كما قِيس، والحدُّ على الخطوةِ،
-              #      و`-PassThru` تجعل رمزَ الخروجِ مقروءًا ومُحاكَمًا.
-              # (EN) Same as ci.yml: measured wait, step-level bound, judged code.
-              $عملية = Start-Process -FilePath $installer `
-                -ArgumentList "/S" -Wait -PassThru
-              if ($عملية.ExitCode -ne 0) {
-                throw "تعذّر تثبيت LLVM (رمز $($عملية.ExitCode))"
-              }
+      # ── نسخُ الأدواتِ ومحاكمتُها (خطوةٌ واحدةٌ للمنصّتَين) ──
+      - name: "نسخُ الأدواتِ إلى الحزم / Copy tools into packages"
+        shell: bash
+        run: |
+          source scripts/ci/release_tools.sh
+          VERSION="${{ steps.version.outputs.version }}"
+          SADC_DIR="sadc-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
+          FULL_DIR="sad-full-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
 
-              $llvmConfig = Get-ChildItem -Path "C:\Program Files\LLVM" -Filter "LLVMConfig.cmake" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-              if ($null -eq $llvmConfig) {
-                Write-Host "⚠️ LLVMConfig.cmake still missing; trying configure without LLVM_DIR"
-                cmake -S . -B build `
-                  -G "${{ matrix.cmake_generator }}" `
-                  -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-                  -DENABLE_LLVM_BACKEND=ON `
-                  -DBUILD_TESTS=OFF
-              } else {
-                $llvmDir = $llvmConfig.Directory.FullName
-                cmake -S . -B build `
-                  -G "${{ matrix.cmake_generator }}" `
-                  -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
-                  -DENABLE_LLVM_BACKEND=ON `
-                  -DLLVM_DIR="$llvmDir" `
-                  -DBUILD_TESTS=OFF
-              }
-            }
+          sad_copy_tools build "${{ env.BUILD_TYPE }}" "$SADC_DIR/bin" "$SAD_REQUIRED_COMPILER"
+          sad_require_tools "$SADC_DIR/bin" "$SAD_REQUIRED_COMPILER"
 
-            if (Test-Path "build\sad-build.vcxproj") {
-              cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-build
-              if ($LASTEXITCODE -eq 0) {
-                $success = $true
-                break
-              }
-            }
+          mkdir -p "$FULL_DIR/stdlib"
+          sad_copy_tools build "${{ env.BUILD_TYPE }}" "$FULL_DIR/bin" \
+            "$SAD_REQUIRED_FULL sad-pkg sad-repl sad-fmt"
+          sad_require_tools "$FULL_DIR/bin" "$SAD_REQUIRED_FULL"
 
-            if ($attempt -lt $maxAttempts) {
-              Start-Sleep -Seconds 5
-            }
-          }
+          echo "SADC_DIR=$SADC_DIR" >> $GITHUB_ENV
+          echo "FULL_DIR=$FULL_DIR" >> $GITHUB_ENV
 
-          if (-not $success) {
-            throw "Failed to build sadc after two retries"
-          }
-
-      # ── بناء المفسّر أيضًا (للحزمة الكاملة) ──
-      - name: "بناء المفسّر / Build Interpreter"
-        run: cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-run
-
-      # ── تجميع حزمة المترجم فقط ──
+      # ── تجميع الحزم ──
       - name: "حزمة المترجم / Package Compiler (Unix)"
         if: matrix.os != 'windows'
         shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-
-          # حزمة المترجم فقط
-          SADC_DIR="sadc-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
-          mkdir -p "$SADC_DIR/bin"
-          cp build/bin/sadc "$SADC_DIR/bin/" 2>/dev/null || true
           tar -czf "${SADC_DIR}.tar.gz" "$SADC_DIR"
 
-          # الحزمة الكاملة (المفسّر + المترجم + أدوات)
-          FULL_DIR="sad-full-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
-          mkdir -p "$FULL_DIR/bin" "$FULL_DIR/stdlib"
-          cp build/bin/sad "$FULL_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sadc "$FULL_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sad-lsp "$FULL_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sad-lsp-server "$FULL_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sad-pkg "$FULL_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sad-repl "$FULL_DIR/bin/" 2>/dev/null || true
-          cp build/bin/sad-fmt "$FULL_DIR/bin/" 2>/dev/null || true
           cp -r stdlib/* "$FULL_DIR/stdlib/" 2>/dev/null || true
           cp -r features/graphics/stdlib/* "$FULL_DIR/stdlib/" 2>/dev/null || true
           # الشبكة الكلاسيكيّة انتقلت إلى features/network/core — تُحزَم في موضعها القديم (تكافؤ)
@@ -407,25 +573,20 @@ jobs:
         if: matrix.os == 'windows'
         shell: pwsh
         run: |
-          $VERSION = "${{ steps.version.outputs.version }}"
+          $SADC_DIR = $env:SADC_DIR
+          $FULL_DIR = $env:FULL_DIR
           $BIN = "build\bin\${{ env.BUILD_TYPE }}"
 
-          # حزمة المترجم فقط
-          $SADC_DIR = "sadc-v${VERSION}-windows-${{ matrix.arch }}"
-          New-Item -ItemType Directory -Path "$SADC_DIR\bin" -Force
-          Copy-Item "$BIN\sadc.exe" "$SADC_DIR\bin\" -ErrorAction SilentlyContinue
           Compress-Archive -Path "$SADC_DIR" -DestinationPath "${SADC_DIR}.zip"
 
-          # الحزمة الكاملة
-          $FULL_DIR = "sad-full-v${VERSION}-windows-${{ matrix.arch }}"
-          New-Item -ItemType Directory -Path "$FULL_DIR\bin", "$FULL_DIR\stdlib" -Force
-          Copy-Item "$BIN\sad.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "$BIN\sadc.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "$BIN\sad-lsp.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "$BIN\sad-pkg.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "$BIN\sad-repl.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "$BIN\sad-fmt.exe" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
-          Copy-Item "$BIN\SDL2.dll" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
+          # (AR) المكتبةُ المشتركةُ للرسوم بجوارَ الثنائيّ — انظر تعليلَ نظيرِها.
+          # (AR) انظر تعليلَ نظيرِها في وظيفةِ المفسّر — الغيابُ يُحاكَم.
+          # (EN) See the twin in the interpreter job — absence is judged.
+          if (-not (Test-Path "$BIN\SDL2.dll")) {
+            Write-Host "::error::SDL2.dll غيرُ موجودةٍ في $BIN — الحزمةُ الكاملةُ بلا مكتبةِ الرسوم"
+            exit 1
+          }
+          Copy-Item "$BIN\SDL2.dll" "$FULL_DIR\bin\"
           Copy-Item -Path "stdlib\*" -Destination "$FULL_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
           Copy-Item -Path "features\graphics\stdlib\*" -Destination "$FULL_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
           # الشبكة الكلاسيكيّة انتقلت إلى features/network/core — تُحزَم في موضعها القديم (تكافؤ)
@@ -496,28 +657,52 @@ jobs:
           echo "=== الملفات المتاحة للنشر ==="
           ls -lh release-files/
 
+      # ══════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **الحكمُ يفتحُ الأرشيفَ.** كان يعدُّ الأرشيفاتِ في المجلّدِ
+      #      ويطبعُ «Artifact verification passed» — فأرشيفٌ **فارغٌ تمامًا**
+      #      يجتازُه. وحزمةُ v1.0.0 شاهدةٌ: أربعةُ ملفّاتٍ، منها تنفيذيّانِ
+      #      فقط، بلا `sad-lsp` ولا `sad-run` ولا `sad-check` — ونُشِرت خضراء.
+      #      والآن كلُّ أرشيفٍ يُفتَحُ وتُطلَبُ أعضاؤه بالاسم.
+      # (EN) The judgement now opens the archive. It used to count archives in
+      #      a directory and print "verification passed", so a completely empty
+      #      archive passed — as the v1.0.0 package shows: four files, two of
+      #      them executables, no sad-lsp, no sad-run, no sad-check, published
+      #      green.
+      # ══════════════════════════════════════════════════════════════════
       - name: "التحقق من اكتمال الحزم / Verify Release Artifacts"
         shell: bash
         run: |
+          source scripts/ci/release_tools.sh
           shopt -s nullglob
-          sad=(release-files/sad-v*.zip release-files/sad-v*.tar.gz)
-          sadc=(release-files/sadc-v*.zip release-files/sadc-v*.tar.gz)
-          full=(release-files/sad-full-v*.zip release-files/sad-full-v*.tar.gz)
 
-          if [ ${#sad[@]} -eq 0 ]; then
-            echo "Missing interpreter artifacts (sad-v*)"
-            exit 1
-          fi
-          if [ ${#sadc[@]} -eq 0 ]; then
-            echo "Missing compiler artifacts (sadc-v*)"
-            exit 1
-          fi
-          if [ ${#full[@]} -eq 0 ]; then
-            echo "Missing full artifacts (sad-full-v*)"
-            exit 1
-          fi
+          # (AR) حزمةُ المفسّرِ تَعِدُ في ملاحظاتِ الإصدارِ بـ«المفسّر + المكتبة
+          #      القياسيّة»، فتُطلَبُ المكتبةُ كما تُطلَبُ التنفيذيّات.
+          # (EN) The notes promise "interpreter + standard library" — so the
+          #      library is required exactly as the executables are.
+          count=0
+          for archive in release-files/sad-v*.zip release-files/sad-v*.tar.gz; do
+            sad_require_archive "$archive" "$SAD_REQUIRED_INTERPRETER"
+            sad_require_archive_dir "$archive" stdlib 20
+            count=$((count + 1))
+          done
+          [ "$count" -gt 0 ] || { echo "::error::لا حزمةَ مفسّرٍ واحدة / no interpreter artifact"; exit 1; }
 
-          echo "Artifact verification passed"
+          count=0
+          for archive in release-files/sadc-v*.zip release-files/sadc-v*.tar.gz; do
+            sad_require_archive "$archive" "$SAD_REQUIRED_COMPILER"
+            count=$((count + 1))
+          done
+          [ "$count" -gt 0 ] || { echo "::error::لا حزمةَ مترجمٍ واحدة / no compiler artifact"; exit 1; }
+
+          count=0
+          for archive in release-files/sad-full-v*.zip release-files/sad-full-v*.tar.gz; do
+            sad_require_archive "$archive" "$SAD_REQUIRED_FULL"
+            sad_require_archive_dir "$archive" stdlib 20
+            count=$((count + 1))
+          done
+          [ "$count" -gt 0 ] || { echo "::error::لا حزمةً كاملةً واحدة / no full artifact"; exit 1; }
+
+          echo "✅ كلُّ أرشيفٍ فُتِح وحُوكِم / every archive opened and judged"
 
       - name: "حساب SHA256 / Compute Checksums"
         run: |
@@ -555,16 +740,27 @@ jobs:
           ### المنصّات المدعومة
           - Windows x86_64
           - Linux x86_64 / aarch64
-          - macOS x86_64 / aarch64 (Apple Silicon)
 
           ### ما الفرق بين المفسّر والمترجم؟
-          - **المفسّر (sad)**: يشغّل ملفات `.ص` مباشرةً — لا يحتاج أيّ تبعيّات إضافيّة
-          - **المترجم (sadc)**: يحوّل `.ص` إلى ملفّ تنفيذيّ أصليّ عبر LLVM — أداء أعلى، يتطلّب LLVM 18
+          - **المفسّر (`sad-run`)**: يشغّل ملفات `.ص` مباشرةً — لا يحتاج أيّ تبعيّات إضافيّة
+          - **المترجم (`sadc`)**: يحوّل `.ص` إلى ملفّ تنفيذيّ أصليّ عبر LLVM — أداء أعلى، يتطلّب LLVM 18
+          - **مركز الأدوات (`sad`)**: واجهةٌ واحدةٌ تُنادي البقيّة — `sad run`، `sad build`، `sad check`
 
           ---
           NOTES
 
+      # (AR) التشغيلُ الجافُّ يبني ويحزم ويُحاكِم **ولا ينشر**.
+      # (EN) A dry run builds, packages and judges — and publishes nothing.
       - name: "نشر الإصدار / Create GitHub Release"
+        # (AR) حارسانِ مستقلّانِ لا واحد: النشرُ فعلٌ خارجيٌّ يصعبُ نقضُه،
+        #      فلا يكفي تعبيرٌ واحدٌ يحرسُه. `inputs` و`github.event.inputs`
+        #      طريقانِ مختلفانِ إلى القيمةِ نفسِها، والثاني نصٌّ لا منطق.
+        # (EN) Two independent guards, not one: publishing is an outward,
+        #      hard-to-undo act. `inputs` and `github.event.inputs` are two
+        #      different paths to the same value (the latter is a string).
+        if: >-
+          ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+              && github.event.inputs.dry_run != 'true' }}
         uses: softprops/action-gh-release@v3
         timeout-minutes: 15
         with:
@@ -578,26 +774,16 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ════════════════════════════════════════════════════════════════════
-  # 4. تحديث سكريبتات التثبيت (اختياري)
+  # (AR) 🔑 حُذِفت وظيفةُ «تحديثِ سكريبتاتِ التثبيت». لم تكن تُحدِّثُ شيئًا:
+  #      خطوتُها الوحيدةُ `echo "سكريبتات التثبيت محدّثة"` — وصفٌ يدّعي فعلًا
+  #      لم يقعْ، فيقرأُ القارئُ خانةً خضراءَ فيظنُّ السكريبتاتِ مرفوعةً وهي
+  #      لم تُلمَس. وكانت تسحبُ `contents: write` وتفحصُ `ref: main` — فرعًا
+  #      ليس فرعَ هذا المستودعِ الأساسيَّ — لتفعلَ لا شيء. ونشرُ السكريبتاتِ
+  #      على sad-lang.org عملٌ لم يُبنَ بعدُ؛ فحين يُبنى يُكتَبُ فعلًا يُقاس.
+  # (EN) The "update install scripts" job was deleted: its only step echoed
+  #      "install scripts updated" while updating nothing — a green cell
+  #      asserting an act that never happened. It also took contents: write
+  #      and checked out `ref: main`, not this repo default branch, to do
+  #      nothing. Publishing to sad-lang.org is unbuilt work; when it is
+  #      built it will be written as an act that can be measured.
   # ════════════════════════════════════════════════════════════════════
-  update-install-scripts:
-    name: "تحديث سكريبتات التثبيت / Update Install Scripts"
-    needs: [release]
-    runs-on: ubuntu-latest
-    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ غيرُ مقيس — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
-    timeout-minutes: 20
-    if: github.event_name == 'push'
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@v7
-        timeout-minutes: 15
-        with:
-          ref: main
-
-      - name: "نسخ السكريبتات / Copy Scripts"
-        run: |
-          # يمكن رفع السكريبتات لخادم sad-lang.org أو GitHub Pages
-          echo "سكريبتات التثبيت محدّثة ومتاحة في distribution/"
-          echo "للنشر على sad-lang.org، ارفع install.ps1 و install.sh"

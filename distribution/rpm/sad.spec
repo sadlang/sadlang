@@ -69,7 +69,6 @@ cp README.md %{buildroot}%{_docdir}/sad-lang/ 2>/dev/null || true
 %{_bindir}/sadc
 %{_bindir}/sad-pkg
 %{_bindir}/sad-lsp
-%{_bindir}/sad-lsp-server
 %{_bindir}/sad-repl
 %{_bindir}/sad-fmt
 %{_datadir}/sad-lang/

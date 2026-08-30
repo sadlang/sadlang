@@ -688,23 +688,75 @@ install_sad() {
 
     step "فك الضغط والتثبيت..."
     [ -d "$INSTALL_DIR" ] && rm -rf "$INSTALL_DIR"
-    mkdir -p "$INSTALL_DIR/bin"
+    mkdir -p "$INSTALL_DIR" "$TEMP_DIR/فك"
 
-    tar -xzf "$TEMP_DIR/$ARCHIVE_NAME" -C "$INSTALL_DIR" || die "فشل فك الضغط"
+    tar -xzf "$TEMP_DIR/$ARCHIVE_NAME" -C "$TEMP_DIR/فك" || die "فشل فك الضغط"
+
+    # (AR) الأرشيف يحمل مجلّداً أعلى واحداً (sad-vX-منصّة-معماريّة/) — يُقشَّر.
+    #      وقبل هذا التقشير كان الفكّ يقع في $INSTALL_DIR كما هو، فيصير المسار
+    #      $INSTALL_DIR/sad-vX-.../bin، بينما PATH يشير إلى $INSTALL_DIR/bin —
+    #      وهو مجلّد أُنشئ فارغاً ويبقى فارغاً: حلقة النقل التالية كانت تستثني
+    #      كلّ ما وقع تحت */bin/*، أي تستثني كلّ الأدوات. فالتثبيت "ينجح"
+    #      ولا أمر واحد يعمل.
+    # (EN) The archive carries a single top directory; strip it. Before this,
+    #      extraction landed at $INSTALL_DIR/sad-vX.../bin while PATH pointed at
+    #      $INSTALL_DIR/bin — created empty and left empty, because the move
+    #      loop excluded everything under */bin/*, i.e. every tool. The install
+    #      "succeeded" and not one command worked.
+    EXTRACT_ROOT=$(find "$TEMP_DIR/فك" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | head -1)
+    if [ -n "$EXTRACT_ROOT" ] && [ -d "$EXTRACT_ROOT/bin" ]; then
+        cp -R "$EXTRACT_ROOT/." "$INSTALL_DIR/" || die "فشل نسخ محتوى الحزمة"
+    else
+        cp -R "$TEMP_DIR/فك/." "$INSTALL_DIR/" || die "فشل نسخ محتوى الحزمة"
+    fi
 
     BIN_DIR="$INSTALL_DIR/bin"
+    mkdir -p "$BIN_DIR"
 
-    # نقل الملفات التنفيذية لـ bin إن لم تكن هناك
-    for tool in sad sadc sad-lsp sad-lsp-server sad-pkg sad-repl sad-fmt; do
-        local tool_bin
+    # (AR) شبكة أمان لحزم قديمة لا تحمل bin/ — تُنقل التنفيذيّات إليها.
+    # (EN) Safety net for older packages with no bin/ directory.
+    for tool in sad sad-run sadc sad-build sad-check sad-lsp sad-pkg sad-repl sad-fmt; do
         tool_bin=$(find "$INSTALL_DIR" -name "$tool" -type f ! -path "*/bin/*" 2>/dev/null | head -1)
-        if [ -n "$tool_bin" ]; then
+        if [ -n "$tool_bin" ] && [ ! -f "$BIN_DIR/$tool" ]; then
             cp "$tool_bin" "$BIN_DIR/"
-            chmod +x "$BIN_DIR/$tool"
         fi
     done
 
     chmod +x "$BIN_DIR"/* 2>/dev/null || true
+
+    # (AR) حكمٌ لا وصف: تثبيتٌ بلا أمرٍ واحدٍ قابلٍ للتشغيل إخفاقٌ يُعلَن،
+    #      لا رسالةُ نجاحٍ يكتشف المستخدم كذبَها بعد ساعة.
+    # (EN) A judgement, not a description: an install with no runnable command
+    #      is a failure to announce, not a success message to be disproved later.
+    # (AR) 🔑 هذه القوائمُ نسخةٌ رابعةٌ من جدولِ الأدوات، وقد انجرفت فعلًا:
+    #      كانت «compiler» تطلبُ `sadc` وحدَه و«full» تُغفِلُ `sad-build`،
+    #      بينما يشترطُهما حَكَمُ الإصدارِ في scripts/ci/release_tools.sh —
+    #      أي مُثبِّتٌ يقبلُ حزمةً يرفضُها المُصدِر. والمُثبِّتُ يُشحَنُ وحدَه
+    #      إلى المستخدمِ فلا يستطيعُ استيرادَ الجدول، فالرباطُ حارسٌ:
+    #      scripts/ci/check_installer_tool_lists.py يُطابِقُ القائمتَين.
+    # (EN) These lists are a FOURTH copy of the tool table and had already
+    #      drifted: "compiler" required only sadc and "full" omitted sad-build,
+    #      both of which the release judge requires — an installer accepting a
+    #      package the publisher rejects. The installer ships standalone and
+    #      cannot source the table, so the binding is a guard:
+    #      scripts/ci/check_installer_tool_lists.py matches the two.
+    case "$COMPONENTS" in
+        interpreter) REQUIRED_TOOLS="sad sad-run sad-lsp sad-check" ;;
+        compiler)    REQUIRED_TOOLS="sadc sad-build" ;;
+        full)        REQUIRED_TOOLS="sad sad-run sad-lsp sad-check sadc sad-build" ;;
+        *)           REQUIRED_TOOLS="sad" ;;
+    esac
+    MISSING_TOOLS=""
+    for tool in $REQUIRED_TOOLS; do
+        [ -s "$BIN_DIR/$tool" ] || MISSING_TOOLS="$MISSING_TOOLS $tool"
+    done
+    if [ -n "$MISSING_TOOLS" ]; then
+        err "الحزمة ناقصة — أدوات موعودة غائبة عن $BIN_DIR:$MISSING_TOOLS"
+        info "الموجود فعلاً:"
+        ls -1 "$BIN_DIR" 2>/dev/null | sed 's/^/  - /'
+        die "توقّف التثبيت — لا تُترك أدوات ناقصة على الجهاز بصمت"
+    fi
+
     ok "تم تثبيت الملفات في: $INSTALL_DIR"
 
     # إضافة PATH

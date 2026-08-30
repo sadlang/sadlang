@@ -23,6 +23,11 @@
 #include "sir_module.h"
 #include "sir_instruction.h"
 #include "sir_types.h"
+// (AR) 🔑 تعريفاتُ الأنواعِ المخزَّنةِ **بالقيمة** أدناه — لا تصريحًا أماميًّا.
+//      انظر ترويسةَ الملفِّ المُدرَجِ لتعليلِ النقل.
+// (EN) Definitions of the types stored BY VALUE below — not a forward
+//      declaration. See the included file's header for the rationale.
+#include "sir_builder_types.h"
 #include "module_resolver.h"
 #include "ast_node.h"
 #include "statements.h"
@@ -49,13 +54,6 @@ namespace Sad
     {
         namespace SIR
         {
-            // (AR) إعلانات مسبقة للأنواع المعرّفة في sir_builder.h
-            // (EN) Forward declarations for types defined in sir_builder.h
-            struct VariableInfo;
-            struct FunctionInfo;
-            struct LoopContext;
-            struct GenericScope;
-            struct ADTEnumInfo;
 
             /**
              * @brief (AR) السياق المشترك لبناء SIR — يجمع كل حقول الحالة

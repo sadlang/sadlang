@@ -1,5 +1,5 @@
-// (AR) نقطة دخول مركز أدوات لغة ص (sad-hub.exe، يُنشَر أيضاً كـ sad.exe)
-// (EN) Entry point for Sad Tool Hub (sad-hub.exe, also deployed as sad.exe)
+// (AR) نقطة دخول مركز أدوات لغة ص (sad.exe — الهدفُ والمُخرَجُ والمنشورُ اسمٌ واحد)
+// (EN) Entry point for Sad Tool Hub (sad.exe — target, output and published name are one)
 
 #include "hub/tool_registry.h"
 #include "hub/command_dispatcher.h"
@@ -124,14 +124,14 @@ int main(int argc, char **argv)
     }
     catch (const std::exception &ex)
     {
-        std::cerr << "(AR) خطأ غير متوقع في sad-hub: " << ex.what() << "\n"
-                  << "(EN) unexpected error in sad-hub: " << ex.what() << "\n";
+        std::cerr << "(AR) خطأ غير متوقع في sad: " << ex.what() << "\n"
+                  << "(EN) unexpected error in sad: " << ex.what() << "\n";
         return 2;
     }
     catch (...)
     {
-        std::cerr << "(AR) خطأ غير معروف في sad-hub\n"
-                  << "(EN) unknown error in sad-hub\n";
+        std::cerr << "(AR) خطأ غير معروف في sad\n"
+                  << "(EN) unknown error in sad\n";
         return 2;
     }
 }

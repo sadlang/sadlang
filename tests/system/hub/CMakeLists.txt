@@ -12,14 +12,14 @@ if(NOT BUILD_TESTS)
     return()
 endif()
 
-if(NOT TARGET sad_check OR NOT TARGET sad_hub)
-    message(STATUS "⚠ اختبارات الهب: تخطّي (sad_hub أو sad_check غير مبنيين)")
+if(NOT TARGET sad-check OR NOT TARGET sad)
+    message(STATUS "⚠ اختبارات الهب: تخطّي (sad أو sad-check غير مبنيين)")
     return()
 endif()
 
 # (AR) نقاط الاحتجاج إلى البرامج التنفيذية / (EN) Binary references
-set(SAD_HUB_BIN  "$<TARGET_FILE:sad_hub>")
-set(SAD_CHECK_BIN "$<TARGET_FILE:sad_check>")
+set(SAD_HUB_BIN  "$<TARGET_FILE:sad>")
+set(SAD_CHECK_BIN "$<TARGET_FILE:sad-check>")
 
 # (AR) ملفات الاختبار الثابتة / (EN) Fixture files
 set(FIXTURE_CLEAN  "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/clean.ص")
@@ -109,7 +109,7 @@ set_tests_properties(HubCheck_RecursiveFindsBoth PROPERTIES
 add_test(NAME HubMain_Version
     COMMAND ${SAD_HUB_BIN} --version)
 set_tests_properties(HubMain_Version PROPERTIES
-    PASS_REGULAR_EXPRESSION "sad-hub|Sad Language Tool Hub"
+    PASS_REGULAR_EXPRESSION "^sad |Sad Language Tool Hub"
     LABELS "hub;sad-hub")
 
 add_test(NAME HubMain_List
@@ -774,23 +774,33 @@ endif()
 
 # (AR) دالة مساعدة (ماكرو CMake) لإضافة الثلاثية القياسية لأداة
 # (EN) Helper macro to register the standard triplet for a tool
-macro(sad_add_tool_smoke_tests _target _hub_name _version_regex)
+# (AR) 🔑 إملاءُ عَلَمِ الإصدار/المساعدة **مُعامَلٌ** لا مفترَض. المفسّرُ والمترجمُ
+#      مُدرَجانِ في `engines` بـlanguage-truth/cli_flags.yaml فاسمُهما القانونيُّ
+#      عربيٌّ وحيد (`--إصدار`/`--مساعدة`) وقد أُلغيت المرادفاتُ الإنجليزيّةُ عمدًا،
+#      بينما الأدواتُ المساعدةُ خارجَ الجدولِ فتقبلُ الإنجليزيّة. ماكرو يكتبُ
+#      `--version` حرفيًّا كان يقيسُ افتراضَه لا عقدَ الأداة.
+# (EN) The version/help spelling is a PARAMETER, not an assumption. Interpreter
+#      and compiler are listed under `engines` in cli_flags.yaml, so their sole
+#      canonical long flags are Arabic; the English synonyms were deliberately
+#      removed. Auxiliary tools are outside that table and keep English. A macro
+#      hard-coding `--version` measured its own assumption, not the tool.
+macro(sad_add_tool_smoke_tests _target _hub_name _version_regex _version_flag _help_flag)
     if(TARGET ${_target})
         set(_bin "$<TARGET_FILE:${_target}>")
 
         add_test(NAME HubSmoke_${_hub_name}_Version
-            COMMAND ${_bin} --version)
+            COMMAND ${_bin} ${_version_flag})
         set_tests_properties(HubSmoke_${_hub_name}_Version PROPERTIES
             PASS_REGULAR_EXPRESSION "${_version_regex}"
             LABELS "hub;smoke;${_target}")
 
         add_test(NAME HubSmoke_${_hub_name}_Help
-            COMMAND ${_bin} --help)
+            COMMAND ${_bin} ${_help_flag})
         set_tests_properties(HubSmoke_${_hub_name}_Help PROPERTIES
             LABELS "hub;smoke;${_target}")
 
         add_test(NAME HubSymmetry_${_hub_name}_Version
-            COMMAND ${SAD_HUB_BIN} ${_hub_name} --version)
+            COMMAND ${SAD_HUB_BIN} ${_hub_name} ${_version_flag})
         set_tests_properties(HubSymmetry_${_hub_name}_Version PROPERTIES
             PASS_REGULAR_EXPRESSION "${_version_regex}"
             LABELS "hub;smoke;symmetry;${_target}")
@@ -800,7 +810,7 @@ macro(sad_add_tool_smoke_tests _target _hub_name _version_regex)
 endmacro()
 
 # (AR) sad-fmt: المُنسّق
-sad_add_tool_smoke_tests(sad-fmt    fmt      "sad-fmt version")
+sad_add_tool_smoke_tests(sad-fmt    fmt      "sad-fmt version"    --version --help)
 
 # (AR) sad-fmt: علم غير معروف يجب أن يفشل (تحقق إضافي)
 if(TARGET sad-fmt)
@@ -812,21 +822,28 @@ if(TARGET sad-fmt)
 endif()
 
 # (AR) sad-pkg: مدير الحزم
-sad_add_tool_smoke_tests(sad-pkg    pkg      "sad-pkg v")
+sad_add_tool_smoke_tests(sad-pkg    pkg      "sad-pkg v"          --version --help)
 
 # (AR) sad-apk: باني APK
-sad_add_tool_smoke_tests(sad-apk    apk      "sad-apk version")
+sad_add_tool_smoke_tests(sad-apk    apk      "sad-apk version"    --version --help)
 
 # (AR) sad-analyze: المحلل الستاتيكي
-sad_add_tool_smoke_tests(sad-analyze analyze "sad-analyze version")
+sad_add_tool_smoke_tests(sad-analyze analyze "sad-analyze version" --version --help)
 
 # (AR) sad-profiler: المُحلّل
-sad_add_tool_smoke_tests(sad-profiler profiler "sad-profiler v")
+sad_add_tool_smoke_tests(sad-profiler profiler "sad-profiler v"   --version --help)
 
 # (AR) sad-run: مشغّل المفسر
-#      ملاحظة: اسم الهدف في CMake هو `sad` (مع OUTPUT_NAME="sad-run")،
-#      لذلك نمرر "sad" للماكرو لا "sad-run".
-sad_add_tool_smoke_tests(sad         run      "sad version")
+#      🔑 كان الهدفُ يُمرَّرُ باسمِ «sad» لأنّ المفسّرَ كان هدفًا اسمُه `sad`
+#         بـOUTPUT_NAME="sad-run". وبعدَ توحيدِ الأسماءِ صارَ هدفُ المفسّرِ
+#         `sad-run` وصارَ `sad` هدفَ **مركزِ الأدوات** — فكان الاسمُ يُصيبُ
+#         الهبَّ فيقيسُ نفسَه، فتحمرُّ خانتا Version. المُرسى الآنَ الهدفُ
+#         الفعليُّ لا اسمُه القديم.
+#      🔑 The macro used to receive `sad` because the interpreter target was
+#         named `sad` with OUTPUT_NAME="sad-run". After name unification the
+#         interpreter is `sad-run` and `sad` is the HUB — so the name hit the
+#         hub and it measured itself. Anchor on the real target.
+sad_add_tool_smoke_tests(sad-run     run      "sad version"       --إصدار --مساعدة)
 
 # (AR) تحقق نهائي: sad-hub --list يكتشف الأدوات الموجودة في نفس المجلد
 if(TARGET sad-fmt)

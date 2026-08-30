@@ -261,6 +261,72 @@ endif()
 #      Instead, use target_include_directories(target PRIVATE ${SAD_LLVM_INCLUDES})
 #      for each target that uses LLVM headers.
 
+# ══════════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **مسارٌ مطلقٌ من آلةٍ أخرى داخلَ عقدٍ مُصدَّر.**
+#      حزمةُ LLVM 18 المُوزَّعةُ لويندوز تحملُ في `LLVMExports.cmake` مسارًا
+#      **مطلقًا** إلى `diaguids.lib` تحتَ «Visual Studio 2019 Professional» —
+#      وهي آلةُ من بنى الحزمةَ لا آلتُنا. فيَرِثُ كلُّ هدفٍ يربطُ
+#      `LLVMDebugInfoPDB` (يجرُّه ExecutionEngine/OrcJIT) مسارًا لا وجودَ له،
+#      فيسقطُ الربطُ بـ`LNK1181: cannot open input file`. المقيس: شوطُ
+#      الإصدارِ 33300657566، خانةُ المترجمِ على ويندوزَ وحدَها.
+#      والعلاجُ استبدالُ المسارِ الميّتِ بـDIA SDK الموجودةِ على هذه الآلة.
+#      وإن لم تُوجَد، نسقطُ **بإعلان**: حذفُه صامتًا يقلبُ خطأَ ربطٍ صريحًا
+#      إلى رموزٍ غيرِ مُعرَّفةٍ لا يدلُّ نصُّها على السبب.
+# (EN) An absolute path from someone else's machine inside an exported target.
+#      The Windows LLVM 18 package bakes an absolute diaguids.lib path under
+#      "Visual Studio 2019 Professional" into LLVMExports.cmake. Every target
+#      linking LLVMDebugInfoPDB (dragged in by ExecutionEngine/OrcJIT) inherits
+#      a path that does not exist here, and the link dies with LNK1181.
+#      Measured: release run 33300657566, the Windows compiler cell alone.
+#      Replace the dead path with this machine's DIA SDK; if there is none,
+#      fail loudly — dropping it silently turns a clear link error into
+#      undefined symbols whose text does not name the cause.
+# ══════════════════════════════════════════════════════════════════════════════
+if(MSVC AND TARGET LLVMDebugInfoPDB)
+    set(SAD_DIA_LOCAL "")
+    if(DEFINED ENV{VSINSTALLDIR} AND EXISTS "$ENV{VSINSTALLDIR}DIA SDK/lib/amd64/diaguids.lib")
+        set(SAD_DIA_LOCAL "$ENV{VSINSTALLDIR}DIA SDK/lib/amd64/diaguids.lib")
+    else()
+        file(GLOB SAD_DIA_CANDIDATES
+            "C:/Program Files/Microsoft Visual Studio/*/*/DIA SDK/lib/amd64/diaguids.lib"
+            "C:/Program Files (x86)/Microsoft Visual Studio/*/*/DIA SDK/lib/amd64/diaguids.lib")
+        if(SAD_DIA_CANDIDATES)
+            list(GET SAD_DIA_CANDIDATES 0 SAD_DIA_LOCAL)
+        endif()
+    endif()
+
+    get_target_property(SAD_PDB_DEPS LLVMDebugInfoPDB INTERFACE_LINK_LIBRARIES)
+    if(SAD_PDB_DEPS)
+        set(SAD_PDB_FIXED "")
+        set(SAD_PDB_STALE "")
+        foreach(SAD_DEP IN LISTS SAD_PDB_DEPS)
+            if(SAD_DEP MATCHES "[Dd]iaguids[.]lib$" AND NOT EXISTS "${SAD_DEP}")
+                set(SAD_PDB_STALE "${SAD_DEP}")
+                if(SAD_DIA_LOCAL)
+                    list(APPEND SAD_PDB_FIXED "${SAD_DIA_LOCAL}")
+                endif()
+            else()
+                list(APPEND SAD_PDB_FIXED "${SAD_DEP}")
+            endif()
+        endforeach()
+        if(SAD_PDB_STALE)
+            if(NOT SAD_DIA_LOCAL)
+                message(FATAL_ERROR
+                    "LLVMDebugInfoPDB يشيرُ إلى مسارٍ ميّتٍ ولا DIA SDK على هذه الآلة:
+"
+                    "  ${SAD_PDB_STALE}
+"
+                    "LLVMDebugInfoPDB points at a dead path and no DIA SDK was found here.")
+            endif()
+            set_target_properties(LLVMDebugInfoPDB PROPERTIES
+                INTERFACE_LINK_LIBRARIES "${SAD_PDB_FIXED}")
+            message(STATUS "   ✓ DIA SDK: مسارٌ ميّتٌ استُبدِل / dead path replaced")
+            message(STATUS "     ${SAD_PDB_STALE}")
+            message(STATUS "     ⇒ ${SAD_DIA_LOCAL}")
+        endif()
+    endif()
+endif()
+
 # (AR) مكتبات LLVM المطلوبة / (EN) Required LLVM libraries
 set(LLVM_LINK_COMPONENTS
     Core Support ExecutionEngine MCJIT OrcJIT RuntimeDyld Target

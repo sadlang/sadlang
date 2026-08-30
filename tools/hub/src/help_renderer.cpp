@@ -139,7 +139,7 @@ namespace Sad
         std::string HelpRenderer::renderVersion(const std::string &hubVersion) const
         {
             std::ostringstream os;
-            os << "sad-hub " << hubVersion << "\n";
+            os << "sad " << hubVersion << "\n";
             os << "(AR) مركز أدوات لغة ص — Sad Language Tool Hub\n";
             os << "(AR) أدوات مكتشَفة: " << registry_.all().size() << "\n";
             os << "(EN) discovered tools: " << registry_.all().size() << "\n";

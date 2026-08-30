@@ -192,6 +192,53 @@ set(SAD_UI_PIPELINE_SOURCES
     pipeline/src/platform_codegen.cpp
 )
 
+# ══════════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 توفّرُ SDL2 يُقرَّرُ **قبلَ** تجميعِ المصادرِ لا بعدَه.
+#      مصادرُ سطحِ المكتب (renderer/window/…) تستعملُ أنواعَ SDL عاريةً —
+#      `Uint8` وغيرَها — بلا حِراسةِ SAD_UI_USE_SDL2 داخلَها. وكانت تُترجَمُ على
+#      لينكسَ بلا SDL2 نظاميّةٍ لأنّ فرعَ المُضمَّنِ كان يمنحُها **الترويسات**،
+#      ثمّ يسقطُ الربطُ في ld. ولمّا حُرِسَ فرعُ المُضمَّنِ بـWIN32 ظهرَ الأصلُ:
+#      `error: 'Uint8' does not name a type`. فالقرارُ يُتَّخذُ هنا مرّةً واحدةً
+#      ويُقرأُ في الموضعَين: أيُّ مصادرَ تُترجَم، وأيُّ مكتبةٍ تُربَط.
+# (EN) SDL2 availability is decided BEFORE the source list, not after. The
+#      desktop backend uses bare SDL types with no SAD_UI_USE_SDL2 guard inside;
+#      it only ever compiled on Linux without system SDL2 because the bundled
+#      branch handed it the HEADERS, and the failure surfaced later in ld. Once
+#      the bundled branch was gated on WIN32 the real defect appeared. Decide
+#      once here; read it in both places: which sources compile, which lib links.
+# ══════════════════════════════════════════════════════════════════════════════
+option(SAD_UI_ENABLE_SDL2 "تفعيل عرض SDL2 لسطح المكتب / Enable SDL2 rendering for desktop" ON)
+
+set(SDL2_BUNDLED_DIR     "${CMAKE_SOURCE_DIR}/features/graphics/third_party/SDL2/SDL2-2.28.5")
+set(SDL2_BUNDLED_INCLUDE "${SDL2_BUNDLED_DIR}/include")
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set(SDL2_BUNDLED_LIB_DIR "${SDL2_BUNDLED_DIR}/lib/x64")
+else()
+    set(SDL2_BUNDLED_LIB_DIR "${SDL2_BUNDLED_DIR}/lib/x86")
+endif()
+set(SDL2_BUNDLED_LIB  "${SDL2_BUNDLED_LIB_DIR}/SDL2.lib")
+set(SDL2_BUNDLED_MAIN "${SDL2_BUNDLED_LIB_DIR}/SDL2main.lib")
+set(SDL2_BUNDLED_DLL  "${SDL2_BUNDLED_LIB_DIR}/SDL2.dll")
+
+set(SAD_UI_SDL2_AVAILABLE OFF)
+if(SAD_UI_ENABLE_SDL2)
+    find_package(SDL2 CONFIG QUIET)
+    if(SDL2_FOUND)
+        set(SAD_UI_SDL2_AVAILABLE ON)
+    elseif(WIN32 AND EXISTS "${SDL2_BUNDLED_LIB}" AND EXISTS "${SDL2_BUNDLED_INCLUDE}")
+        set(SAD_UI_SDL2_AVAILABLE ON)
+    endif()
+endif()
+
+if(NOT SAD_UI_SDL2_AVAILABLE)
+    # (AR) لا SDL2 ⇒ لا خلفيّةَ سطحِ مكتب. أَسقِطِ المصادرَ بدلَ ترجمتِها بأنواعٍ
+    #      لا تعريفَ لها — الإسقاطُ يُعلَنُ، ولا يُترَكُ ليَظهرَ خطأَ ترجمةٍ غامضًا.
+    # (EN) No SDL2 ⇒ no desktop backend. Drop the sources instead of compiling
+    #      them against undefined types; the drop is announced, not silent.
+    set(SAD_UI_DESKTOP_SOURCES "")
+    message(STATUS "  [sad_graphics] ⚠ SDL2 غير متاحة — خلفيّةُ سطحِ المكتب غيرُ مُترجَمة / SDL2 unavailable — desktop backend not compiled")
+endif()
+
 # ── تجميع جميع المصادر ────────────────────────────────────────────
 
 set(SAD_UI_ALL_SOURCES
@@ -263,8 +310,8 @@ endif()
 # ══════════════════════════════════════════════════════════════════════════════
 # SDL2 و SDL2_ttf (اختياري لسطح المكتب) / SDL2 & SDL2_ttf (optional for desktop)
 # ══════════════════════════════════════════════════════════════════════════════
-option(SAD_UI_ENABLE_SDL2 "تفعيل عرض SDL2 لسطح المكتب / Enable SDL2 rendering for desktop" ON)
-
+# (AR) الخيارُ وتوفّرُ SDL2 قُرِّرا أعلاه — انظر كتلةَ «توفّرُ SDL2 يُقرَّرُ قبلَ المصادر».
+# (EN) Option and availability were decided above — see the pre-sources block.
 if(SAD_UI_ENABLE_SDL2)
     # أولاً: محاولة إيجاد SDL2 على النظام
     find_package(SDL2 CONFIG QUIET)
@@ -341,21 +388,23 @@ if(SAD_UI_ENABLE_SDL2)
         endif()
     else()
         # ثانياً: استخدام SDL2 المُضمن في المشروع / Use bundled SDL2
-        set(SDL2_BUNDLED_DIR "${CMAKE_SOURCE_DIR}/features/graphics/third_party/SDL2/SDL2-2.28.5")
-        set(SDL2_BUNDLED_INCLUDE "${SDL2_BUNDLED_DIR}/include")
-        
-        # تحديد مكتبة x64 أو x86
-        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
-            set(SDL2_BUNDLED_LIB_DIR "${SDL2_BUNDLED_DIR}/lib/x64")
-        else()
-            set(SDL2_BUNDLED_LIB_DIR "${SDL2_BUNDLED_DIR}/lib/x86")
-        endif()
-        
-        set(SDL2_BUNDLED_LIB "${SDL2_BUNDLED_LIB_DIR}/SDL2.lib")
-        set(SDL2_BUNDLED_MAIN "${SDL2_BUNDLED_LIB_DIR}/SDL2main.lib")
-        set(SDL2_BUNDLED_DLL "${SDL2_BUNDLED_LIB_DIR}/SDL2.dll")
-        
-        if(EXISTS "${SDL2_BUNDLED_LIB}" AND EXISTS "${SDL2_BUNDLED_INCLUDE}")
+        # (AR) مساراتُه عُرِّفت مرّةً واحدةً أعلاه — نسختانِ من مسارٍ تتباعدان.
+        # (EN) Its paths are defined once above — two copies of a path drift.
+        # (AR) 🔑 المُضمَّنُ **صيغةُ MSVC**: `SDL2.lib` مكتبةُ استيرادٍ لـPE، و`SDL2.dll`
+        #      ثنائيُّ ويندوز. وكان الشرطُ «موجودٌ على القرص» لا «يخصُّ هذه المنصّة»،
+        #      فحينَ لا يجدُ لينكس حزمةَ SDL2 النظاميّةَ ينزلقُ إلى المُضمَّنِ ويُمرِّرُ
+        #      ملفَّ PE إلى ld، فيقولُ «unhandled machine type (0x8664)» ثمّ يسقطُ
+        #      بـSIGSEGV في bfd/reloc.c — أي انهيارُ رابطٍ لا رسالةُ «غيرُ موجود».
+        #      المقيس: شوطُ الإصدارِ 33296826705 — أخفقَ بناءُ `sad-run` على
+        #      linux-x86_64 وlinux-aarch64 بهذا السبب بعينِه.
+        # (EN) The bundled SDL2 is MSVC-format: SDL2.lib is a PE import library and
+        #      SDL2.dll a Windows binary. The condition asked "does it exist on disk",
+        #      not "does it belong to this platform" — so when Linux lacks system
+        #      SDL2 it slid into the bundled path and handed a PE file to ld, which
+        #      reported "unhandled machine type (0x8664)" and then died with SIGSEGV
+        #      in bfd/reloc.c: a linker crash, not a clean "not found".
+        #      Measured: release run 33296826705, sad-run failed on both Linux arches.
+        if(WIN32 AND EXISTS "${SDL2_BUNDLED_LIB}" AND EXISTS "${SDL2_BUNDLED_INCLUDE}")
             message(STATUS "  [sad_graphics] ✓ SDL2 مُضمن / Using bundled SDL2 from ${SDL2_BUNDLED_DIR}")
             
             # إضافة مسارات التضمين
@@ -416,7 +465,15 @@ if(SAD_UI_ENABLE_SDL2)
             endif()
         else()
             message(STATUS "  [sad_graphics] ⚠ SDL2 غير موجود — سيتم التجميع بدون عرض رسومي / Not found — compiling without graphical rendering")
-            message(STATUS "    المتوقع: ${SDL2_BUNDLED_LIB}")
+            if(WIN32)
+                message(STATUS "    المتوقع / expected: ${SDL2_BUNDLED_LIB}")
+            else()
+                # (AR) على غيرِ ويندوز لا يُطلَبُ المُضمَّنُ أصلًا — المطلوبُ حزمةُ
+                #      SDL2 النظاميّة (libsdl2-dev / brew install sdl2).
+                # (EN) Off Windows the bundled copy is never a candidate — install the
+                #      system SDL2 development package instead.
+                message(STATUS "    المطلوب / required: SDL2 النظاميّة (libsdl2-dev / brew install sdl2)")
+            endif()
         endif()
     endif()
 endif()

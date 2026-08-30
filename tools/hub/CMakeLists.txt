@@ -30,40 +30,23 @@ endif()
 # (EN) Library has no dependency on lang core — fully standalone
 
 # ─────────────────────────────────────────────────────────────────────
-# (AR) تنفيذي مركز الأدوات: sad-hub.exe
-# (EN) Hub executable: sad-hub.exe
+# (AR) تنفيذي مركز الأدوات: sad.exe — الهدفُ والمُخرَجُ والاسمُ المنشورُ
+#      اسمٌ واحدٌ لا ثلاثة. ولا شَرطةَ فيه عمدًا: المركزُ يكتشفُ إخوتَه
+#      بالبادئةِ «sad-»، فاسمٌ بلا شَرطةٍ يمنعُه من تسجيلِ نفسِه أمرًا.
+# (EN) Hub executable: sad.exe — target, output and published name are ONE.
+#      No dash on purpose: the hub discovers siblings by the "sad-" prefix,
+#      so a dashless name keeps it from registering itself as a subcommand.
 # ─────────────────────────────────────────────────────────────────────
-add_executable(sad_hub src/main.cpp)
+add_executable(sad src/main.cpp)
 
-target_link_libraries(sad_hub PRIVATE sad_hub_lib)
+target_link_libraries(sad PRIVATE sad_hub_lib)
 
-set_target_properties(sad_hub PROPERTIES
-    OUTPUT_NAME "sad-hub"
+set_target_properties(sad PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 )
 
 if(MSVC)
-    target_compile_options(sad_hub PRIVATE /utf-8 /wd4819 /FS)
+    target_compile_options(sad PRIVATE /utf-8 /wd4819 /FS)
 endif()
 
-# ─────────────────────────────────────────────────────────────────────
-# (AR) sad.exe = sad-hub.exe — نقطة الدخول الموحَّدة (لا توافقية خلفية)
-#      كل استدعاء `sad <subcommand>` يمر عبر الهب.
-# (EN) sad.exe = sad-hub.exe — unified entry point (no backward compat).
-#      Every `sad <subcommand>` call goes through the hub.
-# ─────────────────────────────────────────────────────────────────────
-if(WIN32)
-    set(_SAD_ALIAS_NAME "sad.exe")
-else()
-    set(_SAD_ALIAS_NAME "sad")
-endif()
-
-add_custom_command(TARGET sad_hub POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:sad_hub>"
-        "$<TARGET_FILE_DIR:sad_hub>/${_SAD_ALIAS_NAME}"
-    COMMENT "(AR) نسخ sad-hub → sad / (EN) Copy sad-hub → sad"
-    VERBATIM
-)
-
-message(STATUS "✓ مركز الأدوات / Tool Hub: sad-hub")
+message(STATUS "✓ مركز الأدوات / Tool Hub: sad")
