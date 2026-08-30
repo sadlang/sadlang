@@ -715,7 +715,7 @@ install_sad() {
 
     # (AR) شبكة أمان لحزم قديمة لا تحمل bin/ — تُنقل التنفيذيّات إليها.
     # (EN) Safety net for older packages with no bin/ directory.
-    for tool in sad sad-run sadc sad-build sad-check sad-lsp sad-lsp-server sad-pkg sad-repl sad-fmt; do
+    for tool in sad sad-run sadc sad-build sad-check sad-lsp sad-pkg sad-repl sad-fmt; do
         tool_bin=$(find "$INSTALL_DIR" -name "$tool" -type f ! -path "*/bin/*" 2>/dev/null | head -1)
         if [ -n "$tool_bin" ] && [ ! -f "$BIN_DIR/$tool" ]; then
             cp "$tool_bin" "$BIN_DIR/"

@@ -38,9 +38,17 @@ else()
     message(WARNING "OpenSSL not found. Cache hashing will be disabled.")
 endif()
 
-# Build executable
-add_executable(sad main.cpp)
-target_link_libraries(sad PRIVATE sad_build_lib)
+# (AR) 🔑 هذا المشروعُ **لا يُضيفُه أيُّ add_subdirectory** في المستودعِ كلِّه
+#      (مقيسٌ: صفرُ إشاراتٍ إلى «tools/build» في ملفّاتِ CMake والمجاري).
+#      وكان هدفُه يُسمّى «sad» — وهو الآنَ اسمُ مركزِ الأدواتِ الحقيقيّ، فلو
+#      وُصِلَ هذا المشروعُ يومًا لتصادمَ الاسمانِ صامتَين. فالاسمُ هنا مُميَّزٌ
+#      حتّى يُبَتَّ في مصيرِ هذه الشجرةِ (وصلٌ أو حذف).
+# (EN) No add_subdirectory in the whole repository adds this project (measured:
+#      zero references to "tools/build"). Its executable was named `sad`, which
+#      is now the real tool hub, so wiring this up later would silently collide.
+#      Renamed until this tree's fate is decided (wire it up, or delete it).
+add_executable(sad_build_cli main.cpp)
+target_link_libraries(sad_build_cli PRIVATE sad_build_lib)
 
 # Platform-specific settings
 if(WIN32)
@@ -52,7 +60,7 @@ else()
 endif()
 
 # Install targets
-install(TARGETS sad
+install(TARGETS sad_build_cli
     RUNTIME DESTINATION bin
 )
 

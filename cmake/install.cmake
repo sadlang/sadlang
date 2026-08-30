@@ -22,27 +22,14 @@
 include(GNUInstallDirs)
 
 # ══════════════════════════════════════════════════════════════════════
-# (AR) المكوّن hub: نقطة الدخول الموحَّدة (sad-hub.exe + sad.exe)
-# (EN) Component hub: unified entry point (sad-hub.exe + sad.exe alias)
+# (AR) المكوّن hub: نقطة الدخول الموحَّدة sad — اسمٌ واحدٌ لا نسخةٌ ولقب.
+# (EN) Component hub: the single entry point `sad` — one name, no alias copy.
 # ══════════════════════════════════════════════════════════════════════
-if(TARGET sad_hub)
-    install(TARGETS sad_hub
+if(TARGET sad)
+    install(TARGETS sad
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT hub
     )
-    # (AR) تثبيت نسخة sad.exe (alias للهب) من مجلد البناء
-    # (EN) Install sad.exe (hub alias) from build dir
-    if(WIN32)
-        install(PROGRAMS "$<TARGET_FILE_DIR:sad_hub>/sad.exe"
-            DESTINATION ${CMAKE_INSTALL_BINDIR}
-            COMPONENT hub
-        )
-    else()
-        install(PROGRAMS "$<TARGET_FILE_DIR:sad_hub>/sad"
-            DESTINATION ${CMAKE_INSTALL_BINDIR}
-            COMPONENT hub
-        )
-    endif()
 endif()
 
 # ══════════════════════════════════════════════════════════════════════
@@ -132,8 +119,8 @@ endif()
 # (AR) المكوّن check: فاحص الملكية الثابت sad-check
 # (EN) Component check: static ownership checker sad-check
 # ══════════════════════════════════════════════════════════════════════
-if(TARGET sad_check)
-    install(TARGETS sad_check
+if(TARGET sad-check)
+    install(TARGETS sad-check
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT check
     )
@@ -143,7 +130,7 @@ endif()
 # (AR) المكوّن tools-extra: أدوات إضافية (LSP, pkg, repl, profiler, analyze)
 # (EN) Component tools-extra: extra tools (LSP, pkg, repl, profiler, analyze)
 # ══════════════════════════════════════════════════════════════════════
-foreach(_tool sad-lsp-server sad-pkg sad-repl sad-profiler sad-analyze)
+foreach(_tool sad-lsp sad-pkg sad-repl sad-profiler sad-analyze)
     if(TARGET ${_tool})
         install(TARGETS ${_tool}
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}

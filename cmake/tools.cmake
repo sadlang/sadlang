@@ -21,7 +21,7 @@ endif()
 # ──────────────────────────────────────────────────────────────────────
 if(EXISTS "${CMAKE_SOURCE_DIR}/tools/hub/CMakeLists.txt")
     add_subdirectory(tools/hub)
-    message(STATUS "✓ مركز الأدوات / Tool Hub: sad-hub")
+    message(STATUS "✓ مركز الأدوات / Tool Hub: sad")
 endif()
 
 # ──────────────────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ if(BUILD_LSP_SERVER)
     # (AR) قواعد التثبيت مُجمّعة في cmake/install.cmake
     # (EN) Install rules consolidated in cmake/install.cmake
 
-    message(STATUS "✓ خادم LSP / LSP Server: sad-lsp-server")
+    message(STATUS "✓ خادم LSP / LSP Server: sad-lsp")
     message(STATUS "✓ أداة التنسيق / Formatter: sad-fmt")
     message(STATUS "✓ المحلل المتقدم / Advanced Analyzer: sad-analyze")
 endif()

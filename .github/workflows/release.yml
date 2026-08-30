@@ -144,6 +144,7 @@ jobs:
         shell: bash
         run: |
           source scripts/ci/release_tools.sh
+          sad_require_identity_table
           sad_build_tools build "${{ env.BUILD_TYPE }}" "$SAD_REQUIRED_INTERPRETER"
 
       # (AR) الأدواتُ الإضافيّةُ ليست وعدًا: تُبنى إن أمكنَ ولا تُسقِطُ الشوط.
@@ -416,6 +417,7 @@ jobs:
         timeout-minutes: 60
         run: |
           source scripts/ci/release_tools.sh
+          sad_require_identity_table
           sad_build_tools build "${{ env.BUILD_TYPE }}" "$SAD_REQUIRED_COMPILER"
 
       # ── بناء بقيّةِ أدواتِ الحزمةِ الكاملة ──

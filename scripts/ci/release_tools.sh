@@ -57,19 +57,34 @@ set -euo pipefail
 #      deployed as sad.exe"). It dispatches to its siblings (sad run, sad
 #      build ...) by scanning its own directory, so shipping `sad` alone is
 #      not enough — a missing sibling makes a promised command absent, which
-#      is exactly what v1.0.0 shipped. Note also that the target literally
+#      is exactly what v1.0.0 shipped. The target that used to be literally
 #      named `sad` lives in tools/build/, a self-contained project() that no
-#      add_subdirectory ever adds: unbuilt for a long time, and not this.
+#      add_subdirectory ever adds; it was renamed so the hub could take the
+#      name it actually publishes.
+# (AR) 🔑 الجدولُ الآنَ **مُطابَقةٌ**: الهدفُ = المُخرَجُ = المنشورُ في كلِّ صفٍّ
+#      إلّا صفَّ لقبٍ واحدًا مُعلَنًا. وثلاثةُ تباعُداتٍ أُزيلت من أصلِها لا
+#      رُقِّعت في الجدول: «sad_hub→sad-hub» و«sad_check→sad-check» و
+#      «sad-lsp-server→sad-lsp» صارت أهدافُها تحملُ أسماءَ مُخرَجاتِها، فسقطَت
+#      `OUTPUT_NAME` من ترويسةِ كلِّ واحدٍ منها، وسقطت معها نسخةُ اللقبِ
+#      `sad-hub → sad` في POST_BUILD. فمن أرادَ اسمًا فليُسمِّ الهدفَ به.
+#      والباقي **لقبٌ واحدٌ لا يُوحَّد**: `sad-build` يُنشَرُ أيضًا باسمِ `sadc`
+#      — ثنائيٌّ واحدٌ باسمَينِ عمدًا، وتعليلُه أسفلَه.
+# (EN) The table is now an IDENTITY — target = output = published on every row
+#      but one declared alias. Three divergences were removed at their source,
+#      not patched here: the three targets now carry their output names, so
+#      OUTPUT_NAME is gone from each, and so is the POST_BUILD `sad-hub → sad`
+#      copy. One alias remains and cannot be unified: sad-build also ships as
+#      sadc — one binary, two published names, rationale below.
 SAD_TOOL_TABLE="
-sad_hub:sad-hub:sad
+sad:sad:sad
 sad-run:sad-run:sad-run
-sad-lsp-server:sad-lsp:sad-lsp
-sad_check:sad-check:sad-check
+sad-lsp:sad-lsp:sad-lsp
+sad-check:sad-check:sad-check
 sad-pkg:sad-pkg:sad-pkg
 sad-repl:sad-repl:sad-repl
 sad-fmt:sad-fmt:sad-fmt
-sad-build:sad-build:sadc
 sad-build:sad-build:sad-build
+sad-build:sad-build:sadc
 "
 
 # (AR) قوائمُ الإلزام: ما **يجبُ** أن يوجدَ في كلِّ حزمةٍ وإلّا سقطَ الشوط.
@@ -86,6 +101,39 @@ sad-build:sad-build:sad-build
 SAD_REQUIRED_INTERPRETER="sad sad-run sad-lsp sad-check"
 SAD_REQUIRED_COMPILER="sadc sad-build"
 SAD_REQUIRED_FULL="sad sad-run sad-lsp sad-check sadc sad-build"
+
+# (AR) 🔑 الألقابُ المُعلَنةُ — الصفوفُ الوحيدةُ التي يجوزُ فيها أن يخالفَ
+#      الاسمُ المنشورُ هدفَه. وكلُّ صفٍّ خارجَها **يجبُ** أن يكونَ مُطابَقةً.
+#      وبغيرِ هذا الحارسِ يعودُ الانجرافُ بأوّلِ `OUTPUT_NAME` يكتبُها أحدٌ:
+#      اسمٌ ثانٍ يُولَدُ صامتًا، ثمّ يُهجَّأُ في سبعةِ مواضعَ فتتباعد.
+# (EN) Declared aliases — the only rows where the published name may differ
+#      from its target. Every other row MUST be an identity. Without this
+#      guard the drift returns with the first OUTPUT_NAME anyone writes.
+SAD_DECLARED_ALIASES="sad-build:sadc"
+
+# (AR) يُحاكِمُ الجدولَ نفسَه: هدف = مُخرَج = منشور، إلّا لقبًا مُعلَنًا.
+# (EN) Judges the table itself: target = output = published, except a declared alias.
+sad_require_identity_table() {
+    local line target output published bad=""
+    while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        IFS=: read -r target output published <<< "$line"
+        [ "$target" = "$output" ] || bad="$bad
+  هدفٌ يخالفُ مُخرَجَه / target != output: $target != $output"
+        if [ "$output" != "$published" ]; then
+            case " $SAD_DECLARED_ALIASES " in
+                *" $target:$published "*) ;;
+                *) bad="$bad
+  لقبٌ غيرُ مُعلَن / undeclared alias: $target → $published" ;;
+            esac
+        fi
+    done <<< "$SAD_TOOL_TABLE"
+    if [ -n "$bad" ]; then
+        echo "::error::جدولُ الأدواتِ انجرف / tool table drifted:$bad"
+        return 1
+    fi
+    echo "✅ الجدولُ مُطابَقةٌ / table is an identity (aliases: $SAD_DECLARED_ALIASES)"
+}
 
 # (AR) الأهدافُ خلفَ قائمةِ أسماءٍ منشورة — تُشتقُّ من الجدولِ لا تُكتَبُ ثانيةً.
 # (EN) Targets behind a published-name list; derived, never re-typed.

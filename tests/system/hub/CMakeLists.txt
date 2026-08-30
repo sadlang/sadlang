@@ -12,14 +12,14 @@ if(NOT BUILD_TESTS)
     return()
 endif()
 
-if(NOT TARGET sad_check OR NOT TARGET sad_hub)
-    message(STATUS "⚠ اختبارات الهب: تخطّي (sad_hub أو sad_check غير مبنيين)")
+if(NOT TARGET sad-check OR NOT TARGET sad)
+    message(STATUS "⚠ اختبارات الهب: تخطّي (sad أو sad-check غير مبنيين)")
     return()
 endif()
 
 # (AR) نقاط الاحتجاج إلى البرامج التنفيذية / (EN) Binary references
-set(SAD_HUB_BIN  "$<TARGET_FILE:sad_hub>")
-set(SAD_CHECK_BIN "$<TARGET_FILE:sad_check>")
+set(SAD_HUB_BIN  "$<TARGET_FILE:sad>")
+set(SAD_CHECK_BIN "$<TARGET_FILE:sad-check>")
 
 # (AR) ملفات الاختبار الثابتة / (EN) Fixture files
 set(FIXTURE_CLEAN  "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/clean.ص")
@@ -109,7 +109,7 @@ set_tests_properties(HubCheck_RecursiveFindsBoth PROPERTIES
 add_test(NAME HubMain_Version
     COMMAND ${SAD_HUB_BIN} --version)
 set_tests_properties(HubMain_Version PROPERTIES
-    PASS_REGULAR_EXPRESSION "sad-hub|Sad Language Tool Hub"
+    PASS_REGULAR_EXPRESSION "^sad |Sad Language Tool Hub"
     LABELS "hub;sad-hub")
 
 add_test(NAME HubMain_List

@@ -7,15 +7,15 @@
 #      (lexer/parser/AST) + sad_semantic_shared (shared type checker); no interpreter/compiler.
 # ═══════════════════════════════════════════════════════════════════════════════
 
-add_executable(sad_check src/main.cpp)
+add_executable(sad-check src/main.cpp)
 
-target_link_libraries(sad_check PRIVATE
+target_link_libraries(sad-check PRIVATE
     sad_ownership          # (AR) فحص الملكية الموحَّد / (EN) unified ownership check
     sad_shared             # (AR) lexer + parser + ast / (EN) lexer + parser + ast
     sad_semantic_shared    # (AR) فاحص الأنواع المشترك / (EN) shared type checker
 )
 
-target_include_directories(sad_check PRIVATE
+target_include_directories(sad-check PRIVATE
     ${CMAKE_SOURCE_DIR}/tools/hub/include
     ${CMAKE_SOURCE_DIR}/shared/lexer/include
     ${CMAKE_SOURCE_DIR}/shared/parser/include
@@ -28,15 +28,14 @@ target_include_directories(sad_check PRIVATE
     ${CMAKE_SOURCE_DIR}/shared/modules/include
 )
 
-set_target_properties(sad_check PROPERTIES
-    OUTPUT_NAME "sad-check"
+set_target_properties(sad-check PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
 )
 
 if(MSVC)
-    target_compile_options(sad_check PRIVATE /utf-8 /wd4819 /FS)
+    target_compile_options(sad-check PRIVATE /utf-8 /wd4819 /FS)
 endif()
 
-target_compile_features(sad_check PRIVATE cxx_std_17)
+target_compile_features(sad-check PRIVATE cxx_std_17)
 
 message(STATUS "✓ فاحص الملكية / Ownership Checker: sad-check")

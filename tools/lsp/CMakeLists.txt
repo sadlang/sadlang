@@ -5,7 +5,7 @@
 #
 # بنية البناء:
 # ┌─────────────────────────────────────────────────────────────────────┐
-# │  sad-lsp-server  (الملف التنفيذي النهائي)                           │
+# │  sad-lsp  (الملف التنفيذي النهائي)                           │
 # │     ├── sad_lsp_engine  (مكتبة المحرك الأساسي)                      │
 # │     │     ├── sad_shared       (المحلل المعجمي + النحوي + AST)       │
 # │     │     ├── sad_type_system  (SadType — تحليل الأنواع الساكن)      │
@@ -20,7 +20,7 @@
 # الأهداف / Targets:
 #   sad_lsp_engine    - مكتبة ثابتة: النواة (core) + مزوّدات الميزات المصنّفة (features)
 #                       static lib: the core + the grouped feature providers
-#   sad-lsp-server    - الملف التنفيذي للخادم / the server executable
+#   sad-lsp    - الملف التنفيذي للخادم / the server executable
 #
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -165,29 +165,28 @@ endif()
 # (AR) الملف التنفيذي لخادم LSP — يحتوي على طبقة النقل JSON-RPC و main()
 # (EN) LSP server executable — JSON-RPC transport layer + main()
 # ──────────────────────────────────────────────────
-add_executable(sad-lsp-server
+add_executable(sad-lsp
     src/transport/json_rpc_transport.cpp
     src/transport/lsp_main.cpp
 )
 
-target_include_directories(sad-lsp-server PRIVATE
+target_include_directories(sad-lsp PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transport
 )
 
-target_link_libraries(sad-lsp-server PRIVATE
+target_link_libraries(sad-lsp PRIVATE
     sad_lsp_engine
     nlohmann_json::nlohmann_json
 )
 
 if(MSVC)
-    target_compile_options(sad-lsp-server PRIVATE /utf-8 /W4)
+    target_compile_options(sad-lsp PRIVATE /utf-8 /W4)
 else()
-    target_compile_options(sad-lsp-server PRIVATE -Wall -Wextra -pedantic)
+    target_compile_options(sad-lsp PRIVATE -Wall -Wextra -pedantic)
 endif()
 
-set_target_properties(sad-lsp-server PROPERTIES
-    OUTPUT_NAME "sad-lsp"
+set_target_properties(sad-lsp PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
 
@@ -199,5 +198,5 @@ message(STATUS "  خادم LSP الثوري للغة ص")
 message(STATUS "  Revolutionary LSP Server for Sad Language")
 message(STATUS "══════════════════════════════════════════════")
 message(STATUS "  المكتبة / Library: sad_lsp_engine")
-message(STATUS "  التنفيذي / Executable: sad-lsp-server → sad-lsp")
+message(STATUS "  التنفيذي / Executable: sad-lsp")
 message(STATUS "══════════════════════════════════════════════")
