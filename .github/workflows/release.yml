@@ -646,7 +646,15 @@ jobs:
       # (AR) التشغيلُ الجافُّ يبني ويحزم ويُحاكِم **ولا ينشر**.
       # (EN) A dry run builds, packages and judges — and publishes nothing.
       - name: "نشر الإصدار / Create GitHub Release"
-        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run) }}
+        # (AR) حارسانِ مستقلّانِ لا واحد: النشرُ فعلٌ خارجيٌّ يصعبُ نقضُه،
+        #      فلا يكفي تعبيرٌ واحدٌ يحرسُه. `inputs` و`github.event.inputs`
+        #      طريقانِ مختلفانِ إلى القيمةِ نفسِها، والثاني نصٌّ لا منطق.
+        # (EN) Two independent guards, not one: publishing is an outward,
+        #      hard-to-undo act. `inputs` and `github.event.inputs` are two
+        #      different paths to the same value (the latter is a string).
+        if: >-
+          ${{ !(github.event_name == 'workflow_dispatch' && inputs.dry_run)
+              && github.event.inputs.dry_run != 'true' }}
         uses: softprops/action-gh-release@v3
         timeout-minutes: 15
         with:
