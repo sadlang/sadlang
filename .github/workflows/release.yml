@@ -48,6 +48,16 @@ on:
 env:
   BUILD_TYPE: Release
   CMAKE_VERSION: "3.28"
+  # (AR) پايثونُ يُشغَّلُ على عدّاءِ ويندوزَ في هذا السير (حزمُ التوليدِ ثمّ
+  #      المولِّداتُ وقتَ البناء)، وخرجُه المُوجَّهُ يأخذ cp1252 فيسقطُ عندَ أوّلِ
+  #      محرفٍ عربيّ — فتُقرأُ حمرةُ المقياسِ عطبًا في الشجرة. يفرضُه حارسُ
+  #      scripts/ci/check_ci_resilience.py على مستوى السيرِ لا الخطوة.
+  # (EN) Python runs on a Windows runner here (codegen deps, then the build-time
+  #      generators); its redirected output takes cp1252 and dies on the first
+  #      Arabic character, so the instrument's own red reads as a tree defect.
+  #      Required at workflow level by scripts/ci/check_ci_resilience.py.
+  PYTHONIOENCODING: utf-8
+  PYTHONUTF8: "1"
 
 # ──────────────────────────────────────────────────────────────────────
 # الوظائف / Jobs
@@ -108,9 +118,21 @@ jobs:
       #      because their images happen to ship pyyaml; Windows failed with
       #      "No module named 'yaml'". Measured: release run 33296826705, both
       #      windows-x86_64 cells. Do not rely on the image — install on all.
-      - name: "حزم توليد الكود / Codegen deps"
+      - name: "حزم توليد الكود / Codegen deps (Windows)"
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          python -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
+          $py = (Get-Command python).Source
+          "PYTHON3_EXECUTABLE=$py" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: "حزم توليد الكود / Codegen deps (POSIX)"
+        if: runner.os != 'Windows'
         shell: bash
-        run: python -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
+        timeout-minutes: 10
+        run: |
+          python3 -m pip install --user --break-system-packages --quiet pyyaml jsonschema             || python3 -m pip install --user --quiet pyyaml jsonschema
 
       - name: "تحديد الإصدار / Determine Version"
         id: version
@@ -133,19 +155,34 @@ jobs:
         if: matrix.os == 'linux'
         run: |
           bash scripts/ci/apt_retry.sh update -qq
-          bash scripts/ci/apt_retry.sh install -y -qq build-essential libssl-dev
+          # (AR) SDL2 النظاميّةُ لازمةٌ للإصدارِ لا للاختبارِ فحسب: المُضمَّنُ في
+          #      الشجرةِ صيغةُ MSVC ومحروسٌ بـWIN32، فبلا الحزمةِ النظاميّةِ
+          #      تُشحَنُ حزمةُ لينكسَ **بلا خلفيّةِ سطحِ مكتب** أصلًا. مجرى CI
+          #      يُثبّتُها منذُ زمنٍ؛ مجرى الإصدارِ لم يفعل.
+          # (EN) System SDL2 is a release requirement, not just a test one: the
+          #      in-tree copy is MSVC-format and gated on WIN32, so without the
+          #      system package the Linux artifact ships with no desktop backend
+          #      at all. CI installs it; the release workflow never did.
+          bash scripts/ci/apt_retry.sh install -y -qq build-essential libssl-dev             libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
 
       # ── تهيئة البناء (بدون LLVM) ──
+      # (AR) 🔑 المفسّرُ الذي ثُبّتَت فيه الحزمُ هو الذي يجبُ أن يُشغّلَه CMake.
+      #      `find_package(Python3)` يختارُ ما يجدُه هو، وقد يكونُ غيرَ الذي
+      #      طرقَه pip — فيسقطُ `sad_check_codegen_env` بـ«No module named
+      #      'yaml'» رغمَ نجاحِ التثبيت. نُثبّتُ المسارَ صراحةً حينَ يُصدَّر.
+      # (EN) The interpreter pip installed into must be the one CMake runs.
+      #      find_package(Python3) picks its own, which may differ from pip's, so
+      #      sad_check_codegen_env dies with "No module named 'yaml'" even though
+      #      the install succeeded. Pin the path explicitly when it is exported.
       - name: "تهيئة CMake / Configure"
-        run: >
-          cmake -S . -B build
-          -G "${{ matrix.cmake_generator }}"
-          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-          -DENABLE_LLVM_BACKEND=OFF
-          -DBUILD_TESTS=OFF
-          -DBUILD_PKG_MANAGER=ON
-          -DBUILD_LSP_SERVER=ON
-          -DBUILD_REPL=ON
+        shell: bash
+        run: |
+          PY_ARG=""
+          # (AR) مسارُ ويندوزَ يأتي بشُرَطٍ خلفيّةٍ، وCMake يقرؤها هروبًا — تُقلَب.
+          # (EN) The Windows path arrives with backslashes, which CMake reads as
+          #      escapes — flip them to forward slashes.
+          [ -n "$PYTHON3_EXECUTABLE" ] && PY_ARG="-DPython3_EXECUTABLE=$(printf '%s' "$PYTHON3_EXECUTABLE" | tr '\' '/')"
+          cmake -S . -B build             -G "${{ matrix.cmake_generator }}"             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}             -DENABLE_LLVM_BACKEND=OFF             -DBUILD_TESTS=OFF             -DBUILD_PKG_MANAGER=ON             -DBUILD_LSP_SERVER=ON             -DBUILD_REPL=ON             $PY_ARG
 
       # ── بناء الأدوات الموعودة (من جدولِ الحقيقةِ الواحد) ──
       # (AR) الأهدافُ تُشتقُّ من `scripts/ci/release_tools.sh` لا تُكتَبُ هنا.
@@ -297,9 +334,21 @@ jobs:
       #      because their images happen to ship pyyaml; Windows failed with
       #      "No module named 'yaml'". Measured: release run 33296826705, both
       #      windows-x86_64 cells. Do not rely on the image — install on all.
-      - name: "حزم توليد الكود / Codegen deps"
+      - name: "حزم توليد الكود / Codegen deps (Windows)"
+        if: runner.os == 'Windows'
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          python -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
+          $py = (Get-Command python).Source
+          "PYTHON3_EXECUTABLE=$py" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: "حزم توليد الكود / Codegen deps (POSIX)"
+        if: runner.os != 'Windows'
         shell: bash
-        run: python -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
+        timeout-minutes: 10
+        run: |
+          python3 -m pip install --user --break-system-packages --quiet pyyaml jsonschema             || python3 -m pip install --user --quiet pyyaml jsonschema
 
       - name: "تحديد الإصدار / Determine Version"
         id: version
@@ -409,6 +458,7 @@ jobs:
           -DENABLE_LLVM_BACKEND=ON
           -DLLVM_DIR="$LLVM_DIR"
           -DBUILD_TESTS=OFF
+          ${PYTHON3_EXECUTABLE:+-DPython3_EXECUTABLE=$PYTHON3_EXECUTABLE}
 
       - name: "تهيئة CMake / Configure (Windows)"
         if: matrix.os == 'windows'
@@ -420,12 +470,13 @@ jobs:
             Write-Host "::error::LLVM_DIR غيرُ مُصدَّر — خطوةُ تثبيتِ LLVM لم تعمل"
             exit 1
           }
+          $pyArg = if ($env:PYTHON3_EXECUTABLE) { "-DPython3_EXECUTABLE=$env:PYTHON3_EXECUTABLE" } else { "" }
           cmake -S . -B build `
             -G "${{ matrix.cmake_generator }}" `
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
             -DENABLE_LLVM_BACKEND=ON `
             -DLLVM_DIR="$env:LLVM_DIR" `
-            -DBUILD_TESTS=OFF
+            -DBUILD_TESTS=OFF $pyArg
 
       # ══════════════════════════════════════════════════════════════════
       # (AR) 🔑 **هدفٌ صريحٌ لأنّ الاستثناءَ مقصود.** `sad-build` مستثنًى من
