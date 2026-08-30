@@ -96,6 +96,22 @@ jobs:
         with:
           submodules: recursive
 
+      # (AR) 🔑 توليدُ الكودِ يعملُ **وقتَ البناء**: الهدفُ `sad_check_codegen_env`
+      #      يستوردُ pyyaml وjsonschema قبلَ أوّلِ مولِّد. وكان مجرى الإصدارِ لا
+      #      يُثبّتُهما إطلاقًا — نجا لينكس ومَك لأنّ صورتَيهما تحملانِ pyyaml
+      #      عَرَضًا، وسقطَت ويندوزُ بـ«No module named 'yaml'». المقيس: شوطُ
+      #      الإصدارِ 33296826705، الخانتانِ windows-x86_64 كلتاهما.
+      #      لا نتّكلُ على ما تحملُه الصورةُ — نُثبِّتُ على المنصّاتِ الثلاث.
+      # (EN) Codegen runs at BUILD time: target sad_check_codegen_env imports
+      #      pyyaml and jsonschema before the first generator. The release
+      #      workflow never installed them — Linux and macOS survived only
+      #      because their images happen to ship pyyaml; Windows failed with
+      #      "No module named 'yaml'". Measured: release run 33296826705, both
+      #      windows-x86_64 cells. Do not rely on the image — install on all.
+      - name: "حزم توليد الكود / Codegen deps"
+        shell: bash
+        run: python -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
+
       - name: "تحديد الإصدار / Determine Version"
         id: version
         shell: bash
@@ -268,6 +284,22 @@ jobs:
         timeout-minutes: 15
         with:
           submodules: recursive
+
+      # (AR) 🔑 توليدُ الكودِ يعملُ **وقتَ البناء**: الهدفُ `sad_check_codegen_env`
+      #      يستوردُ pyyaml وjsonschema قبلَ أوّلِ مولِّد. وكان مجرى الإصدارِ لا
+      #      يُثبّتُهما إطلاقًا — نجا لينكس ومَك لأنّ صورتَيهما تحملانِ pyyaml
+      #      عَرَضًا، وسقطَت ويندوزُ بـ«No module named 'yaml'». المقيس: شوطُ
+      #      الإصدارِ 33296826705، الخانتانِ windows-x86_64 كلتاهما.
+      #      لا نتّكلُ على ما تحملُه الصورةُ — نُثبِّتُ على المنصّاتِ الثلاث.
+      # (EN) Codegen runs at BUILD time: target sad_check_codegen_env imports
+      #      pyyaml and jsonschema before the first generator. The release
+      #      workflow never installed them — Linux and macOS survived only
+      #      because their images happen to ship pyyaml; Windows failed with
+      #      "No module named 'yaml'". Measured: release run 33296826705, both
+      #      windows-x86_64 cells. Do not rely on the image — install on all.
+      - name: "حزم توليد الكود / Codegen deps"
+        shell: bash
+        run: python -m pip install --disable-pip-version-check --quiet pyyaml jsonschema
 
       - name: "تحديد الإصدار / Determine Version"
         id: version

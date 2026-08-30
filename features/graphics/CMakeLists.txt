@@ -355,7 +355,21 @@ if(SAD_UI_ENABLE_SDL2)
         set(SDL2_BUNDLED_MAIN "${SDL2_BUNDLED_LIB_DIR}/SDL2main.lib")
         set(SDL2_BUNDLED_DLL "${SDL2_BUNDLED_LIB_DIR}/SDL2.dll")
         
-        if(EXISTS "${SDL2_BUNDLED_LIB}" AND EXISTS "${SDL2_BUNDLED_INCLUDE}")
+        # (AR) 🔑 المُضمَّنُ **صيغةُ MSVC**: `SDL2.lib` مكتبةُ استيرادٍ لـPE، و`SDL2.dll`
+        #      ثنائيُّ ويندوز. وكان الشرطُ «موجودٌ على القرص» لا «يخصُّ هذه المنصّة»،
+        #      فحينَ لا يجدُ لينكس حزمةَ SDL2 النظاميّةَ ينزلقُ إلى المُضمَّنِ ويُمرِّرُ
+        #      ملفَّ PE إلى ld، فيقولُ «unhandled machine type (0x8664)» ثمّ يسقطُ
+        #      بـSIGSEGV في bfd/reloc.c — أي انهيارُ رابطٍ لا رسالةُ «غيرُ موجود».
+        #      المقيس: شوطُ الإصدارِ 33296826705 — أخفقَ بناءُ `sad-run` على
+        #      linux-x86_64 وlinux-aarch64 بهذا السبب بعينِه.
+        # (EN) The bundled SDL2 is MSVC-format: SDL2.lib is a PE import library and
+        #      SDL2.dll a Windows binary. The condition asked "does it exist on disk",
+        #      not "does it belong to this platform" — so when Linux lacks system
+        #      SDL2 it slid into the bundled path and handed a PE file to ld, which
+        #      reported "unhandled machine type (0x8664)" and then died with SIGSEGV
+        #      in bfd/reloc.c: a linker crash, not a clean "not found".
+        #      Measured: release run 33296826705, sad-run failed on both Linux arches.
+        if(WIN32 AND EXISTS "${SDL2_BUNDLED_LIB}" AND EXISTS "${SDL2_BUNDLED_INCLUDE}")
             message(STATUS "  [sad_graphics] ✓ SDL2 مُضمن / Using bundled SDL2 from ${SDL2_BUNDLED_DIR}")
             
             # إضافة مسارات التضمين
@@ -416,7 +430,15 @@ if(SAD_UI_ENABLE_SDL2)
             endif()
         else()
             message(STATUS "  [sad_graphics] ⚠ SDL2 غير موجود — سيتم التجميع بدون عرض رسومي / Not found — compiling without graphical rendering")
-            message(STATUS "    المتوقع: ${SDL2_BUNDLED_LIB}")
+            if(WIN32)
+                message(STATUS "    المتوقع / expected: ${SDL2_BUNDLED_LIB}")
+            else()
+                # (AR) على غيرِ ويندوز لا يُطلَبُ المُضمَّنُ أصلًا — المطلوبُ حزمةُ
+                #      SDL2 النظاميّة (libsdl2-dev / brew install sdl2).
+                # (EN) Off Windows the bundled copy is never a candidate — install the
+                #      system SDL2 development package instead.
+                message(STATUS "    المطلوب / required: SDL2 النظاميّة (libsdl2-dev / brew install sdl2)")
+            endif()
         endif()
     endif()
 endif()

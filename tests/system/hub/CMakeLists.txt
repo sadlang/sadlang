@@ -824,9 +824,16 @@ sad_add_tool_smoke_tests(sad-analyze analyze "sad-analyze version")
 sad_add_tool_smoke_tests(sad-profiler profiler "sad-profiler v")
 
 # (AR) sad-run: مشغّل المفسر
-#      ملاحظة: اسم الهدف في CMake هو `sad` (مع OUTPUT_NAME="sad-run")،
-#      لذلك نمرر "sad" للماكرو لا "sad-run".
-sad_add_tool_smoke_tests(sad         run      "sad version")
+#      🔑 كان الهدفُ يُمرَّرُ باسمِ «sad» لأنّ المفسّرَ كان هدفًا اسمُه `sad`
+#         بـOUTPUT_NAME="sad-run". وبعدَ توحيدِ الأسماءِ صارَ هدفُ المفسّرِ
+#         `sad-run` وصارَ `sad` هدفَ **مركزِ الأدوات** — فكان الاسمُ يُصيبُ
+#         الهبَّ فيقيسُ نفسَه، فتحمرُّ خانتا Version. المُرسى الآنَ الهدفُ
+#         الفعليُّ لا اسمُه القديم.
+#      🔑 The macro used to receive `sad` because the interpreter target was
+#         named `sad` with OUTPUT_NAME="sad-run". After name unification the
+#         interpreter is `sad-run` and `sad` is the HUB — so the name hit the
+#         hub and it measured itself. Anchor on the real target.
+sad_add_tool_smoke_tests(sad-run     run      "sad version")
 
 # (AR) تحقق نهائي: sad-hub --list يكتشف الأدوات الموجودة في نفس المجلد
 if(TARGET sad-fmt)
