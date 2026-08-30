@@ -262,7 +262,16 @@ jobs:
           # (AR) المكتبةُ المشتركةُ للرسوم: المُحمِّلُ يبحثُ عنها في مجلّدِ
           #      الثنائيِّ أوّلًا، فغيابُها يجعلُ البرنامجَ لا يبدأُ العملَ.
           # (EN) The loader searches the binary own directory first.
-          Copy-Item "build\bin\${{ env.BUILD_TYPE }}\SDL2.dll" "$PKG_DIR\bin\" -ErrorAction SilentlyContinue
+          # (AR) غيابُها لا يُبتلَع: برامجُ الواجهةِ في الحزمةِ المنشورةِ لا
+          #      تبدأُ العملَ أصلًا بلا هذه المكتبة، فالصمتُ هنا يُشحَنُ عطبًا.
+          # (EN) Its absence is not swallowed: UI programs in the published
+          #      package do not start without it, so silence here ships a defect.
+          $sdl = "build\bin\${{ env.BUILD_TYPE }}\SDL2.dll"
+          if (-not (Test-Path $sdl)) {
+            Write-Host "::error::SDL2.dll غيرُ موجودةٍ في $sdl — حزمةُ ويندوزَ بلا مكتبةِ الرسوم"
+            exit 1
+          }
+          Copy-Item $sdl "$PKG_DIR\bin\"
 
           # المكتبة القياسيّة
           Copy-Item -Path "stdlib\*" -Destination "$PKG_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
@@ -571,7 +580,13 @@ jobs:
           Compress-Archive -Path "$SADC_DIR" -DestinationPath "${SADC_DIR}.zip"
 
           # (AR) المكتبةُ المشتركةُ للرسوم بجوارَ الثنائيّ — انظر تعليلَ نظيرِها.
-          Copy-Item "$BIN\SDL2.dll" "$FULL_DIR\bin\" -ErrorAction SilentlyContinue
+          # (AR) انظر تعليلَ نظيرِها في وظيفةِ المفسّر — الغيابُ يُحاكَم.
+          # (EN) See the twin in the interpreter job — absence is judged.
+          if (-not (Test-Path "$BIN\SDL2.dll")) {
+            Write-Host "::error::SDL2.dll غيرُ موجودةٍ في $BIN — الحزمةُ الكاملةُ بلا مكتبةِ الرسوم"
+            exit 1
+          }
+          Copy-Item "$BIN\SDL2.dll" "$FULL_DIR\bin\"
           Copy-Item -Path "stdlib\*" -Destination "$FULL_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
           Copy-Item -Path "features\graphics\stdlib\*" -Destination "$FULL_DIR\stdlib\" -Recurse -ErrorAction SilentlyContinue
           # الشبكة الكلاسيكيّة انتقلت إلى features/network/core — تُحزَم في موضعها القديم (تكافؤ)
@@ -660,9 +675,14 @@ jobs:
           source scripts/ci/release_tools.sh
           shopt -s nullglob
 
+          # (AR) حزمةُ المفسّرِ تَعِدُ في ملاحظاتِ الإصدارِ بـ«المفسّر + المكتبة
+          #      القياسيّة»، فتُطلَبُ المكتبةُ كما تُطلَبُ التنفيذيّات.
+          # (EN) The notes promise "interpreter + standard library" — so the
+          #      library is required exactly as the executables are.
           count=0
           for archive in release-files/sad-v*.zip release-files/sad-v*.tar.gz; do
             sad_require_archive "$archive" "$SAD_REQUIRED_INTERPRETER"
+            sad_require_archive_dir "$archive" stdlib 20
             count=$((count + 1))
           done
           [ "$count" -gt 0 ] || { echo "::error::لا حزمةَ مفسّرٍ واحدة / no interpreter artifact"; exit 1; }
@@ -677,6 +697,7 @@ jobs:
           count=0
           for archive in release-files/sad-full-v*.zip release-files/sad-full-v*.tar.gz; do
             sad_require_archive "$archive" "$SAD_REQUIRED_FULL"
+            sad_require_archive_dir "$archive" stdlib 20
             count=$((count + 1))
           done
           [ "$count" -gt 0 ] || { echo "::error::لا حزمةً كاملةً واحدة / no full artifact"; exit 1; }
@@ -719,11 +740,11 @@ jobs:
           ### المنصّات المدعومة
           - Windows x86_64
           - Linux x86_64 / aarch64
-          - macOS x86_64 / aarch64 (Apple Silicon)
 
           ### ما الفرق بين المفسّر والمترجم؟
-          - **المفسّر (sad)**: يشغّل ملفات `.ص` مباشرةً — لا يحتاج أيّ تبعيّات إضافيّة
-          - **المترجم (sadc)**: يحوّل `.ص` إلى ملفّ تنفيذيّ أصليّ عبر LLVM — أداء أعلى، يتطلّب LLVM 18
+          - **المفسّر (`sad-run`)**: يشغّل ملفات `.ص` مباشرةً — لا يحتاج أيّ تبعيّات إضافيّة
+          - **المترجم (`sadc`)**: يحوّل `.ص` إلى ملفّ تنفيذيّ أصليّ عبر LLVM — أداء أعلى، يتطلّب LLVM 18
+          - **مركز الأدوات (`sad`)**: واجهةٌ واحدةٌ تُنادي البقيّة — `sad run`، `sad build`، `sad check`
 
           ---
           NOTES

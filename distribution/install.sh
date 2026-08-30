@@ -728,10 +728,22 @@ install_sad() {
     #      لا رسالةُ نجاحٍ يكتشف المستخدم كذبَها بعد ساعة.
     # (EN) A judgement, not a description: an install with no runnable command
     #      is a failure to announce, not a success message to be disproved later.
+    # (AR) 🔑 هذه القوائمُ نسخةٌ رابعةٌ من جدولِ الأدوات، وقد انجرفت فعلًا:
+    #      كانت «compiler» تطلبُ `sadc` وحدَه و«full» تُغفِلُ `sad-build`،
+    #      بينما يشترطُهما حَكَمُ الإصدارِ في scripts/ci/release_tools.sh —
+    #      أي مُثبِّتٌ يقبلُ حزمةً يرفضُها المُصدِر. والمُثبِّتُ يُشحَنُ وحدَه
+    #      إلى المستخدمِ فلا يستطيعُ استيرادَ الجدول، فالرباطُ حارسٌ:
+    #      scripts/ci/check_installer_tool_lists.py يُطابِقُ القائمتَين.
+    # (EN) These lists are a FOURTH copy of the tool table and had already
+    #      drifted: "compiler" required only sadc and "full" omitted sad-build,
+    #      both of which the release judge requires — an installer accepting a
+    #      package the publisher rejects. The installer ships standalone and
+    #      cannot source the table, so the binding is a guard:
+    #      scripts/ci/check_installer_tool_lists.py matches the two.
     case "$COMPONENTS" in
         interpreter) REQUIRED_TOOLS="sad sad-run sad-lsp sad-check" ;;
-        compiler)    REQUIRED_TOOLS="sadc" ;;
-        full)        REQUIRED_TOOLS="sad sad-run sad-lsp sad-check sadc" ;;
+        compiler)    REQUIRED_TOOLS="sadc sad-build" ;;
+        full)        REQUIRED_TOOLS="sad sad-run sad-lsp sad-check sadc sad-build" ;;
         *)           REQUIRED_TOOLS="sad" ;;
     esac
     MISSING_TOOLS=""

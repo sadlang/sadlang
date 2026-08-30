@@ -162,6 +162,17 @@ jobs:
         shell: bash
         run: python3 scripts/ci/check_ci_resilience.py
 
+      # (AR) 🔑 `distribution/install.sh` يُشحَنُ وحدَه فلا يستطيعُ استيرادَ
+      #      جدولِ الأدوات، فقوائمُه نسخةٌ ثانيةٌ — وقد انجرفت فعلًا: «compiler»
+      #      كانت تطلبُ `sadc` وحدَه و«full» تُغفِلُ `sad-build`، وكلاهما
+      #      يشترطُهما حَكَمُ الإصدار. أي مُثبِّتٌ يقبلُ حزمةً يرفضُها المُصدِر.
+      # (EN) install.sh ships standalone and cannot source the tool table, so its
+      #      lists are a second copy — and they had drifted: an installer that
+      #      accepts a package the publisher rejects.
+      - name: "📦 حارسُ قوائمِ المُثبِّت / Installer tool lists guard"
+        shell: bash
+        run: python3 scripts/ci/check_installer_tool_lists.py
+
       # (AR) 🔑 العلّةُ المقيسة (٢٠ آب ٢٠٢٦): `std::system` و`CreateProcessA`
       #      تأخذان `char*`، فيُعيدُ ويندوز تفسيرَ بايتاتِ UTF-8 بترميزِ النظام.
       #      فمسارٌ عربيٌّ تحت ترميزٍ لاتينيٍّ يجعل الرابطَ **ينجح** ورمزُ عائدِه

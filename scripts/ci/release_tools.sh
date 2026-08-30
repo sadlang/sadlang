@@ -220,20 +220,57 @@ sad_require_tools() {
 #      في المجلّد، فأرشيفٌ فارغٌ يجتازُه — وهو ما تشهدُ به حزمةُ v1.0.0.
 # (EN) Actually open the archive and require members. The old check counted
 #      archives in a directory, so an empty archive passed — as v1.0.0 shows.
-sad_require_archive() {
-    local archive="$1" published_list="$2" listing published missing=""
+# (AR) فهرسةُ الأرشيفِ في موضعٍ واحد — كانت داخلَ دالّةٍ واحدةٍ فقط، وأيُّ
+#      حُكمٍ ثانٍ كان سيَنسخُها. نسختانِ من قراءةِ أرشيفٍ تتباعدان.
+# (EN) One place that lists an archive. It used to live inside a single
+#      function, so any second judgement would have copied it.
+_sad_archive_listing() {
+    local archive="$1"
     if [ ! -f "$archive" ]; then
-        echo "::error::أرشيفٌ مفقود / missing archive: $archive"
+        echo "::error::أرشيفٌ مفقود / missing archive: $archive" >&2
         return 1
     fi
     case "$archive" in
-        *.zip)    listing="$(unzip -Z1 "$archive")" ;;
-        *.tar.gz) listing="$(tar -tzf "$archive")" ;;
+        *.zip)    unzip -Z1 "$archive" ;;
+        *.tar.gz) tar -tzf "$archive" ;;
         *)
-            echo "::error::صيغةُ أرشيفٍ غيرُ معروفة / unknown archive format: $archive"
+            echo "::error::صيغةُ أرشيفٍ غيرُ معروفة / unknown archive format: $archive" >&2
             return 1
             ;;
     esac
+}
+
+# (AR) 🔑 **الحكمُ كان يقفُ عندَ `bin/`.** فحزمةٌ فيها التنفيذيّاتُ السّتُّ
+#      كلُّها ومجلّدُ `stdlib` **فارغٌ** تجتازُ خضراء — والمفسّرُ فيها لا
+#      يستوردُ سطرًا واحدًا. ونسخُ المكتبةِ القياسيّةِ في مجرى الإصدارِ
+#      يجري بـ`|| true` على يونكس وبـ`-ErrorAction SilentlyContinue` على
+#      ويندوز، أي بلا حُكمٍ من أصلِه. هذا نظيرُ عطبِ v1.0.0 بعينِه، في
+#      طبقةٍ أخرى.
+#      والعدُّ لا الاسمُ: أسماءُ وحداتِ المكتبةِ عربيّةٌ، وترميزُ ما يُخرِجُه
+#      `unzip -Z1` لأرشيفِ ويندوزَ ليس مضمونًا — فمِرساةُ الاسمِ تحمرُّ كذبًا.
+# (EN) The judgement stopped at bin/. A package with all six executables and
+#      an EMPTY stdlib passed green, and its interpreter cannot import a
+#      single line. The stdlib copy runs under `|| true` / SilentlyContinue,
+#      i.e. unjudged. Count, do not name-match: stdlib module names are
+#      Arabic and the encoding of `unzip -Z1` output is not guaranteed, so a
+#      name anchor would red falsely.
+sad_require_archive_dir() {
+    local archive="$1" dir="$2" minimum="$3" listing found
+    listing="$(_sad_archive_listing "$archive")" || return 1
+    found="$(printf '%s
+' "$listing" | grep -cE "(^|/)${dir}/.+" || true)"
+    if [ "$found" -lt "$minimum" ]; then
+        echo "::error::$archive — «${dir}» فيه $found عضوًا والمطلوبُ $minimum على الأقلّ / has $found members, needs at least $minimum"
+        printf '%s
+' "$listing" | head -40
+        return 1
+    fi
+    echo "✅ $archive — «${dir}» فيه $found عضوًا / $found members"
+}
+
+sad_require_archive() {
+    local archive="$1" published_list="$2" listing published missing=""
+    listing="$(_sad_archive_listing "$archive")" || return 1
     for published in $published_list; do
         if ! printf '%s\n' "$listing" | grep -qE "(^|/)bin/${published}(\.exe)?$"; then
             missing="$missing $published"
