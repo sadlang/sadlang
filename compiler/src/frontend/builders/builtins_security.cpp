@@ -326,8 +326,27 @@ namespace Sad
                     SIROperand resultOp = SIROperand::Register(resultReg, SadTypeKind::Integer);
                     SIRInstruction inst(SIROpcode::BUILTIN_SECURITY_SECURE_RANDOM);
                     inst.result = resultOp;
-                    inst.operands.push_back(argOperands[0]);
-                    inst.operands.push_back(argOperands[1]);
+                    // (AR) 🔑 رتبةُ هذا المدمَجِ (0,2) في مصدرِ الحقيقة، فحارسُ
+                    //      الرتبةِ يُجيزُ نداءً بلا وسائط — ثمّ كان يُقرَأُ
+                    //      `argOperands[0]` و`[1]` **بلا شرطٍ** من مصفوفةٍ فارغة.
+                    //      قِيس الأثرُ: `عشوائي_آمن()` يُسقِطُ المترجّمَ بـ
+                    //      0xC0000005 **بلا مخرَجٍ إطلاقًا** — لا تشخيصَ ولا رسالة،
+                    //      فيُقرأُ في أيِّ أداةِ قياسٍ صمتًا لا عطبًا.
+                    //      والحارسُ لم يمنعه لأنّه يحرسُ الحدَّ الأعلى والأدنى
+                    //      المُعلَنَين، وهما صادقان: العطبُ في القارئِ لا في العقد.
+                    //      والعقدُ الحقيقيُّ من المفسّر (`builtin_module_assertions
+                    //      .cpp:608-620`): بلا وسائطَ ⇒ [0، 100]، وبواحدٍ ⇒
+                    //      [س، 100]. فتُمَدُّ الافتراضاتُ نفسُها هنا ليتّفقَ
+                    //      المحرّكان على قيمةٍ واحدة لا على انهيار.
+                    // (EN) SoT arity is (0,2) so the guard admits a bare call, and
+                    //      the operands were then read unconditionally from an empty
+                    //      vector: `عشوائي_آمن()` crashed the compiler with an access
+                    //      violation and NO output at all. Defaults mirror the
+                    //      interpreter's contract so both engines agree.
+                    inst.operands.push_back(argOperands.size() > 0 ? argOperands[0]
+                                                                   : SIROperand::ConstantI64(0));
+                    inst.operands.push_back(argOperands.size() > 1 ? argOperands[1]
+                                                                   : SIROperand::ConstantI64(100));
                     if (b_.currentBlock_)
                         b_.currentBlock_->instructions.push_back(inst);
 #ifndef NDEBUG
