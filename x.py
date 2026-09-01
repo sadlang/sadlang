@@ -673,6 +673,18 @@ SOT_CHECK_GUARDS = (
         "args": (),
     },
     {
+        # (AR) سِجِلُّ قياسِ المحرّكَين يُغطّي ما هو معلَنٌ اليوم: أخطرُ ما يصيبُه
+        #      التعفّنُ الصامت — يُضافُ مدمَجٌ ولا يُعادُ القياسُ فيُنشَرُ في
+        #      التوثيقِ بلا حكم، أو يُحذَفُ ويبقى سطرُه فيوثَّقُ ما لا وجودَ له.
+        #      حدٌّ مُعلَن: يحرسُ التغطيةَ لا صحّةَ كلِّ سطرٍ — تلك لا تُعرَفُ إلّا
+        #      بإعادةِ تشغيلِ المِجَسِّ على ثنائيَّين مبنيَّين، وهو أثقلُ من بوّابةِ PR.
+        # (EN) The measured engine-support record must cover today's declared
+        #      builtin set. Coverage only — not per-row correctness.
+        "name": "engine_support_fresh",
+        "script": "check_engine_support_fresh.py",
+        "args": (),
+    },
+    {
         # (AR) لا نصَّ تشخيصٍ مكتوبًا يدويًّا في المحلّل النحويّ — كلّ رسالة تُركَّب
         #      من كتالوج الأخطاء المولَّد. حارسٌ بنيويّ (لا نصّيّ) بخطّ أساسٍ ينحدر.
         # (EN) No hand-written diagnostic text in the parser — every message renders
