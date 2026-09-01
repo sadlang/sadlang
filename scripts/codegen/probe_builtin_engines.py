@@ -51,8 +51,9 @@
 
      ¶ المعايرة (تُنفَّذُ في كلِّ تشغيلٍ **لكلِّ محرّكٍ** وتُدوَّنُ في المُخرَج)
 
-       يُسأَلُ عن عيّنةٍ سؤالٌ **ثانٍ مستقلّ** (في المفسّر: النداءُ الفعليُّ بدلَ
-       المرجع؛ في المترجّم: نداءٌ في التوپلفل بدلَ جسمِ دالّةٍ لا تُنادى)،
+       يُسأَلُ عن عيّنةٍ سؤالٌ **ثانٍ مستقلّ** (في المفسّر: استعلامٌ عن سِجِلِّه
+       الحيِّ بجارٍ مخترَعٍ بدلَ المرجع؛ في المترجّم: نداءٌ في التوپلفل بدلَ
+       جسمِ دالّةٍ لا تُنادى) — ولا يُنفَّذُ مدمَجٌ واحدٌ في أيٍّ منهما،
        ويُقارَنُ الحكمان. اختلافُهما يعني أنّ المِجَسَّ يقيسُ شيئًا غيرَ الذي
        يُنشَر — فيُعطَّلُ المُخرَجُ ولا يُكتَب. ومعايرةُ محرّكٍ واحدٍ **لا** تُجيزُ
        نشرَ عمودِ الآخر: الدعوى تُقيَّدُ بما قِيس.
@@ -143,7 +144,6 @@ TAIL = 'اطبع_سطر("حي")\n'
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 SEM001 = re.compile(r"المتغير '([^']+)'")          # اسمٌ لا يحلُّ في المفسّر
-SEM004 = re.compile(r"الدالة '([^']+)' غير معرفة")  # سؤالُ معايرةِ المفسّر
 SEM047 = re.compile(r"المدمَجة '([^']+)'")          # معلَنٌ بلا توزيعٍ في المترجم
 UNDEF = re.compile(r"استدعاء دالة غير معرّفة '([^']+)'")   # اسمٌ يجهلُه المترجّم
 # (AR) 🔑 وجودُ تشخيصٍ يُقاسُ **بالبنية** لا باللفظ: كان الشرطُ `"error [" in out`
@@ -246,11 +246,16 @@ def unify_declarations(fns: list) -> list:
     return [merged[n] for n in sorted(merged)]
 
 
-def run(cmd: list, timeout: int):
+def run(cmd: list, timeout: int, cwd=None):
     """يُرجِعُ `(رمزُ الخروج، النصّ)`؛ ورمزُ الخروجِ `None` عند انتهاءِ المهلة.
 
     رمزُ الخروجِ ليس زينةً: هو **الإثباتُ الموجبُ** الذي يقومُ عليه حكمُ
     «يدعمُه المترجّم». طرحُه كان يجعلُ الصمتَ شهادةً.
+
+    🔑 و`cwd` دفاعٌ في العمق: كان المحرّكُ يرثُ مجلّدَ من أطلقَ الأداة —
+    **جذرَ المستودعِ عادةً** — فأيُّ أثرٍ بمسارٍ نسبيٍّ يقعُ في شجرةِ العمل.
+    يُحبَسُ الآن في المجلّدِ المؤقّتِ الذي يُمحى بعده. ولا يحبسُ المقابسَ ولا
+    المسالكَ المطلقة، فليس بديلًا عن ألّا يُنفَّذَ شيءٌ أصلًا.
     """
     try:
         # (AR) 🔑 المُدخَلُ القياسيُّ **مقطوع**: الشكلُ الثاني في المعايرةِ نداءٌ
@@ -258,7 +263,8 @@ def run(cmd: list, timeout: int):
         #      تنتهيَ المهلةُ (٦٠ث لكلٍّ) فيُقرأُ صمتُهما خلافًا. وقطعُ المُدخَلِ
         #      يجعلُ الجوابَ فوريًّا ويمنعُ الأداةَ من انتظارِ مستعمِلٍ غائب.
         proc = subprocess.run(cmd, capture_output=True, timeout=timeout,
-                              stdin=subprocess.DEVNULL)
+                              stdin=subprocess.DEVNULL,
+                              cwd=str(cwd) if cwd else None)
     except subprocess.TimeoutExpired:
         return None, "TIMEOUT"
     return proc.returncode, ANSI.sub("", (proc.stdout + proc.stderr)
@@ -283,7 +289,7 @@ def probe_interpreter(names: list, run_exe: Path, tmp: Path):
     for name in names:
         src.write_text(preamble_for(name) + "\nمتغير مـجـس = " + name
                        + "\n" + TAIL, encoding="utf-8")
-        rc, out = run([str(run_exe), str(src)], 60)
+        rc, out = run([str(run_exe), str(src)], 60, cwd=tmp)
         if rc is None:
             unclear.append((name, "انتهت المهلة"))
             continue
@@ -316,7 +322,7 @@ def probe_compiler(fns: list, build_exe: Path, tmp: Path):
         src.write_text(preamble_for(name) + "\nدالة مجس()\n    " + name
                        + "(" + args + ")\nنهاية\n" + TAIL,
                        encoding="utf-8")
-        rc, out = run(compile_only(build_exe, src, obj), 300)
+        rc, out = run(compile_only(build_exe, src, obj), 300, cwd=tmp)
         if rc is None:
             unclear.append((name, "انتهت المهلة"))
         elif name in SEM047.findall(out):
@@ -344,8 +350,13 @@ def probe_compiler(fns: list, build_exe: Path, tmp: Path):
 #      فبقيَ المرجعُ المجرَّدُ `متغير م = الاسم` وحدَه، وهو يقيسُ **حلَّ الاسمِ
 #      قيمةً أُولى**. والفرقُ بينه وبين النداءِ هو بالضبط ما تحرسُه المعايرة.
 #
-# (AR) ولا يصلحُ «نداءٌ برتبةٍ خاطئةٍ» بديلًا: رسالةُ SEM004 واحدةٌ للاسمِ
-#      المعروفِ والمخترَعِ معًا («غير معرفة بعدد معاملات ٧») — فلا تُميّز.
+# (AR) ولا يصلحُ «نداءٌ برتبةٍ خاطئةٍ» بديلًا — لا لأنّ الرسالةَ واحدةٌ (كان
+#      هذا تبسيطًا؛ قِيس أنّ بعضَ المعروفينَ يُعطي «Too many arguments» وهو
+#      تمييزٌ صحيح) بل لأنّ حارسَ الرتبةِ في المفسّرِ **غيرُ منتظم**: أسماءٌ
+#      معروفةٌ تُعطي «غير معرفة» كالمخترَع (نفيٌ كاذب)، وأسماءٌ ذاتُ رتبةٍ
+#      مفتوحةٍ **تُنفَّذُ فعلًا**. وجدولُ الرتبِ المولَّدُ من SoT يستهلكُه
+#      المترجّمُ وحدَه (`builtin_arity_check.h`) ولا مرجعَ له في `interpreter/`
+#      — ثغرةُ تكافؤٍ لها تذكرتُها، وليست أساسًا يُبنى عليه قياس.
 # ---------------------------------------------------------------------------
 
 def _stratified(names, fns_by_name, per_ns, floor, rng):
@@ -427,21 +438,52 @@ def calibrate(fns_by_name: dict, absent: set, second_form, seed: int,
 
 
 def calibrate_interpreter(fns_by_name, absent, run_exe, tmp, seed):
-    """الشكلُ الثاني: النداءُ الفعليُّ بدل المرجعِ المجرَّد؛ الحَكَمُ SEM004."""
+    """الشكلُ الثاني: **مِجَسُّ الجوار** — الاسمُ المقيسُ لا يُنادى قطّ.
+
+    🔑 كان الشكلُ الثاني نداءً فعليًّا `الاسم(0)`، فكانت الأداةُ **تُنفِّذُ**
+    ٦٨ مدمَجًا على جهازِ المستعمِلِ في كلِّ تشغيل. وقِيس أنّ هذا ليس نظريًّا:
+    في مجلّدٍ فيه ملفٌّ اسمُه `0`، النداءُ `احذف_ملف(0)` **حذفه** — الوسيطُ
+    الصوريُّ حُوِّلَ إلى النصّ «0» فلم يحمِ. وفي العيّنةِ `انبوب` و`نظام`
+    و`تعطيل_مقاطعات` و`شغل_برنامجا` و`أرسل_فورا`. ومِجَسُّ المفسّرِ الأوّلُ
+    بلا أثرٍ عمدًا، فكان حارسُه ينقضُ ما يحرسه.
+
+    والعلاجُ ليس حجرًا بالـ`namespace`: قِيس أنّ ٩ من ٢٩ اسمًا خطِرًا تفلتُ
+    منه، منها `احذف_ملف` نفسُه (`Basics`، جارُ `طول` و`اطبع_سطر`) — فالـ
+    `namespace` تصنيفُ انتماءٍ معجميٍّ لا تصنيفُ أثر، ولا حقلَ للأثرِ في SoT.
+
+    العلاجُ أن يُنادى **جارٌ مخترَعٌ قطعًا** (الاسمُ + حرف): `احذف_ملفظ()`.
+    فيسقطُ المفسّرُ إلى فرعِ «دالّة غير معرّفة»، وهناك — قبلَ أيِّ تنفيذ —
+    يُعدِّدُ سِجِلَّه الحيَّ ويقترحُ الأقربَ إليه
+    (`interpreter/src/visitors/expression_evaluator_calls_dispatch.cpp:578-585`).
+    فظهورُ الاسمِ في «هل قصدت» شهادةُ **تسجيلٍ في المحرّكِ نفسِه**، والمدمَجُ
+    المقيسُ لم يُستدعَ. وهذا استعلامٌ عن سِجِلٍّ حيٍّ لا مسحُ نصٍّ غيرُ مُعايَر.
+
+    قِيس: ١١٠/١١٠ في جانبِ «غائب» و٦٨/٦٨ في جانبِ «موجود» — بصفرِ تنفيذ،
+    والملفُّ `0` باقٍ. ومكسبٌ عرَضيّ: `اقرأ` و`قراءة_سطر` كانتا تحجزانِ على
+    المُدخَلِ القياسيِّ حتّى المهلة، وتُجيبانِ الآن فورًا.
+
+    وحدُّه مُعلَن: «ظهرَ الاسمُ» إثباتٌ موجبٌ للحضور، و«لم يظهر» يُقرأُ غيابًا
+    لأنّه وافق الشكلَ الأوّلَ في كلِّ الغائبينَ المقيسين — لا لأنّ السِّجِلَّ
+    يُعدِّدُ كلَّ مسارٍ قد يحلُّ به المفسّرُ اسمًا.
+    """
     src = tmp / "k.ص"
 
-    def call_says_absent(name: str):
-        args = "، ".join(["0"] * arity_min(fns_by_name[name]))
-        src.write_text(preamble_for(name) + "\n" + name + "(" + args
-                       + ")\n" + TAIL, encoding="utf-8")
-        rc, out = run([str(run_exe), str(src)], 60)
+    def near_says_absent(name: str):
+        # (AR) اسمٌ قصيرٌ جدًّا لا يصلحُ: جارُه يقعُ على مسافةِ تحريرٍ من عشراتِ
+        #      الأسماءِ فيفوزُ غيرُه بالاقتراحِ الأوّل (يُطبَعُ `similar[0]` وحدَه،
+        #      `dispatch.cpp:584`). يُترَكُ بلا جوابٍ ولا يُخمَّن — والمسافةُ
+        #      تُحسَبُ بالبايتات والحرفُ العربيُّ بايتان، فعتبةُ ٤ حرفانِ عربيّان.
+        if len(name.encode("utf-8")) < 4:
+            return None
+        src.write_text(preamble_for(name) + "\n" + name + "ظ()\n",
+                       encoding="utf-8")
+        rc, out = run([str(run_exe), str(src)], 60, cwd=tmp)
         if rc is None:
             return None
-        match = SEM004.search(out)
-        return bool(match and match.group(1) == name)
+        return not re.search(r"هل قصدت: '" + re.escape(name) + r"'؟", out)
 
-    return calibrate(fns_by_name, absent, call_says_absent, seed,
-                     "نداءٌ فعليٌّ في التوپلفل؛ الحَكَمُ SEM004")
+    return calibrate(fns_by_name, absent, near_says_absent, seed,
+                     "جارٌ مخترَعٌ يُستعلَمُ به عن سِجِلِّ المفسّر؛ لا تنفيذَ البتّة")
 
 
 def calibrate_compiler(fns_by_name, absent, build_exe, tmp, seed):
@@ -457,7 +499,7 @@ def calibrate_compiler(fns_by_name, absent, build_exe, tmp, seed):
         args = "، ".join(["0"] * arity_min(fns_by_name[name]))
         src.write_text(preamble_for(name) + "\n" + name + "(" + args
                        + ")\n" + TAIL, encoding="utf-8")
-        rc, out = run(compile_only(build_exe, src, obj), 300)
+        rc, out = run(compile_only(build_exe, src, obj), 300, cwd=tmp)
         if rc is None:
             return None
         if name in SEM047.findall(out) or name in UNDEF.findall(out):
@@ -608,7 +650,8 @@ def emit(path: Path, fns: list, comp_absent: set, comp_unknown: set,
         "stale_binaries_allowed": bool(stale_allowed),
         "elapsed_seconds": round(elapsed),
         "method": {
-            "interpreter": "مرجعُ اسمٍ بلا نداء؛ الحكمُ SEM001 على الاسم",
+            "interpreter": ("مرجعُ اسمٍ بلا نداء؛ الحكمُ SEM001 على الاسم — "
+                            "ولا يُنفَّذُ مدمَجٌ واحدٌ في المِجَسِّ ولا في معايرتِه"),
             "compiler": ("نداءٌ برتبة arity.min في دالّةٍ لا تُنادى، ترجمةٌ "
                          "بلا ربط (-c)؛ الغيابُ SEM047 ثمّ «غير معرّفة»، "
                          "والحضورُ رمزُ خروجٍ صفرٍ أو تشخيصٌ يسمّي المدمَجَ"),
