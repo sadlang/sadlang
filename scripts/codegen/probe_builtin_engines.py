@@ -578,11 +578,39 @@ def dirty_dispatch_paths() -> list:
                   if any(p.startswith(prefix) for prefix in DISPATCH_PATHS))
 
 
-def dispatch_commits_after(when: float) -> list:
-    """إيداعاتٌ مسّت طبقةَ الإرسالِ بعدَ لحظةِ بناءِ الثنائيّ."""
-    stamp = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(when))
-    out = _git("log", "--oneline", f"--since={stamp}", "--", *DISPATCH_PATHS)
-    return [line for line in out.splitlines() if line]
+def dispatch_files_changed_after(when: float) -> list:
+    """ملفّاتُ طبقةِ الإرسالِ التي تغيّرَ **محتواها على القرص** بعدَ بناءِ الثنائيّ.
+
+    🔑 والسؤالُ كان زمنَ الإيداعِ لا زمنَ الملفّ، وهذا خطأٌ في السؤال: مجرى
+    العملِ الطبيعيُّ «ابنِ ← تحقّق ← أودِع»، فالإيداعُ يقعُ بعدَ البناءِ من
+    **الشيفرةِ نفسِها** ويُقرَأُ «ثنائيٌّ أقدمُ من طبقةِ الإرسال» كذبًا. والذي
+    يُبطِلُ الثنائيَّ تغيُّرُ المصدرِ لا تدوينُه في التاريخ.
+
+    ويبقى الغرضُ الأصليُّ محفوظًا — الحادثةُ التي أُضيف لها الحارسُ (ثنائيّا
+    ٢٥–٢٦ آب قِيسا ونُسِبا إلى إيداعِ أيلول وبينهما أربعةُ إيداعاتٍ مسّت
+    الإرسال) تُكشَفُ كما كانت: تلك الإيداعاتُ غيّرت الملفّاتِ فعلًا فتصيرُ
+    أحدثَ من الثنائيّ. أمّا الإيداعُ الذي لا يُغيّرُ ملفًّا بعدَ البناءِ فلا
+    يُبطِلُ قياسًا.
+    """
+    changed = []
+    for prefix in DISPATCH_PATHS:
+        base = ROOT / prefix
+        paths = [base] if base.is_file() else []
+        if base.is_dir():
+            paths = [p for p in base.rglob("*") if p.is_file()]
+        elif not paths:
+            # بادئةُ اسمٍ لا مسارٌ كامل (مثل `builtins_`) — تُوسَّعُ بالمطابقة.
+            parent, stem = base.parent, base.name
+            if parent.is_dir():
+                paths = [p for p in parent.iterdir()
+                         if p.is_file() and p.name.startswith(stem)]
+        for path in paths:
+            try:
+                if path.stat().st_mtime > when:
+                    changed.append(path.relative_to(ROOT).as_posix())
+            except OSError:
+                continue
+    return sorted(changed)
 
 
 def binary_fingerprint(path: Path) -> dict:
@@ -725,11 +753,11 @@ def main() -> int:
 
     # (AR) الثنائيُّ أقدمُ من طبقةِ الإرسال ⇒ القياسُ يصفُ ماضيًا ويُنشَرُ حاضرًا.
     built_at = min(run_exe.stat().st_mtime, build_exe.stat().st_mtime)
-    late = dispatch_commits_after(built_at)
+    late = dispatch_files_changed_after(built_at)
     if late and not args.allow_stale_binaries:
         stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(built_at))
-        print(f"✗ الثنائيّان بُنيا في {stamp}، وبعدهما {len(late)} إيداعًا مسَّ")
-        print("  طبقةَ الإرسال. أعِد البناءَ ثمّ القياس — أو مرِّر")
+        print(f"✗ الثنائيّان بُنيا في {stamp}، وبعدهما تغيّر {len(late)} ملفًّا")
+        print("  في طبقةِ الإرسال. أعِد البناءَ ثمّ القياس — أو مرِّر")
         print("  --allow-stale-binaries إن كنتَ تقيسُ عمدًا حالةً قديمة:")
         for line in late[:10]:
             print(f"    · {line}")
