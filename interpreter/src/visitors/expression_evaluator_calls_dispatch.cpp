@@ -586,7 +586,15 @@ namespace Sad
                 //      رتبةٌ — السكوتُ عن غيرِ المقيسِ أصدقُ من فرضِ ما لم يُعلَن.
                 const Sad::Builtins::Arity::Range *range =
                     Sad::Builtins::Arity::ByName::lookup(funcName);
-                if (range && (arguments.size() < range->min || arguments.size() > range->max))
+                // (AR) 🔑 العددُ المقيسُ هو `effectiveArgCount` لا `arguments.size()`:
+                //      الوسيطُ المسمّى يُسطَّحُ إلى **قيمتَين** (اسمٌ ثمّ قيمة) في
+                //      `arguments`، فقياسُ الطولِ الخامِّ يُضاعِفُ العدّ. وقِيس:
+                //      `جذر(العدد: 9)` كان يُرفَضُ بـ«مُرِّر 2» **والمترجّمُ
+                //      يقبلُه** — تباعدٌ جديدٌ أحدثَه حارسٌ أُدخِل للتكافؤ.
+                //      والطولُ الخامُّ يصلحُ للنداءِ المكانيِّ وحدَه، وهو ما جعل
+                //      البوّابةَ خضراءَ في ٩٥٦ اختبارًا: الصيغةُ خارجَ المجموعة.
+                const size_t argCount = effectiveArgCount;
+                if (range && (argCount < range->min || argCount > range->max))
                 {
                     // (AR) المتوقَّعُ المعروضُ هو الطرفُ الذي خولِف — الأدنى عند
                     //      النقصِ والأقصى عند الزيادة — نظيرَ `checkBuiltinArity`
@@ -594,10 +602,10 @@ namespace Sad
                     Sad::Errors::RenderContext ctx;
                     ctx.placeholders = {
                         {"name", funcName},
-                        {"expected", std::to_string(arguments.size() < range->min
+                        {"expected", std::to_string(argCount < range->min
                                                         ? range->min
                                                         : range->max)},
-                        {"found", std::to_string(arguments.size())}};
+                        {"found", std::to_string(argCount)}};
                     Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
                         Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT,
                         Sad::Errors::SourceLocation(getDispatchSourceFilename(),

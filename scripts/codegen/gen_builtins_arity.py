@@ -173,24 +173,54 @@ def collect_by_name(sot_dir: Path):
     أحدِهما يرفضُ نداءً صحيحًا، وتوحيدُهما اتّحادًا يقبلُ نداءً خاطئًا —
     وكلاهما اختراعٌ لا قياس. فالسكوتُ عن غيرِ المقيسِ أصدقُ (نظيرُ ما تفعله
     `TypeMethods::lookup` إذ تُرجِعُ nullptr لِما لا عقدَ له).
+
+    🔑 و**غيابُ الرتبةِ تضاربٌ كسائرِ التضارب**. كانت الإعلاناتُ بلا `arity`
+    تُتخطّى قبلَ العدّ، فيُقرأُ الاسمُ «لا لبسَ فيه» وتُفرَضُ عليه رتبةُ
+    إعلانِه الآخر — وهو الاختراعُ نفسُه الذي حُذف `استبدل` لاجتنابِه، عائدًا
+    من بابٍ خلفيّ. وقِيس أثرُه: `أرسل` تأخذُ (3,3) من `http_client` فيُرفَضُ
+    `أرسل(ق، 42)` على قناةِ `تزامن_متقدم` وهو نداءٌ صحيح. ثمانيةُ أسماء.
     """
     ranges: dict[str, set] = {}
     for path in sorted(sot_dir.glob("*.yaml")):
         doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         for fn in doc.get("functions") or []:
             arity = fn.get("arity")
-            if not arity:
-                continue
-            top = "UNBOUNDED" if arity.get("variadic") else str(int(arity["max"]))
-            ranges.setdefault(fn["canonical"], set()).add((int(arity["min"]), top))
-    unambiguous = sorted((name, *next(iter(v)))
-                         for name, v in ranges.items() if len(v) == 1)
-    conflicting = sorted(name for name, v in ranges.items() if len(v) > 1)
+            # (AR) `None` يدخلُ المجموعةَ ولا يُتخطّى: إعلانٌ بلا عقدٍ ينقضُ
+            #      عقدَ أخيه، فلا يُفرَضُ عقدُ أحدِهما على الآخر.
+            entry = None
+            if arity:
+                top = "UNBOUNDED" if arity.get("variadic") else str(int(arity["max"]))
+                entry = (int(arity["min"]), top)
+            ranges.setdefault(fn["canonical"], set()).add(entry)
+    unambiguous = sorted((name, *next(iter(v))) for name, v in ranges.items()
+                         if len(v) == 1 and next(iter(v)) is not None)
+    conflicting = sorted(name for name, v in ranges.items()
+                         if len(v) > 1 or next(iter(v)) is None)
+    # (AR) لا يُذكَرُ في الترويسةِ إلّا ما له إعلانٌ برتبةٍ فعلًا: ذِكرُ سبعِ
+    #      مئةِ اسمٍ بلا `arity` ضجيجٌ يُخفي الثمانيةَ التي يهمُّ أمرُها.
+    conflicting = [n for n in conflicting if any(
+        e is not None for e in ranges[n])]
     return unambiguous, conflicting
 
 
 def render_by_name(sot_dir: Path) -> str:
     rows, conflicting = collect_by_name(sot_dir)
+    # (AR) 🔑 والدعوى تُقاسُ على التنفيذِ قبلَ أن تُفرَض. `arity` في مصدرِ
+    #      الحقيقةِ دعوى، وجسمُ المدمَجِ في المفسّرِ واقع، وقد اختلفا في ثلاثة:
+    #      `تأكد_أكبر` يقرأُ `args[2]` وSoT يقول (2,2)؛ و`ارسم_خط`/`ارسم_مستطيل`
+    #      يشترطانِ `args.size() >= 6` وSoT يقول (5,5) — أي أنّهما **غيرُ
+    #      قابلَين للنداء**. وفرضُ الدعوى قبلَ تصحيحِها رفضٌ لنداءٍ صحيح.
+    #      ولا يُصلَحُ بتوسيعِ SoT بلا تروٍّ: `ارسم_خط` في المترجّمِ أوپكودُ
+    #      إطارِ عرضٍ للوضعِ الحرّ لا نداءُ لوحة — تنفيذانِ تحت اسمٍ واحد،
+    #      وتوسيعُ الرتبةِ يغيّرُ مسارَ النواةِ صامتًا. فيُقصى الاسمُ ويُسمّى،
+    #      أثرًا للقاعدةِ نفسِها التي حُذف بها `استبدل`: لا تُفرَضُ رتبةٌ على
+    #      اسمٍ يُختلَفُ فيه.
+    from builtin_impl_arity import disagreements   # noqa: PLC0415 — أداةٌ محلّيّة
+    sot = {name: (lo, None if hi == "UNBOUNDED" else int(hi))
+           for name, lo, hi in rows}
+    mismatched = {d[0]: d[5] for d in disagreements(sot)}
+    if mismatched:
+        rows = [r for r in rows if r[0] not in mismatched]
     out = [
         "            namespace ByName\n            {\n",
         "                /// (AR) رتبةُ المدمَجِ مطلوبةً **بالاسمِ العربيِّ وقتَ\n"
@@ -200,10 +230,20 @@ def render_by_name(sot_dir: Path) -> str:
     ]
     if conflicting:
         out.append("                ///\n"
-                   "                /// (AR) وهذه أسماءٌ أُعلِنت برتبتَين مختلفتَين فحُذفت:\n")
+                   "                /// (AR) وهذه أسماءٌ أُعلِنت برتبتَين مختلفتَين — أو\n"
+                   "                ///      بإعلانٍ برتبةٍ وآخرَ بلا رتبةٍ، وغيابُ العقدِ\n"
+                   "                ///      نقضٌ للعقدِ لا سكوتٌ عنه — فحُذفت:\n")
         for name in conflicting:
             out.append(f"                ///        · {name}\n")
         out.append("                ///      لا تُخمَّن رتبتُها ولا تُفرَض — لا عقدَ لها.\n")
+    if mismatched:
+        out.append("                ///\n"
+                   "                /// (AR) وهذه دعواها تخالفُ تنفيذَها في المفسّرِ\n"
+                   "                ///      (مقيسًا ساكنًا بـbuiltin_impl_arity.py) فحُذفت\n"
+                   "                ///      حتّى يُصحَّحَ مصدرُ الحقيقة — لا تُفرَضُ دعوى\n"
+                   "                ///      قِيس أنّها ترفضُ نداءً صحيحًا:\n")
+        for name, why in sorted(mismatched.items()):
+            out.append(f"                ///        · {name} — {why}\n")
     out.append("                struct NamedRange\n                {\n"
                "                    const char *name;\n"
                "                    Range range;\n                };\n\n"
