@@ -6,8 +6,8 @@
 
      ¶ لماذا مِجَسٌّ أصلًا، ومصدرُ الحقيقةِ فيه حقلُ `status`؟
 
-       لأنّ `status: stable` **لا يعني أنّ المدمَجَ يصلُ إلى ثنائيّ**. الـ١٢٠٥
-       مدمَجًا كلُّها `stable` في `language-truth/builtins/`، ومع ذلك يرفضُ
+       لأنّ `status: stable` **لا يعني أنّ المدمَجَ يصلُ إلى ثنائيّ**. كلُّ
+       المدمَجاتِ `stable` في `language-truth/builtins/`، ومع ذلك يرفضُ
        المترجّمُ منها مئاتٍ بـSEM047 المسمّى. الحقلُ **دعوى** والمِجَسُّ **قياس**،
        ونشرُ الدعوى في التوثيقِ يجعلُ القارئَ يبني على ما لا يعمل.
 
@@ -22,7 +22,7 @@
 
        • المفسّر: `متغير س = <الاسم>` — **مرجعُ اسمٍ بلا نداء**. مقصودٌ ألّا
          يُنفَّذَ شيء: في القائمةِ `معالج_توقف` و`أغلق_مقبس` و`احذف_ملف`،
-         وتنفيذُ ١٢٠٥ مدمَجًا يوقفُ المعالجَ ويفتحُ مقابسَ ويحذفُ ملفّات.
+         وتنفيذُ المدمَجاتِ كلِّها يوقفُ المعالجَ ويفتحُ مقابسَ ويحذفُ ملفّات.
          والرمزُ الحاكمُ SEM001 على الاسمِ نفسِه.
 
        • المترجّم: نداءٌ برتبةِ `arity.min` داخلَ **دالّةٍ لا تُنادى** — أجسامُ
@@ -30,7 +30,7 @@
          SEM047 المسمّى («معلَنةٌ … ولا توزيعَ لها في المترجم») أو رسالةُ
          «استدعاء دالة غير معرّفة». (والمترجّمُ لا يقبلُ مرجعَ مدمَجٍ بلا نداء
          — قِيس: «Undefined variable» حتّى للعامل، فالشكلُ الواحدُ لا يكفي
-         للمحرّكَين.)
+         للمحرّكَين.) ويُترجَمُ بـ`-c` بلا ربطٍ ولا يُشغَّلُ ناتجُه قطّ.
 
      ¶ 🔑 لماذا اسمٌ واحدٌ لكلّ تشغيلٍ لا دفعة؟
 
@@ -39,20 +39,34 @@
        قِيست دفعاتٌ أعطت صفرَ غيابٍ ومعها سبعةَ عشرَ خطأً من صنفٍ آخر. الأداةُ
        التي تختصرُ الزمنَ باختصارِ القياسِ تُفسِدُ ما تقيسه.
 
-     ¶ المعايرة (تُنفَّذُ في كلِّ تشغيلٍ وتُدوَّنُ في المُخرَج)
+     ¶ 🔑 لا حكمَ «مدعوم» إلّا بإثباتٍ موجب
 
-       يُسأَلُ عن عيّنةٍ سؤالٌ **ثانٍ مستقلّ** (النداءُ الفعليُّ في المفسّرِ بدل
-       المرجع)، ويُقارَنُ الحكمان. اختلافُهما يعني أنّ المِجَسَّ يقيسُ شيئًا غيرَ
-       الذي يُنشَر — فيُعطَّلُ المُخرَجُ ولا يُكتَب.
+       الصمتُ ليس شهادة. كان جانبُ المترجّمِ يصنّفُ «مدعومًا» كلَّ ما لم يطابقْ
+       SEM047 ولا «غير معرّفة» — فأيُّ فشلٍ آخرَ (خطأُ نوعٍ من وسيطٍ صوريّ،
+       تعذّرُ فتحِ المصدرِ العربيّ، رسالةُ «تنتمي إلى وحدةٍ لم تُستورَد») كان
+       يُقرَأُ دعمًا. واليومَ الغيابُ يُفحَصُ أوّلًا برمزِه المسمّى (SEM047 ثمّ
+       «غير معرّفة»)، ثمّ يُثبَتُ الحضورُ بإثباتٍ موجب: رمزُ خروجٍ صفرٌ، أو
+       **تشخيصٌ يسمّي المدمَجَ بعينِه** (والمترجّمُ لا يسمّي إلّا ما حلَّه)، أو
+       علامةٌ بنيويّةٌ على بلوغِ الخلفيّة. وما عدا ذلك **ملتبسٌ يمنعُ الكتابة**.
+
+     ¶ المعايرة (تُنفَّذُ في كلِّ تشغيلٍ **لكلِّ محرّكٍ** وتُدوَّنُ في المُخرَج)
+
+       يُسأَلُ عن عيّنةٍ سؤالٌ **ثانٍ مستقلّ** (في المفسّر: النداءُ الفعليُّ بدلَ
+       المرجع؛ في المترجّم: نداءٌ في التوپلفل بدلَ جسمِ دالّةٍ لا تُنادى)،
+       ويُقارَنُ الحكمان. اختلافُهما يعني أنّ المِجَسَّ يقيسُ شيئًا غيرَ الذي
+       يُنشَر — فيُعطَّلُ المُخرَجُ ولا يُكتَب. ومعايرةُ محرّكٍ واحدٍ **لا** تُجيزُ
+       نشرَ عمودِ الآخر: الدعوى تُقيَّدُ بما قِيس.
 
 (EN) Measures, per builtin, whether each engine actually resolves it. The
      SoT `status` field is a claim, not a measurement; source scanning is
-     uncalibrated. One name per run: batching truncates and lies.
+     uncalibrated. One name per run: batching truncates and lies. No
+     "supported" verdict without positive proof; both engines are calibrated.
 ============================================================================
 """
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import random
 import re
@@ -80,18 +94,25 @@ MODULE_HEADER = ROOT / "shared/builtins/include/module_definitions.h"
 _MODULE_RE = re.compile(r'\{"([^"]+)",\s*ModuleId::(\w+)\}')
 
 
-def import_modules() -> list:
-    """أسماءُ الوحداتِ القانونيّةُ كما يعرفُها المحرّكان — لا كما أتذكّرُها."""
+@functools.lru_cache(maxsize=1)
+def module_aliases() -> dict:
+    """`{ModuleId: الاسمُ العربيّ}` كما يعرفُها المحرّكان — لا كما أتذكّرُها.
+
+    تُقرأُ كسولًا لا وقتَ الاستيراد: أداةُ قياسٍ ترفعُ `SystemExit` بمجرّدِ
+    استيرادِها لا يمكنُ اختبارُها ولا استعارةُ ثوابتِها من حارسٍ آخر.
+    """
     text = MODULE_HEADER.read_text(encoding="utf-8")
-    names = sorted({m.group(1) for m in _MODULE_RE.finditer(text)
-                    if m.group(2) != "NONE"})
-    if not names:
+    table = {m.group(2): m.group(1) for m in _MODULE_RE.finditer(text)
+             if m.group(2) != "NONE"}
+    if not table:
         raise SystemExit("✗ تعذّر اشتقاقُ أسماءِ الوحدات من "
                          f"{MODULE_HEADER} — تمهيدٌ ناقصٌ يُنتِجُ نفيًا كاذبًا.")
-    return names
+    return table
 
 
-IMPORT_MODULES = import_modules()
+def import_modules() -> list:
+    """أسماءُ الوحداتِ العربيّةُ مرتَّبةً — تمهيدُ كلِّ مِجَسّ."""
+    return sorted(module_aliases().values())
 
 
 # (AR) 🔑 تصادمُ الاسمِ يحلُّ صامتًا — وقد وقع: `متغير م = شبكة` يحلُّ لأنّ
@@ -100,23 +121,73 @@ IMPORT_MODULES = import_modules()
 #      قِيس أنّ حذفَ استيرادِ وحدتِه يقلبُ الحكمَ إلى SEM001، وأنّ نداءَه
 #      يقولُ SEM004. أداةُ القياسِ كانت تُفسِدُ قياسَها بتمهيدِها.
 #      والعلاجُ: يُحذَفُ من التمهيدِ استيرادُ الوحدةِ التي تُشبهُ الاسمَ المقيس.
-#      وإن كان المدمَجُ نفسُه ساكنًا في تلك الوحدة فالتصادمُ لا يُحَلُّ بحذفٍ
-#      ولا يُخمَّن: يُصنَّفُ **ملتبسًا** فيَمنعُ كتابةَ المُخرَج.
 def preamble_for(name: str) -> str:
     """تمهيدٌ خاصٌّ بالاسمِ المقيس: بلا الوحدةِ التي تُصادمُه."""
-    return "\n".join("استورد " + m for m in IMPORT_MODULES if m != name)
+    return "\n".join("استورد " + m for m in import_modules() if m != name)
 
 
+# (AR) 🔑 وطرفا هذا الشرَكِ كانا من نوعَين مختلفَين فلم يستطعْ أن يشتعل:
+#      `IMPORT_MODULES` أسماءٌ **عربيّة** وحقلُ `module` في SoT معرّفاتُ
+#      `ModuleId` **إنجليزيّة**، فـ`"NETWORK" == "شبكة"` مستحيلةٌ لأيِّ مُدخَل —
+#      شرطٌ أخضرُ لأنّه لا يستطيعُ أن يكونَ كاذبًا. والحالةُ التي كُتب لها
+#      كانت تنجو منه: مدمَجٌ اسمُه `شبكة` وحقلُه `NETWORK` يُحذَفُ استيرادُ
+#      وحدتِه فيقولُ المفسّرُ SEM001 ⇒ **نفيٌ كاذب**. فيُترجَمُ الطرفانِ إلى
+#      لسانٍ واحدٍ قبلَ المقارنة.
 def collides_with_own_module(fn) -> bool:
-    """اسمٌ يساوي اسمَ وحدتِه — تصادمٌ لا يُحَلُّ بحذفِ الاستيراد."""
-    return fn["canonical"] in IMPORT_MODULES and fn.get("module") == fn["canonical"]
+    """اسمٌ يساوي اسمَ وحدتِه العربيَّ — تصادمٌ لا يُحَلُّ بحذفِ الاستيراد."""
+    arabic = module_aliases().get(str(fn.get("module")))
+    return bool(arabic) and fn["canonical"] == arabic
+
+
 TAIL = 'اطبع_سطر("حي")\n'
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 SEM001 = re.compile(r"المتغير '([^']+)'")          # اسمٌ لا يحلُّ في المفسّر
-SEM004 = re.compile(r"الدالة '([^']+)' غير معرفة")  # سؤالُ المعايرةِ الثاني
+SEM004 = re.compile(r"الدالة '([^']+)' غير معرفة")  # سؤالُ معايرةِ المفسّر
 SEM047 = re.compile(r"المدمَجة '([^']+)'")          # معلَنٌ بلا توزيعٍ في المترجم
-UNDEF = re.compile(r"استدعاء دالة غير معرّفة '([^']+)'")
+UNDEF = re.compile(r"استدعاء دالة غير معرّفة '([^']+)'")   # اسمٌ يجهلُه المترجّم
+# (AR) 🔑 وجودُ تشخيصٍ يُقاسُ **بالبنية** لا باللفظ: كان الشرطُ `"error [" in out`
+#      وهو معلَّقٌ بكلمةٍ إنجليزيّةٍ في مستودعٍ يجري تعريبُه. يومَ تُعرَّبُ
+#      «error» يصيرُ كلُّ تشخيصٍ غيرَ مرئيٍّ فيُقرَأُ كلُّ اسمٍ «مدعومًا».
+#      ورمزُ التشخيصِ `[SEM001]` بنيةٌ لا تُعرَّب.
+DIAG_CODE = re.compile(r"\[(?:SEM|SYN|LEX|TYP|RUN|IMP|GEN)\d{3}\]")
+# (AR) المدمَجُ محجوبٌ بوحدةٍ حذفناها نحن من التمهيد (بسببِ تصادمِ الاسم):
+#      ليس غيابًا ولا دعمًا — التباسٌ صريحٌ يوقفُ الأداة.
+GATED = re.compile(r"تنتمي إلى وحدة '([^']+)' ولم تُستورَد")
+# (AR) 🔑 حضورُ المدمَجِ يُثبَتُ بقاعدةٍ **عامّةٍ** لا بتعدادِ أشكالِ الرسائل.
+#      عُدَّت ثلاثُ جولاتٍ من الالتباس (٢٣٣ ثمّ ٩٠ ثمّ ٤٦)، وكلُّها من صنفٍ
+#      واحد: الوسيطُ الصوريُّ `0` خاطئُ النوع، فيشتكي المترجّمُ منه شكوًى
+#      **تُسمّي المدمَجَ**: «الدالة 'طول_نص' تتوقّع 1 من المعاملات»، «خريطة_احصل
+#      استقبلت وسيطًا أوّل ليس خريطةً»، «متوقع 'انتقل: عنصر واجهة' لكن وُجد
+#      'i64'»، «‹حمل_سجل_المهمة›: تعليمةُ حلقةٍ صفريّة لا تُصدَر في وحدةٍ
+#      مستضافة». تعدادُ هذه الأشكالِ لعبةُ ضربِ خُلدٍ لا تنتهي؛ والجامعُ بينها
+#      أنّ المترجّمَ **سمّى الاسمَ** — ولا يُسمّي إلّا ما حلَّه.
+#      وغيابُ الاسمِ يُفحَصُ **قبلَ** هذه القاعدة (SEM047 ثمّ «غير معرّفة»)،
+#      فلا يبتلعُ العامُّ الخاصَّ. ومعه علامتانِ بنيويّتانِ على بلوغِ الخلفيّةِ
+#      حتّى لو لم تُسمَّ: انهيارُ LLVM ورفضُ مُدقِّقِ الوحدة — وبلوغُ توليدِ
+#      الكودِ لا يكونُ إلّا بعدَ حلِّ الاسم.
+#      (وقِيس الطرفان: `احذف_ملف(0)` يُفشِلُ المُدقِّق و`احذف_ملف("س")` يُترجَمُ
+#       برمزِ صفر. ويكشفُ هذا عرَضًا عيبًا في المترجّم: نوعُ وسيطِ المدمَجِ لا
+#       يُفحَصُ أماميًّا دائمًا فيخرجُ «خطأٌ داخليّ» بدلَ خطأِ نوعٍ مفهوم —
+#       عيبٌ يُبلَّغُ ولا يُصلَحُ من هنا.)
+BACKEND_REACHED = re.compile(r"LLVM ERROR|وحدة LLVM المولَّدة غير سليمة")
+
+
+def names_the_builtin(out: str, name: str) -> bool:
+    """أذكرَ المترجّمُ هذا الاسمَ بعينِه؟ بحدودٍ لئلّا يُطابَقَ جزءُ اسمٍ أطول."""
+    pattern = (r"(?<![\w؀-ۿ])" + re.escape(name)
+               + r"(?![\w؀-ۿ])")
+    return re.search(pattern, out) is not None
+
+
+def compiler_resolves(name: str, rc, out: str):
+    """`True` حضورًا، أو `None` التباسًا. الغيابُ يُفحَصُ قبلَ ندائها."""
+    if rc == 0:
+        return True
+    if names_the_builtin(out, name) or BACKEND_REACHED.search(out):
+        return True
+    return None
+
 
 # (AR) المعايرةُ **طبقيّةٌ** لا عشوائيّةً منتظمة. العشوائيُّ المنتظمُ يقيسُ
 #      المجموعاتِ الكبيرةَ ويكادُ لا يلمسُ الصغيرة، وحكمُ المِجَسِّ ليس واحدًا
@@ -126,6 +197,19 @@ UNDEF = re.compile(r"استدعاء دالة غير معرّفة '([^']+)'")
 #      منتظمة. الطبقيُّ يُلزِمُ كلَّ مجموعةٍ بحصّةٍ، فيظهرُ الخللُ حيثُ هو.
 CALIBRATION_PER_NAMESPACE = 3   # حصّةُ كلِّ مجموعةٍ من كلِّ جانب
 CALIBRATION_FLOOR = 25          # أرضيّةٌ لكلِّ جانبٍ مهما قلَّت المجموعات
+
+# (AR) 🔑 ثلاثةُ أسماءٍ لا يقيسُها هذا الشكلُ مهما حُسِّن، ولكلٍّ سببٌ من صنفٍ
+#      آخر: `خطأ` اسمُ مدمَجٍ **وحرفُ اللغةِ للكذب** معًا فنداؤه نداءُ قيمةٍ لا
+#      دالّة؛ و`زاوج` يشتكي المترجّمُ من نوعِ وسيطِه بعبارةٍ لا تسمّيه؛
+#      و`عشوائي_آمن` **يُسقِطُ المترجّمَ** (0xC0000005 بلا مخرَج) — عيبٌ يُبلَّغ.
+#      وإجبارُ القاعدةِ على ابتلاعِها يُعيدُ الكذبةَ التي أُزيلت. فيُعلَنُ
+#      العجزُ صراحةً: تُنزَعُ صفوفُها من السِّجِلِّ وتُسمَّى في `unmeasured`
+#      بأسبابِها، فيعرضُها التوثيقُ «—» لا «✅» ولا «❌». وسقفٌ صغيرٌ يمنعُ
+#      أن تصيرَ هذه السلّةُ مقبرةً صامتةً يُلقى فيها ما يصعبُ قياسُه.
+MAX_UNMEASURED = 5
+# (AR) سقفُ «لم يُجِب» في المعايرة: العيّنةُ لا تُفرَّغُ في سلّةِ الصمتِ فتخضرَّ
+#      المعايرةُ على لا شيء. وهو أوسعُ قليلًا لأنّ الصمتَ هنا زمنيٌّ لا بنيويّ.
+MAX_UNANSWERED = 12
 
 
 def load_builtins() -> list:
@@ -144,12 +228,52 @@ def arity_min(fn: dict) -> int:
     return len(fn.get("params") or [])
 
 
-def run(cmd: list, timeout: int) -> str:
+# (AR) 🔑 الاسمُ الواحدُ قد يُعلَنَ في ملفَّين برتبتَين مختلفتَين (`استبدل`:
+#      ٣ و٣ و١)، والمحرّكُ يعرفُ **اسمًا** لا إعلانًا. فلو قِيس كلُّ إعلانٍ
+#      وجُمعت النتائجُ في مجموعةٍ واحدة لَقلَبت رتبةٌ واحدةٌ خاطئةٌ حكمَ الاسمِ
+#      كلِّه إلى «غيرُ مدعوم»، ولَكُتبت للاسمِ صفوفٌ مكرّرةٌ في التوثيق.
+#      فيُوحَّدُ الإعلانُ إلى اسمٍ برتبةٍ **دنيا**. والرتبةُ نفسُها لم تعُد
+#      حاملةً للحكم: شكوى المترجّمِ من الرتبةِ تسمّي المدمَجَ فتشهدُ بحضورِه،
+#      وSEM047 يسبقُها — فالحكمُ واحدٌ أيًّا كانت الرتبةُ المُمرَّرة.
+def unify_declarations(fns: list) -> list:
+    """إعلانٌ واحدٌ لكلِّ اسم: أدنى رتبةٍ، ومجموعةُ أوّلِ إعلانٍ مرتَّبًا."""
+    merged = {}
+    for fn in fns:
+        name = fn["canonical"]
+        prev = merged.get(name)
+        if prev is None or arity_min(fn) < arity_min(prev):
+            merged[name] = fn
+    return [merged[n] for n in sorted(merged)]
+
+
+def run(cmd: list, timeout: int):
+    """يُرجِعُ `(رمزُ الخروج، النصّ)`؛ ورمزُ الخروجِ `None` عند انتهاءِ المهلة.
+
+    رمزُ الخروجِ ليس زينةً: هو **الإثباتُ الموجبُ** الذي يقومُ عليه حكمُ
+    «يدعمُه المترجّم». طرحُه كان يجعلُ الصمتَ شهادةً.
+    """
     try:
-        proc = subprocess.run(cmd, capture_output=True, timeout=timeout)
+        # (AR) 🔑 المُدخَلُ القياسيُّ **مقطوع**: الشكلُ الثاني في المعايرةِ نداءٌ
+        #      فعليّ، فـ`اقرأ` و`قراءة_سطر` كانتا تنتظرانِ سطرًا لا يأتي حتّى
+        #      تنتهيَ المهلةُ (٦٠ث لكلٍّ) فيُقرأُ صمتُهما خلافًا. وقطعُ المُدخَلِ
+        #      يجعلُ الجوابَ فوريًّا ويمنعُ الأداةَ من انتظارِ مستعمِلٍ غائب.
+        proc = subprocess.run(cmd, capture_output=True, timeout=timeout,
+                              stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
-        return "TIMEOUT"
-    return ANSI.sub("", (proc.stdout + proc.stderr).decode("utf-8", "replace"))
+        return None, "TIMEOUT"
+    return proc.returncode, ANSI.sub("", (proc.stdout + proc.stderr)
+                                     .decode("utf-8", "replace"))
+
+
+# (AR) 🔑 المقيسُ حلُّ الاسمِ في **الواجهة الأماميّة**، فيُوقَفُ المترجّمُ عند
+#      `-c` (ترجمةٌ بلا ربط). قِيس أنّ الربطَ يُفشِلُ ٢٣٣ اسمًا برسالةِ الرابطِ
+#      `LNK4098: defaultlib 'libcmt' conflicts` — تصادمُ مكتبةِ تشغيلٍ في
+#      بيئةِ البناءِ لا علاقةَ له بحلِّ الاسم. وقراءةُ ذلك «غيرَ مدعوم» كذبةٌ
+#      من الجهةِ الأخرى: الاسمُ حُلَّ ووُلِّدَ له كودٌ حتّى بلغَ الرابط. فيُقطَعُ
+#      المسارُ قبلَ مرحلةٍ لا تقيسُ ما نزعمُ قياسَه — وهو أسرعُ ستَّ مرّاتٍ أيضًا.
+def compile_only(build_exe: Path, src: Path, obj: Path) -> list:
+    """أمرُ ترجمةٍ بلا ربط: `-c` — الحكمُ أماميٌّ فلا يُستدعى الرابطُ أصلًا."""
+    return [str(build_exe), str(src), "-c", "-o", str(obj)]
 
 
 def probe_interpreter(names: list, run_exe: Path, tmp: Path):
@@ -159,11 +283,14 @@ def probe_interpreter(names: list, run_exe: Path, tmp: Path):
     for name in names:
         src.write_text(preamble_for(name) + "\nمتغير مـجـس = " + name
                        + "\n" + TAIL, encoding="utf-8")
-        out = run([str(run_exe), str(src)], 60)
-        if out == "TIMEOUT":
-            unclear.append((name, "timeout"))
+        rc, out = run([str(run_exe), str(src)], 60)
+        if rc is None:
+            unclear.append((name, "انتهت المهلة"))
             continue
-        if "حي" in out and "error [" not in out:
+        if rc == 0 and "حي" in out and not DIAG_CODE.search(out):
+            continue
+        if GATED.search(out):
+            unclear.append((name, "محجوبٌ بوحدةٍ حُذفت من التمهيد"))
             continue
         match = SEM001.search(out)
         if match and match.group(1) == name:
@@ -175,25 +302,35 @@ def probe_interpreter(names: list, run_exe: Path, tmp: Path):
 
 
 def probe_compiler(fns: list, build_exe: Path, tmp: Path):
-    """نداءٌ داخلَ دالّةٍ لا تُنادى — الحكمُ أماميٌّ بلا تنفيذ."""
-    absent, unknown, unclear = set(), set(), []
+    """نداءٌ داخلَ دالّةٍ لا تُنادى — الحكمُ أماميٌّ بلا تنفيذ.
+
+    ولا يُقالُ «مدعوم» إلّا برمزِ خروجٍ صفر. كلُّ مخرَجٍ آخرَ لا يحملُ رمزَ
+    الغيابِ المسمّى **يُصنَّفُ ملتبسًا** فيوقفُ الأداة.
+    """
+    absent, unknown, supported, unclear = set(), set(), set(), []
     src = tmp / "c.ص"
-    exe = tmp / "c.exe"
+    obj = tmp / "c.o"
     for fn in fns:
         name = fn["canonical"]
         args = "، ".join(["0"] * arity_min(fn))
         src.write_text(preamble_for(name) + "\nدالة مجس()\n    " + name
                        + "(" + args + ")\nنهاية\n" + TAIL,
                        encoding="utf-8")
-        out = run([str(build_exe), str(src), "-o", str(exe)], 300)
-        if out == "TIMEOUT":
-            unclear.append((name, "timeout"))
-            continue
-        if name in SEM047.findall(out):
+        rc, out = run(compile_only(build_exe, src, obj), 300)
+        if rc is None:
+            unclear.append((name, "انتهت المهلة"))
+        elif name in SEM047.findall(out):
             absent.add(name)
         elif name in UNDEF.findall(out):
             unknown.add(name)
-    return absent, unknown, unclear
+        elif GATED.search(out):
+            unclear.append((name, "محجوبٌ بوحدةٍ حُذفت من التمهيد"))
+        elif compiler_resolves(name, rc, out):
+            supported.add(name)
+        else:
+            head = out.strip().splitlines()[0][:70] if out.strip() else "فارغ"
+            unclear.append((name, f"رمز {rc}: {head}"))
+    return absent, unknown, supported, unclear
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +339,8 @@ def probe_compiler(fns: list, build_exe: Path, tmp: Path):
 #        ① نداءٌ داخل دالّةٍ لا تُنادى ..... يطبعُ «حي» حتّى لاسمٍ مخترَعٍ لا وجودَ له
 #        ② نداءٌ في فرعٍ ميّت `إذا (1 == 2)` .. كذلك
 #        ③ `--فحص-الأنواع` مع ① .......... كذلك
-#      و`sad-run check` غيرُ موجودٍ أصلًا رغم إعلانِه في لافتةِ الاستعمال.
+#      و`sad-run check` غيرُ موجودٍ أصلًا رغم إعلانِه في لافتةِ الاستعمال
+#      (عيبٌ في `sad-run` لا في هذا المِجَسّ، وله تذكرتُه).
 #      فبقيَ المرجعُ المجرَّدُ `متغير م = الاسم` وحدَه، وهو يقيسُ **حلَّ الاسمِ
 #      قيمةً أُولى**. والفرقُ بينه وبين النداءِ هو بالضبط ما تحرسُه المعايرة.
 #
@@ -225,10 +363,21 @@ def _stratified(names, fns_by_name, per_ns, floor, rng):
     return sorted(picked), len(by_ns)
 
 
-def calibrate(fns_by_name: dict, absent: set, run_exe: Path, tmp: Path, seed: int):
-    """سؤالٌ ثانٍ مستقلٌّ عن العيّنةِ نفسِها: النداءُ الفعليُّ بدل المرجع.
+def calibrate(fns_by_name: dict, absent: set, second_form, seed: int,
+              strategy_note: str):
+    """سؤالٌ ثانٍ مستقلٌّ عن العيّنةِ نفسِها، لجانبَي الحكمِ معًا.
 
-    الخلافُ لا يُجمَعُ في متوسّطٍ بل يُسمّى باسمِه في `disagreements`: رقمُ
+    `second_form(name)` يُرجِعُ `True` (غائب) أو `False` (موجود) أو `None`
+    (لم يُجِب الشكلُ الثاني أصلًا).
+
+    🔑 و«لم يُجِب» ليس «خالف». قِيس أنّ الشكلَ الثانيَ في المفسّرِ **نداءٌ
+    فعليّ**، فـ`اقرأ` و`قراءة_سطر` تنتظرانِ المُدخَلَ القياسيَّ حتّى تنتهيَ
+    المهلة — فيُقرَأُ صمتُهما «خلافًا» وتحمرُّ الأداةُ بعلّةٍ ليست علّتَها.
+    وعَدُّه اتّفاقًا كذبٌ، وعَدُّه خلافًا إنذارٌ كاذب. فيُسمّى ثالثًا:
+    `unanswered` تُنزَعُ من نسبةِ الاتّفاقِ وتُسمّى بأسمائِها، وفوقها سقفٌ
+    يمنعُ أن تُفرَّغَ العيّنةُ فيها فتصيرَ المعايرةُ خضراءَ على لا شيء.
+
+    والخلافُ لا يُجمَعُ في متوسّطٍ بل يُسمّى باسمِه في `disagreements`: رقمُ
     «٢٤/٢٥» يُقرأُ نجاحًا، واسمُ المخالفِ يُقرأُ ثغرةً تُلاحَق.
     """
     present = sorted(set(fns_by_name) - absent)
@@ -237,66 +386,127 @@ def calibrate(fns_by_name: dict, absent: set, run_exe: Path, tmp: Path, seed: in
                                  CALIBRATION_PER_NAMESPACE, CALIBRATION_FLOOR, rng)
     sample_p, ns_p = _stratified(present, fns_by_name,
                                  CALIBRATION_PER_NAMESPACE, CALIBRATION_FLOOR, rng)
+
+    disagree, unanswered = [], []
+
+    def poll(names, expected, label):
+        agreed = asked = 0
+        for n in names:
+            verdict = second_form(n)
+            entry = {"canonical": n, "probe": label,
+                     "namespace": fns_by_name[n].get("namespace") or "NONE"}
+            if verdict is None:
+                unanswered.append(entry)
+                continue
+            asked += 1
+            if verdict is expected:
+                agreed += 1
+            else:
+                disagree.append(entry)
+        return agreed, asked
+
+    agree_absent, asked_absent = poll(sample_a, True, "غائب")
+    agree_present, asked_present = poll(sample_p, False, "موجود")
+    return {
+        "seed": seed,
+        "strategy": "طبقيٌّ بحسب المجموعة",
+        "second_form": strategy_note,
+        "per_namespace": CALIBRATION_PER_NAMESPACE,
+        "absent_namespaces": ns_a,
+        "present_namespaces": ns_p,
+        "absent_drawn": len(sample_a),
+        "absent_sample": asked_absent,
+        "absent_agreed": agree_absent,
+        "present_drawn": len(sample_p),
+        "present_sample": asked_present,
+        "present_agreed": agree_present,
+        "disagreements": disagree,
+        # لم يُجِب الشكلُ الثاني: يُسمَّون ولا يُحسَبون في أيِّ الجانبَين.
+        "unanswered": unanswered,
+    }
+
+
+def calibrate_interpreter(fns_by_name, absent, run_exe, tmp, seed):
+    """الشكلُ الثاني: النداءُ الفعليُّ بدل المرجعِ المجرَّد؛ الحَكَمُ SEM004."""
     src = tmp / "k.ص"
 
     def call_says_absent(name: str):
         args = "، ".join(["0"] * arity_min(fns_by_name[name]))
         src.write_text(preamble_for(name) + "\n" + name + "(" + args
                        + ")\n" + TAIL, encoding="utf-8")
-        out = run([str(run_exe), str(src)], 60)
-        if out == "TIMEOUT":
+        rc, out = run([str(run_exe), str(src)], 60)
+        if rc is None:
             return None
         match = SEM004.search(out)
         return bool(match and match.group(1) == name)
 
-    disagree = []
-    agree_absent = 0
-    for n in sample_a:
-        verdict = call_says_absent(n)
-        if verdict is True:
-            agree_absent += 1
-        else:
-            disagree.append({"canonical": n, "probe": "غائب",
-                             "namespace": fns_by_name[n].get("namespace") or "NONE"})
-    agree_present = 0
-    for n in sample_p:
-        verdict = call_says_absent(n)
-        if verdict is False:
-            agree_present += 1
-        else:
-            disagree.append({"canonical": n, "probe": "موجود",
-                             "namespace": fns_by_name[n].get("namespace") or "NONE"})
-    return {
-        "seed": seed,
-        "strategy": "طبقيٌّ بحسب المجموعة",
-        "per_namespace": CALIBRATION_PER_NAMESPACE,
-        "absent_namespaces": ns_a,
-        "present_namespaces": ns_p,
-        "absent_sample": len(sample_a),
-        "absent_agreed": agree_absent,
-        "present_sample": len(sample_p),
-        "present_agreed": agree_present,
-        "disagreements": disagree,
-    }
+    return calibrate(fns_by_name, absent, call_says_absent, seed,
+                     "نداءٌ فعليٌّ في التوپلفل؛ الحَكَمُ SEM004")
+
+
+def calibrate_compiler(fns_by_name, absent, build_exe, tmp, seed):
+    """الشكلُ الثاني: نداءٌ في **التوپلفل** بدل جسمِ دالّةٍ لا تُنادى.
+
+    مسارُ بناءِ التوپلفل غيرُ مسارِ بناءِ جسمِ الدالّة، فالسؤالُ مستقلٌّ حقًّا.
+    ولا يُنفَّذُ الناتجُ: يُترجَمُ إلى `-o` ويُهمَل — فلا أثرَ جانبيّ.
+    """
+    src = tmp / "kc.ص"
+    obj = tmp / "kc.o"
+
+    def toplevel_says_absent(name: str):
+        args = "، ".join(["0"] * arity_min(fns_by_name[name]))
+        src.write_text(preamble_for(name) + "\n" + name + "(" + args
+                       + ")\n" + TAIL, encoding="utf-8")
+        rc, out = run(compile_only(build_exe, src, obj), 300)
+        if rc is None:
+            return None
+        if name in SEM047.findall(out) or name in UNDEF.findall(out):
+            return True
+        if GATED.search(out):
+            return None
+        if compiler_resolves(name, rc, out):
+            return False
+        # مخرَجٌ لا يحملُ إشارةً معروفة: لا يُقرأُ حضورًا ولا غيابًا.
+        return None
+
+    return calibrate(fns_by_name, absent, toplevel_says_absent, seed,
+                     "نداءٌ في التوپلفل؛ الحَكَمُ SEM047 أو «غير معرّفة»")
+
+
+# (AR) 🔑 حرّاسُ نسبةِ القياسِ إلى الإيداعِ كانت تفشلُ **مفتوحةً**: كلُّ فشلٍ
+#      في `git` (غيابُ الأمر، شجرةٌ ليست مستودعًا، مهلة) كان يُترجَمُ إلى
+#      «نظيف» فيُكتَبُ سجلٌّ منسوبٌ إلى إيداعٍ لا يصفُه. وهما الحارسان اللذان
+#      أُضيفا لمنعِ هذه الحادثةِ بعينها — فيجبُ أن يفشلا مغلقَين.
+def _git(*argv, timeout: int = 60) -> str:
+    cmd = ["git", "-C", str(ROOT), *argv]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, timeout=timeout)
+    except Exception as exc:                       # noqa: BLE001 — يُسمّى ويُوقِف
+        raise SystemExit(f"✗ تعذّر تشغيلُ git ({' '.join(argv)}): {exc}\n"
+                         "  لا يُنسَبُ قياسٌ إلى إيداعٍ لم يُقرأ.")
+    if proc.returncode != 0:
+        err = proc.stderr.decode("utf-8", "replace").strip()[:200]
+        raise SystemExit(f"✗ فشل git ({' '.join(argv)}) برمز "
+                         f"{proc.returncode}: {err}\n"
+                         "  حارسٌ يفشلُ مفتوحًا أسوأُ من غيابِه.")
+    return proc.stdout.decode("utf-8", "replace")
 
 
 def git_sha() -> str:
-    try:
-        out = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "HEAD"],
-                             capture_output=True, timeout=30)
-        return out.stdout.decode().strip() or "غير معروف"
-    except Exception:
-        return "غير معروف"
+    return _git("rev-parse", "HEAD", timeout=30).strip()
 
 
 # (AR) الملفّاتُ التي تُقرِّرُ حلَّ اسمِ المدمَجِ فعلًا — لا مجلّدُ البانياتِ كلُّه.
-#      حارسانِ يقرآنها، ولكلٍّ سؤالُه:
+#      ثلاثةُ حرّاسٍ يقرأونها، ولكلٍّ سؤالُه:
 #        ① أفيها تعديلٌ غيرُ مُودَع؟ ⇒ الإيداعُ المسجَّلُ لا يصفُ ما قِيس.
 #        ② أتغيّرت **بعدَ** بناءِ الثنائيّ؟ ⇒ الثنائيُّ أقدمُ من الشيفرة، فالقياسُ
 #           يصفُ ماضيًا ويُنشَرُ حاضرًا. 🔑 وهذه وقعت فعلًا: ثنائيّا ٢٥–٢٦ آب
 #           قِيسا ونُسِبا إلى إيداعِ أيلول، وبينهما أربعةُ إيداعاتٍ مسّت الإرسالَ
 #           (منها إحياءُ وحدةِ صNet بـ٢٢ دالّة) — فكانت اثنتان وعشرون دالّةً
 #           حيّةً ستُوثَّقُ «لا يحلُّها أيُّ محرّك». الزمنُ متغيّرٌ ثالثٌ يُقاس.
+#        ③ (في `check_engine_support_fresh.py`) أتغيّرت بعدَ **الإيداعِ المقيس**؟
+#           ⇒ السجلُّ يصفُ طبقةَ إرسالٍ لم تعُد قائمة. ولذلك تُستعارُ هذه
+#           القائمةُ من هنا ولا تُنسَخ: نسختانِ تنجرفان.
 DISPATCH_PATHS = (
     "compiler/src/frontend/builders/call_main.cpp",
     "compiler/src/frontend/builders/builtins_",
@@ -306,33 +516,31 @@ DISPATCH_PATHS = (
 )
 
 
+def _porcelain_path(line: str) -> str:
+    """المسارُ من سطرِ `git status --porcelain`، مع فكِّ صيغةِ إعادةِ التسمية.
+
+    🔑 `R  قديم -> جديد` كان يُقرَأُ مسارًا واحدًا فيفلتُ الجديد. وإعادةُ
+    تسميةِ ملفٍّ في طبقةِ الإرسالِ تغييرٌ فيها كسائرِ التغييرات.
+    """
+    path = line[3:].strip()
+    if " -> " in path:
+        path = path.split(" -> ", 1)[1].strip()
+    return path.strip('"')
+
+
 def dirty_dispatch_paths() -> list:
     """ملفّاتٌ غيرُ مُودَعةٍ في طبقةِ الإرسال — تُبطِلُ نِسبةَ القياسِ إلى الإيداع."""
-    try:
-        out = subprocess.run(["git", "-C", str(ROOT), "status", "--porcelain"],
-                             capture_output=True, timeout=60)
-        lines = out.stdout.decode("utf-8", "replace").splitlines()
-    except Exception:
-        return []
-    dirty = []
-    for line in lines:
-        path = line[3:].strip().strip('"')
-        if any(path.startswith(p) for p in DISPATCH_PATHS):
-            dirty.append(path)
-    return sorted(dirty)
+    lines = _git("status", "--porcelain").splitlines()
+    dirty = {_porcelain_path(line) for line in lines if line.strip()}
+    return sorted(p for p in dirty
+                  if any(p.startswith(prefix) for prefix in DISPATCH_PATHS))
 
 
 def dispatch_commits_after(when: float) -> list:
     """إيداعاتٌ مسّت طبقةَ الإرسالِ بعدَ لحظةِ بناءِ الثنائيّ."""
     stamp = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(when))
-    try:
-        out = subprocess.run(
-            ["git", "-C", str(ROOT), "log", "--oneline", f"--since={stamp}",
-             "--", *DISPATCH_PATHS],
-            capture_output=True, timeout=60)
-        return [l for l in out.stdout.decode("utf-8", "replace").splitlines() if l]
-    except Exception:
-        return []
+    out = _git("log", "--oneline", f"--since={stamp}", "--", *DISPATCH_PATHS)
+    return [line for line in out.splitlines() if line]
 
 
 def binary_fingerprint(path: Path) -> dict:
@@ -348,7 +556,7 @@ def binary_fingerprint(path: Path) -> dict:
     }
 
 
-HEADER = """\
+HEADER_TEMPLATE = """\
 # ============================================================================
 # builtin_engine_support.yaml — سِجِلُّ **قياسٍ**، لا سطحَ لغةٍ ولا مصدرَ حقيقة.
 #
@@ -356,7 +564,9 @@ HEADER = """\
 #     python scripts/codegen/probe_builtin_engines.py --build-dir build/bin/Release
 #
 # ما يقوله كلُّ سطر: هل يحلُّ هذا الاسمَ **المحرّكُ نفسُه**؟ لا ما يدّعيه حقلُ
-# `status` (كلُّ الـ١٢٠٥ `stable`)، ولا ما يستنتجه مسحُ نصٍّ غيرُ مُعايَر.
+# `status` (كلُّ الـ{declarations} إعلانًا `stable`)، ولا ما يستنتجه مسحُ نصٍّ
+# غيرُ مُعايَر. وصفٌّ واحدٌ لكلِّ **اسم**: الاسمُ يُعلَنُ مرّاتٍ والمحرّكُ يعرفُه
+# مرّةً واحدة.
 #
 # الحدُّ المقصود: المقيسُ **حلُّ الاسم**، لا صحّةُ التنفيذِ ولا سلامةُ العائد.
 # «مدعوم» تعني «المحرّكُ يعرفُه»، ولا تعني «قِيس أثرُه». يُقالُ ما بُرهن.
@@ -366,10 +576,14 @@ HEADER = """\
 
 def emit(path: Path, fns: list, comp_absent: set, comp_unknown: set,
          interp_absent: set, calib: dict, elapsed: float,
-         engines: list) -> None:
+         engines: list, declarations: int, stale_allowed: bool,
+         unmeasured: list) -> None:
+    skip = {u["canonical"] for u in unmeasured}
     rows = []
     for fn in fns:
         name = fn["canonical"]
+        if name in skip:
+            continue
         rows.append({
             "canonical": name,
             "namespace": fn.get("namespace"),
@@ -383,19 +597,34 @@ def emit(path: Path, fns: list, comp_absent: set, comp_unknown: set,
     neither = sum(1 for r in rows if not r["compiler"] and not r["interpreter"])
 
     doc = {
-        "version": 1,
+        "version": 2,
         "kind": "measurement",
         "measured_commit": git_sha(),
         # (AR) بصمةُ الثنائيَّين المقيسَين: الحكمُ صادرٌ عنهما لا عن الإيداعِ وحدَه.
         "measured_binaries": engines,
+        # (AR) 🔑 قياسٌ على ثنائيٍّ أقدمَ من طبقةِ الإرسالِ مسموحٌ به عمدًا
+        #      بعَلَمٍ صريح — فيُدوَّنُ في المُخرَج. عَلَمٌ يُغيّرُ صدقَ السجلِّ
+        #      ولا يترك أثرًا فيه دعوى نظافةٍ لا يقيسُها أحد.
+        "stale_binaries_allowed": bool(stale_allowed),
         "elapsed_seconds": round(elapsed),
         "method": {
             "interpreter": "مرجعُ اسمٍ بلا نداء؛ الحكمُ SEM001 على الاسم",
-            "compiler": "نداءٌ برتبة arity.min في دالّةٍ لا تُنادى؛ الحكمُ SEM047",
+            "compiler": ("نداءٌ برتبة arity.min في دالّةٍ لا تُنادى، ترجمةٌ "
+                         "بلا ربط (-c)؛ الغيابُ SEM047 ثمّ «غير معرّفة»، "
+                         "والحضورُ رمزُ خروجٍ صفرٍ أو تشخيصٌ يسمّي المدمَجَ"),
             "granularity": "اسمٌ واحدٌ لكلّ تشغيل — الدفعةُ تبتُرُ فتكذب",
+            "row_unit": "اسمٌ قانونيٌّ واحد (الإعلاناتُ المكرّرةُ تُوحَّدُ بأدنى رتبة)",
         },
+        # (AR) 🔑 الدعوى تُقيَّدُ بما قِيس: مفتاحٌ لكلِّ محرّكٍ على حدة. كان
+        #      المفتاحُ عامًّا باسم `calibration` وهو لا يصفُ إلّا المفسّر،
+        #      فيُقرَأُ عمودُ المترجّمِ مُعايَرًا وهو لم يُسأل عنه سؤالٌ ثانٍ قطّ.
         "calibration": calib,
+        # (AR) العجزُ يُسمّى ولا يُخفى: اسمٌ هنا لا يظهرُ في `functions`، فيعرضُه
+        #      التوثيقُ «—» بدل حكمٍ مخمَّن.
+        "unmeasured": unmeasured,
         "counts": {
+            "declarations_in_sot": declarations,
+            "unmeasured": len(unmeasured),
             "declared": len(rows),
             "compiler": sum(1 for r in rows if r["compiler"]),
             "interpreter": sum(1 for r in rows if r["interpreter"]),
@@ -408,7 +637,10 @@ def emit(path: Path, fns: list, comp_absent: set, comp_unknown: set,
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     body = yaml.safe_dump(doc, allow_unicode=True, sort_keys=False, width=200)
-    path.write_text(HEADER + body, encoding="utf-8")
+    # (AR) العددُ يُشتَقُّ ولا يُنثَر: رقمٌ مكتوبٌ في النثرِ نسخةٌ ثانيةٌ من حقيقةٍ
+    #      تنجرفُ عند أوّلِ إضافةِ مدمَج.
+    path.write_text(HEADER_TEMPLATE.format(declarations=declarations) + body,
+                    encoding="utf-8")
 
 
 def main() -> int:
@@ -460,7 +692,8 @@ def main() -> int:
             print(f"    · {line}")
         return 1
 
-    fns = load_builtins()
+    declarations = load_builtins()
+    fns = unify_declarations(declarations)
     fns_by_name = {f["canonical"]: f for f in fns}
 
     # شرَكٌ لتصادمٍ لا يُحَلُّ بحذفِ الاستيراد: مدمَجٌ اسمُه اسمُ وحدتِه نفسِها.
@@ -474,11 +707,18 @@ def main() -> int:
         print("  لا يُكتَبُ المُخرَج: الحكمُ هنا تخمينٌ لا قياس.")
         return 1
     names = sorted(fns_by_name)
-    print(f"معلَنٌ في مصدر الحقيقة: {len(fns)} مدمَجًا "
+    print(f"معلَنٌ في مصدر الحقيقة: {len(declarations)} إعلانًا "
           f"({len(names)} اسمًا قانونيًّا)", flush=True)
 
+    # (AR) 🔑 البصمةُ تُلتقَطُ **قبلَ** القياسِ وبعدَه وتُقارَن: بناءٌ متزامنٌ أو
+    #      `checkout` أثناءَ التشغيلِ يجعلُ البصمةَ المسجَّلةَ غيرَ المقيسة.
+    engines_before = [binary_fingerprint(run_exe), binary_fingerprint(build_exe)]
+
     started = time.time()
-    with tempfile.TemporaryDirectory() as td:
+    # (AR) `ignore_cleanup_errors`: المجلّدُ يحوي ناتجَ ربطٍ (`c.exe`) قد يبقى
+    #      مقفولًا لحظةً (مضادُّ فيروسات، رابطٌ لم ينتهِ بعد المهلة). بدونها
+    #      يرفعُ الخروجُ من `with` استثناءً فيضيعُ قياسٌ استغرقَ دقائق.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as td:
         tmp = Path(td)
 
         interp_absent, interp_unclear = set(), []
@@ -492,44 +732,91 @@ def main() -> int:
         comp_absent, comp_unknown, comp_unclear = set(), set(), []
         if args.engine in ("both", "compiler"):
             t0 = time.time()
-            comp_absent, comp_unknown, comp_unclear = probe_compiler(
+            comp_absent, comp_unknown, comp_ok, comp_unclear = probe_compiler(
                 fns, build_exe, tmp)
             print(f"[المترجّم] SEM047: {len(comp_absent)} · "
                   f"اسمٌ مجهول: {len(comp_unknown)} · "
+                  f"بُني بنجاح: {len(comp_ok)} · "
                   f"ملتبس: {len(comp_unclear)} · "
                   f"{round(time.time() - t0)}ث", flush=True)
 
         if args.engine != "both":
+            # (AR) رمزٌ مميَّزٌ لا صفر: «لم يُقس» ليس نجاحًا، ووظيفةُ CI تخضرُّ
+            #      على الصفرِ فتُقرَأُ قياسًا وقد لم تكتبْ شيئًا.
             print("مِجَسٌّ جزئيّ — لا يُكتَبُ المُخرَج.")
-            return 0
+            return 2
 
-        calib = calibrate(fns_by_name, interp_absent, run_exe, tmp, args.seed)
+        # (AR) الالتباسُ يُفحَصُ **قبلَ** المعايرة: الأسماءُ الملتبسةُ تدخلُ
+        #      عيّنةَ «موجود» فتُنتِجُ خلافًا، فتحمرُّ الأداةُ برسالةِ «غيرُ
+        #      مُعايَر» والسببُ الحقيقيُّ التباسٌ لم يُصنَّف.
+        unmeasured = [{"canonical": n, "engine": eng, "reason": why}
+                      for eng, bucket in (("interpreter", interp_unclear),
+                                          ("compiler", comp_unclear))
+                      for n, why in bucket]
+        unmeasured.sort(key=lambda u: (u["canonical"], u["engine"]))
+        if len(unmeasured) > MAX_UNMEASURED:
+            print(f"✗ ملتبسٌ لم يُصنَّف: {len(unmeasured)} — والسقفُ "
+                  f"{MAX_UNMEASURED}. لا يُكتَبُ المُخرَجُ ناقصًا:")
+            for u in unmeasured[:15]:
+                print(f"    · {u['canonical']} [{u['engine']}]: {u['reason']}")
+            return 1
+        if unmeasured:
+            print(f"⚠ تعذّر قياسُ {len(unmeasured)} اسمًا — تُنزَعُ من السِّجِلِّ "
+                  "وتُسمّى فيه بأسبابِها:")
+            for u in unmeasured:
+                print(f"    · {u['canonical']} [{u['engine']}]: {u['reason']}")
 
-    ok = (calib["absent_agreed"] == calib["absent_sample"]
-          and calib["present_agreed"] == calib["present_sample"])
-    print(f"[المعايرة] «غائب» ⇒ غائبٌ بالنداء: "
-          f"{calib['absent_agreed']}/{calib['absent_sample']} · "
-          f"«موجود» ⇒ ليس غائبًا: "
-          f"{calib['present_agreed']}/{calib['present_sample']}")
+        # (AR) المُتعذِّرُ قياسُه يُنزَعُ من عيّنةِ المعايرةِ أيضًا: اسمٌ لم يُحسَم
+        #      حكمُه لا يصلحُ شاهدًا على اتّفاقِ شكلَين، وإبقاؤه يُحمِرُّ الأداةَ
+        #      بعلّةٍ غيرِ علّتِها.
+        measurable = {n: f for n, f in fns_by_name.items()
+                      if n not in {u["canonical"] for u in unmeasured}}
+        calib = {
+            "interpreter": calibrate_interpreter(
+                measurable, interp_absent & set(measurable), run_exe, tmp,
+                args.seed),
+            "compiler": calibrate_compiler(
+                measurable, (comp_absent | comp_unknown) & set(measurable),
+                build_exe, tmp, args.seed),
+        }
+
+    ok = True
+    for engine, label in (("interpreter", "المفسّر"), ("compiler", "المترجّم")):
+        side = calib[engine]
+        print(f"[معايرة {label}] «غائب» ⇒ غائبٌ بالشكلِ الثاني: "
+              f"{side['absent_agreed']}/{side['absent_sample']} · "
+              f"«موجود» ⇒ ليس غائبًا: "
+              f"{side['present_agreed']}/{side['present_sample']}")
+        if side["unanswered"]:
+            print(f"  ⚠ لم يُجِب الشكلُ الثاني عن {len(side['unanswered'])} اسمًا "
+                  "(نُزِعت من النسبة):")
+            for u in side["unanswered"]:
+                print(f"      · {u['canonical']} ({u['namespace']})")
+        if (side["absent_agreed"] != side["absent_sample"]
+                or side["present_agreed"] != side["present_sample"]
+                or not side["absent_sample"] or not side["present_sample"]
+                or len(side["unanswered"]) > MAX_UNANSWERED):
+            ok = False
     if not ok:
         print("✗ المِجَسُّ غيرُ مُعايَر: الحكمان اختلفا على العيّنةِ نفسِها.")
         print("  لا يُكتَبُ المُخرَج — رقمٌ من أداةٍ لم تُعايَر أسوأُ من السكوت.")
         # رفضٌ بلا اسمٍ يُوقِفُ الأداةَ ولا يدلُّ على موضعِ الخلل.
-        for d in calib.get("disagreements") or []:
-            print(f"  ⚠ {d['canonical']} ({d['namespace']}) — "
-                  f"المرجعُ المجرَّدُ قال «{d['probe']}» والنداءُ خالفه")
+        for engine, label in (("interpreter", "المفسّر"), ("compiler", "المترجّم")):
+            for d in calib[engine].get("disagreements") or []:
+                print(f"  ⚠ [{label}] {d['canonical']} ({d['namespace']}) — "
+                      f"المِجَسُّ قال «{d['probe']}» والشكلُ الثاني خالفه")
         return 1
-    if interp_unclear or comp_unclear:
-        print(f"✗ ملتبسٌ لم يُصنَّف: {len(interp_unclear) + len(comp_unclear)} —"
-              " لا يُكتَبُ المُخرَجُ ناقصًا.")
-        for name, why in (interp_unclear + comp_unclear)[:10]:
-            print(f"    · {name}: {why}")
+
+    engines_after = [binary_fingerprint(run_exe), binary_fingerprint(build_exe)]
+    if [e["sha256"] for e in engines_before] != [e["sha256"] for e in engines_after]:
+        print("✗ تغيّر الثنائيّان أثناءَ القياس — البصمةُ المسجَّلةُ لن تكونَ")
+        print("  البصمةَ المقيسة. أعِد التشغيلَ بلا بناءٍ متزامن.")
         return 1
 
     out_path = Path(args.out)
     emit(out_path, fns, comp_absent, comp_unknown, interp_absent, calib,
-         time.time() - started,
-         [binary_fingerprint(run_exe), binary_fingerprint(build_exe)])
+         time.time() - started, engines_after, len(declarations),
+         args.allow_stale_binaries, unmeasured)
     print(f"✓ كُتب: {out_path}")
     return 0
 
