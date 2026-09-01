@@ -27,10 +27,29 @@
          · أعلى فهرسٍ مقروء `args[K]` ⇒ الحدُّ الأعلى المُلاحَظ = K+1
          · أدنى حجمٍ مشروط `args.size() < N` / `>= N` ⇒ الحدُّ الأدنى المُلاحَظ
 
+     ¶ 🔑 ولا يقفُ عند لامدا التسجيل — فالعقدُ طبقةً أعمق
+
+       أوّلُ نسخةٍ قرأت جسمَ اللامدا وحدَه، **فسكتت عن خمسةِ مدمَجاتٍ صارت
+       نداءاتُها الصحيحةُ مرفوضةً** بعدَ وصلِ بوّابةِ الرتبةِ بالمفسّر. والعلّةُ
+       أنّ الصيغةَ الغالبةَ لامدا لا تلمسُ `args[K]` أصلًا:
+
+           auto array_pop_func = [](BuiltinContext &ctx) {
+               ...
+               return ...(StdLib::Core::ArrayFunctions::pop(plainArgs));  ← العقدُ هناك
+           };
+
+       وهناك: `validateArguments(args, 1, 1)`. فكان الماسحُ يُرجِعُ «لا معلومة»
+       فيمرُّ الاسمُ «مطابَقًا» وهو مخالف — أداةُ قياسٍ تقيسُ **الطبقةَ الخطأ**.
+
+       فيُتبَعُ الآن **مستوًى واحدٌ من الإحالة**: يُلتقَطُ نداءُ دالّةِ المكتبةِ
+       من جسمِ اللامدا، ويُقرأُ `validateArguments(args, MIN, MAX)` من تعريفِها
+       في `stdlib/` و`shared/builtins/src/`. والمقيسُ خمسة: `بحث` `دمج` `رتب`
+       `فهرس_مصفوفة` `إزالة_عنصر` — وآخرُها كان **غيرَ قابلٍ للنداءِ بأيِّ رتبة**.
+
        ⚠️ حدُّه مُعلَن: لا يبلغُ ما سُجِّل بماكرو (`MAKE_WIDGET_*`) ولا
-          `defineBuiltInFunction` ولا اللامدات ذات الأشكالِ الأخرى. فما لم
-          يُقَس **لا يُقصى** — الإقصاءُ على المُلاحَظِ وحدَه، وهو فشلٌ آمِنٌ:
-          أسوأُ ما يقع أن تُحرَسَ أسماءٌ أقلّ، لا أن تُرفَضَ نداءاتٌ صحيحة.
+          `defineBuiltInFunction` ولا إحالةً بمستويَين. فما لم يُقَس **لا
+          يُقصى** — الإقصاءُ على المُلاحَظِ وحدَه، وهو فشلٌ آمِنٌ: أسوأُ ما يقع
+          أن تُحرَسَ أسماءٌ أقلّ، لا أن تُرفَضَ نداءاتٌ صحيحة.
 
 (EN) Statically measures the argument count the interpreter implementation
      actually accepts, so SoT-declared arity is enforced only where the two
@@ -39,6 +58,7 @@
 """
 from __future__ import annotations
 
+import functools
 import re
 from pathlib import Path
 
@@ -48,8 +68,10 @@ REGISTRY = ROOT / "shared" / "builtins" / "generated" / "builtin_registry_genera
 
 _CONST_RE = re.compile(
     r'inline\s+constexpr\s+(?:std::)?string_view\s+([A-Z][A-Z0-9_]*)\s*=\s*"([^"]+)"')
+# (AR) المؤهِّلُ يُلتقَطُ ولا يُهمَل: هو مفتاحُ الفضاءِ الذي يُميّزُ `JOIN`
+#      في `Strings` عنها في `Maps`.
 _REGISTER_RE = re.compile(
-    r'registerBuiltinFunction\(\s*std::string\(\s*(?:[A-Za-z_][\w:]*::)?'
+    r'registerBuiltinFunction\(\s*std::string\(\s*(?:([A-Za-z_]\w*)::)?'
     r'([A-Z][A-Z0-9_]*)\s*\)\s*,\s*([A-Za-z_]\w*)\s*\)')
 _LAMBDA_RE = re.compile(r'\bauto\s+(\w+)\s*=\s*\[')
 _INDEX_RE = re.compile(r'\bargs\[\s*(\d+)\s*\]')
@@ -57,14 +79,87 @@ _SIZE_GE_RE = re.compile(r'\bargs\.size\(\)\s*(<|>=)\s*(\d+)')
 _SIZE_LT_RE = re.compile(r'\b(\d+)\s*(>|<=)\s*args\.size\(\)')
 
 
+_NAMESPACE_RE = re.compile(r'\bnamespace\s+(\w+)\s*\{')
+_NS_ALIAS_RE = re.compile(r'\bnamespace\s+(\w+)\s*=\s*(?:::)?(?:[\w:]*::)?(\w+)\s*;')
+
+
 def _const_names() -> dict:
-    """{المعرّف: الاسمُ العربيّ} من سِجِلِّ المدمَجاتِ المولَّد."""
+    """{(الفضاء، المعرّف): الاسمُ العربيّ} من سِجِلِّ المدمَجاتِ المولَّد.
+
+    🔑 والمفتاحُ **مُفَضَّأٌ** لا مُسطَّح: `JOIN` تعني «دمج» في `Strings` و«ربط»
+    في `Maps` و«صل» في غيرِهما. وقاموسٌ مسطَّحٌ يفوزُ فيه الأخيرُ فيُنسَبُ جسمُ
+    لامدا إلى **اسمٍ آخر**، فيُقاسُ عقدُ اسمٍ على تنفيذِ سواه.
+    """
     text = REGISTRY.read_text(encoding="utf-8", errors="replace")
-    return {m.group(1): m.group(2) for m in _CONST_RE.finditer(text)}
+    table, stack, depth_of = {}, [], []
+    depth = 0
+    for line in text.splitlines():
+        opened = _NAMESPACE_RE.findall(line)
+        for name in opened:
+            stack.append(name)
+            depth_of.append(depth)
+            depth += 1
+        depth += line.count("{") - len(opened) - line.count("}")
+        while depth_of and depth <= depth_of[-1]:
+            stack.pop()
+            depth_of.pop()
+        for m in _CONST_RE.finditer(line):
+            table[(stack[-1] if stack else "", m.group(1))] = m.group(2)
+    return table
+
+
+def _alias_map(text: str) -> dict:
+    """`namespace Ba = …::Arrays;` ⇒ {Ba: Arrays} — لكلِّ ملفٍّ ألقابُه.
+
+    🔑 و`Ba` تعني `Arrays` في ملفّاتِ النصوصِ و`UIAudio` في ملفّاتِ الواجهة،
+    فلا يُقرأُ اللقبُ إلّا من الملفِّ الذي كُتِب فيه.
+    """
+    return {m.group(1): m.group(2) for m in _NS_ALIAS_RE.finditer(text)}
+
+
+def _blank_noise(text: str) -> str:
+    """يُعمّي التعليقاتِ والسلاسلَ والأحرفَ بمسافاتٍ مع حفظِ الأطوالِ والأسطر.
+
+    🔑 موازنةُ الأقواسِ على النصِّ الخامِّ تُخطئ: `if (c == '{' || c == '[')` في
+    `builtin_module_maps_json_xml.cpp` وسلسلةُ `":(){ :|:"` في
+    `builtin_module_assertions.cpp` تجعلانِ الجسمَ المقروءَ أضعافَ الحقيقيِّ
+    فيبتلعُ لامداتٍ تالية. والأطوالُ تُحفَظُ ليبقى كلُّ فهرسٍ صالحًا للنصِّ الأصل.
+    """
+    out = list(text)
+    i, n = 0, len(text)
+    while i < n:
+        c = text[i]
+        if c == "/" and i + 1 < n and text[i + 1] == "/":
+            while i < n and text[i] != "\n":
+                out[i] = " "
+                i += 1
+        elif c == "/" and i + 1 < n and text[i + 1] == "*":
+            while i < n and not (text[i] == "*" and i + 1 < n and text[i + 1] == "/"):
+                if text[i] != "\n":
+                    out[i] = " "
+                i += 1
+            for j in range(i, min(i + 2, n)):
+                out[j] = " "
+            i += 2
+        elif c in "\"'":
+            quote = c
+            i += 1
+            while i < n and text[i] != quote:
+                if text[i] == "\\":
+                    out[i] = " "
+                    i += 1
+                if i < n:
+                    if text[i] != "\n":
+                        out[i] = " "
+                    i += 1
+            i += 1
+        else:
+            i += 1
+    return "".join(out)
 
 
 def _lambda_body(text: str, start: int) -> str:
-    """جسمُ اللامدا من `[` حتّى إغلاقِ `}` الموازن — لا بتعبيرٍ نمطيٍّ جشِع."""
+    """جسمُ اللامدا من `{` حتّى إغلاقِه الموازن — على نصٍّ مُعمًّى لا خامّ."""
     brace = text.find("{", start)
     if brace < 0:
         return ""
@@ -80,26 +175,66 @@ def _lambda_body(text: str, start: int) -> str:
     return ""
 
 
+_DELEGATE_RE = re.compile(r'\b(?:[A-Za-z_]\w*::)+([A-Za-z_]\w*)\s*\(\s*(?:plainArgs|args)\s*\)')
+_VALIDATE_RE = re.compile(r'validateArguments\s*\(\s*\w+\s*,\s*(\d+)\s*,\s*(\d+)\s*\)')
+_LIB_DIRS = ("stdlib", "shared/builtins/src")
+
+
+@functools.lru_cache(maxsize=1)
+def _library_contracts() -> dict:
+    """{اسمُ دالّةِ المكتبة: (أدنى، أعلى)} من `validateArguments` في تعريفِها.
+
+    هذا هو **العقدُ الحقيقيّ**: لامدا التسجيلِ تُفوِّضُ، والحدُّ يُعلَنُ هنا.
+    """
+    out: dict = {}
+    for rel in _LIB_DIRS:
+        base = ROOT / rel
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("*.cpp")):
+            text = _blank_noise(path.read_text(encoding="utf-8", errors="replace"))
+            for m in re.finditer(r'\b(?:[A-Za-z_]\w*::)*([A-Za-z_]\w*)\s*\([^;{)]*\)\s*\{', text):
+                body = _lambda_body(text, m.end() - 1)
+                v = _VALIDATE_RE.search(body)
+                if v:
+                    out.setdefault(m.group(1), (int(v.group(1)), int(v.group(2))))
+    return out
+
+
 def observed_ranges() -> dict:
     """{الاسمُ العربيّ: (أدنى مُلاحَظ أو None، أعلى مُلاحَظ أو None)}."""
     names = _const_names()
+    contracts = _library_contracts()
     found: dict = {}
     for path in sorted(INTERP_SRC.rglob("*.cpp")):
-        text = path.read_text(encoding="utf-8", errors="replace")
-        bodies = {m.group(1): _lambda_body(text, m.end())
-                  for m in _LAMBDA_RE.finditer(text)}
+        raw = path.read_text(encoding="utf-8", errors="replace")
+        text = _blank_noise(raw)
+        aliases = _alias_map(raw)
+        # (AR) 🔑 مواضعُ اللامدات مرتَّبةً، ويُربَطُ التسجيلُ بـ**أقربِ تعريفٍ
+        #      سابق** لا بقاموسٍ يفوزُ فيه الأخير: ستّةَ عشرَ ملفًّا تُعيدُ
+        #      استعمالَ اسمِ المتغيّر (`auto f = [` خمسًا وأربعين مرّةً في
+        #      ملفِّ HTTP وحدَه)، فكان جسمُ آخرِ لامدا يُنسَبُ إلى أوّلِ تسجيل.
+        lambdas = [(m.start(), m.group(1), _lambda_body(text, m.end()))
+                   for m in _LAMBDA_RE.finditer(text)]
         for m in _REGISTER_RE.finditer(text):
-            arabic = names.get(m.group(1))
-            body = bodies.get(m.group(2))
-            if not arabic or not body:
+            qualifier, ident, var = m.group(1), m.group(2), m.group(3)
+            ns = aliases.get(qualifier, qualifier) if qualifier else ""
+            arabic = names.get((ns, ident)) or names.get(("", ident))
+            if not arabic:
+                continue
+            body = next((b for pos, v, b in reversed(lambdas)
+                         if v == var and pos < m.start()), None)
+            if not body:
                 continue
             indices = [int(i) for i in _INDEX_RE.findall(body)]
             top = max(indices) + 1 if indices else None
-            lows = [int(n) for op, n in
-                    ((mm.group(1), mm.group(2)) for mm in _SIZE_GE_RE.finditer(body))]
-            lows += [int(n) for n, op in
-                     ((mm.group(1), mm.group(2)) for mm in _SIZE_LT_RE.finditer(body))]
-            low = max(lows) if lows else None
+            low = None
+            # (AR) العقدُ المُفوَّضُ يسبقُ المُلاحَظَ محلّيًّا: هو المُعلَنُ صراحةً.
+            for call in _DELEGATE_RE.finditer(body):
+                contract = contracts.get(call.group(1))
+                if contract:
+                    low, top = contract[0], max(contract[1], top or 0)
+                    break
             prev = found.get(arabic)
             if prev:
                 low = max([x for x in (low, prev[0]) if x is not None], default=None)
@@ -121,10 +256,20 @@ def disagreements(sot_ranges: dict) -> list:
         if not seen:
             continue                      # لم يُقَس ⇒ لا يُقصى
         seen_lo, seen_hi = seen
-        if hi is not None and seen_hi is not None and seen_hi > hi:
-            out.append((name, lo, hi, seen_lo, seen_hi,
-                        "التنفيذُ يقرأُ وسيطًا فوقَ الأعلى المُعلَن"))
+        # (AR) 🔑 أربعةُ اتّجاهاتٍ لا واحد. كان الفحصُ أعلى-فقط، فسكت عن
+        #      `دمج` (التنفيذُ يقبلُ وسيطًا والدعوى تشترطُ اثنَين) وعن
+        #      `إزالة_عنصر` — وهذا أخطرُها: عقدُه (1,1) والدعوى (2,2)، **لا
+        #      تقاطعَ بينهما**، فصار غيرَ قابلٍ للنداءِ بأيِّ رتبةٍ بعدَ وصلِ
+        #      البوّابة. حارسٌ أحاديُّ الاتّجاهِ يرى نصفَ الخلاف.
+        why = None
+        if hi is not None and seen_hi is not None and seen_hi < lo:
+            why = "لا تقاطعَ بين الدعوى والتنفيذ — غيرُ قابلٍ للنداءِ بأيِّ رتبة"
         elif hi is not None and seen_lo is not None and seen_lo > hi:
-            out.append((name, lo, hi, seen_lo, seen_hi,
-                        "التنفيذُ يشترطُ أكثرَ من الأعلى المُعلَن — غيرُ قابلٍ للنداء"))
+            why = "التنفيذُ يشترطُ أكثرَ من الأعلى المُعلَن — غيرُ قابلٍ للنداء"
+        elif hi is not None and seen_hi is not None and seen_hi > hi:
+            why = "التنفيذُ يقبلُ وسيطًا فوقَ الأعلى المُعلَن"
+        elif seen_lo is not None and seen_lo < lo:
+            why = "التنفيذُ يقبلُ وسائطَ أقلَّ من الأدنى المُعلَن"
+        if why:
+            out.append((name, lo, hi, seen_lo, seen_hi, why))
     return out

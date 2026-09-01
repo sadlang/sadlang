@@ -215,12 +215,26 @@ def render_by_name(sot_dir: Path) -> str:
     #      وتوسيعُ الرتبةِ يغيّرُ مسارَ النواةِ صامتًا. فيُقصى الاسمُ ويُسمّى،
     #      أثرًا للقاعدةِ نفسِها التي حُذف بها `استبدل`: لا تُفرَضُ رتبةٌ على
     #      اسمٍ يُختلَفُ فيه.
-    from builtin_impl_arity import disagreements   # noqa: PLC0415 — أداةٌ محلّيّة
-    sot = {name: (lo, None if hi == "UNBOUNDED" else int(hi))
-           for name, lo, hi in rows}
-    mismatched = {d[0]: d[5] for d in disagreements(sot)}
-    if mismatched:
-        rows = [r for r in rows if r[0] not in mismatched]
+    # (AR) 🔑 والقاعدةُ انقلبت بعدَ ثلاثِ جولاتِ مراجعةٍ: كانت «تُحرَسُ الأسماءُ
+    #      كلُّها إلّا ما ثبتَ خلافُه»، وكلُّ جولةٍ كشفت أسماءً أخرى تُرفَضُ
+    #      نداءاتُها الصحيحة (`تأكد_أكبر` `ارسم_خط` ثمّ `بحث` `دمج` `رتب`
+    #      `فهرس_مصفوفة` `إزالة_عنصر`) — لأنّ نفيَ الخلافِ يعتمدُ على ماسحٍ
+    #      أخطأ ثلاثًا، وقِيس أنّه لا يبلغُ إلّا ١٥ اسمًا من ٤٤٨ بطرفَيه.
+    #      فصارت: **لا يُحرَسُ إلّا ما ثبتَ اتّفاقُه**. صمتُ الماسحِ لم يعُد
+    #      إذنًا بالفرض، وهو المبدأُ نفسُه الذي حكم هذا الفرعَ كلَّه:
+    #      لا تُفرَضُ دعوى لم تُقَس، والعددُ القليلُ الصادقُ خيرٌ من الكثيرِ
+    #      المُدَّعى. ونموُّه سبيلُه توسيعُ القياسِ لا توسيعُ الثقة.
+    from builtin_impl_arity import observed_ranges   # noqa: PLC0415 — أداةٌ محلّيّة
+    observed = observed_ranges()
+    proven, unproven = [], []
+    for name, lo, hi in rows:
+        seen = observed.get(name)
+        declared = (lo, None if hi == "UNBOUNDED" else int(hi))
+        if seen and seen[0] is not None and seen[1] is not None and seen == declared:
+            proven.append((name, lo, hi))
+        else:
+            unproven.append(name)
+    rows, mismatched = proven, {}
     out = [
         "            namespace ByName\n            {\n",
         "                /// (AR) رتبةُ المدمَجِ مطلوبةً **بالاسمِ العربيِّ وقتَ\n"
@@ -236,14 +250,19 @@ def render_by_name(sot_dir: Path) -> str:
         for name in conflicting:
             out.append(f"                ///        · {name}\n")
         out.append("                ///      لا تُخمَّن رتبتُها ولا تُفرَض — لا عقدَ لها.\n")
-    if mismatched:
+    if unproven:
         out.append("                ///\n"
-                   "                /// (AR) وهذه دعواها تخالفُ تنفيذَها في المفسّرِ\n"
-                   "                ///      (مقيسًا ساكنًا بـbuiltin_impl_arity.py) فحُذفت\n"
-                   "                ///      حتّى يُصحَّحَ مصدرُ الحقيقة — لا تُفرَضُ دعوى\n"
-                   "                ///      قِيس أنّها ترفضُ نداءً صحيحًا:\n")
-        for name, why in sorted(mismatched.items()):
-            out.append(f"                ///        · {name} — {why}\n")
+                   "                /// (AR) 🔑 ولا يُحرَسُ إلّا ما **ثبتَ اتّفاقُه**: دعوى\n"
+                   "                ///      `arity` في مصدرِ الحقيقةِ تُقابَلُ بعقدِ التنفيذِ\n"
+                   "                ///      في المفسّر (builtin_impl_arity.py)، فما لم\n"
+                   "                ///      يُقرَأ طرفاه ويتطابقا لا تُفرَضُ رتبتُه.\n"
+                   "                ///      وسببُ القلبِ مقيس: كانت القاعدةُ «احرُس إلّا ما\n"
+                   "                ///      ثبتَ خلافُه»، فكشفت كلُّ جولةِ مراجعةٍ أسماءً\n"
+                   "                ///      تُرفَضُ نداءاتُها الصحيحة — لأنّ نفيَ الخلافِ\n"
+                   "                ///      يقومُ على صمتِ ماسحٍ لا على قياس. والقليلُ\n"
+                   "                ///      الصادقُ خيرٌ من الكثيرِ المُدَّعى، ونموُّه\n"
+                   "                ///      سبيلُه توسيعُ القياسِ لا توسيعُ الثقة.\n")
+        out.append(f"                ///      لم يثبُت اتّفاقُ {len(unproven)} اسمٍ فلم تُحرَس.\n")
     out.append("                struct NamedRange\n                {\n"
                "                    const char *name;\n"
                "                    Range range;\n                };\n\n"
