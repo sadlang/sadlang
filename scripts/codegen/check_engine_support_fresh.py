@@ -68,6 +68,15 @@ def main() -> int:
     print(f"  مقيسٌ في السِّجِلّ: {len(measured)}")
     print(f"  قِيس على الإيداع: {doc.get('measured_commit', '—')}")
     print(f"  المعايرة مدوَّنةٌ وسليمة: {'نعم' if ok_calib else 'لا'}")
+    if calib.get("strategy"):
+        print(f"  استراتيجيّتها: {calib['strategy']} — "
+              f"{calib.get('absent_namespaces', 0)} مجموعةً غائبةً و"
+              f"{calib.get('present_namespaces', 0)} موجودةً، "
+              f"{calib.get('per_namespace', 0)} من كلٍّ")
+    # الخلافُ يُسمّى: عددٌ مجموعٌ يُخفي أنّ كلَّ المخالفينَ من مجموعةٍ واحدة.
+    for d in calib.get("disagreements") or []:
+        print(f"  ⚠ خلافُ شكلَين: {d.get('canonical')} "
+              f"({d.get('namespace')}) — المِجَسُّ قال «{d.get('probe')}»")
 
     failed = False
     if missing:

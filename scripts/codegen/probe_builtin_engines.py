@@ -73,7 +73,24 @@ OUT_PATH = ROOT / "language-truth" / "_meta" / "builtin_engine_support.yaml"
 #      كاذبًا. وحاجةُ الاستيرادِ نفسُها معلَنةٌ في SoT فلا تحتاجُ قياسًا.
 IMPORT_MODULES = ["نصوص", "أساسيات", "رياضيات", "تأكيدات", "خرائط",
                   "تزامن_متقدم", "منصة", "شبكة", "مقابس", "تشفير"]
-PREAMBLE = "\n".join("استورد " + m for m in IMPORT_MODULES)
+
+
+# (AR) 🔑 تصادمُ الاسمِ يحلُّ صامتًا — وقد وقع: `متغير م = شبكة` يحلُّ لأنّ
+#      التمهيدَ فيه `استورد شبكة`، فيُرجَعُ إلى **الوحدة** لا إلى المدمَجِ
+#      المسمّى `شبكة` (UIWidgets). فيُقرأُ «يحلُّه المفسّر» وهو لا يحلُّه:
+#      قِيس أنّ حذفَ استيرادِ وحدتِه يقلبُ الحكمَ إلى SEM001، وأنّ نداءَه
+#      يقولُ SEM004. أداةُ القياسِ كانت تُفسِدُ قياسَها بتمهيدِها.
+#      والعلاجُ: يُحذَفُ من التمهيدِ استيرادُ الوحدةِ التي تُشبهُ الاسمَ المقيس.
+#      وإن كان المدمَجُ نفسُه ساكنًا في تلك الوحدة فالتصادمُ لا يُحَلُّ بحذفٍ
+#      ولا يُخمَّن: يُصنَّفُ **ملتبسًا** فيَمنعُ كتابةَ المُخرَج.
+def preamble_for(name: str) -> str:
+    """تمهيدٌ خاصٌّ بالاسمِ المقيس: بلا الوحدةِ التي تُصادمُه."""
+    return "\n".join("استورد " + m for m in IMPORT_MODULES if m != name)
+
+
+def collides_with_own_module(fn) -> bool:
+    """اسمٌ يساوي اسمَ وحدتِه — تصادمٌ لا يُحَلُّ بحذفِ الاستيراد."""
+    return fn["canonical"] in IMPORT_MODULES and fn.get("module") == fn["canonical"]
 TAIL = 'اطبع_سطر("حي")\n'
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
@@ -82,7 +99,14 @@ SEM004 = re.compile(r"الدالة '([^']+)' غير معرفة")  # سؤالُ �
 SEM047 = re.compile(r"المدمَجة '([^']+)'")          # معلَنٌ بلا توزيعٍ في المترجم
 UNDEF = re.compile(r"استدعاء دالة غير معرّفة '([^']+)'")
 
-CALIBRATION_SAMPLE = 25  # لكلِّ جانب: «غائب» و«موجود»
+# (AR) المعايرةُ **طبقيّةٌ** لا عشوائيّةً منتظمة. العشوائيُّ المنتظمُ يقيسُ
+#      المجموعاتِ الكبيرةَ ويكادُ لا يلمسُ الصغيرة، وحكمُ المِجَسِّ ليس واحدًا
+#      عبرها: المدمَجُ قد يكونُ منادًى في الإرسالِ دون أن يكونَ قيمةً أُولى
+#      يُرجَعُ إليها باسمِها المجرَّد، وهذا اختلافُ **شكلٍ** لا اختلافُ وجود.
+#      فلو أخطأ الشكلُ في مجموعةٍ بأسرِها لَذابَ خطؤها في متوسّطِ عيّنةٍ
+#      منتظمة. الطبقيُّ يُلزِمُ كلَّ مجموعةٍ بحصّةٍ، فيظهرُ الخللُ حيثُ هو.
+CALIBRATION_PER_NAMESPACE = 3   # حصّةُ كلِّ مجموعةٍ من كلِّ جانب
+CALIBRATION_FLOOR = 25          # أرضيّةٌ لكلِّ جانبٍ مهما قلَّت المجموعات
 
 
 def load_builtins() -> list:
@@ -114,8 +138,8 @@ def probe_interpreter(names: list, run_exe: Path, tmp: Path):
     absent, unclear = set(), []
     src = tmp / "i.ص"
     for name in names:
-        src.write_text(PREAMBLE + "\nمتغير مـجـس = " + name + "\n" + TAIL,
-                       encoding="utf-8")
+        src.write_text(preamble_for(name) + "\nمتغير مـجـس = " + name
+                       + "\n" + TAIL, encoding="utf-8")
         out = run([str(run_exe), str(src)], 60)
         if out == "TIMEOUT":
             unclear.append((name, "timeout"))
@@ -139,8 +163,9 @@ def probe_compiler(fns: list, build_exe: Path, tmp: Path):
     for fn in fns:
         name = fn["canonical"]
         args = "، ".join(["0"] * arity_min(fn))
-        src.write_text(PREAMBLE + "\nدالة مجس()\n    " + name + "(" + args
-                       + ")\nنهاية\n" + TAIL, encoding="utf-8")
+        src.write_text(preamble_for(name) + "\nدالة مجس()\n    " + name
+                       + "(" + args + ")\nنهاية\n" + TAIL,
+                       encoding="utf-8")
         out = run([str(build_exe), str(src), "-o", str(exe)], 300)
         if out == "TIMEOUT":
             unclear.append((name, "timeout"))
@@ -152,33 +177,87 @@ def probe_compiler(fns: list, build_exe: Path, tmp: Path):
     return absent, unknown, unclear
 
 
+# ---------------------------------------------------------------------------
+# (AR) لماذا للمفسّرِ شكلٌ غيرُ شكلِ المترجّم؟ لأنّه لا شكلَ لنداءٍ **بلا أثر**
+#      يراهُ المفسّرُ ساكنًا. جُرِّبت ثلاثةٌ، وكلُّها عمياء — قِيست لا افتُرضت:
+#        ① نداءٌ داخل دالّةٍ لا تُنادى ..... يطبعُ «حي» حتّى لاسمٍ مخترَعٍ لا وجودَ له
+#        ② نداءٌ في فرعٍ ميّت `إذا (1 == 2)` .. كذلك
+#        ③ `--فحص-الأنواع` مع ① .......... كذلك
+#      و`sad-run check` غيرُ موجودٍ أصلًا رغم إعلانِه في لافتةِ الاستعمال.
+#      فبقيَ المرجعُ المجرَّدُ `متغير م = الاسم` وحدَه، وهو يقيسُ **حلَّ الاسمِ
+#      قيمةً أُولى**. والفرقُ بينه وبين النداءِ هو بالضبط ما تحرسُه المعايرة.
+#
+# (AR) ولا يصلحُ «نداءٌ برتبةٍ خاطئةٍ» بديلًا: رسالةُ SEM004 واحدةٌ للاسمِ
+#      المعروفِ والمخترَعِ معًا («غير معرفة بعدد معاملات ٧») — فلا تُميّز.
+# ---------------------------------------------------------------------------
+
+def _stratified(names, fns_by_name, per_ns, floor, rng):
+    """حصّةٌ ثابتةٌ لكلِّ مجموعةٍ، ثمّ تكملةٌ عشوائيّةٌ حتّى الأرضيّة."""
+    by_ns = {}
+    for n in names:
+        by_ns.setdefault(fns_by_name[n].get("namespace") or "NONE", []).append(n)
+    picked = []
+    for ns in sorted(by_ns):
+        pool = sorted(by_ns[ns])
+        picked += rng.sample(pool, min(per_ns, len(pool)))
+    rest = sorted(set(names) - set(picked))
+    if len(picked) < floor and rest:
+        picked += rng.sample(rest, min(floor - len(picked), len(rest)))
+    return sorted(picked), len(by_ns)
+
+
 def calibrate(fns_by_name: dict, absent: set, run_exe: Path, tmp: Path, seed: int):
-    """سؤالٌ ثانٍ مستقلٌّ عن العيّنةِ نفسِها: النداءُ الفعليُّ بدل المرجع."""
+    """سؤالٌ ثانٍ مستقلٌّ عن العيّنةِ نفسِها: النداءُ الفعليُّ بدل المرجع.
+
+    الخلافُ لا يُجمَعُ في متوسّطٍ بل يُسمّى باسمِه في `disagreements`: رقمُ
+    «٢٤/٢٥» يُقرأُ نجاحًا، واسمُ المخالفِ يُقرأُ ثغرةً تُلاحَق.
+    """
     present = sorted(set(fns_by_name) - absent)
-    absent_sorted = sorted(absent)
     rng = random.Random(seed)
-    sample_a = rng.sample(absent_sorted, min(CALIBRATION_SAMPLE, len(absent_sorted)))
-    sample_p = rng.sample(present, min(CALIBRATION_SAMPLE, len(present)))
+    sample_a, ns_a = _stratified(sorted(absent), fns_by_name,
+                                 CALIBRATION_PER_NAMESPACE, CALIBRATION_FLOOR, rng)
+    sample_p, ns_p = _stratified(present, fns_by_name,
+                                 CALIBRATION_PER_NAMESPACE, CALIBRATION_FLOOR, rng)
     src = tmp / "k.ص"
 
     def call_says_absent(name: str):
         args = "، ".join(["0"] * arity_min(fns_by_name[name]))
-        src.write_text(PREAMBLE + "\n" + name + "(" + args + ")\n" + TAIL,
-                       encoding="utf-8")
+        src.write_text(preamble_for(name) + "\n" + name + "(" + args
+                       + ")\n" + TAIL, encoding="utf-8")
         out = run([str(run_exe), str(src)], 60)
         if out == "TIMEOUT":
             return None
         match = SEM004.search(out)
         return bool(match and match.group(1) == name)
 
-    agree_absent = sum(1 for n in sample_a if call_says_absent(n) is True)
-    agree_present = sum(1 for n in sample_p if call_says_absent(n) is False)
+    disagree = []
+    agree_absent = 0
+    for n in sample_a:
+        verdict = call_says_absent(n)
+        if verdict is True:
+            agree_absent += 1
+        else:
+            disagree.append({"canonical": n, "probe": "غائب",
+                             "namespace": fns_by_name[n].get("namespace") or "NONE"})
+    agree_present = 0
+    for n in sample_p:
+        verdict = call_says_absent(n)
+        if verdict is False:
+            agree_present += 1
+        else:
+            disagree.append({"canonical": n, "probe": "موجود",
+                             "namespace": fns_by_name[n].get("namespace") or "NONE"})
     return {
         "seed": seed,
+        "strategy": "طبقيٌّ بحسب المجموعة",
+        "per_namespace": CALIBRATION_PER_NAMESPACE,
+        "absent_namespaces": ns_a,
+        "present_namespaces": ns_p,
         "absent_sample": len(sample_a),
         "absent_agreed": agree_absent,
         "present_sample": len(sample_p),
         "present_agreed": agree_present,
+        "disagreements": disagree,
     }
 
 
@@ -364,6 +443,17 @@ def main() -> int:
 
     fns = load_builtins()
     fns_by_name = {f["canonical"]: f for f in fns}
+
+    # شرَكٌ لتصادمٍ لا يُحَلُّ بحذفِ الاستيراد: مدمَجٌ اسمُه اسمُ وحدتِه نفسِها.
+    # لا وجودَ له اليوم، ويومَ يوجدُ يجبُ أن يقفَ المِجَسُّ لا أن يُخمّن.
+    irreducible = sorted(f["canonical"] for f in fns
+                         if collides_with_own_module(f))
+    if irreducible:
+        print("✗ تصادمُ اسمٍ لا يُحَلُّ — الاسمُ هو اسمُ وحدتِه:")
+        for name in irreducible:
+            print(f"    · {name}")
+        print("  لا يُكتَبُ المُخرَج: الحكمُ هنا تخمينٌ لا قياس.")
+        return 1
     names = sorted(fns_by_name)
     print(f"معلَنٌ في مصدر الحقيقة: {len(fns)} مدمَجًا "
           f"({len(names)} اسمًا قانونيًّا)", flush=True)
@@ -405,6 +495,10 @@ def main() -> int:
     if not ok:
         print("✗ المِجَسُّ غيرُ مُعايَر: الحكمان اختلفا على العيّنةِ نفسِها.")
         print("  لا يُكتَبُ المُخرَج — رقمٌ من أداةٍ لم تُعايَر أسوأُ من السكوت.")
+        # رفضٌ بلا اسمٍ يُوقِفُ الأداةَ ولا يدلُّ على موضعِ الخلل.
+        for d in calib.get("disagreements") or []:
+            print(f"  ⚠ {d['canonical']} ({d['namespace']}) — "
+                  f"المرجعُ المجرَّدُ قال «{d['probe']}» والنداءُ خالفه")
         return 1
     if interp_unclear or comp_unclear:
         print(f"✗ ملتبسٌ لم يُصنَّف: {len(interp_unclear) + len(comp_unclear)} —"
