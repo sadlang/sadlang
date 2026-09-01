@@ -60,6 +60,10 @@ ARITYLESS_BASELINE = 959
 # (AR) وأرضيّةٌ للطرفِ الآخرِ: المترجّمُ يستهلكُ الجدولَ فعلًا. لو سقطت إلى صفرٍ
 #      لَصار الحارسُ «أخضرَ» بلا أيِّ استهلاكٍ في المحرّكَين — أسوأُ من الحال.
 COMPILER_CONSUMERS_FLOOR = 15
+# (AR) وأرضيّةُ المفسّرِ صارت واحدًا بعد وصلِ بوّابةِ الرتبةِ في نقطةِ اختناقِ
+#      النداء (`expression_evaluator_calls_dispatch.cpp`). مكسبٌ يُثبَّتُ فلا
+#      يُنقَض: حذفُ الإدراجِ يُحمِرُّ الحارسَ بدل أن يمرَّ صامتًا.
+INTERPRETER_CONSUMERS_FLOOR = 1
 
 REGISTER_ARITYLESS = re.compile(r"\bregisterBuiltinFunction\s*\(")
 REGISTER_WITH_ARITY = re.compile(r"\bdefineBuiltInFunction\s*\(")
@@ -128,6 +132,11 @@ def main() -> int:
               f"(الأرضيّةُ {COMPILER_CONSUMERS_FLOOR}) — لا يُسَدُّ التفاوتُ "
               "بتعطيلِ الطرفِ العامل.")
         failed = True
+    if len(interp_users) < INTERPRETER_CONSUMERS_FLOOR:
+        print(f"  ✗ استهلاكُ المفسّرِ للجدولِ سقط إلى {len(interp_users)} ملفًّا "
+              f"(الأرضيّةُ {INTERPRETER_CONSUMERS_FLOOR}) — بوّابةُ الرتبةِ "
+              "انفصلت، فعادت الرتبةُ تبلغُ محرّكًا واحدًا.")
+        failed = True
 
     if failed:
         print("\n  العلاج: حوّل التسجيلَ إلى توقيعٍ يحملُ الرتبةَ من الجدولِ")
@@ -135,8 +144,15 @@ def main() -> int:
         return 1
 
     if interp_users:
-        print(f"  ✓ المفسّرُ صار يقرأُ الجدولَ في {len(interp_users)} ملفًّا — "
-              "أنقِص خطَّ الأساسِ وثبّت المكسب.")
+        print(f"  ✓ الرتبةُ تبلغُ المحرّكَين — المفسّرُ يقرأُ الجدولَ في "
+              f"{len(interp_users)} ملفًّا عند نقطةِ اختناقِ النداء، والتشخيصُ "
+              "من الكتالوجِ نفسِه (SEM005) فيتطابقُ اللفظُ في المحرّكَين.")
+        if arityless < ARITYLESS_BASELINE:
+            print(f"    ✓ وانحدرَ التسجيلُ بلا رتبةٍ "
+                  f"{ARITYLESS_BASELINE - arityless} موضعًا — أنزِل خطَّ الأساس.")
+        else:
+            print("    ⚠️ دَينٌ باقٍ: التسجيلُ نفسُه لا يحملُ رتبةً بعدُ، "
+                  "فالحكمُ عند النداءِ لا عند التسجيل.")
     elif arityless < ARITYLESS_BASELINE:
         print(f"  ✓ انحدرَ الدَّينُ {ARITYLESS_BASELINE - arityless} موضعًا — "
               "أنزِل خطَّ الأساسِ في هذا الملفّ ليثبت.")

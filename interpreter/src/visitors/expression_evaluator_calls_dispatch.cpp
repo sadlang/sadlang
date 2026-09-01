@@ -33,6 +33,11 @@
 // (EN) The generated import gate + the loaded-module registry
 #include "builtin_registry.h"
 #include "builtin_module_registry.h"
+// (AR) جدولُ رتبِ المدمَجاتِ المولَّدُ من مصدرِ الحقيقة — الجدولُ نفسُه الذي
+//      يقرؤه المترجّم، مسؤولًا عنه بالاسمِ العربيِّ لا بالمعرّف.
+// (EN) The SoT-generated builtin arity table — the same table the compiler
+//      reads, queried by Arabic name rather than by C++ identifier.
+#include "builtin_arity.h"
 #include "utils/class_module_captures.h"
 #include <iostream>
 #include <unordered_map>
@@ -544,6 +549,61 @@ namespace Sad
                                                     static_cast<int>(node.position.line),
                                                     static_cast<int>(node.position.column)),
                         msgAr, msgEn);
+                    lastResult_ = Value();
+                    return;
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // (AR) بوّابةُ الرتبة — الموضعُ نفسُه وللسببِ نفسِه.
+            //
+            //      🔑 حقلُ `arity` في مصدرِ الحقيقةِ كان يبلغُ **محرّكًا واحدًا**:
+            //      يستهلكُ المترجّمُ الجدولَ المولَّدَ في واحدٍ وعشرين ملفًّا
+            //      (`checkBuiltinArity`)، والمفسّرُ في **صفر** — لأنّ
+            //      `registerBuiltinFunction(name, func)` لا يأخذُ رتبةً أصلًا،
+            //      فيُسجَّلُ المدمَجُ بقائمةِ معاملاتٍ **فارغة**. والأولويّةُ ٣
+            //      أعلاه تُطابقُ بـ`hasNativeImplementation()` وحدَها، فينفَّذُ
+            //      المدمَجُ بأيِّ عددِ وسائط. فكان العقدُ الواحدُ يُفرَضُ في
+            //      محرّكٍ ويُهمَلُ في الآخر: برنامجٌ واحدٌ يسلك مسلكَين.
+            //
+            //      والحكمُ **عند النداءِ لا عند التسجيل** كبوّابةِ الاستيراد:
+            //      التسجيلُ موزَّعٌ على تسعِ مئةٍ وتسعةٍ وخمسين موضعًا، والنداءُ
+            //      نقطةٌ واحدة. ولا تمرُّ دالّةُ المستخدمِ من هنا للشرطِ نفسِه.
+            //
+            //      والنصُّ من كتالوجِ الأخطاءِ (SEM005) لا مكتوبًا بيد، فيكونُ
+            //      التشخيصُ حرفًا بحرفٍ كتشخيصِ المترجّم — وهذا هو التكافؤ.
+            // (EN) The arity gate — same choke point, same rationale as the
+            //      import gate. SoT `arity` reached only the compiler (21 files
+            //      vs 0) because registerBuiltinFunction takes no arity, so a
+            //      builtin ran with any argument count. Judged at the call, not
+            //      at registration; message from the catalog, so both engines
+            //      emit the identical SEM005 diagnostic.
+            // ═══════════════════════════════════════════════════════════════
+            if (func && func->hasNativeImplementation() && !node.isSyntaxDesugared)
+            {
+                // (AR) nullptr لِما لا عقدَ له: مدمَجٌ بلا حقلِ `arity` في مصدرِ
+                //      الحقيقة، أو اسمٌ أُعلِن برتبتَين متضاربتَين. لا تُخترَعُ له
+                //      رتبةٌ — السكوتُ عن غيرِ المقيسِ أصدقُ من فرضِ ما لم يُعلَن.
+                const Sad::Builtins::Arity::Range *range =
+                    Sad::Builtins::Arity::ByName::lookup(funcName);
+                if (range && (arguments.size() < range->min || arguments.size() > range->max))
+                {
+                    // (AR) المتوقَّعُ المعروضُ هو الطرفُ الذي خولِف — الأدنى عند
+                    //      النقصِ والأقصى عند الزيادة — نظيرَ `checkBuiltinArity`
+                    //      في المترجّم حرفًا بحرف. فالرسالةُ تدلُّ على الإصلاح.
+                    Sad::Errors::RenderContext ctx;
+                    ctx.placeholders = {
+                        {"name", funcName},
+                        {"expected", std::to_string(arguments.size() < range->min
+                                                        ? range->min
+                                                        : range->max)},
+                        {"found", std::to_string(arguments.size())}};
+                    Sad::Errors::ErrorManager::getInstance().reportFromCatalog(
+                        Sad::Errors::ErrorCode::SEM_WRONG_ARG_COUNT,
+                        Sad::Errors::SourceLocation(getDispatchSourceFilename(),
+                                                    static_cast<int>(node.position.line),
+                                                    static_cast<int>(node.position.column)),
+                        ctx);
                     lastResult_ = Value();
                     return;
                 }

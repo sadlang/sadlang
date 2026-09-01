@@ -158,7 +158,75 @@ def collect(sot_dir: Path) -> dict[str, list[tuple[str, int, str, str]]]:
     return table
 
 
-def render(table: dict[str, list[tuple[str, int, str, str]]]) -> str:
+def collect_by_name(sot_dir: Path):
+    """(AR) [(الاسمُ العربيّ، الأدنى، الأعلى)] لِما رتبتُه **لا لبسَ فيها**.
+
+    🔑 لماذا جدولٌ ثانٍ بالاسمِ والأوّلُ بالمعرّف؟ لأنّ المحرّكَين يسألانِ
+    سؤالَين مختلفَين: المترجّمُ يعرفُ في موضعِ التخفيضِ **أيَّ** مدمَجٍ يُخفِّض
+    فيقرأُ ثابتًا بالمعرّف؛ والمفسّرُ لا يملكُ إلّا الاسمَ وقتَ التشغيل. وكان
+    أثرُ غيابِ هذا الجدولِ أنّ حقلَ `arity` يبلغُ محرّكًا واحدًا: يستهلكُه
+    المترجّمُ في ٢١ ملفًّا والمفسّرُ في صفر، فالرتبةُ المُعلَنةُ عقدٌ نصفُه
+    مفروضٌ ونصفُه حبرٌ على ورق.
+
+    والاسمُ المُعلَنُ برتبتَين مختلفتَين **يُحذَفُ ولا يُخمَّن**: `استبدل`
+    مُعلَنٌ (1,1) في `ui_widgets` و(3,3) في `strings` و`http_client`. اختيارُ
+    أحدِهما يرفضُ نداءً صحيحًا، وتوحيدُهما اتّحادًا يقبلُ نداءً خاطئًا —
+    وكلاهما اختراعٌ لا قياس. فالسكوتُ عن غيرِ المقيسِ أصدقُ (نظيرُ ما تفعله
+    `TypeMethods::lookup` إذ تُرجِعُ nullptr لِما لا عقدَ له).
+    """
+    ranges: dict[str, set] = {}
+    for path in sorted(sot_dir.glob("*.yaml")):
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        for fn in doc.get("functions") or []:
+            arity = fn.get("arity")
+            if not arity:
+                continue
+            top = "UNBOUNDED" if arity.get("variadic") else str(int(arity["max"]))
+            ranges.setdefault(fn["canonical"], set()).add((int(arity["min"]), top))
+    unambiguous = sorted((name, *next(iter(v)))
+                         for name, v in ranges.items() if len(v) == 1)
+    conflicting = sorted(name for name, v in ranges.items() if len(v) > 1)
+    return unambiguous, conflicting
+
+
+def render_by_name(sot_dir: Path) -> str:
+    rows, conflicting = collect_by_name(sot_dir)
+    out = [
+        "            namespace ByName\n            {\n",
+        "                /// (AR) رتبةُ المدمَجِ مطلوبةً **بالاسمِ العربيِّ وقتَ\n"
+        "                ///      التشغيل** — يستهلكُها المفسّرُ في نقطةِ اختناقِ\n"
+        "                ///      النداء، كما يستهلكُ المترجّمُ ثوابتَ المعرّفات.\n"
+        "                ///      فالعقدُ المُعلَنُ في مصدرِ الحقيقةِ يبلغُ المحرّكَين.\n",
+    ]
+    if conflicting:
+        out.append("                ///\n"
+                   "                /// (AR) وهذه أسماءٌ أُعلِنت برتبتَين مختلفتَين فحُذفت:\n")
+        for name in conflicting:
+            out.append(f"                ///        · {name}\n")
+        out.append("                ///      لا تُخمَّن رتبتُها ولا تُفرَض — لا عقدَ لها.\n")
+    out.append("                struct NamedRange\n                {\n"
+               "                    const char *name;\n"
+               "                    Range range;\n                };\n\n"
+               "                inline constexpr NamedRange TABLE[] = {\n")
+    for name, lo, hi in rows:
+        out.append(f'                    {{"{name}", {{{lo}, {hi}}}}},\n')
+    out.append(
+        "                };\n\n"
+        "                /// (AR) يُعيد nullptr لِما لا عقدَ له — والسكوتُ عن غيرِ\n"
+        "                ///      المقيسِ أصدقُ من فرضِ رتبةٍ مُخترَعة.\n"
+        "                inline const Range *lookup(const std::string &name) noexcept\n"
+        "                {\n"
+        "                    for (const NamedRange &e : TABLE)\n"
+        "                        if (name == e.name)\n"
+        "                            return &e.range;\n"
+        "                    return nullptr;\n"
+        "                }\n\n"
+        "            } // namespace ByName\n\n")
+    return "".join(out)
+
+
+def render(table: dict[str, list[tuple[str, int, str, str]]],
+           sot_dir: Path = SOT_DIR) -> str:
     parts = [HEADER]
     for namespace in sorted(table):
         parts.append(f"            namespace {namespace}\n            {{\n")
@@ -203,6 +271,7 @@ def render(table: dict[str, list[tuple[str, int, str, str]]]) -> str:
             "                    return nullptr;\n"
             "                }\n\n")
         parts.append("            } // namespace TypeMethods\n\n")
+    parts.append(render_by_name(sot_dir))
     parts.append(FOOTER)
     return "".join(parts)
 
@@ -215,13 +284,19 @@ def main() -> int:
     parser.add_argument("--quiet", action="store_true")
     ns = parser.parse_args()
 
-    table = collect(Path(ns.yaml_dir))
+    yaml_dir = Path(ns.yaml_dir)
+    table = collect(yaml_dir)
     out = Path(ns.out_h)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(render(table), encoding="utf-8", newline="\n")
+    out.write_text(render(table, yaml_dir), encoding="utf-8", newline="\n")
     if not ns.quiet:
         declared = sum(len(v) for v in table.values())
+        by_name, conflicting = collect_by_name(yaml_dir)
         print(f"✓ وُلِّد {out} ({declared} مدمجًا في {len(table)} فضاءً)")
+        print(f"  وجدولُ البحثِ بالاسم: {len(by_name)} اسمًا لا لبسَ في رتبتِه"
+              + (("، و%d محذوفٌ للتضارب: %s" % (len(conflicting),
+                                                 "، ".join(conflicting)))
+                 if conflicting else ""))
     return 0
 
 
