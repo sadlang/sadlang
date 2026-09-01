@@ -12,7 +12,7 @@
 # ============================================================================
 version: 1
 kind: measurement
-measured_commit: 062b1718aba9fcc4c91a36628e38805bf6f0a1f6
+measured_commit: 5c9d0e42ca01debd9e5af82745a40efe3da5edd7
 measured_binaries:
 - path: sad-run.exe
   sha256: 15fea78140a19480
@@ -22,7 +22,7 @@ measured_binaries:
   sha256: f93d345298728fd5
   bytes: 92635136
   built_at: '2026-09-01T09:49:19'
-elapsed_seconds: 242
+elapsed_seconds: 248
 method:
   interpreter: مرجعُ اسمٍ بلا نداء؛ الحكمُ SEM001 على الاسم
   compiler: نداءٌ برتبة arity.min في دالّةٍ لا تُنادى؛ الحكمُ SEM047
@@ -31,20 +31,20 @@ calibration:
   seed: 11
   strategy: طبقيٌّ بحسب المجموعة
   per_namespace: 3
-  absent_namespaces: 40
-  present_namespaces: 25
-  absent_sample: 113
-  absent_agreed: 113
-  present_sample: 66
-  present_agreed: 66
+  absent_namespaces: 39
+  present_namespaces: 26
+  absent_sample: 110
+  absent_agreed: 110
+  present_sample: 69
+  present_agreed: 69
   disagreements: []
 counts:
   declared: 1205
   compiler: 678
-  interpreter: 391
-  both: 279
+  interpreter: 396
+  both: 284
   interpreter_only: 112
-  compiler_only: 399
+  compiler_only: 394
   neither: 415
 functions:
 - canonical: إضافة_عنصر
@@ -4421,27 +4421,27 @@ functions:
   namespace: Processes
   module: PROCESSES
   compiler: true
-  interpreter: false
+  interpreter: true
 - canonical: انتظر_عملية
   namespace: Processes
   module: PROCESSES
   compiler: true
-  interpreter: false
+  interpreter: true
 - canonical: انبوب
   namespace: Processes
   module: PROCESSES
   compiler: true
-  interpreter: false
+  interpreter: true
 - canonical: اغلق
   namespace: Processes
   module: PROCESSES
   compiler: true
-  interpreter: false
+  interpreter: true
 - canonical: افتح_وصفا
   namespace: Processes
   module: PROCESSES
   compiler: true
-  interpreter: false
+  interpreter: true
 - canonical: عقدة_جديدة
   namespace: SadNet
   module: NONE
