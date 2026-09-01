@@ -50,7 +50,7 @@ python scripts/codegen/gen_keywords.py `
 ```powershell
 .\build\bin\Debug\sad-run.exe examples\test_simple.ص       # المفسر (الفعلي)
 .\build\bin\Debug\sad-build.exe ملف.ص -o ملف.exe           # المترجم (هدف sad-build؛ Release أيضًا صالح)
-.\build\bin\Debug\sad-build.exe ملف.ص --emit-llvm -o ملف.ll # فحص LLVM IR (BF-07)
+.\build\bin\Debug\sad-build.exe ملف.ص --أظهر-llvm -o ملف.ll # فحص LLVM IR (BF-07)
 ```
 
 ## 4. الاختبارات — مُشغّل التنفيذ المزدوج (الأساسي)
@@ -113,7 +113,7 @@ python scripts/codegen/check_docs_coverage.py
 
 1. **أعِد إنتاج الخطأ** في أصغر ملف `.ص` ممكن.
 2. **قارن المفسر والمترجم:** إن عمل في `sad-run` وفشل في `sad-build` → المشكلة في SIR builder أو
-   LLVM codegen. ولّد IR بـ `--emit-llvm` وافحص: entry block، اتساق الأنواع، ترتيب
+   LLVM codegen. ولّد IR بـ `--أظهر-llvm` وافحص: entry block، اتساق الأنواع، ترتيب
    التعليمات، فهارس `getelementptr`.
 3. **أصلِح في الطبقة الصحيحة** (BF-10) — لا ترقيع في مكان الاستعمال.
 4. **اختبار التراجع الشامل** قبل الاعتبار منتهياً:

@@ -21,11 +21,21 @@
      تُحلِّلُ سلاسلَ حرفيّةً ممنوعةٌ من ادّعائِه. فلو نُقِلت أداةٌ إلى
      الجدولِ أو أُخرِجت منه، تحوّلَ حُكمُ الحارسِ معها بلا تعديلٍ هنا.
 
-     أربعةُ ملفّاتٍ بأربعةِ مُحلِّلاتٍ مختلفة — وهذا شرطُ الحارس:
+     خمسةُ ملفّاتٍ بخمسةِ مُحلِّلاتٍ مختلفة — وهذا شرطُ الحارس:
        ① language-truth/cli_flags.yaml      (YAML)  ← الاسمُ القانونيّ
        ② مصدرُ كلِّ أداة                     (C++)   ← أتستشيرُ الجدولَ؟
        ③ scripts/ci/release_tools.sh        (شِل)   ← SAD_VERSION_FLAGS
        ④ tests/system/hub/CMakeLists.txt    (CMake) ← أعلامُ الدُّخان
+       ⑤ المهاراتُ والوثائقُ وtools/build/*.cmake (نثر) ← أعلامُ الأمثلة
+
+     🔑 والمُحلِّلُ الخامسُ وُلدَ من عطبٍ مقيس: `references/build-test.md`
+     كان يوصي بـ`--emit-llvm` و`sad-os-coding/SKILL.md` بـ`--freestanding`
+     و`--module` — ولا مرادفَ إنجليزيًّا في اللغةِ أصلًا («ONE canonical
+     Arabic name — no aliases»). فالوكيلُ الذي يتبعُ المهارةَ يكتبُ أمرًا
+     يفشل. ومعها `tools/build/FindSad.cmake` كان ينفّذُ `--version`، وهو
+     خيارٌ غيرُ معروفٍ يبتلعُه `ERROR_QUIET` فتبقى `Sad_VERSION` فارغةً
+     والكتلةُ كلُّها ميّتةٌ صامتة. المثالُ المنثورُ نسخةٌ ثانيةٌ لعقدٍ
+     مكتوبٍ في `cli_flags.yaml`، ولم يكن أحدٌ يقيسُ المسافةَ بينهما.
 
 (EN) Bind the version-flag spelling to its source of truth.
 
@@ -80,6 +90,56 @@ from pathlib import Path
 #      sad::cli::FlagAction and the compiler cli_gen::FlagAction — the shared
 #      part is the type itself, so that is what is searched for.
 أثر_الجدول_المولد = re.compile(r"\bFlagAction\b")
+
+# ── ⑤ أعلامُ الأمثلةِ المنثورة ─────────────────────────────────────────────────
+# (AR) مُوَضِّعٌ لا حقيقة: أين تُكتَبُ أوامرُ المحرّكاتِ نثرًا. الأعلامُ نفسُها
+#      تُقرأُ من `cli_flags.yaml` دائمًا، فلا قائمةَ إذنٍ تُكتَبُ هنا لتتعفّن.
+# (EN) A locator, not a fact: where engine commands are written in prose. The
+#      flags themselves always come from cli_flags.yaml — no allowlist here.
+شجر_النثر = (".github/skills", "docs")
+ملفات_نثر_إضافية = ("tools/build/FindSad.cmake",
+                    "tools/build/SadProject.cmake",
+                    "tools/build/project_template.cmake")
+المحرّكات_في_النثر = re.compile(
+    r"(?:^|[\s`(]|\$\{SADC_EXECUTABLE\})"
+    r"(?:sad-build-native|sad-build|sad-run|sadc)(?=[\s`)،,.:]|$)")
+# (AR) نستثني أسطرَ أدواتٍ أخرى تحمل الاسمَ عرَضًا (cmake --build --target sad-build).
+# (EN) Exclude lines where the name is a build target, not an invocation.
+سطر_بناء = re.compile(r"\bcmake\b|--target\b|add_executable|find_program")
+عَلَم_ascii = re.compile(r"(?<![\w-])(--[A-Za-z][A-Za-z0-9-]*)")
+
+
+def استخرج_كل_الاعلام_القانونية(نص):
+    """كلُّ اسمٍ قانونيٍّ وكلُّ عَلَمٍ قصيرٍ في مصدرِ الحقيقة."""
+    أسماء = set(re.findall(r'canonical:\s*"([^"]+)"', نص))
+    أسماء |= set(re.findall(r'name:\s*"(-[^"]+)"', نص))
+    return أسماء
+
+
+def امسح_النثر(قانونية):
+    """يعيد قائمةَ (ملفّ، سطر، عَلَم) لكلِّ عَلَمٍ منثورٍ لا يطابقُ مصدرَ الحقيقة."""
+    مسارات = []
+    for شجرة in شجر_النثر:
+        جذر_الشجرة = جذر / شجرة
+        if جذر_الشجرة.is_dir():
+            مسارات.extend(sorted(جذر_الشجرة.rglob("*.md")))
+    for ملف in ملفات_نثر_إضافية:
+        p = جذر / ملف
+        if p.is_file():
+            مسارات.append(p)
+    خلاف = []
+    for مسار in مسارات:
+        try:
+            سطور = مسار.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        for رقم, سطر in enumerate(سطور, 1):
+            if not المحرّكات_في_النثر.search(سطر) or سطر_بناء.search(سطر):
+                continue
+            for عَلَم in عَلَم_ascii.findall(سطر):
+                if عَلَم not in قانونية:
+                    خلاف.append((مسار.relative_to(جذر).as_posix(), رقم, عَلَم))
+    return خلاف
 
 
 def اقرأ(مسار):
@@ -156,6 +216,7 @@ def main():
     أعلام = استخرج_جدول_الاعلام(نص_الجدول)
     مطلوبة = استخرج_قائمة_الالزام(نص_الجدول)
     دخان = استخرج_دخان_الهب(اقرأ(مسار_دخان_الهب))
+    قانونية = استخرج_كل_الاعلام_القانونية(نص_الحقيقة)
 
     خلاف = []
     محرّكات = 0
@@ -201,6 +262,28 @@ def main():
     # (EN) A guard that sees zero engines measured nothing: if the generated
     #      type were renamed, every tool would read as "not an engine" and the
     #      guard would fall silent, green, about everything.
+    # (AR) ⑤ المثالُ المنثورُ عقدٌ يقرؤه إنسانٌ أو وكيلٌ ثمّ ينفّذه. فإن خالفَ
+    #      مصدرَ الحقيقةِ فهو أمرٌ يفشل — والنثرُ لا يُبنى فلا يُمسِكُه مُصرِّف.
+    # (EN) A prose example is a contract a human or agent then executes. Prose
+    #      is not compiled, so no compiler catches its drift.
+    for ملف, رقم, عَلَم in امسح_النثر(قانونية):
+        خلاف.append(
+            "  " + ملف + ":" + str(رقم) + " · عَلَمٌ لا وجودَ له «" + عَلَم
+            + "» — لا مرادفَ إنجليزيًّا في اللغة"
+            " / flag absent from the SoT; the language has no English aliases"
+        )
+
+    # (AR) حارسٌ لا يقرأُ اسمًا قانونيًّا واحدًا لم يقسْ شيئًا: لو تغيّرَ مفتاحُ
+    #      `canonical` لخلَتِ المجموعةُ وصارَ كلُّ عَلَمٍ منثورٍ «مخالفًا».
+    # (EN) Zero canonical names read means the extractor broke, not that every
+    #      prose flag is wrong.
+    if not قانونية:
+        print(
+            "::error::لم يُقرَأْ اسمٌ قانونيٌّ واحدٌ من cli_flags.yaml — المُستخرِجُ "
+            "انكسرَ ولم ينكسرِ النثرُ / no canonical name parsed; the extractor broke"
+        )
+        return 1
+
     if محرّكات == 0:
         print(
             "::error::لا أداةَ واحدةً تستشيرُ الجدولَ المولَّد — أثرُ «FlagAction» لم يعُدْ "
@@ -222,6 +305,11 @@ def main():
         )
         return 1
 
+    print(
+        "✅ حارسُ الأعلام: " + str(len(قانونية))
+        + " اسمًا قانونيًّا، وكلُّ عَلَمٍ منثورٍ في المهاراتِ والوثائقِ يطابقُه"
+        " / canonical names; every prose flag matches the SoT"
+    )
     print(
         "✅ حارسُ إملاءِ عَلَمِ الإصدار: "
         + str(len(مطلوبة))

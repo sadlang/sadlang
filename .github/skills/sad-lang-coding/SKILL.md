@@ -885,7 +885,7 @@ description: 'كتابة أكواد بلغة ص البرمجية العربية.
 |--------|-------|-------|
 | المفسر | `sad-run.exe ملف.ص` | تفسير وتشغيل فوري |
 | المترجم | `sad-build.exe ملف.ص -o ملف` | ترجمة إلى ملف تنفيذي عبر LLVM |
-| LLVM IR | `sad-build.exe ملف.ص --emit-llvm -o ملف.ll` | إنتاج LLVM IR |
+| LLVM IR | `sad-build.exe ملف.ص --أظهر-llvm -o ملف.ll` | إنتاج LLVM IR |
 | مدير الحزم | `sad-pkg.exe` | إدارة الحزم والمكتبات |
 
 ## ملاحظات مهمة للمترجم sad-build

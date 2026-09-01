@@ -160,7 +160,7 @@ python tests/runner.py --level P1
 ```
 [ ] 1. أعِد الإنتاج في أصغر ملف .ص (BF-01)
 [ ] 2. أكّد: يعمل في sad-run، يفشل في sadc → المشكلة SIR/LLVM (BF-08)
-[ ] 3. ولّد IR: sadc ملف.ص --emit-llvm -o ملف.ll وافحص (entry block، أنواع، getelementptr) (BF-07)
+[ ] 3. ولّد IR: sad-build ملف.ص --أظهر-llvm -o ملف.ll وافحص (entry block، أنواع، getelementptr) (BF-07)
 [ ] 4. حدّد الطبقة: ترتيب حقول → SIRBuilder ؛ تحويل نوع → LLVM codegen (BF-10)
 [ ] 5. أصلِح السبب الجذري لا العَرَض — لا تحويل ضمني لإخفاء (BF-09, BF-04)
 [ ] 6. اكتب اختبار يفشل قبل ويمرّ بعد + ابحث عن نفس النمط في أماكن أخرى (BF-26)

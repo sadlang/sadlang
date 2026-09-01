@@ -7,7 +7,7 @@
 FindSad
 -------
 
-Finds the Sad compiler (sadc).
+Finds the Sad compiler (sad-build).
 
 Result Variables
 ^^^^^^^^^^^^^^^^
@@ -81,12 +81,17 @@ Example Usage
 #]=======================================================================]
 
 # ============================================================================
-# الحمد لله - Find sadc executable / البحث عن المترجم
+# الحمد لله - Find sad-build executable / البحث عن المترجم
 # ============================================================================
 
-# Try to find sadc in standard locations
+# (AR) اسمُ الهدف مُوحَّدٌ مع اسم المُخرَج: sad-build ⇒ sad-build.exe. والاسمُ
+#      `sadc` متقاعد — لا يُنتجه أيُّ هدفٍ في CMakeLists، فكان هذا الباحثُ
+#      يطلب ثنائيًّا لا وجودَ له ويفشل صامتًا. يُبقى `sadc` آخرَ القائمة
+#      لتثبيتاتٍ قديمةٍ على أقراص المستخدمين فقط.
+# (EN) Target name is unified with output name: sad-build ⇒ sad-build.exe.
+#      `sadc` is retired — no target produces it; kept last for old installs.
 find_program(SADC_EXECUTABLE
-    NAMES sadc sadc.exe
+    NAMES sad-build sad-build.exe sadc sadc.exe
     PATHS
         # User-specified paths
         ${Sad_ROOT}
@@ -100,7 +105,7 @@ find_program(SADC_EXECUTABLE
         # Windows paths
         "C:/Program Files/Sad/bin"
         "C:/Sad/bin"
-    DOC "Path to the Sad compiler (sadc)"
+    DOC "Path to the Sad compiler (sad-build)"
 )
 
 # ============================================================================
@@ -108,15 +113,27 @@ find_program(SADC_EXECUTABLE
 # ============================================================================
 
 if(SADC_EXECUTABLE)
-    # Execute sadc --version
+    # (AR) العَلَمُ القانونيُّ الوحيد `--إصدار` (language-truth/cli_flags.yaml:
+    #      flag.version)، و`sad-build` أحدُ المحرّكات الملزَمة به — يحرسه
+    #      scripts/ci/check_version_flags.py. وكان هنا `--version`: خيارٌ غير
+    #      معروفٍ يبتلعه ERROR_QUIET، فتبقى Sad_VERSION فارغةً والكتلةُ كلُّها
+    #      ميّتةٌ صامتة.
+    # (EN) The only canonical flag is `--إصدار`; `--version` is not accepted and
+    #      ERROR_QUIET swallowed the failure, leaving Sad_VERSION empty.
     execute_process(
-        COMMAND ${SADC_EXECUTABLE} --version
+        COMMAND ${SADC_EXECUTABLE} --إصدار
         OUTPUT_VARIABLE Sad_VERSION_OUTPUT
         ERROR_QUIET
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     
     # Parse version string
+    # (AR) المخرَجُ مقيسٌ من المصدر لا مفترَضًا: get_compiler_name() تعيد
+    #      "sadc - Sad Compiler" وget_version() تعيد "1.0.0"
+    #      (tools/compiler/compiler_driver.h:588-589). فالنصُّ هنا يطابق
+    #      **الثنائيَّ كما هو اليوم**، لا اسمَ الهدفِ في CMake. ولا تُضَف مجموعةُ
+    #      تبديلٍ هنا: كلُّ `()` تُزحزح CMAKE_MATCH_N أدناه فيصير الإصدارُ
+    #      "sadc.1.0" وتنكسر مقارنةُ find_package(Sad 1.0.0) صامتة.
     if(Sad_VERSION_OUTPUT MATCHES "sadc - Sad Compiler ([0-9]+)\\.([0-9]+)\\.([0-9]+)")
         set(Sad_VERSION_MAJOR ${CMAKE_MATCH_1})
         set(Sad_VERSION_MINOR ${CMAKE_MATCH_2})

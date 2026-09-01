@@ -8,12 +8,18 @@
 #      The files keywords_generated.{h,cpp} are auto-generated.
 # ----------------------------------------------------------------------------
 # (AR) الفئات:
-#   - reserved:      كلمات محجوزة دائماً (Lexer يُصدر KEYWORD_*) — 40
-#   - operators:     عوامل منطقية تُلفظ كلمات (Lexer يُصدر OP_*) — 3
-#   - contextual:    Lexer يُصدر IDENTIFIER؛ Parser يقرر سياقياً — ~30
+#   - reserved:      كلمات محجوزة دائماً (Lexer يُصدر KEYWORD_*)
+#   - operators:     عوامل منطقية تُلفظ كلمات (Lexer يُصدر OP_*)
+#   - contextual:    Lexer يُصدر IDENTIFIER؛ Parser يقرر سياقياً
 #                    يمكن استخدامها كأسماء متغيرات خارج سياقها
-#   - builtin_types: أسماء أنواع مدمجة (Lexer يُصدر IDENTIFIER) — 9
+#   - builtin_types: أسماء أنواع مدمجة (Lexer يُصدر IDENTIFIER)
 #                    يمكن استخدامها كأسماء متغيرات خارج سياقها
+#
+# (AR) لا تُكتب أعدادُ الفئات هنا. كانت مكتوبةً (~30 و9) فتباعدت عن الملفّ
+#      الذي تصفه (المقيسُ اليومَ 44 و17) — عددٌ منثورٌ نسخةً ثانيةً لحقيقةٍ
+#      تحته مباشرةً، لا حارسَ عليها. العدُّ يُشتقّ من القوائم نفسِها.
+# (EN) Do not write category counts here: they drifted from the very lists
+#      below them. Derive counts from the lists.
 # ============================================================================
 
 # (AR) V5: هذا الملف هو SoT الجديد في language-truth/ (نُقل من data/language/ — 2026-06-05)

@@ -49,23 +49,23 @@ $QEMU = "C:\qemu\qemu-system-x86_64.exe"
 
 ### أعلام المترجم sad-build للنواة
 ```
---freestanding    — وضع مستقل (بدون مكتبة قياسية)
---emit-llvm       — إخراج LLVM IR (.ll)
---no-borrow-check — تعطيل فحص الاقتراض
---no-type-check   — تعطيل فحص الأنواع الصارم
---module          — ترجمة كوحدة (بدون main)
+--حرّ    — وضع مستقل (بدون مكتبة قياسية)
+--أظهر-llvm       — إخراج LLVM IR (.ll)
+--بلا-فحص-استعارة — تعطيل فحص الاقتراض
+--بلا-فحص-أنواع   — تعطيل فحص الأنواع الصارم
+--وحدة          — ترجمة كوحدة (بدون main)
 -T x86_64-unknown-none-elf  — معمارية الهدف
 -O1               — تحسين مستوى 1
 ```
 
-نقطة الدخول تُترجم **بدون** `--module`:
+نقطة الدخول تُترجم **بدون** `--وحدة`:
 ```powershell
-sad-build نقطة_الدخول.ص --freestanding --emit-llvm -T x86_64-unknown-none-elf -O1 -o entry.ll
+sad-build نقطة_الدخول.ص --حرّ --أظهر-llvm -T x86_64-unknown-none-elf -O1 -o entry.ll
 ```
 
-كل ملف آخر يُترجم **مع** `--module`:
+كل ملف آخر يُترجم **مع** `--وحدة`:
 ```powershell
-sad-build الذاكرة.ص --freestanding --emit-llvm --module -T x86_64-unknown-none-elf -O1 -o mem.ll
+sad-build الذاكرة.ص --حرّ --أظهر-llvm --وحدة -T x86_64-unknown-none-elf -O1 -o mem.ll
 ```
 
 ### خط أنابيب البناء الكامل
