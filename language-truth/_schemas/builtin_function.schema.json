@@ -21,31 +21,28 @@
     "namespace": {
       "type": "string",
       "enum": [
-        "Core",
-        "TypeCtor",
-        "Concurrency",
-        "Math",
-        "Strings",
         "Arrays",
-        "Basics",
         "Assertions",
-        "Maps",
-        "Sockets",
-        "HttpClient",
-        "HttpServer",
-        "NetworkUtils",
-        "WebSocketClient",
-        "WebSocketServer",
-        "Platform",
-        "Crypto",
-        "String",
-        "Array",
-        "Map",
-        "IO",
-        "System",
         "AsyncAdvanced",
+        "Basics",
+        "CompilerCpuCtl",
+        "CompilerEmbed",
+        "CompilerHw",
+        "CompilerIo",
+        "CompilerMem",
+        "CompilerSec",
+        "CompilerSimd",
+        "CompilerSys",
+        "CompilerUefi",
+        "CompilerUi",
+        "Concurrency",
+        "Core",
+        "Crypto",
         "Exceptions",
         "FFI",
+        "HttpClient",
+        "HttpServer",
+        "Kernel",
         "KernelAudio",
         "KernelCpu",
         "KernelGpu",
@@ -53,17 +50,33 @@
         "KernelNet",
         "KernelSerial",
         "KernelStorage",
-        "CompilerIo",
-        "CompilerCpuCtl",
-        "CompilerHw",
-        "CompilerSys",
-        "CompilerSec",
-        "CompilerSimd",
-        "CompilerMem",
-        "CompilerEmbed",
-        "CompilerUefi",
-        "CompilerUi"
-      ]
+        "KernelThreads",
+        "KernelTimers",
+        "KernelUSB",
+        "Maps",
+        "Math",
+        "NetworkUtils",
+        "Platform",
+        "Processes",
+        "SadNet",
+        "Sockets",
+        "Strings",
+        "TypeCtor",
+        "UIAudio",
+        "UICore",
+        "UICrypto",
+        "UIDevice",
+        "UIDialog",
+        "UIIO",
+        "UINetwork",
+        "UIPlatform",
+        "UIStorage",
+        "UITimer",
+        "UIWidgets",
+        "WebSocketClient",
+        "WebSocketServer"
+      ],
+      "description": "قائمةُ المجموعاتِ المسموحة. **مغلقةٌ عمدًا**: إضافةُ مجموعةٍ جديدة قرارٌ يُكتَبُ هنا صراحةً، ويحرسُه check_builtins_schema.py في الاتّجاهين — مستعمَلٌ وغيرُ مُدرَجٍ يُحمِرّ، ومُدرَجٌ وغيرُ مستعمَلٍ يُحمِرّ. وكانت هذه القائمةُ للكتابةِ فقط: سكربتا هجرةٍ يُلحِقان بها ولا أحدَ يقرؤها، فبقي 355 إعلانًا (29.5٪) في 17 مجموعةً خارجَها وخمسُ قيمٍ ميّتةٍ فيها."
     },
     "since": {
       "type": "string",
@@ -77,9 +90,36 @@
     "params": {
       "type": "array",
       "items": {
-        "type": "string"
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "الشكلُ النثريُّ (١١٨٥ معاملًا): وصفٌ حرٌّ بلا نوعٍ مقروءٍ آليًّا."
+          },
+          {
+            "type": "object",
+            "description": "الشكلُ المبنيُّ (٢٠ معاملًا): اسمٌ ونوعٌ مقروءانِ آليًّا.",
+            "required": [
+              "name",
+              "type"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "type": "string",
+                "minLength": 1
+              },
+              "optional": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
       },
-      "description": "معاملات الدالّة موصوفةً؛ الأوّل لعنصرٍ ذي primary_prop = مفتاحه العربيّ + وصف"
+      "description": "معاملاتُ الدالّةِ موصوفةً. شكلان قائمانِ في مصدرِ الحقيقة: نثريٌّ حرٌّ (الأكثريّة) ومبنيٌّ {name,type,optional}. والمبنيُّ هو الوجهة — يُقرأُ آليًّا ويُقيَّدُ نوعُه بـtypes.yaml — لكنّ تحويلَ النثريِّ إليه دَينٌ لم يُقضَ، فيُوصَفُ الواقعُ ولا يُدَّعى ما ليس فيه. الأوّلُ لعنصرٍ ذي primary_prop = مفتاحُه العربيُّ + وصف."
     },
     "stability": {
       "type": "string",

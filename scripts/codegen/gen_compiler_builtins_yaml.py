@@ -82,8 +82,16 @@ idx.write_text(yaml.dump(idata, allow_unicode=True, default_flow_style=False, so
 # schema
 sp = pathlib.Path('language-truth/_schemas/builtin_function.schema.json')
 schema = json.loads(sp.read_text(encoding='utf-8'))
-for ns in schema_add:
-    if ns not in schema['properties']['namespace']['enum']:
-        schema['properties']['namespace']['enum'].append(ns)
+# (AR) 🔑 الإلحاقُ الصامتُ ممنوع: كان هذا السطرُ يُوسِّعُ `enum` المجموعاتِ
+#      بلا قرار، فصارت القائمةُ **للكتابةِ فقط** وخرج عنها ٣٥٥ إعلانًا.
+#      واليومَ يحرسُها `check_builtins_schema.py` في الاتّجاهين، فإضافةُ
+#      مجموعةٍ قرارٌ يُكتَبُ في المخطَّطِ بيدٍ ويُراجَعُ في الـPR.
+missing = [ns for ns in schema_add
+           if ns not in schema['properties']['namespace']['enum']]
+if missing:
+    raise SystemExit(
+        "✗ مجموعاتٌ ليست في مخطَّطِ المدمَجات: " + ", ".join(sorted(set(missing)))
+        + "\n  أضِفها عمدًا إلى language-truth/_schemas/builtin_function.schema.json"
+        + "\n  ثمّ أعِد التشغيل. لا تُوسَّعُ القائمةُ آليًّا.")
 sp.write_text(json.dumps(schema, ensure_ascii=False, indent=2), encoding='utf-8')
 print("Updated index + schema")

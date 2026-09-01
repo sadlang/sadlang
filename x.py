@@ -673,6 +673,30 @@ SOT_CHECK_GUARDS = (
         "args": (),
     },
     {
+        # (AR) إعلاناتُ المدمَجاتِ تُطابقُ مخطَّطَها. 🔑 ولم يكن المخطَّطُ حارسًا
+        #      قطّ: سكربتا هجرةٍ يُلحِقانِ بـ`enum` المجموعاتِ ولا أحدَ يقرؤها،
+        #      فبقيَ ٣٥٥ إعلانًا (٢٩٫٥٪) في ١٧ مجموعةً خارجَها وخمسُ قيمٍ
+        #      ميّتةٍ فيها. مخطَّطٌ لا يُقرَأُ ليس حدًّا بل زينةٌ تُقرَأُ حدًّا.
+        #      والاتّجاهان محروسان، ونوعُ المعاملِ المبنيِّ مربوطٌ بـtypes.yaml.
+        # (EN) Builtin declarations must match their schema; the namespace enum
+        #      is guarded both ways. It was append-only and never read.
+        "name": "builtins_schema",
+        "script": "check_builtins_schema.py",
+        "args": (),
+    },
+    {
+        # (AR) حقلُ `arity` يبلغُ المحرّكَين لا واحدًا. المقيس: المترجّمُ
+        #      يستهلكُ الجدولَ المولَّدَ في ٢١ ملفًّا والمفسّرُ في صفر، لأنّ
+        #      `registerBuiltinFunction(name, func)` لا يأخذُ رتبةً أصلًا —
+        #      ٩٥٩ موضعًا مقابلَ ١٤ بتوقيعٍ يحملُها. سقفٌ ينحدرُ ولا يرتفع،
+        #      وأرضيّةٌ تمنعُ «سدَّ» التفاوتِ بتعطيلِ الطرفِ العامل.
+        # (EN) SoT `arity` reaches only the compiler (21 files vs 0). Descending
+        #      ceiling on arity-less registrations, floor on compiler consumers.
+        "name": "builtin_arity_parity",
+        "script": "check_builtin_arity_parity.py",
+        "args": (),
+    },
+    {
         # (AR) سِجِلُّ قياسِ المحرّكَين يُغطّي ما هو معلَنٌ اليومَ ولم تتحرّك تحتَه
         #      طبقةُ الإرسال. التعفّنُ الصامتُ وجهان: تعفّنُ الأسماءِ (يُضافُ
         #      مدمَجٌ ولا يُعادُ القياسُ فيُنشَرُ بلا حكم، أو يُحذَفُ ويبقى سطرُه)،
