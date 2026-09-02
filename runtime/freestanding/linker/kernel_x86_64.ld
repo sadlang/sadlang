@@ -19,7 +19,7 @@
  * ─────────────────────────────────────────────────────
  *
  * للاستخدام مع:
- *   sadc --freestanding --linker-script=kernel_x86_64.ld kernel.ص -o kernel.elf
+ *   sadc --حرّ --سكربت-الرابط=kernel_x86_64.ld kernel.ص -o kernel.elf
  *
  * أو مع ld مباشرةً:
  *   ld -T kernel_x86_64.ld kernel.o -o kernel.elf

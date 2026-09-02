@@ -50,7 +50,9 @@ static std::string find_sadc() {
     // (AR) 3. في متغير PATH
     // (EN) 3. In system PATH
 #ifdef _WIN32
-    // (AR) محاولة تشغيل sadc --version للتحقق من وجوده في PATH
+    // (AR) البحثُ عن sadc.exe في PATH بـ`where` — لا نداءَ عَلَمٍ هنا.
+    //      وكان التعليقُ يقولُ «sadc --version»، ولو صُدِّقَ فأُصلِحَ إلى ما
+    //      يقولُ لصارَ خيارًا غيرَ معروفٍ يُفشِلُ الكشفَ (`--إصدار` القانونيّ).
     if (std::system("where sadc.exe >nul 2>nul") == 0) {
         return "sadc.exe";
     }

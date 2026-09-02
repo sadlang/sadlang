@@ -178,7 +178,35 @@ verify_installation() {
     fi
     
     if command -v sadc &> /dev/null; then
-        echo -e "${GREEN}✓ sadc: $(sadc --version 2>/dev/null || echo 'مثبت')${NC}"
+        # (AR) 🔑 سطرُ عرضٍ لا حَكَم، فيتساهلُ مرّتَين — كسابقتِه في
+        #      distribution/install.sh: ① `--version` ليس عَلَمًا للمترجم —
+        #      يردُّه المترجمُ «خيارًا غيرَ معروف» ويفشل (ولا يُؤخَذُ اسمَ ملفٍّ
+        #      يُترجَم: ذاك مسارُ الوسائطِ التي لا تبدأُ بشَرْطة)، والقانونيُّ
+        #      الوحيد `--إصدار` (cli_flags.yaml · flag.version). ② والحكمُ
+        #      بفراغِ المخرَجِ لا برمزِ الخروج: أمرٌ يخرجُ صفرًا ويصمتُ يتركُ
+        #      سطرَ الإصدارِ خاليًا — وهو هنا معيارُ القبولِ الوحيد، بخلافِ
+        #      distribution/install.ps1 الذي يشترطُ رمزَ الخروجِ **والمخرَجَ**
+        #      معًا؛ فلا يُقالُ إنّهما نظيران.
+        #      🔑 ولا يُجرَّبُ `--version` بعدَها: قِيسَ في الجدولِ المولَّدِ
+        #      (shared/cli/include/cli_flags_generated.h) فليس فيه إلّا
+        #      `--إصدار` ولا مرادفَ إنجليزيًّا، فالسقوطُ فرعٌ لا ينجحُ أبدًا —
+        #      وهو عينُ ما يُدينُه التعليقُ الملاصقُ له. وحُذف.
+        #      ⚠️ ولا يُمَدُّ هذا إلى `sad` أعلاه: الأمرُ المنشورُ `sad` هو مركزُ
+        #      الأدواتِ لا المفسّر، وهو خارجَ جدولِ الأعلامِ ويقبلُ الإنجليزيّة
+        #      (scripts/ci/release_tools.sh · SAD_VERSION_FLAGS · sad:--version).
+        # (EN) A display line, not a judgement — forgiving twice, as in
+        #      distribution/install.sh: (1) --version is not a compiler flag —
+        #      the compiler rejects it as an unknown option and fails; only
+        #      --إصدار is canonical, and the generated flag table carries no
+        #      English alias, so a --version fallback could never succeed and
+        #      was removed. (2) Judge on empty output, not the exit code — the
+        #      sole criterion here, unlike install.ps1 which requires the exit
+        #      code AND output; the two are not mirror images.
+        #      This is NOT extended to `sad` above: the published `sad` is the
+        #      tool hub, outside the flag table, and English is correct for it.
+        SADC_VERSION_LINE=$(sadc --إصدار 2>/dev/null | head -1)
+        [ -n "$SADC_VERSION_LINE" ] || SADC_VERSION_LINE='موجود'
+        echo -e "${GREEN}✓ sadc: $SADC_VERSION_LINE${NC}"
     fi
 }
 

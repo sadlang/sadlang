@@ -309,7 +309,13 @@ if(Sad_FOUND)
             else()
                 set(LIB_EXT ".so")
             endif()
-            set(SHARED_FLAG --shared)
+            # (AR) الاسمُ القانونيُّ الوحيد (cli_flags.yaml · flag.shared)؛
+            #      و`--shared` كان خيارًا غيرَ معروفٍ يُفشِلُ كلَّ
+            #      sad_add_library(... SHARED). ويُضَمُّ أدناه إلى أمرٍ رأسُه
+            #      ${SADC_EXECUTABLE}، فهو عَلَمُ مترجمٍ لا عَلَمُ CMake.
+            # (EN) The only canonical name; --shared was an unknown option
+            #      failing every sad_add_library(... SHARED).
+            set(SHARED_FLAG --مشترك)
         else()
             if(WIN32)
                 set(LIB_EXT ".lib")

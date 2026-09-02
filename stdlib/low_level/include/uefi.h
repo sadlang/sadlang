@@ -14,7 +14,7 @@
  *              
  *              يعمل في وضعين:
  *              1. محاكاة (simulation) — للمفسر على نظام تشغيل عادي
- *              2. أصلي (native) — للمترجم sadc في وضع --freestanding
+ *              2. أصلي (native) — للمترجم sadc في وضع --حرّ
  *
  * @brief (EN) Complete UEFI boot protocol support:
  *              - System Table with full Boot/Runtime Services

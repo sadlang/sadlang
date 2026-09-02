@@ -7,10 +7,10 @@
 // الإصدار / Version: 5.0
 //
 // (AR) هذا الملف يحتوي على التنفيذ الفعلي لجميع دوال sad_ll_* التي يستدعيها
-//      الكود المترجم بواسطة sadc في وضع --freestanding. جميع الدوال تعمل مباشرة
+//      الكود المترجم بواسطة sadc في وضع --حرّ. جميع الدوال تعمل مباشرة
 //      على العتاد بدون نظام تشغيل.
 // (EN) This file contains the actual implementation of all sad_ll_* functions
-//      called by code compiled with sadc in --freestanding mode. All functions
+//      called by code compiled with sadc in --حرّ mode. All functions
 //      operate directly on hardware without an operating system.
 // ============================================================================
 

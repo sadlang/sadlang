@@ -7,10 +7,10 @@
 // الإصدار / Version: 5.0
 //
 // (AR) هذا الملف يوفر واجهة C لجميع دوال المكتبة المنخفضة المستوى (19 وحدة).
-//      يُستخدم مع المترجم sadc في وضع --freestanding لبناء أنوية نظام تشغيل.
+//      يُستخدم مع المترجم sadc في وضع --حرّ لبناء أنوية نظام تشغيل.
 //      لا يعتمد على أي مكتبة قياسية (libc-free).
 // (EN) This file provides a C interface for all low-level library functions (19 modules).
-//      Used with sadc compiler in --freestanding mode for building OS kernels.
+//      Used with sadc compiler in --حرّ mode for building OS kernels.
 //      Does not depend on any standard library (libc-free).
 // ============================================================================
 

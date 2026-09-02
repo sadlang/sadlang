@@ -6,10 +6,10 @@
 #   - طبقة C-ABI (sad_ownership_*)              (لاستهلاك من runtime sadc)
 #
 # (AR) مُستخرَجة من compiler/{include/ffi/ffi_wrapper.h, src/backend/ffi_wrapper.cpp}
-#      كجزء من DEF-001 لفك قفل تفعيل --prod على المخرج التنفيذي للمترجم.
+#      كجزء من DEF-001 لفك قفل تفعيل --إنتاج على المخرج التنفيذي للمترجم.
 #
 # (EN) Runtime ownership tracker library — extracted from compiler/ffi/ to
-#      enable --prod activation in compiled sadc output via a clean C-ABI.
+#      enable --إنتاج activation in compiled sadc output via a clean C-ABI.
 #
 # @phase Memory Layer Unification — Phase B / DEF-001
 # ═══════════════════════════════════════════════════════════════════════════════

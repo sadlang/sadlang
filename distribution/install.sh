@@ -817,18 +817,19 @@ EOF
     # (AR) 🔑 لا إملاءَ واحدًا للجميع. `language-truth/cli_flags.yaml` يجعلُ
     #      `--إصدار` الاسمَ الطويلَ الوحيدَ للمحرّكَين وقد أُلغيت المرادفاتُ
     #      الإنجليزيّةُ عمدًا، بينما الهُبُّ خارجَ ذلك الجدولِ ويقبلُ الإنجليزيّة.
-    #      وكان السطرُ يكتبُ `--version` للاثنَين، فـ`sadc --version` لا يُفهَمُ
-    #      عَلَمًا بل يُؤخَذُ **اسمَ ملفٍّ يُترجَم**، فيطبعُ المُثبِّتُ خطأً في
-    #      موضعِ الإصدارِ ويقولُ «تمّ» فوقَه.
+    #      وكان السطرُ يكتبُ `--version` للاثنَين، فيردُّه المترجمُ «خيارًا
+    #      غيرَ معروف» ويفشل — ولا يُؤخَذُ اسمَ ملفٍّ يُترجَم: ذاك مسارُ
+    #      الوسائطِ التي لا تبدأُ بشَرْطة. فيطبعُ المُثبِّتُ فراغًا في موضعِ
+    #      الإصدارِ ويقولُ «تمّ» فوقَه.
     #      والمُثبِّتُ يُشحَنُ وحدَه فلا يستطيعُ استيرادَ جدولِ الأدوات، ونسخُ
     #      الجدولِ هنا يصنعُ نسخةً رابعةً تنجرف — فيُجرَّبُ الإملاءانِ ويُؤخَذُ
     #      ما نجح. والتساهلُ هنا في محلِّه: هذا سطرُ عرضٍ لا حَكَم.
     # (EN) There is no single spelling. cli_flags.yaml makes --إصدار the only
     #      long name for the two engines (English synonyms deliberately
     #      abolished), while the hub sits outside that table and takes English.
-    #      This line wrote --version for both, so `sadc --version` was read not
-    #      as a flag but as a SOURCE FILE TO COMPILE — the installer printed an
-    #      error where the version belongs and called the install done.
+    #      This line wrote --version for both, and the compiler rejects it as
+    #      an unknown option and fails — the installer printed nothing where the
+    #      version belongs and called the install done.
     #      The installer ships standalone and cannot import the tool table, and
     #      copying it here would create a fourth copy that drifts — so both
     #      spellings are tried and whichever answers is used. Being forgiving is

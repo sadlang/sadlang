@@ -251,11 +251,11 @@ target_link_libraries(sad_shared PUBLIC sad_memory_gc)
 # (AR) مكتبة متتبع الملكية في وقت التشغيل — shared/ownership_runtime/
 #      نُقلت من compiler/{include/ffi/ffi_wrapper.h, src/backend/ffi_wrapper.cpp}
 #      في إطار DEF-001. توفر OwnershipTracker (singleton آمن للخيوط) إضافةً إلى
-#      طبقة C-ABI (sad_ownership_*) ليتمكن مخرج sad-build من تفعيل --prod بدون
+#      طبقة C-ABI (sad_ownership_*) ليتمكن مخرج sad-build من تفعيل --إنتاج بدون
 #      الاعتماد على رموز C++ من المترجم.
 # (EN) Runtime pointer ownership tracker — moved from compiler/ffi_wrapper.*
 #      as part of DEF-001. Provides a thread-safe singleton plus a C-ABI
-#      surface so sad-build-compiled output can enable --prod without linking any
+#      surface so sad-build-compiled output can enable --إنتاج without linking any
 #      compiler C++ symbols.
 # @phase Architecture Refactor: Memory Layer Unification — Phase B / DEF-001
 # ============================================================================

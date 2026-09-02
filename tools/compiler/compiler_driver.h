@@ -24,8 +24,8 @@
 // Type Checker / فاحص الأنواع
 #include "semantic/type_checker.h"
 
-// (AR) سياسة الذاكرة (--gc / --learn / --prod) — توحيد سلوك الأخطاء بين المُفسِّر وsadc
-// (EN) Memory policy (--gc / --learn / --prod) — unifies error behavior between interpreter & sadc
+// (AR) سياسة الذاكرة (--جامع / --تعلم / --إنتاج) — توحيد سلوك الأخطاء بين المُفسِّر وsadc
+// (EN) Memory policy (--جامع / --تعلم / --إنتاج) — unifies error behavior between interpreter & sadc
 #include "memory/policy/gc_mode.h"
 
 // Forward declarations outside sad::driver namespace

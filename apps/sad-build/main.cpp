@@ -22,7 +22,7 @@
  * أمثلة:
  * - sadc program.ص -o program
  * - sadc program.ص -O3 -o program_optimized
- * - sadc program.ص --emit-llvm -o program.ll
+ * - sadc program.ص --أظهر-llvm -o program.ll
  * - sadc program.ص -c -o program.o
  * - sadc *.o -o program
  * 
@@ -32,7 +32,7 @@
  * Examples:
  * - sadc program.ص -o program
  * - sadc program.ص -O3 -o program_optimized
- * - sadc program.ص --emit-llvm -o program.ll
+ * - sadc program.ص --أظهر-llvm -o program.ll
  * - sadc program.ص -c -o program.o
  * - sadc *.o -o program
  */

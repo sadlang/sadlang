@@ -712,11 +712,67 @@ function Install-Sad {
 
         # التحقق
         Write-Step "التحقق من التثبيت..."
+        # (AR) 🔑 سطرُ عرضٍ لا حَكَم — وكان يعرضُ الفشلَ نجاحًا. `--version`
+        #      ليس عَلَمًا للمترجم: يردُّه «خيارًا غيرَ معروف» على stderr ويفشل،
+        #      فكان السطرُ يقولُ «موجود ✓» على فشلٍ محقَّق.
+        #      ⚠️ و`catch` كان يقعُ لسببٍ آخرَ غيرِ رمزِ الخروج: مع
+        #      `$ErrorActionPreference = "Stop"` (في إعداداتِ الملفِّ أعلاه) تُحوَّلُ كتابةُ
+        #      ثنائيٍّ أصليٍّ على stderr إلى `NativeCommandError` رافع. فحذفُه
+        #      كان يُسقِطُ المثبِّتَ **بعدَ نجاحِ التثبيت**، عندَ خطوةِ التحقّقِ
+        #      وحدَها. فيُعادُ `catch` صريحًا، والحكمُ برمزِ الخروجِ وبالمخرَج.
+        #      ⚠️ ولا يُبتَرُ المخرَجُ قبلَ قراءةِ `$LASTEXITCODE`:
+        #      `| Select-Object -First 1` يُنهي العمليّةَ الأصليّةَ فيُكتَبُ
+        #      `-1` مكانَ رمزِ خروجِها. وليس ذلك حتميًّا: قِيسَ فوجِدَ أنّ
+        #      الـ`-1` لا يُكتَبُ إلّا إن قُطِعَ الأنبوبُ **قبلَ** انتهاءِ
+        #      العمليّة، فمخرَجٌ قصيرٌ ينجو ومخرَجٌ طويلٌ لا ينجو — أي حُكمٌ
+        #      يتبعُ طولَ المخرَجِ لا العقد. فيُلتقَطُ كاملًا، ثمّ يُحكَم، ثمّ يُقَصّ.
+        #      والإملاءُ لكلِّ أداةٍ من scripts/ci/release_tools.sh ·
+        #      SAD_VERSION_FLAGS: `sad` مركزُ الأدواتِ خارجَ جدولِ الأعلامِ
+        #      ويقبلُ `--version`، و`sadc` محرّكٌ ملزَمٌ بـ`--إصدار`
+        #      (cli_flags.yaml · flag.version). ويُجرَّبُ الإملاءان: تمريرُ
+        #      وسيطٍ عربيٍّ إلى ثنائيٍّ أصليٍّ قد تُفسدُه صفحةُ المحارفِ في
+        #      Windows PowerShell 5.1. ولا يُصلِحُ ذلك سقوطٌ إلى `--version`:
+        #      قِيسَ في الجدولِ المولَّدِ فليس فيه مرادفٌ إنجليزيّ، فالفرعُ لا
+        #      ينجحُ في الحالَين معًا — وحُذف؛ والفشلُ يُعرَضُ «موجود ✓».
+        #      ⚠️ وليس هذا نظيرَ tools/installers/unix/install.sh: ذاك يحكمُ
+        #      بفراغِ المخرَجِ وحدَه، وهذا يشترطُ رمزَ الخروجِ والمخرَجَ معًا.
+        #      ⚠️ ويُخفَّضُ `$ErrorActionPreference` محلّيًّا: تحتَ `Stop` تُحوَّلُ
+        #      **أيُّ** كتابةٍ على stderr إلى استثناءٍ ولو خرجَتِ الأداةُ صفرًا —
+        #      قِيسَ — فيسبقُ الاستثناءُ الحُكمَ برمزِ الخروجِ وبالمخرَجِ معًا،
+        #      فيُهدَرُ سطرُ إصدارٍ صحيحٌ لأجلِ بايتِ تحذيرٍ واحد.
+        # (EN) A display line, not a judgement — it used to display failure as
+        #      success: --version is not a compiler flag, the compiler rejects
+        #      it on stderr and fails, and the line reported "exists".
+        #      catch DID fire, but from stderr under $ErrorActionPreference =
+        #      "Stop" (set in this file's preamble), not from the exit code, so
+        #      abort the installer after a successful install. And
+        #      $LASTEXITCODE must be read BEFORE any truncating pipeline:
+        #      Select-Object -First stops the upstream and writes -1 in its
+        #      place. Spellings come from SAD_VERSION_FLAGS. $ErrorActionPreference
+        #      is lowered locally: under Stop ANY stderr byte raises, even from a
+        #      tool that exited 0, pre-empting both declared judgements.
         foreach ($exe in @("sad.exe", "sadc.exe")) {
             $exePath = Join-Path $binDir $exe
             if (Test-Path $exePath) {
-                try { $v = & $exePath --version 2>&1; Write-OK "${exe}: $v" }
-                catch { Write-OK "${exe}: موجود ✓" }
+                $versionLine = $null
+                if ($exe -eq "sad.exe") { $spellings = @("--version") }
+                else { $spellings = @("--إصدار") }
+                foreach ($spelling in $spellings) {
+                    if ($versionLine) { break }
+                    $output = $null
+                    $previousPreference = $ErrorActionPreference
+                    $ErrorActionPreference = "Continue"
+                    try {
+                        $output = & $exePath $spelling 2>$null
+                        if ($LASTEXITCODE -eq 0 -and $output) {
+                            $versionLine = @($output)[0]
+                        }
+                    }
+                    catch { }
+                    finally { $ErrorActionPreference = $previousPreference }
+                }
+                if ($versionLine) { Write-OK "${exe}: $versionLine" }
+                else { Write-OK "${exe}: موجود ✓" }
             }
         }
     }

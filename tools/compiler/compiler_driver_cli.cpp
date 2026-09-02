@@ -73,7 +73,15 @@ namespace sad
 
         void CompilerDriver::print_help(std::ostream &os)
         {
-            os << colors::BOLD << get_compiler_name() << " - Sad Language Compiler\n"
+            // (AR) الاسمُ يحملُ لاحقتَه سلفًا في get_compiler_name() ⇒ "sadc - Sad
+            //      Compiler". فإضافةُ " - Sad Language Compiler" هنا كانت تطبعُ
+            //      «Compiler» مرّتَين في سطرٍ واحدٍ وثالثةً في السطرِ التالي.
+            //      والإنجليزيّةُ لم تَضِعْ:
+            //      السطرُ التالي يحملُها كاملةً بجوارِ العربيّة.
+            // (EN) get_compiler_name() already ends in "Sad Compiler"; appending
+            //      the long form printed "Compiler" three times. The English name
+            //      survives on the next line, beside the Arabic one.
+            os << colors::BOLD << get_compiler_name() << "\n"
                << colors::RESET;
             os << "مترجم لغة Sad / Sad Language Compiler\n\n";
 
