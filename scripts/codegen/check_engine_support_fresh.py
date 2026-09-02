@@ -70,6 +70,19 @@ def dispatch_commits_since(commit: str):
     `None` ليست براءةً: تُطبَعُ علّتُها ويُترَكُ الحكمُ معلَّقًا بدل ادّعاءِ
     نظافةٍ لم تُقَس.
     """
+    # (AR) 🔑 الاستنساخُ الضحلُّ يُسمّى بذاتِه لا برمزِ git الخام. كان
+    #      يُخفِقُ بـ«fatal: Invalid revision range» فيقرؤه الناظرُ عطبًا في
+    #      الحارسِ لا نقصًا في مُدخَلِه. والعلاجُ يُكتَبُ مع العلّة:
+    #      عمقُ 1 لا يحملُ الإيداعَ المقيسَ فلا يُسأَلُ عمّا بعده.
+    try:
+        shallow = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"],
+            capture_output=True, timeout=30)
+        if shallow.stdout.decode("utf-8", "replace").strip() == "true":
+            return None, ("الاستنساخُ ضحلٌّ فلا يحملُ الإيداعَ المقيس. "
+                          "العلاج: fetch-depth: 0 في خطوةِ checkout.")
+    except Exception:                              # noqa: BLE001 — يُكمَلُ ويُحكَمُ أدناه
+        pass
     try:
         proc = subprocess.run(
             ["git", "-C", str(ROOT), "log", "--oneline", f"{commit}..HEAD",

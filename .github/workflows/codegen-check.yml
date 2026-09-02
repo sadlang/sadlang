@@ -133,6 +133,15 @@ jobs:
       - name: "📥 تحميل الكود / Checkout"
         uses: actions/checkout@v7
         timeout-minutes: 15
+        with:
+          # (AR) التاريخُ كاملًا: حارسُ طزاجةِ سِجِلِّ المحرّكَين يسألُ
+          #      «أمسَّ إيداعٌ طبقةَ الإرسالِ بعدَ الإيداعِ المقيس؟»،
+          #      والاستنساخُ الضحلُ (عمقُ 1) لا يحملُ الإيداعَ المقيسَ
+          #      فيُخفِقُ git برمز 128. والحارسُ يُخفِقُ مُغلَقًا كما يجب،
+          #      فالعلّةُ في مُدخَلِه لا فيه: يُعطى ما يقيس.
+          # (EN) Full history: the engine-support freshness guard needs the
+          #      measured commit in the graph; a depth-1 clone lacks it.
+          fetch-depth: 0
 
       - name: "🐍 إعداد Python / Setup Python"
         uses: actions/setup-python@v7
