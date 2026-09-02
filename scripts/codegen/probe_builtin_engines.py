@@ -246,6 +246,22 @@ def unify_declarations(fns: list) -> list:
     return [merged[n] for n in sorted(merged)]
 
 
+# (AR) المجلَّدُ المؤقَّتُ يُسمّى عشوائيًّا في كلِّ تشغيل.
+TMP_PLACEHOLDER = "<مؤقّت>"
+
+
+def normalize_reason(text: str, tmp) -> str:
+    """(AR) يُطبِّعُ المسارَ المؤقَّتَ في سببِ الالتباس.
+
+    اسمُ المجلَّدِ يدخلُ حقلَ `reason`، فإذا أُعيدَ القياسُ ولم يتغيّرْ في اللغةِ شيء،
+    اختلفَ السِّجِلُّ عن سابقِهِ خلافًا كاذبًا يُخفي الحقيقيّ.
+    """
+    root = str(tmp)
+    for form in (root, root.replace(chr(92), "/")):
+        text = text.replace(form, TMP_PLACEHOLDER)
+    return text
+
+
 def run(cmd: list, timeout: int, cwd=None):
     """يُرجِعُ `(رمزُ الخروج، النصّ)`؛ ورمزُ الخروجِ `None` عند انتهاءِ المهلة.
 
@@ -302,7 +318,8 @@ def probe_interpreter(names: list, run_exe: Path, tmp: Path):
         if match and match.group(1) == name:
             absent.add(name)
         else:
-            head = out.strip().splitlines()[0][:70] if out.strip() else "فارغ"
+            head = (normalize_reason(out.strip().splitlines()[0], tmp)[:70]
+                    if out.strip() else "فارغ")
             unclear.append((name, head))
     return absent, unclear
 
@@ -334,7 +351,8 @@ def probe_compiler(fns: list, build_exe: Path, tmp: Path):
         elif compiler_resolves(name, rc, out):
             supported.add(name)
         else:
-            head = out.strip().splitlines()[0][:70] if out.strip() else "فارغ"
+            head = (normalize_reason(out.strip().splitlines()[0], tmp)[:70]
+                    if out.strip() else "فارغ")
             unclear.append((name, f"رمز {rc}: {head}"))
     return absent, unknown, supported, unclear
 
