@@ -43,6 +43,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <functional>
+#include "runtime_abort.h" // Sad::Errors::RuntimeAbort
 
 // (AR) دالة مساعدة للحصول على اقتراح وحدة الاستيراد — مُعرَّفة في builtin_registry.cpp
 // (EN) Helper to get import module suggestion — defined in builtin_registry.cpp
@@ -612,8 +613,16 @@ namespace Sad
                                                     static_cast<int>(node.position.line),
                                                     static_cast<int>(node.position.column)),
                         ctx);
-                    lastResult_ = Value();
-                    return;
+                    // (AR) 🔑 يُبلَّغُ **ويُوقَف**. كان يُبلِّغُ ثمّ يعودُ بقيمةٍ
+                    //      فارغة، فيمضي التنفيذُ: `اطبع_سطر(طول_نص(س، 1، 2))`
+                    //      يطبعُ «لاشيء» ثمّ يُصدِرُ SEM005 — مخرَجٌ من نداءٍ
+                    //      حُكم عليه بالبطلان. والمترجّمُ يقفُ عند SEM005 نفسِه،
+                    //      فالمضيُّ هنا تباعدٌ في السلوكِ لا في الرسالة وحدَها.
+                    //      RuntimeAbort تلتقطُها نواةُ المفسّر، والتشخيصُ
+                    //      مُسجَّلٌ سلفًا فيُطبَعُ كاملًا بموقعِه.
+                    // (EN) Report **and stop** — the compiler stops at SEM005;
+                    //      continuing here would diverge in behaviour.
+                    throw ::Sad::Errors::RuntimeAbort{};
                 }
             }
 

@@ -75,8 +75,6 @@ _REGISTER_RE = re.compile(
     r'([A-Z][A-Z0-9_]*)\s*\)\s*,\s*([A-Za-z_]\w*)\s*\)')
 _LAMBDA_RE = re.compile(r'\bauto\s+(\w+)\s*=\s*\[')
 _INDEX_RE = re.compile(r'\bargs\[\s*(\d+)\s*\]')
-_SIZE_GE_RE = re.compile(r'\bargs\.size\(\)\s*(<|>=)\s*(\d+)')
-_SIZE_LT_RE = re.compile(r'\b(\d+)\s*(>|<=)\s*args\.size\(\)')
 
 
 _NAMESPACE_RE = re.compile(r'\bnamespace\s+(\w+)\s*\{')

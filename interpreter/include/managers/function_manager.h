@@ -223,6 +223,10 @@ namespace Sad
                         ph.emplace("func", name_);
                     if (ph.find("builtin") == ph.end())
                         ph.emplace("builtin", name_);
+                    // (AR) RUN030 يكتب `{function}` لا `{func}` — ومن لم يُحقَن
+                    //      اسمُه ظهر للمستخدم حرفًا `{function}` في الرسالة.
+                    if (ph.find("function") == ph.end())
+                        ph.emplace("function", name_);
                     Sad::Errors::throwRuntime(be.code, pos, ph);
                 }
             }

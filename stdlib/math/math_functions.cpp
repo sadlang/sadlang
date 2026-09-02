@@ -19,6 +19,7 @@
 #include <climits>
 #include <cstdint> // (AR) ISSUE-063: حساب مربع() بـint64_t / (EN) ISSUE-063: int64_t square()
 #include <random>
+#include "builtin_error.h" // Sad::Errors::throwBuiltin
 
 namespace Sad
 {
@@ -39,13 +40,25 @@ namespace Sad
                                                   size_t minArgs,
                                                   int maxArgs)
             {
+                // (AR) 🔑 الرسالة تُشتقّ من الكتالوج ولا تُكتب هنا. كانت
+                //      `std::invalid_argument("Too many arguments")` فتصلُ
+                //      المستخدمَ إنجليزيّةً بلا رمزٍ ولا موقع: يبتلعها
+                //      `catch (std::exception&)` في نواة المفسّر فلا يرى
+                //      ErrorManager شيئًا، ويطبعها sad-run نصًّا خامًا.
+                //      BuiltinError يحملها إلى callNative فتُرندَر من
+                //      الكتالوج بموقعِ الاستدعاء واسمِ المدمَجة.
+                // (EN) The message comes from the catalog, not from here.
                 if (args.size() < minArgs)
                 {
-                    throw std::invalid_argument("Too few arguments");
+                    ::Sad::Errors::throwBuiltin(
+                        ::Sad::Errors::ErrorCode::RUN_BUILTIN_REQUIRES_ARG);
                 }
                 if (maxArgs >= 0 && args.size() > static_cast<size_t>(maxArgs))
                 {
-                    throw std::invalid_argument("Too many arguments");
+                    ::Sad::Errors::throwBuiltin(
+                        ::Sad::Errors::ErrorCode::RUN_TOO_MANY_ARGS,
+                        {{"expected", std::to_string(maxArgs)},
+                         {"actual", std::to_string(args.size())}});
                 }
                 return true;
             }

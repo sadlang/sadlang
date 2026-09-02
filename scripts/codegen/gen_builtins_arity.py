@@ -224,7 +224,19 @@ def render_by_name(sot_dir: Path) -> str:
     #      إذنًا بالفرض، وهو المبدأُ نفسُه الذي حكم هذا الفرعَ كلَّه:
     #      لا تُفرَضُ دعوى لم تُقَس، والعددُ القليلُ الصادقُ خيرٌ من الكثيرِ
     #      المُدَّعى. ونموُّه سبيلُه توسيعُ القياسِ لا توسيعُ الثقة.
-    from builtin_impl_arity import observed_ranges   # noqa: PLC0415 — أداةٌ محلّيّة
+    from builtin_impl_arity import observed_ranges, ROOT as IMPL_ROOT  # noqa: PLC0415
+    # (AR) 🔑 الماسحُ يقرأُ شجرتَهُ هو (مُشتَقَّةً من موضعِ ملفِّه)، بينما
+    #      `--yaml-dir` قد يشيرُ إلى شجرةٍ أخرى. فيُقاسُ عندئذٍ إعلانُ شجرةٍ
+    #      على تنفيذِ غيرِها، ويُبنى الجدولُ على «اتّفاقٍ» بين طرفَين لا
+    #      يلتقيان. لا يُخمَّنُ ولا يُصمَتُ عنه: يُوقَف.
+    try:
+        sot_dir.resolve().relative_to(IMPL_ROOT)
+    except ValueError:
+        raise SystemExit(
+            "✗ --yaml-dir خارجَ شجرةِ الماسح:\n"
+            f"    الإعلانُ من: {sot_dir.resolve()}\n"
+            f"    والتنفيذُ من: {IMPL_ROOT}\n"
+            "  الجدولُ يُبنى على اتّفاقِ الطرفَين، فلا يُبنى من شجرتَين.")
     observed = observed_ranges()
     proven, unproven = [], []
     for name, lo, hi in rows:

@@ -568,9 +568,14 @@ def git_sha() -> str:
 #           ⇒ السجلُّ يصفُ طبقةَ إرسالٍ لم تعُد قائمة. ولذلك تُستعارُ هذه
 #           القائمةُ من هنا ولا تُنسَخ: نسختانِ تنجرفان.
 DISPATCH_PATHS = (
-    "compiler/src/frontend/builders/call_main.cpp",
     "compiler/src/frontend/builders/builtins_",
+    "compiler/src/frontend/builders/call_",
     "interpreter/src/builtins/",
+    "interpreter/src/ui/",
+    "interpreter/src/visitors/expression_evaluator_calls_dispatch.cpp",
+    "interpreter/src/core/interpreter_core.cpp",
+    "interpreter/src/managers/function_manager.cpp",
+    "interpreter/include/managers/function_manager.h",
     "shared/builtins/",
     "language-truth/builtins/",
 )
@@ -629,6 +634,36 @@ def dispatch_files_changed_after(when: float) -> list:
             except OSError:
                 continue
     return sorted(changed)
+
+
+def _dispatch_roots() -> list:
+    """(AR) جذورُ طبقةِ الإرسالِ لـ git — مُشتَقَّةٌ من DISPATCH_PATHS وحدَها.
+
+    ولا تُكتَبُ بيدًا: قائمتانِ تتباعدانِ فيحرُسُ الفحصانِ شيئينِ مختلفَين.
+    """
+    roots = set()
+    for prefix in DISPATCH_PATHS:
+        roots.add(prefix if prefix.endswith("/")
+                  else prefix.rsplit("/", 1)[0] + "/")
+    return sorted(roots)
+
+
+def dispatch_files_deleted_after(when: float) -> list:
+    """(AR) ملفّاتُ إرسالٍ حُذفت وأُودِعَ حذفُها بعدَ البناء.
+
+    🔑 فحصُ mtime يمسحُ ما على القرص، والمحذوفُ ليس على القرص.
+    فالثنائيُّ لا يزالُ يحملُ تسجيلاتِهِ، فيُقاسُ دعمٌ حُذفَ مصدرُهُ،
+    ويُنسَبُ إلى إيداعٍ لا وجودَ لهُ فيه. والفحصانِ جمعٌ لا بدَل.
+
+    (والحذفُ غيرُ المُودَعِ يمسكُهُ `dirty_dispatch_paths` بسطرِ ` D`.)
+    """
+    since = time.strftime("%Y-%m-%dT%H:%M:%S", time.localtime(when))
+    out = _git("log", "--diff-filter=D", "--name-only",
+               "--pretty=format:", "--since=" + since,
+               "--", *_dispatch_roots())
+    gone = {line.strip() for line in out.splitlines() if line.strip()}
+    return sorted(p for p in gone
+                  if any(p.startswith(prefix) for prefix in DISPATCH_PATHS))
 
 
 def binary_fingerprint(path: Path) -> dict:
@@ -772,6 +807,7 @@ def main() -> int:
     # (AR) الثنائيُّ أقدمُ من طبقةِ الإرسال ⇒ القياسُ يصفُ ماضيًا ويُنشَرُ حاضرًا.
     built_at = min(run_exe.stat().st_mtime, build_exe.stat().st_mtime)
     late = dispatch_files_changed_after(built_at)
+    late += [p + "  (محذوف)" for p in dispatch_files_deleted_after(built_at)]
     if late and not args.allow_stale_binaries:
         stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(built_at))
         print(f"✗ الثنائيّان بُنيا في {stamp}، وبعدهما تغيّر {len(late)} ملفًّا")
