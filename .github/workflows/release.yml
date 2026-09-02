@@ -446,12 +446,6 @@ jobs:
           "LLVM_DIR=$($تهيئة.Directory.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "✅ LLVM_DIR = $($تهيئة.Directory.FullName)"
 
-      - name: "تثبيت LLVM / Install LLVM (macOS)"
-        if: matrix.os == 'macos'
-        run: |
-          bash scripts/ci/net_retry.sh brew install llvm@18
-          echo "LLVM_DIR=$(brew --prefix llvm@18)/lib/cmake/llvm" >> $GITHUB_ENV
-
       # ── تهيئة البناء (مع LLVM) ──
       # (AR) حارسٌ قبلَ التهيئة: `-DENABLE_LLVM_BACKEND=ON` مع `LLVM_DIR`
       #      فارغٍ يُهيّئُ بلا خلفيّةٍ ثمّ يسقطُ متأخّرًا برسالةٍ عن هدفٍ مفقود.

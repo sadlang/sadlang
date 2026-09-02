@@ -15,7 +15,7 @@ name: 🔨 Build All Platforms
 
 on:
   push:
-    branches: [ main, develop, dev, sadlang ]
+    branches: [ develop, dev, sadlang ]   # (AR) أُزيل `main` — لا وجودَ للفرع. (EN) 'main' dropped — branch does not exist.
     paths:
       - '**.cpp'
       - '**.h'
@@ -24,8 +24,6 @@ on:
       - 'cmake/**'
       - 'platform/**'
       - '.github/workflows/**'
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
     inputs:
       debug_enabled:
@@ -314,48 +312,6 @@ jobs:
         name: sad-android-release
         path: platform/android/app/build/outputs/apk/release/app-release.apk
 
-  # ─────────────────────────────────────────────────────────────────────
-  # إنشاء Release
-  # ─────────────────────────────────────────────────────────────────────
-  create-release:
-    name: 🚀 Create Release
-    needs:   [ build-linux ]  # macOS أُزيل / removed
-    runs-on: ubuntu-latest
-    # (AR) الحدُّ مقيسٌ لا مُقدَّر: أطولُ شوطٍ ناجحٍ ٠٫٠د — وبلا حدٍّ يكون السقفُ ٣٦٠ دقيقةً من ﭼِتهَب لا منّا.
-    timeout-minutes: 15
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    
-    steps:
-    - name: 📥 Download all artifacts
-      uses: actions/download-artifact@v7
-      timeout-minutes: 15
-      with:
-        path: artifacts
-    
-    - name: 📦 Package artifacts
-      run: |
-        cd artifacts
-        zip -r sad-windows.zip sad-windows/
-        tar -czvf sad-linux.tar.gz sad-linux/
-        zip -r sad-ios.zip sad-ios/ || true
-        cp sad-android-debug/app-debug.apk sad-android-debug.apk || true
-        cp sad-android-release/app-release.apk sad-android-release.apk 2>/dev/null || true
-    
-    - name: 🚀 Create Draft Release
-      uses: softprops/action-gh-release@v3
-      timeout-minutes: 15
-      with:
-        draft: true
-        generate_release_notes: true
-        files: |
-          artifacts/sad-windows.zip
-          artifacts/sad-linux.tar.gz
-          artifacts/sad-ios.zip
-          artifacts/sad-android-debug.apk
-          artifacts/sad-android-release.apk
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  
   # ─────────────────────────────────────────────────────────────────────
   # تقرير حالة البناء
   # ─────────────────────────────────────────────────────────────────────
