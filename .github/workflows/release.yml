@@ -674,7 +674,7 @@ jobs:
         timeout-minutes: 15
 
       - name: "تحميل حزمِ هذه المنصّة / Download this platform's packages"
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         timeout-minutes: 15
         with:
           pattern: "*-${{ matrix.os }}-${{ matrix.arch }}"
@@ -845,7 +845,7 @@ jobs:
           fi
 
       - name: "تحميل جميع الحزم / Download All Artifacts"
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         timeout-minutes: 15
         with:
           path: release-artifacts/
