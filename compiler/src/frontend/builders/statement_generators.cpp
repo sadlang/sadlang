@@ -15,6 +15,8 @@
 #include "directive_nodes.h"
 #include "utf8_utils.h"
 #include "sad_debug_log.h"
+#include "error_manager.h"
+#include "error_codes.h"
 #include <stdexcept>
 #include <iostream>
 #include <filesystem>
@@ -37,6 +39,36 @@ namespace Sad
 #ifndef NDEBUG
                     SAD_DEBUG_LOG_LINE("[DEBUG] Found YieldStmt");
 #endif
+
+                    // ================================================================
+                    // (AR) 🔑 SEM014 — «أنتج» لا تُستخدَم إلّا داخلَ دالّةٍ مولّدة.
+                    //
+                    //      الرمزُ **مُعلَنٌ في `language-truth/errors/semantic.yaml`
+                    //      منذُ زمنٍ ولم يُبعَثْ قطُّ من المترجّم**: كان `أنتج` خارجَ
+                    //      مولّدٍ يمرُّ إلى الخلفيّة فتنهار بـ«التعليمة
+                    //      (GENERATOR_YIELD) وصلت بعدد معاملات غير متوقَّع» — أي
+                    //      خطأً داخليًّا يطلبُ من المستعمِلِ أن **يُبلِّغَ عن علّةِ
+                    //      مترجِم**، وليست علّةَ مترجِمٍ بل خطأً في برنامجِه.
+                    //      وقِيسَ أنّ المترجّمَ كان يخرجُ **بصفرٍ** بعدَها ويُسلّمُ
+                    //      ثنائيًّا (وصفُ البذرة 001_toplevel_yield_compiler يوثّقه).
+                    //
+                    //      والمُميِّزُ `SIRFunction::isGenerator` لا استنتاجٌ من
+                    //      الشكل: الدالّةُ مولّدةٌ إن أعلنَها المحلّلُ كذلك.
+                    // (EN) SEM014 — yield is only valid inside a generator function.
+                    //      The code has been declared in the SoT all along and was
+                    //      NEVER emitted: yield outside a generator reached the
+                    //      backend, which crashed with an INTERNAL error asking the
+                    //      user to report a compiler bug — for a defect in their own
+                    //      program — and then exited 0 with a binary.
+                    // ================================================================
+                    if (!b_.currentFunction_ || !b_.currentFunction_->isGenerator)
+                    {
+                        b_.errors_.push_back(
+                            Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                Sad::Errors::ErrorCode::SEM_YIELD_OUTSIDE_GENERATOR,
+                                Sad::Errors::RenderContext{}));
+                        return true;
+                    }
 
                     BuildResult valResult;
                     if (yieldStmt->value)

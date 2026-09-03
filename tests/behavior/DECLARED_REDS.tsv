@@ -4,9 +4,13 @@
 #      🔑 لِمَ سجلٌّ لا وسمُ `@known_red`؟ لأنّ الوسمَ يبتلعُ **فرقَ المخرَجِ
 #      وحدَه** عمدًا، وتعليقُ `tests/runner.py` يوثّقُ سببَه مقيسًا: نسخةٌ أولى
 #      ابتلعت كلَّ ما ليس PASS، فصارَ ملفٌّ بخطأِ تحليلٍ وملفٌّ بحلقةٍ لانهائيّةٍ
-#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ٥٣ هنا **٢٢
-#      فقط** صنفُها FAIL_OUTPUT، والـ٣٢ الباقيةُ انهياراتٌ وتعليقاتٌ ورفضُ
-#      ترجمةٍ — وتوسيعُ الوسمِ ليشملَها إعادةٌ لعطبٍ مُصلَح.
+#      يُعطّلان حاجزَ دخانِ P0 بسطرٍ واحدٍ في رأسِ ملفّ. فمن الـ**43** هنا **14
+#      فقط** صنفُها FAIL_OUTPUT، والـ**29** الباقيةُ رفضُ ترجمةٍ وانهيارات —
+#      وتوسيعُ الوسمِ ليشملَها إعادةٌ لعطبٍ مُصلَح.
+#      ⚠️ وكان هنا «٥٣ · ٢٢ · ٣٢» — ثلاثةُ أعدادٍ منثورةٍ انجرفت عن الملفّ الذي
+#      تصفُه، وأحدُها لا يجمعُ أصلًا (٢٢+٣٢=٥٤≠٥٣). ولذلك صار الحارسُ يقيسُ
+#      الأعدادَ في هذا الرأسِ ويُخفِقُ إن خالفت الصفوف — فالعددُ المنثورُ نسخةٌ
+#      ثانيةٌ لحقيقةٍ، ونسخةٌ بلا حارسٍ تنجرف.
 #
 #      ⚠️ وهذا السجلُّ **دَينٌ موصوفٌ محروسٌ في الاتّجاهَين**، لا قائمةَ إذنٍ
 #      تُنسى: الحارسُ `test_declared_reds_registry.py` يُخفِقُ إن اخضرَّ ملفٌّ
@@ -16,6 +20,12 @@
 #      والصفوفُ **مولَّدةٌ من شوطٍ حقيقيٍّ** لا مكتوبةٌ يدويًّا:
 #      شوطُ ٢٠٢٦-٠٨-١٨ على `3333d4d5` — grammar_gaps ٣٣/١١٥ · _regression ٢٨/٩١.
 #
+#      [X] ستّةُ صفوفٍ نُقِلت إلى FAIL_COMPILE بعدَ إصلاحِ المِقياس (٣ أيلول
+#          ٢٠٢٦): المترجّمُ يطبعُ «خطأ مترجم داخلي» ثمّ **يرجعُ صفرًا ويُنتِجُ
+#          ثنائيًّا**، وكان العدّاءُ يحكمُ برمزِ الخروجِ وحدَه فيُشغّلُ ناتجَ
+#          انهيارٍ ويُسجّلُ فرقَ مخرَجٍ (FAIL_OUTPUT) أو مهلةً (FAIL_TIMEOUT).
+#          والصنفُ الحقيقيُّ انهيارُ ترجمة. لم يتغيّر عطبٌ ولا اخضرَّ شيء —
+#          تغيّرَ **ما تراه الأداة**. وقد قِيسَ كلُّ صفٍّ من الستّةِ فردًا.
 #      ── سجلُّ التحديثات ─────────────────────────────────────────────────
 #      [١] ٦١ صفًّا — التوليدُ الأوّل أعلاه.
 #      [٢] ٥٤ صفًّا — ٢٠٢٦-٠٨-٢٠ على `9030a59f` (PR ‏#418‏). سبعةُ صفوفٍ
@@ -112,12 +122,24 @@
 #          موجةِ التسمية/رفعِ فحصِ الأنواعِ التي أنزلت IR البرامجِ إلى نحوِ
 #          الثلثَين وأسقطت جرَّ آلةِ الاستثناءات. فإن عادَ أحمرَ فالحارسُ
 #          يقولُه في الاتّجاهِ الآخَر — وهو ما يجعلُ الحذفَ آمنًا هنا.
+#      [١١] ٤١ صفًّا — ٢٠٢٦-٠٩-٠٣: حملةُ سدِّ الانهياراتِ الداخليّة. حُذفت
+#          أربعةُ صفوفٍ اخضرَّت مقيسةً **والحارسُ هو من سمّاها**:
+#            001_toplevel_yield_compiler (SEM014 صار يُبعَث) ·
+#            0015_tuple_destructure_compiler_crash · 0016_… (ISSUE-124:
+#            الخانةُ بلا ALLOC ومعاملا STORE مقلوبان) ·
+#            008_arr_pop (معاملُ الفهرسِ لم يُبعَث).
+#          والأربعةُ تُنتِجُ المخرَجَ المطلوبَ أو الرفضَ المطلوب، لا مجرّدَ
+#          غيابِ انهيار — فلم يُحذَفْ صفٌّ لأنّ انهيارَه سكت.
+#          ⚠️ وبين [١٠] و[١١] ثلاثةُ تحويراتٍ كُتبت كتلَ تعليقٍ حرّةً خارجَ
+#              هذا السِّجلّ: تقاعُدُ ١٧ صفَّ FAIL_INTERP (٥٣→٣٦)، ثمّ حذفُ ٨
+#              وإضافةُ ١٧ بإعادةِ القياسِ بالمترجّمِ وحدَه (٣٦→٤٥)، ثمّ هذا
+#              الحذفُ (٤٥→٤١). فالحسابُ متّصلٌ والسِّجلُّ لم يكن.
 #
 # (EN) Registry of MEASURED reds outside every CI level. Why a registry and not
 #      @known_red? Because that marker deliberately swallows OUTPUT MISMATCH
 #      only — widening it to crashes/hangs/compile-failures would re-open a
 #      measured defect (a single header line once disabled the P0 smoke gate).
-#      Only 22 of these 53 are FAIL_OUTPUT. This file is guarded in BOTH
+#      Only 14 of these 43 are FAIL_OUTPUT. This file is guarded in BOTH
 #      directions by test_declared_reds_registry.py: a row that turns green, a
 #      new red that is absent, or a changed failure kind all fail the guard.
 #
@@ -132,18 +154,57 @@
 #
 # الصيغة / format:  <المسار من tests/behavior><TAB><صنف الإخفاق>
 # ═══════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 مسارُ المحرّكِ الواحد: تُقوعِدَ 17 صفًّا صنفُها `FAIL_INTERP`
+#      لأنّ محرّكَها حُذِف — لا سبيلَ إلى إعادةِ إنتاجِها، وسجلُّ حمرةٍ لا
+#      يُقاسُ سجلُّ ادّعاءٍ لا سجلُّ قياس. ولم تُحذَف صامتةً: أسماؤها
+#      محفوظةٌ في تاريخِ git عند هذا الإيداع.
+# (EN) Retired 17 FAIL_INTERP rows: their engine is gone, so they
+#      can never be reproduced. An unmeasurable red registry is a claim, not a record.
+# (AR) 🔑 أُعيد قياسُ السجلِّ بالمترجمِ وحدَه: حُذف 8 صفًّا اخضرَّ، وأُضيف 17
+#      صفًّا كان أحمرَ ولم يكن مسجَّلًا — دَينٌ كان ينمو صامتًا لأنّ القياسَ
+#      كان يشترطُ محرّكًا محذوفًا فلم يجرِ أصلًا.
+# (AR) 🔑 حُذفت أربعةُ صفوفٍ اخضرَّت مقيسةً في حملةِ سدِّ الانهياراتِ
+#      الداخليّة (٣ أيلول ٢٠٢٦) — **والحارسُ هو من سمّاها** لا مراجعةٌ بالعين،
+#      ولكلِّ واحدٍ سببٌ مُسمًّى لا «اخضرَّ»:
+#        • 001_toplevel_yield_compiler — SEM014 كان **مُعلَنًا في مصدرِ الحقيقةِ
+#          بلا باعثٍ في المترجّم**، فكان «أنتج» خارجَ مولّدٍ يعبرُ إلى الخلفيّةِ
+#          فتنهار. صار يُرفَضُ بتشخيصِه، والبذرةُ تطلبُ رفضًا فاخضرَّت.
+#        • 0015/0016 tuple_destructure — عطبانِ في باني الواجهةِ (ISSUE-124):
+#          خانةُ المتغيّرِ لم تُحجَزْ بـALLOC، ومعاملا STORE مقلوبان. البذرتانِ
+#          تطبعانِ الآنَ 3 كما يُوجِبُ @expected.
+#        • 008_arr_pop — «أزل»/«احذف_اخير» كانتا تُبعَثانِ بلا معاملِ الفهرس.
+#      ولم يُحذَفْ صفٌّ لأنّ عطبَه «صارَ أخفى»: الأربعةُ تُنتِجُ المخرَجَ المطلوبَ
+#      أو الرفضَ المطلوبَ، لا مجرّدَ غيابِ انهيار.
+# (EN) 🔑 Four rows removed after measuring green in the internal-crash
+#      campaign (2026-09-03) — THE GUARD named them, not a review by eye — each
+#      with a named cause: SEM014 was declared in the SoT with no emitter; the two
+#      tuple-destructure rows were two frontend defects (no ALLOC for the slot,
+#      reversed STORE operands); 008_arr_pop was a missing index operand. None was
+#      removed merely because a crash stopped: all four now produce the required
+#      output or the required rejection.
+# (AR) 🔑 [١٢] ٤٣ صفًّا — ٢٠٢٦-٠٩-٠٣ (بعدَ ساعاتٍ من [١١]): **رجعَ**
+#      صفّا فكِّ الصفِّ ٠٠١٥/٠٠١٦ إلى السجلّ. وسببُ الرجوعِ أنّ خُضرتَهما في [١١]
+#      كانت **كاذبةً بمصادفةِ فيضٍ حسابيّ**: الخفضُ يقرأُ عنصرَي الصفِّ موسومَين
+#      ببتِّ ٢^٦٣، فيتلاشى الوسمانِ في الجمعِ وحدَه — والبذرتانِ لا تطبعانِ إلّا
+#      المجموع. مقيسٌ بمراجعةٍ خصميّة: «أ» تطبعُ «لاشيء» و«ب» تطبعُ
+#      ‎-9223372036854775806‎، و«إذا (أ == ١)» لا يُطلَق، والنصوصُ تطبعُ مؤشّرات
+#      — والخروجُ صفرٌ في ذلك كلِّه. فسُحبتِ الرقعةُ وصارتِ الصيغةُ تُرفَضُ
+#      بـSEM052، والصفّانِ أحمرانِ **بصدق**.
+#      ⚠️ والدرسُ مُدوَّنٌ هنا لا في مكانٍ آخر: **بذرةٌ تطبعُ حاصلًا وحدَه لا
+#          تحرسُ أطرافَه**. لو طبعت ٠٠١٥ «أ» و«ب» لَما اخضرَّت يومًا.
+# (EN) 🔑 [12] 43 rows — the two tuple-destructuring rows RETURNED. Their
+#      green in [11] was false, an arithmetic accident: the lowering read both
+#      elements TAGGED with bit 2^63, and the tags cancel in addition — which is
+#      the only thing those seeds print. Measured adversarially: «أ» printed
+#      "لاشيء", «ب» printed -9223372036854775806, «if (أ == 1)» never fired, all
+#      with exit 0. The patch was withdrawn; the form is now rejected (SEM052)
+#      and the rows are red honestly. The lesson: A SEED THAT PRINTS ONLY A SUM
+#      DOES NOT GUARD ITS OPERANDS.
+grammar_gaps/تصريحات/0015_tuple_destructure_compiler_crash.ص	FAIL_COMPILE
+grammar_gaps/تصريحات/0016_tuple_destructure_in_function_crash.ص	FAIL_COMPILE
 _regression/m1_imported_module_parity.ص	FAIL_COMPILE
-_regression/scan_bug16.ص	FAIL_OUTPUT
-_regression/test_bug11_diag.ص	FAIL_OUTPUT
-_regression/test_bug11_diag2.ص	FAIL_OUTPUT
-_regression/test_bug11_exact.ص	FAIL_OUTPUT
-_regression/test_bug18_exact.ص	FAIL_OUTPUT
-_regression/test_bug18_this_method.ص	FAIL_OUTPUT
 _regression/test_bug1_exact.ص	FAIL_COMPILE
-_regression/test_bug3_length_depth.ص	FAIL_INTERP
-_regression/test_function_type.ص	FAIL_INTERP
 _regression/test_optional_null_advanced.ص	FAIL_COMPILE
-_regression/test_optional_null_coalesce.ص	FAIL_OUTPUT
 _regression/test_p07_array_pluseq.ص	FAIL_COMPILE
 _regression/test_p24_json_unified_builtin.ص	FAIL_COMPILE
 _regression/test_p25_xml_unified_builtin.ص	FAIL_COMPILE
@@ -152,36 +213,33 @@ _regression/test_p27_xml_invalid_input.ص	FAIL_COMPILE
 _regression/test_p30_database_availability.ص	FAIL_COMPILE
 _regression/test_p31_json_unicode_parse.ص	FAIL_COMPILE
 _regression/test_p32_json_unicode_stringify.ص	FAIL_COMPILE
-_regression/test_p35_print_operator.ص	FAIL_OUTPUT
 grammar_gaps/باني_يستدعي_طريقة/001_ctor_calls_method.ص	FAIL_OUTPUT
 grammar_gaps/بنى_بيانات/003_flatten.ص	FAIL_COMPILE
-grammar_gaps/بنى_بيانات/006_multi_assign.ص	FAIL_INTERP
-grammar_gaps/بنيات_متقدمة/007_generic.ص	FAIL_INTERP
-grammar_gaps/بنيات_متقدمة/008_async_await.ص	FAIL_INTERP
 grammar_gaps/تباعد_نوع_عند_إعادة_التصريح/001_match_arm_type_change.ص	FAIL_OUTPUT
 grammar_gaps/تباعد_نوع_عند_إعادة_التصريح/002_match_arm_array_element_type.ص	FAIL_OUTPUT
 grammar_gaps/تباعد_نوع_عند_إعادة_التصريح/003_match_arm_shadows_parameter.ص	FAIL_OUTPUT
 grammar_gaps/تساهل_الأسماء/002_return_top_level.ص	FAIL_OUTPUT
-grammar_gaps/تصريحات/0012_static_array_module_unusable.ص	FAIL_INTERP
-grammar_gaps/تصريحات/0013_static_array_in_function_diverges.ص	FAIL_INTERP
 grammar_gaps/تصريحات/0014_nameless_decl_swallows_next_line.ص	FAIL_OUTPUT
-grammar_gaps/تصريحات/0015_tuple_destructure_compiler_crash.ص	FAIL_TIMEOUT
-grammar_gaps/تصريحات/0016_tuple_destructure_in_function_crash.ص	FAIL_TIMEOUT
 grammar_gaps/تصريحات/003_block_shadow.ص	FAIL_OUTPUT
-grammar_gaps/تصريحات/004_import_haseb_alias.ص	FAIL_INTERP
-grammar_gaps/تعابير_متقدمة/001_spread_array.ص	FAIL_INTERP
-grammar_gaps/تعداد_تصادم_حقل/002_wrong_variant_field.ص	FAIL_INTERP
-grammar_gaps/تعداد_وسيط_وصول_حقل/001_untyped_adt_param_field.ص	FAIL_OUTPUT
+grammar_gaps/تعداد_وسيط_وصول_حقل/001_untyped_adt_param_field.ص	FAIL_COMPILE
 grammar_gaps/دقة_الصحيح_64بت/001_int64_precision_dual.ص	FAIL_OUTPUT
-grammar_gaps/طرق_المصفوفات/001_arr_add.ص	FAIL_INTERP
-grammar_gaps/طرق_المصفوفات/003_arr_first.ص	FAIL_INTERP
-grammar_gaps/طرق_المصفوفات/008_arr_pop.ص	FAIL_OUTPUT
-grammar_gaps/طرق_النصوص/002_str_split.ص	FAIL_INTERP
-grammar_gaps/طرق_النصوص/003_str_trim.ص	FAIL_INTERP
-grammar_gaps/طرق_النصوص/006_str_substr.ص	FAIL_INTERP
 grammar_gaps/قائمة_عنصر_حرفيّ_مسطّح/001_literal_element_unchecked.ص	FAIL_OUTPUT
-grammar_gaps/متقدمة/001_yield_generator.ص	FAIL_INTERP
-grammar_gaps/متقدمة/002_ffi_extern.ص	FAIL_INTERP
 grammar_gaps/متقدمة/003_property_test_exit.ص	FAIL_OUTPUT
 grammar_gaps/نمط_حقل_بنية_متداخل/001_struct_field_nested_compiler.ص	FAIL_OUTPUT
 grammar_gaps/نمط_متداخل_مختلط/001_hetero_nested_compiler.ص	FAIL_OUTPUT
+_regression/test_bug3_length_depth.ص	FAIL_COMPILE
+_regression/test_function_type.ص	FAIL_COMPILE
+grammar_gaps/بنى_بيانات/006_multi_assign.ص	FAIL_COMPILE
+grammar_gaps/بنيات_متقدمة/007_generic.ص	FAIL_COMPILE
+grammar_gaps/بنيات_متقدمة/008_async_await.ص	FAIL_COMPILE
+grammar_gaps/تصريحات/0012_static_array_module_unusable.ص	FAIL_OUTPUT
+grammar_gaps/تصريحات/0013_static_array_in_function_diverges.ص	FAIL_COMPILE
+grammar_gaps/تعابير_متقدمة/001_spread_array.ص	FAIL_COMPILE
+grammar_gaps/تعداد_تصادم_حقل/002_wrong_variant_field.ص	FAIL_OUTPUT
+grammar_gaps/طرق_المصفوفات/001_arr_add.ص	FAIL_COMPILE
+grammar_gaps/طرق_المصفوفات/003_arr_first.ص	FAIL_COMPILE
+grammar_gaps/طرق_النصوص/002_str_split.ص	FAIL_COMPILE
+grammar_gaps/طرق_النصوص/003_str_trim.ص	FAIL_COMPILE
+grammar_gaps/طرق_النصوص/006_str_substr.ص	FAIL_COMPILE
+grammar_gaps/متقدمة/001_yield_generator.ص	FAIL_COMPILE
+grammar_gaps/متقدمة/002_ffi_extern.ص	FAIL_COMPILE

@@ -39,6 +39,18 @@ namespace Sad
         // (AR) تم فصل هذا الملف عن llvm_codegen_concurrency.cpp وفق قاعدة CW-05
         // ============================================================================
 
+
+        // (AR) وسمُ السجلّ «%» تفصيلُ تمثيلٍ داخليٍّ لا يُعرَضُ على كاتبِ البرنامج:
+        //      الرسالةُ تقولُ «س» لا «%س».
+        // (EN) The '%' register sigil is an internal representation detail and is
+        //      not shown to the program author.
+        static std::string stripRegisterSigil(const std::string &registerName)
+        {
+            return (!registerName.empty() && registerName[0] == '%')
+                       ? registerName.substr(1)
+                       : registerName;
+        }
+
         bool OOPOpsCodeGen::fieldExistsInAnyClass(const std::string &fieldName) const
         {
             for (const auto &[clsName, fieldVec] : cg_.context_info_.classFieldNames)
@@ -713,11 +725,69 @@ namespace Sad
                 //      `Adt`, so it slips past the tag guard above. Fixing the ADT tag is a
                 //      precondition for dropping this test — exactly as a truthful object tag
                 //      was a precondition for the guard itself.
-                cg_.reportError(fieldExistsInAnyClass(fieldName)
-                                    ? ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT
-                                    : ::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF,
-                                {{"detail", std::string("No class mapping for:") + objRegName}});
-                return nullptr;
+                // ============================================================
+                // (AR) 🔑 الحارسُ يبقى، والمتغيّرُ **ما يُقالُ للمستعمِل**.
+                //
+                //      كان الفرعانِ يصرفانِ إلى INT005/INT002 — «خطأ مترجم
+                //      داخلي … يُرجى الإبلاغ» — فيُطلَبُ من كاتبِ البرنامجِ بلاغُ
+                //      علّةِ مترجِم. وقِيسَ (٢٠٢٦-٠٩-٠٣) أنّ أبسطَ ما يُطلقُهما لا
+                //      علّةَ فيه: «متغير س = "أبج"» ثمّ «س.الطول» — و«الطول»
+                //      ليست عضوًا معلَنًا في مصدرِ الحقيقةِ أصلًا (المعلَنُ
+                //      دالّةٌ: «طول(س)»). فالمترجّمُ لم ينهَرْ، بل عجزَ عن ربطِ
+                //      سجلِّ المستقبِلِ بصنف.
+                //
+                //      و`fieldExistsInAnyClass` تبقى مُستعمَلةً وحكمُها يُصان:
+                //      هي التي تفصلُ حالَ «عضوٌ حقيقيٌّ ومستقبِلٌ ديناميّ»
+                //      (SEM050 — قيدٌ قائمٌ في المترجّم) من حالِ «اسمٌ لا يحملُه
+                //      صنفٌ معرَّف» (SEM051 — خطأٌ في البرنامج). ورمزانِ لا
+                //      خانةُ نصٍّ، فلا سلسلةَ نصّيّةً تدخلُ شفرةَ المترجّم.
+                // (EN) 🔑 The guard stays; what changes is WHAT THE USER IS
+                //      TOLD. Both arms reported an INTERNAL error asking the author
+                //      to file a compiler bug; measured, the simplest triggering
+                //      program has no compiler defect. fieldExistsInAnyClass keeps
+                //      its role, now separating a standing limitation (SEM050) from
+                //      a defect in the program (SEM051) — two catalog codes rather
+                //      than a text slot, so no string literal enters the source.
+                // ============================================================
+                // (AR) 🔑 رمزٌ واحدٌ لا فرعان: `fieldExistsInAnyClass` تقرأُ
+                //      **جدولَ حقولِ الأصنافِ وحدَه**، فلا ترى الطرائقَ المعلَنةَ على
+                //      الأنواعِ ولا حمولاتِ التعداداتِ الجبريّة. وقِيسَ (مراجعةٌ
+                //      خصميّة، ٢٠٢٦-٠٩-٠٣) أنّ فرعَها السالبَ اتّهمَ برامجَ صحيحة:
+                //      `م.الطول` و«الطول» طريقةٌ **مستقرّةٌ معلَنة**، و`ص.نق` و«نق»
+                //      حمولةُ تعدادٍ مُصرَّحةٌ في السطرِ نفسِه. فحُذف ذلك الرمزُ ولم
+                //      يبقَ إلّا ما يُقاسُ فعلًا: تعذّرَ تحديدُ الصنف.
+                // (EN) 🔑 One code, not two: fieldExistsInAnyClass reads the
+                //      CLASS-FIELD table only and cannot see declared type methods or
+                //      algebraic-enum payloads. Measured (adversarial review): its
+                //      negative arm accused correct programs. Only the measured claim
+                //      remains — the class could not be resolved.
+                cg_.reportError(::Sad::Errors::ErrorCode::SEM_MEMBER_RECEIVER_CLASS_UNKNOWN,
+                                {{"receiver", stripRegisterSigil(objRegName)},
+                                 {"member", fieldName}});
+                // (AR) 🔑 خانةُ النتيجةِ تُملأُ حتّى عندَ الرفض — وإلّا تلا
+                //      التشخيصَ الصحيحَ «مرجع غير معرَّف … يُرجى الإبلاغ»، فبَطَلَ
+                //      نصفُ فائدتِه. مقيسٌ (٢٠٢٦-٠٩-٠٣): «س.الطول» أخرجَ SEM051
+                //      صحيحًا ثمّ انهيارًا داخليًّا على `%1` من بعدِه.
+                //      وليست تسترًا: البوّابةُ العامّةُ في `compiler_driver_backend`
+                //      تُفشلُ الترجمةَ حتمًا بعدَ أيِّ خطأ فلا ثنائيَّ يُسلَّم؛ غايتُها
+                //      بقاءُ الخفضِ سليمَ البنيةِ حتّى تُجمَعَ بقيّةُ الأخطاءِ الحقيقيّة.
+                // (EN) 🔑 Bind the result slot even when rejecting; otherwise a
+                //      correct diagnostic is followed by "undefined register — please
+                //      report", undoing half its value. Not suppression: the general
+                //      gate still fails the compilation, so no binary is emitted; this
+                //      only keeps lowering well-formed so the rest of the real errors
+                //      are collected.
+                // (AR) 🔑 `builtinErrorSentinel` مُعينٌ **قائمٌ في الشجرة**
+                //      يفعلُ الأمرَين معًا: يربطُ خانةَ النتيجةِ فلا يتتالى «سجلّ غير
+                //      معرَّف»، ويُعيدُ إشارةً غيرَ صفريّةٍ فيتوقّفُ الموزّعُ بلا بلاغِ
+                //      «أوپكود غير مدعوم» زائف. وكانت هنا نسخةٌ يدويّةٌ منه — نسخةٌ
+                //      ثانيةٌ لمنطقٍ واحدٍ تتباعدُ عن أصلِها.
+                // (EN) 🔑 builtinErrorSentinel already exists in the tree and does
+                //      both jobs: binds the result slot so no "undefined register"
+                //      cascades, and returns a non-null sentinel so the dispatcher stops
+                //      without a spurious "unsupported opcode". This was a hand-rolled
+                //      second copy of it.
+                return cg_.builtinErrorSentinel(inst);
             }
 
             // (AR) تطبيع مؤشر الكائن: فك alloca/global إلى مؤشر كائن فعلي
@@ -1117,11 +1187,69 @@ namespace Sad
                 //      `Adt`, so it slips past the tag guard above. Fixing the ADT tag is a
                 //      precondition for dropping this test — exactly as a truthful object tag
                 //      was a precondition for the guard itself.
-                cg_.reportError(fieldExistsInAnyClass(fieldName)
-                                    ? ::Sad::Errors::ErrorCode::INT_SIR_FIELD_LAYOUT
-                                    : ::Sad::Errors::ErrorCode::INT_SIR_UNDEFINED_REF,
-                                {{"detail", std::string("No class mapping for:") + objRegName}});
-                return nullptr;
+                // ============================================================
+                // (AR) 🔑 الحارسُ يبقى، والمتغيّرُ **ما يُقالُ للمستعمِل**.
+                //
+                //      كان الفرعانِ يصرفانِ إلى INT005/INT002 — «خطأ مترجم
+                //      داخلي … يُرجى الإبلاغ» — فيُطلَبُ من كاتبِ البرنامجِ بلاغُ
+                //      علّةِ مترجِم. وقِيسَ (٢٠٢٦-٠٩-٠٣) أنّ أبسطَ ما يُطلقُهما لا
+                //      علّةَ فيه: «متغير س = "أبج"» ثمّ «س.الطول» — و«الطول»
+                //      ليست عضوًا معلَنًا في مصدرِ الحقيقةِ أصلًا (المعلَنُ
+                //      دالّةٌ: «طول(س)»). فالمترجّمُ لم ينهَرْ، بل عجزَ عن ربطِ
+                //      سجلِّ المستقبِلِ بصنف.
+                //
+                //      و`fieldExistsInAnyClass` تبقى مُستعمَلةً وحكمُها يُصان:
+                //      هي التي تفصلُ حالَ «عضوٌ حقيقيٌّ ومستقبِلٌ ديناميّ»
+                //      (SEM050 — قيدٌ قائمٌ في المترجّم) من حالِ «اسمٌ لا يحملُه
+                //      صنفٌ معرَّف» (SEM051 — خطأٌ في البرنامج). ورمزانِ لا
+                //      خانةُ نصٍّ، فلا سلسلةَ نصّيّةً تدخلُ شفرةَ المترجّم.
+                // (EN) 🔑 The guard stays; what changes is WHAT THE USER IS
+                //      TOLD. Both arms reported an INTERNAL error asking the author
+                //      to file a compiler bug; measured, the simplest triggering
+                //      program has no compiler defect. fieldExistsInAnyClass keeps
+                //      its role, now separating a standing limitation (SEM050) from
+                //      a defect in the program (SEM051) — two catalog codes rather
+                //      than a text slot, so no string literal enters the source.
+                // ============================================================
+                // (AR) 🔑 رمزٌ واحدٌ لا فرعان: `fieldExistsInAnyClass` تقرأُ
+                //      **جدولَ حقولِ الأصنافِ وحدَه**، فلا ترى الطرائقَ المعلَنةَ على
+                //      الأنواعِ ولا حمولاتِ التعداداتِ الجبريّة. وقِيسَ (مراجعةٌ
+                //      خصميّة، ٢٠٢٦-٠٩-٠٣) أنّ فرعَها السالبَ اتّهمَ برامجَ صحيحة:
+                //      `م.الطول` و«الطول» طريقةٌ **مستقرّةٌ معلَنة**، و`ص.نق` و«نق»
+                //      حمولةُ تعدادٍ مُصرَّحةٌ في السطرِ نفسِه. فحُذف ذلك الرمزُ ولم
+                //      يبقَ إلّا ما يُقاسُ فعلًا: تعذّرَ تحديدُ الصنف.
+                // (EN) 🔑 One code, not two: fieldExistsInAnyClass reads the
+                //      CLASS-FIELD table only and cannot see declared type methods or
+                //      algebraic-enum payloads. Measured (adversarial review): its
+                //      negative arm accused correct programs. Only the measured claim
+                //      remains — the class could not be resolved.
+                cg_.reportError(::Sad::Errors::ErrorCode::SEM_MEMBER_RECEIVER_CLASS_UNKNOWN,
+                                {{"receiver", stripRegisterSigil(objRegName)},
+                                 {"member", fieldName}});
+                // (AR) 🔑 خانةُ النتيجةِ تُملأُ حتّى عندَ الرفض — وإلّا تلا
+                //      التشخيصَ الصحيحَ «مرجع غير معرَّف … يُرجى الإبلاغ»، فبَطَلَ
+                //      نصفُ فائدتِه. مقيسٌ (٢٠٢٦-٠٩-٠٣): «س.الطول» أخرجَ SEM051
+                //      صحيحًا ثمّ انهيارًا داخليًّا على `%1` من بعدِه.
+                //      وليست تسترًا: البوّابةُ العامّةُ في `compiler_driver_backend`
+                //      تُفشلُ الترجمةَ حتمًا بعدَ أيِّ خطأ فلا ثنائيَّ يُسلَّم؛ غايتُها
+                //      بقاءُ الخفضِ سليمَ البنيةِ حتّى تُجمَعَ بقيّةُ الأخطاءِ الحقيقيّة.
+                // (EN) 🔑 Bind the result slot even when rejecting; otherwise a
+                //      correct diagnostic is followed by "undefined register — please
+                //      report", undoing half its value. Not suppression: the general
+                //      gate still fails the compilation, so no binary is emitted; this
+                //      only keeps lowering well-formed so the rest of the real errors
+                //      are collected.
+                // (AR) 🔑 `builtinErrorSentinel` مُعينٌ **قائمٌ في الشجرة**
+                //      يفعلُ الأمرَين معًا: يربطُ خانةَ النتيجةِ فلا يتتالى «سجلّ غير
+                //      معرَّف»، ويُعيدُ إشارةً غيرَ صفريّةٍ فيتوقّفُ الموزّعُ بلا بلاغِ
+                //      «أوپكود غير مدعوم» زائف. وكانت هنا نسخةٌ يدويّةٌ منه — نسخةٌ
+                //      ثانيةٌ لمنطقٍ واحدٍ تتباعدُ عن أصلِها.
+                // (EN) 🔑 builtinErrorSentinel already exists in the tree and does
+                //      both jobs: binds the result slot so no "undefined register"
+                //      cascades, and returns a non-null sentinel so the dispatcher stops
+                //      without a spurious "unsupported opcode". This was a hand-rolled
+                //      second copy of it.
+                return cg_.builtinErrorSentinel(inst);
             }
 
             // (AR) تطبيع مؤشر الكائن قبل استدعاء setter والوصول المباشر للحقل

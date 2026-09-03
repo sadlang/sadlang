@@ -30,8 +30,15 @@ set(MOBILE_SOURCES
     tools/compiler/src/mobile_project_gen.cpp
     tools/compiler/src/cli_commands.cpp
     tools/compiler/src/cli_mobile_manager.cpp
-    tools/compiler/src/run_command.cpp
-    tools/compiler/src/test_command.cpp
+    # (AR) 🔑 حُذف run_command.cpp و test_command.cpp: كانا **شفرةً ميّتةً
+    #      مُصرَّفة** — يُصرَّفان ويُربَطان، ولا يُبلَغان أبدًا. فـ`CommandManager`
+    #      (الذي يُسجّلُ RunCommand وTestCommand) لا يُنشَأُ إلّا داخلَ
+    #      `#ifdef SAD_CLI_MAIN`، والرمزُ لا يُعرَّفُ في أيِّ CMakeLists ولا
+    #      سطرِ أمر. فكانا يحملانِ كلفةَ ترجمةٍ وخطرَ كسرٍ وصفرَ سلوك.
+    #      ⚠️ دَينٌ مُقيَّد: `sad run` و`sad test` غيرُ مُنفَّذَين في مسارِ
+    #      المحرّكِ الواحد. والتشغيلُ اليومَ: `sad build x.ص -o x.exe` ثمّ `./x.exe`.
+    # (EN) Removed: compiled-but-unreachable code. CommandManager is only
+    #      constructed inside #ifdef SAD_CLI_MAIN, which nothing defines.
     tools/compiler/src/build_command.cpp
 )
 
@@ -62,15 +69,6 @@ target_include_directories(sad_mobile PUBLIC
 # (EN) Phase-3: run_command/test_command include interpreter_core.h (pulls interpreter
 #      headers transitively). After the global-block move, sad_mobile takes them
 #      PRIVATE so they don't leak to sad-build (which links sad_mobile PUBLIC).
-target_include_directories(sad_mobile PRIVATE
-    ${CMAKE_SOURCE_DIR}/interpreter/include
-    ${CMAKE_SOURCE_DIR}/interpreter/include/core
-    ${CMAKE_SOURCE_DIR}/interpreter/include/visitors
-    ${CMAKE_SOURCE_DIR}/interpreter/include/managers
-    ${CMAKE_SOURCE_DIR}/interpreter/include/builtins
-    ${CMAKE_SOURCE_DIR}/interpreter/include/debug
-    ${CMAKE_SOURCE_DIR}/interpreter/include/ui
-)
 
 target_compile_features(sad_mobile PUBLIC cxx_std_17)
 

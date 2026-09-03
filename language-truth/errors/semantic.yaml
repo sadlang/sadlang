@@ -274,8 +274,8 @@ errors:
     ar: أضِف جسماً للدالة أو احذف التصريح.
     en: Add a body to the function, or remove the declaration.
   detailed:
-    ar: حاول المفسر تنفيذ دالة بلا جسم.
-    en: The interpreter tried to execute a function with no body.
+    ar: الدالّة معرَّفة بلا جسم، فلا شيء يُخفَّض عند ندائها.
+    en: The function is declared with no body, so there is nothing to lower at its call.
 - code: SEM_COMPARE_DIFFERENT_TYPES
   id: SEM017
   category: semantic
@@ -452,6 +452,10 @@ errors:
 
 - code: SEM_DIALECT_COMPILER_ONLY
   id: SEM027
+  retired:
+    since: '2026-09-03'
+    ar: 'موضوعُه فرقٌ بين محرّكَين: «كتلةُ لهجةٍ تُخفَضُ في المترجم ولا يدعمُها المفسّر». وبمحرّكٍ واحدٍ لا فرقَ يُعلَن، والمترجّمُ يقبلُ الكتلةَ بنصِّ هذا الرمزِ نفسِه.'
+    en: 'Its subject was a difference between two engines; with one engine there is no difference to declare, and by this code''s own text the compiler accepts the block.'
   category: semantic
   title:
     ar: كتلة لهجة متاحة في المترجم فقط
@@ -685,8 +689,8 @@ errors:
     ar: 'انقل التصريح إلى مستوى الوحدة **المباشر** — أي ابنًا مباشرًا للبرنامج، لا داخل دالّة ولا داخل كتلة «إذا»/«بينما»/«لكل» ولو كانت في أعلى الملفّ. أو أسقط «ساكن» إن كان المقصود متغيّرًا عاديًّا. وللتخزين الساكن داخل الدوالّ استعمل صيغة المصفوفة: «متغير ساكن اسم مصفوفة[N]».'
     en: 'Move the declaration to *direct* module level — a direct child of the program, not inside a function and not inside an if/while/for block even at the top of the file. Or drop «ساكن» if an ordinary variable was intended. For static storage inside functions use the array form: «متغير ساكن اسم مصفوفة[N]».'
   detailed:
-    ar: 'مدّة التخزين الساكنة تعني أنّ الخانة تُهيَّأ مرّة واحدة وتبقى قيمتها بين النداءات. وهي لا تتحقّق إلّا للتصاريح التي تصير عوامَّ، وذلك مقيس: حلقة تسجيل العوامّ في المترجم تمسح أبناء البرنامج المباشرين وحدهم، فما دونهم يهبط alloca في إطار النداء ويزول بزواله؛ والمفسّر يعرّف بالنسخ في نطاق النداء ولا يملك خانة معمّرة تُربط بموقع التصريح. ولذلك البوّابة تقيس عمق الكتلة لا عمق الدالّة: «متغير ساكن ب = 7» داخل «إذا … نهاية» في أعلى الملفّ ليس عامًّا وإن بدا وحدويًّا. وقبل ISSUE-120 كان «متغير ساكن ن = 0» يُبلَّغ بـSEM023 برسالة تتحدّث عن مصفوفات .bss لأنّ فرع اللبنة 3.16 كان يبتلع كلّ «ساكن»؛ فصار التشخيص يسمّي الحدّ الحقيقيّ بدل أن يحيل على صيغة لا صلة لها. أمّا مصفوفة التخزين الساكن «متغير ساكن اسم مصفوفة[N]» فتعمل في الموضعين لأنّها تُبثّ في قسم .bss لا في إطار النداء.'
-    en: 'Static storage duration means the slot is initialized once and keeps its value across calls. It only holds for declarations that become globals, and this is measured: the compiler''s global-registration loop scans direct children of the program only, so anything deeper lowers to an alloca in the call frame and dies with it; the interpreter defines by copy in the call scope with no persistent slot keyed to the declaration site. Hence the gate measures block depth, not function depth: «متغير ساكن ب = 7» inside an if-block at the top of the file is not a global even though it looks module-level. Before ISSUE-120 this was reported as SEM023 with a message about .bss arrays, because the Brick 3.16 branch swallowed every «ساكن»; the diagnostic now names the real limit. The static storage array form does work in both positions, because it is emitted into .bss rather than the call frame.'
+    ar: 'مدّة التخزين الساكنة تعني أنّ الخانة تُهيَّأ مرّة واحدة وتبقى قيمتها بين النداءات. وهي لا تتحقّق إلّا للتصاريح التي تصير عوامَّ، وذلك مقيس: حلقة تسجيل العوامّ في المترجم تمسح أبناء البرنامج المباشرين وحدهم، فما دونهم يهبط alloca في إطار النداء ويزول بزواله — فلا خانة معمّرة تُربط بموقع التصريح. ولذلك البوّابة تقيس عمق الكتلة لا عمق الدالّة: «متغير ساكن ب = 7» داخل «إذا … نهاية» في أعلى الملفّ ليس عامًّا وإن بدا وحدويًّا. وقبل ISSUE-120 كان «متغير ساكن ن = 0» يُبلَّغ بـSEM023 برسالة تتحدّث عن مصفوفات .bss لأنّ فرع اللبنة 3.16 كان يبتلع كلّ «ساكن»؛ فصار التشخيص يسمّي الحدّ الحقيقيّ بدل أن يحيل على صيغة لا صلة لها. أمّا مصفوفة التخزين الساكن «متغير ساكن اسم مصفوفة[N]» فتعمل في الموضعين لأنّها تُبثّ في قسم .bss لا في إطار النداء.'
+    en: 'Static storage duration means the slot is initialized once and keeps its value across calls. It only holds for declarations that become globals, and this is measured: the compiler''s global-registration loop scans direct children of the program only, so anything deeper lowers to an alloca in the call frame and dies with it — no persistent slot is keyed to the declaration site. Hence the gate measures block depth, not function depth: «متغير ساكن ب = 7» inside an if-block at the top of the file is not a global even though it looks module-level. Before ISSUE-120 this was reported as SEM023 with a message about .bss arrays, because the Brick 3.16 branch swallowed every «ساكن»; the diagnostic now names the real limit. The static storage array form does work in both positions, because it is emitted into .bss rather than the call frame.'
 - code: SEM_VOID_NOT_A_VALUE_TYPE
   id: SEM040
   category: semantic
@@ -739,11 +743,11 @@ errors:
   - owner
   - class_name
   fix_hint:
-    ar: 'شغّل هذا الملفَّ بالمفسّرِ (فالقاعدةُ مطبَّقةٌ فيه)، أو استبدل بالحقلِ الصنفيِّ حقولًا من أنواعٍ بسيطة حتّى يُخفَّض الحقلُ الصنفيّ.'
-    en: 'Run this file with the interpreter (the rule is implemented there), or replace the class-typed field with primitive fields until class-typed fields are lowered.'
+    ar: 'استبدل بالحقلِ الصنفيِّ حقولًا من أنواعٍ بسيطة حتّى يُخفَّضَ الحقلُ الصنفيّ، أو مرِّرِ الكائنَ وسيطًا بدل تضمينِه حقلًا.'
+    en: 'Replace the class-typed field with primitive fields until class-typed fields are lowered, or pass the object as an argument instead of embedding it as a field.'
   detailed:
-    ar: 'مسارُ البنيةِ في المترجّمِ كان يُسقِط نوعَ الحقلِ الصنفيِّ إلى «رقم» في الفرعِ الافتراضيّ، فتصير الخانةُ عددًا صحيحًا يحمل صفرًا، ثمّ يُفكُّ بوصفِه مؤشّرًا عند أوّلِ وصولٍ إلى عضو. والمقيسُ (2026-08-15، ثلاثُ تشغيلات): البناءُ ينجح برمزِ خروجٍ **صفر** ثمّ ينهار البرنامجُ المُنتَجُ بـSIGSEGV (رمز 139). وهذا أسوأُ مخرَجٍ ممكن: رمزُ خروجِ البناءِ يقول «تمّ» وأداةُ البناءِ لا تشي بشيء، فتمرُّ العلّةُ إلى المستعمِل. والرفضُ هنا **ليس تضييقًا للغة** بل إعلانٌ عن حدٍّ قائمٍ أصلًا: القاعدةُ نفسُها مطبَّقةٌ في المفسّرِ وتعمل. ويُرفَع هذا الرمزُ يومَ يُخفَّض الحقلُ الصنفيُّ في المترجّم. والدرسُ: **حدٌّ لا يُعلَن يُنفَّذ انهيارًا**، والرفضُ الصريحُ أصدقُ من بناءٍ ناجحٍ يكذب.'
-    en: 'The compiler''s struct path fell through to «Integer» for class-typed fields, so the slot became an integer holding zero which was then dereferenced as a pointer on first member access. Measured (2026-08-15, three runs): the build succeeds with exit code ZERO and the produced program then crashes with SIGSEGV (139) — the worst possible outcome, because the build reports success and nothing warns. Rejecting is not a narrowing of the language but the declaration of a limit that already exists: the same rule is implemented and working in the interpreter. This code is retired the day class-typed fields are lowered.'
+    ar: 'مسارُ البنيةِ في المترجّمِ كان يُسقِط نوعَ الحقلِ الصنفيِّ إلى «رقم» في الفرعِ الافتراضيّ، فتصير الخانةُ عددًا صحيحًا يحمل صفرًا، ثمّ يُفكُّ بوصفِه مؤشّرًا عند أوّلِ وصولٍ إلى عضو. والمقيسُ (2026-08-15، ثلاثُ تشغيلات): البناءُ ينجح برمزِ خروجٍ **صفر** ثمّ ينهار البرنامجُ المُنتَجُ بـSIGSEGV (رمز 139). وهذا أسوأُ مخرَجٍ ممكن: رمزُ خروجِ البناءِ يقول «تمّ» وأداةُ البناءِ لا تشي بشيء، فتمرُّ العلّةُ إلى المستعمِل. والرفضُ هنا **ليس تضييقًا للغة** بل إعلانٌ عن حدٍّ قائمٍ أصلًا: الحقلُ الصنفيُّ **معلَنٌ في قواعدِ اللغةِ** ولمّا يُخفَّضْ بعد، فالرفضُ يقولُ ذلك بدل أن يبنيَ برنامجًا ينهار. ويُرفَع هذا الرمزُ يومَ يُخفَّض الحقلُ الصنفيُّ. والدرسُ: **حدٌّ لا يُعلَن يُنفَّذ انهيارًا**، والرفضُ الصريحُ أصدقُ من بناءٍ ناجحٍ يكذب.'
+    en: 'The compiler''s struct path fell through to «Integer» for class-typed fields, so the slot became an integer holding zero which was then dereferenced as a pointer on first member access. Measured (2026-08-15, three runs): the build succeeds with exit code ZERO and the produced program then crashes with SIGSEGV (139) — the worst possible outcome, because the build reports success and nothing warns. Rejecting is not a narrowing of the language but the declaration of a limit that already exists: class-typed fields are DECLARED in the language rules and are not lowered yet, so the diagnostic says so instead of building a program that crashes. This code is retired the day class-typed fields are lowered.'
 - code: SEM_OPTIONAL_CALL_RECEIVER_NOT_SIMPLE
   id: SEM043
   category: semantic
@@ -759,8 +763,8 @@ errors:
     ar: 'متغير مستقبل = <التعبير> ثمّ «مستقبل؟.{method}()». والمستقبِلُ المقبولُ اليومَ: متغيّرٌ، أو «هذا»، أو عضوٌ منهما.'
     en: 'Bind first: «متغير r = <expr>» then «r?.{method}()». Accepted receivers today: a variable, «هذا», or a member of them.'
   detailed:
-    ar: 'صياغةُ الخلفيّةِ للنداءِ الآمنِ تفحص المستقبِلَ ثمّ تُعيد بناءَه في فرعِ النداء، فتقرؤه **مرّتَين**. وذلك سليمٌ لقراءةِ متغيّرٍ أو «هذا» أو عضوٍ منهما — لا أثرَ جانبيَّ لها — وغيرُ سليمٍ لمستقبِلٍ هو نداءٌ أو إسناد: يقع أثرُه مرّتَين. 🔑 والرفضُ هنا أصدقُ من البناء: أثرٌ جانبيٌّ مضاعَفٌ **عطبٌ لا يُرى في مخرَجٍ صحيح** — يعطي البرنامجُ الجوابَ المتوقَّعَ ويكتب في السجلِّ سطرَين أو يزيد عدّادًا مرّتَين، فلا بذرةَ تُخفِق ولا مستعمِلَ يشكّ. وهو الصنفُ نفسُه الذي يُحذِّر منه هذا الكتالوجُ في SEM041: تشخيصٌ صادقُ الرفضِ خيرٌ من قبولٍ صامتٍ يكذب. ⚠️ وهذا حدُّ **صياغةٍ** لا حدُّ لغة: يُرفَع يومَ تُخزَّن نتيجةُ المستقبِلِ في سجلٍّ يُعاد استعمالُه في الفرعَين بدل إعادةِ بنائِه. والمفسّرُ لا يحمل هذا الحدَّ أصلًا — يُقيّم المستقبِلَ مرّةً واحدةً — فالحدُّ في المترجِّمِ وحدَه، وهو تباعُدٌ **مُعلَنٌ** لا مسكوتٌ عنه.'
-    en: 'The backend lowering for a safe call tests the receiver and then rebuilds it inside the call branch, reading it TWICE. That is sound for a variable, «this», or a member of them (no side effects) and unsound for a call or assignment receiver, whose effect would happen twice. Rejecting is more honest than building: a duplicated side effect is a defect NO correct output reveals — the program returns the expected value while writing two log lines or incrementing a counter twice, so no seed fails and no user suspects. This is a LOWERING limit, not a language limit: it is retired the day the receiver is materialised into a register reused by both branches. The interpreter does not carry this limit (it evaluates the receiver once), so the divergence is DECLARED, not silent.'
+    ar: 'صياغةُ الخلفيّةِ للنداءِ الآمنِ تفحص المستقبِلَ ثمّ تُعيد بناءَه في فرعِ النداء، فتقرؤه **مرّتَين**. وذلك سليمٌ لقراءةِ متغيّرٍ أو «هذا» أو عضوٍ منهما — لا أثرَ جانبيَّ لها — وغيرُ سليمٍ لمستقبِلٍ هو نداءٌ أو إسناد: يقع أثرُه مرّتَين. 🔑 والرفضُ هنا أصدقُ من البناء: أثرٌ جانبيٌّ مضاعَفٌ **عطبٌ لا يُرى في مخرَجٍ صحيح** — يعطي البرنامجُ الجوابَ المتوقَّعَ ويكتب في السجلِّ سطرَين أو يزيد عدّادًا مرّتَين، فلا بذرةَ تُخفِق ولا مستعمِلَ يشكّ. وهو الصنفُ نفسُه الذي يُحذِّر منه هذا الكتالوجُ في SEM041: تشخيصٌ صادقُ الرفضِ خيرٌ من قبولٍ صامتٍ يكذب. ⚠️ وهذا حدُّ **صياغةٍ** لا حدُّ لغة: يُرفَع يومَ تُخزَّن نتيجةُ المستقبِلِ في سجلٍّ يُعاد استعمالُه في الفرعَين بدل إعادةِ بنائِه. وقواعدُ اللغةِ لا تحدُّ المستقبِلَ بشيءٍ من ذلك — الحدُّ في **الخفضِ** وحدَه، ولذلك يُعلَن رمزًا يُقال بدل أن يُسكَتَ عنه فيقعَ الأثرُ مرّتَين صامتًا.'
+    en: 'The backend lowering for a safe call tests the receiver and then rebuilds it inside the call branch, reading it TWICE. That is sound for a variable, «this», or a member of them (no side effects) and unsound for a call or assignment receiver, whose effect would happen twice. Rejecting is more honest than building: a duplicated side effect is a defect NO correct output reveals — the program returns the expected value while writing two log lines or incrementing a counter twice, so no seed fails and no user suspects. This is a LOWERING limit, not a language limit: it is retired the day the receiver is materialised into a register reused by both branches. The language rules place no such restriction on the receiver — the limit lives in the LOWERING alone, which is why it is declared as a code rather than passed over in silence while the effect happens twice.'
 - code: SEM_ASM_ARCH_UNSUPPORTED
   id: SEM044
   category: semantic
@@ -822,16 +826,16 @@ errors:
     ar: مدمَجة معلَنة بلا نظير في المترجم
     en: Declared builtin has no compiler counterpart
   brief:
-    ar: المدمَجة '{name}' معلَنة في مصدر الحقيقة ومسجَّلة في المفسّر، ولا توزيع لها في المترجم
-    en: Builtin '{name}' is declared in the SoT and registered in the interpreter, but the compiler has no dispatch for it
+    ar: المدمَجة '{name}' معلَنة في مصدر الحقيقة، ولا ذراعَ توزيعٍ لها في المترجم
+    en: Builtin '{name}' is declared in the SoT, but the compiler has no dispatch arm for it
   placeholders:
   - name
   fix_hint:
-    ar: 'شغّل البرنامج بالمفسّر (sad-run) ريثما يُوصَل هذا المدمَج بالمترجم، أو استبدله بمدمَج مصرَّف يؤدّي الغرض نفسه.'
-    en: 'Run the program with the interpreter (sad-run) until this builtin is wired into the compiler, or use a compiled builtin that serves the same purpose.'
+    ar: 'استبدله بمدمَجٍ مصرَّفٍ يؤدّي الغرضَ نفسَه، أو اكتب وظيفتَه دالّةَ ص. ووصلُ هذا المدمَجِ بالمترجم عملٌ مُقيَّدٌ في عدّادِ التغطية (scripts/codegen/check_builtin_engine_coverage.py).'
+    en: 'Use a compiled builtin that serves the same purpose, or write the logic as a ص function. Wiring this builtin into the compiler is tracked by the coverage counter (scripts/codegen/check_builtin_engine_coverage.py).'
   detailed:
-    ar: 'هذا ليس اسمًا مجهولًا: المدمَجة معلَنة في language-truth/builtins/ ومسجَّلة في المفسّر وتعمل هناك، لكنّ الأماميّة لا تحمل لها ذراع توزيع ولا الخلفيّة أوپكودًا. وكان التشخيص السابق يقول «استدعاء دالة غير معرّفة» فيرسل الكاتب يبحث عن خطأ إملائيّ لا وجود له، أو يعرّفها بنفسه فيصطدم بالاسم المحجوز. والسبب الحقيقيّ تباعد تغطية بين المحرّكَين يُقاس ويُعلَن عدده، لا خطأ في البرنامج. راجع حارس scripts/codegen/check_builtin_arity_sot.py لعدد ما لم يُوصَل بعد.'
-    en: 'This is not an unknown name: the builtin is declared in language-truth/builtins/, registered in the interpreter, and works there — but the frontend has no dispatch arm and the backend no opcode. The previous diagnostic said "call to undefined function", sending the author hunting for a typo that does not exist, or defining it themselves and colliding with the reserved name. The real cause is a measured coverage divergence between the two engines, not a defect in the program.'
+    ar: 'هذا ليس اسمًا مجهولًا: المدمَجة معلَنة في language-truth/builtins/، لكنّ الأماميّة لا تحمل لها ذراعَ توزيعٍ ولا الخلفيّة أوپكودًا. وكان التشخيص السابق يقول «استدعاء دالة غير معرّفة» فيرسل الكاتبَ يبحث عن خطأ إملائيّ لا وجود له، أو يعرّفها بنفسه فيصطدم بالاسم المحجوز. والسبب الحقيقيّ فجوةُ تغطيةٍ بين ما تُعلِنه اللغةُ وما يصرفه المترجم — تُقاس ويُعلَن عددها، لا خطأ في البرنامج. راجع scripts/codegen/check_builtin_engine_coverage.py للعدد الراهن.'
+    en: 'This is not an unknown name: the builtin is declared in language-truth/builtins/, but the frontend has no dispatch arm and the backend no opcode. The previous diagnostic said "call to undefined function", sending the author hunting for a typo that does not exist, or defining it themselves and colliding with the reserved name. The real cause is a measured gap between what the language declares and what the compiler emits, not a defect in the program.'
 - code: SEM_UNSIGNED64_MIXED_WITH_SIGNED
   id: SEM048
   category: semantic
@@ -867,3 +871,172 @@ errors:
   detailed:
     ar: '🔑 قاعدةُ الهيمنةِ في «ص»: الأعرضُ يغلب. وهي حاسمةٌ في سبعِ خاناتٍ من ثمانٍ — «طبيعي8/16/32» مع موقَّعٍ تُوسَّعُ إلى «رقم» فيُعطي «طبيعي8(١٠) + رقم8(−٥٠)» جوابَه الحسابيَّ «−٤٠». والخانةُ الثامنةُ وحدَها لا جوابَ صحيحَ لها: «طبيعي» و«رقم» بعرضٍ واحدٍ ولا نوعَ فوقَهما يسعُ المدَيَين معًا. فتغليبُ اللا-موقَّعِ (دلالةُ C) يجعلُ «طبيعي(١٠) + رقم(−٥٠)» عددًا يقاربُ ١٨ كوينتليون بدل «−٤٠»، وتغليبُ الموقَّعِ يجعلُ «١٨٤٤٦٧٤٤٠٧٣٧٠٩٥٥١٦١٥ − ١» يساوي «−٢». وكلا الجوابَين كذبٌ صريح. ⚠️ وقرارُ المالك (٢٦ آب ٢٠٢٦) أن يُرفَعَ الصمتُ: حينَ لا يوجدُ جوابٌ صحيحٌ لا يخترعُ المترجّمُ واحدًا بل يقفُ ويطلبُ من الكاتبِ أن يُصرِّح. وهذا نقضٌ مقصودٌ لحكمٍ سابقٍ (١٦ آب ٢٠٢٦) كان يُغلِّبُ اللا-موقَّعَ في الحسابِ والمقارنة؛ والمقارناتُ خارجَ هذا الرمزِ في المرحلةِ الأولى. 🔑 والحجّةُ الحاكمةُ اتّساقُ اللغةِ مع نفسِها: «ص» فيها نظامُ ملكيّةٍ وفاحصُ استعارةٍ يرفضُ مرجعًا قد يتدلّى — فلغةٌ تحرسُ ذلك ثمّ تختارُ صامتةً بينَ جوابَينِ يفرقُ بينهما ١٨ كوينتليون ليست صارمةً ولا متساهلةً، بل غيرُ متّسقةٍ لا يُبنى عليها حَدس. وهذا ما تفعلُه Rust وGo وSwift وZig وKotlin (ترفضُ الخلطَ)، وC# (تُوسِّعُ حيثُ يوجدُ أوسعُ وترفضُ حيثُ لا يوجد)، وJava (حذفت الأنواعَ اللا-موقَّعةَ كلَّها). وC وحدَها تختارُ صامتةً — وهي اللغةُ الوحيدةُ التي لا تَعِدُ بشيء.'
     en: 'Sad''s dominance rule is "widest wins", and it settles seven of eight cells: طبيعي8/16/32 mixed with a signed operand widen to رقم, so طبيعي8(10) + رقم8(-50) yields the arithmetic answer -40. Only the eighth cell has no correct answer: طبيعي and رقم share a width and nothing above them spans both ranges. Preferring unsigned (C''s rule) makes طبيعي(10) + رقم(-50) roughly 18 quintillion instead of -40; preferring signed makes 18446744073709551615 - 1 equal -2. Both are outright lies. Owner decision (2026-08-26): break the silence — where no correct answer exists the compiler must not invent one; it stops and asks the author to state the intent in an intermediate variable of a declared type (Sad has no cast expression). This deliberately reverses an earlier ruling (2026-08-16) that preferred unsigned in both arithmetic and comparison; comparisons stay outside this code in stage one. The governing argument is the language''s consistency with itself: Sad has an ownership system and a borrow checker that rejects a possibly-dangling reference — a language that guards that and then silently picks between two answers 18 quintillion apart is neither strict nor permissive but inconsistent, and no user can build an intuition on it. Rust, Go, Swift, Zig and Kotlin reject the mix; C# widens where a wider type exists and rejects where none does; Java removed unsigned types altogether. C alone chooses silently — and C is the only one of them that promises nothing.'
+- code: SEM_ROUTE_HANDLER_NOT_LITERAL
+  id: SEM049
+  category: semantic
+  # (AR) 🔑 لماذا رمزٌ دلاليٌّ لا «خطأ مترجم داخلي»؟ لأنّ المترجّمَ **لم ينهَر**:
+  #      هو يعرفُ تمامًا ما لا يستطيعُ خفضَه ويقولُه. وكان يُبلَّغُ بـINT002
+  #      («التعليمة وصلت بعدد معاملات غير متوقَّع — يُرجى الإبلاغ») فيُطلَبُ من
+  #      كاتبِ البرنامجِ أن يُبلِّغَ عن علّةِ مترجِمٍ لا وجودَ لها. وقِيسَ أنّ
+  #      «استورد شبكات» وحدَه كان يُنتِجُ أربعةَ بلاغاتٍ كهذه لكلِّ مستورِد،
+  #      لأنّ `شبكات.ص` تُمرِّرُ المعالجَ **معاملًا** إلى مدمَجةِ تسجيلِ المسار.
+  # (EN) A semantic code, not an internal error: the compiler did not crash — it
+  #      knows exactly what it cannot lower and says so. Reporting it as INT002
+  #      asked the program's author to file a compiler bug that does not exist.
+  title:
+    ar: معالجُ المسار يجب أن يكون اسمَ دالّةٍ معرَّفةٍ حرفيًّا
+    en: A route handler must be the literal name of a defined function
+  brief:
+    ar: "معالجُ المسار في '{name}' يجب أن يكون اسمَ دالّةٍ معرَّفةٍ حرفيًّا؛ وردَ '{got}'"
+    en: "The route handler in '{name}' must be the literal name of a defined function; got '{got}'"
+  placeholders:
+  - name
+  - got
+  fix_hint:
+    ar: 'مرِّرِ اسمَ دالّةٍ معرَّفةٍ في هذا الملفّ مباشرةً (لا متغيّرًا ولا معاملًا). والمعالجُ غيرُ المباشرِ غيرُ مخفَّضٍ بعدُ: يلزمُه ترامبولينُ وقتِ تشغيلٍ يعرفُ اتّفاقيّةَ المُغلَقات.'
+    en: 'Pass the name of a function defined in this file directly (not a variable or a parameter). An indirect handler is not lowered yet: it needs a runtime trampoline that understands the closure ABI.'
+  detailed:
+    ar: 'تسجيلُ المسارِ يبني ثانكًا `void()` يُنادي المعالجَ بنوعِه الحقيقيِّ كي يتكفّلَ المخفِّضُ باتّفاقيّةِ النداء — ولا يُمرِّرُ عنوانَ دالّةِ ص خامًا إلى C، لأنّ عائدَها قد يكون `SadDyn` (١٦ بايتًا) فيخفضُه Win64 إلى مؤشّرِ `sret` خفيٍّ في السجلِّ الأوّل، فتكتبُ الدالّةُ عائدَها عبرَ سجلٍّ مهمَلٍ ⇒ فسادُ ذاكرةٍ يقتلُ العمليّةَ بعدَ إرسالِ الرد (مقيس). وبناءُ الثانكِ يلزمُه معرفةُ الدالّةِ **وقتَ التوليد**، فلا يكفي أن تكونَ قيمةً وقتَ التشغيل.'
+    en: 'Route registration builds a `void()` thunk that calls the handler with its true type so the lowering handles the ABI; it never hands C a raw Sad function address, whose return may be a 16-byte `SadDyn` that Win64 demotes to a hidden `sret` pointer, corrupting memory right after the response is sent (measured). Building that thunk requires knowing the function AT CODEGEN TIME, so a runtime value does not suffice.'
+- code: SEM_MEMBER_RECEIVER_CLASS_UNKNOWN
+  id: SEM050
+  category: semantic
+  # (AR) 🔑 رمزٌ واحدٌ لا رمزان — والسببُ مراجعةٌ خصميّةٌ دحضت الثاني.
+  #      كان معه `SEM051 SEM_UNKNOWN_MEMBER` («ليس عضوًا في أيِّ صنفٍ معرَّف»)
+  #      يُنتقى بـ`fieldExistsInAnyClass`. وقِيسَ أنّ تلك الدالّةَ تبحثُ في
+  #      **جدولِ حقولِ الأصنافِ وحدَه**، فلا ترى:
+  #        • `م.الطول` و«الطول» طريقةٌ **مستقرّةٌ معلَنةٌ** في `type_methods.yaml`
+  #        • `ص.نق` و«نق» حمولةُ تعدادٍ **مُصرَّحةٌ في السطرِ نفسِه**
+  #        • `ك؟.الطول` في بذرةِ P1 مُعلَنُ مخرَجِها «OK»
+  #      فكان الرمزُ يقولُ «الخطأُ في البرنامجِ لا في المترجّم» عن برامجَ
+  #      **صحيحة**. وتحويلُ انهيارٍ إلى رفضٍ *يبدو مقصودًا* أسوأُ من الانهيار:
+  #      الانهيارُ يُقرأُ عطبًا، والرفضُ الكاذبُ يُقرأُ قاعدةَ لغة.
+  #      فبقيَ الرمزُ الذي لا يدّعي إلّا ما قِيس: **تعذّر تحديدُ الصنف**.
+  # (EN) 🔑 One code, not two — an adversarial review refuted the second.
+  #      SEM051 ("not a member of any defined class") was selected by
+  #      fieldExistsInAnyClass, which searches the CLASS-FIELD table only and
+  #      therefore cannot see declared type methods, enum payload fields, or safe
+  #      access. It accused CORRECT programs of being wrong. Turning a crash into
+  #      a rejection that LOOKS DELIBERATE is worse than the crash: a crash reads
+  #      as a defect, a false rejection reads as a language rule. Only the claim
+  #      that was actually measured survives: the class could not be determined.
+  title:
+    ar: صنفُ المستقبِل غيرُ معروفٍ وقتَ الترجمة
+    en: The receiver's class is not known at compile time
+  brief:
+    ar: "تعذّر تحديدُ صنفِ المستقبِل '{receiver}' عندَ الوصولِ إلى العضو '{member}' — والمستقبِلُ الديناميُّ غيرُ مخفَّضٍ بعد"
+    en: "Could not determine the class of receiver '{receiver}' when accessing member '{member}' — a dynamic receiver is not lowered yet"
+  placeholders:
+  - receiver
+  - member
+  fix_hint:
+    ar: 'إن كان «{member}» طريقةً معلَنةً على النوعِ فنادِها بقوسَيها: «{receiver}.{member}()». وإن كان حقلَ صنفٍ فصرِّحْ نوعَ المستقبِلِ بصنفٍ معرَّف. والمستقبِلُ الذي لا يُعرَفُ صنفُه سكونيًّا — معاملٌ غيرُ مُنمَّط، أو قيمةُ تعدادٍ جبريّ — غيرُ مخفَّضٍ بعدُ في المترجّم، وهذا قيدٌ فيه لا خطأٌ في برنامجك.'
+    en: 'If «{member}» is a declared type method, call it with parentheses: «{receiver}.{member}()». If it is a class field, annotate the receiver with a defined class. A receiver whose class is not known statically — an untyped parameter, or an algebraic-enum value — is not lowered yet; that is a limitation of the compiler, not a defect in your program.'
+  detailed:
+    ar: 'الوصولُ إلى حقلٍ يلزمُه تخطيطُ الصنفِ وقتَ التوليدِ لحسابِ إزاحةِ الحقل، فإذا لم يُربَطْ سجلُّ المستقبِلِ بصنفٍ في جداولِ المترجّمِ لم تُحسَبْ إزاحة. ⚠️ ولا يُستدَلُّ من هذا الرمزِ على أنّ «{member}» غيرُ معلَن: الحارسُ الباعثُ يقرأُ جدولَ حقولِ الأصناف وحدَه، ولا يرى الطرائقَ المعلَنةَ على الأنواعِ ولا حمولاتِ التعداداتِ الجبريّة. فالرمزُ يقولُ ما قِيسَ — تعذّرَ الحسم — ولا يحكمُ على البرنامج. والقيدُ مُتتبَّعٌ في ISSUE-080.'
+    en: 'Field access needs the class layout at codegen time to compute the offset; if the receiver register is not bound to a class in the compiler tables, no offset can be computed. This code does NOT imply that «{member}» is undeclared: the emitting guard reads the class-field table only and cannot see declared type methods or algebraic-enum payloads. It states what was measured — the class could not be resolved — and passes no judgement on the program. Tracked as ISSUE-080.'
+- code: SEM_ROUTE_HANDLER_HAS_PARAMS
+  id: SEM051
+  category: semantic
+  # (AR) 🔑 رمزٌ رابعٌ لا نصٌّ في الشفرة. كانت هذه الحالُ تُبلَّغُ بـSEM049
+  #      نفسِه مع خانةِ `{got}` **مؤلَّفةً في الـ`.cpp`**:
+  #        {"got", handlerName + " (بمعاملات / with parameters)"}
+  #      وثلاثةُ أعطابٍ في سطرٍ واحد: نصُّ تشخيصٍ خارجَ الكتالوج، وثنائيّةُ لغةٍ
+  #      مكسورةٌ (العربيّةُ تحملُ «with parameters» والإنجليزيّةُ تحملُ «بمعاملات»
+  #      لأنّ الطرفَين من مصدرٍ واحدٍ مخلوط)، وتعليقٌ فوقَه بأسطرٍ يقولُ «والنصُّ
+  #      من الكتالوج». والعددُ يمضي الآنَ في خانةٍ **عدديّة** فيبقى النصُّ كلُّه
+  #      مولَّدًا ثنائيَّ اللغة.
+  # (EN) 🔑 A fourth code, not a string in the source. This case was
+  #      reported through SEM049 with its {got} slot COMPOSED IN THE .cpp, which
+  #      broke bilinguality (each rendering carried the other language's clause)
+  #      and contradicted the comment three lines above it. The arity now travels
+  #      as a NUMERIC placeholder, so all prose stays in the generated catalog.
+  title:
+    ar: معالجُ المسار لا يأخذُ معاملات
+    en: A route handler takes no parameters
+  brief:
+    ar: "معالجُ المسار '{handler}' في '{name}' يأخذُ {count} معاملًا، ومعالجُ المسارِ لا يأخذُ شيئًا"
+    en: "The route handler '{handler}' in '{name}' takes {count} parameter(s); a route handler takes none"
+  placeholders:
+  - handler
+  - name
+  - count
+  fix_hint:
+    ar: 'اجعلْ توقيعَ المعالجِ خاليًا من المعاملات. فالطلبُ والردُّ يُثبَّتانِ في وقتِ التشغيلِ قبلَ ندائِه ويُقرآنِ من داخلِ جسمِه، فلا يُمرَّرانِ وسيطَين.'
+    en: 'Declare the handler with an empty parameter list. The request and response are pinned at run time before it is called and are read from inside its body, so they are not passed as arguments.'
+  detailed:
+    ar: 'تسجيلُ المسارِ يبني ثانكًا `void()` يُنادي المعالج، ويُمرّرُ عنوانَ الثانكِ إلى طبقةِ C. فتوقيعٌ بمعاملاتٍ لا يُطابقُ العقدَ، ولا يُمكِنُ للثانكِ أن يخترعَ قيمًا لها. وهذا قيدٌ في شكلِ الواجهةِ لا علّةٌ في المترجّم.'
+    en: 'Route registration builds a `void()` thunk that calls the handler and hands the thunk address to the C layer. A parameterised signature does not match that contract, and the thunk cannot invent argument values. This is a shape constraint of the interface, not a compiler defect.'
+- code: SEM_TUPLE_DESTRUCTURE_UNSUPPORTED
+  id: SEM052
+  category: semantic
+  # (AR) 🔑 رمزٌ وُلِدَ من **تراجُع** عن رقعةٍ خاطئة، لا من إصلاح.
+  #      حاولتُ خفضَ «متغير (أ، ب) = (١، ٢)» بحجزِ خانةٍ وتصحيحِ ترتيبِ معاملَي
+  #      التخزين، فمرّتِ البذرتانِ ٠٠١٥/٠٠١٦ خضراوَين — **بمصادفةِ فيضٍ حسابيّ**:
+  #      العنصرانِ يُقرآنِ **موسومَين** ببتِّ ٢^٦٣، فالمجموعُ يصحّ لأنّ الوسمَين
+  #      يتلاشيان، والطرفانِ يكذبان. مقيسٌ (٢٠٢٦-٠٩-٠٣، مراجعةٌ خصميّة):
+  #        «أ» تطبعُ «لاشيء» و«ب» تطبعُ ‎-9223372036854775806‎ و«أ+ب» تطبعُ ٣.
+  #        و«إذا (أ == ١)» **لا يُطلَق**. والنصوصُ تطبعُ مؤشّرات، والمنطقيّاتُ
+  #        أعدادًا هائلة، والعشريّاتُ فيضًا — والخروجُ صفرٌ في كلِّ ذلك.
+  #      أي أنّ الرقعةَ حوّلت إخفاقَ بناءٍ ظاهرًا إلى **كذبٍ صامتٍ يُشحَن**.
+  #      وزيادةً: الصيغةُ **غيرُ معلَنةٍ في `gr.decl.variable`** أصلًا (EBNF لا
+  #      يعرفُ إلّا `Identifier`). فالصوابُ رفضٌ مُشخَّصٌ حتّى تُعلَنَ القاعدةُ
+  #      ويُكتَبَ لها خفضٌ يفكُّ الوسمَ — وذلك قرارُ مالكٍ لا ترقيعُ خلفيّة.
+  # (EN) 🔑 A code born of RETRACTING a wrong patch, not of a fix. Lowering
+  #      «متغير (أ، ب) = (1، 2)» made two seeds pass BY ARITHMETIC ACCIDENT: both
+  #      elements are read TAGGED with bit 2^63, so the sum is right while each
+  #      half is wrong («أ» prints "لاشيء", «ب» prints -9223372036854775806, and
+  #      «if (أ == 1)» never fires). Strings printed pointers, booleans printed
+  #      huge integers, floats overflowed — all with exit code 0. The patch turned
+  #      a visible build failure into a SHIPPABLE SILENT LIE. And the form is not
+  #      declared in gr.decl.variable at all. A diagnosed rejection is correct
+  #      until the rule is declared and a tag-aware lowering is written.
+  title:
+    ar: فكُّ الصفِّ في التصريحِ غيرُ مدعوم
+    en: Tuple destructuring in a declaration is not supported
+  brief:
+    ar: "فكُّ الصفِّ في التصريحِ إلى {count} متغيّرًا غيرُ مُعلَنٍ في قواعدِ اللغةِ ولا يُخفِّضُه المترجّم"
+    en: "Destructuring a tuple into {count} variables in a declaration is not declared in the language rules and the compiler does not lower it"
+  placeholders:
+  - count
+  fix_hint:
+    ar: 'صرِّحْ كلَّ متغيّرٍ على حدةٍ واقرأْ عناصرَ الصفِّ بالفهرسة: «متغير ص = (١، ٢)» ثمّ «متغير أ = ص[0]». والفهرسةُ مقيسةٌ صحيحةً على الصفوف.'
+    en: 'Declare each variable separately and read the tuple by index: «متغير ص = (1، 2)» then «متغير أ = ص[0]». Indexing a tuple is measured correct.'
+  detailed:
+    ar: 'عناصرُ الصفِّ تُخزَّنُ في بنيةِ المصفوفةِ الموسومةِ زمنَ التشغيل، فقراءةُ عنصرٍ تلزمُها معرفةُ نوعِه لفكِّ وسمِه. ومسارُ الفهرسةِ «ص[0]» يفعلُ ذلك ويُقاسُ صحيحًا، أمّا خفضُ التصريحِ المفكوكِ فكان يخزّنُ القيمةَ **موسومةً** في خانةٍ مُعلَنةٍ عددًا صحيحًا — فيصحُّ الجمعُ ويكذبُ كلُّ ما عداه. ورفعُ هذا الرمزِ يومَ تُعلَنُ الصيغةُ في `gr.decl.variable` ويُكتَبُ لها خفضٌ يفكُّ الوسمَ بنوعِ كلِّ عنصر.'
+    en: 'Tuple elements live in the runtime-tagged array structure, so reading one requires knowing its type in order to strip the tag. The bracket path «ص[0]» does this and is measured correct; the destructuring lowering stored the TAGGED value into a slot declared as an integer, so addition worked and everything else lied. Retired the day the form is declared in gr.decl.variable and given a tag-aware lowering.'
+- code: SEM_TYPE_METHOD_ABSENT_IN_COMPILER
+  id: SEM053
+  category: semantic
+  # (AR) 🔑 نظيرُ SEM047 للطرائقِ المعلَنةِ على الأنواع. وُلِدَ من تراجُعٍ
+  #      ثانٍ: كان `م.أزل(قيمة)` يُسقِطُ التوليدَ بخطأٍ داخليٍّ لأنّ الأماميّةَ
+  #      تبعثُ معاملًا واحدًا والخلفيّةُ تلزمُها خانتان. فوضعتُ ‎-1‎ فهرسًا —
+  #      وهي التهجئةُ الصحيحةُ لـ«احذف_اخير» **وليست** لـ«أزل». ومصدرُ الحقيقةِ
+  #      يُعلِنُ `أزل` «إزالةُ عنصرٍ **بالقيمة**» و`status: stable`. فصارَ
+  #      `م.أزل(1)` على `[1، 2، 3]` يحذفُ **آخرَ عنصر** ويُخرِجُ `[1، 2]`
+  #      برمزِ خروجٍ صفر — جوابٌ خاطئٌ صامتٌ لطريقةٍ مستقرّة (مقيسٌ ٢٠٢٦-٠٩-٠٣).
+  #      ولم تكشفْه بذرةٌ واحدة: ثلاثُ بذورٍ في الشجرةِ تستعملُ `.أزل(` وكلُّها
+  #      `@skip_compiler`. فالصوابُ إعلانُ الفجوةِ لا سدُّها بدلالةٍ أخرى.
+  # (EN) 🔑 The type-method twin of SEM047, born of a second retraction:
+  #      `م.أزل(value)` crashed codegen (one operand given, two required), so a -1
+  #      index was supplied — the correct spelling for «احذف_اخير» and NOT for
+  #      «أزل», which the SoT declares as remove-BY-VALUE and marks stable. The
+  #      patch made `م.أزل(1)` on [1,2,3] delete the LAST element and exit 0: a
+  #      silent wrong answer for a stable method, invisible to the corpus because
+  #      all three seeds using it are @skip_compiler. Declaring the gap is right;
+  #      filling it with another method's semantics is not.
+  title:
+    ar: طريقةٌ معلَنةٌ على النوعِ بلا نظيرٍ في المترجم
+    en: A declared type method has no compiler counterpart
+  brief:
+    ar: "الطريقة '{method}' على '{target}' معلَنة في مصدر الحقيقة، ولا ذراعَ توزيعٍ لها في المترجم"
+    en: "Method '{method}' on '{target}' is declared in the SoT, but the compiler has no dispatch arm for it"
+  placeholders:
+  - method
+  - target
+  fix_hint:
+    ar: 'استعمِلْ طريقةً مصرَّفةً تؤدّي الغرضَ نفسَه — مثلًا «احذف(فهرس)» بعدَ «بحث(قيمة)» بدلًا من «أزل(قيمة)» — أو اكتبِ المنطقَ دالّةَ ص.'
+    en: 'Use a compiled method that serves the same purpose — e.g. «احذف(index)» after «بحث(value)» instead of «أزل(value)» — or write the logic as a ص function.'
+  detailed:
+    ar: 'هذا ليس اسمًا مجهولًا ولا خطأً في برنامجك: الطريقةُ معلَنةٌ في `language-truth/type_methods.yaml` وقد تكون `status: stable`، لكنّ المترجّمَ لا يحملُ لها خفضًا. والرفضُ الصريحُ هنا مقصودٌ ومُختار: البديلُ المقيسُ كان إرسالَها إلى أوپكودٍ بدلالةٍ **أخرى**، فيخرجُ البرنامجُ بصفرٍ ويُعطي جوابًا خاطئًا لا يكشفُه اختبار.'
+    en: 'This is not an unknown name and not a defect in your program: the method is declared in language-truth/type_methods.yaml and may even be marked stable, but the compiler carries no lowering for it. The explicit rejection is deliberate: the measured alternative was routing it to an opcode with DIFFERENT semantics, which exits 0 and returns a wrong answer no test catches.'

@@ -23,8 +23,7 @@
         "bin\\sad.exe",
         "bin\\sad-pkg.exe",
         "bin\\sad-lsp.exe",
-        "bin\\sad-fmt.exe",
-        "bin\\sad-repl.exe"
+        "bin\\sad-fmt.exe"
     ],
     "env_add_path": "bin",
     "checkver": {

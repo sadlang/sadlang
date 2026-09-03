@@ -15,7 +15,7 @@
      في YAML (تُستخدم عمداً عند ترقية العتاد أو تحسين جوهري — قرار بشري،
      ليست خطوة CI).
 
-(EN) NFR gate: measures median interpreter runtimes for reference programs and
+(EN) NFR gate: measures median COMPILE times of reference programs and
      fails (exit 1) when any exceeds its calibrated threshold
      (baseline_ms × (1 + tolerance)). `--calibrate` re-measures and rewrites
      the baseline YAML — a deliberate human action, never a CI step.
@@ -23,12 +23,13 @@
 الاستخدام / Usage:
     python tests/system/benchmark/nfr_gate.py            # الفحص (CI)
     python tests/system/benchmark/nfr_gate.py --calibrate
-    python tests/system/benchmark/nfr_gate.py --interp build/bin/Debug/sad-run.exe
+    python tests/system/benchmark/nfr_gate.py --مترجم build/bin/Release/sad-build.exe
 """
 
 import argparse
 import statistics
 import subprocess
+import tempfile
 import sys
 import time
 from pathlib import Path
@@ -148,25 +149,48 @@ PROBE_SANITY_FACTOR = 10.0
 #      round-robin over 25 rounds put it at −0.2ms — indistinguishable from
 #      "hello world", which is correct: all three are process startup.
 # ═══════════════════════════════════════════════════════════════════════════════
-def measure_all_medians(interp: Path, programs: list) -> dict:
-    """(AR) وسيطُ كلِّ برنامجٍ بدوراتٍ متداخلة — لا كتلةً منفردةً لكلِّ برنامج.
-    (EN) Median wall-clock ms per program, sampled round-robin."""
+# ═══════════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 ما يُقاس: زمنُ **الترجمة**، لا زمنُ تشغيلِ الثنائيِّ المُنتَج.
+#
+#      والسببُ مقيسٌ لا مُفضَّل. على البرامجِ المرجعيّةِ الثلاثة (٢٠٢٦-٠٩-٠٣):
+#          زمنُ الترجمة: 242–283ms  ⇒ تشتُّتٌ ≈16% من الوسيط
+#          زمنُ التشغيل:  65–133ms  ⇒ تشتُّتٌ ≈104% من الوسيط
+#      أي أنّ مدى ضجيجِ التشغيلِ أوسعُ من الوسيطِ نفسِه: برنامجٌ يطبعُ سطرًا
+#      يقيسُ إقلاعَ العمليّةِ لا المترجّم، فبوّابةٌ عليه تُنذِرُ بحِملِ المُشغِّل.
+#      وزمنُ الترجمةِ إشارةٌ فوقَ الأرضيّةِ ويقيسُ المحرّكَ الباقيَ فعلًا.
+#
+#      ⚠️ والثمنُ مُعلَنٌ لا مطموس: **انحدارُ زمنِ تشغيلِ الثنائيِّ المُنتَجِ لا
+#      يُقاسُ هنا**. وقياسُه يلزمُه برامجُ حِملٍ (حلقاتٌ بمئاتِ الآلافِ من
+#      الدورات) لا برامجُ دخانٍ — وهو عملٌ منفصلٌ بعتباتٍ منفصلة.
+#
+# (EN) What is measured: COMPILE time, not the produced binary's runtime. Measured
+#      reason (2026-09-03): compile spread ≈16% of median, run spread ≈104% — at
+#      smoke-program size the run measures process startup, not the compiler.
+#      Stated cost: produced-binary runtime regression is NOT covered here; that
+#      needs load programs (100k+ iteration loops), a separate gate.
+# ═══════════════════════════════════════════════════════════════════════════════
+def measure_all_medians(compiler: Path, programs: list) -> dict:
+    """(AR) وسيطُ زمنِ ترجمةِ كلِّ برنامجٍ بدوراتٍ متداخلة — لا كتلةً لكلِّ برنامج.
+    (EN) Median compile wall-clock ms per program, sampled round-robin."""
     samples = {program.stem: [] for program in programs}
-    for _ in range(RUNS_PER_PROGRAM):
-        for program in programs:
-            start = time.perf_counter()
-            proc = subprocess.run(
-                [str(interp), str(program)],
-                capture_output=True,
-                timeout=60,
-                cwd=str(PROJECT_ROOT),
-            )
-            elapsed_ms = (time.perf_counter() - start) * 1000.0
-            if proc.returncode != 0:
-                print(f"  ❌ فشل تنفيذ {program.name} (rc={proc.returncode}) — "
-                      f"بوّابة NFR تتطلب برنامجاً أخضر أولاً")
-                sys.exit(2)
-            samples[program.stem].append(elapsed_ms)
+    with tempfile.TemporaryDirectory(prefix="sad_nfr_") as workdir:
+        out_dir = Path(workdir)
+        for _ in range(RUNS_PER_PROGRAM):
+            for program in programs:
+                target = out_dir / f"{program.stem}.exe"
+                start = time.perf_counter()
+                proc = subprocess.run(
+                    [str(compiler), str(program), "-o", str(target)],
+                    capture_output=True,
+                    timeout=120,
+                    cwd=str(PROJECT_ROOT),
+                )
+                elapsed_ms = (time.perf_counter() - start) * 1000.0
+                if proc.returncode != 0:
+                    print(f"  ❌ فشلت ترجمة {program.name} (rc={proc.returncode}) — "
+                          f"بوّابة NFR تتطلب برنامجاً أخضر أولاً")
+                    sys.exit(2)
+                samples[program.stem].append(elapsed_ms)
     return {stem: statistics.median(values) for stem, values in samples.items()}
 
 
@@ -193,6 +217,8 @@ def write_thresholds(measured: dict) -> None:
     lines = [
         "# عتبات NFR — خط أساس مقيس فعلياً (GR-01) — يُعاد توليده بـ --calibrate فقط",
         "# NFR thresholds — actually-measured baseline; regenerate via --calibrate only",
+        "# المقيس: زمنُ الترجمة بـsad-build (لا زمنُ تشغيلِ الثنائيِّ المُنتَج)",
+        "# Measured: sad-build COMPILE time (not the produced binary runtime)",
         f"# آخر معايرة / last calibration: {time.strftime('%Y-%m-%d %H:%M')}",
         f"# عدد التشغيلات لكل قياس / runs per sample: {RUNS_PER_PROGRAM} (median)",
         "",
@@ -346,8 +372,10 @@ def self_test() -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="بوّابة عتبات الأداء NFR")
-    parser.add_argument("--interp", default="build/bin/Debug/sad-run.exe")
+    parser = argparse.ArgumentParser(
+        description="بوّابة عتبات الأداء NFR — زمنُ الترجمة")
+    parser.add_argument("--مترجم", dest="compiler",
+                        default="build/bin/Release/sad-build.exe")
     parser.add_argument("--calibrate", action="store_true",
                         help="قياس وكتابة خط أساس جديد (قرار بشري — ليس CI)")
     parser.add_argument("--self-test", action="store_true",
@@ -357,12 +385,16 @@ def main() -> int:
     if args.self_test:
         return self_test()
 
-    interp = PROJECT_ROOT / args.interp
-    if not interp.exists():
-        print(f"⚠️ المفسر غير موجود: {interp} — تخطٍّ (ليس فشلاً)")
-        return 0
+    compiler = PROJECT_ROOT / args.compiler
+    # (AR) 🔑 غيابُ المترجّمِ كان «تخطٍّ (ليس فشلاً)» — أي أنّ البوّابةَ تخضرُّ
+    #      وهي لم تقِسْ شيئًا، وهو أخبثُ ما يقعُ لحارسٍ في CI. صار عطبًا يُعلَن.
+    # (EN) A missing compiler used to be "skip, not a failure" — the gate went
+    #      green having measured nothing. It is now a declared failure.
+    if not compiler.exists():
+        print(f"❌ المترجّم غير موجود: {compiler} — لم يُقَسْ شيء، فلا حكم")
+        return 2
 
-    print("═══ بوّابة NFR — قياس الوسيط لكل برنامج مرجعي ═══")
+    print("═══ بوّابة NFR — وسيطُ زمنِ الترجمة لكل برنامج مرجعي ═══")
     programs = []
     for rel in BENCH_PROGRAMS:
         program = PROJECT_ROOT / rel
@@ -370,7 +402,7 @@ def main() -> int:
             print(f"  ❌ برنامج مرجعي مفقود: {rel}")
             return 2
         programs.append(program)
-    measured = measure_all_medians(interp, programs)
+    measured = measure_all_medians(compiler, programs)
     for program in programs:
         print(f"  📏 {program.name}: median = {measured[program.stem]:.1f}ms")
 

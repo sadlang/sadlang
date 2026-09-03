@@ -390,8 +390,8 @@ errors:
   placeholders:
   - method
   fix_hint:
-    ar: هذا خطأ داخلي في وقت التشغيل. تأكّد من إنشاء الكائن بـ 'جديد صنف(...)'. إن استمرّت المشكلة فهي bug في المفسّر.
-    en: Internal runtime error. Ensure object created via 'جديد ClassName(...)'. If persistent, this is an interpreter bug.
+    ar: هذا خطأ داخلي في وقت التشغيل. تأكّد من إنشاء الكائن بـ 'جديد صنف(...)'. إن استمرّت المشكلة فهي علّة في المترجم — أبلِغ.
+    en: Internal runtime error. Ensure object created via 'جديد ClassName(...)'. If persistent, this is a compiler bug — please report it.
   detailed:
     ar: كل كائن في وقت التشغيل يحمل مرجعاً لصنفه. غياب هذا المرجع يعني فساد بيانات أو إنشاء غير سليم. أبلغ عن هذا الخطأ مع الكود الذي أنتجه.
     en: Every runtime object holds a reference to its class. Absence indicates data corruption or improper instantiation. Report with reproducing code.
@@ -994,6 +994,10 @@ errors:
     en: The عيّن_الحالة builtin sets a value in the UI state system; this error surfaces when an exception is thrown during the operation (detail in {detail}).
 - code: RUN_EXTERN_NOT_SUPPORTED
   id: RUN059
+  retired:
+    since: '2026-09-03'
+    ar: 'موضوعُه المفسّرُ المحذوف: «دالّة خارجيّة غير مدعومة في المفسّر». والمترجّمُ يصرفُ الخارجيّاتِ، فالحالةُ التي وُلِدَ لها لا تقع.'
+    en: 'Its subject was the deleted interpreter''s lack of extern support; the compiler emits externs, so the case cannot arise.'
   category: runtime
   title:
     ar: دالة خارجية غير مدعومة في المفسّر

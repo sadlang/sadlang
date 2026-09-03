@@ -5,7 +5,13 @@
   "description": "مخطط JSON لملفات رسائل أخطاء لغة ص — language-truth/errors/*.yaml. يصف الصيغة المتداخلة المُعتمَدة رسمياً (ADR-DOCS-V4-005، 2026-06-09): title/brief/fix_hint/detailed لكلٍّ {ar,en}. يُلغي الصيغة المسطّحة (message_ar/message_en) المرفوضة.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "category", "description_ar", "description_en", "errors"],
+  "required": [
+    "version",
+    "category",
+    "description_ar",
+    "description_en",
+    "errors"
+  ],
   "properties": {
     "version": {
       "type": "string",
@@ -15,8 +21,14 @@
       "$ref": "#/$defs/category",
       "description": "تصنيف كل أخطاء هذا الملف"
     },
-    "description_ar": { "type": "string", "minLength": 1 },
-    "description_en": { "type": "string", "minLength": 1 },
+    "description_ar": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description_en": {
+      "type": "string",
+      "minLength": 1
+    },
     "status": {
       "type": "string",
       "description": "حالة تنفيذ الفئة (حقل وصفي حرّ، مثل: not_implemented / implemented_under_runtime)"
@@ -26,14 +38,24 @@
       "description": "هل أخطاء هذه الفئة مُنفَّذة فعلياً في الكود؟"
     },
     "see_also": {
-      "type": ["array", "null"],
-      "items": { "type": ["object", "string"] },
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": [
+          "object",
+          "string"
+        ]
+      },
       "description": "مراجع ذات صلة (نص أو كائن مرجع خطأ بـ code/id/category)"
     },
     "errors": {
       "type": "array",
       "description": "قائمة تعريفات الأخطاء في هذه الفئة",
-      "items": { "$ref": "#/$defs/error" }
+      "items": {
+        "$ref": "#/$defs/error"
+      }
     }
   },
   "$defs": {
@@ -53,16 +75,33 @@
     "bilingual": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["ar", "en"],
+      "required": [
+        "ar",
+        "en"
+      ],
       "properties": {
-        "ar": { "type": "string", "minLength": 1 },
-        "en": { "type": "string", "minLength": 1 }
+        "ar": {
+          "type": "string",
+          "minLength": 1
+        },
+        "en": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     },
     "error": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["code", "id", "category", "title", "brief", "fix_hint", "detailed"],
+      "required": [
+        "code",
+        "id",
+        "category",
+        "title",
+        "brief",
+        "fix_hint",
+        "detailed"
+      ],
       "properties": {
         "code": {
           "type": "string",
@@ -74,7 +113,9 @@
           "pattern": "^[A-Z]{2,3}[0-9]{3}$",
           "description": "معرّف نصي ثابت (مثل LEX001) — للوثائق والإحالة"
         },
-        "category": { "$ref": "#/$defs/category" },
+        "category": {
+          "$ref": "#/$defs/category"
+        },
         "title": {
           "$ref": "#/$defs/bilingual",
           "description": "عنوان الخطأ المختصر"
@@ -93,8 +134,31 @@
         },
         "placeholders": {
           "type": "array",
-          "items": { "type": "string" },
+          "items": {
+            "type": "string"
+          },
           "description": "أسماء المتغيرات المسموحة في قوالب brief/fix_hint/detailed (اختياري)"
+        },
+        "retired": {
+          "type": "object",
+          "description": "(AR) الرمزُ مُتقاعَد: لا يمكن أن يُرفَع بعدَ اليوم. حضورُ الحقلِ هو التقاعُد، وقيمتُه هي سببُه — فلا تقاعُدَ بلا سبب. ويحرسُه scripts/codegen/check_retired_error_codes.py: يُخفِقُ إن وُجِدَ باعثٌ لرمزٍ مُتقاعَد. والنصُّ يبقى في الكتالوجِ عمدًا — حذفُ مدخلٍ «ميّت» أسقطَ تشخيصًا من قبل. / (EN) Retired: can no longer be raised. The field's presence IS the retirement and its value is the reason, so there is no reason-less retirement. Guarded by check_retired_error_codes.py, which fails if an emitter exists. The text stays in the catalog on purpose.",
+          "properties": {
+            "since": {
+              "type": "string"
+            },
+            "ar": {
+              "type": "string"
+            },
+            "en": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "since",
+            "ar",
+            "en"
+          ],
+          "additionalProperties": false
         }
       }
     }

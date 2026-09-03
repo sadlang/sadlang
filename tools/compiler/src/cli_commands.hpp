@@ -274,111 +274,21 @@ private:
 // Run Command - sad run
 // ==============================================================================
 
-/**
- * @brief أمر تشغيل البرنامج
- * 
- * يترجم ويشغل برنامج ص في خطوة واحدة
- * 
- * الاستخدام:
- *   ص شغّل [ملف.ص] [وسائط البرنامج]
- *   sad run [file.s] [program arguments]
- * 
- * أمثلة:
- *   ص شغّل برنامج.ص
- *   ص شغّل برنامج.ص -- وسيط1 وسيط2
- *   sad run program.s --release
- */
-class RunCommand : public Command {
-public:
-    int execute(const ParsedOptions& options) override;
-    
-    std::string get_name() const override { return "run"; }
-    std::string get_arabic_name() const override { return "شغّل"; }
-    
-    std::string get_description() const override { 
-        return "Compile and run a program"; 
-    }
-    std::string get_arabic_description() const override { 
-        return "ترجمة وتشغيل برنامج"; 
-    }
-    
-    std::vector<CommandOption> get_options() const override;
-    void print_examples(std::ostream& os) const override;
-    
-private:
-    // تشغيل البرنامج بعد البناء
-    int run_program(const std::string& executable,
-                    const std::vector<std::string>& args) const;
-};
+// (AR) 🔑 حُذف تصريحُ RunCommand: تنفيذُه كان في run_command.cpp — شفرةٌ ميّتةٌ
+//      مُصرَّفة، إذ `CommandManager` لا يُنشَأُ إلّا داخلَ #ifdef SAD_CLI_MAIN
+//      ولا أحدَ يُعرّفُ الرمز. ⚠️ دَينٌ مُقيَّد: `sad run` غيرُ مُنفَّذ؛
+//      والتشغيلُ اليومَ: `sad build x.ص -o x.exe` ثمّ `./x.exe`.
+// (EN) Removed: its implementation was compiled-but-unreachable code.
 
 // ==============================================================================
 // أمر الاختبار - ص اختبر
 // Test Command - sad test
 // ==============================================================================
 
-/**
- * @brief أمر تشغيل الاختبارات
- * 
- * يكتشف ويشغل جميع اختبارات المشروع
- * 
- * الاستخدام:
- *   ص اختبر [نمط] [خيارات]
- *   sad test [pattern] [options]
- * 
- * أمثلة:
- *   ص اختبر
- *   ص اختبر اختبار_*
- *   ص اختبر --متوازي
- *   sad test --verbose
- */
-class TestCommand : public Command {
-public:
-    int execute(const ParsedOptions& options) override;
-    
-    std::string get_name() const override { return "test"; }
-    std::string get_arabic_name() const override { return "اختبر"; }
-    
-    std::string get_description() const override { 
-        return "Run project tests"; 
-    }
-    std::string get_arabic_description() const override { 
-        return "تشغيل اختبارات المشروع"; 
-    }
-    
-    std::vector<CommandOption> get_options() const override;
-    void print_examples(std::ostream& os) const override;
-    
-private:
-    // نتيجة اختبار واحد
-    struct TestResult {
-        std::string name;
-        std::string name_ar;
-        bool passed;
-        double duration_ms;
-        std::string error_message;
-        std::string output;
-    };
-    
-    // اكتشاف الاختبارات
-    std::vector<std::string> discover_tests(const std::string& pattern) const;
-    
-    // تشغيل اختبار واحد
-    TestResult run_single_test(const std::string& test_file) const;
-    
-    // طباعة ملخص النتائج
-    void print_test_summary(const std::vector<TestResult>& results) const;
-    
-    // طباعة نتيجة اختبار واحد
-    void print_test_result_line(const TestResult& result, bool verbose) const;
-    
-    // كتابة التقرير إلى ملف
-    void write_report(const std::vector<TestResult>& results,
-                      const std::string& filename,
-                      const std::string& format) const;
-    
-    // مطابقة النمط
-    bool match_pattern(const std::string& str, const std::string& pattern) const;
-};
+// (AR) 🔑 حُذف تصريحُ TestCommand للسببِ نفسِه (test_command.cpp).
+//      ⚠️ دَينٌ مُقيَّد: `sad test` غيرُ مُنفَّذ؛ وعدّاءُ السلوكِ هو
+//      `python tests/runner.py --compiler <sad-build>`.
+// (EN) Removed for the same reason (test_command.cpp).
 
 // ==============================================================================
 // أمر المشروع الجديد - ص جديد

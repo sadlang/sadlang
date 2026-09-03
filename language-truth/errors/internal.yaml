@@ -29,8 +29,8 @@ errors:
     placeholders:
     - detail
     fix_hint:
-      ar: 'لمطوّر المترجم: ابحث عن نقطة بناء {detail} في باني SIR/IR وتحقّق من عدم تمرير nullptr (أضِف فحص توليد قبلها). للمستخدم: ليست علّة في برنامجك — أبلِغ، وجرّب المفسر مؤقتاً.'
-      en: 'Compiler dev: find where {detail} is built in the SIR/IR builder and ensure no nullptr is passed (add a generation-time check). User: not your bug — report it; use the interpreter meanwhile.'
+      ar: 'لمطوّر المترجم: ابحث عن نقطة بناء {detail} في باني SIR/IR وتحقّق من عدم تمرير nullptr (أضِف فحص توليد قبلها). للمستخدم: ليست علّة في برنامجك — أبلِغ، وجرّب صياغةً أبسط للتعبير ريثما تُصلَح.'
+      en: 'Compiler dev: find where {detail} is built in the SIR/IR builder and ensure no nullptr is passed (add a generation-time check). User: not your bug — report it; try a simpler form of the expression meanwhile.'
     detailed:
       ar: حاول المترجم إدراج عنصر فارغ (null) في التمثيل الوسيط ({detail}). يعني انتهاك ثابت داخلي في توليد الكود — غالباً مسار توليد لم يُنشئ العقدة قبل استخدامها. لا علاقة له بصحّة كود ص.
       en: The compiler tried to insert a null element into the IR ({detail}). An internal codegen invariant was violated — usually a generation path that did not create the node before use. Unrelated to your ص code.
@@ -127,6 +127,10 @@ errors:
 
   - code: INT_INTERP_NAMELESS_DEFINITION
     id: INT008
+    retired:
+      since: '2026-09-03'
+      ar: 'موضوعُه المفسّرُ المحذوف: «خطأ داخلي في المفسر». لا باعثَ له في الشجرة، ولا يمكن أن يُرفَع.'
+      en: 'Its subject was the deleted interpreter; no emitter remains and it can never be raised.'
     category: internal
     title:
       ar: خطأ داخلي في المفسر — تعريف دالة بلا اسم
@@ -145,6 +149,10 @@ errors:
 
   - code: INT_INTERP_SCOPE_STACK
     id: INT009
+    retired:
+      since: '2026-09-03'
+      ar: 'موضوعُه المفسّرُ المحذوف: «خلل في مكدّس نطاقات المفسّر». لا باعثَ له في الشجرة.'
+      en: 'Its subject was the deleted interpreter''s scope stack; no emitter remains.'
     category: internal
     title:
       ar: خطأ داخلي في المفسر — خلل في مكدّس النطاقات
@@ -199,6 +207,10 @@ errors:
 
   - code: INT_INTERP_UNEXPECTED_TOKEN
     id: INT010
+    retired:
+      since: '2026-09-03'
+      ar: 'موضوعُه المفسّرُ المحذوف: «نوع رمز حرفي غير متوقَّع في المفسّر». لا باعثَ له في الشجرة.'
+      en: 'Its subject was the deleted interpreter''s literal handling; no emitter remains.'
     category: internal
     title:
       ar: خطأ داخلي في المفسر — نوع رمز حرفي غير متوقَّع

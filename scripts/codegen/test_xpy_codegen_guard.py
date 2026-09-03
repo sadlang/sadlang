@@ -70,8 +70,6 @@ EXPECTED_OUTPUTS = {
     "shared/parser/include/generated/ui_parser_nodes_generated.h",
     # (AR) نظام «مصدر حقيقة الأدوات» — أوّل أداة sad-repl (كتالوج أخطاء/رسائل/أوامر).
     # (EN) Tools' Source-of-Truth — first tool sad-repl (errors/messages/commands catalog).
-    "tools/repl/generated/repl_sot_generated.h",
-    "tools/repl/generated/repl_sot_generated.cpp",
     # (AR) أعلام واجهة الأوامر — مصدر حقيقة cli_flags.yaml ⇒ رأس C++ + وثيقة عربيّة.
     # (EN) CLI flags — cli_flags.yaml source-of-truth ⇒ C++ header + Arabic doc.
     "shared/cli/include/cli_flags_generated.h",

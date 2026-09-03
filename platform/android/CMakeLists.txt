@@ -90,6 +90,32 @@ set(SAD_AST_SOURCES
     ${SAD_ROOT_DIR}/shared/ast/src/ast_clone.cpp
 )
 
+# ══════════════════════════════════════════════════════════════════════
+# (AR) 🔑 مسارُ المحرّكِ الواحد — زمنُ تشغيلِ أندرويد موقوفٌ لا محذوف.
+#      كان `sad_android_runtime.cpp` يُضمِّنُ `interpreter_core.h` ويُنشئُ
+#      مفسّرًا شجريًّا داخلَ التطبيق: أي أنّ أندرويد كان **يشحنُ المحرّكَ
+#      المحذوف**. ولا نظيرَ جاهزٌ في المترجم — الترجمةُ الأصليّةُ إلى
+#      arm64-android مسارٌ آخرُ يحتاج عملًا مستقلًّا (سلسلةُ أدواتِ NDK
+#      وربطٌ ثابت)، لا استبدالَ سطرٍ هنا.
+#      فالبناءُ يُرفَضُ **باسمِه** بدل أن ينهارَ على ٢٥ ملفًّا مفقودًا؛
+#      ووظيفةُ CI تحملُ `continue-on-error: true` فكان سيُخفقُ صامتًا —
+#      وإخفاقٌ صامتٌ أسوأُ من رفضٍ معلَن.
+#      وما دون ذلك محفوظ: gradle والبيان وشفرةُ جافا وJNI كما هي، فمتى
+#      نضجَ مسارُ الترجمةِ الأصليّة أُعيدَ وصلُها.
+# (EN) Single-engine track: the Android runtime is SUSPENDED, not deleted.
+#      sad_android_runtime.cpp embedded the tree-walking interpreter — Android
+#      shipped the very engine we removed. There is no drop-in compiler
+#      counterpart: native arm64-android codegen is separate work (NDK
+#      toolchain + static linking). So this refuses BY NAME instead of
+#      collapsing on 25 missing files — and its CI job is continue-on-error,
+#      so it would otherwise fail silently. Gradle/manifest/Java/JNI are kept.
+# ══════════════════════════════════════════════════════════════════════
+message(FATAL_ERROR
+    "زمنُ تشغيلِ أندرويد موقوفٌ في مسارِ المحرّكِ الواحد: كان يُضمِّنُ المفسّرَ "
+    "المحذوف، ويلزمُه إعادةُ بناءٍ على مسارِ الترجمةِ الأصليّة (NDK/arm64). "
+    "/ Android runtime is suspended on the single-engine track: it embedded the "
+    "removed interpreter and needs re-basing on native AOT (NDK/arm64).")
+
 # --- Interpreter Core ---
 set(SAD_INTERP_SOURCES
     ${SAD_ROOT_DIR}/interpreter/src/core/interpreter_core.cpp

@@ -715,7 +715,7 @@ install_sad() {
 
     # (AR) شبكة أمان لحزم قديمة لا تحمل bin/ — تُنقل التنفيذيّات إليها.
     # (EN) Safety net for older packages with no bin/ directory.
-    for tool in sad sad-run sadc sad-build sad-check sad-lsp sad-pkg sad-repl sad-fmt; do
+    for tool in sad sadc sad-build sad-check sad-lsp sad-pkg sad-fmt; do
         tool_bin=$(find "$INSTALL_DIR" -name "$tool" -type f ! -path "*/bin/*" 2>/dev/null | head -1)
         if [ -n "$tool_bin" ] && [ ! -f "$BIN_DIR/$tool" ]; then
             cp "$tool_bin" "$BIN_DIR/"
@@ -741,9 +741,16 @@ install_sad() {
     #      cannot source the table, so the binding is a guard:
     #      scripts/ci/check_installer_tool_lists.py matches the two.
     case "$COMPONENTS" in
-        interpreter) REQUIRED_TOOLS="sad sad-run sad-lsp sad-check" ;;
+        # (AR) 🔑 كان المكوّنُ يُدعى «المفسّر» ويشحن sad وsad-lsp وsad-check —
+        #      ولا واحدةَ منها تُشغّلُ برنامجَ ص، وsad-build ليس فيه. فمن اختارَه
+        #      حصلَ على تثبيتٍ لا يُشغّلُ شيئًا ويجتازُ الحارسَ أخضرَ. أُضيف
+        #      sad-build فصار المكوّنُ يفي باسمِه الجديد: تشغيلٌ أساسيّ.
+        # (EN) The "interpreter" component shipped nothing that runs a ص program
+        #      and omitted sad-build, so choosing it yielded a non-running install
+        #      that passed the guard green. sad-build added.
+        interpreter) REQUIRED_TOOLS="sad sad-build sad-lsp sad-check" ;;
         compiler)    REQUIRED_TOOLS="sadc sad-build" ;;
-        full)        REQUIRED_TOOLS="sad sad-run sad-lsp sad-check sadc sad-build" ;;
+        full)        REQUIRED_TOOLS="sad sad-lsp sad-check sadc sad-build" ;;
         *)           REQUIRED_TOOLS="sad" ;;
     esac
     MISSING_TOOLS=""
@@ -805,7 +812,6 @@ EOF
             sadc)           TDESC="المترجم — يحوّل .ص إلى ملف تنفيذي أصلي (LLVM)" ;;
             sad-lsp*)       TDESC="خادم LSP — تكامل VS Code / Vim / Neovim" ;;
             sad-pkg)        TDESC="مدير الحزم — تثبيت مكتبات لغة ص" ;;
-            sad-repl)       TDESC="بيئة تفاعلية" ;;
             sad-fmt)        TDESC="أداة تنسيق الكود" ;;
             *)              TDESC="$TNAME" ;;
         esac
@@ -919,7 +925,6 @@ if [ "$COMPONENTS" = "compiler" ] || [ "$COMPONENTS" = "full" ]; then
 fi
 if [ "$COMPONENTS" = "full" ]; then
     printf "    %ssad-pkg init%s       إنشاء مشروع جديد\n" "$DIM" "$RESET"
-    printf "    %ssad-repl%s           بيئة تفاعلية\n"     "$DIM" "$RESET"
 fi
 
 if [ -n "$LLVM_PATH" ]; then

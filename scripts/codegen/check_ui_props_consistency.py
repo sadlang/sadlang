@@ -50,9 +50,18 @@ _PROPS = _ROOT / "language-truth" / "ui_props.yaml"
 _MODS = _ROOT / "language-truth" / "ui_modifiers.yaml"
 _WIDGETS = _ROOT / "language-truth" / "builtins" / "ui_widgets.yaml"
 _HEADER = _ROOT / "features" / "graphics" / "core" / "include" / "sad_ui" / "prop_keys.h"
-_FACTORY = _ROOT / "interpreter" / "src" / "ui" / "widget_builtins.cpp"
-_METHOD_CALL = _ROOT / "interpreter" / "src" / "ui" / "ui_widget_method_call.cpp"
 _COMPILER = _ROOT / "compiler" / "src" / "frontend" / "builders" / "call_method_dispatch.cpp"
+
+# (AR) 🔑 حُذفت ثلاثُ دوالَّ وثابتانِ موضوعُها ملفّانِ في المفسّرِ المحذوف:
+#      `_factory_node_map` و`_factory_prop_map` و`_registers_from_sot` كانت تقرأ
+#      `interpreter/src/ui/widget_builtins.cpp`، و`_METHOD_CALL` يشيرُ إلى موزّعِ
+#      طرائقِ الواجهةِ فيه. ولا نظيرَ لها في المترجّم: الواجهةُ تُخفَّضُ عبر
+#      أوپكودات `BUILTIN_UI_*` لا عبر مصنعٍ يكتبُ مفتاحًا. وتُركُها معرَّفةً بلا
+#      مستعمِلٍ يجعلُ الملفَّ يبدو أوسعَ حراسةً ممّا هو.
+# (EN) Removed: three functions and two constants whose subject was the deleted
+#      interpreter's widget factory. The compiler has no counterpart — UI lowers
+#      through BUILTIN_UI_* opcodes, not a key-writing factory. Leaving them
+#      defined-but-unused would make this guard look wider than it is.
 
 # (AR) مفردات SadUI النصّيّة (حركة/منحنيات/أحداث) — كلٌّ: (اسم، SoT، الماكرو
 #      المولَّد، الهيدر المولَّد، ملفّ المكتبة المستهلِك، بادئة ليترالٍ إنجليزيّ ممنوع).
@@ -99,8 +108,6 @@ _PARSER_CONSUMERS = (
     _ROOT / "shared" / "parser" / "src" / "ui" / "parser_ui.cpp",
     _ROOT / "shared" / "parser" / "src" / "core" / "parser_main.cpp",
     _ROOT / "shared" / "parser" / "src" / "core" / "parser_expressions.cpp",
-    _ROOT / "interpreter" / "src" / "visitors" / "expression_evaluator_ui.cpp",
-    _ROOT / "interpreter" / "src" / "ui" / "ui_bridge.cpp",
 )
 # (AR) ADR-UI-02: المسارُ التصريحيُّ يقبل ١٥ عنصرًا أوّليًّا، سبعةٌ منها حاويات.
 #      الرقمان قرارٌ معماريٌّ لا اشتقاقٌ من المولّد، فيُحرَسان هنا صراحةً: تأكيدٌ
@@ -273,65 +280,10 @@ def _macro_names(header: str, macro: str) -> set[str]:
     }
 
 
-def _factory_node_map(src: str) -> dict[str, str]:
-    """
-    (AR) يستخرج خريطة cpp_id → نوعِ العقدة من مصنع المفسّر: يربط متغيّر الدالّة
-         بنوع العقدة في MAKE_*_FN(<Node>, …) أو UINodeType::<Node> ثمّ بتسجيله
-         registerBuiltinFunction(std::string(Bw::<CPP_ID>), <var>).
-    """
-    var_to_node: dict[str, str] = {}
-    for m in re.finditer(
-        r"auto\s+(\w+)\s*=\s*MAKE_(?:SIMPLE_)?WIDGET(?:_WITH_PROP)?_FN\((\w+)", src
-    ):
-        var_to_node[m.group(1)] = m.group(2)
-    # (AR) مصانعُ لامدا صريحة (مثل صندوق المقاس) تُنشئ WidgetBuilder بنوعٍ مباشر.
-    for m in re.finditer(
-        r"auto\s+(\w+)\s*=\s*\[[\s\S]{0,600}?UINodeType::(\w+)", src, re.S
-    ):
-        var_to_node.setdefault(m.group(1), m.group(2))
-    cpp_to_node: dict[str, str] = {}
-    for m in re.finditer(
-        r"registerBuiltinFunction\(std::string\(Bw::(\w+)\),\s*(\w+)\)", src
-    ):
-        cpp_id, var = m.group(1), m.group(2)
-        if var in var_to_node:
-            cpp_to_node[cpp_id] = var_to_node[var]
-    return cpp_to_node
 
 
-def _factory_prop_map(src: str) -> dict[str, str]:
-    """
-    (AR) يستخرج خريطة cpp_id → props::ID من مصنع المفسّر عبر ربط متغيّر الدالّة
-         بـMAKE_WIDGET_WITH_PROP_FN(<Node>, sad::ui::props::<ID>) ثمّ بتسجيله
-         registerBuiltinFunction(std::string(Bw::<CPP_ID>), <var>).
-    """
-    var_to_id: dict[str, str] = {}
-    for m in re.finditer(
-        r"auto\s+(\w+)\s*=\s*MAKE_WIDGET_WITH_PROP_FN\([^,]+,\s*sad::ui::props::(\w+)\)",
-        src,
-    ):
-        var_to_id[m.group(1)] = m.group(2)
-    cpp_to_id: dict[str, str] = {}
-    for m in re.finditer(
-        r"registerBuiltinFunction\(std::string\(Bw::(\w+)\),\s*(\w+)\)", src
-    ):
-        cpp_id, var = m.group(1), m.group(2)
-        if var in var_to_id:
-            cpp_to_id[cpp_id] = var_to_id[var]
-    # (AR) صندوق المقاس يكتب props::WIDTH مباشرةً (لا عبر الماكرو) — حالة خاصّة.
-    if re.search(r"UINodeType::SizedBox", src) and "sad::ui::props::WIDTH" in src:
-        cpp_to_id["SIZED_BOX"] = "WIDTH"
-    return cpp_to_id
 
 
-def _registers_from_sot(src: str) -> bool:
-    """
-    (AR) هل يسجّل المفسّرُ العناصرَ من الجدولَين المولَّدَين من مصدر الحقيقة؟
-         يشترط الاثنين معًا: قائمةَ المصانع (اسمٌ ⇒ عقدة) وجدولَ الخاصّيّةِ
-         الأولى (عقدةٌ ⇒ مفتاح). وجودُ أحدِهما وحدَه لا يُنشئ مصنعًا صحيحًا.
-    """
-    return ("SAD_UI_NODE_FACTORY_LIST" in src
-            and "SAD_UI_NODE_PRIMARY_PROP_LIST" in src)
 
 
 def main() -> int:
@@ -344,8 +296,21 @@ def main() -> int:
         return 1
 
     widgets = yaml.safe_load(_WIDGETS.read_text(encoding="utf-8"))
-    factory_src = _FACTORY.read_text(encoding="utf-8")
-    cpp_to_factory_id = _factory_prop_map(factory_src)
+    # (AR) 🔑 **قدرةُ حراسةٍ فُقِدَت، ولا تُطوى صامتة.** كان هنا طرفانِ يُقابَلانِ
+    #      بمصدرِ الحقيقة: مصنعُ العناصرِ في `interpreter/src/ui/widget_builtins.cpp`
+      #    (مفتاحُ `primary_prop` الفعليّ) وخريطةُ `cpp_id ⇒ عقدة`. زالَ الملفُّ مع
+    #      محرّكِه، ولا نظيرَ له في المترجم: الواجهةُ تُخفَّضُ هناك عبر أوپكودات
+    #      `BUILTIN_UI_*` لا عبر مصنعٍ يكتبُ مفتاحًا. فالفحصانِ **يسقطانِ لا**
+    #      **يُستبدلان**: ٤٦ إعلانَ `primary_prop` في مصدرِ الحقيقةِ صارت بلا
+    #      طرفٍ ثانٍ يُقابَلُ به.
+    #      وما يبقى مقيسًا هنا حقيقيٌّ لا حشو: المفتاحُ معروفٌ في `ui_props.yaml`،
+    #      و`params[0]` يبدأ باسمِه القانونيّ، وكلُّ مفتاحٍ في الهيدرِ المولَّد،
+    #      وطرفُ المترجمِ في `call_method_dispatch.cpp` — وكلُّها قابلةٌ للكذب.
+    # (EN) A guarding CAPABILITY was LOST and is recorded, not folded away: the
+    #      widget factory (the real primary_prop key) had no compiler counterpart —
+    #      the compiler lowers UI through BUILTIN_UI_* opcodes, not a key-writing
+    #      factory. So 46 primary_prop declarations now have no second side.
+    #      What remains IS falsifiable, so this guard is not vacuous.
 
     for fn in widgets.get("functions", []):
         pp = fn.get("primary_prop")
@@ -376,16 +341,6 @@ def main() -> int:
         #     (نوعُ العقدة ⇒ مفتاح) المشتقِّ من primary_prop نفسِه، فالمطابقةُ
         #     بنيويّةٌ لا نصّيّة. لا نُسكِت الفحصَ هنا: نشترط أن يستهلك المفسّرُ
         #     الجدولَينِ المولَّدَين فعلًا — فحذفُ الحلقةِ يُفشِل الحارسَ كما يجب.
-        factory_id = cpp_to_factory_id.get(cpp_id)
-        if factory_id is None and not _registers_from_sot(factory_src):
-            errors.append(
-                f"العنصر «{canon}» (cpp_id={cpp_id}): له primary_prop ولا مصنعَ يدويًّا "
-                "ولا تسجيلًا مولَّدًا من مصدر الحقيقة في widget_builtins.cpp"
-            )
-        elif factory_id is not None and factory_id != pp:
-            errors.append(
-                f"العنصر «{canon}»: primary_prop «{pp}» يخالف مفتاح المصنع الفعليّ «props::{factory_id}»"
-            )
 
     # 4) كلّ مفتاح في ui_props.yaml موجود في الهيدر المولَّد
     header = _HEADER.read_text(encoding="utf-8")
@@ -405,7 +360,7 @@ def main() -> int:
             for b in s.encode("utf-8")
         )
 
-    for label, path in (("المفسّر", _METHOD_CALL), ("المترجم", _COMPILER)):
+    for label, path in (("المترجم", _COMPILER),):
         if not path.exists():
             continue
         src = path.read_text(encoding="utf-8")
@@ -552,17 +507,15 @@ def main() -> int:
                         f"للعقدة {seen_canon[alt]} — تضاربٌ صامت"
                     )
         # كلُّ مصنعٍ يُنتج عقدةً في المفسّر مسجَّلٌ في builtins لتلك العقدة
-        for cpp_id, node_id in _factory_node_map(factory_src).items():
-            if cpp_id not in declared:
-                errors.append(
-                    f"المصنع {cpp_id} يُنتج {node_id} في widget_builtins.cpp ولم يُسجَّل في "
-                    f"builtins للعقدة في ui_nodes.yaml (انجراف)"
-                )
-            elif declared[cpp_id] != node_id:
-                errors.append(
-                    f"المصنع {cpp_id}: ui_nodes.yaml ينسبه إلى {declared[cpp_id]} "
-                    f"بينما widget_builtins.cpp يُنتج {node_id}"
-                )
+        # (AR) 🔑 فحصُ «مصنعٌ ⇒ عقدة» سقطَ مع الملفّ — انظر الملاحظةَ أعلاه.
+        # (AR) 🔑 وأُعيدَ ما حُذِفَ زائدًا: ستّةُ فحوصٍ موضوعُها باقٍ في الشجرة
+        #      سقطت مع الكتلةِ الحاضنةِ ولا علاقةَ لها بالمفسّر: ماكرو العُقَدِ في
+        #      types.h/.cpp · حضورُ كلِّ عقدةٍ في الرأسِ المولَّد · قرارُ ADR-UI-02 ·
+        #      مطابقةُ قوائمِ المحلّلِ للـSoT في الاتّجاهَين · منعُ الاسمِ العربيِّ
+        #      الحرفيّ · منعُ عودةِ الجدولِ اليدويّ. فحذفٌ صحيحٌ اتّسعَ فأسقطَ ما لا
+        #      موضوعَ له في الحذف — وقد عاد.
+        # (EN) Restored: six checks whose subjects still exist fell with the
+        #      enclosing block though none depended on the interpreter.
         # المكتبة تستهلك الماكرو المولَّد (لا عودةَ لجدولٍ يدويّ)
         if not _NODE_HEADER.exists():
             errors.append(f"أنواع العُقَد: الهيدر المولَّد مفقود ({_NODE_HEADER.name}) — شغّل x.py gen")
@@ -671,6 +624,7 @@ def main() -> int:
                         f"لا توافقَ خلفيًّا ولا جدولَ أسماءٍ يدويًّا"
                     )
 
+
     if errors:
         print("✗ فشل حارس اتّساق مفاتيح/معدّلات/مفردات/ألوان/عُقَد الواجهة:")
         for e in errors:
@@ -681,7 +635,7 @@ def main() -> int:
     n_mod = len(mods.get("modifiers", []))
     print(
         f"✓ اتّساق الواجهة سليم: {len(id_to_ar)} مفتاحًا، {n_pp} عنصرًا بـprimary_prop "
-        f"(مطابقٌ للمصنع)، {n_mod} معدّلًا (مطابقٌ لموزّعَي المحرّكين)، "
+        f"(بلا طرفٍ مقابِلٍ — دَينٌ مُقيَّد)، {n_mod} معدّلًا (مطابقٌ لموزّع المترجم)، "
         f"{n_vocab_entries} مفردةً نصّيّةً (حركة/منحنيات/أحداث)، "
         f"{n_colors} لونًا (تعداد `ألوان` + جدول موحَّد، مطابقةٌ للهيدرات المولَّدة)، "
         f"{n_nodes} نوعَ عقدةٍ (التعدادُ وجدولا الاسم مولَّدةٌ من ui_nodes.yaml)."

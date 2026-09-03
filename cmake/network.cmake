@@ -70,11 +70,6 @@ target_include_directories(sad_http PUBLIC
 target_link_libraries(sad_http PUBLIC sad_network)
 target_compile_features(sad_http PUBLIC cxx_std_17)
 
-if(TARGET sad_core)
-    target_link_libraries(sad_interp PUBLIC sad_network sad_http)
-    target_compile_definitions(sad_interp PRIVATE HAS_NETWORK_LIB)
-    message(STATUS "✓ دعم الشبكة HTTP بالمفسر / Enabled HTTP network support in interpreter")
-endif()
 
 set_target_properties(sad_http PROPERTIES
     OUTPUT_NAME "sad_http"
@@ -120,8 +115,3 @@ message(STATUS "✓ WebSocket: Client + Server")
 #      يكون false دائماً ولا يُربط شيء).
 # (EN) Link sad_websocket into sad_core here. libraries.cmake runs before
 #      network.cmake so its `if(TARGET sad_websocket)` guard is always false.
-if(TARGET sad_core)
-    target_link_libraries(sad_interp PUBLIC sad_websocket)
-    target_compile_definitions(sad_interp PRIVATE HAS_WEBSOCKET_LIB)
-    message(STATUS "✓ ربط WebSocket بالمفسر / Linked WebSocket to interpreter")
-endif()

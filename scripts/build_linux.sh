@@ -149,7 +149,8 @@ build_project() {
     
     # البناء
     echo "بناء المفسر (sad)..."
-    cmake --build . --target sad-run --parallel $(nproc)
+    # (AR) sad-run زال مع المفسّر — الهدفُ صار المترجّم.
+    cmake --build . --target sad-build --parallel $(nproc)
     
     if [ "$HAVE_LLVM" = true ]; then
         echo "بناء المترجم (sadc)..."

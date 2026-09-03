@@ -29,10 +29,6 @@ if(SAD_ENABLE_GRAPHICS AND EXISTS "${CMAKE_SOURCE_DIR}/features/graphics/CMakeLi
 endif()
 
 # مصحّح الأداء / Performance Profiler (يجب أن يُبنى قبل sad_interp — الاسم القديم sad_core)
-if(EXISTS "${CMAKE_SOURCE_DIR}/tools/profiler/CMakeLists.txt")
-    add_subdirectory(${CMAKE_SOURCE_DIR}/tools/profiler ${CMAKE_BINARY_DIR}/profiler)
-endif()
-
 # (AR) الرسوميّات وبيئة التشغيل والأدوات تُضاف عبر cmake/libraries.cmake
 # (EN) Graphics, runtime and tools are added via cmake/libraries.cmake
 # (AR) ملاحظة: لا تُضِف graphics أو runtime أو tools هنا تفاديًا لأخطاء تكرار المجلّدات الفرعيّة.

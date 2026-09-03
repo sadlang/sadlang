@@ -19,103 +19,11 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ──────────────────────────────────────────────────────────────────────
-# المفسر الرئيسي / Main Interpreter (sad-run)
-# (AR) اسم الهدف موحَّد مع اسم المخرج (sad-run.exe) — RFC «توحيد أسماء أهداف البناء».
-#      الأمر: cmake --build build --config Debug --target sad-run
-# (EN) Target name unified with output (sad-run.exe) — Build-Target-Naming RFC.
+# (AR) 🔑 مسارُ المحرّكِ الواحد: حُذف هدفُ `sad-run` (تطبيقُ المفسّر) ومعه
+#      `apps/sad-run/`. لا مفسّرَ في هذا المستودع؛ المترجمُ وحدَه.
+# (EN) Single-engine track: the `sad-run` target (interpreter app) and
+#      apps/sad-run/ were removed. No interpreter here — the compiler alone.
 # ──────────────────────────────────────────────────────────────────────
-add_executable(sad-run ${CMAKE_CURRENT_SOURCE_DIR}/sad-run/main.cpp)
-
-target_link_libraries(sad-run PRIVATE
-    sad_core
-    sad_type_system
-    sad_semantic
-    sad_network
-    sad_http
-    sad_websocket
-    sad_mobile
-    $<$<TARGET_EXISTS:sad_graphics_bridge>:sad_graphics_bridge>  # (AR) م2-أ: جسر الواجهات (headless: يتلاشى) / (EN) UI bridge (headless: drops)
-    $<$<TARGET_EXISTS:sad_graphics>:sad_graphics>
-    sad_memory_policy   # (AR) Phase A2: سياسة الذاكرة الموحَّدة / (EN) Phase A2: unified memory policy
-    sad_null_safety     # (AR) NS-01: نظام أمان null المشترك / (EN) NS-01: shared null-safety
-    sad_program_rules   # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018) / (EN) unified main-function rule
-)
-
-# (AR) علَم headless لـsad-run (يُطابق sad-repl): يُسقط جسر SDL عند SAD_ENABLE_GRAPHICS=OFF
-# (EN) headless flag for sad-run (mirrors sad-repl): drops the SDL bridge when OFF
-target_compile_definitions(sad-run PRIVATE SAD_ENABLE_GRAPHICS=$<BOOL:${SAD_ENABLE_GRAPHICS}>)
-
-# (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library
-if(TARGET sad_profiler_lib)
-    target_link_libraries(sad-run PRIVATE sad_profiler_lib)
-endif()
-
-# (AR) ربط مكتبة وقت التشغيل إذا تم بناؤها / (EN) Link runtime if built
-if(TARGET sad_rt_runtime)
-    target_link_libraries(sad-run PRIVATE sad_rt_runtime)
-endif()
-
-# (AR) ملاحظة م3 شريحة2: أُسقط مسار vm/include الميّت (حُذفت الآلة في PR #96).
-#      وأُضيف interpreter/include صراحةً بعد نقل main إلى apps/ (كان يُحَلّ نسبيًّا)
-#      — وهو مشروع لأنّ sad-run هو تطبيق المفسّر (حدّ الحارس على نظام المترجم فقط).
-# (EN) Phase-3 apps/ move: dropped the dead vm/include path (VM removed in #96) and
-#      added interpreter/include explicitly (was resolved via a relative path) —
-#      legitimate since sad-run is the interpreter app.
-target_include_directories(sad-run PRIVATE
-    ${CMAKE_SOURCE_DIR}/interpreter/include
-    ${CMAKE_SOURCE_DIR}/compiler/include
-    ${CMAKE_SOURCE_DIR}/shared/ownership/include
-    ${CMAKE_SOURCE_DIR}/shared/null_safety/include   # (AR) NS-01: رأس محلّل أمان null
-    ${CMAKE_SOURCE_DIR}/shared/program_rules/include # (AR) قاعدة الدالة الرئيسية الموحَّدة (SEM018)
-    ${CMAKE_SOURCE_DIR}/compiler/include/types
-    ${CMAKE_SOURCE_DIR}/compiler/include/backend
-    ${CMAKE_SOURCE_DIR}/tools/compiler/src
-    ${CMAKE_SOURCE_DIR}/shared/parser/include
-    ${CMAKE_SOURCE_DIR}/shared/hot_reload/include
-    # (AR) Phase 3 (F-01): فاحص الأنواع المشترك بعد نقله إلى shared/semantic/
-    # (EN) Phase 3 (F-01): shared type checker after move to shared/semantic/
-    ${CMAKE_SOURCE_DIR}/shared/semantic/include
-    # (AR) Phase 4 (F-03): دوال utf8_utils وأدوات مشتركة دون مسارات نسبية
-    # (EN) Phase 4 (F-03): utf8_utils + shared utilities without relative paths
-    ${CMAKE_SOURCE_DIR}/shared/utils/include
-    ${CMAKE_SOURCE_DIR}/shared/ast/include
-    ${CMAKE_SOURCE_DIR}/shared/lexer/include
-    ${CMAKE_SOURCE_DIR}/shared/types/include
-    ${CMAKE_SOURCE_DIR}/shared/errors/include
-    ${CMAKE_SOURCE_DIR}/shared/modules/include
-)
-
-set_target_properties(sad-run PROPERTIES
-    OUTPUT_NAME "sad-run"
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-)
-
-# (AR) م-٧: حجز 128م للمكدّس — مطابقةً لـsad-build. المفسّر يستهلك المكدّس أعمق من
-#      المترجم لا أقلّ: كلّ نداءٍ في لغة ص يُترجَم إلى سلسلة أُطُر C++ متداخلة في
-#      زوّار الشجرة، فالتعاود العاديّ (عاملي، اجتياز شجرة) كان يفجّر مكدّس ويندوز
-#      الافتراضيّ (1م) عند عمق ~32 في بناء Debug — بانهيار صامت (0xC00000FD) لا
-#      تشخيصَ فيه، بينما حارس maxCallDepth_=1000 لا تبلغه التنفيذة أصلًا.
-#      بغير هذا الحجز كان الحارس المنطقيّ حبرًا على ورق.
-# (EN) م-٧: reserve a 128MB stack, mirroring sad-build. Each Sad-level call expands
-#      into a chain of nested C++ visitor frames, so ordinary recursion blew the
-#      default 1MB Windows stack at depth ~32 in Debug — a silent 0xC00000FD crash,
-#      with the maxCallDepth_=1000 guard never reached.
-if(MSVC)
-    target_link_options(sad-run PRIVATE /STACK:134217728)
-elseif(APPLE)
-    # (AR) رابط macOS (ld64) يستخدم -stack_size لا -z stacksize (خاص بـ GNU ld).
-    # (EN) macOS ld64 uses -stack_size, not the GNU ld -z stacksize option.
-    target_link_options(sad-run PRIVATE -Wl,-stack_size,0x8000000)
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    # (AR) ⚠ ‏«‎-z stack-size» تهجئة binutils ld/lld (‏«stacksize» بلا شرطة تهجئة
-    #      Solaris فتُتجاهَل صامتة). وحتّى بالتهجئة الصحيحة لا يحكم PT_GNU_STACK
-    #      مكدّسَ الخيط الرئيسيّ على لينكس — يشتقّه النواة من RLIMIT_STACK (٨م
-    #      عادةً) — فيبقى الأثر على الخيوط المُنشأة وعلى الأنظمة التي تقرؤه.
-    #      عدّاءٌ بـulimit -s 4096 يفشل رغم هذا السطر: دَينٌ مُعلَن لا مسدود.
-    target_link_options(sad-run PRIVATE -Wl,-z,stack-size=134217728)
-endif()
-
-message(STATUS "✓ المفسر / Interpreter: sad-run (apps/sad-run)")
 
 # ──────────────────────────────────────────────────────────────────────
 # المترجم sad-build (يتطلب LLVM) / Compiler sad-build (requires LLVM)

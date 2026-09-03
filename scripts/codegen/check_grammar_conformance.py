@@ -9,7 +9,8 @@
        المفسر والمترجم معاً أم لا.
 
 (AR) المبدأ (GR-01): لا ندّعي دعم قاعدة بلا دليل. الدليل = اختبار .ص موسوم بـ@rule
-     يمرّ عبر runner.py في المفسر (sad-run) والمترجم (sadc) بنفس المخرج.
+     يمرّ عبر runner.py في المحرّكات المتاحة بنفس المخرج. وفي مسارِ المحرّكِ
+     الواحدِ لا يُنشَرُ حكمُ تكافؤٍ: انظر `_verdict` و`single_engine`.
 
 (EN) Comprehensive grammar-conformance checker. Links every production to its
      organized tests and proves — with evidence — that each rule works in BOTH
@@ -399,6 +400,29 @@ def _verdict(results: list[dict], info: dict) -> str:
         return "interp_only" if info["compiler_optional"] else "compiler_gap"
     if any(r["status"] == "NOT_RUN" for r in results):
         return "not_run"
+    # ========================================================================
+    # (AR) 🔑 «مطلقة (مفسر≡مترجم)» دعوى تكافؤٍ بين محرّكَين. وفي مسارِ
+    #      المحرّكِ الواحدِ يكتبُ `_arm_status` ذراعَ المفسّرِ `n/a` دائمًا، فشرطُ
+    #      `broken` أعلاه **لا يمكنُ أن يصدُقَ أبدًا** وتُمنَحُ `dual_ok` مجّانًا:
+    #      قاعدةٌ لم يجرِ عليها إلّا محرّكٌ واحدٌ تُنشَرُ «مفسر≡مترجم».
+    #      مقيسٌ (٢٠٢٦-٠٩-٠٣): ١٠٤ قاعدةً تحملُ اللافتةَ في تقريرٍ وُلِّدَ بعد
+    #      حذفِ المفسّرِ بالكامل — والدفعةُ الأخيرةُ **زادتْها اثنتَين**.
+    #      فالحكمُ يُفصَلُ: تكافؤٌ مقيسٌ شيء، وتغطيةُ محرّكٍ واحدٍ شيءٌ آخر.
+    # (EN) 🔑 "dual_ok" claims parity BETWEEN two engines. In the
+    #      single-engine track the interpreter arm is always "n/a", so the
+    #      `broken` test above can never be true and dual_ok is granted for free —
+    #      104 rules carried that label in a report generated after the
+    #      interpreter was deleted. Split the verdict instead.
+    # ========================================================================
+    # (AR) و«تخطٍّ» مثلُ «n/a» هنا: `_support` يكتبُ للمتخطّاةِ `skip` في الذراعَين
+    #      معًا (طرفاها لم يُشغَّلا)، فلو قِيسَ الغيابُ بـ«n/a» وحدَها لَكفت بذرةٌ
+    #      متخطّاةٌ واحدةٌ لتُعيدَ القاعدةَ إلى دعوى التكافؤ. مقيسٌ: ١٥ قاعدةً بقيت
+    #      تقولُ «مفسر≡مترجم» بعدَ الرقعةِ الأولى، وكلُّها ذاتُ بذرةٍ متخطّاة.
+    # (EN) "skip" counts as "did not run" too: _support writes skip to BOTH arms for
+    #      a skipped seed, so measuring absence by "n/a" alone let a single skipped
+    #      seed restore the parity claim — 15 rules still carried it.
+    if not any(r["interpreter"] not in ("n/a", "skip") for r in results):
+        return "compiler_ok"
     return "dual_ok"
 
 
@@ -406,7 +430,8 @@ def write_evidence(matrix: dict, counts: dict) -> None:
     """(AR) يكتب أثر بناء build/_grammar_conformance.json (لا يُتتبَّع في git)."""
     import time
     summary = {v: sum(1 for m in matrix.values() if m["verdict"] == v)
-               for v in ("dual_ok", "compiler_gap", "interp_only", "broken", "no_tests", "not_run")}
+               for v in ("dual_ok", "compiler_ok", "compiler_gap", "interp_only", "broken",
+                         "no_tests", "not_run")}
     out = {
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "generated_by": "scripts/codegen/check_grammar_conformance.py",
@@ -429,8 +454,17 @@ _STATUS_AR = {
 }
 _VERDICT_AR = {
     "dual_ok": "مطلقة (مفسر≡مترجم)", "compiler_gap": "فجوة مترجم", "interp_only": "مفسر فقط (مُعفاة)",
+    "compiler_ok": "مُغطّاة (المترجّم وحدَه)",
     "broken": "مكسورة", "no_tests": "بلا اختبارات", "not_run": "لم تُشغَّل",
 }
+
+
+def _حالة_عربيّة(status: str, single_engine: bool) -> str:
+    """(AR) «تطابق» حكمٌ على محرّكَين؛ في المحرّكِ الواحدِ الصوابُ «نجحت».
+    (EN) "matched" is a two-engine verdict; single-engine says "passed"."""
+    if single_engine and status == "PASS":
+        return "نجحت ✅"
+    return _STATUS_AR.get(status, status)
 
 
 _RE_GAP_TAG = re.compile(r"^#\s*@gap:?\s+(.+)$")
@@ -497,28 +531,53 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
     #      now close over the total.
     skipped = [e for e in tests if e["status"] == "SKIP"]
 
+    # (AR) 🔑 المحرّكُ الواحدُ يُكتشَفُ من **البيانات** لا يُفترَض: إن لم
+    #      يجرِ في الشوطِ ولو اختبارٌ واحدٌ على المفسّر، فلا تُكتَبُ في التقريرِ
+    #      كلمةُ «مقارنة» ولا «تطابق» ولا عمودُ «مخرج المفسر» — وإلّا نُشِرَ عمودٌ
+    #      فارغٌ يُقرَأُ «المفسّرُ لم يُخرِجْ شيئًا» وهو لم يُشغَّلْ أصلًا.
+    # (EN) 🔑 Single-engine is detected from the DATA, never assumed: if no
+    #      test in this run exercised the interpreter, the report must not say
+    #      "comparison", "matched", or print an interpreter-output column — an
+    #      empty column reads as "the interpreter produced nothing".
+    single_engine = not any(
+        e.get("mode") in ("dual", "dual_parity", "interpreter_only") and e["status"] != "SKIP"
+        for e in tests)
+
     L = []
-    L.append("# تقرير مطابقة قواعد لغة ص — مقارنة المفسر والمترجم")
+    L.append("# تقرير مطابقة قواعد لغة ص — "
+             + ("المترجّم وحدَه" if single_engine else "مقارنة المفسر والمترجم"))
     L.append("")
     L.append("> **مُولَّد آلياً** بـ`scripts/codegen/check_grammar_conformance.py --run`. لا يُحرَّر يدوياً.")
     L.append(f"> التوليد: {time.strftime('%Y-%m-%d %H:%M:%S')}")
     L.append("")
-    L.append("كل اختبار يُشغَّل عبر **المفسر** (sad-run) و**المترجم** (sadc) ويُقارَن مخرجاهما:")
-    L.append("`تطابق` = المخرجان متطابقان؛ `تباعد` = اختلفا (هنا يظهر ما يجب تصحيحه).")
+    if single_engine:
+        L.append("كل اختبار يُشغَّل عبر **المترجم** (`sad-build`) ويُقارَن مخرجُه بعقدِ البذرة:")
+        L.append("`نجحت` = طابقَ العقدَ؛ `تباعد` = خالفَه (هنا يظهر ما يجب تصحيحه).")
+        L.append("")
+        L.append("> ⚠️ **محرّكٌ واحد**: لم يجرِ في هذا الشوطِ محرّكٌ ثانٍ، فلا حكمَ هنا "
+                 "على تكافؤٍ بين محرّكَين — والقاعدةُ «مُغطّاة» تعني أنّ المترجّمَ وفّى "
+                 "بعقدِ بذورِها، لا أنّ محرّكَين اتّفقا.")
+    else:
+        L.append("كل اختبار يُشغَّل عبر **المفسر** (sad-run) و**المترجم** (sadc) ويُقارَن مخرجاهما:")
+        L.append("`تطابق` = المخرجان متطابقان؛ `تباعد` = اختلفا (هنا يظهر ما يجب تصحيحه).")
     L.append("")
     L.append("## الملخص")
     L.append("")
-    L.append(f"- إجمالي الاختبارات: **{total}** — تطابق مزدوج: **{passed}** — "
+    L.append(f"- إجمالي الاختبارات: **{total}** — "
+             + ("نجحت: " if single_engine else "تطابق مزدوج: ")
+             + f"**{passed}** — "
              f"تباعد/إخفاق: **{len(diffs)}** — متخطًّى: **{len(skipped)}**")
     sm = {v: sum(1 for m in matrix.values() if m["verdict"] == v)
-          for v in ("dual_ok", "compiler_gap", "interp_only", "broken", "no_tests", "not_run")}
+          for v in ("dual_ok", "compiler_ok", "compiler_gap", "interp_only", "broken",
+                    "no_tests", "not_run")}
     # (AR) كلُّ حُكمٍ يُطبَع ولو كان صفرًا لولا أنّ حذفَه يُخفي قاعدةً محسوبةً في
     #      المقام دونَ بسطٍ يُظهرها؛ فالمعفاةُ و«لم تُشغَّل» تظهران عند وجودهما.
     # (EN) Verdicts that used to be omitted are shown when nonzero, so a rule
     #      cannot sit in the denominator without appearing in any numerator.
     extra = "".join(f" · {ar}: {sm[k]}" for k, ar in
                     (("interp_only", "مُعفاة (مفسر فقط)"), ("not_run", "لم تُشغَّل")) if sm[k])
-    L.append(f"- القواعد: {len(matrix)} — مطلقة: **{sm['dual_ok']}** · "
+    L.append(f"- القواعد: {len(matrix)} — مُغطّاة (المترجّم): **{sm['compiler_ok']}** · "
+             f"مطلقة (محرّكان): {sm['dual_ok']} · "
              f"فجوة مترجم: {sm['compiler_gap']} · مكسورة: {sm['broken']} · "
              f"بلا اختبارات: {sm['no_tests']}" + extra)
     # (AR) لا زمنَ في المُودَع — لا هنا ولا في الجداول: العدّاءُ يتوازى فالرقمُ دالّةُ
@@ -531,11 +590,13 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
     L.append("## التباعدات والإخفاقات (للتصحيح)")
     L.append("")
     if not diffs:
-        L.append(f"✅ **لا تباعد** — كل اختبار **شُغِّل** أعطى مخرجاً متطابقاً في المفسر والمترجم"
+        L.append("✅ **لا تباعد** — كل اختبار **شُغِّل** أعطى مخرجاً "
+                 + ("موافقاً لعقدِه" if single_engine else "متطابقاً في المفسر والمترجم")
                  + (f" (و**{len(skipped)}** لم يُشغَّل — انظر «المتخطّى» أدناه)." if skipped else "."))
     else:
-        L.append("| الاختبار | الحالة | مخرج المفسر | مخرج المترجم |")
-        L.append("|---|---|---|---|")
+        L.append("| الاختبار | الحالة | مخرج المترجم |" if single_engine
+                 else "| الاختبار | الحالة | مخرج المفسر | مخرج المترجم |")
+        L.append("|---|---|---|" if single_engine else "|---|---|---|---|")
         # (AR) وهذا الجدولُ لم يكن مفروزًا إطلاقًا: يرث ترتيبَ تقريرِ العدّاء. وهو
         #      فارغٌ اليومَ فبرهانُ «قابلٍ لإعادةِ الإنتاج» لم يمسَّه — أي أنّ أهمَّ
         #      جداولِ التقريرِ (ما يُقرأ حين يقع خطب) هو أقلُّها اختبارًا. يُفرَز
@@ -545,8 +606,9 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
         for e in sorted(diffs, key=lambda x: _report_path(x["file"])):
             io = _خليّة(e.get("interp_output", ""), 50)
             co = _خليّة(e.get("compiler_output", ""), 50)
-            L.append(f"| `{_report_path(e['file'])}` | "
-                     f"{_STATUS_AR.get(e['status'], e['status'])} | `{io}` | `{co}` |")
+            حالة = _حالة_عربيّة(e["status"], single_engine)
+            L.append(f"| `{_report_path(e['file'])}` | {حالة} | `{co}` |" if single_engine
+                     else f"| `{_report_path(e['file'])}` | {حالة} | `{io}` | `{co}` |")
     L.append("")
     if skipped:
         L.append("## المتخطّى (لم يُشغَّل — غيرُ مقيسٍ لا ناجح)")
@@ -578,7 +640,8 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
             #      ذلك الحارسُ يومًا وجب تحويلُ هذا الوصلِ إلى المسارِ كما في الأعلى.
             matches = list(GAPS_DIR.rglob(Path(e["file"]).name))
             tag = _خليّة(_gap_tag(matches[0])) if matches else "—"
-            verdict = "تعمل ✅" if e["status"] == "PASS" else f"تكشف ثغرة ❌ ({_STATUS_AR.get(e['status'], e['status'])})"
+            verdict = ("تعمل ✅" if e["status"] == "PASS"
+                       else f"تكشف ثغرة ❌ ({_حالة_عربيّة(e['status'], single_engine)})")
             L.append(f"| `{Path(e['file']).name}` | {tag} | {verdict} |")
         L.append("")
     # ── جدول القواعد ──
@@ -599,7 +662,9 @@ def write_markdown(matrix: dict, counts: dict, report: dict, records: list[dict]
     D.append("# تفصيل اختبارات مطابقة القواعد — كل اختبار بكل معلوماته")
     D.append("")
     D.append("> مُولَّد آلياً مع [التقرير الملخّص](./" + out_path.name + "). أعمدة: الرقم، الاختبار،")
-    D.append("> القاعدة، الفئة، الحالة (نتيجة مقارنة المفسر بالمترجم).")
+    D.append("> القاعدة، الفئة، الحالة"
+             + (" (نتيجةُ المترجّمِ مقابلَ عقدِ البذرة)." if single_engine
+                else " (نتيجة مقارنة المفسر بالمترجم)."))
     D.append(">")
     # (AR) لا عمودَ زمنٍ هنا عن قصد: قِيسَ أنّ ٢٩١٠ صفًّا من ٢٩١٢ (٩٩٫٩٪) كان يتبدّل
     #      فيها الزمنُ وحدَه بين توليدَين متتاليَين، بوسيطِ نسبةٍ ١٫٢٣× ومدًى
@@ -653,7 +718,7 @@ def main() -> int:
     ap.add_argument("--interpreter", help="مسار مفسر مخصص")
     ap.add_argument("--compiler", help="مسار مترجم مخصص")
     ap.add_argument("--report-md", dest="report_md",
-                    help="مسار كتابة تقرير Markdown مقروء (مقارنة المفسر/المترجم + التباعدات)")
+                    help="مسار كتابة تقرير Markdown مقروء (نتائجُ المحرّك/المحرّكَين + التباعدات)")
     ap.add_argument("--pairs-gate", action="store_true",
                     help="اجعل نقص تغطية أزواج التداخل يُفشِل البوّابة (افتراضيًا: تحذير فقط)")
     args = ap.parse_args()

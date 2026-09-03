@@ -36,10 +36,6 @@ endif()
 # (AR) المكوّن runtime: المفسر sad-run + المكتبة القياسية
 # (EN) Component runtime: interpreter sad-run + standard library
 # ══════════════════════════════════════════════════════════════════════
-install(TARGETS sad-run
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-    COMPONENT runtime
-)
 
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/stdlib/
     DESTINATION ${CMAKE_INSTALL_DATADIR}/sad-lang/stdlib
@@ -130,7 +126,7 @@ endif()
 # (AR) المكوّن tools-extra: أدوات إضافية (LSP, pkg, repl, profiler, analyze)
 # (EN) Component tools-extra: extra tools (LSP, pkg, repl, profiler, analyze)
 # ══════════════════════════════════════════════════════════════════════
-foreach(_tool sad-lsp sad-pkg sad-repl sad-profiler sad-analyze)
+foreach(_tool sad-lsp sad-pkg sad-analyze)
     if(TARGET ${_tool})
         install(TARGETS ${_tool}
             RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
@@ -230,8 +226,9 @@ set(CPACK_COMPONENT_HUB_DISPLAY_NAME "الواجهة الموحَّدة / Hub (s
 set(CPACK_COMPONENT_HUB_DESCRIPTION  "(AR) نقطة الدخول الموحَّدة sad.exe — تستدعي بقية الأدوات\n(EN) Unified entry point sad.exe — dispatches to other tools")
 set(CPACK_COMPONENT_HUB_REQUIRED ON)
 
-set(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "المفسر / Runtime (sad-run)")
-set(CPACK_COMPONENT_RUNTIME_DESCRIPTION  "(AR) المفسر sad-run + المكتبة القياسية لتشغيل ملفات .ص\n(EN) Interpreter sad-run + standard library for running .ص files")
+set(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "زمن التشغيل / Runtime")
+set(CPACK_COMPONENT_RUNTIME_DESCRIPTION  "(AR) المكتبة القياسية ومكتبات وقت التشغيل
+(EN) Standard library and runtime archives")
 
 set(CPACK_COMPONENT_COMPILER_DISPLAY_NAME "المترجم / Compiler (sad-build)")
 set(CPACK_COMPONENT_COMPILER_DESCRIPTION  "(AR) مترجم LLVM لتوليد ملفات تنفيذية أصلية\n(EN) LLVM compiler producing native executables")

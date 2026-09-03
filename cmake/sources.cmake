@@ -56,86 +56,6 @@ set(AST_SOURCES
 # ──────────────────────────────────────────────────────────────────────
 # 5. المفسر / Interpreter
 # ──────────────────────────────────────────────────────────────────────
-set(INTERPRETER_SOURCES
-    interpreter/src/core/interpreter_core.cpp
-    # (AR) EM-CPP-0: سياق استدعاء الدوال المضمنة (BuiltinContext) — أساس ترحيل أخطاء C++.
-    interpreter/src/builtins/builtin_context.cpp
-    interpreter/src/builtins/builtin_registry.cpp
-    interpreter/src/builtins/builtin_core_io.cpp
-    interpreter/src/builtins/builtin_module_strings.cpp
-    interpreter/src/builtins/builtin_module_basics.cpp
-    interpreter/src/builtins/builtin_module_math.cpp
-    interpreter/src/builtins/builtin_module_assertions.cpp
-    interpreter/src/builtins/builtin_module_crypto.cpp
-    interpreter/src/builtins/builtin_module_processes.cpp
-    interpreter/src/builtins/builtin_module_async.cpp
-    interpreter/src/builtins/builtin_module_maps.cpp
-    interpreter/src/builtins/builtin_module_maps_core.cpp
-    interpreter/src/builtins/builtin_module_maps_json_xml.cpp
-    interpreter/src/builtins/builtin_module_maps_arrays.cpp
-    interpreter/src/builtins/builtin_module_maps_text.cpp
-    interpreter/src/builtins/builtin_module_maps_utils.cpp
-    interpreter/src/builtins/builtin_kernel_cpu.cpp
-    interpreter/src/builtins/builtin_kernel_uefi.cpp
-    interpreter/src/builtins/builtin_kernel_acpi.cpp
-    interpreter/src/builtins/builtin_kernel_gpu.cpp
-    interpreter/src/builtins/builtin_kernel_usb.cpp
-    interpreter/src/builtins/builtin_kernel_storage.cpp
-    interpreter/src/builtins/builtin_kernel_network.cpp
-    interpreter/src/builtins/builtin_kernel_audio.cpp
-    interpreter/src/builtins/builtin_kernel_timers.cpp
-    interpreter/src/builtins/builtin_kernel_serial.cpp
-    interpreter/src/builtins/builtin_kernel_memory.cpp
-    interpreter/src/builtins/builtin_kernel_threads.cpp
-    interpreter/src/builtins/builtin_module_ffi.cpp
-    interpreter/src/builtins/builtin_module_exceptions.cpp
-    interpreter/src/builtins/builtin_module_platform.cpp
-    interpreter/src/builtins/builtin_module_sockets.cpp
-    interpreter/src/builtins/builtin_module_http.cpp
-    interpreter/src/builtins/builtin_module_sadnet.cpp
-    interpreter/src/builtins/builtin_module_websocket.cpp
-    # (AR) م2-أ (sadlang-rfcs#10): ملفّات الواجهات المعتمِدة على sad_graphics انتُقِلت إلى
-    #      هدف sad_graphics_bridge (INTERPRETER_UI_BRIDGE_SOURCES أدناه) كي لا يعتمد sad_interp
-    #      على sad_graphics. يبقى في القلب فقط ما لا يعتمد sad_graphics:
-    # (EN) Phase 2-A: sad_graphics-dependent UI files moved to the sad_graphics_bridge target
-    #      (INTERPRETER_UI_BRIDGE_SOURCES below) so sad_interp no longer depends on sad_graphics.
-    #      Only the sad_graphics-free pieces remain here in the core:
-    interpreter/src/ui/ui_state_manager.cpp          # (AR) بلا sad_graphics؛ يحتاجه oop_new (UIStateManager)
-    interpreter/src/visitors/ui_eval_bridge_core.cpp   # (AR) بذرة القلب (المؤشّر الذرّيّ + المزوّدون)
-    interpreter/src/visitors/ui_widget_expr_dispatch.cpp # (AR) visitUIWidgetExpr الرفيع (TU مستقلّ ليُشبِعه الـstub في الاختبارات)
-    interpreter/src/visitors/expression_evaluator_core.cpp
-    interpreter/src/visitors/expression_evaluator_binary_ops.cpp
-    interpreter/src/visitors/expression_evaluator_binary_logic.cpp
-    interpreter/src/visitors/expression_evaluator_overloads.cpp
-    interpreter/src/visitors/expression_evaluator_calls.cpp
-    interpreter/src/visitors/expression_evaluator_calls_invoke.cpp
-    interpreter/src/visitors/expression_evaluator_calls_macro.cpp
-    interpreter/src/visitors/expression_evaluator_calls_user_func.cpp
-    interpreter/src/visitors/expression_evaluator_calls_dispatch.cpp
-    interpreter/src/visitors/sem045_report.cpp        # (AR) باب إبلاغ SEM045 الواحد / (EN) single SEM045 reporting door
-    interpreter/src/visitors/expression_evaluator_oop.cpp
-    interpreter/src/visitors/expression_evaluator_oop_new.cpp
-    interpreter/src/visitors/expression_evaluator_oop_array_methods.cpp
-    interpreter/src/visitors/expression_evaluator_oop_string_map_methods.cpp
-    interpreter/src/visitors/expression_evaluator_oop_concurrency.cpp
-    interpreter/src/visitors/expression_evaluator_members.cpp
-    interpreter/src/visitors/expression_evaluator_members_assign.cpp
-    interpreter/src/visitors/expression_evaluator_members_advanced.cpp
-    # (AR) م2-أ: expression_evaluator_ui.cpp (تطبيق seam 2) انتقل إلى INTERPRETER_UI_BRIDGE_SOURCES
-    interpreter/src/visitors/statement_executor.cpp
-    interpreter/src/visitors/statement_executor_control.cpp
-    interpreter/src/visitors/statement_executor_control_exceptions.cpp
-    interpreter/src/visitors/statement_executor_functions.cpp
-    interpreter/src/visitors/statement_executor_functions_templates.cpp
-    interpreter/src/visitors/statement_executor_oop.cpp
-    interpreter/src/visitors/statement_executor_oop_types.cpp
-    interpreter/src/visitors/statement_executor_oop_struct_test.cpp
-    interpreter/src/visitors/statement_executor_modules.cpp
-    # (AR) interpreter/src/exception.cpp حُذف في Phase 4 — استبدل بـ shared/errors
-    # (EN) exception.cpp removed in Phase 4 — replaced by shared/errors
-    interpreter/src/debug/debug_server.cpp
-)
-
 # ──────────────────────────────────────────────────────────────────────
 # 6. إدارة البيانات والأنواع / Data & Type Management
 # (AR) ملفات shared/types/* أصبحت تأتي عبر sad_shared (إزالة الازدواج)
@@ -146,11 +66,6 @@ set(INTERPRETER_SOURCES
 #      Scope/Variable يبقيان هنا (شجريّان خاصّان بالمفسّر الشجريّ).
 # (EN) Phase-3 step-4: function_manager + ownership_manager extracted to the sad_runtime
 #      library (shared runtime services). Scope/Variable stay here (tree-walk only).
-set(DATA_SOURCES
-    interpreter/src/managers/variable_manager.cpp
-    interpreter/src/managers/scope_manager.cpp
-)
-
 # ──────────────────────────────────────────────────────────────────────
 # 7. البرمجة الكائنية / OOP (Object-Oriented Programming)
 # (AR) OOP_TYPES_SOURCES و OOP_AST_SOURCES و class_manager نُقلت إلى sad_shared
@@ -162,23 +77,6 @@ set(OOP_TYPES_SOURCES)
 
 # (AR) م3 خطوة 4: object_manager خرج إلى مكتبة sad_runtime (SAD_RUNTIME_SOURCES).
 # (EN) Phase-3 step-4: object_manager extracted to the sad_runtime library.
-set(OOP_MANAGERS_SOURCES)
-
-set(OOP_AST_SOURCES)
-
-# معطل - تم نقله إلى parser_core_oop.cpp
-set(OOP_PARSER_SOURCES)
-set(OOP_INTERPRETER_SOURCES)
-
-# ──────────────────────────────────────────────────────────────────────
-# 8. الدوال المضمنة / Built-in Functions
-# (AR) Phase F-XX: builtins.cpp في shared/builtins/src/runtime/
-# (EN) Phase F-XX: builtins.cpp under shared/builtins/src/runtime/
-# ──────────────────────────────────────────────────────────────────────
-set(BUILTINS_SOURCES
-    shared/builtins/src/runtime/builtins.cpp
-)
-
 # ──────────────────────────────────────────────────────────────────────
 # 9. إدارة الأخطاء / Error Management
 # (AR) أُزيل ERROR_SOURCES اليتيم — جميع ملفات الأخطاء تُبنى عبر sad_shared
@@ -193,7 +91,6 @@ set(BUILTINS_SOURCES
 # (EN) Phase F-XX: core runtime under shared/builtins/src/runtime/
 # ──────────────────────────────────────────────────────────────────────
 set(STDLIB_SOURCES
-    shared/builtins/src/runtime/stdlib_manager.cpp
     shared/builtins/src/runtime/type_functions.cpp
     shared/builtins/src/runtime/array_functions.cpp
     shared/builtins/src/runtime/other_functions.cpp
@@ -215,9 +112,6 @@ set(STDLIB_SOURCES
 #      (sad_optimizer). راجع compiler/docs/optimization_layers.md
 # (EN) AST-level optimizer files removed after unifying passes in
 #      compiler/src/sir_optimizer/ (sad_optimizer). See compiler/docs/optimization_layers.md
-set(OPTIMIZER_SOURCES
-)
-
 # ──────────────────────────────────────────────────────────────────────
 # 12. البرمجة منخفضة المستوى / Low-Level Programming
 # ──────────────────────────────────────────────────────────────────────
@@ -343,12 +237,6 @@ set(HOT_RELOAD_SOURCES
 #      walking. One-directional (sad_interp → sad_runtime). Future home of the VM's
 #      shared runtime services (engines share runtime services, not the walker).
 # ===============================================================================
-set(SAD_RUNTIME_SOURCES
-    interpreter/src/managers/function_manager.cpp
-    interpreter/src/managers/object_manager.cpp
-    interpreter/src/managers/ownership_manager.cpp
-)
-
 # (AR) مصادر مكتبة sad_builtins النقيّة (تعمل على Data::Value فقط). تطابق
 #      محتوى STDLIB_SOURCES باستثناء stdlib_manager.cpp (اللِحام يبقى في القلب).
 # (EN) Pure sad_builtins library sources (operate on Data::Value only). Mirrors
@@ -369,24 +257,6 @@ set(SAD_BUILTINS_LIB_SOURCES
     stdlib/system/system_functions.cpp
 )
 
-set(ALL_SOURCES
-    ${INTERPRETER_SOURCES}
-    ${DATA_SOURCES}
-    ${OOP_MANAGERS_SOURCES}
-    ${OOP_PARSER_SOURCES}
-    ${OOP_INTERPRETER_SOURCES}
-    # (AR) م2-ج: المدمجات النقيّة خرجت إلى sad_builtins؛ يبقى لِحام التسجيل فقط.
-    # (EN) Phase 2-C: pure builtins moved to sad_builtins; only glue stays here.
-    shared/builtins/src/runtime/stdlib_manager.cpp
-    ${OPTIMIZER_SOURCES}
-    # (AR) م2-ج شريحة2: مدمجات النواة/العتاد النقيّة خرجت إلى هدف sad_lowlevel
-    #      (لا تلمس Data::Value)؛ لِحامها builtin_kernel_*.cpp يبقى في القلب.
-    # (EN) Phase 2-C slice2: pure kernel/low-level builtins moved to sad_lowlevel;
-    #      their glue (builtin_kernel_*.cpp) stays in the core.
-    ${COMPILER_FRONTEND_SOURCES}
-    ${HOT_RELOAD_SOURCES}
-)
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # (AR) م2-أ (sadlang-rfcs#10): مصادر طبقة جسر الواجهات sad_graphics_bridge.
 #      هذه الملفّات تعتمد sad_graphics (sad_ui/ir.h …) وتُجمَّع في هدف منفصل يربط
@@ -398,27 +268,3 @@ set(ALL_SOURCES
 #      sad_interp) + sad_graphics PRIVATE, inverting the core→ui dependency. Defined in
 #      cmake/libraries.cmake.
 # ═══════════════════════════════════════════════════════════════════════════════
-set(INTERPRETER_UI_BRIDGE_SOURCES
-    interpreter/src/ui/ui_bridge.cpp
-    interpreter/src/ui/ui_bridge_events.cpp
-    interpreter/src/ui/ui_bridge_platform.cpp
-    interpreter/src/ui/ui_builtins.cpp
-    interpreter/src/ui/ui_core_builtins.cpp
-    interpreter/src/ui/ui_state_builtins.cpp
-    interpreter/src/ui/ui_timer_builtins.cpp
-    interpreter/src/ui/ui_storage_builtins.cpp
-    interpreter/src/ui/ui_dialog_builtins.cpp
-    interpreter/src/ui/ui_audio_builtins.cpp
-    interpreter/src/ui/ui_io_builtins.cpp
-    interpreter/src/ui/ui_device_builtins.cpp
-    interpreter/src/ui/ui_network_builtins.cpp
-    interpreter/src/ui/ui_crypto_builtins.cpp
-    interpreter/src/ui/ui_platform_builtins.cpp
-    interpreter/src/ui/widget_builder.cpp
-    interpreter/src/ui/widget_builtins.cpp
-    interpreter/src/ui/ui_widget_method_call.cpp
-    interpreter/src/ui/ui_module_registration.cpp
-    interpreter/src/visitors/expression_evaluator_ui.cpp
-)
-
-

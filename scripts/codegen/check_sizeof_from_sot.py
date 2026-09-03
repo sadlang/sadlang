@@ -31,12 +31,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# (AR) (المسار، توقيعُ الدالّة) — بابا `@حجم` في المحرّكَين.
+# (AR) (المسار، توقيعُ الدالّة) — بابُ `@حجم` في المترجم.
 SITES = (
     (ROOT / "compiler" / "src" / "frontend" / "builders" / "expression_lowlevel.cpp",
      "BuildResult ExpressionBuilder::buildExprSizeof(AST::SizeofExpr *sizeofExpr)"),
-    (ROOT / "interpreter" / "src" / "visitors" / "expression_evaluator_overloads.cpp",
-     "void ExpressionEvaluator::visitSizeofExpr(AST::SizeofExpr &expr)"),
+    # (AR) 🔑 زال موقعُ المفسّر مع محرّكِه. والحارسُ **لم يصر خاويًا**: الشرطُ
+    #      (نداءُ `sadTypeKindSizeBytes` ولا جدولَ أسماءٍ عربيٍّ مكتوبًا باليد)
+    #      يُقاسُ على موقعِ المترجمِ الباقي ويمكنُ أن يكذبَ عليه.
+    # (EN) The interpreter site went with its engine. The guard is NOT vacuous:
+    #      its condition is still measured on — and falsifiable at — the compiler site.
 )
 
 REQUIRED_CALL = "sadTypeKindSizeBytes"
@@ -97,7 +100,7 @@ def main() -> int:
             failed = True
     if failed:
         return 1
-    print("  ✓ المحرّكان يقرآن الجدولَ المولَّد، ولا جدولَ يدويًّا في أيٍّ منهما.")
+    print("  ✓ المترجمُ يقرأ الجدولَ المولَّد، ولا جدولَ يدويًّا فيه.")
     return 0
 
 

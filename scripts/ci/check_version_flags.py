@@ -93,7 +93,10 @@ for _قناة in (sys.stdout, sys.stderr):
 #      skipping that tool.
 مصادر_الأدوات = {
     "sad": "tools/hub/src/main.cpp",
-    "sad-run": "apps/sad-run/main.cpp",
+    # (AR) 🔑 حُذف مفتاحُ «sad-run»: كان يُعيدُ توجيهَ اسمِ أداةٍ محذوفةٍ إلى
+    #      ملفِّ أداةٍ أخرى — فاسمٌ لا وجودَ له يقيسُ غيرَه. والكنسُ الميكانيكيُّ
+      #    يُبقي الشكلَ ويُتلِفُ المعنى.
+    # (EN) Removed: the key redirected a deleted tool name to another tool's file.
     "sad-lsp": "tools/lsp/src/transport/lsp_main.cpp",
     "sad-check": "tools/check/src/main.cpp",
     "sadc": "tools/compiler/compiler_driver_cli.cpp",

@@ -150,22 +150,22 @@ jobs:
     - name: 🔨 Build
       run: |
         export CCACHE_MAXSIZE=${{ env.CCACHE_MAXSIZE }}
-        cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-run -j$(nproc)
+        cmake --build build --config ${{ env.BUILD_TYPE }} --target sad-build -j$(nproc)
         ccache -s
     
     - name: ✅ Test
       run: |
-        sad="build/bin/sad-run"
-        if [ ! -x "$sad" ]; then echo "❌ MISSING: sad-run not built"; exit 1; fi
+        sad="build/bin/sad-build"
+        if [ ! -x "$sad" ]; then echo "❌ MISSING: sad-build not built"; exit 1; fi
         chmod +x "$sad"
-        "$sad" examples/01_مرحبا.ص
+        "$sad" examples/01_مرحبا.ص -o /tmp/hello_ci && /tmp/hello_ci
 
     - name: 📤 Upload Artifacts
       uses: actions/upload-artifact@v7
       timeout-minutes: 15
       with:
         name: sad-linux
-        path: build/bin/sad-run
+        path: build/bin/sad-build
 
   # ─────────────────────────────────────────────────────────────────────
   # (AR) أُزيلت وظيفة بناء macOS — المشروع لا يُبنى لـmacOS (لا هدف إصدار).
@@ -238,8 +238,24 @@ jobs:
   # ─────────────────────────────────────────────────────────────────────
   # بناء Android
   # ─────────────────────────────────────────────────────────────────────
+  # (AR) 🔑 موقوفةٌ صراحةً لا مكتومةٌ ضمنًا. كان زمنُ تشغيلِ أندرويد يشحنُ
+  #      المفسّرَ المحذوف، وقد وُضِعت بوّابةُ `message(FATAL_ERROR)` مُسمّاةٌ في
+  #      `platform/android/CMakeLists.txt` تُفشِلُ البناءَ المحلّيَّ بوضوح. لكنّ
+  #      هذه الوظيفةَ كانت تحملُ `continue-on-error: true` على Debug و`|| echo`
+  #      على Release ورفعَ أثرٍ لا يُفشِلُ على غياب الملفّ — فتبقى **خضراءَ بلا
+  #      APK**. أي أنّ الرفضَ المُعلَنَ كان مُعلَنًا لمن يبني محلّيًّا ومكتومًا
+  #      في الموضعِ الذي كُتِبَ لأجلِه. و`if: false` يجعلُ الحالةَ «skipped» في
+  #      تقريرِ البناء (`needs.build-android.result`) — إعلانٌ يراه القارئ.
+  #      الإحياءُ يلزمُه إعادةُ بناءِ زمنِ التشغيلِ على المترجّم الأصليّ (NDK/arm64).
+  # (EN) Explicitly suspended, not silently muted. The Android runtime shipped the
+  #      deleted interpreter; a named FATAL_ERROR gate fails the local build. But
+  #      this job carried continue-on-error on Debug, `|| echo` on Release and a
+  #      non-failing artifact upload, so it stayed GREEN WITH NO APK — the refusal
+  #      was declared where nobody builds and muted where everybody looks.
+  #      `if: false` surfaces it as "skipped" in the build summary instead.
   build-android:
-    name: 🤖 Android APK
+    name: 🤖 Android APK (موقوف / suspended)
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 45
     

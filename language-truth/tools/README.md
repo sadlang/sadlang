@@ -1,5 +1,13 @@
 # نظام «مصدر حقيقة الأدوات» / Tools' Source-of-Truth (Tool SoT)
 
+> ⚠️ **حالةٌ راهنة (٣ أيلول ٢٠٢٦): صفرُ أدواتٍ مُسجَّلة.** كان `repl` الأداةَ
+> الوحيدةَ التي تستعملُ هذا النظام، وقد زالت مع المفسّر ومعها نطاقُها في `x.py`.
+> فالآليّةُ والمخطّطاتُ باقيةٌ **تصميمًا صالحًا بلا مستهلك**، لا تغطيةً قائمة —
+> ولا يُقرأُ وجودُها «أدواتُ المستودعِ مُواصَفة».
+> (EN) Current state: ZERO registered tools. `repl` was the only consumer and it
+> went with the interpreter, along with its `x.py` scope. The mechanism and
+> schemas remain as a valid design with no consumer — not as live coverage.
+
 > بسم الله الرحمن الرحيم
 
 ## ما هذا؟ / What is this?

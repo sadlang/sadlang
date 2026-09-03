@@ -167,8 +167,8 @@ jobs:
       - name: 🔨 بناءُ مكتبةِ الرسومات / Build graphics library
         run: cmake --build build --config Debug --target sad_graphics
 
-      - name: 🔨 بناءُ المحرّك / Build interpreter
-        run: cmake --build build --config Debug --target sad-run
+      - name: 🔨 بناءُ المحرّك / Build compiler
+        run: cmake --build build --config Debug --target sad-build
 
       - name: 🔨 بناءُ الاختبارِ الذهبيّ / Build golden test
         run: cmake --build build --config Debug --target test_ui_render_displaylist
@@ -230,14 +230,23 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -x build/bin/Debug/sad-run.exe ]; then
-            RUNNER=build/bin/Debug/sad-run.exe
-          elif [ -x build/bin/Debug/sad-run ]; then
-            RUNNER=build/bin/Debug/sad-run
+          if [ -x build/bin/Debug/sad-build.exe ]; then
+            RUNNER=build/bin/Debug/sad-build.exe
+          elif [ -x build/bin/Debug/sad-build ]; then
+            RUNNER=build/bin/Debug/sad-build
           else
-            RUNNER=build/bin/sad-run
+            RUNNER=build/bin/sad-build
           fi
-          OUT="$("$RUNNER" "tests/behavior/sections/12_تكامل/03_برامج_كاملة/132_ui_platform_codegen_doors.ص")"
+          SEED="tests/behavior/sections/12_تكامل/03_برامج_كاملة/132_ui_platform_codegen_doors.ص"
+          DOORS="${RUNNER_TMP:-.}/doors_gate.exe"
+          # (AR) 🔑 المترجِمُ يُترجِمُ ولا يُشغّل: أخذُ مخرَجِه مباشرةً
+          #      يُعطي نصًّا فارغًا ورمزَ صفر، فتسقطُ البوّابةُ على grep بعطبٍ
+          #      من صنعِ المِقياس. فالعقدُ يُعقَدُ على مخرَجِ الثنائيِّ المُنتَج.
+          # (EN) The compiler builds, it does not run: reading its stdout gives an
+          #      empty string, so the greps would fail for a reason the gate itself
+          #      created. Compile first, then run the produced binary.
+          "$RUNNER" "$SEED" -o "$DOORS"
+          OUT="$("$DOORS")"
           printf '%s\n' "$OUT"
           # (AR) عقدٌ مزدوج: سطرُ النجاحِ حاضرٌ **وصفرُ فشل** — فلا يكفي أحدُهما.
           printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'

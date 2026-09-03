@@ -1,7 +1,7 @@
 # تفصيل اختبارات مطابقة القواعد — كل اختبار بكل معلوماته
 
 > مُولَّد آلياً مع [التقرير الملخّص](./CONFORMANCE_REPORT.md). أعمدة: الرقم، الاختبار،
-> القاعدة، الفئة، الحالة (نتيجة مقارنة المفسر بالمترجم).
+> القاعدة، الفئة، الحالة (نتيجةُ المترجّمِ مقابلَ عقدِ البذرة).
 >
 > الأزمنة في أثر البناء `build/_grammar_conformance.json` (غير متعقَّب):
 > عمودُ زمنٍ هنا يتبدّل في ٩٩٫٩٪ من الصفوف عند كلِّ توليد لأنّ العدّاء
@@ -82,7 +82,7 @@
 | 71 | `10_statements/gr.stmt.break/edge/001_inner_only.ص` | `gr.stmt.break` | edge | تطابق ✅ |
 | 72 | `10_statements/gr.stmt.break/edge/002_conditional.ص` | `gr.stmt.break` | edge | تطابق ✅ |
 | 73 | `10_statements/gr.stmt.break/edge/003_while_true.ص` | `gr.stmt.break` | edge | تطابق ✅ |
-| 74 | `10_statements/gr.stmt.break/edge/004_break_in_try_runs_finally.ص` | `gr.stmt.break` | edge | تطابق ✅ |
+| 74 | `10_statements/gr.stmt.break/edge/004_break_in_try_runs_finally.ص` | `gr.stmt.break` | edge | تخطٍّ |
 | 75 | `10_statements/gr.stmt.break/edge/005_break_inside_finally_exits_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ |
 | 76 | `10_statements/gr.stmt.break/edge/006_break_in_switch_breaks_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ |
 | 77 | `10_statements/gr.stmt.break/edge/007_break_in_match_breaks_loop.ص` | `gr.stmt.break` | edge | تطابق ✅ |
@@ -98,7 +98,7 @@
 | 87 | `10_statements/gr.stmt.continue/edge/001_nested.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
 | 88 | `10_statements/gr.stmt.continue/edge/002_conditional.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
 | 89 | `10_statements/gr.stmt.continue/edge/003_skip_many.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
-| 90 | `10_statements/gr.stmt.continue/edge/004_continue_in_try_runs_finally.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
+| 90 | `10_statements/gr.stmt.continue/edge/004_continue_in_try_runs_finally.ص` | `gr.stmt.continue` | edge | تخطٍّ |
 | 91 | `10_statements/gr.stmt.continue/edge/005_continue_inside_finally_skips_tail.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
 | 92 | `10_statements/gr.stmt.continue/edge/006_continue_in_switch.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
 | 93 | `10_statements/gr.stmt.continue/edge/050_continue_skips_even.ص` | `gr.stmt.continue` | edge | تطابق ✅ |
@@ -934,27 +934,27 @@
 | 923 | `20_declarations/gr.decl.import/basic/003_import_نصوص.ص` | `gr.decl.import` | basic | تطابق ✅ |
 | 924 | `20_declarations/gr.decl.import/basic/004_import_خرائط.ص` | `gr.decl.import` | basic | تطابق ✅ |
 | 925 | `20_declarations/gr.decl.import/basic/005_import_تأكيدات.ص` | `gr.decl.import` | basic | تطابق ✅ |
-| 926 | `20_declarations/gr.decl.import/basic/006_import_منصة.ص` | `gr.decl.import` | basic | تطابق ✅ |
-| 927 | `20_declarations/gr.decl.import/basic/007_import_as.ص` | `gr.decl.import` | basic | تطابق ✅ |
-| 928 | `20_declarations/gr.decl.import/basic/008_two_imports.ص` | `gr.decl.import` | basic | تطابق ✅ |
-| 929 | `20_declarations/gr.decl.import/basic/009_import_then_code.ص` | `gr.decl.import` | basic | تطابق ✅ |
-| 930 | `20_declarations/gr.decl.import/basic/010_import_alias_short.ص` | `gr.decl.import` | basic | تطابق ✅ |
-| 931 | `20_declarations/gr.decl.import/basic/011_import_alias2.ص` | `gr.decl.import` | basic | تطابق ✅ |
-| 932 | `20_declarations/gr.decl.import/basic/012_import_three.ص` | `gr.decl.import` | basic | تطابق ✅ |
-| 933 | `20_declarations/gr.decl.import/edge/001_import_in_order.ص` | `gr.decl.import` | edge | تطابق ✅ |
-| 934 | `20_declarations/gr.decl.import/edge/002_import_with_class.ص` | `gr.decl.import` | edge | تطابق ✅ |
-| 935 | `20_declarations/gr.decl.import/edge/003_alias_then_alias.ص` | `gr.decl.import` | edge | تطابق ✅ |
-| 936 | `20_declarations/gr.decl.import/edge/004_import_loop_after.ص` | `gr.decl.import` | edge | تطابق ✅ |
-| 937 | `20_declarations/gr.decl.import/edge/005_import_cond_after.ص` | `gr.decl.import` | edge | تطابق ✅ |
-| 938 | `20_declarations/gr.decl.import/edge/006_import_func_after.ص` | `gr.decl.import` | edge | تطابق ✅ |
-| 939 | `20_declarations/gr.decl.import/edge/006_استيراد_بسيط_يليه_انتقائي.ص` | `gr.decl.import` | edge | تطابق ✅ |
-| 940 | `20_declarations/gr.decl.import/edge/007_import_many_stmts.ص` | `gr.decl.import` | edge | تطابق ✅ |
-| 941 | `20_declarations/gr.decl.import/edge/007_استيراد_بسيط_يليه_انتقائي_بلا_سطر_فارغ.ص` | `gr.decl.import` | edge | تطابق ✅ |
-| 942 | `20_declarations/gr.decl.import/edge/008_extra1.ص` | `gr.decl.import` | edge | تطابق ✅ |
-| 943 | `20_declarations/gr.decl.import/negative/001_no_module.ص` | `gr.decl.import` | negative | تطابق ✅ |
-| 944 | `20_declarations/gr.decl.import/negative/002_from_no_import.ص` | `gr.decl.import` | negative | تطابق ✅ |
-| 945 | `20_declarations/gr.decl.import/negative/003_from_no_module.ص` | `gr.decl.import` | negative | تطابق ✅ |
-| 946 | `20_declarations/gr.decl.import/negative/004_from_import_fails.ص` | `gr.decl.import` | negative | تطابق ✅ |
+| 926 | `20_declarations/gr.decl.import/basic/006_from_import.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 927 | `20_declarations/gr.decl.import/basic/006_import_منصة.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 928 | `20_declarations/gr.decl.import/basic/007_import_as.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 929 | `20_declarations/gr.decl.import/basic/008_two_imports.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 930 | `20_declarations/gr.decl.import/basic/009_import_then_code.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 931 | `20_declarations/gr.decl.import/basic/010_import_alias_short.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 932 | `20_declarations/gr.decl.import/basic/011_import_alias2.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 933 | `20_declarations/gr.decl.import/basic/012_import_three.ص` | `gr.decl.import` | basic | تطابق ✅ |
+| 934 | `20_declarations/gr.decl.import/edge/001_import_in_order.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 935 | `20_declarations/gr.decl.import/edge/002_import_with_class.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 936 | `20_declarations/gr.decl.import/edge/003_alias_then_alias.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 937 | `20_declarations/gr.decl.import/edge/004_import_loop_after.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 938 | `20_declarations/gr.decl.import/edge/005_import_cond_after.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 939 | `20_declarations/gr.decl.import/edge/006_import_func_after.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 940 | `20_declarations/gr.decl.import/edge/006_استيراد_بسيط_يليه_انتقائي.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 941 | `20_declarations/gr.decl.import/edge/007_import_many_stmts.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 942 | `20_declarations/gr.decl.import/edge/007_استيراد_بسيط_يليه_انتقائي_بلا_سطر_فارغ.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 943 | `20_declarations/gr.decl.import/edge/008_extra1.ص` | `gr.decl.import` | edge | تطابق ✅ |
+| 944 | `20_declarations/gr.decl.import/negative/001_no_module.ص` | `gr.decl.import` | negative | تطابق ✅ |
+| 945 | `20_declarations/gr.decl.import/negative/002_from_no_import.ص` | `gr.decl.import` | negative | تطابق ✅ |
+| 946 | `20_declarations/gr.decl.import/negative/003_from_no_module.ص` | `gr.decl.import` | negative | تطابق ✅ |
 | 947 | `20_declarations/gr.decl.parameters/basic/001_params_1.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
 | 948 | `20_declarations/gr.decl.parameters/basic/002_params_2.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
 | 949 | `20_declarations/gr.decl.parameters/basic/003_params_3.ص` | `gr.decl.parameters` | basic | تطابق ✅ |
@@ -1165,9 +1165,9 @@
 | 1154 | `20_declarations/gr.decl.variable/negative/052_reserved_return_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ |
 | 1155 | `20_declarations/gr.decl.variable/negative/053_reserved_function_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ |
 | 1156 | `20_declarations/gr.decl.variable/negative/054_typed_reserved_while_as_var.ص` | `gr.decl.variable` | negative | تطابق ✅ |
-| 1157 | `20_declarations/gr.decl.variable/negative/060_typed_form_rejects_modifier.ص` | `gr.decl.variable` | negative | تطابق ✅ |
-| 1158 | `20_declarations/gr.decl.variable/negative/061_removed_word_double_typed_form.ص` | `gr.decl.variable` | negative | تطابق ✅ |
-| 1159 | `20_declarations/gr.decl.variable/negative/062_removed_word_double_keyword_form.ص` | `gr.decl.variable` | negative | تطابق ✅ |
+| 1157 | `20_declarations/gr.decl.variable/negative/060_typed_form_rejects_modifier.ص` | `gr.decl.variable` | negative | تخطٍّ |
+| 1158 | `20_declarations/gr.decl.variable/negative/061_removed_word_double_typed_form.ص` | `gr.decl.variable` | negative | تخطٍّ |
+| 1159 | `20_declarations/gr.decl.variable/negative/062_removed_word_double_keyword_form.ص` | `gr.decl.variable` | negative | تخطٍّ |
 | 1160 | `20_declarations/gr.decl.variable/negative/063_const_modifier_blocks_reassign.ص` | `gr.decl.variable` | negative | تطابق ✅ |
 | 1161 | `20_declarations/gr.decl.variable/negative/064_static_local_unsupported.ص` | `gr.decl.variable` | negative | تطابق ✅ |
 | 1162 | `20_declarations/gr.decl.variable/negative/065_static_without_name.ص` | `gr.decl.variable` | negative | تطابق ✅ |
@@ -1326,7 +1326,7 @@
 | 1315 | `30_oop/gr.oop.extension/edge/060_ext_calls_class_method.ص` | `gr.oop.extension` | edge | تطابق ✅ |
 | 1316 | `30_oop/gr.oop.extension/edge/061_ext_method_on_two_objects.ص` | `gr.oop.extension` | edge | تطابق ✅ |
 | 1317 | `30_oop/gr.oop.extension/negative/050_missing_end.ص` | `gr.oop.extension` | negative | تطابق ✅ |
-| 1318 | `30_oop/gr.oop.extension/negative/060_ext_unknown_type.ص` | `gr.oop.extension` | negative | تطابق ✅ |
+| 1318 | `30_oop/gr.oop.extension/negative/060_ext_unknown_type.ص` | `gr.oop.extension` | negative | تباعد المخرجات ⚠️ |
 | 1319 | `30_oop/gr.oop.field/basic/001_public_default.ص` | `gr.oop.field` | basic | تطابق ✅ |
 | 1320 | `30_oop/gr.oop.field/basic/002_private_via_method.ص` | `gr.oop.field` | basic | تطابق ✅ |
 | 1321 | `30_oop/gr.oop.field/basic/050_public_init.ص` | `gr.oop.field` | basic | تطابق ✅ |
@@ -1983,25 +1983,25 @@
 | 1972 | `60_advanced/gr.adv.asm_dialect/basic/004_task_register.ص` | `gr.adv.asm_dialect` | basic | تطابق ✅ |
 | 1973 | `60_advanced/gr.adv.asm_dialect/basic/005_aarch64_three_operand.ص` | `gr.adv.asm_dialect` | basic | تخطٍّ |
 | 1974 | `60_advanced/gr.adv.asm_dialect/basic/006_aarch64_bit_ops.ص` | `gr.adv.asm_dialect` | basic | تخطٍّ |
-| 1975 | `60_advanced/gr.adv.asm_dialect/edge/050_immediate_clobber.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
-| 1976 | `60_advanced/gr.adv.asm_dialect/edge/051_memory_addressing.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
-| 1977 | `60_advanced/gr.adv.asm_dialect/edge/052_forward_jump.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
-| 1978 | `60_advanced/gr.adv.asm_dialect/edge/053_doc_comment_inside_block.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
-| 1979 | `60_advanced/gr.adv.asm_dialect/edge/054_aarch64_memory_addressing.ص` | `gr.adv.asm_dialect` | edge | تخطٍّ |
-| 1980 | `60_advanced/gr.adv.asm_dialect/edge/055_aarch64_operand_tail.ص` | `gr.adv.asm_dialect` | edge | تخطٍّ |
-| 1981 | `60_advanced/gr.adv.asm_dialect/edge/056_x86_64_extended_register.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
-| 1982 | `60_advanced/gr.adv.asm_dialect/edge/057_aarch64_barriers.ص` | `gr.adv.asm_dialect` | edge | تخطٍّ |
-| 1983 | `60_advanced/gr.adv.asm_dialect/negative/050_unknown_mnemonic.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
-| 1984 | `60_advanced/gr.adv.asm_dialect/negative/051_operand_count.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
-| 1985 | `60_advanced/gr.adv.asm_dialect/negative/052_interpreter_gate.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1975 | `60_advanced/gr.adv.asm_dialect/basic/007_asm_dialect_lowers.ص` | `gr.adv.asm_dialect` | basic | تطابق ✅ |
+| 1976 | `60_advanced/gr.adv.asm_dialect/edge/050_immediate_clobber.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
+| 1977 | `60_advanced/gr.adv.asm_dialect/edge/051_memory_addressing.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
+| 1978 | `60_advanced/gr.adv.asm_dialect/edge/052_forward_jump.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
+| 1979 | `60_advanced/gr.adv.asm_dialect/edge/053_doc_comment_inside_block.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
+| 1980 | `60_advanced/gr.adv.asm_dialect/edge/054_aarch64_memory_addressing.ص` | `gr.adv.asm_dialect` | edge | تخطٍّ |
+| 1981 | `60_advanced/gr.adv.asm_dialect/edge/055_aarch64_operand_tail.ص` | `gr.adv.asm_dialect` | edge | تخطٍّ |
+| 1982 | `60_advanced/gr.adv.asm_dialect/edge/056_x86_64_extended_register.ص` | `gr.adv.asm_dialect` | edge | تطابق ✅ |
+| 1983 | `60_advanced/gr.adv.asm_dialect/edge/057_aarch64_barriers.ص` | `gr.adv.asm_dialect` | edge | تخطٍّ |
+| 1984 | `60_advanced/gr.adv.asm_dialect/negative/050_unknown_mnemonic.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1985 | `60_advanced/gr.adv.asm_dialect/negative/051_operand_count.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
 | 1986 | `60_advanced/gr.adv.asm_dialect/negative/053_duplicate_label.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
 | 1987 | `60_advanced/gr.adv.asm_dialect/negative/054_undefined_label.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
 | 1988 | `60_advanced/gr.adv.asm_dialect/negative/055_two_outputs.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
 | 1989 | `60_advanced/gr.adv.asm_dialect/negative/056_memory_mixed_base.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
 | 1990 | `60_advanced/gr.adv.asm_dialect/negative/057_unknown_register.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
 | 1991 | `60_advanced/gr.adv.asm_dialect/negative/058_xchg_sadvar_source.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
-| 1992 | `60_advanced/gr.adv.asm_dialect/negative/059_clobber_suggestion_specials.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
-| 1993 | `60_advanced/gr.adv.asm_dialect/negative/060_register_suggestion_content.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
+| 1992 | `60_advanced/gr.adv.asm_dialect/negative/059_clobber_suggestion_specials.ص` | `gr.adv.asm_dialect` | negative | تخطٍّ |
+| 1993 | `60_advanced/gr.adv.asm_dialect/negative/060_register_suggestion_content.ص` | `gr.adv.asm_dialect` | negative | تخطٍّ |
 | 1994 | `60_advanced/gr.adv.asm_dialect/negative/061_prefix_operand_implicit_writes.ص` | `gr.adv.asm_dialect` | negative | تطابق ✅ |
 | 1995 | `60_advanced/gr.adv.asm_dialect/negative/062_arch_lexicon_rejects_foreign_mnemonic.ص` | `gr.adv.asm_dialect` | negative | تخطٍّ |
 | 1996 | `60_advanced/gr.adv.asm_dialect/negative/063_arch_lexicon_rejects_foreign_register.ص` | `gr.adv.asm_dialect` | negative | تخطٍّ |
@@ -2302,7 +2302,7 @@
 | 2291 | `60_advanced/gr.adv.template_decl/basic/001_generic_fn.ص` | `gr.adv.template_decl` | basic | تطابق ✅ |
 | 2292 | `60_advanced/gr.adv.template_decl/basic/002_template_return_any.ص` | `gr.adv.template_decl` | basic | تطابق ✅ |
 | 2293 | `60_advanced/gr.adv.template_decl/negative/050_negative_template_decl.ص` | `gr.adv.template_decl` | negative | تطابق ✅ |
-| 2294 | `60_advanced/gr.adv.template_decl/negative/051_removed_word_double_return_type.ص` | `gr.adv.template_decl` | negative | تطابق ✅ |
+| 2294 | `60_advanced/gr.adv.template_decl/negative/051_removed_word_double_return_type.ص` | `gr.adv.template_decl` | negative | تخطٍّ |
 | 2295 | `60_advanced/gr.adv.template_params/basic/001_type_param.ص` | `gr.adv.template_params` | basic | تطابق ✅ |
 | 2296 | `60_advanced/gr.adv.template_params/edge/050_edge_template_params.ص` | `gr.adv.template_params` | edge | تطابق ✅ |
 | 2297 | `60_advanced/gr.adv.template_params/edge/051_edge_template_params.ص` | `gr.adv.template_params` | edge | تطابق ✅ |
@@ -2440,7 +2440,7 @@
 | 2429 | `70_lexical/gr.lex.string/edge/006_unicode_escape.ص` | `gr.lex.string` | edge | تطابق ✅ |
 | 2430 | `70_lexical/gr.lex.string/edge/007_empty_length.ص` | `gr.lex.string` | edge | تطابق ✅ |
 | 2431 | `70_lexical/gr.lex.string/edge/008_carriage_return.ص` | `gr.lex.string` | edge | تطابق ✅ |
-| 2432 | `70_lexical/gr.lex.string/edge/009_null_escape.ص` | `gr.lex.string` | edge | تطابق ✅ |
+| 2432 | `70_lexical/gr.lex.string/edge/009_null_escape.ص` | `gr.lex.string` | edge | تخطٍّ |
 | 2433 | `70_lexical/gr.lex.string/negative/001_unterminated.ص` | `gr.lex.string` | negative | تطابق ✅ |
 | 2434 | `70_lexical/gr.lex.string/negative/002_escaped_close.ص` | `gr.lex.string` | negative | تطابق ✅ |
 | 2435 | `70_lexical/gr.lex.string/negative/003_unicode_brace_unsupported.ص` | `gr.lex.string` | negative | تطابق ✅ |
@@ -2492,7 +2492,7 @@
 | 2481 | `_interactions/_combos/b2_static_and_instance.ص` | `gr.oop.class` | interaction | تطابق ✅ |
 | 2482 | `_interactions/_combos/b2_string_length_loop_filter.ص` | `gr.decl.function` | interaction | تطابق ✅ |
 | 2483 | `_interactions/_combos/b2_try_rethrow_chain.ص` | `gr.stmt.try` | interaction | تطابق ✅ |
-| 2484 | `_interactions/_combos/b2_tuple_function_unpack.ص` | `gr.expr.primary` | interaction | تطابق ✅ |
+| 2484 | `_interactions/_combos/b2_tuple_function_unpack.ص` | `gr.expr.primary` | interaction | تخطٍّ |
 | 2485 | `_interactions/_combos/b3_abstract_override_dispatch.ص` | `gr.oop.class` | interaction | تطابق ✅ |
 | 2486 | `_interactions/_combos/b3_closure_counter_state.ص` | `gr.expr.lambda` | interaction | تطابق ✅ |
 | 2487 | `_interactions/_combos/b3_compound_assign_loop.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
@@ -2508,7 +2508,7 @@
 | 2497 | `_interactions/_combos/b3_nested_function_def.ص` | `gr.decl.function` | interaction | تطابق ✅ |
 | 2498 | `_interactions/_combos/b3_nested_match_in_loop.ص` | `gr.stmt.for` | interaction | تطابق ✅ |
 | 2499 | `_interactions/_combos/b3_nested_ternary_chain.ص` | `gr.expr.ternary` | interaction | تطابق ✅ |
-| 2500 | `_interactions/_combos/b3_precedence_stress.ص` | `gr.expr.term` | interaction | تطابق ✅ |
+| 2500 | `_interactions/_combos/b3_precedence_stress.ص` | `gr.expr.term` | interaction | تخطٍّ |
 | 2501 | `_interactions/_combos/b3_recursion_with_class_state.ص` | `gr.oop.class` | interaction | تطابق ✅ |
 | 2502 | `_interactions/_combos/b3_short_circuit_sideeffect.ص` | `gr.decl.function` | interaction | تطابق ✅ |
 | 2503 | `_interactions/_combos/b3_string_reverse_loop.ص` | `gr.decl.function` | interaction | تطابق ✅ |

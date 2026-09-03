@@ -636,9 +636,10 @@ function Install-Sad {
         #      check_installer_tool_lists.py. It had drifted: "compiler"
         #      required only sadc and "full" omitted sad-build.
         $مطلوب = switch ($Components) {
-            "interpreter" { @("sad", "sad-run", "sad-lsp", "sad-check") }
+            # (AR) 🔑 أُضيف sad-build: لا شيءَ في المكوّنِ كان يُشغّلُ برنامجَ ص.
+            "interpreter" { @("sad", "sad-build", "sad-lsp", "sad-check") }
             "compiler"    { @("sadc", "sad-build") }
-            "full"        { @("sad", "sad-run", "sad-lsp", "sad-check", "sadc", "sad-build") }
+            "full"        { @("sad", "sad-lsp", "sad-check", "sadc", "sad-build") }
             default       { @("sad") }
         }
         $ناقص = @()
@@ -665,7 +666,6 @@ function Install-Sad {
                 "sadc"           { "المترجم — يحوّل .ص إلى ملف تنفيذي أصلي (LLVM)" }
                 "sad-lsp"        { "خادم LSP — تكامل مع VS Code والمحررات" }
                 "sad-pkg"        { "مدير الحزم — تثبيت المكتبات" }
-                "sad-repl"       { "بيئة تفاعلية" }
                 "sad-fmt"        { "أداة تنسيق الكود" }
                 default          { $exe.BaseName }
             }
@@ -855,7 +855,6 @@ if ($Components -in @("compiler", "full")) {
 }
 if ($Components -eq "full") {
     Write-Host "    sad-pkg init            إنشاء مشروع جديد" -ForegroundColor DarkGray
-    Write-Host "    sad-repl                بيئة تفاعلية" -ForegroundColor DarkGray
 }
 Write-Host ""
 Write-Host "  ⚡ أعد فتح الطرفية لتفعيل PATH" -ForegroundColor Yellow

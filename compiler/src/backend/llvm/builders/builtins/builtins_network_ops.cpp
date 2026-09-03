@@ -606,11 +606,38 @@ namespace Sad
             //      compile time (a register, not a literal) is a hard error.
             auto emitRouteRegistration = [&](const char *cFuncName) -> llvm::Value *
             {
+                // ============================================================
+                // (AR) 🔑 خانةُ النتيجةِ تُملأُ حتّى عندَ الرفض.
+                //
+                //      قِيس: حين رفضَ SEM049 معالجًا غيرَ حرفيٍّ، انصرفَ الباعثُ
+                //      بـ`nullptr` **بغيرِ أن يُسجّلَ خانةَ نتيجةِ التعليمة**، فجاءت
+                //      التعليمةُ التالية تقرأُ `%203` فلم تجدْه، فطُبع «خطأ مترجم
+                //      داخلي: مرجع غير معرَّف — يُرجى الإبلاغ». أي أنّ تشخيصًا
+                //      صحيحًا للمستعمِلِ كان يتلوه **اتّهامٌ كاذبٌ للمترجّم**:
+                //      `استورد شبكات` وحدَه أخرجَ ٨ أخطاء = ٤ تشخيصاتٍ صحيحةٍ
+                //      + ٤ انهياراتٍ تِلْوًا لها.
+                //
+                //      والقيمةُ ليست تسترًا: الترجمةُ **تفشلُ حتمًا** بعدَها
+                //      (`hasErrors()` بوّابةٌ عامّةٌ في `compiler_driver_backend`)،
+                //      فلا ثنائيَّ يُسلَّم. غايتُها أن يبقى الخفضُ سليمَ البنيةِ
+                //      حتّى نهايةِ الشوطِ فتُجمَعَ بقيّةُ الأخطاءِ الحقيقيّة.
+                // (EN) 🔑 Bind a recovery value for the instruction's
+                //      result slot even when we reject. Measured: when SEM049
+                //      rejected a non-literal handler we returned nullptr WITHOUT
+                //      registering the result register, so the next instruction
+                //      read %203, missed it, and printed "internal compiler error:
+                //      undefined register — please report". A correct user-facing
+                //      diagnostic was followed by a FALSE accusation against the
+                //      compiler. This is not suppression: compilation still fails
+                //      unconditionally (hasErrors() is a general gate), so no
+                //      binary is emitted; the value only keeps lowering
+                //      well-formed so the rest of the real errors get collected.
+                // ============================================================
                 if (inst->operands.size() < 3)
                 {
                     cg_.reportError(::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
                                     {{"detail", cFuncName}});
-                    return nullptr;
+                    return cg_.builtinErrorSentinel(inst);
                 }
 
                 const SIROperand &handlerOp = inst->operands[2];
@@ -626,26 +653,36 @@ namespace Sad
                     handlerName.empty() ? nullptr : cg_.module_->getFunction(handlerName);
                 if (!handlerFn)
                 {
+                    // (AR) 🔑 رمزٌ دلاليٌّ (SEM049) لا خطأٌ داخليّ: المترجّمُ لم ينهَر،
+                    //      بل يعرفُ ما لا يستطيعُ خفضَه ويقولُه. وكان INT002 يطلبُ من
+                    //      كاتبِ البرنامجِ أن «يُبلِّغَ عن علّةِ مترجِم» — عن قيدٍ
+                    //      معلومٍ لا عن علّة. والنصُّ كلُّه من كتالوجِ SoT لا مؤلَّفًا هنا.
+                    // (EN) A semantic code (SEM049), not an internal error: the compiler
+                    //      did not crash; it knows what it cannot lower. INT002 asked the
+                    //      author to report a compiler bug for a known limitation.
                     cg_.reportError(
-                        ::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
-                        {{"detail", std::string(cFuncName) +
-                                        ": معالج المسار في المصرَّف يجب أن يكون اسم دالة "
-                                        "معرَّفة حرفيًّا / route handler must be a literal "
-                                        "name of a defined function; got '" +
-                                        (handlerName.empty() ? handlerOp.name : handlerName) +
-                                        "'"}});
-                    return nullptr;
+                        ::Sad::Errors::ErrorCode::SEM_ROUTE_HANDLER_NOT_LITERAL,
+                        {{"name", cFuncName},
+                         {"got", handlerName.empty() ? handlerOp.name : handlerName}});
+                    return cg_.builtinErrorSentinel(inst);
                 }
 
                 if (handlerFn->arg_size() != 0)
                 {
+                    // (AR) 🔑 رمزٌ خاصٌّ بالحال، لا SEM049 بخانةٍ مؤلَّفة.
+                    //      كانت الخانةُ `{got}` تُبنى هنا بضمِّ نصٍّ عربيٍّ‑إنجليزيٍّ
+                    //      إلى الاسم، فيحملُ كلُّ عرضٍ **لغةَ الآخَر** وتخرجُ سلسلةُ
+                    //      تشخيصٍ من خارجِ الكتالوج. والعددُ الآنَ خانةٌ عدديّة.
+                    // (EN) 🔑 A dedicated code, not SEM049 with a slot composed
+                    //      here: that slot glued a bilingual clause onto the name, so each
+                    //      rendering carried the other language, and diagnostic prose lived
+                    //      outside the catalog. The arity is a numeric placeholder now.
                     cg_.reportError(
-                        ::Sad::Errors::ErrorCode::INT_COMPILER_INVALID_OPERANDS,
-                        {{"detail", std::string(cFuncName) +
-                                        ": معالج المسار '" + handlerName +
-                                        "' يجب ألا يأخذ معاملات / route handler must "
-                                        "take no parameters"}});
-                    return nullptr;
+                        ::Sad::Errors::ErrorCode::SEM_ROUTE_HANDLER_HAS_PARAMS,
+                        {{"handler", handlerName},
+                         {"name", cFuncName},
+                         {"count", std::to_string(handlerFn->arg_size())}});
+                    return cg_.builtinErrorSentinel(inst);
                 }
 
                 // (AR) 🔑 لا يُمرر عنوان دالة ص خامًا: عائدها قد يكون %SadDyn

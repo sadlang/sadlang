@@ -107,7 +107,7 @@ echo "  نسخ الملفات التنفيذية..."
 # المصدر: مجلد البناء أو مجلد الإصدار
 SRC_BIN="${SRC_DIR:-../../build/bin}"
 
-for bin_file in sad sad-run sad-lsp sad-check sadc sad-build sad-pkg sad-repl sad-fmt; do
+for bin_file in sad sad-lsp sad-check sadc sad-build sad-pkg sad-fmt; do
     if [ -f "$SRC_BIN/$bin_file" ]; then
         cp "$SRC_BIN/$bin_file" "$BUILD_DIR/usr/bin/"
         chmod 755 "$BUILD_DIR/usr/bin/$bin_file"

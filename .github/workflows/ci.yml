@@ -10,7 +10,7 @@
 #   - 22 اختبار regression لكلّ مشكلة موثَّقة
 #   - يغطّي: Lexer, Parser, Value, Interpreter, StdLib, Errors,
 #           Compiler, E2E, Utils/Modules, Regression
-#   - يختبر المفسّر (sad-run.exe) والمترجم (sad-build.exe) بالتوازي
+#   - يختبر المترجم (sad-build.exe) وخلفيّتَه السياديّة (sad-build-native.exe)
 #   - لا يُقبل أيّ PR بدون نجاح 100% من الاختبارات
 # ══════════════════════════════════════════════════════════════════════
 # المسؤول: سعيد — مهندس المترجم (Sprint 1)
@@ -98,7 +98,7 @@ jobs:
               echo "❌ Non-UTF-8: $f"
               errors=$((errors + 1))
             fi
-          done < <(find shared/ interpreter/ stdlib/ compiler/ features/ tools/ \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -not -path '*/third_party/*' -print0 2>/dev/null)
+          done < <(find shared/ stdlib/ compiler/ features/ tools/ \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -not -path '*/third_party/*' -print0 2>/dev/null)
           if [ $errors -gt 0 ]; then
             echo "::error::Found $errors files with non-UTF-8 encoding"
             exit 1
@@ -110,7 +110,7 @@ jobs:
         run: |
           # (AR) نفس نطاق فحص الترميز أعلاه (features/ tools/ مع استثناء third_party) — اتّساقًا
           # (EN) Same scope as the encoding check above (features/ tools/, third_party excluded) — for consistency
-          large=$(find shared/ interpreter/ stdlib/ compiler/ features/ tools/ \
+          large=$(find shared/ stdlib/ compiler/ features/ tools/ \
             \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -not -path '*/third_party/*' -size +512k 2>/dev/null)
           if [ -n "$large" ]; then
             echo "::warning::Large files found: $large"
@@ -299,7 +299,7 @@ jobs:
             -I shared/errors/include \
             -I interpreter/include \
             -I compiler/include \
-            shared/ interpreter/ compiler/ stdlib/ features/network/ 2>&1 | head -100
+            shared/ compiler/ stdlib/ features/network/ 2>&1 | head -100
           # (AR) ملحوظة: نطاق cppcheck أضيق عمدًا من نطاق فحص الترميز أعلاه
           #      (features/network/ فقط لا features/ tools/) — توسيعه قرار كلفة
           #      تحليل منفصل، لا يُغيَّر ضمن تصحيح تجميليّ.
@@ -1068,18 +1068,18 @@ jobs:
       #      it was gated on the config instead of on what it actually requires.
       #      The hole is sealed, so the gate's reason is gone. The missing-binary
       #      guard below stays — that is what stops a silent unmeasured green.
-      - name: "🧪 اختبارات Regression (المفسّر) / Regression Tests (Interpreter)"
+      - name: "🧪 اختبارات Regression (المترجم) / Regression Tests (Compiler)"
         shell: pwsh
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
+          $sad = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (Test-Path $sad) {
             if (Test-Path "tests/behavior/_regression/run_regression_tests.ps1") {
-              & "tests/behavior/_regression/run_regression_tests.ps1" -SadExe $sad -Mode interpreter
+              & "tests/behavior/_regression/run_regression_tests.ps1" -SadExe $sad -Mode compiler
             } else {
               Write-Host "⚠️ SKIP: Regression test runner not found" -ForegroundColor Yellow
             }
           } else {
-            Write-Host "❌ MISSING: sad-run.exe not built" -ForegroundColor Red
+            Write-Host "❌ MISSING: sad-build.exe not built" -ForegroundColor Red
             exit 1
           }
 
@@ -1127,16 +1127,20 @@ jobs:
       #      it was gated on the config instead of on what it actually requires.
       #      The hole is sealed, so the gate's reason is gone. The missing-binary
       #      guard below stays — that is what stops a silent unmeasured green.
-      - name: "🔄 اختبارات التنفيذ المزدوج (مستوى هرميّ + بوّابة) / Dual Execution Tests (level + gate)"
+      - name: "🔄 شوط السلوك — المترجم (مستوى هرميّ + بوّابة) / Behavior Suite — Compiler (level + gate)"
         shell: pwsh
         timeout-minutes: 30
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
-          # (AR) المفسّر إلزاميّ — غيابه عطلٌ حقيقيّ لا يُتخطّى.
-          # (EN) The interpreter is mandatory — its absence is a real failure, never skipped.
-          if (-not (Test-Path $sad)) {
-            Write-Error "❌ MISSING: $sad — المفسّر إلزاميّ للتنفيذ المزدوج"
+          # (AR) 🔑 مسارُ المحرّكِ الواحد: المترجمُ إلزاميّ ولا مفسّرَ يُمرَّر.
+          #      تمريرُ `--interp sad-build` كان يُبقي وضعَ المترجم-فقط في runner.py
+          #      ميّتًا (لا يُفعَّل إلّا حين يغيبُ المفسّر)، ويجعلُ العدّاءَ يقارنُ
+          #      مخرَجًا فارغًا: `sad-build x.ص` يُترجِمُ ولا يُشغّل.
+          # (EN) Single-engine track: the compiler is mandatory, no interpreter is
+          #      passed. `--interp sad-build` kept compiler-only mode dead and made
+          #      the runner compare an empty output — sad-build builds, it never runs.
+          if (-not (Test-Path $sadc)) {
+            Write-Error "❌ MISSING: $sadc — المترجمُ إلزاميٌّ لشوطِ السلوك"
             exit 1
           }
           # (AR) اختيار المستوى حسب حدث CI (ADR-002 / TEST-006):
@@ -1162,25 +1166,13 @@ jobs:
           $ev = "${{ github.event_name }}"
           $level = 'P0'
           $floor = $null
-          # (AR) أهداف المحرّكات: المفسّر دائمًا؛ المترجم إن بُني على هذا الـrunner.
-          #      حين يغيب المترجم (مثلًا ويندوز بلا مكتبات LLVM-dev) **لا نتخطّى** بل
-          #      نشغّل وضع المفسّر-فقط (يقارن runner.py مخرجَ المفسّر بـ@expected)،
-          #      فتعمل الاختبارات فعلًا بدل العلامة الخضراء المخادعة.
-          # (EN) Engine targets: interpreter always; compiler if built on this runner.
-          #      When the compiler is absent (e.g. Windows without LLVM-dev) we DON'T
-          #      skip — we run interpreter-only mode (runner.py compares interpreter
-          #      output to @expected), so the tests actually run instead of a misleading
-          #      green skip.
-          $engineArgs = @('--interp', $sad)
-          if (Test-Path $sadc) {
-            $engineArgs += @('--compiler', $sadc)
-            Write-Host "▶️ تنفيذ مزدوج كامل (مفسّر + مترجم) — المستوى: $level (حدث: $ev)" -ForegroundColor Cyan
-          } else {
-            # 🔑 (AR) التراجعُ إلى المفسّرِ وحدَه كان يطبع «PASS» لخطوةٍ اسمُها
-            #      «التنفيذ المزدوج» — أي شهادةً بما لم يُقَسْ. وقد صار عطبًا.
-            Write-Host "::error::MISSING: $sadc — «التنفيذُ المزدوجُ» لا يُقاسُ بمحرّكٍ واحد"
-            exit 1
-          }
+          # (AR) محرّكٌ واحد: المترجم. والمُسنَدُ صار `@expected` بسَندٍ من قواعدِ
+          #      اللغة، لا مخرَجَ محرّكٍ آخر — وهو قرارُ المالك: ما يُطلَبُ من
+          #      المترجمِ يُشتقُّ من قاعدةٍ مُعلَنةٍ في `language-truth/`.
+          # (EN) One engine: the compiler. The oracle is `@expected` backed by a
+          #      declared language rule, never another engine's output.
+          $engineArgs = @('--compiler', $sadc)
+          Write-Host "▶️ شوطُ السلوك — المترجمُ وحدَه — المستوى: $level (حدث: $ev)" -ForegroundColor Cyan
           # (AR) --gate يُصدر PASS/CONCERNS/FAIL؛ --gate-floor يمنع التراجع تحت الأساس (86%).
           #      P0 بلا أرضية: أي فشل دخان = FAIL.
           $gateArgs = @('--gate')
@@ -1214,18 +1206,12 @@ jobs:
         timeout-minutes: 30
         shell: pwsh
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
-          if (-not (Test-Path $sad)) {
-            Write-Host "::error::MISSING: $sad — المفسّر إلزاميّ"
+          if (-not (Test-Path $sadc)) {
+            Write-Host "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           }
-          $engineArgs = @('--interp', $sad)
-          if (Test-Path $sadc) { $engineArgs += @('--compiler', $sadc) }
-          else {
-            Write-Host "::error::MISSING: $sadc — التكافؤُ لا يُقاسُ بمحرّكٍ واحد"
-            exit 1
-          }
+          $engineArgs = @('--compiler', $sadc)
           # (AR) بلا `--gate` عمدًا: `rules_matrix` لا يحوي ملفَّ دخانٍ واحدًا،
           #      فالبوّابةُ تُخرِجُ CONCERNS بصفرٍ ولو أخفقَ الثلاثةُ آلاف.
           # (EN) No --gate on purpose: rules_matrix holds no smoke file, so the
@@ -1252,18 +1238,12 @@ jobs:
         timeout-minutes: 30
         shell: pwsh
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
-          if (-not (Test-Path $sad)) {
-            Write-Host "::error::MISSING: $sad — المفسّر إلزاميّ"
+          if (-not (Test-Path $sadc)) {
+            Write-Host "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           }
-          $engineArgs = @('--interp', $sad)
-          if (Test-Path $sadc) { $engineArgs += @('--compiler', $sadc) }
-          else {
-            Write-Host "::error::MISSING: $sadc — التكافؤُ لا يُقاسُ بمحرّكٍ واحد"
-            exit 1
-          }
+          $engineArgs = @('--compiler', $sadc)
           python tests/runner.py --level full --timeout 60 @engineArgs --report
           if ($LASTEXITCODE -ne 0) {
             python tests/system/harness/print_parity_failures.py build/_dual_report.json
@@ -1283,10 +1263,9 @@ jobs:
         timeout-minutes: 30
         shell: pwsh
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
           if (-not (Test-Path $sadc)) {
-            Write-Host "::error::سجلُّ الحمرةِ يلزمُه المحرّكان — و sad-build.exe مبنيٌّ إلزامًا هنا الآن"
+            Write-Host "::error::سجلُّ الحمرةِ يلزمُه المترجم — و sad-build.exe مبنيٌّ إلزامًا هنا"
             exit 1
           }
           # (AR) 🔑 انهيارُ الأداةِ ليس انحرافَ السجلّ: رمزُ خروجٍ واحدٌ
@@ -1295,7 +1274,7 @@ jobs:
           # (EN) An instrument crash is not a registry drift; exit 3 means
           #      the measurement never ran, so no verdict is owed.
           python tests/system/harness/test_declared_reds_registry.py `
-            --measure --interp $sad --compiler $sadc
+            --measure --compiler $sadc
           $redsCode = $LASTEXITCODE
           if ($redsCode -eq 3) {
             Write-Host "::error::أداةُ سجلِّ الحمرةِ انهارت — لا حكمَ على السجلّ: لم يُقَس"
@@ -1438,10 +1417,9 @@ jobs:
         shell: pwsh
         if: github.event_name == 'pull_request'
         run: |
-          $sad = "build/bin/${{ matrix.config }}/sad-run.exe"
           $sadc = "build/bin/${{ matrix.config }}/sad-build.exe"
-          if (-not ((Test-Path $sad) -and (Test-Path $sadc))) {
-            Write-Host "::error::MISSING: sad-run.exe أو sad-build.exe — burn-in لا يُقاسُ بمحرّكٍ واحد"
+          if (-not (Test-Path $sadc)) {
+            Write-Host "::error::MISSING: $sadc — burn-in يلزمُه المترجم"
             exit 1
           }
           # (AR) كشف ملفات .ص الجديدة/المعدَّلة في الـPR وتشغيلها 5× لاكتشاف الرفرفة (R6).
@@ -1453,7 +1431,7 @@ jobs:
           foreach ($f in $changed) {
             $name = Split-Path $f -Leaf
             Write-Host "🔥 Burn-in 5× → $name" -ForegroundColor Cyan
-            python tests/runner.py --file $name --repeat 5 --interp $sad --compiler $sadc --no-color
+            python tests/runner.py --file $name --repeat 5 --compiler $sadc --no-color
             if ($LASTEXITCODE -ne 0) { $failed++; Write-Host "  ⚠️ رفرفة/فشل في $name" -ForegroundColor Yellow }
           }
           if ($failed -gt 0) { Write-Host "❌ $failed اختبار جديد مترفرف/فاشل في burn-in" -ForegroundColor Red; exit 1 }
@@ -1773,18 +1751,18 @@ jobs:
 
       - name: "🧪 اختبارات Regression / Regression Tests"
         run: |
-          sad="build/bin/sad-run"
+          sad="build/bin/sad-build"
           if [ -x "$sad" ]; then
             if [ -f "tests/behavior/_regression/run_regression_tests.sh" ]; then
               chmod +x tests/behavior/_regression/run_regression_tests.sh
-              tests/behavior/_regression/run_regression_tests.sh "$sad" interpreter
+              tests/behavior/_regression/run_regression_tests.sh "$sad" compiler
             else
               # (AR) الملفُّ مُودَعٌ في المستودع، فغيابُه سحبٌ ناقصٌ لا حالةٌ مشروعة.
               echo "::error::MISSING: tests/behavior/_regression/run_regression_tests.sh"
               exit 1
             fi
           else
-            echo "❌ MISSING: sad-run not built"
+            echo "❌ MISSING: sad-build not built"
             exit 1
           fi
 
@@ -1809,28 +1787,21 @@ jobs:
       #      needs and ran none of it — a Debug-only defect (a firing assert,
       #      /Od behaviour) stayed invisible until Release broke. The time bound
       #      is now declared explicitly instead of inheriting the 6-hour ceiling.
-      - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
+      - name: "🔄 شوط السلوك — المترجم / Behavior Suite — Compiler"
         timeout-minutes: 45
         run: |
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          # (AR) المفسّر إلزاميّ — غيابه عطلٌ حقيقيٌّ لا يُتخطّى، كما على ويندوز.
-          # (EN) The interpreter is mandatory — its absence is a real failure.
-          if [ ! -x "$sad" ]; then
-            echo "::error::MISSING: $sad — المفسّر إلزاميّ للتنفيذ المزدوج"
+          # (AR) 🔑 محرّكٌ واحد: المترجم. تمريرُ `--interp sad-build` كان يُبقي
+          #      وضعَ المترجم-فقط ميّتًا ويقارنُ مخرَجًا فارغًا — فالمترجمُ يُترجِمُ
+          #      ولا يُشغّل. والمُسنَدُ صار `@expected` بسَندٍ من قواعدِ اللغة.
+          # (EN) One engine: the compiler. `--interp sad-build` kept compiler-only
+          #      mode dead and compared an empty output; sad-build never runs a file.
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميٌّ لشوطِ السلوك"
             exit 1
           fi
-          # (AR) المترجم إن بُني: تكافُؤٌ ثنائيّ. وإن غاب **لا نتخطّى** بل نُشغّل
-          #      وضعَ المفسّر-فقط — فتَعملُ الاختباراتُ بدلَ علامةٍ خضراءَ مخادعة.
-          # (EN) Compiler if built → real parity. If absent we do NOT skip: run
-          #      interpreter-only, so the tests actually run instead of a fake green.
-          engine=(--interp "$sad")
-          if [ -x "$sadc" ]; then
-            engine+=(--compiler "$sadc")
-            echo "▶️ تنفيذٌ مزدوجٌ كاملٌ (مفسّر + مترجم) — المستوى: P0"
-          else
-            echo "::warning::وضعُ المفسّر-فقط — sad-build غيرُ مبنيٍّ فلا يُقاسُ التكافؤُ هنا"
-          fi
+          engine=(--compiler "$sadc")
+          echo "▶️ شوطُ السلوك — المترجمُ وحدَه — المستوى: P0"
           # (AR) ⚠️ --gate يُصدِرُ الحكم، والإخفاقُ **لا يُبتلَع**. وكان قبلَها
           #      `|| echo "… had failures"` — فمكثتِ الخطوةُ خضراءَ والتكافؤُ **صفرٌ**.
           #      وP0 بلا أرضيّةٍ مئويّةٍ عمدًا: خمسةُ ملفّاتٍ دخانٍ — أيُّ إخفاقٍ = FAIL.
@@ -1866,10 +1837,9 @@ jobs:
           # (EN) These 3002 were NEVER run in CI, on any platform, in any era: their
           #      only caller is check_grammar_conformance.py --run, which none of the
           #      15 workflows invokes. Parity was measured on 5 of 3926 files (0.13%).
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان لمصفوفةِ القواعد"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           # (AR) 🔴 **بلا `--gate` عمدًا — والسببُ مقيسٌ لا مبدئيّ.** كُتِبت هذه
@@ -1893,7 +1863,7 @@ jobs:
           #      KNOWN_RED. `--gate-floor 100` is NOT a substitute: the rate counts
           #      SKIP and KNOWN_RED in its denominator, so it would always fail.
           if ! python3 tests/runner.py --dir rules_matrix --timeout 30 \
-                 --interp "$sad" --compiler "$sadc" --report; then
+                 --compiler "$sadc" --report; then
 
             # (AR) 🔑 يُعرَضُ **ما** أخفقَ لا عددُه: بوّابةٌ تقولُ «٦ من ٣٠٠٢»
             #      ولا تقولُ أيَّ ستّةٍ ولا بمَ افترقَ المحرّكان تُلزِمُ شوطًا ثانيًا
@@ -1931,10 +1901,9 @@ jobs:
           #      kept out of the step name: it rots with every new seed. `sections`
           #      alone measured locally: 715 total, 687 pass, 0 fail, 25 skip,
           #      3 declared red, 388s on 12 cores (Debug).
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان للمستوى الكامل"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           # (AR) 🔴 بلا `--gate` — للسببِ المقيسِ نفسِه المشروحِ في الخطوةِ أعلاه.
@@ -1944,7 +1913,7 @@ jobs:
           #      five P0_smoke files so the gate looks alive, yet a regression in any
           #      of the other 715 exits 0.
           if ! python3 tests/runner.py --level full --timeout 60 \
-                 --interp "$sad" --compiler "$sadc" --report; then
+                 --compiler "$sadc" --report; then
 
             # (AR) 🔑 يُعرَضُ **ما** أخفقَ لا عددُه: بوّابةٌ تقولُ «٦ من ٣٠٠٢»
             #      ولا تقولُ أيَّ ستّةٍ ولا بمَ افترقَ المحرّكان تُلزِمُ شوطًا ثانيًا
@@ -1977,10 +1946,9 @@ jobs:
           #      اخضرارٌ مسجَّلٌ · احمرارٌ غيرُ مسجَّلٍ · تغيُّرُ صنفِ الإخفاق.
           # (EN) Both directions: a registered row that turns green, an unregistered
           #      red, or a changed failure kind all fail this step.
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان لسجلِّ الحمرة"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           # (AR) 🔑 رمزُ ٣ = انهيارُ الأداةِ لا انحرافُ السجلّ. و`||` تُخرِج
@@ -1989,7 +1957,7 @@ jobs:
           #      out of `-e` so its code can be read instead of aborting.
           reds_code=0
           python3 tests/system/harness/test_declared_reds_registry.py \
-            --measure --interp "$sad" --compiler "$sadc" || reds_code=$?
+            --measure --compiler "$sadc" || reds_code=$?
           if [ "$reds_code" -eq 3 ]; then
             echo "::error::أداةُ سجلِّ الحمرةِ انهارت — لا حكمَ على السجلّ: لم يُقَس"
             exit 1
@@ -2593,18 +2561,18 @@ jobs:
 
       - name: "🧪 اختبارات Regression / Regression Tests"
         run: |
-          sad="build/bin/sad-run"
+          sad="build/bin/sad-build"
           if [ -x "$sad" ]; then
             if [ -f "tests/behavior/_regression/run_regression_tests.sh" ]; then
               chmod +x tests/behavior/_regression/run_regression_tests.sh
-              tests/behavior/_regression/run_regression_tests.sh "$sad" interpreter
+              tests/behavior/_regression/run_regression_tests.sh "$sad" compiler
             else
               # (AR) الملفُّ مُودَعٌ في المستودع، فغيابُه سحبٌ ناقصٌ لا حالةٌ مشروعة.
               echo "::error::MISSING: tests/behavior/_regression/run_regression_tests.sh"
               exit 1
             fi
           else
-            echo "❌ MISSING: sad-run not built"
+            echo "❌ MISSING: sad-build not built"
             exit 1
           fi
 
@@ -2626,28 +2594,21 @@ jobs:
       #      needs and ran none of it — a Debug-only defect (a firing assert,
       #      /Od behaviour) stayed invisible until Release broke. The time bound
       #      is now declared explicitly instead of inheriting the 6-hour ceiling.
-      - name: "🔄 اختبارات التنفيذ المزدوج / Dual Execution Tests"
+      - name: "🔄 شوط السلوك — المترجم / Behavior Suite — Compiler"
         timeout-minutes: 45
         run: |
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          # (AR) المفسّر إلزاميّ — غيابه عطلٌ حقيقيٌّ لا يُتخطّى، كما على ويندوز.
-          # (EN) The interpreter is mandatory — its absence is a real failure.
-          if [ ! -x "$sad" ]; then
-            echo "::error::MISSING: $sad — المفسّر إلزاميّ للتنفيذ المزدوج"
+          # (AR) 🔑 محرّكٌ واحد: المترجم. تمريرُ `--interp sad-build` كان يُبقي
+          #      وضعَ المترجم-فقط ميّتًا ويقارنُ مخرَجًا فارغًا — فالمترجمُ يُترجِمُ
+          #      ولا يُشغّل. والمُسنَدُ صار `@expected` بسَندٍ من قواعدِ اللغة.
+          # (EN) One engine: the compiler. `--interp sad-build` kept compiler-only
+          #      mode dead and compared an empty output; sad-build never runs a file.
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميٌّ لشوطِ السلوك"
             exit 1
           fi
-          # (AR) المترجم إن بُني: تكافُؤٌ ثنائيّ. وإن غاب **لا نتخطّى** بل نُشغّل
-          #      وضعَ المفسّر-فقط — فتَعملُ الاختباراتُ بدلَ علامةٍ خضراءَ مخادعة.
-          # (EN) Compiler if built → real parity. If absent we do NOT skip: run
-          #      interpreter-only, so the tests actually run instead of a fake green.
-          engine=(--interp "$sad")
-          if [ -x "$sadc" ]; then
-            engine+=(--compiler "$sadc")
-            echo "▶️ تنفيذٌ مزدوجٌ كاملٌ (مفسّر + مترجم) — المستوى: P0"
-          else
-            echo "::warning::وضعُ المفسّر-فقط — sad-build غيرُ مبنيٍّ فلا يُقاسُ التكافؤُ هنا"
-          fi
+          engine=(--compiler "$sadc")
+          echo "▶️ شوطُ السلوك — المترجمُ وحدَه — المستوى: P0"
           # (AR) ⚠️ --gate يُصدِرُ الحكم، والإخفاقُ **لا يُبتلَع**. وكان قبلَها
           #      `|| echo "… had failures"` — فمكثتِ الخطوةُ خضراءَ والتكافؤُ **صفرٌ**.
           #      وP0 بلا أرضيّةٍ مئويّةٍ عمدًا: خمسةُ ملفّاتٍ دخانٍ — أيُّ إخفاقٍ = FAIL.
@@ -2680,15 +2641,14 @@ jobs:
       - name: "🧮 مصفوفة القواعد / Rules Matrix Parity"
         timeout-minutes: 30
         run: |
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان لمصفوفة القواعد"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           # (AR) بلا `--gate` عمدًا — `rules_matrix` بلا ملفِّ دخانٍ واحد.
           if ! python3 tests/runner.py --dir rules_matrix --timeout 30 \
-                 --interp "$sad" --compiler "$sadc" --report; then
+                 --compiler "$sadc" --report; then
             python3 tests/system/harness/print_parity_failures.py build/_dual_report.json || true
             echo "::error::مصفوفةُ القواعد على ماك: FAIL"
             exit 1
@@ -2709,14 +2669,13 @@ jobs:
       - name: "📚 المستوى الكامل / Full Level Parity"
         timeout-minutes: 30
         run: |
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان للمستوى الكامل"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           if ! python3 tests/runner.py --level full --timeout 60 \
-                 --interp "$sad" --compiler "$sadc" --report; then
+                 --compiler "$sadc" --report; then
             python3 tests/system/harness/print_parity_failures.py build/_dual_report.json || true
             echo "::error::المستوى الكامل على ماك: FAIL"
             exit 1
@@ -2737,10 +2696,9 @@ jobs:
       - name: "📒 سجلّ الحمرة المقيسة / Declared Reds Registry"
         timeout-minutes: 30
         run: |
-          sad="build/bin/sad-run"
           sadc="build/bin/sad-build"
-          if [ ! -x "$sad" ] || [ ! -x "$sadc" ]; then
-            echo "::error::MISSING: المحرّكان إلزاميّان لسجلِّ الحمرة"
+          if [ ! -x "$sadc" ]; then
+            echo "::error::MISSING: $sadc — المترجمُ إلزاميّ"
             exit 1
           fi
           # (AR) 🔑 رمزُ ٣ = انهيارُ الأداةِ لا انحرافُ السجلّ. و`||` تُخرِج
@@ -2749,7 +2707,7 @@ jobs:
           #      out of `-e` so its code can be read instead of aborting.
           reds_code=0
           python3 tests/system/harness/test_declared_reds_registry.py \
-            --measure --interp "$sad" --compiler "$sadc" || reds_code=$?
+            --measure --compiler "$sadc" || reds_code=$?
           if [ "$reds_code" -eq 3 ]; then
             echo "::error::أداةُ سجلِّ الحمرةِ انهارت — لا حكمَ على السجلّ: لم يُقَس"
             exit 1
@@ -2815,7 +2773,7 @@ jobs:
   #      وخانةٌ تبني إحداهما وتُسمّي نفسَها «مرآةَ الإصدار» تحرسُ نصفَه: كودٌ
   #      يُرفَضُ في GCC 11 داخلَ الذراعِ الأخرى يمرُّ أخضرَ ويسقطُ في شوطِ
   #      إصدارٍ — وهو عينُ ما وُضِعت هذه الوظيفةُ لتمنعَه.
-  #      والأدواتُ الثلاثُ الإضافيّةُ (sad-pkg · sad-repl · sad-fmt) تُشحَنُ في
+  #      والأداتانِ الإضافيّتانِ (sad-pkg · sad-fmt) تُشحَنُ في
   #      الحزمِ ويبتلعُ `continue-on-error` إخفاقَ بنائِها في المُصدِر، فلا
   #      يُصرِّفُها GCC 11 في أيِّ مكانٍ ولا يحكمُ عليها أحد. تُبنى هنا **مُلزِمةً**:
   #      البوّابةُ تقولُ «يُصرَّفُ» أو «لا يُصرَّف»، وقرارُ التحزيمِ شأنٌ آخر.
@@ -2827,7 +2785,7 @@ jobs:
   #      which flips the #if in compiler_driver_cli.cpp to its other arm — two
   #      different compilation trees, not one toggled flag. A cell that builds
   #      one and calls itself a mirror of the release guards half of it.
-  #      The three extras (sad-pkg, sad-repl, sad-fmt) ship in the packages and
+  #      The two extras (sad-pkg, sad-fmt) ship in the packages and
   #      the publisher swallows their build failure with continue-on-error, so
   #      GCC 11 compiles them nowhere and nobody judges them. Here they are
   #      built as REQUIRED: this gate answers "compiles" or "does not compile";
@@ -2961,7 +2919,7 @@ jobs:
             sad_build_tools build Release "$SAD_REQUIRED_INTERPRETER"
             # (AR) الإضافيّاتُ مُلزِمةٌ هنا وحدَها — التعليلُ فوقَ الوظيفة.
             # (EN) The extras are required here alone — rationale above the job.
-            for target in sad-pkg sad-repl sad-fmt; do
+            for target in sad-pkg sad-fmt; do
               echo "🔨 $target"
               cmake --build build --config Release --target "$target" --parallel "$(nproc)"
             done

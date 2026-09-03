@@ -1,7 +1,8 @@
 # (AR) مشغّل سريع لاختبارات التنفيذ المزدوج — المسارات مثبَّتة على جذر المستودع
 # (EN) Quick dual-execution test runner — paths anchored to the repository root
 $repoRoot = Split-Path $PSScriptRoot -Parent
-$sad = Join-Path $repoRoot "build\bin\Debug\sad-run.exe"
+# (AR) sad-run زال مع المفسّر — العدّاءُ يُشغَّلُ بالمترجّم وحدَه.
+$sad = Join-Path $repoRoot "build\bin\Debug\sad-build.exe"
 $tests = Get-ChildItem (Join-Path $repoRoot "tests\dual_execution") -Recurse -Filter "*.ص"
 $pass = 0; $fail = 0; $failList = @(); $skipped = 0
 foreach ($t in $tests) {

@@ -608,7 +608,22 @@ flags:
     desc_en: "Enable memory debug messages"
 
 # ════════════════════════════════════════════════════════════════════════════
-# (AR) أعلام خاصّة بالمفسّر (sad-run) — أمان، تنميط، إعادة تحميل، تنقيح.
+# (AR) 🔑 أعلامٌ كانت خاصّةً بالمفسّر (sad-run) — أمان، تنميط، إعادة تحميل، تنقيح.
+#
+#      ⚠️ **دَينٌ مُقيَّد: أحدَ عشرَ عَلَمًا بلا مستهلك.** زالَ المفسّرُ فلم يبقَ
+#      ثنائيٌّ يقرأ `engines: [interpreter]`. والإعلانُ باقٍ هنا **قصدًا لا
+#      سهوًا**: حذفُه قرارُ سطحِ لغةٍ لا تنظيفُ شجرة — والسؤالُ المفتوح أيُّ
+#      هذه الأعلامِ يجبُ أن يعرضَه `sad-build` (فاحصُ الأمانِ مثلًا حيٌّ في
+#      `shared/ownership` ولا عَلَمَ له في المترجّم). وحتّى يُحسَم، **لا يُقرَأُ
+#      وجودُ هذه المدخلاتِ أنّ الأعلامَ تعمل**.
+#      و`engines: [compiler, interpreter]` في ستّةَ عشرَ عَلَمًا آخرَ صار الجزءُ
+#      الثاني منه بلا معنًى كذلك — يُنقَّى مع الحسم لا قبلَه.
+# (EN) 🔑 Flags that used to be interpreter-only. RECORDED DEBT: eleven flags with
+#      no consumer — no binary reads engines: [interpreter] any more. They are kept
+#      deliberately: removing a declared flag is a language-surface decision, and
+#      the open question is which of them sad-build should expose (the security
+#      checker, for one, is alive in shared/ownership with no compiler flag).
+#      Until that is decided, their presence must NOT be read as "these work".
 # ════════════════════════════════════════════════════════════════════════════
 
   - id: flag.security

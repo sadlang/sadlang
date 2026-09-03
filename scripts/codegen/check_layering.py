@@ -20,11 +20,11 @@
                               sad_abstraction / sad_security.
         التنفيذيّان (L2)     : sad-run (مفسّر) / sad-build (مترجم).
 
-    اللامتغيِّر المفروض (G4 — «لا روابط مباشرة بين المحرّكَين»):
+    اللامتغيِّر المفروض (G4 — «لا روابط مباشرة بين زمنِ التشغيلِ والمترجم»):
         • لا يربط هدفُ نظامِ المفسّر أيَّ هدف من نظام المترجم، والعكس.
         • sad-run لا يربط أيَّ هدف من نظام المترجم.
         • sad-build لا يربط أيَّ هدف من نظام المفسّر.
-        • الأساس sad_shared لا يربط أيَّ هدف من المحرّكَين (يبقى قاعدةً نقيّة).
+        • الأساس sad_shared لا يربط أيَّ هدف من زمنِ التشغيلِ والمترجم (يبقى قاعدةً نقيّة).
 
     الحدّ نظيفٌ اليوم بالممارسة، فالحارس **وقائيّ لا تصحيحيّ**: يثبّت الوضع
     السليم ويفشل إن تسلّل رابطٌ عابرٌ للمحرّكَين. شقيقه على مستوى التضمين هو
@@ -51,29 +51,38 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # (AR) أسماء بديلة (alias) تُطبَّع إلى الهدف الفعليّ قبل التصنيف.
 # (EN) Alias names normalized to their real target before classification.
 ALIASES = {
-    "sad_core": "sad_interp",       # alias توافق (libraries.cmake)
     "sad_semantic": "sad_ownership",  # sad_semantic = alias لـ sad_ownership
     "sad_formatter": "sad_formatter_lib",
 }
 
 # (AR) تصنيف الطبقات. كلُّ هدفٍ غير مذكور هنا (مكتبات نظام/خارجيّة/أدوات
-#      مستقلّة) يُتجاهَل في فحص العبور بين المحرّكَين.
+#      مستقلّة) يُتجاهَل في فحص العبور بين زمنِ التشغيلِ والمترجم.
 FOUNDATION = {"sad_shared"}
 BAND = {
     "sad_type_system", "sad_ownership", "sad_memory_gc", "sad_memory_policy",
     "sad_security_core", "sad_null_safety", "sad_mobile",
 }
-INTERP = {
-    "sad_interp", "sad_runtime", "sad_builtins", "sad_lowlevel",
-    "sad_graphics_bridge", "sad_graphics", "sad_graphics_runtime",
+# (AR) 🔑 كانت هذه المجموعةُ تُسمّى INTERP واللامتغيّرُ «لا روابطَ بين
+#      زمنِ التشغيلِ والمترجم». وبزوالِ المفسّرِ صارَ الاسمُ يكذب: ما فيها اليومَ **مكتباتُ
+#      زمنِ تشغيل** (مدمَجات · رسومات · شبكة) لا محرّكٌ ثانٍ. واللامتغيّرُ يبقى
+#      حيًّا بصياغتِه الصحيحة: **نظامُ المترجّمِ لا يربطُ زمنَ التشغيلِ مباشرةً**
+#      — فالمترجّمُ يبعثُ نداءاتٍ إليه ولا يضمُّه، وربطُه يجرُّ الشجرةَ كلَّها
+#      إلى كلِّ ثنائيّ. وقد نُزِعت منها أربعةُ أهدافٍ محذوفةٍ لا وجودَ لها:
+#      sad_interp · sad_runtime · sad_graphics_bridge · sad_profiler_lib.
+# (EN) This set used to be called INTERP and the invariant "no direct link
+#      between the two engines". With the interpreter gone the name lies: what is
+#      left are RUNTIME libraries, not a second engine. The invariant survives in
+#      its true form: the compiler system must not link the runtime directly.
+RUNTIME = {
+    "sad_builtins", "sad_lowlevel",
+    "sad_graphics", "sad_graphics_runtime",
     "sad_network", "sad_http", "sad_websocket", "sadnet",
-    "sad_rt_runtime", "sad_profiler_lib",
+    "sad_rt_runtime",
 }
 COMPILER = {
     "sad_compiler", "sad_frontend", "sad_optimizer", "sad_llvm_backend",
     "sad_tools", "sad_ui_ir", "sad_abstraction", "sad_security",
 }
-EXE_INTERP = {"sad-run"}
 EXE_COMPILER = {"sad-build"}
 
 # (AR) الكلمات المفتاحيّة في target_link_libraries — ليست تبعيّات.
@@ -99,12 +108,10 @@ def layer_of(target):
         return "foundation"
     if target in BAND:
         return "band"
-    if target in INTERP:
-        return "interp"
+    if target in RUNTIME:
+        return "runtime"
     if target in COMPILER:
         return "compiler"
-    if target in EXE_INTERP:
-        return "exe-interp"
     if target in EXE_COMPILER:
         return "exe-compiler"
     return None
@@ -183,12 +190,12 @@ def parse_links(path):
 # (AR) قواعد العبور الممنوعة: (طبقة الهدف) → (طبقة التبعيّة) مع سبب.
 # (EN) Forbidden crossing rules: (source layer) → (dependency layer) with reason.
 def violation_reason(src_layer, dst_layer):
-    if src_layer in ("interp", "exe-interp") and dst_layer == "compiler":
-        return "هدف/تنفيذيّ المفسّر يربط هدفًا من نظام المترجم"
-    if src_layer in ("compiler", "exe-compiler") and dst_layer == "interp":
-        return "هدف/تنفيذيّ المترجم يربط هدفًا من نظام المفسّر"
-    if src_layer == "foundation" and dst_layer in ("interp", "compiler"):
-        return "الأساس sad_shared يربط هدفًا من أحد المحرّكَين (يجب أن يبقى قاعدةً نقيّة)"
+    if src_layer == "runtime" and dst_layer == "compiler":
+        return "مكتبةُ زمنِ تشغيلٍ تربط هدفًا من نظام المترجم"
+    if src_layer in ("compiler", "exe-compiler") and dst_layer == "runtime":
+        return "هدف/تنفيذيّ المترجم يربط مكتبةَ زمنِ تشغيلٍ مباشرةً"
+    if src_layer == "foundation" and dst_layer in ("runtime", "compiler"):
+        return "الأساس sad_shared يربط زمنَ التشغيلِ أو المترجم (يجب أن يبقى قاعدةً نقيّة)"
     return None
 
 
@@ -222,10 +229,10 @@ def main():
         print(f"\n[FAIL] {len(violations)} اختراق(ات) لطبقات الأهداف:\n")
         for rel, ln, target, dep, sl, dl, why in violations:
             print(f"  {rel}:{ln}  {target} [{sl}] → {dep} [{dl}]  ← {why}")
-        print("\nالمحرّكان (المفسّر/المترجم) يجب ألّا يرتبطا مباشرةً.")
+        print("\nنظامُ المترجّمِ ومكتباتُ زمنِ التشغيلِ يجب ألّا ترتبطَ مباشرةً.")
         print("راجع docs/architecture/cmake-target-boundaries.md §3-§6.")
         return 1
-    print("\n[OK] لا اختراق — طبقات الأهداف سليمة (لا روابط مباشرة بين المحرّكَين).")
+    print("\n[OK] لا اختراق — طبقات الأهداف سليمة (لا روابط مباشرة بين زمنِ التشغيلِ والمترجم).")
     return 0
 
 

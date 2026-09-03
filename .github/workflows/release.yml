@@ -206,7 +206,7 @@ jobs:
         shell: bash
         continue-on-error: true
         run: |
-          for target in sad-pkg sad-repl sad-fmt; do
+          for target in sad-pkg sad-fmt; do
             cmake --build build --config ${{ env.BUILD_TYPE }} --target "$target" ||               echo "⚠️ أداةٌ إضافيّةٌ لم تُبنَ / optional tool not built: $target"
           done
 
@@ -225,7 +225,7 @@ jobs:
           PKG_DIR="sad-v${VERSION}-${{ matrix.os }}-${{ matrix.arch }}"
           mkdir -p "$PKG_DIR/bin" "$PKG_DIR/stdlib" "$PKG_DIR/docs"
           sad_copy_tools build "${{ env.BUILD_TYPE }}" "$PKG_DIR/bin" \
-            "$SAD_REQUIRED_INTERPRETER sad-pkg sad-repl sad-fmt"
+            "$SAD_REQUIRED_INTERPRETER sad-pkg sad-fmt"
           sad_require_tools "$PKG_DIR/bin" "$SAD_REQUIRED_INTERPRETER"
           echo "PKG_DIR=$PKG_DIR" >> $GITHUB_ENV
 
@@ -507,9 +507,9 @@ jobs:
           sad_build_tools build "${{ env.BUILD_TYPE }}" "$SAD_REQUIRED_COMPILER"
 
       # ── بناء بقيّةِ أدواتِ الحزمةِ الكاملة ──
-      # (AR) كانت تبني `sad-run` وحدَه ثمّ تنسخُ `sad` و`sad-lsp` و`sad-check` —
+      # (AR) كانت تبني المحرّكَ وحدَه ثمّ تنسخُ `sad` و`sad-lsp` و`sad-check` —
       #      أدواتٌ لم يطلبها أحدٌ من البناء. الآن تُشتقُّ الأهدافُ من القائمة.
-      # (EN) It used to build sad-run alone and then copy sad, sad-lsp and
+      # (EN) It used to build the engine alone and then copy sad, sad-lsp and
       #      sad-check — tools nobody asked the build for.
       - name: "بناء أدواتِ الحزمةِ الكاملة / Build full-package tools"
         shell: bash
@@ -521,7 +521,7 @@ jobs:
         shell: bash
         continue-on-error: true
         run: |
-          for target in sad-pkg sad-repl sad-fmt; do
+          for target in sad-pkg sad-fmt; do
             cmake --build build --config ${{ env.BUILD_TYPE }} --target "$target" || \
               echo "⚠️ أداةٌ إضافيّةٌ لم تُبنَ / optional tool not built: $target"
           done
@@ -540,7 +540,7 @@ jobs:
 
           mkdir -p "$FULL_DIR/stdlib"
           sad_copy_tools build "${{ env.BUILD_TYPE }}" "$FULL_DIR/bin" \
-            "$SAD_REQUIRED_FULL sad-pkg sad-repl sad-fmt"
+            "$SAD_REQUIRED_FULL sad-pkg sad-fmt"
           sad_require_tools "$FULL_DIR/bin" "$SAD_REQUIRED_FULL"
 
           echo "SADC_DIR=$SADC_DIR" >> $GITHUB_ENV
@@ -861,12 +861,12 @@ jobs:
       # (AR) 🔑 **الحكمُ يفتحُ الأرشيفَ.** كان يعدُّ الأرشيفاتِ في المجلّدِ
       #      ويطبعُ «Artifact verification passed» — فأرشيفٌ **فارغٌ تمامًا**
       #      يجتازُه. وحزمةُ v1.0.0 شاهدةٌ: أربعةُ ملفّاتٍ، منها تنفيذيّانِ
-      #      فقط، بلا `sad-lsp` ولا `sad-run` ولا `sad-check` — ونُشِرت خضراء.
+      #      فقط، بلا `sad-lsp` ولا `sad-check` — ونُشِرت خضراء.
       #      والآن كلُّ أرشيفٍ يُفتَحُ وتُطلَبُ أعضاؤه بالاسم.
       # (EN) The judgement now opens the archive. It used to count archives in
       #      a directory and print "verification passed", so a completely empty
       #      archive passed — as the v1.0.0 package shows: four files, two of
-      #      them executables, no sad-lsp, no sad-run, no sad-check, published
+      #      them executables, no sad-lsp, no sad-check, published
       #      green.
       # ══════════════════════════════════════════════════════════════════
       - name: "التحقق من اكتمال الحزم / Verify Release Artifacts"
@@ -941,8 +941,7 @@ jobs:
           - Windows x86_64
           - Linux x86_64 / aarch64
 
-          ### ما الفرق بين المفسّر والمترجم؟
-          - **المفسّر (`sad-run`)**: يشغّل ملفات `.ص` مباشرةً — لا يحتاج أيّ تبعيّات إضافيّة
+          ### ما الفرق بين المترجم ومركز الأدوات؟
           - **المترجم (`sadc`)**: يحوّل `.ص` إلى ملفّ تنفيذيّ أصليّ عبر LLVM — أداء أعلى، يتطلّب LLVM 18
           - **مركز الأدوات (`sad`)**: واجهةٌ واحدةٌ تُنادي البقيّة — `sad run`، `sad build`، `sad check`
 

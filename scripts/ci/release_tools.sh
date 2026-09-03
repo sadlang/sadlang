@@ -77,7 +77,6 @@ set -euo pipefail
 #      sadc — one binary, two published names, rationale below.
 SAD_TOOL_TABLE="
 sad:sad:sad
-sad-run:sad-run:sad-run
 sad-lsp:sad-lsp:sad-lsp
 sad-check:sad-check:sad-check
 sad-pkg:sad-pkg:sad-pkg
@@ -98,9 +97,10 @@ sad-build:sad-build:sadc
 #      the docs promise it, and `sad-build` because the hub finds its siblings
 #      by scanning for the `sad-` prefix — a name without the dash is never
 #      registered, and `sad build` becomes a promised command that is absent.
-SAD_REQUIRED_INTERPRETER="sad sad-run sad-lsp sad-check"
+# (AR) 🔑 أُضيف sad-build: المكوّنُ كان لا يشحنُ ما يُشغّلُ برنامجَ ص.
+SAD_REQUIRED_INTERPRETER="sad sad-build sad-lsp sad-check"
 SAD_REQUIRED_COMPILER="sadc sad-build"
-SAD_REQUIRED_FULL="sad sad-run sad-lsp sad-check sadc sad-build"
+SAD_REQUIRED_FULL="sad sad-lsp sad-check sadc sad-build"
 
 # (AR) 🔑 الألقابُ المُعلَنةُ — الصفوفُ الوحيدةُ التي يجوزُ فيها أن يخالفَ
 #      الاسمُ المنشورُ هدفَه. وكلُّ صفٍّ خارجَها **يجبُ** أن يكونَ مُطابَقةً.
@@ -299,7 +299,7 @@ sad_require_archive() {
 #      --version literally was measuring its own spelling, not the tool's
 #      contract — six red cells in PR #438 from one cause.
 # ══════════════════════════════════════════════════════════════════════════
-SAD_VERSION_FLAGS="sad:--version sad-run:--إصدار sadc:--إصدار sad-build:--إصدار sad-check:--version sad-lsp:--version"
+SAD_VERSION_FLAGS="sad:--version sadc:--إصدار sad-build:--إصدار sad-check:--version sad-lsp:--version"
 
 sad_version_flag() {
     local name="$1" pair

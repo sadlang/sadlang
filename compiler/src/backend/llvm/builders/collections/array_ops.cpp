@@ -688,8 +688,17 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) 🔑 الانصرافُ بالمُعين لا بـ`nullptr`: الحارسُ أبلغَ
+            //      تشخيصًا صحيحًا («النوع 'مصفوفة' لا يدعم الفهرسة []») ثمّ انصرفَ
+            //      بلا ملءِ خانةِ النتيجة، فتقرأُ التاليةُ سجلًّا لا وجودَ له ويُطبَعُ
+            //      بعدَ التشخيصِ الصحيحِ «خطأ مترجم داخلي … يُرجى الإبلاغ».
+            //      مقيسٌ في `N19_array_string_index.ص` وفي سطرَين اثنَين.
+            // (EN) 🔑 Return the sentinel, not nullptr: the guard reported a
+            //      correct diagnostic and then left the result slot unbound, so the next
+            //      instruction read an undefined register and an "internal compiler
+            //      error — please report" was printed after a correct message.
             if (rejectStringIndex(inst))
-                return nullptr;
+                return cg_.builtinErrorSentinel(inst);
 
             // (AR) إصلاح: استخدام find() بدلاً من [] لتجنب إدخال nullptr في الخريطة
             // (EN) Fix: use find() instead of [] to avoid inserting nullptr into the map
@@ -931,8 +940,17 @@ namespace Sad
                 return nullptr;
             }
 
+            // (AR) 🔑 الانصرافُ بالمُعين لا بـ`nullptr`: الحارسُ أبلغَ
+            //      تشخيصًا صحيحًا («النوع 'مصفوفة' لا يدعم الفهرسة []») ثمّ انصرفَ
+            //      بلا ملءِ خانةِ النتيجة، فتقرأُ التاليةُ سجلًّا لا وجودَ له ويُطبَعُ
+            //      بعدَ التشخيصِ الصحيحِ «خطأ مترجم داخلي … يُرجى الإبلاغ».
+            //      مقيسٌ في `N19_array_string_index.ص` وفي سطرَين اثنَين.
+            // (EN) 🔑 Return the sentinel, not nullptr: the guard reported a
+            //      correct diagnostic and then left the result slot unbound, so the next
+            //      instruction read an undefined register and an "internal compiler
+            //      error — please report" was printed after a correct message.
             if (rejectStringIndex(inst))
-                return nullptr;
+                return cg_.builtinErrorSentinel(inst);
 
             // (AR) إصلاح: استخدام find() بدلاً من [] لتجنب إدخال nullptr في الخريطة
             // (EN) Fix: use find() instead of [] to avoid inserting nullptr into the map

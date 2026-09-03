@@ -44,7 +44,6 @@ on:
       #      إدراجُه لَمرَّ PR يضيف اختبارَ ثغراتٍ وحدَه بلا حارسٍ — محروسٌ شكليًّا.
       # (EN) The gaps side is guarded too; without this the guard is nominal only.
       - "tests/behavior/grammar_gaps/**"
-      - "tools/repl/generated/**"
       # (AR) مخرَجاتُ النطاقاتِ الحديثةِ الخمسةِ الباقية — أُضيفت مقيسةً: مقارنةُ
       #      مجلّداتِ `out_dir` في x.py بهذا المرشِّح أظهرت خمسةً خارجَه، فكان كلُّ
       #      واحدٍ منها محروسًا شكليًّا: PR يحرّر المخرَجَ يدويًّا بلا لمسِ
@@ -88,7 +87,6 @@ on:
       #      إدراجُه لَمرَّ PR يضيف اختبارَ ثغراتٍ وحدَه بلا حارسٍ — محروسٌ شكليًّا.
       # (EN) The gaps side is guarded too; without this the guard is nominal only.
       - "tests/behavior/grammar_gaps/**"
-      - "tools/repl/generated/**"
       # (AR) مخرَجاتُ النطاقاتِ الحديثةِ الخمسةِ الباقية — أُضيفت مقيسةً: مقارنةُ
       #      مجلّداتِ `out_dir` في x.py بهذا المرشِّح أظهرت خمسةً خارجَه، فكان كلُّ
       #      واحدٍ منها محروسًا شكليًّا: PR يحرّر المخرَجَ يدويًّا بلا لمسِ
