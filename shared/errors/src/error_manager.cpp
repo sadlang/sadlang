@@ -491,9 +491,30 @@ namespace Sad
 
             const auto rendered = ErrorCatalog::instance().render(code, lvl, lang, ctx);
 
-            // (AR) صياغة موحَّدة: "(AR) ... / (EN) ..." حسب اللغة المختارة
-            // (EN) Unified format: "(AR) ... / (EN) ..." per selected language
+            // ================================================================
+            // (AR) 🔑 الرسالةُ تحملُ رمزَها. كان مسارُ المحلّلِ يطبعُ
+            //      «⛔ [SYN001] …» ومسارُ الكتالوجِ هذا يطبعُ النصَّ **بلا رمز**،
+            //      فكانت بذرةٌ تطلبُ رمزًا بعينِه تُخفِقُ مع أنّ الرفضَ صحيح:
+            //      قِيسَ (٢٠٢٦-٠٩-٠٣) أنّ **ستَّ بذورٍ** في `sections` صنفُها
+            //      «رُفِضَ لكنْ بلا الرمزِ المطلوب» — جذرُها هذا السطرُ لا ستّةُ
+            //      أعطاب. ومعها بذرةُ SEM049 الجديدةُ التي عجزت عن توكيدِ رمزِها.
+            //
+            //      والموضعُ هنا لا في كلِّ باعث: `buildBilingualMessage` هي
+            //      **المصبُّ الواحدُ** لكلِّ رسالةٍ من الكتالوج، أماميّةً كانت أو
+            //      خلفيّة. فالرمزُ يُضافُ مرّةً ويظهرُ في كلِّ مكان.
+            // (EN) Every catalog message carries its code. The parser path printed
+            //      «⛔ [SYN001] …» while this path printed the text WITHOUT a code,
+            //      so a seed asserting a specific code failed even though the
+            //      rejection was correct — measured: six seeds in `sections` share
+            //      this one line as their root, not six separate defects. This is
+            //      the single sink for every catalog message, frontend or backend.
+            // ================================================================
+            // (AR) صياغة موحَّدة: "[CODE] (AR) ... / (EN) ..." حسب اللغة المختارة
+            // (EN) Unified format: "[CODE] (AR) ... / (EN) ..." per selected language
             std::string out;
+            out += "[";
+            out += getErrorCodeString(code);
+            out += "] ";
             if (!rendered.messageAr.empty())
             {
                 out += "(AR) ";

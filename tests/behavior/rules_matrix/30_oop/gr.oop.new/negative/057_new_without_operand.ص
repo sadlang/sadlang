@@ -6,6 +6,16 @@
 # @priority: P1
 # @requires: اطبع_سطر
 # @expect_error: المتغير 'جديد' غير معرَّف
-# @expect_compile_error: Undefined variable 'جديد'
+# @expect_compile_error: SEM001
+#
+# (AR) 🔑 كان التوكيدُ هنا «Undefined variable 'جديد'» — وهو **النصُّ
+#      الإنجليزيُّ الحرُّ** الذي كان يُكتَبُ في الشفرةِ خارجَ الكتالوج. فلمّا
+#      عادَ الموضعُ إلى `SEM001` صارت الرسالةُ من مصدرِ الحقيقةِ وسقطَ ذلك
+#      النصّ. والبذرةُ كانت مرساةً على **أثرِ عطبٍ** لا على قاعدة، فأُعيد
+#      إرساؤها على الرمزِ الذي تُسمّيه ملحوظتُها أصلًا.
+# (EN) This asserted «Undefined variable 'جديد'» — the RAW ENGLISH string that
+#      was written in source outside the catalog. Once the site returned to
+#      SEM001 the message came from the SoT and that string disappeared. The
+#      seed was anchored to a DEFECT'S ARTEFACT, not to a rule.
 
 متغير ن = () جديد

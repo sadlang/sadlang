@@ -17,6 +17,8 @@
 // ============================================================================
 
 #include "sir_builder.h"
+#include "error_manager.h"
+#include "error_codes.h"
 #include "builders/call_builder.h"
 #include <string>
 #include <cstdio>
@@ -1089,15 +1091,38 @@ namespace Sad
                                     Sad::Errors::ErrorCode::SEM_BUILTIN_ABSENT_IN_COMPILER, ctx));
                             return BuildResult();
                         }
+                        // ====================================================
+                        // (AR) 🔑 الذراعُ غيرُ المبوَّبةِ تعودُ إلى الكتالوج.
+                        //      كان نصُّها **مؤلَّفًا في الشفرة** بلا رمزٍ، و`SEM004`
+                        //      مُعلَنٌ في مصدرِ الحقيقةِ بنصَّيه وعلاجِه. وبذرةُ
+                        //      `N04_undefined_function.ص` تطلبُ `SEM004` فتُخفِقُ مع
+                        //      أنّ الرفضَ صحيح.
+                        //      ⚠️ وذراعُ الوحدةِ المبوَّبةِ تبقى نصًّا مؤلَّفًا: لا رمزَ
+                        //      في الكتالوجِ لحالِ «مدمَجةٌ تلزمُها وحدةٌ لم تُستورَد»،
+                        //      وإعلانُ رمزٍ جديدٍ قرارُ مصدرِ حقيقةٍ لا ترقيعُ باني —
+                        //      **دَينٌ مُقيَّدٌ لا سكوتٌ عنه**.
+                        // (EN) The un-gated arm returns to the catalog: its text was
+                        //      composed in source with no code while SEM004 is declared
+                        //      in the SoT. The gated arm stays composed because no code
+                        //      exists for "builtin requires an unimported module";
+                        //      declaring one is an SoT decision — recorded debt.
+                        // ====================================================
+                        if (gatedModule.empty())
+                        {
+                            Sad::Errors::RenderContext undefinedFunctionContext;
+                            undefinedFunctionContext.placeholders = {{"name", funcName}};
+                            const std::string catalogMsg =
+                                Sad::Errors::ErrorManager::getInstance().buildBilingualMessage(
+                                    Sad::Errors::ErrorCode::SEM_UNDEFINED_FUNCTION,
+                                    undefinedFunctionContext);
+                            std::cerr << catalogMsg << std::endl;
+                            b_.errors_.push_back(catalogMsg);
+                            return BuildResult();
+                        }
                         std::string undefMsg =
-                            gatedModule.empty()
-                                ? ("خطأ: استدعاء دالة غير معرّفة '" + funcName +
-                                   "' — عرّفها، أو أعلنها «خارجي(...)» هنا مع «صدّر» عند تعريفها، "
-                                   "أو استخدم --module للربط عبر الوحدات "
-                                   "(undefined function call)")
-                                : ("خطأ: الدالة '" + funcName + "' تنتمي إلى وحدة '" +
-                                   gatedModule + "' ولم تُستورَد — 💡 جرّب: استورد " +
-                                   gatedModule + " (builtin requires module import)");
+                            ("خطأ: الدالة '" + funcName + "' تنتمي إلى وحدة '" +
+                             gatedModule + "' ولم تُستورَد — 💡 جرّب: استورد " +
+                             gatedModule + " (builtin requires module import)");
                         std::cerr << undefMsg << std::endl;
                         b_.errors_.push_back(undefMsg);
                         return BuildResult();
