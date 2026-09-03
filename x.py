@@ -164,6 +164,31 @@ CODEGEN_DOMAINS = (
         ],
     },
     {
+        # (AR) 🔑 نطاقاتُ المعاملات: كان الجدولُ مكتوبًا باليدِ في
+        #      `TypeChecker::visitBinaryExpr` ومصدرُ الحقيقةِ لا يعرفُ منه شيئًا —
+        #      لا حقلَ لنطاقِ المعاملاتِ في مخطَّطِ العواملِ إطلاقًا. وأخطرُ من ذلك
+        #      أنّ `operator.schema.json` **لم يكن مُصادَقًا في أيِّ بوّابة**:
+        #      قائمةُ الأزواجِ في `language-truth/tests/test_schema_validation.py`
+        #      فارغةٌ منذ M0، فانجرفت البياناتُ عن مخطَّطِها حتّى صارَ ٤٣ مدخلًا
+        #      من ٤٣ مخالِفًا. فوصلُ المصادقةِ داخلَ المولِّدِ يجعلُ الانجرافَ
+        #      يحمرُّ في هذه البوّابةِ القائمةِ لا في اختبارٍ لا يُشغَّلُ أصلًا.
+        # (EN) Operand domains. The table was hand-written C++ and the SoT had no
+        #      operand field at all; worse, operator.schema.json had NO validator
+        #      anywhere, so the data drifted to 43/43 violations. Validating inside
+        #      the generator makes drift redden in this live gate.
+        "name": "operator_domains",
+        "script": "gen_operator_domains.py",
+        "out_dir": "shared/semantic/generated",
+        "outputs": ("operator_domains_generated.h",),
+        "args": lambda d: [
+            "--yaml", "language-truth/operators.yaml",
+            "--schema", "language-truth/_schemas/operator.schema.json",
+            "--types", "language-truth/types.yaml",
+            "--header", f"{d}/operator_domains_generated.h",
+            "--quiet",
+        ],
+    },
+    {
         "name": "keywords",
         "script": "gen_keywords.py",
         "out_dir": "shared/lexer/generated",

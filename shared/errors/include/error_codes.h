@@ -187,6 +187,7 @@ namespace Sad
             SEM_ROUTE_HANDLER_HAS_PARAMS, ///< SEM051: (AR) معالجُ المسارِ مُصرَّحٌ بمعاملاتٍ والعقدُ `void()` — قيدُ شكلٍ لا علّةُ مترجِم / (EN) a route handler declared with parameters against a void() contract — an interface-shape constraint
             SEM_TUPLE_DESTRUCTURE_UNSUPPORTED, ///< SEM052: (AR) فكُّ الصفِّ في التصريحِ غيرُ مُعلَنٍ في القواعدِ ولا يُخفَّض — والخفضُ السابقُ كان يكذبُ صامتًا / (EN) tuple destructuring in a declaration is undeclared and unlowered — the previous lowering lied silently
             SEM_TYPE_METHOD_ABSENT_IN_COMPILER, ///< SEM053: (AR) طريقةٌ معلَنةٌ على النوعِ بلا ذراعِ توزيعٍ في المترجم — فجوةُ تغطيةٍ لا خطأٌ في البرنامج / (EN) a declared type method with no compiler dispatch arm — a coverage gap, not a program defect
+            SEM_OPERAND_DOMAIN, ///< SEM054: (AR) نطاقُ معاملٍ غيرُ مسموح — مُعلَنٌ في operators.yaml ومولَّدٌ منه الحارس / (EN) operand domain violation — declared in operators.yaml, guard generated from it
 
             // ====================================================================
             // (AR) أخطاء وقت التشغيل / (EN) Runtime Errors
@@ -309,6 +310,7 @@ namespace Sad
             RUN_PROC_CLOSE_FAILED,          ///< RUN072: (AR) فشل إغلاق الوصف / (EN) Closing the descriptor failed
             RUN_PROC_HANDLE_KIND,           ///< RUN073: (AR) نوع المقبض غير متوقّع / (EN) Wrong handle kind
             RUN_MAP_FETCH_TYPE_MISMATCH,    ///< RUN074: (AR) الجلب المصنَّف وجد قيمةً بنوعٍ مغاير أو عدمًا مخزَّنًا / (EN) Typed map fetch found a value of a different type or a stored null
+            RUN_MEMBER_ON_UNTYPED_RECEIVER, ///< RUN075: (AR) عضوٌ لا يحمله أيُّ صنفٍ معرَّف، ومستقبِلُه لا يُعرَف نوعُه إلّا زمنَ التشغيل / (EN) a member no declared class carries, on a receiver typed only at run time
 
             // ════════════════════════════════════════════════════════════════
             // (AR) أخطاء المترجم الداخلية (ICE) — خلل في المترجم نفسه، من الكتالوج.

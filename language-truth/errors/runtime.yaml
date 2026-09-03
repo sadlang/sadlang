@@ -1279,3 +1279,38 @@ errors:
   detailed:
     ar: مدمجات الجلب المصنف (خريطة_اجلب_نص/رقم/منطقي) ترجع القيمة عند الحضور بنوع مطابق، وعدما عند الغياب حصرا. الحضور بنوع مغاير او بعدم مخزن يرفع هذا الخطأ كي لا تنتج قناتان للعدم (عقد الغياب في الجلب — RFC 58).
     en: Typed fetch builtins (خريطة_اجلب_نص/رقم/منطقي) return the value on a type-matching hit and null exclusively on absence. Presence with a different type or a stored null raises this error so null never has two producing channels (absence-contract RFC 58).
+- code: RUN_MEMBER_ON_UNTYPED_RECEIVER
+  id: RUN075
+  category: runtime
+  # (AR) 🔑 الرمزُ الصادقُ حيث كانَ رمزانِ كاذبان.
+  #      `RUN023` «كائن بدون صنف» و`RUN025` «خاصية غير موجودة» كلاهما مكتوبٌ
+  #      لنموذجِ **المفسّر**: «كلُّ كائنٍ في وقتِ التشغيلِ يحملُ مرجعًا لصنفِه،
+  #      وغيابُه يعني فسادَ بيانات». وذلك كاذبٌ في المترجّم — الكائنُ المُترجَمُ
+  #      بنيةٌ خامٌّ **بلا ترويسةِ نوعٍ زمنيّة** (منصوصٌ عليه في
+  #      `language-truth/backend/value_repr.yaml`)، فالغيابُ هو الحالُ الطبيعيّةُ
+  #      لا فسادٌ ولا علّةُ مترجِم.
+  #
+  #      وقِيسَ (٢٠٢٦-٠٩-٠٣) أنّ الخلفيّةَ كانت تعالجُ هذا الحالَ بسؤالٍ لا يخصُّ
+  #      البرنامج: «هل يوجدُ في هذا الملفِّ **أيُّ** صنفٍ فيه حقلٌ بهذا الاسم؟».
+  #      فكانَ البرنامجُ نفسُه يُترجَمُ أو يُجهَضُ بحسبِ صنفٍ **لا يمسُّه ولا
+  #      يُنشَأُ منه كائن**: `متغير ك` ثمّ `ك.القيمة` يُجهَض، وإضافةُ صنفٍ أجنبيٍّ
+  #      فيه حقلٌ اسمُه «القيمة» تجعلُه يُترجَمُ ويرفعُ رفعًا صحيحًا.
+  # (EN) 🔑 The honest code where two lying ones stood. RUN023 and RUN025 are
+  #      both written for the INTERPRETER's object model — "every runtime object
+  #      holds a class reference; its absence means corruption" — which is false in
+  #      the compiler: a compiled object is a raw struct with no runtime type
+  #      header, so absence is the normal case, not corruption or a compiler bug.
+  title:
+    ar: عضوٌ على مستقبِلٍ لا يُعرَفُ نوعُه
+    en: Member access on a receiver of unknown type
+  brief:
+    ar: "لا عضوَ باسم '{member}' في أيِّ صنفٍ معرَّف، ونوعُ المستقبِلِ لا يُعرَفُ إلّا وقتَ التشغيل"
+    en: "No declared class has a member named '{member}', and the receiver's type is known only at run time"
+  placeholders:
+  - member
+  fix_hint:
+    ar: 'صرِّحْ نوعَ المستقبِلِ بصنفٍ معرَّف — «صنف س» في موضعِ المعامل أو مُهيِّئٍ من صنف — أو تحقّقْ من هجاءِ «{member}». وإن كان طريقةَ نوعٍ فنادِها بقوسَيها.'
+    en: 'Give the receiver a declared class type — a class-typed parameter or a class initializer — or check the spelling of «{member}». If it is a type method, call it with parentheses.'
+  detailed:
+    ar: 'القيمُ المُترجَمةُ لا تحملُ هويّةَ نوعٍ وقتَ التشغيل (منصوصٌ عليه في `language-truth/backend/value_repr.yaml`: الكائنُ بنيةٌ خامٌّ بلا ترويسة)، فإذا لم يُعرَفْ صنفُ المستقبِلِ سكونيًّا تعذّرَ حسابُ إزاحةِ العضو. ولمّا لم يكن **أيُّ** صنفٍ معرَّفٍ يحملُ عضوًا بهذا الاسم، فالوصولُ لا يمكنُ أن ينجحَ مهما كانت القيمةُ — فيُرفَعُ هنا بدل قراءةِ بايتاتٍ بتخطيطٍ مُخمَّن. ⚠️ ولا يُستدَلُّ من هذا الرمزِ على أنّ برنامجَك خاطئٌ في تصميمِه: الوصولُ الديناميُّ الكاملُ يلزمُه كلمةُ هويّةِ نوعٍ في ترويسةِ كلِّ قيمة، وهو تغييرُ عقدٍ ثنائيٍّ متتبَّعٌ مستقلًّا.'
+    en: 'Compiled values carry no runtime type identity (value_repr.yaml: a compiled object is a raw struct with no header), so when the receiver class is not statically known the member offset cannot be computed. Since NO declared class carries a member of this name, the access can never succeed for any value — hence a raise, rather than reading bytes through a guessed layout. This is not a claim that your program is wrongly designed: full dynamic access needs a type-identity word in every value header, an ABI change tracked separately.'

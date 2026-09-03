@@ -31,7 +31,13 @@ target_include_directories(sad_semantic_shared
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/include/semantic
+        ${CMAKE_CURRENT_SOURCE_DIR}/generated
         ${CMAKE_SOURCE_DIR}/shared/types/include
+        # (AR) الرأسُ المولَّدُ للأنواعِ لا يصلُ بالوراثةِ من `sad_type_system`،
+        #      وهو مُضمَّنٌ صراحةً في كلِّ هدفٍ يحتاجُه (compiler · runtime · graphics).
+        # (EN) The generated types header does not arrive by propagation; every
+        #      target that needs it lists it explicitly.
+        ${CMAKE_SOURCE_DIR}/shared/types/generated
         ${CMAKE_SOURCE_DIR}/shared/ast/include
         ${CMAKE_SOURCE_DIR}/shared/lexer/include
         ${CMAKE_SOURCE_DIR}/shared/parser/include

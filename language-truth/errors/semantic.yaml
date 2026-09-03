@@ -905,9 +905,17 @@ errors:
   #      كان معه `SEM051 SEM_UNKNOWN_MEMBER` («ليس عضوًا في أيِّ صنفٍ معرَّف»)
   #      يُنتقى بـ`fieldExistsInAnyClass`. وقِيسَ أنّ تلك الدالّةَ تبحثُ في
   #      **جدولِ حقولِ الأصنافِ وحدَه**، فلا ترى:
-  #        • `م.الطول` و«الطول» طريقةٌ **مستقرّةٌ معلَنةٌ** في `type_methods.yaml`
   #        • `ص.نق` و«نق» حمولةُ تعدادٍ **مُصرَّحةٌ في السطرِ نفسِه**
-  #        • `ك؟.الطول` في بذرةِ P1 مُعلَنُ مخرَجِها «OK»
+  #        • الطرائقَ المعلَنةَ على الأنواعِ في `type_methods.yaml`
+  #
+  #      ⚠️ 🔑 وحُذِفَ من هذه القائمةِ مثالانِ كانا **دعوى مغلوطة**:
+  #      `م.الطول` و`ك؟.الطول` وُصِفا بأنّ «الطول» طريقةٌ مستقرّةٌ معلَنةٌ للنصّ.
+  #      والمقيسُ (٢٠٢٦-٠٩-٠٣) عكسُه: «الطول» طريقةُ **مصفوفةٍ**
+  #      (`type_methods.yaml`، `target_type: ARRAY`)، والمُعلَنُ للنصِّ «طول».
+  #      فلم تكن تلك برامجَ صحيحةً يتّهمُها الرمز، بل صيغةً لا وجودَ لها —
+  #      وقد أُعيد إرساءُ بذرتَيها على المُعلَن.
+  #      والدرسُ أنّ **الحُجّةَ صحّت والشاهدُ كذب**: دحضُ SEM051 قائمٌ بشاهدِ
+  #      التعدادِ وحدَه، لكنّ شاهدًا لا يُقاسُ يُفسِدُ سجلًّا يُقرأُ سنين.
   #      فكان الرمزُ يقولُ «الخطأُ في البرنامجِ لا في المترجّم» عن برامجَ
   #      **صحيحة**. وتحويلُ انهيارٍ إلى رفضٍ *يبدو مقصودًا* أسوأُ من الانهيار:
   #      الانهيارُ يُقرأُ عطبًا، والرفضُ الكاذبُ يُقرأُ قاعدةَ لغة.
@@ -1040,3 +1048,37 @@ errors:
   detailed:
     ar: 'هذا ليس اسمًا مجهولًا ولا خطأً في برنامجك: الطريقةُ معلَنةٌ في `language-truth/type_methods.yaml` وقد تكون `status: stable`، لكنّ المترجّمَ لا يحملُ لها خفضًا. والرفضُ الصريحُ هنا مقصودٌ ومُختار: البديلُ المقيسُ كان إرسالَها إلى أوپكودٍ بدلالةٍ **أخرى**، فيخرجُ البرنامجُ بصفرٍ ويُعطي جوابًا خاطئًا لا يكشفُه اختبار.'
     en: 'This is not an unknown name and not a defect in your program: the method is declared in language-truth/type_methods.yaml and may even be marked stable, but the compiler carries no lowering for it. The explicit rejection is deliberate: the measured alternative was routing it to an opcode with DIFFERENT semantics, which exits 0 and returns a wrong answer no test catches.'
+- code: SEM_OPERAND_DOMAIN
+  id: SEM054
+  category: semantic
+  # (AR) 🔑 الرمزُ الذي لم يكن، فبقيَ الحسابُ بلا حكم.
+  #      `SEM002` و`SEM006` قائمانِ ولهما باعثون، لكنّ نائبَيهما **مفردان**
+  #      (`{found}` · `{type}`) وعدمُ التطابقِ هنا **ثنائيُّ الطرف**: العاملُ
+  #      وطرفاه ثلاثةُ حقائقَ لا واحدة. وبناءُ نصٍّ يجمعُها في الشفرةِ نسخةٌ
+  #      ثانيةٌ لحقيقةٍ في الكتالوج — وهو ما كان يفعلُه `recordTypeError`.
+  #
+  #      وقِيسَ (٢٠٢٦-٠٩-٠٣، ١٩٣ قياسًا) أنّ العواملَ السبعةَ الحسابيّةَ
+  #      الثنائيّةَ لا يرفضُ منها شيئًا إلّا `**`؛ والبقيّةُ تقبلُ كلَّ تركيبةٍ
+  #      فتُنتِجُ قمامةً أو تنهار: `10 - [1، 2، 3]` يطبعُ عنوانًا في الذاكرةِ
+  #      برمزِ خروجٍ **صفر**، و`100 - "عشرة"` ينهارُ بإشارة. والعطبُ واحدٌ في
+  #      الحالتَين — والفرقُ بين كذبٍ صامتٍ وانهيارٍ صدفةُ عنوانٍ لا أكثر.
+  # (EN) 🔑 The code that did not exist, so arithmetic went unjudged. SEM002 and
+  #      SEM006 exist but their placeholders are SINGLE-sided, while this mismatch
+  #      has three facts: the operator and both operands. Composing that text in
+  #      source would be a second copy of a catalog fact.
+  title:
+    ar: نطاقُ معاملٍ غيرُ مسموح
+    en: Operand domain violation
+  brief:
+    ar: "العامل '{op}' لا يقبل '{left}' مع '{right}'"
+    en: "Operator '{op}' does not accept '{left}' with '{right}'"
+  placeholders:
+  - op
+  - left
+  - right
+  fix_hint:
+    ar: 'حوّلْ أحدَ الطرفَين صراحةً — «رقم(س)» أو «نص(س)» — أو عرّفْ «عامل {op}» في صنفِك.'
+    en: 'Convert one side explicitly — «رقم(x)» or «نص(x)» — or define «عامل {op}» on your class.'
+  detailed:
+    ar: 'نطاقاتُ معاملاتِ كلِّ عاملٍ مُعلَنةٌ في `language-truth/operators.yaml` بحقلِ `operands`، ويُولَّدُ منها الحارسُ فلا يُكتَبُ الجدولُ مرّتَين. ⚠️ ولا يُستدَلُّ من غيابِ هذا الرمزِ على أنّ تعبيرًا سليمٌ: الحكمُ لا يقعُ إلّا حين يكونُ **الطرفانِ كلاهما** من صنفٍ أعلنَه مصدرُ الحقيقة (عدديّ · نصّيّ · منطقيّ · مصفوفة · خريطة). فما لا يُعرَفُ نوعُه سكونيًّا — «أي»، «عدم»، «فراغ»، معاملُ دالّةٍ غيرُ مُنمَّط، متغيّرُ حلقة، وصولُ عضو — يمرُّ بلا حكمٍ عمدًا. وسببُه مقيس: حارسٌ يقرأُ «لا أعرف» حكمًا كان يُحمِّرُ ثلاثين بذرةً صحيحة، أبسطُها «ارجع أ + ب» في دالّةٍ بمعاملَين عاريَين. فالرفضُ الكاذبُ أسوأُ من الانهيارِ الذي حلَّ محلَّه.'
+    en: 'Each operator declares its operand domains in language-truth/operators.yaml under `operands`, and the guard is generated from them so the table is never written twice. This code is NOT a completeness claim: a verdict is reached only when BOTH operands belong to a class the SoT declares (numeric, textual, logical, array, map). Anything not statically certain — أي, عدم, فراغ, an unannotated parameter, a loop variable, a member access — passes unjudged by design. Measured: a guard that reads "unknown" as a verdict reddens thirty correct seeds, the simplest being «ارجع أ + ب». A false rejection is worse than the crash it replaced.'

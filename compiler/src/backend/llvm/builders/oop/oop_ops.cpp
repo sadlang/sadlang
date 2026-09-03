@@ -611,6 +611,17 @@ namespace Sad
             //      path (`__get_*`) goes through the first one only.
             objPtr = Sad::LLVM::loadDynSlot(cg_, objPtr);
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 «أهُو مستقبِلٌ ديناميّ؟» — يُسأَلُ **هنا** لا أدنى.
+            //      الحرّاسُ أدناه تُسقِطُ الحمولةَ فتمحو الوسمَ، فما بعدَها لا يملكُ
+            //      تمييزَ خانةٍ ديناميّةٍ من كائنٍ ساكن. واللقطةُ رخيصةٌ والسؤالُ
+            //      المتأخّرُ مستحيل.
+            // (EN) Whether the receiver is dynamic is captured HERE: the guards below
+            //      project the payload and erase the tag, after which nothing can tell
+            //      a dynamic slot from a static object.
+            // ════════════════════════════════════════════════════════════════
+            const bool receiverIsDynamic = Sad::LLVM::isSadDyn(objPtr);
+
             raiseIfObjectReceiverIsNull(objPtr, "obj.get", "member access");
 
 
@@ -761,6 +772,66 @@ namespace Sad
                 //      algebraic-enum payloads. Measured (adversarial review): its
                 //      negative arm accused correct programs. Only the measured claim
                 //      remains — the class could not be resolved.
+                // ════════════════════════════════════════════════════════
+                // (AR) 🔑 المستقبِلُ الديناميُّ **شأنُ وقتِ تشغيلٍ لا إجهاضُ ترجمة**.
+                //
+                //      كان الحكمُ يقعُ هنا على الجميع، فيتوقّفُ على حلقةِ تخمينٍ
+                //      أعلاه تُسنِدُ الصنفَ من **اسمِ العضو**: «هل يوجدُ في هذا
+                //      الملفِّ أيُّ صنفٍ فيه حقلٌ بهذا الاسم؟». ومقيسُه
+                //      (٢٠٢٦-٠٩-٠٣): `متغير ك` ثمّ `ك.القيمة` **يُجهَض**؛ وإضافةُ
+                //      صنفٍ أجنبيٍّ لا يُنشَأُ منه كائنٌ ولا يُذكَر، فيه حقلٌ اسمُه
+                //      «القيمة»، تجعلُ البرنامجَ **نفسَه** يُترجَمُ ويرفعُ `RUN033`
+                //      رفعًا صحيحًا. أي أنّ جوابَ المترجّمِ كان معلَّقًا على جدولِ
+                //      أسماءٍ عالميٍّ لا على المستقبِلِ ولا على العضو.
+                //
+                //      والقيمُ المُترجَمةُ لا تحملُ هويّةَ نوعٍ زمنيّة (منصوصٌ عليه
+                //      في `value_repr.yaml`: الكائنُ بنيةٌ خامٌّ بلا ترويسة)، فتعذُّرُ
+                //      الحسمِ على خانةٍ ديناميّةٍ هو **الحالُ الطبيعيّةُ** لا عطبٌ.
+                //      ولمّا لم يبلغْ هذا الموضعَ إلّا ما لا يحملُ **أيُّ** صنفٍ
+                //      معرَّفٍ عضوًا باسمِه، فالوصولُ لا يمكنُ أن ينجحَ لأيِّ قيمة
+                //      ⇒ رفعٌ زمنيٌّ صريحٌ بـ`RUN075`، لا إجهاضٌ ولا قراءةُ بايتاتٍ
+                //      بتخطيطٍ مُخمَّن.
+                //
+                //      ⚠️ ولا تُحذَفُ حلقةُ التخمينِ أعلاه في هذه الرقعة: هي اليومَ
+                //      **الطريقُ الوحيدُ** إلى تخطيطِ كائنٍ في خانةِ «أي» (مقيسٌ:
+                //      `أي ك = عداد()` ثمّ `ك.قيمة` يطبعُ ٥ بها). وحذفُها يلزمُه
+                //      كلمةُ هويّةِ نوعٍ في ترويسةِ القيمة — تغييرُ عقدٍ ثنائيٍّ
+                //      يمسُّ `@تمثيل_سي`، مشروعٌ مستقلٌّ لا يُدَسُّ في رقعةِ عضو.
+                //      والذي زال بهذه الرقعةِ أن يكونَ **الحكمُ** تابعًا لها.
+                // (EN) 🔑 A dynamic receiver is a RUN-TIME matter, not an aborted
+                //      compilation. The verdict used to hang on a guess loop above that
+                //      infers the class from the MEMBER NAME; measured, adding an unused,
+                //      unrelated class with a field of that name flips the same program
+                //      from abort to a correct RUN033 raise. Compiled values carry no
+                //      runtime type identity, so failing to resolve a dynamic receiver is
+                //      normal, not a defect. Since only members no declared class carries
+                //      reach here, the access can never succeed — hence an explicit
+                //      RUN075 raise rather than an abort or a guessed-layout read. The
+                //      guess loop stays: it is currently the only path to an object held
+                //      in an «أي» slot. What changed is that the VERDICT no longer
+                //      depends on it.
+                // ════════════════════════════════════════════════════════
+                if (receiverIsDynamic && cg_.builder_ && cg_.builder_->GetInsertBlock())
+                {
+                    llvm::Function *untypedFunc =
+                        cg_.builder_->GetInsertBlock()->getParent();
+                    llvm::BasicBlock *untypedRaiseBB = llvm::BasicBlock::Create(
+                        *cg_.context_, "obj.member.untyped.raise", untypedFunc);
+                    llvm::BasicBlock *untypedContBB = llvm::BasicBlock::Create(
+                        *cg_.context_, "obj.member.untyped.cont", untypedFunc);
+                    cg_.builder_->CreateBr(untypedRaiseBB);
+                    cg_.builder_->SetInsertPoint(untypedRaiseBB);
+                    cg_.emitNullRaiseBody(
+                        ::Sad::Errors::ErrorCode::RUN_MEMBER_ON_UNTYPED_RECEIVER,
+                        {{"member", fieldName}}, "obj.member.untyped");
+                    cg_.builder_->CreateUnreachable();
+                    // (AR) كتلةٌ تاليةٌ بلا سابقٍ — يبقى الخفضُ سليمَ البنيةِ فلا
+                    //      تُلحَقُ تعليماتٌ بكتلةٍ منتهيةٍ بـ`unreachable`.
+                    // (EN) A successor with no predecessors keeps lowering well-formed.
+                    cg_.builder_->SetInsertPoint(untypedContBB);
+                    return cg_.builtinErrorSentinel(inst);
+                }
+
                 cg_.reportError(::Sad::Errors::ErrorCode::SEM_MEMBER_RECEIVER_CLASS_UNKNOWN,
                                 {{"receiver", stripRegisterSigil(objRegName)},
                                  {"member", fieldName}});
@@ -1086,6 +1157,17 @@ namespace Sad
             //      path (`__get_*`) goes through the first one only.
             objPtr = Sad::LLVM::loadDynSlot(cg_, objPtr);
 
+            // ════════════════════════════════════════════════════════════════
+            // (AR) 🔑 «أهُو مستقبِلٌ ديناميّ؟» — يُسأَلُ **هنا** لا أدنى.
+            //      الحرّاسُ أدناه تُسقِطُ الحمولةَ فتمحو الوسمَ، فما بعدَها لا يملكُ
+            //      تمييزَ خانةٍ ديناميّةٍ من كائنٍ ساكن. واللقطةُ رخيصةٌ والسؤالُ
+            //      المتأخّرُ مستحيل.
+            // (EN) Whether the receiver is dynamic is captured HERE: the guards below
+            //      project the payload and erase the tag, after which nothing can tell
+            //      a dynamic slot from a static object.
+            // ════════════════════════════════════════════════════════════════
+            const bool receiverIsDynamic = Sad::LLVM::isSadDyn(objPtr);
+
             raiseIfObjectReceiverIsNull(objPtr, "obj.set", ".=");
 
 
@@ -1223,6 +1305,66 @@ namespace Sad
                 //      algebraic-enum payloads. Measured (adversarial review): its
                 //      negative arm accused correct programs. Only the measured claim
                 //      remains — the class could not be resolved.
+                // ════════════════════════════════════════════════════════
+                // (AR) 🔑 المستقبِلُ الديناميُّ **شأنُ وقتِ تشغيلٍ لا إجهاضُ ترجمة**.
+                //
+                //      كان الحكمُ يقعُ هنا على الجميع، فيتوقّفُ على حلقةِ تخمينٍ
+                //      أعلاه تُسنِدُ الصنفَ من **اسمِ العضو**: «هل يوجدُ في هذا
+                //      الملفِّ أيُّ صنفٍ فيه حقلٌ بهذا الاسم؟». ومقيسُه
+                //      (٢٠٢٦-٠٩-٠٣): `متغير ك` ثمّ `ك.القيمة` **يُجهَض**؛ وإضافةُ
+                //      صنفٍ أجنبيٍّ لا يُنشَأُ منه كائنٌ ولا يُذكَر، فيه حقلٌ اسمُه
+                //      «القيمة»، تجعلُ البرنامجَ **نفسَه** يُترجَمُ ويرفعُ `RUN033`
+                //      رفعًا صحيحًا. أي أنّ جوابَ المترجّمِ كان معلَّقًا على جدولِ
+                //      أسماءٍ عالميٍّ لا على المستقبِلِ ولا على العضو.
+                //
+                //      والقيمُ المُترجَمةُ لا تحملُ هويّةَ نوعٍ زمنيّة (منصوصٌ عليه
+                //      في `value_repr.yaml`: الكائنُ بنيةٌ خامٌّ بلا ترويسة)، فتعذُّرُ
+                //      الحسمِ على خانةٍ ديناميّةٍ هو **الحالُ الطبيعيّةُ** لا عطبٌ.
+                //      ولمّا لم يبلغْ هذا الموضعَ إلّا ما لا يحملُ **أيُّ** صنفٍ
+                //      معرَّفٍ عضوًا باسمِه، فالوصولُ لا يمكنُ أن ينجحَ لأيِّ قيمة
+                //      ⇒ رفعٌ زمنيٌّ صريحٌ بـ`RUN075`، لا إجهاضٌ ولا قراءةُ بايتاتٍ
+                //      بتخطيطٍ مُخمَّن.
+                //
+                //      ⚠️ ولا تُحذَفُ حلقةُ التخمينِ أعلاه في هذه الرقعة: هي اليومَ
+                //      **الطريقُ الوحيدُ** إلى تخطيطِ كائنٍ في خانةِ «أي» (مقيسٌ:
+                //      `أي ك = عداد()` ثمّ `ك.قيمة` يطبعُ ٥ بها). وحذفُها يلزمُه
+                //      كلمةُ هويّةِ نوعٍ في ترويسةِ القيمة — تغييرُ عقدٍ ثنائيٍّ
+                //      يمسُّ `@تمثيل_سي`، مشروعٌ مستقلٌّ لا يُدَسُّ في رقعةِ عضو.
+                //      والذي زال بهذه الرقعةِ أن يكونَ **الحكمُ** تابعًا لها.
+                // (EN) 🔑 A dynamic receiver is a RUN-TIME matter, not an aborted
+                //      compilation. The verdict used to hang on a guess loop above that
+                //      infers the class from the MEMBER NAME; measured, adding an unused,
+                //      unrelated class with a field of that name flips the same program
+                //      from abort to a correct RUN033 raise. Compiled values carry no
+                //      runtime type identity, so failing to resolve a dynamic receiver is
+                //      normal, not a defect. Since only members no declared class carries
+                //      reach here, the access can never succeed — hence an explicit
+                //      RUN075 raise rather than an abort or a guessed-layout read. The
+                //      guess loop stays: it is currently the only path to an object held
+                //      in an «أي» slot. What changed is that the VERDICT no longer
+                //      depends on it.
+                // ════════════════════════════════════════════════════════
+                if (receiverIsDynamic && cg_.builder_ && cg_.builder_->GetInsertBlock())
+                {
+                    llvm::Function *untypedFunc =
+                        cg_.builder_->GetInsertBlock()->getParent();
+                    llvm::BasicBlock *untypedRaiseBB = llvm::BasicBlock::Create(
+                        *cg_.context_, "obj.member.untyped.raise", untypedFunc);
+                    llvm::BasicBlock *untypedContBB = llvm::BasicBlock::Create(
+                        *cg_.context_, "obj.member.untyped.cont", untypedFunc);
+                    cg_.builder_->CreateBr(untypedRaiseBB);
+                    cg_.builder_->SetInsertPoint(untypedRaiseBB);
+                    cg_.emitNullRaiseBody(
+                        ::Sad::Errors::ErrorCode::RUN_MEMBER_ON_UNTYPED_RECEIVER,
+                        {{"member", fieldName}}, "obj.member.untyped");
+                    cg_.builder_->CreateUnreachable();
+                    // (AR) كتلةٌ تاليةٌ بلا سابقٍ — يبقى الخفضُ سليمَ البنيةِ فلا
+                    //      تُلحَقُ تعليماتٌ بكتلةٍ منتهيةٍ بـ`unreachable`.
+                    // (EN) A successor with no predecessors keeps lowering well-formed.
+                    cg_.builder_->SetInsertPoint(untypedContBB);
+                    return cg_.builtinErrorSentinel(inst);
+                }
+
                 cg_.reportError(::Sad::Errors::ErrorCode::SEM_MEMBER_RECEIVER_CLASS_UNKNOWN,
                                 {{"receiver", stripRegisterSigil(objRegName)},
                                  {"member", fieldName}});

@@ -867,7 +867,7 @@ Term = Factor { ( '+' | '-' ) Factor } { ( '<<' | '>>' ) Factor } ;
 - **عقدة AST المُنتَجة:** `BinaryExpr`
 - **يستدعي دوال:** [`parseFactor`](40_expressions.md#gr.expr.factor)
 - **مُستدعى من:** [`parseRange`](40_expressions.md#gr.expr.range)
-- **روابط المعجم:** عوامل: «+»، «-»، «<<»، «>>»
+- **روابط المعجم:** عوامل: op.plus، op.minus، «<<»، «>>»
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -945,7 +945,7 @@ Factor = Unary { ( '*' | '/' | '//' | '%' ) Unary } ;
 - **عقدة AST المُنتَجة:** `BinaryExpr`
 - **يستدعي دوال:** [`parseUnary`](40_expressions.md#gr.expr.unary)
 - **مُستدعى من:** [`parseTerm`](40_expressions.md#gr.expr.term)
-- **روابط المعجم:** عوامل: «*»، «/»، «//»، «%»
+- **روابط المعجم:** عوامل: op.multiply، op.divide، op.floor_divide، op.modulo
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
@@ -1102,7 +1102,7 @@ Power = Postfix [ '**' Power ] ;
 - **عقدة AST المُنتَجة:** `BinaryExpr`
 - **يستدعي دوال:** [`parsePostfix`](40_expressions.md#gr.expr.postfix)
 - **مُستدعى من:** [`parseUnary`](40_expressions.md#gr.expr.unary)، [`parsePower`](40_expressions.md#gr.expr.power)
-- **روابط المعجم:** عوامل: «**»
+- **روابط المعجم:** عوامل: op.power
 
 ##### مخطّط مسار الدوال (حتى AST)
 ```mermaid
