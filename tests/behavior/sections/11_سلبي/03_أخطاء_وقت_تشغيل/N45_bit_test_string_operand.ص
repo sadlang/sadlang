@@ -1,5 +1,34 @@
-# @description اختبار سلبي — بت_اختبار بمعامل نصّيّ (امتداد حارس د-2 للثلاثيّ بت_اختبار/بت_تعيين/بت_مسح الذي تُرك بلا حارس عدديّ): المفسّر يرفض زمنيًّا بـRUN053 بدل قبول النصّ عبر toInt الصامت
-# @expect_error RUN053
+# @description اختبار سلبي — «بت_اختبار» بمعامل نصّيّ: المدمَجة معلَنة في مصدر الحقيقة ولا ذراعَ توزيعٍ لها في المترجم، فيُرفَض البرنامج بـSEM047
+# @expect_error SEM047
+#
+# ============================================================
+# (AR) 🔑 أُعيد إرساءُ هذه البذرة، وسببُه قاعدةُ المسارِ نفسِها.
+#
+#      كان التوكيدُ `RUN053` ووصفُها يقولُ حرفيًّا «**المفسّر** يرفض
+#      زمنيًّا بـRUN053» — أي أنّها كانت مرساةً على **سلوكِ محرّكٍ محذوف**،
+#      وهو المرسى الذي يمنعُه قرارُ المالك: التوقّعُ يُشتقُّ من القواعدِ
+#      المعلَنةِ في `language-truth/` لا ممّا كان يُنتِجه المفسّر.
+#
+#      والمقيسُ اليوم: `بت_اختبار` **معلَنةٌ في مصدرِ الحقيقةِ بلا ذراعِ
+#      توزيعٍ في المترجّم**، فيُرفَضُ البرنامجُ وقتَ الترجمةِ بـ`SEM047`
+#      — رفضٌ صحيحٌ برمزٍ من الكتالوج، لا صمتٌ ولا انهيار.
+#
+#      ⚠️ وموضوعُ البذرةِ الأصليُّ — **حارسٌ عدديٌّ** يرفضُ المعاملَ النصّيَّ
+#      زمنَ التشغيل — لا يمكنُ قياسُه قبلَ أن تُخفَّضَ المدمَجةُ أصلًا.
+#      فحين تُوصَلُ بالمترجّم يحمرُّ هذا التوكيدُ **فيفرضُ القرار**: إمّا
+#      حارسٌ عدديٌّ برمزِه، وإمّا قبولٌ صريحٌ مُعلَن. وذلك أصدقُ من تخطٍّ
+#      يُسكِتُ البذرةَ إلى الأبد.
+# (EN) Re-anchored. It asserted RUN053 and its own description said «the
+#      INTERPRETER rejects at run time with RUN053» — an anchor on a deleted
+#      engine, which the owner's rule forbids: expectations derive from the
+#      rules declared in language-truth/, not from what the interpreter did.
+#      Measured today: بت_اختبار is declared in the SoT with no compiler
+#      dispatch arm, so the program is rejected at COMPILE time with SEM047 —
+#      a correct rejection with a catalog code, neither silence nor a crash.
+#      The seed's original subject (a numeric guard rejecting a string operand
+#      at run time) cannot be measured until the builtin is lowered at all;
+#      when it is, this assertion reddens and FORCES the decision.
+# ============================================================
 # @priority P1
 
 استورد نظام_منخفض

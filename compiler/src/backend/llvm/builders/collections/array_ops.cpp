@@ -10,7 +10,8 @@
 #include "sad_dyn_repr.h" // (AR) ISSUE-063: حمولة %SadDyn عند خانات المصفوفة / (EN) %SadDyn payload at array slots
 #include "sir_constants.h" // (AR) kSadPanicCheckViolation (رمز سبب الهلع)
 #include "value.h"         // (AR) Value::makeNull().getTypeName() — اسمُ نوعِ العدمِ نفسُه
-#include <map>             // (AR) std::map لحقول قالب SEM011 — تضمينٌ صريحٌ لا عبورًا
+#include <map>
+#include <vector>             // (AR) std::map لحقول قالب SEM011 — تضمينٌ صريحٌ لا عبورًا
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/FileSystem.h>
@@ -412,15 +413,112 @@ namespace Sad
             }
             else
             {
-                // (AR) مستضاف: تشخيص إنجليزيّ للمطوّر (منفذ libc) ثم exit(1)
-                // (EN) Hosted: English developer diagnostic (libc stdout) then exit(1)
+                // ============================================================
+                // (AR) 🔑 الرسالةُ تُبنى من الكتالوجِ وتحملُ رمزَها.
+                //
+                //      كانت نصًّا إنجليزيًّا **مخبوزًا في الثنائيّ**
+                //      («Error: array index %lld out of bounds…») بلا رمزٍ ولا
+                //      عربيّة، بينما `RUN002` مُعلَنٌ في `language-truth/errors/
+                //      runtime.yaml` بنصَّيه وعلاجِه. وبذرةُ `N10` تطلبُ `RUN002`
+                //      فتُخفِقُ مع أنّ الرفضَ الزمنيَّ صحيحٌ تمامًا.
+                //
+                //      والقالبُ يُقرأُ من الكتالوجِ **وقتَ التوليد** فتُستبدَلُ
+                //      خاناتُه بـ`%lld`. ⚠️ وترتيبُ الوسائطِ **يُقاسُ من النصِّ
+                //      لا يُفترَض**: لو أُعيد ترتيبُ الخانتَين في مصدرِ الحقيقةِ
+                //      يومًا، لَمرَّرنا العددَين مقلوبَين — وهو عطبٌ صامتٌ لا
+                //      يكشفُه مترجِمٌ ولا مدقّق. فنُحدِّدُ موضعَ كلٍّ ونبني قائمةَ
+                //      الوسائطِ على ما قِيس.
+                // (EN) The message is built from the catalog and carries its code. It
+                //      used to be an English string BAKED INTO THE BINARY with no code
+                //      and no Arabic, while RUN002 is declared in the SoT with both
+                //      renderings and a remedy — so N10, which asks for RUN002, failed
+                //      even though the runtime rejection was entirely correct.
+                //      The template is read at CODEGEN time and its slots replaced by
+                //      %lld. The argument order is MEASURED FROM THE TEXT, never
+                //      assumed: were the two slots ever reordered in the SoT we would
+                //      pass the numbers swapped — a silent defect no compiler or
+                //      linter catches.
+                // ============================================================
+                std::string boundsFormat =
+                    "[" +
+                    ::Sad::Errors::getErrorCodeString(
+                        ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE) +
+                    "] " +
+                    ::Sad::Errors::getErrorDescription(
+                        ::Sad::Errors::ErrorCode::RUN_INDEX_OUT_OF_RANGE,
+                        ::Sad::Errors::Language::ARABIC);
+
+                const std::string containerSlot = "{container}";
+                const std::string indexSlot = "{index}";
+                const std::string lengthSlot = "{length}";
+                const std::string numberSpec = "%lld";
+
+                // (AR) الوعاءُ معروفٌ وقتَ التوليد: مصفوفة. واسمُه من معجمِ الأنواعِ
+                //      لا من نصٍّ مكتوبٍ هنا.
+                // (EN) The container is known at codegen time; its name comes from the
+                //      type lexicon, not from a string written here.
+                for (std::size_t at = boundsFormat.find(containerSlot);
+                     at != std::string::npos;
+                     at = boundsFormat.find(containerSlot, at))
+                {
+                    const std::string containerName =
+                        ::Sad::Types::sadTypeKindArabicName(SadTypeKind::Array);
+                    boundsFormat.replace(at, containerSlot.size(), containerName);
+                    at += containerName.size();
+                }
+
+                // (AR) الترتيبُ مقيسٌ: أيُّهما يسبقُ الآخرَ في النصّ.
+                // (EN) Order is measured: which slot appears first in the text.
+                const std::size_t indexAt = boundsFormat.find(indexSlot);
+                const std::size_t lengthAt = boundsFormat.find(lengthSlot);
+                std::vector<llvm::Value *> boundsArgs;
+                if (indexAt != std::string::npos && lengthAt != std::string::npos)
+                {
+                    if (indexAt < lengthAt)
+                    {
+                        boundsArgs.push_back(index);
+                        boundsArgs.push_back(len);
+                    }
+                    else
+                    {
+                        boundsArgs.push_back(len);
+                        boundsArgs.push_back(index);
+                    }
+                }
+                else if (indexAt != std::string::npos)
+                {
+                    boundsArgs.push_back(index);
+                }
+                else if (lengthAt != std::string::npos)
+                {
+                    boundsArgs.push_back(len);
+                }
+
+                for (std::size_t at = boundsFormat.find(indexSlot);
+                     at != std::string::npos;
+                     at = boundsFormat.find(indexSlot, at))
+                {
+                    boundsFormat.replace(at, indexSlot.size(), numberSpec);
+                    at += numberSpec.size();
+                }
+                for (std::size_t at = boundsFormat.find(lengthSlot);
+                     at != std::string::npos;
+                     at = boundsFormat.find(lengthSlot, at))
+                {
+                    boundsFormat.replace(at, lengthSlot.size(), numberSpec);
+                    at += numberSpec.size();
+                }
+                boundsFormat += "\n";
+
                 auto ptrTy = llvm::PointerType::getUnqual(*cg_.context_);
                 auto *printfType = llvm::FunctionType::get(
                     llvm::Type::getInt32Ty(*cg_.context_), {ptrTy}, true);
                 auto printfFunc = cg_.module_->getOrInsertFunction("printf", printfType);
-                llvm::Value *fmtStr = cg_.builder_->CreateGlobalStringPtr(
-                    "Error: array index %lld out of bounds (length: %lld)\n", "bc.fmt");
-                cg_.builder_->CreateCall(printfFunc, {fmtStr, index, len});
+                llvm::Value *fmtStr =
+                    cg_.builder_->CreateGlobalStringPtr(boundsFormat, "bc.fmt");
+                std::vector<llvm::Value *> printfArgs{fmtStr};
+                printfArgs.insert(printfArgs.end(), boundsArgs.begin(), boundsArgs.end());
+                cg_.builder_->CreateCall(printfFunc, printfArgs);
 
                 auto *exitType = llvm::FunctionType::get(
                     llvm::Type::getVoidTy(*cg_.context_), {llvm::Type::getInt32Ty(*cg_.context_)}, false);
