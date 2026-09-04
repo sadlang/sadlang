@@ -59,7 +59,19 @@ SYMBOL = "kSadNullSentinel"
 #      file's own definition (the only two mentions are comment lines), so widening
 #      changes no map and fails no gate: which is exactly when a guard should be
 #      widened — while it is free.
-SCAN_ROOTS = ["compiler", "tools", "shared", "interpreter"]
+# (AR) 🔑 حُذفَ `interpreter`: زالَ الجذرُ من الشجر. وهذا الحارسُ
+#      **لا يُحمِّرُ** على جذرٍ مفقود (يتخطّاه بـ`continue`)، بخلافِ حارسِ
+#      `test_no_include_inside_namespace` الذي يرفع. فبقاءُ الاسمِ هنا كان
+#      دعوى لا يقيسُها أحد. والأرقامُ المُثبَّتةُ أدناه لم تتبدّلْ بالحذف:
+#      الجذرُ كان يُتخطّى سلفًا لأنّ المجلّدَ غيرُ موجود — مقيسٌ باجتيازِ
+#      الاختبارِ قبلَ الرقعةِ وبعدَها.
+# (EN) 🔑 `interpreter` removed: the root left the tree. This guard does
+#      NOT redden on a missing root — it `continue`s past it — unlike the
+#      no-include guard which raises. So the surviving name was a claim nobody
+#      measured. The pinned numbers below are unchanged by the removal: the root
+#      was already being skipped because the directory is gone — measured by the
+#      test passing both before and after this patch.
+SCAN_ROOTS = ["compiler", "tools", "shared"]
 SOURCE_SUFFIXES = (".cpp", ".h", ".hpp")
 
 # (AR) 🔑 **تعريفُ الموضعِ المعدود، آليٌّ لا اجتهاديّ**: سطرٌ يذكر الرمزَ ولا

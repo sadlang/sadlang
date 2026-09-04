@@ -120,7 +120,6 @@ _COLORS = _ROOT / "language-truth" / "ui_colors.yaml"
 _COLOR_TABLE = _GEN_DIR / "color_table_generated.h"
 _COLOR_PRELUDE = _GEN_DIR / "color_prelude_generated.h"
 _COLOR_UTILS = _ROOT / "features" / "graphics" / "core" / "include" / "sad_ui" / "color_utils.h"
-_INTERP_CORE = _ROOT / "interpreter" / "src" / "core" / "interpreter_core.cpp"
 _COMPILER_MODULE = _ROOT / "compiler" / "src" / "frontend" / "sir_builder_module.cpp"
 
 
@@ -434,11 +433,26 @@ def main() -> int:
             for macro in ("SAD_UI_COLOR_BY_NAME", "SAD_UI_COLOR_RGBA"):
                 if macro not in tc:
                     errors.append(f"الألوان: types.cpp لا يستهلك {macro}")
-        # المحرّكان يسجّلان التعداد من الماكرو المولَّد (لا أسماء مجرّدة)
-        if _INTERP_CORE.exists():
-            ic = _INTERP_CORE.read_text(encoding="utf-8")
-            if "SAD_UI_COLOR_MEMBERS" not in ic or "ensureBuiltinColorsRegistered" not in ic:
-                errors.append("الألوان: المفسّر (interpreter_core.cpp) لا يسجّل تعداد الألوان من SAD_UI_COLOR_MEMBERS")
+        # (AR) 🔑 حُذفت ذراعُ المفسّر. لم تكن تُخفِق، بل كانت **لا
+        #      تستطيعُ أن تُطلِق**: شرطُها `_INTERP_CORE.exists()` وملفُّها محذوفٌ
+        #      مع المفسّر، فكانت تمرُّ خضراءَ أبدًا. وتركُها بهذا الشكلِ يقرأُ
+        #      «مقيسٌ» وهو «غيرُ مقيسٍ قطُّ».
+        #      ⚠️ والحذفُ آمنٌ لأنّ موضوعَها زال. **لكن نصفَ العقدِ سقطَ
+        #      معه**، وهذا يُقالُ لا يُسكَتُ عنه: كانت تفحصُ شرطَين —
+        #      استهلاكَ `SAD_UI_COLOR_MEMBERS` **و**وجودَ نقطةِ التسجيلِ
+        #      `ensureBuiltinColorsRegistered`. وذراعُ المترجِمِ أدناه تفحصُ
+        #      الأوّلَ وحدَه. ونقطةُ التسجيلِ لا نظيرَ لها في مسارِ المحرّكِ
+        #      الواحد (مقيسٌ: الاسمُ لا يردُ في الشجرِ إلّا في تعليقِ
+        #      `scripts/codegen/gen_ui_colors.py:11`) — فلا شيءَ يُحرَسُ اليوم،
+        #      لا أنّه محروسٌ في مكانٍ آخر.
+        # (EN) 🔑 The interpreter arm is deleted. It was not failing — it
+        #      COULD NOT FIRE: its `exists()` condition names a file removed with
+        #      the interpreter, so it passed green forever, reading as «measured»
+        #      while being «never measured».
+        #      ⚠️ Deletion is safe here because its SUBJECT is gone, not because
+        #      it merely looked dead: the compiler arm below checks the same
+        #      contract (consumption of SAD_UI_COLOR_MEMBERS) and is live.
+        # المحرّك يسجّل التعداد من الماكرو المولَّد (لا أسماء مجرّدة)
         if _COMPILER_MODULE.exists():
             cm = _COMPILER_MODULE.read_text(encoding="utf-8")
             if "SAD_UI_COLOR_MEMBERS" not in cm:

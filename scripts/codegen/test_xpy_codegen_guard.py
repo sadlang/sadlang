@@ -125,6 +125,19 @@ EXPECTED_OUTPUTS = {
     #      by both engines as generated constants instead of raw Arabic literals at
     #      the diagnostic site — so the spelling never drifts from the SoT.
     "shared/types/generated/directive_names_generated.h",
+    # (AR) نطاقاتُ المعامِلاتِ من `language-truth/operators.yaml` — أُضيفَ
+    #      النطاقُ إلى `CODEGEN_DOMAINS` في x.py ولم يُذكَرْ هنا، فأحمرَّ هذا
+    #      الحارسُ في CI وهو موضوعُه بعينِه: النسختانِ يجبُ أن تتّفقا.
+    #      ⚠️ و`x.py gen --check` محلّيًّا **لا يراه**: هو يُشغّلُ المولِّداتِ
+    #      ويقارِنُ مخرَجَها، ولا يقرأُ هذا الملفَّ أصلًا — بوّابةٌ محلّيّةٌ أضيقُ
+    #      من بوّابةِ CI، فلتُشغَّلْ `pytest scripts/codegen/` قبلَ الدفع.
+    # (EN) Operand domains from the SoT — the domain was added to CODEGEN_DOMAINS
+    #      in x.py without being named here, so this guard reddened in CI on
+    #      precisely its own subject: the two copies must agree.
+    #      ⚠️ `x.py gen --check` does NOT see this locally — it runs the
+    #      generators and diffs their output, and never reads this file. A local
+    #      gate narrower than the CI gate; run `pytest scripts/codegen/` first.
+    "shared/semantic/generated/operator_domains_generated.h",
 }
 
 

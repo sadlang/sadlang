@@ -297,7 +297,6 @@ jobs:
             -I shared/ast/include \
             -I shared/types/include \
             -I shared/errors/include \
-            -I interpreter/include \
             -I compiler/include \
             shared/ compiler/ stdlib/ features/network/ 2>&1 | head -100
           # (AR) ملحوظة: نطاق cppcheck أضيق عمدًا من نطاق فحص الترميز أعلاه
@@ -847,6 +846,62 @@ jobs:
             exit 1
           }
           Write-Host "✅ sad-build (compiler) built successfully" -ForegroundColor Green
+
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 أبوابُ توليدِ كودِ المنصّاتِ الأربع — **هنا لا في بوّابةِ
+      #      الرسومات**. كانت هناك، وتلك البوّابةُ تُهيّئُ بـ`OFF` عمدًا لتُثبِتَ
+      #      أنّ الرسوماتِ لا تلزمُها LLVM، فكانت تطلبُ هدفًا لا يوجدُ إلّا بها.
+      #      وهذه الوظيفةُ تبني `sad-build` أصلًا، فالخطوةُ بلا تنصيبِ LLVM
+      #      إضافيٍّ ولا وظيفةٍ جديدة.
+      #
+      #      وتعمَلُ على المضيفينَ الثلاثةِ عمدًا: توليدُ الكودِ قد يختلفُ
+      #      **بالمضيفِ** لا بالهدفِ وحدَه — وهذا المستودعُ قاسَ الصنفَين
+      #      (ترميزُ العربيّةِ على ويندوز، وترتيبُ الخريطةِ عندَ النقلِ إلى
+      #      أوبونتو). واجتيازُها على مضيفٍ واحدٍ لا يُثبِتُ الحتميّة.
+      #
+      #      والحكمُ لا يُعقَدُ على رمزِ الخروج: البرنامجُ يطبعُ «باب معطوب»
+      #      ثمّ **يخرجُ بصفر** (`خروج` بلا معاملاتٍ لا تحملُ رمزًا). فالعقدُ
+      #      مزدوج: سطرُ النجاحِ حاضرٌ **وصفرُ فشل**. والمترجِمُ يُترجِمُ ولا
+      #      يُشغّل، فيُصرَّفُ أوّلًا ويُشغَّلُ الناتج.
+      # (EN) The four platform-codegen doors — here, not in the graphics gate.
+      #      That gate configures LLVM off by design yet asked for a target that
+      #      only exists with LLVM. This job already builds sad-build, so the step
+      #      needs no extra provisioning and no new job. It runs on all three
+      #      hosts deliberately: codegen can differ by HOST, not only by target,
+      #      and this repo has measured both kinds. The verdict is not the exit
+      #      code — the program prints a broken-door line and still exits 0 — so
+      #      the success line AND a zero failure count are both asserted.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🚪 أبوابُ توليدِ كودِ المنصّاتِ الأربع / Four platform codegen doors"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) البذرةُ تُلتمَسُ ولا يُكتَبُ مسارُها حرفًا: مسارٌ مكتوبٌ بيدٍ
+          #      يَرثُّ بأوّلِ نقل، وحروفُه العربيّةُ مزلقةُ ترميزٍ على ويندوز.
+          # (EN) The seed is located, not hard-coded: a typed path rots on the
+          #      first move, and its Arabic characters are an encoding hazard.
+          SEED="$(find tests/behavior -type f -name '132_ui_platform_codegen_doors.*' | head -1)"
+          if [ -z "$SEED" ]; then
+            echo "::error::بذرةُ الأبوابِ غيرُ موجودة / doors seed not found"
+            exit 1
+          fi
+          DOORS="${RUNNER_TMP:-.}/doors_gate.exe"
+          "$SADC" "$SEED" -o "$DOORS"
+          OUT="$("$DOORS")"
+          printf '%s\n' "$OUT"
+          printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
+          printf '%s' "$OUT" | grep -q 'فشل: 0'
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
@@ -971,12 +1026,20 @@ jobs:
             exit 1
           }
 
-      - name: "🧪 اختبارات المفسّر / Interpreter & StdLib Tests"
+      - name: "🧪 اختبارات المكتبة القياسيّة / StdLib Tests"
         shell: pwsh
         run: |
           $failed = 0
+          # (AR) 🔑 حُذف `test_interpreter_comprehensive` مع المفسّر
+          #      (`cmake/tests_comprehensive.cmake:82`) — ولا هدفَ له ولا ملفّ.
+          #      وهذه الخطوةُ تعدُّ الغيابَ إخفاقًا صراحةً، فكانت ستُحمِّرُ
+          #      المنصّاتِ الثلاث. ولم تظهرْ في الشوطِ الأوّلِ لأنّ الوظائفَ
+          #      تحمل `needs: code-quality` وقد أخفقت، فتخطّت الثلاثُ ولم تُقَسْ.
+          # (EN) test_interpreter_comprehensive was deleted with the interpreter;
+          #      no target, no file. This step counts absence as failure, so it
+          #      would have reddened all three platforms — invisible in the first
+          #      run only because `needs: code-quality` skipped these jobs.
           $tests = @(
-            "test_interpreter_comprehensive",
             "test_stdlib_comprehensive"
           )
           foreach ($test in $tests) {
@@ -1563,6 +1626,62 @@ jobs:
           #      as healthy, so a later run inherited a compiler-less tree.
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel $(nproc)
           echo "SAD_BUILD_FRESH=1" >> $GITHUB_ENV
+
+      # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 أبوابُ توليدِ كودِ المنصّاتِ الأربع — **هنا لا في بوّابةِ
+      #      الرسومات**. كانت هناك، وتلك البوّابةُ تُهيّئُ بـ`OFF` عمدًا لتُثبِتَ
+      #      أنّ الرسوماتِ لا تلزمُها LLVM، فكانت تطلبُ هدفًا لا يوجدُ إلّا بها.
+      #      وهذه الوظيفةُ تبني `sad-build` أصلًا، فالخطوةُ بلا تنصيبِ LLVM
+      #      إضافيٍّ ولا وظيفةٍ جديدة.
+      #
+      #      وتعمَلُ على المضيفينَ الثلاثةِ عمدًا: توليدُ الكودِ قد يختلفُ
+      #      **بالمضيفِ** لا بالهدفِ وحدَه — وهذا المستودعُ قاسَ الصنفَين
+      #      (ترميزُ العربيّةِ على ويندوز، وترتيبُ الخريطةِ عندَ النقلِ إلى
+      #      أوبونتو). واجتيازُها على مضيفٍ واحدٍ لا يُثبِتُ الحتميّة.
+      #
+      #      والحكمُ لا يُعقَدُ على رمزِ الخروج: البرنامجُ يطبعُ «باب معطوب»
+      #      ثمّ **يخرجُ بصفر** (`خروج` بلا معاملاتٍ لا تحملُ رمزًا). فالعقدُ
+      #      مزدوج: سطرُ النجاحِ حاضرٌ **وصفرُ فشل**. والمترجِمُ يُترجِمُ ولا
+      #      يُشغّل، فيُصرَّفُ أوّلًا ويُشغَّلُ الناتج.
+      # (EN) The four platform-codegen doors — here, not in the graphics gate.
+      #      That gate configures LLVM off by design yet asked for a target that
+      #      only exists with LLVM. This job already builds sad-build, so the step
+      #      needs no extra provisioning and no new job. It runs on all three
+      #      hosts deliberately: codegen can differ by HOST, not only by target,
+      #      and this repo has measured both kinds. The verdict is not the exit
+      #      code — the program prints a broken-door line and still exits 0 — so
+      #      the success line AND a zero failure count are both asserted.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🚪 أبوابُ توليدِ كودِ المنصّاتِ الأربع / Four platform codegen doors"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) البذرةُ تُلتمَسُ ولا يُكتَبُ مسارُها حرفًا: مسارٌ مكتوبٌ بيدٍ
+          #      يَرثُّ بأوّلِ نقل، وحروفُه العربيّةُ مزلقةُ ترميزٍ على ويندوز.
+          # (EN) The seed is located, not hard-coded: a typed path rots on the
+          #      first move, and its Arabic characters are an encoding hazard.
+          SEED="$(find tests/behavior -type f -name '132_ui_platform_codegen_doors.*' | head -1)"
+          if [ -z "$SEED" ]; then
+            echo "::error::بذرةُ الأبوابِ غيرُ موجودة / doors seed not found"
+            exit 1
+          fi
+          DOORS="${RUNNER_TMP:-.}/doors_gate.exe"
+          "$SADC" "$SEED" -o "$DOORS"
+          OUT="$("$DOORS")"
+          printf '%s\n' "$OUT"
+          printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
+          printf '%s' "$OUT" | grep -q 'فشل: 0'
       # ══════════════════════════════════════════════════════════════════════
       # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
       #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
@@ -1703,10 +1822,12 @@ jobs:
             exit 1
           fi
 
-      - name: "🧪 اختبارات المفسّر / Interpreter & StdLib Tests"
+      - name: "🧪 اختبارات المكتبة القياسيّة / StdLib Tests"
         run: |
           failed=0
-          for test in test_interpreter_comprehensive test_stdlib_comprehensive; do
+          # (AR) 🔑 حُذف `test_interpreter_comprehensive` مع المفسّر — والخطوةُ تعدُّ الغيابَ إخفاقًا.
+          # (EN) test_interpreter_comprehensive died with the interpreter; absence is counted as failure here.
+          for test in test_stdlib_comprehensive; do
             exe="build/bin/$test"
             if [ -x "$exe" ]; then
               echo "▶️ Running $test..."
@@ -2249,6 +2370,62 @@ jobs:
           cmake --build build --config ${{ matrix.config }} --target sad-build --parallel 4
 
       # ══════════════════════════════════════════════════════════════════════
+      # (AR) 🔑 أبوابُ توليدِ كودِ المنصّاتِ الأربع — **هنا لا في بوّابةِ
+      #      الرسومات**. كانت هناك، وتلك البوّابةُ تُهيّئُ بـ`OFF` عمدًا لتُثبِتَ
+      #      أنّ الرسوماتِ لا تلزمُها LLVM، فكانت تطلبُ هدفًا لا يوجدُ إلّا بها.
+      #      وهذه الوظيفةُ تبني `sad-build` أصلًا، فالخطوةُ بلا تنصيبِ LLVM
+      #      إضافيٍّ ولا وظيفةٍ جديدة.
+      #
+      #      وتعمَلُ على المضيفينَ الثلاثةِ عمدًا: توليدُ الكودِ قد يختلفُ
+      #      **بالمضيفِ** لا بالهدفِ وحدَه — وهذا المستودعُ قاسَ الصنفَين
+      #      (ترميزُ العربيّةِ على ويندوز، وترتيبُ الخريطةِ عندَ النقلِ إلى
+      #      أوبونتو). واجتيازُها على مضيفٍ واحدٍ لا يُثبِتُ الحتميّة.
+      #
+      #      والحكمُ لا يُعقَدُ على رمزِ الخروج: البرنامجُ يطبعُ «باب معطوب»
+      #      ثمّ **يخرجُ بصفر** (`خروج` بلا معاملاتٍ لا تحملُ رمزًا). فالعقدُ
+      #      مزدوج: سطرُ النجاحِ حاضرٌ **وصفرُ فشل**. والمترجِمُ يُترجِمُ ولا
+      #      يُشغّل، فيُصرَّفُ أوّلًا ويُشغَّلُ الناتج.
+      # (EN) The four platform-codegen doors — here, not in the graphics gate.
+      #      That gate configures LLVM off by design yet asked for a target that
+      #      only exists with LLVM. This job already builds sad-build, so the step
+      #      needs no extra provisioning and no new job. It runs on all three
+      #      hosts deliberately: codegen can differ by HOST, not only by target,
+      #      and this repo has measured both kinds. The verdict is not the exit
+      #      code — the program prints a broken-door line and still exits 0 — so
+      #      the success line AND a zero failure count are both asserted.
+      # ══════════════════════════════════════════════════════════════════════
+      - name: "🚪 أبوابُ توليدِ كودِ المنصّاتِ الأربع / Four platform codegen doors"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) البذرةُ تُلتمَسُ ولا يُكتَبُ مسارُها حرفًا: مسارٌ مكتوبٌ بيدٍ
+          #      يَرثُّ بأوّلِ نقل، وحروفُه العربيّةُ مزلقةُ ترميزٍ على ويندوز.
+          # (EN) The seed is located, not hard-coded: a typed path rots on the
+          #      first move, and its Arabic characters are an encoding hazard.
+          SEED="$(find tests/behavior -type f -name '132_ui_platform_codegen_doors.*' | head -1)"
+          if [ -z "$SEED" ]; then
+            echo "::error::بذرةُ الأبوابِ غيرُ موجودة / doors seed not found"
+            exit 1
+          fi
+          DOORS="${RUNNER_TMP:-.}/doors_gate.exe"
+          "$SADC" "$SEED" -o "$DOORS"
+          OUT="$("$DOORS")"
+          printf '%s\n' "$OUT"
+          printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
+          printf '%s' "$OUT" | grep -q 'فشل: 0'
+
+      # ══════════════════════════════════════════════════════════════════════
       # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
       #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
       #      هدفِ `sad-build` الذي لا يُعرَّفُ إلّا إذا وُجدت LLVM، فكانت تُبنى
@@ -2513,10 +2690,12 @@ jobs:
             exit 1
           fi
 
-      - name: "🧪 اختبارات المفسّر / Interpreter & StdLib Tests"
+      - name: "🧪 اختبارات المكتبة القياسيّة / StdLib Tests"
         run: |
           failed=0
-          for test in test_interpreter_comprehensive test_stdlib_comprehensive; do
+          # (AR) 🔑 حُذف `test_interpreter_comprehensive` مع المفسّر — والخطوةُ تعدُّ الغيابَ إخفاقًا.
+          # (EN) test_interpreter_comprehensive died with the interpreter; absence is counted as failure here.
+          for test in test_stdlib_comprehensive; do
             exe="build/bin/$test"
             if [ -x "$exe" ]; then
               echo "▶️ Running $test..."
@@ -2797,10 +2976,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - leg: compiler
+          # (AR) 🔑 الذراعانِ تُطابقانِ الحزمتَين المنشورتَين، وكلتاهما
+          #      بـLLVM: لم تعُدْ حزمةٌ تُبنى بلا خلفيّة. وكانت ذراعُ «المفسّر»
+          #      تُهيّئُ بـ`OFF` ثمّ تطلبُ `sad-build` — هدفًا لا يوجدُ إلّا بـ`ON`
+          #      — فكانت ستُخفِقُ حتمًا.
+          # (EN) The two legs mirror the two published packages, both with LLVM:
+          #      no package is built without a backend any more. The former
+          #      "interpreter" leg configured OFF and then asked for sad-build,
+          #      a target that exists only with ON, so it was bound to fail.
+          - leg: full
             llvm: true
-          - leg: interpreter
-            llvm: false
+          - leg: standard
+            llvm: true
     # (AR) الحدُّ مشتقٌّ من قياس: وظيفةُ المترجمِ في الشوطِ الجافِّ 33302076297
     #      استغرقت ٣١ دقيقةً شاملةً تثبيتَ LLVM والتحزيم. هذه بلا تحزيمٍ ولا
     #      اختبارات، والفائضُ احتياطٌ لبطءِ المرآة لا رقمٌ مُقدَّر.
@@ -2833,7 +3020,7 @@ jobs:
         run: |
           bash scripts/ci/apt_retry.sh update
           bash scripts/ci/apt_retry.sh install -y cmake g++ build-essential libssl-dev
-          if [ "${{ matrix.leg }}" = "interpreter" ]; then
+          if [ "${{ matrix.leg }}" = "standard" ]; then
             bash scripts/ci/apt_retry.sh install -y \
               libsdl2-dev libsdl2-ttf-dev libsdl2-image-dev
           fi
@@ -2878,24 +3065,27 @@ jobs:
       - name: "🔨 تهيئةُ CMake كما يُهيّئُ المُصدِر / Configure as the publisher does"
         shell: bash
         run: |
-          if [ "${{ matrix.leg }}" = "compiler" ]; then
-            test -n "$LLVM_DIR" || { echo "::error::LLVM_DIR غيرُ مُصدَّر"; exit 1; }
+          # (AR) 🔑 الذراعانِ كلتاهما بـLLVM الآن، ويفترقانِ في
+          #      الأدواتِ الإضافيّةِ التي تشحنُها الحزمةُ القياسيّةُ وحدَها
+          #      (مديرُ الحزم · خادمُ اللغة · الصدفة) — كما في `release.yml`.
+          # (EN) Both legs now use LLVM and differ only in the extra tools the
+          #      standard package ships — mirroring release.yml.
+          test -n "$LLVM_DIR" || { echo "::error::LLVM_DIR غيرُ مُصدَّر"; exit 1; }
+          if [ "${{ matrix.leg }}" = "full" ]; then
             cmake -S . -B build \
               -G "Unix Makefiles" \
               -DCMAKE_BUILD_TYPE=Release \
               -DENABLE_LLVM_BACKEND=ON \
               -DLLVM_DIR="$LLVM_DIR" \
+              -DSAD_LLVM_STATIC=ON \
               -DBUILD_TESTS=OFF
           else
-            # (AR) لا LLVM_DIR هنا عمدًا: هذه هي الذراعُ التي يرجعُ فيها
-            #      cmake/llvm.cmake باكرًا، وهي التي تبني حزمةَ المفسّرِ.
-            # (EN) Deliberately no LLVM_DIR: this is the arm where
-            #      cmake/llvm.cmake returns early — and it builds the
-            #      interpreter package.
             cmake -S . -B build \
               -G "Unix Makefiles" \
               -DCMAKE_BUILD_TYPE=Release \
-              -DENABLE_LLVM_BACKEND=OFF \
+              -DENABLE_LLVM_BACKEND=ON \
+              -DLLVM_DIR="$LLVM_DIR" \
+              -DSAD_LLVM_STATIC=ON \
               -DBUILD_TESTS=OFF \
               -DBUILD_PKG_MANAGER=ON \
               -DBUILD_LSP_SERVER=ON \
@@ -2913,10 +3103,10 @@ jobs:
         run: |
           source scripts/ci/release_tools.sh
           sad_require_identity_table
-          if [ "${{ matrix.leg }}" = "compiler" ]; then
-            sad_build_tools build Release "$SAD_REQUIRED_COMPILER"
+          if [ "${{ matrix.leg }}" = "full" ]; then
+            sad_build_tools build Release "$SAD_REQUIRED_FULL"
           else
-            sad_build_tools build Release "$SAD_REQUIRED_INTERPRETER"
+            sad_build_tools build Release "$SAD_REQUIRED_STANDARD"
             # (AR) الإضافيّاتُ مُلزِمةٌ هنا وحدَها — التعليلُ فوقَ الوظيفة.
             # (EN) The extras are required here alone — rationale above the job.
             for target in sad-pkg sad-fmt; do
