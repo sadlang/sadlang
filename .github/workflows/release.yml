@@ -170,6 +170,11 @@ jobs:
       #      same defect moved from the configure to the resource.
       - name: "تثبيت LLVM / Install LLVM"
         uses: ./.github/actions/setup-llvm
+        # (AR) الحدُّ على الخطوةِ المنادية: الأفعالُ المركّبةُ لا تقبلُ حدًّا في خطواتِها
+        #      الداخليّة، فحارسُ صمودِ CI يشترطُه هنا. والقيمةُ من نظيرتِها المنقولة.
+        # (EN) The cap belongs on the CALLING step: composite actions accept none on
+        #      their inner steps, and the CI-resilience guard requires it here.
+        timeout-minutes: 30
 
       # ── تبعيات Linux ──
       - name: "تبعيات Linux / Linux Dependencies"
@@ -418,6 +423,11 @@ jobs:
       #      second copy — the defect class this repo has been burned by before.
       - name: "تثبيت LLVM / Install LLVM"
         uses: ./.github/actions/setup-llvm
+        # (AR) الحدُّ على الخطوةِ المنادية: الأفعالُ المركّبةُ لا تقبلُ حدًّا في خطواتِها
+        #      الداخليّة، فحارسُ صمودِ CI يشترطُه هنا. والقيمةُ من نظيرتِها المنقولة.
+        # (EN) The cap belongs on the CALLING step: composite actions accept none on
+        #      their inner steps, and the CI-resilience guard requires it here.
+        timeout-minutes: 30
 
       # (AR) 🔑 تبعيّاتُ لينكسَ هنا أيضًا. كانت في وظيفةِ الحزمةِ
       #      القياسيّةِ وحدَها، فتُبنى «الكاملةُ» على لينكسَ **بلا خلفيّةِ سطحِ
