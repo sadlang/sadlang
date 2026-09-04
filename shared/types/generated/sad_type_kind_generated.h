@@ -788,6 +788,84 @@ namespace Sad
         static_assert(sadTypeKindNormalizeInteger(SadTypeKind::UInt64, 65536LL) == 65536LL);
         static_assert(sadTypeKindNormalizeInteger(SadTypeKind::UInt64, 4294967296LL) == 4294967296LL);
 
+        // ─── دلالةُ القيمة / Value semantics ───
+        /**
+         * @brief (AR) جدولُ دلالةِ القيمة — مُولَّدٌ من `value_semantics` في types.yaml
+         * @brief (EN) Value-semantics table — generated from types.yaml `value_semantics`
+         */
+        inline constexpr bool SAD_TYPE_IS_COPY_TABLE[] = {
+            true ,  // Void          — فراغ
+            true ,  // Integer       — رقم
+            true ,  // Float         — عشري
+            true ,  // Boolean       — منطقي
+            false,  // String        — نص
+            true ,  // Int8          — رقم8
+            true ,  // Int16         — رقم16
+            true ,  // Int32         — رقم32
+            true ,  // UInt8         — طبيعي8
+            true ,  // UInt16        — طبيعي16
+            true ,  // UInt32        — طبيعي32
+            true ,  // UInt64        — طبيعي
+            true ,  // Float32       — عشري32
+            true ,  // Char          — حرف
+            false,  // Array         — مصفوفة
+            false,  // Map           — خريطة
+            false,  // Tuple         — صف
+            false,  // Slice         — شريحة
+            false,  // Class         — صنف
+            false,  // Struct        — بنية
+            false,  // Enum          — تعداد
+            false,  // Trait         — سمة
+            true ,  // Function      — دالة
+            false,  // Closure       — إغلاق
+            false,  // Union         — اتحاد
+            false,  // Intersection  — تقاطع
+            false,  // Optional      — اختياري
+            false,  // Result        — نتيجة
+            true ,  // Generic       — نوع_عام
+            true ,  // TypeParameter — معامل_نوع
+            true ,  // TypeAlias     — اسم_مستعار
+            true ,  // Pointer       — مؤشر
+            true ,  // Reference     — مرجع
+            true ,  // MutableRef    — مرجع_متغير
+            false,  // Any           — أي
+            true ,  // Never         — أبدا
+            true ,  // Unknown       — مجهول
+            false,  // Error         — خطأ
+            false,  // Future        — مستقبل
+            false,  // Generator     — مولد
+            false,  // Comprehension — استيعاب
+            true ,  // Color         — لون
+            false,  // Widget        — عنصر_واجهة
+            false,  // Window        — نافذة
+            false,  // Event         — حدث
+            true ,  // Vector        — متجه
+            true ,  // Null          — عدم
+            true ,  // Point         — نقطة
+            true ,  // Rect          — مستطيل
+        };
+
+        /**
+         * @brief (AR) هل يُنسَخُ النوعُ فيبقى المصدرُ صالحًا؟
+         * @brief (EN) Is the kind Copy (source stays valid after use)?
+         *
+         * (AR) مفتاحٌ خارجَ المدى يُجابُ بـ«يُنسَخ» لا بـ«يُنقَل»: النقلُ
+         *      يُحمِّرُ برنامجًا، فلا يُحكَمُ به على مفتاحٍ مجهول.
+         * (EN) An out-of-range kind answers Copy, never Move: Move reddens a
+         *      program, and an unknown kind must not redden one.
+         */
+        inline constexpr bool sadTypeKindIsCopy(SadTypeKind kind)
+        {
+            const int index = static_cast<int>(kind);
+            if (index < 0 ||
+                index >= static_cast<int>(sizeof(SAD_TYPE_IS_COPY_TABLE) /
+                                          sizeof(SAD_TYPE_IS_COPY_TABLE[0])))
+            {
+                return true;
+            }
+            return SAD_TYPE_IS_COPY_TABLE[static_cast<std::size_t>(index)];
+        }
+
         /**
          * @brief (AR) الاسم العربي الذي تُرجعه نوع() لنوعٍ ما — مُولَّد من types.yaml
          * @brief (EN) Arabic name returned by نوع()/typeof for a kind — generated

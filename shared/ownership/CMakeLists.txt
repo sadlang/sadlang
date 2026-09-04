@@ -26,8 +26,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # (AR) جمع كل ملفات .cpp في src/ تلقائياً
 # (EN) Auto-collect all .cpp files in src/
-file(GLOB SAD_OWNERSHIP_SOURCES "src/*.cpp")
-file(GLOB SAD_OWNERSHIP_HEADERS "include/ownership/*.h")
+# (AR) CONFIGURE_DEPENDS: يُعيد CMake حسابَ الـglob عند كلِّ بناء. وبدونه
+#      يُقيَّم مرّةً عند التهيئة، فحذفُ ملفٍّ يُبقيه في مشروع MSBuild
+#      المُخبَّأ ويُخفِق البناء بـC1083 على ملفٍّ لم يعد موجودًا.
+# (EN) Without CONFIGURE_DEPENDS the glob is evaluated once at configure
+#      time, so deleting a source leaves it in the cached project and the
+#      build fails with C1083 on a file that no longer exists.
+file(GLOB SAD_OWNERSHIP_SOURCES CONFIGURE_DEPENDS "src/*.cpp")
+file(GLOB SAD_OWNERSHIP_HEADERS CONFIGURE_DEPENDS "include/ownership/*.h")
 
 add_library(sad_ownership STATIC ${SAD_OWNERSHIP_SOURCES} ${SAD_OWNERSHIP_HEADERS})
 
@@ -40,6 +46,9 @@ target_include_directories(sad_ownership
         # (EN) Required shared project headers
         ${CMAKE_SOURCE_DIR}/shared/ast/include
         ${CMAKE_SOURCE_DIR}/shared/types/include
+        # (AR) الرؤوس المولَّدة من language-truth/ (sadTypeKindIsCopy)
+        # (EN) Headers generated from language-truth/ (sadTypeKindIsCopy)
+        ${CMAKE_SOURCE_DIR}/shared/types/generated
         ${CMAKE_SOURCE_DIR}/shared/lexer/include
         ${CMAKE_SOURCE_DIR}/shared/parser/include
         ${CMAKE_SOURCE_DIR}/shared/errors/include

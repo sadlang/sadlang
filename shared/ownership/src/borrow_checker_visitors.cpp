@@ -10,6 +10,7 @@
 #endif
 
 #include "ownership/borrow_checker.h"
+#include "sad_type_kind_generated.h"
 #include <iostream>
 #include <sstream>
 
@@ -189,7 +190,9 @@ namespace Sad
             for (const auto &param : decl.parameters)
             {
                 std::string typeName = dataTypeToString(param.type);
-                bool isCopy = isCopyType(typeName);
+                // (AR) 🔑 الحكمُ بمفتاحِ النوعِ لا باسمِه (انظر isCopyKind).
+                // (EN) Verdict keyed on the kind, not its name (see isCopyKind).
+                bool isCopy = isCopyKind(param.type);
                 tracker_->declareVariable(param.name, typeName, getLocation(&decl), isCopy);
                 currentResult_.totalVariables++;
             }
@@ -622,71 +625,55 @@ namespace Sad
             }
         }
 
-        bool BorrowChecker::isCopyType(const std::string &typeName) const
+        bool BorrowChecker::isCopyKind(Types::SadTypeKind kind) const
         {
-            // (AR) الأنواع غير المحددة أو غير المعروفة تُعتبر قابلة للنسخ افتراضياً
-            // (EN) Unknown/unspecified/none types default to copy — safe for ص language
-            // (AR) لغة ص لا تدعم نقل الملكية مثل Rust، لذا الأنواع غير المحددة تُنسخ
-            // (EN) S language doesn't have Rust-like move semantics, so unresolved types are copy
-            if (typeName.empty() || typeName == "unknown" || typeName == "لاشيء")
-            {
-                return true;
-            }
-
-            // (AR) التحقق من القائمة
-            // (EN) Check the list
-            if (copyTypes_.find(typeName) != copyTypes_.end())
-            {
-                return true;
-            }
-
-            // (AR) المراجع ليست قابلة للنسخ (تُستنسخ المراجع نفسها)
-            // (EN) References are Copy (the references themselves are copied)
-            if (!typeName.empty() && typeName.front() == '&')
-            {
-                return true;
-            }
-            if (typeName.size() >= 4 && typeName.substr(0, 4) == "مرجع")
-            {
-                return true;
-            }
-
-            return false;
+            // (AR) 🔑 مصدرُ الحكمِ واحدٌ: `value_semantics` في types.yaml.
+            // (EN) One source for the verdict: types.yaml `value_semantics`.
+            return Types::sadTypeKindIsCopy(kind);
         }
+
+        // ════════════════════════════════════════════════════════════════
+        // (AR) 🔑 حُذِفَ هنا `isCopyType(const std::string &)`.
+        //
+        //      كان بابًا ثانيًا للحكمِ نفسِه **بالاسمِ لا بالمفتاح**، ولم يبقَ له
+        //      مُنادٍ بعدَ أن صارَ الحكمُ في `isCopyKind`. وضررُه ليس في موتِه بل
+        //      في أنّ رحلتَه **فاقدةٌ**: `sadTypeKindArabicName` تُرجِعُ «كائن»
+        //      لـ`Class` و`Struct` كليهما، فردُّ اللفظِ إلى نوعٍ بـ
+        //      `sadTypeKindFromArabicName` لا يُعيدُ ما خرجَ منه. واليومَ لا
+        //      ضررَ لأنّ كليهما `move`؛ ويومَ يفترقانِ يصيرُ البابُ الميّتُ
+        //      حاملًا كاذبًا — وهو نمطُ «حقلٌ نائمٌ يصيرُ حامِلًا» المسجَّل.
+        //
+        //      وحارسُ المرجعِ الذي كان فيه (`&` و«مرجع») لا يضيع: `Reference`
+        //      و`MutableRef` و`Pointer` مُعلَنةٌ `copy` في `types.yaml`، فيحكمُ
+        //      لها `isCopyKind` بالمفتاحِ مباشرةً. وكان الحارسُ نفسُه لا يُطلَقُ
+        //      أصلًا: قارنَ `substr(0, 4)` بلفظٍ طولُه ثمانيةُ بايتاتٍ في UTF-8.
+        // (EN) `isCopyType(const std::string &)` was deleted here. It was a second
+        //      door to the same verdict, keyed on the NAME rather than the kind,
+        //      and it had no caller once `isCopyKind` existed. Its harm was not
+        //      being dead but being LOSSY: the Arabic-name function returns one
+        //      word for both Class and Struct, so mapping the word back to a kind
+        //      does not return what produced it. Harmless today (both are `move`),
+        //      load-bearing and wrong the day they differ.
+        //      The reference guard it carried is not lost: Reference, MutableRef
+        //      and Pointer are declared `copy` in types.yaml, so `isCopyKind`
+        //      decides them directly — and that guard could never fire anyway,
+        //      comparing `substr(0, 4)` against an eight-byte UTF-8 word.
+        // ════════════════════════════════════════════════════════════════
 
         std::string BorrowChecker::dataTypeToString(Types::SadTypeKind type) const
         {
-            // (AR) تحويل نوع البيانات إلى نص لمطابقة أنواع النسخ
-            // (EN) Convert DataType enum to string for copy type matching
-            switch (type)
-            {
-            case Types::SadTypeKind::Integer:
-                return "رقم";
-            case Types::SadTypeKind::Float:
-                return "عشري";
-            case Types::SadTypeKind::Boolean:
-                return "منطقي";
-            case Types::SadTypeKind::String:
-                return "نص";
-            case Types::SadTypeKind::UInt8:
-                return "بايت";
-            case Types::SadTypeKind::Array:
-                return "مصفوفة";
-            case Types::SadTypeKind::Map:
-                return "قاموس";
-            case Types::SadTypeKind::Tuple:
-                return "ثنائي";
-            case Types::SadTypeKind::Function:
-                return "دالة";
-            case Types::SadTypeKind::Void:
-                return "لاشيء";
-            case Types::SadTypeKind::Enum:
-                return "تعداد";
-            case Types::SadTypeKind::Error:
-                return "خطأ";
-            default:
-                return "unknown";
-            }
+            // (AR) 🔑 اللفظُ من مصدرِ الحقيقةِ لا من جدولٍ ثانٍ باليد.
+            //      كان هنا `switch` بـ١٢ حالةً من ٤٩ انحرفَ عن المعجم: «قاموس»
+            //      واللفظُ «خريطة»، و«ثنائي» واللفظُ «صف»، و«بايت» وهو لفظٌ
+            //      مُزالٌ من اللغة؛ والسبعُ والثلاثون الباقيةُ تسقطُ إلى
+            //      `"unknown"` — وهو افتراضيٌّ يكذب.
+            //      واللفظُ هنا **للتشخيصِ وحدَه**: الحكمُ يمرُّ بـ`isCopyKind`.
+            // (EN) The word comes from the SoT, not a second hand-written table.
+            //      What stood here was a 12-of-49 switch that had drifted from the
+            //      lexicon, the other 37 kinds falling to a lying "unknown".
+            //      The word is for DIAGNOSTICS ONLY; the verdict goes through
+            //      isCopyKind.
+            return Types::sadTypeKindArabicName(type);
         }
 
         SourceLocation BorrowChecker::getLocation(AST::ASTNode *node) const

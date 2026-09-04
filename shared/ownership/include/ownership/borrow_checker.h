@@ -310,10 +310,18 @@ namespace Sad
             void analyzeFunctionCall(AST::CallExpr *call);
 
             /**
-             * @brief (AR) التحقق من أن النوع قابل للنسخ
-             * @brief (EN) Check if type is Copy
+             * @brief (AR) 🔑 هل يُنسَخُ النوعُ فيبقى المصدرُ صالحًا؟
+             * @brief (EN) 🔑 Is the kind Copy (source stays valid)?
+             *
+             * (AR) الحكمُ مُشتَقٌّ من `value_semantics` في `types.yaml` عبر
+             *      `sadTypeKindIsCopy` المولَّد. وكان قبلَه جدولَين مكتوبَين
+             *      باليد — `dataTypeToString` ثمّ بحثٌ نصّيٌّ في `copyTypes_` —
+             *      انحرفا عن معجمِ اللغةِ وغطّيا ١٢ نوعًا من ٤٩.
+             * (EN) Derived from types.yaml `value_semantics` via the generated
+             *      predicate. It used to be two hand-written tables that had
+             *      drifted from the lexicon and covered 12 of 49 kinds.
              */
-            bool isCopyType(const std::string &typeName) const;
+            bool isCopyKind(Types::SadTypeKind kind) const;
 
             /**
              * @brief (AR) تحويل نوع البيانات إلى نص
@@ -366,13 +374,11 @@ namespace Sad
             std::string currentFunction_;
 
             /// (AR) مجموعة الأنواع القابلة للنسخ / (EN) Set of Copy types
-            std::unordered_set<std::string> copyTypes_;
 
             // ==================================================================
             // تهيئة الأنواع / Type Initialization
             // ==================================================================
 
-            void initializeCopyTypes();
         };
 
         // ============================================================================
