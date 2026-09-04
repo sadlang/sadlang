@@ -1,5 +1,0 @@
-متغير كائن = json_parse_value("{\"x\":1,\"arr\":[2,3]}")
-اطبع_سطر(json_stringify_value(كائن))
-
-متغير عنصر = xml_parse("<root><n>5</n></root>")
-اطبع_سطر(xml_stringify(عنصر))
