@@ -902,6 +902,51 @@ jobs:
           printf '%s\n' "$OUT"
           printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
           printf '%s' "$OUT" | grep -q 'فشل: 0'
+
+      # ══════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **حارسُ تضييقِ أمانِ العدمِ (NS-03) — يُنادَى هنا لأوّلِ مرّة.**
+      #
+      #      كان `tests/behavior/null_safety/ns03_flow_narrowing_check.sh` قائمًا
+      #      في الشجرةِ ولا يُنادَى من أيِّ بوّابةٍ ولا سيرِ عمل (قِيس بمسحٍ على
+      #      كلِّ `*.cmake` و`CMakeLists.txt` و`*.yml`: صفرُ إصابة). وحارسٌ لا
+      #      يُنادَى ليس حارسًا: سكوتُه يُقرأُ خضرةً وهو صمت.
+      #
+      #      ⚠️ وهو الوحيدُ من ستّةٍ صالحٌ للوصلِ اليوم: قِيس أنّ نصفَه
+      #      المترجِميَّ أخضرُ ٤/٤، وأنّه يتخطّى المحرّكَ الغائبَ بلا إخفاق.
+      #      وإخوتُه الخمسةُ تخلطُ توكيداتِ المفسّرِ بالمترجم، ففصلُها عملٌ
+      #      مقصودٌ — وقد قُيِّدَ في ترويسةِ كلٍّ منها بأرقامٍ مقيسة.
+      #
+      #      ويحرسُ محورَ التحليلِ لا التوليد: تضييقُ `إذا (م != لاشيء)` يكبحُ
+      #      تحذيرَ الوصولِ الخام، والتحوّرُ داخلَ الحرسِ يُعيدُه.
+      # (EN) The NS-03 narrowing guard is invoked here for the first time. The
+      #      script sat in the tree with no gate or workflow calling it (measured
+      #      by a sweep over every *.cmake, CMakeLists.txt and *.yml: zero hits),
+      #      and a guard nobody calls is not a guard — its silence reads as green.
+      #      It is the only one of six wireable today: its compiler half measures
+      #      4/4 and it skips a missing engine without failing. Its five siblings
+      #      interleave interpreter and compiler assertions; separating them is
+      #      deliberate work, recorded in each header with measured numbers.
+      # ══════════════════════════════════════════════════════════════════
+      - name: "🕳️ تضييقُ أمانِ العدم (NS-03) / Null-safety narrowing"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) السكربتُ يُخرِجُ ٢ إن لم يُقَسْ محرّكٌ واحد، و١ إن أخفقَ توكيد —
+          #      فالخضرةُ الفارغةُ تحمرُّ كما يحمرُّ الانحدار.
+          # (EN) The script exits 2 when no engine was measured and 1 on a failed
+          #      assertion, so an empty green reddens just as a regression does.
+          SAD_BUILD="$SADC" bash tests/behavior/null_safety/ns03_flow_narrowing_check.sh
       # (AR) الحفظُ فورَ البناءِ لا في `Post` — انظر تعليلَ الاسترجاعِ أعلاه.
       #      ويُتخطّى عند الإصابةِ التامّةِ بالمفتاحِ نفسِه: لا شيءَ تغيّر.
       # (EN) Save right after the build, not in Post. Skipped on an exact hit.
@@ -1682,6 +1727,51 @@ jobs:
           printf '%s\n' "$OUT"
           printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
           printf '%s' "$OUT" | grep -q 'فشل: 0'
+
+      # ══════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **حارسُ تضييقِ أمانِ العدمِ (NS-03) — يُنادَى هنا لأوّلِ مرّة.**
+      #
+      #      كان `tests/behavior/null_safety/ns03_flow_narrowing_check.sh` قائمًا
+      #      في الشجرةِ ولا يُنادَى من أيِّ بوّابةٍ ولا سيرِ عمل (قِيس بمسحٍ على
+      #      كلِّ `*.cmake` و`CMakeLists.txt` و`*.yml`: صفرُ إصابة). وحارسٌ لا
+      #      يُنادَى ليس حارسًا: سكوتُه يُقرأُ خضرةً وهو صمت.
+      #
+      #      ⚠️ وهو الوحيدُ من ستّةٍ صالحٌ للوصلِ اليوم: قِيس أنّ نصفَه
+      #      المترجِميَّ أخضرُ ٤/٤، وأنّه يتخطّى المحرّكَ الغائبَ بلا إخفاق.
+      #      وإخوتُه الخمسةُ تخلطُ توكيداتِ المفسّرِ بالمترجم، ففصلُها عملٌ
+      #      مقصودٌ — وقد قُيِّدَ في ترويسةِ كلٍّ منها بأرقامٍ مقيسة.
+      #
+      #      ويحرسُ محورَ التحليلِ لا التوليد: تضييقُ `إذا (م != لاشيء)` يكبحُ
+      #      تحذيرَ الوصولِ الخام، والتحوّرُ داخلَ الحرسِ يُعيدُه.
+      # (EN) The NS-03 narrowing guard is invoked here for the first time. The
+      #      script sat in the tree with no gate or workflow calling it (measured
+      #      by a sweep over every *.cmake, CMakeLists.txt and *.yml: zero hits),
+      #      and a guard nobody calls is not a guard — its silence reads as green.
+      #      It is the only one of six wireable today: its compiler half measures
+      #      4/4 and it skips a missing engine without failing. Its five siblings
+      #      interleave interpreter and compiler assertions; separating them is
+      #      deliberate work, recorded in each header with measured numbers.
+      # ══════════════════════════════════════════════════════════════════
+      - name: "🕳️ تضييقُ أمانِ العدم (NS-03) / Null-safety narrowing"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) السكربتُ يُخرِجُ ٢ إن لم يُقَسْ محرّكٌ واحد، و١ إن أخفقَ توكيد —
+          #      فالخضرةُ الفارغةُ تحمرُّ كما يحمرُّ الانحدار.
+          # (EN) The script exits 2 when no engine was measured and 1 on a failed
+          #      assertion, so an empty green reddens just as a regression does.
+          SAD_BUILD="$SADC" bash tests/behavior/null_safety/ns03_flow_narrowing_check.sh
       # ══════════════════════════════════════════════════════════════════════
       # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**
       #      كانت الخلفيّةُ الأصليّةُ — وهي بلا LLVM في مصدرِها — محبوسةً داخلَ
@@ -2424,6 +2514,51 @@ jobs:
           printf '%s\n' "$OUT"
           printf '%s' "$OUT" | grep -q '✅ كل الأبواب سليمة'
           printf '%s' "$OUT" | grep -q 'فشل: 0'
+
+      # ══════════════════════════════════════════════════════════════════
+      # (AR) 🔑 **حارسُ تضييقِ أمانِ العدمِ (NS-03) — يُنادَى هنا لأوّلِ مرّة.**
+      #
+      #      كان `tests/behavior/null_safety/ns03_flow_narrowing_check.sh` قائمًا
+      #      في الشجرةِ ولا يُنادَى من أيِّ بوّابةٍ ولا سيرِ عمل (قِيس بمسحٍ على
+      #      كلِّ `*.cmake` و`CMakeLists.txt` و`*.yml`: صفرُ إصابة). وحارسٌ لا
+      #      يُنادَى ليس حارسًا: سكوتُه يُقرأُ خضرةً وهو صمت.
+      #
+      #      ⚠️ وهو الوحيدُ من ستّةٍ صالحٌ للوصلِ اليوم: قِيس أنّ نصفَه
+      #      المترجِميَّ أخضرُ ٤/٤، وأنّه يتخطّى المحرّكَ الغائبَ بلا إخفاق.
+      #      وإخوتُه الخمسةُ تخلطُ توكيداتِ المفسّرِ بالمترجم، ففصلُها عملٌ
+      #      مقصودٌ — وقد قُيِّدَ في ترويسةِ كلٍّ منها بأرقامٍ مقيسة.
+      #
+      #      ويحرسُ محورَ التحليلِ لا التوليد: تضييقُ `إذا (م != لاشيء)` يكبحُ
+      #      تحذيرَ الوصولِ الخام، والتحوّرُ داخلَ الحرسِ يُعيدُه.
+      # (EN) The NS-03 narrowing guard is invoked here for the first time. The
+      #      script sat in the tree with no gate or workflow calling it (measured
+      #      by a sweep over every *.cmake, CMakeLists.txt and *.yml: zero hits),
+      #      and a guard nobody calls is not a guard — its silence reads as green.
+      #      It is the only one of six wireable today: its compiler half measures
+      #      4/4 and it skips a missing engine without failing. Its five siblings
+      #      interleave interpreter and compiler assertions; separating them is
+      #      deliberate work, recorded in each header with measured numbers.
+      # ══════════════════════════════════════════════════════════════════
+      - name: "🕳️ تضييقُ أمانِ العدم (NS-03) / Null-safety narrowing"
+        if: matrix.config == 'Release'
+        shell: bash
+        run: |
+          set -euo pipefail
+          CFG="${{ matrix.config }}"
+          SADC=""
+          for cand in "build/bin/$CFG/sad-build.exe" "build/bin/$CFG/sad-build" \
+                      "build/bin/sad-build.exe" "build/bin/sad-build"; do
+            if [ -x "$cand" ]; then SADC="$cand"; break; fi
+          done
+          if [ -z "$SADC" ]; then
+            echo "::error::sad-build غيرُ موجودٍ بعدَ بنائه / not found after its build"
+            exit 1
+          fi
+          # (AR) السكربتُ يُخرِجُ ٢ إن لم يُقَسْ محرّكٌ واحد، و١ إن أخفقَ توكيد —
+          #      فالخضرةُ الفارغةُ تحمرُّ كما يحمرُّ الانحدار.
+          # (EN) The script exits 2 when no engine was measured and 1 on a failed
+          #      assertion, so an empty green reddens just as a regression does.
+          SAD_BUILD="$SADC" bash tests/behavior/null_safety/ns03_flow_narrowing_check.sh
 
       # ══════════════════════════════════════════════════════════════════════
       # (AR) 🔑 **الخلفيّةُ الأصليّةُ والوضعُ الحرُّ في الخاناتِ الستِّ كلِّها.**

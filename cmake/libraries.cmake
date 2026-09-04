@@ -151,18 +151,29 @@ add_dependencies(sad_shared sad_all_codegen)
 #            sad_network/sad_http/sad_websocket targets are defined there
 #            AFTER this file has been included.
 
-# ربط مكتبة وقت التشغيل بالمفسر / Link runtime to interpreter
-# (AR) sad_rt_runtime معرّف في runtime/CMakeLists.txt كمكتبة INTERFACE تجمع abi + ffi + ui
-# (EN) sad_rt_runtime is defined in runtime/CMakeLists.txt as an INTERFACE library
-#      aggregating abi + ffi + ui
-if(TARGET sad_rt_runtime)
-    message(STATUS "✓ ربط runtime بالمفسر / Linked runtime to interpreter")
-endif()
-
-# ربط صNet — مكتبة الشبكات اللامركزية / Link SadNet
-if(TARGET sadnet)
-    message(STATUS "✓ ربط صNet بالمفسر / Linked SadNet to interpreter")
-endif()
+# ══════════════════════════════════════════════════════════════════════════
+# (AR) 🔑 **نُزعت ثلاثُ شهاداتِ ربطٍ لم يبقَ لها ربطٌ تشهدُ له.**
+#
+#      كانت هنا ثلاثُ كتلٍ على هذه الصورة:
+#          if(TARGET sad_rt_runtime)
+#              message(STATUS "✓ ربط runtime بالمفسر")
+#          endif()
+#      نُزع الربطُ مع المفسّرِ وبقيت **شهادتُه**. فكلُّ تهيئةٍ كانت تطبعُ
+#      «✓ ربط runtime بالمفسر» و«✓ ربط صNet بالمفسر»، ولا مفسّرَ ولا ربط.
+#
+#      ⚠️ وسطرُ الحالةِ ليس زينةً: هو ما يقرؤه الإنسانُ ليعرفَ ما بُنيَ.
+#      وإعلانُ نجاحٍ عن فعلٍ لم يقعْ أسوأُ من الصمتِ، لأنّه يُغلِقُ السؤال.
+#      والثالثةُ `if(TARGET sad_profiler_lib)` شرطٌ كاذبٌ أبدًا — زالَ
+#      الهدفُ مع `tools/profiler`.
+# (EN) Three link certificates removed: the linking they attested to is gone.
+#      Every configure printed "Linked runtime to interpreter" and "Linked
+#      SadNet to interpreter" while neither the interpreter nor the linking
+#      existed. A status line is not decoration — it is what a human reads to
+#      learn what was built, and announcing an act that did not happen is worse
+#      than silence because it closes the question. The third,
+#      if(TARGET sad_profiler_lib), could never be true: the target went with
+#      tools/profiler.
+# ══════════════════════════════════════════════════════════════════════════
 
 # SQLite3 (اختياري) / SQLite3 (optional)
 find_package(unofficial-sqlite3 CONFIG QUIET)
@@ -227,13 +238,11 @@ if(TARGET sad_graphics)
 
 endif()
 
-# (AR) ربط مكتبة مصحح الأداء / (EN) Link profiler library
-if(TARGET sad_profiler_lib)
-    message(STATUS "✓ ربط مصحح الأداء بالمفسر / Linked profiler to interpreter")
-endif()
-
-# (AR) إضافة مسارات إعادة التحميل الساخن / (EN) Add hot reload include paths
-message(STATUS "✓ إعادة التحميل الساخن / Hot Reload")
+# (AR) ⚠️ وسطرُ «✓ إعادة التحميل الساخن» نُزِعَ أيضًا: كان
+#      `message` وحدَها بلا كتلةٍ ولا فعلٍ تحتَها — إعلانُ ميزةٍ لا سطرَ يُنفّذُها.
+# (EN) The "Hot Reload" status line is removed too: it was a bare message with
+#      no block and no action beneath it — announcing a feature with not one
+#      line implementing it.
 
 # (AR) Phase 3 (F-01): مسار فاحص الأنواع المشترك بعد نقله من compiler/.
 #      المفسر يضم "semantic/type_checker.h" مباشرة دون مسار نسبي.
