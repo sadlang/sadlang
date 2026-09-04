@@ -263,3 +263,21 @@ sad_bytes_rt.bin
 .worktrees/
 .security-key
 logs/security/
+
+# ════════════════════════════════════════════════════════════════════
+# (AR) مفاتيحُ التوقيعِ لا تُودَع — ولو كانت مفاتيحَ تنقيح.
+#      `platform/android/debug.keystore` كان مُودَعًا وأُزيلَ من التاريخِ
+#      كلِّه عندَ فتحِ المستودعِ للعموم. و`build_apk.ps1` يُعيدُ توليدَه
+#      تلقائيًّا إن غاب (`keytool -genkeypair` بكلمةِ أندرويد المعياريّة)،
+#      فالغيابُ لا يُعطِّلُ بناءً — وإنّما يلزمُ إزالةُ نسخةٍ سابقةٍ من
+#      الجهازِ قبلَ تثبيتِ APK موقَّعٍ بمفتاحٍ مُولَّدٍ جديد.
+# (EN) Signing keys are never committed — debug keys included.
+#      platform/android/debug.keystore used to be committed and was purged
+#      from the whole history when the repository was opened to the public.
+#      build_apk.ps1 regenerates it on demand, so its absence breaks no
+#      build; a previously installed debug APK must be uninstalled first.
+# ════════════════════════════════════════════════════════════════════
+*.keystore
+*.jks
+*.p12
+*.pfx
