@@ -1,6 +1,6 @@
 # سِجلُّ سطحِ لغة ص — مُشتَقٌّ آليًّا من language-truth/
 # ⚠️ لا يُحرَّرُ باليد: python tests/metrics/surface/surface_map.py --update
-# آخرُ اشتقاق / last derivation: 2026-08-29
+# آخرُ اشتقاق / last derivation: 2026-09-04
 sections:
   01_core:
     name_ar: النواةُ اللغويّة
@@ -152,9 +152,9 @@ sections:
     name_ar: التشخيصُ والأخطاء
     name_en: Diagnostics
     is_language_surface: false
-    total: 252
+    total: 259
     counts:
-      مداخلُ كتالوجِ الأخطاء (errors): 183
+      مداخلُ كتالوجِ الأخطاء (errors): 190
       وسومُ تشخيصِ الخلفيّة (tag): 28
       تشخيصاتٌ خالصة (pure): 18
       أصنافُ التشخيص (kind): 8
@@ -165,19 +165,12 @@ sections:
     name_ar: سطحُ الأدوات
     name_en: Tooling surface
     is_language_surface: false
-    total: 581
+    total: 103
     counts:
       أعلامُ سطرِ الأوامر (flags): 68
       أعلامٌ مختصرة (short_flags): 16
       ثوابتُ قيَم (value_constants): 8
       رسائلُ الأدوات (messages): 11
-      أُصيلاتُ الصدفة (applets): 410
-      أوامرُ الصدفة (commands): 13
-      أخطاءُ الصدفة (errors): 19
-      رسائلُ الصدفة (messages): 25
-      أيّامُ الأسبوع (weekdays): 7
-      أسماءُ العرض (display_name): 2
-      قواعدُ التنسيق (formatting): 2
   09_dialects:
     name_ar: اللهجات
     name_en: Dialects
@@ -198,6 +191,6 @@ sections:
       مرادفاتُ الثُّلاثيّ (triple_aliases): 12
 totals:
   language_surface: 2434
-  all_sections: 4292
-  sot_files_counted: 106
-  sot_files_ignored: 7
+  all_sections: 3821
+  sot_files_counted: 100
+  sot_files_ignored: 6

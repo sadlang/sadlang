@@ -1054,7 +1054,7 @@ jobs:
             }
           }
           if ($failed -gt 0) {
-            Write-Error "❌ $failed interpreter test suite(s) failed or missing"
+            Write-Error "❌ $failed stdlib test suite(s) failed or missing"
             exit 1
           }
 
@@ -1838,7 +1838,7 @@ jobs:
             fi
           done
           if [ $failed -gt 0 ]; then
-            echo "::error::$failed interpreter test(s) failed"
+            echo "::error::$failed stdlib test(s) failed"
             exit 1
           fi
 
@@ -2706,7 +2706,7 @@ jobs:
             fi
           done
           if [ $failed -gt 0 ]; then
-            echo "::error::$failed interpreter test(s) failed"
+            echo "::error::$failed stdlib test(s) failed"
             exit 1
           fi
 

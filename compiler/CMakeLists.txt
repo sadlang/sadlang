@@ -217,55 +217,69 @@ if(LLVM_FOUND)
  ${SAD_LLVM_INCLUDES}
  )
 
+ # ═══════════════════════════════════════════════════════════════════════════
+ # (AR) 🔑 **الخلفيّةُ تُعلِنُ مكتباتِ LLVM كلَّها — وقد كانت تُعلِنُ ثلاثةَ
+ #      أهدافٍ وتستعملُ كلَّ ما بُنِيَ منها.**
  #
- # (AR) LLVM :
- # - X86: ( / x86_64)
- # - AArch64: ARM64 macOS Apple Silicon
- # - ARM: ARM 32-bit (armeabi-v7a)
- # - WebAssembly:
- # - native:
+ #      كان هنا نداءٌ ثانٍ لـ`llvm_map_components_to_libnames` بقائمةٍ ضيّقةٍ
+ #      مكتوبةٍ باليد: `X86` و`AArch64` و`ARM` و`native` لا غير. وهي **النسخةُ
+ #      الثالثةُ** لمجموعةِ الأهداف (الأولى في `cmake/llvm.cmake`، والثانيةُ
+ #      `Targets.def` داخلَ LLVM المُثبَّتة). والتجاوزُ إلى القائمةِ الموحَّدةِ
+ #      كان مشروطًا بـ`SAD_LLVM_HAS_DEBUG AND MSVC` — فلا يقعُ على لينكسَ ولا
+ #      ماكَ ولا ويندوزِ CI.
  #
- llvm_map_components_to_libnames(llvm_libs
- Core
- Support
- IRReader
- Passes
- ExecutionEngine
- OrcJIT
- MCJIT
- # X86 — ??????
- X86CodeGen
- X86AsmParser
- X86Desc
- X86Info
- # AArch64 — ??????? ARM64 + macOS Apple Silicon
- AArch64CodeGen
- AArch64AsmParser
- AArch64Desc
- AArch64Info
- # ARM — ??????? 32-bit
- ARMCodeGen
- ARMAsmParser
- ARMDesc
- ARMInfo
- # (AR) مكوّنات WebAssembly في LLVM حُذفت في م5 (RFC sadlang-rfcs#10) — المسار الحيّ: cmake/wasm.cmake
- # (EN) WebAssembly LLVM components deleted in phase 5 (RFC #10) — live path: cmake/wasm.cmake
- native
- )
-
- # (AR) مصدر حقيقة واحد لمكتبات LLVM: حين يتوفّر تثبيت Debug (بناء مزدوج) نستعمل
- #      قائمة ${LLVM_LIBS} الموحَّدة المُحتسَبة في cmake/llvm.cmake (إغلاق كامل لكل
- #      تهيئة بصيغة debug/optimized) بدل القائمة المحلية الجزئية بمسارات Release —
- #      التي كانت تُربَط PUBLIC فتتسرّب إلى بناء sad-build في Debug (LNK2005/ABI)
- #      وتفتقر إلى حواف Debug (LNK2019). هذا يضمن الاتساق ويمنع التكرار (CW-19).
- # (EN) Single source of truth for LLVM libs: when a Debug install exists
- #      (dual build), use the unified ${LLVM_LIBS} computed in cmake/llvm.cmake
- #      (full per-config closure with debug/optimized) instead of this local
- #      Release-only subset, which leaked into the Debug sad-build (LNK2005/ABI)
- #      and lacked Debug-only edges (LNK2019).
- if(SAD_LLVM_HAS_DEBUG AND MSVC)
-   set(llvm_libs ${LLVM_LIBS})
- endif()
+ #      ⚠️ **والأثرُ ترتيبُ ربطٍ لا نقصُ اسم.** `llvm_codegen_init.cpp` — وهو
+ #      في هذه المكتبةِ بعينِها — ينادي `InitializeAllTargetInfos/Targets/
+ #      TargetMCs/AsmParsers/AsmPrinters`، أي **كلَّ** هدفٍ بُنِيَ في LLVM. و
+ #      `sad-build` يربطُ `${LLVM_LIBS}` الواسعةَ فعلًا، لكنّ CMake تضعُها في
+ #      **صدرِ** سطرِ الربطِ ثمّ تُعيدُ سردَ تبعيّاتِ `sad_llvm_backend` وحدَها
+ #      **بعدَه**. و`ld` الجنويُّ يمسحُ الأرشيفَ مرّةً واحدةً بترتيبِ السطر: فحينَ
+ #      يبلغُ `libsad_llvm_backend.a` ويسحبُ `llvm_codegen_init.cpp.o`، تكونُ
+ #      أرشيفاتُ الصدرِ قد مضت — فلا يُحَلُّ إلّا ما أعلنته المكتبةُ نفسُها.
+ #
+ #      والقياسُ ينطبقُ حرفًا (تشغيل 33885363902، ذراعا أرضيّةِ GCC 11): الرموزُ
+ #      غيرُ المحلولةِ كانت لثمانيةَ عشرَ هدفًا، والمحلولةُ **X86 وAArch64 وARM
+ #      وحدَها** — أي القائمةُ الضيّقةُ بعينِها. ولم يُطبَعْ `cannot find -l` قطُّ:
+ #      المكتباتُ كانت موجودةً وأسماؤها في `LLVM_LIBS`، وكانت في الموضعِ الخطأ.
+ #      وبقيَ ذلك مستورًا لأنّ لينكس كان يربطُ `libLLVM-18.so` الواحدةَ، والمشترَكُ
+ #      لا يبالي بترتيبِ السطر. فلمّا فُتِح `SAD_LLVM_STATIC` ظهر.
+ #
+ #      وبإعلانِ `${LLVM_LIBS}` هنا تصيرُ الأرشيفاتُ **تبعيّةً معلَنةً** لهذه
+ #      المكتبة، فتُعيدُ CMake سردَها بعدَها — وهو ما يحتاجُه `ld` بلا
+ #      `--start-group`. ولا تزيدُ الأرشيفاتُ على سطرِ الربط: هي هي، في موضعٍ
+ #      يُفيد. وعلاجُ `apps/CMakeLists.txt` لإعادةِ السردِ باقٍ لأنّه يعالجُ
+ #      دائريّةَ Debug على MSVC، وهي مسألةٌ أخرى.
+ # (EN) 🔑 The backend declares ALL of LLVM — it used to declare three targets
+ #      while using every target built.
+ #
+ #      A second hand-written llvm_map_components_to_libnames call lived here with
+ #      X86/AArch64/ARM/native only — the THIRD copy of the target set — and the
+ #      override to the unified list was gated on SAD_LLVM_HAS_DEBUG AND MSVC, so
+ #      it never applied on Linux, macOS, or CI Windows.
+ #
+ #      The effect is link ORDER, not a missing name. llvm_codegen_init.cpp lives
+ #      in this very library and calls InitializeAll*, i.e. every target LLVM was
+ #      built with. sad-build does link the wide ${LLVM_LIBS}, but CMake places it
+ #      at the HEAD of the link line and re-lists only sad_llvm_backend's own
+ #      dependencies AFTER it. GNU ld scans each archive once, in line order: by
+ #      the time it reaches libsad_llvm_backend.a and pulls
+ #      llvm_codegen_init.cpp.o, the head archives are behind it — so only what
+ #      this library itself declared can resolve.
+ #
+ #      The measurement matches exactly (run 33885363902, both GCC 11 floor legs):
+ #      unresolved symbols for eighteen targets, resolved for X86, AArch64 and ARM
+ #      alone — the narrow list itself. No "cannot find -l" was ever printed: the
+ #      libraries existed and their names were in LLVM_LIBS, in the wrong place.
+ #      It stayed hidden because Linux linked the single libLLVM-18.so, and a
+ #      shared library does not care about line order. SAD_LLVM_STATIC exposed it.
+ #
+ #      Declaring ${LLVM_LIBS} here makes those archives a declared dependency of
+ #      this library, so CMake re-lists them after it — what ld needs, without
+ #      --start-group. No archive is added to the link line; the same ones move to
+ #      a position where they help. The re-listing fix in apps/CMakeLists.txt
+ #      stays: it addresses MSVC Debug circularity, a different problem.
+ # ═══════════════════════════════════════════════════════════════════════════
+ set(llvm_libs ${LLVM_LIBS})
 
  target_link_libraries(sad_llvm_backend
  PUBLIC

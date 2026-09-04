@@ -260,13 +260,20 @@ SECTIONS = [
             ("cli_flags.yaml", "short_flags", "أعلامٌ مختصرة"),
             ("cli_flags.yaml", "value_constants", "ثوابتُ قيَم"),
             ("cli_flags.yaml", "messages", "رسائلُ الأدوات"),
-            ("tools/repl/applets.yaml", "applets", "أُصيلاتُ الصدفة"),
-            ("tools/repl/commands.yaml", "commands", "أوامرُ الصدفة"),
-            ("tools/repl/errors.yaml", "errors", "أخطاءُ الصدفة"),
-            ("tools/repl/messages.yaml", "messages", "رسائلُ الصدفة"),
-            ("tools/repl/calendar.yaml", "weekdays", "أيّامُ الأسبوع"),
-            ("tools/repl/_meta.yaml", "display_name", "أسماءُ العرض"),
-            ("tools/repl/_meta.yaml", "formatting", "قواعدُ التنسيق"),
+            # (AR) 🔑 حُذفت سبعةُ مداخلَ لسطحِ الصدفةِ (٤٧٨ عنصرًا: أُصيلات
+            #      وأوامرُ وأخطاءٌ ورسائلُ وأيّامٌ وأسماءُ عرضٍ وقواعدُ تنسيق).
+            #      `language-truth/tools/repl/` زالَ مع المفسّرِ في `f17fb5cd0`،
+            #      فبقيت الخريطةُ تدّعي سطحًا لا ملفَّ له. وحارسُ التغطيةِ هو
+            #      الذي كشفَه — لا مسحٌ يدويّ — لأنّه يقيسُ الطرفَينِ معًا:
+            #      مدخلًا بلا ملفٍّ، وملفًّا بلا مدخل.
+            #      والنقصُ يُسجَّلُ في السِّجلّ عمدًا: `08_tooling` ٥٨١ ⇐ ١٠٣.
+            #      فانكماشُ السطحِ حدثٌ يُرى، لا فراغٌ يمرُّ صامتًا.
+            # (EN) Seven shell-surface entries removed (478 items). Their SoT
+            #      directory went with the interpreter in f17fb5cd0, leaving the
+            #      map claiming a surface with no file behind it. The coverage
+            #      guard caught it — it measures both directions. The drop is
+            #      recorded in the ledger (08_tooling 581 ⇐ 103) so a shrinking
+            #      surface is a visible event, not a silent gap.
         ],
     },
     {
@@ -304,7 +311,9 @@ IGNORED = {
     "grammar/_notation.yaml": "ترميزُ EBNF — لغةُ وصفِ القواعدِ لا قواعدُ اللغة",
     "learning/lessons.yaml": "موادُّ تعليميّة — لا تُوسِّعُ سطحَ اللغة",
     "learning/exercises.yaml": "تمارينُ تعليميّة — لا تُوسِّعُ سطحَ اللغة",
-    "tools/repl/busybox_reference.yaml": "مرجعٌ خارجيٌّ (BusyBox) للمقارنةِ لا عقدٌ لنا",
+    # (AR) استثناءُ `tools/repl/busybox_reference.yaml` رُفِع مع الملفّ: قائمةُ
+    #      إذنٍ تُشيرُ إلى ملفٍّ غيرِ موجودٍ قائمةٌ متعفّنة، والحارسُ يُخفِقُ عليها
+    #      عمدًا — فالإذنُ الميّتُ يُخفي غيابًا مقصودًا خلفَ سطرٍ منسيّ.
 }
 
 

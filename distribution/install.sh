@@ -250,9 +250,16 @@ detect_platform() {
 #      المترجمِ على لينكس تربطُ `libLLVM-18.so` مشتركةً.
 #
 #      وقد صارَ الربطُ ساكنًا (`SAD_LLVM_STATIC=ON` في مجرى الإصدار)، فالحزمُ
-#      مكتفيةٌ بذاتِها على المنصّاتِ كلِّها ولا تشترطُ شيئًا على جهازِ
+#      مكتفيةٌ بذاتِها في LLVM على المنصّاتِ كلِّها ولا تشترطُها على جهازِ
 #      المستخدم. فلو بقيت هذه الآلةُ لسألت عمّا لا يلزم، ولوعدت بشرطٍ لا
 #      وجودَ له — وهو الكذبُ الذي تُنشَأُ الحرّاسُ لمنعِه.
+#
+#      ⚠️ **وحدُّ الدعوى مقيسٌ**: «لا تشترطُ **LLVM**» لا «لا تشترطُ شيئًا».
+#      فقد قِيس على العدّاء (تشغيل 33885363902) أنّ مكتباتِ LLD غيرُ موجودة —
+#      حزمةُ `lld-18` تحملُ **الثنائيَّ** لا المكتبات، فتُطبَعُ ستّةُ أسطرِ
+#      «LLD component not found» ويستقرُّ `HAS_EMBEDDED_LLD=FALSE`. ومعناه أنّ
+#      `sad-build` ما يزالُ يستدعي رابطَ النظامِ لإنتاجِ تنفيذيّ. فالحزمةُ
+#      مكتفيةٌ بذاتِها في LLVM، لا في سلسلةِ الأدواتِ كلِّها.
 #
 #      ومعها زالَ مسارُ التراجعِ «إن غابت LLVM فثبّتِ المفسّرَ بدلًا» في ثمانيةِ
 #      مواضع: لا مفسّرَ يُتراجَعُ إليه بعدَ حذفِه، وكلتا الحزمتَينِ تحملانِ
@@ -260,6 +267,13 @@ detect_platform() {
 #
 #      والدعوى مقيسةٌ في مجرى الإصدار: فحصُ التبعيّاتِ المشتركةِ هناك لا يأذنُ
 #      بـ`libLLVM` البتّة، فلو عادَ الربطُ مشتركًا احمرَّ التحزيمُ قبلَ النشر.
+#
+#      The claim's width is measured: "requires no LLVM", not "requires nothing".
+#      It was measured on the runner (run 33885363902) that the LLD libraries are
+#      absent — the lld-18 package ships the BINARY, not the libraries — so six
+#      "LLD component not found" lines print and HAS_EMBEDDED_LLD stays FALSE.
+#      sad-build therefore still invokes a system linker to produce executables.
+#      The package is self-contained in LLVM, not in the whole toolchain.
 # (EN) 🔑 The whole LLVM subsystem is removed — its premise is gone.
 #
 #      Three hundred-odd lines lived here: detection, directory validation,
@@ -267,9 +281,9 @@ detect_platform() {
 #      and TUI) asking the user what to do when LLVM is missing. All of it
 #      existed because the Linux compiler package linked libLLVM-18.so.
 #      Linking is now static (SAD_LLVM_STATIC=ON in the release workflow), so
-#      the packages are self-contained on every platform and require nothing on
-#      the user's machine. Keeping this machinery would ask about what is not
-#      needed and promise a prerequisite that no longer exists.
+#      the packages are self-contained in LLVM on every platform and do not
+#      require it on the user's machine. Keeping this machinery would ask about
+#      what is not needed and promise a prerequisite that no longer exists.
 #      With it goes the "no LLVM ⇒ install the interpreter instead" fallback in
 #      eight places: there is no interpreter to fall back to, and both packages
 #      carry the compiler.

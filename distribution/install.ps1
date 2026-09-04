@@ -155,16 +155,28 @@ function Test-Requirements {
 # ──────────────────────────────────────────────────────────────────────
 # (AR) 🔑 نُزعت آلةُ LLVM كاملةً (Find-LLVM · Test-LLVMPath ·
 #      Set-LLVMEnvironment · Install-LLVM) — لأنّ شرطَها زال: الحزمُ صارت
-#      تُربَطُ ساكنًا (`SAD_LLVM_STATIC=ON`) فلا تشترطُ شيئًا على جهازِ
+#      تُربَطُ ساكنًا (`SAD_LLVM_STATIC=ON`) فلا تشترطُ LLVM على جهازِ
 #      المستخدم. ومعها زالَ مسارُ التراجعِ «إن غابت LLVM فثبّتِ المفسّرَ
 #      بدلًا»: لا مفسّرَ بعدَ حذفِه، وكلتا الحزمتَينِ تحملانِ المترجِم.
 #      والدعوى مقيسةٌ في مجرى الإصدار: فحصُ التبعيّاتِ لا يأذنُ بـ`libLLVM`.
+#      ⚠️ **وحدُّ الدعوى مقيسٌ**: «لا تشترطُ **LLVM**» لا «لا تشترطُ شيئًا».
+#      فقد قِيس على العدّاء (تشغيل 33885363902) أنّ مكتباتِ LLD غيرُ موجودة —
+#      حزمةُ `lld-18` تحملُ **الثنائيَّ** لا المكتبات، فتُطبَعُ ستّةُ أسطرِ
+#      «LLD component not found» ويستقرُّ `HAS_EMBEDDED_LLD=FALSE`. ومعناه أنّ
+#      `sad-build` ما يزالُ يستدعي رابطَ النظامِ لإنتاجِ تنفيذيّ. فالحزمةُ
+#      مكتفيةٌ بذاتِها في LLVM، لا في سلسلةِ الأدواتِ كلِّها.
 # (EN) 🔑 The entire LLVM subsystem is removed — its premise is gone:
-#      packages are linked statically and require nothing on the user's machine.
+#      packages are linked statically and require no LLVM on the user's machine.
 #      With it goes the "no LLVM ⇒ install the interpreter instead" fallback:
 #      there is no interpreter left, and both packages carry the compiler.
 #      Measured in the release workflow, whose dependency check allows no
 #      libLLVM at all.
+#      The claim's width is measured: "requires no LLVM", not "requires nothing".
+#      It was measured on the runner (run 33885363902) that the LLD libraries are
+#      absent — the lld-18 package ships the BINARY, not the libraries — so six
+#      "LLD component not found" lines print and HAS_EMBEDDED_LLD stays FALSE.
+#      sad-build therefore still invokes a system linker to produce executables.
+#      The package is self-contained in LLVM, not in the whole toolchain.
 # ──────────────────────────────────────────────────────────────────────
 
 # ──────────────────────────────────────────────────────────────────────

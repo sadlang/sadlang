@@ -118,10 +118,38 @@ set_tests_properties(HubMain_List PROPERTIES
     PASS_REGULAR_EXPRESSION "check"
     LABELS "hub;sad-hub")
 
-add_test(NAME HubMain_ListContainsRun
+# (AR) 🔑 **كان هذا الحارسُ أخضرَ على لينكس لسببٍ لا علاقةَ له به.**
+#
+#      كان اسمُه `HubMain_ListContainsRun` وشرطُه `PASS_REGULAR_EXPRESSION "run"`
+#      على مخرَجِ `sad --list`، والمخرَجُ يطبعُ **مسارَ كلِّ أداة**. ومسارُ عدّاءِ
+#      ﭼِتهَب على لينكس `/home/runner/work/...` — ففيه «run». فكان الشرطُ يتحقّقُ
+#      من كلمةٍ في اسمِ مجلّدِ العدّاءِ لا من وجودِ أمرِ `run`.
+#
+#      ⚠️ ولذلك بقيَ أخضرَ على لينكس بعدَ حذفِ `sad-run` بأكملِه، واحمرَّ
+#      على ويندوز وحدَها (مسارُها `D:\a\...` لا «run» فيه). أي أنّ خضرتَه على
+#      منصّتَين من ثلاثٍ كانت **صدفةَ مسار**.
+#
+#      والبديلُ يُرسى على أداةٍ قائمةٍ باسمِها الكاملِ ذي البادئة `sad-`، فلا
+#      يطابقُ جزءًا من مسارٍ عرَضًا. ⚠️ والمرساةُ `sad-check` لا `sad-build`:
+#      الثاني مشروطٌ بـ`ENABLE_LLVM_BACKEND`، فلو أُرسيَ عليه لاحمرَّ الحارسُ
+#      في تهيئةٍ بلا LLVM لسببٍ لا يخصُّه — وهو الوجهُ المقابلُ للخضرةِ الزائفة.
+#      و`sad-check` هو شرطُ هذه الكتلةِ أصلًا (`if(NOT TARGET sad-check ...)`).
+# (EN) This guard was green on Linux for a reason unrelated to what it checked.
+#      It required "run" in `sad --list`, whose output prints each tool's PATH —
+#      and GitHub's Linux runner home is /home/runner/work/..., which contains
+#      "run". So it asserted a word in the runner's directory name, not the
+#      existence of a `run` command. It therefore stayed green on Linux after
+#      sad-run was deleted entirely, and reddened only on Windows (D:\a\...).
+#      Its greenness on two platforms out of three was a path coincidence.
+#      The replacement anchors on a live tool's full sad- prefixed name, and on
+#      sad-check rather than sad-build: sad-build is conditional on
+#      ENABLE_LLVM_BACKEND, so anchoring there would redden the guard in an
+#      LLVM-off configuration for a reason that is not its own — the mirror image
+#      of a false green. sad-check is already this block's precondition.
+add_test(NAME HubMain_ListContainsPrefixedTool
     COMMAND ${SAD_HUB_BIN} --list)
-set_tests_properties(HubMain_ListContainsRun PROPERTIES
-    PASS_REGULAR_EXPRESSION "run"
+set_tests_properties(HubMain_ListContainsPrefixedTool PROPERTIES
+    PASS_REGULAR_EXPRESSION "sad-check"
     LABELS "hub;sad-hub")
 
 # (AR) أمر مجهول → رمز خروج غير صفري
@@ -195,7 +223,7 @@ set_tests_properties(HubSymmetry_CheckJson PROPERTIES
 #      compiler-based tool, not a re-run of what was deleted.
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# (AR) القسم 5: اختبارات smoke لباقي الأدوات (fmt, pkg, apk, analyze, profiler, run)
+# (AR) القسم 5: اختبارات smoke لباقي الأدوات (fmt, pkg, apk, analyze)
 # (EN) Section 5: smoke tests for remaining tools
 #
 # (AR) لكل أداة موجودة كـ TARGET نضيف 3 اختبارات قياسية:

@@ -40,8 +40,15 @@ namespace Sad
             {
                 // (AR) عرض الأدوات الشائعة أولاً ثم الباقي
                 // (EN) Show common tools first, then the rest
+                // (AR) 🔑 سقطَ «run» و«repl» من الترتيبِ لأنّ أداتَيهما زالتا
+                //      مع المفسّر. وبقاؤهما كان صامتًا لا خاطئًا (لا يطابقُ شيئًا)،
+                //      لكنّ قائمةً تذكرُ أدواتٍ متقاعدةً تُقرأُ وعدًا بها.
+                // (EN) "run" and "repl" left the ordering: their tools went with
+                //      the interpreter. Keeping them was silent rather than wrong
+                //      (they matched nothing), but a list naming retired tools
+                //      reads as a promise of them.
                 const std::vector<std::string> commonOrder = {
-                    "run", "build", "check", "fmt", "repl"};
+                    "build", "check", "fmt"};
                 std::vector<ToolDescriptor> common, others;
                 for (const auto &t : registry_.all())
                 {
@@ -91,8 +98,15 @@ namespace Sad
             os << "  sad --version, -v     " << "الإصدار / version info\n";
             os << "  sad --list            " << "قائمة الأدوات بمساراتها / list tools with paths\n";
 
+            // (AR) 🔑 حُذف مثالُ `sad run hello.ص # تشغيل بالمفسّر`.
+            //      كان يُطبَعُ في `sad --help` بعدَ حذفِ المفسّر، فيُعلّمُ المستخدمَ
+            //      أمرًا يُخفِقُ عندَه. ⚠️ ولم يحرسْه شيء: `--help` مقيسٌ بوجودِ
+            //      نصٍّ ما لا بصدقِ ما فيه.
+            // (EN) The `sad run` example is gone. It kept printing in --help after
+            //      the interpreter was deleted, teaching users a command that
+            //      fails for them. Nothing guarded it: --help is measured for the
+            //      presence of text, not for the truth of it.
             os << "\nأمثلة / Examples:\n";
-            os << "  sad run hello.ص              # تشغيل بالمفسّر / run with interpreter\n";
             os << "  sad build hello.ص -o app.exe # ترجمة إلى تنفيذي / compile to executable\n";
             os << "  sad check hello.ص            # فحص ملكية وأنواع / ownership & type check\n";
             os << "  sad fmt hello.ص              # تنسيق الكود / format code\n";
