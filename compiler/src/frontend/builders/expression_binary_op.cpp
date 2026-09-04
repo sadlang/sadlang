@@ -693,6 +693,65 @@ namespace Sad
                     resultType = SadTypeKind::UInt64;
                 }
 
+                // ════════════════════════════════════════════════════════════════
+                // (AR) 🔑 `نص * رقم` **تكرارٌ لا ضرب** — قرارُ المالك (٢٠٢٦-٠٩-٠٣).
+                //
+                //      كان يسقطُ إلى `MUL_I64` فيضربُ **بتّاتِ مؤشّرِ النصّ**:
+                //      `"أب" * 3` يُخرِجُ `0` — لا نصًّا ولا خطأً، برمزِ خروجٍ صفر.
+                //      وأسوأُ منه أنّ بذرةَ P1 `153_stdlib_security_long_key` تكتبُ
+                //      `"ك" * 300` لتصنعَ مفتاحًا طولُه ٣٠٠ بايت، فتحصلُ على عدمٍ
+                //      **وتمرُّ خضراءَ زورًا**: الجولةُ تنجحُ ولا تقيسُ ما وُضِعت له.
+                //
+                //      والدلالةُ ليست جديدةً ولا مخترَعةً هنا: `نص.كرر(N)` معلَنةٌ في
+                //      `type_methods.yaml` بـ`status: stable` **ومصرَّفةٌ وتعمل**
+                //      (مقيسٌ: `"أب".كرر(3)` ⇒ `أبأبأب`). فالعاملُ يُوصَلُ إلى المنفذِ
+                //      القائمِ نفسِه — نداءُ `RuntimePorts::kRepeat` بعينِه — ولا
+                //      يُكتَبُ خفضٌ ثانٍ لدلالةٍ واحدة.
+                //
+                //      والاتّجاهانِ سواءٌ (`3 * "أب"` كـ`"أب" * 3`) كما في Python
+                //      وRuby، وكذلك أُعلِنَ التوقيعانِ في `operators.yaml`.
+                // (EN) `string * number` is REPETITION, not multiplication (owner's
+                //      decision). It used to fall through to MUL_I64 and multiply the
+                //      string's POINTER BITS, yielding 0 with exit code 0 — and a P1 seed
+                //      builds a 300-byte key that way, passing falsely on a null. The
+                //      semantics already exist and compile: `نص.كرر(N)` is declared stable
+                //      and lowers to RuntimePorts::kRepeat, so the operator is wired to
+                //      that same port rather than given a second lowering of one meaning.
+                // ════════════════════════════════════════════════════════════════
+                if (binOp->op == Lexer::TokenType::OP_MULTIPLY)
+                {
+                    const bool leftTextual = (leftResult.type == SadTypeKind::String);
+                    const bool rightTextual = (rightResult.type == SadTypeKind::String);
+                    const bool leftCountable = ::Sad::Types::isNumericKind(leftResult.type);
+                    const bool rightCountable = ::Sad::Types::isNumericKind(rightResult.type);
+
+                    if ((leftTextual && rightCountable) || (rightTextual && leftCountable))
+                    {
+                        const BuildResult &textSide = leftTextual ? leftResult : rightResult;
+                        const BuildResult &countSide = leftTextual ? rightResult : leftResult;
+
+                        // (AR) اسمُ المنفذِ من `string_runtime_ports.h` لا مكتوبًا هنا:
+                        //      نسختانِ من رمزٍ واحدٍ تنحرفانِ صامتًا.
+                        // (EN) The port symbol comes from string_runtime_ports.h; two
+                        //      copies of one symbol drift silently.
+                        namespace RuntimePorts = ::Sad::Compiler::StringRuntimePorts;
+
+                        std::string repeatReg = b_.newTempRegister();
+                        SIRInstruction repeatInst(SIROpcode::CALL);
+                        repeatInst.result =
+                            SIROperand::Register(repeatReg, SadTypeKind::String);
+                        repeatInst.operands.push_back(
+                            SIROperand::Label(std::string(RuntimePorts::kRepeat)));
+                        repeatInst.operands.push_back(
+                            SIROperand::Register(textSide.registerName, SadTypeKind::String));
+                        repeatInst.operands.push_back(
+                            SIROperand::Register(countSide.registerName, countSide.type));
+                        if (b_.currentBlock_)
+                            b_.currentBlock_->instructions.push_back(repeatInst);
+                        return BuildResult(repeatReg, SadTypeKind::String);
+                    }
+                }
+
                 // (AR) العملية من expressions.h:43 - op: Lexer::TokenType
                 // (EN) Operation from expressions.h:43
                 switch (binOp->op)
