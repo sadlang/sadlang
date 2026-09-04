@@ -386,10 +386,81 @@ namespace Sad
                         //      message — a silent wrong answer that passes green, worse than
                         //      the crash already sealed. The disagreement gate still applies:
                         //      only slots whose sites actually differ are revoked.
+                        // ════════════════════════════════════════════════════════
+                        // (AR) 🔑 **نفيٌ لا إثبات**: يُعمَّمُ كلُّ وسمٍ إلّا ما لا
+                        //      معنى لتعميمِه.
+                        //
+                        //      كان هنا سردٌ إيجابيٌّ يتّسعُ وسمًا بوسم، وكلُّ وسمٍ
+                        //      غائبٍ عنه عطبٌ صامتٌ ينتظرُ مَن يقعُ فيه. وقد سقطَ
+                        //      منه `Null` و`Class`، وأعراضُهما مقيسة:
+                        //
+                        //        دالة ض(أ، ب) ارجع أ + ب نهاية
+                        //        ض("أ:"، لاشيء)  و  ض(1، 2)
+                        //          ⇒ التوقيعُ المُخرَجُ `@ض(%SadDyn, i64)` — **ب لم
+                        //            يُعمَّمْ قطُّ** — فيُعرَضُ العدمُ حارسَه عددًا:
+                        //            `أ:-9223372036854775807` بدل `أ:لاشيء`.
+                        //
+                        //        اعرض(5)  و  اعرض(كلب())
+                        //          ⇒ مؤشّرٌ يُطبَعُ عددًا، رمزُ خروجٍ صفر.
+                        //
+                        //      والبوّابةُ فوقَه (`kinds.size() >= 2`) تعني أنّ المواقعَ
+                        //      **اختلفت فعلًا**، فلا وسمَ ساكنًا واحدًا يصدُقُ عليها.
+                        //      وهذا نصُّ العقدِ في `types.yaml` عند `type.null`:
+                        //      «الوسمُ الساكنُ لا يكفي وحدَه ولا يمكنُ أن يكفي… والسؤالُ
+                        //      نفسُه سؤالُ زمنِ تشغيل».
+                        //
+                        //      فالسقوطُ يجبُ أن يكونَ إلى **الأسلمِ لا إلى الأسرع**:
+                        //      وسمٌ منسيٌّ يصيرُ تعليبًا زائدًا (بطيءٌ وصحيح) لا خانةً
+                        //      ساكنةً كاذبة (سريعٌ وخاطئ).
+                        // (EN) 🔑 A negative list, not a positive one: widen every kind
+                        //      except those there is no meaning in widening.
+                        //
+                        //      What stood here was a positive list that grew one kind at a
+                        //      time, and every kind missing from it was a silent defect
+                        //      waiting for someone to hit it. `Null` and `Class` had both
+                        //      fallen out, and their symptoms are measured: the emitted
+                        //      signature stayed `i64` for a slot receiving null at one site
+                        //      and a number at another, printing the null sentinel as a
+                        //      number; and a slot receiving a class at one site printed a
+                        //      pointer as a number with exit code 0.
+                        //      The gate above means the sites genuinely disagree, so no single
+                        //      static tag is true of them — which is exactly what types.yaml
+                        //      says about `type.null`. The fallback must therefore be to the
+                        //      SAFER option, not the faster one: a forgotten kind becomes
+                        //      needless boxing (slow and right) rather than a lying static
+                        //      slot (fast and wrong).
+                        // ════════════════════════════════════════════════════════
                         SadTypeKind &slot = fnIt->second.parameters[index].type;
-                        if (slot == SadTypeKind::String || slot == SadTypeKind::Float ||
-                            slot == SadTypeKind::Boolean || slot == SadTypeKind::Array ||
-                            slot == SadTypeKind::Integer)
+
+                        // (AR) لا معنى للتعميم: `أي` مُعمَّمٌ سلفًا، و`مجهول` لا معلومةَ
+                        //      فيه يُعمَّمُ عنها، و`فراغ` ليس نوعَ خانةٍ أصلًا (مرفوضٌ
+                        //      بـSEM040 في المحلّلِ المشترك).
+                        // (EN) No meaning in widening: Any is already dynamic, Unknown has no
+                        //      information to widen from, and Void is not a slot type at all
+                        //      (rejected by SEM040 in the shared parser).
+                        const bool widenHasNoMeaning = (slot == SadTypeKind::Any ||
+                                                        slot == SadTypeKind::Unknown ||
+                                                        slot == SadTypeKind::Void);
+
+                        // ⚠️ (AR) استثناءٌ واحدٌ مُعلَّلٌ وله شرطُ خروج: تعميمُ الصنفِ
+                        //      إلى `أي` يبلغُ الإرسالَ الديناميَّ على كائن، وهو اليومَ
+                        //      **يُجهِضُ `verifyModule` برسالةٍ إنجليزيّةٍ خامّةٍ بلا رمزِ
+                        //      كتالوج** حين يختلفُ الصنفانِ (بندٌ مفتوح). ورسالةُ مدقّقِ
+                        //      LLVM مخرَجٌ محظورٌ في هذا المشروع، فهي أسوأُ تشخيصًا من
+                        //      الجوابِ الخاطئِ الذي تحلُّ محلَّه.
+                        //      يُرفَعُ هذا الاستثناءُ **حالَ سدِّ ذلك البند**، ولا يبقى
+                        //      بلا أجل.
+                        // ⚠️ (EN) One reasoned exception with an exit condition: widening a
+                        //      class to `أي` reaches dynamic dispatch on an object, which today
+                        //      ABORTS verifyModule with a raw English message and no catalog
+                        //      code when two classes disagree (open item). An LLVM verifier
+                        //      message is forbidden output here, and is a worse diagnostic than
+                        //      the wrong answer it would replace. This exception is lifted the
+                        //      moment that item is sealed; it does not stand open-ended.
+                        const bool classWideningBlocked = (slot == SadTypeKind::Class ||
+                                                           slot == SadTypeKind::Struct);
+
+                        if (!widenHasNoMeaning && !classWideningBlocked)
                         {
                             slot = SadTypeKind::Any;
                         }

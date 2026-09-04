@@ -1279,7 +1279,28 @@ namespace Sad
                         //      خطأٍ إملائيٍّ لا وجودَ له، أو يعرّفُها بنفسِه فيصطدمُ
                         //      بالاسمِ المحجوز. والسببُ الحقيقيُّ **تباعدُ تغطيةٍ بين
                         //      المحرّكَين** يُقاس ويُعلَن، لا عطبٌ في البرنامج.
-                        if (gatedModule.empty() &&
+                        // (AR) 🔑 ولا يُقالُ هذا لاسمٍ **يملكُه المستخدم**.
+                        //      نصُّ SEM047 دعوى: «مدمَجةٌ معلَنةٌ بلا ذراعِ توزيعٍ في
+                        //      المترجم». وهي كاذبةٌ حين يكونُ للمدمَجةِ ذراعٌ تعملُ
+                        //      وإنّما فُوِّتَت لأنّ المستخدمَ صرَّحَ بالاسم: مقيسٌ أنّ
+                        //      `ضم(2، 1)` مدمَجًا خالصًا يُخرِجُ `3`، فالذراعُ قائمة.
+                        //      فمَن كتبَ `ماكرو ضم` يُقالُ له خبرٌ عن باطنِ المترجِمِ
+                        //      لا عن برنامجِه — وهو عيبُ «الرسالةِ الكاذبة» عينُه.
+                        //      والبِنيةُ واحدةٌ: `ماكرو دمج3` باسمٍ فريدٍ يُخرِجُ
+                        //      SEM004 «الدالة غير معرَّفة»، فليكن الحكمُ واحدًا —
+                        //      والفارقُ الوحيدُ أنّ الاسمَ صادفَ مدمَجًا، وهو ما لا
+                        //      سبيلَ للكاتبِ إلى معرفتِه.
+                        // (EN) 🔑 And this is not said about a name the USER owns.
+                        //      SEM047 claims «a builtin declared in the SoT with no compiler
+                        //      dispatch arm». That claim is false when the builtin's arm exists
+                        //      and was merely skipped because the user declared the name —
+                        //      measured: a bare call to the same builtin still answers. Telling
+                        //      someone who wrote `macro join` about the compiler's internals is
+                        //      the same lying-message defect. The structure is identical to a
+                        //      macro with a unique name, which yields SEM004; the only
+                        //      difference is that this name happens to collide with a builtin,
+                        //      which the writer has no way to know.
+                        if (gatedModule.empty() && !userOwnsCallName &&
                             Sad::Builtins::isKnownBuiltin(std::string_view(funcName)))
                         {
                             Sad::Errors::RenderContext ctx;
