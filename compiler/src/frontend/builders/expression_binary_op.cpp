@@ -18,6 +18,7 @@
 
 #include <string>
 #include "sir_builder.h"
+#include "string_runtime_ports.h"
 #include "builders/expression_builder.h"
 #include "module_nodes.h"
 #include "module_resolver.h"
@@ -522,16 +523,57 @@ namespace Sad
                     //      This covers: string variables + numbers, string function results + any type
                     isStringOp = true;
                 }
-                else if (leftResult.type == SadTypeKind::String && rightResult.type == SadTypeKind::String)
+                // ═══════════════════════════════════════════════════════════════
+                // (AR) 🔑 طرفان نصّيّان مُستنتَجان يُضَمّانِ ضَمًّا — لا يُجمَعانِ عَدَدًا.
+                //
+                //      كانت هنا قاعدةٌ تقول «المعامِلُ الذي نصّيّتُه مُستنتَجةٌ
+                //      مؤشّرٌ لا نصّ»، فتُسقِطُ الطرفَينِ إلى `ptrtoint · add i64 · inttoptr`:
+                //
+                //          دالة ضم(أ، ب)
+                //              ارجع أ + ب
+                //          نهاية
+                //          اطبع_سطر(ضم("مر"، "حبا"))     ⇐ بناءٌ أخضرٌ ثمّ SIGSEGV
+                //
+                //      والقاعدةُ كُتِبَتْ يومَ كانَ الاستنتاجُ غيرَ جديرٍ بالثقة؛ وقد
+                //      صارَ الاستنتاجُ مسحًا كامِلًا لمواضِعِ النداءِ على مستوى البرنامج
+                //      (`inferParamTypesFromCallSites`)، يَسبِقُ أوّلَ جسمٍ يُبنى، ويَبلُغُ
+                //      نقطةً ثابتةً في ثلاثةِ أشواط، ثمّ يُعَمِّمُ إلى `أي` عندَ الخلاف.
+                //      فإذا قالَ إنّ الخانةَ نصٌّ فهي نصٌّ، والدليلُ أنّ التوقيعَ
+                //      المُخرَجَ نفسَه `define ptr @ضم(ptr, ptr)` — التوقيعُ صدَقَ
+                //      والجسمُ وحدَهُ كذَب.
+                //
+                //      والمسارُ الوحيدُ الذي اُدُّعيَ أنّ هذا الاستثناءَ يحرُسُهُ
+                //      (`هو_رقم(الحرف)`) لا يمُرُّ به أصلًا: الترتيبُ `< <= > >=`
+                //      يرفُضُ إعادةَ استعمالِ `isStringOp` صراحةً (انظر `stringOrdering`
+                //      أدناه). ومقيسٌ: البذرةُ تعملُ قبلَ هذا التغييرِ وبعدَه.
+                //
+                //      والطرفُ الرقميُّ معَ نصٍّ مُستنتَجٍ يُضَمُّ كذلك: عقدُ
+                //      `"عمر: " + 5` مُقرَّرٌ في `operators.yaml` (`textual × numeric ⇒
+                //      type.string`)، ولا معنى لأن يَصدُقَ العقدُ على متغيّرٍ ويَكذِبَ
+                //      على معامِلٍ يحمِلُ القيمةَ عينَها.
+                // (EN) Two INFERRED string operands concatenate; they are not added numerically.
+                //
+                //      The rule that stood here said "a parameter whose string-ness is inferred is
+                //      a pointer, not a string", lowering both sides to `ptrtoint · add i64 ·
+                //      inttoptr` — a green build that segfaults on the simplest two-string concat.
+                //      It was written when inference was untrustworthy. Inference is now a
+                //      whole-program call-site scan that runs to a fixed point BEFORE any function
+                //      body is built, and widens to `أي` on disagreement. When it says the slot is
+                //      a string, it is: the emitted signature already reads `define ptr @f(ptr,
+                //      ptr)` — the signature told the truth and only the body lied.
+                //      The one case this exception was claimed to guard (`is_digit(ch)`) never
+                //      reaches it: `< <= > >=` explicitly refuse to reuse `isStringOp` (see
+                //      `stringOrdering` below), and the seed is measured working either way.
+                //      A numeric operand beside an inferred string concatenates too: `"age: " + 5`
+                //      is a contract declared in `operators.yaml` (`textual × numeric ⇒
+                //      type.string`), and a contract cannot hold for a variable yet fail for a
+                //      parameter carrying the same value.
+                // ═══════════════════════════════════════════════════════════════
+                else if (leftResult.type == SadTypeKind::String ||
+                         rightResult.type == SadTypeKind::String)
                 {
-                    // (AR) كلا المعاملين STRING وكلاهما parameter → حساب مؤشرات (لا دمج)
-                    //      هذا يحدث فقط عندما parameter نوعه مُستنتج كـ STRING لكنه فعلياً pointer
-                    // (EN) Both parameters with STRING type → pointer arithmetic (no concat)
-                    //      This only happens when parameter type is inferred as STRING but is actually a pointer
-                    isStringOp = false;
+                    isStringOp = true;
                 }
-                // (AR) الحالة المتبقية: أحد المعاملين parameter(STRING) والآخر رقمي → لا دمج نصوص (حساب مؤشرات)
-                // (EN) Remaining case: one parameter(STRING) + numeric → no string concat (pointer arithmetic)
 
                 if (isStringOp)
                 {
