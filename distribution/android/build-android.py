@@ -107,7 +107,7 @@ def ensure_app_dir(version: str) -> Path:
             "WRITE_EXTERNAL_STORAGE",
             "READ_EXTERNAL_STORAGE"
         ],
-        "features": ["interpreter", "repl", "editor", "stdlib"]
+        "features": ["compiler", "editor", "stdlib"]
     }
     (APP_DIR / "project.json").write_text(
         json.dumps(config, ensure_ascii=False, indent=2),

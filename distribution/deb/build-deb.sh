@@ -61,18 +61,16 @@ Maintainer: Sad Language Team <team@sad-lang.org>
 Homepage: https://github.com/sad-lang/sad-language
 Description: لغة ص — لغة برمجة عربية حديثة
  لغة ص (Sad) هي لغة برمجة عربية حديثة مبنية بـ C++17.
- تتضمن مفسر فوري (sad) ومترجم أصلي (sadc) عبر LLVM،
  مكتبة قياسية غنية، خادم LSP، مدير حزم، وأداة تنسيق.
  .
  المكونات المتضمنة:
-  - sad: المفسر — يشغل ملفات .ص مباشرة
+  - sad: مركز الأدوات — يُنادي البقيّة (sad build، sad check…)
   - sad-pkg: مدير الحزم
   - sad-lsp: خادم LSP للمحررات
  .
- لتثبيت المترجم (sadc)، ثبّت حزمة sad-lang-compiler.
+ لتثبيت المترجم (sad-build/sadc)، ثبّت حزمة sad-lang-compiler.
 Depends: libc6 (>= 2.31), libstdc++6 (>= 10)
 Recommends: sad-lang-compiler
-Suggests: llvm-18-dev
 EOF
 
 # ── سكريبت ما بعد التثبيت / Post-Install Script ──

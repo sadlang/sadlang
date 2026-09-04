@@ -44,14 +44,46 @@ cmake -S "$PROJECT_ROOT" -B "$BUILD_DIR/cmake-build" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$INSTALL_PREFIX"
 
-cmake --build "$BUILD_DIR/cmake-build" --config Release --target sad-run -- -j"$(sysctl -n hw.ncpu)"
+# (AR) 🔑 كان الهدفُ `sad-run` — المحرّكُ المحذوف. والسطرُ ١٥ فيه
+#      `set -euo pipefail`، فكانت حزمةُ macOS **تموتُ عند أوّلِ خطوةِ بناء**
+#      ولا تصلُ إلى شيءٍ ممّا بعدَها. ⚠️ ولم يظهرْ ذلك في CI لأنّ هذا
+#      السكربتَ لا يُنادى من أيِّ مجرًى — يُخفِقُ تحتَ يدٍ بشريّةٍ وحدَها.
+#      والمبنيُّ الآن ما يُنسَخُ فعلًا أدناه: `sad` (المركز) و`sad-build`.
+# (EN) The target was sad-run, the deleted engine, and line 15 sets
+#      `set -euo pipefail` — so the macOS package died at its first build step
+#      and reached nothing after it. CI never showed this because no workflow
+#      invokes this script; it fails only under a human hand. The hub and the
+#      compiler are built here and mandatorily copied below.
+cmake --build "$BUILD_DIR/cmake-build" --config Release --target sad sad-build -- -j"$(sysctl -n hw.ncpu)"
 
 # === إعداد هيكل الحزمة ===
 echo "→ إعداد هيكل الحزمة..."
 
 # bin/
+# (AR) 🔑 كان هنا نسخُ `sad` وحدَه بـ`|| true` — والمترجّمُ يُبنى فوقُ ثمّ
+#      يُهمَل. وأخطرُ من النقصِ أنّ `|| true` **يبتلعُ غيابَه**: تنجحُ الحزمةُ
+#      وتُشحَنُ بلا مترجّم، وصفحةُ الدليلِ أسفلَه تقولُ للمستخدمِ `sad build`.
+#      فالإخفاقُ العالي صار صامتًا. والنسخُ الآن **مُلزِمٌ** لِما لا حزمةَ بدونه.
+#      و`sadc` لقبُ `sad-build` المنشور (scripts/ci/release_tools.sh).
+# (EN) Only `sad` was copied, with `|| true` — the compiler was built above and
+#      then dropped. Worse than the omission: `|| true` swallowed its absence, so
+#      the package succeeded and shipped with no compiler while the man page five
+#      lines down tells the user to run `sad build`. A loud failure had become a
+#      silent one. These two copies are now mandatory; sadc is sad-build's
+#      published alias per scripts/ci/release_tools.sh.
 mkdir -p "$PKG_ROOT$INSTALL_PREFIX/bin"
-cp "$BUILD_DIR/cmake-build/bin/sad" "$PKG_ROOT$INSTALL_PREFIX/bin/" 2>/dev/null || true
+for _bin in sad sad-build; do
+    if [ ! -f "$BUILD_DIR/cmake-build/bin/$_bin" ]; then
+        echo "✗ لم يُبنَ '$_bin' — لا تُحزَّم حزمةٌ ناقصة" >&2
+        exit 1
+    fi
+    cp "$BUILD_DIR/cmake-build/bin/$_bin" "$PKG_ROOT$INSTALL_PREFIX/bin/"
+done
+cp "$PKG_ROOT$INSTALL_PREFIX/bin/sad-build" "$PKG_ROOT$INSTALL_PREFIX/bin/sadc"
+for _bin in sad-lsp sad-fmt sad-pkg sad-check; do
+    [ -f "$BUILD_DIR/cmake-build/bin/$_bin" ] &&
+        cp "$BUILD_DIR/cmake-build/bin/$_bin" "$PKG_ROOT$INSTALL_PREFIX/bin/"
+done
 
 # stdlib/
 mkdir -p "$PKG_ROOT$INSTALL_PREFIX/lib/sad/stdlib"
@@ -65,10 +97,10 @@ mkdir -p "$PKG_ROOT$INSTALL_PREFIX/share/man/man1"
 cat > "$PKG_ROOT$INSTALL_PREFIX/share/man/man1/sad.1" << 'MANEOF'
 .TH SAD 1 "2026" "v1.0.0" "Sad Programming Language"
 .SH NAME
-sad \- مفسر لغة ص / Sad Arabic Programming Language interpreter
+sad \- مركز أدوات لغة ص / Sad Arabic Programming Language tool hub
 .SH SYNOPSIS
 .B sad
-[\fIoptions\fR] [\fIfile.ص\fR]
+\fIcommand\fR [\fIoptions\fR] [\fIfile.ص\fR]
 .SH DESCRIPTION
 لغة ص هي لغة برمجة عربية حديثة.
 .SH OPTIONS
@@ -79,7 +111,7 @@ sad \- مفسر لغة ص / Sad Arabic Programming Language interpreter
 .B \-\-version
 عرض الإصدار
 .SH EXAMPLES
-.B sad script.ص
+.B sad build script.ص
 .SH AUTHORS
 فريق لغة ص
 MANEOF

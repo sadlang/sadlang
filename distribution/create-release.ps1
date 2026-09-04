@@ -1,4 +1,16 @@
 #!/usr/bin/env pwsh
+# (AR) ⚠️ **لا تضعْ BOM في مقدّمةِ هذا الملفّ.** النواةُ لا تطابقُ `#!`
+#      إلّا في الإزاحةِ صفرًا، فبايتاتُ BOM قبلَه تجعلُ `./create-release.ps1`
+#      يُخفِقُ بـexec format error على لينكس وماك. وقد أُضيفَ BOM هنا مرّةً
+#      لإسكاتِ أخطاءِ تحليلٍ ظهرت تحتَ Windows PowerShell 5.1 — والقياسُ
+#      كان بمفسّرٍ خاطئ: الشِّبانغُ أعلاه يُعلِنُ `pwsh` (٧+)، وهو يقرأ
+#      UTF-8 بلا BOM على المنصّاتِ الثلاث. فالملفُّ يبقى بلا BOM.
+# (EN) Do NOT put a BOM at the head of this file. The kernel matches #! at
+#      offset 0 only, so BOM bytes in front of it make ./create-release.ps1
+#      fail with exec format error on Linux and macOS. A BOM was added here
+#      once to silence parse errors seen under Windows PowerShell 5.1 —
+#      measured with the wrong interpreter: the shebang above declares pwsh
+#      7+, which reads BOM-less UTF-8 on all three platforms.
 # بسم الله الرحمن الرحيم
 # ═══════════════════════════════════════════════════════════════════════
 # سكريبت إعداد إصدار جديد — لغة ص
@@ -102,11 +114,31 @@ if (-not $DryRun) {
         cmake -S $RepoRoot -B $BuildDir
     }
     
-    # Build Release
-    cmake --build $BuildDir --config Release --target sad-run
-    cmake --build $BuildDir --config Release --target sad-lsp
-    cmake --build $BuildDir --config Release --target sad-pkg
-    cmake --build $BuildDir --config Release --target sad-fmt
+    # ══════════════════════════════════════════════════════════════════
+    # (AR) 🔑 **الهدفُ الأوّلُ كان `sad-run` — المحرّكَ المحذوف.**
+    #
+    #      ⚠️ وأخطرُ من ذلك أنّ إخفاقَه **لا يوقفُ شيئًا**:
+    #      `$ErrorActionPreference = "Stop"` (السطر ٢٤) لا يسري على أمرٍ
+    #      أصليٍّ في پاورشِل ٥٫١ — يُطبَعُ الخطأُ ثمّ يمضي السكربتُ إلى
+    #      التحزيمِ بحزمةٍ ناقصةٍ ويقولُ «البناء مكتمل».
+    #      فهو يُخفِقُ ويكذبُ معًا، وهو أسوأُ من الإخفاقِ وحدَه.
+    #
+    #      فالحكمُ من `$LASTEXITCODE` بعدَ كلِّ هدف. والأهدافُ صارت ما يُشحَنُ
+    #      فعلًا: المركزُ والمترجمُ وما يليهما.
+    # (EN) The first target was sad-run, the deleted engine — and worse, its
+    #      failure stopped nothing: $ErrorActionPreference = "Stop" does not
+    #      apply to native commands in PowerShell 5.1, so the error printed and
+    #      the script walked on to packaging an incomplete bundle and announced
+    #      "build complete". It failed and lied at once, which is worse than
+    #      failing. The verdict now comes from $LASTEXITCODE after each target,
+    #      and the targets are what actually ships.
+    # ══════════════════════════════════════════════════════════════════
+    foreach ($target in @("sad", "sad-build", "sad-lsp", "sad-pkg", "sad-fmt")) {
+        cmake --build $BuildDir --config Release --target $target
+        if ($LASTEXITCODE -ne 0) {
+            throw "فشل بناء الهدف '$target' (رمز $LASTEXITCODE) — لا تُحزَّم حزمةٌ ناقصة"
+        }
+    }
 }
 
 Write-OK "البناء مكتمل"

@@ -30,19 +30,19 @@ AutoReqProv:    no
 
 %description
 لغة ص (Sad) هي لغة برمجة عربية حديثة مبنية بـ C++17.
-تتضمن مفسر فوري (sad) ومكتبة قياسية عربية غنية،
+تتضمن مترجمًا أصليًّا ومكتبة قياسية عربية غنية،
 خادم LSP للتكامل مع المحررات، ومدير حزم.
 
 المكونات:
-  - sad: المفسر — يشغل ملفات .ص مباشرة
-  - sadc: المترجم — يحوّل .ص إلى ملف تنفيذي (يتطلب LLVM 18)
+  - sad: مركز الأدوات — يُنادي البقيّة (sad build، sad check…)
+  - sadc: المترجم — يحوّل .ص إلى ملف تنفيذي (LLVM مربوطة ساكنًا)
   - sad-pkg: مدير الحزم
   - sad-lsp: خادم LSP للمحررات
 
 %description -l en
 Sad (ص) is a modern Arabic programming language built with C++17.
-It includes an interpreter, standard library, LSP server,
-package manager, and optional native compiler via LLVM.
+It includes a native LLVM compiler, standard library, LSP server,
+and package manager.
 
 %prep
 %setup -q -n sad-full-v%{version}-linux-x86_64
@@ -69,7 +69,24 @@ cp README.md %{buildroot}%{_docdir}/sad-lang/ 2>/dev/null || true
 %{_bindir}/sadc
 %{_bindir}/sad-pkg
 %{_bindir}/sad-lsp
-%{_bindir}/sad-repl
+# (AR) 🔑 **`%files` تُقاسُ في الاتّجاهَين، لا في واحد.**
+#      · حُذف `sad-repl`: `%install` ينسخُ `bin/*` فلا يقعُ ملفٌّ زال مع المفسّر،
+#        ثمّ يطلبُه `%files` صراحةً ⇒ `File not found` ⇒ البناءُ يُخفِق.
+#      · ⚠️ وأُضيفَ `sad-build` و`sad-check`: أرشيفُ الإصدارِ يحملُهما
+#        (`SAD_TOOL_TABLE` في scripts/ci/release_tools.sh)، و`%install` ينسخُ
+#        `bin/*` فيقعان، ثمّ لا تذكرُهما `%files` ⇒ «Installed but unpackaged»
+#        ⇒ **البناءُ يُخفِقُ كذلك**. ولا `%_unpackaged_files_terminate_build 0`
+#        في الشجرةِ كلِّها. فالاتّجاهُ الثاني كان يكسرُ البناءَ اليومَ فعلًا.
+# (EN) %files must be measured in BOTH directions. sad-repl was removed because
+#      %install copies bin/* so a file that went with the interpreter never lands
+#      while %files demands it — File not found. And sad-build and sad-check were
+#      ADDED: the release archive carries both (SAD_TOOL_TABLE in
+#      scripts/ci/release_tools.sh), %install copies bin/* so both land, and
+#      %files did not list them — "Installed (but unpackaged) file(s) found",
+#      which fails the build too, and no %_unpackaged_files_terminate_build 0
+#      exists anywhere in the tree.
+%{_bindir}/sad-build
+%{_bindir}/sad-check
 %{_bindir}/sad-fmt
 %{_datadir}/sad-lang/
 
@@ -80,14 +97,14 @@ echo "║     لغة ص — تم التثبيت بنجاح!                ║"
 echo "╚═══════════════════════════════════════════════╝"
 echo ""
 echo "  sad --help              عرض المساعدة"
-echo "  sad script.ص           تشغيل ملف"
-echo "  sadc script.ص          ترجمة إلى ملف تنفيذي"
+echo "  sad build script.ص     ترجمة إلى ملف تنفيذي"
+echo "  sad check script.ص     فحص ملكية وأنواع"
 echo "  sad-pkg init            إنشاء مشروع جديد"
 echo ""
 
 %changelog
 * Mon Mar 01 2026 Sad Language Team <team@sad-lang.org> - 1.0.0-1
 - الإصدار الأول
-- المفسر (sad) والمترجم (sadc) ومدير الحزم (sad-pkg)
+- مركز الأدوات (sad) والمترجم (sad-build/sadc) ومدير الحزم (sad-pkg)
 - المكتبة القياسية العربية الكاملة
 - خادم LSP وأداة التنسيق

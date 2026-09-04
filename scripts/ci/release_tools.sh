@@ -80,7 +80,6 @@ sad:sad:sad
 sad-lsp:sad-lsp:sad-lsp
 sad-check:sad-check:sad-check
 sad-pkg:sad-pkg:sad-pkg
-sad-repl:sad-repl:sad-repl
 sad-fmt:sad-fmt:sad-fmt
 sad-build:sad-build:sad-build
 sad-build:sad-build:sadc
